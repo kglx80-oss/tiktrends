@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { and, count, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
@@ -6,7 +7,7 @@ import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
 import { effectiveAccess } from '../../../lib/access';
-import { prochainGesteStudio } from '@tiktrends/core';
+import { prochainGesteStudio, CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { Hub, type HubCard, type HubState } from '../../../components/Hub';
 import { Icon } from '../../../components/Icon';
 import { cadrePage, surface } from '../../../components/ui';
@@ -114,6 +115,12 @@ export default async function StudioPage() {
         next={prochainGesteStudio({ jugees: etat.jugees, enAttente: etat.enAttente })}
         cards={cards}
       >
+        {/* L8-B · UX-05 · les projets (créés depuis la Veille) n'avaient AUCUNE entrée depuis
+            le Studio ni le rail · on n'y arrivait que par la Veille ou l'URL. Un lien, rien
+            de retiré : les quatre studios et leurs routes restent. */}
+        <Link href="/studio/projets" data-lien="projets" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line-2)', color: 'var(--ink)', fontSize: 13.5, fontWeight: 700, textDecoration: 'none', alignSelf: 'flex-start', marginBottom: 10 }}>
+          <Icon name="file" size={15} /> Tes projets · reprendre une création préparée depuis la Veille
+        </Link>
         <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, maxWidth: 720 }}>
           Une créa fabriquée ici ne vaut rien tant qu’elle n’a pas été jugée. Envoie-la dans un lot depuis
           l’Adsmap · c’est le verdict, pas la génération, qui apprend quelque chose à Jarvis.

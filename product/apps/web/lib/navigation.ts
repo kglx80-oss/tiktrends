@@ -338,3 +338,40 @@ function hydrate(motif: string, parts: string[]): string {
 export function routeLabel(pathname: string): string | null {
   return matchRoute(pathname)?.label ?? null;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Routes historiques · L8-B (UX-05)                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Les adresses que des liens déjà en circulation visent · anciens liens du
+ * Studio, des Pubs IA et de la Veille (favoris, liens partagés, cartes de
+ * Veille, retours depuis un projet). Chacune doit rester SERVIE, avec les
+ * paramètres qu'elle lit · un test parcourt cette liste (`l8b-navigation`) et
+ * échoue si une page disparaît, si elle cesse de lire un paramètre, ou si le
+ * lien de retour vers la Veille perd un critère.
+ *
+ * Ajout seulement · rien ici ne change la carte `ROUTES` ni le fil d'Ariane.
+ */
+export interface RouteHistorique {
+  chemin: string;
+  origine: 'Studio' | 'Pubs IA' | 'Veille';
+  /** Paramètres de requête que des liens existants portent, et que la page lit encore. */
+  params: readonly string[];
+}
+
+export const ROUTES_HISTORIQUES: readonly RouteHistorique[] = [
+  { chemin: '/studio', origine: 'Studio', params: [] },
+  { chemin: '/studio/ads', origine: 'Pubs IA', params: ['mode', 'ref', 'angle', 'src', 'srcnom', 'depuis', 'rv'] },
+  { chemin: '/studio/image', origine: 'Studio', params: [] },
+  { chemin: '/studio/video', origine: 'Studio', params: ['prompt'] },
+  { chemin: '/studio/textes', origine: 'Studio', params: ['brand', 'inspo'] },
+  { chemin: '/studio/projets', origine: 'Studio', params: ['toutes'] },
+  { chemin: '/studio/projets/[id]', origine: 'Studio', params: ['version'] },
+  { chemin: '/veille', origine: 'Veille', params: ['q', 'p', 'searchIn', 'media', 'sort', 'status', 'country', 'page', 'rv'] },
+  { chemin: '/veille/scale', origine: 'Veille', params: ['q', 'country'] },
+  { chemin: '/veille/formats', origine: 'Veille', params: [] },
+  { chemin: '/saved', origine: 'Veille', params: ['onglet'] },
+  { chemin: '/radar', origine: 'Veille', params: [] },
+  { chemin: '/tags', origine: 'Veille', params: [] },
+];

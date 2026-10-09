@@ -2,7 +2,7 @@
 
 import { useRef, useState, type CSSProperties } from 'react';
 import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
-  reponseApplicable, LIBELLES_MODALITE, LIBELLES_ELEMENT, MODALITES_SOURCE, LIBELLES_TYPE_PROJET, dateCourteUtc, CIBLE_TACTILE_MIN,
+  reponseApplicable, messageHorsLigneStudio, LIBELLES_MODALITE, LIBELLES_ELEMENT, MODALITES_SOURCE, LIBELLES_TYPE_PROJET, dateCourteUtc, CIBLE_TACTILE_MIN,
   type HypotheseQualifiee, type DemandeEnCours,
 } from '@tiktrends/core';
 import { preparerCreation, proposerHypotheses, creerProjetDepuisSources } from '../../app/actions/studios/sources';
@@ -10,6 +10,7 @@ import type { Preparation } from '../../lib/studios/sources/preparation';
 import { Modal } from '../Modal';
 import { Icon } from '../Icon';
 import { btn, btnGhost, input, lbl, tuile, cadreSignal } from '../ui';
+import { useFocusApresGeste, cleRetour } from './projet/focus-geste';
 
 /**
  * « Préparer une création » · le panneau qui part d'une annonce de Veille ou
@@ -51,7 +52,7 @@ interface Saisie { statement: string; variable: string; control: string; treatme
 const SAISIE_VIDE: Saisie = { statement: '', variable: '', control: '', treatment: '', metric: '', decisionRule: '' };
 
 type Choix = { type: 'proposee'; id: string } | { type: 'saisie' } | null;
-type Erreur = { message: string; traceId?: string } | null;
+type Erreur = { message: string; traceId?: string; horsLigne?: boolean } | null;
 
 const champ: CSSProperties = { ...input, fontSize: 16 };
 const titreSection: CSSProperties = { margin: '0 0 8px', fontSize: 13, fontWeight: 700, letterSpacing: '.02em', color: 'var(--ink)' };
@@ -102,7 +103,14 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
   async function charger(marque: string | null) {
     const demande: DemandeEnCours = { seq: ++seqPrep.current, brandId: marque ?? '' };
     setChargement(true);
-    const r = await preparerCreation({ sources: [source], ...(marque ? { brandId: marque } : {}) });
+    let r: Awaited<ReturnType<typeof preparerCreation>>;
+    try {
+      r = await preparerCreation({ sources: [source], ...(marque ? { brandId: marque } : {}) });
+    } catch {
+      // L8-B · hors ligne · plus de « Chargement… » à vie : on le dit, et l'on peut réessayer.
+      if (demande.seq === seqPrep.current) { setChargement(false); setErreur({ message: messageHorsLigneStudio('chargement'), horsLigne: true }); }
+      return;
+    }
     // La marque initiale n'est connue qu'à la réponse · on ne compare alors que le numéro.
     const courant = { seq: seqPrep.current, brandId: marqueRef.current ?? '' };
     if (marque ? !reponseApplicable(demande, courant, r.ok ? r.brandId : null) : demande.seq !== seqPrep.current) return;
@@ -142,7 +150,13 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
     const demande: DemandeEnCours = { seq: ++seqProp.current, brandId };
     setProposant(true);
     setRefusIa(null);
-    const r = await proposerHypotheses({ sources: [source], brandId });
+    let r: Awaited<ReturnType<typeof proposerHypotheses>>;
+    try {
+      r = await proposerHypotheses({ sources: [source], brandId });
+    } catch {
+      if (demande.seq === seqProp.current) { setProposant(false); setRefusIa({ message: messageHorsLigneStudio('proposition') }); }
+      return;
+    }
     if (!reponseApplicable(demande, { seq: seqProp.current, brandId: marqueRef.current ?? '' }, r.ok ? r.brandId : demande.brandId)) return;
     setProposant(false);
     if (!r.ok) { setRefusIa({ message: r.message, traceId: r.traceId }); setChoix({ type: 'saisie' }); return; }
@@ -167,7 +181,16 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
     }
     setCreation({ etat: 'encours' });
     setErreur(null);
-    const r = await creerProjetDepuisSources({ sources: [source], brandId, kind, titre, productId, hypothese, cleClic });
+    let r: Awaited<ReturnType<typeof creerProjetDepuisSources>>;
+    try {
+      r = await creerProjetDepuisSources({ sources: [source], brandId, kind, titre, productId, hypothese, cleClic });
+    } catch {
+      // L8-B · mesuré avant : bouton figé sur « Création… », aucun message. La clé de clic
+      // reste la même · si le serveur avait créé le projet, le réessai le retrouve sans doublon.
+      setCreation({ etat: 'repos' });
+      setErreur({ message: messageHorsLigneStudio('creation'), horsLigne: true });
+      return;
+    }
     if (!r.ok) {
       setCreation({ etat: 'repos' });
       const detail = r.violations?.map((v) => `${v.chemin} · ${v.raison}`).join(' ; ');
@@ -185,6 +208,10 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
   const saisieOk = saisie.statement.trim().length > 0 && saisie.variable.trim().length > 0;
   const hypotheseOk = choix === null || (choix.type === 'saisie' ? saisieOk : !!propositions);
   const nomMarque = prep?.marques.find((m) => m.id === brandId)?.nom ?? '';
+  const corps = useRef<HTMLDivElement>(null);
+  const annonce_ = useRef<HTMLDivElement>(null);
+  // L8-B · UX-02 · l'échec (ou la création réussie) prend le focus · il s'affiche en haut du panneau.
+  useFocusApresGeste({ apercu: false, retour: cleRetour(erreur ?? (creation.etat === 'ok' ? creation : null)), formulaire: false }, { conteneur: corps, retour: annonce_ });
 
   return (
     <>
@@ -194,14 +221,18 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
       </button>
       <Modal open={ouvert} onClose={() => setOuvert(false)} title="Préparer une création" maxWidth={720}
         subtitle="Une source, une hypothèse, un produit de ta marque · le projet garde tout. Rien n’est généré ici.">
+        <div ref={corps}>
         {chargement && !prep && <p role="status" style={note}>Chargement de la source et de ta marque…</p>}
         {erreur && (
-          <div role="alert" style={{ ...cadreSignal('rgba(255,77,109,.4)', 'tuile'), background: 'rgba(255,77,109,.10)', color: '#ff9db0', padding: '10px 12px', fontSize: 13, marginBottom: 14 }}>
-            {erreur.message}{erreur.traceId ? <span style={{ display: 'block', fontSize: 11.5, marginTop: 4, color: 'var(--ink-2)' }}>Identifiant support : {erreur.traceId}</span> : null}
+          <div ref={annonce_} tabIndex={-1} role="alert" data-erreur={erreur.horsLigne ? 'hors-ligne' : 'refus'} style={{ ...cadreSignal('rgba(255,77,109,.4)', 'tuile'), background: 'rgba(255,77,109,.10)', color: '#ff9db0', padding: '10px 12px', fontSize: 13, marginBottom: 14 }}>
+            {erreur.horsLigne && <b style={{ color: 'var(--ink)' }}>Hors ligne · </b>}{erreur.message}{erreur.traceId ? <span style={{ display: 'block', fontSize: 11.5, marginTop: 4, color: 'var(--ink-2)' }}>Identifiant support : {erreur.traceId}</span> : null}
+            {erreur.horsLigne && !prep && (
+              <div style={{ marginTop: 8 }}><button type="button" onClick={() => { setErreur(null); void charger(null); }} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN }}>Réessayer</button></div>
+            )}
           </div>
         )}
         {creation.etat === 'ok' && creation.projetId ? (
-          <div role="status" style={{ display: 'grid', gap: 12 }}>
+          <div ref={erreur ? undefined : annonce_} tabIndex={-1} role="status" data-creation="ok" style={{ display: 'grid', gap: 12 }}>
             <p style={{ ...note, fontSize: 14, color: 'var(--ink)' }}>
               {creation.deja ? 'Ce projet existait déjà pour ce clic · rien n’a été créé en double.' : `Projet créé · ${creation.garde ?? 'la source y est gardée'}.`}
             </p>
@@ -359,6 +390,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
             </div>
           </div>
         ) : null}
+        </div>
       </Modal>
     </>
   );

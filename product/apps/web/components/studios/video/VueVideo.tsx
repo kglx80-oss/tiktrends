@@ -1,13 +1,14 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useRef, useState, type RefObject } from 'react';
 import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
   libellePrix, libelleCredits, libelleUsd, dureeLisible, idsPlansAlloues, saisieVierge, referencesDuProjet,
-  LIBELLES_MODE_PAROLE, libelleAnimationIndisponible, MODES_PAROLE, VALIDITE_DEVIS_MS, GAIN_MUSIQUE_MIN_DB, GAIN_MUSIQUE_MAX_DB,
+  LIBELLES_MODE_PAROLE, libelleAnimationIndisponible, etatEchecStudio, MODES_PAROLE, VALIDITE_DEVIS_MS, GAIN_MUSIQUE_MIN_DB, GAIN_MUSIQUE_MAX_DB,
   type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan, type ImpactVideo, type BilanDurees,
 } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo, KeyframeVue, JobVideoVue } from '../../../lib/studios/video/lecture';
 import { tuile } from '../../ui';
+import { useFocusApresGeste, cleRetour } from '../projet/focus-geste';
 import { panneau, carte, titre, sousTitre, etiquette, texte, mini, boutonPrimaire, boutonSecondaire, desactive, signal, pastille, rangee, champ, CIBLE } from '../propositions/styles';
 
 /**
@@ -44,7 +45,14 @@ export interface GestesVideo {
   surRetenirConsigne: (runId: string) => void;
   surDevis: (shotId: string) => void;
   surLancer: (shotId: string) => void;
+  /** L8-B · conflit de version · relit la version courante (la saisie en cours reste). */
+  surRecharger?: () => void;
+  /** L8-B · rejoue le dernier geste gratuit qui n'a pas abouti (réseau). */
+  surReessayer?: () => void;
 }
+
+/** Retour d'un geste · `code` porte l'échec (code studio, ou `NETWORK`) ; `reessayable` quand rejouer ne coûte rien. */
+export interface RetourGesteVideo { ok: boolean; texte: string; code?: string; reessayable?: boolean }
 
 export interface ProprietesVueVideo extends GestesVideo {
   vue: DonneesVideo;
@@ -52,7 +60,7 @@ export interface ProprietesVueVideo extends GestesVideo {
   storyboard: StoryboardPropose | null;
   questions: string[];
   enCours: string | null;
-  retour: { ok: boolean; texte: string } | null;
+  retour: RetourGesteVideo | null;
 }
 
 const date = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
@@ -76,12 +84,15 @@ function Bouton({ actif, enCours, libelle, libelleEnCours, surClic, primaire = t
 
 /* ─────────────────────────────── Aperçu d'impact ─────────────────────────── */
 
-function Apercu({ a, p }: { a: ApercuGeste; p: ProprietesVueVideo }) {
+function Apercu({ a, p, zone }: { a: ApercuGeste; p: ProprietesVueVideo; zone: RefObject<HTMLDivElement | null> }) {
   const payantes = a.impact?.aRefaire.filter((l) => l.payant) ?? [];
   const calculs = a.impact?.aRefaire.filter((l) => !l.payant) ?? [];
   const conservees = a.impact?.mediasConserves ?? [];
   return (
-    <div style={{ ...carte, border: '2px solid var(--accent-strong)' }} data-zone="apercu-impact" role="region" aria-label="Impact du changement avant enregistrement">
+    // L8-B · la zone prend le focus à son apparition (elle s'affiche en haut de l'écran, loin du geste) ·
+    // Échap équivaut à « Ne rien changer », qui reste le bouton visible.
+    <div ref={zone} tabIndex={-1} onKeyDown={(e) => { if (e.key === 'Escape' && !p.enCours) { e.stopPropagation(); p.surAbandonner(); } }}
+      style={{ ...carte, border: '2px solid var(--accent-strong)' }} data-zone="apercu-impact" role="region" aria-label="Impact du changement avant enregistrement · Échap pour ne rien changer">
       <h3 style={{ ...titre, fontSize: 16 }}>Avant d’enregistrer · {a.libelle}</h3>
       {a.refus ? <p style={signal('err')} data-apercu="refus">{a.refus}</p> : a.impact && (
         <>
@@ -240,8 +251,11 @@ function FormulaireScenario({ p }: { p: ProprietesVueVideo }) {
   const d = v.disponibilite;
   const ids = idsPlansAlloues(Object.keys(v.contenu.shots.byId), nb);
   const maj = (i: number, champ: keyof SaisiePlan, valeur: unknown) => setSaisies((s) => s!.map((x, k) => (k === i ? { ...x, [champ]: valeur } : x)));
+  const boite = useRef<HTMLDivElement>(null);
+  const saisie = useRef<HTMLDivElement>(null);
+  useFocusApresGeste({ apercu: false, retour: null, formulaire: saisies !== null }, { conteneur: boite, formulaire: saisie });
   return (
-    <div style={carte} data-zone="nouveau-scenario">
+    <div ref={boite} style={carte} data-zone="nouveau-scenario">
       <h3 style={{ ...titre, fontSize: 16 }}>{v.contenu.shots.order.length ? 'Remplacer le scénario' : 'Construire le scénario'}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         <div><label htmlFor={`${id}-nb`} style={etiquette}>Nombre de plans</label>
@@ -260,7 +274,7 @@ function FormulaireScenario({ p }: { p: ProprietesVueVideo }) {
         <span style={mini}>Chemin manuel · aucun appel, aucun coût.</span>
       </div>
       {saisies && (
-        <div style={{ display: 'grid', gap: 12 }} data-zone="saisie-plans">
+        <div ref={saisie} style={{ display: 'grid', gap: 12 }} data-zone="saisie-plans">
           {saisies.map((s, i) => (
             <fieldset key={ids[i]} style={{ ...tuile, padding: 12, margin: 0, minWidth: 0, display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
               <legend style={{ ...etiquette, padding: '0 6px' }}>Plan {i + 1}</legend>
@@ -389,19 +403,30 @@ export function VueVideo(p: ProprietesVueVideo) {
   const v = p.vue;
   const ordre = v.contenu.shots.order.filter((s) => v.contenu.shots.byId[s] && s !== 's_image');
   const rangs = Object.fromEntries(ordre.map((s, i) => [s, i + 1]));
+  const zone = useRef<HTMLElement>(null);
+  const apercuRef = useRef<HTMLDivElement>(null);
+  const retourRef = useRef<HTMLDivElement>(null);
+  useFocusApresGeste({ apercu: !!p.apercu, retour: cleRetour(p.retour), formulaire: false }, { conteneur: zone, apercu: apercuRef, retour: retourRef });
+  const echec = p.retour && !p.retour.ok ? etatEchecStudio(p.retour.code) : null;
   return (
-    <section aria-labelledby={`${id}-titre`} style={panneau} data-zone="studio-video">
+    <section ref={zone} aria-labelledby={`${id}-titre`} style={panneau} data-zone="studio-video">
       <div style={{ display: 'grid', gap: 6 }}>
         <h2 id={`${id}-titre`} style={titre}>Storyboard et montage</h2>
         <p style={sousTitre}>Version {v.version.n} · {ordre.length} plan{ordre.length > 1 ? 's' : ''} · {dureeLisible(v.dureeTotaleMs)} · images clés {v.format.largeur} × {v.format.hauteur} ({v.format.libelle}{v.format.depuisBrief ? ', lu dans le brief' : ', défaut'}). Chaque changement montre son impact avant d’être enregistré ; rien de payant ne part sans ton clic.</p>
       </div>
       {!v.disponibilite.animation.disponible && <p style={signal('warn')} data-zone="animation" data-indisponible="animation"><span style={{ fontWeight: 600 }}>{libelleAnimationIndisponible(v.disponibilite.animation)}.</span> {v.disponibilite.animation.raison}</p>}
       {p.retour && (
-        <div role={p.retour.ok ? 'status' : 'alert'} style={signal(p.retour.ok ? 'ok' : 'err')} data-retour={p.retour.ok ? 'ok' : 'refus'}>
-          <span style={{ fontWeight: 600 }}>{p.retour.ok ? 'Fait · ' : 'Refusé · '}</span>{p.retour.texte}
+        <div ref={retourRef} tabIndex={-1} role={p.retour.ok ? 'status' : 'alert'} style={signal(p.retour.ok ? 'ok' : echec!.ton)} data-retour={p.retour.ok ? 'ok' : 'refus'} data-echec={p.retour.ok ? undefined : (p.retour.code ?? 'NETWORK')}>
+          <span style={{ fontWeight: 600 }}>{p.retour.ok ? 'Fait · ' : `${echec!.mot} · `}</span>{p.retour.texte}
+          {echec?.action === 'recharger' && p.surRecharger && (
+            <div style={{ ...rangee, marginTop: 8 }}><Bouton nom="recharger" primaire={false} actif={!p.enCours} enCours={false} libelle={echec.libelleAction!} surClic={p.surRecharger} /></div>
+          )}
+          {echec?.action === 'reessayer' && p.retour.reessayable && p.surReessayer && (
+            <div style={{ ...rangee, marginTop: 8 }}><Bouton nom="reessayer" primaire={false} actif={!p.enCours} enCours={false} libelle={echec.libelleAction!} surClic={p.surReessayer} /></div>
+          )}
         </div>
       )}
-      {p.apercu && <Apercu a={p.apercu} p={p} />}
+      {p.apercu && <Apercu a={p.apercu} p={p} zone={apercuRef} />}
       {p.questions.length > 0 && (
         <div style={signal('info')} data-champ="questions">
           <p style={{ ...texte, color: 'var(--ink)' }}>Le modèle demande des précisions avant de proposer :</p>

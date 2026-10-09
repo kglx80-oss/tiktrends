@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState, type KeyboardEvent } from 'react';
 import type { DisponibiliteJarvis } from '@tiktrends/core';
 import type { CiblePresentee } from '../../../lib/studios/propositions/types';
 import { boutonPrimaire, boutonSecondaire, champ, desactive, etiquette, mini, rangee, texte } from './styles';
@@ -41,9 +41,20 @@ export function FormulaireDemande({ cibles, jarvis, peutProposer, enCours, onDem
   const jarvisBloque = !jarvis.disponible || enCours || demande.trim().length === 0;
   const mainBloque = enCours || !champChoisi || valeur === champChoisi.valeur;
 
+  // L8-B · onglets ARIA complets : un seul arrêt de Tab (onglet actif), flèches, Début et Fin
+  // pour passer de l'un à l'autre · le clic et Entrée restent l'alternative.
+  const ORDRE = ['jarvis', 'main'] as const;
+  const clavierOnglets = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const i = ORDRE.indexOf(mode);
+    const j = e.key === 'ArrowRight' ? (i + 1) % ORDRE.length : e.key === 'ArrowLeft' ? (i + ORDRE.length - 1) % ORDRE.length : e.key === 'Home' ? 0 : e.key === 'End' ? ORDRE.length - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault();
+    setMode(ORDRE[j]!);
+    e.currentTarget.ownerDocument.getElementById(`${id}-onglet-${ORDRE[j]}`)?.focus();
+  };
   const onglet = (m: 'jarvis' | 'main', libelle: string) => (
-    <button type="button" role="tab" aria-selected={mode === m} aria-controls={`${id}-${m}`} id={`${id}-onglet-${m}`} onClick={() => setMode(m)}
-      style={{ ...boutonSecondaire, ...(mode === m ? { background: 'var(--accent-soft)', borderColor: 'var(--accent-strong)', color: 'var(--ink)' } : {}) }}>
+    <button type="button" role="tab" aria-selected={mode === m} tabIndex={mode === m ? 0 : -1} onKeyDown={clavierOnglets} aria-controls={`${id}-${m}`} id={`${id}-onglet-${m}`} onClick={() => setMode(m)}
+      style={{ ...boutonSecondaire, ...(mode === m ? { background: 'var(--accent-soft)', border: '1px solid var(--accent-strong)', color: 'var(--ink)' } : {}) }}>
       {libelle}
     </button>
   );

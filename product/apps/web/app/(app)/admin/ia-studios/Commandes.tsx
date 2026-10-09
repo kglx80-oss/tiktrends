@@ -1,6 +1,8 @@
 'use client';
 
-import { useId, useState, useTransition, type CSSProperties } from 'react';
+import { useId, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { useFocusApresGeste, cleRetour } from '../../../../components/studios/projet/focus-geste';
+import { messageHorsLigneStudio } from '@tiktrends/core';
 import { useRouter } from 'next/navigation';
 import { Modal } from '../../../../components/Modal';
 import {
@@ -18,6 +20,17 @@ import { approuverBudgetBenchmarkAction, joindreFichesBenchmarkAction, type Repo
  */
 
 const CIBLE = 44;
+
+/**
+ * L8-B · UX-03 · une commande dont la requête n'aboutit pas (hors ligne, serveur
+ * injoignable) rendait l'écran ENTIER en « Application error » (promesse rejetée
+ * dans une transition) · saisies et motif perdus. Elle répond désormais un refus
+ * lisible, à l'endroit du geste, et l'écran reste.
+ */
+export const REPONSE_HORS_LIGNE = { ok: false as const, message: `Hors ligne · ${messageHorsLigneStudio('commande')}`, constats: [], motifs: [] };
+export async function sansPanne<T>(appel: () => Promise<T>): Promise<T | typeof REPONSE_HORS_LIGNE> {
+  try { return await appel(); } catch { return REPONSE_HORS_LIGNE; }
+}
 export const bouton: CSSProperties = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE, padding: '10px 16px', borderRadius: 999,
   border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
@@ -37,11 +50,20 @@ const ACTIONS: Record<Commande, (p: never) => Promise<ReponseAdmin<Record<string
   creerRelease: creerReleaseAction as never,
 };
 
+/** L8-B · UX-02 · le retour d'une commande prend le focus (mesuré : BODY après « Importer en brouillon »). */
+function useRetourFocalise(r: object | null) {
+  const zone = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusApresGeste({ apercu: false, retour: cleRetour(r), formulaire: false }, { conteneur: zone, retour: ref });
+  return ref;
+}
+
 function Retour({ r, succes }: { r: ReponseAdmin<Record<string, unknown>> | null; succes: string }) {
+  const ref = useRetourFocalise(r);
   if (!r) return null;
-  if (r.ok) return <p role="status" style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ok)', fontWeight: 600 }}>{succes}</p>;
+  if (r.ok) return <div ref={ref} tabIndex={-1} role="status" style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ok)', fontWeight: 600 }}>{succes}</div>;
   return (
-    <div role="alert" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(229,72,77,.45)', background: 'rgba(229,72,77,.08)', color: 'var(--ink)', fontSize: 13.5 }}>
+    <div ref={ref} tabIndex={-1} role="alert" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(229,72,77,.45)', background: 'rgba(229,72,77,.08)', color: 'var(--ink)', fontSize: 13.5 }}>
       <b style={{ color: 'var(--err)' }}>{r.message}</b>
       {r.constats.length > 0 && (
         <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
@@ -61,7 +83,7 @@ export function BoutonCommande({ commande, charge, libelle, succes, secondaire }
   return (
     <div>
       <button type="button" disabled={enCours} aria-busy={enCours} style={{ ...(secondaire ? boutonSecondaire : bouton), opacity: enCours ? 0.6 : 1 }}
-        onClick={() => demarrer(async () => { const x = await ACTIONS[commande]((charge ?? {}) as never); setR(x); if (x.ok) router.refresh(); })}>
+        onClick={() => demarrer(async () => { const x = await sansPanne(() => ACTIONS[commande]((charge ?? {}) as never)); setR(x); if (x.ok) router.refresh(); })}>
         {enCours ? 'En cours…' : libelle}
       </button>
       <Retour r={r} succes={succes} />
@@ -80,7 +102,7 @@ export function BoutonConfirme({ geste, releaseId, attendue, libelle, titre, exp
 
   const confirmer = () => demarrer(async () => {
     const action = geste === 'publier' ? publierReleaseAction : rollbackReleaseAction;
-    const x = await action({ releaseId, attendue, confirme: true });
+    const x = await sansPanne(() => action({ releaseId, attendue, confirme: true }));
     setR(x as ReponseAdmin<Record<string, unknown>>);
     setOuvert(false);
     if (x.ok) router.refresh();
@@ -112,7 +134,7 @@ export function BoutonRevoquer({ releaseId }: { releaseId: string }) {
   const router = useRouter();
   const id = useId();
   const confirmer = () => demarrer(async () => {
-    const x = await revoquerReleaseAction({ releaseId, motif, confirme: true });
+    const x = await sansPanne(() => revoquerReleaseAction({ releaseId, motif, confirme: true }));
     setR(x as ReponseAdmin<Record<string, unknown>>);
     if (x.ok) { setOuvert(false); router.refresh(); }
   });
@@ -155,7 +177,7 @@ export function EditeurBrouillon({ baseId, champs, empreinteAttendue, brouillon 
       if (v === c.valeur) continue;
       modifies[c.champ] = c.liste ? v.split('\n').map((x) => x.replace(/^·\s*/, '').trim()).filter(Boolean) : v;
     }
-    const x = await enregistrerBrouillonAction({ baseId, champs: modifies, motif, empreinteAttendue });
+    const x = await sansPanne(() => enregistrerBrouillonAction({ baseId, champs: modifies, motif, empreinteAttendue }));
     setR(x as ReponseAdmin<Record<string, unknown>>);
     if (x.ok) router.refresh();
   });
@@ -186,7 +208,7 @@ export function FormulaireRelease() {
   const router = useRouter();
   const id = useId();
   return (
-    <form onSubmit={(e) => { e.preventDefault(); demarrer(async () => { const x = await creerReleaseAction({ motif }); setR(x as ReponseAdmin<Record<string, unknown>>); if (x.ok) router.refresh(); }); }} style={{ display: 'grid', gap: 10 }}>
+    <form onSubmit={(e) => { e.preventDefault(); demarrer(async () => { const x = await sansPanne(() => creerReleaseAction({ motif })); setR(x as ReponseAdmin<Record<string, unknown>>); if (x.ok) router.refresh(); }); }} style={{ display: 'grid', gap: 10 }}>
       <label htmlFor={`${id}-motif`} style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600 }}>Motif de la release</label>
       <input id={`${id}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} style={champ} placeholder="Ex. éclairage plus chaud sur la recette photo" />
       <div><button type="submit" disabled={enCours} style={{ ...bouton, opacity: enCours ? 0.6 : 1 }}>{enCours ? 'Création…' : 'Créer la release (staged)'}</button></div>
@@ -198,10 +220,11 @@ export function FormulaireRelease() {
 /* ───────────────────────── Benchmark F01-F24 (lot F-D) ─────────────────── */
 
 function RetourBenchmark({ r, succes }: { r: ReponseBenchmark<Record<string, unknown>> | null; succes: string }) {
+  const ref = useRetourFocalise(r);
   if (!r) return null;
-  if (r.ok) return <p role="status" style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ok)', fontWeight: 600 }}>{succes}</p>;
+  if (r.ok) return <div ref={ref} tabIndex={-1} role="status" style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ok)', fontWeight: 600 }}>{succes}</div>;
   return (
-    <div role="alert" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(229,72,77,.45)', background: 'rgba(229,72,77,.08)', color: 'var(--ink)', fontSize: 13.5 }}>
+    <div ref={ref} tabIndex={-1} role="alert" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(229,72,77,.45)', background: 'rgba(229,72,77,.08)', color: 'var(--ink)', fontSize: 13.5 }}>
       <b style={{ color: 'var(--err)' }}>{r.message}</b>
       {r.motifs && r.motifs.length > 0 && <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{r.motifs.slice(0, 12).map((c, i) => <li key={i} style={{ marginTop: 3, overflowWrap: 'anywhere' }}><code style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{c.code}</code> · {c.message}</li>)}</ul>}
       {r.traceId && <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)' }}>Identifiant support · <code>{r.traceId}</code></p>}
@@ -224,7 +247,7 @@ export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd, de
   const router = useRouter();
   const id = useId();
   const confirmer = () => demarrer(async () => {
-    const x = await approuverBudgetBenchmarkAction({ releaseId, budgetUsd: budget, motif });
+    const x = await sansPanne(() => approuverBudgetBenchmarkAction({ releaseId, budgetUsd: budget, motif }));
     setR(x as ReponseBenchmark<Record<string, unknown>>);
     setOuvert(false);
     if (x.ok) router.refresh();
@@ -266,7 +289,7 @@ export function FormulaireFichesBenchmark({ releases }: { releases: Array<{ id: 
   const router = useRouter();
   const id = useId();
   return (
-    <form onSubmit={(e) => { e.preventDefault(); demarrer(async () => { const x = await joindreFichesBenchmarkAction({ releaseId, rapport, fiches }); setR(x as ReponseBenchmark<Record<string, unknown>>); if (x.ok) router.refresh(); }); }} style={{ display: 'grid', gap: 10 }}>
+    <form onSubmit={(e) => { e.preventDefault(); demarrer(async () => { const x = await sansPanne(() => joindreFichesBenchmarkAction({ releaseId, rapport, fiches })); setR(x as ReponseBenchmark<Record<string, unknown>>); if (x.ok) router.refresh(); }); }} style={{ display: 'grid', gap: 10 }}>
       <div><label htmlFor={`${id}-release`} style={etiquette}>Release</label>
         <select id={`${id}-release`} value={releaseId} onChange={(e) => setReleaseId(e.target.value)} style={champ}>{releases.map((x) => <option key={x.id} value={x.id}>{x.libelle}</option>)}</select></div>
       <div><label htmlFor={`${id}-rapport`} style={etiquette}>Contenu de rapport.json (campagne RÉELLE)</label>
@@ -289,7 +312,7 @@ export function BoutonBenchmarkApprouve({ releaseId, evaluations }: { releaseId:
   const router = useRouter();
   const id = useId();
   const confirmer = () => demarrer(async () => {
-    const x = await approuverBenchmarkAction({ releaseId, evaluationId, motif, confirme: true });
+    const x = await sansPanne(() => approuverBenchmarkAction({ releaseId, evaluationId, motif, confirme: true }));
     setR(x as ReponseAdmin<Record<string, unknown>>);
     setOuvert(false);
     if (x.ok) router.refresh();
