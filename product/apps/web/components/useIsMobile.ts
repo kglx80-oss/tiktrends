@@ -15,6 +15,8 @@ import { useEffect, useState } from 'react';
  */
 /** Le seuil « écran étroit » de la coquille · partagé avec qui doit le lire hors rendu. */
 export const MEDIA_ETROIT = '(max-width: 768px)';
+/** Téléphone (cahier Studios §153, 390 × 720) · une fenêtre y passe en plein écran quand elle le demande. */
+export const MEDIA_TELEPHONE = '(max-width: 480px)';
 
 export function useIsMobile(query = MEDIA_ETROIT): boolean {
   const [mobile, setMobile] = useState(false);

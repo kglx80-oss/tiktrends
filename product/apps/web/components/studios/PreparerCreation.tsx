@@ -219,7 +219,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
         style={{ ...btnGhost, width: '100%', fontSize: 12, borderRadius: 10, minHeight: cibles44 ? CIBLE_TACTILE_MIN : 36, gap: 6 }}>
         <Icon name="file" size={13} /> Préparer une création
       </button>
-      <Modal open={ouvert} onClose={() => setOuvert(false)} title="Préparer une création" maxWidth={720}
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Préparer une création" maxWidth={720}
         subtitle="Une source, une hypothèse, un produit de ta marque · le projet garde tout. Rien n’est généré ici.">
         <div ref={corps}>
         {chargement && !prep && <p role="status" style={note}>Chargement de la source et de ta marque…</p>}

@@ -111,7 +111,7 @@ export function BoutonConfirme({ geste, releaseId, attendue, libelle, titre, exp
   return (
     <div>
       <button type="button" style={secondaire ? boutonSecondaire : bouton} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>{libelle}</button>
-      <Modal open={ouvert} onClose={() => setOuvert(false)} title={titre} subtitle="Geste public · tracé dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title={titre} subtitle="Geste public · tracé dans l’audit." maxWidth={520}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           {explication.map((t) => <li key={t} style={{ marginTop: 4 }}>{t}</li>)}
         </ul>
@@ -141,7 +141,7 @@ export function BoutonRevoquer({ releaseId }: { releaseId: string }) {
   return (
     <div>
       <button type="button" style={boutonSecondaire} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Révoquer</button>
-      <Modal open={ouvert} onClose={() => setOuvert(false)} title="Révoquer cette release ?" subtitle="Geste d’urgence · tracé dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Révoquer cette release ?" subtitle="Geste d’urgence · tracé dans l’audit." maxWidth={520}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           <li>Plus aucune tâche studio ni nouveau devis ne l’utilise, même les jobs déjà épinglés sur elle.</li>
           <li>Jarvis garde sa consigne 1.0.0 tant qu’elle reste pointée · publie ou reviens à une autre release.</li>
@@ -262,7 +262,7 @@ export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd, de
       <div><label htmlFor={`${id}-motif`} style={etiquette}>Motif (entre dans l’audit)</label>
         <input id={`${id}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} style={champ} /></div>
       <div><button type="button" style={{ ...bouton, opacity: motif.trim() && releaseId ? 1 : 0.6 }} disabled={!motif.trim() || !releaseId} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Approuver ce budget…</button></div>
-      <Modal open={ouvert} onClose={() => setOuvert(false)} title={`Approuver ${budget.replace('.', ',').trim()} $ ?`} subtitle="Dépense réelle possible · tracée dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title={`Approuver ${budget.replace('.', ',').trim()} $ ?`} subtitle="Dépense réelle possible · tracée dans l’audit." maxWidth={520}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           <li>Devis recalculé par le serveur : {devisLisible} {nature}.</li>
           <li>Budget approuvé : {budget.replace('.', ',')} $ · il doit couvrir le devis et tenir dans le reste du plafond de dépense.</li>
@@ -324,7 +324,7 @@ export function BoutonBenchmarkApprouve({ releaseId, evaluations }: { releaseId:
       <div><label htmlFor={`${id}-motif`} style={etiquette}>Motif (entre dans l’audit)</label>
         <input id={`${id}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} style={champ} /></div>
       <div><button type="button" style={{ ...bouton, opacity: motif.trim() ? 1 : 0.6 }} disabled={!motif.trim()} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Benchmark approuvé…</button></div>
-      <Modal open={ouvert} onClose={() => setOuvert(false)} title="Approuver le benchmark de cette release ?" subtitle="Décision nominative · tracée dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Approuver le benchmark de cette release ?" subtitle="Décision nominative · tracée dans l’audit." maxWidth={520}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           <li>La release devient publiable en production (la publication reste un geste séparé).</li>
           <li>Le serveur revérifie : évaluation réelle passée sur cette empreinte, fiches remplies et nommées.</li>

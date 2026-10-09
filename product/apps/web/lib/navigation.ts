@@ -301,6 +301,8 @@ export function breadcrumb(pathname: string, opts: CrumbOptions = {}): Crumb[] {
   return crumbs;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function libelle(n: RouteNode, parts: string[], opts: CrumbOptions): string {
   if (n.dynamic === 'brand') {
     // Le segment `[id]` du motif · la marque CONSULTÉE. On la nomme par son id
@@ -322,7 +324,13 @@ function libelle(n: RouteNode, parts: string[], opts: CrumbOptions): string {
     }
     const brut = i >= 0 ? parts[i] : undefined;
     if (brut) {
-      try { return decodeURIComponent(brut); } catch { return brut; }
+      let lu = brut;
+      try { lu = decodeURIComponent(brut); } catch { /* segment brut */ }
+      // Un identifiant opaque (UUID) n'est pas un nom : le fil affichait l'UUID
+      // brut d'un projet Studios, sur deux lignes à 390 (recette L8-B). On dit
+      // alors ce qu'est l'écran (« Projet »), jamais l'identifiant.
+      if (UUID.test(lu)) return n.label;
+      return lu;
     }
   }
   return n.label;

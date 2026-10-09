@@ -45,7 +45,7 @@ export async function approuverBudgetBenchmarkAction(e: { releaseId: unknown; ca
 }
 
 /** Taille maximale d'un rapport ou d'un lot de fiches collé dans l'écran · un rapport.json complet fait quelques dizaines de Ko. */
-export const OCTETS_MAX_JSON_BENCHMARK = 2 * 1024 * 1024;
+const OCTETS_MAX_JSON_BENCHMARK = 2 * 1024 * 1024;
 
 /**
  * Joint les fiches de revue HUMAINE remplies au rapport d'une campagne RÉELLE

@@ -119,6 +119,12 @@ describe('le fil d’Ariane dit où l’on est', () => {
     // Le tagging vit sous la veille · dire « Trouver › Veille › Tagging »
     // apprend quelque chose, là où « Espace › Membres » n'apprend rien.
     expect(breadcrumb('/tags').map((x) => x.label)).toEqual(['Accueil', 'Observatoire', 'Veille', 'Tagging']);
+    // Un identifiant opaque n'est jamais affiché comme un nom (recette L8-B : l'UUID d'un projet Studios remplissait le fil).
+    const projet = breadcrumb('/studio/projets/56d88ca8-6a28-4612-9990-2a7680737355/export').map((x) => x.label);
+    expect(projet, 'le fil affiche l’UUID brut du projet').not.toContain('56d88ca8-6a28-4612-9990-2a7680737355');
+    expect(projet).toContain('Projet');
+    // Un segment lisible (nom de concurrent) reste nommé tel quel.
+    expect(breadcrumb('/brands/b1/competitors/Lumi%C3%A8re%20Botanique').map((x) => x.label)).toContain('Lumière Botanique');
   });
 
   it('rien à dire sur une racine de section hors marque', () => {
