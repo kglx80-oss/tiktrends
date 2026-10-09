@@ -9,6 +9,7 @@ import {
   estParametresRetouche, lireParametresRetouche, controleComposantsAFinalisation, qualiteAFinalisation, lireReferenceEpinglee,
   type DecodeurMedia, type EnteteMedia, type ResultatDecodage, type ActeurJob, type EtatJob, type FournisseurStudio, type StockageStudio, type StatutFournisseur,
   type SnapshotJob, type IssueFinanciere, type SortieFournisseur,
+  capacitesCoupees, capacitesDesLignes,
 } from '@tiktrends/core';
 import { reglerJob } from './registre';
 import { retoucherSortie, type TraceRetouche } from './retouche';
@@ -74,7 +75,31 @@ export interface OptionsMoteur {
   secretWebhook?: string | null;
   /** Reçoit chaque ligne de journal APRÈS validation de sa transaction. */
   journal?: (e: EntreeJournal) => void;
+  /**
+   * F1 · interrupteurs par capacité et par espace (`packages/core/src/studios/interrupteurs.ts`).
+   * Présents ⇒ un job `queued` dont une capacité est COUPÉE pour son espace
+   * n'est pas réclamé : il reste en file, réserve intacte, rien n'est soumis ni
+   * débité ; il repart au premier tour où la capacité est active (réglage
+   * d'espace relu à chaque réclamation, environnement relu au redémarrage),
+   * ou il est annulé par l'utilisateur (l'annulation, elle, est toujours suivie).
+   * La boucle de production (`demarrerBoucleStudio`) les pose TOUJOURS ;
+   * absents (bancs d'essai du moteur seul), aucun filtre.
+   */
+  interrupteurs?: InterrupteursMoteur;
 }
+
+export interface InterrupteursMoteur {
+  env: Readonly<Record<string, string | undefined>>;
+  /**
+   * Réglage plateforme de l'espace (`app_settings`), forme libre relue par le
+   * noyau · lu PAR la transaction de réclamation (`ex`), jamais à côté.
+   */
+  reglagesEspace: (ex: ExecStudio, workspaceId: string) => Promise<unknown>;
+}
+
+/** Candidats examinés par page, et au plus par réclamation · politique, pas une mesure. */
+const CANDIDATS_PAR_PAGE = 50;
+const CANDIDATS_MAX = 1_000;
 
 /** Échec métier dans une transaction · la transaction est annulée. */
 class PerteDeCourse extends Error {}
@@ -110,6 +135,7 @@ export class MoteurStudio {
   private readonly horloge: () => Date;
   private readonly secret: string | null;
   private readonly sortieJournal: (e: EntreeJournal) => void;
+  private readonly interrupteurs: InterrupteursMoteur | null;
 
   constructor(o: OptionsMoteur) {
     this.base = o.base;
@@ -122,6 +148,7 @@ export class MoteurStudio {
     this.horloge = o.horloge ?? (() => new Date());
     this.secret = o.secretWebhook ?? null;
     this.sortieJournal = o.journal ?? (() => {});
+    this.interrupteurs = o.interrupteurs ?? null;
   }
 
   private maintenant(): Date { return this.horloge(); }
@@ -194,9 +221,9 @@ export class MoteurStudio {
   async reclamer(): Promise<JobStudio | null> {
     try {
       return await this.tx(async (tx, journal) => {
-        const [c] = await tx.select().from(J)
+        const c = this.interrupteurs ? await this.candidatPermis(tx, this.interrupteurs) : (await tx.select().from(J)
           .where(and(eq(J.state, 'queued'), sql`exists (select 1 from ${L} where ${L.jobId} = ${J.id} and ${L.kind} = 'reserve')`))
-          .orderBy(J.createdAt, J.id).limit(1).for('update', { skipLocked: true });
+          .orderBy(J.createdAt, J.id).limit(1).for('update', { skipLocked: true }))[0];
         if (!c) return null;
         const j = await this.transition(tx, journal, c, 'claimed', 'worker', 'prise en charge', {
           leaseOwner: this.workerId, leaseExpiresAt: this.finBail(), heartbeatAt: this.maintenant(),
@@ -209,6 +236,38 @@ export class MoteurStudio {
       if (e instanceof PerteDeCourse) return null;
       throw e;
     }
+  }
+
+  /**
+   * F1 · le plus ancien job `queued` (avec réserve) dont TOUTES les capacités
+   * sont actives pour son espace, verrouillé. Les jobs coupés sont SAUTÉS, pas
+   * bloquants : une file dont la tête est coupée sert quand même les suivants.
+   * Lecture par pages (clé `createdAt, id`), bornée à `CANDIDATS_MAX` par appel ;
+   * réglage de chaque espace lu une fois par appel.
+   */
+  private async candidatPermis(tx: TxStudio, inter: InterrupteursMoteur): Promise<JobStudio | undefined> {
+    const reglages = new Map<string, unknown>();
+    let apres: { createdAt: Date; id: string } | null = null;
+    for (let vus = 0; vus < CANDIDATS_MAX; vus += CANDIDATS_PAR_PAGE) {
+      const page: JobStudio[] = await tx.select().from(J)
+        .where(and(
+          eq(J.state, 'queued'),
+          sql`exists (select 1 from ${L} where ${L.jobId} = ${J.id} and ${L.kind} = 'reserve')`,
+          apres ? sql`(${J.createdAt}, ${J.id}) > (${apres.createdAt.toISOString()}::timestamptz, ${apres.id}::uuid)` : undefined,
+        ))
+        .orderBy(J.createdAt, J.id).limit(CANDIDATS_PAR_PAGE);
+      for (const j of page) {
+        if (!reglages.has(j.workspaceId)) reglages.set(j.workspaceId, await inter.reglagesEspace(tx, j.workspaceId));
+        const coupees = capacitesCoupees(capacitesDesLignes((j.snapshot as { lignes?: unknown } | null)?.lignes), { env: inter.env, espace: j.workspaceId, reglages: reglages.get(j.workspaceId) });
+        if (coupees.length) continue;
+        const [verrou] = await tx.select().from(J).where(and(eq(J.id, j.id), eq(J.state, 'queued'))).limit(1).for('update', { skipLocked: true });
+        if (verrou) return verrou;
+      }
+      if (page.length < CANDIDATS_PAR_PAGE) return undefined;
+      const d = page[page.length - 1]!;
+      apres = { createdAt: d.createdAt, id: d.id };
+    }
+    return undefined;
   }
 
   /** Prend (ou prolonge) le bail d'un job · compare-and-set. */

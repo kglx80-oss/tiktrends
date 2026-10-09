@@ -26,7 +26,7 @@ export default async function ProduitProjetPage({ params }: { params: Promise<{ 
   const r = await lireProduitProjet({ projectId: id });
   if (!r.ok) {
     const plan = (r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED') && denyReason(effectiveAccess(s), feature) === 'plan';
-    return <main style={cadrePage}><RefusProjet r={r} plan={plan} /></main>;
+    return <main style={cadrePage}><RefusProjet r={r} plan={plan} projectId={id} /></main>;
   }
   return (
     <main style={cadrePage}>

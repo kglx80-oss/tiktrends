@@ -2,6 +2,7 @@
 
 import type { ErreurStudio, ExportBrief } from '@tiktrends/core';
 import { gardeSources } from '../../../lib/studios/sources/acces';
+import { refusCapacite } from '../../../lib/studios/interrupteurs';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand } from '../../../lib/brands';
 import type { Preparation } from '../../../lib/studios/sources/preparation';
@@ -23,6 +24,9 @@ import type { ProjetCree, DetailProjet, CarteProjet, EntreeCreationDepuisSources
  * Les modules lourds (registre de prompts) sont chargés à la demande : le
  * bouton « Préparer une création » vit dans la carte de Veille, rendue sur
  * chaque écran de veille.
+ *
+ * F1 · capacité « projets » (« export » pour le brief exporté) · coupée pour
+ * l'espace ⇒ `UNSUPPORTED_CAPABILITY` avant toute écriture ou appel.
  */
 
 type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
@@ -31,6 +35,8 @@ type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
 export async function preparerCreation(entree: { sources: unknown; brandId?: unknown }): Promise<Reponse<Preparation>> {
   const g = await gardeSources('studio.read');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   const [{ preparerCreationPour }, { lirePointeur }, { adaptateurAnthropicGarde, modeleTexte }] = await Promise.all([
     import('../../../lib/studios/sources/preparation'),
     import('../../../lib/studios/prompts/depot-prompts'),
@@ -50,6 +56,8 @@ export async function preparerCreation(entree: { sources: unknown; brandId?: unk
 export async function proposerHypotheses(entree: { sources: unknown; brandId: unknown; objectif?: unknown }): Promise<ResultatPropositions> {
   const g = await gardeSources('studio.propose');
   if (!g.ok) return { ...g, saisieManuelle: true };
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return { ...coupe, saisieManuelle: true };
   const [{ proposerHypothesesPour }, { adaptateurAnthropicGarde }, { environnementPrompts }] = await Promise.all([
     import('../../../lib/studios/sources/hypotheses'),
     import('../../../lib/studios/prompts/adaptateur'),
@@ -66,6 +74,8 @@ export async function proposerHypotheses(entree: { sources: unknown; brandId: un
 export async function creerProjetDepuisSources(entree: EntreeCreationDepuisSources): Promise<Reponse<ProjetCree>> {
   const g = await gardeSources('studio.propose');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   const { creerProjetDepuisSourcesPour } = await import('../../../lib/studios/sources/projet');
   return creerProjetDepuisSourcesPour(g.ctx, {
     sources: entree?.sources, brandId: entree?.brandId, kind: entree?.kind, titre: entree?.titre, objectif: entree?.objectif,
@@ -77,6 +87,8 @@ export async function creerProjetDepuisSources(entree: EntreeCreationDepuisSourc
 export async function exporterBrief(entree: { projectId: unknown; versionId?: unknown; format?: unknown }): Promise<Reponse<ExportBrief>> {
   const g = await gardeSources('studio.export');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['export']);
+  if (coupe) return coupe;
   const { exporterBriefPour } = await import('../../../lib/studios/sources/projet');
   return exporterBriefPour(g.ctx, { projectId: entree?.projectId, versionId: entree?.versionId, format: entree?.format }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
@@ -85,6 +97,8 @@ export async function exporterBrief(entree: { projectId: unknown; versionId?: un
 export async function lireProjetDetail(entree: { projectId: unknown; versionId?: unknown }): Promise<Reponse<{ detail: DetailProjet }>> {
   const g = await gardeSources('studio.read');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   const { lireProjetDetailPour } = await import('../../../lib/studios/sources/projet');
   return lireProjetDetailPour(g.ctx, entree?.projectId, { veilleOuverte: g.veilleOuverte, maintenant: new Date(), versionId: entree?.versionId });
 }
@@ -93,6 +107,8 @@ export async function lireProjetDetail(entree: { projectId: unknown; versionId?:
 export async function listerProjetsCartes(entree?: { brandId?: unknown }): Promise<Reponse<{ cartes: CarteProjet[] }>> {
   const g = await gardeSources('studio.read');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   const { listerCartesPour } = await import('../../../lib/studios/sources/projet');
   const brandId = typeof entree?.brandId === 'string' ? entree.brandId : null;
   return { ok: true, cartes: await listerCartesPour(g.ctx, { brandId, veilleOuverte: g.veilleOuverte, maintenant: new Date() }) };

@@ -1,5 +1,6 @@
 'use server';
 
+import { capaciteActive, messageCapaciteCoupee } from '@tiktrends/core';
 import { gardePlateforme } from '../prompts/garde-prompts';
 import { approuverBudgetBenchmark, joindreFichesRevue, planEtDevis } from './programme';
 
@@ -34,6 +35,11 @@ export async function devisBenchmarkAction(e: { cas?: unknown }): Promise<Repons
 export async function approuverBudgetBenchmarkAction(e: { releaseId: unknown; cas?: unknown; budgetUsd: unknown; motif: unknown }): Promise<ReponseBenchmark<{ approbationId: string; expireLe: string }>> {
   const g = await gardePlateforme('prompt.evaluate');
   if (!g.ok) return { ok: false, message: g.message, traceId: g.traceId };
+  // F1 · le benchmark RÉEL est une capacité de plateforme coupée par défaut : sans
+  // approbation de budget, la campagne réelle (`bench:studios --reel`) ne part pas.
+  if (!capaciteActive('benchmark_reel', { env: process.env, espace: null })) {
+    return { ok: false, message: messageCapaciteCoupee(['benchmark_reel']).replace('pour cet espace', 'sur cette plateforme'), traceId: g.ctx.traceId };
+  }
   try {
     const r = await approuverBudgetBenchmark(g.acteur, e);
     if (!r.ok) return { ok: false, message: 'Approbation refusée · voir les motifs.', motifs: r.refus, traceId: g.ctx.traceId };

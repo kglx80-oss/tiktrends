@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ErreurStudio, ModeImage } from '@tiktrends/core';
+import { capacitesDuRefus, type ErreurStudio, type ModeImage } from '@tiktrends/core';
 import type { VueParcoursImage } from '../../../lib/studios/image/parcours';
 import {
   lireParcoursImage, compilerConsigneImage, retenirConsigneImage, demanderDevisImage, approuverEtLancerImage, controlerMediaImage,
@@ -52,6 +52,8 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   const router = useRouter();
   const [vue, setVue] = useState<VueParcoursImage | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  // F1 · génération coupée pour l'espace : un état, pas une erreur (aucun geste offert).
+  const [nonActive, setNonActive] = useState<string | null>(null);
   const [mode, setMode] = useState<ModeImage | ''>('');
   const [enCours, setEnCours] = useState<string | null>(null);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
@@ -61,7 +63,7 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   const charger = useCallback(async () => {
     try {
       const r = await lireParcoursImage({ projectId });
-      if (r.ok) { setVue(r.vue); setErreur(null); } else setErreur(`${messageErreur(r)} · identifiant support ${r.traceId}`);
+      if (r.ok) { setVue(r.vue); setErreur(null); setNonActive(null); } else if (capacitesDuRefus(r).length) setNonActive(r.message); else setErreur(`${messageErreur(r)} · identifiant support ${r.traceId}`);
     } catch {
       setErreur('Le serveur n’a pas répondu · recharge la page.');
     }
@@ -112,6 +114,8 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
     }
   }
 
+  if (nonActive) return <ParcoursNonActive message={nonActive} />;
+
   if (!vue) {
     return (
       <section style={panneau} data-zone="parcours-image" aria-busy={!erreur}>
@@ -141,5 +145,16 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
       surAnnuler={(jobId) => agir(`annuler:${jobId}`, () => annulerJob({ jobId }), 'Annulation demandée.')}
       surRelire={(jobId, constats) => agir('relire', () => trancherComposants({ jobId, constats }), 'Relecture enregistrée.')}
     />
+  );
+}
+
+/** F1 · la génération d'images est coupée pour l'espace · ce que la page peut encore faire, sans aucun geste payant. */
+export function ParcoursNonActive({ message }: { message: string }) {
+  return (
+    <section style={panneau} data-zone="parcours-image" data-etat="non-active" aria-labelledby="parcours-non-active">
+      <h2 id="parcours-non-active" style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>Génération d’images · non activé pour cet espace</h2>
+      <p role="status" style={texte}>{message}</p>
+      <p style={mini}>Le produit, les références et l’éditeur de calques restent disponibles. L’ouverture se fait d’abord pour des espaces pilotes, puis pour tous après recette.</p>
+    </section>
   );
 }

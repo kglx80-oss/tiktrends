@@ -23,7 +23,7 @@ type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
 
 /** Liste les projets visibles · filtre de marque optionnel (ignoré s'il est hors portée). */
 export async function listerProjets(entree?: { brandId?: unknown; limite?: unknown }): Promise<Reponse<{ projets: ProjetStudio[] }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'projets');
   if (!g.ok) return g;
   const brandId = typeof entree?.brandId === 'string' ? entree.brandId : null;
   const limite = typeof entree?.limite === 'number' ? entree.limite : undefined;
@@ -32,7 +32,7 @@ export async function listerProjets(entree?: { brandId?: unknown; limite?: unkno
 
 /** Lecture PURE · projet, version courante, disposition. N'écrit rien, ne prépare rien. */
 export async function inspecterProjet(projectId: unknown): Promise<Reponse<{ projet: ProjetStudio; version: VersionStudio; disposition: DispositionStudio | null }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'projets');
   if (!g.ok) return g;
   const p = await lireProjet(g.ctx, projectId);
   if (!p.ok) return p;
@@ -45,7 +45,7 @@ export async function inspecterProjet(projectId: unknown): Promise<Reponse<{ pro
 }
 
 export async function creerProjet(entree: { brandId: unknown; kind: unknown; title: unknown; contenu?: unknown }): Promise<Reponse<{ projet: ProjetStudio; version: VersionStudio }>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'projets');
   if (!g.ok) return g;
   return creerDepot(g.ctx, { brandId: entree?.brandId, kind: entree?.kind, title: entree?.title, contenu: entree?.contenu });
 }
@@ -56,7 +56,7 @@ export async function creerProjet(entree: { brandId: unknown; kind: unknown; tit
  * diff si la base est périmée · jamais d'écrasement.
  */
 export async function enregistrerDocument(entree: { projectId: unknown; baseVersionId: unknown; changes: unknown; raison?: unknown }): Promise<Reponse<{ version: VersionStudio; inchange: boolean }>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'projets');
   if (!g.ok) return g;
   // `allowedPaths` n'est PAS lu du client : l'éditeur a le contenu entier, défini côté serveur.
   return enregistrerVersion(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, changes: entree?.changes, raison: entree?.raison });
@@ -64,7 +64,7 @@ export async function enregistrerDocument(entree: { projectId: unknown; baseVers
 
 /** Positions du canvas · ne crée aucune version, ne touche pas l'ordre des plans. */
 export async function enregistrerDisposition(entree: { projectId: unknown; positions: unknown; viewport?: unknown; rowVersion: unknown }): Promise<Reponse<{ disposition: DispositionStudio }>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'projets');
   if (!g.ok) return g;
   return enregistrerDispositionDepot(g.ctx, { projectId: entree?.projectId, positions: entree?.positions, viewport: entree?.viewport, rowVersion: entree?.rowVersion });
 }

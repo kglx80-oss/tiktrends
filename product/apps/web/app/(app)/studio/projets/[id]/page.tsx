@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, capacitesDuRefus } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { effectiveAccess } from '../../../../../lib/access';
 import { FEATURES, denyReason } from '../../../../../lib/rbac';
@@ -10,6 +10,9 @@ import { VueProjet } from '../../../../../components/studios/projet/VueProjet';
 import { VariantesEtTests } from '../../../../../components/studios/VariantesEtTests';
 import { CanvasProjet } from '../../../../../components/studios/canvas/CanvasProjet';
 import { Icon } from '../../../../../components/Icon';
+import { CapaciteNonActive } from '../../../../../components/studios/CapaciteNonActive';
+import { etatInterrupteurs } from '../../../../../lib/studios/interrupteurs';
+import { liensAtelierProjet } from '../../../../../lib/navigation';
 import { cadrePage, h1, surface } from '../../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +35,8 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
   const r = await lireProjetDetail({ projectId: id, ...(sp.version ? { versionId: sp.version } : {}) });
 
   if (!r.ok) {
+    const coupees = capacitesDuRefus(r);
+    if (coupees.length) return <main style={cadrePage}><CapaciteNonActive capacites={coupees} projectId={id} /></main>;
     const refuse = r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED';
     const plan = refuse && denyReason(effectiveAccess(s), feature) === 'plan';
     return (
@@ -56,9 +61,11 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
   const variantes = await VariantesEtTests({ projectId: r.detail.projet.id });
   // Canvas métier (L8-D, UX-04) · lecture seule à la visite, sous la vue projet.
   const canvas = await CanvasProjet({ projectId: r.detail.projet.id, versionId: r.detail.version.id });
+  // F1 · l'atelier ne montre un lien que vers ce qui est actif pour l'espace ; le reste se dit « non activé ».
+  const inter = await etatInterrupteurs(s.workspaceId);
   return (
     <main style={cadrePage}>
-      <VueProjet detail={r.detail} exportAutorise={roleAtLeast(s.role, 'member')} variantes={variantes} />
+      <VueProjet detail={r.detail} exportAutorise={roleAtLeast(s.role, 'member')} variantes={variantes} atelier={liensAtelierProjet(r.detail.projet.id, inter.actif)} />
       {canvas && <div data-emplacement="canvas" style={{ marginTop: 18 }}>{canvas}</div>}
     </main>
   );

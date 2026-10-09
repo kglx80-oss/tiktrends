@@ -1,4 +1,4 @@
-import { CHEMIN_ACCUEIL, RUBRIQUE_ANALYTICS, lireVueAccueil } from '@tiktrends/core';
+import { CHEMIN_ACCUEIL, RUBRIQUE_ANALYTICS, lireVueAccueil, DEFINITIONS_CAPACITES, type CapaciteStudio } from '@tiktrends/core';
 
 /**
  * Où l'on est, et comment on y est arrivé.
@@ -135,6 +135,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/admin/intelligence', label: 'Intelligence marché', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/connaissances', label: 'Connaissances', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/ia-studios', label: 'IA et Studios', parent: '/admin', section: 'Plateforme' },
+  { path: '/admin/studios-interrupteurs', label: 'Interrupteurs Studios', parent: '/admin', section: 'Plateforme' },
   { path: '/console', label: 'Console', section: 'Plateforme' },
   { path: '/credits', label: 'Coûts & marges', section: 'Plateforme' },
 
@@ -383,3 +384,76 @@ export const ROUTES_HISTORIQUES: readonly RouteHistorique[] = [
   { chemin: '/radar', origine: 'Veille', params: [] },
   { chemin: '/tags', origine: 'Veille', params: [] },
 ];
+
+/* -------------------------------------------------------------------------- */
+/*  Interrupteurs Studios · F1 (cahier §14)                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * La capacité Studios dont dépend chaque écran du NOUVEAU Studio (projets).
+ * Les écrans de l'ancienne expérience (`/studio`, Pubs IA, Image IA, Vidéo IA,
+ * Textes IA) n'y figurent PAS : aucun interrupteur ne les coupe (cahier §14,
+ * « l'ancienne expérience reste disponible »). Un test (`f1-navigation`)
+ * échoue si un écran sous `/studio/projets` n'est pas déclaré ici, ou si un
+ * écran historique l'est.
+ */
+export const CAPACITE_DES_ROUTES: Readonly<Record<string, CapaciteStudio>> = {
+  '/studio/projets': 'projets',
+  '/studio/projets/[id]': 'projets',
+  '/studio/projets/[id]/image': 'editeur',
+  '/studio/projets/[id]/produit': 'projets',
+  '/studio/projets/[id]/textes': 'textes',
+  '/studio/projets/[id]/identites': 'identites',
+  '/studio/projets/[id]/export': 'export',
+  '/studio/projets/[id]/video': 'video',
+};
+
+export function capaciteDeRoute(pathname: string): CapaciteStudio | null {
+  const r = matchRoute(pathname);
+  return r ? CAPACITE_DES_ROUTES[r.path] ?? null : null;
+}
+
+/**
+ * L'ÉCRAN historique qui couvre le même besoin qu'une capacité coupée · le
+ * « non activé » propose toujours une porte qui existe (jamais un lien mort).
+ */
+export const ALTERNATIVE_HISTORIQUE: Readonly<Partial<Record<CapaciteStudio, { href: string; label: string }>>> = {
+  generation_image: { href: '/studio/image', label: 'Image IA' },
+  editeur: { href: '/studio/image', label: 'Image IA' },
+  video: { href: '/studio/video', label: 'Vidéo IA' },
+  voix: { href: '/studio/video', label: 'Vidéo IA' },
+  textes: { href: '/studio/textes', label: 'Textes IA' },
+};
+
+export interface LienAtelier {
+  /** Adresse de l'écran · `null` quand la capacité est coupée (aucun lien mort). */
+  href: string | null;
+  libelle: string;
+  segment: string;
+  capacite: CapaciteStudio;
+  active: boolean;
+  /** « non activé pour cet espace » · dit à côté du libellé quand la capacité est coupée. */
+  mention: string | null;
+}
+
+const ATELIER: readonly string[] = ['image', 'produit', 'textes', 'video', 'identites', 'export'];
+
+/** Les entrées de l'atelier d'un projet, avec leur état pour l'espace · filtrage de la navigation. */
+export function liensAtelierProjet(projectId: string, actif: (c: CapaciteStudio) => boolean): LienAtelier[] {
+  return ATELIER.map((segment) => {
+    const motif = `/studio/projets/[id]/${segment}`;
+    const capacite = CAPACITE_DES_ROUTES[motif]!;
+    const active = actif(capacite);
+    return {
+      href: active ? `/studio/projets/${projectId}/${segment}` : null,
+      libelle: PAR_CHEMIN.get(motif)?.label ?? segment,
+      segment,
+      capacite,
+      active,
+      mention: active ? null : 'non activé pour cet espace',
+    };
+  });
+}
+
+/** Libellé d'une capacité · pour les écrans qui n'importent pas le noyau. */
+export const libelleCapacite = (c: CapaciteStudio): string => DEFINITIONS_CAPACITES[c].libelle;

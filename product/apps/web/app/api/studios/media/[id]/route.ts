@@ -36,7 +36,7 @@ function refus(status: number, code: string, message: string, traceId: string): 
 const EXTENSIONS: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'video/mp4': 'mp4' };
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'projets');
   if (!g.ok) return refus(g.status, g.code, g.message, g.traceId);
   const { id } = await ctx.params;
   const m = await lireMediaDansPortee(g.ctx, id);

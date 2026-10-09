@@ -14,19 +14,22 @@ import { choisirModeParolePour } from '../../../lib/studios/voix/voix';
  *  · fiche, liaison, résolution d'une contradiction, mode de parole ·
  *    `studio.propose`, nouvelle version (base obligatoire, 409). Aucun de ces
  *    gestes ne coûte : aucun appel modèle, aucun devis, aucun débit.
+ *
+ * F1 · interrupteurs : capacité « identites » pour la lecture et les fiches,
+ * « voix » (coupée par défaut, aucun fournisseur validé) pour le mode de parole.
  */
 
 type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
 type Ecriture = Reponse<{ version: VersionStudio; inchange: boolean }>;
 
 export async function lireIdentitesProjet(entree: { projectId: unknown }): Promise<Reponse<{ vue: VueIdentites }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'identites');
   if (!g.ok) return g;
   return lireVueIdentitesPour(g.ctx, entree?.projectId);
 }
 
 export async function enregistrerIdentite(entree: { projectId: unknown; baseVersionId: unknown; identityId?: unknown; nom: unknown; attributs: unknown; vues?: unknown; description?: unknown }): Promise<Ecriture> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'identites');
   if (!g.ok) return g;
   return enregistrerIdentitePour(g.ctx, {
     projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, identityId: entree?.identityId,
@@ -35,19 +38,19 @@ export async function enregistrerIdentite(entree: { projectId: unknown; baseVers
 }
 
 export async function lierIdentite(entree: { projectId: unknown; baseVersionId: unknown; identityId: unknown; shotIds: unknown }): Promise<Ecriture> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'identites');
   if (!g.ok) return g;
   return lierIdentitePour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, identityId: entree?.identityId, shotIds: entree?.shotIds });
 }
 
 export async function resoudreContradiction(entree: { projectId: unknown; baseVersionId: unknown; contradictionId: unknown; choix: unknown }): Promise<Ecriture> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'identites');
   if (!g.ok) return g;
   return resoudreContradictionPour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, contradictionId: entree?.contradictionId, choix: entree?.choix });
 }
 
 export async function choisirModeParole(entree: { projectId: unknown; baseVersionId: unknown; shotIds: unknown; mode: unknown }): Promise<Ecriture> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'voix');
   if (!g.ok) return g;
   return choisirModeParolePour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, shotIds: entree?.shotIds, mode: entree?.mode });
 }

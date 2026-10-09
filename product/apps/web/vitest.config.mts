@@ -10,6 +10,12 @@ export default defineConfig({
     // octobre (l2-jarvis-route). Limites explicites, mesurées avec marge.
     testTimeout: 30_000,
     hookTimeout: 60_000,
+    // F1 · interrupteurs Studios (cahier §14) : les nouveautés incomplètes sont
+    // COUPÉES par défaut. Les suites existantes éprouvent ces capacités telles
+    // qu'elles fonctionnent une fois allumées : on les généralise ici, comme le
+    // ferait l'exploitant. Les DÉFAUTS sont éprouvés par `test/f1-*`, qui vident
+    // cette variable avant chaque cas.
+    env: { STUDIOS_CAPACITES_GENERALES: 'generation_image controle_visuel video voix benchmark_reel shadow' },
   },
   resolve: {
     alias: {

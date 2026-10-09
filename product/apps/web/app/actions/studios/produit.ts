@@ -3,6 +3,7 @@
 import type { ErreurStudio, PreparationCompilation, StatutQualite, VerdictComposants } from '@tiktrends/core';
 import { gardeStudio } from '../../../lib/studios/garde';
 import { gardeSources } from '../../../lib/studios/sources/acces';
+import { refusCapacite } from '../../../lib/studios/interrupteurs';
 import type { VersionStudio } from '../../../lib/studios/depot';
 import { lireVueProduitPour, type VueProduit } from '../../../lib/studios/produit/vue';
 import { epinglerProduitPour, associerReferencePour, retirerReferencePour } from '../../../lib/studios/produit/commandes';
@@ -22,6 +23,10 @@ import { compilerConsigneImage as compilerConsigneImageAttestee } from './image'
  *    barrière de dépense), aucun média produit ; passe par le chemin ATTESTÉ
  *    du parcours image (F-B), seul dont le résultat peut être retenu ;
  *  · trancher les composants d'un média · `studio.propose` (relecteur).
+ *
+ * F1 · capacité « projets » pour l'écran produit ; la compilation passe par
+ * l'action image (capacité « generation_image ») ; trancher un média déjà
+ * livré n'est jamais coupé.
  */
 
 type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
@@ -30,12 +35,16 @@ type Ecriture = Reponse<{ version: VersionStudio; inchange: boolean }>;
 export async function lireProduitProjet(entree: { projectId: unknown }): Promise<Reponse<{ vue: VueProduit }>> {
   const g = await gardeSources('studio.read');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   return lireVueProduitPour(g.ctx, entree?.projectId, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 
 export async function epinglerProduit(entree: { projectId: unknown; baseVersionId: unknown; productId: unknown; photoId: unknown; composants?: unknown; attributs?: unknown; transformations?: unknown }): Promise<Ecriture> {
   const g = await gardeSources('studio.propose');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   return epinglerProduitPour(g.ctx, {
     projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, productId: entree?.productId, photoId: entree?.photoId,
     composants: entree?.composants, attributs: entree?.attributs, transformations: entree?.transformations,
@@ -45,18 +54,24 @@ export async function epinglerProduit(entree: { projectId: unknown; baseVersionI
 export async function associerReference(entree: { projectId: unknown; baseVersionId: unknown; assetId: unknown; role: unknown; scope: unknown }): Promise<Ecriture> {
   const g = await gardeSources('studio.propose');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   return associerReferencePour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, assetId: entree?.assetId, role: entree?.role, scope: entree?.scope }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 
 export async function retirerReference(entree: { projectId: unknown; baseVersionId: unknown; assetId: unknown; role: unknown }): Promise<Ecriture> {
   const g = await gardeSources('studio.propose');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   return retirerReferencePour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, assetId: entree?.assetId, role: entree?.role }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 
 export async function controlerCompilation(entree: { projectId: unknown; mode: unknown }): Promise<Reponse<{ preparation: PreparationCompilation }>> {
   const g = await gardeSources('studio.read');
   if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
   return preparerCompilationPour(g.ctx, { projectId: entree?.projectId, mode: entree?.mode }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 

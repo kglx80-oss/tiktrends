@@ -22,25 +22,25 @@ import { accesAdsmap, etatRelecture } from '../../../lib/studios/variantes/acces
 type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
 
 export async function listerVariantes(entree: { projectId: unknown }): Promise<Reponse<{ donnees: DonneesVariantes }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'projets');
   if (!g.ok) return g;
   return listerVariantesCmd(g.ctx, { projectId: entree?.projectId }, { adsmapAcces: await accesAdsmap(), relecture: await etatRelecture() });
 }
 
 export async function filiationVariante(entree: { variantId: unknown }): Promise<Reponse<{ maillons: MaillonFiliation[]; sourcesProjet: unknown }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'projets');
   if (!g.ok) return g;
   return filiationCmd(g.ctx, { variantId: entree?.variantId });
 }
 
 export async function creerVariante(entree: { assetId: unknown; parentVariantId?: unknown }): Promise<Reponse<{ variante: VariantePresentee; deja: boolean }>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'projets');
   if (!g.ok) return g;
   return creerVarianteCmd(g.ctx, { assetId: entree?.assetId, parentVariantId: entree?.parentVariantId });
 }
 
 export async function iterer(entree: { variantId: unknown; baseVersionId: unknown; variable?: unknown; raison?: unknown }): Promise<Reponse<ResultatIteration>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'projets');
   if (!g.ok) return g;
   return itererCmd(g.ctx, { variantId: entree?.variantId, baseVersionId: entree?.baseVersionId, variable: entree?.variable, raison: entree?.raison });
 }

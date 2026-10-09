@@ -59,7 +59,7 @@ export interface Apercu {
 }
 
 export async function rendreApercu(entree: { projectId: unknown; versionId?: unknown; largeurMax?: unknown }): Promise<Reponse<{ apercu: Apercu }>> {
-  const g = await gardeStudio('studio.read');
+  const g = await gardeStudio('studio.read', 'editeur');
   if (!g.ok) return g;
   const pv = await versionDuProjet(g.ctx, entree?.projectId, entree?.versionId);
   if (!pv.ok) return pv;
@@ -96,7 +96,7 @@ export async function rendreApercu(entree: { projectId: unknown; versionId?: unk
 }
 
 export async function declinerFormat(entree: { projectId: unknown; baseVersionId: unknown; format: unknown; profil?: unknown }): Promise<Reponse<{ version: VersionStudio; inchange: boolean; rapport: RapportDeclinaison }>> {
-  const g = await gardeStudio('studio.propose');
+  const g = await gardeStudio('studio.propose', 'editeur');
   if (!g.ok) return g;
   const format = entree?.format;
   const profil = entree?.profil ?? 'meta-reels';
