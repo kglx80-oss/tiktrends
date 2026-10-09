@@ -10,19 +10,59 @@ validés**. Ne pas les annoncer opérationnels avant parcours réel recetté.
 
 ---
 
-## 1. Budget · ce qui est approuvé, ce qui est proposé
+## 1. Budget · ce qui est autorisé, et comment c'est tenu
 
-| Montant | Statut |
-| --- | --- |
-| **15 $** pour l'ensemble de l'essai (pas 1 + pas 2) | **Approuvé** par le propriétaire le 8 octobre. Posé comme plafond dur de tout l'environnement (`AI_SPEND_CAP_USD=15` dans le compose, vérifié par test). |
-| **1 $** au plus pour une passe du pas 1 | **PROPOSITION, à approuver avant lancement.** Ce n'est pas une dépense approuvée. Tu peux la baisser (`--plafond-passe-usd`), jamais la monter. |
-| **0,36 $** au plus pour le pas 1 tel qu'il est chiffré aujourd'hui | Annonce calculée par le code : compilation texte 0,14 $ ESTIMÉE (la borne exacte est réservée avant l'envoi ; si elle ne tient pas dans le total, rien ne part) + image 0,08 $ + contrôle visuel 0,15 $ (ligne du devis cochée par défaut, décision du propriétaire du 8 octobre). Le TOTAL est un plafond DUR de la passe : la réservation commune refuse toute dépense au-delà. C'est ce montant que tu recopies pour confirmer. Rien ne part sans cette saisie. |
-| Pas 2 · **15 $ moins tout ce qui est déjà compté** | Le devis benchmark annoncé (9,925 $) est **en cours de recalcul par R3** (réessais, borne d'entrée). **Le pas 2 attend ce recalcul.** |
+Autorisation du propriétaire, **9 octobre**, verbatim :
+
+> « J'autorise 15 $ maximum au total pour tous les tests nécessaires au
+> chantier TikTrends, tous fournisseurs, étapes et relances confondus. Ce
+> plafond remplace la précédente limite de 1 $ : ce n'est pas 15 $ par test ou
+> par session. Déduis toute dépense déjà engagée et conserve les réservations
+> dont le coût reste incertain. Aucune recharge ni dépassement autorisé. »
+
+Il n'y a donc **plus de plafond de passe de 1 $** : il y a **15 $ au total**,
+toutes passes, tous pas, toutes relances, toutes bases confondues.
+Dépense déjà engagée à ce jour sur les fournisseurs pour ce chantier : 0 $
+(aucun appel réel n'a été fait par la session). Si tes factures montrent une
+dépense antérieure, saisis-la (§4.8) avant la première commande payante.
+
+### Le registre cumulatif
+
+`ops/recette/registre/budget-essais.json`, sur **ta machine**, ignoré par git,
+**hors du volume Postgres** : il survit aux commandes, aux redémarrages et à
+`down -v`. Une base de recette neuve dirait « 0 $ dépensé » ; le registre, lui,
+garde tout ce qui a été vu.
+
+- **Alimenté depuis `ai_spend`** avant et après chaque commande payante (`recette:pas1`, `recette:bench`) : réglé au coût réel ou au prix fixe, **incertain conservé au maximum réservé** (lignes à réconcilier, réservations sans issue).
+- **Écriture atomique** (fichier temporaire, `fsync`, version précédente gardée en `budget-essais.json.prec`, puis renommage) et **journal en ajout seul** `budget-essais.journal.jsonl`.
+- **Avant toute dépense** : `antérieur + réglé + incertain + réservation maximale ≤ 15 $`, sinon refus sans aucun appel.
+- **Refus** si le registre est **absent ou illisible alors que la base de recette contient des dépenses** (incohérence : restaure-le, ou sa copie `.prec`), ou s'il est illisible (ou si quelqu'un y a relevé l'autorisation). Base neuve et registre qui dit qu'on a déjà dépensé : **le registre fait foi**.
+- **Lecture sans écriture** : `recette:budget` affiche autorisé / antérieur / réglé / incertain / restant (§4.8).
+
+### Le devis du pas 1, à trois colonnes
+
+La commande calcule le devis sur la **requête réellement envoyée**, avant tout
+appel et sans rien écrire :
+
+| Ligne | Estimation | Réservation maximale | Coût réglé |
+| --- | --- | --- | --- |
+| compilation de la consigne | 3,5 caractères par jeton sur la requête réelle | **borne de la requête réelle compilée** (octets UTF-8, sortie pleine) · la compilation est refusée avant l'envoi au-delà | lu dans `ai_spend` après coup |
+| image (fal) | prix fixe | prix fixe du devis | idem |
+| contrôle visuel | pas d'estimation distincte | borne prouvée par image | idem |
+
+- **Estimation** : indicative, jamais confirmée ni réservée.
+- **Réservation maximale** : ce que tu **recopies** pour confirmer. C'est le plafond DUR de la passe : le plafond du processus devient « ce que la base compte déjà + réservation maximale confirmée », la réservation commune refuse tout au-delà.
+- **Coût réglé** : écrit au rapport après coup, ligne par ligne, avec l'incertain à part.
+
+Mesuré en local sur le semis de recette (modèle texte par défaut) : compilation
+0,0930 $, image 0,0800 $, contrôle visuel 0,1470 $, **réservation maximale
+0,33 $ au plus**. Le montant qui fait foi est celui que **la commande affiche**
+(une surcharge de modèle ou un semis différent le change).
 
 Barrières qui tiennent même si une consigne est oubliée :
 
-- la réservation commune (`reserverDepense`) refuse tout appel au-delà du plafond, dans la base de recette ;
-- pendant le pas 1, le plafond du processus est abaissé à « déjà compté + montant que tu as tapé » ;
+- la réservation commune (`reserverDepense`) refuse tout appel au-delà du plafond du processus ;
+- la compilation et le contrôle visuel sont refusés avant l'envoi au-delà de leur ligne (`adaptateurBorne`) ;
 - le web et le worker de recette n'ont aucune clé payante (`neutralise.env`), ils ne peuvent rien dépenser.
 
 ## 2. Où lancer · vérification OBLIGATOIRE avant démarrage
@@ -50,33 +90,37 @@ Seuils, à ne pas franchir · **en dessous, ne démarre pas** :
 Sur le VPS, si `docker stats` montre la production déjà proche de la mémoire
 totale, passe par l'option A même si `available` passe le seuil.
 
-## 3. Variables nécessaires (sans valeur ici)
+## 3. Variables nécessaires (noms seulement, jamais de valeur ici)
 
-### Dans `ops/recette/.env.recette` · créé par toi, ignoré par git
+### Dans `ops/recette/.env.recette` · créé par toi (§4.1), ignoré par git
 
-| Variable | Rôle |
-| --- | --- |
-| `POSTGRES_PASSWORD` | Mot de passe de la base de recette (hexadécimal, il entre dans une URL). |
-| `AUTH_SECRET` | Signature des sessions du web de recette. |
-| `FOUNDER_EMAILS` | *Facultatif* · ton e-mail, pour l'accès ADMIN (approbation du budget du pas 2) si ton compte n'est pas déjà dans la liste codée. |
-| `ANTHROPIC_GEN_MODEL`, `FAL_IMAGE_MODEL`, `FAL_IMAGE_MODEL_EDIT`, `FAL_QUEUE_URL` | *Facultatives* · surcharges de modèles. Une surcharge change l'annonce du pas 1 : relis-la. |
+Liste EXACTE :
 
-**Jamais** `FAL_KEY` ni `ANTHROPIC_API_KEY` dans ce fichier. Et quoi qu'il
-contienne, `ops/recette/neutralise.env` (versionné, chargé après lui) vide :
-le stockage `S3_*`, les clés IA (`FAL_KEY`, `ANTHROPIC_API_KEY`,
-`HIGGSFIELD_*`), `CRON_SECRET`, et toutes les clés de services externes
-(Trendtrack, Stripe, Klaviyo, Slack, SMTP, Meta, Shopify, Google, TikTok,
-webhook studio).
+| Variable | Obligatoire | Rôle | Où l'obtenir |
+| --- | --- | --- | --- |
+| `POSTGRES_PASSWORD` | oui | Mot de passe de la base de recette (hexadécimal, il entre dans une URL). | Généré sur place par `openssl rand -hex 24` (§4.1), jamais affiché. |
+| `AUTH_SECRET` | oui | Signature des sessions du web de recette. | Généré sur place par `openssl rand -hex 32` (§4.1). |
+| `FOUNDER_EMAILS` | non | Ton e-mail, pour l'accès ADMIN (approbation du budget du pas 2) si ton compte n'est pas déjà dans la liste codée. | Ton adresse. |
+| `ANTHROPIC_GEN_MODEL` | non | Surcharge du modèle texte. Change le devis : relis-le. | Seulement si tu veux un autre modèle. |
+| `FAL_IMAGE_MODEL`, `FAL_IMAGE_MODEL_EDIT`, `FAL_QUEUE_URL` | non | Surcharges du fournisseur d'images. | Idem. |
+
+**Jamais** `FAL_KEY` ni `ANTHROPIC_API_KEY` dans ce fichier (la vérification
+§4.2 le contrôle sans afficher le fichier). Et quoi qu'il contienne,
+`ops/recette/neutralise.env` (versionné, chargé après lui) vide : le stockage
+`S3_*`, les clés IA (`FAL_KEY`, `ANTHROPIC_API_KEY`, `HIGGSFIELD_*`),
+`CRON_SECRET`, et toutes les clés de services externes (Trendtrack, Stripe,
+Klaviyo, Slack, SMTP, Meta, Shopify, Google, TikTok, webhook studio).
 
 ### Dans ton shell, seulement le temps d'une commande payante
 
-| Variable | Rôle |
-| --- | --- |
-| `FAL_KEY` | Génération d'image (pas 1, pas 2). |
-| `ANTHROPIC_API_KEY` | Compilation de la consigne et tâches texte. |
-| `STUDIO_FOURNISSEUR_REEL=autorise` | Autorisation explicite du fournisseur réel hors production. |
+| Variable | Rôle | Où l'obtenir |
+| --- | --- | --- |
+| `FAL_KEY` | Génération d'image (pas 1, pas 2). | Ton tableau de bord fal (clés d'API). |
+| `ANTHROPIC_API_KEY` | Compilation de la consigne, contrôle visuel, tâches texte. | Ta console Anthropic (clés d'API). |
+| `STUDIO_FOURNISSEUR_REEL=autorise` | Autorisation explicite du fournisseur réel hors production. | Valeur fixe, à taper. |
 
-Seul le service d'outils les reçoit, par `${FAL_KEY:-}` dans le compose.
+Saisies sans écho (`read -rs`), effacées après la commande (`unset`). Seul le
+service d'outils les reçoit, par `${FAL_KEY:-}` dans le compose.
 
 ## 4. Pas à pas
 
@@ -91,7 +135,26 @@ printf 'POSTGRES_PASSWORD=%s\nAUTH_SECRET=%s\n' "$(openssl rand -hex 24)" "$(ope
 grep -cE '^(FAL_KEY|ANTHROPIC_API_KEY)=' ops/recette/.env.recette   # doit afficher 0
 ```
 
-**4.2 · Démarrage** du web, du worker, de la base et du Redis de recette :
+**4.2 · Vérification de l'environnement** · construit les images, démarre la
+recette, vérifie point par point et affiche « OK » ou « ÉCHEC » (aucune valeur
+sensible, aucune commande payante) : mémoire et disque au-dessus des seuils,
+fichier d'environnement sans clé payante, configuration résolue (ports sur
+127.0.0.1 seulement, volumes et réseaux préfixés `tiktrends-recette`, aucun
+`.env.deploy`), construction, démarrage, migrations, inspection des conteneurs
+(aucun volume, réseau ou montage hors du projet de recette), `ffprobe` et
+`ffmpeg` dans le worker, sonde vidéo publiée PUIS relue en base, site de
+recette qui répond sur `127.0.0.1:3101` et nulle part ailleurs, registre du
+budget lisible.
+
+```bash
+bash ops/recette/verifier-environnement.sh --a-blanc   # d'abord : la liste des commandes, rien n'est exécuté
+bash ops/recette/verifier-environnement.sh
+```
+
+Code 0 et « Tout est OK » : continue. Un seul ÉCHEC : arrête-toi et transmets
+la sortie (elle ne contient aucun secret).
+
+**4.2 bis · Démarrage manuel** (si tu préfères les commandes une à une) du web, du worker, de la base et du Redis de recette :
 
 ```bash
 docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette up -d --build
@@ -120,41 +183,50 @@ docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops
 
 Note l'identifiant de release affiché (il sert au pas 2).
 
-**4.5 · Pas 1, lecture du devis** · sans clé et sans confirmation, la commande
-affiche le coût maximal puis refuse. Rien n'est dépensé.
+**4.5 · Pas 1, lecture du devis et du budget** · sans clé et sans
+confirmation, la commande affiche le devis à trois colonnes et le budget
+cumulatif, puis refuse. Rien n'est dépensé, rien n'est écrit.
 
 ```bash
+docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:budget
 docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:pas1
 ```
 
-Tu lis : compilation 0,14 $ (estimée), image 0,08 $, contrôle visuel 0,15 $, **TOTAL 0,36 $ au plus** (plafond dur de la passe), plafond de
-passe PROPOSÉ 1,00 $. C'est le moment d'approuver (ou non) la proposition.
+Tu lis : par ligne, **estimation**, **réservation maximale**, « coût réglé :
+après coup » ; puis `TOTAL … X $ au plus`, le budget cumulatif (autorisé 15 $,
+déjà engagé, restant) et `Rien ne part sans --confirmer-usd X`. **X est la
+réservation maximale**, jamais l'estimation.
 
-**4.6 · Pas 1, lancement réel** · clés saisies sans écho, puis confirmation du
-TOTAL recopié :
+**4.6 · Pas 1, lancement réel** · clés saisies sans écho, puis confirmation de
+la réservation maximale recopiée (remplace `X` par le montant lu en 4.5) :
 
 ```bash
 read -rs FAL_KEY && export FAL_KEY
 read -rs ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY
 export STUDIO_FOURNISSEUR_REEL=autorise
-docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:pas1 -- --confirmer-usd 0,36
+docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:pas1 -- --confirmer-usd X
 unset FAL_KEY ANTHROPIC_API_KEY STUDIO_FOURNISSEUR_REEL
 ```
 
-Ce qui se passe, dans l'ordre : compilation de la consigne (texte), consigne
-retenue, devis, approbation (réserve de crédits, job en file), moteur du worker,
-fal, décodage réel des pixels, dépôt et relecture du fichier, rapport.
+Ce qui se passe, dans l'ordre : devis recalculé et budget revérifié, registre
+écrit, compilation de la consigne (bornée à sa ligne), consigne retenue, devis,
+approbation, moteur du worker, fal, décodage réel des pixels, dépôt et
+relecture du fichier, **contrôle visuel**, registre mis à jour, rapport.
 
-Si la commande s'interrompt ou rend « job toujours en cours » : **relance la
-même commande**. Elle reprend le même job sous la même identité d'exécuteur,
-sans nouvelle compilation, ni nouveau devis, ni nouvelle approbation, ni
-seconde soumission à fal. Si un livrable existe déjà, elle réécrit le rapport
-et ne lance rien (un second rendu payant demande `--nouveau-rendu` et une
-nouvelle confirmation).
+**Reprises, sans double facturation.** Relance toujours **la même commande**
+(une reprise ne demande pas de nouvelle confirmation : elle ne dépense que ce
+qui était déjà approuvé, et revérifie le budget) :
+
+- job encore en cours (code 3) ⇒ elle reprend le même job, sans nouvelle compilation, ni devis, ni approbation, ni seconde soumission à fal ;
+- image produite mais contrôle visuel pas fait (interruption) ⇒ elle lance **seulement le contrôle visuel manquant** (aucune génération, aucun devis), dans le budget restant ;
+- contrôle visuel **engagé** ailleurs ou interrompu pendant l'appel, ou à l'**issue incertaine** (coupure, délai, 5xx) ⇒ **aucune relance** : code 1, et le rapport dit quelle ligne de dépense rapprocher de la facture Anthropic et comment ; relis alors le média toi-même ;
+- contrôle déjà tranché ⇒ rapport réécrit, aucun appel.
+
+Un second rendu payant demande `--nouveau-rendu` et une nouvelle confirmation.
 
 **4.7 · Ce que tu regardes** (sur la machine qui a lancé le compose) :
 
-- `ops/recette/sorties/rapport-pas1.md` · identifiants, coût réservé et réglé par ligne, état du job, empreinte SHA-256 et dimensions du livrable ;
+- `ops/recette/sorties/rapport-pas1.md` · identifiants ; le **coût en trois colonnes** (estimation, réservation maximale, coût réglé, et l'incertain à part) ; les lignes `ai_spend` ; l'état du job ; le **contrôle visuel** (exécuté, repris, refusé et pourquoi) ; empreinte SHA-256 et dimensions du livrable ; le **budget cumulatif restant** ;
 - `ops/recette/sorties/a-transmettre/recette-pas1-<job>.png` · **l'image livrée, copiée à ce chemin pour être transmise au relecteur** ;
 - le rapport ne contient aucune valeur sensible (clés, mots de passe, adresse de base) : elles sont masquées avant écriture, et un test le vérifie.
 
@@ -163,27 +235,50 @@ nouvelle confirmation).
 1. la commande rend le code 0 ;
 2. le rapport dit `État · completed` ;
 3. SHA-256 enregistré et SHA-256 du fichier relu `identique`, dimensions `identiques` ;
-4. le total réglé ne dépasse pas 0,36 $ ; le rapport dit si le contrôle visuel a tourné et son verdict (qualité `passed`, `requires_review` ou `rejected`) ;
+4. le coût réglé total ne dépasse pas la réservation maximale confirmée ; aucun montant « incertain » ; le contrôle visuel a tourné et donne son verdict (qualité `passed`, `requires_review` ou `rejected`) ;
 5. **toi seul** : en ouvrant l'image, le produit (lunettes et bandeau bleus) est présent et reconnaissable, la scène suit la consigne, aucun texte parasite ni logo ni marque réelle.
 
-## 5. Pas 2 · benchmark (en attente du recalcul R3)
+**4.8 · Budget, à tout moment** · lecture seule, rien n'est écrit :
 
-**Ne pas lancer avant que R3 ait livré le devis recalculé.** Ensuite :
+```bash
+docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:budget
+```
 
-1. **Budget** · lis `Budget restant pour le pas 2` à la fin de `rapport-pas1.md` (15 $ moins tout ce qui est compté dans la base de recette). C'est le plafond du pas 2, pas une cible.
+Dépense antérieure connue par facture (ajout seul, au registre et au journal) :
+
+```bash
+docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:budget:saisir -- --usd 0,40 --motif "facture fal du 7 octobre"
+```
+
+**4.9 · Ce que tu transmets ensuite** (aucun secret dedans) :
+
+1. la sortie de `bash ops/recette/verifier-environnement.sh` (les lignes OK / ÉCHEC) ;
+2. `ops/recette/sorties/rapport-pas1.md` ;
+3. l'image `ops/recette/sorties/a-transmettre/recette-pas1-<job>.png` ;
+4. la sortie de `recette:budget` après le pas 1 ;
+5. tes trois réponses du §4.7 point 5 (produit reconnaissable, scène conforme, aucun texte ni logo parasite).
+
+Ne transmets jamais `ops/recette/.env.recette`, ni tes clés, ni le journal du shell.
+
+## 5. Pas 2 · benchmark
+
+Son plafond est le **restant du budget cumulatif** (15 $ moins tout ce qui est
+déjà engagé, toutes bases), pas une cible.
+
+1. **Budget** · lis `RESTANT` avec `recette:budget` (§4.8), ou à la fin de `rapport-pas1.md`.
 2. **Devis** (aucun appel) :
    ```bash
    docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web bench:studios -- --plan
    ```
-   Si le TOTAL dépasse le budget restant, **arrête-toi** : rien ne doit être lancé (la commande réelle le refuserait de toute façon).
-3. **Approbation ADMIN** · ouvre `http://localhost:3101` (sur le VPS : `ssh -L 3101:127.0.0.1:3101 debian@51.255.39.79`, le port n'écoute que sur 127.0.0.1). Crée ton compte avec ton e-mail de fondateur, puis Admin, IA et Studios, onglet Évaluations : approuve un budget égal au budget restant, sur la release notée en 4.4, avec un motif. L'approbation expire en 24 h et ne sert qu'une fois.
-4. **Campagne réelle** · mêmes saisies de clés qu'en 4.6, puis :
+   Si le TOTAL dépasse le restant, **arrête-toi** : rien ne doit être lancé (la commande réelle le refuserait de toute façon).
+3. **Approbation ADMIN** · ouvre `http://localhost:3101` (sur le VPS : `ssh -L 3101:127.0.0.1:3101 debian@51.255.39.79`, le port n'écoute que sur 127.0.0.1). Crée ton compte avec ton e-mail de fondateur, puis Admin, IA et Studios, onglet Évaluations : approuve un budget au plus égal au restant, sur la release notée en 4.4, avec un motif. L'approbation expire en 24 h et ne sert qu'une fois.
+4. **Campagne réelle** · par l'enveloppe `recette:bench`, qui revérifie le registre (`antérieur + réglé + incertain + budget ≤ 15 $`), l'écrit, pose le plafond du processus, puis met le registre à jour après coup. Mêmes saisies de clés qu'en 4.6, puis :
    ```bash
-   docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web bench:studios -- --reel --budget-usd <budget restant> --sortie /sorties/benchmark
+   docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils run --rm outils_recette pnpm --filter @tiktrends/web recette:bench -- --reel --budget-usd <restant ou moins> --sortie /sorties/benchmark
    unset FAL_KEY ANTHROPIC_API_KEY STUDIO_FOURNISSEUR_REEL
    ```
    Avant CHAQUE appel payant, la campagne vérifie « dépensé + maximum de l'appel ≤ budget » (`peutLancer`) et s'arrête sinon. Les cas non joués sont dits « arrêtés », jamais réussis.
-5. **Ce que tu regardes** · `ops/recette/sorties/benchmark/` (rapport scellé, fiches de revue à remplir, médias produits).
+5. **Ce que tu regardes** · `ops/recette/sorties/benchmark/` (rapport scellé, fiches de revue à remplir, médias produits) et `recette:budget`.
 
 ## 6. Tâches automatiques · état dans la recette
 
@@ -210,7 +305,10 @@ neutralisées).
 
 ## 7. Tout détruire · uniquement la recette
 
-Dans cet ordre (la première commande lit encore `.env.recette`) :
+Dans cet ordre (la première commande lit encore `.env.recette`). **Le
+registre `ops/recette/registre/` n'est JAMAIS supprimé** : c'est lui qui
+garde le cumul des 15 $ quand la base disparaît (garde :
+`apps/web/test/e2-registre-runbook.test.ts`).
 
 ```bash
 docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette --profile outils down -v
@@ -221,7 +319,9 @@ rm -rf ops/recette/sorties
 
 `down -v` retire les conteneurs du projet, son réseau `tiktrends-recette-reseau`
 et son volume `tiktrends-recette-pgdata`. Supprime `ops/recette/sorties`
-seulement **après** avoir transmis l'image et les rapports.
+seulement **après** avoir transmis l'image et les rapports. Ne supprime ni ne
+déplace `ops/recette/registre` (ni `ops/recette` en entier) : le cumul des
+dépenses passées serait perdu de vue.
 
 Interdits, même pour « faire de la place » : `docker system prune`, tout
 `prune`, toute commande `docker compose` sans `-p tiktrends-recette -f
@@ -231,6 +331,7 @@ dont le nom ne commence pas par `tiktrends-recette`. Garde :
 
 ## 8. Ce que ce kit ne prouve pas
 
-- Aucune commande de ce kit n'a été lancée pour de vrai : seulement en simulé (fournisseur factice, `apps/web/test/e-pas1-recette.test.ts`) et contre une base Postgres locale sans clé (refus et annonce vérifiés).
-- La construction des images dans ce compose n'a pas été jouée (pas de démon Docker dans la session) : seul `docker compose config` l'a validé.
+- Aucune commande payante de ce kit n'a été lancée pour de vrai : seulement en simulé (fournisseur factice, `apps/web/test/e-pas1-recette.test.ts`, `apps/web/test/e2-pas1-registre.test.ts`) et contre des bases Postgres locales sans clé.
+- La construction des images et `verifier-environnement.sh` n'ont pas été joués avec Docker (pas de démon dans la session) : le script a été exécuté à blanc et contre de faux outils (`apps/web/test/e2-verifier-environnement.test.ts`).
+- La borne de compilation est mesurée sur le semis de recette ; le montant qui fait foi est celui que la commande affiche au moment du lancement.
 - Le benchmark évalue ici la release de la base de recette. Une évaluation réelle obtenue ici n'est pas inscrite en production. Rejoindre le rapport à la release de production (même empreinte ou non) reste une décision à prendre.

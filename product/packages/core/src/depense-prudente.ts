@@ -389,3 +389,205 @@ export function libelleCoutTexteEstime(usd: number): string {
   return `environ ${(Math.ceil(usd * 100 - 1e-9) / 100).toFixed(2).replace('.', ',')} $ (estimation)`;
 }
 export const NOTE_BORNE_TEXTE = 'borne exacte réservée avant l’envoi, sous le plafond';
+
+/* ═════════════ 6 · Contrôle visuel · reprise, exclusion, issue incertaine (E2) ═════════════ */
+
+/**
+ * ── Le défaut réparé (Codex/propriétaire, 9 octobre, avant l'essai réel) ─────
+ *
+ * « Si l'image est déjà produite après une interruption, reprends uniquement
+ * le contrôle approuvé qui manque. Aucune seconde génération ni double
+ * facturation. Un résultat incertain doit être réconcilié avant toute
+ * relance. » La garde du contrôle visuel ne lisait que le statut qualité :
+ * deux clics simultanés sur un média `pending` pouvaient lancer deux
+ * contrôles payants, et une issue incertaine ne laissait aucune trace sur le
+ * job.
+ *
+ * Désormais un MARQUEUR est posé sur le job (`result.controleVision`) par une
+ * écriture conditionnelle atomique AVANT l'appel : un seul lancement le prend,
+ * l'autre lit « engagé » et n'appelle rien. Après l'appel, le marqueur dit
+ * l'issue : `conclu` (réponse reçue, ou refus certain : rien de facturé) ou
+ * `incertain` (la requête a pu être facturée sans qu'on sache combien). Ces
+ * règles sont pures ; l'écriture vit dans `apps/web/lib/studios/produit/qualite.ts`.
+ */
+
+/** Clé du marqueur dans `studio_jobs.result` · ajout seul, le reste du résultat n'est jamais réécrit. */
+export const CLE_MARQUEUR_CONTROLE_VISION = 'controleVision';
+
+export type MarqueurControleVision =
+  | { etat: 'engage'; le: string; trace: string }
+  | { etat: 'conclu'; le: string; fin: string; trace: string }
+  | { etat: 'incertain'; le: string; fin: string; trace: string; cause: string };
+
+/**
+ * Le marqueur du job · `null` s'il n'y en a pas, `'illisible'` s'il y a QUELQUE
+ * CHOSE qu'on ne sait pas lire (traité comme engagé : le doute ne relance rien).
+ */
+export function lireMarqueurControleVision(result: unknown): MarqueurControleVision | 'illisible' | null {
+  if (result === null || typeof result !== 'object') return null;
+  const m = (result as Record<string, unknown>)[CLE_MARQUEUR_CONTROLE_VISION];
+  if (m === undefined || m === null) return null;
+  if (typeof m !== 'object') return 'illisible';
+  const o = m as Record<string, unknown>;
+  const s = (k: string) => (typeof o[k] === 'string' ? (o[k] as string) : null);
+  const le = s('le'); const trace = s('trace'); const fin = s('fin');
+  if (!le || !trace) return 'illisible';
+  if (o.etat === 'engage') return { etat: 'engage', le, trace };
+  if (o.etat === 'conclu' && fin) return { etat: 'conclu', le, fin, trace };
+  if (o.etat === 'incertain' && fin) return { etat: 'incertain', le, fin, trace, cause: s('cause') ?? 'inconnue' };
+  return 'illisible';
+}
+
+export type MotifRefusControleVision = 'hors_devis' | 'incertain' | 'deja_tranche' | 'deja_controle' | 'engage';
+
+export type DecisionControleVision =
+  | { lancer: true }
+  | { lancer: false; motif: MotifRefusControleVision };
+
+/**
+ * Le contrôle visuel d'un job peut-il PARTIR (appel payant) ? Dans l'ordre :
+ *
+ *  1. aucune ligne « contrôle visuel » au devis approuvé ⇒ `hors_devis` ;
+ *  2. un contrôle précédent à l'issue INCERTAINE ⇒ `incertain` (à réconcilier
+ *     avant toute relance, même si le média a été tranché depuis) ;
+ *  3. statut qualité déjà tranché ⇒ `deja_tranche` (aucun appel) ;
+ *  4. un contrôle CONCLU dont le verdict n'a pas été enregistré ⇒
+ *     `deja_controle` (il a été payé : on ne le rachète pas) ;
+ *  5. un contrôle ENGAGÉ (en cours ailleurs, ou interrompu sans issue
+ *     écrite), ou un marqueur illisible ⇒ `engage` ;
+ *  6. sinon ⇒ on lance, et SEULEMENT le contrôle (jamais une génération).
+ *
+ * Le job non terminé n'est pas tranché ici : sans média, l'appelant refuse
+ * avant de prendre le marqueur (aucun appel possible).
+ */
+export function decisionControleVision(e: {
+  visionApprouvee: boolean;
+  qualite: string;
+  marqueur: MarqueurControleVision | 'illisible' | null;
+}): DecisionControleVision {
+  if (!e.visionApprouvee) return { lancer: false, motif: 'hors_devis' };
+  const m = e.marqueur;
+  if (m !== null && m !== 'illisible' && m.etat === 'incertain') return { lancer: false, motif: 'incertain' };
+  if (e.qualite !== 'pending') return { lancer: false, motif: 'deja_tranche' };
+  if (m !== null && m !== 'illisible' && m.etat === 'conclu') return { lancer: false, motif: 'deja_controle' };
+  if (m !== null) return { lancer: false, motif: 'engage' };
+  return { lancer: true };
+}
+
+export type IssueEchecAppel = 'avant_envoi' | 'refus_certain' | 'incertaine';
+
+/**
+ * L'issue d'un appel texte qui a ÉCHOUÉ, vue de l'appelant :
+ *  · `avant_envoi` · refusé avant de partir (plafond, borne approuvée
+ *    dépassée, pièces refusées) : aucune ligne `ai_spend`, rien de facturé ;
+ *  · `refus_certain` · le fournisseur a refusé à la porte (`refusCertain`,
+ *    calculé par l'appelant avec `reservationTexteLiberable`) : la
+ *    réservation est rendue, rien de facturé ;
+ *  · `incertaine` · tout le reste : la requête a pu être facturée, la ligne
+ *    reste au maximum, marquée à réconcilier (`guardedAnthropic`).
+ */
+export function issueEchecAppel(e: { nom: string | null | undefined; refusCertain: boolean }): IssueEchecAppel {
+  if (e.nom === 'SpendBlockedError' || e.nom === 'PiecesInvalides') return 'avant_envoi';
+  if (e.refusCertain) return 'refus_certain';
+  return 'incertaine';
+}
+
+export interface LigneDepenseLiee {
+  id: string;
+  createdAt: Date;
+  actualUsd: number;
+  cause: string | null;
+}
+
+const usd4v = (n: number) => `${n.toFixed(4).replace('.', ',')} $`;
+
+/**
+ * Ce qu'on dit quand un contrôle précédent est à l'issue incertaine · QUOI
+ * réconcilier (les lignes de dépense nées pendant ce contrôle, leur montant
+ * compté au maximum, leur cause) et COMMENT (rapprochement avec l'usage
+ * facturé par le fournisseur, aucune relance automatique, relecture humaine).
+ */
+export function messageControleIncertain(m: { le: string; fin?: string | null; cause?: string | null }, lignes: readonly LigneDepenseLiee[]): string {
+  const cause = m.cause ? ((CAUSES_A_RECONCILIER as Record<string, string>)[m.cause] ?? m.cause) : 'issue non écrite (contrôle interrompu)';
+  const quoi = lignes.length
+    ? `Ligne${lignes.length > 1 ? 's' : ''} de dépense à réconcilier · ${lignes.map((l) => `${l.id} (${usd4v(l.actualUsd)} comptés au maximum${l.cause ? `, ${(CAUSES_A_RECONCILIER as Record<string, string>)[l.cause] ?? l.cause}` : ''})`).join(' ; ')}.`
+    : 'Aucune ligne de dépense retrouvée pour cette fenêtre · vérifie quand même l’usage du fournisseur sur cette période.';
+  return [
+    `Contrôle visuel précédent à l’issue incertaine (engagé le ${m.le}${m.fin ? `, terminé le ${m.fin}` : ''} · ${cause}).`,
+    quoi,
+    'Comment · compare ce montant à l’usage facturé par le fournisseur de texte sur cette période, puis note l’écart ; tant que ce n’est pas fait, aucun nouveau contrôle payant n’est lancé pour ce média.',
+    'Relis le média toi-même (composant par composant) : la relecture humaine reste ouverte.',
+  ].join(' ');
+}
+
+/* ═════════════════ 7 · Budget d'essai cumulatif (E2, 9 octobre) ═════════════════ */
+
+/**
+ * « J'autorise 15 $ maximum au total pour tous les tests nécessaires au
+ * chantier TikTrends, tous fournisseurs, étapes et relances confondus. Ce
+ * plafond remplace la précédente limite de 1 $ : ce n'est pas 15 $ par test
+ * ou par session. Déduis toute dépense déjà engagée et conserve les
+ * réservations dont le coût reste incertain. Aucune recharge ni dépassement
+ * autorisé. » (propriétaire, 9 octobre)
+ */
+export const BUDGET_ESSAIS_TOTAL_USD_MICROS = 15_000_000;
+
+export type EtatLigneEssai = 'reglee' | 'prix_fixe' | 'rendue' | 'a_reconcilier' | 'reservee_sans_issue';
+
+/**
+ * Une ligne `ai_spend` vue par le budget d'essai · ce qui est RÉGLÉ et ce qui
+ * reste INCERTAIN (compté au maximum réservé, jamais libéré ici) :
+ *  · `a_reconcilier` (cause écrite) · incertain, au montant réservé ;
+ *  · montant nul · `rendue`, 0 ;
+ *  · jetons écrits · `reglee`, au coût réel ;
+ *  · fournisseur à prix fixe (fal…) · `prix_fixe`, réglé au prix fixe ;
+ *  · texte réservé sans règlement ni cause (processus interrompu pendant
+ *    l'appel) · `reservee_sans_issue`, incertain au maximum.
+ */
+export function classerLigneEssai(l: {
+  provider: string; actualUsd: number; inputTokens: number | null; outputTokens: number | null; reconcileReason: string | null;
+}): { etat: EtatLigneEssai; regleMicros: number; incertainMicros: number } {
+  const micros = Math.max(0, Math.round(Number(l.actualUsd) * 1_000_000));
+  if (l.reconcileReason) return { etat: 'a_reconcilier', regleMicros: 0, incertainMicros: micros };
+  if (micros === 0) return { etat: 'rendue', regleMicros: 0, incertainMicros: 0 };
+  if (l.inputTokens !== null || l.outputTokens !== null) return { etat: 'reglee', regleMicros: micros, incertainMicros: 0 };
+  if (l.provider !== 'anthropic') return { etat: 'prix_fixe', regleMicros: micros, incertainMicros: 0 };
+  return { etat: 'reservee_sans_issue', regleMicros: 0, incertainMicros: micros };
+}
+
+export interface BilanBudgetEssai {
+  autoriseMicros: number;
+  /** Dépenses antérieures saisies par le propriétaire (factures), hors base. */
+  anterieuresMicros: number;
+  regleMicros: number;
+  incertainMicros: number;
+  /** autorisé − antérieures − réglé − incertain, jamais négatif. */
+  restantMicros: number;
+  /** Vrai si le cumul dépasse déjà l'autorisation (restant 0, et le dire). */
+  depasse: boolean;
+}
+
+export function bilanBudgetEssai(e: {
+  autoriseMicros: number; anterieuresMicros: number; lignes: ReadonlyArray<{ regleMicros: number; incertainMicros: number }>;
+}): BilanBudgetEssai {
+  const regleMicros = e.lignes.reduce((s, l) => s + Math.max(0, l.regleMicros), 0);
+  const incertainMicros = e.lignes.reduce((s, l) => s + Math.max(0, l.incertainMicros), 0);
+  const brut = e.autoriseMicros - Math.max(0, e.anterieuresMicros) - regleMicros - incertainMicros;
+  return { autoriseMicros: e.autoriseMicros, anterieuresMicros: Math.max(0, e.anterieuresMicros), regleMicros, incertainMicros, restantMicros: Math.max(0, brut), depasse: brut < 0 };
+}
+
+const usd2v = (micros: number) => `${(micros / 1_000_000).toFixed(2).replace('.', ',')} $`;
+
+/**
+ * Une dépense de `reservationMicros` (la RÉSERVATION MAXIMALE du parcours,
+ * jamais l'estimation) peut-elle partir ? `antérieures + réglé + incertain +
+ * réservation ≤ autorisé`, sinon refus, avant tout appel.
+ */
+export function decisionDepenseEssai(b: BilanBudgetEssai, reservationMicros: number): { ok: true; resteApresMicros: number } | { ok: false; message: string } {
+  if (!Number.isFinite(reservationMicros) || reservationMicros <= 0) return { ok: false, message: 'Réservation maximale absente ou nulle · rien ne part sans montant borné.' };
+  const engage = b.anterieuresMicros + b.regleMicros + b.incertainMicros;
+  if (engage + reservationMicros > b.autoriseMicros) {
+    return { ok: false, message: `Budget d’essai insuffisant · autorisé ${usd2v(b.autoriseMicros)}, déjà engagé ${usd2v(engage)} (antérieur ${usd2v(b.anterieuresMicros)}, réglé ${usd2v(b.regleMicros)}, incertain conservé ${usd2v(b.incertainMicros)}), reste ${usd2v(b.restantMicros)} < réservation maximale ${usd2v(reservationMicros)} · rien n’est lancé.` };
+  }
+  return { ok: true, resteApresMicros: b.autoriseMicros - engage - reservationMicros };
+}
