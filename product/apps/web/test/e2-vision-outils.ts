@@ -54,9 +54,14 @@ export async function jobLivre(db: BaseStudio, ids: IdsStudios, cat: Catalogue, 
   return { jobId: j!.id, sortieId: `sta_${assetId}` };
 }
 
-/** La sortie validée de `quality.visual` · verdict « passed », composant confirmé. */
+/**
+ * La sortie VALIDE de `quality.visual` (schéma du registre) · verdict
+ * « passed », composant confirmé. R6 · la sortie ne porte plus de clé
+ * `sortieId` à la racine : le schéma la refusait (INVALID_SCHEMA), le contrôle
+ * concluait « requires_review » et la garde E2 passait quand même (elle ne
+ * vérifiait que « ≠ pending »). L'identifiant n'apparaît que dans le résumé.
+ */
 export const sortieVision = (sortieId: string) => JSON.stringify({
   status: 'ready', questions: [], warnings: [], evidenceIds: [],
-  result: { verdict: 'passed', issues: [], unverifiable: [], summary: 'Lunettes visibles' },
-  sortieId,
+  result: { verdict: 'passed', issues: [], unverifiable: [], summary: `Lunettes visibles sur ${sortieId}` },
 });

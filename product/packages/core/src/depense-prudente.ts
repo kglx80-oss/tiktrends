@@ -515,10 +515,24 @@ export interface LigneDepenseLiee {
 const usd4v = (n: number) => `${n.toFixed(4).replace('.', ',')} $`;
 
 /**
+ * R6 · OÙ se fait le geste de réconciliation (R5) · la section « À
+ * réconcilier » de l'écran des dépenses du propriétaire
+ * (`app/(app)/admin/depenses/SectionReconciliation.tsx`, `id="a-reconcilier"`).
+ */
+export const ADRESSE_A_RECONCILIER = '/admin/depenses#a-reconcilier';
+
+/**
  * Ce qu'on dit quand un contrôle précédent est à l'issue incertaine · QUOI
  * réconcilier (les lignes de dépense nées pendant ce contrôle, leur montant
  * compté au maximum, leur cause) et COMMENT (rapprochement avec l'usage
  * facturé par le fournisseur, aucune relance automatique, relecture humaine).
+ *
+ * R6 · le COMMENT pointe vers le geste qui existe désormais
+ * (`ADRESSE_A_RECONCILIER`) quand au moins une ligne y figure, c'est-à-dire
+ * porte une cause écrite (seules celles-là sont listées « À réconcilier »).
+ * Une fois toutes les lignes réconciliées, relancer le contrôle reprend le
+ * seul contrôle approuvé. Sans ligne marquée (réservée sans issue, ou aucune
+ * retrouvée), l'adresse n'est pas donnée : elle mènerait à une liste vide.
  */
 export function messageControleIncertain(m: { le: string; fin?: string | null; cause?: string | null }, lignes: readonly LigneDepenseLiee[]): string {
   const cause = m.cause ? ((CAUSES_A_RECONCILIER as Record<string, string>)[m.cause] ?? m.cause) : 'issue non écrite (contrôle interrompu)';
@@ -528,7 +542,9 @@ export function messageControleIncertain(m: { le: string; fin?: string | null; c
   return [
     `Contrôle visuel précédent à l’issue incertaine (engagé le ${m.le}${m.fin ? `, terminé le ${m.fin}` : ''} · ${cause}).`,
     quoi,
-    'Comment · compare ce montant à l’usage facturé par le fournisseur de texte sur cette période, puis note l’écart ; tant que ce n’est pas fait, aucun nouveau contrôle payant n’est lancé pour ce média.',
+    lignes.some((l) => l.cause)
+      ? `Comment · compare ce montant à l’usage facturé par le fournisseur de texte sur cette période, puis saisis le montant facturé, l’identifiant de la preuve et un motif dans Dépenses · À réconcilier (${ADRESSE_A_RECONCILIER}) ; tant que ce n’est pas fait, aucun nouveau contrôle payant n’est lancé pour ce média. Une fois toutes ces lignes réconciliées, relance le contrôle : seul le contrôle approuvé repart.`
+      : 'Comment · compare ce montant à l’usage facturé par le fournisseur de texte sur cette période, puis note l’écart ; tant que ce n’est pas fait, aucun nouveau contrôle payant n’est lancé pour ce média.',
     'Relis le média toi-même (composant par composant) : la relecture humaine reste ouverte.',
   ].join(' ');
 }

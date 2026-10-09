@@ -19,6 +19,8 @@
  * fichier lu à moitié et déclaré conforme.
  */
 
+import { CAPACITES_STUDIOS, DEFINITIONS_CAPACITES, ENV_INTERRUPTEURS, capaciteActive, lireListeEnv, type CapaciteStudio } from '@tiktrends/core';
+
 export type ValeurYaml = string | ValeurYaml[] | { [cle: string]: ValeurYaml };
 type Objet = { [cle: string]: ValeurYaml };
 
@@ -228,6 +230,58 @@ export const DOSSIER_REGISTRE_RECETTE = './ops/recette/registre';
 export const CLES_PAYANTES = ['FAL_KEY', 'ANTHROPIC_API_KEY'] as const;
 export const SERVICE_OUTILS = 'outils_recette';
 
+/**
+ * R6 · capacités Studios (F1, coupées par défaut) que l'essai réel AUTORISÉ
+ * exige, et rien de plus · pas 1 (`recette:pas1`) : image puis contrôle
+ * visuel, pour l'espace de recette seulement (espace pilote) ; pas 2
+ * (`recette:bench --reel`) : benchmark réel, capacité de plateforme
+ * (généralisation, dans le service d'outils seulement).
+ */
+export const CAPACITES_ESSAI_RECETTE = {
+  pas1: ['generation_image', 'controle_visuel'],
+  pas2: ['benchmark_reel'],
+} as const satisfies Record<string, readonly CapaciteStudio[]>;
+/** Un espace qui n'est PAS celui de la recette · pour vérifier qu'aucune ouverture ne déborde. */
+const AUTRE_ESPACE = '00000000-0000-4000-8000-0000000000ff';
+
+/**
+ * R6 · les interrupteurs Studios d'un service applicatif de recette, sur son
+ * environnement EFFECTIF (neutralise.env puis `environment:`) · décidés par la
+ * règle du noyau (`capaciteActive`), jamais relus à la main :
+ *  · chaque variable d'interrupteur (`ENV_INTERRUPTEURS`) est neutralisée ou
+ *    posée : jamais héritée de .env.recette ;
+ *  · aucune capacité incomplète ouverte au-delà de l'essai autorisé (pas 1
+ *    partout, pas 2 dans le service d'outils seulement) ;
+ *  · aucune capacité d'espace ouverte pour un autre espace que la recette ;
+ *  · le service d'outils ouvre TOUT ce que l'essai exige (sinon le worker du
+ *    pas 1 laisserait le job en file, et `--reel` refuserait).
+ */
+export function violationsInterrupteursRecette(nom: string, effectif: Readonly<Record<string, string | null | undefined>>, espaceRecette: string): string[] {
+  const v: string[] = [];
+  for (const variable of Object.values(ENV_INTERRUPTEURS)) {
+    if (effectif[variable] === undefined) v.push(`Service « ${nom} » : ${variable} absente (ni neutralisée ni posée, donc héritée de .env.recette) · les interrupteurs de la recette ne viennent que du compose.`);
+  }
+  const env = Object.fromEntries(Object.entries(effectif).map(([k, x]) => [k, x ?? undefined]));
+  for (const e of lireListeEnv(env[ENV_INTERRUPTEURS.espacesPilotes]).filter((x) => x.toLowerCase() !== espaceRecette.toLowerCase())) {
+    v.push(`Service « ${nom} » : ${ENV_INTERRUPTEURS.espacesPilotes} nomme « ${e} » · seul l’espace de recette (${espaceRecette}) peut être pilote.`);
+  }
+  const autorisees: readonly CapaciteStudio[] = nom === SERVICE_OUTILS ? [...CAPACITES_ESSAI_RECETTE.pas1, ...CAPACITES_ESSAI_RECETTE.pas2] : CAPACITES_ESSAI_RECETTE.pas1;
+  for (const c of CAPACITES_STUDIOS.filter((x) => DEFINITIONS_CAPACITES[x].maturite === 'incomplete')) {
+    if (capaciteActive(c, { env, espace: espaceRecette }) && !autorisees.includes(c)) {
+      v.push(`Service « ${nom} » : « ${c} » ouverte · seules ${autorisees.join(', ')} le sont en recette (essai réel autorisé).`);
+    }
+    if (DEFINITIONS_CAPACITES[c].portee === 'espace' && capaciteActive(c, { env, espace: AUTRE_ESPACE })) {
+      v.push(`Service « ${nom} » : « ${c} » ouverte hors de l’espace de recette · ouverture par espace pilote seulement (${ENV_INTERRUPTEURS.espacesPilotes}=${espaceRecette}).`);
+    }
+  }
+  if (nom === SERVICE_OUTILS) {
+    for (const c of [...CAPACITES_ESSAI_RECETTE.pas1, ...CAPACITES_ESSAI_RECETTE.pas2]) {
+      if (!capaciteActive(c, { env, espace: espaceRecette })) v.push(`Service « ${nom} » : « ${c} » coupée pour l’espace de recette · l’essai réel autorisé (pas 1 : ${CAPACITES_ESSAI_RECETTE.pas1.join(', ')} ; pas 2 : ${CAPACITES_ESSAI_RECETTE.pas2.join(', ')}) ne passerait pas la garde.`);
+    }
+  }
+  return v;
+}
+
 const estObjet = (v: ValeurYaml | undefined): v is Objet => typeof v === 'object' && v !== null && !Array.isArray(v);
 const objet = (v: ValeurYaml | undefined): Objet => (estObjet(v) ? v : {});
 const liste = (v: ValeurYaml | undefined): ValeurYaml[] => (Array.isArray(v) ? v : v === undefined || v === '' ? [] : [v]);
@@ -283,7 +337,7 @@ export function nomsProduction(prod: ValeurYaml): NomsProduction {
 export function violationsComposeRecette(
   recette: ValeurYaml,
   prod: NomsProduction,
-  o: { neutralise: Record<string, string>; externes: readonly string[] },
+  o: { neutralise: Record<string, string>; externes: readonly string[]; /** R6 · l'espace synthétique de recette (`RECETTE.workspaceId`). */ espaceRecette: string },
 ): string[] {
   const v: string[] = [];
   const r = objet(recette);
@@ -362,6 +416,7 @@ export function violationsComposeRecette(
           v.push(`Service « ${nom} » : ${n} non neutralisée (${val === undefined ? 'absente, donc héritée de .env.recette' : `« ${val} »`}) · ${quoi}.`);
         }
       }
+      v.push(...violationsInterrupteursRecette(nom, effectif, o.espaceRecette));
       const cmd = liste(s.command).map(String);
       const dockerfile = String(objet(s.build).dockerfile ?? '');
       if (dockerfile === 'Dockerfile.workers') {

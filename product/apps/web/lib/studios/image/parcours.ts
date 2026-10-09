@@ -227,6 +227,14 @@ export async function approuverImagePour(
  * Contrôle des composants obligatoires d'un média LIVRÉ par le parcours image
  * (job `completed`, statut `pending`). Le contrôle visuel n'est pas routé :
  * `null` ⇒ `requires_review`. Idempotent : déjà tranché ⇒ rendu tel quel.
+ *
+ * R6 · REPRISE depuis l'écran · un contrôle à l'issue INCERTAINE dont toutes
+ * les lignes de dépense sont réconciliées avec la facture (R5) laisse le média
+ * en `requires_review` ; le geste de l'écran passe alors par
+ * `controlerSortieParVision`, qui reprend le SEUL contrôle approuvé (une
+ * requête, exclusion mutuelle par le marqueur). La décision est celle du noyau
+ * (`decisionControleVision`, relue par `refusControleVision`) : aucun refus
+ * pour un média déjà tranché ne veut dire « reprise permise ».
  */
 export async function controlerMediaPour(ctx: ContexteStudio, e: { jobId: unknown }, o: { medias?: ResolveurMediasTache } = {}): Promise<Resultat<{ qualite: StatutQualite }>> {
   const j = await lireJob(ctx, e.jobId);
@@ -234,11 +242,14 @@ export async function controlerMediaPour(ctx: ContexteStudio, e: { jobId: unknow
   if (!estDevisImage(lireSnapshotJob(j.job.snapshot)?.lignes)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   if (j.job.state !== 'completed') return erreurStudio('INVARIANT_CONFLICT', { traceId: ctx.traceId, targetIds: [j.job.id], message: 'Le média n’est pas encore enregistré · attends la fin du job.' });
   // E2 · un contrôle précédent à l'issue INCERTAINE se dit (quoi réconcilier, comment), même tranché depuis.
+  // R6 · aucun refus sur un média déjà tranché ⇒ c'est la reprise d'un incertain réconcilié.
+  let reprise = false;
   if (lireMarqueurControleVision(j.job.result) !== null && j.job.qualityStatus !== 'pending') {
     const refus = await refusControleVision(ctx, j.job);
     if (refus && refus.code === 'PROVIDER_UNCERTAIN') return refus;
+    reprise = refus === null && aPermissionEspace(ctx.permissions, 'studio.generate');
   }
-  if (j.job.qualityStatus !== 'pending') return { ok: true, qualite: j.job.qualityStatus as StatutQualite };
+  if (j.job.qualityStatus !== 'pending' && !reprise) return { ok: true, qualite: j.job.qualityStatus as StatutQualite };
   // R3 · contrôle visuel APPROUVÉ au devis ⇒ il s'exécute, dans sa borne ; sinon, aucun appel payant.
   // E2 · REPRISE : média livré, ligne approuvée, aucun contrôle fait ⇒ SEUL le contrôle manquant part (jamais
   // une génération ni un devis) ; engagé ailleurs, conclu ou incertain ⇒ refus nommé, aucun appel.

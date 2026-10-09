@@ -19,7 +19,7 @@ describe('garde des arguments', () => {
     expect(decider(['--', '--plan', '--cas', 'f04,F17'], {}, 'production')).toEqual({ ok: true, mode: 'plan', cas: ['F04', 'F17'] });
     expect(decider(['--jeu'], {}, 'production')).toEqual({ ok: true, mode: 'jeu' });
     expect(decider([], LOCAL, 'test')).toMatchObject({ ok: true, mode: 'simule' });
-    expect(decider(['--reel', '--budget-usd', '3'], LOCAL, 'production')).toMatchObject({ ok: true, mode: 'reel', budgetBrut: '3', releaseId: null });
+    expect(decider(['--reel', '--budget-usd', '3'], { ...LOCAL, STUDIOS_CAPACITES_GENERALES: 'benchmark_reel' }, 'production')).toMatchObject({ ok: true, mode: 'reel', budgetBrut: '3', releaseId: null });
   });
 
   it('refus : option inconnue, deux modes, budget hors réel, simulé hors recette locale, base absente', () => {

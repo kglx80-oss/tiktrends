@@ -46,8 +46,13 @@
  *  · une dépense ANTÉRIEURE connue par facture se saisit (`recette:budget:saisir`).
  *
  * Les règles d'argent (classement d'une ligne, engagements, bilan, décision)
- * vivent dans le noyau (`classerLigneEssai`, `bilanEssaiAvecEngagements`,
+ * vivent dans le noyau (`classerLigneEssaiReconciliee`, `bilanEssaiReconcilie`,
  * `cloreEngagementEssai`, `decisionDepenseEssai`).
+ *
+ * R6 · la lecture de la base joint `ai_spend_reconciliations` (R5, 0056) : une
+ * ligne réconciliée par le propriétaire compte son montant FACTURÉ, et un
+ * engagement incertain dont toutes les lignes sont réconciliées aussi (garde :
+ * `test/r6-registre-reconciliation.test.ts`).
  */
 
 import { randomUUID } from 'node:crypto';
@@ -56,8 +61,8 @@ import { hostname } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  BUDGET_ESSAIS_TOTAL_USD_MICROS, bilanEssaiAvecEngagements, classerLigneEssai, cloreEngagementEssai, decisionDepenseEssai, engagementValide, lignesARattacher,
-  type BilanEssaiEngage, type EngagementEssai, type EtatLigneEssai, type IssueEngagement,
+  BUDGET_ESSAIS_TOTAL_USD_MICROS, bilanEssaiReconcilie, classerLigneEssaiReconciliee, cloreEngagementEssai, decisionDepenseEssai, engagementIncertainReconcilie, engagementValide, lignesARattacher,
+  type BilanEssaiEngage, type EngagementEssai, type EtatLigneEssaiReconciliee, type IssueEngagement,
 } from '@tiktrends/core';
 import { sousVerrou, type Verrou } from './verrou';
 
@@ -80,7 +85,9 @@ export interface LigneRegistre {
   action: string;
   reserveMicros: number;
   actualMicros: number;
-  etat: EtatLigneEssai;
+  etat: EtatLigneEssaiReconciliee;
+  /** R6 · montant FACTURÉ de la réconciliation (R5), `null` sans réconciliation. */
+  factureMicros?: number | null;
   regleMicros: number;
   incertainMicros: number;
   cause: string | null;
@@ -110,6 +117,8 @@ export interface LigneBase {
   id: string; provider: string; model: string | null; action: string;
   estimatedUsd: number; actualUsd: number; inputTokens: number | null; outputTokens: number | null;
   reconcileReason: string | null; createdAt: Date;
+  /** R6 · `billed_micros` de la réconciliation de la ligne (`ai_spend_reconciliations`), `null` ou absent sans. */
+  factureMicros?: number | null;
 }
 
 /** Ce qu'une lecture de la base de recette rend. */
@@ -159,12 +168,12 @@ export function fusionnerRegistre(reg: RegistreBudget, lignes: readonly LigneBas
   const out: RegistreBudget = { ...reg, lignes: { ...reg.lignes }, engagements: { ...reg.engagements }, bases: { ...reg.bases }, majLe: t };
   const changees: string[] = [];
   for (const l of lignes) {
-    const c = classerLigneEssai(l);
+    const c = classerLigneEssaiReconciliee({ ...l, factureMicros: l.factureMicros ?? null });
     const a = out.lignes[l.id];
     const n: LigneRegistre = {
       id: l.id, provider: l.provider, model: l.model, action: l.action,
       reserveMicros: Math.max(0, Math.round(Number(l.estimatedUsd) * 1_000_000)), actualMicros: Math.max(0, Math.round(Number(l.actualUsd) * 1_000_000)),
-      etat: c.etat, regleMicros: c.regleMicros, incertainMicros: c.incertainMicros, cause: l.reconcileReason,
+      etat: c.etat, regleMicros: c.regleMicros, incertainMicros: c.incertainMicros, cause: l.reconcileReason, factureMicros: l.factureMicros ?? null,
       creeeLe: l.createdAt.toISOString(), base: a?.base ?? base, vueLe: t, engagement: a?.engagement ?? null,
     };
     if (!a || a.etat !== n.etat || a.regleMicros !== n.regleMicros || a.incertainMicros !== n.incertainMicros || a.cause !== n.cause) changees.push(l.id);
@@ -175,7 +184,7 @@ export function fusionnerRegistre(reg: RegistreBudget, lignes: readonly LigneBas
 }
 
 export function bilanRegistre(reg: RegistreBudget): BilanEssaiEngage {
-  return bilanEssaiAvecEngagements({
+  return bilanEssaiReconcilie({
     autoriseMicros: reg.autorisation.usdMicros,
     anterieuresMicros: reg.anterieures.reduce((s, a) => s + a.usdMicros, 0),
     lignes: Object.values(reg.lignes),
@@ -210,6 +219,8 @@ export function texteBilan(reg: RegistreBudget, b: BilanEssaiEngage = bilanRegis
   const incertaines = Object.values(reg.lignes).filter((l) => l.incertainMicros > 0);
   const ouverts = Object.values(reg.engagements ?? {}).filter((g) => g.etat === 'engage');
   const engIncertains = Object.values(reg.engagements ?? {}).filter((g) => g.etat === 'incertain');
+  const lignes = Object.values(reg.lignes);
+  const reconciliees = lignes.filter((l) => l.etat === 'reconciliee');
   return [
     'Budget d’essai · registre cumulatif (toutes bases, tous passages)',
     `  autorisé            · ${usd2(b.autoriseMicros)} au total (propriétaire, ${reg.autorisation.le})`,
@@ -220,8 +231,9 @@ export function texteBilan(reg: RegistreBudget, b: BilanEssaiEngage = bilanRegis
     `  RESTANT             · ${usd4(b.restantMicros)}${b.depasse ? ' · DÉPASSÉ, aucune commande payante ne part' : ''}`,
     `  lignes connues      · ${Object.keys(reg.lignes).length} · engagements : ${Object.keys(reg.engagements ?? {}).length} · bases vues : ${Object.keys(reg.bases).length} · mis à jour ${reg.majLe}`,
     ...(ouverts.length ? ['  engagements ouverts (commande en cours, ou interrompue avant sa clôture · comptés au maximum) :', ...ouverts.map((g) => `    - ${g.id} · ${g.commande} · ${usd4(g.reserveMicros)} · pris le ${g.creeLe} · processus ${g.pid} (${g.hote}) · base ${g.base}`)] : []),
-    ...(engIncertains.length ? ['  engagements à l’issue incertaine :', ...engIncertains.map((g) => `    - ${g.id} · ${g.commande} · ${usd4(g.reserveMicros)} · ${g.cause ?? 'issue inconnue'} · ${g.creeLe}`)] : []),
+    ...(engIncertains.length ? ['  engagements à l’issue incertaine :', ...engIncertains.map((g) => `    - ${g.id} · ${g.commande} · ${usd4(g.reserveMicros)} · ${g.cause ?? 'issue inconnue'} · ${g.creeLe}${engagementIncertainReconcilie(g, lignes) ? ' · lignes toutes réconciliées, compté au facturé' : ''}`)] : []),
     ...(incertaines.length ? ['  à réconcilier :', ...incertaines.map((l) => `    - ${l.id} · ${l.provider} · ${l.action} · ${usd4(l.incertainMicros)} · ${l.cause ?? 'réservée sans issue (processus interrompu)'} · ${l.creeeLe}`)] : []),
+    ...(reconciliees.length ? ['  réconciliées avec la facture (comptées au facturé) :', ...reconciliees.map((l) => `    - ${l.id} · ${l.provider} · ${l.action} · réservé ${usd4(l.actualMicros)} → facturé ${usd4(l.regleMicros)} · ${l.creeeLe}`)] : []),
     ...(reg.anterieures.length ? ['  dépenses antérieures saisies :', ...reg.anterieures.map((a) => `    - ${usd4(a.usdMicros)} · ${a.motif} · ${a.saisieLe}`)] : []),
   ].join('\n');
 }
@@ -272,9 +284,12 @@ type BaseRecette = NonNullable<typeof import('@tiktrends/db')['db']>;
  * la même somme sur 30 jours, calculée ici).
  */
 export async function lireBaseDepuis(db: BaseRecette, depenseFenetre?: () => Promise<number>): Promise<LectureBase> {
-  const { schema, sql } = await import('@tiktrends/db');
+  const { schema, sql, eq } = await import('@tiktrends/db');
   const A = schema.aiSpend;
-  const rows = await db.select().from(A).orderBy(A.createdAt);
+  const R = schema.aiSpendReconciliations;
+  // R6 · jointure à GAUCHE : une ligne réconciliée (R5) porte son montant facturé, les autres `null`.
+  const lues = await db.select({ l: A, facture: R.billedMicros }).from(A).leftJoin(R, eq(R.aiSpendId, A.id)).orderBy(A.createdAt, A.id);
+  const rows = lues.map((x) => ({ ...x.l, factureMicros: x.facture === null || x.facture === undefined ? null : Number(x.facture) }));
   let base = 'base-inconnue';
   try {
     const r = await db.execute(sql`select (select system_identifier::text from pg_control_system()) as id, current_database() as nom`);
@@ -283,9 +298,10 @@ export async function lireBaseDepuis(db: BaseRecette, depenseFenetre?: () => Pro
   } catch { /* identité facultative */ }
   const depuis = Date.now() - 30 * 86_400_000;
   return {
-    lignes: rows.map((l) => ({ id: l.id, provider: l.provider, model: l.model, action: l.action, estimatedUsd: Number(l.estimatedUsd), actualUsd: Number(l.actualUsd), inputTokens: l.inputTokens, outputTokens: l.outputTokens, reconcileReason: l.reconcileReason, createdAt: l.createdAt })),
+    lignes: rows.map((l) => ({ id: l.id, provider: l.provider, model: l.model, action: l.action, estimatedUsd: Number(l.estimatedUsd), actualUsd: Number(l.actualUsd), inputTokens: l.inputTokens, outputTokens: l.outputTokens, reconcileReason: l.reconcileReason, createdAt: l.createdAt, factureMicros: l.factureMicros })),
     base,
-    depenseFenetreUsd: depenseFenetre ? await depenseFenetre() : rows.filter((l) => l.createdAt.getTime() >= depuis).reduce((s, l) => s + Number(l.actualUsd), 0),
+    // Même montant RETENU que le plafond commun (`montantRetenuSql`) · le facturé d'une ligne réconciliée.
+    depenseFenetreUsd: depenseFenetre ? await depenseFenetre() : rows.filter((l) => l.createdAt.getTime() >= depuis).reduce((s, l) => s + (l.factureMicros !== null ? l.factureMicros / 1_000_000 : Number(l.actualUsd)), 0),
   };
 }
 

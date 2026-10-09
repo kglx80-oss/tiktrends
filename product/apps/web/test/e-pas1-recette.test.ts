@@ -41,6 +41,8 @@ const SECRETS = {
 };
 const ENV = {
   TIKTRENDS_ENV: 'recette', STUDIOS_PROMPTS_RECETTE_LOCALE: '1', AI_SPEND_CAP_USD: '15',
+  // R6 · capacités du pas 1 ouvertes pour l'espace de recette seulement, comme dans docker-compose.recette.yml.
+  STUDIOS_ESPACES_PILOTES: 'e5ec0000-0000-4000-8000-00000000e001', STUDIOS_CAPACITES_PILOTES: 'generation_image,controle_visuel',
   DATABASE_URL: `postgres://recette:${SECRETS.POSTGRES_PASSWORD}@127.0.0.1:5432/tiktrends_recette`,
   STUDIO_FOURNISSEUR_REEL: 'autorise', ...SECRETS,
 };

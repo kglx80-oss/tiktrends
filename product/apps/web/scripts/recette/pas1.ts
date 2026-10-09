@@ -30,6 +30,17 @@
  *  · ligne · la compilation et le contrôle visuel sont refusés AVANT l'envoi
  *    si leur borne dépasse leur ligne (`adaptateurBorne`).
  *
+ * ── Interrupteurs Studios (F1, R6) ───────────────────────────────────────────
+ *
+ *  · le moteur du worker reçoit les MÊMES interrupteurs que la boucle de
+ *    production (`interrupteursWorker`, comme `demarrerBoucleStudio`) : l'essai
+ *    éprouve la vraie garde du worker (un job dont une capacité est coupée
+ *    reste en file, rien n'est soumis) ;
+ *  · avant tout engagement, les capacités qu'exige la passe (image, contrôle
+ *    visuel) sont vérifiées pour l'espace de recette par la même règle : coupée
+ *    ⇒ refus SANS rien engager ni dépenser (le compose de recette les ouvre,
+ *    `docker-compose.recette.yml`).
+ *
  * ── Aucune double facturation ────────────────────────────────────────────────
  *
  *  · un job du projet encore en cours ⇒ REPRISE de ce job, sans compilation,
@@ -159,6 +170,16 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   const { requeteCompilationPas1 } = await import('./devis');
   const { adaptateurBorne, controlerSortieParVision, refusControleVision } = await import('../../lib/studios/produit/qualite');
   const dossierRegistre = d.registre ?? resoudreDossier(d.env);
+  // R6 · interrupteurs du worker (même chemin que `demarrerBoucleStudio`), relus avec l'environnement de la commande.
+  const { interrupteursWorker } = await import('../../../workers/src/studios/boucle');
+  const interrupteurs = interrupteursWorker(d.env);
+  /** Refus si l'une des capacités exigées est coupée pour l'espace de recette · `null` sinon. */
+  const refusCapacites = async (capacites: ReturnType<typeof core.capacitesDesOperations>): Promise<string | null> => {
+    const reglages = await interrupteurs.reglagesEspace(db as never, RECETTE.workspaceId);
+    const coupees = core.capacitesCoupees(capacites, { env: d.env, espace: RECETTE.workspaceId, reglages });
+    if (!coupees.length) return null;
+    return `INTERRUPTEUR_COUPE · ${core.messageCapaciteCoupee(coupees)} Ouvre-les pour l’espace de recette seulement (${core.ENV_INTERRUPTEURS.espacesPilotes}=${RECETTE.workspaceId}, ${core.ENV_INTERRUPTEURS.capacitesPilotes}=${coupees.join(',')} · docker-compose.recette.yml), puis relance.`;
+  };
 
   // Le semis est là ? Sinon rien ne part.
   const [projet] = await db.select().from(schema.studioProjects).where(and(eq(schema.studioProjects.id, RECETTE.projectId), eq(schema.studioProjects.workspaceId, RECETTE.workspaceId))).limit(1);
@@ -277,6 +298,8 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       const ligne = core.controleVisionApprouve(core.lireSnapshotJob(livre.snapshot)?.lignes);
       let capPasseUsd = etatBudget.depenseFenetreUsd;
       if (ligne && livre.qualityStatus === 'pending' && core.decisionControleVision({ visionApprouvee: true, qualite: livre.qualityStatus, marqueur: core.lireMarqueurControleVision(livre.result) }).lancer && d.adaptateur) {
+        const coupe = await refusCapacites(core.capacitesDesOperations([core.OPERATION_CONTROLE_VISION]));
+        if (coupe) return { ...refuser([coupe], devis), jobId: livre.id };
         const e = await engager(ligne.totalUsdMicros);
         if (!e.ok) return { ...refuser([e.raison], devis), jobId: livre.id };
         capPasseUsd = e.capPasseUsd;
@@ -294,6 +317,8 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
     if (enCours) {
       if (!fal.ok) return refuser([fal.raison], devis);
       const s = core.lireSnapshotJob(enCours.snapshot);
+      const coupe = await refusCapacites(core.capacitesDesLignes(s?.lignes));
+      if (coupe) return refuser([coupe], devis);
       const reste = (s?.lignes ?? []).reduce((t, l) => t + l.usdMicros * l.unites, 0) || devisImageUsdMicros;
       const e = await engager(reste);
       if (!e.ok) return refuser([e.raison], devis);
@@ -303,7 +328,8 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       ids.devisId = enCours.quoteId;
     } else {
       const dec = deciderPas1({ devis, confirmation: opt.options.confirmation, plafondPasseUsdMicros: opt.options.plafondPasseUsdMicros, bilan: etatBudget.bilan, depenseFenetreUsd: etatBudget.depenseFenetreUsd });
-      const refus = [...refusConfig, ...(dec.ok ? [] : dec.refus.map((r) => `${r.code} · ${r.message}`))];
+      const coupe = await refusCapacites(core.capacitesDesOperations([core.OPERATION_IMAGE, ...(visionAuDevis ? [core.OPERATION_CONTROLE_VISION] : [])]));
+      const refus = [...refusConfig, ...(coupe ? [coupe] : []), ...(dec.ok ? [] : dec.refus.map((r) => `${r.code} · ${r.message}`))];
       if (refus.length || !dec.ok || !fal.ok || !d.adaptateur) return refuser(refus, devis);
       const e = await engager(dec.confirmeUsdMicros);
       if (!e.ok) return refuser([e.raison], devis);
@@ -354,7 +380,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
     const envPasse = { ...d.env, AI_SPEND_CAP_USD: String(capPasseUsd) };
     const base = db as unknown as Parameters<typeof construireFournisseurFal>[0]['base'];
     const fournisseur = construireFournisseurFal({ base, decision, fetch: d.fetch, env: envPasse, stockage: null, lire: null, ...(d.verifierAdresse ? { verifierAdresse: d.verifierAdresse } : {}) });
-    const moteur = new MoteurStudio({ base, fournisseur, stockage, decodeur: new DecodeurSharp(), workerId: WORKER_PAS1, journal: (e) => { if (e.type !== 'registre') dire(`  [moteur] ${e.type} ${'vers' in e ? `${e.de} → ${e.vers}` : 'appel' in e ? `${e.appel} ${e.detail}` : ''}`); } });
+    const moteur = new MoteurStudio({ base, fournisseur, stockage, decodeur: new DecodeurSharp(), workerId: WORKER_PAS1, interrupteurs, journal: (e) => { if (e.type !== 'registre') dire(`  [moteur] ${e.type} ${'vers' in e ? `${e.de} → ${e.vers}` : 'appel' in e ? `${e.appel} ${e.detail}` : ''}`); } });
     const attente = d.attente ?? ATTENTE_DEFAUT;
     const dormir = d.dormir ?? ((ms: number) => new Promise<void>((ok) => setTimeout(ok, ms)));
     const t0 = Date.now();
