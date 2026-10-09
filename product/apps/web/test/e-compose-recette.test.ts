@@ -158,6 +158,11 @@ describe('Compose de recette · isolé de la production', () => {
     expect(violations(muter(/^\s*command: \["pnpm", "exec", "tsx", "src\/recette\/worker-recette\.ts"\]\n/m, ''))).toContain('Service « workers_recette » : commande absente · l’image du worker lancerait src/index.ts et ses crons.');
   });
 
+  it('image qui déclare un volume (redis /data) sans montage nommé ⇒ refus (sinon volume anonyme hors projet)', () => {
+    const sans = muter('    volumes:\n      - redisdata_recette:/data', '');
+    expect(violations(sans), 'redis sans montage nommé accepté : volume anonyme hors du préfixe').toContain('Service « redis_recette » : l’image « redis:7-alpine » déclare le volume « /data » · montage nommé préfixé « tiktrends-recette » exigé, sinon Docker crée un volume anonyme hors du projet.');
+  });
+
   it('volume sans nom préfixé ⇒ refus', () => {
     expect(violations(muter('pgdata_recette: { name: tiktrends-recette-pgdata }', 'pgdata_recette: {}'))).toContain('Volume « pgdata_recette » : nom explicite préfixé « tiktrends-recette » exigé (lu «  »).');
   });

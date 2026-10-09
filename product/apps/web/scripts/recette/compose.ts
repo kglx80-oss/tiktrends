@@ -314,6 +314,20 @@ function cibleUrl(url: string): { hote: string; chemin: string } | null {
   } catch { return null; }
 }
 
+/**
+ * Volumes déclarés par les images de base utilisées en recette (instruction
+ * VOLUME de leur Dockerfile officiel). Une image absente de cette table n'en
+ * déclare pas pour ce projet ; en ajouter une avec VOLUME exige d'étendre la table.
+ */
+const VOLUMES_IMAGES: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
+  [/^redis(:|$)/, ['/data']],
+  [/^(postgres|pgvector\/pgvector)(:|$)/, ['/var/lib/postgresql/data']],
+];
+export function volumesDeclaresParImage(image: string): readonly string[] {
+  for (const [motif, chemins] of VOLUMES_IMAGES) if (motif.test(image)) return chemins;
+  return [];
+}
+
 export interface NomsProduction { services: string[]; volumes: string[]; reseaux: string[]; envFiles: string[] }
 
 /** Ce que la production nomme · lu dans `docker-compose.yml`, jamais recopié à la main. */
@@ -383,6 +397,16 @@ export function violationsComposeRecette(
       if (source.startsWith('.') || source.startsWith('/') || source.startsWith('~')) {
         if (!source.startsWith(DOSSIER_MONTAGES_RECETTE) || source.includes('..')) v.push(`Service « ${nom} » : montage « ${source} » hors de ${DOSSIER_MONTAGES_RECETTE}.`);
       } else if (!(source in volumes)) v.push(`Service « ${nom} » : volume « ${source} » non déclaré dans le projet de recette.`);
+    }
+
+    // Une image qui DÉCLARE un volume (VOLUME du Dockerfile) sans montage NOMMÉ
+    // à ce chemin reçoit un volume ANONYME (nom en empreinte, sans le préfixe du
+    // projet) : le préflight le refuserait comme partage possible, et `down -v`
+    // ne le reconnaîtrait pas comme de la recette (constat E4, redis:7-alpine /data).
+    const image = typeof s.image === 'string' ? s.image : '';
+    for (const chemin of volumesDeclaresParImage(image)) {
+      const monte = liste(s.volumes).some((m) => typeof m === 'string' && m.split(':')[1] === chemin && m.split(':')[0]! in volumes);
+      if (!monte) v.push(`Service « ${nom} » : l’image « ${image} » déclare le volume « ${chemin} » · montage nommé préfixé « tiktrends-recette » exigé, sinon Docker crée un volume anonyme hors du projet.`);
     }
 
     const nets = s.networks;

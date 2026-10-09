@@ -52,6 +52,10 @@ services:
     image: redis:7-alpine
     restart: "no"
     networks: [recette]
+    # L'image déclare VOLUME /data : sans ce montage nommé, Docker créerait un
+    # volume anonyme hors du préfixe du projet (refusé par le préflight).
+    volumes:
+      - redisdata_recette:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -141,3 +145,4 @@ networks:
 
 volumes:
   pgdata_recette: { name: tiktrends-recette-pgdata }
+  redisdata_recette: { name: tiktrends-recette-redisdata }

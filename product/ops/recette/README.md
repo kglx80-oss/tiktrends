@@ -358,7 +358,7 @@ rm -rf ops/recette/sorties
 ```
 
 `down -v` retire les conteneurs du projet, son réseau `tiktrends-recette-reseau`
-et son volume `tiktrends-recette-pgdata`. Supprime `ops/recette/sorties`
+et ses volumes `tiktrends-recette-pgdata` et `tiktrends-recette-redisdata`. Supprime `ops/recette/sorties`
 seulement **après** avoir transmis l'image et les rapports. Ne supprime ni ne
 déplace `ops/recette/registre` (ni `ops/recette` en entier) : le cumul des
 dépenses passées serait perdu de vue.
