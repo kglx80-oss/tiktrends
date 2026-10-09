@@ -221,6 +221,9 @@ export function lireEnvFile(texte: string): Record<string, string> {
 }
 /** Les seuls montages de fichiers admis : les sorties de la recette. */
 export const DOSSIER_MONTAGES_RECETTE = './ops/recette/';
+/** Le registre cumulatif du budget d'essai (E2) · sur la machine, hors de tout volume, jamais nettoyé. */
+export const DOSSIER_REGISTRE_RECETTE = './ops/recette/registre';
+
 /** Les clés payantes · vidées explicitement dans tout service applicatif sauf les outils. */
 export const CLES_PAYANTES = ['FAL_KEY', 'ANTHROPIC_API_KEY'] as const;
 export const SERVICE_OUTILS = 'outils_recette';
@@ -370,6 +373,10 @@ export function violationsComposeRecette(
         const cible = env.RECETTE_SORTIE;
         const monte = liste(s.volumes).some((m) => typeof m === 'string' && m.startsWith(DOSSIER_MONTAGES_RECETTE) && m.split(':')[1] === cible);
         if (!cible || !monte) v.push(`Service « ${nom} » : RECETTE_SORTIE doit être un dossier monté depuis ${DOSSIER_MONTAGES_RECETTE} (lu « ${cible ?? ''} »).`);
+        // E2 · le registre cumulatif du budget vit sur la MACHINE, jamais dans un volume que `down -v` détruit.
+        const reg = env.RECETTE_REGISTRE;
+        const regMonte = liste(s.volumes).some((m) => typeof m === 'string' && m.split(':')[0] === DOSSIER_REGISTRE_RECETTE && m.split(':')[1] === reg);
+        if (!reg || !regMonte) v.push(`Service « ${nom} » : RECETTE_REGISTRE doit être le dossier ${DOSSIER_REGISTRE_RECETTE} de la machine, monté (lu « ${reg ?? ''} ») · sans lui, une base neuve rouvrirait un budget déjà dépensé.`);
       }
       const brut = env.AI_SPEND_CAP_USD;
       const cap = brut === undefined || brut === null || brut.trim() === '' ? NaN : Number(brut);
@@ -435,6 +442,36 @@ export function violationsCommandesDocker(texte: string, source: string): string
         const cibles = rm[1]!.split(/\s+/).filter((x) => x && !x.startsWith('-'));
         if (!cibles.length || cibles.some((c) => !c.startsWith(NOM_PROJET_RECETTE))) v.push(`${ou} · « ${cmd} » : cible hors du projet tiktrends-recette.`);
       }
+    }
+  });
+  return v;
+}
+
+/* ─────────────────── le registre du budget n'est jamais nettoyé (E2) ────── */
+
+/**
+ * Aucune commande du runbook ou d'un script de recette ne supprime, ne vide
+ * ni ne déplace le registre cumulatif du budget (`ops/recette/registre`) :
+ * ni lui, ni un dossier parent (`ops/recette`, `ops`), ni un motif qui
+ * l'englobe (`ops/recette/*`). Sans lui, une base neuve rouvrirait un budget
+ * déjà dépensé. Dans un fichier Markdown, seules les lignes des blocs de code
+ * sont lues.
+ */
+export function violationsRegistre(texte: string, source: string): string[] {
+  const v: string[] = [];
+  let dansBloc = false;
+  const md = source.endsWith('.md');
+  texte.split('\n').forEach((ligne, i) => {
+    if (md && /^\s*```/.test(ligne)) { dansBloc = !dansBloc; return; }
+    if (md && !dansBloc) return;
+    const t = ligne.replace(/#.*$/, '').trim();
+    if (!t) return;
+    for (const cmd of t.split(/&&|\|\||;/).map((x) => x.trim())) {
+      const m = /^(?:sudo\s+)?(rm|mv|truncate|shred|find|rsync)\b(.*)$/.exec(cmd);
+      if (!m) continue;
+      const cibles = m[2]!.split(/\s+/).filter((x) => x && !x.startsWith('-')).map((x) => x.replace(/^["']|["']$/g, '').replace(/^\.\//, '').replace(/\/+$/, ''));
+      const touche = cibles.some((c) => c === 'ops' || c === 'ops/recette' || /^ops\/recette\/\*/.test(c) || c.startsWith('ops/recette/registre') || /(^|\/)registre(\/|$)/.test(c) || /budget-essais/.test(c) || c === '.' || c === '*');
+      if (touche) v.push(`${source}:${i + 1} · « ${cmd} » : touche au registre cumulatif du budget (ops/recette/registre) · il ne se supprime jamais.`);
     }
   });
   return v;

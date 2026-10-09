@@ -19,7 +19,8 @@ import {
   borneControleVisionParImageMicros, controleVisionApprouve, qualifierDevis, vueLignesDevis,
   type LigneDevisVue, type QualificationTotal,
 } from '@tiktrends/core';
-import { controlerSortieParVision } from '../produit/qualite';
+import { controlerSortieParVision, refusControleVision } from '../produit/qualite';
+import { lireMarqueurControleVision } from '@tiktrends/core';
 import type { ResolveurMediasTache } from '../prompts/resolveur';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
 import { environnementPrompts } from '../prompts/environnement';
@@ -232,8 +233,15 @@ export async function controlerMediaPour(ctx: ContexteStudio, e: { jobId: unknow
   if (!j.ok) return j;
   if (!estDevisImage(lireSnapshotJob(j.job.snapshot)?.lignes)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   if (j.job.state !== 'completed') return erreurStudio('INVARIANT_CONFLICT', { traceId: ctx.traceId, targetIds: [j.job.id], message: 'Le média n’est pas encore enregistré · attends la fin du job.' });
+  // E2 · un contrôle précédent à l'issue INCERTAINE se dit (quoi réconcilier, comment), même tranché depuis.
+  if (lireMarqueurControleVision(j.job.result) !== null && j.job.qualityStatus !== 'pending') {
+    const refus = await refusControleVision(ctx, j.job);
+    if (refus && refus.code === 'PROVIDER_UNCERTAIN') return refus;
+  }
   if (j.job.qualityStatus !== 'pending') return { ok: true, qualite: j.job.qualityStatus as StatutQualite };
   // R3 · contrôle visuel APPROUVÉ au devis ⇒ il s'exécute, dans sa borne ; sinon, aucun appel payant.
+  // E2 · REPRISE : média livré, ligne approuvée, aucun contrôle fait ⇒ SEUL le contrôle manquant part (jamais
+  // une génération ni un devis) ; engagé ailleurs, conclu ou incertain ⇒ refus nommé, aucun appel.
   if (controleVisionApprouve(lireSnapshotJob(j.job.snapshot)?.lignes) && aPermissionEspace(ctx.permissions, 'studio.generate')) {
     const v = await controlerSortieParVision(ctx, { jobId: j.job.id }, {
       adaptateur: adaptateurAnthropicGarde(), environnement: environnementPrompts(process.env),

@@ -1,4 +1,5 @@
-# Recette Studios · environnement d'essai réel ISOLÉ (budget autorisé 15 $).
+# Recette Studios · environnement d'essai réel ISOLÉ (budget autorisé : 15 $ AU TOTAL,
+# toutes passes confondues, tenu par ops/recette/registre/budget-essais.json).
 #
 # Projet compose distinct de la production : rien n'est partagé, ni base, ni
 # volume, ni réseau, ni Redis, ni fichier d'environnement, ni Caddy public.
@@ -103,6 +104,9 @@ services:
       STUDIOS_PROMPTS_RECETTE_LOCALE: "1"
       DATABASE_URL: postgres://recette:${POSTGRES_PASSWORD:?absent}@127.0.0.1:5432/tiktrends_recette
       RECETTE_SORTIE: /sorties
+      # Registre CUMULATIF du budget d'essai (15 $ au total) · sur la machine, hors du
+      # volume Postgres : il survit à `down -v` et aux redémarrages (E2).
+      RECETTE_REGISTRE: /registre
       # Seules clés payantes admises, ici seulement : copiées du shell du
       # propriétaire au lancement, jamais écrites dans un fichier.
       FAL_KEY: ${FAL_KEY:-}
@@ -110,6 +114,7 @@ services:
       STUDIO_FOURNISSEUR_REEL: ${STUDIO_FOURNISSEUR_REEL:-}
     volumes:
       - ./ops/recette/sorties:/sorties
+      - ./ops/recette/registre:/registre
     depends_on:
       db_recette: { condition: service_healthy }
 

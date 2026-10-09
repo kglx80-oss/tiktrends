@@ -1,63 +1,66 @@
 /**
  * Recette Studios · PAS 1 · premier rendu image RÉEL, de bout en bout ·
- * `pnpm --filter @tiktrends/web recette:pas1 -- [--confirmer-usd 0,36] [--plafond-passe-usd 1] [--nouveau-rendu]`
+ * `pnpm --filter @tiktrends/web recette:pas1 -- [--confirmer-usd <réservation maximale>] [--plafond-passe-usd X] [--nouveau-rendu]`
  * (dans le service d'outils du projet compose `tiktrends-recette`, voir
  * `ops/recette/README.md`).
  *
  * Le parcours, avec les fonctions RÉELLES du produit, dans l'ordre :
  *
- *   annonce du coût maximal (AVANT tout appel) → confirmation exacte de ce
- *   montant → compilation de la consigne (texte, barrière `guardedAnthropic`)
- *   → consigne retenue (nouvelle version) → devis L3 → approbation L3 (réserve
- *   de crédits, job en file) → moteur du worker (`MoteurStudio`) → fal (barrière
- *   `BarriereDepenseStudio`) → décodage réel des pixels (`DecodeurSharp`) →
- *   dépôt et relecture du livrable → rapport Markdown.
+ *   devis complet CALCULÉ sur la requête réellement envoyée (AVANT tout
+ *   appel, aucune écriture · `devis.ts`) → budget d'essai cumulatif (15 $ au
+ *   total, registre `registre.ts`) → confirmation exacte de la RÉSERVATION
+ *   MAXIMALE → compilation de la consigne (texte, bornée à sa ligne de devis,
+ *   barrière `guardedAnthropic`) → consigne retenue → devis L3 → approbation
+ *   L3 → moteur du worker (`MoteurStudio`) → fal (`BarriereDepenseStudio`) →
+ *   décodage réel des pixels → dépôt et relecture du livrable → contrôle
+ *   visuel (ligne approuvée) → registre → rapport Markdown à trois colonnes
+ *   (estimation, réservation maximale, coût réglé).
  *
- * ── La barrière de la passe ──────────────────────────────────────────────────
+ * ── Les barrières de la passe ────────────────────────────────────────────────
  *
- * Le plafond de dépense du PROCESSUS (`AI_SPEND_CAP_USD`, lu à chaque
- * réservation par les deux barrières) est abaissé, avant le premier appel, à
- * « dépense déjà comptée + montant confirmé » (jamais au-dessus du plafond de
- * l'environnement). Toute réservation qui dépasserait ce qui a été tapé est
- * refusée par la réservation commune (`reserverDepense`), pas par une
- * vérification de ce script. Plafond d'une passe : 1 $ au plus.
+ *  · registre · `antérieur + réglé + incertain + réservation maximale ≤ 15 $`,
+ *    toutes bases et toutes passes confondues, sinon refus SANS appel ;
+ *  · processus · `AI_SPEND_CAP_USD` abaissé à « ce que la base compte déjà +
+ *    réservation maximale confirmée » : la réservation commune
+ *    (`reserverDepense`) refuse tout appel au-delà de ce qui a été tapé ;
+ *  · ligne · la compilation et le contrôle visuel sont refusés AVANT l'envoi
+ *    si leur borne dépasse leur ligne (`adaptateurBorne`).
  *
  * ── Aucune double facturation ────────────────────────────────────────────────
  *
- *  · un job du projet encore en cours ⇒ REPRISE de ce job (le moteur ne
- *    resoumet jamais une demande déjà partie), sans compilation, devis ni
- *    approbation nouvelle ;
- *  · un livrable déjà produit ⇒ le rapport est réécrit, rien n'est relancé,
- *    sauf `--nouveau-rendu` (et une nouvelle confirmation) ;
- *  · clé d'idempotence de l'approbation dérivée du devis : rejouer
- *    l'approbation d'un même devis rend le même job.
- *  · le worker du projet compose n'a pas de `FAL_KEY` : cette commande est le
- *    seul exécuteur du job.
+ *  · un job du projet encore en cours ⇒ REPRISE de ce job, sans compilation,
+ *    devis ni approbation nouvelle (le moteur ne resoumet jamais) ;
+ *  · un livrable déjà produit, ligne « contrôle visuel » approuvée, AUCUN
+ *    contrôle fait ⇒ SEUL le contrôle manquant part (E2) ; contrôle engagé
+ *    ailleurs ou interrompu, ou à l'issue incertaine ⇒ refus, rapport qui dit
+ *    quoi réconcilier ; contrôle tranché ⇒ rapport seulement ;
+ *  · `--nouveau-rendu` seul ouvre un second rendu payant (nouvelle confirmation).
  *
- * Le livrable reste sur la machine (`$RECETTE_SORTIE/livrables/`), aucun
- * stockage objet de production n'est touché. Codes de sortie : 0 livrable
- * produit, 1 erreur ou job en échec, 2 refus (rien de dépensé), 3 job encore
- * en cours (relancer la même commande le reprend).
+ * Codes de sortie : 0 livrable produit (et contrôle tranché ou hors devis),
+ * 1 erreur, job en échec, ou contrôle visuel bloqué (engagé, incertain), 2
+ * refus (rien de dépensé), 3 job encore en cours (relancer la même commande
+ * le reprend).
  */
 
 import { createHash, randomUUID } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { StockageStudio } from '@tiktrends/core';
+import type { BilanBudgetEssai, StockageStudio } from '@tiktrends/core';
 import type { AdaptateurModele } from '../../lib/studios/prompts/adaptateur';
 import {
-  MODE_PAS1, PLAFOND_PASSE_MAX_USD_MICROS, RECETTE,
-  annoncePas1, budgetPas2UsdMicros, deciderPas1, decisionFalRecette, lireMontantUsd, masquerSecrets, rapportPas1, texteAnnonce, usdAffiche, verifierCibleRecette,
-  type AnnoncePas1, type DonneesRapportPas1, type Env,
+  MODE_PAS1, RECETTE,
+  deciderPas1, decisionFalRecette, devisPas1, lireMontantUsd, masquerSecrets, rapportPas1, texteDevis, usdAffiche, verifierCibleRecette,
+  type DevisPas1, type DonneesRapportPas1, type Env,
 } from './regles';
+import { cloreEssai, engagerEssai, lireEtatEssai, resoudreDossier } from './registre';
 
 /* ───────────────────────────── options (pur) ────────────────────────────── */
 
-export interface OptionsPas1 { confirmation: string | null; plafondPasseUsdMicros: number; nouveauRendu: boolean }
+export interface OptionsPas1 { confirmation: string | null; plafondPasseUsdMicros: number | null; nouveauRendu: boolean }
 
 export function lireOptionsPas1(argv: readonly string[]): { ok: true; options: OptionsPas1 } | { ok: false; raison: string } {
-  const o: OptionsPas1 = { confirmation: null, plafondPasseUsdMicros: PLAFOND_PASSE_MAX_USD_MICROS, nouveauRendu: false };
+  const o: OptionsPas1 = { confirmation: null, plafondPasseUsdMicros: null, nouveauRendu: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a === '--') continue;
@@ -69,7 +72,7 @@ export function lireOptionsPas1(argv: readonly string[]): { ok: true; options: O
       if (a === '--confirmer-usd') o.confirmation = v;
       else {
         const m = lireMontantUsd(v);
-        if (m === null) return { ok: false, raison: `Plafond de passe « ${v} » illisible.` };
+        if (m === null) return { ok: false, raison: `Limite de passe « ${v} » illisible.` };
         o.plafondPasseUsdMicros = m;
       }
       continue;
@@ -106,6 +109,8 @@ export interface DependancesPas1 {
   fetch: typeof fetch;
   /** Racine des sorties · livrables et rapports. */
   sortie: string;
+  /** Dossier du registre cumulatif · défaut `RECETTE_REGISTRE` ou `ops/recette/registre`. */
+  registre?: string;
   /** Rapport marqué SIMULÉ · fournisseur factice des tests. */
   simule?: boolean;
   verifierAdresse?: (u: URL) => Promise<boolean>;
@@ -115,7 +120,7 @@ export interface DependancesPas1 {
   journal?: (ligne: string) => void;
 }
 
-export interface ResultatPas1 { code: 0 | 1 | 2 | 3; refus: string[]; annonce: AnnoncePas1 | null; rapport: string | null; jobId: string | null }
+export interface ResultatPas1 { code: 0 | 1 | 2 | 3; refus: string[]; devis: DevisPas1 | null; rapport: string | null; jobId: string | null }
 
 const ATTENTE_DEFAUT = { maxMs: 12 * 60 * 1000, pasMs: 2_000 };
 /**
@@ -125,12 +130,13 @@ const ATTENTE_DEFAUT = { maxMs: 12 * 60 * 1000, pasMs: 2_000 };
  * réservation de dépense est unique par job (`idDepenseDuJob`).
  */
 export const WORKER_PAS1 = 'recette-pas1';
+const COMMANDE = 'recette:pas1';
 
 export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   // Le journal ne porte jamais une valeur sensible, quelle qu'en soit la source (message d'erreur compris).
   const dire = (l: string) => (d.journal ?? ((x: string) => console.log(x)))(masquerSecrets(l, d.env));
   const horloge = d.horloge ?? (() => new Date());
-  const refuser = (refus: string[], annonce: AnnoncePas1 | null = null): ResultatPas1 => ({ code: 2, refus, annonce, rapport: null, jobId: null });
+  const refuser = (refus: string[], devis: DevisPas1 | null = null): ResultatPas1 => ({ code: 2, refus, devis, rapport: null, jobId: null });
 
   const cible = verifierCibleRecette(d.env);
   if (!cible.ok) return refuser(cible.raisons);
@@ -143,20 +149,41 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   const core = await import('@tiktrends/core');
   const { environnementPrompts } = await import('../../lib/studios/prompts/environnement');
   const { lirePointeur } = await import('../../lib/studios/prompts/depot-prompts');
-  const { modeleTexte } = await import('../../lib/studios/prompts/adaptateur');
-  const { spendStatus } = await import('../../lib/spend-guard');
+  const { adaptateurAnthropicGarde, modeleTexte, PROFILS_ROUTES_ANTHROPIC } = await import('../../lib/studios/prompts/adaptateur');
+  const { spendStatus, estimationAppel } = await import('../../lib/spend-guard');
   const { contexteDepuisSession } = await import('../../lib/studios/garde');
+  const { requeteCompilationPas1 } = await import('./devis');
+  const { adaptateurBorne, controlerSortieParVision, refusControleVision } = await import('../../lib/studios/produit/qualite');
+  const dossierRegistre = d.registre ?? resoudreDossier(d.env);
 
   // Le semis est là ? Sinon rien ne part.
   const [projet] = await db.select().from(schema.studioProjects).where(and(eq(schema.studioProjects.id, RECETTE.projectId), eq(schema.studioProjects.workspaceId, RECETTE.workspaceId))).limit(1);
   if (!projet) return refuser(['Projet de recette absent · lance d’abord `recette:semer`.']);
   if (!(await lirePointeur().catch(() => null))) return refuser(['Aucune release de prompts publiée dans la base de recette · lance d’abord `recette:semer`.']);
 
-  // L'annonce, AVANT tout appel et avant tout refus de configuration.
-  const annonce = annoncePas1({ compilationUsd: core.coutMaximalTexte(modeleTexte()), imageUsdMicros: core.prixImage().usdMicros, visionUsdMicros: core.borneControleVisionParImageMicros(modeleTexte()) });
-  /** Le devis image tel qu'il sera présenté : l'image ET son contrôle visuel (coché par défaut, R3). */
-  const devisAnnonceUsdMicros = annonce.imageUsdMicros + annonce.visionUsdMicros;
-  dire(texteAnnonce(annonce, opt.options.plafondPasseUsdMicros));
+  const ctx = contexteDepuisSession({ user: { id: RECETTE.userId, email: RECETTE.email, name: 'Recette' }, workspaceId: RECETTE.workspaceId, role: 'owner', plan: 'business', equipe: null }, [RECETTE.brandId], [], `st_recette_${randomUUID()}`);
+
+  /* ── Le devis COMPLET, calculé AVANT tout appel, sans aucune écriture ── */
+  const modelePour = (profil: string) => (PROFILS_ROUTES_ANTHROPIC.includes(profil) ? modeleTexte() : null);
+  const rc = await requeteCompilationPas1(ctx, { projectId: RECETTE.projectId, mode: MODE_PAS1, maintenant: horloge(), modelePour });
+  if (!rc.ok) return refuser([`Devis impossible · ${rc.raison} · rien n’est lancé.`]);
+  const req = core.requeteDepuisMessagesCompiles({ modele: rc.requete.modele, messages: rc.requete.messages, images: 0, maxJetonsSortie: rc.requete.maxJetonsSortie });
+  // La ligne « contrôle visuel » ira au devis L3 quand le fournisseur de vision est configuré (`creerDevis`).
+  // En réel, le lancement EXIGE ANTHROPIC_API_KEY (compilation), qui configure aussi la vision : le devis
+  // lu sans clé (README §4.5) montre donc déjà la ligne, et le montant à recopier ne change pas au lancement.
+  const visionAuDevis = d.simule ? adaptateurAnthropicGarde() !== null : true;
+  const devis = devisPas1({
+    compilation: { estimationUsdMicros: Math.ceil(estimationAppel(req as never) * 1_000_000), reservationUsdMicros: rc.requete.borneUsdMicros },
+    imageUsdMicros: core.prixImage().usdMicros,
+    vision: visionAuDevis ? { unites: 1, borneParImageUsdMicros: core.borneControleVisionParImageMicros(modeleTexte()) } : null,
+  });
+  const lignesDevis = (cle: 'compilation' | 'image' | 'vision') => devis.lignes.find((l) => l.cle === cle)?.reservationUsdMicros ?? 0;
+  /** Le devis image tel qu'il sera présenté : l'image ET son contrôle visuel. */
+  const devisImageUsdMicros = lignesDevis('image') + lignesDevis('vision');
+
+  const etatBudget = await lireEtatEssai(dossierRegistre, horloge());
+  dire(texteDevis(devis, { bilan: etatBudget.ok ? etatBudget.bilan : null, plafondPasseUsdMicros: opt.options.plafondPasseUsdMicros }));
+  if (!etatBudget.ok) return refuser([etatBudget.raison], devis);
 
   const J = schema.studioJobs;
   const jobs = await db.select().from(J).where(and(eq(J.workspaceId, RECETTE.workspaceId), eq(J.projectId, RECETTE.projectId))).orderBy(desc(J.createdAt));
@@ -169,49 +196,111 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   if (!d.adaptateur) refusConfig.push('ANTHROPIC_API_KEY absente · la consigne ne peut pas être compilée.');
   else if (d.adaptateur.simule && !d.simule) refusConfig.push('Adaptateur texte simulé interdit hors des tests.');
 
-  const s0 = await spendStatus();
-  const budget = { capUsd: s0.capUsd, depenseUsd: s0.spentUsd };
   const sortie = resolve(d.sortie);
   const stockage = stockageLocal(join(sortie, 'livrables'));
   const ids: DonneesRapportPas1['ids'] = { workspaceId: RECETTE.workspaceId, brandId: RECETTE.brandId, projectId: RECETTE.projectId, versionId: null, runId: null, devisId: null, jobId: null, assetId: null };
-
-  /* ── Livrable déjà produit · rapport seulement, aucun appel ── */
-  if (!enCours && livre && !opt.options.nouveauRendu) {
-    dire(`Un livrable existe déjà (job ${livre.id}) · aucun appel, rapport réécrit. Pour un second rendu payant : --nouveau-rendu et une nouvelle confirmation.`);
-    const rapport = await ecrireRapport(livre.id, { capPasseUsd: budget.capUsd, confirmeUsdMicros: 0, arret: null });
-    return { code: 0, refus: [], annonce, rapport, jobId: livre.id };
-  }
-
-  /* ── Reprise d'un job approuvé · aucune approbation nouvelle ── */
-  let jobId: string;
-  let capPasseUsd: number;
-  let confirmeUsdMicros = 0;
   const envAvant = process.env.AI_SPEND_CAP_USD;
-  const ctx = contexteDepuisSession({ user: { id: RECETTE.userId, email: RECETTE.email, name: 'Recette' }, workspaceId: RECETTE.workspaceId, role: 'owner', plan: 'business', equipe: null }, [RECETTE.brandId], [], `st_recette_${randomUUID()}`);
+  let engage = false;
+  let controleVision: string | null = null;
+  let controleBloque = false;
+
+  /** Le contrôle visuel d'un job livré · exécuté s'il est approuvé et dû, sinon dit pourquoi. */
+  const controleVisuel = async (jobId: string): Promise<void> => {
+    const [jv] = await db.select().from(J).where(eq(J.id, jobId));
+    if (!jv || jv.state !== 'completed') return;
+    if (!core.controleVisionApprouve(core.lireSnapshotJob(jv.snapshot)?.lignes)) {
+      controleVision = 'aucune ligne au devis approuvé (fournisseur IA absent au devis, ou décochée) · aucun appel, aucune dépense · relecture humaine.';
+      dire(`Contrôle visuel · ${controleVision}`);
+      return;
+    }
+    const refus = await refusControleVision(ctx, jv);
+    if (refus) {
+      const tranche = jv.qualityStatus !== 'pending' && refus.code !== 'PROVIDER_UNCERTAIN';
+      controleVision = tranche ? `déjà tranché (qualité « ${jv.qualityStatus} ») · aucun appel` : `NON relancé · ${refus.message}`;
+      controleBloque = !tranche;
+      dire(`Contrôle visuel · ${controleVision}`);
+      return;
+    }
+    if (!d.adaptateur) { controleVision = 'ANTHROPIC_API_KEY absente · contrôle approuvé non exécuté, relance avec la clé (aucun autre appel ne partira)'; controleBloque = true; dire(`Contrôle visuel · ${controleVision}`); return; }
+    const { resolveurMediasStudio } = await import('../../lib/studios/prompts/resolveur');
+    const v = await controlerSortieParVision(ctx, { jobId }, {
+      adaptateur: d.adaptateur, environnement: environnementPrompts(d.env), plafondAtteint: async () => (await spendStatus()).blocked,
+      medias: resolveurMediasStudio({ lire: (m) => stockage.relire(m.storageKey) }),
+    });
+    controleVision = v.ok ? `qualité « ${v.qualite} »${v.motif ? ` · ${v.motif}` : ''}` : `non exécuté · ${v.code} · ${v.message}`;
+    if (!v.ok) controleBloque = true;
+    if (v.ok && v.incertain) {
+      // Issue incertaine : dite avec QUOI réconcilier et COMMENT (même message que tout refus de relance).
+      const [relu] = await db.select().from(J).where(eq(J.id, jobId));
+      const r = relu ? await refusControleVision(ctx, relu) : null;
+      controleVision = `${controleVision}${r ? ` · ${r.message}` : ''}`;
+      controleBloque = true;
+    }
+    dire(`Contrôle visuel · ${controleVision}`);
+  };
+
+  /** Décision budgétaire d'une dépense à venir ⇒ registre écrit, plafond du processus posé. */
+  const engager = (reservationMicros: number): { ok: true; capPasseUsd: number } | { ok: false; raison: string } => {
+    const b = core.decisionDepenseEssai(etatBudget.bilan, reservationMicros);
+    if (!b.ok) return { ok: false, raison: b.message };
+    engagerEssai(dossierRegistre, etatBudget, COMMANDE, reservationMicros, horloge());
+    engage = true;
+    const capPasseUsd = Math.round((etatBudget.depenseFenetreUsd + reservationMicros / 1_000_000) * 1_000_000) / 1_000_000;
+    process.env.AI_SPEND_CAP_USD = String(capPasseUsd);
+    return { ok: true, capPasseUsd };
+  };
+
   try {
+    /* ── Livrable déjà produit · seul le contrôle visuel MANQUANT peut partir ── */
+    if (!enCours && livre && !opt.options.nouveauRendu) {
+      dire(`Un livrable existe déjà (job ${livre.id}) · aucune génération, aucun devis, aucune approbation. Pour un second rendu payant : --nouveau-rendu et une nouvelle confirmation.`);
+      ids.jobId = livre.id; ids.devisId = livre.quoteId;
+      const ligne = core.controleVisionApprouve(core.lireSnapshotJob(livre.snapshot)?.lignes);
+      let capPasseUsd = etatBudget.depenseFenetreUsd;
+      if (ligne && livre.qualityStatus === 'pending' && core.decisionControleVision({ visionApprouvee: true, qualite: livre.qualityStatus, marqueur: core.lireMarqueurControleVision(livre.result) }).lancer && d.adaptateur) {
+        const e = engager(ligne.totalUsdMicros);
+        if (!e.ok) return { ...refuser([e.raison], devis), jobId: livre.id };
+        capPasseUsd = e.capPasseUsd;
+        dire(`Reprise du contrôle visuel approuvé (${usdAffiche(ligne.totalUsdMicros)} au plus) · seul ce contrôle part. Barrière de la passe : ${capPasseUsd} $.`);
+      }
+      await controleVisuel(livre.id);
+      const rapport = await ecrireRapport(livre.id, { capPasseUsd, confirmeUsdMicros: 0, arret: controleBloque ? `Contrôle visuel bloqué · ${controleVision}` : null });
+      return { code: controleBloque ? 1 : 0, refus: controleBloque ? [String(controleVision)] : [], devis, rapport, jobId: livre.id };
+    }
+
+    /* ── Reprise d'un job approuvé · aucune approbation nouvelle ── */
+    let jobId: string;
+    let capPasseUsd: number;
+    let confirmeUsdMicros = 0;
     if (enCours) {
-      if (!fal.ok) return refuser([fal.raison], annonce);
-      capPasseUsd = Math.min(budget.capUsd, budget.depenseUsd + devisAnnonceUsdMicros / 1_000_000);
+      if (!fal.ok) return refuser([fal.raison], devis);
+      const s = core.lireSnapshotJob(enCours.snapshot);
+      const reste = (s?.lignes ?? []).reduce((t, l) => t + l.usdMicros * l.unites, 0) || devisImageUsdMicros;
+      const e = engager(reste);
+      if (!e.ok) return refuser([e.raison], devis);
+      capPasseUsd = e.capPasseUsd;
       dire(`Reprise du job ${enCours.id} (${enCours.state}) approuvé lors d’une passe précédente · aucune compilation, aucun devis, aucune approbation nouvelle. Barrière de la passe : ${capPasseUsd} $.`);
       jobId = enCours.id;
       ids.devisId = enCours.quoteId;
     } else {
-      const dec = deciderPas1({ annonce, confirmation: opt.options.confirmation, plafondPasseUsdMicros: opt.options.plafondPasseUsdMicros, budget });
+      const dec = deciderPas1({ devis, confirmation: opt.options.confirmation, plafondPasseUsdMicros: opt.options.plafondPasseUsdMicros, bilan: etatBudget.bilan, depenseFenetreUsd: etatBudget.depenseFenetreUsd });
       const refus = [...refusConfig, ...(dec.ok ? [] : dec.refus.map((r) => `${r.code} · ${r.message}`))];
-      if (refus.length || !dec.ok || !fal.ok || !d.adaptateur) return refuser(refus, annonce);
-      capPasseUsd = dec.capPasseUsd;
+      if (refus.length || !dec.ok || !fal.ok || !d.adaptateur) return refuser(refus, devis);
+      const e = engager(dec.confirmeUsdMicros);
+      if (!e.ok) return refuser([e.raison], devis);
+      capPasseUsd = e.capPasseUsd;
       confirmeUsdMicros = dec.confirmeUsdMicros;
-      process.env.AI_SPEND_CAP_USD = String(capPasseUsd);
-      dire(`Confirmé · ${usdAffiche(confirmeUsdMicros)} au plus. Barrière de la passe : ${capPasseUsd} $ (déjà compté ${budget.depenseUsd} $).`);
+      dire(`Confirmé · réservation maximale ${usdAffiche(confirmeUsdMicros)}. Barrière de la passe : ${capPasseUsd} $ (déjà compté en base ${etatBudget.depenseFenetreUsd} $).`);
 
       const { compilerEtAttesterPour, retenirConsignePour } = await import('../../lib/studios/image/consigne');
       const { devisImagePour, approuverImagePour } = await import('../../lib/studios/image/parcours');
       const arreter = async (arret: string, code: 1): Promise<ResultatPas1> => {
         const rapport = await ecrireRapport(null, { capPasseUsd, confirmeUsdMicros, arret });
-        return { code, refus: [arret], annonce, rapport, jobId: null };
+        return { code, refus: [arret], devis, rapport, jobId: null };
       };
 
-      const c = await compilerEtAttesterPour(ctx, { projectId: RECETTE.projectId, mode: MODE_PAS1 }, { adaptateur: d.adaptateur, environnement: environnementPrompts(d.env), veilleOuverte: true, maintenant: horloge() });
+      // La compilation est BORNÉE à sa ligne de devis : au-delà, refus avant l'envoi.
+      const c = await compilerEtAttesterPour(ctx, { projectId: RECETTE.projectId, mode: MODE_PAS1 }, { adaptateur: adaptateurBorne(d.adaptateur, lignesDevis('compilation')), environnement: environnementPrompts(d.env), veilleOuverte: true, maintenant: horloge() });
       if (!c.ok) return arreter(`Compilation refusée · ${c.code}${c.message ? ` · ${c.message}` : ''}`, 1);
       if (c.statut === 'questions') return arreter(`La compilation pose des questions au lieu d’une consigne · ${c.questions.join(' ; ')}`, 1);
       ids.runId = c.runId;
@@ -223,7 +312,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       const dv = await devisImagePour(ctx, { projectId: RECETTE.projectId }, horloge());
       if (!dv.ok) return arreter(`Devis refusé · ${dv.code}${dv.message ? ` · ${dv.message}` : ''}`, 1);
       ids.devisId = dv.devis.id;
-      if (dv.devis.maximumUsdMicros > devisAnnonceUsdMicros) return arreter(`Devis image ${usdAffiche(dv.devis.maximumUsdMicros)} > devis annoncé ${usdAffiche(devisAnnonceUsdMicros)} (image + contrôle visuel) · rien n’est approuvé (seule la compilation a été dépensée).`, 1);
+      if (dv.devis.maximumUsdMicros > devisImageUsdMicros) return arreter(`Devis image ${usdAffiche(dv.devis.maximumUsdMicros)} > devis annoncé ${usdAffiche(devisImageUsdMicros)} (image + contrôle visuel) · rien n’est approuvé (seule la compilation a été dépensée).`, 1);
 
       const s1 = await spendStatus();
       const a = await approuverImagePour(ctx, {
@@ -234,7 +323,6 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       dire(`Job ${jobId} approuvé et en file · exécution par le moteur du worker.`);
     }
     ids.jobId = jobId;
-    process.env.AI_SPEND_CAP_USD = String(capPasseUsd);
 
     /* ── Le moteur du worker, avec le fournisseur fal RÉEL ── */
     const { MoteurStudio } = await import('../../../workers/src/studios/moteur');
@@ -262,23 +350,14 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
     }
     const termine = core.jobTerminal(etat as Parameters<typeof core.jobTerminal>[0]);
     /* ── Contrôle visuel (ligne approuvée au devis) · l'écran le lance d'ordinaire ; ici, la commande ── */
-    const [jv] = etat === 'completed' ? await db.select({ snapshot: J.snapshot }).from(J).where(eq(J.id, jobId)) : [];
-    const visionAuDevis = jv ? core.controleVisionApprouve(core.lireSnapshotJob(jv.snapshot)?.lignes) : null;
-    if (etat === 'completed' && !visionAuDevis) dire('Contrôle visuel · aucune ligne au devis approuvé (fournisseur IA absent au devis, ou décochée) · aucun appel, aucune dépense · relecture humaine.');
-    if (etat === 'completed' && visionAuDevis && d.adaptateur) {
-      const { controlerSortieParVision } = await import('../../lib/studios/produit/qualite');
-      const { resolveurMediasStudio } = await import('../../lib/studios/prompts/resolveur');
-      const v = await controlerSortieParVision(ctx, { jobId }, {
-        adaptateur: d.adaptateur, environnement: environnementPrompts(d.env), plafondAtteint: async () => (await spendStatus()).blocked,
-        medias: resolveurMediasStudio({ lire: (m) => stockage.relire(m.storageKey) }),
-      });
-      dire(v.ok ? `Contrôle visuel · qualité « ${v.qualite} »` : `Contrôle visuel non exécuté · ${v.code}${'message' in v && v.message ? ` · ${v.message}` : ''}`);
-    }
-    const arret = termine ? null : `Job ${jobId} toujours « ${etat} » après ${Math.round(attente.maxMs / 60_000)} min · relance la même commande : elle REPREND ce job, sans nouvelle dépense.`;
+    if (etat === 'completed') await controleVisuel(jobId);
+    const arret = !termine ? `Job ${jobId} toujours « ${etat} » après ${Math.round(attente.maxMs / 60_000)} min · relance la même commande : elle REPREND ce job, sans nouvelle dépense.`
+      : controleBloque ? `Contrôle visuel bloqué · ${controleVision}` : null;
     const rapport = await ecrireRapport(jobId, { capPasseUsd, confirmeUsdMicros, arret });
-    return { code: !termine ? 3 : etat === 'completed' ? 0 : 1, refus: arret ? [arret] : [], annonce, rapport, jobId };
+    return { code: !termine ? 3 : etat !== 'completed' || controleBloque ? 1 : 0, refus: arret ? [arret] : [], devis, rapport, jobId };
   } finally {
     if (envAvant === undefined) delete process.env.AI_SPEND_CAP_USD; else process.env.AI_SPEND_CAP_USD = envAvant;
+    if (engage) await cloreEssai(dossierRegistre, COMMANDE, horloge()).catch((e) => dire(`Registre NON mis à jour après la commande · ${(e as Error).message} · lance recette:budget avant toute autre commande payante.`));
   }
 
   /* ── Le rapport · relu en BASE et sur le DISQUE, jamais reconstruit de mémoire ── */
@@ -318,15 +397,21 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
     const depenses = await db!.select().from(S).where(eq(S.workspaceId, RECETTE.workspaceId)).orderBy(S.createdAt);
     const L = schema.studioBudgetLedger;
     const registre = id ? await db!.select().from(L).where(eq(L.jobId, id)).orderBy(L.createdAt) : [];
-    const s = await spendStatus();
+    // Bilan APRÈS · le registre absorbe d'abord les lignes de cette commande (sinon lecture seule).
+    let bilanApres: BilanBudgetEssai | null = null;
+    if (engage) bilanApres = await cloreEssai(dossierRegistre, COMMANDE, horloge()).catch(() => null);
+    else { const e = await lireEtatEssai(dossierRegistre, horloge()).catch(() => null); bilanApres = e && e.ok ? e.bilan : null; }
     const donnees: DonneesRapportPas1 = {
       mode: d.simule ? 'SIMULE' : 'REEL', horodatage: horloge().toISOString(),
       ids: { ...ids, jobId: id, devisId: ids.devisId ?? job?.quoteId ?? null, assetId },
-      annonce, confirmeUsdMicros: o.confirmeUsdMicros, capPasseUsd: o.capPasseUsd,
+      devis, confirmeUsdMicros: o.confirmeUsdMicros, capPasseUsd: o.capPasseUsd,
       etatJob: job?.state ?? null, raisonEchec: job?.state === 'failed' ? core.raisonEchec(job.error) : null, qualite: job?.qualityStatus ?? null,
-      depenses: depenses.map((l) => ({ provider: l.provider, modele: l.model, action: l.action, reserveUsd: l.estimatedUsd, regleUsd: l.actualUsd })),
+      depenses: depenses.map((l) => {
+        const c = core.classerLigneEssai({ provider: l.provider, actualUsd: Number(l.actualUsd), inputTokens: l.inputTokens, outputTokens: l.outputTokens, reconcileReason: l.reconcileReason });
+        return { provider: l.provider, modele: l.model, action: l.action, reserveUsd: Number(l.estimatedUsd), regleUsd: c.regleMicros / 1e6, incertainUsd: c.incertainMicros / 1e6, etat: c.etat, cause: l.reconcileReason };
+      }),
       registre: registre.map((m) => ({ kind: m.kind, credits: m.credits, usdMicros: Number(m.usdMicros) })),
-      livrable, budgetPas2UsdMicros: budgetPas2UsdMicros({ capUsd: Number(d.env.AI_SPEND_CAP_USD), depenseUsd: s.spentUsd }), arret: o.arret,
+      livrable, controleVision, bilanApres, arret: o.arret,
     };
     mkdirSync(sortie, { recursive: true });
     const nom = join(sortie, `rapport-pas1-${donnees.horodatage.replace(/[:.]/g, '-')}.md`);

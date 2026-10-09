@@ -5,8 +5,10 @@
  *
  *  · `verifierCibleRecette` · la commande tourne-t-elle bien contre la base
  *    de RECETTE ? Refus au moindre doute, AVANT toute connexion ;
- *  · `annoncePas1` / `deciderPas1` · le prix du premier rendu réel, annoncé
- *    AVANT le premier appel, et la confirmation exacte de ce montant ;
+ *  · `devisPas1` / `deciderPas1` · le devis du premier rendu réel en TROIS
+ *    colonnes (estimation, réservation maximale, coût réglé), annoncé AVANT le
+ *    premier appel, la confirmation exacte de la RÉSERVATION MAXIMALE et la
+ *    tenue dans le budget d'essai cumulatif (15 $ au total, `registre.ts`) ;
  *  · `rapportPas1` · le rapport Markdown que le propriétaire relit, avec le
  *    chemin du fichier à REGARDER (la session ne voit pas les rendus).
  *
@@ -16,6 +18,7 @@
  */
 
 import { BUDGET_ESSAI_USD } from './compose';
+import { decisionDepenseEssai, type BilanBudgetEssai } from '@tiktrends/core';
 
 export { BUDGET_ESSAI_USD };
 
@@ -32,8 +35,12 @@ export const RECETTE = {
 /** Mode de la consigne image du pas 1 · une scène générée autour du produit épinglé. */
 export const MODE_PAS1 = 'generative_scene';
 
-/** Plafond d'UNE passe du pas 1 · décision du brief : au plus 1 $. Une option peut le baisser, jamais le monter. */
-export const PLAFOND_PASSE_MAX_USD_MICROS = 1_000_000;
+/*
+ * Plus de « plafond de passe » de 1 $ (E2, 9 octobre) : l'autorisation est de
+ * 15 $ AU TOTAL, toutes passes confondues, tenue par le registre cumulatif.
+ * Une passe ne réserve jamais plus que sa réservation maximale confirmée ;
+ * `--plafond-passe-usd` reste possible pour imposer une limite PLUS BASSE.
+ */
 
 const HOTES_LOCAUX: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 /** Domaine de l'application en ligne · une recette qui s'y réfère est mal configurée. */
@@ -93,32 +100,70 @@ export function lireMontantUsd(brut: string | undefined | null): number | null {
   return Math.round(Number(s) * 100) * 10_000;
 }
 
-export interface AnnoncePas1 {
-  compilationUsdMicros: number;
-  imageUsdMicros: number;
-  /** Contrôle visuel de l'image livrée (R3 · ligne du devis cochée par défaut, borne par image). */
-  visionUsdMicros: number;
-  /** Somme exacte des maximums. */
-  totalUsdMicros: number;
-  /** Ce que le propriétaire lit et recopie · centime supérieur. */
+/** Une ligne du devis du pas 1 · trois montants distincts, jamais confondus. */
+export interface LigneDevisPas1 {
+  cle: 'compilation' | 'image' | 'vision';
+  libelle: string;
+  /** Ce qu'on s'attend à payer · indicatif, JAMAIS confirmé ni réservé. */
+  estimationUsdMicros: number;
+  /** D'où vient l'estimation. */
+  sourceEstimation: string;
+  /** Borne PROUVÉE de la ligne · ce qui est réservé avant l'appel et refusé au-delà. */
+  reservationUsdMicros: number;
+  /** D'où vient la borne. */
+  sourceReservation: string;
+}
+
+export interface DevisPas1 {
+  lignes: LigneDevisPas1[];
+  estimationUsdMicros: number;
+  /** Somme exacte des réservations maximales. */
+  reservationUsdMicros: number;
+  /** Ce que le propriétaire lit et recopie · réservation maximale au centime supérieur. */
   afficheUsdMicros: number;
 }
 
-export function annoncePas1(e: { compilationUsd: number; imageUsdMicros: number; visionUsdMicros: number }): AnnoncePas1 {
-  const compilationUsdMicros = Math.round(e.compilationUsd * 1_000_000);
-  const totalUsdMicros = compilationUsdMicros + e.imageUsdMicros + e.visionUsdMicros;
-  return { compilationUsdMicros, imageUsdMicros: e.imageUsdMicros, visionUsdMicros: e.visionUsdMicros, totalUsdMicros, afficheUsdMicros: centimeSuperieur(totalUsdMicros) };
+/**
+ * Le devis complet du pas 1, calculé sur les paramètres EFFECTIVEMENT envoyés :
+ *  · compilation · réservation = `borneMaxAppel` de la requête `image.compile`
+ *    réellement compilée (`devis.ts`) ; estimation = l'estimation à 3,5
+ *    caractères par jeton de cette même requête ;
+ *  · image · prix fixe fal du devis (`prixImage`) = estimation = réservation ;
+ *  · contrôle visuel · borne prouvée par image (`borneControleVisionParImageMicros`) ×
+ *    images ; pas d'estimation distincte (la requête n'existe qu'après l'image).
+ */
+export function devisPas1(e: {
+  compilation: { estimationUsdMicros: number; reservationUsdMicros: number };
+  imageUsdMicros: number;
+  vision: { unites: number; borneParImageUsdMicros: number } | null;
+}): DevisPas1 {
+  const lignes: LigneDevisPas1[] = [
+    { cle: 'compilation', libelle: 'compilation de la consigne (texte)', estimationUsdMicros: e.compilation.estimationUsdMicros, sourceEstimation: 'requête réelle, 3,5 caractères par jeton', reservationUsdMicros: e.compilation.reservationUsdMicros, sourceReservation: 'borne de la requête réelle (octets UTF-8, sortie pleine)' },
+    { cle: 'image', libelle: 'génération de l’image (fal)', estimationUsdMicros: e.imageUsdMicros, sourceEstimation: 'prix fixe', reservationUsdMicros: e.imageUsdMicros, sourceReservation: 'prix fixe du devis' },
+  ];
+  if (e.vision && e.vision.unites > 0) {
+    const v = e.vision.unites * e.vision.borneParImageUsdMicros;
+    lignes.push({ cle: 'vision', libelle: 'contrôle visuel de l’image (IA)', estimationUsdMicros: v, sourceEstimation: 'pas d’estimation distincte · borne', reservationUsdMicros: v, sourceReservation: `borne prouvée par image × ${e.vision.unites}` });
+  }
+  const reservationUsdMicros = lignes.reduce((s, l) => s + l.reservationUsdMicros, 0);
+  return { lignes, estimationUsdMicros: lignes.reduce((s, l) => s + l.estimationUsdMicros, 0), reservationUsdMicros, afficheUsdMicros: centimeSuperieur(reservationUsdMicros) };
 }
 
-export function texteAnnonce(a: AnnoncePas1, plafondPasseUsdMicros: number = PLAFOND_PASSE_MAX_USD_MICROS): string {
+const usd4c = (micros: number) => `${(micros / 1_000_000).toFixed(4).replace('.', ',')} $`;
+const col = (s: string, n: number) => s.padEnd(n);
+
+/** Le devis tel qu'affiché AVANT tout appel · trois colonnes, et le budget cumulatif. */
+export function texteDevis(d: DevisPas1, o: { bilan: BilanBudgetEssai | null; plafondPasseUsdMicros?: number | null } = { bilan: null }): string {
+  const b = o.bilan;
   return [
-    'Pas 1 · premier rendu image réel · coût MAXIMAL annoncé avant tout appel',
-    `  compilation de la consigne (texte) · ${usdAffiche(centimeSuperieur(a.compilationUsdMicros))} ESTIMÉ (la borne exacte est calculée sur la requête réelle et réservée avant l’envoi ; si elle ne tient pas dans le TOTAL, rien ne part)`,
-    `  génération de l’image (fal)        · ${usdAffiche(centimeSuperieur(a.imageUsdMicros))} au plus`,
-    `  contrôle visuel de l’image (IA)    · ${usdAffiche(centimeSuperieur(a.visionUsdMicros))} au plus (ligne du devis cochée par défaut)`,
-    `  TOTAL                              · ${usdAffiche(a.afficheUsdMicros)} au plus · plafond DUR de la passe (réservation commune : aucune dépense au-delà)`,
-    `  plafond de passe PROPOSÉ           · ${usdAffiche(plafondPasseUsdMicros)} (proposition à approuver par le propriétaire, pas une dépense approuvée)`,
-    'Rien ne part sans --confirmer-usd suivi du TOTAL ci-dessus, recopié.',
+    'Pas 1 · premier rendu image réel · devis calculé sur la requête réellement envoyée, AVANT tout appel',
+    `  ${col('ligne', 36)}${col('estimation', 14)}${col('réservation maximale', 22)}coût réglé`,
+    ...d.lignes.map((l) => `  ${col(l.libelle, 36)}${col(usd4c(l.estimationUsdMicros), 14)}${col(usd4c(l.reservationUsdMicros), 22)}après coup (ai_spend)`),
+    `  ${col('TOTAL', 36)}${col(usd4c(d.estimationUsdMicros), 14)}${col(`${usdAffiche(d.afficheUsdMicros)} au plus`, 22)}après coup (ai_spend)`,
+    '  L’estimation est indicative. La RÉSERVATION MAXIMALE est le plafond dur de la passe : chaque ligne est refusée avant l’envoi au-delà de sa borne, et la réservation commune refuse toute dépense au-delà du total.',
+    b ? `  budget d’essai cumulatif · autorisé ${usdAffiche(b.autoriseMicros)} au total · déjà engagé ${usdAffiche(b.anterieuresMicros + b.regleMicros + b.incertainMicros)} (dont incertain ${usdAffiche(b.incertainMicros)}) · restant ${usdAffiche(b.restantMicros)}` : '  budget d’essai cumulatif · registre non lu',
+    ...(o.plafondPasseUsdMicros ? [`  limite de passe imposée par toi · ${usdAffiche(o.plafondPasseUsdMicros)}`] : []),
+    `Rien ne part sans --confirmer-usd ${usdAffiche(d.afficheUsdMicros).replace(' $', '')} (la RÉSERVATION MAXIMALE ci-dessus, recopiée ; jamais l’estimation).`,
   ].join('\n');
 }
 
@@ -131,46 +176,43 @@ export type DecisionPas1 =
   | { ok: false; refus: Array<{ code: CodeRefusPas1; message: string }> };
 
 /**
- * Le pas 1 peut-il partir ? Tous les refus sont rendus d'un coup, pour que le
- * propriétaire corrige en une fois.
+ * Le pas 1 peut-il partir ? Tous les refus d'un coup, pour corriger en une fois.
+ *
+ *  · budget · `antérieur + réglé + incertain + réservation maximale ≤ 15 $`
+ *    (registre cumulatif, toutes bases, `decisionDepenseEssai`) ;
+ *  · confirmation · la RÉSERVATION MAXIMALE affichée, recopiée (jamais
+ *    l'estimation) ;
+ *  · limite de passe facultative · plus basse seulement.
  *
  * La barrière de la passe (`capPasseUsd`) devient le plafond de dépense du
- * PROCESSUS : la dépense déjà comptée plus le montant CONFIRMÉ, jamais plus
- * que le plafond de l'environnement. La barrière commune (`reserverDepense`)
- * refuse donc tout appel qui irait au-delà de ce qui a été tapé.
+ * PROCESSUS : ce que la base compte déjà plus la réservation maximale
+ * confirmée. La barrière commune (`reserverDepense`) refuse donc tout appel
+ * au-delà de ce qui a été tapé.
  */
 export function deciderPas1(e: {
-  annonce: AnnoncePas1;
+  devis: DevisPas1;
   confirmation: string | undefined | null;
-  plafondPasseUsdMicros: number;
-  budget: { capUsd: number; depenseUsd: number };
+  plafondPasseUsdMicros: number | null;
+  bilan: BilanBudgetEssai;
+  depenseFenetreUsd: number;
 }): DecisionPas1 {
   const refus: Array<{ code: CodeRefusPas1; message: string }> = [];
-  const { annonce: a, plafondPasseUsdMicros: plafond } = e;
-  if (!Number.isFinite(plafond) || plafond <= 0 || plafond > PLAFOND_PASSE_MAX_USD_MICROS) {
-    refus.push({ code: 'PLAFOND_PASSE_INVALIDE', message: `Plafond de passe ${usdAffiche(plafond)} · il doit être compris entre 0 et ${usdAffiche(PLAFOND_PASSE_MAX_USD_MICROS)}.` });
-  } else if (a.afficheUsdMicros > plafond) {
-    refus.push({ code: 'DEVIS_AU_DELA_DU_PLAFOND_DE_PASSE', message: `Devis ${usdAffiche(a.afficheUsdMicros)} au plus > plafond de passe ${usdAffiche(plafond)} · rien n’est lancé.` });
+  const { devis: d, plafondPasseUsdMicros: plafond } = e;
+  if (plafond !== null && (!Number.isFinite(plafond) || plafond <= 0)) {
+    refus.push({ code: 'PLAFOND_PASSE_INVALIDE', message: `Limite de passe ${usdAffiche(plafond)} · elle doit être positive.` });
+  } else if (plafond !== null && d.afficheUsdMicros > plafond) {
+    refus.push({ code: 'DEVIS_AU_DELA_DU_PLAFOND_DE_PASSE', message: `Réservation maximale ${usdAffiche(d.afficheUsdMicros)} > limite de passe ${usdAffiche(plafond)} · rien n’est lancé.` });
   }
-  const resteMicros = Math.round((e.budget.capUsd - e.budget.depenseUsd) * 1_000_000);
-  if (a.afficheUsdMicros > resteMicros) {
-    refus.push({ code: 'BUDGET_ESSAI_INSUFFISANT', message: `Il reste ${usdAffiche(Math.max(0, resteMicros))} sous le plafond (${e.budget.capUsd} $, ${e.budget.depenseUsd.toFixed(4)} $ déjà comptés) · le devis ${usdAffiche(a.afficheUsdMicros)} ne tient pas.` });
-  }
+  const budget = decisionDepenseEssai(e.bilan, d.afficheUsdMicros);
+  if (!budget.ok) refus.push({ code: 'BUDGET_ESSAI_INSUFFISANT', message: budget.message });
   const lu = lireMontantUsd(e.confirmation);
   if (e.confirmation === undefined || e.confirmation === null || e.confirmation.trim() === '') {
-    refus.push({ code: 'CONFIRMATION_ABSENTE', message: `Aucune confirmation · relance avec --confirmer-usd ${usdAffiche(a.afficheUsdMicros).replace(' $', '')} (le montant maximal affiché, recopié).` });
-  } else if (lu !== a.afficheUsdMicros) {
-    refus.push({ code: 'CONFIRMATION_DIFFERENTE', message: `Confirmation « ${e.confirmation} » ≠ montant maximal affiché ${usdAffiche(a.afficheUsdMicros)} · rien n’est lancé.` });
+    refus.push({ code: 'CONFIRMATION_ABSENTE', message: `Aucune confirmation · relance avec --confirmer-usd ${usdAffiche(d.afficheUsdMicros).replace(' $', '')} (la réservation maximale affichée, recopiée).` });
+  } else if (lu !== d.afficheUsdMicros) {
+    refus.push({ code: 'CONFIRMATION_DIFFERENTE', message: `Confirmation « ${e.confirmation} » ≠ réservation maximale affichée ${usdAffiche(d.afficheUsdMicros)}${lu === centimeSuperieur(d.estimationUsdMicros) && lu !== d.afficheUsdMicros ? ' (tu as recopié l’ESTIMATION)' : ''} · rien n’est lancé.` });
   }
   if (refus.length) return { ok: false, refus };
-  const capPasseUsd = Math.min(e.budget.capUsd, e.budget.depenseUsd + a.afficheUsdMicros / 1_000_000);
-  return { ok: true, capPasseUsd: Math.round(capPasseUsd * 1_000_000) / 1_000_000, confirmeUsdMicros: a.afficheUsdMicros };
-}
-
-/** Budget du pas 2 · le budget d'essai moins TOUT ce qui est déjà compté dans la base de recette. */
-export function budgetPas2UsdMicros(e: { capUsd: number; depenseUsd: number }): number {
-  const cap = Math.min(e.capUsd, BUDGET_ESSAI_USD);
-  return Math.max(0, Math.floor((cap - e.depenseUsd) * 1_000_000));
+  return { ok: true, capPasseUsd: Math.round((e.depenseFenetreUsd + d.afficheUsdMicros / 1_000_000) * 1_000_000) / 1_000_000, confirmeUsdMicros: d.afficheUsdMicros };
 }
 
 /** Le fournisseur image de la recette · une vraie clé ET l'autorisation explicite. Aucun stockage S3 : le livrable reste sur la machine. */
@@ -211,14 +253,30 @@ export function masquerSecrets(texte: string, env: Env): string {
 
 /* ───────────────────────────── rapport ──────────────────────────────────── */
 
-export interface LigneDepenseRapport { provider: string; modele: string | null; action: string; reserveUsd: number; regleUsd: number }
+export interface LigneDepenseRapport {
+  provider: string; modele: string | null; action: string; reserveUsd: number;
+  /** Réglé au coût réel ou au prix fixe (0 si rendu ou incertain). */
+  regleUsd: number;
+  /** Incertain, compté au maximum réservé (à réconcilier). */
+  incertainUsd: number;
+  etat: string;
+  cause: string | null;
+}
+
+/** La ligne du devis à laquelle se rattache une dépense · d'après son fournisseur et son action. */
+export function ligneDuDevis(l: { provider: string; action: string }): LigneDevisPas1['cle'] | null {
+  if (l.action === 'studio-prompt:image.compile') return 'compilation';
+  if (l.action === 'studio-prompt:quality.visual') return 'vision';
+  if (l.provider === 'fal') return 'image';
+  return null;
+}
 export interface MouvementRegistre { kind: string; credits: number; usdMicros: number }
 
 export interface DonneesRapportPas1 {
   mode: 'REEL' | 'SIMULE';
   horodatage: string;
   ids: { workspaceId: string; brandId: string; projectId: string; versionId: string | null; runId: string | null; devisId: string | null; jobId: string | null; assetId: string | null };
-  annonce: AnnoncePas1;
+  devis: DevisPas1 | null;
   confirmeUsdMicros: number;
   capPasseUsd: number;
   etatJob: string | null;
@@ -231,7 +289,10 @@ export interface DonneesRapportPas1 {
     sha256Base: string; sha256Fichier: string;
     largeurBase: number | null; hauteurBase: number | null; largeurDecodee: number | null; hauteurDecodee: number | null;
   };
-  budgetPas2UsdMicros: number;
+  /** Ce que la commande a fait du contrôle visuel (exécuté, repris, refusé et pourquoi). */
+  controleVision: string | null;
+  /** Bilan du registre cumulatif APRÈS la commande · `null` s'il n'a pas pu être relu. */
+  bilanApres: BilanBudgetEssai | null;
   arret: string | null;
 }
 
@@ -241,6 +302,7 @@ const usd4 = (x: number) => `${x.toFixed(4).replace('.', ',')} $`;
 export function rapportPas1(d: DonneesRapportPas1): string {
   const reserve = d.depenses.reduce((s, l) => s + l.reserveUsd, 0);
   const regle = d.depenses.reduce((s, l) => s + l.regleUsd, 0);
+  const incertain = d.depenses.reduce((s, l) => s + l.incertainUsd, 0);
   const L = d.livrable;
   const concordance = L ? (L.sha256Base === L.sha256Fichier ? 'identique' : 'DIFFÉRENTE · le fichier ne correspond pas au média enregistré') : 'sans objet';
   const dims = L ? (L.largeurBase === L.largeurDecodee && L.hauteurBase === L.hauteurDecodee ? 'identiques' : 'DIFFÉRENTES') : 'sans objet';
@@ -266,13 +328,24 @@ export function rapportPas1(d: DonneesRapportPas1): string {
     '',
     '## Coût',
     '',
-    `Annoncé avant tout appel · ${usdAffiche(d.annonce.afficheUsdMicros)} au plus (compilation ${usdAffiche(centimeSuperieur(d.annonce.compilationUsdMicros))}, image ${usdAffiche(centimeSuperieur(d.annonce.imageUsdMicros))}, contrôle visuel ${usdAffiche(centimeSuperieur(d.annonce.visionUsdMicros))}).`,
-    `Confirmé par saisie · ${usdAffiche(d.confirmeUsdMicros)}. Barrière de la passe (plafond du processus) · ${d.capPasseUsd} $.`,
+    'Trois montants distincts : l’ESTIMATION (indicative), la RÉSERVATION MAXIMALE (plafond dur, ce qui a été confirmé), le COÛT RÉGLÉ (lu dans `ai_spend` après coup ; l’incertain y reste compté au maximum).',
     '',
-    '| Fournisseur | Modèle | Action | Réservé | Réglé |',
+    '| Ligne | Estimation | Réservation maximale | Coût réglé | Incertain (à réconcilier) |',
     '| --- | --- | --- | --- | --- |',
-    ...(d.depenses.length ? d.depenses.map((l) => `| ${l.provider} | ${l.modele ?? '·'} | ${l.action} | ${usd4(l.reserveUsd)} | ${usd4(l.regleUsd)} |`) : ['| · | · | aucune dépense | 0 | 0 |']),
-    `| **Total** | | | **${usd4(reserve)}** | **${usd4(regle)}** |`,
+    ...(d.devis ? d.devis.lignes.map((l) => {
+      const dep = d.depenses.filter((x) => ligneDuDevis(x) === l.cle);
+      return `| ${l.libelle} | ${usd4(l.estimationUsdMicros / 1e6)} | ${usd4(l.reservationUsdMicros / 1e6)} | ${usd4(dep.reduce((s, x) => s + x.regleUsd, 0))} | ${usd4(dep.reduce((s, x) => s + x.incertainUsd, 0))} |`;
+    }) : ['| (devis non calculé) | · | · | · | · |']),
+    `| **Total** | **${d.devis ? usd4(d.devis.estimationUsdMicros / 1e6) : '·'}** | **${d.devis ? `${usdAffiche(d.devis.afficheUsdMicros)} au plus` : '·'}** | **${usd4(regle)}** | **${usd4(incertain)}** |`,
+    '',
+    `Confirmé par saisie · ${usdAffiche(d.confirmeUsdMicros)} (réservation maximale). Barrière de la passe (plafond du processus) · ${d.capPasseUsd} $.`,
+    '',
+    'Lignes `ai_spend` de l’espace de recette ·',
+    '',
+    '| Fournisseur | Modèle | Action | Réservé | Réglé | Incertain | État |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...(d.depenses.length ? d.depenses.map((l) => `| ${l.provider} | ${l.modele ?? '·'} | ${l.action} | ${usd4(l.reserveUsd)} | ${usd4(l.regleUsd)} | ${usd4(l.incertainUsd)} | ${l.etat}${l.cause ? ` (${l.cause})` : ''} |`) : ['| · | · | aucune dépense | 0 | 0 | 0 | · |']),
+    `| **Total** | | | **${usd4(reserve)}** | **${usd4(regle)}** | **${usd4(incertain)}** | |`,
     '',
     'Registre du job (crédits internes et dollars) ·',
     ...(d.registre.length ? d.registre.map((m) => `- ${m.kind} · ${m.credits} crédit(s) · ${usdAffiche(m.usdMicros)}`) : ['- aucun mouvement']),
@@ -281,6 +354,7 @@ export function rapportPas1(d: DonneesRapportPas1): string {
     '',
     `État · ${d.etatJob ?? 'aucun job'}${d.raisonEchec ? ` · raison : ${d.raisonEchec}` : ''}`,
     `Qualité · ${d.qualite ?? '·'}`,
+    `Contrôle visuel · ${d.controleVision ?? '·'}`,
     '',
     '## Livrable',
     '',
@@ -305,7 +379,9 @@ export function rapportPas1(d: DonneesRapportPas1): string {
     '',
     '## Suite',
     '',
-    `Budget restant pour le pas 2 (benchmark) · ${usdAffiche(d.budgetPas2UsdMicros)} (15 $ moins tout ce qui est compté dans la base de recette).`,
+    d.bilanApres
+      ? `Budget d’essai cumulatif après cette commande · autorisé ${usdAffiche(d.bilanApres.autoriseMicros)} au total, réglé ${usd4(d.bilanApres.regleMicros / 1e6)}, incertain conservé ${usd4(d.bilanApres.incertainMicros / 1e6)}, antérieur ${usd4(d.bilanApres.anterieuresMicros / 1e6)} · **restant ${usd4(d.bilanApres.restantMicros / 1e6)}** (plafond du pas 2, pas une cible ; relis-le avec \`recette:budget\`).`
+      : 'Budget d’essai cumulatif · registre non relu · lance `recette:budget` avant toute autre commande payante.',
     '',
   ];
   return lignes.filter((l, i, t) => !(l === '' && t[i - 1] === '')).join('\n');
