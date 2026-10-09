@@ -44,7 +44,19 @@ const ENV = {
 
 /** Le comportement du contrôle visuel simulé · réponse conforme, ou coupure (issue incertaine). */
 const vision = { mode: 'ok' as 'ok' | 'coupure' };
+/**
+ * E3 · AU MOMENT de chaque appel payant (texte ou fal), ce que le registre
+ * contient DÉJÀ sur disque : les engagements ouverts. L'engagement doit être
+ * durable AVANT l'appel, pas après.
+ */
+let dossierActif = '';
+const auMomentDeLAppel: Array<{ appel: string; ouverts: Array<[string, number]> }> = [];
+const noterAppel = (appel: string) => {
+  const t = existsSync(join(dossierActif, FICHIER_REGISTRE)) ? lireRegistre(readFileSync(join(dossierActif, FICHIER_REGISTRE), 'utf8')) : null;
+  auMomentDeLAppel.push({ appel, ouverts: t ? Object.values(t.engagements).filter((g) => g.etat === 'engage').map((g) => [g.commande, g.reserveMicros]) : [] });
+};
 const brut = adaptateurSimule((a: AppelModele) => {
+  noterAppel(a.profil);
   if (a.profil === 'vision_analysis') {
     if (vision.mode === 'coupure') throw new Error('socket hang up');
     return { status: 'ready', questions: [], warnings: [], evidenceIds: [], result: { verdict: 'passed', issues: [], unverifiable: [], summary: 'Lunettes visibles' } };
@@ -66,7 +78,7 @@ const json = (status: number, corps: unknown) => new Response(JSON.stringify(cor
 const fetchFactice = (async (url: string | URL | Request, init?: RequestInit) => {
   fal.appels += 1;
   const u = String(url);
-  if ((init?.method ?? 'GET') === 'POST') { fal.soumissions += 1; fal.plafonds.push(process.env.AI_SPEND_CAP_USD); return json(200, { request_id: REQ, response_url: BASE_REQ, status_url: `${BASE_REQ}/status`, cancel_url: `${BASE_REQ}/cancel` }); }
+  if ((init?.method ?? 'GET') === 'POST') { noterAppel('fal'); fal.soumissions += 1; fal.plafonds.push(process.env.AI_SPEND_CAP_USD); return json(200, { request_id: REQ, response_url: BASE_REQ, status_url: `${BASE_REQ}/status`, cancel_url: `${BASE_REQ}/cancel` }); }
   if (u.endsWith(`/requests/${REQ}/status`)) return json(200, { status: 'COMPLETED', response_url: BASE_REQ });
   if (u.endsWith(`/requests/${REQ}`)) return json(200, { images: [{ url: 'https://v3.fal.media/files/recette/scene.png', content_type: 'image/png', width: 1080, height: 1350 }] });
   if (u.startsWith('https://v3.fal.media/')) return new Response(fal.png as unknown as BodyInit, { status: 200, headers: { 'content-length': String(fal.png.length) } });
@@ -77,7 +89,7 @@ let sortie = '';
 let registre = '';
 let montant = '';
 const journal: string[] = [];
-const lancer = (argv: string[], dossier = registre) => executerPas1({
+const lancer = (argv: string[], dossier = registre) => (dossierActif = dossier, executerPas1)({
   env: ENV, argv, adaptateur: texte, fetch: fetchFactice, sortie, registre: dossier, simule: true,
   verifierAdresse: async () => true, attente: { maxMs: 20_000, pasMs: 10 }, dormir: (ms) => new Promise((ok) => setTimeout(ok, ms)),
   journal: (l) => journal.push(l),
@@ -158,7 +170,16 @@ describe('passe complète, puis reprise du SEUL contrôle visuel', () => {
     expect(regle, 'le registre n’a pas absorbé la dépense de la base').toBe(depenses.reduce((s, l) => s + Math.round(l.actualUsd * 1e6), 0));
     expect(regle).toBeGreaterThan(0);
     const types = lireFichier(registre, FICHIER_JOURNAL)!.trim().split('\n').map((l) => (JSON.parse(l) as { type: string }).type);
-    expect(types).toEqual(['initialisation', 'synchro-apres', 'synchro-apres']);
+    // E3 · engagement DURABLE écrit avant l'appel, puis réglé une seule fois.
+    expect(types).toEqual(['initialisation', 'engagement', 'cloture']);
+    const engagements = Object.values(reg.engagements);
+    expect(engagements.map((g) => [g.commande, g.etat, g.reserveMicros]), 'la passe n’a pas laissé un engagement réglé à la réservation confirmée').toEqual([['recette:pas1', 'regle', Math.round(Number(montant.replace(',', '.')) * 1e6)]]);
+    expect(engagements[0]!.regleMicros, 'le règlement n’est pas le coût réel des lignes rattachées').toBe(regle);
+    // Chaque appel payant est parti APRÈS l'écriture de l'engagement (ouvert sur disque à cet instant).
+    const reserve = Math.round(Number(montant.replace(',', '.')) * 1e6);
+    expect(auMomentDeLAppel, 'un appel payant est parti sans engagement durable au registre').toEqual([
+      { appel: 'reasoning_structured', ouverts: [['recette:pas1', reserve]] }, { appel: 'fal', ouverts: [['recette:pas1', reserve]] }, { appel: 'vision_analysis', ouverts: [['recette:pas1', reserve]] },
+    ]);
     const md = readFileSync(r.rapport!, 'utf8');
     expect(md).toContain('| Ligne | Estimation | Réservation maximale | Coût réglé | Incertain (à réconcilier) |');
     expect(md).toContain('| génération de l’image (fal) | 0,0800 $ | 0,0800 $ | 0,0800 $ | 0,0000 $ |');
@@ -176,6 +197,11 @@ describe('passe complète, puis reprise du SEUL contrôle visuel', () => {
     expect(journal.some((l) => l.startsWith('Reprise du contrôle visuel approuvé')), 'le contrôle approuvé manquant n’a pas été repris').toBe(true);
     expect({ fal: fal.appels, devis: await compte(schema.studioQuotes), jobs: await compte(schema.studioJobs), nouveaux: profils().slice(avant.profils) }, 'la reprise a fait plus que le contrôle manquant').toEqual({ fal: avant.fal, devis: avant.devis, jobs: avant.jobs, nouveaux: ['vision_analysis'] });
     expect((await db.select().from(schema.studioJobs))[0]!.qualityStatus).not.toBe('pending');
+    // E3 · la REPRISE prend son propre engagement (la ligne de contrôle approuvée) AVANT l'appel, puis le règle.
+    const ligneVision = r.devis!.lignes.find((l) => l.cle === 'vision')!.reservationUsdMicros;
+    expect(auMomentDeLAppel.at(-1), 'la reprise a appelé sans engagement durable').toEqual({ appel: 'vision_analysis', ouverts: [['recette:pas1', ligneVision]] });
+    const engs = Object.values(lireRegistre(lireFichier(registre, FICHIER_REGISTRE)!)!.engagements);
+    expect(engs.map((g) => g.etat), 'l’engagement de la reprise n’est pas réglé').toEqual(['regle', 'regle']);
   });
 
   it('contrôle à l’issue INCERTAINE ⇒ code 1, rapport qui dit quoi réconcilier ; la relance n’appelle rien', async () => {
@@ -208,5 +234,24 @@ describe('destruction de l’environnement · le registre survit, `recette:budge
     expect(regle(apres.texte), 'la destruction de la base a effacé le cumul').toBe(regle(avantLecture));
     expect(apres.texte).toContain('autorisé            · 15,00 $ au total');
     expect([lireFichier(registre, FICHIER_REGISTRE), lireFichier(registre, FICHIER_JOURNAL)], 'recette:budget a écrit').toEqual(fichiers);
+  });
+
+  it('E3 · erreur en route APRÈS l’engagement ⇒ l’engagement passe « incertain » et reste compté au maximum', async () => {
+    const d = nouveauDossier();
+    const appelsAvant = { fal: fal.appels, texte: brut.recues.length };
+    const r = executerPas1({
+      env: ENV, argv: ['--nouveau-rendu', '--confirmer-usd', montant], adaptateur: texte, fetch: fetchFactice, sortie, registre: d, simule: true,
+      verifierAdresse: async () => true, attente: { maxMs: 20_000, pasMs: 10 },
+      journal: (l) => { if (l.startsWith('Confirmé ·')) throw new Error('coupure du terminal (simulée)'); },
+    });
+    await expect(r).rejects.toThrow('coupure du terminal');
+    expect({ fal: fal.appels, texte: brut.recues.length }).toEqual(appelsAvant);
+    const reg = lireRegistre(lireFichier(d, FICHIER_REGISTRE)!)!;
+    const [g] = Object.values(reg.engagements);
+    expect(g, 'une erreur en route a réglé (ou effacé) l’engagement').toMatchObject({ etat: 'incertain', reserveMicros: Math.round(Number(montant.replace(',', '.')) * 1e6) });
+    expect(g!.cause).toContain('commande interrompue par une erreur · coupure du terminal (simulée)');
+    const b = (await lireBudget({ ...ENV, RECETTE_REGISTRE: d })).texte;
+    expect(b).toContain(`incertain conservé  · ${(g!.reserveMicros / 1e6).toFixed(4).replace('.', ',')} $`);
+    rmSync(d, { recursive: true, force: true });
   });
 });

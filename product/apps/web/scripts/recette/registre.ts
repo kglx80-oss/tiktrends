@@ -1,5 +1,5 @@
 /**
- * Recette Studios · E2 · REGISTRE CUMULATIF du budget d'essai (15 $ au total).
+ * Recette Studios · E2/E3 · REGISTRE CUMULATIF du budget d'essai (15 $ au total).
  *
  * « J'autorise 15 $ maximum au total pour tous les tests nécessaires au
  * chantier TikTrends, tous fournisseurs, étapes et relances confondus. Ce
@@ -19,28 +19,51 @@
  * `test/e2-registre-budget.test.ts`). Il survit aux commandes, aux
  * redémarrages du conteneur et aux destructions de l'environnement.
  *
+ * ── La séquence d'une commande payante (E3) ─────────────────────────────────
+ *
+ *   lire la base (hors verrou)
+ *   → VERROU → lire le registre → fusionner → décider (restant ≥ réservation)
+ *     → écrire l'ENGAGEMENT (fichier temporaire, `fsync`, `rename`) → RELÂCHER
+ *   → appel payant
+ *   → lire la base → VERROU → rattacher les lignes nées → régler / libérer /
+ *     incertain (idempotent par identifiant) → RELÂCHER
+ *
+ * L'engagement est COMPTÉ au bilan dès son écriture (au maximum réservé). Un
+ * processus tué pendant l'appel laisse un engagement ouvert, compté au
+ * maximum même après la destruction de la base (garde :
+ * `test/e3-registre-verrou.test.ts`, processus enfant tué par SIGKILL). Le
+ * verrou (`verrou.ts`) rend la lecture, la décision et l'écriture
+ * indivisibles entre processus, bases et conteneurs.
+ *
  *  · écriture ATOMIQUE (fichier temporaire, `fsync`, copie de la version
- *    précédente en `.prec`, `rename`) ;
- *  · JOURNAL en ajout seul (`budget-essais.journal.jsonl`) : chaque
- *    initialisation, synchronisation et saisie, avec le bilan ;
- *  · alimenté depuis `ai_spend` AVANT et APRÈS chaque commande payante : une
- *    ligne vue une fois reste au registre même si sa base disparaît, à son
- *    dernier état (une réservation sans issue reste au maximum) ;
+ *    précédente en `.prec`, `rename`), après confirmation que le verrou est
+ *    toujours tenu ;
+ *  · JOURNAL en ajout seul (`budget-essais.journal.jsonl`) : initialisation,
+ *    engagement, clôture, saisie, avec le bilan ;
+ *  · une ligne `ai_spend` vue une fois reste au registre même si sa base
+ *    disparaît, à son dernier état (une réservation sans issue reste au
+ *    maximum) ;
  *  · une dépense ANTÉRIEURE connue par facture se saisit (`recette:budget:saisir`).
  *
- * Les règles d'argent (classement d'une ligne, bilan, décision) vivent dans
- * le noyau (`classerLigneEssai`, `bilanBudgetEssai`, `decisionDepenseEssai`).
+ * Les règles d'argent (classement d'une ligne, engagements, bilan, décision)
+ * vivent dans le noyau (`classerLigneEssai`, `bilanEssaiAvecEngagements`,
+ * `cloreEngagementEssai`, `decisionDepenseEssai`).
  */
 
+import { randomUUID } from 'node:crypto';
 import { closeSync, copyFileSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  BUDGET_ESSAIS_TOTAL_USD_MICROS, bilanBudgetEssai, classerLigneEssai, decisionDepenseEssai,
-  type BilanBudgetEssai, type EtatLigneEssai,
+  BUDGET_ESSAIS_TOTAL_USD_MICROS, bilanEssaiAvecEngagements, classerLigneEssai, cloreEngagementEssai, decisionDepenseEssai, engagementValide, lignesARattacher,
+  type BilanEssaiEngage, type EngagementEssai, type EtatLigneEssai, type IssueEngagement,
 } from '@tiktrends/core';
+import { sousVerrou, type Verrou } from './verrou';
 
-export const FORMAT_REGISTRE = 'registre-budget-essais/1';
+export const FORMAT_REGISTRE = 'registre-budget-essais/2';
+/** Format E2 (sans engagements) · relu et porté au format courant. */
+export const FORMAT_REGISTRE_V1 = 'registre-budget-essais/1';
 export const FICHIER_REGISTRE = 'budget-essais.json';
 export const FICHIER_JOURNAL = 'budget-essais.journal.jsonl';
 export const CITATION_AUTORISATION = 'J’autorise 15 $ maximum au total pour tous les tests nécessaires au chantier TikTrends, tous fournisseurs, étapes et relances confondus. Ce plafond remplace la précédente limite de 1 $ : ce n’est pas 15 $ par test ou par session. Déduis toute dépense déjà engagée et conserve les réservations dont le coût reste incertain. Aucune recharge ni dépassement autorisé.';
@@ -65,6 +88,8 @@ export interface LigneRegistre {
   /** Base où la ligne a été vue (identifiant du cluster Postgres et nom). */
   base: string;
   vueLe: string;
+  /** Engagement auquel la ligne a été rattachée à sa clôture (E3). */
+  engagement?: string | null;
 }
 
 export interface DepenseAnterieure { id: string; usdMicros: number; motif: string; saisieLe: string }
@@ -74,6 +99,8 @@ export interface RegistreBudget {
   autorisation: { usdMicros: number; le: string; citation: string };
   anterieures: DepenseAnterieure[];
   lignes: Record<string, LigneRegistre>;
+  /** Engagements pris AVANT chaque dépense (E3) · comptés au bilan dès leur écriture. */
+  engagements: Record<string, EngagementEssai>;
   bases: Record<string, { premiereVue: string; derniereVue: string }>;
   majLe: string;
 }
@@ -85,24 +112,27 @@ export interface LigneBase {
   reconcileReason: string | null; createdAt: Date;
 }
 
+/** Ce qu'une lecture de la base de recette rend. */
+export interface LectureBase { lignes: LigneBase[]; base: string; depenseFenetreUsd: number }
+
 /* ───────────────────────────── règles pures ─────────────────────────────── */
 
 export function registreVierge(maintenant: Date): RegistreBudget {
   return {
     format: FORMAT_REGISTRE,
     autorisation: { usdMicros: BUDGET_ESSAIS_TOTAL_USD_MICROS, le: '2026-10-09', citation: CITATION_AUTORISATION },
-    anterieures: [], lignes: {}, bases: {}, majLe: maintenant.toISOString(),
+    anterieures: [], lignes: {}, engagements: {}, bases: {}, majLe: maintenant.toISOString(),
   };
 }
 
 const entier = (x: unknown) => typeof x === 'number' && Number.isInteger(x) && x >= 0;
 
-/** Lit le texte du registre · `null` si illisible (format, autorisation modifiée, montants invalides). */
+/** Lit le texte du registre · `null` si illisible (format, autorisation modifiée, montants invalides). Un registre E2 est porté au format courant. */
 export function lireRegistre(texte: string): RegistreBudget | null {
   let o: unknown;
   try { o = JSON.parse(texte); } catch { return null; }
-  const r = o as Partial<RegistreBudget> | null;
-  if (!r || r.format !== FORMAT_REGISTRE) return null;
+  const r = o as (Omit<Partial<RegistreBudget>, 'format'> & { format?: string }) | null;
+  if (!r || (r.format !== FORMAT_REGISTRE && r.format !== FORMAT_REGISTRE_V1)) return null;
   // L'autorisation n'est pas un réglage : un registre qui la relève est refusé.
   if (!r.autorisation || r.autorisation.usdMicros !== BUDGET_ESSAIS_TOTAL_USD_MICROS) return null;
   if (!Array.isArray(r.anterieures) || r.anterieures.some((a) => !a || !entier(a.usdMicros) || typeof a.motif !== 'string')) return null;
@@ -111,28 +141,32 @@ export function lireRegistre(texte: string): RegistreBudget | null {
     if (!l || typeof l.id !== 'string' || !entier(l.regleMicros) || !entier(l.incertainMicros)) return null;
   }
   if (!r.bases || typeof r.bases !== 'object') return null;
-  return r as RegistreBudget;
+  const engagements = r.format === FORMAT_REGISTRE_V1 ? {} : r.engagements;
+  if (!engagements || typeof engagements !== 'object' || Array.isArray(engagements)) return null;
+  for (const [id, g] of Object.entries(engagements)) if (!engagementValide(g) || g.id !== id) return null;
+  return { ...(r as RegistreBudget), format: FORMAT_REGISTRE, engagements };
 }
 
 /**
  * Fusionne l'état COURANT des lignes d'une base dans le registre. Une ligne
  * présente en base y prend son dernier état (une réservation réglée descend
  * au coût réel) ; une ligne absente (base détruite) garde son dernier état
- * connu. Rend le registre neuf et les identifiants changés.
+ * connu ; un rattachement à un engagement est conservé. Rend le registre neuf
+ * et les identifiants changés.
  */
 export function fusionnerRegistre(reg: RegistreBudget, lignes: readonly LigneBase[], base: string, maintenant: Date): { registre: RegistreBudget; changees: string[] } {
   const t = maintenant.toISOString();
-  const out: RegistreBudget = { ...reg, lignes: { ...reg.lignes }, bases: { ...reg.bases }, majLe: t };
+  const out: RegistreBudget = { ...reg, lignes: { ...reg.lignes }, engagements: { ...reg.engagements }, bases: { ...reg.bases }, majLe: t };
   const changees: string[] = [];
   for (const l of lignes) {
     const c = classerLigneEssai(l);
+    const a = out.lignes[l.id];
     const n: LigneRegistre = {
       id: l.id, provider: l.provider, model: l.model, action: l.action,
       reserveMicros: Math.max(0, Math.round(Number(l.estimatedUsd) * 1_000_000)), actualMicros: Math.max(0, Math.round(Number(l.actualUsd) * 1_000_000)),
       etat: c.etat, regleMicros: c.regleMicros, incertainMicros: c.incertainMicros, cause: l.reconcileReason,
-      creeeLe: l.createdAt.toISOString(), base, vueLe: t,
+      creeeLe: l.createdAt.toISOString(), base: a?.base ?? base, vueLe: t, engagement: a?.engagement ?? null,
     };
-    const a = out.lignes[l.id];
     if (!a || a.etat !== n.etat || a.regleMicros !== n.regleMicros || a.incertainMicros !== n.incertainMicros || a.cause !== n.cause) changees.push(l.id);
     out.lignes[l.id] = n;
   }
@@ -140,11 +174,12 @@ export function fusionnerRegistre(reg: RegistreBudget, lignes: readonly LigneBas
   return { registre: out, changees };
 }
 
-export function bilanRegistre(reg: RegistreBudget): BilanBudgetEssai {
-  return bilanBudgetEssai({
+export function bilanRegistre(reg: RegistreBudget): BilanEssaiEngage {
+  return bilanEssaiAvecEngagements({
     autoriseMicros: reg.autorisation.usdMicros,
     anterieuresMicros: reg.anterieures.reduce((s, a) => s + a.usdMicros, 0),
     lignes: Object.values(reg.lignes),
+    engagements: Object.values(reg.engagements ?? {}),
   });
 }
 
@@ -170,17 +205,22 @@ export function coherenceRegistre(f: EtatFichier, lignesEnBase: number, dossier:
 const usd2 = (micros: number) => `${(micros / 1_000_000).toFixed(2).replace('.', ',')} $`;
 const usd4 = (micros: number) => `${(micros / 1_000_000).toFixed(4).replace('.', ',')} $`;
 
-/** Le texte de `recette:budget` · autorisé, réglé, incertain, restant, puis le détail. */
-export function texteBilan(reg: RegistreBudget, b: BilanBudgetEssai = bilanRegistre(reg)): string {
+/** Le texte de `recette:budget` · autorisé, réglé, engagé, incertain, restant, puis le détail. */
+export function texteBilan(reg: RegistreBudget, b: BilanEssaiEngage = bilanRegistre(reg)): string {
   const incertaines = Object.values(reg.lignes).filter((l) => l.incertainMicros > 0);
+  const ouverts = Object.values(reg.engagements ?? {}).filter((g) => g.etat === 'engage');
+  const engIncertains = Object.values(reg.engagements ?? {}).filter((g) => g.etat === 'incertain');
   return [
     'Budget d’essai · registre cumulatif (toutes bases, tous passages)',
     `  autorisé            · ${usd2(b.autoriseMicros)} au total (propriétaire, ${reg.autorisation.le})`,
     `  antérieur (saisi)   · ${usd4(b.anterieuresMicros)}`,
     `  réglé               · ${usd4(b.regleMicros)}`,
-    `  incertain conservé  · ${usd4(b.incertainMicros)} (au maximum réservé, à réconcilier)`,
+    `  engagé (ouvert)     · ${usd4(b.engageMicros)} (${b.engagementsOuverts} engagement(s) pris avant l’appel et jamais clos, au maximum réservé)`,
+    `  incertain conservé  · ${usd4(b.incertainMicros - b.engageMicros)} (au maximum réservé, à réconcilier)`,
     `  RESTANT             · ${usd4(b.restantMicros)}${b.depasse ? ' · DÉPASSÉ, aucune commande payante ne part' : ''}`,
-    `  lignes connues      · ${Object.keys(reg.lignes).length} · bases vues : ${Object.keys(reg.bases).length} · mis à jour ${reg.majLe}`,
+    `  lignes connues      · ${Object.keys(reg.lignes).length} · engagements : ${Object.keys(reg.engagements ?? {}).length} · bases vues : ${Object.keys(reg.bases).length} · mis à jour ${reg.majLe}`,
+    ...(ouverts.length ? ['  engagements ouverts (commande en cours, ou interrompue avant sa clôture · comptés au maximum) :', ...ouverts.map((g) => `    - ${g.id} · ${g.commande} · ${usd4(g.reserveMicros)} · pris le ${g.creeLe} · processus ${g.pid} (${g.hote}) · base ${g.base}`)] : []),
+    ...(engIncertains.length ? ['  engagements à l’issue incertaine :', ...engIncertains.map((g) => `    - ${g.id} · ${g.commande} · ${usd4(g.reserveMicros)} · ${g.cause ?? 'issue inconnue'} · ${g.creeLe}`)] : []),
     ...(incertaines.length ? ['  à réconcilier :', ...incertaines.map((l) => `    - ${l.id} · ${l.provider} · ${l.action} · ${usd4(l.incertainMicros)} · ${l.cause ?? 'réservée sans issue (processus interrompu)'} · ${l.creeeLe}`)] : []),
     ...(reg.anterieures.length ? ['  dépenses antérieures saisies :', ...reg.anterieures.map((a) => `    - ${usd4(a.usdMicros)} · ${a.motif} · ${a.saisieLe}`)] : []),
   ].join('\n');
@@ -204,23 +244,35 @@ export function journaliser(dossier: string, entree: Record<string, unknown>): v
   try { writeSync(fd, `${JSON.stringify(entree)}\n`); fsyncSync(fd); } finally { closeSync(fd); }
 }
 
-/** Écriture ATOMIQUE · temporaire + `fsync`, version précédente gardée en `.prec`, puis `rename`. */
-export function ecrireRegistre(dossier: string, reg: RegistreBudget): void {
+/**
+ * Écriture ATOMIQUE, SOUS VERROU · temporaire + `fsync`, version précédente
+ * gardée en `.prec`, confirmation que le verrou est toujours à nous, puis
+ * `rename`. Sans verrou tenu, rien n'est écrit.
+ */
+export function ecrireRegistre(dossier: string, reg: RegistreBudget, verrou: Verrou): void {
   mkdirSync(dossier, { recursive: true });
   const f = join(dossier, FICHIER_REGISTRE);
   const tmp = `${f}.tmp-${process.pid}`;
   const fd = openSync(tmp, 'w', 0o600);
   try { writeSync(fd, `${JSON.stringify(reg, null, 2)}\n`); fsyncSync(fd); } finally { closeSync(fd); }
+  verrou.confirmer();
   if (existsSync(f)) copyFileSync(f, `${f}.prec`);
   renameSync(tmp, f);
+  // Le renommage lui-même est rendu durable (entrée de répertoire).
+  try { const d = openSync(dossier, 'r'); try { fsyncSync(d); } finally { closeSync(d); } } catch { /* système sans fsync de dossier */ }
 }
 
 /* ───────────────────────────── base ─────────────────────────────────────── */
 
-/** Lecture SEULE de la base de recette · toutes les lignes `ai_spend`, identité du cluster. */
-export async function lireBase(): Promise<{ lignes: LigneBase[]; base: string; depenseFenetreUsd: number }> {
-  const { db, schema, sql } = await import('@tiktrends/db');
-  if (!db) throw new Error('Base indisponible (DATABASE_URL).');
+type BaseRecette = NonNullable<typeof import('@tiktrends/db')['db']>;
+
+/**
+ * Lecture SEULE d'une base · toutes les lignes `ai_spend`, identité du
+ * cluster. `depenseFenetre` · somme comptée par la barrière commune (défaut :
+ * la même somme sur 30 jours, calculée ici).
+ */
+export async function lireBaseDepuis(db: BaseRecette, depenseFenetre?: () => Promise<number>): Promise<LectureBase> {
+  const { schema, sql } = await import('@tiktrends/db');
   const A = schema.aiSpend;
   const rows = await db.select().from(A).orderBy(A.createdAt);
   let base = 'base-inconnue';
@@ -229,52 +281,131 @@ export async function lireBase(): Promise<{ lignes: LigneBase[]; base: string; d
     const x = ((Array.isArray(r) ? r : (r as { rows: unknown[] }).rows) as Array<{ id: string; nom: string }>)[0];
     if (x) base = `${x.nom}@${x.id}`;
   } catch { /* identité facultative */ }
-  const { spentUsd } = await import('../../lib/spend-guard');
+  const depuis = Date.now() - 30 * 86_400_000;
   return {
     lignes: rows.map((l) => ({ id: l.id, provider: l.provider, model: l.model, action: l.action, estimatedUsd: Number(l.estimatedUsd), actualUsd: Number(l.actualUsd), inputTokens: l.inputTokens, outputTokens: l.outputTokens, reconcileReason: l.reconcileReason, createdAt: l.createdAt })),
-    base, depenseFenetreUsd: await spentUsd(),
+    base,
+    depenseFenetreUsd: depenseFenetre ? await depenseFenetre() : rows.filter((l) => l.createdAt.getTime() >= depuis).reduce((s, l) => s + Number(l.actualUsd), 0),
   };
+}
+
+/** Lecture SEULE de la base de recette du processus (`DATABASE_URL`), somme comptée par la barrière commune. */
+export async function lireBase(): Promise<LectureBase> {
+  const { db } = await import('@tiktrends/db');
+  if (!db) throw new Error('Base indisponible (DATABASE_URL).');
+  const { spentUsd } = await import('../../lib/spend-guard');
+  return lireBaseDepuis(db, spentUsd);
 }
 
 /* ─────────────────────── avant / après une commande payante ─────────────── */
 
 export type EtatEssai =
-  | { ok: true; registre: RegistreBudget; bilan: BilanBudgetEssai; depenseFenetreUsd: number; base: string; initialiser: boolean; changees: string[] }
+  | { ok: true; registre: RegistreBudget; bilan: BilanEssaiEngage; depenseFenetreUsd: number; base: string; initialiser: boolean; changees: string[]; lu: LectureBase }
   | { ok: false; raison: string };
 
-/**
- * LECTURE SEULE · cohérence fichier/base, puis fusion EN MÉMOIRE de l'état
- * courant de la base dans le registre, puis bilan. Rien n'est écrit.
- */
-export async function lireEtatEssai(dossier: string, maintenant: Date = new Date()): Promise<EtatEssai> {
-  const lu = await lireBase();
-  const f = lireFichierRegistre(dossier);
+/** Pur · cohérence fichier/base puis fusion EN MÉMOIRE et bilan. */
+function etatDepuis(dossier: string, f: EtatFichier, lu: LectureBase, maintenant: Date): EtatEssai {
   const c = coherenceRegistre(f, lu.lignes.length, dossier);
   if (!c.ok) return c;
   const depart = f.etat === 'lisible' ? f.registre : registreVierge(maintenant);
   const { registre, changees } = fusionnerRegistre(depart, lu.lignes, lu.base, maintenant);
-  return { ok: true, registre, bilan: bilanRegistre(registre), depenseFenetreUsd: lu.depenseFenetreUsd, base: lu.base, initialiser: c.initialiser, changees };
+  return { ok: true, registre, bilan: bilanRegistre(registre), depenseFenetreUsd: lu.depenseFenetreUsd, base: lu.base, initialiser: c.initialiser, changees, lu };
 }
 
 /**
- * Juste AVANT la première dépense d'une commande payante (décision prise) ·
- * le registre fusionné est ÉCRIT (atomique) et l'événement journalisé.
+ * LECTURE SEULE · cohérence fichier/base, puis fusion EN MÉMOIRE de l'état
+ * courant de la base dans le registre, puis bilan. Rien n'est écrit, aucun
+ * verrou n'est pris (une lecture ne décide rien).
  */
-export function engagerEssai(dossier: string, e: Extract<EtatEssai, { ok: true }>, commande: string, reservationMicros: number, maintenant: Date = new Date()): void {
-  ecrireRegistre(dossier, e.registre);
-  journaliser(dossier, { le: maintenant.toISOString(), type: e.initialiser ? 'initialisation' : 'synchro-avant', commande, base: e.base, changees: e.changees, reservationMaximaleUsdMicros: reservationMicros, bilan: e.bilan });
+export async function lireEtatEssai(dossier: string, maintenant: Date = new Date(), lecteur: () => Promise<LectureBase> = lireBase): Promise<EtatEssai> {
+  const lu = await lecteur();
+  return etatDepuis(dossier, lireFichierRegistre(dossier), lu, maintenant);
 }
 
-/** Après la commande (y compris en échec) · le registre absorbe les lignes nées pendant la commande. */
-export async function cloreEssai(dossier: string, commande: string, maintenant: Date = new Date()): Promise<BilanBudgetEssai | null> {
-  const f = lireFichierRegistre(dossier);
-  if (f.etat !== 'lisible') return null;
-  const lu = await lireBase();
-  const { registre, changees } = fusionnerRegistre(f.registre, lu.lignes, lu.base, maintenant);
-  const bilan = bilanRegistre(registre);
-  ecrireRegistre(dossier, registre);
-  journaliser(dossier, { le: maintenant.toISOString(), type: 'synchro-apres', commande, base: lu.base, changees, bilan });
-  return bilan;
+export type ResultatEngagement =
+  | { ok: true; engagement: EngagementEssai; bilan: BilanEssaiEngage; registre: RegistreBudget; deja: boolean; depenseFenetreUsd: number }
+  | { ok: false; raison: string };
+
+/**
+ * AVANT l'appel payant · sous VERROU : relit le registre, fusionne la base
+ * (lue juste avant, hors verrou), DÉCIDE (`antérieur + réglé + engagé +
+ * incertain + réservation ≤ 15 $`) et ÉCRIT l'engagement (atomique) avant de
+ * relâcher. Idempotent par identifiant : un engagement déjà écrit est rendu
+ * tel quel, sans seconde réservation. Un refus n'écrit rien.
+ */
+export async function engagerEssai(dossier: string, o: {
+  commande: string; reservationMicros: number; lu: LectureBase; maintenant?: Date; id?: string;
+  /** Crochet de test · appelé sous verrou entre la décision et l'écriture (élargit une course). */
+  avantEcriture?: () => Promise<void>;
+}): Promise<ResultatEngagement> {
+  const id = o.id ?? `${o.commande}:${randomUUID()}`;
+  return sousVerrou(dossier, async (verrou) => {
+    const maintenant = o.maintenant ?? new Date();
+    const e = etatDepuis(dossier, lireFichierRegistre(dossier), o.lu, maintenant);
+    if (!e.ok) return e;
+    const existant = e.registre.engagements[id];
+    if (existant) return { ok: true, engagement: existant, bilan: e.bilan, registre: e.registre, deja: true, depenseFenetreUsd: e.depenseFenetreUsd };
+    const d = decisionDepenseEssai(e.bilan, o.reservationMicros);
+    if (!d.ok) return { ok: false, raison: d.message };
+    const engagement: EngagementEssai = {
+      id, commande: o.commande, reserveMicros: o.reservationMicros, etat: 'engage', regleMicros: null,
+      creeLe: maintenant.toISOString(), closLe: null, cause: null, base: e.base, pid: process.pid, hote: hostname(),
+    };
+    const registre: RegistreBudget = { ...e.registre, engagements: { ...e.registre.engagements, [id]: engagement }, majLe: maintenant.toISOString() };
+    const bilan = bilanRegistre(registre);
+    if (o.avantEcriture) await o.avantEcriture();
+    ecrireRegistre(dossier, registre, verrou);
+    if (e.initialiser) journaliser(dossier, { le: maintenant.toISOString(), type: 'initialisation', commande: o.commande, base: e.base });
+    journaliser(dossier, { le: maintenant.toISOString(), type: 'engagement', commande: o.commande, engagement: id, reservationMaximaleUsdMicros: o.reservationMicros, base: e.base, changees: e.changees, bilan });
+    return { ok: true, engagement, bilan, registre, deja: false, depenseFenetreUsd: e.depenseFenetreUsd };
+  });
+}
+
+export type ResultatCloture =
+  | { ok: true; engagement: EngagementEssai; bilan: BilanEssaiEngage; change: boolean }
+  | { ok: false; raison: string };
+
+/**
+ * APRÈS l'appel (y compris en échec) · relit la base (hors verrou), puis sous
+ * VERROU : fusionne, rattache à l'engagement les lignes nées depuis lui (même
+ * base), règle / libère / passe en incertain, IDEMPOTENT par identifiant.
+ * Base illisible au moment de régler ⇒ l'engagement passe « incertain » et
+ * reste compté au maximum (ses lignes n'ont pas pu être relevées).
+ */
+export async function cloreEssai(dossier: string, id: string, issue: IssueEngagement, o: {
+  lecteur?: (() => Promise<LectureBase>) | null; maintenant?: Date;
+} = {}): Promise<ResultatCloture> {
+  let lu: LectureBase | null = null;
+  let cause = '';
+  if (o.lecteur !== null) {
+    try { lu = await (o.lecteur ?? lireBase)(); } catch (e) { cause = (e as Error).message; }
+  }
+  const issueEffective: IssueEngagement = !lu && issue.etat === 'regle' && issue.montantMicros === undefined
+    ? { etat: 'incertain', cause: `base illisible à la clôture${cause ? ` (${cause})` : ''} · lignes non relevées` }
+    : issue;
+  return sousVerrou(dossier, async (verrou) => {
+    const maintenant = o.maintenant ?? new Date();
+    const f = lireFichierRegistre(dossier);
+    if (f.etat !== 'lisible') return { ok: false, raison: `Registre ${f.etat} à la clôture de l’engagement ${id} · rien n’est écrit ; lance recette:budget.` };
+    let reg = f.registre;
+    if (lu) reg = fusionnerRegistre(reg, lu.lignes, lu.base, maintenant).registre;
+    const g = reg.engagements[id];
+    if (!g) return { ok: false, raison: `Engagement ${id} inconnu du registre · rien n’est réglé.` };
+    const lignes = { ...reg.lignes };
+    const aRattacher = g.etat === 'engage' || g.etat === 'incertain' ? lignesARattacher(Object.values(lignes), g) : [];
+    for (const lid of aRattacher) lignes[lid] = { ...lignes[lid]!, engagement: id };
+    const rattache = Object.values(lignes).filter((l) => l.engagement === id).reduce((s, l) => s + l.regleMicros + l.incertainMicros, 0);
+    const t = cloreEngagementEssai(g, issueEffective, rattache, maintenant);
+    if (!t.ok) return { ok: false, raison: t.message };
+    const neuf: RegistreBudget = { ...reg, lignes, engagements: { ...reg.engagements, [id]: t.engagement }, majLe: maintenant.toISOString() };
+    const bilan = bilanRegistre(neuf);
+    // Écritures IDEMPOTENTES · rejouer la même clôture ne change ni l'état ni le montant ; seule la fusion des lignes est rafraîchie.
+    if (t.change || aRattacher.length > 0 || lu !== null) ecrireRegistre(dossier, neuf, verrou);
+    if (t.change || aRattacher.length > 0) {
+      journaliser(dossier, { le: maintenant.toISOString(), type: 'cloture', engagement: id, commande: g.commande, issue: t.engagement.etat, regleUsdMicros: t.engagement.regleMicros, cause: t.engagement.cause, rattachees: aRattacher, base: lu?.base ?? null, bilan });
+    }
+    return { ok: true, engagement: t.engagement, bilan, change: t.change };
+  });
 }
 
 /**
