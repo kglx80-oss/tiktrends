@@ -9,19 +9,22 @@
  * `--reel`, AVANT de le lancer,
  *  · cohérence registre/base (`lireEtatEssai`) ;
  *  · `antérieur + réglé + incertain + budget X ≤ 15 $`, sinon refus sans appel ;
- *  · le registre est écrit, puis `AI_SPEND_CAP_USD` du processus enfant est
- *    posé à « ce que la base compte + X » (le benchmark revérifie lui-même
- *    « budget ≤ reste du plafond » et s'arrête avant chaque appel qui ne tient
- *    pas) ;
- *  · après coup (y compris en échec), le registre absorbe les lignes nées.
+ *  · un ENGAGEMENT de X est écrit au registre sous verrou (relecture,
+ *    décision, écriture indivisibles · E3), puis `AI_SPEND_CAP_USD` du
+ *    processus enfant est posé à « ce que la base compte + X » (le benchmark
+ *    revérifie lui-même « budget ≤ reste du plafond » et s'arrête avant
+ *    chaque appel qui ne tient pas) ;
+ *  · après coup, l'engagement est RÉGLÉ (lignes nées rattachées), ou
+ *    INCERTAIN au maximum si la campagne a été tuée ; un engagement jamais
+ *    clos (enveloppe tuée elle-même) reste compté au maximum.
  */
 
 import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decisionDepenseEssai, type BilanBudgetEssai } from '@tiktrends/core';
+import { decisionDepenseEssai, type BilanBudgetEssai, type IssueEngagement } from '@tiktrends/core';
 import { lireMontantUsd, masquerSecrets, usdAffiche, verifierCibleRecette, type Env } from './regles';
-import { cloreEssai, engagerEssai, lireEtatEssai, plafondProcessusUsd, resoudreDossier, texteBilan } from './registre';
+import { cloreEssai, engagerEssai, lireEtatEssai, plafondProcessusUsd, resoudreDossier, texteBilan, type LectureBase } from './registre';
 
 export type DecisionBench =
   | { ok: true; reel: false }
@@ -40,34 +43,64 @@ export function deciderBench(argv: readonly string[], b: BilanBudgetEssai, depen
   return { ok: true, reel: true, budgetMicros: m, capProcessusUsd: plafondProcessusUsd(depenseFenetreUsd, m) };
 }
 
-async function main(env: Env, argv: readonly string[]): Promise<number> {
-  const cible = verifierCibleRecette(env);
-  if (!cible.ok) { console.error(`✗ Benchmark REFUSÉ · rien n’a été appelé\n${cible.raisons.map((r) => `  - ${r}`).join('\n')}`); return 2; }
-  const dossier = resoudreDossier(env);
-  const etat = await lireEtatEssai(dossier);
-  if (!etat.ok) { console.error(`✗ Benchmark REFUSÉ · ${etat.raison}`); return 2; }
-  const d = deciderBench(argv, etat.bilan, etat.depenseFenetreUsd);
-  if (!d.ok) { console.error(`✗ Benchmark REFUSÉ · rien n’a été appelé\n  - ${d.raison}`); return 2; }
-  const enfantEnv: NodeJS.ProcessEnv = { ...process.env };
-  if (d.reel) {
-    engagerEssai(dossier, etat, 'recette:bench', d.budgetMicros);
-    enfantEnv.AI_SPEND_CAP_USD = String(d.capProcessusUsd);
-    console.log(`Budget de la campagne · ${usdAffiche(d.budgetMicros)} au plus · plafond du processus ${d.capProcessusUsd} $ (déjà compté en base ${etat.depenseFenetreUsd} $).`);
+export interface DependancesBench {
+  env: Env;
+  argv: readonly string[];
+  /** Lance la campagne (processus enfant `bench-studios.ts`) · simulé dans les tests. */
+  lancer: (env: NodeJS.ProcessEnv) => Promise<{ code: number | null; signal: NodeJS.Signals | null; erreur?: string }>;
+  lecteur?: () => Promise<LectureBase>;
+  dire?: (l: string) => void;
+}
+
+/**
+ * La campagne réelle sous la séquence E3 · engagement DURABLE au registre
+ * (sous verrou, AVANT tout appel) → campagne → règlement des lignes nées, ou
+ * INCERTAIN au maximum si la campagne a été tuée (signal) ou n'a pas pu être
+ * suivie. Rend le code de sortie.
+ */
+export async function executerBench(d: DependancesBench): Promise<number> {
+  const dire = d.dire ?? ((l: string) => console.log(l));
+  const cible = verifierCibleRecette(d.env);
+  if (!cible.ok) { dire(`✗ Benchmark REFUSÉ · rien n’a été appelé\n${cible.raisons.map((r) => `  - ${r}`).join('\n')}`); return 2; }
+  const dossier = resoudreDossier(d.env);
+  const etat = await lireEtatEssai(dossier, new Date(), d.lecteur);
+  if (!etat.ok) { dire(`✗ Benchmark REFUSÉ · ${etat.raison}`); return 2; }
+  const dec = deciderBench(d.argv, etat.bilan, etat.depenseFenetreUsd);
+  if (!dec.ok) { dire(`✗ Benchmark REFUSÉ · rien n’a été appelé\n  - ${dec.raison}`); return 2; }
+  const enfantEnv = { ...d.env } as NodeJS.ProcessEnv;
+  let engagementId: string | null = null;
+  if (dec.reel) {
+    // Décision REPRISE sous verrou, sur le registre relu : une autre commande a pu engager entre-temps.
+    const r = await engagerEssai(dossier, { commande: 'recette:bench', reservationMicros: dec.budgetMicros, lu: etat.lu });
+    if (!r.ok) { dire(`✗ Benchmark REFUSÉ · rien n’a été appelé\n  - ${r.raison}`); return 2; }
+    engagementId = r.engagement.id;
+    const cap = plafondProcessusUsd(r.depenseFenetreUsd, dec.budgetMicros);
+    enfantEnv.AI_SPEND_CAP_USD = String(cap);
+    dire(`Budget de la campagne · ${usdAffiche(dec.budgetMicros)} au plus, ENGAGÉ au registre (${engagementId}) · plafond du processus ${cap} $ (déjà compté en base ${r.depenseFenetreUsd} $).`);
   }
-  const bench = join(dirname(fileURLToPath(import.meta.url)), '..', 'bench-studios.ts');
-  const code = await new Promise<number>((ok) => {
-    const p = spawn(process.execPath, [...process.execArgv, bench, ...argv.filter((a) => a !== '--')], { env: enfantEnv, stdio: 'inherit' });
-    p.on('exit', (c) => ok(c ?? 1));
-    p.on('error', () => ok(1));
-  });
-  if (d.reel) {
-    const b = await cloreEssai(dossier, 'recette:bench').catch(() => null);
-    const e = b ? await lireEtatEssai(dossier) : null;
-    console.log(e && e.ok ? texteBilan(e.registre, e.bilan) : 'Registre NON relu après la campagne · lance recette:budget.');
+  const fin = await d.lancer(enfantEnv).catch((e: unknown) => ({ code: null, signal: null, erreur: (e as Error).message }));
+  if (engagementId) {
+    const issue: IssueEngagement = fin.signal || fin.erreur || fin.code === null
+      ? { etat: 'incertain', cause: `campagne interrompue (${fin.signal ?? fin.erreur ?? 'issue inconnue'}) · lignes à rapprocher de la facture` }
+      : { etat: 'regle' };
+    const c = await cloreEssai(dossier, engagementId, issue, d.lecteur ? { lecteur: d.lecteur } : {}).catch((e: unknown) => ({ ok: false as const, raison: (e as Error).message }));
+    if (!c.ok) dire(`Registre NON réglé après la campagne · ${c.raison} · l’engagement reste compté au maximum.`);
+    const e = await lireEtatEssai(dossier, new Date(), d.lecteur).catch(() => null);
+    dire(e && e.ok ? texteBilan(e.registre, e.bilan) : 'Registre NON relu après la campagne · lance recette:budget.');
   }
-  return code;
+  return fin.code ?? 1;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main(process.env, process.argv.slice(2)).then((c) => process.exit(c), (e) => { console.error('✗', masquerSecrets((e as Error).message, process.env)); process.exit(1); });
+  const bench = join(dirname(fileURLToPath(import.meta.url)), '..', 'bench-studios.ts');
+  const argv = process.argv.slice(2);
+  executerBench({
+    env: process.env, argv,
+    lancer: (env) => new Promise((ok) => {
+      const p = spawn(process.execPath, [...process.execArgv, bench, ...argv.filter((a) => a !== '--')], { env, stdio: 'inherit' });
+      p.on('exit', (code, signal) => ok({ code, signal }));
+      p.on('error', (e) => ok({ code: null, signal: null, erreur: e.message }));
+    }),
+    dire: (l) => (l.startsWith('✗') ? console.error : console.log)(masquerSecrets(l, process.env)),
+  }).then((c) => process.exit(c), (e) => { console.error('✗', masquerSecrets((e as Error).message, process.env)); process.exit(1); });
 }

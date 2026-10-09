@@ -34,6 +34,8 @@ dépense antérieure, saisis-la (§4.8) avant la première commande payante.
 garde tout ce qui a été vu.
 
 - **Alimenté depuis `ai_spend`** avant et après chaque commande payante (`recette:pas1`, `recette:bench`) : réglé au coût réel ou au prix fixe, **incertain conservé au maximum réservé** (lignes à réconcilier, réservations sans issue).
+- **Engagement durable AVANT chaque appel payant** : la commande écrit d'abord au registre un engagement (identifiant, commande, réservation maximale, heure), compté au bilan **dès son écriture**, puis appelle, puis le **règle** au coût réel des lignes nées (ou le passe **incertain**, au maximum, si elle a rencontré une erreur). Un processus tué pendant l'appel laisse son engagement **ouvert, compté au maximum**, même si la base est détruite ensuite : `recette:budget` le montre sous « engagé (ouvert) ». Le bilan compte donc antérieur + réglé + engagé + incertain.
+- **Verrou entre processus** : lire le registre, décider et écrire l'engagement se font sous un verrou exclusif (`budget-essais.lock`, à côté du registre), pour toutes les commandes, toutes les bases et tous les conteneurs qui montent ce dossier. Deux commandes lancées en même temps ne peuvent plus dépenser deux fois le même restant. Un verrou laissé par un processus disparu est repris seul (aussitôt sur la même machine, après 30 s s'il venait d'un autre conteneur) ; un verrou tenu par une commande en cours n'est jamais pris : l'autre commande attend, puis refuse sans rien lancer.
 - **Écriture atomique** (fichier temporaire, `fsync`, version précédente gardée en `budget-essais.json.prec`, puis renommage) et **journal en ajout seul** `budget-essais.journal.jsonl`.
 - **Avant toute dépense** : `antérieur + réglé + incertain + réservation maximale ≤ 15 $`, sinon refus sans aucun appel.
 - **Refus** si le registre est **absent ou illisible alors que la base de recette contient des dépenses** (incohérence : restaure-le, ou sa copie `.prec`), ou s'il est illisible (ou si quelqu'un y a relevé l'autorisation). Base neuve et registre qui dit qu'on a déjà dépensé : **le registre fait foi**.
@@ -135,24 +137,24 @@ printf 'POSTGRES_PASSWORD=%s\nAUTH_SECRET=%s\n' "$(openssl rand -hex 24)" "$(ope
 grep -cE '^(FAL_KEY|ANTHROPIC_API_KEY)=' ops/recette/.env.recette   # doit afficher 0
 ```
 
-**4.2 · Vérification de l'environnement** · construit les images, démarre la
-recette, vérifie point par point et affiche « OK » ou « ÉCHEC » (aucune valeur
-sensible, aucune commande payante) : mémoire et disque au-dessus des seuils,
-fichier d'environnement sans clé payante, configuration résolue (ports sur
-127.0.0.1 seulement, volumes et réseaux préfixés `tiktrends-recette`, aucun
-`.env.deploy`), construction, démarrage, migrations, inspection des conteneurs
-(aucun volume, réseau ou montage hors du projet de recette), `ffprobe` et
-`ffmpeg` dans le worker, sonde vidéo publiée PUIS relue en base, site de
-recette qui répond sur `127.0.0.1:3101` et nulle part ailleurs, registre du
-budget lisible.
+**4.2 · Vérification de l'environnement** · vérifie point par point et affiche
+« OK » ou « ÉCHEC » (aucune valeur sensible, même renvoyée par un outil ;
+aucune commande payante), en deux phases :
+
+1. **lecture seule**, rien n'est construit, démarré ni écrit : mémoire et disque au-dessus des seuils ; fichier d'environnement présent, `POSTGRES_PASSWORD` (hexadécimal) et `AUTH_SECRET` posés, sans clé payante ; **aucune clé payante dans ton shell** (fais `unset FAL_KEY ANTHROPIC_API_KEY STUDIO_FOURNISSEUR_REEL` avant) ; configuration résolue (ports sur 127.0.0.1 seulement, volumes et réseaux préfixés `tiktrends-recette`, aucun `.env.deploy`) ; port 3101 publié par aucun autre projet ; conteneurs déjà présents du projet sans montage étranger ;
+2. **seulement si tout est OK** : construction, démarrage, inspection des conteneurs (aucun volume, réseau ou montage hors du projet de recette), migrations, `ffprobe` et `ffmpeg` dans le worker, sonde vidéo publiée PUIS relue en base, site de recette qui répond sur `127.0.0.1:3101` et nulle part ailleurs, registre du budget lisible.
+
+**Le premier ÉCHEC arrête tout, sur-le-champ** : aucun build, démarrage,
+commande ni écriture ne suit.
 
 ```bash
 bash ops/recette/verifier-environnement.sh --a-blanc   # d'abord : la liste des commandes, rien n'est exécuté
 bash ops/recette/verifier-environnement.sh
 ```
 
-Code 0 et « Tout est OK » : continue. Un seul ÉCHEC : arrête-toi et transmets
-la sortie (elle ne contient aucun secret).
+Code 0 et « Tout est OK » : continue. Un ÉCHEC : le script s'est déjà arrêté
+(« ARRÊT à l'étape … »), corrige ce point ou transmets la sortie (elle ne
+contient aucun secret).
 
 **4.2 bis · Démarrage manuel** (si tu préfères les commandes une à une) du web, du worker, de la base et du Redis de recette :
 
@@ -332,6 +334,8 @@ dont le nom ne commence pas par `tiktrends-recette`. Garde :
 ## 8. Ce que ce kit ne prouve pas
 
 - Aucune commande payante de ce kit n'a été lancée pour de vrai : seulement en simulé (fournisseur factice, `apps/web/test/e-pas1-recette.test.ts`, `apps/web/test/e2-pas1-registre.test.ts`) et contre des bases Postgres locales sans clé.
+- Le verrou et l'engagement sont éprouvés par de vrais processus sur une même machine (`apps/web/test/e3-registre-verrou.test.ts` : huit commandes concurrentes, deux bases, un processus tué en plein appel, base supprimée puis recréée). Entre deux conteneurs `docker compose run`, le PID d'un détenteur n'est pas sondable : un verrou abandonné n'y est repris qu'après 30 s. Ce cas n'a pas été joué avec Docker.
+- Un engagement laissé ouvert par un processus tué reste compté au maximum : aucune commande ne le règle à ta place. Si la facture du fournisseur montre moins, le restant reste plus prudent que nécessaire ; il n'existe pas encore de commande de réconciliation (à demander si besoin).
 - La construction des images et `verifier-environnement.sh` n'ont pas été joués avec Docker (pas de démon dans la session) : le script a été exécuté à blanc et contre de faux outils (`apps/web/test/e2-verifier-environnement.test.ts`).
 - La borne de compilation est mesurée sur le semis de recette ; le montant qui fait foi est celui que la commande affiche au moment du lancement.
 - Le benchmark évalue ici la release de la base de recette. Une évaluation réelle obtenue ici n'est pas inscrite en production. Rejoindre le rapport à la release de production (même empreinte ou non) reste une décision à prendre.

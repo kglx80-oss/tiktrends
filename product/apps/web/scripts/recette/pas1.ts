@@ -9,17 +9,21 @@
  *   devis complet CALCULÉ sur la requête réellement envoyée (AVANT tout
  *   appel, aucune écriture · `devis.ts`) → budget d'essai cumulatif (15 $ au
  *   total, registre `registre.ts`) → confirmation exacte de la RÉSERVATION
- *   MAXIMALE → compilation de la consigne (texte, bornée à sa ligne de devis,
+ *   MAXIMALE → ENGAGEMENT durable au registre, sous verrou (E3) → compilation de la consigne (texte, bornée à sa ligne de devis,
  *   barrière `guardedAnthropic`) → consigne retenue → devis L3 → approbation
  *   L3 → moteur du worker (`MoteurStudio`) → fal (`BarriereDepenseStudio`) →
  *   décodage réel des pixels → dépôt et relecture du livrable → contrôle
- *   visuel (ligne approuvée) → registre → rapport Markdown à trois colonnes
+ *   visuel (ligne approuvée) → RÈGLEMENT de l'engagement (lignes nées
+ *   rattachées ; erreur en route ⇒ incertain, au maximum) → rapport Markdown à trois colonnes
  *   (estimation, réservation maximale, coût réglé).
  *
  * ── Les barrières de la passe ────────────────────────────────────────────────
  *
- *  · registre · `antérieur + réglé + incertain + réservation maximale ≤ 15 $`,
- *    toutes bases et toutes passes confondues, sinon refus SANS appel ;
+ *  · registre · `antérieur + réglé + engagé + incertain + réservation
+ *    maximale ≤ 15 $`, toutes bases et toutes passes confondues, décidé et
+ *    ÉCRIT sous verrou avant l'appel, sinon refus SANS appel ; un processus
+ *    tué pendant l'appel laisse l'engagement compté au maximum, même si la
+ *    base est détruite ensuite. Une reprise prend son propre engagement ;
  *  · processus · `AI_SPEND_CAP_USD` abaissé à « ce que la base compte déjà +
  *    réservation maximale confirmée » : la réservation commune
  *    (`reserverDepense`) refuse tout appel au-delà de ce qui a été tapé ;
@@ -46,14 +50,14 @@ import { createHash, randomUUID } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { BilanBudgetEssai, StockageStudio } from '@tiktrends/core';
+import type { BilanBudgetEssai, IssueEngagement, StockageStudio } from '@tiktrends/core';
 import type { AdaptateurModele } from '../../lib/studios/prompts/adaptateur';
 import {
   MODE_PAS1, RECETTE,
   deciderPas1, decisionFalRecette, devisPas1, lireMontantUsd, masquerSecrets, rapportPas1, texteDevis, usdAffiche, verifierCibleRecette,
   type DevisPas1, type DonneesRapportPas1, type Env,
 } from './regles';
-import { cloreEssai, engagerEssai, lireEtatEssai, resoudreDossier } from './registre';
+import { cloreEssai, engagerEssai, lireEtatEssai, plafondProcessusUsd, resoudreDossier } from './registre';
 
 /* ───────────────────────────── options (pur) ────────────────────────────── */
 
@@ -200,7 +204,10 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   const stockage = stockageLocal(join(sortie, 'livrables'));
   const ids: DonneesRapportPas1['ids'] = { workspaceId: RECETTE.workspaceId, brandId: RECETTE.brandId, projectId: RECETTE.projectId, versionId: null, runId: null, devisId: null, jobId: null, assetId: null };
   const envAvant = process.env.AI_SPEND_CAP_USD;
-  let engage = false;
+  /** Engagement DURABLE pris au registre avant la première dépense (E3) · clos une seule fois. */
+  let engagementId: string | null = null;
+  let clos = false;
+  let erreur: unknown = null;
   let controleVision: string | null = null;
   let controleBloque = false;
 
@@ -239,15 +246,27 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
     dire(`Contrôle visuel · ${controleVision}`);
   };
 
-  /** Décision budgétaire d'une dépense à venir ⇒ registre écrit, plafond du processus posé. */
-  const engager = (reservationMicros: number): { ok: true; capPasseUsd: number } | { ok: false; raison: string } => {
-    const b = core.decisionDepenseEssai(etatBudget.bilan, reservationMicros);
-    if (!b.ok) return { ok: false, raison: b.message };
-    engagerEssai(dossierRegistre, etatBudget, COMMANDE, reservationMicros, horloge());
-    engage = true;
-    const capPasseUsd = Math.round((etatBudget.depenseFenetreUsd + reservationMicros / 1_000_000) * 1_000_000) / 1_000_000;
+  /**
+   * AVANT toute dépense · engagement DURABLE au registre, sous verrou
+   * (relecture, décision, écriture indivisibles entre processus et bases),
+   * puis plafond du processus posé. Refus ⇒ rien n'est écrit, rien ne part.
+   */
+  const engager = async (reservationMicros: number): Promise<{ ok: true; capPasseUsd: number } | { ok: false; raison: string }> => {
+    const r = await engagerEssai(dossierRegistre, { commande: COMMANDE, reservationMicros, lu: etatBudget.lu, maintenant: horloge() })
+      .catch((e: unknown) => ({ ok: false as const, raison: (e as Error).message }));
+    if (!r.ok) return { ok: false, raison: r.raison };
+    engagementId = r.engagement.id;
+    const capPasseUsd = plafondProcessusUsd(r.depenseFenetreUsd, reservationMicros);
     process.env.AI_SPEND_CAP_USD = String(capPasseUsd);
     return { ok: true, capPasseUsd };
+  };
+  /** APRÈS · règlement (lignes nées rattachées) ou incertain, une seule fois. Échec ⇒ l'engagement reste compté au maximum. */
+  const clore = async (issue: IssueEngagement): Promise<BilanBudgetEssai | null> => {
+    if (!engagementId || clos) return null;
+    clos = true;
+    const r = await cloreEssai(dossierRegistre, engagementId, issue, { maintenant: horloge() }).catch((e: unknown) => ({ ok: false as const, raison: (e as Error).message }));
+    if (!r.ok) { dire(`Registre NON réglé après la commande · ${r.raison} · l’engagement ${engagementId} reste compté au maximum ; lance recette:budget avant toute autre commande payante.`); return null; }
+    return r.bilan;
   };
 
   try {
@@ -258,7 +277,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       const ligne = core.controleVisionApprouve(core.lireSnapshotJob(livre.snapshot)?.lignes);
       let capPasseUsd = etatBudget.depenseFenetreUsd;
       if (ligne && livre.qualityStatus === 'pending' && core.decisionControleVision({ visionApprouvee: true, qualite: livre.qualityStatus, marqueur: core.lireMarqueurControleVision(livre.result) }).lancer && d.adaptateur) {
-        const e = engager(ligne.totalUsdMicros);
+        const e = await engager(ligne.totalUsdMicros);
         if (!e.ok) return { ...refuser([e.raison], devis), jobId: livre.id };
         capPasseUsd = e.capPasseUsd;
         dire(`Reprise du contrôle visuel approuvé (${usdAffiche(ligne.totalUsdMicros)} au plus) · seul ce contrôle part. Barrière de la passe : ${capPasseUsd} $.`);
@@ -276,7 +295,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       if (!fal.ok) return refuser([fal.raison], devis);
       const s = core.lireSnapshotJob(enCours.snapshot);
       const reste = (s?.lignes ?? []).reduce((t, l) => t + l.usdMicros * l.unites, 0) || devisImageUsdMicros;
-      const e = engager(reste);
+      const e = await engager(reste);
       if (!e.ok) return refuser([e.raison], devis);
       capPasseUsd = e.capPasseUsd;
       dire(`Reprise du job ${enCours.id} (${enCours.state}) approuvé lors d’une passe précédente · aucune compilation, aucun devis, aucune approbation nouvelle. Barrière de la passe : ${capPasseUsd} $.`);
@@ -286,7 +305,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       const dec = deciderPas1({ devis, confirmation: opt.options.confirmation, plafondPasseUsdMicros: opt.options.plafondPasseUsdMicros, bilan: etatBudget.bilan, depenseFenetreUsd: etatBudget.depenseFenetreUsd });
       const refus = [...refusConfig, ...(dec.ok ? [] : dec.refus.map((r) => `${r.code} · ${r.message}`))];
       if (refus.length || !dec.ok || !fal.ok || !d.adaptateur) return refuser(refus, devis);
-      const e = engager(dec.confirmeUsdMicros);
+      const e = await engager(dec.confirmeUsdMicros);
       if (!e.ok) return refuser([e.raison], devis);
       capPasseUsd = e.capPasseUsd;
       confirmeUsdMicros = dec.confirmeUsdMicros;
@@ -355,9 +374,15 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
       : controleBloque ? `Contrôle visuel bloqué · ${controleVision}` : null;
     const rapport = await ecrireRapport(jobId, { capPasseUsd, confirmeUsdMicros, arret });
     return { code: !termine ? 3 : etat !== 'completed' || controleBloque ? 1 : 0, refus: arret ? [arret] : [], devis, rapport, jobId };
+  } catch (e) {
+    erreur = e;
+    throw e;
   } finally {
     if (envAvant === undefined) delete process.env.AI_SPEND_CAP_USD; else process.env.AI_SPEND_CAP_USD = envAvant;
-    if (engage) await cloreEssai(dossierRegistre, COMMANDE, horloge()).catch((e) => dire(`Registre NON mis à jour après la commande · ${(e as Error).message} · lance recette:budget avant toute autre commande payante.`));
+    // Une erreur en cours de route : issue INCONNUE, l'engagement reste au maximum (incertain).
+    if (engagementId && !clos) {
+      await clore(erreur ? { etat: 'incertain', cause: masquerSecrets(`commande interrompue par une erreur · ${(erreur as Error)?.message ?? String(erreur)}`, d.env).slice(0, 300) } : { etat: 'regle' });
+    }
   }
 
   /* ── Le rapport · relu en BASE et sur le DISQUE, jamais reconstruit de mémoire ── */
@@ -397,10 +422,9 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
     const depenses = await db!.select().from(S).where(eq(S.workspaceId, RECETTE.workspaceId)).orderBy(S.createdAt);
     const L = schema.studioBudgetLedger;
     const registre = id ? await db!.select().from(L).where(eq(L.jobId, id)).orderBy(L.createdAt) : [];
-    // Bilan APRÈS · le registre absorbe d'abord les lignes de cette commande (sinon lecture seule).
-    let bilanApres: BilanBudgetEssai | null = null;
-    if (engage) bilanApres = await cloreEssai(dossierRegistre, COMMANDE, horloge()).catch(() => null);
-    else { const e = await lireEtatEssai(dossierRegistre, horloge()).catch(() => null); bilanApres = e && e.ok ? e.bilan : null; }
+    // Bilan APRÈS · l'engagement de cette commande est RÉGLÉ (lignes nées rattachées), sinon lecture seule.
+    let bilanApres: BilanBudgetEssai | null = engagementId && !clos ? await clore({ etat: 'regle' }) : null;
+    if (!bilanApres) { const e = await lireEtatEssai(dossierRegistre, horloge()).catch(() => null); bilanApres = e && e.ok ? e.bilan : null; }
     const donnees: DonneesRapportPas1 = {
       mode: d.simule ? 'SIMULE' : 'REEL', horodatage: horloge().toISOString(),
       ids: { ...ids, jobId: id, devisId: ids.devisId ?? job?.quoteId ?? null, assetId },

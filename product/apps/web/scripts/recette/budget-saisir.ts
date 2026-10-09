@@ -5,7 +5,8 @@
  *   pnpm --filter @tiktrends/web recette:budget:saisir -- --usd 0,40 --motif "facture fal du 7 octobre"
  *
  * Ajout seul : la dépense entre au registre et au journal, rien n'est
- * modifié ni retiré. Aucune base n'est écrite.
+ * modifié ni retiré. Aucune base n'est écrite. Sous le verrou du registre
+ * (E3) : une saisie concurrente d'un engagement n'en efface aucun.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -13,6 +14,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lireMontantUsd, masquerSecrets, verifierCibleRecette, type Env } from './regles';
 import { bilanRegistre, coherenceRegistre, ecrireRegistre, journaliser, lireBase, lireFichierRegistre, registreVierge, resoudreDossier, texteBilan } from './registre';
+import { sousVerrou } from './verrou';
 
 export function lireOptionsSaisie(argv: readonly string[]): { ok: true; usdMicros: number; motif: string } | { ok: false; raison: string } {
   let usd: string | null = null;
@@ -42,14 +44,20 @@ export async function saisirAnterieure(env: Env, argv: readonly string[], mainte
   if (!o.ok) return { code: 2, texte: o.raison };
   const dossier = resoudreDossier(env);
   const lu = await lireBase();
-  const f = lireFichierRegistre(dossier);
-  const c = coherenceRegistre(f, lu.lignes.length, dossier);
-  if (!c.ok) return { code: 2, texte: c.raison };
-  const reg = f.etat === 'lisible' ? f.registre : registreVierge(maintenant);
-  const a = { id: randomUUID(), usdMicros: o.usdMicros, motif: o.motif, saisieLe: maintenant.toISOString() };
-  const neuf = { ...reg, anterieures: [...reg.anterieures, a], majLe: maintenant.toISOString() };
-  ecrireRegistre(dossier, neuf);
-  journaliser(dossier, { le: a.saisieLe, type: 'anterieure', anterieure: a, bilan: bilanRegistre(neuf) });
+  // Lecture, cohérence et ajout SOUS VERROU · une saisie concurrente d'un engagement n'en efface aucun.
+  const r = await sousVerrou(dossier, (verrou) => {
+    const f = lireFichierRegistre(dossier);
+    const c = coherenceRegistre(f, lu.lignes.length, dossier);
+    if (!c.ok) return c;
+    const reg = f.etat === 'lisible' ? f.registre : registreVierge(maintenant);
+    const a = { id: randomUUID(), usdMicros: o.usdMicros, motif: o.motif, saisieLe: maintenant.toISOString() };
+    const neuf = { ...reg, anterieures: [...reg.anterieures, a], majLe: maintenant.toISOString() };
+    ecrireRegistre(dossier, neuf, verrou);
+    journaliser(dossier, { le: a.saisieLe, type: 'anterieure', anterieure: a, bilan: bilanRegistre(neuf) });
+    return { ok: true as const, a, neuf };
+  });
+  if (!r.ok) return { code: 2, texte: r.raison };
+  const { a, neuf } = r;
   return { code: 0, texte: `Dépense antérieure saisie · ${a.id}\n${texteBilan(neuf)}` };
 }
 
