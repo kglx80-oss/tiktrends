@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { decisionDeverrouillage } from '@tiktrends/core';
 import { masquerSecrets, verifierCibleRecette, type Env } from './regles';
 import { journaliser, resoudreDossier } from './registre';
-import { COMMANDE_DEVERROUILLER, FICHIER_VERROU, jetonDuVerrou, lireVerrou, retirerVerrouInchange } from './verrou';
+import { COMMANDE_DEVERROUILLER, FICHIER_VERROU, identiteIci, jetonDuVerrou, lireVerrou, retirerVerrouInchange } from './verrou';
 
 const VERIFIER_SUR_LA_MACHINE = 'docker ps --filter label=com.docker.compose.project=tiktrends-recette --filter label=com.docker.compose.service=outils_recette --format "{{.Names}} {{.Status}} {{.Command}}"';
 
@@ -73,6 +73,8 @@ export async function deverrouiller(env: Env, argv: readonly string[], o: {
   autresCommandes?: () => Promise<number | null>;
   sonde?: (pid: number) => boolean;
   maintenant?: Date;
+  /** Identité locale (injectée par les gardes ; défaut : `identiteIci()`, lue dans /proc). */
+  ici?: { hote: string; demarrage: string; pidns: string };
 } = {}): Promise<{ code: 0 | 2; texte: string }> {
   const cible = verifierCibleRecette(env);
   if (!cible.ok) return { code: 2, texte: `Déverrouillage refusé · ${cible.raisons.join(' ; ')}` };
@@ -87,10 +89,14 @@ export async function deverrouiller(env: Env, argv: readonly string[], o: {
     ? `processus ${c.pid} · hôte ${c.hote} · espace de PID ${c.pidns || 'non noté (ancien format)'} · pris le ${c.le}`
     : 'contenu illisible (verrou d’un ancien format, ou écrit à moitié)';
   const autres = await (o.autresCommandes ?? autresCommandesRecette)();
-  const d = decisionDeverrouillage({ reprise: e.reprise, autresCommandes: autres, confirmation: opt.confirmation, jeton });
+  const ici = o.ici ?? identiteIci();
+  const lisible = (x: string) => x !== '' && x !== 'inconnu';
+  const d = decisionDeverrouillage({ reprise: e.reprise, autresCommandes: autres, confirmation: opt.confirmation, jeton, plateformeSondable: lisible(ici.demarrage) && lisible(ici.pidns) });
   const entete = `Verrou du registre · ${e.chemin}\n  tenu par : ${qui}`;
   if (!d.retirer) {
     switch (d.motif) {
+      case 'plateforme_non_prise_en_charge':
+        return { code: 2, texte: `${entete}\nREFUS · plateforme non prise en charge pour ce geste : l’identité du démarrage et de l’espace de PID est illisible ici (hors Linux, par exemple macOS en natif), un détenteur VIVANT ne peut donc pas être distingué d’un mort. Lance cette commande DANS le conteneur outils de recette (Linux), après avoir vérifié sur la machine qu’aucune commande de recette ne tourne :\n  ${VERIFIER_SUR_LA_MACHINE}\nRien n’a été retiré.` };
       case 'vivant':
         return { code: 2, texte: `${entete}\nREFUS · son détenteur est VIVANT (sondé dans ce conteneur) · une commande de recette tourne. Attends sa fin ; le verrou n’est jamais retiré à un processus vivant.` };
       case 'autres_commandes':

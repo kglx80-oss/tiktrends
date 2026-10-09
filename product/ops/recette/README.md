@@ -290,6 +290,13 @@ retire rien sans `--confirmer-arret <jeton>` ; elle refuse si le détenteur
 est vivant dans ce conteneur, si une autre commande est connectée, ou si le
 verrou a changé depuis. Le registre lui-même n'est jamais touché.
 
+**Toujours DANS le conteneur outils (Linux), jamais en natif sur macOS.** Hors
+Linux, l'identité du démarrage et de l'espace de PID est illisible : un
+détenteur vivant ne s'y distingue pas d'un mort. La commande y refuse donc
+explicitement (« plateforme non prise en charge »), même avec le bon jeton.
+`pg_stat_activity` seul ne prouve pas l'arrêt des commandes : la vérification
+`docker ps` ci-dessus reste obligatoire avant toute confirmation.
+
 **4.9 · Ce que tu transmets ensuite** (aucun secret dedans) :
 
 1. la sortie de `bash ops/recette/verifier-environnement.sh` (les lignes OK / ÉCHEC) ;
