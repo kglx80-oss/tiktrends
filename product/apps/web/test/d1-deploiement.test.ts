@@ -382,3 +382,26 @@ describe('D1 · fenêtre inverse · l’ancien code supporte le schéma étendu'
     });
   }
 });
+
+/**
+ * L'essai réel sur copie isolée doit déployer la branche À FUSIONNER. Cloner
+ * `~/tiktrends` seul donne le `main` servi : l'essai éprouvait alors l'ancien
+ * deploy.sh et passait au vert sans rien prouver sur la version candidate.
+ */
+describe('D1 · essai réel · la copie déploie la cible, pas le main servi', () => {
+  const README = readFileSync(join(PRODUIT, 'ops', 'README.md'), 'utf8');
+  const procedure = README.slice(README.indexOf('# 0. La copie'), README.indexOf('# 1. Base d'));
+
+  it('la procédure nomme une CIBLE et la pose comme main de l’origine d’essai', () => {
+    expect(procedure, 'étape 0 introuvable').not.toBe('');
+    expect(procedure).toMatch(/^CIBLE=\S+$/m);
+    expect(procedure).toMatch(/git -C "\$ESSAI\/origine\.git" fetch [^\n]*"\+\$CIBLE:refs\/heads\/main"/);
+  });
+
+  it('les clones partent APRÈS la pose de la cible', () => {
+    const pose = procedure.indexOf('+$CIBLE:refs/heads/main');
+    const clone = procedure.indexOf('git clone -q "$ESSAI/origine.git"');
+    expect(pose).toBeGreaterThan(-1);
+    expect(clone, 'les clones liraient le main servi').toBeGreaterThan(pose);
+  });
+});

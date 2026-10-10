@@ -111,8 +111,14 @@ projet de PRODUCTION. `deploy.sh` refuse de tourner sur une copie sans `COMPOSE_
 
 ```bash
 # 0. La copie : une origine locale (jamais GitHub) et deux clones, hors ~/tiktrends.
+#    Son `main` est la CIBLE (la branche à fusionner), jamais le `main` servi : sinon l'essai
+#    éprouverait le deploy.sh déjà en production. Le fetch emprunte l'accès du dépôt de prod
+#    sans toucher à son arbre de travail ni à ses branches.
 ESSAI=~/essai-d1
+CIBLE=claude/studios-integration
 git clone -q --bare ~/tiktrends "$ESSAI/origine.git"
+git -C "$ESSAI/origine.git" fetch -q "$(git -C ~/tiktrends remote get-url origin)" "+$CIBLE:refs/heads/main"
+git -C "$ESSAI/origine.git" log --oneline -1 main   # doit être la tête de la CIBLE, pas celle du main servi
 git clone -q "$ESSAI/origine.git" "$ESSAI/tiktrends"      # ce que deploy.sh déploie
 git clone -q "$ESSAI/origine.git" "$ESSAI/dev"            # d'où partent les commits d'essai
 cd "$ESSAI/tiktrends/product"
