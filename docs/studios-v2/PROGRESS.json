@@ -2,27 +2,53 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "lotCourant": "L0",
+  "shaCourant": "dde4b52",
+  "lotCourant": "vague 10 intégrée (dde4b52) · feu vert Codex pour la preuve Docker isolée puis un premier rendu réel (propriétaire)",
   "lots": {
-    "L0": "IN_PROGRESS",
-    "L1": "TODO",
-    "L2": "TODO",
-    "L3": "TODO",
-    "L4": "TODO",
-    "L5": "TODO",
-    "L6": "TODO",
+    "L0": "LOCAL_VERIFIED",
+    "L1": "LOCAL_VERIFIED",
+    "L2": "LOCAL_VERIFIED",
+    "L3": "LOCAL_VERIFIED",
+    "L4": "LOCAL_VERIFIED",
+    "L5": "LOCAL_VERIFIED",
+    "L6": "IN_PROGRESS",
     "L7": "TODO",
     "L8": "TODO",
-    "L9": "TODO"
+    "L9": "TODO",
+    "F": "LOCAL_VERIFIED"
   },
   "proprietaires": {
     "integrateur": "session principale (contrats communs, migrations, shell, navigation, tokens, releases)"
   },
   "branches": {
     "claude/studios-l0-dossier": "dossier, matrice, checkpoint, inventaire L0",
-    "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (agent, en cours)",
-    "claude/studios-l1-fondations": "L1 · modèle canonique, migrations additives, ACL (agent)"
+    "claude/studios-l0-lectures-pures": "L0 · #125 et lectures qui écrivent (c981fe9d, PR #734)",
+    "claude/studios-l1-fondations": "L1 · modèle canonique, migration 0054, ACL (400e634c, PR #732)",
+    "claude/studios-l2-noyau-prompts": "L2 · noyau pur du registre (a5c6ea34, 201 tests, 64 mutations tuées, portes vertes) · à brancher après L1",
+    "claude/studios-integration": "intégration continue (2ce211f)",
+    "claude/studios-l1-securite": "SEC (2f6dec59, PR #735)",
+    "claude/studios-l2-serveur-admin": "L2 serveur (9ca57cab, PR #737)",
+    "claude/studios-l3-execution": "L3 (e3f3bcfd, PR #736)",
+    "claude/studios-base-vague2": "base figée beac17c, cible des PR de vague 2",
+    "claude/studios-base-vague3": "base figée 119d2bf, cible des PR de vague 3",
+    "claude/studios-l4-propositions": "L4-A (9094086, PR #738)",
+    "claude/studios-l4-filiation": "L4-B (ae633c8, PR #739)",
+    "claude/studios-l4-variantes": "L4-C (PR à ouvrir)",
+    "claude/studios-l5-rendu": "L5-A (ebf4215, PR #742)",
+    "claude/studios-l5-calques": "L5-B (c865e47, PR #743)",
+    "claude/studios-l5-produit-textes": "L5-C (de70ca6, PR #744)",
+    "claude/studios-base-vague5": "base figée vague 5 = ad883e7",
+    "claude/studios-f-fournisseur-image": "F-A (8ce5ece, PR #745)",
+    "claude/studios-f-benchmark": "F-C (e164b58, PR #746)",
+    "claude/studios-base-vague5b": "base F-B = bf99691",
+    "claude/studios-base-vague5c": "base F-D = f2fd4bb",
+    "claude/studios-f-parcours-image": "F-B parcours image bout en bout (en cours)",
+    "claude/studios-f-evaluation": "F-D vision, évaluation staged, ADMIN, exécuteur image (en cours)",
+    "claude/studios-base-vague6": "base figée vague 6 = 66c2e8a",
+    "claude/studios-g-raccords-web": "G-A (c670641, PR #749)",
+    "claude/studios-g-retouche-worker": "G-B (8e95948, PR #750)",
+    "claude/studios-l6-identites-voix": "L6-B (75b6a25, PR #751)",
+    "claude/studios-l6-storyboard": "L6-A (fd6b7ed, PR #752)"
   },
   "prEnAttente": {
     "729": {
@@ -56,13 +82,13 @@
       "limites": "#729 et #730 ouvertes, en recette Codex ; aucun lot Studios ne touche leurs fichiers"
     },
     "BASE-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L0",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "c981fe9de22e7642d6fde95bf917522c11dc959f",
+      "limites": "Suivi vidéo encore écrit à l'ouverture (passe au worker L3) ; appels Trendtrack de la Veille"
     },
     "BASE-04": {
       "statut": "TODO",
@@ -74,76 +100,76 @@
       "limites": null
     },
     "BASE-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L0",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "216318d",
+      "limites": "Mesures sur machine partagée : bruit entre passes supérieur à l’écart entre builds, aucune conclusion tirée."
     },
     "SEC-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
+      "sha": "400e634ca998913560ccabdb0fb5f187758e8a67",
       "limites": null
     },
     "SEC-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "400e634ca998913560ccabdb0fb5f187758e8a67",
+      "limites": "Restriction de marque optionnelle sans écran"
     },
     "SEC-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "18 actions ads/image/video sous canAccess(studio) + rôle ; assistant d’accueil rôle membre",
+      "test": "apps/web/test/sec-gestes-studio.test.ts (56 cas)",
+      "proofPath": "PR #735",
+      "sha": "2f6dec59",
+      "limites": "Lectures inchangées ; offre Starter inchangée pour l’assistant"
     },
     "SEC-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "winningPatterns et scoreCreative en bloc <donnees_non_fiables> côté user (SEC) ; ContextResolver : sources en données JSON du message utilisateur (L2)",
+      "test": "apps/web/test/sec-prompts-donnees.test.ts, l2-resolveur-db.test.ts",
+      "proofPath": "PR #735, PR #737",
+      "sha": "2f6dec59 + 9ca57cab",
+      "limites": "Mémoire de jarvis-chat : texte du registre, données d’assemblage inchangées ; preuve réelle sur modèle non faite"
     },
     "SEC-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Historique de l’assistant validé avant débit (pas de system, rôles connus, tailles bornées), recopié champ par champ ; Jarvis relit son fil en base",
+      "test": "apps/web/test/sec-assistant.test.ts",
+      "proofPath": "PR #735",
+      "sha": "2f6dec59",
       "limites": null
     },
     "SEC-06": {
-      "statut": "TODO",
+      "statut": "IN_PROGRESS",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Suivi vidéo : URL fal reconstruites serveur, liste blanche, redirections refusées",
+      "test": "apps/web/test/sec-fal-suivi.test.ts",
+      "proofPath": "PR #735",
+      "sha": "2f6dec59",
+      "limites": "Imports de fichiers non traités"
     },
     "SEC-07": {
-      "statut": "TODO",
+      "statut": "IN_PROGRESS",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Clé fal plus envoyée hors liste blanche ; traces PromptRun expurgées (liste blanche) ; ni texte du pack ni Ajv dans .next/static",
+      "test": "sec-fal-suivi, l2-admin-rendu, inspection du build L2",
+      "proofPath": "PR #735, PR #737",
+      "sha": "2f6dec59 + 9ca57cab",
+      "limites": "Exports non inspectés"
     },
     "SEC-08": {
       "statut": "TODO",
@@ -155,688 +181,688 @@
       "limites": null
     },
     "SEC-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Garde plateforme de l’ADMIN IA et Studios ; commandes publier/revenir/importer/évaluer/créer refusées à owner/admin d’espace, lecteur, manager, adminplus non admissible",
+      "test": "apps/web/test/l2-admin-rendu.test.tsx, l2-releases-db.test.ts",
+      "proofPath": "PR #737 + intégration",
+      "sha": "9ca57cab + 119d2bf",
+      "limites": "Aucune personnalisation d’espace possible (pack sans champ extensible)"
     },
     "SEC-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L1",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "plateformeAdmissible (noyau) : fondateur codé ou compte antérieur à son entrée platform_staff ; branché dans lib/studios/garde.ts",
+      "test": "sec-plateforme-admissible, sec-garde-studio-plateforme, l2-admin-rendu (adminplus non admissible)",
+      "proofPath": "PR #735 + intégration",
+      "sha": "2f6dec59 + 119d2bf",
+      "limites": "E5 reste vrai hors du nouveau studio (rail, /admin/equipe) ; aucun e-mail vérifié dans le produit"
     },
     "PROMPT-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-import-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-02": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/prompts (noyau pur)",
+      "test": "packages/core/test/prompts-*.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
+      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Jarvis et tâches studio résolus au registre ; sans release publiée, Jarvis garde la 1.0.0 migrée tracée repli_1_0_0",
+      "test": "l2-jarvis-route, l2-preuve-bout-en-bout, l2-jarvis-equivalence (16 800 combinaisons)",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §8 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Fournisseur HTTP simulé ; publication en production bloquée par B-BENCHMARK"
     },
     "PROMPT-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db, l2-releases-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-07": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-releases-db, l2-concurrence-pg",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-releases-db",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-resolveur-db, l2-jarvis-route, l2-admin-rendu",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Aucun appel modèle réel"
     },
     "PROMPT-11": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/prompts (noyau pur)",
+      "test": "packages/core/test/prompts-*.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "a5c6ea341038e08d4692507c88be8884957c59d3",
+      "limites": "Logique pure seulement ; pas encore branchée sur la base, ADMIN, Jarvis ni les studios"
     },
     "PROMPT-12": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L2",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "apps/web/lib/studios/prompts/ + ADMIN /admin/ia-studios",
+      "test": "apps/web/test/l2-regles-pures (inventaire au §10 de L2-SERVEUR.md)",
+      "proofPath": "docs/studios-v2/L2-SERVEUR.md §11 · PR #737",
+      "sha": "9ca57cab",
+      "limites": "Appels IA hors Jarvis et tâches studio listés pour L5"
     },
     "COST-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-07": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-11": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "COST-12": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L3",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "packages/core/src/studios/execution, apps/web/lib/studios/execution, apps/workers/src/studios",
+      "test": "apps/web/test/l3-*.test.ts, apps/workers/test",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §5 · PR #736",
+      "sha": "e3f3bcfd",
+      "limites": "Fournisseur et stockage simulés ; l3-concurrence-pg local seulement (Postgres réel)"
     },
     "FLOW-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Veille → Préparer une création → projet (source_refs avec droit, date, empreinte ; hypothèse et variable dans le brief) ; portées jusqu’à la variante (filiation L4-C)",
+      "test": "l4b-parcours-db, l4b-concurrence-pg (4 clics ⇒ 1 projet), l4c-variantes-db",
+      "proofPath": "L4-SOURCES-PROJET.md · PR #739 ; L4-VARIANTES-TESTS.md",
+      "sha": "ae633c8 + fe21883+",
+      "limites": "Une annonce par carte Veille ; aucun appel modèle réel"
     },
     "FLOW-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Modalités observables ; sans transcription ni audio, narration et son marqués absents",
+      "test": "l4b-sources, l4b-panneau-rendu",
+      "proofPath": "PR #739",
+      "sha": "ae633c8",
       "limites": null
     },
     "FLOW-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Propositions et hypothèses scellées par espace/marque/sélection ; relecture de portée après l’appel ; réponses tardives ignorées côté client",
+      "test": "l4a-propositions-db, l4a-panneau-rendu, l4b-parcours-db, l4b-panneau-rendu (jsdom)",
+      "proofPath": "PR #738, PR #739",
+      "sha": "9094086 + ae633c8",
       "limites": null
     },
     "FLOW-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Proposition ciblée (plan, version de base) aux chemins bornés ; avant/après et impact serveur",
+      "test": "l4a-propositions, l4a-propositions-db, l4a-panneau-rendu",
+      "proofPath": "L4-PROPOSITIONS.md · PR #738",
+      "sha": "9094086",
+      "limites": "Fournisseur simulé ; route Jarvis pas encore branchée sur proposerPatch"
     },
     "FLOW-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Page projet relue du serveur : brief, hypothèse, produit, sources, historique",
+      "test": "l4b-parcours-db (seconde session), l4b-pages-rendu",
+      "proofPath": "PR #739",
+      "sha": "ae633c8",
+      "limites": "Calques et timeline : lots L5/L6"
     },
     "FLOW-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Application par compare-and-set ; 409 + différences, jamais d’écrasement",
+      "test": "l4a-propositions-db, l4a-concurrence-pg (15 manches, 2 connexions)",
+      "proofPath": "PR #738",
+      "sha": "9094086",
+      "limites": "Fusion de champs non conflictuels non proposée (choix : recharger)"
     },
     "FLOW-07": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Résultat d’un lot ancien rangé dans sa version, courante intacte",
+      "test": "l4c-variantes-db",
+      "proofPath": "L4-VARIANTES-TESTS.md · PR L4-C",
+      "sha": "fe21883+",
       "limites": null
     },
     "FLOW-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Variante = média exact ; fiche Adsmap porte asset, position, lot, job, version, parente, release",
+      "test": "l4c-variantes-db, l4c-concurrence-pg",
+      "proofPath": "PR L4-C",
+      "sha": "fe21883+",
+      "limites": "Aucune route de lecture des médias studio (vignettes sans pixels)"
     },
     "FLOW-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "Inconclusif par règles Adsmap (référence = parente) ; itérer garde sources, variable, parent",
+      "test": "l4c-variantes-db, l4c-relecture-db",
+      "proofPath": "PR L4-C",
+      "sha": "fe21883+",
+      "limites": "Résultats manuels non implémentés ; relecture IA sans release = règles pures seules"
     },
     "FLOW-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L4",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
+      "implementation": "Export du brief Markdown/JSON sans génération ni crédit",
+      "test": "l4b-parcours-db",
+      "proofPath": "PR #739",
+      "sha": "ae633c8",
       "limites": null
     },
     "IMG-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5",
+      "test": "l5c-produit, l5c-produit-db, l5c-pages-rendu ; intégration l5-raccord-db",
+      "proofPath": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5 · PR #744",
+      "sha": "de70ca6",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md",
+      "test": "l5a-produit-fidele, l5a-compositeur",
+      "proofPath": "docs/studios-v2/L5-RENDU.md · PR #742",
+      "sha": "ebf4215",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5",
+      "test": "l5c-produit, l5c-produit-db",
+      "proofPath": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5 · PR #744",
+      "sha": "de70ca6",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5",
+      "test": "l5c-produit, l5c-produit-db, l5c-pages-rendu",
+      "proofPath": "docs/studios-v2/L5-PRODUIT-TEXTES.md §5 · PR #744",
+      "sha": "de70ca6",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md, L5-EDITEUR.md",
+      "test": "l5a-geometrie, l5a-compositeur, l5b-calques",
+      "proofPath": "docs/studios-v2/L5-RENDU.md, L5-EDITEUR.md · PR #742, #743",
+      "sha": "ebf4215 + c865e47",
+      "limites": "Zones sûres Meta issues de relevés concordants, à reconfirmer par le propriétaire ; aucun profil TikTok."
     },
     "IMG-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md",
+      "test": "l5a-masque, l5a-masque-pixels",
+      "proofPath": "docs/studios-v2/L5-RENDU.md · PR #742",
+      "sha": "ebf4215",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-07": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-EDITEUR.md §3",
+      "test": "l5b-calques, l5b-editeur-db, l5b-editeur-rendu",
+      "proofPath": "docs/studios-v2/L5-EDITEUR.md §3 · PR #743",
+      "sha": "c865e47",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-EDITEUR.md §3",
+      "test": "l5b-calques, l5b-editeur-db, l5b-editeur-rendu",
+      "proofPath": "docs/studios-v2/L5-EDITEUR.md §3 · PR #743",
+      "sha": "c865e47",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "IMG-09": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md",
+      "test": "l5a-detourage, l5a-masque-pixels",
+      "proofPath": "docs/studios-v2/L5-RENDU.md · PR #742",
+      "sha": "ebf4215",
+      "limites": "Aucun moteur de détourage déployé : capacité déclarée indisponible avec raison et deux replis (PNG détouré importé, masque tracé)."
     },
     "IMG-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L5",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "docs/studios-v2/L5-RENDU.md",
+      "test": "l5a-declinaisons, l5a-compositeur, l5a-actions-db",
+      "proofPath": "docs/studios-v2/L5-RENDU.md · PR #742",
+      "sha": "ebf4215",
+      "limites": "Fournisseurs simulés ; aucune qualité de modèle démontrée ; aucune exécution réelle."
     },
     "VIDEO-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-IDENTITES-VOIX.md · PR #751",
+      "sha": "75b6a25",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-IDENTITES-VOIX.md · PR #751",
+      "sha": "75b6a25",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-06": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-IDENTITES-VOIX.md · PR #751",
+      "sha": "75b6a25",
+      "limites": "Aucun tarif ni fournisseur voix/lipsync : capacité déclarée indisponible ; contrat et mesure de durée prouvés."
     },
     "VIDEO-07": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-IDENTITES-VOIX.md · PR #751",
+      "sha": "75b6a25",
+      "limites": "Aucun tarif ni fournisseur voix/lipsync : capacité déclarée indisponible ; contrat et mesure de durée prouvés."
     },
     "VIDEO-08": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-09": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-10": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L6",
       "implementation": null,
       "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "proofPath": "docs/studios-v2/L6-STORYBOARD.md · PR #752",
+      "sha": "fd6b7ed",
+      "limites": "Fournisseurs simulés ; aucune exécution réelle."
     },
     "VIDEO-11": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L6",
       "implementation": null,
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": null
+      "limites": "Décodeur vidéo réel prêt au worker (ffmpeg, capacité sondée, #755) ; bloqué faute de fournisseur d’animation : aucun clip devisé ni débité."
     },
     "VIDEO-12": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L6",
       "implementation": null,
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": null
+      "limites": "Décodeur vidéo réel prêt au worker (ffmpeg, capacité sondée, #755) ; bloqué faute de fournisseur d’animation : aucun clip devisé ni débité."
     },
     "VIDEO-13": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L6",
-      "implementation": null,
-      "test": null,
-      "proofPath": null,
-      "sha": null,
-      "limites": null
+      "implementation": "etatJob par clé du clic : même job, même progrès, aucun débit (L3)",
+      "test": "apps/web/test/l3-commandes.test.ts",
+      "proofPath": "docs/studios-v2/L3-EXECUTION.md §6",
+      "sha": "e3f3bcfd",
+      "limites": "Aucun décodeur vidéo (ffprobe absent) : rien ne peut être prouvé lisible."
     },
     "EXPORT-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "apps/web/lib/studios/export, packages/core/src/studios/export, app/api/studios/export, components/studios/export",
+      "test": "packages/core/test/l7a-export.test.ts, apps/web/test/l7a-export-db.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "e7bda48",
+      "limites": "Image seulement ; police téléversée refusée (Sans et Sans Bold embarquées)."
     },
     "EXPORT-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "apps/web/lib/studios/export, packages/core/src/studios/export, app/api/studios/export, components/studios/export",
+      "test": "apps/web/test/l7a-export-db.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "e7bda48",
+      "limites": "Pixels identiques à l’aperçu (écart 0) en PNG ; JPEG décodé (dimensions, type), aplati sur fond blanc qualité 90."
     },
     "EXPORT-03": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "packages/core/src/studios/video/export-video.ts (préflight), apps/workers/src/studios/decodeur-video.ts",
+      "test": "packages/core/test/l7b-export-video.test.ts, apps/workers/test/l7b-decodeur-video.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "9a5a13c",
+      "limites": "Décodage vidéo réel prêt (ffmpeg) mais aucun fournisseur d’animation ni de voix : montage final RENDU_VIDEO_FINAL.disponible = false."
     },
     "EXPORT-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "apps/web/lib/studios/export, packages/core/src/studios/export, app/api/studios/export, components/studios/export",
+      "test": "apps/web/test/l7a-export-db.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "e7bda48",
+      "limites": "Octets non conservés : re-rendu à la demande contre l’empreinte auditée."
     },
     "EXPORT-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L7",
-      "implementation": null,
-      "test": null,
+      "implementation": "apps/web/lib/studios/export, packages/core/src/studios/export, app/api/studios/export, components/studios/export",
+      "test": "apps/web/test/l7a-export-db.test.ts",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "e7bda48",
+      "limites": "V1 re-téléchargée et ré-exportée au même hash après V2 ; un média modifié rend l’ancien export non servi (voulu)."
     },
     "EXPORT-06": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L7",
       "implementation": null,
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": null
+      "limites": "Parcours réels avec fournisseurs : kit d’essai isolé prêt (#756), exécution par le propriétaire (budget 15 $ autorisé)."
     },
     "UX-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L8",
       "implementation": null,
-      "test": null,
+      "test": "apps/web/test/l8a-*, l8b-*",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "b2c92f5 / 1932e2d",
+      "limites": "Trois largeurs mesurées au navigateur sur base locale synthétique ; garde navigateur hors CI (skipIf sans serveur)."
     },
     "UX-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L8",
       "implementation": null,
-      "test": null,
+      "test": "apps/web/test/l8a-*, l8b-focus-*",
       "proofPath": null,
-      "sha": null,
+      "sha": "b2c92f5 / 1932e2d",
       "limites": null
     },
     "UX-03": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L8",
       "implementation": null,
-      "test": null,
+      "test": "apps/web/test/l8a-*, l8b-hors-ligne",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "b2c92f5 / 1932e2d",
+      "limites": "« Plafond atteint » vérifié par la règle pure et le rendu jsdom seulement."
     },
     "UX-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L8",
       "implementation": null,
-      "test": null,
+      "test": "packages/core/test/l8d-*, apps/web/test/l8d-*",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "c3ef38f",
+      "limites": "Après un déplacement manuel, la non-traversée n’est plus garantie (réinitialiser la rétablit)."
     },
     "UX-05": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L8",
       "implementation": null,
-      "test": null,
+      "test": "apps/web/test/l8b-navigation.test.tsx",
       "proofPath": null,
-      "sha": null,
+      "sha": "1932e2d",
       "limites": null
     },
     "UX-06": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L8",
       "implementation": null,
-      "test": null,
+      "test": "packages/core/test/l8c-*, apps/web/test/l8c-*",
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "bda8e93",
+      "limites": "Mesures sur conteneur partagé, charge notée ; rendu 1000 calques 6 s p95 contre une cible proposée de 10 s (non fixée par le cahier)."
     },
     "UX-07": {
-      "statut": "TODO",
+      "statut": "BLOCKED",
       "lot": "L8",
       "implementation": null,
       "test": null,
       "proofPath": null,
       "sha": null,
-      "limites": null
+      "limites": "Qualité IA : exige des sorties réelles · budget autorisé (15 $ au total), exécution par le propriétaire dans l’environnement isolé."
     },
     "MIG-01": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L9",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "216318d",
+      "limites": "Volumes synthétiques ; procédure écrite pour une copie restaurée des vrais volumes."
     },
     "MIG-02": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L9",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
+      "sha": "216318d",
       "limites": null
     },
     "MIG-03": {
-      "statut": "TODO",
+      "statut": "IMPLEMENTED",
       "lot": "L9",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "216318d",
+      "limites": "Retour d’application prouvé en local ; interrupteurs F1 (#766) permettent de couper sans revert ; revert VPS non exécuté."
     },
     "MIG-04": {
-      "statut": "TODO",
+      "statut": "LOCAL_VERIFIED",
       "lot": "L9",
       "implementation": null,
       "test": null,
       "proofPath": null,
-      "sha": null,
-      "limites": null
+      "sha": "216318d",
+      "limites": "Sauvegarde produite localement au format de backup.sh, pas issue du VPS."
     },
     "MIG-05": {
       "statut": "TODO",
@@ -877,15 +903,44 @@
     "PROD_OBSERVED",
     "BLOCKED"
   ],
-  "migrations": [],
+  "migrations": [
+    {
+      "id": "0054_studios_fondations",
+      "etat": "locale, jouée deux fois sans erreur, non publiée",
+      "lot": "L1"
+    },
+    {
+      "numero": "0055",
+      "fichier": "0055_ai_spend_reconciliation.sql",
+      "nature": "additive · colonne ai_spend.reconcile_reason nullable, IF NOT EXISTS",
+      "pr": "#753",
+      "verifie": "base vide 55 + 0055 rejouée deux fois"
+    },
+    {
+      "numero": "0056",
+      "fichier": "0056_ai_spend_reconciliations.sql",
+      "nature": "additive · table ai_spend_reconciliations (ajout seul, déclencheurs anti-modification)",
+      "pr": "#767",
+      "verifie": "pglite rejouée deux fois ; Postgres réel rejouée deux fois + r5-plafond-pg"
+    }
+  ],
   "versionsPrompts": {
-    "pack": "02-PROMPTS.json v1.0 original (archive du 07/10, vérification structurelle 132/132 au dépôt)",
-    "etat": "draft, non importé"
+    "pack": "02-PROMPTS.json v1.0 original, copie embarquée apps/web/lib/studios/prompts/pack-embarque.ts (garde de dérive)",
+    "complement": "jarvis.conversation 1.0.0 (texte migré du code)",
+    "etat": "import en brouillons prouvé localement ; aucune release publiée nulle part"
   },
-  "fournisseursVerifies": [],
+  "fournisseursVerifies": [
+    {
+      "fournisseur": "fal (file image)",
+      "etat": "LOCAL_VERIFIED contre réponses rejouées écrites d’après la documentation publique ; aucun appel réel"
+    }
+  ],
   "depenses": {
     "autorisees": "aucun budget de recette fournisseur explicitement autorisé pour ce chantier ; plafond global AI_SPEND_CAP_USD du dépôt",
-    "reelles": 0
+    "reelles": 0,
+    "budgetEssaiReelAutoriseUsd": 15,
+    "depenseEssaiReelUsd": 0,
+    "portee": "total cumulé, tous tests du chantier, tous fournisseurs"
   },
   "blocages": [
     {
@@ -898,9 +953,40 @@
       "cause": "Le proxy de la session bloque fal, CloudFront et app.tiktrends.co ; aucun appel fournisseur réel ni observation production possible depuis la session.",
       "solutionPreparee": "Adaptateurs simulés réservés aux tests ; preuve réelle à exécuter par le propriétaire ou sur le VPS.",
       "besoinKevin": "Budget de recette fournisseur explicite et exécution réelle hors session."
+    },
+    {
+      "id": "B-BENCHMARK",
+      "exigences": [
+        "UX-07",
+        "PROMPT-05"
+      ],
+      "cause": "Une release ne peut devenir active en production sans benchmark F01-F24 approuvé ; l'exécuter appelle des modèles payants.",
+      "solutionPreparee": "Évaluation par commande ADMIN dédiée, données synthétiques, budget séparé (cahier §8.2).",
+      "besoinKevin": "Budget explicite d'évaluation et exécution hors session (fal et Anthropic non joignables depuis la session pour fal)."
+    },
+    {
+      "id": "B-BUDGET-BENCHMARK",
+      "exigences": [
+        "PROMPT-05",
+        "UX-07"
+      ],
+      "cause": "Aucun budget fournisseur TikTrends explicitement autorisé pour le benchmark réel F01-F24 ni pour le premier passage réel des fournisseurs.",
+      "solutionPreparee": "Commande de benchmark avec devis agrégé, budget explicite et approbation ADMIN (vague 5) ; exécution réelle seulement après accord chiffré du propriétaire."
+    },
+    {
+      "id": "B-FOURNISSEUR-ANIMATION",
+      "exigences": [
+        "VIDEO-11",
+        "VIDEO-12",
+        "VIDEO-13",
+        "EXPORT-03"
+      ],
+      "cause": "Aucun adaptateur d’animation ni de voix/lipsync dans le code ; le décodeur vidéo réel est prêt (#755).",
+      "solutionPreparee": "Refus au devis tant que FOURNISSEUR_ANIMATION_BRANCHE = false ; préflight export vidéo et décodage complet prêts.",
+      "besoinKevin": "Choix et budget d’un fournisseur d’animation et de voix."
     }
   ],
-  "prochaineAction": "Suivre L0-lectures (#125) et L1-fondations ; ensuite SEC (gardes studio, clé fal, P1/P2, ai_spend.workspace_id) puis L2 registre de prompts.",
+  "prochaineAction": "Propriétaire : preuve Docker isolée (verifier-environnement.sh, procédure D1 sur copie isolée), puis pas 1 réel (≈0,33 $ au plus, plafond global 15 $), rapport + image + bilan cumulatif transmis avant benchmark.",
   "sourceDossier": "Archive TikTrends-Studios-Cahier-des-charges-v1.0.zip installée telle quelle ; PDF identique octet par octet à celui reçu séparément.",
   "regleCoherence": "04-RECETTE.csv reste le registre d'acceptation (colonnes statut/preuve) ; PROGRESS.json porte l'avancement d'exécution. Un test du dépôt devra vérifier qu'ils ne divergent pas.",
   "constatsSecurite": [
@@ -908,25 +994,383 @@
       "id": "S-FAL-KEY",
       "gravite": "haute",
       "constat": "pollVideoAction reçoit le jobId du navigateur ; falGetVideo en extrait des URL et les appelle avec la clé fal sans vérifier le domaine (packages/integrations/src/fal.ts:211-234). Fuite possible de la clé et SSRF.",
-      "lot": "L1 (SEC-06/SEC-07)"
+      "lot": "L1 (SEC-06/SEC-07)",
+      "etat": "corrigé localement (PR #735), non publié"
     },
     {
       "id": "S-P3-STUDIOS",
       "gravite": "haute",
       "constat": "Actions ads.ts, image.ts, video.ts sans garde de rôle ni d'offre : client_viewer ou espace starter peut générer en appelant l'action.",
-      "lot": "L1 (SEC-03)"
+      "lot": "L1 (SEC-03)",
+      "etat": "corrigé localement (PR #735), non publié"
     },
     {
       "id": "S-E5",
       "gravite": "haute",
       "constat": "platform_staff indexé par e-mail, aucune vérification d'e-mail : un rôle plateforme peut être capté par la première inscription avec cet e-mail.",
-      "lot": "L1 (SEC-10)"
+      "lot": "L1 (SEC-10)",
+      "etat": "corrigé localement (PR #735), non publié"
     },
     {
       "id": "S-PLAFOND",
       "gravite": "moyenne",
       "constat": "Plafond de dépense par défaut 50 $ global (spend-guard.ts:40), pas 10 $ par espace ; forfait fal 0,08 $ sous-estime gpt2_high.",
       "lot": "L3"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D-L2-01",
+      "decision": "Aucun champ de template surchargeable par espace ou marque tant que Kevin n'a pas fixé la liste (le pack n'en déclare aucun) : fermé par défaut.",
+      "source": "L2-REGISTRE.md"
+    },
+    {
+      "id": "D-L2-02",
+      "decision": "maximumRepairAttempts traité comme 0 tant qu'aucun template de réparation n'est publié au registre (pas de consigne de réparation codée en dur).",
+      "source": "L2-REGISTRE.md"
+    },
+    {
+      "id": "D-L2-03",
+      "decision": "Validateur Ajv 8.20.0 (draft 2020-12, strictTypes:false car le schéma du pack omet type dans des if/then) + ajv-formats 3.0.1, exporté côté serveur seulement.",
+      "source": "L2-REGISTRE.md"
+    },
+    {
+      "id": "D-L2-04",
+      "decision": "Cycle de vie scindé : versions draft→validated→retired, releases staged→active→retired, pointeur actif par portée ; rollback = déplacement du pointeur.",
+      "source": "L2-REGISTRE.md"
+    },
+    {
+      "id": "D-L2S-01",
+      "decision": "Sans release publiée, Jarvis garde la politique jarvis.conversation 1.0.0 migrée (texte identique au code), tracée repli_1_0_0 : Jarvis n’est jamais coupé faute de benchmark. Une release publiée sans politique Jarvis coupe (erreur explicite). Tâches studio sans repli.",
+      "source": "L2-SERVEUR.md §13 · décision de l’intégrateur"
+    },
+    {
+      "id": "D-L2S-02",
+      "decision": "Pack embarqué dans apps/web (l’image Docker est construite depuis product/, sans docs/), garde de dérive avec docs/studios-v2/02-PROMPTS.json.",
+      "source": "L2-SERVEUR.md §3"
+    },
+    {
+      "id": "D-L3-01",
+      "decision": "File durable en PostgreSQL (SKIP LOCKED + compare-and-set, bail), pas BullMQ : la vérité financière s’écrit dans une transaction Postgres. Aucune migration.",
+      "source": "L3-EXECUTION.md §3"
+    },
+    {
+      "id": "D-L3-02",
+      "decision": "Devis valable 30 minutes ; prix dérivés de CREDIT_COSTS/FIXED_COSTS ; voix sans tarif refusée (UNSUPPORTED_CAPABILITY).",
+      "source": "L3-EXECUTION.md §3"
+    },
+    {
+      "id": "D-L4-01",
+      "decision": "Proposition : expiration 7 jours (politique), base périmée refusée avant l’appel payant ; application = nouvelle version par compare-and-set, jamais de devis ni de job.",
+      "source": "L4-PROPOSITIONS.md"
+    },
+    {
+      "id": "D-L4-02",
+      "decision": "L’hypothèse et son protocole vivent dans le brief (faits hypothesis) ; idempotence de création par clé de clic dans l’audit, sous verrou consultatif.",
+      "source": "L4-SOURCES-PROJET.md"
+    },
+    {
+      "id": "D-L4-03",
+      "decision": "Le test est la fiche Adsmap existante (pas de second modèle) ; champs absents dans studio_projects.test_refs ; lecture par les règles Adsmap, référence = variante parente.",
+      "source": "L4-VARIANTES-TESTS.md"
+    },
+    {
+      "id": "D-L4-04",
+      "decision": "Métriques d’hypothèse dérivées de celles que le verdict Adsmap lit (source unique variantes/test.ts) ; bornes de jetons d’une tâche studio dans bornes-taches.ts.",
+      "source": "intégration 2eb54ea, 2ce211f"
+    },
+    {
+      "id": "D-INT-01",
+      "decision": "Supprimer une marque : traces d’exécution supprimées avec elle ; historique studio et restrictions de membre bloquent avec motif.",
+      "source": "commit 3d4db87 (porté sur #737)"
+    },
+    {
+      "id": "D-L5-01",
+      "decision": "Rendu du texte par table d’avances mesurée dans les polices embarquées, sans crénage ; police inconnue refusée (UNSUPPORTED_CAPABILITY), jamais substituée. L’aperçu de l’éditeur désactive aussi le crénage.",
+      "source": "L5-RENDU.md, intégration ad883e7"
+    },
+    {
+      "id": "D-L5-02",
+      "decision": "Une déclinaison de format est une nouvelle version (enregistrerVersion, 409) ; une extension de décor est seulement proposée.",
+      "source": "L5-RENDU.md"
+    },
+    {
+      "id": "D-L5-03",
+      "decision": "Éditeur : enregistrement explicite (version immuable), pas d’autosave serveur ; copie de secours locale ; historique borné à 100 étapes (mesuré).",
+      "source": "L5-EDITEUR.md"
+    },
+    {
+      "id": "D-L5-04",
+      "decision": "Photo produit = identité dérivée du contenu (pph_…) dans le catalogue existant, jamais recopiée ; l’éditeur et le rendu la lisent par le chemin de la route d’aperçu L5-C ; photo distante jamais téléchargée.",
+      "source": "L5-PRODUIT-TEXTES.md, intégration ad883e7"
+    },
+    {
+      "id": "D-L5-05",
+      "decision": "Composants obligatoires : passed exige chaque composant confirmé ; sans contrôle visuel routé, requires_review.",
+      "source": "L5-PRODUIT-TEXTES.md"
+    },
+    {
+      "id": "D-F-01",
+      "decision": "Barrière de dépense hors web : même règle checkBudget, même table ai_spend, même AI_SPEND_CAP_USD et même fenêtre ; réservation sous verrou consultatif avant soumission, gardée si l’issue est incertaine, une ligne par job.",
+      "source": "F-FOURNISSEUR-IMAGE.md, PR #745"
+    },
+    {
+      "id": "D-F-02",
+      "decision": "Webhooks fal non utilisés (signature non vérifiable sans réseau) : sondage avec recul 2 s → 15 s ; rechercheParCle=false, une réponse perdue part en réconciliation.",
+      "source": "PR #745"
+    },
+    {
+      "id": "D-F-03",
+      "decision": "Fal réel seulement avec FAL_KEY réelle, S3 posé, et production ou STUDIO_FOURNISSEUR_REEL=autorise ; sinon le worker ne démarre pas et le dit.",
+      "source": "PR #745"
+    },
+    {
+      "id": "D-F-04",
+      "decision": "Approbation du benchmark réel = évaluation de release manual nominative (prompt.evaluate), 24 h, usage unique, devis recalculé par le serveur ; rapport joint sans publication automatique, passed seulement pour un rapport réel aux traces non simulées.",
+      "source": "F-BENCHMARK.md, PR #746"
+    },
+    {
+      "id": "D-F-05",
+      "decision": "Une seule réservation de dépense (reserverDepense, verrou consultatif) pour sousPlafond, guardedAnthropic et le worker ; Anthropic réservé au maximum avant l’appel puis réglé une fois ; libération seulement sur 400/401/403/422.",
+      "source": "#745 bf4a825"
+    },
+    {
+      "id": "D-F-06",
+      "decision": "Décodage réel des pixels (sharp) obligatoire dans le worker avant completed et règlement ; vidéo indisponible (aucun décodeur vidéo) et refusée dès le devis (DECODEUR_VIDEO_WORKER=false).",
+      "source": "#736 537aac8, 824d8a6"
+    },
+    {
+      "id": "D-F-07",
+      "decision": "Consigne image attestée par le serveur (studio_audit_events) puis retenue par runId ; snapshot.parametres construit à l’approbation depuis les seules données serveur, jamais {} pour keyframe:s_image.",
+      "source": "#747"
+    },
+    {
+      "id": "D-F-08",
+      "decision": "Vision : pièces natives base64 lues par le serveur dans la portée ; release staged exécutable seulement dans une campagne de benchmark approuvée, jamais servie ailleurs.",
+      "source": "#748"
+    },
+    {
+      "id": "D-L6-01",
+      "decision": "Contradiction identité ↔ plan détectée par règle fixe (couleur à ≤ 3 mots de l’élément, fenêtre mesurée sur 20 phrases) et bloquée dans creerDevis avant toute écriture.",
+      "source": "PR #751"
+    },
+    {
+      "id": "D-L6-02",
+      "decision": "Voix et lipsync indisponibles (ni tarif ni fournisseur) : jamais simulés, voix off proposée ; durée audio mesurée par lecture pure de l’en-tête.",
+      "source": "PR #751"
+    },
+    {
+      "id": "D-L6-03",
+      "decision": "Images clés de plan : consigne shot.image attestée puis retenue (styleRef.consignesPlans), interdit de texte posé par le serveur, parametres studio_image/1.",
+      "source": "PR #752"
+    },
+    {
+      "id": "D-G-01",
+      "decision": "Retouche masquée : masque PNG gris 8 bits ; la sortie fal est recomposée sur la source sous le masque, jamais livrée brute ; qualité requires_review posée par le worker.",
+      "source": "PR #750"
+    },
+    {
+      "id": "D-PROP-01",
+      "date": "2026-10-08",
+      "par": "propriétaire",
+      "decision": "Budget d'essai réel autorisé : 15 $ maximum au total (premier rendu image réel + benchmark), exécuté dans un environnement de recette isolé (plafond AI_SPEND_CAP_USD=15 sur une base vide), après clôture R3 (réessais, borne d'entrée)."
+    },
+    {
+      "id": "D-PROP-02",
+      "date": "2026-10-08",
+      "par": "propriétaire",
+      "decision": "Contrôle par vision activé par défaut : ligne visible et chiffrée du devis, acceptée avant génération, décochable ; aucun débit ajouté après coup."
+    },
+    {
+      "id": "D-PROP-03",
+      "date": "2026-10-08",
+      "par": "propriétaire",
+      "decision": "ffmpeg/ffprobe intégrés à l'image Docker du worker ; arrivée sur le VPS par le déploiement normal après fusion."
+    },
+    {
+      "id": "D-PROP-04",
+      "date": "2026-10-09",
+      "par": "propriétaire",
+      "decision": "15 $ maximum AU TOTAL pour tous les tests du chantier TikTrends, tous fournisseurs, étapes et relances confondus ; remplace la limite de 1 $ par passe ; dépenses déjà engagées déduites, réservations incertaines conservées ; aucune recharge ni dépassement. Préalables : devis complet calculé sur les paramètres envoyés (estimation / réservation max / réglé) et reprise du seul contrôle visuel manquant ; un seul rendu réel examiné avant le benchmark ; suivi cumulatif durable."
+    },
+    {
+      "id": "D-INT-09",
+      "date": "2026-10-09",
+      "par": "intégrateur (recommandation Codex, CDC 338/340)",
+      "decision": "deploy.sh build → migration éphémère → vérification (inclusion) → activation ; interrupteurs par capacité/espace, nouveautés incomplètes coupées par défaut ; réconciliation par geste plateforme lié à une preuve, additive."
+    }
+  ],
+  "prOuvertes": {
+    "731": "dossier L0 (docs)",
+    "734": "L0 lectures pures #125 (c981fe9d)",
+    "732": "L1 fondations (400e634c, base #731)",
+    "733": "L2 noyau prompts (a5c6ea34, base #731)",
+    "735": "SEC (2f6dec59, base vague 2)",
+    "736": "L3 exécution (824d8a6 : + décodage réel, COST-01, vidéo refusée au devis)",
+    "737": "L2 serveur (aa60b84 : + verrou évaluation/révocation)",
+    "738": "L4-A propositions (base vague 3)",
+    "739": "L4-B Veille, brief, projet (base vague 3)",
+    "741": "intégration de référence, brouillon (ad883e7)",
+    "742": "L5-A rendu, masques, déclinaisons, médias (ebf4215, base vague 4)",
+    "743": "L5-B éditeur de calques (c865e47, base vague 4)",
+    "744": "L5-C produit épinglé, références, Textes (de70ca6, base vague 4)",
+    "745": "F-A fournisseur image, réservation commune (c3ea7ee)",
+    "746": "F-C benchmark F01-F24 (e164b58, base vague 5)",
+    "747": "F-B parcours image (4bd2f37, base vague 5b)",
+    "748": "F-D vision, évaluation staged, ADMIN, exécuteur image (a4359ac, base vague 5c)",
+    "749": "G-A raccords site (c670641, base vague 6)",
+    "750": "G-B retouche masquée réelle F05 (8e95948, base vague 6)",
+    "751": "L6-B identités, contradictions, substitution, voix (75b6a25, base vague 6)",
+    "752": "L6-A storyboard et timeline vidéo (fd6b7ed, base vague 6)",
+    "753": "R3 budget réessais, borne, devis borne/estimation, vision au devis, migration 0055 (461800f, base vague 7)",
+    "754": "L7-A export image (e7bda48, base vague 7)",
+    "755": "L7-B décodage vidéo ffmpeg, capacité sondée (9a5a13c, base vague 7)",
+    "756": "E kit d’essai réel isolé (8e2a124, base vague 7)",
+    "757": "E2 devis calculé, reprise vision, registre cumulatif, vérification Docker (dfe9e5f, base vague 8)",
+    "758": "L8-A écrans image (b2c92f5)",
+    "759": "L8-B écrans projet/vidéo/Veille/ADMIN (1932e2d)",
+    "760": "L8-C performance et limites (bda8e93)",
+    "761": "L8-D canvas métier (c3ef38f)",
+    "762": "R4 réconciliation à l’écran, exports conservés (c88229a)",
+    "763": "L9-A migration, rollback, restauration, baseline, plan de fusion (216318d)",
+    "764": "E3 registre durable, verrou, préflight bloquant (f264831, base vague 9)",
+    "765": "D1 déploiement build→migration→activation (16a97d3)",
+    "766": "F1 interrupteurs par capacité/espace (68b902c)",
+    "767": "R5 réconciliation auditée, migration 0056 (326a902)",
+    "768": "E4 reprise vision sous interrupteur/registre, verrou sans reprise à l'âge, préflight docker (16ee11e, base vague 10)"
+  },
+  "besoinsIntegrateur": [
+    "Module de crédits partagé web/worker (recrédit dupliqué dans apps/workers/src/studios/registre.ts)",
+    "sousPlafond accessible au worker avant tout adaptateur réel",
+    "Route webhook app/api/studios/webhook + STUDIO_WEBHOOK_SECRET (posé par le propriétaire dans .env.deploy)",
+    "Colonne revocation jsonb sur studio_prompt_releases (révocation lue dans evaluation.revocation.motif)",
+    "porteeSql exporté de lib/studios/depot.ts (recopié dans commandes.ts)",
+    "ajouterAudit avec workspaceId null pour la portée plateforme",
+    "deleteBrandAction face aux FK RESTRICT des projets studio",
+    "Écran de restriction de marques par membre",
+    "Route Jarvis → proposerPatch (intention « modifier »)",
+    "schemaKey Layer, Brief, CharacterRef, Test, MetricSnapshot au registre",
+    "Contrainte unique studio_variants.media_asset_id (aujourd’hui verrou) ; colonne job_id éventuelle",
+    "ensureGraphPath / nextVariant (lib/adsmap-path.ts) acceptant une transaction",
+    "Index d’expression studio_audit_events (workspace_id, action, details->>cleClic) si l’audit grossit",
+    "Sélection multiple de sources dans la Veille",
+    "Lecture S3 signée (GET SigV4) dans packages/integrations/src/storage.ts pour les médias studio",
+    "Format de fichier de MasqueStudio.assetId (PNG gris 8 bits proposé) et chemin d’import",
+    "appliquerMasqueAuxPixels dans finaliser du worker L3 pour les retouches",
+    "Zones sûres TikTok d’une source officielle ; reconfirmer les profils Meta",
+    "validerRelationsBrief : dédoublonner par fichier + rôle",
+    "schemaKey Brief et Concept au registre",
+    "Variantes du catalogue produit (migration additive)",
+    "controlerComposantsSortie en fin de job de mise en scène ; acceptation par trancherComposants"
+  ],
+  "recetteCodex": [
+    {
+      "date": "2026-10-08",
+      "constat": "P1 SEC-10 · un compte capté rend un second compte admissible",
+      "correctif": "#735 609aeea",
+      "garde": "sec-equipe-chaine-db"
+    },
+    {
+      "date": "2026-10-08",
+      "constat": "P1 médias tronqués acceptés",
+      "correctif": "#736 a8b98b2",
+      "garde": "l3-media-complet, l3-worker"
+    },
+    {
+      "date": "2026-10-08",
+      "constat": "P1 révocation de release non propagée",
+      "correctif": "#737 52d3765 / 88025b2",
+      "garde": "l2-revocation-db"
+    },
+    {
+      "date": "2026-10-08",
+      "constat": "P2 50 réconciliations affament le suivi",
+      "correctif": "#736 a8b98b2",
+      "garde": "l3-worker"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "contre-recette f2fd4bb",
+      "constat": "P1 MP4 sans piste accepté comme lisible",
+      "correctif": "#736 537aac8, 824d8a6",
+      "garde": "l3-media-complet, l3-decodage, studios-decodeur"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "contre-recette f2fd4bb",
+      "constat": "P1 site et worker sans verrou commun de dépense",
+      "correctif": "#745 bf4a825",
+      "garde": "fa-course-mixte-pg (Postgres réel), fa-reservation-commune"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "contre-recette f2fd4bb",
+      "constat": "P2 évaluation concurrente efface une révocation",
+      "correctif": "#737 aa60b84 ; #748 a4359ac",
+      "garde": "l2-revocation-course-pg, fd-revocation-pg, l2-revocation-db"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "trouvé en route",
+      "constat": "COST-01 double clic sur deux connexions ⇒ 409 intermittent",
+      "correctif": "#736 824d8a6",
+      "garde": "l3-concurrence-pg (40 manches)"
+    },
+    {
+      "date": "2026-10-08",
+      "passe": "contre-recette 0f6f836",
+      "constat": "3 correctifs de f2fd4bb vérifiés par lecture indépendante (décodage réel Sharp, réservation atomique commune web/worker/Anthropic, verrou release avant évaluation) ; 57 tests ciblés PASS ; preuves PG lues non réexécutées ; aucune approbation globale",
+      "resteOuvert": [
+        "SDK Anthropic sans maxRetries explicite (défaut 2 réessais) · une réservation peut couvrir plusieurs tentatives",
+        "estimation d'entrée 3,5 car/jeton non bornée · devis à présenter comme estimation sauf borne prouvée",
+        "9,925 $ benchmark non garanti tant que ces limites ne sont pas closes"
+      ],
+      "suite": "R3 (budget), L7-A (export image), L7-B (décodeur vidéo ffmpeg) lancés · vague 7"
+    },
+    {
+      "date": "2026-10-09",
+      "passe": "tests ciblés sur f2b9fc4",
+      "constat": "135 tests ciblés PASS ; pas de feu vert global de fusion",
+      "resteOuvert": [
+        "devis du pas 1 figé à 0,36 $ au lieu d'être calculé sur les paramètres envoyés",
+        "reprise du seul contrôle visuel manquant après interruption, sans double facturation"
+      ],
+      "suite": "E2 lancé (devis calculé, reprise vision avec exclusion, registre cumulatif durable, vérification Docker)"
+    },
+    {
+      "date": "2026-10-09",
+      "passe": "contre-recette b35ce9b",
+      "constat": "Devis reconstruit sur la requête effective, reprise vision seule et refus incertain affiché : confirmés en lecture ; 23 tests ciblés PASS ; e2-controle-vision-reprise et e2-devis-pas1 interrompus côté Codex (code 130 ; ici 16 s et 12 s, verts)",
+      "resteOuvert": [
+        "P1 registre non durable avant dépense (engagement non compté)",
+        "P1 registre sans verrou interprocessus",
+        "P1 verifier-environnement.sh ne s'arrête pas avant build/up sur prérequis KO"
+      ],
+      "decisionsRecommandees": [
+        "deploy.sh : build → migration contrôlée → activation (CDC 338)",
+        "feature flags par capacité/espace, défaut off (CDC 340)",
+        "réconciliation ADMIN auditée liée à preuve fournisseur, idempotente, additive"
+      ],
+      "suite": "vague 9 : E3, D1, F1, R5 (base b35ce9b)"
+    },
+    {
+      "date": "2026-10-09",
+      "passe": "contre-recette 150c17c (vague 9)",
+      "constat": "Validés en code : engagement durable avant appel, verrou exclusif ordinaire, préflight bloquant, déploiement migration→vérification→activation, réconciliation ajout seul auditée, transition vision conditionnelle (pas de défaut distinct). 55 tests ciblés PASS côté Codex.",
+      "resteOuvert": [
+        "P1 pas1.ts : reprise vision d'un job requires_review réconcilié sans interrupteur ni engagement",
+        "P1 verrou.ts/registre.ts : reprise d'un verrou sur son seul âge ⇒ engagement d'un autre processus perdu",
+        "P2 verifier-environnement.sh : échecs de docker ps/inspect ignorés"
+      ],
+      "verdict": "Pas de feu vert essais payants ni validation de déploiement",
+      "suite": "E4 (base 150c17c)"
+    },
+    {
+      "date": "2026-10-09",
+      "passe": "contre-recette ee9c3c9 (E4 16ee11e)",
+      "constat": "Les trois défauts de 150c17c sont clos (reprise vision, verrou sans reprise à l'âge, préflight Docker). 89 tests ciblés PASS. Réserve P2 : sur macOS natif, recette:budget:deverrouiller retirait le verrou d'un détenteur vivant (identité /proc illisible).",
+      "verdict": "Feu vert pour la preuve Docker isolée sous Linux puis, si elle réussit, un premier rendu réel sous le plafond global cumulatif de 15 $. Ni fusion inconditionnelle ni validation de production.",
+      "suite": "P2 corrigée sur #768 (c23c7b6) : refus explicite hors plateforme sondable ; intégration dde4b52"
     }
   ]
 }
