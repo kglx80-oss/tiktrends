@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { driveRefreshTokenFor } from '../../lib/drive-token';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif } from '@tiktrends/core';
+import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -35,6 +35,10 @@ export interface AssetItem {
   /** Rangé dans les templates (coulisses) · booléen dérivé côté serveur · le
       marqueur technique ne traverse jamais le réseau. */
   isTemplate: boolean;
+  /** Sortie LIVRÉE d'un projet Studios (`studio_assets`) · lecture seule dans la
+      bibliothèque : ni suppression, ni bascule IA, ni template. Absent pour une
+      ligne de la bibliothèque historique (`assets`). */
+  studio?: OrigineStudioBibliotheque;
 }
 
 const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
