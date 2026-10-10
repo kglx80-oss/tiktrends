@@ -20,6 +20,7 @@ vi.mock('../app/actions/studios/sources', () => ({ preparerCreation: m.preparer,
 vi.mock('../app/actions/studios/prompts', () => ({
   importerPackAction: m.importer, validerVersionAction: vi.fn(), evaluerReleaseAction: vi.fn(), retirerReleaseAction: vi.fn(), creerReleaseAction: m.creerRelease,
   publierReleaseAction: vi.fn(), rollbackReleaseAction: vi.fn(), revoquerReleaseAction: vi.fn(), enregistrerBrouillonAction: vi.fn(), approuverBenchmarkAction: vi.fn(),
+  validerImportsAction: vi.fn(), approuverRecetteManuelleAction: vi.fn(),
 }));
 vi.mock('../lib/studios/benchmark/actions', () => ({ approuverBudgetBenchmarkAction: vi.fn(), joindreFichesBenchmarkAction: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
