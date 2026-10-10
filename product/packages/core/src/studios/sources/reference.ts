@@ -29,11 +29,26 @@ import { empreinteContenu } from '../version';
 import { estIdStable } from '../document';
 import { observerSource, type ObservationSource, type ElementAbsent, type ModaliteSource } from './modalites';
 
-export type TypeSource = 'veille_ad' | 'saved_ad';
+/**
+ * `creation` · une création PRÉCÉDENTE de la marque, produite par l'outil
+ * (Pubs IA, Image IA · table `generations`). Ce n'est pas une annonce
+ * concurrente : elle appartient à la marque, elle se reprend (voir `creation.ts`).
+ */
+export type TypeSource = 'veille_ad' | 'saved_ad' | 'creation';
 export type StatutSource = 'active' | 'revoquee' | 'supprimee';
 /** Le seul droit que donne une annonce publique observée · cf. en-tête. */
 export const DROIT_OBSERVATION_PUBLIQUE = 'observation_publique' as const;
-export type DroitSource = typeof DROIT_OBSERVATION_PUBLIQUE;
+/** Le droit d'une création de la marque elle-même · elle se reprend, texte compris. */
+export const DROIT_CREATION_INTERNE = 'creation_interne' as const;
+export type DroitSource = typeof DROIT_OBSERVATION_PUBLIQUE | typeof DROIT_CREATION_INTERNE;
+
+/** Le droit qui découle du type · jamais choisi par l'appelant. */
+export function droitDuType(type: TypeSource): DroitSource {
+  return type === 'creation' ? DROIT_CREATION_INTERNE : DROIT_OBSERVATION_PUBLIQUE;
+}
+
+/** Vrai pour une source qui appartient à la marque (aucune exclusion de concurrent). */
+export const estCreationInterne = (s: Pick<SourceReferenceStudio, 'type'>): boolean => s.type === 'creation';
 
 /** Taille de l'extrait autorisé · une accroche et sa phrase suivante, pas l'annonce entière. */
 export const EXTRAIT_AUTORISE_MAX = 280;
@@ -50,6 +65,8 @@ export interface SourceReferenceStudio {
   cle: string;
   /** La ligne `saved_ads` d'origine pour une source sauvegardée, sinon `null`. */
   savedAdId: string | null;
+  /** La ligne `generations` d'origine pour une création précédente (absent des références plus anciennes). */
+  generationId?: string | null;
   droit: DroitSource;
   portee: { workspaceId: string; brandId: string | null };
   /** ISO 8601 · le moment où la source a été observée et figée dans ce projet. */
@@ -143,6 +160,7 @@ export interface EntreeReference {
   type: TypeSource;
   annonce: AnnonceObservee;
   savedAdId: string | null;
+  generationId?: string | null;
   portee: { workspaceId: string; brandId: string | null };
   observeLe: Date;
   format: FormatSource | null;
@@ -163,7 +181,8 @@ export function referenceSource(e: EntreeReference): SourceReferenceStudio {
     type: e.type,
     cle,
     savedAdId: e.savedAdId,
-    droit: DROIT_OBSERVATION_PUBLIQUE,
+    ...(e.type === 'creation' ? { generationId: e.generationId ?? null } : {}),
+    droit: droitDuType(e.type),
     portee: { ...e.portee },
     observeLe: e.observeLe.toISOString(),
     plateforme: e.annonce.platform,
@@ -199,9 +218,9 @@ const MODALITES: readonly ModaliteSource[] = ['image', 'video', 'transcription',
 export function lireReferenceSource(x: unknown): SourceReferenceStudio | null {
   if (typeof x !== 'object' || x === null || Array.isArray(x)) return null;
   const s = x as Partial<SourceReferenceStudio>;
-  if (s.schema !== 1 || !estIdStable(s.sourceId) || (s.type !== 'veille_ad' && s.type !== 'saved_ad')) return null;
+  if (s.schema !== 1 || !estIdStable(s.sourceId) || (s.type !== 'veille_ad' && s.type !== 'saved_ad' && s.type !== 'creation')) return null;
   if (typeof s.cle !== 'string' || typeof s.observeLe !== 'string' || Number.isNaN(Date.parse(s.observeLe))) return null;
-  if (s.droit !== DROIT_OBSERVATION_PUBLIQUE || typeof s.empreinte !== 'string' || !/^[a-f0-9]{64}$/.test(s.empreinte)) return null;
+  if (s.droit !== droitDuType(s.type) || typeof s.empreinte !== 'string' || !/^[a-f0-9]{64}$/.test(s.empreinte)) return null;
   if (!['active', 'revoquee', 'supprimee'].includes(s.statut as string)) return null;
   if (!Array.isArray(s.modalites) || !s.modalites.every((m) => MODALITES.includes(m))) return null;
   if (!Array.isArray(s.observations) || !Array.isArray(s.absents)) return null;
@@ -229,4 +248,22 @@ export const LIBELLES_STATUT_SOURCE: Readonly<Record<StatutSource, string>> = {
 export const LIBELLES_TYPE_SOURCE: Readonly<Record<TypeSource, string>> = {
   veille_ad: 'Annonce observée en Veille',
   saved_ad: 'Annonce sauvegardée',
+  creation: 'Création précédente de la marque',
 };
+
+export const LIBELLES_DROIT_SOURCE: Readonly<Record<DroitSource, string>> = {
+  observation_publique: 'observation publique, structure seulement',
+  creation_interne: 'création de la marque, réutilisable',
+};
+
+/** La première ligne d'une source donnée à un modèle · ce qu'elle est, d'où elle vient. */
+export function presentationSource(s: Pick<SourceReferenceStudio, 'type' | 'plateforme' | 'annonceur' | 'observeLe'>): string {
+  if (s.type === 'creation') return `Création précédente de la marque cible, produite dans l’outil, ajoutée le ${s.observeLe.slice(0, 10)} · elle se reprend et se décline.`;
+  return `Annonce ${s.plateforme} de « ${s.annonceur || 'annonceur inconnu'} », observée le ${s.observeLe.slice(0, 10)}.`;
+}
+
+/** Le nom affiché d'une source · l'annonceur, ou la marque pour une création précédente. */
+export function titreSource(s: Pick<SourceReferenceStudio, 'type' | 'annonceur'>): string {
+  if (s.type === 'creation') return 'Création précédente';
+  return s.annonceur || 'Annonceur inconnu';
+}

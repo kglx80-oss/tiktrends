@@ -3,6 +3,8 @@
  * Point d'export unique du noyau pour ce lot (brief canonique compris).
  */
 export * from './reference';
+export * from './creation';
+export * from './da-marque';
 export * from './modalites';
 export * from './hypotheses';
 export * from './produit';

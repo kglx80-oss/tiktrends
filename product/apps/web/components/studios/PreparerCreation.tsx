@@ -2,7 +2,8 @@
 
 import { useRef, useState, type CSSProperties } from 'react';
 import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
-  reponseApplicable, messageHorsLigneStudio, LIBELLES_MODALITE, LIBELLES_ELEMENT, MODALITES_SOURCE, LIBELLES_TYPE_PROJET, dateCourteUtc, CIBLE_TACTILE_MIN,
+  reponseApplicable, messageHorsLigneStudio, LIBELLES_MODALITE, LIBELLES_ELEMENT, MODALITES_SOURCE, LIBELLES_TYPE_PROJET, LIBELLES_TYPE_SOURCE, dateCourteUtc, CIBLE_TACTILE_MIN,
+  SOURCES_MAX,
   type HypotheseQualifiee, type DemandeEnCours,
 } from '@tiktrends/core';
 import { preparerCreation, proposerHypotheses, creerProjetDepuisSources } from '../../app/actions/studios/sources';
@@ -29,6 +30,14 @@ import { useFocusApresGeste, cleRetour } from './projet/focus-geste';
  * le serveur a répondu pour cette marque (`reponseApplicable`, noyau). Changer
  * de marque vide les propositions et le produit choisis ; une hypothèse
  * RÉDIGÉE reste dans le brouillon de sa marque d'origine.
+ *
+ * ── Créations précédentes ────────────────────────────────────────────────────
+ *
+ * Les créations déjà produites pour la marque cible (Pubs IA, Image IA) se
+ * cochent en sources SUPPLÉMENTAIRES · le serveur les relit dans sa portée.
+ * Changer la sélection change les sources : les propositions d'hypothèses,
+ * scellées pour une sélection, sont alors vidées (comme au changement de
+ * marque). Changer de marque vide la sélection.
  *
  * Fermer le panneau ne touche ni la recherche, ni les filtres, ni la position
  * dans la Veille : rien n'a navigué.
@@ -90,6 +99,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
   const [choix, setChoix] = useState<Choix>(null);
   const [brouillons, setBrouillons] = useState<Record<string, Saisie>>({});
   const [productId, setProductId] = useState<string | null>(null);
+  const [creationsChoisies, setCreationsChoisies] = useState<string[]>([]);
   const [kind, setKind] = useState('ads');
   const [titre, setTitre] = useState('');
   const [cleClic, setCleClic] = useState('');
@@ -99,6 +109,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
   const seqPrep = useRef(0);
   const seqProp = useRef(0);
   const source = sourceDe(annonce, sauvegardeId, retour);
+  const sourcesEnvoyees = [source, ...creationsChoisies.map((id) => ({ type: 'creation' as const, id }))];
 
   async function charger(marque: string | null) {
     const demande: DemandeEnCours = { seq: ++seqPrep.current, brandId: marque ?? '' };
@@ -125,6 +136,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
     setOuvert(true);
     setCleClic(cle());
     setCreation({ etat: 'repos' });
+    setCreationsChoisies([]);
     setTitre(`D’après ${annonce.advertiserName?.trim() || 'une annonce observée'}`);
     setKind(annonce.mediaType === 'video' ? 'video' : 'ads');
     if (!prep) void charger(null);
@@ -139,10 +151,21 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
     setQuestions([]);
     setRefusIa(null);
     setProductId(null);
+    setCreationsChoisies([]);
     setChoix((c) => (c?.type === 'proposee' ? null : c));
     setProposant(false);
     seqProp.current++;
     void charger(b);
+  }
+
+  /** Cocher ou décocher une création · la sélection change, les propositions scellées pour l'ancienne tombent. */
+  function basculerCreation(id: string) {
+    setCreationsChoisies((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+    setPropositions(null);
+    setQuestions([]);
+    setChoix((c) => (c?.type === 'proposee' ? null : c));
+    setProposant(false);
+    seqProp.current++;
   }
 
   async function proposer() {
@@ -152,7 +175,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
     setRefusIa(null);
     let r: Awaited<ReturnType<typeof proposerHypotheses>>;
     try {
-      r = await proposerHypotheses({ sources: [source], brandId });
+      r = await proposerHypotheses({ sources: sourcesEnvoyees, brandId });
     } catch {
       if (demande.seq === seqProp.current) { setProposant(false); setRefusIa({ message: messageHorsLigneStudio('proposition') }); }
       return;
@@ -183,7 +206,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
     setErreur(null);
     let r: Awaited<ReturnType<typeof creerProjetDepuisSources>>;
     try {
-      r = await creerProjetDepuisSources({ sources: [source], brandId, kind, titre, productId, hypothese, cleClic });
+      r = await creerProjetDepuisSources({ sources: sourcesEnvoyees, brandId, kind, titre, productId, hypothese, cleClic });
     } catch {
       // L8-B · mesuré avant : bouton figé sur « Création… », aucun message. La clé de clic
       // reste la même · si le serveur avait créé le projet, le réessai le retrouve sans doublon.
@@ -198,13 +221,16 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
       return;
     }
     // Ce que le projet garde VRAIMENT · on ne dit pas « le produit » quand aucun n'a été choisi.
-    const garde = ['la source', ...(hypothese ? ['l’hypothèse'] : []), ...(productId ? ['le produit'] : [])];
+    const garde = ['la source', ...(creationsChoisies.length ? [creationsChoisies.length > 1 ? `les ${creationsChoisies.length} créations précédentes` : 'la création précédente'] : []), ...(hypothese ? ['l’hypothèse'] : []), ...(productId ? ['le produit'] : [])];
     const liste = garde.length > 1 ? `${garde.slice(0, -1).join(', ')} et ${garde[garde.length - 1]}` : garde[0]!;
     setCreation({ etat: 'ok', projetId: r.projet.id, deja: r.deja, garde: `${liste} ${garde.length > 1 ? 'y sont gardés' : 'y est gardée'}${productId ? '' : ' · le produit reste à choisir'}` });
   }
 
   const s = prep?.sources[0] ?? null;
   const produits = prep && brandId === prep.brandId ? prep.produits : [];
+  const creations = prep && brandId === prep.brandId ? prep.creations ?? [] : [];
+  // Une place est prise par la source d'origine · le serveur refuse au-delà de SOURCES_MAX.
+  const creationsPleines = creationsChoisies.length >= SOURCES_MAX - 1;
   const saisieOk = saisie.statement.trim().length > 0 && saisie.variable.trim().length > 0;
   const hypotheseOk = choix === null || (choix.type === 'saisie' ? saisieOk : !!propositions);
   const nomMarque = prep?.marques.find((m) => m.id === brandId)?.nom ?? '';
@@ -248,7 +274,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
               <div style={{ ...tuile, padding: '10px 12px', background: 'var(--bg)', display: 'grid', gap: 4 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{s.annonceur || 'Annonceur inconnu'}</span>
                 <span style={note}>
-                  {s.type === 'saved_ad' ? 'Annonce sauvegardée' : 'Annonce observée en Veille'} · {s.plateforme} · observée le {dateCourteUtc(s.observeLe)}
+                  {LIBELLES_TYPE_SOURCE[s.type]} · {s.plateforme} · observée le {dateCourteUtc(s.observeLe)}
                   {s.diffuseeDepuisJours !== null ? ` · diffusée depuis ${s.diffuseeDepuisJours} j (une durée ne prouve pas la rentabilité)` : ''}
                   {s.format ? ` · format « ${s.format.libelle} »` : ''}
                 </span>
@@ -368,6 +394,31 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
                   ))}
                 </div>
               )}
+            </section>
+
+            <section style={bloc} aria-labelledby="pc-creations" data-section="creations-precedentes">
+              <h3 id="pc-creations" style={titreSection}>Créations précédentes de {nomMarque || 'la marque'}</h3>
+              <p style={note}>Ajoute ce que la marque a déjà produit (Pubs IA, Image IA) · le projet les garde comme sources, elles se reprennent et se déclinent.</p>
+              {creations.length === 0 ? (
+                <p data-creations="aucune" style={note}>{chargement ? 'Chargement…' : 'Aucune création réutilisable pour cette marque · une pub ou une image terminée apparaîtra ici.'}</p>
+              ) : (
+                <div role="group" aria-label="Créations précédentes" style={{ display: 'grid', gap: 8 }}>
+                  {creations.map((c) => {
+                    const coche = creationsChoisies.includes(c.id);
+                    return (
+                      <label key={c.id} data-creation-precedente={c.id} style={{ ...tuile, display: 'flex', gap: 10, alignItems: 'center', padding: '10px 12px', minHeight: CIBLE_TACTILE_MIN, cursor: !coche && creationsPleines ? 'not-allowed' : 'pointer', background: coche ? 'var(--accent-soft)' : 'var(--bg)' }}>
+                        <input type="checkbox" checked={coche} disabled={(!coche && creationsPleines) || creation.etat === 'encours'} onChange={() => basculerCreation(c.id)} style={{ width: 20, height: 20, flexShrink: 0 }} />
+                        {c.apercu && <img src={c.apercu} alt="" width={48} height={48} loading="lazy" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />}
+                        <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+                          <span style={{ fontSize: 13.5, color: 'var(--ink)', fontWeight: 600, overflowWrap: 'anywhere' }}>{c.libelle}</span>
+                          <span style={note}>Créée le {dateCourteUtc(c.creeLe)}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              {creationsPleines && <p role="status" style={{ ...note, color: '#ffcf8f' }}>{SOURCES_MAX} sources au plus par projet · décoche une création pour en choisir une autre.</p>}
             </section>
 
             <section style={bloc} aria-labelledby="pc-projet">
