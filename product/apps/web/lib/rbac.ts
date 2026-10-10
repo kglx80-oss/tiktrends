@@ -136,6 +136,12 @@ export const FEATURES: Feature[] = [
   { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'textes',    label: 'Textes IA',    href: '/studio/textes', icon: 'bulb', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
+  // Les projets du NOUVEAU Studio · sous Studio IA, à côté des studios
+  // historiques (aucun n'est retiré). Mêmes droits que la feature `studio`, que
+  // la garde serveur des projets lit (`gardeStudio` · `FEATURE_STUDIO`) · une
+  // entrée plus large mènerait à un refus, plus étroite cacherait un écran
+  // ouvert. Seul accès jusqu'ici · un lien sur `/studio` et la Veille.
+  { key: 'projets',   label: 'Projets',      href: '/studio/projets', icon: 'folder', group: 'Atelier', parent: 'studio', minRole: 'member', minPlan: 'core' },
   { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
 
   // ── Tester · la boucle hypothèse → verdict → itération ────────────────────
@@ -172,7 +178,7 @@ export const FEATURES: Feature[] = [
 const RUBRIQUE_DE_FEATURE: Record<string, string> = {
   dashboard: 'dashboard', analytics: 'analytics',
   inspo: 'veille', scale: 'veille', tags: 'veille', formats: 'veille', saved: 'saved', radar: 'radar',
-  jarvis: 'jarvis', studio: 'studio', ads: 'studio', image: 'studio', video: 'studio', textes: 'studio', assets: 'assets',
+  jarvis: 'jarvis', studio: 'studio', ads: 'studio', image: 'studio', video: 'studio', textes: 'studio', projets: 'studio', assets: 'assets',
   adsmap: 'adsmap', suites: 'adsmap', lots: 'adsmap', ttradar: 'adsmap', tri: 'adsmap', protocole: 'adsmap', import: 'adsmap',
   brands: 'marques', team: 'equipe', connect: 'connexions', usage: 'usage', billing: 'facturation', settings: 'reglages',
 };

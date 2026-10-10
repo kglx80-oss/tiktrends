@@ -1,15 +1,17 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CIBLE_TACTILE_MIN, capacitesDuRefus } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, capacitesDuRefus, aPermissionEspace, etatNouveauProjet } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { effectiveAccess } from '../../../../lib/access';
 import { FEATURES, denyReason } from '../../../../lib/rbac';
 import { listerProjetsCartes } from '../../../actions/studios/sources';
 import { CarteProjet } from '../../../../components/studios/projet/CarteProjet';
+import { NouveauProjet } from '../../../../components/studios/projet/NouveauProjet';
+import { contexteDepuisSession } from '../../../../lib/studios/garde';
 import { Icon } from '../../../../components/Icon';
 import { CapaciteNonActive } from '../../../../components/studios/CapaciteNonActive';
-import { cadrePage, h1, sub, surface, vide, btn } from '../../../../components/ui';
+import { cadrePage, h1, sub, surface, vide, btn, btnGhost } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,12 +64,20 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
   const active = await getActiveBrand(s.workspaceId);
   const toutes = sp.toutes === '1' || !active;
   const cartes = toutes ? r.cartes : r.cartes.filter((c) => c.brandId === active!.id);
+  // « Nouveau projet » · la permission vient de la MÊME règle que la garde
+  // serveur (`contexteDepuisSession` → `permissionsStudio`) · jamais un bouton
+  // que `creerProjet` refuserait pour le rôle. La marque est l'ACTIVE.
+  const peutProposer = aPermissionEspace(contexteDepuisSession(s, [], [], '').permissions, 'studio.propose');
+  const nouveau = etatNouveauProjet({ peutProposer, marqueActive: active ? { id: active.id, name: active.name } : null });
 
   return (
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
         <h1 style={h1}>Projets</h1>
-        <a href="/veille" style={{ ...btn, textDecoration: 'none' }}>Créer depuis la Veille</a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <a href="/veille" style={{ ...btnGhost, textDecoration: 'none' }}>Créer depuis la Veille</a>
+          <NouveauProjet etat={nouveau} />
+        </div>
       </div>
       <p style={sub}>Chaque projet garde ses sources, son hypothèse, son produit et son brief · reprends-le où tu l’as laissé.</p>
       {active && r.cartes.length > 0 && (
@@ -87,6 +97,9 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
             <li>Choisis une hypothèse et un produit de ta marque · le projet garde tout, rien n’est généré.</li>
           </ol>
           <div><a href="/veille" style={{ ...btn, textDecoration: 'none' }}>Ouvrir la Veille</a></div>
+          {nouveau.etat === 'pret' && (
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)' }}>Ou pars de zéro · « Nouveau projet » crée un projet vide pour {nouveau.marque.nom}.</p>
+          )}
         </section>
       ) : cartes.length === 0 ? (
         <section data-etat="vide-marque" style={{ ...vide, padding: 24, display: 'grid', gap: 8, maxWidth: 720 }}>
