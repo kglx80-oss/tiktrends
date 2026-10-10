@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
-import { BoutonCommande, BoutonConfirme, BoutonRevoquer, EditeurBrouillon, FormulaireRelease, FormulaireBudgetBenchmark, FormulaireFichesBenchmark, BoutonBenchmarkApprouve, type ChampEditable } from './Commandes';
+import { BoutonCommande, BoutonConfirme, BoutonRevoquer, EditeurBrouillon, FormulaireRelease, FormulaireBudgetBenchmark, FormulaireFichesBenchmark, BoutonBenchmarkApprouve, BoutonRecetteManuelle, type ChampEditable } from './Commandes';
 
 /**
  * Les onglets de « IA et Studios », rendus côté serveur à partir de données
@@ -59,7 +59,7 @@ export interface VueDetail {
   editables: ChampEditable[]; diff: { avec: VueVersion; champs: Array<{ libelle: string; lignes: Array<{ op: string; texte: string }> }> } | null;
 }
 
-export function EcranVersions({ onglet, cles, detail, peutEditer, plan }: { onglet: string; cles: VueCle[]; detail: VueDetail | null; peutEditer: boolean; plan: { aCreer: number; deja: number } | null }) {
+export function EcranVersions({ onglet, cles, detail, peutEditer, plan, brouillonsImportes = 0 }: { onglet: string; cles: VueCle[]; detail: VueDetail | null; peutEditer: boolean; plan: { aCreer: number; deja: number } | null; brouillonsImportes?: number }) {
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       {plan && peutEditer && (plan.aCreer > 0 || cles.length === 0) && (
@@ -68,6 +68,14 @@ export function EcranVersions({ onglet, cles, detail, peutEditer, plan }: { ongl
             {plan.aCreer} version(s) du pack embarqué ne sont pas encore au registre ({plan.deja} déjà présente(s) à l’identique). L’import crée des brouillons, n’active rien, et refuse tout conflit d’empreinte.
           </p>
           <BoutonCommande commande="importer" libelle="Importer en brouillon" succes="Import terminé · rien n’est actif tant qu’une release n’est pas publiée." />
+        </Bloc>
+      )}
+      {peutEditer && brouillonsImportes > 0 && (
+        <Bloc titre="Valider les brouillons importés" id="titre-valider-imports">
+          <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+            {brouillonsImportes} brouillon(s) viennent tels quels du pack embarqué. Les valider les fige ; chacun passe les mêmes contrôles qu’une validation unitaire et entre au journal. Un brouillon que tu as modifié n’est jamais pris ici.
+          </p>
+          <BoutonCommande commande="validerImports" libelle="Valider les brouillons importés" succes="Brouillons importés validés · tu peux créer la release." />
         </Bloc>
       )}
       {cles.length === 0 ? (
@@ -176,7 +184,7 @@ function DetailVersion({ onglet, d, peutEditer }: { onglet: string; d: VueDetail
 
 export interface VueRelease {
   id: string; statut: string; empreinte: string; packHash: string; creeLe: string; motif: string; pointee: boolean;
-  tests: boolean | null; benchmark: boolean; versions: number; conversation: string | null;
+  tests: boolean | null; benchmark: boolean; recetteManuelle: boolean; versions: number; conversation: string | null;
   /** Motif de révocation · `null` si la release n'est pas révoquée. */
   revocation: string | null;
 }
@@ -186,7 +194,7 @@ export function EcranReleases({ releases, pointee, environnement, peutPublier, p
   selection: Array<{ cle: string; version: string }>;
 }) {
   const regle = environnement === 'production'
-    ? 'Production · une release sans benchmark approuvé sur son empreinte ne peut pas devenir active.'
+    ? 'Production · une release ne devient active qu’avec un benchmark approuvé OU l’accord de recette manuelle sur son empreinte.'
     : 'Recette locale (drapeau serveur, base locale) · l’activation sans benchmark est permise pour prouver la chaîne. Jamais en production.';
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -216,10 +224,13 @@ export function EcranReleases({ releases, pointee, environnement, peutPublier, p
                 <dt style={{ color: 'var(--muted)' }}>Contenu</dt><dd style={{ margin: 0 }}>{r.versions} versions{r.conversation ? ` · Jarvis ${r.conversation}` : ''}</dd>
                 <dt style={{ color: 'var(--muted)' }}>Motif</dt><dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{r.motif || '·'}</dd>
                 <dt style={{ color: 'var(--muted)' }}>Tests</dt><dd style={{ margin: 0 }}>{r.tests === null ? 'Non évaluée' : r.tests ? 'Structurels réussis' : 'Structurels en échec'}</dd>
-                <dt style={{ color: 'var(--muted)' }}>Benchmark</dt><dd style={{ margin: 0 }}>{r.benchmark ? 'Approuvé' : 'Non exécuté · budget requis'}</dd>
+                <dt style={{ color: 'var(--muted)' }}>Benchmark</dt><dd style={{ margin: 0 }}>{r.benchmark ? 'Approuvé' : r.recetteManuelle ? 'Recette manuelle (sans benchmark) · accord du propriétaire' : 'Non exécuté · budget requis'}</dd>
               </dl>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
                 {r.statut === 'staged' && peutEvaluer && <BoutonCommande commande="evaluer" charge={{ releaseId: r.id }} libelle="Évaluer" succes="Évaluation enregistrée · voir l’onglet Évaluations." secondaire />}
+                {r.statut === 'staged' && peutPublier && !r.revocation && environnement === 'production' && r.tests === true && !r.benchmark && !r.recetteManuelle && (
+                  <BoutonRecetteManuelle releaseId={r.id} />
+                )}
                 {r.statut === 'staged' && peutPublier && !r.revocation && (
                   <BoutonConfirme geste="publier" releaseId={r.id} attendue={pointee} libelle="Publier la release" titre="Publier cette release ?"
                     explication={['Les prochaines conversations Jarvis et résolutions studio l’utiliseront.', 'Les jobs déjà devisés gardent leur release épinglée.', regle, 'Le geste est tracé dans l’audit.']} />

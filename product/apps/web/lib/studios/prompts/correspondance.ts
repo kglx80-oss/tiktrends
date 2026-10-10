@@ -175,6 +175,8 @@ export interface EvaluationStockee {
   releaseHash: string;
   testsStructurels: boolean;
   benchmarkApprouve: boolean;
+  /** Accord de recette manuelle du propriétaire (mise en service sans benchmark). */
+  recetteManuelle?: boolean;
   evaluationId?: string;
   approuvePar?: string;
   evalueeLe?: string;
@@ -183,7 +185,7 @@ export interface EvaluationStockee {
 export function lireEvaluation(brut: unknown): EvaluationStockee | null {
   const o = brut as Record<string, unknown> | null;
   if (!o || typeof o !== 'object' || typeof o.releaseHash !== 'string') return null;
-  return { ...(o as unknown as EvaluationStockee), testsStructurels: o.testsStructurels === true, benchmarkApprouve: o.benchmarkApprouve === true };
+  return { ...(o as unknown as EvaluationStockee), testsStructurels: o.testsStructurels === true, benchmarkApprouve: o.benchmarkApprouve === true, recetteManuelle: o.recetteManuelle === true };
 }
 
 /**
@@ -222,7 +224,7 @@ export function releaseDeLigne(l: LigneRelease): Release | null {
   if (l.status !== 'staged' && l.status !== 'active' && l.status !== 'retired') return null;
   const ev = lireEvaluation(l.evaluation);
   const evaluation: EvaluationRelease | undefined = ev && ev.releaseHash === l.releaseHash
-    ? { releaseHash: e.packHash, testsStructurels: ev.testsStructurels, benchmarkApprouve: ev.benchmarkApprouve, ...(ev.approuvePar ? { approuvePar: ev.approuvePar } : {}) }
+    ? { releaseHash: e.packHash, testsStructurels: ev.testsStructurels, benchmarkApprouve: ev.benchmarkApprouve, ...(ev.recetteManuelle ? { recetteManuelle: true } : {}), ...(ev.approuvePar ? { approuvePar: ev.approuvePar } : {}) }
     : undefined;
   return {
     id: l.id, portee: { niveau: 'plateforme' }, statut: l.status as StatutRelease, hash: e.packHash,

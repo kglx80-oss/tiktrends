@@ -44,6 +44,10 @@ export async function importerPackAction(): Promise<ReponseAdmin<{ crees: number
   return avec('prompt.draft', (g) => depot.importerPack(g.acteur));
 }
 
+export async function validerImportsAction(): Promise<ReponseAdmin<{ validees: number }>> {
+  return avec('prompt.draft', (g) => depot.validerImportsDuPack(g.acteur));
+}
+
 export async function enregistrerBrouillonAction(e: { baseId: unknown; champs: unknown; motif: unknown; empreinteAttendue?: unknown }): Promise<ReponseAdmin<{ id: string; version: string; nouvelle: boolean }>> {
   return avec('prompt.draft', (g) => depot.enregistrerBrouillon(g.acteur, { baseId: e?.baseId, champs: e?.champs, motif: e?.motif, empreinteAttendue: e?.empreinteAttendue }));
 }
@@ -91,4 +95,15 @@ export async function retirerReleaseAction(e: { releaseId: unknown; motif?: unkn
 export async function approuverBenchmarkAction(e: { releaseId: unknown; evaluationId: unknown; motif: unknown; confirme: unknown }): Promise<ReponseAdmin<{ releaseId: string; evaluationId: string }>> {
   if (e?.confirme !== true) return { ok: false, message: 'Confirme l’approbation du benchmark avant de l’envoyer.', constats: [] };
   return avec('prompt.evaluate', (g) => depot.approuverBenchmark(g.acteur, { releaseId: e.releaseId, evaluationId: e.evaluationId, motif: e.motif }));
+}
+
+/**
+ * Geste « Recette manuelle » · `prompt.publish`, plateforme seulement,
+ * confirmation explicite, motif obligatoire. Rend une release publiable en
+ * production sans benchmark (mandat du propriétaire du 10/10) ; rien n'est
+ * publié par ce geste.
+ */
+export async function approuverRecetteManuelleAction(e: { releaseId: unknown; motif: unknown; confirme: unknown }): Promise<ReponseAdmin<{ releaseId: string }>> {
+  if (e?.confirme !== true) return { ok: false, message: 'Confirme l’accord de recette manuelle avant de l’envoyer.', constats: [] };
+  return avec('prompt.publish', (g) => depot.approuverRecetteManuelle(g.acteur, { releaseId: e.releaseId, motif: e.motif }));
 }
