@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Banc D1 · FAUX docker. Journalise chaque appel avec son ÉTAPE, puis simule.
+# Aucune image, aucun conteneur, aucun réseau : rien n'est exécuté pour de vrai.
+#
+# Étapes reconnues (première colonne du journal) :
+#   construction   docker compose build …
+#   base           docker compose up … --no-recreate … db   (la base seule, jamais remplacée)
+#   etat_avant     docker compose exec … __drizzle_migrations /* etat-avant */ (lecture avant migration)
+#   sauvegarde     docker compose exec … pg_dump …                              (sauvegarde avant migration)
+#   migration      docker compose run … migrate
+#   verification   docker compose exec … __drizzle_migrations
+#   activation     tout autre `docker compose up` (conteneurs recréés)
+#   autre          le reste
+#
+# Comportements (variables du banc) :
+#   FAUX_BUILD=ok|ko            FAUX_UP=ok|ko
+#   FAUX_MIGRATION=ok|ko|muette (muette : code 0 sans rien appliquer, comme
+#                                drizzle qui ignore une migration au `when` trop ancien)
+#   FAUX_LECTURE_BASE=ok|ko     (psql de la vérification en échec)
+#   FAUX_LECTURE_AVANT=ok|ko    (psql de la lecture avant migration en échec)
+#   FAUX_SAUVEGARDE=ok|ko|vide  (pg_dump en échec, ou sortie vide)
+set -u
+J="${BANC_JOURNAL:?BANC_JOURNAL absent}"
+E="${BANC_ETAT:?BANC_ETAT absent}"
+ligne="docker $*"
+etape=autre
+if [ "${1:-}" = compose ]; then
+  shift
+  sous="${1:-}"
+  [ $# -gt 0 ] && shift
+  case "$sous" in
+    build) etape=construction ;;
+    run) case " $* " in *" migrate "*) etape=migration ;; *) etape=run ;; esac ;;
+    exec) case "$*" in
+            *etat-avant*) etape=etat_avant ;;
+            *__drizzle_migrations*) etape=verification ;;
+            *pg_dump*) etape=sauvegarde ;;
+            *) etape=exec ;;
+          esac ;;
+    up)
+      services=()
+      recree=1
+      for a in "$@"; do
+        case "$a" in
+          --no-recreate) recree=0 ;;
+          -*) ;;
+          *) services+=("$a") ;;
+        esac
+      done
+      if [ "$recree" = 0 ] && [ "${#services[@]}" = 1 ] && [ "${services[0]}" = db ]; then
+        etape=base
+      else
+        etape=activation
+      fi
+      ;;
+  esac
+fi
+# Issue simulée, décidée AVANT d'écrire la ligne : le journal dit si l'étape a réussi.
+code=0
+case "$etape" in
+  construction) [ "${FAUX_BUILD:-ok}" = ok ] || code=1 ;;
+  migration)    [ "${FAUX_MIGRATION:-ok}" = ko ] && code=1 ;;
+  verification) [ "${FAUX_LECTURE_BASE:-ok}" = ok ] || code=2 ;;
+  etat_avant)   [ "${FAUX_LECTURE_AVANT:-ok}" = ok ] || code=2 ;;
+  sauvegarde)   [ "${FAUX_SAUVEGARDE:-ok}" = ko ] && code=1 ;;
+  activation)   [ "${FAUX_UP:-ok}" = ok ] || code=1 ;;
+esac
+issue=ok; [ "$code" = 0 ] || issue=ko
+printf '%s\t%s\tBUILD_SHA=%s\tPROJET=%s\tissue=%s\n' \
+  "$etape" "$ligne" "${BUILD_SHA-<absent>}" "${COMPOSE_PROJECT_NAME-<absent>}" "$issue" >> "$J"
+
+if [ "$code" != 0 ]; then
+  echo "faux docker · $etape en échec (voulu)" >&2
+  exit "$code"
+fi
+case "$etape" in
+  migration)
+    # « muette » : code 0 sans rien appliquer (drizzle qui ignore une migration
+    # au `when` trop ancien). Sinon : applique le journal de l'arbre construit
+    # (le dossier courant est product/).
+    if [ "${FAUX_MIGRATION:-ok}" != muette ]; then
+      grep -oE '"when"[[:space:]]*:[[:space:]]*[0-9]+' packages/db/drizzle/meta/_journal.json \
+        | grep -oE '[0-9]+$' >> "$E/base"
+      sort -u -o "$E/base" "$E/base"
+    fi ;;
+  verification|etat_avant) cat "$E/base" ;;
+  # Un dump simulé : assez d'octets pour passer le seuil après gzip (sauf « vide »).
+  sauvegarde) [ "${FAUX_SAUVEGARDE:-ok}" = vide ] || { echo "-- faux dump"; head -c 3000 /dev/urandom | base64; } ;;
+esac
+exit 0

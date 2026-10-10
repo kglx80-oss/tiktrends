@@ -22,5 +22,11 @@ COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public
 EXPOSE 3000
+# Le commit servi, lisible aussi dans l'environnement du conteneur
+# (`docker compose exec web printenv BUILD_SHA`). Déclaré en DERNIER : il change
+# à chaque commit et n'invalide ainsi aucune couche de copie. Le bandeau de
+# diagnostic lit la valeur figée au build par `next.config`, pas celle-ci.
+ARG BUILD_SHA=""
+ENV BUILD_SHA=$BUILD_SHA
 # En sortie standalone monorepo, le serveur est apps/web/server.js
 CMD ["node", "apps/web/server.js"]

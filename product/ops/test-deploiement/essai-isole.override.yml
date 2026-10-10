@@ -1,0 +1,10 @@
+# Copie d'essai D1 · surcouche du compose de production pour un projet ISOLÉ.
+#
+# Utilisée seulement par la procédure « Vérifier le déploiement en réel sur une
+# copie isolée » (ops/README.md), avec COMPOSE_PROJECT_NAME=tiktrends-essai-d1 :
+# volumes et réseau sont alors préfixés par ce nom, rien n'est partagé avec la
+# production. Caddy (ports publics 80/443) est retiré du projet d'essai : un
+# service rangé dans un profil jamais activé n'est ni construit ni démarré.
+services:
+  caddy:
+    profiles: ["jamais-en-essai"]
