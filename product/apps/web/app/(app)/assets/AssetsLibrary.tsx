@@ -100,13 +100,14 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   const q = search.trim().toLowerCase();
   const filtered = assets
     .filter((a) => filter === 'all' || a.kind === filter)
-    .filter((a) => !q || a.name.toLowerCase().includes(q) || (a.tags || []).some((t) => t.toLowerCase().includes(q)));
+    .filter((a) => !q || a.name.toLowerCase().includes(q) || (a.tags || []).some((t) => t.toLowerCase().includes(q)) || !!a.studio?.projetTitre.toLowerCase().includes(q));
   const shown = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   // Un critère est actif dès qu'un filtre de type ou une recherche restreint la
   // vue · c'est ce qui déclenche « X sur Y » et le bouton Réinitialiser (CDC S13).
   const critereActif = filter !== 'all' || search.trim().length > 0;
   const reinitialiser = () => { setFilter('all'); setSearch(''); setPage(0); garderDansUrl('all', ''); };
-  const untagged = assets.filter((a) => a.kind === 'image' && (!a.tags || a.tags.length === 0)).length;
+  // Une sortie Studios (lecture seule) ne s'analyse pas ici · elle n'est pas dans la bibliothèque historique.
+  const untagged = assets.filter((a) => !a.studio && a.kind === 'image' && (!a.tags || a.tags.length === 0)).length;
   const refresh = () => startTransition(() => router.refresh());
 
   async function tagOne(a: AssetItem) {
@@ -352,8 +353,27 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
         )
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
-          {shown.map((a) => (
-            <div key={a.id} style={{ ...surface, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {shown.map((a) => a.studio ? (
+            // Sortie LIVRÉE d'un projet Studios · lecture seule. Ni suppression,
+            // ni bascule IA, ni template, ni analyse : ces gestes écrivent dans
+            // la bibliothèque historique, pas dans le projet. L'origine mène au projet.
+            <div key={a.id} data-asset-id={a.id} data-origine="studios" style={{ ...surface, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <MiniatureAsset kind={a.kind} url={a.url} thumbUrl={null} name={a.name} />
+              <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--muted)', flexWrap: 'wrap', minWidth: 0 }}>
+                  <span style={{ textTransform: 'uppercase', letterSpacing: '.04em' }}>{a.kind}</span>
+                  <span>·</span>
+                  <a href={a.studio.href} data-lien="projet" title={`Ouvrir le projet ${a.studio.projetTitre}`} style={{ color: 'var(--accent-strong)', fontWeight: 700, textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{a.studio.libelle}</a>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
+                  <span title="Sortie d'un projet Studios · elle se gère dans son projet" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11, color: 'var(--muted)', flex: 1 }}>Lecture seule</span>
+                  <a href={a.url} target="_blank" rel="noreferrer" data-lien="media" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: 'var(--muted)', textDecoration: 'none' }}>ouvrir ↗</a>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div key={a.id} data-asset-id={a.id} data-origine="bibliotheque" style={{ ...surface, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <MiniatureAsset kind={a.kind} url={a.url} thumbUrl={a.thumbUrl} name={a.name} />
               <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</div>

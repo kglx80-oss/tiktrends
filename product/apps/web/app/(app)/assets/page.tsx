@@ -3,9 +3,10 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { storageConfigured } from '@tiktrends/integrations';
-import { messageErreurConnexionDrive, etatConnexionDrive } from '@tiktrends/core';
+import { messageErreurConnexionDrive, etatConnexionDrive, fusionnerBibliotheque, LIMITE_BIBLIOTHEQUE } from '@tiktrends/core';
 import { listAssets } from '../../actions/assets';
 import { getDriveState } from '../../actions/drive';
+import { listerSortiesStudiosBibliotheque, sortieCommeAsset } from '../../../lib/studios/bibliotheque';
 import { PageInfo } from '../../../components/PageInfo';
 import { AssetsLibrary } from './AssetsLibrary';
 import { DriveConnect } from './DriveConnect';
@@ -21,16 +22,23 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
   const sp = (await searchParams) ?? {};
   const okDrive = sp.ok === 'drive';
   const isAdmin = roleAtLeast(s.role, 'admin');
-  const [assets, brand, driveState] = await Promise.all([
+  const [historique, studios, brand, driveState] = await Promise.all([
     listAssets(),
+    listerSortiesStudiosBibliotheque(),
     getActiveBrand(s.workspaceId),
     isAdmin ? getDriveState() : Promise.resolve(null),
   ]);
+  // Une seule bibliothèque · les sorties LIVRÉES des projets Studios (lecture
+  // seule, servies par leur route gardée) rejoignent les médias historiques,
+  // du plus récent au plus ancien (`fusionnerBibliotheque`, noyau).
+  const assets = fusionnerBibliotheque(historique, studios.map(sortieCommeAsset), LIMITE_BIBLIOTHEQUE);
+  const nStudios = assets.filter((a) => a.studio).length;
   // Copie client du retour Google · aucun nom de variable ni de protocole, et
   // jamais un geste absent de l'écran · le message suit l'état Drive AFFICHÉ
   // (recette #106 · `messageErreurConnexionDrive`, garde assets-retour-drive).
   const errDrive = typeof sp.e === 'string' && sp.e.startsWith('drive') ? messageErreurConnexionDrive(sp.e, etatConnexionDrive(driveState)) : '';
-  const imgCount = assets.filter((a) => a.kind === 'image').length;
+  // Mobilisables par l'IA · la bibliothèque historique seulement (une sortie Studios n'a pas de bascule IA).
+  const imgCount = assets.filter((a) => a.kind === 'image' && !a.studio).length;
   const storageOn = storageConfigured();
 
   return (
@@ -39,12 +47,13 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
         <h1 style={h1}>Assets</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>BIBLIOTHÈQUE</span>
         <span style={{ flex: 1 }} />
-        {/* Portée du compteur · médias de la BIBLIOTHÈQUE (importés ou téléversés).
-            Les créations générées (Pubs IA, Image IA) sont comptées ailleurs, pas ici (N09). */}
-        <span title="Médias importés ou téléversés dans la bibliothèque · les créations générées (Pubs IA, Image IA) sont comptées à part, pas dans ce total" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{assets.length} asset(s) en bibliothèque{imgCount ? ` · ${imgCount} image(s) mobilisable(s) par l'IA` : ''}</span>
+        {/* Portée du compteur · médias de la BIBLIOTHÈQUE (importés ou téléversés)
+            et sorties livrées des projets Studios. Les créations Pubs IA et
+            Image IA sont comptées ailleurs, pas ici (N09). */}
+        <span title="Médias importés ou téléversés, et sorties livrées des projets Studios · les créations Pubs IA et Image IA sont comptées à part, pas dans ce total" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{assets.length} asset(s) en bibliothèque{nStudios ? ` dont ${nStudios} issu(s) des Studios` : ''}{imgCount ? ` · ${imgCount} image(s) mobilisable(s) par l'IA` : ''}</span>
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 14 }}>
-        Tes rushs, images, vidéos, audio et imports (Drive, liens). {brand ? <>Rattachés à <b>{brand.name}</b> par défaut, ou communs à l'espace.</> : 'Communs à ton espace de travail.'}
+        Tes rushs, images, vidéos, audio et imports (Drive, liens), et les sorties livrées de tes projets Studios (en lecture seule). {brand ? <>Rattachés à <b>{brand.name}</b> par défaut, ou communs à l'espace.</> : 'Communs à ton espace de travail.'}
       </p>
       <PageInfo title="bibliothèque d'assets">
         Centralise ici tes médias. Les <b>images</b> marquées « IA » servent automatiquement de références lors des
