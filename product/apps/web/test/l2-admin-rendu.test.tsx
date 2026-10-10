@@ -139,7 +139,7 @@ describe('écrans remplis', () => {
     expect(html).toContain('Évaluer');
     expect(html).toContain('Publier la release');
     expect(html).toContain('Non exécuté · budget requis');
-    expect(html).toMatch(/Production · une release sans benchmark approuvé/);
+    expect(html).toMatch(/Production · une release ne devient active qu’avec un benchmark approuvé OU l’accord de recette manuelle/);
   });
 
   it('Recettes · les huit recettes du pack', async () => {

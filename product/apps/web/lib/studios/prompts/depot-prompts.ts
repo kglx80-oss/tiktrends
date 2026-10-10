@@ -31,7 +31,7 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   autorise, constat, controlerNouvelleVersion, controlerPublication, empreinteContenu, entreesDuPack,
-  planifierImport, publierRelease as publierNoyau, resoudreReleaseEvaluation, retirerRelease as retirerNoyau,
+  planifierImport, controlerRecetteManuelle, publierRelease as publierNoyau, resoudreReleaseEvaluation, retirerRelease as retirerNoyau,
   rollbackRelease as rollbackNoyau, sha256Texte, transitionVersion, POLITIQUE_SERVEUR,
   type Constat, type Octroi, type PackPrompts, type Pointeur, type Release, type EntreeRelease,
 } from './noyau';
@@ -209,6 +209,35 @@ export async function planImportPack(ex: Ex = db): Promise<Res<PlanImportServeur
  * Importe le pack embarqué en brouillons · UNE transaction, audit compris.
  * Second passage : rien à créer, rien d'écrit. Conflit : rien d'écrit.
  */
+/** Raison écrite sur chaque brouillon créé par l'import du pack embarqué courant. */
+export function raisonImportPack(): string {
+  const s = chargerSource();
+  return `Import du pack ${s.pack.packId}@${s.pack.version} en brouillon`;
+}
+
+/** Brouillons créés par l'import du pack courant, jamais retouchés (un brouillon édité porte sa propre raison). */
+export async function brouillonsImportes(ex: Ex = db): Promise<LigneVersionBase[]> {
+  const raison = raisonImportPack();
+  return (await listerVersions(ex)).filter((l) => l.status === 'draft' && l.reason === raison);
+}
+
+/**
+ * Valide d'un geste les brouillons IMPORTÉS du pack embarqué (mise en service,
+ * mandat du 10/10) · chacun passe par `validerVersion` (mêmes contrôles, même
+ * audit) ; un brouillon édité par un ADMIN n'est jamais pris. `prompt.draft`.
+ */
+export async function validerImportsDuPack(a: Acteur): Promise<Res<{ validees: number }>> {
+  if (!autorise(a.octrois, 'prompt.draft', PLATEFORME)) return interdit('prompt.draft');
+  let validees = 0;
+  const echecs: Array<{ code: string; cible: string; message: string }> = [];
+  for (const l of await brouillonsImportes()) {
+    const v = await validerVersion(a, { id: l.id });
+    if (v.ok) validees += 1;
+    else echecs.push(...v.constats.map((c) => ({ code: c.code, cible: `${l.key}@${l.version} · ${c.cible}`, message: c.message })));
+  }
+  return echecs.length ? refus2(echecs) : { ok: true as const, validees };
+}
+
 export async function importerPack(a: Acteur): Promise<Res<{ crees: number; dejaPresentes: number }>> {
   if (!autorise(a.octrois, 'prompt.draft', PLATEFORME)) return interdit('prompt.draft');
   const s = chargerSource();
@@ -218,7 +247,7 @@ export async function importerPack(a: Acteur): Promise<Res<{ crees: number; deja
     const plan = planifier(entrees(await listerVersions(tx)));
     if (!plan.ok) return plan;
     if (plan.aCreer.length === 0) return { ok: true as const, crees: 0, dejaPresentes: plan.dejaPresentes.length };
-    const raison = `Import du pack ${s.pack.packId}@${s.pack.version} en brouillon`;
+    const raison = raisonImportPack();
     await tx.insert(V).values(plan.aCreer.map((e) => ({
       key: e.cle, version: versionVersEntier(e.version)!, kind: kindDe(e.type), scope: 'platform' as const,
       status: 'draft' as const, content: e.contenu, contentHash: e.contentHash, origin: e.origine.slice(0, 500),
@@ -770,3 +799,35 @@ export async function approuverBenchmark(a: Acteur, e: { releaseId: unknown; eva
 }
 
 const refus2 = (c: ReadonlyArray<{ code: string; cible: string; message: string }>) => refus(c.map((x) => constat(x.code, x.cible, x.message)));
+
+/**
+ * Geste ADMIN « Recette manuelle » · le propriétaire met une release en service
+ * SANS benchmark (mandat du 10/10). Pose `evaluation.recetteManuelle` sur une
+ * release `staged` dont les tests structurels ont réussi sur CETTE empreinte.
+ * Nominatif (`prompt.publish`, plateforme), motif obligatoire, audit. Aucune
+ * publication : le pointeur et le statut ne bougent pas.
+ */
+export async function approuverRecetteManuelle(a: Acteur, e: { releaseId: unknown; motif: unknown }): Promise<Res<{ releaseId: string }>> {
+  if (!estUuid(e.releaseId)) return refusUn('NOT_FOUND', '', 'Release introuvable.');
+  const motif = typeof e.motif === 'string' ? e.motif.trim().slice(0, 2000) : '';
+  return db.transaction(async (tx) => {
+    const [l] = await tx.select().from(R).where(eq(R.id, e.releaseId as string)).for('update');
+    if (!l || l.scope !== 'platform') return refusUn('NOT_FOUND', '', 'Release introuvable.');
+    const ev = lireEvaluation(l.evaluation);
+    const surCetteEmpreinte = !!ev && ev.releaseHash === l.releaseHash;
+    const refus = controlerRecetteManuelle({
+      release: {
+        id: l.id, statut: l.status as Parameters<typeof controlerRecetteManuelle>[0]['release']['statut'], revoquee: !!lireRevocation(l.evaluation),
+        testsStructurels: surCetteEmpreinte && ev!.testsStructurels, benchmarkApprouve: surCetteEmpreinte && ev!.benchmarkApprouve, recetteManuelle: surCetteEmpreinte && ev!.recetteManuelle === true,
+      },
+      octrois: a.octrois, approbateur: a.userId, motif,
+    });
+    if (refus.length) return refus2(refus);
+    const rev = (l.evaluation as { revocation?: unknown } | null)?.revocation;
+    const evaluation = { ...((l.evaluation as Record<string, unknown> | null) ?? {}), recetteManuelle: true, recetteManuellePar: a.userId, recetteManuelleLe: new Date().toISOString(), ...(rev ? { revocation: rev } : {}) };
+    const maj = await tx.update(R).set({ evaluation, updatedAt: new Date() }).where(and(eq(R.id, l.id), eq(R.status, 'staged'), eq(R.releaseHash, l.releaseHash))).returning({ id: R.id });
+    if (maj.length !== 1) return refusUn('VERSION_CONFLICT', l.id, 'La release a changé pendant l’accord.');
+    await audit(tx, a, { action: 'prompt.recette_manuelle.approuver', targetType: 'prompt_release', targetId: l.id, avant: 'non_utilisable_en_production', apres: 'recette_manuelle', raison: motif, details: { releaseHash: l.releaseHash } });
+    return { ok: true as const, releaseId: l.id };
+  });
+}

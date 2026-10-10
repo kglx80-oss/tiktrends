@@ -75,7 +75,7 @@ export default async function IaStudiosPage({ searchParams }: { searchParams: Pr
     if (onglet === 'prompts' || onglet === 'recettes') {
       const types = onglet === 'recettes' ? (['recette'] as const) : (['template', 'conversation', 'socle', 'rendu'] as const);
       const v = await vueVersions(types, sp.cle ?? null, sp.v ?? null, sp.comparer ?? null);
-      contenu = <EcranVersions onglet={onglet} cles={v.cles} detail={v.detail} peutEditer={peut('prompt.draft')} plan={v.plan} />;
+      contenu = <EcranVersions onglet={onglet} cles={v.cles} detail={v.detail} peutEditer={peut('prompt.draft')} plan={v.plan} brouillonsImportes={v.brouillonsImportes} />;
     } else if (onglet === 'releases') {
       const r = await vueReleases();
       contenu = <EcranReleases releases={r.releases} pointee={r.pointee} environnement={environnement} selection={r.selection}

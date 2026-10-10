@@ -25,7 +25,7 @@ function empreintesSource(): Set<string> {
   return new Set([...Object.values(s.empreintes.templates), ...Object.values(s.empreintes.recettes), s.empreintes.commonSystemHash, s.empreintes.rendering, ...s.complement.map((c) => c.contentHash)]);
 }
 
-export async function vueVersions(types: readonly TypeEntree[], cleChoisie: string | null, versionChoisie: string | null, comparer: string | null): Promise<{ cles: VueCle[]; detail: VueDetail | null; plan: { aCreer: number; deja: number } | null }> {
+export async function vueVersions(types: readonly TypeEntree[], cleChoisie: string | null, versionChoisie: string | null, comparer: string | null): Promise<{ cles: VueCle[]; detail: VueDetail | null; plan: { aCreer: number; deja: number } | null; brouillonsImportes: number }> {
   const lignes = await depot.listerVersions();
   const source = empreintesSource();
   const parCle = new Map<string, VueCle>();
@@ -66,7 +66,9 @@ export async function vueVersions(types: readonly TypeEntree[], cleChoisie: stri
       diff: autre ? { avec: autre, champs: diffVersions(type, lignesParId.get(autre.id)!.content, contenu).map((d) => ({ libelle: d.libelle, lignes: d.lignes })) } : null,
     };
   }
-  return { cles, detail, plan: plan.ok ? { aCreer: plan.aCreer.length, deja: plan.dejaPresentes.length } : null };
+  const raisonImport = depot.raisonImportPack();
+  const brouillonsImportes = lignes.filter((l) => l.status === 'draft' && l.reason === raisonImport).length;
+  return { cles, detail, plan: plan.ok ? { aCreer: plan.aCreer.length, deja: plan.dejaPresentes.length } : null, brouillonsImportes };
 }
 
 export async function vueReleases(): Promise<{ releases: VueRelease[]; pointee: string | null; selection: Array<{ cle: string; version: string }> }> {
@@ -79,7 +81,7 @@ export async function vueReleases(): Promise<{ releases: VueRelease[]; pointee: 
     const conv = e?.conversations.find((c) => c.cle === 'jarvis.conversation');
     return {
       id: l.id, statut: l.status, empreinte: l.releaseHash, packHash: e?.packHash ?? '', creeLe: date(l.createdAt), motif: l.reason, pointee: l.id === pointee,
-      tests: valide ? valide.testsStructurels : null, benchmark: !!valide?.benchmarkApprouve,
+      tests: valide ? valide.testsStructurels : null, benchmark: !!valide?.benchmarkApprouve, recetteManuelle: !!valide?.recetteManuelle,
       versions: e ? e.templates.length + e.recettes.length + e.conversations.length + 2 : 0, conversation: conv ? conv.version : null,
       revocation: lireRevocation(l.evaluation)?.motif ?? null,
     };

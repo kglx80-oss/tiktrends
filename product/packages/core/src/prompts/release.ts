@@ -155,6 +155,46 @@ export interface EvaluationRelease {
   testsStructurels: boolean;
   benchmarkApprouve: boolean;
   approuvePar?: string;
+  /**
+   * Mise en service SANS benchmark, décidée par le propriétaire (mandat du
+   * 10/10 : « la recette Docker isolée et le benchmark ne sont plus des
+   * préalables à la mise en ligne ; tests manuels après déploiement »).
+   * Geste ADMIN nominatif, motif obligatoire, audité ; exige les tests
+   * structurels réussis sur la même empreinte. Affiché tel quel dans l'admin.
+   */
+  recetteManuelle?: boolean;
+}
+
+/**
+ * Une release peut-elle devenir (ou redevenir) active en PRODUCTION ? Il faut
+ * une évaluation de CETTE empreinte, et soit un benchmark approuvé, soit
+ * l'accord de recette manuelle du propriétaire.
+ */
+export function utilisableEnProduction(r: Pick<Release, 'hash' | 'evaluation'>): boolean {
+  const ev = r.evaluation;
+  return !!ev && ev.releaseHash === r.hash && (ev.benchmarkApprouve || ev.recetteManuelle === true);
+}
+
+/**
+ * Motifs qui interdisent l'accord de recette manuelle sur une release · vide =
+ * accordable. Pas de dépense ni de publication ici : la release reste `staged`.
+ */
+export function controlerRecetteManuelle(args: {
+  release: { id: string; statut: StatutRelease; revoquee: boolean; testsStructurels: boolean; benchmarkApprouve: boolean; recetteManuelle: boolean };
+  octrois: ReadonlyArray<Octroi>;
+  approbateur: string | null;
+  motif: string;
+}): Constat[] {
+  const { release: r } = args;
+  const sortie: Constat[] = [];
+  if (!autorise(args.octrois, 'prompt.publish', { niveau: 'plateforme' })) sortie.push(refus('prompt.publish', { niveau: 'plateforme' }));
+  if (!args.approbateur) sortie.push(constat('APPROBATEUR_ABSENT', r.id, 'L’accord de recette manuelle porte le nom d’une personne.'));
+  if (!args.motif.trim()) sortie.push(constat('MOTIF_ABSENT', r.id, 'Indique pourquoi cette release part sans benchmark.'));
+  if (r.statut !== 'staged') sortie.push(constat('RELEASE_NON_STAGED', r.id, `Seule une release en attente reçoit cet accord (statut ${r.statut}).`));
+  if (r.revoquee) sortie.push(constat('RELEASE_REVOQUEE', r.id, 'Release révoquée.'));
+  if (!r.testsStructurels) sortie.push(constat('TESTS_STRUCTURELS_ABSENTS', r.id, 'Tests structurels non réussis sur cette empreinte · lancer l’évaluation d’abord.'));
+  if (r.benchmarkApprouve || r.recetteManuelle) sortie.push(constat('DEJA_UTILISABLE', r.id, 'Cette release est déjà utilisable en production.'));
+  return sortie;
 }
 
 export interface Release {
@@ -288,8 +328,8 @@ export function controlerPublication(args: {
   if (hash !== r.hash) sortie.push(constat('RELEASE_EMPREINTE_FAUSSE', r.id, 'L’empreinte de la release ne correspond pas à son contenu.'));
   const ev = r.evaluation;
   if (!ev || ev.releaseHash !== r.hash || !ev.testsStructurels) sortie.push(constat('TESTS_STRUCTURELS_ABSENTS', r.id, 'Tests structurels non réussis sur cette empreinte de release.'));
-  if (args.environnement === 'production' && (!ev || ev.releaseHash !== r.hash || !ev.benchmarkApprouve)) {
-    sortie.push(constat('BENCHMARK_NON_APPROUVE', r.id, 'Une release non évaluée ne devient pas active en production.'));
+  if (args.environnement === 'production' && !utilisableEnProduction(r)) {
+    sortie.push(constat('BENCHMARK_NON_APPROUVE', r.id, 'Une release sans benchmark approuvé ni accord de recette manuelle ne devient pas active en production.'));
   }
   return sortie;
 }
@@ -336,7 +376,7 @@ export function rollbackRelease(args: {
   if (!memePortee(args.pointeur.portee, r.portee)) constats.push(constat('PORTEE_INCOHERENTE', r.id, 'Rollback hors de la portée de la release.'));
   if (args.pointeur.releaseId !== args.attendue) constats.push(constat('VERSION_CONFLICT', r.id, 'La release active a changé depuis l’ouverture.'));
   if (args.pointeur.releaseId === r.id) constats.push(constat('ROLLBACK_SANS_EFFET', r.id, 'Cette release est déjà active.'));
-  if (args.environnement === 'production' && (!r.evaluation?.benchmarkApprouve || r.evaluation.releaseHash !== r.hash)) {
+  if (args.environnement === 'production' && !utilisableEnProduction(r)) {
     constats.push(constat('BENCHMARK_NON_APPROUVE', r.id, 'Rollback vers une release non évaluée refusé en production.'));
   }
   if (constats.length > 0) return { ok: false, constats };

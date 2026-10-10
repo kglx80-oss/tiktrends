@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Modal } from '../../../../components/Modal';
 import {
   importerPackAction, validerVersionAction, evaluerReleaseAction, retirerReleaseAction, creerReleaseAction,
-  publierReleaseAction, rollbackReleaseAction, revoquerReleaseAction, enregistrerBrouillonAction, approuverBenchmarkAction, type ReponseAdmin,
+  publierReleaseAction, rollbackReleaseAction, revoquerReleaseAction, enregistrerBrouillonAction, validerImportsAction, approuverBenchmarkAction, approuverRecetteManuelleAction, type ReponseAdmin,
 } from '../../../actions/studios/prompts';
 import { approuverBudgetBenchmarkAction, joindreFichesBenchmarkAction, type ReponseBenchmark } from '../../../../lib/studios/benchmark/actions';
 
@@ -41,9 +41,10 @@ const champ: CSSProperties = {
   background: 'var(--paper)', color: 'var(--ink)', fontSize: 16, fontFamily: 'inherit', lineHeight: 1.5,
 };
 
-type Commande = 'importer' | 'valider' | 'evaluer' | 'retirer' | 'creerRelease';
+type Commande = 'importer' | 'validerImports' | 'valider' | 'evaluer' | 'retirer' | 'creerRelease';
 const ACTIONS: Record<Commande, (p: never) => Promise<ReponseAdmin<Record<string, unknown>>>> = {
   importer: importerPackAction as never,
+  validerImports: validerImportsAction as never,
   valider: validerVersionAction as never,
   evaluer: evaluerReleaseAction as never,
   retirer: retirerReleaseAction as never,
@@ -336,6 +337,45 @@ export function BoutonBenchmarkApprouve({ releaseId, evaluations }: { releaseId:
         </div>
       </Modal>
       <Retour r={r} succes="Benchmark approuvé · la release reste en attente, à publier par un geste séparé." />
+    </div>
+  );
+}
+
+/**
+ * Geste « Recette manuelle » · le propriétaire met cette release en service
+ * SANS benchmark (mandat du 10/10, tests manuels après déploiement).
+ * Confirmation explicite, motif obligatoire, nominatif et audité.
+ */
+export function BoutonRecetteManuelle({ releaseId }: { releaseId: string }) {
+  const [motif, setMotif] = useState('');
+  const [ouvert, setOuvert] = useState(false);
+  const [r, setR] = useState<ReponseAdmin<Record<string, unknown>> | null>(null);
+  const [enCours, demarrer] = useTransition();
+  const router = useRouter();
+  const id = useId();
+  const confirmer = () => demarrer(async () => {
+    const x = await sansPanne(() => approuverRecetteManuelleAction({ releaseId, motif, confirme: true }));
+    setR(x as ReponseAdmin<Record<string, unknown>>);
+    setOuvert(false);
+    if (x.ok) router.refresh();
+  });
+  return (
+    <div style={{ display: 'grid', gap: 8, width: '100%' }}>
+      <div><label htmlFor={`${id}-motif`} style={etiquette}>Motif de la mise en service sans benchmark (entre dans l’audit)</label>
+        <input id={`${id}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} style={champ} /></div>
+      <div><button type="button" style={{ ...boutonSecondaire, opacity: motif.trim() ? 1 : 0.6 }} disabled={!motif.trim()} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Recette manuelle…</button></div>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Mettre cette release en service sans benchmark ?" subtitle="Décision nominative du propriétaire · tracée dans l’audit." maxWidth={520}>
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+          <li>La release devient publiable en production sans benchmark réel ; la qualité sera jugée par les tests manuels.</li>
+          <li>Le serveur revérifie : release en attente, non révoquée, tests structurels réussis sur cette empreinte.</li>
+          <li>Rien n’est publié automatiquement : « Publier la release » reste un geste séparé.</li>
+        </ul>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 16 }}>
+          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
+          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : 'Accorder la recette manuelle'}</button>
+        </div>
+      </Modal>
+      <Retour r={r} succes="Accord enregistré · la release peut maintenant être publiée." />
     </div>
   );
 }
