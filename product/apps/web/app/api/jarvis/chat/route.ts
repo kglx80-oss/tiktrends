@@ -12,6 +12,7 @@ import { guardedAnthropic, SpendBlockedError } from '../../../../lib/spend-guard
 import { resoudreConversationJarvis, consignerRunConversation } from '../../../../lib/studios/prompts/resolveur';
 import { assemblerConsigneJarvis } from '../../../../lib/studios/prompts/conversation';
 import type { SourceTrace } from '../../../../lib/studios/prompts/traces';
+import { blocProjetsJarvis } from '../../../../lib/studios/jarvis-projets';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,6 +42,10 @@ export const maxDuration = 120;
  * bloc de connaissances) reste une politique du code. Chaque tour laisse une
  * trace `studio_prompt_runs` (release, version, empreintes, sources, coût) ·
  * jamais la question ni la réponse en clair.
+ *
+ * Les projets Studios de la marque active y entrent comme un bloc de données
+ * (avant les règles maison) · lus sous les gardes de l'écran « Projets »,
+ * bornés par le noyau (`resumerProjetsPourJarvis`), vides sans droit ni projet.
  *
  * Elle n'est jamais stockée avec le fil. La mémoire de la marque bouge — un
  * verdict arbitré, une créa décrite, une accroche réfutée — et une consigne
@@ -94,7 +99,7 @@ export async function POST(req: Request) {
     ]);
 
     const voitMemoire = canAccess(effectiveAccess(s), adsmap);
-    const [memoire, stats, ligne, ws] = await Promise.all([
+    const [memoire, stats, ligne, ws, projets] = await Promise.all([
       voitMemoire ? jarvisFullMemory(brand.id, s.workspaceId).catch(() => '') : Promise.resolve(''),
       voitMemoire ? jarvisStats(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
       db.select({
@@ -102,6 +107,10 @@ export async function POST(req: Request) {
         usp: schema.brands.usp, audience: schema.brands.audience,
       }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1),
       db.select({ onboarding: schema.workspaces.onboarding }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
+      // Les projets Studios de la marque, sous les gardes de l'écran « Projets »
+      // (portée espace + marque + restrictions, capacité) · bloc court et borné
+      // (règle pure du noyau), vide sans droit ni projet. Jamais bloquant.
+      blocProjetsJarvis(brand.id).catch(() => ''),
     ]);
     const b = ligne[0];
     // Le niveau déclaré à l'accueil règle le registre d'explication de Jarvis ·
@@ -122,6 +131,7 @@ export async function POST(req: Request) {
       canPropose: voitMemoire,
       niveau,
       blocActions: actionsPromptBlock(),
+      blocProjets: projets,
     };
     const { system, inclus } = await consigneAvecConnaissances(assemblerConsigneJarvis(resolution.politique, donnees), { workspaceId: s.workspaceId, brandId: brand.id });
 
@@ -185,7 +195,7 @@ export async function POST(req: Request) {
           await consignerRunConversation({
             resolution, portee: { workspaceId: s.workspaceId, brandId: brand.id }, traceId: `jv_${crypto.randomUUID()}`, modele: MODEL,
             system, messages: fil,
-            contexte: { marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref) },
+            contexte: { marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref), ...(projets ? { projets: empreinte(projets) } : {}) },
             sources, reponse: complet, statut, latenceMs: Date.now() - debut, jetons, coutUsd: costOfTokens(MODEL, jetons.entree, jetons.sortie),
           }).catch((e) => console.error('[jarvis:chat] trace', (e as Error).message));
           ctrl.close();

@@ -116,6 +116,12 @@ export interface DonneesConversation {
   niveau?: NiveauRegistre | null;
   /** Bloc d'actions · produit par le code (`actionsPromptBlock`), contrat du lecteur de marqueurs. */
   blocActions: string;
+  /**
+   * Projets Studios de la marque · produit par le noyau (`resumerProjetsPourJarvis`),
+   * déjà borné et lu sous les gardes de portée. Vide ou absent : rien n'est ajouté,
+   * la consigne reste identique à celle d'avant.
+   */
+  blocProjets?: string | null;
 }
 
 /** Plafonds des DONNÉES insérées · repris de l'assemblage d'avant. */
@@ -141,7 +147,7 @@ function prudence(s: SectionsConversation, n: number): string {
 
 /**
  * La consigne système de la conversation. Ordre : socle, marque, mémoire,
- * prudence, registre, où envoyer, actions, règles maison EN DERNIER.
+ * prudence, registre, où envoyer, actions, projets Studios, règles maison EN DERNIER.
  */
 export function assemblerConsigneJarvis(p: Pick<PolitiqueConversation, 'sections'>, d: DonneesConversation): string {
   const s = p.sections;
@@ -156,6 +162,7 @@ export function assemblerConsigneJarvis(p: Pick<PolitiqueConversation, 'sections
   else if (d.niveau === 'avance') blocs.push(s.registreAvance);
   if (d.canAdsmap) blocs.push(s.ouEnvoyer);
   if (d.canPropose) blocs.push(d.blocActions);
+  if (d.blocProjets?.trim()) blocs.push(d.blocProjets.trim());
   if (d.rules?.trim()) blocs.push(`${s.titreRegles}\n${d.rules.trim().slice(0, PLAFONDS_CONVERSATION.regles)}`);
   return blocs.join(SEPARATEUR_CONSIGNE);
 }

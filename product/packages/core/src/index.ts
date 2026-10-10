@@ -193,5 +193,6 @@ export * from './studios/ux/image-etats';
 export * from './engagement-essai';
 export * from './depense-reconciliation-geste';
 export * from './studios/interrupteurs';
+export * from './studios/jarvis-projets';
 export * from './essai-reconcilie';
 export * from './studios/bibliotheque';
