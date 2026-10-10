@@ -166,8 +166,14 @@ aucune commande payante), en deux phases :
 1. **lecture seule**, rien n'est construit, démarré ni écrit : mémoire et disque au-dessus des seuils ; fichier d'environnement présent, `POSTGRES_PASSWORD` (hexadécimal) et `AUTH_SECRET` posés, sans clé payante ; **aucune clé payante dans ton shell** (fais `unset FAL_KEY ANTHROPIC_API_KEY STUDIO_FOURNISSEUR_REEL` avant) ; configuration résolue (ports sur 127.0.0.1 seulement, volumes et réseaux préfixés `tiktrends-recette`, aucun `.env.deploy`) ; port 3101 publié par aucun autre projet ; conteneurs déjà présents du projet sans montage étranger ;
 2. **seulement si tout est OK** : construction, démarrage, inspection des conteneurs (aucun volume, réseau ou montage hors du projet de recette), migrations, `ffprobe` et `ffmpeg` dans le worker, sonde vidéo publiée PUIS relue en base, site de recette qui répond sur `127.0.0.1:3101` et nulle part ailleurs, registre du budget lisible.
 
-**Le premier ÉCHEC arrête tout, sur-le-champ** : aucun build, démarrage,
-commande ni écriture ne suit. L'inspection des conteneurs vérifie d'abord que
+**Le premier ÉCHEC arrête tout, sur-le-champ** : aucune étape SUIVANTE ne
+s'exécute. Attention à la phase où il survient : un échec en **phase 1**
+arrive avant toute construction et tout démarrage ; un échec en **phase 2**
+peut arriver APRÈS que des conteneurs de recette ont été construits et
+démarrés (isolement, migrations, ffmpeg, sonde, site). Ils restent alors en
+place : vérifie avec `docker compose -p tiktrends-recette -f docker-compose.recette.yml --env-file ops/recette/.env.recette ps`,
+puis arrête-les (`… down`, sans `-v` pour garder la base de recette) ou
+détruis la recette (§7), selon la cause, avant de relancer. L'inspection des conteneurs vérifie d'abord que
 `docker ps` PUIS chaque `docker inspect` ont réussi et rendu une sortie
 lisible : un échec ou un message inattendu n'est jamais pris pour « aucun
 partage » (E4).
@@ -240,9 +246,15 @@ Ce qui se passe, dans l'ordre : devis recalculé et budget revérifié, registre
 approbation, moteur du worker, fal, décodage réel des pixels, dépôt et
 relecture du fichier, **contrôle visuel**, registre mis à jour, rapport.
 
-**Reprises, sans double facturation.** Relance toujours **la même commande**
-(une reprise ne demande pas de nouvelle confirmation : elle ne dépense que ce
-qui était déjà approuvé, et revérifie le budget) :
+**Reprises.** Une relance n'est PAS une garantie générale contre la double
+facturation. **Avant toute relance après une interruption**, lis l'état :
+`recette:budget` (engagé, réglé, **incertain**, restant) et le rapport. Une
+dépense **incertaine** (coupure, délai, 5xx pendant un appel payant) se
+rapproche d'abord de la facture du fournisseur (§4.8, écran « À réconcilier »)
+: tant qu'elle ne l'est pas, ne relance rien qui la concerne. Dans les cas
+SUIVANTS seulement, l'état est connu et la même commande reprend sans nouvelle
+confirmation (elle ne dépense que ce qui était déjà approuvé et revérifie le
+budget au registre) :
 
 - job encore en cours (code 3) ⇒ elle reprend le même job, sans nouvelle compilation, ni devis, ni approbation, ni seconde soumission à fal ;
 - image produite mais contrôle visuel pas fait (interruption) ⇒ elle lance **seulement le contrôle visuel manquant** (aucune génération, aucun devis), dans le budget restant ;
@@ -256,6 +268,10 @@ Un second rendu payant demande `--nouveau-rendu` et une nouvelle confirmation.
 - `ops/recette/sorties/rapport-pas1.md` · identifiants ; le **coût en trois colonnes** (estimation, réservation maximale, coût réglé, et l'incertain à part) ; les lignes `ai_spend` ; l'état du job ; le **contrôle visuel** (exécuté, repris, refusé et pourquoi) ; empreinte SHA-256 et dimensions du livrable ; le **budget cumulatif restant** ;
 - `ops/recette/sorties/a-transmettre/recette-pas1-<job>.png` · **l'image livrée, copiée à ce chemin pour être transmise au relecteur** ;
 - le rapport ne contient aucune valeur sensible (clés, mots de passe, adresse de base) : elles sont masquées avant écriture, et un test le vérifie.
+
+**Le budget restant se LIT, il ne se suppose jamais** : avant chaque commande
+payante, `recette:budget` (§4.8) donne le restant réel du plafond total de
+15 $ (antérieur, réglé, engagé et incertain déduits).
 
 **Le pas 1 est réussi** quand tout est vrai :
 
