@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { CAPACITES_STUDIOS, CIBLE_TACTILE_MIN, DEFINITIONS_CAPACITES, EXPERIENCES_TOUJOURS_ACTIVES, type DecisionCapacite, type SourceDecision } from '@tiktrends/core';
 import type { LigneEspaceInterrupteurs, VueInterrupteurs } from '../../../../lib/studios/interrupteurs';
 import { h1 } from '../../../../components/ui';
-import { FormulaireEspace } from './Formulaire';
+import { FormulaireBudgetEssai, FormulaireEspace } from './Formulaire';
 
 /**
  * ADMIN · « Interrupteurs Studios » · présentation seule (rendue telle quelle
@@ -59,7 +59,32 @@ export function EnTeteInterrupteurs({ retour = { href: '/admin', libelle: '← T
   );
 }
 
-export function EcranInterrupteurs({ vue, detail, peutEcrire, recherche }: { vue: VueInterrupteurs; detail: LigneEspaceInterrupteurs | null; peutEcrire: boolean; recherche: string }) {
+/** Budget d'essai d'un espace, sérialisable pour l'écran (montants en dollars). */
+export interface BudgetEssaiAffiche { plafondUsd: number; depuis: string; engageUsd: number; restantUsd: number; motif: string }
+
+const usd = (n: number) => `${n.toFixed(2).replace('.', ',')} $`;
+
+/**
+ * Budget d'ESSAI de l'espace · ce que la barrière vérifie avant chaque appel
+ * payant de cet espace (site et worker), en plus du plafond global.
+ */
+export function BlocBudgetEssai({ budget, workspaceId, nom, peutEcrire }: { budget: BudgetEssaiAffiche | null; workspaceId: string; nom: string; peutEcrire: boolean }) {
+  return (
+    <div style={{ ...carte, marginTop: 14 }} data-budget-essai={budget ? 'pose' : 'absent'}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Budget d’essai de l’espace</span>
+      {budget ? (
+        <p style={texte} data-budget-restant={budget.restantUsd.toFixed(2)}>
+          <strong style={{ color: 'var(--ink)' }}>{usd(budget.engageUsd)} engagés sur {usd(budget.plafondUsd)}</strong> · reste {usd(budget.restantUsd)} · cumul depuis le {new Date(budget.depuis).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}, toutes dépenses IA de l’espace comprises (réservations incertaines au maximum). Motif · {budget.motif || '·'}
+        </p>
+      ) : (
+        <p style={texte}>Aucun budget d’essai · seul le plafond global de l’application borne la dépense de cet espace.</p>
+      )}
+      {peutEcrire && <FormulaireBudgetEssai workspaceId={workspaceId} nom={nom} plafondActuel={budget?.plafondUsd ?? null} />}
+    </div>
+  );
+}
+
+export function EcranInterrupteurs({ vue, detail, peutEcrire, recherche, budget = null }: { vue: VueInterrupteurs; detail: LigneEspaceInterrupteurs | null; peutEcrire: boolean; recherche: string; budget?: BudgetEssaiAffiche | null }) {
   return (
     <div>
       <Bloc titre="Capacités et état général" id="capacites">
@@ -106,6 +131,7 @@ export function EcranInterrupteurs({ vue, detail, peutEcrire, recherche }: { vue
           {peutEcrire
             ? <FormulaireEspace workspaceId={detail.id} nom={detail.nom} actives={detail.reglages.actives} coupees={detail.reglages.coupees} />
             : <p style={{ ...texte, marginTop: 10 }}>Lecture seule · le réglage d’un espace demande la permission de configuration des fournisseurs.</p>}
+          <BlocBudgetEssai budget={budget} workspaceId={detail.id} nom={detail.nom} peutEcrire={peutEcrire} />
         </Bloc>
       )}
 
