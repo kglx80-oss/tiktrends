@@ -1,10 +1,9 @@
-import Link from 'next/link';
 import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { essaisViewAction, bilanNotesAction, bilanCopieAction, calibrationScoreAction } from '../../../actions/adsmap-attribution';
-import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, CIBLE_TACTILE_MIN, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
+import { ESSAI_LABEL, DIMENSION_LABEL, DEFECT_LABEL, MIN_NOTES, DIMENSION_COPIE_LABEL, MIN_RELECTURES, essaiSuivant, type EssaiVariable, type SceneDefect } from '@tiktrends/core';
 import { Empty } from '../../../../components/Empty';
 import { cadreSignal, surface, tuile } from '../../../../components/ui';
 import { Revelation, MARGE_ANCRE } from './Revelation';
@@ -97,9 +96,9 @@ export async function SectionEssais() {
           <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{conseil.pourquoi}</div>
           {conseil.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
           {conseil.variable && (
-            <Link href="/studio/ads" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, marginTop: 6, fontSize: 11.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}>
-              Lancer cet essai dans Pubs IA →
-            </Link>
+            <div data-essai="indisponible" style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.45 }}>
+              Les lots d’essai ne sont pas encore disponibles dans les projets Studios (anciennes Pubs IA retirées le 10/10).
+            </div>
           )}
         </div>
       )}
@@ -119,7 +118,7 @@ export async function SectionEssais() {
         ) : !essaisVue?.lots.length ? (
           <Empty
             tone="wait" title="Aucun lot d’essai poussé dans la carte."
-            why="Dans Pubs IA, choisis ce que le lot teste avant de générer · un essai d’accroches ou de mises en page ne produit qu’une image, il coûte donc moins cher qu’un lot libre."
+            why="Les lots d’essai (accroches, mises en page, univers) se lançaient dans les anciennes Pubs IA, retirées le 10/10 · ils ne sont pas encore disponibles dans les projets Studios. Les essais déjà poussés restent lus ici."
           />
         ) : (
           <>
@@ -195,7 +194,7 @@ export async function SectionEssais() {
         ) : !notes?.notes ? (
           <Empty
             tone="wait" title="Aucune créa notée pour l’instant."
-            why="Le Score Jarvis s’ouvre depuis le panneau d’une pub, dans Pubs IA."
+            why="Le Score Jarvis se lançait depuis le panneau d’une pub des anciennes Pubs IA, retirées le 10/10 · il n’est pas encore disponible dans les projets Studios. Les notes existantes restent lues ici."
           />
         ) : (
           <>
@@ -267,7 +266,7 @@ export async function SectionEssais() {
         ) : !relectures?.relues ? (
           <Empty
             tone="wait" title="Aucune publicité relue pour l’instant."
-            why="La relecture tourne toute seule sur les pubs produites en mode « Générée entièrement », dans Pubs IA."
+            why="La relecture tournait sur les pubs « Générée entièrement » des anciennes Pubs IA, retirées le 10/10 · les relectures existantes restent lues ici."
           />
         ) : (
           <>

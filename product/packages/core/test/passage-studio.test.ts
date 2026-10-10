@@ -63,7 +63,7 @@ describe('lireLienProfondAdsmap · on ne transmet qu’un identifiant bien form�
   });
   it('le retour Studio n’est offert que depuis le Studio', () => {
     expect(lireLienProfondAdsmap({ ad: AD }).depuisStudio).toBe(false);
-    expect(RETOUR_STUDIO.href).toBe('/studio/ads');
+    expect(RETOUR_STUDIO.href).toBe('/studio/projets');
   });
 });
 

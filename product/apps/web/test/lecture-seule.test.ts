@@ -71,13 +71,6 @@ describe('L’enrichissement reste disponible · par ses gestes explicites', () 
   it('synchronisation du catalogue Shopify · bouton de la fiche marque', () => {
     expect(src('app/(app)/brands/[id]/ShopifyConnect.tsx'), 'la synchronisation Shopify n’est plus branchée').toMatch(/syncShopifyProductsAction\(/);
   });
-  it('photos produit manquantes · bouton du Studio, dans un gestionnaire de clic (pas un effet)', () => {
-    const s = src('app/(app)/studio/ads/AdsStudio.tsx');
-    const i = s.indexOf('await importAllProductImagesAction()');
-    expect(i, 'la récupération des photos produit n’est plus branchée').toBeGreaterThan(-1);
-    const avant = s.slice(Math.max(0, i - 200), i);
-    expect(avant, 'la récupération des photos n’est plus dans le gestionnaire importAll').toContain('async function importAll()');
-  });
 });
 
 /**
@@ -156,6 +149,7 @@ const EXCEPTIONS: Record<string, string> = {
   'app/api/cron/digest/route.ts': 'cron protégé',
   'app/api/cron/radar/route.ts': 'cron protégé',
   'app/api/cron/tracker/route.ts': 'cron protégé',
+  'app/api/cron/videos-historiques/route.ts': 'cron protégé',
   // Cache technique BORNÉ (niches proposées × pays proposés, `veillePersistable`)
   // qui évite de repayer le fournisseur de veille · seul `setVeilleCache` est
   // toléré, prouvé borné par `l0-veille-scale.test.tsx`.
@@ -175,7 +169,7 @@ describe('Consulter n’écrit rien · route handlers GET et rendus, par le grap
   const cibles = arbo(join(RACINE, 'app'), (n) => /^(page|layout|template|loading|default|route)\.tsx?$/.test(n));
 
   it('le graphe voit bien les écrivains connus · sinon il regarderait ailleurs', () => {
-    for (const n of ['recordMilestones', 'refundCredits', 'setVeilleCache', 'rattraperMesures', 'daterJalons', 'pollVideoAction']) {
+    for (const n of ['recordMilestones', 'refundCredits', 'setVeilleCache', 'rattraperMesures', 'daterJalons', 'reconcilierVideosHistoriques']) {
       expect(ecrivains.has(n), `le graphe ne reconnaît pas ${n} comme écrivain`).toBe(true);
     }
     const noms = cibles.map((f) => relative(join(RACINE, 'app'), f));
@@ -201,8 +195,8 @@ describe('Consulter n’écrit rien · route handlers GET et rendus, par le grap
     expect(fautes, `consultation qui écrit en base :\n${fautes.join('\n')}`).toEqual([]);
   });
 
-  it('les lectures appelées AU MONTAGE des écrans restent pures (préflight des Studios, cloche, Adsmap)', () => {
-    const lectures = ['preflightAction', 'jarvisStats', 'briefConceptBeforeLaunch', 'jarvisSnapshot', 'fetchNotifications', 'listAdsAction', 'listDecisionsAction', 'marketCoverageAction', 'radarViewAction', 'curationViewAction',
+  it('les lectures appelées AU MONTAGE des écrans restent pures (cloche, Adsmap)', () => {
+    const lectures = ['jarvisStats', 'briefConceptBeforeLaunch', 'jarvisSnapshot', 'fetchNotifications', 'listAdsAction', 'listDecisionsAction', 'radarViewAction', 'curationViewAction',
       // L5-A · aperçu d'une version et lecture d'un média studio : lectures pures.
       'rendreApercu', 'lireMediaDansPortee', 'chargerMediasDocument'];
     const fautes = lectures.filter((n) => ecrivains.has(n)).map((n) => `${n} · ${ecrivains.get(n)}`);

@@ -1,45 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CarteCreative } from '../components/CarteCreative';
 import { AdMedia } from '../components/AdMedia';
 
 /**
- * CDC v8 · F04 · l'aperçu d'une carte ne doit contenir AUCUN interactif imbriqué.
+ * CDC v8 · F04 · un aperçu ne doit contenir AUCUN interactif imbriqué.
  *
- * Le bouton d'aperçu enveloppe `AdMedia` · si celui-ci pose un `<a>` (image) ou un
- * bouton de lecture (vidéo) à l'intérieur, on a un interactif DANS un bouton ·
- * invalide, et au clic ça ouvrait un onglet de miniature EN PLUS du détail. On
- * rend le HTML et on vérifie qu'il n'y a ni `<a>` ni bouton imbriqué dans
- * l'aperçu. On vérifie aussi le contrat de bornage du dialogue détail (source ·
- * composant client volumineux non rendable).
+ * Un bouton d'aperçu qui enveloppe `AdMedia` · si celui-ci pose un `<a>` (image)
+ * ou un bouton de lecture (vidéo) à l'intérieur, on a un interactif DANS un
+ * bouton · invalide, et au clic ça ouvrait un onglet de miniature EN PLUS du
+ * détail. On rend le HTML · `AdMedia` non interactif ne pose ni lien ni bouton.
  */
-const props = (o?: Partial<Parameters<typeof CarteCreative>[0]>) => ({
-  media: { url: 'https://x/p.png', isVideo: false, fit: 'contain' as const },
-  titre: 'Une créa',
-  onApercu: () => {},
-  actionPrincipale: { cle: 'ouvrir', label: 'Ouvrir', onClick: () => {} },
-  ...o,
-});
 
-describe('F04 · l’aperçu d’une carte n’imbrique aucun interactif', () => {
-  it('image · le bouton d’aperçu ne contient pas de lien (plus d’onglet parasite)', () => {
-    const h = renderToStaticMarkup(<CarteCreative {...props()} />);
-    expect(h).toContain('Ouvrir · Une créa');          // le bouton d'aperçu est là
-    expect(h, 'aucun <a> ne doit être imbriqué dans l’aperçu').not.toContain('<a ');
-  });
-
-  it('vidéo · pas de bouton de lecture imbriqué dans le bouton d’aperçu', () => {
-    // Un seul <button> pour l'aperçu (+ l'action « Ouvrir ») · pas de bouton de
-    // lecture d'AdMedia à l'intérieur. On compte les <button> · l'aperçu et
-    // l'action principale, jamais un lecteur imbriqué.
-    const h = renderToStaticMarkup(<CarteCreative {...props({ media: { url: 'https://x/v.mp4', isVideo: true } })} />);
-    const boutons = (h.match(/<button/g) ?? []).length;
-    expect(boutons, 'aperçu + action principale, sans lecteur imbriqué').toBe(2);
-  });
-
+describe('F04 · l’aperçu n’imbrique aucun interactif', () => {
   it('AdMedia non interactif ne rend ni lien ni bouton', () => {
     const h = renderToStaticMarkup(<AdMedia mediaUrl="https://x/p.png" interactive={false} />);
     expect(h).not.toContain('<a ');
@@ -49,19 +21,5 @@ describe('F04 · l’aperçu d’une carte n’imbrique aucun interactif', () =>
   it('AdMedia interactif (autonome) garde son lien d’ouverture', () => {
     const h = renderToStaticMarkup(<AdMedia mediaUrl="https://x/p.png" />);
     expect(h).toContain('<a ');
-  });
-});
-
-describe('F04 · le dialogue détail borne la zone média et fait défiler le rail', () => {
-  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
-
-  it('la zone média est bornée dans les deux modes · desktop 92vh, empilé 46vh', () => {
-    // En empilé (≤575px) le média est désormais borné (46vh) pour que le rail
-    // et son pied « Appliquer » restent atteignables à 360px · défaut trouvé au
-    // vrai navigateur (le média plein écran poussait le pied hors de vue).
-    expect(src).toContain("maxHeight: detailEmpile ? '46vh' : '92vh'");
-  });
-  it('le dialogue ne défile en bloc QUE lorsqu’il empile', () => {
-    expect(src).toContain("overflowY: detailEmpile ? 'auto' : 'hidden'");
   });
 });

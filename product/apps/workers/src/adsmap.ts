@@ -74,3 +74,14 @@ export function triggerRadar(): Promise<AdsMapTriggerResult> {
 export function triggerTracker(): Promise<AdsMapTriggerResult> {
   return triggerCron('/api/cron/tracker', 'tracker', 10 * 60_000);
 }
+
+/**
+ * Suivi des vidéos historiques encore en cours (ancien studio vidéo, retiré le
+ * 10/10) · son écran faisait ce suivi ; sans lui, une vidéo lancée restait « en
+ * cours » sans adresse ni remboursement. Léger (un statut lu par vidéo en
+ * cours, rien de généré ni facturé) · toutes les 5 minutes, sans effet quand il
+ * n'y a plus rien en cours.
+ */
+export function triggerVideosHistoriques(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/videos-historiques', 'videos-historiques', 2 * 60_000);
+}

@@ -46,14 +46,9 @@ describe('bilanHypotheses · l’angle testé → la pertinence', () => {
   });
 });
 
-const ADS = readFileSync(join(process.cwd(), 'app/actions/ads.ts'), 'utf8');
 const PAGE = readFileSync(join(process.cwd(), 'app/(app)/admin/intelligence/page.tsx'), 'utf8');
 
-describe('la boucle est câblée · l’angle est consigné, puis lu', () => {
-  it('la génération consigne l’angle sur la créa produite', () => {
-    // On range l'angle à côté de la recette, dans le jsonb stocké.
-    expect(ADS).toMatch(/angle: o\.angle \?\? null/);
-  });
+describe('la boucle est câblée · l’angle consigné est lu', () => {
   it('l’écran fondateur lit les générations et appelle bilanHypotheses', () => {
     expect(PAGE).toMatch(/bilanHypotheses\(/);
     expect(PAGE).toMatch(/schema\.generations\.kind/);

@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { renderAdPng, type AdRecipe } from '../lib/ad-render';
 import { colorShare, colorShareInColumns, decodePng } from './png';
@@ -99,29 +97,4 @@ describe('le rendu suit le mode', () => {
     expect(colorShareInColumns(img, 0, 1, magenta, [0.85, 1], 60), 'le bas est rempli · l’image est rognée, pas contenue').toBeLessThan(0.05);
     expect(colorShareInColumns(img, 0, 1, magenta, [0.4, 0.6], 60), 'la bande centrale ne porte pas l’image').toBeGreaterThan(0.9);
   }, 240000);
-});
-
-describe('le mode voyage jusqu’au bout de la chaîne', () => {
-  const SRC = readFileSync(join(process.cwd(), 'app/actions/ads.ts'), 'utf8');
-
-  it('la consigne de publicité entière remplace celle de scène', () => {
-    // Sans ce remplacement, le mode serait consigné, montré à l'écran, et
-    // n'aurait aucun effet sur ce qui sort · un réglage qui ment.
-    expect(SRC).toMatch(/o\.mode === 'entiere'/);
-    expect(SRC).toMatch(/promptPubEntiere\(/);
-  });
-
-  it('le mode est consigné sur la recette, par item', () => {
-    // C'est lui qui décide de la couche ET du contrôle des ratés · perdu, la
-    // publicité se recompose au prochain rendu, textes par-dessus textes. Il est
-    // consigné PAR ITEM · une pub repliée en composée porte son mode à elle, et
-    // retombe sur celui du lot puis sur « composee » quand rien ne l'a changé.
-    expect(SRC).toMatch(/mode: modeParItem\.get\(i\) \?\? o\.mode \?\? 'composee'/);
-  });
-
-  it('le contrôle des ratés sait quel mode il regarde', () => {
-    // « Du texte est cuit dans l'image » est un défaut d'un côté et
-    // exactement ce qu'on a demandé de l'autre.
-    expect(SRC).toMatch(/texteDansImage: texteAttenduDansImage\(r\.mode\)/);
-  });
 });

@@ -3,7 +3,7 @@ import { queues, connection } from './queue';
 import { startWorkers } from './worker';
 import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
-import { triggerAdsMapSync, triggerRadar, triggerTracker } from './adsmap';
+import { triggerAdsMapSync, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
 import { fixtures } from '@tiktrends/integrations';
 
 /** Worker « cron » : traite les tâches planifiées (ex : synchro data quotidienne). */
@@ -13,6 +13,7 @@ function startCronWorker() {
     if (job.name === 'adsmap-sync') return await triggerAdsMapSync();
     if (job.name === 'radar-scan') return await triggerRadar();
     if (job.name === 'tracker-scan') return await triggerTracker();
+    if (job.name === 'videos-historiques') return await triggerVideosHistoriques();
     return { skipped: job.name };
   }, { connection });
   w.on('completed', (j) => console.log('[cron] completed', j.name));
@@ -62,8 +63,16 @@ async function main() {
     removeOnComplete: 20, removeOnFail: 20,
   });
 
+  // Vidéos historiques encore en cours · toutes les 5 minutes (le studio vidéo
+  // qui les suivait est retiré · voir `triggerVideosHistoriques`).
+  await queues.cron.add('videos-historiques', {}, {
+    repeat: { pattern: '*/5 * * * *' },
+    jobId: 'videos-historiques',
+    removeOnComplete: 20, removeOnFail: 20,
+  });
+
   await queues.ingest.add('demo-tiktok', { platform: 'tiktok', ads: (fixtures.tiktok as { ads: unknown[] }).ads });
   await queues.radar.add('demo', { brandId: 'demo' });
-  console.log('[workers] up · crons tracker-scan (04:00), radar-scan (05:00), daily-sync (06:00) et adsmap-sync (07:00) planifiés + jobs démo');
+  console.log('[workers] up · crons tracker-scan (04:00), radar-scan (05:00), daily-sync (06:00) et adsmap-sync (07:00) planifiés, videos-historiques toutes les 5 min + jobs démo');
 }
 main().catch((e) => { console.error(e); process.exit(1); });

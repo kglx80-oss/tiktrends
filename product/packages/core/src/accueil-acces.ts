@@ -56,7 +56,7 @@ export function regleDuChemin(href: string, regles: readonly RegleChemin[]): Reg
 }
 
 /**
- * Un chemin est-il ouvert ? La rubrique la plus précise gagne (`/studio/ads`
+ * Un chemin est-il ouvert ? La rubrique la plus précise gagne (`/studio/projets`
  * avant `/studio`, `/brands/new` relève de `/brands`). Un chemin qu'aucune
  * rubrique ne couvre reste ouvert · ce module ne protège rien, il n'invente
  * aucun refus.
@@ -101,7 +101,7 @@ export function bandeauAccueil(p: { aMarque: boolean; nbMarques: number; ouvert:
         ctaLabel: 'Voir mes tests',
         href: '/adsmap',
         ctaSecLabel: 'Créer une pub',
-        hrefSec: '/studio/ads',
+        hrefSec: '/studio/projets/nouveau?type=ads',
       }
     : {
         titre: 'Prépare ton prochain test',
@@ -127,7 +127,7 @@ export function liensOuverts<T extends { href: string }>(liens: readonly T[], ou
 
 /** Les familles d'accès que l'accueil peut taire, et comment les nommer. */
 const FAMILLES: ReadonlyArray<{ chemins: readonly string[]; libelle: string }> = [
-  { chemins: ['/studio/ads', '/studio/image', '/studio/video', '/studio/textes'], libelle: 'la création (pubs, images, vidéos, textes)' },
+  { chemins: ['/studio/projets'], libelle: 'la création (projets Studios)' },
   { chemins: ['/brands/new'], libelle: 'la gestion des marques' },
   { chemins: ['/adsmap', '/veille', '/radar', '/jarvis'], libelle: 'l’analyse des tests et du marché' },
 ];

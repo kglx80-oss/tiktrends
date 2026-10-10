@@ -83,6 +83,23 @@ export async function creerProjetDepuisSources(entree: EntreeCreationDepuisSourc
   }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 
+/**
+ * Écriture · projet préparé depuis un ancien lien de création (contexte repris :
+ * annonce sauvegardée, objectif). Même garde et même capacité que la création
+ * depuis des sources ; idempotente par clé de clic ; aucun appel modèle.
+ */
+export async function creerProjetDepuisContexte(entree: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown }): Promise<Reponse<ProjetCree>> {
+  const g = await gardeSources('studio.propose');
+  if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
+  const { creerProjetDepuisContextePour } = await import('../../../lib/studios/sources/projet');
+  return creerProjetDepuisContextePour(g.ctx, {
+    brandId: entree?.brandId, kind: entree?.kind, titre: entree?.titre, objectif: entree?.objectif,
+    ref: entree?.ref, retourVeille: entree?.retourVeille, cleClic: entree?.cleClic,
+  }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
+}
+
 /** Lecture pure · le brief exporté (Markdown ou JSON), sans génération ni achat. */
 export async function exporterBrief(entree: { projectId: unknown; versionId?: unknown; format?: unknown }): Promise<Reponse<ExportBrief>> {
   const g = await gardeSources('studio.export');

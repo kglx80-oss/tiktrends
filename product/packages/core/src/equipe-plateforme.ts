@@ -64,7 +64,7 @@ export const RUBRIQUES_PLATEFORME: readonly RubriquePlateforme[] = [
   { key: 'radar',      label: 'Radar créatif', groupe: 'Observatoire' },
   { key: 'saved',      label: 'Sauvegardes', groupe: 'Observatoire' },
   { key: 'jarvis',     label: 'Jarvis',      groupe: 'Atelier' },
-  { key: 'studio',     label: 'Studio IA',   groupe: 'Atelier' },
+  { key: 'studio',     label: 'Studios',     groupe: 'Atelier' },
   { key: 'assets',     label: 'Assets',      groupe: 'Atelier' },
   { key: 'adsmap',     label: 'Adsmap',      groupe: 'Laboratoire' },
   { key: 'marques',    label: 'Marques',     groupe: 'Espace' },

@@ -21,9 +21,9 @@ export function familleMouvement(motif: string): FamilleMouvement {
   if (r.includes('ajustement')) return { label: 'Ajustement', icon: 'coin' };
   if (r.includes('recharge')) return { label: 'Recharge', icon: 'coin' };
   if (r.includes('abonnement') || r.includes('formule') || r.includes('période de test')) return { label: 'Abonnement', icon: 'card' };
-  if (r.includes('pubs') || r.includes('clone') || r.includes('studio')) return { label: 'Pubs IA', icon: 'sparkles' };
-  if (r.includes('vidéo')) return { label: 'Vidéo IA', icon: 'film' };
-  if (r.includes('image') || r.includes('visuel')) return { label: 'Image IA', icon: 'image' };
+  if (r.includes('pubs') || r.includes('clone') || r.includes('studio')) return { label: 'Studios', icon: 'sparkles' };
+  if (r.includes('vidéo')) return { label: 'Vidéo', icon: 'film' };
+  if (r.includes('image') || r.includes('visuel')) return { label: 'Image', icon: 'image' };
   if (r.includes('assistant')) return { label: 'Assistant', icon: 'chat' };
   if (r.includes('assets') || r.includes('tagging')) return { label: 'Assets', icon: 'layers' };
   if (r.includes('jarvis') || r.includes('angles suggérés')) return { label: 'Jarvis', icon: 'brain' };

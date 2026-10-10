@@ -79,9 +79,9 @@ export const STEPS: StepDef[] = [
     href: '/brands',
   },
   {
-    key: 'generate', label: 'Générer une première créa', needs: ['identity'],
+    key: 'generate', label: 'Créer un premier projet', needs: ['identity'],
     why: 'Le premier résultat visible · c’est aussi ce qui alimentera la carte.',
-    href: '/studio/ads',
+    href: '/studio/projets/nouveau?type=ads',
   },
   {
     key: 'map', label: 'Poser la carte', needs: ['brand'], adminOnly: true,
@@ -111,11 +111,6 @@ export const STEPS: StepDef[] = [
   },
 
   // ── Utiles à tout moment, bloquantes pour rien ────────────────────────────
-  {
-    key: 'prompt', label: 'Enregistrer ta première scène', needs: ['brand'], optional: true,
-    why: 'Ta direction artistique, réutilisable · et mesurée, ce qu’aucun générateur d’images ne fait.',
-    href: '/studio/image',
-  },
   {
     key: 'competitors', label: 'Suivre des concurrents', needs: [], optional: true,
     why: 'La veille nourrit Jarvis en mécaniques éprouvées · et arme le radar.',

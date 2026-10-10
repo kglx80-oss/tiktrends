@@ -3,7 +3,7 @@ import { cheminOuvert, bandeauAccueil, liensOuverts, noteAccesAccueil, BANDEAU_L
 
 /** Lot 11 · l'accueil ne propose que ce que le rôle ouvre. */
 const regles = [
-  { href: '/studio', ouvert: false }, { href: '/studio/ads', ouvert: false },
+  { href: '/studio/projets', ouvert: false },
   { href: '/brands', ouvert: true }, { href: '/adsmap', ouvert: true }, { href: '/veille', ouvert: false },
   { href: '/analytics', ouvert: true },
 ];
@@ -12,8 +12,8 @@ const ouvert = (h: string) => cheminOuvert(h, regles);
 describe('accueil · accès par rôle', () => {
   it('la rubrique la plus précise tranche, un chemin non couvert reste ouvert', () => {
     expect(cheminOuvert('/brands/new', regles)).toBe(true);
-    expect(cheminOuvert('/studio/ads', [{ href: '/studio', ouvert: true }, { href: '/studio/ads', ouvert: false }])).toBe(false);
-    expect(cheminOuvert('/studio/image', [{ href: '/studio', ouvert: false }])).toBe(false);
+    expect(cheminOuvert('/studio/projets/nouveau', [{ href: '/studio', ouvert: true }, { href: '/studio/projets', ouvert: false }])).toBe(false);
+    expect(cheminOuvert('/studio/projets/nouveau?type=ads', [{ href: '/studio/projets', ouvert: false }])).toBe(false);
     expect(cheminOuvert('/support', regles)).toBe(true);
     expect(cheminOuvert('/brandsx', [{ href: '/brands', ouvert: false }]), 'préfixe sans séparateur').toBe(true);
   });
@@ -22,11 +22,11 @@ describe('accueil · accès par rôle', () => {
       titre: 'Prépare ton prochain test', sous: expect.any(String), ctaLabel: 'Voir mes tests', href: '/adsmap',
     });
     const tout = bandeauAccueil({ aMarque: true, nbMarques: 1, ouvert: () => true })!;
-    expect(tout.hrefSec).toBe('/studio/ads');
+    expect(tout.hrefSec).toBe('/studio/projets/nouveau?type=ads');
   });
   it('bandeau · primaire fermé, le secondaire ouvert prend sa place', () => {
     const b = bandeauAccueil({ aMarque: true, nbMarques: 1, ouvert: (h) => h !== '/adsmap' })!;
-    expect([b.href, b.ctaLabel, b.hrefSec]).toEqual(['/studio/ads', 'Créer une pub', undefined]);
+    expect([b.href, b.ctaLabel, b.hrefSec]).toEqual(['/studio/projets/nouveau?type=ads', 'Créer une pub', undefined]);
   });
   it('bandeau · client en lecture · Analytics, ni création ni test', () => {
     const lecture = (h: string) => h === '/analytics';
@@ -40,16 +40,16 @@ describe('accueil · accès par rôle', () => {
   it('note · dit ce que le rôle n’ouvre pas, rien si tout est ouvert', () => {
     expect(noteAccesAccueil(() => true)).toBeNull();
     expect(noteAccesAccueil((h) => !h.startsWith('/brands'))).toBe('Ton rôle dans cet espace ne comprend pas la gestion des marques · ces accès n’apparaissent donc pas ici.');
-    expect(noteAccesAccueil((h) => h === '/analytics')).toBe('Ton rôle dans cet espace ne comprend pas la création (pubs, images, vidéos, textes), la gestion des marques ni l’analyse des tests et du marché · ces accès n’apparaissent donc pas ici.');
+    expect(noteAccesAccueil((h) => h === '/analytics')).toBe('Ton rôle dans cet espace ne comprend pas la création (projets Studios), la gestion des marques ni l’analyse des tests et du marché · ces accès n’apparaissent donc pas ici.');
   });
 });
 
 import { commandesOuvertes, regleDuChemin } from '../src/accueil-acces';
 describe('palette · commandes ouvertes (lot 12)', () => {
-  const r = [{ href: '/studio', ouvert: true, verrou: true }, { href: '/brands', ouvert: false }];
+  const r = [{ href: '/studio/projets', ouvert: true, verrou: true }, { href: '/brands', ouvert: false }];
   it('requête ignorée, rubrique fermée retirée, verrou de formule = cadenas, action locale gardée', () => {
-    expect(regleDuChemin('/studio/ads?mode=clone', r)?.href).toBe('/studio');
-    expect(commandesOuvertes([{ href: '/studio/ads?mode=clone' }, { href: '/brands/new' }, { href: undefined }, { href: '/support' }], r))
-      .toEqual([{ href: '/studio/ads?mode=clone', locked: true }, { href: undefined }, { href: '/support' }]);
+    expect(regleDuChemin('/studio/projets/nouveau?type=ads', r)?.href).toBe('/studio/projets');
+    expect(commandesOuvertes([{ href: '/studio/projets/nouveau?type=ads' }, { href: '/brands/new' }, { href: undefined }, { href: '/support' }], r))
+      .toEqual([{ href: '/studio/projets/nouveau?type=ads', locked: true }, { href: undefined }, { href: '/support' }]);
   });
 });

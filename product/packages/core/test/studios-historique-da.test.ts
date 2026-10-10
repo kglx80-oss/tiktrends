@@ -96,8 +96,8 @@ describe('création précédente · source de la marque', () => {
     expect(presentationSource(r)).toBe('Création précédente de la marque cible, produite dans l’outil, ajoutée le 2026-10-10 · elle se reprend et se décline.');
     expect(apercuCreation(PUB)).toBe(`/api/ad/${PUB.id}`);
     expect(apercuCreation({ ...PUB, kind: 'image' })).toBe('https://cdn.test/scene.png');
-    expect(libelleCreation(PUB)).toBe('Pub IA · Le sérum qui tient · Sans parfum');
-    expect(libelleCreation({ kind: 'image', input: { prompt: 'un flacon' } })).toBe('Image IA');
+    expect(libelleCreation(PUB)).toBe('Pub · Le sérum qui tient · Sans parfum');
+    expect(libelleCreation({ kind: 'image', input: { prompt: 'un flacon' } })).toBe('Image');
   });
 
   it('une image IA ne prête aucun texte · sa consigne au modèle n’est pas une accroche', () => {

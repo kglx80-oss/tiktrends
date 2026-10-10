@@ -19,8 +19,6 @@ import { join } from 'node:path';
  */
 
 const AI = readFileSync(join(process.cwd(), '../../packages/ai/src/critique.ts'), 'utf8');
-const ACTIONS = readFileSync(join(process.cwd(), 'app/actions/ads.ts'), 'utf8');
-const STUDIO = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
 
 describe('on demande une transcription, pas un avis', () => {
   it('l’outil de notation sait rendre le texte lu', () => {
@@ -42,41 +40,5 @@ describe('on demande une transcription, pas un avis', () => {
     // l'image reviendrait à vérifier notre propre travail, et à signaler des
     // écarts là où le compositeur ne peut pas se tromper.
     expect(AI).toMatch(/texteLu: aVu && creative\.texteDansImage/);
-    expect(ACTIONS).toMatch(/texteAttenduDansImage\(r\.mode\)\s*\n?\s*\?\s*verifieCopie\(/);
-  });
-});
-
-describe('le verdict survit à la page', () => {
-  it('il est rangé avec la note', () => {
-    expect(ACTIONS, 'le verdict n’est pas enregistré').toMatch(/copieConforme: copie/);
-  });
-
-  it('il est relu depuis le cache, sans repayer', () => {
-    // Sans ça, rouvrir une publicité déjà analysée perd le constat · et le seul
-    // moyen de le retrouver serait de repayer une analyse.
-    expect(ACTIONS).toMatch(/copie: r\.copieConforme \?\? null, cost: 0, cached: true/);
-  });
-
-  it('l’écran le reçoit et l’affiche', () => {
-    expect(STUDIO).toMatch(/copie=\{copieData\}/);
-    expect(STUDIO, 'le verdict arrive à la carte sans jamais s’afficher').toMatch(/\{copie && copie\.resume &&/);
-  });
-
-  it('une accroche réécrite plafonne la note', () => {
-    // Publier 72 sur 100 sous une publicité qui ne dit plus ce qu'on voulait,
-    // c'est afficher la note et enterrer le constat · c'est le défaut déjà
-    // corrigé pour les ratés de fabrication.
-    expect(ACTIONS).toMatch(/plafonner\(score\.score, vd\.grave \|\| !!copie\?\.grave\)/);
-  });
-});
-
-describe('le contrôle ne coûte pas un appel de plus', () => {
-  it('aucun second appel de vision n’a été ajouté', () => {
-    // La transcription voyage dans la note qui regardait DÉJÀ l'image · quelques
-    // jetons de sortie, pas une seconde image envoyée. Un `scoreCreative` de
-    // plus, ou un appel Anthropic dédié, doublerait le prix d'une analyse.
-    const appels = (ACTIONS.match(/await scoreCreative\(/g) ?? []).length;
-    expect(appels, 'plus d’un appel de notation dans le fichier').toBe(1);
-    expect(ACTIONS, 'un appel de vision dédié a été ajouté').not.toMatch(/messages\.create\(/);
   });
 });

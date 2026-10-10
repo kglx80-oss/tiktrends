@@ -47,8 +47,8 @@ export const PARAM_TEST_ADSMAP = 'ad';
 export const PARAM_DEPUIS = 'depuis';
 export const DEPUIS_STUDIO = 'studio';
 
-/** Le retour vers le Studio, offert au panneau ouvert depuis une carte. */
-export const RETOUR_STUDIO = { href: '/studio/ads', libelle: 'Retour au Studio' } as const;
+/** Le retour vers les Studios (liste des projets), offert au panneau ouvert depuis un projet. */
+export const RETOUR_STUDIO = { href: '/studio/projets', libelle: 'Retour aux Studios' } as const;
 
 export interface LienAdsmapCarte {
   href: string;

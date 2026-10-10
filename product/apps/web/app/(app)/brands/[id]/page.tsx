@@ -26,7 +26,7 @@ import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
 import { CarteConcurrent } from '../../../../components/CarteConcurrent';
-import { messageServiceInactif, CIBLE_TACTILE_MIN, costFor, imageModelByKey, connecteursBranches, accesAssets, type DaVisuelleMarque } from '@tiktrends/core';
+import { messageServiceInactif, lienNouveauProjet, CIBLE_TACTILE_MIN, costFor, imageModelByKey, connecteursBranches, accesAssets, type DaVisuelleMarque } from '@tiktrends/core';
 import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 
@@ -68,12 +68,13 @@ export default async function BrandDetailPage({ params, searchParams }: {
   const [b] = await db.select().from(schema.brands).where(eq(schema.brands.id, id)).limit(1);
   if (!b) notFound();
 
-  const [personas, scenarios, products, adAccounts, gens] = await Promise.all([
+  const [personas, scenarios, products, adAccounts, gens, projets] = await Promise.all([
     db.select().from(schema.personas).where(eq(schema.personas.brandId, id)),
     db.select().from(schema.scenarios).where(eq(schema.scenarios.brandId, id)),
     db.select().from(schema.products).where(eq(schema.products.brandId, id)),
     db.select().from(schema.adAccounts).where(eq(schema.adAccounts.brandId, id)),
     db.select({ id: schema.generations.id }).from(schema.generations).where(eq(schema.generations.brandId, id)).limit(1),
+    db.select({ id: schema.studioProjects.id }).from(schema.studioProjects).where(eq(schema.studioProjects.brandId, id)).limit(1),
   ]);
   const competitors = b.competitors ?? [];
   // L'accès aux assets à portée EXPLICITE · la bibliothèque suit la marque ACTIVE ·
@@ -145,7 +146,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           // prétendait un suivi actif que le Radar contredit (0 suivi).
           { key: 'concurrents', label: 'Renseigner les concurrents', desc: 'Les marques qui situent ta catégorie', done: competitors.length > 0, href: `/brands/${id}?tab=competitors`, cta: 'Renseigner' },
           { key: 'jarvis', label: 'Poser les règles Jarvis', desc: 'Tes consignes maison sur l’IA créative', done: !!(b.creativeRules && b.creativeRules.trim()), href: '/jarvis', cta: 'Configurer' },
-          { key: 'crea', label: 'Générer ta première créa', desc: 'Une pub IA à partir du profil', done: gens.length > 0, href: '/studio/ads', cta: 'Générer' },
+          { key: 'crea', label: 'Créer ta première créa', desc: 'Un projet Studios à partir du profil', done: gens.length > 0 || projets.length > 0, href: lienNouveauProjet({ type: 'ads' }), cta: 'Créer' },
         ];
         const cards: Array<{ n: number; label: string; tab: Tab }> = [
           { n: adAccounts.length, label: 'Comptes pub', tab: 'products' },

@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { bilanHypotheses, consigneAnglesGagnants, type CreaJugee } from '@tiktrends/core';
 
 /**
@@ -32,16 +30,5 @@ describe('consigneAnglesGagnants · seulement les angles mesurés gagnants', () 
 
   it('null quand rien n’a été jugé', () => {
     expect(consigneAnglesGagnants(bilanHypotheses([{ angle: 'A', rating: null }]))).toBeNull();
-  });
-});
-
-const ADS = readFileSync(join(process.cwd(), 'app/actions/ads.ts'), 'utf8');
-
-describe('la génération est bien pilotée par le bilan', () => {
-  it('les angles gagnants entrent dans winningPatterns', () => {
-    expect(ADS).toMatch(/preferencesAngles\(brand\.id\)/);
-    expect(ADS).toMatch(/consigneAnglesGagnants\(/);
-    // Le résultat est réellement injecté, pas seulement calculé.
-    expect(ADS).toMatch(/winningPatterns = \[[^\]]*anglesGagnants/);
   });
 });

@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import {
-  grammaireLayout, briefLayout, resumeGrammaire,
+  grammaireLayout, resumeGrammaire,
   normalizeHeadlinePosition, normalizeComposition, normalizeTextDensity, normalizeBackground,
   normalizeTypoRegister, normalizePalette,
   type ObservationLayout, type GrammaireLayout, type LigneGrammaire,
@@ -64,12 +64,6 @@ async function grammaireCategorie(): Promise<GrammaireLayout | null> {
     };
   });
   return grammaireLayout(obs);
-}
-
-/** La consigne de tendance pour la GÉNÉRATION · vide tant que rien ne domine. */
-export async function tendancesLayoutMarcheAction(): Promise<string[]> {
-  const g = await grammaireCategorie();
-  return g ? briefLayout(g) : [];
 }
 
 /** La carte d'identité de la catégorie pour l'ÉCRAN · lignes lisibles + effectif. */

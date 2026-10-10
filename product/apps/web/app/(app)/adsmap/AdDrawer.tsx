@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { VerdictValue, TestedVariable, OrigineFiche } from '@tiktrends/core';
-import { etatFicheAdsmap, ficheDeLEntree, lireVueAdsmap, PARAM_VUE_ADSMAP, rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio } from '@tiktrends/core';
+import { etatFicheAdsmap, ficheDeLEntree, lireVueAdsmap, PARAM_VUE_ADSMAP, rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio, lienNouveauProjet } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -378,10 +378,10 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                       La boucle analyser→créer s'arrêtait là. On la referme d'un
                       vrai lien, l'angle du test passé en amorce. */}
                   <a
-                    href={`/studio/ads?angle=${encodeURIComponent(d.angle ?? d.concept ?? '')}`}
+                    href={lienNouveauProjet({ type: 'ads', angle: d.angle ?? d.concept ?? '' })}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none' }}
                   >
-                    Reprendre l’angle au Studio ›
+                    Reprendre l’angle dans un projet ›
                   </a>
                 </>
               ) : !ouvrirIteration ? (
@@ -390,7 +390,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                     le Studio s'ouvre sur un brief prérempli, rien n'est généré. */}
                 {iterationStudio && d && (
                   <Link href={lienIterationStudio(d.id)} style={{ ...boutonSecondaire, display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-                    Préparer l’itération dans le Studio ›
+                    Préparer l’itération dans un projet ›
                   </Link>
                 )}
                 <button type="button" onClick={() => setOuvrirIteration(true)} style={boutonSecondaire}>

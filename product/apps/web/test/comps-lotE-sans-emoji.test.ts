@@ -6,8 +6,7 @@ import { join } from 'node:path';
  * Composants compte / studio (lot E) sans emoji d'interface · rollout icônes
  * (retour proprio #2). BrandSwitcher (🏷️→tag, ✦→sparkles), QuickSettingsModal
  * (⚙️→gear), ProfileModal (👤→user, ⬆→upload), InviteMemberButton (👥→users),
- * JourneyPanel (✨→sparkles), CreativeActions (⛶→frame, 🗺→map · les emojis des
- * commentaires 👍/👎 retirés, le rendu des pouces restant l'inline <Thumb> SVG).
+ * JourneyPanel (✨→sparkles).
  *
  * SubmitButton est inclus : son prop `label` a été élargi à ReactNode pour loger
  * l'icône du bouton « Créer et tout importer » de BrandSwitcher.
@@ -21,7 +20,6 @@ const FICHIERS = [
   'components/ProfileModal.tsx',
   'components/InviteMemberButton.tsx',
   'components/JourneyPanel.tsx',
-  'components/CreativeActions.tsx',
   'components/SubmitButton.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
@@ -42,8 +40,6 @@ describe('Composants lot E · plus aucun emoji d’interface', () => {
     expect(tout).toMatch(/<Icon name="user"/);        // ProfileModal
     expect(tout).toMatch(/<Icon name="users"/);       // InviteMemberButton
     expect(tout).toMatch(/<Icon name="upload"/);      // ProfileModal
-    expect(tout).toMatch(/<Icon name="frame"/);       // CreativeActions
-    expect(tout).toMatch(/<Icon name="map"/);         // CreativeActions
     expect(tout).toMatch(/<Icon name="sparkles"/);    // BrandSwitcher · JourneyPanel
   });
 });

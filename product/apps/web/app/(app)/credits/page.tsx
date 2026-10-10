@@ -315,7 +315,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                 tone="todo"
                 title={videHistoriqueCredits(illimite).titre}
                 why={videHistoriqueCredits(illimite).pourquoi}
-                action={{ label: 'Ouvrir le Studio', href: '/studio' }}
+                action={{ label: 'Ouvrir les Studios', href: '/studio/projets' }}
               />
             </div>
           )}

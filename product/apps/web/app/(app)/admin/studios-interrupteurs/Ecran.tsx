@@ -53,7 +53,7 @@ export function EnTeteInterrupteurs({ retour = { href: '/admin', libelle: '← T
         <Link href={retour.href} style={{ ...lien, marginLeft: 'auto' }}>{retour.libelle}</Link>
       </div>
       <p style={{ ...texte, marginTop: 6, maxWidth: 760, fontSize: 14 }}>
-        Chaque capacité des nouveaux Studios s’ouvre en trois temps · interne, espaces pilotes, puis tous après recette. Ce qui dépend d’un fournisseur non validé en réel est coupé par défaut. Le Studio historique, les Pubs IA et cet espace d’administration ne sont jamais coupés.
+        Chaque capacité des nouveaux Studios s’ouvre en trois temps · interne, espaces pilotes, puis tous après recette. Ce qui dépend d’un fournisseur non validé en réel est coupé par défaut. Cet espace d’administration n’est jamais coupé.
       </p>
     </div>
   );
@@ -101,7 +101,7 @@ export function EcranInterrupteurs({ vue, detail, peutEcrire, recherche, budget 
             );
           })}
         </div>
-        <p style={{ ...texte, marginTop: 10, fontSize: 12.5 }}>Jamais coupés : {EXPERIENCES_TOUJOURS_ACTIVES.map((x) => ({ studio_historique: 'Studio historique', pubs_ia: 'Pubs IA', admin_ia_studios: 'ADMIN IA et Studios' })[x]).join(', ')}.</p>
+        <p style={{ ...texte, marginTop: 10, fontSize: 12.5 }}>Jamais coupés : {EXPERIENCES_TOUJOURS_ACTIVES.map((x) => ({ admin_ia_studios: 'ADMIN IA et Studios' })[x]).join(', ')}.</p>
       </Bloc>
 
       <Bloc titre="Environnement du serveur" id="environnement">

@@ -6,7 +6,7 @@ describe('Usage · familles et motifs lisibles', () => {
     expect(familleMouvement('Allocation mensuelle (plan)').label).toBe('Allocation');
     expect(familleMouvement('Ajustement manuel').label).toBe('Ajustement');
     expect(familleMouvement('Remboursement · génération échouée').label).toBe('Remboursement');
-    expect(familleMouvement('Studio · génération créative').label).toBe('Pubs IA');
+    expect(familleMouvement('Studio · génération créative').label).toBe('Studios');
     expect(familleMouvement('adsmap:propose:abc').label).toBe('Adsmap');
     expect(familleMouvement('market:analyze:123').label).toBe('Veille');
   });
@@ -30,7 +30,7 @@ describe('Usage · répartition honnête', () => {
   });
   it('moins de lignes que la limite · complète ; remboursements exclus de la consommation', () => {
     const r = repartitionConsommation([{ delta: -5, reason: 'Pubs IA', createdAt: j(1) }, { delta: 5, reason: 'Remboursement', createdAt: j(1) }], j(30), 120);
-    expect(r).toEqual({ familles: [{ label: 'Pubs IA', icon: 'sparkles', total: 5 }], tronquee: false });
+    expect(r).toEqual({ familles: [{ label: 'Studios', icon: 'sparkles', total: 5 }], tronquee: false });
   });
 });
 

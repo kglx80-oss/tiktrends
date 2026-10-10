@@ -4,17 +4,14 @@ import { join } from 'node:path';
 
 /**
  * Composants du studio de création (lot D) sans emoji d'interface · rollout
- * icônes (retour proprio #2). ContexteCreation (🎯→target, 🧠→brain),
- * DecouverteSection (✦→sparkles), UniversePicker (✦ retiré du libellé « Varié
- * (auto) »), GrammaireCategorie (✦→sparkles), ScenarioCard (🎬→film, ✦→sparkles).
+ * icônes (retour proprio #2). DecouverteSection (✦→sparkles),
+ * GrammaireCategorie (✦→sparkles), ScenarioCard (🎬→film, ✦→sparkles).
  *
  * GARDÉS : le ✕ de fermeture, le ✓ typographique, le · séparateur, les flèches
  * ↗←→ · ce ne sont pas des pictogrammes colorés d'interface.
  */
 const FICHIERS = [
-  'components/ContexteCreation.tsx',
   'components/DecouverteSection.tsx',
-  'components/UniversePicker.tsx',
   'components/GrammaireCategorie.tsx',
   'components/ScenarioCard.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
@@ -31,8 +28,6 @@ describe('Composants lot D · plus aucun emoji d’interface', () => {
   });
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
-    expect(tout).toMatch(/<Icon name="target"/);    // ContexteCreation
-    expect(tout).toMatch(/<Icon name="brain"/);      // ContexteCreation
     expect(tout).toMatch(/<Icon name="film"/);       // ScenarioCard
     expect(tout).toMatch(/<Icon name="sparkles"/);   // DecouverteSection · GrammaireCategorie · ScenarioCard
   });

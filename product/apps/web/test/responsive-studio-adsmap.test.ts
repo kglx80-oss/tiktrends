@@ -11,11 +11,6 @@ import { join } from 'node:path';
  * garde tolère 32 ou 36, jamais une marge figée. Pages serveur denses · on lit la source.
  */
 const PAGES = [
-  'app/(app)/studio/page.tsx',
-  'app/(app)/studio/ads/page.tsx',
-  'app/(app)/studio/image/page.tsx',
-  'app/(app)/studio/video/page.tsx',
-  'app/(app)/studio/textes/page.tsx',
   'app/(app)/adsmap/page.tsx',
   'app/(app)/adsmap/lots/page.tsx',
   'app/(app)/adsmap/suites/page.tsx',

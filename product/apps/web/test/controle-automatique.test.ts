@@ -26,46 +26,11 @@ import { join } from 'node:path';
  */
 
 const RACINE = join(process.cwd(), '..', '..');
-const ACTIONS = readFileSync(join(process.cwd(), 'app/actions/ads.ts'), 'utf8');
 const CONTROLE = readFileSync(join(RACINE, 'packages/ai/src/controle-pub.ts'), 'utf8');
-const JOINTE = readFileSync(join(process.cwd(), 'lib/image-jointe.ts'), 'utf8');
-const STUDIO = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AdsStudio.tsx'), 'utf8');
-const ASSISTANT = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/AssistantPub.tsx'), 'utf8');
-
-/** Le corps de `composeBatch` · c'est là que la relecture doit vivre. */
-const LOT = ACTIONS.slice(ACTIONS.indexOf('async function composeBatch('), ACTIONS.indexOf('/** Références de pubs gagnantes'));
-
-describe('la relecture part sans qu’on la demande', () => {
-  it('elle est déclenchée pendant la génération du lot', () => {
-    // Pas depuis l'écran, pas sur un clic · c'est tout l'objet du changement.
-    expect(LOT, 'la relecture n’est plus dans le lot').toMatch(/controlePubEntiere\(/);
-  });
-
-  it('uniquement en mode « entière »', () => {
-    // En composé, c'est nous qui écrivons les textes · les relire reviendrait à
-    // vérifier notre propre travail, et à payer pour ça.
-    expect(LOT).toMatch(/if \(o\.mode === 'entiere'\) \{/);
-  });
-
-  it('un échec de relecture ne fait pas échouer le lot', () => {
-    // Une publicité produite mais non relue reste une publicité produite. Faire
-    // tomber quatre images parce qu'une vérification n'a pas abouti coûterait
-    // quatre images pour rien.
-    expect(LOT).toMatch(/logFailure\('ads:controle'/);
-    expect(JOINTE, 'une image irrécupérable remonte au lieu de rendre null').toMatch(/catch \{\s*\n?\s*return null;/);
-  });
-});
 
 describe('elle reste bon marché', () => {
   it('elle passe par le modèle le moins cher', () => {
     expect(CONTROLE).toMatch(/CONTROLE_MODEL[^\n]*haiku/);
-  });
-
-  it('l’image est réduite avant d’être envoyée', () => {
-    // Chaque pixel envoyé est facturé, et rien de ce qu'on demande n'a besoin
-    // du plein format.
-    expect(JOINTE).toMatch(/LARGEUR_MAX = \d{3}/);
-    expect(JOINTE).toMatch(/\.resize\(LARGEUR_MAX/);
   });
 
   it('elle ne demande qu’un constat, jamais un jugement', () => {
@@ -84,34 +49,9 @@ describe('elle reste bon marché', () => {
     const champs = [...schema.matchAll(/^ {6}(\w+): \{$/gm)].map((m) => m[1]);
     expect(champs.sort()).toEqual(['ecartsProduit', 'problemesLisibilite', 'produitFidele', 'texteLisible', 'texteLu']);
   });
-
-  it('le coût est annoncé avant de lancer', () => {
-    // Rien ne se dépense sans le dire · c'est la règle, même pour trois pour
-    // cent.
-    expect(ASSISTANT).toMatch(/relecture automatique incluse/);
-  });
 });
 
-describe('le constat se voit sans cliquer', () => {
-  it('la grille reçoit le verdict de chaque pub', () => {
-    expect(ACTIONS).toMatch(/copieResume: rec\.copieConforme\?\.resume/);
-    // Le constat de relecture devient une synthèse qualité SUR la carte commune ·
-    // la grille Pubs IA la branche via CartePub, sans clic.
-    const cartePub = readFileSync(join(process.cwd(), 'app/(app)/studio/ads/CartePub.tsx'), 'utf8');
-    // La carte traduit le contrôle EN synthèse qualité · elle route toujours
-    // `ad.controle` dans `qualiteCarte`, et lui joint les faits calculés au
-    // serveur (état de leur preuve · N04-suite) sans lâcher le constat technique.
-    expect(cartePub, 'la carte ne traduit pas le contrôle en synthèse qualité').toMatch(/qualiteCarte\(\{ \.\.\.\(ad\.controle \?\? \{\}\), faits: ad\.faits/);
-    expect(STUDIO, 'la grille n’utilise pas la carte commune').toContain('<CartePub');
-  });
-
-  it('un produit modifié écarte la pub des vignettes d’exemple', () => {
-    // C'est le critère éliminatoire n° 1 du mode entière · une publicité au
-    // packaging inventé ne représente pas sa direction artistique, elle
-    // représente une génération manquée.
-    expect(ACTIONS).toMatch(/rec\.produitFidele === false/);
-  });
-
+describe('le constat ne conclut que ce qu’il a vu', () => {
   it('sans référence produit, on ne conclut rien', () => {
     // Répondre « identique » par défaut transformerait une absence de
     // vérification en garantie · c'est le mensonge le plus facile à écrire.

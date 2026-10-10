@@ -82,17 +82,14 @@ beforeAll(async () => {
   h.session = { user: { id: ids.owner, email: 'owner@l0.test', name: null }, workspaceId: ids.ws, workspaceName: 'L0', role: 'owner', plan: 'plus', equipe: null };
 });
 
-describe('Lectures Jarvis · statistiques, /jarvis/sources et préflight des Studios', () => {
-  it('jarvisStats, jarvisSnapshot et preflightAction n’insèrent aucun jalon', async () => {
+describe('Lectures Jarvis · statistiques et /jarvis/sources', () => {
+  it('jarvisStats et jarvisSnapshot n’insèrent aucun jalon', async () => {
     const { jarvisStats } = await import('../lib/jarvis-memory');
     const { jarvisSnapshot } = await import('../lib/jarvis-state');
-    const { preflightAction } = await import('../app/actions/preflight');
     const avant = await empreinte();
     const { r: stats, ecritures } = await sousEspion(async () => {
       const s = await jarvisStats(ids.brand, ids.ws);
       await jarvisSnapshot(ids.brand, ids.ws);
-      await preflightAction({ text: 'Une accroche synthétique de plus de vingt-cinq caractères', templates: ['benefits'] });
-      await preflightAction({ text: 'Une accroche synthétique de plus de vingt-cinq caractères' });
       return s;
     });
     // La lecture a bien de quoi franchir le seuil · sinon le test serait vert pour rien.

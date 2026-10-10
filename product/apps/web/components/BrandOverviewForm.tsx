@@ -26,7 +26,7 @@ export function BrandOverviewForm({ init }: { init: BrandInitial }) {
       <input type="hidden" name="competitors" value={f.competitors} />
 
       <h2 style={sectionH}>Profil</h2>
-      <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>Le profil nourrit le Studio IA et le Radar. Tout est modifiable.</p>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>Le profil nourrit les Studios et le Radar. Tout est modifiable.</p>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <F label="Nom *" flex="2 1 220px"><input name="name" value={f.name} onChange={set('name')} required style={input} /></F>
         <F label="Site" flex="2 1 220px"><input name="url" value={f.url} onChange={set('url')} placeholder="gruns.co" style={input} /></F>

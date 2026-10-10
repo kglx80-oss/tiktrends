@@ -398,7 +398,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
 
             <section style={bloc} aria-labelledby="pc-creations" data-section="creations-precedentes">
               <h3 id="pc-creations" style={titreSection}>Créations précédentes de {nomMarque || 'la marque'}</h3>
-              <p style={note}>Ajoute ce que la marque a déjà produit (Pubs IA, Image IA) · le projet les garde comme sources, elles se reprennent et se déclinent.</p>
+              <p style={note}>Ajoute ce que la marque a déjà produit (pubs et images) · le projet les garde comme sources, elles se reprennent et se déclinent.</p>
               {creations.length === 0 ? (
                 <p data-creations="aucune" style={note}>{chargement ? 'Chargement…' : 'Aucune création réutilisable pour cette marque · une pub ou une image terminée apparaîtra ici.'}</p>
               ) : (

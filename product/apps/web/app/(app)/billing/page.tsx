@@ -20,7 +20,7 @@ const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 
 const FEATURES: Record<Plan, string[]> = {
   starter: ['Dashboard & Analytics', 'Tagging manuel', '1 marque', 'Support e-mail'],
-  core: ['Tout Starter', 'Studio IA (pubs, image, vidéo)', 'Jarvis · règles maison', 'Radar & Veille', 'Jusqu’à 3 marques'],
+  core: ['Tout Starter', 'Studios (pub, image, vidéo, textes)', 'Jarvis · règles maison', 'Radar & Veille', 'Jusqu’à 3 marques'],
   plus: ['Tout Core', 'Marques illimitées', 'Membres & rôles avancés', 'Clone de pubs gagnantes', 'Priorité de génération'],
   business: ['Tout Plus', 'Marque blanche complète', 'Accès API', 'Accompagnement dédié', 'Volumes sur mesure'],
 };

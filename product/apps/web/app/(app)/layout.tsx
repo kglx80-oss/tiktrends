@@ -9,7 +9,6 @@ import { railNav, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, RAIL_GROUP_L
 import { listBrands, getActiveBrand } from '../../lib/brands';
 import { AppShell } from '../../components/AppShell';
 import { ToastProvider } from '../../components/Toast';
-import { IndicateurGenerations } from '../../components/IndicateurGenerations';
 import { logoutAction } from '../actions/auth';
 import { isFounder } from '../../lib/founder';
 import { effectiveAccess } from '../../lib/access';
@@ -84,9 +83,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           retour au même endroit partout (cf. components/Toast.tsx). */}
       <ToastProvider>
         {children}
-        {/* « Ça tourne » · visible partout tant qu'un lot génère, même après
-            avoir quitté le studio (le store vit au niveau module). */}
-        <IndicateurGenerations />
       </ToastProvider>
     </AppShell>
   );

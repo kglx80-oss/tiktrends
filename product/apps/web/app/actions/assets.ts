@@ -1,9 +1,8 @@
 'use server';
 
-import { and, desc, eq, or, isNull, sql, inArray } from 'drizzle-orm';
+import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, googleAccessToken, driveDownload } from '@tiktrends/integrations';
-import { driveRefreshTokenFor } from '../../lib/drive-token';
+import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
 import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -13,7 +12,7 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
-import { servedAssetUrl, isPrivateDriveUrl } from '../../lib/asset-url';
+import { servedAssetUrl } from '../../lib/asset-url';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage } from '../../lib/import-image';
 
@@ -39,6 +38,9 @@ export interface AssetItem {
       bibliothèque : ni suppression, ni bascule IA, ni template. Absent pour une
       ligne de la bibliothèque historique (`assets`). */
   studio?: OrigineStudioBibliotheque;
+  /** Création d'un ANCIEN studio (retiré le 10/10) · lecture seule : ouvrir,
+      télécharger, rien d'autre. Absent pour toute autre ligne. */
+  historique?: { libelle: string; telecharger: string };
 }
 
 const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
@@ -332,73 +334,4 @@ export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: t
   const cfg = storageFromEnv();
   if (cfg && row?.source === 'upload' && row.url) { try { await deleteObjectByUrl(cfg, row.url); } catch { /* best-effort */ } }
   return { ok: true };
-}
-
-/**
- * URLs d'images de la bibliothèque utilisables comme références par l'IA, pour une marque
- * (images de la marque + images communes à l'espace), dédiées à l'IA (use_for_ai).
- * Sert à ce que « quand c'est rempli, l'IA s'en serve forcément ».
- */
-/**
- * Convertit des lignes d'assets en URLs exploitables PAR L'IA (Fal).
- * Une image Drive privée n'est pas récupérable par Fal : on la télécharge et on
- * l'inline en data URI (comme les photos uploadées). Les images déjà publiques (bucket,
- * URL externe) passent telles quelles. Ce qu'on ne peut pas résoudre est ignoré (jamais bloquant).
- */
-async function toAiImageUrls(workspaceId: string, rows: Array<{ url: string; externalId: string | null; mimeType: string | null }>, brandId?: string | null): Promise<string[]> {
-  const needsDrive = rows.some((r) => r.url && isPrivateDriveUrl(r.url) && r.externalId);
-  let token: string | null = null;
-  if (needsDrive && db) {
-    // Le jeton Drive vit sur la marque (jamais sur l'espace) · cf. lib/drive-token.
-    const rt = await driveRefreshTokenFor(workspaceId, brandId);
-    if (rt) { try { token = await googleAccessToken(rt); } catch { token = null; } }
-  }
-  const out: string[] = [];
-  for (const r of rows) {
-    if (!r.url) continue;
-    if (isPrivateDriveUrl(r.url)) {
-      if (r.externalId && token) {
-        try {
-          const bytes = await driveDownload(token, r.externalId);
-          if (bytes.length <= 15_000_000) out.push(`data:${r.mimeType || 'image/jpeg'};base64,${bytes.toString('base64')}`);
-        } catch { /* image non résolue : ignorée */ }
-      }
-      // sinon : on ignore (Fal ne peut pas récupérer un lien Drive privé)
-    } else {
-      out.push(r.url);
-    }
-  }
-  return out;
-}
-
-/** Résout des URLs d'images de la bibliothèque à partir d'IDs (sélection explicite). */
-export async function resolveAssetImageUrls(workspaceId: string, ids: string[], limit = 6): Promise<string[]> {
-  if (!db || !ids.length) return [];
-  // Le filtre par identifiants se fait en SQL · il se faisait en JavaScript
-  // après avoir remonté quatre cents lignes, donc quatre cents images en base64
-  // lues pour en garder six.
-  const rows = await db.select({ id: schema.assets.id, url: schema.assets.url, externalId: schema.assets.externalId, mimeType: schema.assets.mimeType })
-    .from(schema.assets)
-    .where(and(
-      eq(schema.assets.workspaceId, workspaceId),
-      eq(schema.assets.kind, 'image'),
-      inArray(schema.assets.id, ids.slice(0, 50)),
-    ))
-    .limit(limit);
-  return toAiImageUrls(workspaceId, rows.filter((r) => r.url));
-}
-
-export async function listBrandAssetImageUrls(workspaceId: string, brandId: string, limit = 4): Promise<string[]> {
-  if (!db) return [];
-  const rows = await db.select({ url: schema.assets.url, externalId: schema.assets.externalId, mimeType: schema.assets.mimeType })
-    .from(schema.assets)
-    .where(and(
-      eq(schema.assets.workspaceId, workspaceId),
-      eq(schema.assets.kind, 'image'),
-      eq(schema.assets.useForAi, true),
-      or(eq(schema.assets.brandId, brandId), isNull(schema.assets.brandId)),
-    ))
-    .orderBy(desc(schema.assets.createdAt))
-    .limit(limit);
-  return toAiImageUrls(workspaceId, rows, brandId);
 }

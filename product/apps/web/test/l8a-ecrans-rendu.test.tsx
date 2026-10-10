@@ -19,10 +19,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
  *    (`aria-labelledby` pointait sur son propre id), « Ajouter » inactif sans
  *    raison, export et proposition hors ligne muets, brouillon perdu au
  *    rechargement d'un conflit ;
- *  · produit : « Associer » muet quand seul le fichier manque ;
- *  · Image IA / Textes IA historiques : champs à 14 px (zoom forcé sur
- *    téléphone), sélecteur de produit plus large que l'écran à 390 (page à
- *    831 px), libellé non relié au sélecteur.
+ *  · produit : « Associer » muet quand seul le fichier manque.
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -40,7 +37,6 @@ vi.mock('../app/actions/studios/image', () => ({
   lireParcoursImage: m.lireParcours, compilerConsigneImage: vi.fn(), retenirConsigneImage: vi.fn(), demanderDevisImage: vi.fn(), approuverEtLancerImage: vi.fn(), controlerMediaImage: vi.fn(),
 }));
 vi.mock('../app/actions/studios/execution', () => ({ annulerJob: vi.fn() }));
-vi.mock('../app/actions/studio', () => ({ generateAction: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...r }: { href: string; children: unknown }) => <a href={href} {...(r as object)}>{children as never}</a> }));
 
@@ -49,7 +45,6 @@ import { EditeurCalques, type PropsEditeur } from '../components/studios/editeur
 import { PanneauCalques } from '../components/studios/editeur/PanneauCalques';
 import { EcranTextes, cleBrouillonTextes } from '../components/studios/textes/EcranTextes';
 import { EcranProduit } from '../components/studios/produit/EcranProduit';
-import { StudioClient } from '../app/(app)/studio/textes/StudioClient';
 import type { VueTextes } from '../lib/studios/textes/textes';
 import type { VueProduit } from '../lib/studios/produit/vue';
 import { contenuVideo, documentStudio, copie } from '../../../packages/core/test/studios-fixtures';
@@ -307,16 +302,5 @@ describe('UX-03 · produit · la prochaine action est dite', () => {
     const b = bouton('Épingler cette photo');
     expect(b.disabled).toBe(true);
     expect(document.getElementById(b.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Choisis d’abord une photo.');
-  });
-});
-
-/* ───────────────────────── Studios historiques ────────────────────────────── */
-
-describe('UX-01 · champs à 16 px (pas de zoom forcé sur téléphone)', () => {
-  it('Textes IA · chaque champ du brief est à 16 px', () => {
-    const d = new DOMParser().parseFromString(renderToStaticMarkup(<StudioClient hasKey={false} />), 'text/html');
-    const champs = [...d.querySelectorAll('input, select, textarea')] as HTMLElement[];
-    expect(champs.length).toBeGreaterThanOrEqual(6);
-    for (const c of champs) expect(c.style.fontSize, `${c.id} sous 16 px`).toBe('16px');
   });
 });

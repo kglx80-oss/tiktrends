@@ -12,7 +12,6 @@ import { jargonEcran } from './helpers/jargon-ecran';
  *  · Assets (membre) · téléversement direct ;
  *  · Jarvis · « Apprendre des marques suivies » (administrateur de SON espace) ;
  *  · Assistant de création de marque (administrateur de son espace) ;
- *  · Image IA · relecture (membre) ;
  *  · Marques suivies · brief (membre avec Veille) ;
  *  · Jarvis · conversation (membre).
  */
@@ -24,7 +23,6 @@ vi.mock('../lib/spend-guard', async (orig) => ({ ...(await orig<typeof import('.
 vi.mock('../lib/adsmap-guard', () => ({ adsmapGuard: async () => ({ s: session, brand: { id: 'b', name: 'Neva' } }) }));
 vi.mock('../lib/brands', async (orig) => ({ ...(await orig<typeof import('../lib/brands')>()), getActiveBrand: async () => ({ id: 'b', name: 'Neva' }) }));
 vi.mock('@tiktrends/db', async (orig) => ({ ...(await orig<typeof import('@tiktrends/db')>()), db: {} }));
-vi.mock('../lib/image-jointe', () => ({ imageJointe: async () => ({ data: 'x', media_type: 'image/png' }) }));
 
 beforeEach(() => {
   for (const k of ['TRENDTRACK_API_KEY', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_ENDPOINT', 'ANTHROPIC_API_KEY']) delete process.env[k];
@@ -51,11 +49,6 @@ describe('Recette #106b · refus « service absent » rendus au client', () => {
     const fd = new FormData(); fd.set('name', 'Neva'); fd.set('url', 'neva.fr');
     const r = await generateBrandDraftAction({} as never, fd);
     propre(r.error); expect(r.error).toBe(messageServiceInactif('ia_profil'));
-  });
-  it('Image IA · relecture indisponible', async () => {
-    const { scoreImageAction } = await import('../app/actions/image');
-    const r = await scoreImageAction({ url: 'https://exemple.invalid/a.png' });
-    propre(r.error); expect(r.error).toBe(messageServiceInactif('relecture_image'));
   });
   it('Marques suivies · brief sans recherche publicitaire', async () => {
     const { briefMarqueAction } = await import('../app/actions/brief-marque');

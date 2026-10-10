@@ -53,7 +53,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <h2 style={h2}>Abonnement</h2>
         <p style={sub}>
           Formule actuelle : <b>{PLAN_LABEL[s.plan]}</b>. Elle débloque les fonctionnalités
-          (Veille & Studio IA dès <b>Core</b>) et l'allocation de crédits mensuelle.
+          (Veille & Studios dès <b>Core</b>) et l'allocation de crédits mensuelle.
         </p>
         <a href="/billing" style={{ ...btn, display: 'inline-block', textDecoration: 'none' }}>Gérer mon abonnement ›</a>
       </div>
@@ -72,9 +72,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             // opérateur · c'est le produit dont on est le marque blanche). La
             // variable d'environnement garde son nom, elle n'atteint pas l'écran.
             { label: 'Bibliothèque pub concurrentielle', env: 'TRENDTRACK_API_KEY', on: !!process.env.TRENDTRACK_API_KEY, unlocks: 'Veille, suivis, analyse concurrent' },
-            { label: 'Image & vidéo IA', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studio Image (Nano Banana, GPT Image) et Vidéo (Kling 2.5)' },
+            { label: 'Image & vidéo IA', env: 'FAL_KEY', on: !!process.env.FAL_KEY, unlocks: 'Studios · images clés, images et clips vidéo' },
             { label: 'Stockage des fichiers lourds', env: 'S3_BUCKET', on: !!(process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY && process.env.S3_ENDPOINT), unlocks: 'Upload direct des gros fichiers (rushs vidéo) dans Assets' },
-            { label: 'Vidéo IA · moteur alternatif (option)', env: 'HIGGSFIELD_API_KEY', on: !!process.env.HIGGSFIELD_API_KEY, unlocks: 'Alternative vidéo (contrôles caméra)' },
             { label: 'E-mails transactionnels', env: 'SMTP_URL', on: !!process.env.SMTP_URL, unlocks: 'Bienvenue, invitation, réinitialisation de mot de passe' },
             { label: 'E-mails marketing', env: 'KLAVIYO_API_KEY', on: !!process.env.KLAVIYO_API_KEY, unlocks: 'Synchro des inscrits en profils + flows marketing (bienvenue, essai, relances)' },
             { label: 'Paiement en ligne', env: 'STRIPE_SECRET_KEY', on: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET), unlocks: 'Abonnements, portail client et facturation' },

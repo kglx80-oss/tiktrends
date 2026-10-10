@@ -66,13 +66,11 @@ const ANALYSER: Array<{ href: string; icon: string; titre: string; sous: string;
   { href: '/jarvis', icon: 'brain', titre: 'Ce que Jarvis sait', sous: 'La mémoire de ta catégorie' },
 ];
 
-// Les studios · SECONDAIRES. Quatre accès conservés, sans studio mis en vedette
-// ni surtitre de produit clé. Une teinte par studio, en rangée compacte.
+// Les Studios · SECONDAIRES. Une seule expérience de création (retrait des
+// anciens studios, 10/10) : préparer un projet, ou reprendre un projet.
 const STUDIOS: Array<{ href: string; icon: string; titre: string; teinte: string }> = [
-  { href: '/studio/ads', icon: 'sparkles', titre: 'Pubs IA', teinte: 'var(--grad-accent)' },
-  { href: '/studio/image', icon: 'image', titre: 'Image IA', teinte: 'linear-gradient(135deg, #0e6a5e, #1f9e8f)' },
-  { href: '/studio/video', icon: 'film', titre: 'Vidéo IA', teinte: 'linear-gradient(135deg, #4c2a9e, #8b5cf6)' },
-  { href: '/studio/textes', icon: 'pen', titre: 'Textes IA', teinte: 'linear-gradient(135deg, #8a5a12, #d69a3a)' },
+  { href: '/studio/projets/nouveau', icon: 'sparkles', titre: 'Nouveau projet', teinte: 'var(--grad-accent)' },
+  { href: '/studio/projets', icon: 'folder', titre: 'Mes projets', teinte: 'linear-gradient(135deg, #4c2a9e, #8b5cf6)' },
 ];
 
 export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple, regles = [], vues, assistantOuvert = true }: AssistantHomeProps) {
@@ -148,8 +146,8 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
       </div>
       </>}
 
-      {/* Créer les variantes de ton test · SECONDAIRE · rangée compacte, quatre
-          studios conservés, sans studio en vedette ni surtitre de produit clé. */}
+      {/* Créer les variantes de ton test · SECONDAIRE · rangée compacte, les
+          Studios (nouveau projet, mes projets), sans surtitre de produit clé. */}
       {studios.length > 0 && <>
       <h2 style={sectionH}>Créer les variantes de ton test</h2>
       <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', margin: '10px 0 26px' }}>

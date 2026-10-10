@@ -68,9 +68,9 @@ export const JARVIS_ACTIONS: Record<JarvisActionKey, JarvisActionDef> = {
     cost: null, href: '/adsmap/radar',
   },
   studio: {
-    key: 'studio', label: 'Ouvrir le studio',
-    effect: 'Fabriquer la créa · pub complète, visuel ou vidéo.',
-    cost: null, href: '/studio',
+    key: 'studio', label: 'Ouvrir les Studios',
+    effect: 'Fabriquer la créa dans un projet · pub, image, vidéo ou textes.',
+    cost: null, href: '/studio/projets',
   },
   carte: {
     key: 'carte', label: 'Ouvrir la carte',

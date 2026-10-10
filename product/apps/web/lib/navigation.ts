@@ -90,12 +90,15 @@ export const ROUTES: RouteNode[] = [
   { path: '/veille/formats', label: 'Formats', parent: '/veille', section: 'Observatoire' },
   { path: '/saved', label: 'Sauvegardes', parent: '/veille', section: 'Observatoire' },
 
-  { path: '/studio', label: 'Studio IA', section: 'Atelier' },
-  { path: '/studio/ads', label: 'Pubs IA', parent: '/studio', section: 'Atelier' },
-  { path: '/studio/image', label: 'Image IA', parent: '/studio', section: 'Atelier' },
-  { path: '/studio/video', label: 'Vidéo IA', parent: '/studio', section: 'Atelier' },
-  { path: '/studio/textes', label: 'Textes IA', parent: '/studio', section: 'Atelier' },
-  { path: '/studio/projets', label: 'Projets', parent: '/studio', section: 'Atelier' },
+  // Les anciennes adresses de création · elles ne font plus que rediriger
+  // (`destinationAncienneAdresse`, retrait du 10/10) · cachées, jamais dans un fil.
+  { path: '/studio', label: 'Studios', section: 'Atelier', hidden: true },
+  { path: '/studio/ads', label: 'Studios', section: 'Atelier', hidden: true },
+  { path: '/studio/image', label: 'Studios', section: 'Atelier', hidden: true },
+  { path: '/studio/video', label: 'Studios', section: 'Atelier', hidden: true },
+  { path: '/studio/textes', label: 'Studios', section: 'Atelier', hidden: true },
+  { path: '/studio/projets', label: 'Studios', section: 'Atelier' },
+  { path: '/studio/projets/nouveau', label: 'Préparer un projet', parent: '/studio/projets', section: 'Atelier' },
   { path: '/studio/projets/[id]', label: 'Projet', parent: '/studio/projets', section: 'Atelier', dynamic: 'segment' },
   { path: '/studio/projets/[id]/image', label: 'Éditer l’image', parent: '/studio/projets/[id]', section: 'Atelier' },
   { path: '/studio/projets/[id]/produit', label: 'Produit et références', parent: '/studio/projets/[id]', section: 'Atelier' },
@@ -236,8 +239,7 @@ function filDeVue(route: RouteNode, opts: CrumbOptions): Crumb[] | null {
 const PAR_MARQUE = new Set([
   '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/protocole',
   '/adsmap/import', '/adsmap/radar', '/adsmap/tri',
-  '/jarvis', '/studio', '/studio/ads', '/studio/image', '/studio/video',
-  '/studio/textes', '/assets', '/analytics',
+  '/jarvis', '/assets', '/analytics',
 ]);
 
 export function isBrandScoped(pathname: string): boolean {
@@ -355,10 +357,11 @@ export function routeLabel(pathname: string): string | null {
 /**
  * Les adresses que des liens déjà en circulation visent · anciens liens du
  * Studio, des Pubs IA et de la Veille (favoris, liens partagés, cartes de
- * Veille, retours depuis un projet). Chacune doit rester SERVIE, avec les
- * paramètres qu'elle lit · un test parcourt cette liste (`l8b-navigation`) et
- * échoue si une page disparaît, si elle cesse de lire un paramètre, ou si le
- * lien de retour vers la Veille perd un critère.
+ * Veille, notifications enregistrées). Chacune doit rester SERVIE · un test
+ * parcourt cette liste (`l8b-navigation`) et échoue si une page disparaît, ou
+ * si un paramètre porté par un lien existant n'est plus relu (ni par la page,
+ * ni, pour une ancienne adresse de création, par sa redirection vers la
+ * préparation d'un projet).
  *
  * Ajout seulement · rien ici ne change la carte `ROUTES` ni le fil d'Ariane.
  */
@@ -371,11 +374,12 @@ export interface RouteHistorique {
 
 export const ROUTES_HISTORIQUES: readonly RouteHistorique[] = [
   { chemin: '/studio', origine: 'Studio', params: [] },
-  { chemin: '/studio/ads', origine: 'Pubs IA', params: ['mode', 'ref', 'angle', 'src', 'srcnom', 'depuis', 'rv'] },
+  { chemin: '/studio/ads', origine: 'Pubs IA', params: ['mode', 'ref', 'angle', 'iter', 'src', 'srcnom', 'depuis', 'rv'] },
   { chemin: '/studio/image', origine: 'Studio', params: [] },
   { chemin: '/studio/video', origine: 'Studio', params: ['prompt'] },
   { chemin: '/studio/textes', origine: 'Studio', params: ['brand', 'inspo'] },
   { chemin: '/studio/projets', origine: 'Studio', params: ['toutes'] },
+  { chemin: '/studio/projets/nouveau', origine: 'Studio', params: ['type', 'angle', 'produit', 'ref', 'iter', 'src', 'srcnom', 'depuis', 'rv'] },
   { chemin: '/studio/projets/[id]', origine: 'Studio', params: ['version'] },
   { chemin: '/veille', origine: 'Veille', params: ['q', 'p', 'searchIn', 'media', 'sort', 'status', 'country', 'page', 'rv'] },
   { chemin: '/veille/scale', origine: 'Veille', params: ['q', 'country'] },
@@ -390,15 +394,15 @@ export const ROUTES_HISTORIQUES: readonly RouteHistorique[] = [
 /* -------------------------------------------------------------------------- */
 
 /**
- * La capacité Studios dont dépend chaque écran du NOUVEAU Studio (projets).
- * Les écrans de l'ancienne expérience (`/studio`, Pubs IA, Image IA, Vidéo IA,
- * Textes IA) n'y figurent PAS : aucun interrupteur ne les coupe (cahier §14,
- * « l'ancienne expérience reste disponible »). Un test (`f1-navigation`)
- * échoue si un écran sous `/studio/projets` n'est pas déclaré ici, ou si un
- * écran historique l'est.
+ * La capacité Studios dont dépend chaque écran des Studios (projets). Les
+ * anciennes adresses (`/studio`, Pubs IA, Image IA, Vidéo IA, Textes IA) ne
+ * font plus que rediriger (retrait du 10/10) et n'y figurent pas. Un test
+ * (`f1-navigation`) échoue si un écran sous `/studio/projets` n'est pas
+ * déclaré ici, ou si une ancienne adresse l'est.
  */
 export const CAPACITE_DES_ROUTES: Readonly<Record<string, CapaciteStudio>> = {
   '/studio/projets': 'projets',
+  '/studio/projets/nouveau': 'projets',
   '/studio/projets/[id]': 'projets',
   '/studio/projets/[id]/image': 'editeur',
   '/studio/projets/[id]/produit': 'projets',
@@ -412,18 +416,6 @@ export function capaciteDeRoute(pathname: string): CapaciteStudio | null {
   const r = matchRoute(pathname);
   return r ? CAPACITE_DES_ROUTES[r.path] ?? null : null;
 }
-
-/**
- * L'ÉCRAN historique qui couvre le même besoin qu'une capacité coupée · le
- * « non activé » propose toujours une porte qui existe (jamais un lien mort).
- */
-export const ALTERNATIVE_HISTORIQUE: Readonly<Partial<Record<CapaciteStudio, { href: string; label: string }>>> = {
-  generation_image: { href: '/studio/image', label: 'Image IA' },
-  editeur: { href: '/studio/image', label: 'Image IA' },
-  video: { href: '/studio/video', label: 'Vidéo IA' },
-  voix: { href: '/studio/video', label: 'Vidéo IA' },
-  textes: { href: '/studio/textes', label: 'Textes IA' },
-};
 
 export interface LienAtelier {
   /** Adresse de l'écran · `null` quand la capacité est coupée (aucun lien mort). */

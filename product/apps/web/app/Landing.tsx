@@ -333,7 +333,7 @@ export function Landing() {
           <div className="lp-card" style={{ padding: 28 }}>
             <div className="lp-mono" style={{ fontSize: 13, color: '#ff5c8a', fontWeight: 600, marginBottom: 14 }}>02 / itération</div>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Génère un lot</h3>
-            <p className="lp-muted" style={{ fontSize: 14 }}>Le Studio IA produit les variantes, statique et vidéo, avec directions artistiques. Le tri des propositions garde les meilleures.</p>
+            <p className="lp-muted" style={{ fontSize: 14 }}>Les Studios produisent les variantes, statique et vidéo, avec directions artistiques. Le tri des propositions garde les meilleures.</p>
           </div>
           <div className="lp-card" style={{ padding: 28 }}>
             <div className="lp-mono" style={{ fontSize: 13, color: '#ff5c8a', fontWeight: 600, marginBottom: 14 }}>03 / résultat</div>
@@ -364,7 +364,7 @@ export function Landing() {
       <section className="lp-wrap lp-reveal" style={{ padding: '60px 40px 20px' }}>
         <div className="lp-feat">
           <div>
-            <div className="lp-eyebrow" style={{ marginBottom: 14 }}>Studio IA</div>
+            <div className="lp-eyebrow" style={{ marginBottom: 14 }}>Studios</div>
             <h2 className="lp-h2" style={{ marginBottom: 16 }}>Chaque mode dit ce qu'il garantit</h2>
             <p className="lp-ink2" style={{ fontSize: 16, marginBottom: 20 }}>Deux façons de fabriquer une publicité, et une promesse claire à chaque fois · une garantie, pas une moyenne. Le modèle produit la pub entière à partir de la photo produit et d'une copie écrite par Jarvis.</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -497,7 +497,7 @@ export function Landing() {
           <div className="lp-g4">
             {[
               { n: 'Starter', p: '0€', per: '', d: 'Observer · Dashboard, Analytics, Tagging', hot: false },
-              { n: 'Core', p: '99€', per: '/mois', d: 'Créer · Studio IA, Jarvis, Veille', hot: false },
+              { n: 'Core', p: '99€', per: '/mois', d: 'Créer · Studios, Jarvis, Veille', hot: false },
               { n: 'Plus', p: '299€', per: '/mois', d: 'Tester · Adsmap complet, protocole', hot: true },
               { n: 'Business', p: '990€', per: '/mois', d: 'Piloter · marques multiples, rôles', hot: false },
             ].map((t) => (
