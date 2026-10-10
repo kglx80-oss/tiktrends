@@ -47,6 +47,11 @@ sudo systemctl enable  --now tiktrends-deploy.timer   # relance
    `docker compose run --rm --no-deps -T -w /app workers pnpm --filter @tiktrends/db migrate` : un conteneur
    ÉPHÉMÈRE de la NOUVELLE image workers, sur le réseau et avec le `.env.deploy` du service. 6 essais espacés
    de 5 s (drizzle applique tout le lot en attente dans une transaction : un échec n'en laisse aucune à moitié).
+   **Juste avant**, si une migration du journal manque en base (ou si la base ne se laisse pas lire), un
+   `pg_dump` complet part dans `~/backups/avant-migration-<sha>-<horodatage>.sql.gz` (les 5 derniers sont
+   gardés, la sauvegarde quotidienne n'est pas touchée). Dump en échec ou de moins de 500 octets : **arrêt,
+   aucune migration** (`ÉCHEC · sauvegarde avant migration · …`). Restaurer : section « Restaurer une
+   sauvegarde », avec ce fichier.
 5. **Vérifier** · chaque migration du journal du dépôt (`packages/db/drizzle/meta/_journal.json`) doit être
    dans `drizzle.__drizzle_migrations` (lu par `psql` dans le conteneur `db`). L'inclusion, pas l'égalité :
    après un retour arrière par revert, la base garde ses migrations en avance (PLAN-FUSION §5). Ce contrôle

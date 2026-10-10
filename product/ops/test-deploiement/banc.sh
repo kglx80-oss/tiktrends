@@ -8,13 +8,16 @@
 #
 # Scénarios : succes, premier, rien, ops_seul, build_ko, migration_ko,
 # migration_ko_base_a_jour, verification_ko, lecture_base_ko, activation_ko,
-# retour_arriere, reprise, garde_essai.
+# retour_arriere, reprise, garde_essai, sauvegarde_ko, sauvegarde_vide,
+# lecture_avant_ko.
 #
 # Sortie (dans DIR, par défaut un dossier temporaire affiché à la fin) :
 #   journal    une ligne par appel · « étape<TAB>commande<TAB>BUILD_SHA=…<TAB>PROJET=…<TAB>issue=ok|ko »
 #              (git : « git<TAB>commande »)
 #   sortie     ce que deploy.sh a écrit (stdout et stderr)
-#   resultat   code=…, marqueur_avant=…, marqueur_apres=…, cible=…, sha_court=…
+#   resultat   code=…, marqueur_avant=…, marqueur_apres=…, cible=…, sha_court=…,
+#              en_attente=1|0 (une migration du journal cible manque en base au départ),
+#              sauvegardes=N (dumps « avant-migration » écrits)
 #
 # La garde qui lit ce journal : apps/web/test/d1-deploiement.test.ts.
 set -euo pipefail
@@ -97,8 +100,8 @@ commit_ops() {
 }
 
 export BANC_JOURNAL="$SORTIE/journal" BANC_ETAT="$SORTIE/etat" BANC_VRAI_GIT="$VRAI_GIT"
-export TIKTRENDS_REPO="$DEPOT" COMPOSE_PROJECT_NAME="banc-d1"
-unset BUILD_SHA FAUX_BUILD FAUX_MIGRATION FAUX_UP FAUX_LECTURE_BASE 2>/dev/null || true
+export TIKTRENDS_REPO="$DEPOT" COMPOSE_PROJECT_NAME="banc-d1" TIKTRENDS_SAUVEGARDES="$SORTIE/sauvegardes"
+unset BUILD_SHA FAUX_BUILD FAUX_MIGRATION FAUX_UP FAUX_LECTURE_BASE FAUX_LECTURE_AVANT FAUX_SAUVEGARDE 2>/dev/null || true
 
 case "$SCENARIO" in
   succes)          commit_migration ;;
@@ -116,11 +119,19 @@ case "$SCENARIO" in
   retour_arriere)  commit_code; echo 9999999999999 >> "$SORTIE/etat/base" ;;
   reprise)         commit_migration ;;
   garde_essai)     commit_code; unset COMPOSE_PROJECT_NAME ;;
+  sauvegarde_ko)   commit_migration; export FAUX_SAUVEGARDE=ko ;;
+  sauvegarde_vide) commit_migration; export FAUX_SAUVEGARDE=vide ;;
+  # La base ne se laisse pas lire avant migration : dans le doute, on sauvegarde.
+  lecture_avant_ko) commit_code; export FAUX_LECTURE_AVANT=ko ;;
   *) echo "scénario inconnu : $SCENARIO" >&2; exit 64 ;;
 esac
 
 CIBLE="$(g -C "$DEV" rev-parse HEAD)"
 MARQUEUR_AVANT="$(cat "$DEPOT/.tiktrends-deployed-sha" 2>/dev/null || echo absent)"
+EN_ATTENTE=0
+for w in $(grep -oE '"when"[[:space:]]*:[[:space:]]*[0-9]+' "$DEV/product/packages/db/drizzle/meta/_journal.json" | grep -oE '[0-9]+$'); do
+  grep -qxF "$w" "$SORTIE/etat/base" || EN_ATTENTE=1
+done
 
 lancer() {
   set +e
@@ -148,6 +159,8 @@ fi
   echo "marqueur_apres=$(cat "$DEPOT/.tiktrends-deployed-sha" 2>/dev/null || echo absent)"
   echo "cible=$CIBLE"
   echo "sha_court=$(g -C "$DEV" rev-parse --short=8 HEAD)"
+  echo "en_attente=$EN_ATTENTE"
+  echo "sauvegardes=$(ls -1 "$SORTIE/sauvegardes"/avant-migration-*.sql.gz 2>/dev/null | wc -l | tr -d ' ')"
 } > "$SORTIE/resultat"
 rm -f "$SORTIE/resultat.tmp"
 

@@ -5,6 +5,8 @@
 # Étapes reconnues (première colonne du journal) :
 #   construction   docker compose build …
 #   base           docker compose up … --no-recreate … db   (la base seule, jamais remplacée)
+#   etat_avant     docker compose exec … __drizzle_migrations /* etat-avant */ (lecture avant migration)
+#   sauvegarde     docker compose exec … pg_dump …                              (sauvegarde avant migration)
 #   migration      docker compose run … migrate
 #   verification   docker compose exec … __drizzle_migrations
 #   activation     tout autre `docker compose up` (conteneurs recréés)
@@ -14,7 +16,9 @@
 #   FAUX_BUILD=ok|ko            FAUX_UP=ok|ko
 #   FAUX_MIGRATION=ok|ko|muette (muette : code 0 sans rien appliquer, comme
 #                                drizzle qui ignore une migration au `when` trop ancien)
-#   FAUX_LECTURE_BASE=ok|ko     (psql en échec)
+#   FAUX_LECTURE_BASE=ok|ko     (psql de la vérification en échec)
+#   FAUX_LECTURE_AVANT=ok|ko    (psql de la lecture avant migration en échec)
+#   FAUX_SAUVEGARDE=ok|ko|vide  (pg_dump en échec, ou sortie vide)
 set -u
 J="${BANC_JOURNAL:?BANC_JOURNAL absent}"
 E="${BANC_ETAT:?BANC_ETAT absent}"
@@ -27,7 +31,12 @@ if [ "${1:-}" = compose ]; then
   case "$sous" in
     build) etape=construction ;;
     run) case " $* " in *" migrate "*) etape=migration ;; *) etape=run ;; esac ;;
-    exec) case "$*" in *__drizzle_migrations*) etape=verification ;; *) etape=exec ;; esac ;;
+    exec) case "$*" in
+            *etat-avant*) etape=etat_avant ;;
+            *__drizzle_migrations*) etape=verification ;;
+            *pg_dump*) etape=sauvegarde ;;
+            *) etape=exec ;;
+          esac ;;
     up)
       services=()
       recree=1
@@ -52,6 +61,8 @@ case "$etape" in
   construction) [ "${FAUX_BUILD:-ok}" = ok ] || code=1 ;;
   migration)    [ "${FAUX_MIGRATION:-ok}" = ko ] && code=1 ;;
   verification) [ "${FAUX_LECTURE_BASE:-ok}" = ok ] || code=2 ;;
+  etat_avant)   [ "${FAUX_LECTURE_AVANT:-ok}" = ok ] || code=2 ;;
+  sauvegarde)   [ "${FAUX_SAUVEGARDE:-ok}" = ko ] && code=1 ;;
   activation)   [ "${FAUX_UP:-ok}" = ok ] || code=1 ;;
 esac
 issue=ok; [ "$code" = 0 ] || issue=ko
@@ -72,6 +83,8 @@ case "$etape" in
         | grep -oE '[0-9]+$' >> "$E/base"
       sort -u -o "$E/base" "$E/base"
     fi ;;
-  verification) cat "$E/base" ;;
+  verification|etat_avant) cat "$E/base" ;;
+  # Un dump simulé : assez d'octets pour passer le seuil après gzip (sauf « vide »).
+  sauvegarde) [ "${FAUX_SAUVEGARDE:-ok}" = vide ] || { echo "-- faux dump"; head -c 3000 /dev/urandom | base64; } ;;
 esac
 exit 0
