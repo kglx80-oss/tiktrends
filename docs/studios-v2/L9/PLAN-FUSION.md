@@ -92,7 +92,8 @@ Ordre A, avec la base effective de chaque fusion (= `main` au moment de fusionne
 | --- | --- | --- | --- | --- |
 | 0 | #731 (dossier, docs seules) | `bc33cec` | `docs/studios-v2` | aucune (pas de rebuild : hors `product/`) |
 | 0′ | #729 puis #730 (Lot 21, indépendants) | `main` du moment | 7 puis 9 fichiers | aucune |
-| 1 | PR `claude/studios-base-vague2` → `main` | `main` (+0, 0′) | L0 lectures, L1, L2 noyau | **0054** |
+| 0″ | PR `claude/studios-d1-seul` (D1 seul : `deploy.sh`, banc, `BUILD_SHA`) | `main` du moment | ordre de déploiement D1 | aucune (rebuild : Dockerfiles changés) |
+| 1 | PR `claude/studios-base-vague2` → `main` | `main` (+0, 0′, 0″) | L0 lectures, L1, L2 noyau | **0054** |
 | 2 | `…-base-vague3` | 1 | SEC × L2 × L3 (raccords) | aucune |
 | 3 | `…-base-vague4` | 2 | L4 | aucune |
 | 4 | `…-base-vague5` | 3 | L5, SEC | aucune |
@@ -130,7 +131,18 @@ garde `apps/web/test/d1-deploiement.test.ts`). Le timer tourne chaque minute :
 6. Seulement alors `docker compose up -d --no-build` : activation du nouveau code. Marqueur avancé en dernier.
    Un échec en 3, 4, 5 ou 6 laisse le marqueur et **ne remplace aucun conteneur** : retenté à la minute suivante.
 
-Conséquences pour les fusions 1 et 9 :
+**Pourquoi 0″ passe AVANT la fusion 1.** Le timer exécute le `deploy.sh` du `main` SERVI : c'est lui qui fait
+le `git pull` puis la suite, et git remplace le fichier par un nouvel inode, si bien que bash termine l'ANCIEN
+script. Sans 0″, la fusion 1 (0054) passerait par l'ancien ordre (`up -d --build` puis migration dans le
+conteneur en service), donc avec la fenêtre « nouveau code sur ancien schéma ». 0″ ne porte aucune migration :
+son déploiement se fait encore à l'ancienne, sans risque ; toutes les fusions suivantes passent par D1.
+Constater avant la fusion 1 que le script servi est D1 : `grep -c 'run --rm --no-deps' ~/tiktrends/product/ops/deploy.sh`
+rend au moins 1 et `cat ~/tiktrends/.tiktrends-deployed-sha` vaut le SHA de 0″. Le journal
+« Vérification · … toutes en base » n'apparaît qu'au déploiement suivant avec rebuild, c'est-à-dire la fusion 1.
+Effet à la fusion 9 (#741) : deux conflits add/add, `apps/web/test/d1-deploiement.test.ts` et `ops/README.md`,
+à résoudre en prenant la version de l'intégration (sur-ensemble de 0″ ; vérifié par `git merge-tree`).
+
+Conséquences pour les fusions 1 et 9 (avec 0″ fusionnée avant) :
 
 - La fenêtre « nouveau code sur ancien schéma » mesurée par L9-A (L9-MIGRATION §7 : écrans Studios en `42P01`,
   réservations refusées) **n'existe plus** : le nouveau code n'est activé qu'après une migration vérifiée.
