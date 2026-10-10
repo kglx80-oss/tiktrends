@@ -7,7 +7,7 @@ import {
   lireReferencesSources, lireReferenceEpinglee, lireReferenceProduit, validerFormeBrief, objetDansPortee, erreurStudio,
   type BriefCanonique, type ContenuVersion, type EmpreinteFichier, type FichierCatalogue, type ProduitMarque,
   type ReferenceProduitEpinglee, type ReferenceProduitStudio, type SourceReferenceStudio, type ErreurStudio,
-  libelleMediaStudio,
+  libelleMediaStudio, titreSource,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { lireProjet, lireVersion, type ProjetStudio, type VersionStudio } from '../depot';
@@ -152,6 +152,11 @@ export async function chargerCatalogueProjet(
   const sources = vivantes.filter((s) => s.statut === 'active');
   for (const s of sources) {
     if (!estEmpreinte(s.empreinte)) continue;
+    // Une création précédente appartient à la marque · elle n'est pas un concurrent (aucun interdit de transfert).
+    if (s.type === 'creation') {
+      fichiers.set(s.sourceId, { assetId: s.sourceId, assetVersion: versionDepuisEmpreinte(s.empreinte), sha256: s.empreinte, nature: 'contenu', provenance: 'bibliotheque', libelle: titreSource(s), productId: null, position: null, annonceur: null, apercu: !!s.apercu, url: s.apercu });
+      continue;
+    }
     fichiers.set(s.sourceId, { assetId: s.sourceId, assetVersion: versionDepuisEmpreinte(s.empreinte), sha256: s.empreinte, nature: 'contenu', provenance: 'concurrent', libelle: `Annonce ${s.plateforme} · ${s.annonceur || 'annonceur inconnu'}`, productId: null, position: null, annonceur: s.annonceur || null, apercu: false, url: null });
   }
 

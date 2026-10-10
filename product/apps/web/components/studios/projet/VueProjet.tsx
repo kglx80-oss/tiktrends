@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import {
-  dateCourteUtc, LIBELLES_MODALITE, LIBELLES_ELEMENT, LIBELLES_STATUT_SOURCE, LIBELLES_TYPE_SOURCE, LIBELLES_NATURE_FAIT, CIBLE_TACTILE_MIN,
+  dateCourteUtc, LIBELLES_MODALITE, LIBELLES_ELEMENT, LIBELLES_STATUT_SOURCE, LIBELLES_TYPE_SOURCE, LIBELLES_DROIT_SOURCE, titreSource, LIBELLES_NATURE_FAIT, CIBLE_TACTILE_MIN,
   type FaitBrief, type NatureFait,
 } from '@tiktrends/core';
 import type { DetailProjet } from '../../../lib/studios/sources/projet';
@@ -171,14 +171,14 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   {s.apercu && <img src={s.apercu} alt="" width={56} height={56} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />}
                   <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{s.annonceur || 'Annonceur inconnu'}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{titreSource(s)}</span>
                     <span style={discret}>{LIBELLES_TYPE_SOURCE[s.type]} · {s.plateforme} · observée le {dateCourteUtc(s.observeLe)}</span>
                     <span style={{ ...discret, color: s.statut === 'active' ? '#7ee8bf' : '#ffcf8f' }}>
                       {LIBELLES_STATUT_SOURCE[s.statut]}{s.revoqueeLe && s.statut !== 'active' ? ` · depuis le ${dateCourteUtc(s.revoqueeLe)} · observations conservées` : ''}
                     </span>
                   </div>
                 </div>
-                <span style={discret}>Droit · observation publique, structure seulement · empreinte <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{s.empreinte.slice(0, 12)}</code></span>
+                <span style={discret}>Droit · {LIBELLES_DROIT_SOURCE[s.droit] ?? LIBELLES_DROIT_SOURCE.observation_publique} · empreinte <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{s.empreinte.slice(0, 12)}</code></span>
                 <span style={discret}>Ressources · {s.modalites.length ? s.modalites.map((m) => LIBELLES_MODALITE[m]).join(', ') : 'aucune'}</span>
                 {s.absents.some((a) => a.element === 'narration') && <span style={discret}>{LIBELLES_ELEMENT.narration} · absente · {s.absents.find((a) => a.element === 'narration')!.raison}</span>}
                 {s.extraitAutorise && <p style={{ ...discret, color: 'var(--muted)' }}>Extrait autorisé · « {s.extraitAutorise} »</p>}

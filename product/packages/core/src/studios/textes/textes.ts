@@ -21,7 +21,7 @@
  */
 
 import type { BriefCanonique } from '../brief';
-import type { SourceReferenceStudio } from '../sources/reference';
+import { presentationSource, titreSource, type SourceReferenceStudio } from '../sources/reference';
 import { idSourceProduit, type FaitProduit } from '../sources/produit';
 import { hypotheseDuBrief } from '../brief';
 import type { ContenuVersion, ViolationStudio } from '../document';
@@ -173,9 +173,9 @@ export function sourcesCitees(b: BriefCanonique, sources: readonly SourceReferen
   for (const s of sources) {
     if (!citees.has(s.sourceId)) continue;
     out.push({
-      sourceId: s.sourceId, version: s.empreinte, titre: s.annonceur || s.cle,
+      sourceId: s.sourceId, version: s.empreinte, titre: s.type === 'creation' ? titreSource(s) : s.annonceur || s.cle,
       text: [
-        `Annonce ${s.plateforme} de « ${s.annonceur || 'annonceur inconnu'} », observée le ${s.observeLe.slice(0, 10)} · structure seulement, rien de cette marque ne se reprend.`,
+        s.type === 'creation' ? presentationSource(s) : `${presentationSource(s).slice(0, -1)} · structure seulement, rien de cette marque ne se reprend.`,
         s.extraitAutorise ? `Extrait autorisé du texte : ${s.extraitAutorise}` : 'Aucun texte.',
       ].join('\n').slice(0, TEXTE_MAX_CONTRAT),
     });

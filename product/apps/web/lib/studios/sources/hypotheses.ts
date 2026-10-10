@@ -1,6 +1,6 @@
 import 'server-only';
 import {
-  erreurStudio, validerHypotheses, idsHypothesesAlloues, metriquesDisponibles, scellerPropositions, LIBELLES_ELEMENT,
+  erreurStudio, validerHypotheses, idsHypothesesAlloues, metriquesDisponibles, scellerPropositions, presentationSource, creationsHorsMarque, titreSource, LIBELLES_ELEMENT,
   type ErreurStudio, type HypotheseQualifiee, type SourceReferenceStudio,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -53,7 +53,7 @@ export const MESSAGE_SANS_FOURNISSEUR = 'Les propositions d’hypothèses ne son
 /** Le texte d'une source donné au modèle · des DONNÉES, jamais des consignes. */
 function texteSource(s: SourceReferenceStudio): string {
   return [
-    `Annonce ${s.plateforme} de « ${s.annonceur || 'annonceur inconnu'} », observée le ${s.observeLe.slice(0, 10)}.`,
+    presentationSource(s),
     s.extraitAutorise ? `Extrait autorisé du texte : ${s.extraitAutorise}` : 'Aucun texte.',
     `Ressources disponibles : ${s.modalites.join(', ') || 'aucune'}.`,
     ...s.absents.map((a) => `${LIBELLES_ELEMENT[a.element]} non observable : ${a.raison}`),
@@ -69,6 +69,7 @@ export async function proposerHypothesesPour(
   const brandId = e.brandId;
   const c = await chargerSources(ctx, e.sources, o);
   if (!c.ok) return manuelle(c);
+  if (creationsHorsMarque(c.sources, brandId).length) return manuelle(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'sources', raison: 'création précédente d’une autre marque' }] }));
   if (!o.ia.adaptateur) return manuelle(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: MESSAGE_SANS_FOURNISSEUR }));
 
   const sources = c.sources;
@@ -91,7 +92,7 @@ export async function proposerHypothesesPour(
       facts: observations.map((x) => ({ id: x.id, claim: x.claim, sourceIds: x.sourceIds, kind: x.kind, confidence: x.confidence })),
       allocatedIds: idsHypothesesAlloues().map((id, ordinal) => ({ id, entityType: 'hypothesis' as const, ordinal })),
       selectionIds: sourceIds,
-      sources: sources.map((s) => ({ sourceId: s.sourceId, version: s.empreinte, text: texteSource(s), titre: s.annonceur || s.cle })),
+      sources: sources.map((s) => ({ sourceId: s.sourceId, version: s.empreinte, text: texteSource(s), titre: s.type === 'creation' ? titreSource(s) : s.annonceur || s.cle })),
     },
     adaptateur: o.ia.adaptateur,
     environnement: o.ia.environnement,

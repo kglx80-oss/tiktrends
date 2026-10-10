@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   composerBrief, validerFormeBrief, validerRelationsBrief, validerHypothese, hypotheseSaisie, saisieSuffisante,
   propositionValidePour, referenceProduit, lireReferenceProduit, lireReferencesSources, completudeProjet, hypotheseDuBrief,
-  exporterBrief as exporterBriefNoyau, contenuVide, validerContenuVersion, empreinteContenu, objetDansPortee, erreurStudio,
+  exporterBrief as exporterBriefNoyau, contenuVide, creationsHorsMarque, validerContenuVersion, empreinteContenu, objetDansPortee, erreurStudio,
   LIBELLES_TYPE_PROJET, SCHEMA_VERSION_CONTENU, TEXTES_REFUS_PROPOSITION,
   type BriefCanonique, type ContenuVersion, type ErreurStudio, type HypotheseTest, type ManqueProjet, type EtapeProjet,
   type ReferenceProduitStudio, type ExportBrief, type FormatExportBrief, type SourceReferenceStudio,
@@ -116,6 +116,10 @@ export async function creerProjetDepuisSourcesPour(
   const c = await chargerSources(ctx, e.sources, o);
   if (!c.ok) return c;
   const sources = c.sources;
+  // Une création précédente porte le produit et la DA de SA marque · elle ne se greffe pas sur une autre.
+  if (creationsHorsMarque(sources, brandId).length) {
+    return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'sources', raison: 'création précédente d’une autre marque' }] });
+  }
   const sourceIds = sources.map((s) => s.sourceId);
 
   const h = lireHypothese(ctx, e.hypothese, { brandId, sourceIds, maintenant: o.maintenant });

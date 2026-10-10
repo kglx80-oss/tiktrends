@@ -2,6 +2,12 @@
  * ContextResolver serveur · construit le `context` d'une tâche (cahier §8.3).
  *
  * Ce qu'il ajoute, et lui seul :
+ *  - la DIRECTION ARTISTIQUE de la marque déjà saisie dans l'outil (règles
+ *    créatives, DA visuelle, description, promesse, ton…), relue dans `brands`
+ *    pour (espace, marque) et mise en forme par le noyau (`extraitDaMarque` :
+ *    champs vides ignorés, total borné). Elle entre EN TÊTE des extraits de
+ *    connaissance, marquée `untrusted_data` · aucune variable de gabarit
+ *    nouvelle. Même interrupteur que les connaissances (`connaissances: false`) ;
  *  - les CONNAISSANCES publiées et applicables à (espace, marque), lues dans le
  *    stockage existant (`app_settings`, `lib/jarvis-connaissances.ts`) et
  *    sélectionnées par le noyau (`versionsApplicables` : publiée, non retirée,
@@ -17,7 +23,9 @@
  * quels, jamais complétés par une valeur par défaut.
  */
 
-import { versionsApplicables, type TypeConnaissance } from '@tiktrends/core';
+import { and, eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
+import { extraitDaMarque, versionsApplicables, type ExtraitDaMarque, type TypeConnaissance } from '@tiktrends/core';
 import { listerConnaissances } from '../../jarvis-connaissances';
 import type { ContexteTache, Extrait } from './noyau';
 
@@ -49,10 +57,30 @@ export interface SourceSnapshot {
   nature?: TypeConnaissance;
 }
 
+/** La DA de la marque, relue dans SA portée (espace ET marque) · `null` sans marque ou sans DA. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function lireDaMarque(portee: { workspaceId: string; brandId: string }): Promise<ExtraitDaMarque | null> {
+  // Portée synthétique (banc d'évaluation) · aucune marque en base à relire.
+  if (!UUID.test(portee.brandId) || !UUID.test(portee.workspaceId)) return null;
+  const B = schema.brands;
+  const [m] = await db.select({
+    name: B.name, creativeRules: B.creativeRules, brandKit: B.brandKit, description: B.description, usp: B.usp,
+    audience: B.audience, tone: B.tone, category: B.category, colors: B.colors, fonts: B.fonts,
+    preferredWords: B.preferredWords, avoidWords: B.avoidWords,
+  }).from(B).where(and(eq(B.id, portee.brandId), eq(B.workspaceId, portee.workspaceId))).limit(1);
+  return m ? extraitDaMarque(portee.brandId, m) : null;
+}
+
 export async function construireContexte(portee: { workspaceId: string; brandId: string }, e: EntreeContexte): Promise<{ contexte: ContexteTache; sources: SourceSnapshot[] }> {
   const sources: SourceSnapshot[] = [];
   const knowledgeExcerpts: Extrait[] = [];
   if (e.connaissances !== false) {
+    const da = await lireDaMarque(portee);
+    if (da) {
+      knowledgeExcerpts.push({ sourceId: da.sourceId, version: da.version, text: da.text, trust: 'untrusted_data' });
+      sources.push({ type: 'connaissance', id: da.sourceId, version: da.version, titre: da.titre });
+    }
     const { retenues } = versionsApplicables(await listerConnaissances(), portee);
     for (const r of retenues) {
       knowledgeExcerpts.push({ sourceId: r.id, version: r.ref, text: r.texte, trust: 'untrusted_data' });

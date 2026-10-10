@@ -1,8 +1,8 @@
 import 'server-only';
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  annonceObservee, referenceSource, tombstoneSource, lienRetourVeille, lireFormatCreatif, formatCreatif, erreurStudio,
+  annonceObservee, referenceSource, referenceCreation, apercuCreation, creationReutilisable, tombstoneSource, lienRetourVeille, lireFormatCreatif, formatCreatif, erreurStudio,
   SOURCES_MAX,
   type SourceReferenceStudio, type ErreurStudio, type FormatSource,
 } from '@tiktrends/core';
@@ -17,6 +17,10 @@ import type { ContexteStudio } from '../garde';
  *  · Une SAUVEGARDE est désignée par son identifiant ; le snapshot est relu en
  *    base, dans l'espace de la session et une marque visible (ou sans marque).
  *    Hors portée ou inconnue : `NOT_FOUND`, la même réponse.
+ *  · Une CRÉATION PRÉCÉDENTE (`generations`, Pubs IA / Image IA) est désignée
+ *    par son identifiant ; elle est relue en base, rattachée à une marque de
+ *    l'espace de la session ET visible (jointure `brands`). Hors portée,
+ *    inconnue ou non réutilisable (`creationReutilisable`) : `NOT_FOUND`.
  *  · Une annonce de VEILLE n'existe pas en base : son snapshot vient du client,
  *    comme pour `saveAd` (même confiance, même garde Veille). Il est nettoyé
  *    par liste blanche (`annonceObservee`), le format créatif éventuel est
@@ -53,6 +57,22 @@ function porteeSauvegarde(ctx: ContexteStudio) {
   return and(eq(t.workspaceId, ctx.workspaceId), marques)!;
 }
 
+/** Filtre de portée d'une création · marque de l'espace de la session ET visible. */
+function porteeCreation(ctx: ContexteStudio) {
+  if (ctx.marques.length === 0) return sql`false`;
+  return and(eq(schema.brands.workspaceId, ctx.workspaceId), inArray(schema.generations.brandId, ctx.marques))!;
+}
+
+/** Créations relues dans la portée · la marque vient de la jointure, jamais du client. */
+async function creationsEnPortee(ctx: ContexteStudio, ids: string[]) {
+  if (!ids.length) return [];
+  const G = schema.generations;
+  return db.select({
+    id: G.id, brandId: G.brandId, kind: G.kind, status: G.status, assetUrls: G.assetUrls, input: G.input, createdAt: G.createdAt,
+    workspaceId: schema.brands.workspaceId,
+  }).from(G).innerJoin(schema.brands, eq(schema.brands.id, G.brandId)).where(and(inArray(G.id, ids), porteeCreation(ctx)));
+}
+
 /**
  * Charge et fige les sources demandées · `observeLe` = maintenant. Toute
  * source illisible ou hors portée fait échouer l'ensemble (tout ou rien).
@@ -77,6 +97,11 @@ export async function chargerSources(
     }).from(schema.savedAds).where(and(inArray(schema.savedAds.id, idsSauvegardes as string[]), porteeSauvegarde(ctx)))
     : [];
   const parId = new Map(lignes.map((l) => [l.id, l]));
+  const idsCreations = entrees
+    .filter((e): e is { type: 'creation'; id: unknown } => typeof e === 'object' && e !== null && (e as { type?: unknown }).type === 'creation')
+    .map((e) => e.id);
+  if (!idsCreations.every(estUuid)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
+  const creations = new Map((await creationsEnPortee(ctx, idsCreations as string[])).map((l) => [l.id, l]));
 
   for (const [i, e] of entrees.entries()) {
     if (typeof e !== 'object' || e === null) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: `sources/${i}`, raison: 'source attendue' }] });
@@ -94,6 +119,13 @@ export async function chargerSources(
         type: 'saved_ad', annonce, savedAdId: l.id, portee: { workspaceId: ctx.workspaceId, brandId: l.brandId },
         observeLe: o.maintenant, format: formatDuSnapshot(l.snapshot), retourVeille,
       }));
+    } else if (brut.type === 'creation') {
+      const l = creations.get(brut.id as string);
+      // Revérification pure en plus du filtre SQL, comme pour une sauvegarde.
+      if (!l || l.workspaceId !== ctx.workspaceId || !ctx.marques.includes(l.brandId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
+      const ref = referenceCreation(l, { workspaceId: ctx.workspaceId, observeLe: o.maintenant });
+      if (!ref) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
+      sources.push(ref);
     } else if (brut.type === 'veille') {
       if (!o.veilleOuverte) return erreurStudio('FORBIDDEN', { traceId: ctx.traceId, message: REFUS_VEILLE });
       const annonce = annonceObservee(brut.annonce);
@@ -103,7 +135,7 @@ export async function chargerSources(
         observeLe: o.maintenant, format: null, retourVeille,
       }));
     } else {
-      return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: `sources/${i}/type`, raison: 'type veille ou sauvegarde' }] });
+      return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: `sources/${i}/type`, raison: 'type veille, sauvegarde ou creation' }] });
     }
   }
   const uniques = new Map(sources.map((s) => [s.sourceId, s]));
@@ -133,8 +165,16 @@ export async function etatSources(
       .from(schema.savedAds).where(and(inArray(schema.savedAds.id, ids), porteeSauvegarde(ctx)))
     : [];
   const parId = new Map(vivantes.filter((l) => l.workspaceId === ctx.workspaceId).map((l) => [l.id, l]));
+  const creations = new Map((await creationsEnPortee(ctx, refs.map((r) => r.generationId).filter(estUuid)))
+    .filter((l) => l.workspaceId === ctx.workspaceId && creationReutilisable(l)).map((l) => [l.id, l]));
   return refs.map((r): VueSource => {
     if (r.statut !== 'active') return { ...r, apercu: null, lienSource: null };
+    if (r.type === 'creation') {
+      // Supprimée, archivée, ou sa marque n'est plus visible · tombstone, comme une sauvegarde retirée.
+      const l = r.generationId ? creations.get(r.generationId) : undefined;
+      if (!l) return { ...tombstoneSource(r, 'supprimee', o.maintenant), apercu: null, lienSource: null };
+      return { ...r, apercu: apercuCreation(l), lienSource: null };
+    }
     if (r.type === 'saved_ad') {
       const l = r.savedAdId ? parId.get(r.savedAdId) : undefined;
       if (!l) return { ...tombstoneSource(r, 'supprimee', o.maintenant), apercu: null, lienSource: null };

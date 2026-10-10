@@ -29,7 +29,7 @@
  */
 
 import type { SourceReferenceStudio } from './sources/reference';
-import { LIBELLES_STATUT_SOURCE, LIBELLES_TYPE_SOURCE } from './sources/reference';
+import { LIBELLES_DROIT_SOURCE, LIBELLES_STATUT_SOURCE, LIBELLES_TYPE_SOURCE } from './sources/reference';
 import { LIBELLES_ELEMENT, LIBELLES_MODALITE, controlerNarrationObservee } from './sources/modalites';
 import { structureImportable, fuitesConcurrent, type ChampImportable } from './sources/import';
 import { idSourceProduit, type ReferenceProduitStudio } from './sources/produit';
@@ -449,7 +449,7 @@ export function exporterBrief(b: BriefCanonique, meta: MetaExportBrief, format: 
     ...section('Formats', b.formats.map(puce)),
     ...section('Exclusions', b.exclusions.map(puce)),
     ...section('Sources', meta.sources.flatMap((s) => [
-      puce(`${LIBELLES_TYPE_SOURCE[s.type]} · ${s.annonceur || 'annonceur inconnu'} · ${s.plateforme} · observée le ${dateCourteUtc(s.observeLe)} · droit : observation publique, structure seulement · ${LIBELLES_STATUT_SOURCE[s.statut]}${s.revoqueeLe ? ` le ${dateCourteUtc(s.revoqueeLe)}` : ''} · empreinte ${s.empreinte.slice(0, 12)}`),
+      puce(`${LIBELLES_TYPE_SOURCE[s.type]} · ${s.type === 'creation' ? 'ta marque' : s.annonceur || 'annonceur inconnu'} · ${s.plateforme} · observée le ${dateCourteUtc(s.observeLe)} · droit : ${LIBELLES_DROIT_SOURCE[s.droit] ?? LIBELLES_DROIT_SOURCE.observation_publique} · ${LIBELLES_STATUT_SOURCE[s.statut]}${s.revoqueeLe ? ` le ${dateCourteUtc(s.revoqueeLe)}` : ''} · empreinte ${s.empreinte.slice(0, 12)}`),
       `  - Ressources disponibles : ${s.modalites.length ? s.modalites.map((x) => LIBELLES_MODALITE[x]).join(', ') : 'aucune'}`,
       ...s.absents.map((a) => `  - ${LIBELLES_ELEMENT[a.element]} non observable : ${a.raison}`),
     ])),

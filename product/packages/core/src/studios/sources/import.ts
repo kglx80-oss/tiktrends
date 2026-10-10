@@ -28,8 +28,13 @@ export const CONTRAINTES_IMPORT: readonly string[] = [
   'Une seule variable change par rapport au témoin.',
 ];
 
-/** Les exclusions d'une source · ce que le projet ne reprend jamais. */
-export function exclusionsSource(s: Pick<SourceReferenceStudio, 'annonceur'>): string[] {
+/**
+ * Les exclusions d'une source · ce que le projet ne reprend jamais. Une
+ * création précédente de la marque n'en a aucune : son produit, son nom et son
+ * texte sont ceux de la marque cible.
+ */
+export function exclusionsSource(s: Pick<SourceReferenceStudio, 'annonceur'> & Partial<Pick<SourceReferenceStudio, 'type'>>): string[] {
+  if (s.type === 'creation') return [];
   const qui = s.annonceur.trim() || 'l’annonceur source';
   return [
     `Nom, logo et identité visuelle de ${qui}.`,
@@ -79,6 +84,8 @@ export interface ChampImportable { chemin: string; texte: string }
 export function fuitesConcurrent(champs: readonly ChampImportable[], sources: readonly SourceReferenceStudio[]): Array<{ chemin: string; raison: string }> {
   const out: Array<{ chemin: string; raison: string }> = [];
   for (const s of sources) {
+    // Une création de la marque n'est pas un concurrent · la reprendre n'est pas une fuite.
+    if (s.type === 'creation') continue;
     const nom = normaliser(s.annonceur);
     const domaine = normaliser(s.observations.find((o) => o.element === 'lien')?.claim.match(/\(([^)]+)\)/)?.[1] ?? '');
     const recopie = suites(s.extraitAutorise, SUITE_RECOPIEE_MOTS);
