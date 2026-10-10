@@ -8,6 +8,7 @@ import { JarvisChat } from './JarvisChat';
 import { Empty } from '../../../components/Empty';
 import { cadrePage, colonneLecture } from '../../../components/ui';
 import { RefusJarvis } from './RefusJarvis';
+import { peutOuvrirProjetsStudios } from '../../../lib/studios/jarvis-projets';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,11 @@ export default async function JarvisPage() {
     );
   }
 
+  // Une seule application · Jarvis parle des projets Studios de la marque et y
+  // renvoie ; l'en-tête y mène aussi, sous la MÊME garde que l'écran « Projets »
+  // (rôle, offre, capacité de l'espace). Sans droit, aucun lien vers un écran fermé.
+  const voitProjets = await peutOuvrirProjetsStudios();
+
   return (
     // Écran conversationnel · le CADRE et le composeur s'alignent sur les bords
     // de la Veille (maxWidth 1200, gouttières clamp(16,4vw,32)) · Kevin, 29/09 ·
@@ -72,18 +78,35 @@ export default async function JarvisPage() {
           <h1 style={{ margin: 0, fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Jarvis</h1>
           <span style={{ fontSize: 13, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {brand.name}</span>
         </div>
-        <Link
-          href="/jarvis/sources"
-          title="Sources de Jarvis · ce qu’il sait de ta marque, de quoi le nourrir, ses réglages"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44,
-            padding: '0 6px', flexShrink: 0, textDecoration: 'none',
-            color: 'var(--muted)', fontSize: 12.5, fontWeight: 600,
-          }}
-        >
-          <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="chart" size={15} /></span>
-          Sources de Jarvis
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          {voitProjets && (
+            <Link
+              href="/studio/projets"
+              data-lien="projets-studios"
+              title="Projets Studios · reprendre un projet de la marque là où tu l’as laissé"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44,
+                padding: '0 6px', flexShrink: 0, textDecoration: 'none',
+                color: 'var(--muted)', fontSize: 12.5, fontWeight: 600,
+              }}
+            >
+              <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="layers" size={15} /></span>
+              Projets
+            </Link>
+          )}
+          <Link
+            href="/jarvis/sources"
+            title="Sources de Jarvis · ce qu’il sait de ta marque, de quoi le nourrir, ses réglages"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44,
+              padding: '0 6px', flexShrink: 0, textDecoration: 'none',
+              color: 'var(--muted)', fontSize: 12.5, fontWeight: 600,
+            }}
+          >
+            <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="chart" size={15} /></span>
+            Sources de Jarvis
+          </Link>
+        </div>
       </div>
 
       {/* La conversation, seule au premier plan · c'est la seule interface qui
