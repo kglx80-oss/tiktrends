@@ -47,6 +47,7 @@ Le plafond global de l'application (`AI_SPEND_CAP_USD`) reste au-dessus, inchang
 | P7 | Éditeur et export | projet · Image · export | 0 $ | PNG téléchargé, brief MD/JSON |
 | P8 | Textes du projet | projet · Textes | appel texte (borne réservée avant) | textes écrits, exportés |
 | P9 | Vidéo · storyboard, images clés et clips | projet · Vidéo | images clés payantes ; clip au forfait vidéo (0,60 $ réservé, 5 s) | storyboard, consignes ; « Devis du clip animé » sous une image clé valide, puis « Approuver et animer » ; le clip se lit dans le plan |
+| P9b | Vidéo finale | projet · Vidéo · bloc « Vidéo finale » | 0 $ (assemblage ffmpeg sur le serveur, aucun fournisseur) | bouton inactif avec le plan nommé tant qu'un clip manque ; « Ce que cette vidéo n'inclut pas » listé avant le clic ; « Assembler la vidéo finale » ⇒ MP4 9:16 lisible (Chrome), « Télécharger le MP4 », musique audible si choisie ; aussi dans la bibliothèque |
 | P10 | Jarvis connaît les projets | /jarvis | appel texte (borne réservée avant) | cite le projet et son lien ; lien « Projets » en en-tête |
 | P11 | Budget | /admin/studios-interrupteurs | 0 $ | engagé = somme des essais ; refus net au-delà de 15 $ |
 | P12 | Ancien outil intact | Pubs IA, Image, Vidéo, Textes, Veille, Sauvegardes, Adsmap | 0 $ | inchangés |
@@ -55,8 +56,11 @@ Avant CHAQUE appel payant : lire le restant dans le bloc budget (P11) ; le devis
 
 ## 4. Ce qui n'est pas disponible (et pourquoi)
 
-- **Rendu vidéo final** · `RENDU_VIDEO_FINAL` non branché : chaque plan s'anime (clip de 5 s depuis son
-  image clé, fal Kling image → vidéo), l'assemblage final des clips arrive au lot suivant.
+- **Montage complet** · la « Vidéo finale » met bout à bout les clips animés avec la musique ; la voix
+  (aucun fournisseur), le texte écran et les sous-titres ne sont pas incrustés (`RENDU_VIDEO_FINAL`),
+  et l'écran le liste avant le clic.
+- **Lecture sur Safari / iPhone** · la route des médias ne sert pas les requêtes partielles (`Range`) ;
+  Chrome lit les clips et la vidéo finale, Safari peut refuser · télécharger le MP4 reste possible.
 - **Voix, lipsync** · aucun fournisseur validé.
 - **Benchmark réel** · retiré des préalables par le mandat ; reste activable seulement par l'environnement.
 - **Liens cliquables dans les réponses de Jarvis** · Jarvis donne le chemin du projet en texte.

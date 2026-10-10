@@ -43,7 +43,7 @@ function vue(): DonneesVideo {
     segments: segmentsPlans(c).map((s) => ({ shotId: s.shotId, rang: s.rang + 1, debutMs: s.debutMs, dureeMs: s.dureeMs, estimee: true })),
     dureeTotaleMs: 6000, keyframes: {}, mediasValides: [], musiques: [],
     disponibilite: disponibiliteVideo({ peutGenerer: true, peutProposer: true, releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true, decodeurVideo: false, briefPresent: true }),
-    coutTexteUsd: 0.14, prix: prixImage(), jobs: [], clips: {}, prixClip: { credits: 10, usdMicros: 600_000, dureeS: 5 },
+    coutTexteUsd: 0.14, prix: prixImage(), jobs: [], clips: {}, prixClip: { credits: 10, usdMicros: 600_000, dureeS: 5 }, videoFinale: { possible: false, raison: '', nonInclus: [], dureeMs: 0, derniere: null },
   };
 }
 const rien = () => undefined;

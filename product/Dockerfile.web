@@ -18,6 +18,10 @@ RUN pnpm --filter @tiktrends/web build
 FROM node:22-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production
+# Vidéo finale des Studios · assemblage des clips (ffmpeg) et relecture du
+# fichier produit (ffprobe), dans le processus web comme l'export image.
+# Avant les copies : la couche reste en cache d'un commit à l'autre.
+RUN apk add --no-cache ffmpeg
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public

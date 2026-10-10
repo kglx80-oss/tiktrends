@@ -6,7 +6,7 @@ import { appliquerOperationVideo as appliquerNoyau, impactVideo, messageHorsLign
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
 import {
   appliquerOperationVideo, planifierStoryboard, compilerConsignePlan, retenirConsignePlan, demanderDevisKeyframe, approuverEtLancerKeyframe,
-  demanderDevisClip, approuverEtLancerClip,
+  demanderDevisClip, approuverEtLancerClip, assemblerVideoFinale,
 } from '../../../app/actions/studios/video';
 import { VueVideo, type ApercuGeste, type StoryboardPropose, type RetourGesteVideo } from './VueVideo';
 
@@ -131,6 +131,10 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
         if (!d) return;
         void agir(`lancer:${shotId}`, () => approuverEtLancerKeyframe({ quoteId: d.id, inputHash: d.inputHash, creditsAnnonces: d.credits, idempotencyKey: cleDuClicVideo(d.id) }), () => 'Lancé · le job est en file, tu peux fermer la page.');
       }}
+      surAssembler={() => agir('assembler', () => assemblerVideoFinale({ projectId }), (r) => {
+        const x = r as { video?: { dureeMs: number } };
+        return `Vidéo finale assemblée${x.video ? ` · ${Math.round(x.video.dureeMs / 100) / 10} s` : ''} · lis-la ou télécharge-la ci-dessous.`;
+      })}
       surDevisClip={(shotId) => agir(`devis-clip:${shotId}`, () => demanderDevisClip({ projectId, shotId }), () => 'Devis du clip prêt · relis le prix avant d’approuver.')}
       surLancerClip={(shotId) => {
         const d = vue.clips[shotId]?.devis;

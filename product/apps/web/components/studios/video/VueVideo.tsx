@@ -48,6 +48,8 @@ export interface GestesVideo {
   /** Animation d'un plan · devis du clip, puis approbation (geste payant séparé). Absents ⇒ boutons inactifs. */
   surDevisClip?: (shotId: string) => void;
   surLancerClip?: (shotId: string) => void;
+  /** Vidéo finale · assemblage des clips (calcul serveur, 0 $). Absent ⇒ bouton inactif. */
+  surAssembler?: () => void;
   /** L8-B · conflit de version · relit la version courante (la saisie en cours reste). */
   surRecharger?: () => void;
   /** L8-B · rejoue le dernier geste gratuit qui n'a pas abouti (réseau). */
@@ -434,6 +436,39 @@ function Timeline({ p }: { p: ProprietesVueVideo }) {
   );
 }
 
+/**
+ * Vidéo finale · les clips des plans mis bout à bout au format, avec la
+ * musique choisie. Calcul sur le serveur, 0 crédit, 0 $. Ce qu'elle n'inclut
+ * pas est dit AVANT le clic ; la raison d'un bouton inactif aussi.
+ */
+function VideoFinale({ p }: { p: ProprietesVueVideo }) {
+  const f = p.vue.videoFinale;
+  const actif = f.possible && !!p.surAssembler && !p.enCours;
+  return (
+    <div style={carte} data-zone="video-finale" data-possible={f.possible ? 'oui' : 'non'}>
+      <h3 style={{ ...titre, fontSize: 16 }}>Vidéo finale</h3>
+      <p style={texte}>Les clips animés des plans, dans l’ordre du montage, au format {p.vue.format.largeur} × {p.vue.format.hauteur}{f.possible ? ` · ${dureeLisible(f.dureeMs)}` : ''}. Assemblée sur le serveur · aucun crédit, aucun coût fournisseur.</p>
+      {f.nonInclus.length > 0 && (
+        <div style={signal('info')} data-champ="non-inclus">
+          <p style={{ ...texte, color: 'var(--ink)', fontWeight: 600 }}>Ce que cette vidéo n’inclut pas</p>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>{f.nonInclus.map((x) => <li key={x} style={texte}>{x}</li>)}</ul>
+        </div>
+      )}
+      <div style={rangee}>
+        <Bouton nom="assembler" actif={actif} enCours={p.enCours === 'assembler'} libelle={f.derniere ? 'Assembler à nouveau' : 'Assembler la vidéo finale'} libelleEnCours="Assemblage…" surClic={() => p.surAssembler?.()} />
+        <span style={mini} data-raison="video-finale">{f.possible ? 'Quelques secondes à une minute · tu peux rester sur la page.' : f.raison}</span>
+      </div>
+      {f.derniere && (
+        <div style={{ display: 'grid', gap: 6 }} data-video-finale={f.derniere.assetId}>
+          <video src={f.derniere.url} controls playsInline preload="metadata" aria-label="Dernière vidéo finale assemblée"
+            style={{ width: 'min(100%, 280px)', height: 'auto', aspectRatio: `${p.vue.format.largeur} / ${p.vue.format.hauteur}`, borderRadius: 12, background: 'var(--rail)' }} />
+          <p style={mini}>Assemblée le {date(f.derniere.creeLe)}{f.derniere.dureeMs ? ` · ${dureeLisible(f.derniere.dureeMs)}` : ''} · <a href={f.derniere.url} download style={{ color: 'var(--ink)' }}>Télécharger le MP4</a> · aussi dans la bibliothèque.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CarteJob({ j, rangs }: { j: JobVideoVue; rangs: Record<string, number> }) {
   const clip = j.operation.startsWith('clip:');
   const sid = j.operation.slice(j.operation.indexOf(':') + 1);
@@ -495,9 +530,10 @@ export function VueVideo(p: ProprietesVueVideo) {
       </div>
       <Timeline p={p} />
       <FormulaireScenario p={p} />
+      <VideoFinale p={p} />
       <div style={carte} data-zone="jobs">
-        <h3 style={{ ...titre, fontSize: 16 }}>Générations d’images clés</h3>
-        {v.jobs.length === 0 ? <p style={texte} data-etat="sans-job">Aucune image clé lancée pour ce projet.</p> : v.jobs.map((j) => <CarteJob key={j.id} j={j} rangs={rangs} />)}
+        <h3 style={{ ...titre, fontSize: 16 }}>Générations d’images clés et de clips</h3>
+        {v.jobs.length === 0 ? <p style={texte} data-etat="sans-job">Aucune image clé ni aucun clip lancé pour ce projet.</p> : v.jobs.map((j) => <CarteJob key={j.id} j={j} rangs={rangs} />)}
       </div>
     </section>
   );
