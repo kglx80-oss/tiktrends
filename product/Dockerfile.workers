@@ -5,5 +5,10 @@ COPY pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
 COPY packages ./packages
 COPY apps ./apps
 RUN pnpm install --no-frozen-lockfile
+# Le commit construit, dans l'environnement du worker et du conteneur de
+# migration (`printenv BUILD_SHA`). Après l'installation : il change à chaque
+# commit et n'invalide ainsi ni `apk add` ni `pnpm install`. Aucun code ne le lit.
+ARG BUILD_SHA=""
+ENV BUILD_SHA=$BUILD_SHA
 WORKDIR /app/apps/workers
 CMD ["pnpm", "start"]
