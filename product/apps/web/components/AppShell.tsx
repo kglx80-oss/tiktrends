@@ -18,6 +18,8 @@ import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSup
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
+import { sectionsRail, sectionDuChemin } from '../lib/rbac';
+import { OngletsSection } from './OngletsSection';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
@@ -51,7 +53,7 @@ const ADMIN_CONTENT = {
   backgroundColor: '#130d07',
 } as unknown as CSSProperties;
 
-interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean; deplie?: boolean }
+interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
 interface Group { group: string; items: NavItem[] }
 interface Brand { id: string; name: string; logoUrl?: string | null; url?: string | null }
 interface AccountGroup { section: string; items: NavItem[] }
@@ -81,8 +83,10 @@ interface Props {
   children: ReactNode;
 }
 
-function NavLink({ it, active, inPath = false, onClick, tactile = true }: {
+function NavLink({ it, active, inPath = false, onClick, tactile = true, courant }: {
   it: NavItem; active: boolean;
+  /** `aria-current` explicite · « page » sur l'écran exact, « true » sur un descendant de la section. */
+  courant?: 'page' | 'true';
   /** Contient la page courante, sans l'être · rendu plus sobre, jamais le fond plein. */
   inPath?: boolean;
   onClick?: () => void;
@@ -126,7 +130,7 @@ function NavLink({ it, active, inPath = false, onClick, tactile = true }: {
     // reste sinon `inline` · son anneau de focus (:focus-visible) ne s'y dessine
     // pas en boîte pleine. En bloc, le lien épouse la rangée · l'anneau entoure
     // toute l'entrée, tête comme feuille (recette focus · Aperçu).
-    : <Link href={it.href} onClick={onClick} aria-current={active ? 'page' : undefined} style={{ display: 'block', textDecoration: 'none' }}>{inner}</Link>;
+    : <Link href={it.href} onClick={onClick} aria-current={courant ?? (active ? 'page' : undefined)} style={{ display: 'block', textDecoration: 'none' }}>{inner}</Link>;
 }
 
 interface Branch { head: NavItem; subs: NavItem[] }
@@ -138,61 +142,6 @@ function branchesOf(items: NavItem[]): Branch[] {
     else out.push({ head: it, subs: [] });
   }
   return out;
-}
-
-/** Menu dépliable : parent + chevron, sous-items révélés au clic. Ouvert d'office si la branche est active. */
-/**
- * Une entrée du rail et ses sous-écrans.
- *
- * ── Ce qui n'allait pas ──────────────────────────────────────────────────────
- *
- * Déplier exigeait de viser la flèche · vingt-six pixels, à côté d'un libellé
- * qui, lui, ne faisait que naviguer. Personne ne devine ça : on clique le nom du
- * module et on s'attend à voir ce qu'il contient.
- *
- * **Cliquer le libellé navigue ET ouvre.** Jamais il ne referme · un libellé qui
- * cache des choses au deuxième clic est une surprise, et on n'en veut pas dans
- * une navigation. La flèche garde le repli, pour qui veut fermer la branche
- * sans la quitter.
- */
-function NavBranch({ b, isActive, inPath, open, onToggle, onOpen, tactile = true }: {
-  b: Branch;
-  isActive: (href: string, isSub: boolean) => boolean;
-  inPath: (href: string) => boolean;
-  open: boolean;
-  onToggle: () => void;
-  onOpen: () => void;
-  /** Densité par pointeur · voir NavLink. */
-  tactile?: boolean;
-}) {
-  const headActive = isActive(b.head.href, false);
-  if (!b.subs.length) return <NavLink it={b.head} active={headActive} tactile={tactile} />;
-
-  // Le parent contient la page courante · il le montre sobrement, sans lui
-  // prendre la sélection.
-  const headInPath = inPath(b.head.href) || b.subs.some((su) => isActive(su.href, true));
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <NavLink it={b.head} active={headActive} inPath={headInPath} onClick={onOpen} tactile={tactile} />
-        </div>
-        <button type="button" onClick={onToggle} aria-label={`${open ? 'Replier' : 'Déplier'} ${b.head.label}`} aria-expanded={open} style={{
-          // Le chevron suit la densité de sa rangée · 44 au doigt, dense à la souris.
-          width: 30, minHeight: hauteurRangeeRail(tactile), flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          border: 'none', background: 'transparent', color: headInPath || headActive ? 'var(--ink-2)' : 'var(--muted)', cursor: 'pointer', borderRadius: 8,
-        }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 6l6 6-6 6" /></svg>
-        </button>
-      </div>
-      {open && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginLeft: 4, borderLeft: '1px solid var(--line)', paddingLeft: 2 }}>
-          {b.subs.map((su) => <NavLink key={su.key} it={su} active={isActive(su.href, true)} tactile={tactile} />)}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export function AppShell(props: Props) {
@@ -255,7 +204,6 @@ function AppShellInner(props: Props) {
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // Barre repliable (« plus d'espace ») · préférence mémorisée par navigateur.
   // L'état part de la valeur SERVEUR (cookie) · le premier rendu client et le
   // rendu serveur coïncident, donc le rail ne saute plus de 184 à 64px après
@@ -263,6 +211,8 @@ function AppShellInner(props: Props) {
   // serveur rendra directement la bonne largeur (cf. lib/rail-preference).
   const [collapsed, setCollapsed] = useState(collapsedInitial);
   const toggleCollapsed = () => setCollapsed((c) => { const n = !c; try { document.cookie = railCookieString(n); } catch { /* cookie indispo */ } return n; });
+  const toggleCollapsedRef = useRef(toggleCollapsed);
+  toggleCollapsedRef.current = toggleCollapsed;
   // Sur écran étroit, le rail sort du flux en tiroir · un hamburger l'ouvre.
   const mobile = useIsMobile();
   const [drawer, setDrawer] = useState(false);
@@ -370,11 +320,28 @@ function AppShellInner(props: Props) {
     // (`/dashboard`) et sa vue « Analytics » (`/dashboard?vue=analytics`).
     railEntreeActive(href, { pathname, tab: currentTab, hash: currentHash, ancres: ancresRail, recherche: searchStr, entrees: hrefsRail });
 
-  /** « La branche où je suis » · le parent, sans lui voler la sélection. */
-  const isNavInPath = (href: string): boolean => {
-    const path = href.split('?')[0]!;
-    return pathname !== path && pathname.startsWith(path + '/');
-  };
+  // Rail UX V2 · les sections (entrée + sous-écrans visibles) et celle qui
+  // contient l'écran courant · règle pure (`sectionDuChemin`, lib/rbac).
+  const sections = sectionsRail(nav);
+  const sectionCourante = sectionDuChemin(sections, pathname);
+  // « Votre espace » · Marques et Réglages, seulement si la garde réelle des
+  // pages les ouvre (`sectionsCompteOuvertes` · admin d'espace). Rien d'élargi.
+  const espaceRail = workspaceItems.filter((it) => it.key === 'brands' || it.key === 'settings');
+  // Alt B · réduit / développe le rail (desktop), jamais pendant une saisie.
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (!e.altKey || e.code !== 'KeyB' || e.metaKey || e.ctrlKey) return;
+      const cible = e.target as HTMLElement | null;
+      if (cible && (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName))) return;
+      if (mobile) return;
+      e.preventDefault();
+      toggleCollapsedRef.current();
+    };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, [mobile]);
+
+
 
   // Commandes de la palette ⌘K : navigation (rail + compte) + actions + admin.
   // Chaque commande porte un NOM d'icône du jeu premium · jamais un emoji. Les
@@ -463,7 +430,7 @@ function AppShellInner(props: Props) {
             <span style={{ flex: 1 }} />
             {/* Petite icône Réduire · cible 44 réelle, infobulle + nom accessible,
                 état déplié annoncé. Discrète (sans fond ni bordure). */}
-            <button type="button" onClick={toggleCollapsed} title="Réduire la barre" aria-label="Réduire la barre" aria-expanded={!collapsed}
+            <button type="button" onClick={toggleCollapsed} title="Réduire la barre (Alt B)" aria-label="Réduire la barre" aria-keyshortcuts="Alt+B" aria-expanded={!collapsed}
               style={{ ...collapseBtn, flex: '0 0 auto', background: 'transparent', border: 'none', color: 'var(--muted)' }}>
               <CollapseIcon dir="left" />
             </button>
@@ -475,7 +442,7 @@ function AppShellInner(props: Props) {
           // bouton.
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <LogoHome collapsed />
-            <button type="button" onClick={toggleCollapsed} title="Développer la barre" aria-label="Développer la barre" aria-expanded={false}
+            <button type="button" onClick={toggleCollapsed} title="Développer la barre (Alt B)" aria-label="Développer la barre" aria-keyshortcuts="Alt+B" aria-expanded={false}
               style={{ ...collapseBtn, background: 'transparent', border: 'none', color: 'var(--muted)' }}>
               <CollapseIcon dir="right" />
             </button>
@@ -561,7 +528,7 @@ function AppShellInner(props: Props) {
                 // parent doit donc porter les DEUX états, sinon être sur un
                 // sous-écran n'allume plus rien du tout.
                 const ici = isNavActive(b.head.href, false);
-                const dedans = isNavInPath(b.head.href) || b.subs.some((su) => isNavActive(su.href, true));
+                const dedans = !ici && sectionCourante?.tete.key === b.head.key;
                 const sousEcran = dedans ? b.subs.find((su) => isNavActive(su.href, true)) : undefined;
                 // Un item verrouillé (plan) ou « bientôt » ne mène nulle part ·
                 // en déplié il est rendu inerte (un <div>, pas de lien). Le repli
@@ -590,36 +557,56 @@ function AppShellInner(props: Props) {
                     <Icon name={b.head.icon} />
                   </div>
                 ) : (
-                <Link key={b.head.key} href={b.head.href} title={titre} style={railStyle}>
+                <Link key={b.head.key} href={b.head.href} title={titre} aria-label={titre} aria-current={ici ? 'page' : dedans ? 'true' : undefined} style={railStyle}>
                   <Icon name={b.head.icon} />
                 </Link>
                 );
               }))
-            : nav.map((grp) => (
-              <div key={grp.group || 'accueil'} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {/* « Accueil » MÈNE le rail en entrée AUTONOME · son groupe n'a pas
-                    de libellé de section (chaîne vide), donc pas d'en-tête au-dessus. */}
-                {grp.group && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '1px 10px 1px' }}>{grp.group}</div>}
-                {branchesOf(grp.items).map((b) => {
-                  // Une branche s'ouvre d'office quand on est dedans · sinon on
-                  // arrive sur une page dont les voisines sont cachées.
-                  const dedans = isNavActive(b.head.href, false) || isNavInPath(b.head.href)
-                    || b.subs.some((su) => isNavActive(su.href, true));
-                  // Lot 19A · une branche déclarée dépliée (Accueil, qui regroupe
-                  // le Pilotage) l'est d'office · « Analytics » reste à un clic.
-                  const parDefaut = dedans || !!b.head.deplie;
-                  const open = expanded[b.head.key] ?? parDefaut;
-                  return (
-                    <NavBranch
-                      key={b.head.key} b={b} isActive={isNavActive} inPath={isNavInPath} open={open}
-                      tactile={mobile}
-                      onToggle={() => setExpanded((e) => ({ ...e, [b.head.key]: !(e[b.head.key] ?? parDefaut) }))}
-                      onOpen={() => setExpanded((e) => ({ ...e, [b.head.key]: true }))}
-                    />
-                  );
+            : (
+              // Rail UX V2 · une entrée par section, liste plate. La section est
+              // allumée sur TOUS ses descendants (un projet allume « Studios », les
+              // Sauvegardes allument « Veille ») · `aria-current="page"` sur l'écran
+              // exact, `"true"` sur un descendant. Les sous-écrans sont les onglets
+              // de la page (`OngletsSection`), plus des branches à déplier ici.
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {sections.map((sec) => {
+                  const ici = isNavActive(sec.tete.href, false);
+                  const dedans = !ici && sectionCourante?.tete.key === sec.tete.key;
+                  return <NavLink key={sec.tete.key} it={sec.tete} active={ici || dedans} inPath={false} courant={ici ? 'page' : dedans ? 'true' : undefined} tactile={mobile} />;
                 })}
               </div>
-            ))}
+            )}
+          {!inAdmin && espaceRail.length > 0 && (
+            <div aria-label="Votre espace" role="group" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 10, alignItems: collapsed ? 'center' : 'stretch' }}>
+              {!collapsed && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '1px 10px 1px' }}>Votre espace</div>}
+              {espaceRail.map((it) => {
+                const ici = pathname === it.href || pathname.startsWith(it.href + '/');
+                return collapsed ? (
+                  <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--ink)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
+                ) : <NavLink key={it.key} it={it} active={ici} tactile={mobile} />;
+              })}
+            </div>
+          )}
+          {/* Bas du rail (UX V2) · Administration (équipe plateforme seulement,
+              même garde qu'avant) et Aide (support, tous les rôles). DANS la zone
+              qui défile, poussé en bas (`marginTop: auto`) · en pied quand la
+              place suffit, il défile avec la liste quand elle manque (tiroir
+              mobile 390×720) au lieu de rogner « Réglages ». */}
+          {!inAdmin && (
+            <div data-zone="pied-rail" style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: collapsed ? 'center' : 'stretch', marginTop: 'auto', paddingTop: 10 }}>
+              {[
+                ...(isStaff ? [{ key: 'administration', label: 'Administration', href: '/admin', icon: 'gear' }] : []),
+                { key: 'aide', label: 'Aide', href: '/support', icon: 'help' },
+              ].map((it) => {
+                const ici = pathname === it.href || pathname.startsWith(it.href + '/');
+                return collapsed ? (
+                  <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--ink)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
+                ) : (
+                  <NavLink key={it.key} it={{ ...it, locked: false, isSub: false }} active={ici} tactile={mobile} />
+                );
+              })}
+            </div>
+          )}
         </nav>
 
         {/* La bascule Réduire/Développer a REJOINT l'en-tête (petite icône à côté
@@ -727,6 +714,11 @@ function AppShellInner(props: Props) {
         {/* Le fil d'Ariane est posé ICI, une fois pour toutes · vingt et une pages
             portaient le leur, écrit à la main, et ils avaient divergé. */}
         <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} brands={brands} />
+        {/* Onglets de la section (UX V2) · ses sous-écrans visibles pour ce rôle.
+            L'Accueil a déjà les siens (Accueil · Analytics) dans sa page. */}
+        {!inAdmin && sectionCourante && sectionCourante.onglets.length > 0 && sectionCourante.tete.key !== 'dashboard' && (
+          <OngletsSection section={sectionCourante} estActif={(href) => isNavActive(href, true)} />
+        )}
         {children}
         {/* Le lanceur de support (bulle flottante, coin bas-droit) est une
             fonction DISTINCTE de Jarvis. Sur l'écran de conversation `/jarvis`,

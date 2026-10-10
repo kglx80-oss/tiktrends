@@ -37,11 +37,15 @@ describe('N08 · le contrat de navigation mobile (garde de source)', () => {
   const shell = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
 
   it('le lien actif expose aria-current="page", pas seulement une teinte', () => {
-    expect(shell).toMatch(/aria-current=\{active \? 'page' : undefined\}/);
+    // UX V2 · « page » sur l'écran exact, « true » sur un descendant de la section.
+    expect(shell).toMatch(/aria-current=\{courant \?\? \(active \? 'page' : undefined\)\}/);
   });
 
-  it('les dépliants de section sont NOMMÉS (Déplier + le module), pas « Déplier » seul', () => {
-    expect(shell).toMatch(/aria-label=\{`\$\{open \? 'Replier' : 'Déplier'\} \$\{b\.head\.label\}`\}/);
+  it('UX V2 · plus aucun dépliant anonyme · le rail plat ne cache rien, chaque icône repliée est nommée', () => {
+    // Les sous-écrans sont devenus les onglets de leur section · il n'y a plus
+    // de chevron « Déplier » à nommer. En replié, l'icône porte le nom du module.
+    expect(shell, 'un dépliant « Déplier » subsiste dans le rail').not.toMatch(/'Déplier'/);
+    expect(shell, 'l’icône repliée n’est pas nommée').toMatch(/title=\{titre\} aria-label=\{titre\}/);
   });
 
   it('le déclencheur du tiroir annonce son état et sa cible', () => {
