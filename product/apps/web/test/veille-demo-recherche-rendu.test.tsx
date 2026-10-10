@@ -68,7 +68,7 @@ describe('Veille · démonstration · la recherche filtre vraiment l’échantil
   it('l’aide nomme l’action réelle de la carte et ne promet aucun résultat', async () => {
     const html = await rendre({});
     expect(html, 'l’aide promet un bouton qui n’existe pas').not.toContain('Générer une variante');
-    expect(html).toContain('Décline cette piste');
+    expect(html, 'l’aide ne nomme pas le geste réel de la carte').toContain('Préparer une création');
     expect(html).toContain('pas un résultat garanti');
   });
 });

@@ -27,13 +27,15 @@ describe('N09 · Drive · les deux synchros passent par resumeImportDrive', () =
 
 /**
  * CDC v8 · N09 · le compteur d'assets dit sa PORTÉE · médias de la bibliothèque
- * (importés/téléversés), les créations générées comptées à part.
+ * (importés/téléversés), sorties des projets Studios et, depuis le retrait des
+ * anciens studios (10/10), leurs créations historiques · chacune nommée.
  */
 describe('N09 · le compteur d’assets explique sa portée', () => {
   const page = readFileSync(join(process.cwd(), 'app/(app)/assets/page.tsx'), 'utf8');
-  it('le total nomme la bibliothèque et sépare les créations générées', () => {
+  it('le total nomme la bibliothèque et dit ce qu’il compte (Studios, créations historiques)', () => {
     expect(page).toContain('asset(s) en bibliothèque');
-    expect(page, 'la portée (créations générées comptées à part) n’est pas dite').toMatch(/comptées à part/);
+    expect(page, 'la portée n’est pas dite').toContain('sorties livrées des projets Studios et créations des anciens studios');
+    expect(page, 'les créations historiques ne sont pas comptées à part').toContain('création(s) historique(s)');
   });
 });
 

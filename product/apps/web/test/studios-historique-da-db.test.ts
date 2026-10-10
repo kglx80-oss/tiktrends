@@ -148,7 +148,7 @@ describe('création précédente comme source d’un projet', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.creations.map((c) => c.id).sort()).toEqual([G.a1, G.a1Image].sort());
-    expect(r.creations.find((c) => c.id === G.a1)).toMatchObject({ libelle: `Pub IA · Accroche ${G.a1.slice(0, 4)}`, apercu: `/api/ad/${G.a1}` });
-    expect(r.creations.find((c) => c.id === G.a1Image)).toMatchObject({ libelle: 'Image IA', apercu: `https://cdn.test/${G.a1Image}.png` });
+    expect(r.creations.find((c) => c.id === G.a1)).toMatchObject({ libelle: `Pub · Accroche ${G.a1.slice(0, 4)}`, apercu: `/api/ad/${G.a1}` });
+    expect(r.creations.find((c) => c.id === G.a1Image)).toMatchObject({ libelle: 'Image', apercu: `https://cdn.test/${G.a1Image}.png` });
   });
 });

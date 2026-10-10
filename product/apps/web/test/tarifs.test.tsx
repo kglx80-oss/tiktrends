@@ -38,7 +38,7 @@ describe('tarifs · structure de la page', () => {
   it('offre un tableau comparatif des fonctionnalités', () => {
     expect(html, 'titre du comparatif absent').toContain('Comparer les offres');
     expect(html, 'ligne Adsmap absente').toContain('Adsmap');
-    expect(html, 'ligne Studio IA absente').toContain('Studio IA');
+    expect(html, 'ligne Studios absente').toContain('Studios · pub, image, vidéo, textes');
   });
 
   it('reprend le menu déroulant « Ressources »', () => {

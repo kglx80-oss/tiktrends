@@ -182,8 +182,33 @@ describe('vidéos historiques en cours · terminées ou remboursées une fois, a
     expect(await lu(V.dejaFaite)).toMatchObject({ status: 'completed', assetUrls: ['https://v.fal.media/garde.mp4'] });
     expect(remboursements.sort()).toEqual([[ids.wsA, 12, V.vieille], [ids.wsB, 12, V.echec]].sort());
 
-    // Un second passage (ou deux en même temps) ne rembourse jamais deux fois.
-    await Promise.all([reconcilierVideosHistoriques(deps), reconcilierVideosHistoriques(deps)]);
+    // Un second passage ne rembourse jamais deux fois.
+    await reconcilierVideosHistoriques(deps);
     expect(remboursements).toHaveLength(2);
+  });
+
+  it('deux passages SIMULTANÉS sur la même vidéo encore en cours ⇒ un seul remboursement', async () => {
+    const maintenant = new Date('2026-10-10T12:00:00Z');
+    const id = randomUUID();
+    await db.insert(schema.generations).values({ id, brandId: ids.brandA1, kind: 'video', status: 'processing', jobId: 'falq|course', creditsCost: 7, createdAt: new Date(maintenant.getTime() - 20 * 60_000), assetUrls: [] });
+    const remboursements: string[] = [];
+    // Les deux passages lisent la vidéo « en cours » avant que l'un d'eux ne la bascule.
+    let arrives = 0;
+    let liberer: () => void = () => {};
+    const ensemble = new Promise<void>((ok) => { liberer = ok; });
+    const deps = {
+      maintenant,
+      lire: async (j: string) => {
+        if (j !== 'falq|course') return { status: 'completed' as const, videoUrl: 'https://v.fal.media/x.mp4' };
+        arrives += 1;
+        if (arrives === 2) liberer();
+        await ensemble;
+        return { status: 'processing' as const };
+      },
+      rembourser: async (_ws: string, _n: number, _r: string, ref: string) => { if (ref === id) remboursements.push(ref); },
+    };
+    await Promise.all([reconcilierVideosHistoriques(deps), reconcilierVideosHistoriques(deps)]);
+    expect(arrives, 'les deux passages n’ont pas lu la vidéo en cours').toBe(2);
+    expect(remboursements, 'vidéo remboursée deux fois').toEqual([id]);
   });
 });

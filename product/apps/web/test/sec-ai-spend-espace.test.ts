@@ -105,8 +105,10 @@ function appels(): Array<[string, string]> {
 const POINTS = appels();
 
 describe('ai_spend · chaque point d’appel nomme l’espace', () => {
-  it('le relevé couvre au moins les 30 appels connus (24 corrigés + 6 qui l’avaient)', () => {
-    expect(POINTS.length).toBeGreaterThanOrEqual(30);
+  // Mesuré : 31 appels avant le retrait des anciens studios (10/10), dont 11 dans
+  // les actions retirées (ads 6, image 3, video 1, studio 1) · 20 restent.
+  it('le relevé couvre au moins les 20 appels connus (31 mesurés, 11 retirés avec les anciens studios)', () => {
+    expect(POINTS.length).toBeGreaterThanOrEqual(20);
   });
   it.each(POINTS)('%s', (_ou, argument) => {
     expect(argument, 'appel sans workspaceId · la dépense ne serait imputée à aucun espace').toMatch(/\bworkspaceId\b/);

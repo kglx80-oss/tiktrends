@@ -19,7 +19,7 @@ import { cadrePage, h1, sub } from '../../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
-const ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
+const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
 
 /**
  * Préparer un projet · l'arrivée des anciens liens de création (Pubs IA, Image
@@ -62,7 +62,7 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
   let iteration: EtatRepriseIteration = null;
   let depuisTest: { objectif: string; titre: string } | null = null;
   if (c.iter) {
-    const adsmapOuvert = canAccess(effectiveAccess(s), ADSMAP);
+    const adsmapOuvert = canAccess(effectiveAccess(s), FEATURE_ADSMAP);
     const dansMarque = adsmapOuvert && active ? (await adsDeLaMarque(s.workspaceId, active.id, [c.iter])).has(c.iter) : false;
     const d = dansMarque ? (await adDetailAction(c.iter)).detail : undefined;
     if (!d) iteration = { etat: 'refuse' };

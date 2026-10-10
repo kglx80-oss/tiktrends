@@ -38,7 +38,7 @@ describe('rbac · l’équipe interne (equipe présent)', () => {
 
   it('un rôle matriciel voit ses rubriques, pas les autres · sans jamais de verrou formule', () => {
     // Membre (défaut) voit Studio, pas Adsmap · et jamais « verrouillé par la formule ».
-    expect(canAccess(membre, feat('ads'))).toBe(true);       // ads → rubrique studio
+    expect(canAccess(membre, feat('studio'))).toBe(true);    // studio → rubrique studio
     expect(canAccess(membre, feat('adsmap'))).toBe(false);   // adsmap absent des défauts membre
     expect(denyReason(membre, feat('adsmap'))).toBe('role');
     const items = railNav(membre).flatMap((g) => g.items);
