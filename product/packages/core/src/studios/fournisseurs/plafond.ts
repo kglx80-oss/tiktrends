@@ -65,6 +65,30 @@ export function coutSoumissionImage(operations: ReadonlyArray<{ operation: strin
   return { ok: true, usd: micros / 1_000_000, usdMicros: micros, images };
 }
 
+export type CoutSoumissionStudio =
+  | { ok: true; usd: number; usdMicros: number; medias: number; poste: 'fal_image' | 'fal_video' }
+  | { ok: false; motif: string };
+
+/**
+ * Le coût PLAFOND d'une soumission studio, image OU animation · un job porte
+ * des images (au tarif image chacune) ou UN clip (au forfait vidéo de la
+ * grille, `FIXED_COSTS.fal_video`), jamais un mélange. La voix (sans tarif)
+ * est refusée : on ne réserve pas un prix qu'on ne sait pas dire.
+ */
+export function coutSoumissionStudio(operations: ReadonlyArray<{ operation: string; profil: ProfilOperation }>): CoutSoumissionStudio {
+  const payantes = operations.filter((o) => o.profil !== 'calcul');
+  const clips = payantes.filter((o) => o.profil === 'animation');
+  if (clips.length === 0) {
+    const c = coutSoumissionImage(operations);
+    return c.ok ? { ok: true, usd: c.usd, usdMicros: c.usdMicros, medias: c.images, poste: 'fal_image' } : c;
+  }
+  if (clips.length !== payantes.length) return { ok: false, motif: 'un job d’animation ne porte que des clips' };
+  if (clips.length !== 1) return { ok: false, motif: 'un seul clip par job' };
+  const t = GRILLE_STUDIO.animation.usdMicros;
+  if (t === null) return { ok: false, motif: 'aucun tarif d’animation dans la grille' };
+  return { ok: true, usd: t / 1_000_000, usdMicros: t, medias: 1, poste: 'fal_video' };
+}
+
 /**
  * Identifiant de la ligne `ai_spend` d'un job studio · DÉRIVÉ du job (UUID de
  * forme v8, SHA-256 de `ai_spend:studio-job:<id>`). Trois effets, sans colonne

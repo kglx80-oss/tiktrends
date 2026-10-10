@@ -1,5 +1,6 @@
 /**
- * Studios · F-A · fournisseur image RÉEL sur la file fal (`FournisseurStudio`).
+ * Studios · F-A · fournisseur image RÉEL sur la file fal (`FournisseurStudio`),
+ * et l'animation d'un plan (image → vidéo) sur la même file et la même barrière.
  *
  * Réalise le contrat L3 (`packages/core/src/studios/execution/fournisseur.ts`)
  * pour le moteur du worker (`apps/workers/src/studios/moteur.ts`). Mêmes
@@ -28,7 +29,7 @@
  */
 
 import {
-  ErreurFournisseurCertaine, ErreurFournisseurIncertaine, inspecterMedia, jobDeCleFournisseur, coutSoumissionImage,
+  ErreurFournisseurCertaine, ErreurFournisseurIncertaine, inspecterMedia, jobDeCleFournisseur, coutSoumissionStudio,
   issueStatutSoumission, issueErreurReseau, lireSoumissionFal, idRequeteFal, lireIdRequeteFal, urlSoumissionFal,
   lireStatutFal, lireResultatFal, urlSortieFalSure, refSortieFal, indiceSortieFal, delaiSondageMs,
   type DemandeFournisseur, type FournisseurStudio, type StatutFournisseur,
@@ -58,7 +59,7 @@ export interface OptionsFournisseurFal {
   fetch: typeof fetch;
   barriere: BarriereDepenseStudio;
   preparer: (d: DemandeFournisseur, jobId: string) => Promise<PreparationFal>;
-  /** Opérations image du job, dans l'ordre de l'instantané (image i ⇒ opération i). */
+  /** Opérations à média du job (images ou clip), dans l'ordre de l'instantané (sortie i ⇒ opération i). */
   operationsDuJob: (jobId: string) => Promise<string[]>;
   /** Adresse publique ? Défaut : `assertPublicUrl` (résolution DNS, plages privées refusées). */
   verifierAdresse?: (u: URL) => Promise<boolean>;
@@ -110,7 +111,7 @@ export class FournisseurFal implements FournisseurStudio {
   async soumettre(d: DemandeFournisseur): Promise<{ requestId: string }> {
     const jobId = jobDeCleFournisseur(d.cleIdempotence);
     if (!jobId) throw new ErreurFournisseurCertaine('clé fournisseur illisible · rien n’est envoyé');
-    const cout = coutSoumissionImage(d.operations);
+    const cout = coutSoumissionStudio(d.operations);
     if (!cout.ok) throw new ErreurFournisseurCertaine(`${cout.motif} · rien n’est envoyé`);
     let prep: PreparationFal;
     try {
@@ -122,7 +123,7 @@ export class FournisseurFal implements FournisseurStudio {
     const url = urlSoumissionFal(this.queueUrl, prep.modele);
     if (!url) throw new ErreurFournisseurCertaine('adresse de file fal hors liste · rien n’est envoyé');
 
-    return this.barriere.sousPlafondStudio({ workspaceId: prep.workspaceId, jobId, usd: cout.usd, modele: 'fal_image' }, async () => {
+    return this.barriere.sousPlafondStudio({ workspaceId: prep.workspaceId, jobId, usd: cout.usd, modele: cout.poste }, async () => {
       this.noter({ appel: 'soumettre', detail: `${prep.modele} · ${d.cleIdempotence}` });
       let res: Response;
       try {

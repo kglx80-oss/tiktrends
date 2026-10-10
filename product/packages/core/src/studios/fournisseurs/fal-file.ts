@@ -167,10 +167,11 @@ export function lireResultatFal(status: number, corps: unknown): LectureResultat
   }
   if (status < 200 || status >= 300) return { etat: 'transitoire', motif: `statut HTTP ${status}` };
   const c = corps && typeof corps === 'object' ? (corps as Record<string, unknown>) : {};
-  const brut = c.images ?? c.image ?? [];
+  // Images (`images`, `image`) ou vidéo (`video`, `videos`) · même lecture, une URL par sortie.
+  const brut = c.images ?? c.image ?? c.video ?? c.videos ?? [];
   const liste = Array.isArray(brut) ? brut : [brut];
   const urls = liste.map((x) => (typeof x === 'string' ? x : (x as { url?: unknown } | null)?.url)).filter((u): u is string => typeof u === 'string' && u.length > 0);
-  if (urls.length === 0) return { etat: 'echoue', facture: true, motif: 'réponse terminée sans image' };
+  if (urls.length === 0) return { etat: 'echoue', facture: true, motif: 'réponse terminée sans média' };
   return { etat: 'reussi', urls };
 }
 

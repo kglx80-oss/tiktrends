@@ -6,7 +6,7 @@ import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
   LIBELLES_MODE_PAROLE, libelleAnimationIndisponible, etatEchecStudio, MODES_PAROLE, VALIDITE_DEVIS_MS, GAIN_MUSIQUE_MIN_DB, GAIN_MUSIQUE_MAX_DB,
   type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan, type ImpactVideo, type BilanDurees,
 } from '@tiktrends/core';
-import type { VueVideo as DonneesVideo, KeyframeVue, JobVideoVue } from '../../../lib/studios/video/lecture';
+import type { VueVideo as DonneesVideo, KeyframeVue, ClipVue, JobVideoVue } from '../../../lib/studios/video/lecture';
 import { tuile } from '../../ui';
 import { useFocusApresGeste, cleRetour } from '../projet/focus-geste';
 import { panneau, carte, titre, sousTitre, etiquette, texte, mini, boutonPrimaire, boutonSecondaire, desactive, signal, pastille, rangee, champ, CIBLE } from '../propositions/styles';
@@ -45,6 +45,9 @@ export interface GestesVideo {
   surRetenirConsigne: (runId: string) => void;
   surDevis: (shotId: string) => void;
   surLancer: (shotId: string) => void;
+  /** Animation d'un plan · devis du clip, puis approbation (geste payant séparé). Absents ⇒ boutons inactifs. */
+  surDevisClip?: (shotId: string) => void;
+  surLancerClip?: (shotId: string) => void;
   /** L8-B · conflit de version · relit la version courante (la saisie en cours reste). */
   surRecharger?: () => void;
   /** L8-B · rejoue le dernier geste gratuit qui n'a pas abouti (réseau). */
@@ -71,6 +74,11 @@ const ETATS_KEYFRAME: Record<KeyframeVue['etat'], { mot: string; couleur: string
   valide: { mot: 'Image clé valide', couleur: 'var(--ok)' },
   obsolete: { mot: 'Image clé obsolète', couleur: 'var(--warn)' },
   a_produire: { mot: 'Image clé à produire', couleur: 'var(--line-2)' },
+};
+const ETATS_CLIP: Record<ClipVue['etat'], { mot: string; couleur: string }> = {
+  valide: { mot: 'Clip animé valide', couleur: 'var(--ok)' },
+  obsolete: { mot: 'Clip animé obsolète', couleur: 'var(--warn)' },
+  a_produire: { mot: 'Clip à animer', couleur: 'var(--line-2)' },
 };
 const COULEUR_JOB: Record<string, string> = { completed: 'var(--ok)', failed: 'var(--err)', cancelled: 'var(--muted)', reconciliation_required: 'var(--warn)' };
 
@@ -186,6 +194,50 @@ function ImageCle({ sid, rang, k, p }: { sid: string; rang: number; k: KeyframeV
   );
 }
 
+/**
+ * Le clip animé d'un plan · parti de son image clé VALIDE. Devis gratuit puis
+ * « Approuver et lancer » (forfait annoncé avant le clic). Chaque bouton
+ * inactif dit sa raison ; rien n'est proposé si l'animation est indisponible.
+ */
+function ClipPlan({ sid, rang, c, p }: { sid: string; rang: number; c: ClipVue; p: ProprietesVueVideo }) {
+  const v = p.vue;
+  const d = v.disponibilite;
+  if (!d.animation.disponible) return null;
+  const e = ETATS_CLIP[c.etat];
+  const prix = `${libelleCredits(v.prixClip.credits)} · ${libelleUsd(v.prixClip.usdMicros)} au plus de coût fournisseur`;
+  const raisonDevis = !c.keyframePrete ? 'Produis d’abord l’image clé de ce plan : le clip part d’elle.'
+    : !d.devis.disponible ? d.devis.raison
+    : !p.surDevisClip ? 'Geste indisponible sur cet écran.' : '';
+  return (
+    <div style={{ display: 'grid', gap: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }} data-clip={sid} data-etat-clip={c.etat}>
+      <div style={rangee}>
+        <span style={pastille(e.couleur)}>{e.mot}</span>
+        {c.etat === 'obsolete' && <span style={mini}>L’ancien clip reste consultable · il ne vaut plus pour cette version.</span>}
+      </div>
+      {c.media && (
+        <video src={c.media.url} controls playsInline preload="metadata" aria-label={`Clip animé du plan ${rang}`}
+          style={{ width: 'min(100%, 220px)', height: 'auto', aspectRatio: `${v.format.largeur} / ${v.format.hauteur}`, borderRadius: 12, background: 'var(--rail)' }} />
+      )}
+      <div style={rangee}>
+        <Bouton nom={`devis-clip-${sid}`} primaire={false} actif={!raisonDevis && !p.enCours} enCours={p.enCours === `devis-clip:${sid}`}
+          libelle={c.etat === 'valide' ? 'Devis d’un nouveau clip' : 'Devis du clip animé'} libelleEnCours="Devis…"
+          surClic={() => p.surDevisClip?.(sid)} etiquetteAria={`Demander un devis pour animer le plan ${rang}`} />
+        <span style={mini} data-prix="clip">Un clip de {v.prixClip.dureeS} s depuis l’image clé · {prix}{raisonDevis ? ` · ${raisonDevis}` : ' · le devis ne débite rien.'}</span>
+      </div>
+      {c.devis && (
+        <div style={{ ...carte, background: 'var(--surface)' }} data-devis-clip={c.devis.id}>
+          <p style={{ ...texte, color: 'var(--ink)' }} data-prix="devis-clip">Devis du clip · {libelleCredits(c.devis.credits)} · {libelleUsd(c.devis.usdMicros)} au plus de coût fournisseur · valable jusqu’à {heure(c.devis.expiresAt)}.</p>
+          <div style={rangee}>
+            <Bouton nom={`lancer-clip-${sid}`} actif={d.lancement.disponible && !!p.surLancerClip && !p.enCours} enCours={p.enCours === `lancer-clip:${sid}`}
+              libelle={`Approuver et animer · ${libelleCredits(c.devis.credits)}`} libelleEnCours="Lancement…" surClic={() => p.surLancerClip?.(sid)} />
+            <span style={mini}>{d.lancement.disponible ? `Débite ${libelleCredits(c.devis.credits)} maintenant · rendus si aucun clip n’est livré. Le prix fournisseur réel dépend du modèle : le montant affiché est la réserve.` : d.lancement.raison}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CartePlan({ plan, rang, total, p }: { plan: PlanStudio; rang: number; total: number; p: ProprietesVueVideo }) {
   const v = p.vue;
   const ordre = v.contenu.shots.order;
@@ -234,6 +286,7 @@ function CartePlan({ plan, rang, total, p }: { plan: PlanStudio; rang: number; t
         </div>
       )}
       <ImageCle sid={plan.shotId} rang={rang} k={v.keyframes[plan.shotId] ?? { etat: 'a_produire', media: null, retenue: null, enAttente: null, devis: null }} p={p} />
+      <ClipPlan sid={plan.shotId} rang={rang} c={v.clips?.[plan.shotId] ?? { etat: 'a_produire', media: null, keyframePrete: false, devis: null }} p={p} />
     </article>
   );
 }
@@ -382,12 +435,13 @@ function Timeline({ p }: { p: ProprietesVueVideo }) {
 }
 
 function CarteJob({ j, rangs }: { j: JobVideoVue; rangs: Record<string, number> }) {
-  const sid = j.operation.slice('keyframe:'.length);
+  const clip = j.operation.startsWith('clip:');
+  const sid = j.operation.slice(j.operation.indexOf(':') + 1);
   return (
     <article style={carte} data-job={j.id} data-etat-job={j.etat}>
       <div style={rangee}>
         <span style={pastille(COULEUR_JOB[j.etat] ?? 'var(--accent-strong)')}>{j.libelleEtat}</span>
-        <span style={mini}>Image clé · plan {rangs[sid] ?? sid} · lancée le {date(j.creeLe)} · {libelleCredits(j.creditsReserves)} réservé{j.creditsReserves > 1 ? 's' : ''}</span>
+        <span style={mini}>{clip ? 'Clip animé' : 'Image clé'} · plan {rangs[sid] ?? sid} · lancé{clip ? '' : 'e'} le {date(j.creeLe)} · {libelleCredits(j.creditsReserves)} réservé{j.creditsReserves > 1 ? 's' : ''}</span>
       </div>
       <p style={texte}>{j.message}</p>
       {j.raisonEchec && <p style={signal('err')}>Raison : {j.raisonEchec}</p>}

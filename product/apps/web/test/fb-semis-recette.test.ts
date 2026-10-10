@@ -155,7 +155,7 @@ describe.skipIf(!ACTIF)('Semis de recette visuelle F-B', () => {
       async relire(cle) { return this.memo.get(cle) ?? null; },
       memo: new Map<string, Uint8Array>(),
     } as StockageStudio & { memo: Map<string, Uint8Array> };
-    const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-de-semis-locale', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit' } };
+    const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-de-semis-locale', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit', animation: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video' } };
     const fournisseur = construireFournisseurFal({ base, decision: DECISION, fetch: fetchRejoue, env: { AI_SPEND_CAP_USD: '10' }, stockage: null, verifierAdresse: async () => true });
     const moteur = new MoteurStudio({ base, fournisseur, stockage, decodeur: new DecodeurSharp(), bailMs: 60_000 });
     const lancer = async () => {

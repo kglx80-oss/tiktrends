@@ -3,7 +3,8 @@ import {
   schema, eq, and, or, isNull, reserverDepense, annulerDepense, type BaseDepense,
 } from '@tiktrends/db';
 import {
-  decisionFournisseurStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsImageDuJob,
+  decisionFournisseurStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsMediaDuJob,
+  estParametresClip, lireParametresClip, requeteFalAnimation,
   photosDuProduit, empreinteAdresse, idLogoMarque, estEmpreinte, estParametresRetouche, lireParametresRetouche, requeteFalRetouche,
   type DecisionFournisseur, type DemandeFournisseur, type EmpreinteFichier, type FournisseurStudio, type MediaResolu, type RequeteFal, type StockageStudio,
 } from '@tiktrends/core';
@@ -123,16 +124,22 @@ export async function resoudreMedias(
  */
 export type LecteurOctets = (cle: string) => Promise<Uint8Array | null>;
 
-export function preparateurFal(base: BaseStudio, o: { modeles: { generation: string; edition: string }; stockage: StorageConfig | null; lire?: LecteurOctets | null }) {
+export function preparateurFal(base: BaseStudio, o: { modeles: { generation: string; edition: string; animation: string }; stockage: StorageConfig | null; lire?: LecteurOctets | null }) {
   return async (d: DemandeFournisseur, jobId: string): Promise<PreparationFal> => {
     const J = schema.studioJobs;
     const [job] = await base.select().from(J).where(eq(J.id, jobId)).limit(1);
     if (!job) return { ok: false, motif: 'job introuvable' };
     const snap = lireSnapshotJob(job.snapshot);
     if (!snap) return { ok: false, motif: 'instantané illisible' };
-    let r: RequeteFal;
+    let r: Pick<RequeteFal & { ok: true }, 'ok' | 'modele' | 'corps' | 'operations' | 'empreinte' | 'limites'> | Extract<RequeteFal, { ok: false }>;
     let ids: string[];
-    if (estParametresRetouche(snap.parametres)) {
+    if (estParametresClip(snap.parametres)) {
+      // Animation d'un plan : l'image clé de départ relue MAINTENANT (révocation, remplacement).
+      const lc = lireParametresClip(snap.parametres);
+      ids = lc.ok ? [lc.parametres.source.assetId] : [];
+      const [source] = lc.ok ? await resoudreMedias(base, job, ids, o.stockage) : [];
+      r = requeteFalAnimation({ operations: operationsDuSnapshot(snap), parametres: snap.parametres, source: source ?? null, modele: o.modeles.animation });
+    } else if (estParametresRetouche(snap.parametres)) {
       // Retouche masquée (G-B) : source ET masque relus maintenant, octet pour octet.
       const lr = lireParametresRetouche(snap.parametres);
       ids = lr.ok ? [lr.parametres.source.assetId, lr.parametres.masque.assetId] : [];
@@ -168,7 +175,7 @@ export function operationsDuJobBase(base: BaseStudio) {
   return async (jobId: string): Promise<string[]> => {
     const [job] = await base.select({ snapshot: schema.studioJobs.snapshot }).from(schema.studioJobs).where(eq(schema.studioJobs.id, jobId)).limit(1);
     const snap = job ? lireSnapshotJob(job.snapshot) : null;
-    return snap ? operationsImageDuJob(operationsDuSnapshot(snap)) : [];
+    return snap ? operationsMediaDuJob(operationsDuSnapshot(snap)) : [];
   };
 }
 
@@ -240,6 +247,6 @@ export function demarrerWorkerStudio(o: {
   const cfg = storageFromEnv();
   if (!cfg) { log(`[studios] stockage objet illisible · ${MESSAGE_SANS_FOURNISSEUR}`); return null; }
   const fournisseur = construireFournisseurFal({ base: o.base, decision: d, fetch: o.fetch, env: o.env, stockage: cfg });
-  log(`[studios] worker studio démarré · fournisseur fal (${d.modeles.generation}, ${d.modeles.edition}), sondage avec recul, plafond de dépense appliqué.`);
+  log(`[studios] worker studio démarré · fournisseur fal (${d.modeles.generation}, ${d.modeles.edition}, animation ${d.modeles.animation}), sondage avec recul, plafond de dépense appliqué.`);
   return demarrerBoucleStudio({ base: o.base, fournisseur, stockage: stockageS3(cfg, o.fetch) });
 }

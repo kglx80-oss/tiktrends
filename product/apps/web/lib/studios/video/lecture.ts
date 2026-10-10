@@ -3,7 +3,7 @@ import { and, desc, eq, gt, inArray, isNull, like } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   aPermissionEspace, disponibiliteVideo, jugeSortiesValides, segmentsPlans, dureePlanMs, estSansTexte, estBriefCanonique, lireSnapshotJob,
-  prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, formatVideo, LIBELLES_ETAT_IMAGE, FOURNISSEUR_ANIMATION_BRANCHE,
+  prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, planDeClip, formatVideo, LIBELLES_ETAT_IMAGE, GRILLE_STUDIO, DUREE_CLIP_S,
   type ContenuVersion, type DisponibiliteVideo, type EtatJob, type LigneDevis, type StatutQualite, type VerdictConsignePlan,
   type ConsignePlanPersistee, type ErreurStudio, erreurStudio,
 } from '@tiktrends/core';
@@ -43,6 +43,15 @@ export interface KeyframeVue {
   devis: { id: string; inputHash: string; credits: number; usdMicros: number; expiresAt: string } | null;
 }
 
+/** Le clip animé d'un plan · état de la sortie, média, devis ouvert, et si son image clé permet de l'animer. */
+export interface ClipVue {
+  etat: 'valide' | 'obsolete' | 'a_produire';
+  media: { assetId: string; url: string } | null;
+  /** L'image clé du plan est produite et valide pour cette version · condition pour animer. */
+  keyframePrete: boolean;
+  devis: { id: string; inputHash: string; credits: number; usdMicros: number; expiresAt: string } | null;
+}
+
 export interface JobVideoVue {
   id: string; operation: string; etat: EtatJob; libelleEtat: string; message: string; raisonEchec: string | null;
   qualite: StatutQualite; libelleQualite: string; creditsReserves: number; creeLe: string;
@@ -58,11 +67,14 @@ export interface VueVideo {
   segments: Array<{ shotId: string; rang: number; debutMs: number; dureeMs: number; estimee: boolean }>;
   dureeTotaleMs: number;
   keyframes: Record<string, KeyframeVue>;
+  clips: Record<string, ClipVue>;
   mediasValides: string[];
   musiques: Array<{ assetId: string; libelle: string }>;
   disponibilite: DisponibiliteVideo;
   coutTexteUsd: number;
   prix: { credits: number; usdMicros: number };
+  /** Forfait d'un clip (grille studio · `FIXED_COSTS.fal_video`), durée de base. */
+  prixClip: { credits: number; usdMicros: number; dureeS: number };
   jobs: JobVideoVue[];
 }
 
@@ -107,6 +119,12 @@ export async function mediasProduits(ex: ExecStudio, p: { workspaceId: string; b
   return { valides: new Set(assets.keys()), produites, assets };
 }
 
+const estDevisClip = (lignes: unknown): string | null => {
+  if (!Array.isArray(lignes)) return null;
+  const plans = (lignes as LigneDevis[]).map((l) => planDeClip(String(l?.operation ?? ''))).filter((x): x is string => !!x);
+  return plans.length === 1 ? plans[0]! : null;
+};
+
 const estDevisKeyframe = (lignes: unknown): string | null => {
   if (!Array.isArray(lignes)) return null;
   const plans = (lignes as LigneDevis[]).map((l) => planDeKeyframe(String(l?.operation ?? ''))).filter((x): x is string => !!x);
@@ -150,16 +168,36 @@ export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: 
     };
   }
 
-  // Jobs des images clés de plans (toutes versions), les plus récents d'abord.
+  // Clips animés · un par plan, partis de l'image clé valide du plan.
+  const clips: Record<string, ClipVue> = {};
+  for (const sid of contenu.shots.order) {
+    const op = `clip:${sid}`;
+    const asset = assets.get(op);
+    const d = devisLignes.find((q) => estDevisClip(q.lines) === sid);
+    clips[sid] = {
+      etat: valides.has(op) ? 'valide' : produites.has(op) ? 'obsolete' : 'a_produire',
+      media: asset && estUuid(asset) ? { assetId: asset, url: ROUTE_APERCU_MEDIA(asset) } : null,
+      keyframePrete: valides.has(`keyframe:${sid}`),
+      devis: d ? { id: d.id, inputHash: d.inputHash, credits: d.maximumCredits, usdMicros: Number(d.maximumUsdMicros), expiresAt: d.expiresAt.toISOString() } : null,
+    };
+  }
+
+  // Jobs des images clés et des clips de plans (toutes versions), les plus récents d'abord.
   const J = schema.studioJobs;
+  const operationDuJob = (lignes: unknown): string | null => {
+    const k = estDevisKeyframe(lignes);
+    if (k) return `keyframe:${k}`;
+    const c = estDevisClip(lignes);
+    return c ? `clip:${c}` : null;
+  };
   const lignesJobs = (await db.select().from(J).where(and(eq(J.workspaceId, projet.workspaceId), eq(J.brandId, projet.brandId), eq(J.projectId, projet.id)))
-    .orderBy(desc(J.createdAt)).limit(40)).filter((j) => estDevisKeyframe(lireSnapshotJob(j.snapshot)?.lignes)).slice(0, JOBS_MAX);
+    .orderBy(desc(J.createdAt)).limit(40)).filter((j) => operationDuJob(lireSnapshotJob(j.snapshot)?.lignes)).slice(0, JOBS_MAX);
   const jobs: JobVideoVue[] = [];
   for (const j of lignesJobs) {
     const e = await etatJob(ctx, { jobId: j.id });
     if (!e.ok) continue;
     jobs.push({
-      id: j.id, operation: `keyframe:${estDevisKeyframe(lireSnapshotJob(j.snapshot)?.lignes)}`, etat: e.vue.etat, libelleEtat: LIBELLES_ETAT_IMAGE[e.vue.etat], message: e.vue.message,
+      id: j.id, operation: operationDuJob(lireSnapshotJob(j.snapshot)?.lignes)!, etat: e.vue.etat, libelleEtat: LIBELLES_ETAT_IMAGE[e.vue.etat], message: e.vue.message,
       raisonEchec: e.vue.etat === 'failed' ? raisonEchec(j.error) : null, qualite: e.vue.qualite, libelleQualite: libelleQualiteImage(e.vue.etat, e.vue.qualite),
       creditsReserves: e.vue.creditsReserves, creeLe: j.createdAt.toISOString(),
     });
@@ -186,15 +224,18 @@ export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: 
       segments: segmentsPlans(contenu).map((s) => ({ shotId: s.shotId, rang: s.rang + 1, debutMs: s.debutMs, dureeMs: s.dureeMs, estimee: typeof contenu.shots.byId[s.shotId]?.actualDurationMs !== 'number' })),
       dureeTotaleMs: contenu.shots.order.reduce((t, sid) => t + (contenu.shots.byId[sid] ? dureePlanMs(contenu.shots.byId[sid]!) : 0), 0),
       keyframes,
+      clips,
       mediasValides: [...valides].sort(),
       musiques,
       disponibilite: disponibiliteVideo({
         peutGenerer: aPermissionEspace(ctx.permissions, 'studio.generate'), peutProposer: aPermissionEspace(ctx.permissions, 'studio.propose'),
         releasePubliee: o.releasePubliee, fournisseurTexte: o.fournisseurTexte, plafondAtteint: o.plafondAtteint, fournisseurImage: o.fournisseurImage,
-        decodeurVideo: capacite.decodage, fournisseurVideo: FOURNISSEUR_ANIMATION_BRANCHE, briefPresent: estBriefCanonique(contenu.brief),
+        // L'animation passe par le même fournisseur fal que l'image : branchée exactement quand lui l'est.
+        decodeurVideo: capacite.decodage, fournisseurVideo: o.fournisseurImage, briefPresent: estBriefCanonique(contenu.brief),
       }),
       coutTexteUsd: o.coutTexteUsd,
       prix: prixImage(),
+      prixClip: { credits: GRILLE_STUDIO.animation.credits ?? 0, usdMicros: GRILLE_STUDIO.animation.usdMicros ?? 0, dureeS: DUREE_CLIP_S },
       jobs,
     },
   };

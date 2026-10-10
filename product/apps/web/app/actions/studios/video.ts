@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { coutMaximalTexte, decisionFournisseurStudio, erreurStudio, type ErreurStudio, type BilanDurees } from '@tiktrends/core';
+import { coutMaximalTexte, decisionFournisseurStudio, fournisseurAnimationBranche, erreurStudio, type ErreurStudio, type BilanDurees } from '@tiktrends/core';
 import { gardeStudio } from '../../../lib/studios/garde';
 import { refusCapacitesDevis } from '../../../lib/studios/interrupteurs';
 import { getSession } from '../../../lib/auth';
@@ -13,7 +13,7 @@ import { dependancesTextesProduction } from '../../../lib/studios/textes/dependa
 import { lireVideoPour, type VueVideo } from '../../../lib/studios/video/lecture';
 import { planifierStoryboardPour, type ResultatStoryboardServeur } from '../../../lib/studios/video/storyboard';
 import { compilerConsignePlanPour, retenirConsignePlanPour, type ResultatCompilationPlan } from '../../../lib/studios/video/consigne';
-import { appliquerOperationVideoPour, devisKeyframePour, approuverKeyframePour, type ImpactPresente } from '../../../lib/studios/video/commandes';
+import { appliquerOperationVideoPour, devisKeyframePour, approuverKeyframePour, devisClipPour, approuverClipPour, type ImpactPresente } from '../../../lib/studios/video/commandes';
 import type { DevisPresente, JobPresente } from '../../../lib/studios/execution/commandes';
 import type { VersionStudio } from '../../../lib/studios/depot';
 
@@ -32,8 +32,11 @@ import type { VersionStudio } from '../../../lib/studios/depot';
  *    l'argent, refusée sans fournisseur d'images. Une demande
  *    conversationnelle ne l'appelle jamais.
  *
- * L'animation n'a aucune action : aucun décodeur vidéo, la capacité n'est pas
- * présentée comme disponible.
+ *  · `demanderDevisClip` · `studio.generate`, devis du clip animé d'un plan
+ *    (image clé valide exigée), aucune dépense ;
+ *  · `approuverEtLancerClip` · `studio.generate`, engage de l'argent (forfait
+ *    vidéo annoncé avant le clic), refusée sans fournisseur d'animation ni
+ *    décodeur vidéo prouvé.
  *
  * F1 · toute l'action vidéo est sous la capacité « video », COUPÉE par défaut
  * (chaîne non validée en réel) · refus `UNSUPPORTED_CAPABILITY` avant toute
@@ -108,5 +111,27 @@ export async function approuverEtLancerKeyframe(entree: { quoteId: unknown; inpu
     illimite: unlimitedCredits(s?.user.email),
     plafond: { capUsd: plafond.capUsd, depenseUsd: plafond.spentUsd, bloque: plafond.blocked },
     fournisseurImage: fournisseurImageBranche(),
+  });
+}
+
+export async function demanderDevisClip(entree: { projectId: unknown; shotId: unknown }): Promise<Reponse<{ devis: DevisPresente }>> {
+  const g = await gardeStudio('studio.generate', 'video');
+  if (!g.ok) return g;
+  return devisClipPour(g.ctx, { projectId: entree?.projectId, shotId: entree?.shotId });
+}
+
+export async function approuverEtLancerClip(entree: { quoteId: unknown; inputHash: unknown; creditsAnnonces: unknown; idempotencyKey: unknown }): Promise<Reponse<{ job: JobPresente; deja: boolean }>> {
+  const g = await gardeStudio('studio.generate', 'video');
+  if (!g.ok) return g;
+  const coupe = await refusCapacitesDevis(g.ctx, entree?.quoteId);
+  if (coupe) return coupe;
+  const s = await getSession();
+  const plafond = await spendStatus();
+  return approuverClipPour(g.ctx, {
+    quoteId: entree?.quoteId, inputHash: entree?.inputHash, creditsAnnonces: entree?.creditsAnnonces, idempotencyKey: entree?.idempotencyKey,
+  }, {
+    illimite: unlimitedCredits(s?.user.email),
+    plafond: { capUsd: plafond.capUsd, depenseUsd: plafond.spentUsd, bloque: plafond.blocked },
+    fournisseurAnimation: fournisseurAnimationBranche(process.env),
   });
 }

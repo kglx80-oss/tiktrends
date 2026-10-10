@@ -122,7 +122,7 @@ describe('réglage d’un espace · lecture et validation', () => {
     expect(r.raisons).toEqual([
       '« Benchmark réel » se règle pour toute la plateforme, pas par espace',
       'capacité inconnue : zz',
-      '« Vidéo · storyboard et images clés » à la fois allumée et coupée',
+      '« Vidéo · storyboard, images clés et clips » à la fois allumée et coupée',
     ]);
     expect(validerReglagesEspace('x')).toEqual({ ok: false, raisons: ['réglage illisible · deux listes attendues (actives, coupées)'] });
   });
@@ -134,6 +134,6 @@ describe('réglage d’un espace · lecture et validation', () => {
 describe('le message du refus', () => {
   it('nomme la capacité, dit « non activé pour cet espace » et qu’aucune écriture ni débit n’a eu lieu', () => {
     const c: CapaciteStudio[] = ['video'];
-    expect(messageCapaciteCoupee(c)).toBe('« Vidéo · storyboard et images clés » · non activé pour cet espace. Rien n’a été écrit ni débité.');
+    expect(messageCapaciteCoupee(c)).toBe('« Vidéo · storyboard, images clés et clips » · non activé pour cet espace. Rien n’a été écrit ni débité.');
   });
 });

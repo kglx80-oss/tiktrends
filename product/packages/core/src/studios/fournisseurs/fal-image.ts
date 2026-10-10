@@ -237,6 +237,11 @@ export function operationsImageDuJob(ops: ReadonlyArray<{ operation: string; pro
   return ops.filter((o) => o.profil === 'image_generation').map((o) => o.operation);
 }
 
+/** Les opérations qui rendent un MÉDIA chez le fournisseur (images ou clip), dans l'ordre de l'instantané. */
+export function operationsMediaDuJob(ops: ReadonlyArray<{ operation: string; profil: ProfilOperation }>): string[] {
+  return ops.filter((o) => o.profil === 'image_generation' || o.profil === 'animation').map((o) => o.operation);
+}
+
 export type RequeteFal =
   | {
     ok: true;

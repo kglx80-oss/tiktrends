@@ -6,6 +6,7 @@ import { appliquerOperationVideo as appliquerNoyau, impactVideo, messageHorsLign
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
 import {
   appliquerOperationVideo, planifierStoryboard, compilerConsignePlan, retenirConsignePlan, demanderDevisKeyframe, approuverEtLancerKeyframe,
+  demanderDevisClip, approuverEtLancerClip,
 } from '../../../app/actions/studios/video';
 import { VueVideo, type ApercuGeste, type StoryboardPropose, type RetourGesteVideo } from './VueVideo';
 
@@ -31,7 +32,7 @@ const RELECTURE_MS = 4_000;
  * annoncé à côté de son propre bouton. « Lancer » garde sa clé de clic.
  */
 export function gesteVideoReessayable(nom: string): boolean {
-  return nom === 'confirmer' || nom.startsWith('retenir:') || nom.startsWith('devis:');
+  return nom === 'confirmer' || nom.startsWith('retenir:') || nom.startsWith('devis:') || nom.startsWith('devis-clip:');
 }
 
 const messageErreur = (r: ErreurStudio): string => (r.violations?.length ? r.violations.map((v) => v.raison).join(' · ') : r.message);
@@ -129,6 +130,12 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
         const d = vue.keyframes[shotId]?.devis;
         if (!d) return;
         void agir(`lancer:${shotId}`, () => approuverEtLancerKeyframe({ quoteId: d.id, inputHash: d.inputHash, creditsAnnonces: d.credits, idempotencyKey: cleDuClicVideo(d.id) }), () => 'Lancé · le job est en file, tu peux fermer la page.');
+      }}
+      surDevisClip={(shotId) => agir(`devis-clip:${shotId}`, () => demanderDevisClip({ projectId, shotId }), () => 'Devis du clip prêt · relis le prix avant d’approuver.')}
+      surLancerClip={(shotId) => {
+        const d = vue.clips[shotId]?.devis;
+        if (!d) return;
+        void agir(`lancer-clip:${shotId}`, () => approuverEtLancerClip({ quoteId: d.id, inputHash: d.inputHash, creditsAnnonces: d.credits, idempotencyKey: cleDuClicVideo(d.id) }), () => 'Animation lancée · le clip est en file, tu peux fermer la page.');
       }}
     />
   );
