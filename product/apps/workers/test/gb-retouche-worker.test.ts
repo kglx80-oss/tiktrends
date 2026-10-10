@@ -118,7 +118,7 @@ const fetchRejoue = (async (url: string | URL | Request, init?: RequestInit) => 
   throw new Error(`appel non prévu ${a.methode} ${a.url}`);
 }) as typeof fetch;
 
-const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-fal-test:secret', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit' } };
+const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-fal-test:secret', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit', animation: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video' } };
 const horloge = { ms: Date.parse('2026-10-08T10:00:00Z') };
 function moteur(stockage: StockageMemoire) {
   const fournisseur = construireFournisseurFal({ base, decision: DECISION, fetch: fetchRejoue, env: { AI_SPEND_CAP_USD: '10' }, stockage: CFG, lire: (c) => stockage.relire(c), horloge: () => new Date(horloge.ms), verifierAdresse: async () => true });

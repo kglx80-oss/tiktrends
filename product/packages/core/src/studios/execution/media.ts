@@ -509,13 +509,13 @@ export function operationsNonVerifiables(
   return operations.filter((op) => op.profil === 'animation' && !decodeur.video).map((op) => op.operation);
 }
 
-/**
- * Aucun adaptateur de fournisseur VIDÉO dans le code : le seul fournisseur
- * branché est l'image (fal), qui refuse l'animation avant tout envoi
- * (`coutSoumissionImage`). Fait du CODE, pas de l'infrastructure : il ne
- * change qu'avec un adaptateur vidéo, qui le déclarera.
+/*
+ * Le fournisseur d'animation est fal (image → vidéo, `fal-video.ts`), sur la
+ * même file, la même clé et la même barrière que l'image : il est branché
+ * exactement quand le fournisseur studio l'est (`fournisseurAnimationBranche`,
+ * `fournisseurs/choix.ts`). Le décodeur vidéo reste une condition À PART
+ * (`operationsNonVerifiables`) : sans sonde fraîche, aucun clip ne se devise.
  */
-export const FOURNISSEUR_ANIMATION_BRANCHE = false;
 
 /**
  * Animations qu'AUCUN fournisseur branché ne saurait produire. Même vérifiable

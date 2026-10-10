@@ -120,7 +120,7 @@ class StockageMemoire implements StockageStudio {
   async relire(cle: string) { return this.objets.get(cle) ?? null; }
 }
 
-const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-fal-test:secret', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit' } };
+const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-fal-test:secret', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit', animation: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video' } };
 const horloge = { ms: Date.parse('2026-10-08T10:00:00Z') };
 function moteur(o: { cap?: string; workerId?: string; stockage?: StockageMemoire } = {}) {
   const stockage = o.stockage ?? new StockageMemoire();

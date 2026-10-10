@@ -16,8 +16,10 @@
  * ici : il vit dans un module que la production n'importe pas.
  */
 
+import { MODELE_FAL_ANIMATION_DEFAUT } from './fal-video';
+
 export type DecisionFournisseur =
-  | { ok: true; apiKey: string; queueUrl: string | null; modeles: { generation: string; edition: string } }
+  | { ok: true; apiKey: string; queueUrl: string | null; modeles: { generation: string; edition: string; animation: string } }
   | { ok: false; raison: string };
 
 /** Défauts de `falFromEnv()` (`packages/integrations/src/fal.ts`) · mêmes variables, mêmes modèles. */
@@ -42,8 +44,19 @@ export function decisionFournisseurStudio(env: Readonly<Record<string, string | 
     modeles: {
       generation: env.FAL_IMAGE_MODEL || MODELE_FAL_GENERATION_DEFAUT,
       edition: env.FAL_IMAGE_MODEL_EDIT || MODELE_FAL_EDITION_DEFAUT,
+      // Même variable et même défaut que `falGenerateVideo` (image → vidéo).
+      animation: env.FAL_VIDEO_MODEL_I2V || MODELE_FAL_ANIMATION_DEFAUT,
     },
   };
+}
+
+/**
+ * L'animation d'un plan (image → vidéo) passe par le MÊME fournisseur fal que
+ * l'image : même clé, même autorisation de production, même stockage. Branchée
+ * exactement quand `decisionFournisseurStudio` l'est.
+ */
+export function fournisseurAnimationBranche(env: Readonly<Record<string, string | undefined>>): boolean {
+  return decisionFournisseurStudio(env).ok;
 }
 
 /**

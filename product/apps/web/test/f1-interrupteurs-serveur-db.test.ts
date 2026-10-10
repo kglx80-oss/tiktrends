@@ -76,7 +76,7 @@ const reglage = async (ws: string, value: unknown) => {
 };
 const effacerReglage = (ws: string) => db.delete(schema.appSettings).where(eq(schema.appSettings.key, cleInterrupteursEspace(ws)));
 
-const VIDEO = '« Vidéo · storyboard et images clés » · non activé pour cet espace. Rien n’a été écrit ni débité.';
+const VIDEO = '« Vidéo · storyboard, images clés et clips » · non activé pour cet espace. Rien n’a été écrit ni débité.';
 const IMAGE = '« Génération d’images » · non activé pour cet espace. Rien n’a été écrit ni débité.';
 
 beforeAll(async () => {

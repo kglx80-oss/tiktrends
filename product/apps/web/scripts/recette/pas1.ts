@@ -412,7 +412,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
     const { construireFournisseurFal } = await import('../../../workers/src/studios/fournisseurs');
     const decision = {
       ok: true as const, apiKey: fal.ok ? fal.apiKey : '', queueUrl: d.env.FAL_QUEUE_URL || null,
-      modeles: { generation: d.env.FAL_IMAGE_MODEL || core.MODELE_FAL_GENERATION_DEFAUT, edition: d.env.FAL_IMAGE_MODEL_EDIT || core.MODELE_FAL_EDITION_DEFAUT },
+      modeles: { generation: d.env.FAL_IMAGE_MODEL || core.MODELE_FAL_GENERATION_DEFAUT, edition: d.env.FAL_IMAGE_MODEL_EDIT || core.MODELE_FAL_EDITION_DEFAUT, animation: d.env.FAL_VIDEO_MODEL_I2V || core.MODELE_FAL_ANIMATION_DEFAUT },
     };
     const envPasse = { ...d.env, AI_SPEND_CAP_USD: String(capPasseUsd) };
     const base = db as unknown as Parameters<typeof construireFournisseurFal>[0]['base'];

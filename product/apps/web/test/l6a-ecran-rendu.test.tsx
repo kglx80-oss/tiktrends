@@ -71,6 +71,7 @@ function vue(o: Partial<DonneesVideo> = {}, dispo: EntreeDisponibiliteVideo = TO
       s3: kf({ retenue: { ...CONSIGNE, verdict: { ok: true } }, devis: { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z' } }),
     },
     mediasValides: ['keyframe:s1'], musiques: [{ assetId: 'a_musique', libelle: 'Piste 1' }],
+    clips: {}, prixClip: { credits: 10, usdMicros: 600_000, dureeS: 5 },
     disponibilite: disponibiliteVideo(dispo), coutTexteUsd: 0.14, prix: prixImage(), jobs: [], ...o,
   };
 }
@@ -261,5 +262,38 @@ describe('chaque geste montre son impact AVANT tout envoi', () => {
     expect(m.lancer).toHaveBeenCalledTimes(2);
     expect(m.lancer.mock.calls[0]![0].idempotencyKey).toBe(m.lancer.mock.calls[1]![0].idempotencyKey);
     expect(m.lancer.mock.calls[0]![0]).toMatchObject({ quoteId: 'q1', creditsAnnonces: 4 });
+  });
+});
+
+describe('animation d’un plan · le clip part de l’image clé, prix annoncé, aucun bouton mort', () => {
+  const ANIME: EntreeDisponibiliteVideo = { ...TOUT, decodeurVideo: true, fournisseurVideo: true };
+  const clip = (o: Partial<DonneesVideo['clips'][string]> = {}) => ({ etat: 'a_produire' as const, media: null, keyframePrete: false, devis: null, ...o });
+
+  it('animation indisponible ⇒ aucun bloc clip, la raison est dite', () => {
+    const d = html(props(vue({ clips: { s1: clip({ keyframePrete: true }) } })));
+    expect(q(d, '[data-clip="s1"]')).toBeNull();
+    expect(q(d, '[data-animation="s1"]')?.textContent).toMatch(/Animation · /);
+  });
+
+  it('image clé pas encore produite ⇒ devis du clip inactif, raison et prix annoncés', () => {
+    const d = html(props(vue({ clips: { s2: clip() } }, ANIME)));
+    const b = q(d, '[data-bouton="devis-clip-s2"]') as HTMLButtonElement;
+    expect(b.disabled).toBe(true);
+    expect(q(d, '[data-clip="s2"] [data-prix="clip"]')?.textContent).toMatch(/Un clip de 5 s depuis l’image clé · 10 crédits · 0,60 \$ au plus de coût fournisseur · Produis d’abord l’image clé de ce plan/);
+  });
+
+  it('image clé valide ⇒ devis actif ; devis présent ⇒ « Approuver et animer » avec son prix', () => {
+    const d = html(props(vue({ clips: { s1: clip({ keyframePrete: true, devis: { id: 'qc', inputHash: 'h'.repeat(64), credits: 20, usdMicros: 600_000, expiresAt: '2026-10-08T10:30:00Z' } }) } }, ANIME), { surDevisClip: rien, surLancerClip: rien }));
+    expect((q(d, '[data-bouton="devis-clip-s1"]') as HTMLButtonElement).disabled).toBe(false);
+    expect(q(d, '[data-devis-clip="qc"] [data-prix="devis-clip"]')?.textContent).toContain('20 crédits · 0,60 $ au plus de coût fournisseur');
+    const lancer = q(d, '[data-bouton="lancer-clip-s1"]') as HTMLButtonElement;
+    expect(lancer.disabled).toBe(false);
+    expect(lancer.textContent).toBe('Approuver et animer · 20 crédits');
+  });
+
+  it('clip livré ⇒ lecteur vidéo du média, état « Clip animé valide »', () => {
+    const d = html(props(vue({ clips: { s1: clip({ etat: 'valide', keyframePrete: true, media: { assetId: 'a', url: '/api/studios/media/a' } }) } }, ANIME)));
+    expect(q(d, '[data-clip="s1"] video')?.getAttribute('src')).toBe('/api/studios/media/a');
+    expect(q(d, '[data-clip="s1"]')?.textContent).toContain('Clip animé valide');
   });
 });

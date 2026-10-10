@@ -7,7 +7,7 @@
  * « Vidéo indisponible · aucun décodeur vidéo » tant que le worker ne sait
  * pas vérifier une vidéo produite (capacité SONDÉE, `capaciteVideo`), et
  * reste indisponible tant qu'aucun fournisseur d'animation n'est branché
- * (`FOURNISSEUR_ANIMATION_BRANCHE`), même décodeur prouvé.
+ * (`fournisseurAnimationBranche`), même décodeur prouvé.
  */
 
 import type { ContenuVersion, ModeParole } from '../document';

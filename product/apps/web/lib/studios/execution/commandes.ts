@@ -6,7 +6,7 @@ import {
   calculerPlanImpact, lignesDuDevis, empreinteEntreesDevis, expirationDevis, dureeValidite, verifierApprobation,
   decisionIdempotence, cleIdempotenceValide, refsDuJob, refusPlafondDollars, bilanRegistre, preuveSoumission,
   vueJob, transitionJob, transitionQualite, jobTerminal, objetDansPortee, erreurStudio,
-  operationsNonVerifiables, operationsSansFournisseur, FOURNISSEUR_ANIMATION_BRANCHE, PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
+  operationsNonVerifiables, operationsSansFournisseur, fournisseurAnimationBranche, PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
   type ContenuVersion, type PlanImpact, type LigneDevis, type ErreurStudio, type SnapshotJob, type VueJob,
   type EtatJob, type StatutQualite, type EpinglageDevis,
 } from '@tiktrends/core';
@@ -24,6 +24,7 @@ import { raccordImageDevis, parametresImageApprobation } from '../image/raccord'
 import { refusIdentitesDevis } from '../identites/devis';
 // L6-A · raccord des images clés des plans vidéo (`keyframe:<plan>` hors `s_image`) · même modèle que F-B.
 import { raccordPlansDevis, parametresPlansApprobation } from '../image/plans';
+import { raccordClipsDevis, parametresClipsApprobation } from '../video/clips';
 // L7-B · capacité vidéo SONDÉE par le worker (ffmpeg réel), jamais une constante.
 import { lireCapaciteVideo } from './capacite-video';
 import type { BaseStudio, ExecStudio, TxStudio } from './types';
@@ -207,7 +208,7 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
         throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: nonVerifiables, message: `Vidéo indisponible · le service ne sait pas encore vérifier une vidéo produite · ${nonVerifiables.join(', ')}. Retire-la du devis.` }));
       }
       // Vérifiable ne suffit pas : sans fournisseur d'animation, le job échouerait au worker après débit.
-      const sansFournisseur = operationsSansFournisseur(l.lignes, { animation: FOURNISSEUR_ANIMATION_BRANCHE });
+      const sansFournisseur = operationsSansFournisseur(l.lignes, { animation: fournisseurAnimationBranche(process.env) });
       if (sansFournisseur.length) {
         throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: sansFournisseur, message: `Animation indisponible · aucun fournisseur d’animation n’est branché sur ce serveur · ${sansFournisseur.join(', ')}. Retire-la du devis.` }));
       }
@@ -222,7 +223,10 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // L6-A · images clés des plans : consigne `shot.image` retenue, attestée, à jour, références intactes.
       const plans = await raccordPlansDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
       if (!plans.ok) throw new Refus(plans);
-      const empreinteImage = image.empreinte ?? plans.empreinte;
+      // Animation d'un plan : clip seul, image clé valide, paramètres construits par le serveur.
+      const clips = await raccordClipsDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
+      if (!clips.ok) throw new Refus(clips);
+      const empreinteImage = image.empreinte ?? plans.empreinte ?? clips.empreinte;
       // R3 · le contrôle visuel est une LIGNE du devis accepté (jamais un débit
       // ajouté après coup) · ajoutée par défaut, retirée si décochée, absente
       // quand il ne peut pas s'exécuter ici. Les totaux l'incluent.
@@ -326,6 +330,8 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
     const image = await parametresImageApprobation(base, ctx, q);
     // L6-A · même règle pour les images clés des plans vidéo · jamais `{}`.
     const plans = await parametresPlansApprobation(base, ctx, q);
+    // Animation · paramètres du clip relus maintenant (image clé encore valide) · jamais `{}`.
+    const clips = await parametresClipsApprobation(base, ctx, q);
     return await base.transaction(async (tx) => {
       const enCours = await jobParCle(tx, ctx.workspaceId, cle);
       if (enCours) return rejouer(ctx, enCours, quoteId, e.inputHash);
@@ -360,6 +366,7 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
       if (!v.ok) throw new Refus(erreurStudio(v.code, { traceId: ctx.traceId, targetIds: [q.id], message: v.motif }));
       if (!image.ok) throw new Refus(image);
       if (!plans.ok) throw new Refus(plans);
+      if (!clips.ok) throw new Refus(clips);
 
       const lignes = q.lines as LigneDevis[];
       const creditsDebites = o.illimite ? 0 : q.maximumCredits;
@@ -373,7 +380,7 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
         v: 1, quoteId: q.id, projectVersionId: q.projectVersionId, contentHash: version?.contentHash ?? '', impactPlanHash: q.impactPlanHash,
         pricingVersion: q.pricingVersion, lignes, epinglage,
         reserve: { credits: creditsDebites, usdMicros: Number(q.maximumUsdMicros) },
-        parametres: plans.parametres ?? image.parametres,
+        parametres: clips.parametres ?? plans.parametres ?? image.parametres,
       };
       const [job] = await tx.insert(schema.studioJobs).values({
         workspaceId: q.workspaceId, brandId: q.brandId, projectId: q.projectId, projectVersionId: q.projectVersionId,

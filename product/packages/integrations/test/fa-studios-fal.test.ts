@@ -308,3 +308,55 @@ describe('le corps natif est celui que le produit envoie déjà (`falGenerateIma
     }
   }
 });
+
+/* ── Animation d'un plan · même file, même barrière, forfait vidéo ── */
+describe('animation · clip image → vidéo sous la barrière, sortie vidéo rattachée au clip', () => {
+  const REQ_V = 'b2c3d4e5-0000-4000-8000-0000000c11e0';
+  const MODELE_V = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video';
+  const BASE_V = `https://queue.fal.run/${MODELE_V}/requests/${REQ_V}`;
+  const CLIP = 'https://v3.fal.media/files/zebra/clip.mp4';
+  const demandeClip: DemandeFournisseur = { cleIdempotence: cleFournisseurDuJob(JOB), operations: [{ operation: 'clip:s1', profil: 'animation' }], parametres: {} };
+  const corpsClip = { prompt: 'Mouvement : sourit.', image_url: 'https://cdn.tiktrends.test/studio/kf.png', duration: '5', negative_prompt: 'texte incrusté' };
+  const modeles: string[] = [];
+  class PortModele extends PortMemoire {
+    async reserver(l: Parameters<PortDepense['reserver']>[0], o: Parameters<PortDepense['reserver']>[1]) { modeles.push(String(l.model)); return super.reserver(l, o); }
+  }
+  function fournisseurClip() {
+    port = new PortModele();
+    const barriere = new BarriereDepenseStudio({ port, env: { AI_SPEND_CAP_USD: '10' }, horloge: () => new Date(maintenant) });
+    return new FournisseurFal({
+      apiKey: CLE_FAL, fetch: fetchRejoue, barriere,
+      preparer: async () => ({ ok: true as const, workspaceId: ESPACE, modele: MODELE_V, corps: corpsClip }),
+      operationsDuJob: async () => ['clip:s1'],
+      verifierAdresse: async () => true, horloge: () => new Date(maintenant), journal: (e) => journal.push(e),
+    });
+  }
+  beforeEach(() => { modeles.length = 0; });
+
+  it('POST au modèle image → vidéo, corps préparé, réserve au forfait vidéo de la grille (poste fal_video)', async () => {
+    route(estPost, json(200, { request_id: REQ_V, response_url: BASE_V, status_url: `${BASE_V}/status`, cancel_url: `${BASE_V}/cancel` }));
+    await fournisseurClip().soumettre(demandeClip);
+    expect(appels.map((a) => [a.methode, a.url])).toEqual([['POST', `https://queue.fal.run/${MODELE_V}`]]);
+    expect(appels[0]!.corps).toEqual(corpsClip);
+    expect(ligne()).toEqual({ usd: 0.6, actual: 0.6, workspaceId: ESPACE, action: 'studio.generation' });
+    expect(modeles).toEqual(['fal_video']);
+  });
+
+  it('plafond trop bas pour le forfait vidéo : AUCUNE requête', async () => {
+    const f = fournisseurClip();
+    port.depenseExterne = 9.5;
+    const e = await erreurDe(f.soumettre(demandeClip));
+    expect(e).toBeInstanceOf(DepenseRefusee);
+    expect(appels).toEqual([]);
+  });
+
+  it('terminé : la sortie `video.url` devient la sortie du clip', async () => {
+    route(estPost, json(200, { request_id: REQ_V, response_url: BASE_V, status_url: `${BASE_V}/status`, cancel_url: `${BASE_V}/cancel` }));
+    route((a) => a.url === `${BASE_V}/status`, json(200, { status: 'COMPLETED' }));
+    route((a) => a.url === BASE_V && a.methode === 'GET', json(200, { video: { url: CLIP, content_type: 'video/mp4', file_name: 'clip.mp4' } }));
+    const f = fournisseurClip();
+    const { requestId } = await f.soumettre(demandeClip);
+    const s = await f.statut(requestId);
+    expect(s).toMatchObject({ etat: 'reussi', sorties: [{ operation: 'clip:s1', ref: 'image:0' }] });
+  });
+});

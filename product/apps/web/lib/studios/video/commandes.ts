@@ -22,10 +22,14 @@ import { mediasProduits } from './lecture';
  *  · `approuverKeyframePour` · `studio.generate`, la SEULE qui engage de
  *    l'argent, refusée si le fournisseur d'images n'est pas branché.
  *
- * L'animation n'a aucun geste ici : un clip est refusé dès le devis (L3)
- * tant que le worker n'a pas PROUVÉ son décodeur vidéo (sonde fraîche,
- * `lireCapaciteVideo`) et tant qu'aucun fournisseur d'animation n'est branché
- * (`FOURNISSEUR_ANIMATION_BRANCHE`) ; l'écran le dit.
+ *  · `devisClipPour` · `studio.generate`, devis L3 du clip animé d'UN plan,
+ *    parti de son image clé valide (`video/clips.ts`) ;
+ *  · `approuverClipPour` · `studio.generate`, engage de l'argent, refusée si
+ *    le fournisseur (fal, image → vidéo) n'est pas branché.
+ *
+ * Un clip reste refusé dès le devis tant que le worker n'a pas PROUVÉ son
+ * décodeur vidéo (sonde fraîche, `lireCapaciteVideo`) ou que le fournisseur
+ * n'est pas branché (`fournisseurAnimationBranche`) ; l'écran le dit.
  */
 
 export type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
@@ -101,6 +105,31 @@ export async function approuverKeyframePour(
 ): Promise<Resultat<{ job: JobPresente; deja: boolean }>> {
   if (!o.fournisseurImage) {
     return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: 'Le fournisseur d’images n’est pas branché sur ce serveur · rien n’a été approuvé ni débité.' });
+  }
+  return approuverEtMettreEnFile(ctx, e, o);
+}
+
+/** Devis du clip animé d'UN plan · son image clé doit être produite et valide (aucune dépense). */
+export async function devisClipPour(ctx: ContexteStudio, e: { projectId: unknown; shotId: unknown }, maintenant: Date = new Date()): Promise<Resultat<{ devis: DevisPresente }>> {
+  if (typeof e.shotId !== 'string' || !e.shotId || e.shotId === 's_image') return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'shotId', raison: 'plan vidéo attendu' }] });
+  const d = await creerDevis(ctx, { projectId: e.projectId, operations: [`clip:${e.shotId}`], variante: true }, db, maintenant);
+  if (!d.ok) {
+    if (d.code === 'INVALID_SCHEMA' && d.violations?.some((v) => v.chemin === 'operations' && v.raison.startsWith('opérations absentes'))) {
+      return erreurStudio('NOT_FOUND', { traceId: ctx.traceId, message: 'Ce plan n’existe plus dans la version courante · recharge le storyboard.' });
+    }
+    return d;
+  }
+  return { ok: true, devis: d.devis };
+}
+
+/** Approuver et lancer un clip · refusé tant que le fournisseur d'animation n'est pas branché (rien ne serait exécuté). */
+export async function approuverClipPour(
+  ctx: ContexteStudio,
+  e: { quoteId: unknown; inputHash: unknown; creditsAnnonces: unknown; idempotencyKey: unknown },
+  o: OptionsApprobation & { fournisseurAnimation: boolean },
+): Promise<Resultat<{ job: JobPresente; deja: boolean }>> {
+  if (!o.fournisseurAnimation) {
+    return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: 'Le fournisseur d’animation n’est pas branché sur ce serveur · rien n’a été approuvé ni débité.' });
   }
   return approuverEtMettreEnFile(ctx, e, o);
 }

@@ -87,7 +87,7 @@ describe('URL directe d’un écran coupé · la page le dit', () => {
     const d = dom(renderToStaticMarkup(await VideoPage(params(projet))));
     const s = d.querySelector('[data-etat="non-active"]')!;
     expect(s.getAttribute('data-capacites')).toBe('video');
-    expect(s.querySelector('h1')?.textContent).toBe('Vidéo · storyboard et images clés');
+    expect(s.querySelector('h1')?.textContent).toBe('Vidéo · storyboard, images clés et clips');
     expect(s.querySelector('[role="status"]')?.textContent).toContain('Non activé pour cet espace');
     expect(s.textContent).toContain('Rien n’a été écrit ni débité.');
     const liens = [...s.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')]);
@@ -167,6 +167,6 @@ describe('ADMIN · lecture des interrupteurs par espace', () => {
     expect(etat('[data-detail-capacite="textes"]')).toEqual(['non', 'Coupée · coupée pour cet espace (réglage plateforme)']);
     expect(d.querySelector('[data-formulaire="interrupteurs"] select[name="video"] option[selected]')?.textContent).toBe('Allumée (pilote)');
     expect(d.querySelector('[data-formulaire="interrupteurs"] select[name="benchmark_reel"]'), 'capacité de plateforme réglable par espace').toBeNull();
-    expect(d.querySelector(`[data-espace="${ids.wsA}"]`)?.textContent).toContain('Vidéo · storyboard et images clés · active');
+    expect(d.querySelector(`[data-espace="${ids.wsA}"]`)?.textContent).toContain('Vidéo · storyboard, images clés et clips · active');
   });
 });

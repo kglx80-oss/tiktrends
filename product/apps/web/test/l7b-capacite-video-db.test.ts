@@ -107,7 +107,8 @@ describe('sonde fraîche · le contrôle de décodage passe, l’absence de four
     expect(d).toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY', targetIds: ['clip:s_ouverture'], message: 'Animation indisponible · aucun fournisseur d’animation n’est branché sur ce serveur · clip:s_ouverture. Retire-la du devis.' });
     expect(await nbDevis()).toBe(avant);
     expect(await solde(db, ids.wsA)).toBe(s0);
-    const l = await lireVideoPour(ctxDe(ids, 'ua'), projet.projectId, LECTURE);
+    // L'animation passe par le fournisseur studio (fal) : l'écran la dit indisponible exactement quand lui ne l'est pas.
+    const l = await lireVideoPour(ctxDe(ids, 'ua'), projet.projectId, { ...LECTURE, fournisseurImage: false });
     expect(l.ok && l.vue.disponibilite.animation).toEqual({ disponible: false, raison: RAISON_ANIMATION_SANS_FOURNISSEUR });
   });
 

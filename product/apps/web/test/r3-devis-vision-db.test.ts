@@ -139,7 +139,7 @@ class StockageMemoire implements StockageStudio {
   async deposer(cle: string, octets: Uint8Array) { this.objets.set(cle, new Uint8Array(octets)); }
   async relire(cle: string) { return this.objets.get(cle) ?? null; }
 }
-const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-fal-test:secret', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit' } };
+const DECISION: Extract<DecisionFournisseur, { ok: true }> = { ok: true, apiKey: 'cle-fal-test:secret', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit', animation: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video' } };
 const horloge = { ms: T.getTime() };
 const STOCK = new StockageMemoire();
 /** Les médias livrés, relus là où le worker les a déposés (le stockage S3 n'existe pas en test). */

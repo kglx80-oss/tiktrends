@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   capaciteVideo, lireSondeVideo, verdictDecodage, refusLectureVideo, operationsNonVerifiables, operationsSansFournisseur,
-  FRAICHEUR_SONDE_VIDEO_MS, INTERVALLE_SONDE_VIDEO_MS, DERIVE_HORLOGE_SONDE_MS, FOURNISSEUR_ANIMATION_BRANCHE, CLE_SONDE_VIDEO,
+  FRAICHEUR_SONDE_VIDEO_MS, INTERVALLE_SONDE_VIDEO_MS, DERIVE_HORLOGE_SONDE_MS, CLE_SONDE_VIDEO,
   type SondeVideo, type InfosVideo, type ResultatDecodage,
 } from '../src/studios/execution/media';
 import { disponibiliteVideo, RAISON_ANIMATION_INDISPONIBLE, RAISON_ANIMATION_SANS_FOURNISSEUR } from '../src/studios/video';
+import { fournisseurAnimationBranche } from '../src/studios/fournisseurs/choix';
 
 /**
  * L7-B · la capacité vidéo est une PREUVE fraîche du worker, jamais une
@@ -61,15 +62,19 @@ describe('le devis et le worker suivent la capacité', () => {
     expect(operationsNonVerifiables(ops, { video: capaciteVideo(sonde(), T).decodage })).toEqual([]);
   });
   it('vérifiable ne suffit pas · aucun fournisseur d’animation branché ⇒ refusée', () => {
-    expect(FOURNISSEUR_ANIMATION_BRANCHE).toBe(false);
-    expect(operationsSansFournisseur(ops, { animation: FOURNISSEUR_ANIMATION_BRANCHE })).toEqual(['clip:s1']);
+    // L'animation suit le fournisseur studio (fal) : sans clé réelle, ni stockage, rien n'est branché.
+    expect(fournisseurAnimationBranche({})).toBe(false);
+    expect(operationsSansFournisseur(ops, { animation: fournisseurAnimationBranche({}) })).toEqual(['clip:s1']);
+    const S3 = { S3_ENDPOINT: 'e', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'i', S3_SECRET_ACCESS_KEY: 's' };
+    expect(fournisseurAnimationBranche({ NODE_ENV: 'production', FAL_KEY: 'cle-reelle', ...S3 })).toBe(true);
+    expect(fournisseurAnimationBranche({ NODE_ENV: 'production', FAL_KEY: 'simule-local', ...S3 })).toBe(false);
     expect(operationsSansFournisseur(ops, { animation: true })).toEqual([]);
   });
   it('écran · décodeur prouvé mais aucun fournisseur ⇒ animation toujours indisponible, raison juste', () => {
     const tout = { peutGenerer: true, peutProposer: true, releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true, briefPresent: true };
     expect(disponibiliteVideo({ ...tout, decodeurVideo: false }).animation).toEqual({ disponible: false, raison: RAISON_ANIMATION_INDISPONIBLE });
     expect(disponibiliteVideo({ ...tout, decodeurVideo: true }).animation).toEqual({ disponible: false, raison: RAISON_ANIMATION_SANS_FOURNISSEUR });
-    expect(disponibiliteVideo({ ...tout, decodeurVideo: true, fournisseurVideo: FOURNISSEUR_ANIMATION_BRANCHE }).animation.disponible).toBe(false);
+    expect(disponibiliteVideo({ ...tout, decodeurVideo: true, fournisseurVideo: fournisseurAnimationBranche({}) }).animation.disponible).toBe(false);
     expect(disponibiliteVideo({ ...tout, decodeurVideo: true, fournisseurVideo: true }).animation).toEqual({ disponible: true, raison: '' });
   });
 });

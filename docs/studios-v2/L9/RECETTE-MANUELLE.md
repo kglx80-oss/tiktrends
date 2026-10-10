@@ -46,7 +46,7 @@ Le plafond global de l'application (`AI_SPEND_CAP_USD`) reste au-dessus, inchang
 | P6 | Bibliothèque | /assets | 0 $ | l'image livrée apparaît « Studios · <projet> », lecture seule |
 | P7 | Éditeur et export | projet · Image · export | 0 $ | PNG téléchargé, brief MD/JSON |
 | P8 | Textes du projet | projet · Textes | appel texte (borne réservée avant) | textes écrits, exportés |
-| P9 | Vidéo · storyboard et images clés | projet · Vidéo | images clés payantes | storyboard, consignes ; animation dite « indisponible » |
+| P9 | Vidéo · storyboard, images clés et clips | projet · Vidéo | images clés payantes ; clip au forfait vidéo (0,60 $ réservé, 5 s) | storyboard, consignes ; « Devis du clip animé » sous une image clé valide, puis « Approuver et animer » ; le clip se lit dans le plan |
 | P10 | Jarvis connaît les projets | /jarvis | appel texte (borne réservée avant) | cite le projet et son lien ; lien « Projets » en en-tête |
 | P11 | Budget | /admin/studios-interrupteurs | 0 $ | engagé = somme des essais ; refus net au-delà de 15 $ |
 | P12 | Ancien outil intact | Pubs IA, Image, Vidéo, Textes, Veille, Sauvegardes, Adsmap | 0 $ | inchangés |
@@ -55,8 +55,8 @@ Avant CHAQUE appel payant : lire le restant dans le bloc budget (P11) ; le devis
 
 ## 4. Ce qui n'est pas disponible (et pourquoi)
 
-- **Animation vidéo, rendu vidéo final** · aucun fournisseur d'animation raccordé (le worker ne sait faire
-  que `image_generation`) ; `RENDU_VIDEO_FINAL` non branché. Storyboard et images clés seulement.
+- **Rendu vidéo final** · `RENDU_VIDEO_FINAL` non branché : chaque plan s'anime (clip de 5 s depuis son
+  image clé, fal Kling image → vidéo), l'assemblage final des clips arrive au lot suivant.
 - **Voix, lipsync** · aucun fournisseur validé.
 - **Benchmark réel** · retiré des préalables par le mandat ; reste activable seulement par l'environnement.
 - **Liens cliquables dans les réponses de Jarvis** · Jarvis donne le chemin du projet en texte.
