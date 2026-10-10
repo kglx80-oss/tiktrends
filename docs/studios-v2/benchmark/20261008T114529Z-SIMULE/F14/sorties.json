@@ -1,0 +1,145 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F14",
+  "titre": "Sans texte",
+  "etapes": [
+    {
+      "etapeId": "storyboard",
+      "templateKey": "storyboard.plan",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "shots": [
+          {
+            "shotId": "shot_1",
+            "purpose": "Ouverture",
+            "subject": "Produit",
+            "action": "posé",
+            "framing": "plan large",
+            "camera": "fixe",
+            "lighting": "matin",
+            "environment": "cuisine",
+            "referenceIds": [],
+            "narration": "",
+            "onScreenText": [],
+            "speechMode": "none",
+            "estimatedDurationMs": 3000
+          },
+          {
+            "shotId": "shot_2",
+            "purpose": "Détail",
+            "subject": "Produit",
+            "action": "pris en main",
+            "framing": "gros plan",
+            "camera": "fixe",
+            "lighting": "matin",
+            "environment": "cuisine",
+            "referenceIds": [],
+            "narration": "",
+            "onScreenText": [],
+            "speechMode": "none",
+            "estimatedDurationMs": 3000
+          }
+        ],
+        "estimatedTotalMs": 6000,
+        "durationCaveat": "Durées indicatives."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "176ace3e-af50-4fe0-a507-775a5b1f9dc9",
+      "resultSha256": "c5ec4d8f39d18b9bcb645fb6daeb513257c87d151ea125ba5d7a5d7d62e56fec",
+      "fichiers": []
+    },
+    {
+      "etapeId": "compile",
+      "templateKey": "image.compile",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "generationInstruction": "Produit sur une table, lumière du matin, aucun texte visible.",
+        "negativeConstraints": [
+          "aucun texte",
+          "aucune lettre"
+        ],
+        "referenceBindings": [
+          {
+            "referenceId": "f06-produit",
+            "role": "product",
+            "scope": "product"
+          }
+        ],
+        "protectedComponents": [
+          "produit"
+        ],
+        "needsDeterministicOverlay": false
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "69126c64-2f5c-48df-9e4f-d1d209ad21fc",
+      "resultSha256": "886c942147b08b48f0cb4d6bdc6c2e7d8d1af58f4917fd3cb2f6e779714fd9fa",
+      "fichiers": []
+    },
+    {
+      "etapeId": "generation",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/generation-1-1.png",
+          "sha256": "dbef3bb397283f935b34fb923b0ff096865ef42a63ca18f65826bb3b98e74bf2",
+          "largeur": 144,
+          "hauteur": 256
+        }
+      ]
+    },
+    {
+      "etapeId": "generation",
+      "templateKey": null,
+      "sortie": 1,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/generation-2-1.png",
+          "sha256": "351109539b2332116665db9cf9b3d009be1da7531b2365133d87d6a2cd1ef2d7",
+          "largeur": 144,
+          "hauteur": 256
+        }
+      ]
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

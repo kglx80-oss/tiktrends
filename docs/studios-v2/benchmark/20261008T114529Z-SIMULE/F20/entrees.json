@@ -1,0 +1,234 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F20",
+  "titre": "Continuité vidéo",
+  "oracleAttendu": "Même identité/tenue/produit ; absence caméra parasite signalée",
+  "jeuSynthetique": [
+    {
+      "id": "f20-personnage",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f20-personnage.png",
+      "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+      "contenuSha256": "2de6cb21f18aedf000fc8d13bcf9e0568e23356dad5831d4bb12a1774c333ab7"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "personnage",
+      "sortie": 0,
+      "template": "character.spec",
+      "taskInputsSha256": "0b1e4ed6793d5ec41466225996b25e1a21b6c07bb143cd8c957cf4f64066f766",
+      "taskInputs": {
+        "description": "Personnage original : cheveux courts noirs, veste verte, tient le flacon.",
+        "referenceIds": [
+          "f20-personnage"
+        ],
+        "requiredViews": [
+          "front",
+          "three_quarter"
+        ]
+      },
+      "contexte": {
+        "references": [
+          {
+            "assetId": "f20-personnage",
+            "assetVersion": "v1",
+            "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+            "role": "identity",
+            "scope": "subject",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "cheveux courts noirs",
+              "veste verte"
+            ]
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "identite_1",
+            "entityType": "identity",
+            "ordinal": 0
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "storyboard",
+      "sortie": 0,
+      "template": "storyboard.plan",
+      "taskInputsSha256": "29197f1e87364249ec841bb7123db574e68199758f910334752de836837edcdf",
+      "taskInputs": {
+        "briefId": "brief_F20",
+        "targetDurationMs": 6000,
+        "shotCount": 2,
+        "speechMode": "none"
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "brief_F20",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "brief_F20",
+              "claim": "Le personnage original tient le flacon, deux cadrages.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "1174d135315775f360faaa2c369a9ff69639b764f88a8009cdcb9c4f70e05135"
+          }
+        ],
+        "references": [
+          {
+            "assetId": "f20-personnage",
+            "assetVersion": "v1",
+            "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+            "role": "identity",
+            "scope": "subject",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "cheveux courts noirs",
+              "veste verte"
+            ]
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "shot_1",
+            "entityType": "shot",
+            "ordinal": 0
+          },
+          {
+            "id": "shot_2",
+            "entityType": "shot",
+            "ordinal": 1
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "animation",
+      "sortie": 0,
+      "template": "animation.compile",
+      "taskInputsSha256": "a6b07fe9402b1174c679ae95875d7f2fa2cd833de9a14074af562a9bea2ea8de",
+      "taskInputs": {
+        "shotId": "plan_F20",
+        "keyframeAssetId": "f20-personnage",
+        "durationMs": 3000,
+        "speechMode": "none",
+        "audioAssetId": null
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "plan_F20",
+            "version": "v1",
+            "schemaKey": "Shot",
+            "content": {
+              "shotId": "plan_F20",
+              "purpose": "Plan du benchmark",
+              "subject": "Produit synthétique",
+              "action": "Tenu en main",
+              "framing": "plan moyen",
+              "camera": "fixe",
+              "lighting": "lumière douce",
+              "environment": "studio neutre",
+              "referenceIds": [],
+              "narration": "",
+              "onScreenText": [],
+              "speechMode": "none",
+              "estimatedDurationMs": 3000
+            },
+            "sha256": "eb34d243d41cd2355731cb70f4f8eb0c722e76b0a53b76894c04f5566fe7afd9"
+          }
+        ],
+        "references": [
+          {
+            "assetId": "f20-personnage",
+            "assetVersion": "v1",
+            "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+            "role": "identity",
+            "scope": "subject",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "cheveux courts noirs",
+              "veste verte"
+            ]
+          }
+        ],
+        "invariants": [
+          "cheveux courts noirs",
+          "veste verte",
+          "tient le flacon"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "animation",
+      "sortie": 1,
+      "template": "animation.compile",
+      "taskInputsSha256": "a6b07fe9402b1174c679ae95875d7f2fa2cd833de9a14074af562a9bea2ea8de",
+      "taskInputs": {
+        "shotId": "plan_F20",
+        "keyframeAssetId": "f20-personnage",
+        "durationMs": 3000,
+        "speechMode": "none",
+        "audioAssetId": null
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "plan_F20",
+            "version": "v1",
+            "schemaKey": "Shot",
+            "content": {
+              "shotId": "plan_F20",
+              "purpose": "Plan du benchmark",
+              "subject": "Produit synthétique",
+              "action": "Tenu en main",
+              "framing": "plan moyen",
+              "camera": "fixe",
+              "lighting": "lumière douce",
+              "environment": "studio neutre",
+              "referenceIds": [],
+              "narration": "",
+              "onScreenText": [],
+              "speechMode": "none",
+              "estimatedDurationMs": 3000
+            },
+            "sha256": "eb34d243d41cd2355731cb70f4f8eb0c722e76b0a53b76894c04f5566fe7afd9"
+          }
+        ],
+        "references": [
+          {
+            "assetId": "f20-personnage",
+            "assetVersion": "v1",
+            "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+            "role": "identity",
+            "scope": "subject",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "cheveux courts noirs",
+              "veste verte"
+            ]
+          }
+        ],
+        "invariants": [
+          "cheveux courts noirs",
+          "veste verte",
+          "tient le flacon"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}

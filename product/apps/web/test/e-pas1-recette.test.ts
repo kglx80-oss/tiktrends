@@ -1,0 +1,241 @@
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+
+/**
+ * Recette Studios · lot E · la commande du PAS 1 (premier rendu image) jouée
+ * en mode SIMULÉ, sur une VRAIE base (pglite + migrations réelles) : adaptateur
+ * texte simulé pour `image.compile`, fournisseur fal de PRODUCTION contre un
+ * `fetch` FACTICE qui rejoue la file fal (aucun réseau, 0 $), moteur RÉEL du
+ * worker, décodeur RÉEL (sharp), stockage local dans un dossier temporaire.
+ *
+ * On lit les RÉSULTATS : lignes en base, appels reçus par le faux fal, fichier
+ * de rapport et fichier livré sur le disque.
+ */
+
+vi.mock('@tiktrends/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tiktrends/db')>();
+  const { pgMemoire } = await import('./helpers/pg-memoire');
+  const db = await pgMemoire(actual.schema as unknown as Record<string, unknown>);
+  return { ...actual, db };
+});
+vi.mock('../lib/auth', () => ({ getSession: async () => null }));
+vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
+
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import sharp from 'sharp';
+import type { PgTable } from 'drizzle-orm/pg-core';
+import { db, schema } from '@tiktrends/db';
+import { semerRecette } from '../scripts/recette/semer';
+import { executerPas1, lireOptionsPas1 } from '../scripts/recette/pas1';
+import { devisPas1, deciderPas1, lireMontantUsd, masquerSecrets, rapportPas1, texteDevis, usdAffiche, type DonneesRapportPas1 } from '../scripts/recette/regles';
+import { bilanBudgetEssai } from '@tiktrends/core';
+import { adaptateurSimule } from './l2-adaptateur-simule';
+import type { AppelModele } from '../lib/studios/prompts/adaptateur';
+
+/** Valeurs SENTINELLES · aucune ne doit apparaître dans un rapport ni dans le journal. */
+const SECRETS = {
+  FAL_KEY: 'fal-sentinelle-7f3a9c2e', ANTHROPIC_API_KEY: 'sk-ant-sentinelle-41d8', POSTGRES_PASSWORD: 'mdpSentinelle987',
+  AUTH_SECRET: 'auth-sentinelle-55b1', S3_SECRET_ACCESS_KEY: 's3-sentinelle-0c4e',
+};
+const ENV = {
+  TIKTRENDS_ENV: 'recette', STUDIOS_PROMPTS_RECETTE_LOCALE: '1', AI_SPEND_CAP_USD: '15',
+  // R6 · capacités du pas 1 ouvertes pour l'espace de recette seulement, comme dans docker-compose.recette.yml.
+  STUDIOS_ESPACES_PILOTES: 'e5ec0000-0000-4000-8000-00000000e001', STUDIOS_CAPACITES_PILOTES: 'generation_image,controle_visuel',
+  DATABASE_URL: `postgres://recette:${SECRETS.POSTGRES_PASSWORD}@127.0.0.1:5432/tiktrends_recette`,
+  STUDIO_FOURNISSEUR_REEL: 'autorise', ...SECRETS,
+};
+
+const texteBrut = adaptateurSimule((a: AppelModele) => {
+  const ti = JSON.parse(a.messages[2]!.contenu.split('TASK_INPUTS_JSON=')[1]!) as { referenceIds: string[] };
+  return { status: 'ready', questions: [], warnings: [], evidenceIds: [], result: {
+    generationInstruction: 'Coureuse de face sur un sentier au matin, lunettes bleues et bandeau bleu portés, lumière douce, cadrage poitrine.',
+    negativeConstraints: ['Aucun autre produit visible'], needsDeterministicOverlay: true, protectedComponents: ['lunettes', 'bandeau'],
+    referenceBindings: ti.referenceIds.filter((id) => id.startsWith('pph_')).map((id) => ({ referenceId: id, role: 'product', scope: 'product' })),
+  } };
+});
+
+/** E2 · routé vers le modèle réel : la compilation est bornée à sa ligne de devis, calculée au tarif de ce modèle. */
+const texte = Object.assign(Object.create(texteBrut) as typeof texteBrut, { modelePour: (p: string) => (p === 'reasoning_structured' || p === 'vision_analysis' ? 'claude-sonnet-5' : null) });
+
+/* ── Le faux fal · file rejouée, compteur des soumissions, plafond lu au moment de soumettre ── */
+const fal = { mode: 'termine' as 'termine' | 'en_cours', soumissions: 0, appels: 0, plafondsVus: [] as Array<string | undefined>, png: new Uint8Array() };
+const REQ = 'e5ec0000-0000-4000-8000-0000000fa101';
+const BASE_REQ = `https://queue.fal.run/fal-ai/nano-banana-2/requests/${REQ}`;
+const json = (status: number, corps: unknown) => new Response(JSON.stringify(corps), { status });
+const fetchFactice = (async (url: string | URL | Request, init?: RequestInit) => {
+  fal.appels += 1;
+  const u = String(url);
+  if ((init?.method ?? 'GET') === 'POST') {
+    fal.soumissions += 1;
+    fal.plafondsVus.push(process.env.AI_SPEND_CAP_USD);
+    return json(200, { request_id: REQ, response_url: BASE_REQ, status_url: `${BASE_REQ}/status`, cancel_url: `${BASE_REQ}/cancel` });
+  }
+  if (u.endsWith(`/requests/${REQ}/status`)) return json(200, fal.mode === 'termine' ? { status: 'COMPLETED', response_url: BASE_REQ } : { status: 'IN_PROGRESS' });
+  if (u.endsWith(`/requests/${REQ}`)) return json(200, { images: [{ url: 'https://v3.fal.media/files/recette/scene.png', content_type: 'image/png', width: 1080, height: 1350 }] });
+  if (u.startsWith('https://v3.fal.media/')) return new Response(fal.png as unknown as BodyInit, { status: 200, headers: { 'content-length': String(fal.png.length) } });
+  throw new Error(`appel non prévu ${u}`);
+}) as typeof fetch;
+
+let sortie = '';
+let registre = '';
+/** Le montant à recopier · la RÉSERVATION MAXIMALE du devis calculé (E2), lue sur le premier refus. */
+let montant = '';
+const journal: string[] = [];
+const lancer = (argv: string[], env: Record<string, string | undefined> = ENV, maxMs = 20_000) => executerPas1({
+  env, argv, adaptateur: texte, fetch: fetchFactice, sortie, registre, simule: true,
+  verifierAdresse: async () => true, attente: { maxMs, pasMs: 10 }, dormir: (ms) => new Promise((ok) => setTimeout(ok, ms)),
+  journal: (l) => journal.push(l),
+});
+const compte = async (t: PgTable) => (await db.select().from(t)).length;
+const rien = async () => ({
+  depenses: await compte(schema.aiSpend), devis: await compte(schema.studioQuotes), jobs: await compte(schema.studioJobs), runs: await compte(schema.studioPromptRuns),
+});
+
+beforeAll(async () => {
+  sortie = mkdtempSync(join(tmpdir(), 'recette-pas1-'));
+  registre = mkdtempSync(join(tmpdir(), 'recette-registre-'));
+  const r = await semerRecette(ENV, { maintenant: new Date('2026-10-08T10:00:00Z') });
+  if (!r.ok) throw new Error(r.raisons.join(' ; '));
+  fal.png = new Uint8Array(await sharp({ create: { width: 1080, height: 1350, channels: 3, background: { r: 240, g: 180, b: 120 } } }).png().toBuffer());
+}, 120_000);
+afterAll(() => { for (const x of [sortie, registre]) if (x) rmSync(x, { recursive: true, force: true }); });
+
+describe('Pas 1 · règles pures', () => {
+  it('devis à trois colonnes, confirmation de la RÉSERVATION MAXIMALE, budget d’essai cumulatif de 15 $', () => {
+    const a = devisPas1({ compilation: { estimationUsdMicros: 132_000, reservationUsdMicros: 151_200 }, imageUsdMicros: 80_000, vision: { unites: 1, borneParImageUsdMicros: 147_024 } });
+    expect(a.reservationUsdMicros).toBe(378_224);
+    expect(a.afficheUsdMicros).toBe(380_000);
+    const bilan = bilanBudgetEssai({ autoriseMicros: 15_000_000, anterieuresMicros: 0, lignes: [] });
+    const decider = (c: string | null, p: number | null = null, b = bilan, depenseFenetreUsd = 0) => deciderPas1({ devis: a, confirmation: c, plafondPasseUsdMicros: p, bilan: b, depenseFenetreUsd });
+    expect(decider('0,38')).toEqual({ ok: true, capPasseUsd: 0.38, confirmeUsdMicros: 380_000 });
+    expect(decider('0.38 $').ok).toBe(true);
+    const codes = (...x: Parameters<typeof decider>) => { const d = decider(...x); return d.ok ? [] : d.refus.map((r) => r.code); };
+    expect(codes(null)).toEqual(['CONFIRMATION_ABSENTE']);
+    expect(codes('0,21')).toEqual(['CONFIRMATION_DIFFERENTE']);
+    expect(codes('0,382')).toEqual(['CONFIRMATION_DIFFERENTE']);
+    expect(codes('0,38', 100_000)).toEqual(['DEVIS_AU_DELA_DU_PLAFOND_DE_PASSE']);
+    expect(codes('0,38', 0)).toEqual(['PLAFOND_PASSE_INVALIDE']);
+    expect(codes('0,38', null, bilanBudgetEssai({ autoriseMicros: 15_000_000, anterieuresMicros: 0, lignes: [{ regleMicros: 14_900_000, incertainMicros: 0 }] }))).toEqual(['BUDGET_ESSAI_INSUFFISANT']);
+    // La barrière du processus : ce que la base compte déjà + la réservation maximale confirmée.
+    const d = decider('0,38', null, bilanBudgetEssai({ autoriseMicros: 15_000_000, anterieuresMicros: 0, lignes: [{ regleMicros: 14_600_000, incertainMicros: 0 }] }), 14.6);
+    expect(d.ok && d.capPasseUsd).toBe(14.98);
+    expect(lireMontantUsd('abc')).toBeNull();
+    expect(texteDevis(a, { bilan })).toContain('Rien ne part sans --confirmer-usd 0,38 (la RÉSERVATION MAXIMALE ci-dessus, recopiée ; jamais l’estimation).');
+    expect(masquerSecrets(`clé ${SECRETS.FAL_KEY} base ${ENV.DATABASE_URL} mdp ${SECRETS.POSTGRES_PASSWORD}`, ENV)).toBe('clé [masqué] base [masqué] mdp [masqué]');
+    expect(lireOptionsPas1(['--inconnue'])).toEqual({ ok: false, raison: 'Option inconnue « --inconnue ».' });
+  });
+
+  it('le rapport dit SIMULÉ, le chemin à regarder et une empreinte qui ne concorde pas', () => {
+    const d: DonneesRapportPas1 = {
+      mode: 'SIMULE', horodatage: '2026-10-08T10:00:00.000Z',
+      ids: { workspaceId: 'w', brandId: 'b', projectId: 'p', versionId: 'v', runId: 'r', devisId: 'q', jobId: 'j', assetId: 'a' },
+      devis: devisPas1({ compilation: { estimationUsdMicros: 132_000, reservationUsdMicros: 151_200 }, imageUsdMicros: 80_000, vision: { unites: 1, borneParImageUsdMicros: 147_024 } }), confirmeUsdMicros: 380_000, capPasseUsd: 0.38,
+      etatJob: 'completed', raisonEchec: null, qualite: 'requires_review',
+      depenses: [{ provider: 'fal', modele: 'fal_image', action: 'studio.generation', reserveUsd: 0.08, regleUsd: 0.08, incertainUsd: 0, etat: 'prix_fixe', cause: null }], registre: [],
+      livrable: { chemin: '/sorties/livrables/x.png', aTransmettre: '/sorties/a-transmettre/recette-pas1-j.png', cle: 'x.png', mime: 'image/png', octets: 10, sha256Base: 'aa', sha256Fichier: 'bb', largeurBase: 1080, hauteurBase: 1350, largeurDecodee: 1080, hauteurDecodee: 1350 },
+      controleVision: null, bilanApres: bilanBudgetEssai({ autoriseMicros: 15_000_000, anterieuresMicros: 0, lignes: [{ regleMicros: 220_000, incertainMicros: 0 }] }), arret: null,
+    };
+    const md = rapportPas1(d);
+    expect(md).toContain('> SIMULÉ · fournisseur factice, aucun appel réel, aucune dépense. Ce rapport ne vaut PAS recette réelle.');
+    expect(md).toContain('Fichier à REGARDER · `/sorties/livrables/x.png`');
+    expect(md).toContain('Copie à TRANSMETTRE au relecteur · `/sorties/a-transmettre/recette-pas1-j.png`');
+    expect(md).toContain('(DIFFÉRENTE · le fichier ne correspond pas au média enregistré)');
+    expect(md).toContain('**restant 14,7800 $** (plafond du pas 2, pas une cible');
+    expect(md).not.toContain('—');
+  });
+});
+
+describe('Pas 1 · commande en mode simulé sur une vraie base', () => {
+  it('sans confirmation ⇒ refus, devis affiché, RIEN écrit ni appelé', async () => {
+    const r = await lancer([]);
+    expect(r.code).toBe(2);
+    montant = usdAffiche(r.devis!.afficheUsdMicros).replace(' $', '');
+    expect(r.refus).toEqual([`CONFIRMATION_ABSENTE · Aucune confirmation · relance avec --confirmer-usd ${montant} (la réservation maximale affichée, recopiée).`]);
+    expect(journal[0]).toContain(`TOTAL                               `);
+    expect(journal[0]).toContain(`${montant} $ au plus`);
+    expect(await rien()).toEqual({ depenses: 0, devis: 0, jobs: 0, runs: 0 });
+    expect(fal.appels).toBe(0);
+    expect(texte.recues).toHaveLength(0);
+  });
+
+  it('devis au-delà du plafond de passe ⇒ refus, RIEN écrit ni appelé', async () => {
+    const r = await lancer(['--plafond-passe-usd', '0,10', '--confirmer-usd', montant]);
+    expect(r.code).toBe(2);
+    expect(r.refus).toEqual([`DEVIS_AU_DELA_DU_PLAFOND_DE_PASSE · Réservation maximale ${montant} $ > limite de passe 0,10 $ · rien n’est lancé.`]);
+    expect(await rien()).toEqual({ depenses: 0, devis: 0, jobs: 0, runs: 0 });
+    expect(fal.appels).toBe(0);
+  });
+
+  it('confirmation exacte, fal encore en cours ⇒ code 3 · relancée, elle REPREND le job sans seconde soumission', async () => {
+    fal.mode = 'en_cours';
+    const r1 = await lancer(['--confirmer-usd', montant], ENV, 1_500);
+    expect(r1.code).toBe(3);
+    expect(fal.soumissions).toBe(1);
+    // La barrière de la passe était posée au moment de soumettre : ce que la base compte (la compilation) + la réservation confirmée.
+    expect(fal.plafondsVus).toHaveLength(1);
+    expect(Number(fal.plafondsVus[0])).toBeCloseTo(Number(montant.replace(',', '.')), 6);
+    expect(process.env.AI_SPEND_CAP_USD).toBeUndefined();
+    expect(readFileSync(r1.rapport!, 'utf8')).toContain('toujours « running »');
+
+    fal.mode = 'termine';
+    const r2 = await lancer(['--confirmer-usd', montant]);
+    expect(r2.code).toBe(0);
+    expect(r2.jobId).toBe(r1.jobId);
+    expect(fal.soumissions).toBe(1);
+    expect(await compte(schema.studioJobs)).toBe(1);
+    expect(await compte(schema.studioQuotes)).toBe(1);
+    // Sans fournisseur IA au devis, la ligne vision n'existe pas : la commande le DIT et n'appelle rien.
+    expect(journal.filter((l) => l.startsWith('Contrôle visuel'))).toEqual(['Contrôle visuel · aucune ligne au devis approuvé (fournisseur IA absent au devis, ou décochée) · aucun appel, aucune dépense · relecture humaine.']);
+    expect(texte.recues).toHaveLength(1); // une seule compilation
+
+    const [job] = await db.select().from(schema.studioJobs);
+    expect(job!.state).toBe('completed');
+    const [asset] = await db.select().from(schema.studioAssets);
+    const md = readFileSync(r2.rapport!, 'utf8');
+    expect(md).toContain('# Recette Studios · pas 1 · premier rendu image SIMULÉ');
+    expect(md).toContain(`| Job | \`${job!.id}\` |`);
+    expect(md).toContain(`| Média livré | \`${asset!.id}\` |`);
+    expect(md).toContain('dimensions enregistrées · 1080 × 1350 · décodées · 1080 × 1350 (identiques)');
+    expect(md).toContain(`SHA-256 du fichier relu · \`${asset!.sha256}\` (identique)`);
+    expect(md).toContain('| fal | fal_image | studio.generation | 0,0800 $ |');
+
+    // Le fichier à regarder existe et c'est bien le média enregistré.
+    const chemin = /Fichier à REGARDER · `([^`]+)`/.exec(md)![1]!;
+    expect(chemin.startsWith(sortie)).toBe(true);
+    expect(createHash('sha256').update(readFileSync(chemin)).digest('hex')).toBe(asset!.sha256);
+    expect(readFileSync(join(sortie, 'rapport-pas1.md'), 'utf8')).toBe(md);
+
+    // La copie à transmettre, à un chemin explicite nommé par le job, identique au média enregistré.
+    const copie = join(sortie, 'a-transmettre', `recette-pas1-${job!.id}.png`);
+    expect(md).toContain(`Copie à TRANSMETTRE au relecteur · \`${copie}\``);
+    expect(createHash('sha256').update(readFileSync(copie)).digest('hex')).toBe(asset!.sha256);
+  });
+
+  it('livrable déjà produit ⇒ rapport réécrit, AUCUN appel, aucun job nouveau', async () => {
+    const avant = { appels: fal.appels, soumissions: fal.soumissions };
+    const r = await lancer(['--confirmer-usd', montant]);
+    expect(r.code).toBe(0);
+    expect(journal.some((l) => l.startsWith('Un livrable existe déjà'))).toBe(true);
+    expect(fal).toMatchObject(avant);
+    expect(await compte(schema.studioJobs)).toBe(1);
+    expect(existsSync(r.rapport!)).toBe(true);
+  });
+
+  it('aucune valeur sensible dans les rapports écrits ni dans le journal', async () => {
+    const rapports = readdirSync(sortie).filter((f) => f.endsWith('.md')).map((f) => readFileSync(join(sortie, f), 'utf8'));
+    expect(rapports.length).toBeGreaterThanOrEqual(3);
+    const tout = [...rapports, ...journal].join('\n');
+    for (const v of Object.values(SECRETS)) expect(tout).not.toContain(v);
+    expect(tout).not.toContain(ENV.DATABASE_URL);
+    expect(statSync(join(sortie, 'a-transmettre')).isDirectory()).toBe(true);
+  });
+
+  it('cible hors recette ⇒ refus avant toute lecture', async () => {
+    const r = await lancer(['--confirmer-usd', montant], { ...ENV, TIKTRENDS_ENV: undefined, DATABASE_URL: 'postgres://tiktrends:x@db:5432/tiktrends' });
+    expect(r.code).toBe(2);
+    expect(r.devis).toBeNull();
+    expect(r.refus[0]).toBe('TIKTRENDS_ENV=recette absent · cette commande ne tourne que dans l’environnement de recette.');
+  });
+});

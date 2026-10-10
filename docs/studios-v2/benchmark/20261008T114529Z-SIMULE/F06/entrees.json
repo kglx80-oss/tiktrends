@@ -1,0 +1,72 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F06",
+  "titre": "Géométrie exacte",
+  "oracleAttendu": "55%±1px par moteur, pas jugement vision",
+  "jeuSynthetique": [
+    {
+      "id": "f06-produit",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f06-produit.png",
+      "sha256": "fe8e558cffa3aaa1525e932775e99c608357398728947e726fa3e5d32cb6cc2f",
+      "contenuSha256": "38253538ebe2d36934d420b5a1e434055e90940e008b1843df1635ae4eed295e"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "patch",
+      "sortie": 0,
+      "template": "document.patch",
+      "taskInputsSha256": "c1289b78005621780ab1b86ffc9e1e7776df36bfd942d71d3770944ce2bc2ac9",
+      "taskInputs": {
+        "baseVersion": "bench-F06-v1",
+        "request": "Le produit doit occuper 55 % de la largeur, proportions gardées, centré.",
+        "allowedPaths": [
+          "/calques/produit/largeur",
+          "/calques/produit/hauteur",
+          "/calques/produit/x"
+        ],
+        "selectedIds": [
+          "produit"
+        ]
+      },
+      "contexte": {
+        "projectVersionId": "bench-F06-v1",
+        "allowedPaths": [
+          "/calques/produit/largeur",
+          "/calques/produit/hauteur",
+          "/calques/produit/x"
+        ],
+        "selectionIds": [
+          "produit"
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "document": {
+      "canvas": {
+        "largeur": 1080,
+        "hauteur": 1080
+      },
+      "calques": {
+        "produit": {
+          "x": 340,
+          "y": 390,
+          "largeur": 400,
+          "hauteur": 300
+        }
+      }
+    },
+    "allowedPaths": [
+      "/calques/produit/largeur",
+      "/calques/produit/hauteur",
+      "/calques/produit/x"
+    ],
+    "cheminLargeur": "/calques/produit/largeur",
+    "ratio": 0.55,
+    "largeurCanvas": 1080
+  }
+}

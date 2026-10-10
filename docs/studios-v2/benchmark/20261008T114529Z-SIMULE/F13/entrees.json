@@ -1,0 +1,58 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F13",
+  "titre": "Image seule",
+  "oracleAttendu": "Aucune transcription ou rythme vidéo inventé",
+  "jeuSynthetique": [
+    {
+      "id": "f13-affiche",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f13-affiche.png",
+      "sha256": "cfe1f7fd83f1aff80514f62bc700602d0e9aad9fe580fe4facc56c4c842e4a72",
+      "contenuSha256": "a0f141d6191211409b5b364d3220609aa7e547673659cb6332db97244c8132cf"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "analyse",
+      "sortie": 0,
+      "template": "source.analyze",
+      "taskInputsSha256": "f5a8f10ebeea618d5eedeaa6ff06e55dcb4c34616afab573efeb81b9b77009f0",
+      "taskInputs": {
+        "sourceIds": [
+          "src_affiche_F13"
+        ],
+        "transcription": "",
+        "availableModalities": [
+          "image"
+        ]
+      },
+      "contexte": {
+        "sources": [
+          {
+            "sourceId": "src_affiche_F13",
+            "version": "v1",
+            "text": "Affiche statique synthétique (image seule).",
+            "titre": "Affiche F13"
+          }
+        ],
+        "mediaBindings": [
+          {
+            "bindingId": "b_f13-affiche",
+            "assetId": "f13-affiche",
+            "assetVersion": "v1",
+            "sha256": "cfe1f7fd83f1aff80514f62bc700602d0e9aad9fe580fe4facc56c4c842e4a72",
+            "role": "source",
+            "modality": "image",
+            "derivation": "original",
+            "nativeAttachmentIndex": 0,
+            "coverageDescription": "image entière"
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}

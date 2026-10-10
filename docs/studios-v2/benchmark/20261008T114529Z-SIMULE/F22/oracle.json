@@ -1,0 +1,29 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F22",
+  "titre": "Hypothèses bornées",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F22.au_plus_3",
+      "description": "Au plus 3 hypothèses",
+      "passe": true,
+      "detail": "2 hypothèse(s)"
+    },
+    {
+      "id": "F22.metriques_existantes",
+      "description": "Métriques prises parmi celles disponibles",
+      "passe": true,
+      "detail": "métriques existantes"
+    },
+    {
+      "id": "F22.sans_causalite_garantie",
+      "description": "Aucune causalité garantie",
+      "passe": true,
+      "detail": "formulations prudentes"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

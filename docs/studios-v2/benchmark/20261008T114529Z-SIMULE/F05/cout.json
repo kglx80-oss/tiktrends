@@ -1,0 +1,67 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F05",
+  "titre": "Retouche masquée",
+  "depenseUsdMicros": 0,
+  "note": "Aucune dépense : fournisseurs simulés. Le devis dit ce que ce cas coûterait au plus en réel.",
+  "devis": [
+    {
+      "etapeId": "consigne",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "edit.mask",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "retouche",
+      "sortie": 0,
+      "nature": "media",
+      "cle": "image_generation",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": 80000,
+      "source": "CREDIT_COSTS.image · FIXED_COSTS.fal_image",
+      "motif": null
+    },
+    {
+      "etapeId": "mesure",
+      "sortie": 0,
+      "nature": "calcul",
+      "cle": "mesure",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": 0,
+      "source": "moteur déterministe local · inclus",
+      "motif": null
+    },
+    {
+      "etapeId": "retouche",
+      "sortie": 1,
+      "nature": "media",
+      "cle": "image_generation",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": 80000,
+      "source": "CREDIT_COSTS.image · FIXED_COSTS.fal_image",
+      "motif": null
+    },
+    {
+      "etapeId": "mesure",
+      "sortie": 1,
+      "nature": "calcul",
+      "cle": "mesure",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": 0,
+      "source": "moteur déterministe local · inclus",
+      "motif": null
+    }
+  ],
+  "totalDevisUsdMicros": 292000,
+  "limites": []
+}

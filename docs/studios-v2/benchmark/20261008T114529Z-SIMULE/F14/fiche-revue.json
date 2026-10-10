@@ -1,0 +1,51 @@
+{
+  "consigne": "À remplir par un relecteur humain : chaque note 0, 1 ou 2, aucun défaut critique accepté. Le code ne note jamais.",
+  "cas": "F14",
+  "titre": "Sans texte",
+  "mode": "SIMULÉ",
+  "criteres": [
+    "Contrôle OCR : aucun texte visible dans les pixels"
+  ],
+  "oracleAttendu": "Champs textes vides, overlay absent, contrôle OCR",
+  "dimensions": [
+    "fidélité produit",
+    "respect brief",
+    "cohérence",
+    "texte",
+    "qualité technique"
+  ],
+  "echelle": [
+    0,
+    1,
+    2
+  ],
+  "sorties": [
+    {
+      "sortie": 0,
+      "notes": {
+        "fidélité produit": null,
+        "respect brief": null,
+        "cohérence": null,
+        "texte": null,
+        "qualité technique": null
+      },
+      "defautsCritiques": [],
+      "relecteur": null,
+      "commentaire": ""
+    },
+    {
+      "sortie": 1,
+      "notes": {
+        "fidélité produit": null,
+        "respect brief": null,
+        "cohérence": null,
+        "texte": null,
+        "qualité technique": null
+      },
+      "defautsCritiques": [],
+      "relecteur": null,
+      "commentaire": ""
+    }
+  ],
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité"
+}

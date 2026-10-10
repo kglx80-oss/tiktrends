@@ -1,0 +1,27 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F21",
+  "titre": "Orientation sans sélection",
+  "oracleAttendu": "intent inspect/help, aucune mutation ni cible ancienne",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "route",
+      "sortie": 0,
+      "template": "jarvis.route",
+      "taskInputsSha256": "28877f15b033d267ebf275ff8ef63cbbd207d7bbd42e928c4dd291f0f6516e49",
+      "taskInputs": {
+        "message": "Comment fonctionne le studio image ?",
+        "availableActions": [
+          "brief.build"
+        ],
+        "selectionId": null
+      },
+      "contexte": {},
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}

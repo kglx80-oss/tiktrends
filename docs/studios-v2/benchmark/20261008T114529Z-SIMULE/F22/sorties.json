@@ -1,0 +1,80 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F22",
+  "titre": "Hypothèses bornées",
+  "etapes": [
+    {
+      "etapeId": "hypotheses",
+      "templateKey": "test.hypothesize",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "hypotheses": [
+          {
+            "id": "hypothese_1",
+            "statement": "Ouvrir sur un gros plan produit pourrait augmenter le taux d’arrêt.",
+            "sourceIds": [
+              "src_veille_F22"
+            ],
+            "variable": "hook",
+            "control": "ouverture actuelle",
+            "treatment": "gros plan produit",
+            "invariants": [
+              "offre",
+              "durée"
+            ],
+            "metric": "thumbstop_rate",
+            "decisionRule": "Comparer au contrôle sur au moins 7 jours.",
+            "limitations": [
+              "Observations concurrentes, aucune performance propre"
+            ]
+          },
+          {
+            "id": "hypothese_2",
+            "statement": "Une question en ouverture pourrait améliorer le clic.",
+            "sourceIds": [
+              "src_veille_F22"
+            ],
+            "variable": "hook",
+            "control": "ouverture actuelle",
+            "treatment": "question",
+            "invariants": [
+              "offre"
+            ],
+            "metric": "ctr",
+            "decisionRule": "Comparer au contrôle.",
+            "limitations": [
+              "Corrélation observée chez des concurrents seulement"
+            ]
+          }
+        ]
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "707d67a9-276a-4ed0-abe6-6d5e692c4239",
+      "resultSha256": "33697686ad1f110f8a0c177a212fd2cb14142fc50e8031d9b1727da42f9b885c",
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

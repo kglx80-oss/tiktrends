@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F05",
+  "titre": "Retouche masquée",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F05.hors_masque_intact",
+      "description": "Aucun pixel hors masque changé avant encodage",
+      "passe": true,
+      "detail": "sortie 1 : 0 px hors masque ; sortie 2 : 0 px hors masque"
+    },
+    {
+      "id": "F05.zone_modifiee",
+      "description": "La zone masquée a changé",
+      "passe": true,
+      "detail": "sortie 1 : 3524 px dans la zone ; sortie 2 : 2321 px dans la zone"
+    }
+  ],
+  "revueHumaine": "fiche-revue.json"
+}

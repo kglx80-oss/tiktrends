@@ -1,0 +1,122 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F14",
+  "titre": "Sans texte",
+  "oracleAttendu": "Champs textes vides, overlay absent, contrôle OCR",
+  "jeuSynthetique": [
+    {
+      "id": "f06-produit",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f06-produit.png",
+      "sha256": "fe8e558cffa3aaa1525e932775e99c608357398728947e726fa3e5d32cb6cc2f",
+      "contenuSha256": "38253538ebe2d36934d420b5a1e434055e90940e008b1843df1635ae4eed295e"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "storyboard",
+      "sortie": 0,
+      "template": "storyboard.plan",
+      "taskInputsSha256": "f81923890f7bde18ab7c8560d87d5406711e2042895c4fadcda06faffb65d8aa",
+      "taskInputs": {
+        "briefId": "brief_F14",
+        "targetDurationMs": 6000,
+        "shotCount": 2,
+        "speechMode": "none"
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "brief_F14",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "brief_F14",
+              "claim": "Vidéo produit sans aucun texte, sous-titres désactivés.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "6de2844938ed23436b10cddd8d0027294141ce02614f472a2b2f308cfee4356a"
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "shot_1",
+            "entityType": "shot",
+            "ordinal": 0
+          },
+          {
+            "id": "shot_2",
+            "entityType": "shot",
+            "ordinal": 1
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": true
+    },
+    {
+      "etape": "compile",
+      "sortie": 0,
+      "template": "image.compile",
+      "taskInputsSha256": "67bd78283c820316b95bf144598ba9d4646a69d271fd2c8c4af5a51c84a35fc3",
+      "taskInputs": {
+        "briefId": "brief_F14",
+        "conceptId": "concept_F14",
+        "mode": "generative_scene",
+        "referenceIds": [
+          "f06-produit"
+        ],
+        "width": 1080,
+        "height": 1920
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "brief_F14",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "brief_F14",
+              "claim": "Vidéo produit sans aucun texte, sous-titres désactivés.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "6de2844938ed23436b10cddd8d0027294141ce02614f472a2b2f308cfee4356a"
+          },
+          {
+            "id": "concept_F14",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "concept_F14",
+              "claim": "Produit posé sur une table, lumière du matin.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "bfcbba908537ac2bd75e101c59a8aacc865bf55cad8d2bb501872fea83dce629"
+          }
+        ],
+        "references": [
+          {
+            "assetId": "f06-produit",
+            "assetVersion": "v1",
+            "sha256": "fe8e558cffa3aaa1525e932775e99c608357398728947e726fa3e5d32cb6cc2f",
+            "role": "product",
+            "scope": "product",
+            "allowedChanges": [],
+            "requiredComponents": [
+              "produit"
+            ]
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": true
+    }
+  ],
+  "donneesOracle": {}
+}

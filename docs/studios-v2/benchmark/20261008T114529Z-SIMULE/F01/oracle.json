@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F01",
+  "titre": "Packshot et accessoire",
+  "statut": "bloque_capacite",
+  "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+  "invariants": [
+    {
+      "id": "F01.composants_proteges",
+      "description": "Lunettes ET bandeau dans les composants protégés de la consigne",
+      "passe": true,
+      "detail": "protégés : lunettes, bandeau"
+    },
+    {
+      "id": "F01.calque_inchange",
+      "description": "Calque produit original inchangé en mode fidèle (empreinte des pixels)",
+      "passe": true,
+      "detail": "2 sortie(s), calque identique"
+    }
+  ],
+  "revueHumaine": "fiche-revue.json"
+}

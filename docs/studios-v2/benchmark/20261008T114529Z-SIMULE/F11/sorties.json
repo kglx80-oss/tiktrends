@@ -1,0 +1,72 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F11",
+  "titre": "Allégation absente",
+  "etapes": [
+    {
+      "etapeId": "textes",
+      "templateKey": "text.write",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "variants": [
+          {
+            "id": "variant_1",
+            "text": "Une hydratation qui se sent dès le premier geste.",
+            "claimSourceIds": [],
+            "changedVariable": "accroche"
+          },
+          {
+            "id": "variant_2",
+            "text": "Ta routine du matin, en plus simple.",
+            "claimSourceIds": [],
+            "changedVariable": "accroche"
+          }
+        ]
+      },
+      "questions": [],
+      "warnings": [
+        "Promesse de réduction retirée : aucune source ne l’établit."
+      ],
+      "runId": "7fe4d586-0180-4c2a-99a3-1de956173eb2",
+      "resultSha256": "5cc71ef976674451f0bf1228ea7269c51a85c44d2e62b55a56fdc89db405cf45",
+      "fichiers": []
+    },
+    {
+      "etapeId": "brief",
+      "templateKey": "brief.build",
+      "sortie": 0,
+      "statut": "blocked",
+      "code": "MODELE_BLOQUE",
+      "result": null,
+      "questions": [
+        "Quelle source établit la réduction annoncée ? Sans elle, la promesse est retirée du brief."
+      ],
+      "warnings": [],
+      "runId": "0fa5d214-0024-465e-a4e9-0a70e84ee99d",
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

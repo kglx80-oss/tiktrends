@@ -31,7 +31,7 @@ describe('Analyse du style · la dépense passe par la barrière', () => {
   });
 
   it('barrière IA · guardedAnthropic, sinon pas de sortie', () => {
-    expect(fn, 'l’appel IA ne passe pas par le plafond').toContain("guardedAnthropic({ action: 'brand-detail' })");
+    expect(fn, 'l’appel IA ne passe pas par le plafond').toContain("guardedAnthropic({ workspaceId: g.workspaceId, action: 'brand-detail' })");
     expect(fn, 'un plafond atteint ne coupe pas l’action').toMatch(/if \(!client\) redirect/);
   });
 

@@ -1,0 +1,42 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F24",
+  "titre": "Musique instrumentale",
+  "oracleAttendu": "Aucune parole, durée ciblée, voix intacte",
+  "jeuSynthetique": [
+    {
+      "id": "f24-narration",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f24-narration.wav",
+      "sha256": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5",
+      "contenuSha256": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "musique",
+      "sortie": 0,
+      "template": "music.prepare",
+      "taskInputsSha256": "395717427f52c0a1a6c64c6d4a38f36f5ea031490b2eb59ad77f666730f94360",
+      "taskInputs": {
+        "mood": "calme",
+        "durationMs": 15000,
+        "instrumental": true,
+        "licensedAssetIds": [
+          "musique_calme_lic_1",
+          "musique_calme_lic_2"
+        ]
+      },
+      "contexte": {},
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "dureeMs": 15000,
+    "licencies": [
+      "musique_calme_lic_1",
+      "musique_calme_lic_2"
+    ]
+  }
+}

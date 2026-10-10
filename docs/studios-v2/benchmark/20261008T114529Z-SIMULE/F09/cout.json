@@ -1,0 +1,36 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F09",
+  "titre": "Révision isolée",
+  "depenseUsdMicros": 0,
+  "note": "Aucune dépense : fournisseurs simulés. Le devis dit ce que ce cas coûterait au plus en réel.",
+  "devis": [
+    {
+      "etapeId": "patch",
+      "sortie": 0,
+      "nature": "tache",
+      "cle": "document.patch",
+      "modele": "claude-sonnet-5",
+      "unites": 1,
+      "usdMicros": 132000,
+      "source": "24000 jetons entrée + 4000 sortie au tarif claude-sonnet-5 (MODEL_RATES)",
+      "motif": null
+    },
+    {
+      "etapeId": "application",
+      "sortie": 0,
+      "nature": "calcul",
+      "cle": "application",
+      "modele": null,
+      "unites": 1,
+      "usdMicros": 0,
+      "source": "moteur déterministe local · inclus",
+      "motif": null
+    }
+  ],
+  "totalDevisUsdMicros": 132000,
+  "limites": [
+    "La régénération de l’image du plan 2 n’est pas incluse : l’oracle porte sur l’isolation de la révision."
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F17",
+  "titre": "Lot borné",
+  "oracleAttendu": "≤12 propositions ou sélection requise ; count égal items.length",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "lot",
+      "sortie": 0,
+      "template": "batch.plan",
+      "taskInputsSha256": "a314509b3579797e454442f0d953508d4e2aa065fe5653c7c8202f4bed5d2ee0",
+      "taskInputs": {
+        "conceptIds": [
+          "concept_A",
+          "concept_B",
+          "concept_C"
+        ],
+        "formats": [
+          "1:1",
+          "4:5",
+          "9:16"
+        ],
+        "maxOutputs": 12,
+        "testedVariable": "angle"
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "concept_A",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "concept_A",
+              "claim": "Angle confort",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "a4fff189993dc10a686fe9837c317554bbf8fc8359964bdf03f20b6603ee5b53"
+          },
+          {
+            "id": "concept_B",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "concept_B",
+              "claim": "Angle rapidité",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "9c676de8f9242a3a582b05a91118bccdab6f0edc80d11f7544e22bddf4860680"
+          },
+          {
+            "id": "concept_C",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "concept_C",
+              "claim": "Angle durabilité",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "0de250d3c468cfcd8be941b059a3a8e9c6fae481d3a67cff9160bea07d14f13f"
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "item_1",
+            "entityType": "batch_item",
+            "ordinal": 0
+          },
+          {
+            "id": "item_2",
+            "entityType": "batch_item",
+            "ordinal": 1
+          },
+          {
+            "id": "item_3",
+            "entityType": "batch_item",
+            "ordinal": 2
+          },
+          {
+            "id": "item_4",
+            "entityType": "batch_item",
+            "ordinal": 3
+          },
+          {
+            "id": "item_5",
+            "entityType": "batch_item",
+            "ordinal": 4
+          },
+          {
+            "id": "item_6",
+            "entityType": "batch_item",
+            "ordinal": 5
+          },
+          {
+            "id": "item_7",
+            "entityType": "batch_item",
+            "ordinal": 6
+          },
+          {
+            "id": "item_8",
+            "entityType": "batch_item",
+            "ordinal": 7
+          },
+          {
+            "id": "item_9",
+            "entityType": "batch_item",
+            "ordinal": 8
+          },
+          {
+            "id": "item_10",
+            "entityType": "batch_item",
+            "ordinal": 9
+          },
+          {
+            "id": "item_11",
+            "entityType": "batch_item",
+            "ordinal": 10
+          },
+          {
+            "id": "item_12",
+            "entityType": "batch_item",
+            "ordinal": 11
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "plafond": 12
+  }
+}

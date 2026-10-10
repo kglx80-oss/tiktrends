@@ -1,0 +1,58 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F04",
+  "titre": "Proposer sans générer",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "efc181ad-89dd-4eb8-a6d6-5fef54def2f5",
+    "5347540d-ed54-434c-b8ba-cd24810d6ba6"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "route",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "route",
+      "role": "system",
+      "sha256": "45f46c7ca58584e879f8e62056c105f9a20664f62e7060b3d23de3483d6eca50",
+      "caracteres": 2653
+    },
+    {
+      "etape": "route",
+      "role": "user",
+      "sha256": "64aea755b49916a6e7380579c2d71674a304d54242928af9604ba2a116d9abd4",
+      "caracteres": 701
+    },
+    {
+      "etape": "patch",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "patch",
+      "role": "system",
+      "sha256": "ef99574d61887f65a9451fcfd6b79903a5cf8e4f868bebe7734a18135fdb7565",
+      "caracteres": 2915
+    },
+    {
+      "etape": "patch",
+      "role": "user",
+      "sha256": "9e2bcc6f1b7293a08323b767da288483663ac4570a5f90f66c742978f190435d",
+      "caracteres": 737
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { CHEMIN_ACCUEIL, RUBRIQUE_ANALYTICS, lireVueAccueil } from '@tiktrends/core';
+import { CHEMIN_ACCUEIL, RUBRIQUE_ANALYTICS, lireVueAccueil, DEFINITIONS_CAPACITES, type CapaciteStudio } from '@tiktrends/core';
 
 /**
  * Où l'on est, et comment on y est arrivé.
@@ -95,6 +95,14 @@ export const ROUTES: RouteNode[] = [
   { path: '/studio/image', label: 'Image IA', parent: '/studio', section: 'Atelier' },
   { path: '/studio/video', label: 'Vidéo IA', parent: '/studio', section: 'Atelier' },
   { path: '/studio/textes', label: 'Textes IA', parent: '/studio', section: 'Atelier' },
+  { path: '/studio/projets', label: 'Projets', parent: '/studio', section: 'Atelier' },
+  { path: '/studio/projets/[id]', label: 'Projet', parent: '/studio/projets', section: 'Atelier', dynamic: 'segment' },
+  { path: '/studio/projets/[id]/image', label: 'Éditer l’image', parent: '/studio/projets/[id]', section: 'Atelier' },
+  { path: '/studio/projets/[id]/produit', label: 'Produit et références', parent: '/studio/projets/[id]', section: 'Atelier' },
+  { path: '/studio/projets/[id]/textes', label: 'Textes liés au brief', parent: '/studio/projets/[id]', section: 'Atelier' },
+  { path: '/studio/projets/[id]/identites', label: 'Identités et voix', parent: '/studio/projets/[id]', section: 'Atelier' },
+  { path: '/studio/projets/[id]/export', label: 'Exporter l’image', parent: '/studio/projets/[id]', section: 'Atelier' },
+  { path: '/studio/projets/[id]/video', label: 'Vidéo · storyboard et montage', parent: '/studio/projets/[id]', section: 'Atelier' },
 
   { path: '/assets', label: 'Assets', section: 'Atelier' },
 
@@ -126,6 +134,8 @@ export const ROUTES: RouteNode[] = [
   { path: '/admin/depenses', label: 'Dépense IA réelle', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/intelligence', label: 'Intelligence marché', parent: '/admin', section: 'Plateforme' },
   { path: '/admin/connaissances', label: 'Connaissances', parent: '/admin', section: 'Plateforme' },
+  { path: '/admin/ia-studios', label: 'IA et Studios', parent: '/admin', section: 'Plateforme' },
+  { path: '/admin/studios-interrupteurs', label: 'Interrupteurs Studios', parent: '/admin', section: 'Plateforme' },
   { path: '/console', label: 'Console', section: 'Plateforme' },
   { path: '/credits', label: 'Coûts & marges', section: 'Plateforme' },
 
@@ -292,6 +302,8 @@ export function breadcrumb(pathname: string, opts: CrumbOptions = {}): Crumb[] {
   return crumbs;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function libelle(n: RouteNode, parts: string[], opts: CrumbOptions): string {
   if (n.dynamic === 'brand') {
     // Le segment `[id]` du motif · la marque CONSULTÉE. On la nomme par son id
@@ -313,7 +325,13 @@ function libelle(n: RouteNode, parts: string[], opts: CrumbOptions): string {
     }
     const brut = i >= 0 ? parts[i] : undefined;
     if (brut) {
-      try { return decodeURIComponent(brut); } catch { return brut; }
+      let lu = brut;
+      try { lu = decodeURIComponent(brut); } catch { /* segment brut */ }
+      // Un identifiant opaque (UUID) n'est pas un nom : le fil affichait l'UUID
+      // brut d'un projet Studios, sur deux lignes à 390 (recette L8-B). On dit
+      // alors ce qu'est l'écran (« Projet »), jamais l'identifiant.
+      if (UUID.test(lu)) return n.label;
+      return lu;
     }
   }
   return n.label;
@@ -329,3 +347,113 @@ function hydrate(motif: string, parts: string[]): string {
 export function routeLabel(pathname: string): string | null {
   return matchRoute(pathname)?.label ?? null;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Routes historiques · L8-B (UX-05)                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Les adresses que des liens déjà en circulation visent · anciens liens du
+ * Studio, des Pubs IA et de la Veille (favoris, liens partagés, cartes de
+ * Veille, retours depuis un projet). Chacune doit rester SERVIE, avec les
+ * paramètres qu'elle lit · un test parcourt cette liste (`l8b-navigation`) et
+ * échoue si une page disparaît, si elle cesse de lire un paramètre, ou si le
+ * lien de retour vers la Veille perd un critère.
+ *
+ * Ajout seulement · rien ici ne change la carte `ROUTES` ni le fil d'Ariane.
+ */
+export interface RouteHistorique {
+  chemin: string;
+  origine: 'Studio' | 'Pubs IA' | 'Veille';
+  /** Paramètres de requête que des liens existants portent, et que la page lit encore. */
+  params: readonly string[];
+}
+
+export const ROUTES_HISTORIQUES: readonly RouteHistorique[] = [
+  { chemin: '/studio', origine: 'Studio', params: [] },
+  { chemin: '/studio/ads', origine: 'Pubs IA', params: ['mode', 'ref', 'angle', 'src', 'srcnom', 'depuis', 'rv'] },
+  { chemin: '/studio/image', origine: 'Studio', params: [] },
+  { chemin: '/studio/video', origine: 'Studio', params: ['prompt'] },
+  { chemin: '/studio/textes', origine: 'Studio', params: ['brand', 'inspo'] },
+  { chemin: '/studio/projets', origine: 'Studio', params: ['toutes'] },
+  { chemin: '/studio/projets/[id]', origine: 'Studio', params: ['version'] },
+  { chemin: '/veille', origine: 'Veille', params: ['q', 'p', 'searchIn', 'media', 'sort', 'status', 'country', 'page', 'rv'] },
+  { chemin: '/veille/scale', origine: 'Veille', params: ['q', 'country'] },
+  { chemin: '/veille/formats', origine: 'Veille', params: [] },
+  { chemin: '/saved', origine: 'Veille', params: ['onglet'] },
+  { chemin: '/radar', origine: 'Veille', params: [] },
+  { chemin: '/tags', origine: 'Veille', params: [] },
+];
+
+/* -------------------------------------------------------------------------- */
+/*  Interrupteurs Studios · F1 (cahier §14)                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * La capacité Studios dont dépend chaque écran du NOUVEAU Studio (projets).
+ * Les écrans de l'ancienne expérience (`/studio`, Pubs IA, Image IA, Vidéo IA,
+ * Textes IA) n'y figurent PAS : aucun interrupteur ne les coupe (cahier §14,
+ * « l'ancienne expérience reste disponible »). Un test (`f1-navigation`)
+ * échoue si un écran sous `/studio/projets` n'est pas déclaré ici, ou si un
+ * écran historique l'est.
+ */
+export const CAPACITE_DES_ROUTES: Readonly<Record<string, CapaciteStudio>> = {
+  '/studio/projets': 'projets',
+  '/studio/projets/[id]': 'projets',
+  '/studio/projets/[id]/image': 'editeur',
+  '/studio/projets/[id]/produit': 'projets',
+  '/studio/projets/[id]/textes': 'textes',
+  '/studio/projets/[id]/identites': 'identites',
+  '/studio/projets/[id]/export': 'export',
+  '/studio/projets/[id]/video': 'video',
+};
+
+export function capaciteDeRoute(pathname: string): CapaciteStudio | null {
+  const r = matchRoute(pathname);
+  return r ? CAPACITE_DES_ROUTES[r.path] ?? null : null;
+}
+
+/**
+ * L'ÉCRAN historique qui couvre le même besoin qu'une capacité coupée · le
+ * « non activé » propose toujours une porte qui existe (jamais un lien mort).
+ */
+export const ALTERNATIVE_HISTORIQUE: Readonly<Partial<Record<CapaciteStudio, { href: string; label: string }>>> = {
+  generation_image: { href: '/studio/image', label: 'Image IA' },
+  editeur: { href: '/studio/image', label: 'Image IA' },
+  video: { href: '/studio/video', label: 'Vidéo IA' },
+  voix: { href: '/studio/video', label: 'Vidéo IA' },
+  textes: { href: '/studio/textes', label: 'Textes IA' },
+};
+
+export interface LienAtelier {
+  /** Adresse de l'écran · `null` quand la capacité est coupée (aucun lien mort). */
+  href: string | null;
+  libelle: string;
+  segment: string;
+  capacite: CapaciteStudio;
+  active: boolean;
+  /** « non activé pour cet espace » · dit à côté du libellé quand la capacité est coupée. */
+  mention: string | null;
+}
+
+const ATELIER: readonly string[] = ['image', 'produit', 'textes', 'video', 'identites', 'export'];
+
+/** Les entrées de l'atelier d'un projet, avec leur état pour l'espace · filtrage de la navigation. */
+export function liensAtelierProjet(projectId: string, actif: (c: CapaciteStudio) => boolean): LienAtelier[] {
+  return ATELIER.map((segment) => {
+    const motif = `/studio/projets/[id]/${segment}`;
+    const capacite = CAPACITE_DES_ROUTES[motif]!;
+    const active = actif(capacite);
+    return {
+      href: active ? `/studio/projets/${projectId}/${segment}` : null,
+      libelle: PAR_CHEMIN.get(motif)?.label ?? segment,
+      segment,
+      capacite,
+      active,
+      mention: active ? null : 'non activé pour cet espace',
+    };
+  });
+}
+
+/** Libellé d'une capacité · pour les écrans qui n'importent pas le noyau. */
+export const libelleCapacite = (c: CapaciteStudio): string => DEFINITIONS_CAPACITES[c].libelle;

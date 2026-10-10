@@ -1,0 +1,76 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F11",
+  "titre": "Allégation absente",
+  "oracleAttendu": "Question ou suppression explicitée, aucune preuve inventée",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "textes",
+      "sortie": 0,
+      "template": "text.write",
+      "taskInputsSha256": "8ae30ebeb08b13923942f7ac99a96ab9e0ebbcbc5ff53798caa6ad77f405b73d",
+      "taskInputs": {
+        "briefId": "brief_F11",
+        "contentType": "hook",
+        "maxCharacters": 120,
+        "variantCount": 3
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "brief_F11",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "brief_F11",
+              "claim": "Crème hydratante. Demande : promettre une réduction de 50 % (aucune source fournie).",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "7a71cb731ae534671d985bcfc5769c2403b4228cf94c7465938e31cfb273d8fe"
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "variant_1",
+            "entityType": "variant",
+            "ordinal": 0
+          },
+          {
+            "id": "variant_2",
+            "entityType": "variant",
+            "ordinal": 1
+          },
+          {
+            "id": "variant_3",
+            "entityType": "variant",
+            "ordinal": 2
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    },
+    {
+      "etape": "brief",
+      "sortie": 0,
+      "template": "brief.build",
+      "taskInputsSha256": "b31a00bbef565781ad0f22855db3776117e213385158998f1a145d99f6e3a015",
+      "taskInputs": {
+        "request": "Brief pour la crème : promettre -50 % sur le prix.",
+        "hypothesisId": null,
+        "selectedReferences": [],
+        "requestedFormats": [
+          "9:16"
+        ]
+      },
+      "contexte": {},
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}

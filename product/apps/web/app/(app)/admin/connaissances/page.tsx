@@ -50,6 +50,7 @@ export default async function ConnaissancesPage() {
         <p style={{ margin: '6px 0 0', fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: 640 }}>
           Ce que l’équipe donne à lire à Jarvis · consignes, méthodes d’itération, savoirs, données.
         </p>
+        <Link href="/admin/ia-studios?onglet=connaissances" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginTop: 4, fontSize: 13.5, color: 'var(--ink-2)' }}>Voir dans IA et Studios · registre des prompts et traces</Link>
       </div>
 
       {r.error || !r.vue

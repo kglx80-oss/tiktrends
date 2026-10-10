@@ -67,6 +67,29 @@ version reste servie`, `ÉCHEC · vérification · migration(s) du journal absen
 `BUILD_SHA` est aussi dans l'environnement des deux images : `docker compose exec web printenv BUILD_SHA` et
 `docker compose exec workers printenv BUILD_SHA` rendent le SHA que montre `/console`.
 
+### La fenêtre est inverse · l'ANCIEN code tourne pendant la migration
+
+Avant D1, le nouveau code tournait sur l'ancien schéma le temps de la migration (L9-MIGRATION §7 : écrans
+Studios en `42P01`, réservation de dépense refusée), et indéfiniment si elle échouait. Désormais c'est
+l'ancien code qui voit le schéma étendu, entre l'étape 4 et l'étape 6. Lu pour 0054 et 0055 (aucune 0056 sur
+la base `b35ce9b`) :
+
+- **0054** : 21 tables, 18 index, 4 fonctions, 11 déclencheurs, tous sur des tables `studio_*` NOUVELLES,
+  vides pendant la fenêtre (leurs clés étrangères `RESTRICT` vers `brands`, `workspaces`… ne bloquent rien
+  tant qu'aucune ligne Studios n'existe). Deux contraintes sur l'existant, `UNIQUE (id, workspace_id)` sur
+  `brands` et `adsmap_ads` : `id` étant la clé primaire, aucune écriture de l'ancien code ne peut les violer ;
+  les écritures sur ces deux tables attendent le temps de construire l'index (proportionnel au nombre de
+  lignes), elles n'échouent pas.
+- **0055** : une colonne `ai_spend.reconcile_reason` NULLABLE ; les insertions de l'ancien code la laissent
+  nulle (= ligne ordinaire), ses lectures drizzle nomment leurs colonnes.
+- Épreuve : l'ancien build `bc33cec` sur la base à 56 migrations, écrans en 200, 0 erreur
+  (L9-MIGRATION §5, `ops/migration/rollback-local.sh`).
+
+Garde pour toute migration à partir de 0054, y compris celles à venir : `apps/web/test/d1-deploiement.test.ts`
+(« fenêtre inverse ») refuse une migration non additive, un déclencheur sur une table existante, ou une
+contrainte ajoutée à une table existante sans raison écrite. Une migration qui casserait l'ancien code ne doit
+pas partir par ce chemin : à décider avant de fusionner, pas à laisser passer.
+
 ### Le banc (sans Docker)
 
 ```bash
@@ -163,6 +186,73 @@ ligne « Vérification · … ». Rapporter les sorties : c'est la preuve réell
 
 ---
 
+## Worker · décodage vidéo (ffmpeg, Studios L7-B)
+
+L'image `workers` installe `ffmpeg` (Alpine, paquet `ffmpeg` : `ffmpeg` et
+`ffprobe`). Aucune variable ni aucun secret à poser. La capacité vidéo n'est
+**jamais déclarée à la main** : au démarrage puis toutes les 5 min, le worker
+studio (s'il tourne) sonde ffmpeg · version, encodeurs `libx264`/`aac`,
+échantillon 32×32 de 12 images généré puis décodé en entier · et publie le
+résultat dans `app_settings` (clé `studio:capacite-video`). Le site ne propose
+une vidéo que sur une sonde de moins de 15 min dont l'échantillon a été décodé ;
+sinon il refuse au devis, comme avant.
+
+Vérifier après déploiement (propriétaire, sur le VPS) :
+
+```bash
+cd ~/tiktrends/product
+docker compose exec workers ffmpeg -hide_banner -version | head -1
+docker compose exec workers ffprobe -hide_banner -version | head -1
+docker compose exec workers sh -c 'ffmpeg -hide_banner -encoders | grep -E " (libx264|aac) "'
+docker compose logs workers --since 15m | grep "sonde vidéo"
+docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+select updated_at, value from app_settings where key = 'studio:capacite-video';
+SQL
+```
+
+Lecture : `decodage.ok = true` et `updated_at` récent ⇒ décodage prouvé ;
+`encodeurs.libx264 = false` ⇒ aucun export MP4 H.264 n'est annoncé. Même
+décodage prouvé, l'animation reste refusée au devis tant qu'aucun fournisseur
+d'animation n'est branché.
+
+---
+
+## Interrupteurs Studios (F1) · ce qui est coupé au premier déploiement
+
+Les capacités Studios incomplètes sont **coupées par défaut** : rien n'est à
+poser pour qu'elles le restent. Au premier déploiement, sans aucune variable :
+
+| Capacité | Coupée car |
+| --- | --- |
+| `generation_image` | le fournisseur d’images n’est pas encore validé en réel |
+| `controle_visuel` | la relecture par la vision n’est pas encore validée en réel |
+| `video` | la chaîne vidéo n’est pas encore validée en réel |
+| `voix` | aucun fournisseur de voix n’est validé |
+| `shadow` | outil de recette interne, pas encore comparé en production |
+| `benchmark_reel` | campagne réelle non budgétée |
+
+Le reste (projets, éditeur, textes, export, canvas, propositions, identités)
+est actif ; l'ancienne expérience (Studio historique, Pubs IA, ADMIN IA) n'est
+jamais coupée.
+
+Variables lues par le web ET le worker (noms seulement · listes de capacités
+ou d'espaces séparées par des virgules, à poser dans `.env.deploy` par le
+propriétaire ; le worker les relit à son redémarrage, le web à chaque requête) :
+
+| Variable | Effet |
+| --- | --- |
+| `STUDIOS_CAPACITES_COUPEES` | coupure d'urgence, partout ; l'emporte sur tout |
+| `STUDIOS_CAPACITES_GENERALES` | généralisation, pour tous les espaces (seule façon d'ouvrir `benchmark_reel`) |
+| `STUDIOS_ESPACES_PILOTES` | identifiants des espaces pilotes |
+| `STUDIOS_CAPACITES_PILOTES` | capacités ouvertes pour ces espaces pilotes seulement |
+
+Un espace peut aussi être réglé depuis l'écran ADMIN « Interrupteurs Studios »
+(`/admin/studios-interrupteurs`, réglage en base, sans redémarrage). Ordre de
+décision et garde : `packages/core/src/studios/interrupteurs.ts`. La recette
+isolée ouvre les siennes dans son compose (`ops/recette/README.md`, §3).
+
+---
+
 ## Sauvegardes de la base (quotidiennes)
 
 Dump `pg_dump` compressé chaque nuit à 03h30, gardé 14 jours dans `~/backups`.
@@ -206,3 +296,28 @@ Les dumps sont sur le **même VPS** : si le serveur est perdu, ils le sont aussi
 Pour une vraie sécurité, activer la copie vers **OVH Object Storage** (S3) —
 créer un bucket, configurer `rclone`, puis décommenter la dernière ligne de
 `backup.sh`. (Demander à Claude de le brancher.)
+
+---
+
+## Migrations Studios · vérifier, revenir en arrière, restaurer en isolé (L9)
+
+Scripts dans `ops/migration/`, détail et preuves dans `docs/studios-v2/L9/L9-MIGRATION.md`, ordre de fusion dans
+`docs/studios-v2/L9/PLAN-FUSION.md`. Tous refusent une base qui n'est pas LOCALE (127.0.0.1, localhost, [::1]) et
+nommée `l9_*` ou `copie_*` : ils ne touchent jamais la production (`db`, base `tiktrends`).
+
+| Script | Sert à |
+| --- | --- |
+| `verifier-migration.sh --base URL [--preparer 0053]` | interrompre le vrai migrateur (coupure, échec forcé), reprendre, rejouer, comparer les empreintes |
+| `restaurer-isole.sh --sauvegarde F.sql.gz --base URL [--sans-proprietaires]` | restaurer une sauvegarde de `backup.sh` dans une base NEUVE et la valider (lignes, clés étrangères, contraintes, journal) |
+| `rollback-local.sh --base URL --ancien DIR --nouveau DIR` | ancienne app sur base migrée, puis ré-avance |
+| `lancer-et-mesurer.sh --produit DIR --base URL` | temps et erreurs des parcours sur une app locale construite |
+
+### Attention · restaurer EN PLACE une sauvegarde plus ancienne que les migrations Studios
+
+La commande « Restaurer une sauvegarde » ci-dessus (psql sans `ON_ERROR_STOP`) ne s'arrête pas sur erreur. Éprouvé en
+local : une sauvegarde d'avant 0054 restaurée ainsi sur une base qui a 0054 donne 35 erreurs, un code de sortie 0 et
+une base incohérente (cinq tables gardent leurs lignes actuelles, les autres reviennent à la sauvegarde). Pour revenir
+sur du code plus ancien, **ne pas restaurer** : les migrations Studios sont additives, l'ancien code tourne sur la base
+migrée (revert de la fusion, voir PLAN-FUSION §5). Pour vérifier une sauvegarde, la restaurer en isolé
+(`restaurer-isole.sh`). Une restauration en place, si elle est vraiment voulue, se fait avec
+`psql -v ON_ERROR_STOP=1 --single-transaction` : elle échoue alors proprement au lieu d'appliquer à moitié.

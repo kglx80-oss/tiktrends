@@ -24,7 +24,7 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   completed: { label: 'Prête', color: '#18cc8c' }, failed: { label: 'Échec', color: '#ff4d6d' },
 };
 
-const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' } as const;
+const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 16, outline: 'none' } as const; // L8-B · 16 px (14 avant)
 
 export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, initialPrompt, assets, adsmap = false }: {
   ready: boolean; aiReady?: boolean; brandName: string | null; initialVideos: PageVideos; initialPrompt?: string; assets: AnimatableAsset[];
@@ -186,7 +186,7 @@ export function VideoStudioFull({ ready, aiReady, brandName, initialVideos, init
         )}
       </DropZone>
       <details style={{ marginTop: 8 }}>
-        <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer' }}>ou coller un lien d'image</summary>
+        <summary style={{ fontSize: 12.5, color: 'var(--muted)', cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>ou coller un lien d'image</summary>
         <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} disabled={!ready || busy} placeholder="https://…/mon-image.jpg" style={{ ...fld, marginTop: 8 }} />
       </details>
     </div>

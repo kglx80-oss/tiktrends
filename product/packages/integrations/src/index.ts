@@ -13,3 +13,4 @@ export * from './secrets';
 export * from './google-drive';
 export * from './drive-sync';
 export * from './meta-daily';
+export * from './studios-fal';

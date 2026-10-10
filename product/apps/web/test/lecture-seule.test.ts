@@ -79,3 +79,137 @@ describe('L’enrichissement reste disponible · par ses gestes explicites', () 
     expect(avant, 'la récupération des photos n’est plus dans le gestionnaire importAll').toContain('async function importAll()');
   });
 });
+
+/**
+ * Chantier L0 · consulter n'écrit rien, étendu aux route handlers GET et à
+ * TOUT ce que le rendu appelle (BASE-03).
+ *
+ * ── Ce que l'ancien garde ne voyait pas ──────────────────────────────────────
+ *
+ * Il ne regardait que les pages, et seulement les modules d'enrichissement ·
+ * `GET /api/ad/[id]` réécrivait la recette et l'index des rendus (#125),
+ * `/jarvis/sources` et le préflight des Studios inséraient des jalons
+ * (`recordMilestones` via `jarvisStats`), sans qu'aucun garde ne rougisse.
+ *
+ * ── La règle gardée ──────────────────────────────────────────────────────────
+ *
+ * On dresse le graphe des ÉCRIVAINS · toute fonction de `lib/` ou
+ * `app/actions/` dont le corps écrit en base (`db.insert/update/delete`,
+ * `tx.…`, `execute(sql\`insert…\`)`), puis, jusqu'au point fixe, toute fonction
+ * qui en appelle une. Aucun handler GET et aucun fichier de rendu ne doit
+ * écrire directement ni appeler un écrivain, hors exceptions NOMMÉES et
+ * justifiées ci-dessous. Le journal technique (`lib/error-log.ts`) n'est pas
+ * une écriture métier (BASE-03) et n'entre pas dans le graphe.
+ *
+ * La preuve au RÉSULTAT (base espionnée, zéro instruction d'écriture) est
+ * `l0-lectures-pures.test.ts` · ce garde-ci couvre tous les autres écrans.
+ */
+const RACINE = process.cwd();
+function arbo(dir: string, garder: (n: string) => boolean): string[] {
+  return readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n);
+    return statSync(p).isDirectory() ? arbo(p, garder) : garder(n) ? [p] : [];
+  });
+}
+const sansCommentaires = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
+const DEFINITION = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*(\w+)\s*[(<]|^(?:export\s+)?const\s+(\w+)\s*(?::[^=\n]+)?=\s*(?:async\b|\()/gm;
+const ECRIT = /\b(?:db!?|tx)\s*\.\s*(?:insert|update|delete)\s*\(|\.execute\(\s*sql`\s*(?:insert|update|delete)/i;
+const appelle = (texte: string, nom: string) => new RegExp(`(?<![.\\w])${nom}\\s*\\(`).test(texte);
+
+/** Journal technique · hors graphe (BASE-03 : « la journalisation technique n'est pas une création métier »). */
+const TECHNIQUES = new Set(['lib/error-log.ts']);
+
+function grapheEcrivains(): Map<string, string> {
+  const sources = [...arbo(join(RACINE, 'lib'), (n) => /\.tsx?$/.test(n)), ...arbo(join(RACINE, 'app/actions'), (n) => /\.ts$/.test(n))]
+    .filter((f) => !TECHNIQUES.has(relative(RACINE, f)));
+  const fonctions = sources.flatMap((f) => {
+    const s = sansCommentaires(readFileSync(f, 'utf8'));
+    const m = [...s.matchAll(DEFINITION)];
+    return m.map((x, i) => ({ nom: (x[1] ?? x[2])!, corps: s.slice(x.index, m[i + 1]?.index ?? s.length), f: relative(RACINE, f) }));
+  });
+  const ecrivains = new Map<string, string>();
+  for (const x of fonctions) if (ECRIT.test(x.corps)) ecrivains.set(x.nom, x.f);
+  for (let change = true; change;) {
+    change = false;
+    for (const x of fonctions) {
+      if (ecrivains.has(x.nom)) continue;
+      for (const w of ecrivains.keys()) {
+        if (appelle(x.corps, w)) { ecrivains.set(x.nom, `${x.f} → ${w}`); change = true; break; }
+      }
+    }
+  }
+  return ecrivains;
+}
+
+/**
+ * Les seules consultations autorisées à écrire · chacune avec sa raison.
+ * Ajouter une ligne ici est une DÉCISION, à justifier dans la PR.
+ */
+const EXCEPTIONS: Record<string, string> = {
+  // Commandes PAR CONCEPTION, servies en GET · OAuth 2 impose une redirection
+  // GET (état signé, code à usage unique chez le fournisseur) ; les crons sont
+  // protégés par Bearer. Hors consultation (audit L0-C, 2.a).
+  'app/api/oauth/google/callback/route.ts': 'callback OAuth',
+  'app/api/oauth/meta/callback/route.ts': 'callback OAuth',
+  'app/api/oauth/shopify/callback/route.ts': 'callback OAuth',
+  'app/api/cron/adsmap/route.ts': 'cron protégé',
+  'app/api/cron/digest/route.ts': 'cron protégé',
+  'app/api/cron/radar/route.ts': 'cron protégé',
+  'app/api/cron/tracker/route.ts': 'cron protégé',
+  // Cache technique BORNÉ (niches proposées × pays proposés, `veillePersistable`)
+  // qui évite de repayer le fournisseur de veille · seul `setVeilleCache` est
+  // toléré, prouvé borné par `l0-veille-scale.test.tsx`.
+  'app/(app)/veille/scale/page.tsx': 'setVeilleCache',
+};
+
+/** Le texte d'une cible · pour un route handler, seulement ce que sert GET. */
+function texteCible(f: string): string | null {
+  const s = sansCommentaires(readFileSync(f, 'utf8'));
+  if (!/route\.tsx?$/.test(f)) return s;
+  if (!/export\s+(?:async\s+)?function\s+GET\b|export\s+const\s+GET\b/.test(s)) return null;
+  return s.replace(/export\s+async\s+function\s+(?:POST|PUT|PATCH|DELETE)\b[\s\S]*?(?=\nexport\s|$)/g, '');
+}
+
+describe('Consulter n’écrit rien · route handlers GET et rendus, par le graphe des écrivains', () => {
+  const ecrivains = grapheEcrivains();
+  const cibles = arbo(join(RACINE, 'app'), (n) => /^(page|layout|template|loading|default|route)\.tsx?$/.test(n));
+
+  it('le graphe voit bien les écrivains connus · sinon il regarderait ailleurs', () => {
+    for (const n of ['recordMilestones', 'refundCredits', 'setVeilleCache', 'rattraperMesures', 'daterJalons', 'pollVideoAction']) {
+      expect(ecrivains.has(n), `le graphe ne reconnaît pas ${n} comme écrivain`).toBe(true);
+    }
+    const noms = cibles.map((f) => relative(join(RACINE, 'app'), f));
+    for (const attendu of ['api/ad/[id]/route.tsx', '(app)/jarvis/sources/page.tsx', '(app)/studio/video/page.tsx', 'api/studios/media/[id]/route.ts']) {
+      expect(noms, `le scanner ne voit pas ${attendu}`).toContain(attendu);
+    }
+  });
+
+  it('aucun handler GET ni aucun rendu n’écrit ou n’appelle un écrivain (hors exceptions nommées)', () => {
+    const fautes: string[] = [];
+    for (const f of cibles) {
+      const t = texteCible(f);
+      if (t === null) continue;
+      const rel = relative(RACINE, f);
+      const exc = EXCEPTIONS[rel];
+      if (exc && exc !== 'setVeilleCache') continue;
+      if (ECRIT.test(t)) fautes.push(`${rel} · écriture directe en base`);
+      for (const [w, d] of ecrivains) {
+        if (exc === w) continue;
+        if (appelle(t, w)) fautes.push(`${rel} · appelle ${w} (${d})`);
+      }
+    }
+    expect(fautes, `consultation qui écrit en base :\n${fautes.join('\n')}`).toEqual([]);
+  });
+
+  it('les lectures appelées AU MONTAGE des écrans restent pures (préflight des Studios, cloche, Adsmap)', () => {
+    const lectures = ['preflightAction', 'jarvisStats', 'briefConceptBeforeLaunch', 'jarvisSnapshot', 'fetchNotifications', 'listAdsAction', 'listDecisionsAction', 'marketCoverageAction', 'radarViewAction', 'curationViewAction',
+      // L5-A · aperçu d'une version et lecture d'un média studio : lectures pures.
+      'rendreApercu', 'lireMediaDansPortee', 'chargerMediasDocument'];
+    const fautes = lectures.filter((n) => ecrivains.has(n)).map((n) => `${n} · ${ecrivains.get(n)}`);
+    expect(fautes, `lecture appelée au montage qui écrit :\n${fautes.join('\n')}`).toEqual([]);
+  });
+
+  it('les exceptions existent toujours · une exception orpheline masquerait un écran renommé', () => {
+    for (const f of Object.keys(EXCEPTIONS)) expect(statSync(join(RACINE, f)).isFile(), `exception orpheline : ${f}`).toBe(true);
+  });
+});

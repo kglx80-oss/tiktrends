@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F16",
+  "titre": "Lipsync absent",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F16.bloque_avant_appel",
+      "description": "Bloqué avant appel faute de capacité lipsync",
+      "passe": true,
+      "detail": "blocked LIPSYNC_SANS_CAPACITE"
+    },
+    {
+      "id": "F16.zero_job_media",
+      "description": "Aucun job ni média",
+      "passe": true,
+      "detail": "inchangés : jobs, medias"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

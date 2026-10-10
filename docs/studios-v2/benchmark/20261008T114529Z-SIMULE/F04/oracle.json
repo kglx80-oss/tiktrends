@@ -1,0 +1,29 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F04",
+  "titre": "Proposer sans générer",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F04.proposition",
+      "description": "Une proposition de patch applicable existe",
+      "passe": true,
+      "detail": "1 changement(s) applicable(s)"
+    },
+    {
+      "id": "F04.document_inchange",
+      "description": "Aucune version de document créée",
+      "passe": true,
+      "detail": "inchangés : versions"
+    },
+    {
+      "id": "F04.zero_job_devis_media_quota",
+      "description": "Zéro job, devis, approbation, média, crédit",
+      "passe": true,
+      "detail": "inchangés : jobs, devis, approbations, medias, credits"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

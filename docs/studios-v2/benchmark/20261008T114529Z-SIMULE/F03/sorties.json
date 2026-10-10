@@ -1,0 +1,73 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F03",
+  "titre": "Contradiction identité",
+  "etapes": [
+    {
+      "etapeId": "coherence",
+      "templateKey": "quality.consistency",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "verdict": "rejected",
+        "issues": [
+          {
+            "code": "CONFLIT_IDENTITE",
+            "severity": "blocking",
+            "targetId": "plan_F03",
+            "observation": "Le plan décrit une tenue jaune.",
+            "expected": "Tenue verte, fiche identité validée.",
+            "evidenceIds": [
+              "fait_tenue_verte"
+            ]
+          }
+        ],
+        "proposedResolutions": [
+          "Garder la tenue verte de la fiche",
+          "Ou valider une nouvelle fiche avant le plan"
+        ]
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "49c6b535-6374-4934-9339-b1fbc80e9bb8",
+      "resultSha256": "266ebe90abb97008be62e2304381154661b010938bcc92563fb27f4d12cb93e4",
+      "fichiers": []
+    },
+    {
+      "etapeId": "plan",
+      "templateKey": "shot.image",
+      "sortie": 0,
+      "statut": "blocked",
+      "code": "MODELE_BLOQUE",
+      "result": null,
+      "questions": [
+        "La fiche identité impose une tenue verte et le plan demande du jaune : laquelle retenir ?"
+      ],
+      "warnings": [],
+      "runId": "31f3eebe-315a-465a-9a42-f9237a898a09",
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

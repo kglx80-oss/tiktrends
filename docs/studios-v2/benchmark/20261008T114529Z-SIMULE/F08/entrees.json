@@ -1,0 +1,33 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F08",
+  "titre": "Narration exacte",
+  "oracleAttendu": "spokenText égal caractère par caractère entrée",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "voix",
+      "sortie": 0,
+      "template": "voice.prepare",
+      "taskInputsSha256": "46fc60edffe8d674c4a27551e5e687ea833836c45975c99b7a46ba975289e8be",
+      "taskInputs": {
+        "narrationText": "Lumea Verre 3 · 92 % des testeuses la recommandent (étude interne Lumea, 2026).",
+        "voiceId": "voix-claire-fr",
+        "language": "fr",
+        "pronunciations": [
+          {
+            "text": "Lumea",
+            "pronunciation": "lu-mé-a"
+          }
+        ]
+      },
+      "contexte": {},
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {
+    "narration": "Lumea Verre 3 · 92 % des testeuses la recommandent (étude interne Lumea, 2026)."
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F17",
+  "titre": "Lot borné",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F17.lot_borne",
+      "description": "≤ 12 propositions et count = items.length, ou sélection demandée",
+      "passe": true,
+      "detail": "12 lignes, count=12"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

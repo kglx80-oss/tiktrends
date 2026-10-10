@@ -8,7 +8,7 @@ import { Icon } from '../../../../components/Icon';
 import { surface } from '../../../../components/ui';
 import { useIsMobile } from '../../../../components/useIsMobile';
 
-const input: React.CSSProperties = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, outline: 'none' };
+const input: React.CSSProperties = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 16, outline: 'none' }; // 16 px · pas de zoom forcé sur téléphone (L8-A)
 const lbl: React.CSSProperties = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 };
 // Bloc de premier niveau (brief, résultats) · rôle `surface` (lot 19D).
 const card: React.CSSProperties = { ...surface, background: 'var(--surface)', padding: 18 };

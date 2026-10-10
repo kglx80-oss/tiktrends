@@ -1,0 +1,154 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F17",
+  "titre": "Lot borné",
+  "etapes": [
+    {
+      "etapeId": "lot",
+      "templateKey": "batch.plan",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "items": [
+          {
+            "itemId": "item_1",
+            "conceptId": "concept_A",
+            "format": "1:1",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_2",
+            "conceptId": "concept_A",
+            "format": "4:5",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_3",
+            "conceptId": "concept_A",
+            "format": "9:16",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_4",
+            "conceptId": "concept_B",
+            "format": "1:1",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_5",
+            "conceptId": "concept_B",
+            "format": "4:5",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_6",
+            "conceptId": "concept_B",
+            "format": "9:16",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_7",
+            "conceptId": "concept_C",
+            "format": "1:1",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_8",
+            "conceptId": "concept_C",
+            "format": "4:5",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_9",
+            "conceptId": "concept_C",
+            "format": "9:16",
+            "variation": "v1",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_10",
+            "conceptId": "concept_A",
+            "format": "1:1",
+            "variation": "v2",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_11",
+            "conceptId": "concept_A",
+            "format": "4:5",
+            "variation": "v2",
+            "preserve": [
+              "produit"
+            ]
+          },
+          {
+            "itemId": "item_12",
+            "conceptId": "concept_A",
+            "format": "9:16",
+            "variation": "v2",
+            "preserve": [
+              "produit"
+            ]
+          }
+        ],
+        "count": 12
+      },
+      "questions": [],
+      "warnings": [
+        "27 combinaisons demandées pour un plafond de 12 : sélection à confirmer."
+      ],
+      "runId": "23c6ccae-5c02-4f7d-81b8-59a3e0b1c52f",
+      "resultSha256": "bea04474e998f821edc8d4d961d1411adddf424db5a71399f93a99853e69c8ce",
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

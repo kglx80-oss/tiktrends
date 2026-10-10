@@ -1,0 +1,29 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F21",
+  "titre": "Orientation sans sélection",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F21.intention_informative",
+      "description": "Intention inspect ou help",
+      "passe": true,
+      "detail": "intention help"
+    },
+    {
+      "id": "F21.aucune_cible",
+      "description": "Aucune cible, ni ancienne ni inventée",
+      "passe": true,
+      "detail": "0 cible(s)"
+    },
+    {
+      "id": "F21.aucune_mutation",
+      "description": "Aucune mutation en base",
+      "passe": true,
+      "detail": "inchangés : versions, jobs, devis, approbations, medias, credits"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

@@ -2,14 +2,15 @@
 
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
+import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { BRAND_COOKIE } from '../../lib/brands';
 import { generateBrandProfile, type BrandProfileDraft } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
-import { costFor, policeTechnique, messageServiceInactif } from '@tiktrends/core';
+import { costFor, policeTechnique, messageServiceInactif, refusSuppressionMarque } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { discoverShopify } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
@@ -47,7 +48,7 @@ export async function generateBrandDraftAction(_prev: BrandDraftState, formData:
   const url = norm(formData.get('url'));
   if (!name) return { error: 'Indique au moins le nom de la marque.' };
 
-  const client = guardedAnthropic({ action: 'brands' });
+  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'brands' });
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
   if (!client) return { error: messageServiceInactif('ia_profil') };
 
@@ -230,7 +231,23 @@ export async function deleteBrandAction(formData: FormData): Promise<void> {
   if (!roleAtLeast(s.role, 'admin')) redirect('/brands?e=forbidden');
   const id = norm(formData.get('id'));
   if (id) {
-    await db.delete(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId)));
+    // Le studio protège son historique en RESTRICT ; ses traces d'exécution
+    // suivent la marque (voir refusSuppressionMarque). Tout dans UNE
+    // transaction : un refus n'efface rien.
+    const refus = await db.transaction(async (tx) => {
+      const compter = async (t: { brandId: AnyPgColumn; workspaceId: AnyPgColumn } & PgTable) =>
+        (await tx.select({ n: sql<number>`count(*)::int` }).from(t).where(and(eq(t.brandId, id), eq(t.workspaceId, s.workspaceId))))[0]?.n ?? 0;
+      const motif = refusSuppressionMarque({
+        projets: await compter(schema.studioProjects), medias: await compter(schema.studioAssets),
+        registre: await compter(schema.studioBudgetLedger), audit: await compter(schema.studioAuditEvents),
+        prompts: await compter(schema.studioPromptVersions), restrictions: await compter(schema.studioMemberBrandScopes),
+      });
+      if (motif) return motif;
+      await tx.delete(schema.studioPromptRuns).where(and(eq(schema.studioPromptRuns.brandId, id), eq(schema.studioPromptRuns.workspaceId, s.workspaceId)));
+      await tx.delete(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId)));
+      return null;
+    });
+    if (refus) redirect(`/brands?e=${refus}`);
     const c = await cookies();
     if (c.get(BRAND_COOKIE)?.value === id) c.delete(BRAND_COOKIE);
   }

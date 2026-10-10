@@ -102,7 +102,7 @@ export async function analyzeCompetitorAction(formData: FormData): Promise<void>
   // 2) Analyse IA des patterns (si clé présente), débit crédits.
   let insights: CompetitorInsights | null = null;
   let note: string | undefined;
-  const client = guardedAnthropic({ action: 'competitor' });
+  const client = guardedAnthropic({ workspaceId: g.workspaceId, action: 'competitor' });
   if (client) {
     const cost = costFor('report');
     const unlimited = unlimitedCredits(g.email);

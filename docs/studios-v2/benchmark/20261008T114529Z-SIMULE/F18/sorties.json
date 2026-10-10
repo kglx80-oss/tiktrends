@@ -1,0 +1,77 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F18",
+  "titre": "Format mobile",
+  "etapes": [
+    {
+      "etapeId": "adaptation",
+      "templateKey": "format.adapt",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "baseVersion": "bench-F18-v1",
+        "changes": [
+          {
+            "path": "/canvas/hauteur",
+            "newValue": 1920,
+            "reason": "Format 9:16",
+            "op": "replace"
+          },
+          {
+            "path": "/calques/titre/y",
+            "newValue": 300,
+            "reason": "Titre dans la zone sûre",
+            "op": "replace"
+          },
+          {
+            "path": "/calques/produit/y",
+            "newValue": 760,
+            "reason": "Produit recentré",
+            "op": "replace"
+          }
+        ],
+        "regenerationNeeded": false,
+        "reason": "Repositionnement seul, sans étirement."
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "4c182524-2308-483e-bee2-e53a4d17c377",
+      "resultSha256": "58e35772148ac0a2e9038727ab665208d808750f444bb890266351e07dcd8b52",
+      "fichiers": []
+    },
+    {
+      "etapeId": "geometrie",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

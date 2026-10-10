@@ -4,6 +4,7 @@ import { useRef, type ReactNode } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { usePiegeFocus } from './use-piege-focus';
 import { Portail } from './Portail';
+import { useIsMobile, MEDIA_TELEPHONE } from './useIsMobile';
 import { surface } from './ui';
 
 /**
@@ -23,7 +24,7 @@ import { surface } from './ui';
  * extérieur · Échap · piège à focus sont inchangés.)
  */
 export function Modal({
-  open, onClose, title, subtitle, children, maxWidth = 460, icon,
+  open, onClose, title, subtitle, children, maxWidth = 460, icon, pleinEcranTelephone = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -32,11 +33,18 @@ export function Modal({
   children: ReactNode;
   maxWidth?: number;
   icon?: ReactNode;
+  /**
+   * Plein écran sur téléphone (≤ 480 px) · cahier Studios §153 : « panneau plein
+   * écran refermable ». Optionnel : les autres écrans gardent leur fenêtre centrée.
+   */
+  pleinEcranTelephone?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   // Le piège à focus partagé · même comportement (focus entrant, Tab piégé,
   // Échap, verrou du défilement, retour au déclencheur), éprouvé une seule fois.
   usePiegeFocus(panelRef, { actif: open, onFermer: onClose });
+  const telephone = useIsMobile(MEDIA_TELEPHONE);
+  const plein = pleinEcranTelephone && telephone;
 
   if (!open) return null;
 
@@ -45,17 +53,18 @@ export function Modal({
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '10vh 16px 16px', background: 'rgba(6,4,8,.62)', backdropFilter: 'blur(3px)',
+        padding: plein ? 0 : '10vh 16px 16px', background: 'rgba(6,4,8,.62)', backdropFilter: 'blur(3px)',
       }}
     >
       <div
         ref={panelRef}
-        role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}
+        role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} data-plein-ecran={plein ? 'oui' : undefined}
         onClick={(e) => e.stopPropagation()}
         style={{
           // Rôle `surface` (lot 19D) · --line, r-card · le voile et l'ombre détachent déjà la fenêtre.
           width: '100%', maxWidth, background: 'var(--surface)', ...surface,
           boxShadow: '0 30px 70px -20px rgba(0,0,0,.7)', overflow: 'hidden', maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+          ...(plein ? { maxWidth: 'none', height: '100dvh', maxHeight: '100dvh', borderRadius: 0 } : {}),
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '18px 20px 14px', borderBottom: '1px solid var(--line)' }}>

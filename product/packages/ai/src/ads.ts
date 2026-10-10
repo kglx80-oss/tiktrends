@@ -1,3 +1,4 @@
+import { blocDonneesNonFiables, BALISE_DONNEES_NON_FIABLES, CONSIGNE_DONNEES_NON_FIABLES } from '@tiktrends/core';
 import Anthropic from '@anthropic-ai/sdk';
 import { GEN_MODEL } from './generation';
 
@@ -285,8 +286,11 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
       ? `OFFRE À METTRE EN AVANT : « ${ctx.offer.trim().slice(0, 60)} ». Le gabarit 'offer' DOIT afficher la VALEUR de l'offre dans le champ badge, mais le badge doit rester TRÈS COURT (12 caractères max, juste la valeur : ex « -20% », « 2+1 offert », « -15€ »). Les mots d'urgence (« aujourd'hui », « stock limité »…) vont dans le kicker ou l'accroche, JAMAIS dans le badge.`
       : "Pour le gabarit 'offer', mets une promo concrète et TRÈS COURTE dans le badge (12 caractères max : ex « -20% », « 2+1 offert », « -15€ ») · jamais de badge vide, vague ou long. L'urgence va dans le kicker/accroche.",
     "Le champ 'badge' est TOUJOURS court (une pastille) : 14 caractères max, jamais de phrase.",
+    // SEC-04 · les patterns (mémoire mesurée, accroches transcrites de la
+    // veille, angles marché, apprentissages distillés) sont des DONNÉES non
+    // fiables · ils partent dans le message, en bloc délimité, jamais ici.
     ctx.winningPatterns?.trim()
-      ? `INTELLIGENCE CRÉATIVE JARVIS (patterns gagnants observés sur des pubs qui performent dans cette niche · applique-les pour maximiser la performance, sans plagier) : ${ctx.winningPatterns.trim().slice(0, 1400)}`
+      ? `INTELLIGENCE CRÉATIVE JARVIS : des patterns gagnants observés sur des pubs qui performent dans cette niche te sont fournis dans le bloc <${BALISE_DONNEES_NON_FIABLES} source="patterns_gagnants"> du message · applique-les pour maximiser la performance, sans plagier. ${CONSIGNE_DONNEES_NON_FIABLES}`
       : "",
     ctx.creativeRules?.trim()
       ? `RÈGLES MAISON (Jarvis) À RESPECTER IMPÉRATIVEMENT, priorité absolue sur tout le reste : ${ctx.creativeRules.trim().slice(0, 1200)}`
@@ -297,7 +301,10 @@ export async function generateAdConcepts(client: Anthropic, ctx: AdConceptCtx, o
     ? `\n\nPubs qui fonctionnent (inspire-toi des mécaniques, ne recopie pas) :\n- ${opts.winningCopy.slice(0, 10).map((c) => c.slice(0, 180)).join('\n- ')}`
     : '';
   const compet = opts.competitors?.length ? `\nConcurrents à surclasser : ${opts.competitors.slice(0, 10).join(', ')}.` : '';
-  const user = `${ctxLines(ctx)}${compet}${inspiration}\n\nProduis EXACTEMENT ${templates.length} concept(s), un par entrée, dans cet ordre de gabarits : ${templates.join(', ')}. Si un gabarit revient, propose une exécution nettement différente (accroche, scène, angle). Priorise l'impact marketing : je veux des accroches qui claquent, pas des slogans plats.`;
+  const patterns = ctx.winningPatterns?.trim()
+    ? `\n\n${blocDonneesNonFiables('patterns_gagnants', ctx.winningPatterns.trim().slice(0, 1400))}`
+    : '';
+  const user = `${ctxLines(ctx)}${compet}${inspiration}${patterns}\n\nProduis EXACTEMENT ${templates.length} concept(s), un par entrée, dans cet ordre de gabarits : ${templates.join(', ')}. Si un gabarit revient, propose une exécution nettement différente (accroche, scène, angle). Priorise l'impact marketing : je veux des accroches qui claquent, pas des slogans plats.`;
 
   const res = await client.messages.create({
     // Assez de tokens pour N concepts complets (évite la troncature quand la quantité est élevée).

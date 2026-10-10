@@ -1,10 +1,20 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { REESSAIS_AUTOMATIQUES_PAYANTS } from '@tiktrends/core';
 export const GEN_MODEL = process.env.ANTHROPIC_GEN_MODEL ?? 'claude-sonnet-5';
 
-/** Client Anthropic depuis l'environnement (null si clé absente). */
+/**
+ * Client Anthropic depuis l'environnement (null si clé absente).
+ *
+ * `maxRetries` à 0 (`REESSAIS_AUTOMATIQUES_PAYANTS`) · le SDK rejoue sinon de
+ * lui-même deux fois une requête coupée, 408, 409, 429 ou 5xx. Une coupure
+ * APRÈS envoi peut avoir été facturée : rejouer ferait payer deux ou trois
+ * appels pour UNE réservation du plafond (contre-recette du 8 octobre, R3).
+ * Prouvé au résultat par `apps/web/test/r3-reessai-anthropic.test.ts` (faux
+ * serveur qui coupe la connexion · exactement une requête reçue).
+ */
 export function anthropicFromEnv(): Anthropic | null {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  return apiKey ? new Anthropic({ apiKey }) : null;
+  return apiKey ? new Anthropic({ apiKey, maxRetries: REESSAIS_AUTOMATIQUES_PAYANTS }) : null;
 }
 
 /* ============ Génération créative structurée (Studio, CDC §F9) ============ */

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "bullmq": "^5.12.0",
@@ -14,7 +15,14 @@
     "@tiktrends/db": "workspace:*",
     "@tiktrends/core": "workspace:*",
     "@tiktrends/ai": "workspace:*",
-    "@tiktrends/integrations": "workspace:*"
+    "@tiktrends/integrations": "workspace:*",
+    "sharp": "0.34.5"
   },
-  "devDependencies": { "typescript": "^5.5.4", "tsx": "^4.17.0" }
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsx": "^4.17.0",
+    "vitest": "^2.0.5",
+    "@electric-sql/pglite": "^0.5.8",
+    "drizzle-orm": "^0.33.0"
+  }
 }

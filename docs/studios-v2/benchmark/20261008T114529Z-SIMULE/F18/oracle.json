@@ -1,0 +1,29 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F18",
+  "titre": "Format mobile",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F18.sans_etirement",
+      "description": "Produit sans étirement (proportions ± 1 px)",
+      "passe": true,
+      "detail": "600×450, hauteur attendue 450.0"
+    },
+    {
+      "id": "F18.texte_complet",
+      "description": "Texte du titre complet",
+      "passe": true,
+      "detail": "identique"
+    },
+    {
+      "id": "F18.zones_sures",
+      "description": "Titre et produit dans la zone sûre du format cible",
+      "passe": true,
+      "detail": "format cible atteint"
+    }
+  ],
+  "revueHumaine": "fiche-revue.json"
+}

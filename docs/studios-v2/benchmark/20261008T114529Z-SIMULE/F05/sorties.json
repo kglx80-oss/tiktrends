@@ -1,0 +1,126 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F05",
+  "titre": "Retouche masquée",
+  "etapes": [
+    {
+      "etapeId": "consigne",
+      "templateKey": "edit.mask",
+      "sortie": 0,
+      "statut": "ready",
+      "code": null,
+      "result": {
+        "generationInstruction": "Dessiner une étoile claire au centre de la zone masquée.",
+        "preserve": [
+          "tout pixel hors du masque",
+          "le quadrillage"
+        ],
+        "expectedChanges": [
+          "une étoile dans le rectangle gauche"
+        ]
+      },
+      "questions": [],
+      "warnings": [],
+      "runId": "775219d4-5e95-4e77-8681-785615c9abb5",
+      "resultSha256": "b3daa3f97a5821f818bcaec0438f82bf645407945b6563275a237f17ce420ee5",
+      "fichiers": []
+    },
+    {
+      "etapeId": "retouche",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/retouche-1-1.png",
+          "sha256": "b8f24fb801817a400e0493f55d3a7829301a3f2019e1bf876a2c4311cea9bcc5",
+          "largeur": 256,
+          "hauteur": 256
+        }
+      ]
+    },
+    {
+      "etapeId": "mesure",
+      "templateKey": null,
+      "sortie": 0,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": []
+    },
+    {
+      "etapeId": "retouche",
+      "templateKey": null,
+      "sortie": 1,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": [
+        {
+          "fichier": "sorties/retouche-2-1.png",
+          "sha256": "3580691f85c343385f244e2ded1463f7ab508ede127fa58066c8a7fe173a066e",
+          "largeur": 256,
+          "hauteur": 256
+        }
+      ]
+    },
+    {
+      "etapeId": "mesure",
+      "templateKey": null,
+      "sortie": 1,
+      "statut": "fait",
+      "code": null,
+      "result": null,
+      "questions": [],
+      "warnings": [],
+      "runId": null,
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {
+    "comparaisons": [
+      {
+        "horsMasque": 0,
+        "dansMasque": 3524
+      },
+      {
+        "horsMasque": 0,
+        "dansMasque": 2321
+      }
+    ]
+  },
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

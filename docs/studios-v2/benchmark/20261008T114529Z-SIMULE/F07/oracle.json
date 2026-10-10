@@ -1,0 +1,17 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F07",
+  "titre": "Faux succès",
+  "statut": "bloque_capacite",
+  "motif": "Étape sur un profil non routé (vision_analysis) : bloquée avant appel.",
+  "invariants": [
+    {
+      "id": "F07.jamais_passed",
+      "description": "Verdict rejected ou requires_review, jamais passed",
+      "passe": null,
+      "detail": "étape « qualite » non aboutie (blocked · UNSUPPORTED_CAPABILITY)"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

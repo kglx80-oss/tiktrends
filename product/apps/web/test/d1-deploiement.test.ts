@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { analyserMigrationSql, decouperInstructionsSql, type EntreeJournalMigration } from '@tiktrends/core';
 
 /**
  * Nombre de migrations du journal RÉEL du dépôt · le banc ajoute la sienne à la
@@ -352,6 +353,80 @@ describe('D1 · BUILD_SHA dans l’environnement des conteneurs (constat L9-A n�
     expect(ligne, 'le service workers doit passer des args de build').toBeTruthy();
     expect(ligne).toContain('BUILD_SHA');
   });
+});
+
+/**
+ * La fenêtre est désormais INVERSE : la migration s'applique pendant que
+ * l'ANCIEN code tourne (il est encore servi pendant la migration et la
+ * vérification). Ce n'est sûr que si chaque migration Studios et suivante
+ * laisse l'ancien code écrire et lire comme avant. Contrôlé ici, pour TOUTE
+ * migration à partir de 0054 (y compris celles qu'une vague ajoutera) :
+ *   · additive (règle pure `migration-additive` : ni écriture, ni destruction,
+ *     ni instruction inconnue · une colonne NOT NULL sans défaut est destructive) ;
+ *   · aucun déclencheur sur une table EXISTANTE (seulement sur les tables que
+ *     ces migrations créent) ;
+ *   · aucune contrainte ajoutée à une table existante, sauf celles listées avec
+ *     la raison pour laquelle l'ancien code ne peut pas les violer.
+ * L'épreuve « ancien code sur base migrée » elle-même (bc33cec sur 56
+ * migrations, écrans en 200) est dans docs/studios-v2/L9/L9-MIGRATION.md §5.
+ */
+const DRIZZLE = join(PRODUIT, 'packages/db/drizzle');
+const JOURNAL = (JSON.parse(readFileSync(join(DRIZZLE, 'meta/_journal.json'), 'utf8')) as { entries: EntreeJournalMigration[] }).entries;
+const PREMIERE_STUDIOS = 54;
+
+const CONTRAINTES_EXISTANT_ADMISES: Record<string, string> = {
+  brands_id_workspace_uq: 'UNIQUE (id, workspace_id) · id est la clé primaire : toute ligne écrite par l’ancien code la respecte',
+  adsmap_ads_id_workspace_uq: 'UNIQUE (id, workspace_id) · id est la clé primaire : toute ligne écrite par l’ancien code la respecte',
+};
+
+function violationsFenetreInverse(migrations: ReadonlyArray<{ tag: string; sql: string }>): string[] {
+  const v: string[] = [];
+  const nouvelles = new Set<string>();
+  for (const { tag, sql } of migrations) {
+    const a = analyserMigrationSql(sql);
+    for (const x of [...a.ecritures, ...a.destructives, ...a.inconnues]) v.push(`« ${tag} » · non additive (${x.raison}) : ${x.extrait}`);
+    for (const instr of decouperInstructionsSql(sql)) {
+      const t = /^CREATE TABLE (?:IF NOT EXISTS )?"([a-z0-9_]+)"/i.exec(instr);
+      if (t) nouvelles.add(t[1]!);
+    }
+    for (const instr of decouperInstructionsSql(sql)) {
+      const d = /^CREATE (?:OR REPLACE )?(?:CONSTRAINT )?TRIGGER\b[\s\S]*?\bON "([a-z0-9_]+)"/i.exec(instr);
+      if (d && !nouvelles.has(d[1]!)) v.push(`« ${tag} » · déclencheur sur la table existante « ${d[1]} » · l’ancien code y écrit encore`);
+      for (const c of instr.matchAll(/ALTER TABLE "([a-z0-9_]+)" ADD CONSTRAINT "([a-z0-9_]+)"([^;]*)/gi)) {
+        const [, table, nom, suite] = c;
+        if (nouvelles.has(table!)) continue;
+        const admise = CONTRAINTES_EXISTANT_ADMISES[nom!];
+        if (!admise || !/^\s*UNIQUE \("id",/i.test(suite!)) v.push(`« ${tag} » · contrainte « ${nom} » ajoutée à la table existante « ${table} » · l’ancien code peut la violer`);
+      }
+    }
+  }
+  return v;
+}
+
+const STUDIOS = JOURNAL.filter((e) => e.idx >= PREMIERE_STUDIOS).map((e) => ({ tag: e.tag, sql: readFileSync(join(DRIZZLE, `${e.tag}.sql`), 'utf8') }));
+
+describe('D1 · fenêtre inverse · l’ancien code supporte le schéma étendu', () => {
+  it(`les migrations à partir de ${PREMIERE_STUDIOS} sont lues (au moins 0054 et 0055)`, () => {
+    expect(STUDIOS.map((m) => m.tag).slice(0, 2)).toEqual(['0054_studios_fondations', '0055_ai_spend_reconciliation']);
+  });
+
+  it('aucune ne casse l’ancien code pendant la migration', () => {
+    expect(violationsFenetreInverse(STUDIOS)).toEqual([]);
+  });
+
+  const mutants: Array<{ nom: string; ajout: string; phrase: string }> = [
+    { nom: 'colonne existante rendue obligatoire', ajout: 'ALTER TABLE "ai_spend" ALTER COLUMN "action" SET NOT NULL;', phrase: 'non additive' },
+    { nom: 'colonne NOT NULL sans défaut', ajout: 'ALTER TABLE "ai_spend" ADD COLUMN IF NOT EXISTS "x" text NOT NULL;', phrase: 'non additive' },
+    { nom: 'déclencheur sur une table existante', ajout: 'CREATE OR REPLACE TRIGGER "t" BEFORE UPDATE ON "brands" FOR EACH ROW EXECUTE FUNCTION "studio_refuser_mutation"();', phrase: 'déclencheur sur la table existante « brands »' },
+    { nom: 'contrainte CHECK sur une table existante', ajout: 'DO $$ BEGIN\n ALTER TABLE "brands" ADD CONSTRAINT "brands_nom_ck" CHECK (char_length("name") < 3);\nEXCEPTION\n WHEN duplicate_object THEN null;\nEND $$;', phrase: 'contrainte « brands_nom_ck » ajoutée à la table existante « brands »' },
+  ];
+  for (const m of mutants) {
+    it(`mutant vu · ${m.nom}`, () => {
+      const mutees = STUDIOS.map((x, k) => (k === STUDIOS.length - 1 ? { ...x, sql: `${x.sql}\n--> statement-breakpoint\n${m.ajout}\n` } : x));
+      const v = violationsFenetreInverse(mutees);
+      expect(v.some((x) => x.includes(m.phrase)), JSON.stringify(v)).toBe(true);
+    });
+  }
 });
 
 /**

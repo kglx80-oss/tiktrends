@@ -1,0 +1,29 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F09",
+  "titre": "Révision isolée",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F09.plan1_conserve",
+      "description": "Plan 1 conservé par empreinte",
+      "passe": true,
+      "detail": "/plans/plan_1 50edfe6e2cd3 → 50edfe6e2cd3"
+    },
+    {
+      "id": "F09.audio_conserve",
+      "description": "Audio hors dépendance conservé par empreinte",
+      "passe": true,
+      "detail": "/audio 23562f93c913 → 23562f93c913"
+    },
+    {
+      "id": "F09.plan2_modifie",
+      "description": "La tenue du plan 2 a changé",
+      "passe": true,
+      "detail": "/plans/plan_2/tenue"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

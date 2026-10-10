@@ -201,24 +201,50 @@ export async function jarvisMeasuredMemory(brandId: string, workspaceId: string)
 /**
  * Statistiques et taux global · pour le score de pré-lancement et les écrans.
  *
- * C'est aussi le seul endroit où les statistiques d'une marque existent · on en
- * profite pour dater les seuils franchis (`recordMilestones`). Il n'y a pas
- * d'instant « les stats sont recalculées » à attendre : elles sont dérivées à
- * la volée, à chaque fois qu'on en a besoin.
- *
- * L'écriture ne bloque pas et n'est pas attendue · un historique qui n'a pas pu
- * s'écrire sera posé au prochain passage, quelques heures plus tard.
+ * LECTURE PURE · aucune écriture (BASE-03). Elle datait les seuils franchis au
+ * passage (`recordMilestones`) · ouvrir `/jarvis/sources` ou le préflight d'un
+ * Studio insérait des jalons, et leur date dépendait de qui regardait. Les
+ * jalons sont désormais datés par les commandes qui changent les verdicts
+ * (`invalidateJarvisMemory` → `daterJalons`).
  */
 export async function jarvisStats(brandId: string, workspaceId: string): Promise<{ stats: StatRow[]; globalRate: number | null; tauxProtocole: TauxReussite; nAds: number }> {
   const { ads } = await loadCached(brandId, workspaceId);
   const stats = computeBrandStats(ads);
-  void recordMilestones(brandId, workspaceId, stats);
   // Deux taux, distincts et nommés (CDC v7 · N02) · `globalRate` est HISTORIQUE
   // (compte les gagnantes relatives, ignore la comparabilité) · `tauxProtocole`
   // est VALIDÉ (mêmes exclusions qu'Adsmap · « Non calculable » si rien n'est
   // évaluable au protocole). Le premier oriente, le second se revendique.
   const tauxProtocole = tauxReussite(ads.map((a) => ({ value: a.verdict, comparable: a.comparable })));
   return { stats, globalRate: globalHitRate(ads), tauxProtocole, nAds: ads.length };
+}
+
+/**
+ * COMMANDE · date les seuils que la marque vient de franchir.
+ *
+ * Appelée après une écriture qui change les verdicts ou la matière des
+ * statistiques (via `invalidateJarvisMemory`, et par la synchro Adsmap après
+ * le calcul des verdicts), jamais depuis une lecture. Relit
+ * la marque à frais (le cache vient d'être vidé), puis insère les jalons
+ * nouveaux · idempotent, rejouable, silencieux. Rend le nombre de jalons
+ * proposés (0 quand rien n'a franchi ou que la lecture a échoué).
+ */
+export async function daterJalons(brandId: string, workspaceId?: string): Promise<number> {
+  if (!db) return 0;
+  try {
+    let ws = workspaceId;
+    if (!ws) {
+      const [b] = await db.select({ ws: schema.brands.workspaceId }).from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
+      ws = b?.ws;
+    }
+    if (!ws) return 0;
+    // Toujours relue à frais · l'appelant vient d'écrire (verdicts, synchro), et
+    // dater sur un cache de cinq minutes daterait l'état d'AVANT la commande.
+    cache.delete(brandId);
+    const { ads } = await loadCached(brandId, ws);
+    return await recordMilestones(brandId, ws, computeBrandStats(ads));
+  } catch {
+    return 0;
+  }
 }
 
 /** Situe un concept avant de dépenser · agent A7, calculé en code. */
@@ -456,7 +482,16 @@ export async function briefConceptBeforeLaunch(
   return prelaunchBrief(input, { stats, globalRate, hooks, market });
 }
 
-/** Vide le cache d'une marque · à appeler après un import ou un nouveau verdict. */
+/**
+ * À appeler après un import, une curation ou un nouveau verdict · vide le cache
+ * de la marque, puis date les seuils franchis (`daterJalons`).
+ *
+ * Tous les appelants sont des COMMANDES (actions d'arbitrage, de rattachement,
+ * de synchronisation, d'analyse, de curation, radar) · c'est là que les
+ * verdicts changent, donc là que la date d'un jalon a un sens. La datation ne
+ * retient pas la commande (non attendue) et ne la fait jamais échouer.
+ */
 export function invalidateJarvisMemory(brandId: string): void {
   cache.delete(brandId);
+  void daterJalons(brandId).catch(() => { /* posé à la prochaine commande */ });
 }

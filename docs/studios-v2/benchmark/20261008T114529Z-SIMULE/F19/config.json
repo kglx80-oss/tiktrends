@@ -1,0 +1,59 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F19",
+  "titre": "Sources concurrentes",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "cdf3f6aa-21e2-4a3f-b9d1-32e165a38243",
+    "ee34d59c-5f25-4c64-904b-47104132d12b",
+    "b31d4e12-f420-4b35-84ab-4a68a1b4f9b8"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "extraction_b",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "extraction_b",
+      "role": "system",
+      "sha256": "f39cf96dd9eddec974b8c376ce19fad15a7d05a4857708add282bc4e60af8116",
+      "caracteres": 2633
+    },
+    {
+      "etape": "extraction_b",
+      "role": "user",
+      "sha256": "f45dee0a9ca71cfa9ce3595ffa9b4e04bd40cc577813b102dc9b31dab21c7479",
+      "caracteres": 853
+    },
+    {
+      "etape": "brief",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "brief",
+      "role": "system",
+      "sha256": "a376d8a4c8348a9be7ab4ca0588ed6b484cb8a30ecf4835cd439da51b87eca7d",
+      "caracteres": 2678
+    },
+    {
+      "etape": "brief",
+      "role": "user",
+      "sha256": "df4814753643f0e896bd21d1073c9784f60de5c190cda821f10aee237c376884",
+      "caracteres": 924
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F20",
+  "titre": "Continuité vidéo",
+  "release": {
+    "id": "42dbf3b9-4aad-4f2e-a08d-3d2e3c62e520",
+    "empreinte": "c67adcae823011a2f473ca9d9a7f090bcf8efb9660ebcafdf20113c4ac8f3fd1",
+    "epinglee": false
+  },
+  "adaptateurTexte": "simule-benchmark",
+  "simule": true,
+  "modele": "modele-simule-benchmark",
+  "environnement": "test",
+  "medias": "générateur de pixels local (simulé)",
+  "runIds": [
+    "e6887914-92f8-4857-adff-6b38ac7b1298",
+    "0c1ba3d3-8c69-4399-8d10-bf09b074122c",
+    "1adfe739-9897-4889-a95f-da90c3cab32b",
+    "2e924405-6b94-4a98-8cbb-a43127413349"
+  ],
+  "messagesEnvoyes": [
+    {
+      "etape": "personnage",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "personnage",
+      "role": "system",
+      "sha256": "991e9f6fd0ddb019ca8368318ca893740cbe5dcd42e2ab25bb3f6d884c0cb455",
+      "caracteres": 2579
+    },
+    {
+      "etape": "personnage",
+      "role": "user",
+      "sha256": "c0af95be44af7fef792fdd294ff3468b3b49abc3e7e1fce60754298c41b4a9b3",
+      "caracteres": 968
+    },
+    {
+      "etape": "storyboard",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "storyboard",
+      "role": "system",
+      "sha256": "e9fd37a9d6f2388b0d41d7cf027223564de4e06fecb66fa343e6d9c5b9e81530",
+      "caracteres": 2647
+    },
+    {
+      "etape": "storyboard",
+      "role": "user",
+      "sha256": "9b75fa7f0137f005c174804e95aefb64fbfcb8bbfe1cb011fe1d2f4294523184",
+      "caracteres": 1197
+    },
+    {
+      "etape": "animation",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "animation",
+      "role": "system",
+      "sha256": "94451c33a1d1a9b18bb99b871530859cf95b539dae10fd299cc1450919b360a1",
+      "caracteres": 2608
+    },
+    {
+      "etape": "animation",
+      "role": "user",
+      "sha256": "44eb63f08be8b894a8d5ce527d93c752149ba9c0272fb5c1146e4f544f233c56",
+      "caracteres": 1353
+    },
+    {
+      "etape": "animation",
+      "role": "system",
+      "sha256": "5ca555b818bf16d6f4ccd9f03dd33c367608f870e305050118b1ab25304d7b05",
+      "caracteres": 628
+    },
+    {
+      "etape": "animation",
+      "role": "system",
+      "sha256": "94451c33a1d1a9b18bb99b871530859cf95b539dae10fd299cc1450919b360a1",
+      "caracteres": 2608
+    },
+    {
+      "etape": "animation",
+      "role": "user",
+      "sha256": "44eb63f08be8b894a8d5ce527d93c752149ba9c0272fb5c1146e4f544f233c56",
+      "caracteres": 1353
+    }
+  ]
+}

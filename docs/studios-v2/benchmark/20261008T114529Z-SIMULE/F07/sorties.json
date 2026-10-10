@@ -1,0 +1,42 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F07",
+  "titre": "Faux succès",
+  "etapes": [
+    {
+      "etapeId": "qualite",
+      "templateKey": "quality.visual",
+      "sortie": 0,
+      "statut": "blocked",
+      "code": "UNSUPPORTED_CAPABILITY",
+      "result": null,
+      "questions": [
+        "Profil « vision_analysis » non routé dans ce lot · aucun fournisseur de repli."
+      ],
+      "warnings": [],
+      "runId": "41d2afbc-2d5d-4687-9246-d1b7ba93eea7",
+      "resultSha256": null,
+      "fichiers": []
+    }
+  ],
+  "mesures": {},
+  "compteurs": {
+    "avant": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    },
+    "apres": {
+      "jobs": 0,
+      "devis": 0,
+      "approbations": 0,
+      "medias": 0,
+      "credits": 0,
+      "versions": 0
+    }
+  }
+}

@@ -182,7 +182,7 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
   const g = await adsmapGuard();
   if ('error' in g) return { error: g.error };
 
-  const client = guardedAnthropic({ action: 'adsmap-analyze' });
+  const client = guardedAnthropic({ workspaceId: g.s.workspaceId, action: 'adsmap-analyze' });
   if (!client) return { error: GUARD.aiOff() };
 
   try {

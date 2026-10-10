@@ -1,0 +1,23 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F06",
+  "titre": "Géométrie exacte",
+  "statut": "execute",
+  "motif": null,
+  "invariants": [
+    {
+      "id": "F06.valeur_document",
+      "description": "Largeur du produit dans le document = 55 % ± 1 px",
+      "passe": true,
+      "detail": "largeur 594 px, cible 594 px"
+    },
+    {
+      "id": "F06.largeur_rendue",
+      "description": "Largeur RENDUE mesurée par le moteur = 55 % ± 1 px",
+      "passe": true,
+      "detail": "boîte englobante 594 px, cible 594 px"
+    }
+  ],
+  "revueHumaine": "aucune (cas entièrement déterministe)"
+}

@@ -219,7 +219,7 @@ export function Composer(props: ComposerProps) {
           onFocus={(e) => ajuster(e.currentTarget)}
           style={{
             flex: 1, minWidth: 0, minHeight: 'calc(3.1em + 10px)', border: 'none', outline: 'none', resize: 'none',
-            background: 'transparent', color: 'var(--ink)', fontSize: 15, lineHeight: 1.55,
+            background: 'transparent', color: 'var(--ink)', fontSize: 16, lineHeight: 1.55,
             fontFamily: 'inherit', padding: '5px 0',
           }}
         />

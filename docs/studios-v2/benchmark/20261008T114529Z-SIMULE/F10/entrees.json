@@ -1,0 +1,87 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F10",
+  "titre": "Données insuffisantes",
+  "oracleAttendu": "inconclusive, pas winner inventé",
+  "jeuSynthetique": [],
+  "etapes": [
+    {
+      "etape": "relecture",
+      "sortie": 0,
+      "template": "learning.review",
+      "taskInputsSha256": "9cbc1f1a1baa7d1927b724bca0b86d0e258a594d3629ff48d3ca6f943fa8e43e",
+      "taskInputs": {
+        "testId": "test_F10",
+        "metricSnapshotIds": [
+          "mesure_F10"
+        ],
+        "hypothesisId": "hypothese_F10",
+        "humanNotes": "Aucune exposition mesurée, dépense non fiable."
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "test_F10",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "test_F10",
+              "claim": "Test de la variable « accroche » sur 7 jours.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "f07f84c767f8433fc155da3fc79feba90b706988aa92acfd6ef13652eb1bebc5"
+          },
+          {
+            "id": "hypothese_F10",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "hypothese_F10",
+              "claim": "Une accroche question augmente le taux de clic.",
+              "sourceIds": [],
+              "kind": "hypothesis",
+              "confidence": "high"
+            },
+            "sha256": "37f4dc20f847f5be0d9f68314d6ce61622e7267e21ec0a24896048020213acb3"
+          },
+          {
+            "id": "mesure_F10",
+            "version": "v1",
+            "schemaKey": "Fact",
+            "content": {
+              "id": "mesure_F10",
+              "claim": "Exposition : aucune impression mesurée ; dépense : non fiable.",
+              "sourceIds": [],
+              "kind": "declared",
+              "confidence": "high"
+            },
+            "sha256": "5f9716e51e6a4b5403ab34104ed5a54f679e974a1a5c350d308b5d0e62476373"
+          }
+        ],
+        "allocatedIds": [
+          {
+            "id": "observation_1",
+            "entityType": "fact",
+            "ordinal": 0
+          },
+          {
+            "id": "observation_2",
+            "entityType": "fact",
+            "ordinal": 1
+          },
+          {
+            "id": "observation_3",
+            "entityType": "fact",
+            "ordinal": 2
+          }
+        ]
+      },
+      "capacites": null,
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}

@@ -40,7 +40,9 @@ import { enregistrerStaffAction, retirerStaffAction, enregistrerMatriceAction } 
 const fd = (o: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) f.set(k, v); return f; };
 const client = { user: { email: 'owner@client.fr' }, role: 'owner', plan: 'starter', equipe: null };
 const gradee = { user: { email: 'membre@agence.fr' }, role: 'owner', plan: 'starter', equipe: { role: 'membre', matrice: {} } };
-const admin = { user: { email: 'boss@agence.fr' }, role: 'owner', plan: 'starter', equipe: { role: 'admin', matrice: {} } };
+const admin = { user: { email: 'boss@agence.fr' }, role: 'owner', plan: 'starter', equipe: { role: 'admin', matrice: {}, plateformeAdmissible: true } };
+// SEC-10 · accès total sur un compte NON admissible (e-mail préinscrit capté) · recette du 8 octobre.
+const adminCapte = { user: { email: 'capte@agence.fr' }, role: 'owner', plan: 'starter', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false } };
 
 async function urlDe(p: Promise<void>): Promise<string> {
   try { await p; return '(pas de redirect)'; } catch (e) { if (e instanceof h.RedirectErr) return e.url; throw e; }
@@ -63,6 +65,12 @@ describe('actions équipe · le garde d’accès total tient', () => {
     it(`${action.nom} · client (equipe absent) → /dashboard, aucune écriture`, async () => {
       h.ref.session = client;
       expect(await urlDe(action.fn())).toBe('/dashboard');
+      expect(h.ecritures).toEqual([]);
+    });
+
+    it(`${action.nom} · accès total NON admissible → refus, aucune écriture`, async () => {
+      h.ref.session = adminCapte;
+      expect(await urlDe(action.fn())).toBe('/admin/equipe?e=admissible');
       expect(h.ecritures).toEqual([]);
     });
 

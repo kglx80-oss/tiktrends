@@ -6,6 +6,7 @@ import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
 import { getActiveBrand } from '../../../lib/brands';
 import { deleteBrandAction } from '../../actions/brands';
+import { MESSAGES_SUPPRESSION_MARQUE } from '@tiktrends/core';
 import { Msg, cadrePage, cadreSignal, surface, h1 } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { NewBrandButton } from '../../../components/NewBrandButton';
@@ -23,6 +24,7 @@ const ERR: Record<string, string> = {
   forbidden: 'Action réservée aux administrateurs.', name: 'Donne un nom à la marque.',
   shopify_domain: 'Indique l’adresse de ton site.',
   shopify_notfound: "Impossible de lire cette boutique automatiquement. Vérifie l'adresse, ou crée la marque puis complète le profil.",
+  ...MESSAGES_SUPPRESSION_MARQUE,
 };
 
 

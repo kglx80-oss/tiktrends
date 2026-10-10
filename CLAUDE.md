@@ -20,16 +20,16 @@ pas lancé (`AI_SPEND_CAP_USD`). Toute dépense passe par `sousPlafond`
 Annoncer le prix AVANT le clic, jamais après.
 
 **Un seul sujet à la fois.** Consigne du propriétaire : « on ne passe à rien
-d'autre tant que ce n'est pas viable ». Le sujet courant, direction explicite de
-Kevin du 30/09 (elle remplace les arbitrages de navigation antérieurs), est le
-lot **H puis I** · refonte **Home + navigation (façon Flora) + section Marque**,
-puis **découverte/itération (façon Atria)**. Réfs regardées par Codex :
-`app.flora.ai/home`, `app.tryatria.com` (aucun fichier de référence uploadé · le
-blocage de permission tient). En lots bornés, chaque PR UI attendant la recette
-Codex avant fusion. Le détail vit dans les tâches H (#121) et I (#122). Ne pas
-rouvrir l'ancien brief « Pubs IA » ni ouvrir de chantier à côté sans accord ·
-aucune fonction supprimée, aucun moteur/migration/connecteur/prix/Canvas/
-protection changé.
+d'autre tant que ce n'est pas viable ». Le sujet courant, mandat explicite de
+Kevin du 07/10 (il remplace la direction H/I du 30/09 et les anciennes
+exclusions Canvas/moteur pour ce périmètre), est la **refonte des studios
+TikTrends** décrite dans `docs/studios-v2/` (cahier des charges v1.0 : lire
+`00-LIRE-EN-PREMIER.md`, puis 01 à 09). Lots L0 à L9, recette par
+`04-RECETTE.csv`, point de reprise `docs/studios-v2/PROGRESS.json` · le relire
+avant toute action. Chaque PR attend la recette indépendante (Codex) avant
+fusion. Restent interdits sans nouveau mandat : changement d'offre, de prix, de
+droits acquis ou de protections CI, suppression de fonction ou de données,
+nouveau connecteur publicitaire, fixture en production, dépense hors plafond.
 
 **Une modification = une PR**, créée ET mergée (squash), sur sa propre branche
 partie de `main` · pas d'empilement, pas de PR fourre-tout.

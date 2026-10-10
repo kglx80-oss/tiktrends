@@ -1,0 +1,90 @@
+{
+  "mode": "SIMULÉ",
+  "banniere": "SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité",
+  "cas": "F16",
+  "titre": "Lipsync absent",
+  "oracleAttendu": "blocked ou alternative proposée sans exécution",
+  "jeuSynthetique": [
+    {
+      "id": "f20-personnage",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f20-personnage.png",
+      "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+      "contenuSha256": "2de6cb21f18aedf000fc8d13bcf9e0568e23356dad5831d4bb12a1774c333ab7"
+    },
+    {
+      "id": "f24-narration",
+      "fichier": "docs/studios-v2/benchmark/jeu-synthetique/f24-narration.wav",
+      "sha256": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5",
+      "contenuSha256": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5"
+    }
+  ],
+  "etapes": [
+    {
+      "etape": "animation",
+      "sortie": 0,
+      "template": "animation.compile",
+      "taskInputsSha256": "e0990668c43bf22053b76f619146010983b25d189723b03323e90217cc588d98",
+      "taskInputs": {
+        "shotId": "plan_F16",
+        "keyframeAssetId": "f20-personnage",
+        "durationMs": 3000,
+        "speechMode": "lipsync",
+        "audioAssetId": "f24-narration"
+      },
+      "contexte": {
+        "resolvedDocuments": [
+          {
+            "id": "plan_F16",
+            "version": "v1",
+            "schemaKey": "Shot",
+            "content": {
+              "shotId": "plan_F16",
+              "purpose": "Plan du benchmark",
+              "subject": "Produit synthétique",
+              "action": "Tenu en main",
+              "framing": "plan moyen",
+              "camera": "fixe",
+              "lighting": "lumière douce",
+              "environment": "studio neutre",
+              "referenceIds": [],
+              "narration": "Bonjour.",
+              "onScreenText": [],
+              "speechMode": "lipsync",
+              "estimatedDurationMs": 3000
+            },
+            "sha256": "2cc2981066b9b5dd2f26378309bd8cb3f7297d5cdeaaac4f391baec09019bc57"
+          }
+        ],
+        "mediaBindings": [
+          {
+            "bindingId": "b_f20-personnage",
+            "assetId": "f20-personnage",
+            "assetVersion": "v1",
+            "sha256": "7c836c3dd99eb01f2fea1bb35a137377a07c677a7f7d83002142d0d8349f0b34",
+            "role": "image clé",
+            "modality": "image",
+            "derivation": "original",
+            "nativeAttachmentIndex": 0,
+            "coverageDescription": "image entière"
+          },
+          {
+            "bindingId": "b_f24-narration",
+            "assetId": "f24-narration",
+            "assetVersion": "v1",
+            "sha256": "ac72cab44eea5065b6207863e916c29f58e67ef5445f8eb828e00476899ac2f5",
+            "role": "narration",
+            "modality": "audio",
+            "derivation": "original",
+            "nativeAttachmentIndex": 1,
+            "coverageDescription": "fichier entier"
+          }
+        ]
+      },
+      "capacites": {
+        "lipsync": false
+      },
+      "sansTexte": null
+    }
+  ],
+  "donneesOracle": {}
+}
