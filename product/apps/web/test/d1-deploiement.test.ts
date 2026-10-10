@@ -67,7 +67,7 @@ function lancerBanc(scenario: string, deploy = DEPLOY): Passage {
   }
 }
 
-const DOCKER = new Set(['construction', 'base', 'migration', 'verification', 'activation', 'run', 'exec', 'autre']);
+const DOCKER = new Set(['construction', 'base', 'etat_avant', 'sauvegarde', 'migration', 'verification', 'activation', 'run', 'exec', 'autre']);
 
 /** Le dernier passage de deploy.sh (le scénario « reprise » en fait deux). */
 function dernierPassage(j: Ligne[]): Ligne[] {
@@ -111,6 +111,9 @@ function violationsOrdre(j: Ligne[], shaCourt: string): string[] {
         if (l.issue === 'ok') verifiee = migree;
         else bloquePar = 'verification';
         break;
+      case 'sauvegarde':
+        if (l.issue !== 'ok') bloquePar = 'sauvegarde';
+        break;
       case 'activation':
         if (!migree) v.push(`activation avant toute migration réussie : ${l.commande}`);
         else if (!verifiee) v.push(`activation sans vérification réussie après la migration : ${l.commande}`);
@@ -134,12 +137,18 @@ function violationsDeploiement(p: Passage, attendu: Attendu): string[] {
   const passage = dernierPassage(journal);
   const docker = passage.filter((l) => DOCKER.has(l.etape));
   const activations = docker.filter((l) => l.etape === 'activation');
+  if (r.en_attente === '1') {
+    const k = docker.findIndex((l) => l.etape === 'migration');
+    const avant = k === -1 ? docker : docker.slice(0, k);
+    if (k !== -1 && !avant.some((l) => l.etape === 'sauvegarde' && l.issue === 'ok')) v.push('migration en attente lancée sans sauvegarde réussie de la base');
+    if (r.sauvegardes === '0' && docker.some((l) => l.etape === 'migration')) v.push('migration lancée alors qu’aucun dump n’a été conservé');
+  }
   switch (attendu) {
     case 'active': {
       const ordre = docker.map((l) => l.etape).join(' → ');
-      if (ordre !== 'construction → base → migration → verification → activation') {
-        v.push(`ordre attendu construction → base → migration → verification → activation, obtenu : ${ordre || '(rien)'}`);
-      }
+      const sauvegarde = docker.some((l) => l.etape === 'sauvegarde');
+      const attenduOrdre = `construction → base → etat_avant → ${sauvegarde ? 'sauvegarde → ' : ''}migration → verification → activation`;
+      if (ordre !== attenduOrdre) v.push(`ordre attendu ${attenduOrdre}, obtenu : ${ordre || '(rien)'}`);
       if (r.code !== '0') v.push(`code de sortie ${r.code} pour un déploiement réussi`);
       if (r.marqueur_apres !== r.cible) v.push('marqueur non avancé après un déploiement réussi');
       break;
@@ -183,6 +192,9 @@ const SCENARIOS: Array<{ nom: string; attendu: Attendu; phrase?: RegExp }> = [
   { nom: 'ops_seul', attendu: 'sans_build', phrase: /Pas de changement de code applicatif · pull seul, aucun rebuild\./ },
   { nom: 'rien', attendu: 'rien' },
   { nom: 'garde_essai', attendu: 'garde', phrase: /ARRÊT · copie d'essai sans COMPOSE_PROJECT_NAME distinct/ },
+  { nom: 'sauvegarde_ko', attendu: 'arrete', phrase: /ÉCHEC · sauvegarde avant migration · pg_dump en échec, aucune migration lancée · aucun conteneur remplacé/ },
+  { nom: 'sauvegarde_vide', attendu: 'arrete', phrase: /ÉCHEC · sauvegarde avant migration · dump vide, aucune migration lancée/ },
+  { nom: 'lecture_avant_ko', attendu: 'active', phrase: /Migration\(s\) en attente :\(base illisible\)[\s\S]*Sauvegarde avant migration OK/ },
 ];
 
 describe('D1 · deploy.sh réel sur le banc · construire, migrer, vérifier, puis activer', () => {
@@ -206,6 +218,24 @@ describe('D1 · deploy.sh réel sur le banc · construire, migrer, vérifier, pu
     expect(violationsDeploiement(p, 'active'), p.sortie).toEqual([]);
     const premier = p.journal.slice(0, p.journal.findIndex((l) => l.etape === 'passage'));
     expect(premier.filter((l) => l.etape === 'activation')).toEqual([]);
+  });
+
+  it('sauvegarde · une migration en attente laisse un dump AVANT de migrer ; sans migration en attente, aucun dump', () => {
+    const avec = lancerBanc('succes');
+    expect(avec.resultat.en_attente).toBe('1');
+    expect(avec.resultat.sauvegardes).toBe('1');
+    expect(avec.sortie).toMatch(/Migration\(s\) en attente : \d{4}_banc_d1 · sauvegarde[\s\S]*Sauvegarde avant migration OK/);
+    const sans = lancerBanc('retour_arriere');
+    expect(sans.resultat.en_attente).toBe('0');
+    expect(sans.resultat.sauvegardes).toBe('0');
+  });
+
+  it('sauvegarde en échec · aucune migration, aucune activation', () => {
+    for (const nom of ['sauvegarde_ko', 'sauvegarde_vide']) {
+      const p = lancerBanc(nom);
+      expect(p.journal.filter((l) => l.etape === 'migration' || l.etape === 'activation'), nom).toEqual([]);
+      expect(p.resultat.sauvegardes, nom).toBe('0');
+    }
   });
 
   it('chaque appel docker vise le projet compose de la copie, jamais un autre', () => {
@@ -254,6 +284,22 @@ const MUTANTS: Array<{ nom: string; avant: string; apres: string; scenario: stri
     apres: 'echo "$REMOTE" > "$MARQUEUR"; docker compose up -d --no-build || echec',
     scenario: 'activation_ko', attendu: 'arrete_a_l_activation',
     phrase: 'marqueur avancé malgré l’échec',
+  },
+  {
+    nom: 'sauvegarde avant migration retirée',
+    avant: 'if [ -n "$en_attente" ]; then',
+    apres: 'if false; then',
+    scenario: 'succes', attendu: 'active',
+    phrase: 'migration en attente lancée sans sauvegarde réussie de la base',
+  },
+  {
+    // Un pg_dump en échec retombe aussi sur ce contrôle (le fichier est effacé) :
+    // c'est le dernier rempart, d'où ce mutant plutôt qu'un « échec ignoré ».
+    nom: 'dump vide accepté',
+    avant: 'if [ ! -s "$DUMP" ] || [ "$(wc -c < "$DUMP")" -lt 500 ]; then',
+    apres: 'if false; then',
+    scenario: 'sauvegarde_vide', attendu: 'arrete',
+    phrase: 'activation malgré l’échec',
   },
   {
     nom: 'migration dans le conteneur en service (exec) au lieu d’un conteneur éphémère',

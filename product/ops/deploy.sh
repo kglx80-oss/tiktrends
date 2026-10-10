@@ -51,6 +51,15 @@ MARQUEUR="$REPO/.tiktrends-deployed-sha"
 # Essais de migration (la base peut démarrer) et pause entre deux, en secondes.
 ESSAIS_MIGRATION=6
 PAUSE=5
+# Sauvegarde AVANT migration · même dossier que la sauvegarde quotidienne
+# (ops/backup.sh) sur le VPS ; une copie d'essai garde les siennes à côté
+# d'elle, jamais dans celui de la production.
+if [ -n "${TIKTRENDS_REPO:-}" ] && [ "$TIKTRENDS_REPO" != "/home/debian/tiktrends" ]; then
+  SAUVEGARDES="${TIKTRENDS_SAUVEGARDES:-$TIKTRENDS_REPO/../sauvegardes}"
+else
+  SAUVEGARDES="${TIKTRENDS_SAUVEGARDES:-/home/debian/backups}"
+fi
+GARDER_AVANT_MIGRATION=5
 
 horodatage() { date -Is; }
 echec() {
@@ -133,6 +142,62 @@ fi
 # drizzle applique toutes les migrations en attente dans UNE transaction : un
 # échec n'en laisse aucune à moitié, et un nouvel essai repart proprement.
 docker compose up -d --no-recreate --no-build db || echec "démarrage de la base"
+
+# Le journal de l'arbre construit · « when<TAB>tag » par migration attendue.
+JOURNAL="$REPO/product/packages/db/drizzle/meta/_journal.json"
+journal_migrations() {
+  # « when<TAB>tag » par entrée · le journal drizzle écrit `when` avant `tag`.
+  local ligne w="" t
+  while IFS= read -r ligne; do
+    case "$ligne" in
+      *'"when"'*) w="${ligne//[^0-9]/}" ;;
+      *'"tag"'*)
+        t="${ligne#*\"tag\"}"; t="${t#*\"}"; t="${t%%\"*}"
+        [ -n "$w" ] && printf '%s\t%s\n' "$w" "$t"
+        w=""
+        ;;
+    esac
+  done < "$JOURNAL"
+}
+ATTENDUES=$(journal_migrations 2>/dev/null || true)
+[ -n "$ATTENDUES" ] || echec "vérification · journal des migrations illisible ($JOURNAL)"
+
+# ── 2a. Sauvegarder AVANT de migrer, dès qu'une migration du journal manque en
+# base (ou que la base ne se laisse pas lire : dans le doute, on sauvegarde).
+# Un dump qui échoue ou sort vide ARRÊTE tout : aucune migration sans copie de
+# la base telle qu'elle était. Restauration : ops/README.md, « Restaurer ».
+# shellcheck disable=SC2016  # les variables sont celles du conteneur db
+AVANT=$(docker compose exec -T db sh -c \
+  'psql -X -At -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select created_at from drizzle.__drizzle_migrations /* etat-avant */"' 2>/dev/null) \
+  || AVANT="illisible"
+en_attente=""
+if [ "$AVANT" = illisible ]; then
+  en_attente="(base illisible)"
+else
+  while IFS=$'\t' read -r w t; do
+    if ! grep -qxF "$w" <<<"$AVANT"; then en_attente="$en_attente $t"; fi
+  done <<<"$ATTENDUES"
+fi
+if [ -n "$en_attente" ]; then
+  mkdir -p "$SAUVEGARDES" || echec "sauvegarde avant migration · dossier $SAUVEGARDES impossible à créer"
+  DUMP="$SAUVEGARDES/avant-migration-$BUILD_SHA-$(date +%Y%m%d-%H%M%S).sql.gz"
+  echo "[$(horodatage)] Migration(s) en attente :$en_attente · sauvegarde de la base vers $DUMP…"
+  # shellcheck disable=SC2016  # les variables sont celles du conteneur db
+  if ! docker compose exec -T db sh -c \
+      'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' \
+      | gzip > "$DUMP"; then
+    rm -f "$DUMP"
+    echec "sauvegarde avant migration · pg_dump en échec, aucune migration lancée"
+  fi
+  if [ ! -s "$DUMP" ] || [ "$(wc -c < "$DUMP")" -lt 500 ]; then
+    rm -f "$DUMP"
+    echec "sauvegarde avant migration · dump vide, aucune migration lancée"
+  fi
+  echo "[$(horodatage)] Sauvegarde avant migration OK : $DUMP ($(wc -c < "$DUMP") octets)."
+  # Rotation propre à ces sauvegardes · la quotidienne (tiktrends-*.sql.gz) n'est pas touchée.
+  ls -1t "$SAUVEGARDES"/avant-migration-*.sql.gz 2>/dev/null | tail -n +$((GARDER_AVANT_MIGRATION + 1)) | xargs -r rm -f
+fi
+
 migrees=0
 for i in $(seq 1 "$ESSAIS_MIGRATION"); do
   if docker compose run --rm --no-deps -T -w /app workers pnpm --filter @tiktrends/db migrate; then
@@ -152,23 +217,6 @@ fi
 # migrations que la base, qui reste en avance (L9-MIGRATION §5) · c'est attendu.
 # Ce contrôle attrape ce que drizzle tait : une migration dont le `when` est plus
 # ancien que la dernière appliquée est ignorée SANS erreur.
-JOURNAL="$REPO/product/packages/db/drizzle/meta/_journal.json"
-journal_migrations() {
-  # « when<TAB>tag » par entrée · le journal drizzle écrit `when` avant `tag`.
-  local ligne w="" t
-  while IFS= read -r ligne; do
-    case "$ligne" in
-      *'"when"'*) w="${ligne//[^0-9]/}" ;;
-      *'"tag"'*)
-        t="${ligne#*\"tag\"}"; t="${t#*\"}"; t="${t%%\"*}"
-        [ -n "$w" ] && printf '%s\t%s\n' "$w" "$t"
-        w=""
-        ;;
-    esac
-  done < "$JOURNAL"
-}
-ATTENDUES=$(journal_migrations 2>/dev/null || true)
-[ -n "$ATTENDUES" ] || echec "vérification · journal des migrations illisible ($JOURNAL)"
 # shellcheck disable=SC2016  # les variables sont celles du conteneur db
 APPLIQUEES=$(docker compose exec -T db sh -c \
   'psql -X -At -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select created_at from drizzle.__drizzle_migrations"') \
