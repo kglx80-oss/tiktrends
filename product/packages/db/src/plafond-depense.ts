@@ -97,6 +97,61 @@ export async function depenseDepuis(base: BaseDepense, depuis: Date): Promise<nu
 }
 
 /**
+ * Budget d'ESSAI d'un espace · plafond CUMULÉ (sans fenêtre glissante) posé
+ * par la plateforme sur un espace pilote, en plus du plafond global
+ * `AI_SPEND_CAP_USD` qu'il ne remplace pas. Mandat du 10/10 : « 15 $ cumulés
+ * pour l'ensemble des tests, dépenses précédentes et relances comprises, sans
+ * recharge ; vérifier le montant restant avant chaque appel ». Toute dépense
+ * de l'espace depuis `depuis` compte (Studios ET outils historiques, relances
+ * et réservations incertaines au maximum) : c'est le côté prudent.
+ *
+ * Stocké dans `app_settings` (aucune migration), clé `budget_essai:<espace>`,
+ * valeur `{ plafondUsd, depuis, motif, par, le }`. Lu par `reserverDepense`
+ * SOUS LE VERROU commun : aucun chemin payant (site ou worker) ne l'évite.
+ */
+export const PREFIXE_CLE_BUDGET_ESSAI = 'budget_essai:';
+export const cleBudgetEssai = (workspaceId: string) => `${PREFIXE_CLE_BUDGET_ESSAI}${workspaceId}`;
+
+export interface BudgetEssai { plafondUsd: number; depuis: Date; motif: string; par: string | null; le: string | null }
+
+/** Valeur stockée → budget lisible, ou `null` (absente ou illisible : aucun budget d'espace). */
+export function lireBudgetEssai(brut: unknown): BudgetEssai | null {
+  const o = brut as Record<string, unknown> | null;
+  if (!o || typeof o !== 'object') return null;
+  const plafond = Number(o.plafondUsd);
+  const depuis = typeof o.depuis === 'string' ? new Date(o.depuis) : null;
+  if (!Number.isFinite(plafond) || plafond < 0 || !depuis || Number.isNaN(depuis.getTime())) return null;
+  return { plafondUsd: plafond, depuis, motif: typeof o.motif === 'string' ? o.motif : '', par: typeof o.par === 'string' ? o.par : null, le: typeof o.le === 'string' ? o.le : null };
+}
+
+/**
+ * La règle, pure · refus si la dépense déjà engagée PLUS cet appel dépasse le
+ * plafond. À 1/10 000 de dollar près (arrondi des micro-dollars).
+ */
+export function decisionBudgetEssai(engageUsd: number, appelUsd: number, plafondUsd: number): { allowed: boolean; reason: string; restantUsd: number } {
+  const restant = Math.max(0, plafondUsd - engageUsd);
+  if (engageUsd + appelUsd > plafondUsd + 1e-4) {
+    return { allowed: false, restantUsd: restant, reason: `budget d’essai de l’espace atteint · ${engageUsd.toFixed(2)} $ engagés sur ${plafondUsd.toFixed(2)} $, cet appel réserve ${appelUsd.toFixed(2)} $ (reste ${restant.toFixed(2)} $)` };
+  }
+  return { allowed: true, restantUsd: restant, reason: '' };
+}
+
+/** Dépense CUMULÉE d'un espace depuis une date · même montant retenu que le plafond (R5). */
+export async function depenseEspaceDepuis(base: BaseDepense, workspaceId: string, depuis: Date): Promise<number> {
+  const [r] = await base.select({ total: sql<number>`coalesce(sum(${montantRetenuSql()}), 0)` })
+    .from(schema.aiSpend)
+    .leftJoin(schema.aiSpendReconciliations, eq(schema.aiSpendReconciliations.aiSpendId, schema.aiSpend.id))
+    .where(and(eq(schema.aiSpend.workspaceId, workspaceId), gte(schema.aiSpend.createdAt, depuis)));
+  return Number(r?.total ?? 0);
+}
+
+/** Le budget d'essai posé sur un espace, lu dans `app_settings` (ou `null`). */
+export async function budgetEssaiDe(base: BaseDepense, workspaceId: string): Promise<BudgetEssai | null> {
+  const [l] = await base.select({ value: schema.appSettings.value }).from(schema.appSettings).where(eq(schema.appSettings.key, cleBudgetEssai(workspaceId))).limit(1);
+  return lireBudgetEssai(l?.value ?? null);
+}
+
+/**
  * Réserve une dépense AVANT l'appel payant · verrou, somme, décision, ligne,
  * dans UNE transaction. Une ligne déjà présente pour un identifiant imposé veut
  * dire qu'une soumission a déjà été engagée pour ce job : refus, la ligne
@@ -116,6 +171,15 @@ export async function reserverDepense(
     const depense = await depenseDepuis(tx as unknown as BaseDepense, o.depuis);
     const d = o.decider(depense);
     if (!d.allowed) return { ok: false as const, raison: d.reason, dejaEngagee: false };
+    // Budget d'essai de l'espace · relu ICI, sous le verrou, pour chaque appel.
+    if (ligne.workspaceId) {
+      const budget = await budgetEssaiDe(tx as unknown as BaseDepense, ligne.workspaceId);
+      if (budget) {
+        const engage = await depenseEspaceDepuis(tx as unknown as BaseDepense, ligne.workspaceId, budget.depuis);
+        const b = decisionBudgetEssai(engage, ligne.usd, budget.plafondUsd);
+        if (!b.allowed) return { ok: false as const, raison: b.reason, dejaEngagee: false };
+      }
+    }
     const [ecrite] = await tx.insert(schema.aiSpend).values({
       ...(ligne.id ? { id: ligne.id } : {}),
       workspaceId: ligne.workspaceId, provider: ligne.provider, model: ligne.model, action: ligne.action,

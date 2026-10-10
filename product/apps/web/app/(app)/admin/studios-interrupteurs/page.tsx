@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { aPermissionPlateforme } from '@tiktrends/core';
 import { gardePlateforme } from '../../../../lib/studios/prompts/garde-prompts';
 import { vueInterrupteurs } from '../../../../lib/studios/interrupteurs';
+import { vueBudgetEssai } from '../../../../lib/studios/budget-essai';
 import { cadrePage } from '../../../../components/ui';
 import { EcranInterrupteurs, EnTeteInterrupteurs } from './Ecran';
 
@@ -37,10 +38,12 @@ export default async function InterrupteursPage({ searchParams }: { searchParams
   const espace = typeof sp.espace === 'string' ? sp.espace : null;
   const vue = await vueInterrupteurs({ recherche: sp.q ?? null, espace });
   const detail = espace ? vue.espaces.find((w) => w.id === espace) ?? null : null;
+  const b = detail ? await vueBudgetEssai(detail.id) : null;
+  const budget = b ? { plafondUsd: b.budget.plafondUsd, depuis: b.budget.depuis.toISOString(), engageUsd: b.engageUsd, restantUsd: b.restantUsd, motif: b.budget.motif } : null;
   return (
     <main style={cadrePage}>
       <EnTeteInterrupteurs />
-      <EcranInterrupteurs vue={vue} detail={detail} peutEcrire={aPermissionPlateforme(g.ctx.permissions, 'provider.configure')} recherche={sp.q ?? ''} />
+      <EcranInterrupteurs vue={vue} detail={detail} peutEcrire={aPermissionPlateforme(g.ctx.permissions, 'provider.configure')} recherche={sp.q ?? ''} budget={budget} />
     </main>
   );
 }
