@@ -59,3 +59,22 @@ OK », « Vérification · 57 migration(s) du journal toutes en base », « Dép
 
 En cas de `ÉCHEC` : rien n'est remplacé, l'ancienne version reste servie, le tick suivant réessaie. Copier
 les 60 lignes du journal dans le fil (aucun secret n'y figure) ; ne pas relancer à la main en boucle.
+
+## 4. Ce qui a été fusionné sur `main` (10/10), dans l'ordre
+
+Chaque fusion déclenche le déploiement automatique ; la session ne le voit pas (§3 pour le lire).
+
+| PR | Commit sur `main` | Contenu | Migration |
+| --- | --- | --- | --- |
+| #769 | `b4c3b53` | D1 seul : sauvegarde avant migration, migration en conteneur éphémère, vérification, PUIS activation | aucune |
+| #741 | `089ef13` | Studios v1.0 complet (L0 à L9, F, G, R, E, F1), worker Studios en production | **0054, 0055, 0056** |
+| #770 | `ff0c696` | prompts · recette manuelle (publication sans benchmark), validation groupée des imports | aucune |
+| #771 | `9bce928` | budget d'essai cumulé par espace, vérifié avant chaque appel payant | aucune |
+| #772 | `0ff46b7` | Projets dans le rail, bouton « Nouveau projet » | aucune |
+| #773 | `51efcbd` | sorties Studios livrées dans la bibliothèque `/assets` | aucune |
+| #774 | `1eb1a94` | Jarvis connaît les projets Studios et y renvoie | aucune |
+| #775 | `73323b7` | DA de marque dans le contexte Studios, créations précédentes comme sources | aucune |
+
+SHA attendu en ligne après ces fusions : celui de la dernière PR de code (`73323b7`), ou celui de cette PR
+de documentation si le timer l'a déjà tirée (aucun rebuild pour une PR docs seule, marqueur avancé).
+Migrations attendues en base : **57**. Recette manuelle : `RECETTE-MANUELLE.md`.
