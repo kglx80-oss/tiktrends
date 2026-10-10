@@ -2,8 +2,8 @@
   "versionDossier": "1.0",
   "mandat": "Kevin, 7 octobre 2026 : reprise autorisée du chantier Studios v1.0, autonomie sur les choix techniques ordinaires, publication après recette indépendante et sous CI/protections.",
   "shaDepart": "bc33cec80a8c76db1ff7ffbbdec5e9297ae42fb0",
-  "shaCourant": "dde4b52",
-  "lotCourant": "vague 10 intégrée (dde4b52) · feu vert Codex pour la preuve Docker isolée puis un premier rendu réel (propriétaire)",
+  "shaCourant": "73323b7",
+  "lotCourant": "mise en ligne du 10/10 · tout fusionné sur main (#769, #741, #770 à #775) · déployé NON validé manuellement · recette manuelle propriétaire + Codex (L9/RECETTE-MANUELLE.md)",
   "lots": {
     "L0": "LOCAL_VERIFIED",
     "L1": "LOCAL_VERIFIED",
@@ -1372,5 +1372,55 @@
       "verdict": "Feu vert pour la preuve Docker isolée sous Linux puis, si elle réussit, un premier rendu réel sous le plafond global cumulatif de 15 $. Ni fusion inconditionnelle ni validation de production.",
       "suite": "P2 corrigée sur #768 (c23c7b6) : refus explicite hors plateforme sondable ; intégration dde4b52"
     }
-  ]
+  ],
+  "miseEnLigne": {
+    "mandat": "propriétaire, 10/10 · déploiement complet sur l’OVH actuel, benchmark et recette Docker isolée retirés des préalables, tests manuels après déploiement, 15 $ cumulés pour les essais payants sur l’espace pilote",
+    "fusions": [
+      {
+        "pr": 769,
+        "sha": "b4c3b53"
+      },
+      {
+        "pr": 741,
+        "sha": "089ef13",
+        "migrations": [
+          "0054",
+          "0055",
+          "0056"
+        ]
+      },
+      {
+        "pr": 770,
+        "sha": "ff0c696"
+      },
+      {
+        "pr": 771,
+        "sha": "9bce928"
+      },
+      {
+        "pr": 772,
+        "sha": "0ff46b7"
+      },
+      {
+        "pr": 773,
+        "sha": "51efcbd"
+      },
+      {
+        "pr": 774,
+        "sha": "1eb1a94"
+      },
+      {
+        "pr": 775,
+        "sha": "73323b7"
+      }
+    ],
+    "statut": "DEPLOYE_NON_OBSERVE · la session ne voit ni le VPS ni l’application ; à lire par le propriétaire (L9/MISE-EN-LIGNE.md §3)",
+    "valideManuellement": [],
+    "depensesEssaisUsd": 0,
+    "indisponibles": [
+      "animation vidéo et rendu vidéo final (aucun fournisseur d’animation)",
+      "voix et lipsync (aucun fournisseur)",
+      "benchmark réel (retiré des préalables)"
+    ]
+  }
 }
