@@ -44,9 +44,10 @@ describe('worker Studios · fournisseur réel branché en production', () => {
   });
 
   it('avec ce seul environnement (et une clé, un stockage), le worker branche fal', () => {
-    const env = { ...environnement(blocService(PROD, 'workers')), FAL_KEY: 'cle-reelle', S3_ENDPOINT: 'e', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'i', S3_SECRET_ACCESS_KEY: 's' };
+    const env: Record<string, string> = { ...environnement(blocService(PROD, 'workers')), FAL_KEY: 'cle-reelle', S3_ENDPOINT: 'e', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'i', S3_SECRET_ACCESS_KEY: 's' };
     expect(decisionFournisseurStudio(env)).toMatchObject({ ok: true });
-    const { NODE_ENV: _retire, ...sans } = env;
+    const sans = { ...env };
+    delete sans.NODE_ENV;
     expect(decisionFournisseurStudio(sans)).toMatchObject({ ok: false });
   });
 
