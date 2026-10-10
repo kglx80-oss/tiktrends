@@ -27,51 +27,24 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
 
 // Catalogue des fonctionnalités : rôle minimum + abonnement minimum.
 /**
- * Groupes du rail · des LIEUX, pas des impératifs.
+ * Groupe du rail · UX V2 (maquettes validées par Kevin, 10/10).
  *
- * « Piloter, Trouver, Créer, Tester » disait juste et ne racontait rien · quatre
- * ordres donnés à quelqu'un qui travaille déjà. On ne « crée » pas : on va à
- * l'atelier. On ne « teste » pas : on va au laboratoire, avec une hypothèse et
- * un protocole — ce qui est exactement ce qu'Adsmap fait.
+ * Le rail est une liste PLATE de modules, dans l'ordre du travail · Accueil,
+ * Veille, Studios, Bibliothèque, Résultats, Jarvis. Les anciennes rubriques
+ * (Observer · Créer · Tester, ex-Observatoire · Atelier · Laboratoire) ne
+ * s'affichent plus · elles alourdissaient un rail de six entrées et nommaient
+ * des lieux que l'utilisateur ne retrouvait nulle part ailleurs.
  *
- * Ils suivent toujours la BOUCLE de travail, pas l'ordre d'arrivée des
- * fonctionnalités.
- *
- * « Analyse » et « Création » dataient d'avant les modules récents : Jarvis y
- * était rangé dans Création alors qu'il est le cerveau, et Adsmap dans Analyse
- * alors qu'il pilote des tests. On lit désormais le rail de haut en bas comme on
- * travaille : on regarde où on en est, on cherche, on crée, on teste et on
- * apprend.
+ * Les sous-écrans gardent leur entrée (droits, palette, matrice d'équipe) ·
+ * le rail n'en montre que la tête, et la page les présente en ONGLETS
+ * (`sectionsRail`, `sectionDuChemin`, plus bas). `account` porte le menu
+ * profil (Compte, Espace, Admin).
  */
-export type NavGroup = 'Accueil' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'account';
-/**
- * L'ordre du rail suit la BOUCLE de travail, pas l'ordre historique.
- *
- * Le produit fait une seule chose · trouver une créative gagnante, la refaire,
- * l'affiner. Cette boucle est observer → créer → tester. Le rail ouvrait sur
- * « Pilotage » (le tableau de bord · un regard en arrière), reléguant le
- * travail réel dessous. On mène par la boucle ; le pilotage, qu'on consulte,
- * vient après.
- */
-// « Accueil » MÈNE le rail, en entrée AUTONOME (façon Flora · Kevin 30/09) · une
-// tête seule, sans en-tête de section, avant la boucle. Puis on lit le rail comme
-// on travaille · observer → créer → tester.
-//
-// Lot 19A (mandat du 5/10, remplace l'arbitrage du 30/09) · le groupe
-// « Piloter » disparaît · le Pilotage est REGROUPÉ sous l'Accueil · « Analytics »
-// y est une sous-entrée (`/dashboard?vue=analytics`), la vue Analytics de
-// l'Accueil. `/analytics` reste une route valide (307 vers la vue).
-export const RAIL_GROUPS: NavGroup[] = ['Accueil', 'Observatoire', 'Atelier', 'Laboratoire'];
-/**
- * Ce que le rail AFFICHE · le verbe de l'étape, pas le nom de musée. Les clés
- * internes ne bougent pas (elles servent aussi au fil d'Ariane) · seul le
- * libellé montré nomme le geste, pour qu'on lise le rail comme la boucle.
- *
- * « Accueil » n'a PAS de libellé de section (chaîne vide) · c'est une entrée
- * autonome en tête, pas une rubrique · le rail ne pose aucun en-tête au-dessus.
- */
+export type NavGroup = 'Principal' | 'account';
+export const RAIL_GROUPS: NavGroup[] = ['Principal'];
+/** Libellé d'en-tête affiché au-dessus d'un groupe · vide · le rail plat n'en pose aucun. */
 export const RAIL_GROUP_LABEL: Record<string, string> = {
-  Accueil: '', Observatoire: 'Observer', Atelier: 'Créer', Laboratoire: 'Tester',
+  Principal: '',
 };
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
@@ -94,62 +67,47 @@ export interface Feature {
   minRole: Role;
   minPlan: Plan;
   soon?: boolean;    // fonctionnalité à venir (affichée grisée)
-  /**
-   * Branche DÉPLIÉE d'office, où que l'on soit (lot 19A) · « Analytics » était
-   * une entrée de tête · regroupée sous l'Accueil, elle reste à un clic.
-   */
-  deplie?: boolean;
 }
 
 export const FEATURES: Feature[] = [
-  // ── Accueil · l'entrée autonome en tête (façon Flora · Kevin 30/09) ────────
-  // « Accueil » (ex-« Dashboard ») MÈNE le rail, sans en-tête de section.
-  // La cible reste /dashboard · c'est la vraie page d'accueil · sa vue
-  // Analytics est la sous-entrée qui suit.
-  { key: 'dashboard', label: 'Accueil',      href: '/dashboard',   icon: 'grid',   group: 'Accueil',   deplie: true, minRole: 'client_viewer', minPlan: 'starter' },
+  // ── Rail UX V2 (maquettes validées par Kevin, 10/10) ─────────────────────
+  // Une liste PLATE, dans l'ordre du travail : Accueil, Veille, Studios,
+  // Bibliothèque, Résultats, Jarvis. Les sous-écrans gardent leur entrée (droits,
+  // palette, fil d'Ariane) mais ne sont plus dans le rail · ils deviennent les
+  // ONGLETS de leur section (`ongletsSection`), et la section reste allumée sur
+  // tous ses descendants. Rôles, formules et rubriques : INCHANGÉS.
 
-  // Analytics · le Pilotage regroupé SOUS l'Accueil (lot 19A) · même chemin que
-  // l'Accueil, la vue `?vue=analytics`. Mêmes droits qu'avant (rôle, formule,
-  // rubrique `analytics` de la matrice d'équipe) · seule l'adresse change.
-  { key: 'analytics', label: 'Analytics',    href: '/dashboard?vue=analytics', icon: 'chart', group: 'Accueil', parent: 'dashboard', minRole: 'client_viewer', minPlan: 'starter' },
+  // Accueil · sa vue Analytics est un onglet de la page (`?vue=analytics`).
+  { key: 'dashboard', label: 'Accueil',      href: '/dashboard',   icon: 'grid',   group: 'Principal', minRole: 'client_viewer', minPlan: 'starter' },
+  { key: 'analytics', label: 'Analytics',    href: '/dashboard?vue=analytics', icon: 'chart', group: 'Principal', parent: 'dashboard', minRole: 'client_viewer', minPlan: 'starter' },
 
-  // ── Trouver · ce que fait le marché ───────────────────────────────────────
-  { key: 'inspo',     label: 'Veille',       href: '/veille',       icon: 'bulb',   group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
-  { key: 'scale',     label: 'Ce qui scale', href: '/veille/scale', icon: 'trend',  group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
-  { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Observatoire', parent: 'inspo', minRole: 'member', minPlan: 'core' },
-  // Formats créatifs v1 (lot 19C) · les sauvegardes classées à la main, par format.
-  { key: 'formats',   label: 'Formats',      href: '/veille/formats', icon: 'tag', group: 'Observatoire', parent: 'inspo', minRole: 'member', minPlan: 'core' },
-  { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Observatoire',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
-  // « Radar créatif » et non « Radar » · le module Adsmap en a un autre, et
-  // deux entrées du même nom obligent à cliquer pour savoir laquelle est laquelle.
-  // Pas « Radar produits » · la page note des CRÉAS (Hook/Hold/CTR/Conv), elle
-  // ne repère aucun produit (recette #106 · promesse erronée).
-  { key: 'radar',     label: 'Radar créatif', href: '/radar',     icon: 'radar',  group: 'Observatoire',  minRole: 'member',        minPlan: 'core' },
+  // Veille · source → analyse → projet. « Radar créatif » (créas à retravailler)
+  // rejoint la Veille · même droit qu'avant (member, core).
+  { key: 'inspo',     label: 'Veille',       href: '/veille',       icon: 'bulb',   group: 'Principal',  minRole: 'member',        minPlan: 'core' },
+  { key: 'scale',     label: 'Ce qui scale', href: '/veille/scale', icon: 'trend',  group: 'Principal',  parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'saved',     label: 'Sauvegardes',  href: '/saved',       icon: 'bookmark', group: 'Principal', parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'formats',   label: 'Formats',      href: '/veille/formats', icon: 'tag', group: 'Principal', parent: 'inspo', minRole: 'member', minPlan: 'core' },
+  { key: 'tags',      label: 'Tagging',      href: '/tags',        icon: 'tag',    group: 'Principal',  parent: 'inspo', minRole: 'member', minPlan: 'starter' },
+  // « Radar créatif » et non « Radar » · Résultats en a un autre (radar de veille).
+  { key: 'radar',     label: 'Radar créatif', href: '/radar',     icon: 'radar',  group: 'Principal',  parent: 'inspo', minRole: 'member',        minPlan: 'core' },
 
-  // ── Créer · Jarvis d'abord, c'est par lui qu'on entre ─────────────────────
-  // Le rail le montre à partir de `core` : l'état des couches et les actions de
-  // description valent pour tout le monde. Ce qui demande l'offre Plus, c'est la
-  // mémoire MESURÉE, et c'est la page qui le dit.
-  { key: 'jarvis',    label: 'Jarvis',       href: '/jarvis',      icon: 'brain',  group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
-  // Une seule entrée de création · les Studios, c'est-à-dire la liste des
-  // projets (mandat du 10/10 · Pubs IA, Image IA, Vidéo IA, Textes IA et
-  // l'ancien hub sont retirés ; image, texte, vidéo et canvas vivent DANS le
-  // projet). La clé reste `studio` · c'est elle que la garde serveur lit
-  // (`gardeStudio` · `FEATURE_STUDIO`) : l'affichage change, les droits non.
-  { key: 'studio',    label: 'Studios',      href: '/studio/projets', icon: 'spark', group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
-  { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
+  // Studios · une seule entrée de création (mandat du 10/10). La clé reste
+  // `studio` · c'est elle que la garde serveur lit (`gardeStudio`).
+  { key: 'studio',    label: 'Studios',      href: '/studio/projets', icon: 'spark', group: 'Principal',    minRole: 'member',        minPlan: 'core' },
+  // Bibliothèque · anciennes et nouvelles créations, médias importés.
+  { key: 'assets',    label: 'Bibliothèque', href: '/assets',      icon: 'layers', group: 'Principal',    minRole: 'member',        minPlan: 'core' },
 
-  // ── Tester · la boucle hypothèse → verdict → itération ────────────────────
-  // Les sous-écrans figurent dans le rail comme ceux du Studio. Ils vivaient
-  // jusqu'ici dans une barre de sept boutons en haut de la carte, invisibles
-  // depuis n'importe quel autre écran.
-  { key: 'adsmap',    label: 'Adsmap',       href: '/adsmap',      icon: 'radar',  group: 'Laboratoire',   minRole: 'member',        minPlan: 'plus' },
-  { key: 'suites',    label: 'Suites',       href: '/adsmap/suites', icon: 'trend', group: 'Laboratoire',  parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
-  { key: 'lots',      label: 'Lots de test', href: '/adsmap/lots', icon: 'layers', group: 'Laboratoire',   parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
-  { key: 'ttradar',   label: 'Radar de veille', href: '/adsmap/radar', icon: 'radar', group: 'Laboratoire', parent: 'adsmap', minRole: 'admin', minPlan: 'plus' },
-  { key: 'tri',       label: 'Tri des propositions', href: '/adsmap/tri', icon: 'check', group: 'Laboratoire', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
-  { key: 'protocole', label: 'Protocole & seuils', href: '/adsmap/protocole', icon: 'gauge', group: 'Laboratoire', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
-  { key: 'import',    label: 'Importer',     href: '/adsmap/import', icon: 'store', group: 'Laboratoire',  parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
+  // Résultats · hypothèse → lot → mesures → apprentissage (module Adsmap).
+  { key: 'adsmap',    label: 'Résultats',    href: '/adsmap',      icon: 'chart',  group: 'Principal',   minRole: 'member',        minPlan: 'plus' },
+  { key: 'tri',       label: 'Tri des propositions', href: '/adsmap/tri', icon: 'check', group: 'Principal', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
+  { key: 'lots',      label: 'Lots de test', href: '/adsmap/lots', icon: 'layers', group: 'Principal',   parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
+  { key: 'protocole', label: 'Protocole & seuils', href: '/adsmap/protocole', icon: 'gauge', group: 'Principal', parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
+  { key: 'import',    label: 'Importer',     href: '/adsmap/import', icon: 'store', group: 'Principal',  parent: 'adsmap', minRole: 'admin',  minPlan: 'plus' },
+  { key: 'suites',    label: 'Suites',       href: '/adsmap/suites', icon: 'trend', group: 'Principal',  parent: 'adsmap', minRole: 'member', minPlan: 'plus' },
+  { key: 'ttradar',   label: 'Radar de veille', href: '/adsmap/radar', icon: 'radar', group: 'Principal', parent: 'adsmap', minRole: 'admin', minPlan: 'plus' },
+
+  // Jarvis · conversation globale et sources (les sources s'ouvrent depuis la page).
+  { key: 'jarvis',    label: 'Jarvis',       href: '/jarvis',      icon: 'brain',  group: 'Principal',    minRole: 'member',        minPlan: 'core' },
 
   // Menu profil · Compte (personnel · tous les rôles)
   { key: 'support',   label: 'Support',      href: '/support',     icon: 'help',   group: 'account', section: 'Compte', minRole: 'client_viewer', minPlan: 'starter' },
@@ -266,4 +224,41 @@ export function sectionsCompteOuvertes(a: Access): Array<{ section: AccountSecti
   return accountSections(a)
     .map((g) => (g.section === 'Espace' && !roleAtLeast(a.role, 'admin') ? { ...g, items: [] } : g))
     .filter((g) => g.items.length > 0);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Rail UX V2 · sections et onglets (pur, testable)                          */
+/* -------------------------------------------------------------------------- */
+
+/** Une section du rail · son entrée et ses sous-écrans visibles (onglets de page). */
+export interface EntreeRail { key: string; href: string; isSub: boolean }
+export interface SectionRail<T extends EntreeRail = NavItem> { tete: T; onglets: T[] }
+
+const cheminDe = (href: string): string => href.split('#')[0]!.split('?')[0]!;
+const contient = (base: string, chemin: string): boolean => chemin === base || chemin.startsWith(base + '/');
+
+/** Les sections du rail, à partir de la navigation déjà filtrée par les droits (`railNav`). */
+export function sectionsRail<T extends EntreeRail>(nav: Array<{ items: T[] }>): Array<SectionRail<T>> {
+  const out: Array<SectionRail<T>> = [];
+  for (const it of nav.flatMap((g) => g.items)) {
+    if (it.isSub && out.length) out[out.length - 1]!.onglets.push(it);
+    else if (!it.isSub) out.push({ tete: it, onglets: [] });
+  }
+  return out;
+}
+
+/**
+ * La section qui CONTIENT un chemin · son entrée, ou l'un de ses sous-écrans,
+ * ou un de leurs descendants (« Studios » reste allumé dans un projet, « Veille »
+ * sur les Sauvegardes). La section la plus précise gagne.
+ */
+export function sectionDuChemin<T extends EntreeRail>(sections: ReadonlyArray<SectionRail<T>>, pathname: string): SectionRail<T> | null {
+  let meilleure: { s: SectionRail<T>; long: number } | null = null;
+  for (const s of sections) {
+    for (const href of [s.tete.href, ...s.onglets.map((o) => o.href)]) {
+      const base = cheminDe(href);
+      if (contient(base, pathname) && (!meilleure || base.length > meilleure.long)) meilleure = { s, long: base.length };
+    }
+  }
+  return meilleure?.s ?? null;
 }

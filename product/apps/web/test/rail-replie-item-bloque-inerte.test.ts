@@ -16,7 +16,7 @@ import { join } from 'node:path';
  */
 const src = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
 const iStart = src.indexOf('? nav.flatMap((grp) => branchesOf');
-const iEnd = src.indexOf(': nav.map((grp) => (', iStart);
+const iEnd = src.indexOf('Rail UX V2 · une entrée par section', iStart);
 const branche = src.slice(iStart, iEnd > iStart ? iEnd : undefined);
 
 describe('Rail replié · un item bloqué est inerte, pas un lien mort', () => {

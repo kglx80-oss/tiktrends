@@ -7,7 +7,8 @@ import { FEATURES, canAccess, railNav, rubriqueDeFeature, type Access } from '..
  * (`railNav`, la liste exacte que le rail affiche) et l'état actif calculé au
  * noyau (`railEntreeActive`, celui qu'utilise AppShell).
  *
- * - member · core · présente sous Veille, juste après Sauvegardes, ouverte ;
+ * - member · core · présente sous Veille, juste après Sauvegardes, ouverte
+ *   (UX V2 · les sous-entrées sont les ONGLETS de la section Veille) ;
  * - offre sous Core · présente mais VERROUILLÉE, comme Veille et Sauvegardes
  *   (le rail montre les rubriques de l'offre supérieure, la page explique) ;
  * - rôle inférieur (lecteur client) · absente ;
@@ -20,7 +21,7 @@ describe('rail · entrée « Formats »', () => {
     const l = items({ role: 'member', plan: 'core' });
     const f = l.find((i) => i.key === 'formats');
     expect(f, 'l’entrée Formats manque au rail').toBeTruthy();
-    expect(f).toMatchObject({ label: 'Formats', href: '/veille/formats', parent: 'inspo', isSub: true, locked: false, groupe: 'Observatoire' });
+    expect(f).toMatchObject({ label: 'Formats', href: '/veille/formats', parent: 'inspo', isSub: true, locked: false, groupe: 'Principal' });
     const cles = l.map((i) => i.key);
     expect(cles.indexOf('formats')).toBe(cles.indexOf('saved') + 1);
   });

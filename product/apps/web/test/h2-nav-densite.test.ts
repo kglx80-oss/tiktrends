@@ -24,10 +24,10 @@ describe('H2 · densité du rail câblée par pointeur', () => {
 });
 
 describe('H2 · « Accueil » mène en entrée autonome', () => {
-  it('le groupe sans libellé (Accueil) ne rend AUCUN en-tête de section', () => {
-    // L'en-tête de section n'est rendu que si le groupe a un libellé · l'Accueil
-    // autonome (libellé vide) reste une tête seule, sans rubrique au-dessus.
-    expect(SHELL).toContain('{grp.group && <div');
+  it('UX V2 · le rail plat ne rend AUCUN en-tête de groupe au-dessus des modules', () => {
+    // L'ordre et l'absence d'en-tête sont vérifiés au RENDU (uxv2-rail-rendu) ·
+    // ici, on garde que l'ancien en-tête de groupe n'a pas été recâblé.
+    expect(SHELL).not.toContain('{grp.group && <div');
   });
 });
 

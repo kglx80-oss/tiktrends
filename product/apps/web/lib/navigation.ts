@@ -40,6 +40,17 @@ import { CHEMIN_ACCUEIL, RUBRIQUE_ANALYTICS, lireVueAccueil, DEFINITIONS_CAPACIT
 /** Sections de premier niveau · elles ouvrent tout fil d'Ariane. */
 export type Section = 'Pilotage' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'Espace' | 'Plateforme';
 
+/**
+ * Les sections que le fil d'Ariane NOMME. Le rail UX V2 est une liste plate
+ * (Accueil, Veille, Studios, Bibliothèque, Résultats, Jarvis) · les anciens
+ * noms de rubrique (Observatoire, Atelier, Laboratoire) n'apparaissent plus
+ * nulle part à l'écran ; les écrire dans le fil donnerait un nom que
+ * l'utilisateur ne retrouve pas dans le menu. Espace et Plateforme restent
+ * nommés · ce sont les deux blocs distincts du rail (« Votre espace »,
+ * Administration). La clé `section` reste sur chaque route (regroupements).
+ */
+export const SECTIONS_NOMMEES_FIL: ReadonlySet<Section> = new Set<Section>(['Espace', 'Plateforme']);
+
 export interface RouteNode {
   /** Motif de chemin · les segments dynamiques s'écrivent `[id]`. */
   path: string;
@@ -64,10 +75,10 @@ export const ROUTES: RouteNode[] = [
   // ── Analyse ────────────────────────────────────────────────────────────────
   { path: '/dashboard', label: 'Accueil', section: 'Pilotage' },
   { path: '/analytics', label: 'Analytics', section: 'Pilotage' },
-  { path: '/radar', label: 'Radar créatif', section: 'Observatoire' },
+  { path: '/radar', label: 'Radar créatif', parent: '/veille', section: 'Observatoire' },
   { path: '/tags', label: 'Tagging', parent: '/veille', section: 'Observatoire' },
 
-  { path: '/adsmap', label: 'Adsmap', section: 'Laboratoire' },
+  { path: '/adsmap', label: 'Résultats', section: 'Laboratoire' },
   { path: '/adsmap/suites', label: 'Suites', parent: '/adsmap', section: 'Laboratoire' },
   { path: '/adsmap/lots', label: 'Lots de test', parent: '/adsmap', section: 'Laboratoire' },
   { path: '/adsmap/protocole', label: 'Protocole & seuils', parent: '/adsmap', section: 'Laboratoire' },
@@ -107,7 +118,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/studio/projets/[id]/export', label: 'Exporter l’image', parent: '/studio/projets/[id]', section: 'Atelier' },
   { path: '/studio/projets/[id]/video', label: 'Vidéo · storyboard et montage', parent: '/studio/projets/[id]', section: 'Atelier' },
 
-  { path: '/assets', label: 'Assets', section: 'Atelier' },
+  { path: '/assets', label: 'Bibliothèque', section: 'Atelier' },
 
   // ── Espace ─────────────────────────────────────────────────────────────────
   { path: '/brands', label: 'Marques', section: 'Espace' },
@@ -282,7 +293,8 @@ export function breadcrumb(pathname: string, opts: CrumbOptions = {}): Crumb[] {
   // le rail. N'apparaît que sur les pages DESCENDUES · une racine de section ne
   // rend aucun fil (voir plus haut), donc jamais d'« Accueil » qui pointerait
   // sur la page qu'on regarde.
-  const crumbs: Crumb[] = [{ label: 'Accueil', href: '/dashboard' }, { label: route.section, href: null }];
+  const crumbs: Crumb[] = [{ label: 'Accueil', href: '/dashboard' }];
+  if (SECTIONS_NOMMEES_FIL.has(route.section)) crumbs.push({ label: route.section, href: null });
 
   if (opts.brandScoped && opts.brandName) {
     // La marque vient juste après la section · c'est le contexte dans lequel

@@ -119,7 +119,7 @@ describe('le fil d’Ariane dit où l’on est', () => {
   it('un enfant hors marque montre son parent', () => {
     // Le tagging vit sous la veille · dire « Trouver › Veille › Tagging »
     // apprend quelque chose, là où « Espace › Membres » n'apprend rien.
-    expect(breadcrumb('/tags').map((x) => x.label)).toEqual(['Accueil', 'Observatoire', 'Veille', 'Tagging']);
+    expect(breadcrumb('/tags').map((x) => x.label)).toEqual(['Accueil', 'Veille', 'Tagging']);
     // Un identifiant opaque n'est jamais affiché comme un nom (recette L8-B : l'UUID d'un projet Studios remplissait le fil).
     const projet = breadcrumb('/studio/projets/56d88ca8-6a28-4612-9990-2a7680737355/export').map((x) => x.label);
     expect(projet, 'le fil affiche l’UUID brut du projet').not.toContain('56d88ca8-6a28-4612-9990-2a7680737355');
@@ -142,15 +142,26 @@ describe('le fil d’Ariane dit où l’on est', () => {
     expect(breadcrumb('/adsmap/jarvis')).toEqual([]);
   });
 
-  it('ouvre par l’accueil puis la section', () => {
+  it('ouvre par l’accueil, puis l’entrée du rail · aucun ancien nom de rubrique', () => {
     const c = breadcrumb('/adsmap/suites');
     expect(c[0], 'un retour à l’accueil en tête du fil').toEqual({ label: 'Accueil', href: '/dashboard' });
-    expect(c[1]).toEqual({ label: 'Laboratoire', href: null });
+    // UX V2 · le rail est plat (Résultats, Veille…) · « Laboratoire », « Atelier »,
+    // « Observatoire » ne sont plus à l'écran, le fil ne les écrit plus.
+    expect(c[1]).toEqual({ label: 'Résultats', href: '/adsmap' });
+    for (const chemin of ['/adsmap/suites', '/tags', '/studio/projets/nouveau', '/veille/formats']) {
+      const libelles = breadcrumb(chemin).map((x) => x.label);
+      for (const ancien of ['Observatoire', 'Atelier', 'Laboratoire', 'Pilotage']) expect(libelles, `${chemin} écrit encore « ${ancien} »`).not.toContain(ancien);
+    }
+  });
+
+  it('les blocs Espace et Plateforme restent nommés · ils sont distincts dans le rail', () => {
+    expect(breadcrumb('/brands/new').map((x) => x.label)).toEqual(['Accueil', 'Espace', 'Marques', 'Nouvelle marque']);
+    expect(breadcrumb('/admin/finance').map((x) => x.label)).toEqual(['Accueil', 'Plateforme', 'Coulisses', 'Finance · MRR']);
   });
 
   it('donne le chemin complet, pas une flèche vers le parent', () => {
     const c = breadcrumb('/adsmap/suites').map((x) => x.label);
-    expect(c).toEqual(['Accueil', 'Laboratoire', 'Adsmap', 'Suites']);
+    expect(c).toEqual(['Accueil', 'Résultats', 'Suites']);
   });
 
   it('le dernier maillon n’est jamais un lien', () => {
@@ -160,17 +171,17 @@ describe('le fil d’Ariane dit où l’on est', () => {
 
   it('les maillons intermédiaires sont cliquables', () => {
     const c = breadcrumb('/adsmap/lots');
-    expect(c[2]).toEqual({ label: 'Adsmap', href: '/adsmap' });
+    expect(c[1]).toEqual({ label: 'Résultats', href: '/adsmap' });
   });
 
   it('la marque s’insère après la section quand l’écran en dépend', () => {
     const c = breadcrumb('/adsmap/radar', { brandScoped: true, brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Laboratoire', 'TrueFords', 'Adsmap', 'Radar de veille']);
+    expect(c.map((x) => x.label)).toEqual(['Accueil', 'TrueFords', 'Résultats', 'Radar de veille']);
   });
 
   it('une racine par marque mérite un fil · le contexte manquerait sinon', () => {
     const c = breadcrumb('/jarvis', { brandScoped: true, brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Atelier', 'TrueFords', 'Jarvis']);
+    expect(c.map((x) => x.label)).toEqual(['Accueil', 'TrueFords', 'Jarvis']);
   });
 
   it('le maillon marque est CLIQUABLE vers sa fiche quand on a son id', () => {
@@ -188,7 +199,7 @@ describe('le fil d’Ariane dit où l’on est', () => {
 
   it('sans nom de marque, on n’invente pas de maillon', () => {
     const c = breadcrumb('/adsmap/lots', { brandScoped: true, brandName: null });
-    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Laboratoire', 'Adsmap', 'Lots de test']);
+    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Résultats', 'Lots de test']);
   });
 
   it('un segment dynamique prend le nom de la marque', () => {

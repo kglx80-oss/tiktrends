@@ -7,8 +7,8 @@ import type { ReactNode } from 'react';
  *
  * On REND la vraie coquille (rail réel de lib/rbac, libellés du layout, vrai fil
  * d'Ariane) à une adresse donnée et on lit le HTML :
- *  - sur `/dashboard?vue=analytics`, « Analytics » (sous Accueil) porte
- *    `aria-current="page"`, seul ; sur `/dashboard`, « Accueil » seul ;
+ *  - UX V2 · le rail est plat · « Analytics » est l'onglet de la page d'Accueil,
+ *    plus une entrée du rail ; la section « Accueil » reste seule allumée ;
  *  - le fil dit « Accueil › <marque> › Analytics » sur la vue, rien sur l'Accueil ;
  *  - le maillon « Accueil » du fil (même chemin) est un lien NATIF ;
  *  - un rôle sans droit Analytics n'a pas l'entrée.
@@ -57,25 +57,30 @@ const fil = (h: string) => { const i = h.indexOf('aria-label="Fil d’Ariane"');
 
 beforeEach(() => { ici.pathname = '/dashboard'; ici.recherche = ''; });
 
-describe('rail · Analytics sous Accueil, une seule entrée allumée', () => {
-  it('Accueil par défaut · « Accueil » seul allumé, « Analytics » visible sous lui', () => {
+/** Les entrées du rail portant un `aria-current` (page OU section), par libellé. */
+const courantes = (h: string) => [...rail(h).matchAll(/<a [^>]*aria-current="(?:page|true)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => texte(m[1]!));
+
+// UX V2 (maquettes du 10/10) · le rail est PLAT · « Analytics » n'y est plus une
+// sous-entrée · c'est l'onglet de la page d'Accueil (sa propre barre), et la
+// section Accueil reste allumée sur la vue.
+describe('rail · l’Accueil et sa vue Analytics', () => {
+  it('Accueil par défaut · « Accueil » seul allumé, aucun lien Analytics dans le rail', () => {
     const h = coquille('/dashboard');
     expect(allumees(h), 'sur l’Accueil, l’entrée allumée doit être « Accueil » seule').toEqual(['Accueil']);
-    expect(entree(h, '/dashboard?vue=analytics'), 'Analytics manque sous Accueil').not.toBeNull();
+    expect(entree(h, '/dashboard?vue=analytics'), 'Analytics est revenu dans le rail plat').toBeNull();
     expect(h, 'un lien du rail mène encore à /analytics').not.toMatch(/href="\/analytics"/);
   });
 
-  it('vue Analytics · « Analytics » seul allumé (aria-current), Accueil ne l’est plus', () => {
+  it('vue Analytics · la section « Accueil » reste la seule allumée', () => {
     const h = coquille('/dashboard?vue=analytics');
-    expect(allumees(h), 'sur la vue, l’entrée allumée doit être « Analytics » seule').toEqual(['Analytics']);
+    expect(courantes(h), 'sur la vue, seule la section Accueil est allumée').toEqual(['Accueil']);
   });
 
-  it('ailleurs (Veille, Adsmap) · « Analytics » reste à un clic (branche Accueil dépliée d’office), rien n’est allumé à tort', () => {
+  it('ailleurs (Veille, Résultats) · ni Accueil ni Analytics allumés à tort', () => {
     for (const adresse of ['/veille', '/adsmap/suites']) {
       const h = coquille(adresse);
-      expect(entree(h, '/dashboard?vue=analytics'), `Analytics caché sous Accueil replié sur ${adresse}`).not.toBeNull();
-      expect(allumees(h), adresse).not.toContain('Analytics');
-      expect(allumees(h), adresse).not.toContain('Accueil');
+      expect(courantes(h), adresse).not.toContain('Analytics');
+      expect(courantes(h), adresse).not.toContain('Accueil');
     }
   });
 
@@ -83,9 +88,9 @@ describe('rail · Analytics sous Accueil, une seule entrée allumée', () => {
     expect(texte(rail(coquille('/dashboard')))).not.toMatch(/Piloter/i);
   });
 
-  it('rôle sans droit Analytics · pas d’entrée Analytics', () => {
+  it('rôle sans droit Analytics · aucun lien Analytics dans la coquille', () => {
     const h = coquille('/dashboard', sansAnalytics);
-    expect(entree(h, '/dashboard?vue=analytics'), 'Analytics proposé à un rôle qui ne l’ouvre pas').toBeNull();
+    expect(h, 'Analytics proposé à un rôle qui ne l’ouvre pas').not.toMatch(/href="\/dashboard\?vue=analytics"/);
     expect(allumees(h)).toEqual(['Accueil']);
   });
 });
@@ -104,9 +109,9 @@ describe('fil d’Ariane · la vue Analytics se nomme', () => {
     expect(fil(coquille('/dashboard'))).toBeNull();
   });
 
-  it('ailleurs, le fil n’a pas bougé (lien routeur, section)', () => {
+  it('ailleurs, le fil suit le rail plat (lien routeur, sans ancien nom de rubrique)', () => {
     const f = fil(coquille('/adsmap/suites'))!;
-    expect(texte(f.slice(f.indexOf('>') + 1))).toBe('Accueil › Laboratoire › Neva › Adsmap › Suites');
+    expect(texte(f.slice(f.indexOf('>') + 1))).toBe('Accueil › Neva › Résultats › Suites');
     expect(/<a [^>]*href="\/dashboard"[^>]*>/.exec(f)?.[0]).toContain('data-lien-routeur');
   });
 });
