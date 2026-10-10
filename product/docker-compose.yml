@@ -43,6 +43,11 @@ services:
     build: { context: ., dockerfile: Dockerfile.workers, args: { BUILD_SHA: "${BUILD_SHA-}" } }
     restart: unless-stopped
     env_file: .env.deploy
+    # Le worker Studios ne branche le fournisseur réel qu'en production
+    # (`decisionFournisseurStudio`) · posé ICI, pas dans l'image : la recette
+    # construit la même image et garde son accord explicite. Prime sur env_file.
+    environment:
+      NODE_ENV: production
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
