@@ -111,3 +111,17 @@ describe('plafond du processus · ≤ 15 $ et égal au restant calculé', () => 
     expect(deux.lignes.a).toMatchObject({ etat: 'a_reconcilier', incertainMicros: 150_000, base: 'b1' });
   });
 });
+
+describe('runbook · trois précisions de la recette (ne jamais surpromettre)', () => {
+  const plat = RUNBOOK.replace(/\s+/g, ' ');
+  it('un échec du préflight en phase 2 peut laisser des conteneurs démarrés : dit, avec quoi faire', () => {
+    expect(plat, 'le runbook laisse croire qu’un échec arrive toujours avant tout démarrage').toContain('un échec en **phase 2** peut arriver APRÈS que des conteneurs de recette ont été construits et démarrés');
+  });
+  it('une relance n’est pas une garantie générale contre la double facturation : lire l’état et réconcilier d’abord', () => {
+    expect(plat).not.toContain('Reprises, sans double facturation');
+    expect(plat, 'la relance est présentée comme sans risque').toContain('Une relance n’est PAS une garantie générale contre la double facturation'.replace('’', "'"));
+  });
+  it('le restant se lit au registre, jamais supposé', () => {
+    expect(plat).toContain('Le budget restant se LIT, il ne se suppose jamais');
+  });
+});
