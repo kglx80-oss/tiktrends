@@ -13,11 +13,12 @@ const html = () => renderToStaticMarkup(
 );
 
 describe('la home mène par l’ANALYSE, création secondaire, au trait, sans emoji', () => {
-  it('accueille et conserve les quatre studios (en accès secondaire)', () => {
+  it('accueille et propose les Studios en accès secondaire · préparer un projet, reprendre ses projets', () => {
     const h = html();
     expect(h).toContain('Bonjour Kévin');
-    for (const t of ['Pubs IA', 'Image IA', 'Vidéo IA', 'Textes IA']) expect(h, `studio ${t}`).toContain(t);
-    expect(h, 'l’accès Pubs IA a disparu').toContain('/studio/ads');
+    for (const t of ['Nouveau projet', 'Mes projets']) expect(h, `accès ${t}`).toContain(t);
+    expect(h, 'l’accès « Nouveau projet » a disparu').toContain('href="/studio/projets/nouveau"');
+    for (const t of ['Pubs IA', 'Image IA', 'Vidéo IA', 'Textes IA']) expect(h, `ancien studio ${t} encore proposé`).not.toContain(t);
   });
 
   it('la création n’est PLUS mise en vedette (lot Dashboard · secondaire)', () => {

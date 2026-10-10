@@ -6,7 +6,7 @@ import { join } from 'node:path';
  * Deux états vides d'Adsmap nommaient un geste sans le rendre cliquable · une
  * phrase grise sans issue. On exige un vrai lien de sortie.
  *
- * - Vivier de lot vide (Lots) · « pousse une créa du Studio » → /studio/ads.
+ * - Vivier de lot vide (Lots) · « prépare une créa dans un projet » → /studio/projets/nouveau.
  * - Radar sans concurrent suivi (Radar) · « ajoute des marques » → /veille.
  *
  * Clients à chargement par action serveur (effet) · non rendables seuls.
@@ -20,7 +20,7 @@ describe('Adsmap · les états vides orphelins mènent quelque part', () => {
     const i = src.indexOf('Aucune ad libre.');
     expect(i, 'l’état vide du vivier a disparu').toBeGreaterThan(-1);
     const bloc = src.slice(i, i + 400);
-    expect(bloc, 'le vivier vide ne mène nulle part').toContain('href="/studio/ads"');
+    expect(bloc, 'le vivier vide ne mène nulle part').toContain('href={CHEMIN_NOUVEAU_PROJET}');
   });
 
   it('radar sans concurrent suivi → un lien vers la veille', () => {

@@ -28,10 +28,10 @@ describe('Fiche concurrent · l’analyse mène à la création', () => {
       .not.toContain('items={ins?.personas} testable');
   });
 
-  it('le lien testable mène bien à Pubs IA avec l’angle en amorce', () => {
+  it('le lien testable mène bien à la préparation d’un projet avec l’angle en amorce', () => {
     const i = src.indexOf('testable && (');
     expect(i, 'la branche testable a disparu').toBeGreaterThan(-1);
-    expect(src.slice(i, i + 300), 'le lien ne mène pas à Pubs IA')
-      .toContain('/studio/ads?angle=${encodeURIComponent(it)}');
+    expect(src.slice(i, i + 300), 'le lien ne mène pas à la préparation d’un projet')
+      .toContain("lienNouveauProjet({ type: 'ads', angle: it })");
   });
 });

@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { CAPACITES_STUDIOS } from '@tiktrends/core';
-import { ROUTES, ROUTES_HISTORIQUES, CAPACITE_DES_ROUTES, capaciteDeRoute, liensAtelierProjet, ALTERNATIVE_HISTORIQUE } from '../lib/navigation';
+import { ROUTES, ROUTES_HISTORIQUES, CAPACITE_DES_ROUTES, capaciteDeRoute, liensAtelierProjet } from '../lib/navigation';
+import { ANCIENNES_ADRESSES_STUDIO } from '@tiktrends/core';
 
 /**
  * F1 · la carte des écrans et leurs capacités (cahier 01 §14).
@@ -10,8 +11,9 @@ import { ROUTES, ROUTES_HISTORIQUES, CAPACITE_DES_ROUTES, capaciteDeRoute, liens
  *  · chaque PAGE du nouveau Studio (`app/(app)/studio/projets/**`) dépend
  *    d'une capacité déclarée ; une page ajoutée sans capacité fait tomber ce
  *    test ;
- *  · aucun écran de l'ANCIENNE expérience (Studio, Pubs IA, Image/Vidéo/Textes
- *    IA, Veille) n'a de capacité : aucun interrupteur ne le coupe ;
+ *  · aucune ancienne adresse (Studio, Pubs IA, Image/Vidéo/Textes IA, retirés
+ *    le 10/10, qui ne font plus que rediriger) ni la Veille n'a de capacité ;
+ *    les anciennes adresses sont cachées de la carte (jamais dans un fil) ;
  *  · l'atelier d'un projet ne produit jamais de lien vers un écran coupé.
  */
 
@@ -42,8 +44,8 @@ describe('carte · écrans du nouveau Studio et capacités', () => {
     expect(ROUTES.find((r) => r.path === '/admin/studios-interrupteurs')).toMatchObject({ parent: '/admin', section: 'Plateforme' });
   });
 
-  it('les alternatives historiques proposées existent dans la carte', () => {
-    for (const a of Object.values(ALTERNATIVE_HISTORIQUE)) expect(ROUTES.some((r) => r.path === a!.href), a!.href).toBe(true);
+  it('les anciennes adresses de création sont des redirections cachées, jamais une destination', () => {
+    for (const a of ANCIENNES_ADRESSES_STUDIO) expect(ROUTES.find((r) => r.path === a), a).toMatchObject({ hidden: true });
   });
 });
 

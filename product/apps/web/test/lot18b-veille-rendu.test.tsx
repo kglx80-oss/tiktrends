@@ -18,7 +18,7 @@ const AD = { id: 'mock-044', platform: 'meta', status: 'active', daysRunning: 34
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
 
 describe('Carte de Veille · annonceur et retour (lot 18B)', () => {
-  it('en Veille · ancre, recherche interne de l’annonceur et Studio qui sait revenir', () => {
+  it('en Veille · ancre, recherche interne de l’annonceur, et UN geste de création (« Préparer une création »)', () => {
     const d = dom(renderToStaticMarkup(<AdCard ad={AD} contexteRetour="q=routine&page=2" />));
     expect(d.firstElementChild?.id, 'la carte n’a pas d’ancre · le retour ne retrouve pas la position').toBe('ad-meta-mock-044');
     const ann = [...d.querySelectorAll('a')].find((a) => /Ses annonces dans la Veille/.test(a.textContent ?? ''));
@@ -26,17 +26,17 @@ describe('Carte de Veille · annonceur et retour (lot 18B)', () => {
     expect(ann?.getAttribute('target'), 'lien interne ouvert ailleurs').toBeNull();
     expect(ann?.getAttribute('aria-label'), 'toutes les cartes portent le même nom accessible').toBe('Ses annonces dans la Veille · Brume & Sel');
     expect(d.textContent, 'une recherche présentée comme un suivi').not.toMatch(/concurrent suivi/i);
-    const studio = [...d.querySelectorAll('a')].find((a) => (a.getAttribute('href') ?? '').startsWith('/studio/ads'))!;
-    const u = new URL(studio.getAttribute('href')!, 'http://x');
-    expect(u.searchParams.get('depuis'), 'le Studio ne sait pas d’où l’on vient').toBe('veille');
-    expect(u.searchParams.get('rv')).toBe('q=routine&page=2#ad-meta-mock-044');
+    // Le panneau « Préparer une création » porte la source ET le retour Veille · pas de second lien.
+    expect([...d.querySelectorAll('button')].some((b) => b.textContent?.includes('Préparer une création')), 'le geste de création manque').toBe(true);
+    expect(d.querySelector('a[href^="/studio"]'), 'un second geste de création dédouble le bouton').toBeNull();
   });
 
-  it('hors Veille (Sauvegardes, Nouveautés…) · aucune ancre, aucun lien de plus, Studio inchangé', () => {
+  it('hors Veille (Nouveautés, découverte…) · aucune ancre, la préparation d’un projet sans contexte de retour', () => {
     const d = dom(renderToStaticMarkup(<AdCard ad={AD} />));
     expect(d.firstElementChild?.id).toBe('');
     expect(d.textContent).not.toMatch(/Ses annonces dans la Veille/);
-    const studio = [...d.querySelectorAll('a')].find((a) => (a.getAttribute('href') ?? '').startsWith('/studio/ads'))!;
+    const studio = [...d.querySelectorAll('a')].find((a) => (a.getAttribute('href') ?? '').startsWith('/studio/projets/nouveau'))!;
+    expect(studio, 'le lien vers la préparation d’un projet manque').toBeTruthy();
     expect(studio.getAttribute('href')).not.toMatch(/depuis=|rv=/);
   });
 });

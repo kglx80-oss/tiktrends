@@ -43,22 +43,24 @@ function commandes(role: Role, plan: Plan = 'business') {
 describe('Palette ⌘K · ne propose que ce que le rôle ouvre', () => {
   it('client en lecture · ni génération, ni Jarvis, ni Veille, ni marque', () => {
     const c = commandes('client_viewer');
-    for (const h of ['/studio/ads', '/studio/ads?mode=clone', '/studio/image', '/studio/video', '/jarvis', '/veille', '/veille/scale', '/brands/new', '/brands/b1']) {
+    for (const h of ['/studio/projets', '/studio/projets/nouveau', '/jarvis', '/veille', '/veille/scale', '/brands/new', '/brands/b1']) {
       expect(c.has(h), `${h} proposé au client en lecture`).toBe(false);
     }
     expect(c.has('/dashboard')).toBe(true);
   });
   it('membre · génère, ne gère pas les marques', () => {
     const c = commandes('member');
-    expect(c.has('/studio/ads')).toBe(true);
+    expect(c.has('/studio/projets/nouveau')).toBe(true);
+    expect(c.has('/studio/projets')).toBe(true);
+    for (const h of ['/studio/ads', '/studio/ads?mode=clone', '/studio/image', '/studio/video']) expect(c.has(h), `ancien studio ${h} encore proposé`).toBe(false);
     expect(c.has('/brands/new'), 'Nouvelle marque proposée au membre').toBe(false);
     expect(c.has('/brands/b1'), 'fiche de marque proposée au membre').toBe(false);
   });
   it('admin · tout, et une rubrique verrouillée par la formule porte son cadenas', () => {
     const c = commandes('admin');
-    for (const h of ['/brands/new', '/brands/b1', '/studio/ads', '/jarvis']) expect(c.has(h), h).toBe(true);
+    for (const h of ['/brands/new', '/brands/b1', '/studio/projets/nouveau', '/jarvis']) expect(c.has(h), h).toBe(true);
     const starter = commandes('admin', 'starter');
-    expect(starter.get('/studio/ads'), 'verrou de formule sans cadenas').toBe(true);
+    expect(starter.get('/studio/projets/nouveau'), 'verrou de formule sans cadenas').toBe(true);
   });
 });
 

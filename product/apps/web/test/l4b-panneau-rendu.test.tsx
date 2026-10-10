@@ -155,13 +155,16 @@ describe('carte de Veille · le bouton s’ajoute, rien ne se perd', () => {
     d.innerHTML = renderToStaticMarkup(<AdCard ad={{ ...ANNONCE, status: 'active' } as never} {...props} />);
     return d;
   };
-  it('en Veille et en Sauvegardes · « Préparer une création » présent, lien historique vers les Pubs IA intact', () => {
+  it('en Veille et en Sauvegardes · « Préparer une création » est LE geste (aucun lien vers un ancien studio)', () => {
     for (const d of [carte({ contexteRetour: 'q=serum', ctaSobre: true, cibles44: true }), carte({ cloneRef: '11111111-1111-4111-8111-111111111111', saved: true })]) {
       expect([...d.querySelectorAll('button')].some((b) => b.textContent?.includes('Préparer une création'))).toBe(true);
-      expect(d.querySelector('a[href^="/studio/ads"]')).not.toBeNull();
+      expect(d.querySelector('a[href^="/studio"]')).toBeNull();
     }
   });
-  it('hors source accessible (découverte, tracker) · pas de bouton', () => {
-    expect([...carte({}).querySelectorAll('button')].some((b) => b.textContent?.includes('Préparer une création'))).toBe(false);
+  it('hors source accessible (découverte, tracker) · pas de bouton, le lien vers la préparation d’un projet', () => {
+    const d = carte({});
+    expect([...d.querySelectorAll('button')].some((b) => b.textContent?.includes('Préparer une création'))).toBe(false);
+    // Une piste qui tient (diffusée depuis 64 j) garde son libellé « Décline cette piste ».
+    expect(d.querySelector('a[href^="/studio/projets/nouveau?"]')?.textContent).toMatch(/Décline cette piste|Préparer une création/);
   });
 });

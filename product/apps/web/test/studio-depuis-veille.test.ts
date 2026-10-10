@@ -3,7 +3,7 @@ import type { InspoAd } from '@tiktrends/integrations';
 import { studioDepuisVeille } from '../lib/veille-link';
 
 /**
- * Le pont veille → Pubs IA.
+ * Le pont veille → préparation d'un projet Studios (anciennement Pubs IA, retirées le 10/10).
  *
  * ── Le défaut réparé ─────────────────────────────────────────────────────────
  *
@@ -24,12 +24,12 @@ function angleDe(url: string): string {
   return m ?? '';
 }
 
-describe('le pont mène aux Pubs IA, armé', () => {
-  it('vise /studio/ads, jamais le hub /studio', () => {
+describe('le pont mène à la préparation d’un projet, armé', () => {
+  it('vise /studio/projets/nouveau (type pub), jamais un ancien studio ni le hub', () => {
     const url = studioDepuisVeille(ad({ body: 'La crème qui tient 24 h', daysRunning: 40 }));
-    expect(url.startsWith('/studio/ads')).toBe(true);
-    // Le bug exact · le hub au lieu des Pubs IA.
-    expect(url.startsWith('/studio?')).toBe(false);
+    expect(url.startsWith('/studio/projets/nouveau?')).toBe(true);
+    expect(new URLSearchParams(url.split('?')[1]).get('type')).toBe('ads');
+    expect(studioDepuisVeille(ad({ mediaType: 'video', body: 'x', daysRunning: 40 } as Partial<InspoAd>)).includes('type=video'), 'une vidéo prépare un projet vidéo').toBe(true);
   });
 
   it('porte le brief distillé, pas la copy brute', () => {
@@ -40,7 +40,7 @@ describe('le pont mène aux Pubs IA, armé', () => {
   });
 
   it('sans matière (ni brief ni source), pointe quand même vers le bon écran, à vide', () => {
-    expect(studioDepuisVeille(ad({ id: '' }))).toBe('/studio/ads');
+    expect(studioDepuisVeille(ad({ id: '' }))).toBe('/studio/projets/nouveau?type=ads');
   });
 
   // CDC v8 · F07 · la PROVENANCE suit le lien · « Décline cette piste » ne perd
@@ -64,16 +64,17 @@ describe('le pont mène aux Pubs IA, armé', () => {
     expect(new URLSearchParams(url.split('?')[1]).get('src')).toBeNull();
   });
 
-  it('avec une pub sauvegardée en référence, ouvre le clone · angle ET structure', () => {
-    const url = studioDepuisVeille(ad({ body: 'La crème qui tient 24 h', daysRunning: 40 }), { ref: 'saved-123' });
+  it('avec une pub sauvegardée en référence, elle suit le lien (source du projet) · angle ET référence', () => {
+    const REF = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+    const url = studioDepuisVeille(ad({ body: 'La crème qui tient 24 h', daysRunning: 40 }), { ref: REF });
     const q = new URLSearchParams(url.split('?')[1]);
-    expect(q.get('mode'), 'la référence force le mode clone').toBe('clone');
-    expect(q.get('ref')).toBe('saved-123');
+    expect(q.get('ref')).toBe(REF);
+    expect(new URLSearchParams(studioDepuisVeille(ad({ body: 'x', daysRunning: 40 }), { ref: '../x' }).split('?')[1]).get('ref'), 'référence forgée ignorée').toBeNull();
     expect(q.get('angle'), 'le brief accompagne la structure').toContain('éprouvée');
   });
 
-  it('sans référence, reste en mode marque · l’angle seul', () => {
+  it('sans référence, l’angle seul · aucune référence inventée', () => {
     const url = studioDepuisVeille(ad({ body: 'x', daysRunning: 40 }));
-    expect(new URLSearchParams(url.split('?')[1]).get('mode'), 'pas de clone sans référence').toBeNull();
+    expect(new URLSearchParams(url.split('?')[1]).get('ref'), 'pas de référence inventée').toBeNull();
   });
 });
