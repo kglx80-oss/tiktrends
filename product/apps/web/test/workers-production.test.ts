@@ -56,3 +56,13 @@ describe('worker Studios · fournisseur réel branché en production', () => {
     expect(RECETTE).not.toMatch(/NODE_ENV:\s*"?production/);
   });
 });
+
+describe('vidéo finale · ffmpeg dans l’image web', () => {
+  it('l’étape servie de Dockerfile.web installe ffmpeg (et donc ffprobe), avant les copies', () => {
+    const web = readFileSync(join(PRODUIT, 'Dockerfile.web'), 'utf8');
+    const servie = web.slice(web.indexOf('AS run'));
+    const apk = servie.indexOf('apk add --no-cache ffmpeg');
+    expect(apk, 'ffmpeg absent de l’image web servie · l’assemblage de la vidéo finale échouerait').toBeGreaterThan(-1);
+    expect(apk < servie.indexOf('COPY --from=build'), 'installé après les copies : réinstallé à chaque commit').toBe(true);
+  });
+});

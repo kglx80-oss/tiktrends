@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { coutMaximalTexte, decisionFournisseurStudio, fournisseurAnimationBranche, erreurStudio, type ErreurStudio, type BilanDurees } from '@tiktrends/core';
 import { gardeStudio } from '../../../lib/studios/garde';
-import { refusCapacitesDevis } from '../../../lib/studios/interrupteurs';
+import { refusCapacitesDevis, refusCapacite } from '../../../lib/studios/interrupteurs';
+import { assemblerVideoFinalePour, type VideoFinale } from '../../../lib/studios/video/rendu-final';
 import { getSession } from '../../../lib/auth';
 import { unlimitedCredits } from '../../../lib/credits';
 import { spendStatus } from '../../../lib/spend-guard';
@@ -134,4 +135,19 @@ export async function approuverEtLancerClip(entree: { quoteId: unknown; inputHas
     plafond: { capUsd: plafond.capUsd, depenseUsd: plafond.spentUsd, bloque: plafond.blocked },
     fournisseurAnimation: fournisseurAnimationBranche(process.env),
   });
+}
+
+/**
+ * Vidéo finale · `studio.export`, capacités « video » ET « export » · un
+ * CALCUL sur le serveur (ffmpeg), aucun fournisseur payant : 0 crédit, 0 $.
+ * Ce que la vidéo n'inclut pas (voix, texte écran, sous-titres) est dit avant.
+ */
+export async function assemblerVideoFinale(entree: { projectId: unknown }): Promise<Reponse<{ video: VideoFinale }>> {
+  const g = await gardeStudio('studio.export', 'video');
+  if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['export']);
+  if (coupe) return coupe;
+  const r = await assemblerVideoFinalePour(g.ctx, { projectId: entree?.projectId });
+  if (r.ok) revalidatePath(chemin(entree?.projectId));
+  return r;
 }

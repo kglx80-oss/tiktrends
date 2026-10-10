@@ -3,7 +3,7 @@ import { and, desc, eq, gt, inArray, isNull, like } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   aPermissionEspace, disponibiliteVideo, jugeSortiesValides, segmentsPlans, dureePlanMs, estSansTexte, estBriefCanonique, lireSnapshotJob,
-  prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, planDeClip, formatVideo, LIBELLES_ETAT_IMAGE, GRILLE_STUDIO, DUREE_CLIP_S,
+  prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, planDeClip, formatVideo, LIBELLES_ETAT_IMAGE, GRILLE_STUDIO, DUREE_CLIP_S, planRenduFinal, ORIGINE_ARCHIVE_EXPORT,
   type ContenuVersion, type DisponibiliteVideo, type EtatJob, type LigneDevis, type StatutQualite, type VerdictConsignePlan,
   type ConsignePlanPersistee, type ErreurStudio, erreurStudio,
 } from '@tiktrends/core';
@@ -52,6 +52,15 @@ export interface ClipVue {
   devis: { id: string; inputHash: string; credits: number; usdMicros: number; expiresAt: string } | null;
 }
 
+/** La vidéo finale · assemblable maintenant ou pourquoi pas, ce qu'elle n'inclura pas, la dernière produite. */
+export interface VideoFinaleVue {
+  possible: boolean;
+  raison: string;
+  nonInclus: string[];
+  dureeMs: number;
+  derniere: { assetId: string; url: string; dureeMs: number | null; creeLe: string } | null;
+}
+
 export interface JobVideoVue {
   id: string; operation: string; etat: EtatJob; libelleEtat: string; message: string; raisonEchec: string | null;
   qualite: StatutQualite; libelleQualite: string; creditsReserves: number; creeLe: string;
@@ -75,6 +84,7 @@ export interface VueVideo {
   prix: { credits: number; usdMicros: number };
   /** Forfait d'un clip (grille studio · `FIXED_COSTS.fal_video`), durée de base. */
   prixClip: { credits: number; usdMicros: number; dureeS: number };
+  videoFinale: VideoFinaleVue;
   jobs: JobVideoVue[];
 }
 
@@ -209,6 +219,31 @@ export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: 
   )).orderBy(desc(S.createdAt)).limit(20)).map((m, i) => ({ assetId: m.id, libelle: `Piste ${i + 1}${m.durationMs ? ` · ${Math.round(m.durationMs / 1000)} s` : ''}` }));
   if (contenu.timeline?.music && !musiques.some((m) => m.assetId === contenu.timeline!.music!.assetId)) musiques.unshift({ assetId: contenu.timeline.music.assetId, libelle: 'Piste actuelle' });
 
+  // Vidéo finale · plan pur sur les clips valides et la musique (métadonnées seulement, aucun octet lu ici).
+  const S2 = schema.studioAssets;
+  let musique: { assetId: string; gainDb: number } | null | 'introuvable' = null;
+  if (contenu.timeline?.music) {
+    const [m] = estUuid(contenu.timeline.music.assetId) ? await db.select({ id: S2.id }).from(S2).where(and(
+      eq(S2.id, contenu.timeline.music.assetId), eq(S2.workspaceId, projet.workspaceId), eq(S2.brandId, projet.brandId), eq(S2.storageState, 'stored'), like(S2.mime, 'audio/%'),
+    )).limit(1) : [];
+    musique = m ? contenu.timeline.music : 'introuvable';
+  }
+  const clipsValides: Record<string, string> = {};
+  for (const [sid, c] of Object.entries(clips)) if (c.etat === 'valide' && c.media) clipsValides[sid] = c.media.assetId;
+  const planFinal = planRenduFinal({ contenu, clips: clipsValides, musique });
+  const [derniere] = await db.select({ id: S2.id, durationMs: S2.durationMs, createdAt: S2.createdAt }).from(S2).where(and(
+    eq(S2.workspaceId, projet.workspaceId), eq(S2.brandId, projet.brandId), eq(S2.projectId, projet.id), eq(S2.origin, ORIGINE_ARCHIVE_EXPORT),
+    eq(S2.storageState, 'stored'), eq(S2.mime, 'video/mp4'), like(S2.storageKey, '%/video-finale-%'),
+  )).orderBy(desc(S2.createdAt)).limit(1);
+  const peutExporter = aPermissionEspace(ctx.permissions, 'studio.export');
+  const videoFinale: VideoFinaleVue = {
+    possible: planFinal.ok && peutExporter,
+    raison: !peutExporter ? 'Ton rôle ne permet pas d’exporter.' : planFinal.ok ? '' : planFinal.violations.map((x) => x.raison).join(' '),
+    nonInclus: planFinal.ok ? planFinal.plan.nonInclus : [],
+    dureeMs: planFinal.ok ? planFinal.plan.dureeMs : 0,
+    derniere: derniere ? { assetId: derniere.id, url: ROUTE_APERCU_MEDIA(derniere.id), dureeMs: derniere.durationMs, creeLe: derniere.createdAt.toISOString() } : null,
+  };
+
   // L7-B · capacité vidéo SONDÉE par le worker · sans preuve fraîche, l'animation reste dite indisponible.
   const capacite = await lireCapaciteVideo(db, o.maintenant);
 
@@ -236,6 +271,7 @@ export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: 
       coutTexteUsd: o.coutTexteUsd,
       prix: prixImage(),
       prixClip: { credits: GRILLE_STUDIO.animation.credits ?? 0, usdMicros: GRILLE_STUDIO.animation.usdMicros ?? 0, dureeS: DUREE_CLIP_S },
+      videoFinale,
       jobs,
     },
   };

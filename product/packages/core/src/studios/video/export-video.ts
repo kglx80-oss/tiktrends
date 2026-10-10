@@ -13,9 +13,10 @@
  *    worker : sans libx264 ou sans aac constatés, aucun export H.264 n'est
  *    annoncé.
  *
- * Le rendu final (montage ffmpeg réel des clips, voix, musique, surimpressions)
- * n'est PAS branché dans ce lot : `RENDU_VIDEO_FINAL` le dit, et le préflight
- * ne prétend jamais qu'un fichier a été produit.
+ * Le montage COMPLET (voix, sous-titres et texte écran incrustés) n'est PAS
+ * branché : `RENDU_VIDEO_FINAL` le dit, et le préflight ne prétend jamais
+ * qu'un fichier a été produit. L'assemblage des clips animés avec la musique,
+ * sans voix ni surimpressions, est la « Vidéo finale » (`planRenduFinal`).
  */
 
 import type { ContenuVersion, FpsRationnel } from '../document';
@@ -79,10 +80,13 @@ export interface PreflightExportVideo {
   rendu: typeof RENDU_VIDEO_FINAL;
 }
 
-/** Le montage final n'est pas branché (L7-B) · dit, jamais simulé. */
+/**
+ * Le montage complet n'est pas branché · dit, jamais simulé. Seul l'assemblage
+ * clips + musique existe (`planRenduFinal`, « Vidéo finale » de l'écran vidéo).
+ */
 export const RENDU_VIDEO_FINAL = {
   disponible: false,
-  raison: 'Le montage final (assemblage ffmpeg des clips, voix, musique et surimpressions) n’est pas encore branché au worker · aucun fichier vidéo n’est produit ni facturé.',
+  raison: 'Le montage complet (voix, sous-titres et texte écran incrustés) n’est pas branché · seule la « Vidéo finale » existe : les clips animés des plans bout à bout avec la musique, sans voix ni surimpressions.',
 } as const;
 
 /** |a − b| ≤ une image au débit `fps`, en entiers : |a − b| × num ≤ timebase × den. */

@@ -15,15 +15,18 @@ import { renderToStaticMarkup } from 'react-dom/server';
  *    consigne) : bouton inactif + raison ;
  *  · chaque geste de montage montre son IMPACT avant tout envoi (VIDEO-05,
  *    08, 09, 10) ; l'enregistrement n'appelle qu'une action, jamais un devis ;
- *  · « Approuver et lancer » garde la même clé d'un clic à l'autre.
+ *  · « Approuver et lancer » garde la même clé d'un clic à l'autre ;
+ *  · vidéo finale : ce qu'elle n'inclut pas est dit AVANT le clic, bouton
+ *    inactif avec la raison tant qu'un plan n'a pas son clip, un clic = une
+ *    action d'assemblage (aucun devis), la dernière vidéo se lit et se télécharge.
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const m = vi.hoisted(() => ({ appliquer: vi.fn(), storyboard: vi.fn(), compiler: vi.fn(), retenir: vi.fn(), devis: vi.fn(), lancer: vi.fn(), refresh: vi.fn() }));
+const m = vi.hoisted(() => ({ appliquer: vi.fn(), storyboard: vi.fn(), compiler: vi.fn(), retenir: vi.fn(), devis: vi.fn(), lancer: vi.fn(), assembler: vi.fn(), refresh: vi.fn() }));
 vi.mock('../app/actions/studios/video', () => ({
   appliquerOperationVideo: m.appliquer, planifierStoryboard: m.storyboard, compilerConsignePlan: m.compiler, retenirConsignePlan: m.retenir,
-  demanderDevisKeyframe: m.devis, approuverEtLancerKeyframe: m.lancer,
+  demanderDevisKeyframe: m.devis, approuverEtLancerKeyframe: m.lancer, assemblerVideoFinale: m.assembler,
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
 
@@ -72,6 +75,7 @@ function vue(o: Partial<DonneesVideo> = {}, dispo: EntreeDisponibiliteVideo = TO
     },
     mediasValides: ['keyframe:s1'], musiques: [{ assetId: 'a_musique', libelle: 'Piste 1' }],
     clips: {}, prixClip: { credits: 10, usdMicros: 600_000, dureeS: 5 },
+    videoFinale: { possible: false, raison: 'Le plan 1 n’a pas de clip animé valide pour cette version · anime-le avant d’assembler.', nonInclus: [], dureeMs: 0, derniere: null },
     disponibilite: disponibiliteVideo(dispo), coutTexteUsd: 0.14, prix: prixImage(), jobs: [], ...o,
   };
 }
@@ -172,6 +176,42 @@ describe('rendu · storyboard, animation, prix, indisponibilités', () => {
     const d = html(props(vue({ contenu: c })));
     expect(d.querySelector('img[src="x"]')).toBeNull();
     expect(q(d, '[data-champs-plan="s1"]')!.textContent).toContain('<img src=x onerror=alert(1)>');
+  });
+});
+
+describe('rendu · vidéo finale', () => {
+  const NON_INCLUS = ['Voix · aucun fournisseur de voix n’est branché, la narration n’est pas dite (plan 1, plan 2).', 'Texte écran · non incrusté (plan 3).'];
+  const finale = (o: Partial<DonneesVideo['videoFinale']> = {}): DonneesVideo['videoFinale'] => ({ possible: true, raison: '', nonInclus: NON_INCLUS, dureeMs: 9000, derniere: null, ...o });
+
+  it('un plan sans clip ⇒ bouton inactif, la raison nomme le plan', () => {
+    const d = html(props(vue(), { surAssembler: rien }));
+    expect(q(d, '[data-zone="video-finale"]')?.getAttribute('data-possible')).toBe('non');
+    expect((q(d, '[data-bouton="assembler"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(q(d, '[data-raison="video-finale"]')?.textContent).toBe('Le plan 1 n’a pas de clip animé valide pour cette version · anime-le avant d’assembler.');
+  });
+
+  it('tous les clips ⇒ ce qui n’est pas inclus est listé AVANT le clic, gratuit dit, bouton actif', () => {
+    const d = html(props(vue({ videoFinale: finale() }), { surAssembler: rien }));
+    expect([...d.querySelectorAll('[data-champ="non-inclus"] li')].map((x) => x.textContent)).toEqual(NON_INCLUS);
+    expect(q(d, '[data-zone="video-finale"]')?.textContent).toContain('aucun crédit, aucun coût fournisseur');
+    const b = q(d, '[data-bouton="assembler"]') as HTMLButtonElement;
+    expect(b.disabled).toBe(false);
+    expect(b.textContent).toBe('Assembler la vidéo finale');
+    expect(q(d, '[data-video-finale]')).toBeNull();
+  });
+
+  it('lecteur (sans geste d’assemblage) ⇒ bouton inactif', () => {
+    const d = html(props(vue({ videoFinale: finale() })));
+    expect((q(d, '[data-bouton="assembler"]') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('dernière vidéo ⇒ lecteur et lien de téléchargement du média, « Assembler à nouveau »', () => {
+    const url = '/api/studios/media/33333333-3333-4333-8333-333333333333';
+    const d = html(props(vue({ videoFinale: finale({ derniere: { assetId: '33333333-3333-4333-8333-333333333333', url, dureeMs: 9009, creeLe: '2026-10-10T10:00:00Z' } }) }), { surAssembler: rien }));
+    expect(q(d, '[data-video-finale] video')?.getAttribute('src')).toBe(url);
+    const lien = q(d, '[data-video-finale] a[download]');
+    expect([lien?.getAttribute('href'), lien?.textContent]).toEqual([url, 'Télécharger le MP4']);
+    expect(q(d, '[data-bouton="assembler"]')?.textContent).toBe('Assembler à nouveau');
   });
 });
 
@@ -295,5 +335,18 @@ describe('animation d’un plan · le clip part de l’image clé, prix annoncé
     const d = html(props(vue({ clips: { s1: clip({ etat: 'valide', keyframePrete: true, media: { assetId: 'a', url: '/api/studios/media/a' } }) } }, ANIME)));
     expect(q(d, '[data-clip="s1"] video')?.getAttribute('src')).toBe('/api/studios/media/a');
     expect(q(d, '[data-clip="s1"]')?.textContent).toContain('Clip animé valide');
+  });
+});
+
+describe('vidéo finale · un clic = une action d’assemblage', () => {
+  it('« Assembler la vidéo finale » ⇒ assemblerVideoFinale({ projectId }) une fois, aucun devis ni lancement', async () => {
+    m.assembler.mockResolvedValue({ ok: true, video: { assetId: 'a', url: '/api/studios/media/a', dureeMs: 9009, largeur: 1080, hauteur: 1920, nonInclus: [] } });
+    await monter(vue({ videoFinale: { possible: true, raison: '', nonInclus: [], dureeMs: 9000, derniere: null } }));
+    expect(m.assembler).not.toHaveBeenCalled();
+    await clic('[data-bouton="assembler"]');
+    expect(m.assembler).toHaveBeenCalledTimes(1);
+    expect(m.assembler).toHaveBeenCalledWith({ projectId: 'p1' });
+    expect(m.devis).not.toHaveBeenCalled();
+    expect(m.lancer).not.toHaveBeenCalled();
   });
 });

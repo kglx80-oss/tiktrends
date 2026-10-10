@@ -40,8 +40,10 @@ export async function solde(base: BaseStudio, workspaceId: string): Promise<numb
  * L6-A · chaque plan porte une consigne `shot.image` attestée (semis) : une
  * image clé de plan ne se devise plus sans elle (plus jamais `parametres: {}`).
  */
-export async function projetTest(base: BaseStudio, ids: IdsStudios, brandId: string, userId: string): Promise<{ projectId: string; versionId: string }> {
-  const { contenu, consignes } = avecConsignesPlans(contenuVideo());
+export async function projetTest(base: BaseStudio, ids: IdsStudios, brandId: string, userId: string, ajuster?: (c: ReturnType<typeof contenuVideo>) => void): Promise<{ projectId: string; versionId: string }> {
+  const brut = contenuVideo();
+  ajuster?.(brut);
+  const { contenu, consignes } = avecConsignesPlans(brut);
   const { empreinteContenu, SCHEMA_VERSION_CONTENU } = await import('@tiktrends/core');
   const [p] = await base.insert(schema.studioProjects).values({ workspaceId: brandId === ids.brandB1 ? ids.wsB : ids.wsA, brandId, kind: 'video', title: `Projet ${randomUUID().slice(0, 6)}`, ownerId: userId }).returning();
   const [v] = await base.insert(schema.studioProjectVersions).values({
