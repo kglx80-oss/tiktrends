@@ -1,66 +1,11 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '../../../../lib/auth';
-import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
-import { getActiveBrand } from '../../../../lib/brands';
-import { higgsfieldConfigured, falConfigured } from '@tiktrends/integrations';
-import { pageVideosMarque, listAnimatableAssets } from '../../../actions/video';
-import { anthropicConfigured } from '../../../../lib/ai-status';
-import { VideoStudioFull } from './VideoStudioFull';
-import { PageInfo } from '../../../../components/PageInfo';
-import { Icon } from '../../../../components/Icon';
-import { effectiveAccess } from '../../../../lib/access';
-import { cadrePage, surface } from '../../../../components/ui';
-import { costFor } from '@tiktrends/core';
+import { destinationAncienneAdresse } from '@tiktrends/core';
 
-export const dynamic = 'force-dynamic';
-const feature = FEATURES.find((f) => f.key === 'video')!;
-
-export default async function VideoStudioPage({ searchParams }: { searchParams: Promise<{ prompt?: string }> }) {
-  const s = await getSession();
-  if (!s) redirect('/login');
-  if (!canAccess(effectiveAccess(s), feature)) {
-    const why = denyReason(effectiveAccess(s), feature);
-    return (
-      <main style={wrap}>
-        <h1 style={h1}>Vidéo IA</h1>
-        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
-          <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0' }}>
-            {why === 'plan' ? "La Vidéo IA est disponible à partir du plan Core." : "Ton rôle ne permet pas d'accéder à la Vidéo IA."}
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  const sp = await searchParams;
-  const brand = await getActiveBrand(s.workspaceId);
-  const [videos, assets] = await Promise.all([pageVideosMarque(), listAnimatableAssets()]);
-  // Même accès que les pubs · la vidéo peut désormais être poussée en test dans
-  // Adsmap (le pont accepte le format vidéo). On expose le bouton « Suivre »
-  // seulement à qui a l'atelier de test, comme le studio Pubs IA.
-  const adsmapOpen = !!brand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
-
-  return (
-    <main style={wrap}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={h1}>Vidéo IA</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>Moteur vidéo</span>
-      </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
-        Génère des vidéos verticales prêtes pour TikTok, à partir d'un texte ou d'une image. Les vidéos sont rattachées à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
-      </p>
-      <PageInfo title="générer une vidéo" minHeight={44}>
-        Stratégie cohérente avec Pubs IA : <b>Image → Vidéo</b> anime directement <b>ton produit ou une pub déjà générée</b>
-        (mouvement de caméra, micro-animations), pendant que <b>Texte → Vidéo</b> part d'une description. Le bouton
-        <b> Suggérer un mouvement</b> propose une consigne ancrée sur ta marque. Format 9:16 pour TikTok, rendu ~1 à 3 min,
-        {costFor('video')} crédits par tranche de 5 s · le prix exact s'affiche sur le bouton avant le clic.
-      </PageInfo>
-
-      <VideoStudioFull key={brand?.id ?? 'sans-marque'} ready={falConfigured() || higgsfieldConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initialVideos={videos} initialPrompt={sp.prompt} assets={assets} adsmap={adsmapOpen} />
-    </main>
-  );
+/**
+ * Ancienne adresse de création (studio retiré le 10/10) · elle ne fait plus
+ * que rediriger vers les projets Studios, contexte repris dans la préparation
+ * d'un projet (`destinationAncienneAdresse`, noyau). Rien n'est créé ici.
+ */
+export default async function AncienneAdresse({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  redirect(destinationAncienneAdresse('/studio/video', await searchParams));
 }
-
-const wrap = cadrePage;
-const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;

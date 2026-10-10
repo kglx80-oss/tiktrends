@@ -1,76 +1,11 @@
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
-import { db, schema } from '@tiktrends/db';
-import { getSession } from '../../../../lib/auth';
-import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
-import { getActiveBrand } from '../../../../lib/brands';
-import { falConfigured } from '@tiktrends/integrations';
-import { anthropicConfigured } from '../../../../lib/ai-status';
-import { pageImagesMarque } from '../../../actions/image';
-import { listAssets } from '../../../actions/assets';
-import { ImageStudio } from './ImageStudio';
-import { PageInfo } from '../../../../components/PageInfo';
-import { Icon } from '../../../../components/Icon';
-import { effectiveAccess } from '../../../../lib/access';
-import { cadrePage, surface } from '../../../../components/ui';
-import { fourchetteCreditsImage } from '@tiktrends/core';
+import { destinationAncienneAdresse } from '@tiktrends/core';
 
-export const dynamic = 'force-dynamic';
-const feature = FEATURES.find((f) => f.key === 'image')!;
-
-export default async function ImageStudioPage() {
-  const s = await getSession();
-  if (!s) redirect('/login');
-  if (!canAccess(effectiveAccess(s), feature)) {
-    const why = denyReason(effectiveAccess(s), feature);
-    return (
-      <main style={wrap}>
-        <h1 style={h1}>Image IA</h1>
-        <div style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
-          <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '10px auto 0' }}>
-            {why === 'plan' ? "L'Image IA est disponible à partir du plan Core." : "Ton rôle ne permet pas d'y accéder."}
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  const [brand, images, assets] = await Promise.all([getActiveBrand(s.workspaceId), pageImagesMarque(), listAssets({ kind: 'image', limit: 24 })]);
-  // Même accès que les pubs · un visuel peut désormais être poussé en test dans
-  // Adsmap (le pont accepte l'image en format static). Bouton « Suivre » exposé
-  // seulement à qui a l'atelier de test.
-  const adsmapOpen = !!brand && canAccess(effectiveAccess(s), FEATURES.find((f) => f.key === 'adsmap')!);
-  let products: Array<{ id: string; name: string; hasImage: boolean }> = [];
-  let colors: string[] = [];
-  if (db && brand) {
-    const rows = await db.select({ id: schema.products.id, name: schema.products.name, imageUrl: schema.products.imageUrl }).from(schema.products).where(eq(schema.products.brandId, brand.id));
-    products = rows.map((p) => ({ id: p.id, name: p.name, hasImage: !!p.imageUrl }));
-    const [row] = await db.select({ colors: schema.brands.colors }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
-    colors = row?.colors ?? [];
-  }
-
-  return (
-    <main style={wrap}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <h1 style={h1}>Image IA</h1>
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>Moteur d'image</span>
-      </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 16 }}>
-        Génère des visuels pub à partir d'un texte ou de ton image produit. Rattachés à {brand ? <b>{brand.name}</b> : 'ta marque active'}.
-      </p>
-      <PageInfo title="générer un visuel">
-        <b>Mise en scène produit</b> (recommandé) : importe la photo de ton produit, l'IA garde ton vrai
-        packaging et ne recompose que le décor. Enregistre la photo une fois sur le produit, elle sera
-        réutilisée. Le mode <b>Texte → Image</b> reste dispo pour des visuels d'ambiance sans produit. Coche
-        <b>Texte lisible</b> pour une accroche écrite propre, et <b>Optimiser le prompt</b> pour qu'un
-        prompt de qualité pub soit rédigé pour toi. De {fourchetteCreditsImage().min} à {fourchetteCreditsImage().max} crédits par image selon le moteur · le prix exact s'affiche sur le bouton avant le clic.
-      </PageInfo>
-
-      <ImageStudio key={brand?.id ?? 'sans-marque'} ready={falConfigured()} aiReady={anthropicConfigured()} brandName={brand?.name ?? null} initial={images} products={products} brandColors={colors} assets={assets.map((a) => ({ id: a.id, name: a.name, url: a.url, thumbUrl: a.thumbUrl }))} adsmap={adsmapOpen} />
-    </main>
-  );
+/**
+ * Ancienne adresse de création (studio retiré le 10/10) · elle ne fait plus
+ * que rediriger vers les projets Studios, contexte repris dans la préparation
+ * d'un projet (`destinationAncienneAdresse`, noyau). Rien n'est créé ici.
+ */
+export default async function AncienneAdresse({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  redirect(destinationAncienneAdresse('/studio/image', await searchParams));
 }
-
-const wrap = cadrePage;
-const h1 = { margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' } as const;

@@ -58,15 +58,14 @@ export async function onboardingState(workspaceId: string, canAdmin: boolean): P
   // pas chaque marque prise séparément.
   if (marques.some((m) => m.metaToken)) done.add('meta');
 
-  const [produits, generations, ads, lots, verdicts, presets, suivies, stats] = await Promise.all([
+  const [produits, generations, projets, ads, lots, verdicts, suivies, stats] = await Promise.all([
     db.select({ n: count() }).from(schema.products).where(inArray(schema.products.brandId, ids)),
     db.select({ n: count(), last: max(schema.generations.createdAt) }).from(schema.generations).where(inArray(schema.generations.brandId, ids)),
+    db.select({ n: count() }).from(schema.studioProjects).where(and(eq(schema.studioProjects.workspaceId, workspaceId), inArray(schema.studioProjects.brandId, ids))),
     db.select({ n: count() }).from(schema.ads).where(eq(schema.ads.workspaceId, workspaceId)),
     db.select({ n: count() }).from(schema.batches).where(inArray(schema.batches.brandId, ids)),
     db.select({ n: count() }).from(schema.verdicts)
       .where(and(eq(schema.verdicts.workspaceId, workspaceId), eq(schema.verdicts.status, 'validated'))),
-    db.select({ n: count() }).from(schema.creativePresets)
-      .where(and(eq(schema.creativePresets.workspaceId, workspaceId), eq(schema.creativePresets.archived, false))),
     db.select({ n: count() }).from(schema.followedBrands).where(eq(schema.followedBrands.workspaceId, workspaceId)),
     db.select({ n: count() }).from(schema.creatives)
       .where(and(inArray(schema.creatives.brandId, ids), isNotNull(schema.creatives.analysisModel))),
@@ -79,11 +78,10 @@ export async function onboardingState(workspaceId: string, canAdmin: boolean): P
   const identifiee = marques.some((m) => (m.logoUrl || m.description || m.usp) && true);
   if (identifiee && n(produits) > 0) done.add('identity');
 
-  if (n(generations) > 0) done.add('generate');
+  if (n(generations) > 0 || n(projets) > 0) done.add('generate');
   if (n(ads) > 0) done.add('map');
   if (n(lots) > 0) done.add('batch');
   if (n(verdicts) > 0) done.add('verdict');
-  if (n(presets) > 0) done.add('prompt');
   if (n(suivies) > 0) done.add('competitors');
 
   // La mémoire de Jarvis « s'allume » quand elle a de quoi dire quelque chose ·

@@ -6,6 +6,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { buildAnalysis, buildLiveAnalysis, BUCKETS, bucketDef, ageActifLabel, type AnalysisRow } from '../../../lib/analysis';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
+import { lienNouveauProjet } from '@tiktrends/core';
 import { PageInfo } from '../../../components/PageInfo';
 import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
@@ -30,15 +31,14 @@ function Grade({ label, g }: { label: string; g: string }) {
 
 // Action du Studio selon le verdict : on transforme le diagnostic en geste concret.
 const ACTION_CTA: Record<string, string> = {
-  scaler: 'Décliner les gagnantes', pousser: 'Pousser au Studio', iterer: 'Itérer au Studio',
-  rafraichir: 'Rafraîchir au Studio', couper: 'Remplacer au Studio',
+  scaler: 'Décliner les gagnantes', pousser: 'Pousser dans un projet', iterer: 'Itérer dans un projet',
+  rafraichir: 'Rafraîchir dans un projet', couper: 'Remplacer dans un projet',
 };
 
 function Row({ r }: { r: AnalysisRow }) {
   const b = bucketDef(r.bucket);
-  // Le studio lit `angle` (le brief de départ), pas `inspo` · l'ancien lien
-  // déposait un réglage qu'aucun écran ne relisait, donc perdu au chargement.
-  const studioHref = `/studio/ads?angle=${encodeURIComponent(r.title)}`;
+  // La préparation d'un projet reprend `angle` comme objectif (retrait des anciens studios, 10/10).
+  const studioHref = lienNouveauProjet({ type: 'ads', angle: r.title });
   return (
     <div style={{ ...surface, background: 'var(--surface)', padding: '14px 16px', display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -67,7 +67,7 @@ function Row({ r }: { r: AnalysisRow }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-2)' }}>
         {r.diagnosis.map((d, i) => <span key={i} style={{ background: 'var(--bg)', ...tuile, padding: '4px 9px' }}>→ {d}</span>)}
-        <LienCible href={studioHref} style={{ marginLeft: 'auto', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Icon name="sparkles" size={12} />{ACTION_CTA[r.bucket] ?? 'Retravailler au Studio'} ›</LienCible>
+        <LienCible href={studioHref} style={{ marginLeft: 'auto', gap: 5, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}><Icon name="sparkles" size={12} />{ACTION_CTA[r.bucket] ?? 'Retravailler dans un projet'} ›</LienCible>
       </div>
     </div>
   );

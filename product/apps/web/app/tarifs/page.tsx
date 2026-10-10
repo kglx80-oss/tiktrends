@@ -138,7 +138,7 @@ const TIER_PITCH: Record<Plan, string> = {
 };
 const TIER_FEATURES: Record<Plan, string[]> = {
   starter: ['Dashboard & Analytics', 'Veille en lecture', 'Tagging'],
-  core: ['Tout Starter', 'Studio IA complet', 'Jarvis · copie relue', 'Veille & Radar créatif'],
+  core: ['Tout Starter', 'Studios complets', 'Jarvis · copie relue', 'Veille & Radar créatif'],
   plus: ['Tout Core', 'Adsmap complet', 'Suites & lots de test', 'Protocole & seuils'],
   business: ['Tout Plus', 'Marques & membres multiples', 'Le plus gros volume de crédits'],
 };
@@ -154,7 +154,7 @@ function euro(n: number): string {
 const TABLE: { group: string; rows: { label: string; min: Plan }[] }[] = [
   { group: 'Piloter', rows: [{ label: 'Dashboard & Analytics', min: 'starter' }, { label: 'Tagging', min: 'starter' }] },
   { group: 'Observer', rows: [{ label: 'Veille & Ce qui scale', min: 'core' }, { label: 'Radar créatif', min: 'core' }, { label: 'Sauvegardes', min: 'core' }] },
-  { group: 'Créer', rows: [{ label: 'Studio IA · Pubs, Image, Vidéo, Textes', min: 'core' }, { label: 'Jarvis · copie relue', min: 'core' }, { label: 'Assets', min: 'core' }] },
+  { group: 'Créer', rows: [{ label: 'Studios · pub, image, vidéo, textes', min: 'core' }, { label: 'Jarvis · copie relue', min: 'core' }, { label: 'Assets', min: 'core' }] },
   { group: 'Tester', rows: [{ label: 'Adsmap · suites, lots, tri', min: 'plus' }, { label: 'Protocole & seuils', min: 'plus' }, { label: 'Import de campagnes', min: 'plus' }] },
   { group: 'Espace', rows: [{ label: 'Marques & membres multiples', min: 'starter' }, { label: 'Connexions & facturation', min: 'starter' }] },
 ];

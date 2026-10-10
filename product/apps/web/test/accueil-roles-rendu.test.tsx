@@ -33,7 +33,7 @@ async function accueil(role: typeof etat.role) {
 describe('Accueil · ne propose que ce que le rôle ouvre', () => {
   it('client en lecture · ni création, ni marque, ni test · Analytics et la raison', async () => {
     const a = await accueil('client_viewer');
-    for (const mort of ['/studio/ads', '/studio/image', '/studio/video', '/studio/textes', '/brands/new', '/brands', '/brands/b1', '/adsmap', '/veille', '/radar', '/jarvis']) {
+    for (const mort of ['/studio/projets', '/studio/projets/nouveau', '/studio/projets/nouveau?type=ads', '/studio/ads', '/studio/image', '/studio/video', '/studio/textes', '/brands/new', '/brands', '/brands/b1', '/adsmap', '/veille', '/radar', '/jarvis']) {
       expect(a.liens, `lien vers ${mort} proposé au client en lecture`).not.toContain(mort);
     }
     expect(a.texte).not.toContain('Créer une pub');
@@ -50,7 +50,8 @@ describe('Accueil · ne propose que ce que le rôle ouvre', () => {
   });
   it('membre · crée des pubs, ne gère pas les marques', async () => {
     const a = await accueil('member');
-    expect(a.liens).toContain('/studio/ads');
+    expect(a.liens).toContain('/studio/projets/nouveau');
+    expect(a.liens).toContain('/studio/projets');
     expect(a.liens).toContain('/adsmap');
     // La section Marques de l'accueil.
     const marques = liens(a.html.slice(a.html.indexOf('aria-label="Tes marques"'), a.html.indexOf('</section>', a.html.indexOf('aria-label="Tes marques"'))));
@@ -66,7 +67,7 @@ describe('Accueil · ne propose que ce que le rôle ouvre', () => {
   });
   it('propriétaire · tout reste proposé, aucune note', async () => {
     const a = await accueil('owner');
-    for (const l of ['/adsmap', '/studio/ads', '/brands/new', '/brands/b1', '/veille']) expect(a.liens, l).toContain(l);
+    for (const l of ['/adsmap', '/studio/projets/nouveau', '/studio/projets', '/brands/new', '/brands/b1', '/veille']) expect(a.liens, l).toContain(l);
     expect(a.texte).toContain('Créer une pub');
     expect(a.texte).not.toContain('Ton rôle dans cet espace');
   });

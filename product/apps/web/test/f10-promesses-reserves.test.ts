@@ -14,13 +14,6 @@ import { join } from 'node:path';
 const lire = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
 describe('F10 · les promesses ne dépassent plus leurs réserves', () => {
-  it('l’assistant · l’emballage « guide le rendu », il n’est plus « reproduit à l’identique »', () => {
-    const src = lire('app/(app)/studio/ads/AssistantPub.tsx');
-    expect(src).toContain('ton emballage guide le rendu');
-    expect(src, 'plus de « sera reproduit »').not.toContain('sera reproduit');
-    expect(src, 'plus de « reproduit à l’identique »').not.toContain('reproduit à l’identique');
-  });
-
   it('le budget d’un lot est PRÉVU · « devrait atteindre au rythme prévu », pas « atteindra »', () => {
     const src = lire('app/actions/adsmap-batch.ts');
     expect(src).toContain('devrait atteindre');

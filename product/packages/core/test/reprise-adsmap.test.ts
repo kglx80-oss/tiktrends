@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   idGenerationSuivable, manquesAvantTest, listeManques, texteAdIncomplete, COMPLETUDE_HORS_OUTIL,
-  repriseIteration, FILIATION_NON_ENREGISTREE, presentationTest, PREPARER_UN_TEST, DEJA_SUIVIE,
+  FILIATION_NON_ENREGISTREE, presentationTest, PREPARER_UN_TEST, DEJA_SUIVIE,
 } from '../src';
 
 const G = 'f1700000-0000-4000-8000-0000000000a2';
@@ -53,17 +53,6 @@ describe('Ad incomplète · ce qui manque, et que l’outil ne permet pas encore
 });
 
 describe('Brief d’itération · reprise après un changement d’onglet (lot 17)', () => {
-  const memo = { brandId: 'b1', adId: 'ada00000-0000-4000-8000-000000000002', titre: 'v2 · Concept 2' };
-  it('propose la reprise sur Pubs IA sans `?iter`, dans la même marque', () => {
-    expect(repriseIteration(memo, { brandId: 'b1', iterDansUrl: false })).toEqual({ href: '/studio/ads?iter=ada00000-0000-4000-8000-000000000002', titre: 'v2 · Concept 2' });
-  });
-  it('rien quand l’URL porte déjà un brief, ou dans une autre marque, ou sans mémoire valide', () => {
-    expect(repriseIteration(memo, { brandId: 'b1', iterDansUrl: true })).toBeNull();
-    expect(repriseIteration(memo, { brandId: 'b2', iterDansUrl: false })).toBeNull();
-    expect(repriseIteration(null, { brandId: 'b1', iterDansUrl: false })).toBeNull();
-    expect(repriseIteration({ ...memo, adId: 'javascript:alert(1)' }, { brandId: 'b1', iterDansUrl: false })).toBeNull();
-    expect(repriseIteration(memo, { brandId: null, iterDansUrl: false })).toBeNull();
-  });
   it('le brief dit que la créa produite n’est pas rattachée au test source', () => {
     expect(FILIATION_NON_ENREGISTREE).toMatch(/pas rattachée/);
     expect(FILIATION_NON_ENREGISTREE).toContain('Vient de');

@@ -1,8 +1,14 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { briefDepuisVeille, refSourceVeille, PARAM_DEPUIS, DEPUIS_VEILLE, PARAM_RETOUR_VEILLE } from '@tiktrends/core';
+import { briefDepuisVeille, refSourceVeille, lienNouveauProjet } from '@tiktrends/core';
 
 /**
- * L'URL des Pubs IA, armée depuis une pub de veille.
+ * La préparation d'un projet Studios, armée depuis une pub de veille
+ * (anciennement les Pubs IA, retirées le 10/10 · `lienNouveauProjet`).
+ *
+ * Sert là où la carte n'est PAS une source accessible au panneau « Préparer
+ * une création » (hors Veille et Sauvegardes) · l'angle distillé et la
+ * provenance suivent le lien, la préparation dit que l'annonce elle-même
+ * n'est pas jointe.
  *
  * ── Pourquoi un fichier à part ───────────────────────────────────────────────
  *
@@ -32,16 +38,12 @@ export function studioDepuisVeille(ad: InspoAd, opts?: { ref?: string | null;
    */
   retour?: string | null }): string {
   const brief = briefDepuisVeille({ body: ad.body, callToAction: ad.callToAction, daysRunning: ad.daysRunning });
-  const params = new URLSearchParams();
-  if (opts?.ref) { params.set('mode', 'clone'); params.set('ref', opts.ref); }
-  if (brief) params.set('angle', brief.angle);
-  // CDC v8 · F07 · la PROVENANCE de la source suit le lien · une clé structurée
-  // unique (plateforme:id) et le nom de l'annonceur · sans ça, « Décline cette
-  // piste » perdait toute référence en route (Sauvegardes en portait une, pas la
-  // Veille). Le studio la relit et l'affiche.
+  // CDC v8 · F07 · la PROVENANCE de la source suit le lien (clé plateforme:id et
+  // annonceur) · la préparation la relit et dit qu'elle n'est pas jointe.
   const src = refSourceVeille(ad);
-  if (src) { params.set('src', src.cle); if (src.nom) params.set('srcnom', src.nom); }
-  if (opts?.retour != null) { params.set(PARAM_DEPUIS, DEPUIS_VEILLE); params.set(PARAM_RETOUR_VEILLE, opts.retour); }
-  const q = params.toString();
-  return q ? `/studio/ads?${q}` : '/studio/ads';
+  return lienNouveauProjet({
+    type: ad.mediaType === 'video' ? 'video' : 'ads',
+    angle: brief?.angle ?? null, ref: opts?.ref ?? null,
+    src: src?.cle ?? null, srcnom: src?.nom ?? null, retourVeille: opts?.retour ?? null,
+  });
 }

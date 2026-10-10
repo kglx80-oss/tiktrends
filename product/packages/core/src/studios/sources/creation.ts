@@ -75,7 +75,7 @@ export function texteCreation(g: Pick<CreationBrute, 'kind' | 'input'>): { body:
 
 /** Le libellé d'une création dans une liste · sa sorte et son accroche quand elle en a une. */
 export function libelleCreation(g: Pick<CreationBrute, 'kind' | 'input'>): string {
-  const sorte = g.kind === 'ad' ? 'Pub IA' : 'Image IA';
+  const sorte = g.kind === 'ad' ? 'Pub' : 'Image';
   const { body } = texteCreation(g);
   return body ? `${sorte} · ${body.length > 90 ? `${body.slice(0, 89).trim()}…` : body}` : sorte;
 }

@@ -98,7 +98,15 @@ function lireHypothese(ctx: ContexteStudio, brut: unknown, cible: { brandId: str
 export async function creerProjetDepuisSourcesPour(
   ctx: ContexteStudio,
   e: EntreeCreationDepuisSources,
-  o: { veilleOuverte: boolean; maintenant: Date },
+  o: {
+    veilleOuverte: boolean; maintenant: Date;
+    /**
+     * Préparation depuis un ANCIEN lien de création (retrait des anciens
+     * studios, 10/10) · une liste de sources VIDE est admise si un objectif
+     * est saisi (angle, consigne, prompt). Absent ailleurs : 1 à 10 sources.
+     */
+    sourcesFacultatives?: boolean;
+  },
 ): Promise<Resultat<ProjetCree>> {
   if (typeof e.cleClic !== 'string' || !CLE_CLIC.test(e.cleClic)) {
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'cleClic', raison: 'clé de clic de 8 à 100 caractères [A-Za-z0-9_-]' }] });
@@ -113,9 +121,16 @@ export async function creerProjetDepuisSourcesPour(
     .from(schema.brands).where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, ctx.workspaceId))).limit(1);
   if (!marque) return introuvable(ctx);
 
-  const c = await chargerSources(ctx, e.sources, o);
-  if (!c.ok) return c;
-  const sources = c.sources;
+  const objectif = typeof e.objectif === 'string' ? e.objectif.slice(0, 2000) : undefined;
+  let sources: SourceReferenceStudio[];
+  if (o.sourcesFacultatives && Array.isArray(e.sources) && e.sources.length === 0) {
+    if (!objectif?.trim()) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'objectif', raison: 'un objectif est requis pour un projet sans source' }] });
+    sources = [];
+  } else {
+    const c = await chargerSources(ctx, e.sources, o);
+    if (!c.ok) return c;
+    sources = c.sources;
+  }
   // Une création précédente porte le produit et la DA de SA marque · elle ne se greffe pas sur une autre.
   if (creationsHorsMarque(sources, brandId).length) {
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'sources', raison: 'création précédente d’une autre marque' }] });
@@ -133,7 +148,6 @@ export async function creerProjetDepuisSourcesPour(
     produit = referenceProduit({ id: p.id, name: p.name, description: p.description, usp: p.usp, price: p.price, url: p.url, imageUrl: p.imageUrl, imageUrls: p.imageUrls }, o.maintenant);
   }
 
-  const objectif = typeof e.objectif === 'string' ? e.objectif.slice(0, 2000) : undefined;
   const brief = composerBrief({ sources, hypothese: h.hypothese, produit, audience: marque.audience ?? '', ...(objectif !== undefined ? { objectif } : {}) });
   const violations = [...validerFormeBrief(brief), ...validerRelationsBrief(brief, { sources, productId: produit?.productId ?? null })];
   if (violations.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations });
@@ -142,7 +156,8 @@ export async function creerProjetDepuisSourcesPour(
   if (vc.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: vc });
 
   const titreBrut = typeof e.titre === 'string' ? e.titre.replace(/\s+/g, ' ').trim() : '';
-  const titre = (titreBrut || `D’après ${sources[0]!.annonceur || 'une annonce observée'}`).slice(0, 200);
+  const titre = (titreBrut || (sources[0] ? `D’après ${sources[0].annonceur || 'une annonce observée'}` : 'Nouveau projet')).slice(0, 200);
+  const raison = sources.length ? 'création depuis des sources' : 'création depuis un objectif';
 
   try {
     return await db.transaction(async (tx) => {
@@ -162,14 +177,14 @@ export async function creerProjetDepuisSourcesPour(
       const [version] = await tx.insert(schema.studioProjectVersions).values({
         projectId: projet!.id, workspaceId: ctx.workspaceId, brandId, parentId: null, n: 1,
         schemaVersion: SCHEMA_VERSION_CONTENU, content: contenu, contentHash: empreinteContenu(contenu),
-        authorId: ctx.userId, reason: 'création depuis des sources',
+        authorId: ctx.userId, reason: raison,
       }).returning();
       await tx.update(schema.studioProjects)
         .set({ currentVersionId: version!.id, rowVersion: 1, updatedAt: new Date() })
         .where(and(eq(schema.studioProjects.id, projet!.id), porteeSql(schema.studioProjects, ctx)));
       await ajouterAudit(tx, ctx, {
         action: ACTION_CREATION, brandId, targetType: 'studio_project', targetId: projet!.id,
-        versionBefore: null, versionAfter: version!.id, reason: 'création depuis des sources',
+        versionBefore: null, versionAfter: version!.id, reason: raison,
         details: {
           cleClic, sourceIds, hypothesisId: h.hypothese?.id ?? null, origineHypothese: h.origine, runId: h.runId,
           productId: produit?.productId ?? null, empreintes: sources.map((s) => s.empreinte),
@@ -182,6 +197,26 @@ export async function creerProjetDepuisSourcesPour(
     console.error(`[studios] ${ctx.traceId} création depuis sources`, err instanceof Error ? err.message : err);
     return erreurStudio('PERSISTENCE_FAILED', { traceId: ctx.traceId });
   }
+}
+
+/**
+ * La préparation d'un projet depuis un ANCIEN lien de création (contexte repris
+ * par `/studio/projets/nouveau`) · l'annonce sauvegardée, si le lien en portait
+ * une, devient la source ; sinon le projet part de l'objectif seul. Même
+ * création que depuis la Veille : portée, idempotence par clé de clic, audit.
+ * Aucune hypothèse proposée ici (aucun appel modèle, aucune dépense).
+ */
+export async function creerProjetDepuisContextePour(
+  ctx: ContexteStudio,
+  e: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown },
+  o: { veilleOuverte: boolean; maintenant: Date },
+): Promise<Resultat<ProjetCree>> {
+  const sources = e.ref === undefined || e.ref === null || e.ref === ''
+    ? []
+    : [{ type: 'sauvegarde', id: e.ref, ...(typeof e.retourVeille === 'string' && e.retourVeille ? { retour: e.retourVeille } : {}) }];
+  return creerProjetDepuisSourcesPour(ctx, {
+    sources, brandId: e.brandId, kind: e.kind, titre: e.titre, objectif: e.objectif, hypothese: null, productId: null, cleClic: e.cleClic,
+  }, { ...o, sourcesFacultatives: true });
 }
 
 /* ─────────────────────────────── Lecture ─────────────────────────────────── */

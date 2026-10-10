@@ -171,7 +171,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
           Génère, clone et itère tes publicités · Jarvis apprend de la veille et de tes performances pour te dire ce qui va marcher, avant de dépenser.
         </p>
         <div style={{ marginTop: 26, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {['Pubs IA', 'Clone gagnants', 'Score Jarvis', 'Multi-marques', 'Analytics'].map((t) => (
+          {['Studios', 'Veille', 'Adsmap', 'Multi-marques', 'Analytics'].map((t) => (
             <span key={t} style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '6px 12px', borderRadius: 999, background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.18)' }}>{t}</span>
           ))}
         </div>

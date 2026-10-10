@@ -53,7 +53,7 @@ async function ouvrir(peutPartager = true) {
   const onClose = vi.fn();
   const racine = createRoot(hote);
   await act(async () => {
-    racine.render(<AdDrawer adId="3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f" onClose={onClose} onChanged={() => {}} peutPartager={peutPartager} retour={{ href: '/studio/ads', libelle: 'Retour au Studio' }} />);
+    racine.render(<AdDrawer adId="3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f" onClose={onClose} onChanged={() => {}} peutPartager={peutPartager} retour={{ href: '/studio/projets', libelle: 'Retour aux Studios' }} />);
   });
   await act(async () => { vi.advanceTimersByTime(50); });
   const dialogue = document.querySelector('[role="dialog"]') as HTMLElement;
@@ -87,7 +87,7 @@ describe('AdDrawer · focus', () => {
     reponse = { error: 'Chargement impossible · réessaie dans un instant.' };
     const { dialogue, fermer } = await ouvrir();
     expect(dialogue.textContent).toContain('Chargement impossible');
-    expect(dialogue.querySelector('a[href="/studio/ads"]'), 'l’erreur coupe le chemin de retour').not.toBeNull();
+    expect(dialogue.querySelector('a[href="/studio/projets"]'), 'l’erreur coupe le chemin de retour').not.toBeNull();
     expect(dialogue.contains(document.activeElement)).toBe(true);
     await fermer();
   });
@@ -144,24 +144,24 @@ describe('AdDrawer · ce que dit le panneau selon l’état RÉEL du test', () =
     expect(t).toContain('Arbitrer ce test');
     expect(t).toContain('On n’itère');
     expect(t).not.toContain('Pas encore lancée');
-    // Une perdante mène au Studio, l'angle du test en amorce (sortie de la boucle intacte).
-    expect(dialogue.querySelector('a[href="/studio/ads?angle=Angle%201"]'), 'la perdante ne mène plus au Studio').not.toBeNull();
+    // Une perdante mène à la préparation d'un projet, l'angle du test en amorce (sortie de la boucle intacte).
+    expect(dialogue.querySelector('a[href="/studio/projets/nouveau?type=ads&angle=Angle+1"]'), 'la perdante ne mène plus aux Studios').not.toBeNull();
     await fermer();
   });
 });
 
-describe('AdDrawer · I2 · une gagnante arbitrée avec apprentissage ouvre le brief d’itération au Studio', () => {
-  const gagnante = { status: 'live', launchedAt: '2026-09-20T00:00:00Z', computed: 'winner' as const, validated: 'winner' as const, verdictStatus: 'validated' as const, comparable: true };
-  it('gagnante arbitrée + apprentissage → « Préparer l’itération dans le Studio »', async () => {
+describe('AdDrawer · I2 · une gagnante arbitrée avec apprentissage ouvre le brief d’itération dans un projet', () => {
+  const gagnante = { id: '3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f', status: 'live', launchedAt: '2026-09-20T00:00:00Z', computed: 'winner' as const, validated: 'winner' as const, verdictStatus: 'validated' as const, comparable: true };
+  it('gagnante arbitrée + apprentissage → « Préparer l’itération dans un projet »', async () => {
     reponse = { detail: detail({ ...gagnante, learnings: [{ id: 'l1', statement: 'Le chiffré tient mieux.', confidence: 4, status: 'validated', scope: 'ad' }] }) };
     const { dialogue, fermer } = await ouvrir();
-    expect(dialogue.querySelector('a[href="/studio/ads?iter=a"]')?.textContent, 'le lien vers le brief d’itération manque').toContain('Préparer l’itération dans le Studio');
+    expect(dialogue.querySelector('a[href="/studio/projets/nouveau?type=ads&iter=3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f"]')?.textContent, 'le lien vers le brief d’itération manque').toContain('Préparer l’itération dans un projet');
     await fermer();
   });
   it('gagnante SANS apprentissage · pas de lien (aucune fausse itération)', async () => {
     reponse = { detail: detail({ ...gagnante, learnings: [] }) };
     const { dialogue, fermer } = await ouvrir();
-    expect(dialogue.querySelector('a[href^="/studio/ads?iter="]'), 'une gagnante sans apprentissage ouvre un brief').toBeNull();
+    expect(dialogue.querySelector('a[href*="iter="]'), 'une gagnante sans apprentissage ouvre un brief').toBeNull();
     await fermer();
   });
 });

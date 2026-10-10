@@ -6,7 +6,7 @@ import { join } from 'node:path';
  * Cartes & découverte (lot H) sans emoji d'interface · rollout icônes (retour
  * proprio #2). AdCard (🏆→trophy pour le badge « Gagnant », ✨→sparkles pour le
  * bouton clone/génère), page saved (✨→sparkles dans l'aide), AssistantChat
- * (✦→sparkles pour l'avatar), Composer (✦→sparkles devant le coût).
+ * (✦→sparkles pour l'avatar).
  *
  * GARDÉS : ★ (favori, texte d'aide de saved), ✓ ✕ · ce ne sont pas des
  * pictogrammes colorés d'interface.
@@ -15,7 +15,6 @@ const FICHIERS = [
   'components/AdCard.tsx',
   'app/(app)/saved/page.tsx',
   'components/AssistantChat.tsx',
-  'components/Composer.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
 // Pictogrammes, sauf ★☆ (favori), ✓ (2713), ✕ (2715).
@@ -31,6 +30,6 @@ describe('Cartes & découverte lot H · plus aucun emoji d’interface', () => {
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
     expect(tout).toMatch(/<Icon name="trophy"/);      // AdCard
-    expect(tout).toMatch(/<Icon name="sparkles"/);     // AdCard · saved · AssistantChat · Composer
+    expect(tout).toMatch(/<Icon name="sparkles"/);     // AdCard · saved · AssistantChat
   });
 });

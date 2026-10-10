@@ -34,7 +34,7 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
       </p>
       <PageInfo title="créer une marque">
         Chaque marque a son propre espace (sauvegardes, suivis, analyses). Le profil, la charte, l'audience et les
-        concurrents nourrissent le Studio IA et le Radar. Tout reste modifiable ensuite depuis la fiche de la marque.
+        concurrents nourrissent les Studios et le Radar. Tout reste modifiable ensuite depuis la fiche de la marque.
       </PageInfo>
 
       {/* Raccourci Shopify : crée la marque + importe produits, images et DA en un clic. */}

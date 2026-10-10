@@ -28,8 +28,10 @@ describe('les cartes de l’accueil mènent à un écran qui agit, pas au hub nu
       .toEqual([]);
   });
 
-  it('la cible des cartes texte (`/studio/textes`) existe', () => {
-    expect(destinations).toContain('/studio/textes');
-    expect(existsSync(join(process.cwd(), 'app', '(app)', 'studio', 'textes', 'page.tsx'))).toBe(true);
+  it('les cartes de création mènent aux Studios (préparer, reprendre), jamais à une ancienne adresse ; les cibles existent', () => {
+    expect(destinations).toContain('/studio/projets/nouveau');
+    expect(destinations).toContain('/studio/projets');
+    expect(destinations.filter((h) => /^\/studio\/(ads|image|video|textes)\b/.test(h)), 'carte vers un ancien studio retiré').toEqual([]);
+    expect(existsSync(join(process.cwd(), 'app', '(app)', 'studio', 'projets', 'nouveau', 'page.tsx'))).toBe(true);
   });
 });

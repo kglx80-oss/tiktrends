@@ -46,8 +46,12 @@ export const CAPACITES_STUDIOS = [
 ] as const;
 export type CapaciteStudio = (typeof CAPACITES_STUDIOS)[number];
 
-/** L'ancienne expérience · jamais coupée par ces interrupteurs (cahier §14). */
-export const EXPERIENCES_TOUJOURS_ACTIVES = ['studio_historique', 'pubs_ia', 'admin_ia_studios'] as const;
+/**
+ * Ce que ces interrupteurs ne coupent jamais (cahier §14) · l'administration
+ * des Studios. Les anciens studios (Studio historique, Pubs IA) sont retirés
+ * le 10/10 · ils ne figurent plus ici.
+ */
+export const EXPERIENCES_TOUJOURS_ACTIVES = ['admin_ia_studios'] as const;
 export type ExperienceToujoursActive = (typeof EXPERIENCES_TOUJOURS_ACTIVES)[number];
 
 export interface DefinitionCapacite {

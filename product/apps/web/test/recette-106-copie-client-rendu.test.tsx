@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { jargonTechnique, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, TEXTES_IA_INACTIFS } from '@tiktrends/core';
+import { jargonTechnique, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF } from '@tiktrends/core';
 
 /**
  * Recette #106 · lot B · la copie CLIENT d'un service pas encore activé.
  *
- * On REND l'encadré Google Drive de l'écran Assets et le Studio Textes, et on
- * lit le texte affiché · aucun nom de variable, de clé, de permission ou de
+ * On REND l'encadré Google Drive de l'écran Assets (le Studio Textes, aussi
+ * gardé ici, est retiré depuis le 10/10), et on lit le texte affiché · aucun nom de variable, de clé, de permission ou de
  * fournisseur interne n'atteint l'écran, et le message dit ce qui manque, qui
  * agit (la plateforme · lot 11) et quoi faire (ticket interne, import par lien en attendant).
  */
@@ -16,10 +16,8 @@ vi.mock('../app/actions/drive', () => ({
   getDrivePickerConfigAction: async () => ({}), setDriveFolderAction: async () => ({}),
   syncDriveNowAction: async () => ({}), syncDriveFilesAction: async () => ({}), disconnectDriveAction: async () => ({}),
 }));
-vi.mock('../app/actions/studio', () => ({ generateAction: async () => ({}) }));
 
 import { DriveConnect } from '../app/(app)/assets/DriveConnect';
-import { StudioClient } from '../app/(app)/studio/textes/StudioClient';
 
 type Etat = Parameters<typeof DriveConnect>[0]['state'];
 const etat = (o: Partial<Etat> = {}): Etat => ({
@@ -72,47 +70,12 @@ describe('Recette #106 · encadré Google Drive (Assets) · copie client', () =>
   });
 });
 
-describe('Recette #106 · Studio Textes sans IA activée · copie client', () => {
-  const html = renderToStaticMarkup(<StudioClient hasKey={false} />);
-  it('aucun nom de variable ni de fournisseur à l’écran', () => {
-    expect(jargonTechnique(texte(html)), `jargon technique affiché : ${texte(html)}`).toEqual([]);
-    expect(html).not.toContain('<code>');
-  });
-  // Lot 9 · fidèle au routage réel · un ticket du support reste dans l'espace,
-  // aucun bouton ne promet une activation que le support ne peut pas faire.
-  // Lot 11 · l'accès au support revient, nommé « ticket interne ».
-  it('dit ce qui manque et le routage réel, sans promettre une équipe injoignable', () => {
-    expect(texte(html)).toContain(TEXTES_IA_INACTIFS.constat);
-    expect(texte(html)).not.toMatch(/notre équipe l’active sur demande/);
-    expect(texte(html)).toMatch(/reste dans ton espace/);
-    expect(html, 'bouton vers un support qui ne peut pas activer').not.toMatch(/Demander l’activation au support/);
-    expect(html, 'accès au support retiré').toMatch(/<a href="\/support"[^>]*>Ouvrir un ticket interne<\/a>/);
-  });
-  it('avec l’IA active, aucun message d’absence', () => {
-    expect(renderToStaticMarkup(<StudioClient hasKey />)).not.toContain(TEXTES_IA_INACTIFS.constat);
-  });
-});
-
-describe('Lot 12 · badge Drive et bouton Textes', () => {
+describe('Lot 12 · badge Drive', () => {
   it('le bloc Drive (admins de l’espace) dit « ESPACE ADMIN », jamais « ADMIN+ »', () => {
     for (const st of [etat({ available: false, pickerReady: false }), etat(), etat({ connected: true, folderId: 'f', folderName: 'Rushs' })]) {
       const t = texte(renderToStaticMarkup(<DriveConnect state={st} />));
       expect(t, 'badge du personnel de la plateforme sur un bloc d’espace').not.toContain('ADMIN+');
       expect(t).toContain('ESPACE ADMIN');
     }
-  });
-  it('Textes inactif · le bouton dit l’état, plus de prix pour une action impossible, explication reliée', () => {
-    const html = renderToStaticMarkup(<StudioClient hasKey={false} />);
-    const bouton = /<button type="submit"[^>]*>([\s\S]*?)<\/button>/.exec(html)!;
-    expect(texte(bouton[1]!)).toBe('Génération inactive pour ton espace');
-    expect(bouton[0]).toContain('disabled');
-    expect(bouton[0]).toContain('aria-describedby="studio-textes-inactif"');
-    expect(html).toContain('id="studio-textes-inactif"');
-    expect(texte(html), 'prix affiché pour une génération indisponible').not.toMatch(/Générer la créative|non facturé si la génération échoue/);
-  });
-  it('Textes actif · bouton et prix inchangés', () => {
-    const t = texte(renderToStaticMarkup(<StudioClient hasKey />));
-    expect(t).toMatch(/Générer la créative · \d+ crédits/);
-    expect(t).toContain('non facturé si la génération échoue');
   });
 });

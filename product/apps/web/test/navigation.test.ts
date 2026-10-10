@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROUTES, VUES, matchRoute, breadcrumb, isBrandScoped, routeLabel } from '../lib/navigation';
+import { ROUTES, VUES, ROUTES_HISTORIQUES, matchRoute, breadcrumb, isBrandScoped, routeLabel } from '../lib/navigation';
+import { lienNouveauProjet, lireContexteNouveauProjet } from '@tiktrends/core';
 import { FEATURES } from '../lib/rbac';
 import { ADMIN_NAV } from '../components/AppShell';
 
@@ -228,7 +229,6 @@ describe('les écrans qui travaillent marque par marque sont déclarés', () => 
   it('Adsmap et Jarvis en font partie', () => {
     expect(isBrandScoped('/adsmap')).toBe(true);
     expect(isBrandScoped('/jarvis')).toBe(true);
-    expect(isBrandScoped('/studio/image')).toBe(true);
   });
 
   it('les écrans d’espace n’en font pas partie', () => {
@@ -338,23 +338,26 @@ describe('les CTA de deep-link portent un paramètre que la cible relit', () => 
   /**
    * Un CTA qui transmet `?inspo=` à un écran qui ne lit que `angle`/`mode`/`ref`
    * dépose un réglage perdu au chargement · le clic « marche » mais n'arme rien.
-   * Le Radar en souffrait. On lit la source du Radar et du studio, et on vérifie
-   * que le paramètre émis est bien parmi ceux que le studio déballe.
+   * Le Radar en souffrait. Depuis le retrait des anciens studios (10/10), le CTA
+   * du Radar mène à la préparation d'un projet (`lienNouveauProjet`) · on vérifie
+   * que les clés qu'il émet sont parmi celles que cette page relit, et que
+   * l'angle transmis arrive bien comme objectif proposé.
    */
-  const litParams = (rel: string): Set<string> => {
-    const src = readFileSync(join(process.cwd(), 'app', '(app)', ...rel.split('/')), 'utf8');
-    const sig = src.match(/searchParams:\s*Promise<\{([^}]*)\}>/);
-    if (!sig) throw new Error(`Signature searchParams introuvable dans ${rel}`);
-    return new Set([...sig[1]!.matchAll(/(\w+)\??:/g)].map((m) => m[1]!));
-  };
-
-  it('le CTA Radar → Studio émet un paramètre lu par le studio', () => {
+  it('le CTA Radar → Studios émet un paramètre lu par la préparation d’un projet', () => {
     const radar = readFileSync(join(process.cwd(), 'app', '(app)', 'radar', 'page.tsx'), 'utf8');
-    const emis = [...radar.matchAll(/\/studio\/ads\?(\w+)=/g)].map((m) => m[1]!);
-    const lus = litParams('studio/ads/page.tsx');
+    const appels = [...radar.matchAll(/lienNouveauProjet\(\{([^}]*)\}\)/g)].map((m) => m[1]!);
+    expect(appels.length, 'Le Radar doit garder un CTA vers les Studios').toBeGreaterThan(0);
+    const emis = appels.flatMap((a) => [...a.matchAll(/(\w+):/g)].map((m) => m[1]!));
+    const page = readFileSync(join(process.cwd(), 'app', '(app)', 'studio', 'projets', 'nouveau', 'page.tsx'), 'utf8');
+    expect(page, 'la préparation d’un projet ne relit plus son adresse').toMatch(/lireContexteNouveauProjet\(await searchParams\)/);
+    const lus = new Set(ROUTES_HISTORIQUES.find((r) => r.chemin === '/studio/projets/nouveau')?.params ?? []);
     const morts = emis.filter((p) => !lus.has(p));
-    expect(morts, `Paramètre(s) émis par le Radar que le studio ne relit pas : ${morts.join(', ')}`)
+    expect(morts, `Paramètre(s) émis par le Radar que la préparation ne relit pas : ${morts.join(', ')}`)
       .toEqual([]);
-    expect(emis.length, 'Le Radar doit garder un CTA vers le studio').toBeGreaterThan(0);
+    // Le RÉSULTAT · l'angle émis par le Radar devient l'objectif proposé.
+    const lien = lienNouveauProjet({ type: 'ads', angle: 'Hook témoignage' });
+    const c = lireContexteNouveauProjet(Object.fromEntries(new URL(lien, 'http://local').searchParams));
+    expect(c.type).toBe('ads');
+    expect(c.objectif, 'l’angle transmis par le Radar est perdu à l’arrivée').toContain('Hook témoignage');
   });
 });

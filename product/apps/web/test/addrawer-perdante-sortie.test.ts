@@ -6,7 +6,7 @@ import { join } from 'node:path';
  * Le verdict le plus fréquent d'un test n'est pas une gagnante. Pour une
  * perdante / non concluante / sous-diffusée, le panneau d'arbitrage disait
  * « Reprends l'angle dans le Studio » SANS y mener · la boucle analyser→créer
- * s'arrêtait sur une phrase. On exige désormais un vrai lien vers /studio/ads
+ * s'arrêtait sur une phrase. On exige désormais un vrai lien vers la préparation d'un projet
  * dans cette branche, l'angle du test passé en amorce.
  *
  * AdDrawer est un client qui charge son détail via une action serveur (effet) ·
@@ -25,11 +25,9 @@ describe('AdDrawer · une perdante mène au Studio, pas à une impasse', () => {
     expect(iEnd, 'fin de la branche !gagnante introuvable').toBeGreaterThan(iStart);
   });
 
-  it('un vrai lien vers /studio/ads, avec l’angle en amorce', () => {
-    expect(branche, 'la sortie vers le Studio manque · la boucle s’arrête sur une phrase')
-      .toContain('/studio/ads?angle=');
-    // L'angle du test passé en amorce · pas un lien nu vers le studio vide.
-    expect(branche, 'l’angle du test n’est pas transmis au Studio')
-      .toContain('encodeURIComponent(d.angle');
+  it('un vrai lien vers la préparation d’un projet, avec l’angle en amorce', () => {
+    // L'angle du test passé en amorce · pas un lien nu vers un projet vide.
+    expect(branche, 'la sortie vers les Studios manque, ou l’angle du test n’est pas transmis')
+      .toContain("href={lienNouveauProjet({ type: 'ads', angle: d.angle ?? d.concept");
   });
 });

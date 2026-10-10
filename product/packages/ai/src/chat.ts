@@ -17,7 +17,7 @@ function contextBlock(ctx: ChatContext): string {
     ctx.brandName ? `Marque active de l'utilisateur : ${ctx.brandName}.` : "Aucune marque active sélectionnée.",
     ctx.credits != null ? `Solde de crédits : ${ctx.credits}.` : '',
     ctx.plan ? `Abonnement : ${ctx.plan}.` : '',
-    "Tu peux orienter vers les outils de l'app : Inspo (bibliothèques pub), Radar (diagnostic créas), Analytics (KPI), Studio IA (scripts, hooks, vidéo), fiche marque (profil, audience, concurrents).",
+    "Tu peux orienter vers les outils de l'app : Inspo (bibliothèques pub), Radar (diagnostic créas), Analytics (KPI), Studios (projets : pub, image, vidéo, textes), fiche marque (profil, audience, concurrents).",
     "Sois concis et actionnable. N'invente pas de chiffres de performance : si tu n'as pas la donnée, dis où l'utilisateur peut la trouver dans l'app.",
   ];
   return lines.filter(Boolean).join('\n');

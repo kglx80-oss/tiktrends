@@ -10,7 +10,7 @@ import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
 import { cadreSignal, surface } from '../../../components/ui';
 import { useIsMobile } from '../../../components/useIsMobile';
-import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, tauxReussite, verdictEffectif, TAUX_NON_CALCULABLE, type VerdictValue } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, tauxReussite, verdictEffectif, TAUX_NON_CALCULABLE, lienNouveauProjet, type VerdictValue } from '@tiktrends/core';
 import { useRouvrirFiche } from './useRouvrirFiche';
 
 /**
@@ -74,7 +74,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
     const b = await conceptBriefAction(r.conceptId);
     setBriefBusy('');
     if (b.error) { setError(b.error); return; }
-    router.push(`/studio/ads?angle=${encodeURIComponent(b.angle ?? r.concept)}`);
+    router.push(lienNouveauProjet({ type: 'ads', angle: b.angle ?? r.concept }));
   }
 
   useEffect(() => {

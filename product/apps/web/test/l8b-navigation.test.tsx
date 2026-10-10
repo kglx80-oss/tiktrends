@@ -29,6 +29,7 @@ vi.mock('../app/actions/studios/sources', () => ({ exporterBrief: async () => ({
 
 import {
   contexteVeille, ancreCarteVeille, annonceObservee, referenceSource, lienRetourVeille, PARAM_RETOUR_VEILLE, completudeProjet,
+  ANCIENNES_ADRESSES_STUDIO, CHEMIN_PROJETS, CHEMIN_NOUVEAU_PROJET, PARAMS_NOUVEAU_PROJET, destinationAncienneAdresse,
 } from '@tiktrends/core';
 import { ROUTES, ROUTES_HISTORIQUES, matchRoute } from '../lib/navigation';
 import { studioDepuisVeille } from '../lib/veille-link';
@@ -54,8 +55,22 @@ describe('UX-05 · chaque route historique est servie et lit encore ses paramèt
       const f = fichierPage(r.chemin);
       expect(f, `${r.chemin} n’a plus de page · les liens existants mèneraient à un 404`).not.toBeNull();
       const source = readFileSync(f!, 'utf8');
-      const perdus = r.params.filter((p) => !new RegExp(`\\bsp\\.${p}\\b`).test(source));
-      expect(perdus, `${r.chemin} ne lit plus : ${perdus.join(', ')}`).toEqual([]);
+      if ((ANCIENNES_ADRESSES_STUDIO as readonly string[]).includes(r.chemin)) {
+        // Ancien studio retiré · la page ne fait plus que rediriger, en passant
+        // TOUS ses paramètres à la règle du noyau, et mène à une page servie.
+        const passe = r.chemin === '/studio' ? /redirect\(CHEMIN_PROJETS\)/ : new RegExp(`redirect\\(destinationAncienneAdresse\\('${r.chemin}', await searchParams\\)\\)`);
+        expect(source, `${r.chemin} ne redirige plus avec ses paramètres`).toMatch(passe);
+        const dest = destinationAncienneAdresse(r.chemin, {}).split('?')[0]!;
+        expect(fichierPage(dest), `${r.chemin} redirige vers ${dest}, sans page`).not.toBeNull();
+      } else if (r.chemin === CHEMIN_NOUVEAU_PROJET) {
+        // La préparation relit son adresse par la règle du noyau (bornée, validée).
+        expect(source, `${r.chemin} ne relit plus son adresse`).toContain('lireContexteNouveauProjet(await searchParams)');
+        const perdus = r.params.filter((p) => !(PARAMS_NOUVEAU_PROJET as readonly string[]).includes(p));
+        expect(perdus, `${r.chemin} ne lit plus : ${perdus.join(', ')}`).toEqual([]);
+      } else {
+        const perdus = r.params.filter((p) => !new RegExp(`\\bsp\\.${p}\\b`).test(source));
+        expect(perdus, `${r.chemin} ne lit plus : ${perdus.join(', ')}`).toEqual([]);
+      }
       // Recherche globale conservée · la page vit sous la coquille de l'appli (barre « Rechercher »).
       expect(f!.startsWith(APP)).toBe(true);
     });
@@ -95,11 +110,12 @@ describe('UX-05 · « Revenir à la recherche de Veille » depuis un projet cré
     expect(u.hash, 'la carte d’origine (position) est perdue').toBe(`#${ancreCarteVeille(AD)}`);
   });
 
-  it('l’ancien lien « Génère ta version » (Pubs IA) porte encore son origine et le même retour', () => {
+  it('le lien « Génère ta version » mène à la préparation d’un projet, avec son origine et le même retour', () => {
     const ancre = ancreCarteVeille(AD);
-    const url = new URL(studioDepuisVeille(AD as never, { ref: 'sauvegarde-1', retour: `${contexteVeille(CRITERES)}#${ancre}` }), 'http://x');
-    expect(url.pathname).toBe('/studio/ads');
-    const attendus = ROUTES_HISTORIQUES.find((r) => r.chemin === '/studio/ads')!.params;
+    const url = new URL(studioDepuisVeille(AD as never, { ref: '3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f', retour: `${contexteVeille(CRITERES)}#${ancre}` }), 'http://x');
+    expect(url.pathname).toBe(CHEMIN_NOUVEAU_PROJET);
+    // Une annonce de Veille ne porte ni produit nommé ni test Adsmap.
+    const attendus = ROUTES_HISTORIQUES.find((r) => r.chemin === CHEMIN_NOUVEAU_PROJET)!.params.filter((p) => p !== 'produit' && p !== 'iter');
     const absents = attendus.filter((p) => !url.searchParams.has(p));
     expect(absents, `le lien historique a perdu : ${absents.join(', ')}`).toEqual([]);
     expect(lienRetourVeille(url.searchParams.get(PARAM_RETOUR_VEILLE))).toBe(retourDuProjet());
@@ -107,10 +123,8 @@ describe('UX-05 · « Revenir à la recherche de Veille » depuis un projet cré
 });
 
 describe('UX-05 · les projets sont atteignables depuis le Studio', () => {
-  it('la page /studio rend un lien vers /studio/projets, et garde ses quatre studios', async () => {
-    const html = renderToStaticMarkup(await StudioPage());
-    expect(html).toMatch(/href="\/studio\/projets"/);
-    for (const s of ['/studio/ads', '/studio/image', '/studio/video', '/studio/textes']) expect(html, s).toContain(`href="${s}"`);
+  it('l’ancienne page /studio mène aux projets Studios', () => {
+    expect(() => StudioPage()).toThrow(`redirect ${CHEMIN_PROJETS}`);
   });
 });
 

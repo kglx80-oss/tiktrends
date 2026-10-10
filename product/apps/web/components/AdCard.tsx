@@ -127,30 +127,24 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
             {site && <a href={site} target="_blank" rel="noreferrer" style={{ ...lienExterne, ...t44 }}>Site ↗</a>}
           </div>
         )}
-        {/* Le pont veille → création. Il pointait vers `/studio` (le hub, pas les
-             Pubs IA) avec des paramètres que la page ne lit pas, et charriait la
-             copy concurrente mot pour mot · un clic sans suite, ou une créa qui
-             recopie. Ici on distille l'ANGLE éprouvé et on arme les Pubs IA · la
-             règle « reprends l'angle, pas les mots » vit dans le noyau. */}
-        {/* La piste qui tient est mise en avant · fond plein, l'action évidente.
-             Une pub sans signal garde le geste discret · rien n'y presse. */}
+        {/* Un seul geste de création (retrait des anciens studios, 10/10) ·
+            « Préparer une création » là où la carte est une source accessible
+            (Veille, Sauvegardes, Formats) ; ailleurs, le lien vers la
+            préparation d'un projet, angle distillé et provenance repris
+            (`studioDepuisVeille`). La piste qui tient est mise en avant. */}
+        {(contexteRetour != null || cloneRef) ? (
+          <PreparerCreation
+            annonce={{ id: ad.id, platform: ad.platform, mediaType: ad.mediaType ?? null, thumbnailUrl: ad.thumbnailUrl ?? null, mediaUrl: ad.mediaUrl ?? null, advertiserName: ad.advertiserName ?? null, body: ad.body ?? null, callToAction: ad.callToAction ?? null, landingDomain: ad.landingDomain ?? null, landingUrl: ad.landingUrl ?? null, daysRunning: ad.daysRunning ?? null }}
+            sauvegardeId={cloneRef ?? null} retour={retour} cibles44={cibles44} />
+        ) : (
         <a href={studioDepuisVeille(ad, { ref: cloneRef, retour })}
           style={{ marginTop: 2, textAlign: 'center', fontSize: 12, fontWeight: (gagnant && !ctaSobre) ? 800 : 700, padding: '7px 10px', borderRadius: 10,
             ...(cibles44 ? { minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', justifyContent: 'center' } : null),
             border: (gagnant && !ctaSobre) ? 'none' : '1px solid var(--line-2)',
             background: (gagnant && !ctaSobre) ? 'var(--grad-accent)' : 'transparent',
             color: (gagnant && !ctaSobre) ? 'var(--on-accent)' : (ctaSobre ? 'var(--ink-2)' : 'var(--ink)'), textDecoration: 'none' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {gagnant ? 'Décline cette piste' : 'Génère ta version'}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {gagnant ? 'Décline cette piste' : 'Préparer une création'}</span>
         </a>
-        {/* Studios L4 · « Préparer une création » · un projet durable (source,
-            hypothèse, produit, brief) au lieu d'un passage par l'URL. Seulement
-            là où la carte est une source accessible : Veille (contexte de
-            retour) et Sauvegardes / Formats (identifiant de sauvegarde). Le
-            lien historique ci-dessus reste inchangé. */}
-        {(contexteRetour != null || cloneRef) && (
-          <PreparerCreation
-            annonce={{ id: ad.id, platform: ad.platform, mediaType: ad.mediaType ?? null, thumbnailUrl: ad.thumbnailUrl ?? null, mediaUrl: ad.mediaUrl ?? null, advertiserName: ad.advertiserName ?? null, body: ad.body ?? null, callToAction: ad.callToAction ?? null, landingDomain: ad.landingDomain ?? null, landingUrl: ad.landingUrl ?? null, daysRunning: ad.daysRunning ?? null }}
-            sauvegardeId={cloneRef ?? null} retour={retour} cibles44={cibles44} />
         )}
       </div>
     </div>

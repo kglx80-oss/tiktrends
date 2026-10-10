@@ -264,7 +264,3 @@ export function lireIterationDemandee(sp: Record<string, string | string[] | und
   return UUID_ITER.test(brut) ? brut.toLowerCase() : null;
 }
 
-/** Le lien du panneau d'un test vers le Studio, brief d'itération prérempli. */
-export function lienIterationStudio(adId: string): string {
-  return `/studio/ads?${PARAM_ITERATION}=${encodeURIComponent(adId)}`;
-}

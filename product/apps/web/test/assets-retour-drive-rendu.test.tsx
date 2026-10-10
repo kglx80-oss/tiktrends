@@ -20,7 +20,6 @@ vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: 'b', name: 
 vi.mock('@tiktrends/integrations', () => ({ storageConfigured: () => false }));
 vi.mock('../app/actions/assets', () => ({ ...stub(), listAssets: async () => [] }));
 vi.mock('../app/actions/drive', () => ({ ...stub(), getDriveState: async () => etat.drive }));
-vi.mock('../app/actions/creatives', stub);
 
 import AssetsPage from '../app/(app)/assets/page';
 import { ToastProvider } from '../components/Toast';

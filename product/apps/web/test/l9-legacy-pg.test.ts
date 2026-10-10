@@ -44,9 +44,6 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, s
 vi.mock('next/cache', () => ({ revalidatePath: () => {}, unstable_cache: (f: unknown) => f }));
 
 import { db, sql } from '@tiktrends/db';
-import { pageImagesMarque } from '../app/actions/image';
-import { pageVideosMarque } from '../app/actions/video';
-import { listBrandAds } from '../app/actions/ads';
 import { listAssets } from '../app/actions/assets';
 import { contexteDepuisSession } from '../lib/studios/garde';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
@@ -82,33 +79,6 @@ describe.skipIf(!LOCALE)('MIG-02 · historique ouvert sur la base migrée (Postg
   afterAll(async () => {
     delete process.env.DATABASE_URL;
     await (db as unknown as { session: { client: { end: () => Promise<void> } } }).session.client.end().catch(() => {});
-  });
-
-  it('Pubs IA · les créations historiques sortent telles qu’enregistrées', async () => {
-    const ads = await listBrandAds();
-    const [n] = await lignes<{ n: number }>(sql`select count(*)::int as n from generations where brand_id = ${A1} and kind = 'ad' and coalesce(status, '') <> 'archived'`);
-    expect(ads.length).toBe(Math.min(240, n!.n));
-    const enBase = await lignes<{ id: string; h: string }>(sql`select id::text, input_json->>'headline' as h from generations where brand_id = ${A1} and kind = 'ad'`);
-    const titres = new Map(enBase.map((r) => [r.id, r.h]));
-    for (const a of ads) expect((a as unknown as { headline?: string }).headline ?? titres.get(a.id)).toBe(titres.get(a.id));
-  });
-
-  it('Image IA · chaque sortie historique, même URL, même nombre', async () => {
-    const p = await pageImagesMarque();
-    const [c] = await lignes<{ n: number }>(sql`select count(*)::int as n from generations g cross join lateral unnest(g.asset_urls) u where g.brand_id = ${A1} and g.kind = 'image' and coalesce(g.status, '') <> 'archived'`);
-    expect(p.sorties).toBe(c!.n);
-    const urls = new Set((await lignes<{ u: string }>(sql`select unnest(asset_urls) as u from generations where brand_id = ${A1} and kind = 'image'`)).map((r) => r.u));
-    expect(p.items.length).toBeGreaterThan(0);
-    for (const item of p.items) expect(item.url !== null && urls.has(item.url)).toBe(true);
-    expect(p.items.every((i) => i.prompt.startsWith('Image héritée L9 n°'))).toBe(true);
-  });
-
-  it('Vidéo IA · terminées et échouées telles quelles, aucune URL inventée pour un échec', async () => {
-    const p = await pageVideosMarque();
-    expect(p.generations).toBe(80);
-    const echecs = p.items.filter((i) => i.status === 'failed');
-    expect(echecs.length).toBeGreaterThan(0);
-    for (const e of echecs) { expect(e.videoUrl).toBeNull(); expect(e.error).toBe('échec synthétique'); }
   });
 
   it('bibliothèque · chaque média historique listé sous son nom, servi par sa propre adresse', async () => {

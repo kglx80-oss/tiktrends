@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { partDeMax, messageServiceInactif } from '@tiktrends/core';
+import { partDeMax, messageServiceInactif, lienNouveauProjet } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
@@ -241,7 +241,7 @@ function InsightList({ title, items, chips, testable }: { title: string; items?:
               <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{it}</span>
               {/* Le pont analyser→créer · cet insight devient l'amorce d'une pub. */}
               {testable && (
-                <Link href={`/studio/ads?angle=${encodeURIComponent(it)}`} title="Tester cet angle dans Pubs IA" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                <Link href={lienNouveauProjet({ type: 'ads', angle: it })} title="Tester cet angle dans un projet Studios" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
                   <Icon name="sparkles" size={13} />Tester ›
                 </Link>
               )}

@@ -54,7 +54,7 @@ describe('droits · la rubrique Analytics porte une requête', () => {
     expect(cheminOuvert('/support', regles(true))).toBe(true);
   });
   it('le bandeau de lecture suit le droit Analytics, via son lien historique', () => {
-    const ouvert = (r: boolean) => (h: string) => cheminOuvert(h, [...regles(r), { href: '/studio/ads', ouvert: false }, { href: '/brands', ouvert: false }, { href: '/veille', ouvert: false }]);
+    const ouvert = (r: boolean) => (h: string) => cheminOuvert(h, [...regles(r), { href: '/studio/projets', ouvert: false }, { href: '/brands', ouvert: false }, { href: '/veille', ouvert: false }]);
     expect(bandeauAccueil({ aMarque: true, nbMarques: 1, ouvert: ouvert(true) })).toEqual(BANDEAU_LECTURE);
     expect(bandeauAccueil({ aMarque: true, nbMarques: 1, ouvert: ouvert(false) })).toBeNull();
   });

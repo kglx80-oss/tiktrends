@@ -28,10 +28,10 @@
  * `/jarvis` (conversation) n'a pas de lanceur · il recouvrait « Envoyer ».
  */
 export const ROUTES_LANCEUR_SUPPORT_ANCRE: readonly string[] = [
-  '/studio/ads', '/dashboard', '/veille', '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/radar',
+  '/dashboard', '/veille', '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/radar',
   '/adsmap/tri', '/adsmap/protocole', '/adsmap/import', '/analytics', '/connections', '/settings', '/veille/scale',
   '/assets', '/radar', '/saved', '/tags', '/team', '/usage', '/credits', '/support',
-  '/studio', '/studio/image', '/studio/video', '/studio/textes', '/billing',
+  '/billing',
   // Lot 20 · Formats (ajoutée par #723 après les autres écrans de la Veille) ·
   // la bulle couvrait la droite du sélecteur « Format » à 390 (recette m59) et
   // masquait 20 % de « Classées récemment » au focus clavier (mesure lot 20).

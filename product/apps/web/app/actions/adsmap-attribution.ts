@@ -4,11 +4,11 @@ import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   attributionStats, attributionByPart, memoryOrigin, creativeTrend, PART_LABEL,
-  lireEssais, cumulEssais, bilanNotes, defautsConnus, essaiSuivant, bilanCopie,
+  lireEssais, cumulEssais, bilanNotes, defautsConnus, bilanCopie,
   temoinQualite, calibrationScore, type FenetreDefauts, type TemoinQualite,
   type AttributedAd, type AttributionResult, type MemoryUse, type PartResult, type TrendResult,
   type AdEssai, type EssaiLu, type CumulEssais, type VariableEssai,
-  type BilanNotes, type NoteLue, type Suggestion, type BilanCopie, type RelectureLue,
+  type BilanNotes, type NoteLue, type BilanCopie, type RelectureLue,
   type Calibration, type VerdictValue,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
@@ -147,7 +147,6 @@ export async function attributionViewAction(): Promise<{ view?: AttributionView;
   }
 }
 
-
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -202,7 +201,6 @@ export async function creativeTrendAction(days = 30): Promise<{ trend?: TrendRes
     return { error: logAndTranslate('adsmap:trend', e, { subject: 'la tendance', workspaceId: g.s.workspaceId }) };
   }
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*  Ce que les lots d'essai ont répondu                                        */
@@ -303,7 +301,6 @@ export async function essaisViewAction(): Promise<{ view?: EssaisView; error?: s
     return { error: logAndTranslate('adsmap:essais', e, { subject: 'les résultats des lots d’essai', workspaceId: g.s.workspaceId }) };
   }
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*  Le bilan des notes                                                         */
@@ -417,7 +414,6 @@ export async function calibrationScoreAction(): Promise<{ calibration?: Calibrat
   }
 }
 
-
 /**
  * Ce que les relectures disent ensemble · quel moteur écrit le français juste.
  *
@@ -492,41 +488,7 @@ export async function bilanCopieAction(): Promise<{ bilan?: BilanCopie; temoin?:
   }
 }
 
-
 /* -------------------------------------------------------------------------- */
 /*  Quel essai poser maintenant                                                */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Le pas qui manquait entre « l'outil range mes hypothèses » et « l'outil me
- * dit laquelle poser ».
- *
- * ── Pourquoi ça ne coûte rien ────────────────────────────────────────────────
- *
- * Aucun modèle n'est appelé. La suggestion se déduit de ce qui est DÉJÀ mesuré
- * · les cumuls d'essais et le bilan des notes, tous deux déjà lus pour l'écran.
- * Demander à un modèle de choisir donnerait une phrase plausible plutôt qu'une
- * décision vérifiable, et la ferait payer.
- */
-export async function essaiSuivantAction(): Promise<{ suggestion?: Suggestion; error?: string }> {
-  const [e, b] = await Promise.all([essaisViewAction(), bilanNotesAction()]);
-  if (e.error) return { error: e.error };
-  if (b.error) return { error: b.error };
-
-  const lots = e.view?.lots ?? [];
-  const trancheParVariable: Partial<Record<VariableEssai, number>> = {};
-  for (const l of lots) {
-    if (!l.tranche) continue;
-    trancheParVariable[l.variable] = (trancheParVariable[l.variable] ?? 0) + 1;
-  }
-
-  const suspect = b.bilan?.defauts.suspects[0];
-  return {
-    suggestion: essaiSuivant({
-      cumuls: e.view?.cumuls ?? [],
-      trancheParVariable,
-      tauxDefauts: b.bilan?.defauts.taux ?? null,
-      suspect: suspect ? { quoi: suspect.cle, taux: suspect.taux } : null,
-    }),
-  };
-}

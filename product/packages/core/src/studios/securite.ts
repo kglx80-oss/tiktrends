@@ -38,8 +38,8 @@ export function refusGesteStudio(s: { roleEspace: unknown; refusCatalogue: Refus
 
 /** La phrase de refus, dite par sa vraie raison. Aucune donnée de l'espace. */
 export const TEXTE_REFUS_STUDIO: Readonly<Record<RefusStudio, string>> = {
-  role: 'Ton rôle ne permet pas de générer ni de modifier dans le Studio IA. Demande un rôle Membre à un administrateur de ton espace.',
-  plan: "Le Studio IA est disponible à partir de l'offre Core. Passe ton espace en Core dans Réglages puis Abonnement.",
+  role: 'Ton rôle ne permet pas de générer ni de modifier dans les Studios. Demande un rôle Membre à un administrateur de ton espace.',
+  plan: "Les Studios sont disponibles à partir de l'offre Core. Passe ton espace en Core dans Réglages puis Abonnement.",
 };
 
 /* ────────────────────────────────────────────────────────────────────────── */

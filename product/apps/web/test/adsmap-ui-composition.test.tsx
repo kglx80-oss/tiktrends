@@ -114,7 +114,9 @@ describe('Adsmap · le cumul « appris » est replié, l’aperçu et le conseil
     const iPremierDetails = essais.indexOf('<Revelation id="essais"');
     expect(iConseil, 'le conseil a disparu').toBeGreaterThan(-1);
     expect(iConseil, 'le conseil est encore enfermé dans le repli').toBeLessThan(iPremierDetails);
-    expect(essais).toContain('Lancer cet essai dans Pubs IA');
+    // Les lots d'essai se lançaient dans les anciennes Pubs IA (retirées le 10/10) · le conseil le dit, sans lien mort.
+    expect(essais).toContain('data-essai="indisponible"');
+    expect(essais).not.toContain('Lancer cet essai dans Pubs IA');
   });
 });
 
@@ -142,11 +144,6 @@ describe('Adsmap · cibles tactiles des contrôles filtres / tiroir / aide (rece
     expect(page).toMatch(/title="lire cette carte"[^>]*minHeight=\{CIBLE_TACTILE_MIN\}/);
   });
 
-  it('le lien « Lancer cet essai » de l’aperçu porte la cible tactile', () => {
-    const i = essais.indexOf('Lancer cet essai dans Pubs IA');
-    const style = essais.slice(Math.max(0, i - 260), i);
-    expect(style).toContain('minHeight: CIBLE_TACTILE_MIN');
-  });
 
   it('les selects de filtres de la Table portent la cible tactile', () => {
     const i = table.indexOf('<select value={value}');

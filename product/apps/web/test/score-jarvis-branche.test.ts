@@ -11,7 +11,6 @@ import { join } from 'node:path';
  * recodé en dur ici retomberait dans le piège · on l'interdit.
  */
 const ECRANS = [
-  'app/(app)/studio/ads/AdsStudio.tsx',
   'app/(app)/analytics/CreativeIntel.tsx',
   'app/(app)/jarvis/JarvisRules.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));

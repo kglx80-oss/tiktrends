@@ -17,7 +17,7 @@ describe('placementLanceurSupport', () => {
     expect(placementLanceurSupport('/veille/scale')).toBe('ancre');
   });
   it('les écrans déjà ancrés le restent', () => {
-    for (const r of ['/studio/ads', '/dashboard', '/veille', '/adsmap', '/analytics']) expect(placementLanceurSupport(r), r).toBe('ancre');
+    for (const r of ['/dashboard', '/veille', '/adsmap', '/analytics']) expect(placementLanceurSupport(r), r).toBe('ancre');
   });
   it('la conversation Jarvis n’a pas de lanceur, les autres routes gardent la bulle', () => {
     expect(placementLanceurSupport('/jarvis')).toBe('aucun');
@@ -36,8 +36,7 @@ describe('placementLanceurSupport', () => {
     // Lot 8 · mesuré au recouvrement des textes et chiffres, écrans remplis.
     for (const r of ['/team', '/usage', '/credits', '/support']) expect(placementLanceurSupport(r), r).toBe('ancre');
     expect(placementLanceurSupport('/support/un-ticket'), 'un ticket seul ne recouvrait rien').toBe('flottant');
-    // Lot 9 · Studio rempli, mesuré à 390 et 1280×720.
-    for (const r of ['/studio', '/studio/image', '/studio/video', '/studio/textes']) expect(placementLanceurSupport(r), r).toBe('ancre');
+    // Lot 9 · les anciens studios (mesurés à 390 et 1280×720) sont retirés le 10/10 · leurs adresses ne font que rediriger.
     expect(placementLanceurSupport('/billing'), 'la bulle couvrait « Populaire » à 390').toBe('ancre');
   });
 });

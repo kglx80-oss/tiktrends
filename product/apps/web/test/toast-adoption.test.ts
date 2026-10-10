@@ -14,7 +14,6 @@ import { join } from 'node:path';
 const WEB = process.cwd();
 
 const CAS: Array<{ fichier: string; messages: string[] }> = [
-  { fichier: 'components/useScenes.ts', messages: ['Scène enregistrée.'] },           // 3 studios
   { fichier: 'components/TrackerFeed.tsx', messages: ['Tout marqué comme vu.'] },       // veille
   { fichier: 'app/(app)/adsmap/tri/Curation.tsx', messages: ['validé.', 'Proposition écartée.'] },
   { fichier: 'app/(app)/assets/AssetsLibrary.tsx', messages: ['Élément importé.'] },

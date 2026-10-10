@@ -14,7 +14,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, type RegleChemin } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin } from '@tiktrends/core';
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -382,8 +382,10 @@ function AppShellInner(props: Props) {
   // l'admin le déclarent en clair ci-dessous.
   // En tête de la palette · les derniers écrans visités (jamais celui où l'on
   // est déjà), pour reprendre là où on s'était arrêté.
+  // Une ancienne adresse de création mémorisée (studios retirés le 10/10) ne
+  // revient pas dans la palette sous son ancien nom · elle ne fait que rediriger.
   const recentCommands: Command[] = recents
-    .filter((r) => r.path !== pathname)
+    .filter((r) => r.path !== pathname && !(ANCIENNES_ADRESSES_STUDIO as readonly string[]).includes(r.path.split('?')[0]!))
     .slice(0, 5)
     .map((r) => ({ id: 'recent-' + r.path, label: r.label, group: 'Récents', href: r.path, icon: 'clock', keywords: 'récent ' + r.label }));
   const commands: Command[] = [...recentCommands];
@@ -393,10 +395,8 @@ function AppShellInner(props: Props) {
   // ne se voit plus proposer de générer, ni un membre de créer une marque.
   commands.push(...commandesOuvertes<Command>([
     { id: 'do-home', label: 'Accueil', group: 'Actions', href: '/dashboard', icon: 'grid', keywords: 'accueil dashboard maison home retour tableau de bord' },
-    { id: 'do-ads', label: 'Générer des pubs IA', group: 'Actions', href: '/studio/ads', icon: 'sparkles', keywords: 'créer pub génération ads publicité' },
-    { id: 'do-clone', label: 'Cloner une pub qui tient', group: 'Actions', href: '/studio/ads?mode=clone', icon: 'layers', keywords: 'cloner copier pub concurrent référence' },
-    { id: 'do-image', label: 'Générer une image', group: 'Actions', href: '/studio/image', icon: 'image', keywords: 'image visuel produit scène' },
-    { id: 'do-video', label: 'Générer une vidéo', group: 'Actions', href: '/studio/video', icon: 'film', keywords: 'vidéo animation clip' },
+    // Une seule entrée de création · le projet (studios historiques retirés le 10/10).
+    { id: 'do-projet', label: 'Nouveau projet', group: 'Actions', href: CHEMIN_NOUVEAU_PROJET, icon: 'sparkles', keywords: 'créer projet studio pub image vidéo textes génération publicité cloner' },
     { id: 'do-jarvis', label: 'Ce que Jarvis sait', group: 'Actions', href: '/jarvis', icon: 'brain', keywords: 'jarvis ia memoire accroches regles couches etat' },
     { id: 'do-inspo', label: 'Chercher dans la veille', group: 'Actions', href: '/veille', icon: 'search', keywords: 'veille concurrent recherche pub' },
     { id: 'do-scale', label: 'Voir ce qui scale', group: 'Actions', href: '/veille/scale', icon: 'trend', keywords: 'scale tendance croissance winner' },

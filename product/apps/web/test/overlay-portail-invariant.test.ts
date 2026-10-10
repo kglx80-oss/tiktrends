@@ -42,11 +42,6 @@ const TOLERES = new Set<string>([
 const CONNUS_MIN = [
   'components/Modal.tsx',
   'components/CommandPalette.tsx',
-  'app/(app)/studio/ads/AssistantPub.tsx',
-  'app/(app)/studio/ads/AdsStudio.tsx',
-  'app/(app)/studio/image/AssistantImage.tsx',
-  'app/(app)/studio/image/ImageStudio.tsx',
-  'app/(app)/studio/video/AssistantVideo.tsx',
   'app/(app)/adsmap/AdDrawer.tsx',
   'app/(app)/adsmap/SharePanel.tsx',
 ];

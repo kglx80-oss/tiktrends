@@ -23,11 +23,8 @@ const CLIENT = [
   'components/TrackerFeed.tsx',
   'components/AssistantHome.tsx',
   'app/(app)/studio/page.tsx',
-  'app/(app)/studio/ads/AdsStudio.tsx',
   'app/(app)/studio/image/page.tsx',
-  'app/(app)/studio/image/ImageStudio.tsx',
   'app/(app)/studio/video/page.tsx',
-  'app/(app)/studio/video/VideoStudioFull.tsx',
 ];
 
 // Fournisseurs à ne jamais montrer côté client · en MOTS entiers (les frontières

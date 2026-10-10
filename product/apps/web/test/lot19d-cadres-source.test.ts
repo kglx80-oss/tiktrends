@@ -81,8 +81,6 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
  * de la ligne` · une exception ne vaut que dans SON fichier.
  */
 export const EXCEPTIONS_LIGNE_2: Readonly<Record<string, string>> = {
-  "components/Composer.tsx::background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12,":
-    'Composer · menu déroulant d’un réglage · prolonge son contrôle',
   "components/SavedBoards.tsx::zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12,":
     'Sauvegardes · menu déroulant du sélecteur de board · prolonge son contrôle (même cas que Composer)',
 };

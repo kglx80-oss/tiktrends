@@ -77,23 +77,5 @@ export function texteAdIncomplete(manques: string[]): string {
 /** Mémoire de l'onglet · le brief d'itération ouvert en dernier, par marque. */
 export const CLE_ITERATION_EN_COURS = 'tt_iteration_en_cours';
 
-export interface IterationEnCours { brandId: string; adId: string; titre: string }
-
-/**
- * Faut-il proposer de reprendre le brief ? Seulement quand l'URL n'en porte
- * aucun (on est revenu sur Pubs IA par la navigation), dans la MÊME marque, et
- * que la mémoire est bien formée. Le lien rétablit `?iter` · le Studio retrouve
- * alors le brief et la saisie rangée sous la clé de cette itération.
- */
-export function repriseIteration(
-  memo: unknown,
-  ctx: { brandId: string | null; iterDansUrl: boolean },
-): { href: string; titre: string } | null {
-  if (ctx.iterDansUrl || !ctx.brandId || !memo || typeof memo !== 'object') return null;
-  const m = memo as Partial<IterationEnCours>;
-  if (m.brandId !== ctx.brandId || typeof m.adId !== 'string' || !UUID.test(m.adId) || typeof m.titre !== 'string') return null;
-  return { href: `/studio/ads?iter=${encodeURIComponent(m.adId)}`, titre: m.titre.slice(0, 120) };
-}
-
 /** Ce que le brief dit de la créa produite · elle n'est pas rattachée au test source. */
 export const FILIATION_NON_ENREGISTREE = 'La pub créée ici n’est pas rattachée à ce test dans Adsmap · sa fiche n’affichera pas « Vient de ».';

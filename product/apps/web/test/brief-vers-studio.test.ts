@@ -37,8 +37,8 @@ describe('consigneAngleMarche · reprends l’angle, pas les mots', () => {
 const MARQUES = readFileSync(join(process.cwd(), 'components/MarquesSuivies.tsx'), 'utf8');
 
 describe('le brief arme le studio', () => {
-  it('la puce ouvre le studio avec la consigne d’angle dominant', () => {
+  it('la puce ouvre la préparation d’un projet avec la consigne d’angle dominant', () => {
     expect(MARQUES).toMatch(/consigneAngleMarche\(/);
-    expect(MARQUES).toMatch(/\/studio\/ads\?angle=/);
+    expect(MARQUES).toMatch(/lienNouveauProjet\(\{ type: fmt === 'video' \? 'video' : 'ads', angle: consigne \}\)/);
   });
 });

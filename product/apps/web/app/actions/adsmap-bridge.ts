@@ -1,12 +1,11 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { mechanismForTemplate, formatAdPourGeneration } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory, briefConceptBeforeLaunch } from '../../lib/jarvis-memory';
-import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
+import { ensureGraphPath } from '../../lib/adsmap-path';
 
 /**
  * Passerelles entre le reste du produit et ADSMAP.
@@ -24,94 +23,6 @@ import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
 const guard = adsmapGuard;
 
 export interface BridgeResult { ok?: true; adId?: string; conceptId?: string; prelaunch?: string; error?: string; /** La génération était déjà suivie · fiche existante renvoyée (lot 17). */ dejaSuivie?: true }
-
-/**
- * Studio → ADSMAP · une créa générée devient une ad suivie.
- *
- * C'est la passerelle qui referme la boucle : sans elle, on génère d'un côté et
- * on mesure de l'autre, sans jamais relier la proposition au résultat.
- */
-export async function trackGeneratedAdAction(generationId: string): Promise<BridgeResult> {
-  const g = await guard();
-  if ('error' in g) return { error: g.error };
-
-  try {
-    const [gen] = await db!.select({ id: schema.generations.id, input: schema.generations.input, assetUrls: schema.generations.assetUrls, brandId: schema.generations.brandId, kind: schema.generations.kind })
-      .from(schema.generations)
-      .where(and(eq(schema.generations.id, generationId), eq(schema.generations.brandId, g.brand.id)))
-      .limit(1);
-    if (!gen) return { error: 'Créa introuvable dans cette marque.' };
-
-    // Le format d'ad se déduit du TYPE de génération (règle du noyau) · pub et
-    // image → static, vidéo → video_ugc. Un script ou une copie n'est pas une
-    // créative à arbitrer · on refuse plutôt que d'inventer une ad de texte.
-    const format = formatAdPourGeneration(gen.kind);
-    if (!format) return { error: 'Ce type de créa ne se teste pas dans Adsmap.' };
-
-    const r = (gen.input ?? {}) as {
-      template?: string; headline?: string; kicker?: string; subhead?: string; cta?: string;
-      personaId?: string; objective?: string; adsmapAdId?: string; prompt?: string;
-    };
-    // Déjà suivie : on renvoie vers l'existant plutôt que de créer un doublon.
-    if (r.adsmapAdId) return { ok: true, adId: r.adsmapAdId, dejaSuivie: true, error: undefined };
-
-    // La vidéo et l'image décrivent leur créa par un `prompt`, pas un `headline` ·
-    // on l'utilise comme titre plutôt qu'un « Créa Studio » anonyme.
-    const titre = (r.headline || r.prompt || 'Créa Studio').slice(0, 160);
-    const angleLabel = (r.kicker || r.objective || titre).slice(0, 160);
-    // Le repli est ici, et il est assumé · la table du noyau rend `null` plutôt
-    // que d'en cacher un. C'est ce défaut caché qui rangeait « Bénéfices
-    // annotés » sous `demo` depuis toujours, sans que rien ne le dise.
-    const mechanism = mechanismForTemplate(r.template) ?? 'demo';
-
-    const path = await ensureGraphPath({
-      workspaceId: g.s.workspaceId, brandId: g.brand.id, personaId: r.personaId ?? null,
-      desireLabel: 'À qualifier (Studio)', angleLabel, mechanism,
-    });
-    if (!path) return { error: 'Rattachement impossible.' };
-
-    // Un concept par titre+angle · une seconde variante du même concept s'y ajoute.
-    const [c0] = await db!.select({ id: schema.concepts.id }).from(schema.concepts)
-      .where(and(eq(schema.concepts.angleId, path.angleId), eq(schema.concepts.title, titre))).limit(1);
-    const conceptId = c0?.id ?? (await db!.insert(schema.concepts).values({
-      workspaceId: g.s.workspaceId, angleId: path.angleId, title: titre,
-      callout: r.kicker ?? null, valueBlock: r.subhead ?? null, cta: r.cta ?? null,
-      adType: 'ideation', status: 'proposed', sourceRef: { generationId: gen.id },
-    }).returning({ id: schema.concepts.id }))[0]!.id;
-
-    // Le lien va sur l'AD, et pas seulement sur le concept.
-    //
-    // Le concept est réutilisé quand le titre coïncide · son `sourceRef` reste
-    // celui de la PREMIÈRE génération, et les variantes suivantes héritaient
-    // alors d'une mémoire qui n'était pas la leur. Comme les concepts anciens
-    // sont ceux d'avant la mémoire, chaque variante récente tombait dans le
-    // groupe témoin de l'attribution · la mesure était biaisée contre la
-    // réponse qu'elle cherchait.
-    const [ad] = await db!.insert(schema.ads).values({
-      workspaceId: g.s.workspaceId, conceptId,
-      variantCode: await nextVariant(conceptId),
-      format, adType: 'ideation', status: 'draft',
-      assetUrl: (gen.assetUrls && gen.assetUrls[0]) || `/api/ad/${gen.id}`,
-      sourceRef: { generationId: gen.id },
-    }).returning({ id: schema.ads.id });
-    if (!ad) return { error: 'Création impossible.' };
-
-    // Trace le lien dans la génération · évite un doublon au second clic.
-    await db!.update(schema.generations)
-      .set({ input: sql`coalesce(${schema.generations.input}, '{}'::jsonb) || ${JSON.stringify({ adsmapAdId: ad.id })}::jsonb` })
-      .where(eq(schema.generations.id, gen.id));
-
-    invalidateJarvisMemory(g.brand.id);
-    // L'avis complet plutôt que le seul score : c'est l'accroche qui porte le
-    // signal le plus fort, et elle est ici sous la main.
-    const avis = await briefConceptBeforeLaunch(g.brand.id, g.s.workspaceId, {
-      mechanism, format, candidateHook: r.headline ?? null,
-    });
-    return { ok: true, adId: ad.id, conceptId, prelaunch: avis.summary };
-  } catch (e) {
-    return { error: logAndTranslate('adsmap:track-generated', e, { subject: 'le rattachement à la carte', workspaceId: g.s.workspaceId }) };
-  }
-}
 
 /**
  * Veille → ADSMAP · une pub concurrente sauvegardée devient un concept `imitation`.

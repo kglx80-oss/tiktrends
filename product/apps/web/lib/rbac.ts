@@ -131,17 +131,12 @@ export const FEATURES: Feature[] = [
   // description valent pour tout le monde. Ce qui demande l'offre Plus, c'est la
   // mémoire MESURÉE, et c'est la page qui le dit.
   { key: 'jarvis',    label: 'Jarvis',       href: '/jarvis',      icon: 'brain',  group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
-  { key: 'studio',    label: 'Studio IA',    href: '/studio',      icon: 'spark',  group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
-  { key: 'ads',       label: 'Pubs IA',      href: '/studio/ads',   icon: 'spark', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'image',     label: 'Image IA',     href: '/studio/image', icon: 'image', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'video',     label: 'Vidéo IA',     href: '/studio/video', icon: 'film',  group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
-  { key: 'textes',    label: 'Textes IA',    href: '/studio/textes', icon: 'bulb', group: 'Atelier',    parent: 'studio', minRole: 'member', minPlan: 'core' },
-  // Les projets du NOUVEAU Studio · sous Studio IA, à côté des studios
-  // historiques (aucun n'est retiré). Mêmes droits que la feature `studio`, que
-  // la garde serveur des projets lit (`gardeStudio` · `FEATURE_STUDIO`) · une
-  // entrée plus large mènerait à un refus, plus étroite cacherait un écran
-  // ouvert. Seul accès jusqu'ici · un lien sur `/studio` et la Veille.
-  { key: 'projets',   label: 'Projets',      href: '/studio/projets', icon: 'folder', group: 'Atelier', parent: 'studio', minRole: 'member', minPlan: 'core' },
+  // Une seule entrée de création · les Studios, c'est-à-dire la liste des
+  // projets (mandat du 10/10 · Pubs IA, Image IA, Vidéo IA, Textes IA et
+  // l'ancien hub sont retirés ; image, texte, vidéo et canvas vivent DANS le
+  // projet). La clé reste `studio` · c'est elle que la garde serveur lit
+  // (`gardeStudio` · `FEATURE_STUDIO`) : l'affichage change, les droits non.
+  { key: 'studio',    label: 'Studios',      href: '/studio/projets', icon: 'spark', group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
   { key: 'assets',    label: 'Assets',       href: '/assets',      icon: 'layers', group: 'Atelier',    minRole: 'member',        minPlan: 'core' },
 
   // ── Tester · la boucle hypothèse → verdict → itération ────────────────────
@@ -178,7 +173,7 @@ export const FEATURES: Feature[] = [
 const RUBRIQUE_DE_FEATURE: Record<string, string> = {
   dashboard: 'dashboard', analytics: 'analytics',
   inspo: 'veille', scale: 'veille', tags: 'veille', formats: 'veille', saved: 'saved', radar: 'radar',
-  jarvis: 'jarvis', studio: 'studio', ads: 'studio', image: 'studio', video: 'studio', textes: 'studio', projets: 'studio', assets: 'assets',
+  jarvis: 'jarvis', studio: 'studio', assets: 'assets',
   adsmap: 'adsmap', suites: 'adsmap', lots: 'adsmap', ttradar: 'adsmap', tri: 'adsmap', protocole: 'adsmap', import: 'adsmap',
   brands: 'marques', team: 'equipe', connect: 'connexions', usage: 'usage', billing: 'facturation', settings: 'reglages',
 };

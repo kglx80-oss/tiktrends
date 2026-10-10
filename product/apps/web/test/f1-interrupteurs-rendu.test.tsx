@@ -83,7 +83,7 @@ describe('atelier du projet · filtrage de la navigation', () => {
 });
 
 describe('URL directe d’un écran coupé · la page le dit', () => {
-  it('vidéo · « Non activé pour cet espace », retour au projet, Vidéo IA historique proposée', async () => {
+  it('vidéo · « Non activé pour cet espace », retour au projet, aucune porte vers un ancien studio retiré', async () => {
     const d = dom(renderToStaticMarkup(await VideoPage(params(projet))));
     const s = d.querySelector('[data-etat="non-active"]')!;
     expect(s.getAttribute('data-capacites')).toBe('video');
@@ -94,7 +94,6 @@ describe('URL directe d’un écran coupé · la page le dit', () => {
     expect(liens).toEqual([
       ['‹ Projet', `/studio/projets/${projet}`],
       ['Revenir au projet', `/studio/projets/${projet}`],
-      ['Ouvrir Vidéo IA', '/studio/video'],
       ['Écrire au support', '/support'],
     ]);
   });
@@ -111,14 +110,16 @@ describe('URL directe d’un écran coupé · la page le dit', () => {
     await reglage({ actives: [], coupees: ['textes'] });
     const d = dom(renderToStaticMarkup(await TextesPage(params(projet))));
     expect(d.querySelector('[data-etat="non-active"]')?.getAttribute('data-capacites')).toBe('textes');
-    expect(d.querySelector('a[href="/studio/textes"]')?.textContent).toBe('Ouvrir Textes IA');
+    expect(d.querySelector('a[href^="/studio/textes"]'), 'porte vers l’ancien studio Textes IA, retiré').toBeNull();
+    expect(d.querySelector('a[href="/support"]')?.textContent).toBe('Écrire au support');
   });
 
-  it('projets coupés · la liste le dit et renvoie au Studio historique', async () => {
+  it('projets coupés · la liste le dit et renvoie à l’accueil (jamais à une page coupée ni à un ancien studio)', async () => {
     await reglage({ actives: [], coupees: ['projets'] });
     const d = dom(renderToStaticMarkup(await ProjetsPage({ searchParams: Promise.resolve({}) })));
     expect(d.querySelector('[data-etat="non-active"]')?.getAttribute('data-capacites')).toBe('projets');
-    expect(d.querySelector('a[href="/studio"]')?.textContent).toBe('‹ Studio IA');
+    expect(d.querySelector('a[href="/dashboard"]')?.textContent).toBe('‹ Accueil');
+    expect(d.querySelector('a[href^="/studio"]'), 'porte vers une page des Studios coupée ou retirée').toBeNull();
   });
 });
 

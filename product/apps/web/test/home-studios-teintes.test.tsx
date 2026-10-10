@@ -9,30 +9,24 @@ vi.mock('next/link', () => ({ default: ({ href, children }: { href: string; chil
 import { AssistantHome } from '../components/AssistantHome';
 
 /**
- * Chaque studio a sa couleur d'identité · quatre pastilles roses identiques ne
- * distinguaient rien. On rend le home et on lit que les pastilles portent bien
- * des teintes DIFFÉRENTES, pas la même pour tous.
+ * Les deux accès Studios de l'accueil (« Nouveau projet », « Mes projets » ·
+ * anciens studios retirés le 10/10) se distinguent à la couleur · deux
+ * pastilles identiques ne distingueraient rien. On rend le home et on lit les
+ * teintes.
  */
 const html = () => renderToStaticMarkup(
   <AssistantHome firstName="Kévin" credits={1200} unlimited={false} brandName="Klorea" brandId="b1" aiReady />,
 );
 
-describe('les studios se distinguent à la couleur', () => {
-  it('chaque studio porte sa propre teinte d’icône', () => {
+describe('les accès Studios se distinguent à la couleur', () => {
+  it('« Nouveau projet » garde l’accent, « Mes projets » sa teinte propre', () => {
     const h = html();
-    // Pubs IA (phare) garde l'accent de la marque.
-    expect(h, 'Pubs IA garde l’accent phare').toContain('var(--grad-accent)');
-    // Les trois autres ont chacune une teinte propre.
-    expect(h, 'Image IA · teal').toContain('#1f9e8f');
-    expect(h, 'Vidéo IA · violet').toContain('#8b5cf6');
-    expect(h, 'Textes IA · ambre').toContain('#d69a3a');
+    expect(h, 'Nouveau projet garde l’accent').toContain('var(--grad-accent)');
+    expect(h, 'Mes projets · violet').toContain('#8b5cf6');
   });
 
-  it('ce ne sont pas quatre fois la même pastille', () => {
-    // Si les quatre studios repartageaient l'accent, aucune des teintes propres
-    // ne serait rendue · ce test tomberait.
+  it('aucune teinte des anciens studios (teal, ambre) n’est rendue', () => {
     const h = html();
-    const teintes = ['#1f9e8f', '#8b5cf6', '#d69a3a'].filter((t) => h.includes(t));
-    expect(teintes.length, 'les studios ne sont pas différenciés').toBe(3);
+    expect(['#1f9e8f', '#d69a3a'].filter((t) => h.includes(t))).toEqual([]);
   });
 });

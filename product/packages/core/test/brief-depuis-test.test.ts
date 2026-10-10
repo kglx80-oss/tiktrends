@@ -74,7 +74,7 @@ describe('briefDepuisTest · provenance et natures', () => {
 describe('lien et paramètre', () => {
   it('le lien du panneau et la lecture du Studio se répondent · identifiant mal formé ignoré', () => {
     const href = lienIterationStudio(AD);
-    expect(href).toBe(`/studio/ads?iter=${AD}`);
+    expect(href).toBe(`/studio/projets/nouveau?type=ads&iter=${AD}`);
     expect(lireIterationDemandee(Object.fromEntries(new URL(href, 'http://x').searchParams))).toBe(AD);
     expect(lireIterationDemandee({ iter: 'x; drop' })).toBeNull();
     expect(lireIterationDemandee({})).toBeNull();

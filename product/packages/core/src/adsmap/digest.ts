@@ -151,7 +151,7 @@ function chooseAction(f: DigestFacts): DigestAction | null {
   // Rien produit et rien en attente · il faut bien commencer par fabriquer.
   if (f.createdWeek === 0 && f.pending === 0) {
     return {
-      key: 'studio', label: 'Fabriquer une série', href: '/studio/ads',
+      key: 'studio', label: 'Fabriquer une série', href: '/studio/projets/nouveau?type=ads',
       why: 'Rien n’a été produit cette semaine · il n’y a rien à faire trancher.',
     };
   }

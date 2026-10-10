@@ -3,21 +3,22 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
- * « Projets » (le nouveau Studio) dans le RAIL principal, au HTML rendu.
+ * Une seule entrée « Studios » dans le RAIL principal, au HTML rendu (retrait
+ * des anciens studios, 10/10).
  *
- * Le défaut · `/studio/projets` n'avait pas d'entrée dans `FEATURES` · le rail
- * ne la montrait jamais, on n'y arrivait que par un lien de `/studio` ou par la
- * Veille. On REND la vraie coquille (`AppShell`) avec ce que le layout lui
- * passe (`railNav(access)`), et on lit le rail :
+ * On REND la vraie coquille (`AppShell`) avec ce que le layout lui passe
+ * (`railNav(access)`), et on lit le rail :
  *
- *  · un membre qui a le droit Studio voit « Projets » sous « Studio IA »,
- *    à côté des studios historiques (aucun n'est retiré), et dans la palette ;
+ *  · un membre qui a le droit Studio voit UNE entrée « Studios » qui mène à la
+ *    liste des projets, active sur la liste comme dans un projet ; aucune
+ *    entrée Pubs IA, Image IA, Vidéo IA, Textes IA ni « Studio IA » ; dans la
+ *    palette, la liste et « Nouveau projet » ;
  *  · un lecteur client (rôle sous `member`, pas de droit Studio) ne la voit ni
  *    dans le rail ni dans la palette ;
- *  · une formule sans Studio la montre VERROUILLÉE (pas de lien), comme les
- *    autres sous-entrées du Studio.
+ *  · l'entrée EST la feature `studio`, celle que lit la garde serveur : ses
+ *    droits sont ceux de la garde, par construction.
  */
-const h = vi.hoisted(() => ({ chemin: '/studio' }));
+const h = vi.hoisted(() => ({ chemin: '/studio/projets' }));
 vi.mock('next/navigation', () => ({ usePathname: () => h.chemin, useSearchParams: () => new URLSearchParams(), useRouter: () => ({ push() {}, refresh() {}, replace() {} }) }));
 vi.mock('../components/CommandPalette', () => ({
   openCommandPalette: () => {},
@@ -32,7 +33,7 @@ vi.mock('../components/BrandSwitcher', () => ({ BrandSwitcher: () => null }));
 vi.mock('../components/Breadcrumb', () => ({ Breadcrumb: () => null }));
 
 import { AppShell } from '../components/AppShell';
-import { railNav, accountSections, ouverturesParRole, RAIL_GROUP_LABEL, FEATURES, canAccess, denyReason, type Access } from '../lib/rbac';
+import { railNav, accountSections, ouverturesParRole, RAIL_GROUP_LABEL, FEATURES, type Access } from '../lib/rbac';
 
 function rendu(a: Access, chemin: string): { rail: string; palette: string[] } {
   h.chemin = chemin;
@@ -49,73 +50,54 @@ function rendu(a: Access, chemin: string): { rail: string; palette: string[] } {
   return { rail, palette };
 }
 
-/** Les libellés de la branche « Studio IA » telle que le rail la rend, dans l'ordre. */
-function brancheStudio(rail: string): string[] {
+const liensRail = (rail: string): string[] => {
   const d = document.createElement('div');
   d.innerHTML = rail;
-  const tete = [...d.querySelectorAll('a[href="/studio"]')][0];
-  const bloc = tete?.closest('div')?.parentElement?.parentElement;
-  return [...(bloc?.querySelectorAll('a') ?? [])].map((x) => `${x.textContent} → ${x.getAttribute('href')}`);
-}
+  return [...d.querySelectorAll('a')].map((x) => `${x.textContent?.trim()} → ${x.getAttribute('href')}`);
+};
 
-describe('rail · « Projets » sous Studio IA', () => {
+describe('rail · une seule entrée « Studios »', () => {
   const membre: Access = { role: 'member', plan: 'core' };
 
-  it('membre avec le droit Studio · l’entrée mène à /studio/projets, à côté des studios historiques', () => {
-    for (const chemin of ['/studio', '/studio/projets']) {
+  it('membre avec le droit Studio · « Studios » mène à /studio/projets ; aucun ancien studio ; palette · liste et nouveau projet', () => {
+    for (const chemin of ['/studio/projets', '/studio/projets/p1', '/dashboard']) {
       const { rail, palette } = rendu(membre, chemin);
       expect(rail, `rail vide sur ${chemin}`).not.toBe('');
-      expect(rail, `« Projets » absent du rail sur ${chemin}`).toMatch(/<a[^>]*href="\/studio\/projets"[^>]*>[\s\S]*?Projets/);
-      expect(palette, 'Projets absent de la palette').toContain('/studio/projets');
+      const l = liensRail(rail).filter((x) => x.includes('/studio'));
+      expect(l, `entrées Studios sur ${chemin}`).toEqual(['Studios → /studio/projets']);
+      expect(palette, 'Studios absent de la palette').toContain('/studio/projets');
+      expect(palette, '« Nouveau projet » absent de la palette').toContain('/studio/projets/nouveau');
+      expect(palette.filter((x) => typeof x === 'string' && /^\/studio(\/(ads|image|video|textes))?(\?|$)/.test(x)), 'ancien studio dans la palette').toEqual([]);
     }
-    expect(brancheStudio(rendu(membre, '/studio').rail)).toEqual([
-      'Studio IA → /studio',
-      'Pubs IA → /studio/ads',
-      'Image IA → /studio/image',
-      'Vidéo IA → /studio/video',
-      'Textes IA → /studio/textes',
-      'Projets → /studio/projets',
-    ]);
   });
 
-  it('sur la liste des projets, l’entrée est LA page courante (aria-current)', () => {
-    const d = document.createElement('div');
-    d.innerHTML = rendu(membre, '/studio/projets').rail;
-    expect(d.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/studio/projets');
+  it('sur la liste des projets, l’entrée est LA page courante (aria-current) · dans un projet, le fil d’Ariane situe', () => {
+    for (const chemin of ['/studio/projets']) {
+      const d = document.createElement('div');
+      d.innerHTML = rendu(membre, chemin).rail;
+      expect(d.querySelector('a[aria-current="page"]')?.getAttribute('href'), chemin).toBe('/studio/projets');
+    }
   });
 
   it('lecteur client (aucun droit Studio) · ni rail ni palette', () => {
     const { rail, palette } = rendu({ role: 'client_viewer', plan: 'business' }, '/studio/projets');
     expect(rail).not.toBe('');
     expect(rail).not.toContain('/studio/projets');
-    expect(rail).not.toContain('>Projets<');
+    expect(rail).not.toContain('>Studios<');
     expect(palette).not.toContain('/studio/projets');
   });
 
-  it('l’entrée a EXACTEMENT les droits de la garde serveur des projets (feature `studio`)', () => {
-    // `gardeStudio` ouvre les projets par `canAccess(access, FEATURE_STUDIO)` · une
-    // entrée plus large mènerait à un refus, plus étroite cacherait un écran ouvert.
-    const studio = FEATURES.find((f) => f.key === 'studio')!;
-    const projets = FEATURES.find((f) => f.key === 'projets');
-    expect(projets, 'aucune entrée « projets » dans le catalogue du rail').toBeTruthy();
-    const ecarts: string[] = [];
-    const equipes: Array<Access['equipe']> = [undefined,
-      { role: 'membre', matrice: {} }, { role: 'membre', matrice: { membre: ['dashboard'] } }, { role: 'admin', matrice: {} }];
-    for (const role of ['client_viewer', 'member', 'admin', 'owner'] as const) {
-      for (const plan of ['starter', 'core', 'plus', 'business'] as const) {
-        for (const equipe of equipes) {
-          const a: Access = equipe ? { role, plan, equipe } : { role, plan };
-          if (canAccess(a, projets!) !== canAccess(a, studio) || denyReason(a, projets!) !== denyReason(a, studio)) ecarts.push(`${role}/${plan}/${equipe ? JSON.stringify(equipe) : 'client'}`);
-        }
-      }
-    }
-    expect(ecarts, 'droits de l’entrée Projets ≠ droits de la garde Studio').toEqual([]);
+  it('l’entrée EST la feature de la garde serveur (`studio`) · aucune autre entrée de création', () => {
+    // `gardeStudio` ouvre les projets par `canAccess(access, FEATURE_STUDIO)` (clé `studio`).
+    const studio = FEATURES.filter((f) => f.href.startsWith('/studio'));
+    expect(studio.map((f) => [f.key, f.href, f.label, f.parent ?? null])).toEqual([['studio', '/studio/projets', 'Studios', null]]);
+    for (const k of ['ads', 'image', 'video', 'textes', 'projets']) expect(FEATURES.some((f) => f.key === k), `entrée ${k} encore au catalogue`).toBe(false);
   });
 
   it('équipe interne sans la rubrique Studio · absente ; avec · présente', () => {
     const sans: Access = { role: 'client_viewer', plan: 'starter', equipe: { role: 'membre', matrice: { membre: ['dashboard'] } } };
     expect(rendu(sans, '/studio/projets').rail).not.toContain('/studio/projets');
     const avec: Access = { role: 'client_viewer', plan: 'starter', equipe: { role: 'membre', matrice: { membre: ['studio'] } } };
-    expect(rendu(avec, '/studio').rail).toMatch(/<a[^>]*href="\/studio\/projets"/);
+    expect(rendu(avec, '/studio/projets').rail).toMatch(/<a[^>]*href="\/studio\/projets"/);
   });
 });

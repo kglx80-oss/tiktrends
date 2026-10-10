@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { MARKET_COLS, toMarketAd, ligneMarketCreative } from '../../lib/market-rows';
 import { analyzeAdAsset } from '@tiktrends/ai';
@@ -300,22 +300,3 @@ export async function marketViewAction(): Promise<{ view?: MarketView; error?: s
   }
 }
 
-/** Combien de créas concurrentes sont décrites · sert les bandeaux. */
-export async function marketCoverageAction(): Promise<{ described: number; advertisers: number }> {
-  const g = await adsmapGuard();
-  if ('error' in g) return { described: 0, advertisers: 0 };
-  try {
-    const [row] = await db!.select({
-      n: sql<number>`count(*)`,
-      a: sql<number>`count(distinct ${schema.marketCreatives.advertiser})`,
-    })
-      .from(schema.marketCreatives)
-      .where(and(
-        eq(schema.marketCreatives.workspaceId, g.s.workspaceId),
-        eq(schema.marketCreatives.brandId, g.brand.id),
-      ));
-    return { described: Number(row?.n ?? 0), advertisers: Number(row?.a ?? 0) };
-  } catch {
-    return { described: 0, advertisers: 0 };
-  }
-}

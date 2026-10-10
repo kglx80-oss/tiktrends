@@ -73,7 +73,7 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     { fichier: 'app/(app)/connections/DataConnections.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/brands'"] },
     // Crédits · l'historique vide devient une invitation à générer, comme sa
     // page sœur Consommation, au lieu d'une phrase grise sur une page d'argent.
-    { fichier: 'app/(app)/credits/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/studio'"] },
+    { fichier: 'app/(app)/credits/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/studio/projets'"] },
     // Liens de partage (marque blanche) · le geste « créer » est déjà au-dessus,
     // donc une ligne `EmptyLine`, pas un bloc redondant.
     { fichier: 'app/(app)/adsmap/SharePanel.tsx', attendus: ['<EmptyLine>', 'marque blanche'] },
@@ -111,7 +111,7 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     expect(introuvables, `Icône(s) Empty absente(s) du jeu · repli muet sur grid : ${introuvables.join(', ')}`).toEqual([]);
   });
 
-  it('les trois états vides Jarvis guident vers Pubs IA en toutes lettres · sans empiler de CTA', () => {
+  it('les trois états vides Jarvis disent que l’outil d’origine est retiré · sans empiler de CTA', () => {
     // Ces trois sections d'analyse se remplissent quand on travaille AILLEURS ·
     // ce sont des `wait`. Elles portaient chacune le même bouton « Ouvrir Pubs
     // IA » · trois CTA identiques empilés dès qu'une marque Plus n'avait encore
@@ -126,15 +126,15 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     const cta = src.split("href: '/studio/ads'").length - 1;
     expect(cta, 'CTA « Ouvrir Pubs IA » empilé dans un état wait · doublon de parcours').toBe(0);
 
-    // Les trois `why`, mot pour mot · chacun renvoie à Pubs IA sans bouton.
+    // Les trois `why` · l'outil d'origine (anciennes Pubs IA) est retiré le 10/10 :
+    // chacun le DIT, sans bouton vers un écran disparu, et dit que l'existant reste lu.
     for (const phrase of [
-      'choisis ce que le lot teste',
-      'Le Score Jarvis s’ouvre depuis le panneau',
-      'La relecture tourne toute seule',
+      'Les lots d’essai (accroches, mises en page, univers) se lançaient dans les anciennes Pubs IA, retirées le 10/10',
+      'Le Score Jarvis se lançait depuis le panneau d’une pub des anciennes Pubs IA, retirées le 10/10',
+      'La relecture tournait sur les pubs « Générée entièrement » des anciennes Pubs IA, retirées le 10/10',
     ]) {
       expect(src, `l’état vide « ${phrase} » a disparu`).toContain(phrase);
     }
-    const guide = src.split('Pubs IA').length - 1;
-    expect(guide, 'les états vides Jarvis ne nomment plus assez Pubs IA').toBeGreaterThanOrEqual(3);
+    expect(src, 'lien vers un ancien studio retiré').not.toMatch(/['"]\/studio\/(ads|image|video|textes)/);
   });
 });

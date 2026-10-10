@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { surface } from '../../../../components/ui';
-import { CIBLE_TACTILE_MIN, listeManques } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, listeManques, CHEMIN_NOUVEAU_PROJET } from '@tiktrends/core';
 import {
   batchDetailAction, candidatesAction, createBatchAction, setBatchAdAction,
   prepareBatchAction, launchBatchAction,
@@ -225,10 +225,10 @@ export function Lots({ batches, brandName }: {
       {candidats.length === 0 ? (
         <div style={{ display: 'grid', gap: 8 }}>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
-            Aucune ad libre. Crée une itération depuis une gagnante, ou pousse une créa du Studio dans la carte.
+            Aucune ad libre. Crée une itération depuis une gagnante, ou prépare une créa dans un projet Studios.
           </p>
           {/* Lien d'action isolé · cible tactile pleine, pas noyé dans la phrase. */}
-          <a href="/studio/ads" style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontWeight: 800, fontSize: 12, color: 'var(--accent-strong)', textDecoration: 'none' }}>Ouvrir Pubs IA ›</a>
+          <a href={CHEMIN_NOUVEAU_PROJET} style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontWeight: 800, fontSize: 12, color: 'var(--accent-strong)', textDecoration: 'none' }}>Préparer un projet ›</a>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: mobile ? 'none' : 420, overflowY: mobile ? 'visible' : 'auto' }}>

@@ -103,7 +103,7 @@ export default async function UsagePage() {
         <Empty
           tone="todo" title="Aucun mouvement pour l’instant."
           why="Chaque génération consomme des crédits · ce relevé se remplit dès la première."
-          action={{ label: 'Ouvrir le Studio', href: '/studio' }}
+          action={{ label: 'Ouvrir les Studios', href: '/studio/projets' }}
         />
       ) : (
         <div style={{ ...surface, overflow: 'hidden' }}>
