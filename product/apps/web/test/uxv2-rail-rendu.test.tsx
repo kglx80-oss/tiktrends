@@ -35,6 +35,7 @@ vi.mock('../components/BrandSwitcher', () => ({ BrandSwitcher: () => null }));
 
 const { AppShell } = await import('../components/AppShell');
 const { railNav, sectionsCompteOuvertes, ouverturesParRole, RAIL_GROUP_LABEL } = await import('../lib/rbac');
+const { entreesMarque } = await import('@tiktrends/core');
 type Access = import('../lib/rbac').Access;
 
 const proprietaire: Access = { role: 'owner', plan: 'business' };
@@ -48,12 +49,12 @@ beforeEach(() => {
 });
 afterEach(() => { act(() => { root?.unmount(); }); el?.remove(); root = null; el = null; document.body.innerHTML = ''; });
 
-function monter(adresse: string, a: Access = proprietaire, opts: { isStaff?: boolean; collapsed?: boolean } = {}) {
+function monter(adresse: string, a: Access = proprietaire, opts: { isStaff?: boolean; collapsed?: boolean; marque?: boolean } = {}) {
   const [p, q] = adresse.split('?');
   ici.pathname = p!; ici.recherche = q ?? '';
   act(() => {
     root!.render(
-      <AppShell nav={railNav(a).map((g) => ({ ...g, group: RAIL_GROUP_LABEL[g.group] ?? g.group }))} accountGroups={sectionsCompteOuvertes(a)} ouvertures={ouverturesParRole(a)}
+      <AppShell nav={[...railNav(a).map((g) => ({ ...g, group: RAIL_GROUP_LABEL[g.group] ?? g.group })), ...(opts.marque ? [{ group: 'Marque', items: entreesMarque('b1') }] : [])]} accountGroups={sectionsCompteOuvertes(a)} ouvertures={ouverturesParRole(a)}
         isStaff={!!opts.isStaff} showUpgrade={false} brands={[{ id: 'b1', name: 'Neva' }]} activeBrandId="b1" canManageBrands
         creditBalance={0} creditsUnlimited={false} userName="U" userEmail="u@exemple.invalid" roleLabel="r" planLabel="p" workspaceName="Espace"
         collapsedInitial={!!opts.collapsed} logout={async () => {}}>
@@ -174,5 +175,32 @@ describe('UX V2 · Alt B réduit et déploie le rail', () => {
     const b = document.querySelector('button[aria-label="Réduire la barre"]')!;
     expect(b.getAttribute('aria-keyshortcuts')).toBe('Alt+B');
     expect(b.getAttribute('title')).toContain('Alt B');
+  });
+});
+
+describe('UX V2 · la marque active rejoint « Votre espace »', () => {
+  // Même composition que le layout · groupe « Marque » ajouté pour un admin d'espace avec une marque active.
+  it('les six modules gardent leur ordre, Bibliothèque comprise ; la marque est en tête de « Votre espace », sous son nom', () => {
+    monter('/dashboard', proprietaire, { marque: true });
+    expect(modules()).toEqual(['Accueil', 'Veille', 'Studios', 'Bibliothèque', 'Résultats', 'Jarvis', 'Neva', 'Marques', 'Réglages']);
+    const espace = railPrincipal().querySelector('[role="group"][aria-label="Votre espace"]')!;
+    expect(espace.querySelector('[data-marque-active] a')?.getAttribute('href')).toBe('/brands/b1?tab=overview');
+    expect(espace.textContent).not.toContain('Aperçu');
+  });
+
+  it('sur une page de la marque · la marque est allumée, pas « Marques », et pas de barre d’onglets en double', () => {
+    monter('/brands/b1', proprietaire, { marque: true });
+    expect(courantes().map((c) => c[0])).toEqual(['Neva']);
+    expect(onglets(), 'la fiche de marque a ses propres onglets').toBeNull();
+    monter('/brands', proprietaire, { marque: true });
+    expect(courantes()).toEqual([['Marques', 'page']]);
+  });
+
+  it('replié · l’icône de la marque est nommée et rangée avec l’espace, pas parmi les modules', () => {
+    monter('/dashboard', proprietaire, { collapsed: true, marque: true });
+    const espace = railPrincipal().querySelector('[role="group"][aria-label="Votre espace"]')!;
+    expect(espace.querySelector('[data-marque-active]')?.getAttribute('aria-label')).toBe('Aperçu de la marque Neva');
+    const horsEspace = [...railPrincipal().querySelectorAll('a')].filter((x) => !espace.contains(x) && !x.closest('[data-zone="pied-rail"]')).map((x) => x.getAttribute('href'));
+    expect(horsEspace).toEqual(['/dashboard', '/veille', '/studio/projets', '/assets', '/adsmap', '/jarvis']);
   });
 });

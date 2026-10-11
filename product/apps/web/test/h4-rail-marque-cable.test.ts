@@ -20,9 +20,13 @@ describe('H4 · le groupe « Marque » tire ses entrées du noyau', () => {
     expect(LAYOUT, 'les entrées « Marque » ne viennent plus du module pur entreesMarque').toContain('items: entreesMarque(bid)');
   });
 
-  it('le rail passe par placerAssets · Assets DÉPLACÉ vers Marque, jamais dupliqué (règle éprouvée au noyau)', () => {
-    expect(LAYOUT, 'le layout ne déplace plus Assets vers Marque').toMatch(/const nav = placerAssets\(railNav\(access\)/);
-    expect(LAYOUT, 'le groupe Marque est encore ajouté À CÔTÉ de placerAssets · il serait doublé').not.toContain('...brandNav');
+  it('UX V2 · Bibliothèque reste un module · le groupe Marque est ajouté UNE fois, sans rien déplacer', () => {
+    // Le rail plat (UX V2) garde ses six modules dans l'ordre · le groupe Marque
+    // rejoint « Votre espace » dans la coquille (`separerRailMarque`, rendu
+    // éprouvé dans uxv2-rail-rendu). `placerAssets` déplaçait Bibliothèque.
+    expect(LAYOUT, 'le layout déplace encore Bibliothèque vers le groupe Marque').not.toContain('placerAssets(');
+    expect(LAYOUT, 'le groupe Marque n’est plus ajouté au rail').toContain('...(marque ? [marque] : [])');
+    expect(LAYOUT, 'le groupe Marque est ajouté deux fois').not.toContain('...brandNav');
   });
 });
 
