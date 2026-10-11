@@ -509,7 +509,7 @@ export function EditeurCalques(props: PropsEditeur) {
           <div role="tablist" aria-label="Vue de l’éditeur" style={{ display: 'flex', gap: 6 }}>
             {(['calques', 'apercu'] as const).map((v) => (
               <button key={v} type="button" role="tab" id={`onglet-${v}`} aria-selected={vue === v} aria-controls={`vue-${v}`} onClick={() => setVue(v)}
-                style={{ ...bouton, flex: 1, ...(vue === v ? { borderColor: 'var(--accent-strong)', borderWidth: 2, color: 'var(--accent-strong)', fontWeight: 800 } : {}) }}>
+                style={{ ...bouton, flex: 1, ...(vue === v ? { border: '2px solid var(--accent-strong)', color: 'var(--accent-strong)', fontWeight: 800 } : {}) }}>
                 {v === 'calques' ? 'Calques' : 'Aperçu'}
               </button>
             ))}
