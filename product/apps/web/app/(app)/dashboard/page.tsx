@@ -5,7 +5,7 @@ import { getSession } from '../../../lib/auth';
 import { getActiveBrand, listBrands } from '../../../lib/brands';
 import { roleAtLeast, ouverturesParRole, sectionsCompteOuvertes } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
-import { bandeauAccueil, cheminOuvert, liensPilotage, rangeeStudiosAccueil, resoudreAccueil, refusAssistant, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
+import { bandeauAccueil, bandeauEnDoublon, cheminOuvert, destinationsTete, liensPilotage, rangeeStudiosAccueil, resoudreAccueil, refusAssistant, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { unlimitedCredits } from '../../../lib/credits';
 import { AssistantHome } from '../../../components/AssistantHome';
@@ -85,6 +85,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   // seulement si ce menu l'ouvre (même règle que le menu, lot 12).
   const pagesCompte = new Set(s ? sectionsCompteOuvertes(effectiveAccess(s)).flatMap((g) => g.items.map((i) => i.href)) : []);
   const pilotage = liensPilotage({ ouvert, compteOuvert: (href) => pagesCompte.has(href) });
+  // Le bandeau se tait quand la tête et le pilotage portent déjà tous ses gestes (`bandeauEnDoublon`).
+  const bandeauAffiche = bandeau && !bandeauEnDoublon(bandeau, [...destinationsTete(tete.etat), ...pilotage.map((l) => l.href)]) ? bandeau : null;
 
   return (
     <main style={wrap}>
@@ -102,7 +104,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         projets={<TeteProjets key="projets" etat={tete.etat} apercu={tete.apercu} />}
         pilotage={<PilotageActivite key="pilotage" liens={pilotage} />}
         rangeeStudios={rangeeStudiosAccueil(tete.etat)}
-        bandeau={bandeau ? <HomeBandeau key="bandeau" contenu={bandeau} /> : null}
+        bandeau={bandeauAffiche ? <HomeBandeau key="bandeau" contenu={bandeauAffiche} /> : null}
         marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} gererMarques={ouvert('/brands/new')} />}
         prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} regles={regles} />}
         exemple={<ApercuExemple key="apercu-exemple" rows={rows} brancher={ouvert('/connections')} />}

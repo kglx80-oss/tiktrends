@@ -10,7 +10,7 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * portée) et on LIT le HTML :
  *  · le projet repris est le plus récemment modifié DE LA PORTÉE · un projet
  *    d'un autre espace, d'une marque hors restriction, ou archivé n'apparaît
- *    JAMAIS (ni repris, ni dans « Vos autres projets ») ;
+ *    JAMAIS (ni repris, ni dans « Tes autres projets ») ;
  *  · l'aperçu est la sortie livrée réelle du projet repris, servie par la
  *    route gardée · sans sortie, aucune image ;
  *  · les états · rôle sans Studios, capacité coupée, panne de lecture,
@@ -22,6 +22,8 @@ const h = vi.hoisted(() => ({
   ids: null as unknown as IdsStudios & { wsC: string },
   session: null as SessionTest | null,
   panne: false,
+  /** Marque active simulée · `null` = « Toutes les marques » (défaut). */
+  marque: null as { id: string; name: string } | null,
   /** Chaque requête envoyée à la base · une écriture idempotente ne change pas l'empreinte, elle se lit ici. */
   requetes: [] as string[],
 }));
@@ -45,7 +47,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
   return { ...actual, db };
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
-vi.mock('../lib/brands', async (importOriginal) => ({ ...(await importOriginal<typeof import('../lib/brands')>()), getActiveBrand: async () => null }));
+vi.mock('../lib/brands', async (importOriginal) => ({ ...(await importOriginal<typeof import('../lib/brands')>()), getActiveBrand: async () => h.marque }));
 vi.mock('next/navigation', () => ({
   redirect: (u: string) => { throw new Error(`redirect ${u}`); },
   notFound: () => { throw new Error('notFound'); },
@@ -136,7 +138,7 @@ describe('Accueil · reprendre le dernier projet DE LA PORTÉE', () => {
     expect(d.querySelector('[data-accueil-projets]')?.getAttribute('data-accueil-projets')).toBe('liste');
     const t = titres(d);
     expect(t.reprendre, 'le projet repris n’est pas le plus récemment modifié de la portée').toBe('A2 · repris en premier');
-    expect(t.autres, '« Vos autres projets » faux ou dans le désordre').toEqual(['A1 · le plus récent', 'A1 · au milieu', 'A1 · le plus ancien']);
+    expect(t.autres, '« Tes autres projets » faux ou dans le désordre').toEqual(['A1 · le plus récent', 'A1 · au milieu', 'A1 · le plus ancien']);
     expect(d.querySelector('a[data-reprendre-lien]')?.getAttribute('href')).toBe(`/studio/projets/${P.a2}`);
     expect(d.querySelector('a[data-reprendre-lien]')?.textContent).toBe('Reprendre le projet');
     // L'aperçu · la sortie LIVRÉE (rendu), pas le dépôt plus récent · par la route gardée.
@@ -183,6 +185,22 @@ describe('Accueil · le nouveau bloc est EN TÊTE, tout l’existant reste desso
     expect(d.querySelector('nav[aria-label="Vues de l’accueil"]')).not.toBeNull();
     // La rangée Studios d'avant ne double pas les gestes de la tête.
     expect(html, 'la rangée Studios double « Nouveau projet »').not.toContain('Créer les variantes de ton test');
+  });
+});
+
+describe('Accueil · le bandeau se tait quand la tête porte déjà ses gestes', () => {
+  it('marque active, projets et Résultats en tête · plus de « Prépare ton prochain test » (Voir mes tests, Créer une pub en doublon)', async () => {
+    h.marque = { id: ids.brandA1, name: 'A1' };
+    try {
+      const { html } = await accueil(session(ids, 'ua', { role: 'admin' }));
+      expect(html, 'la tête de projets manque').toContain('data-accueil-projets="liste"');
+      expect(html, 'le bandeau double la tête (Voir mes tests, Créer une pub)').not.toContain('aria-label="À la une"');
+    } finally { h.marque = null; }
+  });
+
+  it('sans marque active · « Choisir une marque » n’est porté nulle part · le bandeau reste', async () => {
+    const { html } = await accueil(session(ids, 'ua', { role: 'admin' }));
+    expect(html).toContain('aria-label="À la une"');
   });
 });
 

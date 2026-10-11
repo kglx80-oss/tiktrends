@@ -171,6 +171,32 @@ export function liensPilotage(p: { ouvert: (href: string) => boolean; compteOuve
   return PILOTAGE.filter((l) => p.ouvert(l.href) && (!l.compte || p.compteOuvert(l.href)));
 }
 
+/* ──────────────────────────── Bandeau en doublon ───────────────────────── */
+
+const cheminSeul = (href: string): string => href.split('#')[0]!.split('?')[0]!;
+
+/**
+ * Le bandeau « Prépare ton prochain test » se tait quand TOUS ses gestes sont
+ * déjà portés par la tête (Nouveau projet, Voir tous les projets) ou le
+ * pilotage (Résultats…) · même destination (chemin, sans paramètres). Avec
+ * une marque active, il proposait « Voir mes tests » (/adsmap) et « Créer une
+ * pub » (/studio/projets/nouveau), soit deux doublons. Sans marque, son geste
+ * « Choisir une marque » n'est porté nulle part ailleurs · il reste.
+ */
+export function bandeauEnDoublon(bandeau: { href: string; hrefSec?: string } | null, offerts: readonly (string | null | undefined)[]): boolean {
+  if (!bandeau) return false;
+  const chemins = new Set(offerts.filter((h): h is string => !!h).map(cheminSeul));
+  return [bandeau.href, ...(bandeau.hrefSec ? [bandeau.hrefSec] : [])].every((h) => chemins.has(cheminSeul(h)));
+}
+
+/** Les destinations que la tête de l'Accueil propose déjà, selon son état. */
+export function destinationsTete(e: EtatAccueilProjets<ProjetOrdonnable>): string[] {
+  if (e.etat === 'liste') return [e.tous.href, ...(e.nouveau ? [e.nouveau.href] : [])];
+  if (e.etat === 'premier-usage') return [...(e.nouveau ? [e.nouveau.href] : []), ...(e.veille ? [e.veille.href] : [])];
+  if (e.etat === 'erreur') return [e.tous.href];
+  return [];
+}
+
 /* ─────────────────────────────── Aperçu ───────────────────────────────────── */
 
 /** Une sortie lue pour l'aperçu · la ligne `studio_assets` et sa date. */

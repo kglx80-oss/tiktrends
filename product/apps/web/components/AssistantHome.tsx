@@ -20,7 +20,7 @@ export interface AssistantHomeProps {
    * (`TeteProjets`). Rendue juste sous l'en-tête, AVANT tout le reste.
    */
   projets?: ReactNode;
-  /** UX V2 · lot 5 · « Piloter votre activité » · rendu sous les projets. */
+  /** UX V2 · lot 5 · « Piloter ton activité » · rendu sous les projets. */
   pilotage?: ReactNode;
   /**
    * La rangée Studios d'avant (« Nouveau projet », « Mes projets ») · masquée

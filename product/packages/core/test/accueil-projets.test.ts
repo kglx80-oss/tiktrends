@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   resoudreAccueilProjets, doitLireProjetsAccueil, rangeeStudiosAccueil, liensPilotage, apercuReprise, projetsParRecence,
-  NB_AUTRES_PROJETS, CHEMIN_TOUS_PROJETS, type SortieApercu,
+  NB_AUTRES_PROJETS, CHEMIN_TOUS_PROJETS, bandeauEnDoublon, destinationsTete, LIEN_NOUVEAU_PROJET, LIEN_TOUS_PROJETS, type SortieApercu,
 } from '../src/accueil-projets';
 import { CHEMIN_NOUVEAU_PROJET } from '../src/studios/anciennes-adresses';
 
@@ -126,5 +126,30 @@ describe('accueil · aperçu du projet repris (réel ou rien)', () => {
   });
   it('une génération livrée par un lot terminé est un aperçu', () => {
     expect(apercuReprise('p1', [sortie({ id: 'g', origin: 'generated', lot: { state: 'completed', qualityStatus: 'passed' } })])).toBe('/api/studios/media/g');
+  });
+});
+
+describe('bandeau en doublon · il se tait quand la tête porte déjà ses gestes', () => {
+  const avecMarque = { href: '/adsmap', hrefSec: '/studio/projets/nouveau?type=ads' };
+  const sansMarque = { href: '/brands', hrefSec: '/veille' };
+  const pilotage = ['/adsmap', '/usage', '/jarvis'];
+  const liste = { etat: 'liste' as const, reprendre: { id: 'p', modifieLe: '2026-10-11' } as never, autres: [], tous: LIEN_TOUS_PROJETS, nouveau: LIEN_NOUVEAU_PROJET };
+
+  it('marque active, projets en tête, Résultats au pilotage · doublon, le bandeau se tait', () => {
+    expect(bandeauEnDoublon(avecMarque, [...destinationsTete(liste), ...pilotage])).toBe(true);
+  });
+
+  it('sans marque · « Choisir une marque » n’est porté nulle part · le bandeau reste', () => {
+    expect(bandeauEnDoublon(sansMarque, [...destinationsTete(liste), ...pilotage])).toBe(false);
+  });
+
+  it('un seul geste manquant suffit à garder le bandeau (Résultats fermé au rôle, pas de Nouveau projet)', () => {
+    expect(bandeauEnDoublon(avecMarque, [...destinationsTete(liste), '/usage'])).toBe(false);
+    expect(bandeauEnDoublon(avecMarque, [...destinationsTete({ ...liste, nouveau: null }), ...pilotage])).toBe(false);
+  });
+
+  it('tête fermée (rôle sans Studios) · rien n’est porté, le bandeau reste ; pas de bandeau, rien à taire', () => {
+    expect(bandeauEnDoublon(avecMarque, [...destinationsTete({ etat: 'ferme' }), ...pilotage])).toBe(false);
+    expect(bandeauEnDoublon(null, pilotage)).toBe(false);
   });
 });

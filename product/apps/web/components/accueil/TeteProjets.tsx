@@ -98,7 +98,7 @@ export function TeteProjets({ etat, apercu }: { etat: EtatAccueilProjets<Carte>;
       </article>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: etat.autres.length > 0 ? '22px 0 10px' : '6px 0 0' }}>
-        {etat.autres.length > 0 ? <h2 style={sectionH}>Vos autres projets</h2> : <span />}
+        {etat.autres.length > 0 ? <h2 style={sectionH}>Tes autres projets</h2> : <span />}
         <a href={etat.tous.href} style={lienDiscret}>{etat.tous.libelle} <span aria-hidden>›</span></a>
       </div>
       {etat.autres.length > 0 && (

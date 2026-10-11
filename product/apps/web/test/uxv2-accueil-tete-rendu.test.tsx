@@ -62,17 +62,17 @@ describe('Tête · reprendre le dernier projet', () => {
     expect(rendre(etat({ peutCreer: false })).querySelector('a[href^="/studio/projets/nouveau"]'), 'bouton mort pour un rôle en lecture').toBeNull();
   });
 
-  it('« Vos autres projets » · les suivants en cartes, puis « Voir tous les projets »', () => {
+  it('« Tes autres projets » · les suivants en cartes, puis « Voir tous les projets »', () => {
     const d = rendre(etat());
-    expect(d.textContent).toContain('Vos autres projets');
+    expect(d.textContent).toContain('Tes autres projets');
     expect([...d.querySelectorAll('[data-autres-projets] [data-projet]')].map((a) => a.getAttribute('data-projet'))).toEqual(['p3', 'p1']);
     const tous = [...d.querySelectorAll('a')].find((a) => a.textContent?.startsWith('Voir tous les projets'));
     expect(tous?.getAttribute('href')).toBe('/studio/projets?toutes=1');
   });
 
-  it('un seul projet · pas de titre « Vos autres projets » vide, la liste reste accessible', () => {
+  it('un seul projet · pas de titre « Tes autres projets » vide, la liste reste accessible', () => {
     const d = rendre(etat({ lecture: { ok: true, cartes: [cartes[0]!] } }));
-    expect(d.textContent).not.toContain('Vos autres projets');
+    expect(d.textContent).not.toContain('Tes autres projets');
     expect(d.querySelector('[data-autres-projets]')).toBeNull();
     expect(d.textContent).toContain('Voir tous les projets');
   });
@@ -111,10 +111,10 @@ describe('Tête · les autres états', () => {
   });
 });
 
-describe('Piloter votre activité', () => {
+describe('Piloter ton activité', () => {
   it('les liens ouverts, avec titre et description, aucun chiffre', () => {
     const d = dom(renderToStaticMarkup(<PilotageActivite liens={liensPilotage({ ouvert: () => true, compteOuvert: () => true })} />));
-    expect(d.querySelector('h2')?.textContent).toBe('Piloter votre activité');
+    expect(d.querySelector('h2')?.textContent).toBe('Piloter ton activité');
     expect([...d.querySelectorAll('a')].map((a) => [a.getAttribute('href'), a.querySelector('b')?.textContent])).toEqual([
       ['/adsmap', 'Résultats'], ['/usage', 'Activité et coûts'], ['/jarvis', 'Faire le point avec Jarvis'],
     ]);
