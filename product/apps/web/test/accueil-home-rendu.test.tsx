@@ -121,4 +121,14 @@ describe('Accueil · hiérarchie · bandeau PUIS marques, avant le reste', () =>
     expect(iM, 'les marques doivent suivre le bandeau').toBeGreaterThan(iB);
     expect(iP, 'la prochaine étape doit suivre les marques').toBeGreaterThan(iM);
   });
+  // UX V2 · lot 5 · la tête part du PROJET · reprendre/créer puis piloter,
+  // AVANT le bandeau et les marques (conservés, dessous). Le rendu de la vraie
+  // page est éprouvé dans `uxv2-accueil-projets-db`.
+  it('la tête projets puis le pilotage passent AVANT le bandeau', () => {
+    const iPr = src.indexOf('{projets}');
+    const iPi = src.indexOf('{pilotage}');
+    expect(iPr, 'la tête projets n’est pas rendue').toBeGreaterThan(-1);
+    expect(iPi, 'le pilotage doit suivre les projets').toBeGreaterThan(iPr);
+    expect(src.indexOf('{bandeau}'), 'le bandeau doit suivre le pilotage').toBeGreaterThan(iPi);
+  });
 });

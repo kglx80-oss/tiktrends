@@ -154,6 +154,7 @@ export * from './compte-vue';
 export * from './connaissances';
 export * from './formats-creatifs';
 export * from './accueil-vue';
+export * from './accueil-projets';
 export * from './studios/erreurs';
 export * from './studios/permissions';
 export * from './studios/portee';
