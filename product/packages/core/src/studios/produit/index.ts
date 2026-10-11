@@ -7,4 +7,5 @@ export * from './epinglage';
 export * from './references';
 export * from './compilation';
 export * from './composants';
+export * from './import-photo';
 export * from '../textes';
