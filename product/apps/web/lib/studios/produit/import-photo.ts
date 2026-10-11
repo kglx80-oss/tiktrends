@@ -73,13 +73,25 @@ export async function importerPhotoProduitPour(ctx: ContexteStudio, e: EntreeImp
   }
 
   if (ajoutee) {
+    // L'ajout se décide À NOUVEAU sous verrou de ligne · deux imports simultanés
+    // ne dépassent plus la borne de photos et ne doublent pas la même photo (la
+    // décision lue avant le verrou n'est qu'une avance pour refuser sans attendre).
     const P = schema.products;
-    const maj = await db.update(P).set({
-      // Mêmes règles que `colonnesApresImport` · évaluées sur les valeurs AVANT mise à jour.
-      imageUrl: sql`case when ${P.imageUrl} is null and coalesce(cardinality(${P.imageUrls}), 0) = 0 then ${dataUri} else ${P.imageUrl} end`,
-      imageUrls: sql`array_append(coalesce(${P.imageUrls}, '{}'::text[]), ${dataUri}::text)`,
-    }).where(and(eq(P.id, p.produit.id), eq(P.brandId, cat.projet.brandId))).returning({ id: P.id });
-    if (maj.length !== 1) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
+    const refus = await db.transaction(async (tx) => {
+      const [frais] = await tx.select({ id: P.id, name: P.name, imageUrl: P.imageUrl, imageUrls: P.imageUrls }).from(P)
+        .where(and(eq(P.id, p.produit.id), eq(P.brandId, cat.projet.brandId))).limit(1).for('update');
+      if (!frais) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
+      const d = decisionAjoutPhoto(photosDuProduit(frais, hacherImage), photoId);
+      if (d.action === 'refus') return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, message: d.message, violations: [{ chemin: 'productId', raison: d.message }] });
+      if (d.action === 'reutiliser') return null; // la même photo vient d'être ajoutée par un autre geste
+      await tx.update(P).set({
+        // Mêmes règles que `colonnesApresImport` · évaluées sur les valeurs AVANT mise à jour.
+        imageUrl: sql`case when ${P.imageUrl} is null and coalesce(cardinality(${P.imageUrls}), 0) = 0 then ${dataUri} else ${P.imageUrl} end`,
+        imageUrls: sql`array_append(coalesce(${P.imageUrls}, '{}'::text[]), ${dataUri}::text)`,
+      }).where(eq(P.id, frais.id));
+      return null;
+    });
+    if (refus) return refus;
   }
 
   const changes = changementsEpinglage(cat.contenu, cat.brief, r.reference, new Set(photosApres.map((f) => f.assetId)));

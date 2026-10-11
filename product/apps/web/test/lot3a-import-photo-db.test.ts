@@ -121,6 +121,23 @@ describe('import · la photo rejoint le produit de la marque du projet et devien
   });
 });
 
+describe('concurrence · deux imports au même instant', () => {
+  it('produit à 5 photos, deux photos DIFFÉRENTES importées en même temps · la borne tient (6), un seul ajout', async () => {
+    const cinq = Array.from({ length: PHOTOS_PRODUIT_MAX - 1 }, (_, i) => `https://cdn.test/p${i}.jpg`);
+    const pr = await produit(ids.brandA1, { imageUrl: cinq[0]!, imageUrls: cinq });
+    const { projectId, versionId } = await projetStatique(db, ids, cat);
+    const [a, b] = await Promise.all([png(), png()].map((dataUri) =>
+      importerPhotoProduitPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: versionId, productId: pr.id, dataUri }, O)));
+    const urls = (await ligne(pr.id)).imageUrls ?? [];
+    expect(urls.length, 'deux imports simultanés ont dépassé la borne de photos').toBe(PHOTOS_PRODUIT_MAX);
+    const res = [a!, b!];
+    const ajouts = res.filter((r) => r.ok && r.ajoutee).length;
+    expect(ajouts, 'les deux imports disent avoir ajouté leur photo').toBeLessThanOrEqual(1);
+    const refus = res.find((r) => !r.ok && r.code === 'INVALID_SCHEMA');
+    expect(refus && !refus.ok ? refus.message : null, 'le perdant ne dit pas que le produit est complet').toBe(MESSAGES_REFUS_PHOTO.complet);
+  });
+});
+
 describe('portée · personne hors du projet ne peut importer dedans', () => {
   it('autre espace (session et contexte) · NOT_FOUND neutre, rien écrit, produit intact', async () => {
     const pr = await produit(ids.brandA1);
