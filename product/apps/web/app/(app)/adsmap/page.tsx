@@ -13,7 +13,9 @@ import { Views } from './Views';
 import { effectiveAccess } from '../../../lib/access';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
-import { CIBLE_TACTILE_MIN, lireLienProfondAdsmap } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, lireLienProfondAdsmap, parcoursResultats } from '@tiktrends/core';
+import { compterBoucle } from '../../../lib/boucle-resultats';
+import { ParcoursBoucle } from '../../../components/ParcoursBoucle';
 import { adsDeLaMarque } from '../../../lib/adsmap-marque';
 import { SectionEssais } from '../jarvis/sections/SectionEssais';
 import { cadrePage, colonneLecture, surface, h1 } from '../../../components/ui';
@@ -88,6 +90,11 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
     ? { adId: profond.adId, depuisStudio: profond.depuisStudio, introuvable: !(await adsDeLaMarque(s.workspaceId, brand.id, [profond.adId])).has(profond.adId) }
     : null;
 
+  // La boucle · comptes réels de la marque active, lecture seule (aucune
+  // écriture, aucun appel externe). Sans base, pas de parcours (pas de zéros).
+  const compte = await compterBoucle({ workspaceId: s.workspaceId, brandId: brand.id, lots: batches, derniereMesure: row?.at ? row.at.toISOString() : null });
+  const parcours = compte ? parcoursResultats(compte, { peutAgir: peutMesurer }) : null;
+
   return (
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -105,13 +112,25 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
         Chaque test, son verdict, et ce qu’il t’apprend pour le suivant.
       </p>
 
-      {/* Raccourcis locaux et aide sur UNE seule rangée · préparer un test en amont,
-          voir les suites en aval, sauter au cumul, lire la carte. Le rail garde la
-          navigation complète · on regroupe pour dégager le haut sans rien retirer. */}
-      <nav aria-label="Raccourcis et aide Adsmap" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '0 0 10px' }}>
-        {peutMesurer && <LienLocal href="/adsmap/lots" label="Préparer un test" />}
-        <LienLocal href="/adsmap/suites" label="Voir les suites" />
-        <LienLocal href="#appris" label="Apprentissages" ancre />
+      {/* UX V2 · lot 4a · la boucle hypothèse → lot → mesures → apprentissage,
+          lue sur les comptes RÉELS de la marque (`compterBoucle`, lecture seule)
+          et présentée par le noyau (`parcoursResultats`) · une étape sans
+          donnée le dit, avec le chemin qui la remplit (selon le rôle). Les
+          anciens raccourcis (Préparer un test, Voir les suites, Apprentissages)
+          doublonnaient les onglets de section · leurs destinations vivent
+          dans les étapes. */}
+      {parcours && (
+        <section aria-label="La boucle de test" style={{ margin: '0 0 14px' }}>
+          {parcours.avertissement && (
+            <p role="status" data-avertissement-boucle style={{ margin: '0 0 8px', padding: '9px 12px', ...surface, background: 'var(--surface)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+              {parcours.avertissement}
+            </p>
+          )}
+          <ParcoursBoucle titre="Boucle de test · hypothèse, lot, mesures, apprentissage" etapes={parcours.etapes} prochaine={parcours.prochaine} />
+        </section>
+      )}
+
+      <div style={{ margin: '0 0 10px' }}>
         <PageInfo title="lire cette carte" mb={0} minHeight={CIBLE_TACTILE_MIN}>
           Une ad n’entre en test qu’avec une <b>hypothèse</b> et <b>une seule variable</b> modifiée : c’est ce qui permet
           d’attribuer un résultat à une cause. Le verdict est <b>calculé</b>, pas saisi · un astérisque signale un test
@@ -121,9 +140,12 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
           <b> branches mortes</b> en pointillé · un angle jamais décliné ou une gagnante jamais itérée ne se voient
           que là.
         </PageInfo>
-      </nav>
+      </div>
 
-      <Views batches={batches} canBuild={peutMesurer} testProfond={testProfond} marque={brand.name} />
+      {/* Les tests eux-mêmes · ancre des étapes « Voir les tests » et « Arbitrer ». */}
+      <div id="tests" style={{ scrollMarginTop: 80 }}>
+        <Views batches={batches} canBuild={peutMesurer} testProfond={testProfond} marque={brand.name} />
+      </div>
 
       {/* Ce que Jarvis a appris de ces tests · essais, Score Jarvis, relectures.
           Le cumul vit là où on lit les tests, plus sous la conversation. Self-porté
@@ -132,19 +154,4 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
       <SectionEssais />
     </main>
   );
-}
-
-/**
- * Lien local discret · même repère tactile que le reste (cible 44), sans le poids
- * d'un bouton d'action. Interne via `Link`, ancre de page via `<a>` (le hash ne
- * change pas de route · Link le traiterait comme une navigation).
- */
-function LienLocal({ href, label, ancre = false }: { href: string; label: string; ancre?: boolean }) {
-  const style = {
-    display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
-    padding: '6px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
-    background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600,
-    textDecoration: 'none', whiteSpace: 'nowrap',
-  } as const;
-  return ancre ? <a href={href} style={style}>{label}</a> : <Link href={href} style={style}>{label}</Link>;
 }

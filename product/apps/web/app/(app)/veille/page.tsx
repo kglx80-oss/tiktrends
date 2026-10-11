@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import type { ReactNode } from 'react';
 import { getSession } from '../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../lib/rbac';
 import { Bandeau } from '../../../components/Bandeau';
@@ -12,7 +11,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
-import { veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, contexteVeille, PARAM_RETOUR_VEILLE, type PerimetreVeille } from '@tiktrends/core';
+import { parcoursVeille, veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, contexteVeille, PARAM_RETOUR_VEILLE, type PerimetreVeille } from '@tiktrends/core';
 import { RetourVeille } from '../../../components/RetourVeille';
 import { DefileAncreVeille } from '../../../components/DefileAncreVeille';
 import { ChampRechercheVeille } from '../../../components/ChampRechercheVeille';
@@ -22,6 +21,7 @@ import { Empty } from '../../../components/Empty';
 import { SectionMarche } from '../jarvis/sections/SectionMarche';
 import { baseUrlRecette, cleEffective } from '../../../lib/veille-recette-base';
 import { cadrePage } from '../../../components/ui';
+import { ParcoursBoucle } from '../../../components/ParcoursBoucle';
 
 export const dynamic = 'force-dynamic';
 
@@ -269,14 +269,15 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         Durée de diffusion et portée sont des <b style={{ color: 'var(--ink-2)' }}>signaux d’observation</b>, pas des preuves de rentabilité.
       </p>
 
-      {/* Accès voisins compacts · une seule rangée · sur mobile elle défile
-          horizontalement plutôt que de retomber sur deux lignes et repousser la
-          grille (aucun débordement de PAGE · le dépassement reste dans la bande). */}
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'nowrap', overflowX: 'auto', marginBottom: 10, paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
-        <LienSec href="/veille/scale" icon="trend">Ce qui scale</LienSec>
-        <LienSec href="/radar" icon="radar">Radar créatif</LienSec>
-        <LienSec href="/saved" icon="bookmark">Sauvegardes</LienSec>
-        {marcheDispo && <LienSec href="#lecture-marche" icon="brain">Lecture du marché ↓</LienSec>}
+      {/* UX V2 · lot 4a · le parcours source → analyse → projet, lu sur les
+          données de l'écran (`parcoursVeille`, noyau). Les anciens raccourcis
+          (Ce qui scale, Radar créatif, Sauvegardes) doublonnaient les onglets
+          de section · ils vivent là désormais. « Lecture du marché » reste,
+          dans l'étape Analyse, quand la section peut se rendre. Une bande qui
+          défile sur mobile · elle ne repousse pas la grille. */}
+      <div style={{ marginBottom: 12 }}>
+        <ParcoursBoucle titre="Parcours de la Veille · source, analyse, projet"
+          etapes={parcoursVeille({ annonces: ads.length, demo: sample, erreur: !!error, sauvegardes: db ? savedSet.size : null, marcheDispo })} />
       </div>
 
       {/* Recherche + plateforme accessibles d'emblée · les 5 autres filtres
@@ -435,16 +436,17 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       )}
 
       {/* Transition vers l'itération · un lien EXPLICITE, sans workflow fictif ·
-          il n'y a pas de passage de contexte veille→Adsmap, on ne le prétend pas. */}
+          il n'y a pas de passage de contexte veille→Adsmap, on ne le prétend pas.
+          UX V2 · la section s'appelle « Résultats » à l'écran. */}
       {ads.length > 0 && (
         <div style={{ marginTop: 26, padding: '14px 16px', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 320px', minWidth: 0 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>Une piste t’inspire ?</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 3, lineHeight: 1.5 }}>Le test se prépare dans Adsmap · c’est là que tu poses l’hypothèse et lis le verdict. Ce lien ouvre simplement tes tests.</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 3, lineHeight: 1.5 }}>Une fois la création diffusée, le test se suit dans Résultats · hypothèse, lot, mesures, apprentissage. Ce lien ouvre simplement tes tests.</div>
           </div>
           <a href="/adsmap" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: CIBLE_TACTILE_MIN, padding: '10px 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
             <span aria-hidden style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name="radar" size={16} /></span>
-            Ouvrir mes tests dans Adsmap <span aria-hidden>→</span>
+            Ouvrir mes tests dans Résultats <span aria-hidden>→</span>
           </a>
         </div>
       )}
@@ -454,15 +456,6 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           un compte qui n'y avait pas droit, la Veille reste accessible dès Core. */}
       <SectionMarche />
     </main>
-  );
-}
-
-function LienSec({ href, icon, children }: { href: string; icon: string; children: ReactNode }) {
-  return (
-    <a href={href} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0, whiteSpace: 'nowrap', minHeight: CIBLE_TACTILE_MIN, padding: '8px 13px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}>
-      <span aria-hidden style={{ color: 'var(--accent-strong)', display: 'inline-flex' }}><Icon name={icon} size={15} /></span>
-      {children}
-    </a>
   );
 }
 
