@@ -4,3 +4,5 @@ export * from './patch-document';
 export * from './operations';
 export * from './historique';
 export * from './conflit';
+export * from './zoom';
+export * from './restauration';
