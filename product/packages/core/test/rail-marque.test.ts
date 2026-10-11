@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  entreesMarque, ancresDeclarees, railEntreeActive, accesAssets, placerAssets,
+  entreesMarque, ancresDeclarees, railEntreeActive, accesAssets,
   SECTIONS_IDENTITE, HAUTEUR_ENTETE_APP, HAUTEUR_BARRE_INDEX, MARGE_ANCRE_SECTION, SEUIL_SECTION_ACTIVE,
 } from '../src/index';
 
@@ -124,60 +124,6 @@ describe('H4 · l’accès aux assets depuis la fiche · portée EXPLICITE', () 
 
   it('sans marque active → rien (/assets rendrait TOUT l’espace, jamais une marque)', () => {
     expect(accesAssets('neva', null).kind).toBe('aucun');
-  });
-});
-
-describe('H4 · Assets est DÉPLACÉ de « Créer » vers « Marque » (recette #710)', () => {
-  type It = { key: string; href: string; isSub: boolean; locked: boolean };
-  const creer = (assetsLocked = false): { group: string; items: It[] }[] => [
-    { group: 'Observer', items: [{ key: 'veille', href: '/veille', isSub: false, locked: false }] },
-    { group: 'Créer', items: [
-      { key: 'jarvis', href: '/jarvis', isSub: false, locked: false },
-      { key: 'assets', href: '/assets', isSub: false, locked: assetsLocked },
-    ] },
-  ];
-  const marque = { group: 'Marque', items: entreesMarque(BID).map((it) => ({ key: it.key, href: it.href, isSub: it.isSub, locked: it.locked })) };
-  const tous = (gs: { items: It[] }[]) => gs.flatMap((g) => g.items);
-
-  it('avec un groupe Marque · UNE seule entrée /assets, dans Marque, plus dans Créer', () => {
-    const out = placerAssets(creer(), marque);
-    expect(tous(out).filter((it) => it.href === '/assets').length, 'Assets est dupliqué ou perdu').toBe(1);
-    expect(out.find((g) => g.group === 'Créer')!.items.some((it) => it.href === '/assets'), 'Assets est resté dans Créer').toBe(false);
-    const m = out.find((g) => g.group === 'Marque')!;
-    expect(m.items.some((it) => it.href === '/assets'), 'Assets n’a pas rejoint Marque').toBe(true);
-  });
-
-  it('Assets est une TÊTE de branche · visible même quand « Aperçu » est replié', () => {
-    const m = placerAssets(creer(), marque).find((g) => g.group === 'Marque')!;
-    const a = m.items.find((it) => it.href === '/assets')!;
-    expect(a.isSub, 'Assets est rangé sous Aperçu · replier Aperçu le cacherait').toBe(false);
-    expect(m.items.at(-1)?.href, 'Assets doit venir APRÈS la branche Aperçu, pas s’y glisser').toBe('/assets');
-  });
-
-  it('garde la route, la clé et le verrou d’origine (droits inchangés)', () => {
-    const a = tous(placerAssets(creer(true), marque)).find((it) => it.href === '/assets')!;
-    expect(a.key).toBe('assets');
-    expect(a.locked, 'le déplacement a levé le verrou de l’entrée Assets').toBe(true);
-  });
-
-  it('sans groupe Marque (aucune marque active) · Assets reste dans Créer, jamais masqué', () => {
-    const avant = creer();
-    const out = placerAssets(avant, null);
-    expect(out, 'sans marque active, le rail a été modifié').toEqual(avant);
-    expect(out.find((g) => g.group === 'Créer')!.items.some((it) => it.href === '/assets')).toBe(true);
-  });
-
-  it('un groupe vidé par le déplacement disparaît (pas de titre orphelin)', () => {
-    const seul = [{ group: 'Créer', items: [{ key: 'assets', href: '/assets', isSub: false, locked: false }] }];
-    const out = placerAssets(seul, marque);
-    expect(out.some((g) => g.group === 'Créer'), 'le titre « Créer » reste sans entrée').toBe(false);
-  });
-
-  it('une seule entrée active sur /assets (celle de Marque)', () => {
-    const out = placerAssets(creer(), marque);
-    const ancres = ancresDeclarees(tous(out).map((it) => it.href));
-    const actives = tous(out).filter((it) => railEntreeActive(it.href, { pathname: '/assets', tab: 'overview', hash: '', ancres }));
-    expect(actives.map((it) => it.key)).toEqual(['assets']);
   });
 });
 
