@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation';
 import { aPermissionPlateforme } from '@tiktrends/core';
 import { gardePlateforme } from '../../../../lib/studios/prompts/garde-prompts';
+import { getSession } from '../../../../lib/auth';
 import { vueInterrupteurs } from '../../../../lib/studios/interrupteurs';
 import { vueBudgetEssai } from '../../../../lib/studios/budget-essai';
 import { cadrePage } from '../../../../components/ui';
 import { EcranInterrupteurs, EnTeteInterrupteurs } from './Ecran';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +36,8 @@ export default async function InterrupteursPage({ searchParams }: { searchParams
       </main>
     );
   }
+  // Les onglets d'Administration lisent la session (la garde rend un contexte, pas la session).
+  const s = await getSession();
   const sp = await searchParams;
   const espace = typeof sp.espace === 'string' ? sp.espace : null;
   const vue = await vueInterrupteurs({ recherche: sp.q ?? null, espace });
@@ -42,6 +46,7 @@ export default async function InterrupteursPage({ searchParams }: { searchParams
   const budget = b ? { plafondUsd: b.budget.plafondUsd, depuis: b.budget.depuis.toISOString(), engageUsd: b.engageUsd, restantUsd: b.restantUsd, motif: b.budget.motif } : null;
   return (
     <main style={cadrePage}>
+      {s && <OngletsAdministration session={s} chemin="/admin/studios-interrupteurs" />}
       <EnTeteInterrupteurs />
       <EcranInterrupteurs vue={vue} detail={detail} peutEcrire={aPermissionPlateforme(g.ctx.permissions, 'provider.configure')} recherche={sp.q ?? ''} budget={budget} />
     </main>

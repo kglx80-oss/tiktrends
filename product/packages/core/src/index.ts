@@ -197,3 +197,4 @@ export * from './studios/jarvis-projets';
 export * from './essai-reconcilie';
 export * from './studios/bibliotheque';
 export * from './studios/creations-historiques';
+export * from './onglets-reglages';

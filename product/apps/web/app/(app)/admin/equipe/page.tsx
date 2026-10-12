@@ -6,6 +6,7 @@ import { getSession } from '../../../../lib/auth';
 import { Icon } from '../../../../components/Icon';
 import { EcranEquipe } from './EcranEquipe';
 import { cadrePage } from '../../../../components/ui';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,7 @@ export default async function AdminEquipePage({ searchParams }: { searchParams: 
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={s} chemin="/admin/equipe" />
       <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(245,166,35,.3)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', flexShrink: 0 }}><Icon name="users" size={23} /></div>
