@@ -1,9 +1,5 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import type { IdsStudios, SessionTest } from './studios-semis';
 
 /**
@@ -52,13 +48,13 @@ import { GET as GET_ASSET } from '../app/api/asset/[id]/route';
 import { GET as GET_DRIVE } from '../app/api/drive-img/[id]/route';
 import { injecterLecteurMedias } from '../lib/studios/rendu/medias';
 import { png } from './l5a-outils';
+import { mp4StructurePlausible } from '../../../packages/core/test/l3-fixtures-media';
 import { NextRequest } from 'next/server';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
 const ids = etat.ids;
 const stockage = new Map<string, Uint8Array>();
-let dossier = '';
 let VIDEO: Buffer;
 let IMAGE: Buffer;
 const M = { video: '', image: '', b1: '', a2: '' };
@@ -83,11 +79,10 @@ async function poserMedia(ws: string, brand: string, cle: string, o: Uint8Array,
 }
 
 beforeAll(async () => {
-  dossier = mkdtempSync(join(tmpdir(), 'lot4b-range-'));
-  const f = join(dossier, 'clip.mp4');
-  const r = spawnSync('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=288x512:rate=24:duration=1', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4', f], { encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(r.stderr);
-  VIDEO = readFileSync(f);
+  // Un MP4 aux boîtes cohérentes (le filtre de type réel le sert) · fabriqué
+  // en mémoire, sans ffmpeg, absent du runner de CI. Les plages ne lisent que
+  // des octets : la lisibilité de la vidéo n'est pas l'objet de ce test.
+  VIDEO = Buffer.from(mp4StructurePlausible({ largeur: 288, hauteur: 512, echantillons: [1500, 900, 700], donnees: 4096 }));
   IMAGE = await png(64, 32, (x) => [x * 4, 10, 200, 255]);
 
   await semer(db, schema, ids);
@@ -104,8 +99,6 @@ beforeAll(async () => {
   const [b] = await db.insert(schema.assets).values({ workspaceId: ids.wsB, brandId: ids.brandB1, name: 'clip b', kind: 'video', source: 'drive', mimeType: 'video/mp4', externalId: 'drive-video-b', url: 'https://drive.google.com/file/d/drive-video-b/view' }).returning();
   AS.embarque = e!.id; AS.drive = d!.id; AS.b = b!.id;
 });
-
-afterAll(() => { if (dossier) rmSync(dossier, { recursive: true, force: true }); });
 
 describe('GET /api/studios/media/[id] · clips et vidéo finale lisibles sur Safari', () => {
   it('sans Range : 200, fichier entier, Accept-Ranges annoncé, en-têtes d’origine gardés', async () => {
