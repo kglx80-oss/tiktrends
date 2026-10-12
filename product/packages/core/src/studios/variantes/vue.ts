@@ -53,6 +53,8 @@ export interface TestLu {
   metrique: MetriqueTest | null;
   isolation: { statut: StatutIsolation; champs: string[] } | null;
   verdict: VerdictLu | null;
+  /** Lot de test Adsmap de la fiche (`adsmap_batches`) · `null` si la fiche n'est dans aucun lot. */
+  lot?: { numero: number; statut: string } | null;
 }
 
 export interface RelectureApprentissage {
@@ -207,7 +209,19 @@ function verdictTexte(v: VerdictLu | null): string {
   if (!val) return 'Pas encore de résultat mesuré.';
   const l = LIBELLE_VERDICT[val];
   const fraicheur = v.computedAt ? ` · calculé le ${v.computedAt.slice(0, 10)}` : '';
-  return `${l.court}${v.comparable ? '' : ' · hors protocole'}${l.note ? ` (${l.note})` : ''}${fraicheur}`;
+  const validation = v.validated ? ' · validé' : ' · à valider dans Résultats';
+  return `${l.court}${v.comparable ? '' : ' · hors protocole'}${l.note ? ` (${l.note})` : ''}${validation}${fraicheur}`;
+}
+
+/** Statuts d'un lot de test Adsmap (miroir de `adsmap_batch_status`), mêmes mots que l'écran des lots. */
+export const LIBELLE_STATUT_LOT: Record<string, string> = {
+  planned: 'En composition', in_production: 'En production', ready: 'Prêt', testing: 'En test', analyzed: 'Analysé',
+};
+
+/** Le lot de la fiche, dit · sans lot, la phrase le dit au lieu d'inventer un numéro. */
+export function lotTexte(lot: TestLu['lot']): string {
+  if (!lot) return 'Hors lot · la fiche n’est encore dans aucun lot de test.';
+  return `Lot ${lot.numero} · ${LIBELLE_STATUT_LOT[lot.statut] ?? 'statut inconnu'}`;
 }
 
 export function vueVariantes(d: DonneesVariantes): VueVariantes {
@@ -276,6 +290,7 @@ export function vueVariantes(d: DonneesVariantes): VueVariantes {
         adsmapHref: `/adsmap?ad=${encodeURIComponent(t.adsmapAdId)}&depuis=studio`,
         resume: libelleTest(t.adStatus),
         details: [
+          { libelle: 'Lot de test', valeur: lotTexte(t.lot ?? null) },
           ...(t.objectif ? [{ libelle: 'Objectif', valeur: t.objectif }] : []),
           { libelle: 'Variable', valeur: `${libelleVariable(t.variable)}${t.valeurVariable ? ` · ${t.valeurVariable}` : ''}` },
           ...(t.protocole ? [{ libelle: 'Protocole', valeur: LIBELLE_PROTOCOLE[t.protocole] }] : []),
