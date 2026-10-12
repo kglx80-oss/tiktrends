@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { servirPlage } from '@tiktrends/core';
 import { googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { driveRefreshTokenFor } from '../../../../lib/drive-token';
@@ -44,8 +45,16 @@ export const dynamic = 'force-dynamic';
  *
  * Deux entrées pour un même besoin, dont une seule savait ouvrir. Elle sait
  * maintenant les trois cas · c'est le rôle d'un proxy d'assets.
+ *
+ * ── Lot 4b · requêtes partielles ─────────────────────────────────────────────
+ *
+ * Une vidéo de la bibliothèque (Drive) se lit dans une `<video>` · Safari et
+ * l'iPhone exigent `206`. Les octets servis par nous (embarqués, Drive) passent
+ * par `servirPlage` (noyau) : `Accept-Ranges: bytes` partout, `206` +
+ * `Content-Range` sur une plage valide, `416` sinon. Une adresse `direct` est
+ * redirigée · c'est l'hébergeur qui sert les plages.
  */
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const s = await getSession();
   if (!s || !db) return new Response('unauthorized', { status: 401 });
   const { id } = await ctx.params;
@@ -72,14 +81,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       if (!entete.endsWith(';base64')) return new Response('unsupported', { status: 415 });
 
       const octets = Buffer.from(a.url.slice(virgule + 1), 'base64');
-      return new Response(new Uint8Array(octets), {
-        headers: {
-          'content-type': a.mime || entete.replace(';base64', '') || 'image/jpeg',
-          // Le contenu d'un asset ne change jamais · un téléversement crée une
-          // nouvelle ligne, il ne réécrit pas l'ancienne. Le navigateur peut
-          // donc la garder longtemps sans revenir demander si elle a bougé.
-          'cache-control': 'private, max-age=2592000, immutable',
-        },
+      return avecPlage(req, octets, {
+        'content-type': a.mime || entete.replace(';base64', '') || 'image/jpeg',
+        // Le contenu d'un asset ne change jamais · un téléversement crée une
+        // nouvelle ligne, il ne réécrit pas l'ancienne. Le navigateur peut
+        // donc la garder longtemps sans revenir demander si elle a bougé.
+        'cache-control': 'private, max-age=2592000, immutable',
       });
     }
 
@@ -91,9 +98,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       try {
         const token = await googleAccessToken(rt);
         const bytes = await driveDownload(token, a.externalId!);
-        return new Response(new Uint8Array(bytes), {
-          headers: { 'content-type': a.mime || 'image/jpeg', 'cache-control': 'private, max-age=3600' },
-        });
+        return avecPlage(req, bytes, { 'content-type': a.mime || 'image/jpeg', 'cache-control': 'private, max-age=3600' });
       } catch {
         return new Response('drive error', { status: 502 });
       }
@@ -111,4 +116,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       return new Response(`unsupported: ${String(jamais)}`, { status: 415 });
     }
   }
+}
+
+/** Octets servis par nous · plage décidée par le noyau, en-têtes de la route gardés (416 : sans type ni cache longue durée). */
+function avecPlage(req: Request, octets: Uint8Array, entetes: Record<string, string>): Response {
+  const p = servirPlage(octets, { range: req.headers.get('range'), ifRange: req.headers.get('if-range') });
+  if (p.statut === 416) return new Response(null, { status: 416, headers: { 'cache-control': 'no-store', ...p.entetes } });
+  return new Response(p.corps ? new Uint8Array(p.corps) : null, { status: p.statut, headers: { ...entetes, ...p.entetes } });
 }

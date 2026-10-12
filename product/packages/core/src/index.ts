@@ -130,6 +130,7 @@ export * from './apercu-format';
 export * from './copy-budget';
 export * from './deployment';
 export * from './url-param';
+export * from './plage-octets';
 export * from './adsmap/trend';
 export * from './adsmap/merge';
 export * from './adsmap/draft';
