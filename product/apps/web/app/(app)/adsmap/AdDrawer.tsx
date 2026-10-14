@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { VerdictValue, TestedVariable, OrigineFiche } from '@tiktrends/core';
-import { etatFicheAdsmap, ficheDeLEntree, lireVueAdsmap, PARAM_VUE_ADSMAP, rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio, lienNouveauProjet } from '@tiktrends/core';
+import { VALEUR_ABSENTE, etatFicheAdsmap, ficheDeLEntree, lireVueAdsmap, PARAM_VUE_ADSMAP, rechercheAdsmap, ficheEmpileHistorique, CIBLE_TACTILE_MIN, LIBELLE_VERDICT, REGLE_ITERATION, estGagnanteValidee, verdictEffectif, lienSourceVeille, presentationTest, briefDepuisTest, lienIterationStudio, lienNouveauProjet } from '@tiktrends/core';
 import {
   adDetailAction, validateVerdictAction, createIterationAction,
   type AdDetail, type ValidateInput,
@@ -46,8 +46,8 @@ const MODE_LABEL: Record<string, { titre: string; aide: string }> = {
   new: { titre: 'NEW', aide: 'Nouvelle piste · ce n’est plus une itération, on repart d’ailleurs.' },
 };
 
-const pct = (v: number | null) => (v === null ? '—' : `${(v * 100).toFixed(1)} %`);
-const eur = (v: number | null) => (v === null ? '—' : `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} €`);
+const pct = (v: number | null) => (v === null ? VALEUR_ABSENTE : `${(v * 100).toFixed(1)} %`);
+const eur = (v: number | null) => (v === null ? VALEUR_ABSENTE : `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} €`);
 
 export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retour, origine = 'liste' }: {
   adId: string; onClose: () => void; onChanged: () => void; peutPartager?: boolean;
@@ -248,7 +248,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                   {d.reason && <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>{d.reason}</p>}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 8, marginTop: 12 }}>
                     <Chiffre l="Dépense" v={eur(d.metrics.spend)} />
-                    <Chiffre l="Achats" v={d.metrics.purchases === null ? '—' : String(d.metrics.purchases)} />
+                    <Chiffre l="Achats" v={d.metrics.purchases === null ? VALEUR_ABSENTE : String(d.metrics.purchases)} />
                     <Chiffre l="CPA" v={eur(d.metrics.cpa)} sub={d.metrics.cpaHi !== null && Number.isFinite(d.metrics.cpaHi) ? `jusqu’à ${eur(d.metrics.cpaHi)}` : undefined} />
                     <Chiffre l="Accroche" v={pct(d.metrics.hookRate)} />
                     <Chiffre l="Rétention" v={pct(d.metrics.holdRate)} />

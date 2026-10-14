@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   buildUniqueNames, checkAdReady, formatViolations, resolveCampaignName,
-  DEFAULT_VERDICT_CONFIG, type VerdictConfig, type AdShape, manquesAvantTest,
+  DEFAULT_VERDICT_CONFIG, type VerdictConfig, type AdShape, manquesAvantTest, VALEUR_ABSENTE,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -176,7 +176,7 @@ export async function batchDetailAction(batchId: string): Promise<{ detail?: Bat
       };
       return {
         id: r.ad.id,
-        concept: r.concept ?? '—',
+        concept: r.concept ?? VALEUR_ABSENTE,
         variantCode: r.ad.variantCode,
         status: r.ad.status,
         format: r.ad.format,

@@ -1,4 +1,4 @@
-import type { DeploymentState } from '@tiktrends/core';
+import { VALEUR_ABSENTE, type DeploymentState } from '@tiktrends/core';
 import { Icon } from './Icon';
 import { surface, tuile } from './ui';
 
@@ -33,8 +33,8 @@ export function DiagnosticDeploiement({ etat, builtAt }: { etat: DeploymentState
   const cases: Array<{ k: string; val: string; coupe?: boolean }> = [
     { k: 'Commit du build', val: etat.build || 'inconnu', coupe: true },
     { k: 'Maquette', val: `v${etat.renderVersion}` },
-    { k: 'Migrations', val: `${etat.applied ?? '—'} / ${etat.inBuild}` },
-    { k: 'Build', val: builtAt ? new Date(builtAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—' },
+    { k: 'Migrations', val: `${etat.applied ?? VALEUR_ABSENTE} / ${etat.inBuild}` },
+    { k: 'Build', val: builtAt ? new Date(builtAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : VALEUR_ABSENTE },
   ];
   return (
     <div style={{ ...surface, background: 'var(--surface)', padding: 18 }}>
