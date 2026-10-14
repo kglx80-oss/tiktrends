@@ -1,3 +1,4 @@
+import { proseAffichee } from '@tiktrends/core';
 import type { PropositionPresentee } from '../../../lib/studios/propositions/types';
 import { AvantApres } from './AvantApres';
 import { PlanImpactVue } from './PlanImpactVue';
@@ -39,7 +40,10 @@ export function CarteProposition({ p, versionCouranteN, peutAgir, raisonSansDroi
         <span style={pastille(COULEUR_ETAT[p.etat] ?? 'var(--line-2)')}>{p.libelleEtat}</span>
       </header>
 
-      {p.explication && <p style={{ ...texte, whiteSpace: 'pre-wrap' }}>{p.explication}</p>}
+      {/* Prose de Jarvis (ou d'un agent) · « — » rendu en « · » à l'affichage.
+          Une proposition saisie à la main reste telle qu'écrite. L'avant/après
+          n'est JAMAIS réécrit · c'est la valeur exacte qui sera appliquée. */}
+      {p.explication && <p style={{ ...texte, whiteSpace: 'pre-wrap' }}>{proseAffichee(p.explication, p.origine)}</p>}
 
       {ouverte && p.perimee && (
         <p role="note" style={signal('warn')}>
@@ -54,7 +58,7 @@ export function CarteProposition({ p, versionCouranteN, peutAgir, raisonSansDroi
       )}
       {p.etat === 'rejected' && <p style={mini}>Rejetée{p.decideLe ? ` le ${date(p.decideLe)}` : ''} · rien n’a été modifié.</p>}
 
-      <AvantApres changements={p.changements} />
+      <AvantApres changements={p.changements.map((c) => ({ ...c, raison: proseAffichee(c.raison, p.origine) }))} />
       {ouverte && <PlanImpactVue impact={p.impact} />}
       {p.sources.length > 0 && <p style={mini}>Sources citées · {p.sources.join(', ')}</p>}
 

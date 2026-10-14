@@ -2,7 +2,7 @@
 
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { summarizeDecisions, type Decision } from '@tiktrends/core';
+import { summarizeDecisions, VALEUR_ABSENTE, type Decision } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { refreshDecisions } from '../../lib/decisions';
 import { logAndTranslate } from '../../lib/error-log';
@@ -62,7 +62,7 @@ export async function listDecisionsAction(): Promise<{ inbox?: Inbox; error?: st
         targetKind: (p.targetKind ?? 'ad') as Decision['targetKind'],
         priority: r.priority as Decision['priority'],
         spendAtStake: r.spendAtStake ?? null,
-        title: p.title ?? '—',
+        title: p.title ?? VALEUR_ABSENTE,
         action: p.action ?? '',
         status: r.status,
         createdAt: (r.createdAt as Date).toISOString(),

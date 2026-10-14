@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { VALEUR_ABSENTE } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
@@ -39,7 +40,7 @@ export default async function SignupsPage() {
   const ownerBy = new Map<string, string>();
   for (const o of owners) if (o.ws && o.email && !ownerBy.has(o.ws)) ownerBy.set(o.ws, o.email);
 
-  const fmt = (d: Date | null) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+  const fmt = (d: Date | null) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' }) : VALEUR_ABSENTE;
 
   return (
     <main style={cadrePage}>
@@ -61,15 +62,15 @@ export default async function SignupsPage() {
               return (
                 <tr key={r.id}>
                   <td style={{ ...td, fontWeight: 700, color: 'var(--ink)' }}>{r.name}</td>
-                  <td style={{ ...td, color: 'var(--ink-2)' }}>{ownerBy.get(r.id) ?? '—'}</td>
-                  <td style={td}>{o.profile ? (PROFILE_LABEL[o.profile] ?? o.profile) : '—'}</td>
+                  <td style={{ ...td, color: 'var(--ink-2)' }}>{ownerBy.get(r.id) ?? VALEUR_ABSENTE}</td>
+                  <td style={td}>{o.profile ? (PROFILE_LABEL[o.profile] ?? o.profile) : VALEUR_ABSENTE}</td>
                   <td style={td}>{o.adLevel
                     ? (AD_LABEL[o.adLevel] ?? o.adLevel)
                     : o.aiLevel
                       ? <span title="Ancienne réponse « niveau IA », pas une expérience publicitaire" style={{ color: 'var(--muted)' }}>{AI_LABEL[o.aiLevel] ?? o.aiLevel} · IA hérité</span>
-                      : '—'}</td>
-                  <td style={td}>{o.goals?.length ? <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{o.goals.map((g) => <span key={g} style={chip}>{GOAL_LABEL[g] ?? g}</span>)}</span> : '—'}</td>
-                  <td style={td}>{o.siteUrl ? <a href={`https://${o.siteUrl}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-strong)' }}>{o.siteUrl}</a> : '—'}</td>
+                      : VALEUR_ABSENTE}</td>
+                  <td style={td}>{o.goals?.length ? <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{o.goals.map((g) => <span key={g} style={chip}>{GOAL_LABEL[g] ?? g}</span>)}</span> : VALEUR_ABSENTE}</td>
+                  <td style={td}>{o.siteUrl ? <a href={`https://${o.siteUrl}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-strong)' }}>{o.siteUrl}</a> : VALEUR_ABSENTE}</td>
                   <td style={td}>{PLAN_LABEL[r.plan as Plan] ?? r.plan}</td>
                   <td style={td}>{fmt(r.createdAt as Date)}</td>
                   <td style={td}>{r.onboardedAt ? <span style={{ color: '#7ee8bf' }}>{fmt(r.onboardedAt as Date)}</span> : <span style={{ color: '#ffcf8f' }}>en cours</span>}</td>
