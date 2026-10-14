@@ -12,6 +12,7 @@ import { vide } from '../../ui';
 import { epinglerProduit, associerReference, retirerReference } from '../../../app/actions/studios/produit';
 import { panneau, carte, titre, sousTitre, etiquette, texte, mini, boutonPrimaire, boutonSecondaire, desactive, champ, signal, pastille, rangee, CIBLE } from '../propositions/styles';
 import { ParcoursImage } from '../image/ParcoursImage';
+import { ImportPhotoProduit } from './ImportPhotoProduit';
 
 /**
  * Écran « Produit et références » d'un projet (cahier §4.4 points 1 et 2).
@@ -19,6 +20,8 @@ import { ParcoursImage } from '../image/ParcoursImage';
  *  · Produit : choisir un produit du catalogue EXISTANT puis UNE photo, la
  *    voir, déclarer ses composants obligatoires et les gestes permis, épingler
  *    (nouvelle version ; 409 si le projet a changé depuis l'ouverture).
+ *  · Lot 3a · ou importer la photo depuis l'ordinateur : elle rejoint le
+ *    catalogue du produit et devient la photo épinglée (`ImportPhotoProduit`).
  *  · Références : associer un fichier avec un rôle ET une portée choisis
  *    explicitement (aucun rôle proposé par défaut) ; deux rôles = deux lignes.
  *  · Contrôle avant compilation : prêt ou bloqué, pour chaque mode, avec les
@@ -49,6 +52,7 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
   const [role, setRole] = useState('');
   const [portee, setPortee] = useState('');
   const [enCours, setEnCours] = useState(false);
+  const [importEnCours, setImportEnCours] = useState(false);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string; conflit?: boolean } | null>(null);
 
   const groupes = useMemo(() => {
@@ -74,7 +78,7 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
   const listeComposants = composants.split(',').map((c) => c.trim()).filter(Boolean);
   // L8-A · la raison d'un geste bloqué vient d'une règle du noyau et nomme TOUT ce qui manque
   // (mesuré : fichier non choisi, « Associer » restait muet).
-  const raisonEpingle = raisonEpinglage({ peutModifier: vue.peutModifier, enCours, produitChoisi: !!produit, photoChoisie: !!photoId });
+  const raisonEpingle = raisonEpinglage({ peutModifier: vue.peutModifier, enCours: enCours || importEnCours, produitChoisi: !!produit, photoChoisie: !!photoId });
   const raisonAssocie = raisonAssociation({ peutModifier: vue.peutModifier, briefPresent: vue.briefPresent, enCours, fichier, role, portee });
   const epinglageBloque = raisonEpingle !== null;
   const associationBloquee = raisonAssocie !== null;
@@ -133,7 +137,7 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
             <p style={mini}>Variante : unique · le catalogue n’a pas de variantes.</p>
             <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
               <legend style={etiquette}>Photo précise</legend>
-              {produit && produit.photos.length === 0 && <p style={texte}>Ce produit n’a aucune photo · dépose-en une depuis la fiche de la marque.</p>}
+              {produit && produit.photos.length === 0 && <p style={texte} data-etat="produit-sans-photo">Ce produit n’a aucune photo · {vue.peutModifier ? 'importe-la depuis ton ordinateur, plus bas.' : 'une personne qui peut modifier le projet peut l’importer.'}</p>}
               <div role="radiogroup" aria-label="Photos du produit" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: 10 }}>
                 {produit?.photos.map((ph) => {
                   const choisie = ph.assetId === photoId;
@@ -176,6 +180,11 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
                 <span id={`${id}-epingle-raison`} style={mini} data-raison="epinglage">{raisonEpingle ?? 'Crée une nouvelle version · aucun appel, aucun coût.'}</span>
               </div>
             ) : <p style={mini}>Ton rôle permet de consulter, pas d’épingler.</p>}
+            {vue.peutModifier && (
+              <ImportPhotoProduit projectId={vue.projet.id} versionId={vue.version.id} produit={produit ? { id: produit.id, nom: produit.nom } : null}
+                composants={listeComposants} transformations={transfos} peutModifier={vue.peutModifier} occupe={enCours}
+                onOccupe={setImportEnCours} onReussi={(photo) => { setPhotoId(photo); setRetour(null); }} />
+            )}
           </>
         )}
       </section>

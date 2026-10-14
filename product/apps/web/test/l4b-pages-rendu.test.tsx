@@ -150,19 +150,23 @@ describe('/studio/projets/[id] · la page projet', () => {
     expect(d.querySelector('[data-emplacement="variantes-tests"]')).not.toBeNull();
     // Intégration L4-C · « Variantes et tests » est RENDU dans son emplacement.
     expect(d.querySelector('[data-emplacement="variantes-tests"] #titre-variantes')?.textContent, 'variantes et tests absents de la page projet').toBe('Variantes et tests');
-    // Intégration L5 · l'atelier du projet mène aux trois écrans des lots L5-B et L5-C.
+    // Intégration L5 → UX V2 lot 2 · la barre de projet mène à chaque mode du
+    // projet (Brief, Image, Vidéo, Textes, Produit, Identités) et à l'export.
     const atelier = [...d.querySelectorAll('nav[aria-label="Atelier du projet"] a')].map((a) => [a.textContent, a.getAttribute('href')]);
-    expect(atelier, 'liens de l’atelier absents de la page projet').toEqual([
-      ['Éditer l’image', `/studio/projets/${projet}/image`],
-      ['Produit et références', `/studio/projets/${projet}/produit`],
-      ['Textes liés au brief', `/studio/projets/${projet}/textes`],
+    expect(atelier, 'modes du projet absents de la page projet').toEqual([
+      ['Brief', `/studio/projets/${projet}`],
+      ['Image', `/studio/projets/${projet}/image`],
       // L6-A · le studio vidéo du projet.
-      ['Vidéo · storyboard et montage', `/studio/projets/${projet}/video`],
+      ['Vidéo', `/studio/projets/${projet}/video`],
+      ['Textes', `/studio/projets/${projet}/textes`],
+      ['Produit', `/studio/projets/${projet}/produit`],
       // L6-B · identités des personnages et voix.
       ['Identités et voix', `/studio/projets/${projet}/identites`],
-      // L7-A · export image vérifié de la version.
-      ['Exporter l’image', `/studio/projets/${projet}/export`],
     ]);
+    // L7-A · export image vérifié de la version · l'action principale de la barre.
+    expect(d.querySelector('[data-zone="barre-projet"] a[data-atelier="export"]')?.getAttribute('href')).toBe(`/studio/projets/${projet}/export`);
+    // Le Brief est le mode courant de la fiche.
+    expect(d.querySelector('nav[aria-label="Atelier du projet"] [aria-current="page"]')?.textContent).toBe('Brief');
     expect(d.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
     expect(d.innerHTML).not.toMatch(/Trendtrack/i);
   });

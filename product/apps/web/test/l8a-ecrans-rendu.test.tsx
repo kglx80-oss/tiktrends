@@ -138,6 +138,21 @@ describe('UX-01 · calques à noms longs, état lisible sans la couleur', () => 
   });
 });
 
+describe('390 · onglets Calques / Aperçu · aucun style en conflit', () => {
+  it('basculer d’un onglet à l’autre ne fait signaler aucun style en conflit par React (border et bordure partielle)', async () => {
+    telephone();
+    const erreurs: string[] = [];
+    const avant = console.error;
+    console.error = (...a: unknown[]) => { erreurs.push(a.map(String).join(' ')); };
+    try {
+      monter(<EditeurCalques {...PROPS()} />);
+      for (const id of ['onglet-apercu', 'onglet-calques', 'onglet-apercu']) await cliquer(q(`#${id}`)!);
+    } finally { console.error = avant; }
+    expect(erreurs.filter((e) => /style property during rerender/i.test(e)), 'React signale un style en conflit sur les onglets mobiles').toEqual([]);
+    expect(q('#onglet-apercu')!.getAttribute('aria-selected')).toBe('true');
+  });
+});
+
 describe('UX-02 · le focus ne tombe jamais sur <body> quand son élément disparaît', () => {
   it('390 · « Supprimer » dans le panneau plein écran · le focus passe au calque qui prend la place', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });

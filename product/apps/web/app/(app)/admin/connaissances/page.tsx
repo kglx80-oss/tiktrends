@@ -7,6 +7,7 @@ import { getSession } from '../../../../lib/auth';
 import { chargerConnaissancesAction } from '../../../actions/connaissances';
 import { cadrePage, cadreSignal, h1 } from '../../../../components/ui';
 import { EcranConnaissances } from './EcranConnaissances';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,7 @@ export default async function ConnaissancesPage() {
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={s} chemin="/admin/connaissances" />
       {/* Rangée de titre SANS marge haute, jeton `h1` du cadre (pas de taille ni de
           graisse réécrites) · le badge et le retour se rangent à côté. */}
       <div style={{ marginBottom: 20 }}>

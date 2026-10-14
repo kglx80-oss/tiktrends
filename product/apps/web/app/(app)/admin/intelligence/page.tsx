@@ -8,6 +8,7 @@ import { analyseSurvie, PROVEN_DAYS, bilanHypotheses, perfParAngle, type Analyse
 import { eq, inArray } from 'drizzle-orm';
 import { Icon } from '../../../../components/Icon';
 import { cadrePage, cadreSignal, surface, tuile, h1 } from '../../../../components/ui';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,7 @@ export default async function IntelligencePage() {
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={s} chemin="/admin/intelligence" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 4px', flexWrap: 'wrap' }}>
         <h1 style={h1}>Intelligence marché</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>

@@ -16,6 +16,12 @@ export interface EtatChrome {
   collapsed: boolean;
   /** Tiroir ouvert (mobile uniquement). */
   drawerOuvert: boolean;
+  /**
+   * UX V2 · mode focus (dans un projet) · le rail et la barre du haut sortent
+   * de l'écran ET de l'ordre de tabulation, le contenu prend toute la largeur.
+   * Absent ou faux · géométrie inchangée.
+   */
+  focus?: boolean;
 }
 
 export interface Chrome {
@@ -47,8 +53,11 @@ export interface Chrome {
 export const RAIL_DEVELOPPE = 184;
 export const RAIL_REDUIT = 64;
 
-export function chromeCoquille({ mobile, collapsed, drawerOuvert }: EtatChrome): Chrome {
+export function chromeCoquille({ mobile, collapsed, drawerOuvert, focus = false }: EtatChrome): Chrome {
   const largeurRail = collapsed ? RAIL_REDUIT : RAIL_DEVELOPPE;
+  // Focus · une colonne, ni rail, ni hamburger, ni voile · le rail est inerte.
+  // La préférence de repli (`collapsed`) n'est pas touchée · on la retrouve en sortant.
+  if (focus) return { colonnes: 'minmax(0,1fr)', railTiroir: false, railVisible: false, hamburger: false, voile: false, largeurRail, railInerte: true };
   if (!mobile) {
     return { colonnes: `${largeurRail}px minmax(0,1fr)`, railTiroir: false, railVisible: true, hamburger: false, voile: false, largeurRail, railInerte: false };
   }

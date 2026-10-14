@@ -10,6 +10,7 @@ import { storageConfigured } from '@tiktrends/integrations';
 import { StorageConfigurator } from '../../../components/StorageConfigurator';
 import { isFounder } from '../../../lib/founder';
 import { COPIE_STOCKAGE } from '@tiktrends/core';
+import { OngletsReglages } from '../../../components/OngletsReglages';
 
 const OK: Record<string, string> = { '1': 'Espace mis à jour.' };
 const ERR: Record<string, string> = { forbidden: "Action réservée à l'administrateur." };
@@ -25,7 +26,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const stockage = operateur ? COPIE_STOCKAGE.operateur : COPIE_STOCKAGE.client;
 
   return (
-    <main style={{ ...ADMIN_THEME, ...cadrePage }}><div style={colonneLecture('formulaire')}>
+    <main style={{ ...ADMIN_THEME, ...cadrePage }}>
+      <OngletsReglages session={s} chemin="/settings" /><div style={colonneLecture('formulaire')}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={h1}>Réglages de l'espace</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>

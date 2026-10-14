@@ -7,6 +7,7 @@ import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { FAMILY_LABEL, type ErrorFamily } from '../../../../lib/user-error';
 import { cadrePage, cadreSignal, surface, h1 } from '../../../../components/ui';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +74,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={s} chemin="/admin/incidents" />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '0 0 4px' }}>
         <h1 style={h1}>Incidents techniques</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>

@@ -66,18 +66,19 @@ describe('atelier du projet · filtrage de la navigation', () => {
   it('défauts · la vidéo n’est pas un lien, elle se dit « non activé pour cet espace » ; le reste mène à son écran', async () => {
     const d = dom(renderToStaticMarkup(await ProjetPage({ params: Promise.resolve({ id: projet }), searchParams: Promise.resolve({}) })));
     const nav = d.querySelector('nav[aria-label="Atelier du projet"]')!;
-    expect([...nav.querySelectorAll('a')].map((a) => a.getAttribute('data-atelier'))).toEqual(['image', 'produit', 'textes', 'identites', 'export']);
+    expect([...nav.querySelectorAll('a')].map((a) => a.getAttribute('data-atelier'))).toEqual(['brief', 'image', 'textes', 'produit', 'identites']);
+    expect(d.querySelector('[data-zone="barre-projet"] a[data-atelier="export"]'), 'l’export actif n’est plus proposé').not.toBeNull();
     expect(nav.querySelector(`a[href$="/video"]`), 'lien mort vers la vidéo coupée').toBeNull();
     const coupee = nav.querySelector('[data-atelier="video"]')!;
     expect(coupee.tagName).toBe('SPAN');
     expect(coupee.getAttribute('aria-disabled')).toBe('true');
-    expect(coupee.textContent).toBe('Vidéo · storyboard et montage · non activé pour cet espace');
+    expect(coupee.textContent).toBe('Vidéo · non activé pour cet espace');
   });
 
   it('espace pilote vidéo · le lien revient', async () => {
     await reglage({ actives: ['video'], coupees: [] });
     const d = dom(renderToStaticMarkup(await ProjetPage({ params: Promise.resolve({ id: projet }), searchParams: Promise.resolve({}) })));
-    expect(d.querySelector(`nav[aria-label="Atelier du projet"] a[href="/studio/projets/${projet}/video"]`)?.textContent).toBe('Vidéo · storyboard et montage');
+    expect(d.querySelector(`nav[aria-label="Atelier du projet"] a[href="/studio/projets/${projet}/video"]`)?.textContent).toBe('Vidéo');
     expect(d.textContent).not.toContain('non activé pour cet espace');
   });
 });
