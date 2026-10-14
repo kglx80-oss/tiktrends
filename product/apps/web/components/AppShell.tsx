@@ -18,7 +18,7 @@ import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSup
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
-import { sectionsRail, sectionDuChemin } from '../lib/rbac';
+import { sectionsRail, sectionDuChemin, separerRailMarque } from '../lib/rbac';
 import { OngletsSection } from './OngletsSection';
 import { FournisseurEspaceCreation, type EtatEspaceCreation } from './EspaceCreation';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
@@ -355,8 +355,14 @@ function AppShellInner(props: Props) {
 
   // Rail UX V2 · les sections (entrée + sous-écrans visibles) et celle qui
   // contient l'écran courant · règle pure (`sectionDuChemin`, lib/rbac).
-  const sections = sectionsRail(nav);
-  const sectionCourante = sectionDuChemin(sections, pathname);
+  // Le groupe Marque (marque active) ne s'intercale pas dans les modules · il
+  // vit dans « Votre espace », sous le nom de la marque (`separerRailMarque`).
+  const { modules: navModules, marque: groupeMarque } = separerRailMarque(nav);
+  const sections = sectionsRail(navModules);
+  const sectionMarque = groupeMarque ? sectionsRail([groupeMarque])[0] ?? null : null;
+  const sectionCourante = sectionDuChemin(sectionMarque ? [...sections, sectionMarque] : sections, pathname);
+  const dansMarque = !!sectionMarque && sectionCourante === sectionMarque;
+  const nomMarqueActive = brands.find((b) => b.id === activeBrandId)?.name ?? 'Marque active';
   // « Votre espace » · Marques et Réglages, seulement si la garde réelle des
   // pages les ouvre (`sectionsCompteOuvertes` · admin d'espace). Rien d'élargi.
   const espaceRail = workspaceItems.filter((it) => it.key === 'brands' || it.key === 'settings');
@@ -558,7 +564,7 @@ function AppShellInner(props: Props) {
               })}
             </>
           ) : collapsed
-            ? nav.flatMap((grp) => branchesOf(grp.items).map((b) => {
+            ? navModules.flatMap((grp) => branchesOf(grp.items).map((b) => {
                 // En replié, il n'y a plus d'enfant à allumer · l'icône du
                 // parent doit donc porter les DEUX états, sinon être sur un
                 // sous-écran n'allume plus rien du tout.
@@ -611,11 +617,24 @@ function AppShellInner(props: Props) {
                 })}
               </div>
             )}
-          {!inAdmin && espaceRail.length > 0 && (
+          {!inAdmin && (espaceRail.length > 0 || sectionMarque) && (
             <div aria-label="Votre espace" role="group" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 10, alignItems: collapsed ? 'center' : 'stretch' }}>
               {!collapsed && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '1px 10px 1px' }}>Votre espace</div>}
+              {/* La marque ACTIVE, sous son nom · son aperçu, ses facettes en onglets
+                  dans sa fiche. Allumée sur toutes ses pages. */}
+              {sectionMarque && (() => {
+                const it = { ...sectionMarque.tete, label: nomMarqueActive };
+                const titre = `Aperçu de la marque ${nomMarqueActive}`;
+                const ici = isNavActive(sectionMarque.tete.href, false);
+                return collapsed ? (
+                  <Link key="marque-active" href={it.href} data-marque-active title={titre} aria-label={titre} aria-current={ici ? 'page' : dansMarque ? 'true' : undefined} style={{ ...railIconBtn, color: dansMarque ? 'var(--ink)' : 'var(--ink-2)', background: dansMarque ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
+                ) : (
+                  <div key="marque-active" data-marque-active title={titre}><NavLink it={it} active={dansMarque} courant={ici ? 'page' : dansMarque ? 'true' : undefined} tactile={mobile} /></div>
+                );
+              })()}
               {espaceRail.map((it) => {
-                const ici = pathname === it.href || pathname.startsWith(it.href + '/');
+                // Sur une page de la marque active, c'est elle qui est allumée · pas la liste « Marques ».
+                const ici = !dansMarque && (pathname === it.href || pathname.startsWith(it.href + '/'));
                 return collapsed ? (
                   <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--ink)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
                 ) : <NavLink key={it.key} it={it} active={ici} tactile={mobile} />;
@@ -759,8 +778,8 @@ function AppShellInner(props: Props) {
             portaient le leur, écrit à la main, et ils avaient divergé. */}
         <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} brands={brands} />
         {/* Onglets de la section (UX V2) · ses sous-écrans visibles pour ce rôle.
-            L'Accueil a déjà les siens (Accueil · Analytics) dans sa page. */}
-        {!inAdmin && sectionCourante && sectionCourante.onglets.length > 0 && sectionCourante.tete.key !== 'dashboard' && (
+            L'Accueil et la fiche de marque ont déjà les leurs dans leur page. */}
+        {!inAdmin && sectionCourante && !dansMarque && sectionCourante.onglets.length > 0 && sectionCourante.tete.key !== 'dashboard' && (
           <OngletsSection section={sectionCourante} estActif={(href) => isNavActive(href, true)} />
         )}
         </>)}
