@@ -11,6 +11,8 @@ import { EditeurCalques } from '../../../../../../components/studios/editeur/Edi
 import { CapaciteNonActive } from '../../../../../../components/studios/CapaciteNonActive';
 import { Icon } from '../../../../../../components/Icon';
 import { cadrePage, h1, surface } from '../../../../../../components/ui';
+import { liensAtelierProjet } from '../../../../../../lib/navigation';
+import { etatInterrupteurs } from '../../../../../../lib/studios/interrupteurs';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,6 +76,7 @@ export default async function EditeurImagePage({ params }: { params: Promise<{ i
         medias={d.medias}
         apercus={urlsApercu(ids, d.projet.id)}
         peutEnregistrer={d.peutEnregistrer}
+        atelier={liensAtelierProjet(d.projet.id, (await etatInterrupteurs(s.workspaceId)).actif)}
       />
     </main>
   );

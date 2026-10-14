@@ -6,3 +6,4 @@ export * from './variante';
 export * from './test';
 export * from './apprentissage';
 export * from './vue';
+export * from './essai-lot';

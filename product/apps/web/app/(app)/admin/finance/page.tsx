@@ -5,6 +5,7 @@ import { roleAtLeast, PLAN_LABEL, PLAN_PRICE, PLAN_CREDITS, type Plan } from '..
 import { isFounder } from '../../../../lib/founder';
 import { analyzePlanNet, analyzePlanRisk, creditMarkup, corporateTaxRate, CREDIT_EUR } from '@tiktrends/core';
 import { cadrePage, surface, h1 } from '../../../../components/ui';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export default async function FinancePage() {
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={s} chemin="/admin/finance" />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '0 0 4px' }}>
         <h1 style={h1}>Finance · MRR & marges</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>

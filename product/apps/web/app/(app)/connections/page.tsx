@@ -9,6 +9,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { ConnecteurBientot, type ConnecteurAVenir } from '../../../components/ConnecteurBientot';
 import { etatCatalogue, dejaDisponible } from '@tiktrends/core';
 import { cadrePage, cadreSignal, h1 } from '../../../components/ui';
+import { OngletsReglages } from '../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +110,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
 
   return (
     <main style={cadrePage}>
+      <OngletsReglages session={s} chemin="/connections" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={h1}>Connexions</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>

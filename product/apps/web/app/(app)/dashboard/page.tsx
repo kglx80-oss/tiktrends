@@ -3,9 +3,9 @@ import { db, schema } from '@tiktrends/db';
 import { buildDashboard } from '../../../lib/pipeline';
 import { getSession } from '../../../lib/auth';
 import { getActiveBrand, listBrands } from '../../../lib/brands';
-import { roleAtLeast, ouverturesParRole } from '../../../lib/rbac';
+import { roleAtLeast, ouverturesParRole, sectionsCompteOuvertes } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
-import { bandeauAccueil, cheminOuvert, resoudreAccueil, refusAssistant, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
+import { bandeauAccueil, bandeauEnDoublon, cheminOuvert, destinationsTete, liensPilotage, rangeeStudiosAccueil, resoudreAccueil, refusAssistant, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { unlimitedCredits } from '../../../lib/credits';
 import { AssistantHome } from '../../../components/AssistantHome';
@@ -17,6 +17,9 @@ import { onboardingState } from '../../../lib/onboarding-state';
 import { cadrePage } from '../../../components/ui';
 import { OngletsAccueil } from '../../../components/accueil/OngletsAccueil';
 import { VueAnalytics } from '../../../components/accueil/VueAnalytics';
+import { TeteProjets } from '../../../components/accueil/TeteProjets';
+import { PilotageActivite } from '../../../components/accueil/PilotageActivite';
+import { chargerTeteAccueilProjets, type TeteAccueilProjets } from '../../../lib/accueil-projets';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +75,19 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   // bascule alors sur « prépare ton itération » (accès Adsmap/Veille).
   const parcours = s && roleAtLeast(s.role, 'member') ? await onboardingState(s.workspaceId, roleAtLeast(s.role, 'admin')) : null;
 
+  // UX V2 · lot 5 · EN TÊTE · reprendre ou créer un projet (lecture seule ·
+  // l'action de la liste des projets, ses gardes et sa portée), puis piloter
+  // l'activité. Quel état, quel projet, quels liens · règles du noyau
+  // (`resoudreAccueilProjets`, `liensPilotage`). Un rôle sans Studios ne lit
+  // rien et garde l'Accueil d'avant.
+  const tete: TeteAccueilProjets = s ? await chargerTeteAccueilProjets(s, ouvert) : { etat: { etat: 'ferme' }, apercu: null };
+  // « Activité et coûts » (/usage) est une page du menu de COMPTE · proposée
+  // seulement si ce menu l'ouvre (même règle que le menu, lot 12).
+  const pagesCompte = new Set(s ? sectionsCompteOuvertes(effectiveAccess(s)).flatMap((g) => g.items.map((i) => i.href)) : []);
+  const pilotage = liensPilotage({ ouvert, compteOuvert: (href) => pagesCompte.has(href) });
+  // Le bandeau se tait quand la tête et le pilotage portent déjà tous ses gestes (`bandeauEnDoublon`).
+  const bandeauAffiche = bandeau && !bandeauEnDoublon(bandeau, [...destinationsTete(tete.etat), ...pilotage.map((l) => l.href)]) ? bandeau : null;
+
   return (
     <main style={wrap}>
       <AssistantHome
@@ -85,7 +101,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         // l'action refuse ne voit pas l'assistant.
         assistantOuvert={!!s && refusAssistant({ roleEspace: s.role }) === null}
         regles={regles}
-        bandeau={bandeau ? <HomeBandeau key="bandeau" contenu={bandeau} /> : null}
+        projets={<TeteProjets key="projets" etat={tete.etat} apercu={tete.apercu} />}
+        pilotage={<PilotageActivite key="pilotage" liens={pilotage} />}
+        rangeeStudios={rangeeStudiosAccueil(tete.etat)}
+        bandeau={bandeauAffiche ? <HomeBandeau key="bandeau" contenu={bandeauAffiche} /> : null}
         marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} gererMarques={ouvert('/brands/new')} />}
         prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} regles={regles} />}
         exemple={<ApercuExemple key="apercu-exemple" rows={rows} brancher={ouvert('/connections')} />}

@@ -14,12 +14,13 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString } from '@tiktrends/core';
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
-import { sectionsRail, sectionDuChemin } from '../lib/rbac';
+import { sectionsRail, sectionDuChemin, separerRailMarque } from '../lib/rbac';
 import { OngletsSection } from './OngletsSection';
+import { FournisseurEspaceCreation, type EtatEspaceCreation } from './EspaceCreation';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
 
 // Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
@@ -79,6 +80,8 @@ interface Props {
   /** Rail replié au PREMIER rendu · lu du cookie côté serveur pour que la
    * géométrie soit juste dès le premier pixel (pas de saut après montage). */
   collapsedInitial: boolean;
+  /** UX V2 · Jarvis masqué dans les projets · lu du cookie `tt_jarvis` côté serveur (même raison que le rail). */
+  jarvisMasqueInitial?: boolean;
   logout: () => Promise<void>;
   children: ReactNode;
 }
@@ -154,7 +157,7 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, ouvertures = [], isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName: userNameServeur, userEmail, avatarUrl: avatarUrlServeur, hidePersonalInfo: hideServeur, roleLabel, planLabel, workspaceName: workspaceNameServeur, collapsedInitial, logout, children } = props;
+  const { nav, accountGroups, ouvertures = [], isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName: userNameServeur, userEmail, avatarUrl: avatarUrlServeur, hidePersonalInfo: hideServeur, roleLabel, planLabel, workspaceName: workspaceNameServeur, collapsedInitial, jarvisMasqueInitial = false, logout, children } = props;
   // Lot 16 · ce que l'utilisateur vient d'enregistrer (profil, nom d'espace)
   // s'affiche TOUT DE SUITE, sans attendre le rendu serveur · la transition du
   // routeur qui l'apporte peut caler (lot 14). Dès que le serveur renvoie
@@ -237,7 +240,37 @@ function AppShellInner(props: Props) {
     railRef.current?.querySelector<HTMLElement>('a,button')?.focus();
     return () => document.removeEventListener('keydown', surTouche);
   }, [drawer]);
-  const chrome = chromeCoquille({ mobile, collapsed, drawerOuvert: drawer });
+  // UX V2 · lot 2 · mode focus (projets seulement) et Jarvis masquable · les
+  // règles vivent dans le noyau (`espace-creation`). Le focus n'est pas
+  // mémorisé · quitter le projet le quitte (il n'est plus disponible ailleurs).
+  const [focusDemande, setFocusDemande] = useState(false);
+  const focusIci = focusDisponible(pathname);
+  // Hors d'un projet, le focus tombe · remis à zéro PENDANT le rendu (React
+  // recommence ce rendu avant d'afficher quoi que ce soit) · ni image où le
+  // rail manque hors projet, ni focus ressuscité en revenant au projet.
+  if (focusDemande && !focusIci) setFocusDemande(false);
+  const focus = focusDemande;
+  const [jarvisMasque, setJarvisMasque] = useState(jarvisMasqueInitial);
+  const basculerJarvis = () => setJarvisMasque((m) => { const n = !m; try { document.cookie = jarvisCookieString(n); } catch { /* cookie indispo */ } return n; });
+  const etatFocusRef = useRef({ focus, focusIci });
+  etatFocusRef.current = { focus, focusIci };
+  // Alt F bascule, Échap quitte · jamais pendant une saisie, et Échap laisse
+  // d'abord un dialogue ouvert se fermer.
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      const cible = e.target as HTMLElement | null;
+      const saisie = !!cible && (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName));
+      const dialogue = e.defaultPrevented || !!document.querySelector('[role="dialog"][aria-modal="true"]:not(#nav-rail), dialog[open]');
+      const action = actionToucheFocus(e, { saisie, dialogue }, { focus: etatFocusRef.current.focus, disponible: etatFocusRef.current.focusIci });
+      if (!action) return;
+      e.preventDefault();
+      setFocusDemande((f) => (action === 'quitter' ? false : !f));
+    };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, []);
+  const espaceCreation: EtatEspaceCreation = { focusDisponible: focusIci, focus, basculerFocus: () => setFocusDemande((f) => !f), jarvisMasque, basculerJarvis };
+  const chrome = chromeCoquille({ mobile, collapsed, drawerOuvert: drawer, focus });
   // Écrans récents · pour reprendre une tâche d'un raccourci. Mémorisés par
   // navigateur · l'écran courant passe en tête à chaque navigation.
   const [recents, setRecents] = useState<EcranRecent[]>([]);
@@ -322,8 +355,14 @@ function AppShellInner(props: Props) {
 
   // Rail UX V2 · les sections (entrée + sous-écrans visibles) et celle qui
   // contient l'écran courant · règle pure (`sectionDuChemin`, lib/rbac).
-  const sections = sectionsRail(nav);
-  const sectionCourante = sectionDuChemin(sections, pathname);
+  // Le groupe Marque (marque active) ne s'intercale pas dans les modules · il
+  // vit dans « Votre espace », sous le nom de la marque (`separerRailMarque`).
+  const { modules: navModules, marque: groupeMarque } = separerRailMarque(nav);
+  const sections = sectionsRail(navModules);
+  const sectionMarque = groupeMarque ? sectionsRail([groupeMarque])[0] ?? null : null;
+  const sectionCourante = sectionDuChemin(sectionMarque ? [...sections, sectionMarque] : sections, pathname);
+  const dansMarque = !!sectionMarque && sectionCourante === sectionMarque;
+  const nomMarqueActive = brands.find((b) => b.id === activeBrandId)?.name ?? 'Marque active';
   // « Votre espace » · Marques et Réglages, seulement si la garde réelle des
   // pages les ouvre (`sectionsCompteOuvertes` · admin d'espace). Rien d'élargi.
   const espaceRail = workspaceItems.filter((it) => it.key === 'brands' || it.key === 'settings');
@@ -409,6 +448,8 @@ function AppShellInner(props: Props) {
         ...(chrome.railTiroir
           ? { position: 'fixed', left: 0, width: chrome.largeurRail, zIndex: 90, transform: chrome.railVisible ? 'none' : 'translateX(-100%)', transition: 'transform .22s ease', boxShadow: chrome.railVisible ? '0 0 40px rgba(0,0,0,.55)' : 'none' }
           : { position: 'sticky' }),
+        // Mode focus · le rail sort de l'écran (et de la tabulation · `inert`).
+        ...(focus ? { display: 'none' } : null),
       }}>
         {/* En-tête COMPACT (14 pouces) · l'identité (retour à l'accueil), la
             bascule Réduire juste à côté, puis un sélecteur d'espace DISTINCT, puis
@@ -523,7 +564,7 @@ function AppShellInner(props: Props) {
               })}
             </>
           ) : collapsed
-            ? nav.flatMap((grp) => branchesOf(grp.items).map((b) => {
+            ? navModules.flatMap((grp) => branchesOf(grp.items).map((b) => {
                 // En replié, il n'y a plus d'enfant à allumer · l'icône du
                 // parent doit donc porter les DEUX états, sinon être sur un
                 // sous-écran n'allume plus rien du tout.
@@ -576,11 +617,24 @@ function AppShellInner(props: Props) {
                 })}
               </div>
             )}
-          {!inAdmin && espaceRail.length > 0 && (
+          {!inAdmin && (espaceRail.length > 0 || sectionMarque) && (
             <div aria-label="Votre espace" role="group" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 10, alignItems: collapsed ? 'center' : 'stretch' }}>
               {!collapsed && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '1px 10px 1px' }}>Votre espace</div>}
+              {/* La marque ACTIVE, sous son nom · son aperçu, ses facettes en onglets
+                  dans sa fiche. Allumée sur toutes ses pages. */}
+              {sectionMarque && (() => {
+                const it = { ...sectionMarque.tete, label: nomMarqueActive };
+                const titre = `Aperçu de la marque ${nomMarqueActive}`;
+                const ici = isNavActive(sectionMarque.tete.href, false);
+                return collapsed ? (
+                  <Link key="marque-active" href={it.href} data-marque-active title={titre} aria-label={titre} aria-current={ici ? 'page' : dansMarque ? 'true' : undefined} style={{ ...railIconBtn, color: dansMarque ? 'var(--ink)' : 'var(--ink-2)', background: dansMarque ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
+                ) : (
+                  <div key="marque-active" data-marque-active title={titre}><NavLink it={it} active={dansMarque} courant={ici ? 'page' : dansMarque ? 'true' : undefined} tactile={mobile} /></div>
+                );
+              })()}
               {espaceRail.map((it) => {
-                const ici = pathname === it.href || pathname.startsWith(it.href + '/');
+                // Sur une page de la marque active, c'est elle qui est allumée · pas la liste « Marques ».
+                const ici = !dansMarque && (pathname === it.href || pathname.startsWith(it.href + '/'));
                 return collapsed ? (
                   <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--ink)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
                 ) : <NavLink key={it.key} it={it} active={ici} tactile={mobile} />;
@@ -688,6 +742,15 @@ function AppShellInner(props: Props) {
             La cloche de notification flotte à droite (fixed, top:16 right:20) ·
             on lui réserve la place à droite (paddingRight) pour ne pas la
             chevaucher. */}
+        {focus && (
+          // Sortie toujours visible (coin bas gauche · la barre de projet garde le
+          // haut, la bulle de support le coin bas droit) · Échap et Alt F aussi.
+          <button type="button" data-zone="quitter-focus" onClick={() => setFocusDemande(false)} aria-keyshortcuts="Escape Alt+F" title="Quitter le mode focus (Échap)"
+            style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 80, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, fontWeight: 650, cursor: 'pointer', boxShadow: '0 6px 24px rgba(0,0,0,.35)' }}>
+            Quitter le mode focus
+          </button>
+        )}
+        {!focus && (<>
         <header style={{ position: 'sticky', top: 0, zIndex: 70, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', paddingRight: 64, minHeight: 56, boxSizing: 'border-box', background: 'var(--rail)', borderBottom: '1px solid var(--line)' }}>
           {chrome.hamburger && (
             <>
@@ -715,11 +778,14 @@ function AppShellInner(props: Props) {
             portaient le leur, écrit à la main, et ils avaient divergé. */}
         <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} brands={brands} />
         {/* Onglets de la section (UX V2) · ses sous-écrans visibles pour ce rôle.
-            L'Accueil a déjà les siens (Accueil · Analytics) dans sa page. */}
-        {!inAdmin && sectionCourante && sectionCourante.onglets.length > 0 && sectionCourante.tete.key !== 'dashboard' && (
+            L'Accueil et la fiche de marque ont déjà les leurs dans leur page. */}
+        {!inAdmin && sectionCourante && !dansMarque && sectionCourante.onglets.length > 0 && sectionCourante.tete.key !== 'dashboard' && (
           <OngletsSection section={sectionCourante} estActif={(href) => isNavActive(href, true)} />
         )}
-        {children}
+        </>)}
+        <FournisseurEspaceCreation value={espaceCreation}>
+          {children}
+        </FournisseurEspaceCreation>
         {/* Le lanceur de support (bulle flottante, coin bas-droit) est une
             fonction DISTINCTE de Jarvis. Sur l'écran de conversation `/jarvis`,
             sa position fixe recouvrait le bas du bouton « Envoyer » et le bloc de

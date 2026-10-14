@@ -17,7 +17,12 @@ describe('Admin · plus aucun emoji d’interface', () => {
     expect(trouves, `glyphe(s) d'interface encore dans admin/page.tsx : ${trouves.join(' ')}`).toEqual([]);
   });
   it('les cartes d’outils rendent une icône du jeu', () => {
-    expect(SRC).toMatch(/<Icon name=\{t\.icon\}/);
+    // Lot 4c · les cartes viennent du noyau (`groupesAdministration`) · l'icône
+    // reste un NOM du jeu partagé, lu dans la table `ICONE` de la page.
+    expect(SRC).toMatch(/<Icon name=\{ICONE\[t\.cle\] \?\? 'grid'\}/);
+    const icones = /const ICONE[^=]*=\s*\{([\s\S]*?)\};/.exec(SRC)?.[1] ?? '';
+    expect(icones, 'table des icônes absente').not.toBe('');
+    expect(icones.match(BANNIS) ?? []).toEqual([]);
     expect(SRC).toMatch(/<Icon name="gauge"/);
   });
 });

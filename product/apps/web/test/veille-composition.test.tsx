@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { placementLanceurSupport } from '@tiktrends/core';
+import { placementLanceurSupport, ANCRE_LECTURE_MARCHE } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -75,19 +75,24 @@ describe('Veille · la page mène par l’observation (source)', () => {
     expect(page).toContain('name="status"');
   });
 
-  it('des accès voisins compacts pointent vers Scale, Radar et Sauvegardes', () => {
-    expect(page).toContain('href="/veille/scale"');
-    expect(page).toContain('href="/radar"');
-    expect(page).toContain('href="/saved"');
+  it('UX V2 · lot 4a · plus de raccourcis Scale, Radar et Sauvegardes · ils vivent dans les onglets de section', () => {
+    // Les onglets de section (coquille, `railNav`) portent ces trois écrans ·
+    // une seconde rangée dans la page les doublonnait. Le parcours les remplace
+    // (rendu cloué dans `lot4a-parcours-rendu`).
+    expect(page, 'le raccourci « Ce qui scale » doublonne l’onglet').not.toContain('href="/veille/scale"');
+    expect(page, 'le raccourci « Radar créatif » doublonne l’onglet').not.toContain('href="/radar"');
+    expect(page, 'le raccourci « Sauvegardes » doublonne l’onglet').not.toContain('href="/saved"');
+    expect(page).toContain('parcoursVeille(');
   });
 
-  it('un bloc de transition ouvre les tests dans Adsmap · lien explicite, pas de workflow fictif', () => {
+  it('un bloc de transition ouvre les tests dans Résultats · lien explicite, pas de workflow fictif', () => {
     expect(page).toContain('href="/adsmap"');
-    expect(page).toContain('Ouvrir mes tests dans Adsmap');
+    expect(page).toContain('Ouvrir mes tests dans Résultats');
   });
 
-  it('« Lecture du marché » ancre vers la section identifiée après la grille', () => {
-    expect(page).toContain('href="#lecture-marche"');
+  it('« Lecture du marché » ancre vers la section identifiée après la grille (étape Analyse)', () => {
+    expect(ANCRE_LECTURE_MARCHE).toBe('#lecture-marche');
+    expect(page).toContain('marcheDispo })');
     expect(section).toContain('id="lecture-marche"');
   });
 });
