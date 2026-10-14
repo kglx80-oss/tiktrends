@@ -13,7 +13,7 @@ import { jarvisStats, jarvisMeasuredMemory } from '../../../../lib/jarvis-memory
 import { jarvisSnapshot, STATE_LABEL, type JarvisLayer } from '../../../../lib/jarvis-state';
 import { spendStatus, depensesAReconcilier } from '../../../../lib/spend-guard';
 import { currentDeployment } from '../../../../lib/deployment';
-import { partDeMax, libelleTauxFraction, CIBLE_TACTILE_MIN, rappelReconciliation } from '@tiktrends/core';
+import { partDeMax, libelleTauxFraction, CIBLE_TACTILE_MIN, rappelReconciliation, VALEUR_ABSENTE } from '@tiktrends/core';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { JarvisRules } from '../JarvisRules';
@@ -137,7 +137,7 @@ export default async function JarvisPage() {
             {deploiement.summary}
           </span>
           <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-            maquette v{deploiement.renderVersion} · {deploiement.applied ?? '—'}/{deploiement.inBuild} migrations
+            maquette v{deploiement.renderVersion} · {deploiement.applied ?? VALEUR_ABSENTE}/{deploiement.inBuild} migrations
             {deploiement.build ? ` · ${deploiement.build}` : ''}
           </span>
         </div>
