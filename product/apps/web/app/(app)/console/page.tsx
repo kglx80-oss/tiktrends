@@ -15,6 +15,7 @@ import { input, Msg, cadrePage, cadreSignal, surface, h1 } from '../../../compon
 import { PageInfo } from '../../../components/PageInfo';
 import { DiagnosticDeploiement } from '../../../components/DiagnosticDeploiement';
 import { currentDeployment } from '../../../lib/deployment';
+import { OngletsAdministration } from '../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,6 +84,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
 
   return (
     <main style={{ ...ADMIN_THEME, ...cadrePage }}>
+      <OngletsAdministration session={s} chemin="/console" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>ADMIN+</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>CONSOLE</span>

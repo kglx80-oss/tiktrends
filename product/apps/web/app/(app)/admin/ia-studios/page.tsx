@@ -2,10 +2,12 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { aPermissionPlateforme } from '@tiktrends/core';
 import { gardePlateforme } from '../../../../lib/studios/prompts/garde-prompts';
+import { getSession } from '../../../../lib/auth';
 import { environnementPrompts } from '../../../../lib/studios/prompts/environnement';
 import { cadrePage, h1 } from '../../../../components/ui';
 import { EcranVersions, EcranReleases, EcranEvaluations, EcranBenchmark, EcranRoutage, EcranExecutions, EcranConnaissances, Erreur, surfaceBloc } from './Ecrans';
 import { vueVersions, vueReleases, vueEvaluations, vueBenchmark, vueRoutage, vueExecutions, vueConnaissances } from './donnees';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +67,8 @@ export default async function IaStudiosPage({ searchParams }: { searchParams: Pr
     );
   }
 
+  // Les onglets d'Administration lisent la session (la garde rend un contexte, pas la session).
+  const s = await getSession();
   const sp = await searchParams;
   const onglet: Onglet = (ONGLETS.find((o) => o.id === sp.onglet)?.id ?? 'prompts');
   const peut = (p: Parameters<typeof aPermissionPlateforme>[1]) => aPermissionPlateforme(g.ctx.permissions, p);
@@ -97,6 +101,7 @@ export default async function IaStudiosPage({ searchParams }: { searchParams: Pr
 
   return (
     <main style={cadrePage}>
+      {s && <OngletsAdministration session={s} chemin="/admin/ia-studios" />}
       <Entete />
       <nav aria-label="Onglets IA et Studios" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         {ONGLETS.map((o) => (
