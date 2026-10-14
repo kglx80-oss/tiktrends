@@ -17,6 +17,7 @@ export * from './brief-cache';
 export * from './proportion';
 export * from './cible-tactile';
 export * from './modale';
+export * from './ponctuation-ecran';
 export * from './rail-densite';
 export * from './rail-marque';
 export * from './identite-marque';

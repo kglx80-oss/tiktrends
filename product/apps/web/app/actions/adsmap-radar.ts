@@ -2,7 +2,7 @@
 
 import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { SIGNAL_LABEL, estimateCost, type RadarSignal } from '@tiktrends/core';
+import { SIGNAL_LABEL, VALEUR_ABSENTE, estimateCost, type RadarSignal } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { runRadarForBrand, radarState, type RadarState } from '../../lib/radar';
@@ -81,7 +81,7 @@ export async function radarViewAction(): Promise<{ view?: RadarView; error?: str
         externalId: r.externalId,
         advertiser: r.advertiser,
         signal: s,
-        signalLabel: s ? SIGNAL_LABEL[s] : '—',
+        signalLabel: s ? SIGNAL_LABEL[s] : VALEUR_ABSENTE,
         daysRunning: r.daysRunning,
         format: r.format,
         hookType: r.hookType,

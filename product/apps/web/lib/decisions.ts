@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   buildDecisions, findGaps, iterationParentSet, DEFAULT_VERDICT_CONFIG,
   type DecisionAd, type DecisionBatch, type DecisionGap,
-  type VerdictConfig, type GraphNodeShape,
+  type VerdictConfig, type GraphNodeShape, VALEUR_ABSENTE,
 } from '@tiktrends/core';
 
 /**
@@ -165,7 +165,7 @@ async function readState(workspaceId: string, brandId: string) {
     .map((g) => ({
       nodeId: g.nodeId,
       kind: g.kind === 'desire_no_angle' ? 'desire' : g.kind === 'angle_no_concept' ? 'angle' : 'concept',
-      label: libelle.get(g.nodeId) ?? '—',
+      label: libelle.get(g.nodeId) ?? VALEUR_ABSENTE,
     }));
 
   return { ads, batches, gaps, evaluationWindowDays: cfg.evaluationWindowDays };

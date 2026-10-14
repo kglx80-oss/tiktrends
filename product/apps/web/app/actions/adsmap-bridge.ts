@@ -51,7 +51,7 @@ export async function trackSavedAdAction(ref: { platform: string; externalId: st
     const snap = (saved.snapshot ?? {}) as { advertiserName?: string; body?: string; callToAction?: string; id?: string };
     const annonceur = (snap.advertiserName || 'Concurrent').slice(0, 80);
     const copy = (snap.body || '').replace(/\s+/g, ' ').trim();
-    const titre = `Imitation · ${annonceur}${copy ? ` — ${copy.slice(0, 90)}` : ''}`.slice(0, 160);
+    const titre = `Imitation · ${annonceur}${copy ? ` · ${copy.slice(0, 90)}` : ''}`.slice(0, 160);
 
     const path = await ensureGraphPath({
       workspaceId: g.s.workspaceId, brandId: g.brand.id,
