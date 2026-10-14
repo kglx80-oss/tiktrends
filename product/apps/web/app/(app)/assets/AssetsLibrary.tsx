@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadImageAssetsAction, importAssetAction, deleteAssetAction, toggleAssetAiAction, basculerTemplateAction, presignAssetUploadAction, registerUploadedAssetAction, tagAssetAction, tagUntaggedImagesAction, type AssetItem, type AssetKind } from '../../actions/assets';
 import { Pager, PAGE_SIZE } from '../../../components/Pager';
-import { GoogleDriveIcon } from '../../../components/BrandIcons';
+import { LogoMarque } from '../../../components/LogoMarque';
 import { Icon } from '../../../components/Icon';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
@@ -233,7 +233,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
           {busy ? 'Traitement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="upload" size={14} /> {storageEnabled ? 'Téléverser des fichiers' : 'Téléverser des images'}</span>}
         </button>
         <button ref={driveBtnRef} type="button" aria-expanded={showDrive} aria-controls="assets-panneau-drive" onClick={() => { setShowDrive((v) => !v); setShowImport(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-          <GoogleDriveIcon size={15} /> Google Drive
+          <LogoMarque marque="googledrive" taille="xs" decoratif /> Google Drive
         </button>
         <button ref={importBtnRef} type="button" aria-expanded={showImport} aria-controls="assets-panneau-lien" onClick={() => { setShowImport((v) => !v); setShowDrive(false); }} style={{ ...ghost, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="link" size={14} /> Importer par lien</button>
         {progress && (
@@ -255,7 +255,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
       {showDrive && (
         <div id="assets-panneau-drive" style={{ ...surface, background: 'linear-gradient(180deg, rgba(66,133,244,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <GoogleDriveIcon size={18} />
+            <LogoMarque marque="googledrive" taille="sm" decoratif />
             <b style={{ fontSize: 14, color: 'var(--ink)' }}>Importer depuis Google Drive</b>
           </div>
           <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>

@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { connectShopifyAction, syncShopifyAction, disconnectShopifyAction, connectMetaAction, syncMetaAction, disconnectMetaAction, selectMetaAccountAction, type ConnectionState } from '../../actions/connections';
-import { BrandTile } from '../../../components/BrandIcons';
+import { LogoMarque } from '../../../components/LogoMarque';
 import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
 import { surface, tuile } from '../../../components/ui';
-import { etatConnecteur, PHASE_CONNECTEUR_LABEL, type PhaseConnecteur } from '@tiktrends/core';
+import { etatConnecteur, PHASE_CONNECTEUR_LABEL, type CleConnexionReelle, type PhaseConnecteur } from '@tiktrends/core';
 
 const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
@@ -68,16 +68,17 @@ function ChampJeton({ id, value, onChange, placeholder }: { id: string; value: s
   );
 }
 
-function Wrap({ outil, title, badge, children }: { outil: string; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+function Wrap({ marque, title, badge, children }: { marque: CleConnexionReelle; title: string; badge?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ ...surface, background: 'var(--surface)', padding: 18 }}>
       {/* Recette A (#120) · mesuré à 390 avec un nom long · le badge d'état
           (« CONNECTÉ · À SYNCHRONISER ») débordait la carte de 16 px (46 à 360) ·
           la ligne passe à la ligne, le badge descend sous le titre. */}
       <div data-entete-connecteur style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        {/* La pastille commune à toutes les intégrations · logo officiel, décoratif ·
-            le nom de l'outil est dans le titre juste à côté. */}
-        <BrandTile name={outil} />
+        {/* Le logo officiel de la connexion (lot V5 · A1), décoratif · le nom de
+            l'outil est dans le titre juste à côté. Clé typée · seule une
+            connexion réelle (`CONNEXIONS_REELLES`) peut porter un logo ici. */}
+        <LogoMarque marque={marque} taille="md" decoratif />
         <b style={{ fontSize: 15, color: 'var(--ink)', flex: '1 1 140px', minWidth: 0 }}>{title}</b>
         {badge}
       </div>
@@ -130,7 +131,7 @@ function ShopifyCard({ state, setState, refresh, oauth }: { state: ConnectionSta
   const ins = sh?.insights;
   const phase = etatConnecteur({ connecte: !!sh?.connected, donnees: !!ins });
   return (
-    <Wrap outil="Shopify" title="Shopify · ventes" badge={<BadgePhase phase={phase} />}>
+    <Wrap marque="shopify" title="Shopify · ventes" badge={<BadgePhase phase={phase} />}>
       {!sh?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           <div><label style={lbl} htmlFor="conn-shopify-domaine">Domaine de la boutique</label><input id="conn-shopify-domaine" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.myshopify.com" style={fld} /></div>
@@ -224,7 +225,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
   const compteRequisManquant = !!mt?.connected && (mt.accounts?.length ?? 0) > 1 && !mt.adAccountId;
   const phase = etatConnecteur({ connecte: !!mt?.connected, compteRequisManquant, donnees: !!ins });
   return (
-    <Wrap outil="Meta Ads" title="Meta Ads · performance" badge={<BadgePhase phase={phase} />}>
+    <Wrap marque="meta" title="Meta Ads · performance" badge={<BadgePhase phase={phase} />}>
       {!mt?.connected ? (
         <div style={{ display: 'grid', gap: 10 }}>
           {oauth && (

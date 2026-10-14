@@ -6,6 +6,7 @@ import { CLES_LOGO_OUTIL, cleLogoOutil, connecteursBranches, SEUIL_CONTRASTE_PAS
 import { BrandTile, LogoOutil, logoDisponible } from '../components/BrandIcons';
 import { TRACES_SIMPLE_ICONS } from '../components/logos-outils';
 import { ConnecteurBientot } from '../components/ConnecteurBientot';
+import { LogoMarque } from '../components/LogoMarque';
 
 /**
  * Lot A (#120) · les tuiles d'intégrations montrent le VRAI logo de l'outil.
@@ -93,8 +94,9 @@ describe('les connecteurs disponibles et la fiche marque montrent leur logo', ()
     const branches = connecteursBranches({ metaToken: 'x', shopifyToken: 'y' });
     expect(branches.map((b) => b.label)).toEqual(['Meta', 'Shopify']);
     for (const b of branches) {
-      expect(renderToStaticMarkup(<BrandTile name={b.label} tile={24} />), `${b.label} sans logo sur la fiche marque`)
-        .toContain('data-logo="officiel"');
+      // Lot V5 · A1 · la bande porte `LogoMarque`, par la clé du connecteur.
+      expect(renderToStaticMarkup(<LogoMarque marque={b.key} taille="xs" decoratif />), `${b.label} sans logo sur la fiche marque`)
+        .toContain(`data-logo-marque="${b.key}"`);
     }
   });
 });
@@ -121,10 +123,15 @@ describe('fond de pastille · une teinte trop pâle passe sur sa teinte', () => 
     expect(html).toContain('background:#FFFC00');
     expect(html).toContain('fill="#111111"');
   });
-  it('Shopify · son vert officiel sur blanc', () => {
+  it('Shopify · son sac multicolore officiel sur blanc (dessin V5 · A1)', () => {
     const html = renderToStaticMarkup(<BrandTile name="Shopify" />);
     expect(html).toContain('background:#FFFFFF');
-    expect(html).toContain('fill="#7AB55C"');
+    expect(html).toContain('fill="#95BF46"');
+  });
+  it('TikTok (feuille de route) · sur fond noir, note blanche (dessin V5 · A1)', () => {
+    const html = renderToStaticMarkup(<BrandTile name="TikTok Ads" />);
+    expect(html).toContain('background:#000000');
+    expect(html).toContain('fill="#FFFFFF"');
   });
   it('chaque teinte embarquée est soit lisible sur blanc, soit posée sur elle-même', () => {
     for (const [cle, t] of Object.entries(TRACES_SIMPLE_ICONS)) {

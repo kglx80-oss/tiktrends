@@ -7,7 +7,7 @@ import { join } from 'node:path';
  *
  * Écran très regardé par le proprio (« icônes immondes »). Ses actions gardaient
  * des emojis (⬆ Téléverser, 🔗 Importer par lien, ✦ Analyser). On les convertit
- * au jeu partagé. Le logo Google Drive, lui, reste une vraie marque (GoogleDriveIcon).
+ * au jeu partagé. Le logo Google Drive, lui, reste une vraie marque (LogoMarque · lot V5 A1).
  */
 const SRC = readFileSync(join(process.cwd(), 'app/(app)/assets/AssetsLibrary.tsx'), 'utf8');
 const BANNIS = ['⬆', '🔗', '✦', '📷', '📥', '✨', '✎'];
@@ -25,6 +25,6 @@ describe('Assets · plus aucun emoji d’interface', () => {
   });
 
   it('le logo Google Drive reste une vraie marque, pas une icône générique', () => {
-    expect(SRC).toMatch(/GoogleDriveIcon/);
+    expect(SRC).toMatch(/<LogoMarque marque="googledrive"/);
   });
 });

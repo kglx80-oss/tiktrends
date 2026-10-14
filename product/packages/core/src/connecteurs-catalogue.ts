@@ -72,6 +72,35 @@ export function dejaDisponible(nom: string, disponibles: readonly string[]): boo
  */
 export interface ConnecteurBranche { key: 'meta' | 'shopify'; label: string; }
 
+/**
+ * Les connexions qui EXISTENT dans le code, par clé de logo (lot V5 · A1) · la
+ * seule liste qui autorise un logo de marque (`LogoMarque`) à représenter une
+ * connexion. Chacune a son geste de connexion ET son stockage ·
+ *  · `shopify` · `connectShopifyAction` + `/api/oauth/shopify` (+ callback),
+ *    token `shopifyToken` de la marque ;
+ *  · `meta` · `connectMetaAction` + `/api/oauth/meta` (+ callback), token
+ *    `metaToken` de la marque ;
+ *  · `googledrive` · `/api/oauth/google` (+ callback), `lib/drive-token.ts`,
+ *    synchro `@tiktrends/integrations` · `drive-sync`.
+ *
+ * Absents, volontairement · TikTok (une route de départ OAuth existe mais ni
+ * callback, ni token, ni action · voir `connecteursBranches`), et tout le reste
+ * de la feuille de route. Un logo ne doit jamais faire croire à un connecteur
+ * absent · un écran qui représente une connexion ne pose `LogoMarque` que pour
+ * une clé de cette liste (garde · `logo-marque-connexions-rendu.test.tsx`).
+ */
+export const CONNEXIONS_REELLES = {
+  shopify: 'Shopify',
+  meta: 'Meta Ads',
+  googledrive: 'Google Drive',
+} as const;
+export type CleConnexionReelle = keyof typeof CONNEXIONS_REELLES;
+
+/** La clé de logo désigne-t-elle une connexion qui existe réellement ? */
+export function estConnexionReelle(cle: string): cle is CleConnexionReelle {
+  return Object.prototype.hasOwnProperty.call(CONNEXIONS_REELLES, cle);
+}
+
 export function connecteursBranches(b: { metaToken?: string | null; shopifyToken?: string | null }): ConnecteurBranche[] {
   const out: ConnecteurBranche[] = [];
   if (b.metaToken) out.push({ key: 'meta', label: 'Meta' });
