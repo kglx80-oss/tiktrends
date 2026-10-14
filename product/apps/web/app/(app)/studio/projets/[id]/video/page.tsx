@@ -13,6 +13,9 @@ import { EcranVideo } from '../../../../../../components/studios/video/EcranVide
 import { CapaciteNonActive } from '../../../../../../components/studios/CapaciteNonActive';
 import { Icon } from '../../../../../../components/Icon';
 import { cadrePage, h1, surface } from '../../../../../../components/ui';
+import { BarreProjet } from '../../../../../../components/studios/projet/BarreProjet';
+import { liensAtelierProjet } from '../../../../../../lib/navigation';
+import { etatInterrupteurs } from '../../../../../../lib/studios/interrupteurs';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,10 +71,10 @@ export default async function StudioVideoPage({ params }: { params: Promise<{ id
 
   return (
     <main style={cadrePage}>
-      {/* L8-B · le retour nomme le projet (comme Produit, Textes, Identités) et fait 44 px de
-          large au minimum (« ‹ Projet » mesurait 43 px) · le titre long du projet ne prend
-          plus tout l'écran à 390 px : il est nommé une fois, dans le lien de retour. */}
-      <Link href={`/studio/projets/${r.vue.projet.id}`} data-retour-projet style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, maxWidth: '100%', display: 'inline-flex', alignItems: 'center', overflowWrap: 'anywhere' }}>‹ {r.vue.projet.titre || 'Projet'}</Link>
+      {/* UX V2 · lot 2 · la barre de projet commune (titre, modes, focus,
+          export) remplace le lien de retour nommé (L8-B) · le titre long
+          s'enroule dans la barre, la page garde son titre de fonction. */}
+      <BarreProjet projectId={r.vue.projet.id} mode="video" titre={r.vue.projet.titre || 'Projet'} atelier={liensAtelierProjet(r.vue.projet.id, (await etatInterrupteurs(s.workspaceId)).actif)} />
       <h1 style={{ ...h1, marginBottom: 16, overflowWrap: 'anywhere' }}>Vidéo · storyboard et montage</h1>
       <EcranVideo vue={r.vue} />
     </main>

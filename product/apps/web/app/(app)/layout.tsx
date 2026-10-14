@@ -13,7 +13,7 @@ import { logoutAction } from '../actions/auth';
 import { isFounder } from '../../lib/founder';
 import { effectiveAccess } from '../../lib/access';
 import { unlimitedCredits } from '../../lib/credits';
-import { entreesMarque } from '@tiktrends/core';
+import { entreesMarque, jarvisMasqueDepuisCookie, JARVIS_COOKIE } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +38,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Préférence de repli du rail · lue AU RENDU serveur pour que la coquille
   // sorte à la bonne largeur dès le premier pixel (cf. lib/rail-preference).
   const collapsedInitial = railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value);
+  // UX V2 · Jarvis masqué dans les projets · même lecture au rendu (aucun saut).
+  const jarvisMasqueInitial = jarvisMasqueDepuisCookie((await cookies()).get(JARVIS_COOKIE)?.value);
 
   // Espace « Marque » (rail) : accès direct aux sections de la marque active.
   // Le libellé de section est « Marque » (Kevin 30/09 · ex-« TA MARQUE »). Les
@@ -75,6 +77,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       planLabel={PLAN_LABEL[s.plan]}
       workspaceName={s.workspaceName}
       collapsedInitial={collapsedInitial}
+      jarvisMasqueInitial={jarvisMasqueInitial}
       logout={logoutAction}
     >
       {/* Canal de retour unique · `useToast()` sous ce fournisseur pose un

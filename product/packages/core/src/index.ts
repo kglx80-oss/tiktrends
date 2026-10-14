@@ -184,6 +184,7 @@ export * from './studios/export';
 export * from './depense-prudente';
 export * from './studios/ux/projet-etats';
 export * from './studios/ux/projet-focus';
+export * from './studios/ux/espace-creation';
 export * from './studios/ux/nouveau-projet';
 export * from './studios/anciennes-adresses';
 export * from './redirections-serveur';
