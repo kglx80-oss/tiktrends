@@ -1,13 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { cadreSignal, surface, tuile } from '../../../components/ui';
+import { cadreSignal, tuile } from '../../../components/ui';
 import {
   listShareLinksAction, createShareLinkAction, revokeShareLinkAction, type ShareLink,
 } from '../../actions/adsmap-share';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { EmptyLine } from '../../../components/Empty';
-import { Portail } from '../../../components/Portail';
+import { Modal } from '../../../components/Modal';
 
 /**
  * Partage client de la carte (§12).
@@ -30,13 +29,6 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
   }, []);
 
   useEffect(() => { if (open) void charger(); }, [open, charger]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -68,98 +60,82 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
   }
 
   return (
-    <Portail>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 60 }} />
-      <div role="dialog" aria-label="Partager la carte" style={{
-        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 70,
-        width: 'min(560px, calc(100vw - 32px))', maxHeight: '80vh', overflowY: 'auto',
-        background: 'var(--surface)', ...surface,
-        boxShadow: '0 30px 70px -20px rgba(0,0,0,.6)', padding: '22px 24px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 16.5, fontWeight: 800, color: 'var(--ink)', flex: 1 }}>Partager avec le client</h2>
-          <button type="button" onClick={onClose} aria-label="Fermer" style={{
-            width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, borderRadius: 8, border: '1px solid var(--line-2)',
-            background: 'var(--paper)', color: 'var(--ink-2)', cursor: 'pointer', flexShrink: 0,
-          }}>✕</button>
-        </div>
+    <Modal open={open} onClose={onClose} title="Partager avec le client" maxWidth={560}>
+      <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+        Une page en lecture seule, sans compte à créer. Le client y voit <b>ce qui a été testé et ce qui
+        a gagné</b>.
+      </p>
+      <ul style={{ margin: '9px 0 0', paddingLeft: 17, fontSize: 12, color: 'var(--muted)', lineHeight: 1.65 }}>
+        <li>Aucune dépense, aucun CPA, aucun budget · ta marge se lit dans ces colonnes.</li>
+        <li>Aucune hypothèse, aucun apprentissage · c’est ta méthode, c’est ce qu’il paie.</li>
+        <li>Aucun test en cours · seuls les verdicts que tu as arbitrés apparaissent.</li>
+      </ul>
 
-        <p style={{ margin: '9px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
-          Une page en lecture seule, sans compte à créer. Le client y voit <b>ce qui a été testé et ce qui
-          a gagné</b>.
+      {error && (
+        <p style={{ marginTop: 13, padding: '9px 12px', background: 'rgba(254,44,85,.09)', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
+          {error}
         </p>
-        <ul style={{ margin: '9px 0 0', paddingLeft: 17, fontSize: 12, color: 'var(--muted)', lineHeight: 1.65 }}>
-          <li>Aucune dépense, aucun CPA, aucun budget · ta marge se lit dans ces colonnes.</li>
-          <li>Aucune hypothèse, aucun apprentissage · c’est ta méthode, c’est ce qu’il paie.</li>
-          <li>Aucun test en cours · seuls les verdicts que tu as arbitrés apparaissent.</li>
-        </ul>
+      )}
 
-        {error && (
-          <p style={{ marginTop: 13, padding: '9px 12px', background: 'rgba(254,44,85,.09)', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
-            {error}
-          </p>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 16, flexWrap: 'wrap' }}>
-          <label style={{ fontSize: 12, color: 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 7 }}>
-            Valable
-            <select value={jours} onChange={(e) => setJours(Number(e.target.value))} style={{
-              padding: '7px 10px', borderRadius: 9, border: '1px solid var(--line-2)',
-              background: 'var(--paper)', color: 'var(--ink)', fontSize: 12,
-            }}>
-              <option value={30}>30 jours</option>
-              <option value={90}>90 jours</option>
-              <option value={180}>6 mois</option>
-              <option value={365}>1 an</option>
-            </select>
-          </label>
-          <button type="button" onClick={creer} disabled={busy} style={{
-            padding: '8px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
-            color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 16, flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 12, color: 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 7 }}>
+          Valable
+          <select value={jours} onChange={(e) => setJours(Number(e.target.value))} style={{
+            padding: '7px 10px', borderRadius: 9, border: '1px solid var(--line-2)',
+            background: 'var(--paper)', color: 'var(--ink)', fontSize: 12,
           }}>
-            Créer un lien
-          </button>
-        </div>
-        <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
-          Une échéance est toujours posée · un lien sans date traîne dans un fil de messages et finit
-          par montrer à un ancien client ce que tu fais aujourd’hui.
-        </p>
-
-        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {links === null && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Chargement…</span>}
-          {links?.length === 0 && <EmptyLine>Aucun lien actif · crée le premier ci-dessus pour partager tes créas gagnantes en marque blanche, sans jamais donner accès à l’outil.</EmptyLine>}
-          {links?.map((l) => (
-            <div key={l.id} style={{
-              ...tuile, padding: '9px 12px',
-              background: 'var(--paper)', display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap',
-            }}>
-              <code style={{
-                flex: '1 1 220px', minWidth: 0, fontFamily: 'ui-monospace, monospace', fontSize: 11,
-                color: l.expired ? 'var(--muted)' : 'var(--accent-strong)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                /c/{l.token}
-              </code>
-              <span style={{ fontSize: 10.5, color: l.expired ? '#ff8095' : 'var(--muted)', whiteSpace: 'nowrap' }}>
-                {l.expired
-                  ? 'expiré'
-                  : l.expiresAt
-                    ? `jusqu’au ${new Date(l.expiresAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })}`
-                    : 'sans échéance'}
-              </span>
-              {!l.expired && (
-                <button type="button" onClick={() => copier(l.token, l.id)} style={petit}>
-                  {copie === l.id ? 'copié' : 'copier'}
-                </button>
-              )}
-              <button type="button" onClick={() => revoquer(l.id)} disabled={busy} style={{ ...petit, color: '#ff8095' }}>
-                révoquer
-              </button>
-            </div>
-          ))}
-        </div>
+            <option value={30}>30 jours</option>
+            <option value={90}>90 jours</option>
+            <option value={180}>6 mois</option>
+            <option value={365}>1 an</option>
+          </select>
+        </label>
+        <button type="button" onClick={creer} disabled={busy} style={{
+          padding: '8px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)',
+          color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+        }}>
+          Créer un lien
+        </button>
       </div>
-    </Portail>
+      <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
+        Une échéance est toujours posée · un lien sans date traîne dans un fil de messages et finit
+        par montrer à un ancien client ce que tu fais aujourd’hui.
+      </p>
+
+      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {links === null && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Chargement…</span>}
+        {links?.length === 0 && <EmptyLine>Aucun lien actif · crée le premier ci-dessus pour partager tes créas gagnantes en marque blanche, sans jamais donner accès à l’outil.</EmptyLine>}
+        {links?.map((l) => (
+          <div key={l.id} style={{
+            ...tuile, padding: '9px 12px',
+            background: 'var(--paper)', display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap',
+          }}>
+            <code style={{
+              flex: '1 1 220px', minWidth: 0, fontFamily: 'ui-monospace, monospace', fontSize: 11,
+              color: l.expired ? 'var(--muted)' : 'var(--accent-strong)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              /c/{l.token}
+            </code>
+            <span style={{ fontSize: 10.5, color: l.expired ? '#ff8095' : 'var(--muted)', whiteSpace: 'nowrap' }}>
+              {l.expired
+                ? 'expiré'
+                : l.expiresAt
+                  ? `jusqu’au ${new Date(l.expiresAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })}`
+                  : 'sans échéance'}
+            </span>
+            {!l.expired && (
+              <button type="button" onClick={() => copier(l.token, l.id)} style={petit}>
+                {copie === l.id ? 'copié' : 'copier'}
+              </button>
+            )}
+            <button type="button" onClick={() => revoquer(l.id)} disabled={busy} style={{ ...petit, color: '#ff8095' }}>
+              révoquer
+            </button>
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
 

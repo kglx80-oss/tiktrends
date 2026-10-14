@@ -43,7 +43,8 @@ const CONNUS_MIN = [
   'components/Modal.tsx',
   'components/CommandPalette.tsx',
   'app/(app)/adsmap/AdDrawer.tsx',
-  'app/(app)/adsmap/SharePanel.tsx',
+  // (Lot A3 · `adsmap/SharePanel.tsx` est passé sur la `Modal` partagée · il ne
+  // rend plus de voile à lui, la Modal le porte.)
 ];
 
 function tsxDuDossier(rel: string): string[] {

@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { messageEchecEnregistrement } from '@tiktrends/core';
 import { saveWorkspaceNameAction } from '../app/actions/admin';
-import { Modal } from './Modal';
+import { Modal, PiedModale } from './Modal';
 import { Icon } from './Icon';
 import { input, lbl } from './ui';
 
@@ -23,6 +23,8 @@ export function QuickSettingsModal({ open, onClose, onSaved, workspaceName, show
 }) {
   const [pending, setPending] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Le bouton d'envoi vit dans le pied collant de la fenêtre, hors du <form> · il s'y rattache par `form`.
+  const formulaireId = useId();
 
   async function enregistrer(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,8 +45,17 @@ export function QuickSettingsModal({ open, onClose, onSaved, workspaceName, show
   const fermer = () => { setErreur(null); onClose(); };
 
   return (
-    <Modal open={open} onClose={fermer} icon={<Icon name="gear" size={18} />} title="Réglages rapides" subtitle="Nom de l'espace et préférences d'affichage.">
-      <form onSubmit={enregistrer} style={{ display: 'grid', gap: 16 }}>
+    <Modal open={open} onClose={fermer} icon={<Icon name="gear" size={18} />} title="Réglages rapides" subtitle="Nom de l'espace et préférences d'affichage." pied={(
+      <PiedModale entre>
+        {showAdvanced
+          ? <Link href="/settings" onClick={fermer} style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>Réglages avancés ›</Link>
+          : <span />}
+        <button type="submit" form={formulaireId} disabled={pending} aria-busy={pending || undefined} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: pending ? .6 : 1 }}>
+          {pending ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+      </PiedModale>
+    )}>
+      <form id={formulaireId} onSubmit={enregistrer} style={{ display: 'grid', gap: 16 }}>
         <div>
           <label htmlFor="reglages-nom-espace" style={lbl}>Nom de l'espace</label>
           <input id="reglages-nom-espace" name="name" defaultValue={workspaceName} required autoFocus placeholder="Nom de ton espace / agence" aria-invalid={!!erreur} aria-describedby={erreur ? 'reglages-erreur' : undefined} style={input} />
@@ -54,14 +65,6 @@ export function QuickSettingsModal({ open, onClose, onSaved, workspaceName, show
           <label style={lbl}>Langue de l'interface</label>
           <select disabled style={{ ...input, opacity: .7 }}><option>Français</option></select>
           <p style={{ margin: '6px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>D'autres langues arrivent prochainement.</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          {showAdvanced
-            ? <Link href="/settings" onClick={fermer} style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>Réglages avancés ›</Link>
-            : <span />}
-          <button type="submit" disabled={pending} aria-busy={pending || undefined} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: pending ? .6 : 1 }}>
-            {pending ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
         </div>
       </form>
     </Modal>
