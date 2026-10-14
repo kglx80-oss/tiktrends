@@ -2,9 +2,9 @@
 
 import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl } from '@tiktrends/integrations';
+import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, type OrigineStudioBibliotheque } from '@tiktrends/core';
+import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleObjetDeLEspace, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -14,7 +14,7 @@ import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl } from '../../lib/asset-url';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
-import { decideImportedImage } from '../../lib/import-image';
+import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
@@ -44,6 +44,8 @@ export interface AssetItem {
 }
 
 const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
+/** Téléversement sans bucket (data URI) · formats relus dans les octets. */
+const FORMATS_TELEVERSES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 function toItem(r: {
   id: string; name: string; kind: string; source: string; url: string; embarquee: boolean;
@@ -111,9 +113,14 @@ export async function uploadImageAssetsAction(input: { items: Array<{ name: stri
   const rows = [] as Array<typeof schema.assets.$inferInsert>;
   for (const it of input.items || []) {
     const uri = (it.dataUri || '').trim();
-    if (!/^data:image\/(png|jpe?g|webp);base64,/.test(uri)) return { error: 'Formats acceptés : jpg, png, webp.' };
     if (uri.length > MAX_IMG_BYTES) return { error: 'Image trop lourde (max ~4 Mo après compression).' };
-    rows.push({ workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id, name: (it.name || 'image').slice(0, 160), kind: 'image', source: 'upload', url: uri, mimeType: 'image/jpeg', sizeBytes: Math.round(uri.length * 0.75) });
+    // Le préfixe `data:image/png` est écrit par le NAVIGATEUR · un SVG s'y
+    // déguise sans effort. Le type se relit dans les octets, et le data URI est
+    // reconstruit avec lui.
+    const octets = octetsDataUri(uri);
+    const type = octets ? typeMediaReel(octets) : null;
+    if (!octets || !type || !FORMATS_TELEVERSES.has(type)) return { error: 'Formats acceptés : jpg, png, webp.' };
+    rows.push({ workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id, name: (it.name || 'image').slice(0, 160), kind: 'image', source: 'upload', url: `data:${type};base64,${octets.toString('base64')}`, mimeType: type, sizeBytes: octets.length });
   }
   if (!rows.length) return { error: 'Aucune image valide.' };
   await db.insert(schema.assets).values(rows);
@@ -314,6 +321,13 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
   if (!s || !db) return { error: GUARD.session() };
   const url = (input.url || '').trim();
   if (!/^https?:\/\//i.test(url)) return { error: 'URL invalide.' };
+  // Un téléversement ne s'enregistre que s'il est rangé chez CET espace
+  // (`assets/<espace>/…` sous la base publique du bucket). Avant, n'importe
+  // quelle URL passait · celle d'un objet d'un autre espace, que la
+  // suppression de l'asset effaçait ensuite du bucket.
+  const cfg = storageFromEnv();
+  if (!cfg) return { error: messageServiceInactif('stockage') };
+  if (!cleObjetDeLEspace(url, basePubliqueStockage(cfg), s.workspaceId)) return { error: 'Ce fichier n’a pas été téléversé depuis cet espace.' };
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
   await db.insert(schema.assets).values({
     workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
@@ -330,8 +344,11 @@ export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: t
   const [row] = await db.select({ url: schema.assets.url, source: schema.assets.source })
     .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   await db.delete(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
-  // Suppression physique best-effort du fichier stocké sur le bucket.
+  // Suppression physique best-effort du fichier stocké sur le bucket ·
+  // seulement s'il est rangé chez CET espace (`deleteObjectByUrl` relit la
+  // règle `cleObjetDeLEspace` et n'envoie rien sinon). Une ligne ancienne qui
+  // pointerait ailleurs perd sa ligne, jamais l'objet d'un autre espace.
   const cfg = storageFromEnv();
-  if (cfg && row?.source === 'upload' && row.url) { try { await deleteObjectByUrl(cfg, row.url); } catch { /* best-effort */ } }
+  if (cfg && row?.source === 'upload' && row.url) { try { await deleteObjectByUrl(cfg, row.url, s.workspaceId); } catch { /* best-effort */ } }
   return { ok: true };
 }

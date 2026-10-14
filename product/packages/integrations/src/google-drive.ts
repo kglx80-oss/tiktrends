@@ -123,6 +123,16 @@ export async function driveListFilesDeep(accessToken: string, rootId: string, o?
   return out;
 }
 
+/**
+ * Les métadonnées d'UN fichier, lues chez Drive avec le jeton de la marque ·
+ * jamais celles que le navigateur prétend (le sélecteur renvoie un objet que le
+ * client peut réécrire avant l'appel serveur).
+ */
+export async function driveFileMeta(accessToken: string, fileId: string): Promise<DriveFile> {
+  const j = await driveGet<DriveFile & { size?: string | number }>(accessToken, `files/${encodeURIComponent(fileId)}`, { fields: 'id,name,mimeType,size', supportsAllDrives: 'true' });
+  return { ...j, size: j.size ? Number(j.size) : undefined };
+}
+
 /** Télécharge le contenu binaire d'un fichier Drive. */
 export async function driveDownload(accessToken: string, fileId: string): Promise<Buffer> {
   const r = await fetch(`${DRIVE}/files/${fileId}?alt=media`, { headers: { Authorization: `Bearer ${accessToken}` } });

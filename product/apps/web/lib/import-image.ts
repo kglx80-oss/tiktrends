@@ -14,9 +14,20 @@
  *  - récupéré mais pas une image → on refuse, message clair ;
  *  - une vraie image → on renvoie le data URI durable à stocker.
  *
+ * ── Sécurité · le type se lit dans les octets ────────────────────────────────
+ *
+ * Le type retenu est celui des OCTETS (`typeMediaReel`, liste fermée du noyau),
+ * jamais l'en-tête du site distant. Avant, tout `image/*` passait, donc
+ * `image/svg+xml` : un SVG porte du script, et servi sur notre origine il
+ * s'exécutait avec la session de qui l'ouvrait. Un HTML annoncé `image/png`, un
+ * SVG annoncé `IMAGE/PNG` : seul le contenu décide, et le data URI est
+ * reconstruit avec le type relu, rien de déclaré n'y entre.
+ *
  * Le fetch SSRF-safe (`safeFetch`) et l'écriture en base vivent chez l'appelant ·
  * cette fonction reste pure et s'exerce avec un buffer factice.
  */
+
+import { typeMediaReel, familleMedia } from '@tiktrends/core';
 
 export interface ImageRecuperee {
   body: Buffer;
@@ -27,6 +38,8 @@ export type DecisionImportImage =
   | { ok: true; dataUri: string; mimeType: string }
   | { ok: false; error: string };
 
+const PAS_UNE_IMAGE = 'Ce lien ne pointe pas vers une image. Colle le lien direct d’un fichier image (jpg, png, webp, gif…), ou téléverse-le.';
+
 /**
  * Que faire du résultat d'un fetch d'image · `null` quand le fetch a échoué.
  */
@@ -34,9 +47,20 @@ export function decideImportedImage(fetched: ImageRecuperee | null): DecisionImp
   if (!fetched) {
     return { ok: false, error: 'Ce lien ne renvoie pas une image accessible (introuvable, trop lourde, ou bloquée). Vérifie le lien de partage, ou téléverse le fichier directement.' };
   }
-  const mime = (fetched.contentType || '').split(';')[0]!.trim().toLowerCase();
-  if (!/^image\//.test(mime)) {
-    return { ok: false, error: 'Ce lien ne pointe pas vers une image. Colle le lien direct d’un fichier image (jpg, png, webp…), ou téléverse-le.' };
-  }
-  return { ok: true, mimeType: mime, dataUri: `data:${mime};base64,${fetched.body.toString('base64')}` };
+  const type = typeMediaReel(fetched.body);
+  if (!type || familleMedia(type) !== 'image') return { ok: false, error: PAS_UNE_IMAGE };
+  return { ok: true, mimeType: type, dataUri: `data:${type};base64,${fetched.body.toString('base64')}` };
+}
+
+/**
+ * Les octets d'un `data:` URI en base64 · `null` pour toute autre forme. Le
+ * type ANNONCÉ dans le préfixe est ignoré : il se relit dans les octets.
+ */
+export function octetsDataUri(uri: string): Buffer | null {
+  if (typeof uri !== 'string' || !/^data:/i.test(uri)) return null;
+  const virgule = uri.indexOf(',');
+  if (virgule < 0) return null;
+  if (!/;base64$/i.test(uri.slice(5, virgule))) return null;
+  const octets = Buffer.from(uri.slice(virgule + 1), 'base64');
+  return octets.length ? octets : null;
 }

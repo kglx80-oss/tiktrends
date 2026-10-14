@@ -2,8 +2,8 @@
 
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, putObject, storeDriveThumb } from '@tiktrends/integrations';
-import { DRIVE_SELECTEUR_INACTIF, texteMessageClient, type DernierSyncDrive } from '@tiktrends/core';
+import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, driveFileMeta, putObject, storeDriveThumb } from '@tiktrends/integrations';
+import { DRIVE_SELECTEUR_INACTIF, texteMessageClient, TYPES_MEDIA_SERVIS, typeMediaRetenu, type DernierSyncDrive } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -120,19 +120,27 @@ export async function syncDriveFilesAction(files: PickedFile[]): Promise<{ ok?: 
     const existing = new Set(rows.map((r) => r.id).filter((x): x is string => !!x));
     let added = 0, skipped = 0;
     for (const f of files.slice(0, 300)) {
-      if (!f?.id || existing.has(f.id)) { skipped++; continue; }
-      const mime = f.mimeType || '';
-      const kind: 'image' | 'video' | 'audio' | 'other' = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : 'other';
-      let url = `https://drive.google.com/file/d/${f.id}/view`;
-      if (kind === 'image' && storage && (f.sizeBytes ?? 0) < 15_000_000) {
-        const bytes = await driveDownload(token, f.id);
-        const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-        url = await putObject(storage, `assets/${ws}/drive-${f.id}.${ext}`, bytes, mime);
+      // Seul l'IDENTIFIANT vient du navigateur · borné aux caractères d'un id
+      // Drive, il ne peut pas réécrire le chemin de l'API ni la clé d'objet.
+      const fileId = typeof f?.id === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(f.id) ? f.id : null;
+      if (!fileId || existing.has(fileId)) { skipped++; continue; }
+      // Type, taille et nom relus CHEZ DRIVE · `f.mimeType` (déclaré par le
+      // client) est ignoré : un `text/html` annoncé ne décide plus de rien.
+      const meta = await driveFileMeta(token, fileId);
+      let retenu = typeMediaRetenu(meta.mimeType);
+      if (!retenu) { skipped++; continue; }
+      let url = `https://drive.google.com/file/d/${fileId}/view`;
+      if (retenu.kind === 'image' && storage && (meta.size ?? 0) < 15_000_000) {
+        const bytes = await driveDownload(token, fileId);
+        // Le type posé sur l'objet et gardé en base est celui des OCTETS.
+        retenu = typeMediaRetenu(meta.mimeType, bytes);
+        if (!retenu) { skipped++; continue; }
+        url = await putObject(storage, `assets/${ws}/drive-${fileId}.${TYPES_MEDIA_SERVIS[retenu.type].extension}`, bytes, retenu.type);
       }
       // Vraie vignette (images ET vidéos) · le Picker ne la fournit pas, on la
       // demande à Drive puis on la range chez nous. Remplace l'icône de repli.
-      const thumbUrl = await storeDriveThumb({ storage, token, fileId: f.id, workspaceId: ws }) ?? undefined;
-      await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, name: (f.name || 'Fichier Drive').slice(0, 160), kind, source: 'drive', url, thumbUrl, externalId: f.id, mimeType: mime, sizeBytes: f.sizeBytes });
+      const thumbUrl = await storeDriveThumb({ storage, token, fileId, workspaceId: ws }) ?? undefined;
+      await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, name: (meta.name || f.name || 'Fichier Drive').slice(0, 160), kind: retenu.kind, source: 'drive', url, thumbUrl, externalId: fileId, mimeType: retenu.type, sizeBytes: meta.size ?? null });
       added++;
     }
     await db!.update(schema.brands).set({ driveSyncedAt: new Date() }).where(eq(schema.brands.id, brandId));

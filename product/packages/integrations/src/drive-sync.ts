@@ -5,6 +5,7 @@
  */
 import type { StorageConfig } from './storage';
 import { putObject } from './storage';
+import { typeMediaRetenu, TYPES_MEDIA_SERVIS } from '@tiktrends/core';
 import { googleAccessToken, driveListFilesDeep, driveDownload, driveThumbnailLink, driveThumbBytes } from './google-drive';
 
 export type DriveAssetKind = 'image' | 'video' | 'audio' | 'other';
@@ -41,8 +42,6 @@ export interface SyncDriveDeps {
   insertAsset(a: DriveAssetInput): Promise<void>;
 }
 
-const kindOf = (mime: string): DriveAssetKind =>
-  mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : 'other';
 
 export async function syncDriveAssets(deps: SyncDriveDeps, o: {
   storage: StorageConfig | null; refreshToken: string; folderId: string; workspaceId: string; maxFiles?: number;
@@ -57,20 +56,23 @@ export async function syncDriveAssets(deps: SyncDriveDeps, o: {
 
   for (const f of files.slice(0, cap)) {
     if (existing.has(f.id)) { skipped++; continue; }
-    const kind = kindOf(f.mimeType);
+    let retenu = typeMediaRetenu(f.mimeType);
+    if (!retenu) { skipped++; continue; }
     try {
       let url = f.webViewLink || '';
       // Images : on télécharge et on héberge sur notre bucket (pour <img> + IA).
-      if (kind === 'image' && o.storage && (f.size ?? 0) < 15_000_000) {
+      // Le type posé sur l'objet et gardé en base est celui des OCTETS.
+      if (retenu.kind === 'image' && o.storage && (f.size ?? 0) < 15_000_000) {
         const bytes = await driveDownload(token, f.id);
-        const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-        url = await putObject(o.storage, `assets/${o.workspaceId}/drive-${f.id}.${ext}`, bytes, f.mimeType);
+        retenu = typeMediaRetenu(f.mimeType, bytes);
+        if (!retenu) { skipped++; continue; }
+        url = await putObject(o.storage, `assets/${o.workspaceId}/drive-${f.id}.${TYPES_MEDIA_SERVIS[retenu.type].extension}`, bytes, retenu.type);
       }
       if (!url) { skipped++; continue; }
       // Vraie vignette (images ET vidéos) · captée maintenant, où la thumbnailLink
       // est fraîche, puis rangée chez nous. C'est ce qui remplace l'icône de repli.
       const thumbUrl = await storeDriveThumb({ storage: o.storage, token, fileId: f.id, workspaceId: o.workspaceId, thumbnailLink: f.thumbnailLink }) ?? undefined;
-      await deps.insertAsset({ name: f.name.slice(0, 160), kind, source: 'drive', url, externalId: f.id, mimeType: f.mimeType, sizeBytes: f.size, thumbUrl });
+      await deps.insertAsset({ name: f.name.slice(0, 160), kind: retenu.kind, source: 'drive', url, externalId: f.id, mimeType: retenu.type, sizeBytes: f.size, thumbUrl });
       added++;
     } catch { errors++; }
   }
