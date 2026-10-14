@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
+import { refusBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../../lib/bibliotheque-acces';
+import { Icon } from '../../../components/Icon';
 import { getActiveBrand } from '../../../lib/brands';
 import { storageConfigured } from '@tiktrends/integrations';
 import { messageErreurConnexionDrive, etatConnexionDrive, fusionnerBibliotheque, LIMITE_BIBLIOTHEQUE } from '@tiktrends/core';
@@ -18,7 +20,24 @@ export const dynamic = 'force-dynamic';
 export default async function AssetsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
   if (!s) redirect('/login');
-  if (!roleAtLeast(s.role, 'member')) redirect('/dashboard');
+  // La règle de la feature `assets` (`lib/rbac.ts` · Membre, offre Core) · la
+  // MÊME que celle des actions serveur (`refusBibliotheque`). Rôle insuffisant ·
+  // retour à l'accueil, comme avant. Offre insuffisante · la page le dit, au
+  // lieu d'ouvrir une bibliothèque dont chaque geste serait refusé.
+  const refus = refusBibliotheque(s);
+  if (refus === 'role') redirect('/dashboard');
+  if (refus === 'plan') {
+    return (
+      <main style={cadrePage}>
+        <h1 style={h1}>Bibliothèque</h1>
+        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 'var(--r-card)', background: 'var(--surface)', textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={30} /></div>
+          <h2 style={{ margin: '10px 0 6px', fontSize: 18, color: 'var(--ink)' }}>Fonctionnalité incluse dès l&apos;abonnement Core</h2>
+          <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '0 auto' }}>{TEXTE_REFUS_BIBLIOTHEQUE.plan}</p>
+        </div>
+      </main>
+    );
+  }
 
   const sp = (await searchParams) ?? {};
   const okDrive = sp.ok === 'drive';

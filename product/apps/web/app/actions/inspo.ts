@@ -166,9 +166,18 @@ export async function unsaveAd(input: { platform: string; externalId: string }):
   return { ok: true };
 }
 
-export async function followBrand(input: { platform: string; name: string; externalId?: string; logoUrl?: string; domain?: string }): Promise<void> {
-  const s = await getSession();
-  if (!s || !db || !input.name) return;
+/**
+ * Suivre un concurrent · un NOUVEL élément de Veille, comme `saveAd` · même
+ * garde (`gardeVeille` · rôle ET offre de la feature `inspo`). Ne vérifiait que
+ * la session · un lecteur client, ou un espace Starter, ajoutait des marques au
+ * suivi en appelant l'action directement. Le refus se dit par une valeur, pas
+ * par une exception · le bouton revient à « + Suivre » et l'annonce.
+ */
+export async function followBrand(input: { platform: string; name: string; externalId?: string; logoUrl?: string; domain?: string }): Promise<ResultatEcriture> {
+  const g = await gardeVeille();
+  if ('error' in g) return { ok: false, error: g.error };
+  const { s } = g;
+  if (!db || !input.name) return { ok: false, error: 'Marque introuvable · recharge la page.' };
   const brand = await getActiveBrand(s.workspaceId);
   // On capte le domaine de la créa qui a servi à suivre · c'est ce qui offre le
   // lien « site » sur la puce, sans nouvelle recherche.
@@ -176,14 +185,28 @@ export async function followBrand(input: { platform: string; name: string; exter
   await db.insert(schema.followedBrands)
     .values({ workspaceId: s.workspaceId, brandId: brand?.id ?? null, platform: input.platform, name: input.name, externalId: input.externalId || null, logoUrl: input.logoUrl || null, domain })
     .onConflictDoNothing();
+  return { ok: true };
 }
 
-export async function unfollowBrand(input: { platform: string; name: string }): Promise<void> {
+/**
+ * Ne plus suivre un concurrent · même matrice que les écritures sur une
+ * sauvegarde existante (`gardeEcritureSauvegarde`) · le RÔLE de la Veille est
+ * exigé (un lecteur client retirait les marques suivies de l'espace), l'OFFRE
+ * ne l'est pas · un espace Starter garde `/saved` et son onglet « Concurrents »
+ * (dette connue, même périmètre que ranger et retirer). Retirer ne dépense
+ * rien, et refuser le retrait laisserait une marque suivie qu'on ne peut plus
+ * arrêter de suivre.
+ */
+export async function unfollowBrand(input: { platform: string; name: string }): Promise<ResultatEcriture> {
   const s = await getSession();
-  if (!s || !db) return;
+  if (!s || !db) return { ok: false, error: 'Session expirée · reconnecte-toi puis réessaie.' };
+  if (denyReason(effectiveAccess(s), Veille) === 'role') {
+    return { ok: false, error: 'Ton rôle ne permet pas d’utiliser la Veille · demande à un administrateur de l’espace.' };
+  }
   await db.delete(schema.followedBrands).where(and(
     eq(schema.followedBrands.workspaceId, s.workspaceId),
     eq(schema.followedBrands.platform, input.platform),
     eq(schema.followedBrands.name, input.name),
   ));
+  return { ok: true };
 }

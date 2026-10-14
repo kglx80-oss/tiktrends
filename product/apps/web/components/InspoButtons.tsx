@@ -68,6 +68,8 @@ export function FollowButton({ ad, initialFollowing }: { ad: InspoAd; initialFol
   const [following, setFollowing] = useState(initialFollowing);
   const [pending, start] = useTransition();
   const verrou = useRef(verrouAction());
+  const pile = useToastSiPresent();
+  const bouton = useRef<HTMLButtonElement>(null);
   if (!ad.advertiserName) return null;
   const basculer = () => {
     if (!verrou.current.tenter()) return;
@@ -75,14 +77,18 @@ export function FollowButton({ ad, initialFollowing }: { ad: InspoAd; initialFol
     setFollowing(next);
     start(async () => {
       try {
-        if (next) await followBrand({ platform: ad.platform, name: ad.advertiserName!, externalId: ad.advertiserId, logoUrl: ad.advertiserLogo, domain: ad.landingDomain });
-        else await unfollowBrand({ platform: ad.platform, name: ad.advertiserName! });
+        // Suivre et ne plus suivre disent NON par une valeur (droit Veille) ·
+        // un refus remet l'état d'avant et se dit · jamais « ✓ Suivi » sur un non.
+        const r = next
+          ? await followBrand({ platform: ad.platform, name: ad.advertiserName!, externalId: ad.advertiserId, logoUrl: ad.advertiserLogo, domain: ad.landingDomain })
+          : await unfollowBrand({ platform: ad.platform, name: ad.advertiserName! });
+        if (r && r.ok === false) { setFollowing(!next); pile?.toast(r.error, 'err', bouton.current); }
       } catch { setFollowing(!next); }
       finally { verrou.current.relacher(); }
     });
   };
   return (
-    <button type="button" aria-pressed={following} disabled={pending} onClick={basculer}
+    <button ref={bouton} type="button" aria-pressed={following} disabled={pending} onClick={basculer}
       style={{ minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, padding: '3px 11px', borderRadius: 999, cursor: pending ? 'default' : 'pointer', border: '1px solid var(--line-2)', background: following ? 'var(--accent-soft)' : 'transparent', color: following ? 'var(--accent-strong)' : 'var(--ink-2)' }}>
       {following ? '✓ Suivi' : '+ Suivre'}
     </button>
@@ -109,7 +115,12 @@ export function BrandRemoveButton({ platform, name, onRetrait }: { platform: str
     setGone(true);
     onRetrait?.('retire');
     start(async () => {
-      try { await unfollowBrand({ platform, name }); router.refresh(); }
+      try {
+        const r = await unfollowBrand({ platform, name });
+        // Refus (droit Veille) · la marque reste à l'écran, comme en base.
+        if (r && r.ok === false) { setGone(false); onRetrait?.('annule'); return; }
+        router.refresh();
+      }
       catch { setGone(false); onRetrait?.('annule'); }
       finally { verrou.current.relacher(); }
     });
