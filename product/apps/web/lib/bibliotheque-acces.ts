@@ -24,9 +24,24 @@ import type { Session } from './auth';
  */
 export const FEATURE_BIBLIOTHEQUE: Feature = FEATURES.find((f) => f.key === 'assets')!;
 
-/** null · accès ouvert. Sinon la raison du refus (`role` ou `plan`). */
-export function refusBibliotheque(s: Pick<Session, 'role' | 'plan' | 'user' | 'equipe'>): 'role' | 'plan' | null {
-  if (!roleAtLeast(s.role, FEATURE_BIBLIOTHEQUE.minRole)) return 'role';
+/**
+ * LECTURE · voir les médias de l'espace (page `/assets`, `listAssets`). La règle
+ * d'avant, inchangée · le plancher de rôle de la feature (Membre), SANS offre.
+ * Un espace sous Core garde la vue sur ses médias existants · on ne retire
+ * aucun accès à des données déjà là.
+ */
+export function refusLectureBibliotheque(s: Pick<Session, 'role'>): 'role' | null {
+  return roleAtLeast(s.role, FEATURE_BIBLIOTHEQUE.minRole) ? null : 'role';
+}
+
+/**
+ * ÉCRITURE · tout geste qui écrit, réserve un crédit ou appelle l'IA. La feature
+ * complète · plancher de rôle d'espace PUIS `canAccess` (rôle et offre).
+ * null · accès ouvert. Sinon la raison du refus (`role` ou `plan`).
+ */
+export function refusEcritureBibliotheque(s: Pick<Session, 'role' | 'plan' | 'user' | 'equipe'>): 'role' | 'plan' | null {
+  const lecture = refusLectureBibliotheque(s);
+  if (lecture) return lecture;
   const a = effectiveAccess(s);
   if (canAccess(a, FEATURE_BIBLIOTHEQUE)) return null;
   return denyReason(a, FEATURE_BIBLIOTHEQUE) ?? 'role';
@@ -38,6 +53,6 @@ export function refusBibliotheque(s: Pick<Session, 'role' | 'plan' | 'user' | 'e
  * espace et un asset de l'espace reçoivent la même réponse).
  */
 export const TEXTE_REFUS_BIBLIOTHEQUE: Readonly<Record<'role' | 'plan', string>> = {
-  plan: 'La Bibliothèque est incluse dès l’offre Core · un propriétaire de l’espace peut changer d’offre dans Réglages.',
+  plan: 'Ajouter, modifier ou analyser des médias est inclus dès l’offre Core · un propriétaire de l’espace peut changer d’offre dans Réglages.',
   role: 'Ton rôle ne permet pas d’utiliser la Bibliothèque · demande à un administrateur de l’espace.',
 };

@@ -15,23 +15,38 @@ import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl } from '../../lib/asset-url';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage } from '../../lib/import-image';
-import { refusBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
+import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
 type SessionBibliotheque = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 
 /**
- * La règle de la PAGE `/assets` (feature `assets` du catalogue, `lib/rbac.ts`),
- * appliquée à chaque action · une action serveur reste appelable directement,
- * l'écran caché ne protège rien. Passe AVANT toute lecture, écriture,
- * réservation de crédit ou appel IA. Refus neutre · il ne dépend jamais de
- * l'objet visé.
+ * La feature `assets` du catalogue (`lib/rbac.ts` · rôle ET offre), appliquée à
+ * chaque action qui ÉCRIT, réserve un crédit ou appelle l'IA · une action
+ * serveur reste appelable directement, l'écran caché ne protège rien. Passe
+ * AVANT toute lecture, écriture, réservation ou appel. Refus neutre · il ne
+ * dépend jamais de l'objet visé.
+ *
+ * Tout nouvel export de ce fichier doit passer par une garde · le test
+ * `securite-bibliotheque-db` énumère les exports et refuse un oubli.
  */
 async function gardeBibliotheque(): Promise<{ s: SessionBibliotheque } | { error: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
-  const refus = refusBibliotheque(s);
+  const refus = refusEcritureBibliotheque(s);
+  if (refus) return { error: TEXTE_REFUS_BIBLIOTHEQUE[refus] };
+  return { s };
+}
+
+/**
+ * LECTURE seule · la règle d'avant (plancher de rôle, sans offre). Un espace
+ * sous Core garde la vue sur ses médias existants.
+ */
+async function gardeLectureBibliotheque(): Promise<{ s: SessionBibliotheque } | { error: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: GUARD.session() };
+  const refus = refusLectureBibliotheque(s);
   if (refus) return { error: TEXTE_REFUS_BIBLIOTHEQUE[refus] };
   return { s };
 }
@@ -90,7 +105,7 @@ function toItem(r: {
  * `brandOnly` force le strict-marque (exclut les communs).
  */
 export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean; limit?: number }): Promise<AssetItem[]> {
-  const g = await gardeBibliotheque();
+  const g = await gardeLectureBibliotheque();
   if ('error' in g) return [];
   const { s } = g;
   if (!db) return [];
@@ -226,8 +241,10 @@ export async function toggleAssetAiAction(input: { id: string; useForAi: boolean
  * AVANT toute écriture, en plus du cloisonnement d'espace.
  */
 export async function basculerTemplateAction(input: { id: string; on: boolean }): Promise<{ ok?: true; isTemplate?: boolean; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'admin')) return { error: 'Seule l’agence (admin) gère les templates.' };
   const [a] = await db.select({ tags: schema.assets.tags }).from(schema.assets)
     .where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);

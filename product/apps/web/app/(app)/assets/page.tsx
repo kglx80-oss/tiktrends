@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast } from '../../../lib/rbac';
-import { refusBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../../lib/bibliotheque-acces';
+import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../../lib/bibliotheque-acces';
 import { Icon } from '../../../components/Icon';
 import { getActiveBrand } from '../../../lib/brands';
 import { storageConfigured } from '@tiktrends/integrations';
@@ -20,24 +20,14 @@ export const dynamic = 'force-dynamic';
 export default async function AssetsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
   if (!s) redirect('/login');
-  // La règle de la feature `assets` (`lib/rbac.ts` · Membre, offre Core) · la
-  // MÊME que celle des actions serveur (`refusBibliotheque`). Rôle insuffisant ·
-  // retour à l'accueil, comme avant. Offre insuffisante · la page le dit, au
-  // lieu d'ouvrir une bibliothèque dont chaque geste serait refusé.
-  const refus = refusBibliotheque(s);
-  if (refus === 'role') redirect('/dashboard');
-  if (refus === 'plan') {
-    return (
-      <main style={cadrePage}>
-        <h1 style={h1}>Bibliothèque</h1>
-        <div style={{ marginTop: 20, padding: 28, border: '1px solid var(--line)', borderRadius: 'var(--r-card)', background: 'var(--surface)', textAlign: 'center' }}>
-          <div style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={30} /></div>
-          <h2 style={{ margin: '10px 0 6px', fontSize: 18, color: 'var(--ink)' }}>Fonctionnalité incluse dès l&apos;abonnement Core</h2>
-          <p style={{ color: 'var(--ink-2)', fontSize: 14, maxWidth: 460, margin: '0 auto' }}>{TEXTE_REFUS_BIBLIOTHEQUE.plan}</p>
-        </div>
-      </main>
-    );
-  }
+  // LECTURE · la règle d'avant, inchangée (plancher de rôle Membre, sans offre ·
+  // `refusLectureBibliotheque`). Un espace sous Core garde la vue sur ses
+  // médias existants. ÉCRITURE · la feature complète (rôle ET offre ·
+  // `refusEcritureBibliotheque`, la même que les actions serveur) · refusée,
+  // la bibliothèque s'ouvre en lecture seule, sous un bandeau d'offre.
+  if (refusLectureBibliotheque(s)) redirect('/dashboard');
+  const refusEcriture = refusEcritureBibliotheque(s);
+  const lectureSeule = refusEcriture !== null;
 
   const sp = (await searchParams) ?? {};
   const okDrive = sp.ok === 'drive';
@@ -99,8 +89,16 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
         </div>
       )}
 
+      {refusEcriture && (
+        // Bandeau d'offre · les médias restent consultables, les gestes non.
+        <div role="status" data-bandeau="offre-bibliotheque" style={{ marginTop: 16, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 'var(--r-card)', background: 'var(--surface)', fontSize: 13, color: 'var(--ink-2)' }}>
+          <span style={{ display: 'inline-flex', color: 'var(--muted)' }}><Icon name="lock" size={16} /></span>
+          <span><b style={{ color: 'var(--ink)' }}>Lecture seule.</b> {TEXTE_REFUS_BIBLIOTHEQUE[refusEcriture]}</span>
+        </div>
+      )}
+
       <div style={{ marginTop: 16 }}>
-        <AssetsLibrary initial={assets} brandName={brand?.name ?? null} storageEnabled={storageConfigured()} isAdmin={isAdmin} />
+        <AssetsLibrary initial={assets} brandName={brand?.name ?? null} storageEnabled={storageConfigured()} isAdmin={isAdmin} lectureSeule={lectureSeule} />
       </div>
     </main>
   );

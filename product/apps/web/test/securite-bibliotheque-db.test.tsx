@@ -11,8 +11,15 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * d'un espace Starter, les appelait directement · import, suppression, tagging
  * IA qui réserve des crédits et dépense de l'IA.
  *
- * Vraie base (pglite + migrations du dépôt), VRAIES actions, trois sessions ·
- * `client_viewer` (Core), `member` en Starter, `member` en Core. On lit le
+ * LECTURE et ÉCRITURE sont séparées · voir ses médias existants garde la règle
+ * d'avant (plancher de rôle Membre, sans offre) · aucun accès à des données
+ * déjà là n'est retiré. Tout geste qui écrit, réserve un crédit ou appelle l'IA
+ * exige la feature complète (rôle ET offre). Un espace Starter voit donc ses
+ * assets en lecture seule, sous un bandeau d'offre.
+ *
+ * Vraie base (pglite + migrations du dépôt), VRAIES actions, sessions ·
+ * `client_viewer` (Core), `client_viewer` de l'équipe plateforme, `member` en
+ * Starter, `member` et `admin` en Core. On lit le
  * RÉSULTAT · le refus rendu, l'empreinte des tables (assets, credit_ledger,
  * ai_spend, followed_brands, soldes) avant/après, et le nombre d'appels IA
  * (un client IA qui ÉCHOUE s'il est seulement demandé pendant un refus).
@@ -77,9 +84,11 @@ vi.mock('@tiktrends/integrations', async (importOriginal) => ({
 import { db, schema, sql } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
 import { session, semer } from './studios-semis';
+import * as actionsAssets from '../app/actions/assets';
 import {
   listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction,
   tagUntaggedImagesAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction,
+  basculerTemplateAction,
 } from '../app/actions/assets';
 import { followBrand, unfollowBrand } from '../app/actions/inspo';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
@@ -121,6 +130,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['uploadImageAssetsAction', () => uploadImageAssetsAction({ items: [{ name: 'neuve', dataUri: PNG }] })],
   ['importAssetAction', () => importAssetAction({ name: 'lien', url: 'https://exemple.invalid/clip.mp4', kind: 'video' })],
   ['toggleAssetAiAction', () => toggleAssetAiAction({ id: A.image, useForAi: false })],
+  ['basculerTemplateAction', () => basculerTemplateAction({ id: A.image, on: true })],
   ['tagAssetAction', () => tagAssetAction({ id: A.image })],
   ['tagUntaggedImagesAction', () => tagUntaggedImagesAction()],
   ['presignAssetUploadAction', () => presignAssetUploadAction({ filename: 'a.png', contentType: 'image/png', sizeBytes: 10 })],
@@ -128,13 +138,49 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['deleteAssetAction', () => deleteAssetAction({ id: A.video })],
 ];
 
-const REFUSES: Array<[string, () => SessionTest, 'role' | 'plan']> = [
-  ['client_viewer (Core)', () => session(ids, 'uv'), 'role'],
-  ['member en Starter', () => session(ids, 'ua', { plan: 'starter' }), 'plan'],
+/**
+ * Les exports de `assets.ts` qui n'ÉCRIVENT pas · chacun avec sa raison. Tout
+ * autre export doit figurer dans ACTIONS (garde d'écriture éprouvée ci-dessous).
+ */
+const EXEMPTIONS: Readonly<Record<string, string>> = {
+  listAssets: 'lecture seule · règle d’avant (rôle Membre, sans offre), éprouvée par « Lecture »',
+};
+
+/** Équipe plateforme à accès total, mais `client_viewer` dans l'espace · le plancher de rôle d'ESPACE tient. */
+const equipeLectrice = () => session(ids, 'uv', { equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
+
+/** [qui, session, raison du refus d'écriture, la lecture lui est-elle ouverte ?] */
+const REFUSES: Array<[string, () => SessionTest, 'role' | 'plan', boolean]> = [
+  ['client_viewer (Core)', () => session(ids, 'uv'), 'role', false],
+  ['équipe plateforme restée client_viewer', equipeLectrice, 'role', false],
+  ['member en Starter', () => session(ids, 'ua', { plan: 'starter' }), 'plan', true],
 ];
 
+describe('assets.ts · aucun export sans garde', () => {
+  const nommees = new Set(ACTIONS.map(([n]) => n));
+  it('chaque export est une action gardée (ACTIONS) ou une exemption justifiée', () => {
+    const exports = Object.keys(actionsAssets).filter((k) => typeof (actionsAssets as Record<string, unknown>)[k] === 'function');
+    expect(exports.length).toBeGreaterThan(0);
+    const oublies = exports.filter((k) => !nommees.has(k) && !(k in EXEMPTIONS));
+    expect(oublies, `export(s) de app/actions/assets.ts sans garde éprouvée · ajouter à ACTIONS (garde d’écriture) ou à EXEMPTIONS avec sa raison : ${oublies.join(', ')}`).toEqual([]);
+    const fantomes = [...nommees, ...Object.keys(EXEMPTIONS)].filter((k) => !exports.includes(k));
+    expect(fantomes, 'ACTIONS ou EXEMPTIONS nomme un export qui n’existe plus').toEqual([]);
+  });
+  it('chaque export non exempté refuse un member Starter AVANT de lire ses arguments', async () => {
+    etat.session = session(ids, 'ua', { plan: 'starter' });
+    etat.iaInterdite = true;
+    const avant = await empreinte();
+    for (const [k, f] of Object.entries(actionsAssets)) {
+      if (typeof f !== 'function' || k in EXEMPTIONS) continue;
+      const r = await (f as (x: unknown) => Promise<{ error?: string }>)({}).catch((e: Error) => ({ error: `exception · ${e.message}` }));
+      expect(r?.error, `${k} · appelée sans arguments par un member Starter · la garde ne passe pas en premier`).toBe(TEXTE_REFUS_BIBLIOTHEQUE.plan);
+    }
+    expect(await empreinte()).toBe(avant);
+  });
+});
+
 describe('Bibliothèque · refus AVANT toute écriture, réservation ou appel IA', () => {
-  for (const [qui, faire, raison] of REFUSES) {
+  for (const [qui, faire, raison, lecture] of REFUSES) {
     describe(qui, () => {
       for (const [nom, appeler] of ACTIONS) {
         it(`${nom} · refusé, rien d'écrit, aucun appel IA`, async () => {
@@ -149,10 +195,18 @@ describe('Bibliothèque · refus AVANT toute écriture, réservation ou appel IA
           expect([etat.appelsClient, etat.appelsVision, etat.appelsPresign], `${nom} · ${qui} · IA ou stockage sollicité malgré le refus`).toEqual([0, 0, 0]);
         });
       }
-      it('listAssets · refusé, ne rend rien', async () => {
-        etat.session = faire();
-        expect(await listAssets(), `listAssets · ${qui} · la garde de la Bibliothèque ne refuse pas`).toEqual([]);
-      });
+      if (lecture) {
+        it('listAssets · LECTURE ouverte · ses assets existants restent visibles', async () => {
+          etat.session = faire();
+          const l = await listAssets();
+          expect(l.map((a) => a.id).sort(), `listAssets · ${qui} · la lecture des médias existants est retirée`).toEqual([A.image, A.video].sort());
+        });
+      } else {
+        it('listAssets · refusé, ne rend rien', async () => {
+          etat.session = faire();
+          expect(await listAssets(), `listAssets · ${qui} · la garde de lecture de la Bibliothèque ne refuse pas`).toEqual([]);
+        });
+      }
     });
   }
 });
@@ -199,6 +253,14 @@ describe('Bibliothèque · member en Core · chaque geste marche comme avant', (
   it('registerUploadedAssetAction · une ligne en plus', async () => {
     expect(await registerUploadedAssetAction({ name: 'f', url: 'https://stockage.invalid/f.png', mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
     expect((await ws()).some((a) => a.url === 'https://stockage.invalid/f.png')).toBe(true);
+  });
+  it('basculerTemplateAction · member refusé (admin seulement), admin Core range le template', async () => {
+    expect(await basculerTemplateAction({ id: A.image, on: true })).toEqual({ error: 'Seule l’agence (admin) gère les templates.' });
+    etat.session = session(ids, 'ua', { role: 'admin' });
+    expect(await basculerTemplateAction({ id: A.image, on: true })).toEqual({ ok: true, isTemplate: true });
+    expect((await ws()).find((a) => a.id === A.image)!.tags).toContain('__template__');
+    expect(await basculerTemplateAction({ id: A.image, on: false })).toEqual({ ok: true, isTemplate: false });
+    etat.session = session(ids, 'ua');
   });
   it('deleteAssetAction · l’asset disparaît', async () => {
     expect(await deleteAssetAction({ id: A.video })).toEqual({ ok: true });
@@ -247,20 +309,33 @@ describe('Marques suivies · followBrand / unfollowBrand', () => {
   });
 });
 
-describe('Page /assets · la même règle que ses actions', () => {
-  // Sous le fournisseur de toasts, comme dans la coquille · une page qui ouvrirait
-  // la bibliothèque se rend alors pour de vrai, et c'est son CONTENU qui échoue.
+describe('Page /assets · lecture d’avant, écriture selon la feature', () => {
+  // Sous le fournisseur de toasts, comme dans la coquille · la page se rend pour
+  // de vrai, bibliothèque comprise, et on lit son HTML.
   const rendre = async () => renderToStaticMarkup(<ToastProvider>{await AssetsPage({ searchParams: Promise.resolve({}) })}</ToastProvider>);
+  const GESTES = ['Téléverser', 'Importer par lien', 'Suppr.', 'Analyser', '1 crédit / image'];
 
   it('client_viewer · renvoyé à l’accueil', async () => {
     etat.session = session(ids, 'uv');
     await expect(rendre()).rejects.toThrow('redirect /dashboard');
   });
-  it('member en Starter · la page dit l’offre, sans aucune bibliothèque', async () => {
+  it('équipe plateforme restée client_viewer · renvoyée à l’accueil', async () => {
+    etat.session = equipeLectrice();
+    await expect(rendre()).rejects.toThrow('redirect /dashboard');
+  });
+  it('member en Starter · ses médias en lecture seule, sous un bandeau d’offre, sans aucun geste', async () => {
     etat.session = session(ids, 'ua', { plan: 'starter' });
     const html = await rendre();
-    expect(html, 'page /assets · member Starter · le refus d’offre n’est pas affiché').toContain('La Bibliothèque est incluse dès l’offre Core');
-    expect(html).toContain('Fonctionnalité incluse dès l&#x27;abonnement Core');
-    expect(html, 'page /assets · member Starter · la bibliothèque est rendue malgré le refus').not.toContain('flacon');
+    expect(html, 'page /assets · member Starter · ses médias existants ne sont plus visibles').toContain('flacon');
+    expect(html, 'page /assets · member Starter · le bandeau d’offre n’est pas affiché').toContain('data-bandeau="offre-bibliotheque"');
+    expect(html).toContain(TEXTE_REFUS_BIBLIOTHEQUE.plan);
+    for (const g of GESTES) expect(html, `page /assets · member Starter · geste « ${g} » proposé malgré la lecture seule`).not.toContain(g);
+  });
+  it('member en Core · ni bandeau, et les gestes sont là', async () => {
+    etat.session = session(ids, 'ua');
+    const html = await rendre();
+    expect(html).toContain('flacon');
+    expect(html, 'page /assets · member Core · bandeau d’offre affiché à tort').not.toContain('data-bandeau="offre-bibliotheque"');
+    for (const g of ['Téléverser', 'Importer par lien', 'Suppr.']) expect(html, `page /assets · member Core · geste « ${g} » absent`).toContain(g);
   });
 });

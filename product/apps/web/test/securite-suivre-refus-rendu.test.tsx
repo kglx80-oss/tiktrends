@@ -65,6 +65,7 @@ describe('Suivre · un refus de l’action se voit', () => {
     expect(racine.querySelector('button'), 'BrandRemoveButton · la marque disparaît malgré le refus').not.toBeNull();
     expect(retraits).toEqual(['retire', 'annule']);
     expect(appel.refresh).toBe(0);
+    expect(racine.textContent, 'BrandRemoveButton · le refus n’est pas dit').toContain('Ton rôle ne permet pas d’utiliser la Veille');
   });
 
   it('✕ accepté · la marque disparaît', async () => {

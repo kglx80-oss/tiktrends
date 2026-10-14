@@ -109,6 +109,7 @@ export function BrandRemoveButton({ platform, name, onRetrait }: { platform: str
   const [pending, start] = useTransition();
   const [gone, setGone] = useState(false);
   const verrou = useRef(verrouAction());
+  const pile = useToastSiPresent();
   if (gone) return null;
   const retirer = () => {
     if (!verrou.current.tenter()) return;
@@ -117,8 +118,10 @@ export function BrandRemoveButton({ platform, name, onRetrait }: { platform: str
     start(async () => {
       try {
         const r = await unfollowBrand({ platform, name });
-        // Refus (droit Veille) · la marque reste à l'écran, comme en base.
-        if (r && r.ok === false) { setGone(false); onRetrait?.('annule'); return; }
+        // Refus (droit Veille) · la marque reste à l'écran, comme en base, et le
+        // refus se dit par le même canal que « + Suivre ». Pas d'ancre · le ✕
+        // est démonté pendant l'appel, le retour se pose à sa place par défaut.
+        if (r && r.ok === false) { setGone(false); onRetrait?.('annule'); pile?.toast(r.error, 'err'); return; }
         router.refresh();
       }
       catch { setGone(false); onRetrait?.('annule'); }
