@@ -7,6 +7,8 @@ import {
   lireApprentissage as lireCmd, relireApprentissage as relireCmd, type LectureDuTest, type ResultatRelecture,
 } from '../../../lib/studios/variantes/apprentissage';
 import { accesAdsmap } from '../../../lib/studios/variantes/acces';
+import { preparerLotEssai as preparerCmd } from '../../../lib/studios/variantes/essai';
+import type { PlanLotEssai } from '@tiktrends/core';
 import { adaptateurAnthropicGarde, modeleTexte } from '../../../lib/studios/prompts/adaptateur';
 import { environnementPrompts } from '../../../lib/studios/prompts/environnement';
 
@@ -17,7 +19,10 @@ import { environnementPrompts } from '../../../lib/studios/prompts/environnement
  *    (relue ou créée en brouillon), idempotent ; exige l'accès Adsmap existant ;
  *  · `lireApprentissage` · LECTURE PURE, règles de mesure Adsmap, sans coût ;
  *  · `relireApprentissage` · tâche `learning.review` par le résolveur unique,
- *    sous la barrière de dépense, coût annoncé avant le clic et revérifié.
+ *    sous la barrière de dépense, coût annoncé avant le clic et revérifié ;
+ *  · `preparerLotEssai` · LECTURE PURE · un lot d'essai (une seule variable :
+ *    accroche, mise en page ou ambiance) sur des variantes existantes, sans
+ *    génération ni coût, et la saisie à reprendre au rattachement.
  */
 
 type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
@@ -45,4 +50,10 @@ export async function relireApprentissage(entree: { linkId: unknown; coutAnnonce
     environnement: environnementPrompts(process.env),
     modele: modeleTexte(),
   });
+}
+
+export async function preparerLotEssai(entree: { projectId: unknown; variable: unknown; variantIds: unknown }): Promise<Reponse<{ plan: PlanLotEssai }>> {
+  const g = await gardeStudio('studio.propose', 'projets');
+  if (!g.ok) return g;
+  return preparerCmd(g.ctx, { projectId: entree?.projectId, variable: entree?.variable, variantIds: entree?.variantIds }, { adsmapAcces: await accesAdsmap() });
 }

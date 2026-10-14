@@ -262,3 +262,13 @@ export function sectionDuChemin<T extends EntreeRail>(sections: ReadonlyArray<Se
   }
   return meilleure?.s ?? null;
 }
+
+/**
+ * UX V2 · le groupe « Marque » (marque active, admin d'espace) ne s'intercale
+ * pas dans la liste des modules · il rejoint « Votre espace ». Le rail plat
+ * garde ses six modules dans leur ordre, Bibliothèque comprise.
+ */
+export const GROUPE_MARQUE = 'Marque';
+export function separerRailMarque<G extends { group: string }>(nav: G[]): { modules: G[]; marque: G | null } {
+  return { modules: nav.filter((g) => g.group !== GROUPE_MARQUE), marque: nav.find((g) => g.group === GROUPE_MARQUE) ?? null };
+}

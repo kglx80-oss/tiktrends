@@ -7,6 +7,7 @@ import { refusCapacite } from '../../../lib/studios/interrupteurs';
 import type { VersionStudio } from '../../../lib/studios/depot';
 import { lireVueProduitPour, type VueProduit } from '../../../lib/studios/produit/vue';
 import { epinglerProduitPour, associerReferencePour, retirerReferencePour } from '../../../lib/studios/produit/commandes';
+import { importerPhotoProduitPour, type ResultatImportPhoto } from '../../../lib/studios/produit/import-photo';
 import { preparerCompilationPour } from '../../../lib/studios/produit/compilation';
 import type { ResultatCompilationImage } from '../../../lib/studios/image/consigne';
 import { trancherComposants as trancherComposantsLib } from '../../../lib/studios/produit/qualite';
@@ -19,6 +20,8 @@ import { compilerConsigneImage as compilerConsigneImageAttestee } from './image'
  *
  *  · lire, contrôler avant compilation · `studio.read`, lecture pure ;
  *  · épingler, associer, retirer · `studio.propose`, nouvelle version (409) ;
+ *  · importer une photo depuis l'ordinateur (lot 3a) · `studio.propose`, ajout
+ *    au catalogue du produit de la marque du projet puis épinglage (409) ;
  *  · compiler la consigne image · `studio.generate` (appel texte payant,
  *    barrière de dépense), aucun média produit ; passe par le chemin ATTESTÉ
  *    du parcours image (F-B), seul dont le résultat peut être retenu ;
@@ -48,6 +51,22 @@ export async function epinglerProduit(entree: { projectId: unknown; baseVersionI
   return epinglerProduitPour(g.ctx, {
     projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, productId: entree?.productId, photoId: entree?.photoId,
     composants: entree?.composants, attributs: entree?.attributs, transformations: entree?.transformations,
+  }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
+}
+
+/**
+ * UX V2 · lot 3a · photo produit déposée depuis l'ordinateur · même garde et
+ * même capacité que l'épinglage. La data URI est revalidée côté serveur par la
+ * règle du noyau (format, borne, signature des octets), jamais crue.
+ */
+export async function importerPhotoProduit(entree: { projectId: unknown; baseVersionId: unknown; productId: unknown; dataUri: unknown; composants?: unknown; transformations?: unknown }): Promise<ResultatImportPhoto> {
+  const g = await gardeSources('studio.propose');
+  if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
+  return importerPhotoProduitPour(g.ctx, {
+    projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, productId: entree?.productId, dataUri: entree?.dataUri,
+    composants: entree?.composants, transformations: entree?.transformations,
   }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 

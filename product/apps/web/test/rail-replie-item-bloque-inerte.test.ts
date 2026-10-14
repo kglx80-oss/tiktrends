@@ -15,7 +15,7 @@ import { join } from 'node:path';
  * source à cette branche et on éprouve son adoption.
  */
 const src = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
-const iStart = src.indexOf('? nav.flatMap((grp) => branchesOf');
+const iStart = src.indexOf('? navModules.flatMap((grp) => branchesOf');
 const iEnd = src.indexOf('Rail UX V2 · une entrée par section', iStart);
 const branche = src.slice(iStart, iEnd > iStart ? iEnd : undefined);
 
