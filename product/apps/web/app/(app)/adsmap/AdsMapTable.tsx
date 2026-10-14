@@ -10,7 +10,7 @@ import { Bandeau } from '../../../components/Bandeau';
 import { Icon } from '../../../components/Icon';
 import { cadreSignal, surface } from '../../../components/ui';
 import { useIsMobile } from '../../../components/useIsMobile';
-import { CIBLE_TACTILE_MIN, LIBELLE_VERDICT, tauxReussite, verdictEffectif, TAUX_NON_CALCULABLE, lienNouveauProjet, type VerdictValue } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, VALEUR_ABSENTE, LIBELLE_VERDICT, tauxReussite, verdictEffectif, TAUX_NON_CALCULABLE, lienNouveauProjet, type VerdictValue } from '@tiktrends/core';
 import { useRouvrirFiche } from './useRouvrirFiche';
 
 /**
@@ -147,7 +147,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
           value={stats.hitRate === null ? TAUX_NON_CALCULABLE : `${stats.hitRate} %`}
           sub={stats.evaluables ? `${stats.succes}/${stats.evaluables} évaluées${stats.prometteuses ? ` · ${stats.prometteuses} prometteuses` : ''}` : 'aucun test évaluable'}
           strong />
-        <Stat label="Verdicts comparables" value={stats.comparablePct === null ? '—' : `${stats.comparablePct} %`} sub="protocole respecté" />
+        <Stat label="Verdicts comparables" value={stats.comparablePct === null ? VALEUR_ABSENTE : `${stats.comparablePct} %`} sub="protocole respecté" />
         <Stat label="À couper" value={String(stats.aCouper)} sub="budget qui brûle" alerte={stats.aCouper > 0} />
         <Stat label="À arbitrer" value={String(stats.aArbitrer)} sub="verdicts sans apprentissage" strong={stats.aArbitrer > 0} />
       </div>
@@ -269,28 +269,28 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
                       <span style={{ color: 'var(--ink-2)' }}>{STATUS_LABEL[r.status] ?? r.status}</span>
                       {r.killFlag && <span title="Budget qui brûle" style={{ marginLeft: 6, color: '#ff8095', display: 'inline-flex', verticalAlign: '-2px' }}><Icon name="alert" size={13} /></span>}
                     </td>
-                    <td style={{ ...td, color: 'var(--muted)' }}>{r.batchNumber ?? '—'}</td>
+                    <td style={{ ...td, color: 'var(--muted)' }}>{r.batchNumber ?? VALEUR_ABSENTE}</td>
                     <td style={{ ...td, color: 'var(--ink)', fontWeight: 600, maxWidth: 220 }}>{r.concept}</td>
                     <td style={{ ...td, fontFamily: 'ui-monospace, monospace', color: 'var(--accent-strong)' }}>{r.variantCode}</td>
-                    <td style={{ ...td, maxWidth: 150, color: 'var(--ink-2)' }}>{r.desire ?? '—'}</td>
-                    <td style={{ ...td, maxWidth: 150, color: 'var(--ink-2)' }}>{r.angle ?? '—'}</td>
+                    <td style={{ ...td, maxWidth: 150, color: 'var(--ink-2)' }}>{r.desire ?? VALEUR_ABSENTE}</td>
+                    <td style={{ ...td, maxWidth: 150, color: 'var(--ink-2)' }}>{r.angle ?? VALEUR_ABSENTE}</td>
                     <td style={td}>{r.testedVariable ? (VARIABLE_LABEL[r.testedVariable] ?? r.testedVariable) : <Manquant />}</td>
                     <td style={{ ...td, maxWidth: 260 }}>
                       {r.hypothesis
                         ? <span title={r.hypothesis} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>{r.hypothesis}</span>
                         : <Manquant />}
                     </td>
-                    <td style={{ ...td, color: 'var(--muted)', fontSize: 11.5 }}>{r.iterationReason ?? '—'}</td>
+                    <td style={{ ...td, color: 'var(--muted)', fontSize: 11.5 }}>{r.iterationReason ?? VALEUR_ABSENTE}</td>
                     <td style={td}>
                       {eff && ton ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, background: ton.bg, color: ton.fg, border: `1px solid ${ton.bd}` }}>
                           {VERDICT_LABEL[eff]}
                           {r.comparable === false && <span title="Protocole non respecté : comparaison relative seulement">*</span>}
                         </span>
-                      ) : <span style={{ color: 'var(--muted)' }}>—</span>}
+                      ) : <span style={{ color: 'var(--muted)' }}>{VALEUR_ABSENTE}</span>}
                     </td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      {r.cpa === null ? '—' : (
+                      {r.cpa === null ? VALEUR_ABSENTE : (
                         <span title={r.cpaHi ? `Jusqu'à ${r.cpaHi.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} € au haut de l'intervalle` : undefined}>
                           {r.cpa.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} €
                           {r.cpaHi !== null && Number.isFinite(r.cpaHi) && (
@@ -299,9 +299,9 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
                         </span>
                       )}
                     </td>
-                    <td style={{ ...td, color: r.failedStage ? '#ffcf8f' : 'var(--muted)' }}>{r.failedStage ? STAGE_LABEL[r.failedStage] : '—'}</td>
+                    <td style={{ ...td, color: r.failedStage ? '#ffcf8f' : 'var(--muted)' }}>{r.failedStage ? STAGE_LABEL[r.failedStage] : VALEUR_ABSENTE}</td>
                     <td style={{ ...td, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                      {r.launchedAt ? new Date(r.launchedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—'}
+                      {r.launchedAt ? new Date(r.launchedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : VALEUR_ABSENTE}
                     </td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
                       <span style={{ display: 'inline-flex', gap: 6 }}>

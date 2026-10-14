@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { and, count, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { VALEUR_ABSENTE } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, ROLE_LABEL, PLAN_LABEL, type Role, type Plan } from '../../../lib/rbac';
 import { ADMIN_THEME } from '../../../lib/theme';
@@ -243,11 +244,11 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                     return (
                       <tr key={r.id} style={{ borderTop: '1px solid var(--line)' }}>
                         <td style={{ ...td, fontWeight: 700, color: 'var(--ink)' }}>{r.name}</td>
-                        <td style={td}><span style={{ fontSize: 11, fontWeight: 800, color: kindColor }}>{r.accountKind === 'normal' ? '—' : r.accountKind}</span></td>
+                        <td style={td}><span style={{ fontSize: 11, fontWeight: 800, color: kindColor }}>{r.accountKind === 'normal' ? VALEUR_ABSENTE : r.accountKind}</span></td>
                         <td style={td}>{PLAN_LABEL[r.plan as Plan] ?? r.plan}</td>
                         <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{r.creditsBalance.toLocaleString('fr-FR')}</td>
                         <td style={td}>
-                          {ts.daysLeft == null ? <span style={{ color: 'var(--muted)' }}>—</span>
+                          {ts.daysLeft == null ? <span style={{ color: 'var(--muted)' }}>{VALEUR_ABSENTE}</span>
                             : ts.expired ? <span style={{ fontSize: 11, fontWeight: 700, color: '#ff6b6b' }}>Expiré</span>
                             : <span style={{ fontSize: 11, fontWeight: 700, color: ts.daysLeft <= 3 ? '#f5a623' : '#18cc8c' }}>{ts.daysLeft} j restants</span>}
                         </td>

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { desc } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { ecranReconciliation, type EcranReconciliation, type EcranReconciliees } from '@tiktrends/core';
+import { ecranReconciliation, VALEUR_ABSENTE, type EcranReconciliation, type EcranReconciliees } from '@tiktrends/core';
 import { spendStatus, spendByAction, depensesAReconcilier, depensesReconciliees } from '../../../../lib/spend-guard';
 import { cadrePage, surface, h1 } from '../../../../components/ui';
 import { SectionReconciliation } from './SectionReconciliation';
@@ -149,10 +149,10 @@ export default async function DepensesPage(props?: { searchParams?: Promise<Para
                     {(r.createdAt as Date).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </td>
                   <td style={td}>{r.provider}</td>
-                  <td style={{ ...td, color: 'var(--muted)' }}>{r.model ?? '—'}</td>
+                  <td style={{ ...td, color: 'var(--muted)' }}>{r.model ?? VALEUR_ABSENTE}</td>
                   <td style={td}>{r.action}</td>
                   <td style={{ ...td, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                    {r.inputTokens !== null ? `${r.inputTokens} → ${r.outputTokens ?? 0}` : '—'}
+                    {r.inputTokens !== null ? `${r.inputTokens} → ${r.outputTokens ?? 0}` : VALEUR_ABSENTE}
                   </td>
                   <td style={{ ...td, fontWeight: 700, whiteSpace: 'nowrap' }}>{usd(r.actualUsd)}</td>
                 </tr>

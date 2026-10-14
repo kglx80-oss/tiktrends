@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
+import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, sansTiretCadratin, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
@@ -320,7 +320,7 @@ export function JarvisChat() {
 
             {/* Pendant l'écriture, on coupe à la première ouverture de marqueur ·
                 voir « [[ACTI » une demi-seconde donne l'impression que ça fuit. */}
-            {partiel && <div style={reponse}>{visibleWhileStreaming(partiel)}</div>}
+            {partiel && <div style={reponse}>{sansTiretCadratin(visibleWhileStreaming(partiel))}</div>}
             {enCours && !partiel && (
               <div style={{ ...reponse, color: 'var(--muted)', fontStyle: 'italic' }}>Jarvis relit ta mémoire…</div>
             )}
@@ -362,7 +362,11 @@ export function Tour({ turn, sources, question = null }: { turn: ChatTurn; sourc
   const citees = citationsComptees(turn.content, refs, question).filter((r) => sources[r]);
   return (
     <div style={{ display: 'contents' }}>
-      <div style={reponse}>{text}</div>
+      {/* Prose du MODÈLE · « — » rendu en « · » à l'AFFICHAGE seulement (code,
+          URL, identifiants intacts). Le message stocké, la question relue par
+          `citationsComptees` et les gestes gardent le texte d'origine. Aucun
+          bouton ne copie la réponse · une sélection à la main copie ce qu'on lit. */}
+      <div style={reponse}>{sansTiretCadratin(text)}</div>
       {citees.length > 0 && (
         <p style={{ alignSelf: 'flex-start', maxWidth: 'min(760px, 92%)', margin: '-8px 0 0', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'baseline' }}>
           <span style={{ fontSize: 11, color: 'var(--muted)' }}>Cité ·</span>
