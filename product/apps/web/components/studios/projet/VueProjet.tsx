@@ -11,6 +11,7 @@ import { RetourVeille } from '../../RetourVeille';
 import { PastilleEtape } from './CarteProjet';
 import { ExporterBrief } from './ExporterBrief';
 import { PropositionsProjet } from './PropositionsProjet';
+import { BarreProjet } from './BarreProjet';
 
 /**
  * La page projet (cahier 01 §4.1, §4.2 point 7, §5) · marque et version
@@ -53,10 +54,10 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
   return (
     <div style={{ display: 'grid', gap: 18 }}>
       <header style={{ display: 'grid', gap: 10 }}>
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Link href="/studio/projets" style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>‹ Projets</Link>
-          {retour && <RetourVeille rv={retour} libelle="Revenir à la recherche de Veille" />}
-        </div>
+        {/* UX V2 · lot 2 · la barre de projet commune (modes, focus, Jarvis,
+            export) · la fiche garde le titre du projet en titre principal. */}
+        <BarreProjet projectId={projet.id} mode="brief" titre={projet.title} atelier={atelier ?? liensAtelierProjet(projet.id, () => true)} jarvis={!!courante} titreDansLaPage />
+        {retour && <div style={{ marginTop: -10 }}><RetourVeille rv={retour} libelle="Revenir à la recherche de Veille" /></div>}
         <h1 style={{ ...h1, overflowWrap: 'anywhere' }}>{projet.title}</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', fontSize: 13, color: 'var(--ink-2)' }}>
           <span data-marque={projet.brandId}>Marque <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{projet.marque}</b></span>
@@ -64,18 +65,6 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
           <span aria-hidden>·</span><span data-version={version.id}>Version {version.n} du {dateCourteUtc(version.createdAt)}</span>
           <PastilleEtape etape={completude.etape} libelle={completude.libelleEtape} />
         </div>
-        <nav aria-label="Atelier du projet" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {/* F1 · une entrée dont la capacité est coupée pour l'espace n'est pas un lien : elle le dit. */}
-          {(atelier ?? liensAtelierProjet(projet.id, () => true)).map((l) => (l.href ? (
-            <Link key={l.segment} href={l.href} data-atelier={l.segment} style={{ ...tuile, padding: '0 14px', fontSize: 13, fontWeight: 650, color: 'var(--ink)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>
-              {l.libelle}
-            </Link>
-          ) : (
-            <span key={l.segment} data-atelier={l.segment} data-etat="non-active" aria-disabled="true" style={{ ...tuile, padding: '0 14px', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', borderStyle: 'dashed', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {l.libelle} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· {l.mention}</span>
-            </span>
-          )))}
-        </nav>
         {ancienne && (
           <p role="status" style={{ ...discret, ...tuile, padding: '8px 12px', background: 'rgba(59,130,246,.10)' }}>
             Tu consultes une version antérieure · lecture seule. <Link href={`/studio/projets/${projet.id}`} style={{ color: 'var(--accent-strong)' }}>Revenir à la version courante</Link>

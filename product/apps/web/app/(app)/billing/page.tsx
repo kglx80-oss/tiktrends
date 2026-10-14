@@ -10,6 +10,7 @@ import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
 import { stripeConfigured, planPurchasable } from '../../../lib/stripe';
 import { Msg, cadrePage, cadreSignal, surface, h1 } from '../../../components/ui';
 import { Icon } from '../../../components/Icon';
+import { OngletsReglages } from '../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
   return (
     <main style={cadrePage}>
+      <OngletsReglages session={s} chemin="/billing" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Plans & Facturation</h1>
         {/* « ADMIN+ » désigne le personnel de la plateforme · cette page sert aux

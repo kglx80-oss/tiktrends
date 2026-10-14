@@ -9,6 +9,7 @@ import { cadrePage, surface, h1 } from '../../../../components/ui';
 import { SectionReconciliation } from './SectionReconciliation';
 import { SectionReconciliees } from './SectionReconciliees';
 import { porteDepenses } from './porte';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,7 @@ export default async function DepensesPage(props?: { searchParams?: Promise<Para
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={porte.session} chemin="/admin/depenses" />
       <h1 style={{ ...h1, marginBottom: 4 }}>Dépense IA réelle</h1>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 22, maxWidth: 720, lineHeight: 1.6 }}>
         Les dollars qui partent vraiment chez Anthropic et fal, sur 30 jours glissants. À ne pas

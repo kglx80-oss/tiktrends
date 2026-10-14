@@ -13,6 +13,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { trialStatus } from '../../../lib/trial';
 import { isFounder } from '../../../lib/founder';
 import { unlimitedCredits } from '../../../lib/credits';
+import { OngletsAdministration } from '../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={s} chemin="/credits" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={h1}>Crédits</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ADMIN+</span>

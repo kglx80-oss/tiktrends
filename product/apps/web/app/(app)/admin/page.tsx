@@ -6,6 +6,9 @@ import { isFounder } from '../../../lib/founder';
 import { computePlatformMetrics } from '../../../lib/platform-metrics';
 import { Icon } from '../../../components/Icon';
 import { cadrePage, cadreSignal, surface } from '../../../components/ui';
+import { OngletsAdministration } from '../../../components/OngletsReglages';
+import { droitsAdministration } from '../../../lib/onglets-reglages';
+import { groupesAdministration } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +17,13 @@ const PLAN_COLOR: Record<Plan, string> = { starter: '#8a94a6', core: '#7aa2ff', 
 const eur = (n: number) => n.toLocaleString('fr-FR') + ' €';
 const num = (n: number) => n.toLocaleString('fr-FR');
 
-interface Tool { icon: string; title: string; desc: string; href: string; badge?: string }
+/** L'icône de chaque outil (présentation seulement · la liste vient du noyau). */
+const ICONE: Record<string, string> = {
+  finance: 'chart', plans: 'card', paiement: 'gauge', credits: 'coin', depenses: 'coin',
+  signups: 'users', equipe: 'lock', console: 'terminal', incidents: 'radar',
+  'ia-studios': 'layers', interrupteurs: 'lock', connaissances: 'file', intelligence: 'search',
+  jarvis: 'brain', billing: 'card', settings: 'gear',
+};
 
 export default async function AdminBackstage() {
   const s = await getSession();
@@ -37,23 +46,14 @@ export default async function AdminBackstage() {
     { label: 'Support', value: num(m.ticketsOpen), sub: `${num(m.ticketsTotal)} tickets au total` },
   ];
 
-  const tools: Tool[] = [
-    { icon: 'chart', title: 'Finance · MRR & marges', desc: 'Revenu récurrent, bénéfice net réel, optimisation des marges par formule.', href: '/admin/finance' },
-    { icon: 'users', title: 'Inscriptions & onboarding', desc: 'Nouveaux comptes, profils déclarés, niveau IA et objectifs.', href: '/admin/signups', badge: `${m.new30} / 30j` },
-    { icon: 'lock', title: 'Équipe & droits', desc: 'Rôles de l’agence (Admin+ → Lecture) et rubriques visibles par rôle.', href: '/admin/equipe' },
-    { icon: 'coin', title: 'Crédits & marges', desc: 'Barème, coût réel API, règle × markup et marge par action.', href: '/credits' },
-    { icon: 'terminal', title: 'Console', desc: 'État du système, intégrations, files de génération, diagnostics.', href: '/console' },
-    { icon: 'brain', title: 'Jarvis', desc: 'Règles créatives maison imposées à chaque génération, par marque.', href: '/jarvis' },
-    { icon: 'file', title: 'Connaissances', desc: 'Consignes, méthodes d’itération, savoirs et données que Jarvis lit à chaque réponse.', href: '/admin/connaissances' },
-    { icon: 'layers', title: 'IA et Studios', desc: 'Registre des prompts de Jarvis et des studios · versions, releases, évaluations, routage et traces.', href: '/admin/ia-studios' },
-    { icon: 'lock', title: 'Interrupteurs Studios', desc: 'Capacités des nouveaux Studios par espace · pilotes, généralisation, coupures. Nouveautés en recette coupées par défaut.', href: '/admin/studios-interrupteurs' },
-    { icon: 'search', title: 'Intelligence marché', desc: 'Concurrents (Atria, Foreplay, Higgsfield) et notre positionnement.', href: '/admin/intelligence' },
-    { icon: 'card', title: 'Plans & Facturation', desc: 'Formules, prix, allocations et abonnements.', href: '/billing' },
-    { icon: 'gear', title: 'Réglages', desc: 'Paramètres de l’espace, modèles IA, clés et intégrations serveur.', href: '/settings' },
-  ];
+  // Les sous-pages, par groupe, avec leur description réelle · seules celles
+  // que la garde de chaque page ouvre (`groupesAdministration`, noyau).
+  const groupes = groupesAdministration(droitsAdministration(s));
+  const badges: Record<string, string> = { signups: `${m.new30} / 30j` };
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={s} chemin="/admin" />
       {/* Héro */}
       <div style={{ position: 'relative', overflow: 'hidden', ...cadreSignal('rgba(245,166,35,.3)'), background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
@@ -105,20 +105,26 @@ export default async function AdminBackstage() {
         </div>
       </div>
 
-      {/* Accès rapide aux outils plateforme */}
-      <h2 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Outils plateforme</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-        {tools.map((t) => (
-          <Link key={t.title} href={t.href} style={{ display: 'block', ...surface, background: 'var(--surface)', padding: '15px 17px', textDecoration: 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 36, height: 36, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#f5a623', background: 'rgba(245,166,35,.12)', border: '1px solid rgba(245,166,35,.24)', flexShrink: 0 }}><Icon name={t.icon} size={18} /></span>
-              <span style={{ flex: 1, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{t.title}</span>
-              {t.badge && <span style={{ fontSize: 11, fontWeight: 800, color: '#ffca6b', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', padding: '2px 8px', borderRadius: 999 }}>{t.badge}</span>}
-            </div>
-            <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{t.desc}</p>
-          </Link>
-        ))}
-      </div>
+      {/* Les sous-pages de l'Administration, par groupe */}
+      <h2 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>Outils plateforme</h2>
+      <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--muted)' }}>Chaque outil garde sa page détaillée · seuls ceux que ton accès ouvre sont listés.</p>
+      {groupes.map((g) => (
+        <section key={g.groupe} data-groupe-admin={g.groupe} aria-labelledby={`groupe-${g.groupe}`} style={{ marginBottom: 18 }}>
+          <h3 id={`groupe-${g.groupe}`} style={{ margin: '0 0 8px', fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)' }}>{g.groupe}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))', gap: 12 }}>
+            {g.pages.map((t) => (
+              <Link key={t.cle} href={t.href} data-outil={t.cle} style={{ display: 'block', ...surface, background: 'var(--surface)', padding: '15px 17px', textDecoration: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#f5a623', background: 'rgba(245,166,35,.12)', border: '1px solid rgba(245,166,35,.24)', flexShrink: 0 }}><Icon name={ICONE[t.cle] ?? 'grid'} size={18} /></span>
+                  <span style={{ flex: 1, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{t.titre}</span>
+                  {badges[t.cle] && <span style={{ fontSize: 11, fontWeight: 800, color: '#ffca6b', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', padding: '2px 8px', borderRadius: 999 }}>{badges[t.cle]}</span>}
+                </div>
+                <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{t.description}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ))}
 
       <div style={{ marginTop: 20, fontSize: 12, color: 'var(--muted)' }}>
         Connecté · <b style={{ color: 'var(--ink-2)' }}>{s.user.email}</b> · {ROLE_LABEL[s.role]} · vue réservée au fondateur.

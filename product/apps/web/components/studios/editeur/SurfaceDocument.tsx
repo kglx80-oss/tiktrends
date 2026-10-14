@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
-import { calquesParZ, policeEditeur, POLICES_EDITEUR, type CalqueStudio, type DocumentStudio } from '@tiktrends/core';
+import { calquesParZ, deplacementVersDocument, policeEditeur, POLICES_EDITEUR, type CalqueStudio, type DocumentStudio } from '@tiktrends/core';
 
 /**
  * La surface visuelle · le document rendu en DOM aux bonnes proportions.
@@ -15,6 +15,11 @@ import { calquesParZ, policeEditeur, POLICES_EDITEUR, type CalqueStudio, type Do
  * Un média sans aperçu (route média non raccordée, média illisible) est un
  * cadre aux bonnes proportions qui porte le nom du calque · jamais une image
  * cassée.
+ *
+ * Zoom (lot 2b) · `largeurPx` impose la largeur affichée du cadre (la zone de
+ * travail la calcule) ; sans elle, le cadre s'ajuste en CSS comme avant. Un
+ * glisser convertit l'écran en document par la largeur MESURÉE du cadre
+ * (`deplacementVersDocument`), donc juste à tout zoom.
  */
 
 const FAMILLE_EDITEUR = 'TT Editeur Sans';
@@ -43,10 +48,10 @@ export function stylePolice(fontId: string): { fontFamily: string; fontWeight: n
 const DAMIER = 'repeating-conic-gradient(#3a2a37 0% 25%, #2a1826 0% 50%) 50% / 24px 24px';
 const pct = (v: number, total: number) => `${(v / total) * 100}%`;
 
-interface Glisse { id: string; x0: number; y0: number; px: number; py: number; dx: number; dy: number; echelle: number }
+interface Glisse { id: string; x0: number; y0: number; px: number; py: number; dx: number; dy: number; largeurAffichee: number }
 
 export function SurfaceDocument({
-  doc, selection, apercus, editable, onSelect, onDeplacer, onClavier, hauteurMax = '70vh',
+  doc, selection, apercus, editable, onSelect, onDeplacer, onClavier, hauteurMax = '70vh', largeurPx,
 }: {
   doc: DocumentStudio;
   selection: string | null;
@@ -56,6 +61,8 @@ export function SurfaceDocument({
   onDeplacer: (id: string, x: number, y: number) => void;
   onClavier?: (e: KeyboardEvent<HTMLDivElement>) => void;
   hauteurMax?: string;
+  /** Largeur affichée imposée (px d'écran) · le zoom de la zone de travail. */
+  largeurPx?: number;
 }) {
   const cadre = useRef<HTMLDivElement>(null);
   const [glisse, setGlisse] = useState<Glisse | null>(null);
@@ -68,13 +75,14 @@ export function SurfaceDocument({
     e.stopPropagation();
     onSelect(c.id);
     if (!editable || c.locked || !cadre.current) return;
-    const largeur = cadre.current.getBoundingClientRect().width || 1;
+    const largeurAffichee = cadre.current.getBoundingClientRect().width;
     try { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); } catch { /* capture indisponible */ }
-    setGlisse({ id: c.id, x0: c.x, y0: c.y, px: e.clientX, py: e.clientY, dx: 0, dy: 0, echelle: doc.width / largeur });
+    setGlisse({ id: c.id, x0: c.x, y0: c.y, px: e.clientX, py: e.clientY, dx: 0, dy: 0, largeurAffichee });
   };
   const bouge = (e: PointerEvent<HTMLDivElement>) => {
     if (!glisse) return;
-    setGlisse({ ...glisse, dx: (e.clientX - glisse.px) * glisse.echelle, dy: (e.clientY - glisse.py) * glisse.echelle });
+    const d = deplacementVersDocument(e.clientX - glisse.px, e.clientY - glisse.py, glisse.largeurAffichee, doc.width);
+    setGlisse({ ...glisse, dx: d.x, dy: d.y });
   };
   const fin = () => {
     if (!glisse) return;
@@ -87,7 +95,7 @@ export function SurfaceDocument({
     + (choisi ? ` · calque choisi : ${choisi.name}${editable && !choisi.locked ? ' · flèches pour le déplacer d’un pixel, Maj pour dix' : ''}` : '');
 
   return (
-    <div style={{ width: `min(100%, calc(${hauteurMax} * ${doc.width / doc.height}))`, margin: '0 auto' }}>
+    <div style={{ width: largeurPx !== undefined ? `${largeurPx}px` : `min(100%, calc(${hauteurMax} * ${doc.width / doc.height}))`, margin: '0 auto' }}>
       <div
         ref={cadre}
         data-surface="document"

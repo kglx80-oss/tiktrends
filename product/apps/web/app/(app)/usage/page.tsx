@@ -11,6 +11,7 @@ import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
 import { BarreValeur } from '../../../components/BarreValeur';
 import { cadrePage, surface, h1 } from '../../../components/ui';
+import { OngletsReglages } from '../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,7 @@ export default async function UsagePage() {
 
   return (
     <main style={cadrePage}>
+      <OngletsReglages session={s} chemin="/usage" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Utilisation des crédits</h1>
         <span style={{ flex: 1 }} />

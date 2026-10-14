@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { placementLanceurSupport, LIBELLE_VERDICT } from '@tiktrends/core';
+import { placementLanceurSupport, LIBELLE_VERDICT, parcoursResultats } from '@tiktrends/core';
 import { CarteTest } from '../app/(app)/adsmap/AdsMapTable';
 import type { AdRow } from '../app/actions/adsmap';
 
@@ -88,10 +88,17 @@ describe('Adsmap · en-tête sobre + liens locaux + support ancré (source)', ()
     expect(page, 'la marge latérale figée est revenue').not.toMatch(/padding: '\d+px 36px/);
   });
 
-  it('des raccourcis locaux discrets pointent vers préparer un test, les suites et le cumul', () => {
-    expect(page).toContain('Préparer un test');
-    expect(page).toContain('Voir les suites');
-    expect(page).toContain('href="#appris"');
+  it('UX V2 · lot 4a · les anciens raccourcis (lots, suites, cumul) vivent dans les étapes de la boucle', () => {
+    // Les onglets de section portent Lots et Suites · la page ne les doublonne
+    // plus en rangée. Leurs destinations restent dans le parcours (noyau),
+    // le rendu est cloué dans `lot4a-parcours-rendu`.
+    expect(page).toContain('parcoursResultats(');
+    expect(page).not.toContain('LienLocal');
+    const vide = { tests: 0, avecHypothese: 0, lots: 0, lotsLances: 0, lotsImportes: 0, mesures: 0, aArbitrer: 0, arbitres: 0, apprentissages: 0, derniereMesure: null };
+    const liens = (c: typeof vide, peutAgir: boolean) => parcoursResultats(c, { peutAgir }).etapes.flatMap((e) => e.liens.map((l) => l.href));
+    expect(liens(vide, true), 'préparer un lot (admin) a disparu').toContain('/adsmap/lots');
+    expect(liens({ ...vide, arbitres: 1 }, false), 'les suites ont disparu').toContain('/adsmap/suites');
+    expect(liens(vide, false), 'le cumul « appris » a disparu').toContain('#appris');
   });
 
   it('le support est ANCRÉ sur /adsmap (comme Dashboard, Pubs, Veille)', () => {

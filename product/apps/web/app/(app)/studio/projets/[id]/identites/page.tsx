@@ -6,6 +6,7 @@ import { lireIdentitesProjet } from '../../../../../actions/studios/identites';
 import { EcranIdentites } from '../../../../../../components/studios/identites/EcranIdentites';
 import { EnTeteProjet, RefusProjet } from '../../../../../../components/studios/produit/EnTeteProjet';
 import { cadrePage } from '../../../../../../components/ui';
+import { liensAtelierProjet } from '../../../../../../lib/navigation';
 import { etatInterrupteurs } from '../../../../../../lib/studios/interrupteurs';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ export default async function IdentitesProjetPage({ params }: { params: Promise<
   return (
     <main style={cadrePage}>
       <div style={{ display: 'grid', gap: 18 }}>
-        <EnTeteProjet projet={r.vue.projet} version={r.vue.version} titre="Identités et voix" sousTitre="personnages récurrents, plans liés, contradictions et modes de parole" />
+        <EnTeteProjet projet={r.vue.projet} version={r.vue.version} titre="Identités et voix" sousTitre="personnages récurrents, plans liés, contradictions et modes de parole" atelier={liensAtelierProjet(r.vue.projet.id, inter.actif)} mode="identites" />
         <EcranIdentites vue={r.vue} voixActive={inter.actif('voix')} />
       </div>
     </main>
