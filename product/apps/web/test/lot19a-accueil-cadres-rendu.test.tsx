@@ -5,6 +5,9 @@ import { AssistantHome } from '../components/AssistantHome';
 import { HomeBandeau } from '../components/HomeBandeau';
 import { HomeMarques } from '../components/HomeMarques';
 import { JourneyPanel } from '../components/JourneyPanel';
+import { TeteProjets } from '../components/accueil/TeteProjets';
+import { PilotageActivite } from '../components/accueil/PilotageActivite';
+import { liensPilotage, resoudreAccueilProjets } from '@tiktrends/core';
 
 /**
  * Lot 19A · l'Accueil RENDU porte les cadres de la charte (#725 · `--line`
@@ -51,6 +54,13 @@ describe('lot 19A · Accueil rendu · chaque cadre porte son rôle', () => {
     )],
     ['JourneyPanel (relance + prochaine étape)', renderToStaticMarkup(<JourneyPanel j={j} relance={r} />)],
     ['JourneyPanel (en attente)', renderToStaticMarkup(<JourneyPanel j={{ ...j, next: null }} />)],
+    // UX V2 · lot 5 · la tête de l'Accueil (reprise + autres projets, premier usage) et le pilotage.
+    ['TeteProjets (liste + aperçu)', renderToStaticMarkup(<TeteProjets apercu="/api/studios/media/a1" etat={resoudreAccueilProjets({ ouvert: () => true, peutCreer: true, lecture: { ok: true, cartes: [
+      { id: 'p1', title: 'Projet un', kind: 'ads', libelleType: 'Pub statique', brandId: 'b1', marque: 'Neva', etape: 'brief_pret', libelleEtape: 'Brief prêt', manques: [], versionN: 1, sources: 0, updatedAt: '2026-10-10T08:00:00Z' },
+      { id: 'p2', title: 'Projet deux', kind: 'ads', libelleType: 'Pub statique', brandId: 'b1', marque: 'Neva', etape: 'brief_pret', libelleEtape: 'Brief prêt', manques: [], versionN: 1, sources: 0, updatedAt: '2026-10-09T08:00:00Z' },
+    ] } })} />)],
+    ['TeteProjets (premier usage)', renderToStaticMarkup(<TeteProjets apercu={null} etat={resoudreAccueilProjets({ ouvert: () => true, peutCreer: true, lecture: { ok: true, cartes: [] } })} />)],
+    ['PilotageActivite', renderToStaticMarkup(<PilotageActivite liens={liensPilotage({ ouvert: () => true, compteOuvert: () => true })} />)],
   ];
   it('on lit bien des cadres', () => {
     const n = ecrans.reduce((s, [, h]) => s + [...h.matchAll(STYLE)].filter((m) => /border:1px/.test(m[2]!)).length, 0);

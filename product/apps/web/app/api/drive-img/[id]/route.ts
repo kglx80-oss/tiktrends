@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, schema, eq, and } from '@tiktrends/db';
+import { servirPlage } from '@tiktrends/core';
 import { googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { driveRefreshTokenFor } from '../../../../lib/drive-token';
@@ -11,8 +12,12 @@ export const dynamic = 'force-dynamic';
  * Proxy d'affichage pour une image Drive privée : on la sert depuis Drive avec le
  * token de l'espace (le navigateur est authentifié par le cookie de session).
  * Si l'asset est déjà hébergé (bucket), on redirige vers son URL publique.
+ *
+ * Lot 4b · requêtes partielles (`servirPlage`, noyau) : `Accept-Ranges: bytes`
+ * partout, `206` + `Content-Range` sur une plage valide, `416` sinon · un
+ * fichier Drive vidéo servi ici se lit aussi sur Safari et l'iPhone.
  */
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const s = await getSession();
   if (!s || !db) return new NextResponse('unauthorized', { status: 401 });
   const { id } = await ctx.params;
@@ -32,8 +37,11 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const token = await googleAccessToken(rt);
     const bytes = await driveDownload(token, a.ext);
-    return new NextResponse(new Uint8Array(bytes), {
-      headers: { 'Content-Type': a.mime || 'image/jpeg', 'Cache-Control': 'private, max-age=3600' },
+    const p = servirPlage(bytes, { range: req.headers.get('range'), ifRange: req.headers.get('if-range') });
+    if (p.statut === 416) return new NextResponse(null, { status: 416, headers: { 'Cache-Control': 'no-store', ...p.entetes } });
+    return new NextResponse(p.corps ? new Uint8Array(p.corps) : null, {
+      status: p.statut,
+      headers: { 'Content-Type': a.mime || 'image/jpeg', 'Cache-Control': 'private, max-age=3600', ...p.entetes },
     });
   } catch {
     return new NextResponse('drive error', { status: 502 });

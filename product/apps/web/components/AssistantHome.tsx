@@ -15,6 +15,19 @@ export interface AssistantHomeProps {
   brandName: string | null;
   brandId: string | null;
   aiReady: boolean;
+  /**
+   * UX V2 · lot 5 · la tête de l'Accueil · reprendre ou créer un projet
+   * (`TeteProjets`). Rendue juste sous l'en-tête, AVANT tout le reste.
+   */
+  projets?: ReactNode;
+  /** UX V2 · lot 5 · « Piloter ton activité » · rendu sous les projets. */
+  pilotage?: ReactNode;
+  /**
+   * La rangée Studios d'avant (« Nouveau projet », « Mes projets ») · masquée
+   * quand la tête porte déjà ces gestes (`rangeeStudiosAccueil`, noyau).
+   * Absent = affichée (comportement d'avant).
+   */
+  rangeeStudios?: boolean;
   /** Le bandeau visuel (hero de la Home) · rendu en tête, juste sous l'en-tête. */
   bandeau?: ReactNode;
   /** Les cartes des marques du compte · rendues sous le bandeau. */
@@ -73,7 +86,7 @@ const STUDIOS: Array<{ href: string; icon: string; titre: string; teinte: string
   { href: '/studio/projets', icon: 'folder', titre: 'Mes projets', teinte: 'linear-gradient(135deg, #4c2a9e, #8b5cf6)' },
 ];
 
-export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, bandeau, marques, prochaineEtape, exemple, regles = [], vues, assistantOuvert = true }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, projets, pilotage, rangeeStudios = true, bandeau, marques, prochaineEtape, exemple, regles = [], vues, assistantOuvert = true }: AssistantHomeProps) {
   const etatCredits = afficherCredits({ balance: credits, unlimited });
   const ouvert = (href: string) => cheminOuvert(href, regles);
   const analyser = liensOuverts(ANALYSER, ouvert);
@@ -104,6 +117,12 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
         {/* Lot 11 · ce que le rôle n'ouvre pas est tu, et la raison est dite. */}
         {note && <p role="note" style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45, maxWidth: 680 }}>{note}</p>}
       </div>
+
+      {/* UX V2 · lot 5 · EN TÊTE · reprendre ou créer un projet, puis piloter
+          l'activité. Tout ce qui suit (bandeau, marques, prochaine étape,
+          analyse, assistant, exemple) est conservé, SOUS ce bloc. */}
+      {projets}
+      {pilotage}
 
       {/* Le hero de la Home · bandeau à la une, PUIS les marques du compte
           (hiérarchie demandée · Kevin 30/09), avant le reste. */}
@@ -148,7 +167,7 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
 
       {/* Créer les variantes de ton test · SECONDAIRE · rangée compacte, les
           Studios (nouveau projet, mes projets), sans surtitre de produit clé. */}
-      {studios.length > 0 && <>
+      {rangeeStudios && studios.length > 0 && <>
       <h2 style={sectionH}>Créer les variantes de ton test</h2>
       <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', margin: '10px 0 26px' }}>
         {studios.map((c) => (

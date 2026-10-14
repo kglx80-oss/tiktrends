@@ -46,8 +46,8 @@ export interface EntreeRailMarque {
  * Aperçu porte ses facettes en sous-entrées · « Styles » (`#couleurs`) et
  * « Brand kits » (`#charte`), aux libellés de `SECTIONS_IDENTITE` · la même source
  * que l'index et les titres de section de la fiche, ils ne peuvent pas diverger.
- * « Assets » n'est PAS fabriqué ici · l'entrée existante du rail est DÉPLACÉE dans
- * ce groupe par `placerAssets` (jamais dupliquée).
+ * « Assets » (Bibliothèque) n'est PAS fabriqué ici · UX V2 · il reste un module
+ * du rail plat, et ce groupe rejoint « Votre espace » (`separerRailMarque`).
  */
 export function entreesMarque(bid: string): EntreeRailMarque[] {
   const base = `/brands/${bid}`;
@@ -159,31 +159,3 @@ export function accesAssets(consulteId: string, active: { id: string; name: stri
   return { kind: 'note', texte: `Assets · bibliothèque de la marque active (${active.name})` };
 }
 
-/**
- * « Assets » vit dans le groupe « Marque » · on y DÉPLACE l'entrée existante du
- * rail (celle de RBAC, avec sa route, son icône, son verrou d'offre) · on ne la
- * recopie jamais. Elle y est une TÊTE (pas une sous-entrée d'Aperçu) · atteignable
- * même quand la branche Aperçu est repliée.
- *
- * Sans groupe « Marque » (aucune marque active, ou rôle sous admin), l'entrée
- * RESTE à sa place d'origine · Assets n'est jamais masqué faute de marque.
- * Dans tous les cas, UNE seule entrée `/assets` dans tout le rail.
- */
-export function placerAssets<I extends { href: string; isSub: boolean }, G extends { group: string; items: I[] }>(
-  groupes: G[],
-  marque: G | null,
-): G[] {
-  if (!marque) return groupes;
-  let assets: I | undefined;
-  const restes = groupes
-    .map((g) => {
-      const garde = g.items.filter((it) => {
-        if (it.href === '/assets' && !assets) { assets = it; return false; }
-        return true;
-      });
-      return { ...g, items: garde };
-    })
-    .filter((g) => g.items.length > 0);
-  const marqueItems = assets ? [...marque.items, { ...assets, isSub: false }] : marque.items;
-  return [...restes, { ...marque, items: marqueItems }];
-}

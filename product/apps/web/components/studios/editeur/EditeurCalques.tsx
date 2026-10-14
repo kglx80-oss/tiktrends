@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { BarreProjet } from '../projet/BarreProjet';
+import type { LienAtelier } from '../../../lib/navigation';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as KeyboardEventReact } from 'react';
 import {
   CIBLE_TACTILE_MIN,
@@ -44,6 +46,8 @@ import { bouton, boutonInactif, boutonPrimaire, COULEUR_ETAT, legende, panneau }
 
 export interface PropsEditeur {
   projet: { id: string; titre: string; marque: string };
+  /** UX V2 · liens de l'atelier du projet (filtrés par les interrupteurs) · la barre de projet commune. */
+  atelier?: LienAtelier[];
   version: { id: string; n: number };
   contenu: ContenuVersion;
   document: DocumentStudio | null;
@@ -60,7 +64,7 @@ interface Base { id: string; n: number; document: DocumentStudio | null }
 const masque: CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' };
 
 export function EditeurCalques(props: PropsEditeur) {
-  const { projet, formatPropose, produit, medias, apercus, peutEnregistrer } = props;
+  const { projet, formatPropose, produit, medias, apercus, peutEnregistrer, atelier } = props;
   const editable = peutEnregistrer;
   const mobile = useIsMobile();
 
@@ -325,9 +329,16 @@ export function EditeurCalques(props: PropsEditeur) {
 
   const barre = (
     <header style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
-      <Link href={`/studio/projets/${projet.id}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
-        ‹ {projet.titre}
-      </Link>
+      {/* UX V2 · lot 2 · la barre de projet commune (titre, modes, focus,
+          export) remplace le lien de retour · sans liens d'atelier fournis,
+          l'ancien retour nommé reste (rendu isolé de l'éditeur). */}
+      {atelier ? (
+        <BarreProjet projectId={projet.id} mode="image" titre={projet.titre} sousTitre={projet.marque || undefined} atelier={atelier} />
+      ) : (
+        <Link href={`/studio/projets/${projet.id}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+          ‹ {projet.titre}
+        </Link>
+      )}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ minWidth: 0 }}>
           <h1 style={h1} tabIndex={-1} data-editeur-titre>Éditer l’image</h1>
