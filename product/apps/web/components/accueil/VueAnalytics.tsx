@@ -25,7 +25,7 @@ import { buildAnalysis, analysisTotals, BUCKETS, bucketDef } from '../../lib/ana
 import { CIBLE_TACTILE_MIN, etatConnecteur, encartMetaAnalytics, phrasesApercuAnalytics, refusVueAnalytics, type PhaseConnecteur } from '@tiktrends/core';
 import { PageInfo } from '../PageInfo';
 import { MetaKeyMetrics } from '../../app/(app)/analytics/MetaKeyMetrics';
-import { BrandTile } from '../BrandIcons';
+import { LogoMarque } from '../LogoMarque';
 import { CreativeIntel, type CreativeStats } from '../../app/(app)/analytics/CreativeIntel';
 import { SectionAttribution } from '../../app/(app)/jarvis/sections/SectionAttribution';
 // Le titre d'écran suit le jeton partagé (lot 19 · réconciliation des titres).
@@ -160,7 +160,7 @@ export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
         <MetaKeyMetrics insights={metaInsights} syncedAt={syncedAt} />
       ) : encart && (
         <div style={{ ...cadreSignal('var(--accent-strong)'), background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-          <BrandTile name="Meta Ads" />
+          <LogoMarque marque="meta" taille="md" decoratif />
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{encart.titre}</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>{encart.texte}</div>

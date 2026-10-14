@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { syncShopifyProductsAction } from '../../../actions/brand-detail';
-import { ShopifyIcon } from '../../../../components/BrandIcons';
+import { LogoMarque } from '../../../../components/LogoMarque';
 import { Icon } from '../../../../components/Icon';
 import { surface } from '../../../../components/ui';
 
@@ -28,7 +28,7 @@ export function ShopifyConnect({ brandId, initialDomain }: { brandId: string; in
   return (
     <div style={{ ...surface, background: 'linear-gradient(180deg, rgba(150,220,170,.06), var(--surface))', padding: 16, marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <ShopifyIcon size={18} />
+        <LogoMarque marque="shopify" taille="sm" decoratif />
         <b style={{ fontSize: 14, color: 'var(--ink)' }}>Connecter la boutique Shopify</b>
       </div>
       <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>

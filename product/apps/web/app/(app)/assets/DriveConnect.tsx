@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveNowAction, syncDriveFilesAction, disconnectDriveAction, type DriveState } from '../../actions/drive';
 import { resumeImportDrive, etatSyncDrive, derniereTentativeDriveEnEchec, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, DRIVE_PORTEE_ACCES, CIBLE_TACTILE_MIN, type MessageClient, BADGE_ESPACE_ADMIN } from '@tiktrends/core';
-import { GoogleDriveIcon } from '../../../components/BrandIcons';
+import { LogoMarque } from '../../../components/LogoMarque';
 import { useToast } from '../../../components/Toast';
 import { surface } from '../../../components/ui';
 
@@ -168,7 +168,7 @@ export function DriveConnect({ state }: { state: DriveState }) {
             remontent dans la bibliothèque de cette marque et deviennent mobilisables par l'IA.
           </p>
           <a href="/api/oauth/google" style={{ ...primary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <GoogleDriveIcon size={15} /> Connecter Google Drive
+            <LogoMarque marque="googledrive" taille="xs" decoratif /> Connecter Google Drive
           </a>
           <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted)' }}>{DRIVE_PORTEE_ACCES}</p>
         </div>
@@ -258,7 +258,7 @@ function MessageInactif({ m }: { m: MessageClient }) {
 function Head({ brandName }: { brandName: string | null }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-      <GoogleDriveIcon size={19} />
+      <LogoMarque marque="googledrive" taille="sm" decoratif />
       <b style={{ fontSize: 14, color: 'var(--ink)' }}>Google Drive{brandName ? ` · ${brandName}` : ''}</b>
       <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 8px', borderRadius: 999, color: 'var(--ink-2)', border: '1px solid var(--line-2)' }}>{BADGE_ESPACE_ADMIN}</span>
     </div>

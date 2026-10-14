@@ -39,14 +39,18 @@ describe('Modal · plein écran sur téléphone quand l’écran le demande', ()
     expect(d.style.height).toBe('100dvh');
     expect((d.parentElement as HTMLElement).style.padding).toBe('0px');
   });
-  it('390 px sans le demander ⇒ fenêtre centrée inchangée (les autres écrans ne bougent pas)', () => {
+  // V5 (lot A3) · sans plein écran demandé, une fenêtre sous 600 px devient une
+  // FEUILLE ancrée en bas (et non plus une fenêtre centrée à 80 vh).
+  it('390 px sans le demander ⇒ feuille, pas de plein écran', () => {
     const d = monter(390, false);
     expect(d.getAttribute('data-plein-ecran')).toBeNull();
-    expect(d.style.maxHeight).toBe('80vh');
+    expect(d.getAttribute('data-presentation')).toBe('feuille');
+    expect(d.style.maxHeight).toBe('88dvh');
   });
   it('1280 px et demandé ⇒ fenêtre centrée', () => {
     const d = monter(1280, true);
     expect(d.getAttribute('data-plein-ecran')).toBeNull();
-    expect(d.style.maxHeight).toBe('80vh');
+    expect(d.getAttribute('data-presentation')).toBe('centree');
+    expect(d.style.maxHeight).toBe('min(84vh, 760px)');
   });
 });

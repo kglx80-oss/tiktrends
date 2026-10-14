@@ -14,10 +14,13 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
 describe('Cibles tactiles · seconde passe', () => {
   it('la croix du panneau de partage Adsmap atteint la cible', () => {
+    // Lot A3 (V5) · le panneau de partage est passé sur la `Modal` partagée · sa
+    // croix est celle de toute modale, mesurée au rendu dans
+    // `cibles-tactiles-partagees.test.tsx`. On vérifie qu'il n'en porte plus une
+    // à lui (une copie locale pourrait redescendre sous la cible).
     const s = read('app/(app)/adsmap/SharePanel.tsx');
-    expect(s).toContain("CIBLE_TACTILE_MIN } from '@tiktrends/core'");
-    const i = s.indexOf('aria-label="Fermer"');
-    expect(s.slice(i, i + 160), 'la croix de partage est sous la cible').toContain('width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN');
+    expect(s, 'le partage n’utilise plus la Modal partagée').toMatch(/<Modal\b/);
+    expect(s, 'le partage porte de nouveau sa propre croix').not.toContain('aria-label="Fermer"');
   });
 
   it('le bouton d’ajout des chartes de marque atteint la cible', () => {

@@ -1,6 +1,6 @@
 import type { MetaAdsInsights, MetaKpiSet, MetaBreakdownRow } from '@tiktrends/integrations';
 import { partDeMax } from '@tiktrends/core';
-import { MetaIcon } from '../../../components/BrandIcons';
+import { LogoMarque } from '../../../components/LogoMarque';
 import { BarreValeur } from '../../../components/BarreValeur';
 import { surface } from '../../../components/ui';
 
@@ -54,7 +54,7 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
   return (
     <section style={{ marginBottom: 30 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        <MetaIcon size={18} />
+        <LogoMarque marque="meta" taille="sm" decoratif />
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Key Metrics <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· Meta Ads · 30 j vs 30 j précédents</span></h2>
         <span style={{ flex: 1 }} />
         {insights.accountName && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{insights.accountName}{syncedAt ? ` · synchro ${new Date(syncedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}` : ''}</span>}
