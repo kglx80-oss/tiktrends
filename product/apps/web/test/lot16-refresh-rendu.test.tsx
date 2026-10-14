@@ -84,13 +84,20 @@ function coquille() {
     );
   });
 }
-const boutonEspace = () => document.querySelector<HTMLButtonElement>('button[aria-haspopup=menu][title^="Espace ·"]');
-const boutonCompte = (nom: string) => [...document.querySelectorAll('aside button')].find((b) => b.textContent?.includes(nom) && !b.hasAttribute('aria-haspopup')) as HTMLButtonElement | undefined;
-const ouvrirReglages = async () => { await clic(boutonEspace()); await clic(bouton('Réglages')); };
-const ouvrirProfil = async (nom: string) => { await clic(boutonCompte(nom)); await clic(bouton('Mon profil')); };
+// Lot V5 · B · le menu d'espace et le menu de compte ont cédé la place à la
+// pop-up profil · on y entre par le bloc profil du rail, « Espace de travail »
+// ouvre les réglages rapides, « Mon profil » l'édition du profil. Le nom de
+// l'espace se lit en clair en tête du rail (plus dans un bouton). Les mêmes
+// résultats sont gardés · nom visible sans rendu serveur, réouverture, focus
+// rendu au déclencheur (désormais le bloc profil).
+const nomEspaceRail = () => document.querySelector<HTMLElement>('[data-zone="espace-rail"] [title^="Espace ·"]');
+const boutonProfil = () => document.querySelector<HTMLButtonElement>('button[data-zone="profil-rail"]');
+const boutonCompte = (nom: string) => { const b = boutonProfil(); return b?.textContent?.includes(nom) ? b : undefined; };
+const ouvrirReglages = async () => { await clic(boutonProfil()); await clic(bouton(/^Espace de travail/)); };
+const ouvrirProfil = async (nom: string) => { await clic(boutonCompte(nom)); await clic(bouton(/^Mon profil/)); };
 
 describe('Réglages rapides · le nom enregistré se voit, la fenêtre se rouvre (lot 16)', () => {
-  it('après Enregistrer · fenêtre fermée, rail au nouveau nom SANS rendu serveur, focus au bouton d’espace', async () => {
+  it('après Enregistrer · fenêtre fermée, rail au nouveau nom SANS rendu serveur, focus au déclencheur (bloc profil)', async () => {
     actions.saveWorkspaceNameAction.mockResolvedValue({ ok: true });
     coquille();
     await ouvrirReglages();
@@ -99,8 +106,9 @@ describe('Réglages rapides · le nom enregistré se voit, la fenêtre se rouvre
     await saisir(d.querySelector('input[name=name]')!, 'Agence Nord');
     await soumettre(d);
     expect(dialogue('Réglages rapides'), 'la fenêtre reste ouverte après un enregistrement réussi').toBeFalsy();
-    expect(boutonEspace()?.title, 'le rail garde l’ancien nom tant que le serveur ne répond pas').toBe('Espace · Agence Nord');
-    expect(document.activeElement, 'le focus tombe hors du bouton qui ouvre le menu').toBe(boutonEspace());
+    expect(nomEspaceRail()?.title, 'le rail garde l’ancien nom tant que le serveur ne répond pas').toBe('Espace · Agence Nord');
+    expect(nomEspaceRail()?.textContent, 'le nom affiché en tête du rail n’a pas suivi').toBe('Agence Nord');
+    expect(document.activeElement, 'le focus tombe hors du bouton qui ouvre la pop-up').toBe(boutonProfil());
   });
 
   it('se ROUVRE après un enregistrement et montre le nom enregistré (elle se refermait aussitôt)', async () => {
@@ -125,7 +133,7 @@ describe('Réglages rapides · le nom enregistré se voit, la fenêtre se rouvre
     await soumettre(d);
     const alerte = dialogue('Réglages rapides')?.querySelector('[role=alert]');
     expect(alerte?.textContent, 'le serveur a dit pourquoi · l’écran affichait « Erreur. »').toMatch(/^Donne un nom/);
-    expect(boutonEspace()?.title).toBe('Espace · Espace démo');
+    expect(nomEspaceRail()?.title).toBe('Espace · Espace démo');
   });
 
   it('échec réseau · une phrase utile, jamais « Erreur. »', async () => {

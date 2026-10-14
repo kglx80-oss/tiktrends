@@ -205,3 +205,4 @@ export * from './studios/bibliotheque';
 export * from './studios/creations-historiques';
 export * from './onglets-reglages';
 export * from './parcours-boucle';
+export * from './coquille-v5';

@@ -105,8 +105,15 @@ describe('fil d’Ariane · la vue Analytics se nomme', () => {
     expect(accueil!, 'le maillon Accueil passe par le routeur client (même chemin)').not.toContain('data-lien-routeur');
   });
 
-  it('sur l’Accueil par défaut · aucun fil (racine)', () => {
-    expect(fil(coquille('/dashboard'))).toBeNull();
+  // Lot V5 · B (H01) · le fil vit dans l'EN-TÊTE, dans une place réservée · sur
+  // une racine il ne coûte plus une ligne de page, il nomme l'écran courant
+  // (« Accueil »), sans lien vers lui-même (`filEnTete`). Plus aucun autre fil.
+  it('sur l’Accueil par défaut · l’en-tête nomme l’écran, sans lien vers lui-même', () => {
+    const f = fil(coquille('/dashboard'));
+    expect(f, 'l’en-tête ne nomme plus l’écran courant').not.toBeNull();
+    expect(texte(f!.slice(f!.indexOf('>') + 1))).toBe('Accueil');
+    expect(f!, 'l’écran courant se pointe lui-même').not.toMatch(/<a /);
+    expect(f!).toContain('aria-current="page"');
   });
 
   it('ailleurs, le fil suit le rail plat (lien routeur, sans ancien nom de rubrique)', () => {

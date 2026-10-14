@@ -15,20 +15,26 @@ import { join } from 'node:path';
 const SRC = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
 
 describe('menu compact · en-tête du rail', () => {
+  // Lot V5 · B (R01) · l'identité devient le mot-symbole V5 « tiktrends. »
+  // (LogoHome, le nom du produit), toujours un lien d'accueil compact · le carré
+  // dégradé disparaît.
   it('l’identité est un mot-symbole COMPACT, pas un sélecteur ni un gros carré', () => {
-    // Mutation : refusionner l'identité dans le bouton d'espace (« TikTrends »
-    // comme libellé du sélecteur) fait tomber cette paire.
-    expect(SRC, 'le nom TikTrends a disparu de l’en-tête').toContain('>TikTrends</span>');
-    // L'ancienne identité-carré de 30 px (LogoHome) est réduite à 22 (symbole).
+    // Mutation : refusionner l'identité dans un sélecteur (retirer LogoHome de
+    // la tête du rail) fait tomber la première.
+    const tete = SRC.slice(SRC.indexOf('data-zone="tete-rail"'), SRC.indexOf('data-zone="espace-rail"'));
+    expect(tete, 'le mot-symbole a disparu de la tête du rail').toContain('<LogoHome collapsed={false} />');
     const logo = readFileSync(join(process.cwd(), 'components/LogoHome.tsx'), 'utf8');
     expect(logo, 'le symbole reste un gros carré 30 px').not.toContain('width: 30, height: 30');
-    expect(logo).toContain('width: 22, height: 22');
+    expect(logo, 'le mot-symbole V5 manque').toContain("'tiktrends'");
   });
 
-  it('le sélecteur d’ESPACE est distinct de la marque · sa propre ligne 44, libellé complet au menu', () => {
-    // Le bouton d'espace porte l'infobulle du libellé complet et la cible 44.
+  // Lot V5 · B (R06) · l'espace se lit en clair (libellé complet en infobulle),
+  // DISTINCT de la marque, qui garde son sélecteur réel · les entrées de l'ancien
+  // menu d'espace sont dans la pop-up profil (gardé dans uxv5-coquille-rendu).
+  it('l’ESPACE est distinct de la marque · sa propre ligne, libellé complet en infobulle', () => {
     expect(SRC).toContain('title={`Espace · ${workspaceName}`}');
-    expect(SRC).toContain("aria-haspopup=\"menu\" aria-expanded={wsMenuOpen}");
+    const espace = SRC.slice(SRC.indexOf('data-zone="espace-rail"'), SRC.indexOf('<nav aria-label="Navigation principale"'));
+    expect(espace, 'le sélecteur de marque n’est plus distinct, sous l’espace').toContain('<BrandSwitcher');
   });
 
   it('la bascule Réduire vit en TÊTE, à côté de l’identité-accueil · plus au pied', () => {
@@ -39,12 +45,12 @@ describe('menu compact · en-tête du rail', () => {
     // Mutation 1 : rendre l'identité muette (retirer le lien /dashboard de
     // l'en-tête) fait tomber la 1re. Mutation 2 : remettre le bouton de pied
     // « Réduire le menu » fait tomber les deux dernières.
-    const iLink = SRC.indexOf('aria-label="Accueil" title="Accueil"');
-    expect(iLink, 'le lien d’identité (accueil) est introuvable en tête').toBeGreaterThan(-1);
-    const enTete = SRC.slice(Math.max(0, iLink - 60), iLink + 900);
-    // L'identité (logo + mot « TikTrends ») ramène à l'accueil · un seul lien.
-    expect(enTete, 'l’identité ne ramène pas à l’accueil').toContain('href="/dashboard"');
-    expect(enTete, 'le mot TikTrends n’est pas dans le lien d’accueil').toContain('>TikTrends</span>');
+    // Lot V5 · B · l'identité est LogoHome (lien /dashboard « Accueil », gardé
+    // par logo-accueil) · on lit la tête du rail, qui doit le poser.
+    const iLink = SRC.indexOf('data-zone="tete-rail"');
+    expect(iLink, 'la tête du rail est introuvable').toBeGreaterThan(-1);
+    const enTete = SRC.slice(iLink, iLink + 900);
+    expect(enTete, 'l’identité-accueil n’est pas en tête').toContain('<LogoHome collapsed={false} />');
     // La bascule Réduire est là, en tête, juste à côté de l'identité.
     expect(enTete, 'la bascule Réduire n’est pas en tête').toContain('aria-label="Réduire la barre"');
     // L'ancien bouton de PIED a disparu.

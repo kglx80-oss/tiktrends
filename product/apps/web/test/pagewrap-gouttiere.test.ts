@@ -22,8 +22,9 @@ describe('pageWrap · gouttière fluide', () => {
     expect(/\d+px\s+3[26]px\s+\d+px/.test(p), 'plus de gouttière figée').toBe(false);
   });
 
+  // Lot V5 · B · la largeur max suit le cadre commun V5 (1500, au lieu de 1200).
   it('la largeur max et le centrage sont conservés', () => {
-    expect(pageWrap.maxWidth).toBe(1200);
+    expect(pageWrap.maxWidth).toBe(1500);
     expect(pageWrap.margin).toBe('0 auto');
   });
 });

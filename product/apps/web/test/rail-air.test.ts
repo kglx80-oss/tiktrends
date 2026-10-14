@@ -15,7 +15,9 @@ describe('le rail est dense (H2 · tenir à 720)', () => {
   it('gouttières resserrées entre sections et entre items', () => {
     // Non-admin, déplié · gap de section 6 (était 14), gap d'items 2 (était 3).
     expect(SRC, 'la gouttière de section n’est plus resserrée pour 720').toContain(': 6), alignItems');
-    expect(SRC, 'la gouttière d’items n’est plus resserrée pour 720').toContain("flexDirection: 'column', gap: 2 }}");
+    // Lot V5 · B · l'écart entre deux entrées est celui de la V5 (5, mesuré),
+    // décidé au noyau (COQUILLE_V5) · plus un 2 posé ici.
+    expect(SRC, 'l’écart entre entrées ne vient plus de la géométrie V5').toContain("flexDirection: 'column', gap: COQUILLE_V5.rail.gapEntrees }}");
   });
 
   it('la hauteur de rangée vient du pointeur · ample au doigt (44), dense à la souris (H2)', () => {
