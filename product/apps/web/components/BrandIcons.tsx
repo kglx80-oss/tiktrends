@@ -1,6 +1,7 @@
 /**
- * Les logos des outils tiers · UN seul composant pour toutes les tuiles
- * d'intégrations (Connexions, feuille de route, fiche marque, Assets, Analytics).
+ * Les logos des outils tiers de la FEUILLE DE ROUTE (catalogue « Bientôt » de
+ * Connexions). Les connexions qui existent réellement (Shopify, Meta Ads,
+ * Google Drive) portent `LogoMarque` depuis le lot V5 · A1.
  *
  * ── Ce qu'il garantit ───────────────────────────────────────────────────────
  *
@@ -21,10 +22,12 @@
  *  · Logos monochromes · Simple Icons 16.33.0, CC0-1.0, recopiés à l'identique
  *    avec leur teinte officielle · voir `logos-outils.ts` (source de chaque
  *    marque citée en commentaire).
- *  · Logos multicolores (Instagram, Google, Google Drive, LinkedIn, Slack,
- *    Figma) · tracés déjà présents dans ce fichier avant le lot A (#120),
- *    conservés tels quels · conformes à la présentation officielle de ces
- *    marques ; Simple Icons ne publie pas LinkedIn ni Slack.
+ *  · Logos multicolores de la référence V5 (Meta, TikTok, Shopify, Google
+ *    Drive, Slack) · `DESSINS_LOGOS` de `logos-outils.ts` (iconify « logos »,
+ *    CC0-1.0), le MÊME dessin que `LogoMarque` · un seul jeu dans le dépôt.
+ *  · Autres logos multicolores (Instagram, Google, LinkedIn, Figma) · tracés
+ *    déjà présents dans ce fichier avant le lot A (#120), conservés tels
+ *    quels · conformes à la présentation officielle de ces marques.
  *  · Retirés au lot A · les tracés approchants de Notion, Canva, Snapchat,
  *    Stripe et TikTok (dessinés, pas officiels) et le Shopify tronqué (sac sans
  *    son « S »). Notion, Snapchat, Stripe, TikTok, Shopify passent au tracé
@@ -32,7 +35,8 @@
  */
 import type { CSSProperties, ReactElement } from 'react';
 import { cleLogoOutil, encreMonogramme, pastilleLogo, type CleLogoOutil } from '@tiktrends/core';
-import { TRACES_SIMPLE_ICONS } from './logos-outils';
+import { DESSINS_LOGOS, TRACES_SIMPLE_ICONS } from './logos-outils';
+import { DessinLogo } from './LogoMarque';
 
 const box = (size: number): CSSProperties => ({ width: size, height: size, display: 'block' });
 
@@ -56,27 +60,9 @@ const MULTICOLORES: Partial<Record<CleLogoOutil, (size: number) => ReactElement>
       <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z" />
     </svg>
   ),
-  googledrive: (size) => (
-    <svg viewBox="0 0 87.3 78" style={box(size)} aria-hidden focusable="false">
-      <path fill="#0066da" d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" />
-      <path fill="#00ac47" d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" />
-      <path fill="#ea4335" d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" />
-      <path fill="#00832d" d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" />
-      <path fill="#2684fc" d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" />
-      <path fill="#ffba00" d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" />
-    </svg>
-  ),
   linkedin: (size) => (
     <svg viewBox="0 0 24 24" style={box(size)} aria-hidden focusable="false">
       <path fill="#0A66C2" d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.55V9h3.57zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.22.79 24 1.77 24h20.45c.98 0 1.78-.78 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" />
-    </svg>
-  ),
-  slack: (size) => (
-    <svg viewBox="0 0 24 24" style={box(size)} aria-hidden focusable="false">
-      <path fill="#36C5F0" d="M5.04 15.16a2.53 2.53 0 1 1-2.52-2.53h2.52zM6.31 15.16a2.53 2.53 0 0 1 5.05 0v6.31a2.53 2.53 0 0 1-5.05 0z" />
-      <path fill="#2EB67D" d="M8.84 5.04a2.53 2.53 0 1 1 2.52-2.52v2.52zM8.84 6.31a2.53 2.53 0 0 1 0 5.05H2.52a2.53 2.53 0 0 1 0-5.05z" />
-      <path fill="#ECB22E" d="M18.96 8.84a2.53 2.53 0 1 1 2.52 2.52h-2.52zM17.69 8.84a2.53 2.53 0 0 1-5.05 0V2.52a2.53 2.53 0 0 1 5.05 0z" />
-      <path fill="#E01E5A" d="M15.16 18.96a2.53 2.53 0 1 1-2.52 2.52v-2.52zM15.16 17.69a2.53 2.53 0 0 1 0-5.05h6.32a2.53 2.53 0 0 1 0 5.05z" />
     </svg>
   ),
   figma: (size) => (
@@ -89,6 +75,13 @@ const MULTICOLORES: Partial<Record<CleLogoOutil, (size: number) => ReactElement>
     </svg>
   ),
 };
+
+/**
+ * Les marques dessinées ICI plutôt que dans `logos-outils.ts` · une marque ne
+ * doit jamais l'être aux deux endroits (un seul jeu de logos · garde
+ * `logo-marque-rendu.test.tsx`).
+ */
+export const CLES_MULTICOLORES_LOCALES = Object.keys(MULTICOLORES) as CleLogoOutil[];
 
 /** Un logo monochrome Simple Icons, dans la teinte demandée. */
 function TraceSimple({ cle, size, trait }: { cle: keyof typeof TRACES_SIMPLE_ICONS; size: number; trait?: string }) {
@@ -104,9 +97,13 @@ function estSimple(cle: CleLogoOutil): cle is keyof typeof TRACES_SIMPLE_ICONS {
   return cle in TRACES_SIMPLE_ICONS;
 }
 
+function estDessin(cle: CleLogoOutil): cle is keyof typeof DESSINS_LOGOS {
+  return cle in DESSINS_LOGOS;
+}
+
 /** Les outils dont un logo est réellement embarqué (tracé disponible). */
 export function logoDisponible(cle: CleLogoOutil): boolean {
-  return estSimple(cle) || !!MULTICOLORES[cle];
+  return estDessin(cle) || estSimple(cle) || !!MULTICOLORES[cle];
 }
 
 /**
@@ -114,19 +111,10 @@ export function logoDisponible(cle: CleLogoOutil): boolean {
  * titre ou un bouton (« Connecter Google Drive »). `null` si aucun tracé.
  */
 export function LogoOutil({ cle, size = 22 }: { cle: CleLogoOutil; size?: number }) {
+  if (estDessin(cle)) return <DessinLogo cle={cle} size={size} />;
   if (estSimple(cle)) return <TraceSimple cle={cle} size={size} />;
   const multi = MULTICOLORES[cle];
   return multi ? multi(size) : null;
-}
-
-export function MetaIcon({ size = 22 }: { size?: number }) {
-  return <LogoOutil cle="meta" size={size} />;
-}
-export function ShopifyIcon({ size = 22 }: { size?: number }) {
-  return <LogoOutil cle="shopify" size={size} />;
-}
-export function GoogleDriveIcon({ size = 22 }: { size?: number }) {
-  return <LogoOutil cle="googledrive" size={size} />;
 }
 
 const tuile = (tile: number, fond: string): CSSProperties => ({
@@ -143,6 +131,14 @@ const tuile = (tile: number, fond: string): CSSProperties => ({
 export function BrandTile({ name, color, glyph, tile = 34 }: { name: string; color?: string; glyph?: string; tile?: number }) {
   const cle = cleLogoOutil(name);
   const taille = Math.round(tile * 0.62);
+  if (cle && estDessin(cle)) {
+    // Le dessin de la référence V5, sur son fond officiel (TikTok sur noir).
+    return (
+      <span aria-hidden data-logo="officiel" data-outil={cle} style={tuile(tile, DESSINS_LOGOS[cle].fond)}>
+        <DessinLogo cle={cle} size={taille} />
+      </span>
+    );
+  }
   if (cle && estSimple(cle)) {
     const { fond, trait } = pastilleLogo(TRACES_SIMPLE_ICONS[cle].hex);
     return (

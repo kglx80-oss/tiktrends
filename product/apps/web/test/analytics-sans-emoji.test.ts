@@ -16,7 +16,8 @@ describe('Analytics · plus aucun emoji d’interface', () => {
   });
   it('rend le vrai logo de l’outil proposé', () => {
     // Lot A (#120) · l'encart « Branche Meta Ads » porte la pastille Meta
-    // officielle (garde de rendu · logos-pages-proprietaire-rendu).
-    expect(SRC).toMatch(/<BrandTile name="Meta Ads"/);
+    // officielle, `LogoMarque` depuis le lot V5 · A1 (garde de rendu ·
+    // logos-pages-proprietaire-rendu).
+    expect(SRC).toMatch(/<LogoMarque marque="meta"/);
   });
 });

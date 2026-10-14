@@ -13,7 +13,7 @@ import {
 import { input, lbl, Msg, cadrePage, surface, tuile } from '../../../../components/ui';
 import { RetourMarques, LienEnteteMarque, OngletsFiche } from './NavFiche';
 import { Icon } from '../../../../components/Icon';
-import { BrandTile } from '../../../../components/BrandIcons';
+import { LogoMarque } from '../../../../components/LogoMarque';
 import { AvatarSite } from '../../../../components/AvatarSite';
 import { BrandOverviewForm } from '../../../../components/BrandOverviewForm';
 import { RenameMarque } from '../../../../components/RenameMarque';
@@ -183,7 +183,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
               <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>Connecté</span>
               {connectes.map((t) => (
                 <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px 6px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'var(--surface)' }}>
-                  <BrandTile name={t.label} tile={24} />
+                  <LogoMarque marque={t.key} taille="xs" decoratif />
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{t.label}</span>
                 </span>
               ))}

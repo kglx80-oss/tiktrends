@@ -109,8 +109,8 @@ describe('Connexions · les deux sources de données portent leur logo officiel'
     it(`état « ${nom} » · Shopify et Meta avec leur logo, pas une pastille vide`, () => {
       const e = ETATS[nom]!;
       const html = rendre(e.state, e.brand, e.oauth);
-      expect(html, 'Shopify sans son logo officiel').toContain('data-logo="officiel" data-outil="shopify"');
-      expect(html, 'Meta Ads sans son logo officiel').toContain('data-logo="officiel" data-outil="meta"');
+      expect(html, 'Shopify sans son logo officiel').toContain('data-logo-marque="shopify"');
+      expect(html, 'Meta Ads sans son logo officiel').toContain('data-logo-marque="meta"');
     });
   }
 });
