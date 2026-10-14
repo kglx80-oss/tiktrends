@@ -185,10 +185,13 @@ export async function liensEtVerdicts(ex: ExecStudio, ctx: ContexteStudio, varia
     adStatus: schema.ads.status, hypothesis: schema.ads.hypothesis, testedVariable: schema.ads.testedVariable, variableValue: schema.ads.variableValue,
     computed: schema.verdicts.computed, validated: schema.verdicts.validated, comparable: schema.verdicts.comparable,
     failedStage: schema.verdicts.failedStage, killFlag: schema.verdicts.killFlag, computedAt: schema.verdicts.computedAt,
+    lotNumero: schema.batches.number, lotStatut: schema.batches.status,
     workspaceId: TL.workspaceId, brandId: TL.brandId,
   }).from(TL)
     .innerJoin(schema.ads, and(eq(schema.ads.id, TL.adsmapAdId), eq(schema.ads.workspaceId, ctx.workspaceId)))
     .leftJoin(schema.verdicts, eq(schema.verdicts.adId, TL.adsmapAdId))
+    // Le lot de la fiche · relu dans l'espace ET la marque du lien, jamais un lot d'ailleurs.
+    .leftJoin(schema.batches, and(eq(schema.batches.id, schema.ads.batchId), eq(schema.batches.workspaceId, ctx.workspaceId), eq(schema.batches.brandId, TL.brandId)))
     .where(and(inArray(TL.variantId, variantIds), porteeSql(TL, ctx)))
     .orderBy(desc(TL.createdAt));
 }
@@ -275,6 +278,7 @@ export async function listerVariantes(ctx: ContexteStudio, e: { projectId: unkno
         objectif: entree?.objectif ?? null, protocole: (entree?.protocole ?? null) as ProtocoleTest | null,
         periode: entree?.periode ?? null, metrique: entree?.metrique ?? null,
         isolation: entree?.isolation ?? null, verdict: verdictLu(l),
+        lot: l.lotNumero !== null && l.lotStatut !== null ? { numero: l.lotNumero, statut: l.lotStatut } : null,
       };
     }
     const parentLien = v.parentVariantId ? lienOuvertOuDernier.get(v.parentVariantId) : undefined;

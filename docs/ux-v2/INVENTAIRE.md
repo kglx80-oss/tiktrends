@@ -68,12 +68,12 @@ Marques et Réglages seulement dans le menu de compte.
 | Capacité | Moteur restant | Plan |
 | --- | --- | --- |
 | Téléversement manuel d'une photo produit | Aucun (action retirée) · colonnes `products.image_url(s)` intactes | Lot 3 · priorité 1 |
-| Lots d'essai (accroche, mise en page, univers) | Noyau `essai.ts` (pur) · Adsmap lots | Lot 3 · à brancher sur les variantes de projet |
-| Suivi d'une créa dans Adsmap | RÉEL côté projet (`rattacherVarianteAuTest`) | Lot 2/3 · le rendre visible |
-| Score Jarvis d'une pub | `packages/ai` (`scoreCreative`) · appel payant | Lot 3 · inventaire, devis requis |
-| Relecture automatique d'une pub entière | `packages/ai` (`controlePubEntiere`) · appel payant | Lot 3 · inventaire, devis requis |
-| Clone avec choix du moteur | Fournisseur image des Studios (sélection de moteur) | Lot 3 · inventaire |
-| Scènes enregistrées (presets) | Table `creative_presets` intacte | Lot 3 · inventaire |
+| Lots d'essai (accroche, mise en page, univers) | Noyau `essai.ts` (pur) · Adsmap lots | Lot 3b · branché : « Préparer un lot d'essai » dans « Variantes et tests » (`essai-lot.ts`, lecture seule, sans génération) |
+| Suivi d'une créa dans Adsmap | RÉEL côté projet (`rattacherVarianteAuTest`) | Lot 3b · visible sur chaque variante : lot de test, statut de la fiche, verdict (validé ou à valider), lien vers Résultats |
+| Score Jarvis d'une pub | `packages/ai` (`scoreCreative`) · appel payant | Lot 3b · inventorié (`CAPACITES-PAYANTES.md` § 1), non raccordé |
+| Relecture automatique d'une pub entière | `packages/ai` (`controlePubEntiere`) · appel payant | Lot 3b · inventorié (§ 2) · successeur `quality.visual` déjà au devis |
+| Clone avec choix du moteur | Fournisseur image des Studios (sélection de moteur) | Lot 3b · inventorié (§ 3) · choix du moteur = décision de prix |
+| Scènes enregistrées (presets) | Table `creative_presets` intacte | Lot 3b · inventorié (§ 4), non raccordé |
 
 ## 5. Médias
 
