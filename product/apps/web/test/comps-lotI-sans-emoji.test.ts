@@ -14,8 +14,11 @@ import { join } from 'node:path';
  * des glyphes clavier/typographiques, pas des pictogrammes colorés · la classe
  * PICTO ci-dessous les EXCLUT explicitement (trous 2303→2305 et 2317→2319).
  */
+// Lot V5 · B · le héros ADMIN+ a quitté le menu de compte (AppShell) pour la
+// pop-up profil (ProfilPopup) · elle rejoint la liste des fichiers gardés.
 const FICHIERS = [
   'components/AppShell.tsx',
+  'components/ProfilPopup.tsx',
   'components/CommandPalette.tsx',
   'components/Icon.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));

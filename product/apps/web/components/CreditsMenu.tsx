@@ -5,23 +5,33 @@ import { useState, type CSSProperties } from 'react';
 import { CREDIT_PACKS } from '../lib/credit-packs';
 import { createTopupCheckoutAction } from '../app/actions/stripe';
 import { Icon } from './Icon';
-import { CIBLE_TACTILE_MIN, afficherCredits, texteCredits } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, COQUILLE_V5, afficherCredits, jaugeCredits, texteCredits } from '@tiktrends/core';
 
 /**
- * Puce de crédits (solde réel) façon Pletor + menu au clic :
+ * Pastille de crédits (solde réel) + menu au clic :
  * solde, « Illimité » pour le fondateur, et options de recharge / d'amélioration.
+ *
+ * V5 (lot V5 · B, R18 · R19) · la pilule devient une CARTE (rayon 12, icône,
+ * solde, « + », barre solde / dotation de la formule · `jaugeCredits`). Le menu
+ * qu'elle ouvre est INCHANGÉ · mêmes packs, même recharge Stripe (réservée au
+ * propriétaire, côté serveur), même lien d'offre. Aucune date de renouvellement
+ * (non stockée).
  */
-export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collapsed }: {
+export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collapsed, allocation = 0 }: {
   balance: number;
   unlimited: boolean;
   planLabel: string;
   showUpgrade: boolean;
   collapsed?: boolean;
+  /** Dotation mensuelle de la formule (`PLAN_CREDITS[plan]`) · dénominateur de la barre. 0 · pas de barre. */
+  allocation?: number;
 }) {
   const [open, setOpen] = useState(false);
   // La même décision que les autres écrans · une seule vérité sur le solde (N09).
   const etat = afficherCredits({ balance, unlimited });
   const display = texteCredits(etat, (n) => n.toLocaleString('fr-FR'));
+  const jauge = jaugeCredits({ balance, unlimited, allocation }, (n) => n.toLocaleString('fr-FR'));
+  const V = COQUILLE_V5.credits;
 
   return (
     <div style={{ position: 'relative' }}>
@@ -83,16 +93,35 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
         </>
       )}
 
-      <button type="button" onClick={() => setOpen((o) => !o)} title={`Crédits : ${unlimited ? 'illimité' : display}`}
+      {/* La carte entière est le bouton (cible large) · le « + » en est le signe
+          visible, pas un second bouton imbriqué. */}
+      <button type="button" data-zone="pastille-credits" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        aria-label={`${jauge.libelle} · recharger ou voir l’offre`} title={jauge.libelle}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: collapsed ? 6 : '8px 11px', borderRadius: 999,
-          border: '1px solid ' + (unlimited ? 'rgba(245,166,35,.4)' : 'rgba(254,44,85,.28)'),
-          background: unlimited ? 'rgba(245,166,35,.12)' : 'rgba(254,44,85,.10)',
-          color: unlimited ? '#f5c877' : 'var(--accent-strong)', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start',
+          width: '100%', display: 'flex', flexDirection: 'column', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: collapsed ? '8px 6px' : '10px 12px', borderRadius: V.rayon,
+          border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer', boxSizing: 'border-box',
         }}>
-        <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>◈</span>
-        {!collapsed && <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 800 }}>{display}</span>}
-        {!collapsed && <span style={{ fontSize: 10.5, color: 'var(--muted)', fontWeight: 600 }}>{unlimited ? '' : 'crédits'}</span>}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+          <span aria-hidden style={{ width: V.icone, height: V.icone, borderRadius: 8, background: 'var(--accent-soft)', color: 'var(--accent-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="coin" size={16} />
+          </span>
+          {!collapsed && (
+            <span aria-hidden style={{ flex: 1, minWidth: 0, textAlign: 'left', lineHeight: 1.15 }}>
+              <strong data-solde style={{ display: 'block', fontSize: 15, fontWeight: 700, color: unlimited ? 'var(--accent-strong)' : 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{jauge.texte}</strong>
+              {jauge.unite && <small style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-2)' }}>{jauge.unite}</small>}
+            </span>
+          )}
+          {!collapsed && (
+            <span aria-hidden data-plus style={{ width: V.plus, height: V.plus, borderRadius: 7, background: 'var(--accent-strong)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name="plus" size={14} />
+            </span>
+          )}
+        </span>
+        {jauge.ratio !== null && (
+          <span aria-hidden data-jauge={Math.round(jauge.ratio * 100)} style={{ display: 'block', width: '100%', height: V.barre, borderRadius: 2, background: 'var(--line-2)', overflow: 'hidden' }}>
+            <span style={{ display: 'block', height: '100%', width: `${Math.round(jauge.ratio * 100)}%`, borderRadius: 2, background: 'var(--accent-strong)' }} />
+          </span>
+        )}
       </button>
     </div>
   );

@@ -10,9 +10,15 @@ import { join } from 'node:path';
  */
 const SRC = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
 
+// Lot V5 · B · le liséré V5 est une barre de 3 px collée au BORD du rail (plus
+// un liseré intérieur), sur le fond de sélection V5 (--accent-soft, une teinte
+// sombre, jamais l'accent plein) · mesurés sur la référence. Le rendu (barre
+// présente sur l'entrée courante seulement) est gardé dans uxv5-coquille-rendu.
 describe('l’item actif du rail est un liséré, pas un pavé plein', () => {
-  it('porte un liséré accent (inset), sur un fond seulement teinté', () => {
-    expect(SRC, 'le liséré accent a disparu de l’item actif').toMatch(/active \? 'inset 3px 0 0 var\(--accent-strong\)'/);
-    expect(SRC, 'le fond de l’item actif n’est plus une teinte légère').toMatch(/background: active \? 'rgba\(254,44,85,\.10\)'/);
+  it('porte une barre accent de 3 px, sur un fond seulement teinté', () => {
+    expect(SRC, 'la barre accent a disparu de l’item actif').toMatch(/\{active && <span aria-hidden data-barre-active style=\{\{[^}]*width: R\.barre\.largeur[^}]*background: 'var\(--accent-strong\)'/);
+    // Le fond de la RANGÉE (posé juste après `position: 'relative'`), pas la
+    // pastille de 5 px des sous-entrées.
+    expect(SRC, 'le fond de l’item actif n’est plus une teinte légère').toMatch(/position: 'relative',\s*background: active \? 'var\(--accent-soft\)'/);
   });
 });

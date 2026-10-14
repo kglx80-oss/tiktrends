@@ -5,7 +5,7 @@ import { getSession } from '../../lib/auth';
 import { RAIL_COOKIE, railCollapsedFromCookie } from '../../lib/rail-preference';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { railNav, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, RAIL_GROUP_LABEL, ouverturesParRole, sectionsCompteOuvertes } from '../../lib/rbac';
+import { railNav, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, PLAN_CREDITS, RAIL_GROUP_LABEL, ouverturesParRole, sectionsCompteOuvertes } from '../../lib/rbac';
 import { listBrands, getActiveBrand } from '../../lib/brands';
 import { AppShell } from '../../components/AppShell';
 import { ToastProvider } from '../../components/Toast';
@@ -69,6 +69,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       canManageBrands={roleAtLeast(s.role, 'admin')}
       creditBalance={ws[0]?.c ?? 0}
       creditsUnlimited={unlimitedCredits(s.user.email)}
+      // V5 · la barre de la pastille · solde / dotation mensuelle de la formule de l'espace.
+      creditAllocation={PLAN_CREDITS[s.plan]}
       userName={s.user.name || ''}
       userEmail={s.user.email}
       avatarUrl={avatarUrl}

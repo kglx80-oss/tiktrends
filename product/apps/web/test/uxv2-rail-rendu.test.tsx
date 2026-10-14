@@ -88,13 +88,16 @@ describe('UX V2 · le rail plat rendu', () => {
     expect(railPrincipal().querySelector('[aria-label="Votre espace"]')).toBeNull();
   });
 
-  it('pied du rail · Aide pour tous, Administration réservée à l’équipe plateforme', () => {
+  // Lot V5 · B (R16) · « Administration » quitte le rail créatif · l'équipe
+  // plateforme ouvre ADMIN+ depuis la pop-up profil (même garde `isStaff`, même
+  // /admin · gardé dans uxv5-coquille-rendu). Le pied ne porte plus que l'Aide,
+  // pour TOUS les rôles, équipe comprise.
+  it('pied du rail · Aide pour tous, Administration n’est plus dans le rail (V5 · dans la pop-up profil)', () => {
     monter('/dashboard');
-    expect(pied()).toContainEqual(['Aide', '/support']);
-    expect(pied().map((x) => x[1]), 'Administration proposée hors équipe plateforme').not.toContain('/admin');
+    expect(pied()).toEqual([['Aide', '/support']]);
     act(() => { root!.unmount(); }); root = createRoot(el!);
     monter('/dashboard', proprietaire, { isStaff: true });
-    expect(pied()).toContainEqual(['Administration', '/admin']);
+    expect(pied(), 'Administration est revenue dans le rail créatif').toEqual([['Aide', '/support']]);
   });
 
   it('la section reste allumée sur un descendant (true), l’écran exact est la page', () => {
@@ -170,11 +173,13 @@ describe('UX V2 · Alt B réduit et déploie le rail', () => {
     expect(document.querySelector('button[aria-label="Réduire la barre"]'), 'Alt B a replié le rail pendant une saisie').not.toBeNull();
   });
 
+  // Lot V5 · B · la touche « [ » rejoint Alt B · les deux sont annoncées.
   it('le raccourci est annoncé (infobulle + aria-keyshortcuts)', () => {
     monter('/dashboard');
     const b = document.querySelector('button[aria-label="Réduire la barre"]')!;
-    expect(b.getAttribute('aria-keyshortcuts')).toBe('Alt+B');
+    expect(b.getAttribute('aria-keyshortcuts')).toBe('Alt+B [');
     expect(b.getAttribute('title')).toContain('Alt B');
+    expect(b.getAttribute('title')).toContain('[');
   });
 });
 

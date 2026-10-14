@@ -11,18 +11,20 @@ import { LogoHome } from '../components/LogoHome';
  * coquille), le logo n'usurpe plus ce geste. On rend le logo et on lit le HTML.
  */
 describe('le logo ramène à l’accueil · dans tous les états', () => {
-  it('déplié · lien vers le Dashboard, étiqueté « Accueil », avec le mot TikTrends', () => {
+  // Lot V5 · B (R01) · le mot-symbole V5 « tiktrends. » remplace « TikTrends »
+  // et le carré dégradé · même lien, même nom accessible.
+  it('déplié · lien vers le Dashboard, étiqueté « Accueil », avec le mot-symbole « tiktrends. »', () => {
     const html = renderToStaticMarkup(<LogoHome collapsed={false} />);
     expect(html, 'le logo ne pointe pas vers l’accueil').toContain('href="/dashboard"');
     expect(html, 'le retour n’est pas nommé pour les lecteurs d’écran').toContain('aria-label="Accueil"');
-    expect(html, 'le mot TikTrends manque en déplié').toContain('TikTrends');
+    expect(html.replace(/<[^>]+>/g, ''), 'le mot-symbole manque en déplié').toBe('tiktrends.');
   });
 
   it('replié · le logo RESTE un lien accueil (mutation : le rendre muet fait tomber)', () => {
     const html = renderToStaticMarkup(<LogoHome collapsed />);
     expect(html, 'replié, le logo ne ramène plus à l’accueil').toContain('href="/dashboard"');
     expect(html).toContain('aria-label="Accueil"');
-    // À 64 px, le mot n'a pas la place · seul le symbole (le lien reste accueil).
-    expect(html, 'le mot ne devrait pas s’afficher à 64 px').not.toContain('TikTrends');
+    // À 64 px, le mot n'a pas la place · seul « t. » (le lien reste accueil).
+    expect(html.replace(/<[^>]+>/g, ''), 'le mot ne devrait pas s’afficher à 64 px').toBe('t.');
   });
 });

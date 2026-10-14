@@ -59,6 +59,27 @@ export function caseCreditsFormule(
 }
 
 /**
+ * La pastille de crédits du rail (V5) · solde, unité, et barre solde / dotation.
+ *
+ * Même décision que la case de formule (`caseCreditsFormule`) · le solde réel
+ * rapporté à la dotation mensuelle de la formule (`PLAN_CREDITS[plan]`). Après
+ * une recharge le solde peut dépasser la dotation · la barre plafonne à plein,
+ * le chiffre reste le vrai. En illimité, ni chiffre ni barre · une barre pleine
+ * mentirait autant qu'une vide. Sans dotation connue (0), pas de barre.
+ * Aucune date de renouvellement · elle n'est pas stockée.
+ */
+export function jaugeCredits(
+  e: { balance: number; unlimited: boolean; allocation: number },
+  formatNombre: (n: number) => string,
+): { texte: string; unite: string; ratio: number | null; libelle: string } {
+  const a = afficherCredits({ balance: e.balance, unlimited: e.unlimited });
+  if (a.mode !== 'solde') return { texte: LIBELLE_CREDITS[a.mode], unite: '', ratio: null, libelle: `Crédits · ${LIBELLE_CREDITS[a.mode].toLowerCase()}` };
+  const ratio = e.allocation > 0 ? Math.min(1, a.valeur / e.allocation) : null;
+  const sur = e.allocation > 0 ? ` sur ${formatNombre(e.allocation)} par mois` : '';
+  return { texte: formatNombre(a.valeur), unite: a.valeur > 1 ? 'crédits' : 'crédit', ratio, libelle: `Crédits · ${formatNombre(a.valeur)}${sur}` };
+}
+
+/**
  * L'historique de crédits vide (/credits) · lot 11. Il promettait « tes crédits
  * se dépensent à chaque génération » à un compte illimité, dont les générations
  * ne débitent rien (`unlimitedCredits` · ni vérification ni débit). L'historique
