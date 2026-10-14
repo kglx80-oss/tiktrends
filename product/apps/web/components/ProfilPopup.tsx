@@ -20,8 +20,8 @@ import { useIsMobile, MEDIA_TELEPHONE } from './useIsMobile';
  * Fenêtre centrée via le `Modal` partagé (voile, Échap, piège à focus, focus
  * rendu au déclencheur · l'avatar). Plein écran sur téléphone.
  *
- * `apparence` · emplacement RÉSERVÉ à la bascule « Sombre / Clair » (V5 · P02),
- * qui arrivera avec le socle des thèmes · rien n'est rendu tant qu'il est vide.
+ * `apparence` · la bascule « Sombre / Clair » (V5 · P02, `BasculeTheme`),
+ * posée par la coquille · rien n’est rendu si elle est absente.
  */
 export function ProfilPopup({
   open, onClose, nom, email, avatarUrl, espace, role, entrees, onProfil, onReglagesRapides, logout, apparence,
@@ -80,7 +80,7 @@ export function ProfilPopup({
           </div>
         </div>
 
-        {/* P02 · emplacement réservé « Sombre / Clair » (socle des thèmes). */}
+        {/* P02 · bascule « Sombre / Clair » (socle des thèmes, A4a). */}
         {apparence && (
           <section aria-label="Apparence" data-zone="apparence" style={{ ...section, borderBottom: '1px solid var(--line)' }}>
             <span style={etiquette}>Apparence</span>

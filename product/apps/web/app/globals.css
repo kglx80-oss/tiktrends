@@ -13,21 +13,27 @@ html, body { font-family: var(--font-sans); }
    fine et arrondie, dans les tons de l'interface. `scrollbar-*` couvre Firefox,
    les pseudo-éléments `::-webkit-scrollbar` couvrent Chrome/Safari/Edge. Le
    pouce se pose en `background-clip: padding-box` derrière une bordure
-   transparente · il paraît fin et détaché des bords. */
+   transparente · il paraît fin et détaché des bords.
+   V5 · A4a · les teintes passent par les jetons (`--scroll-thumb*` de
+   tokens.css) · la barre suit le thème clair / sombre. */
 html {
   scrollbar-width: thin;                                   /* Firefox */
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;  /* pouce · piste */
+  scrollbar-color: var(--scroll-thumb-thin) transparent;   /* pouce · piste */
 }
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--scroll-thumb);
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.30); background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); background-clip: padding-box; }
 ::-webkit-scrollbar-corner { background: transparent; }
+
+/* Sélection de texte en clair · l'accent plein, texte blanc (V5). En sombre,
+   la sélection native reste celle de main. */
+:root[data-theme="clair"] ::selection { background: var(--accent); color: var(--on-accent); }
 
 /* Focus clavier visible · partout.
    Des dizaines d'éléments posent `outline: none` en style INLINE pour masquer le
