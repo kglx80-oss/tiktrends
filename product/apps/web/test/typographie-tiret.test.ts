@@ -17,9 +17,9 @@ import ts from 'typescript';
  *
  * Version précédente (jusqu'au 14/10) · un filtre par expressions régulières sur
  * les seuls `.tsx` de `app/` et `components/`, qui ne visait que le tiret
- * ENTOURÉ D'ESPACES. Elle laissait passer 40 « — » seuls (valeur absente d'un
+ * ENTOURÉ D'ESPACES. Elle laissait passer 56 « — » seuls (valeur absente d'un
  * tableau, désormais `VALEUR_ABSENTE` du noyau) et l'incise d'un titre écrit en
- * `.ts` (`app/actions/adsmap-bridge.ts`).
+ * `.ts` (`app/actions/adsmap-bridge.ts`). Aucune exception.
  *
  * ── Ce qu'elle ne lit pas ────────────────────────────────────────────────────
  *
@@ -34,19 +34,6 @@ import ts from 'typescript';
 const DOSSIERS = ['app', 'components', 'lib'] as const;
 const EXCLUS = ['lib/studios/prompts/'];
 const TIRET = /—|&mdash;|&#8212;|&#x2014;/i;
-
-/**
- * Exceptions DATÉES · fichiers encore porteurs d'un « — » à l'écran, laissés
- * en l'état parce que les PR ouvertes #782 à #791 (UX v2) les modifient · les
- * corriger ici créerait des conflits. Relevé du 14/10/2026. À vider dès leur
- * fusion · la garde échoue si une exception ne porte plus de tiret (périmée).
- */
-const EXCEPTIONS_DATEES: Readonly<Record<string, string>> = {
-  'app/(app)/admin/depenses/page.tsx': '14/10/2026 · PR UX v2 #782-#791',
-  'app/(app)/admin/intelligence/page.tsx': '14/10/2026 · PR UX v2 #782-#791',
-  'app/(app)/admin/signups/page.tsx': '14/10/2026 · PR UX v2 #782-#791',
-  'app/(app)/console/page.tsx': '14/10/2026 · PR UX v2 #782-#791',
-};
 
 function sources(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
@@ -107,15 +94,9 @@ describe('typographie · aucun tiret cadratin à l’écran', () => {
   it('aucune chaîne affichable ne porte « — » (utiliser « · », ou VALEUR_ABSENTE)', () => {
     const fautifs: string[] = [];
     for (const [f, liste] of trouves) {
-      if (f in EXCEPTIONS_DATEES) continue;
       for (const t of liste) fautifs.push(`${f}:${t.ligne} · ${t.extrait}`);
     }
     expect(fautifs, `« — » à l'écran, à remplacer par « · » (ou VALEUR_ABSENTE pour une case vide) :\n${fautifs.join('\n')}`).toEqual([]);
-  });
-
-  it('chaque exception datée porte encore un tiret · sinon elle est périmée, à retirer', () => {
-    const perimees = Object.keys(EXCEPTIONS_DATEES).filter((f) => !trouves.has(f));
-    expect(perimees, `exception périmée, à retirer de EXCEPTIONS_DATEES :\n${perimees.join('\n')}`).toEqual([]);
   });
 
   it('la garde voit le texte JSX, les attributs et les gabarits, pas les commentaires ni les regex', () => {

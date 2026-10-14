@@ -4,7 +4,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { COMPETITORS, AI_STACK, CAPABILITIES, GAPS, ADVANTAGES, type Cap } from '../../../../lib/intel';
-import { analyseSurvie, PROVEN_DAYS, bilanHypotheses, perfParAngle, type AnalyseSurvie, type BilanHypotheses, type PerfParAngle, type CreaLancee, type VerdictValue } from '@tiktrends/core';
+import { analyseSurvie, VALEUR_ABSENTE, PROVEN_DAYS, bilanHypotheses, perfParAngle, type AnalyseSurvie, type BilanHypotheses, type PerfParAngle, type CreaLancee, type VerdictValue } from '@tiktrends/core';
 import { eq, inArray } from 'drizzle-orm';
 import { Icon } from '../../../../components/Icon';
 import { cadrePage, cadreSignal, surface, tuile, h1 } from '../../../../components/ui';
@@ -225,7 +225,7 @@ export default async function IntelligencePage() {
             <StatSurvie v={survie.p75 + ' j'} label="p75" />
             <StatSurvie v={survie.p90 + ' j'} label="p90" />
             <StatSurvie v={PROVEN_DAYS + ' j'} label="Seuil actuel (posé)" />
-            <StatSurvie v={survie.recommande != null ? survie.recommande + ' j' : '—'} label="Seuil mesuré" accent />
+            <StatSurvie v={survie.recommande != null ? survie.recommande + ' j' : VALEUR_ABSENTE} label="Seuil mesuré" accent />
           </div>
           <div style={{ overflowX: 'auto', marginBottom: 12 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 480 }}>
@@ -268,7 +268,7 @@ export default async function IntelligencePage() {
       ) : (
         <div style={cardSurvie}>
           <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--ink-2)' }}>
-            Référence · taux général <b style={{ color: 'var(--ink)' }}>{bilan.tauxGeneral != null ? Math.round(bilan.tauxGeneral * 100) + ' %' : '—'}</b> sur {bilan.jugeesTotal} créa(s) jugée(s).
+            Référence · taux général <b style={{ color: 'var(--ink)' }}>{bilan.tauxGeneral != null ? Math.round(bilan.tauxGeneral * 100) + ' %' : VALEUR_ABSENTE}</b> sur {bilan.jugeesTotal} créa(s) jugée(s).
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 560 }}>
@@ -283,7 +283,7 @@ export default async function IntelligencePage() {
                     <td style={{ ...std, color: 'var(--ink)', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={l.angle}>{l.angle}</td>
                     <td style={std}>{l.total}</td>
                     <td style={std}>{l.jugees}</td>
-                    <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxPertinence != null ? Math.round(l.tauxPertinence * 100) + ' %' : '—'}</td>
+                    <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxPertinence != null ? Math.round(l.tauxPertinence * 100) + ' %' : VALEUR_ABSENTE}</td>
                     <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (bilan!.tauxGeneral != null && l.tauxPertinence != null ? (l.tauxPertinence >= bilan!.tauxGeneral ? <span style={{ fontSize: 11, color: '#2fd6a0', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: '#f5a623' }}>en dessous</span>) : null)}</td>
                   </tr>
                 ))}
@@ -311,7 +311,7 @@ export default async function IntelligencePage() {
       ) : (
         <div style={cardSurvie}>
           <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--ink-2)' }}>
-            Référence · taux de gagnants général <b style={{ color: 'var(--ink)' }}>{perf.tauxGeneral != null ? Math.round(perf.tauxGeneral * 100) + ' %' : '—'}</b> sur {perf.conclusifsTotal} créa(s) conclusive(s).
+            Référence · taux de gagnants général <b style={{ color: 'var(--ink)' }}>{perf.tauxGeneral != null ? Math.round(perf.tauxGeneral * 100) + ' %' : VALEUR_ABSENTE}</b> sur {perf.conclusifsTotal} créa(s) conclusive(s).
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 620 }}>
@@ -326,8 +326,8 @@ export default async function IntelligencePage() {
                     <td style={{ ...std, color: 'var(--ink)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={l.angle}>{l.angle}</td>
                     <td style={std}>{l.total}</td>
                     <td style={std}>{l.conclusifs}</td>
-                    <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxGagnant != null ? Math.round(l.tauxGagnant * 100) + ' %' : '—'}</td>
-                    <td style={std}>{l.ctrMoyen != null ? (l.ctrMoyen * 100).toFixed(2).replace('.', ',') + ' %' : '—'}</td>
+                    <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxGagnant != null ? Math.round(l.tauxGagnant * 100) + ' %' : VALEUR_ABSENTE}</td>
+                    <td style={std}>{l.ctrMoyen != null ? (l.ctrMoyen * 100).toFixed(2).replace('.', ',') + ' %' : VALEUR_ABSENTE}</td>
                     <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (perf!.tauxGeneral != null && l.tauxGagnant != null ? (l.tauxGagnant >= perf!.tauxGeneral ? <span style={{ fontSize: 11, color: '#2fd6a0', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: '#f5a623' }}>en dessous</span>) : null)}</td>
                   </tr>
                 ))}
