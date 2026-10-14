@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   checkIteration, checkVerdictValidation, checkVerdictComparability,
-  formatViolations, type VerdictValue, type TestedVariable, type SourceVeille, manquesAvantTest } from '@tiktrends/core';
+  formatViolations, VALEUR_ABSENTE, type VerdictValue, type TestedVariable, type SourceVeille, manquesAvantTest } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
@@ -194,12 +194,12 @@ export async function adDetailAction(adId: string): Promise<{ detail?: AdDetail;
         },
         learnings: apprentissages,
         parent: arcParent && p
-          ? { adId: p.id, variantCode: p.variantCode, concept: p.concept ?? '—', changedVariable: arcParent.changedVariable, mode: arcParent.mode }
+          ? { adId: p.id, variantCode: p.variantCode, concept: p.concept ?? VALEUR_ABSENTE, changedVariable: arcParent.changedVariable, mode: arcParent.mode }
           : null,
         children: edges.filter((e) => e.parentAdId === adId).map((e) => {
           const c = parId.get(e.childAdId);
           return {
-            adId: e.childAdId, variantCode: c?.variantCode ?? '—',
+            adId: e.childAdId, variantCode: c?.variantCode ?? VALEUR_ABSENTE,
             changedVariable: e.changedVariable, mode: e.mode,
             verdict: c?.validated ?? c?.verdict ?? null,
           };

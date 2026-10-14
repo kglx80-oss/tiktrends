@@ -2,7 +2,7 @@
 
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { buildImportPlan, type ImportPlan, type ImportReport } from '@tiktrends/core';
+import { buildImportPlan, VALEUR_ABSENTE, type ImportPlan, type ImportReport } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 
@@ -48,7 +48,7 @@ export async function previewImportAction(csvText: string): Promise<PreviewResul
         const c = byKey.get(a.conceptKey);
         const angle = plan.angles.find((x) => x.label === c?.angleLabel);
         return {
-          concept: c?.title ?? '—', angle: c?.angleLabel ?? '—', desire: angle?.desireLabel ?? '—',
+          concept: c?.title ?? VALEUR_ABSENTE, angle: c?.angleLabel ?? VALEUR_ABSENTE, desire: angle?.desireLabel ?? VALEUR_ABSENTE,
           variant: a.variantCode, status: a.status, verdict: a.verdict, date: a.launchedAt,
         };
       }),
