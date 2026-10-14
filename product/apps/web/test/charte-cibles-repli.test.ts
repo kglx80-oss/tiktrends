@@ -60,7 +60,10 @@ describe('cibles tactiles · chrome partagé (rail, recherche, logo)', () => {
     expect(near(shell, 'const collapseBtn')).toContain('width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN');
   });
   it('la recherche globale (barre commune) et le logo d’accueil portent la cible', () => {
-    expect(shell).toContain("aria-label=\"Accueil\" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN");
+    // Lot V5 · B · la barre mobile pose le mot-symbole via LogoHome, dont la
+    // cible (minHeight + minWidth CIBLE_TACTILE_MIN) est gardée ailleurs.
+    expect(shell).toContain('<LogoHome collapsed={false} />');
+    expect(read('components/LogoHome.tsx')).toContain('minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN');
     // Kevin 29/09 · la recherche globale a quitté le rail pour la barre
     // supérieure commune · son lanceur porte la cible en hauteur.
     const iSearch = shell.indexOf('aria-label="Rechercher"');

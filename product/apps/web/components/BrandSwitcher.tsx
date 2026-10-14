@@ -8,7 +8,7 @@ import {
 } from '@tiktrends/core';
 import { useEffect, useRef, useState } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
-import { Modal } from './Modal';
+import { Modal, PiedModale } from './Modal';
 import { SubmitButton } from './SubmitButton';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
@@ -154,7 +154,12 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
         </>
       )}
 
-      <Modal open={!!confirmation} onClose={garder} title={TITRE_CONFIRMATION_BASCULE}>
+      <Modal open={!!confirmation} onClose={garder} title={TITRE_CONFIRMATION_BASCULE} pied={confirmation ? (
+        <PiedModale>
+          <button type="button" onClick={garder} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{GARDER_SAISIE}</button>
+          <button type="button" onClick={confirmer} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid rgba(255,90,120,.45)', background: 'transparent', color: '#ff9db0', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{CHANGER_ET_EFFACER}</button>
+        </PiedModale>
+      ) : undefined}>
         {confirmation && (
           <div style={{ display: 'grid', gap: 14 }}>
             <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: 'var(--ink-2)' }}>
@@ -165,10 +170,6 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
                 {confirmation.libelles.map((l) => <li key={l}>{l}</li>)}
               </ul>
             )}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={garder} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{GARDER_SAISIE}</button>
-              <button type="button" onClick={confirmer} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid rgba(255,90,120,.45)', background: 'transparent', color: '#ff9db0', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{CHANGER_ET_EFFACER}</button>
-            </div>
           </div>
         )}
       </Modal>

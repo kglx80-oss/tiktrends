@@ -3,6 +3,7 @@ import {
   CIBLE_TACTILE_MIN,
   HAUTEUR_RANGEE_FINE,
   HAUTEUR_RANGEE_TACTILE,
+  HAUTEUR_RANGEE_V5,
   hauteurRangeeRail,
   hauteurPileTetes,
 } from '../src/index';
@@ -16,31 +17,29 @@ import {
  * tactile déborderait.
  */
 describe('rail · densité par pointeur', () => {
+  // Lot V5 · B · le rail est plat (six modules) depuis l'UX V2 · la densité
+  // 32-36 du rail à branches (30/09) n'a plus d'objet. La V5 pose UNE rangée de
+  // 46 (mesurée sur la référence), au doigt comme à la souris.
   it('au doigt (tactile), la rangée ne descend jamais sous la cible tactile', () => {
-    expect(hauteurRangeeRail(true)).toBe(CIBLE_TACTILE_MIN);
-    expect(HAUTEUR_RANGEE_TACTILE).toBe(CIBLE_TACTILE_MIN);
+    expect(hauteurRangeeRail(true)).toBeGreaterThanOrEqual(CIBLE_TACTILE_MIN);
+    expect(HAUTEUR_RANGEE_TACTILE).toBeGreaterThanOrEqual(CIBLE_TACTILE_MIN);
   });
 
-  it('à la souris (fine), la rangée est DANS la fourchette 32-36, avec marge', () => {
+  it('V5 · la rangée vaut 46 (mesurée sur la référence), souris comme doigt', () => {
+    expect(HAUTEUR_RANGEE_V5).toBe(46);
     expect(hauteurRangeeRail(false)).toBe(HAUTEUR_RANGEE_FINE);
-    expect(HAUTEUR_RANGEE_FINE).toBeGreaterThanOrEqual(32);
-    expect(HAUTEUR_RANGEE_FINE).toBeLessThanOrEqual(36);
+    expect(HAUTEUR_RANGEE_FINE).toBe(HAUTEUR_RANGEE_V5);
+    expect(hauteurRangeeRail(true)).toBe(HAUTEUR_RANGEE_V5);
   });
 
-  it('la rangée fine est STRICTEMENT plus courte que la tactile · c’est le levier de densité', () => {
-    expect(hauteurRangeeRail(false)).toBeLessThan(hauteurRangeeRail(true));
-  });
-
-  it('densifier fait GAGNER exactement la hauteur des têtes économisée', () => {
-    // À nombre d'entrées égal, passer du tactile au fin ne touche pas les en-têtes
-    // de section (mêmes libellés) · le gain est exactement le raccourcissement des
-    // têtes. C'est un RÉSULTAT vérifiable, pas un seuil posé d'instinct : la valeur
-    // absolue « tient-il à 720 » se mesure au navigateur (recette 720, requise).
-    const tetes = 8;
-    const entetes = 4;
-    const fine = hauteurPileTetes({ tetes, entetes, tactile: false });
-    const tactile = hauteurPileTetes({ tetes, entetes, tactile: true });
-    expect(fine).toBeLessThan(tactile);
-    expect(tactile - fine).toBe(tetes * (HAUTEUR_RANGEE_TACTILE - HAUTEUR_RANGEE_FINE));
+  it('les six modules tiennent à 720 en desktop, sous la tête et au-dessus du pied', () => {
+    // Mesuré au navigateur (banc local, 1440 × 720, propriétaire, lot V5 · B) ·
+    // tête du rail (mot-symbole + espace + marque) 187 px, pied (Aide exclue ·
+    // pastille + profil) 164 px. Les six modules (46 + 5 d'écart) doivent tenir
+    // entre les deux · « Votre espace » et l'Aide défilent si la place manque.
+    const tete = 187;
+    const pied = 164;
+    const modules = hauteurPileTetes({ tetes: 6, entetes: 0, tactile: false }) + 5 * 5;
+    expect(modules).toBeLessThanOrEqual(720 - tete - pied);
   });
 });

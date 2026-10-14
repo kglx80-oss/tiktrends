@@ -3,18 +3,20 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
 import { SupportWidget } from './SupportWidget';
 import { CommandPalette, openCommandPalette, type Command } from './CommandPalette';
 import { ProfileModal, type ProfilEnregistre } from './ProfileModal';
 import { QuickSettingsModal } from './QuickSettingsModal';
+import { ProfilPopup } from './ProfilPopup';
 import { CreditsMenu } from './CreditsMenu';
 import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString, actionToucheRail, entreesProfil, COQUILLE_V5, gouttiereCss } from '@tiktrends/core';
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -70,6 +72,8 @@ interface Props {
   canManageBrands: boolean;
   creditBalance: number;
   creditsUnlimited: boolean;
+  /** Dotation mensuelle de la formule de l'espace (`PLAN_CREDITS[plan]`) · barre de la pastille V5. */
+  creditAllocation?: number;
   userName: string;
   userEmail: string;
   avatarUrl?: string;
@@ -103,26 +107,30 @@ function NavLink({ it, active, inPath = false, onClick, tactile = true, courant 
   // à la décision (au doigt, minHeight gouverne ; à la souris, un padding plus
   // court laisse la rangée descendre à sa cible).
   const hRangee = hauteurRangeeRail(tactile);
-  const padY = tactile ? (it.isSub ? 8 : 10) : (it.isSub ? 5 : 6);
+  // V5 (lot V5 · B) · entrée min 46, padding 13 / 12, rayon 8, gap 12, mesurés
+  // sur la référence · la hauteur RÉELLE suit la décision du noyau (minHeight).
+  const R = COQUILLE_V5.rail;
+  const padY = it.isSub ? 8 : R.paddingY;
+  const allume = active || inPath;
   const inner = (
     <span style={{
-      display: 'flex', alignItems: 'center', gap: 11,
-      padding: it.isSub ? `${padY}px 10px ${padY}px 30px` : `${padY}px 11px`, borderRadius: 10,
+      display: 'flex', alignItems: 'center', gap: R.gapIcone,
+      padding: it.isSub ? `${padY}px 10px ${padY}px 30px` : `${padY}px ${R.paddingX}px`, borderRadius: R.rayon,
       minHeight: hRangee, boxSizing: 'border-box',
-      fontSize: it.isSub ? 13 : 14, fontWeight: active || inPath ? 700 : 500,
-      color: disabled ? 'var(--muted)' : active || inPath ? 'var(--ink)' : 'var(--ink-2)',
-      // « Je suis ici » se dit d'un liséré accent + une teinte légère, pas d'un
-      // pavé plein · on voit où l'on est sans que l'item écrase la liste. Le
-      // liséré est logé dans le rayon (inset) pour épouser le coin arrondi.
+      fontSize: it.isSub ? 13 : 14, fontWeight: allume ? 500 : 400, lineHeight: 1.45,
+      color: disabled ? 'var(--muted)' : allume ? 'var(--accent-strong)' : 'var(--ink-2)',
+      // « Je suis ici » · V5 · fond de sélection + barre de 3 px collée au bord
+      // du rail (−12 = la gouttière du rail · la nav s'étend jusqu'au bord pour
+      // ne pas la rogner).
       position: 'relative',
-      background: active ? 'rgba(254,44,85,.10)' : 'transparent',
-      boxShadow: active ? 'inset 3px 0 0 var(--accent-strong)' : undefined,
+      background: active ? 'var(--accent-soft)' : 'transparent',
       opacity: disabled ? 0.55 : 1, cursor: disabled ? 'default' : 'pointer',
     }}>
+      {active && <span aria-hidden data-barre-active style={{ position: 'absolute', left: -R.paddingX, top: '50%', transform: 'translateY(-50%)', width: R.barre.largeur, height: R.barre.hauteur, borderRadius: '0 3px 3px 0', background: 'var(--accent-strong)' }} />}
       {it.isSub ? <span style={{ width: 5, height: 5, borderRadius: '50%', background: active ? 'var(--accent)' : 'var(--line-2)' }} /> : <Icon name={it.icon} />}
       <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.label}</span>
-      {it.soon && <span style={pill('#8a6d3b', 'rgba(245,166,35,.15)')}>Bientôt</span>}
-      {!it.soon && it.locked && <span style={{ ...pill('var(--muted)', 'rgba(255,255,255,.06)'), display: 'inline-flex', alignItems: 'center', padding: '3px 6px' }}><Icon name="lock" size={12} /></span>}
+      {it.soon && <span style={pill('var(--warn)', 'var(--accent-soft)')}>Bientôt</span>}
+      {!it.soon && it.locked && <span style={{ ...pill('var(--muted)', 'var(--paper)'), display: 'inline-flex', alignItems: 'center', padding: '3px 6px' }}><Icon name="lock" size={12} /></span>}
     </span>
   );
   return disabled
@@ -157,7 +165,7 @@ export function AppShell(props: Props) {
 }
 
 function AppShellInner(props: Props) {
-  const { nav, accountGroups, ouvertures = [], isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, userName: userNameServeur, userEmail, avatarUrl: avatarUrlServeur, hidePersonalInfo: hideServeur, roleLabel, planLabel, workspaceName: workspaceNameServeur, collapsedInitial, jarvisMasqueInitial = false, logout, children } = props;
+  const { nav, accountGroups, ouvertures = [], isStaff, showUpgrade, brands, activeBrandId, canManageBrands, creditBalance, creditsUnlimited, creditAllocation = 0, userName: userNameServeur, userEmail, avatarUrl: avatarUrlServeur, hidePersonalInfo: hideServeur, roleLabel, planLabel, workspaceName: workspaceNameServeur, collapsedInitial, jarvisMasqueInitial = false, logout, children } = props;
   // Lot 16 · ce que l'utilisateur vient d'enregistrer (profil, nom d'espace)
   // s'affiche TOUT DE SUITE, sans attendre le rendu serveur · la transition du
   // routeur qui l'apporte peut caler (lot 14). Dès que le serveur renvoie
@@ -175,15 +183,15 @@ function AppShellInner(props: Props) {
     hide: { valeur: p.hidePersonalInfo, serveurAvant: !!hideServeur },
   });
   // Les fenêtres rendent le focus à ce qui l'avait à l'ouverture · l'entrée de
-  // menu cliquée disparaît avec le menu (focus sur <body>, mesuré au lot 16).
-  // On le pose d'abord sur le bouton qui ouvre ce menu.
-  const compteBtnRef = useRef<HTMLButtonElement>(null);
-  const espaceBtnRef = useRef<HTMLButtonElement>(null);
-  // Menu profil : « Compte » (personnel) + « Espace de travail » (marques, membres,
-  // connexions, abonnement, réglages). Les coulisses plateforme (ADMIN+) restent
-  // réservées au fondateur/staff.
+  // la pop-up cliquée disparaît avec elle (focus sur <body>, mesuré au lot 16).
+  // On le pose d'abord sur l'avatar qui a ouvert la pop-up (rail OU en-tête).
+  const declencheurProfil = useRef<HTMLButtonElement | null>(null);
+  // Pop-up profil V5 : « Compte » (personnel) + « Espace de travail » (membres,
+  // connexions, crédits, abonnement, réglages). Les coulisses plateforme (ADMIN+)
+  // restent réservées au fondateur/staff (`isStaff`, inchangé).
   const personalItems = accountGroups.find((g) => g.section === 'Compte')?.items ?? [];
   const workspaceItems = accountGroups.find((g) => g.section === 'Espace')?.items ?? [];
+  const entreesPopup = entreesProfil({ compte: personalItems, espace: workspaceItems, staff: isStaff });
   const pathname = usePathname();
   // Le support est ANCRÉ (zone de commandes en pied) sur les écrans denses en
   // commandes bas-de-page · ailleurs il reste flottant, /jarvis le masque.
@@ -203,9 +211,16 @@ function AppShellInner(props: Props) {
     return () => { racine.style.scrollPaddingBottom = avant; };
   }, [lanceurSupport]);
   const search = useSearchParams();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [wsMenuOpen, setWsMenuOpen] = useState(false);
+  const [popupProfil, setPopupProfil] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  // Le déclencheur prend le focus AVANT l'ouverture · Safari ne le donne pas au
+  // clic, et c'est lui que la fenêtre rend à sa fermeture.
+  const ouvrirPopupProfil = (e: { currentTarget: HTMLButtonElement }) => { declencheurProfil.current = e.currentTarget; e.currentTarget.focus(); setPopupProfil(true); };
+  // Une entrée de la pop-up ouvre une autre fenêtre. Tant que la pop-up est
+  // ouverte, son piège ramène chez elle tout focus posé dehors · on la ferme
+  // donc d'abord, de façon SYNCHRONE (son nettoyage rend le focus à l'avatar),
+  // puis on ouvre la suivante, qui retient l'avatar comme déclencheur.
+  const depuisPopup = (ouvrir: () => void) => { flushSync(() => setPopupProfil(false)); declencheurProfil.current?.focus(); ouvrir(); };
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Barre repliable (« plus d'espace ») · préférence mémorisée par navigateur.
   // L'état part de la valeur SERVEUR (cookie) · le premier rendu client et le
@@ -366,13 +381,14 @@ function AppShellInner(props: Props) {
   // « Votre espace » · Marques et Réglages, seulement si la garde réelle des
   // pages les ouvre (`sectionsCompteOuvertes` · admin d'espace). Rien d'élargi.
   const espaceRail = workspaceItems.filter((it) => it.key === 'brands' || it.key === 'settings');
-  // Alt B · réduit / développe le rail (desktop), jamais pendant une saisie.
+  // Alt B et « [ » (V5) · réduit / développe le rail (desktop), jamais pendant
+  // une saisie · règle au noyau (`actionToucheRail`).
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
-      if (!e.altKey || e.code !== 'KeyB' || e.metaKey || e.ctrlKey) return;
       const cible = e.target as HTMLElement | null;
-      if (cible && (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName))) return;
-      if (mobile) return;
+      const saisie = !!cible && (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName));
+      const dialogue = e.defaultPrevented || !!document.querySelector('[role="dialog"][aria-modal="true"]:not(#nav-rail), dialog[open]');
+      if (!actionToucheRail(e, { saisie, mobile, dialogue })) return;
       e.preventDefault();
       toggleCollapsedRef.current();
     };
@@ -436,6 +452,8 @@ function AppShellInner(props: Props) {
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} onSaved={profilEnregistre} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onSaved={(nom) => setEspaceLocal({ valeur: nom, serveurAvant: workspaceNameServeur })} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
+      <ProfilPopup open={popupProfil} onClose={() => setPopupProfil(false)} nom={userName} email={userEmail} avatarUrl={avatarUrl} espace={workspaceName} role={roleLabel}
+        entrees={entreesPopup} onProfil={() => depuisPopup(() => setProfileOpen(true))} onReglagesRapides={() => depuisPopup(() => setSettingsOpen(true))} logout={logout} />
       <aside ref={railRef} id="nav-rail" inert={chrome.railInerte || undefined}
         // En tiroir (mobile), le rail est une fenêtre modale nommée · le lecteur
         // d'écran l'annonce comme telle et sait qu'elle recouvre la page.
@@ -451,84 +469,41 @@ function AppShellInner(props: Props) {
         // Mode focus · le rail sort de l'écran (et de la tabulation · `inert`).
         ...(focus ? { display: 'none' } : null),
       }}>
-        {/* En-tête COMPACT (14 pouces) · l'identité (retour à l'accueil), la
-            bascule Réduire juste à côté, puis un sélecteur d'espace DISTINCT, puis
-            (plus bas) la marque et la recherche.
-
-            Kevin, 29/09 · la bascule Réduire REVIENT en tête, en petite icône à
-            côté du logo · l'ancien bouton de pied éloignait la commande de
-            l'identité. Le mot « TikTrends » ne se tronque pas et ne
-            chevauche pas l'icône · l'identité prend la place qu'il lui faut
-            (flex 0 1 auto, sans ellipse), un ressort la sépare de l'icône. */}
+        {/* V5 (R01 · R02 · R03) · le mot-symbole « tiktrends. » (accueil) et la
+            bascule Réduire juste à côté, en tête collante · replié, « t. » puis
+            l'icône d'expansion empilée dessous · deux cibles 44 distinctes,
+            jamais deux gestes sur un même bouton (Kevin, 29/09). */}
         {!collapsed ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 2px 0 4px', minHeight: CIBLE_TACTILE_MIN }}>
-            {/* Le logo ET le mot « TikTrends » ramènent à l'accueil · un seul lien. */}
-            <Link href="/dashboard" aria-label="Accueil" title="Accueil"
-              style={{ flex: '0 1 auto', minWidth: 0, display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, textDecoration: 'none' }}>
-              <span aria-hidden style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0, display: 'block' }} />
-              <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)', whiteSpace: 'nowrap' }}>TikTrends</span>
-            </Link>
+          <div data-zone="tete-rail" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 0 8px', minHeight: CIBLE_TACTILE_MIN }}>
+            <LogoHome collapsed={false} />
             <span style={{ flex: 1 }} />
-            {/* Petite icône Réduire · cible 44 réelle, infobulle + nom accessible,
-                état déplié annoncé. Discrète (sans fond ni bordure). */}
-            <button type="button" onClick={toggleCollapsed} title="Réduire la barre (Alt B)" aria-label="Réduire la barre" aria-keyshortcuts="Alt+B" aria-expanded={!collapsed}
-              style={{ ...collapseBtn, flex: '0 0 auto', background: 'transparent', border: 'none', color: 'var(--muted)' }}>
+            <button type="button" onClick={toggleCollapsed} title="Réduire la barre (Alt B ou [)" aria-label="Réduire la barre" aria-keyshortcuts="Alt+B [" aria-expanded={!collapsed}
+              style={{ ...collapseBtn, flex: '0 0 auto', background: 'transparent', border: 'none', color: 'var(--ink-2)' }}>
               <CollapseIcon dir="left" />
             </button>
           </div>
         ) : (
-          // Replié (64 px) · Kevin 29/09 · le logo reste un lien ACCUEIL (comme
-          // déplié), et l'expansion de la barre est une icône SÉPARÉE, empilée
-          // dessous · deux cibles 44 distinctes, jamais deux gestes sur un même
-          // bouton.
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <div data-zone="tete-rail" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, paddingTop: 12 }}>
             <LogoHome collapsed />
-            <button type="button" onClick={toggleCollapsed} title="Développer la barre (Alt B)" aria-label="Développer la barre" aria-keyshortcuts="Alt+B" aria-expanded={false}
-              style={{ ...collapseBtn, background: 'transparent', border: 'none', color: 'var(--muted)' }}>
+            <button type="button" onClick={toggleCollapsed} title="Développer la barre (Alt B ou [)" aria-label="Développer la barre" aria-keyshortcuts="Alt+B [" aria-expanded={false}
+              style={{ ...collapseBtn, background: 'transparent', border: 'none', color: 'var(--ink-2)' }}>
               <CollapseIcon dir="right" />
             </button>
           </div>
         )}
 
-        {/* Espace de travail · sélecteur DISTINCT de la marque, sur sa propre
-            ligne compacte de 44 px. Le nom peut se tronquer ici, le libellé
-            COMPLET se lit dans son menu (et dans l'infobulle). On ne supprime pas
-            le changement d'espace. */}
+        {/* V5 (R06) · l'espace et la marque sous un filet · le nom de l'espace en
+            clair, la marque active dans son sélecteur RÉEL (BrandSwitcher). Les
+            entrées de l'ancien menu d'espace sont dans la pop-up profil (Espace
+            de travail, Équipe, Connexions, Crédits, Abonnement) et « Marques »
+            reste dans « Votre espace » du rail · même source, même garde. */}
         {!collapsed && (
-          <div style={{ position: 'relative', marginTop: 6 }}>
-            <button ref={espaceBtnRef} type="button" onClick={() => setWsMenuOpen((o) => !o)} aria-haspopup="menu" aria-expanded={wsMenuOpen} title={`Espace · ${workspaceName}`}
-              style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 10, border: '1px solid var(--line)', background: wsMenuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer' }}>
-              <span aria-hidden style={{ width: 20, height: 20, borderRadius: 6, background: 'var(--paper)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0 }}>{(workspaceName || '?').trim().slice(0, 1).toUpperCase()}</span>
-              <span style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{workspaceName}</span>
-              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>⌄</span>
-            </button>
-
-            {/* Menu d'espace · le libellé complet s'y lit en entier (pas de coupe). */}
-            {wsMenuOpen && (
-              <>
-                <div onClick={() => setWsMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden' }}>
-                  <div style={{ padding: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px' }}>
-                      <div style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--grad-accent)', flexShrink: 0 }} />
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3, wordBreak: 'break-word' }}>{workspaceName}</span>
-                      <span style={{ color: 'var(--accent-strong)', fontSize: 13, flexShrink: 0 }}>✓</span>
-                    </div>
-                    {workspaceItems.length > 0 && <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />}
-                    {workspaceItems.map((it) => {
-                      if (it.locked || it.soon) return <div key={it.key} style={{ ...menuItemIcon, color: 'var(--muted)', opacity: .6, cursor: 'default' }}><Icon name={it.icon} />{it.label}{it.soon && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>;
-                      if (it.key === 'settings') return <button key={it.key} type="button" onClick={() => { espaceBtnRef.current?.focus(); setWsMenuOpen(false); setSettingsOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name={it.icon} />{it.label}</button>;
-                      return <Link key={it.key} href={it.href} onClick={() => setWsMenuOpen(false)} style={menuItemIcon}><Icon name={it.icon} />{it.label}</Link>;
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
+          <div data-zone="espace-rail" style={{ borderTop: '1px solid var(--line)', padding: '14px 0 4px', marginTop: 4 }}>
+            <div title={`Espace · ${workspaceName}`} style={{ padding: '0 10px', fontSize: 14, color: 'var(--ink)', overflowWrap: 'anywhere', lineHeight: 1.4 }}>{workspaceName}</div>
+            {/* Sélecteur de marque (masqué en mode replié ou en mode ADMIN+) */}
+            {!inAdmin && <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />}
           </div>
         )}
-
-        {/* Sélecteur de marque (masqué en mode replié ou en mode ADMIN+) */}
-        {!collapsed && !inAdmin && <BrandSwitcher brands={brands} activeId={activeBrandId} canManage={canManageBrands} />}
 
         {/* La recherche GLOBALE a quitté le rail · elle vit dans la barre
             supérieure commune (voir le lanceur en tête du contenu). Le raccourci
@@ -539,7 +514,10 @@ function AppShellInner(props: Props) {
         {/* Lot 15 · `minHeight: 0` · sans lui, l'élément flex refuse de rétrécir
             sous son contenu · avec un nom de marque long (sélecteur haut) les
             rubriques du bas sortaient du rail, hors d'atteinte. La liste défile. */}
-        <nav aria-label="Navigation principale" style={{ marginTop: 2, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
+        {/* V5 · la liste s'étend jusqu'aux bords du rail (marge négative = la
+            gouttière, rendue en padding) · la barre active de 3 px, collée au
+            bord, n'est pas rognée par `overflowX: hidden`. */}
+        <nav aria-label="Navigation principale" style={{ marginTop: 8, marginInline: collapsed ? -10 : -12, paddingInline: collapsed ? 10 : 12, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
           {inAdmin ? (
             <>
               {/* Retour à la vue SaaS (app) */}
@@ -579,11 +557,11 @@ function AppShellInner(props: Props) {
                 const bloque = b.head.locked || b.head.soon;
                 const railStyle = {
                   ...railIconBtn,
-                  color: ici || dedans ? 'var(--ink)' : 'var(--ink-2)',
-                  background: ici ? 'var(--accent-soft)' : 'transparent',
-                  // « Je suis dans cette branche » sans y être exactement · un
-                  // liseré, pas un fond, la même distinction qu'en déplié.
-                  boxShadow: !ici && dedans ? 'inset 2px 0 0 var(--accent-strong)' : 'none',
+                  // V5 · un seul état « ici » (écran ou descendant) · fond de
+                  // sélection + barre au bord, comme en déplié. `aria-current`
+                  // garde la nuance page / descendant.
+                  color: ici || dedans ? 'var(--accent-strong)' : 'var(--ink-2)',
+                  background: ici || dedans ? 'var(--accent-soft)' : 'transparent',
                   opacity: bloque ? .5 : 1,
                   cursor: bloque ? 'default' : 'pointer',
                 };
@@ -599,6 +577,7 @@ function AppShellInner(props: Props) {
                   </div>
                 ) : (
                 <Link key={b.head.key} href={b.head.href} title={titre} aria-label={titre} aria-current={ici ? 'page' : dedans ? 'true' : undefined} style={railStyle}>
+                  {(ici || dedans) && <BarreActive repli />}
                   <Icon name={b.head.icon} />
                 </Link>
                 );
@@ -609,7 +588,7 @@ function AppShellInner(props: Props) {
               // Sauvegardes allument « Veille ») · `aria-current="page"` sur l'écran
               // exact, `"true"` sur un descendant. Les sous-écrans sont les onglets
               // de la page (`OngletsSection`), plus des branches à déplier ici.
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: COQUILLE_V5.rail.gapEntrees }}>
                 {sections.map((sec) => {
                   const ici = isNavActive(sec.tete.href, false);
                   const dedans = !ici && sectionCourante?.tete.key === sec.tete.key;
@@ -618,8 +597,8 @@ function AppShellInner(props: Props) {
               </div>
             )}
           {!inAdmin && (espaceRail.length > 0 || sectionMarque) && (
-            <div aria-label="Votre espace" role="group" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 10, alignItems: collapsed ? 'center' : 'stretch' }}>
-              {!collapsed && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '1px 10px 1px' }}>Votre espace</div>}
+            <div aria-label="Votre espace" role="group" style={{ display: 'flex', flexDirection: 'column', gap: COQUILLE_V5.rail.gapEntrees, marginTop: 14, alignItems: collapsed ? 'center' : 'stretch' }}>
+              {!collapsed && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', padding: '1px 12px 3px' }}>Votre espace</div>}
               {/* La marque ACTIVE, sous son nom · son aperçu, ses facettes en onglets
                   dans sa fiche. Allumée sur toutes ses pages. */}
               {sectionMarque && (() => {
@@ -627,7 +606,7 @@ function AppShellInner(props: Props) {
                 const titre = `Aperçu de la marque ${nomMarqueActive}`;
                 const ici = isNavActive(sectionMarque.tete.href, false);
                 return collapsed ? (
-                  <Link key="marque-active" href={it.href} data-marque-active title={titre} aria-label={titre} aria-current={ici ? 'page' : dansMarque ? 'true' : undefined} style={{ ...railIconBtn, color: dansMarque ? 'var(--ink)' : 'var(--ink-2)', background: dansMarque ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
+                  <Link key="marque-active" href={it.href} data-marque-active title={titre} aria-label={titre} aria-current={ici ? 'page' : dansMarque ? 'true' : undefined} style={{ ...railIconBtn, color: dansMarque ? 'var(--accent-strong)' : 'var(--ink-2)', background: dansMarque ? 'var(--accent-soft)' : 'transparent' }}>{dansMarque && <BarreActive repli />}<Icon name={it.icon} /></Link>
                 ) : (
                   <div key="marque-active" data-marque-active title={titre}><NavLink it={it} active={dansMarque} courant={ici ? 'page' : dansMarque ? 'true' : undefined} tactile={mobile} /></div>
                 );
@@ -636,25 +615,25 @@ function AppShellInner(props: Props) {
                 // Sur une page de la marque active, c'est elle qui est allumée · pas la liste « Marques ».
                 const ici = !dansMarque && (pathname === it.href || pathname.startsWith(it.href + '/'));
                 return collapsed ? (
-                  <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--ink)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
+                  <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--accent-strong)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}>{ici && <BarreActive repli />}<Icon name={it.icon} /></Link>
                 ) : <NavLink key={it.key} it={it} active={ici} tactile={mobile} />;
               })}
             </div>
           )}
-          {/* Bas du rail (UX V2) · Administration (équipe plateforme seulement,
-              même garde qu'avant) et Aide (support, tous les rôles). DANS la zone
-              qui défile, poussé en bas (`marginTop: auto`) · en pied quand la
-              place suffit, il défile avec la liste quand elle manque (tiroir
-              mobile 390×720) au lieu de rogner « Réglages ». */}
+          {/* Bas du rail · Aide (support, tous les rôles). DANS la zone qui
+              défile, poussé en bas (`marginTop: auto`) · en pied quand la place
+              suffit, il défile avec la liste quand elle manque (tiroir mobile
+              390×720) au lieu de rogner « Réglages ». V5 (R16) · « Administration »
+              quitte le rail créatif · ADMIN+ s'ouvre depuis la pop-up profil, même
+              garde (`isStaff`), même destination (/admin). */}
           {!inAdmin && (
-            <div data-zone="pied-rail" style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: collapsed ? 'center' : 'stretch', marginTop: 'auto', paddingTop: 10 }}>
+            <div data-zone="pied-rail" style={{ display: 'flex', flexDirection: 'column', gap: COQUILLE_V5.rail.gapEntrees, alignItems: collapsed ? 'center' : 'stretch', marginTop: 'auto', paddingTop: 10 }}>
               {[
-                ...(isStaff ? [{ key: 'administration', label: 'Administration', href: '/admin', icon: 'gear' }] : []),
                 { key: 'aide', label: 'Aide', href: '/support', icon: 'help' },
               ].map((it) => {
                 const ici = pathname === it.href || pathname.startsWith(it.href + '/');
                 return collapsed ? (
-                  <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--ink)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}><Icon name={it.icon} /></Link>
+                  <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--accent-strong)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}>{ici && <BarreActive repli />}<Icon name={it.icon} /></Link>
                 ) : (
                   <NavLink key={it.key} it={{ ...it, locked: false, isSub: false }} active={ici} tactile={mobile} />
                 );
@@ -663,66 +642,20 @@ function AppShellInner(props: Props) {
           )}
         </nav>
 
-        {/* La bascule Réduire/Développer a REJOINT l'en-tête (petite icône à côté
-            de l'identité) · elle n'est plus au pied. En replié, c'est le logo qui
-            rouvre la barre (cf. LogoHome). */}
-
-        {/* Crédits (solde réel) · visible en direct, clic = recharge / offre */}
-        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, marginBottom: 6 }}>
-          <CreditsMenu balance={creditBalance} unlimited={creditsUnlimited} planLabel={planLabel} showUpgrade={showUpgrade} collapsed={collapsed} />
-        </div>
-
-        {/* Compte : chip + menu déroulant */}
-        <div style={{ position: 'relative' }}>
-          {menuOpen && (
-            <>
-              <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-              <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, width: collapsed ? 240 : 'auto', right: collapsed ? 'auto' : 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: 'var(--sh-lift, 0 14px 34px -10px rgba(0,0,0,.6))', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--line)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{userName || workspaceName}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>
-                </div>
-                <div style={{ padding: 6 }}>
-                  <button type="button" onClick={() => { compteBtnRef.current?.focus(); setMenuOpen(false); setProfileOpen(true); }} style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}><Icon name="user" />Mon profil</button>
-                  {personalItems.map((it) => (it.locked || it.soon)
-                    ? <div key={it.key} style={{ ...menuItemIcon, color: 'var(--muted)', opacity: .6, cursor: 'default' }}><Icon name={it.icon} />{it.label}{it.soon && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--warn)' }}>Bientôt</span>}</div>
-                    : <Link key={it.key} href={it.href} onClick={() => setMenuOpen(false)} style={menuItemIcon}><Icon name={it.icon} />{it.label}</Link>)}
-
-                  {/* ADMIN+ · coulisses plateforme, réservées au fondateur/staff. */}
-                  {isStaff && (
-                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '8px 0 2px', borderRadius: 11, textDecoration: 'none', background: 'linear-gradient(135deg, rgba(245,166,35,.16), rgba(255,140,66,.08))', border: '1px solid rgba(245,166,35,.32)' }}>
-                      <span style={{ display: 'inline-flex' }}><Icon name="gauge" size={15} /></span>
-                      <span style={{ flex: 1 }}>
-                        <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#ffca6b' }}>ADMIN+ · Coulisses</span>
-                        <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>MRR, inscriptions, console, IA maison</span>
-                      </span>
-                      <span style={{ color: '#ffca6b', fontSize: 13 }}>›</span>
-                    </Link>
-                  )}
-
-                  <div style={{ ...menuItem, color: 'var(--muted)', opacity: .6, cursor: 'default', display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>Langue<span style={{ fontSize: 11 }}>FR</span></div>
-                </div>
-                <form action={logout} style={{ borderTop: '1px solid var(--line)', padding: 6, margin: 0 }}>
-                  <button type="submit" style={{ ...menuItemIcon, width: '100%', textAlign: 'left', border: 'none', background: 'transparent', color: '#ff9db0', cursor: 'pointer' }}><Icon name="logout" />Déconnexion</button>
-                </form>
-              </div>
-            </>
-          )}
-          <button ref={compteBtnRef} type="button" onClick={() => setMenuOpen((o) => !o)} title={collapsed ? (userName || userEmail) : undefined} style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 10, padding: 6, borderRadius: 10, border: 'none', background: menuOpen ? 'var(--surface)' : 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
-              {avatarUrl
-                 
-                ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : (userName || userEmail).slice(0, 1).toUpperCase()}
-            </div>
+        {/* V5 (R18 · R19 · R30) · pied collant · la pastille de crédits (solde
+            réel, barre solde / dotation, « + » qui ouvre le menu de recharge
+            existant) puis le bloc profil, qui ouvre la pop-up profil. */}
+        <div data-zone="pied-compte" style={{ display: 'grid', gap: 8, padding: '12px 0 16px', boxShadow: '0 -12px 16px -12px var(--rail)' }}>
+          <CreditsMenu balance={creditBalance} unlimited={creditsUnlimited} planLabel={planLabel} showUpgrade={showUpgrade} collapsed={collapsed} allocation={creditAllocation} />
+          <button type="button" data-zone="profil-rail" onClick={ouvrirPopupProfil} aria-haspopup="dialog" aria-expanded={popupProfil}
+            aria-label={collapsed ? `${userName || userEmail} · Profil & réglages` : undefined} title={collapsed ? `${userName || userEmail} · Profil & réglages` : undefined}
+            style={{ width: '100%', minHeight: CIBLE_TACTILE_MIN, display: 'flex', alignItems: 'center', gap: 12, padding: collapsed ? '6px 0' : '12px 8px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start', color: 'var(--ink)', fontFamily: 'inherit' }}>
+            <Avatar url={avatarUrl} nom={userName || userEmail} taille={COQUILLE_V5.avatar.rail} />
             {!collapsed && (
-              <>
-                <div style={{ lineHeight: 1.2, minWidth: 0, textAlign: 'left', flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName || userEmail}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{roleLabel} · {planLabel}</div>
-                </div>
-                <span style={{ color: 'var(--muted)', fontSize: 12 }}>{menuOpen ? '▾' : '▴'}</span>
-              </>
+              <span style={{ lineHeight: 1.3, minWidth: 0, textAlign: 'left', flex: 1 }}>
+                <span style={{ display: 'block', fontSize: 14, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName || userEmail}</span>
+                <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-2)' }}>Profil &amp; réglages</span>
+              </span>
             )}
           </button>
         </div>
@@ -751,32 +684,49 @@ function AppShellInner(props: Props) {
           </button>
         )}
         {!focus && (<>
-        <header style={{ position: 'sticky', top: 0, zIndex: 70, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', paddingRight: 64, minHeight: 56, boxSizing: 'border-box', background: 'var(--rail)', borderBottom: '1px solid var(--line)' }}>
-          {chrome.hamburger && (
-            <>
-              <button ref={burgerRef} type="button" onClick={() => setDrawer((o) => !o)} aria-label={drawer ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={drawer} aria-controls="nav-rail" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
-              </button>
-              <Link href="/dashboard" aria-label="Accueil" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, gap: 8, textDecoration: 'none', flexShrink: 0 }}>
-                <span aria-hidden style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--grad-accent)', display: 'block' }} />
-                <b style={{ fontSize: 15, color: 'var(--ink)' }}>TikTrends</b>
-              </Link>
-            </>
-          )}
-          {/* Recherche globale · loupe + « Rechercher » + indice ⌘K (desktop).
-              Ouvre la palette · le raccourci reste global. Aucune fonction
-              retirée · les recherches LOCALES (Veille, galerie) ne bougent pas. */}
+        {/* V5 (H01 · H02 · H08 · H10) · en-tête de 68 px · à gauche le fil
+            d'Ariane (le composant réel, déplacé ici), au centre la recherche
+            (palette ⌘K réelle), à droite la cloche (absente du prototype, réelle
+            ici) puis l'avatar 44, qui ouvre la même pop-up profil que le rail.
+            Fond translucide + flou, écrit avec le jeton de fond (`color-mix`) ·
+            aucune couleur littérale. Mobile · le menu, le mot-symbole, la loupe ·
+            le fil reste sur sa rangée de page (la barre n'a pas la place). */}
+        <header data-zone="en-tete" style={{
+          position: 'sticky', top: 0, zIndex: 70, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: mobile ? 8 : 16,
+          height: COQUILLE_V5.enTete.hauteur, padding: `0 ${gouttiereCss()}`, boxSizing: 'border-box',
+          background: `color-mix(in srgb, var(--bg) ${COQUILLE_V5.enTete.opacite}%, transparent)`, backdropFilter: `blur(${COQUILLE_V5.enTete.flou}px)`, WebkitBackdropFilter: `blur(${COQUILLE_V5.enTete.flou}px)`,
+          borderBottom: '1px solid var(--line)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            {chrome.hamburger && (
+              <>
+                <button ref={burgerRef} type="button" onClick={() => setDrawer((o) => !o)} aria-label={drawer ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={drawer} aria-controls="nav-rail" style={{ width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+                </button>
+                <LogoHome collapsed={false} />
+              </>
+            )}
+            {!mobile && <Breadcrumb enTete brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} brands={brands} />}
+          </div>
+          {/* Recherche globale · ouvre la palette · le raccourci reste global.
+              Libellé honnête · la palette cherche des pages, des actions, des
+              marques et les écrans récents (pas encore les projets). */}
           <button type="button" onClick={openCommandPalette} aria-label="Rechercher" aria-keyshortcuts="Meta+K Control+K"
-            style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, flex: '0 1 340px', minWidth: 44 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
-            <span style={{ flex: 1, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Rechercher</span>
-            {!mobile && <kbd style={{ ...kbdRail, flexShrink: 0, minWidth: 26 }}>⌘K</kbd>}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE_TACTILE_MIN, height: COQUILLE_V5.recherche.hauteur, padding: mobile ? 0 : '0 8px 0 14px', justifyContent: mobile ? 'center' : 'flex-start', borderRadius: COQUILLE_V5.recherche.rayon, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink-2)', cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', width: mobile ? CIBLE_TACTILE_MIN : COQUILLE_V5.recherche.largeur, minWidth: CIBLE_TACTILE_MIN, boxSizing: 'border-box' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+            {!mobile && <span style={{ flex: 1, minWidth: 0, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Rechercher une page, une action</span>}
+            {!mobile && <kbd style={{ ...kbdRail, flexShrink: 0 }}>⌘ K</kbd>}
           </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minWidth: 0 }}>
+            <NotificationBell enLigne />
+            <button type="button" data-zone="avatar-en-tete" onClick={ouvrirPopupProfil} aria-label="Profil et réglages" aria-haspopup="dialog" aria-expanded={popupProfil} title="Profil et réglages"
+              style={{ width: COQUILLE_V5.avatar.enTete, height: COQUILLE_V5.avatar.enTete, flexShrink: 0, padding: 0, borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Avatar url={avatarUrl} nom={userName || userEmail} taille={COQUILLE_V5.avatar.enTete} />
+            </button>
+          </div>
         </header>
-        <NotificationBell />
-        {/* Le fil d'Ariane est posé ICI, une fois pour toutes · vingt et une pages
-            portaient le leur, écrit à la main, et ils avaient divergé. */}
-        <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} brands={brands} />
+        {/* Mobile · le fil garde sa rangée de page (il ne tient pas dans la barre). */}
+        {mobile && <Breadcrumb brandName={brands.find((b) => b.id === activeBrandId)?.name ?? null} brandId={activeBrandId} brands={brands} />}
         {/* Onglets de la section (UX V2) · ses sous-écrans visibles pour ce rôle.
             L'Accueil et la fiche de marque ont déjà les leurs dans leur page. */}
         {!inAdmin && sectionCourante && !dansMarque && sectionCourante.onglets.length > 0 && sectionCourante.tete.key !== 'dashboard' && (
@@ -809,10 +759,8 @@ function AppShellInner(props: Props) {
   );
 }
 
-const menuItem = { display: 'block', padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
-const menuItemIcon = { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', textDecoration: 'none' } as const;
 // Bouton icône (rail replié) : carré centré, tooltip via title.
-const railIconBtn = { width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer', textDecoration: 'none', flexShrink: 0 } as const;
+const railIconBtn = { position: 'relative', width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer', textDecoration: 'none', flexShrink: 0 } as const;
 const collapseBtn = { width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--line-2)', background: 'var(--paper)', color: 'var(--muted)', cursor: 'pointer' } as const;
 /** Icône « replier / déplier le panneau » (barre verticale + flèche). */
 function CollapseIcon({ dir }: { dir: 'left' | 'right' }) {
@@ -824,7 +772,23 @@ function CollapseIcon({ dir }: { dir: 'left' | 'right' }) {
     </svg>
   );
 }
-const kbdRail = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 16, height: 16, fontSize: 10, fontWeight: 700, color: 'var(--ink-2)', background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 4 } as const;
+// V5 · l'indice « ⌘ K » de la recherche · padding 5 / 9, rayon 6, 12 px (mesuré).
+const kbdRail = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '5px 9px', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', color: 'var(--ink-2)', background: 'var(--rail)', border: '1px solid var(--line)', borderRadius: 6, lineHeight: 1.2 } as const;
+/** La barre active V5 (3 × 23, collée au bord du rail) · −12 déplié, −10 replié (gouttière du rail). */
+function BarreActive({ repli = false }: { repli?: boolean }) {
+  const R = COQUILLE_V5.rail;
+  return <span aria-hidden data-barre-active style={{ position: 'absolute', left: repli ? -10 : -R.paddingX, top: '50%', transform: 'translateY(-50%)', width: R.barre.largeur, height: R.barre.hauteur, borderRadius: '0 3px 3px 0', background: 'var(--accent-strong)' }} />;
+}
+/** L'avatar · photo si elle existe, sinon les initiales sur le fond « papier » (V5 · bord --line-2). */
+function Avatar({ url, nom, taille }: { url?: string; nom: string; taille: number }) {
+  const mots = nom.replace(/@.*$/, '').trim().split(/[\s._-]+/).filter(Boolean);
+  const init = ((mots[0]?.[0] ?? '?') + (mots[1]?.[0] ?? '')).toUpperCase();
+  return (
+    <span aria-hidden style={{ width: taille, height: taille, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', border: '1px solid var(--line-2)', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ink)', flexShrink: 0 }}>
+      {url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : init}
+    </span>
+  );
+}
 function pill(color: string, bg: string) {
   return { fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, color, background: bg } as const;
 }

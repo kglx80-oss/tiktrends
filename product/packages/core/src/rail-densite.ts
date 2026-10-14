@@ -30,14 +30,22 @@ import { CIBLE_TACTILE_MIN } from './cible-tactile';
  * et un test la vérifie au RÉSULTAT (les nombres), pas en constatant un appel.
  */
 
-/** Rangée au pointeur grossier (doigt) · jamais sous la cible tactile. */
-export const HAUTEUR_RANGEE_TACTILE = CIBLE_TACTILE_MIN;
-
 /**
- * Rangée au pointeur fin (souris) · dans la fourchette 32-36 de la direction,
- * avec marge sous 36. C'est elle qui rend les têtes visibles à 720 en desktop.
+ * V5 (lot V5 · B) · le rail est PLAT depuis l'UX V2 (six modules, plus de
+ * branches dépliées) · la contrainte qui imposait 32 px à la souris a disparu.
+ * La V5 pose une seule rangée, MESURÉE sur la référence (couche finale du
+ * prototype, 1440 · `min-height: 46px`, padding 13 / 12). Au doigt comme à la
+ * souris · 46, au-dessus de la cible tactile (44).
+ *
+ * Ancienne valeur fine, gardée pour mémoire · 32 (30/09, rail à branches).
  */
-export const HAUTEUR_RANGEE_FINE = 32;
+export const HAUTEUR_RANGEE_V5 = 46;
+
+/** Rangée au pointeur grossier (doigt) · jamais sous la cible tactile. */
+export const HAUTEUR_RANGEE_TACTILE = Math.max(CIBLE_TACTILE_MIN, HAUTEUR_RANGEE_V5);
+
+/** Rangée au pointeur fin (souris) · V5, la même rangée qu'au doigt. */
+export const HAUTEUR_RANGEE_FINE = HAUTEUR_RANGEE_V5;
 
 /** Hauteur nominale d'un en-tête de groupe (libellé de section), en desktop. */
 export const HAUTEUR_ENTETE_GROUPE = 20;

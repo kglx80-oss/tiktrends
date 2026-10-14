@@ -24,7 +24,9 @@ describe('Menu Crédits · les gestes sensibles atteignent la cible tactile', ()
     expect(src).toContain("minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, fontWeight: 800, padding: '5px 14px'");
   });
 
-  it('la puce d’ouverture du menu porte la hauteur de cible', () => {
-    expect(src).toContain('gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: collapsed ? 6');
+  // Lot V5 · B · la puce devient la carte V5 (padding 10 / 12, replié 8 / 6) ·
+  // la cible reste la même règle.
+  it('la carte d’ouverture du menu porte la hauteur de cible', () => {
+    expect(src).toContain("gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: collapsed ? '8px 6px'");
   });
 });

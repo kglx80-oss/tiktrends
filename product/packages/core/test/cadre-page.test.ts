@@ -9,8 +9,11 @@ import {
  * 1200), gouttières 32 ou 36, titre de x=60 à x=234 selon l'écran.
  */
 describe('cadre extérieur · la charte', () => {
-  it('1200 au plus, gouttières 32 desktop / 16 mobile', () => {
-    expect(CADRE_PAGE.largeurMax).toBe(1200);
+  // Lot V5 · B · 1500 au plus et 36 en haut, mesurés sur la référence V5
+  // (`main` max 1500, padding 36 / 32) · gouttières inchangées.
+  it('1500 au plus (V5), gouttières 32 desktop / 16 mobile, 36 en haut', () => {
+    expect(CADRE_PAGE.largeurMax).toBe(1500);
+    expect(CADRE_PAGE.haut).toBe(36);
     expect(gouttiereCss()).toBe('clamp(16px, 4vw, 32px)');
   });
   it('bordures · cadre 12 %, contrôle 20 %', () => {

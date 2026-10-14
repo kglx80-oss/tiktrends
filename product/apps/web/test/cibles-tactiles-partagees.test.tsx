@@ -33,7 +33,8 @@ describe('Cibles tactiles · composants partagés', () => {
     expect(croix, 'la croix de fermeture doit être rendue').not.toBeNull();
     expect(croix!.style.width, 'largeur de la croix sous la cible').toBe(`${CIBLE_TACTILE_MIN}px`);
     expect(croix!.style.height, 'hauteur de la croix sous la cible').toBe(`${CIBLE_TACTILE_MIN}px`);
-    expect(croix!.style.borderRadius, 'arrondi de la croix').toBe('9px');
+    // V5 (lot A3) · rayon 10 du prototype, mesuré (`MODALE_V5.croixRayon`).
+    expect(croix!.style.borderRadius, 'arrondi de la croix').toBe('10px');
     act(() => root.unmount());
     hote.remove();
   });

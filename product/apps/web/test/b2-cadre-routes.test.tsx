@@ -27,9 +27,11 @@ const pages: string[] = [];
 const routeDe = (p: string) => '/' + relative(APP, p).split(sep).slice(0, -1).join('/');
 
 describe('B2 · le cadre extérieur commun, rendu', () => {
-  it('cadrePage · 1200 au plus, centré, gouttières 32/16', () => {
+  // Lot V5 · B · le cadre commun passe à la largeur V5 (1500, mesurée sur la
+  // référence) · une seule source (CADRE_PAGE), le rendu la porte partout.
+  it('cadrePage · 1500 au plus (V5), centré, gouttières 32/16', () => {
     const h = renderToStaticMarkup(<main style={cadrePage} />);
-    expect(h).toContain('max-width:1200px');
+    expect(h).toContain('max-width:1500px');
     expect(h).toContain('margin:0 auto');
     expect(h).toContain('clamp(16px, 4vw, 32px)');
   });

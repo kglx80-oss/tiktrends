@@ -23,7 +23,12 @@ function timeAgo(iso: string): string {
   return `il y a ${j} j`;
 }
 
-export function NotificationBell() {
+/**
+ * `enLigne` (V5) · la cloche est posée DANS l'en-tête, à côté de l'avatar, au
+ * lieu de flotter en haut à droite par-dessus la barre (absente du prototype,
+ * réelle ici · on la garde). Sans `enLigne`, la position flottante d'avant.
+ */
+export function NotificationBell({ enLigne = false }: { enLigne?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotifItem[]>([]);
   const [unread, setUnread] = useState(0);
@@ -73,7 +78,7 @@ export function NotificationBell() {
   }
 
   return (
-    <div ref={boxRef} style={{ position: 'fixed', top: 16, right: 20, zIndex: 40 }}>
+    <div ref={boxRef} data-zone="cloche" style={enLigne ? { position: 'relative', flexShrink: 0 } : { position: 'fixed', top: 16, right: 20, zIndex: 40 }}>
       <button
         type="button"
         onClick={() => { setOpen((o) => !o); if (!open) refresh(); }}

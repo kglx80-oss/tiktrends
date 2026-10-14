@@ -362,6 +362,21 @@ export function routeLabel(pathname: string): string | null {
   return matchRoute(pathname)?.label ?? null;
 }
 
+/**
+ * Le fil de l'EN-TÊTE (V5 · H01) · il occupe une place réservée de la barre
+ * du haut, il ne coûte plus une ligne de page. Sur une page descendue, c'est
+ * le fil complet (`breadcrumb`) ; sur une racine de section, l'écran courant
+ * seul (« Accueil », « Veille »), sans lien vers lui-même. Route inconnue ou
+ * cachée · rien.
+ */
+export function filEnTete(pathname: string, opts: CrumbOptions = {}): Crumb[] {
+  const fil = breadcrumb(pathname, opts);
+  if (fil.length) return fil;
+  const route = matchRoute(pathname);
+  if (!route || route.hidden) return [];
+  return [{ label: route.label, href: null }];
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Routes historiques · L8-B (UX-05)                                         */
 /* -------------------------------------------------------------------------- */

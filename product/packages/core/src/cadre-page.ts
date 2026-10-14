@@ -11,8 +11,8 @@
  *
  * ── La règle ─────────────────────────────────────────────────────────────────
  *
- * Tout écran de l'application pose le MÊME cadre extérieur · 1200 de large au
- * plus, centré, gouttières 32 en desktop qui descendent à 16 sur mobile. Le
+ * Tout écran de l'application pose le MÊME cadre extérieur · 1500 de large au
+ * plus (V5 · 1200 avant), centré, gouttières 32 en desktop qui descendent à 16 sur mobile. Le
  * titre de page tombe donc au même endroit partout.
  *
  * Un écran peut resserrer sa LECTURE à l'intérieur de ce cadre (formulaire,
@@ -29,14 +29,20 @@
  */
 
 export const CADRE_PAGE = {
-  /** Largeur maximale du cadre extérieur, gouttières comprises. */
-  largeurMax: 1200,
+  /**
+   * Largeur maximale du cadre extérieur, gouttières comprises. V5 (lot V5 · B) ·
+   * 1500, mesuré sur la référence (`main` max 1500, padding 36 / 32). Avant · 1200.
+   * À 1440, le contenu prend désormais toute la colonne (1256 − 64) au lieu de
+   * s'arrêter à 1136 ; à 1280 et en dessous, rien ne change (la colonne était
+   * déjà plus étroite que 1200).
+   */
+  largeurMax: 1500,
   /** Gouttière latérale en desktop. */
   gouttiereDesktop: 32,
   /** Gouttière latérale sur mobile (plancher de la gouttière fluide). */
   gouttiereMobile: 16,
-  /** Respiration haute, sous la barre de l'application. */
-  haut: 32,
+  /** Respiration haute, sous la barre de l'application · V5 · 36 (avant · 32). */
+  haut: 36,
   /** Respiration basse. */
   bas: 60,
 } as const;
