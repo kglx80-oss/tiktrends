@@ -10,6 +10,7 @@ import { afficherCredits, texteCredits } from '@tiktrends/core';
 import { changePlanAction } from '../../../actions/billing';
 import { grantCreditsAction, rechargeAllocationAction } from '../../../actions/credits';
 import { input, btn, btnGhost, panel, lbl, Msg, cadrePage, surface, h1 } from '../../../../components/ui';
+import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export default async function AdminPlansPage({ searchParams }: { searchParams: P
 
   return (
     <main style={cadrePage}>
+      <OngletsAdministration session={s} chemin="/admin/plans" />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', margin: '0 0 4px' }}>
         <h1 style={h1}>Formules & crédits · pilotage</h1>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>FONDATEUR</span>

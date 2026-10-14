@@ -29,12 +29,12 @@ export interface OptionsFormulaire {
 
 type Envoi = (valeurs: ValeursTest) => Promise<{ ok: true } | ErreurStudio>;
 
-export function valeursInitiales(o: { hypothese?: string | null; variable?: string | null; protocole: ProtocoleTest | null; aujourdHui: string }): ValeursTest {
+export function valeursInitiales(o: { hypothese?: string | null; variable?: string | null; valeurVariable?: string | null; protocole: ProtocoleTest | null; aujourdHui: string }): ValeursTest {
   const debut = o.aujourdHui;
   const fin = new Date(Date.parse(`${debut}T00:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10);
   const variable = o.variable && (VARIABLES_TEST as readonly string[]).includes(o.variable) ? o.variable : '';
   return {
-    hypothese: o.hypothese ?? '', variable, valeurVariable: '', objectif: '', protocole: o.protocole ?? 'abo_one_adset_per_ad',
+    hypothese: o.hypothese ?? '', variable, valeurVariable: o.valeurVariable ?? '', objectif: '', protocole: o.protocole ?? 'abo_one_adset_per_ad',
     periodeDebut: debut, periodeFin: fin, metrique: 'cpa', offreId: '', pageId: '',
   };
 }

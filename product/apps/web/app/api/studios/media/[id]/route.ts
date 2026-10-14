@@ -1,3 +1,4 @@
+import { servirPlage } from '@tiktrends/core';
 import { gardeStudio } from '../../../../../lib/studios/garde';
 import { lireMediaDansPortee } from '../../../../../lib/studios/rendu/medias';
 
@@ -16,6 +17,14 @@ export const dynamic = 'force-dynamic';
  * Réponse : les OCTETS, avec le type MIME RÉEL relu dans le fichier, en cache
  * privé (jamais partagé entre personnes : `private`, `Vary: Cookie`), sans
  * interprétation possible par le navigateur (`nosniff`, CSP fermée, bac à sable).
+ *
+ * Lot 4b · requêtes partielles (`Range`, règle pure `servirPlage` du noyau) :
+ * Safari et l'iPhone ne lisent une `<video>` (clips, vidéo finale) qu'avec un
+ * `206`. Toute réponse annonce `Accept-Ranges: bytes` ; une plage valide rend
+ * `206` + `Content-Range`, une plage invalide `416`. La plage est découpée
+ * APRÈS la lecture complète et vérifiée (portée, empreinte sha256, type réel) :
+ * aucun octet non vérifié ne sort, même par morceau. `HEAD` est dérivé de `GET`
+ * par Next.js (mêmes gardes, mêmes en-têtes, sans corps).
  */
 
 const ENTETES_COMMUNS: Record<string, string> = {
@@ -48,14 +57,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     'cache-control': 'private, max-age=300',
     etag,
   };
-  if (req.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers: entetes });
-  return new Response(new Uint8Array(m.octets), {
-    status: 200,
+  if (req.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers: { ...entetes, 'accept-ranges': 'bytes' } });
+  const p = servirPlage(m.octets, { range: req.headers.get('range'), ifRange: req.headers.get('if-range'), etag });
+  if (p.statut === 416) return new Response(null, { status: 416, headers: { ...ENTETES_COMMUNS, 'cache-control': 'private, no-store', ...p.entetes } });
+  return new Response(p.corps ? new Uint8Array(p.corps) : null, {
+    status: p.statut,
     headers: {
       ...entetes,
       'content-type': m.mime,
-      'content-length': String(m.octets.length),
       'content-disposition': `inline; filename="${m.asset.id}.${EXTENSIONS[m.mime] ?? 'bin'}"`,
+      ...p.entetes,
     },
   });
 }

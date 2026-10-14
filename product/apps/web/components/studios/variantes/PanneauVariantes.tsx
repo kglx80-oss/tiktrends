@@ -4,11 +4,12 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   vueVariantes, libelleCoutRelecture,
-  type DonneesVariantes, type CarteVariante, type BlocVersion, type ErreurStudio,
+  type DonneesVariantes, type CarteVariante, type BlocVersion, type ErreurStudio, type LigneEssai,
 } from '@tiktrends/core';
 import { creerVariante, iterer } from '../../../app/actions/studios/variantes';
 import { rattacherVarianteAuTest, relireApprentissage } from '../../../app/actions/studios/tests';
 import { FormulaireTest, valeursInitiales, type ValeursTest } from './FormulaireTest';
+import { PreparerEssai, type EtatEssaiRecette } from './PreparerEssai';
 import {
   bloc, sousBloc, titre2, titre3, texte, petit, mono, grille, rangee, pastille, point, vignette,
   boutonPrimaire, boutonSecondaire, desactive,
@@ -32,6 +33,10 @@ export interface EtatRecette {
   erreurFormulaire?: ErreurStudio | null;
   message?: { ton: 'ok' | 'err' | 'warn'; texte: string; traceId?: string } | null;
   horsLigne?: boolean;
+  /** Lot d'essai · sélection, variable et plan affichés (recette des états). */
+  essai?: EtatEssaiRecette;
+  /** Saisies préremplies par un plan d'essai, par variante (recette des états). */
+  prefill?: Record<string, NonNullable<LigneEssai['saisie']>>;
 }
 
 const aujourdHui = () => new Date().toISOString().slice(0, 10);
@@ -54,6 +59,7 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
   const [message, setMessage] = useState<EtatRecette['message']>(recette.message ?? null);
   const [horsLigne, setHorsLigne] = useState<boolean>(recette.horsLigne ?? false);
   const [occupe, setOccupe] = useState<string | null>(null);
+  const [prefill, setPrefill] = useState<Record<string, NonNullable<LigneEssai['saisie']>>>(recette.prefill ?? {});
   const [, demarrer] = useTransition();
 
   useEffect(() => {
@@ -89,6 +95,12 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
       return { ok: true as const };
     }
     return r;
+  };
+  // Le plan d'essai ouvre le rattachement EXISTANT de la variante, prérempli · rien n'est envoyé sans le formulaire.
+  const ouvrirAvecPlan = (variantId: string, saisie: NonNullable<LigneEssai['saisie']>) => {
+    setPrefill((p) => ({ ...p, [variantId]: saisie }));
+    setOuvert(variantId);
+    if (typeof document !== 'undefined') document.querySelector(`[data-variante="${variantId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   const relire = (c: CarteVariante) => geste(`relire:${c.id}`, async () => {
     const lien = parVariante.get(c.id)?.test?.linkId;
@@ -168,14 +180,14 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
                     {c.test ? (
                       <div style={{ ...sousBloc, display: 'grid', gap: 8 }}>
                         <div style={{ ...rangee, justifyContent: 'space-between' }}>
-                          <p style={{ ...texte, color: 'var(--ink)', fontWeight: 600 }}>Test · {c.test.resume}</p>
-                          <a href={c.test.adsmapHref} style={boutonSecondaire}>Ouvrir la fiche Adsmap</a>
+                          <p style={{ ...texte, color: 'var(--ink)', fontWeight: 600 }}>Suivi Adsmap · {c.test.resume}</p>
+                          <a href={c.test.adsmapHref} style={boutonSecondaire}>Voir la fiche dans Résultats</a>
                         </div>
                         <dl style={{ margin: 0, display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))' }}>
                           {c.test.details.map((d) => <div key={d.libelle}><dt style={{ ...petit, fontWeight: 700 }}>{d.libelle}</dt><dd style={{ ...texte, margin: 0, overflowWrap: 'anywhere' }}>{d.valeur}</dd></div>)}
                         </dl>
                         {c.test.isolation && <p style={{ ...texte, color: 'var(--ink)' }}>{c.test.isolation}</p>}
-                        <p style={petit}>Résultat Adsmap · {c.test.verdict}</p>
+                        <p style={petit} data-verdict-adsmap="">Verdict · {c.test.verdict}</p>
                       </div>
                     ) : (
                       <p style={petit}>Pas encore rattachée à un test.</p>
@@ -224,8 +236,12 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
                   {ouvert === c.id && (
                     <div style={{ flex: '1 1 100%', minWidth: 0 }}>
                     <FormulaireTest
+                      key={`${c.id}:${prefill[c.id] ? 'essai' : 'libre'}`}
                       idVariante={c.id}
-                      initial={valeursInitiales({ hypothese: lue.hypothese, variable: lue.variable, protocole: donnees.adsmap.protocoleMarque, aujourdHui: aujourdHui() })}
+                      initial={valeursInitiales({
+                        hypothese: prefill[c.id]?.hypothese ?? lue.hypothese, variable: prefill[c.id]?.variable ?? lue.variable,
+                        valeurVariable: prefill[c.id]?.valeurVariable ?? null, protocole: donnees.adsmap.protocoleMarque, aujourdHui: aujourdHui(),
+                      })}
                       options={{ protocoleDefaut: donnees.adsmap.protocoleMarque, offres: donnees.adsmap.offres, pages: donnees.adsmap.pages, aUnParent: lue.parentVariantId !== null }}
                       envoyer={envoyerTest(c.id)}
                       annuler={() => setOuvert(null)}
@@ -239,6 +255,16 @@ export function PanneauVariantes({ donnees, recette = {} }: { donnees: DonneesVa
             })}
           </div>
         </section>
+      )}
+
+      {donnees.droits.proposer && vue.etat !== 'vide' && (
+        <PreparerEssai
+          projetId={donnees.projet.id}
+          variantes={vue.variantes.map((c) => ({ id: c.id, libelle: c.libelle, versionTitre: c.versionTitre }))}
+          horsLigne={horsLigne}
+          ouvrirRattachement={ouvrirAvecPlan}
+          initial={recette.essai}
+        />
       )}
 
       {vue.versions.length > 0 && (

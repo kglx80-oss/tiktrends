@@ -11,6 +11,7 @@ import { InviteMemberButton } from '../../../components/InviteMemberButton';
 import { CopierTexte } from '../../../components/CopierTexte';
 import { appUrl } from '../../../lib/mailer';
 import { etatInvitation } from '@tiktrends/core';
+import { OngletsReglages } from '../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
   return (
     <main style={{ ...ADMIN_THEME, ...cadrePage }}>
+      <OngletsReglages session={s} chemin="/team" />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h1 style={h1}>Équipe & droits</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>ESPACE ADMIN</span>

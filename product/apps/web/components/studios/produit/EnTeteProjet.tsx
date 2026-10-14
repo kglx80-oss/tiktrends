@@ -1,21 +1,25 @@
 import Link from 'next/link';
-import { CIBLE_TACTILE_MIN, capacitesDuRefus, type ErreurStudio } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, capacitesDuRefus, type ErreurStudio, type ModeProjet } from '@tiktrends/core';
 import { h1, surface } from '../../ui';
 import { Icon } from '../../Icon';
 import { CapaciteNonActive } from '../CapaciteNonActive';
+import { BarreProjet } from '../projet/BarreProjet';
+import type { LienAtelier } from '../../../lib/navigation';
 
 /**
- * En-tête commun des sous-pages d'un projet (Produit, Textes) · retour au
- * projet, titre, projet · marque · version. Et l'état de refus neutre
+ * En-tête commun des sous-pages d'un projet (Produit, Textes, Identités,
+ * Export) · barre de projet (UX V2), titre de la page, ce qu'elle fait. Et l'état de refus neutre
  * (introuvable hors portée, accès réservé, erreur avec identifiant support).
  */
 
-export function EnTeteProjet({ projet, version, titre, sousTitre }: { projet: { id: string; title: string; marque: string }; version: { n: number }; titre: string; sousTitre: string }) {
+export function EnTeteProjet({ projet, version, titre, sousTitre, atelier, mode }: { projet: { id: string; title: string; marque: string }; version: { n: number }; titre: string; sousTitre: string; atelier: LienAtelier[]; mode: ModeProjet }) {
+  // UX V2 · lot 2 · la barre de projet commune (titre, modes, focus, export)
+  // remplace le lien de retour · la page garde son titre de fonction.
   return (
     <header style={{ display: 'grid', gap: 8 }}>
-      <Link href={`/studio/projets/${projet.id}`} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' }}>‹ {projet.title}</Link>
+      <BarreProjet projectId={projet.id} mode={mode} titre={projet.title} sousTitre={`${projet.marque} · version ${version.n}`} atelier={atelier} />
       <h1 style={{ ...h1, overflowWrap: 'anywhere' }}>{titre}</h1>
-      <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>{projet.marque} · version {version.n} · {sousTitre}</p>
+      <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>{sousTitre}</p>
     </header>
   );
 }

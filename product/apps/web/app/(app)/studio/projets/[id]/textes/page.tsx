@@ -6,6 +6,8 @@ import { lireTextesProjet } from '../../../../../actions/studios/textes';
 import { EcranTextes } from '../../../../../../components/studios/textes/EcranTextes';
 import { EnTeteProjet, RefusProjet } from '../../../../../../components/studios/produit/EnTeteProjet';
 import { cadrePage } from '../../../../../../components/ui';
+import { liensAtelierProjet } from '../../../../../../lib/navigation';
+import { etatInterrupteurs } from '../../../../../../lib/studios/interrupteurs';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,10 +27,11 @@ export default async function TextesProjetPage({ params }: { params: Promise<{ i
     const plan = (r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED') && denyReason(effectiveAccess(s), feature) === 'plan';
     return <main style={cadrePage}><RefusProjet r={r} plan={plan} projectId={id} /></main>;
   }
+  const inter = await etatInterrupteurs(s.workspaceId);
   return (
     <main style={cadrePage}>
       <div style={{ display: 'grid', gap: 18 }}>
-        <EnTeteProjet projet={r.vue.projet} version={r.vue.version} titre="Textes liés au brief" sousTitre="hooks, corps, CTA et scripts sur les mêmes faits et la même hypothèse" />
+        <EnTeteProjet projet={r.vue.projet} version={r.vue.version} titre="Textes liés au brief" sousTitre="hooks, corps, CTA et scripts sur les mêmes faits et la même hypothèse" atelier={liensAtelierProjet(r.vue.projet.id, inter.actif)} mode="textes" />
         <EcranTextes vue={r.vue} />
       </div>
     </main>
