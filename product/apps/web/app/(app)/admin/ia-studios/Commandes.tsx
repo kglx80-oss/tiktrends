@@ -4,7 +4,7 @@ import { useId, useRef, useState, useTransition, type CSSProperties } from 'reac
 import { useFocusApresGeste, cleRetour } from '../../../../components/studios/projet/focus-geste';
 import { messageHorsLigneStudio } from '@tiktrends/core';
 import { useRouter } from 'next/navigation';
-import { Modal } from '../../../../components/Modal';
+import { Modal, PiedModale } from '../../../../components/Modal';
 import {
   importerPackAction, validerVersionAction, evaluerReleaseAction, retirerReleaseAction, creerReleaseAction,
   publierReleaseAction, rollbackReleaseAction, revoquerReleaseAction, enregistrerBrouillonAction, validerImportsAction, approuverBenchmarkAction, approuverRecetteManuelleAction, type ReponseAdmin,
@@ -112,14 +112,15 @@ export function BoutonConfirme({ geste, releaseId, attendue, libelle, titre, exp
   return (
     <div>
       <button type="button" style={secondaire ? boutonSecondaire : bouton} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>{libelle}</button>
-      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title={titre} subtitle="Geste public · tracé dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title={titre} subtitle="Geste public · tracé dans l’audit." maxWidth={520} pied={(
+        <PiedModale>
+          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
+          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : libelle}</button>
+        </PiedModale>
+      )}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           {explication.map((t) => <li key={t} style={{ marginTop: 4 }}>{t}</li>)}
         </ul>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 16 }}>
-          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
-          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : libelle}</button>
-        </div>
       </Modal>
       <Retour r={r} succes={geste === 'publier' ? 'Release publiée · les prochaines résolutions l’utilisent.' : 'Retour effectué · les prochaines résolutions utilisent cette release.'} />
     </div>
@@ -142,7 +143,12 @@ export function BoutonRevoquer({ releaseId }: { releaseId: string }) {
   return (
     <div>
       <button type="button" style={boutonSecondaire} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Révoquer</button>
-      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Révoquer cette release ?" subtitle="Geste d’urgence · tracé dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Révoquer cette release ?" subtitle="Geste d’urgence · tracé dans l’audit." maxWidth={520} pied={(
+        <PiedModale>
+          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
+          <button type="button" style={{ ...bouton, opacity: enCours || !motif.trim() ? 0.6 : 1 }} disabled={enCours || !motif.trim()} onClick={confirmer}>{enCours ? 'En cours…' : 'Révoquer'}</button>
+        </PiedModale>
+      )}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           <li>Plus aucune tâche studio ni nouveau devis ne l’utilise, même les jobs déjà épinglés sur elle.</li>
           <li>Jarvis garde sa consigne 1.0.0 tant qu’elle reste pointée · publie ou reviens à une autre release.</li>
@@ -150,10 +156,6 @@ export function BoutonRevoquer({ releaseId }: { releaseId: string }) {
         </ul>
         <label htmlFor={id} style={{ display: 'block', marginTop: 14, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>Motif</label>
         <textarea id={id} value={motif} onChange={(e) => setMotif(e.target.value)} rows={3} style={{ ...champ, marginTop: 6, resize: 'vertical' }} />
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 16 }}>
-          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
-          <button type="button" style={{ ...bouton, opacity: enCours || !motif.trim() ? 0.6 : 1 }} disabled={enCours || !motif.trim()} onClick={confirmer}>{enCours ? 'En cours…' : 'Révoquer'}</button>
-        </div>
         <Retour r={r} succes="Release révoquée." />
       </Modal>
       {r?.ok && <Retour r={r} succes="Release révoquée · plus aucune résolution ne l’utilise." />}
@@ -263,17 +265,18 @@ export function FormulaireBudgetBenchmark({ releases, devisLisible, devisUsd, de
       <div><label htmlFor={`${id}-motif`} style={etiquette}>Motif (entre dans l’audit)</label>
         <input id={`${id}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} style={champ} /></div>
       <div><button type="button" style={{ ...bouton, opacity: motif.trim() && releaseId ? 1 : 0.6 }} disabled={!motif.trim() || !releaseId} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Approuver ce budget…</button></div>
-      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title={`Approuver ${budget.replace('.', ',').trim()} $ ?`} subtitle="Dépense réelle possible · tracée dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title={`Approuver ${budget.replace('.', ',').trim()} $ ?`} subtitle="Dépense réelle possible · tracée dans l’audit." maxWidth={520} pied={(
+        <PiedModale>
+          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
+          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : 'Approuver'}</button>
+        </PiedModale>
+      )}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           <li>Devis recalculé par le serveur : {devisLisible} {nature}.</li>
           <li>Budget approuvé : {budget.replace('.', ',')} $ · il doit couvrir le devis et tenir dans le reste du plafond de dépense.</li>
           <li>Valable 24 h, pour UNE campagne, sur cette release et ce devis seulement.</li>
           <li>Rien n’est lancé ici : la campagne part de la commande réelle, qui revérifie tout.</li>
         </ul>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 16 }}>
-          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
-          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : 'Approuver'}</button>
-        </div>
       </Modal>
       <RetourBenchmark r={r} succes={`Budget approuvé${r?.ok && r.donnees ? ` · approbation ${String((r.donnees as { approbationId?: string }).approbationId)} valable jusqu’au ${String((r.donnees as { expireLe?: string }).expireLe).slice(0, 16).replace('T', ' ')}` : ''}.`} />
     </div>
@@ -325,16 +328,17 @@ export function BoutonBenchmarkApprouve({ releaseId, evaluations }: { releaseId:
       <div><label htmlFor={`${id}-motif`} style={etiquette}>Motif (entre dans l’audit)</label>
         <input id={`${id}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} style={champ} /></div>
       <div><button type="button" style={{ ...bouton, opacity: motif.trim() ? 1 : 0.6 }} disabled={!motif.trim()} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Benchmark approuvé…</button></div>
-      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Approuver le benchmark de cette release ?" subtitle="Décision nominative · tracée dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Approuver le benchmark de cette release ?" subtitle="Décision nominative · tracée dans l’audit." maxWidth={520} pied={(
+        <PiedModale>
+          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
+          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : 'Benchmark approuvé'}</button>
+        </PiedModale>
+      )}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           <li>La release devient publiable en production (la publication reste un geste séparé).</li>
           <li>Le serveur revérifie : évaluation réelle passée sur cette empreinte, fiches remplies et nommées.</li>
           <li>Rien n’est publié automatiquement.</li>
         </ul>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 16 }}>
-          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
-          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : 'Benchmark approuvé'}</button>
-        </div>
       </Modal>
       <Retour r={r} succes="Benchmark approuvé · la release reste en attente, à publier par un geste séparé." />
     </div>
@@ -364,16 +368,17 @@ export function BoutonRecetteManuelle({ releaseId }: { releaseId: string }) {
       <div><label htmlFor={`${id}-motif`} style={etiquette}>Motif de la mise en service sans benchmark (entre dans l’audit)</label>
         <input id={`${id}-motif`} value={motif} onChange={(e) => setMotif(e.target.value)} style={champ} /></div>
       <div><button type="button" style={{ ...boutonSecondaire, opacity: motif.trim() ? 1 : 0.6 }} disabled={!motif.trim()} aria-haspopup="dialog" onClick={() => { setR(null); setOuvert(true); }}>Recette manuelle…</button></div>
-      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Mettre cette release en service sans benchmark ?" subtitle="Décision nominative du propriétaire · tracée dans l’audit." maxWidth={520}>
+      <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Mettre cette release en service sans benchmark ?" subtitle="Décision nominative du propriétaire · tracée dans l’audit." maxWidth={520} pied={(
+        <PiedModale>
+          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
+          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : 'Accorder la recette manuelle'}</button>
+        </PiedModale>
+      )}>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
           <li>La release devient publiable en production sans benchmark réel ; la qualité sera jugée par les tests manuels.</li>
           <li>Le serveur revérifie : release en attente, non révoquée, tests structurels réussis sur cette empreinte.</li>
           <li>Rien n’est publié automatiquement : « Publier la release » reste un geste séparé.</li>
         </ul>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 16 }}>
-          <button type="button" style={boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
-          <button type="button" style={{ ...bouton, opacity: enCours ? 0.6 : 1 }} disabled={enCours} onClick={confirmer}>{enCours ? 'En cours…' : 'Accorder la recette manuelle'}</button>
-        </div>
       </Modal>
       <Retour r={r} succes="Accord enregistré · la release peut maintenant être publiée." />
     </div>

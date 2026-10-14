@@ -16,6 +16,7 @@ export * from './score-jarvis';
 export * from './brief-cache';
 export * from './proportion';
 export * from './cible-tactile';
+export * from './modale';
 export * from './rail-densite';
 export * from './rail-marque';
 export * from './identite-marque';

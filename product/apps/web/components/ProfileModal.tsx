@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { messageEchecEnregistrement } from '@tiktrends/core';
 import { saveProfileAction } from '../app/actions/admin';
 import { avatarToDataUri } from '../lib/avatar';
-import { Modal } from './Modal';
+import { Modal, PiedModale } from './Modal';
 import { Icon } from './Icon';
 import { input, lbl } from './ui';
 
@@ -28,6 +28,8 @@ export function ProfileModal({ open, onClose, onSaved, init }: { open: boolean; 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  // Le bouton d'envoi vit dans le pied collant de la fenêtre, hors du <form> · il s'y rattache par `form`.
+  const formulaireId = useId();
   const initial = (init.name || init.email).slice(0, 1).toUpperCase();
 
   // À l'ouverture, on repart des valeurs courantes.
@@ -65,8 +67,15 @@ export function ProfileModal({ open, onClose, onSaved, init }: { open: boolean; 
   }
 
   return (
-    <Modal open={open} onClose={onClose} icon={<Icon name="user" size={18} />} title="Mon profil" subtitle="Ta photo, ton nom et la confidentialité de tes informations.">
-      <form onSubmit={enregistrer} style={{ display: 'grid', gap: 16 }}>
+    <Modal open={open} onClose={onClose} icon={<Icon name="user" size={18} />} title="Mon profil" subtitle="Ta photo, ton nom et la confidentialité de tes informations." pied={(
+      <PiedModale entre>
+        <Link href="/profile" onClick={onClose} style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>Sécurité & options ›</Link>
+        <button type="submit" form={formulaireId} disabled={pending} aria-busy={pending || undefined} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: pending ? .6 : 1 }}>
+          {pending ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+      </PiedModale>
+    )}>
+      <form id={formulaireId} onSubmit={enregistrer} style={{ display: 'grid', gap: 16 }}>
         {/* Photo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: 'var(--paper)', border: '1px solid var(--line-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -111,12 +120,6 @@ export function ProfileModal({ open, onClose, onSaved, init }: { open: boolean; 
 
         {erreurEnregistrement && <div role="alert" style={{ fontSize: 12, color: '#ff9db0' }}>{erreurEnregistrement}</div>}
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <Link href="/profile" onClick={onClose} style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>Sécurité & options ›</Link>
-          <button type="submit" disabled={pending} aria-busy={pending || undefined} style={{ padding: '11px 22px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: pending ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: pending ? .6 : 1 }}>
-            {pending ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
-        </div>
       </form>
     </Modal>
   );
