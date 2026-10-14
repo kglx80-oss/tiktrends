@@ -8,14 +8,14 @@ import {
   CIBLE_TACTILE_MIN,
   ajouterForme, ajouterMedia, calqueApresRetrait, calquesParZ, ajouterTexte, alignerCalque, annulerEtape, appliquerOperation, definirVerrou, definirVisibilite,
   documentInitial, dupliquerCalque, enregistrerEtape, historiqueInitial, impactEdition, memeValeur, modifierRemplissage,
-  modifierTexte, patchDocument, prochainAnnuler, prochainRetablir, reappliquerModifications, redimensionnerSelonDocument,
+  modifierTexte, patchDocument, prochainAnnuler, prochainRetablir, raccourciZoom, reappliquerModifications, redimensionnerSelonDocument,
   renommerCalque, reordonnerCalque, retablirEtape, statutEnregistrement, supprimerCalque, transformerCalque,
   type ContenuVersion, type DocumentStudio, type ErreurStudio, type FormatDocument, type FormatPropose,
   type HistoriqueCalques, type ProduitInitial, type ResultatOperation,
 } from '@tiktrends/core';
 import { enregistrerDocument } from '../../../app/actions/studios/projets';
 import { relireDocumentEditeur } from '../../../lib/studios/editeur/actions';
-import type { MediaEditeur } from '../../../lib/studios/editeur/types';
+import type { MediaEditeur, VersionRestauree } from '../../../lib/studios/editeur/types';
 import { Icon } from '../../Icon';
 import { Portail } from '../../Portail';
 import { useIsMobile } from '../../useIsMobile';
@@ -26,7 +26,10 @@ import { DialogueMedias } from './DialogueMedias';
 import { DocumentVide } from './DocumentVide';
 import { PanneauCalques } from './PanneauCalques';
 import { PanneauProprietes, type ActionsProprietes } from './PanneauProprietes';
+import { PanneauVersions } from './PanneauVersions';
 import { SurfaceDocument } from './SurfaceDocument';
+import { ZoneTravail } from './ZoneTravail';
+import { useZoomEditeur } from './use-zoom-editeur';
 import {
   effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale,
 } from './sauvegarde-locale';
@@ -61,11 +64,13 @@ interface Base { id: string; n: number; document: DocumentStudio | null }
 const masque: CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' };
 
 export function EditeurCalques(props: PropsEditeur) {
-  const { projet, contenu, formatPropose, produit, medias, apercus, peutEnregistrer, atelier } = props;
+  const { projet, formatPropose, produit, medias, apercus, peutEnregistrer, atelier } = props;
   const editable = peutEnregistrer;
   const mobile = useIsMobile();
 
   const [base, setBase] = useState<Base>({ id: props.version.id, n: props.version.n, document: props.document });
+  /** Contenu de la version de base · change quand une restauration crée une nouvelle version. */
+  const [contenu, setContenu] = useState<ContenuVersion>(props.contenu);
   const [h, setH] = useState<HistoriqueCalques | null>(props.document ? historiqueInitial(props.document) : null);
   const [selection, setSelection] = useState<string | null>(null);
   const [refus, setRefus] = useState<string | null>(null);
@@ -81,6 +86,8 @@ export function EditeurCalques(props: PropsEditeur) {
   const [demandeEnregistrement, setDemandeEnregistrement] = useState(0);
   /** L8-A · où porter le focus si l'élément qui l'avait disparaît (suppression, conflit tranché). */
   const [cibleFocus, setCibleFocus] = useState<{ selecteurs: string[]; n: number } | null>(null);
+  const [versionsOuvert, setVersionsOuvert] = useState(false);
+  const [restauree, setRestauree] = useState<{ depuis: number; nouvelle: number; avant: number } | null>(null);
   const racine = useRef<HTMLDivElement>(null);
 
   const present = h?.present ?? null;
@@ -91,6 +98,8 @@ export function EditeurCalques(props: PropsEditeur) {
   const impact = useMemo(() => (present && modifie ? impactEdition({ ...contenu, document: base.document }, present) : null), [present, modifie, contenu, base.document]);
   const libelleAnnuler = h ? prochainAnnuler(h) : null;
   const libelleRetablir = h ? prochainRetablir(h) : null;
+  // Lot 2b · zoom de la zone de travail · état d'affichage, jamais dans le document ni l'historique.
+  const zoom = useZoomEditeur(present ? { width: present.width, height: present.height } : null);
 
   /* ──────────────────────────────── Focus ───────────────────────────────── */
 
@@ -152,6 +161,7 @@ export function EditeurCalques(props: PropsEditeur) {
     setRefus(null);
     if (r.changes.length === 0) return;
     setH(appliquerOperation(h, r));
+    setRestauree(null);
     setSelection(r.calqueId);
     setErreur(null);
     setAnnonce(r.libelle);
@@ -249,8 +259,8 @@ export function EditeurCalques(props: PropsEditeur) {
 
   /* ───────────────────────────── Raccourcis ─────────────────────────────── */
 
-  const derniers = useRef({ annuler, retablir, enregistrer, bloque: false });
-  derniers.current = { annuler, retablir, enregistrer, bloque: conflitOuvert || mediasOuvert };
+  const derniers = useRef({ annuler, retablir, enregistrer, zoomer: zoom.agir, bloque: false });
+  derniers.current = { annuler, retablir, enregistrer, zoomer: zoom.agir, bloque: conflitOuvert || mediasOuvert };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -265,6 +275,9 @@ export function EditeurCalques(props: PropsEditeur) {
         setDemandeEnregistrement((n) => n + 1);
         return;
       }
+      // Zoom · jamais pendant une saisie (la touche reste alors au navigateur) ; sans zone mesurée, idem.
+      const az = raccourciZoom({ key: e.key, code: e.code, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, dansChamp });
+      if (az) { if (derniers.current.zoomer(az)) e.preventDefault(); return; }
       if (dansChamp) return; // annuler natif du champ
       if (k === 'z' && !e.shiftKey) { e.preventDefault(); derniers.current.annuler(); }
       else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); derniers.current.retablir(); }
@@ -376,6 +389,11 @@ export function EditeurCalques(props: PropsEditeur) {
           <Icon name="lock" size={13} /> Lecture seule · ton rôle permet de consulter ce document, pas de le modifier.
         </p>
       )}
+      {restauree && (
+        <p role="status" data-etat="restauree" style={{ ...panneau, ...legende, color: 'var(--ink)' }}>
+          Version {restauree.depuis} restaurée · c’est maintenant la version {restauree.nouvelle}. La version {restauree.avant} reste dans l’historique.
+        </p>
+      )}
       {erreur && (
         <div role="alert" data-etat="erreur" style={{ ...panneau, display: 'grid', gap: 8, borderColor: 'var(--err)' }}>
           <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink)' }}>{erreur.message}</p>
@@ -417,15 +435,55 @@ export function EditeurCalques(props: PropsEditeur) {
   );
 
   const surface = present && (
-    <SurfaceDocument
-      doc={present}
-      selection={selection}
-      apercus={apercus}
+    <ZoneTravail
+      zoom={zoom}
+      hauteur={mobile ? '60vh' : '72vh'}
+      mobile={mobile}
+      versionsOuvert={versionsOuvert}
+      onVersions={() => setVersionsOuvert((v) => !v)}
+      idVersions="versions-editeur"
+      surface={({ largeurPx, hauteurMax }) => (
+        <SurfaceDocument
+          doc={present}
+          selection={selection}
+          apercus={apercus}
+          editable={editable}
+          onSelect={setSelection}
+          onDeplacer={(id, x, y) => operer((d) => transformerCalque(d, id, { x, y }))}
+          onClavier={clavierSurface}
+          hauteurMax={hauteurMax}
+          largeurPx={largeurPx}
+        />
+      )}
+    />
+  );
+
+  /* ───────────────────────────── Versions ───────────────────────────────── */
+
+  const surRestauree = (r: VersionRestauree) => {
+    const avant = base.n;
+    setBase({ id: r.version.id, n: r.version.n, document: r.document });
+    setContenu(r.contenu);
+    setH(r.document ? historiqueInitial(r.document) : null);
+    setSelection(null);
+    setErreur(null);
+    setRefus(null);
+    effacerSauvegardeLocale(projet.id);
+    setSecours(null);
+    setRestauree({ depuis: r.restauree.n, nouvelle: r.version.n, avant });
+    setAnnonce(`Version ${r.restauree.n} restaurée · elle devient la version ${r.version.n}`);
+  };
+
+  const versions = versionsOuvert && (
+    <PanneauVersions
+      id="versions-editeur"
+      projectId={projet.id}
+      base={{ id: base.id, n: base.n }}
       editable={editable}
-      onSelect={setSelection}
-      onDeplacer={(id, x, y) => operer((d) => transformerCalque(d, id, { x, y }))}
-      onClavier={clavierSurface}
-      hauteurMax={mobile ? '60vh' : '72vh'}
+      modifie={modifie}
+      enCours={enCours}
+      conflit={conflit !== null}
+      onRestauree={surRestauree}
     />
   );
 
@@ -450,13 +508,19 @@ export function EditeurCalques(props: PropsEditeur) {
       {bandeaux}
 
       {!present ? (
-        <DocumentVide formatPropose={formatPropose} produitDisponible={produit !== null} peutEnregistrer={editable} enCours={enCours} onCreer={creer} />
+        <div style={{ display: 'grid', gap: 12 }}>
+          <DocumentVide formatPropose={formatPropose} produitDisponible={produit !== null} peutEnregistrer={editable} enCours={enCours} onCreer={creer} />
+          <div>
+            <button type="button" onClick={() => setVersionsOuvert((v) => !v)} aria-expanded={versionsOuvert} aria-controls="versions-editeur" data-action="versions" style={bouton}>Versions</button>
+          </div>
+          {versions}
+        </div>
       ) : mobile ? (
         <div style={{ display: 'grid', gap: 12 }}>
           <div role="tablist" aria-label="Vue de l’éditeur" style={{ display: 'flex', gap: 6 }}>
             {(['calques', 'apercu'] as const).map((v) => (
               <button key={v} type="button" role="tab" id={`onglet-${v}`} aria-selected={vue === v} aria-controls={`vue-${v}`} onClick={() => setVue(v)}
-                style={{ ...bouton, flex: 1, ...(vue === v ? { borderColor: 'var(--accent-strong)', borderWidth: 2, color: 'var(--accent-strong)', fontWeight: 800 } : {}) }}>
+                style={{ ...bouton, flex: 1, ...(vue === v ? { border: '2px solid var(--accent-strong)', color: 'var(--accent-strong)', fontWeight: 800 } : {}) }}>
                 {v === 'calques' ? 'Calques' : 'Aperçu'}
               </button>
             ))}
@@ -474,6 +538,7 @@ export function EditeurCalques(props: PropsEditeur) {
             )}
           </div>
           {piedSurface}
+          {versions}
           {proprietesMobile && calque && (
             <Portail>
               <div
@@ -496,6 +561,7 @@ export function EditeurCalques(props: PropsEditeur) {
           <div style={{ minWidth: 0 }}>
             {surface}
             {piedSurface}
+            {versions && <div style={{ marginTop: 12 }}>{versions}</div>}
           </div>
           <PanneauProprietes c={calque} doc={present} editable={editable} actions={actions} refus={refus} />
         </div>

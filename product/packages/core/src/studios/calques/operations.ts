@@ -115,6 +115,11 @@ const PREFIXES: Readonly<Record<CalqueStudio['kind'], string>> = { text: 'texte'
 
 export interface OptionsTexte { texte?: string; fontId?: string }
 
+/** Plancher de la taille d'un texte que l'éditeur pose de lui-même (document étroit) · px du document. */
+export const TEXTE_MIN_PX = 12;
+/** Interligne d'un texte posé par l'éditeur. */
+export const INTERLIGNE_TEXTE = 1.2;
+
 /** Ajoute un calque texte centré, au-dessus de tout, dans une police fournie. */
 export function ajouterTexte(doc: DocumentStudio, o: OptionsTexte = {}): ResultatOperation {
   const fontId = o.fontId ?? POLICE_PAR_DEFAUT;
@@ -124,8 +129,8 @@ export function ajouterTexte(doc: DocumentStudio, o: OptionsTexte = {}): Resulta
   const { doc: base, z } = zAuDessus(doc);
   const id = prochainIdCalque(base, PREFIXES.text);
   const n = id.split('_')[1];
-  const fontSizePx = Math.max(12, Math.round(doc.width * 0.06));
-  const lineHeight = 1.2;
+  const fontSizePx = Math.max(TEXTE_MIN_PX, Math.round(doc.width * 0.06));
+  const lineHeight = INTERLIGNE_TEXTE;
   const width = Math.round(doc.width * 0.8);
   const height = Math.round(fontSizePx * lineHeight * 2);
   const c: CalqueTexte = {
