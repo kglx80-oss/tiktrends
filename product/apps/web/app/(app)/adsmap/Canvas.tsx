@@ -67,11 +67,11 @@ const KIND_LABEL: Record<GraphNode['kind'], string> = {
 };
 
 const VERDICT_TON: Record<string, { bd: string; fg: string; bg: string }> = {
-  winner: { bd: 'rgba(126,232,191,.55)', fg: '#7ee8bf', bg: 'rgba(126,232,191,.10)' },
-  baby_winner: { bd: 'rgba(245,166,35,.5)', fg: '#ffcf8f', bg: 'rgba(245,166,35,.09)' },
+  winner: { bd: 'color-mix(in srgb, var(--ok-text) 55%, transparent)', fg: 'var(--ok-text)', bg: 'color-mix(in srgb, var(--ok-text) 10%, transparent)' },
+  baby_winner: { bd: 'color-mix(in srgb, var(--warn) 50%, transparent)', fg: 'var(--warn-text)', bg: 'color-mix(in srgb, var(--warn) 9%, transparent)' },
   // Prometteuse, pas gagnée · ton neutre, jamais l'ambre d'une victoire (R01).
   relative_winner: { bd: 'var(--line-2)', fg: 'var(--ink-2)', bg: 'transparent' },
-  loser: { bd: 'rgba(254,44,85,.45)', fg: '#ff8095', bg: 'rgba(254,44,85,.07)' },
+  loser: { bd: 'color-mix(in srgb, var(--accent) 45%, transparent)', fg: 'var(--err-strong)', bg: 'color-mix(in srgb, var(--accent) 7%, transparent)' },
   inconclusive: { bd: 'var(--line-2)', fg: 'var(--muted)', bg: 'transparent' },
   insufficient_delivery: { bd: 'var(--line-2)', fg: 'var(--muted)', bg: 'transparent' },
 };
@@ -115,7 +115,7 @@ function NoeudCarte({ data }: NodeProps<Node<DonneesNoeud>>) {
         background: ton?.bg ?? 'var(--surface)',
         // Le pointillé dit « rien ne descend d'ici » sans rien masquer · c'est
         // exactement ce qu'on vient chercher sur un graphe.
-        border: `1px ${gap ? 'dashed' : 'solid'} ${gap ? 'rgba(245,166,35,.55)' : ton?.bd ?? 'var(--line-2)'}`,
+        border: `1px ${gap ? 'dashed' : 'solid'} ${gap ? 'color-mix(in srgb, var(--warn) 55%, transparent)' : ton?.bd ?? 'var(--line-2)'}`,
         color: 'var(--ink)', fontSize: 12,
       }}
     >
@@ -135,7 +135,7 @@ function NoeudCarte({ data }: NodeProps<Node<DonneesNoeud>>) {
       {repli && (
         <div style={{
           fontSize: 9.5, fontWeight: 700, marginTop: 1,
-          color: repli.winners > 0 ? '#7ee8bf' : 'var(--muted)',
+          color: repli.winners > 0 ? 'var(--ok-text)' : 'var(--muted)',
         }}>
           {repli.ouvert
             ? '▾ ouvert · clique pour replier'
@@ -343,7 +343,7 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
     return () => { vivant = false; };
   }, [graph, lecture, index, visibles, deplies]);
 
-  if (error) return <p style={{ color: '#ff8095', fontSize: 13 }}>{error}</p>;
+  if (error) return <p style={{ color: 'var(--err-strong)', fontSize: 13 }}>{error}</p>;
   if (!graph) return <p style={{ color: 'var(--muted)', fontSize: 13 }}>Chargement de la carte…</p>;
 
   if (!graph.nodes.length) {
@@ -389,7 +389,7 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
       </div>
 
       {graph.truncated && (
-        <p style={{ margin: '0 0 10px', fontSize: 12, color: '#ffcf8f' }}>
+        <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--warn-text)' }}>
           Carte tronquée aux 800 ads les plus récentes · la vue Table les montre toutes, filtrées par lot.
         </p>
       )}
@@ -426,10 +426,10 @@ export function Canvas({ peutPartager = false }: { peutPartager?: boolean }) {
             <MiniMap
               pannable zoomable
               style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}
-              maskColor="rgba(0,0,0,.35)"
+              maskColor="var(--voile-leger)"
               nodeColor={(nd) => {
                 const n = (nd.data as DonneesNoeud).n;
-                return n.kind === 'ad' && n.verdict ? (VERDICT_TON[verdictEffectif(n.verdict as VerdictValue, !!n.comparable) ?? '']?.fg ?? '#666') : '#4a4a52';
+                return n.kind === 'ad' && n.verdict ? (VERDICT_TON[verdictEffectif(n.verdict as VerdictValue, !!n.comparable) ?? '']?.fg ?? 'var(--muted)') : 'var(--carte-noeud)';
               }}
             />
           </ReactFlow>

@@ -63,7 +63,7 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {initial.isDefault && (
-        <div style={{ ...bandeau, background: 'rgba(245,166,35,.09)', borderColor: 'rgba(245,166,35,.3)', color: '#ffcf8f' }}>
+        <div style={{ ...bandeau, background: 'color-mix(in srgb, var(--warn) 9%, transparent)', borderColor: 'color-mix(in srgb, var(--warn) 30%, transparent)', color: 'var(--warn-text)' }}>
           Rien n’est encore enregistré pour cette marque : ce sont des valeurs par défaut.
           Lance l’assistant pour les caler sur tes performances réelles.
         </div>
@@ -76,7 +76,7 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '9px 17px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
           {busy ? 'Analyse…' : 'Proposer des seuils depuis mes 30 derniers jours'}
         </button>
-        {fromReal === false && <span style={{ fontSize: 12.5, color: '#ffcf8f' }}>Sans données Meta · rien n’a été modifié</span>}
+        {fromReal === false && <span style={{ fontSize: 12.5, color: 'var(--warn-text)' }}>Sans données Meta · rien n’a été modifié</span>}
       </div>}
 
       {notes.length > 0 && (
@@ -170,7 +170,7 @@ export function ProtocolForm({ initial, canEdit }: { initial: SettingsBundle; ca
       </section>
 
       {msg && (
-        <div style={{ ...bandeau, background: msg.kind === 'ok' ? 'rgba(126,232,191,.08)' : 'rgba(254,44,85,.08)', borderColor: msg.kind === 'ok' ? 'rgba(126,232,191,.32)' : 'rgba(254,44,85,.32)', color: msg.kind === 'ok' ? '#7ee8bf' : '#ff8095' }}>
+        <div style={{ ...bandeau, background: msg.kind === 'ok' ? 'color-mix(in srgb, var(--ok-text) 8%, transparent)' : 'color-mix(in srgb, var(--accent) 8%, transparent)', borderColor: msg.kind === 'ok' ? 'color-mix(in srgb, var(--ok-text) 32%, transparent)' : 'color-mix(in srgb, var(--accent) 32%, transparent)', color: msg.kind === 'ok' ? 'var(--ok-text)' : 'var(--err-strong)' }}>
           {msg.text}
         </div>
       )}

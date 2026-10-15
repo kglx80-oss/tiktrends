@@ -84,6 +84,33 @@
   /* Typo (Google Fonts) */
   --font-sans: 'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* V5 · T4 · Adsmap (Résultats) et Jarvis · rôles nés de leur tokenisation.
+     Valeur sombre = le littéral remplacé, à l'identique (captures pixel à
+     pixel avant / après). Les teintes translucides se dérivent du rôle ·
+     `color-mix(in srgb, var(--x) N%, transparent)`, exact au pixel.
+     --warn-text, --warn-strong et --err-strong · mêmes noms et mêmes valeurs
+     que les lots T1 et T3 (une redéclaration identique ne change rien). */
+  --warn-text:     #ffcf8f;  /* texte d'avertissement pâle (gagnante relative, note) */
+  --warn-strong:   #f5b043;  /* avertissement en texte vif (« à surveiller ») */
+  --err-strong:    #ff8095;  /* texte d'erreur vif (perdante, échec, refus) */
+  --ok-pale:       #9fe6b3;  /* message de réussite doux (enregistré, appliqué) */
+  --ok-strong:     #3ddc97;  /* donnée · jauge « fort » (anneau du règlement) */
+  --ok-sur-teinte: #0d3d2a;  /* texte posé sur une teinte --ok-text (pastille cochée) */
+  --err-pale:      #ffb3c0;  /* conseil à suivre avant tout, dans un cadre signal */
+  --recul-text:    #ffb86b;  /* texte d'une dégradation (témoin en recul) */
+  --info-pale:     #9fb4ff;  /* donnée · suite « nouveau concept » */
+  --signal:        #ff5a78;  /* cadre signal (agir avant de tester) · via color-mix */
+  --violet:        #7a5aff;  /* pictogramme de l'entraînement de Jarvis */
+  --violet-text:   #c9b8ff;  /* message de réussite de l'entraînement */
+  --violet-08:     rgba(120,90,255,0.08); /* lavis du panneau d'entraînement */
+  --violet-35:     rgba(120,90,255,0.35); /* cadre du panneau d'entraînement */
+  --grad-violet:   linear-gradient(135deg,#7a5aff,#e6007e); /* bouton « Entraîner Jarvis » */
+  --on-violet:     #ffffff;  /* libellé sur --grad-violet */
+  --grad-ok-doux:  linear-gradient(90deg,#4fd1a5,#7ee8bf); /* barre au-dessus de la moyenne */
+  --carte-noeud:   #4a4a52;  /* minicarte Adsmap · nœud sans verdict */
+  --voile-leger:   rgba(0,0,0,0.35); /* masque de la minicarte Adsmap */
+  --sh-tiroir:     -20px 0 50px -20px rgba(0,0,0,0.60); /* ombre de la fiche d'une ad */
 }
 
 /* ---------- Clair · espace créatif (V5 .theme-light, mesuré) ----------
@@ -129,6 +156,35 @@
   --sh-sm:   0 1px 2px rgba(43,20,36,0.08);
   --sh-card: 0 2px 12px rgba(43,20,36,0.08);
   --sh-lift: 0 14px 34px -10px rgba(43,20,36,0.20);
+
+  /* V5 · T4 · Adsmap et Jarvis · mesurés (WCAG 2) · texte ≥ 4,5:1 sur bg,
+     surface, surface-raised et paper ; pire paire --warn-text / --warn-strong
+     #8a5a00 · 4,93 sur --paper ; --err-strong #b3261e · 5,43 ; --err-pale
+     #a3213f · 6,13 ; --recul-text #9a4a00 · 5,20 ; --info-pale #1d4ed8 ·
+     5,57 ; --violet-text #5b3fd6 · 5,58 ; --ok-pale #1a6f4b · 5,10.
+     Non-texte (≥ 3:1) · --ok-strong 5,10, --signal #c8295f 4,43, --violet
+     3,69, --grad-ok-doux 4,38 au pire arrêt sur --paper. Le violet, son lavis
+     et son dégradé restent ceux du sombre (déjà lisibles sur fond clair). */
+  --warn-text:     #8a5a00;
+  --warn-strong:   #8a5a00;
+  --err-strong:    #b3261e;
+  --ok-pale:       #1a6f4b;
+  --ok-strong:     #1a6f4b;
+  --ok-sur-teinte: #0d3d2a;
+  --err-pale:      #a3213f;
+  --recul-text:    #9a4a00;
+  --info-pale:     #1d4ed8;
+  --signal:        #c8295f;
+  --violet:        #7a5aff;
+  --violet-text:   #5b3fd6;
+  --violet-08:     rgba(120,90,255,0.08);
+  --violet-35:     rgba(120,90,255,0.35);
+  --grad-violet:   linear-gradient(135deg,#7a5aff,#e6007e);
+  --on-violet:     #ffffff;
+  --grad-ok-doux:  linear-gradient(90deg, #1a6f4b, #237a55);
+  --carte-noeud:   #8c6c80;
+  --voile-leger:   rgba(43,20,36,0.20);
+  --sh-tiroir:     -20px 0 50px -20px rgba(43,20,36,0.20);
 }
 
 /* ---------- ADMIN+ · sombre (bleu nuit / menthe, DESIGN.md V4) ----------
@@ -172,6 +228,29 @@
   --sh-sm:   0 1px 2px rgba(0,0,0,0.45);
   --sh-card: 0 2px 12px rgba(0,0,0,0.40);
   --sh-lift: 0 14px 34px -10px rgba(0,0,0,0.60);
+
+  /* V5 · T4 · Adsmap et Jarvis · les valeurs du sombre, mesurées sur bleu
+     nuit · texte ≥ 5,77:1 sur --paper (--err-strong), --violet 3,11. */
+  --warn-text:     #ffcf8f;
+  --warn-strong:   #f5b043;
+  --err-strong:    #ff8095;
+  --ok-pale:       #9fe6b3;
+  --ok-strong:     #3ddc97;
+  --ok-sur-teinte: #0d3d2a;
+  --err-pale:      #ffb3c0;
+  --recul-text:    #ffb86b;
+  --info-pale:     #9fb4ff;
+  --signal:        #ff5a78;
+  --violet:        #7a5aff;
+  --violet-text:   #c9b8ff;
+  --violet-08:     rgba(120,90,255,0.08);
+  --violet-35:     rgba(120,90,255,0.35);
+  --grad-violet:   linear-gradient(135deg,#7a5aff,#e6007e);
+  --on-violet:     #ffffff;
+  --grad-ok-doux:  linear-gradient(90deg,#4fd1a5,#7ee8bf);
+  --carte-noeud:   #4a4a52;
+  --voile-leger:   rgba(0,0,0,0.35);
+  --sh-tiroir:     -20px 0 50px -20px rgba(0,0,0,0.60);
 }
 
 /* ---------- ADMIN+ · clair (V5 .adminspace.theme-light, mesuré) ----------
@@ -213,6 +292,30 @@
   --sh-sm:   0 1px 2px rgba(11,37,48,0.08);
   --sh-card: 0 2px 12px rgba(11,37,48,0.08);
   --sh-lift: 0 14px 34px -10px rgba(11,37,48,0.20);
+
+  /* V5 · T4 · Adsmap et Jarvis · valeurs du clair, mesurées sur les fonds
+     menthe · --warn-text 5,02 sur --paper, --signal 4,51, --carte-noeud
+     #6a858d (= --line-strong) 3,32. */
+  --warn-text:     #8a5a00;
+  --warn-strong:   #8a5a00;
+  --err-strong:    #b3261e;
+  --ok-pale:       #1a6f4b;
+  --ok-strong:     #1a6f4b;
+  --ok-sur-teinte: #0d3d2a;
+  --err-pale:      #a3213f;
+  --recul-text:    #9a4a00;
+  --info-pale:     #1d4ed8;
+  --signal:        #c8295f;
+  --violet:        #7a5aff;
+  --violet-text:   #5b3fd6;
+  --violet-08:     rgba(120,90,255,0.08);
+  --violet-35:     rgba(120,90,255,0.35);
+  --grad-violet:   linear-gradient(135deg,#7a5aff,#e6007e);
+  --on-violet:     #ffffff;
+  --grad-ok-doux:  linear-gradient(90deg, #1a6f4b, #237a55);
+  --carte-noeud:   #6a858d;
+  --voile-leger:   rgba(11,37,48,0.20);
+  --sh-tiroir:     -20px 0 50px -20px rgba(11,37,48,0.20);
 }
 
 /* Fond principal UNI, sans quadrillage décoratif ni halo rose global

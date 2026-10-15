@@ -26,6 +26,9 @@ import { join, relative } from 'node:path';
  * Mesuré le 15/10/2026 · main (0aa7a59, coquille V5 comprise) en portait
  * 1141 ; ce lot retire celui du layout racine (`themeColor`) · plafond 1140,
  * 132 fichiers en portent sur 531 (399 déjà propres).
+ *
+ * V5 · T4 · Adsmap (Résultats) et Jarvis passent en jetons · 115 + 93 = 208
+ * littéraux retirés, leurs 25 fichiers sont propres · plafond 932.
  */
 const WEB = process.cwd();
 
@@ -43,7 +46,6 @@ const EXCLUS: Record<string, string> = {
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 241,
   'app/(app)/admin': 142,
-  'app/(app)/adsmap': 115,
   'app/(app)/analytics': 7,
   'app/(app)/assets': 20,
   'app/(app)/billing': 9,
@@ -51,7 +53,6 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app/(app)/connections': 54,
   'app/(app)/console': 24,
   'app/(app)/credits': 37,
-  'app/(app)/jarvis': 93,
   'app/(app)/profile': 1,
   'app/(app)/radar': 8,
   'app/(app)/saved': 2,
@@ -94,21 +95,6 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/admin/plans/page.tsx': 2,
   'app/(app)/admin/signups/page.tsx': 3,
   'app/(app)/admin/studios-interrupteurs/Ecran.tsx': 1,
-  'app/(app)/adsmap/AdDrawer.tsx': 7,
-  'app/(app)/adsmap/AdsMapTable.tsx': 20,
-  'app/(app)/adsmap/BuildPanel.tsx': 3,
-  'app/(app)/adsmap/Canvas.tsx': 16,
-  'app/(app)/adsmap/Inbox.tsx': 4,
-  'app/(app)/adsmap/PartageGagnante.tsx': 2,
-  'app/(app)/adsmap/SharePanel.tsx': 5,
-  'app/(app)/adsmap/SyncButton.tsx': 1,
-  'app/(app)/adsmap/import/ImportPanel.tsx': 12,
-  'app/(app)/adsmap/lots/Lots.tsx': 8,
-  'app/(app)/adsmap/protocole/ProtocolForm.tsx': 10,
-  'app/(app)/adsmap/protocole/page.tsx': 1,
-  'app/(app)/adsmap/radar/Radar.tsx': 6,
-  'app/(app)/adsmap/suites/Suites.tsx': 9,
-  'app/(app)/adsmap/tri/Curation.tsx': 11,
   'app/(app)/analytics/CreativeIntel.tsx': 2,
   'app/(app)/analytics/MetaKeyMetrics.tsx': 5,
   'app/(app)/assets/AssetsLibrary.tsx': 6,
@@ -126,16 +112,6 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/connections/page.tsx': 47,
   'app/(app)/console/page.tsx': 24,
   'app/(app)/credits/page.tsx': 37,
-  'app/(app)/jarvis/DescribePanel.tsx': 2,
-  'app/(app)/jarvis/JarvisChat.tsx': 5,
-  'app/(app)/jarvis/JarvisContexte.tsx': 8,
-  'app/(app)/jarvis/JarvisRules.tsx': 6,
-  'app/(app)/jarvis/JarvisTraining.tsx': 9,
-  'app/(app)/jarvis/MarketPanel.tsx': 13,
-  'app/(app)/jarvis/error.tsx': 2,
-  'app/(app)/jarvis/sections/SectionAttribution.tsx': 10,
-  'app/(app)/jarvis/sections/SectionEssais.tsx': 24,
-  'app/(app)/jarvis/sources/page.tsx': 14,
   'app/(app)/profile/ProfileIdentity.tsx': 1,
   'app/(app)/radar/page.tsx': 8,
   'app/(app)/saved/FormatChoix.tsx': 2,
@@ -209,7 +185,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'lib/theme.ts': 5,
 };
 
-const PLAFOND_TOTAL = 1140;
+const PLAFOND_TOTAL = 932;
 
 const RACINES = ['app', 'components', 'lib'];
 

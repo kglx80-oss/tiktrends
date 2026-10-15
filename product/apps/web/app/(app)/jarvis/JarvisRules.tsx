@@ -96,7 +96,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
       {/* Score de force du règlement */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-          <span style={{ position: 'relative', width: 30, height: 30, borderRadius: '50%', background: `conic-gradient(${niveauScore(score) === 'fort' ? '#3ddc97' : 'var(--accent-strong)'} ${score * 3.6}deg, var(--line-2) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ position: 'relative', width: 30, height: 30, borderRadius: '50%', background: `conic-gradient(${niveauScore(score) === 'fort' ? 'var(--ok-strong)' : 'var(--accent-strong)'} ${score * 3.6}deg, var(--line-2) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: 'var(--ink)' }}>{score}</span>
           </span>
           <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>Force du règlement</span>
@@ -104,7 +104,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
           {DIMS.map((d) => {
             const on = d.re.test(rules);
-            return <span key={d.label} style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: on ? '#0d3d2a' : 'var(--muted)', background: on ? 'rgba(126,232,191,.2)' : 'var(--line)' }}>{on ? '✓' : '·'} {d.label}</span>;
+            return <span key={d.label} style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: on ? 'var(--ok-sur-teinte)' : 'var(--muted)', background: on ? 'color-mix(in srgb, var(--ok-text) 20%, transparent)' : 'var(--line)' }}>{on ? '✓' : '·'} {d.label}</span>;
           })}
         </div>
         <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>{words} mots</span>
@@ -114,7 +114,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
         value={rules}
         onChange={(e) => setRules(e.target.value)}
         placeholder={PRESET}
-        style={{ width: '100%', minHeight: 240, padding: '13px 15px', borderRadius: 14, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, lineHeight: 1.6, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+        style={{ width: '100%', minHeight: 240, padding: '13px 15px', borderRadius: 14, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 14, lineHeight: 1.6, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
       />
 
       {/* Playbooks */}
@@ -128,7 +128,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
         <span style={{ flex: 1 }} />
-        {msg && <span style={{ fontSize: 12.5, color: ok ? '#9fe6b3' : '#f5b043' }}>{msg}</span>}
+        {msg && <span style={{ fontSize: 12.5, color: ok ? 'var(--ok-pale)' : 'var(--warn-strong)' }}>{msg}</span>}
         <button type="button" onClick={save} disabled={busy} style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1 }}>{busy ? 'Enregistrement…' : 'Enregistrer les règles'}</button>
       </div>
     </div>

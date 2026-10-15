@@ -37,7 +37,7 @@ export default function JarvisError({ error, reset }: { error: Error & { digest?
       <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Jarvis</h1>
       <div role="alert" style={{
         marginTop: 20, padding: '20px 22px', borderRadius: 16,
-        border: '1px solid rgba(245,166,35,.45)', background: 'rgba(245,166,35,.08)',
+        border: '1px solid color-mix(in srgb, var(--warn) 45%, transparent)', background: 'color-mix(in srgb, var(--warn) 8%, transparent)',
       }}>
         <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>
           Jarvis est momentanément indisponible.

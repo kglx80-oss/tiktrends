@@ -68,7 +68,7 @@ export function DescribePanel() {
             juge rien, le jugement reste au verdict.
           </p>
           {c && (
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: couverture !== null && couverture < 50 ? '#ffcf8f' : 'var(--muted)', lineHeight: 1.5 }}>
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: couverture !== null && couverture < 50 ? 'var(--warn-text)' : 'var(--muted)', lineHeight: 1.5 }}>
               {c.total === 0
                 ? 'Aucune créa dans la carte pour l’instant.'
                 : `${c.described} créa(s) décrite(s) sur ${c.total}${couverture !== null ? ` · ${couverture} %` : ''}`}
@@ -110,7 +110,7 @@ export function DescribePanel() {
       </div>
 
       {msg && (
-        <p style={{ margin: '11px 0 0', fontSize: 12.5, lineHeight: 1.55, color: msg.erreur ? '#ff8095' : 'var(--ink-2)' }}>
+        <p style={{ margin: '11px 0 0', fontSize: 12.5, lineHeight: 1.55, color: msg.erreur ? 'var(--err-strong)' : 'var(--ink-2)' }}>
           {msg.texte}
         </p>
       )}

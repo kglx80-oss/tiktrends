@@ -65,12 +65,12 @@ export function BuildPanel() {
       </p>
 
       {msg && (
-        <p style={{ margin: '12px 0 0', fontSize: 12.5, lineHeight: 1.55, color: msg.erreur ? '#ff8095' : 'var(--ink-2)' }}>
+        <p style={{ margin: '12px 0 0', fontSize: 12.5, lineHeight: 1.55, color: msg.erreur ? 'var(--err-strong)' : 'var(--ink-2)' }}>
           {msg.texte}
         </p>
       )}
       {rejetes.length > 0 && (
-        <p style={{ margin: '5px 0 0', fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>
+        <p style={{ margin: '5px 0 0', fontSize: 11.5, color: 'var(--warn-text)', lineHeight: 1.5 }}>
           Rejetés faute de mécanisme reconnu : {rejetes.join(' · ')}. Un angle sans mécanisme n’est
           pas comparable aux autres · il ne rentre pas.
         </p>
@@ -107,7 +107,7 @@ export function BuildPanel() {
                       ...pastille,
                       // Une branche vide est ce qu'on vient remplir · elle se repère.
                       borderStyle: n.childCount === 0 ? 'dashed' : 'solid',
-                      borderColor: n.childCount === 0 ? 'rgba(245,166,35,.5)' : 'var(--line-2)',
+                      borderColor: n.childCount === 0 ? 'color-mix(in srgb, var(--warn) 50%, transparent)' : 'var(--line-2)',
                       opacity: busy && busy !== cle ? 0.5 : 1,
                     }}>
                     {busy === cle ? '…' : n.label.slice(0, 40)}

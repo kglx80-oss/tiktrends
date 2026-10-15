@@ -237,13 +237,13 @@ export function Lots({ batches, brandName }: {
               title={c.blocking ?? 'Prête à être rangée dans le lot'}
               style={{
                 textAlign: 'left', minHeight: CIBLE_TACTILE_MIN, padding: '7px 10px', borderRadius: 9, cursor: 'pointer', fontSize: 11.5,
-                border: `1px ${c.blocking ? 'dashed' : 'solid'} ${c.blocking ? 'rgba(245,166,35,.4)' : 'var(--line-2)'}`,
+                border: `1px ${c.blocking ? 'dashed' : 'solid'} ${c.blocking ? 'color-mix(in srgb, var(--warn) 40%, transparent)' : 'var(--line-2)'}`,
                 background: 'var(--surface)', color: 'var(--ink-2)',
               }}>
               <strong style={{ color: 'var(--ink)' }}>{c.variantCode}</strong> · {c.concept}
               {/* Lot 17 · le détail se lit À L'ÉCRAN · il n'était qu'en infobulle
                   (invisible au doigt et au clavier). */}
-              {c.blocking && <span style={{ display: 'block', color: '#ffcf8f', fontSize: 10.5, marginTop: 1, overflowWrap: 'anywhere' }}>incomplète{c.manques?.length ? <> · manque {listeManques(c.manques)}</> : null}</span>}
+              {c.blocking && <span style={{ display: 'block', color: 'var(--warn-text)', fontSize: 10.5, marginTop: 1, overflowWrap: 'anywhere' }}>incomplète{c.manques?.length ? <> · manque {listeManques(c.manques)}</> : null}</span>}
             </button>
           ))}
         </div>
@@ -293,7 +293,7 @@ export function Lots({ batches, brandName }: {
               <Ligne label="Budget" valeur={valeurBudget(detail.brief, detail.ads.length)} />
               <p style={{
                 margin: '10px 0 0', fontSize: 12, lineHeight: 1.55,
-                color: detail.brief.conclusiveness.startsWith('Attention') ? '#ffcf8f' : 'var(--muted)',
+                color: detail.brief.conclusiveness.startsWith('Attention') ? 'var(--warn-text)' : 'var(--muted)',
               }}>
                 {detail.brief.conclusiveness}
               </p>
@@ -312,7 +312,7 @@ export function Lots({ batches, brandName }: {
               <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {detail.ads.map((a) => (
                   <li key={a.id} style={{
-                    border: `1px solid ${a.blocking ? 'rgba(245,166,35,.35)' : 'var(--line)'}`,
+                    border: `1px solid ${a.blocking ? 'color-mix(in srgb, var(--warn) 35%, transparent)' : 'var(--line)'}`,
                     borderRadius: surface.borderRadius, padding: '10px 13px', background: 'var(--surface)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -327,7 +327,7 @@ export function Lots({ batches, brandName }: {
                       )}
                     </div>
                     {a.blocking && (
-                      <p style={{ margin: '6px 0 0', fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>{a.blocking}</p>
+                      <p style={{ margin: '6px 0 0', fontSize: 11.5, color: 'var(--warn-text)', lineHeight: 1.5 }}>{a.blocking}</p>
                     )}
                     {/* Le dernier moment où un avis sert · après le lancement, il
                         ne reste qu'à constater. */}
@@ -369,7 +369,7 @@ export function Lots({ batches, brandName }: {
               </button>
             </div>
             {lancement.raison && (
-              <p id="lot-raison-lancement" style={{ margin: '8px 0 0', fontSize: 12, color: '#ffcf8f', lineHeight: 1.5 }}>{lancement.raison}</p>
+              <p id="lot-raison-lancement" style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--warn-text)', lineHeight: 1.5 }}>{lancement.raison}</p>
             )}
             <p style={{ margin: '9px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55, maxWidth: 620 }}>
               « Préparer » génère les noms attendus côté régie et passe en prêt ce qui peut l’être.
@@ -435,8 +435,8 @@ function Ligne({ label, valeur, onCopy, copie }: { label: string; valeur: string
 
 /** Le ton suit ce que l'avis coûte d'ignorer, pas sa politesse. */
 const PRELAUNCH_TON: Record<string, string> = {
-  stop: '#ff8095',
-  rework: '#ffcf8f',
+  stop: 'var(--err-strong)',
+  rework: 'var(--warn-text)',
   go: 'var(--muted)',
   unknown: 'var(--muted)',
 };

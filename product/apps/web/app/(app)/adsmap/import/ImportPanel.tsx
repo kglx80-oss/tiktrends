@@ -72,7 +72,7 @@ export function ImportPanel({ brandName }: { brandName: string }) {
       </section>
 
       {busy && !prev && <p style={{ fontSize: 13, color: 'var(--muted)' }}>Analyse du fichier…</p>}
-      {err && <div style={{ ...bandeau, background: 'rgba(254,44,85,.08)', borderColor: 'rgba(254,44,85,.32)', color: '#ff8095' }}>{err}</div>}
+      {err && <div style={{ ...bandeau, background: 'color-mix(in srgb, var(--accent) 8%, transparent)', borderColor: 'color-mix(in srgb, var(--accent) 32%, transparent)', color: 'var(--err-strong)' }}>{err}</div>}
 
       {rep && !fait && (
         <>
@@ -92,14 +92,14 @@ export function ImportPanel({ brandName }: { brandName: string }) {
             </div>
 
             {rep.rowsRead === rep.ads && (
-              <p style={{ fontSize: 12.5, color: '#7ee8bf', margin: '0 0 14px' }}>
+              <p style={{ fontSize: 12.5, color: 'var(--ok-text)', margin: '0 0 14px' }}>
                 ✓ Aucune ligne perdue · {rep.conceptsMerged} ligne(s) regroupée(s) en variantes d’un même concept.
               </p>
             )}
 
             {rep.warnings.length > 0 && (
-              <ul style={{ margin: 0, padding: '12px 16px 12px 30px', borderRadius: 12, background: 'rgba(245,166,35,.07)', border: '1px solid rgba(245,166,35,.25)', display: 'grid', gap: 6 }}>
-                {rep.warnings.map((w, i) => <li key={i} style={{ fontSize: 12.5, color: '#ffcf8f', lineHeight: 1.55 }}>{w}</li>)}
+              <ul style={{ margin: 0, padding: '12px 16px 12px 30px', borderRadius: 12, background: 'color-mix(in srgb, var(--warn) 7%, transparent)', border: '1px solid color-mix(in srgb, var(--warn) 25%, transparent)', display: 'grid', gap: 6 }}>
+                {rep.warnings.map((w, i) => <li key={i} style={{ fontSize: 12.5, color: 'var(--warn-text)', lineHeight: 1.55 }}>{w}</li>)}
               </ul>
             )}
           </section>
@@ -146,11 +146,11 @@ export function ImportPanel({ brandName }: { brandName: string }) {
       )}
 
       {fait && rep && (
-        <div style={{ ...bandeau, background: 'rgba(126,232,191,.07)', borderColor: 'rgba(126,232,191,.3)', color: '#7ee8bf' }}>
+        <div style={{ ...bandeau, background: 'color-mix(in srgb, var(--ok-text) 7%, transparent)', borderColor: 'color-mix(in srgb, var(--ok-text) 30%, transparent)', color: 'var(--ok-text)' }}>
           <b>Import terminé.</b> {rep.ads} ad(s), {rep.concepts} concept(s) et {rep.batches} lot(s) créés.
           {rep.demotedToDraft > 0 && ` ${rep.demotedToDraft} ad(s) attendent leur hypothèse avant de pouvoir repartir en test.`}
-          {' '}<a href="/adsmap/tri" style={{ color: '#7ee8bf', fontWeight: 700 }}>Trier ce qui est arrivé ›</a>
-          {' '}<a href="/adsmap?vue=table" style={{ color: '#7ee8bf', fontWeight: 700 }}>Ouvrir le tableau ›</a>
+          {' '}<a href="/adsmap/tri" style={{ color: 'var(--ok-text)', fontWeight: 700 }}>Trier ce qui est arrivé ›</a>
+          {' '}<a href="/adsmap?vue=table" style={{ color: 'var(--ok-text)', fontWeight: 700 }}>Ouvrir le tableau ›</a>
         </div>
       )}
     </div>

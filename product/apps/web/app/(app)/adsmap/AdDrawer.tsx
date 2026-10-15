@@ -179,11 +179,11 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
 
   return (
     <Portail>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 60 }} />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--voile)', zIndex: 60 }} />
       <aside role="dialog" aria-modal="true" aria-labelledby="addrawer-titre" ref={panneauRef} tabIndex={-1} style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(560px, 100vw)', zIndex: 70,
         background: 'var(--surface)', borderLeft: '1px solid var(--line)', overflowY: 'auto',
-        boxShadow: '-20px 0 50px -20px rgba(0,0,0,.6)', padding: '22px 26px 60px',
+        boxShadow: 'var(--sh-tiroir)', padding: '22px 26px 60px',
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -225,7 +225,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
         )}
 
         {error && (
-          <p style={{ marginTop: 14, padding: '10px 13px', background: 'rgba(254,44,85,.09)', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ marginTop: 14, padding: '10px 13px', background: 'color-mix(in srgb, var(--accent) 9%, transparent)', ...cadreSignal('color-mix(in srgb, var(--accent) 30%, transparent)', 'tuile'), color: 'var(--err-strong)', fontSize: 12.5, lineHeight: 1.5 }}>
             {error}
           </p>
         )}
@@ -239,7 +239,7 @@ export function AdDrawer({ adId, onClose, onChanged, peutPartager = false, retou
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: 14, color: 'var(--ink)' }}>{labelVerdict(d.computed)}</strong>
                     {!d.comparable && (
-                      <span title="Protocole non respecté : la conclusion ne vaut qu’au sein du lot" style={pastille('#ffcf8f', 'rgba(245,166,35,.3)')}>
+                      <span title="Protocole non respecté : la conclusion ne vaut qu’au sein du lot" style={pastille('var(--warn-text)', 'color-mix(in srgb, var(--warn) 30%, transparent)')}>
                         comparaison relative
                       </span>
                     )}

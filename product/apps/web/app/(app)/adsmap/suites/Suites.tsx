@@ -39,7 +39,7 @@ const MODES = ['more', 'better', 'new'] as const;
 type Mode = (typeof MODES)[number];
 type Filtre = 'all' | Mode;
 
-const TON: Record<Mode, string> = { more: '#7ee8bf', better: '#ffcf8f', new: '#9fb4ff' };
+const TON: Record<Mode, string> = { more: 'var(--ok-text)', better: 'var(--warn-text)', new: 'var(--info-pale)' };
 
 // Carte de premier niveau · rôle `surface` (lot 19D).
 const carte: CSSProperties = {
@@ -83,7 +83,7 @@ export function Suites() {
   }, [view]);
 
   if (err) {
-    return <div style={{ ...carte, borderColor: '#ff8095', color: '#ff8095', fontSize: 13 }}>{err}</div>;
+    return <div style={{ ...carte, borderColor: 'var(--err-strong)', color: 'var(--err-strong)', fontSize: 13 }}>{err}</div>;
   }
   if (!view) {
     return <div style={{ color: 'var(--muted)', fontSize: 13 }}>Lecture des verdicts arbitrés…</div>;
@@ -117,7 +117,7 @@ export function Suites() {
       )}
 
       {creee && (
-        <div role="status" style={{ ...carte, borderColor: 'rgba(126,232,191,.45)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div role="status" style={{ ...carte, borderColor: 'color-mix(in srgb, var(--ok-text) 45%, transparent)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ flex: 1, minWidth: 200, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, overflowWrap: 'anywhere' }}>
             Suite de « {creee.label} » créée {creee.asIteration ? 'en itération · la filiation est enregistrée' : 'en nouveau concept · le parent n’a pas de victoire prouvée'}. Elle attend son brief.
           </span>
@@ -310,7 +310,7 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
 
       {/* Réserve INDISPENSABLE · elle change ce que fait l'action, jamais repliée. */}
       {!row.edgeLegal && (
-        <p style={{ margin: 0, fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.55 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--warn-text)', lineHeight: 1.55 }}>
           Le parent n’a pas de victoire PROUVÉE au protocole · ce sera enregistré comme
           nouveau concept, pas comme itération. Une descendance attribuerait une performance
           non démontrée (une piste relative reste à confirmer, une perdante n’a rien prouvé).
@@ -351,7 +351,7 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
           )}
           {/* L'erreur de Jarvis s'affiche AUSSI carte fermée · elle n'était
               rendue que dans le formulaire ouvert, donc jamais vue. */}
-          {msg && <span role="alert" style={{ fontSize: 12, color: '#ff8095' }}>{msg}</span>}
+          {msg && <span role="alert" style={{ fontSize: 12, color: 'var(--err-strong)' }}>{msg}</span>}
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}
@@ -378,7 +378,7 @@ export function CarteSuite({ row, ouvert, onToggle, onCree }: {
             >
               Annuler
             </button>
-            {msg && <span role="alert" style={{ fontSize: 12, color: '#ff8095' }}>{msg}</span>}
+            {msg && <span role="alert" style={{ fontSize: 12, color: 'var(--err-strong)' }}>{msg}</span>}
           </div>
         </div>
       )}

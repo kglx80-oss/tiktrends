@@ -48,7 +48,7 @@ export function SyncButton({ syncedAt }: { syncedAt: string | null }) {
         </span>
       )}
       {msg && (
-        <span style={{ fontSize: 11, maxWidth: 420, textAlign: 'right', lineHeight: 1.45, color: msg.erreur ? '#ff8095' : 'var(--ink-2)' }}>
+        <span style={{ fontSize: 11, maxWidth: 420, textAlign: 'right', lineHeight: 1.45, color: msg.erreur ? 'var(--err-strong)' : 'var(--ink-2)' }}>
           {msg.texte}
         </span>
       )}

@@ -40,8 +40,8 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const TON: Record<number, { bd: string; fg: string }> = {
-  1: { bd: 'rgba(254,44,85,.45)', fg: '#ff8095' },
-  2: { bd: 'rgba(245,166,35,.4)', fg: '#ffcf8f' },
+  1: { bd: 'color-mix(in srgb, var(--accent) 45%, transparent)', fg: 'var(--err-strong)' },
+  2: { bd: 'color-mix(in srgb, var(--warn) 40%, transparent)', fg: 'var(--warn-text)' },
   3: { bd: 'var(--line-2)', fg: 'var(--ink-2)' },
   4: { bd: 'var(--line)', fg: 'var(--muted)' },
 };

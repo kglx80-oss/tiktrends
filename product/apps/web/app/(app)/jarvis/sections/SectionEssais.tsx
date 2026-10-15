@@ -86,7 +86,7 @@ export async function SectionEssais() {
         <div style={{
           // Bloc de premier niveau · `surface`, ou `signal` (rose) quand il faut agir AVANT de tester (lot 19D).
           marginBottom: 18, padding: '11px 14px',
-          ...(conseil.avantTout ? cadreSignal('rgba(255,90,120,.35)') : surface),
+          ...(conseil.avantTout ? cadreSignal('color-mix(in srgb, var(--signal) 35%, transparent)') : surface),
           background: 'var(--surface)',
         }}>
           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--muted)' }}>
@@ -94,7 +94,7 @@ export async function SectionEssais() {
           </div>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginTop: 3, lineHeight: 1.45 }}>{conseil.question}</div>
           <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{conseil.pourquoi}</div>
-          {conseil.avantTout && <div style={{ fontSize: 11.5, color: '#ffb3c0', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
+          {conseil.avantTout && <div style={{ fontSize: 11.5, color: 'var(--err-pale)', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
           {conseil.variable && (
             <div data-essai="indisponible" style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.45 }}>
               Les lots d’essai ne sont pas encore disponibles dans les projets Studios (anciennes Pubs IA retirées le 10/10).
@@ -106,7 +106,7 @@ export async function SectionEssais() {
       {/* Ce que les lots d'essai ont répondu. Replié par défaut · l'aperçu et le
           conseil vivent au-dessus, le détail se déplie quand on le demande. */}
       <Revelation id="essais" titre="Qu’ont répondu tes lots d’essai ?" badge="Essais"
-        borderColor={essaisVue?.cumuls.some((c) => c.conclusif) ? 'rgba(126,232,191,.4)' : 'var(--line)'}>
+        borderColor={essaisVue?.cumuls.some((c) => c.conclusif) ? 'color-mix(in srgb, var(--ok-text) 40%, transparent)' : 'var(--line)'}>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           Un lot d’essai fait varier <b>une seule chose</b> et tient tout le reste · même scène, mêmes
           textes, même gabarit. C’est la seule comparaison de l’outil où l’écart est vraiment
@@ -114,7 +114,7 @@ export async function SectionEssais() {
         </p>
 
         {essaisErreur ? (
-          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{essaisErreur}</p>
+          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: 'var(--err-strong)' }}>{essaisErreur}</p>
         ) : !essaisVue?.lots.length ? (
           <Empty
             tone="wait" title="Aucun lot d’essai poussé dans la carte."
@@ -124,15 +124,15 @@ export async function SectionEssais() {
           <>
             <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
               {essaisVue.cumuls.filter((c) => c.essais > 0).map((c) => (
-                <div key={c.variable} style={{ padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: `1px solid ${c.conclusif ? 'rgba(126,232,191,.4)' : 'var(--line)'}` }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: c.conclusif ? '#7ee8bf' : 'var(--ink)', lineHeight: 1.5 }}>
+                <div key={c.variable} style={{ padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: `1px solid ${c.conclusif ? 'color-mix(in srgb, var(--ok-text) 40%, transparent)' : 'var(--line)'}` }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: c.conclusif ? 'var(--ok-text)' : 'var(--ink)', lineHeight: 1.5 }}>
                     {ESSAI_LABEL[c.variable as EssaiVariable]} · {c.resume}
                   </div>
                   <div style={{ display: 'grid', gap: 4, marginTop: 7 }}>
                     {c.lignes.map((l) => (
                       <div key={l.valeur} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12, flexWrap: 'wrap' }}>
                         <span style={{ width: 150, color: 'var(--ink-2)' }}>{l.valeur}</span>
-                        <span style={{ fontWeight: 700, color: l.gagne ? '#7ee8bf' : 'var(--muted)' }}>
+                        <span style={{ fontWeight: 700, color: l.gagne ? 'var(--ok-text)' : 'var(--muted)' }}>
                           {l.victoires}/{l.participations}
                         </span>
                         <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>
@@ -169,7 +169,7 @@ export async function SectionEssais() {
 
       {/* Ce que les notes déjà payées disent ensemble. Replié par défaut. */}
       <Revelation id="bilan-notes" titre="Ce que tes notes disent ensemble" badge="Score Jarvis"
-        borderColor={notes?.defauts.suspects.length ? 'rgba(255,90,120,.35)' : 'var(--line)'}>
+        borderColor={notes?.defauts.suspects.length ? 'color-mix(in srgb, var(--signal) 35%, transparent)' : 'var(--line)'}>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           Chaque Score Jarvis coûte deux crédits et ne servait qu’une fois. Voici leur somme ·
           d’où viennent tes ratés de fabrication, et ce qui tient le mieux chez toi.
@@ -178,11 +178,11 @@ export async function SectionEssais() {
         {calib && calib.predictif !== null && (
           <p style={{
             margin: '10px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius,
-            background: calib.predictif ? 'rgba(126,232,191,.08)' : 'var(--paper)',
-            border: `1px solid ${calib.predictif ? 'rgba(126,232,191,.4)' : 'var(--line)'}`,
+            background: calib.predictif ? 'color-mix(in srgb, var(--ok-text) 8%, transparent)' : 'var(--paper)',
+            border: `1px solid ${calib.predictif ? 'color-mix(in srgb, var(--ok-text) 40%, transparent)' : 'var(--line)'}`,
             fontSize: 12.5, fontWeight: 600, lineHeight: 1.55, color: 'var(--ink-2)', maxWidth: 720,
           }}>
-            <b style={{ color: calib.predictif ? '#7ee8bf' : 'var(--ink)' }}>
+            <b style={{ color: calib.predictif ? 'var(--ok-text)' : 'var(--ink)' }}>
               {calib.predictif ? 'Ton Score Jarvis prédit le marché.' : 'Ton Score Jarvis ne se détache pas encore du hasard.'}
             </b>{' '}
             {calib.resume} <span style={{ color: 'var(--muted)' }}>· sur {calib.conclusifs} créa(s) notée(s) et mesurée(s).</span>
@@ -190,7 +190,7 @@ export async function SectionEssais() {
         )}
 
         {notesErreur ? (
-          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{notesErreur}</p>
+          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: 'var(--err-strong)' }}>{notesErreur}</p>
         ) : !notes?.notes ? (
           <Empty
             tone="wait" title="Aucune créa notée pour l’instant."
@@ -202,7 +202,7 @@ export async function SectionEssais() {
               margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius,
               background: 'var(--paper)', border: '1px solid var(--line)',
               fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
-              color: notes.defauts.avecDefaut ? '#ff8095' : '#7ee8bf',
+              color: notes.defauts.avecDefaut ? 'var(--err-strong)' : 'var(--ok-text)',
             }}>
               {notes.defauts.resume}
             </p>
@@ -229,7 +229,7 @@ export async function SectionEssais() {
                       {d.lignes.filter((l) => l.n >= MIN_NOTES).map((l) => (
                         <div key={l.cle} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12 }}>
                           <span style={{ width: 150, color: 'var(--ink-2)' }}>{l.cle}</span>
-                          <span style={{ fontWeight: 700, color: l.tranche ? (l.ecart > 0 ? '#7ee8bf' : '#ff8095') : 'var(--muted)' }}>
+                          <span style={{ fontWeight: 700, color: l.tranche ? (l.ecart > 0 ? 'var(--ok-text)' : 'var(--err-strong)') : 'var(--muted)' }}>
                             {Math.round(l.moyenne)}/100
                           </span>
                           <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>
@@ -255,14 +255,14 @@ export async function SectionEssais() {
 
       {/* Ce que les relectures disent ensemble. Replié par défaut. */}
       <Revelation id="bilan-copie" titre="Quel moteur écrit tes mots, et garde ton produit" badge="Pubs générées entièrement"
-        borderColor={relectures?.dimensions.some((d) => d.conclusif) ? 'rgba(255,90,120,.35)' : 'var(--line)'}>
+        borderColor={relectures?.dimensions.some((d) => d.conclusif) ? 'color-mix(in srgb, var(--signal) 35%, transparent)' : 'var(--line)'}>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55, maxWidth: 720 }}>
           En mode « générée entièrement », c’est le modèle d’images qui écrit la typographie. Chaque
           pub est relue à sa génération · voici la somme de ces relectures.
         </p>
 
         {relecturesErreur ? (
-          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: '#ff8095' }}>{relecturesErreur}</p>
+          <p style={{ margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius, background: 'var(--paper)', border: '1px solid var(--line)', fontSize: 12.5, fontWeight: 600, color: 'var(--err-strong)' }}>{relecturesErreur}</p>
         ) : !relectures?.relues ? (
           <Empty
             tone="wait" title="Aucune publicité relue pour l’instant."
@@ -274,7 +274,7 @@ export async function SectionEssais() {
               margin: '11px 0 0', padding: '10px 13px', borderRadius: tuile.borderRadius,
               background: 'var(--paper)', border: '1px solid var(--line)',
               fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
-              color: (relectures.tauxReecriture ?? 0) > 0 || (relectures.tauxProduit ?? 0) > 0 ? '#ff8095' : '#7ee8bf',
+              color: (relectures.tauxReecriture ?? 0) > 0 || (relectures.tauxProduit ?? 0) > 0 ? 'var(--err-strong)' : 'var(--ok-text)',
             }}>
               {relectures.resume}
             </p>
@@ -284,7 +284,7 @@ export async function SectionEssais() {
                 margin: '8px 0 0', padding: '9px 12px', borderRadius: tuile.borderRadius,
                 background: 'var(--paper)', border: '1px solid var(--line)',
                 fontSize: 12, fontWeight: 600, lineHeight: 1.5,
-                color: copies.temoin.evolutions.some((e) => e.sens === 'degradation') ? '#ffb86b' : '#7ee8bf',
+                color: copies.temoin.evolutions.some((e) => e.sens === 'degradation') ? 'var(--recul-text)' : 'var(--ok-text)',
               }}>
                 Témoin · {copies.temoin.resume}
               </p>
@@ -299,7 +299,7 @@ export async function SectionEssais() {
                   {d.lignes.map((l) => (
                     <div key={l.cle} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12, flexWrap: 'wrap' }}>
                       <span style={{ width: 150, color: 'var(--ink-2)' }}>{l.cle}</span>
-                      <span style={{ fontWeight: 700, color: l.verdict === 'meilleur' ? '#7ee8bf' : l.verdict === 'pire' ? '#ff8095' : 'var(--muted)' }}>
+                      <span style={{ fontWeight: 700, color: l.verdict === 'meilleur' ? 'var(--ok-text)' : l.verdict === 'pire' ? 'var(--err-strong)' : 'var(--muted)' }}>
                         {Math.round(l.tauxReecriture * 100)} % réécrites
                       </span>
                       <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>

@@ -209,6 +209,24 @@ export const FONDS_STATUT = ['bg', 'surface', 'surface-raised', 'paper'] as cons
  * --err 5,43 sur --paper. Le sombre est celui de main · son --info sur --paper
  * (4,54) n'a aucune marge et ne doit pas descendre.
  */
+/**
+ * V5 · T4 · les rôles nés de la tokenisation d'Adsmap (Résultats) et de Jarvis.
+ * Mesuré le 15/10/2026 (pire paire, toutes palettes) · texte · --warn-text et
+ * --warn-strong 4,93 sur --paper en clair ; interface · --violet 3,11 sur
+ * --paper en ADMIN+ sombre.
+ *
+ * Deux usages ne sont PAS déclarés, parce que le sombre de main y échoue déjà
+ * et que ce lot ne change pas le sombre · --on-violet sur --grad-violet
+ * (4,45:1, bouton « Entraîner Jarvis ») et --ok-sur-teinte sur sa teinte
+ * --ok-text à 20 % (1,08:1, pastilles du règlement). Le clair, lui, passe
+ * (9,10:1 pour la pastille, mesuré dans le navigateur).
+ */
+export const PAIRES_ADSMAP_JARVIS: readonly PaireJetons[] = [
+  ...croiser(['warn-text', 'warn-strong', 'err-strong', 'ok-pale', 'err-pale', 'recul-text', 'info-pale', 'violet-text'], FONDS_STATUT, 'texte', 'Adsmap et Jarvis · verdicts, messages, conseils'),
+  ...croiser(['ok-strong', 'signal', 'violet'], ['bg', 'surface', 'paper'], 'interface', 'Adsmap et Jarvis · jauge, cadre signal, pictogramme'),
+  { dessus: 'paper', fond: 'grad-ok-doux', nature: 'interface', usage: 'barre au-dessus de la moyenne sur sa piste (pire arrêt)' },
+];
+
 export const PAIRES_THEME: readonly PaireJetons[] = [
   ...croiser(['ink', 'ink-2', 'muted'], FONDS_TEXTE, 'texte', 'texte principal, secondaire, méta'),
   ...croiser(['accent-strong'], [...FONDS_STATUT, 'selected', 'accent-soft'], 'texte', 'lien, onglet choisi, entrée active'),
@@ -217,6 +235,7 @@ export const PAIRES_THEME: readonly PaireJetons[] = [
   { dessus: 'on-accent', fond: 'grad-accent', nature: 'texte', usage: 'libellé des boutons principaux (pire arrêt du dégradé)' },
   ...croiser(['line-strong'], FONDS_STATUT, 'interface', 'bordure d’un champ ou d’un contrôle'),
   ...croiser(['accent-strong'], ['bg', 'surface', 'paper'], 'interface', 'anneau de focus clavier'),
+  ...PAIRES_ADSMAP_JARVIS,
 ];
 
 export interface MesurePaire extends PaireJetons { palette: PaletteTheme; ratio: number; seuil: number; ok: boolean }

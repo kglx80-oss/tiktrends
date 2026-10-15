@@ -127,13 +127,13 @@ export default async function JarvisPage() {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
           margin: '18px 0 0', padding: '10px 14px',
-          ...(deploiement.ok ? surface : cadreSignal('rgba(245,166,35,.45)')),
-          background: deploiement.ok ? 'var(--surface)' : 'rgba(245,166,35,.08)',
+          ...(deploiement.ok ? surface : cadreSignal('color-mix(in srgb, var(--warn) 45%, transparent)')),
+          background: deploiement.ok ? 'var(--surface)' : 'color-mix(in srgb, var(--warn) 8%, transparent)',
         }}>
           <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>
             Ce serveur
           </span>
-          <span style={{ fontSize: 12.5, color: deploiement.ok ? 'var(--ink-2)' : '#f5b043', lineHeight: 1.5, flex: '1 1 260px' }}>
+          <span style={{ fontSize: 12.5, color: deploiement.ok ? 'var(--ink-2)' : 'var(--warn-strong)', lineHeight: 1.5, flex: '1 1 260px' }}>
             {deploiement.summary}
           </span>
           <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
@@ -186,17 +186,17 @@ export default async function JarvisPage() {
 
       {/* 5 · Ce que Jarvis coûte · fondateur uniquement, comme /admin/depenses. */}
       {depense && (
-        <section style={{ marginTop: 22, padding: '15px 18px', ...(depense.blocked ? cadreSignal('#ff8095') : surface), background: 'var(--surface)' }}>
+        <section style={{ marginTop: 22, padding: '15px 18px', ...(depense.blocked ? cadreSignal('var(--err-strong)') : surface), background: 'var(--surface)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Ce que Jarvis coûte</h2>
             <span style={{ flex: 1 }} />
             <Link href="/admin/depenses" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12, color: 'var(--muted)', textDecoration: 'none' }}>Détail ›</Link>
           </div>
-          <p style={{ margin: '7px 0 0', fontSize: 12.5, color: depense.blocked ? '#ff8095' : 'var(--ink-2)', lineHeight: 1.55 }}>
+          <p style={{ margin: '7px 0 0', fontSize: 12.5, color: depense.blocked ? 'var(--err-strong)' : 'var(--ink-2)', lineHeight: 1.55 }}>
             {depense.summary} Aucun appel ne part sans passer par ce plafond · y compris les tiens.
           </p>
           {aReconcilier && (
-            <p data-rappel-reconciliation style={{ margin: '7px 0 0', fontSize: 12.5, color: '#f5b043', lineHeight: 1.55, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <p data-rappel-reconciliation style={{ margin: '7px 0 0', fontSize: 12.5, color: 'var(--warn-strong)', lineHeight: 1.55, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span>À réconcilier · {aReconcilier}</span>
               <Link href="/admin/depenses#a-reconcilier" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 12, color: 'var(--accent-strong)', textDecoration: 'none' }}>Rapprocher ›</Link>
             </p>
@@ -246,8 +246,8 @@ const ENGINES: Array<{ tag: string; name: string; role: string }> = [
 ];
 
 const TON: Record<string, { fg: string; bd: string }> = {
-  on: { fg: '#7ee8bf', bd: 'rgba(126,232,191,.42)' },
-  partial: { fg: '#ffcf8f', bd: 'rgba(245,166,35,.38)' },
+  on: { fg: 'var(--ok-text)', bd: 'color-mix(in srgb, var(--ok-text) 42%, transparent)' },
+  partial: { fg: 'var(--warn-text)', bd: 'color-mix(in srgb, var(--warn) 38%, transparent)' },
   off: { fg: 'var(--muted)', bd: 'var(--line)' },
   always: { fg: 'var(--muted)', bd: 'var(--line)' },
 };
@@ -352,13 +352,13 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
                         <div style={{ flex: '3 1 48px', position: 'relative' }}>
                           <BarreValeur
                             part={partDeMax(r.hitRate ?? 0, 1)} hauteur={9} piste="var(--paper)"
-                            couleur={au_dessus ? 'linear-gradient(90deg,#4fd1a5,#7ee8bf)' : 'var(--grad-accent)'}
+                            couleur={au_dessus ? 'var(--grad-ok-doux)' : 'var(--grad-accent)'}
                           />
                           {globalRate !== null && (
                             <div title="Moyenne historique de la marque" style={{ position: 'absolute', left: `${partDeMax(globalRate, 1) * 100}%`, top: -2, width: 1, height: 13, background: 'var(--muted)' }} />
                           )}
                         </div>
-                        <span style={{ width: 44, flexShrink: 0, textAlign: 'right', fontSize: 12.5, fontWeight: 800, color: au_dessus ? '#7ee8bf' : 'var(--ink-2)' }}>{pct(r.hitRate!)}</span>
+                        <span style={{ width: 44, flexShrink: 0, textAlign: 'right', fontSize: 12.5, fontWeight: 800, color: au_dessus ? 'var(--ok-text)' : 'var(--ink-2)' }}>{pct(r.hitRate!)}</span>
                         <span style={{ width: 76, flexShrink: 0, textAlign: 'right', fontSize: 11.5, color: 'var(--muted)' }}>
                           {r.nWinners + r.nBaby}/{r.nConclusive} tests
                         </span>
@@ -388,7 +388,7 @@ function MemoryBlock({ stats, memoire }: { stats: Awaited<ReturnType<typeof jarv
 
 function Stat({ label, value, sub, strong }: { label: string; value: string; sub?: string; strong?: boolean }) {
   return (
-    <div style={{ ...(strong ? cadreSignal('rgba(254,44,85,.22)') : surface), background: 'var(--surface)', padding: '12px 14px' }}>
+    <div style={{ ...(strong ? cadreSignal('color-mix(in srgb, var(--accent) 22%, transparent)') : surface), background: 'var(--surface)', padding: '12px 14px' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 21, fontWeight: 800, color: strong ? 'var(--accent-strong)' : 'var(--ink)', marginTop: 4, lineHeight: 1.1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>}

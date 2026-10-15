@@ -19,11 +19,11 @@ const TON_CANAL: Record<CanalRangee, string> = {
   multiples: 'var(--muted)',
 };
 const TON_QUALIF: Record<QualifRangee, string> = {
-  preuve_propre: '#7ee8bf',
-  concurrent_direct: '#7ee8bf',
-  inspiration_adjacente: '#ffcf8f',
-  a_qualifier: '#ffcf8f',
-  mixte: '#ffcf8f',
+  preuve_propre: 'var(--ok-text)',
+  concurrent_direct: 'var(--ok-text)',
+  inspiration_adjacente: 'var(--warn-text)',
+  a_qualifier: 'var(--warn-text)',
+  mixte: 'var(--warn-text)',
 };
 
 /**
@@ -45,9 +45,9 @@ const DIM_LABEL: Record<string, string> = {
 };
 
 const TON: Record<string, { bd: string; fg: string; titre: string }> = {
-  contredit: { bd: 'rgba(254,44,85,.4)', fg: '#ff8095', titre: 'Le marché dit l’inverse de tes chiffres' },
-  inexploite: { bd: 'rgba(245,166,35,.4)', fg: '#ffcf8f', titre: 'Pratique majoritaire jamais testée chez toi' },
-  confirme: { bd: 'rgba(126,232,191,.35)', fg: '#7ee8bf', titre: 'Le marché confirme tes chiffres' },
+  contredit: { bd: 'color-mix(in srgb, var(--accent) 40%, transparent)', fg: 'var(--err-strong)', titre: 'Le marché dit l’inverse de tes chiffres' },
+  inexploite: { bd: 'color-mix(in srgb, var(--warn) 40%, transparent)', fg: 'var(--warn-text)', titre: 'Pratique majoritaire jamais testée chez toi' },
+  confirme: { bd: 'color-mix(in srgb, var(--ok-text) 35%, transparent)', fg: 'var(--ok-text)', titre: 'Le marché confirme tes chiffres' },
 };
 
 export function MarketPanel() {
@@ -113,7 +113,7 @@ export function MarketPanel() {
       </div>
 
       {msg && (
-        <p style={{ margin: '11px 0 0', fontSize: 12.5, lineHeight: 1.55, color: msg.erreur ? '#ff8095' : 'var(--ink-2)' }}>
+        <p style={{ margin: '11px 0 0', fontSize: 12.5, lineHeight: 1.55, color: msg.erreur ? 'var(--err-strong)' : 'var(--ink-2)' }}>
           {msg.texte}
         </p>
       )}
@@ -172,7 +172,7 @@ export function MarketPanel() {
               <summary style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>
                 Voir les parts d’usage du marché
               </summary>
-              <p style={{ margin: '9px 0 10px', fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>
+              <p style={{ margin: '9px 0 10px', fontSize: 11.5, color: 'var(--warn-text)', lineHeight: 1.5 }}>
                 Ce sont des parts d’USAGE parmi les annonceurs éprouvés (un annonceur qui décline la
                 même créa compte une fois), pas des taux de réussite · aucun chiffre de performance
                 des concurrents n’est connu.
