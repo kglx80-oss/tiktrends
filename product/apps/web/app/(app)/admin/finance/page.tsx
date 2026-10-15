@@ -86,9 +86,9 @@ export default async function FinancePage() {
                 <td style={tdR}>{eur(r.price)}</td>
                 <td style={tdR}>{r.n}</td>
                 <td style={{ ...tdR, fontWeight: 800, color: 'var(--ink)' }}>{eur(r.price * r.n)}</td>
-                <td style={{ ...tdR, color: r.net.netEur > 0 ? '#7ee8bf' : '#ff9db0' }}>{eur(r.net.netEur)} <span style={{ color: 'var(--muted)', fontSize: 11 }}>({r.net.netPct}%)</span></td>
+                <td style={{ ...tdR, color: r.net.netEur > 0 ? 'var(--ok-text)' : 'var(--err-text)' }}>{eur(r.net.netEur)} <span style={{ color: 'var(--muted)', fontSize: 11 }}>({r.net.netPct}%)</span></td>
                 <td style={{ ...tdR, fontWeight: 700 }}>{eur(r.net.netEur * r.n)}</td>
-                <td style={tdR}>{r.risk.healthy ? <span style={{ color: '#7ee8bf' }}>saine</span> : <span style={{ color: '#f5b043' }}>à surveiller</span>}</td>
+                <td style={tdR}>{r.risk.healthy ? <span style={{ color: 'var(--ok-text)' }}>saine</span> : <span style={{ color: 'var(--warn-strong)' }}>à surveiller</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -102,11 +102,11 @@ export default async function FinancePage() {
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 12 }}>
         {rows.map((r) => (
-          <div key={r.plan} style={{ border: `1px solid ${r.overAllocated ? 'rgba(245,166,35,.4)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: r.overAllocated ? 'rgba(245,166,35,.06)' : 'var(--surface)', padding: 16 }}>
+          <div key={r.plan} style={{ border: `1px solid ${r.overAllocated ? 'color-mix(in srgb, var(--accent) 40%, transparent)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: r.overAllocated ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : 'var(--surface)', padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <b style={{ fontSize: 15, color: 'var(--ink)' }}>{r.label}</b>
               <span style={{ fontSize: 12, color: 'var(--muted)' }}>{eur(r.price)}/mois</span>
-              {r.overAllocated && <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: '#ffca6b', background: 'rgba(245,166,35,.14)', padding: '2px 8px', borderRadius: 999 }}>SUR-ALLOUÉ</span>}
+              {r.overAllocated && <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: 'var(--accent-strong)', background: 'color-mix(in srgb, var(--accent) 14%, transparent)', padding: '2px 8px', borderRadius: 999 }}>SUR-ALLOUÉ</span>}
             </div>
             <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.7 }}>
               <Row k="Crédits actuels" v={r.credits.toLocaleString('fr-FR')} />
@@ -116,7 +116,7 @@ export default async function FinancePage() {
               <Row k="Pire cas de marge" v={`${r.risk.worstMarginPct}% · ${r.risk.worstAction}`} />
             </div>
             {r.overAllocated && (
-              <p style={{ margin: '10px 0 0', fontSize: 11.5, color: '#ffca6b', lineHeight: 1.5 }}>
+              <p style={{ margin: '10px 0 0', fontSize: 11.5, color: 'var(--accent-strong)', lineHeight: 1.5 }}>
                 Réduire à <b>~{r.optimalCredits.toLocaleString('fr-FR')} crédits</b> (ou passer le prix à <b>{eur(r.risk.recommendedPriceEur)}</b>) pour sécuriser la marge.
               </p>
             )}
@@ -144,7 +144,7 @@ function Row({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
       <span style={{ color: 'var(--muted)' }}>{k}</span>
-      <b style={{ color: accent ? '#ffca6b' : 'var(--ink)' }}>{v}</b>
+      <b style={{ color: accent ? 'var(--accent-strong)' : 'var(--ink)' }}>{v}</b>
     </div>
   );
 }

@@ -101,7 +101,7 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
         {/* Honnêteté d'abord · le panneau client n'affiche que des titres, ce
             qui ne protège pas le texte : Jarvis le lit, un client peut le lui
             demander. La décision de confidentialité appartient au pilotage. */}
-        <p role="note" style={{ margin: '8px 0 0', padding: '9px 12px', ...cadreSignal('rgba(245,166,35,.45)', 'tuile'), background: 'rgba(245,166,35,.08)', color: '#ffcf8f', fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 }}>
+        <p role="note" style={{ margin: '8px 0 0', padding: '9px 12px', ...cadreSignal('color-mix(in srgb, var(--warn) 45%, transparent)', 'tuile'), background: 'color-mix(in srgb, var(--warn) 8%, transparent)', color: 'var(--warn-text)', fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 }}>
           {AVERTISSEMENT_CONFIDENTIALITE}
         </p>
         <p style={{ ...corps, marginTop: 6 }}>
@@ -132,8 +132,8 @@ export function EcranConnaissances({ vueInitiale, espaces, marques }: { vueIniti
       {note && (
         <div role={note.ok ? 'status' : 'alert'} style={{
           padding: '10px 14px', fontSize: 13, fontWeight: 700,
-          ...cadreSignal(note.ok ? 'rgba(48,164,108,.4)' : 'rgba(229,72,77,.4)'),
-          background: note.ok ? 'rgba(48,164,108,.1)' : 'rgba(229,72,77,.1)', color: note.ok ? '#2fa46c' : '#e5484d',
+          ...cadreSignal(note.ok ? 'color-mix(in srgb, var(--success) 40%, transparent)' : 'color-mix(in srgb, var(--danger) 40%, transparent)'),
+          background: note.ok ? 'color-mix(in srgb, var(--success) 10%, transparent)' : 'color-mix(in srgb, var(--danger) 10%, transparent)', color: note.ok ? 'var(--success)' : 'var(--danger)',
           overflowWrap: 'anywhere',
         }}>{note.texte}</div>
       )}
@@ -280,7 +280,7 @@ export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, mar
         <label style={champ}>
           <span style={{ ...etiquette, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
             <span>Titre</span>
-            <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 600, color: b.titre.length >= LIMITE_TITRE ? '#ffb35c' : 'var(--muted)' }}>{b.titre.length} / {LIMITE_TITRE}</span>
+            <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 600, color: b.titre.length >= LIMITE_TITRE ? 'var(--warn-strong)' : 'var(--muted)' }}>{b.titre.length} / {LIMITE_TITRE}</span>
           </span>
           <input value={b.titre} maxLength={LIMITE_TITRE} onChange={(e) => set({ titre: e.target.value })} placeholder="Ex. · Itérer une gagnante, une variable à la fois" style={entree} />
         </label>
@@ -338,13 +338,13 @@ export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, mar
           style={{ ...entree, minHeight: 180, resize: 'vertical', lineHeight: 1.55, fontFamily: 'inherit' }}
         />
       </label>
-      <p style={{ ...petit, margin: '6px 0 0', color: trop ? '#e5484d' : 'var(--muted)' }}>
+      <p style={{ ...petit, margin: '6px 0 0', color: trop ? 'var(--danger)' : 'var(--muted)' }}>
         {nf(b.texte.length)} / {nf(LIMITE_TEXTE)} caractères · origine · {LIBELLE_ORIGINE[b.mode]}{b.mode === 'fichier' && b.fichier ? ` (${b.fichier})` : ''}
       </p>
 
       {changement && porteeAvant && porteeApres && (
-        <div role="alert" style={{ marginTop: 12, padding: '10px 12px', ...cadreSignal('rgba(229,72,77,.45)', 'tuile'), background: 'rgba(229,72,77,.08)' }}>
-          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#ff8095', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+        <div role="alert" style={{ marginTop: 12, padding: '10px 12px', ...cadreSignal('color-mix(in srgb, var(--danger) 45%, transparent)', 'tuile'), background: 'color-mix(in srgb, var(--danger) 8%, transparent)' }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--err-strong)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
             {changement === 'elargie' ? 'Cette version ÉLARGIT la portée' : 'Cette version DÉPLACE la portée'} · de « {libellePortee(porteeAvant, nomsPortee(porteeAvant, espaces, marques))} » à « {libellePortee(porteeApres, nomsPortee(porteeApres, espaces, marques))} ».
             {porteeApres.niveau === 'plateforme' ? ' Jarvis la lira pour tous les clients.' : ' D’autres lecteurs la liront.'}
           </p>
@@ -372,9 +372,9 @@ export function Formulaire({ initial, porteeAvant, titreFormulaire, espaces, mar
 /* -------------------------------------------------------------------------- */
 
 const TON_ETAT: Record<EtatVersion, { fg: string; bd: string }> = {
-  publie: { fg: '#2fa46c', bd: 'rgba(48,164,108,.45)' },
+  publie: { fg: 'var(--success)', bd: 'color-mix(in srgb, var(--success) 45%, transparent)' },
   brouillon: { fg: 'var(--ink-2)', bd: 'var(--line-2)' },
-  retire: { fg: '#e5484d', bd: 'rgba(229,72,77,.4)' },
+  retire: { fg: 'var(--danger)', bd: 'color-mix(in srgb, var(--danger) 40%, transparent)' },
 };
 
 function Carte({ it, portee, occupe, inclusion, horsPlace, onEditer, onPublier, onRetirer }: {
@@ -408,7 +408,7 @@ function Carte({ it, portee, occupe, inclusion, horsPlace, onEditer, onPublier, 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
         <span style={badge({ fg: 'var(--ink-2)', bd: 'var(--line-2)' })}>{LIBELLE_TYPE[it.type]} · {familleType(it.type) === 'editorial' ? 'éditorial' : 'source'}</span>
         <span style={{ ...badge({ fg: 'var(--ink-2)', bd: 'var(--line-2)' }), maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{portee}</span>
-        {it.brouillon !== null && it.etat !== 'brouillon' && <span style={badge({ fg: '#ffcf8f', bd: 'rgba(245,166,35,.4)' })}>Brouillon v{it.brouillon} en attente</span>}
+        {it.brouillon !== null && it.etat !== 'brouillon' && <span style={badge({ fg: 'var(--warn-text)', bd: 'color-mix(in srgb, var(--warn) 40%, transparent)' })}>Brouillon v{it.brouillon} en attente</span>}
       </div>
 
       <p style={{ ...corps, marginTop: 10 }}>
@@ -490,8 +490,8 @@ export function AvantPublication({ niveau, confirme, refus, caseRef, onConfirme 
   const idRefus = useId();
   const exige = publicationExigeConfirmation({ niveau } as PorteeConnaissance);
   return (
-    <div data-avant-publication={niveau} style={{ marginTop: 12, padding: '10px 12px', ...(exige ? cadreSignal('rgba(245,166,35,.45)', 'tuile') : tuile), background: exige ? 'rgba(245,166,35,.08)' : 'var(--paper)' }}>
-      <p role="note" style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: exige ? '#ffcf8f' : 'var(--ink-2)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+    <div data-avant-publication={niveau} style={{ marginTop: 12, padding: '10px 12px', ...(exige ? cadreSignal('color-mix(in srgb, var(--warn) 45%, transparent)', 'tuile') : tuile), background: exige ? 'color-mix(in srgb, var(--warn) 8%, transparent)' : 'var(--paper)' }}>
+      <p role="note" style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: exige ? 'var(--warn-text)' : 'var(--ink-2)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
         Avant publication · {avertissementPublication(niveau)}
       </p>
       {exige && (
@@ -502,7 +502,7 @@ export function AvantPublication({ niveau, confirme, refus, caseRef, onConfirme 
           {CONFIRMATION_PUBLICATION_PLATEFORME}
         </label>
       )}
-      {refus && <p id={idRefus} role="alert" style={{ ...alerte, color: '#ff8095' }}>{refus}</p>}
+      {refus && <p id={idRefus} role="alert" style={{ ...alerte, color: 'var(--err-strong)' }}>{refus}</p>}
     </div>
   );
 }
@@ -512,7 +512,7 @@ function Jauge({ valeur, max }: { valeur: number; max: number }) {
   return (
     <div role="meter" aria-label="Place occupée dans le contexte" aria-valuemin={0} aria-valuemax={max} aria-valuenow={valeur}
       style={{ height: 8, borderRadius: 999, background: 'var(--paper)', border: '1px solid var(--line)', overflow: 'hidden', marginTop: 10 }}>
-      <div style={{ width: `${pct}%`, height: '100%', background: pct >= 100 ? '#e5484d' : 'var(--grad-accent)' }} />
+      <div style={{ width: `${pct}%`, height: '100%', background: pct >= 100 ? 'var(--danger)' : 'var(--grad-accent)' }} />
     </div>
   );
 }
@@ -529,7 +529,7 @@ const carte: CSSProperties = { ...surface, background: 'var(--surface)', padding
 const h2: CSSProperties = { margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--ink)' };
 const corps: CSSProperties = { margin: 0, fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 };
 const petit: CSSProperties = { fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 };
-const alerte: CSSProperties = { margin: '8px 0 0', fontSize: 12.5, fontWeight: 700, color: '#ffb35c', lineHeight: 1.5, overflowWrap: 'anywhere' };
+const alerte: CSSProperties = { margin: '8px 0 0', fontSize: 12.5, fontWeight: 700, color: 'var(--warn-strong)', lineHeight: 1.5, overflowWrap: 'anywhere' };
 const champ: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 };
 const etiquette: CSSProperties = { fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' };
 const entree: CSSProperties = {
@@ -553,5 +553,5 @@ const bouton = (principal: boolean, inactif: boolean): CSSProperties => ({
 });
 const boutonDanger: CSSProperties = {
   minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: 'pointer',
-  border: '1px solid rgba(229,72,77,.5)', background: 'transparent', color: '#e5484d',
+  border: '1px solid color-mix(in srgb, var(--danger) 50%, transparent)', background: 'transparent', color: 'var(--danger)',
 };

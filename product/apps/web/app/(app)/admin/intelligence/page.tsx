@@ -121,19 +121,19 @@ export default async function IntelligencePage() {
           </table>
         </div>
         <div style={{ display: 'flex', gap: 16, padding: '10px 16px', borderTop: '1px solid var(--line)', fontSize: 11, color: 'var(--muted)', flexWrap: 'wrap' }}>
-          <span><b style={{ color: '#7ee8bf' }}>●</b> Oui</span><span><b style={{ color: '#f5b043' }}>◐</b> Partiel</span><span><b style={{ color: 'var(--line-2)' }}>○</b> Non</span>
+          <span><b style={{ color: 'var(--ok-text)' }}>●</b> Oui</span><span><b style={{ color: 'var(--warn-strong)' }}>◐</b> Partiel</span><span><b style={{ color: 'var(--line-2)' }}>○</b> Non</span>
         </div>
       </div>
 
       {/* Où faire mieux + avantages */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 16, marginBottom: 32 }}>
-        <div style={{ ...cadreSignal('rgba(245,176,67,.35)'), background: 'linear-gradient(180deg, rgba(245,166,35,.06), var(--surface))', padding: '18px 20px' }}>
+        <div style={{ ...cadreSignal('color-mix(in srgb, var(--warn-strong) 35%, transparent)'), background: 'linear-gradient(180deg in srgb, color-mix(in srgb, var(--warn) 6%, transparent), var(--surface))', padding: '18px 20px' }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="target" size={15} /> Où l'on doit faire mieux</h3>
           <div style={{ display: 'grid', gap: 12 }}>
             {GAPS.map((g) => (
               <div key={g.title}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: g.priority === 'haute' ? '#0d070c' : 'var(--ink-2)', background: g.priority === 'haute' ? 'linear-gradient(135deg,#f5a623,#ff8c42)' : 'var(--line)' }}>{g.priority.toUpperCase()}</span>
+                  <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: g.priority === 'haute' ? 'var(--on-accent)' : 'var(--ink-2)', background: g.priority === 'haute' ? 'var(--grad-accent)' : 'var(--line)' }}>{g.priority.toUpperCase()}</span>
                   <b style={{ fontSize: 13.5, color: 'var(--ink)' }}>{g.title}</b>
                   <span style={{ fontSize: 10.5, color: 'var(--muted)', marginLeft: 'auto' }}>vs {g.vs}</span>
                 </div>
@@ -142,7 +142,7 @@ export default async function IntelligencePage() {
             ))}
           </div>
         </div>
-        <div style={{ ...cadreSignal('rgba(126,232,191,.35)'), background: 'linear-gradient(180deg, rgba(61,220,151,.06), var(--surface))', padding: '18px 20px' }}>
+        <div style={{ ...cadreSignal('color-mix(in srgb, var(--ok-text) 35%, transparent)'), background: 'linear-gradient(180deg in srgb, color-mix(in srgb, var(--ok) 6%, transparent), var(--surface))', padding: '18px 20px' }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="star" size={15} /> Nos avantages à presser</h3>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 9, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>
             {ADVANTAGES.map((a, i) => <li key={i}>{a}</li>)}
@@ -185,22 +185,22 @@ export default async function IntelligencePage() {
             </div>
             <p style={{ margin: '10px 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>{c.positioning}</p>
 
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)', background: 'rgba(255,255,255,.04)', ...tuile, padding: '7px 11px', marginBottom: 14 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-2)', background: 'color-mix(in srgb, var(--line) 33.33%, transparent)', ...tuile, padding: '7px 11px', marginBottom: 14 }}>
               <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 2 }}><Icon name="coin" size={13} /></span><b style={{ color: 'var(--ink)' }}>Tarif estimé :</b> {c.pricing}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
               <div>
-                <div style={colH('#7ee8bf')}>Forces</div>
+                <div style={colH('var(--ok-text)')}>Forces</div>
                 <ul style={ulS}>{c.strengths.map((x, i) => <li key={i} style={{ marginBottom: 4 }}>{x}</li>)}</ul>
               </div>
               <div>
-                <div style={colH('#f5b043')}>Limites</div>
+                <div style={colH('var(--warn-strong)')}>Limites</div>
                 <ul style={ulS}>{c.weaknesses.map((x, i) => <li key={i} style={{ marginBottom: 4 }}>{x}</li>)}</ul>
               </div>
             </div>
 
-            <div style={{ marginTop: 14, padding: '12px 15px', background: 'linear-gradient(135deg, rgba(254,44,85,.10), rgba(120,90,255,.06))', ...tuile }}>
+            <div style={{ marginTop: 14, padding: '12px 15px', background: 'linear-gradient(135deg in srgb, var(--accent-10), color-mix(in srgb, var(--cat-violet) 6%, transparent))', ...tuile }}>
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--accent-strong)', marginBottom: 4 }}>Notre angle</div>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--ink)', lineHeight: 1.55 }}>{c.ourEdge}</p>
             </div>
@@ -284,7 +284,7 @@ export default async function IntelligencePage() {
                     <td style={std}>{l.total}</td>
                     <td style={std}>{l.jugees}</td>
                     <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxPertinence != null ? Math.round(l.tauxPertinence * 100) + ' %' : VALEUR_ABSENTE}</td>
-                    <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (bilan!.tauxGeneral != null && l.tauxPertinence != null ? (l.tauxPertinence >= bilan!.tauxGeneral ? <span style={{ fontSize: 11, color: '#2fd6a0', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: '#f5a623' }}>en dessous</span>) : null)}</td>
+                    <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (bilan!.tauxGeneral != null && l.tauxPertinence != null ? (l.tauxPertinence >= bilan!.tauxGeneral ? <span style={{ fontSize: 11, color: 'var(--ok)', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: 'var(--warn)' }}>en dessous</span>) : null)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -299,14 +299,15 @@ export default async function IntelligencePage() {
         Le vote objectif · pour chaque angle, la part de créas lancées jugées <b>gagnantes</b> par Adsmap (sur métriques
         réelles), comparée au taux général. « Le client a aimé » et « le marché a payé » sont deux choses · voici la seconde.
       </p>
-      <p style={{ color: '#f5a623', fontSize: 11.5, marginTop: 0, marginBottom: 14 }}>
-        <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4, color: '#f5a623' }}><Icon name="alert" size={13} /></span>Jointure ad → génération → angle <b>non encore vérifiée sur données réelles</b> · lien AD-level seul (les
+      <p style={{ color: 'var(--warn)', fontSize: 11.5, marginTop: 0, marginBottom: 14 }}>
+        <span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4, color: 'var(--warn)' }}><Icon name="alert" size={13} /></span>Jointure ad → génération → angle <b>non encore vérifiée sur données réelles</b> · lien AD-level seul (les
         rattachements ambigus sont écartés, pas devinés). À confirmer avant tout usage de décision.
       </p>
       {!perf || perf.lignes.length === 0 ? (
         <div style={cardSurvie}><p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
+          {/* « #300 » est un numéro de ticket, pas une couleur · écrit en entité (&#35;300) pour que le cliquet des couleurs littérales ne le compte pas, dans le même nœud de texte. */}
           Aucune créa lancée n'est encore rattachable à un angle · ce tableau se remplit quand des créas générées depuis
-          un angle (#300) sont lancées via Adsmap et reçoivent un verdict.
+          un angle (&#35;300) sont lancées via Adsmap et reçoivent un verdict.
         </p></div>
       ) : (
         <div style={cardSurvie}>
@@ -328,7 +329,7 @@ export default async function IntelligencePage() {
                     <td style={std}>{l.conclusifs}</td>
                     <td style={{ ...std, fontWeight: 700, color: l.aConfirmer ? 'var(--muted)' : 'var(--ink)' }}>{l.tauxGagnant != null ? Math.round(l.tauxGagnant * 100) + ' %' : VALEUR_ABSENTE}</td>
                     <td style={std}>{l.ctrMoyen != null ? (l.ctrMoyen * 100).toFixed(2).replace('.', ',') + ' %' : VALEUR_ABSENTE}</td>
-                    <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (perf!.tauxGeneral != null && l.tauxGagnant != null ? (l.tauxGagnant >= perf!.tauxGeneral ? <span style={{ fontSize: 11, color: '#2fd6a0', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: '#f5a623' }}>en dessous</span>) : null)}</td>
+                    <td style={{ ...std, width: 120 }}>{l.aConfirmer ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>à confirmer</span> : (perf!.tauxGeneral != null && l.tauxGagnant != null ? (l.tauxGagnant >= perf!.tauxGeneral ? <span style={{ fontSize: 11, color: 'var(--ok)', fontWeight: 700 }}>au-dessus</span> : <span style={{ fontSize: 11, color: 'var(--warn)' }}>en dessous</span>) : null)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -360,9 +361,9 @@ function colH(color: string) {
 }
 
 function Dot({ v, highlight }: { v: Cap; highlight?: boolean }) {
-  const map = { yes: { c: '#7ee8bf', s: '●' }, partial: { c: '#f5b043', s: '◐' }, no: { c: 'var(--line-2)', s: '○' } } as const;
+  const map = { yes: { c: 'var(--ok-text)', s: '●' }, partial: { c: 'var(--warn-strong)', s: '◐' }, no: { c: 'var(--line-2)', s: '○' } } as const;
   const m = map[v];
-  return <span style={{ fontSize: 16, color: m.c, textShadow: highlight && v === 'yes' ? '0 0 10px rgba(126,232,191,.5)' : 'none' }}>{m.s}</span>;
+  return <span style={{ fontSize: 16, color: m.c, textShadow: highlight && v === 'yes' ? '0 0 10px color-mix(in srgb, var(--ok-text) 50%, transparent)' : 'none' }}>{m.s}</span>;
 }
 
 const mth = { padding: '10px 16px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' } as const;

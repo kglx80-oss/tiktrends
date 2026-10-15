@@ -208,6 +208,11 @@ export const FONDS_STATUT = ['bg', 'surface', 'surface-raised', 'paper'] as cons
  * Repères · clair : encre 15,87 sur fond, blanc sur accent 5,33, --ok 5,10 et
  * --err 5,43 sur --paper. Le sombre est celui de main · son --info sur --paper
  * (4,54) n'a aucune marge et ne doit pas descendre.
+ *
+ * T3 (15/10/2026) · rôles de l'administration, pire paire mesurée par palette ·
+ * sombre 4,54 (--cat-rose sur --paper, valeur de main) · clair 4,74
+ * (--cat-violet sur --paper) · ADMIN+ sombre 4,70 (--cat-rose sur --paper) ·
+ * ADMIN+ clair 4,82 (--cat-violet sur --paper).
  */
 export const PAIRES_THEME: readonly PaireJetons[] = [
   ...croiser(['ink', 'ink-2', 'muted'], FONDS_TEXTE, 'texte', 'texte principal, secondaire, méta'),
@@ -217,6 +222,14 @@ export const PAIRES_THEME: readonly PaireJetons[] = [
   { dessus: 'on-accent', fond: 'grad-accent', nature: 'texte', usage: 'libellé des boutons principaux (pire arrêt du dégradé)' },
   ...croiser(['line-strong'], FONDS_STATUT, 'interface', 'bordure d’un champ ou d’un contrôle'),
   ...croiser(['accent-strong'], ['bg', 'surface', 'paper'], 'interface', 'anneau de focus clavier'),
+  // T3 · administration (rôles ajoutés par la tokenisation de l'admin et de la console).
+  ...croiser(['warn-strong', 'warn-text', 'err-strong', 'info-text', 'success'], FONDS_STATUT, 'texte', 'statuts et notes de l’administration'),
+  // --danger ne se pose que sur la page et les cartes (bouton « Retirer », bandeau
+  // d'échec) · le sombre de main (#e5484d) fait 4,66 sur --surface mais 4,27 sur
+  // --paper · ne pas l'y poser sans l'éclaircir.
+  ...croiser(['danger'], ['bg', 'surface'], 'texte', 'action destructrice, bandeau d’échec'),
+  ...croiser(['danger-vif'], FONDS_STATUT, 'texte', 'KPI d’alerte en gros chiffre (churn, essai expiré)'),
+  ...croiser(['cat-rose', 'cat-bleu', 'cat-vert', 'cat-ambre', 'cat-violet', 'cat-lavande', 'cat-gris'], FONDS_STATUT, 'texte', 'teinte de catégorie écrite (rôle, type de compte)'),
 ];
 
 export interface MesurePaire extends PaireJetons { palette: PaletteTheme; ratio: number; seuil: number; ok: boolean }

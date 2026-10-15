@@ -13,7 +13,7 @@ import { groupesAdministration } from '@tiktrends/core';
 export const dynamic = 'force-dynamic';
 
 const PLAN_ORDER: Plan[] = ['starter', 'core', 'plus', 'business'];
-const PLAN_COLOR: Record<Plan, string> = { starter: '#8a94a6', core: '#7aa2ff', plus: '#c07bff', business: '#f5a623' };
+const PLAN_COLOR: Record<Plan, string> = { starter: 'var(--cat-gris)', core: 'var(--cat-bleu)', plus: 'var(--cat-violet)', business: 'var(--cat-ambre)' };
 const eur = (n: number) => n.toLocaleString('fr-FR') + ' €';
 const num = (n: number) => n.toLocaleString('fr-FR');
 
@@ -55,7 +55,7 @@ export default async function AdminBackstage() {
     <main style={cadrePage}>
       <OngletsAdministration session={s} chemin="/admin" />
       {/* Héro */}
-      <div style={{ position: 'relative', overflow: 'hidden', ...cadreSignal('rgba(245,166,35,.3)'), background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
+      <div style={{ position: 'relative', overflow: 'hidden', ...cadreSignal('color-mix(in srgb, var(--accent) 30%, transparent)'), background: 'linear-gradient(135deg in srgb, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 6%, transparent) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', flexShrink: 0 }}><Icon name="gauge" size={23} /></div>
           <div style={{ flex: 1, minWidth: 220 }}>
@@ -67,16 +67,16 @@ export default async function AdminBackstage() {
               La santé de TikTrends en un coup d'œil · {s.user.email}
             </p>
           </div>
-          <Link href="/dashboard" style={{ padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,.06)', border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>← Vue SaaS (app)</Link>
+          <Link href="/dashboard" style={{ padding: '9px 16px', borderRadius: 999, background: 'color-mix(in srgb, var(--line) 50%, transparent)', border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>← Vue SaaS (app)</Link>
         </div>
       </div>
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 22 }}>
         {kpis.map((k) => (
-          <div key={k.label} style={{ ...(k.strong ? cadreSignal('rgba(245,166,35,.35)') : surface), background: k.strong ? 'rgba(245,166,35,.07)' : 'var(--surface)', padding: '15px 17px' }}>
+          <div key={k.label} style={{ ...(k.strong ? cadreSignal('color-mix(in srgb, var(--accent) 35%, transparent)') : surface), background: k.strong ? 'color-mix(in srgb, var(--accent) 7%, transparent)' : 'var(--surface)', padding: '15px 17px' }}>
             <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{k.label}</div>
-            <div style={{ fontSize: 25, fontWeight: 800, color: k.strong ? '#ffca6b' : 'var(--ink)', marginTop: 5, lineHeight: 1 }}>{k.value}</div>
+            <div style={{ fontSize: 25, fontWeight: 800, color: k.strong ? 'var(--accent-strong)' : 'var(--ink)', marginTop: 5, lineHeight: 1 }}>{k.value}</div>
             {k.sub && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 5 }}>{k.sub}</div>}
           </div>
         ))}
@@ -115,9 +115,9 @@ export default async function AdminBackstage() {
             {g.pages.map((t) => (
               <Link key={t.cle} href={t.href} data-outil={t.cle} style={{ display: 'block', ...surface, background: 'var(--surface)', padding: '15px 17px', textDecoration: 'none' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 36, height: 36, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#f5a623', background: 'rgba(245,166,35,.12)', border: '1px solid rgba(245,166,35,.24)', flexShrink: 0 }}><Icon name={ICONE[t.cle] ?? 'grid'} size={18} /></span>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 24%, transparent)', flexShrink: 0 }}><Icon name={ICONE[t.cle] ?? 'grid'} size={18} /></span>
                   <span style={{ flex: 1, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{t.titre}</span>
-                  {badges[t.cle] && <span style={{ fontSize: 11, fontWeight: 800, color: '#ffca6b', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', padding: '2px 8px', borderRadius: 999 }}>{badges[t.cle]}</span>}
+                  {badges[t.cle] && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-strong)', background: 'color-mix(in srgb, var(--accent) 14%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)', padding: '2px 8px', borderRadius: 999 }}>{badges[t.cle]}</span>}
                 </div>
                 <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{t.description}</p>
               </Link>
