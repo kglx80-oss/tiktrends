@@ -5,7 +5,7 @@ import { useState, type CSSProperties } from 'react';
 import { CREDIT_PACKS } from '../lib/credit-packs';
 import { createTopupCheckoutAction } from '../app/actions/stripe';
 import { Icon } from './Icon';
-import { CIBLE_TACTILE_MIN, COQUILLE_V5, afficherCredits, jaugeCredits, texteCredits } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, COQUILLE_V5, afficherCredits, jaugeCredits, texteCredits, teinte } from '@tiktrends/core';
 
 /**
  * Pastille de crédits (solde réel) + menu au clic :
@@ -41,7 +41,7 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
           {/* Correctifs V5 · le panneau prenait la largeur de la pastille (159) ·
               prix rognés, « Acheter » hors du cadre. Largeur MESURÉE de ses
               rangées (`menuLargeurMin`, noyau), ancré au bord gauche de la pastille. */}
-          <div data-zone="menu-recharge" style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, width: V.menuLargeurMin, minWidth: V.menuLargeurMin, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: '0 16px 40px -12px rgba(0,0,0,.6)', overflow: 'hidden' }}>
+          <div data-zone="menu-recharge" style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, width: V.menuLargeurMin, minWidth: V.menuLargeurMin, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: `0 16px 40px -12px ${teinte('ombre', .6)}`, overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', fontWeight: 700 }}>Crédits restants</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
@@ -66,7 +66,7 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
                     <span style={{ display: 'inline-flex', color: 'var(--on-accent)' }}><Icon name="spark" size={15} /></span>
                     <span style={{ flex: 1 }}>
                       <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--on-accent)' }}>Améliorer mon offre</span>
-                      <span style={{ display: 'block', fontSize: 11, color: 'rgba(13,7,12,.72)' }}>Plus de crédits chaque mois</span>
+                      <span style={{ display: 'block', fontSize: 11, color: 'var(--on-accent)' }}>Plus de crédits chaque mois</span>
                     </span>
                     <span style={{ color: 'var(--on-accent)', fontSize: 13, fontWeight: 800 }}>›</span>
                   </Link>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { apercuImage } from '@tiktrends/core';
+import { apercuImage, teinte } from '@tiktrends/core';
 
 /** Zone média d'une créa : miniature cliquable → lecture vidéo en direct.
  *
@@ -32,7 +32,7 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
 
   if (playing && mediaUrl) {
     return (
-      <div style={{ position: 'relative', aspectRatio: aspect, background: '#000' }}>
+      <div style={{ position: 'relative', aspectRatio: aspect, background: 'var(--sombre-fixe)' }}>
         <video src={mediaUrl} poster={thumbnailUrl} controls autoPlay playsInline
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: fit }} />
       </div>
@@ -46,9 +46,9 @@ export function AdMedia({ mediaUrl, thumbnailUrl, isVideo, daysRunning, aspect =
             ref={(el) => { if (el && el.complete && el.naturalWidth === 0) setRate(true); }}
             style={{ width: '100%', height: '100%', objectFit: fit }} />
         : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
-      {daysRunning != null && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,0,0,.65)', color: '#fff' }}>{daysRunning} j actifs</span>}
+      {daysRunning != null && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: teinte('sombre-fixe', .65), color: 'var(--clair-fixe)' }}>{daysRunning} j actifs</span>}
       {canPlay && (
-        <span style={{ position: 'absolute', inset: 0, margin: 'auto', width: 52, height: 52, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ position: 'absolute', inset: 0, margin: 'auto', width: 52, height: 52, borderRadius: '50%', background: 'var(--voile-media)', color: 'var(--clair-fixe)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
         </span>
       )}

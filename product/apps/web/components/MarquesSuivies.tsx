@@ -91,7 +91,7 @@ export function MarquesSuivies({ brands, vide }: { brands: MarqueLite[]; vide?: 
 
   return (
     <div style={{ marginBottom: 30 }}>
-      {echecRetrait && <p role="alert" style={{ margin: '0 0 10px', fontSize: 13, color: '#ff9db0' }}>{echecRetrait}</p>}
+      {echecRetrait && <p role="alert" style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--err-text)' }}>{echecRetrait}</p>}
       <div ref={grilleRef} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {visibles.map((b, rang) => {
           const biblio = bibliothequePub({ platform: b.platform, name: b.name });
@@ -132,7 +132,7 @@ export function MarquesSuivies({ brands, vide }: { brands: MarqueLite[]; vide?: 
           </div>
 
           {enCours && <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>Analyse en cours…</p>}
-          {erreur && <p style={{ fontSize: 13, color: '#ff9db0', margin: 0 }}>{erreur}</p>}
+          {erreur && <p style={{ fontSize: 13, color: 'var(--err-text)', margin: 0 }}>{erreur}</p>}
 
           {brief && !enCours && (
             <div style={{ display: 'grid', gap: 16 }}>

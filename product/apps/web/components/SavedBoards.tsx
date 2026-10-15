@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, useTransition, type CSSProperties, type FocusEvent } from 'react';
-import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute } from '@tiktrends/core';
+import { correspondSauvegarde, lireCriteresSauvegardes, ecrireCriteresSauvegardes, BOARD_TOUS, BOARD_SANS, cibleSelonPointeur, suiviAdsmapRelancable, MARGE_SOUS_BARRE_HAUTE, ramenerSousBarreHaute, teinte } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
@@ -293,7 +293,7 @@ function TrackButton({ state, onClick, cible }: { state: string | undefined; onC
         <span style={{ display: "inline-flex" }}><Icon name="map" size={15} /></span>
         <span>{done ? 'Dans Adsmap' : busy ? 'Ajout…' : 'Suivre dans Adsmap'}</span>
       </button>
-      {err && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--danger, #e5484d)', lineHeight: 1.4 }}>{err}</p>}
+      {err && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--err-text)', lineHeight: 1.4 }}>{err}</p>}
     </div>
   );
 }
@@ -331,7 +331,7 @@ function FolderPicker({ current, folders, onPick, cible }: { current: string | n
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-          <div id={panneauId} style={{ position: 'absolute', bottom: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: '0 14px 34px -10px rgba(0,0,0,.5)', overflow: 'hidden', padding: 6 }}>
+          <div id={panneauId} style={{ position: 'absolute', bottom: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: `0 14px 34px -10px ${teinte('ombre', .5)}`, overflow: 'hidden', padding: 6 }}>
             {folders.map((f) => (
               <button key={f} type="button" onClick={() => { onPick(f); fermer(true); }} style={{ ...row(f === current), minHeight: cible }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="folder" size={13} /> {f}</span>{f === current && <span style={{ marginLeft: 'auto', color: 'var(--accent-strong)' }}>✓</span>}</button>
             ))}

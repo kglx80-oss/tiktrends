@@ -18,7 +18,7 @@ export interface ExempleRow {
 }
 
 const eur = (n: number) => '€' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d),)/g, ' ');
-const gcol: Record<string, string> = { A: '#18cc8c', B: '#7aa2ff', C: '#f5a623', D: '#ff4d6d' };
+const gcol: Record<string, string> = { A: 'var(--ok)', B: 'var(--info-text)', C: 'var(--warn)', D: 'var(--err)' };
 
 /**
  * L'aperçu des créas · un EXEMPLE, replié par défaut.
@@ -63,7 +63,7 @@ export function ApercuExemple({ rows, brancher = true }: { rows: ExempleRow[]; b
             <div key={r.platform + r.fingerprint} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 16, boxShadow: 'var(--sh-card)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase' }}>{r.platform}</span>
-                <span style={{ width: 26, height: 26, borderRadius: 8, background: gcol[r.grade], color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>{r.grade}</span>
+                <span style={{ width: 26, height: 26, borderRadius: 8, background: gcol[r.grade], color: 'var(--clair-fixe)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>{r.grade}</span>
               </div>
               <div style={{ fontWeight: 700, fontSize: 14, margin: '8px 0 10px', color: 'var(--ink)' }}>{r.title}</div>
               <Row k="Dépense" v={eur(r.spend)} />

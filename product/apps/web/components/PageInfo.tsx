@@ -52,7 +52,7 @@ export function PageInfo({ children, title = 'Mode d’emploi', minHeight, mb }:
         position: 'absolute', zIndex: 10, top: 'calc(100% + 6px)', left: 0, width: 360, maxWidth: '80vw',
         // L'encart déplié est un cadre (rôle `tuile`), pas un contrôle · --line, r-md (lot 19D).
         padding: '13px 15px', ...tuile, background: 'var(--surface)',
-        boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6,
+        boxShadow: 'var(--sh-lift)', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6,
       }}>
         {children}
       </div>

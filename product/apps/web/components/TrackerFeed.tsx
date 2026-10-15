@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { Icon } from './Icon';
 import { useRouter } from 'next/navigation';
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, evenementsConcurrent, etatScanNouveautes, cibleSelonPointeur, EVENEMENT_LABEL, EVENEMENT_RAISON, type EvenementConcurrent } from '@tiktrends/core';
+import { estGagnantVeille, evenementsConcurrent, etatScanNouveautes, cibleSelonPointeur, EVENEMENT_LABEL, EVENEMENT_RAISON, type EvenementConcurrent, teinte } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { AdCard } from './AdCard';
 import { scanTrackerAction, markTrackerSeenAction } from '../app/actions/tracker';
@@ -83,7 +83,7 @@ export function TrackerFeed({ events, followedCount, trackingEnabled }: { events
         }}>{busy ? 'Scan en cours…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="radar" size={14} /> Scanner maintenant</span>}</button>
       </div>
 
-      {msg && <div style={{ marginBottom: 12, padding: '9px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(245,166,35,.4)', background: 'rgba(245,166,35,.10)', color: '#f5b043' }}>{msg}</div>}
+      {msg && <div style={{ marginBottom: 12, padding: '9px 13px', borderRadius: 12, fontSize: 13, border: `1px solid ${teinte('warn', .4)}`, background: teinte('warn', .1), color: 'var(--warn-strong)' }}>{msg}</div>}
 
       {etatScan.raison && followedCount > 0 && (
         <p id="scan-raison" style={{ color: 'var(--muted)', fontSize: 12.5, margin: '0 0 12px' }}>
@@ -135,12 +135,12 @@ const ghostBtn = { padding: '8px 13px', borderRadius: 999, border: '1px solid va
 export function BadgeEvenement({ evenement }: { evenement: EvenementConcurrent }) {
   const fond: Record<EvenementConcurrent, string> = {
     diffusion_durable: 'var(--grad-accent)',
-    croissance: 'linear-gradient(135deg, #1f9d63, #16794c)',
+    croissance: 'var(--grad-croissance)',
     nouveaute: 'var(--ink-2)',
   };
   const teinte: Record<EvenementConcurrent, string> = {
     diffusion_durable: 'var(--on-accent)',
-    croissance: '#fff',
+    croissance: 'var(--clair-fixe)',
     nouveaute: 'var(--paper)',
   };
   return (

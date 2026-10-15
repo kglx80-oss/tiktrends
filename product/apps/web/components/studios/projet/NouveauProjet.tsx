@@ -82,7 +82,7 @@ export function NouveauProjet({ etat }: { etat: EtatNouveauProjet }) {
             </select>
           </div>
           {erreur && (
-            <p role="alert" data-etat="refus" style={{ ...note, color: '#ff9db0' }}>
+            <p role="alert" data-etat="refus" style={{ ...note, color: 'var(--err-text)' }}>
               {erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}
             </p>
           )}

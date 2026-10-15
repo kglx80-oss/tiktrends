@@ -96,7 +96,7 @@ export function PreparationProjet(p: ProprietesPreparationProjet) {
         <textarea data-champ="objectif" value={objectif} maxLength={OBJECTIF_MAX} rows={5} onChange={(e) => setObjectif(e.target.value)} placeholder="Ce que ce projet doit produire ou vérifier · facultatif" style={{ ...champ, resize: 'vertical', lineHeight: 1.5 }} />
       </label>
 
-      {erreur && <p role="alert" data-etat="erreur" style={{ margin: 0, color: '#ff9db0', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
+      {erreur && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button type="button" data-bouton="creer-projet" onClick={creer} disabled={encours} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: encours ? 0.6 : 1 }}>

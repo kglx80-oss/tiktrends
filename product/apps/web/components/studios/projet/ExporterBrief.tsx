@@ -55,7 +55,7 @@ export function ExporterBrief({ projectId, versionId, autorise }: { projectId: s
         <button type="button" disabled={encours} onClick={() => exporter('json')} style={btnGhost}>JSON</button>
       </div>
       <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>Gratuit · aucune génération. Le fichier suffit pour produire avec un autre outil.</p>
-      {etat && <p role={etat.erreur ? 'alert' : 'status'} style={{ fontSize: 12.5, margin: 0, color: etat.erreur ? '#ff9db0' : '#7ee8bf' }}>{etat.message}</p>}
+      {etat && <p role={etat.erreur ? 'alert' : 'status'} style={{ fontSize: 12.5, margin: 0, color: etat.erreur ? 'var(--err-text)' : 'var(--ok-text)' }}>{etat.message}</p>}
     </div>
   );
 }

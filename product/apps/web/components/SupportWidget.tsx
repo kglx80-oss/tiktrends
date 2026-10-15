@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { createTicketAction } from '../app/actions/support';
 import { fetchMyTickets, type MyTicket } from '../app/actions/support';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 import { input } from './ui';
 import { Icon } from './Icon';
 import { Portail } from './Portail';
@@ -27,8 +27,12 @@ const FAQ: Array<{ q: string; a: string }> = [
   { q: 'Comment inviter un membre ?', a: 'Profil → Membres. Envoie une invitation par e-mail avec le rôle voulu (membre, admin, client lecture).' },
 ];
 
-const STATUS: Record<string, { label: string; color: string }> = {
-  open: { label: 'Ouvert', color: '#f5a623' }, in_progress: { label: 'En cours', color: '#7aa2ff' }, resolved: { label: 'Résolu', color: '#18cc8c' },
+// Couleur d'un statut · un rôle de tokens.css · la pastille en porte la teinte
+// (l'ancien suffixe hexadécimal `22` · 34/255).
+const STATUS: Record<string, { label: string; color: string; fond: string }> = {
+  open: { label: 'Ouvert', color: 'var(--warn)', fond: teinte('warn', 0x22 / 255) },
+  in_progress: { label: 'En cours', color: 'var(--info-text)', fond: teinte('info-text', 0x22 / 255) },
+  resolved: { label: 'Résolu', color: 'var(--ok)', fond: teinte('ok', 0x22 / 255) },
 };
 const TYPE_ICON: Record<string, string> = { bug: 'alert', suggestion: 'bulb', question: 'help' };
 
@@ -82,8 +86,8 @@ export function SupportWidget({ firstName, anchored = false }: { firstName: stri
   const faq = FAQ.filter((f) => !q.trim() || (f.q + ' ' + f.a).toLowerCase().includes(q.toLowerCase()));
 
   const panneauStyle = anchored
-    ? { position: 'fixed' as const, left: '50%', bottom: 24, transform: 'translateX(-50%)', width: 'min(420px, calc(100vw - 32px))', maxHeight: 'min(620px, calc(100vh - 120px))', display: 'flex' as const, flexDirection: 'column' as const, zIndex: 120, borderRadius: 20, overflow: 'hidden', border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', boxShadow: '0 26px 70px -18px rgba(0,0,0,.8)' }
-    : { position: 'fixed' as const, bottom: 88, right: 20, width: 380, maxWidth: 'calc(100vw - 40px)', maxHeight: 'min(620px, calc(100vh - 120px))', display: 'flex' as const, flexDirection: 'column' as const, zIndex: 45, borderRadius: 20, overflow: 'hidden', border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', boxShadow: '0 26px 70px -18px rgba(0,0,0,.8)' };
+    ? { position: 'fixed' as const, left: '50%', bottom: 24, transform: 'translateX(-50%)', width: 'min(420px, calc(100vw - 32px))', maxHeight: 'min(620px, calc(100vh - 120px))', display: 'flex' as const, flexDirection: 'column' as const, zIndex: 120, borderRadius: 20, overflow: 'hidden', border: '1px solid var(--line-2)', background: 'var(--bg)', boxShadow: `0 26px 70px -18px ${teinte('ombre', .8)}` }
+    : { position: 'fixed' as const, bottom: 88, right: 20, width: 380, maxWidth: 'calc(100vw - 40px)', maxHeight: 'min(620px, calc(100vh - 120px))', display: 'flex' as const, flexDirection: 'column' as const, zIndex: 45, borderRadius: 20, overflow: 'hidden', border: '1px solid var(--line-2)', background: 'var(--bg)', boxShadow: `0 26px 70px -18px ${teinte('ombre', .8)}` };
 
   return (
     <>
@@ -93,7 +97,7 @@ export function SupportWidget({ firstName, anchored = false }: { firstName: stri
       {open && (
         <Enveloppe portalise={anchored}>
           {anchored && (
-            <div onClick={fermer} style={{ position: 'fixed', inset: 0, zIndex: 119, background: 'rgba(6,4,8,.5)' }} />
+            <div onClick={fermer} style={{ position: 'fixed', inset: 0, zIndex: 119, background: teinte('voile-teinte', .5) }} />
           )}
           <div ref={panneauRef} role={anchored ? 'dialog' : undefined} aria-modal={anchored ? true : undefined} aria-labelledby={anchored ? titreId : undefined} style={panneauStyle}>
           {/* En-tête */}
@@ -104,7 +108,7 @@ export function SupportWidget({ firstName, anchored = false }: { firstName: stri
               <button type="button" onClick={fermer} aria-label="Fermer l’aide" style={{
                 position: 'absolute', top: 12, right: 12, width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10,
-                border: 'none', background: 'rgba(0,0,0,.16)', color: 'var(--on-accent)', cursor: 'pointer',
+                border: 'none', background: teinte('sombre-fixe', .16), color: 'var(--on-accent)', cursor: 'pointer',
               }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
@@ -167,7 +171,7 @@ export function SupportWidget({ firstName, anchored = false }: { firstName: stri
                     <Link key={t.id} href={`/support/${t.id}`} onClick={() => setOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 13px', textDecoration: 'none' }}>
                       <span style={{ display: 'inline-flex' }}>{TYPE_ICON[t.type] ? <Icon name={TYPE_ICON[t.type]!} size={14} /> : '•'}</span>
                       <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-                      <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, color: st.color, background: st.color + '22' }}>{st.label}</span>
+                      <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, color: st.color, background: st.fond }}>{st.label}</span>
                     </Link>
                   );
                 })}
@@ -223,7 +227,7 @@ export function SupportWidget({ firstName, anchored = false }: { firstName: stri
           aria-label="Aide et support"
           style={{
             position: 'fixed', bottom: 20, right: 20, width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', zIndex: 46,
-            border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', boxShadow: '0 14px 34px -8px rgba(254,44,85,.5)',
+            border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', boxShadow: `0 14px 34px -8px ${teinte('accent', .5)}`,
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           }}
         >

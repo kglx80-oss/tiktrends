@@ -35,7 +35,7 @@ export function AvatarSite({ nom, site, taille = 44, rayon = 12 }: {
   return (
     <span style={{
       width: taille, height: taille, flexShrink: 0, borderRadius: rayon,
-      border: '1px solid var(--line-2)', color: '#fff',
+      border: '1px solid var(--line-2)', color: 'var(--clair-fixe)',
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       fontWeight: 800, fontSize: Math.round(taille * 0.34), letterSpacing: '.02em',
       ...fondStyle,

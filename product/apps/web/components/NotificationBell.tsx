@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead, type NotifItem } from '../app/actions/notifications';
 import { Icon } from './Icon';
 
@@ -86,7 +86,7 @@ export function NotificationBell({ enLigne = false }: { enLigne?: boolean } = {}
         style={{
           position: 'relative', width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, borderRadius: 12, cursor: 'pointer',
           border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 18px -8px rgba(0,0,0,.5)',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 6px 18px -8px ${teinte('ombre', .5)}`,
         }}
       >
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -97,7 +97,7 @@ export function NotificationBell({ enLigne = false }: { enLigne?: boolean } = {}
           <span style={{
             position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999,
             background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 11, fontWeight: 800,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg, #0d070c)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg)',
           }}>{unread > 99 ? '99+' : unread}</span>
         )}
       </button>
@@ -106,7 +106,7 @@ export function NotificationBell({ enLigne = false }: { enLigne?: boolean } = {}
         <div style={{
           position: 'absolute', top: 48, right: 0, width: 360, maxWidth: '90vw', maxHeight: '70vh', overflowY: 'auto',
           borderRadius: 16, border: '1px solid var(--line-2)', background: 'var(--surface)',
-          boxShadow: '0 20px 50px -12px rgba(0,0,0,.7)',
+          boxShadow: `0 20px 50px -12px ${teinte('ombre', .7)}`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 15px', borderBottom: '1px solid var(--line)', position: 'sticky', top: 0, background: 'var(--surface)' }}>
             <b style={{ fontSize: 14, color: 'var(--ink)' }}>Notifications</b>
@@ -119,7 +119,7 @@ export function NotificationBell({ enLigne = false }: { enLigne?: boolean } = {}
             items.map((n) => (
               <button key={n.id} type="button" onClick={() => onItem(n)} style={{
                 display: 'flex', gap: 11, width: '100%', textAlign: 'left', padding: '12px 15px', cursor: 'pointer',
-                border: 'none', borderBottom: '1px solid var(--line)', background: n.read ? 'transparent' : 'rgba(254,44,85,.06)',
+                border: 'none', borderBottom: '1px solid var(--line)', background: n.read ? 'transparent' : teinte('accent', .06),
               }}>
                 <span style={{ display: 'inline-flex', lineHeight: '20px', color: 'var(--ink-2)' }}>{ICON[n.type] ? <Icon name={ICON[n.type]!} size={16} /> : '•'}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>

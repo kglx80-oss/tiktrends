@@ -80,12 +80,12 @@ export function buildLiveAnalysis(ads: MetaAdPerf[]): AnalysisRow[] {
 
 export interface BucketDef { key: RadarResult['bucket']; label: string; action: string; color: string }
 export const BUCKETS: BucketDef[] = [
-  { key: 'winner',         label: 'Winners',          action: 'Scaler',      color: '#18cc8c' },
-  { key: 'high_potential', label: 'Fort potentiel',   action: 'Pousser',     color: '#7aa2ff' },
-  { key: 'iteration',      label: 'À itérer',         action: 'Itérer',      color: '#f5a623' },
-  { key: 'fatigued',       label: 'Fatiguées',        action: 'Rafraîchir',  color: '#ff8c42' },
-  { key: 'kill_candidate', label: 'À couper',         action: 'Couper',      color: '#ff4d6d' },
-  { key: 'insufficient',   label: 'Insuffisant',      action: 'Observer',    color: '#9a8a98' },
+  { key: 'winner',         label: 'Winners',          action: 'Scaler',      color: 'var(--ok)' },
+  { key: 'high_potential', label: 'Fort potentiel',   action: 'Pousser',     color: 'var(--info-text)' },
+  { key: 'iteration',      label: 'À itérer',         action: 'Itérer',      color: 'var(--warn)' },
+  { key: 'fatigued',       label: 'Fatiguées',        action: 'Rafraîchir',  color: 'var(--fatigue)' },
+  { key: 'kill_candidate', label: 'À couper',         action: 'Couper',      color: 'var(--err)' },
+  { key: 'insufficient',   label: 'Insuffisant',      action: 'Observer',    color: 'var(--muted)' },
 ];
 export const bucketDef = (k: RadarResult['bucket']): BucketDef => BUCKETS.find((b) => b.key === k) ?? BUCKETS[5]!;
 

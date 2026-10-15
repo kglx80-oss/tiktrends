@@ -15,6 +15,11 @@ import { PageInfo } from '../components/PageInfo';
  * sur 291 hors de leur rôle · rayons 10 à 24 et `--line-2` sur des panneaux.
  *
  * On rend le composant et on LIT le HTML · pas la présence d'un appel.
+ *
+ * V5 · T1 · les bordures de `signal` (Empty good, Bandeau, Msg) ne portent
+ * plus un `rgba(...)` littéral mais la teinte d'un rôle · `teinte('ok-text',
+ * .4)` rend `color-mix(in srgb, var(--ok-text) 40%, transparent)`, qui suit le
+ * thème. Le rayon, lui, ne change pas.
  */
 const html = (s: React.CSSProperties) => renderToStaticMarkup(<div style={s} />);
 
@@ -50,15 +55,15 @@ describe('lot 19D · composants partagés, rendus', () => {
   });
   it('Empty good · `signal` (sa couleur, r-card)', () => {
     const h = renderToStaticMarkup(<Empty tone="good" title="Rien" />);
-    expect(h).toContain('border:1px solid rgba(126,232,191,.4);border-radius:var(--r-card)');
+    expect(h).toContain('border:1px solid color-mix(in srgb, var(--ok-text) 40%, transparent);border-radius:var(--r-card)');
   });
   it('Bandeau · `signal` au rayon d’une surface', () => {
     const h = renderToStaticMarkup(<Bandeau ton="demo">Exemple</Bandeau>);
-    expect(h).toContain('border:1px solid rgba(245,166,35,.30);border-radius:var(--r-card)');
+    expect(h).toContain('border:1px solid color-mix(in srgb, var(--warn) 30%, transparent);border-radius:var(--r-card)');
   });
   it('Msg · `signal` au rayon d’une surface', () => {
     const h = renderToStaticMarkup(<Msg kind="ok">fait</Msg>);
-    expect(h).toContain('border:1px solid rgba(24,204,140,.4);border-radius:var(--r-card)');
+    expect(h).toContain('border:1px solid color-mix(in srgb, var(--ok) 40%, transparent);border-radius:var(--r-card)');
   });
   it('PageInfo · l’encart déplié est une `tuile` (--line, r-md), le déclencheur reste un contrôle', () => {
     const h = renderToStaticMarkup(<PageInfo>Aide.</PageInfo>);

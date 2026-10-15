@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {
   CIBLE_TACTILE_MIN, basculeMarqueNecessaire, CLE_FOCUS_BASCULE_MARQUE,
   BASCULE_MARQUE_EN_COURS, ECHEC_BASCULE_MARQUE, nomSelecteurMarque, rectangleALecran, cibleRetourFocus,
-  saisiesAProteger, texteConfirmationBascule, TITRE_CONFIRMATION_BASCULE, GARDER_SAISIE, CHANGER_ET_EFFACER,
+  saisiesAProteger, texteConfirmationBascule, TITRE_CONFIRMATION_BASCULE, GARDER_SAISIE, CHANGER_ET_EFFACER, teinte,
 } from '@tiktrends/core';
 import { useEffect, useRef, useState } from 'react';
 import { setActiveBrand, createBrandAction, createBrandFromShopifyAction } from '../app/actions/brands';
@@ -131,7 +131,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-          <div id="selecteur-marque-liste" style={{ position: 'absolute', zIndex: 30, top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: '0 14px 34px -10px rgba(0,0,0,.6)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}>
+          <div id="selecteur-marque-liste" style={{ position: 'absolute', zIndex: 30, top: 'calc(100% + 6px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12, boxShadow: 'var(--sh-lift)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}>
             <button type="button" onClick={() => pick('')} aria-current={!activeId || undefined} style={row(!activeId)}>Toutes les marques</button>
             {brands.map((b) => (
               <button key={b.id} type="button" onClick={() => pick(b.id)} aria-current={b.id === activeId || undefined} style={row(b.id === activeId)}>
@@ -157,7 +157,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
       <Modal open={!!confirmation} onClose={garder} title={TITRE_CONFIRMATION_BASCULE} pied={confirmation ? (
         <PiedModale>
           <button type="button" onClick={garder} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{GARDER_SAISIE}</button>
-          <button type="button" onClick={confirmer} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: '1px solid rgba(255,90,120,.45)', background: 'transparent', color: '#ff9db0', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{CHANGER_ET_EFFACER}</button>
+          <button type="button" onClick={confirmer} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 12, border: `1px solid ${teinte('err', .45)}`, background: 'transparent', color: 'var(--err-text)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{CHANGER_ET_EFFACER}</button>
         </PiedModale>
       ) : undefined}>
         {confirmation && (
@@ -179,7 +179,7 @@ export function BrandSwitcher({ brands, activeId, canManage }: { brands: Brand[]
         subtitle="Le plus rapide : on lit ton site et on remplit tout pour toi.">
 
         {/* Voie 1 · tout récupérer depuis le site (boutique + charte + produits) */}
-        <form action={createBrandFromShopifyAction} style={{ display: 'grid', gap: 10, border: '1px solid var(--accent-strong)', borderRadius: 14, background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '14px 15px' }}>
+        <form action={createBrandFromShopifyAction} style={{ display: 'grid', gap: 10, border: '1px solid var(--accent-strong)', borderRadius: 14, background: `linear-gradient(180deg, ${teinte('accent', .07)}, var(--surface))`, padding: '14px 15px' }}>
           <input type="hidden" name="back" value="brands" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="sparkles" size={16} /></span>

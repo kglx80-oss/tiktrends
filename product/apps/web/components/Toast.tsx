@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
-import { cotePileRetours, type BoiteEcran } from '@tiktrends/core';
+import { cotePileRetours, type BoiteEcran, teinte } from '@tiktrends/core';
 import { cadreSignal } from './ui';
 
 /**
@@ -44,8 +44,8 @@ const Ctx = createContext<ToastApi | null>(null);
 const VIE: Record<ToastKind, number> = { ok: 3800, info: 4200, err: 6500 };
 
 const TON: Record<ToastKind, { bord: string; pastille: string; icone: string }> = {
-  ok: { bord: 'rgba(24,204,140,.45)', pastille: 'var(--ok, #18cc8c)', icone: '✓' },
-  err: { bord: 'rgba(255,77,109,.45)', pastille: 'var(--err, #ff4d6d)', icone: '!' },
+  ok: { bord: teinte('ok', .45), pastille: 'var(--ok)', icone: '✓' },
+  err: { bord: teinte('err', .45), pastille: 'var(--err)', icone: '!' },
   info: { bord: 'var(--line-2)', pastille: 'var(--accent-strong)', icone: 'ℹ' },
 };
 
@@ -128,7 +128,7 @@ export function ToastLigne({ t, onClose }: { t: Toast; onClose: () => void }) {
     pointerEvents: 'auto', width: '100%', display: 'flex', alignItems: 'center', gap: 11,
     // Notification flottante · rôle `signal`, au rayon d'une tuile (lot 19D).
     padding: '11px 13px', ...cadreSignal(ton.bord, 'tuile'),
-    background: 'var(--surface)', boxShadow: 'var(--sh-lift, 0 14px 34px -10px rgba(0,0,0,.6))',
+    background: 'var(--surface)', boxShadow: 'var(--sh-lift)',
     fontSize: 13.5, color: 'var(--ink)',
   };
   return (
@@ -136,7 +136,7 @@ export function ToastLigne({ t, onClose }: { t: Toast; onClose: () => void }) {
       <span aria-hidden style={{
         width: 20, height: 20, flexShrink: 0, borderRadius: 999, display: 'inline-flex',
         alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800,
-        color: '#0d070c', background: ton.pastille,
+        color: 'var(--on-accent)', background: ton.pastille,
       }}>{ton.icone}</span>
       <span style={{ flex: 1, lineHeight: 1.4 }}>{t.message}</span>
       <button type="button" onClick={onClose} aria-label="Fermer" style={{

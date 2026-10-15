@@ -59,7 +59,7 @@ export function QuickSettingsModal({ open, onClose, onSaved, workspaceName, show
         <div>
           <label htmlFor="reglages-nom-espace" style={lbl}>Nom de l'espace</label>
           <input id="reglages-nom-espace" name="name" defaultValue={workspaceName} required autoFocus placeholder="Nom de ton espace / agence" aria-invalid={!!erreur} aria-describedby={erreur ? 'reglages-erreur' : undefined} style={input} />
-          {erreur && <div id="reglages-erreur" role="alert" style={{ fontSize: 12, color: '#ff9db0', marginTop: 6 }}>{erreur}</div>}
+          {erreur && <div id="reglages-erreur" role="alert" style={{ fontSize: 12, color: 'var(--err-text)', marginTop: 6 }}>{erreur}</div>}
         </div>
         <div>
           <label style={lbl}>Langue de l'interface</label>

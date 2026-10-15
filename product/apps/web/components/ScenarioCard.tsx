@@ -1,5 +1,6 @@
 'use client';
 
+import { teinte } from '@tiktrends/core';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { Icon } from './Icon';
 import { surface } from './ui';
@@ -54,10 +55,10 @@ export function ScenarioCard({ brandId, scenarioId, title, context, imageUrl, co
           {canGenerate && (
             <button ref={btnRef} type="button" onClick={generate} disabled={busy} aria-describedby={err ? `scenario-err-${scenarioId}` : undefined} style={{
               fontSize: 11.5, fontWeight: 700, padding: '5px 11px', borderRadius: 999, cursor: busy ? 'default' : 'pointer',
-              border: '1px solid rgba(254,44,85,.35)', background: 'transparent', color: 'var(--accent-strong)', opacity: busy ? .6 : 1,
+              border: `1px solid ${teinte('accent', .35)}`, background: 'transparent', color: 'var(--accent-strong)', opacity: busy ? .6 : 1,
             }}>{busy ? 'Génération…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> {url ? `Régénérer · ${cost} cr.` : `Générer le visuel · ${cost} cr.`}</span>}</button>
           )}
-          {err && <span id={`scenario-err-${scenarioId}`} role="alert" style={{ fontSize: 11.5, color: '#ff9db0' }}>{err}</span>}
+          {err && <span id={`scenario-err-${scenarioId}`} role="alert" style={{ fontSize: 11.5, color: 'var(--err-text)' }}>{err}</span>}
         </div>
       </div>
     </div>

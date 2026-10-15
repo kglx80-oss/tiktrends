@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 import { surface, vide } from './ui';
 
 /**
@@ -40,7 +40,7 @@ const apercu = {
 
 const pied = { padding: '11px 13px', minHeight: CIBLE_TACTILE_MIN, display: 'grid', gap: 2, alignContent: 'center', minWidth: 0 } as const;
 
-const fondAssise = 'radial-gradient(120% 120% at 30% 20%, rgba(254,44,85,.16), transparent 55%), linear-gradient(160deg, var(--paper), var(--surface))';
+const fondAssise = `radial-gradient(120% 120% at 30% 20%, ${teinte('accent', .16)}, transparent 55%), linear-gradient(160deg, var(--paper), var(--surface))`;
 
 /** Le fond derrière un LOGO · une assise NEUTRE intermédiaire, fixe (indépendante
  *  du thème). Un logo SOMBRE (ex. Klorea) sur l'assise sombre de la carte était

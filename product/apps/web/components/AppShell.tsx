@@ -17,7 +17,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString, actionToucheRail, entreesProfil, COQUILLE_V5, gouttiereCss, indicesDefilementRail, masqueDefilementRail, defilementVersEntree } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString, actionToucheRail, entreesProfil, COQUILLE_V5, gouttiereCss, teinte, indicesDefilementRail, masqueDefilementRail, defilementVersEntree } from '@tiktrends/core';
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -48,13 +48,14 @@ export const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: 
 // toute la coquille en thème ADMIN+ dès qu'un membre du staff les ouvrait · le
 // pilotage interne vit maintenant dans /admin/plans.
 const ADMIN_CONTENT = {
-  '--accent': '#f5a623',
-  '--accent-strong': '#ffca6b',
-  '--accent-soft': '#2a2110',
-  '--grad-accent': 'linear-gradient(135deg,#f5a623 0%,#ff8c42 100%)',
+  // Rôles « ambre » de tokens.css (mêmes valeurs en sombre, mesurées en clair).
+  '--accent': 'var(--ambre)',
+  '--accent-strong': 'var(--ambre-strong)',
+  '--accent-soft': 'var(--ambre-soft)',
+  '--grad-accent': 'var(--grad-ambre)',
   // Thème admin (fondateur) · distingué par sa couleur et son accent, sans
   // quadrillage ni halo (charte : fond uni, aucun décor).
-  backgroundColor: '#130d07',
+  backgroundColor: 'var(--bg-ambre)',
 } as unknown as CSSProperties;
 
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
@@ -508,7 +509,7 @@ function AppShellInner(props: Props) {
         // Desktop : rail collé, inchangé. Mobile : tiroir hors-flux, glissé hors
         // écran quand fermé, au-dessus du contenu quand ouvert.
         ...(chrome.railTiroir
-          ? { position: 'fixed', left: 0, width: chrome.largeurRail, zIndex: 90, transform: chrome.railVisible ? 'none' : 'translateX(-100%)', transition: 'transform .22s ease', boxShadow: chrome.railVisible ? '0 0 40px rgba(0,0,0,.55)' : 'none' }
+          ? { position: 'fixed', left: 0, width: chrome.largeurRail, zIndex: 90, transform: chrome.railVisible ? 'none' : 'translateX(-100%)', transition: 'transform .22s ease', boxShadow: chrome.railVisible ? `0 0 40px ${teinte('ombre', .55)}` : 'none' }
           : { position: 'sticky' }),
         // Mode focus · le rail sort de l'écran (et de la tabulation · `inert`).
         ...(focus ? { display: 'none' } : null),
@@ -716,7 +717,7 @@ function AppShellInner(props: Props) {
 
       {/* Voile du tiroir mobile · referme le rail quand on clique à côté. */}
       {chrome.voile && (
-        <div onClick={fermerTiroir} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(0,0,0,.5)' }} />
+        <div onClick={fermerTiroir} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'var(--voile)' }} />
       )}
 
       <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
@@ -732,7 +733,7 @@ function AppShellInner(props: Props) {
           // Sortie toujours visible (coin bas gauche · la barre de projet garde le
           // haut, la bulle de support le coin bas droit) · Échap et Alt F aussi.
           <button type="button" data-zone="quitter-focus" onClick={() => setFocusDemande(false)} aria-keyshortcuts="Escape Alt+F" title="Quitter le mode focus (Échap)"
-            style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 80, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, fontWeight: 650, cursor: 'pointer', boxShadow: '0 6px 24px rgba(0,0,0,.35)' }}>
+            style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 80, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, fontWeight: 650, cursor: 'pointer', boxShadow: `0 6px 24px ${teinte('ombre', .35)}` }}>
             Quitter le mode focus
           </button>
         )}

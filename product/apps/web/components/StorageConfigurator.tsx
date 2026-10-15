@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from './Icon';
 import { tuile } from './ui';
-import { COPIE_STOCKAGE, TICKET_INTERNE, ROUTAGE_TICKET } from '@tiktrends/core';
+import { COPIE_STOCKAGE, TICKET_INTERNE, ROUTAGE_TICKET, teinte } from '@tiktrends/core';
 import {
   configureBucketAction, testStorageAction,
   embeddedImagesStatusAction, migrateEmbeddedImagesAction, type MigrationEtat,
@@ -94,15 +94,15 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
         <button type="button" onClick={runTest} disabled={!!busy} style={ghost}>{busy === 'test' ? 'Test…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={14} /> Tester le stockage</span>}</button>
       </div>
 
-      {err && <div style={{ marginTop: 12, fontSize: 13, color: '#ff9db0' }}>{err}</div>}
+      {err && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--err-text)' }}>{err}</div>}
 
       {steps.length > 0 && (
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
           {steps.map((s, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, ...tuile, padding: '9px 12px', background: 'var(--surface)' }}>
-              <span style={{ display: 'inline-flex', color: s.ok ? '#18cc8c' : '#f5b043' }}>{s.ok ? <Icon name="check" size={15} /> : <Icon name="alert" size={15} />}</span>
+              <span style={{ display: 'inline-flex', color: s.ok ? 'var(--ok)' : 'var(--warn-strong)' }}>{s.ok ? <Icon name="check" size={15} /> : <Icon name="alert" size={15} />}</span>
               <span style={{ fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{s.label}</span>
-              <span style={{ fontSize: 11.5, color: s.ok ? '#7ee8bf' : '#f5b043', fontFamily: 'var(--font-mono)' }}>{s.detail}</span>
+              <span style={{ fontSize: 11.5, color: s.ok ? 'var(--ok-text)' : 'var(--warn-strong)', fontFamily: 'var(--font-mono)' }}>{s.detail}</span>
             </div>
           ))}
         </div>
@@ -112,7 +112,7 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
           cause : les octets sont toujours dans Postgres, donc dans chaque
           sauvegarde et dans chaque requête qui touche la table. */}
       {etat && etat.restantes > 0 && (
-        <div style={{ marginTop: 16, border: '1px solid rgba(245,166,35,.35)', background: 'rgba(245,166,35,.07)', borderRadius: 12, padding: '13px 15px' }}>
+        <div style={{ marginTop: 16, border: `1px solid ${teinte('warn', .35)}`, background: teinte('warn', .07), borderRadius: 12, padding: '13px 15px' }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>
             {c.migrationTitre(etat.restantes, etat.poidsMo)}
           </div>
@@ -122,12 +122,12 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
           <button type="button" onClick={deplacer} disabled={migre} style={ghost}>
             {migre ? 'Déplacement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="box" size={14} /> {c.deplacer}</span>}
           </button>
-          {note && <p style={{ margin: '10px 0 0', fontSize: 12, color: '#9fe6b3' }}>{note}</p>}
+          {note && <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--ok-text)' }}>{note}</p>}
         </div>
       )}
 
       {etat && etat.restantes === 0 && note && (
-        <p style={{ marginTop: 14, fontSize: 12.5, color: '#9fe6b3' }}>{note}</p>
+        <p style={{ marginTop: 14, fontSize: 12.5, color: 'var(--ok-text)' }}>{note}</p>
       )}
 
       {test && (
@@ -147,13 +147,13 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
 function Row({ label, ok }: { label: string; ok: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, ...tuile, padding: '9px 12px', background: 'var(--surface)' }}>
-      <span style={{ display: 'inline-flex', color: ok ? '#18cc8c' : '#ff9db0' }}>{ok ? <Icon name="check" size={15} /> : <Icon name="alert" size={15} />}</span>
+      <span style={{ display: 'inline-flex', color: ok ? 'var(--ok)' : 'var(--err-text)' }}>{ok ? <Icon name="check" size={15} /> : <Icon name="alert" size={15} />}</span>
       <span style={{ fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{label}</span>
-      <span style={{ fontSize: 11.5, fontWeight: 800, color: ok ? '#7ee8bf' : '#ff9db0' }}>{ok ? 'OK' : 'KO'}</span>
+      <span style={{ fontSize: 11.5, fontWeight: 800, color: ok ? 'var(--ok-text)' : 'var(--err-text)' }}>{ok ? 'OK' : 'KO'}</span>
     </div>
   );
 }
 
-const code = { fontFamily: 'var(--font-mono, monospace)', fontSize: 11.5, background: 'rgba(255,255,255,.06)', padding: '1px 5px', borderRadius: 5, color: 'var(--ink)' } as const;
+const code = { fontFamily: 'var(--font-mono, monospace)', fontSize: 11.5, background: teinte('ink', .06), padding: '1px 5px', borderRadius: 5, color: 'var(--ink)' } as const;
 const primary = { padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
 const ghost = { padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;

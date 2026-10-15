@@ -57,7 +57,7 @@ export function RenameMarque({ id, name }: { id: string; name: string }) {
       <input
         name="name" defaultValue={name} required autoFocus aria-label="Nom de la marque"
         style={{
-          fontSize: 22, fontWeight: 800, color: 'var(--ink)', background: 'var(--bg, #0d070c)',
+          fontSize: 22, fontWeight: 800, color: 'var(--ink)', background: 'var(--bg)',
           border: '1px solid var(--line-2)', borderRadius: 10, padding: '6px 10px', minWidth: 0, flex: '1 1 220px',
         }}
       />

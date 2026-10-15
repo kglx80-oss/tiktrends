@@ -27,10 +27,22 @@ import { join, relative } from 'node:path';
  * 1141 ; ce lot retire celui du layout racine (`themeColor`) · plafond 1140,
  * 132 fichiers en portent sur 531 (399 déjà propres).
  *
+ * V5 · T1 (composants partagés) · `components/` (hors `accueil/`, laissé à la
+ * branche Accueil, fusionnée depuis), `components/studios/` et `lib/` passent
+ * de 211 à 11. Après fusion de `origin/main` (Accueil #800, qui a ramené
+ * `components/accueil` à 1 et `brands` à 28),  avant la fusion de T3 · c'est
+ * le nouveau plafond. Les 11 de `components/` sont hors thème par nature ·
+ * `AssistantHome` (3 · dégradé d'une tuile, laissé à la branche Accueil),
+ * `BrandGuidelines` (2 · valeur d'un `<input type="color">`, une donnée de
+ * marque), `HomeMarques` (2 · assise grise FIXE derrière un logo, mesurée pour
+ * les logos noirs ET blancs) et `LogoMarque` (4 · bord et ombre calculés sur le
+ * fond du LOGO). Deux fichiers d'export rejoignent `EXCLUS` (blanc = pixel du média).
  * T3 (15/10/2026 · après fusion de #800, base origin/main à 1131) ·
  * l'administration (`app/(app)/admin`, 142) et la console (`app/(app)/console`,
  * 24) passent par les jetons · plafond 965, leurs 20 fichiers sont désormais
  * « déjà propres ».
+ *
+ * Fusion T1 + T3 (15/10/2026) · les deux réductions cumulées · total mesuré 765 · plafond 765.
  */
 const WEB = process.cwd();
 
@@ -42,6 +54,8 @@ const EXCLUS: Record<string, string> = {
   'app/api/ad/[id]/route.tsx': 'rendu d’export (ImageResponse) · image servie telle quelle',
   'app/opengraph-image.tsx': 'image Open Graph exportée · vue hors de l’application',
   'lib/emails.ts': 'HTML d’e-mail · rendu par le client mail, hors thème',
+  'components/studios/produit/compression-photo.ts': 'fond blanc d’un JPEG recompressé · pixel de la photo produite, pas de l’interface',
+  'lib/studios/rendu/masque-pixels.ts': 'fond d’aplatissement d’un export JPEG · pixel du média produit',
 };
 
 /** Plafond par répertoire · le plan des lots de tokenisation. */
@@ -69,11 +83,8 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app/login': 3,
   'app/onboarding': 11,
   'app/tarifs': 60,
-  'components': 161,
+  'components': 11,
   'components/accueil': 1,
-  'components/studios': 38,
-  'lib': 11,
-  'lib/studios': 1,
 };
 
 /** Plafond par fichier · tout fichier absent de cette table est « déjà propre » (0). */
@@ -136,62 +147,14 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/login/page.tsx': 3,
   'app/onboarding/OnboardingWizard.tsx': 11,
   'app/tarifs/page.tsx': 60,
-  'components/AdMedia.tsx': 5,
-  'components/ApercuExemple.tsx': 5,
-  'components/AppShell.tsx': 9,
-  'components/AssistantChat.tsx': 3,
   'components/AssistantHome.tsx': 3,
-  'components/AuthShell.tsx': 3,
-  'components/AvatarSite.tsx': 1,
-  'components/Bandeau.tsx': 6,
   'components/BrandGuidelines.tsx': 2,
-  'components/BrandOnboarding.tsx': 7,
-  'components/BrandSwitcher.tsx': 4,
-  'components/BrandWizard.tsx': 13,
-  'components/CommandPalette.tsx': 2,
-  'components/CopierTexte.tsx': 2,
-  'components/CreditsMenu.tsx': 2,
-  'components/DiagnosticDeploiement.tsx': 8,
-  'components/DraftCard.tsx': 2,
-  'components/Empty.tsx': 3,
-  'components/HomeBandeau.tsx': 4,
-  'components/HomeMarques.tsx': 3,
-  'components/InspoButtons.tsx': 2,
-  'components/JourneyPanel.tsx': 6,
-  'components/LegalDoc.tsx': 1,
+  'components/HomeMarques.tsx': 2,
   'components/LogoMarque.tsx': 4,
-  'components/MarquesSuivies.tsx': 2,
-  'components/Modal.tsx': 2,
-  'components/NotificationBell.tsx': 4,
-  'components/PageInfo.tsx': 1,
-  'components/ProfileModal.tsx': 2,
-  'components/QuickSettingsModal.tsx': 1,
-  'components/RenameMarque.tsx': 1,
-  'components/SavedBoards.tsx': 2,
-  'components/SavedTabs.tsx': 1,
-  'components/ScenarioCard.tsx': 2,
-  'components/StorageConfigurator.tsx': 14,
-  'components/SupportWidget.tsx': 10,
-  'components/Toast.tsx': 6,
-  'components/TrackerFeed.tsx': 6,
   'components/accueil/VueAnalytics.tsx': 1,
-  'components/studios/PreparerCreation.tsx': 10,
-  'components/studios/editeur/SurfaceDocument.tsx': 5,
-  'components/studios/export/PanneauExport.tsx': 5,
-  'components/studios/produit/compression-photo.ts': 1,
-  'components/studios/projet/BarreProjet.tsx': 1,
-  'components/studios/projet/CarteProjet.tsx': 3,
-  'components/studios/projet/ExporterBrief.tsx': 2,
-  'components/studios/projet/NouveauProjet.tsx': 1,
-  'components/studios/projet/PreparationProjet.tsx': 1,
-  'components/studios/projet/VueProjet.tsx': 9,
-  'components/ui.tsx': 7,
-  'lib/analysis.ts': 6,
-  'lib/studios/rendu/masque-pixels.ts': 1,
-  'lib/theme.ts': 5,
 };
 
-const PLAFOND_TOTAL = 965;
+const PLAFOND_TOTAL = 765;
 
 const RACINES = ['app', 'components', 'lib'];
 

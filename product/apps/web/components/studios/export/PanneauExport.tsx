@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, CONTRAT_FORMAT, tailleLisible, libelleConservation, type FormatExport, type ViolationExport } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, CONTRAT_FORMAT, tailleLisible, libelleConservation, type FormatExport, type ViolationExport, teinte } from '@tiktrends/core';
 import { exporterVersion } from '../../../app/actions/studios/export';
 import type { ExportRealise, VueExport } from '../../../lib/studios/export/export';
 import { btn, btnGhost, surface, tuile } from '../../ui';
@@ -52,7 +52,7 @@ function ListeViolations({ violations }: { violations: ViolationExport[] }) {
     <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
       {violations.map((v, i) => (
         <li key={`${i}-${v.cause}-${v.cible.calqueId ?? v.cible.type}`} data-cause={v.cause} data-cible={v.cible.calqueId ?? v.cible.type}
-          style={{ ...tuile, padding: '8px 12px', display: 'grid', gap: 2, background: 'rgba(255,92,138,.08)', minWidth: 0 }}>
+          style={{ ...tuile, padding: '8px 12px', display: 'grid', gap: 2, background: teinte('accent-strong', .08), minWidth: 0 }}>
           <span style={{ fontSize: 13, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{v.message}</span>
           {(v.cible.assetId || v.cible.famille) && (
             <span style={{ fontSize: 11.5, color: 'var(--muted)', overflowWrap: 'anywhere' }}>
@@ -99,12 +99,12 @@ export function PanneauExport({ vue }: { vue: VueExport }) {
             <p style={discret}>Version {vue.version.n} · document {vue.document.largeur} × {vue.document.hauteur} · {vue.document.calques} calque{vue.document.calques > 1 ? 's' : ''}</p>
           )}
           {vue.preflight.ok ? (
-            <p role="status" style={{ ...discret, ...tuile, padding: '8px 12px', color: 'var(--ink)', background: 'rgba(126,232,191,.10)' }}>
+            <p role="status" style={{ ...discret, ...tuile, padding: '8px 12px', color: 'var(--ink)', background: teinte('ok-text', .1) }}>
               Tout est prêt · {vue.preflight.medias} média{vue.preflight.medias > 1 ? 's' : ''} relu{vue.preflight.medias > 1 ? 's' : ''} et décodé{vue.preflight.medias > 1 ? 's' : ''}, {vue.preflight.polices} police{vue.preflight.polices > 1 ? 's' : ''} embarquée{vue.preflight.polices > 1 ? 's' : ''}.
             </p>
           ) : (
             <>
-              <p role="alert" style={{ ...discret, color: '#ff9db0' }}>
+              <p role="alert" style={{ ...discret, color: 'var(--err-text)' }}>
                 Export impossible pour l’instant · {vue.preflight.violations.length} point{vue.preflight.violations.length > 1 ? 's' : ''} à corriger. Aucun fichier ne sera produit tant qu’il en reste.
               </p>
               <ListeViolations violations={vue.preflight.violations} />
@@ -131,7 +131,7 @@ export function PanneauExport({ vue }: { vue: VueExport }) {
             Gratuit · calcul local, aucune génération. Le fichier est dérivé de la version {vue.version.n} : il ne la modifie pas, et le projet reste éditable. PNG sans perte, identique à l’aperçu ; JPEG aplati sur fond blanc.
           </p>
           {fait && (
-            <div role="status" data-export={fait.sha256} style={{ ...tuile, padding: '10px 12px', display: 'grid', gap: 4, background: 'rgba(126,232,191,.10)' }}>
+            <div role="status" data-export={fait.sha256} style={{ ...tuile, padding: '10px 12px', display: 'grid', gap: 4, background: teinte('ok-text', .1) }}>
               <span style={{ fontSize: 13, color: 'var(--ink)' }}>Fichier vérifié · {resume(fait)}</span>
               <span style={{ fontSize: 12, color: 'var(--ink-2)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>Empreinte {fait.empreinteCourte}</span>
               <a href={fait.url} download={fait.nomFichier} style={lien}>Télécharger {fait.nomFichier}</a>
@@ -140,7 +140,7 @@ export function PanneauExport({ vue }: { vue: VueExport }) {
           )}
           {erreur && (
             <div role="alert" style={{ display: 'grid', gap: 8 }}>
-              <p style={{ ...discret, color: '#ff9db0' }}>{erreur.message}</p>
+              <p style={{ ...discret, color: 'var(--err-text)' }}>{erreur.message}</p>
               {erreur.violations.length > 0 && <ListeViolations violations={erreur.violations} />}
               <p style={{ ...discret, fontSize: 12, color: 'var(--muted)' }}>Identifiant support : {erreur.traceId}</p>
             </div>
