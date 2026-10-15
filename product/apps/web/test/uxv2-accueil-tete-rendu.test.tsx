@@ -57,8 +57,10 @@ describe('Tête · reprendre le dernier projet', () => {
     expect(sans.querySelector('[data-apercu-reprise]')).toBeNull();
   });
 
-  it('« Nouveau projet » vers la préparation · absent si le rôle ne peut pas créer', () => {
-    expect(rendre(etat()).querySelector('a[data-nouveau-projet-accueil]')?.getAttribute('href')).toBe('/studio/projets/nouveau');
+  // UX V5 · « Nouveau projet » vit dans les tuiles d'action (même règle,
+  // `etat.nouveau`, garde de page `uxv5-accueil-db`) · la liste ne le double plus.
+  it('« Nouveau projet » n’est plus doublé dans « Reprendre » · jamais de bouton mort', () => {
+    expect(rendre(etat()).querySelector('a[href^="/studio/projets/nouveau"]'), '« Nouveau projet » doublé dans la liste (la tuile le porte)').toBeNull();
     expect(rendre(etat({ peutCreer: false })).querySelector('a[href^="/studio/projets/nouveau"]'), 'bouton mort pour un rôle en lecture').toBeNull();
   });
 

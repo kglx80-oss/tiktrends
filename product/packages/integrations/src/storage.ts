@@ -14,6 +14,7 @@
  * Prérequis côté bucket : lecture publique des objets + CORS autorisant PUT depuis l'app.
  */
 import { createHash, createHmac, randomUUID } from 'crypto';
+import { cleObjetDeLEspace } from '@tiktrends/core';
 
 export interface StorageConfig {
   endpoint: string;      // hôte sans schéma
@@ -189,12 +190,20 @@ export async function putObject(cfg: StorageConfig, key: string, bytes: Buffer, 
   return publicUrlFor(cfg, key);
 }
 
-/** Supprime physiquement un objet du bucket (best-effort). */
-export async function deleteObjectByUrl(cfg: StorageConfig, url: string): Promise<boolean> {
-  // Retrouve la clé depuis l'URL publique.
-  const base = cfg.publicBaseUrl || `https://${cfg.endpoint}/${cfg.bucket}`;
-  if (!url.startsWith(base)) return false;
-  const key = decodeURIComponent(url.slice(base.length).replace(/^\/+/, ''));
+/** Base publique de lecture des objets · celle que `publicUrlFor` préfixe. */
+export function basePubliqueStockage(cfg: StorageConfig): string {
+  return cfg.publicBaseUrl || `https://${cfg.endpoint}/${cfg.bucket}`;
+}
+
+/**
+ * Supprime physiquement un objet du bucket (best-effort), UNIQUEMENT s'il
+ * appartient à l'espace `workspaceId` (`assets/<espace>/…`, règle
+ * `cleObjetDeLEspace` du noyau). Avant, seul le préfixe du bucket était
+ * vérifié : un membre d'un espace pouvait faire supprimer l'objet d'un autre.
+ * Hors préfixe de l'espace ⇒ `false`, aucune requête envoyée.
+ */
+export async function deleteObjectByUrl(cfg: StorageConfig, url: string, workspaceId: string): Promise<boolean> {
+  const key = cleObjetDeLEspace(url, basePubliqueStockage(cfg), workspaceId);
   if (!key) return false;
   try {
     const r = await s3SignedFetch(cfg, 'DELETE', `/${cfg.bucket}/${encKey(key)}`, {}, Buffer.alloc(0));

@@ -141,7 +141,7 @@ export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
     <div data-vue="analytics">
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Analytics</h1>
-        <span style={{ fontSize: 12, color: metaInsights ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{metaInsights ? 'Meta Ads · live' : 'aperçu démo'}</span>
+        <span style={{ fontSize: 12, color: metaInsights ? 'var(--ok-text)' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{metaInsights ? 'Meta Ads · live' : 'aperçu démo'}</span>
         {/* Le sélecteur de vue (lot 19A) · même place que sur l'Accueil, dans la rangée du titre. */}
         {vues}
       </div>
@@ -159,7 +159,7 @@ export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
       {metaInsights ? (
         <MetaKeyMetrics insights={metaInsights} syncedAt={syncedAt} />
       ) : encart && (
-        <div style={{ ...cadreSignal('var(--accent-strong)'), background: 'linear-gradient(180deg, rgba(254,44,85,.07), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ ...cadreSignal('var(--accent-strong)'), background: 'linear-gradient(180deg, var(--accent-10), var(--surface))', padding: '18px 20px', marginBottom: 26, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
           <LogoMarque marque="meta" taille="md" decoratif />
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}>{encart.titre}</div>
@@ -176,7 +176,7 @@ export async function VueAnalytics({ vues }: { vues?: ReactNode } = {}) {
       {!metaInsights && (<>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Aperçu créas</h2>
-        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: '#f5b043', background: 'rgba(245,166,35,.14)', border: '1px solid rgba(245,166,35,.3)', borderRadius: 999, padding: '2px 8px' }}>DÉMO</span>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', color: 'var(--warn)', background: 'color-mix(in srgb, var(--warn) 14%, transparent)', border: '1px solid color-mix(in srgb, var(--warn) 30%, transparent)', borderRadius: 999, padding: '2px 8px' }}>DÉMO</span>
         <span style={{ fontSize: 11, color: 'var(--muted)' }}>· {phrases.noteDemo}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 26 }}>

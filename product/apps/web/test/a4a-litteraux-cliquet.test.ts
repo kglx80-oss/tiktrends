@@ -27,14 +27,16 @@ import { join, relative } from 'node:path';
  * 1141 ; ce lot retire celui du layout racine (`themeColor`) · plafond 1140,
  * 132 fichiers en portent sur 531 (399 déjà propres).
  *
- * V5 · T1 (composants partagés) · `components/` (hors `accueil/`),
- * `components/studios/` et `lib/` passent de 211 à 11 · plafond 940.
- * `AssistantHome` (3) attend la branche Accueil qui le modifie ; les 8 autres
- * sont hors thème par nature · `BrandGuidelines` (valeur d'un
- * `<input type="color">`, une donnée de marque), `HomeMarques` (assise grise
- * FIXE derrière un logo, mesurée pour les logos noirs ET blancs) et
- * `LogoMarque` (bord et ombre calculés sur le fond du LOGO, pas du thème). Deux
- * fichiers d'export rejoignent `EXCLUS` (le blanc y est un pixel du média).
+ * V5 · T1 (composants partagés) · `components/` (hors `accueil/`, laissé à la
+ * branche Accueil, fusionnée depuis), `components/studios/` et `lib/` passent
+ * de 211 à 11. Après fusion de `origin/main` (Accueil #800, qui a ramené
+ * `components/accueil` à 1 et `brands` à 28), le total mesuré est 931 · c'est
+ * le nouveau plafond. Les 11 de `components/` sont hors thème par nature ·
+ * `AssistantHome` (3 · dégradé d'une tuile, laissé à la branche Accueil),
+ * `BrandGuidelines` (2 · valeur d'un `<input type="color">`, une donnée de
+ * marque), `HomeMarques` (2 · assise grise FIXE derrière un logo, mesurée pour
+ * les logos noirs ET blancs) et `LogoMarque` (4 · bord et ombre calculés sur le
+ * fond du LOGO). Deux fichiers d'export rejoignent `EXCLUS` (blanc = pixel du média).
  */
 const WEB = process.cwd();
 
@@ -58,7 +60,7 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app/(app)/analytics': 7,
   'app/(app)/assets': 20,
   'app/(app)/billing': 9,
-  'app/(app)/brands': 32,
+  'app/(app)/brands': 28,
   'app/(app)/connections': 54,
   'app/(app)/console': 24,
   'app/(app)/credits': 37,
@@ -78,7 +80,7 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app/onboarding': 11,
   'app/tarifs': 60,
   'components': 11,
-  'components/accueil': 6,
+  'components/accueil': 1,
 };
 
 /** Plafond par fichier · tout fichier absent de cette table est « déjà propre » (0). */
@@ -127,7 +129,6 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/brands/[id]/PaletteMarque.tsx': 5,
   'app/(app)/brands/[id]/ShopifyConnect.tsx': 4,
   'app/(app)/brands/[id]/competitors/[name]/page.tsx': 4,
-  'app/(app)/brands/[id]/page.tsx': 4,
   'app/(app)/brands/new/page.tsx': 5,
   'app/(app)/brands/page.tsx': 3,
   'app/(app)/connections/DataConnections.tsx': 7,
@@ -166,10 +167,10 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/BrandGuidelines.tsx': 2,
   'components/HomeMarques.tsx': 2,
   'components/LogoMarque.tsx': 4,
-  'components/accueil/VueAnalytics.tsx': 6,
+  'components/accueil/VueAnalytics.tsx': 1,
 };
 
-const PLAFOND_TOTAL = 940;
+const PLAFOND_TOTAL = 931;
 
 const RACINES = ['app', 'components', 'lib'];
 
