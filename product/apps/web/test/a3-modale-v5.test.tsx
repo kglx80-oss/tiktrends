@@ -194,7 +194,10 @@ describe('A3 · Modal V5 · structure et présentation', () => {
     expect(d.getAttribute('data-presentation')).toBe('centree');
     expect(voile.style.alignItems, 'la fenêtre n’est pas centrée verticalement').toBe('center');
     expect(voile.style.position).toBe('fixed');
-    expect(voile.style.background, 'pas de voile').toMatch(/rgba\(/);
+    // Un voile plein écran translucide · soit un rgba littéral, soit la teinte
+    // d'un jeton de voile (V5 · T1 · `teinte('voile-teinte', …)`). On vérifie la
+    // PRÉSENCE du voile, pas une couleur en dur.
+    expect(voile.style.background, 'pas de voile').toMatch(/rgba\(|color-mix\([^;]*var\(--voile/);
     expect(d.querySelector<HTMLElement>('[data-modale-corps]')!.style.padding).toBe('24px 28px 0px');
     expect(d.querySelector<HTMLElement>('[data-modale-pied]')!.style.padding).toBe('14px 28px 18px');
     expect(d.querySelector('[data-modale-poignee]'), 'une poignée de feuille sur une fenêtre centrée').toBeNull();
