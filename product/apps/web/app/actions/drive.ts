@@ -6,6 +6,7 @@ import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFrom
 import { DRIVE_SELECTEUR_INACTIF, texteMessageClient, entreeSynchroDrive, type DernierSyncDrive } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
+import { refusEcritureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
 import { getActiveBrand } from '../../lib/brands';
 import { decryptSecret } from '../../lib/secrets';
 import { logAndTranslate } from '../../lib/error-log';
@@ -14,6 +15,11 @@ import { logAndTranslate } from '../../lib/error-log';
 async function guard() {
   const s = await getSession();
   if (!s || !db) return { error: 'Session expirée.' as const };
+  // Brancher, choisir un dossier, synchroniser : ce sont des ÉCRITURES dans la
+  // Bibliothèque · la règle de la page (rôle ET offre) passe AVANT le contrôle
+  // admin. Avant, un admin d'un espace Starter synchronisait quand même.
+  const refus = refusEcritureBibliotheque(s);
+  if (refus) return { error: TEXTE_REFUS_BIBLIOTHEQUE[refus] };
   if (!roleAtLeast(s.role, 'admin')) return { error: 'Action réservée aux administrateurs.' as const };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active pour brancher son Drive.' as const };
@@ -126,22 +132,28 @@ export async function syncDriveFilesAction(files: PickedFile[]): Promise<{ ok?: 
       if (!fileId || existing.has(fileId)) { skipped++; continue; }
       // Type, taille et nom relus CHEZ DRIVE · `f.mimeType` (déclaré par le
       // client) est ignoré : un `text/html` annoncé ne décide plus de rien.
-      const meta = await driveFileMeta(token, fileId);
-      let retenu = entreeSynchroDrive(meta.mimeType);
-      if (!retenu) { skipped++; continue; }
-      let url = `https://drive.google.com/file/d/${fileId}/view`;
-      if (retenu.kind === 'image' && storage && (meta.size ?? 0) < 15_000_000) {
-        const bytes = await driveDownload(token, fileId);
-        // Le type posé sur l'objet et gardé en base est celui des OCTETS.
-        retenu = entreeSynchroDrive(meta.mimeType, bytes);
+      // Un fichier qui résiste (métadonnées, téléchargement, dépôt) est compté
+      // ignoré · il n'arrête plus le lot ni n'efface ce qui a déjà réussi.
+      try {
+        const meta = await driveFileMeta(token, fileId);
+        let retenu = entreeSynchroDrive(meta.mimeType);
         if (!retenu) { skipped++; continue; }
-        url = await putObject(storage, `assets/${ws}/drive-${fileId}.${retenu.extension}`, bytes, retenu.depot);
+        let url = `https://drive.google.com/file/d/${fileId}/view`;
+        if (retenu.kind === 'image' && storage && (meta.size ?? 0) < 15_000_000) {
+          const bytes = await driveDownload(token, fileId);
+          // Le type posé sur l'objet et gardé en base est celui des OCTETS.
+          retenu = entreeSynchroDrive(meta.mimeType, bytes);
+          if (!retenu) { skipped++; continue; }
+          url = await putObject(storage, `assets/${ws}/drive-${fileId}.${retenu.extension}`, bytes, retenu.depot);
+        }
+        // Vraie vignette (images ET vidéos) · le Picker ne la fournit pas, on la
+        // demande à Drive puis on la range chez nous. Remplace l'icône de repli.
+        const thumbUrl = await storeDriveThumb({ storage, token, fileId, workspaceId: ws }) ?? undefined;
+        await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, name: (meta.name || f.name || 'Fichier Drive').slice(0, 160), kind: retenu.kind, source: 'drive', url, thumbUrl, externalId: fileId, mimeType: retenu.type, sizeBytes: meta.size ?? null });
+        added++;
+      } catch {
+        skipped++;
       }
-      // Vraie vignette (images ET vidéos) · le Picker ne la fournit pas, on la
-      // demande à Drive puis on la range chez nous. Remplace l'icône de repli.
-      const thumbUrl = await storeDriveThumb({ storage, token, fileId, workspaceId: ws }) ?? undefined;
-      await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, name: (meta.name || f.name || 'Fichier Drive').slice(0, 160), kind: retenu.kind, source: 'drive', url, thumbUrl, externalId: fileId, mimeType: retenu.type, sizeBytes: meta.size ?? null });
-      added++;
     }
     await db!.update(schema.brands).set({ driveSyncedAt: new Date() }).where(eq(schema.brands.id, brandId));
     return { ok: true, added, skipped };

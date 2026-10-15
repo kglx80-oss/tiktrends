@@ -3,7 +3,8 @@ import { db, schema, eq, and } from '@tiktrends/db';
 import { googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { driveRefreshTokenFor } from '../../../../lib/drive-token';
-import { refusMedia, servirMedia, redirectionMedia } from '../../../../lib/media-reponse';
+import { refusMedia, servirMedia, servirAdresseDirecte } from '../../../../lib/media-reponse';
+import { refusLectureBibliotheque } from '../../../../lib/bibliotheque-acces';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const s = await getSession();
   if (!s || !db) return refusMedia(401);
+  // Règle de LECTURE de la Bibliothèque · refus neutre (404).
+  if (refusLectureBibliotheque(s)) return refusMedia(404);
   const { id } = await ctx.params;
 
   const [a] = await db.select({ ext: schema.assets.externalId, url: schema.assets.url, name: schema.assets.name, brandId: schema.assets.brandId })
@@ -33,7 +36,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   // Déjà hébergé ailleurs (bucket public) : simple redirection, http(s) seulement
   // (un `data:` URI n'est pas une adresse · il se sert par `/api/asset`).
-  if (a.url && !/drive\.google\.com|googleusercontent\.com/.test(a.url)) return redirectionMedia(a.url);
+  if (a.url && !/drive\.google\.com|googleusercontent\.com/.test(a.url)) return servirAdresseDirecte(req, a.url, { id, nom: a.name });
   if (!a.ext) return refusMedia(404);
 
   // Le jeton Drive est stocké sur la marque, pas sur l'espace.

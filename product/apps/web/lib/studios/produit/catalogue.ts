@@ -10,6 +10,7 @@ import {
   libelleMediaStudio, titreSource,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
+import { adresseAssetProxy } from '../../asset-url';
 import { lireProjet, lireVersion, type ProjetStudio, type VersionStudio } from '../depot';
 import { etatSources } from '../sources/sources';
 
@@ -132,7 +133,7 @@ export async function chargerCatalogueProjet(
   for (const b of biblio) {
     const e = hacherImage(b.url);
     const assetId = idBibliotheque(b.id);
-    fichiers.set(assetId, { assetId, assetVersion: versionDepuisEmpreinte(e.sha256), sha256: e.sha256, nature: e.nature, provenance: 'bibliotheque', libelle: b.name.slice(0, 120) || 'Image', productId: null, position: null, annonceur: null, apercu: true, url: `/api/asset/${b.id}` });
+    fichiers.set(assetId, { assetId, assetVersion: versionDepuisEmpreinte(e.sha256), sha256: e.sha256, nature: e.nature, provenance: 'bibliotheque', libelle: b.name.slice(0, 120) || 'Image', productId: null, position: null, annonceur: null, apercu: true, url: adresseAssetProxy(b.id) });
   }
 
   const S = schema.studioAssets;
