@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actionToucheRail, entreesProfil, ESPACE_HORS_POPUP, COQUILLE_V5,
   jaugeCredits, caseCreditsFormule,
+  indicesDefilementRail, masqueDefilementRail, defilementVersEntree, FONDU_RAIL, MENU_RECHARGE_LARGEUR_MIN,
   type EntreeCompteSource,
 } from '../src/index';
 
@@ -126,5 +127,53 @@ describe('V5 · la géométrie mesurée', () => {
     expect(COQUILLE_V5.avatar.enTete).toBe(44);
     expect(COQUILLE_V5.rail).toMatchObject({ rangeeMin: 46, rayon: 8, gapIcone: 12, gapEntrees: 5 });
     expect(COQUILLE_V5.credits).toMatchObject({ rayon: 12, icone: 28, plus: 24, barre: 4 });
+  });
+});
+
+describe('V5 · correctifs · le rail défile au-dessus du pied, avec un indice', () => {
+  // Mesures du banc · 512 px de contenu pour 361 visibles (1440 × 720, déplié).
+  const f = (scrollTop: number) => ({ scrollTop, scrollHeight: 512, clientHeight: 361 });
+  it('tout tient · aucun indice, aucun masque', () => {
+    expect(indicesDefilementRail({ scrollTop: 0, scrollHeight: 300, clientHeight: 300 })).toEqual({ haut: false, bas: false });
+    expect(indicesDefilementRail({ scrollTop: 0, scrollHeight: 300.6, clientHeight: 300 }), 'un demi-pixel n’est pas du contenu').toEqual({ haut: false, bas: false });
+    expect(masqueDefilementRail({ haut: false, bas: false })).toBeNull();
+  });
+  it('en haut de la liste · fondu de fin seulement ; au milieu · les deux ; en bas · fondu de tête seulement', () => {
+    expect(indicesDefilementRail(f(0))).toEqual({ haut: false, bas: true });
+    expect(indicesDefilementRail(f(80))).toEqual({ haut: true, bas: true });
+    expect(indicesDefilementRail(f(151))).toEqual({ haut: true, bas: false });
+    expect(masqueDefilementRail({ haut: false, bas: true })).toBe(`linear-gradient(to bottom, var(--rail) 0, var(--rail) calc(100% - ${FONDU_RAIL}px), transparent 100%)`);
+    expect(masqueDefilementRail({ haut: true, bas: false })).toBe(`linear-gradient(to bottom, transparent 0, var(--rail) ${FONDU_RAIL}px, var(--rail) 100%)`);
+  });
+  it('le masque n’écrit aucune couleur littérale (jeton ou transparent seulement)', () => {
+    const m = masqueDefilementRail({ haut: true, bas: true })!;
+    expect(m).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+  });
+  it('le fondu ne voile jamais plus de la moitié d’une rangée (44 au plus serré)', () => {
+    expect(FONDU_RAIL).toBeLessThanOrEqual(44 / 2);
+  });
+  it('l’entrée active hors de la vue (« Réglages » à 400 → 446 sur /settings) est ramenée au-dessus du fondu', () => {
+    const cible = defilementVersEntree(f(0), { haut: 400, bas: 446 });
+    expect(cible).toBe(446 - 361 + FONDU_RAIL);
+    // Après défilement, elle est entière et hors du fondu de fin.
+    expect(446).toBeLessThanOrEqual(cible! + 361 - FONDU_RAIL);
+  });
+  it('une entrée déjà visible ne fait rien bouger · une entrée au-dessus revient sous le fondu de tête', () => {
+    expect(defilementVersEntree(f(0), { haut: 0, bas: 46 })).toBeNull();
+    expect(defilementVersEntree(f(0), { haut: 100, bas: 146 })).toBeNull();
+    expect(defilementVersEntree(f(120), { haut: 60, bas: 106 })).toBe(60 - FONDU_RAIL);
+  });
+  it('le défilement est borné à la liste · la dernière entrée va au bas, sans dépasser', () => {
+    expect(defilementVersEntree(f(0), { haut: 466, bas: 512 })).toBe(512 - 361);
+    expect(defilementVersEntree(f(151), { haut: 466, bas: 512 }), 'déjà au bas').toBeNull();
+  });
+});
+
+describe('V5 · correctifs · le menu de recharge a la largeur de ses rangées', () => {
+  it('au moins la rangée la plus large mesurée (246,4) + padding 24 + bord 2', () => {
+    expect(MENU_RECHARGE_LARGEUR_MIN).toBeGreaterThanOrEqual(Math.ceil(246.4 + 24 + 2));
+  });
+  it('tient dans un écran de 390 · ancré à 12 px du bord, avec la gouttière de 16 de l’autre côté', () => {
+    expect(12 + MENU_RECHARGE_LARGEUR_MIN).toBeLessThanOrEqual(390 - 16);
   });
 });

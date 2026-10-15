@@ -38,7 +38,10 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 20 }} />
-          <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, width: collapsed ? 250 : '100%', zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: '0 16px 40px -12px rgba(0,0,0,.6)', overflow: 'hidden' }}>
+          {/* Correctifs V5 · le panneau prenait la largeur de la pastille (159) ·
+              prix rognés, « Acheter » hors du cadre. Largeur MESURÉE de ses
+              rangées (`menuLargeurMin`, noyau), ancré au bord gauche de la pastille. */}
+          <div data-zone="menu-recharge" style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, width: V.menuLargeurMin, minWidth: V.menuLargeurMin, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 14, boxShadow: '0 16px 40px -12px rgba(0,0,0,.6)', overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', fontWeight: 700 }}>Crédits restants</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
@@ -76,7 +79,7 @@ export function CreditsMenu({ balance, unlimited, planLabel, showUpgrade, collap
                       <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>+{p.credits.toLocaleString('fr-FR')}</span>
                       <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>crédits</span>
                       <span style={{ flex: 1 }} />
-                      <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>{p.eur} €</span>
+                      <span data-prix style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{p.eur} €</span>
                       <button type="submit" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, fontWeight: 800, padding: '5px 14px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', cursor: 'pointer', flexShrink: 0 }}>Acheter</button>
                     </form>
                   ))}
