@@ -1,10 +1,11 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { servirPlage } from '@tiktrends/core';
 import { googleAccessToken, driveDownload } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { driveRefreshTokenFor } from '../../../../lib/drive-token';
 import { assetServing } from '../../../../lib/asset-url';
+import { octetsDataUri } from '../../../../lib/import-image';
+import { refusMedia, servirMedia, redirectionMedia } from '../../../../lib/media-reponse';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -53,74 +54,77 @@ export const dynamic = 'force-dynamic';
  * par `servirPlage` (noyau) : `Accept-Ranges: bytes` partout, `206` +
  * `Content-Range` sur une plage valide, `416` sinon. Une adresse `direct` est
  * redirigée · c'est l'hébergeur qui sert les plages.
+ *
+ * ── Sécurité · type relu, en-têtes fermés ────────────────────────────────────
+ *
+ * Cette route sert sur l'ORIGINE de l'application. Elle servait le type stocké
+ * (`mime_type`, préfixe du `data:` URI, déclaration de Drive ou du navigateur),
+ * sans `nosniff` ni CSP : un SVG importé, ouvert par « ouvrir ↗ », exécutait
+ * son script avec la session de qui cliquait. Désormais (`decisionMediaServi`,
+ * noyau) le type se relit dans les OCTETS et appartient à une liste fermée de
+ * types non exécutables ; hors liste (SVG ancien compris) ⇒ TÉLÉCHARGEMENT seul,
+ * `application/octet-stream` en pièce jointe (aucun média ne disparaît) ; le
+ * 404 neutre reste pour l'asset inconnu ou d'un autre espace. Toute
+ * réponse, refus et redirection compris, porte `ENTETES_MEDIA_FERMES`
+ * (`nosniff`, CSP `default-src 'none'; sandbox`).
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const s = await getSession();
-  if (!s || !db) return new Response('unauthorized', { status: 401 });
+  if (!s || !db) return refusMedia(401);
   const { id } = await ctx.params;
 
   const [a] = await db.select({
-    url: schema.assets.url, mime: schema.assets.mimeType, kind: schema.assets.kind,
+    url: schema.assets.url, name: schema.assets.name, kind: schema.assets.kind,
     source: schema.assets.source, externalId: schema.assets.externalId, brandId: schema.assets.brandId,
   })
     .from(schema.assets)
     .where(and(eq(schema.assets.id, id), eq(schema.assets.workspaceId, s.workspaceId)))
     .limit(1);
-  if (!a) return new Response('not found', { status: 404 });
+  if (!a) return refusMedia(404);
 
   const mode = assetServing({
     id, kind: a.kind, source: a.source, url: a.url,
-    embedded: a.url.startsWith('data:'), externalId: a.externalId,
+    embedded: /^data:/i.test(a.url), externalId: a.externalId,
   });
 
   switch (mode) {
     case 'embedded': {
-      const virgule = a.url.indexOf(',');
-      if (virgule < 0) return new Response('unsupported', { status: 415 });
-      const entete = a.url.slice(5, virgule);
-      if (!entete.endsWith(';base64')) return new Response('unsupported', { status: 415 });
-
-      const octets = Buffer.from(a.url.slice(virgule + 1), 'base64');
-      return avecPlage(req, octets, {
-        'content-type': a.mime || entete.replace(';base64', '') || 'image/jpeg',
-        // Le contenu d'un asset ne change jamais · un téléversement crée une
-        // nouvelle ligne, il ne réécrit pas l'ancienne. Le navigateur peut
-        // donc la garder longtemps sans revenir demander si elle a bougé.
-        'cache-control': 'private, max-age=2592000, immutable',
-      });
+      // Le préfixe du `data:` URI et la colonne `mime_type` sont des
+      // DÉCLARATIONS · seuls les octets décident du type servi.
+      const octets = octetsDataUri(a.url);
+      if (!octets) return refusMedia(404);
+      // Le contenu d'un asset ne change jamais · un téléversement crée une
+      // nouvelle ligne, il ne réécrit pas l'ancienne. Le navigateur peut
+      // donc la garder longtemps sans revenir demander si elle a bougé.
+      return servirMedia(req, octets, { id, nom: a.name }, 'private, max-age=2592000, immutable');
     }
 
     case 'drive': {
       // Rediriger vers l'adresse Google renverrait une page de connexion · on
       // télécharge avec le jeton de l'espace et on sert les octets.
       const rt = await driveRefreshTokenFor(s.workspaceId, a.brandId);
-      if (!rt) return new Response('drive not connected', { status: 404 });
+      if (!rt) return refusMedia(404);
+      let bytes: Buffer;
       try {
         const token = await googleAccessToken(rt);
-        const bytes = await driveDownload(token, a.externalId!);
-        return avecPlage(req, bytes, { 'content-type': a.mime || 'image/jpeg', 'cache-control': 'private, max-age=3600' });
+        bytes = await driveDownload(token, a.externalId!);
       } catch {
-        return new Response('drive error', { status: 502 });
+        return refusMedia(502);
       }
+      return servirMedia(req, bytes, { id, nom: a.name }, 'private, max-age=3600');
     }
 
     case 'direct':
       // Déjà hébergée ailleurs · on redirige plutôt que de faire transiter les
       // octets par nous, ce qui n'ajouterait qu'un saut.
-      return Response.redirect(a.url, 302);
+      return redirectionMedia(a.url);
 
     default: {
       // Exhaustivité vérifiée à la compilation · un quatrième mode de service
       // casse le build ici tant que cette route ne le traite pas.
       const jamais: never = mode;
-      return new Response(`unsupported: ${String(jamais)}`, { status: 415 });
+      void jamais;
+      return refusMedia(404);
     }
   }
-}
-
-/** Octets servis par nous · plage décidée par le noyau, en-têtes de la route gardés (416 : sans type ni cache longue durée). */
-function avecPlage(req: Request, octets: Uint8Array, entetes: Record<string, string>): Response {
-  const p = servirPlage(octets, { range: req.headers.get('range'), ifRange: req.headers.get('if-range') });
-  if (p.statut === 416) return new Response(null, { status: 416, headers: { 'cache-control': 'no-store', ...p.entetes } });
-  return new Response(p.corps ? new Uint8Array(p.corps) : null, { status: p.statut, headers: { ...entetes, ...p.entetes } });
 }

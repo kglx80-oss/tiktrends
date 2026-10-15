@@ -5,7 +5,7 @@ import { getSession } from '../../../lib/auth';
 import { getActiveBrand, listBrands } from '../../../lib/brands';
 import { roleAtLeast, ouverturesParRole, sectionsCompteOuvertes } from '../../../lib/rbac';
 import { effectiveAccess } from '../../../lib/access';
-import { bandeauAccueil, bandeauEnDoublon, cheminOuvert, destinationsTete, liensPilotage, rangeeStudiosAccueil, resoudreAccueil, refusAssistant, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
+import { bandeauAccueil, bandeauEnDoublon, cheminOuvert, destinationsTete, liensPilotage, rangeeStudiosAccueil, resoudreAccueil, refusAssistant, surtitreAccueil, type RegleChemin, type ParamsRequete } from '@tiktrends/core';
 import { anthropicConfigured } from '../../../lib/ai-status';
 import { unlimitedCredits } from '../../../lib/credits';
 import { AssistantHome } from '../../../components/AssistantHome';
@@ -20,6 +20,10 @@ import { VueAnalytics } from '../../../components/accueil/VueAnalytics';
 import { TeteProjets } from '../../../components/accueil/TeteProjets';
 import { PilotageActivite } from '../../../components/accueil/PilotageActivite';
 import { chargerTeteAccueilProjets, type TeteAccueilProjets } from '../../../lib/accueil-projets';
+import { chargerAccueilV5 } from '../../../lib/accueil-v5';
+import { EnTeteAccueil } from '../../../components/accueil/EnTeteAccueil';
+import { ProchainesIterations } from '../../../components/accueil/ProchainesIterations';
+import { TuilesAccueil, KpiAccueilBande } from '../../../components/accueil/TuilesAccueil';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +84,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   // l'activité. Quel état, quel projet, quels liens · règles du noyau
   // (`resoudreAccueilProjets`, `liensPilotage`). Un rôle sans Studios ne lit
   // rien et garde l'Accueil d'avant.
-  const tete: TeteAccueilProjets = s ? await chargerTeteAccueilProjets(s, ouvert) : { etat: { etat: 'ferme' }, apercu: null };
+  const tete: TeteAccueilProjets = s ? await chargerTeteAccueilProjets(s, ouvert) : { etat: { etat: 'ferme' }, apercu: null, nbProjets: null };
+
+  // UX V5 · l'Accueil sur les VRAIES données · en-tête (date du serveur ·
+  // marque · « N choses t'attendent »), prochaines itérations (gagnantes
+  // PROUVÉES), tuiles d'action et KPI · chaque source lue sous son droit, une
+  // source fermée ou en panne se tait (règles du noyau, `accueil-v5`).
+  // « Nouveau projet » et « Itérer » suivent la règle de la tête (`etat.nouveau`).
+  const nouveauProjet = tete.etat.etat === 'liste' || tete.etat.etat === 'premier-usage' ? tete.etat.nouveau?.href ?? null : null;
+  const v5 = s ? await chargerAccueilV5(s, { marque: brand, nouveauProjet, nbProjets: tete.nbProjets }) : null;
   // « Activité et coûts » (/usage) est une page du menu de COMPTE · proposée
   // seulement si ce menu l'ouvre (même règle que le menu, lot 12).
   const pagesCompte = new Set(s ? sectionsCompteOuvertes(effectiveAccess(s)).flatMap((g) => g.items.map((i) => i.href)) : []);
@@ -108,7 +120,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         marques={<HomeMarques key="marques" marques={marques} activeId={brand?.id ?? null} gererMarques={ouvert('/brands/new')} />}
         prochaineEtape={<ProchaineEtape key="prochaine-etape" parcours={parcours} regles={regles} />}
         exemple={<ApercuExemple key="apercu-exemple" rows={rows} brancher={ouvert('/connections')} />}
-        vues={<OngletsAccueil key="vues" onglets={onglets} />}
+        entete={<EnTeteAccueil key="entete" surtitre={surtitreAccueil({ maintenant: new Date(), marque: brand?.name ?? null })} prenom={firstName} attente={v5?.attente ?? null} vues={<OngletsAccueil onglets={onglets} />} />}
+        v5={v5 && (
+          <div key="v5">
+            <ProchainesIterations etat={v5.iterations} />
+            <TuilesAccueil tuiles={v5.tuiles} />
+            <KpiAccueilBande kpi={v5.kpi} />
+          </div>
+        )}
       />
     </main>
   );

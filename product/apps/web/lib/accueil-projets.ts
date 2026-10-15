@@ -28,11 +28,17 @@ export interface TeteAccueilProjets {
   etat: EtatAccueilProjets<CarteProjet>;
   /** Adresse gardée de l'aperçu du projet repris · `null` sans sortie livrée. */
   apercu: string | null;
+  /**
+   * UX V5 · combien de projets actifs la lecture a rendus (portée comprise) ·
+   * `null` quand rien n'a été lu (rôle fermé, capacité coupée, panne).
+   * Bornée à `LIMITE_CARTES_DEFAUT` · le KPI dit « 60+ » au plafond.
+   */
+  nbProjets: number | null;
 }
 
 export async function chargerTeteAccueilProjets(s: Session, ouvert: (href: string) => boolean): Promise<TeteAccueilProjets> {
   // Le rôle n'ouvre pas les Studios · on ne lit rien.
-  if (!doitLireProjetsAccueil(ouvert)) return { etat: { etat: 'ferme' }, apercu: null };
+  if (!doitLireProjetsAccueil(ouvert)) return { etat: { etat: 'ferme' }, apercu: null, nbProjets: null };
 
   let lecture: LectureProjetsAccueil<CarteProjet>;
   try {
@@ -57,7 +63,7 @@ export async function chargerTeteAccueilProjets(s: Session, ouvert: (href: strin
       apercu = null; // un aperçu manquant ne casse jamais l'Accueil
     }
   }
-  return { etat, apercu };
+  return { etat, apercu, nbProjets: lecture.ok ? lecture.cartes.length : null };
 }
 
 /** L'aperçu d'un projet · ses sorties, relues dans la portée de la route qui les sert. */

@@ -134,7 +134,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['tagAssetAction', () => tagAssetAction({ id: A.image })],
   ['tagUntaggedImagesAction', () => tagUntaggedImagesAction()],
   ['presignAssetUploadAction', () => presignAssetUploadAction({ filename: 'a.png', contentType: 'image/png', sizeBytes: 10 })],
-  ['registerUploadedAssetAction', () => registerUploadedAssetAction({ name: 'f', url: 'https://stockage.invalid/f.png', mimeType: 'image/png', sizeBytes: 10 })],
+  ['registerUploadedAssetAction', () => registerUploadedAssetAction({ name: 'f', url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`, mimeType: 'image/png', sizeBytes: 10 })],
   ['deleteAssetAction', () => deleteAssetAction({ id: A.video })],
 ];
 
@@ -250,9 +250,9 @@ describe('Bibliothèque · member en Core · chaque geste marche comme avant', (
     expect(r.error).toBeUndefined();
     expect(r.uploadUrl).toMatch(/^https:\/\/stockage\.invalid\/put\//);
   });
-  it('registerUploadedAssetAction · une ligne en plus', async () => {
-    expect(await registerUploadedAssetAction({ name: 'f', url: 'https://stockage.invalid/f.png', mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
-    expect((await ws()).some((a) => a.url === 'https://stockage.invalid/f.png')).toBe(true);
+  it('registerUploadedAssetAction · une ligne en plus (objet rangé chez l’espace, règle A2 de #798)', async () => {
+    expect(await registerUploadedAssetAction({ name: 'f', url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
+    expect((await ws()).some((a) => a.url === `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`)).toBe(true);
   });
   it('basculerTemplateAction · member refusé (admin seulement), admin Core range le template', async () => {
     expect(await basculerTemplateAction({ id: A.image, on: true })).toEqual({ error: 'Seule l’agence (admin) gère les templates.' });
