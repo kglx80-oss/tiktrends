@@ -311,6 +311,9 @@ export interface CarteProjet {
   updatedAt: string;
 }
 
+/** Combien de cartes une lecture renvoie par défaut · l'Accueil s'en sert pour dire « 60+ » plutôt qu'un faux total. */
+export const LIMITE_CARTES_DEFAUT = 60;
+
 /** Cartes de reprise · lecture pure, trois requêtes quel que soit le nombre de projets. */
 export async function listerCartesPour(
   ctx: ContexteStudio,
@@ -323,7 +326,7 @@ export async function listerCartesPour(
     if (!ctx.marques.includes(o.brandId)) return [];
     conds.push(eq(P.brandId, o.brandId));
   }
-  const projets = (await db.select().from(P).where(and(...conds)).orderBy(desc(P.updatedAt)).limit(Math.min(Math.max(1, o.limite ?? 60), 200)))
+  const projets = (await db.select().from(P).where(and(...conds)).orderBy(desc(P.updatedAt)).limit(Math.min(Math.max(1, o.limite ?? LIMITE_CARTES_DEFAUT), 200)))
     .filter((p) => dansPortee(ctx, p));
   if (projets.length === 0) return [];
   const courantes = projets.map((p) => p.currentVersionId).filter(estUuid);

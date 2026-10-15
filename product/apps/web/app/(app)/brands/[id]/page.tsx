@@ -26,7 +26,7 @@ import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
 import { CarteConcurrent } from '../../../../components/CarteConcurrent';
-import { messageServiceInactif, lienNouveauProjet, CIBLE_TACTILE_MIN, costFor, imageModelByKey, connecteursBranches, accesAssets, type DaVisuelleMarque } from '@tiktrends/core';
+import { messageServiceInactif, lienNouveauProjet, CIBLE_TACTILE_MIN, costFor, imageModelByKey, connecteursBranches, accesAssets, completudeFicheMarque, type DaVisuelleMarque } from '@tiktrends/core';
 import { getActiveBrand } from '../../../../lib/brands';
 import { falConfigured } from '@tiktrends/integrations';
 
@@ -45,7 +45,7 @@ const area = { ...input, minHeight: 74, resize: 'vertical' as const, lineHeight:
 const card = { ...surface, background: 'var(--surface)', padding: 14, marginBottom: 12 } as const;
 const sectionH = { margin: '0 0 4px', fontSize: 19, fontWeight: 500, color: 'var(--ink)' } as const;
 const j = (a?: string[] | null) => (a ?? []).join(', ');
-const delBtn = { padding: '7px 11px', borderRadius: 999, border: '1px solid rgba(255,77,109,.3)', background: 'transparent', color: '#ff9db0', fontWeight: 600, fontSize: 12, cursor: 'pointer' } as const;
+const delBtn = { padding: '7px 11px', borderRadius: 999, border: '1px solid color-mix(in srgb, var(--err) 30%, transparent)', background: 'transparent', color: 'var(--err-text)', fontWeight: 600, fontSize: 12, cursor: 'pointer' } as const;
 const addBtn = { padding: '9px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' } as const;
 
 export default async function BrandDetailPage({ params, searchParams }: {
@@ -123,12 +123,12 @@ export default async function BrandDetailPage({ params, searchParams }: {
       {/* ---------------- APERÇU ---------------- */}
       {tab === 'overview' && (() => {
         // Score de complétude du profil (comme le « brand context » d'Atria).
-        const checks = [
-          !!b.description, !!b.usp, !!b.audience, !!b.category, !!b.categoryNeeds,
-          !!b.tone, (b.industryTags ?? []).length > 0, (b.colors ?? []).length > 0,
-          scenarios.length > 0, personas.length > 0, products.length > 0, competitors.length > 0,
-        ];
-        const score = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+        // Règle au noyau (`completudeFicheMarque`) · la même que la tuile « Fiche marque » de l'Accueil.
+        const { score } = completudeFicheMarque({
+          description: b.description, usp: b.usp, audience: b.audience, category: b.category, categoryNeeds: b.categoryNeeds,
+          tone: b.tone, industryTags: (b.industryTags ?? []).length, colors: (b.colors ?? []).length,
+          scenarios: scenarios.length, personas: personas.length, produits: products.length, concurrents: competitors.length,
+        });
         // Parcours de démarrage guidé · 7 étapes à respecter dans l'ordre.
         const steps: OnboardStep[] = [
           // Le profil et la charte vivent sur l'onglet Aperçu · l'étape ANCRE la
@@ -182,7 +182,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>Connecté</span>
               {connectes.map((t) => (
-                <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px 6px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,.12)', background: 'var(--surface)' }}>
+                <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 12px 6px 6px', borderRadius: 999, border: '1px solid var(--line)', background: 'var(--surface)' }}>
                   <LogoMarque marque={t.key} taille="xs" decoratif />
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{t.label}</span>
                 </span>
@@ -200,7 +200,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           </div>
 
           {/* Générer tout le profil depuis le site (profil + audience + concurrents) */}
-          <form action={generateFullBrandAction} style={{ ...surface, background: 'linear-gradient(180deg, rgba(254,44,85,.08), var(--surface))', padding: '16px 18px', margin: '4px 0 22px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <form action={generateFullBrandAction} style={{ ...surface, background: 'linear-gradient(180deg, var(--accent-10), var(--surface))', padding: '16px 18px', margin: '4px 0 22px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <input type="hidden" name="brandId" value={b.id} />
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 14.5, fontWeight: 800, color: 'var(--ink)' }}><Icon name="sparkles" size={15} /> Générer tout le profil depuis le site</div>

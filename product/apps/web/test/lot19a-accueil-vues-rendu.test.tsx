@@ -83,17 +83,23 @@ describe('Accueil · le sélecteur de vue suit le rôle', () => {
     // Axe du titre · le sélecteur vit DANS la rangée du titre, après lui, jamais
     // au-dessus · rien ne s'intercale avant le titre de l'Accueil (y 99 mesuré
     // avant le lot 19A, revérifié au navigateur).
-    const iTitre = h.indexOf('<h1'), iNav = h.indexOf('<nav aria-label="Vues de l’accueil"'), iSous = h.indexOf('Marque active');
+    // UX V5 · la rangée du titre est l'en-tête `data-accueil-entete` · le
+    // sélecteur y vit, après le titre, avant la fin de l'en-tête.
+    const iTitre = h.indexOf('<h1'), iNav = h.indexOf('<nav aria-label="Vues de l’accueil"');
+    const iEntete = h.indexOf('data-accueil-entete'), iFinEntete = h.indexOf('</header>', iEntete);
     expect(iTitre, 'titre de l’Accueil introuvable').toBeGreaterThan(-1);
+    expect(iEntete, 'l’en-tête V5 de l’Accueil est absent').toBeGreaterThan(-1);
     expect(iNav, 'le sélecteur passe AU-DESSUS du titre · le titre quitte son axe').toBeGreaterThan(iTitre);
-    expect(iNav, 'le sélecteur a quitté la rangée du titre').toBeLessThan(iSous);
+    expect(iNav, 'le sélecteur a quitté la rangée du titre').toBeLessThan(iFinEntete);
     // La carte « Analytics » de l'Accueil mène à la vue, en lien NATIF (même chemin).
     const versVue = [...h.matchAll(/<a [^>]*href="\/dashboard\?vue=analytics"[^>]*>/g)].map((m) => m[0]);
     expect(versVue.length, 'la carte Analytics ne mène pas à la vue').toBeGreaterThanOrEqual(2);
     expect(versVue.filter((a) => a.includes('data-lien-routeur')), 'un lien vers la vue passe par le routeur client').toEqual([]);
     expect(h, 'un lien de l’Accueil mène encore à /analytics par le routeur').not.toMatch(/<a data-lien-routeur="" href="\/analytics"/);
+    // UX V5 · seul le surtitre (date · marque) précède le titre, aucun contrôle ni bloc.
     const main = h.slice(h.indexOf('<main'), iTitre);
-    expect(main, 'un élément visible s’intercale avant le titre').not.toMatch(/<(nav|a|p|h2|section)\b/);
+    expect(main, 'un élément visible s’intercale avant le titre').not.toMatch(/<(nav|a|h2|section)\b/);
+    expect([...main.matchAll(/<p\b[^>]*>/g)].map((m) => m[0].includes('data-accueil-surtitre')), 'un paragraphe autre que le surtitre précède le titre').toEqual([true]);
     // Le reste de l'Accueil est inchangé · la salutation et le bandeau sont là.
     expect(h).toContain('Bonjour');
     expect(h, 'la vue Analytics fuit sur l’Accueil par défaut').not.toContain('data-vue="analytics"');

@@ -158,6 +158,7 @@ export * from './connaissances';
 export * from './formats-creatifs';
 export * from './accueil-vue';
 export * from './accueil-projets';
+export * from './accueil-v5';
 export * from './studios/erreurs';
 export * from './studios/permissions';
 export * from './studios/portee';
