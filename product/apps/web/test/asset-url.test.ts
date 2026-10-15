@@ -13,13 +13,13 @@ describe('aucun contenu d’image ne part dans la page', () => {
    * lourd que tout le reste de l'application.
    */
   it('une image embarquée passe par le proxy', () => {
-    expect(servedAssetUrl(asset({ embedded: true, url: '' }))).toBe('/api/asset/a1');
+    expect(servedAssetUrl(asset({ embedded: true, url: '' }))).toBe('/api/asset/a1?v=2');
   });
 
   it('même si la colonne contenait encore le base64, rien ne fuit', () => {
     const u = servedAssetUrl(asset({ embedded: true, url: 'data:image/jpeg;base64,AAAA' }));
     expect(u).not.toContain('base64');
-    expect(u).toBe('/api/asset/a1');
+    expect(u).toBe('/api/asset/a1?v=2');
   });
 
   it('une adresse publique reste telle quelle · un saut de plus ne servirait à rien', () => {

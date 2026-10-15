@@ -5,7 +5,8 @@ import { getSession } from '../../../../lib/auth';
 import { driveRefreshTokenFor } from '../../../../lib/drive-token';
 import { assetServing } from '../../../../lib/asset-url';
 import { octetsDataUri } from '../../../../lib/import-image';
-import { refusMedia, servirMedia, redirectionMedia } from '../../../../lib/media-reponse';
+import { refusMedia, servirMedia, servirAdresseDirecte } from '../../../../lib/media-reponse';
+import { refusLectureBibliotheque } from '../../../../lib/bibliotheque-acces';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const s = await getSession();
   if (!s || !db) return refusMedia(401);
+  // Règle de LECTURE de la Bibliothèque (rôle Membre, sans offre · un espace
+  // Starter garde ses médias). Refus neutre, identique à un asset inconnu.
+  if (refusLectureBibliotheque(s)) return refusMedia(404);
   const { id } = await ctx.params;
 
   const [a] = await db.select({
@@ -117,7 +121,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     case 'direct':
       // Déjà hébergée ailleurs · on redirige plutôt que de faire transiter les
       // octets par nous, ce qui n'ajouterait qu'un saut.
-      return redirectionMedia(a.url);
+      return servirAdresseDirecte(req, a.url, { id, nom: a.name });
 
     default: {
       // Exhaustivité vérifiée à la compilation · un quatrième mode de service

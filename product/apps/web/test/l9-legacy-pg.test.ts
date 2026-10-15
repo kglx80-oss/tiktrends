@@ -88,7 +88,7 @@ describe.skipIf(!LOCALE)('MIG-02 · historique ouvert sur la base migrée (Postg
     for (const x of a) {
       const m = x as unknown as { id: string; name: string; url: string };
       expect(m.name).toBe(enBase.get(m.id));
-      expect(m.url).toBe(`/api/asset/${m.id}`);
+      expect(m.url).toBe(`/api/asset/${m.id}?v=2`);
     }
   });
 

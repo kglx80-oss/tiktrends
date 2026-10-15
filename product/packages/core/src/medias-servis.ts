@@ -120,6 +120,26 @@ export function typeMediaReel(o: Uint8Array): TypeMediaServi | null {
   return null;
 }
 
+/** Caractères base64 qu'il faut lire pour couvrir `typeMediaReel` (256 octets). */
+export const DEBUT_BASE64_SIGNATURE = 344;
+
+/**
+ * Le type réel lu dans le DÉBUT base64 d'un `data:` URI (les
+ * `DEBUT_BASE64_SIGNATURE` premiers caractères suffisent) · même règle que
+ * `typeMediaReel`, sans charger le fichier entier. Sert à trier en masse
+ * (migration vers le bucket, décompte) ce que l'on servirait de toute façon.
+ */
+export function typeMediaDebutBase64(debut: string | null | undefined): TypeMediaServi | null {
+  const propre = (debut || '').replace(/[^A-Za-z0-9+/]/g, '');
+  const n = propre.length - (propre.length % 4);
+  if (n < 8) return null;
+  let binaire: string;
+  try { binaire = atob(propre.slice(0, n)); } catch { return null; }
+  const o = new Uint8Array(binaire.length);
+  for (let i = 0; i < binaire.length; i++) o[i] = binaire.charCodeAt(i);
+  return typeMediaReel(o);
+}
+
 /** Alias usuels d'un type DÉCLARÉ · jamais un type servi, seulement un filtre d'entrée. */
 const ALIAS_DECLARES: Readonly<Record<string, TypeMediaServi>> = {
   'image/jpg': 'image/jpeg', 'image/pjpeg': 'image/jpeg', 'image/heif': 'image/heic',
@@ -161,25 +181,29 @@ export function typeMediaRetenu(mimeDeclare: string | null | undefined, octets?:
 }
 
 /** Type déclaré qu'un navigateur peut exécuter comme document · jamais importé. */
-const DECLARE_EXECUTABLE = /svg|xml|html|script/;
+const DECLARE_EXECUTABLE = /svg|xml|html|script|flash/;
 
 /**
  * Synchro Drive · ce qu'on importe d'un fichier. D'abord la liste servie
- * (`typeMediaRetenu`). Sinon, un média RARE non exécutable (TIFF, Ogg, MKV…)
- * s'importe quand même, en téléchargement seul : `depot` vaut
+ * (`typeMediaRetenu`). Sinon, un fichier RARE non exécutable s'importe quand
+ * même, en téléchargement seul : média hors liste (TIFF, Ogg, MKV…) ou fichier
+ * non média (PDF, ZIP, texte…, `kind: 'other'`). `depot` vaut
  * `application/octet-stream` (l'objet du bucket ne s'interprète pas) et le
- * proxy le servira en pièce jointe, ses octets n'étant pas dans la liste. Un
- * type exécutable (SVG, HTML, XML), hors image/vidéo/audio, ou un type listé
- * dont les octets ne concordent pas (SVG déguisé en PNG) ⇒ `null`.
+ * proxy le servira en pièce jointe, ses octets n'étant pas dans la liste.
+ * `null` pour : un type exécutable (SVG, HTML, XML, JavaScript), un document
+ * Google natif (`application/vnd.google-apps.*`, non téléchargeable tel quel),
+ * un type mal formé, ou un type listé dont les octets ne concordent pas (SVG
+ * déguisé en PNG).
  */
-export function entreeSynchroDrive(mimeDeclare: string | null | undefined, octets?: Uint8Array): { type: string; kind: FamilleMedia; depot: string; extension: string } | null {
+export function entreeSynchroDrive(mimeDeclare: string | null | undefined, octets?: Uint8Array): { type: string; kind: FamilleMedia | 'other'; depot: string; extension: string } | null {
   const liste = typeMediaRetenu(mimeDeclare, octets);
   if (liste) return { type: liste.type, kind: liste.kind, depot: liste.type, extension: TYPES_MEDIA_SERVIS[liste.type].extension };
   const t = (mimeDeclare || '').split(';')[0]!.trim().toLowerCase();
   if (typeMediaDeclare(t)) return null;
-  const m = /^(image|video|audio)\/[a-z0-9.+-]{1,80}$/.exec(t);
-  if (!m || DECLARE_EXECUTABLE.test(t)) return null;
-  return { type: t, kind: m[1] as FamilleMedia, depot: 'application/octet-stream', extension: 'bin' };
+  const m = /^(image|video|audio|application|text|font|model)\/[a-z0-9.+-]{1,80}$/.exec(t);
+  if (!m || DECLARE_EXECUTABLE.test(t) || t.startsWith('application/vnd.google-apps.')) return null;
+  const famille = m[1] === 'image' || m[1] === 'video' || m[1] === 'audio' ? m[1] : 'other';
+  return { type: t, kind: famille, depot: 'application/octet-stream', extension: 'bin' };
 }
 
 /**
