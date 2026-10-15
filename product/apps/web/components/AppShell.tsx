@@ -17,7 +17,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString, actionToucheRail, entreesProfil, COQUILLE_V5, gouttiereCss } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString, actionToucheRail, entreesProfil, COQUILLE_V5, gouttiereCss, indicesDefilementRail, masqueDefilementRail, defilementVersEntree } from '@tiktrends/core';
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -382,6 +382,46 @@ function AppShellInner(props: Props) {
   // « Votre espace » · Marques et Réglages, seulement si la garde réelle des
   // pages les ouvre (`sectionsCompteOuvertes` · admin d'espace). Rien d'élargi.
   const espaceRail = workspaceItems.filter((it) => it.key === 'brands' || it.key === 'settings');
+  // Correctifs V5 · la liste du rail défile AU-DESSUS du pied (jamais dessous) ·
+  // un fondu de fin (ou de tête) dit qu'il reste du contenu, et l'entrée active
+  // est ramenée dans la vue au chargement. Règles au noyau (`indicesDefilementRail`,
+  // `masqueDefilementRail`, `defilementVersEntree`) · ici on mesure et on applique.
+  const listeRailRef = useRef<HTMLElement | null>(null);
+  const [indicesRail, setIndicesRail] = useState({ haut: false, bas: false });
+  const majIndicesRail = () => {
+    const n = listeRailRef.current;
+    if (!n) return;
+    const i = indicesDefilementRail(n);
+    setIndicesRail((avant) => (avant.haut === i.haut && avant.bas === i.bas ? avant : i));
+  };
+  useEffect(() => {
+    const n = listeRailRef.current;
+    if (!n) return;
+    majIndicesRail();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', majIndicesRail);
+      return () => window.removeEventListener('resize', majIndicesRail);
+    }
+    // La vue (hauteur de fenêtre) ET le contenu (sélecteur de marque, sections) bougent.
+    const obs = new ResizeObserver(() => majIndicesRail());
+    obs.observe(n);
+    for (const enfant of Array.from(n.children)) obs.observe(enfant);
+    return () => obs.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed, inAdmin, mobile, drawer]);
+  useEffect(() => {
+    const n = listeRailRef.current;
+    const actif = n?.querySelector<HTMLElement>('[aria-current]');
+    if (!n || !actif) return;
+    const rn = n.getBoundingClientRect();
+    const ra = actif.getBoundingClientRect();
+    const haut = ra.top - rn.top + n.scrollTop;
+    const cible = defilementVersEntree(n, { haut, bas: haut + ra.height });
+    if (cible !== null) n.scrollTop = cible;
+    majIndicesRail();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, searchStr, currentHash, collapsed, mobile, drawer]);
+  const masqueRail = masqueDefilementRail(indicesRail);
   // Alt B et « [ » (V5) · réduit / développe le rail (desktop), jamais pendant
   // une saisie · règle au noyau (`actionToucheRail`).
   useEffect(() => {
@@ -462,7 +502,9 @@ function AppShellInner(props: Props) {
         {...(chrome.railTiroir ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': 'Navigation' } : {})}
         style={{
         background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column',
-        padding: collapsed ? '16px 10px' : '8px 12px', top: 0, height: '100vh',
+        // `maxHeight` 100dvh · sur téléphone, la barre du navigateur mange le bas
+        // de 100vh · le pied resterait sous elle (ignoré là où dvh n'existe pas).
+        padding: collapsed ? '16px 10px' : '8px 12px', top: 0, height: '100vh', maxHeight: '100dvh',
         // Desktop : rail collé, inchangé. Mobile : tiroir hors-flux, glissé hors
         // écran quand fermé, au-dessus du contenu quand ouvert.
         ...(chrome.railTiroir
@@ -519,7 +561,12 @@ function AppShellInner(props: Props) {
         {/* V5 · la liste s'étend jusqu'aux bords du rail (marge négative = la
             gouttière, rendue en padding) · la barre active de 3 px, collée au
             bord, n'est pas rognée par `overflowX: hidden`. */}
-        <nav aria-label="Navigation principale" style={{ marginTop: 8, marginInline: collapsed ? -10 : -12, paddingInline: collapsed ? 10 : 12, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
+        {/* Correctifs V5 · conteneur défilant DISTINCT du pied, qui le suit dans
+            le flux (jamais posé par-dessus) · fondu de fin quand il reste du
+            contenu (`mask-image`, ne lit que l'opacité · jeton, pas de couleur).
+            `scrollPaddingBlock` · le Tab et le défilement vers une entrée
+            l'arrêtent hors du fondu. */}
+        <nav ref={listeRailRef} aria-label="Navigation principale" data-zone="liste-rail" onScroll={majIndicesRail} data-reste-haut={indicesRail.haut || undefined} data-reste-bas={indicesRail.bas || undefined} style={{ marginTop: 8, marginInline: collapsed ? -10 : -12, paddingInline: collapsed ? 10 : 12, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0, scrollPaddingBlock: COQUILLE_V5.rail.fondu, ...(masqueRail ? { maskImage: masqueRail, WebkitMaskImage: masqueRail } : null) }}>
           {inAdmin ? (
             <>
               {/* Retour à la vue SaaS (app) */}
@@ -646,8 +693,12 @@ function AppShellInner(props: Props) {
 
         {/* V5 (R18 · R19 · R30) · pied collant · la pastille de crédits (solde
             réel, barre solde / dotation, « + » qui ouvre le menu de recharge
-            existant) puis le bloc profil, qui ouvre la pop-up profil. */}
-        <div data-zone="pied-compte" style={{ display: 'grid', gap: 8, padding: '12px 0 16px', boxShadow: '0 -12px 16px -12px var(--rail)' }}>
+            existant) puis le bloc profil, qui ouvre la pop-up profil. Dans le
+            flux, SOUS la liste · il ne rétrécit pas et ne déborde jamais sur
+            elle (l'ombre portée vers le haut, qui la recouvrait, est retirée ·
+            l'indice de défilement est le fondu de la liste, plus un filet au
+            seuil du pied tant qu'il reste du contenu dessous). */}
+        <div data-zone="pied-compte" style={{ display: 'grid', gap: 8, padding: '12px 0 16px', flexShrink: 0, borderTop: `1px solid ${indicesRail.bas ? 'var(--line-2)' : 'transparent'}` }}>
           <CreditsMenu balance={creditBalance} unlimited={creditsUnlimited} planLabel={planLabel} showUpgrade={showUpgrade} collapsed={collapsed} allocation={creditAllocation} />
           <button type="button" data-zone="profil-rail" onClick={ouvrirPopupProfil} aria-haspopup="dialog" aria-expanded={popupProfil}
             aria-label={collapsed ? `${userName || userEmail} · Profil & réglages` : undefined} title={collapsed ? `${userName || userEmail} · Profil & réglages` : undefined}
