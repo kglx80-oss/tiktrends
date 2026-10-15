@@ -4,6 +4,19 @@
    packages/ui (ex: tokens.css) pour garantir la parité visuelle
    du vrai produit avec la maquette.
    Thème : sombre + accent magenta (façon TikTok), arrondis, grille.
+
+   V5 · A4a · socle des thèmes. Quatre palettes, une seule source :
+     · sombre (défaut)  · `:root` · valeurs de main, inchangées ;
+     · clair            · `:root[data-theme="clair"]` · valeurs V5
+                          `.theme-light`, MESURÉES (contraste AA) ;
+     · ADMIN+ sombre    · `[data-palette="admin"]` · bleu nuit / menthe ;
+     · ADMIN+ clair     · le même sous un `<html data-theme="clair">`.
+   Chaque palette redéclare TOUS les jetons de couleur · une variable
+   CSS se calcule là où elle est déclarée, une palette posée sur un
+   sous-arbre ne peut donc pas compter sur une chaîne `var()` héritée.
+   Gardes : `packages/core/test/a4a-themes.test.ts` (complétude des
+   quatre palettes, contraste de chaque paire déclarée dans
+   `packages/core/src/themes.ts`).
    ============================================================ */
 
 :root {
@@ -40,6 +53,23 @@
   --err:   #ff4d6d;
   --info:  #3b82f6;
 
+  /* V5 · rôles sémantiques ajoutés (A4a). Aucun n'est encore consommé ·
+     les lots de tokenisation remplaceront les littéraux par ces rôles. */
+  --surface-raised: #221621;  /* panneau posé sur une surface (menu, popover) */
+  --hover:          #2a1826;  /* fond d'une rangée ou d'un bouton survolé */
+  --selected:       #2a1320;  /* fond d'une entrée choisie */
+  --ok-text:        #7ee8bf;  /* texte de succès (aujourd'hui littéral) */
+  --err-text:       #ff9db0;  /* texte d'erreur (aujourd'hui littéral) */
+  --accent-10:      rgba(254,44,85,0.10); /* teinte d'accent · fond */
+  --accent-28:      rgba(254,44,85,0.28); /* teinte d'accent · bordure */
+  --line-strong:    #8a6a80;  /* bordure d'un contrôle · ≥ 3:1 sur les fonds */
+  --voile:          rgba(0,0,0,0.5);  /* fond de dialogue */
+  --voile-fort:     rgba(0,0,0,0.6);  /* fond de dialogue plein écran */
+  --voile-media:    rgba(0,0,0,0.55); /* voile sur une image · reste sombre */
+  --scroll-thumb:       rgba(255,255,255,0.16);
+  --scroll-thumb-hover: rgba(255,255,255,0.30);
+  --scroll-thumb-thin:  rgba(255,255,255,0.18); /* Firefox, barre fine */
+
   /* Rayons (esprit arrondi) */
   --r-sm:   8px;
   --r-md:   12px;   /* boutons, petites cartes */
@@ -56,11 +86,141 @@
   --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
 
-/* Fond principal UNI · #120810, sans quadrillage décoratif ni halo rose global
+/* ---------- Clair · espace créatif (V5 .theme-light, mesuré) ----------
+   Écarts aux valeurs V5, chacun mesuré (WCAG 2, AA 4,5:1) :
+     · --ok #1d7a52 → #1a6f4b · le vert V5 tombe à 4,41:1 sur --paper ;
+     · --muted, --err, --info, --line-strong · absents de la V5, choisis
+       dans la teinte voisine et mesurés sur chaque fond.
+   L'accent porte un texte BLANC (5,33:1 sur #c8295f). */
+:root[data-theme="clair"] {
+  color-scheme: light;
+  --bg:            #fbf5f6;
+  --surface:       #ffffff;
+  --rail:          #f4eaee;
+  --paper:         #f3e7ec;
+  --ink:           #2b1424;
+  --ink-2:         #6b5063;
+  --muted:         #735869;
+  --line:          rgba(43,20,36,0.10);
+  --line-2:        rgba(43,20,36,0.22);
+  --accent:        #c8295f;
+  --accent-strong: #b0204f;
+  --accent-soft:   #fde4ec;
+  --on-accent:     #ffffff;
+  --grad-accent:   linear-gradient(135deg, #c8295f 0%, #b8236e 100%);
+  --ok:    #1a6f4b;
+  --warn:  #8a5a00;
+  --err:   #b3261e;
+  --info:  #1d4ed8;
+  --surface-raised: #ffffff;
+  --hover:          #f3e7ec;
+  --selected:       #fde4ec;
+  --ok-text:        #1a6f4b;
+  --err-text:       #b3261e;
+  --accent-10:      rgba(200,41,95,0.10);
+  --accent-28:      rgba(200,41,95,0.28);
+  --line-strong:    #8c6c80;
+  --voile:          rgba(43,20,36,0.28);
+  --voile-fort:     rgba(43,20,36,0.40);
+  --voile-media:    rgba(0,0,0,0.55);
+  --scroll-thumb:       rgba(43,20,36,0.18);
+  --scroll-thumb-hover: rgba(43,20,36,0.32);
+  --scroll-thumb-thin:  rgba(43,20,36,0.22);
+  --sh-sm:   0 1px 2px rgba(43,20,36,0.08);
+  --sh-card: 0 2px 12px rgba(43,20,36,0.08);
+  --sh-lift: 0 14px 34px -10px rgba(43,20,36,0.20);
+}
+
+/* ---------- ADMIN+ · sombre (bleu nuit / menthe, DESIGN.md V4) ----------
+   À poser par la coquille sur la racine de l'espace ADMIN+ (`<main>` ou
+   `<html>`) · `data-palette="admin"`. Tous les rôles créatifs pointent sur la
+   palette ADMIN+. --err et --info s'éclaircissent (#ff7a90, #6aa6ff) · les
+   valeurs créatives tombent sous 4,5:1 sur les surfaces bleu nuit. */
+[data-palette="admin"] {
+  --bg:            #0b1922;
+  --surface:       #122731;
+  --rail:          #09151c;
+  --paper:         #16303b;
+  --ink:           #edf7f5;
+  --ink-2:         #b7cdd1;
+  --muted:         #9db6bb;
+  --line:          rgba(255,255,255,0.12);
+  --line-2:        rgba(255,255,255,0.20);
+  --accent:        #90e0c2;
+  --accent-strong: #90e0c2;
+  --accent-soft:   #1c3942;
+  --on-accent:     #0a2026;
+  --grad-accent:   linear-gradient(135deg, #90e0c2 0%, #b0efd6 100%);
+  --ok:    #18cc8c;
+  --warn:  #f5a623;
+  --err:   #ff7a90;
+  --info:  #6aa6ff;
+  --surface-raised: #16303b;
+  --hover:          #203e47;
+  --selected:       #1c3942;
+  --ok-text:        #7ee8bf;
+  --err-text:       #ff9db0;
+  --accent-10:      rgba(144,224,194,0.10);
+  --accent-28:      rgba(144,224,194,0.28);
+  --line-strong:    #6f9aa2;
+  --voile:          rgba(0,0,0,0.5);
+  --voile-fort:     rgba(0,0,0,0.6);
+  --voile-media:    rgba(0,0,0,0.55);
+  --scroll-thumb:       rgba(255,255,255,0.16);
+  --scroll-thumb-hover: rgba(255,255,255,0.30);
+  --scroll-thumb-thin:  rgba(255,255,255,0.18);
+  --sh-sm:   0 1px 2px rgba(0,0,0,0.45);
+  --sh-card: 0 2px 12px rgba(0,0,0,0.40);
+  --sh-lift: 0 14px 34px -10px rgba(0,0,0,0.60);
+}
+
+/* ---------- ADMIN+ · clair (V5 .adminspace.theme-light, mesuré) ----------
+   Écart V5 : --muted (absent) · #4b656f, ≥ 4,98:1 sur chaque fond. */
+:root[data-theme="clair"] [data-palette="admin"],
+:root[data-theme="clair"][data-palette="admin"] {
+  --bg:            #f1f7f6;
+  --surface:       #ffffff;
+  --rail:          #e6f0ee;
+  --paper:         #e2efeb;
+  --ink:           #0b2530;
+  --ink-2:         #46606a;
+  --muted:         #4b656f;
+  --line:          rgba(11,37,48,0.10);
+  --line-2:        rgba(11,37,48,0.22);
+  --accent:        #0e6f57;
+  --accent-strong: #0e6f57;
+  --accent-soft:   #d6ebe5;
+  --on-accent:     #ffffff;
+  --grad-accent:   linear-gradient(135deg, #0e6f57 0%, #0a5a46 100%);
+  --ok:    #1a6f4b;
+  --warn:  #8a5a00;
+  --err:   #b3261e;
+  --info:  #1d4ed8;
+  --surface-raised: #ffffff;
+  --hover:          #e2efeb;
+  --selected:       #d6ebe5;
+  --ok-text:        #1a6f4b;
+  --err-text:       #b3261e;
+  --accent-10:      rgba(14,111,87,0.10);
+  --accent-28:      rgba(14,111,87,0.28);
+  --line-strong:    #6a858d;
+  --voile:          rgba(11,37,48,0.28);
+  --voile-fort:     rgba(11,37,48,0.40);
+  --voile-media:    rgba(0,0,0,0.55);
+  --scroll-thumb:       rgba(11,37,48,0.18);
+  --scroll-thumb-hover: rgba(11,37,48,0.32);
+  --scroll-thumb-thin:  rgba(11,37,48,0.22);
+  --sh-sm:   0 1px 2px rgba(11,37,48,0.08);
+  --sh-card: 0 2px 12px rgba(11,37,48,0.08);
+  --sh-lift: 0 14px 34px -10px rgba(11,37,48,0.20);
+}
+
+/* Fond principal UNI, sans quadrillage décoratif ni halo rose global
    (charte validée). L'ancien fond signature (halos magenta + grille 36px)
-   chargeait l'écran ; on garde une seule couleur calme, base de toute vue. */
+   chargeait l'écran ; on garde une seule couleur calme, base de toute vue.
+   Il suit le thème · #120810 en sombre (inchangé), #fbf5f6 en clair. */
 body {
-  background-color: #120810;
+  background-color: var(--bg);
   color: var(--ink);
 }
 
