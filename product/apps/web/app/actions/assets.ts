@@ -15,8 +15,41 @@ import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl } from '../../lib/asset-url';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage } from '../../lib/import-image';
+import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
 
 const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
+
+type SessionBibliotheque = NonNullable<Awaited<ReturnType<typeof getSession>>>;
+
+/**
+ * La feature `assets` du catalogue (`lib/rbac.ts` · rôle ET offre), appliquée à
+ * chaque action qui ÉCRIT, réserve un crédit ou appelle l'IA · une action
+ * serveur reste appelable directement, l'écran caché ne protège rien. Passe
+ * AVANT toute lecture, écriture, réservation ou appel. Refus neutre · il ne
+ * dépend jamais de l'objet visé.
+ *
+ * Tout nouvel export de ce fichier doit passer par une garde · le test
+ * `securite-bibliotheque-db` énumère les exports et refuse un oubli.
+ */
+async function gardeBibliotheque(): Promise<{ s: SessionBibliotheque } | { error: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: GUARD.session() };
+  const refus = refusEcritureBibliotheque(s);
+  if (refus) return { error: TEXTE_REFUS_BIBLIOTHEQUE[refus] };
+  return { s };
+}
+
+/**
+ * LECTURE seule · la règle d'avant (plancher de rôle, sans offre). Un espace
+ * sous Core garde la vue sur ses médias existants.
+ */
+async function gardeLectureBibliotheque(): Promise<{ s: SessionBibliotheque } | { error: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: GUARD.session() };
+  const refus = refusLectureBibliotheque(s);
+  if (refus) return { error: TEXTE_REFUS_BIBLIOTHEQUE[refus] };
+  return { s };
+}
 
 function kindFromMime(mime: string): AssetKind {
   if (/^image\//.test(mime)) return 'image';
@@ -72,8 +105,10 @@ function toItem(r: {
  * `brandOnly` force le strict-marque (exclut les communs).
  */
 export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean; limit?: number }): Promise<AssetItem[]> {
-  const s = await getSession();
-  if (!s || !db) return [];
+  const g = await gardeLectureBibliotheque();
+  if ('error' in g) return [];
+  const { s } = g;
+  if (!db) return [];
   const conds = [eq(schema.assets.workspaceId, s.workspaceId)];
   if (filter?.kind) conds.push(eq(schema.assets.kind, filter.kind));
   const brand = await getActiveBrand(s.workspaceId);
@@ -105,8 +140,10 @@ export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolea
 
 /** Téléverse des images (data URI) dans la bibliothèque. */
 export async function uploadImageAssetsAction(input: { items: Array<{ name: string; dataUri: string }>; common?: boolean }): Promise<{ ok?: true; count?: number; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
   const rows = [] as Array<typeof schema.assets.$inferInsert>;
   for (const it of input.items || []) {
@@ -131,8 +168,10 @@ function parseDriveUrl(url: string): { isDrive: boolean; isFolder: boolean; file
 }
 
 export async function importAssetAction(input: { name: string; url: string; kind: AssetKind; common?: boolean }): Promise<{ ok?: true; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   let url = (input.url || '').trim();
   if (!/^https?:\/\//i.test(url)) return { error: 'Entre une URL valide (https://…).' };
   const kind: AssetKind = (['image', 'video', 'audio', 'other'] as AssetKind[]).includes(input.kind) ? input.kind : 'other';
@@ -187,8 +226,10 @@ export async function importAssetAction(input: { name: string; url: string; kind
 
 /** Active/désactive l'usage d'un asset par l'IA. */
 export async function toggleAssetAiAction(input: { id: string; useForAi: boolean }): Promise<{ ok?: true; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   await db.update(schema.assets).set({ useForAi: input.useForAi }).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
   return { ok: true };
 }
@@ -200,8 +241,10 @@ export async function toggleAssetAiAction(input: { id: string; useForAi: boolean
  * AVANT toute écriture, en plus du cloisonnement d'espace.
  */
 export async function basculerTemplateAction(input: { id: string; on: boolean }): Promise<{ ok?: true; isTemplate?: boolean; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'admin')) return { error: 'Seule l’agence (admin) gère les templates.' };
   const [a] = await db.select({ tags: schema.assets.tags }).from(schema.assets)
     .where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
@@ -213,8 +256,10 @@ export async function basculerTemplateAction(input: { id: string; on: boolean })
 
 /** Tague une image par l'IA (vision) · débite 1 crédit (tag_image). Rend les tags. */
 export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true; tags?: string[]; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'assets' });
   if (!client) return { error: GUARD.aiOff() };
   const [a] = await db.select({ id: schema.assets.id, kind: schema.assets.kind, url: schema.assets.url, tags: schema.assets.tags })
@@ -250,8 +295,10 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
 
 /** Tague en lot les images non taguées (max 20 par appel), débit par image. */
 export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: number; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'assets' });
   if (!client) return { error: GUARD.aiOff() };
   const unlimited = unlimitedCredits(s.user.email);
@@ -292,8 +339,9 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
 
 /** Demande une URL présignée pour téléverser un fichier directement vers le bucket. */
 export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; error?: string }> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
   const cfg = storageFromEnv();
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
   if (!cfg) return { error: messageServiceInactif('stockage') };
@@ -310,8 +358,10 @@ export async function presignAssetUploadAction(input: { filename: string; conten
 
 /** Enregistre un fichier déjà téléversé sur le bucket comme asset. */
 export async function registerUploadedAssetAction(input: { name: string; url: string; mimeType: string; sizeBytes: number; common?: boolean }): Promise<{ ok?: true; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   const url = (input.url || '').trim();
   if (!/^https?:\/\//i.test(url)) return { error: 'URL invalide.' };
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
@@ -325,8 +375,10 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
 
 /** Supprime un asset (+ l'objet physique sur le bucket si téléversé). */
 export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: true; error?: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: GUARD.session() };
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
   const [row] = await db.select({ url: schema.assets.url, source: schema.assets.source })
     .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   await db.delete(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
