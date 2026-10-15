@@ -175,7 +175,8 @@ describe('A4 · redirection seulement vers le bucket ou Drive, sinon proxy', () 
   });
   it('autre hôte, bucket voisin : jamais de redirection, octets servis par le proxy avec le type RELU', async () => {
     etat.session = session(ids, 'ua');
-    for (const [id, url] of [[A.ailleurs!, 'https://evil.test/clip'], [A.deguise!, 'https://cdn.exemple.test/bucket-voisin/x.png']]) {
+    const cas: Array<[string, string]> = [[A.ailleurs!, 'https://evil.test/clip'], [A.deguise!, 'https://cdn.exemple.test/bucket-voisin/x.png']];
+    for (const [id, url] of cas) {
       const r = await asset(id);
       expect(r.status, url).toBe(200);
       expect(r.headers.get('location'), url).toBeNull();
