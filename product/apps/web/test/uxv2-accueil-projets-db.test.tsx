@@ -117,7 +117,7 @@ async function accueil(s: SessionTest) {
 }
 const titres = (d: HTMLElement) => ({
   reprendre: d.querySelector('[data-reprendre] h3')?.textContent ?? null,
-  autres: [...d.querySelectorAll('[data-autres-projets] [data-projet] h2')].map((e) => e.textContent),
+  autres: [...d.querySelectorAll('[data-autres-projets] [data-projet] h3')].map((e) => e.textContent),
 });
 const TOUS_TITRES = ['A1 · le plus ancien', 'A1 · le plus récent', 'A1 · au milieu', 'A2 · repris en premier', 'A1 · archivé', 'B · projet secret'];
 

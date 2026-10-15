@@ -49,6 +49,18 @@ export interface AssistantHomeProps {
    * champ. Absent = ouvert (comportement d'avant).
    */
   assistantOuvert?: boolean;
+  /**
+   * UX V5 · l'en-tête de l'Accueil (date · marque, « Bonjour », « N choses
+   * t'attendent », sélecteur de vue) · REMPLACE l'en-tête compact d'avant
+   * quand il est fourni. La note de rôle reste dessous. Absent = l'en-tête
+   * d'avant (comportement d'avant).
+   */
+  entete?: ReactNode;
+  /**
+   * UX V5 · les blocs de tête (prochaines itérations, tuiles d'action, KPI) ·
+   * rendus sous l'en-tête, AVANT les projets et tout l'existant.
+   */
+  v5?: ReactNode;
 }
 
 /**
@@ -86,7 +98,7 @@ const STUDIOS: Array<{ href: string; icon: string; titre: string; teinte: string
   { href: '/studio/projets', icon: 'folder', titre: 'Mes projets', teinte: 'linear-gradient(135deg, #4c2a9e, #8b5cf6)' },
 ];
 
-export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, projets, pilotage, rangeeStudios = true, bandeau, marques, prochaineEtape, exemple, regles = [], vues, assistantOuvert = true }: AssistantHomeProps) {
+export function AssistantHome({ firstName, credits, unlimited, brandName, aiReady, projets, pilotage, rangeeStudios = true, bandeau, marques, prochaineEtape, exemple, regles = [], vues, assistantOuvert = true, entete, v5 }: AssistantHomeProps) {
   const etatCredits = afficherCredits({ balance: credits, unlimited });
   const ouvert = (href: string) => cheminOuvert(href, regles);
   const analyser = liensOuverts(ANALYSER, ouvert);
@@ -98,6 +110,10 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
           restent présents · même vérité que la coquille, mais en ligne, pas en
           pavé) · sans eyebrow ni filet, pour laisser la place au bandeau et
           garder la première rangée de marques visible à 720. */}
+      {entete ? <>
+        {entete}
+        {note && <p role="note" style={{ margin: '-12px 0 20px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45, maxWidth: 680 }}>{note}</p>}
+      </> : (
       <div style={{ padding: '2px 0 14px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
           <h1 style={{ margin: 0, fontSize: 'clamp(21px, 3vw, 25px)', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.2 }}>
@@ -117,6 +133,10 @@ export function AssistantHome({ firstName, credits, unlimited, brandName, aiRead
         {/* Lot 11 · ce que le rôle n'ouvre pas est tu, et la raison est dite. */}
         {note && <p role="note" style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45, maxWidth: 680 }}>{note}</p>}
       </div>
+      )}
+
+      {/* UX V5 · prochaines itérations, tuiles d'action, KPI · en tête. */}
+      {v5}
 
       {/* UX V2 · lot 5 · EN TÊTE · reprendre ou créer un projet, puis piloter
           l'activité. Tout ce qui suit (bandeau, marques, prochaine étape,
