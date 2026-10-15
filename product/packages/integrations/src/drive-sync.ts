@@ -5,7 +5,7 @@
  */
 import type { StorageConfig } from './storage';
 import { putObject } from './storage';
-import { typeMediaRetenu, TYPES_MEDIA_SERVIS } from '@tiktrends/core';
+import { entreeSynchroDrive } from '@tiktrends/core';
 import { googleAccessToken, driveListFilesDeep, driveDownload, driveThumbnailLink, driveThumbBytes } from './google-drive';
 
 export type DriveAssetKind = 'image' | 'video' | 'audio' | 'other';
@@ -56,7 +56,7 @@ export async function syncDriveAssets(deps: SyncDriveDeps, o: {
 
   for (const f of files.slice(0, cap)) {
     if (existing.has(f.id)) { skipped++; continue; }
-    let retenu = typeMediaRetenu(f.mimeType);
+    let retenu = entreeSynchroDrive(f.mimeType);
     if (!retenu) { skipped++; continue; }
     try {
       let url = f.webViewLink || '';
@@ -64,9 +64,9 @@ export async function syncDriveAssets(deps: SyncDriveDeps, o: {
       // Le type posé sur l'objet et gardé en base est celui des OCTETS.
       if (retenu.kind === 'image' && o.storage && (f.size ?? 0) < 15_000_000) {
         const bytes = await driveDownload(token, f.id);
-        retenu = typeMediaRetenu(f.mimeType, bytes);
+        retenu = entreeSynchroDrive(f.mimeType, bytes);
         if (!retenu) { skipped++; continue; }
-        url = await putObject(o.storage, `assets/${o.workspaceId}/drive-${f.id}.${TYPES_MEDIA_SERVIS[retenu.type].extension}`, bytes, retenu.type);
+        url = await putObject(o.storage, `assets/${o.workspaceId}/drive-${f.id}.${retenu.extension}`, bytes, retenu.depot);
       }
       if (!url) { skipped++; continue; }
       // Vraie vignette (images ET vidéos) · captée maintenant, où la thumbnailLink

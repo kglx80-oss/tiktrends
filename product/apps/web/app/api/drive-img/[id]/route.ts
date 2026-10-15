@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   if (!s || !db) return refusMedia(401);
   const { id } = await ctx.params;
 
-  const [a] = await db.select({ ext: schema.assets.externalId, url: schema.assets.url, brandId: schema.assets.brandId })
+  const [a] = await db.select({ ext: schema.assets.externalId, url: schema.assets.url, name: schema.assets.name, brandId: schema.assets.brandId })
     .from(schema.assets).where(and(eq(schema.assets.id, id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
   if (!a) return refusMedia(404);
 
@@ -48,6 +48,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     return refusMedia(502);
   }
   // Type RELU dans les octets (liste fermée) · jamais celui que Drive ou le
-  // navigateur ont déclaré à la synchro. Hors liste ⇒ 404 neutre.
-  return servirMedia(req, bytes, id, 'private, max-age=3600');
+  // navigateur ont déclaré à la synchro. Hors liste ⇒ pièce jointe octet-stream.
+  return servirMedia(req, bytes, { id, nom: a.name }, 'private, max-age=3600');
 }

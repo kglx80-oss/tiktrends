@@ -53,14 +53,19 @@ export function decideImportedImage(fetched: ImageRecuperee | null): DecisionImp
 }
 
 /**
- * Les octets d'un `data:` URI en base64 · `null` pour toute autre forme. Le
- * type ANNONCÉ dans le préfixe est ignoré : il se relit dans les octets.
+ * Les octets d'un `data:` URI (base64, ou texte encodé en pourcentage) ·
+ * `null` sans contenu ou hors forme `data:…,…`. Le type ANNONCÉ dans le
+ * préfixe est ignoré : il se relit dans les octets.
  */
 export function octetsDataUri(uri: string): Buffer | null {
   if (typeof uri !== 'string' || !/^data:/i.test(uri)) return null;
   const virgule = uri.indexOf(',');
   if (virgule < 0) return null;
-  if (!/;base64$/i.test(uri.slice(5, virgule))) return null;
-  const octets = Buffer.from(uri.slice(virgule + 1), 'base64');
+  const charge = uri.slice(virgule + 1);
+  let octets: Buffer;
+  if (/;base64$/i.test(uri.slice(5, virgule))) octets = Buffer.from(charge, 'base64');
+  else {
+    try { octets = Buffer.from(decodeURIComponent(charge), 'utf8'); } catch { octets = Buffer.from(charge, 'utf8'); }
+  }
   return octets.length ? octets : null;
 }

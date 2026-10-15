@@ -3,7 +3,7 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, driveFileMeta, putObject, storeDriveThumb } from '@tiktrends/integrations';
-import { DRIVE_SELECTEUR_INACTIF, texteMessageClient, TYPES_MEDIA_SERVIS, typeMediaRetenu, type DernierSyncDrive } from '@tiktrends/core';
+import { DRIVE_SELECTEUR_INACTIF, texteMessageClient, entreeSynchroDrive, type DernierSyncDrive } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -127,15 +127,15 @@ export async function syncDriveFilesAction(files: PickedFile[]): Promise<{ ok?: 
       // Type, taille et nom relus CHEZ DRIVE · `f.mimeType` (déclaré par le
       // client) est ignoré : un `text/html` annoncé ne décide plus de rien.
       const meta = await driveFileMeta(token, fileId);
-      let retenu = typeMediaRetenu(meta.mimeType);
+      let retenu = entreeSynchroDrive(meta.mimeType);
       if (!retenu) { skipped++; continue; }
       let url = `https://drive.google.com/file/d/${fileId}/view`;
       if (retenu.kind === 'image' && storage && (meta.size ?? 0) < 15_000_000) {
         const bytes = await driveDownload(token, fileId);
         // Le type posé sur l'objet et gardé en base est celui des OCTETS.
-        retenu = typeMediaRetenu(meta.mimeType, bytes);
+        retenu = entreeSynchroDrive(meta.mimeType, bytes);
         if (!retenu) { skipped++; continue; }
-        url = await putObject(storage, `assets/${ws}/drive-${fileId}.${TYPES_MEDIA_SERVIS[retenu.type].extension}`, bytes, retenu.type);
+        url = await putObject(storage, `assets/${ws}/drive-${fileId}.${retenu.extension}`, bytes, retenu.depot);
       }
       // Vraie vignette (images ET vidéos) · le Picker ne la fournit pas, on la
       // demande à Drive puis on la range chez nous. Remplace l'icône de repli.

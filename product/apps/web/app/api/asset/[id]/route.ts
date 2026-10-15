@@ -62,7 +62,9 @@ export const dynamic = 'force-dynamic';
  * sans `nosniff` ni CSP : un SVG importé, ouvert par « ouvrir ↗ », exécutait
  * son script avec la session de qui cliquait. Désormais (`decisionMediaServi`,
  * noyau) le type se relit dans les OCTETS et appartient à une liste fermée de
- * types non exécutables ; hors liste (SVG ancien compris) ⇒ 404 neutre. Toute
+ * types non exécutables ; hors liste (SVG ancien compris) ⇒ TÉLÉCHARGEMENT seul,
+ * `application/octet-stream` en pièce jointe (aucun média ne disparaît) ; le
+ * 404 neutre reste pour l'asset inconnu ou d'un autre espace. Toute
  * réponse, refus et redirection compris, porte `ENTETES_MEDIA_FERMES`
  * (`nosniff`, CSP `default-src 'none'; sandbox`).
  */
@@ -72,7 +74,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const { id } = await ctx.params;
 
   const [a] = await db.select({
-    url: schema.assets.url, kind: schema.assets.kind,
+    url: schema.assets.url, name: schema.assets.name, kind: schema.assets.kind,
     source: schema.assets.source, externalId: schema.assets.externalId, brandId: schema.assets.brandId,
   })
     .from(schema.assets)
@@ -82,7 +84,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const mode = assetServing({
     id, kind: a.kind, source: a.source, url: a.url,
-    embedded: a.url.startsWith('data:'), externalId: a.externalId,
+    embedded: /^data:/i.test(a.url), externalId: a.externalId,
   });
 
   switch (mode) {
@@ -94,7 +96,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       // Le contenu d'un asset ne change jamais · un téléversement crée une
       // nouvelle ligne, il ne réécrit pas l'ancienne. Le navigateur peut
       // donc la garder longtemps sans revenir demander si elle a bougé.
-      return servirMedia(req, octets, id, 'private, max-age=2592000, immutable');
+      return servirMedia(req, octets, { id, nom: a.name }, 'private, max-age=2592000, immutable');
     }
 
     case 'drive': {
@@ -109,7 +111,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       } catch {
         return refusMedia(502);
       }
-      return servirMedia(req, bytes, id, 'private, max-age=3600');
+      return servirMedia(req, bytes, { id, nom: a.name }, 'private, max-age=3600');
     }
 
     case 'direct':

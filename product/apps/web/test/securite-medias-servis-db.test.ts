@@ -9,7 +9,8 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * base, requêtes réellement envoyées au bucket.
  *
  *  A1 · un SVG avec script ne s'importe plus (lien, téléversement), un SVG déjà
- *       en base n'est jamais servi avec un type exécutable, chaque réponse porte
+ *       en base reste accessible en pièce jointe octet-stream, jamais avec un
+ *       type exécutable ni inline, chaque réponse porte
  *       `nosniff` et la CSP fermée, un type déclaré par le navigateur (Drive)
  *       est ignoré au profit de Drive puis des octets.
  *  A2 · une URL d'un autre espace est refusée à l'enregistrement, et sa
@@ -116,12 +117,12 @@ beforeAll(async () => {
   await semer(db, schema, ids);
   await db.update(schema.brands).set({ driveRefreshToken: 'chiffre' }).where(eq(schema.brands.id, ids.brandA1));
   // Lignes ANCIENNES, telles qu'un import d'avant le correctif a pu les laisser.
-  A.svgAncien = await poser({ url: `data:image/svg+xml;base64,${b64(SVG)}`, mimeType: 'image/svg+xml' });
-  A.svgDeguise = await poser({ url: `data:image/png;base64,${b64(SVG)}`, mimeType: 'image/png' });
-  A.svgMajuscules = await poser({ url: `DATA:IMAGE/SVG+XML;base64,${b64(SVG)}`, mimeType: 'IMAGE/SVG+XML', source: 'url' });
+  A.svgAncien = await poser({ name: 'logo.svg', url: `data:image/svg+xml;base64,${b64(SVG)}`, mimeType: 'image/svg+xml' });
+  A.svgDeguise = await poser({ name: 'logo.svg', url: `data:image/png;base64,${b64(SVG)}`, mimeType: 'image/png' });
+  A.svgMajuscules = await poser({ name: 'logo.svg', url: `DATA:IMAGE/SVG+XML;base64,${b64(SVG)}`, mimeType: 'IMAGE/SVG+XML', source: 'url' });
   A.png = await poser({ url: `data:image/png;base64,${b64(PNG)}`, mimeType: 'image/png' });
   A.pngMalNomme = await poser({ url: `data:text/html;base64,${b64(PNG)}`, mimeType: 'text/html' });
-  A.driveHtml = await poser({ source: 'drive', kind: 'other', mimeType: 'text/html', externalId: 'drive-html', url: 'https://drive.google.com/file/d/drive-html/view' });
+  A.driveHtml = await poser({ name: 'page.html', source: 'drive', kind: 'other', mimeType: 'text/html', externalId: 'drive-html', url: 'https://drive.google.com/file/d/drive-html/view' });
   A.drivePngDitHtml = await poser({ source: 'drive', kind: 'image', mimeType: 'text/html', externalId: 'drive-png', url: 'https://drive.google.com/file/d/drive-png/view' });
   A.direct = await poser({ source: 'upload', url: `${BASE}/assets/${ids.wsA}/1-ab-photo.jpg` });
   A.javascript = await poser({ source: 'url', url: 'javascript:alert(document.cookie)' });
@@ -135,41 +136,47 @@ afterEach(() => {
   etat.telechargements = [];
 });
 
-describe('A1 · un SVG déjà en base n’est jamais servi avec un type exécutable', () => {
-  it('SVG ancien, SVG déguisé en PNG, préfixe en majuscules : 404 neutre, aucun octet du SVG', async () => {
+describe('A1 · un SVG déjà en base reste accessible, en téléchargement seul, jamais exécutable', () => {
+  /** Pièce jointe inerte · le seul service permis hors liste. */
+  async function telechargementSeul(r: Response, nom: string, contenu: Buffer, fichier: string): Promise<void> {
+    expect(r.status, nom).toBe(200);
+    expect(r.headers.get('content-type'), nom).toBe('application/octet-stream');
+    expect(r.headers.get('content-disposition'), nom).toBe(`attachment; filename="${fichier}"`);
+    expect(r.headers.get('content-type') ?? '', nom).not.toMatch(EXECUTABLE);
+    fermee(r, nom);
+    expect((await octets(r)).equals(contenu), `${nom} · octets intacts`).toBe(true);
+  }
+
+  it('SVG ancien, SVG déguisé en PNG, préfixe en majuscules : 200, octet-stream en pièce jointe, jamais image/svg+xml ni inline', async () => {
     etat.session = session(ids, 'ua');
     for (const nom of ['svgAncien', 'svgDeguise', 'svgMajuscules'] as const) {
-      for (const [route, r] of [['asset', await asset(A[nom]!)], ['drive-img', await driveImg(A[nom]!)]] as const) {
-        expect(r.status, `${route} ${nom}`).toBe(404);
-        expect(r.headers.get('content-type') ?? '', `${route} ${nom}`).not.toMatch(EXECUTABLE);
-        expect((await r.text()), `${route} ${nom}`).not.toContain('<script');
-        fermee(r, `${route} ${nom}`);
-      }
+      await telechargementSeul(await asset(A[nom]!), nom, SVG, 'logo.svg');
     }
   });
 
-  it('le même refus, Range ou pas · une plage n’est pas un passe-droit', async () => {
+  it('avec Range aussi · une plage n’est pas un passe-droit vers l’inline', async () => {
     etat.session = session(ids, 'ua');
     const r = await asset(A.svgAncien!, { range: 'bytes=0-40' });
-    expect(r.status).toBe(404);
-    expect(r.headers.get('content-range')).toBeNull();
-    expect(await r.text()).toBe('not found');
+    expect(r.status).toBe(206);
+    expect(r.headers.get('content-type')).toBe('application/octet-stream');
+    expect(r.headers.get('content-disposition')).toMatch(/^attachment; /);
+    fermee(r, 'svg 206');
   });
 
-  it('un refus par type ne se distingue pas d’un asset inconnu', async () => {
+  it('le 404 neutre reste pour l’asset inconnu et celui d’un autre espace', async () => {
     etat.session = session(ids, 'ua');
-    const type = await asset(A.svgAncien!);
     const inconnu = await asset('00000000-0000-0000-0000-000000000000');
-    expect([type.status, await type.text()]).toEqual([inconnu.status, await inconnu.text()]);
+    expect([inconnu.status, await inconnu.text()]).toEqual([404, 'not found']);
+    etat.session = session(ids, 'ub');
+    const ailleurs = await asset(A.svgAncien!);
+    expect([ailleurs.status, await ailleurs.text()]).toEqual([404, 'not found']);
+    fermee(ailleurs, '404 autre espace');
   });
 
-  it('Drive : un fichier HTML (type stocké text/html) ⇒ 404 ; un PNG stocké « text/html » ⇒ servi image/png', async () => {
+  it('Drive : un fichier HTML (type stocké text/html) ⇒ pièce jointe octet-stream ; un PNG stocké « text/html » ⇒ servi image/png', async () => {
     etat.session = session(ids, 'ua');
     for (const get of [asset, driveImg]) {
-      const html = await get(A.driveHtml!);
-      expect(html.status).toBe(404);
-      expect(await html.text()).not.toContain('<script');
-      fermee(html, 'drive html');
+      await telechargementSeul(await get(A.driveHtml!), 'drive html', HTML, 'page.html');
       const png = await get(A.drivePngDitHtml!);
       expect(png.status).toBe(200);
       expect(png.headers.get('content-type')).toBe('image/png');
@@ -299,6 +306,24 @@ describe('A1 · synchro Drive : le type déclaré par le navigateur est ignoré'
     const r = await syncDriveFilesAction([{ id: 'pick-svg', name: 'logo.png', mimeType: 'image/png' }]);
     expect(r).toEqual({ ok: true, added: 0, skipped: 1 });
     expect(etat.depots).toEqual([]);
+  });
+
+  it('média rare non exécutable (TIFF) ⇒ importé en téléchargement seul : déposé octet-stream, servi en pièce jointe', async () => {
+    etat.session = session(ids, 'ua', { role: 'admin' });
+    etat.brand = { id: ids.brandA1, name: 'Marque A1' };
+    const TIFF = Buffer.from([0x49, 0x49, 0x2a, 0, 8, 0, 0, 0, 1, 2, 3, 4]);
+    etat.driveMeta.set('pick-tiff', { id: 'pick-tiff', name: 'scan.tif', mimeType: 'image/tiff', size: TIFF.length });
+    etat.drive.set('pick-tiff', TIFF);
+    const r = await syncDriveFilesAction([{ id: 'pick-tiff', name: 'scan.tif', mimeType: 'image/tiff' }]);
+    expect(r).toEqual({ ok: true, added: 1, skipped: 0 });
+    expect(etat.depots).toEqual([{ key: `assets/${ids.wsA}/drive-pick-tiff.bin`, contentType: 'application/octet-stream' }]);
+    // Même fichier rangé sans bucket (lien Drive) : le proxy le sert en pièce jointe.
+    const id = await poser({ name: 'scan.tif', source: 'drive', kind: 'image', mimeType: 'image/tiff', externalId: 'pick-tiff', url: 'https://drive.google.com/file/d/pick-tiff/view' });
+    const s = await asset(id);
+    expect(s.status).toBe(200);
+    expect(s.headers.get('content-type')).toBe('application/octet-stream');
+    expect(s.headers.get('content-disposition')).toBe('attachment; filename="scan.tif"');
+    fermee(s, 'tiff');
   });
 
   it('un identifiant de fichier qui réécrirait le chemin de l’API ⇒ ignoré', async () => {

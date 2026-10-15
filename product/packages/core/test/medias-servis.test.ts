@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  typeMediaReel, typeMediaDeclare, typeMediaRetenu, decisionMediaServi,
+  typeMediaReel, typeMediaDeclare, typeMediaRetenu, decisionMediaServi, nomFichierSur, entreeSynchroDrive,
   TYPES_MEDIA_SERVIS, ENTETES_MEDIA_FERMES, inspecterMedia, type TypeMediaServi,
 } from '../src';
 import { concat, boite, mp4StructurePlausible } from './l3-fixtures-media';
@@ -125,28 +125,70 @@ describe('typeMediaRetenu · import et synchro', () => {
   });
 });
 
-describe('decisionMediaServi · type relu et en-têtes fermés', () => {
-  it('un PNG sort en image/png, nosniff, CSP fermée, nom de fichier', () => {
-    const d = decisionMediaServi(PNG, 'abc-123');
-    expect(d.ok).toBe(true);
-    if (!d.ok) return;
+
+describe('decisionMediaServi · type relu, en-têtes fermés, aucun média retiré', () => {
+  it('un PNG sort inline en image/png, nosniff, CSP fermée, nom de fichier', () => {
+    const d = decisionMediaServi(PNG, { id: 'abc-123', nom: 'photo.png' });
+    expect(d.mode).toBe('inline');
     expect(d.entetes['content-type']).toBe('image/png');
     expect(d.entetes['x-content-type-options']).toBe('nosniff');
     expect(d.entetes['content-security-policy']).toBe("default-src 'none'; sandbox");
     expect(d.entetes['content-disposition']).toBe('inline; filename="abc-123.png"');
   });
 
-  it('un SVG avec script ⇒ refus (l’appelant rend 404)', () => {
-    expect(decisionMediaServi(txt(SVG_SCRIPT), 'x')).toEqual({ ok: false });
+  it('un SVG avec script ⇒ téléchargement seul : octet-stream en pièce jointe, jamais image/svg+xml ni inline', () => {
+    const d = decisionMediaServi(txt(SVG_SCRIPT), { id: 'x', nom: 'logo.svg' });
+    expect(d.mode).toBe('telechargement');
+    expect(d.entetes['content-type']).toBe('application/octet-stream');
+    expect(d.entetes['content-disposition']).toBe('attachment; filename="logo.svg"');
+    expect(d.entetes['x-content-type-options']).toBe('nosniff');
+    expect(d.entetes['content-security-policy']).toBe("default-src 'none'; sandbox");
+    expect(JSON.stringify(d.entetes)).not.toMatch(/svg\+xml|inline/);
   });
 
-  it('le nom ne peut pas casser l’en-tête', () => {
-    const d = decisionMediaServi(PNG, 'a"b\r\nset-cookie: x=1');
-    expect(d.ok && d.entetes['content-disposition']).toBe('inline; filename="abset-cookiex1.png"');
+  it('HTML, PDF, TIFF, inconnu ⇒ même téléchargement seul', () => {
+    for (const o of [txt('<html><script>x</script></html>'), txt('%PDF-1.7'), new Uint8Array([0x49, 0x49, 0x2a, 0, 8, 0, 0, 0]), txt('?')]) {
+      const d = decisionMediaServi(o, { id: 'i' });
+      expect(d.mode).toBe('telechargement');
+      expect(d.entetes['content-type']).toBe('application/octet-stream');
+      expect(d.entetes['content-disposition']).toMatch(/^attachment; /);
+    }
+  });
+
+  it('le nom ne peut pas casser l’en-tête, inline comme en pièce jointe', () => {
+    const inline = decisionMediaServi(PNG, { id: 'a"b\r\nset-cookie: x=1' });
+    expect(inline.entetes['content-disposition']).toBe('inline; filename="abset-cookiex1.png"');
+    const pj = decisionMediaServi(txt(SVG_SCRIPT), { id: 'id-1', nom: '../a"b\r\nset-cookie: x=1.svg' });
+    expect(pj.entetes['content-disposition']).toBe('attachment; filename="a-b-set-cookie-x-1.svg"');
+    expect(decisionMediaServi(txt('x'), { id: 'id-1', nom: '"\r\n' }).entetes['content-disposition']).toBe('attachment; filename="id-1"');
+  });
+
+  it('nomFichierSur · caractères sûrs, pas de point de tête, repli sur l’id', () => {
+    expect(nomFichierSur('Été 2026 · photo.TIFF', 'r')).toBe('Ete-2026-photo.TIFF');
+    expect(nomFichierSur('.htaccess', 'r')).toBe('htaccess');
+    expect(nomFichierSur('', 'abc')).toBe('abc');
   });
 
   it('les en-têtes fermés sont ceux de la route Studios', () => {
     expect(ENTETES_MEDIA_FERMES['x-content-type-options']).toBe('nosniff');
     expect(ENTETES_MEDIA_FERMES['content-security-policy']).toBe("default-src 'none'; sandbox");
+  });
+});
+
+describe('entreeSynchroDrive · ce que la synchro Drive importe', () => {
+  it('liste servie : type des octets, déposé avec ce type', () => {
+    expect(entreeSynchroDrive('image/jpeg', PNG)).toEqual({ type: 'image/png', kind: 'image', depot: 'image/png', extension: 'png' });
+    expect(entreeSynchroDrive('video/mp4')).toEqual({ type: 'video/mp4', kind: 'video', depot: 'video/mp4', extension: 'mp4' });
+  });
+  it('média rare non exécutable (TIFF, Ogg, MKV) : importé en téléchargement seul', () => {
+    expect(entreeSynchroDrive('image/tiff', new Uint8Array([0x49, 0x49, 0x2a, 0]))).toEqual({ type: 'image/tiff', kind: 'image', depot: 'application/octet-stream', extension: 'bin' });
+    expect(entreeSynchroDrive('audio/ogg')).toEqual({ type: 'audio/ogg', kind: 'audio', depot: 'application/octet-stream', extension: 'bin' });
+    expect(entreeSynchroDrive('Video/X-Matroska; x=1')?.depot).toBe('application/octet-stream');
+  });
+  it.each(['image/svg+xml', 'IMAGE/SVG+XML', 'text/html', 'application/xhtml+xml', 'application/pdf', 'video/x-ms-asf+xml', 'image/', '', 'application/vnd.google-apps.document'])('%s ⇒ ignoré', (t) => {
+    expect(entreeSynchroDrive(t)).toBeNull();
+  });
+  it('type listé mais octets d’autre nature (SVG déguisé en PNG) ⇒ ignoré', () => {
+    expect(entreeSynchroDrive('image/png', txt(SVG_SCRIPT))).toBeNull();
   });
 });

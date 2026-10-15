@@ -17,17 +17,23 @@
  *    déclaration (en-tête du site distant, colonne `mime_type`, Drive, client).
  * 2. Il appartient à une liste FERMÉE de types qu'aucun navigateur n'exécute
  *    (`TYPES_MEDIA_SERVIS`) · images matricielles, vidéos, sons. Ni SVG, ni
- *    HTML, ni XML, ni PDF. Hors liste ⇒ refus neutre, l'appelant rend 404.
+ *    HTML, ni XML, ni PDF. Hors liste ⇒ téléchargement seul (point 4).
  * 3. Toute réponse, refus compris, porte des en-têtes fermés
  *    (`ENTETES_MEDIA_FERMES`) : `nosniff`, CSP `default-src 'none'; sandbox`
  *    (même ouvert seul dans un onglet, un document ne peut rien exécuter), et
  *    la réponse d'un média nomme son fichier (`content-disposition`).
+ * 4. Un média existant dont les octets sont HORS liste (SVG ancien, TIFF,
+ *    Ogg…) ne disparaît pas : il est servi en TÉLÉCHARGEMENT seul,
+ *    `application/octet-stream` en pièce jointe, jamais inline, jamais avec
+ *    son type déclaré.
  *
  * La liste couvre ce que la Bibliothèque accepte AUJOURD'HUI (sélecteur Drive :
  * png, jpeg, webp, gif, avif, mp4, quicktime, webm, mpeg, wav ; synchro de
  * dossier : `image/*`, `video/*`, `audio/*`, dont les HEIC des iPhone ;
- * téléversement direct : m4a) · les formats exécutables sortent, les formats
- * rares hors liste (TIFF, Ogg…) ne s'importent plus.
+ * téléversement direct : m4a) · ceux-là s'affichent. Les formats rares hors
+ * liste (TIFF, Ogg…) s'importent encore par la synchro Drive, en
+ * téléchargement seul (`entreeSynchroDrive`) ; les types exécutables (SVG,
+ * HTML, XML) ne s'importent plus.
  *
  * ── Pourquoi une signature, et pas `inspecterMedia` ──────────────────────────
  *
@@ -154,6 +160,28 @@ export function typeMediaRetenu(mimeDeclare: string | null | undefined, octets?:
   return { type: reel, kind: familleMedia(reel) };
 }
 
+/** Type déclaré qu'un navigateur peut exécuter comme document · jamais importé. */
+const DECLARE_EXECUTABLE = /svg|xml|html|script/;
+
+/**
+ * Synchro Drive · ce qu'on importe d'un fichier. D'abord la liste servie
+ * (`typeMediaRetenu`). Sinon, un média RARE non exécutable (TIFF, Ogg, MKV…)
+ * s'importe quand même, en téléchargement seul : `depot` vaut
+ * `application/octet-stream` (l'objet du bucket ne s'interprète pas) et le
+ * proxy le servira en pièce jointe, ses octets n'étant pas dans la liste. Un
+ * type exécutable (SVG, HTML, XML), hors image/vidéo/audio, ou un type listé
+ * dont les octets ne concordent pas (SVG déguisé en PNG) ⇒ `null`.
+ */
+export function entreeSynchroDrive(mimeDeclare: string | null | undefined, octets?: Uint8Array): { type: string; kind: FamilleMedia; depot: string; extension: string } | null {
+  const liste = typeMediaRetenu(mimeDeclare, octets);
+  if (liste) return { type: liste.type, kind: liste.kind, depot: liste.type, extension: TYPES_MEDIA_SERVIS[liste.type].extension };
+  const t = (mimeDeclare || '').split(';')[0]!.trim().toLowerCase();
+  if (typeMediaDeclare(t)) return null;
+  const m = /^(image|video|audio)\/[a-z0-9.+-]{1,80}$/.exec(t);
+  if (!m || DECLARE_EXECUTABLE.test(t)) return null;
+  return { type: t, kind: m[1] as FamilleMedia, depot: 'application/octet-stream', extension: 'bin' };
+}
+
 /**
  * En-têtes posés sur TOUTE réponse d'une route qui sert un média de la
  * bibliothèque, refus compris. Même jeu que `/api/studios/media/[id]`.
@@ -165,28 +193,52 @@ export const ENTETES_MEDIA_FERMES: Readonly<Record<string, string>> = {
   'referrer-policy': 'no-referrer',
 };
 
+/**
+ * Comment servir ces octets · jamais un refus : la consigne est de ne retirer
+ * l'accès à AUCUN média existant.
+ *  - `inline` · type relu dans la liste fermée : servi tel quel, affichable ;
+ *  - `telechargement` · tout le reste (SVG ancien, HTML, TIFF, Ogg, inconnu) :
+ *    `application/octet-stream` en PIÈCE JOINTE, jamais inline, jamais avec le
+ *    type déclaré. Le navigateur l'enregistre sans l'interpréter.
+ * Les deux portent `ENTETES_MEDIA_FERMES` (`nosniff`, CSP en bac à sable). Le
+ * 404 neutre reste à l'appelant pour l'asset inconnu ou d'un autre espace.
+ */
 export type DecisionMediaServi =
-  | { ok: true; type: TypeMediaServi; entetes: Record<string, string> }
-  | { ok: false };
+  | { mode: 'inline'; type: TypeMediaServi; entetes: Record<string, string> }
+  | { mode: 'telechargement'; type: null; entetes: Record<string, string> };
+
+/** Nom de fichier sûr dans un en-tête · `[A-Za-z0-9._-]`, sans point de tête. */
+export function nomFichierSur(nom: string | null | undefined, repli: string): string {
+  const n = (nom || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[.-]+/, '').replace(/-+$/, '').slice(0, 100);
+  return n || (repli || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 64) || 'media';
+}
 
 /**
- * Que servir pour ces octets · le type relu et les en-têtes complets, ou un
- * refus (l'appelant rend un 404 neutre, sans dire pourquoi).
- *
- * `nom` sert au nom de fichier proposé · réduit à `[A-Za-z0-9-]`, il ne peut
- * pas casser l'en-tête.
+ * `id` nomme le fichier affichable (`<id>.<ext>`) ; `nom` (le nom de l'asset)
+ * nomme la pièce jointe. Les deux sont assainis : ils ne peuvent pas casser
+ * l'en-tête.
  */
-export function decisionMediaServi(octets: Uint8Array, nom: string): DecisionMediaServi {
+export function decisionMediaServi(octets: Uint8Array, o: { id: string; nom?: string | null }): DecisionMediaServi {
   const type = typeMediaReel(octets);
-  if (!type) return { ok: false };
-  const base = (nom || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 64) || 'media';
+  const id = (o.id || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 64) || 'media';
+  if (!type) {
+    return {
+      mode: 'telechargement',
+      type: null,
+      entetes: {
+        ...ENTETES_MEDIA_FERMES,
+        'content-type': 'application/octet-stream',
+        'content-disposition': `attachment; filename="${nomFichierSur(o.nom, id)}"`,
+      },
+    };
+  }
   return {
-    ok: true,
+    mode: 'inline',
     type,
     entetes: {
       ...ENTETES_MEDIA_FERMES,
       'content-type': type,
-      'content-disposition': `inline; filename="${base}.${TYPES_MEDIA_SERVIS[type].extension}"`,
+      'content-disposition': `inline; filename="${id}.${TYPES_MEDIA_SERVIS[type].extension}"`,
     },
   };
 }
