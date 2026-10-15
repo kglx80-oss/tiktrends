@@ -41,7 +41,7 @@ describe('Rail · la navigation défile au lieu de déborder', () => {
         <div />
       </AppShell>,
     );
-    const style = /<nav aria-label="Navigation principale" style="([^"]*)"/.exec(html)?.[1] ?? '';
+    const style = /<nav aria-label="Navigation principale"[^>]*?\sstyle="([^"]*)"/.exec(html)?.[1] ?? '';
     expect(style, 'navigation introuvable').not.toBe('');
     expect(style, 'la navigation ne rétrécit pas · les rubriques du bas sortent du rail').toMatch(/min-height:0/);
     expect(style).toMatch(/overflow-y:auto/);

@@ -1,3 +1,5 @@
+import { VERSION_CACHE_MEDIAS } from '@tiktrends/core/src/purge-cache';
+
 /**
  * Sous quelle adresse une image de la bibliothèque est servie.
  *
@@ -66,6 +68,15 @@ export function assetServing(a: AssetAddress): AssetServing {
   return 'direct';
 }
 
+/**
+ * L'adresse du proxy, VERSIONNÉE (`?v=2`, ignoré par la route) · avant #798, un
+ * SVG piégé y était servi en `immutable` trente jours ; changer l'adresse
+ * détache les pages de l'entrée en cache (règle `purge-cache`, noyau).
+ */
+export function adresseAssetProxy(id: string): string {
+  return `/api/asset/${id}?v=${VERSION_CACHE_MEDIAS}`;
+}
+
 export function servedAssetUrl(a: AssetAddress): string {
-  return assetServing(a) === 'direct' ? a.url : `/api/asset/${a.id}`;
+  return assetServing(a) === 'direct' ? a.url : adresseAssetProxy(a.id);
 }

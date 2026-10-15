@@ -46,3 +46,44 @@ export function cleObjetDeLEspace(url: string, base: string, workspaceId: string
   if (segments.length < 3 || segments[0] !== 'assets' || segments[1] !== workspaceId) return null;
   return cle;
 }
+
+/**
+ * Le nom de fichier d'une clé · `drive-…` est réservé à la synchro Drive (clé
+ * prévisible, `assets/<espace>/drive-<idDrive>.<ext>`). Un TÉLÉVERSEMENT ne
+ * l'enregistre jamais : sinon un membre enregistrerait l'objet Drive d'une
+ * marque comme un téléversement, et sa suppression effacerait la copie que la
+ * synchro partage avec d'autres lignes.
+ */
+export function cleTeleversable(url: string, base: string, workspaceId: string): string | null {
+  const cle = cleObjetDeLEspace(url, base, workspaceId);
+  if (!cle) return null;
+  const fichier = cle.split('/').pop()!;
+  return /^drive-/i.test(fichier) ? null : cle;
+}
+
+/** Hôtes Google Drive vers lesquels une redirection est sûre. */
+const HOTES_DRIVE = new Set(['drive.google.com', 'docs.google.com']);
+
+/**
+ * Redirection `direct` du proxy d'assets · l'adresse normalisée quand elle
+ * pointe vers le bucket (une des `basesBucket`, même origine, sous son chemin)
+ * ou vers Drive (`drive.google.com`, `docs.google.com`,
+ * `*.googleusercontent.com`, https), sinon `null` : l'appelant sert alors les
+ * octets lui-même (proxy), jamais une redirection ouverte vers un hôte choisi
+ * par celui qui a enregistré l'asset. Identifiants dans l'URL (`a@b`) ⇒ `null`.
+ */
+export function adresseRedirigeable(url: string, basesBucket: ReadonlyArray<string>): string | null {
+  let u: URL;
+  try { u = new URL(url); } catch { return null; }
+  if (u.username || u.password) return null;
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+  const hote = u.hostname.toLowerCase();
+  if (u.protocol === 'https:' && (HOTES_DRIVE.has(hote) || hote.endsWith('.googleusercontent.com'))) return u.toString();
+  for (const b of basesBucket) {
+    if (!b) continue;
+    let base: URL;
+    try { base = new URL(`${b.replace(/\/+$/, '')}/`); } catch { continue; }
+    if (u.origin === base.origin && u.pathname.startsWith(base.pathname)) return u.toString();
+  }
+  return null;
+}
