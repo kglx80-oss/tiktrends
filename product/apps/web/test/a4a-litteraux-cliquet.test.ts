@@ -26,6 +26,10 @@ import { join, relative } from 'node:path';
  * Mesuré le 15/10/2026 · main (0aa7a59, coquille V5 comprise) en portait
  * 1141 ; ce lot retire celui du layout racine (`themeColor`) · plafond 1140,
  * 132 fichiers en portent sur 531 (399 déjà propres).
+ *
+ * T3 (15/10/2026) · l'administration (`app/(app)/admin`, 142) et la console
+ * (`app/(app)/console`, 24) passent par les jetons · plafond 974, leurs 20
+ * fichiers sont désormais « déjà propres ».
  */
 const WEB = process.cwd();
 
@@ -42,14 +46,12 @@ const EXCLUS: Record<string, string> = {
 /** Plafond par répertoire · le plan des lots de tokenisation. */
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 241,
-  'app/(app)/admin': 142,
   'app/(app)/adsmap': 115,
   'app/(app)/analytics': 7,
   'app/(app)/assets': 20,
   'app/(app)/billing': 9,
   'app/(app)/brands': 32,
   'app/(app)/connections': 54,
-  'app/(app)/console': 24,
   'app/(app)/credits': 37,
   'app/(app)/jarvis': 93,
   'app/(app)/profile': 1,
@@ -75,25 +77,6 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
 
 /** Plafond par fichier · tout fichier absent de cette table est « déjà propre » (0). */
 const PLAFOND_PAR_FICHIER: Record<string, number> = {
-  'app/(app)/admin/connaissances/EcranConnaissances.tsx': 28,
-  'app/(app)/admin/connaissances/page.tsx': 3,
-  'app/(app)/admin/depenses/FormulaireReconciliation.tsx': 4,
-  'app/(app)/admin/depenses/SectionReconciliation.tsx': 4,
-  'app/(app)/admin/depenses/SectionReconciliees.tsx': 3,
-  'app/(app)/admin/depenses/page.tsx': 7,
-  'app/(app)/admin/equipe/EcranEquipe.tsx': 2,
-  'app/(app)/admin/equipe/page.tsx': 10,
-  'app/(app)/admin/finance/page.tsx': 10,
-  'app/(app)/admin/ia-studios/Commandes.tsx': 4,
-  'app/(app)/admin/ia-studios/Ecrans.tsx': 1,
-  'app/(app)/admin/incidents/page.tsx': 3,
-  'app/(app)/admin/intelligence/page.tsx': 24,
-  'app/(app)/admin/page.tsx': 17,
-  'app/(app)/admin/paiement/StripeDiagnostic.tsx': 15,
-  'app/(app)/admin/paiement/page.tsx': 1,
-  'app/(app)/admin/plans/page.tsx': 2,
-  'app/(app)/admin/signups/page.tsx': 3,
-  'app/(app)/admin/studios-interrupteurs/Ecran.tsx': 1,
   'app/(app)/adsmap/AdDrawer.tsx': 7,
   'app/(app)/adsmap/AdsMapTable.tsx': 20,
   'app/(app)/adsmap/BuildPanel.tsx': 3,
@@ -124,7 +107,6 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/brands/page.tsx': 3,
   'app/(app)/connections/DataConnections.tsx': 7,
   'app/(app)/connections/page.tsx': 47,
-  'app/(app)/console/page.tsx': 24,
   'app/(app)/credits/page.tsx': 37,
   'app/(app)/jarvis/DescribePanel.tsx': 2,
   'app/(app)/jarvis/JarvisChat.tsx': 5,
@@ -209,7 +191,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'lib/theme.ts': 5,
 };
 
-const PLAFOND_TOTAL = 1140;
+const PLAFOND_TOTAL = 974;
 
 const RACINES = ['app', 'components', 'lib'];
 

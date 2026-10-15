@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { runStripeDiagnosticAction, type StripeDiagnostic } from '../../../actions/stripe-diagnostic';
 
 const TON: Record<string, { bg: string; bd: string; fg: string; icone: string }> = {
-  ok: { bg: 'rgba(126,232,191,.08)', bd: 'rgba(126,232,191,.32)', fg: '#7ee8bf', icone: '✓' },
-  warn: { bg: 'rgba(245,166,35,.08)', bd: 'rgba(245,166,35,.32)', fg: '#ffcf8f', icone: '!' },
-  fail: { bg: 'rgba(254,44,85,.08)', bd: 'rgba(254,44,85,.32)', fg: '#ff8095', icone: '×' },
+  ok: { bg: 'color-mix(in srgb, var(--ok-text) 8%, transparent)', bd: 'color-mix(in srgb, var(--ok-text) 32%, transparent)', fg: 'var(--ok-text)', icone: '✓' },
+  warn: { bg: 'color-mix(in srgb, var(--warn) 8%, transparent)', bd: 'color-mix(in srgb, var(--warn) 32%, transparent)', fg: 'var(--warn-text)', icone: '!' },
+  fail: { bg: 'color-mix(in srgb, var(--err) 8%, transparent)', bd: 'color-mix(in srgb, var(--err) 32%, transparent)', fg: 'var(--err-strong)', icone: '×' },
 };
 
 export function StripeDiagnostic() {
@@ -28,18 +28,18 @@ export function StripeDiagnostic() {
         {busy ? 'Vérification…' : res ? 'Relancer la vérification' : 'Lancer la vérification'}
       </button>
 
-      {res?.error && <p style={{ color: '#ff8095', fontSize: 13, marginTop: 12 }}>{res.error}</p>}
+      {res?.error && <p style={{ color: 'var(--err-strong)', fontSize: 13, marginTop: 12 }}>{res.error}</p>}
 
       {res && !res.error && (
         <div style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
             <span style={{
               fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '4px 11px', borderRadius: 999,
-              color: res.mode === 'live' ? '#0d070c' : 'var(--on-accent)', background: res.mode === 'live' ? 'linear-gradient(135deg,#7ee8bf,#4fd1a5)' : 'var(--grad-accent)',
+              color: res.mode === 'live' ? 'var(--bg)' : 'var(--on-accent)', background: res.mode === 'live' ? 'linear-gradient(135deg, var(--ok-text), var(--ok))' : 'var(--grad-accent)',
             }}>
               MODE {res.mode.toUpperCase()}
             </span>
-            <span style={{ fontSize: 12.5, color: bloquants ? '#ff8095' : '#7ee8bf', fontWeight: 700 }}>
+            <span style={{ fontSize: 12.5, color: bloquants ? 'var(--err-strong)' : 'var(--ok-text)', fontWeight: 700 }}>
               {bloquants ? `${bloquants} point(s) bloquant(s)` : 'Chaîne de paiement opérationnelle'}
             </span>
             {res.mode === 'test' && (

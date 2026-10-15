@@ -74,17 +74,17 @@ export default async function DepensesPage(props?: { searchParams?: Promise<Para
 
       {/* Compteur */}
       <div style={{
-        border: `1px solid ${alerte ? 'rgba(254,44,85,.35)' : 'var(--line)'}`, borderRadius: surface.borderRadius,
+        border: `1px solid ${alerte ? 'color-mix(in srgb, var(--err) 35%, transparent)' : 'var(--line)'}`, borderRadius: surface.borderRadius,
         background: 'var(--surface)', padding: '18px 20px',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: alerte ? '#ff8095' : 'var(--ink)', lineHeight: 1 }}>
+          <span style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: alerte ? 'var(--err-strong)' : 'var(--ink)', lineHeight: 1 }}>
             {usd(status.spentUsd)}
           </span>
           <span style={{ fontSize: 14, color: 'var(--muted)' }}>sur un plafond de {usd(status.capUsd)}</span>
           <span style={{ flex: 1 }} />
           {status.blocked && (
-            <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 800, color: '#ff8095', border: '1px solid rgba(254,44,85,.4)' }}>
+            <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 800, color: 'var(--err-strong)', border: '1px solid color-mix(in srgb, var(--err) 40%, transparent)' }}>
               BLOQUÉ
             </span>
           )}
@@ -92,10 +92,10 @@ export default async function DepensesPage(props?: { searchParams?: Promise<Para
         <div style={{ height: 8, background: 'var(--paper)', borderRadius: 999, overflow: 'hidden', marginTop: 12 }}>
           <div style={{
             width: `${pct}%`, height: '100%', borderRadius: 999,
-            background: alerte ? 'linear-gradient(90deg,#ff6b81,#fe2c55)' : 'var(--grad-accent)',
+            background: alerte ? 'linear-gradient(90deg, var(--err-strong), var(--err))' : 'var(--grad-accent)',
           }} />
         </div>
-        <p style={{ margin: '10px 0 0', fontSize: 12.5, color: alerte ? '#ffcf8f' : 'var(--ink-2)', lineHeight: 1.55 }}>
+        <p style={{ margin: '10px 0 0', fontSize: 12.5, color: alerte ? 'var(--warn-text)' : 'var(--ink-2)', lineHeight: 1.55 }}>
           {status.summary}
         </p>
         <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>

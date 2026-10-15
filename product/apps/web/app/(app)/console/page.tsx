@@ -20,9 +20,9 @@ import { OngletsAdministration } from '../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
-const roleColor: Record<Role, string> = { owner: '#fe2c55', admin: '#7aa2ff', member: '#18cc8c', client_viewer: '#f5a623' };
+const roleColor: Record<Role, string> = { owner: 'var(--cat-rose)', admin: 'var(--cat-bleu)', member: 'var(--cat-vert)', client_viewer: 'var(--cat-ambre)' };
 const STATUS: Record<string, { label: string; color: string }> = {
-  open: { label: 'Ouvert', color: '#f5a623' }, in_progress: { label: 'En cours', color: '#7aa2ff' }, resolved: { label: 'Résolu', color: '#18cc8c' },
+  open: { label: 'Ouvert', color: 'var(--warn)' }, in_progress: { label: 'En cours', color: 'var(--info-text)' }, resolved: { label: 'Résolu', color: 'var(--ok)' },
 };
 const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 const eur = (n: number) => n.toLocaleString('fr-FR') + ' €';
@@ -89,7 +89,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>ADMIN+</h1>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>CONSOLE</span>
-        {founder && <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: '#fe2c55', background: 'rgba(254,44,85,.12)' }}>FONDATEUR</span>}
+        {founder && <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', padding: '3px 9px', borderRadius: 999, color: 'var(--cat-rose)', background: 'color-mix(in srgb, var(--cat-rose) 12%, transparent)' }}>FONDATEUR</span>}
       </div>
       <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6, marginBottom: 18 }}>
         Réservé au fondateur et aux administrateurs. {founder ? 'Vue plateforme complète : revenus, activité, tickets, données.' : <>Pilotage de <b>{s.workspaceName}</b>.</>}
@@ -162,7 +162,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                       <td style={td}>{PLAN_LABEL[r.plan]}</td>
                       <td style={td}>{r.members}</td>
                       <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{r.credits.toLocaleString('fr-FR')}</td>
-                      <td style={td}><span style={{ fontSize: 11, fontWeight: 700, color: r.active30 ? '#18cc8c' : '#f5a623' }}>{r.active30 ? 'Actif' : 'Inactif 30 j'}</span></td>
+                      <td style={td}><span style={{ fontSize: 11, fontWeight: 700, color: r.active30 ? 'var(--ok)' : 'var(--warn)' }}>{r.active30 ? 'Actif' : 'Inactif 30 j'}</span></td>
                       <td style={{ ...td, color: 'var(--muted)' }}>{new Date(r.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })}</td>
                     </tr>
                   ))}
@@ -240,7 +240,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                 <tbody>
                   {betaRows.map((r) => {
                     const ts = trialStatus(r);
-                    const kindColor = r.accountKind === 'beta' ? '#7aa2ff' : r.accountKind === 'staff' ? '#c9b8ff' : 'var(--muted)';
+                    const kindColor = r.accountKind === 'beta' ? 'var(--cat-bleu)' : r.accountKind === 'staff' ? 'var(--cat-lavande)' : 'var(--muted)';
                     return (
                       <tr key={r.id} style={{ borderTop: '1px solid var(--line)' }}>
                         <td style={{ ...td, fontWeight: 700, color: 'var(--ink)' }}>{r.name}</td>
@@ -249,14 +249,14 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                         <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{r.creditsBalance.toLocaleString('fr-FR')}</td>
                         <td style={td}>
                           {ts.daysLeft == null ? <span style={{ color: 'var(--muted)' }}>{VALEUR_ABSENTE}</span>
-                            : ts.expired ? <span style={{ fontSize: 11, fontWeight: 700, color: '#ff6b6b' }}>Expiré</span>
-                            : <span style={{ fontSize: 11, fontWeight: 700, color: ts.daysLeft <= 3 ? '#f5a623' : '#18cc8c' }}>{ts.daysLeft} j restants</span>}
+                            : ts.expired ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--err)' }}>Expiré</span>
+                            : <span style={{ fontSize: 11, fontWeight: 700, color: ts.daysLeft <= 3 ? 'var(--warn)' : 'var(--ok)' }}>{ts.daysLeft} j restants</span>}
                         </td>
                         <td style={{ ...td, textAlign: 'right' }}>
                           {ts.isTrial && !ts.expired && (
                             <form action={revokeTrialAction} style={{ display: 'inline' }}>
                               <input type="hidden" name="workspaceId" value={r.id} />
-                              <button style={{ fontSize: 11, fontWeight: 700, color: '#ff9db0', background: 'transparent', border: '1px solid rgba(255,77,109,.3)', borderRadius: 999, padding: '4px 11px', cursor: 'pointer' }}>Couper</button>
+                              <button style={{ fontSize: 11, fontWeight: 700, color: 'var(--err-text)', background: 'transparent', border: '1px solid color-mix(in srgb, var(--err) 30%, transparent)', borderRadius: 999, padding: '4px 11px', cursor: 'pointer' }}>Couper</button>
                             </form>
                           )}
                         </td>
@@ -341,7 +341,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                         <td style={td}><span style={{ fontSize: 11.5, fontWeight: 800, color: roleColor[m.role] }}>{ROLE_LABEL[m.role]}</span></td>
                         <td style={{ ...td, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{joined.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })}</td>
                         <td style={{ ...td, fontVariantNumeric: 'tabular-nums', color: tk ? 'var(--ink)' : 'var(--muted)' }}>{tk}</td>
-                        <td style={td}><span style={{ fontSize: 11, fontWeight: 700, color: isNew ? '#7aa2ff' : '#18cc8c' }}>{isNew ? 'Nouveau' : 'Actif'}</span></td>
+                        <td style={td}><span style={{ fontSize: 11, fontWeight: 700, color: isNew ? 'var(--info-text)' : 'var(--ok)' }}>{isNew ? 'Nouveau' : 'Actif'}</span></td>
                       </tr>
                     );
                   })}
@@ -365,7 +365,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                   <Link key={t.id} href={`/support/${t.id}`} style={{ ...surface, padding: '11px 13px', background: 'var(--surface)', textDecoration: 'none', display: 'block' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 13, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: st.color, background: 'rgba(255,255,255,.06)' }}>{st.label}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: st.color, background: 'color-mix(in srgb, var(--line) 50%, transparent)' }}>{st.label}</span>
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{t.authorName || 'Anonyme'} · {new Date(t.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</div>
                   </Link>
@@ -381,9 +381,9 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
 
 function Kpi({ label, value, hint, accent, danger }: { label: string; value: string; hint?: string; accent?: boolean; danger?: boolean }) {
   return (
-    <div style={{ padding: '15px 16px', ...(accent ? cadreSignal('rgba(245,166,35,.3)') : surface), background: accent ? 'linear-gradient(180deg, rgba(245,166,35,.10), var(--surface))' : 'var(--surface)' }}>
+    <div style={{ padding: '15px 16px', ...(accent ? cadreSignal('color-mix(in srgb, var(--accent) 30%, transparent)') : surface), background: accent ? 'linear-gradient(180deg in srgb, color-mix(in srgb, var(--accent) 10%, transparent), var(--surface))' : 'var(--surface)' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 7 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: danger ? '#ff6b6b' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: danger ? 'var(--err)' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       {hint && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>{hint}</div>}
     </div>
   );

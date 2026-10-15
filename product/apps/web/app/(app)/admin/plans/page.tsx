@@ -122,7 +122,7 @@ export default async function AdminPlansPage({ searchParams }: { searchParams: P
 
 function Stat({ label, value, sub, strong }: { label: string; value: string; sub?: string; strong?: boolean }) {
   return (
-    <div style={{ border: `1px solid ${strong ? 'rgba(245,166,35,.3)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: strong ? 'rgba(245,166,35,.06)' : 'var(--surface)', padding: '15px 17px' }}>
+    <div style={{ border: `1px solid ${strong ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: strong ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : 'var(--surface)', padding: '15px 17px' }}>
       <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 23, fontWeight: 800, color: strong ? 'var(--accent-strong)' : 'var(--ink)', marginTop: 5, lineHeight: 1.15 }}>{value}</div>
       {sub && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 5 }}>{sub}</div>}

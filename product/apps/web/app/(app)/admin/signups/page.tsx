@@ -73,7 +73,7 @@ export default async function SignupsPage() {
                   <td style={td}>{o.siteUrl ? <a href={`https://${o.siteUrl}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-strong)' }}>{o.siteUrl}</a> : VALEUR_ABSENTE}</td>
                   <td style={td}>{PLAN_LABEL[r.plan as Plan] ?? r.plan}</td>
                   <td style={td}>{fmt(r.createdAt as Date)}</td>
-                  <td style={td}>{r.onboardedAt ? <span style={{ color: '#7ee8bf' }}>{fmt(r.onboardedAt as Date)}</span> : <span style={{ color: '#ffcf8f' }}>en cours</span>}</td>
+                  <td style={td}>{r.onboardedAt ? <span style={{ color: 'var(--ok-text)' }}>{fmt(r.onboardedAt as Date)}</span> : <span style={{ color: 'var(--warn-text)' }}>en cours</span>}</td>
                 </tr>
               );
             })}
@@ -86,4 +86,4 @@ export default async function SignupsPage() {
 
 const th = { padding: '11px 14px', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', borderBottom: '1px solid var(--line)', textAlign: 'left' } as const;
 const td = { padding: '11px 14px', fontSize: 12.5, color: 'var(--ink-2)', borderBottom: '1px solid var(--line)', verticalAlign: 'top' } as const;
-const chip = { fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' } as const;
+const chip = { fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)', background: 'color-mix(in srgb, var(--line) 41.67%, transparent)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' } as const;

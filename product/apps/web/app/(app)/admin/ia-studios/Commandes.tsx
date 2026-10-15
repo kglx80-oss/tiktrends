@@ -64,7 +64,7 @@ function Retour({ r, succes }: { r: ReponseAdmin<Record<string, unknown>> | null
   if (!r) return null;
   if (r.ok) return <div ref={ref} tabIndex={-1} role="status" style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ok)', fontWeight: 600 }}>{succes}</div>;
   return (
-    <div ref={ref} tabIndex={-1} role="alert" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(229,72,77,.45)', background: 'rgba(229,72,77,.08)', color: 'var(--ink)', fontSize: 13.5 }}>
+    <div ref={ref} tabIndex={-1} role="alert" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--danger) 45%, transparent)', background: 'color-mix(in srgb, var(--danger) 8%, transparent)', color: 'var(--ink)', fontSize: 13.5 }}>
       <b style={{ color: 'var(--err)' }}>{r.message}</b>
       {r.constats.length > 0 && (
         <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
@@ -227,7 +227,7 @@ function RetourBenchmark({ r, succes }: { r: ReponseBenchmark<Record<string, unk
   if (!r) return null;
   if (r.ok) return <div ref={ref} tabIndex={-1} role="status" style={{ margin: '8px 0 0', fontSize: 13.5, color: 'var(--ok)', fontWeight: 600 }}>{succes}</div>;
   return (
-    <div ref={ref} tabIndex={-1} role="alert" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(229,72,77,.45)', background: 'rgba(229,72,77,.08)', color: 'var(--ink)', fontSize: 13.5 }}>
+    <div ref={ref} tabIndex={-1} role="alert" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--danger) 45%, transparent)', background: 'color-mix(in srgb, var(--danger) 8%, transparent)', color: 'var(--ink)', fontSize: 13.5 }}>
       <b style={{ color: 'var(--err)' }}>{r.message}</b>
       {r.motifs && r.motifs.length > 0 && <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{r.motifs.slice(0, 12).map((c, i) => <li key={i} style={{ marginTop: 3, overflowWrap: 'anywhere' }}><code style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{c.code}</code> · {c.message}</li>)}</ul>}
       {r.traceId && <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)' }}>Identifiant support · <code>{r.traceId}</code></p>}
