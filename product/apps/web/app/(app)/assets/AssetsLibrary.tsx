@@ -52,7 +52,12 @@ function putWithProgress(url: string, file: File, onProgress: (pct: number) => v
   });
 }
 
-export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = false }: { initial: AssetItem[]; brandName: string | null; storageEnabled: boolean; isAdmin?: boolean }) {
+/**
+ * `lectureSeule` · l'espace voit ses médias sans pouvoir les modifier (offre
+ * sous Core, `refusEcritureBibliotheque`). Aucun geste d'écriture, d'IA ni de
+ * crédit n'est proposé · le serveur les refuse de toute façon (`assets.ts`).
+ */
+export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = false, lectureSeule = false }: { initial: AssetItem[]; brandName: string | null; storageEnabled: boolean; isAdmin?: boolean; lectureSeule?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [assets, setAssets] = useState(initial);
@@ -226,7 +231,8 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
 
   return (
     <div onKeyDown={fermerPanneau}>
-      {/* Barre d'actions */}
+      {/* Barre d'actions · absente en lecture seule */}
+      {!lectureSeule && (
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
         <input ref={fileRef} type="file" accept={storageEnabled ? 'image/*,video/*,audio/*' : 'image/*'} multiple onChange={onFiles} style={{ display: 'none' }} />
         <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>
@@ -250,6 +256,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
         </label>
         {msg && <span style={{ fontSize: 12.5, color: 'var(--ink-2)', flexBasis: '100%' }}>{msg}</span>}
       </div>
+      )}
 
       {/* Google Drive · import de liens (fichiers ou dossier partagé) */}
       {showDrive && (
@@ -296,12 +303,12 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input aria-label="Rechercher un asset par nom ou tag" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); garderDansUrl(filter, e.target.value); }} placeholder="Rechercher par nom ou tag (IA)…"
           style={{ ...fld, flex: '1 1 260px', maxWidth: 420 }} />
-        {untagged > 0 && (
+        {!lectureSeule && untagged > 0 && (
           <button type="button" onClick={tagBulk} disabled={!!tagging} style={{ ...ghost, borderColor: 'var(--accent-strong)', color: 'var(--accent-strong)' }}>
             {tagging === 'bulk' ? 'Analyse…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="sparkles" size={13} /> Analyser {untagged} image(s)</span>}
           </button>
         )}
-        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>1 crédit / image</span>
+        {!lectureSeule && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>1 crédit / image</span>}
       </div>
 
       {/* Filtres */}
@@ -339,11 +346,13 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
             tone="todo"
             icon="folder"
             title="Aucun asset pour l'instant."
-            why="Téléverse tes images, ou importe tes rushs par lien · l'IA s'en servira automatiquement pour composer tes créas."
+            why={lectureSeule ? 'Aucun média enregistré dans cet espace.' : "Téléverse tes images, ou importe tes rushs par lien · l'IA s'en servira automatiquement pour composer tes créas."}
           >
+            {!lectureSeule && (
             <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} style={primary}>
               {busy ? 'Traitement…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}><Icon name="upload" size={14} /> {storageEnabled ? 'Téléverser des fichiers' : 'Téléverser des images'}</span>}
             </button>
+            )}
           </Empty>
         ) : (
           // Des assets existent, mais le filtre / la recherche ne trouvent rien · pas un manque, une recherche vide.
@@ -409,25 +418,29 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
                       <span key={t} style={{ fontSize: 10, color: 'var(--ink-2)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--line)', borderRadius: 999, padding: '1px 7px' }}>{t}</span>
                     ))}
                   </div>
-                ) : a.kind === 'image' ? (
+                ) : a.kind === 'image' && !lectureSeule ? (
                   <button type="button" onClick={() => tagOne(a)} disabled={!!tagging} style={{ alignSelf: 'flex-start', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', fontSize: 10.5, fontWeight: 700, color: 'var(--accent-strong)', background: 'transparent', border: '1px solid var(--line-2)', borderRadius: 999, padding: '3px 9px', cursor: tagging ? 'default' : 'pointer' }}>
                     {tagging === a.id ? 'Analyse…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}><Icon name="sparkles" size={12} /> Analyser (1 cr.)</span>}
                   </button>
                 ) : null}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
+                  {lectureSeule ? (
+                    <span title="Offre sous Core · médias consultables, sans modification" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11, color: 'var(--muted)', flex: 1 }}>Lecture seule</span>
+                  ) : (
                   <label title="Utilisable par l'IA" style={{ display: 'flex', alignItems: 'center', gap: 5, minHeight: CIBLE_TACTILE_MIN, fontSize: 11, color: a.useForAi ? '#7ee8bf' : 'var(--muted)', cursor: 'pointer', flex: 1 }}>
                     <input type="checkbox" checked={a.useForAi} onChange={() => toggleAi(a)} style={{ accentColor: '#7ee8bf' }} />
                     IA
                   </label>
+                  )}
                   {/* Coulisses · réservé à l'agence (admin+). Images seulement · un
                       template est visuel. Le client voit le badge, jamais ce bouton. */}
-                  {isAdmin && a.kind === 'image' && (
+                  {isAdmin && !lectureSeule && a.kind === 'image' && (
                     <button type="button" onClick={() => toggleTemplate(a)} title={a.isTemplate ? 'Retirer des templates' : 'En faire un template (visible du client)'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: CIBLE_TACTILE_MIN, fontSize: 11, fontWeight: 700, color: a.isTemplate ? 'var(--accent-strong)' : 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
                       <Icon name="star" size={12} /> {a.isTemplate ? 'Template ✓' : 'Template'}
                     </button>
                   )}
                   {a.source !== 'upload' && <a href={a.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: 'var(--muted)', textDecoration: 'none' }}>ouvrir ↗</a>}
-                  <button type="button" onClick={() => remove(a)} style={{ minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: '#ff9db0', background: 'transparent', border: 'none', cursor: 'pointer' }}>Suppr.</button>
+                  {!lectureSeule && <button type="button" onClick={() => remove(a)} style={{ minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: '#ff9db0', background: 'transparent', border: 'none', cursor: 'pointer' }}>Suppr.</button>}
                 </div>
               </div>
             </div>
