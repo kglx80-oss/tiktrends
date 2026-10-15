@@ -34,7 +34,7 @@ export const LIBELLES_SOURCE: Readonly<Record<SourceDecision, string>> = {
 
 function Etat({ d }: { d: DecisionCapacite }) {
   return (
-    <span data-active={d.active ? 'oui' : 'non'} data-source={d.source} style={{ fontSize: 12.5, fontWeight: 700, color: d.active ? 'var(--ok, #3fb97a)' : 'var(--ink-2)' }}>
+    <span data-active={d.active ? 'oui' : 'non'} data-source={d.source} style={{ fontSize: 12.5, fontWeight: 700, color: d.active ? 'var(--ok)' : 'var(--ink-2)' }}>
       {d.active ? 'Active' : 'Coupée'} <span style={{ fontWeight: 400, color: 'var(--muted)' }}>· {LIBELLES_SOURCE[d.source]}</span>
     </span>
   );

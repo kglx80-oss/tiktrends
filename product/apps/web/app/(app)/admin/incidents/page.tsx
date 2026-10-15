@@ -96,9 +96,9 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
       </p>
 
       {total === 0 ? (
-        <div style={{ ...cadreSignal('rgba(126,232,191,.35)'), background: 'rgba(126,232,191,.05)', padding: '30px 24px', textAlign: 'center' }}>
+        <div style={{ ...cadreSignal('color-mix(in srgb, var(--ok-text) 35%, transparent)'), background: 'color-mix(in srgb, var(--ok-text) 5%, transparent)', padding: '30px 24px', textAlign: 'center' }}>
           <div style={{ fontSize: 26 }}>✓</div>
-          <p style={{ margin: '8px 0 0', fontSize: 14, color: '#7ee8bf', fontWeight: 700 }}>Aucun incident sur {jours} jour(s).</p>
+          <p style={{ margin: '8px 0 0', fontSize: 14, color: 'var(--ok-text)', fontWeight: 700 }}>Aucun incident sur {jours} jour(s).</p>
           <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>Toutes les générations ont abouti, ou le journal vient d'être mis en service.</p>
         </div>
       ) : (

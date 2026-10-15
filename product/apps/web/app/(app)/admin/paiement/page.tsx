@@ -84,7 +84,7 @@ export default async function PaiementPage() {
               <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 999, background: 'var(--paper)', color: 'var(--accent-strong)', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</span>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5 }}>{e.faire}</div>
-                <div style={{ fontSize: 12.5, color: '#7ee8bf', marginTop: 4, lineHeight: 1.5 }}>→ {e.verifier}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--ok-text)', marginTop: 4, lineHeight: 1.5 }}>→ {e.verifier}</div>
               </div>
             </li>
           ))}

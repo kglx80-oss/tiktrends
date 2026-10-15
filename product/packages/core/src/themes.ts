@@ -256,6 +256,10 @@ export const FONDS_STATUT = ['bg', 'surface', 'surface-raised', 'paper'] as cons
  * (--warn-text sur --paper) ; ADMIN+ sombre 5,55 (--info-text sur --paper) ;
  * ADMIN+ clair 5,02 (--warn-text sur --paper). Pire interface ajoutée · 4,51
  * (--fatigue sur --paper, clair).
+ * T3 (15/10/2026) · rôles de l'administration, pire paire mesurée par palette ·
+ * sombre 4,54 (--cat-rose sur --paper, valeur de main) · clair 4,74
+ * (--cat-violet sur --paper) · ADMIN+ sombre 4,70 (--cat-rose sur --paper) ·
+ * ADMIN+ clair 4,82 (--cat-violet sur --paper).
  */
 export const PAIRES_THEME: readonly PaireJetons[] = [
   ...croiser(['ink', 'ink-2', 'muted'], FONDS_TEXTE, 'texte', 'texte principal, secondaire, méta'),
@@ -276,6 +280,14 @@ export const PAIRES_THEME: readonly PaireJetons[] = [
     dessus: 'clair-fixe', fond: 'grad-croissance', nature: 'texte', palettes: ['clair', 'admin-clair'],
     usage: 'pastille « croissance » · en sombre, 3,46:1 hérité de main (#1f9d63), hors de ce lot qui ne change pas le sombre',
   },
+  // T3 · administration (rôles ajoutés par la tokenisation de l'admin et de la console).
+  ...croiser(['warn-strong', 'warn-text', 'err-strong', 'info-text', 'success'], FONDS_STATUT, 'texte', 'statuts et notes de l’administration'),
+  // --danger ne se pose que sur la page et les cartes (bouton « Retirer », bandeau
+  // d'échec) · le sombre de main (#e5484d) fait 4,66 sur --surface mais 4,27 sur
+  // --paper · ne pas l'y poser sans l'éclaircir.
+  ...croiser(['danger'], ['bg', 'surface'], 'texte', 'action destructrice, bandeau d’échec'),
+  ...croiser(['danger-vif'], FONDS_STATUT, 'texte', 'KPI d’alerte en gros chiffre (churn, essai expiré)'),
+  ...croiser(['cat-rose', 'cat-bleu', 'cat-vert', 'cat-ambre', 'cat-violet', 'cat-lavande', 'cat-gris'], FONDS_STATUT, 'texte', 'teinte de catégorie écrite (rôle, type de compte)'),
 ];
 
 export interface MesurePaire extends PaireJetons { palette: PaletteTheme; ratio: number; seuil: number; ok: boolean }

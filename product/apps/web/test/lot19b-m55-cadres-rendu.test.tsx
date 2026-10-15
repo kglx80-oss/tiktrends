@@ -211,7 +211,7 @@ describe('message 55 · écrans de #724 rendus · chaque cadre porte son rôle',
 
   it('l’avertissement avant publication · signal au rayon d’une tuile (plateforme), tuile neutre (espace)', () => {
     const p = renderToStaticMarkup(<Formulaire initial={VALEURS('plateforme')} titreFormulaire="N" espaces={[]} marques={[]} occupe={false} onEnvoyer={async () => true} />);
-    expect(/data-avant-publication="plateforme" style="([^"]*)"/.exec(p)?.[1]).toContain('border:1px solid rgba(245,166,35,.45);border-radius:var(--r-md)');
+    expect(/data-avant-publication="plateforme" style="([^"]*)"/.exec(p)?.[1]).toContain('border:1px solid color-mix(in srgb, var(--warn) 45%, transparent);border-radius:var(--r-md)');
     const e = renderToStaticMarkup(<Formulaire initial={VALEURS('espace')} titreFormulaire="N" espaces={[]} marques={[]} occupe={false} onEnvoyer={async () => true} />);
     expect(/data-avant-publication="espace" style="([^"]*)"/.exec(e)?.[1]).toContain('border:1px solid var(--line);border-radius:var(--r-md)');
   });

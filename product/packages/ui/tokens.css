@@ -111,6 +111,26 @@
   /* Typo (Google Fonts) */
   --font-sans: 'Geist', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* T3 · administration · rôles nés de la tokenisation de l'admin et de la
+     console. Valeurs sombres = les littéraux de main, à l'identique (captures
+     pixel à pixel). Les teintes translucides se dérivent du rôle avec
+     `color-mix(in srgb, var(--x) N%, transparent)`, exact au pixel. */
+  --warn-strong:  #f5b043;  /* avertissement en texte vif (« à surveiller ») */
+  --warn-text:    #ffcf8f;  /* texte d'avertissement pâle (note, brouillon) */
+  --err-strong:   #ff8095;  /* texte d'erreur vif (refus, échec) */
+  --info-text:    #7aa2ff;  /* texte d'information (en cours, nouveau) */
+  --danger:       #e5484d;  /* action destructrice, bandeau d'échec */
+  --danger-vif:   #ff6b6b;  /* KPI d'alerte en gros chiffre (churn, essai expiré) · rouge clair */
+  --success:      #2fa46c;  /* bandeau de confirmation */
+  /* Teintes de catégorie · séries de graphique, rôles, formules · jamais un statut. */
+  --cat-rose:     #fe2c55;
+  --cat-bleu:     #7aa2ff;
+  --cat-vert:     #18cc8c;
+  --cat-ambre:    #f5a623;
+  --cat-violet:   #c07bff;
+  --cat-lavande:  #c9b8ff;
+  --cat-gris:     #8a94a6;
 }
 
 /* ---------- Clair · espace créatif (V5 .theme-light, mesuré) ----------
@@ -187,6 +207,17 @@
   --clair-fixe:     #ffffff;
   --sombre-fixe:    #000000;
   --pastille-media: rgba(8,5,10,0.72);
+  --err-strong:   #b3261e;
+  --danger:       #b3261e;
+  --danger-vif:   #b3261e;
+  --success:      #1a6f4b;
+  --cat-rose:     #b0204f;
+  --cat-bleu:     #1d4ed8;
+  --cat-vert:     #1a6f4b;
+  --cat-ambre:    #8a5a00;
+  --cat-violet:   #7c3aed;
+  --cat-lavande:  #6d4fc2;
+  --cat-gris:     #5b6474;
 }
 
 /* ---------- ADMIN+ · sombre (bleu nuit / menthe, DESIGN.md V4) ----------
@@ -251,6 +282,17 @@
   --clair-fixe:     #ffffff;
   --sombre-fixe:    #000000;
   --pastille-media: rgba(8,5,10,0.72);
+  --err-strong:   #ff8095;
+  --danger:       #ff7a90;
+  --danger-vif:   #ff6b6b;
+  --success:      #45c08a;
+  --cat-rose:     #ff5c8a;
+  --cat-bleu:     #7aa2ff;
+  --cat-vert:     #18cc8c;
+  --cat-ambre:    #f5a623;
+  --cat-violet:   #c07bff;
+  --cat-lavande:  #c9b8ff;
+  --cat-gris:     #95a0b2;
 }
 
 /* ---------- ADMIN+ · clair (V5 .adminspace.theme-light, mesuré) ----------
@@ -314,6 +356,17 @@
   --clair-fixe:     #ffffff;
   --sombre-fixe:    #000000;
   --pastille-media: rgba(8,5,10,0.72);
+  --err-strong:   #b3261e;
+  --danger:       #b3261e;
+  --danger-vif:   #b3261e;
+  --success:      #1a6f4b;
+  --cat-rose:     #b0204f;
+  --cat-bleu:     #1d4ed8;
+  --cat-vert:     #1a6f4b;
+  --cat-ambre:    #8a5a00;
+  --cat-violet:   #7c3aed;
+  --cat-lavande:  #6d4fc2;
+  --cat-gris:     #5b6474;
 }
 
 /* Fond principal UNI, sans quadrillage décoratif ni halo rose global

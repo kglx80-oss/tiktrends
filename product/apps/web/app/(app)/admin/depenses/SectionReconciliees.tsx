@@ -35,7 +35,7 @@ export function SectionReconciliees({ ecran, erreur, vientDe, deja }: { ecran: E
         {recente ? `${deja ? 'Déjà enregistrée sous ce formulaire, aucun doublon' : 'Réconciliation enregistrée'} · ${recente.action}, réservé ${recente.reserve} → facturé ${recente.facture}.` : ''}
       </p>
       {etat === 'erreur' ? (
-        <p role="alert" style={{ ...discret, color: '#f5b043' }}>L’historique n’a pas pu être lu · {erreur || 'base indisponible'}.</p>
+        <p role="alert" style={{ ...discret, color: 'var(--warn-strong)' }}>L’historique n’a pas pu être lu · {erreur || 'base indisponible'}.</p>
       ) : (
         <p style={discret}>{ecran!.resume}</p>
       )}
@@ -44,7 +44,7 @@ export function SectionReconciliees({ ecran, erreur, vientDe, deja }: { ecran: E
           {ecran.lignes.map((l) => (
             <li
               key={l.id} data-ligne-reconciliee={l.id}
-              style={{ ...(l.id === vientDe ? cadreSignal('rgba(76,201,140,.6)', 'tuile') : tuile), padding: '10px 14px', display: 'grid', gap: 6, minWidth: 0 }}
+              style={{ ...(l.id === vientDe ? cadreSignal('color-mix(in srgb, var(--ok) 60%, transparent)', 'tuile') : tuile), padding: '10px 14px', display: 'grid', gap: 6, minWidth: 0 }}
             >
               <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13.5, color: 'var(--ink)', fontWeight: 600, overflowWrap: 'anywhere' }}>{l.action}</span>
@@ -56,7 +56,7 @@ export function SectionReconciliees({ ecran, erreur, vientDe, deja }: { ecran: E
                 <dt style={etiquette}>Appel</dt><dd style={{ ...discret, margin: 0 }}>{l.appel} · {l.fournisseur}{l.modele ? ` · ${l.modele}` : ''}</dd>
                 <dt style={etiquette}>Réservé</dt><dd style={{ ...discret, margin: 0 }}>{l.reserve}, gardé sur la ligne</dd>
                 <dt style={etiquette}>Facturé</dt><dd style={{ ...discret, margin: 0 }}>{l.facture}, retenu au plafond</dd>
-                <dt style={etiquette}>Écart</dt><dd style={{ ...discret, margin: 0, color: l.depasse ? '#f5b043' : discret.color }}>{l.depasse ? 'Dépassement · ' : ''}{l.ecart}</dd>
+                <dt style={etiquette}>Écart</dt><dd style={{ ...discret, margin: 0, color: l.depasse ? 'var(--warn-strong)' : discret.color }}>{l.depasse ? 'Dépassement · ' : ''}{l.ecart}</dd>
                 <dt style={etiquette}>Preuve</dt><dd style={{ ...discret, margin: 0 }}>{l.preuve}</dd>
                 <dt style={etiquette}>Motif</dt><dd style={{ ...discret, margin: 0 }}>{l.motif}</dd>
                 <dt style={etiquette}>Par</dt><dd style={{ ...discret, margin: 0 }}>{l.auteur}, le {l.le}</dd>

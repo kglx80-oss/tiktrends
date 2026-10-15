@@ -28,10 +28,10 @@ const INITIAL: EtatReconciliationForm = { statut: 'initial', message: '' };
 
 const etiquette: CSSProperties = { display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 };
 const aide: CSSProperties = { margin: '4px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 };
-const erreurTexte: CSSProperties = { margin: '4px 0 0', fontSize: 12.5, color: '#ff8095', lineHeight: 1.45 };
+const erreurTexte: CSSProperties = { margin: '4px 0 0', fontSize: 12.5, color: 'var(--err-strong)', lineHeight: 1.45 };
 const champ = (fautif: boolean): CSSProperties => ({
   width: '100%', boxSizing: 'border-box', minHeight: CIBLE_TACTILE_MIN, padding: '10px 12px', borderRadius: 12,
-  border: `1px solid ${fautif ? 'rgba(254,44,85,.65)' : 'var(--line-2)'}`, background: 'var(--paper)', color: 'var(--ink)', fontSize: 16,
+  border: `1px solid ${fautif ? 'color-mix(in srgb, var(--err) 65%, transparent)' : 'var(--line-2)'}`, background: 'var(--paper)', color: 'var(--ink)', fontSize: 16,
 });
 const bouton: CSSProperties = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px',
@@ -128,7 +128,7 @@ export function FormulaireReconciliation({ ligneId, reserveMicros, cle }: { lign
             <dt style={{ color: 'var(--muted)' }}>Motif</dt><dd style={{ margin: 0, color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>{valeurs.motif.trim()}</dd>
           </dl>
           {conf?.avertissement && (
-            <p data-avertissement-depassement style={{ margin: 0, padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(245,166,35,.55)', fontSize: 13, color: '#f5b043', lineHeight: 1.5 }}>
+            <p data-avertissement-depassement style={{ margin: 0, padding: '8px 12px', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--warn) 55%, transparent)', fontSize: 13, color: 'var(--warn-strong)', lineHeight: 1.5 }}>
               {conf.avertissement}
             </p>
           )}

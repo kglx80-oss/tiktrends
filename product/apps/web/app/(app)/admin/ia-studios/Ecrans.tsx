@@ -36,7 +36,7 @@ export function Vide({ titre, children }: { titre: string; children?: ReactNode 
 }
 
 export function Erreur({ message, traceId }: { message: string; traceId: string }) {
-  return <div role="alert" style={{ ...surfaceBloc, borderColor: 'rgba(229,72,77,.45)' }}><p style={{ margin: 0, fontWeight: 700, color: 'var(--err)' }}>{message}</p><p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--muted)' }}>Recharge la page. Identifiant support · <code>{traceId}</code></p></div>;
+  return <div role="alert" style={{ ...surfaceBloc, borderColor: 'color-mix(in srgb, var(--danger) 45%, transparent)' }}><p style={{ margin: 0, fontWeight: 700, color: 'var(--err)' }}>{message}</p><p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--muted)' }}>Recharge la page. Identifiant support · <code>{traceId}</code></p></div>;
 }
 
 function Bloc({ titre, children, id }: { titre: string; children: ReactNode; id?: string }) {
