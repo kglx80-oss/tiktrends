@@ -21,6 +21,34 @@ import { isIP } from 'node:net';
 const MAX_REDIRECTS = 4;
 const ALLOWED_PORTS = new Set(['', '80', '443', '8080', '8443']);
 
+/** Développe une IPv6 en 8 blocs de 16 bits, ou null si la forme est invalide.
+ *  Gère l'abréviation `::` et un suffixe IPv4 en notation pointée (NAT64, mappée). */
+function hextetsV6(entree: string): number[] | null {
+  let str = entree;
+  const pointe = str.match(/^(.*:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (pointe) {
+    const q = pointe[2]!.split('.').map(Number);
+    if (q.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+    str = pointe[1]! + (((q[0]! << 8) | q[1]!).toString(16)) + ':' + (((q[2]! << 8) | q[3]!).toString(16));
+  }
+  const parts = str.split('::');
+  if (parts.length > 2) return null;
+  const tete = parts[0] ? parts[0].split(':') : [];
+  const queue = parts.length === 2 ? (parts[1] ? parts[1].split(':') : []) : null;
+  let blocs: string[];
+  if (queue === null) {
+    blocs = tete;
+    if (blocs.length !== 8) return null;
+  } else {
+    const zeros = 8 - tete.length - queue.length;
+    if (zeros < 1) return null;
+    blocs = [...tete, ...Array<string>(zeros).fill('0'), ...queue];
+  }
+  if (blocs.length !== 8) return null;
+  const out = blocs.map((h) => (/^[0-9a-f]{1,4}$/.test(h) ? parseInt(h, 16) : NaN));
+  return out.some((n) => Number.isNaN(n)) ? null : out;
+}
+
 /** Plages non routables sur Internet : personne n'a de raison légitime de nous y envoyer. */
 export function isPrivateAddress(ip: string): boolean {
   const v = isIP(ip);
@@ -38,15 +66,24 @@ export function isPrivateAddress(ip: string): boolean {
     return false;
   }
   if (v === 6) {
-    const s = ip.toLowerCase().replace(/^\[|\]$/g, '');
-    if (s === '::' || s === '::1') return true;                         // non spécifié, loopback
-    if (s.startsWith('fe80') || s.startsWith('fec0')) return true;      // link-local, site-local
-    if (/^f[cd]/.test(s)) return true;                                  // unique local (fc00::/7)
-    if (s.startsWith('ff')) return true;                                // multicast
-    // IPv4 encapsulée (::ffff:127.0.0.1) : on rejuge sur la partie v4.
-    const m = s.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (m?.[1]) return isPrivateAddress(m[1]);
-    return false;
+    const h = hextetsV6(ip.toLowerCase().replace(/^\[|\]$/g, ''));
+    if (!h) return true;                                                // forme illisible → refus
+    const [h0, h1, h2, h3, h4, h5, h6, h7] = h as [number, number, number, number, number, number, number, number];
+    const premiersSixNuls = h0 === 0 && h1 === 0 && h2 === 0 && h3 === 0 && h4 === 0 && h5 === 0;
+    if (premiersSixNuls && h6 === 0 && h7 <= 1) return true;            // :: (non spécifié), ::1 (loopback)
+    if ((h0 & 0xffc0) === 0xfe80) return true;                          // fe80::/10 link-local (métadonnées)
+    if ((h0 & 0xffc0) === 0xfec0) return true;                          // fec0::/10 site-local (obsolète)
+    if ((h0 & 0xfe00) === 0xfc00) return true;                          // fc00::/7 unique local
+    if ((h0 & 0xff00) === 0xff00) return true;                          // ff00::/8 multicast
+    // Adresses qui ENCAPSULENT une IPv4 · on rejuge sur la v4 portée (une v4
+    // publique y reste publique, une v4 interne doit être refusée) · ferme le
+    // contournement par forme hexadécimale (::ffff:7f00:1), NAT64 et 6to4.
+    const v4 = (hi: number, lo: number) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+    if (h0 === 0 && h1 === 0 && h2 === 0 && h3 === 0 && h4 === 0 && h5 === 0xffff) return isPrivateAddress(v4(h6, h7)); // ::ffff:0:0/96 mappée
+    if (premiersSixNuls) return isPrivateAddress(v4(h6, h7));           // ::/96 compatible (obsolète)
+    if (h0 === 0x0064 && h1 === 0xff9b && h2 === 0 && h3 === 0 && h4 === 0 && h5 === 0) return isPrivateAddress(v4(h6, h7)); // 64:ff9b::/96 NAT64
+    if (h0 === 0x2002) return isPrivateAddress(v4(h1, h2));             // 2002::/16 6to4
+    return false;                                                       // unicast global
   }
   return true; // ni v4 ni v6 : on refuse par défaut
 }

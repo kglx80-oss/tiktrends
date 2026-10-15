@@ -8,14 +8,30 @@ describe('adresses non routables', () => {
     '100.64.0.1',                                // CGNAT
     '224.0.0.1', '255.255.255.255',
     '::1', '::', 'fe80::1', 'fc00::1', 'fd12::3', 'ff02::1',
-    '::ffff:127.0.0.1',                          // IPv4 encapsulée
+    '::ffff:127.0.0.1',                          // IPv4 encapsulée (forme pointée)
+    '::ffff:7f00:1',                             // IPv4 mappée en forme hexadécimale (127.0.0.1)
+    '::ffff:0a00:0001',                          // 10.0.0.1 mappée hexadécimale
+    '::7f00:1',                                  // IPv4-compatible obsolète (127.0.0.1)
+    '64:ff9b::7f00:1',                           // NAT64 de 127.0.0.1
+    '64:ff9b::a9fe:a9fe',                         // NAT64 de 169.254.169.254 (métadonnées)
+    '2002:7f00:1::',                             // 6to4 de 127.0.0.1
+    '2002:c0a8:101::',                           // 6to4 de 192.168.1.1
+    'fe99::1', 'febf::1',                        // link-local, tout fe80::/10
+    'fec0::1',                                   // site-local obsolète
+    'fd12:3456:789a:1::1',                       // ULA développée
+    ':::', '2001:db8::1::2', 'gggg::1',          // formes illisibles → refus par défaut
     'pas-une-ip',
   ];
   for (const ip of privees) {
     it(`refuse ${ip}`, () => expect(isPrivateAddress(ip)).toBe(true));
   }
 
-  const publiques = ['8.8.8.8', '1.1.1.1', '172.32.0.1', '192.169.0.1', '2001:4860:4860::8888'];
+  const publiques = [
+    '8.8.8.8', '1.1.1.1', '172.32.0.1', '192.169.0.1', '2001:4860:4860::8888',
+    '64:ff9b::808:808',                          // NAT64 d'une v4 PUBLIQUE (8.8.8.8) · reste public
+    '2002:808:808::',                            // 6to4 d'une v4 PUBLIQUE (8.8.8.8) · reste public
+    '::ffff:808:808',                            // 8.8.8.8 mappée hexadécimale · reste public
+  ];
   for (const ip of publiques) {
     it(`accepte ${ip}`, () => expect(isPrivateAddress(ip)).toBe(false));
   }
