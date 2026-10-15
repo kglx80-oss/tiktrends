@@ -261,6 +261,26 @@ export const FONDS_STATUT = ['bg', 'surface', 'surface-raised', 'paper'] as cons
  * (--cat-violet sur --paper) · ADMIN+ sombre 4,70 (--cat-rose sur --paper) ·
  * ADMIN+ clair 4,82 (--cat-violet sur --paper).
  */
+/**
+ * V5 · T4 · les rôles nés de la tokenisation d'Adsmap (Résultats) et de Jarvis.
+ * Mesuré le 15/10/2026 (pire paire, toutes palettes) · texte · --warn-text et
+ * --warn-strong 4,93 sur --paper en clair ; interface · --violet 3,11 sur
+ * --paper en ADMIN+ sombre.
+ *
+ * Le bouton « Entraîner Jarvis » (--on-violet sur --grad-violet) est déclaré ·
+ * le sombre de main y était à 4,45:1, ce lot le corrige à 5,31 au pire arrêt
+ * en assombrissant le dégradé. La pastille cochée du règlement (texte --ok-text
+ * sur une teinte --ok-text à 20 %) n'est PAS exprimable ici (fond color-mix, pas
+ * un jeton) · mesurée au navigateur · sombre 7,66, clair 4,85 au pire, au-dessus
+ * de 4,5 partout (le sombre de main y était à 1,08:1, corrigé par ce lot).
+ */
+export const PAIRES_ADSMAP_JARVIS: readonly PaireJetons[] = [
+  ...croiser(['warn-text', 'warn-strong', 'err-strong', 'ok-pale', 'err-pale', 'recul-text', 'info-pale', 'violet-text'], FONDS_STATUT, 'texte', 'Adsmap et Jarvis · verdicts, messages, conseils'),
+  ...croiser(['ok-strong', 'signal', 'violet'], ['bg', 'surface', 'paper'], 'interface', 'Adsmap et Jarvis · jauge, cadre signal, pictogramme'),
+  { dessus: 'paper', fond: 'grad-ok-doux', nature: 'interface', usage: 'barre au-dessus de la moyenne sur sa piste (pire arrêt)' },
+  { dessus: 'on-violet', fond: 'grad-violet', nature: 'texte', usage: 'libellé du bouton « Entraîner Jarvis » (pire arrêt du dégradé)' },
+];
+
 export const PAIRES_THEME: readonly PaireJetons[] = [
   ...croiser(['ink', 'ink-2', 'muted'], FONDS_TEXTE, 'texte', 'texte principal, secondaire, méta'),
   ...croiser(['accent-strong'], [...FONDS_STATUT, 'selected', 'accent-soft'], 'texte', 'lien, onglet choisi, entrée active'),
@@ -269,6 +289,7 @@ export const PAIRES_THEME: readonly PaireJetons[] = [
   { dessus: 'on-accent', fond: 'grad-accent', nature: 'texte', usage: 'libellé des boutons principaux (pire arrêt du dégradé)' },
   ...croiser(['line-strong'], FONDS_STATUT, 'interface', 'bordure d’un champ ou d’un contrôle'),
   ...croiser(['accent-strong'], ['bg', 'surface', 'paper'], 'interface', 'anneau de focus clavier'),
+  ...PAIRES_ADSMAP_JARVIS,
   // V5 · T1 · rôles ajoutés par la tokenisation des composants partagés
   ...croiser(['warn-text', 'warn-strong', 'info-text'], FONDS_STATUT, 'texte', 'avertissement, à surveiller, information'),
   ...croiser(['fatigue'], FONDS_STATUT, 'interface', 'donnée · pastille et barre « fatiguée »'),

@@ -33,7 +33,7 @@ export const OUVRIR_PARTAGE = 'tt:ouvrir-partage';
 export function PartageGagnante({ gagnante, peutPartager }: { gagnante: boolean; peutPartager: boolean }) {
   if (!gagnante || !peutPartager) return null;
   return (
-    <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(126,232,191,.35)', background: 'rgba(126,232,191,.07)' }}>
+    <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--ok-text) 35%, transparent)', background: 'color-mix(in srgb, var(--ok-text) 7%, transparent)' }}>
       <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
         Cette créa gagne · montre le résultat au client. La carte partagée n’expose que ce qui a été testé et ce qui a gagné, en marque blanche · jamais l’outil.
       </div>

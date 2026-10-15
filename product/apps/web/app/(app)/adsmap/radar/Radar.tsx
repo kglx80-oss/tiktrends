@@ -46,7 +46,7 @@ export function Radar() {
   useEffect(() => { void charger(); }, []);
   useEffect(() => { void radarCostPreviewAction(cap).then(setApercu); }, [cap]);
 
-  if (err) return <div style={{ ...carte, borderColor: '#ff8095', color: '#ff8095', fontSize: 13 }}>{err}</div>;
+  if (err) return <div style={{ ...carte, borderColor: 'var(--err-strong)', color: 'var(--err-strong)', fontSize: 13 }}>{err}</div>;
   if (!view) return <div style={{ color: 'var(--muted)', fontSize: 13 }}>Chargement…</div>;
 
   const { state, findings, spend } = view;
@@ -74,9 +74,9 @@ export function Radar() {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       {/* Le coût vient AVANT l'interrupteur · c'est tout le propos de l'écran. */}
-      <div style={{ ...carte, borderColor: state.armed ? '#7ee8bf' : 'var(--line)' }}>
+      <div style={{ ...carte, borderColor: state.armed ? 'var(--ok-text)' : 'var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', color: state.armed ? '#7ee8bf' : 'var(--muted)' }}>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', color: state.armed ? 'var(--ok-text)' : 'var(--muted)' }}>
             {state.armed ? 'Armé' : 'Éteint'}
           </span>
           <span style={{ flex: 1 }} />
@@ -105,7 +105,7 @@ export function Radar() {
 
         <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
           Chiffre du pire cas · une nuit sans créa ayant franchi de cap ne coûte rien.
-          Le plafond global reste au-dessus de tout : {spend.summary} Il reste <b style={{ color: restant > 1 ? 'var(--ink)' : '#ffcf8f' }}>{usd(restant)}</b> sur la fenêtre de 30 jours,
+          Le plafond global reste au-dessus de tout : {spend.summary} Il reste <b style={{ color: restant > 1 ? 'var(--ink)' : 'var(--warn-text)' }}>{usd(restant)}</b> sur la fenêtre de 30 jours,
           et le radar s’arrête net s’il est atteint.
         </p>
 
@@ -136,7 +136,7 @@ export function Radar() {
         </div>
 
         {state.followed === 0 && (
-          <p style={{ margin: 0, fontSize: 12.5, color: '#ffcf8f', lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--warn-text)', lineHeight: 1.6 }}>
             Aucun concurrent suivi · le radar n’aurait rien à surveiller. Ajoute des marques depuis la veille avant de l’armer.
             {/* Le geste était nommé sans être cliquable · on mène à la veille,
                 là où l'on suit une marque. */}

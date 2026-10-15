@@ -72,7 +72,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
       </ul>
 
       {error && (
-        <p style={{ marginTop: 13, padding: '9px 12px', background: 'rgba(254,44,85,.09)', ...cadreSignal('rgba(254,44,85,.3)', 'tuile'), color: '#ff8095', fontSize: 12.5, lineHeight: 1.5 }}>
+        <p style={{ marginTop: 13, padding: '9px 12px', background: 'color-mix(in srgb, var(--accent) 9%, transparent)', ...cadreSignal('color-mix(in srgb, var(--accent) 30%, transparent)', 'tuile'), color: 'var(--err-strong)', fontSize: 12.5, lineHeight: 1.5 }}>
           {error}
         </p>
       )}
@@ -117,7 +117,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
             }}>
               /c/{l.token}
             </code>
-            <span style={{ fontSize: 10.5, color: l.expired ? '#ff8095' : 'var(--muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 10.5, color: l.expired ? 'var(--err-strong)' : 'var(--muted)', whiteSpace: 'nowrap' }}>
               {l.expired
                 ? 'expiré'
                 : l.expiresAt
@@ -129,7 +129,7 @@ export function SharePanel({ open, onClose }: { open: boolean; onClose: () => vo
                 {copie === l.id ? 'copié' : 'copier'}
               </button>
             )}
-            <button type="button" onClick={() => revoquer(l.id)} disabled={busy} style={{ ...petit, color: '#ff8095' }}>
+            <button type="button" onClick={() => revoquer(l.id)} disabled={busy} style={{ ...petit, color: 'var(--err-strong)' }}>
               révoquer
             </button>
           </div>

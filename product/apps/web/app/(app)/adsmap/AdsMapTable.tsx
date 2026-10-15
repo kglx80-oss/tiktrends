@@ -27,11 +27,11 @@ const VERDICT_LABEL: Record<string, string> = Object.fromEntries(
   (Object.keys(LIBELLE_VERDICT) as VerdictValue[]).map((k) => [k, LIBELLE_VERDICT[k].court]),
 );
 const VERDICT_TON: Record<string, { bg: string; fg: string; bd: string }> = {
-  winner: { bg: 'rgba(126,232,191,.12)', fg: '#7ee8bf', bd: 'rgba(126,232,191,.4)' },
-  baby_winner: { bg: 'rgba(245,166,35,.12)', fg: '#ffcf8f', bd: 'rgba(245,166,35,.4)' },
+  winner: { bg: 'color-mix(in srgb, var(--ok-text) 12%, transparent)', fg: 'var(--ok-text)', bd: 'color-mix(in srgb, var(--ok-text) 40%, transparent)' },
+  baby_winner: { bg: 'color-mix(in srgb, var(--warn) 12%, transparent)', fg: 'var(--warn-text)', bd: 'color-mix(in srgb, var(--warn) 40%, transparent)' },
   // Prometteuse, pas gagnée · ton neutre, jamais l'ambre/vert d'une victoire (R01).
   relative_winner: { bg: 'transparent', fg: 'var(--ink-2)', bd: 'var(--line-2)' },
-  loser: { bg: 'rgba(254,44,85,.10)', fg: '#ff8095', bd: 'rgba(254,44,85,.35)' },
+  loser: { bg: 'var(--accent-10)', fg: 'var(--err-strong)', bd: 'color-mix(in srgb, var(--accent) 35%, transparent)' },
   inconclusive: { bg: 'transparent', fg: 'var(--muted)', bd: 'var(--line-2)' },
   insufficient_delivery: { bg: 'transparent', fg: 'var(--muted)', bd: 'var(--line-2)' },
 };
@@ -153,14 +153,14 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
       </div>
 
       {stats.aArbitrer > 0 && (
-        <div style={{ padding: '10px 14px', background: 'var(--accent-soft)', ...cadreSignal('rgba(254,44,85,.25)'), fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 14, lineHeight: 1.55 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--accent-soft)', ...cadreSignal('color-mix(in srgb, var(--accent) 25%, transparent)'), fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 14, lineHeight: 1.55 }}>
           {stats.aArbitrer} verdict(s) calculé(s) attendent d’être arbitrés. Tant qu’aucun apprentissage n’en est tiré,
           le test a coûté son budget sans rien apprendre à personne · ni à toi, ni à Jarvis. Clique <b>Arbitrer</b> sur la ligne.
         </div>
       )}
 
       {stats.sansHypothese > 0 && (
-        <div style={{ padding: '10px 14px', background: 'rgba(245,166,35,.09)', ...cadreSignal('rgba(245,166,35,.3)'), fontSize: 12.5, color: '#ffcf8f', marginBottom: 14 }}>
+        <div style={{ padding: '10px 14px', background: 'color-mix(in srgb, var(--warn) 9%, transparent)', ...cadreSignal('color-mix(in srgb, var(--warn) 30%, transparent)'), fontSize: 12.5, color: 'var(--warn-text)', marginBottom: 14 }}>
           {stats.sansHypothese} ad(s) en test sans hypothèse · importées de l’ancien tableur. Leur résultat ne pourra être attribué à rien tant qu’elle n’est pas écrite.
         </div>
       )}
@@ -267,7 +267,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
                   <tr key={r.id}>
                     <td style={td}>
                       <span style={{ color: 'var(--ink-2)' }}>{STATUS_LABEL[r.status] ?? r.status}</span>
-                      {r.killFlag && <span title="Budget qui brûle" style={{ marginLeft: 6, color: '#ff8095', display: 'inline-flex', verticalAlign: '-2px' }}><Icon name="alert" size={13} /></span>}
+                      {r.killFlag && <span title="Budget qui brûle" style={{ marginLeft: 6, color: 'var(--err-strong)', display: 'inline-flex', verticalAlign: '-2px' }}><Icon name="alert" size={13} /></span>}
                     </td>
                     <td style={{ ...td, color: 'var(--muted)' }}>{r.batchNumber ?? VALEUR_ABSENTE}</td>
                     <td style={{ ...td, color: 'var(--ink)', fontWeight: 600, maxWidth: 220 }}>{r.concept}</td>
@@ -299,7 +299,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
                         </span>
                       )}
                     </td>
-                    <td style={{ ...td, color: r.failedStage ? '#ffcf8f' : 'var(--muted)' }}>{r.failedStage ? STAGE_LABEL[r.failedStage] : VALEUR_ABSENTE}</td>
+                    <td style={{ ...td, color: r.failedStage ? 'var(--warn-text)' : 'var(--muted)' }}>{r.failedStage ? STAGE_LABEL[r.failedStage] : VALEUR_ABSENTE}</td>
                     <td style={{ ...td, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                       {r.launchedAt ? new Date(r.launchedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : VALEUR_ABSENTE}
                     </td>
@@ -340,7 +340,7 @@ export function AdsMapTable({ batches, peutPartager = false }: { batches: Array<
 }
 
 function Manquant() {
-  return <span title="Obligatoire avant de passer l’ad en test" style={{ color: '#ff8095', fontSize: 11.5 }}>à remplir</span>;
+  return <span title="Obligatoire avant de passer l’ad en test" style={{ color: 'var(--err-strong)', fontSize: 11.5 }}>à remplir</span>;
 }
 
 /**
@@ -363,7 +363,7 @@ export function CarteTest({ r, onOpen, onStudio, briefBusy }: {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginTop: 6 }}>
         <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{STATUS_LABEL[r.status] ?? r.status}</span>
-        {r.killFlag && <span title="Budget qui brûle" style={{ color: '#ff8095', display: 'inline-flex' }}><Icon name="alert" size={12} /></span>}
+        {r.killFlag && <span title="Budget qui brûle" style={{ color: 'var(--err-strong)', display: 'inline-flex' }}><Icon name="alert" size={12} /></span>}
         {eff && ton && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: ton.bg, color: ton.fg, border: `1px solid ${ton.bd}` }}>
             {VERDICT_LABEL[eff]}{r.comparable === false && <span title="Protocole non respecté : comparaison relative seulement">*</span>}
@@ -411,9 +411,9 @@ const carteBtn: CSSProperties = {
 };
 
 function Stat({ label, value, sub, strong, alerte }: { label: string; value: string; sub?: string; strong?: boolean; alerte?: boolean }) {
-  const accent = alerte ? '#ff8095' : strong ? 'var(--accent-strong)' : 'var(--ink)';
+  const accent = alerte ? 'var(--err-strong)' : strong ? 'var(--accent-strong)' : 'var(--ink)';
   return (
-    <div style={{ flex: '0 0 auto', minWidth: 132, border: `1px solid ${alerte ? 'rgba(254,44,85,.3)' : strong ? 'rgba(254,44,85,.22)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: 'var(--surface)', padding: '12px 14px' }}>
+    <div style={{ flex: '0 0 auto', minWidth: 132, border: `1px solid ${alerte ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : strong ? 'color-mix(in srgb, var(--accent) 22%, transparent)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: 'var(--surface)', padding: '12px 14px' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 21, fontWeight: 800, color: accent, marginTop: 4, lineHeight: 1.1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>}

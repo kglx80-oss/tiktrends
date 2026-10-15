@@ -24,7 +24,7 @@ export default async function ProtocolePage() {
   if (!r.settings) {
     return (
       <main style={cadrePage}><div style={colonneLecture('formulaire')}>
-        <p style={{ color: '#ff8095', fontSize: 13 }}>{r.error}</p>
+        <p style={{ color: 'var(--err-strong)', fontSize: 13 }}>{r.error}</p>
       </div></main>
     );
   }

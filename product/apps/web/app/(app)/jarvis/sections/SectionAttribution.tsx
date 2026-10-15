@@ -55,7 +55,7 @@ export async function SectionAttribution() {
       {tendance.trend && (
         <section style={{
           marginBottom: 24, padding: '16px 18px',
-          ...cadreSignal(tendance.trend.conclusive ? ((tendance.trend.liftPoints ?? 0) > 0 ? 'rgba(126,232,191,.4)' : 'rgba(255,77,109,.4)') : 'var(--line)'),
+          ...cadreSignal(tendance.trend.conclusive ? ((tendance.trend.liftPoints ?? 0) > 0 ? 'color-mix(in srgb, var(--ok-text) 40%, transparent)' : 'color-mix(in srgb, var(--err) 40%, transparent)') : 'var(--line)'),
           background: 'var(--surface)',
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
@@ -71,7 +71,7 @@ export async function SectionAttribution() {
             background: 'var(--paper)', ...tuile,
             fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
             color: tendance.trend.conclusive
-              ? ((tendance.trend.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095')
+              ? ((tendance.trend.liftPoints ?? 0) > 0 ? 'var(--ok-text)' : 'var(--err-strong)')
               : 'var(--ink)',
           }}>
             {tendance.trend.summary}
@@ -87,7 +87,7 @@ export async function SectionAttribution() {
       {/* Le contrôle · un outil qui ne se vérifie pas accumule. */}
       <section id="attribution" style={{
         marginBottom: 8, padding: '16px 18px',
-        ...cadreSignal(attr?.overall.conclusive ? 'rgba(126,232,191,.4)' : 'var(--line)'),
+        ...cadreSignal(attr?.overall.conclusive ? 'color-mix(in srgb, var(--ok-text) 40%, transparent)' : 'var(--line)'),
         background: 'var(--surface)',
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
@@ -107,8 +107,8 @@ export async function SectionAttribution() {
           margin: '11px 0 0', padding: '10px 13px',
           background: 'var(--paper)', ...tuile,
           fontSize: 12.5, fontWeight: 600, lineHeight: 1.55,
-          color: attrErreur ? '#ff8095' : attr?.overall.conclusive
-            ? (attr.overall.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095'
+          color: attrErreur ? 'var(--err-strong)' : attr?.overall.conclusive
+            ? (attr.overall.liftPoints ?? 0) > 0 ? 'var(--ok-text)' : 'var(--err-strong)'
             : 'var(--ink)',
         }}>
           {attrErreur ?? attr?.overall.summary ?? 'Lecture indisponible.'}
@@ -135,7 +135,7 @@ export async function SectionAttribution() {
             {attr.parts.filter((p) => p.liftPoints !== null).map((p) => (
               <div key={p.part} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontSize: 12, flexWrap: 'wrap' }}>
                 <span style={{ width: 180, color: 'var(--ink-2)' }}>{p.label}</span>
-                <span style={{ fontWeight: 700, color: p.conclusive ? ((p.liftPoints ?? 0) > 0 ? '#7ee8bf' : '#ff8095') : 'var(--muted)' }}>
+                <span style={{ fontWeight: 700, color: p.conclusive ? ((p.liftPoints ?? 0) > 0 ? 'var(--ok-text)' : 'var(--err-strong)') : 'var(--muted)' }}>
                   {(p.liftPoints ?? 0) > 0 ? '+' : ''}{Math.round((p.liftPoints ?? 0) * 100)} pt
                 </span>
                 <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>

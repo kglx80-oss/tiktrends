@@ -48,7 +48,7 @@ const btn = (ton: 'oui' | 'non' | 'neutre'): CSSProperties => ({
   padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
   border: ton === 'neutre' ? '1px solid var(--line-2)' : 'none',
   background: ton === 'oui' ? 'var(--grad-accent)' : 'transparent',
-  color: ton === 'oui' ? 'var(--on-accent)' : ton === 'non' ? '#ff9db0' : 'var(--ink-2)',
+  color: ton === 'oui' ? 'var(--on-accent)' : ton === 'non' ? 'var(--err-text)' : 'var(--ink-2)',
 });
 
 const ORDRE: NodeKind[] = ['persona', 'desire', 'angle', 'concept'];
@@ -99,7 +99,7 @@ export function Curation() {
     await charger();
   });
 
-  if (err) return <div style={{ ...carte, borderColor: '#ff8095', color: '#ff8095', fontSize: 13 }}>{err}</div>;
+  if (err) return <div style={{ ...carte, borderColor: 'var(--err-strong)', color: 'var(--err-strong)', fontSize: 13 }}>{err}</div>;
   if (!view) return <div style={{ color: 'var(--muted)', fontSize: 13 }}>Lecture de la carte…</div>;
 
   const total = ORDRE.reduce((s, k) => s + view.counts[k], 0);
@@ -117,7 +117,7 @@ export function Curation() {
 
   return (
     <div style={{ display: 'grid', gap: 20 }}>
-      {note && <p style={{ margin: 0, fontSize: 12.5, color: '#9fe6b3', lineHeight: 1.55 }}>{note}</p>}
+      {note && <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ok-pale)', lineHeight: 1.55 }}>{note}</p>}
 
       {/* Recherche sur la population COMPLÈTE (serveur) · retrouver un nom précis
           parmi des dizaines, atteindre le 21e sans traiter les vingt premiers.
@@ -304,7 +304,7 @@ function Fusion({ onFait }: { onFait: () => Promise<void> }) {
       )}
 
       {plan?.blocked && (
-        <p style={{ margin: 0, fontSize: 12, color: '#f5b043', lineHeight: 1.55 }}>{plan.blocked}</p>
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--warn-strong)', lineHeight: 1.55 }}>{plan.blocked}</p>
       )}
 
       {plan?.ok && (
@@ -327,8 +327,8 @@ function Fusion({ onFait }: { onFait: () => Promise<void> }) {
         </div>
       )}
 
-      {fait && <p style={{ margin: 0, fontSize: 12.5, color: '#9fe6b3', lineHeight: 1.55 }}>{fait}</p>}
-      {msg && <p style={{ margin: 0, fontSize: 12, color: '#ff9db0', lineHeight: 1.55 }}>{msg}</p>}
+      {fait && <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ok-pale)', lineHeight: 1.55 }}>{fait}</p>}
+      {msg && <p style={{ margin: 0, fontSize: 12, color: 'var(--err-text)', lineHeight: 1.55 }}>{msg}</p>}
     </div>
   );
 }
@@ -358,7 +358,7 @@ function Ligne({ node, onFait }: { node: ProposedNode; onFait: () => Promise<voi
   });
 
   return (
-    <div style={{ ...carte, borderLeft: node.rename ? '3px solid #f5a623' : '3px solid var(--line-2)' }}>
+    <div style={{ ...carte, borderLeft: node.rename ? '3px solid var(--warn)' : '3px solid var(--line-2)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         {/* Le nom est éditable en place · demander de renommer sur un autre
             écran ferait perdre le contexte qui permet justement de nommer. */}
@@ -366,7 +366,7 @@ function Ligne({ node, onFait }: { node: ProposedNode; onFait: () => Promise<voi
           value={nom} onChange={(e) => setNom(e.target.value)} aria-label={`Nom ${KIND_LABEL[node.kind].toLowerCase()} · modifiable avant de valider`}
           style={{
             flex: '1 1 260px', minWidth: 200, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '8px 11px', borderRadius: 10,
-            border: `1px solid ${node.rename ? 'rgba(245,166,35,.5)' : 'var(--line-2)'}`,
+            border: `1px solid ${node.rename ? 'color-mix(in srgb, var(--warn) 50%, transparent)' : 'var(--line-2)'}`,
             background: 'var(--bg)', color: 'var(--ink)', fontSize: 13.5, fontFamily: 'inherit',
           }}
         />
@@ -383,7 +383,7 @@ function Ligne({ node, onFait }: { node: ProposedNode; onFait: () => Promise<voi
       )}
 
       {node.rename && (
-        <p style={{ margin: 0, fontSize: 11.5, color: '#f5b043', lineHeight: 1.5 }}>{node.rename}</p>
+        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--warn-strong)', lineHeight: 1.5 }}>{node.rename}</p>
       )}
       {node.notice && (
         <p style={{ margin: 0, fontSize: 11.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{node.notice}</p>
@@ -391,7 +391,7 @@ function Ligne({ node, onFait }: { node: ProposedNode; onFait: () => Promise<voi
       {node.warning && (
         <p style={{ margin: 0, fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.5 }}>Si tu refuses · {node.warning}</p>
       )}
-      {msg && <p style={{ margin: 0, fontSize: 12, color: '#ff9db0', lineHeight: 1.5 }}>{msg}</p>}
+      {msg && <p style={{ margin: 0, fontSize: 12, color: 'var(--err-text)', lineHeight: 1.5 }}>{msg}</p>}
     </div>
   );
 }

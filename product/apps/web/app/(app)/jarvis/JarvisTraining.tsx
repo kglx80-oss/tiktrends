@@ -35,13 +35,13 @@ export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: s
   }
 
   return (
-    <div style={{ ...cadreSignal('rgba(120,90,255,.35)'), background: 'linear-gradient(180deg, rgba(120,90,255,.08), var(--surface))', padding: 22, marginBottom: 4 }}>
+    <div style={{ ...cadreSignal('var(--violet-35)'), background: 'linear-gradient(180deg, var(--violet-08), var(--surface))', padding: 22, marginBottom: 4 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ display: 'inline-flex', color: '#7a5aff' }}><Icon name="cap" size={18} /></span>
+        <span style={{ display: 'inline-flex', color: 'var(--violet)' }}><Icon name="cap" size={18} /></span>
         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Entraînement · intelligence créative</h2>
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>{brandName ? `· ${brandName}` : '· marque active'}</span>
         <span style={{ flex: 1 }} />
-        <button type="button" onClick={train} disabled={busy} style={{ fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg,#7a5aff,#e6007e)', color: '#fff', cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1 }}>
+        <button type="button" onClick={train} disabled={busy} style={{ fontSize: 12.5, fontWeight: 800, padding: '9px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-violet)', color: 'var(--on-violet)', cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1 }}>
           {busy ? 'Jarvis apprend…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="cap" size={14} /> Entraîner Jarvis (pubs qui tiennent · 20 cr.)</span>}
         </button>
       </div>
@@ -56,7 +56,7 @@ export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: s
         value={learnings}
         onChange={(e) => setLearnings(e.target.value)}
         placeholder="Aucune intelligence pour l'instant. Lance « Entraîner Jarvis » : il ira analyser les pubs qui tiennent encore chez tes concurrents et dans ta niche, et écrira ici les récurrences qu'il en tire."
-        style={{ width: '100%', minHeight: 180, padding: '13px 15px', borderRadius: 14, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, lineHeight: 1.6, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+        style={{ width: '100%', minHeight: 180, padding: '13px 15px', borderRadius: 14, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 13.5, lineHeight: 1.6, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
       />
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
@@ -64,7 +64,7 @@ export function JarvisTraining({ brandName, initial, trainedAt }: { brandName: s
           {trained ? `Dernier entraînement : ${new Date(trained).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}` : 'Jamais entraîné'}
         </span>
         <span style={{ flex: 1 }} />
-        {msg && <span style={{ fontSize: 12.5, color: ok ? '#c9b8ff' : '#f5b043' }}>{msg}</span>}
+        {msg && <span style={{ fontSize: 12.5, color: ok ? 'var(--violet-text)' : 'var(--warn-strong)' }}>{msg}</span>}
         {learnings.trim() && <button type="button" onClick={save} disabled={saving} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: saving ? 'default' : 'pointer' }}>{saving ? 'Enregistrement…' : 'Enregistrer les ajustements'}</button>}
       </div>
     </div>

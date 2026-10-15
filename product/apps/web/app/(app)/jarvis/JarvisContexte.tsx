@@ -117,7 +117,7 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
               </div>
             )}
             {contexte.hooks.counts.market > 0 && (
-              <p style={{ margin: '10px 0 0', fontSize: 10.5, color: '#ffcf8f', lineHeight: 1.5 }}>
+              <p style={{ margin: '10px 0 0', fontSize: 10.5, color: 'var(--warn-text)', lineHeight: 1.5 }}>
                 Les accroches de concurrents ne sont jamais recopiées · Jarvis en reprend la mécanique, pas les mots.
               </p>
             )}
@@ -146,7 +146,7 @@ export function JarvisContexte({ contexte, brandName, measuredAds, onClose }: {
               <p style={{ ...corps, color: 'var(--muted)' }}>Aucune connaissance publiée par l’équipe pour cette marque.</p>
             )}
             {contexte.connaissances.horsPlace > 0 && (
-              <p style={{ margin: '8px 0 0', fontSize: 11, color: '#ffcf8f', lineHeight: 1.5 }}>{contexte.connaissances.horsPlace} autre(s) n’ont pas tenu dans la place réservée.</p>
+              <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--warn-text)', lineHeight: 1.5 }}>{contexte.connaissances.horsPlace} autre(s) n’ont pas tenu dans la place réservée.</p>
             )}
             <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
               Une connaissance retirée n’entre plus dans les réponses suivantes · les réponses déjà données ne sont pas réécrites.
@@ -187,10 +187,10 @@ function Bloc({ titre, portee, children }: { titre: string; portee: 'utilisateur
 
 /** Le poids d'une accroche · a-t-elle gagné ici, vient-elle du marché, jamais tranchée. */
 const HOOK_TON: Record<string, { bd: string; fg: string; label: string }> = {
-  proven: { bd: 'rgba(126,232,191,.45)', fg: '#7ee8bf', label: 'a gagné ici' },
-  market: { bd: 'rgba(245,166,35,.4)', fg: '#ffcf8f', label: 'marché' },
+  proven: { bd: 'color-mix(in srgb, var(--ok-text) 45%, transparent)', fg: 'var(--ok-text)', label: 'a gagné ici' },
+  market: { bd: 'color-mix(in srgb, var(--warn) 40%, transparent)', fg: 'var(--warn-text)', label: 'marché' },
   untested: { bd: 'var(--line-2)', fg: 'var(--muted)', label: 'jamais tranchée' },
-  refuted: { bd: 'rgba(254,44,85,.4)', fg: '#ff8095', label: 'a perdu ici' },
+  refuted: { bd: 'color-mix(in srgb, var(--accent) 40%, transparent)', fg: 'var(--err-strong)', label: 'a perdu ici' },
 };
 
 const corps = { margin: 0, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 } as const;

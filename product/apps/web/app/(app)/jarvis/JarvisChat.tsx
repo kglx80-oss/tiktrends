@@ -49,7 +49,7 @@ const bulle = (moi: boolean): CSSProperties => ({
   padding: '10px 14px',
   borderRadius: moi ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
   background: moi ? 'var(--accent-soft)' : 'var(--surface)',
-  border: `1px solid ${moi ? 'rgba(254,44,85,.28)' : 'var(--line)'}`,
+  border: `1px solid ${moi ? 'var(--accent-28)' : 'var(--line)'}`,
   color: 'var(--ink)',
   fontSize: 13.5,
   lineHeight: 1.62,
@@ -162,7 +162,7 @@ export function JarvisChat() {
   }
 
   if (erreur && !thread) {
-    return <div style={{ ...cadreSignal('#ff8095'), padding: '16px 18px', color: '#ff8095', fontSize: 13 }}>{erreur}</div>;
+    return <div style={{ ...cadreSignal('var(--err-strong)'), padding: '16px 18px', color: 'var(--err-strong)', fontSize: 13 }}>{erreur}</div>;
   }
   if (!thread) {
     return <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>Ouverture de la conversation…</div>;
@@ -327,7 +327,7 @@ export function JarvisChat() {
           </div>
 
           {erreur && (
-            <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: '#ff8095', borderTop: '1px solid var(--line)' }}>{erreur}</p>
+            <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: 'var(--err-strong)', borderTop: '1px solid var(--line)' }}>{erreur}</p>
           )}
 
           <div style={{ padding: '10px 4px 4px' }}>{composeur}</div>
@@ -437,7 +437,7 @@ function Gestes({ actions }: { actions: JarvisAction[] }) {
       </p>
 
       {brouillon && <DraftCard view={brouillon} />}
-      {note && <p style={{ margin: 0, fontSize: 12, color: '#ff9db0', lineHeight: 1.5 }}>{note}</p>}
+      {note && <p style={{ margin: 0, fontSize: 12, color: 'var(--err-text)', lineHeight: 1.5 }}>{note}</p>}
     </div>
   );
 }
