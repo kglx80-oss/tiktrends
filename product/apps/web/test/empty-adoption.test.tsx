@@ -50,9 +50,9 @@ describe('EmptyLine · une bonne nouvelle se voit, un manque reste sobre', () =>
   it('le ton « good » rend en vert · pas dans le gris d’un manque', () => {
     const bon = renderToStaticMarkup(<EmptyLine tone="good">Tout roule.</EmptyLine>);
     expect(bon).toContain('Tout roule.');
-    expect(bon, 'une réussite doit se lire en vert').toContain('#7ee8bf');
+    expect(bon, 'une réussite doit se lire en vert (rôle --ok-text)').toContain('var(--ok-text)');
     const neutre = renderToStaticMarkup(<EmptyLine>Rien pour l’instant.</EmptyLine>);
-    expect(neutre, 'un simple manque ne s’affiche pas en vert').not.toContain('#7ee8bf');
+    expect(neutre, 'un simple manque ne s’affiche pas en vert').not.toContain('--ok-text');
   });
 });
 

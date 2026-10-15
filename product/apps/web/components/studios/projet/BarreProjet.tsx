@@ -67,7 +67,7 @@ export function BarreProjet({ projectId, mode: ici, titre, sousTitre, atelier, j
             </button>
           )}
           {exporter?.href ? (
-            <Link href={exporter.href} data-atelier="export" aria-current={ici === 'export' ? 'page' : undefined} style={{ ...action, background: 'var(--grad-accent)', color: '#1a0a12', borderColor: 'transparent', textDecoration: 'none' }}>
+            <Link href={exporter.href} data-atelier="export" aria-current={ici === 'export' ? 'page' : undefined} style={{ ...action, background: 'var(--grad-accent)', color: 'var(--on-accent)', borderColor: 'transparent', textDecoration: 'none' }}>
               Exporter
             </Link>
           ) : exporter ? (

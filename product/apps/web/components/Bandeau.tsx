@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 import { Icon } from './Icon';
 import { cadreSignal } from './ui';
 
@@ -18,9 +18,9 @@ import { cadreSignal } from './ui';
 export type TonBandeau = 'demo' | 'info' | 'error';
 
 const TONS: Record<TonBandeau, { bg: string; border: string; icon: string }> = {
-  demo: { bg: 'rgba(245,166,35,.08)', border: 'rgba(245,166,35,.30)', icon: 'bulb' },
-  info: { bg: 'rgba(122,162,255,.08)', border: 'rgba(122,162,255,.30)', icon: 'info' },
-  error: { bg: 'rgba(255,77,109,.08)', border: 'rgba(255,77,109,.35)', icon: 'alert' },
+  demo: { bg: teinte('warn', .08), border: teinte('warn', .3), icon: 'bulb' },
+  info: { bg: teinte('info-text', .08), border: teinte('info-text', .3), icon: 'info' },
+  error: { bg: teinte('err', .08), border: teinte('err', .35), icon: 'alert' },
 };
 
 export function Bandeau({ ton = 'info', titre, sortie, children }: {

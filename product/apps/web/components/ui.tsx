@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, CADRE_PAGE, LECTURE, gouttiereCss, rayonSignal, styleCadre, type LectureInterieure } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, CADRE_PAGE, LECTURE, gouttiereCss, rayonSignal, styleCadre, type LectureInterieure, teinte } from '@tiktrends/core';
 
 /**
  * Le fond translucide d'une pastille posée SUR une créa · pronostic et verdict
@@ -9,7 +9,7 @@ import { CIBLE_TACTILE_MIN, CADRE_PAGE, LECTURE, gouttiereCss, rayonSignal, styl
  * l'autre. La galerie le portait déjà (carte + verdict) · la fiche recopiait
  * trois `rgba(0,0,0,.4x)` au hasard, qu'on fait converger ici.
  */
-export const FOND_PASTILLE_MEDIA = 'rgba(8,5,10,.72)';
+export const FOND_PASTILLE_MEDIA = 'var(--pastille-media)';
 
 export const input: CSSProperties = {
   width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 12,
@@ -104,9 +104,9 @@ export function Msg({ kind, children }: { kind: 'ok' | 'err'; children: React.Re
     // Rôle `signal` · posé en tête de page, au niveau d'une surface.
     <div role={ok ? 'status' : 'alert'} style={{
       margin: '0 0 16px', padding: '10px 13px', fontSize: 13,
-      ...cadreSignal(ok ? 'rgba(24,204,140,.4)' : 'rgba(255,77,109,.4)'),
-      background: ok ? 'rgba(24,204,140,.10)' : 'rgba(255,77,109,.10)',
-      color: ok ? '#7ee8bf' : '#ff9db0',
+      ...cadreSignal(teinte(ok ? 'ok' : 'err', .4)),
+      background: teinte(ok ? 'ok' : 'err', .1),
+      color: ok ? 'var(--ok-text)' : 'var(--err-text)',
     }}>{children}</div>
   );
 }

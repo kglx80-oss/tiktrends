@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
-import { calquesParZ, deplacementVersDocument, policeEditeur, POLICES_EDITEUR, type CalqueStudio, type DocumentStudio } from '@tiktrends/core';
+import { calquesParZ, deplacementVersDocument, policeEditeur, POLICES_EDITEUR, type CalqueStudio, type DocumentStudio, teinte } from '@tiktrends/core';
 
 /**
  * La surface visuelle · le document rendu en DOM aux bonnes proportions.
@@ -45,7 +45,7 @@ export function stylePolice(fontId: string): { fontFamily: string; fontWeight: n
     : { fontFamily: 'Arial, sans-serif', fontWeight: 400, fournie: false };
 }
 
-const DAMIER = 'repeating-conic-gradient(#3a2a37 0% 25%, #2a1826 0% 50%) 50% / 24px 24px';
+const DAMIER = 'var(--damier)';
 const pct = (v: number, total: number) => `${(v / total) * 100}%`;
 
 interface Glisse { id: string; x0: number; y0: number; px: number; py: number; dx: number; dy: number; largeurAffichee: number }
@@ -173,8 +173,8 @@ function ContenuCalque({ c, doc, apercu }: { c: CalqueStudio; doc: DocumentStudi
     <div
       data-apercu="absent"
       style={{
-        width: '100%', height: '100%', boxSizing: 'border-box', border: '2px dashed rgba(255,255,255,.45)',
-        background: 'rgba(18,8,16,.55)', color: '#f6eef4', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        width: '100%', height: '100%', boxSizing: 'border-box', border: `2px dashed ${teinte('ink', .45)}`,
+        background: teinte('bg', .55), color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center',
         justifyContent: 'center', gap: '0.6cqw', padding: '1cqw', textAlign: 'center', overflow: 'hidden',
       }}
     >

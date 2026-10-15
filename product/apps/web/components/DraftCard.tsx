@@ -27,7 +27,7 @@ export function DraftCard({ view, children }: { view: DraftView; children?: Reac
     }}>
       {/* Jarvis s'est corrigé · on le dit avant de montrer le résultat. */}
       {view.rewritten && (
-        <p style={{ margin: 0, fontSize: 11.5, color: '#7ee8bf', fontWeight: 700, lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--ok-text)', fontWeight: 700, lineHeight: 1.5 }}>
           Jarvis a réécrit son accroche · la première reprenait une formulation qui avait déjà perdu ici.
         </p>
       )}
@@ -47,7 +47,7 @@ export function DraftCard({ view, children }: { view: DraftView; children?: Reac
       </p>
 
       {view.warning && (
-        <p style={{ margin: 0, fontSize: 11.5, color: '#ffcf8f', lineHeight: 1.5 }}>{view.warning}</p>
+        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--warn-text)', lineHeight: 1.5 }}>{view.warning}</p>
       )}
 
       {/* Pourquoi cette proposition · calculé depuis la mémoire, jamais rédigé

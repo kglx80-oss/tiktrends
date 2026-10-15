@@ -1,5 +1,5 @@
 import type { ReactNode, CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 
 export const field: CSSProperties = {
   width: '100%', padding: '11px 13px', borderRadius: 12,
@@ -22,8 +22,8 @@ export function errorBox(msg: string) {
   return (
     <div style={{
       marginBottom: 14, padding: '10px 12px', borderRadius: 12,
-      border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)',
-      color: '#ff9db0', fontSize: 13,
+      border: `1px solid ${teinte('err', .4)}`, background: teinte('err', .1),
+      color: 'var(--err-text)', fontSize: 13,
     }}>{msg}</div>
   );
 }

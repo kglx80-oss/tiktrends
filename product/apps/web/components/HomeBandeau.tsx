@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 import { surface } from './ui';
 
 /**
@@ -41,7 +41,7 @@ function VisuelIteration() {
     <svg aria-hidden viewBox="0 0 200 132" preserveAspectRatio="xMidYMid meet" style={{ flex: '1 1 150px', minWidth: 0, maxWidth: 220, width: '100%', height: 'auto' }}>
       <defs>
         <linearGradient id="bh-a" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#fe2c55" /><stop offset="1" stopColor="#ff2d8f" />
+          <stop offset="0" style={{ stopColor: 'var(--accent)' }} /><stop offset="1" style={{ stopColor: 'var(--accent-fin)' }} />
         </linearGradient>
       </defs>
       {/* deux cadres en retrait · les itérations passées */}
@@ -55,7 +55,7 @@ function VisuelIteration() {
       <rect x="90" y="84" width="34" height="6" rx="3" fill="var(--line)" />
       {/* la boucle d'itération */}
       <path d="M60 116 q40 16 96 -2" fill="none" stroke="url(#bh-a)" strokeWidth="1.6" strokeLinecap="round" strokeDasharray="1 6" />
-      <path d="M150 110 l8 4 l-4 8" fill="none" stroke="#ff2d8f" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M150 110 l8 4 l-4 8" fill="none" style={{ stroke: 'var(--accent-fin)' }} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -68,7 +68,7 @@ export function HomeBandeau({ contenu }: { contenu: BandeauAccueil }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap',
         overflow: 'hidden', ...surface,
         // Fond CALME · surface sombre + une lueur rose ciblée en haut à droite.
-        background: 'radial-gradient(120% 150% at 100% 0%, rgba(254,44,85,.16), transparent 58%), var(--surface)',
+        background: `radial-gradient(120% 150% at 100% 0%, ${teinte('accent', .16)}, transparent 58%), var(--surface)`,
         padding: 'clamp(20px, 4vw, 30px)', marginBottom: 20,
       }}
     >

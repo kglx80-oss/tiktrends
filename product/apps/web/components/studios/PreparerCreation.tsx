@@ -4,7 +4,7 @@ import { useRef, useState, type CSSProperties } from 'react';
 import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
   reponseApplicable, messageHorsLigneStudio, LIBELLES_MODALITE, LIBELLES_ELEMENT, MODALITES_SOURCE, LIBELLES_TYPE_PROJET, LIBELLES_TYPE_SOURCE, dateCourteUtc, CIBLE_TACTILE_MIN,
   SOURCES_MAX,
-  type HypotheseQualifiee, type DemandeEnCours,
+  type HypotheseQualifiee, type DemandeEnCours, teinte,
 } from '@tiktrends/core';
 import { preparerCreation, proposerHypotheses, creerProjetDepuisSources } from '../../app/actions/studios/sources';
 import type { Preparation } from '../../lib/studios/sources/preparation';
@@ -250,7 +250,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
         <div ref={corps}>
         {chargement && !prep && <p role="status" style={note}>Chargement de la source et de ta marque…</p>}
         {erreur && (
-          <div ref={annonce_} tabIndex={-1} role="alert" data-erreur={erreur.horsLigne ? 'hors-ligne' : 'refus'} style={{ ...cadreSignal('rgba(255,77,109,.4)', 'tuile'), background: 'rgba(255,77,109,.10)', color: '#ff9db0', padding: '10px 12px', fontSize: 13, marginBottom: 14 }}>
+          <div ref={annonce_} tabIndex={-1} role="alert" data-erreur={erreur.horsLigne ? 'hors-ligne' : 'refus'} style={{ ...cadreSignal(teinte('err', .4), 'tuile'), background: teinte('err', .1), color: 'var(--err-text)', padding: '10px 12px', fontSize: 13, marginBottom: 14 }}>
             {erreur.horsLigne && <b style={{ color: 'var(--ink)' }}>Hors ligne · </b>}{erreur.message}{erreur.traceId ? <span style={{ display: 'block', fontSize: 11.5, marginTop: 4, color: 'var(--ink-2)' }}>Identifiant support : {erreur.traceId}</span> : null}
             {erreur.horsLigne && !prep && (
               <div style={{ marginTop: 8 }}><button type="button" onClick={() => { setErreur(null); void charger(null); }} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN }}>Réessayer</button></div>
@@ -288,7 +288,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
                 {MODALITES_SOURCE.map((m) => {
                   const ok = s.modalites.includes(m);
                   return (
-                    <li key={m} data-modalite={m} data-disponible={ok ? 'oui' : 'non'} style={{ fontSize: 12.5, padding: '5px 10px', borderRadius: 999, border: `1px solid ${ok ? 'rgba(24,204,140,.45)' : 'var(--line-2)'}`, color: ok ? '#7ee8bf' : 'var(--muted)' }}>
+                    <li key={m} data-modalite={m} data-disponible={ok ? 'oui' : 'non'} style={{ fontSize: 12.5, padding: '5px 10px', borderRadius: 999, border: `1px solid ${ok ? teinte('ok', .45) : 'var(--line-2)'}`, color: ok ? 'var(--ok-text)' : 'var(--muted)' }}>
                       {LIBELLES_MODALITE[m]} · {ok ? 'disponible' : 'absente'}
                     </li>
                   );
@@ -333,9 +333,9 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
                   <span style={{ ...note, color: 'var(--muted)' }}>Appel texte facturé au plafond de dépense · {libelleCoutTexteEstime(prep.ia.plafondUsd)} · {NOTE_BORNE_TEXTE} · aucun crédit débité.</span>
                 </div>
               ) : (
-                <p data-ia="indisponible" style={{ ...note, ...cadreSignal('rgba(245,166,35,.4)', 'tuile'), padding: '8px 10px', background: 'rgba(245,166,35,.08)' }}>{prep.ia.raison}</p>
+                <p data-ia="indisponible" style={{ ...note, ...cadreSignal(teinte('warn', .4), 'tuile'), padding: '8px 10px', background: teinte('warn', .08) }}>{prep.ia.raison}</p>
               )}
-              {refusIa && <p role="alert" style={{ ...note, color: '#ffcf8f' }}>{refusIa.message}{refusIa.traceId ? ` · identifiant support : ${refusIa.traceId}` : ''}</p>}
+              {refusIa && <p role="alert" style={{ ...note, color: 'var(--warn-text)' }}>{refusIa.message}{refusIa.traceId ? ` · identifiant support : ${refusIa.traceId}` : ''}</p>}
               {questions.length > 0 && (
                 <div style={{ ...note }}>Jarvis a besoin de précisions avant de proposer :<ul style={{ margin: '4px 0 0', paddingLeft: 18, listStyle: 'disc' }}>{questions.map((q) => <li key={q}>{q}</li>)}</ul></div>
               )}
@@ -388,7 +388,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
                       <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
                         <span style={{ fontSize: 13.5, color: 'var(--ink)', fontWeight: 600, overflowWrap: 'anywhere' }}>{p.nom}</span>
                         <span style={note}>Connu : {p.faits.filter((f) => f.cle !== 'nom').map((f) => `${f.libelle.toLowerCase()} (${f.valeur})`).join(' · ') || 'rien de plus que le nom'}</span>
-                        {p.manques.length > 0 && <span style={{ ...note, color: '#ffcf8f' }}>Manque : {p.manques.map((m) => m.libelle.toLowerCase()).join(', ')}</span>}
+                        {p.manques.length > 0 && <span style={{ ...note, color: 'var(--warn-text)' }}>Manque : {p.manques.map((m) => m.libelle.toLowerCase()).join(', ')}</span>}
                       </span>
                     </label>
                   ))}
@@ -418,7 +418,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
                   })}
                 </div>
               )}
-              {creationsPleines && <p role="status" style={{ ...note, color: '#ffcf8f' }}>{SOURCES_MAX} sources au plus par projet · décoche une création pour en choisir une autre.</p>}
+              {creationsPleines && <p role="status" style={{ ...note, color: 'var(--warn-text)' }}>{SOURCES_MAX} sources au plus par projet · décoche une création pour en choisir une autre.</p>}
             </section>
 
             <section style={bloc} aria-labelledby="pc-projet">

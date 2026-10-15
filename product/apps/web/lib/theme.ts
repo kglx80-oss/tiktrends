@@ -1,10 +1,12 @@
 import type { CSSProperties } from 'react';
 
-/** Thème « Espace admin » : même univers sombre, mais accent ambre/orange
- *  au lieu du magenta. À poser sur le <main> d'une page admin (les enfants héritent). */
+/** Thème « Espace admin » : même univers, mais accent ambre/orange au lieu du
+ *  magenta. À poser sur le <main> d'une page admin (les enfants héritent).
+ *  Les rôles « ambre » vivent dans tokens.css · mêmes valeurs en sombre,
+ *  mesurées en clair. */
 export const ADMIN_THEME = {
-  '--accent': '#f5a623',
-  '--accent-strong': '#ffca6b',
-  '--accent-soft': '#2a2110',
-  '--grad-accent': 'linear-gradient(135deg,#f5a623 0%,#ff8c42 100%)',
+  '--accent': 'var(--ambre)',
+  '--accent-strong': 'var(--ambre-strong)',
+  '--accent-soft': 'var(--ambre-soft)',
+  '--grad-accent': 'var(--grad-ambre)',
 } as unknown as CSSProperties;

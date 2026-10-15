@@ -1,3 +1,4 @@
+import { teinte } from '@tiktrends/core';
 import Link from 'next/link';
 import { Icon } from './Icon';
 import { surface, tuile } from './ui';
@@ -21,19 +22,19 @@ export function BrandOnboarding({ steps }: { steps: OnboardStep[] }) {
   const nextIdx = steps.findIndex((s) => !s.done);
 
   return (
-    <div style={{ ...surface, background:'linear-gradient(180deg, rgba(254,44,85,.06), var(--surface))', padding: '18px 20px', marginBottom: 22 }}>
+    <div style={{ ...surface, background: `linear-gradient(180deg, ${teinte('accent', .06)}, var(--surface))`, padding: '18px 20px', marginBottom: 22 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <span style={{ display: 'inline-flex', color: complete ? '#7ee8bf' : 'var(--accent-strong)' }}>{complete ? <Icon name="star" size={18} /> : <Icon name="spark" size={18} />}</span>
+          <span style={{ display: 'inline-flex', color: complete ? 'var(--ok-text)' : 'var(--accent-strong)' }}>{complete ? <Icon name="star" size={18} /> : <Icon name="spark" size={18} />}</span>
           <b style={{ fontSize: 16, color: 'var(--ink)' }}>Démarrage</b>
         </div>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12.5, fontWeight: 800, color: complete ? '#7ee8bf' : 'var(--accent-strong)' }}>{done}/{total} étapes</span>
+        <span style={{ fontSize: 12.5, fontWeight: 800, color: complete ? 'var(--ok-text)' : 'var(--accent-strong)' }}>{done}/{total} étapes</span>
       </div>
 
       {/* Barre de progression */}
       <div style={{ height: 7, borderRadius: 999, background: 'var(--line-2)', overflow: 'hidden', marginBottom: 4 }}>
-        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: complete ? 'linear-gradient(90deg,#3ddc97,#7ee8bf)' : 'var(--grad-accent)', transition: 'width .4s ease' }} />
+        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: complete ? 'var(--grad-ok)' : 'var(--grad-accent)', transition: 'width .4s ease' }} />
       </div>
       <p style={{ margin: '8px 0 14px', fontSize: 12.5, color: 'var(--ink-2)' }}>
         {complete
@@ -51,7 +52,7 @@ export function BrandOnboarding({ steps }: { steps: OnboardStep[] }) {
                 // Ligne d'étape dans la surface · `tuile` (ou `signal` au niveau tuile pour la prochaine).
                 border: `1px solid ${isNext ? 'var(--accent-strong)' : 'var(--line)'}`,
                 borderRadius: tuile.borderRadius, padding: '11px 14px',
-                background: isNext ? 'rgba(254,44,85,.06)' : 'var(--surface)',
+                background: isNext ? teinte('accent', .06) : 'var(--surface)',
                 opacity: s.done ? 0.72 : 1,
               }}>
                 {/* Puce d'état */}
@@ -78,7 +79,7 @@ export function BrandOnboarding({ steps }: { steps: OnboardStep[] }) {
                     border: isNext ? 'none' : '1px solid var(--line-2)',
                   }}>{s.cta} ›</span>
                 )}
-                {s.done && <span style={{ fontSize: 11.5, fontWeight: 700, color: '#7ee8bf' }}>Fait</span>}
+                {s.done && <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ok-text)' }}>Fait</span>}
               </Link>
             </li>
           );

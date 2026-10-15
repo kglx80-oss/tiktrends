@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { CIBLE_TACTILE_MIN, MEDIA_FEUILLE_MODALE, MODALE_V5, presentationModale } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, MEDIA_FEUILLE_MODALE, MODALE_V5, presentationModale, teinte } from '@tiktrends/core';
 import { usePiegeFocus } from './use-piege-focus';
 import { Portail } from './Portail';
 import { useIsMobile, MEDIA_TELEPHONE } from './useIsMobile';
@@ -105,7 +105,7 @@ export function Modal({
     ...surface,
     // `border-box` · la bordure tient DANS la hauteur (plein écran à 100dvh sans déborder de 2 px, mesuré).
     boxSizing: 'border-box', width: '100%', maxWidth, background: 'var(--surface)',
-    boxShadow: '0 30px 70px -20px rgba(0,0,0,.7)', overflow: 'hidden',
+    boxShadow: `0 30px 70px -20px ${teinte('ombre', .7)}`, overflow: 'hidden',
     maxHeight: MODALE_V5.centree.hauteurMax, display: 'flex', flexDirection: 'column',
     ...(presentation === 'feuille' ? {
       maxWidth: 'none', maxHeight: MODALE_V5.feuille.hauteurMax,
@@ -121,7 +121,7 @@ export function Modal({
       style={{
         position: 'fixed', inset: 0, zIndex: 200, display: 'flex',
         alignItems: centree ? 'center' : 'flex-end', justifyContent: 'center',
-        padding: centree ? MODALE_V5.centree.margeEcran : 0, background: 'rgba(6,4,8,.62)', backdropFilter: MODALE_V5.flouVoile,
+        padding: centree ? MODALE_V5.centree.margeEcran : 0, background: teinte('voile-teinte', .62), backdropFilter: MODALE_V5.flouVoile,
       }}
     >
       <div

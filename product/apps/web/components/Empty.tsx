@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
-import { CIBLE_TACTILE_MIN, styleCadre } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, styleCadre, teinte } from '@tiktrends/core';
 import { Icon } from './Icon';
 
 const RAYON_CARTE = styleCadre('surface').borderRadius;
@@ -85,7 +85,7 @@ const TON: Record<EmptyProps['tone'], { bord: string; fg: string; trait: string 
   // Un `wait` est plein et sobre · rien à faire, donc rien qui appelle le clic.
   wait: { bord: 'var(--line)', fg: 'var(--ink-2)', trait: 'solid' },
   // Un `good` se voit · c'est une réussite, pas un manque.
-  good: { bord: 'rgba(126,232,191,.4)', fg: '#7ee8bf', trait: 'solid' },
+  good: { bord: teinte('ok-text', .4), fg: 'var(--ok-text)', trait: 'solid' },
 };
 
 const bouton: CSSProperties = {
@@ -150,7 +150,7 @@ export function Empty(props: EmptyProps) {
  */
 export function EmptyLine({ children, tone = 'wait' }: { children: ReactNode; tone?: EmptyProps['tone'] }) {
   return (
-    <p style={{ margin: 0, fontSize: 12.5, color: tone === 'good' ? '#7ee8bf' : 'var(--muted)', lineHeight: 1.6 }}>
+    <p style={{ margin: 0, fontSize: 12.5, color: tone === 'good' ? 'var(--ok-text)' : 'var(--muted)', lineHeight: 1.6 }}>
       {children}
     </p>
   );
