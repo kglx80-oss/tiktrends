@@ -20,10 +20,14 @@ const SANS_DECOR = [
 const racine = join(process.cwd(), '..', '..'); // apps/web → product/
 
 describe('fond principal · uni, sans quadrillage ni halo', () => {
-  it('body porte la couleur unie #120810', () => {
+  it('body porte la couleur unie #120810 (via --bg, qui suit le thème)', () => {
     const css = readFileSync(join(racine, 'packages/ui/tokens.css'), 'utf8');
-    const body = css.match(/body\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(body, 'body doit garder le fond uni #120810').toContain('#120810');
+    const body = css.match(/(?:^|\n)body\s*\{[^}]*\}/)?.[0] ?? '';
+    // V5 · A4a · le fond suit le thème · il passe par le jeton --bg, qui vaut
+    // toujours #120810 dans la palette sombre (`:root`, la première déclarée).
+    expect(body, 'body doit poser le fond uni du thème (var(--bg))').toMatch(/background-color:\s*var\(--bg\)/);
+    const racineCss = css.match(/:root\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(racineCss, 'le fond sombre doit rester #120810').toMatch(/--bg:\s*#120810/);
   });
 
   for (const { fichier, ancre, quoi } of SANS_DECOR) {

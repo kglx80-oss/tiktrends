@@ -11,6 +11,7 @@ import { CommandPalette, openCommandPalette, type Command } from './CommandPalet
 import { ProfileModal, type ProfilEnregistre } from './ProfileModal';
 import { QuickSettingsModal } from './QuickSettingsModal';
 import { ProfilPopup } from './ProfilPopup';
+import { BasculeTheme } from './BasculeTheme';
 import { CreditsMenu } from './CreditsMenu';
 import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
@@ -453,7 +454,8 @@ function AppShellInner(props: Props) {
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} onSaved={profilEnregistre} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onSaved={(nom) => setEspaceLocal({ valeur: nom, serveurAvant: workspaceNameServeur })} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
       <ProfilPopup open={popupProfil} onClose={() => setPopupProfil(false)} nom={userName} email={userEmail} avatarUrl={avatarUrl} espace={workspaceName} role={roleLabel}
-        entrees={entreesPopup} onProfil={() => depuisPopup(() => setProfileOpen(true))} onReglagesRapides={() => depuisPopup(() => setSettingsOpen(true))} logout={logout} />
+        entrees={entreesPopup} onProfil={() => depuisPopup(() => setProfileOpen(true))} onReglagesRapides={() => depuisPopup(() => setSettingsOpen(true))} logout={logout}
+        apparence={<BasculeTheme />} />
       <aside ref={railRef} id="nav-rail" inert={chrome.railInerte || undefined}
         // En tiroir (mobile), le rail est une fenêtre modale nommée · le lecteur
         // d'écran l'annonce comme telle et sait qu'elle recouvre la page.
