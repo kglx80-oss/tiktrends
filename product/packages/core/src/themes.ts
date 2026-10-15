@@ -228,6 +228,7 @@ export const PAIRES_THEME: readonly PaireJetons[] = [
   // d'échec) · le sombre de main (#e5484d) fait 4,66 sur --surface mais 4,27 sur
   // --paper · ne pas l'y poser sans l'éclaircir.
   ...croiser(['danger'], ['bg', 'surface'], 'texte', 'action destructrice, bandeau d’échec'),
+  ...croiser(['danger-vif'], FONDS_STATUT, 'texte', 'KPI d’alerte en gros chiffre (churn, essai expiré)'),
   ...croiser(['cat-rose', 'cat-bleu', 'cat-vert', 'cat-ambre', 'cat-violet', 'cat-lavande', 'cat-gris'], FONDS_STATUT, 'texte', 'teinte de catégorie écrite (rôle, type de compte)'),
 ];
 

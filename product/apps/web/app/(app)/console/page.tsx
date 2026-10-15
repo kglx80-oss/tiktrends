@@ -249,7 +249,7 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
                         <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{r.creditsBalance.toLocaleString('fr-FR')}</td>
                         <td style={td}>
                           {ts.daysLeft == null ? <span style={{ color: 'var(--muted)' }}>{VALEUR_ABSENTE}</span>
-                            : ts.expired ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--err)' }}>Expiré</span>
+                            : ts.expired ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger-vif)' }}>Expiré</span>
                             : <span style={{ fontSize: 11, fontWeight: 700, color: ts.daysLeft <= 3 ? 'var(--warn)' : 'var(--ok)' }}>{ts.daysLeft} j restants</span>}
                         </td>
                         <td style={{ ...td, textAlign: 'right' }}>
@@ -383,7 +383,7 @@ function Kpi({ label, value, hint, accent, danger }: { label: string; value: str
   return (
     <div style={{ padding: '15px 16px', ...(accent ? cadreSignal('color-mix(in srgb, var(--accent) 30%, transparent)') : surface), background: accent ? 'linear-gradient(180deg in srgb, color-mix(in srgb, var(--accent) 10%, transparent), var(--surface))' : 'var(--surface)' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--muted)', marginBottom: 7 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: danger ? 'var(--err)' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: danger ? 'var(--danger-vif)' : 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       {hint && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>{hint}</div>}
     </div>
   );

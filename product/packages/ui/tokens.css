@@ -94,6 +94,7 @@
   --err-strong:   #ff8095;  /* texte d'erreur vif (refus, échec) */
   --info-text:    #7aa2ff;  /* texte d'information (en cours, nouveau) */
   --danger:       #e5484d;  /* action destructrice, bandeau d'échec */
+  --danger-vif:   #ff6b6b;  /* KPI d'alerte en gros chiffre (churn, essai expiré) · rouge clair */
   --success:      #2fa46c;  /* bandeau de confirmation */
   /* Teintes de catégorie · séries de graphique, rôles, formules · jamais un statut. */
   --cat-rose:     #fe2c55;
@@ -156,6 +157,7 @@
   --err-strong:   #b3261e;
   --info-text:    #1d4ed8;
   --danger:       #b3261e;
+  --danger-vif:   #b3261e;
   --success:      #1a6f4b;
   --cat-rose:     #b0204f;
   --cat-bleu:     #1d4ed8;
@@ -215,6 +217,7 @@
   --err-strong:   #ff8095;
   --info-text:    #7aa2ff;
   --danger:       #ff7a90;
+  --danger-vif:   #ff6b6b;
   --success:      #45c08a;
   --cat-rose:     #ff5c8a;
   --cat-bleu:     #7aa2ff;
@@ -270,6 +273,7 @@
   --err-strong:   #b3261e;
   --info-text:    #1d4ed8;
   --danger:       #b3261e;
+  --danger-vif:   #b3261e;
   --success:      #1a6f4b;
   --cat-rose:     #b0204f;
   --cat-bleu:     #1d4ed8;
