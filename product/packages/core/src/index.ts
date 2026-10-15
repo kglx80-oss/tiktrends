@@ -206,4 +206,6 @@ export * from './studios/creations-historiques';
 export * from './onglets-reglages';
 export * from './parcours-boucle';
 export * from './coquille-v5';
+export * from './medias-servis';
+export * from './objet-espace';
 export * from './themes';
