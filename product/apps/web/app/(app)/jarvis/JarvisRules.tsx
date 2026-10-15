@@ -104,7 +104,7 @@ export function JarvisRules({ brandName, initial }: { brandName: string | null; 
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
           {DIMS.map((d) => {
             const on = d.re.test(rules);
-            return <span key={d.label} style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: on ? 'var(--ok-sur-teinte)' : 'var(--muted)', background: on ? 'color-mix(in srgb, var(--ok-text) 20%, transparent)' : 'var(--line)' }}>{on ? '✓' : '·'} {d.label}</span>;
+            return <span key={d.label} style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: on ? 'var(--ok-text)' : 'var(--muted)', background: on ? 'color-mix(in srgb, var(--ok-text) 20%, transparent)' : 'var(--line)' }}>{on ? '✓' : '·'} {d.label}</span>;
           })}
         </div>
         <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>{words} mots</span>

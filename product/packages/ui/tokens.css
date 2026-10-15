@@ -90,13 +90,17 @@
      pixel avant / après). Les teintes translucides se dérivent du rôle ·
      `color-mix(in srgb, var(--x) N%, transparent)`, exact au pixel.
      --warn-text, --warn-strong et --err-strong · mêmes noms et mêmes valeurs
-     que les lots T1 et T3 (une redéclaration identique ne change rien). */
+     que les lots T1 et T3 (une redéclaration identique ne change rien).
+     EXCEPTION · deux valeurs sombres CHANGENT, pour corriger un texte illisible
+     du sombre de main (seul endroit où ce lot touche le sombre) · --grad-violet
+     passe de #7a5aff,#e6007e à #6848e0,#d10072 (blanc 4,45 → 5,31 au pire
+     arrêt), et la pastille cochée du règlement lit en --ok-text, non plus en
+     #0d3d2a (1,08 → 7,66). */
   --warn-text:     #ffcf8f;  /* texte d'avertissement pâle (gagnante relative, note) */
   --warn-strong:   #f5b043;  /* avertissement en texte vif (« à surveiller ») */
   --err-strong:    #ff8095;  /* texte d'erreur vif (perdante, échec, refus) */
   --ok-pale:       #9fe6b3;  /* message de réussite doux (enregistré, appliqué) */
   --ok-strong:     #3ddc97;  /* donnée · jauge « fort » (anneau du règlement) */
-  --ok-sur-teinte: #0d3d2a;  /* texte posé sur une teinte --ok-text (pastille cochée) */
   --err-pale:      #ffb3c0;  /* conseil à suivre avant tout, dans un cadre signal */
   --recul-text:    #ffb86b;  /* texte d'une dégradation (témoin en recul) */
   --info-pale:     #9fb4ff;  /* donnée · suite « nouveau concept » */
@@ -105,7 +109,7 @@
   --violet-text:   #c9b8ff;  /* message de réussite de l'entraînement */
   --violet-08:     rgba(120,90,255,0.08); /* lavis du panneau d'entraînement */
   --violet-35:     rgba(120,90,255,0.35); /* cadre du panneau d'entraînement */
-  --grad-violet:   linear-gradient(135deg,#7a5aff,#e6007e); /* bouton « Entraîner Jarvis » */
+  --grad-violet:   linear-gradient(135deg,#6848e0,#d10072); /* bouton « Entraîner Jarvis » */
   --on-violet:     #ffffff;  /* libellé sur --grad-violet */
   --grad-ok-doux:  linear-gradient(90deg,#4fd1a5,#7ee8bf); /* barre au-dessus de la moyenne */
   --carte-noeud:   #4a4a52;  /* minicarte Adsmap · nœud sans verdict */
@@ -170,7 +174,6 @@
   --err-strong:    #b3261e;
   --ok-pale:       #1a6f4b;
   --ok-strong:     #1a6f4b;
-  --ok-sur-teinte: #0d3d2a;
   --err-pale:      #a3213f;
   --recul-text:    #9a4a00;
   --info-pale:     #1d4ed8;
@@ -179,7 +182,7 @@
   --violet-text:   #5b3fd6;
   --violet-08:     rgba(120,90,255,0.08);
   --violet-35:     rgba(120,90,255,0.35);
-  --grad-violet:   linear-gradient(135deg,#7a5aff,#e6007e);
+  --grad-violet:   linear-gradient(135deg,#6848e0,#d10072);
   --on-violet:     #ffffff;
   --grad-ok-doux:  linear-gradient(90deg, #1a6f4b, #237a55);
   --carte-noeud:   #8c6c80;
@@ -236,7 +239,6 @@
   --err-strong:    #ff8095;
   --ok-pale:       #9fe6b3;
   --ok-strong:     #3ddc97;
-  --ok-sur-teinte: #0d3d2a;
   --err-pale:      #ffb3c0;
   --recul-text:    #ffb86b;
   --info-pale:     #9fb4ff;
@@ -245,7 +247,7 @@
   --violet-text:   #c9b8ff;
   --violet-08:     rgba(120,90,255,0.08);
   --violet-35:     rgba(120,90,255,0.35);
-  --grad-violet:   linear-gradient(135deg,#7a5aff,#e6007e);
+  --grad-violet:   linear-gradient(135deg,#6848e0,#d10072);
   --on-violet:     #ffffff;
   --grad-ok-doux:  linear-gradient(90deg,#4fd1a5,#7ee8bf);
   --carte-noeud:   #4a4a52;
@@ -301,7 +303,6 @@
   --err-strong:    #b3261e;
   --ok-pale:       #1a6f4b;
   --ok-strong:     #1a6f4b;
-  --ok-sur-teinte: #0d3d2a;
   --err-pale:      #a3213f;
   --recul-text:    #9a4a00;
   --info-pale:     #1d4ed8;
@@ -310,7 +311,7 @@
   --violet-text:   #5b3fd6;
   --violet-08:     rgba(120,90,255,0.08);
   --violet-35:     rgba(120,90,255,0.35);
-  --grad-violet:   linear-gradient(135deg,#7a5aff,#e6007e);
+  --grad-violet:   linear-gradient(135deg,#6848e0,#d10072);
   --on-violet:     #ffffff;
   --grad-ok-doux:  linear-gradient(90deg, #1a6f4b, #237a55);
   --carte-noeud:   #6a858d;

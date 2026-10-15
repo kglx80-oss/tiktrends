@@ -215,16 +215,18 @@ export const FONDS_STATUT = ['bg', 'surface', 'surface-raised', 'paper'] as cons
  * --warn-strong 4,93 sur --paper en clair ; interface · --violet 3,11 sur
  * --paper en ADMIN+ sombre.
  *
- * Deux usages ne sont PAS déclarés, parce que le sombre de main y échoue déjà
- * et que ce lot ne change pas le sombre · --on-violet sur --grad-violet
- * (4,45:1, bouton « Entraîner Jarvis ») et --ok-sur-teinte sur sa teinte
- * --ok-text à 20 % (1,08:1, pastilles du règlement). Le clair, lui, passe
- * (9,10:1 pour la pastille, mesuré dans le navigateur).
+ * Le bouton « Entraîner Jarvis » (--on-violet sur --grad-violet) est déclaré ·
+ * le sombre de main y était à 4,45:1, ce lot le corrige à 5,31 au pire arrêt
+ * en assombrissant le dégradé. La pastille cochée du règlement (texte --ok-text
+ * sur une teinte --ok-text à 20 %) n'est PAS exprimable ici (fond color-mix, pas
+ * un jeton) · mesurée au navigateur · sombre 7,66, clair 4,85 au pire, au-dessus
+ * de 4,5 partout (le sombre de main y était à 1,08:1, corrigé par ce lot).
  */
 export const PAIRES_ADSMAP_JARVIS: readonly PaireJetons[] = [
   ...croiser(['warn-text', 'warn-strong', 'err-strong', 'ok-pale', 'err-pale', 'recul-text', 'info-pale', 'violet-text'], FONDS_STATUT, 'texte', 'Adsmap et Jarvis · verdicts, messages, conseils'),
   ...croiser(['ok-strong', 'signal', 'violet'], ['bg', 'surface', 'paper'], 'interface', 'Adsmap et Jarvis · jauge, cadre signal, pictogramme'),
   { dessus: 'paper', fond: 'grad-ok-doux', nature: 'interface', usage: 'barre au-dessus de la moyenne sur sa piste (pire arrêt)' },
+  { dessus: 'on-violet', fond: 'grad-violet', nature: 'texte', usage: 'libellé du bouton « Entraîner Jarvis » (pire arrêt du dégradé)' },
 ];
 
 export const PAIRES_THEME: readonly PaireJetons[] = [

@@ -66,9 +66,10 @@ function tsxDuDossier(rel: string): string[] {
 function rendUnVoilePleinEcran(src: string): boolean {
   const fixed = /position:\s*'fixed'/.test(src);
   const inset0 = /inset:\s*0\b/.test(src);
-  // Un voile · un fond rgba semi-opaque. Les attrape-clics transparents (sans
+  // Un voile · un fond rgba semi-opaque, OU un jeton de voile (`var(--voile…)`,
+  // depuis la tokenisation V5). Les attrape-clics transparents (sans
   // `background`) ne comptent pas · ils n'ont pas à couvrir l'écran.
-  const voile = /background:\s*'rgba\(/.test(src);
+  const voile = /background:\s*'(?:rgba\(|var\(--voile)/.test(src);
   return fixed && inset0 && voile;
 }
 

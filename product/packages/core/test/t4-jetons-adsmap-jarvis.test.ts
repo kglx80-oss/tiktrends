@@ -17,14 +17,14 @@ import { palettesDepuisCss, mesurerPalette, PAIRES_ADSMAP_JARVIS, PAIRES_THEME, 
 const CSS = readFileSync(join(__dirname, '../../ui/tokens.css'), 'utf8');
 const { declarees, effectives } = palettesDepuisCss(CSS);
 
-/** Le littéral d'avant (main 70ab234), rôle par rôle. */
+/** Le littéral d'avant (main 70ab234), rôle par rôle · le sombre doit le rendre
+ *  à l'identique. --grad-violet est À PART · ce lot l'assombrit exprès (fix). */
 const AVANT: Record<string, string> = {
   'warn-text': '#ffcf8f', 'warn-strong': '#f5b043', 'err-strong': '#ff8095',
-  'ok-pale': '#9fe6b3', 'ok-strong': '#3ddc97', 'ok-sur-teinte': '#0d3d2a',
+  'ok-pale': '#9fe6b3', 'ok-strong': '#3ddc97',
   'err-pale': '#ffb3c0', 'recul-text': '#ffb86b', 'info-pale': '#9fb4ff', signal: '#ff5a78',
   violet: '#7a5aff', 'violet-text': '#c9b8ff', 'violet-08': 'rgba(120,90,255,0.08)', 'violet-35': 'rgba(120,90,255,0.35)',
-  'grad-violet': 'linear-gradient(135deg,#7a5aff,#e6007e)', 'on-violet': '#ffffff',
-  'grad-ok-doux': 'linear-gradient(90deg,#4fd1a5,#7ee8bf)',
+  'on-violet': '#ffffff', 'grad-ok-doux': 'linear-gradient(90deg,#4fd1a5,#7ee8bf)',
   'carte-noeud': '#4a4a52', 'voile-leger': 'rgba(0,0,0,0.35)', 'sh-tiroir': '-20px 0 50px -20px rgba(0,0,0,0.60)',
 };
 
@@ -36,6 +36,16 @@ const BASES_TEINTES: Record<string, string> = {
 describe('T4 · le sombre reste celui de main', () => {
   it('chaque rôle T4 vaut, en sombre, le littéral qu’il remplace', () => {
     for (const [j, v] of Object.entries(AVANT)) expect(declarees.sombre[j], `--${j} en sombre`).toBe(v);
+  });
+
+  it('--grad-violet est la seule valeur sombre volontairement changée · assombrie pour que le blanc passe', () => {
+    // le sombre de main était linear-gradient(135deg,#7a5aff,#e6007e), blanc à 4,45:1 · corrigé
+    expect(declarees.sombre['grad-violet']).toBe('linear-gradient(135deg,#6848e0,#d10072)');
+    expect(declarees.sombre['grad-violet']).not.toContain('#7a5aff');
+  });
+
+  it('--ok-sur-teinte n’existe plus · la pastille cochée lit désormais en --ok-text', () => {
+    expect('ok-sur-teinte' in declarees.sombre).toBe(false);
   });
 
   it('chaque teinte color-mix part de la couleur de base de l’ancien rgba()', () => {
