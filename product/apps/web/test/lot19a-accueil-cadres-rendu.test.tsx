@@ -7,7 +7,9 @@ import { HomeMarques } from '../components/HomeMarques';
 import { JourneyPanel } from '../components/JourneyPanel';
 import { TeteProjets } from '../components/accueil/TeteProjets';
 import { PilotageActivite } from '../components/accueil/PilotageActivite';
-import { liensPilotage, resoudreAccueilProjets } from '@tiktrends/core';
+import { liensPilotage, resoudreAccueilProjets, etatProchainesIterations, tuilesAccueil, kpiAccueil } from '@tiktrends/core';
+import { ProchainesIterations } from '../components/accueil/ProchainesIterations';
+import { TuilesAccueil, KpiAccueilBande } from '../components/accueil/TuilesAccueil';
 
 /**
  * Lot 19A · l'Accueil RENDU porte les cadres de la charte (#725 · `--line`
@@ -61,6 +63,14 @@ describe('lot 19A · Accueil rendu · chaque cadre porte son rôle', () => {
     ] } })} />)],
     ['TeteProjets (premier usage)', renderToStaticMarkup(<TeteProjets apercu={null} etat={resoudreAccueilProjets({ ouvert: () => true, peutCreer: true, lecture: { ok: true, cartes: [] } })} />)],
     ['PilotageActivite', renderToStaticMarkup(<PilotageActivite liens={liensPilotage({ ouvert: () => true, compteOuvert: () => true })} />)],
+    // UX V5 · prochaines itérations (liste, vide), tuiles d'action, KPI.
+    ['ProchainesIterations (liste)', renderToStaticMarkup(<ProchainesIterations etat={etatProchainesIterations({
+      refus: null, marqueActive: true, peutIterer: true, contexte: () => ({ metricsAgg: { ctr: 0.02, daysElapsed: 7 }, plateforme: 'meta', lot: { numero: 1, statut: 'analyzed' }, apprentissageValide: true }),
+      lecture: { ok: true, rows: [{ adId: '0f8e7a52-3c1d-4b6e-9a2f-1d2c3b4a5e6f', label: 'C · v1', conceptTitle: 'C', variableLabel: 'le format', freezeLabels: ['l’accroche'], rationale: 'r', edgeLegal: true, parentVerdict: 'winner', parentComparable: true }] },
+    })} />)],
+    ['ProchainesIterations (vide)', renderToStaticMarkup(<ProchainesIterations etat={etatProchainesIterations({ refus: null, marqueActive: true, peutIterer: true, contexte: () => undefined, lecture: { ok: true, rows: [] } })} />)],
+    ['TuilesAccueil', renderToStaticMarkup(<TuilesAccueil tuiles={tuilesAccueil({ nouveauProjet: '/studio/projets/nouveau', veille: true, jarvis: true, importer: true, fiche: { href: '/brands/b1', manques: ['le ton'] } })} />)],
+    ['KpiAccueilBande', renderToStaticMarkup(<KpiAccueilBande kpi={kpiAccueil({ projets: { n: 2, plafond: 60 }, sauvegardees: { n: 1, dossiers: 0 }, nouveautes: null, enTest: { n: 0, lots: [] } })} />)],
   ];
   it('on lit bien des cadres', () => {
     const n = ecrans.reduce((s, [, h]) => s + [...h.matchAll(STYLE)].filter((m) => /border:1px/.test(m[2]!)).length, 0);

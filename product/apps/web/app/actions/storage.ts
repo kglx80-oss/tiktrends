@@ -3,6 +3,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, putBucketPublicRead, putBucketCors, storageSelfTest, putObject, newAssetKey } from '@tiktrends/integrations';
+import { typeMediaReel } from '@tiktrends/core';
 import { logAndTranslate } from '../../lib/error-log';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
@@ -132,6 +133,9 @@ export async function migrateEmbeddedImagesAction(): Promise<{ migrees?: number;
       .where(and(
         eq(schema.assets.workspaceId, s.workspaceId),
         sql`${schema.assets.url} like 'data:%'`,
+        // Les SVG anciens ne se migrent pas (voir plus bas) · les écarter ici
+        // évite qu'un lot qui n'en contiendrait que bloque les suivants.
+        sql`${schema.assets.url} not ilike 'data:image/svg%'`,
       ))
       .limit(PAR_LOT);
 
@@ -141,9 +145,13 @@ export async function migrateEmbeddedImagesAction(): Promise<{ migrees?: number;
       const entete = virgule > 0 ? a.url.slice(5, virgule) : '';
       if (!entete.endsWith(';base64')) continue;   // forme inattendue · on la laisse
 
-      const mime = entete.replace(';base64', '') || 'image/jpeg';
       const octets = Buffer.from(a.url.slice(virgule + 1), 'base64');
       if (!octets.length) continue;
+      // Le type posé sur l'objet se relit dans les OCTETS · un SVG ancien
+      // (préfixe `data:image/svg+xml`) n'est pas copié vers le bucket, il reste
+      // en base, non servi, comme toute forme inattendue.
+      const mime = typeMediaReel(octets);
+      if (!mime) continue;
 
       try {
         const url = await putObject(cfg, newAssetKey(s.workspaceId, a.name || 'image'), octets, mime);

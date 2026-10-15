@@ -28,7 +28,8 @@ import { join, relative } from 'node:path';
  * 132 fichiers en portent sur 531 (399 déjà propres).
  *
  * V5 · T4 · Adsmap (Résultats) et Jarvis passent en jetons · 115 + 93 = 208
- * littéraux retirés, leurs 25 fichiers sont propres · plafond 932.
+ * littéraux retirés, leurs 25 fichiers sont propres · plafond 1131 − 208 = 923
+ * (1131 est le plafond après l'accueil #800).
  */
 const WEB = process.cwd();
 
@@ -49,7 +50,7 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app/(app)/analytics': 7,
   'app/(app)/assets': 20,
   'app/(app)/billing': 9,
-  'app/(app)/brands': 32,
+  'app/(app)/brands': 28,
   'app/(app)/connections': 54,
   'app/(app)/console': 24,
   'app/(app)/credits': 37,
@@ -68,7 +69,7 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app/onboarding': 11,
   'app/tarifs': 60,
   'components': 161,
-  'components/accueil': 6,
+  'components/accueil': 1,
   'components/studios': 38,
   'lib': 11,
   'lib/studios': 1,
@@ -105,7 +106,6 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/brands/[id]/PaletteMarque.tsx': 5,
   'app/(app)/brands/[id]/ShopifyConnect.tsx': 4,
   'app/(app)/brands/[id]/competitors/[name]/page.tsx': 4,
-  'app/(app)/brands/[id]/page.tsx': 4,
   'app/(app)/brands/new/page.tsx': 5,
   'app/(app)/brands/page.tsx': 3,
   'app/(app)/connections/DataConnections.tsx': 7,
@@ -168,7 +168,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/SupportWidget.tsx': 10,
   'components/Toast.tsx': 6,
   'components/TrackerFeed.tsx': 6,
-  'components/accueil/VueAnalytics.tsx': 6,
+  'components/accueil/VueAnalytics.tsx': 1,
   'components/studios/PreparerCreation.tsx': 10,
   'components/studios/editeur/SurfaceDocument.tsx': 5,
   'components/studios/export/PanneauExport.tsx': 5,
@@ -185,7 +185,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'lib/theme.ts': 5,
 };
 
-const PLAFOND_TOTAL = 932;
+const PLAFOND_TOTAL = 923;
 
 const RACINES = ['app', 'components', 'lib'];
 
