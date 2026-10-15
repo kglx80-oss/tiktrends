@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import {
   dateCourteUtc, LIBELLES_MODALITE, LIBELLES_ELEMENT, LIBELLES_STATUT_SOURCE, LIBELLES_TYPE_SOURCE, LIBELLES_DROIT_SOURCE, titreSource, LIBELLES_NATURE_FAIT, CIBLE_TACTILE_MIN,
-  type FaitBrief, type NatureFait,
+  type FaitBrief, type NatureFait, teinte,
 } from '@tiktrends/core';
 import type { DetailProjet } from '../../../lib/studios/sources/projet';
 import { liensAtelierProjet, type LienAtelier } from '../../../lib/navigation';
@@ -66,7 +66,7 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
           <PastilleEtape etape={completude.etape} libelle={completude.libelleEtape} />
         </div>
         {ancienne && (
-          <p role="status" style={{ ...discret, ...tuile, padding: '8px 12px', background: 'rgba(59,130,246,.10)' }}>
+          <p role="status" style={{ ...discret, ...tuile, padding: '8px 12px', background: teinte('info', .1) }}>
             Tu consultes une version antérieure · lecture seule. <Link href={`/studio/projets/${projet.id}`} style={{ color: 'var(--accent-strong)' }}>Revenir à la version courante</Link>
           </p>
         )}
@@ -76,7 +76,7 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
         <div style={{ flex: '1 1 560px', minWidth: 0, display: 'grid', gap: 18 }}>
           <section aria-labelledby="pj-brief" style={section}>
             <h2 id="pj-brief" style={titre}>Brief</h2>
-            {detail.briefIllisible && <p role="alert" style={{ ...discret, color: '#ff9db0' }}>Le brief de cette version n’a pas la forme attendue · il n’est pas affiché.</p>}
+            {detail.briefIllisible && <p role="alert" style={{ ...discret, color: 'var(--err-text)' }}>Le brief de cette version n’a pas la forme attendue · il n’est pas affiché.</p>}
             {!brief && !detail.briefIllisible && <p style={discret}>Pas encore de brief pour cette version.</p>}
             {brief && (
               <>
@@ -94,7 +94,7 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
                       {hypothese.decisionRule && <p style={discret}><b style={{ color: 'var(--ink)' }}>Règle de décision</b> · {hypothese.decisionRule}</p>}
                       {hypothese.limitations.map((l) => <p key={l} style={discret}><b style={{ color: 'var(--ink)' }}>Limite</b> · {l}</p>)}
                     </>
-                  ) : <p style={{ ...discret, color: '#ffcf8f' }}>Aucune hypothèse · à choisir ou rédiger.</p>}
+                  ) : <p style={{ ...discret, color: 'var(--warn-text)' }}>Aucune hypothèse · à choisir ou rédiger.</p>}
                 </div>
                 <Champ nom="Invariants">{brief.invariants.length ? <Liste items={brief.invariants} /> : null}</Champ>
                 <Champ nom="Composition (structure importée)">{brief.composition}</Champ>
@@ -121,11 +121,11 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
                 <p style={{ ...texte, fontWeight: 600 }}>{produit.nom}</p>
                 <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>
                   {produit.faits.filter((f) => f.cle !== 'nom').map((f) => <li key={f.cle} style={discret}>{f.libelle} · {f.valeur}</li>)}
-                  {produit.manques.map((m) => <li key={m.cle} style={{ ...discret, color: '#ffcf8f' }}>{m.libelle} · manquant</li>)}
+                  {produit.manques.map((m) => <li key={m.cle} style={{ ...discret, color: 'var(--warn-text)' }}>{m.libelle} · manquant</li>)}
                 </ul>
                 <p style={{ ...discret, color: 'var(--muted)' }}>Instantané du {dateCourteUtc(produit.instantaneLe)} · les faits ne bougent pas si la fiche produit change.</p>
               </>
-            ) : <p style={{ ...discret, color: '#ffcf8f' }}>Aucun produit choisi · le scénario attendra un produit de la marque.</p>}
+            ) : <p style={{ ...discret, color: 'var(--warn-text)' }}>Aucun produit choisi · le scénario attendra un produit de la marque.</p>}
           </section>
 
           {/* Propositions (L4-A) · ciblent la version COURANTE, pas celle affichée. */}
@@ -145,7 +145,7 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
             {completude.manques.length === 0 ? <p style={discret}>Rien · le brief est complet.</p> : (
               <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 4 }}>
                 {completude.manques.map((m) => (
-                  <li key={m.cle} data-manque={m.cle} style={discret}>{m.libelle}{m.bloquant ? <b style={{ color: '#ffcf8f' }}> · à faire</b> : <span style={{ color: 'var(--muted)' }}> · conseillé</span>}</li>
+                  <li key={m.cle} data-manque={m.cle} style={discret}>{m.libelle}{m.bloquant ? <b style={{ color: 'var(--warn-text)' }}> · à faire</b> : <span style={{ color: 'var(--muted)' }}> · conseillé</span>}</li>
                 ))}
               </ul>
             )}
@@ -154,7 +154,7 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
           <section aria-labelledby="pj-sources" style={section}>
             <h2 id="pj-sources" style={titre}>Sources</h2>
             {sources.length === 0 && <p style={discret}>Aucune source liée.</p>}
-            {detail.sourcesIllisibles > 0 && <p style={{ ...discret, color: '#ffcf8f' }}>{detail.sourcesIllisibles} référence(s) de source illisible(s) · ignorée(s).</p>}
+            {detail.sourcesIllisibles > 0 && <p style={{ ...discret, color: 'var(--warn-text)' }}>{detail.sourcesIllisibles} référence(s) de source illisible(s) · ignorée(s).</p>}
             {sources.map((s) => (
               <div key={s.sourceId} data-source={s.sourceId} data-statut={s.statut} style={{ ...tuile, padding: 12, background: 'var(--bg)', display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -162,7 +162,7 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
                   <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{titreSource(s)}</span>
                     <span style={discret}>{LIBELLES_TYPE_SOURCE[s.type]} · {s.plateforme} · observée le {dateCourteUtc(s.observeLe)}</span>
-                    <span style={{ ...discret, color: s.statut === 'active' ? '#7ee8bf' : '#ffcf8f' }}>
+                    <span style={{ ...discret, color: s.statut === 'active' ? 'var(--ok-text)' : 'var(--warn-text)' }}>
                       {LIBELLES_STATUT_SOURCE[s.statut]}{s.revoqueeLe && s.statut !== 'active' ? ` · depuis le ${dateCourteUtc(s.revoqueeLe)} · observations conservées` : ''}
                     </span>
                   </div>

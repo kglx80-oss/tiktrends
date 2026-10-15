@@ -32,7 +32,7 @@ const boutonGhost: React.CSSProperties = { minHeight: 36, padding: '7px 12px', b
 const pastille = (role: RolePlateforme): React.CSSProperties => ({
   fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', padding: '2px 8px', borderRadius: 999,
   color: accesTotal(role) ? 'var(--on-accent)' : 'var(--ink-2)',
-  background: accesTotal(role) ? 'var(--grad-accent)' : 'rgba(255,255,255,.06)',
+  background: accesTotal(role) ? 'var(--grad-accent)' : 'color-mix(in srgb, var(--line) 50%, transparent)',
   border: accesTotal(role) ? 'none' : '1px solid var(--line-2)',
 });
 
@@ -70,7 +70,7 @@ export function EcranEquipe({ moiEmail, staff, matrice }: { moiEmail: string; st
               {m.email.toLowerCase() !== moi && (
                 <form action={retirerStaffAction}>
                   <input type="hidden" name="email" value={m.email} />
-                  <button type="submit" aria-label={`Retirer ${m.email}`} style={{ ...boutonGhost, color: '#e5484d' }}>Retirer</button>
+                  <button type="submit" aria-label={`Retirer ${m.email}`} style={{ ...boutonGhost, color: 'var(--danger)' }}>Retirer</button>
                 </form>
               )}
             </div>

@@ -56,7 +56,7 @@ export default async function ConnaissancesPage() {
       </div>
 
       {r.error || !r.vue
-        ? <div role="alert" style={{ padding: '12px 14px', ...cadreSignal('rgba(229,72,77,.4)'), background: 'rgba(229,72,77,.1)', color: '#e5484d', fontSize: 13, fontWeight: 700 }}>{r.error ?? 'Lecture impossible.'}</div>
+        ? <div role="alert" style={{ padding: '12px 14px', ...cadreSignal('color-mix(in srgb, var(--danger) 40%, transparent)'), background: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)', fontSize: 13, fontWeight: 700 }}>{r.error ?? 'Lecture impossible.'}</div>
         : <EcranConnaissances vueInitiale={r.vue} espaces={espaces} marques={marques.map((m) => ({ id: m.id, name: m.name, workspaceId: m.workspaceId }))} />}
     </main>
   );

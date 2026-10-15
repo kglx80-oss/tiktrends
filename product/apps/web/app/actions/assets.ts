@@ -4,7 +4,7 @@ import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleObjetDeLEspace, type OrigineStudioBibliotheque } from '@tiktrends/core';
+import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -377,7 +377,8 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
   // suppression de l'asset effaçait ensuite du bucket.
   const cfg = storageFromEnv();
   if (!cfg) return { error: messageServiceInactif('stockage') };
-  if (!cleObjetDeLEspace(url, basePubliqueStockage(cfg), s.workspaceId)) return { error: 'Ce fichier n’a pas été téléversé depuis cet espace.' };
+  // Une clé `drive-…` est celle de la synchro Drive, jamais un téléversement.
+  if (!cleTeleversable(url, basePubliqueStockage(cfg), s.workspaceId)) return { error: 'Ce fichier n’a pas été téléversé depuis cet espace.' };
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
   await db.insert(schema.assets).values({
     workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
@@ -401,6 +402,12 @@ export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: t
   // règle `cleObjetDeLEspace` et n'envoie rien sinon). Une ligne ancienne qui
   // pointerait ailleurs perd sa ligne, jamais l'objet d'un autre espace.
   const cfg = storageFromEnv();
-  if (cfg && row?.source === 'upload' && row.url) { try { await deleteObjectByUrl(cfg, row.url, s.workspaceId); } catch { /* best-effort */ } }
+  // Et seulement si plus AUCUNE ligne ne référence le même objet (doublon,
+  // ligne d'un autre espace qui partagerait l'adresse) · supprimer l'objet
+  // casserait l'autre ligne.
+  if (cfg && row?.source === 'upload' && row.url) {
+    const [autre] = await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.url, row.url)).limit(1);
+    if (!autre) { try { await deleteObjectByUrl(cfg, row.url, s.workspaceId); } catch { /* best-effort */ } }
+  }
   return { ok: true };
 }

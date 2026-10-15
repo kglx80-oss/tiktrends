@@ -185,7 +185,12 @@ describe('entreeSynchroDrive · ce que la synchro Drive importe', () => {
     expect(entreeSynchroDrive('audio/ogg')).toEqual({ type: 'audio/ogg', kind: 'audio', depot: 'application/octet-stream', extension: 'bin' });
     expect(entreeSynchroDrive('Video/X-Matroska; x=1')?.depot).toBe('application/octet-stream');
   });
-  it.each(['image/svg+xml', 'IMAGE/SVG+XML', 'text/html', 'application/xhtml+xml', 'application/pdf', 'video/x-ms-asf+xml', 'image/', '', 'application/vnd.google-apps.document'])('%s ⇒ ignoré', (t) => {
+  it('fichier non média non exécutable (PDF, ZIP, texte) : importé en téléchargement seul, kind other', () => {
+    for (const t of ['application/pdf', 'application/zip', 'text/plain', 'text/csv']) {
+      expect(entreeSynchroDrive(t), t).toEqual({ type: t, kind: 'other', depot: 'application/octet-stream', extension: 'bin' });
+    }
+  });
+  it.each(['image/svg+xml', 'IMAGE/SVG+XML', 'text/html', 'application/xhtml+xml', 'application/javascript', 'text/javascript', 'application/x-shockwave-flash', 'video/x-ms-asf+xml', 'image/', '', 'application/vnd.google-apps.document'])('%s ⇒ ignoré', (t) => {
     expect(entreeSynchroDrive(t)).toBeNull();
   });
   it('type listé mais octets d’autre nature (SVG déguisé en PNG) ⇒ ignoré', () => {

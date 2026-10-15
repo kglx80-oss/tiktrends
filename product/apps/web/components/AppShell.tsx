@@ -17,7 +17,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { LogoHome } from './LogoHome';
 import { Icon } from './Icon';
 import { useIsMobile } from './useIsMobile';
-import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString, actionToucheRail, entreesProfil, COQUILLE_V5, gouttiereCss } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, valeurAffichee, type Enregistre, placementLanceurSupport, reserveFocusLanceur, hauteurRangeeRail, railEntreeActive, ancresDeclarees, chargementCompletRequis, commandesOuvertes, ANCIENNES_ADRESSES_STUDIO, CHEMIN_NOUVEAU_PROJET, type RegleChemin, focusDisponible, actionToucheFocus, jarvisCookieString, actionToucheRail, entreesProfil, COQUILLE_V5, gouttiereCss, teinte, indicesDefilementRail, masqueDefilementRail, defilementVersEntree } from '@tiktrends/core';
 import { chromeCoquille, echapFermeTiroir } from '../lib/chrome-coquille';
 import { railCookieString } from '../lib/rail-preference';
 import { routeLabel } from '../lib/navigation';
@@ -48,13 +48,14 @@ export const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: 
 // toute la coquille en thème ADMIN+ dès qu'un membre du staff les ouvrait · le
 // pilotage interne vit maintenant dans /admin/plans.
 const ADMIN_CONTENT = {
-  '--accent': '#f5a623',
-  '--accent-strong': '#ffca6b',
-  '--accent-soft': '#2a2110',
-  '--grad-accent': 'linear-gradient(135deg,#f5a623 0%,#ff8c42 100%)',
+  // Rôles « ambre » de tokens.css (mêmes valeurs en sombre, mesurées en clair).
+  '--accent': 'var(--ambre)',
+  '--accent-strong': 'var(--ambre-strong)',
+  '--accent-soft': 'var(--ambre-soft)',
+  '--grad-accent': 'var(--grad-ambre)',
   // Thème admin (fondateur) · distingué par sa couleur et son accent, sans
   // quadrillage ni halo (charte : fond uni, aucun décor).
-  backgroundColor: '#130d07',
+  backgroundColor: 'var(--bg-ambre)',
 } as unknown as CSSProperties;
 
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
@@ -382,6 +383,46 @@ function AppShellInner(props: Props) {
   // « Votre espace » · Marques et Réglages, seulement si la garde réelle des
   // pages les ouvre (`sectionsCompteOuvertes` · admin d'espace). Rien d'élargi.
   const espaceRail = workspaceItems.filter((it) => it.key === 'brands' || it.key === 'settings');
+  // Correctifs V5 · la liste du rail défile AU-DESSUS du pied (jamais dessous) ·
+  // un fondu de fin (ou de tête) dit qu'il reste du contenu, et l'entrée active
+  // est ramenée dans la vue au chargement. Règles au noyau (`indicesDefilementRail`,
+  // `masqueDefilementRail`, `defilementVersEntree`) · ici on mesure et on applique.
+  const listeRailRef = useRef<HTMLElement | null>(null);
+  const [indicesRail, setIndicesRail] = useState({ haut: false, bas: false });
+  const majIndicesRail = () => {
+    const n = listeRailRef.current;
+    if (!n) return;
+    const i = indicesDefilementRail(n);
+    setIndicesRail((avant) => (avant.haut === i.haut && avant.bas === i.bas ? avant : i));
+  };
+  useEffect(() => {
+    const n = listeRailRef.current;
+    if (!n) return;
+    majIndicesRail();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', majIndicesRail);
+      return () => window.removeEventListener('resize', majIndicesRail);
+    }
+    // La vue (hauteur de fenêtre) ET le contenu (sélecteur de marque, sections) bougent.
+    const obs = new ResizeObserver(() => majIndicesRail());
+    obs.observe(n);
+    for (const enfant of Array.from(n.children)) obs.observe(enfant);
+    return () => obs.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed, inAdmin, mobile, drawer]);
+  useEffect(() => {
+    const n = listeRailRef.current;
+    const actif = n?.querySelector<HTMLElement>('[aria-current]');
+    if (!n || !actif) return;
+    const rn = n.getBoundingClientRect();
+    const ra = actif.getBoundingClientRect();
+    const haut = ra.top - rn.top + n.scrollTop;
+    const cible = defilementVersEntree(n, { haut, bas: haut + ra.height });
+    if (cible !== null) n.scrollTop = cible;
+    majIndicesRail();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, searchStr, currentHash, collapsed, mobile, drawer]);
+  const masqueRail = masqueDefilementRail(indicesRail);
   // Alt B et « [ » (V5) · réduit / développe le rail (desktop), jamais pendant
   // une saisie · règle au noyau (`actionToucheRail`).
   useEffect(() => {
@@ -462,11 +503,13 @@ function AppShellInner(props: Props) {
         {...(chrome.railTiroir ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': 'Navigation' } : {})}
         style={{
         background: 'var(--rail)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column',
-        padding: collapsed ? '16px 10px' : '8px 12px', top: 0, height: '100vh',
+        // `maxHeight` 100dvh · sur téléphone, la barre du navigateur mange le bas
+        // de 100vh · le pied resterait sous elle (ignoré là où dvh n'existe pas).
+        padding: collapsed ? '16px 10px' : '8px 12px', top: 0, height: '100vh', maxHeight: '100dvh',
         // Desktop : rail collé, inchangé. Mobile : tiroir hors-flux, glissé hors
         // écran quand fermé, au-dessus du contenu quand ouvert.
         ...(chrome.railTiroir
-          ? { position: 'fixed', left: 0, width: chrome.largeurRail, zIndex: 90, transform: chrome.railVisible ? 'none' : 'translateX(-100%)', transition: 'transform .22s ease', boxShadow: chrome.railVisible ? '0 0 40px rgba(0,0,0,.55)' : 'none' }
+          ? { position: 'fixed', left: 0, width: chrome.largeurRail, zIndex: 90, transform: chrome.railVisible ? 'none' : 'translateX(-100%)', transition: 'transform .22s ease', boxShadow: chrome.railVisible ? `0 0 40px ${teinte('ombre', .55)}` : 'none' }
           : { position: 'sticky' }),
         // Mode focus · le rail sort de l'écran (et de la tabulation · `inert`).
         ...(focus ? { display: 'none' } : null),
@@ -519,7 +562,12 @@ function AppShellInner(props: Props) {
         {/* V5 · la liste s'étend jusqu'aux bords du rail (marge négative = la
             gouttière, rendue en padding) · la barre active de 3 px, collée au
             bord, n'est pas rognée par `overflowX: hidden`. */}
-        <nav aria-label="Navigation principale" style={{ marginTop: 8, marginInline: collapsed ? -10 : -12, paddingInline: collapsed ? 10 : 12, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
+        {/* Correctifs V5 · conteneur défilant DISTINCT du pied, qui le suit dans
+            le flux (jamais posé par-dessus) · fondu de fin quand il reste du
+            contenu (`mask-image`, ne lit que l'opacité · jeton, pas de couleur).
+            `scrollPaddingBlock` · le Tab et le défilement vers une entrée
+            l'arrêtent hors du fondu. */}
+        <nav ref={listeRailRef} aria-label="Navigation principale" data-zone="liste-rail" onScroll={majIndicesRail} data-reste-haut={indicesRail.haut || undefined} data-reste-bas={indicesRail.bas || undefined} style={{ marginTop: 8, marginInline: collapsed ? -10 : -12, paddingInline: collapsed ? 10 : 12, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: collapsed ? 4 : (inAdmin ? 2 : 6), alignItems: collapsed ? 'center' : 'stretch', overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0, scrollPaddingBlock: COQUILLE_V5.rail.fondu, ...(masqueRail ? { maskImage: masqueRail, WebkitMaskImage: masqueRail } : null) }}>
           {inAdmin ? (
             <>
               {/* Retour à la vue SaaS (app) */}
@@ -646,8 +694,12 @@ function AppShellInner(props: Props) {
 
         {/* V5 (R18 · R19 · R30) · pied collant · la pastille de crédits (solde
             réel, barre solde / dotation, « + » qui ouvre le menu de recharge
-            existant) puis le bloc profil, qui ouvre la pop-up profil. */}
-        <div data-zone="pied-compte" style={{ display: 'grid', gap: 8, padding: '12px 0 16px', boxShadow: '0 -12px 16px -12px var(--rail)' }}>
+            existant) puis le bloc profil, qui ouvre la pop-up profil. Dans le
+            flux, SOUS la liste · il ne rétrécit pas et ne déborde jamais sur
+            elle (l'ombre portée vers le haut, qui la recouvrait, est retirée ·
+            l'indice de défilement est le fondu de la liste, plus un filet au
+            seuil du pied tant qu'il reste du contenu dessous). */}
+        <div data-zone="pied-compte" style={{ display: 'grid', gap: 8, padding: '12px 0 16px', flexShrink: 0, borderTop: `1px solid ${indicesRail.bas ? 'var(--line-2)' : 'transparent'}` }}>
           <CreditsMenu balance={creditBalance} unlimited={creditsUnlimited} planLabel={planLabel} showUpgrade={showUpgrade} collapsed={collapsed} allocation={creditAllocation} />
           <button type="button" data-zone="profil-rail" onClick={ouvrirPopupProfil} aria-haspopup="dialog" aria-expanded={popupProfil}
             aria-label={collapsed ? `${userName || userEmail} · Profil & réglages` : undefined} title={collapsed ? `${userName || userEmail} · Profil & réglages` : undefined}
@@ -665,7 +717,7 @@ function AppShellInner(props: Props) {
 
       {/* Voile du tiroir mobile · referme le rail quand on clique à côté. */}
       {chrome.voile && (
-        <div onClick={fermerTiroir} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(0,0,0,.5)' }} />
+        <div onClick={fermerTiroir} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'var(--voile)' }} />
       )}
 
       <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
@@ -681,7 +733,7 @@ function AppShellInner(props: Props) {
           // Sortie toujours visible (coin bas gauche · la barre de projet garde le
           // haut, la bulle de support le coin bas droit) · Échap et Alt F aussi.
           <button type="button" data-zone="quitter-focus" onClick={() => setFocusDemande(false)} aria-keyshortcuts="Escape Alt+F" title="Quitter le mode focus (Échap)"
-            style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 80, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, fontWeight: 650, cursor: 'pointer', boxShadow: '0 6px 24px rgba(0,0,0,.35)' }}>
+            style={{ position: 'fixed', bottom: 16, left: 16, zIndex: 80, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, fontWeight: 650, cursor: 'pointer', boxShadow: `0 6px 24px ${teinte('ombre', .35)}` }}>
             Quitter le mode focus
           </button>
         )}

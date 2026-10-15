@@ -25,7 +25,7 @@ export function LRow({ k, v }: { k: string; v: string }) {
   return (
     <div style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
       <span style={{ minWidth: 210, fontWeight: 700, color: 'var(--ink)', fontSize: 13.5 }}>{k}</span>
-      <span style={{ fontSize: 13.5, color: todo ? '#f5a623' : 'var(--ink-2)' }}>{v}</span>
+      <span style={{ fontSize: 13.5, color: todo ? 'var(--warn)' : 'var(--ink-2)' }}>{v}</span>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { teinte } from '@tiktrends/core';
 import { useActionState, useState, useTransition } from 'react';
 import { useIsMobile } from './useIsMobile';
 import { input, lbl, surface, tuile } from './ui';
@@ -91,7 +92,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
     return (
       <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(200px, 260px) minmax(0,1fr)', gap: 0, ...shell(embedded) }}>
         {/* Panneau valeur */}
-        <div style={{ background: 'linear-gradient(180deg, rgba(254,44,85,.10), var(--paper))', padding: '26px 22px', borderRight: '1px solid var(--line)' }}>
+        <div style={{ background: 'linear-gradient(180deg, var(--accent-10), var(--paper))', padding: '26px 22px', borderRight: '1px solid var(--line)' }}>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', marginBottom: 14 }}><Icon name="sparkles" size={20} /></div>
           <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.35 }}>Jarvis pré-remplit depuis ton site</div>
           <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0 0', display: 'grid', gap: 11 }}>
@@ -102,7 +103,7 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
             ))}
           </ul>
           <div style={{ marginTop: 18, fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ color: '#7ee8bf' }}>✓</span> Tu n'as plus qu'à vérifier
+            <span style={{ color: 'var(--ok-text)' }}>✓</span> Tu n'as plus qu'à vérifier
           </div>
         </div>
 
@@ -153,8 +154,8 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
                   color: active ? 'var(--ink)' : done ? 'var(--ink-2)' : 'var(--muted)', fontWeight: active ? 800 : 600, fontSize: 13,
                 }}>
                   <span style={{ width: 21, height: 21, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800,
-                    background: active ? 'var(--grad-accent)' : done ? 'rgba(126,232,191,.18)' : 'var(--line-2)',
-                    color: active ? 'var(--on-accent)' : done ? '#7ee8bf' : 'var(--muted)' }}>{done ? '✓' : i + 1}</span>
+                    background: active ? 'var(--grad-accent)' : done ? teinte('ok-text', .18) : 'var(--line-2)',
+                    color: active ? 'var(--on-accent)' : done ? 'var(--ok-text)' : 'var(--muted)' }}>{done ? '✓' : i + 1}</span>
                   {label}
                 </button>
               </li>
@@ -181,9 +182,9 @@ export function BrandWizard({ aiReady, draftCost = 5, embedded = false }: { aiRe
           <p style={pStep}>C'est le socle sur lequel Jarvis construit tout le reste. Vérifie et ajuste.</p>
 
           {/* État de la génération IA lancée à l'entrée */}
-          {drafting && <div style={noticeBox('rgba(245,166,35,.4)', 'rgba(245,166,35,.10)', '#f5b043')}><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="sparkles" size={13} /></span>Jarvis analyse ton site et compose le profil…</div>}
-          {draftState.error && <div style={noticeBox('rgba(255,77,109,.4)', 'rgba(255,77,109,.10)', '#ff9db0')}>{draftState.error}</div>}
-          {draftState.draft && !drafting && <div style={noticeBox('rgba(24,204,140,.4)', 'rgba(24,204,140,.08)', '#7ee8bf')}>Profil pré-rempli par Jarvis{draftState.cost ? ` · ${draftState.cost} crédits` : ''}. Vérifie et ajuste ci-dessous.</div>}
+          {drafting && <div style={noticeBox(teinte('warn', .4), teinte('warn', .1), 'var(--warn-strong)')}><span style={{ display: 'inline-flex', verticalAlign: '-2px', marginRight: 4 }}><Icon name="sparkles" size={13} /></span>Jarvis analyse ton site et compose le profil…</div>}
+          {draftState.error && <div style={noticeBox(teinte('err', .4), teinte('err', .1), 'var(--err-text)')}>{draftState.error}</div>}
+          {draftState.draft && !drafting && <div style={noticeBox(teinte('ok', .4), teinte('ok', .08), 'var(--ok-text)')}>Profil pré-rempli par Jarvis{draftState.cost ? ` · ${draftState.cost} crédits` : ''}. Vérifie et ajuste ci-dessous.</div>}
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 14 }}>
             <label style={{ display: 'block', flex: '2 1 220px' }}><span style={{ ...lbl, display: 'block' }}>Nom de la marque *</span><input value={f.name} onChange={set('name')} placeholder="Ex : Studio Nova" style={input} /></label>

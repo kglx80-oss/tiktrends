@@ -210,3 +210,4 @@ export * from './coquille-v5';
 export * from './medias-servis';
 export * from './objet-espace';
 export * from './themes';
+export * from './purge-cache';

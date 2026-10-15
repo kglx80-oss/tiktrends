@@ -46,19 +46,19 @@ export default async function AdminEquipePage({ searchParams }: { searchParams: 
   return (
     <main style={cadrePage}>
       <OngletsAdministration session={s} chemin="/admin/equipe" />
-      <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid rgba(245,166,35,.3)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(245,166,35,.14), rgba(255,140,66,.06) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
+      <div style={{ position: 'relative', overflow: 'hidden', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)', borderRadius: 22, background: 'linear-gradient(135deg in srgb, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 6%, transparent) 60%, var(--surface))', padding: '22px 24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--grad-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)', flexShrink: 0 }}><Icon name="users" size={23} /></div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <h1 style={{ margin: 0, fontSize: 25, fontWeight: 800, color: 'var(--ink)', letterSpacing: -0.5 }}>Équipe & droits</h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--ink-2)' }}>Rôles de l’agence et rubriques visibles par rôle · {s.user.email}</p>
           </div>
-          <Link href="/admin" style={{ padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,.06)', border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>← Tableau de bord</Link>
+          <Link href="/admin" style={{ padding: '9px 16px', borderRadius: 999, background: 'color-mix(in srgb, var(--line) 50%, transparent)', border: '1px solid var(--line-2)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>← Tableau de bord</Link>
         </div>
       </div>
 
-      {ok && OK[ok] && <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(48,164,108,.4)', background: 'rgba(48,164,108,.1)', color: '#2fa46c', fontSize: 13, fontWeight: 700 }}>{OK[ok]}</div>}
-      {e && ERR[e] && <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(229,72,77,.4)', background: 'rgba(229,72,77,.1)', color: '#e5484d', fontSize: 13, fontWeight: 700 }}>{ERR[e]}</div>}
+      {ok && OK[ok] && <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--success) 40%, transparent)', background: 'color-mix(in srgb, var(--success) 10%, transparent)', color: 'var(--success)', fontSize: 13, fontWeight: 700 }}>{OK[ok]}</div>}
+      {e && ERR[e] && <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--danger) 40%, transparent)', background: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)', fontSize: 13, fontWeight: 700 }}>{ERR[e]}</div>}
 
       <EcranEquipe moiEmail={s.user.email} staff={staff} matrice={matrice} />
     </main>

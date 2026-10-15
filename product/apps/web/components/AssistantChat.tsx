@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, useTransition } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 import { askAssistant } from '../app/actions/assistant';
 import type { ChatMessage } from '@tiktrends/ai';
 import { Icon } from './Icon';
@@ -53,7 +53,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
             <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%' }}>
               <div style={{
                 padding: '10px 13px', borderRadius: tuile.borderRadius, fontSize: 13.5, lineHeight: 1.55, whiteSpace: 'pre-wrap',
-                background: m.role === 'user' ? 'var(--grad-accent)' : 'var(--surface-2, rgba(255,255,255,.04))',
+                background: m.role === 'user' ? 'var(--grad-accent)' : teinte('ink', .04),
                 color: m.role === 'user' ? 'var(--on-accent)' : 'var(--ink-2)',
                 border: m.role === 'user' ? 'none' : '1px solid var(--line)',
               }}>{m.content}</div>
@@ -75,7 +75,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
         </div>
       )}
 
-      {error && <div style={{ padding: '0 16px 10px', fontSize: 12.5, color: '#ff9db0' }}>{error}</div>}
+      {error && <div style={{ padding: '0 16px 10px', fontSize: 12.5, color: 'var(--err-text)' }}>{error}</div>}
 
       <form onSubmit={(e) => { e.preventDefault(); send(value); }} style={{ display: 'flex', gap: 8, padding: 14, borderTop: '1px solid var(--line)' }}>
         {/* Un libellé PERSISTANT, associé au champ · le placeholder disparaît dès
@@ -89,7 +89,7 @@ export function AssistantChat({ ready }: { ready: boolean }) {
           onChange={(e) => setValue(e.target.value)}
           disabled={!ready || pending}
           placeholder={ready ? 'Pose ta question…' : 'Assistant en veille (clé IA requise)'}
-          style={{ flex: 1, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14 }}
+          style={{ flex: 1, minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 14 }}
         />
         <button type="submit" disabled={!ready || pending || !value.trim()} style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,

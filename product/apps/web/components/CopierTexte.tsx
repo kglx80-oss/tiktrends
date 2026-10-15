@@ -18,7 +18,7 @@ export function CopierTexte({ texte, libelle = 'Copier le lien' }: { texte: stri
       <button type="button" onClick={copier} style={{ minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>
         {libelle}
       </button>
-      <span role="status" style={{ fontSize: 12, color: etat === 'ko' ? '#ff9db0' : '#7ee8bf' }}>
+      <span role="status" style={{ fontSize: 12, color: etat === 'ko' ? 'var(--err-text)' : 'var(--ok-text)' }}>
         {etat === 'ok' ? 'Copié.' : etat === 'ko' ? 'Copie impossible · sélectionne le lien à la main.' : ''}
       </span>
     </span>

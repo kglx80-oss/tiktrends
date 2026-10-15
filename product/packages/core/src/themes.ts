@@ -120,6 +120,40 @@ export function contrasteCouleurs(premierPlan: string, fond: string): number {
   return (x + 0.05) / (y + 0.05);
 }
 
+/* ─────────────────────────── Teintes ─────────────────────────── */
+
+/**
+ * V5 · T1 · une teinte translucide d'un jeton, pour un style en ligne ·
+ * `color-mix(in srgb, var(--jeton) N%, transparent)`.
+ *
+ * Mélanger avec `transparent` en sRGB garde la couleur et ne règle que
+ * l'opacité · en sombre, `teinte('err', 0.4)` peint EXACTEMENT l'ancien
+ * `rgba(255,77,109,.4)` ; en clair, la même part s'applique à la valeur claire
+ * du rôle. Une teinte n'est donc jamais un jeton de plus · l'opacité reste
+ * celle que l'écran portait (mesurée, pas réinventée). Pour un rôle qui porte
+ * déjà une opacité (`--ombre`, `--voile-teinte` en clair), les deux se
+ * multiplient · c'est ce qui allège ombres et voiles en clair.
+ *
+ * `part` ∈ ]0, 1] · `0x22 / 255` pour un ancien suffixe hexadécimal `22`.
+ */
+export function teinte(jeton: string, part: number): string {
+  if (!/^[a-z][a-z0-9-]*$/.test(jeton)) throw new Error(`jeton illisible : ${jeton}`);
+  if (!(part > 0 && part <= 1)) throw new Error(`part hors de ]0, 1] : ${part}`);
+  return `color-mix(in srgb, var(--${jeton}) ${Math.round(part * 1e6) / 1e4}%, transparent)`;
+}
+
+/**
+ * La couleur qu'un navigateur peint pour `teinte(jeton, part)` dans une palette
+ * (la garde compare au littéral remplacé) · la valeur du jeton, son alpha
+ * multiplié par la part.
+ */
+export function resoudreTeinte(jetons: Jetons, jeton: string, part: number): Rgba {
+  const v = jetons[jeton];
+  if (!v) throw new Error(`jeton absent : --${jeton}`);
+  const [r, g, b, a] = lireCouleurCss(v);
+  return [r, g, b, a * part];
+}
+
 /* ─────────────────────────── Palettes ─────────────────────────── */
 
 export const PALETTES_THEME = ['sombre', 'clair', 'admin-sombre', 'admin-clair'] as const;
@@ -182,7 +216,13 @@ export function arretsDegrade(v: string): string[] {
 }
 
 /** Une paire posée par l'interface · un texte (ou un trait) sur un fond. */
-export interface PaireJetons { dessus: string; fond: string; nature: NatureSeuil; usage: string }
+export interface PaireJetons {
+  dessus: string; fond: string; nature: NatureSeuil; usage: string;
+  /** Les palettes où la paire est exigée (défaut · les quatre). Réservé à une
+   *  dette SOMBRE héritée qu'un lot sans changement d'apparence ne peut pas
+   *  corriger · la raison et la mesure sombre sont écrites dans `usage`. */
+  palettes?: readonly PaletteTheme[];
+}
 
 const croiser = (dessus: readonly string[], fonds: readonly string[], nature: NatureSeuil, usage: string): PaireJetons[] =>
   dessus.flatMap((d) => fonds.map((f) => ({ dessus: d, fond: f, nature, usage })));
@@ -208,6 +248,18 @@ export const FONDS_STATUT = ['bg', 'surface', 'surface-raised', 'paper'] as cons
  * Repères · clair : encre 15,87 sur fond, blanc sur accent 5,33, --ok 5,10 et
  * --err 5,43 sur --paper. Le sombre est celui de main · son --info sur --paper
  * (4,54) n'a aucune marge et ne doit pas descendre.
+ *
+ * V5 · T1 (15/10/2026) · 28 paires ajoutées, dont une exigée en clair
+ * seulement (90 mesurées en sombre et ADMIN+ sombre, 91 en clair et ADMIN+
+ * clair), 0 échec.
+ * Pire texte ajouté · sombre 5,94 (--muted sur --bg-ambre) ; clair 4,93
+ * (--warn-text sur --paper) ; ADMIN+ sombre 5,55 (--info-text sur --paper) ;
+ * ADMIN+ clair 5,02 (--warn-text sur --paper). Pire interface ajoutée · 4,51
+ * (--fatigue sur --paper, clair).
+ * T3 (15/10/2026) · rôles de l'administration, pire paire mesurée par palette ·
+ * sombre 4,54 (--cat-rose sur --paper, valeur de main) · clair 4,74
+ * (--cat-violet sur --paper) · ADMIN+ sombre 4,70 (--cat-rose sur --paper) ·
+ * ADMIN+ clair 4,82 (--cat-violet sur --paper).
  */
 /**
  * V5 · T4 · les rôles nés de la tokenisation d'Adsmap (Résultats) et de Jarvis.
@@ -238,6 +290,25 @@ export const PAIRES_THEME: readonly PaireJetons[] = [
   ...croiser(['line-strong'], FONDS_STATUT, 'interface', 'bordure d’un champ ou d’un contrôle'),
   ...croiser(['accent-strong'], ['bg', 'surface', 'paper'], 'interface', 'anneau de focus clavier'),
   ...PAIRES_ADSMAP_JARVIS,
+  // V5 · T1 · rôles ajoutés par la tokenisation des composants partagés
+  ...croiser(['warn-text', 'warn-strong', 'info-text'], FONDS_STATUT, 'texte', 'avertissement, à surveiller, information'),
+  ...croiser(['fatigue'], FONDS_STATUT, 'interface', 'donnée · pastille et barre « fatiguée »'),
+  ...croiser(['ink', 'ink-2', 'muted', 'ambre-strong'], ['bg-ambre'], 'texte', 'espace admin ambre · page'),
+  ...croiser(['ambre-strong'], [...FONDS_STATUT, 'ambre-soft'], 'texte', 'espace admin ambre · lien, onglet choisi'),
+  { dessus: 'on-accent', fond: 'ambre', nature: 'texte', usage: 'libellé sur l’accent ambre plein' },
+  { dessus: 'on-accent', fond: 'grad-ambre', nature: 'texte', usage: 'boutons principaux de l’espace ambre (pire arrêt)' },
+  {
+    dessus: 'clair-fixe', fond: 'grad-croissance', nature: 'texte', palettes: ['clair', 'admin-clair'],
+    usage: 'pastille « croissance » · en sombre, 3,46:1 hérité de main (#1f9d63), hors de ce lot qui ne change pas le sombre',
+  },
+  // T3 · administration (rôles ajoutés par la tokenisation de l'admin et de la console).
+  ...croiser(['warn-strong', 'warn-text', 'err-strong', 'info-text', 'success'], FONDS_STATUT, 'texte', 'statuts et notes de l’administration'),
+  // --danger ne se pose que sur la page et les cartes (bouton « Retirer », bandeau
+  // d'échec) · le sombre de main (#e5484d) fait 4,66 sur --surface mais 4,27 sur
+  // --paper · ne pas l'y poser sans l'éclaircir.
+  ...croiser(['danger'], ['bg', 'surface'], 'texte', 'action destructrice, bandeau d’échec'),
+  ...croiser(['danger-vif'], FONDS_STATUT, 'texte', 'KPI d’alerte en gros chiffre (churn, essai expiré)'),
+  ...croiser(['cat-rose', 'cat-bleu', 'cat-vert', 'cat-ambre', 'cat-violet', 'cat-lavande', 'cat-gris'], FONDS_STATUT, 'texte', 'teinte de catégorie écrite (rôle, type de compte)'),
 ];
 
 export interface MesurePaire extends PaireJetons { palette: PaletteTheme; ratio: number; seuil: number; ok: boolean }
@@ -245,7 +316,7 @@ export interface MesurePaire extends PaireJetons { palette: PaletteTheme; ratio:
 /** Mesure chaque paire déclarée dans une palette effective (pire arrêt pour un
  *  dégradé, jeton manquant = échec explicite). */
 export function mesurerPalette(palette: PaletteTheme, jetons: Jetons, paires: readonly PaireJetons[] = PAIRES_THEME): MesurePaire[] {
-  return paires.map((p) => {
+  return paires.filter((p) => !p.palettes || p.palettes.includes(palette)).map((p) => {
     const dessus = jetons[p.dessus];
     const fond = jetons[p.fond];
     const seuil = SEUILS_CONTRASTE[p.nature];

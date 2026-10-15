@@ -112,7 +112,10 @@ export async function driveListFilesDeep(accessToken: string, rootId: string, o?
       const j = await driveGet<{ files: DriveFile[]; nextPageToken?: string }>(accessToken, 'files', params);
       for (const f of j.files || []) {
         if (f.mimeType === FOLDER_MIME) { if (queue.length + visited < maxFolders) queue.push(f.id); continue; }
-        if (/^(image|video|audio)\//.test(f.mimeType)) {
+        // Tout fichier téléchargeable · le tri (liste servie, téléchargement
+        // seul, refus des types exécutables) est fait par `entreeSynchroDrive`.
+        // Les documents Google natifs n'ont pas d'octets à télécharger.
+        if (!f.mimeType.startsWith('application/vnd.google-apps.')) {
           out.push({ ...f, size: f.size ? Number(f.size) : undefined });
           if (out.length >= maxFiles) break;
         }

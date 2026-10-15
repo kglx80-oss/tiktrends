@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { ONGLETS_SAUVEGARDES, defOnglet, ongletVoisin, cibleSelonPointeur, compteurApresRetraits, type OngletSauvegardes } from '@tiktrends/core';
+import { ONGLETS_SAUVEGARDES, defOnglet, ongletVoisin, cibleSelonPointeur, compteurApresRetraits, type OngletSauvegardes, teinte } from '@tiktrends/core';
 import { useIsMobile } from './useIsMobile';
 import { Icon } from './Icon';
 
@@ -57,7 +57,7 @@ export function BarreOnglets({ actif, onChange, compteurs }: {
             <span aria-hidden style={{ display: 'inline-flex' }}><Icon name={o.icone} size={15} /></span>
             <span>{o.label}</span>
             {typeof n === 'number' && (
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 999, background: on ? 'rgba(255,255,255,.22)' : 'var(--paper)', color: on ? 'var(--on-accent)' : 'var(--muted)' }}>{n}</span>
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 999, background: on ? teinte('clair-fixe', .22) : 'var(--paper)', color: on ? 'var(--on-accent)' : 'var(--muted)' }}>{n}</span>
             )}
           </button>
         );

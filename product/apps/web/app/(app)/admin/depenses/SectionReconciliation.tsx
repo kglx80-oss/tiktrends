@@ -36,18 +36,18 @@ export function SectionReconciliation({ ecran, erreur, cles }: { ecran: EcranRec
   return (
     <section
       id="a-reconcilier" aria-labelledby="dep-reconcilier-titre" data-reconciliation={etat}
-      style={{ marginTop: 26, padding: '16px 18px', display: 'grid', gap: 12, minWidth: 0, ...(attention || etat === 'erreur' ? cadreSignal('rgba(245,166,35,.55)') : surface), background: 'var(--surface)' }}
+      style={{ marginTop: 26, padding: '16px 18px', display: 'grid', gap: 12, minWidth: 0, ...(attention || etat === 'erreur' ? cadreSignal('color-mix(in srgb, var(--warn) 55%, transparent)') : surface), background: 'var(--surface)' }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h2 id="dep-reconcilier-titre" style={titre}>À réconcilier avec la facture</h2>
         <span style={{ flex: 1 }} />
-        <span data-statut style={{ padding: '3px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, color: attention || etat === 'erreur' ? '#f5b043' : 'var(--ink-2)', border: `1px solid ${attention || etat === 'erreur' ? 'rgba(245,166,35,.5)' : 'var(--line)'}` }}>
+        <span data-statut style={{ padding: '3px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, color: attention || etat === 'erreur' ? 'var(--warn-strong)' : 'var(--ink-2)', border: `1px solid ${attention || etat === 'erreur' ? 'color-mix(in srgb, var(--warn) 50%, transparent)' : 'var(--line)'}` }}>
           {etat === 'erreur' ? 'Lecture impossible' : attention ? `${ecran!.nombre} à rapprocher` : 'Rien à rapprocher'}
         </span>
       </div>
 
       {etat === 'erreur' ? (
-        <p role="alert" style={{ ...discret, color: '#f5b043' }}>
+        <p role="alert" style={{ ...discret, color: 'var(--warn-strong)' }}>
           Les lignes à réconcilier n’ont pas pu être lues · {erreur || 'base indisponible'}. Le plafond, lui, continue de les compter au maximum.
         </p>
       ) : (

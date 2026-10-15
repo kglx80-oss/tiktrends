@@ -70,6 +70,33 @@
   --scroll-thumb-hover: rgba(255,255,255,0.30);
   --scroll-thumb-thin:  rgba(255,255,255,0.18); /* Firefox, barre fine */
 
+  /* V5 · T1 · rôles ajoutés par la tokenisation des composants partagés.
+     Valeur sombre = le littéral qu'ils remplacent (apparence sombre
+     inchangée, prouvée pixel à pixel) ; valeurs claires et ADMIN+ mesurées
+     (paires dans `packages/core/src/themes.ts`). Une teinte translucide ne
+     devient pas un jeton de plus · `teinte(jeton, part)` (même module) la
+     dérive du rôle, à l'opacité d'aujourd'hui. */
+  --warn-text:      #ffcf8f;  /* texte d'avertissement (manque, refus doux) */
+  --warn-strong:    #f5b043;  /* picto ou texte « à surveiller » */
+  --info-text:      #7aa2ff;  /* texte ou donnée d'information (en cours, fort potentiel) */
+  --fatigue:        #ff8c42;  /* donnée · créa fatiguée, entre avertissement et erreur */
+  --accent-fin:     #ff2d8f;  /* second arrêt du dégradé d'accent (tracés SVG) */
+  --ombre:          #000000;  /* couleur des ombres portées · opacité via teinte() */
+  --voile-teinte:   #060408;  /* couleur du voile des dialogues · opacité via teinte() */
+  --grad-ok:        linear-gradient(90deg,#3ddc97,#7ee8bf);   /* progression terminée */
+  --grad-croissance: linear-gradient(135deg, #1f9d63, #16794c); /* pastille « croissance » */
+  --damier:         repeating-conic-gradient(#3a2a37 0% 25%, #2a1826 0% 50%) 50% / 24px 24px; /* transparence d'un document */
+  /* Espace admin historique (ambre) · ADMIN_THEME et la coquille y remappent l'accent */
+  --ambre:          #f5a623;
+  --ambre-strong:   #ffca6b;
+  --ambre-soft:     #2a2110;
+  --grad-ambre:     linear-gradient(135deg,#f5a623 0%,#ff8c42 100%);
+  --bg-ambre:       #130d07;
+  /* Fixes · ne suivent PAS le thème · posés sur un média ou un aplat saturé */
+  --clair-fixe:     #ffffff;
+  --sombre-fixe:    #000000;
+  --pastille-media: rgba(8,5,10,0.72);
+
   /* Rayons (esprit arrondi) */
   --r-sm:   8px;
   --r-md:   12px;   /* boutons, petites cartes */
@@ -96,8 +123,6 @@
      passe de #7a5aff,#e6007e à #6848e0,#d10072 (blanc 4,45 → 5,31 au pire
      arrêt), et la pastille cochée du règlement lit en --ok-text, non plus en
      #0d3d2a (1,08 → 7,66). */
-  --warn-text:     #ffcf8f;  /* texte d'avertissement pâle (gagnante relative, note) */
-  --warn-strong:   #f5b043;  /* avertissement en texte vif (« à surveiller ») */
   --err-strong:    #ff8095;  /* texte d'erreur vif (perdante, échec, refus) */
   --ok-pale:       #9fe6b3;  /* message de réussite doux (enregistré, appliqué) */
   --ok-strong:     #3ddc97;  /* donnée · jauge « fort » (anneau du règlement) */
@@ -115,6 +140,21 @@
   --carte-noeud:   #4a4a52;  /* minicarte Adsmap · nœud sans verdict */
   --voile-leger:   rgba(0,0,0,0.35); /* masque de la minicarte Adsmap */
   --sh-tiroir:     -20px 0 50px -20px rgba(0,0,0,0.60); /* ombre de la fiche d'une ad */
+  /* T3 · administration · rôles nés de la tokenisation de l'admin et de la
+     console. Valeurs sombres = les littéraux de main, à l'identique (captures
+     pixel à pixel). Les teintes translucides se dérivent du rôle avec
+     `color-mix(in srgb, var(--x) N%, transparent)`, exact au pixel. */
+  --danger:       #e5484d;  /* action destructrice, bandeau d'échec */
+  --danger-vif:   #ff6b6b;  /* KPI d'alerte en gros chiffre (churn, essai expiré) · rouge clair */
+  --success:      #2fa46c;  /* bandeau de confirmation */
+  /* Teintes de catégorie · séries de graphique, rôles, formules · jamais un statut. */
+  --cat-rose:     #fe2c55;
+  --cat-bleu:     #7aa2ff;
+  --cat-vert:     #18cc8c;
+  --cat-ambre:    #f5a623;
+  --cat-violet:   #c07bff;
+  --cat-lavande:  #c9b8ff;
+  --cat-gris:     #8a94a6;
 }
 
 /* ---------- Clair · espace créatif (V5 .theme-light, mesuré) ----------
@@ -188,6 +228,45 @@
   --carte-noeud:   #8c6c80;
   --voile-leger:   rgba(43,20,36,0.20);
   --sh-tiroir:     -20px 0 50px -20px rgba(43,20,36,0.20);
+  /* T1 · mesurés (WCAG 2) · texte ≥ 4,5:1 sur bg, surface, paper :
+       --warn-text, --warn-strong #8a5a00 · 4,93 sur --paper (= --warn) ;
+       --info-text #1d4ed8 · 5,57 sur --paper (= --info) ;
+       --ambre-strong #7a4f00 · 5,92 sur --paper, 6,26 sur --ambre-soft,
+       6,63 sur --bg-ambre ; blanc sur --grad-ambre · 5,93 (pire arrêt) ;
+       blanc sur --grad-croissance · 6,14 (pire arrêt).
+     Non-texte (≥ 3:1) · --fatigue #b54708 · 4,51 sur --paper ; --grad-ok
+     #1a6f4b → #237a55 · 3,24 au pire sur la piste (--line-2 sur blanc) ;
+     damier #e1cfd8 / #f3e7ec · 1,24:1, l'écart du sombre (1,25).
+     --ombre et --voile-teinte portent leur propre opacité · la part que
+     `teinte()` applique dessus redonne les rapports du clair existant :
+     0,33 = --sh-lift clair / sombre (0,20 / 0,60) ; 0,45 × 0,62 (voile des
+     modales) = 0,28, le --voile clair. */
+  --info-text:      #1d4ed8;
+  --fatigue:        #b54708;
+  --accent-fin:     #b8236e;
+  --ombre:          rgba(43,20,36,0.33);
+  --voile-teinte:   rgba(43,20,36,0.45);
+  --grad-ok:        linear-gradient(90deg, #1a6f4b, #237a55);
+  --grad-croissance: linear-gradient(135deg, #1a6f4b, #145a3c);
+  --damier:         repeating-conic-gradient(#e1cfd8 0% 25%, #f3e7ec 0% 50%) 50% / 24px 24px;
+  --ambre:          #8a5a00;
+  --ambre-strong:   #7a4f00;
+  --ambre-soft:     #fbefd9;
+  --grad-ambre:     linear-gradient(135deg, #8a5a00 0%, #9a4a00 100%);
+  --bg-ambre:       #fbf6ee;
+  --clair-fixe:     #ffffff;
+  --sombre-fixe:    #000000;
+  --pastille-media: rgba(8,5,10,0.72);
+  --danger:       #b3261e;
+  --danger-vif:   #b3261e;
+  --success:      #1a6f4b;
+  --cat-rose:     #b0204f;
+  --cat-bleu:     #1d4ed8;
+  --cat-vert:     #1a6f4b;
+  --cat-ambre:    #8a5a00;
+  --cat-violet:   #7c3aed;
+  --cat-lavande:  #6d4fc2;
+  --cat-gris:     #5b6474;
 }
 
 /* ---------- ADMIN+ · sombre (bleu nuit / menthe, DESIGN.md V4) ----------
@@ -253,6 +332,35 @@
   --carte-noeud:   #4a4a52;
   --voile-leger:   rgba(0,0,0,0.35);
   --sh-tiroir:     -20px 0 50px -20px rgba(0,0,0,0.60);
+  /* T1 · les statuts gardent les valeurs du sombre (mesurées sur bleu nuit ·
+     --info-text 5,55 sur --paper, --fatigue 5,97) ; l'accent de fin suit la
+     menthe ; le damier passe en bleu nuit (#203e47 / #16303b · 1,21:1). */
+  --info-text:      #7aa2ff;
+  --fatigue:        #ff8c42;
+  --accent-fin:     #b0efd6;
+  --ombre:          #000000;
+  --voile-teinte:   #060408;
+  --grad-ok:        linear-gradient(90deg,#3ddc97,#7ee8bf);
+  --grad-croissance: linear-gradient(135deg, #1f9d63, #16794c);
+  --damier:         repeating-conic-gradient(#203e47 0% 25%, #16303b 0% 50%) 50% / 24px 24px;
+  --ambre:          #f5a623;
+  --ambre-strong:   #ffca6b;
+  --ambre-soft:     #2a2110;
+  --grad-ambre:     linear-gradient(135deg,#f5a623 0%,#ff8c42 100%);
+  --bg-ambre:       #130d07;
+  --clair-fixe:     #ffffff;
+  --sombre-fixe:    #000000;
+  --pastille-media: rgba(8,5,10,0.72);
+  --danger:       #ff7a90;
+  --danger-vif:   #ff6b6b;
+  --success:      #45c08a;
+  --cat-rose:     #ff5c8a;
+  --cat-bleu:     #7aa2ff;
+  --cat-vert:     #18cc8c;
+  --cat-ambre:    #f5a623;
+  --cat-violet:   #c07bff;
+  --cat-lavande:  #c9b8ff;
+  --cat-gris:     #95a0b2;
 }
 
 /* ---------- ADMIN+ · clair (V5 .adminspace.theme-light, mesuré) ----------
@@ -317,6 +425,36 @@
   --carte-noeud:   #6a858d;
   --voile-leger:   rgba(11,37,48,0.20);
   --sh-tiroir:     -20px 0 50px -20px rgba(11,37,48,0.20);
+  /* T1 · valeurs du clair, mesurées sur les fonds menthe · --warn-text 5,02
+     sur --paper, --info-text 5,67, --ambre-strong 6,04, --fatigue 4,59 ;
+     damier #c9ddd6 / #e2efeb · 1,20:1. Ombre et voile · même part (0,33 ·
+     0,45) sur l'encre bleu nuit. */
+  --info-text:      #1d4ed8;
+  --fatigue:        #b54708;
+  --accent-fin:     #0a5a46;
+  --ombre:          rgba(11,37,48,0.33);
+  --voile-teinte:   rgba(11,37,48,0.45);
+  --grad-ok:        linear-gradient(90deg, #1a6f4b, #237a55);
+  --grad-croissance: linear-gradient(135deg, #1a6f4b, #145a3c);
+  --damier:         repeating-conic-gradient(#c9ddd6 0% 25%, #e2efeb 0% 50%) 50% / 24px 24px;
+  --ambre:          #8a5a00;
+  --ambre-strong:   #7a4f00;
+  --ambre-soft:     #fbefd9;
+  --grad-ambre:     linear-gradient(135deg, #8a5a00 0%, #9a4a00 100%);
+  --bg-ambre:       #fbf6ee;
+  --clair-fixe:     #ffffff;
+  --sombre-fixe:    #000000;
+  --pastille-media: rgba(8,5,10,0.72);
+  --danger:       #b3261e;
+  --danger-vif:   #b3261e;
+  --success:      #1a6f4b;
+  --cat-rose:     #b0204f;
+  --cat-bleu:     #1d4ed8;
+  --cat-vert:     #1a6f4b;
+  --cat-ambre:    #8a5a00;
+  --cat-violet:   #7c3aed;
+  --cat-lavande:  #6d4fc2;
+  --cat-gris:     #5b6474;
 }
 
 /* Fond principal UNI, sans quadrillage décoratif ni halo rose global

@@ -1,4 +1,4 @@
-import { dateCourteUtc, CIBLE_TACTILE_MIN, type EtapeProjet } from '@tiktrends/core';
+import { dateCourteUtc, CIBLE_TACTILE_MIN, teinte, type EtapeProjet } from '@tiktrends/core';
 import type { CarteProjet as Carte } from '../../../lib/studios/sources/projet';
 import { surface } from '../../ui';
 
@@ -8,17 +8,19 @@ import { surface } from '../../ui';
  * titre long est coupé à l'écran et complet au survol et au lecteur d'écran.
  */
 
-export const COULEURS_ETAPE: Readonly<Record<EtapeProjet, string>> = {
-  brief_a_completer: '#f5a623',
-  brief_pret: '#18cc8c',
-  production: '#3b82f6',
+/** Le rôle de tokens.css qui teinte chaque étape · la pastille en porte le
+ *  point plein, la bordure (ancien suffixe `66` · 102/255) et le fond (`1a` · 26/255). */
+export const ROLE_ETAPE: Readonly<Record<EtapeProjet, 'warn' | 'ok' | 'info'>> = {
+  brief_a_completer: 'warn',
+  brief_pret: 'ok',
+  production: 'info',
 };
 
 export function PastilleEtape({ etape, libelle }: { etape: EtapeProjet; libelle: string }) {
-  const c = COULEURS_ETAPE[etape];
+  const r = ROLE_ETAPE[etape];
   return (
-    <span data-etape={etape} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--ink)', padding: '3px 9px', borderRadius: 999, border: `1px solid ${c}66`, background: `${c}1a`, whiteSpace: 'nowrap' }}>
-      <span aria-hidden style={{ width: 7, height: 7, borderRadius: 999, background: c }} />{libelle}
+    <span data-etape={etape} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--ink)', padding: '3px 9px', borderRadius: 999, border: `1px solid ${teinte(r, 0x66 / 255)}`, background: teinte(r, 0x1a / 255), whiteSpace: 'nowrap' }}>
+      <span aria-hidden style={{ width: 7, height: 7, borderRadius: 999, background: `var(--${r})` }} />{libelle}
     </span>
   );
 }

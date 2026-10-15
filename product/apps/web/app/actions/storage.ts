@@ -1,9 +1,9 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, putBucketPublicRead, putBucketCors, storageSelfTest, putObject, newAssetKey } from '@tiktrends/integrations';
-import { typeMediaReel } from '@tiktrends/core';
+import { typeMediaReel, typeMediaDebutBase64, DEBUT_BASE64_SIGNATURE } from '@tiktrends/core';
 import { logAndTranslate } from '../../lib/error-log';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
@@ -77,21 +77,23 @@ export async function embeddedImagesStatusAction(): Promise<{ etat?: MigrationEt
   if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
 
   try {
-    const [r] = await db.select({
-      n: sql<number>`count(*)`,
-      octets: sql<number>`coalesce(sum(length(${schema.assets.url})), 0)`,
-    })
-      .from(schema.assets)
-      .where(and(
-        eq(schema.assets.workspaceId, s.workspaceId),
-        sql`${schema.assets.url} like 'data:%'`,
-      ));
+    // Même filtre que la migration (`candidatsMigration`) · une image que la
+    // migration ne copiera jamais (SVG, forme inattendue) n'est pas « restante ».
+    let restantes = 0;
+    let octets = 0;
+    let apres: string | null = null;
+    for (;;) {
+      const page = await candidatsMigration(s.workspaceId, apres);
+      for (const c of page.migrables) { restantes++; octets += c.longueur; }
+      if (!page.suite) break;
+      apres = page.suite;
+    }
 
     return {
       etat: {
-        restantes: Number(r?.n ?? 0),
+        restantes,
         // Base64 pèse un tiers de plus que les octets qu'il transporte.
-        poidsMo: Math.round((Number(r?.octets ?? 0) * 0.75) / 1_048_576 * 10) / 10,
+        poidsMo: Math.round((octets * 0.75) / 1_048_576 * 10) / 10,
       },
     };
   } catch (e) {
@@ -101,6 +103,36 @@ export async function embeddedImagesStatusAction(): Promise<{ etat?: MigrationEt
 
 /** Assez pour avancer vite, assez peu pour qu'un échec ne coûte pas une minute. */
 const PAR_LOT = 25;
+/** Lignes lues par page de tri (début base64 seulement, jamais le contenu). */
+const PAR_PAGE = 200;
+
+/**
+ * Une page d'images embarquées de l'espace, triées par `id` après `apres`
+ * (pagination `id > dernier`) · seules sont retenues celles que la migration
+ * copiera VRAIMENT : `data:` en base64 dont le début se lit comme un type servi
+ * (`typeMediaDebutBase64`, même règle que `typeMediaReel`). On ne lit que les
+ * `DEBUT_BASE64_SIGNATURE` premiers caractères et la longueur · un SVG déguisé
+ * en tête de table ne bloque plus le lot, et le décompte dit la même chose.
+ */
+async function candidatsMigration(workspaceId: string, apres: string | null): Promise<{ migrables: Array<{ id: string; longueur: number }>; suite: string | null }> {
+  const conds = [
+    eq(schema.assets.workspaceId, workspaceId),
+    sql`${schema.assets.url} like 'data:%'`,
+    sql`substr(${schema.assets.url}, 1, position(',' in ${schema.assets.url})) ilike '%;base64,'`,
+  ];
+  if (apres) conds.push(gt(schema.assets.id, apres));
+  const page = await db!.select({
+    id: schema.assets.id,
+    debut: sql<string>`substr(${schema.assets.url}, position(',' in ${schema.assets.url}) + 1, ${DEBUT_BASE64_SIGNATURE})`,
+    longueur: sql<number>`length(${schema.assets.url})`,
+  })
+    .from(schema.assets).where(and(...conds))
+    .orderBy(asc(schema.assets.id)).limit(PAR_PAGE);
+  return {
+    migrables: page.filter((p) => typeMediaDebutBase64(p.debut)).map((p) => ({ id: p.id, longueur: Number(p.longueur) })),
+    suite: page.length === PAR_PAGE ? page[page.length - 1]!.id : null,
+  };
+}
 
 /**
  * Déplace un lot d'images de la base vers le bucket.
@@ -128,19 +160,21 @@ export async function migrateEmbeddedImagesAction(): Promise<{ migrees?: number;
   if (!cfg) return { error: 'Clés S3 absentes du serveur · rien à faire tant que le bucket n’existe pas.' };
 
   try {
-    const lot = await db.select({ id: schema.assets.id, name: schema.assets.name, url: schema.assets.url })
-      .from(schema.assets)
-      .where(and(
-        eq(schema.assets.workspaceId, s.workspaceId),
-        sql`${schema.assets.url} like 'data:%'`,
-        // Les SVG anciens ne se migrent pas (voir plus bas) · les écarter ici
-        // évite qu'un lot qui n'en contiendrait que bloque les suivants.
-        sql`${schema.assets.url} not ilike 'data:image/svg%'`,
-      ))
-      .limit(PAR_LOT);
+    // Les PAR_LOT premières images MIGRABLES, page après page (`id > dernier`).
+    const ids: string[] = [];
+    let apres: string | null = null;
+    while (ids.length < PAR_LOT) {
+      const page = await candidatsMigration(s.workspaceId, apres);
+      ids.push(...page.migrables.slice(0, PAR_LOT - ids.length).map((c) => c.id));
+      if (!page.suite) break;
+      apres = page.suite;
+    }
 
     let migrees = 0;
-    for (const a of lot) {
+    for (const id of ids) {
+      const [a] = await db.select({ id: schema.assets.id, name: schema.assets.name, url: schema.assets.url })
+        .from(schema.assets).where(and(eq(schema.assets.id, id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
+      if (!a) continue;
       const virgule = a.url.indexOf(',');
       const entete = virgule > 0 ? a.url.slice(5, virgule) : '';
       if (!entete.endsWith(';base64')) continue;   // forme inattendue · on la laisse
@@ -166,8 +200,8 @@ export async function migrateEmbeddedImagesAction(): Promise<{ migrees?: number;
       }
     }
 
-    const apres = await embeddedImagesStatusAction();
-    return { migrees, restantes: apres.etat?.restantes ?? 0 };
+    const bilan = await embeddedImagesStatusAction();
+    return { migrees, restantes: bilan.etat?.restantes ?? 0 };
   } catch (e) {
     return { error: logAndTranslate('storage:embedded-migrate', e, { subject: 'le déplacement des images', workspaceId: s.workspaceId }) };
   }

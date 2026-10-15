@@ -7,7 +7,8 @@ import { join } from 'node:path';
  *
  * ── Ce qu'on a appris (#652, #653) ───────────────────────────────────────────
  *
- * Un overlay plein écran (`position: fixed` + `inset: 0` + un voile `rgba`) rendu
+ * Un overlay plein écran (`position: fixed` + `inset: 0` + un voile semi-opaque,
+ * `rgba` littéral ou teinte d'un jeton `--voile*`) rendu
  * dans le sous-arbre d'où on l'ouvre est PIÉGÉ dès qu'un ancêtre porte un
  * `transform` · son voile ne couvre plus l'écran et le chrome de page passe
  * par-dessus. La parade structurelle : monter tout overlay de ce type via
@@ -66,10 +67,17 @@ function tsxDuDossier(rel: string): string[] {
 function rendUnVoilePleinEcran(src: string): boolean {
   const fixed = /position:\s*'fixed'/.test(src);
   const inset0 = /inset:\s*0\b/.test(src);
-  // Un voile · un fond rgba semi-opaque, OU un jeton de voile (`var(--voile…)`,
-  // depuis la tokenisation V5). Les attrape-clics transparents (sans
-  // `background`) ne comptent pas · ils n'ont pas à couvrir l'écran.
-  const voile = /background:\s*'(?:rgba\(|var\(--voile)/.test(src);
+  // Un voile · un fond semi-opaque qui assombrit l'écran. Deux formes, la même
+  // intention (V5 · T1 · la tokenisation a fait passer les voiles au jeton) :
+  //   · un rgba littéral · `background: 'rgba(…)'` ;
+  //   · un JETON de voile · `'var(--voile…)'`, `teinte('voile…', …)`, ou un
+  //     `color-mix(… var(--voile…) …)` écrit à la main.
+  // On reste collé aux jetons `--voile*` · un fond opaque (`var(--surface)`,
+  // `var(--bg)`) n'est pas un voile et ne doit pas être attrapé. Les attrape-clics
+  // transparents (sans `background`) ne comptent pas non plus · ils n'ont pas à
+  // couvrir l'écran.
+  const voile = /background:\s*'rgba\(/.test(src)
+    || /background:\s*(?:'var\(--voile|teinte\(\s*'voile|`[^`]*var\(--voile|color-mix\([^)]*var\(--voile)/.test(src);
   return fixed && inset0 && voile;
 }
 
