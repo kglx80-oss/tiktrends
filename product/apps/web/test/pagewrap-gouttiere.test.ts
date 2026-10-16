@@ -23,8 +23,16 @@ describe('pageWrap · gouttière fluide', () => {
   });
 
   // Lot V5 · B · la largeur max suit le cadre commun V5 (1500, au lieu de 1200).
-  it('la largeur max et le centrage sont conservés', () => {
+  // Correctif « gros écart » · le cadre est COLLÉ au rail (aligné à gauche),
+  // plus centré · sur un écran large, `0 auto` ouvrait un vide entre le rail et
+  // le contenu (mesuré · 150 px à 1920, 470 px à 2560) et désalignait le fil.
+  it('la largeur max est conservée et le cadre est collé à gauche (plus centré)', () => {
     expect(pageWrap.maxWidth).toBe(1500);
-    expect(pageWrap.margin).toBe('0 auto');
+    // Marge gauche nulle, l'espace en trop à DROITE · jamais `0 auto` (centré).
+    const m = String(pageWrap.margin ?? '');
+    expect(m, `cadre centré « ${m} » · le gros écart revient`).not.toBe('0 auto');
+    const [, droite = '', , gauche = ''] = m.split(/\s+/);
+    expect(gauche === '0' || gauche === '0px', `bord gauche collé attendu, obtenu « ${m} »`).toBe(true);
+    expect(droite, `espace en trop à droite (auto) attendu, obtenu « ${m} »`).toBe('auto');
   });
 });
