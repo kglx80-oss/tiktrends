@@ -11,6 +11,7 @@ describe('adresses non routables', () => {
     '::ffff:127.0.0.1',                          // IPv4 encapsulée (forme pointée)
     '::ffff:7f00:1',                             // IPv4 mappée en forme hexadécimale (127.0.0.1)
     '::ffff:0a00:0001',                          // 10.0.0.1 mappée hexadécimale
+    '::ffff:0:a00:1',                            // 10.0.0.1 traduite SIIT (h4=ffff, h5=0)
     '::7f00:1',                                  // IPv4-compatible obsolète (127.0.0.1)
     '64:ff9b::7f00:1',                           // NAT64 de 127.0.0.1
     '64:ff9b::a9fe:a9fe',                         // NAT64 de 169.254.169.254 (métadonnées)
@@ -31,6 +32,7 @@ describe('adresses non routables', () => {
     '64:ff9b::808:808',                          // NAT64 d'une v4 PUBLIQUE (8.8.8.8) · reste public
     '2002:808:808::',                            // 6to4 d'une v4 PUBLIQUE (8.8.8.8) · reste public
     '::ffff:808:808',                            // 8.8.8.8 mappée hexadécimale · reste public
+    '::ffff:0:808:808',                          // 8.8.8.8 traduite SIIT · reste public
   ];
   for (const ip of publiques) {
     it(`accepte ${ip}`, () => expect(isPrivateAddress(ip)).toBe(false));

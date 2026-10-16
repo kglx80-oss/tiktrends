@@ -80,6 +80,7 @@ export function isPrivateAddress(ip: string): boolean {
     // contournement par forme hexadécimale (::ffff:7f00:1), NAT64 et 6to4.
     const v4 = (hi: number, lo: number) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
     if (h0 === 0 && h1 === 0 && h2 === 0 && h3 === 0 && h4 === 0 && h5 === 0xffff) return isPrivateAddress(v4(h6, h7)); // ::ffff:0:0/96 mappée
+    if (h0 === 0 && h1 === 0 && h2 === 0 && h3 === 0 && h4 === 0xffff && h5 === 0) return isPrivateAddress(v4(h6, h7)); // ::ffff:0:0:0/96 traduite (SIIT)
     if (premiersSixNuls) return isPrivateAddress(v4(h6, h7));           // ::/96 compatible (obsolète)
     if (h0 === 0x0064 && h1 === 0xff9b && h2 === 0 && h3 === 0 && h4 === 0 && h5 === 0) return isPrivateAddress(v4(h6, h7)); // 64:ff9b::/96 NAT64
     if (h0 === 0x2002) return isPrivateAddress(v4(h1, h2));             // 2002::/16 6to4
