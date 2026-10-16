@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
@@ -26,9 +26,11 @@ import { OngletsSection } from './OngletsSection';
 import { FournisseurEspaceCreation, type EtatEspaceCreation } from './EspaceCreation';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
 
-// Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
-// Les pages « espace de travail » du client (marques, connexions, membres,
-// abonnement, réglages) gardent la DA magenta standard.
+// ADMIN+ (écart V5 · #7) · espace SÉPARÉ du staff fondateur · rail dédié, retour
+// vers l'app créative, et la palette ADMIN+ bleu nuit / menthe (`data-palette="admin"`,
+// tokens.css · sombre et clair) posée à la RACINE de l'espace, pas un jeu d'accents
+// inline. Les pages « espace de travail » du client (marques, connexions, membres,
+// abonnement, réglages) gardent leur DA standard.
 // Navigation dédiée quand le fondateur entre en mode ADMIN+ (remplace le rail client).
 export const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: string }> = [
   { key: 'a-home', label: "Vue d'ensemble", href: '/admin', icon: 'grid' },
@@ -47,16 +49,6 @@ export const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: 
 // Note : /billing et /settings sont des pages CLIENTES. Les lister ici basculait
 // toute la coquille en thème ADMIN+ dès qu'un membre du staff les ouvrait · le
 // pilotage interne vit maintenant dans /admin/plans.
-const ADMIN_CONTENT = {
-  // Rôles « ambre » de tokens.css (mêmes valeurs en sombre, mesurées en clair).
-  '--accent': 'var(--ambre)',
-  '--accent-strong': 'var(--ambre-strong)',
-  '--accent-soft': 'var(--ambre-soft)',
-  '--grad-accent': 'var(--grad-ambre)',
-  // Thème admin (fondateur) · distingué par sa couleur et son accent, sans
-  // quadrillage ni halo (charte : fond uni, aucun décor).
-  backgroundColor: 'var(--bg-ambre)',
-} as unknown as CSSProperties;
 
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
 interface Group { group: string; items: NavItem[] }
@@ -490,7 +482,12 @@ function AppShellInner(props: Props) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: chrome.colonnes, minHeight: '100vh' }}>
+    // V5 · #7 · ADMIN+ en espace SÉPARÉ · `data-palette="admin"` à la racine de
+    // l'espace (rail dédié + contenu) · toutes les surfaces (rail, en-tête,
+    // contenu) basculent sur la palette bleu nuit / menthe de tokens.css, qui
+    // suit aussi le thème clair (`:root[data-theme="clair"] [data-palette="admin"]`).
+    // Hors ADMIN+, aucun attribut · l'app créative garde sa palette.
+    <div data-palette={inAdmin ? 'admin' : undefined} style={{ display: 'grid', gridTemplateColumns: chrome.colonnes, minHeight: '100vh' }}>
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} onSaved={profilEnregistre} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onSaved={(nom) => setEspaceLocal({ valeur: nom, serveurAvant: workspaceNameServeur })} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
@@ -720,7 +717,7 @@ function AppShellInner(props: Props) {
         <div onClick={fermerTiroir} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'var(--voile)' }} />
       )}
 
-      <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
+      <div style={{ minWidth: 0, minHeight: '100vh' }}>
         {/* Barre supérieure COMMUNE (desktop ET mobile) · Kevin 29/09 · la
             recherche GLOBALE sort du rail et vit ici, atteignable quel que soit
             l'état du rail (déplié, réduit, tiroir). Le raccourci ⌘/Ctrl K reste
