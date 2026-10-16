@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export default function LegalLayout({ children }: { children: ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg, #0d070c)', color: 'var(--ink, #eee)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
       <header style={{ borderBottom: '1px solid var(--line)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <Link href="/" style={{ ...cible, gap: 10, textDecoration: 'none' }}>
           <span style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--grad-accent)' }} />
