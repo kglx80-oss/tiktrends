@@ -3,7 +3,7 @@ import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { BrandWizard } from '../../../../components/BrandWizard';
-import { costFor } from '@tiktrends/core';
+import { costFor, teinte } from '@tiktrends/core';
 import { PageInfo } from '../../../../components/PageInfo';
 import { Icon } from '../../../../components/Icon';
 import { createBrandFromShopifyAction } from '../../../actions/brands';
@@ -47,10 +47,10 @@ export default async function NewBrandPage({ searchParams }: { searchParams: Pro
         <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
           Crée la marque et importe automatiquement <b>tous tes produits (avec images et prix)</b> et ta <b>charte (logo, couleurs, polices)</b>. Il suffit du domaine de ta boutique.
         </p>
-        {e && SHOP_ERR[e] && <div style={{ margin: '0 0 12px', padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(255,77,109,.4)', background: 'rgba(255,77,109,.10)', color: '#ff9db0' }}>{SHOP_ERR[e]}</div>}
+        {e && SHOP_ERR[e] && <div style={{ margin: '0 0 12px', padding: '10px 13px', borderRadius: 12, fontSize: 13, border: `1px solid ${teinte('err', .4)}`, background: teinte('err', .10), color: 'var(--err-text)' }}>{SHOP_ERR[e]}</div>}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input name="domain" required placeholder="ta-boutique.com ou ta-boutique.myshopify.com"
-            style={{ flex: '1 1 300px', minWidth: 240, padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 14, outline: 'none' }} />
+            style={{ flex: '1 1 300px', minWidth: 240, padding: '11px 13px', borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 14, outline: 'none' }} />
           <button type="submit" style={{ padding: '11px 20px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13.5, cursor: 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', whiteSpace: 'nowrap' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="link" size={14} /> Connecter et créer</span></button>
         </div>
         <p style={{ margin: '10px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>Tu pourras compléter le profil (audience, ton, concurrents) ensuite, ou via le parcours guidé ci-dessous.</p>

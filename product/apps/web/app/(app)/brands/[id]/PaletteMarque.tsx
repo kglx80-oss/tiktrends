@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 import { Icon } from '../../../../components/Icon';
 import { tuile } from '../../../../components/ui';
 
@@ -72,8 +72,8 @@ export function PaletteMarque({ colors }: { colors: string[] }) {
             >
               <span style={{
                 width: 30, height: 30, borderRadius: '50%', background: c,
-                border: '1px solid rgba(255,255,255,.12)',
-                boxShadow: actif ? 'inset 0 0 0 2px var(--surface), 0 0 0 2px var(--ink-2)' : 'inset 0 1px 0 rgba(255,255,255,.14)',
+                border: '1px solid var(--line)',
+                boxShadow: actif ? 'inset 0 0 0 2px var(--surface), 0 0 0 2px var(--ink-2)' : `inset 0 1px 0 ${teinte('clair-fixe', .14)}`,
               }} />
             </button>
           );
@@ -83,7 +83,7 @@ export function PaletteMarque({ colors }: { colors: string[] }) {
       {/* Le HEX, seulement au clic · avec le seul geste qu'on en fait, Copier. */}
       {ouverte && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '8px 10px', ...tuile, background: 'var(--surface-2, rgba(255,255,255,.03))', maxWidth: 260 }}>
-          <span style={{ width: 22, height: 22, borderRadius: 6, background: ouverte, border: '1px solid rgba(255,255,255,.12)', flexShrink: 0 }} />
+          <span style={{ width: 22, height: 22, borderRadius: 6, background: ouverte, border: '1px solid var(--line)', flexShrink: 0 }} />
           <code style={{ fontSize: 13, color: 'var(--ink)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.02em', flex: 1 }}>{ouverte}</code>
           <button
             type="button"
@@ -110,6 +110,6 @@ const cibleStyle: CSSProperties = {
 
 const copierStyle: CSSProperties = {
   minHeight: CIBLE_TACTILE_MIN, padding: '0 14px', borderRadius: 999,
-  border: '1px solid rgba(255,255,255,.12)', background: 'transparent',
+  border: '1px solid var(--line)', background: 'transparent',
   color: 'var(--ink-2)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', flexShrink: 0,
 };

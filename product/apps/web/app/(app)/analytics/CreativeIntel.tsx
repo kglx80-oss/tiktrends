@@ -56,6 +56,8 @@ export function CreativeIntel({ stats }: { stats: CreativeStats }) {
               {stats.tags.map((t) => (
                 <div key={t.tag}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}><span style={{ color: 'var(--ink-2)', textTransform: 'capitalize' }}>{t.tag}</span><span style={{ color: 'var(--muted)' }}>{t.n}</span></div>
+                  {/* Dégradé décoratif de la barre « top tags » · violet→magenta,
+                      hors palette sémantique · gardé tel quel (reste du cliquet). */}
                   <BarreValeur part={partDeMax(t.n, maxTag)} couleur="linear-gradient(90deg,#7a5aff,#e6007e)" hauteur={8} piste="var(--bg)" />
                 </div>
               ))}

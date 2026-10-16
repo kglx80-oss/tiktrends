@@ -5,7 +5,7 @@ import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIO
 import { Icon } from '../../../components/Icon';
 import { getActiveBrand } from '../../../lib/brands';
 import { storageConfigured } from '@tiktrends/integrations';
-import { messageErreurConnexionDrive, etatConnexionDrive, fusionnerBibliotheque, LIMITE_BIBLIOTHEQUE } from '@tiktrends/core';
+import { messageErreurConnexionDrive, etatConnexionDrive, fusionnerBibliotheque, LIMITE_BIBLIOTHEQUE, teinte } from '@tiktrends/core';
 import { listAssets } from '../../actions/assets';
 import { getDriveState } from '../../actions/drive';
 import { listerSortiesStudiosBibliotheque, sortieCommeAsset } from '../../../lib/studios/bibliotheque';
@@ -78,7 +78,7 @@ export default async function AssetsPage({ searchParams }: { searchParams?: Prom
 
       {(okDrive || errDrive) && (
         // Retour de connexion · rôle `signal` · sa couleur sémantique, pas la bordure des contrôles (lot 19D).
-        <div style={{ marginTop: 14, padding: '10px 14px', fontSize: 12.5, ...cadreSignal(errDrive ? 'rgba(255,77,109,.4)' : 'rgba(24,204,140,.4)'), background: errDrive ? 'rgba(255,120,140,.08)' : 'rgba(126,232,191,.08)', color: errDrive ? '#ff9db0' : '#7ee8bf' }}>
+        <div style={{ marginTop: 14, padding: '10px 14px', fontSize: 12.5, ...cadreSignal(errDrive ? teinte('err', .4) : teinte('ok', .4)), background: errDrive ? 'rgba(255,120,140,.08)' : teinte('ok-text', .08), color: errDrive ? 'var(--err-text)' : 'var(--ok-text)' }}>
           {errDrive || 'Google Drive connecté · choisis un dossier à synchroniser ci-dessous.'}
         </div>
       )}

@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../lib/auth';
 import { isFounder } from '../../../lib/founder';
-import { caseCreditsFormule, PIED_FACTURATION_SANS_PAIEMENT, introFacturation } from '@tiktrends/core';
+import { caseCreditsFormule, PIED_FACTURATION_SANS_PAIEMENT, introFacturation, teinte } from '@tiktrends/core';
 import { unlimitedCredits } from '../../../lib/credits';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { createCheckoutAction, createPortalAction } from '../../actions/stripe';
@@ -90,9 +90,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
       {/* Abonnement en cours · gestion via le portail Stripe */}
       {isOwner && hasSub && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', ...cadreSignal('rgba(24,204,140,.35)'), background: 'rgba(24,204,140,.06)', padding: '14px 18px', marginBottom: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', ...cadreSignal(teinte('ok', .35)), background: teinte('ok', .06), padding: '14px 18px', marginBottom: 22 }}>
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Abonnement {PLAN_LABEL[current]} · <span style={{ color: '#18cc8c' }}>{STATUS_FR[subStatus ?? ''] ?? subStatus}</span></div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>Abonnement {PLAN_LABEL[current]} · <span style={{ color: 'var(--ok)' }}>{STATUS_FR[subStatus ?? ''] ?? subStatus}</span></div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Change de formule, mets à jour ta carte, télécharge tes factures ou résilie.</div>
           </div>
           <form action={createPortalAction}>
@@ -110,8 +110,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             <div key={p} style={{
               position: 'relative', display: 'flex', flexDirection: 'column',
               // Carte de formule · `surface` (--line), ou `signal` pour la formule actuelle et la mise en avant (lot 19D).
-              border: `1px solid ${isCurrent ? 'var(--accent-strong)' : highlight ? 'rgba(254,44,85,.4)' : 'var(--line)'}`,
-              borderRadius: surface.borderRadius, background: isCurrent ? 'linear-gradient(180deg, rgba(254,44,85,.08), var(--surface))' : 'var(--surface)',
+              border: `1px solid ${isCurrent ? 'var(--accent-strong)' : highlight ? teinte('accent', .4) : 'var(--line)'}`,
+              borderRadius: surface.borderRadius, background: isCurrent ? `linear-gradient(180deg, ${teinte('accent', .08)}, var(--surface))` : 'var(--surface)',
               padding: '18px 18px 20px',
             }}>
               {highlight && !isCurrent && <span style={badge}>Populaire</span>}
@@ -126,7 +126,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 7, flex: 1 }}>
                 {FEATURES[p].map((f, i) => (
                   <li key={i} style={{ display: 'flex', gap: 8, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.4 }}>
-                    <span style={{ color: '#7ee8bf', flexShrink: 0 }}>✓</span>{f}
+                    <span style={{ color: 'var(--ok-text)', flexShrink: 0 }}>✓</span>{f}
                   </li>
                 ))}
               </ul>
@@ -179,4 +179,4 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   );
 }
 
-const badge = { position: 'absolute', top: -10, right: 14, fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#fff', background: 'linear-gradient(135deg,#fe2c55,#7a5aff)' } as const;
+const badge = { position: 'absolute', top: -10, right: 14, fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--clair-fixe)', background: 'linear-gradient(135deg, var(--accent), var(--violet))' } as const;

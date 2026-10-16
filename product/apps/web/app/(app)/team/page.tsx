@@ -10,13 +10,15 @@ import { PageInfo } from '../../../components/PageInfo';
 import { InviteMemberButton } from '../../../components/InviteMemberButton';
 import { CopierTexte } from '../../../components/CopierTexte';
 import { appUrl } from '../../../lib/mailer';
-import { etatInvitation } from '@tiktrends/core';
+import { etatInvitation, teinte } from '@tiktrends/core';
 import { OngletsReglages } from '../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
 
+// Teinte d'identité d'un rôle · jetons CATÉGORIE (jamais l'accent · l'espace
+// admin le remappe en ambre, ce qui écraserait le rose « propriétaire »).
 const roleColor: Record<Role, string> = {
-  owner: '#fe2c55', admin: '#7aa2ff', member: '#18cc8c', client_viewer: '#f5a623',
+  owner: 'var(--cat-rose)', admin: 'var(--cat-bleu)', member: 'var(--cat-vert)', client_viewer: 'var(--cat-ambre)',
 };
 const OK: Record<string, string> = {
   invite: 'Invitation créée · aucun e-mail n’est parti (envoi non configuré) · copie le lien ci-dessous pour l’envoyer.',
@@ -106,7 +108,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 0, overflowWrap: 'anywhere' }}>{inv.email}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: roleColor[inv.role as Role], background: 'rgba(255,255,255,.06)' }}>{ROLE_LABEL[inv.role as Role]}</span>
-                  {expiree && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: '#ffcf8f', background: 'rgba(245,166,35,.12)' }}>Expirée · lien inactif</span>}
+                  {expiree && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: 'var(--warn-text)', background: teinte('warn', .12) }}>Expirée · lien inactif</span>}
                   <form action={revokeInviteAction} style={{ marginLeft: 'auto' }}>
                     <input type="hidden" name="id" value={inv.id} />
                     <button type="submit" aria-label={`Révoquer l’invitation de ${inv.email}`} style={btnGhost}>Révoquer</button>

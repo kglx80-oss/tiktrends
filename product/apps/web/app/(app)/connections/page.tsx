@@ -7,7 +7,7 @@ import { DataConnections } from './DataConnections';
 import { CategorieFeuilleDeRoute } from './CategorieFeuilleDeRoute';
 import { PageInfo } from '../../../components/PageInfo';
 import { ConnecteurBientot, type ConnecteurAVenir } from '../../../components/ConnecteurBientot';
-import { etatCatalogue, dejaDisponible } from '@tiktrends/core';
+import { etatCatalogue, dejaDisponible, teinte } from '@tiktrends/core';
 import { cadrePage, cadreSignal, h1 } from '../../../components/ui';
 import { OngletsReglages } from '../../../components/OngletsReglages';
 
@@ -21,6 +21,9 @@ export const dynamic = 'force-dynamic';
  */
 const DISPONIBLES = ['Shopify', 'Meta Ads', 'Google Drive'] as const;
 
+// Les `color` ci-dessous sont les teintes OFFICIELLES des marques tierces
+// (pastille/aperçu de chaque connecteur) · comme `components/BrandIcons`, elles
+// ne suivent PAS le thème et restent des littéraux assumés (reste du cliquet).
 const CATS: Array<{ cat: string; items: ConnecteurAVenir[] }> = [
   // Meta Ads ne figure PAS ici · il est déjà branchable en direct (DataConnections
   // ci-dessus). Un connecteur ne peut pas être « disponible » et « à venir » sur
@@ -128,8 +131,8 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       {/* Sources de données (réelles) · Shopify + Meta Ads pour la marque active */}
       <h2 style={h2}>Sources de données <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>· ventes & performance</span></h2>
       <p style={{ margin: '2px 0 12px', fontSize: 12.5, color: 'var(--muted)' }}>Branche ta boutique Shopify et ton compte Meta Ads : les vraies données remontent et nourrissent l'analyse et Jarvis.</p>
-      {ok && OAUTH_OK[ok] && <div style={{ ...cadreSignal('rgba(24,204,140,.4)'), background: 'rgba(24,204,140,.08)', color: '#7ee8bf', padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>{OAUTH_OK[ok]}</div>}
-      {e && OAUTH_ERR[e] && <div style={{ ...cadreSignal('rgba(255,77,109,.4)'), background: 'rgba(255,77,109,.08)', color: '#ff9db0', padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>{OAUTH_ERR[e]}</div>}
+      {ok && OAUTH_OK[ok] && <div style={{ ...cadreSignal(teinte('ok', .4)), background: teinte('ok', .08), color: 'var(--ok-text)', padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>{OAUTH_OK[ok]}</div>}
+      {e && OAUTH_ERR[e] && <div style={{ ...cadreSignal(teinte('err', .4)), background: teinte('err', .08), color: 'var(--err-text)', padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>{OAUTH_ERR[e]}</div>}
       <DataConnections initial={connState} brandName={brand?.name ?? null} metaOAuth={metaOAuth} shopifyOAuth={shopifyOAuth} />
 
       {/* Feuille de route · le reste du catalogue n'est pas encore branchable.

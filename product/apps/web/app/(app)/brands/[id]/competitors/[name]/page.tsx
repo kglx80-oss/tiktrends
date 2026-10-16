@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { partDeMax, messageServiceInactif, lienNouveauProjet } from '@tiktrends/core';
+import { partDeMax, messageServiceInactif, lienNouveauProjet, teinte } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
@@ -88,7 +88,7 @@ export default async function CompetitorPage({ params, searchParams }: {
           margin: '24px auto 0', maxWidth: 620, textAlign: 'center',
           ...surface, background: 'var(--surface)',
           padding: 'clamp(24px, 5vw, 36px)',
-          backgroundImage: 'radial-gradient(120% 90% at 50% -10%, rgba(254,44,85,.10), transparent 60%)',
+          backgroundImage: `radial-gradient(120% 90% at 50% -10%, ${teinte('accent', .10)}, transparent 60%)`,
         }}>
           <div aria-hidden style={{
             width: 54, height: 54, margin: '0 auto', borderRadius: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -203,7 +203,7 @@ function Creatives({ report }: { report: CompetitorReport }) {
                  
                 ? <img src={ad.thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>Aperçu indisponible</div>}
-              {ad.daysRunning ? <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(0,0,0,.6)', color: '#fff' }}>{ad.daysRunning} j</span> : null}
+              {ad.daysRunning ? <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: teinte('sombre-fixe', .6), color: 'var(--clair-fixe)' }}>{ad.daysRunning} j</span> : null}
             </div>
             <div style={{ padding: '10px 12px' }}>
               {ad.body && <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-2)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}

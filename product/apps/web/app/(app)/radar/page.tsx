@@ -17,14 +17,14 @@ import { cadrePage, surface, tuile } from '../../../components/ui';
 export const dynamic = 'force-dynamic';
 const feature = FEATURES.find((f) => f.key === 'radar')!;
 
-const GRADE_COLOR: Record<string, string> = { A: '#18cc8c', B: '#7aa2ff', C: '#f5a623', D: '#ff4d6d' };
+const GRADE_COLOR: Record<string, string> = { A: 'var(--ok)', B: 'var(--info-text)', C: 'var(--warn)', D: 'var(--err)' };
 const eur = (n: number) => '€' + Math.round(n).toLocaleString('fr-FR');
 
 function Grade({ label, g }: { label: string; g: string }) {
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 3 }}>{label}</div>
-      <div style={{ width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#fff', background: GRADE_COLOR[g] || '#9a8a98' }}>{g}</div>
+      <div style={{ width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: 'var(--clair-fixe)', background: GRADE_COLOR[g] || 'var(--muted)' }}>{g}</div>
     </div>
   );
 }
@@ -63,7 +63,7 @@ function Row({ r }: { r: AnalysisRow }) {
           <div style={{ fontSize: 9, textTransform: 'uppercase', color: 'var(--muted)' }}>Score</div>
           <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink)' }}>{r.globalScore.toFixed(2)}</div>
         </div>
-        <span style={{ fontSize: 12, fontWeight: 800, padding: '6px 14px', borderRadius: 999, color: '#fff', background: b.color }}>{b.action}</span>
+        <span style={{ fontSize: 12, fontWeight: 800, padding: '6px 14px', borderRadius: 999, color: 'var(--clair-fixe)', background: b.color }}>{b.action}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-2)' }}>
         {r.diagnosis.map((d, i) => <span key={i} style={{ background: 'var(--bg)', ...tuile, padding: '4px 9px' }}>→ {d}</span>)}
@@ -111,7 +111,7 @@ export default async function RadarPage() {
     <main style={wrap}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h1 style={h1}>Radar créatif</h1>
-        <span style={{ fontSize: 12, color: isLive ? '#7ee8bf' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: 12, color: isLive ? 'var(--ok-text)' : 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
           {isLive ? `Meta Ads · live${syncedAt ? ' · maj ' + new Date(syncedAt).toLocaleDateString('fr-FR') : ''}` : 'scoring prescriptif · démo'}
         </span>
       </div>
