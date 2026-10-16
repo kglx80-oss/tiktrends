@@ -37,8 +37,9 @@ const CODES = ['drive_config', 'drive_state', 'drive_session', 'drive_norefresh'
 async function rendre(nom: string, code: string) {
   Object.assign(etat, ETATS[nom]);
   const html = renderToStaticMarkup(<ToastProvider>{await AssetsPage({ searchParams: Promise.resolve({ e: code }) })}</ToastProvider>);
-  // Le bandeau de retour est le premier bloc coloré après l'aide de la page.
-  const m = html.match(/color:#ff9db0">([^<]+)<\/div>/);
+  // Le bandeau de retour est le premier bloc coloré après l'aide de la page ·
+  // son texte d'erreur porte le rôle --err-text (V5 · T5, ex-#ff9db0).
+  const m = html.match(/color:var\(--err-text\)">([^<]+)<\/div>/);
   expect(m, `${nom}/${code} · pas de message de retour`).not.toBeNull();
   return { html, message: m![1]!.replace(/&#x27;|&#39;/g, '’') };
 }

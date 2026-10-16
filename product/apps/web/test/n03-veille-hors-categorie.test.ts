@@ -26,6 +26,7 @@ describe('N03 · la veille contextualise l’échantillon hors catégorie', () =
   it('le cas « dans la catégorie » reste distinct (teinte normale vs teinte d’alerte)', () => {
     // Dans la catégorie → échantillon en teinte normale ; hors catégorie →
     // teinte d'alerte ET mention « hors catégorie ». Les deux ne se confondent pas.
-    expect(page).toContain("defaut.parCategorie ? 'var(--ink-2)' : '#ffcf8f'");
+    // Hors catégorie → teinte d'alerte · le rôle --warn-text (V5 · T5, ex-#ffcf8f).
+    expect(page).toContain("defaut.parCategorie ? 'var(--ink-2)' : 'var(--warn-text)'");
   });
 });

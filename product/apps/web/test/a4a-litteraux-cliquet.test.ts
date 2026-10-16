@@ -47,6 +47,38 @@ import { join, relative } from 'node:path';
  *
  * Fusion T1 + T3 (15/10/2026) · les deux réductions cumulées · total mesuré 765 · plafond 765.
  * Fusion T4 (15/10/2026) · adsmap et jarvis à 0 (−208) · total mesuré 557 · plafond 557.
+ *
+ * V5 · T5 (écrans authentifiés restants, hors admin/console/adsmap/jarvis) ·
+ * `analytics`, `assets`, `billing`, `brands`, `connections`, `credits`,
+ * `profile`, `radar`, `saved`, `settings`, `studio`, `support`, `team`,
+ * `usage`, `veille` passent par les jetons · 136 littéraux retirés · plafond
+ * 557 − 136 = 421. Huit répertoires tombent à 0 et sortent des tables
+ * (`billing`, `profile`, `radar`, `saved`, `settings`, `studio`, `support`,
+ * `usage`). Aucun jeton ni aucune paire nouveaux · tous les rôles existaient
+ * déjà. Les 84 littéraux qui restent dans ce périmètre sont des RESTES assumés,
+ * par nature :
+ *  · `connections/page` (41) · teintes OFFICIELLES des marques tierces (aperçu
+ *    de connecteur), comme `components/BrandIcons` · ne suivent pas le thème ;
+ *  · `veille/scale/SwipeFile` (13) · 10 teintes catégorielles d'angle
+ *    (`ANGLE_COLOR`) + leur texte sombre `#0d070c` (pastille sur média) +
+ *    `#140f18` (fond derrière un média) + `#2fd6a0` (donnée · croissance) ;
+ *  · `credits/page` (12) · deux pastilles sur dégradé vif (texte sombre, gardées
+ *    telles quelles pour rester lisibles · à juger en clair), un lavis décoratif
+ *    magenta·violet, un aplat de code blanc discret ;
+ *  · `analytics/MetaKeyMetrics` (4) · pastille delta bespoke (texte sombre sur
+ *    aplat pâle, sans jeton exact · à juger en clair) ;
+ *  · `analytics/CreativeIntel` (2) · dégradé décoratif de barre violet·magenta ;
+ *  · `brands` (6) · `#767676` (assise neutre d'un logo, mesurée · comme
+ *    `HomeMarques`), lavis de marque Shopify (`rgba(150,220,170,.06)`) et
+ *    plusieurs `var(--surface-2, rgba(255,255,255,.03))` (aplat très discret) ;
+ *  · `assets` (4) · lavis de marque Google Drive (`rgba(66,133,244,.06)`),
+ *    aplats blancs discrets, et un rouge d'erreur bespoke (`rgba(255,120,140,
+ *    .08)`, symétrique du vert tokenisé · pas de jeton exact) ;
+ *  · `team` (2) · deux fonds de pastille blancs très discrets (`rgba(255,255,
+ *    255,.06)`).
+ * Les voiles translucides deviennent `teinte('<rôle>', part)` (exact au pixel en
+ * sombre) ; `st.color + '22'` des statuts de ticket devient `teinte(role,
+ * 0x22/255)`.
  */
 const WEB = process.cwd();
 
@@ -65,21 +97,13 @@ const EXCLUS: Record<string, string> = {
 /** Plafond par répertoire · le plan des lots de tokenisation. */
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 241,
-  'app/(app)/analytics': 7,
-  'app/(app)/assets': 20,
-  'app/(app)/billing': 9,
-  'app/(app)/brands': 28,
-  'app/(app)/connections': 54,
-  'app/(app)/credits': 37,
-  'app/(app)/profile': 1,
-  'app/(app)/radar': 8,
-  'app/(app)/saved': 2,
-  'app/(app)/settings': 6,
-  'app/(app)/studio': 1,
-  'app/(app)/support': 10,
-  'app/(app)/team': 8,
-  'app/(app)/usage': 4,
-  'app/(app)/veille': 25,
+  'app/(app)/analytics': 6,
+  'app/(app)/assets': 4,
+  'app/(app)/brands': 6,
+  'app/(app)/connections': 41,
+  'app/(app)/credits': 12,
+  'app/(app)/team': 2,
+  'app/(app)/veille': 13,
   'app/c': 8,
   'app/legal': 2,
   'app/login': 3,
@@ -92,32 +116,19 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
 /** Plafond par fichier · tout fichier absent de cette table est « déjà propre » (0). */
 const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/analytics/CreativeIntel.tsx': 2,
-  'app/(app)/analytics/MetaKeyMetrics.tsx': 5,
-  'app/(app)/assets/AssetsLibrary.tsx': 6,
-  'app/(app)/assets/DriveConnect.tsx': 8,
-  'app/(app)/assets/page.tsx': 6,
-  'app/(app)/billing/page.tsx': 9,
-  'app/(app)/brands/[id]/BrandDA.tsx': 7,
-  'app/(app)/brands/[id]/PaletteMarque.tsx': 5,
-  'app/(app)/brands/[id]/ShopifyConnect.tsx': 4,
-  'app/(app)/brands/[id]/competitors/[name]/page.tsx': 4,
-  'app/(app)/brands/new/page.tsx': 5,
-  'app/(app)/brands/page.tsx': 3,
-  'app/(app)/connections/DataConnections.tsx': 7,
-  'app/(app)/connections/page.tsx': 47,
-  'app/(app)/credits/page.tsx': 37,
-  'app/(app)/profile/ProfileIdentity.tsx': 1,
-  'app/(app)/radar/page.tsx': 8,
-  'app/(app)/saved/FormatChoix.tsx': 2,
-  'app/(app)/settings/page.tsx': 6,
-  'app/(app)/studio/projets/page.tsx': 1,
-  'app/(app)/support/[id]/page.tsx': 7,
-  'app/(app)/support/page.tsx': 3,
-  'app/(app)/team/page.tsx': 8,
-  'app/(app)/usage/page.tsx': 4,
-  'app/(app)/veille/formats/PreparerTest.tsx': 1,
-  'app/(app)/veille/page.tsx': 2,
-  'app/(app)/veille/scale/SwipeFile.tsx': 22,
+  'app/(app)/analytics/MetaKeyMetrics.tsx': 4,
+  'app/(app)/assets/AssetsLibrary.tsx': 2,
+  'app/(app)/assets/DriveConnect.tsx': 1,
+  'app/(app)/assets/page.tsx': 1,
+  'app/(app)/brands/[id]/BrandDA.tsx': 2,
+  'app/(app)/brands/[id]/PaletteMarque.tsx': 1,
+  'app/(app)/brands/[id]/ShopifyConnect.tsx': 1,
+  'app/(app)/brands/[id]/competitors/[name]/page.tsx': 1,
+  'app/(app)/brands/new/page.tsx': 1,
+  'app/(app)/connections/page.tsx': 41,
+  'app/(app)/credits/page.tsx': 12,
+  'app/(app)/team/page.tsx': 2,
+  'app/(app)/veille/scale/SwipeFile.tsx': 13,
   'app/Landing.tsx': 241,
   'app/c/[token]/page.tsx': 8,
   'app/legal/layout.tsx': 2,
@@ -131,7 +142,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/accueil/VueAnalytics.tsx': 1,
 };
 
-const PLAFOND_TOTAL = 557;
+const PLAFOND_TOTAL = 421;
 
 const RACINES = ['app', 'components', 'lib'];
 

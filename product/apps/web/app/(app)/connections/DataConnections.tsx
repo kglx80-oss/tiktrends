@@ -9,9 +9,9 @@ import { useToast } from '../../../components/Toast';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
 import { surface, tuile } from '../../../components/ui';
-import { etatConnecteur, PHASE_CONNECTEUR_LABEL, type CleConnexionReelle, type PhaseConnecteur } from '@tiktrends/core';
+import { etatConnecteur, PHASE_CONNECTEUR_LABEL, teinte, type CleConnexionReelle, type PhaseConnecteur } from '@tiktrends/core';
 
-const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
+const fld = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
 const tapBase = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN } as const;
 const primary = { ...tapBase, padding: '9px 15px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer' } as const;
@@ -94,8 +94,8 @@ function Wrap({ marque, title, badge, children }: { marque: CleConnexionReelle; 
 function BadgePhase({ phase }: { phase: PhaseConnecteur }) {
   if (phase === 'a_brancher') return null;
   const ton = phase === 'operationnel'
-    ? { fg: '#18cc8c', bg: 'rgba(24,204,140,.14)' }
-    : { fg: '#f5b043', bg: 'rgba(245,166,35,.14)' };
+    ? { fg: 'var(--ok)', bg: teinte('ok', .14) }
+    : { fg: 'var(--warn-strong)', bg: teinte('warn', .14) };
   return (
     <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: ton.fg, background: ton.bg, whiteSpace: 'nowrap' }}>
       {PHASE_CONNECTEUR_LABEL[phase].toUpperCase()}
@@ -251,7 +251,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
                 <option value="" disabled>Choisis un compte…</option>
                 {mt.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.currency ? ` · ${a.currency}` : ''}</option>)}
               </select>
-              {!mt.adAccountId && <p style={{ margin: '6px 0 0', fontSize: 11.5, color: '#f5b043' }}>Sélectionne le compte à analyser pour cette marque.</p>}
+              {!mt.adAccountId && <p style={{ margin: '6px 0 0', fontSize: 11.5, color: 'var(--warn-strong)' }}>Sélectionne le compte à analyser pour cette marque.</p>}
             </div>
           ) : (
             <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 10 }}>{ins?.accountName || mt.adAccountId}</div>
@@ -267,7 +267,7 @@ function MetaCard({ state, setState, refresh, oauth }: { state: ConnectionState 
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>Top créas (ROAS)</div>
               {ins.topAds.slice(0, 4).map((a) => (
-                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span data-nom-complet style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{a.name}</span><b style={{ color: '#7ee8bf', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{a.roas}×</b></div>
+                <div key={a.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, color: 'var(--ink-2)', padding: '2px 0' }}><span data-nom-complet style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{a.name}</span><b style={{ color: 'var(--ok-text)', whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 12 }}>{a.roas}×</b></div>
               ))}
             </div>
           ) : null}

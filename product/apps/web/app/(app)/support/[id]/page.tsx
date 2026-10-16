@@ -9,13 +9,16 @@ import { EmptyLine } from '../../../../components/Empty';
 import { replyTicketAction, setTicketStatusAction } from '../../../actions/support';
 import { input, Msg, cadrePage, colonneLecture, surface, h1 } from '../../../../components/ui';
 import { Icon } from '../../../../components/Icon';
+import { teinte } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
 const TYPE_LABEL: Record<string, string> = { bug: 'Bug', suggestion: 'Suggestion', question: 'Question' };
 const TYPE_ICON: Record<string, string> = { bug: 'alert', suggestion: 'bulb', question: 'help' };
-const STATUS: Record<string, { label: string; color: string }> = {
-  open: { label: 'Ouvert', color: '#f5a623' }, in_progress: { label: 'En cours', color: '#7aa2ff' }, resolved: { label: 'Résolu', color: '#18cc8c' },
+// Statut d'un ticket · porté par son RÔLE sémantique (le voile de fond `+ '22'`
+// devient `teinte(role, 0x22/255)`, exact au pixel en sombre, juste en clair).
+const STATUS: Record<string, { label: string; role: string }> = {
+  open: { label: 'Ouvert', role: 'warn' }, in_progress: { label: 'En cours', role: 'info-text' }, resolved: { label: 'Résolu', role: 'ok' },
 };
 const stat = (k: string) => STATUS[k] ?? STATUS.open!;
 const OK: Record<string, string> = { created: 'Ticket ouvert.', reply: 'Réponse envoyée.', status: 'Statut mis à jour.' };
@@ -56,7 +59,7 @@ export default async function TicketThreadPage({ params, searchParams }: {
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>Ouvert par {tk.authorName || 'un membre'} · {new Date(tk.createdAt as Date).toLocaleDateString('fr-FR')}</div>
         </div>
-        <span style={{ fontSize: 12, fontWeight: 800, padding: '5px 12px', borderRadius: 999, color: st.color, background: st.color + '22' }}>{st.label}</span>
+        <span style={{ fontSize: 12, fontWeight: 800, padding: '5px 12px', borderRadius: 999, color: `var(--${st.role})`, background: teinte(st.role, 0x22 / 255) }}>{st.label}</span>
       </div>
 
       {ok && OK[ok] && <div style={{ marginTop: 12 }}><Msg kind="ok">{OK[ok]}</Msg></div>}
@@ -73,8 +76,8 @@ export default async function TicketThreadPage({ params, searchParams }: {
               <button type="submit" disabled={tk.status === v} aria-pressed={tk.status === v} style={{
                 minHeight: CIBLE_TACTILE_MIN, fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999, cursor: tk.status === v ? 'default' : 'pointer',
                 border: `1px solid ${tk.status === v ? 'transparent' : 'var(--line-2)'}`,
-                background: tk.status === v ? stat(v).color + '22' : 'transparent',
-                color: tk.status === v ? stat(v).color : 'var(--ink-2)',
+                background: tk.status === v ? teinte(stat(v).role, 0x22 / 255) : 'transparent',
+                color: tk.status === v ? `var(--${stat(v).role})` : 'var(--ink-2)',
               }}>{stat(v).label}</button>
             </form>
           ))}
@@ -87,12 +90,12 @@ export default async function TicketThreadPage({ params, searchParams }: {
           <div key={m.id} style={{
             // Message du fil · bloc de premier niveau · rôle `surface` (lot 19D).
             ...surface, padding: '13px 15px',
-            background: m.isStaff ? 'rgba(122,162,255,.07)' : 'var(--surface)',
-            borderColor: m.isStaff ? 'rgba(122,162,255,.3)' : 'var(--line)',
+            background: m.isStaff ? teinte('info-text', .07) : 'var(--surface)',
+            borderColor: m.isStaff ? teinte('info-text', .3) : 'var(--line)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>{m.author}</span>
-              {m.isStaff && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: '#7aa2ff', background: 'rgba(122,162,255,.15)' }}>ÉQUIPE</span>}
+              {m.isStaff && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '2px 7px', borderRadius: 999, color: 'var(--info-text)', background: teinte('info-text', .15) }}>ÉQUIPE</span>}
               <span style={{ flex: 1 }} />
               <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{new Date(m.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
             </div>

@@ -41,7 +41,7 @@ export function PreparerTest({ platform, externalId }: { platform: string; exter
         <span style={{ display: 'inline-flex' }} aria-hidden><Icon name="map" size={15} /></span>
         <span>{fait ? 'Brouillon de test créé dans Adsmap' : etat === 'envoi' ? 'Préparation…' : 'Préparer un test · Adsmap'}</span>
       </button>
-      <p role="status" aria-live="polite" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.4, color: erreur ? 'var(--danger, #e5484d)' : 'var(--muted)' }}>
+      <p role="status" aria-live="polite" style={{ margin: 0, fontSize: 11.5, lineHeight: 1.4, color: erreur ? 'var(--danger)' : 'var(--muted)' }}>
         {erreur ?? (fait ? <><a href="/adsmap" style={{ color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir Adsmap</a> · hypothèse et variable à compléter avant le test.</> : '')}
       </p>
     </div>

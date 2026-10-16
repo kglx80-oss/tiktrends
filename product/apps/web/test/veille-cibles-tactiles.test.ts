@@ -27,7 +27,9 @@ function decl(nom: string): string {
 
 describe('Veille · les contrôles primaires atteignent la cible tactile', () => {
   it('adopte le seuil du noyau', () => {
-    expect(src).toMatch(/import \{ CIBLE_TACTILE_MIN \} from '@tiktrends\/core'/);
+    // La page importe la constante du noyau · l'import peut porter d'autres
+    // symboles du même module (ex. `teinte`, tokenisation V5 · T5).
+    expect(src).toMatch(/import \{[^}]*\bCIBLE_TACTILE_MIN\b[^}]*\} from '@tiktrends\/core'/);
   });
 
   it('le champ de recherche et les filtres <Select> partagent la cible (inputBase)', () => {

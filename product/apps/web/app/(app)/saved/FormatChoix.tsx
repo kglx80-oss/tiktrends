@@ -123,7 +123,7 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
           onChange={(e) => { setValeur(e.target.value); if (etat.t !== 'envoi') setEtat({ t: 'repos' }); }}
           style={{
             flex: 1, minWidth: 0, minHeight: CIBLE_TACTILE_MIN, padding: '8px 10px', borderRadius: 9,
-            border: '1px solid ' + (etat.t === 'echec' ? 'var(--danger, #e5484d)' : modifie ? 'var(--accent-strong)' : 'var(--line-2)'),
+            border: '1px solid ' + (etat.t === 'echec' ? 'var(--danger)' : modifie ? 'var(--accent-strong)' : 'var(--line-2)'),
             background: 'var(--paper)', color: valeur === FORMAT_NON_CLASSE || indisponible ? 'var(--muted)' : 'var(--ink)', fontSize: 13, fontWeight: 600,
             cursor: indisponible ? 'not-allowed' : 'pointer', opacity: indisponible ? 0.6 : 1,
           }}
@@ -145,7 +145,7 @@ export function FormatChoix({ platform, externalId, mediaType, initial, versionA
         {definition}
         {versionAncienne && !modifie && etat.t === 'repos' && <> · classée avec une version antérieure de la liste, à revoir</>}
       </p>
-      <p ref={etatRef} id={`${id}-etat`} role="status" aria-live="polite" style={{ margin: 0, minHeight: 16, fontSize: 11.5, fontWeight: 600, lineHeight: 1.4, color: etat.t === 'echec' ? 'var(--danger, #e5484d)' : etat.t === 'ok' ? 'var(--accent-strong)' : 'var(--muted)' }}>
+      <p ref={etatRef} id={`${id}-etat`} role="status" aria-live="polite" style={{ margin: 0, minHeight: 16, fontSize: 11.5, fontWeight: 600, lineHeight: 1.4, color: etat.t === 'echec' ? 'var(--danger)' : etat.t === 'ok' ? 'var(--accent-strong)' : 'var(--muted)' }}>
         {message}
       </p>
     </div>

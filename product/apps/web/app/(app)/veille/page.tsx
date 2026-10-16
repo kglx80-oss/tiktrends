@@ -8,7 +8,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd, type AdSort, type AdPlatform } from '@tiktrends/integrations';
 import { AdCard, compact } from '../../../components/AdCard';
 import { PageInfo } from '../../../components/PageInfo';
-import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, teinte } from '@tiktrends/core';
 import { effectiveAccess } from '../../../lib/access';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../lib/veille-search-cache';
 import { parcoursVeille, veilleSeedDefaut, NICHE_DEFAUT, filtrerEchantillonVeille, perimetreVeille, filtresActifsVeille, videRechercheVeille, contexteVeille, PARAM_RETOUR_VEILLE, type PerimetreVeille } from '@tiktrends/core';
@@ -310,7 +310,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
             {avances.map((a) => (
               <a key={a.cle} href={buildQS(sp, { [a.cle]: '', page: '1' })} title="Retirer ce critère"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, fontWeight: 600, padding: '2px 12px', borderRadius: 999, border: '1px solid rgba(255,92,138,.4)', background: 'var(--paper)', color: 'var(--ink)', textDecoration: 'none' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: CIBLE_TACTILE_MIN, fontSize: 11.5, fontWeight: 600, padding: '2px 12px', borderRadius: 999, border: `1px solid ${teinte('accent-strong', .4)}`, background: 'var(--paper)', color: 'var(--ink)', textDecoration: 'none' }}>
                 {a.texte} <span aria-hidden style={{ color: 'var(--muted)' }}>✕</span>
               </a>
             ))}
@@ -378,7 +378,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
         // Une ligne factuelle · le « pourquoi » (hors catégorie, comment cibler)
         // vit dans l'aide, à la demande · il n'allonge plus le préambule.
         <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 12px', lineHeight: 1.4 }}>
-          Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>pistes installées</b> · échantillon <b style={{ color: defaut.parCategorie ? 'var(--ink-2)' : '#ffcf8f' }}>« {defaut.seed} »</b>{!defaut.parCategorie && <span style={{ color: 'var(--muted)' }}> · hors catégorie</span>}
+          Sélection par défaut · <b style={{ color: 'var(--ink-2)' }}>pistes installées</b> · échantillon <b style={{ color: defaut.parCategorie ? 'var(--ink-2)' : 'var(--warn-text)' }}>« {defaut.seed} »</b>{!defaut.parCategorie && <span style={{ color: 'var(--muted)' }}> · hors catégorie</span>}
         </p>
       )}
       {!sample && !error && !query && !defaut && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}

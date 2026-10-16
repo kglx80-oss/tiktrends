@@ -9,7 +9,7 @@ import { PageInfo } from '../../../components/PageInfo';
 import { storageConfigured } from '@tiktrends/integrations';
 import { StorageConfigurator } from '../../../components/StorageConfigurator';
 import { isFounder } from '../../../lib/founder';
-import { COPIE_STOCKAGE } from '@tiktrends/core';
+import { COPIE_STOCKAGE, teinte } from '@tiktrends/core';
 import { OngletsReglages } from '../../../components/OngletsReglages';
 
 const OK: Record<string, string> = { '1': 'Espace mis à jour.' };
@@ -83,10 +83,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             { label: 'Messagerie d’équipe', env: 'SLACK_BOT_TOKEN', on: !!process.env.SLACK_BOT_TOKEN, unlocks: 'Résumés et @TikTrends dans Slack (à venir)' },
           ].map((it) => (
             <div key={it.env} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface)', padding: '11px 14px', flexWrap: 'wrap' }}>
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: it.on ? '#18cc8c' : 'var(--line-2)', flexShrink: 0, boxShadow: it.on ? '0 0 0 3px rgba(24,204,140,.15)' : 'none' }} />
+              <span style={{ width: 9, height: 9, borderRadius: '50%', background: it.on ? 'var(--ok)' : 'var(--line-2)', flexShrink: 0, boxShadow: it.on ? `0 0 0 3px ${teinte('ok', .15)}` : 'none' }} />
               <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', minWidth: 200 }}>{it.label}</span>
               <span style={{ fontSize: 12, color: 'var(--muted)', flex: 1, minWidth: 180 }}>{it.unlocks}</span>
-              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: it.on ? '#18cc8c' : 'var(--muted)', background: it.on ? 'rgba(24,204,140,.14)' : 'var(--line)' }}>
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '3px 9px', borderRadius: 999, color: it.on ? 'var(--ok)' : 'var(--muted)', background: it.on ? teinte('ok', .14) : 'var(--line)' }}>
                 {it.on ? 'BRANCHÉ' : 'À BRANCHER'}
               </span>
             </div>
@@ -99,7 +99,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             lit le stockage en mots de client ; l'équipe de la plateforme garde
             ses consignes techniques (recette #106b · `COPIE_STOCKAGE`). Les
             fonctions et les droits ne changent pas. */}
-        <h2 style={h2}>{stockage.titre} <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap', color: storageConfigured() ? '#18cc8c' : 'var(--muted)', background: storageConfigured() ? 'rgba(24,204,140,.14)' : 'var(--line)' }}>{stockage.badge(storageConfigured())}</span></h2>
+        <h2 style={h2}>{stockage.titre} <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.04em', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap', color: storageConfigured() ? 'var(--ok)' : 'var(--muted)', background: storageConfigured() ? teinte('ok', .14) : 'var(--line)' }}>{stockage.badge(storageConfigured())}</span></h2>
         <p style={sub}>{stockage.intro}</p>
         <StorageConfigurator enabled={storageConfigured()} operateur={operateur} />
       </div>

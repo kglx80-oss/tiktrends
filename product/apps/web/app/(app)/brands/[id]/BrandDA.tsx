@@ -7,7 +7,7 @@ import { BrandGuidelines } from '../../../../components/BrandGuidelines';
 import { PaletteMarque } from './PaletteMarque';
 import { Icon } from '../../../../components/Icon';
 import { surface, tuile } from '../../../../components/ui';
-import { CIBLE_TACTILE_MIN, costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, SECTIONS_IDENTITE, HAUTEUR_ENTETE_APP, MARGE_BARRE_INDEX, MARGE_ANCRE_SECTION, SEUIL_SECTION_ACTIVE, type DaVisuelleMarque } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, costFor, daVisuelleUtile, normaliserDaVisuelle, policeTechnique, SECTIONS_IDENTITE, HAUTEUR_ENTETE_APP, MARGE_BARRE_INDEX, MARGE_ANCRE_SECTION, SEUIL_SECTION_ACTIVE, teinte, type DaVisuelleMarque } from '@tiktrends/core';
 
 // L'identité visuelle se lit en DEUX sections distinctes · les tokens bruts
 // (couleurs + typographie) d'un côté, le kit (logo + style déduit + actions) de
@@ -115,7 +115,7 @@ function IndexSections() {
             display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999,
             fontSize: 12.5, fontWeight: on ? 800 : 600, textDecoration: 'none',
             border: `1px solid ${on ? 'var(--accent-strong)' : 'var(--line-2)'}`,
-            background: on ? 'rgba(254,44,85,.10)' : 'transparent',
+            background: on ? teinte('accent', .10) : 'transparent',
             color: on ? 'var(--accent-strong)' : 'var(--ink-2)',
           }}>
             <Icon name={s.icone} size={13} /> {s.libelle}
@@ -301,7 +301,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
           <div style={{ marginTop: 16 }}>
             <div style={daLbl}>Logo</div>
             {da.logoUrl
-              ? <img src={da.logoUrl} alt="" style={{ height: 56, maxWidth: 200, objectFit: 'contain', background: FOND_LOGO, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)', borderRadius: 10, padding: 8 }} />
+              ? <img src={da.logoUrl} alt="" style={{ height: 56, maxWidth: 200, objectFit: 'contain', background: FOND_LOGO, boxShadow: `inset 0 0 0 1px ${teinte('sombre-fixe', .12)}`, borderRadius: 10, padding: 8 }} />
               : <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Aucun logo · récupère la DA pour l'importer depuis le site.</span>}
             {/* Les variantes réelles du logo (clair, foncé, icône) déjà en base ·
                 de vraies miniatures qui aident à reconnaître chaque version, pas
@@ -309,13 +309,13 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
             {logoList.length > 1 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {logoList.map((u) => (
-                  <img key={u} src={u} alt="" style={{ height: 28, maxWidth: 92, objectFit: 'contain', background: FOND_LOGO, borderRadius: 6, padding: 4, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)' }} />
+                  <img key={u} src={u} alt="" style={{ height: 28, maxWidth: 92, objectFit: 'contain', background: FOND_LOGO, borderRadius: 6, padding: 4, boxShadow: `inset 0 0 0 1px ${teinte('sombre-fixe', .12)}` }} />
                 ))}
               </div>
             )}
           </div>
         )}
-        {msg && <div style={{ marginTop: 12, fontSize: 12.5, color: ok ? '#9fe6b3' : '#f5b043' }}>{msg}</div>}
+        {msg && <div style={{ marginTop: 12, fontSize: 12.5, color: ok ? 'var(--ok-pale)' : 'var(--warn-strong)' }}>{msg}</div>}
       </section>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
-import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, CIBLE_TACTILE_MIN, ecrireFiltresScale, lireFiltresScale, FILTRES_SCALE_DEFAUT, type AngleKey, type FiltresScale } from '@tiktrends/core';
+import { ANGLE_LABEL, ANGLE_KEYS, apercuImage, bibliothequePub, libelleBibliotheque, CIBLE_TACTILE_MIN, ecrireFiltresScale, lireFiltresScale, FILTRES_SCALE_DEFAUT, teinte, type AngleKey, type FiltresScale } from '@tiktrends/core';
 import { SaveButton, FollowButton } from '../../../../components/InspoButtons';
 import { Empty } from '../../../../components/Empty';
 import { Icon } from '../../../../components/Icon';
@@ -142,7 +142,7 @@ export function SwipeFile({ items, stats, advertisers, niche, country, initial =
             s'affiche que lorsque le groupe suit un filtre sur la même ligne
             (marge nulle sinon) · sur mobile il reste collé à « Tri ». */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', flex: '0 0 auto', minWidth: 0 }}>
-          <span aria-hidden style={{ alignSelf: 'stretch', width: 1, background: 'rgba(255,255,255,.12)', margin: '2px 0' }} />
+          <span aria-hidden style={{ alignSelf: 'stretch', width: 1, background: 'var(--line)', margin: '2px 0' }} />
           <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', flexShrink: 0 }}>Tri</span>
           <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Trier les créas" style={selCible}>
             <option value="growth">Croissance reach 30j</option>
@@ -208,21 +208,23 @@ function Card({ it }: { it: SwipeItem }) {
   const biblio = bibliothequePub({ platform: ad.platform, name: ad.advertiserName });
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* #140f18 · fond derrière un média (aperçu de créa) · reste sombre, hors thème. */}
       <div style={{ position: 'relative', aspectRatio: '4 / 5', background: poster ? `center/cover no-repeat url(${poster})` : '#140f18' }}>
         {playing && ad.mediaUrl ? (
           <video src={ad.mediaUrl} poster={ad.thumbnailUrl} controls autoPlay playsInline
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', background: 'var(--sombre-fixe)' }} />
         ) : (
           <>
-            {isVideo(ad) && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,.6)', color: '#fff' }}>VIDÉO</span>}
-            {/* Angle en évidence sur le visuel */}
-            <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, color: '#0d070c', background: ANGLE_COLOR[angle], boxShadow: '0 2px 8px rgba(0,0,0,.4)' }}>{ANGLE_LABEL[angle]}</span>
+            {isVideo(ad) && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 800, letterSpacing: '.05em', padding: '3px 8px', borderRadius: 6, background: teinte('sombre-fixe', .6), color: 'var(--clair-fixe)' }}>VIDÉO</span>}
+            {/* Angle en évidence sur le visuel · #0d070c = texte sombre sur la pastille
+                catégorielle (ANGLE_COLOR), posée sur le média · reste hors thème. */}
+            <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999, color: '#0d070c', background: ANGLE_COLOR[angle], boxShadow: `0 2px 8px ${teinte('ombre', .4)}` }}>{ANGLE_LABEL[angle]}</span>
             <div style={{ position: 'absolute', top: 8, right: 8 }}><SaveButton ad={ad} initialSaved={it.saved} /></div>
             {!poster && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 12 }}>{canPlay ? '' : 'Aperçu indisponible'}</div>}
             {canPlay && (
               <button type="button" onClick={() => setPlaying(true)} aria-label="Lire la vidéo" style={{
                 position: 'absolute', inset: 0, margin: 'auto', width: 54, height: 54, borderRadius: '50%', border: 'none', cursor: 'pointer',
-                background: 'rgba(0,0,0,.55)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--voile-media)', color: 'var(--clair-fixe)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
               </button>
@@ -232,7 +234,7 @@ function Card({ it }: { it: SwipeItem }) {
       </div>
 
       {/* Bande d'analyse · mise en évidence */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', background: 'var(--paper, rgba(255,255,255,.03))', borderBottom: '1px solid var(--line)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', background: 'var(--paper)', borderBottom: '1px solid var(--line)' }}>
         <Cell v={'▲ ' + compact(g)} label="Croiss. 30j" accent />
         <Cell v={compact(ad.reach ?? 0)} label="Reach" />
         <Cell v={ad.estimatedSpend != null ? compact(ad.estimatedSpend) + '€' : '·'} label="Spend" />
@@ -304,7 +306,7 @@ function PromptCard({ n, text }: { n: number; text: string }) {
       <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', minWidth: 18 }}>{String(n).padStart(2, '0')}</span>
       <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}>{text}</span>
       <button type="button" onClick={() => { navigator.clipboard?.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); }).catch(() => {}); }}
-        style={{ fontSize: 11, fontWeight: 700, padding: '5px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', color: copied ? '#18cc8c' : 'var(--ink-2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        style={{ fontSize: 11, fontWeight: 700, padding: '5px 9px', borderRadius: 8, border: '1px solid var(--line-2)', background: 'transparent', color: copied ? 'var(--ok)' : 'var(--ink-2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
         {copied ? '✓ Copié' : 'Copier'}
       </button>
     </div>

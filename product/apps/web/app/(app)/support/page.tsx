@@ -9,6 +9,7 @@ import { createTicketAction } from '../../actions/support';
 import { input, btn, panel, h1, h2, sub, lbl, Msg, cadrePage, colonneLecture, surface } from '../../../components/ui';
 import { PageInfo } from '../../../components/PageInfo';
 import { Icon } from '../../../components/Icon';
+import { teinte } from '@tiktrends/core';
 
 // Un ticket reste DANS l'espace · seuls ses admins le voient et y répondent
 // (aucun envoi à l'équipe TikTrends · recette #106). La copie le dit.
@@ -18,10 +19,12 @@ const ERR: Record<string, string> = { title: 'Ajoute un titre.', forbidden: 'Act
 const TYPE_LABEL: Record<string, string> = { bug: 'Bug', suggestion: 'Suggestion', question: 'Question' };
 // Icône du jeu partagé par type de ticket · plus d'emoji dans les libellés.
 const TYPE_ICON: Record<string, string> = { bug: 'alert', suggestion: 'bulb', question: 'help' };
-const STATUS: Record<string, { label: string; color: string }> = {
-  open: { label: 'Ouvert', color: '#f5a623' },
-  in_progress: { label: 'En cours', color: '#7aa2ff' },
-  resolved: { label: 'Résolu', color: '#18cc8c' },
+// Statut d'un ticket · porté par son RÔLE sémantique (le voile de fond `+ '22'`
+// devient `teinte(role, 0x22/255)`, exact au pixel en sombre, juste en clair).
+const STATUS: Record<string, { label: string; role: string }> = {
+  open: { label: 'Ouvert', role: 'warn' },
+  in_progress: { label: 'En cours', role: 'info-text' },
+  resolved: { label: 'Résolu', role: 'ok' },
 };
 
 export const dynamic = 'force-dynamic';
@@ -89,7 +92,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>{TYPE_ICON[t.type] ? <Icon name={TYPE_ICON[t.type]!} size={13} /> : null}{TYPE_LABEL[t.type] ?? t.type}</span>
               <span style={{ flex: 1, minWidth: 180, fontSize: 14, fontWeight: 700, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{t.title}</span>
               {isAdmin && t.authorName && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t.authorName}</span>}
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, color: st.color, background: st.color + '22' }}>{st.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, color: `var(--${st.role})`, background: teinte(st.role, 0x22 / 255) }}>{st.label}</span>
               <span style={{ fontSize: 12, color: 'var(--accent-strong)', fontWeight: 700 }}>Ouvrir ›</span>
             </Link>
           );

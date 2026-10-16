@@ -36,13 +36,13 @@ export function ShopifyConnect({ brandId, initialDomain }: { brandId: string; in
       </p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="ta-boutique.com ou ta-boutique.myshopify.com" disabled={busy}
-          style={{ flex: '1 1 280px', minWidth: 220, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' }} />
+          style={{ flex: '1 1 280px', minWidth: 220, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' }} />
         <button type="button" onClick={sync} disabled={busy} style={{
           padding: '10px 18px', borderRadius: 999, border: 'none', fontWeight: 800, fontSize: 13,
           cursor: busy ? 'default' : 'pointer', background: 'var(--grad-accent)', color: 'var(--on-accent)', opacity: busy ? .6 : 1,
         }}>{busy ? 'Synchronisation…' : (initialDomain ? '↻ Synchroniser' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="link" size={13} /> Connecter</span>)}</button>
       </div>
-      {msg && <div style={{ marginTop: 10, fontSize: 12.5, color: ok ? '#9fe6b3' : '#f5b043' }}>{msg}</div>}
+      {msg && <div style={{ marginTop: 10, fontSize: 12.5, color: ok ? 'var(--ok-pale)' : 'var(--warn-strong)' }}>{msg}</div>}
     </div>
   );
 }
