@@ -97,6 +97,36 @@ describe('Veille · la page mène par l’observation (source)', () => {
   });
 });
 
+describe('Veille · carte V5 resserrée + grille compacte (maquette)', () => {
+  // Une créa meta avec ses signaux réels · on vérifie que la compaction V5 ne
+  // retire RIEN (reach, spend, pays restent), elle resserre seulement.
+  const adStat: InspoAd = {
+    id: 's1', platform: 'meta', status: 'active', daysRunning: 63, mediaType: 'image',
+    advertiserName: 'Ploufy', reach: 100000, estimatedSpend: 1200, mainCountry: 'FR', body: 'x',
+  };
+  const htmlV5 = renderToStaticMarkup(<AdCard ad={adStat} ctaSobre cibles44 badgesV5 />);
+  const htmlStd = renderToStaticMarkup(<AdCard ad={adStat} ctaSobre cibles44 />);
+
+  it('le bloc d’info de la carte V5 est plus serré (padding et interligne réduits)', () => {
+    expect(htmlV5, 'interligne resserré en V5').toContain('padding:10px 11px 11px;display:grid;gap:6px');
+    // Mutation · non-régression · les autres surfaces gardent leur densité.
+    expect(htmlStd, 'la carte standard ne doit pas se resserrer').toContain('padding:11px 12px;display:grid;gap:8px');
+  });
+
+  it('les tuiles de signal sont denses en V5 · le signal reste là (reach, spend, pays)', () => {
+    expect(htmlV5, 'tuile dense en V5').toContain('min-width:54px;padding:4px 7px');
+    expect(htmlStd, 'tuile standard inchangée').toContain('min-width:60px;padding:5px 8px');
+    expect(htmlV5, 'le reach reste affiché').toContain('Reach');
+    expect(htmlV5, 'le pays reste affiché').toContain('Pays');
+  });
+
+  it('la grille de la Veille est compacte · 4 colonnes en large (min 264, gouttière 14)', () => {
+    expect(page, 'grille compacte V5 attendue').toContain("gridTemplateColumns: 'repeat(auto-fill, minmax(min(264px, 100%), 1fr))', gap: 14");
+    // Mutation · l’ancienne grille large de 300px ne doit plus traîner.
+    expect(page, 'la grille large de 300px subsiste').not.toContain('minmax(min(300px, 100%), 1fr)');
+  });
+});
+
 describe('Veille · shell', () => {
   it('le support est ANCRÉ sur /veille (comme Dashboard et Pubs)', () => {
     expect(placementLanceurSupport('/veille')).toBe('ancre');
