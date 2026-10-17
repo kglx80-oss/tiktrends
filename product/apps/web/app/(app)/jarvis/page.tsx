@@ -9,6 +9,7 @@ import { Empty } from '../../../components/Empty';
 import { cadrePage, colonneLecture } from '../../../components/ui';
 import { RefusJarvis } from './RefusJarvis';
 import { peutOuvrirProjetsStudios } from '../../../lib/studios/jarvis-projets';
+import { ficheMarqueLue } from '../../../lib/jarvis-fiche';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +58,12 @@ export default async function JarvisPage() {
   // renvoie ; l'en-tête y mène aussi, sous la MÊME garde que l'écran « Projets »
   // (rôle, offre, capacité de l'espace). Sans droit, aucun lien vers un écran fermé.
   const voitProjets = await peutOuvrirProjetsStudios();
+
+  // La fiche marque, lue pour la carte de complétude de l'accueil Jarvis · même
+  // source que l'aperçu de `/brands/[id]`, en lecture seule. L'encart « Chiffres
+  // clés » reste en état VIDE honnête · nous n'agrégeons pas la dépense pub, donc
+  // aucune source n'est passée (jamais un chiffre fictif).
+  const fiche = await ficheMarqueLue(brand.id);
 
   return (
     // Écran conversationnel · le CADRE et le composeur s'alignent sur les bords
@@ -110,8 +117,10 @@ export default async function JarvisPage() {
       </div>
 
       {/* La conversation, seule au premier plan · c'est la seule interface qui
-          n'exige pas de savoir où chercher. */}
-      <JarvisChat />
+          n'exige pas de savoir où chercher. À l'accueil (fil vide), elle déploie
+          le panneau V5 · amorces, automatisations à venir, KPI vide honnête et
+          complétude de la fiche. */}
+      <JarvisChat fiche={fiche} brandId={brand.id} kpiSource={null} />
 
       {/* Personnaliser Jarvis · rejoue l'accueil (usage, expérience pub,
           objectif, marque) à la demande · le parcours est facultatif et ne se

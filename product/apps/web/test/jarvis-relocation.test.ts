@@ -38,7 +38,7 @@ const veille = lit('app/(app)/veille/page.tsx');
 
 describe('Jarvis · la conversation, seule ; le détail à sa destination', () => {
   it('la page de chat accueille la conversation et renvoie aux sources', () => {
-    expect(jarvis).toContain('<JarvisChat />');
+    expect(jarvis).toContain('<JarvisChat');
     expect(jarvis).toContain('href="/jarvis/sources"');
   });
 

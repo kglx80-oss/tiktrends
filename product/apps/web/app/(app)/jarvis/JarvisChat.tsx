@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, sansTiretCadratin, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
+import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, sansTiretCadratin, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction, type FicheMarqueLue, type SourceDepenseJarvis } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
 import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
 import { DraftCard } from '../../../components/DraftCard';
+import { JarvisAccueilV5 } from './JarvisAccueilV5';
 import { JarvisContexte } from './JarvisContexte';
 import { useIsMobile } from '../../../components/useIsMobile';
 import { cadreSignal } from '../../../components/ui';
@@ -73,7 +74,13 @@ const reponse: CSSProperties = {
   wordBreak: 'break-word',
 };
 
-export function JarvisChat() {
+export function JarvisChat({ fiche, brandId, kpiSource }: {
+  /** La fiche marque lue côté serveur · `null` si illisible (pas de carte de complétude inventée). */
+  fiche: FicheMarqueLue | null;
+  brandId: string;
+  /** La source de dépense agrégée · `null` tant qu'aucune n'est branchée (encart KPI en état vide honnête). */
+  kpiSource: SourceDepenseJarvis | null;
+}) {
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [saisie, setSaisie] = useState('');
@@ -280,20 +287,18 @@ export function JarvisChat() {
           {/* Composeur PLEINE LARGEUR du cadre, hors de la colonne 640 · même
               largeur qu'en conversation (Codex, 30/09). */}
           <div style={{ width: '100%', marginTop: isMobile ? 24 : 32 }}>{composeur}</div>
-          {/* Suggestions en colonne de lecture centrée · elles proposent, elles
-              ne s'étalent pas d'un bord à l'autre du cadre. */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 640, margin: '18px auto 0' }}>
-            {amorces.map((q) => (
-              <button key={q} onClick={() => void envoyer(q)} style={{
-                display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
-                padding: '8px 15px', borderRadius: 999, border: '1px solid var(--line-2)',
-                background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5,
-                cursor: 'pointer', textAlign: 'left', lineHeight: 1.4,
-              }}>
-                {q}
-              </button>
-            ))}
-          </div>
+          {/* Panneau d'accueil V5 · amorces en cartes, automatisations (à venir,
+              désactivées), encart KPI (état vide honnête) et complétude de la
+              fiche (vrai pourcentage). La présentation suit la maquette, les
+              données restent réelles · voir JarvisAccueilV5. */}
+          <JarvisAccueilV5
+            fiche={fiche}
+            brandId={brandId}
+            kpiSource={kpiSource}
+            amorces={amorces}
+            onAmorce={(q) => void envoyer(q)}
+            enCours={enCours}
+          />
         </div>
       ) : (
         // ── Conversation · « Effacer le fil » discret, le fil défilant, le
