@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { CIBLE_TACTILE_MIN, apercuLotsResultats, type FaitsLotApercu, type TonStatutLot } from '@tiktrends/core';
 import { surface, tuile } from '../../../components/ui';
+import { Icon } from '../../../components/Icon';
 
 /**
  * La couleur de la pastille de statut (maquette V5) · un rôle sémantique par
@@ -24,11 +25,14 @@ const COULEUR_TON: Record<TonStatutLot, string> = {
  * variantes, et un lien vers le lot réel. AUCUNE performance n'y figure · un
  * aperçu de lot n'est pas une mesure.
  *
- * Ce que la maquette montre en plus (vignettes de variantes, barre « X / 14
- * jours », boutons Analyser / Préparer / Importer par statut) n'est pas rendu
- * ici · ces éléments demandent des données qui ne sont pas dans la liste des
- * lots (médias, durée de protocole) ou un service encore à créer (L08). On ne
- * les simule pas · chaque carte mène au lot, où l'action réelle vit.
+ * La VIGNETTE est le média RÉEL d'une variante du lot (`thumbUrl`, issu de la
+ * créa persistée ou de l'asset) · jamais une image fabriquée. Un lot sans aucun
+ * média pose une vignette vide honnête (l'icône d'image sur un fond neutre), pas
+ * un faux visuel. Ce que la maquette montre en plus (barre « X / 14 jours »,
+ * boutons Analyser / Préparer / Importer par statut) n'est pas rendu ici · la
+ * progression demande la durée du protocole et une horloge, les actions un
+ * service encore à créer (L08) · on ne les simule pas · chaque carte mène au lot,
+ * où l'action réelle vit.
  */
 
 export function ApercuLots({ lots, peutVoirLots }: {
@@ -58,19 +62,29 @@ export function ApercuLots({ lots, peutVoirLots }: {
           )}
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+        <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(236px, 1fr))' }}>
           {cartes.map((c) => (
             <Link key={c.id} href={c.href} data-carte-lot style={carte}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: COULEUR_TON[c.ton] }} />
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)' }}>{c.statut}</span>
-                {c.importe && <span style={badgeImporte}>Importé</span>}
-                <span style={{ flex: 1 }} />
-                <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{c.variantes} variante{c.variantes > 1 ? 's' : ''}</span>
+              {/* La vignette · média RÉEL d'une variante (thumbUrl), ou une
+                  vignette vide honnête · aucune image fabriquée. Décorative ·
+                  le lot est déjà nommé par son titre et son but juste dessous. */}
+              <div data-vignette-lot style={vignette}>
+                {c.thumbUrl
+                  ? <img src={c.thumbUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  : <span aria-hidden style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name="image" size={26} /></span>}
               </div>
-              <div style={{ marginTop: 6, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{c.titre}</div>
-              {c.but && <div style={{ marginTop: 2, fontSize: 12, color: 'var(--muted)', lineHeight: 1.45, overflowWrap: 'anywhere' }}>{c.but}</div>}
-              <span style={ouvrir}>Ouvrir le lot →</span>
+              <div style={corps}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                  <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: COULEUR_TON[c.ton] }} />
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)' }}>{c.statut}</span>
+                  {c.importe && <span style={badgeImporte}>Importé</span>}
+                  <span style={{ flex: 1 }} />
+                  <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{c.variantes} variante{c.variantes > 1 ? 's' : ''}</span>
+                </div>
+                <div style={{ marginTop: 6, fontSize: 14.5, fontWeight: 700, color: 'var(--ink)' }}>{c.titre}</div>
+                {c.but && <div style={{ marginTop: 2, fontSize: 12, color: 'var(--muted)', lineHeight: 1.45, overflowWrap: 'anywhere' }}>{c.but}</div>}
+                <span style={ouvrir}>Ouvrir le lot →</span>
+              </div>
             </Link>
           ))}
         </div>
@@ -81,7 +95,23 @@ export function ApercuLots({ lots, peutVoirLots }: {
 
 const carte: CSSProperties = {
   ...surface, display: 'flex', flexDirection: 'column', minHeight: CIBLE_TACTILE_MIN,
-  padding: '14px 16px', background: 'var(--surface)', color: 'var(--ink)', textDecoration: 'none',
+  padding: 0, overflow: 'hidden', background: 'var(--surface)', color: 'var(--ink)', textDecoration: 'none',
+};
+
+/**
+ * La vignette · une fenêtre média en tête de carte (maquette V5). Fond neutre au
+ * jeton · quand aucune image réelle n'existe, l'icône d'image signale une
+ * vignette vide, sans jamais fabriquer de visuel. `aspectRatio` fige la hauteur
+ * sans horloge ni mesure.
+ */
+const vignette: CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  aspectRatio: '16 / 9', width: '100%', background: 'var(--paper)',
+  borderBottom: '1px solid var(--line-2)', overflow: 'hidden',
+};
+
+const corps: CSSProperties = {
+  display: 'flex', flexDirection: 'column', flex: 1, padding: '12px 16px 14px',
 };
 
 const badgeImporte: CSSProperties = {

@@ -5,16 +5,19 @@
  * marque active (ceux que `listBatchesAction` remonte) en un petit modèle de
  * cartes, pour la bande « Lots de test » de la maquette V5.
  *
- * ── Ce qu'il NE fait pas (et pourquoi) ───────────────────────────────────────
+ * ── La vignette, et ce qu'il NE fait pas (et pourquoi) ───────────────────────
  *
- * La maquette montre, par carte, des vignettes de variantes et une barre de
- * progression « X / 14 jours ». Ni l'une ni l'autre ne sort de cette liste · les
- * vignettes demandent les médias de chaque ad, la progression demande la durée
- * du protocole et une horloge. Les inventer serait une donnée fabriquée · on ne
- * rend donc QUE ce que les faits portent (statut, nature, but, nombre de
- * variantes), et chaque carte mène au lot réel. Les vignettes, la progression et
- * les actions contextuelles par statut (Analyser avec Jarvis, Préparer, Importer)
- * restent à raccorder · elles ne sont pas simulées ici.
+ * La maquette montre, par carte, une vignette (média des variantes) et une barre
+ * de progression « X / 14 jours ». La vignette est RÉELLE quand elle existe · on
+ * prend le média d'une ad du lot (sa créa persistée, ou son asset) tel qu'il est
+ * dans la donnée · jamais une image fabriquée. Un lot sans aucun média rend
+ * `thumbUrl: null` et l'écran pose une vignette vide honnête (pas de faux visuel).
+ *
+ * La progression « X / 14 jours » NE sort pas de cette liste · elle demande la
+ * durée du protocole et une horloge · l'inventer serait une donnée fabriquée. Les
+ * actions contextuelles par statut (Analyser avec Jarvis, Préparer, Importer)
+ * restent à raccorder · elles ne sont pas simulées ici · chaque carte mène au lot
+ * réel, où l'action vit.
  *
  * La carte N'AFFICHE AUCUNE PERFORMANCE · un aperçu de lot n'est pas une mesure.
  */
@@ -29,6 +32,12 @@ export interface FaitsLotApercu {
   goal: string | null;
   launchedAt: string | null;
   ads: number;
+  /**
+   * Le média d'une variante du lot, pour la vignette · tel qu'il est dans la
+   * donnée (créa persistée ou asset), ou `null` si le lot n'en porte aucun. Jamais
+   * une image fabriquée · null se traduit par une vignette vide honnête à l'écran.
+   */
+  thumbUrl?: string | null;
 }
 
 /**
@@ -54,6 +63,8 @@ export interface CarteLotApercu {
   importe: boolean;
   /** Le nombre de variantes (ads rangées dans le lot). */
   variantes: number;
+  /** Le média réel d'une variante pour la vignette, ou `null` (vignette vide). */
+  thumbUrl: string | null;
   /** Où mène la carte · le lot réel, dans l'onglet Lots de test. */
   href: string;
 }
@@ -114,6 +125,7 @@ export function apercuLotsResultats(lots: readonly FaitsLotApercu[], max = 4): C
       ton: tonStatutLot(l.status, importe),
       importe,
       variantes: l.ads,
+      thumbUrl: l.thumbUrl && l.thumbUrl.trim() ? l.thumbUrl.trim() : null,
       href: lienLotApercu(l.id),
     };
   });

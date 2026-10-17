@@ -160,7 +160,7 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
               {parcours.avertissement}
             </p>
           )}
-          <ParcoursBoucle titre="Boucle de test · hypothèse, lot, mesures, apprentissage" etapes={parcours.etapes} prochaine={parcours.prochaine} />
+          <ParcoursBoucle titre="Boucle de test · hypothèse, lot, mesures, apprentissage" etapes={parcours.etapes} prochaine={parcours.prochaine} variant="bande" />
         </section>
       )}
 

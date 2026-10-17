@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ongletsResultats, apercuLotsResultats, tonStatutLot, type FaitsLotApercu } from '@tiktrends/core';
+import { ongletsResultats, apercuLotsResultats, tonStatutLot, LIBELLE_NATURE, type FaitsLotApercu, type EtapeParcours } from '@tiktrends/core';
 import { BlocJarvisResultats } from '../app/(app)/adsmap/BlocJarvisResultats';
 import { ApercuLots } from '../app/(app)/adsmap/ApercuLots';
+import { ParcoursBoucle } from '../components/ParcoursBoucle';
 import { BarreOnglets } from '../components/BarreOnglets';
 
 /**
@@ -94,6 +95,20 @@ describe('V5 · la bande « Lots de test » (HTML rendu)', () => {
     expect(h).not.toMatch(/background:#|background:rgb/);
   });
 
+  it('la vignette est le média RÉEL quand il existe, une vignette vide honnête sinon', () => {
+    const avecMedia: FaitsLotApercu[] = [
+      { id: 'm1', number: 1, status: 'testing', goal: null, launchedAt: '2026-09-01', ads: 2, thumbUrl: 'https://cf.example.invalid/neva/v1.jpg' },
+      { id: 'm2', number: 2, status: 'testing', goal: null, launchedAt: '2026-09-02', ads: 1, thumbUrl: null },
+    ];
+    const h = renderToStaticMarkup(<ApercuLots lots={avecMedia} peutVoirLots />);
+    // Carte avec média · un <img> porte l'URL RÉELLE reçue (pas une substitution).
+    expect(h).toMatch(/<img[^>]+src="https:\/\/cf\.example\.invalid\/neva\/v1\.jpg"/);
+    // Les deux cartes posent la fenêtre de vignette.
+    expect((h.match(/data-vignette-lot/g) || []).length).toBe(2);
+    // Un seul <img> · la carte sans média NE fabrique AUCUN visuel (zéro src inventé).
+    expect((h.match(/<img/g) || []).length).toBe(1);
+  });
+
   it('sans lot, un état vide honnête · pas de carte vide', () => {
     const h = renderToStaticMarkup(<ApercuLots lots={[]} peutVoirLots />);
     expect(h).toContain('Aucun lot pour cette marque');
@@ -103,6 +118,44 @@ describe('V5 · la bande « Lots de test » (HTML rendu)', () => {
   it('« Tous les lots → » et « Préparer un lot » n’apparaissent qu’avec le droit lots', () => {
     const sansDroit = renderToStaticMarkup(<ApercuLots lots={lots} peutVoirLots={false} />);
     expect(sansDroit).not.toContain('Tous les lots →');
+  });
+});
+
+describe('V5 · la boucle en bande compacte (HTML rendu)', () => {
+  const etapes: EtapeParcours[] = [
+    { cle: 'hypothese', numero: 1, titre: 'Hypothèse', nature: 'hypothese', aide: 'AIDE_A_RETIRER_DE_LA_BANDE', etat: { atteinte: true, texte: '3 tests portent une hypothèse écrite.' }, liens: [{ libelle: 'Voir les tests', href: '#tests' }] },
+    { cle: 'lot', numero: 2, titre: 'Lot', nature: 'organisation', aide: 'AIDE_LOT', etat: { atteinte: true, texte: '3 lots · 2 lancés.' }, liens: [{ libelle: 'Ouvrir les lots', href: '/adsmap/lots' }, { libelle: 'Protocole', href: '/adsmap/protocole' }] },
+  ];
+
+  it('porte la variante « bande » et garde la DONNÉE réelle de chaque étape', () => {
+    const h = renderToStaticMarkup(<ParcoursBoucle titre="Boucle" etapes={etapes} variant="bande" />);
+    expect(h).toContain('data-variante="bande"');
+    // La donnée mesurée de l'étape reste affichée (on ne perd rien d'essentiel).
+    expect(h).toContain('3 tests portent une hypothèse écrite.');
+    expect(h).toContain('3 lots · 2 lancés.');
+    // La nature reste dite à l'écran.
+    expect(h).toContain(LIBELLE_NATURE.hypothese);
+  });
+
+  it('compacte · l’aide explicative est retirée de la bande', () => {
+    const h = renderToStaticMarkup(<ParcoursBoucle titre="Boucle" etapes={etapes} variant="bande" />);
+    // Mutation de contrôle · si la bande re-rendait l'aide, ce texte reparaîtrait.
+    expect(h).not.toContain('AIDE_A_RETIRER_DE_LA_BANDE');
+    expect(h).not.toContain('AIDE_LOT');
+  });
+
+  it('chaque tuile est cliquable vers sa destination PRINCIPALE (le premier lien)', () => {
+    const h = renderToStaticMarkup(<ParcoursBoucle titre="Boucle" etapes={etapes} variant="bande" />);
+    expect(h).toContain('href="#tests"');
+    expect(h).toContain('href="/adsmap/lots"');
+    // La destination secondaire du noyau n'encombre plus la bande (atteignable ailleurs).
+    expect(h).not.toContain('href="/adsmap/protocole"');
+  });
+
+  it('la variante « riche » (Veille) garde aide ET liens · aucune régression', () => {
+    const h = renderToStaticMarkup(<ParcoursBoucle titre="Boucle" etapes={etapes} />);
+    expect(h).toContain('AIDE_A_RETIRER_DE_LA_BANDE');
+    expect(h).toContain('href="/adsmap/protocole"');
   });
 });
 
