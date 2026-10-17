@@ -17,11 +17,13 @@ const eur = (n?: number) => (n == null ? 'n/c' : '€' + compact(n));
 
 const lienExterne = { fontSize: 11, fontWeight: 600, padding: '4px 9px', borderRadius: 8, border: '1px solid var(--line-2)', color: 'var(--ink-2)', textDecoration: 'none', background: 'var(--bg)' } as const;
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, dense = false }: { label: string; value: string; dense?: boolean }) {
+  // `dense` · la présentation V5 resserre la carte (maquette · grille compacte) ·
+  // tuiles plus serrées et valeur un cran plus petite, sans rien retirer du signal.
   return (
-    <div style={{ flex: '1 1 auto', minWidth: 60, padding: '5px 8px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--line)' }}>
+    <div style={{ flex: '1 1 auto', minWidth: dense ? 54 : 60, padding: dense ? '4px 7px' : '5px 8px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--line)' }}>
       <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{value}</div>
+      <div style={{ fontSize: dense ? 12 : 13, fontWeight: 700, color: 'var(--ink)' }}>{value}</div>
     </div>
   );
 }
@@ -91,7 +93,9 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
           <SaveButton ad={ad} initialSaved={saved} />
         </div>
       </div>
-      <div style={{ padding: '11px 12px', display: 'grid', gap: 8 }}>
+      {/* En V5 (maquette · grille 4 colonnes compactes) la carte se resserre ·
+          padding et interligne réduits, sans rien retirer des signaux réels. */}
+      <div style={{ padding: badgesV5 ? '10px 11px 11px' : '11px 12px', display: 'grid', gap: badgesV5 ? 6 : 8 }}>
         {/* minWidth:0 · la rangée est un enfant de grille et le nom un flex-item ·
             sans ça (min-width auto par défaut) l'ellipsis voulue sur le nom
             n'opère pas et un annonceur au nom long pousse le badge et le bouton
@@ -133,21 +137,21 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {ad.platform === 'tiktok' ? (
             <>
-              <Stat label="Vues" value={compact(ad.views)} />
-              <Stat label="Likes" value={compact(ad.likes)} />
-              {ad.engagementRate != null && <Stat label="Engag." value={ad.engagementRate.toFixed(1).replace('.', ',') + ' %'} />}
+              <Stat label="Vues" value={compact(ad.views)} dense={badgesV5} />
+              <Stat label="Likes" value={compact(ad.likes)} dense={badgesV5} />
+              {ad.engagementRate != null && <Stat label="Engag." value={ad.engagementRate.toFixed(1).replace('.', ',') + ' %'} dense={badgesV5} />}
             </>
           ) : ad.platform === 'google' ? (
             <>
-              <Stat label="Reach" value={compact(ad.reach)} />
-              {ad.format && <Stat label="Format" value={ad.format.replace('_', ' ')} />}
-              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
+              <Stat label="Reach" value={compact(ad.reach)} dense={badgesV5} />
+              {ad.format && <Stat label="Format" value={ad.format.replace('_', ' ')} dense={badgesV5} />}
+              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} dense={badgesV5} />}
             </>
           ) : (
             <>
-              <Stat label="Reach" value={compact(ad.reach)} />
-              <Stat label="Spend est." value={eur(ad.estimatedSpend)} />
-              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
+              <Stat label="Reach" value={compact(ad.reach)} dense={badgesV5} />
+              <Stat label="Spend est." value={eur(ad.estimatedSpend)} dense={badgesV5} />
+              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} dense={badgesV5} />}
             </>
           )}
         </div>
