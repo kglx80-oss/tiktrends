@@ -29,6 +29,7 @@
  */
 
 import { estGagnanteValidee, LIBELLE_VERDICT } from './adsmap/verdict-libelle';
+import { usableImageUrl } from './adsmap/written-source';
 import { verdictEffectif, type VerdictValue } from './adsmap/types';
 import { lienIterationStudio } from './studios/anciennes-adresses';
 import { CHEMIN_IMPORT_RESULTATS, CHEMIN_SUITES } from './parcours-boucle';
@@ -179,6 +180,13 @@ export interface ContexteGagnante {
   lot: { numero: number; statut: string } | null;
   /** Un apprentissage VALIDÉ et non réfuté est rattaché à l'ad (`adsmap_learnings`). */
   apprentissageValide: boolean;
+  /**
+   * La vignette média RÉELLE de la gagnante · `adsmap_ads.asset_url` ou la
+   * miniature de sa créative (`creatives.thumb_url`), telle que lue. Jamais une
+   * image inventée · `prochainesIterationsAccueil` la valide par `usableImageUrl`
+   * (une page de partage ou un lien non affichable devient `null`).
+   */
+  vignette?: string | null;
 }
 
 export interface MesureIteration {
@@ -242,6 +250,11 @@ export function mesureIteration(metricsAgg: unknown, plateforme: string | null, 
 export interface CarteIterationAccueil {
   adId: string;
   titre: string;
+  /**
+   * La vignette média réelle de la gagnante · `null` quand aucune URL affichable
+   * n'existe (la carte reste en texte seul · jamais une image de remplacement).
+   */
+  vignette: string | null;
   /** « Gagnante », « Gagnante naissante » · le verdict effectif arbitré. */
   verdict: string;
   /** « Lot #3 conclu », « Lot #3 », ou « Hors lot ». */
@@ -280,6 +293,7 @@ export function prochainesIterationsAccueil<T extends LigneIterationAccueil>(
     return {
       adId: r.adId,
       titre: r.label,
+      vignette: usableImageUrl(c?.vignette ?? null),
       verdict: LIBELLE_VERDICT[eff].court,
       lot: libelleLot(c?.lot ?? null),
       apprentissageValide: !!c?.apprentissageValide,

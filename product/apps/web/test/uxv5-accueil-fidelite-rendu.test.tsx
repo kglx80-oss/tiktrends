@@ -30,6 +30,29 @@ const iterations = etatProchainesIterations({
 });
 const iterHtml = renderToStaticMarkup(<ProchainesIterations etat={iterations} />);
 
+// La même liste, mais la gagnante porte une vignette média RÉELLE (asset_url) ·
+// la maquette 2.webp pose une vignette créa en tête de carte.
+const VIGNETTE = 'https://cdn.example.com/neva/grand-plongeon-v1.png';
+const iterationsVignette = etatProchainesIterations({
+  refus: null, marqueActive: true, peutIterer: true,
+  contexte: () => ({ metricsAgg: { ctr: 0.27, daysElapsed: 7 }, plateforme: 'meta', lot: { numero: 1, statut: 'analyzed' }, apprentissageValide: true, vignette: VIGNETTE }),
+  lecture: { ok: true, rows: [
+    { adId: '0f8e7a52-3c1d-4b6e-9a2f-1d2c3b4a5e6f', label: 'C · v1', conceptTitle: 'C', variableLabel: 'le format', freezeLabels: ['l’accroche'], rationale: 'r', edgeLegal: true, parentVerdict: 'winner', parentComparable: true },
+  ] },
+});
+const iterVignetteHtml = renderToStaticMarkup(<ProchainesIterations etat={iterationsVignette} />);
+
+// Une gagnante dont l'« asset » est une PAGE de partage (pas un fichier) · le
+// noyau (`usableImageUrl`) la refuse · aucune vignette inventée.
+const iterationsPartage = etatProchainesIterations({
+  refus: null, marqueActive: true, peutIterer: true,
+  contexte: () => ({ metricsAgg: null, plateforme: 'meta', lot: null, apprentissageValide: false, vignette: 'https://drive.google.com/file/d/abc123/view' }),
+  lecture: { ok: true, rows: [
+    { adId: '0f8e7a52-3c1d-4b6e-9a2f-1d2c3b4a5e6f', label: 'C · v1', conceptTitle: 'C', variableLabel: 'le format', freezeLabels: [], rationale: 'r', edgeLegal: true, parentVerdict: 'winner', parentComparable: true },
+  ] },
+});
+const iterPartageHtml = renderToStaticMarkup(<ProchainesIterations etat={iterationsPartage} />);
+
 const tuilesHtml = renderToStaticMarkup(<TuilesAccueil tuiles={tuilesAccueil({ nouveauProjet: '/studio/projets/nouveau', veille: true, jarvis: true, importer: true, fiche: { href: '/brands/b1', manques: ['le ton'] } })} />);
 
 describe('fidélité V5 · l’Accueil rendu porte les signes de la maquette', () => {
@@ -48,6 +71,23 @@ describe('fidélité V5 · l’Accueil rendu porte les signes de la maquette', (
     expect(btn, 'bouton Itérer introuvable').not.toBeNull();
     expect(btn![1], 'le bouton Itérer ne porte pas l’icône refresh').toContain(`d="${ICON_PATHS.refresh}"`);
     expect(btn![1], 'le bouton Itérer porte encore l’icône trend').not.toContain(`d="${ICON_PATHS.trend}"`);
+  });
+
+  it('une gagnante avec média réel porte sa vignette créa en tête de carte (img src réel)', () => {
+    // Le cadre de la vignette existe, et porte bien l'URL média RÉELLE.
+    expect(iterVignetteHtml, 'cadre de vignette absent en tête de carte').toContain('data-vignette-iteration');
+    const img = /<div data-vignette-iteration[^>]*>\s*<img src="([^"]+)" alt="([^"]*)"/s.exec(iterVignetteHtml);
+    expect(img, 'image de vignette introuvable').not.toBeNull();
+    expect(img![1], 'la vignette ne porte pas l’URL média réelle').toBe(VIGNETTE);
+    expect(img![2], 'la vignette n’est pas nommée (alt vide)').toContain('Créative gagnante');
+    // Sans média, la carte reste en texte seul · aucune vignette inventée.
+    expect(iterHtml, 'une vignette apparaît alors qu’aucun média n’est fourni').not.toContain('data-vignette-iteration');
+  });
+
+  it('un « asset » qui est une page de partage ne devient jamais une vignette', () => {
+    // Le noyau filtre (usableImageUrl) · la carte rend, sans cadre de vignette.
+    expect(iterPartageHtml, 'la carte de la gagnante n’a pas été rendue').toContain('data-iteration');
+    expect(iterPartageHtml, 'une page de partage a été affichée comme vignette').not.toContain('data-vignette-iteration');
   });
 
   it('les pastilles d’icône des tuiles sont teintées d’accent (--accent-soft), jamais --paper', () => {

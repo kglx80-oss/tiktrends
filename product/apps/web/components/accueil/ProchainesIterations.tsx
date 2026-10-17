@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { CIBLE_TACTILE_MIN, type CarteIterationAccueil, type EtatProchainesIterations } from '@tiktrends/core';
 import { Icon } from '../Icon';
+import { VignetteIteration } from './VignetteIteration';
 import { btn, surface, tuile, vide } from '../ui';
 
 /**
@@ -45,6 +46,8 @@ function Cadre({ children, droite }: { children: ReactNode; droite?: ReactNode }
 function Carte({ c }: { c: CarteIterationAccueil }) {
   return (
     <article data-iteration={c.adId} style={{ ...tuile, background: 'var(--bg)', padding: 18, display: 'grid', gap: 12, alignContent: 'start', minWidth: 0 }}>
+      {/* La vignette en tête · la créative gagnante RÉELLE, servie telle quelle (maquette 2.webp) · absente quand aucune URL affichable (jamais une image inventée). */}
+      {c.vignette && <VignetteIteration src={c.vignette} titre={c.titre} />}
       {/* Le « · » vit DANS l'élément qu'il précède · au retour à la ligne, il ne reste jamais seul en fin de ligne. */}
       <div style={{ display: 'flex', alignItems: 'center', columnGap: 8, rowGap: 4, flexWrap: 'wrap', fontSize: 12.5, fontWeight: 600 }}>
         <span data-verdict style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--ok-text)' }}><Icon name="check" size={13} />{c.verdict}</span>
