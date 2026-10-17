@@ -79,6 +79,19 @@ export const OBJECTIFS_V5: readonly ObjectifType[] = ['notoriete', 'consideratio
 export type PlateformeV5 = 'meta_feed' | 'meta_stories_reels' | 'tiktok';
 export const PLATEFORMES_V5: readonly PlateformeV5[] = ['meta_feed', 'meta_stories_reels', 'tiktok'];
 
+/** Libellés d'écran des champs V5 · marque blanche, « Adsmap », pas de tiret cadratin. */
+export const LIBELLES_OBJECTIF_V5: Readonly<Record<ObjectifType, string>> = {
+  notoriete: 'Notoriété',
+  consideration: 'Considération',
+  conversion: 'Conversion',
+  fidelisation: 'Fidélisation',
+};
+export const LIBELLES_PLATEFORME_V5: Readonly<Record<PlateformeV5, string>> = {
+  meta_feed: 'Meta · Feed',
+  meta_stories_reels: 'Meta · Stories & Reels',
+  tiktok: 'TikTok',
+};
+
 /**
  * Le `result` de `brief_build_output`.
  *
