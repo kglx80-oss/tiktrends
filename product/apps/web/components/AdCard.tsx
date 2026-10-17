@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, ancreCarteVeille, lienAnnonceurVeille, LIBELLE_ANNONCEUR_VEILLE, TITRE_ANNONCEUR_VEILLE, nomLienAnnonceurVeille, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, ancreCarteVeille, lienAnnonceurVeille, LIBELLE_ANNONCEUR_VEILLE, TITRE_ANNONCEUR_VEILLE, nomLienAnnonceurVeille, CIBLE_TACTILE_MIN, bandeauVeille, teinte } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -26,7 +26,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false, cibles44 = false, contexteRetour }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
+export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false, cibles44 = false, contexteRetour, badgesV5 = false }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
   /**
    * Rend le pont vers la création DISCRET · même lien, même texte, même
    * comportement, mais sans le fond plein accentué. La Veille mène par
@@ -47,7 +47,15 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
    * la carte porte alors une ancre, un lien vers les annonces du même annonceur
    * et un Studio qui sait revenir ici. Absent hors Veille · rien ne change.
    */
-  contexteRetour?: string }) {
+  contexteRetour?: string;
+  /**
+   * UX V5 · présentation de la maquette · bandeau plateforme + format en haut du
+   * média, et pastille de statut (Active / Inactive · N j) avec jauge. N'affiche
+   * QUE des champs réels (`bandeauVeille`, noyau) · pas de durée, ratio,
+   * variantes ni tags simulés (absents de la source). Opt-in · défaut `false` ·
+   * les autres surfaces de la carte restent inchangées.
+   */
+  badgesV5?: boolean }) {
   const t44 = cibles44 ? { minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' } as const : null;
   // Gagnant = éprouvé · tient depuis assez longtemps, ou portée qui progresse.
   // On le flague et on pousse le clone · c'est la pub PROUVÉE qu'on veut refaire,
@@ -59,16 +67,39 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
   const ancre = contexteRetour != null ? ancreCarteVeille(ad) : null;
   const retour = contexteRetour != null ? `${contexteRetour}${ancre ? `#${ancre}` : ''}` : null;
   const annonceur = retour != null ? lienAnnonceurVeille(ad, retour) : null;
+  // UX V5 · bandeau et statut, tirés des seuls champs réels de l'annonce.
+  const bandeau = badgesV5 ? bandeauVeille(ad) : null;
   return (
     <div id={ancre ?? undefined} style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column', ...(ancre ? { scrollMarginTop: 96 } : null) }}>
       <div style={{ position: 'relative' }}>
-        <AdMedia mediaUrl={ad.mediaUrl} thumbnailUrl={ad.thumbnailUrl} isVideo={ad.mediaType === 'video'} daysRunning={ad.daysRunning} aspect="1/1" />
+        {/* En V5, le bandeau plateforme + format prend le coin haut-gauche · les
+            jours de diffusion quittent ce coin pour la pastille de statut, sous le
+            média (maquette). Hors V5, le badge « N j actifs » du média reste. */}
+        <AdMedia mediaUrl={ad.mediaUrl} thumbnailUrl={ad.thumbnailUrl} isVideo={ad.mediaType === 'video'} daysRunning={badgesV5 ? undefined : ad.daysRunning} aspect="1/1" />
+        {bandeau && (
+          <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 6, zIndex: 2 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: teinte('sombre-fixe', .65), color: 'var(--clair-fixe)' }}>{bandeau.plateforme}</span>
+            {bandeau.media && <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: teinte('sombre-fixe', .5), color: 'var(--clair-fixe)' }}>{bandeau.media}</span>}
+          </div>
+        )}
         {/* Sauvegarder / retirer (instantané) */}
         <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
           <SaveButton ad={ad} initialSaved={saved} />
         </div>
       </div>
       <div style={{ padding: '11px 12px', display: 'grid', gap: 8 }}>
+        {bandeau && (
+          // Pastille de statut + jauge (maquette V5) · statut et jours RÉELS · la
+          // jauge mesure les jours contre le seuil de piste éprouvée (noyau). Pas
+          // de variantes ni de date de première vue (absentes de la source).
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: bandeau.statut.actif ? 'var(--ok)' : 'var(--muted)' }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{bandeau.statut.texte} · {bandeau.statut.jours} j</span>
+            <span aria-hidden style={{ flex: '1 1 auto', height: 4, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', minWidth: 24 }}>
+              <span style={{ display: 'block', height: '100%', width: `${Math.round(bandeau.jauge * 100)}%`, borderRadius: 999, background: bandeau.statut.actif ? 'var(--ok)' : 'var(--muted)' }} />
+            </span>
+          </div>
+        )}
         {/* minWidth:0 · la rangée est un enfant de grille et le nom un flex-item ·
             sans ça (min-width auto par défaut) l'ellipsis voulue sur le nom
             n'opère pas et un annonceur au nom long pousse le badge et le bouton

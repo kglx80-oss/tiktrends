@@ -389,7 +389,7 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
           même à deux résultats (pas d'étirement géant). */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 18 }}>
         {ads.map((ad) => (
-          <AdCard key={ad.id} ad={ad} ctaSobre cibles44 contexteRetour={contexte}
+          <AdCard key={ad.id} ad={ad} ctaSobre cibles44 badgesV5 contexteRetour={contexte}
             saved={savedSet.has(ad.platform + ':' + ad.id)}
             following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}
