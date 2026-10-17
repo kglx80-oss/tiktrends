@@ -175,10 +175,10 @@ describe('message 55 · écrans de #724 rendus · chaque cadre porte son rôle',
     ['/jarvis/sources · membre Core (sans la mémoire Plus)', async () => { h.session = membreCore; return renderToStaticMarkup(await SourcesPage()); }],
     ['DescribePanel · tranche chiffrée (jsdom)', async () => (await monter(<DescribePanel />)).innerHTML],
     ['/jarvis · refus (offre, rôle)', async () => renderToStaticMarkup(<><RefusJarvis titre="Jarvis" why="plan" owner /><RefusJarvis titre="Jarvis" why="role" owner={false} /></>)],
-    ['JarvisChat · fil en échec (jsdom)', async () => (await monter(<JarvisChat />)).innerHTML],
+    ['JarvisChat · fil en échec (jsdom)', async () => (await monter(<JarvisChat fiche={null} brandId="b1" kpiSource={null} />)).innerHTML],
     ['JarvisChat · fil chargé (jsdom)', async () => {
       h.thread = { turns: [{ id: '1', role: 'user', content: 'Q', at: T }, { id: '2', role: 'assistant', content: 'R', at: T }], starters: [], measuredAds: 0, brandName: 'Neva', contexte: { brandId: 'b1', identity: null, rules: null, hooks: null, connaissances: null }, sources: {} };
-      return (await monter(<JarvisChat />)).innerHTML;
+      return (await monter(<JarvisChat fiche={null} brandId="b1" kpiSource={null} />)).innerHTML;
     }],
     ['JarvisContexte · connaissances incluses', async () => renderToStaticMarkup(
       <JarvisContexte contexte={{ brandId: 'b', identity: 'Identité', rules: 'Règles', hooks: null, connaissances: { inclus: [{ ref: 'Kaaaa-v1', titre: 'Itérer', type: 'methode', tronquee: true }], horsPlace: 1 } }} brandName="Neva" measuredAds={2} onClose={() => {}} />,

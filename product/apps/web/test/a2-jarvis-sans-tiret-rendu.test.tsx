@@ -86,7 +86,7 @@ describe('A2 · réponse de Jarvis affichée sans tiret cadratin', () => {
       document.body.appendChild(hote);
       const r = createRoot(hote);
       root = r;
-      await act(async () => { r.render(<JarvisChat />); });
+      await act(async () => { r.render(<JarvisChat fiche={null} brandId="b1" kpiSource={null} />); });
       await act(async () => { await new Promise((x) => setTimeout(x, 0)); });
 
       const zone = hote.querySelector('textarea')!;
