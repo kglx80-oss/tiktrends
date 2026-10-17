@@ -181,12 +181,17 @@ describe('Dossiers · member en Core · chaque geste marche, scope espace tenu',
     expect(await restaurerDossierAction({ id: racine })).toEqual({ ok: true });
     expect((await foldersWs(ids.wsA)).find((f) => f.id === racine)!.deletedAt).toBeNull();
   });
-  it('dossier SYSTÈME (verrouillé) · renommage et suppression refusés', async () => {
+  it('dossier SYSTÈME (verrouillé) · renommage, déplacement et suppression refusés · l’arbre ne bouge pas', async () => {
+    etat.session = session(ids, 'ua');
     const [sys] = await db!.insert(schema.libraryFolders).values({ workspaceId: ids.wsA, name: 'Système', locked: true }).returning();
+    // Une destination VIVANTE, même espace, même marque (null) que le dossier système.
+    const dest = (await creerDossierAction({ nom: 'Destination' })).id!;
     expect((await renommerDossierAction({ id: sys!.id, nom: 'X' })).ok).toBeUndefined();
+    expect((await deplacerDossierAction({ id: sys!.id, parentId: dest })).ok).toBeUndefined();
     expect((await supprimerDossierAction({ id: sys!.id })).ok).toBeUndefined();
     const row = (await foldersWs(ids.wsA)).find((f) => f.id === sys!.id)!;
     expect(row.name).toBe('Système');
+    expect(row.parentId).toBeNull();   // le déplacement n’a pas touché l’arbre
     expect(row.deletedAt).toBeNull();
   });
   it('un dossier d’un AUTRE espace reste hors d’atteinte (renommage, suppression)', async () => {

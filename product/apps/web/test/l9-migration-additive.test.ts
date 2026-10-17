@@ -78,6 +78,10 @@ describe('règle pure · classement des instructions', () => {
     expect(classerInstructionSql('CREATE INDEX "i" ON "t" ("a")').rejouable).toBe(false);
     expect(classerInstructionSql('ALTER TABLE "t" ADD CONSTRAINT "c" UNIQUE ("a")').rejouable).toBe(false);
     expect(classerInstructionSql('DO $$ BEGIN ALTER TABLE "t" ADD CONSTRAINT "c" UNIQUE ("a"); EXCEPTION WHEN duplicate_object THEN null; END $$').genre).toBe('bloc_protege');
+    // Valider une contrainte posée NOT VALID (0057) · additive et rejouable, ni écriture ni destruction.
+    const vc = classerInstructionSql('ALTER TABLE "assets" VALIDATE CONSTRAINT "assets_rights_ck"');
+    expect(vc.genre).toBe('ajout_contrainte');
+    expect(vc.rejouable).toBe(true);
   });
   it('un corps de fonction n’est pas exécuté au passage : un UPDATE dedans ne compte pas, un « ; » dedans ne coupe pas', () => {
     const sql = `CREATE OR REPLACE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $fn$ BEGIN UPDATE t SET a = 1; RETURN NEW; END $fn$;

@@ -49,15 +49,29 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "library_folders_portee_idx" ON "library_folders" USING btree ("workspace_id","brand_id","parent_id");--> statement-breakpoint
+-- FK et CHECK sur la table EXISTANTE `assets`, en DEUX temps. Posés « NOT VALID »,
+-- ils ne prennent l'ACCESS EXCLUSIVE que le temps d'inscrire la contrainte,
+-- SANS scanner la table (le timer déploie chaque minute). Le `VALIDATE` qui suit
+-- vérifie les lignes sous un SHARE UPDATE EXCLUSIVE, non bloquant pour les
+-- écritures. Les lignes existantes ont `folder_id`/`rights` à NULL : rien à
+-- rejeter. Le VALIDATE est rejouable (valider une contrainte déjà valide est un
+-- no-op sans erreur). Les FK de `library_folders` (table CRÉÉE ici, donc vide)
+-- restent validées d'emblée : aucun scan.
 DO $$ BEGIN
- ALTER TABLE "assets" ADD CONSTRAINT "assets_folder_id_library_folders_id_fk" FOREIGN KEY ("folder_id") REFERENCES "public"."library_folders"("id") ON DELETE set null ON UPDATE no action;
+ ALTER TABLE "assets" ADD CONSTRAINT "assets_folder_id_library_folders_id_fk" FOREIGN KEY ("folder_id") REFERENCES "public"."library_folders"("id") ON DELETE set null ON UPDATE no action NOT VALID;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
+ALTER TABLE "assets" VALIDATE CONSTRAINT "assets_folder_id_library_folders_id_fk";--> statement-breakpoint
+-- CREATE INDEX non-CONCURRENTLY : CONCURRENTLY est incompatible avec la
+-- transaction de migration drizzle. `assets` est petite (quelques milliers de
+-- lignes) · le verrou (SHARE) le temps de bâtir l'index est bref et accepté.
 CREATE INDEX IF NOT EXISTS "assets_folder_idx" ON "assets" USING btree ("folder_id");--> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "assets" ADD CONSTRAINT "assets_rights_ck" CHECK ("rights" IN ('photo_marque', 'ugc_accord', 'banque_images', 'a_preciser'));
+ ALTER TABLE "assets" ADD CONSTRAINT "assets_rights_ck" CHECK ("rights" IN ('photo_marque', 'ugc_accord', 'banque_images', 'a_preciser')) NOT VALID;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
+--> statement-breakpoint
+ALTER TABLE "assets" VALIDATE CONSTRAINT "assets_rights_ck";

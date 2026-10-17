@@ -138,6 +138,7 @@ export async function deplacerDossierAction(input: { id: string; parentId: strin
 
   const dossier = await lireDossier(s.workspaceId, input?.id);
   if (!dossier) return { error: 'Dossier introuvable.' };
+  if (dossier.locked) return { error: 'Ce dossier système ne peut pas être déplacé.' };
   const nouveauParent = input?.parentId ?? null;
 
   const liste = await dossiersVivants(s.workspaceId);
