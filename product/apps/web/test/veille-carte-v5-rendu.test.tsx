@@ -54,4 +54,39 @@ describe('Veille · carte V5 (HTML rendu)', () => {
     expect(d.textContent || '', 'pas de pastille de statut hors V5').not.toContain('Active · 63 j');
     expect([...d.querySelectorAll('span')].some((s) => s.textContent === 'Meta'), 'pas de badge plateforme hors V5').toBe(false);
   });
+
+  // ── Fidélité à la maquette · mesurée sur le HTML ciselé (ordre, pastilles,
+  //    jauge, titre) · chaque assertion éprouvée par mutation. ──────────────────
+  const html = (ad: InspoAd) => renderToStaticMarkup(<AdCard ad={ad} ctaSobre cibles44 badgesV5 contexteRetour="/veille" />);
+
+  it('le nom précède la pastille de statut (ordre de la maquette · identité puis signal)', () => {
+    const h = html(adActive);
+    const iNom = h.indexOf('Ploufy');
+    const iStatut = h.indexOf('Active · 63 j');
+    expect(iNom, 'nom présent').toBeGreaterThanOrEqual(0);
+    expect(iStatut, 'la pastille de statut vient APRÈS le nom').toBeGreaterThan(iNom);
+  });
+
+  it('les deux pastilles de bandeau partagent un même fond sombre et un même rayon (9, comme la sauvegarde)', () => {
+    const badges = [...html(adActive).matchAll(/<span style="font-size:11px;font-weight:\d+;padding:3px 9px;border-radius:(\d+)px;background:([^"]+?);color:var\(--clair-fixe\)">(?:Meta|Vidéo|TikTok|Image|Google)<\/span>/g)];
+    expect(badges.length, 'plateforme + format').toBe(2);
+    const rayons = badges.map((b) => b[1]);
+    const fonds = badges.map((b) => b[2]);
+    expect(rayons, 'rayon 9 pour les deux (jumelle de SaveButton, pas une pilule 999)').toEqual(['9', '9']);
+    expect(fonds[0], 'fonds identiques · un seul système d’étiquettes').toBe(fonds[1]);
+  });
+
+  it('la jauge reste VERTE même pour une créa inactive · elle mesure la progression vers le seuil, pas l’état', () => {
+    const m = html(adInactive).match(/<span style="display:block;height:100%;width:\d+%;border-radius:999px;background:([^"]+)"/);
+    expect(m, 'remplissage de jauge présent').toBeTruthy();
+    const fond = m?.[1] ?? '';
+    expect(fond, 'jauge en --ok').toContain('var(--ok)');
+    expect(/var\(--muted\)/.test(fond), 'la jauge n’est jamais grisée sur un inactif').toBe(false);
+  });
+
+  it('le corps de l’annonce est présenté comme une citation « … » (maquette)', () => {
+    expect(html(adActive), 'guillemets autour du corps').toContain('« Il a enfin mis la tête sous l’eau. »');
+    // Non-régression · hors V5, pas de guillemets ajoutés au corps.
+    expect(renderToStaticMarkup(<AdCard ad={adActive} ctaSobre cibles44 contexteRetour="/veille" />), 'corps nu hors V5').not.toContain('« Il a enfin');
+  });
 });
