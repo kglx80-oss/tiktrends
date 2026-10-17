@@ -374,9 +374,15 @@ const DRIZZLE = join(PRODUIT, 'packages/db/drizzle');
 const JOURNAL = (JSON.parse(readFileSync(join(DRIZZLE, 'meta/_journal.json'), 'utf8')) as { entries: EntreeJournalMigration[] }).entries;
 const PREMIERE_STUDIOS = 54;
 
-const CONTRAINTES_EXISTANT_ADMISES: Record<string, string> = {
-  brands_id_workspace_uq: 'UNIQUE (id, workspace_id) · id est la clé primaire : toute ligne écrite par l’ancien code la respecte',
-  adsmap_ads_id_workspace_uq: 'UNIQUE (id, workspace_id) · id est la clé primaire : toute ligne écrite par l’ancien code la respecte',
+const CONTRAINTES_EXISTANT_ADMISES: Record<string, { motif: string; valide: (suite: string) => boolean }> = {
+  brands_id_workspace_uq: { motif: 'UNIQUE (id, workspace_id) · id est la clé primaire : toute ligne écrite par l’ancien code la respecte', valide: (s) => /^\s*UNIQUE \("id",/i.test(s) },
+  adsmap_ads_id_workspace_uq: { motif: 'UNIQUE (id, workspace_id) · id est la clé primaire : toute ligne écrite par l’ancien code la respecte', valide: (s) => /^\s*UNIQUE \("id",/i.test(s) },
+  // 0057 · contraintes posées sur des colonnes AJOUTÉES par la même migration
+  // (`folder_id`, `rights`), toutes deux nullables : l’ancien code, qui ignore
+  // ces colonnes, n’y écrit que NULL et ne peut donc pas les violer pendant la
+  // fenêtre inverse. Le prédicat cloue chaque admission à SA colonne neuve.
+  assets_folder_id_library_folders_id_fk: { motif: 'FK sur la colonne neuve nullable folder_id · l’ancien code écrit NULL', valide: (s) => /FOREIGN KEY \("folder_id"\)/i.test(s) },
+  assets_rights_ck: { motif: 'CHECK sur la colonne neuve nullable rights · l’ancien code écrit NULL', valide: (s) => /^\s*CHECK \("rights" IN/i.test(s) },
 };
 
 function violationsFenetreInverse(migrations: ReadonlyArray<{ tag: string; sql: string }>): string[] {
@@ -396,7 +402,7 @@ function violationsFenetreInverse(migrations: ReadonlyArray<{ tag: string; sql: 
         const [, table, nom, suite] = c;
         if (nouvelles.has(table!)) continue;
         const admise = CONTRAINTES_EXISTANT_ADMISES[nom!];
-        if (!admise || !/^\s*UNIQUE \("id",/i.test(suite!)) v.push(`« ${tag} » · contrainte « ${nom} » ajoutée à la table existante « ${table} » · l’ancien code peut la violer`);
+        if (!admise || !admise.valide(suite!)) v.push(`« ${tag} » · contrainte « ${nom} » ajoutée à la table existante « ${table} » · l’ancien code peut la violer`);
       }
     }
   }

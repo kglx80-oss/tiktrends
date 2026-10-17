@@ -1,9 +1,10 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
-import { and, desc, eq, isNull, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   photosDuProduit, empreinteAdresse, idLogoMarque, idBibliotheque, idMediaStudio, versionDepuisEmpreinte, estEmpreinte,
+  DROITS_PUB_AUTORISES,
   lireReferencesSources, lireReferenceEpinglee, lireReferenceProduit, validerFormeBrief, objetDansPortee, erreurStudio,
   type BriefCanonique, type ContenuVersion, type EmpreinteFichier, type FichierCatalogue, type ProduitMarque,
   type ReferenceProduitEpinglee, type ReferenceProduitStudio, type SourceReferenceStudio, type ErreurStudio,
@@ -127,8 +128,18 @@ export async function chargerCatalogueProjet(
   });
 
   const A = schema.assets;
+  // Droits d'usage (V5) · seuls les médias AUTORISÉS en publicité entrent au
+  // catalogue (règle `droitAutorisePub` du noyau, valeurs depuis
+  // `DROITS_PUB_AUTORISES`). `rights` null = non classé → hérité, admis (on ne
+  // retire pas l'éligibilité des médias déjà là). « À préciser » est exclu.
+  // La corbeille (`deleted_at`) est exclue : un média jeté n'est pas une source.
   const biblio = await db.select({ id: A.id, name: A.name, url: A.url })
-    .from(A).where(and(eq(A.workspaceId, ctx.workspaceId), eq(A.kind, 'image'), or(isNull(A.brandId), eq(A.brandId, brandId))))
+    .from(A).where(and(
+      eq(A.workspaceId, ctx.workspaceId), eq(A.kind, 'image'),
+      or(isNull(A.brandId), eq(A.brandId, brandId)),
+      or(isNull(A.rights), inArray(A.rights, DROITS_PUB_AUTORISES as unknown as string[])),
+      isNull(A.deletedAt),
+    ))
     .orderBy(desc(A.createdAt)).limit(IMAGES_BIBLIOTHEQUE_MAX);
   for (const b of biblio) {
     const e = hacherImage(b.url);
