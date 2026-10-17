@@ -31,10 +31,11 @@ import { BarreValeur } from '../../../components/BarreValeur';
  * simule pas.
  */
 
-const titreZone: CSSProperties = { margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', letterSpacing: '-0.01em' };
+const titreZone: CSSProperties = { margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.01em' };
 const carte: CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
   borderRadius: 16, border: '1px solid var(--line)', background: 'var(--surface)',
+  boxShadow: 'var(--sh-card)',
 };
 const pastille: CSSProperties = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -65,12 +66,12 @@ export function JarvisAccueilV5({ fiche, brandId, kpiSource, amorces, onAmorce, 
               <button
                 key={q} type="button" onClick={() => onAmorce(q)} disabled={enCours}
                 style={{
-                  ...carte, minHeight: CIBLE_TACTILE_MIN, textAlign: 'left',
+                  ...carte, alignItems: 'flex-start', padding: '16px', minHeight: CIBLE_TACTILE_MIN, textAlign: 'left',
                   cursor: enCours ? 'default' : 'pointer', opacity: enCours ? 0.6 : 1,
                 }}
               >
                 <span style={pastille}><Icon name="spark" size={16} /></span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>{q}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.4 }}>{q}</span>
               </button>
             ))}
           </div>
@@ -80,10 +81,19 @@ export function JarvisAccueilV5({ fiche, brandId, kpiSource, amorces, onAmorce, 
       {/* ── 2 · Automatisations · présentées, mais DÉSACTIVÉES (service absent). */}
       <section data-zone="automatisations" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <h3 style={titreZone}>Automatisations</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {AUTOMATISATIONS_JARVIS.map((a) => (
-            <div key={a.cle} style={{ ...carte, opacity: 0.72 }}>
-              <span style={{ ...pastille, background: 'var(--hover)', color: 'var(--muted)' }}><Icon name={a.icone} size={16} /></span>
+        {/* Un SEUL cadre, lignes séparées par un filet · comme la maquette. Les
+            lignes sont fidèles (pastille douce, titre net) · l'honnêteté tient au
+            bouton DÉSACTIVÉ et à la note sous le cadre, pas à un grisage global. */}
+        <div style={{ ...carte, flexDirection: 'column', alignItems: 'stretch', gap: 0, padding: 0 }}>
+          {AUTOMATISATIONS_JARVIS.map((a, i) => (
+            <div
+              key={a.cle}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                borderTop: i === 0 ? 'none' : '1px solid var(--line)',
+              }}
+            >
+              <span style={pastille}><Icon name={a.icone} size={16} /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{a.titre}</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 }}>{a.sous}</div>
@@ -93,9 +103,9 @@ export function JarvisAccueilV5({ fiche, brandId, kpiSource, amorces, onAmorce, 
                 title={AUTOMATISATION_A_VENIR}
                 style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  minHeight: 34, padding: '0 14px', flexShrink: 0,
-                  borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent',
-                  color: 'var(--muted)', fontSize: 12, fontWeight: 700, cursor: 'not-allowed',
+                  minHeight: 34, padding: '0 16px', flexShrink: 0,
+                  borderRadius: 'var(--r-md)', border: '1px solid var(--line-2)', background: 'transparent',
+                  color: 'var(--muted)', fontSize: 12.5, fontWeight: 700, cursor: 'not-allowed',
                 }}
               >
                 {a.action}

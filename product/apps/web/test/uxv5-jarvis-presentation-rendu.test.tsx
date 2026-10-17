@@ -124,3 +124,40 @@ describe('amorces · les vraies suggestions, en cartes cliquables', () => {
     expect(vues).toEqual(['A']);
   });
 });
+
+/**
+ * Fidélité V5 · on lit le HTML pour constater la PRÉSENTATION alignée sur la
+ * maquette (indépendante de la donnée) · chaque assertion tombe si on défait
+ * l'alignement (titres prominents, cartes qui flottent, un seul cadre à filets
+ * pour les automatisations). Les styles en ligne, `var(--…)` compris, survivent
+ * à la sérialisation jsdom · on lit donc l'attribut `style` tel quel.
+ */
+describe('fidélité V5 · présentation alignée sur la maquette', () => {
+  const sansEspace = (e: Element | null) => (e?.getAttribute('style') ?? '').replace(/\s+/g, '');
+
+  it('titres de zone prominents · ≈16px en encre pleine (pas un libellé minuscule)', () => {
+    const dom = monter({ fiche: fichePartielle });
+    const titres = [...dom.querySelectorAll('h3')];
+    expect(titres.length).toBeGreaterThanOrEqual(3);
+    for (const t of titres) {
+      expect(sansEspace(t)).toContain('font-size:16px');
+      expect(sansEspace(t)).toContain('color:var(--ink)');
+    }
+  });
+
+  it('les cartes flottent · ombre par jeton --sh-card', () => {
+    const dom = monter({ fiche: fichePartielle });
+    expect(sansEspace(dom.querySelector('[data-zone="completude"]'))).toContain('box-shadow:var(--sh-card)');
+    const amorce = dom.querySelector('[data-zone="amorces"] button');
+    expect(sansEspace(amorce)).toContain('box-shadow:var(--sh-card)');
+  });
+
+  it('automatisations · UN SEUL cadre à filets, pas trois cartes séparées', () => {
+    const dom = monter();
+    const zone = dom.querySelector('[data-zone="automatisations"]')!;
+    const ombres = [...zone.querySelectorAll('*')].filter((e) => sansEspace(e).includes('box-shadow:var(--sh-card)'));
+    expect(ombres).toHaveLength(1); // le cadre unique qui contient les trois lignes
+    const filets = [...zone.querySelectorAll('*')].filter((e) => sansEspace(e).includes('border-top:1pxsolidvar(--line)'));
+    expect(filets).toHaveLength(2); // deux filets entre trois lignes
+  });
+});
