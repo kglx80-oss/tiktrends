@@ -173,6 +173,7 @@ export * from './studios/execution';
 export * from './studios/suppression-marque';
 export * from './studios/propositions';
 export * from './studios/sources';
+export * from './studios/liste-projets';
 export * from './studios/bornes-taches';
 export * from './studios/variantes';
 export * from './studios/rendu';

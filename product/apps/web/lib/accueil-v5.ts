@@ -47,16 +47,24 @@ async function lire<T>(etiquette: string, f: () => Promise<T>): Promise<T | null
   }
 }
 
-export async function chargerAccueilV5(
+/**
+ * « Prochaines itérations » SEULES · lecture réelle du plan d'itération
+ * (gagnantes PROUVÉES) et de leur contexte, sous le droit Adsmap. Extrait de
+ * `chargerAccueilV5` pour être réutilisé tel quel par une autre page (la liste
+ * des Studios) · même source, même règle, aucune donnée inventée.
+ *
+ * Rend l'état prêt pour `<ProchainesIterations>` et le nombre de gagnantes
+ * prouvées lues (`null` si la source est fermée ou en panne · pour « ce qui
+ * t'attend »).
+ */
+export async function chargerProchainesIterations(
   s: Session,
-  p: { marque: { id: string } | null; nouveauProjet: string | null; nbProjets: number | null },
-): Promise<AccueilV5> {
+  p: { marque: { id: string } | null; peutIterer: boolean },
+): Promise<{ iterations: EtatProchainesIterations; nbProuves: number | null }> {
   const a = effectiveAccess(s);
   const refusAdsmap = denyReason(a, F('adsmap'));
   const adsmapOuvert = refusAdsmap === null && !!p.marque;
-  const veilleOuverte = canAccess(a, F('saved'));
 
-  // ── Prochaines itérations · le plan réel, gagnantes prouvées ─────────────
   let rows: IterationRow[] | null = null;
   let lecture: { ok: true; rows: IterationRow[] } | { ok: false; message: string } | null = null;
   if (adsmapOuvert && db) {
@@ -93,8 +101,21 @@ export async function chargerAccueilV5(
   }
   const iterations = etatProchainesIterations({
     refus: refusAdsmap, marqueActive: !!p.marque, lecture,
-    contexte: (id) => contexte.get(id), peutIterer: !!p.nouveauProjet,
+    contexte: (id) => contexte.get(id), peutIterer: p.peutIterer,
   });
+  return { iterations, nbProuves: lecture?.ok ? prouves.length : null };
+}
+
+export async function chargerAccueilV5(
+  s: Session,
+  p: { marque: { id: string } | null; nouveauProjet: string | null; nbProjets: number | null },
+): Promise<AccueilV5> {
+  const a = effectiveAccess(s);
+  const veilleOuverte = canAccess(a, F('saved'));
+  const adsmapOuvert = denyReason(a, F('adsmap')) === null && !!p.marque;
+
+  // ── Prochaines itérations · le plan réel, gagnantes prouvées ─────────────
+  const { iterations, nbProuves } = await chargerProchainesIterations(s, { marque: p.marque, peutIterer: !!p.nouveauProjet });
 
   // ── Les autres sources · chacune sous son droit ───────────────────────────
   const [veilleNonVue, notifications, sauvegardees, nouveautes, enTest, fiche] = await Promise.all([
@@ -162,7 +183,7 @@ export async function chargerAccueilV5(
   ]);
 
   const attente = chosesQuiAttendent({
-    iterations: lecture?.ok ? prouves.length : null,
+    iterations: nbProuves,
     veille: veilleNonVue,
     notifications,
   });
