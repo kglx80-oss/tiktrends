@@ -116,6 +116,20 @@ describe('Studios · liste des projets · rendu V5', () => {
     expect(html).toContain('data-barre-etape="brief_a_completer"');
   });
 
+  it('carte projet : pictogramme NEUTRE du type, jamais une vignette média fabriquée', () => {
+    // F#1 (mission) · le proto montre une vignette média en tête de carte. La
+    // donnée RÉELLE d'une carte (`CarteProjet`) ne porte AUCUNE URL média · le
+    // contenu de version ne référence les assets que par `assetId` opaque, qu'on
+    // ne peut résoudre en image sans un nouveau service. On garde donc le
+    // pictogramme NEUTRE du type (SVG au trait) et on ne fabrique aucune image.
+    const html = renderToStaticMarkup(<ListeProjets cartes={cartes} nouveau={nouveau} />);
+    // La carte p1 porte le pictogramme neutre de son type (un SVG, pas une image).
+    const carteP1 = html.slice(html.indexOf('data-projet="p1"'), html.indexOf('data-projet="p2"'));
+    expect(carteP1).toContain('<svg');
+    // Aucune vignette média fabriquée dans toute la liste (ni carte, ni « Nouveau projet »).
+    expect(html).not.toContain('<img');
+  });
+
   it('carte « Nouveau projet » (raccourci N) en fin de grille', () => {
     const html = renderToStaticMarkup(<ListeProjets cartes={cartes} nouveau={nouveau} />);
     expect(html).toContain('data-nouveau-projet="carte"');
