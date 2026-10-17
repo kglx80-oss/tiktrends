@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
@@ -97,7 +98,7 @@ export async function SectionEssais() {
           {conseil.avantTout && <div style={{ fontSize: 11.5, color: 'var(--err-pale)', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
           {conseil.variable && (
             <div data-essai="studio" style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.45 }}>
-              Prépare ton prochain essai depuis les variantes d’un projet Studios : au moins deux variantes, une seule variable. <a href="/studio/projets" style={{ color: 'var(--accent-strong)' }}>Ouvrir les projets</a>
+              Prépare ton prochain essai depuis les variantes d’un projet Studios : au moins deux variantes, une seule variable. <Link href="/studio/projets" style={{ color: 'var(--accent-strong)' }}>Ouvrir les projets</Link>
             </div>
           )}
         </div>
