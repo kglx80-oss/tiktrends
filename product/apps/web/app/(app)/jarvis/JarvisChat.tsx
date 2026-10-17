@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, sansTiretCadratin, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction, type FicheMarqueLue, type SourceDepenseJarvis } from '@tiktrends/core';
+import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, sansTiretCadratin, teinte, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction, type FicheMarqueLue, type SourceDepenseJarvis } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
-import { Icon } from '../../../components/Icon';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
 import { DraftCard } from '../../../components/DraftCard';
 import { JarvisAccueilV5 } from './JarvisAccueilV5';
@@ -276,12 +275,30 @@ export function JarvisChat({ fiche, brandId, kpiSource }: {
         // le rétrécir en petite colonne (Codex, 30/09).
         <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', maxWidth: 640, margin: '0 auto' }}>
-            <div style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name="brain" size={30} /></div>
-            <h2 style={{ margin: '14px 0 0', fontSize: isMobile ? 28 : 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
-              Quelle publicité améliorer en premier ?
+            {/* L'orbe de Jarvis · décor PUR, construit en jetons (aucune image
+                externe). Sphère lustrée : base en dégradé d'accent, bord
+                assombri (sombre-fixe translucide via teinte), éclat spéculaire
+                blanc FIXE (--clair-fixe · ne suit pas le thème, il est posé sur
+                un aplat saturé) et halo d'accent. Décor muet · le titre porte le
+                sens, l'orbe est aria-hidden. */}
+            <div aria-hidden style={{
+              width: isMobile ? 76 : 92, height: isMobile ? 76 : 92, borderRadius: '50%',
+              background: [
+                'radial-gradient(circle at 33% 27%, var(--clair-fixe), transparent 22%)',
+                `radial-gradient(circle at 50% 50%, transparent 54%, ${teinte('sombre-fixe', 0.38)} 100%)`,
+                'radial-gradient(circle at 38% 32%, var(--accent-strong), var(--accent) 48%, var(--accent-fin) 100%)',
+              ].join(', '),
+              boxShadow: `0 10px 36px ${teinte('accent', 0.42)}`,
+            }} />
+            <h2 style={{ margin: '18px 0 0', fontSize: isMobile ? 28 : 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+              Comment je peux t’aider sur{' '}
+              {/* Le nom de la marque ACTIVE (réel, jamais figé) · peint du dégradé
+                  d'accent (jeton), avec la couleur pleine en repli si le clip de
+                  texte n'est pas rendu. */}
+              <span style={{ background: 'var(--grad-accent)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'var(--accent-strong)' }}>{thread.brandName}</span> ?
             </h2>
             <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5, maxWidth: 520 }}>
-              Il cite tes chiffres, ou admet qu’il n’en a pas · et t’aide à décider quoi tester ensuite.
+              Je m’appuie sur ta fiche marque, ta Veille et tes résultats. Chaque proposition reste à valider.
             </p>
           </div>
           {/* Composeur PLEINE LARGEUR du cadre, hors de la colonne 640 · même
