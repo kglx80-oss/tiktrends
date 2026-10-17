@@ -78,6 +78,12 @@ describe('dates abîmées · défaut D7', () => {
     expect(parseSheetDate('14/05/2026', AUJOURD_HUI).date).toBe('2026-05-14');
   });
 
+  it('préserve les jours civils d’hiver et d’été sans conversion de fuseau', () => {
+    expect(parseSheetDate('15/01/2026', AUJOURD_HUI).date).toBe('2026-01-15');
+    expect(parseSheetDate('14/05/2026', AUJOURD_HUI).date).toBe('2026-05-14');
+    expect(parseSheetDate('31/02/2026', AUJOURD_HUI).rejected).toBe(true);
+  });
+
   it('une date absente n’est pas une date rejetée', () => {
     const d = parseSheetDate('', AUJOURD_HUI);
     expect(d.rejected).toBe(false);
