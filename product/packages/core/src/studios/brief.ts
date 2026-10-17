@@ -5,7 +5,10 @@
  * Pur · ni base, ni réseau, ni modèle.
  *
  * Le contenu `brief` d'une version de projet EST le `result` du contrat
- * `brief_build_output` : treize champs, ni plus ni moins. Ce module en donne :
+ * `brief_build_output` : treize champs canoniques REQUIS, auxquels la V5 ajoute
+ * des champs OPTIONNELS (persona, objectif typé, plateformes, angle, concept,
+ * désir · voir `CLES_BRIEF_V5`), sans migration (le brief vit en `jsonb`) et en
+ * pleine compatibilité ascendante. Ce module en donne :
  *
  *  · les TYPES (les autres lots les importent, aucun type concurrent) ;
  *  · la validation de FORME (le contrat, sans Ajv · utilisable côté client) ;
@@ -34,6 +37,10 @@ import { LIBELLES_ELEMENT, LIBELLES_MODALITE, controlerNarrationObservee } from 
 import { structureImportable, fuitesConcurrent, type ChampImportable } from './sources/import';
 import { idSourceProduit, type ReferenceProduitStudio } from './sources/produit';
 import type { HypotheseTest } from './sources/hypotheses';
+import {
+  violationsFormeReferenceAdsmap, violationPorteeReferenceAdsmap,
+  type ReferenceAdsmap, type KindReferenceAdsmap, type PorteeAdsmap, type ResolveurReferencesAdsmap,
+} from './references-adsmap';
 
 /* ─────────────────────────────── Types ───────────────────────────────────── */
 
@@ -61,7 +68,26 @@ export interface ReferenceBrief {
   requiredComponents: string[];
 }
 
-/** Le `result` de `brief_build_output`. */
+/**
+ * Objectif publicitaire TYPÉ (V5) · l'étape de notoriété visée. Facultatif : le
+ * champ libre `objective` reste la source première, ceci le qualifie.
+ */
+export type ObjectifType = 'notoriete' | 'consideration' | 'conversion' | 'fidelisation';
+export const OBJECTIFS_V5: readonly ObjectifType[] = ['notoriete', 'consideration', 'conversion', 'fidelisation'];
+
+/** Plateformes de diffusion (V5) · sous-ensemble, jamais la grille de prix. */
+export type PlateformeV5 = 'meta_feed' | 'meta_stories_reels' | 'tiktok';
+export const PLATEFORMES_V5: readonly PlateformeV5[] = ['meta_feed', 'meta_stories_reels', 'tiktok'];
+
+/**
+ * Le `result` de `brief_build_output`.
+ *
+ * Treize champs canoniques, REQUIS, inchangés (`CLES_BRIEF`). Les champs V5
+ * ci-dessous sont tous OPTIONNELS : un brief hérité qui ne les porte pas reste
+ * valide (compatibilité ascendante). Ils vivent dans le `jsonb` du contenu de
+ * version · aucune migration. Décision Kevin (14/10) : le persona est un vrai
+ * champ relié aux personas Adsmap, mais il n'est NI obligatoire NI bloquant.
+ */
 export interface BriefCanonique {
   objective: string;
   audience: string;
@@ -76,9 +102,36 @@ export interface BriefCanonique {
   texts: string[];
   formats: string[];
   exclusions: string[];
+  /* ── Champs V5 (optionnels, non bloquants) ───────────────────────────────── */
+  /** Persona Adsmap choisi · référence de portée, libellé figé. Jamais requis. */
+  personaRef?: ReferenceAdsmap;
+  objectifType?: ObjectifType;
+  plateformes?: PlateformeV5[];
+  /** Angle en texte libre, écrit pour la marque cible. */
+  angle?: string;
+  angleRef?: ReferenceAdsmap;
+  /** Concept en texte libre. */
+  concept?: string;
+  conceptRef?: ReferenceAdsmap;
+  desirRef?: ReferenceAdsmap;
 }
 
+/** Les treize champs canoniques · REQUIS. L'identité du contrat historique. */
 export const CLES_BRIEF = ['objective', 'audience', 'hypothesisId', 'testedVariable', 'facts', 'invariants', 'variables', 'references', 'composition', 'styleIntent', 'texts', 'formats', 'exclusions'] as const;
+
+/** Les champs V5 · tous OPTIONNELS. */
+export const CLES_BRIEF_V5 = ['personaRef', 'objectifType', 'plateformes', 'angle', 'angleRef', 'concept', 'conceptRef', 'desirRef'] as const;
+
+/** Toutes les clés PERMISES dans un brief (requises + optionnelles V5). */
+export const CLES_BRIEF_TOUTES = [...CLES_BRIEF, ...CLES_BRIEF_V5] as const;
+
+/** Les champs `*Ref` et le `kind` Adsmap qu'ils citent. */
+const REFS_ADSMAP_BRIEF: ReadonlyArray<{ cle: 'personaRef' | 'desirRef' | 'angleRef' | 'conceptRef'; kind: KindReferenceAdsmap }> = [
+  { cle: 'personaRef', kind: 'persona' },
+  { cle: 'desirRef', kind: 'desir' },
+  { cle: 'angleRef', kind: 'angle' },
+  { cle: 'conceptRef', kind: 'concept' },
+];
 
 export interface ViolationBrief { chemin: string; raison: string }
 
@@ -111,7 +164,10 @@ function textes(v: ViolationBrief[], x: unknown, chemin: string) {
 export function validerFormeBrief(x: unknown, chemin = '/brief'): ViolationBrief[] {
   const v: ViolationBrief[] = [];
   if (!estObjet(x)) return [{ chemin, raison: 'brief attendu' }];
-  cles(v, x, chemin, CLES_BRIEF);
+  // Clés : tout ce qui n'est ni canonique ni V5 est inconnu ; seuls les treize
+  // champs canoniques sont REQUIS (les champs V5 restent optionnels).
+  for (const k of Object.keys(x)) if (!CLES_BRIEF_TOUTES.includes(k as (typeof CLES_BRIEF_TOUTES)[number])) v.push({ chemin: `${chemin}/${k}`, raison: 'champ inconnu' });
+  for (const k of CLES_BRIEF) if (!(k in x)) v.push({ chemin: `${chemin}/${k}`, raison: 'champ requis' });
   for (const k of ['objective', 'audience', 'testedVariable', 'composition', 'styleIntent'] as const) texte(v, x[k], `${chemin}/${k}`);
   if (x.hypothesisId !== null && typeof x.hypothesisId !== 'string') v.push({ chemin: `${chemin}/hypothesisId`, raison: 'identifiant ou null attendu' });
   for (const k of ['invariants', 'variables', 'texts', 'formats', 'exclusions'] as const) textes(v, x[k], `${chemin}/${k}`);
@@ -139,6 +195,24 @@ export function validerFormeBrief(x: unknown, chemin = '/brief'): ViolationBrief
     textes(v, r.allowedChanges, `${c}/allowedChanges`);
     textes(v, r.requiredComponents, `${c}/requiredComponents`);
   });
+  // ── Forme des champs V5 (seulement quand présents · ils restent optionnels) ──
+  if (x.objectifType !== undefined && !OBJECTIFS_V5.includes(x.objectifType as ObjectifType)) {
+    v.push({ chemin: `${chemin}/objectifType`, raison: 'objectif notoriete, consideration, conversion ou fidelisation' });
+  }
+  if (x.plateformes !== undefined) {
+    if (!Array.isArray(x.plateformes) || x.plateformes.length > PLATEFORMES_V5.length) {
+      v.push({ chemin: `${chemin}/plateformes`, raison: `liste de plateformes attendue (${PLATEFORMES_V5.length} au plus)` });
+    } else {
+      const vues = new Set<string>();
+      x.plateformes.forEach((p, i) => {
+        if (!PLATEFORMES_V5.includes(p as PlateformeV5)) v.push({ chemin: `${chemin}/plateformes/${i}`, raison: 'plateforme meta_feed, meta_stories_reels ou tiktok' });
+        else if (vues.has(p as string)) v.push({ chemin: `${chemin}/plateformes/${i}`, raison: 'plateforme en double' });
+        vues.add(p as string);
+      });
+    }
+  }
+  for (const k of ['angle', 'concept'] as const) if (x[k] !== undefined) texte(v, x[k], `${chemin}/${k}`);
+  for (const { cle } of REFS_ADSMAP_BRIEF) if (x[cle] !== undefined) v.push(...violationsFormeReferenceAdsmap(x[cle], `${chemin}/${cle}`));
   return v;
 }
 
@@ -248,6 +322,14 @@ export interface ContexteRelationsBrief {
   sources: readonly SourceReferenceStudio[];
   /** Le produit de la version (`productRef.productId`), ou `null`. */
   productId: string | null;
+  /**
+   * Portée du projet (V5) · requise pour valider les références Adsmap citées.
+   * Absente (avec le résolveur), les `*Ref` ne sont pas contrôlés en portée ·
+   * un brief hérité sans `*Ref` reste donc valide sans ce contexte.
+   */
+  scopeAdsmap?: PorteeAdsmap;
+  /** Résolveur Adsmap en lecture seule, injecté. */
+  resolveurAdsmap?: ResolveurReferencesAdsmap;
 }
 
 /** Les champs que l'on écrit POUR la marque cible · ceux qu'une fuite contaminerait. */
@@ -262,6 +344,10 @@ export function champsImportables(b: BriefCanonique): ChampImportable[] {
     ...b.invariants.map((t, i) => ({ chemin: `/brief/invariants/${i}`, texte: t })),
     ...b.texts.map((t, i) => ({ chemin: `/brief/texts/${i}`, texte: t })),
     ...b.formats.map((t, i) => ({ chemin: `/brief/formats/${i}`, texte: t })),
+    // Champs V5 en texte libre écrits pour la marque cible · soumis au contrôle
+    // de fuite concurrent au même titre que les autres.
+    ...(typeof b.angle === 'string' ? [{ chemin: '/brief/angle', texte: b.angle }] : []),
+    ...(typeof b.concept === 'string' ? [{ chemin: '/brief/concept', texte: b.concept }] : []),
   ];
 }
 
@@ -294,6 +380,17 @@ export function validerRelationsBrief(b: BriefCanonique, c: ContexteRelationsBri
   });
   v.push(...controlerNarrationObservee(b.facts.map((f, i) => ({ chemin: `/brief/facts/${i}/claim`, claim: f.claim, kind: f.kind, sourceIds: f.sourceIds })), c.sources));
   v.push(...fuitesConcurrent(champsImportables(b), c.sources));
+  // Références Adsmap V5 · chaque `*Ref` citée doit exister ET tomber dans la
+  // portée de marque du projet (lecture seule). Sans portée+résolveur, on ne
+  // contrôle pas (un brief hérité sans `*Ref` reste valide).
+  if (c.scopeAdsmap && c.resolveurAdsmap) {
+    for (const { cle, kind } of REFS_ADSMAP_BRIEF) {
+      const ref = b[cle];
+      if (ref === undefined) continue;
+      const vi = violationPorteeReferenceAdsmap(kind, ref, `/brief/${cle}`, c.scopeAdsmap, c.resolveurAdsmap);
+      if (vi) v.push(vi);
+    }
+  }
   return v;
 }
 
