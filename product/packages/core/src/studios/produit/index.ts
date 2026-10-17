@@ -5,6 +5,7 @@
 export * from './catalogue';
 export * from './epinglage';
 export * from './references';
+export * from './droits-asset';
 export * from './compilation';
 export * from './composants';
 export * from './import-photo';
