@@ -23,6 +23,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {}, replace:
 
 import { OngletsStudios } from '../components/studios/projet/OngletsStudios';
 import { ListeProjets } from '../components/studios/projet/ListeProjets';
+import { NouveauProjet } from '../components/studios/projet/NouveauProjet';
 import { ProchainesIterations } from '../components/accueil/ProchainesIterations';
 
 function carte(p: Partial<Carte> & Pick<Carte, 'id' | 'etape' | 'libelleEtape'>): Carte {
@@ -62,6 +63,23 @@ describe('Studios · liste des projets · rendu V5', () => {
     expect(html).toContain('Bientôt');
   });
 
+  it('onglet actif = pilule surélevée (surface + ombre), alignement V5', () => {
+    // L'onglet actif « Projets » flotte comme dans le proto (5.webp) : fond
+    // surface et ombre douce, pas un simple contour.
+    const html = renderToStaticMarkup(<OngletsStudios />);
+    const actif = html.slice(html.indexOf('data-onglet="projets"'), html.indexOf('data-onglet="prompts"'));
+    expect(actif).toMatch(/background:var\(--surface\)/);
+    expect(actif).toMatch(/box-shadow:var\(--sh-sm\)/);
+  });
+
+  it('« Nouveau projet » (en-tête) porte l’icône « + » avant son libellé (proto)', () => {
+    const html = renderToStaticMarkup(
+      <NouveauProjet etat={{ etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau projet' }} />,
+    );
+    // Le bouton primaire ouvre sur un « + » (path de l'icône plus) puis le libellé.
+    expect(html).toMatch(/data-nouveau-projet="pret"[\s\S]*?M12 5v14M5 12h14[\s\S]*?Nouveau projet/);
+  });
+
   it('rangée de filtres par étape RÉELLE avec compteurs réels + recherche', () => {
     const html = renderToStaticMarkup(<ListeProjets cartes={cartes} nouveau={nouveau} />);
     // « Tous » compte les 3 ; chaque étape réelle a son chip.
@@ -74,6 +92,19 @@ describe('Studios · liste des projets · rendu V5', () => {
     expect(html).not.toContain('Brouillons');
     // La recherche.
     expect(html).toContain('data-recherche-projet');
+  });
+
+  it('chip actif = pilule surélevée (surface + ombre), inactifs sans cadre (proto)', () => {
+    const html = renderToStaticMarkup(<ListeProjets cartes={cartes} nouveau={nouveau} />);
+    // Le filtre actif « tous » flotte comme dans le proto · fond surface + ombre,
+    // jamais la teinte d'accent pleine d'avant.
+    const actif = html.slice(html.indexOf('data-filtre="tous"'), html.indexOf('data-filtre="brief_a_completer"'));
+    expect(actif).toMatch(/background:var\(--surface\)/);
+    expect(actif).toMatch(/box-shadow:var\(--sh-sm\)/);
+    // Un filtre inactif n'a ni fond ni ombre.
+    const inactif = html.slice(html.indexOf('data-filtre="production"'));
+    expect(inactif).toMatch(/background:transparent/);
+    expect(inactif).toMatch(/box-shadow:none/);
   });
 
   it('cartes : bandeau type, pastille de version réelle, barre d’étapes', () => {

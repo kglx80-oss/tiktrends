@@ -101,7 +101,9 @@ export function NouveauProjet({ etat, variante = 'bouton' }: { etat: EtatNouveau
           <span aria-hidden style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', padding: '2px 7px', borderRadius: 6, border: '1px solid var(--line-2)', background: 'var(--surface)' }}>N</span>
         </button>
       ) : (
-        <button type="button" data-nouveau-projet="pret" onClick={ouvrir} style={btn}>{etat.libelle}</button>
+        <button type="button" data-nouveau-projet="pret" onClick={ouvrir} style={{ ...btn, gap: 8 }}>
+          <Icon name="plus" size={16} />{etat.libelle}
+        </button>
       )}
       <Modal open={ouvert} onClose={() => { if (!encours) setOuvert(false); }} title="Nouveau projet" maxWidth={520} pleinEcranTelephone
         subtitle={`Un projet vide pour ${marque.nom} · tu y ajoutes ensuite produit, sources et brief.`}>

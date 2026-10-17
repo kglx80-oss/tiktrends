@@ -42,7 +42,7 @@ export function BarreEtapes({ etape }: { etape: EtapeProjet }) {
   return (
     <span aria-hidden data-barre-etape={etape} style={{ display: 'inline-flex', gap: 4, flexShrink: 0 }}>
       {ORDRE_ETAPES_PROJET.map((e, i) => (
-        <span key={e} style={{ height: 4, width: 26, borderRadius: 2, background: i < rang ? 'var(--accent-strong)' : 'var(--line-2)' }} />
+        <span key={e} style={{ height: 5, width: 26, borderRadius: 999, background: i < rang ? 'var(--accent)' : 'var(--line-2)' }} />
       ))}
     </span>
   );

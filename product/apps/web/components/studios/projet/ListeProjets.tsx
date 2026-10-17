@@ -21,9 +21,13 @@ import { input, surface } from '../../ui';
  * On copie la STRUCTURE de la rangée, pas ces libellés fictifs.
  */
 
+// Alignement V5 (5.webp) · l'onglet ACTIF est une pilule surélevée (surface +
+// ombre douce, comme l'onglet de vue), les inactifs sont du texte sans cadre ·
+// la bordure transparente garde la taille stable à la bascule. Le compteur de
+// l'actif prend un petit badge, celui des inactifs reste un nombre discret.
 const chipBase: CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px',
-  borderRadius: 999, border: '1px solid var(--line-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+  display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 14px',
+  borderRadius: 999, border: '1px solid transparent', fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
 };
 
 export function ListeProjets({ cartes, nouveau }: { cartes: Carte[]; nouveau: EtatNouveauProjet }) {
@@ -42,9 +46,9 @@ export function ListeProjets({ cartes, nouveau }: { cartes: Carte[]; nouveau: Et
             return (
               <button key={o.cle} type="button" data-filtre={o.cle} aria-pressed={actif}
                 onClick={() => setCle(o.cle)}
-                style={{ ...chipBase, background: actif ? 'var(--accent-soft)' : 'transparent', borderColor: actif ? 'var(--accent-strong)' : 'var(--line-2)', color: actif ? 'var(--accent-strong)' : 'var(--ink-2)' }}>
+                style={{ ...chipBase, background: actif ? 'var(--surface)' : 'transparent', borderColor: actif ? 'var(--line)' : 'transparent', boxShadow: actif ? 'var(--sh-sm)' : 'none', color: actif ? 'var(--ink)' : 'var(--ink-2)' }}>
                 {o.libelle}
-                <span data-compte style={{ fontSize: 11.5, fontWeight: 700, color: actif ? 'var(--accent-strong)' : 'var(--muted)' }}>{o.n}</span>
+                <span data-compte style={{ fontSize: 12, fontWeight: 700, color: actif ? 'var(--ink-2)' : 'var(--muted)', background: actif ? 'var(--paper)' : 'transparent', padding: actif ? '1px 7px' : 0, borderRadius: 999, minWidth: actif ? 18 : undefined, textAlign: 'center' }}>{o.n}</span>
               </button>
             );
           })}

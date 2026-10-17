@@ -19,7 +19,7 @@ const base: CSSProperties = {
 export function OngletsStudios() {
   return (
     <nav aria-label="Vues des Studios" style={{ display: 'inline-flex', gap: 4, padding: 4, borderRadius: 999, background: 'var(--paper)', marginBottom: 20 }}>
-      <span data-onglet="projets" aria-current="page" style={{ ...base, background: 'var(--surface)', color: 'var(--ink)', fontWeight: 700, border: '1px solid var(--line-2)' }}>
+      <span data-onglet="projets" aria-current="page" style={{ ...base, background: 'var(--surface)', color: 'var(--ink)', fontWeight: 700, border: '1px solid var(--line)', boxShadow: 'var(--sh-sm)' }}>
         Projets
       </span>
       <span data-onglet="prompts" aria-disabled="true" title="Bientôt · prompts conseillés par Jarvis"
