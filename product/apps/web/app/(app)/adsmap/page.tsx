@@ -13,9 +13,12 @@ import { Views } from './Views';
 import { effectiveAccess } from '../../../lib/access';
 import { Empty } from '../../../components/Empty';
 import { Icon } from '../../../components/Icon';
-import { CIBLE_TACTILE_MIN, lireLienProfondAdsmap, parcoursResultats } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, lireLienProfondAdsmap, parcoursResultats, ongletsResultats } from '@tiktrends/core';
 import { compterBoucle } from '../../../lib/boucle-resultats';
 import { ParcoursBoucle } from '../../../components/ParcoursBoucle';
+import { BarreOnglets } from '../../../components/BarreOnglets';
+import { BlocJarvisResultats } from './BlocJarvisResultats';
+import { ApercuLots } from './ApercuLots';
 import { adsDeLaMarque } from '../../../lib/adsmap-marque';
 import { SectionEssais } from '../jarvis/sections/SectionEssais';
 import { cadrePage, colonneLecture, surface, h1 } from '../../../components/ui';
@@ -81,6 +84,21 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
     : [];
   const peutMesurer = roleAtLeast(s.role, 'admin');
 
+  // Les onglets de section (V5) · un onglet n'est PROPOSÉ que si la fonction de
+  // sa page est accessible au rôle et à la formule courants · on lit l'accès
+  // réel (`canAccess`), on ne décide rien ici. `lots` et `import` sont réservés
+  // aux admins · un membre ne les voit pas, comme dans le rail.
+  const acces = effectiveAccess(s);
+  const fonctionsOnglets = new Set(['adsmap', 'tri', 'lots', 'protocole', 'import', 'suites']);
+  const accessibles = new Set(
+    FEATURES.filter((f) => fonctionsOnglets.has(f.key) && canAccess(acces, f)).map((f) => f.key),
+  );
+  const onglets = ongletsResultats(accessibles, '/adsmap');
+  // Jarvis a sa propre porte (`refusJarvis`, formule Core et rôle member) · on
+  // ne propose l'invite que si Jarvis est réellement ouvert.
+  const jarvisFeature = FEATURES.find((f) => f.key === 'jarvis');
+  const jarvisOuvert = !!jarvisFeature && canAccess(acces, jarvisFeature);
+
   // Le lien profond d'une carte du Studio (I1) · `?ad=<id>&depuis=studio` ouvre
   // le panneau de CE test. Lecture seule · l'ouvrir n'écrit rien. On ne l'ouvre
   // que si l'ad appartient à la marque active · sinon on le dit, sans afficher
@@ -101,16 +119,32 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
         <h1 style={h1}>Résultats</h1>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>· {brand.name}</span>
         <span style={{ flex: 1, minWidth: 12 }} />
-        {/* Il ne reste ici que ce qui AGIT sur la carte · mesurer, partager.
-            Les six écrans du module vivent dans le rail, comme ceux du Studio :
-            une barre de sept boutons n'est plus une navigation, c'est une
-            barre d'outils saturée qu'on cesse de lire. */}
+        {/* L'en-tête porte les ACTIONS · importer, partager, mesurer. La
+            navigation entre les six écrans du module vit dans la barre d'onglets
+            sous le sous-titre (V5), plus le rail · pas une rangée de boutons
+            d'action mêlée à la navigation. */}
+        {accessibles.has('import') && (
+          <Link href="/adsmap/import" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+            <Icon name="upload" size={16} /> Importer des résultats
+          </Link>
+        )}
         {peutMesurer && <ShareButton />}
         {peutMesurer && <SyncButton syncedAt={row?.at ? row.at.toISOString() : null} />}
       </div>
-      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 3, marginBottom: 8, maxWidth: 720, lineHeight: 1.5 }}>
-        Chaque test, son verdict, et ce qu’il t’apprend pour le suivant.
+      <p style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 3, marginBottom: 12, maxWidth: 720, lineHeight: 1.5 }}>
+        De la création au prochain test, sans perdre le contexte.
       </p>
+
+      {/* Les onglets de section (V5) · routes réelles, libellés de la maquette,
+          filtrés par les droits. Purement navigation · chaque page garde sa garde. */}
+      <BarreOnglets zone="resultats" libelle="Sections des résultats" onglets={onglets} />
+
+      {/* L'invite Jarvis · ouvre le vrai Jarvis de la marque, rien de simulé. */}
+      {jarvisOuvert && <BlocJarvisResultats />}
+
+      {/* Les lots de test de la marque, en cartes · données réelles, aucune
+          performance affichée (une carte de lot n'est pas une mesure). */}
+      <ApercuLots lots={batches} peutVoirLots={accessibles.has('lots')} />
 
       {/* UX V2 · lot 4a · la boucle hypothèse → lot → mesures → apprentissage,
           lue sur les comptes RÉELS de la marque (`compterBoucle`, lecture seule)
@@ -129,6 +163,12 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
           <ParcoursBoucle titre="Boucle de test · hypothèse, lot, mesures, apprentissage" etapes={parcours.etapes} prochaine={parcours.prochaine} />
         </section>
       )}
+
+      {/* La mention honnête de la maquette · le principe de l'écran, dit en clair.
+          Aucune perf n'est fabriquée · tant que rien n'est importé, rien n'est montré. */}
+      <p data-mention-mesure style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 14px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+        <Icon name="info" size={15} /> Aucune performance n’est affichée sans mesure importée.
+      </p>
 
       <div style={{ margin: '0 0 10px' }}>
         <PageInfo title="lire cette carte" mb={0} minHeight={CIBLE_TACTILE_MIN}>
