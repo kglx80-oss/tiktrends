@@ -26,30 +26,34 @@ const pleine = (): SaisieBriefV5 => ({
   contraintes: 'Montrer le produit en entier\nPas de visage identifiable',
 });
 
-describe('machine d’étapes · seules start et brief sont câblées', () => {
-  it('le parcours a start + brief actifs, le reste « bientôt »', () => {
+describe('machine d’étapes · start, brief, stratégie, direction câblées', () => {
+  it('le parcours a start/brief/strategie/direction actifs, format/creation « bientôt »', () => {
     const parStatut = Object.fromEntries(ETAPES_ASSISTANT.map((e) => [e.id, e.statut]));
-    expect(parStatut).toEqual({ start: 'actif', brief: 'actif', strategie: 'bientot', direction: 'bientot', format: 'bientot', creation: 'bientot' });
+    expect(parStatut).toEqual({ start: 'actif', brief: 'actif', strategie: 'actif', direction: 'actif', format: 'bientot', creation: 'bientot' });
     expect(ETAPES_RAIL.map((e) => e.id)).toEqual(['brief', 'strategie', 'direction', 'format', 'creation']);
     expect(etapeDisponible('brief')).toBe(true);
-    expect(etapeDisponible('strategie')).toBe(false);
+    expect(etapeDisponible('strategie')).toBe(true);
+    expect(etapeDisponible('format')).toBe(false);
   });
 
   it('les transitions sautent les étapes « bientôt »', () => {
     expect(etapeProjetSuivante('start')).toBe('brief');
-    expect(etapeProjetSuivante('brief')).toBeNull(); // strategie est « bientôt »
+    expect(etapeProjetSuivante('brief')).toBe('strategie');
+    expect(etapeProjetSuivante('strategie')).toBe('direction');
+    expect(etapeProjetSuivante('direction')).toBeNull(); // format est « bientôt »
+    expect(etapeProjetPrecedente('direction')).toBe('strategie');
     expect(etapeProjetPrecedente('brief')).toBe('start');
     expect(etapeProjetPrecedente('start')).toBeNull();
   });
 
   it('l’état du rail · une étape « bientôt » le reste, jamais « faite »', () => {
     expect(etatRail('brief', 'brief')).toBe('current');
-    expect(etatRail('strategie', 'brief')).toBe('bientot');
+    expect(etatRail('strategie', 'brief')).toBe('todo');
     expect(etatRail('format', 'brief')).toBe('bientot');
     // même si l'étape courante était plus loin, les « bientôt » ne deviennent pas « done »
-    expect(etatRail('strategie', 'format')).toBe('bientot');
+    expect(etatRail('format', 'creation')).toBe('bientot');
     // une étape actif franchie est « done »
-    expect(etatRail('brief', 'format')).toBe('done');
+    expect(etatRail('brief', 'direction')).toBe('done');
   });
 });
 
@@ -101,7 +105,8 @@ describe('complétude et vérification avant envoi', () => {
     expect(etapeProjetComplete('brief', e)).toBe(true);
     expect(etapeProjetComplete('brief', { ...e, saisie: saisieBriefVide() })).toBe(false);
     expect(etapeProjetComplete('brief', { ...e, titre: '  ' })).toBe(false);
-    expect(etapeProjetComplete('strategie', e)).toBe(false); // « bientôt » · jamais complète
+    // stratégie/direction se mesurent sur le brief relu (etapeStrategieRenseignee…), pas ici
+    expect(etapeProjetComplete('strategie', e)).toBe(false);
   });
 
   it('verifierCreationAssistant · rend le brief prêt, ou le message à corriger', () => {
@@ -120,6 +125,6 @@ describe('complétude et vérification avant envoi', () => {
  * Mutations éprouvées (cassées → test rouge sur la bonne assertion → restaurées) :
  *  · construireBriefV5 sans dédup des plateformes → « plateformes dédupliquées » tombe (doublon).
  *  · poser objectifType même vide → « champs V5 ABSENTS » tombe.
- *  · etapeProjetSuivante('brief') rendant 'strategie' → « transitions sautent bientôt » tombe.
+ *  · etapeProjetSuivante('direction') rendant 'format' → « transitions sautent bientôt » tombe.
  *  · etatRail ignorant le statut 'bientot' → « reste bientôt » tombe (renverrait 'done').
  */

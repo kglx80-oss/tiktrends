@@ -6,14 +6,23 @@
  * quelles transitions, quelle étape est complète, que contient le brief » vit
  * ICI, testable, jamais dans le JSX ni dans un `'use server'`.
  *
- * ── Le périmètre de ce lot (2a) ──────────────────────────────────────────────
+ * ── Le périmètre (lots 2a + 2b) ──────────────────────────────────────────────
  *
- * Deux étapes sont RÉELLEMENT câblées · `start` (choix du livrable) et `brief`
- * (les champs V5, écrits dans le brief structuré à la création). Les étapes
- * suivantes du parcours V5 (stratégie, direction, format & devis, création)
- * existent dans le rail mais sont marquées « bientôt » · elles ne sont pas
- * navigables et ne portent AUCUN contrôle simulé. Jamais de bouton mort, jamais
- * de faux succès : on ne propose une étape que lorsqu'elle aboutit vraiment.
+ * Quatre étapes sont RÉELLEMENT câblées · `start` (choix du livrable), `brief`
+ * (champs V5 écrits à la création), puis `strategie` et `direction`, qui
+ * opèrent sur le projet DÉJÀ créé via le vrai cycle de propositions (une
+ * proposition relue avant d'être appliquée · aucune écriture sans geste). Les
+ * étapes `format` (format & devis) et `creation` restent « bientôt » · elles ne
+ * sont pas navigables et ne portent AUCUN contrôle simulé. Jamais de bouton
+ * mort, jamais de faux succès : on ne propose une étape que lorsqu'elle aboutit.
+ *
+ * Stratégie et direction n'écrivent JAMAIS directement dans une version : elles
+ * ne produisent que le CHANGEMENT (pur, borné à `/brief`) d'une proposition. Le
+ * serveur décide seul de l'application (`deciderApplication`, `proposed →
+ * approved`), revalide la forme ET les relations du brief (une hypothèse ne
+ * cite que des sources du projet · pas de fuite concurrent). Rien ici n'appelle
+ * de modèle ni ne dépense : la proposition Jarvis (payante, sous plafond) part
+ * d'une action serveur distincte.
  *
  * ── Le brief écrit à la création ─────────────────────────────────────────────
  *
@@ -26,9 +35,11 @@
  */
 
 import {
-  validerFormeBrief, OBJECTIFS_V5, PLATEFORMES_V5,
+  validerFormeBrief, faitsHypothese, OBJECTIFS_V5, PLATEFORMES_V5,
   type BriefCanonique, type ObjectifType, type PlateformeV5, type ViolationBrief,
 } from '../brief';
+import type { ChangementPatch } from '../patch';
+import type { HypotheseTest } from '../sources/hypotheses';
 import type { ReferenceAdsmap } from '../references-adsmap';
 import { TYPES_NOUVEAU_PROJET, verifierNouveauProjet, type TypeNouveauProjet } from './nouveau-projet';
 
@@ -47,14 +58,14 @@ export interface DefinitionEtape {
 
 /**
  * Le parcours complet, dans l'ordre. `start` est l'entrée (hors des cinq
- * étapes numérotées du rail V5). Seules `start` et `brief` sont câblées dans ce
- * lot ; les quatre suivantes sont honnêtement « bientôt ».
+ * étapes numérotées du rail V5). `start`, `brief`, `strategie` et `direction`
+ * sont câblées ; `format` et `creation` sont honnêtement « bientôt ».
  */
 export const ETAPES_ASSISTANT: readonly DefinitionEtape[] = [
   { id: 'start', libelle: 'Départ', statut: 'actif' },
   { id: 'brief', libelle: 'Brief', statut: 'actif' },
-  { id: 'strategie', libelle: 'Stratégie', statut: 'bientot' },
-  { id: 'direction', libelle: 'Direction', statut: 'bientot' },
+  { id: 'strategie', libelle: 'Stratégie', statut: 'actif' },
+  { id: 'direction', libelle: 'Direction', statut: 'actif' },
   { id: 'format', libelle: 'Format & devis', statut: 'bientot' },
   { id: 'creation', libelle: 'Création', statut: 'bientot' },
 ];
@@ -74,6 +85,16 @@ export function definitionEtape(id: EtapeAssistant): DefinitionEtape {
 /** Une étape est DISPONIBLE (câblée, navigable) quand elle est `actif`. */
 export function etapeDisponible(id: EtapeAssistant): boolean {
   return DEF.get(id)?.statut === 'actif';
+}
+
+/**
+ * Une étape opère-t-elle sur un projet DÉJÀ créé ? Vrai pour tout ce qui suit
+ * le brief (stratégie, direction, et les « bientôt »). L'UI ne laisse y aller
+ * qu'une fois le projet écrit · avant, le projet n'existe pas encore.
+ */
+export function etapeRequiertProjet(id: EtapeAssistant): boolean {
+  const i = INDEX.get(id);
+  return i !== undefined && i > INDEX.get('brief')!;
 }
 
 /** L'étape `actif` suivante (saute les « bientôt »), ou `null` s'il n'y en a plus. */
@@ -225,4 +246,103 @@ export function verifierCreationAssistant(e: EtatCreation):
   const v = validerFormeBrief(brief);
   if (v.length) return { ok: false, message: 'Le brief n’a pas la forme attendue · vérifie les champs saisis.' };
   return { ok: true, titre: base.titre, type: base.type, brief };
+}
+
+/* ─────────────────── Stratégie & direction (sur le projet créé) ──────────── */
+
+const texteRenseigne = (x: string | null | undefined): boolean => typeof x === 'string' && x.trim().length > 0;
+
+/**
+ * La stratégie est « renseignée » quand le brief RELU porte un angle (libre ou
+ * adopté) OU une hypothèse retenue. Mesuré sur le brief persisté · prouve la
+ * restitution après rechargement, jamais un état d'écran éphémère.
+ */
+export function etapeStrategieRenseignee(brief: BriefCanonique): boolean {
+  return texteRenseigne(brief.angle) || texteRenseigne(brief.hypothesisId);
+}
+
+/** La direction est « renseignée » quand le brief RELU porte une intention de style. */
+export function etapeDirectionRenseignee(brief: BriefCanonique): boolean {
+  return texteRenseigne(brief.styleIntent);
+}
+
+/**
+ * L'état du rail pour une étape câblée qui opère sur le projet · « done » si
+ * elle est renseignée dans le brief relu, sinon l'état positionnel ordinaire.
+ */
+export function etatRailProjet(id: EtapeAssistant, courante: EtapeAssistant, brief: BriefCanonique | null): EtatRailEtape {
+  const base = etatRail(id, courante);
+  if (base === 'current' || base === 'bientot' || !brief) return base;
+  if (id === 'strategie' && etapeStrategieRenseignee(brief)) return 'done';
+  if (id === 'direction' && etapeDirectionRenseignee(brief)) return 'done';
+  return base;
+}
+
+/** Les chemins bornés à la cible brief · une saisie de stratégie/direction ne touche que le brief. */
+export const ALLOWED_PATHS_BRIEF: readonly string[] = ['/brief'];
+
+const BRIEF_ANGLE = '/brief/angle';
+const BRIEF_STYLE = '/brief/styleIntent';
+
+/**
+ * « Écrire mon angle » · le CHANGEMENT (pur) d'une proposition manuelle, borné
+ * à `/brief/angle`. `add` si le champ est absent du brief (angle optionnel,
+ * jamais écrit à la création quand vide), `replace` sinon · le serveur refuse
+ * un `replace` sur un champ absent et un `add` sur un champ présent.
+ */
+export function changementAngleManuel(brief: BriefCanonique, angle: string): ChangementPatch {
+  const existe = typeof brief.angle === 'string';
+  return { op: existe ? 'replace' : 'add', path: BRIEF_ANGLE, newValue: borne(angle), reason: 'Angle écrit à la main · stratégie' };
+}
+
+/** « Écrire l'intention de style » · `styleIntent` est canonique (toujours présent) · `replace`. */
+export function changementStyleManuel(style: string): ChangementPatch {
+  return { op: 'replace', path: BRIEF_STYLE, newValue: borne(style), reason: 'Intention de style écrite à la main · direction' };
+}
+
+/**
+ * Retenir une hypothèse proposée · un nouveau brief qui porte `hypothesisId`,
+ * la variable testée, et les faits de protocole (`faitsHypothese` PRÉSERVE les
+ * `sourceIds`). Tout le reste du brief est conservé. Aucune source n'est
+ * inventée · si une source citée n'appartient pas au projet, le serveur
+ * refusera à la validation relationnelle (pas de fuite concurrent).
+ */
+export function briefAvecHypothese(brief: BriefCanonique, h: HypotheseTest): BriefCanonique {
+  const faits = faitsHypothese(h);
+  const ecartes = new Set(faits.map((f) => f.id));
+  const variable = borne(h.variable);
+  return {
+    ...brief,
+    hypothesisId: h.id,
+    testedVariable: variable,
+    facts: [...brief.facts.filter((f) => !ecartes.has(f.id)), ...faits].slice(0, LISTE_MAX),
+    variables: variable ? [...new Set([...brief.variables, variable])].slice(0, LISTE_MAX) : brief.variables,
+  };
+}
+
+/** « Retenir cette hypothèse » · le CHANGEMENT (remplace le brief entier, borné à `/brief`). */
+export function changementHypotheseRetenue(brief: BriefCanonique, h: HypotheseTest): ChangementPatch {
+  return { op: 'replace', path: '/brief', newValue: briefAvecHypothese(brief, h), reason: `Hypothèse retenue · ${h.id}` };
+}
+
+const demande = (bouts: Array<string | false | ''>): string => bouts.filter(Boolean).join('\n').slice(0, TEXTE_MAX);
+
+/** Demande par défaut pour « Proposer d'autres angles » (Jarvis) · dérivée du brief, bornée. */
+export function demandeAnglesDepuisBrief(brief: BriefCanonique): string {
+  return demande([
+    'Propose un nouvel angle publicitaire pour ce projet.',
+    texteRenseigne(brief.objective) && `Objectif : ${brief.objective.trim()}`,
+    texteRenseigne(brief.audience) && `Audience : ${brief.audience.trim()}`,
+    texteRenseigne(brief.angle) && `Angle actuel à dépasser : ${brief.angle!.trim()}`,
+  ]);
+}
+
+/** Demande par défaut pour « Autre direction » (Jarvis) · dérivée du brief, bornée. */
+export function demandeDirectionDepuisBrief(brief: BriefCanonique): string {
+  return demande([
+    'Propose une direction artistique (intention de style) à partir de l’angle retenu.',
+    texteRenseigne(brief.angle) && `Angle : ${brief.angle!.trim()}`,
+    texteRenseigne(brief.concept) && `Concept : ${brief.concept!.trim()}`,
+    texteRenseigne(brief.styleIntent) && `Style actuel à faire évoluer : ${brief.styleIntent.trim()}`,
+  ]);
 }

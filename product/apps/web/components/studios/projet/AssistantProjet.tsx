@@ -3,32 +3,41 @@
 import { useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ETAPES_RAIL, etatRail, etapeProjetPrecedente, saisieBriefVide, verifierCreationAssistant,
+  ETAPES_RAIL, etatRailProjet, etapeProjetPrecedente, etapeProjetSuivante, etapeRequiertProjet,
+  etapeDisponible, saisieBriefVide, verifierCreationAssistant,
   OBJECTIFS_V5, PLATEFORMES_V5, LIBELLES_OBJECTIF_V5, LIBELLES_PLATEFORME_V5, LIBELLES_TYPE_PROJET,
   TYPES_NOUVEAU_PROJET, TITRE_NOUVEAU_PROJET_MAX, OBJECTIF_MAX, CIBLE_TACTILE_MIN, CHEMIN_PROJETS,
   contenuVide, messageHorsLigneStudio, teinte,
   type EtapeAssistant, type EtatNouveauProjet, type TypeNouveauProjet, type SaisieBriefV5,
-  type ObjectifType, type PlateformeV5, type ReferenceAdsmap, type ContenuVersion,
+  type ObjectifType, type PlateformeV5, type ReferenceAdsmap, type ContenuVersion, type BriefCanonique,
 } from '@tiktrends/core';
 import { creerProjet } from '../../../app/actions/studios/projets';
+import { lireProjetDetail } from '../../../app/actions/studios/sources';
 import { Icon } from '../../Icon';
 import { btn, btnGhost, input, lbl, surface, tuile } from '../../ui';
+import { usePropositionsBrief } from './usePropositionsBrief';
+import { EtapeStrategie } from './EtapeStrategie';
+import { EtapeDirection } from './EtapeDirection';
 
 /**
  * L'assistant de création V5 (coquille `studioWizard`) porté sur les VRAIES
- * actions · deux étapes câblées (départ, brief), le reste du parcours en rail
- * « bientôt », SANS contrôle simulé. L'étape brief écrit le brief structuré V5
- * à la création (`creerProjet({contenu})`), chaque choix persisté revient à
- * l'écran après rechargement. Gratuit · aucune génération, aucun appel modèle.
+ * actions. Quatre étapes câblées · départ, brief (écrit le brief structuré V5 à
+ * la création), puis stratégie et direction, qui opèrent sur le projet CRÉÉ via
+ * le vrai cycle de propositions (relecture avant application, aucune écriture
+ * sans geste). Format & devis et création restent « bientôt », non navigables.
  *
- * La règle (quelles étapes, transitions, complétude, contenu du brief) vit au
- * noyau (`studios/ux/assistant-projet`) ; ce composant n'en est que le rendu.
+ * La règle (quelles étapes, transitions, complétude, contenu du brief, forme
+ * des changements) vit au noyau (`studios/ux/assistant-projet`) ; ce composant
+ * n'en est que le rendu. Rien ici n'appelle de modèle ni ne dépense : seule la
+ * proposition Jarvis (payante, sous plafond, annoncée) part d'une action serveur.
  */
 
 const note: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
 const champ: CSSProperties = { ...input, fontSize: 16 };
 const sectionLbl: CSSProperties = { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', margin: '4px 0 2px' };
 const lien: CSSProperties = { color: 'var(--accent-strong)', display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN };
+
+export interface ProjetCourant { id: string; versionCourante: { id: string; n: number } }
 
 export interface ProprietesAssistantProjet {
   etat: EtatNouveauProjet;
@@ -45,6 +54,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const [saisie, setSaisie] = useState<SaisieBriefV5>({ ...saisieBriefVide(), intention: p.initial.intention });
   const [encours, setEncours] = useState(false);
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
+  const [projet, setProjet] = useState<ProjetCourant | null>(null);
+  const [brief, setBrief] = useState<BriefCanonique | null>(null);
 
   if (p.etat.etat !== 'pret') {
     return (
@@ -57,6 +68,17 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const marque = p.etat.marque;
   const maj = (c: Partial<SaisieBriefV5>) => setSaisie((s) => ({ ...s, ...c }));
 
+  async function rafraichir() {
+    if (!projet) return;
+    try {
+      const r = await lireProjetDetail({ projectId: projet.id });
+      if (r.ok && !r.detail.briefIllisible && r.detail.brief) {
+        setBrief(r.detail.brief);
+        setProjet({ id: projet.id, versionCourante: { id: r.detail.version.id, n: r.detail.version.n } });
+      }
+    } catch { /* lecture seule · un échec ne casse rien, l'écran garde l'état connu */ }
+  }
+
   async function creer() {
     const v = verifierCreationAssistant({ type, titre, saisie });
     if (!v.ok) { setErreur({ message: v.message }); return; }
@@ -66,67 +88,117 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
     try {
       const r = await creerProjet({ brandId: marque.id, kind: v.type, title: v.titre, contenu });
       if (!r.ok) { setEncours(false); setErreur({ message: r.message, traceId: r.traceId }); return; }
-      router.push(`/studio/projets/${r.projet.id}`);
+      setEncours(false);
+      setProjet({ id: r.projet.id, versionCourante: { id: r.version.id, n: r.version.n } });
+      setBrief(v.brief);
+      setEtape('strategie');
     } catch {
       setEncours(false);
       setErreur({ message: messageHorsLigneStudio('creation') });
     }
   }
 
+  // Navigation du rail · avant création, start/brief seulement ; après, les
+  // étapes qui opèrent sur le projet (le brief est verrouillé une fois écrit).
+  const peutAller = (id: EtapeAssistant): boolean =>
+    projet ? (etapeRequiertProjet(id) && etapeDisponible(id)) : (etatRailProjet(id, etape, brief) === 'done');
+
+  const ouvrirProjet = () => { if (projet) router.push(`/studio/projets/${projet.id}`); };
+
   return (
     <section data-zone="assistant-projet" data-etape={etape} style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-      <Rail etape={etape} onAller={setEtape} />
+      <Rail etape={etape} brief={brief} peutAller={peutAller} onAller={setEtape} />
 
       <div style={{ flex: '1 1 480px', minWidth: 0, display: 'grid', gap: 16, ...surface, background: 'var(--surface)', padding: 20 }}>
-        {etape === 'start' ? (
-          <Depart
-            marque={marque.nom}
-            type={type}
-            onType={setType}
-            onContinuer={() => setEtape('brief')}
-          />
-        ) : (
-          <Brief
-            marque={marque.nom}
-            type={type}
-            titre={titre}
-            onTitre={setTitre}
-            saisie={saisie}
-            maj={maj}
-            personas={p.personas}
-          />
+        {etape === 'start' && (
+          <Depart marque={marque.nom} type={type} onType={setType} onContinuer={() => setEtape('brief')} />
+        )}
+        {etape === 'brief' && (
+          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} />
+        )}
+        {etape === 'strategie' && projet && brief && (
+          <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} onProjetChange={rafraichir} />
+        )}
+        {etape === 'direction' && projet && brief && (
+          <AssistantPostCreation etape="direction" projet={projet} brief={brief} marqueId={marque.id} onProjetChange={rafraichir} />
         )}
 
         {erreur && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
 
-        <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {etape === 'brief'
-              ? <button type="button" data-bouton="retour" onClick={() => setEtape(etapeProjetPrecedente('brief') ?? 'start')} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN }}>‹ Retour</button>
-              : <a href={CHEMIN_PROJETS} style={{ ...btnGhost, textDecoration: 'none' }}>Annuler</a>}
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {etape === 'start'
-              ? <button type="button" data-bouton="vers-brief" onClick={() => setEtape('brief')} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN }}>Commencer le brief</button>
-              : <button type="button" data-bouton="creer-projet" onClick={creer} disabled={encours} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: encours ? 0.6 : 1 }}>{encours ? 'Création…' : 'Créer le projet'}</button>}
-          </div>
-        </footer>
-        {etape === 'brief' && <p style={{ ...note, fontSize: 12.5, margin: 0 }}>Gratuit · le brief est enregistré à la création, rien n’est généré tant que tu ne lances rien. Les étapes suivantes arrivent bientôt.</p>}
+        <Pied
+          etape={etape}
+          encours={encours}
+          aProjet={!!projet}
+          onCreer={creer}
+          onVersBrief={() => setEtape('brief')}
+          onReculer={() => { const prec = etapeProjetPrecedente(etape); if (prec && peutAller(prec)) setEtape(prec); }}
+          onAvancer={() => { const suiv = etapeProjetSuivante(etape); if (suiv) setEtape(suiv); }}
+          onOuvrirProjet={ouvrirProjet}
+        />
       </div>
     </section>
   );
 }
 
+/* ─────────────────── Sous-arbre post-création (propositions) ─────────────── */
+
+function AssistantPostCreation({ etape, projet, brief, marqueId, onProjetChange }: {
+  etape: 'strategie' | 'direction';
+  projet: ProjetCourant;
+  brief: BriefCanonique;
+  marqueId: string;
+  onProjetChange: () => void;
+}) {
+  const cycle = usePropositionsBrief(projet.id, projet.versionCourante);
+  const onApplied = () => { void onProjetChange(); };
+  // La création depuis zéro n'attache aucune source · les suggestions
+  // d'hypothèses (Veille) restent honnêtement inactives (pas de bouton mort).
+  return etape === 'strategie'
+    ? <EtapeStrategie brief={brief} cycle={cycle} onApplied={onApplied} sources={[]} marqueId={marqueId} />
+    : <EtapeDirection brief={brief} cycle={cycle} onApplied={onApplied} />;
+}
+
+/* ─────────────────────────────── Le pied ────────────────────────────────── */
+
+function Pied({ etape, encours, aProjet, onCreer, onVersBrief, onReculer, onAvancer, onOuvrirProjet }: {
+  etape: EtapeAssistant; encours: boolean; aProjet: boolean;
+  onCreer: () => void; onVersBrief: () => void; onReculer: () => void; onAvancer: () => void; onOuvrirProjet: () => void;
+}) {
+  return (
+    <>
+      <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {etape === 'start' && <a href={CHEMIN_PROJETS} style={{ ...btnGhost, textDecoration: 'none' }}>Annuler</a>}
+          {etape === 'brief' && <button type="button" data-bouton="retour" onClick={onReculer} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN }}>‹ Retour</button>}
+          {etape === 'direction' && <button type="button" data-bouton="retour-strategie" onClick={onReculer} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN }}>‹ Stratégie</button>}
+          {etape === 'strategie' && <a href={CHEMIN_PROJETS} style={{ ...btnGhost, textDecoration: 'none' }}>Voir les projets</a>}
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {etape === 'start' && <button type="button" data-bouton="vers-brief" onClick={onVersBrief} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN }}>Commencer le brief</button>}
+          {etape === 'brief' && <button type="button" data-bouton="creer-projet" onClick={onCreer} disabled={encours} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: encours ? 0.6 : 1 }}>{encours ? 'Création…' : 'Créer le projet'}</button>}
+          {etape === 'strategie' && aProjet && <button type="button" data-bouton="vers-direction" onClick={onAvancer} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN }}>Continuer vers la direction</button>}
+          {etape === 'direction' && aProjet && <button type="button" data-bouton="ouvrir-projet" onClick={onOuvrirProjet} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN }}>Ouvrir le projet</button>}
+        </div>
+      </footer>
+      {etape === 'brief' && <p style={{ ...note, fontSize: 12.5, margin: 0 }}>Gratuit · le brief est enregistré à la création, rien n’est généré tant que tu ne lances rien.</p>}
+      {(etape === 'strategie' || etape === 'direction') && <p data-zone="bientot-note" style={{ ...note, fontSize: 12.5, margin: 0 }}>Les étapes Format &amp; devis et Création arrivent bientôt · ouvre le projet pour la suite (devis, génération).</p>}
+    </>
+  );
+}
+
 /* ─────────────────────────────── Le rail ─────────────────────────────────── */
 
-function Rail({ etape, onAller }: { etape: EtapeAssistant; onAller: (e: EtapeAssistant) => void }) {
+function Rail({ etape, brief, peutAller, onAller }: {
+  etape: EtapeAssistant; brief: BriefCanonique | null; peutAller: (e: EtapeAssistant) => boolean; onAller: (e: EtapeAssistant) => void;
+}) {
   return (
     <nav data-zone="assistant-rail" aria-label="Étapes de l’assistant" style={{ flex: '0 0 220px', display: 'grid', gap: 10, ...surface, background: 'var(--surface)', padding: 16, alignContent: 'start' }}>
       <span style={sectionLbl}>Nouveau projet</span>
       <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 2 }}>
         {ETAPES_RAIL.map((def, i) => {
-          const st = etatRail(def.id, etape);
+          const st = etatRailProjet(def.id, etape, brief);
           const couleur = st === 'current' ? 'var(--ink)' : st === 'done' ? 'var(--ink-2)' : 'var(--muted)';
+          const cliquable = peutAller(def.id) && st !== 'current';
           const contenu = (
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN }}>
               <span aria-hidden style={{ width: 22, height: 22, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: 999, fontSize: 12, fontWeight: 700, color: st === 'current' ? 'var(--on-accent)' : 'var(--ink-2)', background: st === 'current' ? 'var(--accent-strong)' : 'var(--bg)', border: '1px solid var(--line)' }}>
@@ -140,7 +212,7 @@ function Rail({ etape, onAller }: { etape: EtapeAssistant; onAller: (e: EtapeAss
           );
           return (
             <li key={def.id} data-rail-etape={def.id} data-etat={st} aria-current={st === 'current' ? 'step' : undefined} {...(st === 'bientot' ? { 'data-bientot': 'true' } : {})}>
-              {st === 'done'
+              {cliquable
                 ? <button type="button" data-aller={def.id} onClick={() => onAller(def.id)} style={{ all: 'unset', cursor: 'pointer', display: 'block' }}>{contenu}</button>
                 : contenu}
             </li>
@@ -193,7 +265,7 @@ function Brief({ marque, type, titre, onTitre, saisie, maj, personas }: {
   return (
     <div data-zone="assistant-brief" style={{ display: 'grid', gap: 14 }}>
       <div>
-        <p style={{ ...note, fontSize: 12 }}>Étape 2 sur 5 · Le brief</p>
+        <p style={{ ...note, fontSize: 12 }}>Étape 1 sur 5 · Le brief</p>
         <h2 style={{ margin: '2px 0 0', fontSize: 19, fontWeight: 500, color: 'var(--ink)' }}>Le brief</h2>
         <p style={note}>Décris l’objectif · {LIBELLES_TYPE_PROJET[type]?.toLowerCase() ?? ''} pour <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{marque}</b>. Ces éléments sont enregistrés avec le projet.</p>
       </div>
