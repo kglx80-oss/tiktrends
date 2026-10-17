@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ongletsResultats, apercuLotsResultats, type FaitsLotApercu } from '@tiktrends/core';
+import { ongletsResultats, apercuLotsResultats, tonStatutLot, type FaitsLotApercu } from '@tiktrends/core';
 import { BlocJarvisResultats } from '../app/(app)/adsmap/BlocJarvisResultats';
 import { ApercuLots } from '../app/(app)/adsmap/ApercuLots';
+import { BarreOnglets } from '../components/BarreOnglets';
 
 /**
  * V5 · Résultats · alignement de la vue d'ensemble sur la maquette de Kevin.
@@ -32,6 +33,12 @@ describe('V5 · l’invite « Que disent vos résultats ? » (HTML rendu)', () =
   it('l’action est RÉELLE · « Analyser avec Jarvis » ouvre le vrai Jarvis', () => {
     expect(h).toContain('Analyser avec Jarvis');
     expect(h).toContain('href="/jarvis"');
+  });
+
+  it('porte le lavis rose de la maquette · dégradé de jetons (accent-soft → surface)', () => {
+    // Fidélité V5 · la carte n'est plus un aplat de surface · elle lave de
+    // l'accent-soft vers la surface, par jetons (jamais un rose en dur).
+    expect(h).toMatch(/linear-gradient\(120deg, var\(--accent-soft\) 0%, var\(--surface\) 62%\)/);
   });
 
   it('rien n’est simulé · aucune réponse ni chiffre de performance dans le bloc', () => {
@@ -73,6 +80,18 @@ describe('V5 · la bande « Lots de test » (HTML rendu)', () => {
   it('aucune performance n’est affichée dans une carte de lot', () => {
     const h = renderToStaticMarkup(<ApercuLots lots={lots} peutVoirLots />);
     expect(h).not.toMatch(/CPA|ROAS|€|\bimpressions\b/);
+  });
+
+  it('chaque carte porte une pastille de statut teintée par un RÔLE (jamais un littéral)', () => {
+    const h = renderToStaticMarkup(<ApercuLots lots={lots} peutVoirLots />);
+    // La pastille renforce le libellé en clair (toujours présent à côté).
+    expect(h).toContain('En diffusion');
+    // Diffusion → accent, terminé → ok, importé → warn · par jeton.
+    expect(h).toContain('background:var(--accent)');
+    expect(h).toContain('background:var(--ok)');
+    expect(h).toContain('background:var(--warn)');
+    // Aucune couleur littérale (le cliquet le garde aussi, on le double ici).
+    expect(h).not.toMatch(/background:#|background:rgb/);
   });
 
   it('sans lot, un état vide honnête · pas de carte vide', () => {
@@ -128,10 +147,57 @@ describe('V5 · apercuLotsResultats (noyau pur)', () => {
   });
 });
 
+describe('V5 · la barre d’onglets en segment (maquette · HTML rendu)', () => {
+  const onglets = [
+    { cle: 'vue-ensemble', libelle: "Vue d'ensemble", href: '/adsmap', courant: true },
+    { cle: 'hypotheses', libelle: 'Hypothèses', href: '/adsmap/tri', courant: false },
+  ];
+
+  it('le style segment · un conteneur ceinturé, l’onglet courant une pastille claire ombrée', () => {
+    const h = renderToStaticMarkup(<BarreOnglets zone="resultats" libelle="Sections" onglets={onglets} variant="segment" />);
+    expect(h).toContain('data-variante="segment"');
+    // Le conteneur porte sa bordure et son fond au jeton.
+    expect(h).toMatch(/border:1px solid var\(--line-2\);border-radius:12px;background:var\(--paper\)/);
+    // L'onglet COURANT est une pastille claire ombrée (surface + ombre), gras.
+    expect(h).toMatch(/aria-current="page"[^>]*background:var\(--surface\)/);
+    expect(h).toContain('box-shadow:var(--sh-sm)');
+  });
+
+  it('les onglets gardent `aria-current` et leurs routes réelles', () => {
+    const h = renderToStaticMarkup(<BarreOnglets zone="resultats" libelle="Sections" onglets={onglets} variant="segment" />);
+    expect(h).toContain('aria-current="page"');
+    expect(h).toContain('href="/adsmap"');
+    expect(h).toContain('href="/adsmap/tri"');
+  });
+
+  it('le défaut (pills) reste inchangé pour Réglages / Administration', () => {
+    const h = renderToStaticMarkup(<BarreOnglets zone="reglages" libelle="Réglages" onglets={onglets} />);
+    expect(h).toContain('data-variante="pills"');
+    // L'actif garde le cadre accent, pas la pastille segment.
+    expect(h).toMatch(/aria-current="page"[^>]*background:var\(--accent-soft\)/);
+    expect(h).not.toContain('box-shadow:var(--sh-sm)');
+  });
+});
+
+describe('V5 · tonStatutLot (noyau pur)', () => {
+  it('importé prime, diffusion → accent, terminé → vert, le reste en attente', () => {
+    expect(tonStatutLot('testing', false)).toBe('diffusion');
+    expect(tonStatutLot('live', false)).toBe('diffusion');
+    expect(tonStatutLot('done', false)).toBe('termine');
+    expect(tonStatutLot('analyzed', false)).toBe('termine');
+    expect(tonStatutLot('ready', false)).toBe('attente');
+    expect(tonStatutLot('inconnu', false)).toBe('attente');
+    // Un historique importé passe toujours au ton « importe », quel que soit son statut.
+    expect(tonStatutLot('analyzed', true)).toBe('importe');
+    expect(tonStatutLot('testing', true)).toBe('importe');
+  });
+});
+
 describe('V5 · la page Résultats câble la vue d’ensemble (source)', () => {
-  it('porte la barre d’onglets, filtrée par les droits réels (canAccess)', () => {
+  it('porte la barre d’onglets en segment (maquette), filtrée par les droits réels (canAccess)', () => {
     expect(page).toContain('ongletsResultats(accessibles');
     expect(page).toContain('<BarreOnglets');
+    expect(page).toContain('variant="segment"');
     expect(page).toContain('canAccess(acces, f)');
   });
 

@@ -137,7 +137,7 @@ export default async function AdsMapPage({ searchParams }: { searchParams: Promi
 
       {/* Les onglets de section (V5) · routes réelles, libellés de la maquette,
           filtrés par les droits. Purement navigation · chaque page garde sa garde. */}
-      <BarreOnglets zone="resultats" libelle="Sections des résultats" onglets={onglets} />
+      <BarreOnglets zone="resultats" libelle="Sections des résultats" onglets={onglets} variant="segment" />
 
       {/* L'invite Jarvis · ouvre le vrai Jarvis de la marque, rien de simulé. */}
       {jarvisOuvert && <BlocJarvisResultats />}

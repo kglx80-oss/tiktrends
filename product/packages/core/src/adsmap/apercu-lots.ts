@@ -31,6 +31,14 @@ export interface FaitsLotApercu {
   ads: number;
 }
 
+/**
+ * La famille du statut · porte la pastille de la carte (maquette V5). La pastille
+ * ne fait que RENFORCER le libellé en clair, jamais le remplacer · le sens reste
+ * porté par le texte du statut, à côté. L'écran mappe chaque ton à un rôle de
+ * couleur sémantique (jamais un littéral).
+ */
+export type TonStatutLot = 'diffusion' | 'termine' | 'attente' | 'importe';
+
 /** Une carte de l'aperçu · présentation seule, tirée des faits. */
 export interface CarteLotApercu {
   id: string;
@@ -40,6 +48,8 @@ export interface CarteLotApercu {
   but: string | null;
   /** Le statut opérationnel, en clair. */
   statut: string;
+  /** La famille du statut · teinte la pastille (renfort, pas sens unique). */
+  ton: TonStatutLot;
   /** Vrai si c'est un historique importé (badge « Importé »). */
   importe: boolean;
   /** Le nombre de variantes (ads rangées dans le lot). */
@@ -68,6 +78,20 @@ export const STATUT_LOT_RESULTATS: Record<string, string> = {
   done: 'Terminé',
 };
 
+/**
+ * La famille de couleur d'un statut · un historique importé passe toujours au ton
+ * « importe » (c'est ce que la maquette signale en premier), sinon la diffusion
+ * porte l'accent, un lot terminé le vert, et tout le reste est en attente.
+ * Une clé inconnue retombe en « attente » · jamais une couleur inventée pour un
+ * statut qu'on ne connaît pas.
+ */
+export function tonStatutLot(status: string, importe: boolean): TonStatutLot {
+  if (importe) return 'importe';
+  if (status === 'testing' || status === 'live') return 'diffusion';
+  if (status === 'done' || status === 'analyzed') return 'termine';
+  return 'attente';
+}
+
 /** Le lien vers un lot réel, dans l'onglet « Lots de test ». */
 export function lienLotApercu(id: string): string {
   return `/adsmap/lots?lot=${encodeURIComponent(id)}`;
@@ -80,13 +104,17 @@ export function lienLotApercu(id: string): string {
  * vide, que l'écran traduit en état vide honnête.
  */
 export function apercuLotsResultats(lots: readonly FaitsLotApercu[], max = 4): CarteLotApercu[] {
-  return lots.slice(0, max).map((l) => ({
-    id: l.id,
-    titre: `Lot #${l.number}`,
-    but: l.goal && l.goal.trim() ? l.goal.trim() : null,
-    statut: STATUT_LOT_RESULTATS[l.status] ?? l.status,
-    importe: estLotImporte(l),
-    variantes: l.ads,
-    href: lienLotApercu(l.id),
-  }));
+  return lots.slice(0, max).map((l) => {
+    const importe = estLotImporte(l);
+    return {
+      id: l.id,
+      titre: `Lot #${l.number}`,
+      but: l.goal && l.goal.trim() ? l.goal.trim() : null,
+      statut: STATUT_LOT_RESULTATS[l.status] ?? l.status,
+      ton: tonStatutLot(l.status, importe),
+      importe,
+      variantes: l.ads,
+      href: lienLotApercu(l.id),
+    };
+  });
 }

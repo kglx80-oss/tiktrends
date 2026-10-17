@@ -1,7 +1,19 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, apercuLotsResultats, type FaitsLotApercu } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, apercuLotsResultats, type FaitsLotApercu, type TonStatutLot } from '@tiktrends/core';
 import { surface, tuile } from '../../../components/ui';
+
+/**
+ * La couleur de la pastille de statut (maquette V5) · un rôle sémantique par
+ * ton, jamais un littéral. La pastille RENFORCE le libellé en clair posé juste à
+ * côté · elle n'est pas le seul porteur du sens.
+ */
+const COULEUR_TON: Record<TonStatutLot, string> = {
+  diffusion: 'var(--accent)',
+  termine: 'var(--ok)',
+  importe: 'var(--warn)',
+  attente: 'var(--muted)',
+};
 
 /**
  * V5 · Résultats · la bande « Lots de test » de la vue d'ensemble.
@@ -49,11 +61,12 @@ export function ApercuLots({ lots, peutVoirLots }: {
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
           {cartes.map((c) => (
             <Link key={c.id} href={c.href} data-carte-lot style={carte}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)' }}>{c.statut}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: COULEUR_TON[c.ton] }} />
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)' }}>{c.statut}</span>
                 {c.importe && <span style={badgeImporte}>Importé</span>}
                 <span style={{ flex: 1 }} />
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>{c.variantes} variante{c.variantes > 1 ? 's' : ''}</span>
+                <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{c.variantes} variante{c.variantes > 1 ? 's' : ''}</span>
               </div>
               <div style={{ marginTop: 6, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{c.titre}</div>
               {c.but && <div style={{ marginTop: 2, fontSize: 12, color: 'var(--muted)', lineHeight: 1.45, overflowWrap: 'anywhere' }}>{c.but}</div>}
@@ -68,7 +81,7 @@ export function ApercuLots({ lots, peutVoirLots }: {
 
 const carte: CSSProperties = {
   ...surface, display: 'flex', flexDirection: 'column', minHeight: CIBLE_TACTILE_MIN,
-  padding: '13px 15px', background: 'var(--surface)', color: 'var(--ink)', textDecoration: 'none',
+  padding: '14px 16px', background: 'var(--surface)', color: 'var(--ink)', textDecoration: 'none',
 };
 
 const badgeImporte: CSSProperties = {
@@ -76,5 +89,5 @@ const badgeImporte: CSSProperties = {
 };
 
 const ouvrir: CSSProperties = {
-  marginTop: 10, fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)',
+  marginTop: 'auto', paddingTop: 12, fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)',
 };

@@ -32,15 +32,19 @@ export function BlocJarvisResultats() {
       aria-label="Analyser vos résultats avec Jarvis"
       data-bloc="jarvis-resultats"
       style={{
-        ...surface, background: 'var(--surface)', padding: 20, marginBottom: 18,
-        display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap',
+        // Le lavis rose de la maquette · de l'accent-soft (gauche) vers la
+        // surface (droite), deux jetons qui suivent les quatre thèmes · jamais
+        // un dégradé rose en dur.
+        ...surface, background: 'linear-gradient(120deg, var(--accent-soft) 0%, var(--surface) 62%)',
+        padding: 22, marginBottom: 18,
+        display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap',
       }}
     >
       {/* L'orbe · dégradé d'accent + un reflet au jeton, jamais une couleur en dur. */}
       <span
         aria-hidden
         style={{
-          flexShrink: 0, width: 56, height: 56, borderRadius: 999,
+          flexShrink: 0, width: 62, height: 62, borderRadius: 999, alignSelf: 'flex-start',
           background: 'radial-gradient(circle at 34% 30%, var(--on-accent), transparent 42%), var(--grad-accent)',
           boxShadow: '0 6px 18px var(--ombre)',
         }}
@@ -59,15 +63,17 @@ export function BlocJarvisResultats() {
       </div>
       {/* L'action réelle · ouvre le vrai Jarvis (un seul fil par marque). */}
       <Link href="/jarvis" style={cta}>
-        <Icon name="brain" size={16} /> Analyser avec Jarvis
+        <Icon name="chat" size={16} /> Analyser avec Jarvis
       </Link>
     </section>
   );
 }
 
 const puce: CSSProperties = {
+  // Des puces claires (surface) à bord net · elles ressortent sur le lavis rose
+  // de la carte, comme dans la maquette (le --paper se fondait dans le lavis).
   ...tuile, display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
-  padding: '0 13px', background: 'var(--paper)', color: 'var(--ink-2)', fontSize: 12.5,
+  padding: '0 14px', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5,
   fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
 };
 
