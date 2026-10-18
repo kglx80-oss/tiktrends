@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from 'react';
 import {
   libelleCredits, libelleUsd, phraseCoutDevis, CIBLE_TACTILE_MIN,
+  MESSAGE_LANCEMENT_INCERTAIN, peutConfirmerLancement,
   type ErreurStudio,
 } from '@tiktrends/core';
 import { approuverEtLancerImage } from '../../../app/actions/studios/image';
@@ -59,8 +60,13 @@ export function EtapeConfirmation({ devis, onModifier, onLance }: {
   const [verifie, setVerifie] = useState(false);
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Réponse PERDUE sur cette mutation PAYANTE · le lancement a PU être accepté et
+  // débité · on ne rouvre rien tant que ce n'est pas levé par un rechargement.
+  const [incertain, setIncertain] = useState(false);
 
   async function confirmer() {
+    // Garde · état incertain ⇒ aucun nouvel appel, aucune navigation (double débit).
+    if (!peutConfirmerLancement(incertain)) return;
     setOccupe(true);
     setErreur(null);
     try {
@@ -68,7 +74,9 @@ export function EtapeConfirmation({ devis, onModifier, onLance }: {
       if (!r.ok) { setErreur(messageErreur(r)); return; }
       onLance(r.job);
     } catch {
-      setErreur('Le serveur n’a pas répondu · rien n’a été confirmé ni débité. Recharge avant de réessayer.');
+      // La réponse réseau est perdue · on ne PROMET PAS une absence de débit.
+      setIncertain(true);
+      setErreur(MESSAGE_LANCEMENT_INCERTAIN);
     } finally {
       setOccupe(false);
     }
@@ -106,9 +114,9 @@ export function EtapeConfirmation({ devis, onModifier, onLance }: {
       {erreur && <p role="alert" data-etat="erreur" style={{ margin: 0, fontSize: 13.5, color: 'var(--err-text)' }}>{erreur}</p>}
 
       <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
-        <button type="button" data-bouton="modifier" onClick={onModifier} disabled={occupe} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN }}>‹ Modifier</button>
-        <button type="button" data-bouton="confirmer-generer" onClick={() => void confirmer()} disabled={!verifie || occupe}
-          style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: (!verifie || occupe) ? 0.55 : 1 }}>
+        <button type="button" data-bouton="modifier" onClick={onModifier} disabled={occupe || incertain} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN, opacity: (occupe || incertain) ? 0.55 : 1 }}>‹ Modifier</button>
+        <button type="button" data-bouton="confirmer-generer" onClick={() => void confirmer()} disabled={!verifie || occupe || incertain}
+          style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: (!verifie || occupe || incertain) ? 0.55 : 1 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="spark" size={14} />{occupe ? 'Lancement…' : `Confirmer et générer · ${libelleCredits(devis.credits)}`}</span>
         </button>
       </footer>

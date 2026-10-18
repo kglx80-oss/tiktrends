@@ -24,12 +24,27 @@ import type { DevisImageVue, VueParcoursImage } from '../lib/studios/image/parco
 const h = vi.hoisted(() => ({
   approuver: [] as unknown[], devisDemande: [] as unknown[], manuel: [] as unknown[], appliquer: [] as unknown[],
   reponseApprouver: null as unknown, reponseDevis: null as unknown, vue: null as VueParcoursImage | null,
+  // Mutation PAYANTE dont la RÉPONSE est perdue : la demande est ENREGISTRÉE
+  // (le serveur a pu l'accepter et débiter) PUIS l'appel throw (réseau coupé).
+  jeteApprouver: false,
+  // Mutation GRATUITE (devis) dont la réponse est perdue : enregistrée puis throw.
+  jeteDevis: false,
+  // Course réseau : réponses retardées, résolues à la main, dans l'ordre choisi.
+  lireDiffere: null as null | (() => Promise<unknown>),
 }));
 
 vi.mock('../app/actions/studios/image', () => ({
-  lireParcoursImage: async () => (h.vue ? { ok: true, vue: h.vue } : { ok: false, code: 'UNSUPPORTED_CAPABILITY', message: 'coupée', targetIds: ['generation_image'], recoverable: true, traceId: 't' }),
-  demanderDevisImage: async (e: unknown) => { h.devisDemande.push(e); return h.reponseDevis ?? { ok: true, devis: {} }; },
-  approuverEtLancerImage: async (e: unknown) => { h.approuver.push(e); return h.reponseApprouver ?? { ok: true, job: { id: 'job-1', etat: 'queued', quoteId: 'q1', idempotencyKey: 'k', brandId: 'b', projectId: 'p' }, deja: false }; },
+  lireParcoursImage: async () => {
+    if (h.lireDiffere) return h.lireDiffere();
+    return h.vue ? { ok: true, vue: h.vue } : { ok: false, code: 'UNSUPPORTED_CAPABILITY', message: 'coupée', targetIds: ['generation_image'], recoverable: true, traceId: 't' };
+  },
+  // Par défaut, le devis créé est corrélé à la vue (id q1) · un test peut le changer.
+  demanderDevisImage: async (e: unknown) => { h.devisDemande.push(e); if (h.jeteDevis) throw new Error('réseau coupé après l’envoi'); return h.reponseDevis ?? { ok: true, devis: { id: 'q1', inputHash: 'HASH-ABC' } }; },
+  approuverEtLancerImage: async (e: unknown) => {
+    h.approuver.push(e); // la demande est enregistrée AVANT tout échec réseau
+    if (h.jeteApprouver) throw new Error('réseau coupé après l’envoi');
+    return h.reponseApprouver ?? { ok: true, job: { id: 'job-1', etat: 'queued', quoteId: 'q1', idempotencyKey: 'k', brandId: 'b', projectId: 'p' }, deja: false };
+  },
 }));
 vi.mock('../app/actions/studios/propositions', () => ({
   creerPropositionManuelle: async (e: unknown) => { h.manuel.push(e); return { ok: true, statut: 'proposee', projectId: 'proj-1', proposition: { id: 'prop-f' }, runId: null }; },
@@ -38,7 +53,7 @@ vi.mock('../app/actions/studios/propositions', () => ({
 
 import { EtapeConfirmation } from '../components/studios/projet/EtapeConfirmation';
 import { EtapeFormatDevis } from '../components/studios/projet/EtapeFormatDevis';
-import type { BriefCanonique } from '@tiktrends/core';
+import { MESSAGE_LANCEMENT_INCERTAIN, MESSAGE_DEVIS_INCONNU, type BriefCanonique } from '@tiktrends/core';
 
 const devis: DevisImageVue = {
   id: 'q1', inputHash: 'HASH-ABC', credits: 4, usdMicros: 600_000,
@@ -73,7 +88,7 @@ const cocher = async (el: Element | null) => {
   await act(async () => { c.dispatchEvent(new Event('click', { bubbles: true })); c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); });
 };
 
-beforeEach(() => { h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; });
+beforeEach(() => { h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation transactionnelle', () => {
@@ -134,6 +149,39 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
     expect(modifs, '« Modifier » n’a pas rappelé onModifier').toHaveLength(1);
     await fermer();
   });
+
+  it('réponse PERDUE sur le lancement payant · message INCERTAIN, DEUX boutons verrouillés, aucun second appel ni navigation', async () => {
+    h.jeteApprouver = true; // la demande est enregistrée AVANT la perte réseau
+    const lances: unknown[] = [];
+    const modifs: number[] = [];
+    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => modifs.push(1)} onLance={(j) => lances.push(j)} />);
+    const confirmer = () => hote.querySelector('[data-bouton="confirmer-generer"]') as HTMLButtonElement;
+    const modifier = () => hote.querySelector('[data-bouton="modifier"]') as HTMLButtonElement;
+
+    await cocher(hote.querySelector('[data-champ="verifie"] input'));
+    await clic(confirmer());
+    await flush();
+
+    // La demande a été transmise une fois · elle a PU être acceptée et débitée.
+    expect(h.approuver, 'la première demande doit avoir été transmise').toHaveLength(1);
+    // Message honnête EXACT · jamais « rien n’a été débité ».
+    const alerte = hote.querySelector('[data-etat="erreur"]');
+    expect(alerte, 'le message incertain n’est pas montré').not.toBeNull();
+    expect(alerte!.textContent).toBe(MESSAGE_LANCEMENT_INCERTAIN);
+    expect(alerte!.textContent).not.toMatch(/rien n’a été (confirmé|débité)/);
+    // Les DEUX boutons sont verrouillés (pas de double lancement / double débit).
+    expect(confirmer().disabled, 'Confirmer doit rester verrouillé après l’incertitude').toBe(true);
+    expect(modifier().disabled, 'Modifier doit être verrouillé après l’incertitude').toBe(true);
+
+    // Un SECOND clic ne déclenche NI nouvel appel NI navigation.
+    await clic(confirmer());
+    await clic(modifier());
+    await flush();
+    expect(h.approuver, 'un clic après l’incertitude ne doit RIEN relancer').toHaveLength(1);
+    expect(lances, 'aucune navigation après une réponse perdue').toHaveLength(0);
+    expect(modifs, 'Modifier verrouillé ne doit pas revenir au format').toHaveLength(0);
+    await fermer();
+  });
 });
 
 describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () => {
@@ -179,6 +227,69 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     await fermer();
   });
 
+  it('réponse de devis PERDUE · état INCONNU honnête (jamais « rien n’a été deviser »), rien remonté', async () => {
+    h.vue = vueParcours(null);
+    h.jeteDevis = true; // la demande est enregistrée AVANT la perte réseau
+    const devisPrets: DevisImageVue[] = [];
+    const { hote, fermer } = await monter(
+      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={{ ...briefVide, formats: ['4:5'] }}
+        onBriefChange={() => {}} onDevisPret={(d) => devisPrets.push(d)} onRetour={() => {}} />,
+    );
+    await flush();
+    await clic(hote.querySelector('[data-bouton="voir-devis"]'));
+    await flush();
+    const alerte = hote.querySelector('[data-etat="erreur"]');
+    expect(alerte, 'aucun message d’état sur la perte réseau').not.toBeNull();
+    expect(alerte!.textContent).toBe(MESSAGE_DEVIS_INCONNU);
+    expect(alerte!.textContent).not.toMatch(/rien n’a été (deviser|devisé)/);
+    expect(devisPrets, 'aucun devis ne doit être remonté sur une réponse perdue').toHaveLength(0);
+    await fermer();
+  });
+
+  it('course réseau · devis relu NON corrélé à LA demande (« dernier devis du projet ») ⇒ rejeté, rien remonté', async () => {
+    // Le projet a un devis plus récent (q-autre) qui n'est PAS celui que cette demande a créé.
+    h.vue = vueParcours({ ...devis, id: 'q-autre' });
+    h.reponseDevis = { ok: true, devis: { id: 'q-de-cette-demande', inputHash: 'H' } };
+    const devisPrets: DevisImageVue[] = [];
+    const { hote, fermer } = await monter(
+      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={{ ...briefVide, formats: ['4:5'] }}
+        onBriefChange={() => {}} onDevisPret={(d) => devisPrets.push(d)} onRetour={() => {}} />,
+    );
+    await flush();
+    await clic(hote.querySelector('[data-bouton="voir-devis"]'));
+    await flush();
+    expect(devisPrets, 'un devis non corrélé à la demande ne doit JAMAIS être remonté').toHaveLength(0);
+    const alerte = hote.querySelector('[data-etat="erreur"]');
+    expect(alerte, 'un devis non corrélé doit afficher l’état inconnu').not.toBeNull();
+    expect(alerte!.textContent).toBe(MESSAGE_DEVIS_INCONNU);
+    await fermer();
+  });
+
+  it('course réseau · devis en vol ⇒ format, relecture et Retour sont VERROUILLÉS pendant la demande', async () => {
+    h.vue = vueParcours(null);
+    const { hote, fermer } = await monter(
+      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={{ ...briefVide, formats: ['4:5'] }}
+        onBriefChange={() => {}} onDevisPret={() => {}} onRetour={() => {}} />,
+    );
+    await flush(); // le chargement initial a résolu · la vue est posée (relecture rendue)
+    // On diffère SEULEMENT la lecture déclenchée par la demande de devis.
+    let resoudre: (v: unknown) => void = () => {};
+    h.lireDiffere = () => new Promise((res) => { resoudre = res; }); // lecture EN VOL
+    await clic(hote.querySelector('[data-bouton="voir-devis"]'));
+    await flush(); // demanderDevisImage résolu, lireParcoursImage reste en vol
+    const fmt = () => hote.querySelector('[data-format="9:16"]') as HTMLButtonElement;
+    const rel = () => hote.querySelector('[data-champ="relecture"] input') as HTMLInputElement;
+    const ret = () => hote.querySelector('[data-bouton="retour-direction"]') as HTMLButtonElement;
+    expect(fmt().disabled, 'le format doit être verrouillé pendant la demande').toBe(true);
+    expect(rel().disabled, 'la relecture doit être verrouillée pendant la demande').toBe(true);
+    expect(ret().disabled, 'Retour doit être verrouillé pendant la demande').toBe(true);
+    // Fin de la demande · le verrou se lève.
+    await act(async () => { resoudre({ ok: true, vue: vueParcours(devis) }); await Promise.resolve(); });
+    await flush();
+    expect(ret().disabled, 'le verrou doit se lever à la fin de la demande').toBe(false);
+    await fermer();
+  });
+
   it('génération coupée pour l’espace ⇒ état honnête, aucun bouton de devis', async () => {
     h.vue = null; // lireParcoursImage renvoie UNSUPPORTED_CAPABILITY
     const { hote, fermer } = await monter(
@@ -198,4 +309,9 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
  *  · retirer le `disabled={!verifie}` → « verrouillé avant vérification » tombe.
  *  · avaler le BUDGET_EXCEEDED (ne pas afficher l'erreur) → « dépassement montré » tombe.
  *  · ne pas remonter vue.devis (onDevisPret jamais appelé) → « devis réel remonté » tombe.
+ *  · catch de confirmation remis à « rien n'a été débité » sans setIncertain → « réponse PERDUE » tombe (message + boutons verrouillés).
+ *  · retirer `incertain` du disabled des boutons → « DEUX boutons verrouillés » tombe.
+ *  · remonter r.vue.devis sans corréler l'id à d.devis.id → « devis non corrélé rejeté » tombe (onDevisPret appelé à tort).
+ *  · retirer `disabled={occupe}` des contrôles format/relecture/Retour → « verrouillés pendant la demande » tombe.
+ *  · catch du devis remis à « rien n'a été deviser » → « réponse de devis PERDUE » tombe.
  */

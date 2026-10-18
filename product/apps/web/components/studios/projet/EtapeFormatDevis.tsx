@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   OPTIONS_FORMAT_ASSISTANT, saisieFormatDepuisBrief, changementFormatManuel, formatDejaEcrit, controleVisionDevis,
   capacitesDuRefus, libelleCaseControleVision, ALLOWED_PATHS_BRIEF, CIBLE_TACTILE_MIN, teinte,
+  signatureChoixDevis, verdictDevisRecu, MESSAGE_DEVIS_INCONNU,
   type SaisieFormat, type BriefCanonique, type FormatDocument, type ErreurStudio,
 } from '@tiktrends/core';
 import { lireParcoursImage, demanderDevisImage } from '../../../app/actions/studios/image';
@@ -51,6 +52,9 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   const [nonActive, setNonActive] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
+  // Course réseau · numéro de la demande de devis en vol · une demande plus
+  // récente rend la précédente obsolète (sa réponse ne doit rien afficher).
+  const seqRef = useRef(0);
 
   const charger = useCallback(async () => {
     try {
@@ -70,6 +74,12 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   const relectureDisponible = !!vue?.controleVision?.disponible;
   const relecture = relectureDisponible && saisie.relectureAuto;
 
+  // Signature des choix AFFICHÉS à l'instant · lue au retour du devis pour
+  // rejeter une réponse qui ne correspond plus à ce qu'on voit (devis périmé).
+  const signatureAffichee = signatureChoixDevis({ ...saisie, relectureAuto: relecture });
+  const signatureAfficheeRef = useRef(signatureAffichee);
+  signatureAfficheeRef.current = signatureAffichee;
+
   async function ecrireFormatSiBesoin(): Promise<boolean> {
     if (formatDejaEcrit(brief, saisie.format)) return true;
     const c = creerManuel(saisie.format);
@@ -83,20 +93,42 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   }
 
   async function demanderDevis() {
+    const seq = ++seqRef.current;
+    const saisieDemande: SaisieFormat = { ...saisie, relectureAuto: relecture };
+    const signatureDemande = signatureChoixDevis(saisieDemande);
     setOccupe(true);
     setRetour(null);
     try {
       if (!(await ecrireFormatSiBesoin())) return;
-      const d = await demanderDevisImage({ projectId, controleVision: controleVisionDevis({ ...saisie, relectureAuto: relecture }) });
+      const d = await demanderDevisImage({ projectId, controleVision: controleVisionDevis(saisieDemande) });
       if (!d.ok) { setRetour({ ok: false, texte: messageErreur(d) }); return; }
-      // Le devis vient d'être écrit · on relit l'état réel et on remonte le devis vu.
+      // Le devis vient d'être écrit · on relit l'état réel et on CORRÈLE la
+      // réponse à CETTE demande (identifiant du devis créé, choix affichés,
+      // séquence) · jamais « le dernier devis du projet ».
+      const devisCreeId = d.devis?.id ?? null;
       const r = await lireParcoursImage({ projectId });
-      if (r.ok && r.vue.devis) { setVue(r.vue); onDevisPret(r.vue.devis); return; }
-      setRetour({ ok: false, texte: 'Le devis a été créé mais n’est pas lisible · recharge la page.' });
+      if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r) }); return; }
+      const verdict = verdictDevisRecu({
+        seqDemande: seq, seqCourant: seqRef.current,
+        signatureDemande, signatureAffichee: signatureAfficheeRef.current,
+        devisCreeId, devisReluId: r.vue.devis?.id ?? null,
+      });
+      if (!verdict.accepte) {
+        // Obsolète · une demande plus récente décide · on ne touche à rien.
+        if (verdict.raison === 'obsolete') return;
+        // Périmé / non corrélé · on ne présente JAMAIS ce devis comme courant.
+        setVue(r.vue);
+        setRetour({ ok: false, texte: MESSAGE_DEVIS_INCONNU });
+        return;
+      }
+      setVue(r.vue);
+      onDevisPret(r.vue.devis!);
     } catch {
-      setRetour({ ok: false, texte: 'Le serveur n’a pas répondu · rien n’a été deviser. Recharge avant de réessayer.' });
+      // Réponse perdue · état INCONNU · aucune promesse d'absence d'effet.
+      setRetour({ ok: false, texte: MESSAGE_DEVIS_INCONNU });
     } finally {
-      setOccupe(false);
+      // Ne libère le verrou que si CETTE demande est encore la courante.
+      if (seqRef.current === seq) setOccupe(false);
     }
   }
 
@@ -123,8 +155,8 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
                 const choisi = o.format === saisie.format;
                 return (
                   <button key={o.format} type="button" role="radio" aria-checked={choisi} data-format={o.format}
-                    onClick={() => setSaisie((s) => ({ ...s, format: o.format }))}
-                    style={{ ...tuile, textAlign: 'left', padding: 12, cursor: 'pointer', display: 'grid', gap: 2, minHeight: CIBLE_TACTILE_MIN, background: choisi ? teinte('accent', .12) : 'var(--bg)', borderColor: choisi ? 'var(--accent-strong)' : 'var(--line)' }}>
+                    onClick={() => setSaisie((s) => ({ ...s, format: o.format }))} disabled={occupe}
+                    style={{ ...tuile, textAlign: 'left', padding: 12, cursor: occupe ? 'default' : 'pointer', display: 'grid', gap: 2, minHeight: CIBLE_TACTILE_MIN, background: choisi ? teinte('accent', .12) : 'var(--bg)', borderColor: choisi ? 'var(--accent-strong)' : 'var(--line)', opacity: occupe && !choisi ? 0.6 : 1 }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{o.libelle}</span>
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>{o.largeur} × {o.hauteur} · {o.placement}</span>
                   </button>
@@ -138,7 +170,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
             <span style={sectionLbl}>Relecture automatique</span>
             {relectureDisponible ? (
               <label data-champ="relecture" style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE_TACTILE_MIN, fontSize: 13.5, color: 'var(--ink)' }}>
-                <input type="checkbox" checked={saisie.relectureAuto} onChange={(e) => setSaisie((s) => ({ ...s, relectureAuto: e.target.checked }))} style={{ width: 20, height: 20 }} />
+                <input type="checkbox" checked={saisie.relectureAuto} onChange={(e) => setSaisie((s) => ({ ...s, relectureAuto: e.target.checked }))} disabled={occupe} style={{ width: 20, height: 20 }} />
                 <span>{libelleCaseControleVision(vue!.controleVision.borneParImageUsdMicros)}</span>
               </label>
             ) : (
@@ -148,7 +180,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
           </section>
 
           <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
-            <button type="button" data-bouton="retour-direction" onClick={onRetour} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN }}>‹ Direction</button>
+            <button type="button" data-bouton="retour-direction" onClick={onRetour} disabled={occupe} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN, opacity: occupe ? 0.6 : 1 }}>‹ Direction</button>
             <button type="button" data-bouton="voir-devis" onClick={() => void demanderDevis()} disabled={occupe}
               style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: occupe ? 0.6 : 1 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="file" size={14} />{occupe ? 'Calcul du devis…' : 'Voir le devis serveur'}</span>
