@@ -41,9 +41,9 @@ beforeEach(() => { h.appels = []; });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('assistant V5 · rail et étapes « bientôt » honnêtes', () => {
-  it('format et creation restent « bientôt » et ne portent AUCUN contrôle', async () => {
+  it('creation reste « bientôt » et ne porte AUCUN contrôle (format est câblé au Lot 2c)', async () => {
     const { hote, fermer } = await monter();
-    for (const id of ['format', 'creation']) {
+    for (const id of ['creation']) {
       const li = hote.querySelector(`[data-rail-etape="${id}"]`);
       expect(li, `étape ${id} absente du rail`).not.toBeNull();
       expect(li!.getAttribute('data-etat')).toBe('bientot');
@@ -52,9 +52,9 @@ describe('assistant V5 · rail et étapes « bientôt » honnêtes', () => {
       // pas de faux contrôle : aucun bouton, champ, case ni sélecteur dans l'étape à venir
       expect(li!.querySelector('button, input, select, textarea, a')).toBeNull();
     }
-    // stratégie et direction sont désormais actives · au départ (projet non créé)
+    // stratégie, direction et format sont désormais actives · au départ (projet non créé)
     // elles sont « todo » et pas encore navigables, jamais « bientôt »
-    for (const id of ['strategie', 'direction']) {
+    for (const id of ['strategie', 'direction', 'format']) {
       const li = hote.querySelector(`[data-rail-etape="${id}"]`);
       expect(li!.getAttribute('data-etat')).toBe('todo');
       expect(li!.getAttribute('data-bientot')).toBeNull();

@@ -3,7 +3,7 @@
 import { useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ETAPES_RAIL, etatRailProjet, etapeProjetPrecedente, etapeProjetSuivante, etapeRequiertProjet,
+  ETAPES_RAIL, etatRailProjet, etapeProjetPrecedente, etapeProjetSuivante, etapeRequiertProjet, etapeRail,
   etapeDisponible, saisieBriefVide, verifierCreationAssistant,
   OBJECTIFS_V5, PLATEFORMES_V5, LIBELLES_OBJECTIF_V5, LIBELLES_PLATEFORME_V5, LIBELLES_TYPE_PROJET,
   TYPES_NOUVEAU_PROJET, TITRE_NOUVEAU_PROJET_MAX, OBJECTIF_MAX, CIBLE_TACTILE_MIN, CHEMIN_PROJETS,
@@ -13,11 +13,14 @@ import {
 } from '@tiktrends/core';
 import { creerProjet } from '../../../app/actions/studios/projets';
 import { lireProjetDetail } from '../../../app/actions/studios/sources';
+import type { DevisImageVue } from '../../../lib/studios/image/parcours';
 import { Icon } from '../../Icon';
 import { btn, btnGhost, input, lbl, surface, tuile } from '../../ui';
 import { usePropositionsBrief } from './usePropositionsBrief';
 import { EtapeStrategie } from './EtapeStrategie';
 import { EtapeDirection } from './EtapeDirection';
+import { EtapeFormatDevis } from './EtapeFormatDevis';
+import { EtapeConfirmation } from './EtapeConfirmation';
 
 /**
  * L'assistant de création V5 (coquille `studioWizard`) porté sur les VRAIES
@@ -56,6 +59,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
   const [projet, setProjet] = useState<ProjetCourant | null>(null);
   const [brief, setBrief] = useState<BriefCanonique | null>(null);
+  // Lot 2c · le devis serveur réel, posé à l'étape format, confirmé à l'étape confirm.
+  const [devis, setDevis] = useState<DevisImageVue | null>(null);
 
   if (p.etat.etat !== 'pret') {
     return (
@@ -122,19 +127,35 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         {etape === 'direction' && projet && brief && (
           <AssistantPostCreation etape="direction" projet={projet} brief={brief} marqueId={marque.id} onProjetChange={rafraichir} />
         )}
+        {etape === 'format' && projet && brief && (
+          <EtapeFormatDevis
+            projectId={projet.id} version={projet.versionCourante} brief={brief}
+            onBriefChange={rafraichir}
+            onDevisPret={(d) => { setDevis(d); setEtape('confirm'); }}
+            onRetour={() => setEtape('direction')}
+          />
+        )}
+        {etape === 'confirm' && projet && devis && (
+          <EtapeConfirmation
+            devis={devis}
+            onModifier={() => { setDevis(null); setEtape('format'); }}
+            onLance={() => { setDevis(null); ouvrirProjet(); }}
+          />
+        )}
 
-        {erreur && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
+        {erreur && etape !== 'format' && etape !== 'confirm' && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
 
-        <Pied
-          etape={etape}
-          encours={encours}
-          aProjet={!!projet}
-          onCreer={creer}
-          onVersBrief={() => setEtape('brief')}
-          onReculer={() => { const prec = etapeProjetPrecedente(etape); if (prec && peutAller(prec)) setEtape(prec); }}
-          onAvancer={() => { const suiv = etapeProjetSuivante(etape); if (suiv) setEtape(suiv); }}
-          onOuvrirProjet={ouvrirProjet}
-        />
+        {etape !== 'format' && etape !== 'confirm' && (
+          <Pied
+            etape={etape}
+            encours={encours}
+            aProjet={!!projet}
+            onCreer={creer}
+            onVersBrief={() => setEtape('brief')}
+            onReculer={() => { const prec = etapeProjetPrecedente(etape); if (prec && peutAller(prec)) setEtape(prec); }}
+            onAvancer={() => { const suiv = etapeProjetSuivante(etape); if (suiv) setEtape(suiv); }}
+          />
+        )}
       </div>
     </section>
   );
@@ -160,9 +181,9 @@ function AssistantPostCreation({ etape, projet, brief, marqueId, onProjetChange 
 
 /* ─────────────────────────────── Le pied ────────────────────────────────── */
 
-function Pied({ etape, encours, aProjet, onCreer, onVersBrief, onReculer, onAvancer, onOuvrirProjet }: {
+function Pied({ etape, encours, aProjet, onCreer, onVersBrief, onReculer, onAvancer }: {
   etape: EtapeAssistant; encours: boolean; aProjet: boolean;
-  onCreer: () => void; onVersBrief: () => void; onReculer: () => void; onAvancer: () => void; onOuvrirProjet: () => void;
+  onCreer: () => void; onVersBrief: () => void; onReculer: () => void; onAvancer: () => void;
 }) {
   return (
     <>
@@ -177,11 +198,11 @@ function Pied({ etape, encours, aProjet, onCreer, onVersBrief, onReculer, onAvan
           {etape === 'start' && <button type="button" data-bouton="vers-brief" onClick={onVersBrief} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN }}>Commencer le brief</button>}
           {etape === 'brief' && <button type="button" data-bouton="creer-projet" onClick={onCreer} disabled={encours} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: encours ? 0.6 : 1 }}>{encours ? 'Création…' : 'Créer le projet'}</button>}
           {etape === 'strategie' && aProjet && <button type="button" data-bouton="vers-direction" onClick={onAvancer} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN }}>Continuer vers la direction</button>}
-          {etape === 'direction' && aProjet && <button type="button" data-bouton="ouvrir-projet" onClick={onOuvrirProjet} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN }}>Ouvrir le projet</button>}
+          {etape === 'direction' && aProjet && <button type="button" data-bouton="vers-format" onClick={onAvancer} style={{ ...btn, minHeight: CIBLE_TACTILE_MIN }}>Continuer vers le format</button>}
         </div>
       </footer>
       {etape === 'brief' && <p style={{ ...note, fontSize: 12.5, margin: 0 }}>Gratuit · le brief est enregistré à la création, rien n’est généré tant que tu ne lances rien.</p>}
-      {(etape === 'strategie' || etape === 'direction') && <p data-zone="bientot-note" style={{ ...note, fontSize: 12.5, margin: 0 }}>Les étapes Format &amp; devis et Création arrivent bientôt · ouvre le projet pour la suite (devis, génération).</p>}
+      {(etape === 'strategie' || etape === 'direction') && <p data-zone="bientot-note" style={{ ...note, fontSize: 12.5, margin: 0 }}>Format &amp; devis prépare le devis serveur · la génération reste gratuite jusqu’à ta confirmation. L’étape Création (suivi des visuels) arrive bientôt.</p>}
     </>
   );
 }
@@ -191,12 +212,14 @@ function Pied({ etape, encours, aProjet, onCreer, onVersBrief, onReculer, onAvan
 function Rail({ etape, brief, peutAller, onAller }: {
   etape: EtapeAssistant; brief: BriefCanonique | null; peutAller: (e: EtapeAssistant) => boolean; onAller: (e: EtapeAssistant) => void;
 }) {
+  // `confirm` n'a pas de puce propre · elle allume « Format & devis » (etapeRail).
+  const courante = etapeRail(etape);
   return (
     <nav data-zone="assistant-rail" aria-label="Étapes de l’assistant" style={{ flex: '0 0 220px', display: 'grid', gap: 10, ...surface, background: 'var(--surface)', padding: 16, alignContent: 'start' }}>
       <span style={sectionLbl}>Nouveau projet</span>
       <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 2 }}>
         {ETAPES_RAIL.map((def, i) => {
-          const st = etatRailProjet(def.id, etape, brief);
+          const st = etatRailProjet(def.id, courante, brief);
           const couleur = st === 'current' ? 'var(--ink)' : st === 'done' ? 'var(--ink-2)' : 'var(--muted)';
           const cliquable = peutAller(def.id) && st !== 'current';
           const contenu = (

@@ -68,7 +68,8 @@ describe('complétude mesurée sur le brief RELU (restitution)', () => {
     expect(etatRailProjet('strategie', 'strategie', base())).toBe('current');
     // sans brief relu, l'état reste positionnel
     expect(etatRailProjet('direction', 'strategie', null)).toBe('todo');
-    expect(etatRailProjet('format', 'strategie', renseigne)).toBe('bientot');
+    expect(etatRailProjet('format', 'strategie', renseigne)).toBe('todo'); // format est câblé (Lot 2c), positionnel à venir
+    expect(etatRailProjet('creation', 'strategie', renseigne)).toBe('bientot'); // creation reste « bientôt »
   });
 });
 

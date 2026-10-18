@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ETAPES_ASSISTANT, ETAPES_RAIL, etapeDisponible, etapeProjetSuivante, etapeProjetPrecedente, etatRail,
+  ETAPES_ASSISTANT, ETAPES_RAIL, etapeDisponible, etapeProjetSuivante, etapeProjetPrecedente, etatRail, etapeRail,
   etapeBriefPrete, etapeProjetComplete, construireBriefV5, verifierCreationAssistant, saisieBriefVide,
-  type SaisieBriefV5,
+  OPTIONS_FORMAT_ASSISTANT, saisieFormatDepuisBrief, formatDepuisBriefChoisi, changementFormatManuel,
+  formatDejaEcrit, controleVisionDevis, etapeFormatPrete,
+  type SaisieBriefV5, type SaisieFormat,
 } from '../src/studios/ux/assistant-projet';
-import { validerFormeBrief, CLES_BRIEF } from '../src/studios/brief';
+import { validerFormeBrief, CLES_BRIEF, type BriefCanonique } from '../src/studios/brief';
 
 /**
  * Raccord V5 · Lot 2a · la MACHINE D'ÉTAPES et la RÈGLE du brief, au RÉSULTAT.
@@ -26,34 +28,93 @@ const pleine = (): SaisieBriefV5 => ({
   contraintes: 'Montrer le produit en entier\nPas de visage identifiable',
 });
 
-describe('machine d’étapes · start, brief, stratégie, direction câblées', () => {
-  it('le parcours a start/brief/strategie/direction actifs, format/creation « bientôt »', () => {
+describe('machine d’étapes · brief → stratégie → direction → format → confirm câblés', () => {
+  it('le parcours a tout câblé sauf creation ; confirm n’ajoute pas de puce au rail', () => {
     const parStatut = Object.fromEntries(ETAPES_ASSISTANT.map((e) => [e.id, e.statut]));
-    expect(parStatut).toEqual({ start: 'actif', brief: 'actif', strategie: 'actif', direction: 'actif', format: 'bientot', creation: 'bientot' });
+    expect(parStatut).toEqual({ start: 'actif', brief: 'actif', strategie: 'actif', direction: 'actif', format: 'actif', confirm: 'actif', creation: 'bientot' });
+    // confirm (sous-vue de « Format & devis ») et start ne portent pas de puce · rail à cinq.
     expect(ETAPES_RAIL.map((e) => e.id)).toEqual(['brief', 'strategie', 'direction', 'format', 'creation']);
-    expect(etapeDisponible('brief')).toBe(true);
-    expect(etapeDisponible('strategie')).toBe(true);
-    expect(etapeDisponible('format')).toBe(false);
+    expect(etapeDisponible('format')).toBe(true);
+    expect(etapeDisponible('confirm')).toBe(true);
+    expect(etapeDisponible('creation')).toBe(false);
   });
 
-  it('les transitions sautent les étapes « bientôt »', () => {
-    expect(etapeProjetSuivante('start')).toBe('brief');
-    expect(etapeProjetSuivante('brief')).toBe('strategie');
+  it('les transitions vont direction → format → confirm, et sautent creation « bientôt »', () => {
     expect(etapeProjetSuivante('strategie')).toBe('direction');
-    expect(etapeProjetSuivante('direction')).toBeNull(); // format est « bientôt »
-    expect(etapeProjetPrecedente('direction')).toBe('strategie');
-    expect(etapeProjetPrecedente('brief')).toBe('start');
+    expect(etapeProjetSuivante('direction')).toBe('format');
+    expect(etapeProjetSuivante('format')).toBe('confirm');
+    expect(etapeProjetSuivante('confirm')).toBeNull(); // creation est « bientôt »
+    expect(etapeProjetPrecedente('confirm')).toBe('format'); // « Modifier » revient au format
+    expect(etapeProjetPrecedente('format')).toBe('direction');
     expect(etapeProjetPrecedente('start')).toBeNull();
   });
 
-  it('l’état du rail · une étape « bientôt » le reste, jamais « faite »', () => {
+  it('la puce du rail · confirm allume « Format & devis », pas une sixième puce', () => {
+    expect(etapeRail('confirm')).toBe('format');
+    expect(etapeRail('format')).toBe('format');
+    expect(etapeRail('direction')).toBe('direction');
+    // vu depuis la puce courante mappée, format est « current » pendant format ET confirm
+    expect(etatRail('format', etapeRail('confirm'))).toBe('current');
+    expect(etatRail('format', etapeRail('format'))).toBe('current');
+  });
+
+  it('l’état du rail · creation « bientôt » le reste, jamais « faite »', () => {
     expect(etatRail('brief', 'brief')).toBe('current');
     expect(etatRail('strategie', 'brief')).toBe('todo');
-    expect(etatRail('format', 'brief')).toBe('bientot');
-    // même si l'étape courante était plus loin, les « bientôt » ne deviennent pas « done »
-    expect(etatRail('format', 'creation')).toBe('bientot');
+    expect(etatRail('format', 'brief')).toBe('todo'); // format est câblé désormais, pas « bientôt »
+    expect(etatRail('creation', 'confirm')).toBe('bientot');
     // une étape actif franchie est « done »
     expect(etatRail('brief', 'direction')).toBe('done');
+    expect(etatRail('direction', etapeRail('confirm'))).toBe('done');
+  });
+});
+
+describe('étape FORMAT & DEVIS · format réel + relecture, décisions Kevin', () => {
+  const briefAvec = (formats: string[]): BriefCanonique => ({ ...construireBriefV5({ ...saisieBriefVide(), intention: 'x' }), formats });
+
+  it('les trois formats de la maquette viennent du catalogue normatif (pas de sous-titre inventé)', () => {
+    expect(OPTIONS_FORMAT_ASSISTANT.map((o) => o.format)).toEqual(['4:5', '1:1', '9:16']);
+    const portrait = OPTIONS_FORMAT_ASSISTANT.find((o) => o.format === '4:5')!;
+    expect(portrait.largeur).toBe(1080);
+    expect(portrait.hauteur).toBe(1350);
+    expect(portrait.libelle).toContain('Portrait');
+    const story = OPTIONS_FORMAT_ASSISTANT.find((o) => o.format === '9:16')!;
+    expect(story.placement.toLowerCase()).toContain('tiktok');
+  });
+
+  it('le format par défaut vient du brief quand il le dit, sinon le défaut annoncé ; relecture ON', () => {
+    expect(saisieFormatDepuisBrief(null)).toEqual({ format: '4:5', relectureAuto: true });
+    expect(saisieFormatDepuisBrief(briefAvec(['9:16']))).toEqual({ format: '9:16', relectureAuto: true });
+    expect(formatDepuisBriefChoisi(null)).toBe(false);
+    expect(formatDepuisBriefChoisi(briefAvec(['9:16']))).toBe(true);
+  });
+
+  it('« choisir ce format » écrit le ratio nu sur /brief/formats, reconnu par le format réel', () => {
+    const c = changementFormatManuel('9:16');
+    expect(c).toEqual({ op: 'replace', path: '/brief/formats', newValue: ['9:16'], reason: 'Format de sortie choisi · 9:16' });
+    // appliqué au brief, le document réel lit bien 9:16
+    const brief = { ...briefAvec([]), formats: c.newValue as string[] };
+    expect(saisieFormatDepuisBrief(brief).format).toBe('9:16');
+    expect(validerFormeBrief(brief)).toEqual([]);
+  });
+
+  it('formatDejaEcrit évite une proposition inutile quand le format est déjà celui du brief', () => {
+    expect(formatDejaEcrit(briefAvec(['9:16']), '9:16')).toBe(true);
+    expect(formatDejaEcrit(briefAvec(['9:16']), '4:5')).toBe(false);
+    expect(formatDejaEcrit(null, '4:5')).toBe(false); // défaut non écrit ⇒ à écrire si choisi
+  });
+
+  it('relecture ⇒ paramètre controleVision du devis réel · ON laisse (undefined), OFF retire (false)', () => {
+    expect(controleVisionDevis({ format: '4:5', relectureAuto: true })).toBeUndefined();
+    expect(controleVisionDevis({ format: '4:5', relectureAuto: false })).toBe(false);
+    // jamais `true` forcé · c'est le serveur qui décide si la ligne est exécutable
+    const vals = ([true, false] as const).map((r) => controleVisionDevis({ format: '4:5', relectureAuto: r } as SaisieFormat));
+    expect(vals).not.toContain(true);
+  });
+
+  it('l’étape format est prête dès qu’un format valide est posé', () => {
+    expect(etapeFormatPrete({ format: '4:5', relectureAuto: true })).toBe(true);
+    expect(etapeFormatPrete({ format: 'xx' as never, relectureAuto: true })).toBe(false);
   });
 });
 
@@ -125,6 +186,8 @@ describe('complétude et vérification avant envoi', () => {
  * Mutations éprouvées (cassées → test rouge sur la bonne assertion → restaurées) :
  *  · construireBriefV5 sans dédup des plateformes → « plateformes dédupliquées » tombe (doublon).
  *  · poser objectifType même vide → « champs V5 ABSENTS » tombe.
- *  · etapeProjetSuivante('direction') rendant 'format' → « transitions sautent bientôt » tombe.
- *  · etatRail ignorant le statut 'bientot' → « reste bientôt » tombe (renverrait 'done').
+ *  · etapeProjetSuivante('format') rendant null → « transitions direction → format → confirm » tombe.
+ *  · etapeRail('confirm') rendant 'confirm' → « confirm allume Format & devis » tombe (sixième puce).
+ *  · changementFormatManuel écrivant un libellé au lieu du ratio nu → « reconnu par le format réel » tombe.
+ *  · controleVisionDevis forçant true → « jamais true forcé » tombe.
  */

@@ -154,12 +154,10 @@ describe('assistant V5 · étape DIRECTION câblée + format/création « bient�
     await flush();
     expect((h.manuel.at(-1) as { changes: Array<{ path: string }> }).changes[0]!.path).toBe('/brief/styleIntent');
 
-    // format et création restent « bientôt », non navigables, sans contrôle
-    for (const id of ['format', 'creation']) {
-      const li = hote.querySelector(`[data-rail-etape="${id}"]`);
-      expect(li!.getAttribute('data-bientot')).toBe('true');
-      expect(li!.querySelector('button, input, select, textarea, a')).toBeNull();
-    }
+    // création reste « bientôt », non navigable, sans contrôle (format est câblé au Lot 2c)
+    const liCreation = hote.querySelector('[data-rail-etape="creation"]');
+    expect(liCreation!.getAttribute('data-bientot')).toBe('true');
+    expect(liCreation!.querySelector('button, input, select, textarea, a')).toBeNull();
     expect(hote.querySelector('[data-zone="bientot-note"]')).not.toBeNull();
     await fermer();
   });
