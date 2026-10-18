@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { proposeJarvisRules, distillWinningPatterns, type WinningAdSummary } from '@tiktrends/ai';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
-import { costFor } from '@tiktrends/core';
+import { costFor, costOfTokens, empreinteGabaritReglesMarque, empreinteIdentiteReglesMarque, instantaneReglesMarque, type ContexteReglesMarque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../lib/jarvis-acces';
@@ -12,6 +12,8 @@ import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { epinglerDevis, consignerRunReglesMarque } from '../../lib/studios/prompts/resolveur';
+import type { SourceTrace } from '../../lib/studios/prompts/traces';
 import { GUARD } from '../../lib/guard-error';
 
 /**
@@ -47,6 +49,14 @@ function textFromSnapshot(snap: unknown): string | null {
 /**
  * Jarvis rédige lui-même un règlement créatif puissant en analysant la marque + les concurrents
  * + les pubs qui fonctionnent. Retourne une proposition (non enregistrée). Débite 5 crédits (brief).
+ *
+ * Unifié sur le PromptResolver (matrice 9.4) · l'appel IA laisse désormais une
+ * trace `studio_prompt_runs` comme le reste des studios : release en vigueur
+ * ÉPINGLÉE à l'appel (`epinglerDevis`, la release réellement consommée),
+ * empreintes du message et du contexte, modèle, statut, coût réel, 5 crédits
+ * réservés. UN seul appel au modèle (inchangé), mêmes garde-fous qu'avant
+ * (admin + feature `jarvis` AVANT tout appel, `guardedAnthropic`/plafond, même
+ * réservation de 5 crédits) · aucune dépense nouvelle.
  */
 export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost?: number; error?: string }> {
   const s = await getSession();
@@ -67,6 +77,12 @@ export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost
 
   const saved = await db.select({ snapshot: schema.savedAds.snapshot }).from(schema.savedAds).where(eq(schema.savedAds.workspaceId, s.workspaceId)).limit(20);
   const winningCopy = saved.map((r) => textFromSnapshot(r.snapshot)).filter((x): x is string => !!x);
+  const ctx: ContexteReglesMarque = {
+    brand: b.name, category: b.category ?? b.industry ?? undefined, audience: b.audience ?? undefined,
+    usp: b.usp ?? undefined, tone: b.tone ?? undefined,
+    preferredWords: (b.preferredWords ?? []).join(', ') || undefined, avoidWords: (b.avoidWords ?? []).join(', ') || undefined,
+    competitors: b.competitors ?? undefined, winningCopy,
+  };
 
   // Débit atomique juste avant l'appel payant (remboursé si l'IA échoue) : vérifier
   // puis débiter en deux temps laissait deux requêtes simultanées passer pour un débit.
@@ -74,23 +90,38 @@ export async function proposeJarvisRulesAction(): Promise<{ rules?: string; cost
     return { error: `Crédits insuffisants (${cost} requis).` };
   }
 
-  let rules: string;
+  // La release en vigueur, épinglée à CET instant (comme un devis · lecture seule,
+  // aucun appel IA) · `null` si aucune n'est publiée (geste jamais coupé pour autant).
+  const epingle = await epinglerDevis().catch(() => null);
+  const releaseId = epingle?.ok ? epingle.promptReleaseId : null;
+  const portee = { workspaceId: s.workspaceId, brandId: brand.id };
+
+  const debut = Date.now();
+  let prop: Awaited<ReturnType<typeof proposeJarvisRules>>;
   try {
-    rules = await proposeJarvisRules(client, {
-      brand: b.name, category: b.category ?? b.industry ?? undefined, audience: b.audience ?? undefined,
-      usp: b.usp ?? undefined, tone: b.tone ?? undefined,
-      preferredWords: (b.preferredWords ?? []).join(', ') || undefined, avoidWords: (b.avoidWords ?? []).join(', ') || undefined,
-      competitors: b.competitors ?? undefined, winningCopy,
-    });
+    prop = await proposeJarvisRules(client, ctx);
   } catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · règles Jarvis');
     return { error: logAndTranslate('jarvis:rules', e, { subject: 'la rédaction des règles', workspaceId: s.workspaceId }) };
   }
-  if (!rules.trim()) {
+
+  // Trace de la run · release réellement consommée, empreintes, modèle, statut,
+  // coût réel, crédits. Non bloquante : la réponse a été lue, perdre la trace en
+  // base n'annule pas le geste.
+  const statut = prop.rules.trim() ? 'succeeded' : 'failed';
+  const sources: SourceTrace[] = [{ type: 'identite', id: brand.id, version: empreinteIdentiteReglesMarque(ctx), titre: 'Identité de marque' }];
+  await consignerRunReglesMarque({
+    portee, traceId: `jr_${crypto.randomUUID()}`, releaseId, modele: prop.modele, systeme: prop.systeme,
+    contexte: instantaneReglesMarque(ctx), templateContentHash: empreinteGabaritReglesMarque(prop.systeme), sources,
+    statut, latenceMs: Date.now() - debut, jetons: prop.jetons,
+    coutUsd: costOfTokens(prop.modele, prop.jetons.entree, prop.jetons.sortie), credits: unlimited ? 0 : cost,
+  }).catch((e) => console.error('[jarvis:rules] trace', (e as Error).message));
+
+  if (statut === 'failed') {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · règles Jarvis');
     return { error: "Aucune proposition n'a pu être générée." };
   }
-  return { rules, cost: unlimited ? 0 : cost };
+  return { rules: prop.rules, cost: unlimited ? 0 : cost };
 }
 
 const toWinning = (a: InspoAd): WinningAdSummary => ({ advertiser: a.advertiserName, body: a.body, cta: a.callToAction, daysRunning: a.daysRunning, reach: a.reach, mediaType: a.mediaType });
