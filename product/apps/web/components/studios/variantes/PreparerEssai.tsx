@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState, useTransition } from 'react';
+import { useId, useRef, useState, useTransition } from 'react';
 import {
   ESSAI_VARIABLES, ESSAI_LABEL, AIDE_ESSAI, CIBLE_TACTILE_MIN, libelleVariable,
   type EssaiVariable, type PlanLotEssai, type LigneEssai,
@@ -45,7 +45,8 @@ export function PreparerEssai({ projetId, variantes, horsLigne, ouvrirRattacheme
   const [erreur, setErreur] = useState<EtatEssaiRecette['erreur']>(initial.erreur ?? null);
   const [enCours, demarrer] = useTransition();
 
-  const invalider = () => { setPlan(null); setErreur(null); };
+  const revision = useRef(0);
+  const invalider = () => { revision.current += 1; setPlan(null); setErreur(null); };
   const basculer = (id: string) => { invalider(); setSelection((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); };
   const choisir = (v: EssaiVariable) => { invalider(); setVariable(v); };
   const pret = variable !== null && selection.length >= 2 && !horsLigne && !enCours;
@@ -53,10 +54,17 @@ export function PreparerEssai({ projetId, variantes, horsLigne, ouvrirRattacheme
   const preparer = () => {
     if (!pret) return;
     invalider();
+    const demande = revision.current;
     demarrer(async () => {
-      const r = await preparerLotEssai({ projectId: projetId, variable, variantIds: selection });
-      if (r.ok) setPlan(r.plan);
-      else setErreur({ message: r.message, traceId: r.traceId });
+      try {
+        const r = await preparerLotEssai({ projectId: projetId, variable, variantIds: selection });
+        if (demande !== revision.current) return;
+        if (r.ok) setPlan(r.plan);
+        else setErreur({ message: r.message, traceId: r.traceId });
+      } catch {
+        if (demande !== revision.current) return;
+        setErreur({ message: 'Le plan n’a pas pu être récupéré. Tes choix sont conservés. Réessaie quand la connexion est rétablie.' });
+      }
     });
   };
 

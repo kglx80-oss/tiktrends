@@ -225,6 +225,7 @@ export function SupportWidget({ firstName, anchored = false }: { firstName: stri
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-label="Aide et support"
+          aria-expanded={open}
           style={{
             position: 'fixed', bottom: 20, right: 20, width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', zIndex: 46,
             border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', boxShadow: `0 14px 34px -8px ${teinte('accent', .5)}`,

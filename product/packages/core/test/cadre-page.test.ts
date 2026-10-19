@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BORDURES, CADRE_PAGE, EXCEPTIONS_LECTURE, LECTURE, RAYONS, ROLES_CADRE, classerCadre, ecartAuRole, gouttiereCss, rayonSignal, styleCadre,
+  BORDURES, CADRE_PAGE, EXCEPTIONS_LECTURE, LECTURE, MARGE_CADRE, RAYONS, ROLES_CADRE, classerCadre, ecartAuRole, gouttiereCss, placementCadre, rayonSignal, styleCadre,
   type CadreObserve,
 } from '../src/cadre-page';
 
@@ -24,6 +24,30 @@ describe('cadre extérieur · la charte', () => {
   });
   it('chaque exception dit pourquoi', () => {
     for (const [route, e] of Object.entries(EXCEPTIONS_LECTURE)) expect(e.raison.length, route).toBeGreaterThan(10);
+  });
+
+  // Correctif « gros écart » · le cadre est collé au rail, jamais centré. Sur une
+  // colonne plus étroite que le cadre (≤ 1684 de fenêtre), rien ne change ; au-delà,
+  // le bord gauche NE BOUGE PAS (sinon le vide rail→contenu revient).
+  describe('le cadre est collé au rail (aligné à gauche)', () => {
+    it('la marge va à droite, le bord gauche est nul', () => {
+      const [haut, droite, bas, gauche] = MARGE_CADRE.split(/\s+/);
+      expect(MARGE_CADRE, 'cadre centré · le gros écart revient').not.toBe('0 auto');
+      expect(droite, 'espace en trop à droite (auto)').toBe('auto');
+      expect(gauche, 'bord gauche collé (0)').toBe('0');
+      expect([haut, bas]).toEqual(['0', '0']);
+    });
+    it('le bord gauche reste à la gouttière quelle que soit la largeur de colonne', () => {
+      const g = CADRE_PAGE.gouttiereDesktop;
+      // Colonne plus étroite que le cadre · il la remplit (contenu = colonne − 2 gouttières).
+      expect(placementCadre(1256)).toEqual({ gauche: g, largeur: 1256 - 2 * g }); // 1440 − rail 184
+      // Colonne large · le cadre plafonne à 1500 MAIS reste collé à gauche (gauche = g, pas centré).
+      expect(placementCadre(1736).gauche).toBe(g); // 1920 − 184
+      expect(placementCadre(1736).largeur).toBe(CADRE_PAGE.largeurMax - 2 * g);
+      expect(placementCadre(2376).gauche).toBe(g); // 2560 − 184 · toujours g, jamais un décalage de centrage
+      // Un cadre centré poserait gauche = g + (colonne − cadre) / 2 · ici +438 à 2376 · on l'exclut.
+      expect(placementCadre(2376).gauche).toBeLessThan(g + 1);
+    });
   });
 });
 

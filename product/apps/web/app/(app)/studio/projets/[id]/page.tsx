@@ -8,7 +8,9 @@ import { roleAtLeast } from '../../../../../lib/rbac';
 import { lireProjetDetail } from '../../../../actions/studios/sources';
 import { VueProjet } from '../../../../../components/studios/projet/VueProjet';
 import { VariantesEtTests } from '../../../../../components/studios/VariantesEtTests';
+import { TachesProjet } from '../../../../../components/studios/taches/TachesProjet';
 import { CanvasProjet } from '../../../../../components/studios/canvas/CanvasProjet';
+import { LigneeProjet } from '../../../../../components/studios/canvas/LigneeProjet';
 import { Icon } from '../../../../../components/Icon';
 import { CapaciteNonActive } from '../../../../../components/studios/CapaciteNonActive';
 import { etatInterrupteurs } from '../../../../../lib/studios/interrupteurs';
@@ -59,14 +61,20 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
   // « Variantes et tests » (L4-C) relit sa propre garde et sa portée · rendu
   // ici, côté serveur, puis placé dans son emplacement de la vue.
   const variantes = await VariantesEtTests({ projectId: r.detail.projet.id });
+  // Tâches du projet (Étape 6 V5) · lecture seule des états de job, dans la portée.
+  const taches = await TachesProjet({ projectId: r.detail.projet.id });
   // Canvas métier (L8-D, UX-04) · lecture seule à la visite, sous la vue projet.
   const canvas = await CanvasProjet({ projectId: r.detail.projet.id, versionId: r.detail.version.id });
+  // Canvas de LIGNÉE (V5, lot 4) · projection lecture seule, sous le canvas de production.
+  const lignee = await LigneeProjet({ projectId: r.detail.projet.id });
   // F1 · l'atelier ne montre un lien que vers ce qui est actif pour l'espace ; le reste se dit « non activé ».
   const inter = await etatInterrupteurs(s.workspaceId);
   return (
     <main style={cadrePage}>
       <VueProjet detail={r.detail} exportAutorise={roleAtLeast(s.role, 'member')} variantes={variantes} atelier={liensAtelierProjet(r.detail.projet.id, inter.actif)} />
+      <div data-emplacement="taches" style={{ marginTop: 18 }}>{taches}</div>
       {canvas && <div data-emplacement="canvas" style={{ marginTop: 18 }}>{canvas}</div>}
+      {lignee && <div data-emplacement="canvas-lignee" style={{ marginTop: 18 }}>{lignee}</div>}
     </main>
   );
 }

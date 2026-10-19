@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
-  appliquerPatch, validerContenuVersion, empreinteContenu, differencesDetaillees, contenuVide,
+  appliquerPatch, validerContenuVersion, validerFormeBrief, empreinteContenu, differencesDetaillees, contenuVide,
   objetDansPortee, erreurStudio, estIdStable, SCHEMA_VERSION_CONTENU, CLES_CONTENU,
   type ContenuVersion, type ErreurStudio,
 } from '@tiktrends/core';
@@ -150,6 +150,11 @@ export async function creerProjet(ctx: ContexteStudio, e: EntreeCreation): Promi
   if (!titre || titre.length > TITRE_MAX) violations.push({ chemin: 'title', raison: `titre de 1 à ${TITRE_MAX} caractères` });
   const contenu = (e.contenu ?? contenuVide()) as ContenuVersion;
   violations.push(...validerContenuVersion(contenu));
+  // Un brief passé à la création (assistant V5) est revérifié en FORME ici · une
+  // action serveur est appelable directement, le type TypeScript ne garantit
+  // rien. `validerContenuVersion` n'exige qu'un objet ou `null` pour `brief` ;
+  // on refuse un brief présent mais mal formé plutôt que d'écrire un illisible.
+  if (contenu && contenu.brief != null) violations.push(...validerFormeBrief(contenu.brief, '/contenu/brief'));
   if (violations.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations });
 
   const brandId = e.brandId;

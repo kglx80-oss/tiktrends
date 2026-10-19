@@ -50,6 +50,10 @@ export const ICON_PATHS: Record<string, string> = {
   box: 'M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v9',
   map: 'M9 3 3 6v15l6-3 6 3 6-3V3l-6 3zM9 3v15M15 6v15',
   swap: 'M17 2l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3',
+  // Deux arcs fléchés en cercle · le glyphe « itération / relance » de la V5
+  // (en-tête « Prochaines itérations » et bouton « Itérer »). `swap` (flèches
+  // droites) disait le troc, pas la boucle.
+  refresh: 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5',
   x: 'M18 6 6 18M6 6l12 12',
   star: 'M12 2l3 6.9 7.1.6-5.4 4.6 1.7 7L12 18l-6.1 3.7 1.7-7-5.4-4.6 7.1-.6z',
   phone: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM11 19h2',

@@ -10,6 +10,29 @@ import {
 import { CREDIT_COSTS } from '../src/credits';
 import { contenuVideo, copie } from './studios-fixtures';
 
+describe('V5 · démarrer le brief à la main depuis un projet vide', () => {
+  it('offre un objectif et construit une proposition limitée au brief, sans faits inventés', () => {
+    const contenu = contenuVideo();
+    contenu.brief = null;
+    const champs = champsEditables({ type: 'brief' }, contenu);
+    expect(champs).toHaveLength(1);
+    const changement = changementDepuisSaisie(champs[0]!, '  Montrer le produit en usage  ', '');
+    expect(changement.path).toBe('/brief');
+    expect(changement.newValue).toMatchObject({ objective: 'Montrer le produit en usage', facts: [], references: [], hypothesisId: null });
+    const r = construireProposition({ cible: { type: 'brief' }, baseVersionId: 'v-base-7', contenuBase: contenu, changes: [changement], explanation: '', sourceIds: [] });
+    expect(r.ok).toBe(true);
+    expect(contenu.brief).toBeNull();
+  });
+  it('un brief existant reste édité champ par champ, sans remplacement implicite', () => {
+    const contenu = contenuVideo();
+    contenu.brief = { objective: 'Original', audience: 'Créateurs', formats: ['4:5'] };
+    const champs = champsEditables({ type: 'brief' }, contenu);
+    const champ = champs.find((c) => c.chemin === '/brief/objective')!;
+    expect(changementDepuisSaisie(champ, 'Nouveau', '')).toMatchObject({ path: '/brief/objective', newValue: 'Nouveau' });
+    expect(champs.some((c) => c.chemin === '/brief')).toBe(false);
+  });
+});
+
 /**
  * L4 · propositions · règles pures. Chaque garde lit un RÉSULTAT (valeur
  * rendue, contenu produit, refus et sa raison).

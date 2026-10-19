@@ -2256,6 +2256,112 @@
                     "maxLength": 12000
                   },
                   "maxItems": 100
+                },
+                "personaRef": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                },
+                "objectifType": {
+                  "type": "string",
+                  "enum": [
+                    "notoriete",
+                    "consideration",
+                    "conversion",
+                    "fidelisation"
+                  ]
+                },
+                "plateformes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "meta_feed",
+                      "meta_stories_reels",
+                      "tiktok"
+                    ]
+                  },
+                  "uniqueItems": true,
+                  "maxItems": 3
+                },
+                "angle": {
+                  "type": "string",
+                  "maxLength": 12000
+                },
+                "angleRef": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                },
+                "concept": {
+                  "type": "string",
+                  "maxLength": 12000
+                },
+                "conceptRef": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                },
+                "desirRef": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "label": {
+                      "type": "string",
+                      "maxLength": 12000
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false
                 }
               },
               "required": [
@@ -2489,6 +2595,112 @@
                       "maxLength": 12000
                     },
                     "maxItems": 100
+                  },
+                  "personaRef": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 12000
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "objectifType": {
+                    "type": "string",
+                    "enum": [
+                      "notoriete",
+                      "consideration",
+                      "conversion",
+                      "fidelisation"
+                    ]
+                  },
+                  "plateformes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "meta_feed",
+                        "meta_stories_reels",
+                        "tiktok"
+                      ]
+                    },
+                    "uniqueItems": true,
+                    "maxItems": 3
+                  },
+                  "angle": {
+                    "type": "string",
+                    "maxLength": 12000
+                  },
+                  "angleRef": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 12000
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "concept": {
+                    "type": "string",
+                    "maxLength": 12000
+                  },
+                  "conceptRef": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 12000
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "desirRef": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 12000
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [

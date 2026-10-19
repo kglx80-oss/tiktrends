@@ -130,7 +130,10 @@ describe('Résultats · hypothèse → lot → mesures → apprentissage (page r
   it('admin · les états vides offrent les chemins qui les remplissent', async () => {
     etat.compte = vide;
     const e = etapes(await resultats());
-    expect(e[0]!.hrefs).toEqual(['/adsmap/radar', '/adsmap/import']);
+    // La bande compacte (V5) rend chaque étape cliquable vers sa destination
+    // PRINCIPALE (le premier lien du noyau) · les destinations secondaires
+    // restent atteignables par les onglets de section et les ancres de la page.
+    expect(e[0]!.hrefs).toEqual(['/adsmap/radar']);
     expect(e[1]!.hrefs).toContain('/adsmap/lots');
     expect(e[2]!.hrefs).toEqual(['/adsmap/import']);
     expect(e[3]!.hrefs).toContain('#appris');
@@ -154,7 +157,9 @@ describe('Résultats · hypothèse → lot → mesures → apprentissage (page r
     expect(e[1]!.texte).toContain('3 lots · 2 lancés · 1 importé.');
     expect(e[2]!.texte).toContain('4 tests mesurés sur la diffusion réelle · 1 verdict arbitré · dernière mesure le 09/10/2026.');
     expect(e[2]!.hrefs).toEqual(['#tests']);
-    expect(e[3]!.hrefs).toEqual(['/adsmap/suites', '#appris']);
+    // Bande compacte · l'étape mène à sa destination principale (Préparer la
+    // suite) · « Ce que Jarvis a appris » reste atteignable par la section plus bas.
+    expect(e[3]!.hrefs).toEqual(['/adsmap/suites']);
     expect(html, 'avertissement « aucun résultat » alors que des mesures existent').not.toContain('data-avertissement-boucle');
     const boucle = e.map((x) => x.texte).join(' ').toLowerCase();
     expect(boucle).not.toMatch(/gagnant|vainqueur|winner/);

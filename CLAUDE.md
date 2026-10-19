@@ -21,15 +21,21 @@ Annoncer le prix AVANT le clic, jamais après.
 
 **Un seul sujet à la fois.** Consigne du propriétaire : « on ne passe à rien
 d'autre tant que ce n'est pas viable ». Le sujet courant, mandat explicite de
-Kevin du 07/10 (il remplace la direction H/I du 30/09 et les anciennes
-exclusions Canvas/moteur pour ce périmètre), est la **refonte des studios
-TikTrends** décrite dans `docs/studios-v2/` (cahier des charges v1.0 : lire
-`00-LIRE-EN-PREMIER.md`, puis 01 à 09). Lots L0 à L9, recette par
-`04-RECETTE.csv`, point de reprise `docs/studios-v2/PROGRESS.json` · le relire
-avant toute action. Chaque PR attend la recette indépendante (Codex) avant
-fusion. Restent interdits sans nouveau mandat : changement d'offre, de prix, de
-droits acquis ou de protections CI, suppression de fonction ou de données,
-nouveau connecteur publicitaire, fixture en production, dépense hors plafond.
+Kevin du 14/10 (dossier « TikTrends V5 », validé · il remplace le mandat
+studios-v2 du 07/10 et la direction H/I du 30/09 pour ce périmètre), est la
+**refonte UX V5** : porter fidèlement la présentation du prototype V5 de Kevin
+dans les VRAIS composants de l'application, chaque contrôle réellement connecté
+aux services, données et droits existants. Pas de reprise des simulations du
+prototype, aucune fausse donnée ni succès simulé, pas de remplacement du
+catalogue normatif par les exemples de la maquette. Le raccordement vit dans
+`docs/ux-v5/` : `MATRICE.md` (≈ 665 contrôles · vue V5 → route réelle → service,
+statuts raccordé / partiel / à créer / décision Kevin) et les quatre inventaires
+· les lire avant toute action. Chaque PR UI attend la recette indépendante
+(Codex) avant fusion. La refonte des studios (`docs/studios-v2/`) reste un
+chantier valable, en pause derrière la V5. Restent interdits sans nouveau
+mandat : changement d'offre, de prix, de droits acquis ou de protections CI,
+suppression de fonction ou de données, nouveau connecteur publicitaire, fixture
+en production, dépense hors plafond.
 
 **Une modification = une PR**, créée ET mergée (squash), sur sa propre branche
 partie de `main` · pas d'empilement, pas de PR fourre-tout.
@@ -121,6 +127,21 @@ Le cœur de Pubs IA :
 `ad-render.tsx` porte un `RENDER_VERSION` qui entre dans la clé de cache S3. Un
 test refuse toute modification du fichier sans décider si l'apparence change ·
 il dit quoi faire, le suivre.
+
+Le raccordement V5 et les thèmes :
+
+| Quoi | Où |
+| --- | --- |
+| Matrice V5 → routes → services, et les 4 inventaires | `docs/ux-v5/` |
+| Jetons de couleur, 4 palettes (sombre, clair, ADMIN+ sombre/clair) | `packages/ui/tokens.css` |
+| Contrastes mesurés, paires gardées, `teinte()` | `packages/core/src/themes.ts` |
+| Préférence de thème lue au rendu serveur (cookie `tt_theme`, sans flash) | layout racine de `apps/web` |
+| Cliquet des couleurs littérales (refuse toute hausse) | `apps/web/test/a4a-litteraux-cliquet.test.ts` |
+| Garde du tiret cadratin à l'écran | `packages/core/src/ponctuation-ecran.ts` |
+
+Toute couleur d'interface passe par un jeton de `tokens.css` · le cliquet fait
+échouer un test dès qu'un littéral `#hex`/`rgb()` reparaît. La bascule de thème
+vit dans la pop-up profil, pas dans l'en-tête.
 
 ## Comment vérifier l'état réel
 

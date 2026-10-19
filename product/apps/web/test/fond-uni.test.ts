@@ -39,10 +39,14 @@ describe('fond principal · uni, sans quadrillage ni halo', () => {
     });
   }
 
-  it('le thème admin du shell n’a plus ni halo ni grille', () => {
-    const shell = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
-    const admin = shell.slice(shell.indexOf('ADMIN_CONTENT'), shell.indexOf('ADMIN_CONTENT') + 400);
-    expect(admin, 'le thème admin garde un halo radial').not.toMatch(/radial-gradient/);
-    expect(admin, 'le thème admin garde une grille 1px').not.toMatch(/linear-gradient\([^)]*1px/);
+  it('la palette ADMIN+ (espace séparé V5) n’a plus ni halo ni grille', () => {
+    // V5 · #7 · l'espace ADMIN+ se pose via `data-palette="admin"` (tokens.css),
+    // pas un fond inline du shell · on cloue le décor au RÉSULTAT sur le bloc
+    // qui gouverne désormais la surface admin (sombre · première déclaration).
+    const css = readFileSync(join(racine, 'packages/ui/tokens.css'), 'utf8');
+    const bloc = css.match(/\[data-palette="admin"\]\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(bloc, 'la palette ADMIN+ doit exister dans tokens.css').not.toBe('');
+    expect(bloc, 'la palette ADMIN+ garde un halo radial').not.toMatch(/radial-gradient/);
+    expect(bloc, 'la palette ADMIN+ garde une grille 1px').not.toMatch(/linear-gradient\([^)]*1px/);
   });
 });

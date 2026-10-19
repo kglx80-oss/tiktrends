@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { BrandSwitcher } from './BrandSwitcher';
 import { NotificationBell } from './NotificationBell';
@@ -26,9 +26,11 @@ import { OngletsSection } from './OngletsSection';
 import { FournisseurEspaceCreation, type EtatEspaceCreation } from './EspaceCreation';
 import { ajouterRecent, type EcranRecent } from '../lib/recents';
 
-// Coulisses plateforme (ADMIN+ · fondateur) : fond ambré + accent orange.
-// Les pages « espace de travail » du client (marques, connexions, membres,
-// abonnement, réglages) gardent la DA magenta standard.
+// ADMIN+ (écart V5 · #7) · espace SÉPARÉ du staff fondateur · rail dédié, retour
+// vers l'app créative, et la palette ADMIN+ bleu nuit / menthe (`data-palette="admin"`,
+// tokens.css · sombre et clair) posée à la RACINE de l'espace, pas un jeu d'accents
+// inline. Les pages « espace de travail » du client (marques, connexions, membres,
+// abonnement, réglages) gardent leur DA standard.
 // Navigation dédiée quand le fondateur entre en mode ADMIN+ (remplace le rail client).
 export const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: string }> = [
   { key: 'a-home', label: "Vue d'ensemble", href: '/admin', icon: 'grid' },
@@ -47,16 +49,6 @@ export const ADMIN_NAV: Array<{ key: string; label: string; href: string; icon: 
 // Note : /billing et /settings sont des pages CLIENTES. Les lister ici basculait
 // toute la coquille en thème ADMIN+ dès qu'un membre du staff les ouvrait · le
 // pilotage interne vit maintenant dans /admin/plans.
-const ADMIN_CONTENT = {
-  // Rôles « ambre » de tokens.css (mêmes valeurs en sombre, mesurées en clair).
-  '--accent': 'var(--ambre)',
-  '--accent-strong': 'var(--ambre-strong)',
-  '--accent-soft': 'var(--ambre-soft)',
-  '--grad-accent': 'var(--grad-ambre)',
-  // Thème admin (fondateur) · distingué par sa couleur et son accent, sans
-  // quadrillage ni halo (charte : fond uni, aucun décor).
-  backgroundColor: 'var(--bg-ambre)',
-} as unknown as CSSProperties;
 
 interface NavItem { key: string; label: string; href: string; icon: string; locked: boolean; isSub: boolean; soon?: boolean }
 interface Group { group: string; items: NavItem[] }
@@ -380,9 +372,12 @@ function AppShellInner(props: Props) {
   const sectionCourante = sectionDuChemin(sectionMarque ? [...sections, sectionMarque] : sections, pathname);
   const dansMarque = !!sectionMarque && sectionCourante === sectionMarque;
   const nomMarqueActive = brands.find((b) => b.id === activeBrandId)?.name ?? 'Marque active';
-  // « Votre espace » · Marques et Réglages, seulement si la garde réelle des
-  // pages les ouvre (`sectionsCompteOuvertes` · admin d'espace). Rien d'élargi.
-  const espaceRail = workspaceItems.filter((it) => it.key === 'brands' || it.key === 'settings');
+  // « Votre espace » · Marques seulement. « Réglages » (/settings) faisait
+  // doublon · il vit déjà dans la pop-up profil (« Espace de travail » ouvre les
+  // réglages rapides, « Réglages avancés › » y mène à /settings) · le garder
+  // aussi dans le rail dédoublait la même destination. La garde reste la même
+  // (`sectionsCompteOuvertes` · admin d'espace) · rien d'élargi, rien de perdu.
+  const espaceRail = workspaceItems.filter((it) => it.key === 'brands');
   // Correctifs V5 · la liste du rail défile AU-DESSUS du pied (jamais dessous) ·
   // un fondu de fin (ou de tête) dit qu'il reste du contenu, et l'entrée active
   // est ramenée dans la vue au chargement. Règles au noyau (`indicesDefilementRail`,
@@ -490,7 +485,12 @@ function AppShellInner(props: Props) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: chrome.colonnes, minHeight: '100vh' }}>
+    // V5 · #7 · ADMIN+ en espace SÉPARÉ · `data-palette="admin"` à la racine de
+    // l'espace (rail dédié + contenu) · toutes les surfaces (rail, en-tête,
+    // contenu) basculent sur la palette bleu nuit / menthe de tokens.css, qui
+    // suit aussi le thème clair (`:root[data-theme="clair"] [data-palette="admin"]`).
+    // Hors ADMIN+, aucun attribut · l'app créative garde sa palette.
+    <div data-palette={inAdmin ? 'admin' : undefined} style={{ display: 'grid', gridTemplateColumns: chrome.colonnes, minHeight: '100vh' }}>
       <CommandPalette commands={commands} />
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} onSaved={profilEnregistre} init={{ name: userName, email: userEmail, avatarUrl: avatarUrl || '', hidePersonalInfo: !!hidePersonalInfo }} />
       <QuickSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onSaved={(nom) => setEspaceLocal({ valeur: nom, serveurAvant: workspaceNameServeur })} workspaceName={workspaceName} showAdvanced={workspaceItems.some((i) => i.key === 'settings')} />
@@ -670,26 +670,13 @@ function AppShellInner(props: Props) {
               })}
             </div>
           )}
-          {/* Bas du rail · Aide (support, tous les rôles). DANS la zone qui
-              défile, poussé en bas (`marginTop: auto`) · en pied quand la place
-              suffit, il défile avec la liste quand elle manque (tiroir mobile
-              390×720) au lieu de rogner « Réglages ». V5 (R16) · « Administration »
-              quitte le rail créatif · ADMIN+ s'ouvre depuis la pop-up profil, même
-              garde (`isStaff`), même destination (/admin). */}
-          {!inAdmin && (
-            <div data-zone="pied-rail" style={{ display: 'flex', flexDirection: 'column', gap: COQUILLE_V5.rail.gapEntrees, alignItems: collapsed ? 'center' : 'stretch', marginTop: 'auto', paddingTop: 10 }}>
-              {[
-                { key: 'aide', label: 'Aide', href: '/support', icon: 'help' },
-              ].map((it) => {
-                const ici = pathname === it.href || pathname.startsWith(it.href + '/');
-                return collapsed ? (
-                  <Link key={it.key} href={it.href} title={it.label} aria-label={it.label} aria-current={ici ? 'page' : undefined} style={{ ...railIconBtn, color: ici ? 'var(--accent-strong)' : 'var(--ink-2)', background: ici ? 'var(--accent-soft)' : 'transparent' }}>{ici && <BarreActive repli />}<Icon name={it.icon} /></Link>
-                ) : (
-                  <NavLink key={it.key} it={{ ...it, locked: false, isSub: false }} active={ici} tactile={mobile} />
-                );
-              })}
-            </div>
-          )}
+          {/* « Aide » a quitté le rail · elle vit dans le bouton d'aide FLOTTANT,
+              coin bas-droit de l'app (`SupportWidget`, hors du rail), qui ouvre le
+              panneau FAQ + « Poser une question » (contact · ticket au support) et
+              pointe sur /support. La garder aussi dans le rail dédoublait la même
+              destination. Elle reste joignable depuis la pop-up profil (« Aide &
+              support » → /support). V5 (R16) · ADMIN+ s'ouvre depuis la pop-up
+              profil, même garde (`isStaff`), même destination (/admin). */}
         </nav>
 
         {/* V5 (R18 · R19 · R30) · pied collant · la pastille de crédits (solde
@@ -699,7 +686,12 @@ function AppShellInner(props: Props) {
             elle (l'ombre portée vers le haut, qui la recouvrait, est retirée ·
             l'indice de défilement est le fondu de la liste, plus un filet au
             seuil du pied tant qu'il reste du contenu dessous). */}
-        <div data-zone="pied-compte" style={{ display: 'grid', gap: 8, padding: '12px 0 16px', flexShrink: 0, borderTop: `1px solid ${indicesRail.bas ? 'var(--line-2)' : 'transparent'}` }}>
+        {/* `minmax(0, 1fr)` · sans lui, la colonne de grille prend sa taille de
+            CONTENU (min-width: auto) · la pastille de crédits grandissait avec le
+            solde (« Illimité », un grand nombre) et débordait du rail, « + »
+            compris. Bornée à 0, la pastille respecte la largeur du rail et son
+            texte s'ellipse (valeur complète dans son `title`/`aria-label`). */}
+        <div data-zone="pied-compte" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8, padding: '12px 0 16px', flexShrink: 0, borderTop: `1px solid ${indicesRail.bas ? 'var(--line-2)' : 'transparent'}` }}>
           <CreditsMenu balance={creditBalance} unlimited={creditsUnlimited} planLabel={planLabel} showUpgrade={showUpgrade} collapsed={collapsed} allocation={creditAllocation} />
           <button type="button" data-zone="profil-rail" onClick={ouvrirPopupProfil} aria-haspopup="dialog" aria-expanded={popupProfil}
             aria-label={collapsed ? `${userName || userEmail} · Profil & réglages` : undefined} title={collapsed ? `${userName || userEmail} · Profil & réglages` : undefined}
@@ -720,7 +712,7 @@ function AppShellInner(props: Props) {
         <div onClick={fermerTiroir} style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'var(--voile)' }} />
       )}
 
-      <div style={{ minWidth: 0, minHeight: '100vh', ...(inAdmin ? ADMIN_CONTENT : null) }}>
+      <div style={{ minWidth: 0, minHeight: '100vh' }}>
         {/* Barre supérieure COMMUNE (desktop ET mobile) · Kevin 29/09 · la
             recherche GLOBALE sort du rail et vit ici, atteignable quel que soit
             l'état du rail (déplié, réduit, tiroir). Le raccourci ⌘/Ctrl K reste

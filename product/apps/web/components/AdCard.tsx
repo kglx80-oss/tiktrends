@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, ancreCarteVeille, lienAnnonceurVeille, LIBELLE_ANNONCEUR_VEILLE, TITRE_ANNONCEUR_VEILLE, nomLienAnnonceurVeille, CIBLE_TACTILE_MIN } from '@tiktrends/core';
+import { estGagnantVeille, bibliothequePub, libelleBibliotheque, siteMarque, ancreCarteVeille, lienAnnonceurVeille, LIBELLE_ANNONCEUR_VEILLE, TITRE_ANNONCEUR_VEILLE, nomLienAnnonceurVeille, CIBLE_TACTILE_MIN, bandeauVeille, teinte } from '@tiktrends/core';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { SaveButton, FollowButton } from './InspoButtons';
 import { AdMedia } from './AdMedia';
@@ -17,16 +17,18 @@ const eur = (n?: number) => (n == null ? 'n/c' : '€' + compact(n));
 
 const lienExterne = { fontSize: 11, fontWeight: 600, padding: '4px 9px', borderRadius: 8, border: '1px solid var(--line-2)', color: 'var(--ink-2)', textDecoration: 'none', background: 'var(--bg)' } as const;
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, dense = false }: { label: string; value: string; dense?: boolean }) {
+  // `dense` · la présentation V5 resserre la carte (maquette · grille compacte) ·
+  // tuiles plus serrées et valeur un cran plus petite, sans rien retirer du signal.
   return (
-    <div style={{ flex: '1 1 auto', minWidth: 60, padding: '5px 8px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--line)' }}>
+    <div style={{ flex: '1 1 auto', minWidth: dense ? 54 : 60, padding: dense ? '4px 7px' : '5px 8px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--line)' }}>
       <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)' }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{value}</div>
+      <div style={{ fontSize: dense ? 12 : 13, fontWeight: 700, color: 'var(--ink)' }}>{value}</div>
     </div>
   );
 }
 
-export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false, cibles44 = false, contexteRetour }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
+export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobre = false, cibles44 = false, contexteRetour, badgesV5 = false }: { ad: InspoAd; saved?: boolean; following?: boolean; cloneRef?: string;
   /**
    * Rend le pont vers la création DISCRET · même lien, même texte, même
    * comportement, mais sans le fond plein accentué. La Veille mène par
@@ -47,7 +49,15 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
    * la carte porte alors une ancre, un lien vers les annonces du même annonceur
    * et un Studio qui sait revenir ici. Absent hors Veille · rien ne change.
    */
-  contexteRetour?: string }) {
+  contexteRetour?: string;
+  /**
+   * UX V5 · présentation de la maquette · bandeau plateforme + format en haut du
+   * média, et pastille de statut (Active / Inactive · N j) avec jauge. N'affiche
+   * QUE des champs réels (`bandeauVeille`, noyau) · pas de durée, ratio,
+   * variantes ni tags simulés (absents de la source). Opt-in · défaut `false` ·
+   * les autres surfaces de la carte restent inchangées.
+   */
+  badgesV5?: boolean }) {
   const t44 = cibles44 ? { minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center' } as const : null;
   // Gagnant = éprouvé · tient depuis assez longtemps, ou portée qui progresse.
   // On le flague et on pousse le clone · c'est la pub PROUVÉE qu'on veut refaire,
@@ -59,16 +69,33 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
   const ancre = contexteRetour != null ? ancreCarteVeille(ad) : null;
   const retour = contexteRetour != null ? `${contexteRetour}${ancre ? `#${ancre}` : ''}` : null;
   const annonceur = retour != null ? lienAnnonceurVeille(ad, retour) : null;
+  // UX V5 · bandeau et statut, tirés des seuls champs réels de l'annonce.
+  const bandeau = badgesV5 ? bandeauVeille(ad) : null;
   return (
     <div id={ancre ?? undefined} style={{ border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', display: 'flex', flexDirection: 'column', ...(ancre ? { scrollMarginTop: 96 } : null) }}>
       <div style={{ position: 'relative' }}>
-        <AdMedia mediaUrl={ad.mediaUrl} thumbnailUrl={ad.thumbnailUrl} isVideo={ad.mediaType === 'video'} daysRunning={ad.daysRunning} aspect="1/1" />
+        {/* En V5, le bandeau plateforme + format prend le coin haut-gauche · les
+            jours de diffusion quittent ce coin pour la pastille de statut, sous le
+            média (maquette). Hors V5, le badge « N j actifs » du média reste. */}
+        <AdMedia mediaUrl={ad.mediaUrl} thumbnailUrl={ad.thumbnailUrl} isVideo={ad.mediaType === 'video'} daysRunning={badgesV5 ? undefined : ad.daysRunning} aspect="1/1" />
+        {bandeau && (
+          // Bandeau plateforme + format (maquette V5) · deux pastilles jumelles,
+          // MÊME fond sombre et MÊME rayon que la sauvegarde du coin opposé
+          // (`SaveButton`, rayon 9) · un seul système d'étiquettes sur le média,
+          // pas deux opacités qui se contredisent.
+          <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 6, zIndex: 2 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 9, background: teinte('sombre-fixe', .65), color: 'var(--clair-fixe)' }}>{bandeau.plateforme}</span>
+            {bandeau.media && <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 9, background: teinte('sombre-fixe', .65), color: 'var(--clair-fixe)' }}>{bandeau.media}</span>}
+          </div>
+        )}
         {/* Sauvegarder / retirer (instantané) */}
         <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
           <SaveButton ad={ad} initialSaved={saved} />
         </div>
       </div>
-      <div style={{ padding: '11px 12px', display: 'grid', gap: 8 }}>
+      {/* En V5 (maquette · grille 4 colonnes compactes) la carte se resserre ·
+          padding et interligne réduits, sans rien retirer des signaux réels. */}
+      <div style={{ padding: badgesV5 ? '10px 11px 11px' : '11px 12px', display: 'grid', gap: badgesV5 ? 6 : 8 }}>
         {/* minWidth:0 · la rangée est un enfant de grille et le nom un flex-item ·
             sans ça (min-width auto par défaut) l'ellipsis voulue sur le nom
             n'opère pas et un annonceur au nom long pousse le badge et le bouton
@@ -86,29 +113,45 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
           ) : (
             <AvatarSite nom={ad.advertiserName || 'Annonceur'} site={ad.landingDomain} taille={22} rayon={11} />
           )}
-          <span title={ad.advertiserName || undefined} style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', lineHeight: 1.3, flex: '1 1 120px', minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
+          <span title={ad.advertiserName || undefined} style={{ fontSize: badgesV5 ? 14 : 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', lineHeight: 1.3, flex: '1 1 120px', minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
           {gagnant && <span title="Source observée · tient dans le temps ou sa portée progresse · un proxy public de traction, pas une preuve de rentabilité" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Piste forte</span>}
           <FollowButton ad={ad} initialFollowing={following} />
         </div>
-        {ad.body && <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body}</p>}
+        {bandeau && (
+          // Pastille de statut + jauge (maquette V5) · elle suit le nom, comme sur
+          // la maquette. Statut et jours RÉELS · la jauge mesure les jours contre
+          // le seuil de piste éprouvée (noyau · PROVEN_DAYS), pas un seuil inventé.
+          // Le POINT porte l'état (actif vert / inactif gris · redondé par le mot
+          // « Active »/« Inactive », jamais la seule couleur) ; la JAUGE mesure la
+          // progression vers le seuil et reste verte quel que soit l'état. Pas de
+          // variantes ni de date de première vue (absentes de la source · R14).
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: bandeau.statut.actif ? 'var(--ok)' : 'var(--muted)' }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{bandeau.statut.texte} · {bandeau.statut.jours} j</span>
+            <span aria-hidden style={{ flex: '1 1 auto', maxWidth: 132, height: 4, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', minWidth: 24 }}>
+              <span style={{ display: 'block', height: '100%', width: `${Math.round(bandeau.jauge * 100)}%`, borderRadius: 999, background: 'var(--ok)' }} />
+            </span>
+          </div>
+        )}
+        {ad.body && <p style={{ margin: 0, fontSize: badgesV5 ? 13 : 12, color: badgesV5 ? 'var(--ink)' : 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{badgesV5 ? `« ${ad.body} »` : ad.body}</p>}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {ad.platform === 'tiktok' ? (
             <>
-              <Stat label="Vues" value={compact(ad.views)} />
-              <Stat label="Likes" value={compact(ad.likes)} />
-              {ad.engagementRate != null && <Stat label="Engag." value={ad.engagementRate.toFixed(1).replace('.', ',') + ' %'} />}
+              <Stat label="Vues" value={compact(ad.views)} dense={badgesV5} />
+              <Stat label="Likes" value={compact(ad.likes)} dense={badgesV5} />
+              {ad.engagementRate != null && <Stat label="Engag." value={ad.engagementRate.toFixed(1).replace('.', ',') + ' %'} dense={badgesV5} />}
             </>
           ) : ad.platform === 'google' ? (
             <>
-              <Stat label="Reach" value={compact(ad.reach)} />
-              {ad.format && <Stat label="Format" value={ad.format.replace('_', ' ')} />}
-              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
+              <Stat label="Reach" value={compact(ad.reach)} dense={badgesV5} />
+              {ad.format && <Stat label="Format" value={ad.format.replace('_', ' ')} dense={badgesV5} />}
+              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} dense={badgesV5} />}
             </>
           ) : (
             <>
-              <Stat label="Reach" value={compact(ad.reach)} />
-              <Stat label="Spend est." value={eur(ad.estimatedSpend)} />
-              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} />}
+              <Stat label="Reach" value={compact(ad.reach)} dense={badgesV5} />
+              <Stat label="Spend est." value={eur(ad.estimatedSpend)} dense={badgesV5} />
+              {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} dense={badgesV5} />}
             </>
           )}
         </div>

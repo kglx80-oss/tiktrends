@@ -4,7 +4,7 @@ import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
   composerBrief, validerFormeBrief, validerRelationsBrief, validerHypothese, hypotheseSaisie, saisieSuffisante,
-  propositionValidePour, referenceProduit, lireReferenceProduit, lireReferencesSources, completudeProjet, hypotheseDuBrief,
+  propositionValidePour, referenceProduit, lireReferenceProduit, lireReferencesSources, ajouterSourcesAuProjet, completudeProjet, hypotheseDuBrief,
   exporterBrief as exporterBriefNoyau, contenuVide, creationsHorsMarque, validerContenuVersion, empreinteContenu, objetDansPortee, erreurStudio,
   LIBELLES_TYPE_PROJET, SCHEMA_VERSION_CONTENU, TEXTES_REFUS_PROPOSITION,
   type BriefCanonique, type ContenuVersion, type ErreurStudio, type HypotheseTest, type ManqueProjet, type EtapeProjet,
@@ -14,6 +14,7 @@ import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
 import { chargerSources, etatSources, estUuid, type VueSource } from './sources';
 import { lireScelle } from './scelle';
+import { lireDroitsAssetsProjetPour, type VueDroitsAsset } from '../produit/droits';
 
 /**
  * Projet créé depuis des sources · création idempotente, lecture complète
@@ -41,6 +42,7 @@ const KINDS = ['ads', 'image', 'video', 'text', 'campaign'] as const;
 type KindProjet = (typeof KINDS)[number];
 const CLE_CLIC = /^[A-Za-z0-9_-]{8,100}$/;
 export const ACTION_CREATION = 'project.create_from_sources';
+export const ACTION_AJOUT_SOURCES = 'project.add_sources';
 
 function porteeSql(t: { workspaceId: PgColumn; brandId: PgColumn }, ctx: ContexteStudio): SQL {
   if (ctx.marques.length === 0) return sql`false`;
@@ -208,15 +210,71 @@ export async function creerProjetDepuisSourcesPour(
  */
 export async function creerProjetDepuisContextePour(
   ctx: ContexteStudio,
-  e: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown },
+  e: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; productId?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown },
   o: { veilleOuverte: boolean; maintenant: Date },
 ): Promise<Resultat<ProjetCree>> {
   const sources = e.ref === undefined || e.ref === null || e.ref === ''
     ? []
     : [{ type: 'sauvegarde', id: e.ref, ...(typeof e.retourVeille === 'string' && e.retourVeille ? { retour: e.retourVeille } : {}) }];
   return creerProjetDepuisSourcesPour(ctx, {
-    sources, brandId: e.brandId, kind: e.kind, titre: e.titre, objectif: e.objectif, hypothese: null, productId: null, cleClic: e.cleClic,
+    sources, brandId: e.brandId, kind: e.kind, titre: e.titre, objectif: e.objectif, hypothese: null, productId: e.productId, cleClic: e.cleClic,
   }, { ...o, sourcesFacultatives: true });
+}
+
+/**
+ * Ajoute des sources (annonce de Veille, sauvegarde, création) à un projet
+ * EXISTANT, après sa création (contrôle V5 A20, défaut 1.12). Même portée et
+ * mêmes droits que la création depuis des sources : la garde `gardeSources`
+ * (studio + accès Veille relu) est posée par l'action, le projet est relu dans
+ * la portée, les nouvelles sources sont figées et contrôlées par le service
+ * existant (`chargerSources`). La fusion (dédoublonnage, borne) est la règle
+ * pure du noyau, rejouée sur l'état FRAIS dans la transaction. Aucune nouvelle
+ * version : les sources vivent sur le projet (`source_refs`), relues par
+ * `lireProjetDetail` au rechargement. Audité ; aucun appel modèle, aucune dépense.
+ */
+export async function ajouterSourcesAuProjetPour(
+  ctx: ContexteStudio,
+  e: { projectId: unknown; sources: unknown },
+  o: { veilleOuverte: boolean; maintenant: Date },
+): Promise<Resultat<{ projet: { id: string; brandId: string }; sources: VueSource[]; ajoutees: number }>> {
+  if (!estUuid(e.projectId)) return introuvable(ctx);
+  const projectId = e.projectId;
+  const P = schema.studioProjects;
+  const [p] = await db.select().from(P).where(and(eq(P.id, projectId), porteeSql(P, ctx))).limit(1);
+  if (!dansPortee(ctx, p)) return introuvable(ctx);
+  const projet = p!;
+
+  const c = await chargerSources(ctx, e.sources, o);
+  if (!c.ok) return c;
+  // Une création précédente d'une AUTRE marque ne se greffe pas sur ce projet.
+  if (creationsHorsMarque(c.sources, projet.brandId).length) {
+    return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'sources', raison: 'création précédente d’une autre marque' }] });
+  }
+
+  try {
+    const res = await db.transaction(async (tx) => {
+      // Fusion sur l'état FRAIS · le projet est relu dans la portée, dans la transaction.
+      const [frais] = await tx.select().from(P).where(and(eq(P.id, projectId), porteeSql(P, ctx))).limit(1);
+      if (!dansPortee(ctx, frais)) throw new Refus(introuvable(ctx));
+      const { sources: existantes } = lireReferencesSources(frais!.sourceRefs);
+      const fusion = ajouterSourcesAuProjet(existantes, c.sources);
+      if (!fusion.ok) throw new Refus(erreurStudio('INVARIANT_CONFLICT', { traceId: ctx.traceId, message: fusion.raison }));
+      await tx.update(P)
+        .set({ sourceRefs: fusion.sources, rowVersion: (frais!.rowVersion ?? 0) + 1, updatedAt: o.maintenant })
+        .where(and(eq(P.id, projectId), porteeSql(P, ctx)));
+      await ajouterAudit(tx, ctx, {
+        action: ACTION_AJOUT_SOURCES, brandId: projet.brandId, targetType: 'studio_project', targetId: projectId,
+        reason: 'ajout de sources', details: { ajoutees: fusion.ajoutees, sourceIds: c.sources.map((s) => s.sourceId), total: fusion.sources.length },
+      });
+      return { sources: fusion.sources, ajoutees: fusion.ajoutees };
+    });
+    const vues = await etatSources(ctx, res.sources, o);
+    return { ok: true, projet: { id: projet.id, brandId: projet.brandId }, sources: vues, ajoutees: res.ajoutees };
+  } catch (err) {
+    if (err instanceof Refus) return err.erreur;
+    console.error(`[studios] ${ctx.traceId} ajout de sources`, err instanceof Error ? err.message : err);
+    return erreurStudio('PERSISTENCE_FAILED', { traceId: ctx.traceId });
+  }
 }
 
 /* ─────────────────────────────── Lecture ─────────────────────────────────── */
@@ -232,6 +290,8 @@ export interface DetailProjet {
   produit: ReferenceProduitStudio | null;
   sources: VueSource[];
   sourcesIllisibles: number;
+  /** Provenance et droits des médias du projet (`studio_assets.rights`) · affichés et tracés dans la vue. */
+  droitsAssets: VueDroitsAsset[];
   completude: { manques: ManqueProjet[]; etape: EtapeProjet; libelleEtape: string };
   versions: VersionResumee[];
 }
@@ -269,6 +329,7 @@ export async function lireProjetDetailPour(
 
   const { sources: refs, illisibles } = lireReferencesSources(projet.sourceRefs);
   const sources = await etatSources(ctx, refs, o);
+  const droitsAssets = await lireDroitsAssetsProjetPour(ctx, projet.id);
   const { brief, illisible } = briefDe(v!.content);
   const produit = lireReferenceProduit((v!.content as { productRef?: unknown }).productRef);
   const hypothese = brief ? hypotheseDuBrief(brief) : null;
@@ -286,6 +347,7 @@ export async function lireProjetDetailPour(
       produit,
       sources,
       sourcesIllisibles: illisibles,
+      droitsAssets,
       completude: completudeProjet({ brief, produit, sources, aDuContenuDeProduction: aDuContenuDeProduction(v!.content) }),
       versions: versions.filter((x) => dansPortee(ctx, x)).map((x) => ({
         id: x.id, n: x.n, createdAt: x.createdAt.toISOString(), reason: x.reason, contentHash: x.contentHash, courante: x.id === projet.currentVersionId,
