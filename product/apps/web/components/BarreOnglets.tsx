@@ -80,7 +80,7 @@ const separateur: CSSProperties = { width: 1, height: 24, background: 'var(--lin
 const barreSegment: CSSProperties = {
   display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: '100%', minWidth: 0, overflowX: 'auto',
   padding: 4, marginBottom: 18, scrollbarWidth: 'thin',
-  border: '1px solid var(--line-2)', borderRadius: 12, background: 'var(--paper)',
+  border: '1px solid var(--line)', borderRadius: 12, background: 'var(--paper)',
 };
 // Chaque onglet reste une cible de 44 px (CIBLE_TACTILE_MIN) · le conteneur
 // ajoute sa marge de 4 px autour, jamais au détriment de la cible.

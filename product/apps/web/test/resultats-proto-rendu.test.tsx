@@ -210,7 +210,7 @@ describe('V5 · la barre d’onglets en segment (maquette · HTML rendu)', () =>
     const h = renderToStaticMarkup(<BarreOnglets zone="resultats" libelle="Sections" onglets={onglets} variant="segment" />);
     expect(h).toContain('data-variante="segment"');
     // Le conteneur porte sa bordure et son fond au jeton.
-    expect(h).toMatch(/border:1px solid var\(--line-2\);border-radius:12px;background:var\(--paper\)/);
+    expect(h).toMatch(/border:1px solid var\(--line\);border-radius:12px;background:var\(--paper\)/);
     // L'onglet COURANT est une pastille claire ombrée (surface + ombre), gras.
     expect(h).toMatch(/aria-current="page"[^>]*background:var\(--surface\)/);
     expect(h).toContain('box-shadow:var(--sh-sm)');
