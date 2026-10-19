@@ -38,7 +38,13 @@ let v1 = '';
 beforeAll(async () => {
   await semer(db, schema, ids);
   etat.session = session(ids, 'ua');
-  const c = await creerProjet({ brandId: ids.brandA1, kind: 'video', title: 'Vidéo sérum', contenu: contenuVideo() });
+  // Ce test porte sur le CONFLIT de versions (409) · le brief n'est jamais relu.
+  // Le jeu `contenuVideo` porte un brief de mesure volontairement non canonique
+  // (`{objectif, hypothese}`, clés françaises · servant les tests de patch) ;
+  // `creerProjet` revérifie la FORME de tout brief non nul (garde du Lot 2a,
+  // éprouvé par `assistant2a-brief-db`). On neutralise donc le brief ici, sans
+  // toucher au jeu partagé (ses empreintes servent d'autres tests).
+  const c = await creerProjet({ brandId: ids.brandA1, kind: 'video', title: 'Vidéo sérum', contenu: { ...contenuVideo(), brief: null } });
   if (!c.ok) throw new Error(`${c.code} ${JSON.stringify(c.violations)}`);
   projet = c.projet.id;
   v1 = c.version.id;

@@ -210,14 +210,14 @@ export async function creerProjetDepuisSourcesPour(
  */
 export async function creerProjetDepuisContextePour(
   ctx: ContexteStudio,
-  e: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown },
+  e: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; productId?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown },
   o: { veilleOuverte: boolean; maintenant: Date },
 ): Promise<Resultat<ProjetCree>> {
   const sources = e.ref === undefined || e.ref === null || e.ref === ''
     ? []
     : [{ type: 'sauvegarde', id: e.ref, ...(typeof e.retourVeille === 'string' && e.retourVeille ? { retour: e.retourVeille } : {}) }];
   return creerProjetDepuisSourcesPour(ctx, {
-    sources, brandId: e.brandId, kind: e.kind, titre: e.titre, objectif: e.objectif, hypothese: null, productId: null, cleClic: e.cleClic,
+    sources, brandId: e.brandId, kind: e.kind, titre: e.titre, objectif: e.objectif, hypothese: null, productId: e.productId, cleClic: e.cleClic,
   }, { ...o, sourcesFacultatives: true });
 }
 

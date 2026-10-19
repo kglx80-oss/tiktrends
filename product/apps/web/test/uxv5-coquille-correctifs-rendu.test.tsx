@@ -8,10 +8,11 @@ import { createRoot, type Root } from 'react-dom/client';
 /**
  * Correctifs de la coquille V5 (après #797), constatés sur les captures du banc.
  *
- *  1. À 1440 / 1280 × 720, le bloc « Votre espace » (marque active, Marques,
- *     Réglages) finissait coupé net au ras du pied (pastille + profil), sans
- *     aucun indice · « Neva » à moitié visible, et « Réglages », actif sur
- *     /settings, hors de la vue au chargement. Même chose dans le tiroir à 390.
+ *  1. À 1440 / 1280 × 720, le bloc « Votre espace » (marque active, Marques)
+ *     finissait coupé net au ras du pied (pastille + profil), sans aucun indice ·
+ *     « Neva » à moitié visible, et l'entrée active du bas (« Marques » sur
+ *     /brands · « Réglages » a depuis quitté le rail) hors de la vue au
+ *     chargement. Même chose dans le tiroir à 390.
  *  2. Le menu de recharge prenait la largeur de la pastille (159 px) · prix
  *     rognés, « 279 € » sur deux lignes, « Acheter » hors du panneau.
  *
@@ -50,10 +51,11 @@ const { COQUILLE_V5, FONDU_RAIL } = await import('@tiktrends/core');
  * Géométrie MESURÉE sur le banc (1440 × 720, déplié, owner) · la liste fait
  * 512 px de contenu pour 361 visibles, son haut est à 184. jsdom ne mise pas
  * en page · on lui donne ces mesures, et la position de l'entrée active (à
- * 400 px du haut du contenu, 46 de haut, comme « Réglages » sur /settings ·
- * en tête de liste partout ailleurs).
+ * 400 px du haut du contenu, 46 de haut, comme « Marques » sur /brands · bas de
+ * liste depuis que « Réglages » a quitté le rail ; en tête partout ailleurs).
  */
 const MESURE = { haut: 184, visible: 361, contenu: 512, actif: 400, rangee: 46 };
+const ENTREE_BAS = '/brands';
 const estListe = (e: Element) => e.matches('nav[aria-label="Navigation principale"]');
 const rect = (top: number, height: number) => ({ top, bottom: top + height, height, left: 0, right: 184, width: 184, x: 0, y: top, toJSON() {} }) as DOMRect;
 
@@ -69,8 +71,8 @@ beforeEach(() => {
     vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
       if (estListe(this)) return rect(MESURE.haut, MESURE.visible);
       const liste = this.closest('nav[aria-label="Navigation principale"]');
-      // « Réglages » est en bas de la liste · « Accueil » (et le reste) en tête.
-      if (liste && this.hasAttribute('aria-current')) return rect(MESURE.haut + (this.getAttribute('href') === '/settings' ? MESURE.actif : 0) - liste.scrollTop, MESURE.rangee);
+      // « Marques » (/brands) est en bas de la liste · « Accueil » (et le reste) en tête.
+      if (liste && this.hasAttribute('aria-current')) return rect(MESURE.haut + (this.getAttribute('href') === ENTREE_BAS ? MESURE.actif : 0) - liste.scrollTop, MESURE.rangee);
       return rect(0, 0);
     }),
   );
@@ -145,12 +147,12 @@ describe('Correctifs V5 · le rail défile AU-DESSUS du pied', () => {
   });
 
   for (const collapsed of [false, true]) {
-    it(`${collapsed ? 'replié' : 'déplié'} · l’entrée active hors de la vue (« Réglages » sur /settings) est ramenée au-dessus du fondu`, () => {
-      monter('/settings', { collapsed });
+    it(`${collapsed ? 'replié' : 'déplié'} · l’entrée active hors de la vue (« Marques » sur /brands) est ramenée au-dessus du fondu`, () => {
+      monter(ENTREE_BAS, { collapsed });
       const n = liste();
       const actif = n.querySelector('[aria-current]')!;
-      expect(actif, 'aucune entrée active sur /settings').toBeTruthy();
-      expect(actif.getAttribute('href')).toBe('/settings');
+      expect(actif, 'aucune entrée active sur /brands').toBeTruthy();
+      expect(actif.getAttribute('href')).toBe(ENTREE_BAS);
       const r = actif.getBoundingClientRect();
       const vue = n.getBoundingClientRect();
       expect(r.top, 'l’entrée active est au-dessus de la vue').toBeGreaterThanOrEqual(vue.top);

@@ -107,7 +107,14 @@ describe('L8-C · au-delà des limites, rien n’est écrit', () => {
   it('créer un projet de 1001 calques est refusé · aucun projet, aucune version', async () => {
     const projets = (await db.select().from(schema.studioProjects)).length;
     const versions = (await db.select().from(schema.studioProjectVersions)).length;
-    const r = await creerProjet({ brandId: ids.brandA1, kind: 'image', title: 'Trop grand', contenu: contenuSynthetique({ plans: 0, calques: CALQUES_MAX + 1, graine: 14 }) });
+    // On teste ICI la limite de CALQUES, isolée. Le jeu synthétique porte un
+    // brief de mesure volontairement non canonique (il reste tel quel pour les
+    // empreintes de `l8c-equivalence`). Or `creerProjet` revérifie la FORME de
+    // tout brief non nul (garde du Lot 2a, éprouvée par `assistant2a-brief-db`) ;
+    // on neutralise donc le brief pour que la seule violation attendue soit celle
+    // de la limite de calques, sans affaiblir ni la limite ni le garde de brief.
+    const contenu: ContenuVersion = { ...contenuSynthetique({ plans: 0, calques: CALQUES_MAX + 1, graine: 14 }), brief: null };
+    const r = await creerProjet({ brandId: ids.brandA1, kind: 'image', title: 'Trop grand', contenu });
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.violations).toEqual([{ chemin: '/document/layers', raison: messageLimiteCalques(1001) }]);
