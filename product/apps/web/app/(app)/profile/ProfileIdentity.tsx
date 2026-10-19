@@ -70,7 +70,7 @@ export function ProfileIdentity({ init }: {
       <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
         <input type="checkbox" name="hidePersonalInfo" checked={hide} onChange={(e) => setHide(e.target.checked)} style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
         <span style={{ position: 'relative', width: 40, height: 22, borderRadius: 999, background: hide ? 'var(--grad-accent)' : 'var(--line-2)', transition: 'background .2s', flexShrink: 0 }}>
-          <span style={{ position: 'absolute', top: 2, left: hide ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+          <span style={{ position: 'absolute', top: 2, left: hide ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: 'var(--clair-fixe)', transition: 'left .2s' }} />
         </span>
         <span>
           <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>Masquer les informations personnelles</span>

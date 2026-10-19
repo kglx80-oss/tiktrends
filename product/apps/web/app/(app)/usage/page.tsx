@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { partDeMax, CIBLE_TACTILE_MIN, familleMouvement, libelleMotif, repartitionConsommation } from '@tiktrends/core';
+import { partDeMax, CIBLE_TACTILE_MIN, familleMouvement, libelleMotif, repartitionConsommation, teinte } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { unlimitedCredits } from '../../../lib/credits';
@@ -69,7 +69,7 @@ export default async function UsagePage() {
 
       <PageInfo title="lire ta consommation">
         Chaque génération débite un nombre de crédits fixe selon l'action (une image coûte moins qu'une vidéo).
-        Les lignes en <b style={{ color: '#7ee8bf' }}>vert</b> ajoutent des crédits (allocation mensuelle, recharge, remboursement),
+        Les lignes en <b style={{ color: 'var(--ok-text)' }}>vert</b> ajoutent des crédits (allocation mensuelle, recharge, remboursement),
         celles en <b style={{ color: 'var(--ink-2)' }}>gris</b> en consomment. Une génération qui échoue est remboursée.
       </PageInfo>
 
@@ -121,7 +121,7 @@ export default async function UsagePage() {
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{f.label}</div>
                 </div>
                 <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{when(r.createdAt as Date)}</span>
-                <span style={{ width: 78, textAlign: 'right', fontSize: 13.5, fontWeight: 800, color: positive ? '#7ee8bf' : 'var(--ink-2)' }}>
+                <span style={{ width: 78, textAlign: 'right', fontSize: 13.5, fontWeight: 800, color: positive ? 'var(--ok-text)' : 'var(--ink-2)' }}>
                   {positive ? '+' : ''}{fmt(r.delta)}
                 </span>
               </div>
@@ -136,7 +136,7 @@ export default async function UsagePage() {
 
 function Card({ label, value, sub, strong }: { label: string; value: string; sub?: string; strong?: boolean }) {
   return (
-    <div style={{ border: `1px solid ${strong ? 'rgba(254,44,85,.3)' : 'var(--line)'}`, borderRadius: surface.borderRadius, background: strong ? 'rgba(254,44,85,.06)' : 'var(--surface)', padding: '15px 17px' }}>
+    <div style={{ border: `1px solid ${strong ? teinte('accent', .3) : 'var(--line)'}`, borderRadius: surface.borderRadius, background: strong ? teinte('accent', .06) : 'var(--surface)', padding: '15px 17px' }}>
       <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 25, fontWeight: 800, color: strong ? 'var(--accent-strong)' : 'var(--ink)', marginTop: 5, lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 5 }}>{sub}</div>}

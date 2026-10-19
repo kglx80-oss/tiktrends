@@ -5,7 +5,7 @@ import { Icon } from '../../../components/Icon';
 import { BarreValeur } from '../../../components/BarreValeur';
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax, partConsommeeCycle, libelleMotif, LIBELLE_ACTION_CREDIT, videHistoriqueCredits } from '@tiktrends/core';
+import { CREDIT_COSTS, analyzeCosts, analyzePlanRisk, analyzePlanNet, repricingSuggestions, creditMarkup, corporateTaxRate, CREDIT_EUR, PAYMENT_FEE_PCT, partDeMax, partConsommeeCycle, libelleMotif, LIBELLE_ACTION_CREDIT, videHistoriqueCredits, teinte } from '@tiktrends/core';
 import { getSession } from '../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_PRICE, PLAN_LABEL, type Plan } from '../../../lib/rbac';
 import { panel, Msg, cadrePage, surface, tuile, h1 } from '../../../components/ui';
@@ -86,7 +86,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         if (!ts.isTrial || ts.daysLeft == null) return null;
         const warn = ts.expired || ts.daysLeft <= 3;
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${warn ? 'rgba(245,166,35,.4)' : 'var(--line)'}`, background: warn ? 'rgba(245,166,35,.08)' : 'var(--surface)', borderRadius: surface.borderRadius, padding: '12px 16px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: `1px solid ${warn ? teinte('warn', .4) : 'var(--line)'}`, background: warn ? teinte('warn', .08) : 'var(--surface)', borderRadius: surface.borderRadius, padding: '12px 16px', marginBottom: 16 }}>
             <span style={{ display: 'inline-flex', color: 'var(--muted)' }}>{ts.expired ? <Icon name="clock" size={18} /> : <Icon name="coin" size={18} />}</span>
             <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 700 }}>
               {accountKind === 'staff' ? 'Compte staff' : 'Compte de test / beta'}
@@ -120,7 +120,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
       </p>
 
       {/* ============ ÉCONOMIE RÉELLE (ADMIN) ============ */}
-      <section style={{ ...panel, borderColor: 'rgba(245,166,35,.3)', background: 'linear-gradient(180deg, rgba(245,166,35,.06), var(--surface))' }}>
+      <section style={{ ...panel, borderColor: teinte('warn', .3), background: `linear-gradient(180deg, ${teinte('warn', .06)}, var(--surface))` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h2 style={{ ...h2, fontSize: 18 }}>Économie & marges · règle maison</h2>
           <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: 'var(--on-accent)', background: 'var(--grad-accent)' }}>COÛT RÉEL × {markup}</span>
@@ -149,7 +149,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                   <td style={tdR}>{eur(a.realEur)}</td>
                   <td style={{ ...tdR, color: 'var(--ink)', fontWeight: 700 }}>◈ {a.credits}</td>
                   <td style={tdR}>{eur(a.resaleEur)}</td>
-                  <td style={{ ...tdR, fontWeight: 800, color: a.marginX >= markup * 0.9 ? '#7ee8bf' : '#f5b043' }}>×{a.marginX.toFixed(1)}</td>
+                  <td style={{ ...tdR, fontWeight: 800, color: a.marginX >= markup * 0.9 ? 'var(--ok-text)' : 'var(--warn-strong)' }}>×{a.marginX.toFixed(1)}</td>
                   <td style={tdR}>
                     <span title={a.aligned ? 'Barème aligné sur la marge cible' : `Reco : ◈ ${a.recommendedCredits} pour une marge ×${markup}`}
                       style={{ fontWeight: 700, color: a.aligned ? 'var(--muted)' : 'var(--accent-strong)' }}>
@@ -168,9 +168,12 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
       </section>
 
       {/* ============ MARGE NETTE · CE QU'ON GAGNE VRAIMENT ============ */}
-      <section style={{ ...panel, borderColor: 'rgba(126,232,191,.35)', background: 'linear-gradient(180deg, rgba(61,220,151,.05), var(--surface))' }}>
+      <section style={{ ...panel, borderColor: teinte('ok-text', .35), background: `linear-gradient(180deg, ${teinte('ok-strong', .05)}, var(--surface))` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h2 style={{ ...h2, fontSize: 18 }}>Ce qu'on gagne vraiment · marge nette</h2>
+          {/* Pastille sur dégradé vif · texte sombre sur vert · gardée TELLE QUELLE
+              (hors thème) · tokeniser les arrêts les rendrait sombres en clair,
+              texte sombre sur fond sombre · à juger visuellement en clair. */}
           <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: '#0d3d2a', background: 'linear-gradient(135deg,#3ddc97,#7ee8bf)' }}>SAS · IS {Math.round(taxRate * 100)}%</span>
         </div>
         <p style={{ margin: '8px 0 16px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 820 }}>
@@ -185,7 +188,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
             <div key={p.plan} style={{ ...tuile, background: 'var(--surface)', padding: '14px 16px' }}>
               <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{p.plan}</div>
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>{p.priceEur} € / mois HT</div>
-              <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: '#7ee8bf', lineHeight: 1 }}>+{Math.round(p.netEur)} €</div>
+              <div style={{ fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ok-text)', lineHeight: 1 }}>+{Math.round(p.netEur)} €</div>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>net / mois · {p.netPct}% du prix</div>
               <div style={{ fontSize: 11, color: 'var(--ink-2)', marginTop: 8, lineHeight: 1.5 }}>soit <b style={{ color: 'var(--ink)' }}>{Math.round(p.netEur * 12)} €</b> net / an par client</div>
             </div>
@@ -206,11 +209,11 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                 <tr key={p.plan} style={{ borderTop: '1px solid var(--line)' }}>
                   <td style={{ ...td, color: 'var(--ink)', fontWeight: 700 }}>{p.plan}</td>
                   <td style={tdR}>{p.priceEur} €</td>
-                  <td style={{ ...tdR, color: '#f5b043' }}>{eur(p.apiCostEur)}</td>
-                  <td style={{ ...tdR, color: '#f5b043' }}>{eur(p.paymentFeeEur)}</td>
+                  <td style={{ ...tdR, color: 'var(--warn-strong)' }}>{eur(p.apiCostEur)}</td>
+                  <td style={{ ...tdR, color: 'var(--warn-strong)' }}>{eur(p.paymentFeeEur)}</td>
                   <td style={{ ...tdR, fontWeight: 700 }}>{Math.round(p.grossEur)} € <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({p.grossPct}%)</span></td>
-                  <td style={{ ...tdR, color: '#f5b043' }}>{eur(p.taxEur)}</td>
-                  <td style={{ ...tdR, fontWeight: 800, color: '#7ee8bf' }}>{Math.round(p.netEur)} € <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({p.netPct}%)</span></td>
+                  <td style={{ ...tdR, color: 'var(--warn-strong)' }}>{eur(p.taxEur)}</td>
+                  <td style={{ ...tdR, fontWeight: 800, color: 'var(--ok-text)' }}>{Math.round(p.netEur)} € <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({p.netPct}%)</span></td>
                 </tr>
               ))}
             </tbody>
@@ -222,9 +225,11 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
       </section>
 
       {/* ============ RENTABILITÉ · MODE CHEF D'ENTREPRISE ============ */}
-      <section style={{ ...panel, borderColor: risky.length ? 'rgba(245,176,67,.45)' : 'rgba(126,232,191,.35)' }}>
+      <section style={{ ...panel, borderColor: risky.length ? teinte('warn-strong', .45) : teinte('ok-text', .35) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h2 style={{ ...h2, fontSize: 18 }}>Rentabilité & optimisation</h2>
+          {/* Pastille sur dégradé vif (ambre ou vert) · texte sombre · gardée TELLE
+              QUELLE, hors thème (même raison que « SAS · IS »). */}
           <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', padding: '3px 9px', borderRadius: 999, color: risky.length ? '#0d070c' : '#0d3d2a', background: risky.length ? 'linear-gradient(135deg,#f5a623,#ff8c42)' : 'linear-gradient(135deg,#3ddc97,#7ee8bf)' }}>
             {risky.length ? `${risky.length} formule(s) à surveiller` : 'Marges saines'}
           </span>
@@ -248,11 +253,11 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                 <tr key={p.plan} style={{ borderTop: '1px solid var(--line)' }}>
                   <td style={{ ...td, color: 'var(--ink)', fontWeight: 700 }}>{p.plan}</td>
                   <td style={tdR}>{p.priceEur} €</td>
-                  <td style={{ ...tdR, color: '#7ee8bf', fontWeight: 700 }}>{p.bestMarginPct} %</td>
-                  <td style={{ ...tdR, fontWeight: 800, color: p.worstMarginPct >= TARGET_MARGIN ? '#7ee8bf' : p.worstMarginPct >= 40 ? '#f5b043' : '#ff6b6b' }}>{p.worstMarginPct} %</td>
+                  <td style={{ ...tdR, color: 'var(--ok-text)', fontWeight: 700 }}>{p.bestMarginPct} %</td>
+                  <td style={{ ...tdR, fontWeight: 800, color: p.worstMarginPct >= TARGET_MARGIN ? 'var(--ok-text)' : p.worstMarginPct >= 40 ? 'var(--warn-strong)' : 'var(--danger-vif)' }}>{p.worstMarginPct} %</td>
                   <td style={{ ...td, color: 'var(--ink-2)' }}>{p.worstAction}<div style={{ fontSize: 10.5, color: 'var(--muted)' }}>coût max {eur(p.worstRealCostEur)}</div></td>
                   <td style={tdR}>{p.recommendedPriceEur > p.priceEur ? <b style={{ color: 'var(--accent-strong)' }}>{p.recommendedPriceEur} €</b> : <span style={{ color: 'var(--muted)' }}>OK</span>}</td>
-                  <td style={tdR}><span style={{ display: 'inline-flex', justifyContent: 'flex-end', fontWeight: 800, color: p.healthy ? '#7ee8bf' : '#f5b043' }}>{p.healthy ? '✓' : <Icon name="alert" size={13} />}</span></td>
+                  <td style={tdR}><span style={{ display: 'inline-flex', justifyContent: 'flex-end', fontWeight: 800, color: p.healthy ? 'var(--ok-text)' : 'var(--warn-strong)' }}>{p.healthy ? '✓' : <Icon name="alert" size={13} />}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -271,8 +276,8 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                     <span style={{ flex: 1, minWidth: 160, color: 'var(--ink-2)' }}>{a.label} <span style={{ color: 'var(--muted)' }}>· marge ×{a.marginX.toFixed(1)}</span></span>
                     <span style={{ color: 'var(--muted)' }}>◈ {a.credits}</span>
                     <span style={{ color: 'var(--muted)' }}>→</span>
-                    <span style={{ fontWeight: 800, color: up ? 'var(--accent-strong)' : '#7ee8bf' }}>◈ {a.recommendedCredits}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: up ? '#f5b043' : '#7ee8bf' }}>{up ? 'à augmenter' : 'baisse possible'}</span>
+                    <span style={{ fontWeight: 800, color: up ? 'var(--accent-strong)' : 'var(--ok-text)' }}>◈ {a.recommendedCredits}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: up ? 'var(--warn-strong)' : 'var(--ok-text)' }}>{up ? 'à augmenter' : 'baisse possible'}</span>
                   </div>
                 );
               })}
@@ -285,6 +290,8 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         )}
 
         {/* Synthèse chef d'entreprise */}
+        {/* Lavis décoratif magenta·violet de la synthèse · gardé tel quel (le
+            violet 120,90,255 n'a pas de jeton exact · teinte décalerait le sombre). */}
         <div style={{ marginTop: 12, padding: '13px 16px', background: 'linear-gradient(135deg, rgba(254,44,85,.08), rgba(120,90,255,.05))', ...tuile, fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
           <b style={{ color: 'var(--ink)' }}>Lecture directeur :</b> la marge « pleine » est confortable partout, mais la <b>vidéo</b> est
           le poste qui tire la rentabilité vers le bas (coût réel élevé, sous-facturée en crédits). Deux leviers :
@@ -326,7 +333,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
               <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '6px 0', borderTop: '1px solid var(--line)' }}>
                 {/* Même format que /usage · motif lisible, date et heure, milliers fr-FR. */}
                 <div style={{ minWidth: 0 }}><div style={{ color: 'var(--ink)', overflowWrap: 'anywhere' }}>{libelleMotif(l.reason)}</div><div style={{ fontSize: 11, color: 'var(--muted)' }}>{new Date(l.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div></div>
-                <span style={{ fontWeight: 800, color: l.delta >= 0 ? 'var(--ok)' : '#ff9db0', whiteSpace: 'nowrap' }}>{l.delta >= 0 ? '+' : ''}{l.delta.toLocaleString('fr-FR')}</span>
+                <span style={{ fontWeight: 800, color: l.delta >= 0 ? 'var(--ok)' : 'var(--err-text)', whiteSpace: 'nowrap' }}>{l.delta >= 0 ? '+' : ''}{l.delta.toLocaleString('fr-FR')}</span>
               </div>
             ))}
           </div>
@@ -344,4 +351,6 @@ const th = { padding: '4px 10px 8px', fontSize: 10.5, fontWeight: 700, letterSpa
 const thR = { ...th, textAlign: 'right' } as const;
 const td = { padding: '9px 10px', verticalAlign: 'top' } as const;
 const tdR = { ...td, textAlign: 'right', color: 'var(--ink-2)', whiteSpace: 'nowrap' } as const;
+// `background` · aplat blanc très discret derrière un extrait de code · pas de
+// jeton translucide qui bascule au thème · gardé tel quel (reste assumé).
 const codeS = { fontFamily: 'var(--font-mono, monospace)', fontSize: 11.5, background: 'rgba(255,255,255,.06)', padding: '1px 5px', borderRadius: 5, color: 'var(--ink)' } as const;

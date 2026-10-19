@@ -70,6 +70,9 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)' }}>{fmt(w[m.key], cur, m.kind)}</span>
                 {d != null && (
+                  // Pastille delta · texte sombre sur aplat pâle vert/rouge · teintes
+                  // bespoke sans jeton exact · gardée telle quelle (reste du cliquet),
+                  // à juger visuellement en clair.
                   <span style={{ fontSize: 11.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, color: good ? '#0d3d2a' : '#5a1220', background: good ? 'rgba(126,232,191,.22)' : 'rgba(255,120,140,.18)' }}>
                     {d >= 0 ? '+' : ''}{d} %
                   </span>
@@ -99,7 +102,7 @@ export function MetaKeyMetrics({ insights, syncedAt }: { insights: MetaAdsInsigh
             {insights.topAds.slice(0, 8).map((a, i) => (
               <div key={a.name + i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px', minWidth: 420, gap: 8, padding: '11px 16px', borderTop: '1px solid var(--line)', fontSize: 13 }}>
                 <span style={{ fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
-                <span style={{ textAlign: 'right', fontWeight: 800, color: a.roas >= 2 ? '#7ee8bf' : 'var(--ink)' }}>{a.roas}×</span>
+                <span style={{ textAlign: 'right', fontWeight: 800, color: a.roas >= 2 ? 'var(--ok-text)' : 'var(--ink)' }}>{a.roas}×</span>
                 <span style={{ textAlign: 'right', color: 'var(--ink-2)' }}>{fmt(a.cpa, cur, 'money')}</span>
                 <span style={{ textAlign: 'right', color: 'var(--ink-2)' }}>{fmt(a.spend, cur, 'money')}</span>
               </div>

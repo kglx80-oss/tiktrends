@@ -427,8 +427,8 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
                   {lectureSeule ? (
                     <span title="Offre sous Core · médias consultables, sans modification" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, fontSize: 11, color: 'var(--muted)', flex: 1 }}>Lecture seule</span>
                   ) : (
-                  <label title="Utilisable par l'IA" style={{ display: 'flex', alignItems: 'center', gap: 5, minHeight: CIBLE_TACTILE_MIN, fontSize: 11, color: a.useForAi ? '#7ee8bf' : 'var(--muted)', cursor: 'pointer', flex: 1 }}>
-                    <input type="checkbox" checked={a.useForAi} onChange={() => toggleAi(a)} style={{ accentColor: '#7ee8bf' }} />
+                  <label title="Utilisable par l'IA" style={{ display: 'flex', alignItems: 'center', gap: 5, minHeight: CIBLE_TACTILE_MIN, fontSize: 11, color: a.useForAi ? 'var(--ok-text)' : 'var(--muted)', cursor: 'pointer', flex: 1 }}>
+                    <input type="checkbox" checked={a.useForAi} onChange={() => toggleAi(a)} style={{ accentColor: 'var(--ok-text)' }} />
                     IA
                   </label>
                   )}
@@ -440,7 +440,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
                     </button>
                   )}
                   {a.source !== 'upload' && <a href={a.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: 'var(--muted)', textDecoration: 'none' }}>ouvrir ↗</a>}
-                  {!lectureSeule && <button type="button" onClick={() => remove(a)} style={{ minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: '#ff9db0', background: 'transparent', border: 'none', cursor: 'pointer' }}>Suppr.</button>}
+                  {!lectureSeule && <button type="button" onClick={() => remove(a)} style={{ minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, padding: '0 4px', fontSize: 11, color: 'var(--err-text)', background: 'transparent', border: 'none', cursor: 'pointer' }}>Suppr.</button>}
                 </div>
               </div>
             </div>
@@ -452,7 +452,7 @@ export function AssetsLibrary({ initial, brandName, storageEnabled, isAdmin = fa
   );
 }
 
-const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg, #0d070c)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
+const fld = { width: '100%', minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 13.5, outline: 'none' } as const;
 const lbl = { fontSize: 12, color: 'var(--ink-2)', display: 'block', marginBottom: 5 } as const;
 const primary = { minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 16px', borderRadius: 999, border: 'none', background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 13, cursor: 'pointer' } as const;
 const ghost = { minHeight: CIBLE_TACTILE_MIN, boxSizing: 'border-box', padding: '10px 16px', borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink)', fontWeight: 700, fontSize: 13, cursor: 'pointer' } as const;

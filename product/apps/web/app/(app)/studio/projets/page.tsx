@@ -59,7 +59,7 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
     return (
       <main style={cadrePage}>
         <h1 style={h1}>Studios</h1>
-        <p role="alert" data-etat="erreur" style={{ marginTop: 16, color: '#ff9db0', fontSize: 14 }}>{r.message} · identifiant support : {r.traceId}</p>
+        <p role="alert" data-etat="erreur" style={{ marginTop: 16, color: 'var(--err-text)', fontSize: 14 }}>{r.message} · identifiant support : {r.traceId}</p>
       </main>
     );
   }

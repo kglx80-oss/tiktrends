@@ -150,7 +150,7 @@ export function DriveConnect({ state }: { state: DriveState }) {
     return (
       <div style={card}>
         <Head brandName={null} />
-        <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#ffcf8f', lineHeight: 1.5 }}>
+        <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'var(--warn-text)', lineHeight: 1.5 }}>
           Sélectionne d'abord une <b>marque active</b> (sélecteur de marque en haut) : le Drive se branche <b>marque par marque</b>,
           et ses fichiers sont rattachés à cette marque.
         </p>
@@ -176,21 +176,21 @@ export function DriveConnect({ state }: { state: DriveState }) {
         <div style={{ marginTop: 10 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 12.5, color: 'var(--ink-2)' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: '#7ee8bf', display: 'inline-block' }} /> Connecté
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--ok-text)', display: 'inline-block' }} /> Connecté
             </span>
             {state.folderName
               ? <span>· Dossier <b style={{ color: 'var(--ink)' }}>{state.folderName}</b></span>
-              : <span style={{ color: '#ffcf8f' }}>· Aucun dossier sélectionné</span>}
+              : <span style={{ color: 'var(--warn-text)' }}>· Aucun dossier sélectionné</span>}
             {/* « Jamais synchronisé » est un INCONNU · on le dit, au lieu de laisser
                 l'absence de date le confondre avec « synchronisé, rien trouvé » (N09). */}
             {etatSyncDrive({ folderId: state.folderId, syncedAt: state.syncedAt }) === 'jamais_synchronise'
-              && <span style={{ color: '#ffcf8f' }}>· Jamais synchronisé</span>}
+              && <span style={{ color: 'var(--warn-text)' }}>· Jamais synchronisé</span>}
             {/* Le dernier SUCCÈS · distinct de la dernière tentative. */}
             {etatSyncDrive({ folderId: state.folderId, syncedAt: state.syncedAt }) === 'synchronise'
               && <span style={{ color: 'var(--muted)' }}>· Dernier succès {new Date(state.syncedAt!).toLocaleString('fr-FR')}</span>}
             {/* Un échec récent ne se laisse pas masquer par un ancien succès (N09). */}
             {derniereTentativeDriveEnEchec({ syncedAt: state.syncedAt, dernier: state.dernier })
-              && <span style={{ color: '#ff9db0' }}>· Dernière tentative {new Date(state.dernier!.at).toLocaleString('fr-FR')} · échec</span>}
+              && <span style={{ color: 'var(--err-text)' }}>· Dernière tentative {new Date(state.dernier!.at).toLocaleString('fr-FR')} · échec</span>}
           </div>
 
           {state.pickerReady ? (
@@ -206,12 +206,12 @@ export function DriveConnect({ state }: { state: DriveState }) {
                   {busy === 'sync' ? 'Synchro…' : '⟳ Synchroniser le dossier'}
                 </button>
               )}
-              <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Déconnecter</button>
+              <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: 'var(--err-text)', borderColor: 'var(--line-2)' }}>Déconnecter</button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>
               <div style={{ flex: '1 1 100%' }}><MessageInactif m={DRIVE_SELECTEUR_INACTIF} /></div>
-              <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: '#ff9db0', borderColor: 'var(--line-2)' }}>Déconnecter</button>
+              <button type="button" onClick={disconnect} disabled={!!busy} style={{ ...ghost, color: 'var(--err-text)', borderColor: 'var(--line-2)' }}>Déconnecter</button>
             </div>
           )}
           {/* Le mode d'emploi des deux boutons · seulement quand ils existent
