@@ -92,7 +92,13 @@ beforeAll(async () => {
   await semer(db, schema, ids);
   qui('ua');
   assetProduit = await asset(ids.brandA1, null, 1200, 1600, 'produit');
-  const contenu: ContenuVersion = { ...contenuVide(), brief: { objective: 'Tester une accroche', formats: ['Visuel fixe', 'Story 9:16'] }, productRef: { productId: 'p_serum', assetId: assetProduit } };
+  // Le format proposé à l'éditeur est LU dans le brief (`formats`) · le brief est
+  // donc réellement relu ici. `creerProjet` revérifie sa FORME (garde du Lot 2a,
+  // éprouvé par `assistant2a-brief-db`), qui exige le contrat canonique (treize
+  // champs). On fournit donc un brief canonique COMPLET, en conservant les deux
+  // valeurs que ce test exerce · `objective` et `formats` (dont « Story 9:16 »).
+  const brief = { objective: 'Tester une accroche', audience: '', hypothesisId: null, testedVariable: '', facts: [], invariants: [], variables: [], references: [], composition: '', styleIntent: '', texts: [], formats: ['Visuel fixe', 'Story 9:16'], exclusions: [] };
+  const contenu: ContenuVersion = { ...contenuVide(), brief, productRef: { productId: 'p_serum', assetId: assetProduit } };
   const c = await creerProjet({ brandId: ids.brandA1, kind: 'image', title: 'Sérum · visuel story', contenu });
   if (!c.ok) throw new Error(`${c.code} ${JSON.stringify(c.violations)}`);
   projet = c.projet.id;

@@ -11,7 +11,7 @@ import { CarteProposition } from './propositions/CarteProposition';
 import { ConflitVersion } from './propositions/ConflitVersion';
 import { FormulaireDemande } from './propositions/FormulaireDemande';
 import { AccesRefuse, Chargement, ErreurRecuperable, Vide, ERREUR_RESEAU } from './propositions/EtatsPanneau';
-import { mini, panneau, signal, sousTitre, texte, titre } from './propositions/styles';
+import { boutonSecondaire, mini, panneau, signal, sousTitre, texte, titre } from './propositions/styles';
 
 /**
  * Panneau des propositions d'un projet studio · autonome, à monter dans la
@@ -157,7 +157,15 @@ export function PanneauPropositions({ projectId, versionCourante, initial, onVer
         </p>
       </header>
 
-      {liste === null && <Chargement />}
+      {liste === null && retour?.type !== 'reseau' && <Chargement />}
+      {retour?.type === 'reseau' && (
+        <div role="alert" style={signal('err')}>
+          <p style={texte}>{ERREUR_RESEAU}</p>
+          <button type="button" style={boutonSecondaire} onClick={recharger} disabled={enCours === 'recharge'}>
+            Actualiser les propositions
+          </button>
+        </div>
+      )}
       {liste && !liste.ok && (REFUS_ACCES.has(liste.code)
         ? <AccesRefuse erreur={liste} />
         : <ErreurRecuperable erreur={liste} onReessayer={() => void charger('recharge')} />)}
@@ -176,7 +184,6 @@ export function PanneauPropositions({ projectId, versionCourante, initial, onVer
                 <p style={{ ...mini, marginTop: 6 }}>Aucune proposition n’a été enregistrée · précise ta demande puis redemande.</p>
               </div>
             )}
-            {retour?.type === 'reseau' && <p role="alert" style={signal('err')}><span style={{ fontWeight: 600 }}>Hors ligne · </span>{ERREUR_RESEAU}</p>}
             {retour?.type === 'conflit' && <ConflitVersion erreur={retour.erreur} onRecharger={recharger} enCours={enCours === 'recharge'} />}
             {retour?.type === 'erreur' && <ErreurRecuperable erreur={retour.erreur} />}
           </div>
