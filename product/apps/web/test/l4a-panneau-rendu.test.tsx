@@ -25,7 +25,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => null }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { disponibiliteJarvis, erreurStudio } from '@tiktrends/core';
+import { disponibiliteJarvis, erreurStudio, contenuVide } from '@tiktrends/core';
 import { PanneauPropositions } from '../components/studios/PanneauPropositions';
 import { ConflitVersion } from '../components/studios/propositions/ConflitVersion';
 import { creerPropositionManuelle } from '../lib/studios/propositions/proposer';
@@ -62,6 +62,14 @@ beforeAll(async () => {
 });
 
 describe('panneau · rempli (FLOW-04)', () => {
+  it('projet vide · le brief manuel est accessible sans release IA', async () => {
+    const p = await projetVideo(db, ids, ids.brandA1, ids.ua, contenuVide());
+    const html = rendre(await liste('ua', p.projectId), p.projectId, { id: p.versionId, n: 1 });
+    expect(texte(html)).toContain('Que veux-tu créer ou vérifier ?');
+    expect(texte(html)).toContain('Aucun appel à Jarvis, aucun coût');
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>Préparer mon brief<\/button>/);
+    expect(texte(html)).not.toContain('Cette cible n’a pas de champ texte modifiable');
+  });
   it('cible et version visibles, avant/après par chemin, impact, mention « rien généré ni débité », gestes', async () => {
     const html = rendre(await liste());
     const t = texte(html);

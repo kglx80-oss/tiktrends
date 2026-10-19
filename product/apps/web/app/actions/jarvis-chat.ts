@@ -1,8 +1,8 @@
 'use server';
 
-import { and, asc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { starters, personnalisationAccueil, MARQUEUR_SOURCE, type TypeConnaissance } from '@tiktrends/core';
+import { starters, startersOnboarding, personnalisationAccueil, MARQUEUR_SOURCE, type TypeConnaissance } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { canAccess, FEATURES } from '../../lib/rbac';
@@ -12,6 +12,10 @@ import { jarvisStats, jarvisHookView } from '../../lib/jarvis-memory';
 import { connaissancesPourReponse, titresDesSources } from '../../lib/jarvis-connaissances';
 import { logAndTranslate } from '../../lib/error-log';
 import { GUARD } from '../../lib/guard-error';
+import { listerConversations, messagesDeConversation, effacerMessagesConversation, conversationAppartient, type ConversationLue } from '../../lib/jarvis/conversations';
+import { messagesOnboarding, effacerOnboarding } from '../../lib/jarvis/onboarding';
+
+export type { ConversationLue };
 
 /**
  * Lecture et effacement du fil.
@@ -72,9 +76,22 @@ export interface ChatThread {
    * applicables à CETTE marque sont résolues.
    */
   sources?: Record<string, { titre: string; enService: boolean }>;
+  /** La conversation ouverte · `null` = le fil principal (messages sans conversation). */
+  conversationId: string | null;
+  /** Les conversations nommées de la marque · pour la colonne « Mes conversations ». */
+  conversations: ConversationLue[];
 }
 
-export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?: string }> {
+/**
+ * Lit le fil d'UNE conversation (et la liste des conversations nommées).
+ *
+ * `conversationId` · `null` ouvre le fil principal (messages sans conversation,
+ * le fil unique d'avant la V5) ; un identifiant ouvre la conversation nommée
+ * correspondante, APRÈS vérification qu'elle appartient bien à la portée
+ * (espace + marque + personne) · un identifiant étranger retombe sur le fil
+ * principal plutôt que d'exposer la conversation d'autrui.
+ */
+export async function chatThreadAction(conversationId: string | null = null): Promise<{ thread?: ChatThread; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   // Même porte que la route · la feature `jarvis` AVANT la marque, le fil et
@@ -88,19 +105,14 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
   if (!brand) return { error: 'Sélectionne une marque active pour parler à Jarvis.' };
 
   try {
+    const portee = { workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id };
+    // Une conversation nommée demandée doit appartenir à la portée · sinon on
+    // ouvre le fil principal (jamais la conversation d'autrui).
+    const ouverte = conversationId && (await conversationAppartient(portee, conversationId)) ? conversationId : null;
     const voitMemoire = canAccess(effectiveAccess(s), adsmap);
-    const [rows, stats, ws, ident, hooks] = await Promise.all([
-      db.select({
-        id: schema.jarvisMessages.id, role: schema.jarvisMessages.role,
-        content: schema.jarvisMessages.content, createdAt: schema.jarvisMessages.createdAt,
-      })
-        .from(schema.jarvisMessages)
-        .where(and(
-          eq(schema.jarvisMessages.brandId, brand.id),
-          eq(schema.jarvisMessages.userId, s.user.id),
-        ))
-        .orderBy(asc(schema.jarvisMessages.createdAt))
-        .limit(120),
+    const [rows, conversations, stats, ws, ident, hooks] = await Promise.all([
+      messagesDeConversation(portee, ouverte),
+      listerConversations(portee).catch(() => [] as ConversationLue[]),
       voitMemoire ? jarvisStats(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
       db.select({ onboarding: schema.workspaces.onboarding }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
       db.select({
@@ -143,10 +155,52 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
           } : null,
         },
         sources,
+        conversationId: ouverte,
+        conversations,
       },
     };
   } catch (e) {
     return { error: logAndTranslate('jarvis:thread', e, { subject: 'la conversation', workspaceId: s.workspaceId }) };
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Onboarding · le fil sans marque (compte neuf)                             */
+/* -------------------------------------------------------------------------- */
+
+export interface OnboardingThread { turns: ChatTurn[]; starters: string[] }
+
+/**
+ * Le fil d'onboarding (sans marque) · portée espace + personne. Jarvis reste
+ * vivant et guide vers la création de la première marque · aucune marque n'est
+ * lue (il n'y en a pas), aucun chiffre n'est fabriqué.
+ */
+export async function onboardingThreadAction(): Promise<{ thread?: OnboardingThread; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: GUARD.session() };
+  const refus = refusJarvis(s);
+  if (refus) return { error: TEXTE_REFUS_JARVIS[refus] };
+  try {
+    const rows = await messagesOnboarding({ workspaceId: s.workspaceId, userId: s.user.id });
+    return {
+      thread: {
+        turns: rows.map((r) => ({ id: r.id, role: r.role as ChatTurn['role'], content: r.content, at: (r.createdAt as Date).toISOString() })),
+        starters: startersOnboarding(),
+      },
+    };
+  } catch (e) {
+    return { error: logAndTranslate('jarvis:onboarding:thread', e, { subject: 'Jarvis', workspaceId: s.workspaceId }) };
+  }
+}
+
+export async function clearOnboardingAction(): Promise<{ ok?: boolean; error?: string }> {
+  const s = await getSession();
+  if (!s || !db) return { error: GUARD.session() };
+  try {
+    await effacerOnboarding({ workspaceId: s.workspaceId, userId: s.user.id });
+    return { ok: true };
+  } catch (e) {
+    return { error: logAndTranslate('jarvis:onboarding:clear', e, { subject: 'le fil', workspaceId: s.workspaceId }) };
   }
 }
 
@@ -158,16 +212,18 @@ export async function chatThreadAction(): Promise<{ thread?: ChatThread; error?:
  * la moitié d'un contexte produit des réponses qui font référence à ce qu'on
  * vient de supprimer.
  */
-export async function clearChatAction(): Promise<{ ok?: boolean; error?: string }> {
+export async function clearChatAction(conversationId: string | null = null): Promise<{ ok?: boolean; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: GUARD.noBrand() };
   try {
-    await db.delete(schema.jarvisMessages).where(and(
-      eq(schema.jarvisMessages.brandId, brand.id),
-      eq(schema.jarvisMessages.userId, s.user.id),
-    ));
+    const portee = { workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id };
+    // Efface SEULEMENT le fil de la conversation ouverte · une conversation
+    // étrangère (hors portée) n'a aucun message dans la portée, donc rien à
+    // effacer. Un identifiant nommé non possédé retombe sur le fil principal.
+    const cible = conversationId && (await conversationAppartient(portee, conversationId)) ? conversationId : null;
+    await effacerMessagesConversation(portee, cible);
     return { ok: true };
   } catch (e) {
     return { error: logAndTranslate('jarvis:clear', e, { subject: 'l’effacement du fil', workspaceId: s.workspaceId }) };

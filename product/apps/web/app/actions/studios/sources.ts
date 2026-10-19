@@ -88,7 +88,7 @@ export async function creerProjetDepuisSources(entree: EntreeCreationDepuisSourc
  * annonce sauvegardée, objectif). Même garde et même capacité que la création
  * depuis des sources ; idempotente par clé de clic ; aucun appel modèle.
  */
-export async function creerProjetDepuisContexte(entree: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown }): Promise<Reponse<ProjetCree>> {
+export async function creerProjetDepuisContexte(entree: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; productId?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown }): Promise<Reponse<ProjetCree>> {
   const g = await gardeSources('studio.propose');
   if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
@@ -96,7 +96,7 @@ export async function creerProjetDepuisContexte(entree: { brandId: unknown; kind
   const { creerProjetDepuisContextePour } = await import('../../../lib/studios/sources/projet');
   return creerProjetDepuisContextePour(g.ctx, {
     brandId: entree?.brandId, kind: entree?.kind, titre: entree?.titre, objectif: entree?.objectif,
-    ref: entree?.ref, retourVeille: entree?.retourVeille, cleClic: entree?.cleClic,
+    productId: entree?.productId, ref: entree?.ref, retourVeille: entree?.retourVeille, cleClic: entree?.cleClic,
   }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 

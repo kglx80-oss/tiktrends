@@ -10,9 +10,10 @@
 
 import type { ChangementPatch } from '../patch';
 import type { ContenuVersion } from '../document';
+import { composerBrief } from '../brief';
 import { libelleChemin, racineCible, type CibleProposition } from './cible';
 
-export type FormeChamp = 'texte' | 'lignes';
+export type FormeChamp = 'texte' | 'lignes' | 'objectif-brief';
 
 export interface ChampEditable {
   chemin: string;
@@ -57,7 +58,11 @@ export function champsEditables(c: CibleProposition, contenu: ContenuVersion): C
       const r = contenu.characterRefs[c.id];
       return estObjet(r) ? champsObjet(c, racine, r) : [];
     }
-    case 'brief': return estObjet(contenu.brief) ? champsObjet(c, racine, contenu.brief, LISTES_BRIEF) : [];
+    case 'brief': return estObjet(contenu.brief)
+      ? champsObjet(c, racine, contenu.brief, LISTES_BRIEF)
+      : contenu.brief === null
+        ? [{ chemin: racine, libelle: 'Objectif du brief', forme: 'objectif-brief', valeur: '' }]
+        : [];
     case 'style': return estObjet(contenu.styleRef) ? champsObjet(c, racine, contenu.styleRef) : [];
     default: return [];
   }
@@ -65,7 +70,12 @@ export function champsEditables(c: CibleProposition, contenu: ContenuVersion): C
 
 /** Saisie → changement `replace` · les lignes vides d'une liste sont retirées. */
 export function changementDepuisSaisie(champ: Pick<ChampEditable, 'chemin' | 'forme' | 'libelle'>, saisie: string, raison: string): ChangementPatch {
-  const newValue = champ.forme === 'lignes'
+  // Un premier brief reste une proposition sur la racine null, appliquée
+  // avec les mêmes droits et le même contrôle de version. Les informations
+  // absentes restent vides ; aucun fait ni référence n'est inventé.
+  const newValue = champ.forme === 'objectif-brief'
+    ? composerBrief({ sources: [], hypothese: null, produit: null, audience: '', objectif: saisie })
+    : champ.forme === 'lignes'
     ? saisie.split('\n').map((l) => l.trim()).filter((l) => l.length > 0)
     : saisie;
   return { op: 'replace', path: champ.chemin, newValue, reason: raison.trim() || `Modification manuelle · ${champ.libelle}` };

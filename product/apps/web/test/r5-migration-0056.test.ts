@@ -36,10 +36,13 @@ describe('0056 · lecture du SQL et du journal', () => {
     expect(a.nonRejouables, 'instruction non rejouable dans 0056').toEqual([]);
     expect(a.ajouteValeurEnum).toBe(false);
   });
-  it('dernière entrée du journal, horodatage strictement supérieur au précédent', () => {
+  it('entrée 0056 du journal, horodatage strictement supérieur au précédent', () => {
     const e = journal.entries;
-    expect(e[e.length - 1]!.tag).toBe(TAG);
-    expect(e[e.length - 1]!.when, '0056 serait ignorée par le migrateur').toBeGreaterThan(e[e.length - 2]!.when);
+    // 0056 n'est plus forcément la dernière (0057 conversations Jarvis l'a suivie) ·
+    // on la retrouve par son tag et on vérifie qu'elle ne serait pas ignorée.
+    const i = e.findIndex((x) => x.tag === TAG);
+    expect(i, '0056 absente du journal').toBeGreaterThan(0);
+    expect(e[i]!.when, '0056 serait ignorée par le migrateur').toBeGreaterThan(e[i - 1]!.when);
     expect(violationsJournalMigrations(e)).toEqual([]);
   });
 });

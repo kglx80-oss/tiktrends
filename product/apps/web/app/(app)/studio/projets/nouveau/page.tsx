@@ -10,6 +10,7 @@ import { effectiveAccess } from '../../../../../lib/access';
 import { FEATURES, canAccess } from '../../../../../lib/rbac';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
+import { produitsDeLaMarque } from '../../../../../lib/studios/sources/preparation';
 import { chargerSources } from '../../../../../lib/studios/sources/sources';
 import { adsDeLaMarque } from '../../../../../lib/adsmap-marque';
 import { adDetailAction } from '../../../../actions/adsmap-verdict';
@@ -50,6 +51,7 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
   if (coupe) return <main style={cadrePage}><CapaciteNonActive capacites={capacitesDuRefus(coupe)} /></main>;
 
   const active = await getActiveBrand(s.workspaceId);
+  const produits = active && g.ctx.marques.includes(active.id) ? (await produitsDeLaMarque(active.id)).map(({ id, nom, photoDisponible }) => ({ id, nom, photoDisponible })) : [];
   const peutProposer = aPermissionEspace(g.ctx.permissions, 'studio.propose');
   const etat = etatNouveauProjet({ peutProposer, marqueActive: active ? { id: active.id, name: active.name } : null });
 
@@ -107,6 +109,7 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
       </p>
       <PreparationProjet
         etat={etat}
+        produits={produits}
         initial={{ type: c.type, titre, objectif }}
         annonce={annonce && c.ref ? { ref: c.ref, annonceur: annonce.annonceur } : null}
         iterationReprise={iteration?.etat === 'reprise'}
