@@ -45,7 +45,7 @@ const nouveau: EtatNouveauProjet = { etat: 'pret', marque: { id: 'b1', nom: 'Nev
 const iterations: EtatProchainesIterations = {
   etat: 'liste', total: 1, boucle: '/resultats', autres: '/suites',
   cartes: [{
-    adId: 'ad1', titre: 'Prêts pour le grand plongeon ?', verdict: 'Gagnante', lot: 'Lot #1 conclu', apprentissageValide: true,
+    adId: 'ad1', titre: 'Prêts pour le grand plongeon ?', verdict: 'Gagnante', lot: 'Lot #1 conclu', apprentissageValide: true, vignette: null,
     mesure: { valeur: '27 %', libelle: 'taux d’accroche', periode: 'juillet', source: 'Meta' },
     garde: 'Accroche question', change: 'Format 4:5 → 9:16', raison: 'Le 9:16 n’a jamais été testé sur TikTok pour Neva.',
     iterer: '/studio/projets/nouveau?iter=ad1',
