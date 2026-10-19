@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import {
   dateCourteUtc, LIBELLES_MODALITE, LIBELLES_ELEMENT, LIBELLES_STATUT_SOURCE, LIBELLES_TYPE_SOURCE, LIBELLES_DROIT_SOURCE, titreSource, LIBELLES_NATURE_FAIT, CIBLE_TACTILE_MIN,
+  LIBELLES_OBJECTIF_V5, LIBELLES_PLATEFORME_V5,
   type FaitBrief, type NatureFait, teinte,
 } from '@tiktrends/core';
 import type { DetailProjet } from '../../../lib/studios/sources/projet';
@@ -82,6 +83,14 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
               <>
                 <Champ nom="Objectif">{brief.objective}</Champ>
                 <Champ nom="Audience">{brief.audience}</Champ>
+                {/* Champs V5 · affichés seulement quand le brief les porte (restitution après rechargement). */}
+                {brief.objectifType && <Champ nom="Objectif publicitaire"><p data-champ="objectif-type" style={texte}>{LIBELLES_OBJECTIF_V5[brief.objectifType]}</p></Champ>}
+                {brief.plateformes && brief.plateformes.length > 0 && (
+                  <Champ nom="Plateformes"><p data-champ="plateformes" style={texte}>{brief.plateformes.map((pf) => LIBELLES_PLATEFORME_V5[pf]).join(' · ')}</p></Champ>
+                )}
+                {brief.personaRef && <Champ nom="Persona"><p data-champ="persona" style={texte}>{brief.personaRef.label}</p></Champ>}
+                {brief.angle && <Champ nom="Angle"><p data-champ="angle" style={texte}>{brief.angle}</p></Champ>}
+                {brief.concept && <Champ nom="Concept"><p data-champ="concept" style={texte}>{brief.concept}</p></Champ>}
                 <div style={{ ...tuile, padding: 14, background: 'var(--bg)', display: 'grid', gap: 8 }} data-hypothese={hypothese?.id ?? ''}>
                   <span style={etiquette}>Hypothèse</span>
                   {hypothese ? (

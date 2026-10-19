@@ -10,6 +10,7 @@ import {
 import { lireCampagneBenchmark, releaseActive, releaseChargee, type ReleaseChargee } from './depot-prompts';
 import {
   admissibiliteEvaluation, versionDepuisEmpreinte, JETONS_ENTREE_MAX_PROPOSITION, JETONS_RESERVE_CONTEXTE, JETONS_SORTIE_MAX_PROPOSITION,
+  CLE_REGLES_MARQUE, VERSION_REGLES_MARQUE,
   type DemandeEvaluation,
 } from '@tiktrends/core';
 import { planifierPiecesVision, type CorrespondancePiece, type MediaResoluVision, type PieceNative } from '@tiktrends/core';
@@ -347,6 +348,59 @@ export async function consignerRunConversation(r: RunConversation): Promise<stri
     },
     outputHash: r.reponse ? sha256Texte(r.reponse) : null, latencyMs: Math.max(0, Math.round(r.latenceMs)),
     costUsdMicros: microsUsd(r.coutUsd), status: r.statut, traceId: r.traceId,
+  }).returning({ id: schema.studioPromptRuns.id });
+  return l!.id;
+}
+
+/* ─────────────────────── Règles créatives de marque (Jarvis) ───────────── */
+
+export interface RunReglesMarque {
+  portee: { workspaceId: string; brandId: string };
+  traceId: string;
+  /** Release en vigueur épinglée à l'appel (comme un devis) · `null` si aucune n'est publiée. */
+  releaseId: string | null;
+  modele: string;
+  /** Texte système réellement envoyé · son empreinte identifie le gabarit code consommé. */
+  systeme: string;
+  /** Instantané déterministe du contexte (empreintes seulement). */
+  contexte: Record<string, unknown>;
+  /** Empreinte du gabarit code `jarvis.regles_marque@version`. */
+  templateContentHash: string;
+  sources: SourceTrace[];
+  statut: 'succeeded' | 'failed';
+  latenceMs: number;
+  jetons: { entree: number; sortie: number };
+  coutUsd: number;
+  /** Crédits réservés pour ce geste (5 · `brief`) · `0` pour un compte illimité. */
+  credits: number | null;
+}
+
+/**
+ * Trace d'un geste « Proposer les règles de marque ».
+ *
+ * Même table, même forme que les autres studios (`consignerRunConversation`,
+ * `ecrireRun`) : release en vigueur ÉPINGLÉE à l'appel (la release réellement
+ * consommée, distincte de celle simplement publiée · matrice 9.4), empreintes
+ * du message et du contexte, modèle, statut, coût réel, crédits réservés. Le
+ * gabarit de ce geste vit dans le code (`@tiktrends/ai`), pas dans une release :
+ * `config.origine = 'code'` et `config.template` portent son identité versionnée
+ * et son empreinte, pour que l'ADMIN sache EXACTEMENT ce qui a produit le texte.
+ * Jamais la question ni la réponse en clair. Non bloquant côté appelant.
+ */
+export async function consignerRunReglesMarque(r: RunReglesMarque): Promise<string> {
+  const [l] = await db.insert(schema.studioPromptRuns).values({
+    workspaceId: r.portee.workspaceId, brandId: r.portee.brandId,
+    templateKey: CLE_REGLES_MARQUE, promptVersionId: null, promptReleaseId: r.releaseId,
+    compiledHash: empreinteJson({ systeme: r.systeme, contexte: r.contexte }, 'js'),
+    contextSnapshotHash: empreinteJson(r.contexte, 'js'),
+    sourceRefs: r.sources, model: r.modele,
+    config: {
+      origine: 'code',
+      template: { cle: CLE_REGLES_MARQUE, version: VERSION_REGLES_MARQUE, contentHash: r.templateContentHash },
+      jetons: r.jetons, environnement: 'regles_marque',
+    },
+    outputHash: null, latencyMs: Math.max(0, Math.round(r.latenceMs)),
+    costUsdMicros: microsUsd(r.coutUsd), credits: r.credits, status: r.statut, traceId: r.traceId,
   }).returning({ id: schema.studioPromptRuns.id });
   return l!.id;
 }

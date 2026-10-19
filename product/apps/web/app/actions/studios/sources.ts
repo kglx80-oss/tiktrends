@@ -8,6 +8,7 @@ import { getActiveBrand } from '../../../lib/brands';
 import type { Preparation } from '../../../lib/studios/sources/preparation';
 import type { ResultatPropositions } from '../../../lib/studios/sources/hypotheses';
 import type { ProjetCree, DetailProjet, CarteProjet, EntreeCreationDepuisSources } from '../../../lib/studios/sources/projet';
+import type { VueSource } from '../../../lib/studios/sources/sources';
 
 /**
  * Commandes du parcours Veille → sources → hypothèse → brief → projet
@@ -88,7 +89,7 @@ export async function creerProjetDepuisSources(entree: EntreeCreationDepuisSourc
  * annonce sauvegardée, objectif). Même garde et même capacité que la création
  * depuis des sources ; idempotente par clé de clic ; aucun appel modèle.
  */
-export async function creerProjetDepuisContexte(entree: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown }): Promise<Reponse<ProjetCree>> {
+export async function creerProjetDepuisContexte(entree: { brandId: unknown; kind?: unknown; titre?: unknown; objectif?: unknown; productId?: unknown; ref?: unknown; retourVeille?: unknown; cleClic: unknown }): Promise<Reponse<ProjetCree>> {
   const g = await gardeSources('studio.propose');
   if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
@@ -96,8 +97,24 @@ export async function creerProjetDepuisContexte(entree: { brandId: unknown; kind
   const { creerProjetDepuisContextePour } = await import('../../../lib/studios/sources/projet');
   return creerProjetDepuisContextePour(g.ctx, {
     brandId: entree?.brandId, kind: entree?.kind, titre: entree?.titre, objectif: entree?.objectif,
-    ref: entree?.ref, retourVeille: entree?.retourVeille, cleClic: entree?.cleClic,
+    productId: entree?.productId, ref: entree?.ref, retourVeille: entree?.retourVeille, cleClic: entree?.cleClic,
   }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
+}
+
+/**
+ * Écriture · ajoute des sources (annonce de Veille, sauvegarde, création) à un
+ * projet EXISTANT, après sa création (V5 A20). Même garde et même capacité que
+ * la création depuis des sources · accès Veille relu pour une annonce de Veille,
+ * portée de marque sur le projet et les sources. Aucun appel modèle, aucune
+ * dépense ; les sources vivent sur `source_refs`, relues au rechargement.
+ */
+export async function ajouterSourcesAuProjet(entree: { projectId: unknown; sources: unknown }): Promise<Reponse<{ projet: { id: string; brandId: string }; sources: VueSource[]; ajoutees: number }>> {
+  const g = await gardeSources('studio.propose');
+  if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
+  const { ajouterSourcesAuProjetPour } = await import('../../../lib/studios/sources/projet');
+  return ajouterSourcesAuProjetPour(g.ctx, { projectId: entree?.projectId, sources: entree?.sources }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 
 /** Lecture pure · le brief exporté (Markdown ou JSON), sans génération ni achat. */
