@@ -19,9 +19,10 @@ export function TuilesAccueil({ tuiles }: { tuiles: readonly TuileAccueil[] }) {
             background: t.primaire ? 'var(--grad-accent)' : 'var(--surface)',
             ...(t.primaire ? { borderColor: 'transparent' } : {}),
           }}>
+          {/* V5 · la pastille d'icône est un lavis d'accent (`--accent-soft`), pas un placeholder neutre (`--paper`) · la maquette tinte chaque chip, primaire comme secondaire. */}
           <span aria-hidden style={{
             width: 36, height: 36, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            background: t.primaire ? 'var(--accent-soft)' : 'var(--paper)', color: 'var(--accent-strong)',
+            background: 'var(--accent-soft)', color: 'var(--accent-strong)',
           }}><Icon name={t.icone} size={17} /></span>
           <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
             <b style={{ fontSize: 15, fontWeight: 600, color: t.primaire ? 'var(--on-accent)' : 'var(--ink)' }}>{t.titre}</b>

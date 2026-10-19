@@ -83,6 +83,53 @@ export function gouttiereCss(): string {
   return `clamp(${CADRE_PAGE.gouttiereMobile}px, 4vw, ${CADRE_PAGE.gouttiereDesktop}px)`;
 }
 
+/**
+ * Le cadre est COLLÉ au rail (aligné à gauche), jamais centré · l'espace en trop
+ * va à DROITE.
+ *
+ * ── Pourquoi (le « gros écart » de l'Accueil) ────────────────────────────────
+ *
+ * Le cadre vivait dans la colonne de contenu (`184px minmax(0,1fr)`) avec
+ * `margin: 0 auto` · centré. Tant que la colonne est plus étroite que
+ * `largeurMax` (≤ 1684 de fenêtre · 1500 + rail 184), le cadre la REMPLIT et le
+ * centrage ne se voit pas. Au-delà, le cadre plafonne à 1500 et se centre DANS
+ * la colonne · mesuré sur l'Accueil (banc, Chromium, thème clair, fondateur) ·
+ * un vide de 150 px s'ouvre entre le rail et le contenu à 1920, 470 px à 2560,
+ * et le fil d'en-tête (collé à la gouttière du rail, jamais plafonné) ne
+ * s'aligne plus avec le corps (fil à x=216, corps à x=334 à 1920). Le
+ * propriétaire, sur un écran large, voyait ce vide sans le comprendre.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ * Le cadre se cale sur la gouttière du rail et grandit vers la DROITE · le fil
+ * d'en-tête et le corps partent du même bord (gouttière) à toute largeur. C'est
+ * déjà le principe des lectures intérieures (`EXCEPTIONS_LECTURE` · « alignée à
+ * gauche sur le bord du cadre, jamais recentrée ») · le cadre extérieur s'y
+ * range. À ≤ 1684 de fenêtre, RIEN ne change (le cadre remplissait déjà la
+ * colonne) · la maquette V5 validée à 1440 est intacte.
+ *
+ * Écrit comme le style en ligne l'attend · marge gauche nulle, l'`auto` à droite
+ * absorbe l'espace en trop.
+ */
+export const MARGE_CADRE = '0 auto 0 0';
+
+/**
+ * Où le contenu se pose DANS sa colonne, pour une largeur de colonne donnée
+ * (la colonne = la fenêtre moins le rail). Pur · sert à éprouver le RÉSULTAT de
+ * la règle d'alignement (le bord gauche ne bouge pas quand la colonne s'élargit).
+ *
+ *  · `gauche` · le bord gauche du CONTENU depuis le bord de la colonne · la
+ *    gouttière, TOUJOURS (le cadre est collé à gauche) · jamais un décalage de
+ *    centrage qui croît avec la largeur ;
+ *  · `largeur` · la largeur du contenu (cadre plafonné à `largeurMax`, moins les
+ *    deux gouttières).
+ */
+export function placementCadre(largeurColonne: number): { gauche: number; largeur: number } {
+  const g = CADRE_PAGE.gouttiereDesktop;
+  const largeurCadre = Math.min(CADRE_PAGE.largeurMax, Math.max(0, largeurColonne));
+  return { gauche: g, largeur: Math.max(0, largeurCadre - 2 * g) };
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * Bordures et rayons PAR RÔLE (lot 19D · tranche 2 du cadre commun)
  * ═══════════════════════════════════════════════════════════════════════════
