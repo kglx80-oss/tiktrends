@@ -384,12 +384,13 @@ export default async function InspoPage({ searchParams }: { searchParams: Promis
       {!sample && !error && !query && !defaut && <p style={{ color: 'var(--muted)', fontSize: 14 }}>Lance une recherche ou choisis une thématique ci-dessus.</p>}
       {!sample && !error && query && <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 14 }}>≈ {compact(total)} annonce(s) · page {page}/{totalPages}{autoDomain && <> · recherche par domaine <b style={{ color: 'var(--ink-2)' }}>{effSearch}</b></>}</p>}
 
-      {/* Grille aérée · médias prédominants, 3-4 colonnes selon la place, 2 en
-          tablette, 1 en mobile · auto-fill garde des cartes de taille normale
-          même à deux résultats (pas d'étirement géant). */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 18 }}>
+      {/* Grille compacte (maquette V5 · 4 colonnes en large) · médias prédominants ·
+          4 colonnes dès ~1130 px, 3 puis 2 en tablette, 1 en mobile · auto-fill
+          garde des cartes de taille normale même à deux résultats (pas d'étirement
+          géant). Min resserré à 264 px et gouttière à 14 px pour la densité du proto. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(264px, 100%), 1fr))', gap: 14 }}>
         {ads.map((ad) => (
-          <AdCard key={ad.id} ad={ad} ctaSobre cibles44 contexteRetour={contexte}
+          <AdCard key={ad.id} ad={ad} ctaSobre cibles44 badgesV5 contexteRetour={contexte}
             saved={savedSet.has(ad.platform + ':' + ad.id)}
             following={followSet.has(ad.platform + ':' + (ad.advertiserName || ''))} />
         ))}

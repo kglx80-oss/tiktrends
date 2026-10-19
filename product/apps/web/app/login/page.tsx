@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { teinte } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { loginAction } from '../actions/auth';
 import { AuthShell, field, primaryBtn, errorBox, lienSeul } from '../../components/AuthShell';
@@ -19,7 +20,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <AuthShell title="Connexion" subtitle="Accède à ton espace TikTrends.">
       {e && errorBox(ERRORS[e] || 'Une erreur est survenue.')}
       {reset && (
-        <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: '1px solid rgba(24,204,140,.4)', background: 'rgba(24,204,140,.10)', color: '#18cc8c' }}>
+        <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 12, fontSize: 13, border: `1px solid ${teinte('ok', .4)}`, background: teinte('ok', .1), color: 'var(--ok)' }}>
           Mot de passe mis à jour. Tu peux te connecter.
         </div>
       )}

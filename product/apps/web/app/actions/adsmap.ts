@@ -230,21 +230,28 @@ export async function exportAdsCsvAction(filters: AdFilters = {}, withComputed =
 }
 
 /** Lots de la marque active · alimente le filtre et l'en-tête de la vue Table. */
-export async function listBatchesAction(): Promise<Array<{ id: string; number: number; status: string; goal: string | null; launchedAt: string | null; ads: number }>> {
+export async function listBatchesAction(): Promise<Array<{ id: string; number: number; status: string; goal: string | null; launchedAt: string | null; ads: number; thumbUrl: string | null }>> {
   const g = await guard();
   if ('error' in g) return [];
   const rows = await db!.select({
     id: schema.batches.id, number: schema.batches.number, status: schema.batches.status,
     goal: schema.batches.goal, launchedAt: schema.batches.launchedAt, ads: sql<number>`count(${schema.ads.id})`,
+    // La vignette de la carte (V5) · le média RÉEL d'une variante du lot, tel
+    // qu'il est en base (créa persistée, sa miniature d'abord, sinon l'asset de
+    // l'ad). `max` en choisit un de façon déterministe · aucune image fabriquée.
+    // La jointure sur la créa est 1→1 (créa.id = ad.creativeId) · elle ne
+    // multiplie pas le `count(ads)`. Un lot sans aucun média rend `null`.
+    thumbUrl: sql<string | null>`max(coalesce(${schema.creatives.thumbUrl}, ${schema.creatives.storageUrl}, ${schema.ads.assetUrl}))`,
   })
     .from(schema.batches)
     .leftJoin(schema.ads, eq(schema.ads.batchId, schema.batches.id))
+    .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
     .where(eq(schema.batches.brandId, g.brand.id))
     .groupBy(schema.batches.id)
     .orderBy(desc(schema.batches.number));
   // `launchedAt` distingue un lot importé (analysé, jamais lancé) d'un lot suivi ·
   // il alimente la nature du lot côté écran (CDC v8 · R04).
-  return rows.map((r) => ({ ...r, launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null, ads: Number(r.ads) }));
+  return rows.map((r) => ({ ...r, launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null, ads: Number(r.ads), thumbUrl: r.thumbUrl ?? null }));
 }
 
 export interface SyncResult {

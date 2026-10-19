@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { teinte } from '@tiktrends/core';
 import { useIsMobile } from '../../components/useIsMobile';
 import { useRouter } from 'next/navigation';
 import { saveOnboardingAction } from '../actions/onboarding';
@@ -97,7 +98,7 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(0,1fr) minmax(0,520px)', background: 'var(--bg, #0b070d)' }}>
+    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'minmax(0,1fr) minmax(0,520px)', background: 'var(--bg)' }}>
       {/* Colonne formulaire */}
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px min(8vw, 90px)', maxWidth: 720 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
@@ -166,13 +167,13 @@ export function OnboardingWizard({ firstName }: { firstName: string }) {
       {/* Colonne vitrine (notre identité) */}
       <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '40px 44px', background: 'linear-gradient(150deg, rgba(255,60,120,.22), rgba(124,60,190,.16) 55%, rgba(20,12,26,.9))', borderLeft: '1px solid var(--line)' }}>
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.08em', color: 'var(--accent-strong)' }}>CREATIVE INTELLIGENCE</div>
-        <h2 style={{ margin: '10px 0 14px', fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: '#fff', lineHeight: 1.15, letterSpacing: -0.5 }}>Des créas guidées par la donnée, du repérage au test.</h2>
-        <p style={{ margin: 0, fontSize: 14.5, color: 'rgba(255,255,255,.82)', lineHeight: 1.6, maxWidth: 420 }}>
+        <h2 style={{ margin: '10px 0 14px', fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--clair-fixe)', lineHeight: 1.15, letterSpacing: -0.5 }}>Des créas guidées par la donnée, du repérage au test.</h2>
+        <p style={{ margin: 0, fontSize: 14.5, color: teinte('clair-fixe', .82), lineHeight: 1.6, maxWidth: 420 }}>
           Génère, clone et itère tes publicités · Jarvis apprend de la veille et de tes performances pour te dire ce qui va marcher, avant de dépenser.
         </p>
         <div style={{ marginTop: 26, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {['Studios', 'Veille', 'Adsmap', 'Multi-marques', 'Analytics'].map((t) => (
-            <span key={t} style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '6px 12px', borderRadius: 999, background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.18)' }}>{t}</span>
+            <span key={t} style={{ fontSize: 12, fontWeight: 700, color: 'var(--clair-fixe)', padding: '6px 12px', borderRadius: 999, background: teinte('clair-fixe', .12), border: `1px solid ${teinte('clair-fixe', .18)}` }}>{t}</span>
           ))}
         </div>
       </div>

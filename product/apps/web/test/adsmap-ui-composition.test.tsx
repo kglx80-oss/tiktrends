@@ -82,9 +82,10 @@ describe('Adsmap · la table est responsive sans rien perdre (source)', () => {
 });
 
 describe('Adsmap · en-tête sobre + liens locaux + support ancré (source)', () => {
-  it('la page tient la charte · max 1200, sous-titre court orienté tests', () => {
+  it('la page tient la charte · max 1200, sous-titre V5 orienté continuité', () => {
     expect(page).toMatch(/cadrePage/);
-    expect(page).toContain('son verdict');
+    // V5 · sous-titre de la maquette Résultats.
+    expect(page).toContain('sans perdre le contexte');
     expect(page, 'la marge latérale figée est revenue').not.toMatch(/padding: '\d+px 36px/);
   });
 
@@ -122,7 +123,9 @@ describe('Adsmap · le cumul « appris » est replié, l’aperçu et le conseil
     expect(iConseil, 'le conseil a disparu').toBeGreaterThan(-1);
     expect(iConseil, 'le conseil est encore enfermé dans le repli').toBeLessThan(iPremierDetails);
     // Les lots d'essai se lançaient dans les anciennes Pubs IA (retirées le 10/10) · le conseil le dit, sans lien mort.
-    expect(essais).toContain('data-essai="indisponible"');
+    expect(essais).toContain('data-essai="studio"');
+    expect(essais).toContain('href="/studio/projets"');
+    expect(essais).not.toContain('Les lots d’essai ne sont pas encore disponibles');
     expect(essais).not.toContain('Lancer cet essai dans Pubs IA');
   });
 });

@@ -90,16 +90,19 @@ const avatar = () => document.querySelector<HTMLButtonElement>('header button[da
 const entreesPopup = () => [...(popup()?.querySelectorAll('[data-entree-profil]') ?? [])].map((x) => [x.querySelector('strong')?.textContent ?? '', x.getAttribute('href')]);
 
 describe('V5 · rail · ordre et droits par rôle (railNav inchangé)', () => {
-  it('chaque rôle voit exactement les têtes que ses droits ouvrent, dans l’ordre, puis Votre espace et l’Aide', () => {
+  it('chaque rôle voit exactement les têtes que ses droits ouvrent, dans l’ordre, puis Votre espace (Marques seul)', () => {
     for (const role of Object.keys(ROLES)) {
       monter('/dashboard', role);
       const { a } = ROLES[role]!;
       const tetes = railNav(a).flatMap((g) => g.items).filter((i) => !i.isSub);
-      const espace = (sectionsCompteOuvertes(a).find((g) => g.section === 'Espace')?.items ?? []).filter((i) => i.key === 'brands' || i.key === 'settings');
+      // « Votre espace » ne porte plus que « Marques » · « Réglages » (/settings)
+      // faisait doublon avec la pop-up profil et a quitté le rail (coquille-fix).
+      const espace = (sectionsCompteOuvertes(a).find((g) => g.section === 'Espace')?.items ?? []).filter((i) => i.key === 'brands');
       const attendu = [
         ...tetes.map((t) => [t.label, t.locked ? null : t.href]),
         ...espace.map((t) => [t.label, t.href]),
-        ['Aide', '/support'],
+        // « Aide » a quitté le rail · elle vit dans le bouton d'aide flottant
+        // (SupportWidget, coin bas-droit) et la pop-up profil (coquille-fix).
       ].filter((x) => x[1] !== null);
       expect(entreesRail(), `rail du rôle ${role}`).toEqual(attendu);
     }
@@ -111,7 +114,8 @@ describe('V5 · rail · ordre et droits par rôle (railNav inchangé)', () => {
     const modules = [...rail().firstElementChild!.children].map(txt);
     expect(modules).toEqual(['Accueil', 'Veille', 'Studios', 'Bibliothèque', 'Résultats', 'Jarvis']);
     monter('/dashboard', 'client_viewer');
-    expect(entreesRail().map((x) => x[0])).toEqual(['Accueil', 'Aide']);
+    // « Aide » n'est plus dans le rail (bouton flottant + pop-up profil).
+    expect(entreesRail().map((x) => x[0])).toEqual(['Accueil']);
   });
 
   it('le rail créatif ne porte plus « Administration », même pour l’équipe plateforme', () => {

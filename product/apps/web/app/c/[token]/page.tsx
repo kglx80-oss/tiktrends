@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { clientViewByToken } from '../../../lib/client-view';
 import { Icon } from '../../../components/Icon';
 import { h1 } from '../../../components/ui';
-import { LIBELLE_VERDICT, GAGNANTES_ABSOLUES, type VerdictValue } from '@tiktrends/core';
+import { LIBELLE_VERDICT, GAGNANTES_ABSOLUES, teinte, type VerdictValue } from '@tiktrends/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,8 +33,8 @@ const VERDICT_LABEL: Record<string, string> = {
   loser: 'Écartée', insufficient_delivery: 'Non concluant',
 };
 const VERDICT_TON: Record<string, { bg: string; fg: string; bd: string }> = {
-  winner: { bg: 'rgba(126,232,191,.12)', fg: '#7ee8bf', bd: 'rgba(126,232,191,.4)' },
-  baby_winner: { bg: 'rgba(245,166,35,.12)', fg: '#ffcf8f', bd: 'rgba(245,166,35,.4)' },
+  winner: { bg: teinte('ok-text', .12), fg: 'var(--ok-text)', bd: teinte('ok-text', .4) },
+  baby_winner: { bg: teinte('warn', .12), fg: 'var(--warn-text)', bd: teinte('warn', .4) },
   // Prometteuse, pas gagnée · ton neutre, jamais le vert de la victoire (R01) ·
   // « le partage ne renforce pas le statut ».
   relative_winner: { bg: 'transparent', fg: 'var(--ink-2)', bd: 'var(--line-2)' },
@@ -149,9 +149,9 @@ function Groupe({ titre, ads }: { titre: string; ads: Array<{ variantCode: strin
 
 function Stat({ label, value, sub, strong }: { label: string; value: string; sub?: string; strong?: boolean }) {
   return (
-    <div style={{ border: `1px solid ${strong ? 'rgba(126,232,191,.3)' : 'var(--line)'}`, borderRadius: 13, background: 'var(--surface)', padding: '12px 14px' }}>
+    <div style={{ border: `1px solid ${strong ? teinte('ok-text', .3) : 'var(--line)'}`, borderRadius: 13, background: 'var(--surface)', padding: '12px 14px' }}>
       <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', fontWeight: 700 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: strong ? '#7ee8bf' : 'var(--ink)', marginTop: 4, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: strong ? 'var(--ok-text)' : 'var(--ink)', marginTop: 4, lineHeight: 1.1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>}
     </div>
   );

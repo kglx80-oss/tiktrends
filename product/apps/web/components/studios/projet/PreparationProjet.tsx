@@ -16,6 +16,7 @@ const lien: CSSProperties = { color: 'var(--accent-strong)', display: 'inline-fl
 
 export interface ProprietesPreparationProjet {
   etat: EtatNouveauProjet;
+  produits?: Array<{ id: string; nom: string; photoDisponible: boolean }>;
   initial: { type: TypeNouveauProjet; titre: string; objectif: string };
   /** L'annonce sauvegardée relue dans la portée · deviendra la source du projet. */
   annonce: { ref: string; annonceur: string } | null;
@@ -36,6 +37,7 @@ export function PreparationProjet(p: ProprietesPreparationProjet) {
   const router = useRouter();
   const [type, setType] = useState<TypeNouveauProjet>(p.initial.type);
   const [titre, setTitre] = useState(p.initial.titre);
+  const [productId, setProductId] = useState('');
   const [objectif, setObjectif] = useState(p.initial.objectif);
   const [cleClic] = useState(() => `prep-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
   const [encours, setEncours] = useState(false);
@@ -55,11 +57,12 @@ export function PreparationProjet(p: ProprietesPreparationProjet) {
   async function creer() {
     const v = verifierNouveauProjet({ titre, type });
     if (!v.ok) { setErreur({ message: v.message }); return; }
+    if (productId && !objectif.trim() && !p.annonce) { setErreur({ message: 'Précise ton objectif pour préparer le brief de ce produit.' }); return; }
     setEncours(true);
     setErreur(null);
     try {
       const r = p.annonce || objectif.trim()
-        ? await creerProjetDepuisContexte({ brandId: marque.id, kind: v.type, titre: v.titre, objectif: objectif.trim(), ref: p.annonce?.ref ?? null, retourVeille: p.retourVeille?.rv ?? null, cleClic })
+        ? await creerProjetDepuisContexte({ brandId: marque.id, kind: v.type, titre: v.titre, objectif: objectif.trim(), ...(productId ? { productId } : {}), ref: p.annonce?.ref ?? null, retourVeille: p.retourVeille?.rv ?? null, cleClic })
         : await creerProjet({ brandId: marque.id, kind: v.type, title: v.titre });
       if (!r.ok) { setEncours(false); setErreur({ message: r.message, traceId: r.traceId }); return; }
       router.push(`/studio/projets/${r.projet.id}`);
@@ -95,6 +98,15 @@ export function PreparationProjet(p: ProprietesPreparationProjet) {
         <span style={lbl}>Objectif</span>
         <textarea data-champ="objectif" value={objectif} maxLength={OBJECTIF_MAX} rows={5} onChange={(e) => setObjectif(e.target.value)} placeholder="Ce que ce projet doit produire ou vérifier · facultatif" style={{ ...champ, resize: 'vertical', lineHeight: 1.5 }} />
       </label>
+
+      {!!p.produits?.length && <label style={{ display: 'grid', gap: 6 }}>
+        <span style={lbl}>Produit de la marque</span>
+        <select data-champ="produit" value={productId} disabled={encours} onChange={(e) => setProductId(e.target.value)} style={champ}>
+          <option value="">Sans produit pour le moment</option>
+          {p.produits.map((produit) => <option key={produit.id} value={produit.id}>{produit.nom}{produit.photoDisponible ? '' : ' · photo à ajouter'}</option>)}
+        </select>
+        <span style={note}>Ses informations seront jointes au brief. Aucun bénéfice produit n’est inventé.</span>
+      </label>}
 
       {erreur && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
 
