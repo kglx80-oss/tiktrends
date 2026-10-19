@@ -80,9 +80,13 @@ export async function chargerProchainesIterations(
       const lignes = await db!.select({
         adId: schema.ads.id, plateforme: schema.ads.platform, metricsAgg: schema.verdicts.metricsAgg,
         lotNumero: schema.batches.number, lotStatut: schema.batches.status,
+        // La vignette média RÉELLE de la gagnante · l'asset de l'ad, sinon la
+        // miniature de sa créative. Aucune nouvelle source · colonnes existantes.
+        assetUrl: schema.ads.assetUrl, thumbUrl: schema.creatives.thumbUrl,
       }).from(schema.ads)
         .innerJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
         .leftJoin(schema.batches, and(eq(schema.batches.id, schema.ads.batchId), eq(schema.batches.workspaceId, s.workspaceId)))
+        .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
         .where(and(eq(schema.ads.workspaceId, s.workspaceId), inArray(schema.ads.id, ids)));
       const appris = await db!.selectDistinct({ adId: schema.learnings.adId }).from(schema.learnings)
         .where(and(
@@ -96,6 +100,7 @@ export async function chargerProchainesIterations(
         metricsAgg: l.metricsAgg, plateforme: l.plateforme,
         lot: l.lotNumero != null && l.lotStatut ? { numero: l.lotNumero, statut: l.lotStatut } : null,
         apprentissageValide: lus!.appris.has(l.adId),
+        vignette: l.thumbUrl ?? l.assetUrl,
       });
     }
   }
