@@ -123,7 +123,9 @@ describe('Adsmap · le cumul « appris » est replié, l’aperçu et le conseil
     expect(iConseil, 'le conseil a disparu').toBeGreaterThan(-1);
     expect(iConseil, 'le conseil est encore enfermé dans le repli').toBeLessThan(iPremierDetails);
     // Les lots d'essai se lançaient dans les anciennes Pubs IA (retirées le 10/10) · le conseil le dit, sans lien mort.
-    expect(essais).toContain('data-essai="indisponible"');
+    expect(essais).toContain('data-essai="studio"');
+    expect(essais).toContain('href="/studio/projets"');
+    expect(essais).not.toContain('Les lots d’essai ne sont pas encore disponibles');
     expect(essais).not.toContain('Lancer cet essai dans Pubs IA');
   });
 });

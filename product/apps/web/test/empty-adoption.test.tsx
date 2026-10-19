@@ -111,7 +111,7 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     expect(introuvables, `Icône(s) Empty absente(s) du jeu · repli muet sur grid : ${introuvables.join(', ')}`).toEqual([]);
   });
 
-  it('les trois états vides Jarvis disent que l’outil d’origine est retiré · sans empiler de CTA', () => {
+  it('les bilans historiques restent explicites et les essais orientent vers Studios sans empiler de CTA', () => {
     // Ces trois sections d'analyse se remplissent quand on travaille AILLEURS ·
     // ce sont des `wait`. Elles portaient chacune le même bouton « Ouvrir Pubs
     // IA » · trois CTA identiques empilés dès qu'une marque Plus n'avait encore
@@ -129,7 +129,7 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     // Les trois `why` · l'outil d'origine (anciennes Pubs IA) est retiré le 10/10 :
     // chacun le DIT, sans bouton vers un écran disparu, et dit que l'existant reste lu.
     for (const phrase of [
-      'Les lots d’essai (accroches, mises en page, univers) se lançaient dans les anciennes Pubs IA, retirées le 10/10',
+      'Ce bilan lit les essais historiques. Pour préparer un nouvel essai, ouvre les variantes d’un projet Studios',
       'Le Score Jarvis se lançait depuis le panneau d’une pub des anciennes Pubs IA, retirées le 10/10',
       'La relecture tournait sur les pubs « Générée entièrement » des anciennes Pubs IA, retirées le 10/10',
     ]) {

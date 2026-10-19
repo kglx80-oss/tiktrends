@@ -34,7 +34,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { db, schema, eq, and } from '@tiktrends/db';
-import { JETONS_SORTIE_MAX_PROPOSITION, erreurStudio, type ContenuVersion } from '@tiktrends/core';
+import { JETONS_SORTIE_MAX_PROPOSITION, erreurStudio, contenuVide, changementDepuisSaisie, type ContenuVersion } from '@tiktrends/core';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { proposerAvecJarvis, creerPropositionManuelle, type DependancesJarvis } from '../lib/studios/propositions/proposer';
 import { appliquerProposition, rejeterProposition, listerPropositions, inspecterProposition } from '../lib/studios/propositions/depot-propositions';
@@ -75,6 +75,32 @@ beforeEach(() => {
   relire = () => ({ ok: true, ctx: ctxDe(ids, 'ua') });
   plafond = false;
   etat.session = session(ids, 'ua');
+});
+
+describe('V5 · premier brief manuel depuis un projet vide', () => {
+  it('liste le champ, propose puis applique sans appel IA ni débit ; le rejeu ne crée pas une autre version', async () => {
+    const p = await projetVideo(db, ids, ids.brandA1, ids.ua, contenuVide());
+    const avant = await compter(db);
+    const liste = await listerPropositions(ctxDe(ids, 'ua'), { projectId: p.projectId }, { jarvis: JARVIS_DISPO });
+    expect(liste.ok).toBe(true);
+    if (!liste.ok) throw new Error('liste inaccessible');
+    const champ = liste.cibles.find((c) => c.cible === 'brief')!.champs[0]!;
+    expect(champ.libelle).toBe('Objectif du brief');
+    const r = await actions.creerPropositionManuelle({ projectId: p.projectId, baseVersionId: p.versionId, cible: 'brief', changes: [changementDepuisSaisie(champ, 'Présenter notre produit', '')] });
+    expect(r.ok && r.statut).toBe('proposee');
+    if (!r.ok || r.statut !== 'proposee') throw new Error('brief non proposé');
+    const appliquer = () => actions.appliquerProposition({ proposalId: r.proposition.id, projectId: p.projectId, baseVersionId: p.versionId });
+    const a = await appliquer();
+    expect(a.ok).toBe(true);
+    expect(await appliquer()).toMatchObject({ ok: true, deja: true });
+    const vv = await versions(p.projectId);
+    expect(vv).toHaveLength(2);
+    expect((vv.find((v) => v.n === 2)!.content as ContenuVersion).brief).toMatchObject({ objective: 'Présenter notre produit', facts: [], references: [] });
+    expect((vv.find((v) => v.n === 1)!.content as ContenuVersion).brief).toBeNull();
+    sansEffetFinancier(delta(avant, await compter(db)));
+    expect(delta(avant, await compter(db)).runs).toBeUndefined();
+    expect(fournisseur.recues).toHaveLength(0);
+  });
 });
 
 /** Patch « texte écran du plan 2 » écho de la version de base reçue. */

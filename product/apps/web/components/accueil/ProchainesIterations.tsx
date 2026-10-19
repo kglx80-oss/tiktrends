@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { CIBLE_TACTILE_MIN, type CarteIterationAccueil, type EtatProchainesIterations } from '@tiktrends/core';
 import { Icon } from '../Icon';
+import { VignetteIteration } from './VignetteIteration';
 import { btn, surface, tuile, vide } from '../ui';
 
 /**
@@ -27,8 +28,9 @@ function Cadre({ children, droite }: { children: ReactNode; droite?: ReactNode }
     <section id="prochaines-iterations" aria-labelledby="accueil-iterations-titre" data-accueil-iterations
       style={{ ...surface, background: 'var(--surface)', padding: 'clamp(16px, 2.4vw, 22px)', marginBottom: 22, minWidth: 0, scrollMarginTop: 90 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
-        <span aria-hidden style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: 'var(--accent-soft)', color: 'var(--accent-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="trend" size={19} />
+        {/* V5 · la tuile d'en-tête est le carré magenta PLEIN au glyphe de relance blanc (maquette Accueil et Studios · tranché sur 2.webp) · gradient + `--on-accent`, jamais le lavis `--accent-soft`. */}
+        <span aria-hidden style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: 'var(--grad-accent)', color: 'var(--on-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="refresh" size={19} />
         </span>
         <div style={{ display: 'grid', gap: 2, minWidth: 0, flex: '1 1 220px' }}>
           <h2 id="accueil-iterations-titre" style={{ margin: 0, fontSize: 19, fontWeight: 500, color: 'var(--ink)', letterSpacing: '-.01em' }}>Prochaines itérations</h2>
@@ -44,6 +46,8 @@ function Cadre({ children, droite }: { children: ReactNode; droite?: ReactNode }
 function Carte({ c }: { c: CarteIterationAccueil }) {
   return (
     <article data-iteration={c.adId} style={{ ...tuile, background: 'var(--bg)', padding: 18, display: 'grid', gap: 12, alignContent: 'start', minWidth: 0 }}>
+      {/* La vignette en tête · la créative gagnante RÉELLE, servie telle quelle (maquette 2.webp) · absente quand aucune URL affichable (jamais une image inventée). */}
+      {c.vignette && <VignetteIteration src={c.vignette} titre={c.titre} />}
       {/* Le « · » vit DANS l'élément qu'il précède · au retour à la ligne, il ne reste jamais seul en fin de ligne. */}
       <div style={{ display: 'flex', alignItems: 'center', columnGap: 8, rowGap: 4, flexWrap: 'wrap', fontSize: 12.5, fontWeight: 600 }}>
         <span data-verdict style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--ok-text)' }}><Icon name="check" size={13} />{c.verdict}</span>
@@ -79,7 +83,7 @@ function Carte({ c }: { c: CarteIterationAccueil }) {
 
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
         {c.iterer
-          ? <a href={c.iterer} data-iterer style={{ ...btn, gap: 8, textDecoration: 'none' }}><Icon name="trend" size={14} />Itérer</a>
+          ? <a href={c.iterer} data-iterer style={{ ...btn, gap: 8, textDecoration: 'none' }}><Icon name="refresh" size={14} />Itérer</a>
           : <p style={{ margin: 0, fontSize: 12.5, color: 'var(--muted)' }}>Ton rôle ne permet pas de créer le projet de cette itération.</p>}
       </div>
     </article>

@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { etatEffectif, resumerProjetsPourJarvis, type EtatProposition, type ProjetPourJarvis } from '@tiktrends/core';
+import { etatEffectif, resumerProjetsPourJarvis, lienProjetStudio, type EtatProposition, type ProjetPourJarvis } from '@tiktrends/core';
 import { gardeStudio } from './garde';
 import { gardeSources } from './sources/acces';
 import { etatInterrupteurs } from './interrupteurs';
@@ -28,6 +28,34 @@ export async function peutOuvrirProjetsStudios(): Promise<boolean> {
     return (await gardeStudio('studio.read', 'projets')).ok;
   } catch {
     return false;
+  }
+}
+
+export interface ProjetColonne { id: string; titre: string; href: string }
+
+/**
+ * Les projets de la marque pour la COLONNE V5 (titres cliquables), MÊMES gardes
+ * que l'écran « Projets » et que le bloc de consigne · session relue, portée
+ * (espace + marque + restrictions), capacité « projets ». Lecture seule, jamais
+ * bloquante · un refus ou une panne rend une liste vide, la colonne n'affiche
+ * simplement pas la section.
+ */
+export async function projetsPourColonneJarvis(brandId: string, limite = 8): Promise<ProjetColonne[]> {
+  if (!db) return [];
+  try {
+    const g = await gardeSources('studio.read');
+    if (!g.ok) return [];
+    const { ctx, veilleOuverte } = g;
+    if (!ctx.marques.includes(brandId)) return [];
+    const capacites = await etatInterrupteurs(ctx.workspaceId);
+    if (!capacites.actif('projets')) return [];
+    const { listerCartesPour } = await import('./sources/projet');
+    const cartes = await listerCartesPour(ctx, { brandId, veilleOuverte, maintenant: new Date(), limite });
+    return cartes
+      .map((c) => ({ id: c.id, titre: c.title, href: lienProjetStudio(c.id) }))
+      .filter((p): p is ProjetColonne => p.href !== null && !!p.titre);
+  } catch {
+    return [];
   }
 }
 
