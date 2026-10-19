@@ -6,7 +6,10 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { effectiveAccess } from '../../../../lib/access';
 import { FEATURES, denyReason } from '../../../../lib/rbac';
 import { listerProjetsCartes } from '../../../actions/studios/sources';
-import { CarteProjet } from '../../../../components/studios/projet/CarteProjet';
+import { chargerProchainesIterations } from '../../../../lib/accueil-v5';
+import { ListeProjets } from '../../../../components/studios/projet/ListeProjets';
+import { OngletsStudios } from '../../../../components/studios/projet/OngletsStudios';
+import { ProchainesIterations } from '../../../../components/accueil/ProchainesIterations';
 import { NouveauProjet } from '../../../../components/studios/projet/NouveauProjet';
 import { contexteDepuisSession } from '../../../../lib/studios/garde';
 import { Icon } from '../../../../components/Icon';
@@ -42,7 +45,7 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
       const plan = denyReason(effectiveAccess(s), feature) === 'plan';
       return (
         <main style={cadrePage}>
-          <h1 style={h1}>Projets</h1>
+          <h1 style={h1}>Studios</h1>
           <div data-etat="acces-refuse" style={{ marginTop: 20, padding: 28, ...surface, background: 'var(--surface)', textAlign: 'center' }}>
             <div style={{ color: 'var(--muted)' }}><Icon name="lock" size={34} /></div>
             <h2 style={{ margin: '10px 0 6px', fontSize: 18, fontWeight: 500, color: 'var(--ink)' }}>{plan ? 'Inclus dès l’abonnement Core' : 'Accès réservé'}</h2>
@@ -55,7 +58,7 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
     }
     return (
       <main style={cadrePage}>
-        <h1 style={h1}>Projets</h1>
+        <h1 style={h1}>Studios</h1>
         <p role="alert" data-etat="erreur" style={{ marginTop: 16, color: '#ff9db0', fontSize: 14 }}>{r.message} · identifiant support : {r.traceId}</p>
       </main>
     );
@@ -70,16 +73,26 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
   const peutProposer = aPermissionEspace(contexteDepuisSession(s, [], [], '').permissions, 'studio.propose');
   const nouveau = etatNouveauProjet({ peutProposer, marqueActive: active ? { id: active.id, name: active.name } : null });
 
+  // « Prochaines itérations » · MÊME source réelle que l'Accueil (plan Adsmap,
+  // gagnantes PROUVÉES), lecture seule sous le droit Adsmap · le composant
+  // réutilisé tel quel (`ProchainesIterations`), rien n'est généré au clic.
+  const { iterations } = await chargerProchainesIterations(s, { marque: active ? { id: active.id } : null, peutIterer: nouveau.etat === 'pret' });
+
   return (
     <main style={cadrePage}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
-        <h1 style={h1}>Projets</h1>
+        <h1 style={h1}>Studios</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <a href="/veille" style={{ ...btnGhost, textDecoration: 'none' }}>Créer depuis la Veille</a>
           <NouveauProjet etat={nouveau} />
         </div>
       </div>
-      <p style={sub}>Chaque projet garde ses sources, son hypothèse, son produit et son brief · reprends-le où tu l’as laissé.</p>
+      <p style={sub}>Vos projets, du premier brief au dernier export.</p>
+
+      <OngletsStudios />
+
+      <ProchainesIterations etat={iterations} />
+
       {active && r.cartes.length > 0 && (
         <p style={{ fontSize: 13, color: 'var(--ink-2)', margin: '0 0 16px' }}>
           {toutes
@@ -109,9 +122,7 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
           </p>
         </section>
       ) : (
-        <div data-etat="rempli" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: 16 }}>
-          {cartes.map((c) => <CarteProjet key={c.id} carte={c} />)}
-        </div>
+        <ListeProjets cartes={cartes} nouveau={nouveau} />
       )}
     </main>
   );
