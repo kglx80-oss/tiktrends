@@ -101,6 +101,7 @@ export * from './polices';
 export * from './mesure-ad';
 export * from './ancrage-produit';
 export * from './templates-crea';
+export * from './bibliotheque-dossiers';
 export * from './appliquer-essais';
 export * from './scene-framing';
 export * from './scene-light';

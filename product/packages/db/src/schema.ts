@@ -185,8 +185,47 @@ export const assets = pgTable('assets', {
   sizeBytes: integer('size_bytes'),
   tags: text('tags').array(),                 // tags IA (à venir)
   useForAi: boolean('use_for_ai').notNull().default(true), // l'IA s'en sert par défaut
+  // Rangement en dossier de bibliothèque (V5) · null = non classé. FK ON DELETE
+  // SET NULL : supprimer un dossier déclasse ses médias, il ne les détruit pas.
+  folderId: uuid('folder_id').references(() => libraryFolders.id, { onDelete: 'set null' }),
+  // Droits d'usage (V5) · clé parmi `DROITS_ASSET` du noyau ; null = non classé
+  // (hérité, pas encore précisé). La règle « quels droits passent en pub » vit
+  // au noyau (`droitAutorisePub`). La contrainte CHECK est posée en migration.
+  rights: text('rights'),
+  // Corbeille réversible (V5) · null = vivant. PR-1 pose la colonne (fondation) ;
+  // le câblage de la corbeille des assets est de PR-2 (la corbeille des DOSSIERS
+  // s'en sert déjà). La suppression d'asset reste définitive pour l'instant.
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ wsIdx: index('assets_ws_idx').on(t.workspaceId), brandIdx: index('assets_brand_idx').on(t.brandId) }));
+}, (t) => ({ wsIdx: index('assets_ws_idx').on(t.workspaceId), brandIdx: index('assets_brand_idx').on(t.brandId), folderIdx: index('assets_folder_idx').on(t.folderId) }));
+
+/**
+ * Dossiers de la Bibliothèque (V5 · L01, L04, L05, L19-L21) · arborescence par
+ * espace, éventuellement par marque. Fondation PR-1 : la table, pas l'UI.
+ *
+ * Portée · `workspaceId` est la frontière dure ; `brandId` suit `assets.brandId`
+ * (null = commun à l'espace). `parentId` est l'auto-référence qui porte l'arbre
+ * (null = racine). `locked` marque un dossier SYSTÈME (ex. « Photos produit »)
+ * que les actions refusent de renommer ou de supprimer. `deletedAt` est la
+ * corbeille réversible (L15).
+ *
+ * La projection en arbre, la validation de nom et la détection de cycle vivent
+ * au noyau (`bibliotheque-dossiers.ts`), pures et testées · jamais ici.
+ */
+export const libraryFolders = pgTable('library_folders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }), // null = commun à l'espace
+  parentId: uuid('parent_id'),               // auto-réf (arborescence) · FK posée ci-dessous
+  name: text('name').notNull(),
+  locked: boolean('locked').notNull().default(false),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  parent: foreignKey({ name: 'library_folders_parent_fk', columns: [t.parentId], foreignColumns: [t.id] }).onDelete('cascade'),
+  porteeIdx: index('library_folders_portee_idx').on(t.workspaceId, t.brandId, t.parentId),
+}));
 
 /**
  * Persona · c'est le modèle « Avatar » du cahier des charges ADSMAP, champ pour

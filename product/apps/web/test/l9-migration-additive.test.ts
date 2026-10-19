@@ -78,6 +78,10 @@ describe('règle pure · classement des instructions', () => {
     expect(classerInstructionSql('CREATE INDEX "i" ON "t" ("a")').rejouable).toBe(false);
     expect(classerInstructionSql('ALTER TABLE "t" ADD CONSTRAINT "c" UNIQUE ("a")').rejouable).toBe(false);
     expect(classerInstructionSql('DO $$ BEGIN ALTER TABLE "t" ADD CONSTRAINT "c" UNIQUE ("a"); EXCEPTION WHEN duplicate_object THEN null; END $$').genre).toBe('bloc_protege');
+    // Valider une contrainte posée NOT VALID (0058) · additive et rejouable, ni écriture ni destruction.
+    const vc = classerInstructionSql('ALTER TABLE "assets" VALIDATE CONSTRAINT "assets_rights_ck"');
+    expect(vc.genre).toBe('ajout_contrainte');
+    expect(vc.rejouable).toBe(true);
   });
   it('un corps de fonction n’est pas exécuté au passage : un UPDATE dedans ne compte pas, un « ; » dedans ne coupe pas', () => {
     const sql = `CREATE OR REPLACE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $fn$ BEGIN UPDATE t SET a = 1; RETURN NEW; END $fn$;
@@ -102,9 +106,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5) puis 0057 (conversations Jarvis) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis) puis 0058 (dossiers) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
