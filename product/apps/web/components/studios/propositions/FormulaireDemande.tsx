@@ -27,7 +27,8 @@ export interface PropsFormulaire {
 
 export function FormulaireDemande({ cibles, jarvis, peutProposer, enCours, onDemanderJarvis, onProposerMain }: PropsFormulaire) {
   const id = useId();
-  const [mode, setMode] = useState<'jarvis' | 'main'>('jarvis');
+  const [mode, setMode] = useState<'jarvis' | 'main'>(() =>
+    cibles[0]?.champs.some((c) => c.forme === 'objectif-brief') ? 'main' : 'jarvis');
   const [cible, setCible] = useState(cibles[0]?.cible ?? '');
   const [demande, setDemande] = useState('');
   const champs = useMemo(() => cibles.find((c) => c.cible === cible)?.champs ?? [], [cibles, cible]);
@@ -39,7 +40,8 @@ export function FormulaireDemande({ cibles, jarvis, peutProposer, enCours, onDem
 
   if (!peutProposer) return null;
   const jarvisBloque = !jarvis.disponible || enCours || demande.trim().length === 0;
-  const mainBloque = enCours || !champChoisi || valeur === champChoisi.valeur;
+  const premierBrief = champChoisi?.forme === 'objectif-brief';
+  const mainBloque = enCours || !champChoisi || valeur === champChoisi.valeur || (premierBrief && !valeur.trim());
 
   // L8-B · onglets ARIA complets : un seul arrêt de Tab (onglet actif), flèches, Début et Fin
   // pour passer de l'un à l'autre · le clic et Entrée restent l'alternative.
@@ -108,14 +110,16 @@ export function FormulaireDemande({ cibles, jarvis, peutProposer, enCours, onDem
                 </select>
               </div>
               <div>
-                <label htmlFor={`${id}-valeur`} style={etiquette}>Nouvelle valeur{champChoisi?.forme === 'lignes' ? ' (une ligne par élément)' : ''}</label>
-                <textarea id={`${id}-valeur`} value={valeur} rows={3} onChange={(e) => champChoisi && setValeurs((v) => ({ ...v, [champChoisi.chemin]: e.target.value }))} style={{ ...champ, resize: 'vertical' }} />
+                <label htmlFor={`${id}-valeur`} style={etiquette}>{premierBrief ? 'Que veux-tu créer ou vérifier ?' : 'Nouvelle valeur'}{champChoisi?.forme === 'lignes' ? ' (une ligne par élément)' : ''}</label>
+                <textarea id={`${id}-valeur`} value={valeur} rows={3} maxLength={premierBrief ? 12000 : undefined} onChange={(e) => champChoisi && setValeurs((v) => ({ ...v, [champChoisi.chemin]: e.target.value }))} style={{ ...champ, resize: 'vertical' }} />
               </div>
               <div>
                 <label htmlFor={`${id}-explication`} style={etiquette}>Pourquoi (facultatif)</label>
                 <input id={`${id}-explication`} value={explication} onChange={(e) => setExplication(e.target.value)} maxLength={500} style={champ} />
               </div>
-              <p style={mini}>Aucun appel à Jarvis, aucun coût · la modification devient une proposition à appliquer.</p>
+              <p style={mini}>{premierBrief
+                ? 'Commence par ton objectif. Le brief sera proposé pour relecture ; tu pourras ensuite préciser l’audience, les formats et les textes. Aucun appel à Jarvis, aucun coût.'
+                : 'Aucun appel à Jarvis, aucun coût · la modification devient une proposition à appliquer.'}</p>
               <div>
                 <button type="button" style={{ ...boutonPrimaire, ...(mainBloque ? desactive : {}) }} disabled={mainBloque} aria-busy={enCours}
                   onClick={async () => {
@@ -125,7 +129,7 @@ export function FormulaireDemande({ cibles, jarvis, peutProposer, enCours, onDem
                       setExplication('');
                     }
                   }}>
-                  {enCours ? 'Enregistrement…' : 'Proposer cette modification'}
+                  {enCours ? 'Enregistrement…' : premierBrief ? 'Préparer mon brief' : 'Proposer cette modification'}
                 </button>
               </div>
             </>
