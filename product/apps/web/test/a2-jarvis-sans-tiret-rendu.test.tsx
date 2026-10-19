@@ -75,7 +75,7 @@ describe('A2 · réponse de Jarvis affichée sans tiret cadratin', () => {
     });
 
     it('le texte partiel est réécrit à mesure qu’il arrive, code et URL intacts', async () => {
-      h.thread = { turns: [{ id: '1', role: 'user', content: 'Q', at: T }], starters: [], measuredAds: 0, brandName: 'Neva', contexte: { brandId: 'b1', identity: null, rules: null, hooks: null, connaissances: null }, sources: {} };
+      h.thread = { turns: [{ id: '1', role: 'user', content: 'Q', at: T }], starters: [], measuredAds: 0, brandName: 'Neva', contexte: { brandId: 'b1', identity: null, rules: null, hooks: null, connaissances: null }, sources: {}, conversationId: null, conversations: [] };
       let pousser: (s: string) => void = () => {};
       const corps = new ReadableStream<Uint8Array>({
         start(c) { pousser = (s) => c.enqueue(new TextEncoder().encode(s)); },
@@ -86,7 +86,7 @@ describe('A2 · réponse de Jarvis affichée sans tiret cadratin', () => {
       document.body.appendChild(hote);
       const r = createRoot(hote);
       root = r;
-      await act(async () => { r.render(<JarvisChat />); });
+      await act(async () => { r.render(<JarvisChat fiche={null} brandId="b1" brandName="Neva" kpiSource={null} projets={[]} />); });
       await act(async () => { await new Promise((x) => setTimeout(x, 0)); });
 
       const zone = hote.querySelector('textarea')!;

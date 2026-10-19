@@ -79,6 +79,17 @@ const monter = async (p: ProprietesPreparationProjet) => { await act(async () =>
 const clic = async () => { await act(async () => { (q(racine, '[data-bouton="creer-projet"]') as HTMLButtonElement).click(); }); };
 
 describe('préparer un projet · le seul geste qui écrit', () => {
+  it('transmet le produit choisi avec le brief et garde le choix après un refus', async () => {
+    await monter(props({ produits: [{ id: 'produit-1', nom: 'Lunettes', photoDisponible: true }] }));
+    const select = racine.querySelector<HTMLSelectElement>('[data-champ="produit"]')!;
+    act(() => { select.value = 'produit-1'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+    m.contexte.mockResolvedValueOnce({ ok: false, message: 'Réessaie' });
+    await clic();
+    expect(m.contexte).toHaveBeenCalledWith(expect.objectContaining({ productId: 'produit-1', objectif: 'Avant/après en 3 s' }));
+    expect(select.value).toBe('produit-1');
+    expect(racine.querySelector('[role=alert]')?.textContent).toContain('Réessaie');
+  });
+
   it('à l’ouverture rien ; un clic ⇒ UNE création avec le contexte, puis le projet s’ouvre', async () => {
     await monter(props());
     expect(m.contexte).not.toHaveBeenCalled();

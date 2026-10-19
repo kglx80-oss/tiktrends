@@ -166,6 +166,9 @@ export function classerInstructionSql(instr: string, rang = 1): InstructionMigra
         : c('ajout_colonne', false, 'ajoute une colonne sans IF NOT EXISTS');
     }
     if (/\bADD CONSTRAINT\b/.test(T)) return c('ajout_contrainte', false, 'ajoute une contrainte hors bloc protégé');
+    // Valide une contrainte posée « NOT VALID » · ne touche aucune donnée, et
+    // revalider une contrainte déjà valide est un no-op sans erreur (rejouable).
+    if (/\bVALIDATE CONSTRAINT\b/.test(T)) return c('ajout_contrainte', true, 'valide une contrainte déjà posée (NOT VALID)');
     if (/\bENABLE ROW LEVEL SECURITY\b/.test(T)) return c('ajout_contrainte', true, 'active la sécurité par ligne');
     return c('inconnue', false, 'ALTER TABLE non reconnu');
   }

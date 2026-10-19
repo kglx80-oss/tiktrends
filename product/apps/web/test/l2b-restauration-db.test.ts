@@ -56,7 +56,11 @@ async function depenses() {
 beforeAll(async () => {
   await semer(db, schema, ids);
   qui('ua');
-  const c = await creerProjet({ brandId: ids.brandA1, kind: 'image', title: 'Restauration', contenu: { ...contenuVide(), brief: { objective: 'Tester' } } as ContenuVersion });
+  // Ce test porte sur la RESTAURATION de versions · le brief n'est jamais relu.
+  // `creerProjet` revérifie la FORME de tout brief non nul (garde du Lot 2a,
+  // éprouvé par `assistant2a-brief-db`), et un brief partiel n'est pas canonique.
+  // On part donc sans brief (`null`) plutôt que d'un brief à un seul champ.
+  const c = await creerProjet({ brandId: ids.brandA1, kind: 'image', title: 'Restauration', contenu: { ...contenuVide(), brief: null } as ContenuVersion });
   if (!c.ok) throw new Error(c.code);
   projet = c.projet.id;
   v[1] = { id: c.version.id, doc: null as unknown as DocumentStudio };
