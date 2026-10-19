@@ -9,6 +9,7 @@ import { lireVueProduitPour, type VueProduit } from '../../../lib/studios/produi
 import { epinglerProduitPour, associerReferencePour, retirerReferencePour } from '../../../lib/studios/produit/commandes';
 import { importerPhotoProduitPour, type ResultatImportPhoto } from '../../../lib/studios/produit/import-photo';
 import { preparerCompilationPour } from '../../../lib/studios/produit/compilation';
+import { definirDroitsAssetPour, type VueDroitsAsset } from '../../../lib/studios/produit/droits';
 import type { ResultatCompilationImage } from '../../../lib/studios/image/consigne';
 import { trancherComposants as trancherComposantsLib } from '../../../lib/studios/produit/qualite';
 import { compilerConsigneImage as compilerConsigneImageAttestee } from './image';
@@ -84,6 +85,21 @@ export async function retirerReference(entree: { projectId: unknown; baseVersion
   const coupe = await refusCapacite(g.ctx, ['projets']);
   if (coupe) return coupe;
   return retirerReferencePour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, assetId: entree?.assetId, role: entree?.role }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
+}
+
+/**
+ * V5 A19 / L54 · pose la PROVENANCE ET LES DROITS d'un média studio
+ * (`studio_assets.rights`, défaut F3). Même garde et même capacité que l'écran
+ * produit (`studio.propose`, capacité « projets »), portée de marque relue
+ * côté serveur AVANT écriture · la licence est validée par le noyau. Aucune
+ * dépense, aucun média produit, aucun droit RBAC élargi.
+ */
+export async function definirDroitsAsset(entree: { assetId: unknown; licence: unknown; source?: unknown }): Promise<Reponse<{ droits: VueDroitsAsset }>> {
+  const g = await gardeSources('studio.propose');
+  if (!g.ok) return g;
+  const coupe = await refusCapacite(g.ctx, ['projets']);
+  if (coupe) return coupe;
+  return definirDroitsAssetPour(g.ctx, { assetId: entree?.assetId, licence: entree?.licence, source: entree?.source }, { maintenant: new Date() });
 }
 
 export async function controlerCompilation(entree: { projectId: unknown; mode: unknown }): Promise<Reponse<{ preparation: PreparationCompilation }>> {
