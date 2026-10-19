@@ -23,11 +23,14 @@ import { createRequire } from 'node:module';
  *  · au chargement, l'entrée active est entière dans la vue de la liste ;
  *  · s'il reste du contenu sous la vue, la liste porte un fondu (`mask-image`) ;
  *  · menu de recharge ouvert · aucun prix tronqué ni sur deux lignes, aucune
- *    rangée qui dépasse du panneau, le panneau dans l'écran, « Acheter » touchable.
+ *    rangée qui dépasse du panneau, le panneau dans l'écran, « Acheter » touchable ;
+ *  · la pastille de crédits tient dans le rail même avec un solde long (colonne
+ *    du pied bornée à `minmax(0,…)`).
  *
  * Mutations éprouvées : pied en `position: absolute; bottom: 0` par-dessus la
  * liste → « recoupe le pied » ; largeur minimale du panneau retirée → « 279 € »
- * sur deux lignes et rangées hors du panneau.
+ * sur deux lignes et rangées hors du panneau ; colonne du pied dé-bornée
+ * (`minmax(0,…)` retiré) → « pastille de crédits déborde du rail avec un solde long ».
  */
 
 const URL_BASE = process.env.COQ_URL ?? '';
@@ -75,6 +78,19 @@ function mesurerRail(): { defauts: string[]; entrees: number } {
     if (!cible || !e.contains(cible)) defauts.push(`« ${nom(e)} » recouvert en son centre par ${cible ? `<${cible.tagName.toLowerCase()} ${cible.getAttribute('data-zone') ?? ''}>` : 'rien'}`);
   }
   liste.scrollTop = 0;
+  // La pastille de crédits tient dans le rail, même avec un solde long (la
+  // colonne du pied est bornée à `minmax(0,…)` · sans elle la pastille grandit
+  // avec le texte et déborde, « + » compris · défaut « Illimité + hors du rail »).
+  const past = document.querySelector<HTMLElement>('[data-zone="pastille-credits"]');
+  const solde = document.querySelector<HTMLElement>('[data-solde]');
+  if (past) {
+    const avant = solde?.textContent ?? '';
+    if (solde) { solde.textContent = '1 234 567 890'; void document.body.offsetHeight; }
+    const pr = past.getBoundingClientRect();
+    const rr = (document.querySelector<HTMLElement>('#nav-rail') ?? liste).getBoundingClientRect();
+    if (pr.right > rr.right + 0.5 || pr.left < rr.left - 0.5) defauts.push(`pastille de crédits déborde du rail avec un solde long (${Math.round(pr.left)}→${Math.round(pr.right)} pour rail ${Math.round(rr.left)}→${Math.round(rr.right)})`);
+    if (solde) { solde.textContent = avant; void document.body.offsetHeight; }
+  }
   return { defauts, entrees: entrees.length };
 }
 
