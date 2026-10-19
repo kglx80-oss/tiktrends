@@ -47,6 +47,17 @@ import { join, relative } from 'node:path';
  *
  * Fusion T1 + T3 (15/10/2026) · les deux réductions cumulées · total mesuré 765 · plafond 765.
  * Fusion T4 (15/10/2026) · adsmap et jarvis à 0 (−208) · total mesuré 557 · plafond 557.
+ * V5 · T2 (16/10/2026) · les PAGES PUBLIQUES (hors `(app)`) passent par les
+ * jetons · `app/c`, `app/legal`, `app/login` à 0 ; `app/onboarding` 11 → 5 ;
+ * `app/tarifs` 60 → 8 ; `app/Landing.tsx` 241 → 142. Plafond 557 − 170 = 387.
+ * Ce qui RESTE littéral, par nature (hors thème) · le mur de créatives
+ * illustratives de l'accueil (dégradés + halos des fausses pubs, étiquettes et
+ * maquettes produit · une créative reste vive dans les deux thèmes), les fonds
+ * sombres des cartes d'APERÇU (captures décoratives du produit), le logo
+ * TikTrends, la menthe `#7fe3c0` et l'ambre `#f5c37a` (sans jeton exact · ne pas
+ * décaler le sombre validé), et les blancs d'accent de survol au-delà de 0,20
+ * (hors de la portée de --line-2). L'onboarding garde le dégradé de sa vitrine
+ * (aplat de marque saturé) et sa pastille cochée verte (aplat autoportant).
  */
 const WEB = process.cwd();
 
@@ -64,7 +75,7 @@ const EXCLUS: Record<string, string> = {
 
 /** Plafond par répertoire · le plan des lots de tokenisation. */
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
-  'app': 241,
+  'app': 142,
   'app/(app)/analytics': 7,
   'app/(app)/assets': 20,
   'app/(app)/billing': 9,
@@ -80,11 +91,8 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app/(app)/team': 8,
   'app/(app)/usage': 4,
   'app/(app)/veille': 25,
-  'app/c': 8,
-  'app/legal': 2,
-  'app/login': 3,
-  'app/onboarding': 11,
-  'app/tarifs': 60,
+  'app/onboarding': 5,
+  'app/tarifs': 8,
   'components': 11,
   'components/accueil': 1,
 };
@@ -118,12 +126,9 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/veille/formats/PreparerTest.tsx': 1,
   'app/(app)/veille/page.tsx': 2,
   'app/(app)/veille/scale/SwipeFile.tsx': 22,
-  'app/Landing.tsx': 241,
-  'app/c/[token]/page.tsx': 8,
-  'app/legal/layout.tsx': 2,
-  'app/login/page.tsx': 3,
-  'app/onboarding/OnboardingWizard.tsx': 11,
-  'app/tarifs/page.tsx': 60,
+  'app/Landing.tsx': 142,
+  'app/onboarding/OnboardingWizard.tsx': 5,
+  'app/tarifs/page.tsx': 8,
   'components/AssistantHome.tsx': 3,
   'components/BrandGuidelines.tsx': 2,
   'components/HomeMarques.tsx': 2,
@@ -131,7 +136,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/accueil/VueAnalytics.tsx': 1,
 };
 
-const PLAFOND_TOTAL = 557;
+const PLAFOND_TOTAL = 387;
 
 const RACINES = ['app', 'components', 'lib'];
 

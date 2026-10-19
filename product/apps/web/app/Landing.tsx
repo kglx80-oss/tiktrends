@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { teinte } from '@tiktrends/core';
 
 /**
  * Page d'accueil publique · DA TikTrends (sombre magenta).
@@ -47,14 +48,14 @@ const WALL: { g: string; glow: string }[] = [
 ];
 
 const CSS = `
-.lp{--ink:#f6eef4;--ink2:#cbbcc7;--muted:#9a8a98;color:var(--ink);font-family:'Geist','Helvetica Neue',Arial,sans-serif;overflow:hidden}
+.lp{--ink2:var(--ink-2);color:var(--ink);font-family:'Geist','Helvetica Neue',Arial,sans-serif;overflow:hidden}
 .lp *{box-sizing:border-box}
 .lp h1,.lp h2,.lp h3,.lp p{margin:0}
 .lp a{text-decoration:none;color:inherit}
 html{scroll-behavior:smooth}
 .lp-navlinks a{transition:color .18s ease}
 .lp-wrap{max-width:1180px;margin:0 auto;padding:0 clamp(20px,5vw,40px)}
-.lp-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(18,8,16,0.7);border-bottom:1px solid rgba(255,255,255,0.08)}
+.lp-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:${teinte('bg', 0.7)};border-bottom:1px solid ${teinte('line', 0.08 / 0.12)}}
 .lp-navrow{height:70px;display:flex;align-items:center;justify-content:space-between}
 .lp-navlinks{display:flex;align-items:center;gap:30px;font-size:15px;font-weight:500;color:var(--ink2)}
 .lp-navlinks a:hover{color:var(--ink)}
@@ -65,44 +66,44 @@ html{scroll-behavior:smooth}
 .lp-dd-wrap:hover .lp-dd-trigger svg,.lp-dd-wrap:focus-within .lp-dd-trigger svg{transform:rotate(180deg)}
 .lp-dd{position:absolute;top:100%;left:50%;transform:translate(-50%,10px);padding-top:14px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease;z-index:40}
 .lp-dd-wrap:hover .lp-dd,.lp-dd-wrap:focus-within .lp-dd{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
-.lp-dd-panel{width:520px;display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:16px;background:#1c121b;border:1px solid rgba(255,255,255,0.12);border-radius:16px;box-shadow:0 26px 64px -22px rgba(0,0,0,0.85)}
+.lp-dd-panel{width:520px;display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 26px 64px -22px ${teinte('ombre', 0.85)}}
 .lp-dd-head{font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:4px 10px 8px}
 .lp-dd-item{display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:11px;transition:background .15s ease}
-.lp-dd-item:hover{background:rgba(255,255,255,0.05)}
-.lp-dd-ic{width:32px;height:32px;border-radius:9px;background:rgba(254,44,85,0.12);border:1px solid rgba(254,44,85,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lp-dd-item:hover{background:${teinte('line', 0.05 / 0.12)}}
+.lp-dd-ic{width:32px;height:32px;border-radius:9px;background:${teinte('accent', 0.12)};border:1px solid ${teinte('accent', 0.3)};display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .lp-dd-t{display:block;font-size:14px;font-weight:600;color:var(--ink)}
 .lp-dd-d{display:block;font-size:12px;color:var(--muted);margin-top:1px}
-.lp-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);font-size:13px;color:var(--ink2);font-weight:500;transition:border-color .2s ease,background .2s ease}
-.lp-pill:hover{border-color:rgba(255,255,255,0.26);background:rgba(255,255,255,0.07)}
-.lp-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#fe2c55 0%,#ff2d8f 100%);color:#fff;border:0;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -8px rgba(254,44,85,0.6);transition:transform .2s ease,box-shadow .2s ease}
-.lp-btn:hover{transform:translateY(-2px);box-shadow:0 16px 40px -10px rgba(254,44,85,0.8)}
+.lp-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid ${teinte('line-2', 0.14 / 0.20)};background:${teinte('line', 0.04 / 0.12)};font-size:13px;color:var(--ink2);font-weight:500;transition:border-color .2s ease,background .2s ease}
+.lp-pill:hover{border-color:rgba(255,255,255,0.26);background:${teinte('line', 0.07 / 0.12)}}
+.lp-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--grad-accent);color:var(--clair-fixe);border:0;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -8px ${teinte('accent', 0.6)};transition:transform .2s ease,box-shadow .2s ease}
+.lp-btn:hover{transform:translateY(-2px);box-shadow:0 16px 40px -10px ${teinte('accent', 0.8)}}
 .lp-btn.sm{padding:11px 20px;font-size:14px}
-.lp-ghost{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:rgba(255,255,255,0.05);color:var(--ink);border:1px solid rgba(255,255,255,0.16);border-radius:999px;padding:15px 26px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s ease,border-color .2s ease}
-.lp-ghost:hover{background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.28)}
-.lp-card{background:#1c121b;border:1px solid rgba(255,255,255,0.10);border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,0.40);transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
-.lp-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,0.2);box-shadow:0 20px 44px -20px rgba(0,0,0,0.65)}
-.lp-eyebrow{font-size:13px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#ff5c8a}
+.lp-ghost{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:${teinte('line', 0.05 / 0.12)};color:var(--ink);border:1px solid ${teinte('line-2', 0.16 / 0.20)};border-radius:999px;padding:15px 26px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s ease,border-color .2s ease}
+.lp-ghost:hover{background:${teinte('line', 0.09 / 0.12)};border-color:rgba(255,255,255,0.28)}
+.lp-card{background:var(--surface);border:1px solid ${teinte('line', 0.10 / 0.12)};border-radius:20px;box-shadow:var(--sh-card);transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
+.lp-card:hover{transform:translateY(-3px);border-color:var(--line-2);box-shadow:0 20px 44px -20px ${teinte('ombre', 0.65)}}
+.lp-eyebrow{font-size:13px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent-strong)}
 .lp-mono{font-family:'Geist Mono','SFMono-Regular',monospace}
 .lp-muted{color:var(--muted)}.lp-ink2{color:var(--ink2)}
-.lp-grad{background:linear-gradient(135deg,#fe2c55,#ff2d8f);-webkit-background-clip:text;background-clip:text;color:transparent}
-.lp-h1{font-size:clamp(40px,6.6vw,70px);line-height:1.02;font-weight:850;letter-spacing:-0.035em;text-shadow:0 4px 40px rgba(0,0,0,0.6)}
+.lp-grad{background:var(--grad-accent);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lp-h1{font-size:clamp(40px,6.6vw,70px);line-height:1.02;font-weight:850;letter-spacing:-0.035em;text-shadow:0 4px 40px ${teinte('ombre', 0.6)}}
 .lp-h2{font-size:clamp(30px,4.2vw,44px);font-weight:800;letter-spacing:-0.025em}
 .lp-feat{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,4vw,50px);align-items:center}
 .lp-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
 .lp-g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .lp-adlabel{position:absolute;left:10px;right:10px;bottom:10px;z-index:3}
-.lp-t{font-size:12px;font-weight:800;color:#fff;line-height:1.15}
+.lp-t{font-size:12px;font-weight:800;color:var(--clair-fixe);line-height:1.15}
 .lp-s{font-size:9px;font-weight:800;margin-top:2px}
 .lp-wall{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);gap:14px;padding:20px;opacity:1;transform:rotate(-6deg) scale(1.3);transform-origin:center;animation:lpFloaty 11s ease-in-out infinite}
-.lp-wallcard{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.09);position:relative;aspect-ratio:9/16}
-.lp-marqmask{overflow:hidden;padding:14px 0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.lp-wallcard{border-radius:16px;overflow:hidden;border:1px solid ${teinte('line', 0.09 / 0.12)};position:relative;aspect-ratio:9/16}
+.lp-marqmask{overflow:hidden;padding:14px 0;-webkit-mask-image:linear-gradient(90deg,transparent,var(--sombre-fixe) 7%,var(--sombre-fixe) 93%,transparent);mask-image:linear-gradient(90deg,transparent,var(--sombre-fixe) 7%,var(--sombre-fixe) 93%,transparent)}
 .lp-marq{display:flex;gap:16px;width:max-content;animation:lpMarqL 44s linear infinite}
 .lp-marq.rev{animation-name:lpMarqR;animation-duration:52s}
 .lp-marq:hover{animation-play-state:paused}
-.lp-gcard{flex:0 0 200px;width:200px;aspect-ratio:9/16;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);position:relative;box-shadow:0 16px 40px -14px rgba(0,0,0,0.6);transition:transform .3s ease,box-shadow .3s ease}
-.lp-gcard:hover{transform:translateY(-8px) scale(1.02);box-shadow:0 26px 54px -16px rgba(0,0,0,0.75)}
-.lp-play{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:999px;background:rgba(255,255,255,0.16);border:1px solid rgba(255,255,255,0.42);display:flex;align-items:center;justify-content:center}
-.lp-tag{position:absolute;top:10px;left:10px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,0.42);color:var(--ink2)}
+.lp-gcard{flex:0 0 200px;width:200px;aspect-ratio:9/16;border-radius:18px;overflow:hidden;border:1px solid ${teinte('line', 0.10 / 0.12)};position:relative;box-shadow:0 16px 40px -14px ${teinte('ombre', 0.6)};transition:transform .3s ease,box-shadow .3s ease}
+.lp-gcard:hover{transform:translateY(-8px) scale(1.02);box-shadow:0 26px 54px -16px ${teinte('ombre', 0.75)}}
+.lp-play{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:999px;background:${teinte('line-2', 0.16 / 0.20)};border:1px solid rgba(255,255,255,0.42);display:flex;align-items:center;justify-content:center}
+.lp-tag{position:absolute;top:10px;left:10px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;background:${teinte('ombre', 0.42)};color:var(--ink2)}
 .lp-rise{animation:lpRise .7s cubic-bezier(.2,.7,.2,1) both}
 .lp-d1{animation-delay:.06s}.lp-d2{animation-delay:.16s}.lp-d3{animation-delay:.26s}.lp-d4{animation-delay:.36s}.lp-d5{animation-delay:.46s}
 @keyframes lpMarqL{from{transform:translateX(0)}to{transform:translateX(-1296px)}}
@@ -111,14 +112,14 @@ html{scroll-behavior:smooth}
 @keyframes lpFloaty{0%,100%{transform:rotate(-6deg) scale(1.3) translateY(0)}50%{transform:rotate(-6deg) scale(1.3) translateY(-16px)}}
 @keyframes lpEnter{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
 .lp-reveal{animation:lpEnter .8s cubic-bezier(.2,.7,.2,1) both;animation-timeline:view();animation-range:entry 0% cover 30%}
-.lp-thumb{position:relative;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.08)}
-.lp-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04)}
-.lp-live{width:8px;height:8px;border-radius:999px;background:#18cc8c;box-shadow:0 0 0 0 rgba(24,204,140,.5);animation:lpPing 2.4s ease-out infinite}
-@keyframes lpPing{0%{box-shadow:0 0 0 0 rgba(24,204,140,.5)}70%,100%{box-shadow:0 0 0 9px rgba(24,204,140,0)}}
+.lp-thumb{position:relative;border-radius:10px;overflow:hidden;border:1px solid ${teinte('line', 0.08 / 0.12)}}
+.lp-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--line);background:${teinte('line', 0.04 / 0.12)}}
+.lp-live{width:8px;height:8px;border-radius:999px;background:var(--ok);box-shadow:0 0 0 0 ${teinte('ok', 0.5)};animation:lpPing 2.4s ease-out infinite}
+@keyframes lpPing{0%{box-shadow:0 0 0 0 ${teinte('ok', 0.5)}}70%,100%{box-shadow:0 0 0 9px transparent}}
 .lp-pickcard{position:relative;transition:transform .2s ease,border-color .2s ease}
 .lp-pickcard:hover{transform:translateY(-3px)}
-.lp-check{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:999px;background:linear-gradient(135deg,#fe2c55,#ff2d8f);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px rgba(254,44,85,0.6)}
-.lp-bar{position:relative;height:11px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden}
+.lp-check{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:999px;background:var(--grad-accent);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px ${teinte('accent', 0.6)}}
+.lp-bar{position:relative;height:11px;border-radius:999px;background:${teinte('line', 0.08 / 0.12)};overflow:hidden}
 .lp-barfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;transform-origin:left;animation:lpGrow 1s cubic-bezier(.2,.7,.2,1) both;animation-timeline:view();animation-range:cover 6% cover 42%}
 @keyframes lpGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @media (max-width:820px){
@@ -143,7 +144,7 @@ function Logo({ size = 30 }: { size?: number }) {
   );
 }
 
-function Check({ stroke = '#ff5c8a', size = 15 }: { stroke?: string; size?: number }) {
+function Check({ stroke = 'var(--accent-strong)', size = 15 }: { stroke?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M20 6L9 17l-5-5" />
@@ -205,7 +206,7 @@ const JSONLD = {
 
 export function Landing() {
   const feature = { display: 'flex', gap: 13, alignItems: 'flex-start' as const };
-  const featIcon = { width: 26, height: 26, borderRadius: 8, background: 'rgba(254,44,85,0.16)', border: '1px solid rgba(254,44,85,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as const;
+  const featIcon = { width: 26, height: 26, borderRadius: 8, background: teinte('accent', 0.16), border: `1px solid ${teinte('accent', 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as const;
   return (
     <div className="lp">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSONLD) }} />
@@ -231,9 +232,9 @@ export function Landing() {
                   <div>
                     <div className="lp-dd-head">Le produit</div>
                     {[
-                      { t: 'Créatives winneuses', d: 'La galerie de rendus', href: '#galerie', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /></svg>) },
-                      { t: 'La méthode', d: 'Hypothèse → itération → résultat', href: '#methode', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 3h6M10 3v6.5L5 19a1 1 0 0 0 .9 1.5h12.2A1 1 0 0 0 19 19l-5-9.5V3" /></svg>) },
-                      { t: 'Adsmap', d: 'Le laboratoire de test', href: '#adsmap', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 3v18h18" /><path d="M7 15l4-5 3 3 5-7" /></svg>) },
+                      { t: 'Créatives winneuses', d: 'La galerie de rendus', href: '#galerie', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /></svg>) },
+                      { t: 'La méthode', d: 'Hypothèse → itération → résultat', href: '#methode', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 3h6M10 3v6.5L5 19a1 1 0 0 0 .9 1.5h12.2A1 1 0 0 0 19 19l-5-9.5V3" /></svg>) },
+                      { t: 'Adsmap', d: 'Le laboratoire de test', href: '#adsmap', icon: (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 3v18h18" /><path d="M7 15l4-5 3 3 5-7" /></svg>) },
                     ].map((it) => (
                       <a key={it.t} href={it.href} className="lp-dd-item" role="menuitem">
                         <span className="lp-dd-ic">{it.icon}</span>
@@ -249,7 +250,7 @@ export function Landing() {
                       { t: 'Confidentialité', d: 'Vos données', href: '/legal/confidentialite' },
                     ].map((it) => (
                       <Link key={it.t} href={it.href} className="lp-dd-item" role="menuitem">
-                        <span className="lp-dd-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg></span>
+                        <span className="lp-dd-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg></span>
                         <span><span className="lp-dd-t">{it.t}</span><span className="lp-dd-d">{it.d}</span></span>
                       </Link>
                     ))}
@@ -275,11 +276,11 @@ export function Landing() {
             </div>
           ))}
         </div>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(1100px 600px at 50% 40%,rgba(18,8,16,0.55),rgba(18,8,16,0.82) 72%,#120810 100%)' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,transparent 0%,transparent 58%,#120810 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(1100px 600px at 50% 40%,${teinte('bg', 0.55)},${teinte('bg', 0.82)} 72%,var(--bg) 100%)` }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,transparent 0%,transparent 58%,var(--bg) 100%)' }} />
         <div className="lp-wrap" style={{ position: 'relative', zIndex: 5, padding: '104px 40px 124px', textAlign: 'center' }}>
           <div className="lp-pill lp-rise lp-d1" style={{ marginBottom: 26 }}>
-            <span style={{ width: 7, height: 7, borderRadius: 999, background: '#fe2c55' }} />
+            <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--accent)' }} />
             Créer, mesurer, itérer · en un seul outil
           </div>
           <h1 className="lp-h1 lp-rise lp-d2">La créative<br />devient une <span className="lp-grad">science</span></h1>
@@ -297,7 +298,7 @@ export function Landing() {
       {/* PROBLÈME */}
       <section className="lp-wrap lp-reveal" style={{ padding: '64px 40px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
-          <div className="lp-eyebrow" style={{ marginBottom: 14, color: '#f5a623' }}>Le problème</div>
+          <div className="lp-eyebrow" style={{ marginBottom: 14, color: 'var(--warn)' }}>Le problème</div>
           <h2 className="lp-h2">Créer à l'aveugle coûte cher</h2>
           <p className="lp-muted" style={{ fontSize: 15, maxWidth: 520, margin: '14px auto 0' }}>La plupart des créatives partent en média sans qu'on sache lesquelles vont gagner. On dépense, on espère, on recommence.</p>
         </div>
@@ -308,7 +309,7 @@ export function Landing() {
             { t: 'Tu repars de zéro', d: 'À chaque campagne, la page blanche · rien ne capitalise sur ce qui a déjà gagné.', icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5c37a" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg>) },
           ].map((p) => (
             <div key={p.t} className="lp-card" style={{ padding: 28 }}>
-              <span style={{ width: 40, height: 40, borderRadius: 11, background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>{p.icon}</span>
+              <span style={{ width: 40, height: 40, borderRadius: 11, background: teinte('warn', 0.12), border: `1px solid ${teinte('warn', 0.32)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>{p.icon}</span>
               <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{p.t}</h3>
               <p className="lp-muted" style={{ fontSize: 14 }}>{p.d}</p>
             </div>
@@ -326,17 +327,17 @@ export function Landing() {
         </div>
         <div className="lp-g3">
           <div className="lp-card" style={{ padding: 28 }}>
-            <div className="lp-mono" style={{ fontSize: 13, color: '#ff5c8a', fontWeight: 600, marginBottom: 14 }}>01 / hypothèse</div>
+            <div className="lp-mono" style={{ fontSize: 13, color: 'var(--accent-strong)', fontWeight: 600, marginBottom: 14 }}>01 / hypothèse</div>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Formule une intuition</h3>
             <p className="lp-muted" style={{ fontSize: 14 }}>« La preuve sociale bat le prix sur ce produit. » Tu pars de la Veille et du Radar créatif pour choisir l'angle à tester.</p>
           </div>
           <div className="lp-card" style={{ padding: 28 }}>
-            <div className="lp-mono" style={{ fontSize: 13, color: '#ff5c8a', fontWeight: 600, marginBottom: 14 }}>02 / itération</div>
+            <div className="lp-mono" style={{ fontSize: 13, color: 'var(--accent-strong)', fontWeight: 600, marginBottom: 14 }}>02 / itération</div>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Génère un lot</h3>
             <p className="lp-muted" style={{ fontSize: 14 }}>Les Studios produisent les variantes, statique et vidéo, avec directions artistiques. Le tri des propositions garde les meilleures.</p>
           </div>
           <div className="lp-card" style={{ padding: 28 }}>
-            <div className="lp-mono" style={{ fontSize: 13, color: '#ff5c8a', fontWeight: 600, marginBottom: 14 }}>03 / résultat</div>
+            <div className="lp-mono" style={{ fontSize: 13, color: 'var(--accent-strong)', fontWeight: 600, marginBottom: 14 }}>03 / résultat</div>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Mesure et tranche</h3>
             <p className="lp-muted" style={{ fontSize: 14 }}>Le protocole compare à la référence avec un effectif minimum. Tu sais quel angle gagne, et tu relances dessus.</p>
           </div>
@@ -375,8 +376,8 @@ export function Landing() {
           </div>
           <div className="lp-card" style={{ padding: 24, background: 'linear-gradient(160deg,#221320,#16101a)' }}>
             <div style={{ display: 'flex', gap: 7, marginBottom: 16 }}>
-              {[0, 1, 2].map((i) => <span key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: 'linear-gradient(90deg,#fe2c55,#ff5c8a)' }} />)}
-              {[3, 4].map((i) => <span key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.14)' }} />)}
+              {[0, 1, 2].map((i) => <span key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: 'linear-gradient(90deg,var(--accent),var(--accent-strong))' }} />)}
+              {[3, 4].map((i) => <span key={i} style={{ flex: 1, height: 6, borderRadius: 999, background: teinte('line-2', 0.14 / 0.20) }} />)}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div className="lp-muted lp-mono" style={{ fontSize: 12 }}>étape 3 · Direction artistique</div>
@@ -388,11 +389,11 @@ export function Landing() {
                 { t: 'Dark cinématique', grad: 'linear-gradient(160deg,#1e2b33,#12181f)', glow: 'rgba(59,130,246,0.5)', sel: false },
                 { t: 'Naturel clair', grad: 'linear-gradient(160deg,#1f3329,#131f18)', glow: 'rgba(24,204,140,0.5)', sel: false },
               ].map((d) => (
-                <div key={d.t} className="lp-pickcard" style={{ border: d.sel ? '1px solid rgba(254,44,85,0.6)' : '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 10, background: d.sel ? 'rgba(254,44,85,0.08)' : 'transparent' }}>
+                <div key={d.t} className="lp-pickcard" style={{ border: d.sel ? `1px solid ${teinte('accent', 0.6)}` : `1px solid ${teinte('line', 0.10 / 0.12)}`, borderRadius: 12, padding: 10, background: d.sel ? teinte('accent', 0.08) : 'transparent' }}>
                   <Thumb grad={d.grad} glow={d.glow} style={{ height: 46, marginBottom: 9 }} />
                   {d.sel && (
                     <span className="lp-check">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6L9 17l-5-5" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--clair-fixe)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6L9 17l-5-5" /></svg>
                     </span>
                   )}
                   <div className={d.sel ? '' : 'lp-ink2'} style={{ fontSize: 11, fontWeight: 700 }}>{d.t}</div>
@@ -419,11 +420,11 @@ export function Landing() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { g: 'linear-gradient(160deg,#3a1f2e,#20131d)', glow: 'rgba(255,92,138,0.5)', t: 'Pub concurrente · sérum', m: 'en hausse · 6 variantes actives', tag: '↑ scale', tc: '#18cc8c', spark: '0,13 13,11 26,10 39,5 52,2' },
-                { g: 'linear-gradient(160deg,#1e2b33,#12181f)', glow: 'rgba(59,130,246,0.45)', t: 'Pub concurrente · crème', m: 'stable · 3 variantes', tag: '→ stable', tc: '#9a8a98', spark: '0,8 13,7 26,9 39,7 52,8' },
-                { g: 'linear-gradient(160deg,#33291a,#1f1811)', glow: 'rgba(245,166,35,0.45)', t: 'Produit qui monte · roll-on', m: 'radar produits', tag: 'nouveau', tc: '#f5a623', spark: '0,14 13,12 26,9 39,7 52,4' },
+                { g: 'linear-gradient(160deg,#3a1f2e,#20131d)', glow: 'rgba(255,92,138,0.5)', t: 'Pub concurrente · sérum', m: 'en hausse · 6 variantes actives', tag: '↑ scale', tc: 'var(--ok)', spark: '0,13 13,11 26,10 39,5 52,2' },
+                { g: 'linear-gradient(160deg,#1e2b33,#12181f)', glow: 'rgba(59,130,246,0.45)', t: 'Pub concurrente · crème', m: 'stable · 3 variantes', tag: '→ stable', tc: 'var(--muted)', spark: '0,8 13,7 26,9 39,7 52,8' },
+                { g: 'linear-gradient(160deg,#33291a,#1f1811)', glow: 'rgba(245,166,35,0.45)', t: 'Produit qui monte · roll-on', m: 'radar produits', tag: 'nouveau', tc: 'var(--warn)', spark: '0,14 13,12 26,9 39,7 52,4' },
               ].map((r, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 11, borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 11, borderRadius: 12, background: teinte('line', 0.03 / 0.12), border: `1px solid ${teinte('line', 0.07 / 0.12)}` }}>
                   <Thumb grad={r.g} glow={r.glow} style={{ width: 40, height: 52, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{r.t}</div>
@@ -462,27 +463,27 @@ export function Landing() {
           <div className="lp-card" style={{ padding: 24, background: 'linear-gradient(160deg,#131f1a,#111614)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700 }}>Bilan de relecture · lot #17</div>
-              <span className="lp-chip" style={{ color: '#7fe3c0', borderColor: 'rgba(24,204,140,0.35)', background: 'rgba(24,204,140,0.1)' }}>
+              <span className="lp-chip" style={{ color: '#7fe3c0', borderColor: teinte('ok', 0.35), background: teinte('ok', 0.1) }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7fe3c0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6L9 17l-5-5" /></svg>
                 effectif atteint
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { n: 'Moteur A', w: '81%', bar: 'linear-gradient(90deg,#18cc8c,#7fe3c0)', vc: '#7fe3c0', win: true },
-                { n: 'Moteur B', w: '52%', bar: 'rgba(255,255,255,0.28)', vc: '#9a8a98', win: false },
-                { n: 'Référence', w: '48%', bar: 'rgba(255,255,255,0.18)', vc: '#9a8a98', win: false },
+                { n: 'Moteur A', w: '81%', bar: 'linear-gradient(90deg,var(--ok),#7fe3c0)', vc: '#7fe3c0', win: true },
+                { n: 'Moteur B', w: '52%', bar: 'rgba(255,255,255,0.28)', vc: 'var(--muted)', win: false },
+                { n: 'Référence', w: '48%', bar: teinte('line-2', 0.18 / 0.20), vc: 'var(--muted)', win: false },
               ].map((r) => (
                 <div key={r.n} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span className="lp-ink2" style={{ width: 70, fontSize: 12 }}>{r.n}</span>
                   <span className="lp-bar" style={{ flex: 1 }}>
-                    <span className="lp-barfill" style={{ width: r.w, background: r.bar, boxShadow: r.win ? '0 0 16px rgba(24,204,140,0.55)' : 'none' }} />
+                    <span className="lp-barfill" style={{ width: r.w, background: r.bar, boxShadow: r.win ? `0 0 16px ${teinte('ok', 0.55)}` : 'none' }} />
                   </span>
                   <span style={{ fontSize: 12, color: r.vc, fontWeight: 800, width: 38, textAlign: 'right' }}>{r.w}</span>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 16, padding: 12, borderRadius: 12, background: 'rgba(24,204,140,0.08)', border: '1px solid rgba(24,204,140,0.25)', fontSize: 12, color: '#7fe3c0' }}>Intervalle qui exclut le taux général · le Moteur A gagne, on relance dessus.</div>
+            <div style={{ marginTop: 16, padding: 12, borderRadius: 12, background: teinte('ok', 0.08), border: `1px solid ${teinte('ok', 0.25)}`, fontSize: 12, color: '#7fe3c0' }}>Intervalle qui exclut le taux général · le Moteur A gagne, on relance dessus.</div>
           </div>
         </div>
       </section>
@@ -501,8 +502,8 @@ export function Landing() {
               { n: 'Plus', p: '299€', per: '/mois', d: 'Tester · Adsmap complet, protocole', hot: true },
               { n: 'Business', p: '990€', per: '/mois', d: 'Piloter · marques multiples, rôles', hot: false },
             ].map((t) => (
-              <div key={t.n} className="lp-card" style={{ padding: 24, position: 'relative', ...(t.hot ? { border: '1.5px solid rgba(254,44,85,0.6)', background: 'linear-gradient(160deg,#241320,#1a1019)' } : {}) }}>
-                {t.hot && <span style={{ position: 'absolute', top: -11, left: 24, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', padding: '4px 11px', borderRadius: 999, background: 'linear-gradient(135deg,#fe2c55,#ff2d8f)', color: '#fff' }}>Recommandé</span>}
+              <div key={t.n} className="lp-card" style={{ padding: 24, position: 'relative', ...(t.hot ? { border: `1.5px solid ${teinte('accent', 0.6)}`, background: 'linear-gradient(160deg,#241320,#1a1019)' } : {}) }}>
+                {t.hot && <span style={{ position: 'absolute', top: -11, left: 24, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', padding: '4px 11px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--clair-fixe)' }}>Recommandé</span>}
                 <h3 style={{ fontSize: 16, fontWeight: 700 }}>{t.n}</h3>
                 <div style={{ margin: '12px 0 6px', fontSize: 34, fontWeight: 850 }}>{t.p}<span className="lp-muted" style={{ fontSize: 14 }}>{t.per}</span></div>
                 <p className={t.hot ? 'lp-ink2' : 'lp-muted'} style={{ fontSize: 13 }}>{t.d}</p>
@@ -514,7 +515,7 @@ export function Landing() {
 
       {/* CTA FINAL */}
       <section className="lp-reveal" style={{ position: 'relative', overflow: 'hidden', marginTop: 20 }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(700px 340px at 50% 100%,rgba(254,44,85,0.3),transparent 65%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(700px 340px at 50% 100%,${teinte('accent', 0.3)},transparent 65%)` }} />
         <div className="lp-wrap" style={{ position: 'relative', zIndex: 2, padding: '90px 40px', textAlign: 'center' }}>
           <h2 style={{ fontSize: 'clamp(34px,5vw,52px)', fontWeight: 850, letterSpacing: '-0.03em', maxWidth: 760, margin: '0 auto', textWrap: 'balance' }}>Arrête de deviner. Mesure, et trouve tes gagnantes.</h2>
           <p className="lp-ink2" style={{ fontSize: 19, maxWidth: 540, margin: '20px auto 0' }}>Plan gratuit, sans carte bancaire. La boucle démarre à ta première hypothèse.</p>
@@ -526,7 +527,7 @@ export function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: '#0d070c' }}>
+      <footer style={{ borderTop: `1px solid ${teinte('line', 0.08 / 0.12)}`, background: 'var(--rail)' }}>
         <div className="lp-wrap" style={{ padding: 40, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Logo size={26} />

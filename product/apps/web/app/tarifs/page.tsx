@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Fragment } from 'react';
 import Link from 'next/link';
-import { CIBLE_TACTILE_MIN as CIBLE } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN as CIBLE, teinte } from '@tiktrends/core';
 import { PLAN_PRICE, PLAN_CREDITS, planAtLeast, type Plan } from '../../lib/rbac';
 
 /**
@@ -29,13 +29,13 @@ export const metadata: Metadata = {
 };
 
 const CSS = `
-.lp{--ink:#f6eef4;--ink2:#cbbcc7;--muted:#9a8a98;color:var(--ink);font-family:'Geist','Helvetica Neue',Arial,sans-serif;overflow:hidden}
+.lp{--ink2:var(--ink-2);color:var(--ink);font-family:'Geist','Helvetica Neue',Arial,sans-serif;overflow:hidden}
 .lp *{box-sizing:border-box}
 .lp h1,.lp h2,.lp h3,.lp p{margin:0}
 .lp a{text-decoration:none;color:inherit}
 html{scroll-behavior:smooth}
 .lp-wrap{max-width:1180px;margin:0 auto;padding:0 clamp(20px,5vw,40px)}
-.lp-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(18,8,16,0.7);border-bottom:1px solid rgba(255,255,255,0.08)}
+.lp-nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:${teinte('bg', 0.7)};border-bottom:1px solid ${teinte('line', 0.08 / 0.12)}}
 .lp-navrow{height:70px;display:flex;align-items:center;justify-content:space-between}
 .lp-navlinks{display:flex;align-items:center;gap:30px;font-size:15px;font-weight:500;color:var(--ink2)}
 .lp-navlinks a{transition:color .18s ease}
@@ -47,32 +47,32 @@ html{scroll-behavior:smooth}
 .lp-dd-wrap:hover .lp-dd-trigger svg,.lp-dd-wrap:focus-within .lp-dd-trigger svg{transform:rotate(180deg)}
 .lp-dd{position:absolute;top:100%;left:50%;transform:translate(-50%,10px);padding-top:14px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease;z-index:40}
 .lp-dd-wrap:hover .lp-dd,.lp-dd-wrap:focus-within .lp-dd{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
-.lp-dd-panel{width:520px;display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:16px;background:#1c121b;border:1px solid rgba(255,255,255,0.12);border-radius:16px;box-shadow:0 26px 64px -22px rgba(0,0,0,0.85)}
+.lp-dd-panel{width:520px;display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 26px 64px -22px ${teinte('ombre', 0.85)}}
 .lp-dd-head{font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding:4px 10px 8px}
 .lp-dd-item{display:flex;gap:11px;align-items:flex-start;padding:9px 10px;border-radius:11px;transition:background .15s ease}
-.lp-dd-item:hover{background:rgba(255,255,255,0.05)}
-.lp-dd-ic{width:32px;height:32px;border-radius:9px;background:rgba(254,44,85,0.12);border:1px solid rgba(254,44,85,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lp-dd-item:hover{background:${teinte('line', 0.05 / 0.12)}}
+.lp-dd-ic{width:32px;height:32px;border-radius:9px;background:${teinte('accent', 0.12)};border:1px solid ${teinte('accent', 0.3)};display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .lp-dd-t{display:block;font-size:14px;font-weight:600;color:var(--ink)}
 .lp-dd-d{display:block;font-size:12px;color:var(--muted);margin-top:1px}
-.lp-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#fe2c55 0%,#ff2d8f 100%);color:#fff;border:0;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -8px rgba(254,44,85,0.6);transition:transform .2s ease,box-shadow .2s ease}
-.lp-btn:hover{transform:translateY(-2px);box-shadow:0 16px 40px -10px rgba(254,44,85,0.8)}
+.lp-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--grad-accent);color:var(--clair-fixe);border:0;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px -8px ${teinte('accent', 0.6)};transition:transform .2s ease,box-shadow .2s ease}
+.lp-btn:hover{transform:translateY(-2px);box-shadow:0 16px 40px -10px ${teinte('accent', 0.8)}}
 .lp-btn.sm{padding:11px 20px;font-size:14px;min-height:44px}
-.lp-ghost{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:rgba(255,255,255,0.05);color:var(--ink);border:1px solid rgba(255,255,255,0.16);border-radius:999px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s ease,border-color .2s ease}
-.lp-ghost:hover{background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.28)}
-.lp-card{background:#1c121b;border:1px solid rgba(255,255,255,0.10);border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,0.40)}
-.lp-eyebrow{font-size:13px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#ff5c8a}
+.lp-ghost{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:${teinte('line', 0.05 / 0.12)};color:var(--ink);border:1px solid ${teinte('line-2', 0.16 / 0.20)};border-radius:999px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s ease,border-color .2s ease}
+.lp-ghost:hover{background:${teinte('line', 0.09 / 0.12)};border-color:rgba(255,255,255,0.28)}
+.lp-card{background:var(--surface);border:1px solid ${teinte('line', 0.10 / 0.12)};border-radius:20px;box-shadow:var(--sh-card)}
+.lp-eyebrow{font-size:13px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent-strong)}
 .lp-muted{color:var(--muted)}.lp-ink2{color:var(--ink2)}
 .lp-h1{font-size:clamp(38px,5.4vw,58px);line-height:1.03;font-weight:850;letter-spacing:-0.03em;text-wrap:balance}
 /* bascule mensuel / annuel · pur CSS */
 .tp-bill{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 .tp-billrow{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:28px;font-size:15px;font-weight:600}
-.tp-toggle{width:48px;height:27px;border-radius:999px;background:rgba(255,255,255,0.14);position:relative;cursor:pointer;transition:background .2s ease;flex-shrink:0}
-.tp-knob{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:999px;background:#fff;transition:transform .22s cubic-bezier(.2,.7,.2,1)}
-.tp-save{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;color:#7fe3c0;background:rgba(24,204,140,0.12);border:1px solid rgba(24,204,140,0.3);padding:2px 8px;border-radius:999px}
+.tp-toggle{width:48px;height:27px;border-radius:999px;background:${teinte('line-2', 0.14 / 0.20)};position:relative;cursor:pointer;transition:background .2s ease;flex-shrink:0}
+.tp-knob{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:999px;background:var(--clair-fixe);transition:transform .22s cubic-bezier(.2,.7,.2,1)}
+.tp-save{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;color:#7fe3c0;background:${teinte('ok', 0.12)};border:1px solid ${teinte('ok', 0.3)};padding:2px 8px;border-radius:999px}
 .tp-off{color:var(--muted)}
-#tp-annuel:checked ~ .tp-billrow .tp-toggle{background:linear-gradient(135deg,#fe2c55,#ff2d8f)}
+#tp-annuel:checked ~ .tp-billrow .tp-toggle{background:var(--grad-accent)}
 /* Recette N · la case est cachée (0×0) · au Tab, l'anneau se posait sur un point invisible. On le reporte sur la bascule VISIBLE. */
-#tp-annuel:focus-visible ~ .tp-billrow .tp-toggle{outline:2px solid #ff5c8a;outline-offset:3px}
+#tp-annuel:focus-visible ~ .tp-billrow .tp-toggle{outline:2px solid var(--accent-strong);outline-offset:3px}
 #tp-annuel:checked ~ .tp-billrow .tp-toggle .tp-knob{transform:translateX(21px)}
 #tp-annuel:checked ~ .tp-billrow .tp-lab-mo{color:var(--muted)}
 #tp-annuel:checked ~ .tp-billrow .tp-lab-yr{color:var(--ink)}
@@ -81,9 +81,9 @@ html{scroll-behavior:smooth}
 #tp-annuel:checked ~ .tp-grid .tp-mo{display:none}
 #tp-annuel:checked ~ .tp-grid .tp-yr{display:block}
 .tp-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:34px;align-items:stretch}
-.tp-tier{background:#1c121b;border:1px solid rgba(255,255,255,0.10);border-radius:20px;padding:26px;display:flex;flex-direction:column;position:relative}
-.tp-tier.hot{border:1.5px solid rgba(254,44,85,0.6);background:linear-gradient(160deg,#241320,#1a1019);box-shadow:0 20px 50px -22px rgba(254,44,85,0.45)}
-.tp-badge{position:absolute;top:-12px;left:26px;font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:5px 12px;border-radius:999px;background:linear-gradient(135deg,#fe2c55,#ff2d8f);color:#fff}
+.tp-tier{background:var(--surface);border:1px solid ${teinte('line', 0.10 / 0.12)};border-radius:20px;padding:26px;display:flex;flex-direction:column;position:relative}
+.tp-tier.hot{border:1.5px solid ${teinte('accent', 0.6)};background:linear-gradient(160deg,#241320,#1a1019);box-shadow:0 20px 50px -22px ${teinte('accent', 0.45)}}
+.tp-badge{position:absolute;top:-12px;left:26px;font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:5px 12px;border-radius:999px;background:var(--grad-accent);color:var(--clair-fixe)}
 .tp-price{margin:14px 0 2px;display:flex;align-items:baseline;gap:4px;min-height:46px}
 .tp-price b{font-size:40px;font-weight:850;letter-spacing:-0.02em}
 .tp-per{color:var(--muted);font-size:14px}
@@ -92,14 +92,14 @@ html{scroll-behavior:smooth}
 .tp-feat{display:flex;flex-direction:column;gap:9px;font-size:13.5px;color:var(--ink2);flex:1}
 .tp-feat div{display:flex;gap:9px;align-items:flex-start}
 /* tableau comparatif */
-.tp-tablewrap{overflow-x:auto;border-radius:18px;border:1px solid rgba(255,255,255,0.09);background:#1c121b}
+.tp-tablewrap{overflow-x:auto;border-radius:18px;border:1px solid ${teinte('line', 0.09 / 0.12)};background:var(--surface)}
 .tp-table{width:100%;border-collapse:collapse;min-width:720px}
-.tp-table th,.tp-table td{padding:14px 16px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px}
-.tp-table thead th{position:sticky;top:0;background:#1c121b;font-weight:800;font-size:15px}
+.tp-table th,.tp-table td{padding:14px 16px;text-align:center;border-bottom:1px solid ${teinte('line', 0.06 / 0.12)};font-size:14px}
+.tp-table thead th{position:sticky;top:0;background:var(--surface);font-weight:800;font-size:15px}
 .tp-table tbody th{text-align:left;font-weight:500;color:var(--ink2)}
-.tp-table th.hot,.tp-table td.hot{background:rgba(254,44,85,0.06)}
-.tp-grp td{text-align:left;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#ff5c8a;background:rgba(255,255,255,0.02);padding-top:18px}
-.tp-yes{color:#18cc8c}
+.tp-table th.hot,.tp-table td.hot{background:${teinte('accent', 0.06)}}
+.tp-grp td{text-align:left;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-strong);background:${teinte('line', 0.02 / 0.12)};padding-top:18px}
+.tp-yes{color:var(--ok)}
 .tp-no{color:rgba(255,255,255,0.22)}
 .tp-faq{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 @media (max-width:900px){.tp-grid{grid-template-columns:1fr 1fr}}
@@ -119,7 +119,7 @@ function Logo({ size = 30 }: { size?: number }) {
 
 function Yes() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#18cc8c" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-label="inclus"><path d="M20 6L9 17l-5-5" /></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-label="inclus"><path d="M20 6L9 17l-5-5" /></svg>
   );
 }
 function No() {
@@ -179,7 +179,7 @@ function NavLinks() {
                 { t: 'Adsmap', d: 'Le laboratoire de test', href: '/#adsmap' },
               ].map((it) => (
                 <Link key={it.t} href={it.href} className="lp-dd-item" role="menuitem">
-                  <span className="lp-dd-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /></svg></span>
+                  <span className="lp-dd-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /></svg></span>
                   <span><span className="lp-dd-t">{it.t}</span><span className="lp-dd-d">{it.d}</span></span>
                 </Link>
               ))}
@@ -192,7 +192,7 @@ function NavLinks() {
                 { t: 'Confidentialité', d: 'Vos données', href: '/legal/confidentialite' },
               ].map((it) => (
                 <Link key={it.t} href={it.href} className="lp-dd-item" role="menuitem">
-                  <span className="lp-dd-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg></span>
+                  <span className="lp-dd-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg></span>
                   <span><span className="lp-dd-t">{it.t}</span><span className="lp-dd-d">{it.d}</span></span>
                 </Link>
               ))}
@@ -258,7 +258,7 @@ export default function TarifsPage() {
                   <span className="tp-yr">{PLAN_PRICE[p] === 0 ? 'Gratuit, pour toujours' : `soit ${euro(annuelTotal(p))}€ /an`}</span>
                 </div>
                 <div className="tp-cr">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff5c8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
                   <b style={{ color: 'var(--ink)' }}>{euro(PLAN_CREDITS[p])}</b> crédits IA / mois
                 </div>
                 <div className="tp-feat">
@@ -337,7 +337,7 @@ export default function TarifsPage() {
 
       {/* CTA */}
       <section style={{ position: 'relative', overflow: 'hidden', marginTop: 20 }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(700px 340px at 50% 100%,rgba(254,44,85,0.28),transparent 65%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(700px 340px at 50% 100%,${teinte('accent', 0.28)},transparent 65%)` }} />
         <div className="lp-wrap" style={{ position: 'relative', zIndex: 2, padding: '80px 40px', textAlign: 'center' }}>
           <h2 className="lp-h1" style={{ fontSize: 'clamp(32px,4.4vw,48px)', maxWidth: 700, margin: '0 auto' }}>Commence gratuitement, aujourd’hui</h2>
           <p className="lp-ink2" style={{ fontSize: 18, maxWidth: 520, margin: '18px auto 0' }}>Sans carte bancaire. Ta première créative en quelques minutes.</p>
@@ -349,7 +349,7 @@ export default function TarifsPage() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: '#0d070c' }}>
+      <footer style={{ borderTop: `1px solid ${teinte('line', 0.08 / 0.12)}`, background: 'var(--rail)' }}>
         <div className="lp-wrap" style={{ padding: 40, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE }}>
             <Logo size={26} />
