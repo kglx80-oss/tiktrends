@@ -1,6 +1,8 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
+import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, contexteSelonPuces, consigneOnboardingJarvis, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
+import { messagesDeConversation, conversationAppartient, toucherConversation } from '../../../../lib/jarvis/conversations';
+import { messagesOnboarding, insererMessageOnboarding } from '../../../../lib/jarvis/onboarding';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
@@ -65,9 +67,8 @@ export async function POST(req: Request) {
   if (refusJarvis(s)) return json({ error: 'Accès refusé.' }, 403);
 
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand) return json({ error: 'Sélectionne une marque active.' }, 400);
 
-  const body = (await req.json().catch(() => null)) as { message?: string } | null;
+  const body = (await req.json().catch(() => null)) as { message?: string; conversationId?: string | null; sources?: string[] } | null;
   const question = (body?.message ?? '').trim();
   if (!question) return json({ error: 'Message vide.' }, 400);
 
@@ -77,21 +78,32 @@ export async function POST(req: Request) {
 
   // La release active porte la consigne ; sans release, la version 1.0.0
   // migrée (voir resoudreConversationJarvis). Échec de lecture ou release
-  // publiée sans politique Jarvis : service inactif, rien ne part.
+  // publiée sans politique Jarvis : service inactif, rien ne part. L'onboarding
+  // passe AUSSI par le resolver (même garde de disponibilité).
   const resolution = await resoudreConversationJarvis().catch(() => null);
   if (!resolution?.ok) return json({ error: messageServiceInactif('jarvis') }, 503);
 
+  // ── ONBOARDING · pas de marque active · Jarvis reste VIVANT et guide vers la
+  // création de la première marque (consigne générique, SANS contexte de
+  // marque). Pas de mur « Sélectionne une marque ». Fil portée espace + personne.
+  if (!brand) return fluxOnboarding({ workspaceId: s.workspaceId, userId: s.user.id }, client, question);
+
+  const portee = { workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id };
+  // La conversation demandée doit appartenir à la portée · un identifiant
+  // étranger retombe sur le fil principal (jamais la conversation d'autrui). Le
+  // tour s'écrit alors dans CETTE conversation (ou le fil principal).
+  const demandee = typeof body?.conversationId === 'string' ? body.conversationId : null;
+  const conversationId = demandee && (await conversationAppartient(portee, demandee)) ? demandee : null;
+  // Les puces de contexte (Veille / Fiche marque · seule « Fiche marque » est
+  // réelle) · décocher « Fiche marque » EXCLUT l'identité et la mémoire mesurée
+  // du contexte assemblé pour CE tour (règle pure `contexteSelonPuces`).
+  const { ficheMarque } = contexteSelonPuces(body?.sources ?? null);
+
   try {
-    // Le fil tel qu'il est en base, PUIS la question du tour · on n'écrit la
-    // question qu'après avoir lu, sinon elle apparaîtrait deux fois.
-    const anciens = await db.select({ role: schema.jarvisMessages.role, content: schema.jarvisMessages.content })
-      .from(schema.jarvisMessages)
-      .where(and(
-        eq(schema.jarvisMessages.brandId, brand.id),
-        eq(schema.jarvisMessages.userId, s.user.id),
-      ))
-      .orderBy(asc(schema.jarvisMessages.createdAt))
-      .limit(40);
+    // Le fil de CETTE conversation tel qu'il est en base, PUIS la question du
+    // tour · on n'écrit la question qu'après avoir lu, sinon elle apparaîtrait
+    // deux fois.
+    const anciens = (await messagesDeConversation(portee, conversationId)).slice(-40);
 
     const fil = trimThread([
       ...anciens.map((m) => ({ role: m.role as ChatMessage['role'], content: m.content })),
@@ -121,9 +133,11 @@ export async function POST(req: Request) {
     // insérées avant les règles maison (voir lib/jarvis-connaissances).
     const donnees = {
       brandName: brand.name,
-      memory: memoire,
+      // « Fiche marque » décochée · ni mémoire mesurée ni identité dans le
+      // contexte de CE tour (le choix client pilote un contexte réel).
+      memory: ficheMarque ? memoire : '',
       rules: b?.rules ?? null,
-      identity: [b?.description, b?.usp, b?.audience].filter(Boolean).join('\n') || null,
+      identity: ficheMarque ? ([b?.description, b?.usp, b?.audience].filter(Boolean).join('\n') || null) : null,
       measuredAds: stats?.nAds ?? 0,
       canAdsmap: voitMemoire,
       // Il ne peut proposer que ce qu'on lui laisse ouvrir · sans la carte, les
@@ -136,9 +150,12 @@ export async function POST(req: Request) {
     const { system, inclus } = await consigneAvecConnaissances(assemblerConsigneJarvis(resolution.politique, donnees), { workspaceId: s.workspaceId, brandId: brand.id });
 
     await db.insert(schema.jarvisMessages).values({
-      workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id,
+      workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id, conversationId,
       role: 'user', content: question.slice(0, 4000),
     });
+    // Une conversation nommée remonte en tête de « Mes conversations » dès qu'on
+    // y écrit · le fil principal (conversationId null) n'a pas de ligne à toucher.
+    if (conversationId) await toucherConversation(portee, conversationId).catch(() => { /* remontée cosmétique, jamais bloquante */ });
 
     const flux = (await client.messages.create({
       model: MODEL,
@@ -179,7 +196,7 @@ export async function POST(req: Request) {
         } finally {
           if (complet.trim() && db) {
             await db.insert(schema.jarvisMessages).values({
-              workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id,
+              workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id, conversationId,
               role: 'assistant', content: complet.slice(0, 12000),
             }).catch(() => { /* la réponse a été lue, la perdre en base n'annule pas le tour */ });
           }
@@ -219,4 +236,68 @@ export async function POST(req: Request) {
 
 function json(o: unknown, status: number) {
   return new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+}
+
+/**
+ * Le fil d'ONBOARDING · sans marque. Consigne GÉNÉRIQUE (pas de contexte de
+ * marque) qui guide vers la création de la première marque · aucune lecture de
+ * marque, aucun chiffre fabriqué. Le fil est portée espace + personne et
+ * survit au rechargement (`jarvis_onboarding_messages`). La dépense passe par
+ * le même garde (`guardedAnthropic`) · aucune dépense nouvelle. La trace
+ * `studio_prompt_runs` est portée marque (NOT NULL) · elle n'est donc pas écrite
+ * ici (pas de marque à tracer), le resolver gardant la disponibilité en amont.
+ */
+async function fluxOnboarding(
+  portee: { workspaceId: string; userId: string },
+  client: NonNullable<ReturnType<typeof guardedAnthropic>>,
+  question: string,
+) {
+  if (!db) return json({ error: messageServiceInactif('jarvis') }, 503);
+  try {
+    const anciens = (await messagesOnboarding(portee)).slice(-40);
+    const fil = trimThread([
+      ...anciens.map((m) => ({ role: m.role as ChatMessage['role'], content: m.content })),
+      { role: 'user', content: question },
+    ]);
+    const system = consigneOnboardingJarvis();
+
+    await insererMessageOnboarding(portee, 'user', question.slice(0, 4000));
+
+    const flux = (await client.messages.create({
+      model: MODEL, max_tokens: 900, system, messages: fil, stream: true,
+    })) as unknown as AsyncIterable<{ type?: string; delta?: { type?: string; text?: string } }>;
+
+    const encodeur = new TextEncoder();
+    let complet = '';
+    const sortie = new ReadableStream<Uint8Array>({
+      async start(ctrl) {
+        try {
+          for await (const ev of flux) {
+            if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && ev.delta.text) {
+              complet += ev.delta.text;
+              ctrl.enqueue(encodeur.encode(ev.delta.text));
+            }
+          }
+        } catch (e) {
+          const m = e instanceof SpendBlockedError ? `\n\n[${e.message}]` : '\n\n[Réponse interrompue.]';
+          complet += m;
+          ctrl.enqueue(encodeur.encode(m));
+          console.error('[jarvis:onboarding]', (e as Error).message);
+        } finally {
+          if (complet.trim() && db) {
+            await insererMessageOnboarding(portee, 'assistant', complet.slice(0, 12000)).catch(() => { /* la réponse a été lue */ });
+          }
+          ctrl.close();
+        }
+      },
+    });
+
+    return new Response(sortie, {
+      headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' },
+    });
+  } catch (e) {
+    if (e instanceof SpendBlockedError) return json({ error: e.message }, 429);
+    console.error('[jarvis:onboarding]', (e as Error).message);
+    return json({ error: 'Jarvis n’a pas pu répondre. Réessaie.' }, 500);
+  }
 }
