@@ -10,11 +10,14 @@ import { effectiveAccess } from '../../../../../lib/access';
 import { FEATURES, canAccess } from '../../../../../lib/rbac';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
+import { produitsDeLaMarque } from '../../../../../lib/studios/sources/preparation';
 import { chargerSources } from '../../../../../lib/studios/sources/sources';
 import { adsDeLaMarque } from '../../../../../lib/adsmap-marque';
 import { adDetailAction } from '../../../../actions/adsmap-verdict';
+import { personasDeLaMarque } from '../../../../../lib/studios/personas-marque';
 import { CapaciteNonActive } from '../../../../../components/studios/CapaciteNonActive';
 import { PreparationProjet } from '../../../../../components/studios/projet/PreparationProjet';
+import { AssistantProjet } from '../../../../../components/studios/projet/AssistantProjet';
 import { cadrePage, h1, sub } from '../../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -48,6 +51,7 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
   if (coupe) return <main style={cadrePage}><CapaciteNonActive capacites={capacitesDuRefus(coupe)} /></main>;
 
   const active = await getActiveBrand(s.workspaceId);
+  const produits = active && g.ctx.marques.includes(active.id) ? (await produitsDeLaMarque(active.id)).map(({ id, nom, photoDisponible }) => ({ id, nom, photoDisponible })) : [];
   const peutProposer = aPermissionEspace(g.ctx.permissions, 'studio.propose');
   const etat = etatNouveauProjet({ peutProposer, marqueActive: active ? { id: active.id, name: active.name } : null });
 
@@ -83,16 +87,29 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
   const marqueNom = etat.etat === 'pret' ? etat.marque.nom : '';
   const titre = depuisTest?.titre ?? (annonce ? `D’après ${annonce.annonceur}` : titreNouveauProjetParDefaut(c.type, marqueNom || 'ta marque'));
 
+  // Sans contexte de lien (objectif, annonce, test, Veille), on sert l'assistant
+  // en étapes V5 (brief structuré écrit à la création). Le flux de reprise d'un
+  // ANCIEN lien reste sur `PreparationProjet` · aucune fonction retirée.
+  if (!c.aContexte) {
+    const personas = etat.etat === 'pret' ? await personasDeLaMarque(g.ctx, etat.marque.id) : [];
+    return (
+      <main style={cadrePage}>
+        <h1 style={h1}>Nouveau projet</h1>
+        <p style={sub}>Un projet {LIBELLES_TYPE_PROJET[c.type]?.toLowerCase() ?? ''} pour ta marque active · rien n’est généré ni facturé ici.</p>
+        <AssistantProjet etat={etat} initial={{ type: c.type, titre, intention: objectif }} personas={personas} />
+      </main>
+    );
+  }
+
   return (
     <main style={cadrePage}>
       <h1 style={h1}>Préparer un projet</h1>
       <p style={sub}>
-        {c.aContexte
-          ? 'Le contexte de ton lien est repris ci-dessous · relis-le, ajuste l’objectif, puis crée le projet. Rien n’est généré ni facturé ici.'
-          : `Un projet ${LIBELLES_TYPE_PROJET[c.type]?.toLowerCase() ?? ''} pour ta marque active · rien n’est généré ni facturé ici.`}
+        Le contexte de ton lien est repris ci-dessous · relis-le, ajuste l’objectif, puis crée le projet. Rien n’est généré ni facturé ici.
       </p>
       <PreparationProjet
         etat={etat}
+        produits={produits}
         initial={{ type: c.type, titre, objectif }}
         annonce={annonce && c.ref ? { ref: c.ref, annonceur: annonce.annonceur } : null}
         iterationReprise={iteration?.etat === 'reprise'}

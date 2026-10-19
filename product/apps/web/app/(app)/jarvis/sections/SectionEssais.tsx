@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
@@ -96,8 +97,8 @@ export async function SectionEssais() {
           <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, lineHeight: 1.45 }}>{conseil.pourquoi}</div>
           {conseil.avantTout && <div style={{ fontSize: 11.5, color: 'var(--err-pale)', marginTop: 5, lineHeight: 1.45 }}>{conseil.avantTout}</div>}
           {conseil.variable && (
-            <div data-essai="indisponible" style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.45 }}>
-              Les lots d’essai ne sont pas encore disponibles dans les projets Studios (anciennes Pubs IA retirées le 10/10).
+            <div data-essai="studio" style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.45 }}>
+              Prépare ton prochain essai depuis les variantes d’un projet Studios : au moins deux variantes, une seule variable. <Link href="/studio/projets" style={{ color: 'var(--accent-strong)' }}>Ouvrir les projets</Link>
             </div>
           )}
         </div>
@@ -118,7 +119,7 @@ export async function SectionEssais() {
         ) : !essaisVue?.lots.length ? (
           <Empty
             tone="wait" title="Aucun lot d’essai poussé dans la carte."
-            why="Les lots d’essai (accroches, mises en page, univers) se lançaient dans les anciennes Pubs IA, retirées le 10/10 · ils ne sont pas encore disponibles dans les projets Studios. Les essais déjà poussés restent lus ici."
+            why="Ce bilan lit les essais historiques. Pour préparer un nouvel essai, ouvre les variantes d’un projet Studios ; les fiches rattachées et leurs lots se suivent dans Résultats."
           />
         ) : (
           <>

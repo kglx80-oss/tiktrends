@@ -65,20 +65,22 @@ function monter(adresse: string, a: Access = proprietaire, opts: { isStaff?: boo
 }
 const txt = (e: Element) => (e.textContent ?? '').replace(/\s+/g, ' ').trim();
 const railPrincipal = () => document.querySelector('nav[aria-label="Navigation principale"]')!;
-/** Libellés des liens et entrées inertes du rail principal, dans l'ordre du DOM. */
-const entreesRail = () => [...railPrincipal().querySelectorAll('a, [aria-disabled="true"]')].map(txt).filter(Boolean);
 const courantes = () => [...railPrincipal().querySelectorAll('[aria-current]')].map((e) => [txt(e) || e.getAttribute('aria-label'), e.getAttribute('aria-current')]);
 const onglets = () => document.querySelector('nav[data-zone="onglets-section"]');
-/** Le pied du rail (Administration, Aide) · dans la zone qui défile, poussé en bas. */
+/** Le pied du rail · vide depuis coquille-fix (« Aide » est passée au bouton
+ *  flottant · « Administration » à la pop-up profil). Reste lu pour le garder vide. */
 const pied = () => [...railPrincipal().querySelectorAll('[data-zone="pied-rail"] a')].map((a) => [txt(a) || a.getAttribute('aria-label'), a.getAttribute('href')]);
 const modules = () => [...railPrincipal().querySelectorAll('a, [aria-disabled="true"]')].filter((e) => !e.closest('[data-zone="pied-rail"]')).map(txt).filter(Boolean);
 
 describe('UX V2 · le rail plat rendu', () => {
-  it('propriétaire · six modules dans l’ordre, puis « Votre espace » (Marques, Réglages)', () => {
+  it('propriétaire · six modules dans l’ordre, puis « Votre espace » (Marques seul)', () => {
     monter('/dashboard');
-    expect(modules()).toEqual(['Accueil', 'Veille', 'Studios', 'Bibliothèque', 'Résultats', 'Jarvis', 'Marques', 'Réglages']);
-    // Le pied vient APRÈS, dans la même zone qui défile (tiroir mobile).
-    expect(entreesRail().slice(-1)).toEqual(['Aide']);
+    // « Réglages » (/settings) a quitté le rail · il faisait doublon avec la
+    // pop-up profil (« Espace de travail » · coquille-fix).
+    expect(modules()).toEqual(['Accueil', 'Veille', 'Studios', 'Bibliothèque', 'Résultats', 'Jarvis', 'Marques']);
+    // « Aide » a quitté le rail (bouton d'aide flottant + pop-up profil) · le
+    // pied du rail ne porte plus aucune entrée.
+    expect(pied()).toEqual([]);
     expect(railPrincipal().querySelector('[role="group"][aria-label="Votre espace"]'), 'le bloc Votre espace n’est pas nommé').not.toBeNull();
   });
 
@@ -90,14 +92,15 @@ describe('UX V2 · le rail plat rendu', () => {
 
   // Lot V5 · B (R16) · « Administration » quitte le rail créatif · l'équipe
   // plateforme ouvre ADMIN+ depuis la pop-up profil (même garde `isStaff`, même
-  // /admin · gardé dans uxv5-coquille-rendu). Le pied ne porte plus que l'Aide,
-  // pour TOUS les rôles, équipe comprise.
-  it('pied du rail · Aide pour tous, Administration n’est plus dans le rail (V5 · dans la pop-up profil)', () => {
+  // /admin · gardé dans uxv5-coquille-rendu). coquille-fix · « Aide » quitte à
+  // son tour le rail (bouton d'aide flottant, coin bas-droit · pop-up profil) ·
+  // le pied du rail ne porte plus aucune entrée, pour TOUS les rôles.
+  it('pied du rail · ni Aide ni Administration dans le rail (V5 · bouton flottant & pop-up profil)', () => {
     monter('/dashboard');
-    expect(pied()).toEqual([['Aide', '/support']]);
+    expect(pied()).toEqual([]);
     act(() => { root!.unmount(); }); root = createRoot(el!);
     monter('/dashboard', proprietaire, { isStaff: true });
-    expect(pied(), 'Administration est revenue dans le rail créatif').toEqual([['Aide', '/support']]);
+    expect(pied(), 'une entrée est revenue dans le pied du rail créatif').toEqual([]);
   });
 
   it('la section reste allumée sur un descendant (true), l’écran exact est la page', () => {
@@ -187,7 +190,7 @@ describe('UX V2 · la marque active rejoint « Votre espace »', () => {
   // Même composition que le layout · groupe « Marque » ajouté pour un admin d'espace avec une marque active.
   it('les six modules gardent leur ordre, Bibliothèque comprise ; la marque est en tête de « Votre espace », sous son nom', () => {
     monter('/dashboard', proprietaire, { marque: true });
-    expect(modules()).toEqual(['Accueil', 'Veille', 'Studios', 'Bibliothèque', 'Résultats', 'Jarvis', 'Neva', 'Marques', 'Réglages']);
+    expect(modules()).toEqual(['Accueil', 'Veille', 'Studios', 'Bibliothèque', 'Résultats', 'Jarvis', 'Neva', 'Marques']);
     const espace = railPrincipal().querySelector('[role="group"][aria-label="Votre espace"]')!;
     expect(espace.querySelector('[data-marque-active] a')?.getAttribute('href')).toBe('/brands/b1?tab=overview');
     expect(espace.textContent).not.toContain('Aperçu');
