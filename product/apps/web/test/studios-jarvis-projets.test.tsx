@@ -132,16 +132,21 @@ describe('route Jarvis · la consigne envoyée connaît les projets Studios de l
   });
 });
 
-describe('page Jarvis · lien « Projets » dans l’en-tête', () => {
-  it('avec le droit · lien visible vers /studio/projets', async () => {
+describe('page Jarvis V5 · les projets de la marque dans la colonne secondaire', () => {
+  it('avec le droit · les VRAIS projets sont listés (titre + lien) et la colonne renvoie aux sources', async () => {
     const html = await pageJarvis();
-    expect(html).toMatch(/<a[^>]*href="\/studio\/projets"[^>]*>.*?Projets<\/a>/);
+    // Un lien par projet de la marque (vers son écran), pas un lien d'en-tête générique.
+    expect(html).toMatch(new RegExp(`href="/studio/projets/${ids.projetA}"`));
+    expect(html).toContain('PROJET_A_NEVA sérum été');
+    // Le renvoi aux sources vit dans la colonne (« Documents & sources »).
+    expect(html).toContain('href="/jarvis/sources"');
   });
 
   it('capacité « projets » coupée pour l’espace · aucun lien vers un écran fermé', async () => {
     process.env.STUDIOS_CAPACITES_COUPEES = 'projets';
     const html = await pageJarvis();
-    expect(html).toContain('Sources de Jarvis');
-    expect(html).not.toContain('href="/studio/projets"');
+    // Plus aucun lien de projet, mais la colonne et son renvoi aux sources restent.
+    expect(html).not.toMatch(/href="\/studio\/projets\//);
+    expect(html).toContain('href="/jarvis/sources"');
   });
 });

@@ -7,8 +7,9 @@ import {
   decisionIdempotence, cleIdempotenceValide, refsDuJob, refusPlafondDollars, bilanRegistre, preuveSoumission,
   vueJob, transitionJob, transitionQualite, jobTerminal, objetDansPortee, erreurStudio,
   operationsNonVerifiables, operationsSansFournisseur, fournisseurAnimationBranche, PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
+  etatReprise, progressionLisible, libelleOperationJob,
   type ContenuVersion, type PlanImpact, type LigneDevis, type ErreurStudio, type SnapshotJob, type VueJob,
-  type EtatJob, type StatutQualite, type EpinglageDevis,
+  type EtatJob, type StatutQualite, type EpinglageDevis, type EtatReprise,
 } from '@tiktrends/core';
 // R3 · ligne du contrôle visuel et nature des montants (borne / estimation).
 import { avecControleVision, controleVisionActif, exigenceImageDuDevis, qualifierDevis, type QualificationTotal } from '@tiktrends/core';
@@ -445,6 +446,51 @@ export async function etatJob(ctx: ContexteStudio, e: EntreeEtat, base: BaseStud
     bilan: bilanRegistre(mouvements.map((m) => ({ kind: m.kind, credits: m.credits, usdMicros: Number(m.usdMicros) }))),
   });
   return { ok: true, job: presenterJob(j), vue };
+}
+
+/* ─────────────────────────── listerTachesProjet ──────────────────────────── */
+
+/** Combien de tâches au plus · les plus récentes d'abord (lecture bornée). */
+const TACHES_MAX = 30;
+
+export interface TachePresentee {
+  id: string;
+  etat: EtatReprise;
+  libelleOperation: string;
+  /** Pourcentage RÉEL seulement · `null` ⇒ l'écran montre l'état, pas un faux %. */
+  progression: number | null;
+  creeLe: string;
+  finiLe: string | null;
+  /** Vrai si la tâche terminée a livré au moins un fichier · lien vers les créations. */
+  aProduit: boolean;
+}
+
+/**
+ * Les tâches d'un projet, dans la portée de marque, les plus récentes d'abord.
+ * LECTURE PURE · aucune écriture, aucun rapprochement déclenché. Projette
+ * chaque job par la règle du noyau (`etatReprise`) · un pourcentage n'est rendu
+ * que s'il est réel. Hors portée ou projet inconnu ⇒ `NOT_FOUND` neutre.
+ */
+export async function listerTachesProjet(ctx: ContexteStudio, e: { projectId: unknown }, base: BaseStudio = db): Promise<Resultat<{ taches: TachePresentee[] }>> {
+  if (!estUuid(e.projectId)) return introuvable(ctx);
+  const P = schema.studioProjects;
+  const [projet] = await base.select().from(P).where(and(eq(P.id, e.projectId), porteeSql(P, ctx))).limit(1);
+  if (horsPortee(ctx, projet)) return introuvable(ctx);
+  const J = schema.studioJobs;
+  const jobs = await base.select().from(J).where(and(eq(J.projectId, e.projectId), porteeSql(J, ctx))).orderBy(desc(J.createdAt)).limit(TACHES_MAX);
+  const taches = jobs.map((j): TachePresentee => {
+    const result = j.result as { progression?: number; assets?: Record<string, string> } | null;
+    return {
+      id: j.id,
+      etat: etatReprise(j.state as EtatJob),
+      libelleOperation: libelleOperationJob(j.operation),
+      progression: progressionLisible(result?.progression),
+      creeLe: j.createdAt.toISOString(),
+      finiLe: j.finishedAt ? j.finishedAt.toISOString() : null,
+      aProduit: j.state === 'completed' && Object.keys(result?.assets ?? {}).length > 0,
+    };
+  });
+  return { ok: true, taches };
 }
 
 /* ──────────────────────────────── annulerJob ─────────────────────────────── */

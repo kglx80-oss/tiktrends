@@ -239,6 +239,42 @@ export function lireReferencesSources(x: unknown): { sources: SourceReferenceStu
   return { sources, illisibles };
 }
 
+export type ResultatAjoutSources =
+  | { ok: true; sources: SourceReferenceStudio[]; ajoutees: number }
+  | { ok: false; raison: string };
+
+/**
+ * Ajoute de NOUVELLES sources aux sources EXISTANTES d'un projet (contrôle V5
+ * « Références depuis la Veille » après création · inventaire A20, défaut 1.12).
+ * Pur · la liste existante vient du serveur, les nouvelles sont déjà figées et
+ * contrôlées (portée, droits Veille) par l'appelant.
+ *
+ *  · dédoublonnage par `sourceId` · une source déjà jointe N'EST PAS ré-ajoutée
+ *    et ne REMPLACE pas celle qui existe (on garde sa première observation) ;
+ *  · rien n'est retiré · un ajout n'enlève jamais une source ;
+ *  · la borne `SOURCES_MAX` vaut sur le TOTAL, comme à la création.
+ *
+ * Aucun ajout réel (tout déjà présent) ou dépassement de la borne : refus
+ * explicite, rien n'est écrit.
+ */
+export function ajouterSourcesAuProjet(
+  existantes: readonly SourceReferenceStudio[],
+  nouvelles: readonly SourceReferenceStudio[],
+): ResultatAjoutSources {
+  if (nouvelles.length === 0) return { ok: false, raison: 'aucune source à ajouter' };
+  const parId = new Map(existantes.map((s) => [s.sourceId, s]));
+  let ajoutees = 0;
+  for (const s of nouvelles) {
+    if (parId.has(s.sourceId)) continue; // déjà jointe · on garde l'existante
+    parId.set(s.sourceId, s);
+    ajoutees += 1;
+  }
+  if (ajoutees === 0) return { ok: false, raison: 'ces sources sont déjà jointes au projet' };
+  const sources = [...parId.values()];
+  if (sources.length > SOURCES_MAX) return { ok: false, raison: `${SOURCES_MAX} sources au plus par projet` };
+  return { ok: true, sources, ajoutees };
+}
+
 export const LIBELLES_STATUT_SOURCE: Readonly<Record<StatutSource, string>> = {
   active: 'Accessible',
   revoquee: 'Accès retiré',

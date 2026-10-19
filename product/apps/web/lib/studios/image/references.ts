@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
-import { photosDuProduit, idLogoMarque, versionDepuisEmpreinte, estEmpreinte, type ResolutionReference } from '@tiktrends/core';
+import { photosDuProduit, idLogoMarque, versionDepuisEmpreinte, estEmpreinte, droitAutorisePub, type ResolutionReference } from '@tiktrends/core';
 import { hacherImage } from '../produit/catalogue';
 import type { ExecStudio } from '../execution/types';
 
@@ -67,9 +67,15 @@ export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspac
         : { etat: 'absent' });
     } else if (id.startsWith('bib_') && UUID.test(id.slice(4))) {
       const A = schema.assets;
-      const [b] = await ex.select({ url: A.url }).from(A)
+      // Le DROIT est relu MAINTENANT (à la génération), pas à l'association · un
+      // asset reclassé « À préciser » via `definirDroitsAssetAction` ne repasse
+      // plus au modèle. Règle UNIQUE du noyau (`droitAutorisePub`) : un droit qui
+      // n'autorise pas la pub rend l'asset ABSENT, comme un média retiré du
+      // catalogue. (Le filtre `isNull(A.deletedAt)` viendra ici avec le câblage
+      // de la corbeille des assets · PR-2, quand la colonne sera exploitée.)
+      const [b] = await ex.select({ url: A.url, rights: A.rights }).from(A)
         .where(and(eq(A.id, id.slice(4)), eq(A.workspaceId, portee.workspaceId), eq(A.kind, 'image'), or(isNull(A.brandId), eq(A.brandId, portee.brandId)))).limit(1);
-      out.set(id, b ? present(hacherImage(b.url).sha256, b.url) : { etat: 'absent' });
+      out.set(id, b && droitAutorisePub(b.rights) ? present(hacherImage(b.url).sha256, b.url) : { etat: 'absent' });
     } else {
       // Source concurrente ou identifiant inconnu · aucun média transmissible.
       out.set(id, { etat: 'sans_media' });
