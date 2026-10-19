@@ -170,6 +170,7 @@ export * from './studios/permissions';
 export * from './studios/portee';
 export * from './studios/version';
 export * from './studios/document';
+export * from './studios/jarvis-regles';
 export * from './studios/patch';
 export * from './studios/machines';
 export * from './studios/impact';
