@@ -214,11 +214,24 @@ export interface JarvisCtx {
   preferredWords?: string; avoidWords?: string; competitors?: string[]; winningCopy?: string[];
 }
 
+/** Sortie du règlement + ce qu'il faut pour TRACER la run (modèle, jetons, texte système consommé). */
+export interface PropositionReglesMarque {
+  /** Le règlement rédigé, prêt à coller dans l'éditeur Jarvis. */
+  rules: string;
+  /** Le texte système réellement envoyé · son empreinte identifie le gabarit code consommé. */
+  systeme: string;
+  /** Le modèle qui a répondu · pour le coût et la trace. */
+  modele: string;
+  /** Jetons réellement consommés · pour le coût réel (identique au règlement du garde de dépense). */
+  jetons: { entree: number; sortie: number };
+}
+
 /**
  * Rédige un RÈGLEMENT créatif maison (Jarvis) puissant et actionnable, qui démarque la marque
- * de ses concurrents. Retourne un texte prêt à coller dans l'éditeur Jarvis.
+ * de ses concurrents. UN seul appel au modèle · rend le règlement ET de quoi tracer la run
+ * (texte système, modèle, jetons) sans second appel ni dépense supplémentaire.
  */
-export async function proposeJarvisRules(client: Anthropic, ctx: JarvisCtx): Promise<string> {
+export async function proposeJarvisRules(client: Anthropic, ctx: JarvisCtx): Promise<PropositionReglesMarque> {
   const sys = [
     "Tu es le directeur créatif en chef de TikTrends (niveau Atria/Raya). Tu écris le RÈGLEMENT créatif maison d'une marque · les consignes que l'IA devra respecter EN PRIORITÉ ABSOLUE à chaque génération d'image et de vidéo.",
     "Objectif : un règlement PUISSANT, concret et actionnable, qui rend les créas reconnaissables et supérieures à celles des concurrents. Pas de blabla, pas de généralités creuses.",
@@ -247,7 +260,8 @@ export async function proposeJarvisRules(client: Anthropic, ctx: JarvisCtx): Pro
     model: GEN_MODEL, max_tokens: 900, system: sys,
     messages: [{ role: 'user', content: `Rédige le règlement créatif maison.\n\n${lines}` }],
   });
-  return res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('\n').trim().replace(/[—–]/g, ',');
+  const rules = res.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('\n').trim().replace(/[—–]/g, ',');
+  return { rules, systeme: sys, modele: res.model ?? GEN_MODEL, jetons: { entree: res.usage?.input_tokens ?? 0, sortie: res.usage?.output_tokens ?? 0 } };
 }
 
 /* ============ Tagging d'assets (vision) ============ */

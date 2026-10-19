@@ -10,4 +10,5 @@ export * from './deroulement';
 export * from './media';
 export * from './fournisseur';
 export * from './vue';
+export * from './reprise';
 export * from './snapshot';

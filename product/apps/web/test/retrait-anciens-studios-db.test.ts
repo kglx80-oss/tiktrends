@@ -98,6 +98,20 @@ describe('préparer un projet depuis un ancien lien', () => {
     expect(encore).toMatchObject({ ok: true, deja: true, projet: { id: r.projet.id } });
   });
 
+  it('conserve le produit choisi et ses faits dans le brief, refuse un produit d’une autre marque', async () => {
+    const [produit] = await db.insert(schema.products).values({ brandId: ids.brandA1, name: 'Produit de recette', description: 'Flacon bleu' }).returning();
+    const e = { brandId: ids.brandA1, objectif: 'Présenter le flacon', productId: produit!.id, cleClic: `clic-${randomUUID()}` };
+    const r = await creerProjetDepuisContextePour(ctxDe('ua'), e, O);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const [version] = await db.select().from(schema.studioProjectVersions).where(eq(schema.studioProjectVersions.id, r.versionId));
+    expect(JSON.stringify(version!.content)).toContain('Flacon bleu');
+    expect(version!.content).toMatchObject({ productRef: { productId: produit!.id } });
+    const avant = (await projetsDe(ids.wsA)).length;
+    expect(await creerProjetDepuisContextePour(ctxDe('ua'), { ...e, brandId: ids.brandA2, cleClic: `clic-${randomUUID()}` }, O)).toMatchObject({ ok: false, code: 'NOT_FOUND' });
+    expect((await projetsDe(ids.wsA)).length).toBe(avant);
+  });
+
   it('ni objectif ni source ⇒ refus, rien n’est écrit ; la création depuis la Veille exige toujours une source', async () => {
     const avant = (await projetsDe(ids.wsA)).length;
     expect(await creerProjetDepuisContextePour(ctxDe('ua'), { brandId: ids.brandA1, kind: 'ads', objectif: '   ', cleClic: `clic-${randomUUID()}` }, O))

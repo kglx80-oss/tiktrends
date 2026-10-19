@@ -97,7 +97,10 @@ describe('/studio/projets · reprendre un projet', () => {
     expect(c.textContent).toContain('Pub statique');
     expect(c.querySelector('[data-etape]')?.textContent).toBe('Brief à compléter');
     expect(c.textContent).toContain('Ce qui manque · Produit de la marque à choisir');
-    expect(c.textContent).toMatch(/Modifié le \d{2}\/\d{2}\/\d{4} · version 1 · 1 source/);
+    // V5 (5.webp) · la version est une pastille en tête de carte (comme « Ø V1 »
+    // du proto), plus dans le pied · le pied porte la date et le compte de sources.
+    expect(c.querySelector('[data-version]')?.textContent).toBe('V1');
+    expect(c.textContent).toMatch(/Modifié le \d{2}\/\d{2}\/\d{4} · 1 source/);
     expect(d.textContent).toContain('voir toutes les marques');
 
     const toutes = await liste({ toutes: '1' });

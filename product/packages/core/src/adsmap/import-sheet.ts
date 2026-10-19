@@ -153,7 +153,9 @@ export function parseSheetDate(raw: string, today = new Date()): DateResult {
   const plancher = new Date(today.getFullYear() - 1, 0, 1);
   if (d > today || d < plancher) return { date: null, repaired: false, rejected: true };
 
-  return { date: d.toISOString().slice(0, 10), repaired, rejected: false };
+  // Une date de feuille est un jour civil, pas un instant UTC. Convertir
+  // minuit local en ISO décale la veille dans les fuseaux à l'est de UTC.
+  return { date: `${annee}-${mois}-${jj}`, repaired, rejected: false };
 }
 
 /* -------------------------------------------------------------------------- */
