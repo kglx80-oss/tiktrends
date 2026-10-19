@@ -2,105 +2,98 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees, sansTiretCadratin, JARVIS_ACTIONS, CIBLE_TACTILE_MIN, type JarvisAction } from '@tiktrends/core';
-import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn } from '../../actions/jarvis-chat';
-import { Icon } from '../../../components/Icon';
+import {
+  parseAnswer, visibleWhileStreaming, verrouAction, extraireCitations, citationsComptees,
+  sansTiretCadratin, teinte, JARVIS_ACTIONS, CIBLE_TACTILE_MIN,
+  PUCES_CONTEXTE_JARVIS, completudeFicheJarvis, CATEGORIE_JARVIS_DEFAUT,
+  type JarvisAction, type FicheMarqueLue, type SourceDepenseJarvis, type CategorieJarvis, type PuceContexteJarvis,
+} from '@tiktrends/core';
+import { chatThreadAction, clearChatAction, type ChatThread, type ChatTurn, type ConversationLue } from '../../actions/jarvis-chat';
+import { creerConversationAction, renommerConversationAction } from '../../actions/jarvis-conversations';
 import { draftConceptAction, type DraftView } from '../../actions/adsmap-draft';
 import { DraftCard } from '../../../components/DraftCard';
+import { JarvisAccueilV5 } from './JarvisAccueilV5';
+import { JarvisColonne } from './JarvisColonne';
 import { JarvisContexte } from './JarvisContexte';
 import { useIsMobile } from '../../../components/useIsMobile';
 import { cadreSignal } from '../../../components/ui';
+import { Icon } from '../../../components/Icon';
+import type { ProjetColonne } from '../../../lib/studios/jarvis-projets';
 
 /**
- * L'espace où l'on parle à Jarvis.
+ * UX V5 · l'espace Jarvis en DEUX colonnes (maquette) · une colonne secondaire
+ * (marque, conversations, projets, fiche) et, au centre, la conversation.
  *
- * ── Pourquoi il est en haut, et grand ────────────────────────────────────────
+ * Ce composant tient l'état de la conversation OUVERTE (multi-conversation
+ * réel : `conversationId`), la sélection de puces de contexte (seule « Fiche
+ * marque » est réelle · elle pilote un contexte serveur réel) et la catégorie
+ * de prompts active. Tout le reste (hero, orbe, panneau V5) est rendu au centre.
  *
- * Tout ce que Jarvis sait vit dans des tableaux qu'il faut savoir lire. Chacun
- * répond bien à SA question, à condition de savoir laquelle poser et où la
- * poser. Une conversation est la seule interface qui n'exige pas de savoir où
- * chercher · c'est donc elle qu'on rencontre en premier, et elle a la place.
- *
- * ── Le flux n'est pas un ornement ────────────────────────────────────────────
- *
- * Six secondes d'écran muet ne se lisent pas comme de la réflexion, mais comme
- * une panne · on reclique, on double la dépense, et on perd confiance. Le texte
- * arrive donc au fur et à mesure.
- *
- * ── Ce qu'on affiche quand le fil est vide ───────────────────────────────────
- *
- * Pas un curseur qui clignote. Un curseur devant une page blanche produit
- * surtout de la gêne · les entrées proposées apprennent au passage ce que Jarvis
- * sait faire, et elles changent selon qu'il a des chiffres ou non.
- *
- * ── Il propose, il ne déclenche pas ──────────────────────────────────────────
- *
- * Jarvis peut tout dire, il ne peut rien engager. Une réponse peut se terminer
- * par un ou deux boutons · chacun annonce ce qu'il fera et ce qu'il coûtera
- * AVANT le clic, et rien ne part sans lui. Le clic n'est pas une friction,
- * c'est la trace de qui a décidé.
+ * Il propose, il n'engage pas · chaque réponse peut poser un ou deux boutons,
+ * chacun annonçant son coût AVANT le clic.
  */
 
 const bulle = (moi: boolean): CSSProperties => ({
-  // Largeur de LECTURE bornée à la colonne « prose » (760, charte) à l'intérieur
-  // du cadre large · au-delà, une ligne trop longue fatigue la lecture.
   maxWidth: 'min(760px, 86%)',
   alignSelf: moi ? 'flex-end' : 'flex-start',
   padding: '10px 14px',
   borderRadius: moi ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
   background: moi ? 'var(--accent-soft)' : 'var(--surface)',
   border: `1px solid ${moi ? 'var(--accent-28)' : 'var(--line)'}`,
-  color: 'var(--ink)',
-  fontSize: 13.5,
-  lineHeight: 1.62,
-  whiteSpace: 'pre-wrap',
-  wordBreak: 'break-word',
+  color: 'var(--ink)', fontSize: 13.5, lineHeight: 1.62, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
 });
 
-// Réponse de Jarvis · texte AÉRÉ, sans encadrement systématique (charte).
-// La bulle reste pour l'UTILISATEUR · elle marque qui a parlé. Encadrer AUSSI
-// chaque réponse de Jarvis chargeait la lecture · un mur de cartes empilées.
 const reponse: CSSProperties = {
-  alignSelf: 'flex-start',
-  // Largeur de LECTURE des réponses bornée à la colonne « prose » (760, charte)
-  // à l'intérieur du cadre large · les longues réponses ne courent pas d'un bord
-  // à l'autre (Kevin, 29/09).
-  maxWidth: 'min(760px, 92%)',
-  color: 'var(--ink)',
-  fontSize: 14,
-  lineHeight: 1.7,
-  whiteSpace: 'pre-wrap',
-  wordBreak: 'break-word',
+  alignSelf: 'flex-start', maxWidth: 'min(760px, 92%)',
+  color: 'var(--ink)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
 };
 
-export function JarvisChat() {
+export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets }: {
+  fiche: FicheMarqueLue | null;
+  brandId: string;
+  brandName: string;
+  kpiSource: SourceDepenseJarvis | null;
+  projets: ProjetColonne[];
+}) {
   const [thread, setThread] = useState<ChatThread | null>(null);
+  const [conversations, setConversations] = useState<ConversationLue[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [saisie, setSaisie] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [partiel, setPartiel] = useState('');
-  // Le contexte de marque, à la demande · replié par défaut, la conversation
-  // reste au premier plan.
   const [contexteOuvert, setContexteOuvert] = useState(false);
+  const [categorie, setCategorie] = useState<CategorieJarvis>(CATEGORIE_JARVIS_DEFAUT);
+  // Puces de contexte · seule « Fiche marque » est réelle (règle noyau). Le
+  // défaut l'active · la mémoire et l'identité entrent dans le contexte.
+  const [puces, setPuces] = useState<Set<PuceContexteJarvis>>(() => new Set<PuceContexteJarvis>(['fiche']));
   const filRef = useRef<HTMLDivElement>(null);
-  // Verrou pris de façon SYNCHRONE · `enCours` est un état qui ne bascule qu'au
-  // rendu suivant, donc deux clics du même tick (une amorce cliquée deux fois,
-  // Entrée pressée en rafale) le voient tous les deux à false et partent en
-  // double · un double appel modèle, donc une double dépense.
   const verrou = useRef(verrouAction());
-  // Responsive par JS (styles en ligne uniquement dans ce dépôt · pas de media
-  // query CSS) · le composeur est plus dense en mobile, le titre plus petit.
   const isMobile = useIsMobile();
 
-  const charger = useCallback(async () => {
-    const r = await chatThreadAction();
-    if (r.error) setErreur(r.error); else { setErreur(null); setThread(r.thread ?? null); }
-  }, []);
+  const cleStockage = `tt_jarvis_conv_${brandId}`;
+  const memoriser = useCallback((id: string | null) => {
+    try { localStorage.setItem(cleStockage, id ?? '__principal__'); } catch { /* privé / bloqué · sans effet */ }
+  }, [cleStockage]);
 
-  useEffect(() => { void charger(); }, [charger]);
+  // Charge le fil d'une conversation (et la liste). Le serveur réconcilie
+  // `conversationId` · un identifiant hors portée retombe sur le fil principal.
+  const charger = useCallback(async (convId: string | null) => {
+    const r = await chatThreadAction(convId);
+    if (r.error) { setErreur(r.error); return; }
+    setErreur(null);
+    const t = r.thread ?? null;
+    setThread(t);
+    if (t) { setConversations(t.conversations); setConversationId(t.conversationId); memoriser(t.conversationId); }
+  }, [memoriser]);
 
-  // On suit le bas du fil pendant que la réponse arrive · sans ça le texte
-  // s'écrit hors de l'écran et on croit qu'il ne se passe rien.
+  // Restitution au reload · la dernière conversation ouverte pour cette marque.
+  useEffect(() => {
+    let sauve: string | null = null;
+    try { const v = localStorage.getItem(cleStockage); if (v && v !== '__principal__') sauve = v; } catch { /* sans effet */ }
+    void charger(sauve);
+  }, [charger, cleStockage]);
+
   useEffect(() => {
     filRef.current?.scrollTo({ top: filRef.current.scrollHeight, behavior: 'smooth' });
   }, [thread?.turns.length, partiel]);
@@ -108,16 +101,12 @@ export function JarvisChat() {
   async function envoyer(texte: string) {
     const q = texte.trim();
     if (!q) return;
-    // `enCours` couvre les rendus suivants (bouton disabled) · le verrou couvre
-    // le MÊME tick, que ni l'état ni le disabled n'attrapent.
     if (!verrou.current.tenter()) return;
     setSaisie('');
     setEnCours(true);
     setPartiel('');
     setErreur(null);
 
-    // La question apparaît tout de suite · attendre le serveur pour l'afficher
-    // donnerait l'impression que la touche Entrée n'a rien fait.
     const provisoire: ChatTurn = { id: `local-${Date.now()}`, role: 'user', content: q, at: new Date().toISOString() };
     setThread((t) => (t ? { ...t, turns: [...t.turns, provisoire] } : t));
 
@@ -125,13 +114,15 @@ export function JarvisChat() {
       const res = await fetch('/api/jarvis/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: q }),
+        // Le choix client pilote le contexte RÉEL (puces) et la conversation.
+        body: JSON.stringify({ message: q, conversationId, sources: [...puces] }),
       });
 
       if (!res.ok || !res.body) {
         const j = (await res.json().catch(() => null)) as { error?: string } | null;
         setErreur(j?.error ?? 'Jarvis n’a pas pu répondre.');
-        setEnCours(false);
+        // Retour anticipé DANS le try · le `finally` relâche le verrou et remet
+        // `enCours` à false (pas de double relâche, pas de verrou oublié).
         return;
       }
 
@@ -145,7 +136,7 @@ export function JarvisChat() {
         setPartiel(recu);
       }
       setPartiel('');
-      await charger();
+      await charger(conversationId);
     } catch {
       setErreur('La connexion s’est interrompue. Ta question est enregistrée, réessaie.');
     } finally {
@@ -154,91 +145,165 @@ export function JarvisChat() {
     }
   }
 
-  async function effacer() {
-    if (!confirm('Effacer toute la conversation avec Jarvis sur cette marque ?')) return;
-    const r = await clearChatAction();
-    if (r.error) { setErreur(r.error); return; }
-    await charger();
+  async function nouvelleConversation() {
+    if (enCours) return;
+    const r = await creerConversationAction(brandId);
+    if (r.error || !r.id) { setErreur(r.error ?? 'Impossible de créer la conversation.'); return; }
+    await charger(r.id);
   }
+
+  async function renommer(id: string, titreActuel: string) {
+    const propose = window.prompt('Renommer la conversation', titreActuel);
+    if (propose == null) return;
+    const r = await renommerConversationAction(brandId, id, propose);
+    if (r.error) { setErreur(r.error); return; }
+    await charger(conversationId);
+  }
+
+  async function effacer() {
+    if (!confirm('Effacer cette conversation avec Jarvis ?')) return;
+    const r = await clearChatAction(conversationId);
+    if (r.error) { setErreur(r.error); return; }
+    await charger(conversationId);
+  }
+
+  function basculerPuce(cle: PuceContexteJarvis, reel: boolean) {
+    if (!reel) return; // une puce inerte ne règle rien (honnête)
+    setPuces((s) => {
+      const n = new Set(s);
+      if (n.has(cle)) n.delete(cle); else n.add(cle);
+      return n;
+    });
+  }
+
+  const completude = fiche ? completudeFicheJarvis(fiche, brandId) : null;
+
+  const colonne = (
+    <JarvisColonne
+      brandName={brandName} projets={projets}
+      conversations={conversations} conversationId={conversationId}
+      onNouvelle={() => void nouvelleConversation()}
+      onOuvrirPrincipal={() => void charger(null)}
+      onOuvrir={(id) => void charger(id)}
+      onRenommer={(id, t) => void renommer(id, t)}
+      completude={completude} enCours={enCours} isMobile={isMobile}
+    />
+  );
+
+  // Deux colonnes en desktop ; en mobile, on EMPILE (colonne-reverse · la
+  // conversation d'abord, la colonne secondaire dessous) · jamais de
+  // débordement horizontal au doigt.
+  const cadreDeux: CSSProperties = {
+    display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row',
+    gap: isMobile ? 16 : 24, alignItems: isMobile ? 'stretch' : 'flex-start',
+  };
 
   if (erreur && !thread) {
-    return <div style={{ ...cadreSignal('var(--err-strong)'), padding: '16px 18px', color: 'var(--err-strong)', fontSize: 13 }}>{erreur}</div>;
+    return (
+      <div style={cadreDeux}>
+        {colonne}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ ...cadreSignal('var(--err-strong)'), padding: '16px 18px', color: 'var(--err-strong)', fontSize: 13 }}>{erreur}</div>
+        </div>
+      </div>
+    );
   }
-  if (!thread) {
-    return <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>Ouverture de la conversation…</div>;
-  }
 
-  const vide = thread.turns.length === 0;
+  const vide = !thread || thread.turns.length === 0;
 
-  // Trois suggestions au plus · l'accueil propose, il n'inonde pas (charte).
-  const amorces = thread.starters.slice(0, 3);
-
-  // ── Le composeur · une seule pièce, réutilisée à l'accueil et en conversation.
-  // Surface arrondie 24, textarea PLEINE LARGEUR (min-height 64), et une seconde
-  // rangée À L'INTÉRIEUR · « Ajouter du contexte » à gauche, « Envoyer » à droite,
-  // deux cibles 44x44. Généreux · padding 18 / texte 15 en desktop, padding 14 /
-  // texte 16 en mobile (le 16 empêche le zoom iOS à la mise au point).
+  // ── Le composeur · textarea pleine largeur + une rangée (pièce jointe,
+  // puces de contexte, envoi). La pièce jointe est HONNÊTE (à venir) · aucun
+  // pipeline de fichier Jarvis n'existe, on ne simule pas un envoi qui ne part pas.
   const composeur = (
-    // Le composeur s'aligne sur les bords du cadre (comme la Veille) · plus de
-    // plafond 760 ici · Kevin, 29/09.
     <div style={{ width: '100%' }}>
-      {/* Champ composite (zone de texte + gestes) · rôle `controle` DÉCLARÉ (charte) ·
-          sa bordure --line-2 et son rayon restent ceux d'un champ. */}
       <div data-cadre="controle" style={{
-        display: 'flex', flexDirection: 'column', gap: 10,
+        display: 'flex', flexDirection: 'column', gap: 12,
         padding: isMobile ? 14 : 18,
         borderRadius: 24, border: '1px solid var(--line-2)', background: 'var(--surface)',
       }}>
         <textarea
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
-          onKeyDown={(e) => {
-            // Entrée envoie, Maj+Entrée passe à la ligne · l'attendu d'une
-            // conversation, l'inverse d'un formulaire.
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(saisie); }
-          }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(saisie); } }}
           rows={2}
-          placeholder="Écris à Jarvis…"
+          placeholder={`Demandez-moi n’importe quoi sur ${brandName}…`}
           disabled={enCours}
           aria-label="Écrire à Jarvis"
           style={{
-            width: '100%', minHeight: 64, boxSizing: 'border-box',
+            width: '100%', minHeight: 60, boxSizing: 'border-box',
             padding: 0, border: 'none', background: 'transparent', color: 'var(--ink)',
-            fontSize: isMobile ? 16 : 15, fontFamily: 'inherit',
-            resize: 'none', lineHeight: 1.5, outline: 'none',
+            fontSize: isMobile ? 16 : 15, fontFamily: 'inherit', resize: 'none', lineHeight: 1.5, outline: 'none',
           }}
         />
-        {/* Seconde rangée, DANS la surface · contexte à gauche, envoi à droite. */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {/* Pièce jointe · HONNÊTE · à venir (aucun pipeline de fichier Jarvis). */}
           <button
-            type="button"
-            onClick={() => setContexteOuvert(true)}
-            aria-haspopup="dialog"
+            type="button" disabled aria-disabled="true"
+            title="Pièce jointe · à venir"
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, borderRadius: 999,
+              border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', cursor: 'not-allowed',
+            }}
+          >
+            <Icon name="upload" size={16} />
+          </button>
+
+          {/* Puces de contexte · seule « Fiche marque » est un vrai interrupteur. */}
+          <div data-zone="puces" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+            {PUCES_CONTEXTE_JARVIS.map((p) => {
+              const actif = p.reel && puces.has(p.cle);
+              return (
+                <button
+                  key={p.cle} type="button"
+                  onClick={() => basculerPuce(p.cle, p.reel)}
+                  disabled={!p.reel}
+                  aria-pressed={p.reel ? actif : undefined}
+                  title={p.reel ? (actif ? 'Fiche marque incluse dans le contexte · cliquer pour l’exclure' : 'Fiche marque exclue · cliquer pour l’inclure') : p.aVenir ?? undefined}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 34, padding: '0 12px',
+                    borderRadius: 999, fontSize: 12, fontWeight: 700,
+                    cursor: p.reel ? 'pointer' : 'not-allowed',
+                    border: `1px solid ${actif ? 'var(--accent-strong)' : 'var(--line-2)'}`,
+                    background: actif ? 'var(--accent-soft)' : 'transparent',
+                    color: p.reel ? (actif ? 'var(--accent-strong)' : 'var(--ink-2)') : 'var(--muted)',
+                    opacity: p.reel ? 1 : 0.7,
+                  }}
+                >
+                  <Icon name={p.icone} size={13} /> {p.libelle}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Ce que Jarvis sait · le contexte réel, à la demande. */}
+          <button
+            type="button" onClick={() => setContexteOuvert(true)} aria-haspopup="dialog"
             title="Voir ce que Jarvis sait de ta marque"
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, gap: 6, padding: '0 14px',
-              borderRadius: 999, border: '1px solid var(--line-2)', background: 'transparent',
-              color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+              width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, borderRadius: 999,
+              border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', cursor: 'pointer',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-            Ajouter du contexte
+            <Icon name="help" size={16} />
           </button>
+
           <button
             aria-label="Envoyer le message à Jarvis"
             onClick={() => void envoyer(saisie)}
             disabled={enCours || !saisie.trim()}
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN, padding: '0 20px',
-              borderRadius: 999, border: 'none',
+              width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, borderRadius: 999, border: 'none',
               background: enCours || !saisie.trim() ? 'var(--line-2)' : 'var(--grad-accent)',
               color: enCours || !saisie.trim() ? 'var(--muted)' : 'var(--on-accent)',
-              fontWeight: 800, fontSize: 13, cursor: enCours || !saisie.trim() ? 'default' : 'pointer',
+              cursor: enCours || !saisie.trim() ? 'default' : 'pointer',
             }}
           >
-            {enCours ? '…' : 'Envoyer'}
+            {enCours ? <span style={{ fontWeight: 800, fontSize: 13 }}>…</span> : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+            )}
           </button>
         </div>
       </div>
@@ -246,94 +311,79 @@ export function JarvisChat() {
   );
 
   return (
-    <section style={
-      vide
-        // Accueil · flux naturel, aucune hauteur artificielle ne pousse la saisie
-        // en bas. La page défile si besoin.
-        ? { position: 'relative', display: 'flex', flexDirection: 'column' }
-        // Conversation · le fil défile dans une hauteur bornée, le composeur reste
-        // dessous, toujours atteignable.
-        : { position: 'relative', display: 'flex', flexDirection: 'column', height: '68vh', minHeight: 460, overflow: 'hidden' }
-    }>
-      {contexteOuvert && (
-        <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />
-      )}
+    <div style={cadreDeux}>
+      {colonne}
 
-      {vide && !enCours ? (
-        // ── Accueil · emblème centré AU-DESSUS de la question, un seul titre
-        // dominant (32/28, graisse 500, interligne 1.2), une courte phrase, PUIS
-        // le composeur, PUIS trois suggestions au plus.
-        // Le titre, le sous-titre et les suggestions restent en colonne de
-        // LECTURE centrée (640/520) · le COMPOSEUR, lui, prend toute la largeur
-        // du cadre comme en conversation · la contrainte d'accueil ne doit plus
-        // le rétrécir en petite colonne (Codex, 30/09).
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', maxWidth: 640, margin: '0 auto' }}>
-            <div style={{ color: 'var(--muted)', display: 'inline-flex' }}><Icon name="brain" size={30} /></div>
-            <h2 style={{ margin: '14px 0 0', fontSize: isMobile ? 28 : 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
-              Quelle publicité améliorer en premier ?
-            </h2>
-            <p style={{ margin: '10px 0 0', fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5, maxWidth: 520 }}>
-              Il cite tes chiffres, ou admet qu’il n’en a pas · et t’aide à décider quoi tester ensuite.
-            </p>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {contexteOuvert && thread && (
+          <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />
+        )}
+
+        {!thread ? (
+          <div style={{ color: 'var(--muted)', fontSize: 13, padding: '20px 0' }}>Ouverture de la conversation…</div>
+        ) : vide && !enCours ? (
+          <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', maxWidth: 640, margin: '0 auto' }}>
+              {/* L'orbe de Jarvis · décor pur, en jetons (aucune image externe). */}
+              <div aria-hidden style={{
+                width: isMobile ? 80 : 96, height: isMobile ? 80 : 96, borderRadius: '50%',
+                background: [
+                  'radial-gradient(circle at 33% 27%, var(--clair-fixe), transparent 22%)',
+                  `radial-gradient(circle at 50% 50%, transparent 54%, ${teinte('sombre-fixe', 0.38)} 100%)`,
+                  'radial-gradient(circle at 38% 32%, var(--accent-strong), var(--accent) 48%, var(--accent-fin) 100%)',
+                ].join(', '),
+                boxShadow: `0 10px 36px ${teinte('accent', 0.42)}`,
+              }} />
+              <h2 style={{ margin: '20px 0 0', fontSize: isMobile ? 28 : 34, fontWeight: 500, lineHeight: 1.18, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+                Comment je peux t’aider sur{' '}
+                <span style={{ background: 'var(--grad-accent)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'var(--accent-strong)' }}>{thread.brandName}</span> ?
+              </h2>
+              <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, maxWidth: 540 }}>
+                Je m’appuie sur ta fiche marque, ta Veille et tes résultats.<br />Chaque proposition reste à valider.
+              </p>
+            </div>
+            <div style={{ width: '100%', marginTop: isMobile ? 24 : 30 }}>{composeur}</div>
+            <JarvisAccueilV5
+              measuredAds={thread.measuredAds}
+              categorie={categorie}
+              onCategorie={setCategorie}
+              onAmorce={(q) => void envoyer(q)}
+              kpiSource={kpiSource}
+              enCours={enCours}
+            />
           </div>
-          {/* Composeur PLEINE LARGEUR du cadre, hors de la colonne 640 · même
-              largeur qu'en conversation (Codex, 30/09). */}
-          <div style={{ width: '100%', marginTop: isMobile ? 24 : 32 }}>{composeur}</div>
-          {/* Suggestions en colonne de lecture centrée · elles proposent, elles
-              ne s'étalent pas d'un bord à l'autre du cadre. */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 640, margin: '18px auto 0' }}>
-            {amorces.map((q) => (
-              <button key={q} onClick={() => void envoyer(q)} style={{
-                display: 'inline-flex', alignItems: 'center', minHeight: CIBLE_TACTILE_MIN,
-                padding: '8px 15px', borderRadius: 999, border: '1px solid var(--line-2)',
-                background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12.5,
-                cursor: 'pointer', textAlign: 'left', lineHeight: 1.4,
+        ) : (
+          <section style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '72vh', minHeight: 460, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>
+              <button onClick={() => void effacer()} style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
+                padding: '5px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
+                background: 'transparent', color: 'var(--muted)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
               }}>
-                {q}
+                Effacer le fil
               </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        // ── Conversation · « Effacer le fil » discret, le fil défilant, le
-        // composeur dessous.
-        <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '2px 2px 8px' }}>
-            <button onClick={effacer} style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: CIBLE_TACTILE_MIN,
-              padding: '5px 13px', borderRadius: 999, border: '1px solid var(--line-2)',
-              background: 'transparent', color: 'var(--muted)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-            }}>
-              Effacer le fil
-            </button>
-          </div>
+            </div>
 
-          {/* Le fil occupe toute la largeur du cadre · la largeur de LECTURE des
-              messages est bornée à l'intérieur (voir `reponse` / `bulle`), pas
-              par un plafond du fil (Kevin, 29/09). */}
-          <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
-            {thread.turns.map((t, i) => (
-              <Tour key={t.id} turn={t} sources={thread.sources ?? {}}
-                question={t.role === 'assistant' && thread.turns[i - 1]?.role === 'user' ? thread.turns[i - 1]!.content : null} />
-            ))}
+            <div ref={filRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 4px 22px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
+              {thread.turns.map((t, i) => (
+                <Tour key={t.id} turn={t} sources={thread.sources ?? {}}
+                  question={t.role === 'assistant' && thread.turns[i - 1]?.role === 'user' ? thread.turns[i - 1]!.content : null} />
+              ))}
+              {partiel && <div style={reponse}>{sansTiretCadratin(visibleWhileStreaming(partiel))}</div>}
+              {enCours && !partiel && (
+                <div style={{ ...reponse, color: 'var(--muted)', fontStyle: 'italic' }}>Jarvis relit ta mémoire…</div>
+              )}
+            </div>
 
-            {/* Pendant l'écriture, on coupe à la première ouverture de marqueur ·
-                voir « [[ACTI » une demi-seconde donne l'impression que ça fuit. */}
-            {partiel && <div style={reponse}>{sansTiretCadratin(visibleWhileStreaming(partiel))}</div>}
-            {enCours && !partiel && (
-              <div style={{ ...reponse, color: 'var(--muted)', fontStyle: 'italic' }}>Jarvis relit ta mémoire…</div>
+            {erreur && (
+              <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: 'var(--err-strong)', borderTop: '1px solid var(--line)' }}>{erreur}</p>
             )}
-          </div>
 
-          {erreur && (
-            <p style={{ margin: 0, padding: '8px 16px', fontSize: 12, color: 'var(--err-strong)', borderTop: '1px solid var(--line)' }}>{erreur}</p>
-          )}
-
-          <div style={{ padding: '10px 4px 4px' }}>{composeur}</div>
-        </>
-      )}
-    </section>
+            <div style={{ padding: '10px 4px 4px' }}>{composeur}</div>
+          </section>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -341,31 +391,14 @@ export function JarvisChat() {
 /*  Un tour, et ce qu'il propose                                              */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Une réponse de Jarvis, marqueurs retirés, gestes affichés.
- *
- * Le texte et les boutons viennent du MÊME message · rien n'est stocké à part,
- * donc rouvrir la conversation trois jours plus tard réaffiche les mêmes
- * propositions. Un bouton qui disparaît au rechargement laisserait croire qu'on
- * l'a déjà cliqué.
- */
 export function Tour({ turn, sources, question = null }: { turn: ChatTurn; sources: NonNullable<ChatThread['sources']>; question?: string | null }) {
   if (turn.role === 'user') return <div style={bulle(true)}>{turn.content}</div>;
 
-  // Les sources d'abord · le marqueur `[[SOURCE:…]]` sort du texte, et seules
-  // les références résolues pour CETTE marque s'affichent (une référence
-  // inconnue n'est pas une citation).
   const { texte, refs } = extraireCitations(turn.content);
   const { text, actions } = parseAnswer(texte);
-  // Même règle que le compteur (noyau) · une citation que la question a DICTÉE
-  // n'est pas affichée comme une source · elle ne prouve rien.
   const citees = citationsComptees(turn.content, refs, question).filter((r) => sources[r]);
   return (
     <div style={{ display: 'contents' }}>
-      {/* Prose du MODÈLE · « — » rendu en « · » à l'AFFICHAGE seulement (code,
-          URL, identifiants intacts). Le message stocké, la question relue par
-          `citationsComptees` et les gestes gardent le texte d'origine. Aucun
-          bouton ne copie la réponse · une sélection à la main copie ce qu'on lit. */}
       <div style={reponse}>{sansTiretCadratin(text)}</div>
       {citees.length > 0 && (
         <p style={{ alignSelf: 'flex-start', maxWidth: 'min(760px, 92%)', margin: '-8px 0 0', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'baseline' }}>
@@ -382,12 +415,6 @@ export function Tour({ turn, sources, question = null }: { turn: ChatTurn; sourc
   );
 }
 
-/**
- * Les gestes proposés.
- *
- * Chacun dit son effet et son coût AVANT le clic · un bouton qui n'annonce pas
- * ce qu'il engage se clique une fois, puis plus jamais.
- */
 function Gestes({ actions }: { actions: JarvisAction[] }) {
   const router = useRouter();
   const [brouillon, setBrouillon] = useState<DraftView | null>(null);
@@ -424,18 +451,14 @@ function Gestes({ actions }: { actions: JarvisAction[] }) {
               }}
             >
               {ecrit && payant ? 'Jarvis écrit…' : def.label}
-              {/* Le coût est SUR le bouton · à côté, il se lit après la décision. */}
               {payant && !ecrit && <span style={{ fontSize: 11, opacity: 0.7 }}>· {def.cost}</span>}
             </button>
           );
         })}
       </div>
-
-      {/* Ce que le bouton fera · dit avant, pas après. */}
       <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
         {actions.map((a) => JARVIS_ACTIONS[a.key].effect).join(' · ')}
       </p>
-
       {brouillon && <DraftCard view={brouillon} />}
       {note && <p style={{ margin: 0, fontSize: 12, color: 'var(--err-text)', lineHeight: 1.5 }}>{note}</p>}
     </div>

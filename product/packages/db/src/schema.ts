@@ -807,10 +807,61 @@ export const jarvisMessages = pgTable('jarvis_messages', {
   // Deux personnes sur la même marque n'ont pas à lire les brouillons de
   // réflexion l'une de l'autre.
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  // UX V5 · à quelle conversation ce message appartient (0057, additif). NULLABLE
+  // sans clé étrangère À DESSEIN : la fenêtre de migration inverse veut que
+  // l'ancien code écrive encore dans `jarvis_messages` sans connaître cette
+  // colonne, et une FK vers `jarvis_conversations` serait une contrainte ajoutée
+  // à une table existante (interdite). Un message sans `conversation_id` est un
+  // message du fil historique (conversation implicite « par défaut »).
+  conversationId: uuid('conversation_id'),
   role: text('role').notNull(),                 // user | assistant
   content: text('content').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ filIdx: index('jarvis_messages_fil_idx').on(t.brandId, t.userId, t.createdAt) }));
+}, (t) => ({
+  filIdx: index('jarvis_messages_fil_idx').on(t.brandId, t.userId, t.createdAt),
+  convIdx: index('jarvis_messages_conv_idx').on(t.conversationId, t.createdAt),
+}));
+
+/**
+ * UX V5 · plusieurs conversations Jarvis par (marque, personne).
+ *
+ * Jarvis n'avait qu'un fil par (marque, personne) · ouvrir une piste neuve
+ * effaçait la précédente. Cette table nomme et sépare les conversations, chacune
+ * portée espace + marque + personne (même portée que `jarvis_messages`). Le
+ * titre est libre : NULL · il est dérivé du premier message. Les messages lui
+ * sont rattachés par `jarvis_messages.conversation_id` (sans FK, cf. ci-dessus).
+ */
+export const jarvisConversations = pgTable('jarvis_conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  // NULLABLE · une conversation d'onboarding (compte neuf, sans marque) est
+  // possible · elle n'est portée que par l'espace et la personne.
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  // NULL · titre dérivé du premier message (règle `titreConversation`, noyau).
+  titre: text('titre'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ listeIdx: index('jarvis_conversations_liste_idx').on(t.brandId, t.userId, t.updatedAt) }));
+
+/**
+ * UX V5 · le fil d'ONBOARDING de Jarvis · sans marque (compte neuf).
+ *
+ * `jarvis_messages.brand_id` est NOT NULL · un compte sans marque ne peut donc
+ * pas y écrire. Plutôt que de relâcher cette colonne (geste non additif en
+ * fenêtre de migration inverse), l'onboarding a SA table, portée espace +
+ * personne. Jarvis y reste vivant et guide vers la création de la première
+ * marque. Un seul fil par (espace, personne) · pas de conversations multiples
+ * tant qu'aucune marque n'existe.
+ */
+export const jarvisOnboardingMessages = pgTable('jarvis_onboarding_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),                 // user | assistant
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ filIdx: index('jarvis_onboarding_fil_idx').on(t.workspaceId, t.userId, t.createdAt) }));
 
 /* ========================================================================== *
  *                                  ADSMAP                                    *
