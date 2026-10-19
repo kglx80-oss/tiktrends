@@ -377,7 +377,7 @@ const PREMIERE_STUDIOS = 54;
 const CONTRAINTES_EXISTANT_ADMISES: Record<string, { motif: string; valide: (suite: string) => boolean }> = {
   brands_id_workspace_uq: { motif: 'UNIQUE (id, workspace_id) · id est la clé primaire : toute ligne écrite par l’ancien code la respecte', valide: (s) => /^\s*UNIQUE \("id",/i.test(s) },
   adsmap_ads_id_workspace_uq: { motif: 'UNIQUE (id, workspace_id) · id est la clé primaire : toute ligne écrite par l’ancien code la respecte', valide: (s) => /^\s*UNIQUE \("id",/i.test(s) },
-  // 0057 · contraintes posées sur des colonnes AJOUTÉES par la même migration
+  // 0058 · contraintes posées sur des colonnes AJOUTÉES par la même migration
   // (`folder_id`, `rights`), toutes deux nullables : l’ancien code, qui ignore
   // ces colonnes, n’y écrit que NULL et ne peut donc pas les violer pendant la
   // fenêtre inverse. Le prédicat cloue chaque admission à SA colonne neuve.

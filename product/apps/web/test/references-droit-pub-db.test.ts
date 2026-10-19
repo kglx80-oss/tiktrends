@@ -3,7 +3,7 @@ import type { IdsStudios } from './studios-semis';
 
 /**
  * F-B · résolution des références `bib_` · le DROIT D'USAGE est relu À LA
- * GÉNÉRATION, sur une VRAIE base (pglite + migrations réelles, 0057 comprise).
+ * GÉNÉRATION, sur une VRAIE base (pglite + migrations réelles, 0058 comprise).
  *
  * Le défaut que cette garde empêche · un asset associé au brief puis reclassé
  * « À préciser » (droits incertains, posés à dessein) repassait au modèle à la

@@ -3,7 +3,7 @@ import type { IdsStudios, SessionTest } from './studios-semis';
 
 /**
  * Bibliothèque V5 · fondation des DOSSIERS · sécurité et comportement, au
- * RÉSULTAT, sur une VRAIE base (pglite + migrations du dépôt, 0057 comprise).
+ * RÉSULTAT, sur une VRAIE base (pglite + migrations du dépôt, 0058 comprise).
  *
  * Le défaut que ces gardes empêchent · une action serveur reste appelable
  * directement ; cacher l'écran ne protège rien. Chaque action de

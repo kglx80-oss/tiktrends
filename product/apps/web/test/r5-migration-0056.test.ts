@@ -36,15 +36,14 @@ describe('0056 · lecture du SQL et du journal', () => {
     expect(a.nonRejouables, 'instruction non rejouable dans 0056').toEqual([]);
     expect(a.ajouteValeurEnum).toBe(false);
   });
-  it('0056 présente dans le journal, horodatage strictement supérieur au précédent', () => {
-    // On ne suppose PLUS que 0056 est la DERNIÈRE entrée · un lot ultérieur
-    // (0057 · dossiers de bibliothèque) ajoute légitimement des migrations à la
-    // suite. L'invariant qui compte reste : 0056 est présente et son horodatage
-    // dépasse celui de l'entrée qui la précède (sinon le migrateur l'ignorerait).
+  it('entrée 0056 du journal, horodatage strictement supérieur au précédent', () => {
     const e = journal.entries;
-    const k = e.findIndex((x) => x.tag === TAG);
-    expect(k, '0056 absente du journal').toBeGreaterThan(0);
-    expect(e[k]!.when, '0056 serait ignorée par le migrateur').toBeGreaterThan(e[k - 1]!.when);
+    // 0056 n'est plus la dernière · 0057 (conversations Jarvis) puis 0058
+    // (dossiers de bibliothèque) l'ont suivie. On la retrouve par son tag et on
+    // vérifie qu'elle ne serait pas ignorée par le migrateur.
+    const i = e.findIndex((x) => x.tag === TAG);
+    expect(i, '0056 absente du journal').toBeGreaterThan(0);
+    expect(e[i]!.when, '0056 serait ignorée par le migrateur').toBeGreaterThan(e[i - 1]!.when);
     expect(violationsJournalMigrations(e)).toEqual([]);
   });
 });

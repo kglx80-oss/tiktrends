@@ -61,5 +61,5 @@ export function ErreurRecuperable({ erreur, onReessayer }: { erreur: ErreurPropo
   );
 }
 
-/** Erreur réseau (hors ligne, serveur injoignable) · rien n'a été modifié, la saisie reste. */
-export const ERREUR_RESEAU = 'Connexion perdue · rien n’a été modifié. Vérifie ta connexion puis réessaie, ta saisie est conservée.';
+/** Une réponse perdue ne prouve pas que la commande a échoué côté serveur. Relire avant toute nouvelle demande. */
+export const ERREUR_RESEAU = 'Connexion perdue · le résultat de la dernière demande n’est pas confirmé. Actualise les propositions avant de la renvoyer ; ta saisie est conservée.';
