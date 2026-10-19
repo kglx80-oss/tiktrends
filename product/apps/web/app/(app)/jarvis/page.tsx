@@ -3,12 +3,11 @@ import { redirect } from 'next/navigation';
 import { getSession } from '../../../lib/auth';
 import { refusJarvis } from '../../../lib/jarvis-acces';
 import { getActiveBrand } from '../../../lib/brands';
-import { Icon } from '../../../components/Icon';
 import { JarvisChat } from './JarvisChat';
-import { Empty } from '../../../components/Empty';
-import { cadrePage, colonneLecture } from '../../../components/ui';
+import { JarvisOnboarding } from './JarvisOnboarding';
+import { cadrePage } from '../../../components/ui';
 import { RefusJarvis } from './RefusJarvis';
-import { peutOuvrirProjetsStudios } from '../../../lib/studios/jarvis-projets';
+import { projetsPourColonneJarvis } from '../../../lib/studios/jarvis-projets';
 import { ficheMarqueLue } from '../../../lib/jarvis-fiche';
 
 export const dynamic = 'force-dynamic';
@@ -39,94 +38,36 @@ export default async function JarvisPage() {
 
   const brand = await getActiveBrand(s.workspaceId);
 
-  if (!brand) {
-    return (
-      <main style={cadrePage}><div style={colonneLecture('fil')}>
-        <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 32px)', fontWeight: 500, color: 'var(--ink)' }}>Jarvis</h1>
-        <div style={{ marginTop: 20 }}>
-          <Empty
-            tone="todo" title="Sélectionne une marque active."
-            why="Jarvis apprend marque par marque · sa mémoire n’a de sens que rapportée à une marque précise."
-            action={{ label: 'Choisir une marque', href: '/brands' }}
-          />
-        </div>
-      </div></main>
-    );
-  }
+  // SANS marque active (compte neuf, ou aucune marque) · Jarvis NE se mure PAS.
+  // Il reste vivant et guide vers la création de la première marque (référence
+  // « Flow ») · hero, vraie conversation d'onboarding, amorces, action « Créer ta
+  // première marque ». Jamais « Sélectionne une marque active » (cul-de-sac).
+  if (!brand) return <JarvisOnboarding />;
 
-  // Une seule application · Jarvis parle des projets Studios de la marque et y
-  // renvoie ; l'en-tête y mène aussi, sous la MÊME garde que l'écran « Projets »
-  // (rôle, offre, capacité de l'espace). Sans droit, aucun lien vers un écran fermé.
-  const voitProjets = await peutOuvrirProjetsStudios();
-
-  // La fiche marque, lue pour la carte de complétude de l'accueil Jarvis · même
+  // La fiche marque, lue pour la carte de complétude de la colonne Jarvis · même
   // source que l'aperçu de `/brands/[id]`, en lecture seule. L'encart « Chiffres
   // clés » reste en état VIDE honnête · nous n'agrégeons pas la dépense pub, donc
   // aucune source n'est passée (jamais un chiffre fictif).
-  const fiche = await ficheMarqueLue(brand.id);
+  //
+  // Les projets Studios de la marque, pour la colonne secondaire · MÊMES gardes
+  // que l'écran « Projets » (portée, capacité) · liste vide sans droit ni projet.
+  const [fiche, projets] = await Promise.all([
+    ficheMarqueLue(brand.id),
+    projetsPourColonneJarvis(brand.id),
+  ]);
 
   return (
-    // Écran conversationnel · le CADRE et le composeur s'alignent sur les bords
-    // de la Veille (maxWidth 1200, gouttières clamp(16,4vw,32)) · Kevin, 29/09 ·
-    // le plafond 760 rétrécissait toute la page. La largeur de LECTURE reste
-    // calée à la colonne « prose » (760) À L'INTÉRIEUR (cf. JarvisChat), pour que
-    // les longues réponses ne courent pas d'un bord à l'autre.
+    // Écran V5 en deux colonnes · la colonne secondaire (marque, conversations,
+    // projets, fiche) et, au centre, la conversation. Le cadre s'aligne sur les
+    // bords de l'application (maxWidth 1200, gouttières) · la largeur de LECTURE
+    // des messages reste bornée À L'INTÉRIEUR (cf. JarvisChat).
     <main style={cadrePage}>
-      {/* En-tête COMPACT · Jarvis + marque, sans sous-titre redondant ni
-          séparateur · le seul titre dominant est la question, à l'accueil
-          (l'emblème est centré au-dessus d'elle, pas ici). À droite, un accès
-          DISCRET aux Sources · cible effective 44 px, hors de la zone de saisie
-          · la carte pleine largeur d'avant reproduisait mal la référence. */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-          {/* Le seul titre de page de l'écran en conversation · un vrai <h1>
-              (recette #106 · sans lui, l'écran n'avait AUCUN titre une fois le fil
-              entamé), même apparence compacte. */}
-          <h1 style={{ margin: 0, fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Jarvis</h1>
-          <span style={{ fontSize: 13, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {brand.name}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          {voitProjets && (
-            <Link
-              href="/studio/projets"
-              data-lien="projets-studios"
-              title="Projets Studios · reprendre un projet de la marque là où tu l’as laissé"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44,
-                padding: '0 6px', flexShrink: 0, textDecoration: 'none',
-                color: 'var(--muted)', fontSize: 12.5, fontWeight: 600,
-              }}
-            >
-              <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="layers" size={15} /></span>
-              Projets
-            </Link>
-          )}
-          <Link
-            href="/jarvis/sources"
-            title="Sources de Jarvis · ce qu’il sait de ta marque, de quoi le nourrir, ses réglages"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44,
-              padding: '0 6px', flexShrink: 0, textDecoration: 'none',
-              color: 'var(--muted)', fontSize: 12.5, fontWeight: 600,
-            }}
-          >
-            <span style={{ display: 'inline-flex', color: 'var(--accent-strong)' }}><Icon name="chart" size={15} /></span>
-            Sources de Jarvis
-          </Link>
-        </div>
-      </div>
-
-      {/* La conversation, seule au premier plan · c'est la seule interface qui
-          n'exige pas de savoir où chercher. À l'accueil (fil vide), elle déploie
-          le panneau V5 · amorces, automatisations à venir, KPI vide honnête et
-          complétude de la fiche. */}
-      <JarvisChat fiche={fiche} brandId={brand.id} kpiSource={null} />
+      <JarvisChat fiche={fiche} brandId={brand.id} brandName={brand.name} kpiSource={null} projets={projets} />
 
       {/* Personnaliser Jarvis · rejoue l'accueil (usage, expérience pub,
-          objectif, marque) à la demande · le parcours est facultatif et ne se
-          rejoue que sur ce clic, jamais tout seul. */}
-      <div style={{ marginTop: 14, textAlign: 'center' }}>
-        <Link href="/onboarding?redo=1" style={{ fontSize: 12.5, color: 'var(--muted)', textDecoration: 'none' }}>
+          objectif) à la demande · parcours facultatif, jamais déclenché seul. */}
+      <div style={{ marginTop: 16, textAlign: 'center' }}>
+        <Link href="/onboarding?redo=1" style={{ fontSize: 12, color: 'var(--muted)', textDecoration: 'none' }}>
           Personnaliser Jarvis · revoir mes réponses d’accueil
         </Link>
       </div>

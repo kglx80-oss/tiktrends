@@ -10,26 +10,22 @@ vi.mock('next/link', () => ({
 }));
 
 const { JarvisAccueilV5 } = await import('../app/(app)/jarvis/JarvisAccueilV5');
-const { completudeFicheMarque } = await import('@tiktrends/core');
-type FicheMarqueLue = import('@tiktrends/core').FicheMarqueLue;
+const { amorcesCategorie, CATEGORIES_JARVIS } = await import('@tiktrends/core');
 type SourceDepenseJarvis = import('@tiktrends/core').SourceDepenseJarvis;
+type CategorieJarvis = import('@tiktrends/core').CategorieJarvis;
 
 /**
  * UX V5 · le panneau d'accueil de Jarvis RENDU · on lit le HTML.
  *
  * On monte le vrai composant et on constate ce qui est À L'ÉCRAN :
- *  · la carte de complétude montre le % RÉEL de `completudeFicheMarque` (pas un
- *    nombre figé · changer la fiche change le % rendu) ;
- *  · l'encart KPI est en état vide honnête, avec le lien `/connections`, tant
- *    qu'aucune source n'est passée (une source le fait disparaître) ;
- *  · les trois lignes d'automatisation sont bien `disabled`.
+ *  · les pastilles de catégories changent RÉELLEMENT les trois cartes de prompts,
+ *    et cliquer une carte lance la vraie amorce (onAmorce) ;
+ *  · les trois automatisations sont `disabled` (service absent, Slack non branché) ;
+ *  · l'encart « Chiffres clés » est en état VIDE honnête · 4 cartes sans valeur,
+ *    légende Période / Période précédente, « Meta Ads · 14 derniers jours »,
+ *    mention de production et lien `/connections` · AUCUN nombre fabriqué. Une
+ *    vraie source le fait disparaître (mutation).
  */
-
-const ficheVide: FicheMarqueLue = {
-  description: null, usp: null, audience: null, category: null, categoryNeeds: null, tone: null,
-  industryTags: 0, colors: 0, scenarios: 0, personas: 0, produits: 0, concurrents: 0,
-};
-const fichePartielle: FicheMarqueLue = { ...ficheVide, description: 'd', usp: 'u', audience: 'a', category: 'c', colors: 2, produits: 3 };
 
 let root: Root | null = null;
 let el: HTMLDivElement | null = null;
@@ -40,11 +36,11 @@ function monter(props: Partial<Parameters<typeof JarvisAccueilV5>[0]> = {}) {
   act(() => {
     root!.render(
       <JarvisAccueilV5
-        fiche={'fiche' in props ? props.fiche! : ficheVide}
-        brandId={props.brandId ?? 'B1'}
-        kpiSource={props.kpiSource ?? null}
-        amorces={props.amorces ?? ['Par où je commence ?', 'Quelle est la prochaine chose à tester ?']}
+        measuredAds={props.measuredAds ?? 8}
+        categorie={props.categorie ?? 'strategie'}
+        onCategorie={props.onCategorie ?? (() => {})}
         onAmorce={props.onAmorce ?? (() => {})}
+        kpiSource={props.kpiSource ?? null}
         enCours={props.enCours ?? false}
       />,
     );
@@ -52,48 +48,64 @@ function monter(props: Partial<Parameters<typeof JarvisAccueilV5>[0]> = {}) {
   return el!;
 }
 
-describe('carte de complétude · le % RÉEL, jamais figé', () => {
-  it('rend le pourcentage calculé par completudeFicheMarque', () => {
-    const dom = monter({ fiche: fichePartielle });
-    const attendu = completudeFicheMarque(fichePartielle).score; // 6/12 = 50 %
-    const score = dom.querySelector('[data-completude-score]');
-    expect(score?.textContent).toBe(`${attendu} %`);
-    const barre = dom.querySelector('[role="progressbar"]');
-    expect(barre?.getAttribute('aria-valuenow')).toBe(String(attendu));
+describe('pastilles de catégories · changent les prompts (réel, pas figé)', () => {
+  it('rend une pastille par catégorie et appelle onCategorie au clic', () => {
+    const choisies: string[] = [];
+    const dom = monter({ onCategorie: (c) => choisies.push(c) });
+    const pills = [...dom.querySelectorAll('[data-zone="categories"] button')] as HTMLButtonElement[];
+    expect(pills).toHaveLength(CATEGORIES_JARVIS.length);
+    const angles = pills.find((p) => /Angles/.test(p.textContent ?? ''))!;
+    act(() => { angles.click(); });
+    expect(choisies).toEqual(['angles']);
   });
 
-  it('MUTATION · changer la fiche change le % rendu (pas un nombre en dur)', () => {
-    const a = monter({ fiche: ficheVide }).querySelector('[data-completude-score]')?.textContent;
+  it('les 3 cartes de prompts suivent la catégorie active (pas des titres en dur)', () => {
+    const titres = (c: CategorieJarvis) =>
+      [...monter({ categorie: c }).querySelectorAll('[data-zone="prompts"] button')].map((b) => b.querySelector('span span')?.textContent);
+    const strat = titres('strategie');
     act(() => { root!.unmount(); }); el!.remove();
     el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el);
-    const b = monter({ fiche: fichePartielle }).querySelector('[data-completude-score]')?.textContent;
-    expect(a).toBe('0 %');
-    expect(b).not.toBe(a);
-    expect(b).toBe(`${completudeFicheMarque(fichePartielle).score} %`);
+    const accr = titres('accroches');
+    expect(strat).toHaveLength(3);
+    expect(accr).toHaveLength(3);
+    expect(strat).not.toEqual(accr);
+    expect(strat).toEqual(amorcesCategorie('strategie', { measuredAds: 8 }).map((a) => a.titre));
   });
 
-  it('chaque élément manquant est un lien vers la fiche', () => {
-    const dom = monter({ fiche: ficheVide, brandId: 'B7' });
-    const liens = [...dom.querySelectorAll('[data-zone="completude"] a[href^="/brands/B7"]')];
-    expect(liens.length).toBeGreaterThanOrEqual(12); // les 12 manques + le bouton « Compléter »
-  });
-
-  it('fiche illisible (null) · aucune carte de complétude inventée', () => {
-    const dom = monter({ fiche: null });
-    expect(dom.querySelector('[data-zone="completude"]')).toBeNull();
-    expect(dom.querySelector('[data-completude-score]')).toBeNull();
+  it('cliquer une carte de prompt lance la VRAIE amorce (prompt complet)', () => {
+    const lances: string[] = [];
+    const dom = monter({ categorie: 'strategie', onAmorce: (q) => lances.push(q) });
+    const cartes = [...dom.querySelectorAll('[data-zone="prompts"] button')] as HTMLButtonElement[];
+    act(() => { cartes[0]!.click(); });
+    expect(lances).toEqual([amorcesCategorie('strategie', { measuredAds: 8 })[0]!.prompt]);
   });
 });
 
-describe('encart KPI · état vide honnête', () => {
-  it('sans source · un lien vers /connections, aucun chiffre', () => {
+describe('automatisations · présentes mais désactivées (Slack compris)', () => {
+  it('trois lignes, chaque action rendue en bouton disabled', () => {
+    const dom = monter();
+    const boutons = [...dom.querySelectorAll('[data-zone="automatisations"] button')] as HTMLButtonElement[];
+    expect(boutons).toHaveLength(3);
+    for (const b of boutons) expect(b.disabled).toBe(true);
+    // La ligne « Rapport Jarvis » (Slack) est bien là, sans faux succès.
+    expect(dom.querySelector('[data-zone="automatisations"]')!.textContent).toContain('Rapport Jarvis');
+  });
+});
+
+describe('Chiffres clés · état VIDE honnête, au pixel de la maquette', () => {
+  it('4 cartes (libellés), légende, plateforme/période, mention · aucun nombre, lien /connections', () => {
     const dom = monter({ kpiSource: null });
     const zone = dom.querySelector('[data-zone="kpi"]')!;
+    for (const libelle of ['Dépense', 'CPA', 'ROAS', 'Valeur d’achat']) expect(zone.textContent).toContain(libelle);
+    expect(zone.textContent).toContain('Période');
+    expect(zone.textContent).toContain('Période précédente');
+    expect(zone.textContent).toContain('Meta Ads · 14 derniers jours');
     expect(zone.querySelector('a[href="/connections"]')).not.toBeNull();
-    expect(zone.textContent).not.toMatch(/€|ROAS/);
+    // AUCUN nombre fabriqué · ni euro, ni ROAS chiffré, ni pourcentage de tendance.
+    expect(zone.textContent).not.toMatch(/€|\d+,\d+|\+\d|\d+ ?%/);
   });
 
-  it('MUTATION · une source branchée fait disparaître l’état vide', () => {
+  it('MUTATION · une source branchée fait disparaître l’état vide et montre les vrais KPI', () => {
     const source: SourceDepenseJarvis = {
       plateforme: 'Meta', periode: '14 derniers jours',
       kpis: [{ cle: 'depense', libelle: 'Dépense', valeur: '10 416 €' }],
@@ -105,59 +117,20 @@ describe('encart KPI · état vide honnête', () => {
   });
 });
 
-describe('automatisations · présentes mais désactivées', () => {
-  it('trois lignes, chaque action rendue en bouton disabled', () => {
-    const dom = monter();
-    const boutons = [...dom.querySelectorAll('[data-zone="automatisations"] button')] as HTMLButtonElement[];
-    expect(boutons).toHaveLength(3);
-    for (const b of boutons) expect(b.disabled).toBe(true);
-  });
-});
-
-describe('amorces · les vraies suggestions, en cartes cliquables', () => {
-  it('rend une carte par amorce et appelle onAmorce au clic', () => {
-    const vues: string[] = [];
-    const dom = monter({ amorces: ['A', 'B'], onAmorce: (q) => vues.push(q) });
-    const cartes = [...dom.querySelectorAll('[data-zone="amorces"] button')] as HTMLButtonElement[];
-    expect(cartes).toHaveLength(2);
-    act(() => { cartes[0]!.click(); });
-    expect(vues).toEqual(['A']);
-  });
-});
-
-/**
- * Fidélité V5 · on lit le HTML pour constater la PRÉSENTATION alignée sur la
- * maquette (indépendante de la donnée) · chaque assertion tombe si on défait
- * l'alignement (titres prominents, cartes qui flottent, un seul cadre à filets
- * pour les automatisations). Les styles en ligne, `var(--…)` compris, survivent
- * à la sérialisation jsdom · on lit donc l'attribut `style` tel quel.
- */
 describe('fidélité V5 · présentation alignée sur la maquette', () => {
   const sansEspace = (e: Element | null) => (e?.getAttribute('style') ?? '').replace(/\s+/g, '');
-
-  it('titres de zone prominents · ≈16px en encre pleine (pas un libellé minuscule)', () => {
-    const dom = monter({ fiche: fichePartielle });
+  it('titres de zone prominents · ≈16px en encre pleine', () => {
+    const dom = monter();
     const titres = [...dom.querySelectorAll('h3')];
-    expect(titres.length).toBeGreaterThanOrEqual(3);
+    expect(titres.length).toBeGreaterThanOrEqual(2);
     for (const t of titres) {
       expect(sansEspace(t)).toContain('font-size:16px');
       expect(sansEspace(t)).toContain('color:var(--ink)');
     }
   });
-
-  it('les cartes flottent · ombre par jeton --sh-card', () => {
-    const dom = monter({ fiche: fichePartielle });
-    expect(sansEspace(dom.querySelector('[data-zone="completude"]'))).toContain('box-shadow:var(--sh-card)');
-    const amorce = dom.querySelector('[data-zone="amorces"] button');
-    expect(sansEspace(amorce)).toContain('box-shadow:var(--sh-card)');
-  });
-
-  it('automatisations · UN SEUL cadre à filets, pas trois cartes séparées', () => {
+  it('les cartes de prompt flottent · ombre par jeton --sh-card', () => {
     const dom = monter();
-    const zone = dom.querySelector('[data-zone="automatisations"]')!;
-    const ombres = [...zone.querySelectorAll('*')].filter((e) => sansEspace(e).includes('box-shadow:var(--sh-card)'));
-    expect(ombres).toHaveLength(1); // le cadre unique qui contient les trois lignes
-    const filets = [...zone.querySelectorAll('*')].filter((e) => sansEspace(e).includes('border-top:1pxsolidvar(--line)'));
-    expect(filets).toHaveLength(2); // deux filets entre trois lignes
+    const carte = dom.querySelector('[data-zone="prompts"] button');
+    expect(sansEspace(carte)).toContain('box-shadow:var(--sh-card)');
   });
 });

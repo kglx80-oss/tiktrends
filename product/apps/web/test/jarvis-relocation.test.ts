@@ -26,6 +26,7 @@ import { join } from 'node:path';
 const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 
 const jarvis = lit('app/(app)/jarvis/page.tsx');
+const colonne = lit('app/(app)/jarvis/JarvisColonne.tsx');
 const sources = lit('app/(app)/jarvis/sources/page.tsx');
 const sAttribution = lit('app/(app)/jarvis/sections/SectionAttribution.tsx');
 const sEssais = lit('app/(app)/jarvis/sections/SectionEssais.tsx');
@@ -37,9 +38,11 @@ const adsmap = lit('app/(app)/adsmap/page.tsx');
 const veille = lit('app/(app)/veille/page.tsx');
 
 describe('Jarvis · la conversation, seule ; le détail à sa destination', () => {
-  it('la page de chat accueille la conversation et renvoie aux sources', () => {
+  it('la page de chat accueille la conversation et renvoie aux sources (colonne V5)', () => {
     expect(jarvis).toContain('<JarvisChat');
-    expect(jarvis).toContain('href="/jarvis/sources"');
+    // Le renvoi aux sources vit désormais dans la colonne secondaire
+    // (« Documents & sources »), pas dans un en-tête de la page.
+    expect(colonne).toContain('href="/jarvis/sources"');
   });
 
   it('la page de chat ne porte plus le tableau de bord', () => {

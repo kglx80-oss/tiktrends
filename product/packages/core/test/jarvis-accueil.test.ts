@@ -59,12 +59,20 @@ describe('completudeFicheJarvis · le score RÉEL, les manques cliquables', () =
 });
 
 describe('encartKpiJarvis · vide honnête tant qu’aucune source n’est agrégée', () => {
-  it('sans source · état vide, raison honnête, lien vers /connections', () => {
+  it('sans source · état vide, squelette des 4 cartes (libellés seuls), raison et mention honnêtes', () => {
     const e = encartKpiJarvis(null);
     expect(e.etat).toBe('vide');
     if (e.etat !== 'vide') throw new Error('attendu vide');
     expect(e.lien).toBe(LIEN_CONNEXIONS_KPI);
     expect(e.raison).not.toMatch(/\d/); // aucun chiffre inventé
+    // Les 4 cartes de la maquette existent en LIBELLÉ · aucune valeur fabriquée.
+    expect(e.cartes.map((c) => c.libelle)).toEqual(['Dépense', 'CPA', 'ROAS', 'Valeur d’achat']);
+    expect(e.cartes).not.toHaveProperty('0.valeur');
+    expect(e.plateforme).toBe('Meta Ads');
+    expect(e.periode).toBe('14 derniers jours');
+    expect(e.mention).toMatch(/production/i);
+    // La mention ne promet pas de montant · elle dit d'où viendront les chiffres.
+    expect(e.mention).not.toMatch(/€|\d+ ?%/);
   });
 
   it('source sans aucun KPI lu · reste vide (ne fabrique rien)', () => {

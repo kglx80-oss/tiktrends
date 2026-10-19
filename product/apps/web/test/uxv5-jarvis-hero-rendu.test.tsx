@@ -43,6 +43,8 @@ function filVide(brandName: string) {
       brandName,
       contexte: { brandId: 'B1', identity: null, rules: null, hooks: null, connaissances: null },
       sources: {},
+      conversationId: null,
+      conversations: [],
     },
   };
 }
@@ -55,7 +57,7 @@ afterEach(() => { act(() => { root?.unmount(); }); el?.remove(); root = null; el
 async function monter(brandName = 'Neva') {
   (chatThreadAction as unknown as Mock).mockResolvedValue(filVide(brandName));
   await act(async () => {
-    root!.render(<JarvisChat fiche={null} brandId="B1" kpiSource={null} />);
+    root!.render(<JarvisChat fiche={null} brandId="B1" brandName={brandName} kpiSource={null} projets={[]} />);
   });
   // Laisse l'effet de chargement résoudre et re-rendre le fil vide.
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });

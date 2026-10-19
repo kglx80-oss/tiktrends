@@ -106,30 +106,60 @@ export interface SourceDepenseJarvis {
 
 export const LIEN_CONNEXIONS_KPI = '/connections';
 
+/**
+ * Les quatre indicateurs de la maquette · leurs LIBELLÉS seulement. Aucune
+ * valeur n'est jamais fabriquée ici · tant qu'aucun connecteur publicitaire
+ * n'agrège la dépense, les cartes sont des squelettes vides (voir l'encart).
+ */
+export const KPIS_JARVIS = [
+  { cle: 'depense', libelle: 'Dépense' },
+  { cle: 'cpa', libelle: 'CPA' },
+  { cle: 'roas', libelle: 'ROAS' },
+  { cle: 'valeur', libelle: 'Valeur d’achat' },
+] as const;
+
+export const PLATEFORME_KPI_DEFAUT = 'Meta Ads';
+export const PERIODE_KPI_DEFAUT = '14 derniers jours';
+
+/** La mention basse · dit honnêtement d'où VIENDRONT ces chiffres, sans en inventer. */
+export const MENTION_KPI_PRODUCTION =
+  'En production · ces chiffres seront lus depuis les comptes publicitaires connectés. Aucune source n’est branchée aujourd’hui.';
+
 export type EncartKpiJarvis =
   | {
       etat: 'vide';
       titre: string;
+      plateforme: string;
+      periode: string;
+      /** Les quatre cartes, LIBELLÉS seuls · aucune valeur (squelette honnête). */
+      cartes: typeof KPIS_JARVIS;
       /** Pourquoi c'est vide · honnête, sans promettre un chiffre. */
       raison: string;
       lien: string;
       lienLibelle: string;
+      mention: string;
     }
   | { etat: 'source'; titre: string; plateforme: string; periode: string; kpis: SourceDepenseJarvis['kpis'] };
 
 /**
  * L'encart « Chiffres clés » · état VIDE tant qu'aucune source n'est lue, sinon
  * la source telle quelle. On ne fabrique jamais de chiffre : sans agrégation de
- * dépense, on nomme ce qui manque et on pointe vers `/connections`.
+ * dépense, la présentation (4 cartes, légende, plateforme, période) est rendue
+ * mais les valeurs restent vides, on nomme ce qui manque et on pointe vers
+ * `/connections`.
  */
 export function encartKpiJarvis(source: SourceDepenseJarvis | null): EncartKpiJarvis {
   if (!source || source.kpis.length === 0) {
     return {
       etat: 'vide',
       titre: 'Chiffres clés',
+      plateforme: PLATEFORME_KPI_DEFAUT,
+      periode: PERIODE_KPI_DEFAUT,
+      cartes: KPIS_JARVIS,
       raison: 'La dépense pub n’est pas encore agrégée chez nous · aucun chiffre à montrer tant qu’une source n’est pas branchée.',
       lien: LIEN_CONNEXIONS_KPI,
       lienLibelle: 'Brancher une source',
+      mention: MENTION_KPI_PRODUCTION,
     };
   }
   return { etat: 'source', titre: 'Chiffres clés', plateforme: source.plateforme, periode: source.periode, kpis: source.kpis };
