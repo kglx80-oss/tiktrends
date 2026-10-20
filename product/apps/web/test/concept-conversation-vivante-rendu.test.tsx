@@ -85,6 +85,10 @@ describe('GUARD #5 · l’écran du concept héberge le chat À CÔTÉ des créa
     expect(chat, 'colonne conversation absente').not.toBeNull();
     expect(chat.textContent).toContain('Un concept de rentrée');
     expect(chat.querySelector('textarea'), 'composeur du chat absent').not.toBeNull();
+    // Coût annoncé AVANT l'envoi · un message Jarvis coûte des crédits, jamais promis gratuit.
+    const cout = chat.querySelector('[data-cout-message]');
+    expect(cout?.textContent, 'coût du message non annoncé').toContain('crédit');
+    expect(cout?.textContent, 'aucune promesse de gratuité').not.toContain('gratuit');
     // La zone CRÉATIONS · le panneau de propositions EXISTANT, pas une fausse carte.
     const creations = d.querySelector('[data-pane="creations"]')!;
     expect(creations, 'colonne créations absente').not.toBeNull();

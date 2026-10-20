@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, sansTiretCadratin, verrouAction, visibleWhileStreaming } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, costFor, sansTiretCadratin, verrouAction, visibleWhileStreaming } from '@tiktrends/core';
 import { chatThreadAction, type ChatThread, type ChatTurn } from '../../../app/actions/jarvis-chat';
 import { Tour } from '../../../app/(app)/jarvis/JarvisChat';
 import { PropositionsProjet } from './PropositionsProjet';
@@ -165,6 +165,7 @@ export function ConceptHote({ projectId, brandName, kind, generationImageActive,
           {enCours ? <span style={{ fontWeight: 800, fontSize: 13 }}>…</span> : <Icon name="spark" size={16} />}
         </button>
       </div>
+      <p data-cout-message style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>Chaque message à Jarvis coûte {costFor('chat')} crédit{costFor('chat') > 1 ? 's' : ''} · la génération se facture à part, par un devis.</p>
     </section>
   );
 

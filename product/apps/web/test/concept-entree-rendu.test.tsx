@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { EtatNouveauProjet } from '@tiktrends/core';
+import { costFor, type EtatNouveauProjet } from '@tiktrends/core';
 
 /**
  * Parcours « Nouveau concept créatif » · l'ENTRÉE (mandat Kevin du 20/10). On
@@ -82,6 +82,14 @@ describe('écran « Nouveau concept créatif » · accroche + composeur à envoi
     // Rien qui écrive au rendu · aucun formulaire ne poste d’action (l'envoi est
     // un bouton, pas un `<form>` ; rien n'est créé tant que rien n'est envoyé).
     expect(d.querySelector('form')).toBeNull();
+  });
+
+  it('annonce le coût AVANT l’envoi · un message Jarvis coûte des crédits, jamais promis gratuit', () => {
+    const d = dom(renderToStaticMarkup(<NouveauConcept etat={pret} />));
+    const cout = d.querySelector('[data-cout-message]');
+    expect(cout, 'mention de coût du message absente').not.toBeNull();
+    expect(cout!.textContent).toContain(`${costFor('chat')} crédit`);
+    expect(cout!.textContent, 'aucune promesse de gratuité').not.toContain('gratuit');
   });
 
   it('états repris du noyau · sans marque mène aux marques, lecture seule le dit', () => {

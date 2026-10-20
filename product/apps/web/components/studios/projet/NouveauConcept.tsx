@@ -2,7 +2,7 @@
 
 import { useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { accrocheNouveauConcept, CIBLE_TACTILE_MIN, verrouAction, type EtatNouveauProjet } from '@tiktrends/core';
+import { accrocheNouveauConcept, CIBLE_TACTILE_MIN, costFor, verrouAction, type EtatNouveauProjet } from '@tiktrends/core';
 import { Icon } from '../../Icon';
 import { demarrerConcept } from '../../../app/actions/studios/concept';
 
@@ -97,7 +97,7 @@ export function NouveauConcept({ etat }: { etat: EtatNouveauProjet }) {
           style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: 0, border: 'none', background: 'transparent', color: 'var(--ink)', fontSize: 16, fontFamily: 'inherit', resize: 'none', lineHeight: 1.5, outline: 'none' }}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ ...note, color: 'var(--muted)' }}>Ton premier message démarre le concept · la génération et sa facturation viennent plus tard, par un devis.</span>
+          <span data-cout-message style={{ ...note, color: 'var(--muted)' }}>Ton premier message démarre le concept · chaque message à Jarvis coûte {costFor('chat')} crédit{costFor('chat') > 1 ? 's' : ''} · la génération se facture plus tard, par un devis.</span>
           {/* Envoi RÉEL · le premier message crée le concept (projet + conversation
               liée) puis part vers Jarvis. Rien n'est créé tant que rien n'est envoyé. */}
           <button
