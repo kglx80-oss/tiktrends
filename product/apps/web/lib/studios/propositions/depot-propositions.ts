@@ -11,7 +11,7 @@ import {
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
-import { estUuid } from '../depot';
+import { estUuid, violationsPorteeAdsmap } from '../depot';
 import type { BaseStudio, ExecStudio } from '../execution/types';
 import type { CiblePresentee, ImpactPresente, ListePropositions, OrigineProposition, PropositionPresentee, ResultatApplication } from './types';
 
@@ -363,6 +363,14 @@ export async function appliquerProposition(ctx: ContexteStudio, e: EntreeApplica
             throw new Refus(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, targetIds: [l!.id], violations: d.violations }));
         }
       }
+
+      // Références Adsmap V5 · une proposition peut patcher `/brief/*Ref` ·
+      // on referme ici le MÊME contrôle de portée qu'à la création/édition,
+      // sinon appliquer une proposition écrit une version avec une `*Ref` hors
+      // portée (recette Codex 20 oct · ce chemin contournait le garde). Portée
+      // = la marque du projet ; lecture via le `tx` de la transaction.
+      const vAdsmap = await violationsPorteeAdsmap(ctx, projet!.brandId, (d.resultat as ContenuVersion).brief, '/contenu/brief', tx);
+      if (vAdsmap.length) throw new Refus(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, targetIds: [l!.id], violations: vAdsmap }));
 
       const empreinte = empreinteContenu(d.resultat);
       let nouvelle: Version = courante;

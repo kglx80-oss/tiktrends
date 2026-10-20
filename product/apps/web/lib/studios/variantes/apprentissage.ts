@@ -11,6 +11,7 @@ import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
 import type { BaseStudio, ExecStudio } from '../execution/types';
 import { executerTache } from '../prompts/resolveur';
+import { violationsPorteeAdsmap } from '../depot';
 import type { AdaptateurModele } from '../prompts/adaptateur';
 import type { EnvironnementPrompts } from '../prompts/environnement';
 import { porteeSql, horsPortee, introuvable, echecPersistance, Refus, estUuid, iso, type Resultat } from './commun';
@@ -278,6 +279,12 @@ export async function iterer(ctx: ContexteStudio, e: EntreeIteration, base: Base
       const contenu: ContenuVersion = { ...contenuDepuis, brief: prep.brief };
       const violations = validerContenuVersion(contenu);
       if (violations.length) throw new Refus(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations }));
+      // Références Adsmap V5 · l'itération dérive le brief d'une version source ·
+      // on referme par cohérence le même contrôle de portée que les autres
+      // écritures de version (défense · une `*Ref` héritée hors portée ne se
+      // re-persiste pas). Portée = la marque du projet, lecture via le `tx`.
+      const vAdsmap = await violationsPorteeAdsmap(ctx, projet!.brandId, contenu.brief, '/contenu/brief', tx);
+      if (vAdsmap.length) throw new Refus(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: vAdsmap }));
 
       const variableGardee = variableTest !== null && variable === variableTest;
       const raison = typeof e.raison === 'string' && e.raison.trim() ? e.raison.slice(0, 2000)

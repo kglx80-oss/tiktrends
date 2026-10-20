@@ -5,10 +5,13 @@ import { db, schema } from '@tiktrends/db';
 import {
   appliquerPatch, validerContenuVersion, validerFormeBrief, empreinteContenu, differencesDetaillees, contenuVide,
   objetDansPortee, erreurStudio, estIdStable, SCHEMA_VERSION_CONTENU, CLES_CONTENU,
-  type ContenuVersion, type ErreurStudio,
+  refsAdsmapCitees, violationsReferencesAdsmapBrief,
+  type ContenuVersion, type ErreurStudio, type BriefCanonique,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
 import { ajouterAudit } from './audit';
+import { scopeEtResolveurAdsmap } from './references-adsmap';
+import type { ExecStudio } from './execution/types';
 
 /**
  * Dépôt des studios · lecture et écriture des projets, versions, dispositions,
@@ -142,6 +145,26 @@ export interface EntreeCreation {
   raison?: unknown;
 }
 
+/**
+ * Violations de PORTÉE des références Adsmap citées par un brief, pour une
+ * écriture serveur (création OU édition). Vide si le brief ne cite aucune
+ * `*Ref` (aucune requête · compat ascendante). Le résolveur est en lecture
+ * seule, cantonné à la session (workspace courant) · le refus est INDISTINCT
+ * (absente ou hors portée · même raison). Partagé par `creerProjet` et
+ * `enregistrerVersion` pour que les DEUX chemins d'écriture ferment le même
+ * défaut : une `*Ref` d'une autre marque/espace ne s'écrit jamais.
+ */
+export async function violationsPorteeAdsmap(
+  ctx: ContexteStudio, brandId: string, brief: unknown, chemin: string, base: ExecStudio = db,
+): Promise<Array<{ chemin: string; raison: string }>> {
+  if (typeof brief !== 'object' || brief === null) return [];
+  const b = brief as BriefCanonique;
+  const refs = refsAdsmapCitees(b);
+  if (refs.length === 0) return [];
+  const sr = await scopeEtResolveurAdsmap(ctx.workspaceId, brandId, refs, base);
+  return sr ? violationsReferencesAdsmapBrief(b, sr.scope, sr.resolveur, chemin) : [];
+}
+
 export async function creerProjet(ctx: ContexteStudio, e: EntreeCreation): Promise<Resultat<{ projet: ProjetStudio; version: VersionStudio }>> {
   if (!estUuid(e.brandId) || !ctx.marques.includes(e.brandId)) return introuvable(ctx);
   const violations: Array<{ chemin: string; raison: string }> = [];
@@ -155,6 +178,14 @@ export async function creerProjet(ctx: ContexteStudio, e: EntreeCreation): Promi
   // rien. `validerContenuVersion` n'exige qu'un objet ou `null` pour `brief` ;
   // on refuse un brief présent mais mal formé plutôt que d'écrire un illisible.
   if (contenu && contenu.brief != null) violations.push(...validerFormeBrief(contenu.brief, '/contenu/brief'));
+  // Références Adsmap V5 · EN PLUS de la forme, chaque `*Ref` citée doit exister
+  // ET tomber dans la portée de la marque. Défaut historique : `creerProjet` ne
+  // validait que la FORME · une `personaRef` (ou toute `*Ref`) inexistante ou
+  // d'une autre marque/espace passait. On ne contrôle que si la forme du brief
+  // est déjà bonne (sinon on refuse déjà).
+  if (contenu && contenu.brief != null && !violations.some((x) => x.chemin.startsWith('/contenu/brief'))) {
+    violations.push(...await violationsPorteeAdsmap(ctx, e.brandId as string, contenu.brief, '/contenu/brief'));
+  }
   if (violations.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations });
 
   const brandId = e.brandId;
@@ -238,6 +269,12 @@ export async function enregistrerVersion(ctx: ContexteStudio, e: EntreeEnregistr
       // L8-C · refus seulement si le contenu GRANDIT au-delà des limites (un contenu hérité peut descendre).
       const violations = validerContenuVersion(r.resultat, { base: courante.content });
       if (violations.length) throw new Refus(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations }));
+      // Références Adsmap V5 · l'éditeur peut patcher `/brief` (chemin éditeur) ·
+      // on referme ici le MÊME contrôle de portée qu'à la création, sinon une
+      // `*Ref` d'une autre marque/espace pourrait être écrite APRÈS coup (IDOR
+      // latent · relecture sécurité #837). Portée = la marque du projet.
+      const vAdsmap = await violationsPorteeAdsmap(ctx, projet!.brandId, (r.resultat as ContenuVersion).brief, '/contenu/brief', tx);
+      if (vAdsmap.length) throw new Refus(erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: vAdsmap }));
 
       const empreinte = empreinteContenu(r.resultat);
       if (empreinte === courante.contentHash) return { ok: true as const, version: courante, inchange: true };

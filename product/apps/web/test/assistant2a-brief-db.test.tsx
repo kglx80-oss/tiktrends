@@ -30,18 +30,22 @@ vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 
 import { db, schema, eq } from '@tiktrends/db';
 import { construireBriefV5, contenuVide, type SaisieBriefV5, type ContenuVersion } from '@tiktrends/core';
+import { randomUUID } from 'node:crypto';
 import { session, semer } from './studios-semis';
 import { creerProjet } from '../app/actions/studios/projets';
 import { lireProjetDetail } from '../app/actions/studios/sources';
 
 const ids = etat.ids;
+// Persona RÉELLE de la marque du projet · la portée Adsmap (contrôlée désormais
+// à la création) exige que `personaRef` cite une ligne existante de la marque.
+const PERSONA_A1 = randomUUID();
 
 const saisie: SaisieBriefV5 = {
   intention: 'Vendre les lunettes de natation aux parents',
   audience: 'Parents d’enfants de 4 à 10 ans',
   objectifType: 'conversion',
   plateformes: ['meta_feed', 'tiktok'],
-  persona: { id: 'persona-claire', label: 'Claire, maman active' },
+  persona: { id: PERSONA_A1, label: 'Claire, maman active' },
   angle: 'Le premier plongeon',
   concept: 'Un été ludique',
   contraintes: 'Montrer le produit en entier\nPas de visage identifiable',
@@ -49,7 +53,7 @@ const saisie: SaisieBriefV5 = {
 
 const contenuV5 = (): ContenuVersion => ({ ...contenuVide(), brief: construireBriefV5(saisie) as unknown as ContenuVersion['brief'] });
 
-beforeAll(async () => { await semer(db, schema, ids); });
+beforeAll(async () => { await semer(db, schema, ids); await db.insert(schema.personas).values({ id: PERSONA_A1, brandId: ids.brandA1, name: 'Claire, maman active' }); });
 beforeEach(() => { etat.session = session(ids, 'ua'); });
 
 describe('brief V5 persisté à la création, relu à l’identique', () => {
@@ -63,7 +67,7 @@ describe('brief V5 persisté à la création, relu à l’identique', () => {
     const briefBase = (v!.content as { brief: Record<string, unknown> }).brief;
     expect(briefBase.objectifType).toBe('conversion');
     expect(briefBase.plateformes).toEqual(['meta_feed', 'tiktok']);
-    expect(briefBase.personaRef).toEqual({ id: 'persona-claire', label: 'Claire, maman active' });
+    expect(briefBase.personaRef).toEqual({ id: PERSONA_A1, label: 'Claire, maman active' });
     expect(briefBase.angle).toBe('Le premier plongeon');
     expect(briefBase.concept).toBe('Un été ludique');
     expect(briefBase.invariants).toEqual(['Montrer le produit en entier', 'Pas de visage identifiable']);
@@ -78,7 +82,7 @@ describe('brief V5 persisté à la création, relu à l’identique', () => {
     expect(b.audience).toBe('Parents d’enfants de 4 à 10 ans');
     expect(b.objectifType).toBe('conversion');
     expect(b.plateformes).toEqual(['meta_feed', 'tiktok']);
-    expect(b.personaRef).toEqual({ id: 'persona-claire', label: 'Claire, maman active' });
+    expect(b.personaRef).toEqual({ id: PERSONA_A1, label: 'Claire, maman active' });
     expect(b.angle).toBe('Le premier plongeon');
     expect(b.concept).toBe('Un été ludique');
   });
