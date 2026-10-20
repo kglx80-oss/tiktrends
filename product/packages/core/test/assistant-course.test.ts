@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MESSAGE_LANCEMENT_INCERTAIN, MESSAGE_DEVIS_INCONNU, peutConfirmerLancement,
-  signatureChoixDevis, verdictDevisRecu,
+  signatureChoixDevis, verdictDevisRecu, devisIndicatifImage,
 } from '../src/studios/ux/assistant-course';
 import type { SaisieFormat } from '../src/studios/ux/assistant-projet';
 
@@ -88,6 +88,43 @@ describe('verdict d’un devis reçu · courses réseau (promesses retardées / 
   });
 });
 
+describe('devis INDICATIF · un CALCUL (0 $, aucune action serveur) atteignable depuis un projet neuf', () => {
+  // Montants de grille utilisés par les tests · le prix et la borne viennent du
+  // serveur (prixImage, borneControleVisionParImageMicros), ici on ASSEMBLE.
+  const prix = { credits: 4, usdMicros: 600_000 };
+  const borne = 147_000;
+
+  it('image seule (relecture indisponible) ⇒ une ligne, total = prix de l’image', () => {
+    const d = devisIndicatifImage({ prix, relectureDisponible: false, relectureAuto: true, borneRelectureParImageUsdMicros: borne });
+    expect(d.lignes.map((l) => l.cle)).toEqual(['image']);
+    expect(d.usdMicros).toBe(600_000);
+    expect(d.credits).toBe(4);
+    expect(d.lignes[0]!.borne).toBe(true);
+  });
+
+  it('relecture disponible ET cochée ⇒ deux lignes, total = image + borne de relecture, crédits inchangés', () => {
+    const d = devisIndicatifImage({ prix, relectureDisponible: true, relectureAuto: true, borneRelectureParImageUsdMicros: borne });
+    expect(d.lignes.map((l) => l.cle)).toEqual(['image', 'relecture']);
+    expect(d.usdMicros).toBe(600_000 + 147_000);
+    // la relecture est à 0 crédit · le prix en crédits de l'offre ne change pas.
+    expect(d.credits).toBe(4);
+  });
+
+  it('relecture décochée ⇒ la ligne de relecture disparaît, le total RETOMBE à l’image seule', () => {
+    const avec = devisIndicatifImage({ prix, relectureDisponible: true, relectureAuto: true, borneRelectureParImageUsdMicros: borne });
+    const sans = devisIndicatifImage({ prix, relectureDisponible: true, relectureAuto: false, borneRelectureParImageUsdMicros: borne });
+    expect(avec.usdMicros).toBeGreaterThan(sans.usdMicros);
+    expect(sans.lignes.map((l) => l.cle)).toEqual(['image']);
+    expect(sans.usdMicros).toBe(600_000);
+  });
+
+  it('borne de relecture nulle ⇒ jamais de ligne de relecture (rien à chiffrer), aucune valeur inventée', () => {
+    const d = devisIndicatifImage({ prix, relectureDisponible: true, relectureAuto: true, borneRelectureParImageUsdMicros: 0 });
+    expect(d.lignes.map((l) => l.cle)).toEqual(['image']);
+    expect(d.usdMicros).toBe(600_000);
+  });
+});
+
 /*
  * Mutations éprouvées (cassées → test rouge sur la bonne assertion → restaurées) :
  *  · MESSAGE_LANCEMENT_INCERTAIN remis à « rien n’a été débité » → « le message… » tombe (toBe + not.toMatch).
@@ -95,4 +132,6 @@ describe('verdict d’un devis reçu · courses réseau (promesses retardées / 
  *  · verdictDevisRecu ignorant la signature (retour accepte:true) → « choix changés » tombe (perime).
  *  · verdictDevisRecu ignorant devisReluId ≠ devisCreeId → « dernier devis du projet » tombe (non-correle).
  *  · verdictDevisRecu ignorant la séquence → « seconde demande obsolète » tombe.
+ *  · devisIndicatifImage ajoutant toujours la ligne de relecture (ignorant relectureAuto/disponible) → « décochée » et « image seule » tombent.
+ *  · devisIndicatifImage comptant la borne de relecture en crédits → « crédits inchangés » tombe.
  */

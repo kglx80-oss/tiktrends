@@ -78,3 +78,68 @@ export function verdictDevisRecu(e: {
   if (!e.devisCreeId || !e.devisReluId || e.devisReluId !== e.devisCreeId) return { accepte: false, raison: 'non-correle' };
   return { accepte: true };
 }
+
+/* ───────────── Devis INDICATIF · un CALCUL, 0 $, aucune action serveur ──────── */
+
+/**
+ * Le « devis vivant » d'un projet NEUF.
+ *
+ * ── Le défaut réparé ─────────────────────────────────────────────────────────
+ *
+ * Depuis un projet neuf (assistant, étape Format), le SEUL devis câblé était le
+ * devis SERVEUR immuable (`demanderDevisImage`). Il exige une consigne image
+ * COMPILÉE et RETENUE · or la compilation est un appel texte PAYANT que le
+ * parcours neuf ne fait pas. Résultat : « Voir le devis serveur » renvoyait
+ * « Aucune consigne image retenue… » et le projet neuf n'atteignait AUCUN
+ * montant affiché avant un clic payant. La promesse V5 (« devis recalculé à
+ * chaque changement », maquette B23) restait hors de portée.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ * Un devis est d'abord un CALCUL. À partir des montants que le serveur a DÉJÀ
+ * renvoyés pour ce projet (prix d'une image de la grille · `prixImage`, borne
+ * du contrôle visuel par image · `borneControleVisionParImageMicros`), on
+ * assemble ce que coûterait la production d'UNE image dans le format choisi,
+ * avec ou sans relecture. Ce montant s'affiche AVANT tout clic payant, se
+ * recalcule quand la relecture change, et n'écrit, n'appelle, ne dépense RIEN.
+ *
+ * Aucune valeur n'est inventée : on n'ASSEMBLE que des montants déjà mesurés
+ * ailleurs. Le devis serveur (étape suivante) fige ce prix et reste la SEULE
+ * voie vers une génération · lui seul exige la consigne compilée.
+ */
+export interface LigneDevisIndicatif {
+  /** Discriminant stable · l'écran et la garde s'y accrochent, jamais au libellé. */
+  cle: 'image' | 'relecture';
+  libelle: string;
+  usdMicros: number;
+  /** `true` · montant BORNÉ (grille / borne du contrôle visuel), jamais une estimation floue. */
+  borne: boolean;
+}
+
+export interface DevisIndicatif {
+  lignes: LigneDevisIndicatif[];
+  credits: number;
+  usdMicros: number;
+}
+
+export function devisIndicatifImage(e: {
+  prix: { credits: number; usdMicros: number };
+  relectureDisponible: boolean;
+  relectureAuto: boolean;
+  borneRelectureParImageUsdMicros: number;
+}): DevisIndicatif {
+  const lignes: LigneDevisIndicatif[] = [
+    { cle: 'image', libelle: 'Image · publicité', usdMicros: Math.max(0, Math.trunc(e.prix.usdMicros)), borne: true },
+  ];
+  // La relecture n'entre au calcul que si le serveur sait l'exécuter ici ET
+  // qu'elle est cochée · même condition que la ligne du devis serveur (R3).
+  if (e.relectureDisponible && e.relectureAuto && e.borneRelectureParImageUsdMicros > 0) {
+    lignes.push({ cle: 'relecture', libelle: 'Relecture automatique · par image', usdMicros: Math.trunc(e.borneRelectureParImageUsdMicros), borne: true });
+  }
+  return {
+    lignes,
+    // La relecture est à 0 crédit (le prix en crédits de l'offre ne change pas).
+    credits: Math.max(0, Math.trunc(e.prix.credits)),
+    usdMicros: lignes.reduce((s, l) => s + l.usdMicros, 0),
+  };
+}

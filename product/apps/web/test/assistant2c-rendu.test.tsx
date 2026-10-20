@@ -290,6 +290,50 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     await fermer();
   });
 
+  it('un projet NEUF (aucune consigne retenue, aucun devis serveur) voit un devis INDICATIF (calcul) AVANT tout clic payant', async () => {
+    // vue d'un projet neuf : génération active, prix de grille connu, mais
+    // aucune consigne retenue ni devis serveur (le devis serveur exige une
+    // compilation payante · hors parcours neuf). Le devis indicatif est un CALCUL.
+    h.vue = vueParcours(null);
+    const { hote, fermer } = await monter(
+      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={briefVide}
+        onBriefChange={() => {}} onDevisPret={() => {}} onRetour={() => {}} />,
+    );
+    await flush();
+    // RÉSULTAT lu dans le HTML : le bloc indicatif est présent, AVANT le bouton payant.
+    const bloc = hote.querySelector('[data-zone="devis-indicatif"]');
+    expect(bloc, 'aucun devis indicatif rendu pour un projet neuf').not.toBeNull();
+    const prix = hote.querySelector('[data-prix="indicatif"]') as HTMLElement | null;
+    expect(prix, 'montant indicatif absent').not.toBeNull();
+    // relecture cochée par défaut · 600 000 (image) + 147 000 (relecture) = 747 000 micros = 0,75 $
+    expect(prix!.textContent ?? '').toContain('0,75');
+    // le devis indicatif PRÉCÈDE le bouton « Voir le devis serveur » dans le DOM.
+    const bouton = hote.querySelector('[data-bouton="voir-devis"]');
+    expect(bouton, 'bouton de devis serveur absent').not.toBeNull();
+    expect(bloc!.compareDocumentPosition(bouton!) & Node.DOCUMENT_POSITION_FOLLOWING, 'le bouton payant ne suit pas le devis indicatif').toBeTruthy();
+    // aucune demande serveur n'a été faite pour afficher ce calcul (0 clic payant).
+    expect(h.devisDemande, 'le devis indicatif ne doit appeler aucune action serveur').toHaveLength(0);
+    await fermer();
+  });
+
+  it('le devis INDICATIF se RECALCULE quand la relecture change (calcul, aucune action serveur)', async () => {
+    h.vue = vueParcours(null);
+    const { hote, fermer } = await monter(
+      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={{ ...briefVide, formats: ['4:5'] }}
+        onBriefChange={() => {}} onDevisPret={() => {}} onRetour={() => {}} />,
+    );
+    await flush();
+    const prix = () => (hote.querySelector('[data-prix="indicatif"]') as HTMLElement).textContent ?? '';
+    expect(prix(), 'relecture ON · image + relecture').toContain('0,75');
+    // décocher la relecture · le total retombe à l'image seule (0,60 $), la ligne relecture disparaît.
+    await clic(hote.querySelector('[data-champ="relecture"] input'));
+    await flush();
+    expect(prix(), 'relecture OFF · image seule').toContain('0,60');
+    expect(hote.querySelector('[data-zone="devis-indicatif"] [data-ligne="relecture"]'), 'la ligne relecture doit disparaître').toBeNull();
+    expect(h.devisDemande, 'le recalcul est un CALCUL · aucune action serveur').toHaveLength(0);
+    await fermer();
+  });
+
   it('génération coupée pour l’espace ⇒ état honnête, aucun bouton de devis', async () => {
     h.vue = null; // lireParcoursImage renvoie UNSUPPORTED_CAPABILITY
     const { hote, fermer } = await monter(

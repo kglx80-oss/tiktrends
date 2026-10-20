@@ -5,6 +5,7 @@ import {
   OPTIONS_FORMAT_ASSISTANT, saisieFormatDepuisBrief, changementFormatManuel, formatDejaEcrit, controleVisionDevis,
   capacitesDuRefus, libelleCaseControleVision, ALLOWED_PATHS_BRIEF, CIBLE_TACTILE_MIN, teinte,
   signatureChoixDevis, verdictDevisRecu, MESSAGE_DEVIS_INCONNU,
+  devisIndicatifImage, libelleCredits, libelleUsd,
   type SaisieFormat, type BriefCanonique, type FormatDocument, type ErreurStudio,
 } from '@tiktrends/core';
 import { lireParcoursImage, demanderDevisImage } from '../../../app/actions/studios/image';
@@ -73,6 +74,20 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   // la laisse décochée (aucune promesse) et on le dit.
   const relectureDisponible = !!vue?.controleVision?.disponible;
   const relecture = relectureDisponible && saisie.relectureAuto;
+
+  // Devis INDICATIF · un CALCUL assemblé des montants que le serveur a déjà
+  // renvoyés (prix de grille, borne du contrôle visuel). Affiché AVANT tout
+  // clic payant, recalculé quand la relecture change · n'appelle rien, ne
+  // dépense rien. Le devis serveur (ci-dessous) fige ce prix et exige, lui, la
+  // consigne compilée (appel texte payant, hors parcours neuf).
+  const devisIndic = vue
+    ? devisIndicatifImage({
+        prix: vue.prix,
+        relectureDisponible,
+        relectureAuto: saisie.relectureAuto,
+        borneRelectureParImageUsdMicros: vue.controleVision.borneParImageUsdMicros,
+      })
+    : null;
 
   // Signature des choix AFFICHÉS à l'instant · lue au retour du devis pour
   // rejeter une réponse qui ne correspond plus à ce qu'on voit (devis périmé).
@@ -178,6 +193,24 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
             )}
             <p style={{ ...note, fontSize: 12 }}>Fidélité produit, texte, marges, allégations · relue à la génération. Pas de choix de moteur ni de score ici.</p>
           </section>
+
+          {devisIndic && (
+            <section data-zone="devis-indicatif" aria-label="Devis indicatif" style={{ display: 'grid', gap: 8, border: '1px solid var(--line)', borderRadius: 10, padding: 14, background: 'var(--surface)' }}>
+              <span style={sectionLbl}>Estimation</span>
+              <p data-prix="indicatif" style={{ margin: 0, fontSize: 15, color: 'var(--ink)' }}>
+                <strong>{libelleUsd(devisIndic.usdMicros)}</strong> · {libelleCredits(devisIndic.credits)}
+              </p>
+              <ul data-lignes="indicatif" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
+                {devisIndic.lignes.map((l) => (
+                  <li key={l.cle} data-ligne={l.cle} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13.5, color: 'var(--ink-2)' }}>
+                    <span>{l.libelle}</span>
+                    <span style={{ color: 'var(--ink)' }}>{libelleUsd(l.usdMicros)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p style={{ ...note, fontSize: 12 }}>Estimation calculée sur ces paramètres · aucun débit. Le devis serveur la fige à l’étape suivante.</p>
+            </section>
+          )}
 
           <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
             <button type="button" data-bouton="retour-direction" onClick={onRetour} disabled={occupe} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN, opacity: occupe ? 0.6 : 1 }}>‹ Direction</button>
