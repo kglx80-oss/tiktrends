@@ -77,14 +77,20 @@ describe('/studio/projets · l’entrée « Nouveau concept créatif » navigue,
     expect(d.querySelector('#np-titre')).toBeNull();
   });
 
-  it('rendre l’écran de concept n’écrit AUCUNE ligne `studio_projects` · accroche + composeur inerte', async () => {
+  it('rendre l’écran de concept n’écrit AUCUNE ligne `studio_projects` · accroche + composeur à envoi réel', async () => {
+    // GUARD #1 (garde-le vert) · le GET n'écrit RIEN · la création est DIFFÉRÉE
+    // au premier message (PR3), elle ne part pas au rendu.
     const avant = (await projetsDe(ids.brandA1, ids.ua)).length;
     const d = await rendu(NouveauConceptPage());
     expect((await projetsDe(ids.brandA1, ids.ua)).length, 'l’ouverture de l’écran a écrit en base').toBe(avant);
     expect(d.querySelector('[data-concept="pret"] [data-accroche]')?.textContent).toBe('Que veux-tu créer pour Marque A1 ?');
     expect(d.querySelector('[data-composeur] textarea')).not.toBeNull();
-    const envoi = d.querySelector('[data-envoi="a-venir"]') as HTMLButtonElement | null;
-    expect(envoi?.disabled, 'l’envoi n’est pas désactivé').toBe(true);
+    // L'envoi est RÉEL (plus « à venir ») mais désactivé tant que la saisie est
+    // vide · au rendu, il n'écrit rien (vérifié ci-dessus).
+    expect(d.querySelector('[data-envoi="a-venir"]')).toBeNull();
+    const envoi = d.querySelector('[data-envoi="pret"]') as HTMLButtonElement | null;
+    expect(envoi, 'bouton d’envoi absent').not.toBeNull();
+    expect(envoi!.disabled, 'l’envoi devrait être désactivé tant que la saisie est vide').toBe(true);
     expect(d.querySelector('form')).toBeNull();
   });
 });

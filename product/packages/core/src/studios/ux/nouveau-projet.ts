@@ -76,6 +76,23 @@ export function titreNouveauProjetParDefaut(type: TypeNouveauProjet, marque: str
   return `${LIBELLES_TYPE_PROJET[type] ?? 'Projet'} · ${marque}`.slice(0, TITRE_NOUVEAU_PROJET_MAX);
 }
 
+/**
+ * Le type par défaut d'un concept créatif (mandat Kevin du 20/10) · l'entrée
+ * conversationnelle crée un projet studio `ads`, le cœur de l'outil (créatives
+ * winneuses). Pur · le serveur (`demarrerConcept`) le lit pour appeler
+ * l'écriture canonique `creerProjet` SANS redécider le type dans du JSX.
+ */
+export const KIND_CONCEPT_DEFAUT: TypeNouveauProjet = 'ads';
+
+/**
+ * Ce que le PREMIER message du concept crée · le type et le titre dérivé de la
+ * marque, pour l'écriture canonique `creerProjet`. Pur et testable · la décision
+ * ne vit pas dans le composeur ni dans l'action serveur.
+ */
+export function conceptParDefaut(marque: string): { kind: TypeNouveauProjet; title: string } {
+  return { kind: KIND_CONCEPT_DEFAUT, title: titreNouveauProjetParDefaut(KIND_CONCEPT_DEFAUT, marque) };
+}
+
 /** Vérification avant envoi · le message dit quoi corriger. Le serveur revérifie tout. */
 export function verifierNouveauProjet(e: { titre: string; type: string }):
   | { ok: true; titre: string; type: TypeNouveauProjet }

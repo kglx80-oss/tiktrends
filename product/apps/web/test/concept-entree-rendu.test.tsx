@@ -10,8 +10,8 @@ import type { EtatNouveauProjet } from '@tiktrends/core';
  *  · le CTA porte le nouveau libellé et NAVIGUE vers l'écran de concept ;
  *  · il n'ouvre PLUS la modale Titre/Type (aucun formulaire de création) ;
  *  · l'écran de concept rend l'accroche nommant la marque ;
- *  · cet écran est INERTE · composeur présent, envoi « à venir », aucun
- *    formulaire d'action serveur.
+ *  · le composeur porte un envoi RÉEL (plus « à venir ») · c'est le premier
+ *    message qui démarre le concept (PR3), jamais le rendu ; aucun formulaire.
  */
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }) }));
@@ -62,21 +62,25 @@ describe('CTA « Nouveau concept créatif » · navigue, n’ouvre plus de modal
   });
 });
 
-describe('écran « Nouveau concept créatif » · accroche + composeur inerte', () => {
+describe('écran « Nouveau concept créatif » · accroche + composeur à envoi réel', () => {
   it('rend l’accroche nommant la marque active', () => {
     const d = dom(renderToStaticMarkup(<NouveauConcept etat={pret} />));
     expect(d.querySelector('[data-concept="pret"] [data-accroche]')?.textContent).toBe('Que veux-tu créer pour Neva ?');
   });
 
-  it('composeur présent, envoi HONNÊTEMENT « à venir », AUCUN formulaire d’action serveur', () => {
+  it('composeur présent, envoi RÉEL (plus « à venir »), désactivé tant que vide, AUCUN formulaire', () => {
     const d = dom(renderToStaticMarkup(<NouveauConcept etat={pret} />));
     expect(d.querySelector('[data-composeur] textarea'), 'composeur absent').not.toBeNull();
-    const envoi = d.querySelector('[data-envoi="a-venir"]');
+    // L'envoi n'est plus « à venir » · c'est un vrai bouton (la création démarre
+    // au premier message, PR3), désactivé tant que la saisie est vide.
+    expect(d.querySelector('[data-envoi="a-venir"]'), 'l’envoi « à venir » devrait avoir disparu').toBeNull();
+    const envoi = d.querySelector('[data-envoi="pret"]');
     expect(envoi, 'bouton d’envoi absent').not.toBeNull();
-    expect((envoi as HTMLButtonElement).disabled, 'l’envoi n’est pas désactivé · il simulerait une création').toBe(true);
-    expect(envoi!.getAttribute('aria-disabled')).toBe('true');
-    expect(envoi!.textContent).toContain('Bientôt');
-    // Rien qui écrive au rendu · aucun formulaire ne poste d’action.
+    expect((envoi as HTMLButtonElement).disabled, 'l’envoi devrait être désactivé tant que la saisie est vide').toBe(true);
+    expect(envoi!.textContent).toContain('Envoyer');
+    expect(envoi!.textContent).not.toContain('Bientôt');
+    // Rien qui écrive au rendu · aucun formulaire ne poste d’action (l'envoi est
+    // un bouton, pas un `<form>` ; rien n'est créé tant que rien n'est envoyé).
     expect(d.querySelector('form')).toBeNull();
   });
 
