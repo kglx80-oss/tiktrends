@@ -49,7 +49,7 @@ const reponse: CSSProperties = {
   color: 'var(--ink)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
 };
 
-export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brouillonInitial = '' }: {
+export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brouillonInitial = '', compact = false }: {
   fiche: FicheMarqueLue | null;
   brandId: string;
   brandName: string;
@@ -57,12 +57,13 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
   projets: ProjetColonne[];
   /** Demande préparée, toujours soumise par un clic explicite. */
   brouillonInitial?: string;
+  compact?: boolean;
 }) {
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [conversations, setConversations] = useState<ConversationLue[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [saisie, setSaisie] = useState(brouillonInitial.slice(0, 4000));
+  const [saisie, setSaisie] = useState((compact ? (brouillonInitial.split('\n\n')[0] ?? '') : brouillonInitial).slice(0, 4000));
   const [enCours, setEnCours] = useState(false);
   const [partiel, setPartiel] = useState('');
   const [contexteOuvert, setContexteOuvert] = useState(false);
@@ -118,7 +119,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         // Le choix client pilote le contexte RÉEL (puces) et la conversation.
-        body: JSON.stringify({ message: q, conversationId, sources: [...puces] }),
+        body: JSON.stringify({ message: compact && brouillonInitial ? `${q}\n\n${brouillonInitial.split('\n\n').slice(1).join('\n\n')}`.slice(0, 4000) : q, conversationId, sources: [...puces] }),
       });
 
       if (!res.ok || !res.body) {
@@ -201,7 +202,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
     gap: isMobile ? 16 : 24, alignItems: isMobile ? 'stretch' : 'flex-start',
   };
 
-  if (erreur && !thread) {
+  if (erreur && !thread && !compact) {
     return (
       <div style={cadreDeux}>
         {colonne}
@@ -221,14 +222,14 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
     <div style={{ width: '100%' }}>
       <div data-cadre="controle" style={{
         display: 'flex', flexDirection: 'column', gap: 12,
-        padding: isMobile ? 14 : 18,
+        padding: compact ? 12 : isMobile ? 14 : 18,
         borderRadius: 24, border: '1px solid var(--line-2)', background: 'var(--surface)',
       }}>
         <textarea
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(saisie); } }}
-          rows={brouillonInitial ? 8 : 2}
+          rows={compact ? 2 : brouillonInitial ? 8 : 2}
           maxLength={4000}
           placeholder={`Demandez-moi n’importe quoi sur ${brandName}…`}
           disabled={enCours}
@@ -242,10 +243,10 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {/* Pièce jointe · HONNÊTE · à venir (aucun pipeline de fichier Jarvis). */}
           <button
-            type="button" disabled aria-disabled="true"
+            hidden={compact} type="button" disabled aria-disabled="true"
             title="Pièce jointe · à venir"
             style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              display: compact ? 'none' : 'inline-flex', alignItems: 'center', justifyContent: 'center',
               width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, borderRadius: 999,
               border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--muted)', cursor: 'not-allowed',
             }}
@@ -255,7 +256,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
 
           {/* Puces de contexte · seule « Fiche marque » est un vrai interrupteur. */}
           <div data-zone="puces" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
-            {PUCES_CONTEXTE_JARVIS.map((p) => {
+            {PUCES_CONTEXTE_JARVIS.filter((p) => !compact || p.reel).map((p) => {
               const actif = p.reel && puces.has(p.cle);
               return (
                 <button
@@ -314,6 +315,22 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
       </div>
     </div>
   );
+
+  if (compact) return <section aria-label="Conversation Jarvis" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <div ref={filRef} style={{ flex: 1, minHeight: 80, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 4px' }}>
+      {!thread && <p role="status">Ouverture de la conversation…</p>}
+      {thread?.turns.map((t, i) => <Tour key={t.id} turn={t} sources={thread.sources ?? {}} question={t.role === 'assistant' && thread.turns[i - 1]?.role === 'user' ? thread.turns[i - 1]!.content : null} />)}
+      {thread && vide && <p style={reponse}>Précise ton intention. Je peux t’aider à choisir le style visuel, écrire le scénario et préparer des variantes pour {brandName}.</p>}
+      {partiel && <div style={reponse}>{sansTiretCadratin(visibleWhileStreaming(partiel))}</div>}
+      {enCours && !partiel && <p role="status">Jarvis prépare sa réponse…</p>}
+      {erreur && <p role="alert">{erreur}</p>}
+    </div>
+    <div style={{ paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>{['Choisir le style visuel', 'Écrire le scénario', 'Proposer trois variantes'].map((q) => <button key={q} type="button" disabled={enCours} onClick={() => setSaisie((v) => `${v}\n${q}`.slice(0, 4000))} style={{ border: '1px solid var(--line-2)', borderRadius: 99, background: 'var(--surface)', color: 'var(--ink)', padding: '8px 12px', minHeight: 40 }}>{q}</button>)}</div>
+      {composeur}
+    </div>
+    {contexteOuvert && thread && <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />}
+  </section>;
 
   return (
     <div style={cadreDeux}>

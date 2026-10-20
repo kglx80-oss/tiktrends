@@ -2,6 +2,7 @@ import type { InspoAd } from '@tiktrends/integrations';
 import { lienRetourVeille, type SourceReferenceStudio } from '@tiktrends/core';
 
 export const ACTIONS_JARVIS_VEILLE = {
+  cloner: 'Cloner pour ma marque',
   scripts: 'Scripts similaires',
   accroche: 'Analyser l’accroche',
   hypothese: 'En faire une hypothèse',
@@ -46,6 +47,7 @@ export function lireEntreeJarvisVeille(p: Record<string, string | string[] | und
 
 export function brouillonJarvisVeille(action: ActionJarvisVeille, source: SourceReferenceStudio, marque: string): string {
   const demandes: Record<ActionJarvisVeille, string> = {
+    cloner: 'Aide-moi à adapter cette créative à ma marque. Garde uniquement les mécanismes observables et remplace la marque, le produit et les allégations. Pose les questions utiles sur le produit, le style visuel et le scénario, puis propose les prochaines étapes. Ne prétends pas avoir analysé la vidéo ou les images. Aucune génération sans devis et confirmation.',
     scripts: 'Propose trois scripts originaux pour ma marque, inspirés du mécanisme de ce texte. Demande les faits produit manquants avant de les affirmer. Ne recopie pas les promesses ni la marque du concurrent.',
     accroche: 'Analyse l’accroche du texte publicitaire disponible : observation, mécanisme possible, limites, puis une piste adaptée à ma marque. Sépare strictement observation et hypothèse.',
     hypothese: 'Transforme cette observation en hypothèse à tester pour ma marque : variable, variante témoin, proposition, mesure et critère de décision. Demande les informations manquantes. Aucune conclusion de performance sans résultat mesuré.',
