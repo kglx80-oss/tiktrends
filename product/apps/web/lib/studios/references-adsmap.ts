@@ -23,6 +23,7 @@ import { db, schema } from '@tiktrends/db';
 import type {
   KindReferenceAdsmap, PorteeAdsmap, ResolveurReferencesAdsmap, RefAdsmapCitee,
 } from '@tiktrends/core';
+import type { ExecStudio } from './execution/types';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const clef = (kind: KindReferenceAdsmap, id: string) => `${kind}:${id}`;
@@ -38,6 +39,7 @@ const uuidsUniques = (ids: readonly string[]): string[] => [...new Set(ids.filte
 export async function resolveurAdsmapPourRefs(
   workspaceId: string,
   refs: ReadonlyArray<Pick<RefAdsmapCitee, 'kind' | 'ref'>>,
+  base: ExecStudio = db,
 ): Promise<ResolveurReferencesAdsmap> {
   const parKind: Record<KindReferenceAdsmap, string[]> = { persona: [], desir: [], angle: [], concept: [] };
   for (const { kind, ref } of refs) parKind[kind].push(ref.id);
@@ -45,7 +47,7 @@ export async function resolveurAdsmapPourRefs(
 
   const personaIds = uuidsUniques(parKind.persona);
   if (personaIds.length) {
-    const rows = await db.select({ id: schema.personas.id, brandId: schema.personas.brandId, workspaceId: schema.brands.workspaceId })
+    const rows = await base.select({ id: schema.personas.id, brandId: schema.personas.brandId, workspaceId: schema.brands.workspaceId })
       .from(schema.personas)
       .innerJoin(schema.brands, eq(schema.personas.brandId, schema.brands.id))
       .where(and(inArray(schema.personas.id, personaIds), eq(schema.brands.workspaceId, workspaceId)));
@@ -54,7 +56,7 @@ export async function resolveurAdsmapPourRefs(
 
   const desirIds = uuidsUniques(parKind.desir);
   if (desirIds.length) {
-    const rows = await db.select({ id: schema.desires.id, workspaceId: schema.desires.workspaceId, brandId: schema.personas.brandId })
+    const rows = await base.select({ id: schema.desires.id, workspaceId: schema.desires.workspaceId, brandId: schema.personas.brandId })
       .from(schema.desires)
       .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
       .where(and(inArray(schema.desires.id, desirIds), eq(schema.desires.workspaceId, workspaceId)));
@@ -63,7 +65,7 @@ export async function resolveurAdsmapPourRefs(
 
   const angleIds = uuidsUniques(parKind.angle);
   if (angleIds.length) {
-    const rows = await db.select({ id: schema.angles.id, workspaceId: schema.angles.workspaceId, brandId: schema.personas.brandId })
+    const rows = await base.select({ id: schema.angles.id, workspaceId: schema.angles.workspaceId, brandId: schema.personas.brandId })
       .from(schema.angles)
       .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
       .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
@@ -73,7 +75,7 @@ export async function resolveurAdsmapPourRefs(
 
   const conceptIds = uuidsUniques(parKind.concept);
   if (conceptIds.length) {
-    const rows = await db.select({ id: schema.concepts.id, workspaceId: schema.concepts.workspaceId, brandId: schema.personas.brandId })
+    const rows = await base.select({ id: schema.concepts.id, workspaceId: schema.concepts.workspaceId, brandId: schema.personas.brandId })
       .from(schema.concepts)
       .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
       .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
@@ -93,8 +95,9 @@ export async function resolveurAdsmapPourRefs(
  */
 export async function scopeEtResolveurAdsmap(
   workspaceId: string, brandId: string, refs: ReadonlyArray<Pick<RefAdsmapCitee, 'kind' | 'ref'>>,
+  base: ExecStudio = db,
 ): Promise<{ scope: PorteeAdsmap; resolveur: ResolveurReferencesAdsmap } | null> {
   if (refs.length === 0) return null;
-  const resolveur = await resolveurAdsmapPourRefs(workspaceId, refs);
+  const resolveur = await resolveurAdsmapPourRefs(workspaceId, refs, base);
   return { scope: { workspaceId, brandId }, resolveur };
 }

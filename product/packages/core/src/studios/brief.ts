@@ -162,7 +162,11 @@ export function refsAdsmapCitees(b: BriefCanonique): RefAdsmapCitee[] {
   const out: RefAdsmapCitee[] = [];
   for (const { cle, kind } of REFS_ADSMAP_BRIEF) {
     const ref = b[cle];
-    if (ref !== undefined) out.push({ cle, kind, ref });
+    // Une citation n'est prise que si c'est un OBJET (la forme `{id,label}` est
+    // contrôlée par `validerFormeBrief` là où elle tourne) · on exclut `null` et
+    // les primitives pour ne jamais déréférencer `ref.id` sur une valeur nulle
+    // quand le contrôle de portée tourne SANS validation de forme préalable.
+    if (ref !== undefined && ref !== null && typeof ref === 'object') out.push({ cle, kind, ref });
   }
   return out;
 }
