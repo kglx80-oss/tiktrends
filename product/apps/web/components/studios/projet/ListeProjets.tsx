@@ -56,7 +56,7 @@ export function ListeProjets({ cartes, nouveau }: { cartes: Carte[]; nouveau: Et
         <label style={{ marginLeft: 'auto', position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 220px', minWidth: 200, maxWidth: 420 }}>
           <span aria-hidden style={{ position: 'absolute', left: 12, display: 'inline-flex', color: 'var(--muted)', pointerEvents: 'none' }}><Icon name="search" size={16} /></span>
           <input type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)}
-            aria-label="Rechercher un projet" placeholder="Rechercher un projet…"
+            aria-label="Rechercher un concept" placeholder="Rechercher un concept…"
             data-recherche-projet style={{ ...input, paddingLeft: 36 }} />
         </label>
       </div>
