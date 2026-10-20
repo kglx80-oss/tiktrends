@@ -30,7 +30,7 @@ import { randomUUID } from 'node:crypto';
 import { db, schema, eq } from '@tiktrends/db';
 import {
   construireBriefV5, changementAngleManuel, changementStyleManuel, contenuVide, empreinteContenu,
-  SCHEMA_VERSION_CONTENU, type BriefCanonique, type ContenuVersion,
+  RAISON_REF_HORS_PORTEE, SCHEMA_VERSION_CONTENU, type BriefCanonique, type ContenuVersion,
 } from '@tiktrends/core';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { proposerAvecJarvis, creerPropositionManuelle, type DependancesJarvis } from '../lib/studios/propositions/proposer';
@@ -74,8 +74,59 @@ const contenuVersion = async (id: string) => ((await db.select().from(V).where(e
 const versions = async (projectId: string) => db.select().from(V).where(eq(V.projectId, projectId));
 const etatProp = async (id: string) => (await db.select().from(PR).where(eq(PR.id, id)))[0]!.state;
 
-beforeAll(async () => { await semer(db, schema, ids); });
+// Personas RÉELLES · une de la marque du projet (A1), une d'une autre marque du
+// même espace (A2), une d'un autre espace (B1). Servent aux contre-tests de
+// portée Adsmap sur le chemin d'APPLICATION d'une proposition.
+const PERSONA_A1 = randomUUID();
+const PERSONA_A2 = randomUUID();
+const PERSONA_B1 = randomUUID();
+
+beforeAll(async () => {
+  await semer(db, schema, ids);
+  await db.insert(schema.personas).values([
+    { id: PERSONA_A1, brandId: ids.brandA1, name: 'Persona A1' },
+    { id: PERSONA_A2, brandId: ids.brandA2, name: 'Persona A2' },
+    { id: PERSONA_B1, brandId: ids.brandB1, name: 'Persona B1' },
+  ]);
+});
 beforeEach(() => { reponse = () => ({}); });
+
+describe('Application d’une proposition · portée des références Adsmap (recette Codex 20 oct)', () => {
+  const posePersona = (id: string) => ([{ op: 'add', path: '/brief/personaRef', newValue: { id, label: 'Persona choisie' }, reason: 'choix persona' }]);
+
+  async function appliquerPersona(id: string) {
+    const { projectId, versionId } = await projetBrief(ids.brandA1, briefBase());
+    const ctx = ctxDe(ids, 'ua');
+    const m = await creerPropositionManuelle(ctx, { projectId, baseVersionId: versionId, cible: 'brief', changes: posePersona(id), explication: 'Recette' });
+    if (!m.ok || m.statut !== 'proposee') throw new Error('création de proposition refusée');
+    const a = await appliquerProposition(ctx, { proposalId: m.proposition.id, projectId, baseVersionId: versionId });
+    return { a, projectId, proposalId: m.proposition.id };
+  }
+
+  for (const [nom, id] of [
+    ['INCONNUE (uuid au hasard)', randomUUID()],
+    ['d’une AUTRE marque du même espace', PERSONA_A2],
+    ['d’un AUTRE espace', PERSONA_B1],
+  ] as const) {
+    it(`appliquer une proposition posant une personaRef ${nom} · refusée, aucune version, pas d’approbation`, async () => {
+      const { a, projectId, proposalId } = await appliquerPersona(id);
+      expect(a.ok).toBe(false);
+      if (!a.ok) expect(JSON.stringify(a.violations ?? a)).toContain(RAISON_REF_HORS_PORTEE);
+      expect(await versions(projectId)).toHaveLength(1); // aucune nouvelle version écrite
+      expect(await etatProp(proposalId)).toBe('proposed'); // proposition NON approuvée
+    });
+  }
+
+  it('personaRef de la MARQUE du projet · appliquée, version écrite, brief relu porte la référence', async () => {
+    const { a, projectId, proposalId } = await appliquerPersona(PERSONA_A1);
+    expect(a.ok).toBe(true);
+    if (!a.ok) return;
+    expect(await versions(projectId)).toHaveLength(2);
+    expect(await etatProp(proposalId)).toBe('approved');
+    const brief2 = (await contenuVersion(a.version.id)).brief as unknown as BriefCanonique;
+    expect(brief2.personaRef).toEqual({ id: PERSONA_A1, label: 'Persona choisie' });
+  });
+});
 
 describe('« Écrire mon angle » · proposition manuelle relue, adoptée par un geste', () => {
   it('le changement du noyau s’applique et le brief relu porte l’angle (restitution)', async () => {

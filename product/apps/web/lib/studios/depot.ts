@@ -154,7 +154,7 @@ export interface EntreeCreation {
  * `enregistrerVersion` pour que les DEUX chemins d'écriture ferment le même
  * défaut : une `*Ref` d'une autre marque/espace ne s'écrit jamais.
  */
-async function violationsPorteeAdsmap(
+export async function violationsPorteeAdsmap(
   ctx: ContexteStudio, brandId: string, brief: unknown, chemin: string, base: ExecStudio = db,
 ): Promise<Array<{ chemin: string; raison: string }>> {
   if (typeof brief !== 'object' || brief === null) return [];
