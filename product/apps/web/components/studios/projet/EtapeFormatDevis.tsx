@@ -6,9 +6,9 @@ import {
   capacitesDuRefus, libelleCaseControleVision, ALLOWED_PATHS_BRIEF, CIBLE_TACTILE_MIN, teinte,
   signatureChoixDevis, verdictDevisRecu, MESSAGE_DEVIS_INCONNU,
   devisIndicatifImage, libelleCredits, libelleUsd,
-  type SaisieFormat, type BriefCanonique, type FormatDocument, type ErreurStudio,
+  type SaisieFormat, type BriefCanonique, type FormatDocument, type ErreurStudio, type ModeImage,
 } from '@tiktrends/core';
-import { lireParcoursImage, demanderDevisImage } from '../../../app/actions/studios/image';
+import { lireParcoursImage, demanderDevisImage, compilerConsigneImage, retenirConsigneImage } from '../../../app/actions/studios/image';
 import { creerPropositionManuelle, appliquerProposition } from '../../../app/actions/studios/propositions';
 import type { VueParcoursImage, DevisImageVue } from '../../../lib/studios/image/parcours';
 import { Icon } from '../../Icon';
@@ -25,10 +25,16 @@ import { btn, btnGhost, tuile } from '../../ui';
  *    visuel), proposée seulement quand le serveur sait l'exécuter ici ;
  *  · PAS de choix de moteur, PAS de score Jarvis (décisions Kevin · dépense
  *    nouvelle) ;
+ *  · un devis INDICATIF (calcul, 0 $) s'affiche d'emblée · il n'engage rien ;
+ *  · « Compiler la consigne » est la SEULE étape payante avant le devis : un
+ *    appel texte dont le coût maximal est ANNONCÉ avant le clic (`coutCompilationUsd`,
+ *    barrière de dépense serveur). Geste EXPLICITE · jamais automatique. La
+ *    consigne compilée est RELUE puis « Retenue » (`styleRef.consigneImage`,
+ *    nouvelle version) · c'est ce qui rend le devis serveur atteignable ;
  *  · « Voir le devis serveur » appelle `demanderDevisImage` · devis IMMUABLE,
- *    aucune dépense. Le devis réel (lignes, montant, échéance) est remonté au
- *    parent qui ouvre la confirmation. Rien n'est fabriqué : sans consigne image
- *    retenue, le serveur le DIT (message réel), aucun faux devis.
+ *    aucune dépense. Il n'est proposé (cliquable) qu'une fois la consigne
+ *    retenue (jamais de bouton mort). Rien n'est fabriqué : le devis réel
+ *    (lignes, montant, échéance) est remonté au parent qui ouvre la confirmation.
  */
 
 const note: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
@@ -53,6 +59,9 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   const [nonActive, setNonActive] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
+  // Mode de compilation choisi (composée fidèle / scène générée) · défaut : la
+  // consigne en cours, sinon le premier mode que le contrôle laisse passer.
+  const [mode, setMode] = useState<ModeImage | ''>('');
   // Course réseau · numéro de la demande de devis en vol · une demande plus
   // récente rend la précédente obsolète (sa réponse ne doit rien afficher).
   const seqRef = useRef(0);
@@ -70,10 +79,27 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
 
   useEffect(() => { void charger(); }, [charger, version.id]);
 
+  // Mode par défaut dès que la vue est là (même règle que le studio image).
+  useEffect(() => {
+    if (vue && !mode) {
+      const voulu = vue.enAttente?.mode ?? vue.retenue?.mode;
+      const m = vue.modes.find((x) => x.mode === voulu && x.pret) ?? vue.modes.find((x) => x.pret);
+      if (m) setMode(m.mode);
+    }
+  }, [vue, mode]);
+
   // La relecture n'est cochable que si le serveur sait l'exécuter ici ; sinon on
   // la laisse décochée (aucune promesse) et on le dit.
   const relectureDisponible = !!vue?.controleVision?.disponible;
   const relecture = relectureDisponible && saisie.relectureAuto;
+
+  // La consigne image · retenue (devis serveur atteignable), compilée en attente
+  // (à retenir), ou à compiler. Un geste explicite à chaque fois.
+  const consigneRetenue = vue?.retenue ?? null;
+  const consigneEnAttente = vue?.enAttente ?? null;
+  const compilationDispo = vue?.disponibilite?.compilation ?? null;
+  // Coût maximal ANNONCÉ de l'appel texte de compilation (micro-dollars).
+  const coutCompilationMicros = vue ? Math.round(vue.coutCompilationUsd * 1_000_000) : 0;
 
   // Devis INDICATIF · un CALCUL assemblé des montants que le serveur a déjà
   // renvoyés (prix de grille, borne du contrôle visuel). Affiché AVANT tout
@@ -105,6 +131,51 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
     if (!applique.ok) { setRetour({ ok: false, texte: messageErreur(applique) }); return false; }
     await onBriefChange();
     return true;
+  }
+
+  // Compilation de la consigne · appel texte PAYANT, coût annoncé avant le clic,
+  // barrière de dépense côté serveur. Geste explicite · jamais automatique.
+  async function compiler() {
+    if (!vue || !mode) return;
+    setOccupe(true);
+    setRetour(null);
+    try {
+      // On fixe le format choisi avant de compiler (la consigne porte ce format).
+      if (!(await ecrireFormatSiBesoin())) return;
+      const r = await compilerConsigneImage({ projectId, mode });
+      if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r) }); return; }
+      if (r.statut === 'questions') {
+        setRetour({ ok: false, texte: 'La consigne n’est pas compilée · complète le brief (stratégie, direction) puis recompile. Rien n’a été débité au-delà de cet appel.' });
+        await charger();
+        return;
+      }
+      setRetour({ ok: true, texte: 'Consigne compilée · relis-la puis retiens-la pour atteindre le devis serveur.' });
+      await charger();
+    } catch {
+      // Réponse perdue sur un appel PAYANT · on ne promet aucune absence d'effet.
+      setRetour({ ok: false, texte: 'La réponse du serveur n’a pas été reçue · la compilation a pu être facturée. Recharge le projet avant de réessayer.' });
+    } finally {
+      setOccupe(false);
+    }
+  }
+
+  // « Retenir » · relit l'attestation de la compilation (par son runId, jamais
+  // une consigne du navigateur) et l'écrit dans une nouvelle version · gratuit.
+  async function retenir() {
+    if (!vue || !consigneEnAttente) return;
+    setOccupe(true);
+    setRetour(null);
+    try {
+      const r = await retenirConsigneImage({ projectId, baseVersionId: vue.version.id, runId: consigneEnAttente.runId });
+      if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r) }); return; }
+      setRetour({ ok: true, texte: 'Consigne retenue · le devis serveur est prêt.' });
+      await onBriefChange();
+      await charger();
+    } catch {
+      setRetour({ ok: false, texte: MESSAGE_DEVIS_INCONNU });
+    } finally {
+      setOccupe(false);
+    }
   }
 
   async function demanderDevis() {
@@ -208,18 +279,61 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
                   </li>
                 ))}
               </ul>
-              <p style={{ ...note, fontSize: 12 }}>Estimation calculée sur ces paramètres · aucun débit. Le devis serveur la fige à l’étape suivante.</p>
+              <p style={{ ...note, fontSize: 12 }}>Estimation calculée sur ces paramètres · aucun débit. Le devis serveur ne la fige qu’une fois la consigne compilée et retenue ci-dessous (appel texte payant, annoncé à part).</p>
+            </section>
+          )}
+
+          {vue && (
+            <section data-zone="consigne-image" aria-label="Consigne image" style={{ display: 'grid', gap: 8, border: '1px solid var(--line)', borderRadius: 10, padding: 14 }}>
+              <span style={sectionLbl}>Consigne image</span>
+              {consigneRetenue ? (
+                <>
+                  <p data-etat-consigne="retenue" role="status" style={note}>Consigne retenue ({consigneRetenue.libelleMode}) · le devis serveur est prêt, il ne débite rien.</p>
+                </>
+              ) : consigneEnAttente ? (
+                <>
+                  <p data-etat-consigne="a-retenir" style={note}>Consigne compilée · relis-la puis retiens-la pour atteindre le devis serveur.</p>
+                  <p data-consigne-apercu style={{ ...note, fontSize: 12.5, whiteSpace: 'pre-wrap' }}>{consigneEnAttente.generationInstruction.slice(0, 240)}</p>
+                  <button type="button" data-bouton="retenir-consigne" onClick={() => void retenir()} disabled={occupe}
+                    style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, justifySelf: 'start', opacity: occupe ? 0.6 : 1 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="check" size={14} />{occupe ? 'Enregistrement…' : 'Retenir la consigne'}</span>
+                  </button>
+                </>
+              ) : compilationDispo && !compilationDispo.disponible ? (
+                <p data-etat-consigne="indisponible" role="status" style={note}>{compilationDispo.raison}</p>
+              ) : (
+                <>
+                  {vue.modes.filter((m) => m.pret).length > 1 && (
+                    <div data-champ="mode-compilation" role="radiogroup" aria-label="Mode de la consigne" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {vue.modes.filter((m) => m.pret).map((m) => {
+                        const choisi = m.mode === mode;
+                        return (
+                          <button key={m.mode} type="button" role="radio" aria-checked={choisi} data-mode={m.mode} onClick={() => setMode(m.mode)} disabled={occupe}
+                            style={{ ...tuile, padding: '8px 12px', cursor: occupe ? 'default' : 'pointer', background: choisi ? teinte('accent', .12) : 'var(--bg)', borderColor: choisi ? 'var(--accent-strong)' : 'var(--line)', minHeight: CIBLE_TACTILE_MIN, fontSize: 13.5, color: 'var(--ink)' }}>
+                            {m.libelle}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p style={{ ...note, fontSize: 12.5 }}>La consigne se compile par un appel texte · {libelleUsd(coutCompilationMicros)} au plus, annoncé avant le clic. C’est la seule étape payante avant le devis serveur.</p>
+                  <button type="button" data-bouton="compiler-consigne" onClick={() => void compiler()} disabled={occupe || !mode}
+                    style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, justifySelf: 'start', opacity: (occupe || !mode) ? 0.6 : 1 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="spark" size={14} />{occupe ? 'Compilation…' : `Compiler la consigne · ${libelleUsd(coutCompilationMicros)} au plus`}</span>
+                  </button>
+                </>
+              )}
             </section>
           )}
 
           <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
             <button type="button" data-bouton="retour-direction" onClick={onRetour} disabled={occupe} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN, opacity: occupe ? 0.6 : 1 }}>‹ Direction</button>
-            <button type="button" data-bouton="voir-devis" onClick={() => void demanderDevis()} disabled={occupe}
-              style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: occupe ? 0.6 : 1 }}>
+            <button type="button" data-bouton="voir-devis" onClick={() => void demanderDevis()} disabled={occupe || !consigneRetenue}
+              style={{ ...btn, minHeight: CIBLE_TACTILE_MIN, opacity: (occupe || !consigneRetenue) ? 0.6 : 1 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="file" size={14} />{occupe ? 'Calcul du devis…' : 'Voir le devis serveur'}</span>
             </button>
           </footer>
-          <p style={{ ...note, fontSize: 12.5 }}>Le devis serveur fige le prix · il ne débite rien. La confirmation vient à l’étape suivante.</p>
+          <p style={{ ...note, fontSize: 12.5 }}>{consigneRetenue ? 'Le devis serveur fige le prix · il ne débite rien. La confirmation vient à l’étape suivante.' : 'Le devis serveur s’ouvrira une fois la consigne compilée et retenue · l’estimation ci-dessus reste gratuite.'}</p>
         </>
       )}
 
