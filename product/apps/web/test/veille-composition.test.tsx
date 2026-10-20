@@ -113,11 +113,12 @@ describe('Veille · carte V5 resserrée + grille compacte (maquette)', () => {
     expect(htmlStd, 'la carte standard ne doit pas se resserrer').toContain('padding:11px 12px;display:grid;gap:8px');
   });
 
-  it('les tuiles de signal sont denses en V5 · le signal reste là (reach, spend, pays)', () => {
-    expect(htmlV5, 'tuile dense en V5').toContain('min-width:54px;padding:4px 7px');
+  it('les signaux secondaires passent dans Actions, le pays reste visible', () => {
+    expect(htmlV5, 'les tuiles quittent la carte compacte').not.toContain('min-width:54px;padding:4px 7px');
     expect(htmlStd, 'tuile standard inchangée').toContain('min-width:60px;padding:5px 8px');
-    expect(htmlV5, 'le reach reste affiché').toContain('Reach');
-    expect(htmlV5, 'le pays reste affiché').toContain('Pays');
+    expect(htmlV5, 'la portée reste dans les détails').toContain('Portée');
+    expect(htmlV5, 'le pays reste affiché').toContain('FR');
+    expect(htmlV5).toContain('Informations de diffusion');
   });
 
   it('la grille de la Veille est compacte · 4 colonnes en large (min 264, gouttière 14)', () => {
