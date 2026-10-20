@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { costFor, type EtatNouveauProjet } from '@tiktrends/core';
+import { MENTION_COUT_MESSAGE_CONCEPT, type EtatNouveauProjet } from '@tiktrends/core';
 
 /**
  * Parcours « Nouveau concept créatif » · l'ENTRÉE (mandat Kevin du 20/10). On
@@ -84,11 +84,17 @@ describe('écran « Nouveau concept créatif » · accroche + composeur à envoi
     expect(d.querySelector('form')).toBeNull();
   });
 
-  it('annonce le coût AVANT l’envoi · un message Jarvis coûte des crédits, jamais promis gratuit', () => {
+  it('annonce le coût AVANT l’envoi · la VÉRITÉ de la route (plafond IA), jamais « 1 crédit » ni « gratuit »', () => {
     const d = dom(renderToStaticMarkup(<NouveauConcept etat={pret} />));
     const cout = d.querySelector('[data-cout-message]');
     expect(cout, 'mention de coût du message absente').not.toBeNull();
-    expect(cout!.textContent).toContain(`${costFor('chat')} crédit`);
+    // Le coût RÉEL · la route `/api/jarvis/chat` ne débite aucun crédit, elle
+    // consomme du fournisseur IA sous le plafond $. On énonce cela mot pour mot.
+    expect(cout!.textContent).toContain(MENTION_COUT_MESSAGE_CONCEPT);
+    expect(cout!.textContent).toContain('plafond IA');
+    // Jamais la promesse trompeuse d'un débit de « N crédit(s) » par message
+    // (le catalogue porte `chat: 1`, mais cette route ne le débite pas).
+    expect(cout!.textContent, 'faux débit « N crédit » par message').not.toMatch(/coûte\s+\d+\s+crédit/i);
     expect(cout!.textContent, 'aucune promesse de gratuité').not.toContain('gratuit');
   });
 
