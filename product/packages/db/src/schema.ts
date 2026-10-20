@@ -877,11 +877,22 @@ export const jarvisConversations = pgTable('jarvis_conversations', {
   // possible · elle n'est portée que par l'espace et la personne.
   brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  // Concept créatif V5 · à quel concept (= projet studio) la conversation est
+  // rattachée (0059, additif). NULLABLE sans clé étrangère À DESSEIN, même motif
+  // que `jarvis_messages.conversation_id` ci-dessus : la fenêtre de migration
+  // inverse veut que l'ancien code insère encore sans connaître la colonne, et
+  // une FK vers `studio_projects` serait une contrainte ajoutée à une table
+  // existante (interdite). `project_id` nul · conversation de marque (comme
+  // avant) ; renseigné · conversation d'un concept, EN PLUS de la portée marque.
+  projectId: uuid('project_id'),
   // NULL · titre dérivé du premier message (règle `titreConversation`, noyau).
   titre: text('titre'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ listeIdx: index('jarvis_conversations_liste_idx').on(t.brandId, t.userId, t.updatedAt) }));
+}, (t) => ({
+  listeIdx: index('jarvis_conversations_liste_idx').on(t.brandId, t.userId, t.updatedAt),
+  projetIdx: index('jarvis_conversations_projet_idx').on(t.projectId, t.updatedAt),
+}));
 
 /**
  * UX V5 · le fil d'ONBOARDING de Jarvis · sans marque (compte neuf).
