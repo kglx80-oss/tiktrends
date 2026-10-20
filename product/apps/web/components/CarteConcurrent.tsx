@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { domaineConcurrent } from '@tiktrends/core';
+import { domaineConcurrent, lienAnnonceurVeille } from '@tiktrends/core';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
 import { surface } from './ui';
@@ -55,6 +55,7 @@ export function CarteConcurrent({ nom, brandId }: { nom: string; brandId: string
         </div>
         <Link href={analyser} style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, color: 'var(--accent-strong)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Analyser ›</Link>
       </div>
+      <Link href={lienAnnonceurVeille({ advertiserName: nom, platform: 'meta' }, '') ?? '/veille'} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--accent-strong)', textDecoration: 'none' }}><Icon name="search" size={14} /> Voir ses annonces dans la Veille</Link>
     </div>
   );
 }

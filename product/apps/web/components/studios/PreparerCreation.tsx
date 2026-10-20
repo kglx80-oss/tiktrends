@@ -79,13 +79,14 @@ function sourceDe(annonce: AnnoncePanneau, sauvegardeId: string | null | undefin
     : { type: 'veille' as const, annonce, retour: retour ?? null };
 }
 
-export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = false }: {
+export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = false, libelle = 'Préparer une création' }: {
   annonce: AnnoncePanneau;
   /** La sauvegarde d'origine · le serveur relit alors le snapshot en base. */
   sauvegardeId?: string | null;
   /** Contexte de retour vers la Veille (critères + ancre), gardé par le projet. */
   retour?: string | null;
   cibles44?: boolean;
+  libelle?: string;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [prep, setPrep] = useState<Preparation | null>(null);
@@ -243,7 +244,7 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
     <>
       <button type="button" onClick={ouvrir} aria-haspopup="dialog"
         style={{ ...btnGhost, width: '100%', fontSize: 12, borderRadius: 10, minHeight: cibles44 ? CIBLE_TACTILE_MIN : 36, gap: 6 }}>
-        <Icon name="file" size={13} /> Préparer une création
+        <Icon name="file" size={13} /> {libelle}
       </button>
       <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Préparer une création" maxWidth={720}
         subtitle="Une source, une hypothèse, un produit de ta marque · le projet garde tout. Rien n’est généré ici.">

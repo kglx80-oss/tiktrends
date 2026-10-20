@@ -6,6 +6,7 @@ import { AdMedia } from './AdMedia';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
 import { PreparerCreation } from './studios/PreparerCreation';
+import { ActionsVeille } from './ActionsVeille';
 
 export const compact = (n?: number) => {
   if (n == null) return 'n/c';
@@ -114,8 +115,8 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
             <AvatarSite nom={ad.advertiserName || 'Annonceur'} site={ad.landingDomain} taille={22} rayon={11} />
           )}
           <span title={ad.advertiserName || undefined} style={{ fontSize: badgesV5 ? 14 : 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', lineHeight: 1.3, flex: '1 1 120px', minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
-          {gagnant && <span title="Source observée · tient dans le temps ou sa portée progresse · un proxy public de traction, pas une preuve de rentabilité" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Piste forte</span>}
-          <FollowButton ad={ad} initialFollowing={following} />
+          {!badgesV5 && gagnant && <span title="Source observée · tient dans le temps ou sa portée progresse · un proxy public de traction, pas une preuve de rentabilité" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Piste forte</span>}
+          {badgesV5 ? (ad.mainCountry && <span style={{ fontSize: 11, color: 'var(--muted)' }}>{ad.mainCountry}</span>) : <FollowButton ad={ad} initialFollowing={following} />}
         </div>
         {bandeau && (
           // Pastille de statut + jauge (maquette V5) · elle suit le nom, comme sur
@@ -134,7 +135,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
           </div>
         )}
         {ad.body && <p style={{ margin: 0, fontSize: badgesV5 ? 13 : 12, color: badgesV5 ? 'var(--ink)' : 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{badgesV5 ? `« ${ad.body} »` : ad.body}</p>}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {!badgesV5 && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {ad.platform === 'tiktok' ? (
             <>
               <Stat label="Vues" value={compact(ad.views)} dense={badgesV5} />
@@ -154,14 +155,14 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
               {ad.mainCountry && <Stat label="Pays" value={ad.mainCountry} dense={badgesV5} />}
             </>
           )}
-        </div>
-        {(ad.callToAction || ad.landingDomain) && (
+        </div>}
+        {!badgesV5 && (ad.callToAction || ad.landingDomain) && (
           <div style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {ad.callToAction && <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{ad.callToAction}</span>}
             {ad.landingDomain && <span>· {ad.landingDomain}</span>}
           </div>
         )}
-        {(biblio || site || annonceur) && (
+        {!badgesV5 && (biblio || site || annonceur) && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {/* Lot 18B · la recherche INTERNE des annonces du même annonceur ·
                 une recherche par nom, pas un suivi (le bouton Suivre reste à part). */}
@@ -175,7 +176,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
             (Veille, Sauvegardes, Formats) ; ailleurs, le lien vers la
             préparation d'un projet, angle distillé et provenance repris
             (`studioDepuisVeille`). La piste qui tient est mise en avant. */}
-        {(contexteRetour != null || cloneRef) ? (
+        {badgesV5 ? <ActionsVeille ad={ad} following={following} sauvegardeId={cloneRef} retour={retour} annonceur={annonceur} /> : (contexteRetour != null || cloneRef) ? (
           <PreparerCreation
             annonce={{ id: ad.id, platform: ad.platform, mediaType: ad.mediaType ?? null, thumbnailUrl: ad.thumbnailUrl ?? null, mediaUrl: ad.mediaUrl ?? null, advertiserName: ad.advertiserName ?? null, body: ad.body ?? null, callToAction: ad.callToAction ?? null, landingDomain: ad.landingDomain ?? null, landingUrl: ad.landingUrl ?? null, daysRunning: ad.daysRunning ?? null }}
             sauvegardeId={cloneRef ?? null} retour={retour} cibles44={cibles44} />
