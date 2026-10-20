@@ -8,7 +8,7 @@ import { projetsPourColonneJarvis } from '../../../../lib/studios/jarvis-projets
 import { gardeSources } from '../../../../lib/studios/sources/acces';
 import { chargerSources } from '../../../../lib/studios/sources/sources';
 import { ACTIONS_JARVIS_VEILLE, brouillonJarvisVeille, lireEntreeJarvisVeille } from '../../../../lib/veille-jarvis';
-import { cadrePage } from '../../../../components/ui';
+import { cadrePage, h1 } from '../../../../components/ui';
 import { JarvisChat } from '../JarvisChat';
 import { RefusJarvis } from '../RefusJarvis';
 
@@ -22,11 +22,11 @@ export default async function JarvisVeillePage({ searchParams }: { searchParams:
   if (refus) return <RefusJarvis titre="Jarvis" why={refus} owner={s.role === 'owner'} />;
   const entree = lireEntreeJarvisVeille(await searchParams);
   const g = await gardeSources('studio.read');
-  if (!entree || !g.ok) return <main style={cadrePage}><h1>Source indisponible</h1><p>Rouvre cette annonce depuis la Veille ou tes sauvegardes.</p><Link href="/veille">Revenir à la Veille</Link></main>;
+  if (!entree || !g.ok) return <main style={cadrePage}><h1 style={h1}>Source indisponible</h1><p>Rouvre cette annonce depuis la Veille ou tes sauvegardes.</p><Link href="/veille">Revenir à la Veille</Link></main>;
   const r = await chargerSources(g.ctx, [entree.source], { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
-  if (!r.ok || !r.sources[0]) return <main style={cadrePage}><h1>Source indisponible</h1><p>Cette source n’est pas accessible dans ton espace.</p><Link href="/veille">Revenir à la Veille</Link></main>;
+  if (!r.ok || !r.sources[0]) return <main style={cadrePage}><h1 style={h1}>Source indisponible</h1><p>Cette source n’est pas accessible dans ton espace.</p><Link href="/veille">Revenir à la Veille</Link></main>;
   const brand = await getActiveBrand(s.workspaceId);
-  if (!brand || !g.ctx.marques.includes(brand.id)) return <main style={cadrePage}><h1>Choisis ta marque</h1><p>Jarvis a besoin de ta marque cible pour adapter cette source.</p><Link href="/brands">Ouvrir les marques</Link></main>;
+  if (!brand || !g.ctx.marques.includes(brand.id)) return <main style={cadrePage}><h1 style={h1}>Choisis ta marque</h1><p>Jarvis a besoin de ta marque cible pour adapter cette source.</p><Link href="/brands">Ouvrir les marques</Link></main>;
   const [fiche, projets] = await Promise.all([ficheMarqueLue(brand.id), projetsPourColonneJarvis(brand.id)]);
   const source = r.sources[0];
   return <main style={cadrePage}>
