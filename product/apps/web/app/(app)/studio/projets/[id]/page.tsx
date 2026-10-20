@@ -85,6 +85,8 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
         <ConceptHote
           projectId={r.detail.projet.id}
           brandName={r.detail.projet.marque}
+          kind={r.detail.projet.kind}
+          generationImageActive={inter.actif('generation_image')}
           versionCourante={courante ? { id: courante.id, n: courante.n } : null}
           initialThread={filConcept.thread ?? null}
           initialErreur={filConcept.error ?? null}

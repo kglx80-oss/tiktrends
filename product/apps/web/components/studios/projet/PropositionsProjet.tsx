@@ -17,7 +17,7 @@ import { useEspaceCreation } from '../../EspaceCreation';
  * le panneau reste MONTÉ (caché) · une demande en cours de rédaction n'est pas
  * perdue · et une ligne dit qu'il est masqué, avec le geste pour le rouvrir.
  */
-export function PropositionsProjet({ projectId, versionCourante }: { projectId: string; versionCourante: { id: string; n: number } }) {
+export function PropositionsProjet({ projectId, versionCourante, rechargerSignal }: { projectId: string; versionCourante: { id: string; n: number }; rechargerSignal?: number }) {
   const router = useRouter();
   const { jarvisMasque, basculerJarvis } = useEspaceCreation();
   return (
@@ -29,7 +29,7 @@ export function PropositionsProjet({ projectId, versionCourante }: { projectId: 
         </p>
       )}
       <div hidden={jarvisMasque || undefined} data-jarvis={jarvisMasque ? 'masque' : 'visible'}>
-        <PanneauPropositions projectId={projectId} versionCourante={versionCourante} onVersionChangee={() => router.refresh()} />
+        <PanneauPropositions projectId={projectId} versionCourante={versionCourante} rechargerSignal={rechargerSignal} onVersionChangee={() => router.refresh()} />
       </div>
     </>
   );

@@ -47,11 +47,17 @@ export interface PropsPanneau {
   initial?: ReponseProposition<ListePropositions> | null;
   /** Prévient la page qu'une nouvelle version existe (application, rechargement). */
   onVersionChangee?: (v: { id: string; n: number }) => void;
+  /**
+   * Concept V5 · bump externe pour RELIRE les propositions quand une action
+   * typée du fil (`ActionsConcept`) vient d'en créer une · une proposition ne
+   * change pas la version, le panneau ne se rechargerait pas seul.
+   */
+  rechargerSignal?: number;
 }
 
 const REFUS_ACCES = new Set(['FORBIDDEN', 'NOT_FOUND', 'AUTH_REQUIRED']);
 
-export function PanneauPropositions({ projectId, versionCourante, initial, onVersionChangee }: PropsPanneau) {
+export function PanneauPropositions({ projectId, versionCourante, initial, onVersionChangee, rechargerSignal }: PropsPanneau) {
   const initialValable = initial && (!initial.ok || initial.projectId === projectId) ? initial : null;
   const [liste, setListe] = useState<ReponseProposition<ListePropositions> | null>(initialValable);
   const [retour, setRetour] = useState<Retour>(null);
@@ -86,6 +92,15 @@ export function PanneauPropositions({ projectId, versionCourante, initial, onVer
     setRetour(null);
     void charger();
   }, [projectId, versionCourante.id, charger]);
+
+  // Concept V5 · un bump de `rechargerSignal` (proposition typée reçue) relit la
+  // liste SANS vider l'affichage · les cartes déjà là restent visibles pendant la relecture.
+  const signalVu = useRef(rechargerSignal);
+  useEffect(() => {
+    if (signalVu.current === rechargerSignal) return;
+    signalVu.current = rechargerSignal;
+    void charger('recharge');
+  }, [rechargerSignal, charger]);
 
   const traiterErreur = (e: ErreurProposition) => setRetour(e.code === 'VERSION_CONFLICT' ? { type: 'conflit', erreur: e } : { type: 'erreur', erreur: e });
 
