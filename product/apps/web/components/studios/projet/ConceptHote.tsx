@@ -5,6 +5,7 @@ import { CIBLE_TACTILE_MIN, sansTiretCadratin, verrouAction, visibleWhileStreami
 import { chatThreadAction, type ChatThread, type ChatTurn } from '../../../app/actions/jarvis-chat';
 import { Tour } from '../../../app/(app)/jarvis/JarvisChat';
 import { PropositionsProjet } from './PropositionsProjet';
+import { ActionsConcept } from './ActionsConcept';
 import { useIsMobile } from '../../useIsMobile';
 import { Icon } from '../../Icon';
 
@@ -25,10 +26,12 @@ import { Icon } from '../../Icon';
  * fil principal de la marque.
  *
  * La zone « créations/cartes » est le panneau de propositions EXISTANT
- * (`PropositionsProjet`) · on ne fabrique pas de fausses cartes. Les actions
- * typées de concept (directions, accroches, scénario) et le passage à la
- * génération ne sont PAS câblés ici (PR6/PR7) · le fil et les propositions
- * existantes s'affichent et persistent, c'est tout.
+ * (`PropositionsProjet`) · on ne fabrique pas de fausses cartes. Au-dessus, les
+ * ACTIONS TYPÉES du concept (`ActionsConcept`, PR6) proposent des gestes concrets
+ * (directions visuelles, 3 accroches, scénario) qui demandent au serveur des
+ * propositions BORNÉES à un chemin du brief · elles réapparaissent en cartes
+ * choisissables dans le panneau, relues avant toute application. Le passage à la
+ * génération (« Préparer la création ») reste grisé, non branché ici (PR7).
  *
  * Layout V5 · desktop = deux colonnes (conversation | créations) ; mobile =
  * deux onglets (Conversation / Créations) · jamais de débordement horizontal.
@@ -41,9 +44,13 @@ const reponse: CSSProperties = {
 
 type Onglet = 'conversation' | 'creations';
 
-export function ConceptHote({ projectId, brandName, versionCourante, initialThread, initialErreur = null }: {
+export function ConceptHote({ projectId, brandName, kind, generationImageActive, versionCourante, initialThread, initialErreur = null }: {
   projectId: string;
   brandName: string;
+  /** Le type du projet (`ads`, `image`, `video`, `text`) · décide quelles actions typées sont pertinentes. */
+  kind: string;
+  /** État de la capacité d'espace `generation_image` · décide la raison de « Préparer la création » (grisée, PR7). */
+  generationImageActive: boolean;
   /** La version COURANTE du concept · requise par le panneau de propositions. null → pas de propositions. */
   versionCourante: { id: string; n: number } | null;
   /** Le fil, lu CÔTÉ SERVEUR par projet · null si l'accès manque ou sans marque. */
@@ -51,6 +58,9 @@ export function ConceptHote({ projectId, brandName, versionCourante, initialThre
   initialErreur?: string | null;
 }) {
   const isMobile = useIsMobile();
+  // PR6 · une proposition typée reçue fait recharger les cartes du panneau (une
+  // proposition ne crée pas de version · le panneau ne se rechargerait pas seul).
+  const [signalRecharge, setSignalRecharge] = useState(0);
   const [thread, setThread] = useState<ChatThread | null>(initialThread);
   const [erreur, setErreur] = useState<string | null>(initialErreur);
   const [saisie, setSaisie] = useState('');
@@ -159,10 +169,17 @@ export function ConceptHote({ projectId, brandName, versionCourante, initialThre
   );
 
   const creations = (
-    <section data-pane="creations" style={{ minWidth: 0, flex: 1 }}>
-      {versionCourante
-        ? <div data-emplacement="propositions"><PropositionsProjet projectId={projectId} versionCourante={versionCourante} /></div>
-        : <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>Les propositions apparaîtront ici dès que le concept aura une première version.</p>}
+    <section data-pane="creations" style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {versionCourante ? (
+        <>
+          <ActionsConcept
+            projectId={projectId} kind={kind} generationImageActive={generationImageActive}
+            versionCourante={versionCourante} signalRecharge={signalRecharge}
+            onPropose={() => setSignalRecharge((n) => n + 1)}
+          />
+          <div data-emplacement="propositions"><PropositionsProjet projectId={projectId} versionCourante={versionCourante} rechargerSignal={signalRecharge} /></div>
+        </>
+      ) : <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>Les propositions apparaîtront ici dès que le concept aura une première version.</p>}
     </section>
   );
 

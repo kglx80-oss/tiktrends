@@ -77,7 +77,7 @@ describe('GUARD #5 · l’écran du concept héberge le chat À CÔTÉ des créa
   it('desktop · chat et zone créations (panneau de propositions) présents, pas d’onglets', () => {
     const d = document.createElement('div');
     d.innerHTML = renderToStaticMarkup(
-      <ConceptHote projectId="p1" brandName="Neva" versionCourante={{ id: 'v3', n: 3 }} initialThread={thread} />,
+      <ConceptHote projectId="p1" brandName="Neva" kind="ads" generationImageActive={false} versionCourante={{ id: 'v3', n: 3 }} initialThread={thread} />,
     );
     expect(d.querySelector('[data-hote="concept"]'), 'hôte absent').not.toBeNull();
     // Le CHAT · le fil montre le message et la réponse.
@@ -96,7 +96,7 @@ describe('GUARD #5 · l’écran du concept héberge le chat À CÔTÉ des créa
 
   it('mobile · deux onglets Conversation / Créations', () => {
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false }));
-    act(() => { root!.render(<ConceptHote projectId="p1" brandName="Neva" versionCourante={{ id: 'v3', n: 3 }} initialThread={thread} />); });
+    act(() => { root!.render(<ConceptHote projectId="p1" brandName="Neva" kind="ads" generationImageActive={false} versionCourante={{ id: 'v3', n: 3 }} initialThread={thread} />); });
     const onglets = el!.querySelector('[data-onglets]');
     expect(onglets, 'les onglets mobiles sont absents').not.toBeNull();
     const tabs = [...el!.querySelectorAll('[role="tab"]')];
