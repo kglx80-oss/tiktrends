@@ -71,6 +71,21 @@ export function accrocheNouveauConcept(marque: string): string {
   return `Que veux-tu créer pour ${marque} ?`;
 }
 
+/**
+ * Ce qu'un message au concept coûte VRAIMENT · la vérité de la route.
+ *
+ * Le composeur du concept envoie à `/api/jarvis/chat`, qui passe par
+ * `guardedAnthropic` (le plafond $ IA) et ne débite AUCUN crédit du solde.
+ * Annoncer « coûte 1 crédit » serait trompeur : le catalogue porte bien
+ * `chat: 1`, mais cette route ne le débite pas · seul l'ancien assistant
+ * (`app/actions/assistant.ts`) débite ce crédit, et ce n'est pas ce chemin.
+ * On énonce donc le coût réel (fournisseur IA sous plafond), et on ne promet
+ * jamais la gratuité · un appel au modèle est bien consommé à chaque envoi.
+ * Pur et testable · la copie ne vit pas dans le JSX.
+ */
+export const MENTION_COUT_MESSAGE_CONCEPT =
+  'Aucun crédit débité pour la conversation · le coût IA fournisseur est comptabilisé sous le plafond IA à chaque envoi · la génération se facture à part, par un devis.';
+
 /** Titre proposé à l'ouverture · modifiable, jamais vide. */
 export function titreNouveauProjetParDefaut(type: TypeNouveauProjet, marque: string): string {
   return `${LIBELLES_TYPE_PROJET[type] ?? 'Projet'} · ${marque}`.slice(0, TITRE_NOUVEAU_PROJET_MAX);
