@@ -3,6 +3,8 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { InspoAd } from '@tiktrends/integrations';
+vi.mock('../app/actions/jarvis-veille-panneau', () => ({ chargerPanneauVeille: vi.fn() }));
+vi.mock('../app/(app)/jarvis/JarvisChat', () => ({ JarvisChat: () => null }));
 vi.mock('../components/studios/PreparerCreation', () => ({ PreparerCreation: () => <button>Créer</button> }));
 vi.mock('../components/InspoButtons', () => ({ FollowButton: () => <button>Suivre</button> }));
 import { ActionsVeille } from '../components/ActionsVeille';

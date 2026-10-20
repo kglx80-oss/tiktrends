@@ -9,14 +9,15 @@ import { surface } from './ui';
 import { Portail } from './Portail';
 import { usePiegeFocus } from './use-piege-focus';
 import { FollowButton } from './InspoButtons';
-import { PreparerCreation } from './studios/PreparerCreation';
+import { JarvisVeillePanneau } from './JarvisVeillePanneau';
+import { btn } from './ui';
 
 const ligne: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, boxSizing: 'border-box', minHeight: 48, padding: '6px 10px', borderRadius: 10, color: 'var(--ink)', textDecoration: 'none', fontSize: 13 };
 const pastille: CSSProperties = { width: 32, height: 32, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'var(--accent-soft)', color: 'var(--accent)' };
 function LigneAction({ icon, titre, detail }: { icon: string; titre: string; detail: string }) { return <><span style={pastille}><Icon name={icon} size={16} /></span><span style={{ minWidth: 0 }}><strong style={{ fontWeight: 600 }}>{titre}</strong><small style={{ display: 'block', color: 'var(--muted)', marginTop: 3, fontSize: 11, lineHeight: 1.4 }}>{detail}</small></span></>; }
 export function RaccourcisVeille({ ad, sauvegardeId, retour }: { ad: InspoAd; sauvegardeId?: string; retour: string | null }) {
   const rapide: CSSProperties = { width: 36, height: 36, borderRadius: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--voile-media)', color: 'var(--clair-fixe)', border: 0, boxShadow: '0 4px 12px var(--line-2)' };
-  return <div role="toolbar" aria-label="Actions rapides" style={{ position: 'absolute', bottom: 16, right: 10, display: 'flex', gap: 6, zIndex: 2 }}><button type="button" disabled aria-label="Transcription audio indisponible" title="Transcription audio non raccordée" style={{ ...rapide, opacity: .65 }}><Icon name="file" size={15}/></button>{(['scripts', 'accroche'] as const).map((action) => <a key={action} href={lienJarvisVeille(ad, { action, ref: sauvegardeId, retour })} aria-label={action === 'scripts' ? 'Scripts similaires' : 'Analyser l’accroche'} title={action === 'scripts' ? 'Scripts similaires' : 'Analyser l’accroche'} style={rapide}><Icon name={action === 'scripts' ? 'sparkles' : 'search'} size={15}/></a>)}</div>;
+  return <div role="toolbar" aria-label="Actions rapides" style={{ position: 'absolute', bottom: 16, right: 10, display: 'flex', gap: 6, zIndex: 2 }}><button type="button" disabled aria-label="Transcription audio indisponible" title="Transcription audio non raccordée" style={{ ...rapide, opacity: .65 }}><Icon name="file" size={15}/></button>{(['scripts', 'accroche'] as const).map((action) => <JarvisVeillePanneau key={action} href={lienJarvisVeille(ad, { action, ref: sauvegardeId, retour })} annonceur={ad.advertiserName} extrait={ad.body} titre={action === 'scripts' ? 'Scripts similaires' : 'Analyser l’accroche'} style={rapide}><Icon name={action === 'scripts' ? 'sparkles' : 'search'} size={15}/><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>{action === 'scripts' ? 'Scripts similaires' : 'Analyser l’accroche'}</span></JarvisVeillePanneau>)}</div>;
 }
 const section: CSSProperties = { margin: '12px 10px 4px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--muted)' };
 
@@ -32,7 +33,7 @@ export function ActionsVeille({ ad, following, sauvegardeId, retour, annonceur }
   const cible = (action: 'scripts' | 'accroche' | 'hypothese') => lienJarvisVeille(ad, { action, ref: sauvegardeId, retour });
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 8, borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 8 }}>
-      <PreparerCreation annonce={ad} sauvegardeId={sauvegardeId} retour={retour} cibles44 libelle="Cloner" accentue />
+      <JarvisVeillePanneau href={lienJarvisVeille(ad, { action: 'cloner', ref: sauvegardeId, retour })} annonceur={ad.advertiserName} extrait={ad.body} titre="Cloner" style={{ ...btn, borderRadius: 10, minHeight: 44, textDecoration: 'none', justifyContent: 'center' }}><Icon name="layers" size={16} /> Cloner</JarvisVeillePanneau>
       <button type="button" aria-haspopup="dialog" aria-expanded={!!position} onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
         const width = Math.min(330, window.innerWidth - 24);
@@ -52,11 +53,11 @@ export function ActionsVeille({ ad, following, sauvegardeId, retour, annonceur }
           <h3 style={section}>Script</h3>
           <div style={{ ...ligne, color: 'var(--muted)' }}><LigneAction icon="file" titre="Transcrire le script" detail="Transcription audio non raccordée" /></div>
           {ad.body && <a download="texte-publicitaire.txt" href={`data:text/plain;charset=utf-8,${encodeURIComponent(ad.body)}`} style={ligne}><LigneAction icon="download" titre="Exporter le texte publicitaire" detail="TXT · texte disponible" /></a>}
-          <a href={cible('scripts')} style={ligne}><LigneAction icon="sparkles" titre="Scripts similaires" detail="Même mécanique, réécrite pour ta marque" /></a>
+          <JarvisVeillePanneau href={cible('scripts')} annonceur={ad.advertiserName} extrait={ad.body} onOpen={() => setPosition(null)} style={ligne}><LigneAction icon="sparkles" titre="Scripts similaires" detail="Même mécanique, réécrite pour ta marque" /></JarvisVeillePanneau>
           <h3 style={section}>Comprendre</h3>
-          <a href={cible('accroche')} style={ligne}><LigneAction icon="search" titre="Analyser l’accroche" detail="Observation, puis hypothèse" /></a>
-          <a href={cible('hypothese')} style={ligne}><LigneAction icon="bulb" titre="En faire une hypothèse" detail="Prête à tester dans un lot" /></a>
-          <h3 style={section}>Créer</h3><div onClick={() => setPosition(null)} style={{ padding: '4px 10px 8px' }}><PreparerCreation annonce={ad} sauvegardeId={sauvegardeId} retour={retour} cibles44 libelle="Cloner pour ma marque" presentationMenu /></div><details style={{ margin: '4px 10px', fontSize: 11, color: 'var(--muted)' }}><summary style={{ cursor: 'pointer', padding: '8px 0' }}>Source, suivi et diffusion</summary>
+          <JarvisVeillePanneau href={cible('accroche')} annonceur={ad.advertiserName} extrait={ad.body} onOpen={() => setPosition(null)} style={ligne}><LigneAction icon="search" titre="Analyser l’accroche" detail="Observation, puis hypothèse" /></JarvisVeillePanneau>
+          <JarvisVeillePanneau href={cible('hypothese')} annonceur={ad.advertiserName} extrait={ad.body} onOpen={() => setPosition(null)} style={ligne}><LigneAction icon="bulb" titre="En faire une hypothèse" detail="Prête à tester dans un lot" /></JarvisVeillePanneau>
+          <h3 style={section}>Créer</h3><div onClick={() => setPosition(null)} style={{ padding: '4px 10px 8px' }}><JarvisVeillePanneau href={lienJarvisVeille(ad, { action: 'cloner', ref: sauvegardeId, retour })} annonceur={ad.advertiserName} extrait={ad.body} titre="Cloner" onOpen={() => setPosition(null)} style={{ ...ligne, background: 'var(--accent-soft)' }}><LigneAction icon="layers" titre="Cloner pour ma marque" detail="Structure gardée, adaptée à ta marque" /></JarvisVeillePanneau></div><details style={{ margin: '4px 10px', fontSize: 11, color: 'var(--muted)' }}><summary style={{ cursor: 'pointer', padding: '8px 0' }}>Source, suivi et diffusion</summary>
           {annonceur && <a href={annonceur} style={ligne}>Ses annonces dans la Veille ›</a>}
           {biblio && <a href={biblio.url} target="_blank" rel="noopener noreferrer" style={ligne}>{libelleBibliotheque(biblio)} ↗</a>}
           {site && <a href={site} target="_blank" rel="noopener noreferrer" style={ligne}>Site de l’annonceur ↗</a>}
