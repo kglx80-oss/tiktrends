@@ -79,7 +79,7 @@ function sourceDe(annonce: AnnoncePanneau, sauvegardeId: string | null | undefin
     : { type: 'veille' as const, annonce, retour: retour ?? null };
 }
 
-export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = false, libelle = 'Préparer une création' }: {
+export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = false, libelle = 'Préparer une création', accentue = false, presentationMenu = false }: {
   annonce: AnnoncePanneau;
   /** La sauvegarde d'origine · le serveur relit alors le snapshot en base. */
   sauvegardeId?: string | null;
@@ -87,6 +87,8 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
   retour?: string | null;
   cibles44?: boolean;
   libelle?: string;
+  accentue?: boolean;
+  presentationMenu?: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [prep, setPrep] = useState<Preparation | null>(null);
@@ -243,8 +245,8 @@ export function PreparerCreation({ annonce, sauvegardeId, retour, cibles44 = fal
   return (
     <>
       <button type="button" onClick={ouvrir} aria-haspopup="dialog"
-        style={{ ...btnGhost, width: '100%', fontSize: 12, borderRadius: 10, minHeight: cibles44 ? CIBLE_TACTILE_MIN : 36, gap: 6 }}>
-        <Icon name="file" size={13} /> {libelle}
+        style={{ ...(accentue ? btn : btnGhost), width: '100%', fontSize: 12, borderRadius: 10, minHeight: cibles44 ? CIBLE_TACTILE_MIN : 36, gap: 6, ...(presentationMenu ? { justifyContent: 'flex-start', border: 'none', background: 'var(--accent-soft)', padding: '8px 10px', textAlign: 'left' as const } : {}) }}>
+        <Icon name={accentue || presentationMenu ? 'layers' : 'file'} size={presentationMenu ? 18 : 13} /> {presentationMenu ? <span>{libelle}<small style={{ display: 'block', color: 'var(--muted)', fontSize: 11, fontWeight: 400, marginTop: 3 }}>Structure gardée, adaptée à ta marque</small></span> : libelle}
       </button>
       <Modal pleinEcranTelephone open={ouvert} onClose={() => setOuvert(false)} title="Préparer une création" maxWidth={720}
         subtitle="Une source, une hypothèse, un produit de ta marque · le projet garde tout. Rien n’est généré ici.">

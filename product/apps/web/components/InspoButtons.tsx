@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CIBLE_TACTILE_MIN, verrouAction, teinte } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../app/actions/inspo';
+import { Icon } from './Icon';
 import { useToastSiPresent } from './Toast';
 
 /**
@@ -24,7 +25,7 @@ import { useToastSiPresent } from './Toast';
  *    sans grossir le visuel (pastille interne de 30).
  */
 
-export function SaveButton({ ad, initialSaved }: { ad: InspoAd; initialSaved: boolean }) {
+export function SaveButton({ ad, initialSaved, visuelV5 = false }: { ad: InspoAd; initialSaved: boolean; visuelV5?: boolean }) {
   const [saved, setSaved] = useState(initialSaved);
   const [pending, start] = useTransition();
   const verrou = useRef(verrouAction());
@@ -57,8 +58,8 @@ export function SaveButton({ ad, initialSaved }: { ad: InspoAd; initialSaved: bo
       title={saved ? 'Retirer des sauvegardes' : 'Sauvegarder'}
       onClick={basculer}
       style={{ minWidth: CIBLE_TACTILE_MIN, minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', padding: 0, cursor: pending ? 'default' : 'pointer' }}>
-      <span aria-hidden style={{ width: 30, height: 30, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: saved ? 'var(--grad-accent)' : teinte('sombre-fixe', .65), color: saved ? 'var(--on-accent)' : 'var(--clair-fixe)', fontSize: 14, lineHeight: 1 }}>
-        {saved ? '★' : '☆'}
+      <span aria-hidden style={{ width: 30, height: 30, borderRadius: 9, ...(visuelV5 ? { width: 40, height: 40, borderRadius: 12 } : {}), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: saved ? 'var(--grad-accent)' : teinte('sombre-fixe', .65), color: saved ? 'var(--on-accent)' : 'var(--clair-fixe)', fontSize: 14, lineHeight: 1 }}>
+        {visuelV5 ? <Icon name="bookmark" size={18} /> : saved ? '★' : '☆'}
       </span>
     </button>
   );
