@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
-  composerBrief, validerFormeBrief, validerRelationsBrief, validerHypothese, hypotheseSaisie, saisieSuffisante,
+  composerBrief, validerFormeBrief, validerRelationsBrief, refsAdsmapCitees, validerHypothese, hypotheseSaisie, saisieSuffisante,
   propositionValidePour, referenceProduit, lireReferenceProduit, lireReferencesSources, ajouterSourcesAuProjet, completudeProjet, hypotheseDuBrief,
   exporterBrief as exporterBriefNoyau, contenuVide, creationsHorsMarque, validerContenuVersion, empreinteContenu, objetDansPortee, erreurStudio,
   LIBELLES_TYPE_PROJET, SCHEMA_VERSION_CONTENU, TEXTES_REFUS_PROPOSITION,
@@ -13,6 +13,7 @@ import {
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
 import { chargerSources, etatSources, estUuid, type VueSource } from './sources';
+import { scopeEtResolveurAdsmap } from '../references-adsmap';
 import { lireScelle } from './scelle';
 import { lireDroitsAssetsProjetPour, type VueDroitsAsset } from '../produit/droits';
 
@@ -151,7 +152,15 @@ export async function creerProjetDepuisSourcesPour(
   }
 
   const brief = composerBrief({ sources, hypothese: h.hypothese, produit, audience: marque.audience ?? '', ...(objectif !== undefined ? { objectif } : {}) });
-  const violations = [...validerFormeBrief(brief), ...validerRelationsBrief(brief, { sources, productId: produit?.productId ?? null })];
+  // Références Adsmap V5 · on INJECTE la portée + le résolveur (lecture seule,
+  // cantonné à la session) pour que `validerRelationsBrief` contrôle réellement
+  // l'existence et la portée des `*Ref` citées. Sans cette injection, le garde
+  // de portée Adsmap ne tournait jamais (défaut : callers web sans résolveur).
+  const srAdsmap = await scopeEtResolveurAdsmap(ctx.workspaceId, brandId, refsAdsmapCitees(brief));
+  const violations = [...validerFormeBrief(brief), ...validerRelationsBrief(brief, {
+    sources, productId: produit?.productId ?? null,
+    ...(srAdsmap ? { scopeAdsmap: srAdsmap.scope, resolveurAdsmap: srAdsmap.resolveur } : {}),
+  })];
   if (violations.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations });
   const contenu: ContenuVersion = { ...contenuVide(), brief: brief as unknown as Record<string, unknown>, productRef: produit as unknown as ContenuVersion['productRef'] };
   const vc = validerContenuVersion(contenu);

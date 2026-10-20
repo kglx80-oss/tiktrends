@@ -5,10 +5,12 @@ import { db, schema } from '@tiktrends/db';
 import {
   appliquerPatch, validerContenuVersion, validerFormeBrief, empreinteContenu, differencesDetaillees, contenuVide,
   objetDansPortee, erreurStudio, estIdStable, SCHEMA_VERSION_CONTENU, CLES_CONTENU,
-  type ContenuVersion, type ErreurStudio,
+  refsAdsmapCitees, violationsReferencesAdsmapBrief,
+  type ContenuVersion, type ErreurStudio, type BriefCanonique,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
 import { ajouterAudit } from './audit';
+import { scopeEtResolveurAdsmap } from './references-adsmap';
 
 /**
  * Dépôt des studios · lecture et écriture des projets, versions, dispositions,
@@ -155,6 +157,21 @@ export async function creerProjet(ctx: ContexteStudio, e: EntreeCreation): Promi
   // rien. `validerContenuVersion` n'exige qu'un objet ou `null` pour `brief` ;
   // on refuse un brief présent mais mal formé plutôt que d'écrire un illisible.
   if (contenu && contenu.brief != null) violations.push(...validerFormeBrief(contenu.brief, '/contenu/brief'));
+  // Références Adsmap V5 · EN PLUS de la forme, chaque `*Ref` citée doit exister
+  // ET tomber dans la portée de la marque (lecture seule, cantonnée à la
+  // session). Défaut historique : `creerProjet` ne validait que la FORME · une
+  // `personaRef` (ou toute `*Ref`) inexistante ou d'une autre marque passait.
+  // On ne le fait que si la forme du brief est déjà bonne (sinon on refuse déjà)
+  // et seulement pour les références réellement citées (sinon aucune requête).
+  if (contenu && contenu.brief != null && typeof contenu.brief === 'object'
+      && !violations.some((x) => x.chemin.startsWith('/contenu/brief'))) {
+    const brief = contenu.brief as unknown as BriefCanonique;
+    const refs = refsAdsmapCitees(brief);
+    if (refs.length) {
+      const sr = await scopeEtResolveurAdsmap(ctx.workspaceId, e.brandId as string, refs);
+      if (sr) violations.push(...violationsReferencesAdsmapBrief(brief, sr.scope, sr.resolveur, '/contenu/brief'));
+    }
+  }
   if (violations.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations });
 
   const brandId = e.brandId;

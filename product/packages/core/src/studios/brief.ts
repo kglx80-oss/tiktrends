@@ -146,6 +146,46 @@ const REFS_ADSMAP_BRIEF: ReadonlyArray<{ cle: 'personaRef' | 'desirRef' | 'angle
   { cle: 'conceptRef', kind: 'concept' },
 ];
 
+/** Une `*Ref` Adsmap réellement citée par le brief (présente), avec son `kind`. */
+export interface RefAdsmapCitee {
+  cle: 'personaRef' | 'desirRef' | 'angleRef' | 'conceptRef';
+  kind: KindReferenceAdsmap;
+  ref: ReferenceAdsmap;
+}
+
+/**
+ * Les `*Ref` Adsmap RÉELLEMENT citées par le brief (celles qui sont présentes).
+ * Pur · sert au caller serveur à savoir quelles lignes Adsmap précharger avant
+ * de construire le résolveur de portée.
+ */
+export function refsAdsmapCitees(b: BriefCanonique): RefAdsmapCitee[] {
+  const out: RefAdsmapCitee[] = [];
+  for (const { cle, kind } of REFS_ADSMAP_BRIEF) {
+    const ref = b[cle];
+    if (ref !== undefined) out.push({ cle, kind, ref });
+  }
+  return out;
+}
+
+/**
+ * PORTÉE des références Adsmap citées · chaque `*Ref` doit se résoudre ET tomber
+ * dans la portée workspace+marque du projet, sinon refus INDISTINCT (absente ou
+ * hors portée · même raison). Pur : le résolveur (lecture seule, cantonné à la
+ * session) est INJECTÉ par le caller serveur. Tant qu'aucun caller ne fournit de
+ * résolveur, les `*Ref` ne sont pas contrôlées (défaut historique · creerProjet
+ * et éditeur validaient la seule FORME). Réutilisé par `validerRelationsBrief`.
+ */
+export function violationsReferencesAdsmapBrief(
+  b: BriefCanonique, scope: PorteeAdsmap, resolveur: ResolveurReferencesAdsmap, chemin = '/brief',
+): ViolationBrief[] {
+  const v: ViolationBrief[] = [];
+  for (const { cle, kind, ref } of refsAdsmapCitees(b)) {
+    const vi = violationPorteeReferenceAdsmap(kind, ref, `${chemin}/${cle}`, scope, resolveur);
+    if (vi) v.push(vi);
+  }
+  return v;
+}
+
 export interface ViolationBrief { chemin: string; raison: string }
 
 /* ─────────────────────────────── Forme ───────────────────────────────────── */
@@ -397,12 +437,7 @@ export function validerRelationsBrief(b: BriefCanonique, c: ContexteRelationsBri
   // portée de marque du projet (lecture seule). Sans portée+résolveur, on ne
   // contrôle pas (un brief hérité sans `*Ref` reste valide).
   if (c.scopeAdsmap && c.resolveurAdsmap) {
-    for (const { cle, kind } of REFS_ADSMAP_BRIEF) {
-      const ref = b[cle];
-      if (ref === undefined) continue;
-      const vi = violationPorteeReferenceAdsmap(kind, ref, `/brief/${cle}`, c.scopeAdsmap, c.resolveurAdsmap);
-      if (vi) v.push(vi);
-    }
+    v.push(...violationsReferencesAdsmapBrief(b, c.scopeAdsmap, c.resolveurAdsmap));
   }
   return v;
 }
