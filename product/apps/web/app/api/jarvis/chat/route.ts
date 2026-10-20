@@ -14,7 +14,7 @@ import { guardedAnthropic, SpendBlockedError } from '../../../../lib/spend-guard
 import { resoudreConversationJarvis, consignerRunConversation } from '../../../../lib/studios/prompts/resolveur';
 import { assemblerConsigneJarvis } from '../../../../lib/studios/prompts/conversation';
 import type { SourceTrace } from '../../../../lib/studios/prompts/traces';
-import { blocProjetsJarvis } from '../../../../lib/studios/jarvis-projets';
+import { blocProjetsJarvis, blocConceptJarvis } from '../../../../lib/studios/jarvis-projets';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
     ]);
 
     const voitMemoire = canAccess(effectiveAccess(s), adsmap);
-    const [memoire, stats, ligne, ws, projets] = await Promise.all([
+    const [memoire, stats, ligne, ws, projets, concept] = await Promise.all([
       voitMemoire ? jarvisFullMemory(brand.id, s.workspaceId).catch(() => '') : Promise.resolve(''),
       voitMemoire ? jarvisStats(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
       db.select({
@@ -134,6 +134,11 @@ export async function POST(req: Request) {
       // (portée espace + marque + restrictions, capacité) · bloc court et borné
       // (règle pure du noyau), vide sans droit ni projet. Jamais bloquant.
       blocProjetsJarvis(brand.id).catch(() => ''),
+      // L'état du concept LIÉ · seulement si la conversation porte un `projectId`
+      // (page concept). Mêmes gardes, lecture seule, borné (règle pure du noyau) ·
+      // vide sans projet lié, sans droit ou sur panne. Jamais bloquant, et sur la
+      // page /jarvis (sans projectId) la consigne reste exactement celle d'avant.
+      projectId ? blocConceptJarvis(brand.id, projectId).catch(() => '') : Promise.resolve(''),
     ]);
     const b = ligne[0];
     // Le niveau déclaré à l'accueil règle le registre d'explication de Jarvis ·
@@ -157,6 +162,9 @@ export async function POST(req: Request) {
       niveau,
       blocActions: actionsPromptBlock(),
       blocProjets: projets,
+      // Présent uniquement quand la conversation est liée à un concept · ailleurs
+      // la chaîne est vide et l'assemblage ne l'ajoute pas (consigne inchangée).
+      blocConcept: concept,
     };
     const { system, inclus } = await consigneAvecConnaissances(assemblerConsigneJarvis(resolution.politique, donnees), { workspaceId: s.workspaceId, brandId: brand.id });
 
@@ -223,7 +231,7 @@ export async function POST(req: Request) {
           await consignerRunConversation({
             resolution, portee: { workspaceId: s.workspaceId, brandId: brand.id }, traceId: `jv_${crypto.randomUUID()}`, modele: MODEL,
             system, messages: fil,
-            contexte: { marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref), ...(projets ? { projets: empreinte(projets) } : {}) },
+            contexte: { marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref), ...(projets ? { projets: empreinte(projets) } : {}), ...(projectId ? { projet: projectId } : {}), ...(concept ? { concept: empreinte(concept) } : {}) },
             sources, reponse: complet, statut, latenceMs: Date.now() - debut, jetons, coutUsd: costOfTokens(MODEL, jetons.entree, jetons.sortie),
           }).catch((e) => console.error('[jarvis:chat] trace', (e as Error).message));
           ctrl.close();

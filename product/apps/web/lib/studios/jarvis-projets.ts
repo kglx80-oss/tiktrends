@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { etatEffectif, resumerProjetsPourJarvis, lienProjetStudio, type EtatProposition, type ProjetPourJarvis } from '@tiktrends/core';
+import { etatEffectif, resumerProjetsPourJarvis, resumerConceptPourJarvis, lienProjetStudio, type EtatProposition, type ProjetPourJarvis } from '@tiktrends/core';
 import { gardeStudio } from './garde';
 import { gardeSources } from './sources/acces';
 import { etatInterrupteurs } from './interrupteurs';
@@ -110,4 +110,70 @@ export async function blocProjetsJarvis(brandId: string, maintenant: Date = new 
     propositionsEnAttente: propositions ? (nAttente.get(c.id) ?? 0) : null,
   }));
   return resumerProjetsPourJarvis(projets, { workspaceId: ctx.workspaceId, brandId });
+}
+
+/**
+ * L'état d'UN concept pour la consigne de Jarvis, quand la conversation lui est
+ * liée (`projectId`). MÊMES gardes que l'écran « Projets » (session relue,
+ * `studio.read`, capacité « projets », portée espace + marque + restrictions) ·
+ * le projet est relu via `lireProjetDetailPour` (#837, lecture seule, appelé,
+ * jamais modifié), ce qui sert aussi de barrière de portée : un projet absent,
+ * hors portée ou d'une autre marque que la marque active rend un bloc vide.
+ *
+ * Résume le brief (objectif, audience, persona, angle, concept, plateformes ·
+ * connu vs manquant), l'étape, les propositions en attente (`proposed`) et la
+ * présence de médias/générations · la règle pure du noyau
+ * (`resumerConceptPourJarvis`) décide du texte. Lecture seule, jamais bloquante :
+ * un refus ou une panne rend `''`, et la consigne reste exactement celle d'avant
+ * (page /jarvis sans projet · comportement inchangé).
+ */
+export async function blocConceptJarvis(brandId: string, projectId: string, maintenant: Date = new Date()): Promise<string> {
+  if (!db) return '';
+  try {
+    const g = await gardeSources('studio.read');
+    if (!g.ok) return '';
+    const { ctx, veilleOuverte } = g;
+    if (!ctx.marques.includes(brandId)) return '';
+    const capacites = await etatInterrupteurs(ctx.workspaceId);
+    if (!capacites.actif('projets')) return '';
+
+    // Lecture du projet dans la portée (barrière de portée + brief + étape).
+    const { lireProjetDetailPour } = await import('./sources/projet');
+    const d = await lireProjetDetailPour(ctx, projectId, { veilleOuverte, maintenant });
+    if (!d.ok) return '';
+    const { detail } = d;
+    // Seconde barrière : le concept doit être celui de la marque ACTIVE.
+    if (detail.projet.brandId !== brandId) return '';
+
+    const PR = schema.studioProposals;
+    const A = schema.studioAssets;
+    const J = schema.studioJobs;
+    const [propositions, medias, jobs] = await Promise.all([
+      // Les propositions ne comptent que si leur capacité est ouverte · sinon
+      // l'écran ne les montre pas, et Jarvis n'en parle pas.
+      capacites.actif('propositions')
+        ? db.select({ state: PR.state, expiresAt: PR.expiresAt }).from(PR)
+          .where(and(eq(PR.workspaceId, ctx.workspaceId), eq(PR.brandId, brandId), eq(PR.projectId, detail.projet.id), eq(PR.state, 'proposed')))
+          .limit(500)
+        : Promise.resolve(null),
+      db.select({ n: sql<number>`count(*)::int` }).from(A)
+        .where(and(eq(A.workspaceId, ctx.workspaceId), eq(A.brandId, brandId), eq(A.projectId, detail.projet.id))),
+      db.select({ n: sql<number>`count(*)::int` }).from(J)
+        .where(and(eq(J.workspaceId, ctx.workspaceId), eq(J.brandId, brandId), eq(J.projectId, detail.projet.id))),
+    ]);
+    const propositionsEnAttente = (propositions ?? [])
+      .filter((p) => etatEffectif({ state: p.state as EtatProposition, expiresAt: p.expiresAt }, maintenant) === 'proposed')
+      .length;
+
+    return resumerConceptPourJarvis({
+      titre: detail.projet.title,
+      libelleEtape: detail.completude.libelleEtape,
+      brief: detail.brief,
+      propositionsEnAttente,
+      medias: Number(medias[0]?.n ?? 0),
+      jobs: Number(jobs[0]?.n ?? 0),
+    });
+  } catch {
+    return '';
+  }
 }

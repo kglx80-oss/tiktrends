@@ -25,6 +25,8 @@ import { BrandCreated } from '../../../../components/BrandCreated';
 import { ScenarioCard } from '../../../../components/ScenarioCard';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { Empty } from '../../../../components/Empty';
+import { unlimitedCredits } from '../../../../lib/credits';
+import { ConcurrentSourcing } from '../../../../components/ConcurrentSourcing';
 import { CarteConcurrent } from '../../../../components/CarteConcurrent';
 import { messageServiceInactif, lienNouveauProjet, CIBLE_TACTILE_MIN, costFor, imageModelByKey, connecteursBranches, accesAssets, completudeFicheMarque, type DaVisuelleMarque } from '@tiktrends/core';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -326,7 +328,9 @@ export default async function BrandDetailPage({ params, searchParams }: {
 
       {/* ---------------- CONCURRENTS ---------------- */}
       {tab === 'competitors' && (
-        <form action={updateBrandAction}>
+        <>
+        <ConcurrentSourcing brandId={id} ready={aiReady} unlimited={unlimitedCredits(s.user.email)} />
+        <form key={competitors.join("\n")} action={updateBrandAction}>
           <input type="hidden" name="id" value={b.id} />
           {/* on renvoie les autres champs inchangés pour ne pas les écraser */}
           <input type="hidden" name="name" value={b.name} />
@@ -363,6 +367,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           <textarea name="competitors" defaultValue={competitors.join('\n')} style={{ ...area, minHeight: 140 }} />
           <div style={{ marginTop: 12 }}><button type="submit" style={{ ...addBtn, padding: '11px 20px', fontSize: 13.5 }}>Enregistrer les concurrents</button></div>
         </form>
+        </>
       )}
 
       {/* Comptes pub · rappel · même grammaire d'état vide que le reste (todo → une sortie). */}

@@ -122,6 +122,14 @@ export interface DonneesConversation {
    * la consigne reste identique à celle d'avant.
    */
   blocProjets?: string | null;
+  /**
+   * État du concept créatif LIÉ à la conversation · produit par le noyau
+   * (`resumerConceptPourJarvis`), déjà borné et lu sous les gardes de portée.
+   * Présent SEULEMENT quand la conversation porte un `projectId` (page concept) ·
+   * vide ou absent (pas de projet lié, pas de droit, panne de lecture), rien
+   * n'est ajouté et la consigne reste identique à celle d'avant (page /jarvis).
+   */
+  blocConcept?: string | null;
 }
 
 /** Plafonds des DONNÉES insérées · repris de l'assemblage d'avant. */
@@ -147,7 +155,8 @@ function prudence(s: SectionsConversation, n: number): string {
 
 /**
  * La consigne système de la conversation. Ordre : socle, marque, mémoire,
- * prudence, registre, où envoyer, actions, projets Studios, règles maison EN DERNIER.
+ * prudence, registre, où envoyer, actions, projets Studios, concept lié (quand
+ * la conversation porte un projet), règles maison EN DERNIER.
  */
 export function assemblerConsigneJarvis(p: Pick<PolitiqueConversation, 'sections'>, d: DonneesConversation): string {
   const s = p.sections;
@@ -163,6 +172,7 @@ export function assemblerConsigneJarvis(p: Pick<PolitiqueConversation, 'sections
   if (d.canAdsmap) blocs.push(s.ouEnvoyer);
   if (d.canPropose) blocs.push(d.blocActions);
   if (d.blocProjets?.trim()) blocs.push(d.blocProjets.trim());
+  if (d.blocConcept?.trim()) blocs.push(d.blocConcept.trim());
   if (d.rules?.trim()) blocs.push(`${s.titreRegles}\n${d.rules.trim().slice(0, PLAFONDS_CONVERSATION.regles)}`);
   return blocs.join(SEPARATEUR_CONSIGNE);
 }
