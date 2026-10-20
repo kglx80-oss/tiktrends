@@ -1,0 +1,24 @@
+-- Concept créatif V5 · rattacher une conversation Jarvis à un concept (= projet
+-- studio) · migration ADDITIVE.
+--
+-- Une conversation « Nouveau concept créatif » doit pouvoir appartenir à un
+-- concept précis (un `studio_projects`), SANS confondre la portée marque et la
+-- portée concept : la conversation reste portée espace + marque + personne, et
+-- `project_id` s'y AJOUTE, facultatif. Une conversation sans `project_id` reste
+-- une conversation de marque, comme avant.
+--
+-- Fenêtre de migration INVERSE (l'ancien code tourne encore pendant la
+-- migration) · rien ne le casse :
+--   · `project_id` est NULLABLE et SANS clé étrangère À DESSEIN · même motif que
+--     `jarvis_messages.conversation_id` (cf. schema.ts) · l'ancien code continue
+--     d'insérer dans `jarvis_conversations` sans connaître cette colonne, et une
+--     FK vers `studio_projects` serait une contrainte ajoutée à une table
+--     EXISTANTE (interdite en fenêtre inverse) ;
+--   · l'index est neuf · aucune contrainte ni aucun déclencheur posé sur une
+--     table existante au-delà de l'ajout de colonne.
+--
+-- Rejouable : colonne « ADD COLUMN IF NOT EXISTS » et index « IF NOT EXISTS ».
+-- Aucune donnée existante n'est lue ni modifiée (aucun backfill) : les
+-- conversations déjà là gardent `project_id` nul (conversations de marque).
+ALTER TABLE "jarvis_conversations" ADD COLUMN IF NOT EXISTS "project_id" uuid;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "jarvis_conversations_projet_idx" ON "jarvis_conversations" ("project_id","updated_at");

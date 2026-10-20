@@ -29,12 +29,62 @@ export interface ConversationLue {
 
 export interface MessageLu { id: string; role: string; content: string; createdAt: Date }
 
-/** Crée une conversation vide portée (espace + marque + personne) · rend son id. */
-export async function creerConversation(p: PorteeConversation): Promise<string> {
+/**
+ * Crée une conversation vide portée (espace + marque + personne) · rend son id.
+ *
+ * `projectId` (Concept créatif V5) rattache la conversation à un concept (= projet
+ * studio) EN PLUS de la portée marque · additif et facultatif. Sans lui, c'est une
+ * conversation de marque, comme avant (le défaut est `null`).
+ */
+export async function creerConversation(
+  p: PorteeConversation,
+  options: { projectId?: string | null } = {},
+): Promise<string> {
   const [row] = await db.insert(C).values({
     workspaceId: p.workspaceId, brandId: p.brandId, userId: p.userId, titre: null,
+    projectId: options.projectId ?? null,
   }).returning({ id: C.id });
   return row!.id;
+}
+
+/**
+ * Les conversations rattachées à un concept (= projet studio), de la plus récente
+ * à la plus ancienne, titre dérivé du premier message.
+ *
+ * La barrière marque est CONSERVÉE · la requête filtre espace ET marque ET
+ * personne, et `project_id` s'y AJOUTE. Une conversation d'un autre concept,
+ * d'une autre marque, d'un autre espace ou d'une autre personne n'est jamais
+ * lue, même si l'appelant en passe l'identifiant · le filtre ne la trouve pas.
+ */
+export async function conversationDuProjet(
+  p: PorteeConversation, projectId: string, limite = 50,
+): Promise<ConversationLue[]> {
+  const convs = await db.select({ id: C.id, titre: C.titre, majLe: C.updatedAt }).from(C)
+    .where(and(
+      eq(C.workspaceId, p.workspaceId), eq(C.brandId, p.brandId), eq(C.userId, p.userId),
+      eq(C.projectId, projectId),
+    ))
+    .orderBy(desc(C.updatedAt)).limit(limite);
+  if (convs.length === 0) return [];
+
+  // Premier message utilisateur de chaque conversation (pour dériver un titre) ·
+  // même portée que `listerConversations`, bornée aux conversations retournées.
+  const ids = convs.map((c) => c.id);
+  const messages = await db.select({ cid: M.conversationId, content: M.content, createdAt: M.createdAt })
+    .from(M)
+    .where(and(
+      eq(M.workspaceId, p.workspaceId), eq(M.brandId, p.brandId), eq(M.userId, p.userId),
+      inArray(M.conversationId, ids), eq(M.role, 'user'),
+    ))
+    .orderBy(asc(M.createdAt));
+  const premier = new Map<string, string>();
+  for (const m of messages) if (m.cid && !premier.has(m.cid)) premier.set(m.cid, m.content);
+
+  return convs.map((c) => ({
+    id: c.id,
+    titre: titreConversation({ titre: c.titre, premierMessage: premier.get(c.id) ?? null }),
+    majLe: (c.majLe as Date).toISOString(),
+  }));
 }
 
 /** Les conversations de la portée, de la plus récente à la plus ancienne, titre dérivé. */

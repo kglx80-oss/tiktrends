@@ -106,9 +106,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis) puis 0058 (dossiers) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers) puis 0059 (lien concept) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
