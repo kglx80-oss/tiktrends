@@ -51,7 +51,24 @@ export function etatNouveauProjet(e: {
       lien: { href: '/brands', libelle: 'Choisir une marque' },
     };
   }
-  return { etat: 'pret', marque: { id: e.marqueActive.id, nom: e.marqueActive.name }, libelle: 'Nouveau projet' };
+  return { etat: 'pret', marque: { id: e.marqueActive.id, nom: e.marqueActive.name }, libelle: 'Nouveau concept créatif' };
+}
+
+/**
+ * Le « concept créatif » (vocabulaire CLIENT, mandat Kevin du 20/10) EST le
+ * projet studio · même objet, même table, même route de reprise. Seul le mot vu
+ * à l'écran change · aucune migration de vocabulaire en base.
+ *
+ * L'écran de création conversationnelle · le CTA y NAVIGUE (il n'ouvre plus la
+ * modale Titre/Type). L'écran est en LECTURE SEULE à l'ouverture : ni projet, ni
+ * conversation, ni appel modèle au GET · la création réelle démarre au premier
+ * message (différée, hors de ce périmètre).
+ */
+export const CHEMIN_NOUVEAU_CONCEPT = '/studio/projets/nouveau/concept';
+
+/** La première accroche de l'écran de concept · texte UI, pur et testable. */
+export function accrocheNouveauConcept(marque: string): string {
+  return `Que veux-tu créer pour ${marque} ?`;
 }
 
 /** Titre proposé à l'ouverture · modifiable, jamais vide. */

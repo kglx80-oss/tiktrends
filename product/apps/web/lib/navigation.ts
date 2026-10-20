@@ -110,6 +110,7 @@ export const ROUTES: RouteNode[] = [
   { path: '/studio/textes', label: 'Studios', section: 'Atelier', hidden: true },
   { path: '/studio/projets', label: 'Studios', section: 'Atelier' },
   { path: '/studio/projets/nouveau', label: 'Préparer un projet', parent: '/studio/projets', section: 'Atelier' },
+  { path: '/studio/projets/nouveau/concept', label: 'Nouveau concept créatif', parent: '/studio/projets', section: 'Atelier' },
   { path: '/studio/projets/[id]', label: 'Projet', parent: '/studio/projets', section: 'Atelier', dynamic: 'segment' },
   { path: '/studio/projets/[id]/image', label: 'Éditer l’image', parent: '/studio/projets/[id]', section: 'Atelier' },
   { path: '/studio/projets/[id]/produit', label: 'Produit et références', parent: '/studio/projets/[id]', section: 'Atelier' },
@@ -430,6 +431,7 @@ export const ROUTES_HISTORIQUES: readonly RouteHistorique[] = [
 export const CAPACITE_DES_ROUTES: Readonly<Record<string, CapaciteStudio>> = {
   '/studio/projets': 'projets',
   '/studio/projets/nouveau': 'projets',
+  '/studio/projets/nouveau/concept': 'projets',
   '/studio/projets/[id]': 'projets',
   '/studio/projets/[id]/image': 'editeur',
   '/studio/projets/[id]/produit': 'projets',

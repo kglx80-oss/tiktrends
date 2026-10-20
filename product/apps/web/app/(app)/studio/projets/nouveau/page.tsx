@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation';
 import {
   aPermissionEspace, briefDepuisTest, capacitesDuRefus, etatNouveauProjet, lienRetourVeille, lireContexteNouveauProjet,
-  notesContexte, objectifDepuisIteration, titreNouveauProjetParDefaut, CHEMIN_PROJETS, OBJECTIF_MAX, LIBELLES_TYPE_PROJET,
+  notesContexte, objectifDepuisIteration, titreNouveauProjetParDefaut, CHEMIN_PROJETS, CHEMIN_NOUVEAU_CONCEPT, OBJECTIF_MAX, LIBELLES_TYPE_PROJET,
   type EtatRepriseIteration,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
 import { effectiveAccess } from '../../../../../lib/access';
-import { FEATURES, canAccess } from '../../../../../lib/rbac';
+import { isFounder } from '../../../../../lib/founder';
+import { FEATURES, canAccess, roleAtLeast } from '../../../../../lib/rbac';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
 import { produitsDeLaMarque } from '../../../../../lib/studios/sources/preparation';
@@ -87,10 +88,16 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
   const marqueNom = etat.etat === 'pret' ? etat.marque.nom : '';
   const titre = depuisTest?.titre ?? (annonce ? `D’après ${annonce.annonceur}` : titreNouveauProjetParDefaut(c.type, marqueNom || 'ta marque'));
 
-  // Sans contexte de lien (objectif, annonce, test, Veille), on sert l'assistant
-  // en étapes V5 (brief structuré écrit à la création). Le flux de reprise d'un
-  // ANCIEN lien reste sur `PreparationProjet` · aucune fonction retirée.
+  // Sans contexte de lien (objectif, annonce, test, Veille), c'est la création
+  // « depuis zéro ». Depuis le mandat du 20/10, l'entrée CLIENTE de ce geste est
+  // l'écran conversationnel « Nouveau concept créatif » (`CHEMIN_NOUVEAU_CONCEPT`)
+  // · l'assistant en étapes ci-dessous reste en SECOURS pour l'équipe interne
+  // (ADMIN+), jamais une porte cliente de plus. Aucune fonction serveur retirée :
+  // `creerProjet` demeure l'écriture canonique, et les flux AVEC contexte
+  // (reprise d'itération, annonce, Veille) passent plus bas, inchangés.
   if (!c.aContexte) {
+    const secoursAdmin = isFounder(s.user.email) && roleAtLeast(s.role, 'admin');
+    if (!secoursAdmin) redirect(CHEMIN_NOUVEAU_CONCEPT);
     const personas = etat.etat === 'pret' ? await personasDeLaMarque(g.ctx, etat.marque.id) : [];
     return (
       <main style={cadrePage}>

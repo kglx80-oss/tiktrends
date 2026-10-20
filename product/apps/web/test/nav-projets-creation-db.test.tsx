@@ -1,27 +1,26 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { act } from 'react';
-import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { IdsStudios, SessionTest } from './studios-semis';
 
 /**
- * « Nouveau projet » sur `/studio/projets`, au RÉSULTAT, sur une vraie base (pglite).
+ * L'entrée « Nouveau concept créatif » sur `/studio/projets`, au RÉSULTAT, sur
+ * une vraie base (pglite). Mandat Kevin du 20/10.
  *
- * Le défaut · `creerProjet` n'était appelé par aucune interface · hors Veille,
- * impossible de créer un projet. On rend la VRAIE page, on la monte (jsdom),
- * on clique le bouton, on valide le formulaire · puis on LIT la base : une
- * ligne `studio_projects` existe pour la marque active, et l'écran ouvre ce
- * projet. Puis les états où le geste ne peut pas aboutir · jamais un bouton mort.
+ * Ce qui a changé · le CTA n'ouvre PLUS une modale Titre/Type qui crée le projet
+ * sur-le-champ · il NAVIGUE vers l'écran de concept (`/studio/projets/nouveau/
+ * concept`), qui n'écrit RIEN et n'appelle RIEN au GET. On rend les VRAIES pages
+ * et on LIT la base :
+ *  · la liste porte un LIEN vers l'écran de concept (plus de formulaire) ;
+ *  · rendre l'écran de concept n'écrit AUCUNE ligne `studio_projects` ;
+ *  · les portes mortes restent dites (sans marque, lecture seule, capacité) ;
+ *  · l'écriture canonique `creerProjet` n'a PAS bougé · appelée, elle crée.
  */
-
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const h = vi.hoisted(() => ({
   ids: null as unknown as IdsStudios,
   session: null as SessionTest | null,
   active: null as { id: string; name: string } | null,
-  pousses: [] as string[],
 }));
 vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
@@ -40,7 +39,7 @@ vi.mock('../lib/brands', () => ({ getActiveBrand: async () => h.active, listBran
 vi.mock('next/navigation', () => ({
   redirect: (u: string) => { throw new Error(`redirect ${u}`); },
   notFound: () => { throw new Error('notFound'); },
-  useRouter: () => ({ refresh: () => {}, push: (u: string) => { h.pousses.push(u); }, replace: () => {} }),
+  useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }),
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
@@ -48,95 +47,53 @@ import { db, schema, eq, and } from '@tiktrends/db';
 import { cleInterrupteursEspace } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import ProjetsPage from '../app/(app)/studio/projets/page';
+import NouveauConceptPage from '../app/(app)/studio/projets/nouveau/concept/page';
+import PreparerProjetPage from '../app/(app)/studio/projets/nouveau/page';
 
 const ids = h.ids;
-const page = () => ProjetsPage({ searchParams: Promise.resolve({}) });
-const statique = async () => { const d = document.createElement('div'); d.innerHTML = renderToStaticMarkup(await page()); return d; };
-
-/** Monte la vraie page (ses composants clients vivants) · le bouton est celui que l'on voit. */
-async function monter() {
-  const hote = document.createElement('div');
-  document.body.appendChild(hote);
-  const racine = createRoot(hote);
-  const el = await page();
-  await act(async () => { racine.render(el); });
-  return { hote, fermer: async () => { await act(async () => { racine.unmount(); }); hote.remove(); } };
-}
-async function cliquer(el: Element | null) {
-  expect(el, 'élément à cliquer absent').not.toBeNull();
-  await act(async () => { (el as HTMLElement).click(); });
-}
-async function soumettre() {
-  const f = document.querySelector('form[data-formulaire="nouveau-projet"]');
-  expect(f, 'formulaire « Nouveau projet » absent').not.toBeNull();
-  await act(async () => { f!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
-  // L'action serveur est asynchrone (transaction pglite) · on laisse la file se vider.
-  for (let i = 0; i < 20 && !h.pousses.length && !document.querySelector('[data-formulaire="nouveau-projet"] [role="alert"]'); i++) {
-    await act(async () => { await new Promise((r) => setTimeout(r, 25)); });
-  }
-}
-async function changerTitre(v: string) {
-  const i = document.querySelector('#np-titre') as HTMLInputElement;
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-  await act(async () => { setter.call(i, v); i.dispatchEvent(new Event('input', { bubbles: true })); });
-}
+const CONCEPT = '/studio/projets/nouveau/concept';
+const projetsPage = () => ProjetsPage({ searchParams: Promise.resolve({}) });
+const rendu = async (el: ReturnType<typeof projetsPage>) => { const d = document.createElement('div'); d.innerHTML = renderToStaticMarkup(await el); return d; };
 const projetsDe = (brandId: string, userId: string) => db.select().from(schema.studioProjects)
   .where(and(eq(schema.studioProjects.brandId, brandId), eq(schema.studioProjects.ownerId, userId)));
 
 beforeAll(async () => { await semer(db, schema, ids); });
-beforeEach(() => { h.pousses = []; h.session = session(ids, 'ua'); h.active = { id: ids.brandA1, name: 'Marque A1' }; });
+beforeEach(() => { h.session = session(ids, 'ua'); h.active = { id: ids.brandA1, name: 'Marque A1' }; });
 afterEach(async () => {
   document.body.innerHTML = '';
   await db.delete(schema.appSettings).where(eq(schema.appSettings.key, cleInterrupteursEspace(ids.wsA)));
 });
 
-describe('/studio/projets · « Nouveau projet » crée vraiment un projet', () => {
-  it('le bouton est sur la page (membre, marque active)', async () => {
-    const d = await statique();
-    const b = d.querySelector('button[data-nouveau-projet="pret"]');
-    expect(b, 'bouton « Nouveau projet » absent de la liste des projets').not.toBeNull();
-    expect(b!.textContent).toBe('Nouveau projet');
+describe('/studio/projets · l’entrée « Nouveau concept créatif » navigue, ne crée pas sur place', () => {
+  it('la liste porte un LIEN vers l’écran de concept (membre, marque active) · aucune modale', async () => {
+    const d = await rendu(projetsPage());
+    const cta = d.querySelector('a[data-nouveau-projet="pret"]');
+    expect(cta, 'lien « Nouveau concept créatif » absent de la liste').not.toBeNull();
+    expect(cta!.getAttribute('href')).toBe(CONCEPT);
+    expect(cta!.textContent).toContain('Nouveau concept créatif');
     expect(d.querySelector('a[href="/veille"]')?.textContent).toBe('Créer depuis la Veille');
+    // Plus de modale Titre/Type ouverte depuis la liste.
+    expect(d.querySelector('form[data-formulaire="nouveau-projet"]')).toBeNull();
+    expect(d.querySelector('#np-titre')).toBeNull();
   });
 
-  it('clic → formulaire → une ligne studio_projects pour la marque ACTIVE, puis le projet s’ouvre', async () => {
-    expect(await projetsDe(ids.brandA1, ids.ua)).toHaveLength(0);
-    const { hote, fermer } = await monter();
-    await cliquer(hote.querySelector('button[data-nouveau-projet="pret"]'));
-    expect((document.querySelector('#np-titre') as HTMLInputElement).value).toBe('Pub statique · Marque A1');
-    await changerTitre('Rentrée · accroche chiffrée');
-    await soumettre();
-
-    const lignes = await projetsDe(ids.brandA1, ids.ua);
-    expect(lignes, 'aucun projet écrit en base après le clic').toHaveLength(1);
-    expect(lignes[0]).toMatchObject({ workspaceId: ids.wsA, brandId: ids.brandA1, kind: 'ads', title: 'Rentrée · accroche chiffrée' });
-    expect(lignes[0]!.currentVersionId, 'projet sans version courante').not.toBeNull();
-    expect(h.pousses, 'le projet créé ne s’ouvre pas').toEqual([`/studio/projets/${lignes[0]!.id}`]);
-    await fermer();
-  });
-
-  it('refus du serveur (marque hors portée du membre restreint) · son message s’affiche, rien n’est écrit', async () => {
-    h.session = session(ids, 'ur');
-    h.active = { id: ids.brandA2, name: 'Marque A2' };
-    const { hote, fermer } = await monter();
-    await cliquer(hote.querySelector('button[data-nouveau-projet="pret"]'));
-    await soumettre();
-    const alerte = document.querySelector('[data-formulaire="nouveau-projet"] [role="alert"]');
-    expect(alerte?.textContent).toContain('Projet introuvable · vérifie la marque active');
-    expect(alerte?.textContent).toMatch(/identifiant support : st_/);
-    expect(await projetsDe(ids.brandA2, ids.ur)).toHaveLength(0);
-    expect(h.pousses).toEqual([]);
-    // La saisie reste · on peut corriger et réessayer.
-    expect((document.querySelector('#np-titre') as HTMLInputElement).value).toBe('Pub statique · Marque A2');
-    await fermer();
+  it('rendre l’écran de concept n’écrit AUCUNE ligne `studio_projects` · accroche + composeur inerte', async () => {
+    const avant = (await projetsDe(ids.brandA1, ids.ua)).length;
+    const d = await rendu(NouveauConceptPage());
+    expect((await projetsDe(ids.brandA1, ids.ua)).length, 'l’ouverture de l’écran a écrit en base').toBe(avant);
+    expect(d.querySelector('[data-concept="pret"] [data-accroche]')?.textContent).toBe('Que veux-tu créer pour Marque A1 ?');
+    expect(d.querySelector('[data-composeur] textarea')).not.toBeNull();
+    const envoi = d.querySelector('[data-envoi="a-venir"]') as HTMLButtonElement | null;
+    expect(envoi?.disabled, 'l’envoi n’est pas désactivé').toBe(true);
+    expect(d.querySelector('form')).toBeNull();
   });
 });
 
-describe('jamais de bouton mort', () => {
+describe('jamais de porte morte', () => {
   it('sans marque active · on le dit, avec la porte vers les marques', async () => {
     h.active = null;
-    const d = await statique();
-    expect(d.querySelector('button[data-nouveau-projet]')).toBeNull();
+    const d = await rendu(projetsPage());
+    expect(d.querySelector('a[data-nouveau-projet="pret"]')).toBeNull();
     const e = d.querySelector('[data-nouveau-projet="sans-marque"]');
     expect(e?.textContent).toContain('choisis une marque active');
     expect(e?.querySelector('a[href="/brands"]')?.textContent).toBe('Choisir une marque');
@@ -144,19 +101,50 @@ describe('jamais de bouton mort', () => {
 
   it('lecture seule (équipe, rôle d’espace lecteur) · on le dit, et le serveur refuse aussi', async () => {
     h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: {}, plateformeAdmissible: false } as SessionTest['equipe'] });
-    const d = await statique();
-    expect(d.querySelector('button[data-nouveau-projet]')).toBeNull();
+    const d = await rendu(projetsPage());
+    expect(d.querySelector('a[data-nouveau-projet="pret"]')).toBeNull();
     expect(d.querySelector('[data-nouveau-projet="lecture-seule"]')?.textContent).toContain('pas d’en créer');
     const { creerProjet } = await import('../app/actions/studios/projets');
     const r = await creerProjet({ brandId: ids.brandA1, kind: 'ads', title: 'Forcé' });
     expect(!r.ok && r.code).toBe('FORBIDDEN');
   });
 
-  it('capacité « projets » coupée · la page dit « non activé », aucun bouton', async () => {
+  it('capacité « projets » coupée · la page dit « non activé », aucun lien', async () => {
     const value = { actives: [], coupees: ['projets'] };
     await db.insert(schema.appSettings).values({ key: cleInterrupteursEspace(ids.wsA), value }).onConflictDoUpdate({ target: schema.appSettings.key, set: { value } });
-    const d = await statique();
+    const d = await rendu(projetsPage());
     expect(d.querySelector('[data-etat="non-active"]')?.getAttribute('data-capacites')).toBe('projets');
     expect(d.querySelector('[data-nouveau-projet]')).toBeNull();
+  });
+});
+
+describe('pas de 4e porte orpheline · l’assistant « depuis zéro » ne double plus l’entrée cliente', () => {
+  it('un membre qui arrive sur l’ancien assistant SANS contexte est mené à l’écran de concept', async () => {
+    // Le membre « ua » n'est pas de l'équipe interne (ADMIN+ en secours) · sa
+    // création « depuis zéro » passe par l'écran de concept, jamais par deux
+    // portes concurrentes.
+    await expect(PreparerProjetPage({ searchParams: Promise.resolve({}) }))
+      .rejects.toThrow('redirect /studio/projets/nouveau/concept');
+  });
+
+  it('un lien AVEC contexte (angle repris d’une annonce) n’est PAS dévié · le flux de reprise reste entier', async () => {
+    // Un contexte dans l'adresse (ici l'angle) · la page le relit et sert la
+    // préparation, elle ne redirige pas vers l'écran de concept.
+    await expect(PreparerProjetPage({ searchParams: Promise.resolve({ angle: 'Hook témoignage' }) }))
+      .resolves.toBeTruthy();
+  });
+});
+
+describe('l’écriture canonique n’a pas bougé', () => {
+  it('`creerProjet` crée vraiment une ligne `studio_projects` pour la marque active', async () => {
+    const avant = (await projetsDe(ids.brandA1, ids.ua)).length;
+    const { creerProjet } = await import('../app/actions/studios/projets');
+    const r = await creerProjet({ brandId: ids.brandA1, kind: 'ads', title: 'Rentrée · accroche chiffrée' });
+    expect(r.ok, 'creerProjet a échoué').toBe(true);
+    const lignes = await projetsDe(ids.brandA1, ids.ua);
+    expect(lignes.length).toBe(avant + 1);
+    const cree = lignes.find((l) => l.title === 'Rentrée · accroche chiffrée');
+    expect(cree, 'projet créé introuvable').toMatchObject({ workspaceId: ids.wsA, brandId: ids.brandA1, kind: 'ads' });
+    expect(cree!.currentVersionId, 'projet sans version courante').not.toBeNull();
   });
 });
