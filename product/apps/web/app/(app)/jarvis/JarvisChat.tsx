@@ -18,6 +18,7 @@ import { JarvisContexte } from './JarvisContexte';
 import { useIsMobile } from '../../../components/useIsMobile';
 import { cadreSignal } from '../../../components/ui';
 import { Icon } from '../../../components/Icon';
+import { COUT_CONVERSATION_JARVIS } from '../../../lib/veille-jarvis';
 import type { ProjetColonne } from '../../../lib/studios/jarvis-projets';
 
 /**
@@ -48,18 +49,20 @@ const reponse: CSSProperties = {
   color: 'var(--ink)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
 };
 
-export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets }: {
+export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brouillonInitial = '' }: {
   fiche: FicheMarqueLue | null;
   brandId: string;
   brandName: string;
   kpiSource: SourceDepenseJarvis | null;
   projets: ProjetColonne[];
+  /** Demande préparée, toujours soumise par un clic explicite. */
+  brouillonInitial?: string;
 }) {
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [conversations, setConversations] = useState<ConversationLue[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [saisie, setSaisie] = useState('');
+  const [saisie, setSaisie] = useState(brouillonInitial.slice(0, 4000));
   const [enCours, setEnCours] = useState(false);
   const [partiel, setPartiel] = useState('');
   const [contexteOuvert, setContexteOuvert] = useState(false);
@@ -225,7 +228,8 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets }: {
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(saisie); } }}
-          rows={2}
+          rows={brouillonInitial ? 8 : 2}
+          maxLength={4000}
           placeholder={`Demandez-moi n’importe quoi sur ${brandName}…`}
           disabled={enCours}
           aria-label="Écrire à Jarvis"
@@ -306,6 +310,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets }: {
             )}
           </button>
         </div>
+        <p style={{ margin: '8px 0 0', color: 'var(--muted)', fontSize: 12, lineHeight: 1.5 }}>{COUT_CONVERSATION_JARVIS}</p>
       </div>
     </div>
   );

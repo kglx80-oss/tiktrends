@@ -6,7 +6,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { ttSearchAds, type InspoAd } from '@tiktrends/integrations';
-import { analyzeCompetitor, type CompetitorInsights } from '@tiktrends/ai';
+import { analyzeCompetitor, generateBrandProfile, type CompetitorInsights } from '@tiktrends/ai';
 import { costFor, variantesRechercheConcurrent } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { guardedAnthropic } from '../../lib/spend-guard';
@@ -140,4 +140,58 @@ export async function getCompetitorReport(brandId: string, name: string): Promis
   const [row] = await db.select({ value: schema.agentMemory.value }).from(schema.agentMemory)
     .where(and(eq(schema.agentMemory.brandId, brandId), eq(schema.agentMemory.key, memKey(name)))).limit(1);
   return (row?.value as CompetitorReport | undefined) ?? null;
+}
+
+/** Suggestions relues avant ajout. Aucune écriture de fiche pendant l'appel IA. */
+export async function proposerConcurrents(brandId: string, contexte: string): Promise<{ names: string[] } | { error: string }> {
+  const g = await guardBrand(brandId);
+  if (!g || !db) return { error: 'Cette marque n’est pas accessible.' };
+  const [b] = await db.select().from(schema.brands).where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1);
+  if (!b) return { error: 'Cette marque n’est pas accessible.' };
+  const client = guardedAnthropic({ workspaceId: g.workspaceId, action: 'competitor' });
+  if (!client) return { error: 'Jarvis n’est pas disponible actuellement.' };
+  const unlimited = unlimitedCredits(g.email);
+  const cost = costFor('brief');
+  if (!unlimited && !(await reserveCredits(g.workspaceId, cost, 'Concurrents · proposition de pistes'))) return { error: `Crédits insuffisants : ${cost} crédits requis.` };
+  try {
+    const profile = await generateBrandProfile(client, {
+      name: b.name, url: b.url ?? undefined,
+      siteText: [
+        'Contexte fourni par la marque, non vérifié sur le web.',
+        b.description, b.category, b.audience, b.usp,
+        `Recherche demandée : ${String(contexte ?? '').slice(0, 1200)}`,
+        `Concurrents déjà renseignés : ${(b.competitors ?? []).join(', ')}`,
+        'Propose des marques concurrentes probables distinctes de cette marque et de cette liste. Il ne s’agit pas d’une recherche web ni de marques vérifiées.',
+      ].filter(Boolean).join('\n'),
+    });
+    const existing = new Set([b.name, ...(b.competitors ?? [])].map((name) => name.trim().toLocaleLowerCase('fr')));
+    const names = (Array.isArray(profile.competitors) ? profile.competitors : []).filter((name): name is string => typeof name === 'string').map((name) => name.trim()).filter((name) => {
+      const key = name.toLocaleLowerCase('fr');
+      if (!name || name.length > 120 || existing.has(key)) return false;
+      existing.add(key); return true;
+    }).slice(0, 6);
+    return { names };
+  } catch {
+    if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · proposition concurrents');
+    return { error: unlimited ? 'La proposition a échoué. Aucun crédit client débité ; le coût fournisseur éventuel reste suivi.' : 'La proposition a échoué. Les crédits de cette intervention sont remboursés ; le coût fournisseur éventuel reste suivi.' };
+  }
+}
+
+/** Ajout explicite et additif ; verrou de ligne pour préserver les ajouts simultanés. */
+export async function ajouterConcurrents(brandId: string, selection: string[]): Promise<{ ok: true } | { error: string }> {
+  const g = await guardBrand(brandId);
+  if (!g || !db) return { error: 'Cette marque n’est pas accessible.' };
+  if (!Array.isArray(selection) || selection.length > 6 || !selection.length || selection.some((name) => typeof name !== 'string' || !name.trim() || name.length > 120)) return { error: 'Sélection invalide.' };
+  await db.transaction(async (tx) => {
+    const [b] = await tx.select().from(schema.brands).where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1).for('update');
+    if (!b) throw new Error('Marque indisponible');
+    const names = [...(b.competitors ?? [])];
+    const known = new Set([b.name, ...names].map((name) => name.trim().toLocaleLowerCase('fr')));
+    for (const name of selection.map((value) => value.trim())) {
+      const key = name.toLocaleLowerCase('fr');
+      if (!known.has(key)) { names.push(name); known.add(key); }
+    }
+    await tx.update(schema.brands).set({ competitors: names }).where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, g.workspaceId)));
+  });
+  return { ok: true };
 }
