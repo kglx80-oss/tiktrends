@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { partDeMax, messageServiceInactif, lienNouveauProjet, teinte } from '@tiktrends/core';
+import { costFor, partDeMax, messageServiceInactif, lienNouveauProjet, teinte } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
+import { unlimitedCredits } from '../../../../../../lib/credits';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { analyzeCompetitorAction, getCompetitorReport, type CompetitorReport } from '../../../../../actions/competitor';
 import { Msg, cadrePage, surface, vide, h1 } from '../../../../../../components/ui';
@@ -49,6 +50,7 @@ export default async function CompetitorPage({ params, searchParams }: {
     .from(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
   if (!b) notFound();
 
+  const price = unlimitedCredits(s.user.email) ? '0 crédit débité · coût fournisseur sous plafond' : `${costFor('report')} crédits`;
   const report = await getCompetitorReport(id, name);
   const ins = report?.insights;
   // Le site du concurrent · le domaine d'atterrissage mesuré une fois analysé
@@ -75,7 +77,7 @@ export default async function CompetitorPage({ params, searchParams }: {
           <form action={analyzeCompetitorAction}>
             <input type="hidden" name="brandId" value={id} />
             <input type="hidden" name="name" value={name} />
-            <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Rafraîchir l’analyse</span></button>
+            <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Rafraîchir l’analyse · {price}</span></button>
           </form>
         )}
       </div>
@@ -98,7 +100,7 @@ export default async function CompetitorPage({ params, searchParams }: {
           </div>
           <h2 style={{ margin: '15px 0 0', fontSize: 19, fontWeight: 800, color: 'var(--ink)' }}>Analyser {name}</h2>
           <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.6, margin: '9px auto 0', maxWidth: 470 }}>
-            On récupère ses créas depuis la bibliothèque publicitaire et on en extrait ce qui marche · de quoi t'en inspirer sans repartir de zéro.
+            Jarvis étudie les textes de ses annonces disponibles pour proposer des accroches et des angles à tester. Une annonce active ne prouve pas sa rentabilité.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, justifyContent: 'center', margin: '18px 0 2px' }}>
             {['Hooks', 'Angles', 'USP', 'Désirs', 'Émotions', 'Thèmes'].map((c) => (
@@ -111,9 +113,9 @@ export default async function CompetitorPage({ params, searchParams }: {
           <form action={analyzeCompetitorAction} style={{ marginTop: 20 }}>
             <input type="hidden" name="brandId" value={id} />
             <input type="hidden" name="name" value={name} />
-            <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Analyser ce concurrent</span></button>
+            <button style={addBtn}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="sparkles" size={13} /> Analyser ce concurrent · {price}</span></button>
           </form>
-          <p style={{ color: 'var(--muted)', fontSize: 11.5, margin: '13px 0 0' }}>Consomme des crédits · le résultat est mis en cache, pas de recalcul à chaque visite.</p>
+          <p style={{ color: 'var(--muted)', fontSize: 11.5, margin: '13px 0 0' }}>Coût annoncé avant le lancement · le résultat est conservé, consulter ce rapport ne relance pas l’IA.</p>
         </div>
       ) : (
         <>
