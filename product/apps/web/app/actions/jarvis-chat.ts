@@ -12,7 +12,7 @@ import { jarvisStats, jarvisHookView } from '../../lib/jarvis-memory';
 import { connaissancesPourReponse, titresDesSources } from '../../lib/jarvis-connaissances';
 import { logAndTranslate } from '../../lib/error-log';
 import { GUARD } from '../../lib/guard-error';
-import { listerConversations, messagesDeConversation, effacerMessagesConversation, conversationAppartient, type ConversationLue } from '../../lib/jarvis/conversations';
+import { listerConversations, conversationDuProjet, messagesDeConversation, effacerMessagesConversation, conversationAppartient, type ConversationLue } from '../../lib/jarvis/conversations';
 import { messagesOnboarding, effacerOnboarding } from '../../lib/jarvis/onboarding';
 
 export type { ConversationLue };
@@ -85,13 +85,21 @@ export interface ChatThread {
 /**
  * Lit le fil d'UNE conversation (et la liste des conversations nommées).
  *
- * `conversationId` · `null` ouvre le fil principal (messages sans conversation,
- * le fil unique d'avant la V5) ; un identifiant ouvre la conversation nommée
- * correspondante, APRÈS vérification qu'elle appartient bien à la portée
- * (espace + marque + personne) · un identifiant étranger retombe sur le fil
- * principal plutôt que d'exposer la conversation d'autrui.
+ * `arg` · trois formes, une seule porte (feature `jarvis` AVANT toute lecture) :
+ *  · `null` ouvre le fil principal (messages sans conversation, le fil unique
+ *    d'avant la V5) ;
+ *  · une chaîne ouvre la conversation NOMMÉE correspondante, APRÈS vérification
+ *    qu'elle appartient à la portée (espace + marque + personne) · un identifiant
+ *    étranger retombe sur le fil principal, jamais la conversation d'autrui ;
+ *  · `{ projectId }` (Concept créatif V5) ouvre la conversation LIÉE au concept
+ *    de la marque ACTIVE (`conversationDuProjet`), portée espace + marque +
+ *    personne + `project_id`. Pas de mélange marque/concept : une conversation
+ *    d'une autre marque ou d'un autre concept n'est jamais lue, et SANS
+ *    conversation liée le fil est VIDE · on ne retombe PAS sur le fil principal
+ *    de la marque (ce serait un mélange). La liste `conversations` rendue est
+ *    alors celle du concept, pas celle de la marque.
  */
-export async function chatThreadAction(conversationId: string | null = null): Promise<{ thread?: ChatThread; error?: string }> {
+export async function chatThreadAction(arg: string | null | { projectId: string } = null): Promise<{ thread?: ChatThread; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
   // Même porte que la route · la feature `jarvis` AVANT la marque, le fil et
@@ -104,15 +112,23 @@ export async function chatThreadAction(conversationId: string | null = null): Pr
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { error: 'Sélectionne une marque active pour parler à Jarvis.' };
 
+  const parProjet = typeof arg === 'object' && arg !== null ? arg.projectId : null;
+
   try {
     const portee = { workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id };
-    // Une conversation nommée demandée doit appartenir à la portée · sinon on
-    // ouvre le fil principal (jamais la conversation d'autrui).
-    const ouverte = conversationId && (await conversationAppartient(portee, conversationId)) ? conversationId : null;
+    // Concept · on résout la conversation LIÉE au concept (jamais le fil
+    // principal). Sinon · une conversation nommée demandée doit appartenir à la
+    // portée, sans quoi on ouvre le fil principal (jamais celle d'autrui).
+    const convsProjet = parProjet ? await conversationDuProjet(portee, parProjet).catch(() => [] as ConversationLue[]) : null;
+    const ouverte = parProjet
+      ? (convsProjet![0]?.id ?? null)
+      : (typeof arg === 'string' && arg && (await conversationAppartient(portee, arg)) ? arg : null);
     const voitMemoire = canAccess(effectiveAccess(s), adsmap);
     const [rows, conversations, stats, ws, ident, hooks] = await Promise.all([
-      messagesDeConversation(portee, ouverte),
-      listerConversations(portee).catch(() => [] as ConversationLue[]),
+      // En mode concept SANS conversation liée, le fil est vide · on NE lit PAS
+      // le fil principal de la marque (pas de mélange marque/concept).
+      parProjet && !ouverte ? Promise.resolve([] as Awaited<ReturnType<typeof messagesDeConversation>>) : messagesDeConversation(portee, ouverte),
+      parProjet ? Promise.resolve(convsProjet!) : listerConversations(portee).catch(() => [] as ConversationLue[]),
       voitMemoire ? jarvisStats(brand.id, s.workspaceId).catch(() => null) : Promise.resolve(null),
       db.select({ onboarding: schema.workspaces.onboarding }).from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
       db.select({

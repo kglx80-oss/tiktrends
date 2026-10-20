@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, contexteSelonPuces, consigneOnboardingJarvis, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
-import { messagesDeConversation, conversationAppartient, toucherConversation } from '../../../../lib/jarvis/conversations';
+import { messagesDeConversation, conversationAppartient, conversationDuProjet, creerConversation, toucherConversation } from '../../../../lib/jarvis/conversations';
 import { messagesOnboarding, insererMessageOnboarding } from '../../../../lib/jarvis/onboarding';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
   const brand = await getActiveBrand(s.workspaceId);
 
-  const body = (await req.json().catch(() => null)) as { message?: string; conversationId?: string | null; sources?: string[] } | null;
+  const body = (await req.json().catch(() => null)) as { message?: string; conversationId?: string | null; projectId?: string | null; sources?: string[] } | null;
   const question = (body?.message ?? '').trim();
   if (!question) return json({ error: 'Message vide.' }, 400);
 
@@ -93,7 +93,18 @@ export async function POST(req: Request) {
   // étranger retombe sur le fil principal (jamais la conversation d'autrui). Le
   // tour s'écrit alors dans CETTE conversation (ou le fil principal).
   const demandee = typeof body?.conversationId === 'string' ? body.conversationId : null;
-  const conversationId = demandee && (await conversationAppartient(portee, demandee)) ? demandee : null;
+  let conversationId = demandee && (await conversationAppartient(portee, demandee)) ? demandee : null;
+
+  // Concept créatif V5 · un message de concept (`projectId` fourni) ne tombe
+  // JAMAIS dans le fil principal de la marque · à défaut de conversation liée
+  // résolue, on réutilise celle du concept (portée + `project_id`) ou on en crée
+  // une. Le lien marque↔concept reste porté par la ligne de conversation, lue
+  // côté serveur par `conversationDuProjet` (pas de clé navigateur).
+  const projectId = typeof body?.projectId === 'string' ? body.projectId : null;
+  if (projectId && !conversationId) {
+    const existantes = await conversationDuProjet(portee, projectId).catch(() => []);
+    conversationId = existantes[0]?.id ?? (await creerConversation(portee, { projectId }));
+  }
   // Les puces de contexte (Veille / Fiche marque · seule « Fiche marque » est
   // réelle) · décocher « Fiche marque » EXCLUT l'identité et la mémoire mesurée
   // du contexte assemblé pour CE tour (règle pure `contexteSelonPuces`).

@@ -6,7 +6,9 @@ import { effectiveAccess } from '../../../../../lib/access';
 import { FEATURES, denyReason } from '../../../../../lib/rbac';
 import { roleAtLeast } from '../../../../../lib/rbac';
 import { lireProjetDetail } from '../../../../actions/studios/sources';
+import { chatThreadAction } from '../../../../actions/jarvis-chat';
 import { VueProjet } from '../../../../../components/studios/projet/VueProjet';
+import { ConceptHote } from '../../../../../components/studios/projet/ConceptHote';
 import { VariantesEtTests } from '../../../../../components/studios/VariantesEtTests';
 import { TachesProjet } from '../../../../../components/studios/taches/TachesProjet';
 import { CanvasProjet } from '../../../../../components/studios/canvas/CanvasProjet';
@@ -69,9 +71,26 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
   const lignee = await LigneeProjet({ projectId: r.detail.projet.id });
   // F1 · l'atelier ne montre un lien que vers ce qui est actif pour l'espace ; le reste se dit « non activé ».
   const inter = await etatInterrupteurs(s.workspaceId);
+
+  // Concept créatif VIVANT (V5) · le fil Jarvis LIÉ au concept, lu CÔTÉ SERVEUR
+  // par `conversationDuProjet` (jamais par clé navigateur). LECTURE seule · la
+  // visite n'écrit rien. Un refus (accès, marque) rend un fil absent, jamais une
+  // panne de page · l'hôte s'affiche quand même avec la zone « créations ».
+  const filConcept = await chatThreadAction({ projectId: r.detail.projet.id }).catch(() => ({ error: '' as string } as Awaited<ReturnType<typeof chatThreadAction>>));
+  const courante = r.detail.versions.find((v) => v.courante) ?? null;
+
   return (
     <main style={cadrePage}>
-      <VueProjet detail={r.detail} exportAutorise={roleAtLeast(s.role, 'member')} variantes={variantes} atelier={liensAtelierProjet(r.detail.projet.id, inter.actif)} />
+      <div data-emplacement="concept-hote" style={{ marginBottom: 18 }}>
+        <ConceptHote
+          projectId={r.detail.projet.id}
+          brandName={r.detail.projet.marque}
+          versionCourante={courante ? { id: courante.id, n: courante.n } : null}
+          initialThread={filConcept.thread ?? null}
+          initialErreur={filConcept.error ?? null}
+        />
+      </div>
+      <VueProjet detail={r.detail} exportAutorise={roleAtLeast(s.role, 'member')} variantes={variantes} atelier={liensAtelierProjet(r.detail.projet.id, inter.actif)} masquerPropositions />
       <div data-emplacement="taches" style={{ marginTop: 18 }}>{taches}</div>
       {canvas && <div data-emplacement="canvas" style={{ marginTop: 18 }}>{canvas}</div>}
       {lignee && <div data-emplacement="canvas-lignee" style={{ marginTop: 18 }}>{lignee}</div>}
