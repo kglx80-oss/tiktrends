@@ -6,7 +6,7 @@ import { AdMedia } from './AdMedia';
 import { Icon } from './Icon';
 import { AvatarSite } from './AvatarSite';
 import { PreparerCreation } from './studios/PreparerCreation';
-import { ActionsVeille } from './ActionsVeille';
+import { ActionsVeille, RaccourcisVeille } from './ActionsVeille';
 
 export const compact = (n?: number) => {
   if (n == null) return 'n/c';
@@ -78,7 +78,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
         {/* En V5, le bandeau plateforme + format prend le coin haut-gauche · les
             jours de diffusion quittent ce coin pour la pastille de statut, sous le
             média (maquette). Hors V5, le badge « N j actifs » du média reste. */}
-        <AdMedia mediaUrl={ad.mediaUrl} thumbnailUrl={ad.thumbnailUrl} isVideo={ad.mediaType === 'video'} daysRunning={badgesV5 ? undefined : ad.daysRunning} aspect="1/1" />
+        <AdMedia mediaUrl={ad.mediaUrl} thumbnailUrl={ad.thumbnailUrl} isVideo={ad.mediaType === 'video'} daysRunning={badgesV5 ? undefined : ad.daysRunning} aspect={badgesV5 ? "4/5" : "1/1"} />
         {bandeau && (
           // Bandeau plateforme + format (maquette V5) · deux pastilles jumelles,
           // MÊME fond sombre et MÊME rayon que la sauvegarde du coin opposé
@@ -91,12 +91,13 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
         )}
         {/* Sauvegarder / retirer (instantané) */}
         <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
-          <SaveButton ad={ad} initialSaved={saved} />
+          <SaveButton ad={ad} initialSaved={saved} visuelV5={badgesV5} />
         </div>
+        {badgesV5 && <RaccourcisVeille ad={ad} sauvegardeId={cloneRef} retour={retour} />}
       </div>
       {/* En V5 (maquette · grille 4 colonnes compactes) la carte se resserre ·
           padding et interligne réduits, sans rien retirer des signaux réels. */}
-      <div style={{ padding: badgesV5 ? '10px 11px 11px' : '11px 12px', display: 'grid', gap: badgesV5 ? 6 : 8 }}>
+      <div style={{ padding: badgesV5 ? '12px 16px 14px' : '11px 12px', display: 'grid', gap: badgesV5 ? 9 : 8 }}>
         {/* minWidth:0 · la rangée est un enfant de grille et le nom un flex-item ·
             sans ça (min-width auto par défaut) l'ellipsis voulue sur le nom
             n'opère pas et un annonceur au nom long pousse le badge et le bouton
@@ -128,8 +129,8 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
           // variantes ni de date de première vue (absentes de la source · R14).
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: bandeau.statut.actif ? 'var(--ok)' : 'var(--muted)' }} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{bandeau.statut.texte} · {bandeau.statut.jours} j</span>
-            <span aria-hidden style={{ flex: '1 1 auto', maxWidth: 132, height: 4, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', minWidth: 24 }}>
+            <span style={{ fontSize: 12, fontWeight: badgesV5 ? 400 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{bandeau.statut.texte} · {bandeau.statut.jours} j</span>
+            <span aria-hidden style={{ flex: '1 1 auto', maxWidth: badgesV5 ? 90 : 132, height: 4, borderRadius: 999, background: 'var(--line)', overflow: 'hidden', minWidth: 24 }}>
               <span style={{ display: 'block', height: '100%', width: `${Math.round(bandeau.jauge * 100)}%`, borderRadius: 999, background: 'var(--ok)' }} />
             </span>
           </div>

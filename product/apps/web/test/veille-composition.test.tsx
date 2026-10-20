@@ -107,8 +107,8 @@ describe('Veille · carte V5 resserrée + grille compacte (maquette)', () => {
   const htmlV5 = renderToStaticMarkup(<AdCard ad={adStat} ctaSobre cibles44 badgesV5 />);
   const htmlStd = renderToStaticMarkup(<AdCard ad={adStat} ctaSobre cibles44 />);
 
-  it('le bloc d’info de la carte V5 est plus serré (padding et interligne réduits)', () => {
-    expect(htmlV5, 'interligne resserré en V5').toContain('padding:10px 11px 11px;display:grid;gap:6px');
+  it('le bloc d’info V5 respecte les marges du prototype sans changer la carte standard', () => {
+    expect(htmlV5, 'marges du prototype V5').toContain('padding:12px 16px 14px;display:grid;gap:9px');
     // Mutation · non-régression · les autres surfaces gardent leur densité.
     expect(htmlStd, 'la carte standard ne doit pas se resserrer').toContain('padding:11px 12px;display:grid;gap:8px');
   });
