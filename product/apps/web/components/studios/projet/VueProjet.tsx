@@ -45,7 +45,7 @@ const Liste = ({ items }: { items: string[] }) => (
   <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>{items.map((t, i) => <li key={`${i}-${t}`} style={texte}>{t}</li>)}</ul>
 );
 
-export function VueProjet({ detail, exportAutorise, variantes = null, atelier }: { detail: DetailProjet; exportAutorise: boolean; variantes?: ReactNode; atelier?: LienAtelier[] }) {
+export function VueProjet({ detail, exportAutorise, variantes = null, atelier, masquerPropositions = false }: { detail: DetailProjet; exportAutorise: boolean; variantes?: ReactNode; atelier?: LienAtelier[]; masquerPropositions?: boolean }) {
   const { projet, version, brief, hypothese, produit, sources, completude, versions } = detail;
   const retour = sources.find((s) => s.statut === 'active' && s.retourVeille)?.retourVeille ?? null;
   const ancienne = !versions.find((v) => v.id === version.id)?.courante;
@@ -137,8 +137,10 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier }:
             ) : <p style={{ ...discret, color: 'var(--warn-text)' }}>Aucun produit choisi · le scénario attendra un produit de la marque.</p>}
           </section>
 
-          {/* Propositions (L4-A) · ciblent la version COURANTE, pas celle affichée. */}
-          {courante && (
+          {/* Propositions (L4-A) · ciblent la version COURANTE, pas celle affichée.
+              Concept V5 · quand l'hôte de conversation les porte CÔTE À CÔTE avec
+              le fil (`masquerPropositions`), on ne les double pas ici. */}
+          {courante && !masquerPropositions && (
             <div data-emplacement="propositions">
               <PropositionsProjet projectId={projet.id} versionCourante={{ id: courante.id, n: courante.n }} />
             </div>

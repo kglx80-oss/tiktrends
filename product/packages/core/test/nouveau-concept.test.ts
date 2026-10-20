@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accrocheNouveauConcept, CHEMIN_NOUVEAU_CONCEPT, etatNouveauProjet } from '../src/studios/ux/nouveau-projet';
+import { accrocheNouveauConcept, CHEMIN_NOUVEAU_CONCEPT, conceptParDefaut, etatNouveauProjet, KIND_CONCEPT_DEFAUT, TITRE_NOUVEAU_PROJET_MAX, titreNouveauProjetParDefaut } from '../src/studios/ux/nouveau-projet';
 
 /**
  * « Nouveau concept créatif » (vocabulaire CLIENT, mandat Kevin du 20/10) · la
@@ -24,5 +24,16 @@ describe('nouveau concept créatif · règle pure', () => {
   it('les portes mortes restent dites · sans marque, vers les marques ; sans droit, lecture seule', () => {
     expect(etatNouveauProjet({ peutProposer: true, marqueActive: null }).etat).toBe('sans-marque');
     expect(etatNouveauProjet({ peutProposer: false, marqueActive: { id: 'b1', name: 'Neva' } }).etat).toBe('lecture-seule');
+  });
+
+  it('le concept par défaut (1er message) EST un projet « ads », titre dérivé de la marque', () => {
+    // La décision vit au noyau · le composeur et l'action serveur la LISENT, ils
+    // ne la réécrivent pas. Le type reste le cœur de l'outil (créatives pub).
+    expect(KIND_CONCEPT_DEFAUT).toBe('ads');
+    expect(conceptParDefaut('Neva')).toEqual({ kind: 'ads', title: titreNouveauProjetParDefaut('ads', 'Neva') });
+    expect(conceptParDefaut('Neva').title).toContain('Neva');
+    // Jamais vide, et borné comme le dépôt (le serveur revérifie).
+    expect(conceptParDefaut('').title.length).toBeGreaterThan(0);
+    expect(conceptParDefaut('x'.repeat(500)).title.length).toBeLessThanOrEqual(TITRE_NOUVEAU_PROJET_MAX);
   });
 });
