@@ -214,6 +214,7 @@ export * from './engagement-essai';
 export * from './depense-reconciliation-geste';
 export * from './studios/interrupteurs';
 export * from './studios/jarvis-projets';
+export * from './studios/jarvis-concept';
 export * from './essai-reconcilie';
 export * from './studios/bibliotheque';
 export * from './studios/creations-historiques';
