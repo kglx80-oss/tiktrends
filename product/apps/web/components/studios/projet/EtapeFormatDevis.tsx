@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
-  OPTIONS_FORMAT_ASSISTANT, saisieFormatDepuisBrief, changementFormatManuel, formatDejaEcrit, controleVisionDevis,
+  lireLigneTexte, OPTIONS_FORMAT_ASSISTANT, saisieFormatDepuisBrief, changementFormatManuel, formatDejaEcrit, controleVisionDevis,
   capacitesDuRefus, libelleCaseControleVision, ALLOWED_PATHS_BRIEF, CIBLE_TACTILE_MIN, teinte,
   signatureChoixDevis, verdictDevisRecu, MESSAGE_DEVIS_INCONNU,
   libelleCoutTexteEstime, NOTE_BORNE_TEXTE, type ModeImage,
@@ -232,7 +232,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
                       setRetour(null);
                     }} disabled={occupe}
                     style={{ ...tuile, textAlign: 'left', padding: 12, cursor: occupe ? 'default' : 'pointer', display: 'grid', gap: 2, minHeight: CIBLE_TACTILE_MIN, background: choisi ? teinte('accent', .12) : 'var(--bg)', borderColor: choisi ? 'var(--accent-strong)' : 'var(--line)', opacity: occupe && !choisi ? 0.6 : 1 }}>
-                    <span aria-hidden className={styles.ratio} style={{ aspectRatio: `${o.largeur}/${o.hauteur}` }}>{apercuProduitUrl ? <img src={apercuProduitUrl} alt="Photo produit de référence" /> : <span>{brief.texts?.[0] || o.libelle}</span>}</span>
+                    <span aria-hidden className={styles.ratio} style={{ aspectRatio: `${o.largeur}/${o.hauteur}` }}>{apercuProduitUrl ? <img src={apercuProduitUrl} alt="Photo produit de référence" /> : <span>{brief.texts[0] ? lireLigneTexte(brief.texts[0]).texte : o.libelle}</span>}</span>
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{o.libelle}</span>
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>{o.largeur} × {o.hauteur} · {o.placement}</span>
                   </button>

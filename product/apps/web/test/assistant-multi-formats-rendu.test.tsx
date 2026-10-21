@@ -2,7 +2,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { BriefCanonique } from '@tiktrends/core';
+import { ligneTexte, type BriefCanonique } from '@tiktrends/core';
 import { EtapeFormatDevis } from '../components/studios/projet/EtapeFormatDevis';
 import { ConfirmationLotImages } from '../components/studios/projet/ConfirmationLotImages';
 import type { VueLotImages } from '../lib/studios/image/lot-images';
@@ -54,4 +54,11 @@ describe('formats du devis réel',()=>{
   await act(async()=>root.render(<ConfirmationLotImages lot={lot} onModifier={vi.fn()} onLance={vi.fn()}/>));
   expect(el.textContent).toContain('Formats : 4:5 · 9:16');expect(el.textContent).toContain('4 images');expect(h.approuver).not.toHaveBeenCalled();
  });
+});
+
+it('les miniatures affichent le texte décodé, sans sérialisation ni langue technique',async()=>{
+ const texte='Votre rituel, simplement';
+ await act(async()=>root.render(<EtapeFormatDevis projectId="p" version={{id:'v1',n:1}} brief={{...brief,texts:[ligneTexte({type:'hook',langue:'fr',texte,sources:[]})]}} onBriefChange={vi.fn()} onDevisPret={vi.fn()} onLotPret={vi.fn()} onRetour={vi.fn()}/>));
+ for(const vignette of el.querySelectorAll('[data-format] [aria-hidden]'))expect(vignette.textContent).toBe(texte);
+ expect(el.textContent).not.toContain('Hook (fr)');
 });
