@@ -1,5 +1,5 @@
 'use client';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT} from '../projet/useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../projet/useAppelPayant';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -108,7 +108,7 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
     setRetour(null);
     try {
       const r = await f();
-      if(tentative)appel.terminer(tentative);
+      if(tentative)appel.terminer(tentative,resultatPayantIncertain(r));
       if (r.ok) { setRetour({ ok: true, texte: succes }); apres?.(); } else setRetour({ ok: false, texte: messageErreur(r) });
     } catch {
       if(tentative)appel.terminer(tentative,true);

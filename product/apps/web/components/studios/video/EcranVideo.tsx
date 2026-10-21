@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT} from '../projet/useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../projet/useAppelPayant';
 import { appliquerOperationVideo as appliquerNoyau, impactVideo, messageHorsLigneStudio, ECHEC_RESEAU_STUDIO, type ErreurStudio, type OperationVideo } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
 import {
@@ -88,7 +88,7 @@ export function EcranVideo({ vue, onRecharger }: { vue: DonneesVideo; onRecharge
     dernierGeste.current = reessayable ? () => { void agir(nom, f, succes, apres); } : null;
     try {
       const r = await f();
-      if(payant&&tentative)payant.terminer(tentative);
+      if(payant&&tentative)payant.terminer(tentative,resultatPayantIncertain(r));
       if (r.ok) { setRetour({ ok: true, texte: succes(r) }); apres?.(); recharger(); } else setRetour({ ok: false, code: r.code, reessayable, texte: `${messageErreur(r)}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}` });
     } catch {
       if(payant&&tentative)payant.terminer(tentative,true);

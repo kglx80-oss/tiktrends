@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT} from './useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from './useAppelPayant';
 import type { ChangementPatch } from '@tiktrends/core';
 import {
   listerPropositions, proposerBrief, creerPropositionManuelle, appliquerProposition, rejeterProposition,
@@ -22,7 +22,7 @@ import type { ListePropositions, PropositionPresentee, ReponseProposition } from
  */
 
 export type EtatListe = ReponseProposition<ListePropositions> | null;
-export type RetourGeste = { type: 'ok' | 'err'; message: string } | null;
+export type RetourGeste = { type: 'ok' | 'err'; message: string; code?:string } | null;
 
 export interface CyclePropositionsBrief {
   liste: EtatListe;
@@ -69,7 +69,7 @@ export function usePropositionsBrief(projectId: string, versionInit: { id: strin
     setRetour(null);
     try {
       const r = await appel();
-      if(tentative)appelPayant.terminer(tentative);
+      if(tentative)appelPayant.terminer(tentative,resultatPayantIncertain({ok:r?.type==='ok',code:r?.code}));
       if (actif.current !== pour) return;
       setRetour(r);
       await recharger();
@@ -83,7 +83,7 @@ export function usePropositionsBrief(projectId: string, versionInit: { id: strin
 
   const demanderJarvis = (demande: string) => geste('demande', async () => {
     const r = await proposerBrief({ projectId, baseVersionId: baseId(), demande });
-    if (!r.ok) return { type: 'err', message: r.message };
+    if (!r.ok) return { type: 'err', message: r.message, code:r.code };
     if (r.statut === 'questions') return { type: 'err', message: `Jarvis a besoin d’une précision · ${r.questions.join(' · ')}. Rien n’a été enregistré.` };
     return { type: 'ok', message: 'Proposition reçue · relis-la, puis adopte-la si elle te convient. Rien n’est appliqué sans ton geste.' };
   });
@@ -97,7 +97,7 @@ export function usePropositionsBrief(projectId: string, versionInit: { id: strin
 
   const adopter = (p: PropositionPresentee, onApplied: () => void) => geste(p.id, async () => {
     const r = await appliquerProposition({ proposalId: p.id, projectId, baseVersionId: baseId() });
-    if (!r.ok) return { type: 'err', message: r.message };
+    if (!r.ok) return { type: 'err', message: r.message, code:r.code };
     setVersion(r.version);
     onApplied();
     return { type: 'ok', message: r.deja ? `Déjà appliquée · version ${r.version.n}. Rien n’a été réécrit.` : `Appliquée · version ${r.version.n} créée. Rien n’a été généré ni débité.` };

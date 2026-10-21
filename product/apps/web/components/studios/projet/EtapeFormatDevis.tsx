@@ -12,7 +12,7 @@ import { lireParcoursImage, demanderDevisImage, compilerConsigneImage, retenirCo
 import { creerPropositionManuelle, appliquerProposition } from '../../../app/actions/studios/propositions';
 import type { VueParcoursImage, DevisImageVue } from '../../../lib/studios/image/parcours';
 import styles from './FormatDevis.module.css';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT} from './useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from './useAppelPayant';
 import Link from 'next/link';
 import { Icon } from '../../Icon';
 import { btn, btnGhost, tuile } from '../../ui';
@@ -111,7 +111,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
     try {
       if (!(await ecrireFormatSiBesoin())) {appel.terminer(tentative);return;}
       const r = await compilerConsigneImage({ projectId, mode });
-      appel.terminer(tentative);
+      appel.terminer(tentative,resultatPayantIncertain(r));
       if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r) }); return; }
       if (r.statut === 'questions') setQuestions(r.questions);
       await charger();

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT} from '../projet/useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../projet/useAppelPayant';
 import { useEffect, useId, useState } from 'react';
 import {
   libelleCoutTexteEstime, NOTE_BORNE_TEXTE, raisonAjoutTexte, TYPES_TEXTE, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, VARIANTES_MAX, VARIANTES_DEFAUT,
@@ -117,7 +117,7 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
     setQuestions([]);
     try {
       const r = await ecrireTextes({ projectId: vue.projet.id, baseVersionId: version.id, type, nombre, maxCaracteres: maxType, langue: 'fr' });
-      appel.terminer(tentative);
+      appel.terminer(tentative,resultatPayantIncertain(r));
       if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r), conflit: r.code === 'VERSION_CONFLICT' }); return; }
       if (r.statut === 'questions') { setQuestions(r.questions); return; }
       setProposees(r.variantes);

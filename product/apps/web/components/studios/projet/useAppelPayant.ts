@@ -16,3 +16,6 @@ export function useAppelPayant(projectId:string,operation:string){
  const terminer=useCallback((token:string,incertain=false)=>{const courant=lire(cle);if(courant?.token!==token)return;ecrire(cle,incertain?{etat:'uncertain',token}:null)},[cle]);
  return {bloque:etat!=='ready',etat,commencer,terminer};
 }
+
+/** Une réponse HTTP reçue n’est pas forcément un résultat fournisseur connu. */
+export function resultatPayantIncertain(r:{ok:boolean;code?:string}):boolean{return !r.ok&&r.code==='PROVIDER_UNCERTAIN'}

@@ -23,7 +23,7 @@ import type { DevisImageVue, VueParcoursImage } from '../lib/studios/image/parco
 
 const h = vi.hoisted(() => ({
   lectures: 0,
-  compiler: [] as unknown[], retenir: [] as unknown[], jeteCompiler: false,
+  compiler: [] as unknown[], retenir: [] as unknown[], jeteCompiler: false, serveurIncertain:false,
   approuver: [] as unknown[], devisDemande: [] as unknown[], manuel: [] as unknown[], appliquer: [] as unknown[],
   reponseApprouver: null as unknown, reponseDevis: null as unknown, vue: null as VueParcoursImage | null,
   // Mutation PAYANTE dont la RÉPONSE est perdue : la demande est ENREGISTRÉE
@@ -36,7 +36,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('../app/actions/studios/image', () => ({
-  compilerConsigneImage: async (e: unknown) => { h.compiler.push(e); if (h.jeteCompiler) throw new Error('réseau'); h.vue = { ...h.vue!, enAttente: consigne, retenue: null }; return {ok:true, statut:'compilee'}; },
+  compilerConsigneImage: async (e: unknown) => { h.compiler.push(e); if (h.jeteCompiler) throw new Error('réseau'); if(h.serveurIncertain)return {ok:false,code:'PROVIDER_UNCERTAIN',message:'Fournisseur incertain'}; h.vue = { ...h.vue!, enAttente: consigne, retenue: null }; return {ok:true, statut:'compilee'}; },
   retenirConsigneImage: async (e: unknown) => { h.retenir.push(e); h.vue = {...h.vue!, enAttente:null, retenue:{...consigne, verdict:{ok:true}}, version:{id:'v2',n:2}}; return {ok:true}; },
   lireParcoursImage: async () => {
     h.lectures++;
@@ -95,7 +95,7 @@ const cocher = async (el: Element | null) => {
   await act(async () => { c.dispatchEvent(new Event('click', { bubbles: true })); c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); });
 };
 
-beforeEach(() => { window.sessionStorage.clear(); h.lectures=0; h.compiler=[]; h.retenir=[]; h.jeteCompiler=false; h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
+beforeEach(() => { window.sessionStorage.clear(); h.lectures=0; h.compiler=[]; h.retenir=[]; h.jeteCompiler=false;h.serveurIncertain=false; h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
 afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
 
 describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation transactionnelle', () => {
@@ -215,6 +215,13 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     const {hote,fermer}=await monter(<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={{...briefVide,formats:['4:5']}} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />);
     await clic(hote.querySelector('[data-bouton="compiler-consigne"]')); await clic(hote.querySelector('[data-bouton="compiler-consigne"]'));
     expect(h.compiler).toHaveLength(1); expect(hote.querySelector('[role="alert"]')?.textContent).toContain('incertaine'); await fermer();
+  });
+
+  it('compilation serveur incertaine conserve le verrou après remontage',async()=>{
+    h.vue={...vueParcours(null),retenue:null};h.serveurIncertain=true;
+    const element=<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={{...briefVide,formats:['4:5']}} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />;
+    const premier=await monter(element);await clic(premier.hote.querySelector('[data-bouton="compiler-consigne"]'));await premier.fermer();
+    const second=await monter(element);await clic(second.hote.querySelector('[data-bouton="compiler-consigne"]'));expect(h.compiler).toHaveLength(1);expect((second.hote.querySelector('[data-bouton="compiler-consigne"]') as HTMLButtonElement).disabled).toBe(true);await second.fermer();
   });
 
   it('produit ou photo manquants : lien réel, compilation verrouillée',async()=>{
