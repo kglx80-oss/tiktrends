@@ -187,11 +187,17 @@ describe('IMG-06 · retouche masquée réelle · une sortie qui repeint tout ne 
     const j = await job(id);
     expect(j.state, JSON.stringify(j.error)).toBe('completed');
 
-    // Ce qui est parti : le modèle d'édition existant, la SOURCE en image de départ (adresse publique), la zone dans la consigne.
+    // Ce qui est parti : le modèle d'édition existant, la SOURCE en image de départ (accès signé temporaire), la zone dans la consigne.
     const posts = appels.filter((a) => a.methode === 'POST');
     expect(posts.map((p) => p.url)).toEqual(['https://queue.fal.run/fal-ai/nano-banana-2/edit']);
     const corps = posts[0]!.corps as { prompt: string; image_urls: string[]; num_images: number };
-    expect(corps.image_urls).toEqual([`https://medias.test/${(await base.select().from(schema.studioAssets).where(eq(schema.studioAssets.id, source.assetId.slice(4))))[0]!.storageKey}`]);
+    expect(corps.image_urls).toHaveLength(1);
+    const imageSource = new URL(corps.image_urls[0]!);
+    const cleSource = (await base.select().from(schema.studioAssets).where(eq(schema.studioAssets.id, source.assetId.slice(4))))[0]!.storageKey;
+    expect(imageSource.origin).toBe('https://s3.test');
+    expect(imageSource.pathname).toBe(`/b/${cleSource}`);
+    expect(imageSource.searchParams.get('X-Amz-Expires')).toBe('900');
+    expect(imageSource.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/);
     expect(corps.num_images).toBe(1);
     expect(corps.prompt).toContain('Dessiner une étoile jaune dans la zone.');
     expect(corps.prompt).toContain('pixels 10,8 à 40,56 sur 96×64');

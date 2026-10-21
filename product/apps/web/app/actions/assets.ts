@@ -2,7 +2,7 @@
 
 import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage } from '@tiktrends/integrations';
+import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
 import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -12,7 +12,8 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
-import { servedAssetUrl } from '../../lib/asset-url';
+import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
+import { assetAiUrl } from '../../lib/asset-ai-url';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
@@ -85,14 +86,15 @@ function toItem(r: {
   externalId: string | null; thumbUrl: string | null;
   brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[] | null; createdAt: Date;
 }): AssetItem {
+  const cfg = storageFromEnv();
+  const prive = (url: string) => !!cfg && objectKeyFromUrl(cfg, url) !== null;
   return {
     id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source,
     // La règle vit dans `lib/asset-url` · elle s'y teste, ce qu'un fichier
     // `'use server'` interdit (tout export y devient un point d'entrée réseau).
-    url: servedAssetUrl({ id: r.id, kind: r.kind, source: r.source, url: r.url, embedded: r.embarquee, externalId: r.externalId }),
-    // Vignette Drive persistée sur le bucket · adresse publique, donnée telle
-    // quelle. Vide -> la miniature retombe sur `url` puis sur l'icône de type.
-    thumbUrl: r.thumbUrl || null,
+    url: servedAssetUrl({ id: r.id, kind: r.kind, source: r.source, url: r.url, embedded: r.embarquee, externalId: r.externalId, privateStorage: prive(r.url) }),
+    // Vignette privée : même contrôle de session via le proxy, sans signature persistée.
+    thumbUrl: r.thumbUrl ? (prive(r.thumbUrl) ? `${adresseAssetProxy(r.id)}&thumb=1` : r.thumbUrl) : null,
     brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes,
     // Le marqueur de template ne sort pas en tant que tag · le statut passe par
     // le booléen dérivé, la plomberie interne ne traverse pas le réseau.
@@ -274,6 +276,9 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
   if (!a) return { error: 'Asset introuvable.' };
   if (a.kind !== 'image') return { error: 'Le tagging IA ne concerne que les images pour l’instant.' };
 
+  const imageUrl = assetAiUrl(a.url, s.workspaceId);
+  if (!imageUrl) return { error: 'Image inaccessible dans cet espace.' };
+
   // Débit atomique avant l'analyse (remboursé si elle échoue ou ne rend rien).
   const unlimited = unlimitedCredits(s.user.email);
   const cost = costFor('tag_image', 1);
@@ -282,7 +287,7 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
   }
 
   let tags: string[] = [];
-  try { ({ tags } = await describeAssetImage(client, a.url)); }
+  try { ({ tags } = await describeAssetImage(client, imageUrl)); }
   catch (e) {
     if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · tagging IA');
     return { error: logAndTranslate('assets:tag', e, { subject: 'l’analyse de l’image', workspaceId: s.workspaceId }) };
@@ -325,11 +330,13 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
 
   let tagged = 0;
   for (const a of todo) {
+    const imageUrl = assetAiUrl(a.url, s.workspaceId);
+    if (!imageUrl) continue;
     // Une image = une réservation atomique ; on s'arrête net quand le solde est épuisé.
     if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Assets · tagging IA (lot)'))) break;
     let ok = false;
     try {
-      const { tags } = await describeAssetImage(client, a.url);
+      const { tags } = await describeAssetImage(client, imageUrl);
       // Assainir la sortie du modèle · elle ne doit jamais poser le marqueur de
       // template (réservé admin). Ces images n'en ont pas (filtre « sans tags »).
       const propres = tagsVisibles(tags);

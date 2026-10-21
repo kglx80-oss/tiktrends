@@ -1,3 +1,4 @@
+import { storageFromEnv, objectKeyFromUrl, privateObjectUrl } from '@tiktrends/integrations';
 import { gardeSources } from '../../../../../../../../lib/studios/sources/acces';
 import { fichierAServirPour } from '../../../../../../../../lib/studios/produit/vue';
 import { octetsDataUri } from '../../../../../../../../lib/studios/produit/catalogue';
@@ -31,5 +32,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string; as
     });
   }
   if (!/^https:\/\//i.test(f.url)) return new Response('introuvable', { status: 404 });
-  return Response.redirect(f.url, 302);
+  const cfg = storageFromEnv();
+  const interne = cfg && objectKeyFromUrl(cfg, f.url) !== null;
+  const url = interne ? privateObjectUrl(cfg!, f.url, g.ctx.workspaceId) : f.url;
+  if (!url) return new Response("introuvable", { status: 404 });
+  return new Response(null, { status: 302, headers: { location: url, "cache-control": "private, no-store" } });
 }

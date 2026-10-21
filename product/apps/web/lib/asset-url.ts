@@ -49,6 +49,8 @@ export interface AssetAddress {
   embedded: boolean;
   /** Identifiant chez la source · sans lui, un fichier Drive est intéléchargeable. */
   externalId?: string | null;
+  /** Bucket privé identifié côté serveur ; URL stable du proxy. */
+  privateStorage?: boolean;
 }
 
 /**
@@ -78,5 +80,5 @@ export function adresseAssetProxy(id: string): string {
 }
 
 export function servedAssetUrl(a: AssetAddress): string {
-  return assetServing(a) === 'direct' ? a.url : adresseAssetProxy(a.id);
+  return assetServing(a) === 'direct' && !a.privateStorage ? a.url : adresseAssetProxy(a.id);
 }

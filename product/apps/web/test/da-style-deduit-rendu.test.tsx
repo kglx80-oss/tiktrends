@@ -78,6 +78,6 @@ describe('Le style déduit du site se voit et se corrige', () => {
 
   it('l’écran de marque passe la DA visuelle au composant', () => {
     const page = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/page.tsx'), 'utf8');
-    expect(page, 'brandKit n’est pas transmis à BrandDA').toMatch(/<BrandDA[^>]*daVisuelle=\{[^}]*brandKit/);
+    expect(page, 'brandKit n’est pas transmis à BrandDA').toMatch(/<BrandDA(?:(?!\/>)[\s\S])*?daVisuelle=\{[^}]*brandKit/);
   });
 });

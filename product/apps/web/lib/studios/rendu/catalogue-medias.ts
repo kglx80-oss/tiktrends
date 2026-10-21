@@ -1,4 +1,5 @@
 import 'server-only';
+import { storageFromEnv, privateObjectUrl } from '@tiktrends/integrations';
 import { inspecterMedia, erreurStudio, type ErreurStudio } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { fichierAServirPour } from '../produit/vue';
@@ -15,9 +16,8 @@ import { octetsDataUri } from '../produit/catalogue';
  * (`fichierAServirPour` : garde, projet dans la portée, fichier du catalogue de
  * la marque DU projet), donc sans élargir aucune portée.
  *
- * Seule une photo déposée (data URI) a des octets côté serveur. Une photo
- * distante n'est jamais téléchargée : elle reste sans dimensions ni rendu, et
- * l'écran le dit au lieu de deviner.
+ * Une photo déposée (data URI ou bucket privé de l'espace) est relue après
+ * contrôle du catalogue. Les adresses externes arbitraires ne sont pas téléchargées.
  */
 
 const ID_CATALOGUE = /^(pph|logo)_[0-9a-f]{24}$/;
@@ -39,8 +39,19 @@ export async function lireFichierCatalogue(ctx: ContexteStudio, projectId: strin
   const f = await fichierAServirPour(ctx, projectId, id, { veilleOuverte: false, maintenant: new Date() });
   if (!f.ok) return f;
   const d = octetsDataUri(f.url);
-  if (!d) return introuvable();
-  const octets = new Uint8Array(d.octets);
+  let octets: Uint8Array;
+  if (d) octets = new Uint8Array(d.octets);
+  else {
+    const cfg = storageFromEnv();
+    const url = cfg && privateObjectUrl(cfg, f.url, ctx.workspaceId);
+    if (!url) return introuvable();
+    try {
+      const r = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(15_000) });
+      if (!r.ok || Number(r.headers.get("content-length") ?? 0) > 64 * 1024 * 1024) return introuvable();
+      octets = new Uint8Array(await r.arrayBuffer());
+      if (octets.length > 64 * 1024 * 1024) return introuvable();
+    } catch { return introuvable(); }
+  }
   // Type et dimensions relus dans les octets (fichier complet exigé), jamais dans la data URI.
   const e = inspecterMedia(octets);
   if (!e || !e.mime.startsWith('image/') || !e.largeur || !e.hauteur) return introuvable();

@@ -22,7 +22,7 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
   const c = operateur ? COPIE_STOCKAGE.operateur : COPIE_STOCKAGE.client;
   const [busy, setBusy] = useState<'' | 'config' | 'test'>('');
   const [steps, setSteps] = useState<Step[]>([]);
-  const [test, setTest] = useState<{ put?: boolean; publicRead?: boolean; deleted?: boolean } | null>(null);
+  const [test, setTest] = useState<{ put?: boolean; privateRead?: boolean; anonymousDenied?: boolean; deleted?: boolean } | null>(null);
   const [err, setErr] = useState('');
   const [etat, setEtat] = useState<MigrationEtat | null>(null);
   const [migre, setMigre] = useState(false);
@@ -63,7 +63,7 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
     const r = await testStorageAction();
     setBusy('');
     if (r.error) setErr(r.error);
-    setTest({ put: r.put, publicRead: r.publicRead, deleted: r.deleted });
+    setTest({ put: r.put, privateRead: r.privateRead, anonymousDenied: r.anonymousDenied, deleted: r.deleted });
   }
 
   if (!enabled && !operateur) {
@@ -89,10 +89,10 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      {operateur && <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button type="button" onClick={configure} disabled={!!busy} style={primary}>{busy === 'config' ? 'Configuration…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="gear" size={14} /> {c.configurer}</span>}</button>
         <button type="button" onClick={runTest} disabled={!!busy} style={ghost}>{busy === 'test' ? 'Test…' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={14} /> Tester le stockage</span>}</button>
-      </div>
+      </div>}
 
       {err && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--err-text)' }}>{err}</div>}
 
@@ -133,10 +133,11 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
       {test && (
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
           <Row label="Écriture (upload d'un témoin)" ok={!!test.put} />
-          <Row label="Lecture publique de l'objet" ok={!!test.publicRead} />
+          <Row label="Lecture privée authentifiée" ok={!!test.privateRead} />
+          <Row label="Accès anonyme refusé" ok={!!test.anonymousDenied} />
           <Row label="Suppression du témoin" ok={!!test.deleted} />
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>
-            {test.put && test.publicRead ? c.testOk : test.put && !test.publicRead ? c.testLecture : c.testEcriture}
+            {test.put && test.privateRead && test.anonymousDenied && test.deleted ? c.testOk : test.put ? c.testLecture : c.testEcriture}
           </p>
         </div>
       )}

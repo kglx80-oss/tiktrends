@@ -133,7 +133,7 @@ beforeEach(() => {
     const u = String(url);
     if ((init?.method ?? 'GET') === 'HEAD') {
       h.heads.push(u);
-      const key = u.replace('https://cdn.local.test/', '').split('/').map(decodeURIComponent).join('/');
+      const key = new URL(u).pathname.replace(/^\/b\//, '').split('/').map(decodeURIComponent).join('/');
       return new Response(null, { status: h.objets.has(key) ? 200 : 404 });
     }
     throw new Error(`réseau interdit en test · ${u}`);
@@ -168,7 +168,8 @@ describe('GET /api/ad/[id] · une consultation n’écrit rien en base (#125)', 
     vi.resetModules(); _oublierPresents(); // cache mémoire perdu, comme à une mise en ligne
     const { r, ecritures } = await sousEspion(() => get(ids.pubMesuree, '?r=1:1'));
     expect(r.status).toBe(302);
-    expect(r.headers.get('location')).toMatch(/^https:\/\/cdn\.local\.test\/renders\//);
+    expect(r.headers.get('location')).toMatch(/^https:\/\/s3\.local\.test\/b\/renders\//);
+    expect(r.headers.get('location')).toContain('X-Amz-Signature=');
     expect(h.rendus.length, 'la pub a été recomposée alors que le bucket l’avait').toBe(0);
     expect(h.puts.length).toBe(0);
     expect(ecritures).toEqual([]);

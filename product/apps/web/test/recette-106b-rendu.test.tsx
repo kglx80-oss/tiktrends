@@ -88,13 +88,14 @@ describe('Réglages · panneau Stockage · copie client (recette #106b)', () => 
     expect(html).toMatch(/<a [^>]*href="\/support"[^>]*>Ouvrir un ticket interne<\/a>/);
     expect(texteVisible(html)).toContain('seuls ses admins le lisent');
   });
-  it('client, stockage activé · boutons nommés sans bucket ni CORS', () => {
+  it('client, stockage activé · aucune commande globale du bucket', () => {
     const html = renderToStaticMarkup(<StorageConfigurator enabled />);
+    expect(html).not.toContain('<button');
     expect(jargonEcran(texteVisible(html)), `jargon : ${texteVisible(html)}`).toEqual([]);
   });
   it('opérateur (équipe plateforme) · garde ses consignes techniques', () => {
     expect(texteVisible(renderToStaticMarkup(<StorageConfigurator enabled={false} operateur />))).toContain('.env.deploy');
-    expect(texteVisible(renderToStaticMarkup(<StorageConfigurator enabled operateur />))).toContain('Configurer le bucket');
+    expect(texteVisible(renderToStaticMarkup(<StorageConfigurator enabled operateur />))).toContain('Configurer le stockage privé');
   });
 });
 

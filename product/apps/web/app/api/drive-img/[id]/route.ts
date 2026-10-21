@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   // Déjà hébergé ailleurs (bucket public) : simple redirection, http(s) seulement
   // (un `data:` URI n'est pas une adresse · il se sert par `/api/asset`).
-  if (a.url && !/drive\.google\.com|googleusercontent\.com/.test(a.url)) return servirAdresseDirecte(req, a.url, { id, nom: a.name });
+  if (a.url && !/drive\.google\.com|googleusercontent\.com/.test(a.url)) return servirAdresseDirecte(req, a.url, { id, nom: a.name, workspaceId: s.workspaceId });
   if (!a.ext) return refusMedia(404);
 
   // Le jeton Drive est stocké sur la marque, pas sur l'espace.
