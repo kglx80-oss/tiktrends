@@ -43,7 +43,7 @@ export function JarvisVeillePanneau({ href, children, style, titre = 'Adapter ce
           <span aria-hidden style={{ fontWeight: 600 }}>{(annonceur || 'A').slice(0,1)}</span><div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 14 }}>{annonceur || 'Annonce observée'}</strong><p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{extrait || 'Texte non fourni'}</p></div><span style={{ color: 'var(--accent)', fontSize: 12 }}>Contexte</span>
         </div>
         <div style={{ padding: '8px 20px 16px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
-          {erreur ? <div role="alert"><p>Connexion interrompue. Réessaie de charger le contexte.</p><button type="button" onClick={() => void charger()}>Réessayer</button></div> : contexte?.ok ? <JarvisChat compact fiche={contexte.fiche} brandId={contexte.brandId} brandName={contexte.brandName} kpiSource={null} projets={[]} brouillonInitial={contexte.brouillon} /> : <p role="status">{contexte ? contexte.message : 'Chargement de la source et de ta marque…'}</p>}
+          {erreur ? <div role="alert"><p>Connexion interrompue. Réessaie de charger le contexte.</p><button type="button" onClick={() => void charger()}>Réessayer</button></div> : contexte?.ok ? <JarvisChat key={href} compact veille={Object.fromEntries(new URL(href, window.location.origin).searchParams)} fiche={contexte.fiche} brandId={contexte.brandId} brandName={contexte.brandName} kpiSource={null} projets={[]} brouillonInitial={contexte.brouillon} /> : <p role="status">{contexte ? contexte.message : 'Chargement de la source et de ta marque…'}</p>}
         </div>
       </div>
     </div></Portail>}

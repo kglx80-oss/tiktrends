@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 
 /**
@@ -21,6 +22,8 @@ const ids = vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
   return { ws: randomUUID(), brand: randomUUID(), user: randomUUID() };
 });
+const media = vi.hoisted(() => ({ fetch: vi.fn() }));
+vi.mock('@tiktrends/integrations/src/safe-fetch', () => ({ safeFetch: media.fetch }));
 const h = vi.hoisted(() => ({ session: null as unknown }));
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
@@ -176,5 +179,26 @@ describe('droits et débit inchangés', () => {
     await poser();
     expect(await solde()).toBe(avant);
     expect((await db.select().from(schema.creditLedger)).length).toBe(lignes);
+  });
+});
+
+
+describe('Clone statique · frontière fournisseur réelle simulée', () => {
+  it('envoie les pixels, isole le fil et conserve un message utilisateur lisible', async () => {
+    h.session = { ...membre(), role: 'owner', plan: 'core' };
+    media.fetch.mockResolvedValue({ contentType: 'image/png', body: await sharp({ create: { width: 16, height: 24, channels: 3, background: '#cc2277' } }).png().toBuffer() });
+    const message = 'Adapte cette composition pour Neva.';
+    const veille = { action: 'cloner', annonce: JSON.stringify({ id: 'test-static', platform: 'meta', mediaType: 'image', mediaUrl: 'https://public.example/ad.png' }) };
+    const res = await POST(new Request('http://local/api/jarvis/chat', { method: 'POST', body: JSON.stringify({ message, veille, brandId: ids.brand }) }));
+    expect(res.status).toBe(200); await res.text();
+    const received = mock.recues.at(-1)!;
+    expect(received.messages).toHaveLength(1);
+    expect(received.messages[0]!.content).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'image' }), { type: 'text', text: message }]));
+    expect(received.system).toContain('image statique');
+    const rows = await db.select().from(schema.jarvisMessages).where(eq(schema.jarvisMessages.content, message));
+    expect(rows).toHaveLength(1); expect(rows[0]!.conversationId).not.toBeNull();
+    const count = mock.recues.length;
+    const refused = await POST(new Request('http://local/api/jarvis/chat', { method: 'POST', body: JSON.stringify({ message, veille, brandId: 'autre' }) }));
+    expect(refused.status).toBe(409); expect(mock.recues).toHaveLength(count);
   });
 });
