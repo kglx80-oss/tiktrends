@@ -8,6 +8,9 @@ import {
 } from '@tiktrends/core';
 import { proposerHypotheses } from '../../../app/actions/studios/sources';
 import css from './AssistantProjet.module.css';
+import cards from './StrategieCartes.module.css';
+import { AvantApres } from '../propositions/AvantApres';
+import { PlanImpactVue } from '../propositions/PlanImpactVue';
 import { Icon } from '../../Icon';
 import { BlocPropositions, btnAction, btnActionGhost } from './BlocPropositions';
 import type { CyclePropositionsBrief } from './usePropositionsBrief';
@@ -50,6 +53,12 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
   const jarvis = cycle.liste?.ok ? cycle.liste.jarvis : null;
   const peutProposer = cycle.liste?.ok ? cycle.liste.peutProposer : false;
   const peutHypotheses = sources.length > 0;
+  const anglesProposes = cycle.liste?.ok ? cycle.liste.propositions.filter((p) =>
+    p.cible === 'brief' && p.etat === 'proposed' && p.changements.some((c) =>
+      c.chemin === '/brief/angle' || c.chemin === '/brief/concept')) : [];
+  const autresPropositions = cycle.liste?.ok
+    ? { ...cycle, liste: { ...cycle.liste, propositions: cycle.liste.propositions.filter((p) => !anglesProposes.some((a) => a.id === p.id)) } }
+    : cycle;
 
   async function demanderHypotheses() {
     setHEncours(true);
@@ -78,8 +87,9 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
         </div>
       </section>
 
-      <section aria-label="Écrire mon angle" className={css.wangle}>
-        <div className={`${css.wanglevis} ${css.own}`}><Icon name="plus" size={24} /></div>
+      <details aria-label="Écrire mon angle" className={cards.manual}>
+        <summary><Icon name="plus" size={18} /> Écrire mon angle <small>Sans appel IA</small></summary>
+
         <div className={css.wanglebody}>
         <span className={css.wzlabel}>Écrire mon angle</span>
         <textarea data-champ="angle-libre" value={angle} maxLength={OBJECTIF_MAX} rows={2}
@@ -92,10 +102,37 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
           </button>
         </div>
         </div>
-      </section>
+      </details>
 
       <section aria-label="Angles proposés" style={{ display: 'grid', gap: 8 }}>
-        <span className={css.wzlabel}>Angles proposés · Jarvis</span>
+        <span className={css.wzlabel}>Choisir mon angle</span>
+        <div className={cards.grid}>
+          {anglesProposes.map((p) => {
+            const titre = p.changements.find((c) => c.chemin === '/brief/angle')
+              ?? p.changements.find((c) => c.chemin === '/brief/concept')!;
+            const bloque = !peutProposer || !!cycle.occupe || p.perimee;
+            return <article key={p.id} className={cards.card} data-proposition={p.id} data-etat={p.etat} aria-labelledby={`angle-${p.id}`}>
+              <header className={cards.heading}>
+                <small>{p.libelleOrigine} · version {p.baseVersion.n}</small>
+                <h3 id={`angle-${p.id}`}>{titre.apres}</h3>
+              </header>
+              <div className={cards.body}>
+                {p.explication && <p>{p.explication}</p>}
+                <AvantApres changements={p.changements} />
+                <PlanImpactVue impact={p.impact} />
+                {p.sources.length > 0 && <p className={cards.note}>Sources citées · {p.sources.join(', ')}</p>}
+                {p.perimee && <p role="note">Base périmée · version {p.baseVersion.n}, projet en version {cycle.version.n}. Recharge puis demande une nouvelle proposition.</p>}
+                {!peutProposer && <p role="note">Ton rôle permet de lire les propositions, pas de les trancher.</p>}
+                <div className={cards.actions}>
+                  <button type="button" className={cards.apply} disabled={bloque} onClick={() => cycle.adopter(p, onApplied)}>
+                    {cycle.occupe === p.id ? 'Application…' : 'Appliquer cet angle'}
+                  </button>
+                  <button type="button" className={cards.reject} disabled={!peutProposer || !!cycle.occupe} onClick={() => cycle.rejeter(p)}>Rejeter</button>
+                </div>
+              </div>
+            </article>;
+          })}
+        </div>
         <p style={note}>{jarvis?.disponible ? jarvis.mentionCout : (jarvis?.raison || 'Jarvis indisponible ici · utilise « Écrire mon angle ».')}</p>
         <div>
           <button type="button" data-bouton="proposer-angles" disabled={!peutProposer || !jarvis?.disponible || cycle.occupe === 'demande'}
@@ -136,7 +173,9 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
 
       <section aria-label="Propositions à trancher" style={{ display: 'grid', gap: 8 }}>
         <span className={css.wzlabel}>À trancher</span>
-        <BlocPropositions cycle={cycle} onApplied={onApplied} />
+        {anglesProposes.length > 0 && autresPropositions.liste?.ok && autresPropositions.liste.propositions.length === 0
+          ? cycle.retour && <p role={cycle.retour.type === 'err' ? 'alert' : 'status'}>{cycle.retour.message}</p>
+          : <BlocPropositions cycle={autresPropositions} onApplied={onApplied} />}
       </section>
     </div>
   );

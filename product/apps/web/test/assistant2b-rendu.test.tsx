@@ -314,3 +314,34 @@ it('lecture du brief indisponible : reste à la stratégie sans édition périm�
   expect(h.manuel).toHaveLength(0);
   await fermer();
 });
+
+it.each(['normal', 'perimee', 'lecture', 'occupe'] as const)('cartes stratégie : changements entiers et garde %s', async (mode) => {
+  const proposition = { ...propProposed, perimee: mode === 'perimee', changements: [...propProposed.changements,
+    { op: 'replace', chemin: '/brief/concept', libelle: 'Concept', avant: 'Ancien concept', apres: 'Concept réellement proposé', raison: 'Lien avec l’angle' }] };
+  const adopter = vi.fn(async () => {});
+  const onApplied = vi.fn();
+  const cycle: CyclePropositionsBrief = {
+    liste: { ok: true, projectId: 'proj-1', versionCourante: { id: 'v1', n: 1 }, propositions: [proposition], jarvis: { disponible: true, mentionCout: 'Appel payant · 0,13 $ maximum' }, peutProposer: mode !== 'lecture', cibles: [] } as never,
+    version: { id: 'v1', n: 1 }, occupe: mode === 'occupe' ? 'autre-proposition' : null, retour: null,
+    recharger: async () => {}, demanderJarvis: async () => {}, adopter, rejeter: async () => {}, ecrireManuel: async () => {},
+  };
+  const brief = { objective: 'o', audience: '', facts: [], invariants: [], variables: [], references: [], composition: '', styleIntent: '', texts: [], formats: [], exclusions: [] } as unknown as BriefCanonique;
+  const { hote, fermer } = await monter(<EtapeStrategie brief={brief} cycle={cycle} onApplied={onApplied} sources={[]} marqueId="b1" />);
+  const carte = hote.querySelector('[data-proposition="prop-1"]')!;
+  expect(hote.querySelectorAll('[data-proposition="prop-1"]')).toHaveLength(1);
+  expect(carte.querySelector('h3')?.textContent).toBe('Le premier plongeon');
+  expect(carte.textContent).toContain('Ancien concept');
+  expect(carte.textContent).toContain('Concept réellement proposé');
+  expect(carte.textContent).toContain('Avant');
+  expect(carte.textContent).toContain('Après');
+  expect(carte.querySelector('img')).toBeNull();
+  expect(hote.textContent).not.toContain('Aucune proposition à trancher');
+  expect(hote.querySelector('details[aria-label="Écrire mon angle"]')?.hasAttribute('open')).toBe(false);
+  const bouton = [...carte.querySelectorAll('button')].find((b) => b.textContent?.includes('Appliquer'))!;
+  expect(bouton.disabled).toBe(mode !== 'normal');
+  await clic(bouton);
+  if (mode === 'normal') expect(adopter).toHaveBeenCalledWith(proposition, onApplied);
+  else expect(adopter).not.toHaveBeenCalled();
+  expect(hote.textContent).toContain('Appel payant · 0,13 $ maximum');
+  await fermer();
+});
