@@ -163,10 +163,11 @@ describe('direction visuelle relue sans pixels concurrents', () => {
     const r = await creerProjetDepuisSources(entree);
     if (!r.ok) throw new Error(JSON.stringify(r));
     const [v] = await db.select().from(schema.studioProjectVersions).where(eq(schema.studioProjectVersions.id, r.versionId));
-    expect(v!.content.brief).toMatchObject(directionVisuelle);
-    expect(v!.content.brief!.references).toEqual([]);
+    const contenu = v!.content as { brief: { references: unknown[] } };
+    expect(contenu.brief).toMatchObject(directionVisuelle);
+    expect(contenu.brief.references).toEqual([]);
     const [p] = await db.select().from(schema.studioProjects).where(eq(schema.studioProjects.id, r.projet.id));
-    expect(p!.sourceRefs[0]).toMatchObject({ sourceId: ID_SRC1, droit: 'observation_publique' });
+    expect((p!.sourceRefs as unknown[])[0]).toMatchObject({ sourceId: ID_SRC1, droit: 'observation_publique' });
     expect(JSON.stringify(p!.sourceRefs)).not.toContain('https://cdn');
     const reprise = await creerProjetDepuisSources(entree);
     expect(reprise).toMatchObject({ ok: true, deja: true, projet: { id: r.projet.id } });

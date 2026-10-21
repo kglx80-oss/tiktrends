@@ -17,6 +17,7 @@ import { JarvisColonne } from './JarvisColonne';
 import { JarvisContexte } from './JarvisContexte';
 import { useIsMobile } from '../../../components/useIsMobile';
 import { cadreSignal } from '../../../components/ui';
+import { JarvisVersStudio } from '../../../components/JarvisVersStudio';
 import { Icon } from '../../../components/Icon';
 import { COUT_CONVERSATION_JARVIS } from '../../../lib/veille-jarvis';
 import type { ProjetColonne } from '../../../lib/studios/jarvis-projets';
@@ -334,6 +335,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
       {partiel && <div style={reponse}>{sansTiretCadratin(visibleWhileStreaming(partiel))}</div>}
       {enCours && !partiel && <p role="status">Jarvis prépare sa réponse…</p>}
       {erreur && <p role="alert">{erreur}</p>}
+      {veille?.action === 'cloner' && !enCours && !erreur && thread?.turns.at(-1)?.role === 'assistant' && <JarvisVersStudio key={thread.turns.at(-1)!.id} params={veille} brandId={brandId} proposition={parseAnswer(thread.turns.at(-1)!.content).text} />}
     </div>
     <div style={{ paddingTop: 10, borderTop: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>{(veille?.action === 'cloner' ? ['Garder la composition', 'Adapter les textes', 'Choisir mon produit'] : ['Choisir le style visuel', 'Écrire le scénario', 'Proposer trois variantes']).map((q) => <button key={q} type="button" disabled={enCours} onClick={() => setSaisie((v) => `${v}\n${q}`.slice(0, 4000))} style={{ border: '1px solid var(--line-2)', borderRadius: 99, background: 'var(--surface)', color: 'var(--ink)', padding: '8px 12px', minHeight: 40 }}>{q}</button>)}</div>
