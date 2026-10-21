@@ -7,7 +7,7 @@ import {
   etapeDisponible, saisieBriefVide, verifierCreationAssistant,
   OBJECTIFS_V5, PLATEFORMES_V5, LIBELLES_OBJECTIF_V5, LIBELLES_PLATEFORME_V5, LIBELLES_TYPE_PROJET,
   TYPES_NOUVEAU_PROJET, TITRE_NOUVEAU_PROJET_MAX, OBJECTIF_MAX, CIBLE_TACTILE_MIN, CHEMIN_PROJETS,
-  contenuVide, messageHorsLigneStudio,
+  contenuVide, messageHorsLigneStudio, construireBriefV5, ALLOWED_PATHS_BRIEF,
   type EtapeAssistant, type EtatNouveauProjet, type TypeNouveauProjet, type SaisieBriefV5,
   type ObjectifType, type PlateformeV5, type ReferenceAdsmap, type ContenuVersion, type BriefCanonique,
 } from '@tiktrends/core';
@@ -59,6 +59,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const [saisie, setSaisie] = useState<SaisieBriefV5>({ ...saisieBriefVide(), intention: p.initial.intention });
   const [encours, setEncours] = useState(false);
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
+  const [incertain, setIncertain] = useState(false);
+  const [photoEpinglee, setPhotoEpinglee] = useState('');
   const [productId, setProductId] = useState('');
   const [photoId, setPhotoId] = useState('');
   const [projet, setProjet] = useState<ProjetCourant | null>(null);
@@ -90,6 +92,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   }
 
   async function creer() {
+    if (incertain || encours) return;
     const v = verifierCreationAssistant({ type, titre, saisie });
     if (!v.ok) { setErreur({ message: v.message }); return; }
     if (productId && !photoId) { setErreur({ message: 'Choisis une photo du produit avant de continuer.' }); return; }
@@ -106,12 +109,37 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         setProjet(courant);
         setBrief(v.brief);
       }
-      if (productId && photoId) {
+      if (projet && brief) {
+        // Ne remplacer que les champs éditables du formulaire ; références, style,
+        // composition, hypothèse et textes conservent leur version courante.
+        const ancien = construireBriefV5(saisieDepuisBrief(brief));
+        const champs = ['objective', 'audience', 'invariants', 'objectifType', 'plateformes', 'personaRef', 'angle', 'concept'] as const;
+        const modifie = champs.filter((cle) => JSON.stringify(ancien[cle]) !== JSON.stringify(v.brief[cle]));
+        if (modifie.length) {
+          const suivant = { ...brief };
+          for (const cle of modifie) {
+            if (v.brief[cle] === undefined) delete (suivant as unknown as Record<string, unknown>)[cle];
+            else (suivant as unknown as Record<string, unknown>)[cle] = v.brief[cle];
+          }
+          const { creerPropositionManuelle, appliquerProposition } = await import('../../../app/actions/studios/propositions');
+          const proposition = await creerPropositionManuelle({ projectId: courant.id, baseVersionId: courant.versionCourante.id, cible: 'brief', changes: [{ op: 'replace', path: '/brief', newValue: suivant, reason: 'Modification du brief dans l’assistant' }], explication: 'Champs du brief relus et confirmés dans l’assistant', allowedPaths: ALLOWED_PATHS_BRIEF });
+          if (!proposition.ok) { setErreur({ message: proposition.message, traceId: proposition.traceId }); setEncours(false); return; }
+          if (proposition.statut !== 'proposee') { setErreur({ message: 'La modification du brief n’a pas été préparée.' }); setEncours(false); return; }
+          const applique = await appliquerProposition({ proposalId: proposition.proposition.id, projectId: courant.id, baseVersionId: courant.versionCourante.id });
+          if (!applique.ok) { setErreur({ message: applique.message, traceId: applique.traceId }); setEncours(false); return; }
+          courant = { ...courant, versionCourante: applique.version };
+          setProjet(courant);
+          setBrief(suivant);
+          setDevis(null);
+        }
+      }
+      if (productId && photoId && photoEpinglee !== `${productId}:${photoId}`) {
         const { epinglerProduit } = await import('../../../app/actions/studios/produit');
         const epingle = await epinglerProduit({ projectId: courant.id, baseVersionId: courant.versionCourante.id, productId, photoId });
         if (!epingle.ok) { setErreur({ message: epingle.message, traceId: epingle.traceId }); setEncours(false); return; }
         courant = { ...courant, versionCourante: { id: epingle.version.id, n: epingle.version.n } };
         setProjet(courant);
+        setPhotoEpinglee(`${productId}:${photoId}`);
         const relu = await lireProjetDetail({ projectId: courant.id });
         if (relu.ok && relu.detail.brief && !relu.detail.briefIllisible) setBrief(relu.detail.brief);
       }
@@ -119,20 +147,26 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
       setEtape('strategie');
     } catch {
       setEncours(false);
-      setErreur({ message: messageHorsLigneStudio('creation') });
+      setIncertain(true);
+      setErreur({ message: projet ? 'La réponse a été interrompue. Le résultat est inconnu : recharge le projet avant toute nouvelle modification.' : messageHorsLigneStudio('creation') });
     }
   }
 
   // Navigation du rail · avant création, start/brief seulement ; après, les
   // étapes qui opèrent sur le projet (le brief est verrouillé une fois écrit).
   const peutAller = (id: EtapeAssistant): boolean =>
-    projet ? (etapeRequiertProjet(id) && etapeDisponible(id)) : (etatRailProjet(id, etape, brief) === 'done');
+    projet ? (id === 'brief' || (etapeRequiertProjet(id) && etapeDisponible(id))) : (etatRailProjet(id, etape, brief) === 'done');
+
+  function aller(id: EtapeAssistant) {
+    if (id === 'brief' && brief) setSaisie(saisieDepuisBrief(brief));
+    setEtape(id);
+  }
 
   const ouvrirProjet = () => { if (projet) router.push(`/studio/projets/${projet.id}`); };
 
   return (
     <section data-zone="assistant-projet" data-etape={etape} className={`${css.wz} ${etape === 'start' ? css.nostep : ''}`}>
-      {etape !== 'start' && <Rail etape={etape} brief={brief} peutAller={peutAller} onAller={setEtape} titre={titre} marque={marque.nom} type={type} />}
+      {etape !== 'start' && <Rail etape={etape} brief={brief} peutAller={peutAller} onAller={aller} titre={titre} marque={marque.nom} type={type} />}
 
       <div className={css.wzmain}>
         <div className={css.wzhead}>
@@ -145,7 +179,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           <Depart marque={marque.nom} type={type} onType={setType} onContinuer={() => setEtape('brief')} />
         )}
         {etape === 'brief' && (
-          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} verrouille={!!projet} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={p.produits ?? []} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} />} />
+          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} titreVerrouille={!!projet} verrouille={incertain} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={p.produits ?? []} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} />} />
         )}
         {etape === 'strategie' && projet && brief && (
           <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
@@ -178,11 +212,12 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           <Pied
             etape={etape}
             encours={encours}
+            incertain={incertain}
             aProjet={!!projet}
             onFermer={p.onFermer}
             onCreer={creer}
             onVersBrief={() => setEtape('brief')}
-            onReculer={() => { const prec = etapeProjetPrecedente(etape); if (prec && peutAller(prec)) setEtape(prec); }}
+            onReculer={() => { const prec = etapeProjetPrecedente(etape); if (prec && peutAller(prec)) aller(prec); }}
             onAvancer={() => { const suiv = etapeProjetSuivante(etape); if (suiv) setEtape(suiv); }}
           />
         )}
@@ -212,8 +247,8 @@ function AssistantPostCreation({ etape, projet, brief, marqueId, apercuProduitUr
 
 /* ─────────────────────────────── Le pied ────────────────────────────────── */
 
-function Pied({ etape, encours, aProjet, onFermer, onCreer, onVersBrief, onReculer, onAvancer }: {
-  etape: EtapeAssistant; encours: boolean; aProjet: boolean;
+function Pied({ etape, encours, incertain, aProjet, onFermer, onCreer, onVersBrief, onReculer, onAvancer }: {
+  etape: EtapeAssistant; encours: boolean; incertain: boolean; aProjet: boolean;
   onFermer?: () => void;
   onCreer: () => void; onVersBrief: () => void; onReculer: () => void; onAvancer: () => void;
 }) {
@@ -224,12 +259,12 @@ function Pied({ etape, encours, aProjet, onFermer, onCreer, onVersBrief, onRecul
           {etape === 'start' && (onFermer ? <button type="button" onClick={onFermer}>Annuler</button> : <a href={CHEMIN_PROJETS} className={css.secondary}>Annuler</a>)}
           {etape === 'brief' && <button type="button" data-bouton="retour" onClick={onReculer} >‹ Retour</button>}
           {etape === 'direction' && <button type="button" data-bouton="retour-strategie" onClick={onReculer} >‹ Stratégie</button>}
-          {etape === 'strategie' && <a href={CHEMIN_PROJETS} className={css.secondary}>Voir les projets</a>}
+          {etape === 'strategie' && <button type="button" data-bouton="retour-brief" onClick={onReculer}>‹ Retour</button>}
         </div>
         <div className={css.row}>
           {aProjet && onFermer && <button type="button" onClick={onFermer}>Enregistrer et quitter</button>}
           {etape === 'start' && <button type="button" data-bouton="vers-brief" onClick={onVersBrief} className={css.primary}>Commencer le brief</button>}
-          {etape === 'brief' && <button type="button" data-bouton="creer-projet" onClick={onCreer} disabled={encours} className={css.primary}>{encours ? 'Création…' : 'Continuer vers la stratégie'}</button>}
+          {etape === 'brief' && <button type="button" data-bouton="creer-projet" onClick={onCreer} disabled={encours || incertain} className={css.primary}>{encours ? 'Création…' : 'Continuer vers la stratégie'}</button>}
           {etape === 'strategie' && aProjet && <button type="button" data-bouton="vers-direction" onClick={onAvancer} className={css.primary}>Continuer vers la direction</button>}
           {etape === 'direction' && aProjet && <button type="button" data-bouton="vers-format" onClick={onAvancer} className={css.primary}>Continuer vers le format</button>}
         </div>
@@ -286,9 +321,9 @@ function Depart({ marque, type, onType, onContinuer }: { marque: string; type: T
 
 /* ───────────────────────────── Étape brief ───────────────────────────────── */
 
-function Brief({ titre, onTitre, saisie, maj, personas, accessoires, verrouille }: {
+function Brief({ titre, onTitre, saisie, maj, personas, accessoires, verrouille, titreVerrouille }: {
   marque: string; type: TypeNouveauProjet; titre: string; onTitre: (v: string) => void;
-  saisie: SaisieBriefV5; maj: (c: Partial<SaisieBriefV5>) => void; personas: ReferenceAdsmap[]; accessoires?: ReactNode; verrouille: boolean;
+  saisie: SaisieBriefV5; maj: (c: Partial<SaisieBriefV5>) => void; personas: ReferenceAdsmap[]; accessoires?: ReactNode; verrouille: boolean; titreVerrouille: boolean;
 }) {
   const togglePlateforme = (pf: PlateformeV5) => {
     const set = new Set(saisie.plateformes);
@@ -300,7 +335,7 @@ function Brief({ titre, onTitre, saisie, maj, personas, accessoires, verrouille 
       <fieldset disabled={verrouille} className={css.briefFields}>
       <label className={css.field}>
         <span>Nom du projet</span>
-        <input data-champ="titre" value={titre} maxLength={TITRE_NOUVEAU_PROJET_MAX} onChange={(e) => onTitre(e.target.value)} className={css.control} />
+        <input disabled={titreVerrouille} data-champ="titre" value={titre} maxLength={TITRE_NOUVEAU_PROJET_MAX} onChange={(e) => onTitre(e.target.value)} className={css.control} />
       </label>
 
       <label className={css.field}>
@@ -397,4 +432,8 @@ function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto }: {
     </div>
     <h3 className={css.wzlabel}>Références</h3><p className={css.note}>Aucune référence associée à ce départ de zéro.</p>
   </>;
+}
+
+function saisieDepuisBrief(brief: BriefCanonique): SaisieBriefV5 {
+  return { intention: brief.objective, audience: brief.audience, contraintes: brief.invariants.join('\n'), objectifType: brief.objectifType ?? null, plateformes: brief.plateformes ?? [], persona: brief.personaRef ?? null, angle: brief.angle ?? '', concept: brief.concept ?? '' };
 }

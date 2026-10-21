@@ -21,6 +21,7 @@ const epinglerSpy = vi.hoisted(() => vi.fn());
 vi.mock('../app/actions/studios/produit', () => ({ epinglerProduit: epinglerSpy }));
 
 const h = vi.hoisted(() => ({
+  refuserApplication: false,
   creer: [] as unknown[], propBrief: [] as unknown[], manuel: [] as unknown[], appliquer: [] as unknown[],
   rejeter: [] as unknown[], hypotheses: [] as unknown[], detailBrief: null as BriefCanonique | null,
 }));
@@ -48,7 +49,7 @@ vi.mock('../app/actions/studios/propositions', () => ({
   }),
   proposerBrief: async (e: unknown) => { h.propBrief.push(e); return { ok: true, statut: 'proposee', projectId: 'proj-1', proposition: propProposed, runId: 'r' }; },
   creerPropositionManuelle: async (e: unknown) => { h.manuel.push(e); return { ok: true, statut: 'proposee', projectId: 'proj-1', proposition: propProposed, runId: null }; },
-  appliquerProposition: async (e: unknown) => { h.appliquer.push(e); return { ok: true, projectId: 'proj-1', proposition: propProposed, version: { id: 'v2', n: 2 }, deja: false }; },
+  appliquerProposition: async (e: unknown) => { h.appliquer.push(e); if (h.refuserApplication) return { ok: false, message: 'Version modifiée ailleurs', traceId: 'conflit' }; return { ok: true, projectId: 'proj-1', proposition: propProposed, version: { id: 'v2', n: 2 }, deja: false }; },
   rejeterProposition: async (e: unknown) => { h.rejeter.push(e); return { ok: true, projectId: 'proj-1', proposition: propRejected }; },
 }));
 
@@ -74,7 +75,7 @@ const saisir = async (el: Element | null, valeur: string) => {
   await act(async () => { champ.dispatchEvent(new Event('input', { bubbles: true })); });
 };
 
-beforeEach(() => { h.creer = []; h.propBrief = []; h.manuel = []; h.appliquer = []; h.rejeter = []; h.hypotheses = []; h.detailBrief = null; });
+beforeEach(() => { h.refuserApplication = false; h.creer = []; h.propBrief = []; h.manuel = []; h.appliquer = []; h.rejeter = []; h.hypotheses = []; h.detailBrief = null; });
 afterEach(() => { document.body.innerHTML = ''; });
 
 async function allerStrategie(hote: HTMLElement) {
@@ -223,5 +224,37 @@ it('choisit explicitement la photo et ne recrée pas le projet après un refus d
   expect(h.creer).toHaveLength(1);
   expect(epinglerSpy).toHaveBeenLastCalledWith({ projectId: 'proj-1', baseVersionId: 'v1', productId: 'prod1', photoId: 'photo1' });
   expect(hote.querySelector('[data-zone="assistant-strategie"]')).not.toBeNull();
+  await fermer();
+});
+
+it('retour brief sans changement : aucune proposition, aucune version ni deuxième projet', async () => {
+  const { hote, fermer } = await monter(<AssistantProjet etat={etatPret} initial={{ type: 'image', titre: 'Image', intention: 'Présenter le produit' }} personas={[]} />);
+  await allerStrategie(hote);
+  await clic(hote.querySelector('[data-bouton="retour-brief"]'));
+  expect((hote.querySelector('[data-champ="titre"]') as HTMLInputElement).disabled).toBe(true);
+  expect((hote.querySelector('[data-champ="intention"]') as HTMLTextAreaElement).value).toBe('Vendre les lunettes aux parents');
+  await clic(hote.querySelector('[data-bouton="creer-projet"]'));
+  expect(h.creer).toHaveLength(1);
+  expect(h.manuel).toHaveLength(0);
+  expect(h.appliquer).toHaveLength(0);
+  expect(hote.querySelector('[data-zone="assistant-strategie"]')).not.toBeNull();
+  await fermer();
+});
+
+it.each([false, true])('retour brief modifié : cycle manuel borné, refusApplication=%s', async (refuser) => {
+  h.refuserApplication = refuser;
+  const { hote, fermer } = await monter(<AssistantProjet etat={etatPret} initial={{ type: 'image', titre: 'Image', intention: 'Présenter le produit' }} personas={[]} />);
+  await allerStrategie(hote);
+  await clic(hote.querySelector('[data-bouton="retour-brief"]'));
+  await saisir(hote.querySelector('[data-champ="audience"]'), 'Familles');
+  await clic(hote.querySelector('[data-bouton="creer-projet"]'));
+  expect(h.creer).toHaveLength(1);
+  expect(h.manuel).toHaveLength(1);
+  expect(h.manuel[0]).toMatchObject({ projectId: 'proj-1', baseVersionId: 'v1', cible: 'brief', allowedPaths: ['/brief'], changes: [{ op: 'replace', path: '/brief', newValue: { audience: 'Familles', objective: 'Vendre les lunettes aux parents' } }] });
+  expect(h.appliquer[0]).toMatchObject({ projectId: 'proj-1', baseVersionId: 'v1', proposalId: 'prop-1' });
+  if (refuser) {
+    expect(hote.querySelector('[data-zone="assistant-brief"]')).not.toBeNull();
+    expect(hote.textContent).toContain('Version modifiée ailleurs');
+  } else expect(hote.querySelector('[data-zone="assistant-strategie"]')).not.toBeNull();
   await fermer();
 });
