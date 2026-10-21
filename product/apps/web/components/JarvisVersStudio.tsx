@@ -42,23 +42,25 @@ export function JarvisVersStudio({ params, brandId, proposition }: { params: Rec
     try {
       const r = await creerStudioDepuisJarvis({ params, brandId, objectif: 'Créer une adaptation visuelle pour la marque cible à partir de la composition approuvée.', kind, cleClic: cle.current, productId: productId || undefined, directionVisuelle: { composition: brief, styleIntent, formats: [format], texts: textes.split('\n').map(t => t.trim()).filter(Boolean) } });
       if (!r.ok) { setErreur(r.message); if ('code' in r && r.code === 'INVALID_SCHEMA') setIncertain(false); return; }
-      router.push(`/studio/projets/${r.projet.id}`);
+      router.push(`/studio/projets/${r.projet.id}${kind === 'image' ? '/produit' : ''}`);
     } catch { setIncertain(true); setErreur('Connexion interrompue. Réessaie avec ces mêmes choix : le Studio vérifiera si le projet a déjà été créé.'); }
     finally { verrou.current = false; setCharge(false); }
   }
   return <section aria-label="Passer au Studio" style={{ ...cadreSurface, display: 'grid', gap: 12, fontSize: 14, padding: 14, background: 'var(--surface)' }}>
-    {!ouvert ? <button type="button" onClick={() => void ouvrir()} style={bouton}>Préparer cette création dans le Studio</button> : <>
-      <label style={{ display: 'grid', gap: 8 }}>Composition à conserver et adaptations<textarea aria-label="Composition à transmettre au Studio" value={brief} disabled={charge || incertain} onChange={e => setBrief(e.target.value)} rows={6} style={champ} /></label>
-      <p>{brief.length} / 2 000 caractères · garde uniquement les consignes pour ta marque, sans nom ni promesse du concurrent.</p>
+    {!ouvert ? <button type="button" onClick={() => void ouvrir()} style={bouton}>Continuer dans le Studio</button> : <>
+      <label style={{ display: 'grid', gap: 8 }}>Ta direction créative<textarea aria-label="Composition à transmettre au Studio" value={brief} disabled={charge || incertain} onChange={e => setBrief(e.target.value)} rows={4} style={champ} /></label>
+      <p style={{ margin: 0, color: 'var(--ink-2)' }}>{brief.length} / 2 000 · uniquement les éléments adaptés à ta marque.</p>
+      <label>Proportions <select aria-label="Proportions" style={champ} value={format} disabled={charge || incertain} onChange={e => setFormat(e.target.value)}>{['1:1', '4:5', '9:16', '16:9'].map(f => <option key={f}>{f}</option>)}</select></label>
+      <label>Produit de ta marque <select aria-label="Produit de ta marque" style={champ} value={productId} disabled={charge || incertain} onChange={e => setProductId(e.target.value)}><option value="">Choisir dans le Studio</option>{produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</select></label>
+      <details><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center', color: 'var(--accent-strong)' }}>Ajuster le style, les textes ou le type</summary><div style={{ display: 'grid', gap: 12, paddingTop: 8 }}>
       <label>Type de création <select style={champ} aria-label="Format de la création" value={kind} disabled={charge || incertain} onChange={e => setKind(e.target.value)}><option value="image">Image statique</option><option value="video">Vidéo</option></select></label>
       <label style={{ display: 'grid', gap: 8 }}>Style visuel <input aria-label="Style visuel" style={champ} value={styleIntent} maxLength={2000} disabled={charge || incertain} onChange={e => setStyleIntent(e.target.value)} placeholder="Ex. photo lumineuse, fond crème" /></label>
       <label style={{ display: 'grid', gap: 8 }}>Textes à afficher (une ligne par texte)<textarea aria-label="Textes à afficher" style={champ} rows={3} value={textes} disabled={charge || incertain} onChange={e => setTextes(e.target.value)} placeholder="Accroche validée pour ta marque" /></label>
-      <p>Ces textes seront conservés dans le brief. Ajoute ensuite tes calques texte dans le Studio pour les afficher sur la création.</p>
-      <label>Proportions <select aria-label="Proportions" style={champ} value={format} disabled={charge || incertain} onChange={e => setFormat(e.target.value)}>{['1:1', '4:5', '9:16', '16:9'].map(f => <option key={f}>{f}</option>)}</select></label>
-      <label>Produit de ta marque <select aria-label="Produit de ta marque" style={champ} value={productId} disabled={charge || incertain} onChange={e => setProductId(e.target.value)}><option value="">Choisir dans le Studio</option>{produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</select></label>
+      <p>Les textes seront disponibles dans le Studio, à placer sur tes calques.</p>
+      </div></details>
       {preparationErreur && <p role="status">{preparationErreur}</p>}
-      <p>Dans le Studio, sélectionne la photo du produit à utiliser. La référence et ce brief seront conservés dans le projet. Aucun appel IA ni rendu à cette étape. La génération demandera un devis et ta confirmation.</p>
-      <button style={bouton} type="button" disabled={charge || !brief.trim() || brief.length > 2000} onClick={() => void creer()}>{charge ? 'Création du projet…' : 'Valider le brief et ouvrir le Studio'}</button>
+      <p>Aucun coût à cette étape. Un devis sera demandé avant toute génération.</p>
+      <button style={bouton} type="button" disabled={charge || !brief.trim() || brief.length > 2000} onClick={() => void creer()}>{charge ? 'Création du projet…' : kind === 'image' ? 'Continuer · choisir la photo' : 'Ouvrir le Studio vidéo'}</button>
       {erreur && <p role="alert">{erreur}</p>}
     </>}
   </section>;
