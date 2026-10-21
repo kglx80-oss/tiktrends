@@ -61,8 +61,10 @@ export interface ProprietesAssistantProjet {
 export function AssistantProjet(p: ProprietesAssistantProjet) {
   const router = useRouter();
   const [etape, setEtape] = useState<EtapeAssistant>('start');
-  useEffect(() => { p.onTitreChange?.({ start: 'Que voulez-vous créer ?', brief: 'Le brief', strategie: 'La stratégie', direction: 'La direction', format: 'Formats & devis', confirm: 'Confirmer la génération', creation: 'Vos créations' }[etape]); }, [etape, p.onTitreChange]);
+  const onTitreChange = p.onTitreChange;
   const [type, setType] = useState<TypeNouveauProjet>(p.initial.type);
+  const titreEtape = etape === 'format' && type === 'video' ? 'Storyboard & devis' : etape === 'format' && type === 'text' ? 'Textes & devis' : { start: 'Que voulez-vous créer ?', brief: 'Le brief', strategie: 'La stratégie', direction: 'La direction', format: 'Formats & devis', confirm: 'Confirmer la génération', creation: 'Vos créations' }[etape];
+  useEffect(() => { onTitreChange?.(titreEtape); }, [titreEtape, onTitreChange]);
   const [titre, setTitre] = useState(p.initial.titre);
   const [saisie, setSaisie] = useState<SaisieBriefV5>({ ...saisieBriefVide(), intention: p.initial.intention });
   const lectureNavigation = useRef(0);
@@ -209,9 +211,9 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
       {etape !== 'start' && <div inert={panneau !== null || photoOuverte} style={{ display: 'contents' }}><Rail etape={etape} brief={brief} peutAller={peutAller} onAller={aller} titre={titre} marque={marque.nom} type={type} /></div>}
 
       <div className={css.wzmain} inert={panneau !== null || photoOuverte}>
-        {!['format', 'confirm', 'creation'].includes(etape) && <div className={css.wzhead}>
+        {(!['format', 'confirm', 'creation'].includes(etape) || (etape === 'format' && (type === 'video' || type === 'text'))) && <div className={css.wzhead}>
           <span className={css.eyebrow}>{etape === 'start' ? 'Démarrage' : `Étape ${etape === 'brief' ? 1 : etape === 'strategie' ? 2 : etape === 'direction' ? 3 : etape === 'creation' ? 5 : 4} sur 5`}</span>
-          <h2>{{ start: 'Que voulez-vous créer ?', brief: 'Le brief', strategie: 'La stratégie', direction: 'La direction', format: 'Formats & devis', confirm: 'Confirmer la génération', creation: 'Vos créations' }[etape]}</h2>
+          <h2>{titreEtape}</h2>
           <p>{{ start: 'Un projet réunit le brief, les références, la direction, les créations et les exports.', brief: 'Décrivez l’objectif. Jarvis s’appuie sur ces éléments à chaque étape.', strategie: 'Jarvis relie votre audience à un désir, puis propose des angles. Rien n’est appliqué sans votre choix.', direction: 'Une proposition à partir de l’angle choisi. Modifiez ce que vous voulez avant de valider.', format: 'Choisissez le format. Le devis serveur correspond à vos paramètres.', confirm: 'Vérifiez les paramètres et le coût avant tout débit.', creation: 'Vos créations' }[etape]}</p>
         </div>
         }
