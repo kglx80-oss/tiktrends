@@ -1,3 +1,4 @@
+import { preparateurFal } from '../../workers/src/studios/fournisseurs';
 import { refusDerivationFormat } from '../../workers/src/studios/formats-attestes';
 import { lireSnapshotJob } from '@tiktrends/core';
 import { erreurStudio } from '@tiktrends/core';
@@ -225,6 +226,64 @@ describe('Lot images · mêmes paramètres, transaction atomique', () => {
     expect(r.lot.devis[0]!.inputHash).toBe(r.lot.devis[1]!.inputHash);
     expect(r.lot.devis[0]!.inputHash).not.toBe(r.lot.devis[2]!.inputHash);
     const lance=await approuverLotImagesPour(ctx(),confirmation(r.lot),options());expect(lance.ok&&lance.jobs.length).toBe(4);
+  });
+
+  it('worker multi-format : référence retirée après approbation bloque chaque format sans appel ni dépense', async () => {
+    const initial = await preparer(1);
+    const r = await preparerLotImagesPour(ctx(), { projectId: initial.projectId, nombre: 2, controleVision: false }, base, T, ['1:1', '9:16']);
+    if (!r.ok) throw new Error(JSON.stringify(r));
+    const lance = await approuverLotImagesPour(ctx(), confirmation(r.lot), options());
+    if (!lance.ok) throw new Error(JSON.stringify(lance));
+    const prepare = preparateurFal(base, { modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit', animation: '' }, stockage: null });
+    const demande = { cleIdempotence: 'test-revocation-reference', operations: [], parametres: {} };
+    const reseau = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Aucun transport autorisé dans ce test'));
+    const [produit] = await db.select().from(schema.products).where(eq(schema.products.id, cat.produit.id));
+    const depenses = await db.select().from(schema.aiSpend);
+    const registre = await db.select().from(schema.studioBudgetLedger);
+    try {
+      for (const job of lance.jobs) expect((await prepare(demande, job.id)).ok).toBe(true);
+      await db.update(schema.products).set({ imageUrl: null, imageUrls: [] }).where(eq(schema.products.id, cat.produit.id));
+      for (const job of lance.jobs) {
+        expect(await prepare(demande, job.id)).toMatchObject({ ok: false, motif: expect.stringContaining('MISSING_REFERENCE') });
+      }
+      expect(reseau).not.toHaveBeenCalled();
+      expect(await db.select().from(schema.aiSpend)).toEqual(depenses);
+      expect(await db.select().from(schema.studioBudgetLedger)).toEqual(registre);
+    } finally {
+      await db.update(schema.products).set({ imageUrl: produit!.imageUrl, imageUrls: produit!.imageUrls }).where(eq(schema.products.id, cat.produit.id));
+      reseau.mockRestore();
+    }
+  });
+
+  it('worker multi-format : release révoquée après approbation bloque chaque format sans appel ni dépense', async () => {
+    const initial = await preparer(1);
+    const r = await preparerLotImagesPour(ctx(), { projectId: initial.projectId, nombre: 2, controleVision: false }, base, T, ['1:1', '9:16']);
+    if (!r.ok) throw new Error(JSON.stringify(r));
+    const lance = await approuverLotImagesPour(ctx(), confirmation(r.lot), options());
+    if (!lance.ok) throw new Error(JSON.stringify(lance));
+    const releaseId = r.lot.devis[0]!.promptReleaseId;
+    expect(releaseId).toBeTruthy();
+    const [release] = await db.select().from(schema.studioPromptReleases).where(eq(schema.studioPromptReleases.id, releaseId!));
+    const prepare = preparateurFal(base, { modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit', animation: '' }, stockage: null });
+    const demande = { cleIdempotence: 'test-revocation-release', operations: [], parametres: {} };
+    const reseau = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Aucun transport autorisé dans ce test'));
+    const depenses = await db.select().from(schema.aiSpend);
+    const registre = await db.select().from(schema.studioBudgetLedger);
+    try {
+      for (const job of lance.jobs) expect((await prepare(demande, job.id)).ok).toBe(true);
+      const revoquee = await depotPrompts.revoquerRelease(acteurPlateforme(), { releaseId, motif: 'Révocation après approbation, recette synthétique' });
+      expect(revoquee.ok).toBe(true);
+      for (const job of lance.jobs) {
+        expect(await prepare(demande, job.id)).toEqual({ ok: false, motif: 'Release du devis indisponible ou révoquée.' });
+      }
+      expect(reseau).not.toHaveBeenCalled();
+      expect(await db.select().from(schema.aiSpend)).toEqual(depenses);
+      expect(await db.select().from(schema.studioBudgetLedger)).toEqual(registre);
+    } finally {
+      // Restaurer la base synthétique partagée par cette suite uniquement.
+      await db.update(schema.studioPromptReleases).set({ evaluation: release!.evaluation }).where(eq(schema.studioPromptReleases.id, releaseId!));
+      reseau.mockRestore();
+    }
   });
 
 });
