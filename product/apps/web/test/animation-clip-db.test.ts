@@ -112,11 +112,22 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     expect(p).toMatchObject({ schema: SCHEMA_PARAMETRES_CLIP, operation: `clip:${PLAN}`, source: { assetId: `sta_${keyframe.id}`, sha256: keyframe.sha256 }, dureeS: 5 });
     expect(String(p.consigne)).toMatch(/^Mouvement : /);
 
-    // Le VRAI préparateur du worker · corps image → vidéo, adresse publique de l'image clé.
+    // Le VRAI préparateur du worker · corps image → vidéo, adresse signée temporaire de l'image clé.
     const preparer = preparateurFal(base, { modeles: MODELES, stockage: CFG });
     const cle = cleFournisseurDuJob(r.job.id);
     const prep = await preparer({ cleIdempotence: cle, operations: [], parametres: {} }, r.job.id);
-    expect(prep).toEqual({ ok: true, workspaceId: ids.wsA, modele: MODELES.animation, corps: { prompt: p.consigne, image_url: publicUrlFor(CFG, keyframe.cle), duration: '5', negative_prompt: expect.any(String) } });
+    expect(prep.ok).toBe(true);
+    if (!prep.ok) throw new Error(prep.motif);
+    const imageUrl = String(prep.corps.image_url);
+    const signee = new URL(imageUrl);
+    const canonique = new URL(publicUrlFor(CFG, keyframe.cle));
+    expect(signee.origin).toBe(canonique.origin);
+    expect(signee.pathname).toBe(canonique.pathname);
+    expect(signee.searchParams.get('X-Amz-Expires')).toBe('900');
+    expect(signee.searchParams.get('X-Amz-Algorithm')).toBe('AWS4-HMAC-SHA256');
+    expect(signee.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/);
+    expect(prep).toEqual({ ok: true, workspaceId: ids.wsA, modele: MODELES.animation, corps: { prompt: p.consigne, image_url: imageUrl, duration: '5', negative_prompt: expect.any(String) } });
+    expect(JSON.stringify(job!.snapshot)).not.toContain('X-Amz-');
 
     // Image clé modifiée depuis le devis ⇒ bloqué avant tout envoi, tracé.
     await db.update(schema.studioAssets).set({ sha256: 'f'.repeat(64) }).where(eq(schema.studioAssets.id, keyframe.id));
@@ -124,6 +135,7 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     expect(bloque).toMatchObject({ ok: false, motif: expect.stringMatching(/^MISSING_REFERENCE · image clé modifiée depuis le devis/) });
     await db.update(schema.studioAssets).set({ sha256: keyframe.sha256 }).where(eq(schema.studioAssets.id, keyframe.id));
     const traces = await db.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.targetId, r.job.id));
+    expect(JSON.stringify(traces)).not.toContain('X-Amz-');
     expect(traces.map((t) => t.action).filter((a) => a.startsWith('job.provider')).sort()).toEqual(['job.provider.blocked', 'job.provider.payload']);
   });
 

@@ -167,7 +167,12 @@ describe('A4 · redirection seulement vers le bucket ou Drive, sinon proxy', () 
   it('bucket et Drive : 302, sans appel distant', async () => {
     etat.session = session(ids, 'ua');
     const b = await asset(A.bucket!);
-    expect([b.status, b.headers.get('location')]).toEqual([302, `${BASE}/assets/${ids.wsA}/1-ab-photo.jpg`]);
+    expect(b.status).toBe(302);
+    const lecture = new URL(b.headers.get('location')!);
+    expect(lecture.origin).toBe('https://s3.test');
+    expect(lecture.pathname).toBe(`/bucket/assets/${ids.wsA}/1-ab-photo.jpg`);
+    expect(lecture.searchParams.get('X-Amz-Expires')).toBe('300');
+    expect(lecture.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/);
     fermee(b, '302 bucket');
     const d = await asset(A.drive!);
     expect([d.status, d.headers.get('location')]).toEqual([302, 'https://drive.google.com/uc?export=view&id=sans-id']);
