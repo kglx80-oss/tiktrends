@@ -125,6 +125,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         return null;
       }
       if (r.detail.version.id !== projet.versionCourante.id) { setDevis(null); setLot(null); }
+      setErreur(null);
       setBrief(r.detail.brief);
       setProjet({ id: projet.id, versionCourante: { id: r.detail.version.id, n: r.detail.version.n } });
       return r.detail.brief;
@@ -266,7 +267,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
         {etape === 'direction' && projet && brief && (
-          <AssistantPostCreation enregistrementRef={directionEnregistrement} etape="direction" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
+          <AssistantPostCreation onRelire={() => relireProjet().then(Boolean)} enregistrementRef={directionEnregistrement} etape="direction" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
         {etape === 'format' && projet && (type === 'video' || type === 'text') && <EtapeLivrableAssistant projectId={projet.id} type={type} onRetour={() => void aller('direction')} />}
         {etape === 'format' && projet && brief && type !== 'video' && type !== 'text' && (
@@ -324,7 +325,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
 
 /* ─────────────────── Sous-arbre post-création (propositions) ─────────────── */
 
-function AssistantPostCreation({ etape, projet, brief, marqueId, sources, apercuProduitUrl, onProjetChange, enregistrementRef }: {
+function AssistantPostCreation({ etape, projet, brief, marqueId, sources, apercuProduitUrl, onProjetChange, enregistrementRef, onRelire }: {
+  onRelire?: () => Promise<boolean>;
   enregistrementRef?: React.Ref<EnregistrementDirection>;
   etape: 'strategie' | 'direction';
   projet: ProjetCourant;
@@ -340,7 +342,7 @@ function AssistantPostCreation({ etape, projet, brief, marqueId, sources, apercu
   // d'hypothèses (Veille) restent honnêtement inactives (pas de bouton mort).
   return etape === 'strategie'
     ? <EtapeStrategie brief={brief} cycle={cycle} onApplied={onApplied} sources={sources} marqueId={marqueId} />
-    : <EtapeDirection enregistrementRef={enregistrementRef} projectId={projet.id} baseVersionId={projet.versionCourante.id} brief={brief} cycle={cycle} onApplied={onApplied} apercuProduitUrl={apercuProduitUrl} />;
+    : <EtapeDirection onRelire={onRelire} enregistrementRef={enregistrementRef} projectId={projet.id} baseVersionId={projet.versionCourante.id} brief={brief} cycle={cycle} onApplied={onApplied} apercuProduitUrl={apercuProduitUrl} />;
 }
 
 /* ─────────────────────────────── Le pied ────────────────────────────────── */

@@ -23,7 +23,7 @@ const epinglerSpy = vi.hoisted(() => vi.fn());
 vi.mock('../app/actions/studios/produit', () => ({ epinglerProduit: epinglerSpy }));
 
 const h = vi.hoisted(() => ({
-  navigation: [] as string[], refuserApplication: false, persisterDirection: false, jeterApplication:false, droitProposer:true,
+  lectureRefusee:false,refuserLectureApresApplication:false,inspectEtat:'approved',inspections:[] as unknown[],jeterCreation:false,navigation: [] as string[], refuserApplication: false, persisterDirection: false, jeterApplication:false, droitProposer:true,
   creer: [] as unknown[], propBrief: [] as unknown[], manuel: [] as unknown[], appliquer: [] as unknown[],
   rejeter: [] as unknown[], hypotheses: [] as unknown[], detailBrief: null as BriefCanonique | null,
 }));
@@ -34,7 +34,7 @@ vi.mock('../app/actions/studios/projets', () => ({
 }));
 vi.mock('../app/actions/studios/sources', () => ({
   ajouterSourcesAuProjet: departSpy.ajouter,
-  lireProjetDetail: async () => ({ ok: true, detail: { brief: h.detailBrief, briefIllisible: false, version: { id: 'v1', n: 1 }, sources: [] } }),
+  lireProjetDetail: async () => h.lectureRefusee ? {ok:false,message:'Relecture indisponible'} : ({ ok: true, detail: { brief: h.detailBrief, briefIllisible: false, version: { id: 'v1', n: 1 }, sources: [] } }),
   proposerHypotheses: async (e: unknown) => { h.hypotheses.push(e); return { ok: true, brandId: 'b1', hypotheses: [{ id: 'hyp_1', statement: 'Montrer le plongeon augmente le clic', sourceIds: ['s1'], variable: 'accroche', control: 'a', treatment: 'b', invariants: [], metric: 'CTR', decisionRule: 'garder si +10%', limitations: [] }], jeton: 'j', runId: 'r', avertissements: [] }; },
 }));
 const propProposed = {
@@ -45,14 +45,15 @@ const propProposed = {
 };
 const propRejected = { ...propProposed, id: 'prop-2', etat: 'rejected', libelleEtat: 'Rejetée', decideLe: '2026-10-17T11:00:00Z' };
 vi.mock('../app/actions/studios/propositions', () => ({
+  inspecterProposition: async(e:unknown)=>{h.inspections.push(e);return {ok:true,proposition:{...propProposed,etat:h.inspectEtat,versionAppliquee:h.inspectEtat==='approved'?{id:'v2',n:2}:null},versionCourante:{id:'v2',n:2}};},
   listerPropositions: async () => ({
     ok: true, projectId: 'proj-1', versionCourante: { id: 'v1', n: 1 }, propositions: [propProposed, propRejected],
     jarvis: { disponible: true, motif: null, raison: '', coutMaxUsd: 0.13, mentionCout: 'Appel texte payant · 0,13 $ au plus' },
     peutProposer: h.droitProposer, cibles: [],
   }),
   proposerBrief: async (e: unknown) => { h.propBrief.push(e); return { ok: true, statut: 'proposee', projectId: 'proj-1', proposition: propProposed, runId: 'r' }; },
-  creerPropositionManuelle: async (e: unknown) => { h.manuel.push(e); return { ok: true, statut: 'proposee', projectId: 'proj-1', proposition: propProposed, runId: null }; },
-  appliquerProposition: async (e: unknown) => { h.appliquer.push(e); if(h.jeterApplication)throw new Error('réseau'); if (h.refuserApplication) return { ok: false, message: 'Version modifiée ailleurs', traceId: 'conflit' }; if(h.persisterDirection && h.detailBrief){for(const ch of (h.manuel.at(-1) as {changes:{path:string;newValue:unknown}[]}).changes){(h.detailBrief as unknown as Record<string,unknown>)[ch.path.replace('/brief/','')]=ch.newValue;}} return { ok: true, projectId: 'proj-1', proposition: propProposed, version: { id: 'v2', n: 2 }, deja: false }; },
+  creerPropositionManuelle: async (e: unknown) => { h.manuel.push(e); if(h.jeterCreation)throw new Error('création interrompue'); return { ok: true, statut: 'proposee', projectId: 'proj-1', proposition: propProposed, runId: null }; },
+  appliquerProposition: async (e: unknown) => { h.appliquer.push(e); if(h.jeterApplication)throw new Error('réseau'); if (h.refuserApplication) return { ok: false, message: 'Version modifiée ailleurs', traceId: 'conflit' }; if(h.refuserLectureApresApplication)h.lectureRefusee=true; if(h.persisterDirection && h.detailBrief){for(const ch of (h.manuel.at(-1) as {changes:{path:string;newValue:unknown}[]}).changes){(h.detailBrief as unknown as Record<string,unknown>)[ch.path.replace('/brief/','')]=ch.newValue;}} return { ok: true, projectId: 'proj-1', proposition: propProposed, version: { id: 'v2', n: 2 }, deja: false }; },
   rejeterProposition: async (e: unknown) => { h.rejeter.push(e); return { ok: true, projectId: 'proj-1', proposition: propRejected }; },
 }));
 
@@ -80,7 +81,7 @@ const saisir = async (el: Element | null, valeur: string) => {
   await act(async () => { champ.dispatchEvent(new Event('input', { bubbles: true })); });
 };
 
-beforeEach(() => { h.navigation=[]; h.refuserApplication = false; h.persisterDirection = false; h.jeterApplication=false; h.droitProposer=true; h.creer = []; h.propBrief = []; h.manuel = []; h.appliquer = []; h.rejeter = []; h.hypotheses = []; h.detailBrief = null; });
+beforeEach(() => { h.lectureRefusee=false;h.refuserLectureApresApplication=false;h.inspectEtat='approved';h.inspections=[];h.jeterCreation=false; h.navigation=[]; h.refuserApplication = false; h.persisterDirection = false; h.jeterApplication=false; h.droitProposer=true; h.creer = []; h.propBrief = []; h.manuel = []; h.appliquer = []; h.rejeter = []; h.hypotheses = []; h.detailBrief = null; });
 afterEach(() => { document.body.innerHTML = ''; });
 
 async function allerStrategie(hote: HTMLElement) {
@@ -444,4 +445,39 @@ it.each(['croix','echap'] as const)('fermeture %s : conserve direction modifiée
  expect((document.querySelector('[data-champ="concept-libre"]') as HTMLInputElement).value).toBe('Mon concept en cours');expect(h.manuel).toHaveLength(0);
  await clic([...document.querySelectorAll('button')].find(b=>b.textContent==='Annuler mes modifications')!);
  await quitter();expect(h.navigation).toEqual(['/studio/projets']);expect(h.appliquer).toHaveLength(0);await rendu.fermer();
+});
+
+it('direction appliquée puis relecture refusée : nouvelle validation relit sans nouvelle proposition',async()=>{
+ h.refuserLectureApresApplication=true;h.persisterDirection=true;
+ const rendu=await monter(<AssistantProjet etat={etatPret} initial={{type:'ads',titre:'Projet',intention:''}} personas={[]}/>);
+ await allerStrategie(rendu.hote);await clic(rendu.hote.querySelector('[data-bouton="vers-direction"]'));
+ await saisir(rendu.hote.querySelector('[data-champ="concept-libre"]'),'Concept sauvegardé');
+ await clic(rendu.hote.querySelector('[data-bouton="vers-format"]'));await clic(rendu.hote.querySelector('[data-bouton="vers-format"]'));
+ expect(h.manuel).toHaveLength(1);expect(h.appliquer).toHaveLength(1);expect(rendu.hote.textContent).toContain('Relecture indisponible');
+ expect((rendu.hote.querySelector('[data-champ="concept-libre"]') as HTMLInputElement).value).toBe('Concept sauvegardé');
+ h.lectureRefusee=false;
+ await clic(rendu.hote.querySelector('[data-bouton="vers-format"]'));
+ expect(h.manuel).toHaveLength(1);expect(h.appliquer).toHaveLength(1);expect(rendu.hote.querySelector('[data-zone="assistant-projet"]')?.getAttribute('data-etape')).toBe('format');await rendu.fermer();
+});
+it.each(['approved','proposed'])('réponse application perdue : relecture %s sans nouvelle écriture',async(etat)=>{
+ h.jeterApplication=true;h.inspectEtat=etat;
+ const rendu=await monter(<AssistantProjet etat={etatPret} initial={{type:'ads',titre:'Projet',intention:''}} personas={[]}/>);
+ await allerStrategie(rendu.hote);await clic(rendu.hote.querySelector('[data-bouton="vers-direction"]'));
+ await saisir(rendu.hote.querySelector('[data-champ="concept-libre"]'),'Saisie conservée');await clic(rendu.hote.querySelector('[data-bouton="vers-format"]'));
+ if(etat==='approved')h.detailBrief={...h.detailBrief!,concept:'Saisie conservée'};
+ await clic([...rendu.hote.querySelectorAll('button')].find(b=>b.textContent==='Relire l’enregistrement · sans modification')!);
+ expect(h.inspections).toHaveLength(1);expect(h.manuel).toHaveLength(1);expect(h.appliquer).toHaveLength(1);
+ expect((rendu.hote.querySelector('[data-champ="concept-libre"]') as HTMLInputElement).value).toBe('Saisie conservée');
+ h.jeterApplication=false;await clic(rendu.hote.querySelector('[data-bouton="vers-format"]'));
+ expect(h.manuel).toHaveLength(1);expect(h.appliquer).toHaveLength(etat==='approved'?1:2);await rendu.fermer();
+});
+it('réponse création perdue : consulter puis annuler explicitement sans appliquer ni relancer',async()=>{
+ h.jeterCreation=true;
+ const rendu=await monter(<AssistantProjet etat={etatPret} initial={{type:'ads',titre:'Projet',intention:''}} personas={[]}/>);
+ await allerStrategie(rendu.hote);await clic(rendu.hote.querySelector('[data-bouton="vers-direction"]'));
+ await saisir(rendu.hote.querySelector('[data-champ="concept-libre"]'),'Saisie conservée');await clic(rendu.hote.querySelector('[data-bouton="vers-format"]'));
+ await clic([...rendu.hote.querySelectorAll('button')].find(b=>b.textContent==='Relire l’enregistrement · sans modification')!);
+ expect(h.manuel).toHaveLength(1);expect(h.appliquer).toHaveLength(0);expect((rendu.hote.querySelector('[data-champ="concept-libre"]') as HTMLInputElement).value).toBe('Saisie conservée');
+ await clic([...rendu.hote.querySelectorAll('button')].find(b=>b.textContent==='Annuler mes modifications')!);
+ await clic(rendu.hote.querySelector('[data-bouton="vers-format"]'));expect(h.manuel).toHaveLength(1);expect(h.appliquer).toHaveLength(0);await rendu.fermer();
 });

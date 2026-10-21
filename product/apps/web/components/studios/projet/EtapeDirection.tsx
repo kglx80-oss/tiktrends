@@ -5,7 +5,7 @@ import {
   changementStyleManuel, demandeDirectionDepuisBrief, OBJECTIF_MAX,
   ALLOWED_PATHS_BRIEF, ligneTexte, lireLigneTexte, type ChangementPatch, type BriefCanonique,
 } from '@tiktrends/core';
-import { creerPropositionManuelle, appliquerProposition } from '../../../app/actions/studios/propositions';
+import { creerPropositionManuelle, appliquerProposition, inspecterProposition } from '../../../app/actions/studios/propositions';
 import css from './AssistantProjet.module.css';
 import { Icon } from '../../Icon';
 import { BlocPropositions, btnAction, btnActionGhost } from './BlocPropositions';
@@ -27,7 +27,8 @@ import type { CyclePropositionsBrief } from './usePropositionsBrief';
 const note: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
 export interface EnregistrementDirection { enregistrer: () => Promise<boolean>; peutFermer: () => boolean }
 
-export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl, enregistrementRef, projectId, baseVersionId }: {
+export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl, enregistrementRef, projectId, baseVersionId, onRelire }: {
+  onRelire?: () => Promise<boolean>;
   enregistrementRef?: Ref<EnregistrementDirection>;
   projectId?: string;
   baseVersionId?: string;
@@ -64,6 +65,37 @@ export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl, enre
   const [erreurSauvegarde, setErreurSauvegarde] = useState('');
   const verrouSauvegarde = useRef(false);
   const sauvegardeIncertaine = useRef(false);
+  const operation = useRef<{base:string;signature:string;propositionId?:string;appliquee:boolean} | null>(null);
+  const [lectureNecessaire,setLectureNecessaire] = useState(false);
+  useEffect(() => {
+    if (operation.current?.appliquee && operation.current.base !== baseVersionId) {
+      operation.current=null;setLectureNecessaire(false);sauvegardeIncertaine.current=false;
+    }
+  },[baseVersionId]);
+  async function relireEnregistrement() {
+    if (verrouSauvegarde.current || !operation.current) return;
+    verrouSauvegarde.current=true;setSauvegarde(true);
+    try {
+      if (!operation.current.appliquee) {
+        if (!operation.current.propositionId) {
+          await cycle.recharger();
+          setErreurSauvegarde('La création de la proposition reste non confirmée. Aucune application n’a été demandée. Consulte les propositions du projet ou annule tes modifications pour fermer ; tes saisies sont conservées.');
+          return;
+        }
+        const r=await inspecterProposition({proposalId:operation.current.propositionId});
+        if(!r.ok){setErreurSauvegarde(r.message);return;}
+        if(r.proposition.etat==='approved' && r.proposition.versionAppliquee) operation.current.appliquee=true;
+        else if(r.proposition.etat==='proposed') {
+          sauvegardeIncertaine.current=false;
+          setErreurSauvegarde('Proposition retrouvée, pas encore appliquée. Valide la direction pour reprendre cette même proposition, sans en recréer.');return;
+        } else {sauvegardeIncertaine.current=false;setErreurSauvegarde('Cette proposition ne peut plus être appliquée. Tes saisies restent affichées ; annule tes modifications pour repartir du brief.');return;}
+      }
+      sauvegardeIncertaine.current=false;setLectureNecessaire(true);
+      if(await onRelire?.())setErreurSauvegarde('Direction enregistrée et relue. Tu peux continuer.');
+      else setErreurSauvegarde('Direction enregistrée, mais relecture indisponible. Réessaie la relecture ; aucune nouvelle écriture ne sera lancée.');
+    } catch {setErreurSauvegarde('Relecture indisponible. Tes saisies restent affichées. Réessaie la relecture sans relancer l’enregistrement.');}
+    finally{verrouSauvegarde.current=false;setSauvegarde(false);}
+  }
   const modifiee = concept !== (brief.concept ?? '') || style !== (brief.styleIntent ?? '') || accroche !== accrocheRelue || cta !== ctaRelu;
   useImperativeHandle(enregistrementRef, () => ({ peutFermer: () => {
     if (!modifiee && !verrouSauvegarde.current && !cycle.occupe && !sauvegardeIncertaine.current) return true;
@@ -74,6 +106,8 @@ export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl, enre
       setErreurSauvegarde('Une opération est en cours ou non confirmée. Vérifie son état avant de quitter la direction.');
       return false;
     }
+    // Once applied, subsequent navigation retries only reread the project.
+    if(operation.current?.appliquee)return true;
     const changes: ChangementPatch[] = [];
     if (concept !== (brief.concept ?? '')) changes.push({op:typeof brief.concept === 'string' ? 'replace' : 'add',path:'/brief/concept',newValue:concept.trim().slice(0,OBJECTIF_MAX),reason:'Concept validé à la main'});
     if (style !== (brief.styleIntent ?? '')) changes.push(changementStyleManuel(style));
@@ -95,11 +129,20 @@ export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl, enre
     if (!peutProposer || !projectId || !baseVersionId) { setErreurSauvegarde('Tu ne peux pas enregistrer ces modifications avec tes droits actuels. Tes saisies restent affichées.'); return false; }
     verrouSauvegarde.current = true; setSauvegarde(true); setErreurSauvegarde('');
     try {
-      const cree = await creerPropositionManuelle({projectId,baseVersionId,cible:'brief',changes,explication:'Direction relue et validée par l’utilisateur · sans appel IA',allowedPaths:ALLOWED_PATHS_BRIEF});
-      if (!cree.ok) {setErreurSauvegarde(cree.message);return false;}
-      if (cree.statut !== 'proposee') {setErreurSauvegarde('La direction n’a pas pu être enregistrée. Tes saisies restent affichées.');return false;}
-      const applique = await appliquerProposition({projectId,baseVersionId,proposalId:cree.proposition.id});
+      const signature=JSON.stringify(changes);
+      if(operation.current && (operation.current.base!==baseVersionId || operation.current.signature!==signature)) {
+        setErreurSauvegarde('Une proposition précédente doit être vérifiée ou annulée avant de modifier cette direction.');return false;
+      }
+      operation.current ??= {base:baseVersionId,signature,appliquee:false};
+      if(!operation.current.propositionId) {
+        const cree = await creerPropositionManuelle({projectId,baseVersionId,cible:'brief',changes,explication:'Direction relue et validée par l’utilisateur · sans appel IA',allowedPaths:ALLOWED_PATHS_BRIEF});
+        if (!cree.ok) {operation.current=null;setErreurSauvegarde(cree.message);return false;}
+        if (cree.statut !== 'proposee') {operation.current=null;setErreurSauvegarde('La direction n’a pas pu être enregistrée. Tes saisies restent affichées.');return false;}
+        operation.current.propositionId=cree.proposition.id;
+      }
+      const applique = await appliquerProposition({projectId,baseVersionId,proposalId:operation.current.propositionId});
       if (!applique.ok) {setErreurSauvegarde(applique.message);return false;}
+      operation.current.appliquee=true;setLectureNecessaire(true);
       return true;
     } catch {
       sauvegardeIncertaine.current = true;
@@ -110,10 +153,11 @@ export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl, enre
 
   return (
     <div data-zone="assistant-direction" style={{ display: 'grid', gap: 16 }}>
-      {erreurSauvegarde && <div><p role="alert">{erreurSauvegarde}</p>{modifiee && <button type="button" disabled={sauvegarde || !!cycle.occupe || sauvegardeIncertaine.current} onClick={() => {
-        setConcept(brief.concept ?? '');setStyle(brief.styleIntent ?? '');setAccroche(accrocheRelue);setCta(ctaRelu);setErreurSauvegarde('');
+      {erreurSauvegarde && <div><p role="alert">{erreurSauvegarde}</p>{modifiee && <button type="button" disabled={sauvegarde || !!cycle.occupe || !!operation.current?.appliquee || (sauvegardeIncertaine.current && !!operation.current?.propositionId)} onClick={() => {
+        setConcept(brief.concept ?? '');setStyle(brief.styleIntent ?? '');setAccroche(accrocheRelue);setCta(ctaRelu);setErreurSauvegarde('');operation.current=null;sauvegardeIncertaine.current=false;setLectureNecessaire(false);
       }}>Annuler mes modifications</button>}</div>}
-      <fieldset disabled={sauvegarde || sauvegardeIncertaine.current} style={{border:0,padding:0,margin:0,minWidth:0}}><div className={css.wzdir}>
+      {(lectureNecessaire || sauvegardeIncertaine.current) && <button type="button" disabled={sauvegarde} onClick={()=>void relireEnregistrement()}>Relire l’enregistrement · sans modification</button>}
+      <fieldset disabled={sauvegarde || sauvegardeIncertaine.current || lectureNecessaire} style={{border:0,padding:0,margin:0,minWidth:0}}><div className={css.wzdir}>
         <section aria-label="Direction actuelle" className={css.wzmock}>
           <span className={css.eyebrow}>Aperçu de la direction</span>
           <div className={css.wzad} data-champ="resume-direction">
