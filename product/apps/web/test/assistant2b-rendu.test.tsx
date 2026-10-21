@@ -160,9 +160,9 @@ describe('assistant V5 · étape DIRECTION câblée + format/création « bient�
 
     // création reste « bientôt », non navigable, sans contrôle (format est câblé au Lot 2c)
     const liCreation = hote.querySelector('[data-rail-etape="creation"]');
-    expect(liCreation!.getAttribute('data-bientot')).toBe('true');
+    expect(liCreation!.getAttribute('data-bientot')).toBeNull();
     expect(liCreation!.querySelector('button, input, select, textarea, a')).toBeNull();
-    expect(hote.querySelector('[data-zone="bientot-note"]')).not.toBeNull();
+    expect(hote.querySelector('[data-zone="bientot-note"]')).toBeNull();
     await fermer();
   });
 });

@@ -1,24 +1,23 @@
 import { redirect } from 'next/navigation';
 import {
   aPermissionEspace, briefDepuisTest, capacitesDuRefus, etatNouveauProjet, lienRetourVeille, lireContexteNouveauProjet,
-  notesContexte, objectifDepuisIteration, titreNouveauProjetParDefaut, CHEMIN_PROJETS, CHEMIN_NOUVEAU_CONCEPT, OBJECTIF_MAX, LIBELLES_TYPE_PROJET,
+  notesContexte, objectifDepuisIteration, titreNouveauProjetParDefaut, CHEMIN_PROJETS, OBJECTIF_MAX,
   type EtatRepriseIteration,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
 import { effectiveAccess } from '../../../../../lib/access';
-import { isFounder } from '../../../../../lib/founder';
-import { FEATURES, canAccess, roleAtLeast } from '../../../../../lib/rbac';
+import { FEATURES, canAccess } from '../../../../../lib/rbac';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
 import { produitsDeLaMarque } from '../../../../../lib/studios/sources/preparation';
 import { chargerSources } from '../../../../../lib/studios/sources/sources';
 import { adsDeLaMarque } from '../../../../../lib/adsmap-marque';
 import { adDetailAction } from '../../../../actions/adsmap-verdict';
-import { personasDeLaMarque } from '../../../../../lib/studios/personas-marque';
+import { ouvrirAssistantProjet } from '../../../../actions/studios/assistant';
 import { CapaciteNonActive } from '../../../../../components/studios/CapaciteNonActive';
 import { PreparationProjet } from '../../../../../components/studios/projet/PreparationProjet';
-import { AssistantProjet } from '../../../../../components/studios/projet/AssistantProjet';
+import { PageAssistant } from '../../../../../components/studios/projet/PageAssistant';
 import { cadrePage, h1, sub } from '../../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -88,24 +87,11 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
   const marqueNom = etat.etat === 'pret' ? etat.marque.nom : '';
   const titre = depuisTest?.titre ?? (annonce ? `D’après ${annonce.annonceur}` : titreNouveauProjetParDefaut(c.type, marqueNom || 'ta marque'));
 
-  // Sans contexte de lien (objectif, annonce, test, Veille), c'est la création
-  // « depuis zéro ». Depuis le mandat du 20/10, l'entrée CLIENTE de ce geste est
-  // l'écran conversationnel « Nouveau concept créatif » (`CHEMIN_NOUVEAU_CONCEPT`)
-  // · l'assistant en étapes ci-dessous reste en SECOURS pour l'équipe interne
-  // (ADMIN+), jamais une porte cliente de plus. Aucune fonction serveur retirée :
-  // `creerProjet` demeure l'écriture canonique, et les flux AVEC contexte
-  // (reprise d'itération, annonce, Veille) passent plus bas, inchangés.
+  // Le parcours client reprend la fenêtre du prototype. Ouverture en lecture seule.
   if (!c.aContexte) {
-    const secoursAdmin = isFounder(s.user.email) && roleAtLeast(s.role, 'admin');
-    if (!secoursAdmin) redirect(CHEMIN_NOUVEAU_CONCEPT);
-    const personas = etat.etat === 'pret' ? await personasDeLaMarque(g.ctx, etat.marque.id) : [];
-    return (
-      <main style={cadrePage}>
-        <h1 style={h1}>Nouveau projet</h1>
-        <p style={sub}>Un projet {LIBELLES_TYPE_PROJET[c.type]?.toLowerCase() ?? ''} pour ta marque active · rien n’est généré ni facturé ici.</p>
-        <AssistantProjet etat={etat} initial={{ type: c.type, titre, intention: objectif }} personas={personas} />
-      </main>
-    );
+    const ouverture = await ouvrirAssistantProjet();
+    if (!ouverture.ok) return <main style={cadrePage}><p role="alert">{ouverture.message}</p></main>;
+    return <PageAssistant {...ouverture.props} initial={{ type: c.type, titre, intention: objectif }} />;
   }
 
   return (

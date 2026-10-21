@@ -14,7 +14,7 @@ import { NouveauProjet } from '../../../../components/studios/projet/NouveauProj
 import { contexteDepuisSession } from '../../../../lib/studios/garde';
 import { Icon } from '../../../../components/Icon';
 import { CapaciteNonActive } from '../../../../components/studios/CapaciteNonActive';
-import { cadrePage, h1, sub, surface, vide, btn, btnGhost } from '../../../../components/ui';
+import { cadrePage, h1, sub, surface, vide, btn } from '../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,7 +83,6 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
         <h1 style={h1}>Studios</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <a href="/veille" style={{ ...btnGhost, textDecoration: 'none' }}>Créer depuis la Veille</a>
           <NouveauProjet etat={nouveau} />
         </div>
       </div>

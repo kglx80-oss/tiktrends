@@ -4,7 +4,7 @@ import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
   lireDirectionVisuelleRelue, composerBrief, validerFormeBrief, validerRelationsBrief, refsAdsmapCitees, validerHypothese, hypotheseSaisie, saisieSuffisante,
-  propositionValidePour, referenceProduit, lireReferenceProduit, lireReferencesSources, ajouterSourcesAuProjet, completudeProjet, hypotheseDuBrief,
+  propositionValidePour, referenceProduit, lireReferenceProduit, lireReferenceEpinglee, lireReferencesSources, ajouterSourcesAuProjet, completudeProjet, hypotheseDuBrief,
   exporterBrief as exporterBriefNoyau, contenuVide, creationsHorsMarque, validerContenuVersion, empreinteContenu, objetDansPortee, erreurStudio,
   LIBELLES_TYPE_PROJET, SCHEMA_VERSION_CONTENU, TEXTES_REFUS_PROPOSITION,
   type BriefCanonique, type ContenuVersion, type ErreurStudio, type HypotheseTest, type ManqueProjet, type EtapeProjet,
@@ -375,6 +375,8 @@ export async function lireProjetDetailPour(
 /* ─────────────────────────────── Cartes ──────────────────────────────────── */
 
 export interface CarteProjet {
+  /** Photo produit réelle ; la route relit les droits avant de servir le fichier. */
+  apercu?: string | null;
   id: string;
   title: string;
   kind: string;
@@ -423,8 +425,10 @@ export async function listerCartesPour(
     const { brief } = briefDe(v?.content ?? null);
     const produit = lireReferenceProduit((v?.content as { productRef?: unknown } | undefined)?.productRef);
     const sources = (refsParProjet.get(p.id) ?? []).map((s) => ({ statut: statut.get(s.sourceId) ?? s.statut }));
+    const epingle = lireReferenceEpinglee((v?.content as { productRef?: unknown } | undefined)?.productRef);
     const c = completudeProjet({ brief, produit, sources, aDuContenuDeProduction: aDuContenuDeProduction(v?.content) });
     return {
+      apercu: epingle ? `/studio/projets/${p.id}/produit/fichier/${epingle.photo.assetId}` : null,
       id: p.id, title: p.title, kind: p.kind, libelleType: LIBELLES_TYPE_PROJET[p.kind] ?? p.kind, brandId: p.brandId,
       marque: nomMarque.get(p.brandId) ?? '', etape: c.etape, libelleEtape: c.libelleEtape,
       manques: [...c.manques].sort((a, b) => Number(b.bloquant) - Number(a.bloquant)),

@@ -40,7 +40,7 @@ const cartes: Carte[] = [
   carte({ id: 'p3', title: 'La piscine au quotidien', etape: 'brief_pret', libelleEtape: 'Brief prêt', versionN: 2 }),
 ];
 
-const nouveau: EtatNouveauProjet = { etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau concept créatif' };
+const nouveau: EtatNouveauProjet = { etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau projet' };
 
 const iterations: EtatProchainesIterations = {
   etat: 'liste', total: 1, boucle: '/resultats', autres: '/suites',
@@ -72,14 +72,14 @@ describe('Studios · liste des projets · rendu V5', () => {
     expect(actif).toMatch(/box-shadow:var\(--sh-sm\)/);
   });
 
-  it('« Nouveau concept créatif » (en-tête) · lien vers l’écran de concept, icône « + » avant le libellé (proto)', () => {
+  it('« Nouveau projet » (en-tête) · lien de secours vers le parcours, icône « + » avant le libellé (proto)', () => {
     const html = renderToStaticMarkup(
-      <NouveauProjet etat={{ etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau concept créatif' }} />,
+      <NouveauProjet etat={{ etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau projet' }} />,
     );
-    // Le CTA primaire est un LIEN vers l'écran de concept (plus de modale), ouvre
+    // Le lien de secours permet aussi une entrée directe ; le clic ouvre la fenêtre, avec
     // sur un « + » (path de l'icône plus) puis le libellé du noyau.
-    expect(html).toMatch(/<a[^>]*href="\/studio\/projets\/nouveau\/concept"[^>]*data-nouveau-projet="pret"/);
-    expect(html).toMatch(/data-nouveau-projet="pret"[\s\S]*?M12 5v14M5 12h14[\s\S]*?Nouveau concept créatif/);
+    expect(html).toMatch(/<a[^>]*href="\/studio\/projets\/nouveau"[^>]*data-nouveau-projet="pret"/);
+    expect(html).toMatch(/data-nouveau-projet="pret"[\s\S]*?M12 5v14M5 12h14[\s\S]*?Nouveau projet/);
   });
 
   it('rangée de filtres par étape RÉELLE avec compteurs réels + recherche', () => {
@@ -128,12 +128,12 @@ describe('Studios · liste des projets · rendu V5', () => {
     expect(html).not.toContain('<img');
   });
 
-  it('carte « Nouveau concept créatif » (raccourci N) en fin de grille · lien vers l’écran de concept', () => {
+  it('carte « Nouveau projet » (raccourci N) en fin de grille · lien de secours vers le parcours', () => {
     const html = renderToStaticMarkup(<ListeProjets cartes={cartes} nouveau={nouveau} />);
     expect(html).toContain('data-nouveau-projet="carte"');
     expect(html).toContain('aria-keyshortcuts="N"');
-    expect(html).toContain('href="/studio/projets/nouveau/concept"');
-    expect(html).toContain('Nouveau concept créatif');
+    expect(html).toContain('href="/studio/projets/nouveau"');
+    expect(html).toContain('Nouveau projet');
   });
 
   it('bloc « Prochaines itérations » réutilisé · verdict Adsmap réel, Garde/Change, Itérer', () => {

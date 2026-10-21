@@ -55,7 +55,7 @@ export function CarteProjet({ carte }: { carte: Carte }) {
     <a href={`/studio/projets/${carte.id}`} data-projet={carte.id} aria-label={`${carte.title} · ${carte.marque} · ${carte.libelleEtape}`}
       className={styles.card}>
       <div className={styles.media}>
-        <span className={styles.placeholder} aria-label="Aperçu non disponible"><Icon name={ICONE_TYPE[carte.kind] ?? 'folder'} size={32} /><small>Aucun aperçu pour le moment</small></span>
+        {carte.apercu ? <img src={carte.apercu} alt="Référence produit" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <span className={styles.placeholder} aria-label="Aperçu non disponible"><Icon name={ICONE_TYPE[carte.kind] ?? 'folder'} size={32} /><small>Aucun aperçu pour le moment</small></span>}
         <span className={styles.badges}><span>{carte.libelleType}</span>{carte.versionN != null && <span data-version>V{carte.versionN}</span>}</span>
       </div>
       <div className={styles.body}>

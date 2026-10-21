@@ -22,6 +22,7 @@ import { EtapeStrategie } from './EtapeStrategie';
 import { EtapeDirection } from './EtapeDirection';
 import { EtapeFormatDevis } from './EtapeFormatDevis';
 import { EtapeConfirmation } from './EtapeConfirmation';
+import { EtatCreationAssistant } from './EtatCreationAssistant';
 
 /**
  * L'assistant de création V5 (coquille `studioWizard`) porté sur les VRAIES
@@ -66,6 +67,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const [projet, setProjet] = useState<ProjetCourant | null>(null);
   const [brief, setBrief] = useState<BriefCanonique | null>(null);
   // Lot 2c · le devis serveur réel, posé à l'étape format, confirmé à l'étape confirm.
+  const [jobId, setJobId] = useState<string | null>(null);
   const [devis, setDevis] = useState<DevisImageVue | null>(null);
 
   if (p.etat.etat !== 'pret') {
@@ -155,7 +157,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   // Navigation du rail · avant création, start/brief seulement ; après, les
   // étapes qui opèrent sur le projet (le brief est verrouillé une fois écrit).
   const peutAller = (id: EtapeAssistant): boolean =>
-    projet ? (id === 'brief' || (etapeRequiertProjet(id) && etapeDisponible(id))) : (etatRailProjet(id, etape, brief) === 'done');
+    projet ? ((id !== 'creation' || !!jobId) && (id === 'brief' || (etapeRequiertProjet(id) && etapeDisponible(id)))) : (etatRailProjet(id, etape, brief) === 'done');
 
   function aller(id: EtapeAssistant) {
     if (id === 'brief' && brief) setSaisie(saisieDepuisBrief(brief));
@@ -169,11 +171,12 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
       {etape !== 'start' && <Rail etape={etape} brief={brief} peutAller={peutAller} onAller={aller} titre={titre} marque={marque.nom} type={type} />}
 
       <div className={css.wzmain}>
-        <div className={css.wzhead}>
-          <span className={css.eyebrow}>{etape === 'start' ? 'Démarrage' : `Étape ${etape === 'brief' ? 1 : etape === 'strategie' ? 2 : etape === 'direction' ? 3 : 4} sur 5`}</span>
+        {!['format', 'confirm', 'creation'].includes(etape) && <div className={css.wzhead}>
+          <span className={css.eyebrow}>{etape === 'start' ? 'Démarrage' : `Étape ${etape === 'brief' ? 1 : etape === 'strategie' ? 2 : etape === 'direction' ? 3 : etape === 'creation' ? 5 : 4} sur 5`}</span>
           <h2>{{ start: 'Que voulez-vous créer ?', brief: 'Le brief', strategie: 'La stratégie', direction: 'La direction', format: 'Formats & devis', confirm: 'Confirmer la génération', creation: 'Vos créations' }[etape]}</h2>
           <p>{{ start: 'Un projet réunit le brief, les références, la direction, les créations et les exports.', brief: 'Décrivez l’objectif. Jarvis s’appuie sur ces éléments à chaque étape.', strategie: 'Jarvis relie votre audience à un désir, puis propose des angles. Rien n’est appliqué sans votre choix.', direction: 'Une proposition à partir de l’angle choisi. Modifiez ce que vous voulez avant de valider.', format: 'Choisissez le format. Le devis serveur correspond à vos paramètres.', confirm: 'Vérifiez les paramètres et le coût avant tout débit.', creation: 'Vos créations' }[etape]}</p>
         </div>
+        }
         <div className={css.wzcontent}>
         {etape === 'start' && (
           <Depart marque={marque.nom} type={type} onType={setType} onContinuer={() => setEtape('brief')} />
@@ -201,14 +204,16 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
             {...{ apercuProduitUrl }}
             devis={devis}
             onModifier={() => { setDevis(null); setEtape('format'); }}
-            onLance={() => { setDevis(null); ouvrirProjet(); }}
+            onLance={(job) => { setJobId(job.id); setDevis(null); setEtape('creation'); }}
           />
         )}
+
+        {etape === 'creation' && projet && jobId && <EtatCreationAssistant projectId={projet.id} jobId={jobId} onFermer={p.onFermer ?? ouvrirProjet} />}
 
         {erreur && etape !== 'format' && etape !== 'confirm' && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
 
         </div>
-        {etape !== 'format' && etape !== 'confirm' && (
+        {etape !== 'format' && etape !== 'confirm' && etape !== 'creation' && (
           <Pied
             etape={etape}
             encours={encours}
@@ -262,7 +267,7 @@ function Pied({ etape, encours, incertain, aProjet, onFermer, onCreer, onVersBri
           {etape === 'strategie' && <button type="button" data-bouton="retour-brief" onClick={onReculer}>‹ Retour</button>}
         </div>
         <div className={css.row}>
-          {aProjet && onFermer && <button type="button" onClick={onFermer}>Enregistrer et quitter</button>}
+          {aProjet && onFermer && <button type="button" onClick={onFermer}>Quitter</button>}
           {etape === 'start' && <button type="button" data-bouton="vers-brief" onClick={onVersBrief} className={css.primary}>Commencer le brief</button>}
           {etape === 'brief' && <button type="button" data-bouton="creer-projet" onClick={onCreer} disabled={encours || incertain} className={css.primary}>{encours ? 'Création…' : 'Continuer vers la stratégie'}</button>}
           {etape === 'strategie' && aProjet && <button type="button" data-bouton="vers-direction" onClick={onAvancer} className={css.primary}>Continuer vers la direction</button>}
@@ -270,7 +275,7 @@ function Pied({ etape, encours, incertain, aProjet, onFermer, onCreer, onVersBri
         </div>
       </footer>
       {etape === 'brief' && <p style={{ ...note, fontSize: 12.5, margin: 0 }}>Gratuit · le brief est enregistré à la création, rien n’est généré tant que tu ne lances rien.</p>}
-      {(etape === 'strategie' || etape === 'direction') && <p data-zone="bientot-note" style={{ ...note, fontSize: 12.5, margin: 0 }}>Format &amp; devis prépare le devis serveur · la génération reste gratuite jusqu’à ta confirmation. L’étape Création (suivi des visuels) arrive bientôt.</p>}
+
     </>
   );
 }
