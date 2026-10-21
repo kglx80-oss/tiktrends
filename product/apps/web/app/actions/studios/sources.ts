@@ -80,7 +80,7 @@ export async function creerProjetDepuisSources(entree: EntreeCreationDepuisSourc
   const { creerProjetDepuisSourcesPour } = await import('../../../lib/studios/sources/projet');
   return creerProjetDepuisSourcesPour(g.ctx, {
     sources: entree?.sources, brandId: entree?.brandId, kind: entree?.kind, titre: entree?.titre, objectif: entree?.objectif,
-    hypothese: entree?.hypothese, productId: entree?.productId, cleClic: entree?.cleClic,
+    hypothese: entree?.hypothese, productId: entree?.productId, directionVisuelle: entree?.directionVisuelle, cleClic: entree?.cleClic,
   }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 
