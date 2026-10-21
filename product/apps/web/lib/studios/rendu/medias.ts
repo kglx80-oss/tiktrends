@@ -1,6 +1,6 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
-import { storageFromEnv, publicUrlFor } from '@tiktrends/integrations';
+import { storageFromEnv, presignGetUrl } from '@tiktrends/integrations';
 import { erreurStudio, inspecterMedia, type DocumentStudio, type ErreurStudio } from '@tiktrends/core';
 import type { schema } from '@tiktrends/db';
 import type { ContexteStudio } from '../garde';
@@ -49,7 +49,7 @@ export function lecteurStockage(): LecteurMedias {
       if (!cfg || m.storageKey.startsWith('simule/')) return null;
       if (m.bytes > OCTETS_MAX_MEDIA) return null;
       try {
-        const r = await fetch(publicUrlFor(cfg, m.storageKey), { redirect: 'error', signal: AbortSignal.timeout(15_000) });
+        const r = await fetch(presignGetUrl(cfg, m.storageKey), { redirect: 'error', signal: AbortSignal.timeout(15_000) });
         if (!r.ok) return null;
         const longueur = Number(r.headers.get('content-length') ?? '0');
         if (longueur > OCTETS_MAX_MEDIA) return null;

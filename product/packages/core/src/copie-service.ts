@@ -91,14 +91,14 @@ export const COPIE_STOCKAGE: { client: CopieStockage; operateur: CopieStockage }
   operateur: {
     titre: 'Stockage objet',
     badge: (actif) => (actif ? 'CLÉS DÉTECTÉES' : 'CLÉS ABSENTES'),
-    intro: 'Une fois les clés S3 posées dans .env.deploy, configure la lecture publique + le CORS et teste, sans passer par la ligne de commande.',
+    intro: 'Une fois les clés S3 posées dans .env.deploy, configure le CORS et teste la lecture privée, sans passer par la ligne de commande.',
     inactif: '',
-    configurer: 'Configurer le bucket (public + CORS)',
+    configurer: 'Configurer le stockage privé (CORS)',
     deplacer: 'Déplacer 25 images vers le bucket',
     migrationTitre: (n, mo) => `${n} image(s) vivent encore dans la base · environ ${mo} Mo`,
     migrationTexte: 'Elles s’affichent correctement (elles passent par le proxy), mais leurs octets alourdissent la base, chaque sauvegarde, et chaque requête qui touche la table. Les déplacer vers le bucket les sort définitivement · par lots de 25, sans rien perdre : le fichier est écrit avant que la ligne change.',
     testOk: 'Stockage opérationnel · tu peux téléverser des rushs dans Assets.',
-    testLecture: 'Écriture OK mais lecture publique KO : relance « Configurer le bucket » (policy) ou renseigne S3_PUBLIC_BASE_URL.',
+    testLecture: 'Contrôle incomplet : vérifie la lecture signée, le refus des accès anonymes et la suppression du témoin. Ne rends pas le bucket public.',
     testEcriture: 'Écriture KO : vérifie les clés S3, le nom du bucket et la région.',
   },
 };

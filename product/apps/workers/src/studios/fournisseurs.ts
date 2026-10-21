@@ -9,7 +9,7 @@ import {
   type DecisionFournisseur, type DemandeFournisseur, type EmpreinteFichier, type FournisseurStudio, type MediaResolu, type RequeteFal, type StockageStudio,
 } from '@tiktrends/core';
 import {
-  FournisseurFal, BarriereDepenseStudio, storageFromEnv, putObject, publicUrlFor,
+  FournisseurFal, BarriereDepenseStudio, storageFromEnv, putObject, presignGetUrl, privateObjectUrl, objectKeyFromUrl,
   type PortDepense, type PreparationFal, type StorageConfig,
 } from '@tiktrends/integrations';
 import { demarrerBoucleStudio } from './boucle';
@@ -102,7 +102,7 @@ export async function resoudreMedias(
         .where(and(eq(S.id, id.slice(4)), eq(S.workspaceId, job.workspaceId), eq(S.brandId, job.brandId), eq(S.storageState, 'stored'))).limit(1);
       if (!m || !m.mime.startsWith('image/') || !estEmpreinte(m.sha256) || m.storageKey.startsWith('simule/')) out.push(absent(id));
       else if (!stockage) out.push({ assetId: id, etat: 'sans_media', motif: 'stockage objet non configuré' });
-      else out.push({ assetId: id, etat: 'autorise', url: publicUrlFor(stockage, m.storageKey), sha256: m.sha256 });
+      else out.push({ assetId: id, etat: 'autorise', url: presignGetUrl(stockage, m.storageKey, 900), sha256: m.sha256 });
     } else if (id.startsWith('bib_') && UUID.test(id.slice(4))) {
       const A = schema.assets;
       const [b] = await base.select({ url: A.url }).from(A)
@@ -112,7 +112,11 @@ export async function resoudreMedias(
       out.push({ assetId: id, etat: 'sans_media', motif: 'source sans média transmissible (annonce concurrente ou identifiant inconnu)' });
     }
   }
-  return out;
+  return out.map(m => {
+    if (m.etat !== 'autorise' || !stockage || !objectKeyFromUrl(stockage, m.url)) return m;
+    const url = privateObjectUrl(stockage, m.url, job.workspaceId, 900);
+    return url ? { ...m, url } : absent(m.assetId);
+  });
 }
 
 /* ───────────────────────── Préparation d'une soumission ──────────────────── */
@@ -186,7 +190,7 @@ const OCTETS_MAX_RELECTURE = 64 * 1024 * 1024;
 
 /**
  * Le stockage S3 existant (`storage.ts`) vu par le moteur : dépôt signé, puis
- * RELECTURE par l'adresse publique du bucket (sans redirection, bornée). Le
+ * RELECTURE par une adresse signée temporaire du bucket privé (sans redirection, bornée). Le
  * moteur compare l'empreinte relue à celle du dépôt avant `completed`.
  */
 export function stockageS3(cfg: StorageConfig, f: typeof fetch = fetch): StockageStudio {
@@ -195,7 +199,7 @@ export function stockageS3(cfg: StorageConfig, f: typeof fetch = fetch): Stockag
       await putObject(cfg, cle, Buffer.from(octets), mime);
     },
     async relire(cle) {
-      const r = await f(publicUrlFor(cfg, cle), { redirect: 'error', signal: AbortSignal.timeout(20_000) });
+      const r = await f(presignGetUrl(cfg, cle), { redirect: 'error', signal: AbortSignal.timeout(20_000) });
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`relecture refusée (HTTP ${r.status})`);
       const b = new Uint8Array(await r.arrayBuffer());

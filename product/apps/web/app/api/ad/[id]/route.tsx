@@ -3,7 +3,7 @@ import { db, schema } from '@tiktrends/db';
 import { lireDemandeRendu, type RatioRendu } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { renderAdPng, RENDER_VERSION, type AdRecipe } from '../../../../lib/ad-render';
-import { renduConnu, renduDansLeBucket, rangerRendu } from '../../../../lib/ad-store';
+import { renduConnu, renduDansLeBucket, rangerRendu, adresseRenduPrive } from '../../../../lib/ad-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -133,8 +133,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   //
   // Deux lectures, aucune écriture · l'index historique de la génération (les
   // rendus notés avant L0), puis le bucket lui-même sous la clé déterministe.
-  const range = renduConnu(g.output, cacheKey) ?? await renduDansLeBucket(id, cacheKey);
-  if (range) return Response.redirect(range, 302);
+  const historique = renduConnu(g.output, cacheKey);
+  const range = (historique ? adresseRenduPrive(historique, id, s.workspaceId) : null) ?? await renduDansLeBucket(id, cacheKey);
+  if (range) return new Response(null, { status: 302, headers: { location: range, "cache-control": "private, no-store" } });
+  const scene = adresseRenduPrive(recipe.sceneUrl, id, s.workspaceId);
+  if (!scene) return new Response("Introuvable", { status: 404 });
+  recipe.sceneUrl = scene;
 
   try {
     const png = await renderAdPng(recipe);

@@ -11,7 +11,7 @@
  *   S3_SECRET_ACCESS_KEY  clé secrète
  *   S3_PUBLIC_BASE_URL    (option) base publique/CDN de lecture · défaut https://{endpoint}/{bucket}
  *
- * Prérequis côté bucket : lecture publique des objets + CORS autorisant PUT depuis l'app.
+ * Prérequis côté bucket : objets privés + CORS autorisant PUT depuis l'app.
  */
 import { createHash, createHmac, randomUUID } from 'crypto';
 import { cleObjetDeLEspace } from '@tiktrends/core';
@@ -68,7 +68,9 @@ export function newAssetKey(workspaceId: string, filename: string): string {
  * URL présignée (SigV4, query-auth) pour un PUT direct. Le client téléverse le fichier
  * en PUT sur `uploadUrl`, puis on enregistre `publicUrl` comme URL de l'asset.
  */
-export function presignPutUrl(cfg: StorageConfig, key: string, expiresSeconds = 900): { uploadUrl: string; publicUrl: string } {
+function presignObjectUrl(cfg: StorageConfig, key: string, method: 'PUT' | 'GET' | 'HEAD', expiresSeconds: number): string {
+  if (!key || key.startsWith('/') || key.split('/').some(p => !p || p === '.' || p === '..') || /[\\\x00-\x1f\x7f]/.test(key)) throw new Error('Clé objet invalide');
+  if (!Number.isInteger(expiresSeconds) || expiresSeconds < 1 || expiresSeconds > 900) throw new Error('Durée du lien invalide');
   const host = cfg.endpoint;
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -86,7 +88,7 @@ export function presignPutUrl(cfg: StorageConfig, key: string, expiresSeconds = 
   };
   const canonicalQuery = Object.keys(query).sort().map((k) => `${enc(k)}=${enc(query[k]!)}`).join('&');
   const canonicalHeaders = `host:${host}\n`;
-  const canonicalRequest = ['PUT', canonicalUri, canonicalQuery, canonicalHeaders, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
+  const canonicalRequest = [method, canonicalUri, canonicalQuery, canonicalHeaders, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
   const scope = `${dateStamp}/${cfg.region}/s3/aws4_request`;
   const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
 
@@ -97,7 +99,44 @@ export function presignPutUrl(cfg: StorageConfig, key: string, expiresSeconds = 
   const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
 
   const uploadUrl = `https://${host}${canonicalUri}?${canonicalQuery}&X-Amz-Signature=${signature}`;
-  return { uploadUrl, publicUrl: publicUrlFor(cfg, key) };
+  return uploadUrl;
+}
+
+export function presignPutUrl(cfg: StorageConfig, key: string, expiresSeconds = 900): { uploadUrl: string; publicUrl: string } {
+  return { uploadUrl: presignObjectUrl(cfg, key, 'PUT', expiresSeconds), publicUrl: publicUrlFor(cfg, key) };
+}
+
+/** Accès temporaire, émis uniquement après vérification de la portée par l'appelant. Jamais persisté. */
+export function presignGetUrl(cfg: StorageConfig, key: string, expiresSeconds = 300): string {
+  return presignObjectUrl(cfg, key, 'GET', expiresSeconds);
+}
+
+export function presignHeadUrl(cfg: StorageConfig, key: string, expiresSeconds = 300): string {
+  return presignObjectUrl(cfg, key, 'HEAD', expiresSeconds);
+}
+
+/** Reconnaît uniquement une adresse canonique du bucket configuré, jamais une URL arbitraire. */
+export function objectKeyFromUrl(cfg: StorageConfig, url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.username || u.password || u.search || u.hash || u.protocol !== 'https:') return null;
+    const bases = [basePubliqueStockage(cfg), `https://${cfg.endpoint}/${cfg.bucket}`, `https://${cfg.bucket}.${cfg.endpoint}`];
+    for (const base of bases) {
+      const b = new URL(base);
+      const prefix = b.pathname.replace(/\/+$/, '') + '/';
+      if (u.origin !== b.origin || !u.pathname.startsWith(prefix)) continue;
+      const key = decodeURIComponent(u.pathname.slice(prefix.length));
+      if (!key || /[\\\x00-\x1f\x7f]/.test(key) || key.split('/').some(p => !p || p === '.' || p === '..')) return null;
+      return key;
+    }
+  } catch { /* adresse non canonique */ }
+  return null;
+}
+
+export function privateObjectUrl(cfg: StorageConfig, url: string, workspaceId: string, expiresSeconds = 300): string | null {
+  if (!workspaceId || /[\/\\]/.test(workspaceId)) return null;
+  const key = objectKeyFromUrl(cfg, url);
+  return key?.startsWith(`assets/${workspaceId}/`) ? presignGetUrl(cfg, key, expiresSeconds) : null;
 }
 
 /* ============ Requêtes S3 signées (SigV4, header Authorization) ============ */
@@ -181,6 +220,31 @@ export async function storageSelfTest(cfg: StorageConfig): Promise<{ put: boolea
   } catch (e) {
     return { put: false, publicRead: false, deleted: false, publicUrl, error: (e as Error).message };
   }
+}
+
+/** Diagnostic du bucket privé ; aucun média métier ni URL signée n'est renvoyé. */
+export async function storagePrivateSelfTest(cfg: StorageConfig): Promise<{ put: boolean; privateRead: boolean; anonymousDenied: boolean; deleted: boolean; error?: string }> {
+  const key = `assets/_healthcheck/${randomUUID()}.txt`;
+  const body = Buffer.from('tiktrends-ok');
+  const path = `/${cfg.bucket}/${encKey(key)}`;
+  const result = { put: false, privateRead: false, anonymousDenied: false, deleted: false, error: undefined as string | undefined };
+  try {
+    const put = await s3SignedFetch(cfg, 'PUT', path, {}, body, { 'content-type': 'text/plain' });
+    result.put = put.status >= 200 && put.status < 300;
+    if (!result.put) { result.error = `Écriture refusée (HTTP ${put.status})`; return result; }
+    const read = await fetch(presignGetUrl(cfg, key, 60), { redirect: 'error', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
+    result.privateRead = read.ok && await read.text() === 'tiktrends-ok';
+    const anonymous = await fetch(publicUrlFor(cfg, key), { redirect: 'error', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
+    result.anonymousDenied = anonymous.status === 403 || anonymous.status === 401;
+  } catch {
+    result.error = 'Diagnostic interrompu. Vérifie la connexion et les droits du stockage.';
+  } finally {
+    try {
+      const del = await s3SignedFetch(cfg, 'DELETE', path, {}, Buffer.alloc(0));
+      result.deleted = del.status >= 200 && del.status < 300;
+    } catch { result.deleted = false; }
+  }
+  return result;
 }
 
 /** Téléverse des octets vers le bucket (serveur -> S3) et renvoie l'URL publique. */

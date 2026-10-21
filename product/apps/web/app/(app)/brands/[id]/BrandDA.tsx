@@ -126,7 +126,7 @@ function IndexSections() {
   );
 }
 
-export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuelle = null }: { brandId: string; logoUrl: string | null; logos?: string[]; colors: string[]; fonts: string[]; daVisuelle?: DaVisuelleMarque | null }) {
+export function BrandDA({ displayUrls = {}, brandId, logoUrl, logos = [], colors, fonts, daVisuelle = null }: { displayUrls?: Record<string, string>; brandId: string; logoUrl: string | null; logos?: string[]; colors: string[]; fonts: string[]; daVisuelle?: DaVisuelleMarque | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -283,7 +283,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
         {/* Édition manuelle : mêmes contrôles que la création de marque. */}
         {editing && (
           <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
-            <BrandGuidelines
+            <BrandGuidelines displayUrls={displayUrls}
               logos={logoList} onLogos={setLogoList}
               defaultLogo={da.logoUrl ?? ''} onDefaultLogo={(v) => setDa((s) => ({ ...s, logoUrl: v }))}
               colors={da.colors} onColors={(v) => setDa((s) => ({ ...s, colors: v }))}
@@ -301,7 +301,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
           <div style={{ marginTop: 16 }}>
             <div style={daLbl}>Logo</div>
             {da.logoUrl
-              ? <img src={da.logoUrl} alt="" style={{ height: 56, maxWidth: 200, objectFit: 'contain', background: FOND_LOGO, boxShadow: `inset 0 0 0 1px ${teinte('sombre-fixe', .12)}`, borderRadius: 10, padding: 8 }} />
+              ? <img src={displayUrls[da.logoUrl] ?? da.logoUrl} alt="" style={{ height: 56, maxWidth: 200, objectFit: 'contain', background: FOND_LOGO, boxShadow: `inset 0 0 0 1px ${teinte('sombre-fixe', .12)}`, borderRadius: 10, padding: 8 }} />
               : <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Aucun logo · récupère la DA pour l'importer depuis le site.</span>}
             {/* Les variantes réelles du logo (clair, foncé, icône) déjà en base ·
                 de vraies miniatures qui aident à reconnaître chaque version, pas
@@ -309,7 +309,7 @@ export function BrandDA({ brandId, logoUrl, logos = [], colors, fonts, daVisuell
             {logoList.length > 1 && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {logoList.map((u) => (
-                  <img key={u} src={u} alt="" style={{ height: 28, maxWidth: 92, objectFit: 'contain', background: FOND_LOGO, borderRadius: 6, padding: 4, boxShadow: `inset 0 0 0 1px ${teinte('sombre-fixe', .12)}` }} />
+                  <img key={u} src={displayUrls[u] ?? u} alt="" style={{ height: 28, maxWidth: 92, objectFit: 'contain', background: FOND_LOGO, borderRadius: 6, padding: 4, boxShadow: `inset 0 0 0 1px ${teinte('sombre-fixe', .12)}` }} />
                 ))}
               </div>
             )}

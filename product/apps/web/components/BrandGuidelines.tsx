@@ -10,8 +10,9 @@ import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
  * Les valeurs sont sérialisées dans des champs cachés pour le POST du formulaire.
  */
 export function BrandGuidelines({
-  logos, onLogos, defaultLogo, onDefaultLogo, colors, onColors, fonts, onFonts,
+  displayUrls = {}, logos, onLogos, defaultLogo, onDefaultLogo, colors, onColors, fonts, onFonts,
 }: {
+  displayUrls?: Record<string, string>;
   logos: string[]; onLogos: (v: string[]) => void;
   defaultLogo: string; onDefaultLogo: (v: string) => void;
   colors: string[]; onColors: (v: string[]) => void;
@@ -49,7 +50,7 @@ export function BrandGuidelines({
                   style={{ width: 74, height: 74, borderRadius: 14, cursor: 'pointer', overflow: 'hidden', padding: 6,
                     border: `2px solid ${isDefault ? 'var(--accent-strong)' : 'var(--line-2)'}`, background: 'var(--paper)' }}>
                   { }
-                  <img src={u} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <img src={displayUrls[u] ?? u} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
                 {isDefault && <span style={badge}>Défaut</span>}
                 <button type="button" onClick={() => removeLogo(u)} aria-label="Retirer" style={removeBtn}>×</button>

@@ -76,8 +76,9 @@ import { db, schema } from '@tiktrends/db';
 import { NextRequest } from 'next/server';
 import { session, semer } from './studios-semis';
 import { GET as GET_ASSET } from '../app/api/asset/[id]/route';
+import { GET as GET_BRAND_MEDIA } from '../app/api/brands/[id]/media/route';
 import { GET as GET_DRIVE } from '../app/api/drive-img/[id]/route';
-import { importAssetAction, uploadImageAssetsAction, registerUploadedAssetAction, deleteAssetAction } from '../app/actions/assets';
+import { importAssetAction, uploadImageAssetsAction, registerUploadedAssetAction, deleteAssetAction, listAssets } from '../app/actions/assets';
 import { syncDriveFilesAction } from '../app/actions/drive';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -214,7 +215,12 @@ describe('A1 · chaque réponse porte nosniff et la CSP fermée', () => {
 
     const redirige = await asset(A.direct!);
     expect(redirige.status).toBe(302);
-    expect(redirige.headers.get('location')).toBe(`${BASE}/assets/${ids.wsA}/1-ab-photo.jpg`);
+    const cible = new URL(redirige.headers.get('location')!);
+    expect(cible.hostname).toBe(CFG.endpoint);
+    expect(cible.pathname).toBe(`/bucket/assets/${ids.wsA}/1-ab-photo.jpg`);
+    expect(cible.searchParams.get('X-Amz-Expires')).toBe('300');
+    expect(cible.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/);
+    expect(redirige.headers.get('cache-control')).toBe('private, no-store');
     fermee(redirige, '302');
 
     const js = await asset(A.javascript!);
@@ -380,4 +386,53 @@ describe('A2 · un objet d’un autre espace ne s’enregistre pas et ne se supp
     expect(await deleteAssetAction({ id: mien!.id })).toEqual({ ok: true });
     expect(appels).toEqual([{ url: `https://s3.test/bucket/assets/${ids.wsB}/2-cd-mien.png`, method: 'DELETE' }]);
   });
+});
+
+
+describe('Bucket privé · adresses stables et droits avant signature', () => {
+  it('projette le proxy, signe après session, refuse une clé étrangère même sur une ligne locale', async () => {
+    etat.session = session(ids, 'ua');
+    etat.brand = null;
+    const initial = `${BASE}/assets/${ids.wsA}/1-ab-photo.jpg`;
+    const [avant] = await db!.select().from(schema.assets).where(eq(schema.assets.id, A.direct!));
+    try {
+      await db!.update(schema.assets).set({ thumbUrl: initial }).where(eq(schema.assets.id, A.direct!));
+      const item = (await listAssets()).find(x => x.id === A.direct);
+      expect(item?.url).toMatch(/^\/api\/asset\//);
+      expect(item?.url).not.toContain('X-Amz');
+      expect(item?.thumbUrl).toContain('&thumb=1');
+      const thumb = await GET_ASSET(new Request(`http://local/api/asset/${A.direct}?thumb=1`), { params: Promise.resolve({ id: A.direct! }) });
+      expect(thumb.status).toBe(302);
+      expect(thumb.headers.get('location')).toContain('X-Amz-Signature=');
+      const [persisted] = await db!.select().from(schema.assets).where(eq(schema.assets.id, A.direct!));
+      expect(persisted!.url).toBe(initial);
+      expect(persisted!.thumbUrl).toBe(initial);
+      await db!.update(schema.assets).set({ url: `${BASE}/assets/${ids.wsB}/1-ab-photo.jpg` }).where(eq(schema.assets.id, A.direct!));
+      const denied = await asset(A.direct!);
+      expect(denied.status).toBe(404);
+      expect(denied.headers.get('location')).toBeNull();
+    } finally {
+      await db!.update(schema.assets).set({ url: avant!.url, thumbUrl: avant!.thumbUrl }).where(eq(schema.assets.id, A.direct!));
+    }
+  });
+});
+
+
+it('aperçu marque : logo enregistré seulement, marque/espace et préfixe contrôlés', async () => {
+  etat.session = session(ids, 'ua');
+  const url = `${BASE}/assets/${ids.wsA}/logo.png`;
+  const [before] = await db!.select().from(schema.brands).where(eq(schema.brands.id, ids.brandA1));
+  const lire = (id: string, u: string) => GET_BRAND_MEDIA(new Request(`http://local/api/brands/${id}/media?url=${encodeURIComponent(u)}`), { params: Promise.resolve({ id }) });
+  try {
+    await db!.update(schema.brands).set({ logoUrl: url }).where(eq(schema.brands.id, ids.brandA1));
+    const r = await lire(ids.brandA1, url);
+    expect(r.status).toBe(302);
+    expect(r.headers.get('location')).toContain('X-Amz-Signature=');
+    expect((await lire(ids.brandA1, `${BASE}/assets/${ids.wsA}/non-reference.png`)).status).toBe(404);
+    expect((await lire(ids.brandB1, url)).status).toBe(404);
+    etat.session = session(ids, 'ub');
+    expect((await lire(ids.brandA1, url)).status).toBe(404);
+  } finally {
+    await db!.update(schema.brands).set({ logoUrl: before!.logoUrl }).where(eq(schema.brands.id, ids.brandA1));
+  }
 });

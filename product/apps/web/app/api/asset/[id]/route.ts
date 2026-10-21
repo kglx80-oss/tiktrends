@@ -78,13 +78,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const { id } = await ctx.params;
 
   const [a] = await db.select({
-    url: schema.assets.url, name: schema.assets.name, kind: schema.assets.kind,
+    url: schema.assets.url, thumbUrl: schema.assets.thumbUrl, name: schema.assets.name, kind: schema.assets.kind,
     source: schema.assets.source, externalId: schema.assets.externalId, brandId: schema.assets.brandId,
   })
     .from(schema.assets)
     .where(and(eq(schema.assets.id, id), eq(schema.assets.workspaceId, s.workspaceId)))
     .limit(1);
   if (!a) return refusMedia(404);
+  if (new URL(req.url).searchParams.get("thumb") === "1") {
+    if (!a.thumbUrl) return refusMedia(404);
+    return servirAdresseDirecte(req, a.thumbUrl, { id, nom: a.name, workspaceId: s.workspaceId });
+  }
 
   const mode = assetServing({
     id, kind: a.kind, source: a.source, url: a.url,
@@ -121,7 +125,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     case 'direct':
       // Déjà hébergée ailleurs · on redirige plutôt que de faire transiter les
       // octets par nous, ce qui n'ajouterait qu'un saut.
-      return servirAdresseDirecte(req, a.url, { id, nom: a.name });
+      return servirAdresseDirecte(req, a.url, { id, nom: a.name, workspaceId: s.workspaceId });
 
     default: {
       // Exhaustivité vérifiée à la compilation · un quatrième mode de service

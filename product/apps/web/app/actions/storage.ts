@@ -2,12 +2,13 @@
 
 import { and, asc, eq, gt, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, putBucketPublicRead, putBucketCors, storageSelfTest, putObject, newAssetKey } from '@tiktrends/integrations';
+import { storageFromEnv, putBucketCors, storagePrivateSelfTest, putObject, newAssetKey } from '@tiktrends/integrations';
 import { typeMediaReel, typeMediaDebutBase64, DEBUT_BASE64_SIGNATURE } from '@tiktrends/core';
 import { logAndTranslate } from '../../lib/error-log';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { GUARD } from '../../lib/guard-error';
+import { isFounder } from '../../lib/founder';
 
 function appOrigins(): string[] {
   const out = new Set<string>();
@@ -17,36 +18,34 @@ function appOrigins(): string[] {
   return [...out];
 }
 
-/** Applique lecture publique + CORS sur le bucket (une fois les clés posées). Admin+. */
+/** Configure le CORS sans ouvrir la lecture publique sur le bucket (une fois les clés posées). Admin+. */
 export async function configureBucketAction(): Promise<{ ok?: true; steps?: Array<{ label: string; ok: boolean; detail: string }>; error?: string }> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
-  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
+  if (!roleAtLeast(s.role, 'admin') || !isFounder(s.user.email)) return { error: GUARD.role({ needRole: 'admin' }) };
   const cfg = storageFromEnv();
   if (!cfg) return { error: 'Clés S3 absentes du serveur (.env.deploy).' };
 
   const origins = appOrigins();
   const steps: Array<{ label: string; ok: boolean; detail: string }> = [];
   try {
-    const pol = await putBucketPublicRead(cfg);
-    steps.push({ label: 'Lecture publique (bucket policy)', ok: pol.ok, detail: pol.ok ? 'OK' : `HTTP ${pol.status} · ${pol.detail}` });
     const cors = await putBucketCors(cfg, origins);
     steps.push({ label: `CORS (${origins.join(', ')})`, ok: cors.ok, detail: cors.ok ? 'OK' : `HTTP ${cors.status} · ${cors.detail}` });
-    return { ok: true, steps };
+    return cors.ok ? { ok: true, steps } : { error: 'La configuration CORS a échoué.', steps };
   } catch (e) {
     return { error: (e as Error).message, steps };
   }
 }
 
-/** Test bout en bout du stockage (upload -> lecture publique -> suppression). Admin+. */
-export async function testStorageAction(): Promise<{ put?: boolean; publicRead?: boolean; deleted?: boolean; error?: string }> {
+/** Test bout en bout du stockage (upload -> lecture signée -> refus anonyme -> suppression). Admin+. */
+export async function testStorageAction(): Promise<{ put?: boolean; privateRead?: boolean; anonymousDenied?: boolean; deleted?: boolean; error?: string }> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
-  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
+  if (!roleAtLeast(s.role, 'admin') || !isFounder(s.user.email)) return { error: GUARD.role({ needRole: 'admin' }) };
   const cfg = storageFromEnv();
   if (!cfg) return { error: 'Clés S3 absentes du serveur (.env.deploy).' };
-  const r = await storageSelfTest(cfg);
-  return { put: r.put, publicRead: r.publicRead, deleted: r.deleted, error: r.error };
+  const r = await storagePrivateSelfTest(cfg);
+  return { put: r.put, privateRead: r.privateRead, anonymousDenied: r.anonymousDenied, deleted: r.deleted, error: r.error };
 }
 
 /* -------------------------------------------------------------------------- */

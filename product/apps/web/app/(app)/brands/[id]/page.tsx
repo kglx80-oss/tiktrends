@@ -1,3 +1,4 @@
+import { brandMediaPreview } from '../../../../lib/brand-media-url';
 import Link from 'next/link';
 import { redirect, notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
@@ -216,7 +217,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
           {/* L'identité visuelle · BrandDA porte ses DEUX ancres de section
               (#couleurs, #charte) et leur scrollMarginTop · l'étape « Définir la
               charte » vise #charte, qui atterrit sur la section « Charte & kit ». */}
-          <BrandDA brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} daVisuelle={(b.brandKit ?? null) as DaVisuelleMarque | null} />
+          <BrandDA displayUrls={Object.fromEntries([b.logoUrl, ...(b.logos ?? [])].filter((u): u is string => !!u).map(u => [u, brandMediaPreview(b.id, u)]))} brandId={b.id} logoUrl={b.logoUrl ?? null} logos={b.logos ?? []} colors={b.colors ?? []} fonts={b.fonts ?? []} daVisuelle={(b.brandKit ?? null) as DaVisuelleMarque | null} />
 
         <div id="profil" style={{ scrollMarginTop: 90 }}>
         <BrandOverviewForm init={{
@@ -299,7 +300,7 @@ export default async function BrandDetailPage({ params, searchParams }: {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 {p.imageUrl && (
                    
-                  <img src={p.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line-2)' }} />
+                  <img src={brandMediaPreview(b.id, p.imageUrl)} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line-2)' }} />
                 )}
                 <b style={{ color: 'var(--ink)', fontSize: 14, flex: 1, minWidth: 160 }}>{p.name}</b>
                 {p.price != null && <span style={{ fontSize: 12.5, color: 'var(--accent-strong)', fontWeight: 700 }}>{p.price} €</span>}

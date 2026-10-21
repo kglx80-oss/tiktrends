@@ -1,5 +1,5 @@
 import { servirPlage, decisionMediaServi, ENTETES_MEDIA_FERMES, adresseRedirigeable } from '@tiktrends/core';
-import { storageFromEnv, basePubliqueStockage } from '@tiktrends/integrations';
+import { storageFromEnv, privateObjectUrl, objectKeyFromUrl } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 
 /**
@@ -39,25 +39,21 @@ export function servirMedia(req: Request, octets: Uint8Array, asset: { id: strin
   });
 }
 
-/** Bases publiques du bucket (CDN et adresse native) · cibles de redirection sûres. */
-function basesBucket(): string[] {
-  const cfg = storageFromEnv();
-  if (!cfg) return [];
-  return [basePubliqueStockage(cfg), `https://${cfg.endpoint}/${cfg.bucket}`];
-}
-
 /** Taille maximale servie par le proxy pour une adresse externe (50 Mo). */
 const MAX_OCTETS_PROXY = 50_000_000;
 
 /**
- * Asset hébergé ailleurs (`direct`) · redirection 302 SEULEMENT vers le bucket
- * ou Drive (`adresseRedirigeable`, noyau). Toute autre adresse est servie par
+ * Asset hébergé ailleurs (`direct`) · le bucket privé est signé après contrôle
+ * de la clé dans l’espace autorisé ; Drive garde sa redirection. Toute autre adresse est servie par
  * le proxy : octets lus par `safeFetch` (adresse publique seulement,
  * redirections revalidées), type RELU, pièce jointe hors liste · jamais une
  * redirection ouverte vers un hôte choisi par qui a enregistré l'asset.
  */
-export async function servirAdresseDirecte(req: Request, url: string, asset: { id: string; nom?: string | null }): Promise<Response> {
-  const cible = adresseRedirigeable(url, basesBucket());
+export async function servirAdresseDirecte(req: Request, url: string, asset: { id: string; nom?: string | null; workspaceId: string }): Promise<Response> {
+  const cfg = storageFromEnv();
+  const interne = cfg && objectKeyFromUrl(cfg, url) !== null;
+  const cible = interne ? privateObjectUrl(cfg!, url, asset.workspaceId) : adresseRedirigeable(url, []);
+  if (interne && !cible) return refusMedia(404);
   if (cible) return new Response(null, { status: 302, headers: { ...ENTETES_MEDIA_FERMES, location: cible, 'cache-control': 'private, no-store' } });
   let u: URL;
   try { u = new URL(url); } catch { return refusMedia(404); }

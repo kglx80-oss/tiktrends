@@ -1,4 +1,4 @@
-import { storageFromEnv, putObject, publicUrlFor } from '@tiktrends/integrations';
+import { storageFromEnv, putObject, presignGetUrl, presignHeadUrl, objectKeyFromUrl, privateObjectUrl } from '@tiktrends/integrations';
 
 /**
  * Là où vit une pub une fois composée.
@@ -81,9 +81,9 @@ function noterPresent(objet: string, url: string): void {
 }
 
 /**
- * L'adresse publique du rendu s'il est déjà dans le bucket, sinon `null`.
+ * L'adresse GET temporaire du rendu déjà présent dans le bucket, sinon `null`.
  *
- * Un `HEAD` sur l'adresse publique (les objets sont en lecture publique) ·
+ * Un `HEAD` signé sur le bucket privé ·
  * court, et sans rien écrire nulle part. Bucket absent, lent ou en panne ·
  * `null`, et la pub se compose comme avant.
  */
@@ -92,13 +92,13 @@ export async function renduDansLeBucket(generationId: string, cle: string, delai
   if (!cfg) return null;
   const objet = cleObjetRendu(generationId, cle);
   const deja = PRESENTS.get(objet);
-  if (deja) return deja;
-  const url = publicUrlFor(cfg, objet);
+  if (deja) return presignGetUrl(cfg, objet);
+  const url = presignHeadUrl(cfg, objet);
   try {
     const r = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(delaiMs) });
     if (!r.ok) return null;
-    noterPresent(objet, url);
-    return url;
+    noterPresent(objet, objet);
+    return presignGetUrl(cfg, objet);
   } catch {
     return null;
   }
@@ -127,3 +127,12 @@ export async function rangerRendu(generationId: string, cle: string, png: ArrayB
 
 /** Vide la mémoire des objets constatés · réservé aux tests. */
 export function _oublierPresents(): void { PRESENTS.clear(); }
+
+/** Appeler seulement après garde de la génération. Une référence étrangère ne se signe jamais. */
+export function adresseRenduPrive(url: string, generationId: string, workspaceId: string): string | null {
+  const cfg = storageFromEnv();
+  const key = cfg && objectKeyFromUrl(cfg, url);
+  if (!cfg || key === null) return url;
+  if (key.startsWith(`renders/${generationId}/`)) return presignGetUrl(cfg, key);
+  return privateObjectUrl(cfg, url, workspaceId);
+}
