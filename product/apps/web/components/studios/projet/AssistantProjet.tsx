@@ -370,7 +370,7 @@ function Rail({ etape, brief, peutAller, onAller, titre, marque, type }: {
 }
 
 function Depart({ marque, type, onType, onContinuer, depart, onZero, onSource }: { depart: DepartAssistant | null; onZero: () => void; onSource: (origine: OrigineDepartAssistant) => void; marque: string; type: TypeNouveauProjet; onType: (t: TypeNouveauProjet) => void; onContinuer: () => void }) {
-  const descriptions = { ads: 'Visuel + textes d’annonce, Meta et TikTok', image: 'Visuel produit ou lifestyle', video: 'Storyboard, voix, sous-titres, MP4', text: 'Accroches, texte principal, CTA' };
+  const descriptions = { ads: 'Visuel + textes d’annonce, Meta et TikTok', image: 'Visuel produit ou lifestyle', video: 'Storyboard, montage et export MP4', text: 'Accroches, texte principal, CTA' };
   return <div className={css.wzstart}>
     <div className={css.wzrow}><label className={css.field}><span>Marque</span><select value={marque} disabled aria-label="Marque active"><option>{marque}</option></select></label></div>
     <h3 className={css.wzlabel}>Livrable</h3>
