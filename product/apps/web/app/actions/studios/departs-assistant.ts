@@ -26,11 +26,11 @@ export interface DepartAssistant {
 }
 
 /** Lecture seulement. Aucune proposition, création de projet ou dépense à l'ouverture. */
-export async function listerDepartsAssistant(origine: OrigineDepartAssistant): Promise<{ ok: true; choix: ChoixDepartAssistant[] } | { ok: false; message: string }> {
+export async function listerDepartsAssistant(origine: OrigineDepartAssistant): Promise<{ ok: true; choix: ChoixDepartAssistant[] } | { ok: false; message: string; code?: string }> {
   const g = await gardeSources('studio.read');
-  if (!g.ok) return { ok: false, message: g.message };
+  if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
-  if (coupe) return { ok: false, message: coupe.message };
+  if (coupe) return coupe;
   const marque = await getActiveBrand(g.ctx.workspaceId);
   if (!marque || !g.ctx.marques.includes(marque.id)) return { ok: false, message: 'Choisissez une marque accessible.' };
   if (origine === 'iteration') {
@@ -53,12 +53,12 @@ export async function listerDepartsAssistant(origine: OrigineDepartAssistant): P
 }
 
 /** Relit l'objet choisi : aucune confiance dans les titres ou verdicts du client. */
-export async function lireDepartAssistant(origine: OrigineDepartAssistant, id: unknown): Promise<{ ok: true; depart: DepartAssistant } | { ok: false; message: string }> {
-  if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return { ok: false, message: 'Point de départ indisponible.' };
+export async function lireDepartAssistant(origine: OrigineDepartAssistant, id: unknown): Promise<{ ok: true; depart: DepartAssistant } | { ok: false; message: string; code?: string }> {
   const g = await gardeSources('studio.read');
-  if (!g.ok) return { ok: false, message: g.message };
+  if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
-  if (coupe) return { ok: false, message: coupe.message };
+  if (coupe) return coupe;
+  if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return { ok: false, message: 'Point de départ indisponible.' };
   const marque = await getActiveBrand(g.ctx.workspaceId);
   if (!marque || !g.ctx.marques.includes(marque.id)) return { ok: false, message: 'Choisissez une marque accessible.' };
   if (origine === 'veille') {

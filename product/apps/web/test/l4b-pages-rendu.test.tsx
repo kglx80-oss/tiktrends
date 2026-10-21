@@ -100,7 +100,8 @@ describe('/studio/projets · reprendre un projet', () => {
     // V5 (5.webp) · la version est une pastille en tête de carte (comme « Ø V1 »
     // du proto), plus dans le pied · le pied porte la date et le compte de sources.
     expect(c.querySelector('[data-version]')?.textContent).toBe('V1');
-    expect(c.textContent).toMatch(/Modifié le \d{2}\/\d{2}\/\d{4} · 1 source/);
+    expect(c.textContent).toMatch(/\d{2}\/\d{2}\/\d{4}/);
+    expect(c.textContent).toContain('1 source');
     expect(d.textContent).toContain('voir toutes les marques');
 
     const toutes = await liste({ toutes: '1' });

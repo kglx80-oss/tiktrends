@@ -4,17 +4,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { IdsStudios, SessionTest } from './studios-semis';
 
 /**
- * L'entrée « Nouveau concept créatif » sur `/studio/projets`, au RÉSULTAT, sur
- * une vraie base (pglite). Mandat Kevin du 20/10.
- *
- * Ce qui a changé · le CTA n'ouvre PLUS une modale Titre/Type qui crée le projet
- * sur-le-champ · il NAVIGUE vers l'écran de concept (`/studio/projets/nouveau/
- * concept`), qui n'écrit RIEN et n'appelle RIEN au GET. On rend les VRAIES pages
- * et on LIT la base :
- *  · la liste porte un LIEN vers l'écran de concept (plus de formulaire) ;
- *  · rendre l'écran de concept n'écrit AUCUNE ligne `studio_projects` ;
- *  · les portes mortes restent dites (sans marque, lecture seule, capacité) ;
- *  · l'écriture canonique `creerProjet` n'a PAS bougé · appelée, elle crée.
+ * Nouveau projet ouvre le wizard du prototype du 21 octobre.
+ * La navigation de secours, les accès historiques et les droits restent couverts.
+ * Les vraies lectures de pages ne doivent jamais créer de projet au GET.
  */
 
 const h = vi.hoisted(() => ({
@@ -49,9 +41,10 @@ import { session, semer } from './studios-semis';
 import ProjetsPage from '../app/(app)/studio/projets/page';
 import NouveauConceptPage from '../app/(app)/studio/projets/nouveau/concept/page';
 import PreparerProjetPage from '../app/(app)/studio/projets/nouveau/page';
+import { AssistantDepuisContexte } from '../components/studios/projet/AssistantDepuisContexte';
 
 const ids = h.ids;
-const CONCEPT = '/studio/projets/nouveau/concept';
+const CONCEPT = '/studio/projets/nouveau';
 const projetsPage = () => ProjetsPage({ searchParams: Promise.resolve({}) });
 const rendu = async (el: ReturnType<typeof projetsPage>) => { const d = document.createElement('div'); d.innerHTML = renderToStaticMarkup(await el); return d; };
 const projetsDe = (brandId: string, userId: string) => db.select().from(schema.studioProjects)
@@ -65,13 +58,13 @@ afterEach(async () => {
 });
 
 describe('/studio/projets · l’entrée « Nouveau concept créatif » navigue, ne crée pas sur place', () => {
-  it('la liste porte un LIEN vers l’écran de concept (membre, marque active) · aucune modale', async () => {
+  it('la liste porte un lien de secours vers le wizard (membre, marque active) · aucun formulaire au rendu', async () => {
     const d = await rendu(projetsPage());
     const cta = d.querySelector('a[data-nouveau-projet="pret"]');
     expect(cta, 'lien « Nouveau concept créatif » absent de la liste').not.toBeNull();
     expect(cta!.getAttribute('href')).toBe(CONCEPT);
-    expect(cta!.textContent).toContain('Nouveau concept créatif');
-    expect(d.querySelector('a[href="/veille"]')?.textContent).toBe('Créer depuis la Veille');
+    expect(cta!.textContent).toContain('Nouveau projet');
+    expect(d.querySelector('a[href="/veille"]')?.textContent).toBe('Ouvrir la Veille');
     // Plus de modale Titre/Type ouverte depuis la liste.
     expect(d.querySelector('form[data-formulaire="nouveau-projet"]')).toBeNull();
     expect(d.querySelector('#np-titre')).toBeNull();
@@ -125,12 +118,12 @@ describe('jamais de porte morte', () => {
 });
 
 describe('pas de 4e porte orpheline · l’assistant « depuis zéro » ne double plus l’entrée cliente', () => {
-  it('un membre qui arrive sur l’ancien assistant SANS contexte est mené à l’écran de concept', async () => {
-    // Le membre « ua » n'est pas de l'équipe interne (ADMIN+ en secours) · sa
-    // création « depuis zéro » passe par l'écran de concept, jamais par deux
-    // portes concurrentes.
-    await expect(PreparerProjetPage({ searchParams: Promise.resolve({}) }))
-      .rejects.toThrow('redirect /studio/projets/nouveau/concept');
+  it('sans contexte, rend le même assistant sans écrire au GET', async () => {
+    const avant = (await projetsDe(ids.brandA1, ids.ua)).length;
+    const page = await PreparerProjetPage({ searchParams: Promise.resolve({}) });
+    expect(page.type).toBe(AssistantDepuisContexte);
+    expect(page.props.etat).toMatchObject({ etat: 'pret', marque: { id: ids.brandA1 } });
+    expect((await projetsDe(ids.brandA1, ids.ua)).length).toBe(avant);
   });
 
   it('un lien AVEC contexte (angle repris d’une annonce) n’est PAS dévié · le flux de reprise reste entier', async () => {
