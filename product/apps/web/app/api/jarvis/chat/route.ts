@@ -13,7 +13,7 @@ import { jarvisFullMemory, jarvisStats } from '../../../../lib/jarvis-memory';
 import { consigneAvecConnaissances, consignerUsageConnaissances } from '../../../../lib/jarvis-connaissances';
 import { guardedAnthropic, SpendBlockedError } from '../../../../lib/spend-guard';
 import { resoudreConversationJarvis, consignerRunConversation } from '../../../../lib/studios/prompts/resolveur';
-import { assemblerConsigneJarvis } from '../../../../lib/studios/prompts/conversation';
+import { appliquerPolitiqueConversationProjet, assemblerConsigneJarvis } from '../../../../lib/studios/prompts/conversation';
 import type { SourceTrace } from '../../../../lib/studios/prompts/traces';
 import { blocProjetsJarvis, blocConceptJarvis } from '../../../../lib/studios/jarvis-projets';
 
@@ -179,7 +179,7 @@ export async function POST(req: Request) {
     };
     const { system: systemBase, inclus } = await consigneAvecConnaissances(assemblerConsigneJarvis(resolution.politique, donnees), { workspaceId: s.workspaceId, brandId: brand.id });
 
-    const system = veille ? `${systemBase}\n\n${veille.consigne}` : systemBase;
+    const system = appliquerPolitiqueConversationProjet(veille ? `${systemBase}\n\n${veille.consigne}` : systemBase, !!concept);
     const messages = veille?.image ? fil.map((m, i) => i === fil.length - 1 ? { role: m.role, content: [veille.image!, { type: 'text' as const, text: m.content }] } : m) : fil;
 
     await db.insert(schema.jarvisMessages).values({

@@ -169,6 +169,7 @@ export async function blocConceptJarvis(brandId: string, projectId: string, main
       titre: detail.projet.title,
       libelleEtape: detail.completude.libelleEtape,
       brief: detail.brief,
+      produit: detail.produit,
       propositionsEnAttente,
       medias: Number(medias[0]?.n ?? 0),
       jobs: Number(jobs[0]?.n ?? 0),
