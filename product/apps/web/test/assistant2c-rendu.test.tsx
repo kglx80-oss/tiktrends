@@ -22,6 +22,7 @@ import type { DevisImageVue, VueParcoursImage } from '../lib/studios/image/parco
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const h = vi.hoisted(() => ({
+  lectures: 0,
   compiler: [] as unknown[], retenir: [] as unknown[], jeteCompiler: false,
   approuver: [] as unknown[], devisDemande: [] as unknown[], manuel: [] as unknown[], appliquer: [] as unknown[],
   reponseApprouver: null as unknown, reponseDevis: null as unknown, vue: null as VueParcoursImage | null,
@@ -38,6 +39,7 @@ vi.mock('../app/actions/studios/image', () => ({
   compilerConsigneImage: async (e: unknown) => { h.compiler.push(e); if (h.jeteCompiler) throw new Error('réseau'); h.vue = { ...h.vue!, enAttente: consigne, retenue: null }; return {ok:true, statut:'compilee'}; },
   retenirConsigneImage: async (e: unknown) => { h.retenir.push(e); h.vue = {...h.vue!, enAttente:null, retenue:{...consigne, verdict:{ok:true}}, version:{id:'v2',n:2}}; return {ok:true}; },
   lireParcoursImage: async () => {
+    h.lectures++;
     if (h.lireDiffere) return h.lireDiffere();
     return h.vue ? { ok: true, vue: h.vue } : { ok: false, code: 'UNSUPPORTED_CAPABILITY', message: 'coupée', targetIds: ['generation_image'], recoverable: true, traceId: 't' };
   },
@@ -93,8 +95,8 @@ const cocher = async (el: Element | null) => {
   await act(async () => { c.dispatchEvent(new Event('click', { bubbles: true })); c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); });
 };
 
-beforeEach(() => { h.compiler=[]; h.retenir=[]; h.jeteCompiler=false; h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
-afterEach(() => { document.body.innerHTML = ''; });
+beforeEach(() => { h.lectures=0; h.compiler=[]; h.retenir=[]; h.jeteCompiler=false; h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
+afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
 
 describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation transactionnelle', () => {
   it('le montant, les lignes et l’échéance du devis s’affichent AVANT le bouton de confirmation', async () => {
@@ -325,6 +327,16 @@ describe('création réelle dans l’assistant',()=>{
     h.vue={...vueParcours(null),jobs:[{id:'job-1',etat:'completed',libelleEtat:'Terminée',message:'Image disponible',raisonEchec:null,annulable:false,terminal:true,qualite:'requires_review',libelleQualite:'À relire',creditsReserves:4,creditsRendus:0,creeLe:'2026-10-21',media:{assetId:'asset-1',url:'/api/asset/asset-1',largeur:1080,hauteur:1350}}]};
     const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="job-1" onFermer={()=>{}} />);
     expect(hote.querySelector('img')?.getAttribute('src')).toBe('/api/asset/asset-1'); expect(hote.textContent).toContain('À relire'); expect(hote.querySelector('a')?.getAttribute('href')).toBe('/studio/projets/proj-1/image'); expect(h.approuver).toHaveLength(0); expect(h.compiler).toHaveLength(0); await fermer();
+  });
+  it('suivi en lecture seule : actualise puis arrête le polling quand la tâche est terminale',async()=>{
+    vi.useFakeTimers();
+    const job={id:'job-1',etat:'running' as const,libelleEtat:'En cours',message:'Rendu en cours',raisonEchec:null,annulable:false,terminal:false,qualite:'requires_review' as const,libelleQualite:'À relire',creditsReserves:4,creditsRendus:null,creeLe:'2026-10-21',media:null};
+    h.vue={...vueParcours(null),jobs:[job]}; const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="job-1" onFermer={()=>{}} />);
+    expect(h.lectures).toBe(1); expect(hote.textContent).toContain('En cours');
+    h.vue={...h.vue,jobs:[{...job,etat:'completed',terminal:true,libelleEtat:'Terminée'}]};
+    await act(async()=>{await vi.advanceTimersByTimeAsync(3000)}); expect(h.lectures).toBe(2);
+    await act(async()=>{await vi.advanceTimersByTimeAsync(12000)}); expect(h.lectures).toBe(2);
+    expect(h.compiler).toHaveLength(0); expect(h.approuver).toHaveLength(0); expect(h.devisDemande).toHaveLength(0); await fermer();
   });
   it('tâche inconnue : erreur visible, aucune création ni relance inventée',async()=>{
     h.vue=vueParcours(null); const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="inconnu" onFermer={()=>{}} />);
