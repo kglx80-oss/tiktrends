@@ -17,6 +17,9 @@ import type { CyclePropositionsBrief } from '../components/studios/projet/usePro
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const epinglerSpy = vi.hoisted(() => vi.fn());
+vi.mock('../app/actions/studios/produit', () => ({ epinglerProduit: epinglerSpy }));
+
 const h = vi.hoisted(() => ({
   creer: [] as unknown[], propBrief: [] as unknown[], manuel: [] as unknown[], appliquer: [] as unknown[],
   rejeter: [] as unknown[], hypotheses: [] as unknown[], detailBrief: null as BriefCanonique | null,
@@ -200,3 +203,25 @@ describe('étape STRATÉGIE · suggestions d’hypothèses quand des sources exi
  *  · EtapeStrategie affichant le bouton hypothèses sans source → « honnêtement inactives » tombe.
  *  · « Retenir » appelant appliquer directement (sans proposition) → « relue avant application » tombe.
  */
+
+it('choisit explicitement la photo et ne recrée pas le projet après un refus d’épinglage', async () => {
+  epinglerSpy.mockResolvedValueOnce({ ok: false, message: 'Photo indisponible', traceId: 't1' }).mockResolvedValueOnce({ ok: true, version: { id: 'v2', n: 2 } });
+  const { hote, fermer } = await monter(<AssistantProjet etat={etatPret} initial={{ type: 'image', titre: 'Image produit', intention: 'Présenter le produit' }} personas={[]} produits={[{ id: 'prod1', nom: 'Nigella', photos: [{ assetId: 'photo1', apercu: '/photo-test.png', position: 1 }] }]} />);
+  await clic(hote.querySelector('[data-bouton="vers-brief"]'));
+  const produit = hote.querySelector('[data-champ="produit"]') as HTMLSelectElement;
+  expect(produit.value).toBe('');
+  await act(async () => { produit.value = 'prod1'; produit.dispatchEvent(new Event('change', { bubbles: true })); });
+  const photo = hote.querySelector('[data-champ="photo-produit"]') as HTMLSelectElement;
+  expect(photo.value).toBe('');
+  await clic(hote.querySelector('[data-bouton="creer-projet"]'));
+  expect(h.creer).toHaveLength(0);
+  await act(async () => { photo.value = 'photo1'; photo.dispatchEvent(new Event('change', { bubbles: true })); });
+  await clic(hote.querySelector('[data-bouton="creer-projet"]'));
+  expect(h.creer).toHaveLength(1);
+  expect(hote.textContent).toContain('Photo indisponible');
+  await clic(hote.querySelector('[data-bouton="creer-projet"]'));
+  expect(h.creer).toHaveLength(1);
+  expect(epinglerSpy).toHaveBeenLastCalledWith({ projectId: 'proj-1', baseVersionId: 'v1', productId: 'prod1', photoId: 'photo1' });
+  expect(hote.querySelector('[data-zone="assistant-strategie"]')).not.toBeNull();
+  await fermer();
+});

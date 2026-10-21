@@ -3,10 +3,11 @@
 import { useState, type CSSProperties } from 'react';
 import {
   changementAngleManuel, changementHypotheseRetenue, demandeAnglesDepuisBrief,
-  OBJECTIF_MAX, teinte,
+  OBJECTIF_MAX,
   type BriefCanonique, type HypotheseTest,
 } from '@tiktrends/core';
 import { proposerHypotheses } from '../../../app/actions/studios/sources';
+import css from './AssistantProjet.module.css';
 import { Icon } from '../../Icon';
 import { BlocPropositions, btnAction, btnActionGhost } from './BlocPropositions';
 import type { CyclePropositionsBrief } from './usePropositionsBrief';
@@ -27,18 +28,11 @@ import type { CyclePropositionsBrief } from './usePropositionsBrief';
  */
 
 const note: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
-const titreEtape: CSSProperties = { margin: '2px 0 0', fontSize: 19, fontWeight: 500, color: 'var(--ink)' };
-const sectionLbl: CSSProperties = { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', margin: 0 };
-const champ: CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-2)', background: 'var(--bg)', color: 'var(--ink)', fontSize: 16, lineHeight: 1.5, resize: 'vertical' };
-
 function ChaineNoeud({ cle, valeur }: { cle: string; valeur: string | null | undefined }) {
   const rempli = typeof valeur === 'string' && valeur.trim().length > 0;
-  return (
-    <div data-noeud={cle} data-rempli={rempli ? 'oui' : 'non'} style={{ ...{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--line)', background: rempli ? teinte('accent', .1) : 'var(--bg)', minWidth: 120, display: 'grid', gap: 2 } }}>
-      <small style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{cle}</small>
-      <strong style={{ fontSize: 13.5, fontWeight: 600, color: rempli ? 'var(--ink)' : 'var(--muted)', overflowWrap: 'anywhere' }}>{rempli ? valeur!.trim() : 'à définir'}</strong>
-    </div>
-  );
+  return <div data-noeud={cle} data-rempli={rempli ? 'oui' : 'non'} className={`${css.wznode} ${rempli ? css.on : ''} ${cle === 'Angle' ? css.cur : ''}`}>
+    <small>{cle === 'Persona' ? 'Avatar' : cle}</small><strong>{rempli ? valeur!.trim() : 'À définir'}</strong>
+  </div>;
 }
 
 export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
@@ -73,26 +67,23 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
 
   return (
     <div data-zone="assistant-strategie" style={{ display: 'grid', gap: 16 }}>
-      <div>
-        <p style={{ ...note, fontSize: 12 }}>Étape 2 sur 5 · La stratégie</p>
-        <h2 style={titreEtape}>La stratégie</h2>
-        <p style={note}>Jarvis propose, tu tranches. Rien n’est écrit dans le brief sans ton geste · chaque proposition est relue avant d’être adoptée.</p>
-      </div>
-
       <section aria-label="Chaîne stratégique" style={{ display: 'grid', gap: 8 }}>
-        <span style={sectionLbl}>Chaîne stratégique · d’après le brief</span>
-        <div data-champ="chaine" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <ChaineNoeud cle="Persona" valeur={brief.personaRef?.label} />
+
+        <div data-champ="chaine" className={css.wzchain}>
+          <ChaineNoeud cle="Persona" valeur={brief.personaRef?.label || brief.audience} />
+          <span className={css.wzlink} aria-hidden /><ChaineNoeud cle="Désir" valeur={null} /><span className={css.wzlink} aria-hidden />
           <ChaineNoeud cle="Angle" valeur={brief.angle} />
-          <ChaineNoeud cle="Concept" valeur={brief.concept} />
-          <ChaineNoeud cle="Hypothèse" valeur={brief.hypothesisId ? brief.testedVariable || brief.hypothesisId : ''} />
+          <span className={css.wzlink} aria-hidden /><ChaineNoeud cle="Concept" valeur={brief.concept} />
+          <span className={css.wzlink} aria-hidden /><ChaineNoeud cle="Pub" valeur={null} /><span className={css.wzlink} aria-hidden /><ChaineNoeud cle="Résultat" valeur={null} />
         </div>
       </section>
 
-      <section aria-label="Écrire mon angle" style={{ display: 'grid', gap: 8 }}>
-        <span style={sectionLbl}>Écrire mon angle</span>
+      <section aria-label="Écrire mon angle" className={css.wangle}>
+        <div className={`${css.wanglevis} ${css.own}`}><Icon name="plus" size={24} /></div>
+        <div className={css.wanglebody}>
+        <span className={css.wzlabel}>Écrire mon angle</span>
         <textarea data-champ="angle-libre" value={angle} maxLength={OBJECTIF_MAX} rows={2}
-          onChange={(e) => setAngle(e.target.value)} placeholder="L’idée qui porte la publicité" style={champ} />
+          onChange={(e) => setAngle(e.target.value)} placeholder="L’idée qui porte la publicité" className={css.editor} />
         <div>
           <button type="button" data-bouton="ecrire-angle" disabled={!peutProposer || !angle.trim() || cycle.occupe === 'manuel'}
             onClick={() => cycle.ecrireManuel(changementAngleManuel(brief, angle), 'Angle écrit à la main · stratégie')}
@@ -100,10 +91,11 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
             {cycle.occupe === 'manuel' ? 'Enregistrement…' : 'Enregistrer mon angle'}
           </button>
         </div>
+        </div>
       </section>
 
       <section aria-label="Angles proposés" style={{ display: 'grid', gap: 8 }}>
-        <span style={sectionLbl}>Angles proposés · Jarvis</span>
+        <span className={css.wzlabel}>Angles proposés · Jarvis</span>
         <p style={note}>{jarvis?.disponible ? jarvis.mentionCout : (jarvis?.raison || 'Jarvis indisponible ici · utilise « Écrire mon angle ».')}</p>
         <div>
           <button type="button" data-bouton="proposer-angles" disabled={!peutProposer || !jarvis?.disponible || cycle.occupe === 'demande'}
@@ -115,7 +107,7 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
       </section>
 
       <section aria-label="Suggestions d’hypothèses" data-champ="hypotheses" style={{ display: 'grid', gap: 8 }}>
-        <span style={sectionLbl}>Hypothèse à tester · depuis la Veille</span>
+        <span className={css.wzlabel}>Hypothèse à tester · depuis la Veille</span>
         {!peutHypotheses ? (
           <p data-etat="sans-source" style={note}>Les suggestions d’hypothèses de Jarvis s’appuient sur des sources de la Veille. Pour en obtenir, démarre un projet depuis une annonce sauvegardée · ici, écris ton angle ou demande d’autres angles.</p>
         ) : (
@@ -143,7 +135,7 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
       </section>
 
       <section aria-label="Propositions à trancher" style={{ display: 'grid', gap: 8 }}>
-        <span style={sectionLbl}>À trancher</span>
+        <span className={css.wzlabel}>À trancher</span>
         <BlocPropositions cycle={cycle} onApplied={onApplied} />
       </section>
     </div>

@@ -43,12 +43,14 @@ afterEach(() => { document.body.innerHTML = ''; });
 describe('assistant V5 · rail et étapes « bientôt » honnêtes', () => {
   it('creation reste « bientôt » et ne porte AUCUN contrôle (format est câblé au Lot 2c)', async () => {
     const { hote, fermer } = await monter();
+    expect(hote.querySelector('[data-zone="assistant-rail"]')).toBeNull();
+    await clic(hote.querySelector('[data-bouton="vers-brief"]'));
     for (const id of ['creation']) {
       const li = hote.querySelector(`[data-rail-etape="${id}"]`);
       expect(li, `étape ${id} absente du rail`).not.toBeNull();
       expect(li!.getAttribute('data-etat')).toBe('bientot');
       expect(li!.getAttribute('data-bientot')).toBe('true');
-      expect(li!.textContent).toContain('bientôt');
+      expect(li!.getAttribute('aria-label')).toBe('Création · bientôt');
       // pas de faux contrôle : aucun bouton, champ, case ni sélecteur dans l'étape à venir
       expect(li!.querySelector('button, input, select, textarea, a')).toBeNull();
     }
