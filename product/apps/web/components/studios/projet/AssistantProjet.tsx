@@ -34,7 +34,7 @@ import { EtatCreationAssistant } from './EtatCreationAssistant';
  * actions. Quatre étapes câblées · départ, brief (écrit le brief structuré V5 à
  * la création), puis stratégie et direction, qui opèrent sur le projet CRÉÉ via
  * le vrai cycle de propositions (relecture avant application, aucune écriture
- * sans geste). Format & devis et création restent « bientôt », non navigables.
+ * sans geste). Le devis confirmé précède la création suivie en lecture seule.
  *
  * La règle (quelles étapes, transitions, complétude, contenu du brief, forme
  * des changements) vit au noyau (`studios/ux/assistant-projet`) ; ce composant
@@ -55,6 +55,7 @@ export interface ProprietesAssistantProjet {
   onFermer?: () => void;
   onTitreChange?: (titre: string) => void;
   accessoiresBrief?: ReactNode;
+  contexteInitial?: { depart: DepartAssistant | null; references: DepartAssistant[]; notes: string[]; retourVeille: { href: string } | null };
   produits?: { id: string; nom: string; photos: { assetId: string; apercu: string | null; position: number }[] }[];
 }
 
@@ -74,8 +75,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const [photoOuverte, setPhotoOuverte] = useState(false);
   const [catalogue, setCatalogue] = useState(p.produits ?? []);
   const [panneau, setPanneau] = useState<OrigineDepartAssistant | null>(null);
-  const [depart, setDepart] = useState<DepartAssistant | null>(null);
-  const [references, setReferences] = useState<DepartAssistant[]>([]);
+  const [depart, setDepart] = useState<DepartAssistant | null>(p.contexteInitial?.depart ?? null);
+  const [references, setReferences] = useState<DepartAssistant[]>(p.contexteInitial?.references ?? []);
   const [sourcesAffectees, setSourcesAffectees] = useState<string[]>([]);
   const [photoEpinglee, setPhotoEpinglee] = useState('');
   const [productId, setProductId] = useState('');
@@ -218,6 +219,10 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         </div>
         }
         <div className={css.wzcontent}>
+        {etape === 'start' && p.contexteInitial && <>
+          {p.contexteInitial.notes.length > 0 && <div role="status">{p.contexteInitial.notes.map((message, i) => <p className={css.note} key={i}>{message}</p>)}</div>}
+          {p.contexteInitial.retourVeille && <a href={p.contexteInitial.retourVeille.href} style={lien}>Retour à la Veille</a>}
+        </>}
         {etape === 'start' && (
           <Depart marque={marque.nom} type={type} onType={setType} onContinuer={() => setEtape('brief')} depart={depart} onZero={() => { setDepart(null); setReferences([]); }} onSource={setPanneau} />
         )}
