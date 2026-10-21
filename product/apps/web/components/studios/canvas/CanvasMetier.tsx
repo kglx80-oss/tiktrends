@@ -43,6 +43,7 @@ export interface PropsCanvas {
 
 const TAILLE_DEFAUT: TailleCanvas = { largeur: 860, hauteur: 520 };
 const HAUTEUR_ZONE = 620;
+const APERCUS_VIDES: Record<string, string> = {};
 
 type Message = { genre: 'info' | 'erreur'; texte: string } | null;
 
@@ -50,7 +51,8 @@ function reducteur(modele: ModeleCanvas) {
   return (e: EtatCanvas, g: GesteCanvas) => reduireCanvas(modele, e, g).etat;
 }
 
-export function CanvasMetier({ projectId, version, modele, apercus = {}, disposition, rev: revInitiale }: PropsCanvas) {
+export function CanvasMetier({ projectId, version, modele: modeleSource, apercus = APERCUS_VIDES, disposition, rev: revInitiale }: PropsCanvas) {
+  const modele = useMemo(() => ({ ...modeleSource, dimensions: Object.fromEntries(modeleSource.cartes.map(c => [c.id, { w: 220, h: apercus[c.id] ? 340 : 160 }])) }), [modeleSource, apercus]);
   const reduire = useMemo(() => reducteur(modele), [modele]);
   const [etat, envoyer] = useReducer(reduire, disposition, (d) => etatInitialCanvas(d, 'liste'));
   const etatRef = useRef(etat);
@@ -327,7 +329,7 @@ export function CanvasMetier({ projectId, version, modele, apercus = {}, disposi
                           <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.25, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{c.titre}</span>
                         </span>
                         {apercus[c.id] ? <img src={apercus[c.id]} alt={`Aperçu · ${c.titre}`} draggable={false} loading="lazy" onError={e => { e.currentTarget.hidden = true; }} style={{ display: 'block', width: 'calc(100% - 20px)', aspectRatio: '4 / 5', maxHeight: 248, flex: '0 1 auto', minHeight: 0, margin: '8px 10px 0', borderRadius: 11, objectFit: 'cover', pointerEvents: 'none' }} /> : <span style={{ padding: '14px', fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)', overflow: 'hidden', overflowWrap: 'anywhere' }}>{c.resume}</span>}
-                        <span style={{ ...mini, fontSize: 11.5, padding: '8px 12px', marginTop: 'auto', borderTop: '1px solid var(--line-2)' }}>{media || LIBELLES_ETAPE_CANVAS[c.etape]}</span>
+                        {(media || apercus[c.id]) && <span style={{ ...mini, fontSize: 11.5, padding: '8px 12px', marginTop: 'auto', borderTop: '1px solid var(--line-2)' }}>{media || LIBELLES_ETAPE_CANVAS[c.etape]}</span>}
                       </button>
                     );
                   })}

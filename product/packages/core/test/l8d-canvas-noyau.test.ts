@@ -349,3 +349,27 @@ describe('canvas · la carte cible explicitement Jarvis', () => {
     for (const id of ['montage', 'mix', 'sous_titres', 'export', 'composition']) expect(cible(id).cibleJarvis).toBeNull();
   });
 });
+
+ describe('canvas · dimensions de présentation réelles', () => {
+  it('route les cartes mixtes sans traversée, focalise le bon rectangle et garde les gestes', () => {
+    const base = deriverCanvas(contenuVideo());
+    const modele = { ...base, dimensions: Object.fromEntries(base.cartes.map(c => [c.id, { w: 220, h: c.id === 'keyframe:s_produit' ? 340 : 160 }])) };
+    const compose = composerCanvas(modele, dispositionVide());
+    const image = compose.cartes.find(c => c.id === 'keyframe:s_produit')!;
+    const brief = compose.cartes.find(c => c.id === 'brief')!;
+    expect(image.h).toBe(340);
+    expect(brief.h).toBe(160);
+    expect(traverseesCanvas(compose)).toEqual([]);
+    const route = compose.routes.find(r => r.vers === image.id)!;
+    expect(route.points.at(-1)).toEqual({ x: image.x, y: image.y + image.h / 2 });
+    const etat = etatInitialCanvas(dispositionVide());
+    const taille = { largeur: 860, hauteur: 520 };
+    const focus = reduireCanvas(modele, etat, { type: 'focaliser', id: brief.id, taille });
+    expect(focus.etat.vue).toEqual(vueFocus(etat.vue, brief, taille));
+    expect(focus.aEnregistrer).toBeNull();
+    const deplace = reduireCanvas(modele, etat, { type: 'deplacer', id: image.id, dx: 8, dy: 8 });
+    expect(deplace.aEnregistrer?.positions[image.id]).toEqual({ x: image.x + 8, y: image.y + 8 });
+    expect(composerCanvas(modele, deplace.etat.disposition).cartes.find(c => c.id === image.id)?.h).toBe(340);
+    expect(modele.liens).toEqual(base.liens);
+  });
+});

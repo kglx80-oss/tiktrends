@@ -13,7 +13,7 @@
 import type { ModeleCanvas } from './modele';
 import {
   composerCanvas, deplacerCarte, positionCarte, reinitialiserDisposition,
-  CARTE_CANVAS, type DispositionCanvas, type PointCanvas, type RectCanvas,
+  dimensionsCarte, type DispositionCanvas, type PointCanvas, type RectCanvas,
 } from './disposition';
 
 export interface VueCanvas { x: number; y: number; k: number }
@@ -130,7 +130,7 @@ export function etatInitialCanvas(d: DispositionCanvas, mode: ModeCanvas = 'list
 
 function rectCarte(m: ModeleCanvas, d: DispositionCanvas, id: string): RectCanvas | null {
   const p = positionCarte(m, d, id);
-  return p ? { x: p.x, y: p.y, w: CARTE_CANVAS.largeur, h: CARTE_CANVAS.hauteur } : null;
+  return p ? { x: p.x, y: p.y, ...dimensionsCarte(m, id) } : null;
 }
 
 /**
