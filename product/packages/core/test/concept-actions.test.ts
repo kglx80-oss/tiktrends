@@ -113,3 +113,14 @@ describe('vocabulaire FERMÉ et demandes', () => {
     }
   });
 });
+
+ describe('préparation image · navigation sans modèle', () => {
+  it('active sans Jarvis, avec droits et brief courant', () => {
+    expect(etat(actionsConceptResolues({ ...base, kind: 'image', generationImageActive: true, jarvisDisponible: false }), 'preparer')?.etat).toBe('actif');
+  });
+  it.each([
+    { peutProposer: false }, { ancienneVersion: true }, { generationImageActive: false }, { briefPret: false },
+  ])('respecte la garde %j', (garde) => {
+    expect(etat(actionsConceptResolues({ ...base, kind: 'image', generationImageActive: true, ...garde }), 'preparer')?.etat).toBe('desactive');
+  });
+ });
