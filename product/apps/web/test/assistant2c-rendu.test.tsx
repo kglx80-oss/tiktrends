@@ -15,15 +15,23 @@ import type { DevisImageVue, VueParcoursImage } from '../lib/studios/image/parco
  *    l'empreinte et les crédits du devis ;
  *  · un `BUDGET_EXCEEDED` rendu par le serveur est MONTRÉ, et rien n'est lancé ;
  *  · « Modifier » revient au format (invalide le devis côté parcours) ;
- *  · l'étape format demande le VRAI devis et ne fabrique rien : sans consigne
- *    retenue, le message réel du serveur s'affiche.
+ *  · l'étape format demande le VRAI devis et ne fabrique rien ;
+ *  · depuis un projet NEUF : un devis INDICATIF (calcul, 0 $) s'affiche d'emblée,
+ *    puis la consigne se COMPILE (coût annoncé) et se RETIENT (simulé, 0 $), ce
+ *    qui rend le devis serveur atteignable · le bouton de devis reste verrouillé
+ *    tant que la consigne n'est pas retenue (jamais de bouton mort).
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const h = vi.hoisted(() => ({
   approuver: [] as unknown[], devisDemande: [] as unknown[], manuel: [] as unknown[], appliquer: [] as unknown[],
-  reponseApprouver: null as unknown, reponseDevis: null as unknown, vue: null as VueParcoursImage | null,
+  compiler: [] as unknown[], retenir: [] as unknown[],
+  reponseApprouver: null as unknown, reponseDevis: null as unknown, reponseCompiler: null as unknown, reponseRetenir: null as unknown,
+  vue: null as VueParcoursImage | null,
+  // Suite de vues servies dans l'ordre par `lireParcoursImage` (projet neuf qui
+  // compile puis retient sa consigne) · si vide, on retombe sur `vue`.
+  vueSeq: [] as VueParcoursImage[],
   // Mutation PAYANTE dont la RÉPONSE est perdue : la demande est ENREGISTRÉE
   // (le serveur a pu l'accepter et débiter) PUIS l'appel throw (réseau coupé).
   jeteApprouver: false,
@@ -36,8 +44,12 @@ const h = vi.hoisted(() => ({
 vi.mock('../app/actions/studios/image', () => ({
   lireParcoursImage: async () => {
     if (h.lireDiffere) return h.lireDiffere();
+    if (h.vueSeq.length) return { ok: true, vue: h.vueSeq.shift()! };
     return h.vue ? { ok: true, vue: h.vue } : { ok: false, code: 'UNSUPPORTED_CAPABILITY', message: 'coupée', targetIds: ['generation_image'], recoverable: true, traceId: 't' };
   },
+  // Compilation SIMULÉE · aucun fournisseur, 0 $ réel · elle n'enregistre que l'intention.
+  compilerConsigneImage: async (e: unknown) => { h.compiler.push(e); return h.reponseCompiler ?? { ok: true, statut: 'compilee', runId: 'run-1', questions: [] }; },
+  retenirConsigneImage: async (e: unknown) => { h.retenir.push(e); return h.reponseRetenir ?? { ok: true, version: { id: 'v2', n: 2 }, inchange: false }; },
   // Par défaut, le devis créé est corrélé à la vue (id q1) · un test peut le changer.
   demanderDevisImage: async (e: unknown) => { h.devisDemande.push(e); if (h.jeteDevis) throw new Error('réseau coupé après l’envoi'); return h.reponseDevis ?? { ok: true, devis: { id: 'q1', inputHash: 'HASH-ABC' } }; },
   approuverEtLancerImage: async (e: unknown) => {
@@ -64,11 +76,27 @@ const devis: DevisImageVue = {
 
 const briefVide: BriefCanonique = { objective: 'o', audience: '', hypothesisId: null, testedVariable: '', facts: [], invariants: [], variables: [], references: [], composition: '', styleIntent: '', texts: [], formats: [], exclusions: [] };
 
-const vueParcours = (devisVu: DevisImageVue | null): VueParcoursImage => ({
-  projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 }, modes: [],
+const consigneVue = () => ({
+  runId: 'run-1', mode: 'generative_scene' as const, libelleMode: 'Scène générée',
+  generationInstruction: 'Une publicité nette et lisible du produit.', negativeConstraints: [], protectedComponents: [],
+  liaisons: [], format: { largeur: 1080, hauteur: 1350 }, compileeLe: '2026-10-18T09:00:00Z',
+});
+const dispoOk = { disponible: true, raison: '' };
+const vueParcours = (
+  devisVu: DevisImageVue | null,
+  o: { retenue?: boolean; enAttente?: boolean; compilationDispo?: boolean; raisonCompilation?: string } = {},
+): VueParcoursImage => ({
+  projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 },
+  modes: [{ mode: 'generative_scene', libelle: 'Scène générée', pret: true }],
   format: { largeur: 1080, hauteur: 1350, libelle: 'Portrait · 4:5', depuisBrief: false },
-  disponibilite: {} as VueParcoursImage['disponibilite'], coutCompilationUsd: 0.14, prix: { credits: 4, usdMicros: 600_000 },
-  enAttente: null, retenue: null, devis: devisVu, jobs: [],
+  disponibilite: {
+    compilation: { disponible: o.compilationDispo ?? true, raison: o.raisonCompilation ?? '' },
+    retenir: dispoOk, devis: dispoOk, lancement: dispoOk,
+  } as VueParcoursImage['disponibilite'],
+  coutCompilationUsd: 0.14, prix: { credits: 4, usdMicros: 600_000 },
+  enAttente: o.enAttente ? consigneVue() : null,
+  retenue: o.retenue ? { ...consigneVue(), verdict: { ok: true } } : null,
+  devis: devisVu, jobs: [],
   controleVision: { disponible: true, borneParImageUsdMicros: 147_000 }, composantsObligatoires: [], peutRelire: true,
 });
 
@@ -88,7 +116,7 @@ const cocher = async (el: Element | null) => {
   await act(async () => { c.dispatchEvent(new Event('click', { bubbles: true })); c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); });
 };
 
-beforeEach(() => { h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
+beforeEach(() => { h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.compiler = []; h.retenir = []; h.reponseApprouver = null; h.reponseDevis = null; h.reponseCompiler = null; h.reponseRetenir = null; h.vue = null; h.vueSeq = []; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation transactionnelle', () => {
@@ -186,7 +214,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
 
 describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () => {
   it('« Voir le devis serveur » écrit le format choisi puis demande le devis, et remonte le devis réel', async () => {
-    h.vue = vueParcours(null); // pas encore de devis
+    h.vue = vueParcours(null, { retenue: true }); // consigne retenue · pas encore de devis
     const devisPrets: DevisImageVue[] = [];
     const { hote, fermer } = await monter(
       <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={briefVide}
@@ -196,7 +224,7 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     // choisir 9:16 puis demander le devis
     await clic(hote.querySelector('[data-format="9:16"]'));
     // au moment du devis, le serveur a créé le devis · la relecture lue rend vue.devis
-    h.vue = vueParcours(devis);
+    h.vue = vueParcours(devis, { retenue: true });
     await clic(hote.querySelector('[data-bouton="voir-devis"]'));
     await flush();
     // le format a été écrit (ratio nu) via une proposition appliquée (gratuit)
@@ -211,7 +239,7 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
   });
 
   it('relecture décochée ⇒ controleVision:false transmis au devis (ligne retirée)', async () => {
-    h.vue = vueParcours(devis);
+    h.vue = vueParcours(devis, { retenue: true });
     const { hote, fermer } = await monter(
       <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={{ ...briefVide, formats: ['4:5'] }}
         onBriefChange={() => {}} onDevisPret={() => {}} onRetour={() => {}} />,
@@ -228,7 +256,7 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
   });
 
   it('réponse de devis PERDUE · état INCONNU honnête (jamais « rien n’a été deviser »), rien remonté', async () => {
-    h.vue = vueParcours(null);
+    h.vue = vueParcours(null, { retenue: true });
     h.jeteDevis = true; // la demande est enregistrée AVANT la perte réseau
     const devisPrets: DevisImageVue[] = [];
     const { hote, fermer } = await monter(
@@ -248,7 +276,7 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
 
   it('course réseau · devis relu NON corrélé à LA demande (« dernier devis du projet ») ⇒ rejeté, rien remonté', async () => {
     // Le projet a un devis plus récent (q-autre) qui n'est PAS celui que cette demande a créé.
-    h.vue = vueParcours({ ...devis, id: 'q-autre' });
+    h.vue = vueParcours({ ...devis, id: 'q-autre' }, { retenue: true });
     h.reponseDevis = { ok: true, devis: { id: 'q-de-cette-demande', inputHash: 'H' } };
     const devisPrets: DevisImageVue[] = [];
     const { hote, fermer } = await monter(
@@ -266,7 +294,7 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
   });
 
   it('course réseau · devis en vol ⇒ format, relecture et Retour sont VERROUILLÉS pendant la demande', async () => {
-    h.vue = vueParcours(null);
+    h.vue = vueParcours(null, { retenue: true });
     const { hote, fermer } = await monter(
       <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={{ ...briefVide, formats: ['4:5'] }}
         onBriefChange={() => {}} onDevisPret={() => {}} onRetour={() => {}} />,
@@ -284,9 +312,95 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     expect(rel().disabled, 'la relecture doit être verrouillée pendant la demande').toBe(true);
     expect(ret().disabled, 'Retour doit être verrouillé pendant la demande').toBe(true);
     // Fin de la demande · le verrou se lève.
-    await act(async () => { resoudre({ ok: true, vue: vueParcours(devis) }); await Promise.resolve(); });
+    await act(async () => { resoudre({ ok: true, vue: vueParcours(devis, { retenue: true }) }); await Promise.resolve(); });
     await flush();
     expect(ret().disabled, 'le verrou doit se lever à la fin de la demande').toBe(false);
+    await fermer();
+  });
+
+  it('un projet NEUF (aucune consigne retenue, aucun devis serveur) voit un devis INDICATIF (calcul) AVANT tout clic payant', async () => {
+    // vue d'un projet neuf : génération active, prix de grille connu, mais
+    // aucune consigne retenue ni devis serveur (le devis serveur exige une
+    // compilation payante · hors parcours neuf). Le devis indicatif est un CALCUL.
+    h.vue = vueParcours(null);
+    const { hote, fermer } = await monter(
+      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={briefVide}
+        onBriefChange={() => {}} onDevisPret={() => {}} onRetour={() => {}} />,
+    );
+    await flush();
+    // RÉSULTAT lu dans le HTML : le bloc indicatif est présent, AVANT le bouton payant.
+    const bloc = hote.querySelector('[data-zone="devis-indicatif"]');
+    expect(bloc, 'aucun devis indicatif rendu pour un projet neuf').not.toBeNull();
+    const prix = hote.querySelector('[data-prix="indicatif"]') as HTMLElement | null;
+    expect(prix, 'montant indicatif absent').not.toBeNull();
+    // relecture cochée par défaut · 600 000 (image) + 147 000 (relecture) = 747 000 micros = 0,75 $
+    expect(prix!.textContent ?? '').toContain('0,75');
+    // le devis indicatif PRÉCÈDE le bouton « Voir le devis serveur » dans le DOM.
+    const bouton = hote.querySelector('[data-bouton="voir-devis"]');
+    expect(bouton, 'bouton de devis serveur absent').not.toBeNull();
+    expect(bloc!.compareDocumentPosition(bouton!) & Node.DOCUMENT_POSITION_FOLLOWING, 'le bouton payant ne suit pas le devis indicatif').toBeTruthy();
+    // aucune demande serveur n'a été faite pour afficher ce calcul (0 clic payant).
+    expect(h.devisDemande, 'le devis indicatif ne doit appeler aucune action serveur').toHaveLength(0);
+    await fermer();
+  });
+
+  it('le devis INDICATIF se RECALCULE quand la relecture change (calcul, aucune action serveur)', async () => {
+    h.vue = vueParcours(null);
+    const { hote, fermer } = await monter(
+      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={{ ...briefVide, formats: ['4:5'] }}
+        onBriefChange={() => {}} onDevisPret={() => {}} onRetour={() => {}} />,
+    );
+    await flush();
+    const prix = () => (hote.querySelector('[data-prix="indicatif"]') as HTMLElement).textContent ?? '';
+    expect(prix(), 'relecture ON · image + relecture').toContain('0,75');
+    // décocher la relecture · le total retombe à l'image seule (0,60 $), la ligne relecture disparaît.
+    await clic(hote.querySelector('[data-champ="relecture"] input'));
+    await flush();
+    expect(prix(), 'relecture OFF · image seule').toContain('0,60');
+    expect(hote.querySelector('[data-zone="devis-indicatif"] [data-ligne="relecture"]'), 'la ligne relecture doit disparaître').toBeNull();
+    expect(h.devisDemande, 'le recalcul est un CALCUL · aucune action serveur').toHaveLength(0);
+    await fermer();
+  });
+
+  it('parcours NEUF de bout en bout (compilation SIMULÉE, 0 $) · le devis serveur devient atteignable APRÈS avoir retenu la consigne', async () => {
+    // Projet neuf : rien de retenu → consigne compilée (en attente) → retenue → devis.
+    h.vueSeq = [
+      vueParcours(null),                      // #1 montage · aucune consigne
+      vueParcours(null, { enAttente: true }), // #2 après compilation · consigne en attente
+      vueParcours(null, { retenue: true }),   // #3 après « Retenir » · consigne retenue
+      vueParcours(devis, { retenue: true }),  // #4 après le devis serveur
+    ];
+    const devisPrets: DevisImageVue[] = [];
+    const { hote, fermer } = await monter(
+      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={{ ...briefVide, formats: ['4:5'] }}
+        onBriefChange={() => {}} onDevisPret={(d) => devisPrets.push(d)} onRetour={() => {}} />,
+    );
+    await flush();
+    // Sans consigne retenue, « Voir le devis serveur » est proposé mais NON cliquable (jamais de bouton mort).
+    const voirDevis = () => hote.querySelector('[data-bouton="voir-devis"]') as HTMLButtonElement;
+    expect(voirDevis().disabled, 'le devis serveur ne doit pas être atteignable sans consigne retenue').toBe(true);
+    // Le coût de la compilation est ANNONCÉ avant le clic payant (0,14 $).
+    const compiler = hote.querySelector('[data-bouton="compiler-consigne"]') as HTMLButtonElement | null;
+    expect(compiler, 'bouton de compilation absent').not.toBeNull();
+    expect(compiler!.textContent ?? '', 'le coût de la compilation doit être annoncé avant le clic').toContain('0,14');
+    // 1) Compiler (SIMULÉ, 0 $) · la consigne passe « en attente ».
+    await clic(compiler!);
+    await flush();
+    expect(h.compiler, 'compilerConsigneImage non appelé').toHaveLength(1);
+    const retenir = () => hote.querySelector('[data-bouton="retenir-consigne"]') as HTMLButtonElement | null;
+    expect(retenir(), 'bouton « Retenir » absent après compilation').not.toBeNull();
+    // 2) Retenir · écrit la consigne (styleRef.consigneImage), le devis devient atteignable.
+    await clic(retenir());
+    await flush();
+    expect(h.retenir, 'retenirConsigneImage non appelé').toHaveLength(1);
+    expect((h.retenir[0] as { runId: unknown }).runId, 'le runId de LA compilation doit être retenu, jamais une consigne du navigateur').toBe('run-1');
+    expect(voirDevis().disabled, 'le devis serveur doit devenir atteignable une fois la consigne retenue').toBe(false);
+    // 3) Le devis serveur est atteint puis remonté (toujours 0 débit).
+    await clic(voirDevis());
+    await flush();
+    expect(h.devisDemande, 'demanderDevisImage non appelé après la consigne retenue').toHaveLength(1);
+    expect(devisPrets, 'le devis serveur n’a pas été remonté').toHaveLength(1);
+    expect(devisPrets[0]!.id).toBe('q1');
     await fermer();
   });
 
@@ -314,4 +428,6 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
  *  · remonter r.vue.devis sans corréler l'id à d.devis.id → « devis non corrélé rejeté » tombe (onDevisPret appelé à tort).
  *  · retirer `disabled={occupe}` des contrôles format/relecture/Retour → « verrouillés pendant la demande » tombe.
  *  · catch du devis remis à « rien n'a été deviser » → « réponse de devis PERDUE » tombe.
+ *  · retirer le gardien `!consigneRetenue` du bouton de devis → « atteignable sans consigne retenue » tombe.
+ *  · retenir avec un runId du navigateur au lieu de `consigneEnAttente.runId` → « runId de LA compilation » tombe.
  */
