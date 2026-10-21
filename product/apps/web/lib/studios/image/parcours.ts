@@ -45,7 +45,9 @@ import { spendStatus } from '../../spend-guard';
 
 export type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
 
-const JOBS_MAX = 6;
+// Le lot multi-format permet 3 formats × 4 images. La lecture récente doit
+// contenir au moins un lot complet ; ce n’est pas un historique exhaustif.
+const JOBS_MAX = 12;
 
 export interface DependancesLecture {
   veilleOuverte: boolean;

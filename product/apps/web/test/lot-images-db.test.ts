@@ -1,3 +1,4 @@
+import { lireParcoursImagePour } from '../lib/studios/image/parcours';
 import { preparateurFal } from '../../workers/src/studios/fournisseurs';
 import { refusDerivationFormat } from '../../workers/src/studios/formats-attestes';
 import { lireSnapshotJob } from '@tiktrends/core';
@@ -226,6 +227,27 @@ describe('Lot images · mêmes paramètres, transaction atomique', () => {
     expect(r.lot.devis[0]!.inputHash).toBe(r.lot.devis[1]!.inputHash);
     expect(r.lot.devis[0]!.inputHash).not.toBe(r.lot.devis[2]!.inputHash);
     const lance=await approuverLotImagesPour(ctx(),confirmation(r.lot),options());expect(lance.ok&&lance.jobs.length).toBe(4);
+  });
+
+  it('lecture réelle : un lot de douze images reste entièrement visible dans sa portée', async () => {
+    const initial = await preparer(1);
+    const formats = ['1:1', '1:1', '1:1', '1:1', '4:5', '4:5', '4:5', '4:5', '9:16', '9:16', '9:16', '9:16'] as const;
+    const r = await preparerLotImagesPour(ctx(), { projectId: initial.projectId, nombre: 12, controleVision: false }, base, T, [...formats]);
+    if (!r.ok) throw new Error(JSON.stringify(r));
+    const lance = await approuverLotImagesPour(ctx(), confirmation(r.lot), options());
+    if (!lance.ok) throw new Error(JSON.stringify(lance));
+    const lecture = { veilleOuverte: true, maintenant: T, releasePubliee: true, fournisseurTexte: false, plafondAtteint: false, fournisseurImage: true, coutCompilationUsd: 0 };
+    const comptes = await quantites();
+    const relu = await lireParcoursImagePour(ctx(), initial.projectId, lecture);
+    expect(relu.ok).toBe(true);
+    if (!relu.ok) throw new Error(JSON.stringify(relu));
+    expect(relu.vue.jobs).toHaveLength(12);
+    expect(new Set(relu.vue.jobs.map(j => j.id))).toEqual(new Set(lance.jobs.map(j => j.id)));
+    const autreEspace = await lireParcoursImagePour(ctxDe(ids, 'ub'), initial.projectId, lecture);
+    const autreMarque = await lireParcoursImagePour({ ...ctx(), marques: [ids.brandA2], restrictionsMarque: [ids.brandA2] }, initial.projectId, lecture);
+    expect(autreEspace.ok).toBe(false);
+    expect(autreMarque.ok).toBe(false);
+    expect(await quantites()).toEqual(comptes);
   });
 
   it('worker multi-format : référence retirée après approbation bloque chaque format sans appel ni dépense', async () => {
