@@ -67,13 +67,15 @@ describe('Veille · carte V5 (HTML rendu)', () => {
     expect(iStatut, 'la pastille de statut vient APRÈS le nom').toBeGreaterThan(iNom);
   });
 
-  it('les deux pastilles de bandeau partagent un même fond sombre et un même rayon (9, comme la sauvegarde)', () => {
-    const badges = [...html(adActive).matchAll(/<span style="font-size:11px;font-weight:\d+;padding:3px 9px;border-radius:(\d+)px;background:([^"]+?);color:var\(--clair-fixe\)">(?:Meta|Vidéo|TikTok|Image|Google)<\/span>/g)];
-    expect(badges.length, 'plateforme + format').toBe(2);
-    const rayons = badges.map((b) => b[1]);
-    const fonds = badges.map((b) => b[2]);
-    expect(rayons, 'rayon 9 pour les deux (jumelle de SaveButton, pas une pilule 999)').toEqual(['9', '9']);
-    expect(fonds[0], 'fonds identiques · un seul système d’étiquettes').toBe(fonds[1]);
+  it('les pastilles plateforme et média restent lisibles et visuellement cohérentes', () => {
+    const d = rendu(adActive, true);
+    const badges = [...d.querySelectorAll('span')].filter(s => ['Meta', 'Vidéo'].includes(s.textContent || ''));
+    expect(badges.map(b => b.textContent), 'plateforme puis format').toEqual(['Meta', 'Vidéo']);
+    expect(badges[0]!.parentElement, 'même bandeau média').toBe(badges[1]!.parentElement);
+    expect(badges.map(b => b.style.borderRadius), 'rayon compact commun au prototype').toEqual(['6px', '6px']);
+    expect(badges[0]!.style.background, 'fond sombre non vide').not.toBe('');
+    expect(badges[0]!.style.background, 'fonds identiques').toBe(badges[1]!.style.background);
+    expect(badges.map(b => b.style.color), 'texte clair sur fond sombre').toEqual(['var(--clair-fixe)', 'var(--clair-fixe)']);
   });
 
   it('la jauge reste VERTE même pour une créa inactive · elle mesure la progression vers le seuil, pas l’état', () => {
