@@ -26,6 +26,6 @@ it('relit avant création, garde la clé en reprise réseau et bloque le double 
   await act(async()=> (el.querySelector('button') as HTMLButtonElement).click());
   expect(m.create).toHaveBeenCalledTimes(2);
   expect(m.create.mock.calls[1]![0].cleClic).toBe(m.create.mock.calls[0]![0].cleClic);
-  expect(m.push).toHaveBeenCalledWith('/studio/projets/p1');
+  expect(m.push).toHaveBeenCalledWith('/studio/projets/p1/produit');
  } finally { await act(async()=>root.unmount()); el.remove(); }
 });
