@@ -309,6 +309,12 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     await fermer();
   });
 
+  it('lecture refusée : message réel et actualisation, aucun chargement infini',async()=>{
+    h.lireDiffere=async()=>({ok:false,code:'NOT_FOUND',message:'Projet introuvable',targetIds:[],recoverable:false,traceId:'t'});
+    const {hote,fermer}=await monter(<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={briefVide} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />);
+    expect(hote.textContent).toContain('Projet introuvable'); expect(hote.textContent).not.toContain('Chargement des possibilités'); expect(hote.textContent).toContain('Actualiser les possibilités'); expect(h.compiler).toHaveLength(0); await fermer();
+  });
+
   it('génération coupée pour l’espace ⇒ état honnête, aucun bouton de devis', async () => {
     h.vue = null; // lireParcoursImage renvoie UNSUPPORTED_CAPABILITY
     const { hote, fermer } = await monter(

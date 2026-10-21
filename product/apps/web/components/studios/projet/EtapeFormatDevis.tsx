@@ -53,6 +53,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
 }) {
   const [saisie, setSaisie] = useState<SaisieFormat>(() => saisieFormatDepuisBrief(brief));
   const [vue, setVue] = useState<VueParcoursImage | null>(null);
+  const [chargement, setChargement] = useState(true);
   const [nonActive, setNonActive] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
@@ -64,14 +65,16 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   const [questions, setQuestions] = useState<string[]>([]);
 
   const charger = useCallback(async () => {
+    setChargement(true);
     try {
       const r = await lireParcoursImage({ projectId });
       if (r.ok) { setVue(r.vue); setNonActive(null); }
       else if (capacitesDuRefus(r).length) { setNonActive(r.message); setVue(null); }
-      else setRetour({ ok: false, texte: messageErreur(r) });
+      else { setVue(null); setRetour({ ok: false, texte: messageErreur(r) }); }
     } catch {
+      setVue(null);
       setRetour({ ok: false, texte: 'Le serveur n’a pas répondu · recharge la page.' });
-    }
+    } finally { setChargement(false); }
   }, [projectId]);
 
   useEffect(() => { void charger(); }, [charger, version.id]);
@@ -236,7 +239,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
                 {vue.enAttente.protectedComponents.length > 0 && <p>À préserver : {vue.enAttente.protectedComponents.join(' · ')}</p>}
                 <button type="button" data-bouton="retenir-consigne" onClick={() => void retenir()} style={btn} disabled={occupe || incertain || !vue.disponibilite.retenir.disponible}>Valider cette consigne · gratuit</button>
               </div>}
-            </> : <p role="status">Chargement des possibilités de création…</p>}
+            </> : chargement ? <p role="status">Chargement des possibilités de création…</p> : <button type="button" style={btnGhost} onClick={() => void charger()}>Actualiser les possibilités · sans génération</button>}
           </section>
           </div><aside className={styles.quote} aria-label="Devis de création"><h3>Ton devis</h3><strong className={styles.price}>1 image</strong><p>Le prix exact s’affiche après validation de la consigne.</p><p>La préparation IA ci-contre est une dépense distincte, annoncée avant son lancement.</p><small>Le devis de génération ne débite rien. Tu confirmeras le montant à l’étape suivante.</small></aside></div>
 
