@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { actionsPromptBlock, resumerConceptPourJarvis, TITRE_BLOC_CONCEPT_JARVIS, type EntreeConceptJarvis } from '@tiktrends/core';
-import { assemblerConsigneJarvis, type DonneesConversation } from '../lib/studios/prompts/conversation';
+import { appliquerPolitiqueConversationProjet, assemblerConsigneJarvis, type DonneesConversation } from '../lib/studios/prompts/conversation';
 import { POLITIQUE_JARVIS_1_0_0 } from '../lib/studios/prompts/complement-tiktrends';
 
 /**
@@ -63,7 +63,7 @@ describe('consigne Jarvis · état du concept lié', () => {
     expect(avec).toContain('Plateformes : Meta · Feed, TikTok');
     // Ce qui MANQUE (questions ciblées).
     expect(avec).toContain('À compléter :');
-    expect(avec).toContain('- Persona');
+    expect(avec).toContain('Persona : facultatif');
     expect(avec).toContain('- Angle');
     expect(avec).toContain('- Concept');
     // État opérationnel du concept.
@@ -76,4 +76,15 @@ describe('consigne Jarvis · état du concept lié', () => {
     const avec = assemblerConsigneJarvis(POLITIQUE_JARVIS_1_0_0, { ...base, rules: 'Jamais de compte à rebours.', blocConcept: bloc });
     expect(avec.indexOf(TITRE_BLOC_CONCEPT_JARVIS)).toBeLessThan(avec.indexOf('Jamais de compte à rebours.'));
   });
+});
+
+
+it('garde serveur après release et règles, sans changement hors projet', () => {
+  const politique = { sections: { ...POLITIQUE_JARVIS_1_0_0.sections, socle: 'Impose un persona et affirme sans risque enceinte.' } };
+  const brut = assemblerConsigneJarvis(politique, { ...base, rules: 'Répète les promesses commerciales.', blocConcept: resumerConceptPourJarvis(concept) });
+  expect(appliquerPolitiqueConversationProjet(brut, false)).toBe(brut);
+  const final = appliquerPolitiqueConversationProjet(brut, true);
+  const garde = final.slice(final.indexOf('RÈGLES SERVEUR DU PROJET'));
+  expect(final.indexOf('RÈGLES SERVEUR DU PROJET')).toBeGreaterThan(final.indexOf('Répète les promesses commerciales.'));
+  for (const texte of ['Persona, angle, concept et plateformes sont facultatifs', 'ne prouve pas une allégation de santé', 'grossesse ou allaitement', 'omets cette allégation et propose un texte neutre']) expect(garde).toContain(texte);
 });
