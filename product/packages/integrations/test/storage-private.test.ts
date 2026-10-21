@@ -50,4 +50,26 @@ describe('accès privé S3', () => {
     expect(String(mock.mock.calls[3]?.[0])).toMatch(/^https:\/\/cdn.example.test\//);
   });
 
+  it.each([
+    [200, 'accessible'], [404, 'introuvable'], [302, 'redirection'], [500, 'http_inattendu'],
+  ])('distingue le statut anonyme %s sans prouver la confidentialité', async (status, resultat) => {
+    const mock = vi.fn().mockResolvedValueOnce(new Response('')).mockResolvedValueOnce(new Response('tiktrends-ok')).mockResolvedValueOnce(new Response('secret-provider-body', {status: Number(status), headers: {location: 'https://secret-host.test/?secret=token'}})).mockResolvedValueOnce(new Response(null, {status:204}));
+    vi.stubGlobal('fetch', mock);
+    const result = await storagePrivateSelfTest(cfg);
+    expect(result.anonymousDenied).toBe(false);
+    expect(result.diagnostics).toContainEqual({cible:'bucket_anonyme', statut:status, resultat});
+    expect(mock.mock.calls[2]?.[1]).toMatchObject({redirect:'manual'});
+    expect(result.deleted).toBe(true);
+    expect(JSON.stringify(result)).not.toMatch(/secret|X-Amz|example\.test|https:/);
+  });
+  it('continue le diagnostic CDN après erreur réseau du bucket sans fuite des détails', async () => {
+    const mock = vi.fn().mockResolvedValueOnce(new Response('')).mockResolvedValueOnce(new Response('tiktrends-ok')).mockRejectedValueOnce(new Error('secret-host token')).mockResolvedValueOnce(new Response('', {status:403})).mockResolvedValueOnce(new Response(null, {status:204}));
+    vi.stubGlobal('fetch', mock);
+    const result = await storagePrivateSelfTest({...cfg, publicBaseUrl:'https://cdn.example.test'});
+    expect(result.anonymousDenied).toBe(false);
+    expect(result.diagnostics).toContainEqual({cible:'bucket_anonyme', statut:null, resultat:'reseau'});
+    expect(result.diagnostics).toContainEqual({cible:'lecture_configuree_anonyme', statut:403, resultat:'refus'});
+    expect(result.deleted).toBe(true); expect(JSON.stringify(result)).not.toContain('secret');
+  });
+
 });

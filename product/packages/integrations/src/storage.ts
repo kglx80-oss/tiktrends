@@ -222,32 +222,55 @@ export async function storageSelfTest(cfg: StorageConfig): Promise<{ put: boolea
   }
 }
 
-/** Diagnostic du bucket privé ; aucun média métier ni URL signée n'est renvoyé. */
-export async function storagePrivateSelfTest(cfg: StorageConfig): Promise<{ put: boolean; privateRead: boolean; anonymousDenied: boolean; deleted: boolean; error?: string }> {
+export interface StorageDiagnostic {
+  cible: 'ecriture' | 'lecture_signee' | 'bucket_anonyme' | 'lecture_configuree_anonyme' | 'suppression';
+  statut: number | null;
+  resultat: 'ok' | 'refus' | 'accessible' | 'introuvable' | 'redirection' | 'contenu_inattendu' | 'http_inattendu' | 'reseau';
+}
+
+/** Diagnostic du bucket privé ; statuts seuls, jamais de média, clé, URL ou corps fournisseur. */
+export async function storagePrivateSelfTest(cfg: StorageConfig): Promise<{ put: boolean; privateRead: boolean; anonymousDenied: boolean; deleted: boolean; diagnostics: StorageDiagnostic[]; error?: string }> {
   const key = `assets/_healthcheck/${randomUUID()}.txt`;
   const body = Buffer.from('tiktrends-ok');
   const path = `/${cfg.bucket}/${encKey(key)}`;
-  const result = { put: false, privateRead: false, anonymousDenied: false, deleted: false, error: undefined as string | undefined };
+  const result = { put: false, privateRead: false, anonymousDenied: false, deleted: false, diagnostics: [] as StorageDiagnostic[], error: undefined as string | undefined };
+  let etape: StorageDiagnostic['cible'] = 'ecriture';
   try {
     const put = await s3SignedFetch(cfg, 'PUT', path, {}, body, { 'content-type': 'text/plain' });
     result.put = put.status >= 200 && put.status < 300;
+    result.diagnostics.push({ cible: etape, statut: put.status, resultat: result.put ? 'ok' : 'http_inattendu' });
     if (!result.put) { result.error = `Écriture refusée (HTTP ${put.status})`; return result; }
-    const read = await fetch(presignGetUrl(cfg, key, 60), { redirect: 'error', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
+    etape = 'lecture_signee';
+    const read = await fetch(presignGetUrl(cfg, key, 60), { redirect: 'manual', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
     result.privateRead = read.ok && await read.text() === 'tiktrends-ok';
-    const anonymousUrls = [...new Set([`https://${cfg.endpoint}/${cfg.bucket}/${encKey(key)}`, publicUrlFor(cfg, key)])];
+    result.diagnostics.push({ cible: etape, statut: read.status, resultat: result.privateRead ? 'ok' : read.status >= 300 && read.status < 400 ? 'redirection' : read.ok ? 'contenu_inattendu' : 'http_inattendu' });
+    const nativeUrl = `https://${cfg.endpoint}/${cfg.bucket}/${encKey(key)}`;
+    const configuredUrl = publicUrlFor(cfg, key);
+    const anonymousUrls: Array<{ cible: StorageDiagnostic['cible']; url: string }> = [{ cible: 'bucket_anonyme', url: nativeUrl }];
+    if (configuredUrl !== nativeUrl) anonymousUrls.push({ cible: 'lecture_configuree_anonyme', url: configuredUrl });
     result.anonymousDenied = true;
-    for (const url of anonymousUrls) {
-      const anonymous = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
-      result.anonymousDenied = result.anonymousDenied && (anonymous.status === 403 || anonymous.status === 401);
+    for (const { cible, url } of anonymousUrls) {
+      try {
+        // Observer le statut sans suivre une redirection vers un CDN ou un autre hôte.
+        const anonymous = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
+        const denied = anonymous.status === 403 || anonymous.status === 401;
+        result.anonymousDenied = result.anonymousDenied && denied;
+        result.diagnostics.push({ cible, statut: anonymous.status, resultat: denied ? 'refus' : anonymous.ok ? 'accessible' : anonymous.status === 404 ? 'introuvable' : anonymous.status >= 300 && anonymous.status < 400 ? 'redirection' : 'http_inattendu' });
+      } catch {
+        result.anonymousDenied = false;
+        result.diagnostics.push({ cible, statut: null, resultat: 'reseau' });
+      }
     }
   } catch {
     result.anonymousDenied = false;
+    result.diagnostics.push({ cible: etape, statut: null, resultat: 'reseau' });
     result.error = 'Diagnostic interrompu. Vérifie la connexion et les droits du stockage.';
   } finally {
     try {
       const del = await s3SignedFetch(cfg, 'DELETE', path, {}, Buffer.alloc(0));
       result.deleted = del.status >= 200 && del.status < 300;
-    } catch { result.deleted = false; }
+      result.diagnostics.push({ cible: 'suppression', statut: del.status, resultat: result.deleted ? 'ok' : 'http_inattendu' });
+    } catch { result.deleted = false; result.diagnostics.push({ cible: 'suppression', statut: null, resultat: 'reseau' }); }
   }
   return result;
 }

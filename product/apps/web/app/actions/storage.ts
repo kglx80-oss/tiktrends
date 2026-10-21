@@ -38,14 +38,14 @@ export async function configureBucketAction(): Promise<{ ok?: true; steps?: Arra
 }
 
 /** Test bout en bout du stockage (upload -> lecture signée -> refus anonyme -> suppression). Admin+. */
-export async function testStorageAction(): Promise<{ put?: boolean; privateRead?: boolean; anonymousDenied?: boolean; deleted?: boolean; error?: string }> {
+export async function testStorageAction(): Promise<Partial<Awaited<ReturnType<typeof storagePrivateSelfTest>>>> {
   const s = await getSession();
   if (!s) return { error: GUARD.session() };
   if (!roleAtLeast(s.role, 'admin') || !isFounder(s.user.email)) return { error: GUARD.role({ needRole: 'admin' }) };
   const cfg = storageFromEnv();
   if (!cfg) return { error: 'Clés S3 absentes du serveur (.env.deploy).' };
   const r = await storagePrivateSelfTest(cfg);
-  return { put: r.put, privateRead: r.privateRead, anonymousDenied: r.anonymousDenied, deleted: r.deleted, error: r.error };
+  return { put: r.put, privateRead: r.privateRead, anonymousDenied: r.anonymousDenied, deleted: r.deleted, diagnostics: r.diagnostics, error: r.error };
 }
 
 /* -------------------------------------------------------------------------- */
