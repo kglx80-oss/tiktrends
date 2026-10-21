@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
+import { surface as cadreSurface } from './ui';
 import { preparerCreation } from '../app/actions/studios/sources';
 import { lireEntreeJarvisVeille } from '../lib/veille-jarvis';
 import { creerStudioDepuisJarvis } from '../app/actions/jarvis-veille-studio';
@@ -45,7 +46,7 @@ export function JarvisVersStudio({ params, brandId, proposition }: { params: Rec
     } catch { setIncertain(true); setErreur('Connexion interrompue. Réessaie avec ces mêmes choix : le Studio vérifiera si le projet a déjà été créé.'); }
     finally { verrou.current = false; setCharge(false); }
   }
-  return <section aria-label="Passer au Studio" style={{ display: 'grid', gap: 12, fontSize: 14, padding: 14, border: '1px solid var(--line-2)', borderRadius: 16, background: 'var(--surface)' }}>
+  return <section aria-label="Passer au Studio" style={{ ...cadreSurface, display: 'grid', gap: 12, fontSize: 14, padding: 14, background: 'var(--surface)' }}>
     {!ouvert ? <button type="button" onClick={() => void ouvrir()} style={bouton}>Préparer cette création dans le Studio</button> : <>
       <label style={{ display: 'grid', gap: 8 }}>Composition à conserver et adaptations<textarea aria-label="Composition à transmettre au Studio" value={brief} disabled={charge || incertain} onChange={e => setBrief(e.target.value)} rows={6} style={champ} /></label>
       <p>{brief.length} / 2 000 caractères · garde uniquement les consignes pour ta marque, sans nom ni promesse du concurrent.</p>

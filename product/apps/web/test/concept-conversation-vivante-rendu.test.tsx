@@ -44,7 +44,8 @@ function taper(ta: HTMLTextAreaElement, v: string) {
 
 describe('GUARD #3 · le composeur ne démarre qu’UN concept même sur un double-clic', () => {
   it('deux clics synchrones · demarrerConcept une fois, une seule navigation vers le concept', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, body: null })));
+    const fetchSpy = vi.fn(async () => new Response('Voici une piste de concept.'));
+    vi.stubGlobal('fetch', fetchSpy);
     act(() => { root!.render(<NouveauConcept etat={pret} />); });
     const ta = el!.querySelector('[data-composeur] textarea') as HTMLTextAreaElement;
     taper(ta, 'Un concept de rentrée pour Neva');
@@ -56,6 +57,7 @@ describe('GUARD #3 · le composeur ne démarre qu’UN concept même sur un doub
     await act(async () => { await Promise.resolve(); });
 
     expect(demarrerSpy, 'le double-clic a démarré deux concepts (verrou absent ?)').toHaveBeenCalledTimes(1);
+    expect(fetchSpy, 'le double-clic ne doit envoyer qu’un seul premier message').toHaveBeenCalledTimes(1);
     expect(replaceSpy).toHaveBeenCalledTimes(1);
     expect(replaceSpy).toHaveBeenCalledWith('/studio/projets/p-new');
   });
