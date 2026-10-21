@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT} from './useAppelPayant';
 import type { ChangementPatch } from '@tiktrends/core';
 import {
   listerPropositions, proposerBrief, creerPropositionManuelle, appliquerProposition, rejeterProposition,
@@ -37,6 +38,7 @@ export interface CyclePropositionsBrief {
 }
 
 export function usePropositionsBrief(projectId: string, versionInit: { id: string; n: number }): CyclePropositionsBrief {
+  const appelPayant=useAppelPayant(projectId,'propositions-brief');
   const [liste, setListe] = useState<EtatListe>(null);
   const [version, setVersion] = useState(versionInit);
   const [occupe, setOccupe] = useState<string | null>(null);
@@ -61,16 +63,19 @@ export function usePropositionsBrief(projectId: string, versionInit: { id: strin
   const baseId = () => (liste?.ok ? liste.versionCourante.id : version.id);
 
   async function geste(etat: string, appel: () => Promise<RetourGeste>) {
+    const tentative=etat==='demande'?appelPayant.commencer():null;if(etat==='demande'&&!tentative)return;
     const pour = projectId;
     setOccupe(etat);
     setRetour(null);
     try {
       const r = await appel();
+      if(tentative)appelPayant.terminer(tentative);
       if (actif.current !== pour) return;
       setRetour(r);
       await recharger();
     } catch {
-      if (actif.current === pour) setRetour({ type: 'err', message: 'Hors ligne · rien n’a été enregistré. Réessaie.' });
+      if(tentative)appelPayant.terminer(tentative,true);
+      if (actif.current === pour) setRetour({ type: 'err', message: tentative?MESSAGE_APPEL_PAYANT:'Hors ligne · résultat non confirmé. Recharge le projet avant de recommencer.' });
     } finally {
       if (actif.current === pour) setOccupe(null);
     }
@@ -84,7 +89,7 @@ export function usePropositionsBrief(projectId: string, versionInit: { id: strin
   });
 
   const ecrireManuel = (changement: ChangementPatch, explication: string) => geste('manuel', async () => {
-    const r = await creerPropositionManuelle({ projectId, baseVersionId: baseId(), cible: 'brief', changes: [changement], explication, allowedPaths: ALLOWED_PATHS_BRIEF });
+    const r = await creerPropositionManuelle({ projectId, baseVersionId: versionInit.id, cible: 'brief', changes: [changement], explication, allowedPaths: ALLOWED_PATHS_BRIEF });
     return r.ok
       ? { type: 'ok', message: 'Proposition enregistrée · relis l’avant/après, puis adopte-la pour l’écrire dans le brief.' }
       : { type: 'err', message: r.message };
@@ -103,5 +108,6 @@ export function usePropositionsBrief(projectId: string, versionInit: { id: strin
     return r.ok ? { type: 'ok', message: 'Proposition rejetée · rien n’a été modifié.' } : { type: 'err', message: r.message };
   });
 
-  return { liste, version, occupe, retour, recharger, demanderJarvis, ecrireManuel, adopter, rejeter };
+  const listeAffichee=liste?.ok&&appelPayant.bloque?{...liste,jarvis:{...liste.jarvis,disponible:false,raison:MESSAGE_APPEL_PAYANT}}:liste;
+  return { liste:listeAffichee, version, occupe, retour, recharger, demanderJarvis, ecrireManuel, adopter, rejeter };
 }

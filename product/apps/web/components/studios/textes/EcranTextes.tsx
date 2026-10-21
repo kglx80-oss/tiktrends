@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT} from '../projet/useAppelPayant';
 import { useEffect, useId, useState } from 'react';
 import {
   libelleCoutTexteEstime, NOTE_BORNE_TEXTE, raisonAjoutTexte, TYPES_TEXTE, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, VARIANTES_MAX, VARIANTES_DEFAUT,
@@ -62,6 +63,7 @@ async function copier(t: string): Promise<boolean> {
 
 export function EcranTextes({ vue }: { vue: VueTextes }) {
   const id = useId();
+  const appel=useAppelPayant(vue.projet.id,'textes');
   const [version, setVersion] = useState(vue.version);
   const [retenus, setRetenus] = useState<TexteStudio[]>(vue.textes);
   const [proposees, setProposees] = useState<VarianteTexte[]>([]);
@@ -109,17 +111,20 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
   }
 
   async function ecrire() {
+    const tentative=appel.commencer();if(!tentative)return;
     setEnCours('ecrire');
     setRetour(null);
     setQuestions([]);
     try {
       const r = await ecrireTextes({ projectId: vue.projet.id, baseVersionId: version.id, type, nombre, maxCaracteres: maxType, langue: 'fr' });
+      appel.terminer(tentative);
       if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r), conflit: r.code === 'VERSION_CONFLICT' }); return; }
       if (r.statut === 'questions') { setQuestions(r.questions); return; }
       setProposees(r.variantes);
       setEcartees(r.ecartees);
     } catch {
-      setRetour({ ok: false, texte: 'Le serveur n’a pas répondu · rien n’a été facturé deux fois, réessaie plus tard.' });
+      appel.terminer(tentative,true);
+      setRetour({ ok: false, texte: MESSAGE_APPEL_PAYANT });
     } finally { setEnCours(null); }
   }
 
@@ -158,7 +163,7 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
     ...retenus.map((t) => ({ cle: `r-${t.id}`, libelle: `Retenu · ${libelleType(t.type)} · ${t.texte.slice(0, 40)}`, texte: t.texte })),
     ...proposees.map((t, i) => ({ cle: `p-${t.id}`, libelle: `Proposé ${i + 1} · ${libelleType(t.type)} · ${t.texte.slice(0, 40)}`, texte: t.texte })),
   ];
-  const ecritureBloquee = !d.disponible || !vue.peutEcrire || enCours !== null || !vue.brief;
+  const ecritureBloquee = appel.bloque || !d.disponible || !vue.peutEcrire || enCours !== null || !vue.brief;
   const raisonAjout = raisonAjoutTexte({ peutEcrire: vue.peutEcrire, briefPresent: !!vue.brief, enCours: enCours !== null, texte: manuel.texte });
   const ajoutBloque = raisonAjout !== null;
 
@@ -188,7 +193,7 @@ export function EcranTextes({ vue }: { vue: VueTextes }) {
       </section>
 
       <section aria-labelledby={`${id}-ia`} style={panneau} data-zone="ecrire-ia">
-        <h2 id={`${id}-ia`} style={titre}>Écrire avec l’IA</h2>
+        <h2 id={`${id}-ia`} style={titre}>Écrire avec l’IA</h2>{appel.bloque&&<p role="status">{MESSAGE_APPEL_PAYANT} <Link href={`/studio/projets/${vue.projet.id}`}>Voir le suivi</Link></p>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
           <div>
             <label htmlFor={`${id}-type`} style={etiquette}>Type</label>

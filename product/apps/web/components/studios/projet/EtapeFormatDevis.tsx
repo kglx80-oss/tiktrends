@@ -12,6 +12,7 @@ import { lireParcoursImage, demanderDevisImage, compilerConsigneImage, retenirCo
 import { creerPropositionManuelle, appliquerProposition } from '../../../app/actions/studios/propositions';
 import type { VueParcoursImage, DevisImageVue } from '../../../lib/studios/image/parcours';
 import styles from './FormatDevis.module.css';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT} from './useAppelPayant';
 import Link from 'next/link';
 import { Icon } from '../../Icon';
 import { btn, btnGhost, tuile } from '../../ui';
@@ -61,7 +62,8 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   // récente rend la précédente obsolète (sa réponse ne doit rien afficher).
   const seqRef = useRef(0);
   const [mode, setMode] = useState<ModeImage>('faithful_composite');
-  const [incertain, setIncertain] = useState(false);
+  const appel=useAppelPayant(projectId,'compilation-image');
+  const incertain=appel.bloque;
   const [questions, setQuestions] = useState<string[]>([]);
 
   const charger = useCallback(async () => {
@@ -104,15 +106,17 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
 
   async function preparerConsigne() {
     if (incertain || occupe || !vue?.disponibilite.compilation.disponible || !vue.modes.find(m => m.mode === mode)?.pret) return;
+    const tentative=appel.commencer();if(!tentative)return;
     setOccupe(true); setRetour(null); setQuestions([]);
     try {
-      if (!(await ecrireFormatSiBesoin())) return;
+      if (!(await ecrireFormatSiBesoin())) {appel.terminer(tentative);return;}
       const r = await compilerConsigneImage({ projectId, mode });
+      appel.terminer(tentative);
       if (!r.ok) { setRetour({ ok: false, texte: messageErreur(r) }); return; }
       if (r.statut === 'questions') setQuestions(r.questions);
       await charger();
     } catch {
-      setIncertain(true);
+      appel.terminer(tentative,true);
       setRetour({ ok: false, texte: 'La réponse de préparation est incertaine. Recharge le projet pour vérifier son état et son coût avant toute relance.' });
     } finally { setOccupe(false); }
   }
@@ -174,6 +178,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
 
   return (
     <div data-zone="assistant-format" className={styles.root} style={{ display: 'grid', gap: 16 }}>
+      {appel.bloque&&<p role="status">{MESSAGE_APPEL_PAYANT} <Link href={`/studio/projets/${projectId}`}>Voir le suivi</Link></p>}
       <div>
         <p style={{ ...note, fontSize: 12 }}>Étape 4 sur 5 · Format &amp; devis</p>
         <h2 style={titreEtape}>Formats &amp; devis</h2>

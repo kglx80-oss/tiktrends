@@ -95,7 +95,7 @@ const cocher = async (el: Element | null) => {
   await act(async () => { c.dispatchEvent(new Event('click', { bubbles: true })); c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); });
 };
 
-beforeEach(() => { h.lectures=0; h.compiler=[]; h.retenir=[]; h.jeteCompiler=false; h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
+beforeEach(() => { window.sessionStorage.clear(); h.lectures=0; h.compiler=[]; h.retenir=[]; h.jeteCompiler=false; h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
 afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
 
 describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation transactionnelle', () => {

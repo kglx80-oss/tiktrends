@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT} from '../projet/useAppelPayant';
 import { appliquerOperationVideo as appliquerNoyau, impactVideo, messageHorsLigneStudio, ECHEC_RESEAU_STUDIO, type ErreurStudio, type OperationVideo } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
 import {
@@ -62,6 +63,8 @@ export function apercuDuGeste(vue: DonneesVideo, operation: OperationVideo): Ape
 
 export function EcranVideo({ vue, onRecharger }: { vue: DonneesVideo; onRecharger?: () => Promise<void> | void }) {
   const router = useRouter();
+  const appelStoryboard=useAppelPayant(vue.projet.id,'storyboard');
+  const appelConsigne=useAppelPayant(vue.projet.id,'compilation-video');
   const recharger = useCallback(() => { if (onRecharger) void onRecharger(); else router.refresh(); }, [onRecharger, router]);
   const [apercu, setApercu] = useState<ApercuGeste | null>(null);
   const [storyboard, setStoryboard] = useState<StoryboardPropose | null>(null);
@@ -77,15 +80,19 @@ export function EcranVideo({ vue, onRecharger }: { vue: DonneesVideo; onRecharge
   }, [vue, recharger]);
 
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: (r: { ok: true }) => string, apres?: () => void) {
+    const payant=nom==='storyboard'?appelStoryboard:nom.startsWith('compiler:')?appelConsigne:null;
+    const tentative=payant?.commencer();if(payant&&!tentative)return;
     setEnCours(nom);
     setRetour(null);
     const reessayable = gesteVideoReessayable(nom);
     dernierGeste.current = reessayable ? () => { void agir(nom, f, succes, apres); } : null;
     try {
       const r = await f();
+      if(payant&&tentative)payant.terminer(tentative);
       if (r.ok) { setRetour({ ok: true, texte: succes(r) }); apres?.(); recharger(); } else setRetour({ ok: false, code: r.code, reessayable, texte: `${messageErreur(r)}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}` });
     } catch {
-      setRetour({ ok: false, code: ECHEC_RESEAU_STUDIO, reessayable, texte: messageHorsLigneStudio('enregistrement') });
+      if(payant&&tentative)payant.terminer(tentative,true);
+      setRetour({ ok: false, code: ECHEC_RESEAU_STUDIO, reessayable, texte: payant?MESSAGE_APPEL_PAYANT:messageHorsLigneStudio('enregistrement') });
     } finally {
       setEnCours(null);
     }
@@ -93,8 +100,8 @@ export function EcranVideo({ vue, onRecharger }: { vue: DonneesVideo; onRecharge
 
   const projectId = vue.projet.id;
   return (
-    <VueVideo
-      vue={vue} apercu={apercu} storyboard={storyboard} questions={questions} enCours={enCours} retour={retour}
+    <>{(appelStoryboard.bloque||appelConsigne.bloque)&&<p role="status">{MESSAGE_APPEL_PAYANT} <a href={`/studio/projets/${vue.projet.id}`}>Voir le suivi</a></p>}<VueVideo
+      vue={{...vue,disponibilite:{...vue.disponibilite,storyboard:appelStoryboard.bloque?{disponible:false,raison:MESSAGE_APPEL_PAYANT}:vue.disponibilite.storyboard,consigne:appelConsigne.bloque?{disponible:false,raison:MESSAGE_APPEL_PAYANT}:vue.disponibilite.consigne}}} apercu={apercu} storyboard={storyboard} questions={questions} enCours={enCours} retour={retour}
       surRecharger={() => { setRetour(null); setApercu(null); recharger(); }}
       surReessayer={() => dernierGeste.current?.()}
       surPrevoir={(op) => { setRetour(null); setApercu(apercuDuGeste(vue, op)); }}
@@ -142,6 +149,6 @@ export function EcranVideo({ vue, onRecharger }: { vue: DonneesVideo; onRecharge
         if (!d) return;
         void agir(`lancer-clip:${shotId}`, () => approuverEtLancerClip({ quoteId: d.id, inputHash: d.inputHash, creditsAnnonces: d.credits, idempotencyKey: cleDuClicVideo(d.id) }), () => 'Animation lancée · le clip est en file, tu peux fermer la page.');
       }}
-    />
+    /></>
   );
 }
