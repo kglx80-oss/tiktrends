@@ -96,17 +96,13 @@ describe('Studios · liste des projets · rendu V5', () => {
     expect(html).toContain('data-recherche-projet');
   });
 
-  it('chip actif = pilule surélevée (surface + ombre), inactifs sans cadre (proto)', () => {
-    const html = renderToStaticMarkup(<ListeProjets cartes={cartes} nouveau={nouveau} />);
-    // Le filtre actif « tous » flotte comme dans le proto · fond surface + ombre,
-    // jamais la teinte d'accent pleine d'avant.
-    const actif = html.slice(html.indexOf('data-filtre="tous"'), html.indexOf('data-filtre="brief_a_completer"'));
-    expect(actif).toMatch(/background:var\(--surface\)/);
-    expect(actif).toMatch(/box-shadow:var\(--sh-sm\)/);
-    // Un filtre inactif n'a ni fond ni ombre.
-    const inactif = html.slice(html.indexOf('data-filtre="production"'));
-    expect(inactif).toMatch(/background:transparent/);
-    expect(inactif).toMatch(/box-shadow:none/);
+  it('filtres : sélection explicite et noms accessibles avec compteurs réels', () => {
+    const root = document.createElement('div');
+    root.innerHTML = renderToStaticMarkup(<ListeProjets cartes={cartes} nouveau={nouveau} />);
+    expect(root.querySelector('[data-filtre="tous"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelector('[data-filtre="production"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(root.querySelector('[data-filtre="tous"] [data-compte]')?.textContent).toBe('3');
+    expect(root.querySelector('[data-recherche-projet]')?.getAttribute('aria-label')).toBe('Rechercher un projet');
   });
 
   it('cartes : bandeau type, pastille de version réelle, barre d’étapes', () => {
