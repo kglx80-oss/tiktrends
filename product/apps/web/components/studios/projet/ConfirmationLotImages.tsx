@@ -16,7 +16,7 @@ export function ConfirmationLotImages({ lot, onModifier, onLance, apercuProduitU
   const [erreur, setErreur] = useState('');
   const [occupe, setOccupe] = useState(false);
   const verrou = useRef(false);
-  const appel = useAppelPayant(lot.projectId, `lot-images:${lot.id}`);
+  const appel = useAppelPayant(lot.projectId, 'generation-image');
   async function lancer() {
     if (!confirme || verrou.current || appel.bloque) return;
     const tentative = appel.commencer();

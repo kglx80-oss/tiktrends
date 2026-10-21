@@ -227,6 +227,8 @@ it('choisit explicitement la photo et ne recrée pas le projet après un refus d
   expect(h.creer).toHaveLength(1);
   expect(epinglerSpy).toHaveBeenLastCalledWith({ projectId: 'proj-1', baseVersionId: 'v1', productId: 'prod1', photoId: 'photo1' });
   expect(hote.querySelector('[data-zone="assistant-strategie"]')).not.toBeNull();
+  await clic(hote.querySelector('[data-bouton="retour-brief"]'));
+  expect((hote.querySelector('[data-champ="produit"] option[value=""]') as HTMLOptionElement).disabled).toBe(true);
   await fermer();
 });
 
@@ -343,5 +345,20 @@ it.each(['normal', 'perimee', 'lecture', 'occupe'] as const)('cartes stratégie 
   if (mode === 'normal') expect(adopter).toHaveBeenCalledWith(proposition, onApplied);
   else expect(adopter).not.toHaveBeenCalled();
   expect(hote.textContent).toContain('Appel payant · 0,13 $ maximum');
+  await fermer();
+});
+
+it.each([false,true])('quitter le brief par le rail sauvegarde avant navigation ; conflit=%s',async(refus)=>{
+  const {hote,fermer}=await monter(<AssistantProjet etat={etatPret} initial={{type:'ads',titre:'Neva',intention:'Présenter les lunettes'}} personas={[]}/>);
+  await allerStrategie(hote);
+  await clic(hote.querySelector('[data-bouton="retour-brief"]'));
+  await saisir(hote.querySelector('[data-champ="intention"]'),'Nouvelle intention conservée');
+  h.refuserApplication=refus;
+  await clic(hote.querySelector('[data-rail-etape="direction"] button'));
+  expect(h.manuel).toHaveLength(1);
+  expect(JSON.stringify(h.manuel[0])).toContain('Nouvelle intention conservée');
+  expect(hote.querySelector('[data-zone="assistant-projet"]')?.getAttribute('data-etape')).toBe(refus?'brief':'direction');
+  if(refus)expect(hote.querySelector('[role="alert"]')?.textContent).toContain('Version modifiée');
+  expect(h.creer).toHaveLength(1);
   await fermer();
 });

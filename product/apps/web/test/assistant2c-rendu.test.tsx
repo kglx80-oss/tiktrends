@@ -101,7 +101,7 @@ afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
 
 describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation transactionnelle', () => {
   it('le montant, les lignes et l’échéance du devis s’affichent AVANT le bouton de confirmation', async () => {
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => {}} onLance={() => {}} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => {}} onLance={() => {}} />);
     const bloc = hote.querySelector('[data-devis="q1"]');
     const bouton = hote.querySelector('[data-bouton="confirmer-generer"]');
     expect(bloc, 'devis non rendu').not.toBeNull();
@@ -119,7 +119,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
 
   it('« Confirmer » est verrouillé tant que le devis n’est pas vérifié, puis appelle approuverEtLancerImage', async () => {
     const lances: unknown[] = [];
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => {}} onLance={(j) => lances.push(j)} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => {}} onLance={(j) => lances.push(j)} />);
     const bouton = () => hote.querySelector('[data-bouton="confirmer-generer"]') as HTMLButtonElement;
     expect(bouton().disabled, 'le bouton doit être verrouillé avant vérification').toBe(true);
     await clic(bouton()); // clic verrouillé · rien ne part
@@ -139,7 +139,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
   it('un dépassement de plafond (BUDGET_EXCEEDED) est MONTRÉ et rien n’est lancé', async () => {
     h.reponseApprouver = { ok: false, code: 'BUDGET_EXCEEDED', message: 'Le plafond de dépense ne permet pas ce lancement · 2,40 $ > 2,00 $.', targetIds: ['q1'], recoverable: true, traceId: 't' };
     const lances: unknown[] = [];
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => {}} onLance={(j) => lances.push(j)} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => {}} onLance={(j) => lances.push(j)} />);
     await cocher(hote.querySelector('[data-champ="verifie"] input'));
     await clic(hote.querySelector('[data-bouton="confirmer-generer"]'));
     await flush();
@@ -152,7 +152,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
 
   it('« Modifier » revient au format (invalide le devis)', async () => {
     const modifs: number[] = [];
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => modifs.push(1)} onLance={() => {}} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => modifs.push(1)} onLance={() => {}} />);
     await clic(hote.querySelector('[data-bouton="modifier"]'));
     expect(modifs, '« Modifier » n’a pas rappelé onModifier').toHaveLength(1);
     await fermer();
@@ -162,7 +162,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
     h.jeteApprouver = true; // la demande est enregistrée AVANT la perte réseau
     const lances: unknown[] = [];
     const modifs: number[] = [];
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => modifs.push(1)} onLance={(j) => lances.push(j)} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => modifs.push(1)} onLance={(j) => lances.push(j)} />);
     const confirmer = () => hote.querySelector('[data-bouton="confirmer-generer"]') as HTMLButtonElement;
     const modifier = () => hote.querySelector('[data-bouton="modifier"]') as HTMLButtonElement;
 
@@ -370,3 +370,16 @@ describe('création réelle dans l’assistant',()=>{
  *  · retirer `disabled={occupe}` des contrôles format/relecture/Retour → « verrouillés pendant la demande » tombe.
  *  · catch du devis remis à « rien n'a été deviser » → « réponse de devis PERDUE » tombe.
  */
+
+it('une réponse perdue verrouille aussi un NOUVEAU devis du même projet après remontage',async()=>{
+  h.jeteApprouver=true;
+  const premier=await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={()=>{}} onLance={()=>{}}/>);
+  await cocher(premier.hote.querySelector('[data-champ="verifie"] input'));
+  await clic(premier.hote.querySelector('[data-bouton="confirmer-generer"]'));
+  await premier.fermer();
+  const second=await monter(<EtapeConfirmation projectId="proj-1" devis={{...devis,id:'autre-devis'}} onModifier={()=>{}} onLance={()=>{}}/>);
+  expect((second.hote.querySelector('[data-bouton="confirmer-generer"]') as HTMLButtonElement).disabled).toBe(true);
+  expect(second.hote.textContent).toContain('incertain');
+  expect(h.approuver).toHaveLength(1);
+  await second.fermer();
+});

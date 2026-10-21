@@ -124,7 +124,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   }
   async function rafraichir() { await relireProjet(); }
 
-  async function creer(destination: 'strategie' | 'photo' | 'quitter' = 'strategie') {
+  async function creer(destination: EtapeAssistant | 'photo' | 'quitter' = 'strategie') {
     if (incertain || encours) return;
     const v = verifierCreationAssistant({ type, titre, saisie });
     if (!v.ok) { setErreur({ message: v.message }); return; }
@@ -189,7 +189,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
       setEncours(false);
       if (destination === 'photo') { setEtape('brief'); setPhotoOuverte(true); }
       else if (destination === 'quitter') p.onFermer?.();
-      else setEtape('strategie');
+      else setEtape(destination);
     } catch {
       setEncours(false);
       setIncertain(true);
@@ -200,9 +200,11 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   // Navigation du rail · avant création, start/brief seulement ; après, les
   // étapes qui opèrent sur le projet (le brief est verrouillé une fois écrit).
   const peutAller = (id: EtapeAssistant): boolean =>
-    projet ? ((id !== 'creation' || !!jobId) && (id === 'brief' || (etapeRequiertProjet(id) && etapeDisponible(id)))) : (etatRailProjet(id, etape, brief) === 'done');
+    !encours && !incertain && (projet ? ((id !== 'creation' || !!jobId) && (id === 'brief' || (etapeRequiertProjet(id) && etapeDisponible(id)))) : (etatRailProjet(id, etape, brief) === 'done'));
 
   async function aller(id: EtapeAssistant) {
+    if (encours || incertain || id === etape) return;
+    if (etape === 'brief' && projet) { await creer(id); return; }
     const actuel = projet ? await relireProjet() : brief;
     if (projet && !actuel) return;
     if (id === 'brief' && actuel) setSaisie(saisieDepuisBrief(actuel));
@@ -231,7 +233,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           <Depart marque={marque.nom} type={type} onType={setType} onContinuer={() => setEtape('brief')} depart={depart} onZero={() => { setDepart(null); setReferences([]); }} onSource={setPanneau} />
         )}
         {etape === 'brief' && (
-          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} titreVerrouille={!!projet} verrouille={incertain} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={catalogue} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} references={references} onReferences={() => setPanneau('veille')} onImporter={() => void creer('photo')} occupe={encours || incertain} />} />
+          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} titreVerrouille={!!projet} verrouille={incertain} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={catalogue} produitEpingle={!!photoEpinglee} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} references={references} onReferences={() => setPanneau('veille')} onImporter={() => void creer('photo')} occupe={encours || incertain} />} />
         )}
         {etape === 'strategie' && projet && brief && (
           <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
@@ -253,6 +255,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         {etape === 'confirm' && lot && <ConfirmationLotImages lot={lot} apercuProduitUrl={apercuProduitUrl} onModifier={() => {setLot(null);setEtape('format');}} onLance={(ids) => {setJobIds(ids);setJobId(ids[0] ?? null);setLot(null);setEtape('creation');}} />}
         {etape === 'confirm' && projet && devis && type !== 'video' && type !== 'text' && (
           <EtapeConfirmation
+            projectId={projet.id}
             {...{ apercuProduitUrl }}
             devis={devis}
             onModifier={() => { setDevis(null); setEtape('format'); }}
@@ -262,7 +265,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
 
         {etape === 'creation' && projet && jobId && <EtatCreationAssistant projectId={projet.id} jobId={jobId} jobIds={jobIds} onFermer={p.onFermer ?? ouvrirProjet} />}
 
-        {erreur && etape !== 'format' && etape !== 'confirm' && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
+        {erreur && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
 
         </div>
         {etape !== 'format' && etape !== 'confirm' && etape !== 'creation' && (
@@ -483,8 +486,8 @@ function Brief({ titre, onTitre, saisie, maj, personas, accessoires, verrouille,
   );
 }
 
-function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto, references, onReferences, onImporter, occupe }: {
-  onImporter: () => void; occupe: boolean;
+function ProduitBrief({ produits, produitEpingle, productId, photoId, onProduit, onPhoto, references, onReferences, onImporter, occupe }: {
+  onImporter: () => void; occupe: boolean; produitEpingle: boolean;
   references: DepartAssistant[]; onReferences: () => void;
   produits: NonNullable<ProprietesAssistantProjet['produits']>; productId: string; photoId: string;
   onProduit: (id: string) => void; onPhoto: (id: string) => void;
@@ -495,8 +498,8 @@ function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto, refere
     <div className={css.wzproduct}>
       {photo?.apercu ? <img src={photo.apercu} alt={produit!.nom} /> : <div className={css.emptyPreview}>{produit ? 'Choisissez une photo produit' : 'Aucun produit sélectionné'}</div>}
       <div className={css.wzproductinfo}>
-        <label className={css.field}><span>Produit</span><select data-champ="produit" value={productId} onChange={(e) => onProduit(e.target.value)}><option value="">Choisir un produit</option>{produits.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}</select></label>
-        {produit && <label className={css.field}><span>Photo produit</span><select data-champ="photo-produit" value={photoId} onChange={(e) => onPhoto(e.target.value)}><option value="">Choisir une photo</option>{produit.photos.map((p) => <option key={p.assetId} value={p.assetId}>Photo {p.position}</option>)}</select></label>}
+        <label className={css.field}><span>Produit</span><select disabled={occupe} data-champ="produit" value={productId} onChange={(e) => onProduit(e.target.value)}><option value="" disabled={produitEpingle}>Choisir un produit</option>{produits.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}</select></label>
+        {produit && <label className={css.field}><span>Photo produit</span><select disabled={occupe} data-champ="photo-produit" value={photoId} onChange={(e) => onPhoto(e.target.value)}><option value="">Choisir une photo</option>{produit.photos.map((p) => <option key={p.assetId} value={p.assetId}>Photo {p.position}</option>)}</select></label>}
         <small>{produit ? `${produit.photos.length} photo(s) disponible(s) · sélection explicite` : 'Produits de la marque active'}</small>
       </div>
     </div>

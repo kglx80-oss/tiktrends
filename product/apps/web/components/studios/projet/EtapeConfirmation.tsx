@@ -10,6 +10,7 @@ import { approuverEtLancerImage } from '../../../app/actions/studios/image';
 import type { DevisImageVue } from '../../../lib/studios/image/parcours';
 import type { JobPresente } from '../../../lib/studios/execution/commandes';
 import styles from './FormatDevis.module.css';
+import { useAppelPayant, resultatPayantIncertain, MESSAGE_APPEL_PAYANT } from './useAppelPayant';
 import { Icon } from '../../Icon';
 import { btn, btnGhost } from '../../ui';
 
@@ -53,7 +54,8 @@ function cleDuClic(quoteId: string): string {
   }
 }
 
-export function EtapeConfirmation({ devis, onModifier, onLance, apercuProduitUrl }: {
+export function EtapeConfirmation({ projectId, devis, onModifier, onLance, apercuProduitUrl }: {
+  projectId: string;
   apercuProduitUrl?: string;
   devis: DevisImageVue;
   onModifier: () => void;
@@ -64,20 +66,24 @@ export function EtapeConfirmation({ devis, onModifier, onLance, apercuProduitUrl
   const [erreur, setErreur] = useState<string | null>(null);
   // Réponse PERDUE sur cette mutation PAYANTE · le lancement a PU être accepté et
   // débité · on ne rouvre rien tant que ce n'est pas levé par un rechargement.
-  const [incertain, setIncertain] = useState(false);
+  const appel = useAppelPayant(projectId, 'generation-image');
+  const incertain = appel.bloque;
 
   async function confirmer() {
     // Garde · état incertain ⇒ aucun nouvel appel, aucune navigation (double débit).
     if (!verifie || occupe || !peutConfirmerLancement(incertain)) return;
+    const tentative = appel.commencer();
+    if (!tentative) return;
     setOccupe(true);
     setErreur(null);
     try {
       const r = await approuverEtLancerImage({ quoteId: devis.id, inputHash: devis.inputHash, creditsAnnonces: devis.credits, idempotencyKey: cleDuClic(devis.id) });
+      appel.terminer(tentative, resultatPayantIncertain(r));
       if (!r.ok) { setErreur(messageErreur(r)); return; }
       onLance(r.job);
     } catch {
       // La réponse réseau est perdue · on ne PROMET PAS une absence de débit.
-      setIncertain(true);
+      appel.terminer(tentative, true);
       setErreur(MESSAGE_LANCEMENT_INCERTAIN);
     } finally {
       setOccupe(false);
@@ -115,6 +121,7 @@ export function EtapeConfirmation({ devis, onModifier, onLance, apercuProduitUrl
         <span>J’ai vérifié le devis et je confirme la dépense.</span>
       </label>
 
+      {incertain && <p role="status">{MESSAGE_APPEL_PAYANT} <a href={`/studio/projets/${projectId}`}>Voir les tâches</a></p>}
       {erreur && <p role="alert" data-etat="erreur" style={{ margin: 0, fontSize: 13.5, color: 'var(--err-text)' }}>{erreur}</p>}
 
       <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
