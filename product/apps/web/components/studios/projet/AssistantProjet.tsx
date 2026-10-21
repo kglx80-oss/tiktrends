@@ -64,6 +64,10 @@ export interface ProprietesAssistantProjet {
 export function AssistantProjet(p: ProprietesAssistantProjet) {
   const router = useRouter();
   const [etape, setEtape] = useState<EtapeAssistant>('start');
+  const contenuEtape = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (contenuEtape.current) contenuEtape.current.scrollTop = 0;
+  }, [etape]);
   const onTitreChange = p.onTitreChange;
   const [type, setType] = useState<TypeNouveauProjet>(p.initial.type);
   const titreEtape = etape === 'format' && type === 'video' ? 'Storyboard & devis' : etape === 'format' && type === 'text' ? 'Textes & devis' : { start: 'Que voulez-vous créer ?', brief: 'Le brief', strategie: 'La stratégie', direction: 'La direction', format: 'Formats & devis', confirm: 'Confirmer la génération', creation: 'Vos créations' }[etape];
@@ -224,7 +228,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           <p>{{ start: 'Un projet réunit le brief, les références, la direction, les créations et les exports.', brief: 'Décrivez l’objectif. Jarvis s’appuie sur ces éléments à chaque étape.', strategie: 'Jarvis relie votre audience à un désir, puis propose des angles. Rien n’est appliqué sans votre choix.', direction: 'Une proposition à partir de l’angle choisi. Modifiez ce que vous voulez avant de valider.', format: 'Choisissez le format. Le devis serveur correspond à vos paramètres.', confirm: 'Vérifiez les paramètres et le coût avant tout débit.', creation: 'Vos créations' }[etape]}</p>
         </div>
         }
-        <div className={css.wzcontent}>
+        <div ref={contenuEtape} className={css.wzcontent}>
         {etape === 'start' && p.contexteInitial && <>
           {p.contexteInitial.notes.length > 0 && <div role="status">{p.contexteInitial.notes.map((message, i) => <p className={css.note} key={i}>{message}</p>)}</div>}
           {p.contexteInitial.retourVeille && <a href={p.contexteInitial.retourVeille.href} style={lien}>Retour à la Veille</a>}
