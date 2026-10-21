@@ -243,11 +243,33 @@ describe('Lot images · mêmes paramètres, transaction atomique', () => {
     if (!relu.ok) throw new Error(JSON.stringify(relu));
     expect(relu.vue.jobs).toHaveLength(12);
     expect(new Set(relu.vue.jobs.map(j => j.id))).toEqual(new Set(lance.jobs.map(j => j.id)));
-    const autreEspace = await lireParcoursImagePour(ctxDe(ids, 'ub'), initial.projectId, lecture);
-    const autreMarque = await lireParcoursImagePour({ ...ctx(), marques: [ids.brandA2], restrictionsMarque: [ids.brandA2] }, initial.projectId, lecture);
+    expect(await quantites()).toEqual(comptes);
+    // Une autre session lance une nouvelle image : l'ancien lot sort de la
+    // fenêtre « récents », mais reste entièrement relisible par ses IDs.
+    const plusRecent = await preparerLotImagesPour(ctx(), { projectId: initial.projectId, nombre: 1, controleVision: false }, base, new Date(T.getTime() + 1000));
+    if (!plusRecent.ok) throw new Error(JSON.stringify(plusRecent));
+    const nouveau = await approuverLotImagesPour(ctx(), confirmation(plusRecent.lot), { ...options(), maintenant: new Date(T.getTime() + 1000) });
+    if (!nouveau.ok) throw new Error(JSON.stringify(nouveau));
+    const jobIds = lance.jobs.map(j => j.id);
+    const cible = await lireParcoursImagePour(ctx(), initial.projectId, { ...lecture, jobIds });
+    expect(cible.ok && new Set(cible.vue.jobs.map(j => j.id))).toEqual(new Set(jobIds));
+    const recent = await lireParcoursImagePour(ctx(), initial.projectId, lecture);
+    expect(recent.ok && recent.vue.jobs.some(j => j.id === nouveau.jobs[0]!.id)).toBe(true);
+    const autreLot = await preparer(1);
+    const autre = await approuverLotImagesPour(ctx(), confirmation(autreLot), options());
+    if (!autre.ok) throw new Error(JSON.stringify(autre));
+    const croises = await lireParcoursImagePour(ctx(), initial.projectId, { ...lecture, jobIds: [jobIds[0]!, autre.jobs[0]!.id] });
+    expect(croises.ok && croises.vue.jobs.map(j => j.id)).toEqual([jobIds[0]!]);
+    for (const invalides of [[], [...jobIds, nouveau.jobs[0]!.id], ['pas-un-uuid'], [jobIds[0], jobIds[0]]]) {
+      const invalide = await lireParcoursImagePour(ctx(), initial.projectId, { ...lecture, jobIds: invalides });
+      expect(!invalide.ok && invalide.code).toBe('INVALID_SCHEMA');
+    }
+    const avantRefus = await quantites();
+    const autreEspace = await lireParcoursImagePour(ctxDe(ids, 'ub'), initial.projectId, { ...lecture, jobIds });
+    const autreMarque = await lireParcoursImagePour({ ...ctx(), marques: [ids.brandA2], restrictionsMarque: [ids.brandA2] }, initial.projectId, { ...lecture, jobIds });
     expect(autreEspace.ok).toBe(false);
     expect(autreMarque.ok).toBe(false);
-    expect(await quantites()).toEqual(comptes);
+    expect(await quantites()).toEqual(avantRefus);
   });
 
   it('worker multi-format : référence retirée après approbation bloque chaque format sans appel ni dépense', async () => {

@@ -36,7 +36,7 @@ export function EtatCreationAssistant({ projectId, jobId, jobIds, onFermer }: { 
     const ids = idsCle.split('|').filter(Boolean);
     async function lire() {
       try {
-        const r = await lireParcoursImage({ projectId });
+        const r = await lireParcoursImage({ projectId, jobIds: ids });
         if (!actif) return;
         if (!r.ok) { setErreur(r.message); return; }
         const courants = ids.flatMap(id => r.vue.jobs.filter(j => j.id === id));
