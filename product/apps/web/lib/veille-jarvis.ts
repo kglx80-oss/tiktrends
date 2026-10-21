@@ -17,7 +17,8 @@ export function instantaneJarvisVeille(ad: Partial<InspoAd>) {
     id: texte(ad.id, 300), platform: texte(ad.platform, 20),
     advertiserName: texte(ad.advertiserName, 160), body: texte(ad.body, 1800),
     callToAction: texte(ad.callToAction, 120), mediaType: texte(ad.mediaType, 20),
-    // Aucun lien de média ne part au modèle : le chat actuel ne lit que du texte.
+    thumbnailUrl: texte(ad.thumbnailUrl, 1800),
+    mediaUrl: ad.mediaType === 'image' ? texte(ad.mediaUrl, 1800) : '',
   };
 }
 
@@ -46,6 +47,7 @@ export function lireEntreeJarvisVeille(p: Record<string, string | string[] | und
 }
 
 export function brouillonJarvisVeille(action: ActionJarvisVeille, source: SourceReferenceStudio, marque: string): string {
+  if (action === 'cloner') return `Crée une version visuellement similaire de cette publicité pour ${texte(marque, 160)}. Conserve sa composition et son format, adapte le produit, les textes et l’identité à ma marque.`;
   const demandes: Record<ActionJarvisVeille, string> = {
     cloner: 'Aide-moi à adapter cette créative à ma marque. Garde uniquement les mécanismes observables et remplace la marque, le produit et les allégations. Pose les questions utiles sur le produit, le style visuel et le scénario, puis propose les prochaines étapes. Ne prétends pas avoir analysé la vidéo ou les images. Aucune génération sans devis et confirmation.',
     scripts: 'Propose trois scripts originaux pour ma marque, inspirés du mécanisme de ce texte. Demande les faits produit manquants avant de les affirmer. Ne recopie pas les promesses ni la marque du concurrent.',

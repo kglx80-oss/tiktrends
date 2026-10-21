@@ -49,7 +49,7 @@ const reponse: CSSProperties = {
   color: 'var(--ink)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
 };
 
-export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brouillonInitial = '', compact = false }: {
+export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brouillonInitial = '', compact = false, veille }: {
   fiche: FicheMarqueLue | null;
   brandId: string;
   brandName: string;
@@ -58,6 +58,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
   /** Demande préparée, toujours soumise par un clic explicite. */
   brouillonInitial?: string;
   compact?: boolean;
+  veille?: Record<string, string>;
 }) {
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [conversations, setConversations] = useState<ConversationLue[]>([]);
@@ -77,8 +78,9 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
 
   const cleStockage = `tt_jarvis_conv_${brandId}`;
   const memoriser = useCallback((id: string | null) => {
+    if (veille) return;
     try { localStorage.setItem(cleStockage, id ?? '__principal__'); } catch { /* privé / bloqué · sans effet */ }
-  }, [cleStockage]);
+  }, [cleStockage, veille]);
 
   // Charge le fil d'une conversation (et la liste). Le serveur réconcilie
   // `conversationId` · un identifiant hors portée retombe sur le fil principal.
@@ -93,10 +95,11 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
 
   // Restitution au reload · la dernière conversation ouverte pour cette marque.
   useEffect(() => {
+    if (veille) return;
     let sauve: string | null = null;
     try { const v = localStorage.getItem(cleStockage); if (v && v !== '__principal__') sauve = v; } catch { /* sans effet */ }
     void charger(sauve);
-  }, [charger, cleStockage]);
+  }, [charger, cleStockage, veille]);
 
   useEffect(() => {
     filRef.current?.scrollTo({ top: filRef.current.scrollHeight, behavior: 'smooth' });
@@ -115,11 +118,17 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
     setThread((t) => (t ? { ...t, turns: [...t.turns, provisoire] } : t));
 
     try {
+      let cible = conversationId;
+      if (veille && !cible) {
+        const r = await creerConversationAction(brandId);
+        if (r.error || !r.id) { setErreur(r.error ?? 'Impossible d’ouvrir la conversation.'); return; }
+        cible = r.id; setConversationId(cible);
+      }
       const res = await fetch('/api/jarvis/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         // Le choix client pilote le contexte RÉEL (puces) et la conversation.
-        body: JSON.stringify({ message: compact && brouillonInitial ? `${q}\n\n${brouillonInitial.split('\n\n').slice(1).join('\n\n')}`.slice(0, 4000) : q, conversationId, sources: [...puces] }),
+        body: JSON.stringify({ message: !veille && compact && brouillonInitial ? `${q}\n\n${brouillonInitial.split('\n\n').slice(1).join('\n\n')}`.slice(0, 4000) : q, conversationId: cible, veille, brandId, sources: [...puces] }),
       });
 
       if (!res.ok || !res.body) {
@@ -140,9 +149,9 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
         setPartiel(recu);
       }
       setPartiel('');
-      await charger(conversationId);
+      await charger(cible);
     } catch {
-      setErreur('La connexion s’est interrompue. Ta question est enregistrée, réessaie.');
+      setErreur('La connexion s’est interrompue. Vérifie la conversation avant de réessayer.');
     } finally {
       setEnCours(false);
       verrou.current.relacher();
@@ -318,15 +327,16 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
 
   if (compact) return <section aria-label="Conversation Jarvis" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
     <div ref={filRef} style={{ flex: 1, minHeight: 80, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 4px' }}>
-      {!thread && <p role="status">Ouverture de la conversation…</p>}
+      {!thread && !veille && <p role="status">Ouverture de la conversation…</p>}
       {thread?.turns.map((t, i) => <Tour key={t.id} turn={t} sources={thread.sources ?? {}} question={t.role === 'assistant' && thread.turns[i - 1]?.role === 'user' ? thread.turns[i - 1]!.content : null} />)}
-      {thread && vide && <p style={reponse}>Précise ton intention. Je peux t’aider à choisir le style visuel, écrire le scénario et préparer des variantes pour {brandName}.</p>}
+      {veille && !thread && <p style={reponse}>Conservons la composition de cette référence pour créer une version pour {brandName}. Jarvis examinera le visuel à ton envoi et te proposera les éléments à garder et à remplacer.</p>}
+      {thread && vide && !veille && <p style={reponse}>Précise ton intention. Je peux t’aider à choisir le style visuel, écrire le scénario et préparer des variantes pour {brandName}.</p>}
       {partiel && <div style={reponse}>{sansTiretCadratin(visibleWhileStreaming(partiel))}</div>}
       {enCours && !partiel && <p role="status">Jarvis prépare sa réponse…</p>}
       {erreur && <p role="alert">{erreur}</p>}
     </div>
     <div style={{ paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>{['Choisir le style visuel', 'Écrire le scénario', 'Proposer trois variantes'].map((q) => <button key={q} type="button" disabled={enCours} onClick={() => setSaisie((v) => `${v}\n${q}`.slice(0, 4000))} style={{ border: '1px solid var(--line-2)', borderRadius: 99, background: 'var(--surface)', color: 'var(--ink)', padding: '8px 12px', minHeight: 40 }}>{q}</button>)}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>{(veille?.action === 'cloner' ? ['Garder la composition', 'Adapter les textes', 'Choisir mon produit'] : ['Choisir le style visuel', 'Écrire le scénario', 'Proposer trois variantes']).map((q) => <button key={q} type="button" disabled={enCours} onClick={() => setSaisie((v) => `${v}\n${q}`.slice(0, 4000))} style={{ border: '1px solid var(--line-2)', borderRadius: 99, background: 'var(--surface)', color: 'var(--ink)', padding: '8px 12px', minHeight: 40 }}>{q}</button>)}</div>
       {composeur}
     </div>
     {contexteOuvert && thread && <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />}

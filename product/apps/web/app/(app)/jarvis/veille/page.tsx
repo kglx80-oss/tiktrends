@@ -20,7 +20,8 @@ export default async function JarvisVeillePage({ searchParams }: { searchParams:
   if (!s) redirect('/login');
   const refus = refusJarvis(s);
   if (refus) return <RefusJarvis titre="Jarvis" why={refus} owner={s.role === 'owner'} />;
-  const entree = lireEntreeJarvisVeille(await searchParams);
+  const params = await searchParams;
+  const entree = lireEntreeJarvisVeille(params);
   const g = await gardeSources('studio.read');
   if (!entree || !g.ok) return <main style={cadrePage}><h1 style={h1}>Source indisponible</h1><p>Rouvre cette annonce depuis la Veille ou tes sauvegardes.</p><Link href="/veille">Revenir à la Veille</Link></main>;
   const r = await chargerSources(g.ctx, [entree.source], { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
@@ -36,6 +37,6 @@ export default async function JarvisVeillePage({ searchParams }: { searchParams:
       <p style={{ fontSize: 13, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{source.extraitAutorise || 'Cette source ne contient pas de texte publicitaire.'}</p>
       <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 0 }}>Texte publicitaire, pas une transcription audio. Relis et adapte la demande ci-dessous avant de l’envoyer à Jarvis.</p>
     </section>
-    <JarvisChat key={`${source.sourceId}:${entree.action}`} fiche={fiche} brandId={brand.id} brandName={brand.name} kpiSource={null} projets={projets} brouillonInitial={brouillonJarvisVeille(entree.action, source, brand.name)} />
+    <JarvisChat compact veille={Object.fromEntries(Object.entries(params).filter((e): e is [string, string] => typeof e[1] === "string"))} key={`${source.sourceId}:${entree.action}`} fiche={fiche} brandId={brand.id} brandName={brand.name} kpiSource={null} projets={projets} brouillonInitial={brouillonJarvisVeille(entree.action, source, brand.name)} />
   </main>;
 }

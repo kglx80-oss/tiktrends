@@ -1,3 +1,4 @@
+import { preparerVeilleVisuelle } from '../../../../lib/jarvis/veille-visuelle';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, contexteSelonPuces, consigneOnboardingJarvis, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
 
   const brand = await getActiveBrand(s.workspaceId);
 
-  const body = (await req.json().catch(() => null)) as { message?: string; conversationId?: string | null; projectId?: string | null; sources?: string[] } | null;
+  const body = (await req.json().catch(() => null)) as { message?: string; conversationId?: string | null; projectId?: string | null; sources?: string[]; veille?: unknown; brandId?: string } | null;
   const question = (body?.message ?? '').trim();
   if (!question) return json({ error: 'Message vide.' }, 400);
 
@@ -86,7 +87,15 @@ export async function POST(req: Request) {
   // ── ONBOARDING · pas de marque active · Jarvis reste VIVANT et guide vers la
   // création de la première marque (consigne générique, SANS contexte de
   // marque). Pas de mur « Sélectionne une marque ». Fil portée espace + personne.
+  if (!brand && body?.veille) return json({ error: 'Choisis une marque avant de cloner.' }, 409);
   if (!brand) return fluxOnboarding({ workspaceId: s.workspaceId, userId: s.user.id }, client, question);
+
+  let veille: Awaited<ReturnType<typeof preparerVeilleVisuelle>> | null = null;
+  if (body?.veille) {
+    if (!brand || body.brandId !== brand.id) return json({ error: 'La marque active a changé. Rouvre la référence pour continuer.' }, 409);
+    try { veille = await preparerVeilleVisuelle(body.veille, { workspaceId: s.workspaceId, brandId: brand.id }); }
+    catch (e) { return json({ error: (e as Error).message }, 400); }
+  }
 
   const portee = { workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id };
   // La conversation demandée doit appartenir à la portée · un identifiant
@@ -94,6 +103,8 @@ export async function POST(req: Request) {
   // tour s'écrit alors dans CETTE conversation (ou le fil principal).
   const demandee = typeof body?.conversationId === 'string' ? body.conversationId : null;
   let conversationId = demandee && (await conversationAppartient(portee, demandee)) ? demandee : null;
+
+  if (veille && !conversationId) conversationId = await creerConversation(portee);
 
   // Concept créatif V5 · un message de concept (`projectId` fourni) ne tombe
   // JAMAIS dans le fil principal de la marque · à défaut de conversation liée
@@ -166,7 +177,10 @@ export async function POST(req: Request) {
       // la chaîne est vide et l'assemblage ne l'ajoute pas (consigne inchangée).
       blocConcept: concept,
     };
-    const { system, inclus } = await consigneAvecConnaissances(assemblerConsigneJarvis(resolution.politique, donnees), { workspaceId: s.workspaceId, brandId: brand.id });
+    const { system: systemBase, inclus } = await consigneAvecConnaissances(assemblerConsigneJarvis(resolution.politique, donnees), { workspaceId: s.workspaceId, brandId: brand.id });
+
+    const system = veille ? `${systemBase}\n\n${veille.consigne}` : systemBase;
+    const messages = veille?.image ? fil.map((m, i) => i === fil.length - 1 ? { role: m.role, content: [veille.image!, { type: 'text' as const, text: m.content }] } : m) : fil;
 
     await db.insert(schema.jarvisMessages).values({
       workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id, conversationId,
@@ -180,7 +194,7 @@ export async function POST(req: Request) {
       model: MODEL,
       max_tokens: 1200,
       system,
-      messages: fil,
+      messages,
       stream: true,
     })) as unknown as AsyncIterable<{ type?: string; delta?: { type?: string; text?: string } }>;
 
@@ -231,7 +245,7 @@ export async function POST(req: Request) {
           await consignerRunConversation({
             resolution, portee: { workspaceId: s.workspaceId, brandId: brand.id }, traceId: `jv_${crypto.randomUUID()}`, modele: MODEL,
             system, messages: fil,
-            contexte: { marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref), ...(projets ? { projets: empreinte(projets) } : {}), ...(projectId ? { projet: projectId } : {}), ...(concept ? { concept: empreinte(concept) } : {}) },
+            contexte: { ...(veille ? { veille: { consigne: sha256Hex(veille.consigne), image: veille.image ? sha256Hex(veille.image.source.data) : null } } : {}), marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref), ...(projets ? { projets: empreinte(projets) } : {}), ...(projectId ? { projet: projectId } : {}), ...(concept ? { concept: empreinte(concept) } : {}) },
             sources, reponse: complet, statut, latenceMs: Date.now() - debut, jetons, coutUsd: costOfTokens(MODEL, jetons.entree, jetons.sortie),
           }).catch((e) => console.error('[jarvis:chat] trace', (e as Error).message));
           ctrl.close();
