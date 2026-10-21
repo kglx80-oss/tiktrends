@@ -85,8 +85,8 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
           // (`SaveButton`, rayon 9) · un seul système d'étiquettes sur le média,
           // pas deux opacités qui se contredisent.
           <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 6, zIndex: 2 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 9, background: teinte('sombre-fixe', .65), color: 'var(--clair-fixe)' }}>{bandeau.plateforme}</span>
-            {bandeau.media && <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 9, background: teinte('sombre-fixe', .65), color: 'var(--clair-fixe)' }}>{bandeau.media}</span>}
+            <span style={{ fontSize: 11, fontWeight: 400, padding: '4px 7px', borderRadius: 6, background: teinte('sombre-fixe', .65), color: 'var(--clair-fixe)' }}>{bandeau.plateforme}</span>
+            {bandeau.media && <span style={{ fontSize: 11, fontWeight: 400, padding: '4px 7px', borderRadius: 6, background: teinte('sombre-fixe', .65), color: 'var(--clair-fixe)' }}>{bandeau.media}</span>}
           </div>
         )}
         {/* Sauvegarder / retirer (instantané) */}
@@ -115,7 +115,7 @@ export function AdCard({ ad, saved = false, following = false, cloneRef, ctaSobr
           ) : (
             <AvatarSite nom={ad.advertiserName || 'Annonceur'} site={ad.landingDomain} taille={22} rayon={11} />
           )}
-          <span title={ad.advertiserName || undefined} style={{ fontSize: badgesV5 ? 14 : 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', lineHeight: 1.3, flex: '1 1 120px', minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
+          <span title={ad.advertiserName || undefined} style={{ fontSize: badgesV5 ? 14 : 13, fontWeight: badgesV5 ? 600 : 700, color: 'var(--ink)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', lineHeight: 1.3, flex: '1 1 120px', minWidth: 0 }}>{ad.advertiserName || 'Annonceur'}</span>
           {!badgesV5 && gagnant && <span title="Source observée · tient dans le temps ou sa portée progresse · un proxy public de traction, pas une preuve de rentabilité" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, color: 'var(--on-accent)', background: 'var(--grad-accent)', borderRadius: 999, padding: '2px 7px', whiteSpace: 'nowrap' }}><Icon name="trophy" size={11} /> Piste forte</span>}
           {badgesV5 ? (ad.mainCountry && <span style={{ fontSize: 11, color: 'var(--muted)' }}>{ad.mainCountry}</span>) : <FollowButton ad={ad} initialFollowing={following} />}
         </div>
