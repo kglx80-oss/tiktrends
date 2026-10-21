@@ -40,4 +40,14 @@ describe('accès privé S3', () => {
     const result = await storagePrivateSelfTest(cfg);
     expect(result.deleted).toBe(true); expect(result.privateRead).toBe(false); expect(result.error).not.toContain('secret');
   });
+  it('un CDN privé ne masque pas un bucket natif public', async () => {
+    const mock = vi.fn().mockResolvedValueOnce(new Response('')).mockResolvedValueOnce(new Response('tiktrends-ok')).mockResolvedValueOnce(new Response('tiktrends-ok')).mockResolvedValueOnce(new Response('', {status:403})).mockResolvedValueOnce(new Response(null, {status:204}));
+    vi.stubGlobal('fetch', mock);
+    const result = await storagePrivateSelfTest({...cfg, publicBaseUrl:'https://cdn.example.test'});
+    expect(result.anonymousDenied).toBe(false);
+    expect(result.deleted).toBe(true);
+    expect(String(mock.mock.calls[2]?.[0])).toMatch(/^https:\/\/s3.example.test\/media\//);
+    expect(String(mock.mock.calls[3]?.[0])).toMatch(/^https:\/\/cdn.example.test\//);
+  });
+
 });

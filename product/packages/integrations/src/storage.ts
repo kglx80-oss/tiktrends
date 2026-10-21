@@ -234,9 +234,14 @@ export async function storagePrivateSelfTest(cfg: StorageConfig): Promise<{ put:
     if (!result.put) { result.error = `Écriture refusée (HTTP ${put.status})`; return result; }
     const read = await fetch(presignGetUrl(cfg, key, 60), { redirect: 'error', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
     result.privateRead = read.ok && await read.text() === 'tiktrends-ok';
-    const anonymous = await fetch(publicUrlFor(cfg, key), { redirect: 'error', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
-    result.anonymousDenied = anonymous.status === 403 || anonymous.status === 401;
+    const anonymousUrls = [...new Set([`https://${cfg.endpoint}/${cfg.bucket}/${encKey(key)}`, publicUrlFor(cfg, key)])];
+    result.anonymousDenied = true;
+    for (const url of anonymousUrls) {
+      const anonymous = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
+      result.anonymousDenied = result.anonymousDenied && (anonymous.status === 403 || anonymous.status === 401);
+    }
   } catch {
+    result.anonymousDenied = false;
     result.error = 'Diagnostic interrompu. Vérifie la connexion et les droits du stockage.';
   } finally {
     try {
