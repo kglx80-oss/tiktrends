@@ -45,7 +45,7 @@ const Liste = ({ items }: { items: string[] }) => (
   <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 3 }}>{items.map((t, i) => <li key={`${i}-${t}`} style={texte}>{t}</li>)}</ul>
 );
 
-export function VueProjet({ detail, exportAutorise, variantes = null, atelier, masquerPropositions = false }: { detail: DetailProjet; exportAutorise: boolean; variantes?: ReactNode; atelier?: LienAtelier[]; masquerPropositions?: boolean }) {
+export function VueProjet({ detail, exportAutorise, variantes = null, atelier, masquerPropositions = false, masquerEntete = false }: { detail: DetailProjet; exportAutorise: boolean; variantes?: ReactNode; atelier?: LienAtelier[]; masquerPropositions?: boolean; masquerEntete?: boolean }) {
   const { projet, version, brief, hypothese, produit, sources, completude, versions } = detail;
   const retour = sources.find((s) => s.statut === 'active' && s.retourVeille)?.retourVeille ?? null;
   const ancienne = !versions.find((v) => v.id === version.id)?.courante;
@@ -54,7 +54,7 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier, m
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
-      <header style={{ display: 'grid', gap: 10 }}>
+      {!masquerEntete && <header style={{ display: 'grid', gap: 10 }}>
         {/* UX V2 · lot 2 · la barre de projet commune (modes, focus, Jarvis,
             export) · la fiche garde le titre du projet en titre principal. */}
         <BarreProjet projectId={projet.id} mode="brief" titre={projet.title} atelier={atelier ?? liensAtelierProjet(projet.id, () => true)} jarvis={!!courante} titreDansLaPage />
@@ -71,8 +71,9 @@ export function VueProjet({ detail, exportAutorise, variantes = null, atelier, m
             Tu consultes une version antérieure · lecture seule. <Link href={`/studio/projets/${projet.id}`} style={{ color: 'var(--accent-strong)' }}>Revenir à la version courante</Link>
           </p>
         )}
-      </header>
+      </header>}
 
+      {masquerEntete && <BarreProjet projectId={projet.id} mode="brief" titre={projet.title} atelier={atelier ?? liensAtelierProjet(projet.id, () => true)} jarvis={!!courante} titreDansLaPage />}
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ flex: '1 1 560px', minWidth: 0, display: 'grid', gap: 18 }}>
           <section aria-labelledby="pj-brief" style={section}>
