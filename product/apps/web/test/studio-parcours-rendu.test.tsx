@@ -42,7 +42,7 @@ describe('prochaine étape visible du projet', () => {
   });
   it('ancienne version et brief illisible : retour courant et erreur visibles', () => {
     const el = dom({ ...detail, briefIllisible: true, versions: [{ ...detail.versions[0]!, courante: false }] });
-    expect(el.querySelector('[data-action-principale]')?.textContent).toBe('Reprendre la version courante'); expect(el.querySelector('[role="alert"]')?.textContent).toContain('illisible');
+    expect(el.querySelector('[data-action-principale]')?.textContent).toBe('Reprendre la version courante'); expect(el.querySelector('header')?.textContent).toContain('Version 2'); expect(el.querySelector('[role="status"]')?.textContent).toContain('lecture seule'); expect(el.querySelector('[role="alert"]')?.textContent).toContain('illisible');
   });
 });
 it('harness local composants réels, données synthétiques', async () => {

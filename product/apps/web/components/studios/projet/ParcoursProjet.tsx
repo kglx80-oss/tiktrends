@@ -25,7 +25,7 @@ export function ParcoursProjet({ detail, atelier, exportAutorise, generationActi
       <div style={{ display: 'grid', gap: 8, flex: '1 1 260px', minWidth: 0 }}>
         <h1 style={{ ...h1, overflowWrap: 'anywhere' }}>{projet.title}</h1>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', color: 'var(--ink-2)', fontSize: 13 }}>
-          <span>{projet.marque}</span><PastilleEtape etape={detail.completude.etape} libelle={detail.completude.libelleEtape} />
+          <span>{projet.marque}</span><span>Version {version.n}</span><PastilleEtape etape={detail.completude.etape} libelle={detail.completude.libelleEtape} />
         </div>
       </div>
       <Link data-action-principale href={prochaine.href} style={{ minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', padding: '10px 20px', boxSizing: 'border-box', borderRadius: 12, background: 'var(--grad-accent)', color: 'var(--on-accent)', fontSize: 14, fontWeight: 700, textDecoration: 'none', maxWidth: '100%', overflowWrap: 'anywhere' }}>{prochaine.label}</Link>
