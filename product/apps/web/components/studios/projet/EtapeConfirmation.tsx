@@ -9,12 +9,13 @@ import {
 import { approuverEtLancerImage } from '../../../app/actions/studios/image';
 import type { DevisImageVue } from '../../../lib/studios/image/parcours';
 import type { JobPresente } from '../../../lib/studios/execution/commandes';
+import styles from './FormatDevis.module.css';
 import { Icon } from '../../Icon';
 import { btn, btnGhost } from '../../ui';
 
 /**
- * Étape CONFIRMATION de l'assistant V5 (Lot 2c) · la PREMIÈRE écriture payante
- * du parcours.
+ * Étape CONFIRMATION de l'assistant V5 (Lot 2c) · la confirmation payante du rendu
+ * (la préparation de consigne a son propre coût explicite).
  *
  *  · le DEVIS serveur réel (lignes, montant, échéance) est affiché AVANT tout
  *    bouton · c'est ce que la personne confirme, pas un exemple ;
@@ -52,7 +53,8 @@ function cleDuClic(quoteId: string): string {
   }
 }
 
-export function EtapeConfirmation({ devis, onModifier, onLance }: {
+export function EtapeConfirmation({ devis, onModifier, onLance, apercuProduitUrl }: {
+  apercuProduitUrl?: string;
   devis: DevisImageVue;
   onModifier: () => void;
   onLance: (job: JobPresente) => void;
@@ -66,7 +68,7 @@ export function EtapeConfirmation({ devis, onModifier, onLance }: {
 
   async function confirmer() {
     // Garde · état incertain ⇒ aucun nouvel appel, aucune navigation (double débit).
-    if (!peutConfirmerLancement(incertain)) return;
+    if (!verifie || occupe || !peutConfirmerLancement(incertain)) return;
     setOccupe(true);
     setErreur(null);
     try {
@@ -90,10 +92,12 @@ export function EtapeConfirmation({ devis, onModifier, onLance }: {
         <p style={note}>Vérifie le devis serveur et le coût avant tout débit. Toute modification invalide ce devis.</p>
       </div>
 
+      <div className={styles.confirm}>
+        <aside className={styles.summary} aria-label="Résumé de la génération">{apercuProduitUrl && <img className={styles.product} src={apercuProduitUrl} alt="Photo produit de référence" />}<h3>Ton image est prête à être lancée</h3><p>La consigne relue et le format choisi sont liés à ce devis.</p><dl><div><dt>Livrable</dt><dd>1 image</dd></div><div><dt>Crédits</dt><dd>{libelleCredits(devis.credits)}</dd></div><div><dt>Validité</dt><dd>Jusqu’à {heure(devis.expiresAt)}</dd></div></dl><p>Modifier tes choix nécessite un nouveau devis.</p></aside>
       <section aria-label="Devis serveur" data-devis={devis.id} style={{ display: 'grid', gap: 10, border: '1px solid var(--line)', borderRadius: 12, padding: 16, background: 'var(--surface)' }}>
         <span style={sectionLbl}>Devis serveur</span>
         <p data-prix="devis" style={{ margin: 0, fontSize: 15, color: 'var(--ink)' }}>
-          <strong>{phraseCoutDevis(devis.usdMicros, devis.qualification)}</strong> · {libelleCredits(devis.credits)} · valable jusqu’à {heure(devis.expiresAt)}
+          <strong className={styles.price}>{phraseCoutDevis(devis.usdMicros, devis.qualification)}</strong> · {libelleCredits(devis.credits)} · valable jusqu’à {heure(devis.expiresAt)}
         </p>
         <ul data-lignes="devis" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
           {devis.lignes.map((l, i) => (
@@ -104,10 +108,10 @@ export function EtapeConfirmation({ devis, onModifier, onLance }: {
           ))}
         </ul>
         <p style={{ ...note, fontSize: 12 }}>Montant calculé par le serveur sur ces paramètres exacts · aucun débit avant ta confirmation.</p>
-      </section>
+      </section></div>
 
       <label data-champ="verifie" style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: CIBLE_TACTILE_MIN, fontSize: 14, color: 'var(--ink)' }}>
-        <input type="checkbox" checked={verifie} onChange={(e) => setVerifie(e.target.checked)} style={{ width: 20, height: 20 }} />
+        <input type="checkbox" disabled={occupe || incertain} checked={verifie} onChange={(e) => setVerifie(e.target.checked)} style={{ width: 20, height: 20 }} />
         <span>J’ai vérifié le devis et je confirme la dépense.</span>
       </label>
 
