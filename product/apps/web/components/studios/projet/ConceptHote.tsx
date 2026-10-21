@@ -31,7 +31,7 @@ import { Icon } from '../../Icon';
  * (directions visuelles, 3 accroches, scénario) qui demandent au serveur des
  * propositions BORNÉES à un chemin du brief · elles réapparaissent en cartes
  * choisissables dans le panneau, relues avant toute application. Le passage à la
- * génération (« Préparer la création ») reste grisé, non branché ici (PR7).
+ * préparation image ouvre le parcours produit, sans lancer de génération.
  *
  * Layout V5 · desktop = deux colonnes (conversation | créations) ; mobile =
  * deux onglets (Conversation / Créations) · jamais de débordement horizontal.
@@ -44,18 +44,19 @@ const reponse: CSSProperties = {
 
 type Onglet = 'conversation' | 'creations';
 
-export function ConceptHote({ projectId, brandName, kind, generationImageActive, versionCourante, initialThread, initialErreur = null }: {
+export function ConceptHote({ projectId, brandName, kind, generationImageActive, versionCourante, initialThread, initialErreur = null, ancienneVersion = false }: {
   projectId: string;
   brandName: string;
   /** Le type du projet (`ads`, `image`, `video`, `text`) · décide quelles actions typées sont pertinentes. */
   kind: string;
-  /** État de la capacité d'espace `generation_image` · décide la raison de « Préparer la création » (grisée, PR7). */
+  /** État de la capacité d'espace `generation_image` · décide la raison de « Préparer la création ». */
   generationImageActive: boolean;
   /** La version COURANTE du concept · requise par le panneau de propositions. null → pas de propositions. */
   versionCourante: { id: string; n: number } | null;
   /** Le fil, lu CÔTÉ SERVEUR par projet · null si l'accès manque ou sans marque. */
   initialThread: ChatThread | null;
   initialErreur?: string | null;
+  ancienneVersion?: boolean;
 }) {
   const isMobile = useIsMobile();
   // PR6 · une proposition typée reçue fait recharger les cartes du panneau (une
@@ -175,7 +176,7 @@ export function ConceptHote({ projectId, brandName, kind, generationImageActive,
         <>
           <ActionsConcept
             projectId={projectId} kind={kind} generationImageActive={generationImageActive}
-            versionCourante={versionCourante} signalRecharge={signalRecharge}
+            versionCourante={versionCourante} signalRecharge={signalRecharge} ancienneVersion={ancienneVersion}
             onPropose={() => setSignalRecharge((n) => n + 1)}
           />
           <div data-emplacement="propositions"><PropositionsProjet projectId={projectId} versionCourante={versionCourante} rechargerSignal={signalRecharge} /></div>

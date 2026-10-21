@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { liensAtelierProjet } from '../../../lib/navigation';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   CIBLE_TACTILE_MIN, CIBLE_CONCEPT, actionsConceptResolues, demandeProposition, nombreAppels,
@@ -27,8 +29,8 @@ import type { ListePropositions, ReponseProposition } from '../../../lib/studios
  * déclencher un appel. « 3 accroches » = trois propositions concurrentes sur
  * `/brief/texts`, que la personne départage.
  *
- * « Préparer la création » n'est PAS branchée ici (PR7) · elle reste grisée avec
- * sa raison, honnêtement. On lit la disponibilité (brief prêt, droit, Jarvis)
+ * « Préparer la création » ouvre le parcours produit pour une image active,
+ * sans lancer de génération. On lit la disponibilité (brief prêt, droit, Jarvis)
  * par une LECTURE pure (`listerPropositions`) · aucune écriture, aucune dépense.
  */
 
@@ -49,7 +51,7 @@ function briefPret(liste: ReponseProposition<ListePropositions> | null): boolean
   return !!brief && brief.champs.some((ch) => ch.forme !== 'objectif-brief');
 }
 
-export function ActionsConcept({ projectId, kind, generationImageActive, versionCourante, onPropose, signalRecharge = 0 }: {
+export function ActionsConcept({ projectId, kind, generationImageActive, versionCourante, onPropose, signalRecharge = 0, ancienneVersion = false }: {
   projectId: string;
   kind: string;
   /** État de la capacité d'espace `generation_image` · décide la raison de « Préparer la création ». */
@@ -60,6 +62,7 @@ export function ActionsConcept({ projectId, kind, generationImageActive, version
   onPropose: () => void;
   /** Bump externe (après application d'une carte) · relit la disponibilité. */
   signalRecharge?: number;
+  ancienneVersion?: boolean;
 }) {
   const [liste, setListe] = useState<ReponseProposition<ListePropositions> | null>(null);
   const [enCours, setEnCours] = useState<string | null>(null);
@@ -89,8 +92,9 @@ export function ActionsConcept({ projectId, kind, generationImageActive, version
     jarvisDisponible: !!dispo?.disponible,
     jarvisRaison: dispo?.raison ?? '',
     generationImageActive,
+    ancienneVersion,
   });
-  const auMoinsUneActive = resolues.some((a) => a.etat === 'actif');
+  const auMoinsUneActive = resolues.some((a) => a.etat === 'actif' && a.def.genre === 'proposition');
 
   async function lancer(def: DefActionConcept) {
     if (!liste?.ok || def.genre !== 'proposition' || !def.cibleBrief) return;
@@ -116,7 +120,7 @@ export function ActionsConcept({ projectId, kind, generationImageActive, version
         onPropose();
       }
     } catch {
-      if (actif.current === projectId) setRetour({ type: 'err', message: 'Hors ligne · rien n’a été enregistré. Réessaie.' });
+      if (actif.current === projectId) setRetour({ type: 'err', message: 'La réponse a été interrompue · le résultat de la demande est inconnu. Recharge les cartes avant toute nouvelle demande.' });
     } finally {
       if (actif.current === projectId) setEnCours(null);
     }
@@ -128,6 +132,12 @@ export function ActionsConcept({ projectId, kind, generationImageActive, version
         {resolues.map((a: ActionConceptResolue) => {
           const occupe = enCours === a.def.key;
           const grise = a.etat !== 'actif' || !!enCours;
+          if (a.def.genre === 'preparation' && !grise) {
+            const href = liensAtelierProjet(projectId, () => true).find((l) => l.segment === 'produit')!.href!;
+            return <Link key={a.def.key} href={href} prefetch={false} data-action={a.def.key} data-etat={a.etat}
+              title="Ouvrir la préparation de l’image · aucune génération à ce clic."
+              style={{ ...btn, textDecoration: 'none' }}>{a.def.label}</Link>;
+          }
           return (
             <button
               key={a.def.key} type="button" data-action={a.def.key} data-etat={a.etat}

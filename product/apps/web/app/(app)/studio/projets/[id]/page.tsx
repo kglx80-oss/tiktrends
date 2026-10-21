@@ -92,6 +92,7 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
           projectId={r.detail.projet.id}
           brandName={r.detail.projet.marque}
           kind={r.detail.projet.kind}
+          ancienneVersion={r.detail.version.id !== courante?.id}
           generationImageActive={inter.actif('generation_image')}
           versionCourante={courante ? { id: courante.id, n: courante.n } : null}
           initialThread={filConcept.thread ?? null}

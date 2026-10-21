@@ -150,3 +150,31 @@ describe('GUARD C · seul un bouton TYPÉ dépense, jamais le texte libre', () =
     expect(proposerSpy, 'le texte libre ne doit JAMAIS proposer ni dépenser').not.toHaveBeenCalled();
   });
 });
+
+describe('préparation image raccordée au parcours produit', () => {
+  it('ouvre le produit sans modèle ni mention de coût quand Jarvis est indisponible', async () => {
+    listerSpy.mockResolvedValue(liste({ briefPret: true, jarvis: false, peutProposer: true }));
+    await rendre(<ActionsConcept projectId="p1" kind="image" generationImageActive versionCourante={{ id: 'v3', n: 3 }} onPropose={() => {}} />);
+    const lien = el!.querySelector('a[data-action="preparer"]')!;
+    expect(lien.getAttribute('href')).toBe('/studio/projets/p1/produit');
+    expect(el!.querySelector('[data-cout]')).toBeNull();
+    lien.addEventListener('click', (e) => e.preventDefault());
+    await act(async () => { lien.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); });
+    expect(proposerSpy).not.toHaveBeenCalled();
+  });
+  it.each(['inactive', 'lecture', 'historique', 'video', 'ads', 'text'])('%s ne donne pas de lien de fabrication image', async (cas) => {
+    listerSpy.mockResolvedValue(liste({ briefPret: true, jarvis: true, peutProposer: cas !== 'lecture' }));
+    await rendre(<ActionsConcept projectId="p1" kind={['video', 'ads', 'text'].includes(cas) ? cas : 'image'} generationImageActive={cas !== 'inactive'} ancienneVersion={cas === 'historique'} versionCourante={{ id: 'v3', n: 3 }} onPropose={() => {}} />);
+    expect(el!.querySelector('a[data-action="preparer"]')).toBeNull();
+    expect(proposerSpy).not.toHaveBeenCalled();
+  });
+});
+
+it('une réponse perdue ne promet ni absence de création ni absence de débit', async () => {
+  listerSpy.mockResolvedValue(liste({ briefPret: true, jarvis: true, peutProposer: true }));
+  proposerSpy.mockRejectedValueOnce(new Error('network'));
+  await rendre(<ActionsConcept projectId="p1" kind="image" generationImageActive versionCourante={{ id: 'v3', n: 3 }} onPropose={() => {}} />);
+  await act(async () => { bouton('directions')!.click(); });
+  expect(el!.querySelector('[role="alert"]')?.textContent).toBe('La réponse a été interrompue · le résultat de la demande est inconnu. Recharge les cartes avant toute nouvelle demande.');
+  expect(proposerSpy).toHaveBeenCalledTimes(1);
+});

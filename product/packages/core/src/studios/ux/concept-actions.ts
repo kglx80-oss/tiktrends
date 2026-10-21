@@ -44,8 +44,8 @@ export type ConceptActionKey = 'directions' | 'accroches' | 'scenario' | 'prepar
  *  · `proposition` · demande une proposition bornée à un chemin du brief (relue,
  *    appliquée seulement sur geste) · payante, annoncée avant le clic ;
  *  · `preparation` · passe à la fabrication de la créative · dépend d'une
- *    capacité (`generation_image`) et n'est PAS encore branchée (PR7) · montrée
- *    grisée, honnêtement.
+ *    capacité (`generation_image`) ; pour une image, ouvre le parcours produit
+ *    sans génération automatique. Les autres types restent désactivés.
  */
 export type GenreActionConcept = 'proposition' | 'preparation';
 
@@ -140,6 +140,8 @@ export interface ContexteActionsConcept {
   jarvisDisponible: boolean;
   jarvisRaison: string;
   generationImageActive: boolean;
+  /** Une version historique ne propose pas de passage en fabrication. */
+  ancienneVersion?: boolean;
 }
 
 export type EtatActionConcept = 'actif' | 'desactive';
@@ -162,15 +164,21 @@ const raisonPreparerCapacite = 'La génération d’images n’est pas activée 
  * grisée) · « Écrire le scénario » n'apparaît que pour une vidéo. Une action
  * `proposition` est active seulement si la personne peut proposer, qu'un brief
  * existe et que Jarvis est disponible · sinon grisée, avec le PREMIER blocage en
- * clair. « Préparer la création » est toujours grisée en l'état (non branchée).
+ * clair. La préparation image ouvre le parcours produit après ses propres gardes.
  */
 export function actionsConceptResolues(ctx: ContexteActionsConcept): ActionConceptResolue[] {
   const out: ActionConceptResolue[] = [];
   for (const def of ACTIONS_CONCEPT) {
     if (!(def.kinds as readonly string[]).includes(ctx.kind)) continue;
     if (def.genre === 'preparation') {
-      // Jamais active en PR6 · gating honnête : capacité coupée d'abord, sinon « bientôt ».
-      out.push({ def, etat: 'desactive', raison: ctx.generationImageActive ? RAISON_PREPARER_BIENTOT : raisonPreparerCapacite });
+      // Navigation image seulement, après les gardes de version, rôle et capacité.
+      const raison = ctx.kind !== 'image'
+        ? (ctx.generationImageActive ? RAISON_PREPARER_BIENTOT : raisonPreparerCapacite)
+        : ctx.ancienneVersion ? 'Reprends la version courante pour préparer la création.'
+        : !ctx.peutProposer ? 'Ton rôle permet de lire, pas de préparer une création.'
+        : !ctx.generationImageActive ? raisonPreparerCapacite
+        : !ctx.briefPret ? RAISON_BRIEF : null;
+      out.push({ def, etat: raison ? 'desactive' : 'actif', raison });
       continue;
     }
     // genre === 'proposition' · le premier blocage gagne.
