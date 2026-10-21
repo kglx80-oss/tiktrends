@@ -136,7 +136,7 @@ describe('/studio/projets/[id] · la page projet', () => {
     expect(entete.textContent).toContain('Marque A1');
     expect(entete.textContent).toContain('Version 1');
     expect(entete.closest('details')).toBeNull();
-    expect(entete.compareDocumentPosition(d.querySelector('[data-emplacement="concept-hote"]')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(entete.compareDocumentPosition(d.querySelector('#conversation-projet')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const hyp = d.querySelector('[data-hypothese="hyp_saisie"]')!;
     expect(hyp.textContent).toContain('Une accroche chiffrée augmente le clic.');
     expect(hyp.textContent).toContain('Variable testée · Accroche');
