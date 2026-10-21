@@ -27,3 +27,5 @@ Approbation atomique ≠ livraison atomique : succès, échecs et réconciliatio
 ## Preuves
 
 `test/lot-images-db.test.ts` : PGlite avec migrations réelles, fournisseur texte simulé. Préparation sans job, replay, rollback après premier job, crédits insuffisants en cours, total, concurrence même lot/deux lots sous plafond, droits, version, expiration, lecture partielle/incertaine. PGlite sérialise les connexions ; CI PostgreSQL multi-connexions et génération réelle/observation production restent distinctes de ces preuves sans dépense.
+
+Le préflight relit également `budgetEssaiDe(workspaceId)` : dépenses cumulées depuis la date fixe du budget + réserves ouvertes du même espace + total du lot. Ce budget total n’est jamais remplacé par la fenêtre glissante du plafond global. Une dépense ancienne incertaine reste retenue ; un autre espace ne consomme pas ce budget local.

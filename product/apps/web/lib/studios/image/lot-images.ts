@@ -1,7 +1,7 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { db, schema, depenseDepuis, VERROU_PLAFOND, type BaseDepense } from '@tiktrends/db';
+import { db, schema, depenseDepuis, depenseEspaceDepuis, budgetEssaiDe, VERROU_PLAFOND, type BaseDepense } from '@tiktrends/db';
 import { erreurStudio, objetDansPortee, OPERATION_IMAGE, qualifierDevis, refusPlafondDollars, type ErreurStudio, type QualificationTotal } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { estUuid } from '../depot';
@@ -99,6 +99,18 @@ export async function approuverLotImagesPour(ctx: ContexteStudio, e: Confirmatio
       const [reste] = await tx.select({ total: sql<string>`coalesce(sum(case when ${L.kind} = 'reserve' then ${L.usdMicros} when ${L.kind} in ('settle','release') then -${L.usdMicros} else 0 end),0)` }).from(L);
       const depenseUsd = Math.max(depense, o.plafond.depenseUsd) + Math.max(0, Number(reste?.total ?? 0)) / 1e6;
       if (refusPlafondDollars({ ...o.plafond, depenseUsd, devisUsdMicros: lot.totalUsdMicros })) throw new Refus(refus(ctx, 'BUDGET_EXCEEDED'));
+      // Le plafond d'essai est CUMULÉ depuis sa date fixe, jamais réinitialisé
+      // par la fenêtre glissante du plafond global ni par un nouveau lot.
+      const essai = await budgetEssaiDe(tx as unknown as BaseDepense, ctx.workspaceId);
+      if (essai) {
+        const engage = await depenseEspaceDepuis(tx as unknown as BaseDepense, ctx.workspaceId, essai.depuis);
+        const [reserveEspace] = await tx.select({ total: sql<string>`coalesce(sum(case when ${L.kind} = 'reserve' then ${L.usdMicros} when ${L.kind} in ('settle','release') then -${L.usdMicros} else 0 end),0)` })
+          .from(L).where(eq(L.workspaceId, ctx.workspaceId));
+        const retenu = engage + Math.max(0, Number(reserveEspace?.total ?? 0)) / 1e6;
+        if (refusPlafondDollars({ capUsd: essai.plafondUsd, depenseUsd: retenu, bloque: false, devisUsdMicros: lot.totalUsdMicros })) {
+          throw new Refus(refus(ctx, 'BUDGET_EXCEEDED', 'Le budget total d’essai de cet espace ne permet pas ce lot.'));
+        }
+      }
       const jobs: JobPresente[] = [];
       for (const q of lot.devis) {
         const coupe = await o.verifierDevis?.(q.id);

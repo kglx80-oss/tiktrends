@@ -17,7 +17,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
-import { db, schema, eq } from '@tiktrends/db';
+import { db, schema, eq, cleBudgetEssai } from '@tiktrends/db';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
 import { epinglerProduitPour } from '../lib/studios/produit/commandes';
@@ -162,6 +162,23 @@ describe('Lot images · mêmes paramètres, transaction atomique', () => {
     await consigneRetenue(lot.projectId,'Nouvelle lumière et nouvelle disposition du produit.');
     const avant=await quantites();const r=await approuverLotImagesPour(ctx(),confirmation(lot),options());
     expect(!r.ok&&r.code).toBe('VERSION_CONFLICT');expect(await quantites()).toEqual(avant);
+  });
+
+  it('budget essai : dépenses anciennes et réserves du même espace restent engagées',async()=>{
+    const lot=await preparer(2);
+    const ledger=await db.select().from(schema.studioBudgetLedger).where(eq(schema.studioBudgetLedger.workspaceId,ids.wsA));
+    const reserve=ledger.reduce((s,l)=>s+(l.kind==='reserve'?Number(l.usdMicros):l.kind==='settle'||l.kind==='release'?-Number(l.usdMicros):0),0)/1e6;
+    await db.insert(schema.aiSpend).values({workspaceId:ids.wsA,provider:'fal',action:'test-budget-ancien',actualUsd:2,estimatedUsd:2,createdAt:new Date('2026-07-01'),reconcileReason:'transport interrompu'});
+    const key=cleBudgetEssai(ids.wsA);
+    await db.insert(schema.appSettings).values({key,value:{plafondUsd:reserve+lot.totalUsdMicros/1e6+1,depuis:'2026-01-01T00:00:00Z',motif:'essai total'}});
+    const avant=await quantites();
+    const r=await approuverLotImagesPour(ctx(),confirmation(lot),options());
+    expect(!r.ok&&r.code).toBe('BUDGET_EXCEEDED');expect(await quantites()).toEqual(avant);
+    // Même budget ne compte pas la dépense d'un autre espace.
+    await db.update(schema.appSettings).set({value:{plafondUsd:reserve+lot.totalUsdMicros/1e6+2.01,depuis:'2026-01-01T00:00:00Z',motif:'essai total'}}).where(eq(schema.appSettings.key,key));
+    await db.insert(schema.aiSpend).values({workspaceId:ids.wsB,provider:'fal',action:'autre-espace-ancien',actualUsd:500,createdAt:new Date('2026-07-01')});
+    const accepte=await approuverLotImagesPour(ctx(),confirmation(lot),options());expect(accepte.ok,JSON.stringify(accepte)).toBe(true);
+    await db.delete(schema.appSettings).where(eq(schema.appSettings.key,key));
   });
 
 });
