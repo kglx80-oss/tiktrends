@@ -51,7 +51,7 @@ describe('accès privé S3', () => {
   });
 
   it.each([
-    [200, 'accessible'], [404, 'introuvable'], [302, 'redirection'], [500, 'http_inattendu'],
+    [200, 'accessible'], [400, 'http_inattendu'], [404, 'introuvable'], [302, 'redirection'], [500, 'http_inattendu'],
   ])('distingue le statut anonyme %s sans prouver la confidentialité', async (status, resultat) => {
     const mock = vi.fn().mockResolvedValueOnce(new Response('')).mockResolvedValueOnce(new Response('tiktrends-ok')).mockResolvedValueOnce(new Response('secret-provider-body', {status: Number(status), headers: {location: 'https://secret-host.test/?secret=token'}})).mockResolvedValueOnce(new Response(null, {status:204}));
     vi.stubGlobal('fetch', mock);
@@ -70,6 +70,33 @@ describe('accès privé S3', () => {
     expect(result.diagnostics).toContainEqual({cible:'bucket_anonyme', statut:null, resultat:'reseau'});
     expect(result.diagnostics).toContainEqual({cible:'lecture_configuree_anonyme', statut:403, resultat:'refus'});
     expect(result.deleted).toBe(true); expect(JSON.stringify(result)).not.toContain('secret');
+  });
+
+  it.each([403, 200, 400])('OVH : sonde le même témoin en virtual-host, statut %s', async (status) => {
+    const mock = vi.fn().mockResolvedValueOnce(new Response('')).mockResolvedValueOnce(new Response('tiktrends-ok')).mockResolvedValueOnce(new Response('', {status})).mockResolvedValueOnce(new Response(null, {status:204}));
+    vi.stubGlobal('fetch', mock);
+    const result = await storagePrivateSelfTest({...cfg, endpoint:'s3.gra.io.cloud.ovh.net'});
+    const signee = new URL(String(mock.mock.calls[1]?.[0]));
+    const anonyme = new URL(String(mock.mock.calls[2]?.[0]));
+    expect(signee.hostname).toBe('s3.gra.io.cloud.ovh.net');
+    expect(anonyme.hostname).toBe('media.s3.gra.io.cloud.ovh.net');
+    expect(signee.pathname).toBe(`/media${anonyme.pathname}`);
+    expect(anonyme.pathname).toMatch(/^\/assets\/_healthcheck\/.+\.txt$/);
+    expect(anonyme.search).toBe('');
+    expect(result.anonymousDenied).toBe(status === 403); expect(result.deleted).toBe(true);
+    expect(mock).toHaveBeenCalledTimes(4); // aucun re-test path-style invalide
+  });
+  it('OVH : un bucket privé ne masque pas un CDN explicitement public', async () => {
+    const mock = vi.fn().mockResolvedValueOnce(new Response('')).mockResolvedValueOnce(new Response('tiktrends-ok')).mockResolvedValueOnce(new Response('', {status:403})).mockResolvedValueOnce(new Response('tiktrends-ok')).mockResolvedValueOnce(new Response(null, {status:204}));
+    vi.stubGlobal('fetch', mock);
+    const result = await storagePrivateSelfTest({...cfg, endpoint:'s3.gra.io.cloud.ovh.net', publicBaseUrl:'https://cdn.example.test'});
+    expect(result.anonymousDenied).toBe(false);
+    expect(result.diagnostics).toContainEqual({cible:'lecture_configuree_anonyme', statut:200, resultat:'accessible'});
+    const native = new URL(String(mock.mock.calls[2]?.[0]));
+    const cdn = new URL(String(mock.mock.calls[3]?.[0]));
+    expect(native.hostname).toBe('media.s3.gra.io.cloud.ovh.net');
+    expect(cdn.hostname).toBe('cdn.example.test'); expect(cdn.pathname).toBe(native.pathname);
+    expect(result.deleted).toBe(true);
   });
 
 });

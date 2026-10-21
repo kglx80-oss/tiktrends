@@ -244,10 +244,16 @@ export async function storagePrivateSelfTest(cfg: StorageConfig): Promise<{ put:
     const read = await fetch(presignGetUrl(cfg, key, 60), { redirect: 'manual', signal: AbortSignal.timeout(15_000), cache: 'no-store' });
     result.privateRead = read.ok && await read.text() === 'tiktrends-ok';
     result.diagnostics.push({ cible: etape, statut: read.status, resultat: result.privateRead ? 'ok' : read.status >= 300 && read.status < 400 ? 'redirection' : read.ok ? 'contenu_inattendu' : 'http_inattendu' });
-    const nativeUrl = `https://${cfg.endpoint}/${cfg.bucket}/${encKey(key)}`;
+    // OVH : lecture anonyme en virtual-host, requêtes signées toujours en path-style.
+    // Le path-style anonyme répond InvalidRequest (400), ce qui ne prouve pas un refus.
+    // https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-share-object-externally
+    const ovh = /^s3\.[a-z0-9-]+\.io\.cloud\.ovh\.net$/i.test(cfg.endpoint);
+    const nativeUrl = ovh
+      ? `https://${cfg.bucket}.${cfg.endpoint}/${encKey(key)}`
+      : `https://${cfg.endpoint}/${cfg.bucket}/${encKey(key)}`;
     const configuredUrl = publicUrlFor(cfg, key);
     const anonymousUrls: Array<{ cible: StorageDiagnostic['cible']; url: string }> = [{ cible: 'bucket_anonyme', url: nativeUrl }];
-    if (configuredUrl !== nativeUrl) anonymousUrls.push({ cible: 'lecture_configuree_anonyme', url: configuredUrl });
+    if (cfg.publicBaseUrl && configuredUrl !== nativeUrl) anonymousUrls.push({ cible: 'lecture_configuree_anonyme', url: configuredUrl });
     result.anonymousDenied = true;
     for (const { cible, url } of anonymousUrls) {
       try {
