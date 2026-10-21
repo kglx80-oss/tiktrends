@@ -235,8 +235,7 @@ export function CanvasMetier({ projectId, version, modele, apercus = {}, disposi
   return (
     <section aria-labelledby="canvas-projet-titre" data-canvas-projet={projectId} data-mode={etat.mode} style={section}>
       <div style={{ display: 'grid', gap: 4 }}>
-        <h2 id="canvas-projet-titre" style={titre}>Canvas du projet · version {version.n}</h2>
-        <details><summary style={{ ...mini, cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>Comment utiliser le canvas</summary><p style={mini}>Cartes reliées par leurs dépendances réelles · une flèche va de ce qui est lu vers ce qui le lit. Déplacer une carte range ta vue : ni l’ordre, ni les dépendances, ni la version ne changent.</p></details>
+        <h2 id="canvas-projet-titre" style={{ ...titre, position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>Canvas du projet · version {version.n}</h2>
       </div>
 
       {vide && (
@@ -272,9 +271,6 @@ export function CanvasMetier({ projectId, version, modele, apercus = {}, disposi
             <ListeCanvas modele={modele} selection={etat.selection} onChoisir={(id) => choisir(id)} />
           ) : (
             <>
-              <p id="canvas-aide-clavier" style={{ ...mini, marginBottom: 6 }}>
-                Tab parcourt les cartes dans l’ordre des étapes · Entrée choisit une carte, puis les flèches la déplacent (Maj : grand pas). Sur le fond : + et − zooment, 0 ajuste. Les mêmes actions existent en boutons.
-              </p>
               <div ref={zone} data-canvas-zone role="group" tabIndex={0} aria-label="Zone du canvas" aria-describedby="canvas-aide-clavier"
                 onKeyDown={surToucheZone}
                 onPointerDown={(ev) => { if (ev.target === ev.currentTarget || (ev.target as HTMLElement).dataset?.fondCanvas !== undefined) debut(ev, 'fond'); }}
@@ -345,6 +341,11 @@ export function CanvasMetier({ projectId, version, modele, apercus = {}, disposi
           </aside>
         )}
       </div>
+
+      <details><summary style={{ ...mini, cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>Aide du canvas</summary>
+        <p style={mini}>Une flèche relie chaque élément à ce qui l’utilise. Déplacer une carte organise votre vue sans changer le projet.</p>
+        <p id="canvas-aide-clavier" style={mini}>Tab parcourt les cartes ; Entrée sélectionne ; les flèches déplacent la carte (Maj : grand pas). Sur le fond : + et − zooment, 0 ajuste.</p>
+      </details>
 
       {/* Mobile · le détail en panneau refermable (focus piégé puis rendu à la carte). */}
       {etroit && (
