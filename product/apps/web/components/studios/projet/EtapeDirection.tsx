@@ -105,11 +105,13 @@ export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl }: {
         </div>
       </section>
 
-      <section aria-label="Valider la direction" style={{ display: 'grid', gap: 8 }}>
+      {cycle.liste?.ok && !cycle.liste.propositions.some(p => p.cible === 'brief')
+        ? cycle.retour && <p role={cycle.retour.type === 'err' ? 'alert' : 'status'}>{cycle.retour.message}</p>
+        : <section aria-label="Valider la direction" style={{ display: 'grid', gap: 8 }}>
         <span className={css.wzlabel}>Valider la direction</span>
         <p style={note}>Adopter une proposition l’écrit dans le brief · elle devient la direction courante. L’ancienne reste dans l’historique.</p>
         <BlocPropositions cycle={cycle} onApplied={onApplied} />
-      </section>
+      </section>}
         </div>
       </div>
     </div>

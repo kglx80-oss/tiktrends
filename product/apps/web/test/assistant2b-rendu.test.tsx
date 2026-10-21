@@ -57,6 +57,7 @@ vi.mock('../app/actions/studios/propositions', () => ({
 }));
 
 import { AssistantProjet } from '../components/studios/projet/AssistantProjet';
+import { EtapeDirection } from '../components/studios/projet/EtapeDirection';
 import { EtapeStrategie } from '../components/studios/projet/EtapeStrategie';
 
 const etatPret: EtatNouveauProjet = { etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau projet' };
@@ -361,4 +362,29 @@ it.each([false,true])('quitter le brief par le rail sauvegarde avant navigation 
   if(refus)expect(hote.querySelector('[role="alert"]')?.textContent).toContain('Version modifiée');
   expect(h.creer).toHaveLength(1);
   await fermer();
+});
+
+
+describe('sections de validation sans proposition', () => {
+  it.each(['strategie', 'direction'] as const)('%s masque le bloc vide mais conserve les erreurs et les indisponibilités', async (etape) => {
+    const brief = { objective: 'o', audience: '', hypothesisId: null, testedVariable: '', facts: [], invariants: [], variables: [], references: [], composition: '', styleIntent: '', texts: [], formats: [], exclusions: [] } as BriefCanonique;
+    const cycle: CyclePropositionsBrief = {
+      liste: { ok: true, projectId: 'p', versionCourante: { id: 'v1', n: 1 }, propositions: [], jarvis: { disponible: false, raison: 'Suggestions temporairement indisponibles' }, peutProposer: true, cibles: [] } as never,
+      version: { id: 'v1', n: 1 }, occupe: null, retour: {type:'err',message:'Enregistrement refusé'},
+      recharger: async()=>{}, demanderJarvis: async()=>{}, adopter: async()=>{}, rejeter: async()=>{}, ecrireManuel: async()=>{},
+    };
+    const node = () => etape === 'strategie'
+      ? <EtapeStrategie brief={brief} cycle={cycle} onApplied={()=>{}} sources={[]} marqueId="b1" />
+      : <EtapeDirection brief={brief} cycle={cycle} onApplied={()=>{}} />;
+    const {hote,fermer} = await monter(node());
+    expect(hote.querySelector('[aria-label="Propositions à trancher"], [aria-label="Valider la direction"]')).toBeNull();
+    expect(hote.querySelector('[data-etat="aucune-proposition"]')).toBeNull();
+    expect(hote.querySelector('[role="alert"]')?.textContent).toBe('Enregistrement refusé');
+    expect(hote.textContent).toContain('Suggestions temporairement indisponibles');
+    await fermer();
+    cycle.liste = {ok:false,message:'Lecture refusée'} as never;
+    const renduErreur = await monter(node());
+    expect(renduErreur.hote.textContent).toContain('Lecture refusée');
+    await renduErreur.fermer();
+  });
 });

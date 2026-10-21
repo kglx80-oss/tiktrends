@@ -171,7 +171,7 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
         )}
       </section>
 
-      {anglesProposes.length > 0 && autresPropositions.liste?.ok && autresPropositions.liste.propositions.length === 0
+      {autresPropositions.liste?.ok && !autresPropositions.liste.propositions.some(p => p.cible === 'brief')
         ? cycle.retour && <p role={cycle.retour.type === 'err' ? 'alert' : 'status'}>{cycle.retour.message}</p>
         : <section aria-label="Propositions à trancher" style={{ display: 'grid', gap: 8 }}>
           <span className={css.wzlabel}>À trancher</span>
