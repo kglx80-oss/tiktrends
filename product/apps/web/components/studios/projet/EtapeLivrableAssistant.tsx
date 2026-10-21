@@ -3,8 +3,8 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import {lireVideo} from '../../../app/actions/studios/video';
 import {lireTextesProjet} from '../../../app/actions/studios/textes';
-import {EcranVideo} from '../video/EcranVideo';
-import {EcranTextes} from '../textes/EcranTextes';
+import {VideoAssistant} from './VideoAssistant';
+import {TextesAssistant} from './TextesAssistant';
 import type {VueVideo} from '../../../lib/studios/video/lecture';
 import type {VueTextes} from '../../../lib/studios/textes/textes';
 import {btnGhost} from '../../ui';
@@ -33,8 +33,8 @@ export function EtapeLivrableAssistant({projectId,type,onRetour}:{projectId:stri
   return <section data-zone="assistant-livrable" data-type={type} style={{display:'grid',gap:16,minWidth:0}}>
     {chargement&&!vue&&<p role="status">Lecture du studio {type==='video'?'vidéo':'textes'}…</p>}
     {erreur&&<div role="alert"><p>{erreur}</p><button type="button" style={btnGhost} onClick={()=>void charger()}>Actualiser · sans génération</button></div>}
-    {vue?.projectId===projectId&&vue.type==='video'&&type==='video'&&<EcranVideo key={projectId} vue={vue.valeur} onRecharger={charger}/>}
-    {vue?.projectId===projectId&&vue.type==='text'&&type==='text'&&<EcranTextes key={projectId} vue={vue.valeur}/>}
+    {vue?.projectId===projectId&&vue.type==='video'&&type==='video'&&<VideoAssistant key={projectId} vue={vue.valeur} onRecharger={charger}/>}
+    {vue?.projectId===projectId&&vue.type==='text'&&type==='text'&&<TextesAssistant key={projectId} vue={vue.valeur} onRecharger={charger}/>}
     <footer style={{display:'flex',gap:12,flexWrap:'wrap',justifyContent:'space-between'}}><button type="button" style={btnGhost} onClick={onRetour}>‹ Direction</button><Link href={`/studio/projets/${projectId}/${type==='video'?'video':'textes'}`}>Ouvrir le studio {type==='video'?'vidéo':'textes'}</Link></footer>
   </section>;
 }
