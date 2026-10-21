@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import type { IdsStudios, SessionTest } from './studios-semis';
 
@@ -43,6 +44,7 @@ import { db, schema, eq, and } from '@tiktrends/db';
 import { session, semer } from './studios-semis';
 import { demarrerConcept } from '../app/actions/studios/concept';
 import { chatThreadAction } from '../app/actions/jarvis-chat';
+import { blocConceptJarvis } from '../lib/studios/jarvis-projets';
 import { conversationDuProjet, creerConversation } from '../lib/jarvis/conversations';
 
 const ids = h.ids;
@@ -113,4 +115,23 @@ describe('GUARD #4 · chatThreadAction({ projectId }) retrouve le fil par projet
     expect(contenus, 'une autre marque (même projectId) ne doit pas apparaître').not.toContain('AUTRE-MARQUE');
     expect(r.thread?.conversationId, 'la conversation ouverte est celle du concept').toBe(convConcept);
   });
+});
+
+
+it('contexte production relu depuis la version, sans fuite de marque ni écriture', async () => {
+  h.session = session(ids, 'ua'); h.active = { id: ids.brandA1, name: 'Marque A1' };
+  const r = await demarrerConcept(); expect(r.ok).toBe(true); if (!r.ok) return;
+  const projectId = r.demarrage.projectId;
+  const [project] = await db.select().from(schema.studioProjects).where(eq(schema.studioProjects.id, projectId));
+  const [version] = await db.select().from(schema.studioProjectVersions).where(eq(schema.studioProjectVersions.id, project!.currentVersionId!));
+  const content = { ...(version!.content as Record<string, unknown>), brief: { objective: '', audience: '', hypothesisId: null, testedVariable: '', facts: [], invariants: [], variables: [], references: [], composition: 'Flacon sur fond rose', styleIntent: 'Lumière douce', texts: ['Hydra'], formats: ['4:5'], exclusions: [] }, productRef: { productId: 'p', assetId: null, nom: 'Hydra sélectionné', faits: [], manques: [], photoDisponible: true, instantaneLe: '2026-10-21' } };
+  const versionId = randomUUID();
+  await db.insert(schema.studioProjectVersions).values({ ...version!, id: versionId, n: version!.n + 1, content });
+  await db.update(schema.studioProjects).set({ currentVersionId: versionId }).where(eq(schema.studioProjects.id, projectId));
+  const bloc = await blocConceptJarvis(ids.brandA1, projectId);
+  for (const texte of ['Flacon sur fond rose', '4:5', 'Hydra sélectionné']) expect(bloc).toContain(texte);
+  expect(await blocConceptJarvis(ids.brandA2, projectId)).toBe('');
+  h.session = session(ids, 'ub'); expect(await blocConceptJarvis(ids.brandA1, projectId)).toBe('');
+  const [apres] = await db.select().from(schema.studioProjectVersions).where(eq(schema.studioProjectVersions.id, versionId));
+  expect(apres!.content).toEqual(content);
 });
