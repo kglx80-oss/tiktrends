@@ -243,7 +243,7 @@ export function CanvasMetier({ projectId, version, modele: modeleSource, apercus
       {vide && (
         <p data-etat="vide" style={texte}>Rien à relier pour l’instant · ajoute des plans (atelier Vidéo) ou une mise en page (Éditer l’image) : leurs sorties apparaîtront ici avec leurs dépendances.</p>
       )}
-      {!vide && <div aria-label="Étapes du projet" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--muted)' }}>{modele.etapes.map(etape => <span key={etape} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><i aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: etape === 'contexte' ? '#9c81b4' : etape === 'images' ? 'var(--accent)' : '#88a9a3' }} />{LIBELLES_ETAPE_CANVAS[etape]}</span>)}</div>}
+      {!vide && <div aria-label="Étapes du projet" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--muted)' }}>{modele.etapes.map(etape => <span key={etape} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><i aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: etape === 'contexte' ? 'var(--canvas-contexte)' : etape === 'images' ? 'var(--accent)' : 'var(--canvas-etape)' }} />{LIBELLES_ETAPE_CANVAS[etape]}</span>)}</div>}
       {!vide && (
         <div role="group" aria-label="Affichage du canvas" style={rangee}>
           <button type="button" aria-pressed={etat.mode === 'liste'} onClick={() => basculer('liste')} style={{ ...bouton, ...(etat.mode === 'liste' ? boutonActif : {}) }}>Liste</button>
