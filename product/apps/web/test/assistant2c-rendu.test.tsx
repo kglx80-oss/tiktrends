@@ -20,6 +20,7 @@ import type { DevisImageVue, VueParcoursImage } from '../lib/studios/image/parco
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+vi.mock('../app/actions/studios/variantes', () => ({ listerVariantes: async () => ({ ok: true, donnees: { variantes: [], droits: { proposer: true } } }), creerVariante: vi.fn() }));
 
 const h = vi.hoisted(() => ({
   lectures: 0,
@@ -339,7 +340,7 @@ describe('création réelle dans l’assistant',()=>{
   it('affiche uniquement le média de la tâche demandée et son statut qualité',async()=>{
     h.vue={...vueParcours(null),jobs:[{id:'job-1',etat:'completed',libelleEtat:'Terminée',message:'Image disponible',raisonEchec:null,annulable:false,terminal:true,qualite:'requires_review',libelleQualite:'À relire',creditsReserves:4,creditsRendus:0,creeLe:'2026-10-21',media:{assetId:'asset-1',url:'/api/asset/asset-1',largeur:1080,hauteur:1350}}]};
     const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="job-1" onFermer={()=>{}} />);
-    expect(hote.querySelector('img')?.getAttribute('src')).toBe('/api/asset/asset-1'); expect(hote.textContent).toContain('À relire'); expect(hote.querySelector('a')?.getAttribute('href')).toBe('/studio/projets/proj-1/image'); expect(h.approuver).toHaveLength(0); expect(h.compiler).toHaveLength(0); await fermer();
+    expect(hote.querySelector('img')?.getAttribute('src')).toBe('/api/asset/asset-1'); expect(hote.textContent).toContain('À relire'); expect(hote.querySelector('a')?.getAttribute('href')).toBe('/studio/projets/proj-1'); expect(h.approuver).toHaveLength(0); expect(h.compiler).toHaveLength(0); await fermer();
   });
   it('suivi en lecture seule : actualise puis arrête le polling quand la tâche est terminale',async()=>{
     vi.useFakeTimers();
@@ -353,7 +354,7 @@ describe('création réelle dans l’assistant',()=>{
   });
   it('tâche inconnue : erreur visible, aucune création ni relance inventée',async()=>{
     h.vue=vueParcours(null); const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="inconnu" onFermer={()=>{}} />);
-    expect(hote.querySelector('[role="alert"]')?.textContent).toContain('n’apparaît pas'); expect(hote.querySelector('img')).toBeNull(); expect(h.approuver).toHaveLength(0); await fermer();
+    expect(hote.querySelector('[role="alert"]')?.textContent).toContain('n’apparaissent pas'); expect(hote.querySelector('img')).toBeNull(); expect(h.approuver).toHaveLength(0); await fermer();
   });
 });
 
