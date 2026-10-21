@@ -164,3 +164,12 @@ describe('injection explicite dans UN calque texte', () => {
     expect(injectionDansCalque(contenuVide(), 'l_titre', 'x').ok).toBe(false);
   });
 });
+
+
+it('le ton choisi atteint le contexte validé sans modifier les faits du brief', () => {
+ const b = brief(); const avant = JSON.stringify(b);
+ const e = entreeEcriture({ brief: b, versionId: VERSION, type: 'hook', maxCaracteres: 80, nombre: 2, langue: 'fr', ton: 'Pédagogique' });
+ expect(e.invariants).toContain('Ton rédactionnel demandé : Pédagogique. Respecter les règles de marque et les faits du brief.');
+ expect(validateur.validerEntree('text.write', { context: contexteComplet(e), taskInputs: e.taskInputs })).toEqual({ ok: true });
+ expect(JSON.stringify(b)).toBe(avant);
+});

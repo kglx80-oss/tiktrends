@@ -1,7 +1,7 @@
 import 'server-only';
 import {
   entreeEcriture, relireVariantes, sourcesCitees, lireReferencesSources, lireReferenceProduit, estTypeTexte, validerFormeBrief, differencesDetaillees, erreurStudio,
-  LIMITE_CARACTERES, TEXTE_MAX_CONTRAT, VARIANTES_DEFAUT, VARIANTES_MAX,
+  TONS_ECRITURE, type TonEcriture, LIMITE_CARACTERES, TEXTE_MAX_CONTRAT, VARIANTES_DEFAUT, VARIANTES_MAX,
   type BriefCanonique, type ErreurStudio, type TypeTexte, type VarianteTexte,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -38,6 +38,7 @@ export interface EntreeEcritureTextes {
   maxCaracteres?: unknown;
   nombre?: unknown;
   langue?: unknown;
+  ton?: unknown;
 }
 
 export type ResultatEcriture =
@@ -79,6 +80,8 @@ export async function ecrireTextesPour(ctx: ContexteStudio, e: EntreeEcritureTex
   const traceId = ctx.traceId;
   if (!estUuid(e.projectId)) return manuelle(erreurStudio('NOT_FOUND', { traceId }));
   if (!estTypeTexte(e.type)) return manuelle(erreurStudio('INVALID_SCHEMA', { traceId, violations: [{ chemin: 'type', raison: 'type hook, ad_copy, cta ou script attendu' }] }));
+  if (e.ton !== undefined && !TONS_ECRITURE.includes(e.ton as TonEcriture)) return manuelle(erreurStudio('INVALID_SCHEMA', { traceId, violations: [{ chemin: 'ton', raison: 'ton rédactionnel inconnu' }] }));
+  const ton = e.ton as TonEcriture | undefined;
   const type = e.type;
   const max = e.maxCaracteres === undefined ? LIMITE_CARACTERES[type] : e.maxCaracteres;
   if (typeof max !== 'number' || !Number.isInteger(max) || max < 1 || max > TEXTE_MAX_CONTRAT) return manuelle(erreurStudio('INVALID_SCHEMA', { traceId, violations: [{ chemin: 'maxCaracteres', raison: `entier de 1 à ${TEXTE_MAX_CONTRAT}` }] }));
@@ -94,7 +97,7 @@ export async function ecrireTextesPour(ctx: ContexteStudio, e: EntreeEcritureTex
   if (!deps.adaptateur) return manuelle(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId, message: MESSAGE_TEXTES_SANS_FOURNISSEUR }));
   if (await deps.plafondAtteint()) return manuelle(erreurStudio('BUDGET_EXCEEDED', { traceId, message: 'Le plafond de dépense est atteint · rien n’est parti. Écris tes textes ci-dessous.' }));
 
-  const entree = entreeEcriture({ brief: pb.brief, versionId: pb.version.id, type, maxCaracteres: max, nombre, langue });
+  const entree = entreeEcriture({ brief: pb.brief, versionId: pb.version.id, type, maxCaracteres: max, nombre, langue, ton });
   const r = await executerTache({
     templateKey: 'text.write',
     portee: { workspaceId: ctx.workspaceId, brandId: pb.projet.brandId },
