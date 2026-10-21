@@ -37,7 +37,7 @@ export function ConfirmationLotImages({ lot, onModifier, onLance, apercuProduitU
     <div className={styles.confirm}>
       <aside className={styles.summary}>
         {apercuProduitUrl && <img src={apercuProduitUrl} className={styles.product} alt="Photo produit de référence" />}
-        <h3>{lot.nombre} images</h3><p>Même format et même consigne validée.</p>
+        <h3>{lot.nombre} images</h3><p>{lot.type === 'images-formats' ? `Formats : ${[...new Set(lot.formats)].join(' · ')}` : 'Même format'} · consigne validée.</p>
         <dl><div><dt>Crédits du lot</dt><dd>{libelleCredits(lot.totalCredits)}</dd></div><div><dt>Validité</dt><dd>{new Date(lot.expiresAt).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}</dd></div></dl>
       </aside>
       <section className={styles.quote} aria-label="Devis total du lot">

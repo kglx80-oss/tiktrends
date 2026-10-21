@@ -12,6 +12,7 @@ import { lireParcoursImage, demanderDevisImage, compilerConsigneImage, retenirCo
 import { creerPropositionManuelle, appliquerProposition } from '../../../app/actions/studios/propositions';
 import type { VueParcoursImage, DevisImageVue } from '../../../lib/studios/image/parcours';
 import styles from './FormatDevis.module.css';
+import { preparerLotFormats } from '../../../app/actions/studios/lot-formats';
 import { preparerLotImages } from '../../../app/actions/studios/lot-images';
 import type { VueLotImages } from '../../../lib/studios/image/lot-images';
 import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from './useAppelPayant';
@@ -69,6 +70,9 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   const incertain=appel.bloque;
   const [nombre, setNombre] = useState(1);
   const nombreRef = useRef(nombre); nombreRef.current = nombre;
+  const [formats, setFormats] = useState<FormatDocument[]>(() => [saisieFormatDepuisBrief(brief).format]);
+  const formatsRef = useRef(formats); formatsRef.current = formats;
+  const contexteRef = useRef(`${projectId}:${version.id}`); contexteRef.current = `${projectId}:${version.id}`;
   const [questions, setQuestions] = useState<string[]>([]);
 
   const charger = useCallback(async () => {
@@ -144,17 +148,21 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
     }
     const seq = ++seqRef.current;
     const nombreDemande = nombre;
+    const formatsDemandes = [...formats];
+    const contexteDemande = contexteRef.current;
     const saisieDemande: SaisieFormat = { ...saisie, relectureAuto: relecture };
     const signatureDemande = signatureChoixDevis(saisieDemande);
     setOccupe(true);
     setRetour(null);
     try {
       if (!(await ecrireFormatSiBesoin())) return;
-      if (nombreDemande > 1 && onLotPret) {
-        const r = await preparerLotImages({ projectId, nombre: nombreDemande, controleVision: controleVisionDevis(saisieDemande) });
+      if ((nombreDemande > 1 || formatsDemandes.length > 1) && onLotPret) {
+        const r = formatsDemandes.length > 1
+          ? await preparerLotFormats({ projectId, formats: formatsDemandes, nombreParFormat: nombreDemande, controleVision: controleVisionDevis(saisieDemande) })
+          : await preparerLotImages({ projectId, nombre: nombreDemande, controleVision: controleVisionDevis(saisieDemande) });
         if (seq !== seqRef.current) return;
         if (!r.ok) { setRetour({ok:false,texte:messageErreur(r)}); return; }
-        if (nombreRef.current !== nombreDemande || signatureAfficheeRef.current !== signatureDemande) { setRetour({ok:false,texte:MESSAGE_DEVIS_INCONNU}); return; }
+        if (nombreRef.current !== nombreDemande || JSON.stringify(formatsRef.current) !== JSON.stringify(formatsDemandes) || contexteRef.current !== contexteDemande || signatureAfficheeRef.current !== signatureDemande) { setRetour({ok:false,texte:MESSAGE_DEVIS_INCONNU}); return; }
         onLotPret(r.lot); return;
       }
       const d = await demanderDevisImage({ projectId, controleVision: controleVisionDevis(saisieDemande) });
@@ -209,12 +217,20 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
           <div className={styles.split}><div className={styles.column}>
           <section aria-label="Format de sortie" style={{ display: 'grid', gap: 8 }}>
             <span style={sectionLbl}>Format de sortie</span>
-            <div data-champ="format" role="radiogroup" aria-label="Format de sortie" className={styles.formats}>
+            <div data-champ="format" role={onLotPret ? "group" : "radiogroup"} aria-label="Format de sortie" className={styles.formats}>
               {OPTIONS_FORMAT_ASSISTANT.map((o) => {
-                const choisi = o.format === saisie.format;
+                const choisi = onLotPret ? formats.includes(o.format) : o.format === saisie.format;
                 return (
-                  <button key={o.format} type="button" role="radio" aria-checked={choisi} data-format={o.format}
-                    onClick={() => setSaisie((s) => ({ ...s, format: o.format }))} disabled={occupe}
+                  <button key={o.format} type="button" role={onLotPret ? "checkbox" : "radio"} aria-checked={choisi} data-format={o.format}
+                    onClick={() => {
+                      if (!onLotPret) { setSaisie(s => ({ ...s, format: o.format })); return; }
+                      const prochains = choisi ? formats.filter(f => f !== o.format) : [...formats, o.format];
+                      if (!prochains.length) return;
+                      setFormats(prochains);
+                      // Adding an output must not rewrite the validated source format.
+                      if (!prochains.includes(saisie.format)) setSaisie(s => ({ ...s, format: prochains[0]! }));
+                      setRetour(null);
+                    }} disabled={occupe}
                     style={{ ...tuile, textAlign: 'left', padding: 12, cursor: occupe ? 'default' : 'pointer', display: 'grid', gap: 2, minHeight: CIBLE_TACTILE_MIN, background: choisi ? teinte('accent', .12) : 'var(--bg)', borderColor: choisi ? 'var(--accent-strong)' : 'var(--line)', opacity: occupe && !choisi ? 0.6 : 1 }}>
                     <span aria-hidden className={styles.ratio} style={{ aspectRatio: `${o.largeur}/${o.hauteur}` }}>{apercuProduitUrl ? <img src={apercuProduitUrl} alt="Photo produit de référence" /> : <span>{brief.texts?.[0] || o.libelle}</span>}</span>
                     <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{o.libelle}</span>
@@ -226,7 +242,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
             {vue && !vue.format.depuisBrief && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Format par défaut ({vue.format.libelle}) · choisis-en un pour le fixer au brief.</span>}
           </section>
 
-          {onLotPret && <label className={styles.preparation}>Variantes par format<select value={nombre} disabled={occupe} onChange={e=>{setNombre(Number(e.target.value));setRetour(null);}}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select><small>Même consigne validée pour chaque image.</small></label>}
+          {onLotPret && <label className={styles.preparation}>Variantes par format<select value={nombre} disabled={occupe} onChange={e=>{setNombre(Number(e.target.value));setRetour(null);}}>{[1,2,3,4].map(n=><option key={n}>{n}</option>)}</select><small>Même consigne validée pour chaque image.</small></label>}
           <section aria-label="Relecture automatique" style={{ display: 'grid', gap: 6 }}>
             <span style={sectionLbl}>Relecture automatique</span>
             {relectureDisponible ? (
@@ -260,7 +276,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
               </div>}
             </> : chargement ? <p role="status">Chargement des possibilités de création…</p> : <button type="button" style={btnGhost} onClick={() => void charger()}>Actualiser les possibilités · sans génération</button>}
           </section>
-          </div><aside className={styles.quote} aria-label="Devis de création"><h3>Ton devis</h3><strong className={styles.price}>{nombre} image{nombre > 1 ? 's' : ''}</strong><p>Le prix exact s’affiche après validation de la consigne.</p><p>La préparation IA ci-contre est une dépense distincte, annoncée avant son lancement.</p><small>Le devis de génération ne débite rien. Tu confirmeras le montant à l’étape suivante.</small></aside></div>
+          </div><aside className={styles.quote} aria-label="Devis de création"><h3>Ton devis</h3><strong className={styles.price}>{nombre * (onLotPret ? formats.length : 1)} image{nombre * (onLotPret ? formats.length : 1) > 1 ? 's' : ''}</strong><p>Le prix exact s’affiche après validation de la consigne.</p><p>La préparation IA ci-contre est une dépense distincte, annoncée avant son lancement.</p><small>Le devis de génération ne débite rien. Tu confirmeras le montant à l’étape suivante.</small></aside></div>
 
           <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
             <button type="button" data-bouton="retour-direction" onClick={onRetour} disabled={occupe} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN, opacity: occupe ? 0.6 : 1 }}>‹ Direction</button>
