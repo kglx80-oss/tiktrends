@@ -171,12 +171,13 @@ export function EtapeStrategie({ brief, cycle, onApplied, sources, marqueId }: {
         )}
       </section>
 
-      <section aria-label="Propositions à trancher" style={{ display: 'grid', gap: 8 }}>
-        <span className={css.wzlabel}>À trancher</span>
-        {anglesProposes.length > 0 && autresPropositions.liste?.ok && autresPropositions.liste.propositions.length === 0
-          ? cycle.retour && <p role={cycle.retour.type === 'err' ? 'alert' : 'status'}>{cycle.retour.message}</p>
-          : <BlocPropositions cycle={autresPropositions} onApplied={onApplied} />}
-      </section>
+      {anglesProposes.length > 0 && autresPropositions.liste?.ok && autresPropositions.liste.propositions.length === 0
+        ? cycle.retour && <p role={cycle.retour.type === 'err' ? 'alert' : 'status'}>{cycle.retour.message}</p>
+        : <section aria-label="Propositions à trancher" style={{ display: 'grid', gap: 8 }}>
+          <span className={css.wzlabel}>À trancher</span>
+          <BlocPropositions cycle={autresPropositions} onApplied={onApplied} />
+        </section>}
+
     </div>
   );
 }

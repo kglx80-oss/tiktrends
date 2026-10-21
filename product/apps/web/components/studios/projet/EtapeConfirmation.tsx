@@ -29,7 +29,7 @@ import { btn, btnGhost } from '../../ui';
  */
 
 const note: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
-const titreEtape: CSSProperties = { margin: '2px 0 0', fontSize: 19, fontWeight: 500, color: 'var(--ink)' };
+const titreEtape: CSSProperties = { margin: '2px 0 0', fontSize: 26, fontWeight: 500, color: 'var(--ink)' };
 const sectionLbl: CSSProperties = { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', margin: 0 };
 
 const heure = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
@@ -97,7 +97,7 @@ export function EtapeConfirmation({ devis, onModifier, onLance, apercuProduitUrl
       <section aria-label="Devis serveur" data-devis={devis.id} style={{ display: 'grid', gap: 10, border: '1px solid var(--line)', borderRadius: 12, padding: 16, background: 'var(--surface)' }}>
         <span style={sectionLbl}>Devis serveur</span>
         <p data-prix="devis" style={{ margin: 0, fontSize: 15, color: 'var(--ink)' }}>
-          <strong className={styles.price}>{phraseCoutDevis(devis.usdMicros, devis.qualification)}</strong> · {libelleCredits(devis.credits)} · valable jusqu’à {heure(devis.expiresAt)}
+          <strong className={styles.price}>{libelleUsd(devis.usdMicros)}</strong><span className={styles.priceDetail}>{phraseCoutDevis(devis.usdMicros, devis.qualification)} · {libelleCredits(devis.credits)} · valable jusqu’à {heure(devis.expiresAt)}</span>
         </p>
         <ul data-lignes="devis" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
           {devis.lignes.map((l, i) => (

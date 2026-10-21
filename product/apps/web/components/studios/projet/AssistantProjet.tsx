@@ -23,6 +23,8 @@ import { Icon } from '../../Icon';
 import { lbl, surface } from '../../ui';
 import { usePropositionsBrief } from './usePropositionsBrief';
 import { EtapeStrategie } from './EtapeStrategie';
+import { ConfirmationLotImages } from './ConfirmationLotImages';
+import type { VueLotImages } from '../../../lib/studios/image/lot-images';
 import { EtapeDirection } from './EtapeDirection';
 import { EtapeLivrableAssistant } from './EtapeLivrableAssistant';
 import { EtapeFormatDevis } from './EtapeFormatDevis';
@@ -84,6 +86,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const [projet, setProjet] = useState<ProjetCourant | null>(null);
   const [brief, setBrief] = useState<BriefCanonique | null>(null);
   // Lot 2c · le devis serveur réel, posé à l'étape format, confirmé à l'étape confirm.
+  const [lot, setLot] = useState<VueLotImages | null>(null);
+  const [jobIds, setJobIds] = useState<string[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [devis, setDevis] = useState<DevisImageVue | null>(null);
 
@@ -109,7 +113,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         setErreur({ message: r.ok ? 'Le brief de cette version ne peut pas être relu.' : r.message });
         return null;
       }
-      if (r.detail.version.id !== projet.versionCourante.id) setDevis(null);
+      if (r.detail.version.id !== projet.versionCourante.id) { setDevis(null); setLot(null); }
       setBrief(r.detail.brief);
       setProjet({ id: projet.id, versionCourante: { id: r.detail.version.id, n: r.detail.version.n } });
       return r.detail.brief;
@@ -163,7 +167,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           courant = { ...courant, versionCourante: applique.version };
           setProjet(courant);
           setBrief(suivant);
-          setDevis(null);
+          setDevis(null); setLot(null);
         }
       }
       if (productId && photoId && photoEpinglee !== `${productId}:${photoId}`) {
@@ -241,20 +245,22 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
             {...{ apercuProduitUrl }}
             projectId={projet.id} version={projet.versionCourante} brief={brief}
             onBriefChange={rafraichir}
-            onDevisPret={(d) => { setDevis(d); setEtape('confirm'); }}
+            onDevisPret={(d) => { setLot(null); setDevis(d); setEtape('confirm'); }}
+            onLotPret={(l) => { setDevis(null); setLot(l); setEtape('confirm'); }}
             onRetour={() => void aller('direction')}
           />
         )}
+        {etape === 'confirm' && lot && <ConfirmationLotImages lot={lot} apercuProduitUrl={apercuProduitUrl} onModifier={() => {setLot(null);setEtape('format');}} onLance={(ids) => {setJobIds(ids);setJobId(ids[0] ?? null);setLot(null);setEtape('creation');}} />}
         {etape === 'confirm' && projet && devis && type !== 'video' && type !== 'text' && (
           <EtapeConfirmation
             {...{ apercuProduitUrl }}
             devis={devis}
             onModifier={() => { setDevis(null); setEtape('format'); }}
-            onLance={(job) => { setJobId(job.id); setDevis(null); setEtape('creation'); }}
+            onLance={(job) => { setJobIds([job.id]); setJobId(job.id); setDevis(null); setEtape('creation'); }}
           />
         )}
 
-        {etape === 'creation' && projet && jobId && <EtatCreationAssistant projectId={projet.id} jobId={jobId} onFermer={p.onFermer ?? ouvrirProjet} />}
+        {etape === 'creation' && projet && jobId && <EtatCreationAssistant projectId={projet.id} jobId={jobId} jobIds={jobIds} onFermer={p.onFermer ?? ouvrirProjet} />}
 
         {erreur && etape !== 'format' && etape !== 'confirm' && <p role="alert" data-etat="erreur" style={{ margin: 0, color: 'var(--err-text)', fontSize: 13.5 }}>{erreur.message}{erreur.traceId ? ` · identifiant support : ${erreur.traceId}` : ''}</p>}
 
@@ -275,7 +281,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         )}
       </div>
       {photoOuverte && <PanneauAssistant titre="Ajouter une photo produit" onFermer={() => setPhotoOuverte(false)}><PhotoProduitAssistant projectId={projet?.id ?? null} productId={productId} onChoisie={(r) => {
-        setProjet({ id: r.projectId, versionCourante: r.version }); setCatalogue(r.produits); setProductId(r.produit.id); setPhotoId(r.photo.assetId); setPhotoEpinglee(`${r.produit.id}:${r.photo.assetId}`); setDevis(null); void rafraichir(); setPhotoOuverte(false);
+        setProjet({ id: r.projectId, versionCourante: r.version }); setCatalogue(r.produits); setProductId(r.produit.id); setPhotoId(r.photo.assetId); setPhotoEpinglee(`${r.produit.id}:${r.photo.assetId}`); setDevis(null); setLot(null); void rafraichir(); setPhotoOuverte(false);
       }} /></PanneauAssistant>}
       {panneau && <DepartDepuisSource origine={panneau} onFermer={() => setPanneau(null)} onChoisir={(choix) => {
         if (etape === 'start') { setDepart(choix); setTitre(choix.titre); if (choix.intention) maj({ intention: choix.intention }); }

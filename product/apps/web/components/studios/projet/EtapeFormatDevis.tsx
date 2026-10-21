@@ -12,6 +12,8 @@ import { lireParcoursImage, demanderDevisImage, compilerConsigneImage, retenirCo
 import { creerPropositionManuelle, appliquerProposition } from '../../../app/actions/studios/propositions';
 import type { VueParcoursImage, DevisImageVue } from '../../../lib/studios/image/parcours';
 import styles from './FormatDevis.module.css';
+import { preparerLotImages } from '../../../app/actions/studios/lot-images';
+import type { VueLotImages } from '../../../lib/studios/image/lot-images';
 import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from './useAppelPayant';
 import Link from 'next/link';
 import { Icon } from '../../Icon';
@@ -35,7 +37,7 @@ import { btn, btnGhost, tuile } from '../../ui';
  */
 
 const note: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
-const titreEtape: CSSProperties = { margin: '2px 0 0', fontSize: 19, fontWeight: 500, color: 'var(--ink)' };
+const titreEtape: CSSProperties = { margin: '2px 0 0', fontSize: 26, fontWeight: 500, color: 'var(--ink)' };
 const sectionLbl: CSSProperties = { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--muted)', margin: 0 };
 
 function messageErreur(r: ErreurStudio): string {
@@ -43,13 +45,14 @@ function messageErreur(r: ErreurStudio): string {
   return r.message;
 }
 
-export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onDevisPret, onRetour, apercuProduitUrl }: {
+export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onDevisPret, onLotPret, onRetour, apercuProduitUrl }: {
   apercuProduitUrl?: string;
   projectId: string;
   version: { id: string; n: number };
   brief: BriefCanonique;
   onBriefChange: () => Promise<void> | void;
   onDevisPret: (devis: DevisImageVue) => void;
+  onLotPret?: (lot: VueLotImages) => void;
   onRetour: () => void;
 }) {
   const [saisie, setSaisie] = useState<SaisieFormat>(() => saisieFormatDepuisBrief(brief));
@@ -64,6 +67,8 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   const [mode, setMode] = useState<ModeImage>('faithful_composite');
   const appel=useAppelPayant(projectId,'compilation-image');
   const incertain=appel.bloque;
+  const [nombre, setNombre] = useState(1);
+  const nombreRef = useRef(nombre); nombreRef.current = nombre;
   const [questions, setQuestions] = useState<string[]>([]);
 
   const charger = useCallback(async () => {
@@ -138,12 +143,20 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
       setRetour({ ok: false, texte: 'Prépare puis valide la consigne pour ce format avant de demander le devis.' }); return;
     }
     const seq = ++seqRef.current;
+    const nombreDemande = nombre;
     const saisieDemande: SaisieFormat = { ...saisie, relectureAuto: relecture };
     const signatureDemande = signatureChoixDevis(saisieDemande);
     setOccupe(true);
     setRetour(null);
     try {
       if (!(await ecrireFormatSiBesoin())) return;
+      if (nombreDemande > 1 && onLotPret) {
+        const r = await preparerLotImages({ projectId, nombre: nombreDemande, controleVision: controleVisionDevis(saisieDemande) });
+        if (seq !== seqRef.current) return;
+        if (!r.ok) { setRetour({ok:false,texte:messageErreur(r)}); return; }
+        if (nombreRef.current !== nombreDemande || signatureAfficheeRef.current !== signatureDemande) { setRetour({ok:false,texte:MESSAGE_DEVIS_INCONNU}); return; }
+        onLotPret(r.lot); return;
+      }
       const d = await demanderDevisImage({ projectId, controleVision: controleVisionDevis(saisieDemande) });
       if (!d.ok) { setRetour({ ok: false, texte: messageErreur(d) }); return; }
       // Le devis vient d'être écrit · on relit l'état réel et on CORRÈLE la
@@ -213,6 +226,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
             {vue && !vue.format.depuisBrief && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Format par défaut ({vue.format.libelle}) · choisis-en un pour le fixer au brief.</span>}
           </section>
 
+          {onLotPret && <label className={styles.preparation}>Variantes par format<select value={nombre} disabled={occupe} onChange={e=>{setNombre(Number(e.target.value));setRetour(null);}}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select><small>Même consigne validée pour chaque image.</small></label>}
           <section aria-label="Relecture automatique" style={{ display: 'grid', gap: 6 }}>
             <span style={sectionLbl}>Relecture automatique</span>
             {relectureDisponible ? (
@@ -223,7 +237,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
             ) : (
               <p style={{ ...note, fontSize: 12.5 }} data-champ="relecture-indisponible">La relecture automatique n’est pas exécutable sur ce serveur · le devis n’en portera pas la ligne.</p>
             )}
-            <p style={{ ...note, fontSize: 12 }}>Fidélité produit, texte, marges et allégations. Une image par devis.</p>
+            <p style={{ ...note, fontSize: 12 }}>Fidélité produit, texte, marges et allégations. Chaque sortie est incluse dans le devis.</p>
           </section>
 
           <section className={styles.preparation} aria-label="Préparer la consigne">
@@ -246,7 +260,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
               </div>}
             </> : chargement ? <p role="status">Chargement des possibilités de création…</p> : <button type="button" style={btnGhost} onClick={() => void charger()}>Actualiser les possibilités · sans génération</button>}
           </section>
-          </div><aside className={styles.quote} aria-label="Devis de création"><h3>Ton devis</h3><strong className={styles.price}>1 image</strong><p>Le prix exact s’affiche après validation de la consigne.</p><p>La préparation IA ci-contre est une dépense distincte, annoncée avant son lancement.</p><small>Le devis de génération ne débite rien. Tu confirmeras le montant à l’étape suivante.</small></aside></div>
+          </div><aside className={styles.quote} aria-label="Devis de création"><h3>Ton devis</h3><strong className={styles.price}>{nombre} image{nombre > 1 ? 's' : ''}</strong><p>Le prix exact s’affiche après validation de la consigne.</p><p>La préparation IA ci-contre est une dépense distincte, annoncée avant son lancement.</p><small>Le devis de génération ne débite rien. Tu confirmeras le montant à l’étape suivante.</small></aside></div>
 
           <footer style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', paddingTop: 4 }}>
             <button type="button" data-bouton="retour-direction" onClick={onRetour} disabled={occupe} style={{ ...btnGhost, minHeight: CIBLE_TACTILE_MIN, opacity: occupe ? 0.6 : 1 }}>‹ Direction</button>

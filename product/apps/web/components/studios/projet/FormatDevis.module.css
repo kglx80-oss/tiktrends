@@ -32,3 +32,10 @@
 /* Dans le contenu défilant de l'assistant : actions visibles et fond opaque. */
 .root footer,.confirm ~ footer,.column > footer { position:sticky; bottom:0; z-index:2; background:var(--surface); border-top:1px solid var(--line-2); padding:14px 0!important; }
 @media(max-width:600px){.root footer,.confirm ~ footer,.column > footer{gap:10px!important}.root footer button,.confirm ~ footer button{flex:1;justify-content:center}}
+
+.priceDetail { display:block; margin-top:8px; font-size:13px; line-height:1.5; color:var(--ink-2); }
+
+.preparation select{font:inherit;padding:14px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface);color:var(--ink)}
+@media(max-width:600px){.formats{grid-template-columns:1fr}.root h2{font-size:22px!important}}
+
+.heading h2{font-size:26px;font-weight:500;letter-spacing:-.4px;margin:6px 0}.heading p{font-size:13px;line-height:1.5;color:var(--ink-2);margin:0}
