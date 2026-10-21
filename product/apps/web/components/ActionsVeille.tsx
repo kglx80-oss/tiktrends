@@ -14,12 +14,12 @@ import { btn } from './ui';
 
 const ligne: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, boxSizing: 'border-box', minHeight: 48, padding: '6px 10px', borderRadius: 10, color: 'var(--ink)', textDecoration: 'none', fontSize: 13 };
 const pastille: CSSProperties = { width: 32, height: 32, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'var(--accent-soft)', color: 'var(--accent)' };
-function LigneAction({ icon, titre, detail }: { icon: string; titre: string; detail: string }) { return <><span style={pastille}><Icon name={icon} size={16} /></span><span style={{ minWidth: 0 }}><strong style={{ fontWeight: 600 }}>{titre}</strong><small style={{ display: 'block', color: 'var(--muted)', marginTop: 3, fontSize: 11, lineHeight: 1.4 }}>{detail}</small></span></>; }
+function LigneAction({ icon, titre, detail }: { icon: string; titre: string; detail: string }) { return <><span style={pastille}><Icon name={icon} size={16} /></span><span style={{ minWidth: 0 }}><strong style={{ fontWeight: 600 }}>{titre}</strong><small style={{ display: 'block', color: 'var(--muted)', marginTop: 3, fontSize: 12, lineHeight: 1.4 }}>{detail}</small></span></>; }
 export function RaccourcisVeille({ ad, sauvegardeId, retour }: { ad: InspoAd; sauvegardeId?: string; retour: string | null }) {
   const rapide: CSSProperties = { width: 36, height: 36, borderRadius: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--voile-media)', color: 'var(--clair-fixe)', border: 0, boxShadow: '0 4px 12px var(--line-2)' };
   return <div role="toolbar" aria-label="Actions rapides" style={{ position: 'absolute', bottom: 16, right: 10, display: 'flex', gap: 6, zIndex: 2 }}><button type="button" disabled aria-label="Transcription audio indisponible" title="Transcription audio non raccordée" style={{ ...rapide, opacity: .65 }}><Icon name="file" size={15}/></button>{(['scripts', 'accroche'] as const).map((action) => <JarvisVeillePanneau key={action} href={lienJarvisVeille(ad, { action, ref: sauvegardeId, retour })} annonceur={ad.advertiserName} extrait={ad.body} titre={action === 'scripts' ? 'Scripts similaires' : 'Analyser l’accroche'} style={rapide}><Icon name={action === 'scripts' ? 'sparkles' : 'search'} size={15}/><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>{action === 'scripts' ? 'Scripts similaires' : 'Analyser l’accroche'}</span></JarvisVeillePanneau>)}</div>;
 }
-const section: CSSProperties = { margin: '12px 10px 4px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--muted)' };
+const section: CSSProperties = { margin: '12px 10px 4px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--muted)' };
 
 /** Actions explicites : ouvrir le panneau ou préparer une demande ne lance pas l'IA. */
 export function ActionsVeille({ ad, following, sauvegardeId, retour, annonceur }: {
@@ -33,8 +33,8 @@ export function ActionsVeille({ ad, following, sauvegardeId, retour, annonceur }
   const cible = (action: 'scripts' | 'accroche' | 'hypothese') => lienJarvisVeille(ad, { action, ref: sauvegardeId, retour });
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 8, borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 8 }}>
-      <JarvisVeillePanneau href={lienJarvisVeille(ad, { action: 'cloner', ref: sauvegardeId, retour })} annonceur={ad.advertiserName} extrait={ad.body} titre="Cloner" style={{ ...btn, borderRadius: 10, minHeight: 44, textDecoration: 'none', justifyContent: 'center' }}><Icon name="layers" size={16} /> Cloner</JarvisVeillePanneau>
-      <button type="button" aria-haspopup="dialog" aria-expanded={!!position} onClick={(e) => {
+      <JarvisVeillePanneau href={lienJarvisVeille(ad, { action: 'cloner', ref: sauvegardeId, retour })} annonceur={ad.advertiserName} extrait={ad.body} titre="Cloner" style={{ ...btn, borderRadius: 10, background: 'var(--accent)', fontWeight: 600, fontSize: 14, minHeight: 44, textDecoration: 'none', justifyContent: 'center' }}><Icon name="layers" size={16} /> Cloner</JarvisVeillePanneau>
+      <button type="button" className="veille-actions-trigger" aria-haspopup="dialog" aria-expanded={!!position} onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
         const width = Math.min(330, window.innerWidth - 24);
         setPosition({ width, left: Math.max(12, Math.min(r.right - width, window.innerWidth - width - 12)), top: Math.max(12, Math.min(r.bottom + 8, window.innerHeight - 600)) });
@@ -43,9 +43,9 @@ export function ActionsVeille({ ad, following, sauvegardeId, retour, annonceur }
       </button>
     </div>
     <Portail><div onClick={() => setPosition(null)} style={{ position: 'fixed', inset: 0, zIndex: 210, display: position ? 'block' : 'none' }}>
-      <div ref={panneau} role="dialog" aria-modal="true" aria-label={`Actions pour ${ad.advertiserName || 'cette annonce'}`} tabIndex={-1} onClick={(e) => e.stopPropagation()}
+      <div ref={panneau} className="veille-actions-menu" role="dialog" aria-modal="true" aria-label={`Actions pour ${ad.advertiserName || 'cette annonce'}`} tabIndex={-1} onClick={(e) => e.stopPropagation()}
         style={{ ...surface, borderRadius: 16, position: 'absolute', ...position, maxHeight: `calc(100dvh - ${(position?.top ?? 0) + 12}px)`, overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 12px 40px var(--line-2)' }}>
-        <div style={{ padding: '14px 16px', background: 'var(--accent-soft)', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ padding: '14px 16px', background: 'var(--rail)', display: 'flex', gap: 10, alignItems: 'center' }}>
           <span style={{ ...pastille, color: 'var(--ink)', fontWeight: 600 }}>{(ad.advertiserName || 'A').slice(0,1)}</span><div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{ad.advertiserName || 'Annonceur'}</strong><p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ad.body || 'Texte non fourni'}</p></div>
           <button type="button" aria-label="Fermer les actions" onClick={() => setPosition(null)} style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: 0, color: 'var(--ink)', cursor: 'pointer' }}>×</button>
         </div>
@@ -73,7 +73,7 @@ export function ActionsVeille({ ad, following, sauvegardeId, retour, annonceur }
             {ad.callToAction && <><dt>Appel à l’action</dt><dd>{ad.callToAction}</dd></>}
           </dl></details></details>
         </div>
-        <p style={{ margin: 0, padding: '12px 16px', background: 'var(--accent-soft)', color: 'var(--ink-2)', fontSize: 11, lineHeight: 1.5 }}>Jarvis prend le relais avec la créative en contexte.</p>
+        <p style={{ margin: 0, padding: '12px 16px', background: 'var(--rail)', color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.5 }}>Jarvis prend le relais avec la créative en contexte.</p>
       </div>
     </div></Portail>
   </>;

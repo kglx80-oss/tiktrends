@@ -232,7 +232,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
       <div data-cadre="controle" style={{
         display: 'flex', flexDirection: 'column', gap: 12,
         padding: compact ? 12 : isMobile ? 14 : 18,
-        borderRadius: 24, border: '1px solid var(--line-2)', background: 'var(--surface)',
+        borderRadius: compact ? 14 : 24, border: '1px solid var(--line-2)', background: compact ? 'var(--bg)' : 'var(--surface)',
       }}>
         <textarea
           value={saisie}
@@ -309,8 +309,8 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
             disabled={enCours || !saisie.trim()}
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, borderRadius: 999, border: 'none',
-              background: enCours || !saisie.trim() ? 'var(--line-2)' : 'var(--grad-accent)',
+              width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN, flexShrink: 0, borderRadius: compact ? 11 : 999, border: 'none',
+              background: enCours || !saisie.trim() ? 'var(--line-2)' : compact ? 'var(--accent)' : 'var(--grad-accent)',
               color: enCours || !saisie.trim() ? 'var(--muted)' : 'var(--on-accent)',
               cursor: enCours || !saisie.trim() ? 'default' : 'pointer',
             }}
@@ -325,7 +325,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
     </div>
   );
 
-  if (compact) return <section aria-label="Conversation Jarvis" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+  if (compact) return <section className="jarvis-veille-chat" aria-label="Conversation Jarvis" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
     <div ref={filRef} style={{ flex: 1, minHeight: 80, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 4px' }}>
       {!thread && !veille && <p role="status">Ouverture de la conversation…</p>}
       {thread?.turns.map((t, i) => <Tour key={t.id} turn={t} sources={thread.sources ?? {}} question={t.role === 'assistant' && thread.turns[i - 1]?.role === 'user' ? thread.turns[i - 1]!.content : null} />)}
@@ -336,7 +336,7 @@ export function JarvisChat({ fiche, brandId, brandName, kpiSource, projets, brou
       {erreur && <p role="alert">{erreur}</p>}
     </div>
     <div style={{ paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>{(veille?.action === 'cloner' ? ['Garder la composition', 'Adapter les textes', 'Choisir mon produit'] : ['Choisir le style visuel', 'Écrire le scénario', 'Proposer trois variantes']).map((q) => <button key={q} type="button" disabled={enCours} onClick={() => setSaisie((v) => `${v}\n${q}`.slice(0, 4000))} style={{ border: '1px solid var(--line-2)', borderRadius: 99, background: 'var(--surface)', color: 'var(--ink)', padding: '8px 12px', minHeight: 40 }}>{q}</button>)}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>{(veille?.action === 'cloner' ? ['Garder la composition', 'Adapter les textes', 'Choisir mon produit'] : ['Choisir le style visuel', 'Écrire le scénario', 'Proposer trois variantes']).map((q) => <button key={q} type="button" disabled={enCours} onClick={() => setSaisie((v) => `${v}\n${q}`.slice(0, 4000))} style={{ border: '1px solid var(--line-2)', borderRadius: 99, background: 'var(--surface)', color: 'var(--ink)', padding: '6px 10px', fontSize: 12, minHeight: 44 }}>{q}</button>)}</div>
       {composeur}
     </div>
     {contexteOuvert && thread && <JarvisContexte contexte={thread.contexte} brandName={thread.brandName} measuredAds={thread.measuredAds} onClose={() => setContexteOuvert(false)} />}
