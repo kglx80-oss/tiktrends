@@ -14,6 +14,7 @@ export function JarvisVersStudio({ params, brandId, proposition }: { params: Rec
   const [brief, setBrief] = useState('');
   const [kind, setKind] = useState('image');
   const [styleIntent, setStyleIntent] = useState('');
+  const [textes, setTextes] = useState('');
   const [format, setFormat] = useState('1:1');
   const [productId, setProductId] = useState('');
   const [produits, setProduits] = useState<Array<{ id: string; nom: string }>>([]);
@@ -38,7 +39,7 @@ export function JarvisVersStudio({ params, brandId, proposition }: { params: Rec
     verrou.current = true; setCharge(true); setErreur('');
     cle.current ??= crypto.randomUUID();
     try {
-      const r = await creerStudioDepuisJarvis({ params, brandId, objectif: 'Créer une adaptation visuelle pour la marque cible à partir de la composition approuvée.', kind, cleClic: cle.current, productId: productId || undefined, directionVisuelle: { composition: brief, styleIntent, formats: [format] } });
+      const r = await creerStudioDepuisJarvis({ params, brandId, objectif: 'Créer une adaptation visuelle pour la marque cible à partir de la composition approuvée.', kind, cleClic: cle.current, productId: productId || undefined, directionVisuelle: { composition: brief, styleIntent, formats: [format], texts: textes.split('\n').map(t => t.trim()).filter(Boolean) } });
       if (!r.ok) { setErreur(r.message); if ('code' in r && r.code === 'INVALID_SCHEMA') setIncertain(false); return; }
       router.push(`/studio/projets/${r.projet.id}`);
     } catch { setIncertain(true); setErreur('Connexion interrompue. Réessaie avec ces mêmes choix : le Studio vérifiera si le projet a déjà été créé.'); }
@@ -50,10 +51,12 @@ export function JarvisVersStudio({ params, brandId, proposition }: { params: Rec
       <p>{brief.length} / 2 000 caractères · garde uniquement les consignes pour ta marque, sans nom ni promesse du concurrent.</p>
       <label>Type de création <select style={champ} aria-label="Format de la création" value={kind} disabled={charge || incertain} onChange={e => setKind(e.target.value)}><option value="image">Image statique</option><option value="video">Vidéo</option></select></label>
       <label style={{ display: 'grid', gap: 8 }}>Style visuel <input aria-label="Style visuel" style={champ} value={styleIntent} maxLength={2000} disabled={charge || incertain} onChange={e => setStyleIntent(e.target.value)} placeholder="Ex. photo lumineuse, fond crème" /></label>
+      <label style={{ display: 'grid', gap: 8 }}>Textes à afficher (une ligne par texte)<textarea aria-label="Textes à afficher" style={champ} rows={3} value={textes} disabled={charge || incertain} onChange={e => setTextes(e.target.value)} placeholder="Accroche validée pour ta marque" /></label>
+      <p>Ces textes seront conservés dans le brief. Ajoute ensuite tes calques texte dans le Studio pour les afficher sur la création.</p>
       <label>Proportions <select aria-label="Proportions" style={champ} value={format} disabled={charge || incertain} onChange={e => setFormat(e.target.value)}>{['1:1', '4:5', '9:16', '16:9'].map(f => <option key={f}>{f}</option>)}</select></label>
       <label>Produit de ta marque <select aria-label="Produit de ta marque" style={champ} value={productId} disabled={charge || incertain} onChange={e => setProductId(e.target.value)}><option value="">Choisir dans le Studio</option>{produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</select></label>
       {preparationErreur && <p role="status">{preparationErreur}</p>}
-      <p>La référence et ce brief seront conservés dans le projet. Aucun appel IA ni rendu à cette étape. La génération demandera un devis et ta confirmation.</p>
+      <p>Dans le Studio, sélectionne la photo du produit à utiliser. La référence et ce brief seront conservés dans le projet. Aucun appel IA ni rendu à cette étape. La génération demandera un devis et ta confirmation.</p>
       <button style={bouton} type="button" disabled={charge || !brief.trim() || brief.length > 2000} onClick={() => void creer()}>{charge ? 'Création du projet…' : 'Valider le brief et ouvrir le Studio'}</button>
       {erreur && <p role="alert">{erreur}</p>}
     </>}

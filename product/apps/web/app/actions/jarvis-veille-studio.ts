@@ -6,7 +6,7 @@ import { lireEntreeJarvisVeille } from '../../lib/veille-jarvis';
 import { creerProjetDepuisSources } from './studios/sources';
 
 /** Transfert explicite relu par la personne, sans appel IA ni rendu. */
-export async function creerStudioDepuisJarvis(entree: { params: Record<string, string>; brandId: string; objectif: string; kind: string; cleClic: string; productId?: string; directionVisuelle?: { composition: string; styleIntent: string; formats: string[] } }) {
+export async function creerStudioDepuisJarvis(entree: { params: Record<string, string>; brandId: string; objectif: string; kind: string; cleClic: string; productId?: string; directionVisuelle?: { composition: string; styleIntent: string; formats: string[]; texts?: string[] } }) {
   const s = await getSession();
   if (!s || refusJarvis(s)) return { ok: false as const, message: 'Accès à Jarvis refusé.' };
   const marque = await getActiveBrand(s.workspaceId);

@@ -19,7 +19,7 @@ it('relit avant création, garde la clé en reprise réseau et bloque le double 
   expect(m.create).not.toHaveBeenCalled();
   await act(async()=> { (el.querySelector('button') as HTMLButtonElement).click(); (el.querySelector('button') as HTMLButtonElement).click(); });
   expect(m.create).toHaveBeenCalledTimes(1);
-  expect(m.create.mock.calls[0]![0].directionVisuelle).toEqual({composition: "Garder la composition, adapter le produit.", styleIntent: "", formats: ["1:1"]});
+  expect(m.create.mock.calls[0]![0].directionVisuelle).toEqual({composition: "Garder la composition, adapter le produit.", styleIntent: "", formats: ["1:1"], texts: []});
   expect(m.push).not.toHaveBeenCalled();
   expect(el.querySelector('[role="alert"]')?.textContent).toContain('Connexion');
   expect((el.querySelector('textarea') as HTMLTextAreaElement).disabled).toBe(true);

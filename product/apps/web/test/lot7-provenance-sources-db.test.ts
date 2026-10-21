@@ -158,7 +158,7 @@ describe('(b) ajout d’une source Veille après création', () => {
 describe('direction visuelle relue sans pixels concurrents', () => {
   it('persiste composition/style/format, garde provenance et reprend le même projet', async () => {
     qui('ua');
-    const directionVisuelle = { composition: 'Produit centré, titre en haut, fond uni.', styleIntent: 'Lumière douce', formats: ['4:5'] };
+    const directionVisuelle = { composition: 'Produit centré, titre en haut, fond uni.', styleIntent: 'Lumière douce', formats: ['4:5'], texts: ['Découvrez notre produit'] };
     const entree = { sources: [SRC1], brandId: ids.brandA1, kind: 'image', objectif: 'Adapter pour notre marque', directionVisuelle, cleClic: 'direction-relue-0001' };
     const r = await creerProjetDepuisSources(entree);
     if (!r.ok) throw new Error(JSON.stringify(r));
