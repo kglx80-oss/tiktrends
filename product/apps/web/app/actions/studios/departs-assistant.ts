@@ -40,6 +40,7 @@ export async function listerDepartsAssistant(origine: OrigineDepartAssistant): P
     return { ok: true, choix: (r.rows ?? []).filter((r) => r.verdictStatus === 'validated' && estGagnanteValidee(r.verdict as VerdictValue, r.comparable === true) && r.learnings.length > 0).slice(0, 100).map((r) => ({ id: r.id, titre: `${r.concept} · ${r.variantCode}`, detail: r.learnings.join(' · ') || 'Test gagnant arbitré · apprentissages à relire', apercu: r.assetUrl ? assetAiUrl(r.assetUrl, g.ctx.workspaceId) : null })) };
   }
   if (origine !== 'veille') return { ok: false, message: 'Point de départ inconnu.' };
+  if (!g.veilleOuverte) return { ok: false, message: 'La Veille est indisponible.' };
   const t = schema.savedAds;
   const lignes = await db.select({ id: t.id, snapshot: t.snapshot }).from(t).where(and(eq(t.workspaceId, g.ctx.workspaceId), or(eq(t.brandId, marque.id), isNull(t.brandId)))).orderBy(desc(t.createdAt)).limit(100);
   return { ok: true, choix: lignes.flatMap((l) => {
@@ -61,8 +62,9 @@ export async function lireDepartAssistant(origine: OrigineDepartAssistant, id: u
   const marque = await getActiveBrand(g.ctx.workspaceId);
   if (!marque || !g.ctx.marques.includes(marque.id)) return { ok: false, message: 'Choisissez une marque accessible.' };
   if (origine === 'veille') {
+    if (!g.veilleOuverte) return { ok: false, message: 'La Veille est indisponible.' };
     const sources = [{ type: 'sauvegarde' as const, id }];
-    const r = await chargerSources(g.ctx, sources, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
+    const r = await chargerSources({ ...g.ctx, marques: [marque.id] }, sources, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
     if (!r.ok) return { ok: false, message: r.message };
     const source = r.sources[0];
     if (!source) return { ok: false, message: 'Source indisponible.' };

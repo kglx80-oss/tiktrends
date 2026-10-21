@@ -12,9 +12,11 @@ import {
   type ObjectifType, type PlateformeV5, type ReferenceAdsmap, type ContenuVersion, type BriefCanonique,
 } from '@tiktrends/core';
 import { creerProjet } from '../../../app/actions/studios/projets';
-import { lireProjetDetail } from '../../../app/actions/studios/sources';
+import { ajouterSourcesAuProjet, lireProjetDetail } from '../../../app/actions/studios/sources';
 import type { DevisImageVue } from '../../../lib/studios/image/parcours';
 import css from './AssistantProjet.module.css';
+import { DepartDepuisSource } from './DepartDepuisSource';
+import { lireDepartAssistant, type DepartAssistant, type OrigineDepartAssistant } from '../../../app/actions/studios/departs-assistant';
 import { Icon } from '../../Icon';
 import { lbl, surface } from '../../ui';
 import { usePropositionsBrief } from './usePropositionsBrief';
@@ -61,6 +63,10 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const [encours, setEncours] = useState(false);
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
   const [incertain, setIncertain] = useState(false);
+  const [panneau, setPanneau] = useState<OrigineDepartAssistant | null>(null);
+  const [depart, setDepart] = useState<DepartAssistant | null>(null);
+  const [references, setReferences] = useState<DepartAssistant[]>([]);
+  const [sourcesAffectees, setSourcesAffectees] = useState<string[]>([]);
   const [photoEpinglee, setPhotoEpinglee] = useState('');
   const [productId, setProductId] = useState('');
   const [photoId, setPhotoId] = useState('');
@@ -102,6 +108,10 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
     setErreur(null);
     const contenu: ContenuVersion = { ...contenuVide(), brief: v.brief as unknown as ContenuVersion['brief'] };
     try {
+      if (depart?.origine === 'iteration') {
+        const relu = await lireDepartAssistant('iteration', depart.id);
+        if (!relu.ok) { setErreur({ message: relu.message }); setEncours(false); return; }
+      }
       let courant = projet;
       if (!courant) {
         const r = await creerProjet({ brandId: marque.id, kind: v.type, title: v.titre, contenu });
@@ -145,6 +155,12 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         const relu = await lireProjetDetail({ projectId: courant.id });
         if (relu.ok && relu.detail.brief && !relu.detail.briefIllisible) setBrief(relu.detail.brief);
       }
+      const nouvelles = references.filter((r) => !sourcesAffectees.includes(r.id));
+      if (nouvelles.length) {
+        const affecte = await ajouterSourcesAuProjet({ projectId: courant.id, sources: nouvelles.flatMap((r) => r.sources) });
+        if (!affecte.ok) { setErreur({ message: affecte.message }); setEncours(false); return; }
+        setSourcesAffectees((avant) => [...avant, ...nouvelles.map((r) => r.id)]);
+      }
       setEncours(false);
       setEtape('strategie');
     } catch {
@@ -168,9 +184,9 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
 
   return (
     <section data-zone="assistant-projet" data-etape={etape} className={`${css.wz} ${etape === 'start' ? css.nostep : ''}`}>
-      {etape !== 'start' && <Rail etape={etape} brief={brief} peutAller={peutAller} onAller={aller} titre={titre} marque={marque.nom} type={type} />}
+      {etape !== 'start' && <div inert={panneau !== null} style={{ display: 'contents' }}><Rail etape={etape} brief={brief} peutAller={peutAller} onAller={aller} titre={titre} marque={marque.nom} type={type} /></div>}
 
-      <div className={css.wzmain}>
+      <div className={css.wzmain} inert={panneau !== null}>
         {!['format', 'confirm', 'creation'].includes(etape) && <div className={css.wzhead}>
           <span className={css.eyebrow}>{etape === 'start' ? 'Démarrage' : `Étape ${etape === 'brief' ? 1 : etape === 'strategie' ? 2 : etape === 'direction' ? 3 : etape === 'creation' ? 5 : 4} sur 5`}</span>
           <h2>{{ start: 'Que voulez-vous créer ?', brief: 'Le brief', strategie: 'La stratégie', direction: 'La direction', format: 'Formats & devis', confirm: 'Confirmer la génération', creation: 'Vos créations' }[etape]}</h2>
@@ -179,16 +195,16 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         }
         <div className={css.wzcontent}>
         {etape === 'start' && (
-          <Depart marque={marque.nom} type={type} onType={setType} onContinuer={() => setEtape('brief')} />
+          <Depart marque={marque.nom} type={type} onType={setType} onContinuer={() => setEtape('brief')} depart={depart} onZero={() => { setDepart(null); setReferences([]); }} onSource={setPanneau} />
         )}
         {etape === 'brief' && (
-          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} titreVerrouille={!!projet} verrouille={incertain} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={p.produits ?? []} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} />} />
+          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} titreVerrouille={!!projet} verrouille={incertain} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={p.produits ?? []} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} references={references} onReferences={() => setPanneau('veille')} />} />
         )}
         {etape === 'strategie' && projet && brief && (
-          <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
+          <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
         {etape === 'direction' && projet && brief && (
-          <AssistantPostCreation etape="direction" projet={projet} brief={brief} marqueId={marque.id} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
+          <AssistantPostCreation etape="direction" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
         {etape === 'format' && projet && brief && (
           <EtapeFormatDevis
@@ -227,17 +243,23 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           />
         )}
       </div>
+      {panneau && <DepartDepuisSource origine={panneau} onFermer={() => setPanneau(null)} onChoisir={(choix) => {
+        if (etape === 'start') { setDepart(choix); setTitre(choix.titre); if (choix.intention) maj({ intention: choix.intention }); }
+        if (choix.sources.length) setReferences((avant) => avant.some((r) => r.id === choix.id) ? avant : avant.length < 10 ? [...avant, choix] : avant);
+        setPanneau(null);
+      }} />}
     </section>
   );
 }
 
 /* ─────────────────── Sous-arbre post-création (propositions) ─────────────── */
 
-function AssistantPostCreation({ etape, projet, brief, marqueId, apercuProduitUrl, onProjetChange }: {
+function AssistantPostCreation({ etape, projet, brief, marqueId, sources, apercuProduitUrl, onProjetChange }: {
   etape: 'strategie' | 'direction';
   projet: ProjetCourant;
   brief: BriefCanonique;
   marqueId: string;
+  sources: unknown[];
   apercuProduitUrl?: string;
   onProjetChange: () => void;
 }) {
@@ -246,7 +268,7 @@ function AssistantPostCreation({ etape, projet, brief, marqueId, apercuProduitUr
   // La création depuis zéro n'attache aucune source · les suggestions
   // d'hypothèses (Veille) restent honnêtement inactives (pas de bouton mort).
   return etape === 'strategie'
-    ? <EtapeStrategie brief={brief} cycle={cycle} onApplied={onApplied} sources={[]} marqueId={marqueId} />
+    ? <EtapeStrategie brief={brief} cycle={cycle} onApplied={onApplied} sources={sources} marqueId={marqueId} />
     : <EtapeDirection brief={brief} cycle={cycle} onApplied={onApplied} apercuProduitUrl={apercuProduitUrl} />;
 }
 
@@ -303,7 +325,7 @@ function Rail({ etape, brief, peutAller, onAller, titre, marque, type }: {
   </nav>;
 }
 
-function Depart({ marque, type, onType, onContinuer }: { marque: string; type: TypeNouveauProjet; onType: (t: TypeNouveauProjet) => void; onContinuer: () => void }) {
+function Depart({ marque, type, onType, onContinuer, depart, onZero, onSource }: { depart: DepartAssistant | null; onZero: () => void; onSource: (origine: OrigineDepartAssistant) => void; marque: string; type: TypeNouveauProjet; onType: (t: TypeNouveauProjet) => void; onContinuer: () => void }) {
   const descriptions = { ads: 'Visuel + textes d’annonce, Meta et TikTok', image: 'Visuel produit ou lifestyle', video: 'Storyboard, voix, sous-titres, MP4', text: 'Accroches, texte principal, CTA' };
   return <div className={css.wzstart}>
     <div className={css.wzrow}><label className={css.field}><span>Marque</span><select value={marque} disabled aria-label="Marque active"><option>{marque}</option></select></label></div>
@@ -317,9 +339,9 @@ function Depart({ marque, type, onType, onContinuer }: { marque: string; type: T
     </div>
     <h3 className={css.wzlabel}>Point de départ</h3>
     <div className={`${css.wtiles} ${css.three}`}>
-      <label className={css.wtile}><input type="radio" checked readOnly name="depart" /><span className={css.wtileic}><Icon name="plus" size={22} /></span><strong>Partir de zéro</strong><small>Vous écrivez le brief, Jarvis aide</small><span className={css.wtilecheck}><Icon name="check" size={13} /></span></label>
-      <div className={css.wtile}><span className={css.wtileic}><Icon name="eye" size={22} /></span><strong>Depuis la Veille</strong><small>Ouvrez une annonce sauvegardée pour reprendre sa source et son analyse.</small></div>
-      <div className={css.wtile}><span className={css.wtileic}><Icon name="refresh" size={22} /></span><strong>Itérer sur un test</strong><small>Ouvrez un test dans Adsmap pour reprendre son apprentissage.</small></div>
+      <label className={css.wtile}><input type="radio" checked={!depart} onChange={onZero} name="depart" /><span className={css.wtileic}><Icon name="plus" size={22} /></span><strong>Partir de zéro</strong><small>Vous écrivez le brief, Jarvis aide</small><span className={css.wtilecheck}><Icon name="check" size={13} /></span></label>
+      <button type="button" className={css.wtile} onClick={() => onSource('veille')} aria-pressed={depart?.origine === 'veille'}><span className={css.wtileic}><Icon name="eye" size={22} /></span><strong>Depuis la Veille</strong><small>Ouvrez une annonce sauvegardée pour reprendre sa source et son analyse.</small></button>
+      <button type="button" className={css.wtile} onClick={() => onSource('iteration')} aria-pressed={depart?.origine === 'iteration'}><span className={css.wtileic}><Icon name="refresh" size={22} /></span><strong>Itérer sur un test</strong><small>Ouvrez un test dans Adsmap pour reprendre son apprentissage.</small></button>
     </div>
   </div>;
 }
@@ -420,7 +442,8 @@ function Brief({ titre, onTitre, saisie, maj, personas, accessoires, verrouille,
   );
 }
 
-function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto }: {
+function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto, references, onReferences }: {
+  references: DepartAssistant[]; onReferences: () => void;
   produits: NonNullable<ProprietesAssistantProjet['produits']>; productId: string; photoId: string;
   onProduit: (id: string) => void; onPhoto: (id: string) => void;
 }) {
@@ -435,7 +458,9 @@ function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto }: {
         <small>{produit ? `${produit.photos.length} photo(s) disponible(s) · sélection explicite` : 'Produits de la marque active'}</small>
       </div>
     </div>
-    <h3 className={css.wzlabel}>Références</h3><p className={css.note}>Aucune référence associée à ce départ de zéro.</p>
+    <h3 className={css.wzlabel}>Références</h3>
+    {references.length ? <ul>{references.map((r) => <li key={r.id}>{r.titre}</li>)}</ul> : <p className={css.note}>Aucune référence sélectionnée.</p>}
+    <button type="button" onClick={onReferences} disabled={references.length >= 10}>Depuis la Veille</button>
   </>;
 }
 

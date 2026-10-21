@@ -39,3 +39,16 @@ it('liste seulement les gagnantes arbitrées comparables avec apprentissage', as
   expect(r).toMatchObject({ ok: true, choix: [{ id }] });
   if (r.ok) expect(r.choix).toHaveLength(1);
 });
+
+it('Veille fermée refuse liste et sélection sans lire les sources', async () => {
+  h.garde.mockResolvedValue({ ok: true, ctx: { workspaceId: 'w1', marques: ['b1'] }, veilleOuverte: false });
+  expect(await listerDepartsAssistant('veille')).toMatchObject({ ok: false });
+  expect(await lireDepartAssistant('veille', id)).toMatchObject({ ok: false });
+  expect(h.sources).not.toHaveBeenCalled();
+});
+it('restreint la relecture à la marque active même si une autre est accessible', async () => {
+  h.garde.mockResolvedValue({ ok: true, ctx: { workspaceId: 'w1', marques: ['b1', 'b2'] }, veilleOuverte: true });
+  h.sources.mockResolvedValue({ ok: false, message: 'Source hors marque' });
+  expect(await lireDepartAssistant('veille', id)).toMatchObject({ ok: false });
+  expect(h.sources).toHaveBeenCalledWith(expect.objectContaining({ marques: ['b1'] }), expect.anything(), expect.anything());
+});

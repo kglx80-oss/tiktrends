@@ -17,6 +17,8 @@ import type { CyclePropositionsBrief } from '../components/studios/projet/usePro
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const departSpy = vi.hoisted(() => ({ lire: vi.fn(), ajouter: vi.fn() }));
+vi.mock('../app/actions/studios/departs-assistant', () => ({ lireDepartAssistant: departSpy.lire, listerDepartsAssistant: async () => ({ ok: true, choix: [{ id: 's1', titre: 'Référence test', detail: '', apercu: null }] }) }));
 const epinglerSpy = vi.hoisted(() => vi.fn());
 vi.mock('../app/actions/studios/produit', () => ({ epinglerProduit: epinglerSpy }));
 
@@ -31,6 +33,7 @@ vi.mock('../app/actions/studios/projets', () => ({
   creerProjet: async (e: unknown) => { h.creer.push(e); return { ok: true, projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 } }; },
 }));
 vi.mock('../app/actions/studios/sources', () => ({
+  ajouterSourcesAuProjet: departSpy.ajouter,
   lireProjetDetail: async () => ({ ok: true, detail: { brief: h.detailBrief, briefIllisible: false, version: { id: 'v1', n: 1 }, sources: [] } }),
   proposerHypotheses: async (e: unknown) => { h.hypotheses.push(e); return { ok: true, brandId: 'b1', hypotheses: [{ id: 'hyp_1', statement: 'Montrer le plongeon augmente le clic', sourceIds: ['s1'], variable: 'accroche', control: 'a', treatment: 'b', invariants: [], metric: 'CTR', decisionRule: 'garder si +10%', limitations: [] }], jeton: 'j', runId: 'r', avertissements: [] }; },
 }));
@@ -256,5 +259,35 @@ it.each([false, true])('retour brief modifié : cycle manuel borné, refusApplic
     expect(hote.querySelector('[data-zone="assistant-brief"]')).not.toBeNull();
     expect(hote.textContent).toContain('Version modifiée ailleurs');
   } else expect(hote.querySelector('[data-zone="assistant-strategie"]')).not.toBeNull();
+  await fermer();
+});
+
+it('source refusée après création : rester brief puis réessayer sans recréer le projet', async () => {
+  departSpy.lire.mockResolvedValue({ ok: true, depart: { origine: 'veille', id: 's1', titre: 'Référence test', intention: '', sources: [{ type: 'sauvegarde', id: 's1' }], testId: null } });
+  departSpy.ajouter.mockResolvedValueOnce({ ok: false, message: 'Source indisponible' }).mockResolvedValueOnce({ ok: true });
+  const { hote, fermer } = await monter(<AssistantProjet etat={etatPret} initial={{ type: 'image', titre: 'Projet', intention: 'Montrer un produit' }} personas={[]} />);
+  await clic([...hote.querySelectorAll('button')].find((b) => b.textContent?.includes('Depuis la Veille'))!);
+  expect(h.creer).toHaveLength(0);
+  await clic([...hote.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent?.includes('Référence test'))!);
+  await clic(hote.querySelector('[data-bouton="vers-brief"]'));
+  await clic(hote.querySelector('[data-bouton="creer-projet"]'));
+  expect(hote.textContent).toContain('Source indisponible');
+  expect(hote.querySelector('[data-zone="assistant-projet"]')?.getAttribute('data-etape')).toBe('brief');
+  await clic(hote.querySelector('[data-bouton="creer-projet"]'));
+  expect(h.creer).toHaveLength(1);
+  expect(departSpy.ajouter).toHaveBeenLastCalledWith({ projectId: 'proj-1', sources: [{ type: 'sauvegarde', id: 's1' }] });
+  expect(hote.querySelector('[data-zone="assistant-projet"]')?.getAttribute('data-etape')).toBe('strategie');
+  await fermer();
+});
+
+it('un verdict devenu inéligible bloque Continuer avant toute création', async () => {
+  departSpy.lire.mockResolvedValueOnce({ ok: true, depart: { origine: 'iteration', id: 's1', titre: 'Test réel', intention: 'Reprendre un apprentissage validé', sources: [], testId: 's1' } }).mockResolvedValueOnce({ ok: false, message: 'Verdict modifié' });
+  const { hote, fermer } = await monter(<AssistantProjet etat={etatPret} initial={{ type: 'image', titre: 'Projet', intention: 'Montrer un produit' }} personas={[]} />);
+  await clic([...hote.querySelectorAll('button')].find((b) => b.textContent?.includes('Itérer sur un test'))!);
+  await clic([...hote.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent?.includes('Référence test'))!);
+  await clic(hote.querySelector('[data-bouton="vers-brief"]'));
+  await clic(hote.querySelector('[data-bouton="creer-projet"]'));
+  expect(h.creer).toHaveLength(0);
+  expect(hote.textContent).toContain('Verdict modifié');
   await fermer();
 });
