@@ -131,8 +131,11 @@ describe('/studio/projets/[id] · la page projet', () => {
     const d = await fiche(projet);
     expect(await empreinteBase(), 'la visite a écrit').toBe(avant);
     expect(d.querySelector('h1')?.textContent).toBe('Accroche chiffrée · test de rentrée');
-    expect(d.querySelector(`[data-marque="${ids.brandA1}"]`)?.textContent).toBe('Marque Marque A1');
-    expect(d.querySelector('[data-version]')?.textContent).toMatch(/^Version 1 du \d{2}\/\d{2}\/\d{4}$/);
+    const entete = d.querySelector('header[data-parcours="projet"]')!;
+    expect(entete.textContent).toContain('Marque A1');
+    expect(entete.textContent).toContain('Version 1');
+    expect(entete.closest('details')).toBeNull();
+    expect(entete.compareDocumentPosition(d.querySelector('[data-emplacement="concept-hote"]')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const hyp = d.querySelector('[data-hypothese="hyp_saisie"]')!;
     expect(hyp.textContent).toContain('Une accroche chiffrée augmente le clic.');
     expect(hyp.textContent).toContain('Variable testée · Accroche');
@@ -144,15 +147,15 @@ describe('/studio/projets/[id] · la page projet', () => {
     expect(src.getAttribute('data-statut')).toBe('active');
     expect(src.textContent).toContain('Narration · absente · Aucune transcription ni piste audio');
     expect(src.querySelector('a')?.getAttribute('href')).toBe('/veille?q=serum&p=meta#ad-meta-9001');
-    expect(d.querySelector('a[href="/veille?q=serum&p=meta#ad-meta-9001"]')?.textContent).toContain('Revenir à la recherche de Veille');
+    expect(d.querySelector('a[href="/veille?q=serum&p=meta#ad-meta-9001"]')?.textContent).toContain('Voir la source dans la Veille');
     expect(d.querySelector('[data-version-n="1"]')?.textContent).toContain('courante');
     expect(d.textContent).toContain('Exporter le brief');
     expect(d.querySelector('[data-emplacement="propositions"]')).not.toBeNull();
     // Intégration L4-A · le panneau des propositions est RENDU dans son emplacement, pas seulement réservé.
     expect(d.querySelector('[data-emplacement="propositions"] [data-panneau="propositions"]')?.textContent, 'panneau des propositions absent de la page projet').toContain('Propositions');
-    expect(d.querySelector('[data-emplacement="variantes-tests"]')).not.toBeNull();
+    expect(d.querySelector('[data-emplacement="variantes"]')).not.toBeNull();
     // Intégration L4-C · « Variantes et tests » est RENDU dans son emplacement.
-    expect(d.querySelector('[data-emplacement="variantes-tests"] #titre-variantes')?.textContent, 'variantes et tests absents de la page projet').toBe('Variantes et tests');
+    expect(d.querySelector('[data-emplacement="variantes"] #titre-variantes')?.textContent, 'variantes et tests absents de la page projet').toBe('Variantes et tests');
     // Intégration L5 → UX V2 lot 2 · la barre de projet mène à chaque mode du
     // projet (Brief, Image, Vidéo, Textes, Produit, Identités) et à l'export.
     const atelier = [...d.querySelectorAll('nav[aria-label="Atelier du projet"] a')].map((a) => [a.textContent, a.getAttribute('href')]);

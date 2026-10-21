@@ -8,6 +8,7 @@ import { roleAtLeast } from '../../../../../lib/rbac';
 import { lireProjetDetail } from '../../../../actions/studios/sources';
 import { chatThreadAction } from '../../../../actions/jarvis-chat';
 import { VueProjet } from '../../../../../components/studios/projet/VueProjet';
+import { ParcoursProjet } from '../../../../../components/studios/projet/ParcoursProjet';
 import { ConceptHote } from '../../../../../components/studios/projet/ConceptHote';
 import { VariantesEtTests } from '../../../../../components/studios/VariantesEtTests';
 import { TachesProjet } from '../../../../../components/studios/taches/TachesProjet';
@@ -78,9 +79,14 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
   // panne de page · l'hôte s'affiche quand même avec la zone « créations ».
   const filConcept = await chatThreadAction({ projectId: r.detail.projet.id }).catch(() => ({ error: '' as string } as Awaited<ReturnType<typeof chatThreadAction>>));
   const courante = r.detail.versions.find((v) => v.courante) ?? null;
+  const atelier = liensAtelierProjet(r.detail.projet.id, inter.actif);
+  const exportAutorise = roleAtLeast(s.role, 'member');
 
   return (
     <main style={cadrePage}>
+      <ParcoursProjet detail={r.detail} atelier={atelier} exportAutorise={exportAutorise} generationActive={inter.actif(r.detail.projet.kind === 'video' ? 'video' : 'generation_image')} />
+      <div data-emplacement="taches" style={{ marginBottom: 18 }}>{taches}</div>
+      <div id="conversation-projet" style={{ scrollMarginTop: 100 }} />
       <div data-emplacement="concept-hote" style={{ marginBottom: 18 }}>
         <ConceptHote
           projectId={r.detail.projet.id}
@@ -92,10 +98,19 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
           initialErreur={filConcept.error ?? null}
         />
       </div>
-      <VueProjet detail={r.detail} exportAutorise={roleAtLeast(s.role, 'member')} variantes={variantes} atelier={liensAtelierProjet(r.detail.projet.id, inter.actif)} masquerPropositions />
-      <div data-emplacement="taches" style={{ marginTop: 18 }}>{taches}</div>
-      {canvas && <div data-emplacement="canvas" style={{ marginTop: 18 }}>{canvas}</div>}
-      {lignee && <div data-emplacement="canvas-lignee" style={{ marginTop: 18 }}>{lignee}</div>}
+      <div data-emplacement="variantes" style={{ marginTop: 18 }}>{variantes}</div>
+      <details style={{ ...surface, padding: 18, marginTop: 18 }}>
+        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Détails et outils du projet</summary>
+        <VueProjet detail={r.detail} exportAutorise={exportAutorise} atelier={atelier} masquerPropositions masquerEntete />
+      </details>
+      {canvas && <details data-emplacement="canvas" style={{ ...surface, padding: 18, marginTop: 18 }}>
+        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Ouvrir le canvas</summary>
+        {canvas}
+      </details>}
+      {lignee && <details data-emplacement="canvas-lignee" style={{ ...surface, padding: 18, marginTop: 18 }}>
+        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Origine des créations et variantes</summary>
+        {lignee}
+      </details>}
     </main>
   );
 }
