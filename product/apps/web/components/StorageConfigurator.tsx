@@ -22,7 +22,7 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
   const c = operateur ? COPIE_STOCKAGE.operateur : COPIE_STOCKAGE.client;
   const [busy, setBusy] = useState<'' | 'config' | 'test'>('');
   const [steps, setSteps] = useState<Step[]>([]);
-  const [test, setTest] = useState<{ put?: boolean; privateRead?: boolean; anonymousDenied?: boolean; deleted?: boolean } | null>(null);
+  const [test, setTest] = useState<Awaited<ReturnType<typeof testStorageAction>> | null>(null);
   const [err, setErr] = useState('');
   const [etat, setEtat] = useState<MigrationEtat | null>(null);
   const [migre, setMigre] = useState(false);
@@ -63,7 +63,7 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
     const r = await testStorageAction();
     setBusy('');
     if (r.error) setErr(r.error);
-    setTest({ put: r.put, privateRead: r.privateRead, anonymousDenied: r.anonymousDenied, deleted: r.deleted });
+    setTest({ put: r.put, privateRead: r.privateRead, anonymousDenied: r.anonymousDenied, deleted: r.deleted, diagnostics: r.diagnostics });
   }
 
   if (!enabled && !operateur) {
@@ -136,6 +136,9 @@ export function StorageConfigurator({ enabled, operateur = false }: { enabled: b
           <Row label="Lecture privée authentifiée" ok={!!test.privateRead} />
           <Row label="Accès anonyme refusé" ok={!!test.anonymousDenied} />
           <Row label="Suppression du témoin" ok={!!test.deleted} />
+          {test.diagnostics?.map((d, i) => <p key={i} style={{ margin: 0, fontSize: 12, color: 'var(--ink-2)' }}>
+            {{ ecriture: 'Écriture', lecture_signee: 'Lecture signée', bucket_anonyme: 'Bucket sans authentification', lecture_configuree_anonyme: 'Adresse de lecture configurée sans authentification', suppression: 'Suppression' }[d.cible]} : {d.statut === null ? 'aucune réponse HTTP' : `HTTP ${d.statut}`} · {{ ok: 'OK', refus: 'accès refusé', accessible: 'adresse accessible sans authentification', introuvable: 'objet introuvable, confidentialité non prouvée', redirection: 'redirection non suivie, confidentialité non prouvée', contenu_inattendu: 'contenu inattendu', http_inattendu: 'statut inattendu', reseau: 'échec réseau ou délai dépassé' }[d.resultat]}
+          </p>)}
           <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>
             {test.put && test.privateRead && test.anonymousDenied && test.deleted ? c.testOk : test.put ? c.testLecture : c.testEcriture}
           </p>
