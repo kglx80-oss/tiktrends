@@ -11,7 +11,7 @@ import { tuile } from '../../ui';
 import { ciblerJarvis } from './cibler-jarvis';
 import { DetailCarte, LIBELLE_MEDIA } from './DetailCarte';
 import { ListeCanvas } from './ListeCanvas';
-import { bouton, boutonActif, desactive, mini, pastilleNature, rangee, section, styleCarte, texte, titre } from './styles';
+import { bouton, boutonActif, desactive, mini, rangee, section, styleCarte, texte, titre } from './styles';
 
 /**
  * Canvas métier du projet (cahier 01 §127, UX-04) · cartes reliées par leurs
@@ -320,12 +320,14 @@ export function CanvasMetier({ projectId, version, modele, apercus = {}, disposi
                         onPointerMove={bouger} onPointerUp={fin}
                         style={{
                           ...styleCarte(c.nature, choisie), position: 'absolute', left: p.x + (g?.dx ?? 0), top: p.y + (g?.dy ?? 0), width: p.w, height: p.h,
-                          overflow: 'hidden', touchAction: 'none', paddingRight: apercus[c.id] ? 76 : 10,
+                          overflow: 'hidden', touchAction: 'none', padding: 0, gap: 0,
                         }}>
-                        {apercus[c.id] && <img src={apercus[c.id]} alt={`Aperçu · ${c.titre}`} draggable={false} loading="lazy" onError={e => { e.currentTarget.hidden = true; }} style={{ position: 'absolute', right: 0, top: 0, width: 68, height: '100%', objectFit: 'cover', borderLeft: '1px solid var(--line-2)' }} />}
-                        <span style={pastilleNature}>{LIBELLES_NATURE_CANVAS[c.nature]}</span>
-                        <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.titre}</span>
-                        {media && <span style={{ ...mini, fontSize: 12 }}>{media}</span>}
+                        <span style={{ display: 'grid', gap: 3, padding: '10px 12px', minHeight: 54, boxSizing: 'border-box', borderBottom: '1px solid var(--line-2)' }}>
+                          <span style={{ fontSize: 10.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{LIBELLES_NATURE_CANVAS[c.nature]}</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.25, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{c.titre}</span>
+                        </span>
+                        {apercus[c.id] ? <img src={apercus[c.id]} alt={`Aperçu · ${c.titre}`} draggable={false} loading="lazy" onError={e => { e.currentTarget.hidden = true; }} style={{ display: 'block', width: 'calc(100% - 20px)', aspectRatio: '4 / 5', maxHeight: 248, flex: '0 1 auto', minHeight: 0, margin: '8px 10px 0', borderRadius: 11, objectFit: 'cover', pointerEvents: 'none' }} /> : <span style={{ padding: '14px', fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)', overflow: 'hidden', overflowWrap: 'anywhere' }}>{c.resume}</span>}
+                        <span style={{ ...mini, fontSize: 11.5, padding: '8px 12px', marginTop: 'auto', borderTop: '1px solid var(--line-2)' }}>{media || LIBELLES_ETAPE_CANVAS[c.etape]}</span>
                       </button>
                     );
                   })}

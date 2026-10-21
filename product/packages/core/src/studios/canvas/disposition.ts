@@ -22,10 +22,14 @@ import type { ModeleCanvas } from './modele';
 export interface PointCanvas { x: number; y: number }
 export interface RectCanvas { x: number; y: number; w: number; h: number }
 
+/** Gabarit visuel issu du prototype final : image 220 px, aperçu intérieur 4/5.
+ * Les espacements sont agrandis proportionnellement au gabarit v1 pour que
+ * la projection des positions historiques ne crée pas de chevauchement.
+ */
 /** Taille d'une carte et espacements de la grille, en unités du monde (px à zoom 1). */
-export const CARTE_CANVAS = { largeur: 216, hauteur: 92 } as const;
-export const GOUTTIERE_CANVAS = 80;
-export const COULOIR_CANVAS = 36;
+export const CARTE_CANVAS = { largeur: 220, hauteur: 340 } as const;
+export const GOUTTIERE_CANVAS = 82;
+export const COULOIR_CANVAS = 134;
 
 /** Plafond de positions stockées · 200 plans parlants (UX-06) ≈ 4 × 200 + 10 cartes, avec marge. */
 export const POSITIONS_CANVAS_MAX = 2000;

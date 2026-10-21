@@ -267,7 +267,7 @@ describe('canvas · vue', () => {
     }
   });
 
-  it('bornes de zoom · ajuster 20 plans tient au-dessus de ZOOM_MIN (mesure du tableau de vue.ts)', () => {
+  it('bornes de zoom · ajuster 20 plans tient au-dessus de ZOOM_MIN (cartes verticales)', () => {
     const k = composerCanvas(deriverCanvas(grand(20)), dispositionVide());
     const necessaire = Math.min((t.largeur - 48) / k.bornes.w, (t.hauteur - 48) / k.bornes.h);
     expect(necessaire).toBeGreaterThan(ZOOM_MIN_CANVAS);
@@ -297,7 +297,7 @@ describe('canvas · vue', () => {
     expect(premiere.y * v.k + v.y).toBeGreaterThanOrEqual(0);
     expect((premiere.x + premiere.w) * v.k + v.x).toBeLessThanOrEqual(zone.largeur);
     // Un petit canvas qui tient reste ajusté (tout visible).
-    const petit = composerCanvas(deriverCanvas(image()), dispositionVide());
+    const petit = composerCanvas(deriverCanvas(contenuVide()), dispositionVide());
     expect(vueInitiale(petit.bornes, { largeur: 1200, hauteur: 600 })).toEqual(vueAjustee(petit.bornes, { largeur: 1200, hauteur: 600 }));
     // La plus petite écriture d'une carte (12 px) reste ≥ 9 px.
     expect(12 * ZOOM_LISIBLE_CANVAS).toBeGreaterThanOrEqual(9);

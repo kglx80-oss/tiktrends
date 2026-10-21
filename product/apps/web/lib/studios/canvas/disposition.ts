@@ -2,7 +2,7 @@ import 'server-only';
 import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  deriverCanvas, dispositionVide, erreurStudio, validerContenuVersion, validerDispositionCanvas,
+  CARTE_CANVAS, GOUTTIERE_CANVAS, COULOIR_CANVAS, deriverCanvas, dispositionVide, erreurStudio, validerContenuVersion, validerDispositionCanvas,
   type ContenuVersion, type DispositionCanvas, type ErreurStudio, type ModeleCanvas,
 } from '@tiktrends/core';
 import { lireProjet, lireVersion } from '../depot';
@@ -36,7 +36,7 @@ export const cleDispositionCanvas = (userId: string, projectId: string) => `${PR
 type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
 
 interface ValeurStockee {
-  v: 1;
+  v: 1 | 2;
   rev: number;
   workspaceId: string;
   brandId: string;
@@ -62,7 +62,16 @@ export async function lireDispositionCanvasPour(ctx: ContexteStudio, projectId: 
       return { ok: true, disposition: dispositionVide(), rev: v && Number.isInteger(v.rev) ? (v.rev as number) : 0 };
     }
     const d = validerDispositionCanvas({ positions: v.positions });
-    return { ok: true, disposition: d.ok ? d.disposition : dispositionVide(), rev: v.rev as number };
+    // Projection pure : les coordonnées v1 restent en base jusqu'au prochain
+    // geste. Les pas sont proportionnels pour préserver les espaces libres.
+    const disposition = d.ok ? d.disposition : dispositionVide();
+    if (v.v !== 2) {
+      for (const point of Object.values(disposition.positions)) {
+        point.x = Math.round(point.x * (CARTE_CANVAS.largeur + GOUTTIERE_CANVAS) / 296);
+        point.y = Math.round(point.y * (CARTE_CANVAS.hauteur + COULOIR_CANVAS) / 128);
+      }
+    }
+    return { ok: true, disposition, rev: v.rev as number };
   } catch (err) {
     return echec(ctx, err);
   }
@@ -86,7 +95,7 @@ export async function enregistrerDispositionCanvasPour(
   const attendue = e.rev;
   const projet = p.projet;
   const valeur: ValeurStockee = {
-    v: 1, rev: attendue + 1, workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id, positions: d.disposition.positions,
+    v: 2, rev: attendue + 1, workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id, positions: d.disposition.positions,
   };
   const A = schema.appSettings;
   const cle = cleDispositionCanvas(ctx.userId, projet.id);
