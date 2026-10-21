@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { appliquerOperationVideo as appliquerNoyau, impactVideo, messageHorsLigneStudio, ECHEC_RESEAU_STUDIO, type ErreurStudio, type OperationVideo } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
@@ -60,8 +60,9 @@ export function apercuDuGeste(vue: DonneesVideo, operation: OperationVideo): Ape
   return { operation, libelle: r.libelle, impact: impactVideo(vue.contenu, r.contenu, { mediasExistants: vue.mediasValides }), durees: r.durees, signalements: r.signalements, refus: null };
 }
 
-export function EcranVideo({ vue }: { vue: DonneesVideo }) {
+export function EcranVideo({ vue, onRecharger }: { vue: DonneesVideo; onRecharger?: () => Promise<void> | void }) {
   const router = useRouter();
+  const recharger = useCallback(() => { if (onRecharger) void onRecharger(); else router.refresh(); }, [onRecharger, router]);
   const [apercu, setApercu] = useState<ApercuGeste | null>(null);
   const [storyboard, setStoryboard] = useState<StoryboardPropose | null>(null);
   const [questions, setQuestions] = useState<string[]>([]);
@@ -71,9 +72,9 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
 
   useEffect(() => {
     if (!vue.jobs.some((j) => !['completed', 'failed', 'cancelled'].includes(j.etat))) return;
-    const t = setTimeout(() => router.refresh(), RELECTURE_MS);
+    const t = setTimeout(recharger, RELECTURE_MS);
     return () => clearTimeout(t);
-  }, [vue, router]);
+  }, [vue, recharger]);
 
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: (r: { ok: true }) => string, apres?: () => void) {
     setEnCours(nom);
@@ -82,7 +83,7 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
     dernierGeste.current = reessayable ? () => { void agir(nom, f, succes, apres); } : null;
     try {
       const r = await f();
-      if (r.ok) { setRetour({ ok: true, texte: succes(r) }); apres?.(); router.refresh(); } else setRetour({ ok: false, code: r.code, reessayable, texte: `${messageErreur(r)}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}` });
+      if (r.ok) { setRetour({ ok: true, texte: succes(r) }); apres?.(); recharger(); } else setRetour({ ok: false, code: r.code, reessayable, texte: `${messageErreur(r)}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}` });
     } catch {
       setRetour({ ok: false, code: ECHEC_RESEAU_STUDIO, reessayable, texte: messageHorsLigneStudio('enregistrement') });
     } finally {
@@ -94,7 +95,7 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
   return (
     <VueVideo
       vue={vue} apercu={apercu} storyboard={storyboard} questions={questions} enCours={enCours} retour={retour}
-      surRecharger={() => { setRetour(null); setApercu(null); router.refresh(); }}
+      surRecharger={() => { setRetour(null); setApercu(null); recharger(); }}
       surReessayer={() => dernierGeste.current?.()}
       surPrevoir={(op) => { setRetour(null); setApercu(apercuDuGeste(vue, op)); }}
       surAbandonner={() => setApercu(null)}
