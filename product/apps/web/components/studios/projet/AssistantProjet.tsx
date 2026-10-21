@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ETAPES_RAIL, etatRailProjet, etapeProjetPrecedente, etapeProjetSuivante, etapeRequiertProjet, etapeRail,
@@ -25,7 +25,7 @@ import { usePropositionsBrief } from './usePropositionsBrief';
 import { EtapeStrategie } from './EtapeStrategie';
 import { ConfirmationLotImages } from './ConfirmationLotImages';
 import type { VueLotImages } from '../../../lib/studios/image/lot-images';
-import { EtapeDirection } from './EtapeDirection';
+import { EtapeDirection, type EnregistrementDirection } from './EtapeDirection';
 import { EtapeLivrableAssistant } from './EtapeLivrableAssistant';
 import { EtapeFormatDevis } from './EtapeFormatDevis';
 import { EtapeConfirmation } from './EtapeConfirmation';
@@ -49,7 +49,10 @@ const lien: CSSProperties = { color: 'var(--accent-strong)', display: 'inline-fl
 
 export interface ProjetCourant { id: string; versionCourante: { id: string; n: number } }
 
+export interface GardeFermetureAssistant { peutFermer: () => boolean }
+
 export interface ProprietesAssistantProjet {
+  gardeFermetureRef?: React.Ref<GardeFermetureAssistant>;
   etat: EtatNouveauProjet;
   initial: { type: TypeNouveauProjet; titre: string; intention: string };
   /** Personas Adsmap de la marque active · lecture, portée. Vide = « Aucun persona » seul. */
@@ -65,6 +68,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const router = useRouter();
   const [etape, setEtape] = useState<EtapeAssistant>('start');
   const contenuEtape = useRef<HTMLDivElement>(null);
+  const directionEnregistrement = useRef<EnregistrementDirection>(null);
+  const verrouNavigation = useRef(false);
   useEffect(() => {
     if (contenuEtape.current) contenuEtape.current.scrollTop = 0;
   }, [etape]);
@@ -94,6 +99,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const [jobIds, setJobIds] = useState<string[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [devis, setDevis] = useState<DevisImageVue | null>(null);
+
+  useImperativeHandle(p.gardeFermetureRef, () => ({peutFermer: () => etape !== 'direction' || (directionEnregistrement.current?.peutFermer() ?? false)}));
 
   if (p.etat.etat !== 'pret') {
     return (
@@ -207,12 +214,28 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
     !encours && !incertain && (projet ? ((id !== 'creation' || !!jobId) && (id === 'brief' || (etapeRequiertProjet(id) && etapeDisponible(id)))) : (etatRailProjet(id, etape, brief) === 'done'));
 
   async function aller(id: EtapeAssistant) {
-    if (encours || incertain || id === etape) return;
+    if (encours || incertain || verrouNavigation.current || id === etape) return;
+    if (etape === 'direction' && !(await enregistrerDirection())) return;
     if (etape === 'brief' && projet) { await creer(id); return; }
     const actuel = projet ? await relireProjet() : brief;
     if (projet && !actuel) return;
     if (id === 'brief' && actuel) setSaisie(saisieDepuisBrief(actuel));
     setEtape(id);
+  }
+
+  async function enregistrerDirection() {
+    if (verrouNavigation.current) return false;
+    verrouNavigation.current = true; setEncours(true);
+    try { return await directionEnregistrement.current?.enregistrer() ?? false; }
+    finally {verrouNavigation.current = false;setEncours(false);}
+  }
+  async function enregistrerEtQuitter() {
+    if (encours || incertain || verrouNavigation.current) return;
+    if (etape === 'direction') {
+      if (!(await enregistrerDirection())) return;
+      if (!(await relireProjet())) return;
+    }
+    p.onFermer?.();
   }
 
   const ouvrirProjet = () => { if (projet) router.push(`/studio/projets/${projet.id}`); };
@@ -243,7 +266,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
         {etape === 'direction' && projet && brief && (
-          <AssistantPostCreation etape="direction" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
+          <AssistantPostCreation enregistrementRef={directionEnregistrement} etape="direction" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
         {etape === 'format' && projet && (type === 'video' || type === 'text') && <EtapeLivrableAssistant projectId={projet.id} type={type} onRetour={() => void aller('direction')} />}
         {etape === 'format' && projet && brief && type !== 'video' && type !== 'text' && (
@@ -279,7 +302,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
             incertain={incertain}
             aProjet={!!projet}
             onFermer={p.onFermer}
-            onEnregistrer={etape === 'brief' ? () => void creer('quitter') : p.onFermer}
+            onEnregistrer={etape === 'brief' ? () => void creer('quitter') : p.onFermer ? () => void enregistrerEtQuitter() : undefined}
             onCreer={() => void creer()}
             onVersBrief={() => setEtape('brief')}
             onReculer={() => { const prec = etapeProjetPrecedente(etape); if (prec && peutAller(prec)) aller(prec); }}
@@ -301,7 +324,8 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
 
 /* ─────────────────── Sous-arbre post-création (propositions) ─────────────── */
 
-function AssistantPostCreation({ etape, projet, brief, marqueId, sources, apercuProduitUrl, onProjetChange }: {
+function AssistantPostCreation({ etape, projet, brief, marqueId, sources, apercuProduitUrl, onProjetChange, enregistrementRef }: {
+  enregistrementRef?: React.Ref<EnregistrementDirection>;
   etape: 'strategie' | 'direction';
   projet: ProjetCourant;
   brief: BriefCanonique;
@@ -316,7 +340,7 @@ function AssistantPostCreation({ etape, projet, brief, marqueId, sources, apercu
   // d'hypothèses (Veille) restent honnêtement inactives (pas de bouton mort).
   return etape === 'strategie'
     ? <EtapeStrategie brief={brief} cycle={cycle} onApplied={onApplied} sources={sources} marqueId={marqueId} />
-    : <EtapeDirection brief={brief} cycle={cycle} onApplied={onApplied} apercuProduitUrl={apercuProduitUrl} />;
+    : <EtapeDirection enregistrementRef={enregistrementRef} projectId={projet.id} baseVersionId={projet.versionCourante.id} brief={brief} cycle={cycle} onApplied={onApplied} apercuProduitUrl={apercuProduitUrl} />;
 }
 
 /* ─────────────────────────────── Le pied ────────────────────────────────── */
@@ -341,7 +365,7 @@ function Pied({ etape, encours, incertain, aProjet, onFermer, onEnregistrer, onC
           {etape === 'start' && <button type="button" data-bouton="vers-brief" onClick={onVersBrief} className={css.primary}>Commencer le brief</button>}
           {etape === 'brief' && <button type="button" data-bouton="creer-projet" onClick={onCreer} disabled={encours || incertain} className={css.primary}>{encours ? 'Création…' : 'Continuer vers la stratégie'}</button>}
           {etape === 'strategie' && aProjet && <button type="button" data-bouton="vers-direction" onClick={onAvancer} className={css.primary}>Continuer vers la direction</button>}
-          {etape === 'direction' && aProjet && <button type="button" data-bouton="vers-format" onClick={onAvancer} className={css.primary}>Continuer vers le format</button>}
+          {etape === 'direction' && aProjet && <button type="button" data-bouton="vers-format" disabled={encours || incertain} onClick={onAvancer} className={css.primary}>{encours ? 'Enregistrement…' : 'Valider la direction'}</button>}
         </div>
       </footer>
       {etape === 'brief' && <p style={{ ...note, fontSize: 12.5, margin: 0 }}>Gratuit · le brief est enregistré à la création, rien n’est généré tant que tu ne lances rien.</p>}

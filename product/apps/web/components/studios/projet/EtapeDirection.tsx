@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Ref } from 'react';
 import {
   changementStyleManuel, demandeDirectionDepuisBrief, OBJECTIF_MAX,
-  ligneTexte, lireLigneTexte, type ChangementPatch, type BriefCanonique,
+  ALLOWED_PATHS_BRIEF, ligneTexte, lireLigneTexte, type ChangementPatch, type BriefCanonique,
 } from '@tiktrends/core';
+import { creerPropositionManuelle, appliquerProposition } from '../../../app/actions/studios/propositions';
 import css from './AssistantProjet.module.css';
 import { Icon } from '../../Icon';
 import { BlocPropositions, btnAction, btnActionGhost } from './BlocPropositions';
@@ -24,7 +25,12 @@ import type { CyclePropositionsBrief } from './usePropositionsBrief';
  */
 
 const note: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
-export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl }: {
+export interface EnregistrementDirection { enregistrer: () => Promise<boolean>; peutFermer: () => boolean }
+
+export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl, enregistrementRef, projectId, baseVersionId }: {
+  enregistrementRef?: Ref<EnregistrementDirection>;
+  projectId?: string;
+  baseVersionId?: string;
   brief: BriefCanonique;
   cycle: CyclePropositionsBrief;
   onApplied: () => void;
@@ -54,43 +60,93 @@ export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl }: {
   };
   const jarvis = cycle.liste?.ok ? cycle.liste.jarvis : null;
   const peutProposer = cycle.liste?.ok ? cycle.liste.peutProposer : false;
+  const [sauvegarde, setSauvegarde] = useState(false);
+  const [erreurSauvegarde, setErreurSauvegarde] = useState('');
+  const verrouSauvegarde = useRef(false);
+  const sauvegardeIncertaine = useRef(false);
+  const modifiee = concept !== (brief.concept ?? '') || style !== (brief.styleIntent ?? '') || accroche !== accrocheRelue || cta !== ctaRelu;
+  useImperativeHandle(enregistrementRef, () => ({ peutFermer: () => {
+    if (!modifiee && !verrouSauvegarde.current && !cycle.occupe && !sauvegardeIncertaine.current) return true;
+    setErreurSauvegarde('Valide la direction ou annule tes modifications avant de fermer. Une opération non confirmée doit être vérifiée dans le projet.');
+    return false;
+  }, enregistrer: async () => {
+    if (verrouSauvegarde.current || cycle.occupe || sauvegardeIncertaine.current) {
+      setErreurSauvegarde('Une opération est en cours ou non confirmée. Vérifie son état avant de quitter la direction.');
+      return false;
+    }
+    const changes: ChangementPatch[] = [];
+    if (concept !== (brief.concept ?? '')) changes.push({op:typeof brief.concept === 'string' ? 'replace' : 'add',path:'/brief/concept',newValue:concept.trim().slice(0,OBJECTIF_MAX),reason:'Concept validé à la main'});
+    if (style !== (brief.styleIntent ?? '')) changes.push(changementStyleManuel(style));
+    // Accroche et CTA partagent le tableau texts : appliquer les deux dans une
+    // seule valeur pour qu'aucun champ n'écrase l'autre.
+    if (accroche !== accrocheRelue || cta !== ctaRelu) {
+      const texts = [...brief.texts];
+      for (const [type, texte, index, original] of [
+        ['hook', accroche, indexAccroche, accrocheRelue], ['cta', cta, indexCta, ctaRelu],
+      ] as const) {
+        if (texte === original) continue;
+        const ancien = lignes[index];
+        const valeur = ligneTexte({type,langue:ancien?.langue || 'fr',texte:texte.trim().slice(0,OBJECTIF_MAX),sources:ancien?.sources ?? []});
+        if (index >= 0) texts[index] = valeur; else texts.push(valeur);
+      }
+      changes.push({op:'replace',path:'/brief/texts',newValue:texts,reason:'Accroche et appel à l’action validés à la main'});
+    }
+    if (!changes.length) return true;
+    if (!peutProposer || !projectId || !baseVersionId) { setErreurSauvegarde('Tu ne peux pas enregistrer ces modifications avec tes droits actuels. Tes saisies restent affichées.'); return false; }
+    verrouSauvegarde.current = true; setSauvegarde(true); setErreurSauvegarde('');
+    try {
+      const cree = await creerPropositionManuelle({projectId,baseVersionId,cible:'brief',changes,explication:'Direction relue et validée par l’utilisateur · sans appel IA',allowedPaths:ALLOWED_PATHS_BRIEF});
+      if (!cree.ok) {setErreurSauvegarde(cree.message);return false;}
+      if (cree.statut !== 'proposee') {setErreurSauvegarde('La direction n’a pas pu être enregistrée. Tes saisies restent affichées.');return false;}
+      const applique = await appliquerProposition({projectId,baseVersionId,proposalId:cree.proposition.id});
+      if (!applique.ok) {setErreurSauvegarde(applique.message);return false;}
+      return true;
+    } catch {
+      sauvegardeIncertaine.current = true;
+      setErreurSauvegarde('Enregistrement non confirmé. Tes saisies restent affichées ; vérifie la version du projet avant de recommencer.');
+      return false;
+    } finally {verrouSauvegarde.current = false;setSauvegarde(false);}
+  }}));
 
   return (
     <div data-zone="assistant-direction" style={{ display: 'grid', gap: 16 }}>
-      <div className={css.wzdir}>
+      {erreurSauvegarde && <div><p role="alert">{erreurSauvegarde}</p>{modifiee && <button type="button" disabled={sauvegarde || !!cycle.occupe || sauvegardeIncertaine.current} onClick={() => {
+        setConcept(brief.concept ?? '');setStyle(brief.styleIntent ?? '');setAccroche(accrocheRelue);setCta(ctaRelu);setErreurSauvegarde('');
+      }}>Annuler mes modifications</button>}</div>}
+      <fieldset disabled={sauvegarde || sauvegardeIncertaine.current} style={{border:0,padding:0,margin:0,minWidth:0}}><div className={css.wzdir}>
         <section aria-label="Direction actuelle" className={css.wzmock}>
           <span className={css.eyebrow}>Aperçu de la direction</span>
           <div className={css.wzad} data-champ="resume-direction">
             <div className={css.wzadhead}><div><strong>{brief.concept || 'Votre concept'}</strong><small>Direction en préparation</small></div></div>
-            {brief.texts.length > 0 && <p>{brief.texts[0]}</p>}
-            {apercuProduitUrl ? <div className={`${css.wprev} ${css.wr45} ${css.big}`}><img src={apercuProduitUrl} alt="Photo produit sélectionnée · aperçu, pas une image générée" />{brief.texts[0] && <span className={css.wprevcap}>{brief.texts[0]}</span>}</div> : <div className={css.emptyPreview}>Aucun visuel généré pour cette direction</div>}
+            {brief.texts.length > 0 && <p>{lignes[0]?.texte}</p>}
+            {apercuProduitUrl ? <div className={`${css.wprev} ${css.wr45} ${css.big}`}><img src={apercuProduitUrl} alt="Photo produit sélectionnée · aperçu, pas une image générée" />{brief.texts[0] && <span className={css.wprevcap}>{lignes[0]?.texte}</span>}</div> : <div className={css.emptyPreview}>Aucun visuel généré pour cette direction</div>}
             <div className={css.wanglebody}><span data-resume="Angle">{brief.angle || 'Angle à définir'}</span><span data-resume="Concept">{brief.concept || 'Concept à définir'}</span><span data-resume="Intention de style">{brief.styleIntent || 'Style à définir'}</span></div>
           </div>
         </section>
         <div className={css.wzcol}>
           <section aria-label="Concept et accroche" style={{display:'grid',gap:12}}>
             <label className={css.field}><span className={css.wzlabel}>Concept</span><input data-champ="concept-libre" className={css.editor} style={{minHeight:44}} value={concept} maxLength={OBJECTIF_MAX} onChange={e=>setConcept(e.target.value)} /></label>
-            <button type="button" data-bouton="ecrire-concept" style={btnActionGhost} disabled={!peutProposer || !concept.trim() || !!cycle.occupe} onClick={()=>cycle.ecrireManuel({op:typeof brief.concept === 'string' ? 'replace' : 'add',path:'/brief/concept',newValue:concept.trim().slice(0,OBJECTIF_MAX),reason:'Concept écrit à la main · direction'}, 'Concept écrit à la main · direction')}>Proposer ce concept</button>
+            {!enregistrementRef && <button type="button" data-bouton="ecrire-concept" style={btnActionGhost} disabled={!peutProposer || !concept.trim() || !!cycle.occupe} onClick={()=>cycle.ecrireManuel({op:typeof brief.concept === 'string' ? 'replace' : 'add',path:'/brief/concept',newValue:concept.trim().slice(0,OBJECTIF_MAX),reason:'Concept écrit à la main · direction'}, 'Concept écrit à la main · direction')}>Proposer ce concept</button>}
             <label className={css.field}><span className={css.wzlabel}>Accroche</span><input data-champ="accroche-libre" className={css.editor} style={{minHeight:44}} value={accroche} maxLength={OBJECTIF_MAX} onChange={e=>setAccroche(e.target.value)} /></label>
-            <button type="button" data-bouton="ecrire-accroche" style={btnActionGhost} disabled={!peutProposer || !accroche.trim() || !!cycle.occupe} onClick={()=>cycle.ecrireManuel(texteManuel('hook',accroche),'Accroche écrite à la main · direction')}>Proposer cette accroche</button>
+            {!enregistrementRef && <button type="button" data-bouton="ecrire-accroche" style={btnActionGhost} disabled={!peutProposer || !accroche.trim() || !!cycle.occupe} onClick={()=>cycle.ecrireManuel(texteManuel('hook',accroche),'Accroche écrite à la main · direction')}>Proposer cette accroche</button>}
           </section>
       <section aria-label="Écrire l’intention de style" style={{ display: 'grid', gap: 8 }}>
         <span className={css.wzlabel}>Écrire l’intention de style</span>
         <textarea data-champ="style-libre" value={style} maxLength={OBJECTIF_MAX} rows={3}
           onChange={(e) => setStyle(e.target.value)} placeholder="L’ambiance visuelle · lumière, palette, matière, cadrage" className={css.editor} />
         <div>
-          <button type="button" data-bouton="ecrire-style" disabled={!peutProposer || !style.trim() || !!cycle.occupe}
+          {!enregistrementRef && <button type="button" data-bouton="ecrire-style" disabled={!peutProposer || !style.trim() || !!cycle.occupe}
             onClick={() => cycle.ecrireManuel(changementStyleManuel(style), 'Intention de style écrite à la main · direction')}
             style={{ ...btnActionGhost, opacity: (!peutProposer || !style.trim() || cycle.occupe === 'manuel') ? 0.55 : 1 }}>
             {cycle.occupe === 'manuel' ? 'Enregistrement…' : 'Enregistrer l’intention de style'}
-          </button>
+          </button>}
         </div>
       </section>
 
       <section aria-label="Appel à l’action" style={{display:'grid',gap:12}}>
         <label className={css.field}><span className={css.wzlabel}>Appel à l’action</span><input data-champ="cta-libre" className={css.editor} style={{minHeight:44}} value={cta} maxLength={OBJECTIF_MAX} placeholder="Découvrir" onChange={e=>setCta(e.target.value)} /></label>
-        <button type="button" data-bouton="ecrire-cta" style={btnActionGhost} disabled={!peutProposer || !cta.trim() || !!cycle.occupe} onClick={()=>cycle.ecrireManuel(texteManuel('cta',cta),'Appel à l’action écrit à la main · direction')}>Proposer cet appel à l’action</button>
-        <p style={note}>Ces modifications restent des propositions jusqu’à leur validation ci-dessous.</p>
+        {!enregistrementRef && <button type="button" data-bouton="ecrire-cta" style={btnActionGhost} disabled={!peutProposer || !cta.trim() || !!cycle.occupe} onClick={()=>cycle.ecrireManuel(texteManuel('cta',cta),'Appel à l’action écrit à la main · direction')}>Proposer cet appel à l’action</button>}
+        <p style={note}>{enregistrementRef ? '« Valider la direction » enregistre tes modifications, sans appel IA.' : 'Ces modifications restent des propositions jusqu’à leur validation ci-dessous.'}</p>
       </section>
 
       <section aria-label="Autre direction" style={{ display: 'grid', gap: 8 }}>
@@ -113,7 +169,7 @@ export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl }: {
         <BlocPropositions cycle={cycle} onApplied={onApplied} />
       </section>}
         </div>
-      </div>
+      </div></fieldset>
     </div>
   );
 }
