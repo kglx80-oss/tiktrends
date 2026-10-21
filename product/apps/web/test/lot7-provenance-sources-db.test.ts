@@ -154,3 +154,34 @@ describe('(b) ajout d’une source Veille après création', () => {
     expect(await compte(), 'aucune écriture hors portée').toEqual(avantCompte);
   });
 });
+
+describe('direction visuelle relue sans pixels concurrents', () => {
+  it('persiste composition/style/format, garde provenance et reprend le même projet', async () => {
+    qui('ua');
+    const directionVisuelle = { composition: 'Produit centré, titre en haut, fond uni.', styleIntent: 'Lumière douce', formats: ['4:5'], texts: ['Découvrez notre produit'] };
+    const entree = { sources: [SRC1], brandId: ids.brandA1, kind: 'image', objectif: 'Adapter pour notre marque', directionVisuelle, cleClic: 'direction-relue-0001' };
+    const r = await creerProjetDepuisSources(entree);
+    if (!r.ok) throw new Error(JSON.stringify(r));
+    const [v] = await db.select().from(schema.studioProjectVersions).where(eq(schema.studioProjectVersions.id, r.versionId));
+    const contenu = v!.content as { brief: { references: unknown[] } };
+    expect(contenu.brief).toMatchObject(directionVisuelle);
+    expect(contenu.brief.references).toEqual([]);
+    const [p] = await db.select().from(schema.studioProjects).where(eq(schema.studioProjects.id, r.projet.id));
+    expect((p!.sourceRefs as unknown[])[0]).toMatchObject({ sourceId: ID_SRC1, droit: 'observation_publique' });
+    expect(JSON.stringify(p!.sourceRefs)).not.toContain('https://cdn');
+    const reprise = await creerProjetDepuisSources(entree);
+    expect(reprise).toMatchObject({ ok: true, deja: true, projet: { id: r.projet.id } });
+  });
+  it('refuse texte concurrent et direction invalide sans écriture', async () => {
+    qui('ua'); const avant = await compte();
+    for (const directionVisuelle of [
+      { composition: 'Logo Lumière Botanique en haut', styleIntent: '', formats: ['1:1'] },
+      { composition: '', styleIntent: '', formats: ['1:1'] },
+      { composition: 'Produit centré', styleIntent: '', formats: ['inconnu'] },
+    ]) {
+      const r = await creerProjetDepuisSources({ sources: [SRC1], brandId: ids.brandA1, directionVisuelle, cleClic: 'direction-refus-0001' });
+      expect(r).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
+      expect(await compte()).toEqual(avant);
+    }
+  });
+});

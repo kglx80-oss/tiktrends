@@ -4,7 +4,7 @@ import { useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { accrocheNouveauConcept, CIBLE_TACTILE_MIN, MENTION_COUT_MESSAGE_CONCEPT, verrouAction, type EtatNouveauProjet } from '@tiktrends/core';
 import { Icon } from '../../Icon';
-import { demarrerConcept } from '../../../app/actions/studios/concept';
+import { demarrerConcept, type DemarrageConcept } from '../../../app/actions/studios/concept';
 
 const note: CSSProperties = { fontSize: 12.5, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
 
@@ -23,7 +23,8 @@ const note: CSSProperties = { fontSize: 12.5, color: 'var(--ink-2)', margin: 0, 
  *
  * Anti double-envoi · `verrouAction` (motif `JarvisChat`) pose un drapeau
  * SYNCHRONE dans le tick du clic · deux clics du même tick ne démarrent qu'UN
- * concept. L'idempotence côté serveur couvre un rejeu franchissant le verrou.
+ * concept. Après création, la reprise ouvre le projet existant sans renvoyer
+ * automatiquement le message ni démarrer un second projet.
  *
  * Les états viennent du noyau (`etatNouveauProjet`) · sans marque active, on
  * mène vers les marques ; en lecture seule, on le DIT.
@@ -32,6 +33,7 @@ export function NouveauConcept({ etat }: { etat: EtatNouveauProjet }) {
   const router = useRouter();
   const [saisie, setSaisie] = useState('');
   const [enCours, setEnCours] = useState(false);
+  const [demarrage, setDemarrage] = useState<DemarrageConcept | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const verrou = useRef(verrouAction());
 
@@ -48,7 +50,7 @@ export function NouveauConcept({ etat }: { etat: EtatNouveauProjet }) {
 
   async function envoyer() {
     const q = saisie.trim();
-    if (!q || enCours) return;
+    if (!q || enCours || demarrage) return;
     // Drapeau SYNCHRONE · deux clics du même tick ne démarrent qu'un concept.
     if (!verrou.current.tenter()) return;
     setEnCours(true);
@@ -57,22 +59,28 @@ export function NouveauConcept({ etat }: { etat: EtatNouveauProjet }) {
       const r = await demarrerConcept();
       if (!r.ok) { setErreur(r.message); return; }
       const { projectId, conversationId } = r.demarrage;
-      // Premier tour Jarvis · passe la barrière de dépense (en simulation = 0 $).
-      // Le message est persisté côté route AVANT l'appel modèle · même si le flux
-      // est coupé par la navigation, la reprise se fait sur l'écran du concept.
-      await fetch('/api/jarvis/chat', {
+      setDemarrage(r.demarrage);
+      // Conserver le projet créé même si Jarvis refuse ou si le réseau coupe.
+      // Aucune relance implicite : le fil du projet permet d'inspecter l'état.
+      const res = await fetch('/api/jarvis/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ message: q, conversationId, projectId }),
-      }).then(async (res) => {
-        if (!res.body) return;
-        const lecteur = res.body.getReader();
-        for (;;) { const { done } = await lecteur.read(); if (done) break; }
-      }).catch(() => { /* reprise sur l'écran du concept · le message est en base */ });
-      // On retombe sur le concept VIVANT · le rechargement lit le fil par projet.
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null) as { error?: string } | null;
+        setErreur(detail?.error || 'Jarvis n’a pas pu répondre.');
+        return;
+      }
+      if (!res.body) {
+        setErreur('La réponse de Jarvis est indisponible. Ouvre le concept pour vérifier la conversation.');
+        return;
+      }
+      const lecteur = res.body.getReader();
+      for (;;) { const { done } = await lecteur.read(); if (done) break; }
       router.replace(`/studio/projets/${projectId}`);
     } catch {
-      setErreur('Le concept n’a pas pu démarrer. Réessaie.');
+      setErreur('La connexion s’est interrompue. Si le concept a été créé, ouvre-le pour vérifier la conversation avant tout nouvel envoi.');
     } finally {
       setEnCours(false);
       verrou.current.relacher();
@@ -103,8 +111,8 @@ export function NouveauConcept({ etat }: { etat: EtatNouveauProjet }) {
           <button
             type="button"
             onClick={() => void envoyer()}
-            disabled={enCours || !saisie.trim()}
-            aria-disabled={enCours || !saisie.trim() || undefined}
+            disabled={enCours || !!demarrage || !saisie.trim()}
+            aria-disabled={enCours || !!demarrage || !saisie.trim() || undefined}
             data-envoi="pret"
             title="Démarrer le concept · ton premier message crée le projet et la conversation"
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: CIBLE_TACTILE_MIN, padding: '0 16px', borderRadius: 999, border: 'none', background: enCours || !saisie.trim() ? 'var(--line-2)' : 'var(--grad-accent)', color: enCours || !saisie.trim() ? 'var(--muted)' : 'var(--on-accent)', cursor: enCours || !saisie.trim() ? 'default' : 'pointer', fontSize: 14, fontWeight: 600 }}
@@ -114,6 +122,7 @@ export function NouveauConcept({ etat }: { etat: EtatNouveauProjet }) {
         </div>
       </div>
 
+      {demarrage && !enCours && <a href={`/studio/projets/${demarrage.projectId}`} style={{ color: 'var(--accent-strong)' }}>Ouvrir le concept créé et vérifier la conversation</a>}
       {erreur && <p role="alert" data-concept-erreur style={{ ...note, color: 'var(--err-text)' }}>{erreur}</p>}
     </section>
   );

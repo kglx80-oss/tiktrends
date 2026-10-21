@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
-  composerBrief, validerFormeBrief, validerRelationsBrief, refsAdsmapCitees, validerHypothese, hypotheseSaisie, saisieSuffisante,
+  lireDirectionVisuelleRelue, composerBrief, validerFormeBrief, validerRelationsBrief, refsAdsmapCitees, validerHypothese, hypotheseSaisie, saisieSuffisante,
   propositionValidePour, referenceProduit, lireReferenceProduit, lireReferencesSources, ajouterSourcesAuProjet, completudeProjet, hypotheseDuBrief,
   exporterBrief as exporterBriefNoyau, contenuVide, creationsHorsMarque, validerContenuVersion, empreinteContenu, objetDansPortee, erreurStudio,
   LIBELLES_TYPE_PROJET, SCHEMA_VERSION_CONTENU, TEXTES_REFUS_PROPOSITION,
@@ -68,6 +68,8 @@ export interface EntreeCreationDepuisSources {
   /** `{ origine: 'proposee', hypothese, jeton }` · `{ origine: 'saisie', saisie }` · `null`. */
   hypothese?: unknown;
   productId?: unknown;
+  /** Composition/style/formats dérivés, explicitement relus ; aucun pixel concurrent. */
+  directionVisuelle?: unknown;
   cleClic: unknown;
 }
 
@@ -152,6 +154,11 @@ export async function creerProjetDepuisSourcesPour(
   }
 
   const brief = composerBrief({ sources, hypothese: h.hypothese, produit, audience: marque.audience ?? '', ...(objectif !== undefined ? { objectif } : {}) });
+  if (e.directionVisuelle !== undefined) {
+    const direction = lireDirectionVisuelleRelue(e.directionVisuelle);
+    if (!direction) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'directionVisuelle', raison: 'composition requise et style de 2 000 caractères maximum ; 1 à 3 formats parmi 1:1, 4:5, 9:16, 16:9' }] });
+    Object.assign(brief, direction);
+  }
   // Références Adsmap V5 · on INJECTE la portée + le résolveur (lecture seule,
   // cantonné à la session) pour que `validerRelationsBrief` contrôle réellement
   // l'existence et la portée des `*Ref` citées. Sans cette injection, le garde
