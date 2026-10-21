@@ -78,7 +78,8 @@ describe('Studios · liste des projets · rendu V5', () => {
     );
     // Le lien de secours permet aussi une entrée directe ; le clic ouvre la fenêtre, avec
     // sur un « + » (path de l'icône plus) puis le libellé du noyau.
-    expect(html).toMatch(/<a[^>]*href="\/studio\/projets\/nouveau"[^>]*data-nouveau-projet="pret"/);
+    const container = document.createElement('div'); container.innerHTML = html;
+    expect(container.querySelector('a[data-nouveau-projet="pret"]')?.getAttribute('href')).toBe('/studio/projets/nouveau');
     expect(html).toMatch(/data-nouveau-projet="pret"[\s\S]*?M12 5v14M5 12h14[\s\S]*?Nouveau projet/);
   });
 

@@ -6,7 +6,7 @@ import { Icon } from '../../Icon';
 import styles from './FenetreAssistant.module.css';
 
 /** Native dialog supplies focus trapping, Escape and inert background. */
-export function FenetreAssistant({ children, onFermer }: { children: ReactNode; onFermer: () => void }) {
+export function FenetreAssistant({ children, onFermer, titre = 'Que voulez-vous créer ?' }: { children: ReactNode; onFermer: () => void; titre?: string }) {
   const [monte, setMonte] = useState(false);
   useEffect(() => { setMonte(true); }, []);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -26,7 +26,7 @@ export function FenetreAssistant({ children, onFermer }: { children: ReactNode; 
   if (!monte) return null;
   return createPortal(
     <dialog ref={dialog} className={styles.dialog} aria-label="Nouveau projet" onCancel={(e) => { e.preventDefault(); onFermer(); }}>
-      <header className={styles.head}><h2>Nouveau projet</h2><button type="button" aria-label="Fermer" className={styles.close} onClick={onFermer}><Icon name="x" size={18} /></button></header>
+      <header className={styles.head}><h2>Nouveau projet · {titre}</h2><button type="button" aria-label="Fermer" className={styles.close} onClick={onFermer}><Icon name="x" size={18} /></button></header>
       <div className={styles.body}>{children}</div>
     </dialog>, document.body,
   );

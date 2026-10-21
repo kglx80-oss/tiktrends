@@ -43,7 +43,7 @@ export function DepartDepuisSource({ origine, onChoisir, onFermer }: {
   return <>
     <div className={css.wzscrim} aria-hidden />
     <section ref={panneau} onKeyDown={(e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onFermer(); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onFermer(); }
       if (e.key !== 'Tab') return;
       const boutons = [...(panneau.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
       const premier = boutons[0]; const dernier = boutons[boutons.length - 1];

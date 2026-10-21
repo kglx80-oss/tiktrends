@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ETAPES_RAIL, etatRailProjet, etapeProjetPrecedente, etapeProjetSuivante, etapeRequiertProjet, etapeRail,
@@ -15,6 +15,8 @@ import { creerProjet } from '../../../app/actions/studios/projets';
 import { ajouterSourcesAuProjet, lireProjetDetail } from '../../../app/actions/studios/sources';
 import type { DevisImageVue } from '../../../lib/studios/image/parcours';
 import css from './AssistantProjet.module.css';
+import { PhotoProduitAssistant } from './PhotoProduitAssistant';
+import { PanneauAssistant } from './PanneauAssistant';
 import { DepartDepuisSource } from './DepartDepuisSource';
 import { lireDepartAssistant, type DepartAssistant, type OrigineDepartAssistant } from '../../../app/actions/studios/departs-assistant';
 import { Icon } from '../../Icon';
@@ -22,6 +24,7 @@ import { lbl, surface } from '../../ui';
 import { usePropositionsBrief } from './usePropositionsBrief';
 import { EtapeStrategie } from './EtapeStrategie';
 import { EtapeDirection } from './EtapeDirection';
+import { EtapeLivrableAssistant } from './EtapeLivrableAssistant';
 import { EtapeFormatDevis } from './EtapeFormatDevis';
 import { EtapeConfirmation } from './EtapeConfirmation';
 import { EtatCreationAssistant } from './EtatCreationAssistant';
@@ -50,6 +53,7 @@ export interface ProprietesAssistantProjet {
   /** Personas Adsmap de la marque active · lecture, portée. Vide = « Aucun persona » seul. */
   personas: ReferenceAdsmap[];
   onFermer?: () => void;
+  onTitreChange?: (titre: string) => void;
   accessoiresBrief?: ReactNode;
   produits?: { id: string; nom: string; photos: { assetId: string; apercu: string | null; position: number }[] }[];
 }
@@ -57,12 +61,16 @@ export interface ProprietesAssistantProjet {
 export function AssistantProjet(p: ProprietesAssistantProjet) {
   const router = useRouter();
   const [etape, setEtape] = useState<EtapeAssistant>('start');
+  useEffect(() => { p.onTitreChange?.({ start: 'Que voulez-vous créer ?', brief: 'Le brief', strategie: 'La stratégie', direction: 'La direction', format: 'Formats & devis', confirm: 'Confirmer la génération', creation: 'Vos créations' }[etape]); }, [etape, p.onTitreChange]);
   const [type, setType] = useState<TypeNouveauProjet>(p.initial.type);
   const [titre, setTitre] = useState(p.initial.titre);
   const [saisie, setSaisie] = useState<SaisieBriefV5>({ ...saisieBriefVide(), intention: p.initial.intention });
+  const lectureNavigation = useRef(0);
   const [encours, setEncours] = useState(false);
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
   const [incertain, setIncertain] = useState(false);
+  const [photoOuverte, setPhotoOuverte] = useState(false);
+  const [catalogue, setCatalogue] = useState(p.produits ?? []);
   const [panneau, setPanneau] = useState<OrigineDepartAssistant | null>(null);
   const [depart, setDepart] = useState<DepartAssistant | null>(null);
   const [references, setReferences] = useState<DepartAssistant[]>([]);
@@ -85,25 +93,35 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
     );
   }
   const marque = p.etat.marque;
-  const apercuProduitUrl = p.produits?.find((p) => p.id === productId)?.photos.find((photo) => photo.assetId === photoId)?.apercu ?? undefined;
+  const apercuProduitUrl = catalogue.find((p) => p.id === productId)?.photos.find((photo) => photo.assetId === photoId)?.apercu ?? undefined;
   const maj = (c: Partial<SaisieBriefV5>) => setSaisie((s) => ({ ...s, ...c }));
 
-  async function rafraichir() {
-    if (!projet) return;
+  async function relireProjet(): Promise<BriefCanonique | null> {
+    if (!projet) return null;
+    const sequence = ++lectureNavigation.current;
     try {
       const r = await lireProjetDetail({ projectId: projet.id });
-      if (r.ok && !r.detail.briefIllisible && r.detail.brief) {
-        setBrief(r.detail.brief);
-        setProjet({ id: projet.id, versionCourante: { id: r.detail.version.id, n: r.detail.version.n } });
+      if (sequence !== lectureNavigation.current) return null;
+      if (!r.ok || r.detail.briefIllisible || !r.detail.brief) {
+        setErreur({ message: r.ok ? 'Le brief de cette version ne peut pas être relu.' : r.message });
+        return null;
       }
-    } catch { /* lecture seule · un échec ne casse rien, l'écran garde l'état connu */ }
+      if (r.detail.version.id !== projet.versionCourante.id) setDevis(null);
+      setBrief(r.detail.brief);
+      setProjet({ id: projet.id, versionCourante: { id: r.detail.version.id, n: r.detail.version.n } });
+      return r.detail.brief;
+    } catch {
+      if (sequence === lectureNavigation.current) setErreur({ message: 'Le projet n’a pas pu être relu. Réessaie avant de modifier son contenu.' });
+      return null;
+    }
   }
+  async function rafraichir() { await relireProjet(); }
 
-  async function creer() {
+  async function creer(destination: 'strategie' | 'photo' | 'quitter' = 'strategie') {
     if (incertain || encours) return;
     const v = verifierCreationAssistant({ type, titre, saisie });
     if (!v.ok) { setErreur({ message: v.message }); return; }
-    if (productId && !photoId) { setErreur({ message: 'Choisis une photo du produit avant de continuer.' }); return; }
+    if (destination !== 'photo' && productId && !photoId) { setErreur({ message: 'Choisis une photo du produit avant de continuer.' }); return; }
     setEncours(true);
     setErreur(null);
     const contenu: ContenuVersion = { ...contenuVide(), brief: v.brief as unknown as ContenuVersion['brief'] };
@@ -162,7 +180,9 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         setSourcesAffectees((avant) => [...avant, ...nouvelles.map((r) => r.id)]);
       }
       setEncours(false);
-      setEtape('strategie');
+      if (destination === 'photo') { setEtape('brief'); setPhotoOuverte(true); }
+      else if (destination === 'quitter') p.onFermer?.();
+      else setEtape('strategie');
     } catch {
       setEncours(false);
       setIncertain(true);
@@ -175,8 +195,10 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
   const peutAller = (id: EtapeAssistant): boolean =>
     projet ? ((id !== 'creation' || !!jobId) && (id === 'brief' || (etapeRequiertProjet(id) && etapeDisponible(id)))) : (etatRailProjet(id, etape, brief) === 'done');
 
-  function aller(id: EtapeAssistant) {
-    if (id === 'brief' && brief) setSaisie(saisieDepuisBrief(brief));
+  async function aller(id: EtapeAssistant) {
+    const actuel = projet ? await relireProjet() : brief;
+    if (projet && !actuel) return;
+    if (id === 'brief' && actuel) setSaisie(saisieDepuisBrief(actuel));
     setEtape(id);
   }
 
@@ -184,9 +206,9 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
 
   return (
     <section data-zone="assistant-projet" data-etape={etape} className={`${css.wz} ${etape === 'start' ? css.nostep : ''}`}>
-      {etape !== 'start' && <div inert={panneau !== null} style={{ display: 'contents' }}><Rail etape={etape} brief={brief} peutAller={peutAller} onAller={aller} titre={titre} marque={marque.nom} type={type} /></div>}
+      {etape !== 'start' && <div inert={panneau !== null || photoOuverte} style={{ display: 'contents' }}><Rail etape={etape} brief={brief} peutAller={peutAller} onAller={aller} titre={titre} marque={marque.nom} type={type} /></div>}
 
-      <div className={css.wzmain} inert={panneau !== null}>
+      <div className={css.wzmain} inert={panneau !== null || photoOuverte}>
         {!['format', 'confirm', 'creation'].includes(etape) && <div className={css.wzhead}>
           <span className={css.eyebrow}>{etape === 'start' ? 'Démarrage' : `Étape ${etape === 'brief' ? 1 : etape === 'strategie' ? 2 : etape === 'direction' ? 3 : etape === 'creation' ? 5 : 4} sur 5`}</span>
           <h2>{{ start: 'Que voulez-vous créer ?', brief: 'Le brief', strategie: 'La stratégie', direction: 'La direction', format: 'Formats & devis', confirm: 'Confirmer la génération', creation: 'Vos créations' }[etape]}</h2>
@@ -198,7 +220,7 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           <Depart marque={marque.nom} type={type} onType={setType} onContinuer={() => setEtape('brief')} depart={depart} onZero={() => { setDepart(null); setReferences([]); }} onSource={setPanneau} />
         )}
         {etape === 'brief' && (
-          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} titreVerrouille={!!projet} verrouille={incertain} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={p.produits ?? []} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} references={references} onReferences={() => setPanneau('veille')} />} />
+          <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} titreVerrouille={!!projet} verrouille={incertain} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={catalogue} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} references={references} onReferences={() => setPanneau('veille')} onImporter={() => void creer('photo')} occupe={encours || incertain} />} />
         )}
         {etape === 'strategie' && projet && brief && (
           <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
@@ -206,16 +228,17 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
         {etape === 'direction' && projet && brief && (
           <AssistantPostCreation etape="direction" projet={projet} brief={brief} marqueId={marque.id} sources={references.flatMap((r) => r.sources)} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
-        {etape === 'format' && projet && brief && (
+        {etape === 'format' && projet && (type === 'video' || type === 'text') && <EtapeLivrableAssistant projectId={projet.id} type={type} onRetour={() => void aller('direction')} />}
+        {etape === 'format' && projet && brief && type !== 'video' && type !== 'text' && (
           <EtapeFormatDevis
             {...{ apercuProduitUrl }}
             projectId={projet.id} version={projet.versionCourante} brief={brief}
             onBriefChange={rafraichir}
             onDevisPret={(d) => { setDevis(d); setEtape('confirm'); }}
-            onRetour={() => setEtape('direction')}
+            onRetour={() => void aller('direction')}
           />
         )}
-        {etape === 'confirm' && projet && devis && (
+        {etape === 'confirm' && projet && devis && type !== 'video' && type !== 'text' && (
           <EtapeConfirmation
             {...{ apercuProduitUrl }}
             devis={devis}
@@ -236,13 +259,17 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
             incertain={incertain}
             aProjet={!!projet}
             onFermer={p.onFermer}
-            onCreer={creer}
+            onEnregistrer={etape === 'brief' ? () => void creer('quitter') : p.onFermer}
+            onCreer={() => void creer()}
             onVersBrief={() => setEtape('brief')}
             onReculer={() => { const prec = etapeProjetPrecedente(etape); if (prec && peutAller(prec)) aller(prec); }}
-            onAvancer={() => { const suiv = etapeProjetSuivante(etape); if (suiv) setEtape(suiv); }}
+            onAvancer={() => { const suiv = etapeProjetSuivante(etape); if (suiv) void aller(suiv); }}
           />
         )}
       </div>
+      {photoOuverte && <PanneauAssistant titre="Ajouter une photo produit" onFermer={() => setPhotoOuverte(false)}><PhotoProduitAssistant projectId={projet?.id ?? null} productId={productId} onChoisie={(r) => {
+        setProjet({ id: r.projectId, versionCourante: r.version }); setCatalogue(r.produits); setProductId(r.produit.id); setPhotoId(r.photo.assetId); setPhotoEpinglee(`${r.produit.id}:${r.photo.assetId}`); setDevis(null); void rafraichir(); setPhotoOuverte(false);
+      }} /></PanneauAssistant>}
       {panneau && <DepartDepuisSource origine={panneau} onFermer={() => setPanneau(null)} onChoisir={(choix) => {
         if (etape === 'start') { setDepart(choix); setTitre(choix.titre); if (choix.intention) maj({ intention: choix.intention }); }
         if (choix.sources.length) setReferences((avant) => avant.some((r) => r.id === choix.id) ? avant : avant.length < 10 ? [...avant, choix] : avant);
@@ -274,9 +301,10 @@ function AssistantPostCreation({ etape, projet, brief, marqueId, sources, apercu
 
 /* ─────────────────────────────── Le pied ────────────────────────────────── */
 
-function Pied({ etape, encours, incertain, aProjet, onFermer, onCreer, onVersBrief, onReculer, onAvancer }: {
+function Pied({ etape, encours, incertain, aProjet, onFermer, onEnregistrer, onCreer, onVersBrief, onReculer, onAvancer }: {
   etape: EtapeAssistant; encours: boolean; incertain: boolean; aProjet: boolean;
   onFermer?: () => void;
+  onEnregistrer?: () => void;
   onCreer: () => void; onVersBrief: () => void; onReculer: () => void; onAvancer: () => void;
 }) {
   return (
@@ -289,7 +317,7 @@ function Pied({ etape, encours, incertain, aProjet, onFermer, onCreer, onVersBri
           {etape === 'strategie' && <button type="button" data-bouton="retour-brief" onClick={onReculer}>‹ Retour</button>}
         </div>
         <div className={css.row}>
-          {aProjet && onFermer && <button type="button" onClick={onFermer}>Quitter</button>}
+          {aProjet && onEnregistrer && <button type="button" disabled={encours || incertain} onClick={onEnregistrer}>Enregistrer et quitter</button>}
           {etape === 'start' && <button type="button" data-bouton="vers-brief" onClick={onVersBrief} className={css.primary}>Commencer le brief</button>}
           {etape === 'brief' && <button type="button" data-bouton="creer-projet" onClick={onCreer} disabled={encours || incertain} className={css.primary}>{encours ? 'Création…' : 'Continuer vers la stratégie'}</button>}
           {etape === 'strategie' && aProjet && <button type="button" data-bouton="vers-direction" onClick={onAvancer} className={css.primary}>Continuer vers la direction</button>}
@@ -333,14 +361,14 @@ function Depart({ marque, type, onType, onContinuer, depart, onZero, onSource }:
     <div data-champ="type" role="radiogroup" aria-label="Livrable" className={`${css.wtiles} ${css.four}`}>
       {TYPES_NOUVEAU_PROJET.map((t) => <label key={t} className={css.wtile} onDoubleClick={onContinuer}>
         <input type="radio" name="livrable" data-type={t} checked={type === t} onChange={() => onType(t)} />
-        <span className={css.wtileic}><Icon name={t === 'text' ? 'file' : t === 'video' ? 'play' : 'image'} size={22} /></span>
-        <strong>{LIBELLES_TYPE_PROJET[t]}</strong><small>{descriptions[t]}</small><span className={css.wtilecheck}><Icon name="check" size={13} /></span>
+        <span className={css.wtileic}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><path d={{ ads: 'M4 4h16v16H4ZM4 15l5-5 4 4 3-3 4 4', image: 'M4 4h16v16H4ZM8.5 9.5h.01M20 16l-5-5-9 9', video: 'M3 6h13v12H3ZM16 10l5-3v10l-5-3', text: 'M5 6h14M5 10h14M5 14h9M5 18h6' }[t]} /></svg></span>
+        <strong>{t === 'ads' ? 'Publicité' : LIBELLES_TYPE_PROJET[t]}</strong><small>{descriptions[t]}</small><span className={css.wtilecheck}><Icon name="check" size={13} /></span>
       </label>)}
     </div>
     <h3 className={css.wzlabel}>Point de départ</h3>
     <div className={`${css.wtiles} ${css.three}`}>
       <label className={css.wtile}><input type="radio" checked={!depart} onChange={onZero} name="depart" /><span className={css.wtileic}><Icon name="plus" size={22} /></span><strong>Partir de zéro</strong><small>Vous écrivez le brief, Jarvis aide</small><span className={css.wtilecheck}><Icon name="check" size={13} /></span></label>
-      <button type="button" className={css.wtile} onClick={() => onSource('veille')} aria-pressed={depart?.origine === 'veille'}><span className={css.wtileic}><Icon name="eye" size={22} /></span><strong>Depuis la Veille</strong><small>Ouvrez une annonce sauvegardée pour reprendre sa source et son analyse.</small></button>
+      <button type="button" className={css.wtile} onClick={() => onSource('veille')} aria-pressed={depart?.origine === 'veille'}><span className={css.wtileic}><Icon name="search" size={22} /></span><strong>Depuis la Veille</strong><small>Ouvrez une annonce sauvegardée pour reprendre sa source et son analyse.</small></button>
       <button type="button" className={css.wtile} onClick={() => onSource('iteration')} aria-pressed={depart?.origine === 'iteration'}><span className={css.wtileic}><Icon name="refresh" size={22} /></span><strong>Itérer sur un test</strong><small>Ouvrez un test dans Adsmap pour reprendre son apprentissage.</small></button>
     </div>
   </div>;
@@ -442,7 +470,8 @@ function Brief({ titre, onTitre, saisie, maj, personas, accessoires, verrouille,
   );
 }
 
-function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto, references, onReferences }: {
+function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto, references, onReferences, onImporter, occupe }: {
+  onImporter: () => void; occupe: boolean;
   references: DepartAssistant[]; onReferences: () => void;
   produits: NonNullable<ProprietesAssistantProjet['produits']>; productId: string; photoId: string;
   onProduit: (id: string) => void; onPhoto: (id: string) => void;
@@ -458,6 +487,7 @@ function ProduitBrief({ produits, productId, photoId, onProduit, onPhoto, refere
         <small>{produit ? `${produit.photos.length} photo(s) disponible(s) · sélection explicite` : 'Produits de la marque active'}</small>
       </div>
     </div>
+    <button type="button" onClick={onImporter} disabled={occupe}>Ajouter une photo produit</button>
     <h3 className={css.wzlabel}>Références</h3>
     {references.length ? <ul>{references.map((r) => <li key={r.id}>{r.titre}</li>)}</ul> : <p className={css.note}>Aucune référence sélectionnée.</p>}
     <button type="button" onClick={onReferences} disabled={references.length >= 10}>Depuis la Veille</button>

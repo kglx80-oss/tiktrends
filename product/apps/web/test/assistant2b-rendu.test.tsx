@@ -30,7 +30,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {}, refresh: () => {}, replace: () => {} }) }));
 vi.mock('../app/actions/studios/projets', () => ({
-  creerProjet: async (e: unknown) => { h.creer.push(e); return { ok: true, projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 } }; },
+  creerProjet: async (e: unknown) => { h.creer.push(e); h.detailBrief = (e as { contenu: { brief: BriefCanonique } }).contenu.brief; return { ok: true, projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 } }; },
 }));
 vi.mock('../app/actions/studios/sources', () => ({
   ajouterSourcesAuProjet: departSpy.ajouter,
@@ -289,5 +289,28 @@ it('un verdict devenu inéligible bloque Continuer avant toute création', async
   await clic(hote.querySelector('[data-bouton="creer-projet"]'));
   expect(h.creer).toHaveLength(0);
   expect(hote.textContent).toContain('Verdict modifié');
+  await fermer();
+});
+
+
+it('retour direction : conserve les textes ajoutés depuis la dernière lecture', async () => {
+  const { hote, fermer } = await monter(<AssistantProjet etat={etatPret} initial={{ type: 'ads', titre: 'Projet · Neva', intention: '' }} personas={[]} />);
+  await allerStrategie(hote);
+  h.detailBrief = { ...h.detailBrief!, texts: ['Texte retenu entre les étapes'] };
+  await clic(hote.querySelector('[data-bouton="vers-direction"]'));
+  await saisir(hote.querySelector('[data-champ="cta-libre"]'), 'Découvrir');
+  await clic(hote.querySelector('[data-bouton="ecrire-cta"]'));
+  expect(h.manuel.at(-1)).toMatchObject({ changes: [expect.objectContaining({ path: '/brief/texts', newValue: expect.arrayContaining(['Texte retenu entre les étapes']) })] });
+  await fermer();
+});
+
+it('lecture du brief indisponible : reste à la stratégie sans édition périmée', async () => {
+  const { hote, fermer } = await monter(<AssistantProjet etat={etatPret} initial={{ type: 'ads', titre: 'Projet · Neva', intention: '' }} personas={[]} />);
+  await allerStrategie(hote);
+  h.detailBrief = null;
+  await clic(hote.querySelector('[data-bouton="vers-direction"]'));
+  expect(hote.querySelector('[data-zone="assistant-strategie"]')).not.toBeNull();
+  expect(hote.querySelector('[data-zone="assistant-direction"]')).toBeNull();
+  expect(h.manuel).toHaveLength(0);
   await fermer();
 });

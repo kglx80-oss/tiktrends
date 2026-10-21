@@ -17,6 +17,7 @@ const note: CSSProperties = { fontSize: 12.5, color: 'var(--ink-2)', margin: 0, 
 export function NouveauProjet({ etat, variante = 'bouton' }: { etat: EtatNouveauProjet; variante?: 'bouton' | 'carte' }) {
   const router = useRouter();
   const ouverture = useRef(false);
+  const [titreEtape, setTitreEtape] = useState('Que voulez-vous créer ?');
   const [ouvert, setOuvert] = useState(false);
   const [props, setProps] = useState<ProprietesAssistantProjet | null>(null);
   const [erreur, setErreur] = useState('');
@@ -29,7 +30,7 @@ export function NouveauProjet({ etat, variante = 'bouton' }: { etat: EtatNouveau
     finally { ouverture.current = false; }
   }, []);
   const fermer = () => { setOuvert(false); router.refresh(); };
-  const fenetre = ouvert ? <FenetreAssistant onFermer={fermer}>{props ? <AssistantProjet {...props} onFermer={fermer} /> : <div style={{ padding: 32 }} role={erreur ? 'alert' : 'status'}>{erreur || 'Chargement…'}{erreur && <button onClick={() => void ouvrir()} style={btn}>Réessayer</button>}</div>}</FenetreAssistant> : null;
+  const fenetre = ouvert ? <FenetreAssistant onFermer={fermer} titre={titreEtape}>{props ? <AssistantProjet {...props} onFermer={fermer} onTitreChange={setTitreEtape} /> : <div style={{ padding: 32 }} role={erreur ? 'alert' : 'status'}>{erreur || 'Chargement…'}{erreur && <button onClick={() => void ouvrir()} style={btn}>Réessayer</button>}</div>}</FenetreAssistant> : null;
   const carte = variante === 'carte';
   const pret = etat.etat === 'pret';
 

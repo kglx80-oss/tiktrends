@@ -149,8 +149,20 @@
 .row{display:flex;align-items:center;gap:8px}.spread{justify-content:space-between}.section{margin-top:20px}.hint{font-size:12px;color:var(--text-2);line-height:1.5}.field{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}.field>span{font-size:13px;color:var(--text-2)}
 .field input,.field textarea,.field select{font:inherit;width:100%;min-height:44px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);color:var(--text);padding:11px 12px;box-sizing:border-box}.field textarea{min-height:90px;resize:vertical}
 .pills{display:flex;flex-wrap:wrap;gap:8px}.pill{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--line-2);border-radius:999px;min-height:40px;font-size:13px;cursor:pointer}.pill:has(input:checked){background:var(--selected);border-color:var(--accent)}
-.emptyPreview{display:grid;place-items:center;aspect-ratio:16/10;padding:24px;background:var(--bg-sunken);color:var(--text-2);text-align:center;font-size:13px}.note{font-size:13px;line-height:1.5;color:var(--text-2);margin:0}.advanced{margin-top:16px}.advanced>summary{cursor:pointer;color:var(--text-2);margin-bottom:16px}.wzhead p{color:var(--text-2);line-height:1.5;margin:0}.wzhead h2{font-weight:600}.wzsteps li>button{border:0}.wzsteps li{min-width:0}.wzbrand strong{overflow-wrap:anywhere}.wzcontent>*{min-width:0}
+.emptyPreview{display:grid;place-items:center;aspect-ratio:16/10;padding:24px;background:var(--bg-sunken);color:var(--text-2);text-align:center;font-size:13px}.note{font-size:13px;line-height:1.5;color:var(--text-2);margin:0}.advanced{margin-top:16px}.advanced>summary{cursor:pointer;color:var(--text-2);margin-bottom:16px}.wzhead p{color:var(--text-2);line-height:1.5;margin:0}.wzhead h2{font-weight:500}.wzsteps li>button{border:0}.wzsteps li{min-width:0}.wzbrand strong{overflow-wrap:anywhere}.wzcontent>*{min-width:0}
 
 .editor{font:inherit;width:100%;min-height:90px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);color:var(--text);padding:11px 12px;box-sizing:border-box;resize:vertical}.wanglebody>.wzlabel{margin-top:0}.wznode strong{overflow-wrap:anywhere}.wzcol>section+section{margin-top:20px}.wzmain>p{padding:0 24px 12px}.control{min-width:0}
 
 .briefFields{border:0;padding:0;margin:0;min-width:0}
+
+.wz button.wtile{padding:18px;border-radius:16px;text-align:left;align-items:flex-start;background:var(--surface)}
+.wz button.wtile[aria-pressed=true]{border-color:var(--accent);background:var(--selected)}
+.wz button.wtile:hover{border-color:var(--line-3);background:var(--hover)}
+
+/* Base typography and fields inherited by the exported prototype. */
+.wz{line-height:1.5;-webkit-font-smoothing:antialiased}
+.eyebrow{color:var(--accent-text);margin-bottom:10px;font-weight:500}
+.field{display:block;margin-bottom:24px}
+.field>span{display:block;margin-bottom:10px;font-size:14px;font-weight:500;color:var(--text)}
+.field input,.field textarea,.field select{width:100%;padding:14px;font:inherit;background:var(--surface);color:var(--text);border:1px solid var(--line-3);border-radius:10px}
+.field textarea{height:105px;resize:vertical}
