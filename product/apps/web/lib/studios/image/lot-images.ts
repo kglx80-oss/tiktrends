@@ -4,14 +4,16 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema, depenseDepuis, depenseEspaceDepuis, budgetEssaiDe, VERROU_PLAFOND, type BaseDepense } from '@tiktrends/db';
 import { erreurStudio, objetDansPortee, OPERATION_IMAGE, qualifierDevis, refusPlafondDollars, type ErreurStudio, type QualificationTotal } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
+import { FORMATS_IMAGES_ATTESTES, type FormatImageAtteste } from './derivations-format';
 import { estUuid } from '../depot';
 import { ajouterAudit } from '../audit';
 import { creerDevis, approuverEtMettreEnFile, type DevisPresente, type JobPresente, type Resultat, type OptionsApprobation } from '../execution/commandes';
 import type { BaseStudio, ExecStudio } from '../execution/types';
 
-/** N images indépendantes du MÊME instantané, pas N accroches ou formats. */
+/** Images indépendantes issues du même instantané ; les formats optionnels
+ * sont des dérivations attestées, jamais de nouvelles accroches. */
 export interface VueLotImages {
-  id: string; projectId: string; versionId: string; nombre: number; type: 'images-meme-consigne';
+  id: string; projectId: string; versionId: string; nombre: number; type: 'images-meme-consigne' | 'images-formats'; formats?: FormatImageAtteste[];
   devis: DevisPresente[]; totalCredits: number; totalUsdMicros: number;
   qualification: QualificationTotal; expiresAt: Date; empreinte: string;
 }
@@ -35,7 +37,7 @@ async function manifeste(ctx: ContexteStudio, id: unknown, base: ExecStudio): Pr
   const [a] = await base.select().from(A).where(and(eq(A.action, ACTION), eq(A.targetId, id), eq(A.workspaceId, ctx.workspaceId), inArray(A.brandId, ctx.marques))).limit(1);
   if (!a?.brandId || !objetDansPortee(ctx, { workspaceId: a.workspaceId!, brandId: a.brandId })) return null;
   const brut = a.details as unknown as VueLotImages;
-  if (!brut || brut.id !== id || brut.type !== 'images-meme-consigne') return null;
+  if (!brut || brut.id !== id || !['images-meme-consigne', 'images-formats'].includes(brut.type)) return null;
   const lot = { ...brut, expiresAt: new Date(brut.expiresAt) };
   const { empreinte: sig, ...contenu } = lot;
   return empreinte(contenu) === sig ? lot : null;
@@ -52,21 +54,22 @@ export async function lireLotImagesPour(ctx: ContexteStudio, lotId: unknown, bas
   const lot = await manifeste(ctx, lotId, base);
   return lot ? { ok: true, lot, jobs: await jobsDuLot(ctx, lot, base) } : refus(ctx, 'NOT_FOUND');
 }
-export async function preparerLotImagesPour(ctx: ContexteStudio, e: EntreeLotImages, base: BaseStudio = db, maintenant = new Date()): Promise<Resultat<{lot: VueLotImages}>> {
-  if (!estUuid(e.projectId) || !Number.isInteger(e.nombre) || Number(e.nombre) < 1 || Number(e.nombre) > 6) return refus(ctx, 'INVALID_SCHEMA');
+export async function preparerLotImagesPour(ctx: ContexteStudio, e: EntreeLotImages, base: BaseStudio = db, maintenant = new Date(), formats?: FormatImageAtteste[]): Promise<Resultat<{lot: VueLotImages}>> {
+  if (!estUuid(e.projectId) || !Number.isInteger(e.nombre) || Number(e.nombre) < 1 || Number(e.nombre) > (formats ? 12 : 6)) return refus(ctx, 'INVALID_SCHEMA');
+  if (formats && (formats.length !== Number(e.nombre) || formats.some(f => !FORMATS_IMAGES_ATTESTES.includes(f)))) return refus(ctx, 'INVALID_SCHEMA');
   try {
     return await base.transaction(async tx => {
       const devis: DevisPresente[] = [];
       for (let i = 0; i < Number(e.nombre); i++) {
-        const r = await creerDevis(ctx, { projectId: e.projectId, operations: [OPERATION_IMAGE], variante: true, controleVision: e.controleVision }, tx as unknown as BaseStudio, maintenant);
+        const r = await creerDevis(ctx, { projectId: e.projectId, operations: [OPERATION_IMAGE], variante: true, controleVision: e.controleVision, ...(formats ? { formatImage: formats[i] } : {}) }, tx as unknown as BaseStudio, maintenant);
         if (!r.ok) throw new Refus(r);
         const premier = devis[0];
-        if (premier && (premier.projectVersionId !== r.devis.projectVersionId || premier.inputHash !== r.devis.inputHash || premier.pricingVersion !== r.devis.pricingVersion || premier.promptReleaseId !== r.devis.promptReleaseId)) throw new Refus(refus(ctx, 'VERSION_CONFLICT'));
+        if (premier && (premier.projectVersionId !== r.devis.projectVersionId || (!formats && premier.inputHash !== r.devis.inputHash) || premier.pricingVersion !== r.devis.pricingVersion || premier.promptReleaseId !== r.devis.promptReleaseId)) throw new Refus(refus(ctx, 'VERSION_CONFLICT'));
         devis.push(r.devis);
       }
       const q = devis[0]!;
       const [projet] = await tx.select().from(schema.studioProjects).where(eq(schema.studioProjects.id, String(e.projectId))).limit(1);
-      const contenu: Omit<VueLotImages, 'empreinte'> = { id: randomUUID(), projectId: String(e.projectId), versionId: q.projectVersionId, nombre: devis.length, type: 'images-meme-consigne', devis,
+      const contenu: Omit<VueLotImages, 'empreinte'> = { id: randomUUID(), projectId: String(e.projectId), versionId: q.projectVersionId, nombre: devis.length, type: formats ? 'images-formats' : 'images-meme-consigne', ...(formats ? { formats } : {}), devis,
         totalCredits: devis.reduce((s,q) => s+q.maximumCredits,0), totalUsdMicros: devis.reduce((s,q) => s+q.maximumUsdMicros,0),
         qualification: qualifierDevis(devis.flatMap(q => q.lignes)), expiresAt: new Date(Math.min(...devis.map(q => new Date(q.expiresAt).getTime()))) };
       const lot = { ...contenu, empreinte: empreinte(contenu) };

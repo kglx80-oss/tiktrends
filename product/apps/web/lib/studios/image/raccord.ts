@@ -7,6 +7,7 @@ import {
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import type { ExecStudio } from '../execution/types';
+import { deriverFormat, type DerivationFormat } from './derivations-format';
 import { verifierConsigne } from './verification';
 
 /**
@@ -28,13 +29,19 @@ function refusMelange(ctx: ContexteStudio, horsImage: string[]): ErreurStudio {
 /** Au devis · la consigne retenue doit être exécutable ; son empreinte entre dans `inputHash`. */
 export async function raccordImageDevis(
   ex: ExecStudio, ctx: ContexteStudio,
-  e: { projet: { id: string; workspaceId: string; brandId: string }; contenu: ContenuVersion; lignes: ReadonlyArray<LigneDevis> },
-): Promise<{ ok: true; empreinte: string | null } | ErreurStudio> {
+  e: { projet: { id: string; workspaceId: string; brandId: string }; contenu: ContenuVersion; lignes: ReadonlyArray<LigneDevis>; versionId?: string; formatImage?: unknown },
+): Promise<{ ok: true; empreinte: string | null; derivation?: DerivationFormat } | ErreurStudio> {
   const x = exigenceImageDuDevis(e.lignes);
   if (!x.concerne) return pasDImage;
   if (x.horsImage.length) return refusMelange(ctx, x.horsImage);
   const c = await verifierConsigne(ex, { workspaceId: e.projet.workspaceId, brandId: e.projet.brandId, projectId: e.projet.id }, e.contenu);
   if (!c.verdict.ok) return erreurStudio(c.verdict.code, { traceId: ctx.traceId, targetIds: c.verdict.cibles, message: c.verdict.motif });
+  if (e.formatImage !== undefined) {
+    if (!e.versionId) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId });
+    const d = deriverFormat(c.consigne!, e.versionId, e.formatImage);
+    if (!d.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, message: d.motif });
+    return { ok: true, empreinte: d.derivation.effectiveHash, derivation: d.derivation };
+  }
   return { ok: true, empreinte: c.empreinte };
 }
 
@@ -46,7 +53,7 @@ export async function raccordImageDevis(
  */
 export async function parametresImageApprobation(
   ex: ExecStudio, ctx: ContexteStudio,
-  q: { workspaceId: string; brandId: string; projectId: string; projectVersionId: string; lines: unknown },
+  q: { id: string; inputHash: string; workspaceId: string; brandId: string; projectId: string; projectVersionId: string; lines: unknown },
 ): Promise<{ ok: true; parametres: Record<string, unknown> } | ErreurStudio> {
   const x = exigenceImageDuDevis(Array.isArray(q.lines) ? (q.lines as LigneDevis[]) : []);
   if (!x.concerne) return pasDImage;
@@ -57,7 +64,16 @@ export async function parametresImageApprobation(
   if (!v) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   const c = await verifierConsigne(ex, { workspaceId: q.workspaceId, brandId: q.brandId, projectId: q.projectId }, v.content as ContenuVersion);
   if (!c.verdict.ok) return erreurStudio(c.verdict.code, { traceId: ctx.traceId, targetIds: c.verdict.cibles, message: `${c.verdict.motif} Rien n’a été débité.` });
-  const parametres = parametresDepuisConsigne(c.consigne!);
+  const A = schema.studioAuditEvents;
+  const [a] = await ex.select({ details: A.details }).from(A).where(and(eq(A.workspaceId, q.workspaceId), eq(A.brandId, q.brandId), eq(A.action, 'quote.create'), eq(A.targetType, 'studio_quote'), eq(A.targetId, q.id))).limit(1);
+  const details = a?.details as { derivationFormat?: DerivationFormat; inputHash?: string } | undefined;
+  let retenue = c.consigne!;
+  if (details?.derivationFormat) {
+    const d = deriverFormat(retenue, q.projectVersionId, details.derivationFormat.format);
+    if (!d.ok || details.inputHash !== q.inputHash || Object.entries(d.derivation).some(([k,v]) => details.derivationFormat![k as keyof DerivationFormat] !== v)) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, message: 'La dérivation du format ne correspond plus au devis.' });
+    if (d.ok) retenue = d.consigne;
+  }
+  const parametres = parametresDepuisConsigne(retenue);
   const lu = lireParametresImage(parametres);
   if (!lu.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: lu.violations.map((raison) => ({ chemin: 'parametres', raison })) });
   return { ok: true, parametres: parametres as unknown as Record<string, unknown> };

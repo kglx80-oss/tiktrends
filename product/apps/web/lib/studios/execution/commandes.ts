@@ -151,7 +151,7 @@ export async function estimerImpact(ctx: ContexteStudio, e: EntreeImpact, base: 
  * défaut, la ligne du contrôle visuel est AJOUTÉE (décision du propriétaire),
  * quand le contrôle est exécutable ici (`controleVisionActif`).
  */
-export interface EntreeDevis { projectId: unknown; versionAvantId?: unknown; operations?: unknown; validiteMs?: unknown; variante?: unknown; controleVision?: unknown }
+export interface EntreeDevis { projectId: unknown; versionAvantId?: unknown; operations?: unknown; validiteMs?: unknown; variante?: unknown; controleVision?: unknown; formatImage?: unknown }
 
 export interface DevisPresente {
   id: string;
@@ -219,7 +219,7 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       const ep = await epinglerReleaseDuDevis(tx, projet.workspaceId, projet.brandId);
       if (!ep.ok) throw new Refus(erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: `Consigne indisponible pour ce devis · ${ep.motif}` }));
       // F-B · image du studio : consigne retenue, attestée, à jour, références intactes.
-      const image = await raccordImageDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
+      const image = await raccordImageDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes, versionId: courante.id, formatImage: e.formatImage });
       if (!image.ok) throw new Refus(image);
       // L6-A · images clés des plans : consigne `shot.image` retenue, attestée, à jour, références intactes.
       const plans = await raccordPlansDevis(tx, ctx, { projet, contenu: courante.content as ContenuVersion, lignes: l.lignes });
@@ -257,7 +257,7 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       await ajouterAudit(tx, ctx, {
         action: 'quote.create', brandId: projet.brandId, targetType: 'studio_quote', targetId: q!.id,
         versionBefore: null, versionAfter: courante.id, reason: 'devis',
-        details: { credits: v.totalCredits, usdMicros: v.totalUsdMicros, pricingVersion: PRICING_VERSION, releaseHash: ep.epinglage?.releaseHash ?? null, ...(image.empreinte ? { consigneImage: image.empreinte } : {}), ...(plans.empreinte ? { consignesPlans: plans.empreinte } : {}) },
+        details: { ...(image.derivation ? { derivationFormat: image.derivation, inputHash } : {}), credits: v.totalCredits, usdMicros: v.totalUsdMicros, pricingVersion: PRICING_VERSION, releaseHash: ep.epinglage?.releaseHash ?? null, ...(image.empreinte ? { consigneImage: image.empreinte } : {}), ...(plans.empreinte ? { consignesPlans: plans.empreinte } : {}) },
       });
       return { ok: true as const, devis: presenter(q!), plan };
     });

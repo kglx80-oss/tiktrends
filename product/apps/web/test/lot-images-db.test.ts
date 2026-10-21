@@ -1,3 +1,5 @@
+import { refusDerivationFormat } from '../../workers/src/studios/formats-attestes';
+import { lireSnapshotJob } from '@tiktrends/core';
 import { erreurStudio } from '@tiktrends/core';
 import { describe, it, expect, vi, beforeAll,  } from 'vitest';
 
@@ -179,6 +181,50 @@ describe('Lot images · mêmes paramètres, transaction atomique', () => {
     await db.insert(schema.aiSpend).values({workspaceId:ids.wsB,provider:'fal',action:'autre-espace-ancien',actualUsd:500,createdAt:new Date('2026-07-01')});
     const accepte=await approuverLotImagesPour(ctx(),confirmation(lot),options());expect(accepte.ok,JSON.stringify(accepte)).toBe(true);
     await db.delete(schema.appSettings).where(eq(schema.appSettings.key,key));
+  });
+
+  it('génère trois formats attestés sur une même version, paramètres identiques sauf dimensions',async()=>{
+    const initial=await preparer(1);
+    const r=await preparerLotImagesPour(ctx(),{projectId:initial.projectId,nombre:3,controleVision:false},base,T,['1:1','4:5','9:16']);
+    expect(r.ok,JSON.stringify(r)).toBe(true);if(!r.ok)return;
+    expect(r.lot.type).toBe('images-formats');expect(new Set(r.lot.devis.map(q=>q.inputHash)).size).toBe(3);
+    const lance=await approuverLotImagesPour(ctx(),confirmation(r.lot),options());expect(lance.ok,JSON.stringify(lance)).toBe(true);if(!lance.ok)return;
+    const snapshots=[];
+    for(const j of lance.jobs){
+      const [row]=await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id,j.id));
+      const snap=lireSnapshotJob(row!.snapshot)!;snapshots.push(snap);
+      expect(await refusDerivationFormat(base,row!,snap)).toBe(null);
+      expect(await refusDerivationFormat(base,row!,{...snap,parametres:{...snap.parametres,format:{largeur:8,hauteur:8}}})).not.toBe(null);
+      expect(await refusDerivationFormat(base,{...row!,inputHash:'fake'},snap)).not.toBe(null);
+      expect(await refusDerivationFormat(base,row!,{...snap,pricingVersion:'fake'})).not.toBe(null);
+      expect(await refusDerivationFormat(base,{...row!,workspaceId:ids.wsB},snap)).not.toBe(null);
+      expect(await refusDerivationFormat(base,{...row!,projectId:initial.id},snap)).not.toBe(null);
+      expect(await refusDerivationFormat(base,row!,{...snap,projectVersionId:initial.id})).not.toBe(null);
+    }
+    expect(snapshots.map(s=>s.parametres.format)).toEqual([{largeur:1080,hauteur:1080},{largeur:1080,hauteur:1350},{largeur:1080,hauteur:1920}]);
+    expect(snapshots[1]!.parametres.consigne).toEqual(snapshots[0]!.parametres.consigne);
+    expect(snapshots[2]!.parametres.references).toEqual(snapshots[0]!.parametres.references);
+    const [a]=await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id,lance.jobs[0]!.id));
+    const [b]=await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id,lance.jobs[1]!.id));
+    expect(await refusDerivationFormat(base,a!,lireSnapshotJob(b!.snapshot)!)).not.toBe(null);
+  });
+  it('refuse les quantités incohérentes et contradiction sans laisser devis partiel',async()=>{
+    const initial=await preparer(1);
+    expect((await preparerLotImagesPour(ctx(),{projectId:initial.projectId,nombre:3},base,T,['1:1','1:1'])).ok).toBe(false);
+    await consigneRetenue(initial.projectId,'Photographie de produit au format 4:5.');
+    const avant=await db.select().from(schema.studioQuotes);
+    const r=await preparerLotImagesPour(ctx(),{projectId:initial.projectId,nombre:2,controleVision:false},base,T,['4:5','9:16']);
+    expect(!r.ok&&r.code).toBe('INVALID_SCHEMA');expect(await db.select().from(schema.studioQuotes)).toHaveLength(avant.length);
+  });
+
+  it('N variantes par format garde prix total exact et formats corrélés',async()=>{
+    const source=await preparer(1);
+    const r=await preparerLotImagesPour(ctx(),{projectId:source.projectId,nombre:4,controleVision:false},base,T,['1:1','1:1','9:16','9:16']);
+    expect(r.ok,JSON.stringify(r)).toBe(true);if(!r.ok)return;
+    expect(r.lot.totalUsdMicros).toBe(r.lot.devis.reduce((s,q)=>s+q.maximumUsdMicros,0));
+    expect(r.lot.devis[0]!.inputHash).toBe(r.lot.devis[1]!.inputHash);
+    expect(r.lot.devis[0]!.inputHash).not.toBe(r.lot.devis[2]!.inputHash);
+    const lance=await approuverLotImagesPour(ctx(),confirmation(r.lot),options());expect(lance.ok&&lance.jobs.length).toBe(4);
   });
 
 });
