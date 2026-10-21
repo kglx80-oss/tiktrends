@@ -148,10 +148,10 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
           <Brief marque={marque.nom} type={type} titre={titre} onTitre={setTitre} saisie={saisie} maj={maj} personas={p.personas} verrouille={!!projet} accessoires={p.accessoiresBrief ?? <ProduitBrief produits={p.produits ?? []} productId={productId} photoId={photoId} onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} />} />
         )}
         {etape === 'strategie' && projet && brief && (
-          <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} onProjetChange={rafraichir} />
+          <AssistantPostCreation etape="strategie" projet={projet} brief={brief} marqueId={marque.id} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
         {etape === 'direction' && projet && brief && (
-          <AssistantPostCreation etape="direction" projet={projet} brief={brief} marqueId={marque.id} onProjetChange={rafraichir} />
+          <AssistantPostCreation etape="direction" projet={projet} brief={brief} marqueId={marque.id} apercuProduitUrl={apercuProduitUrl} onProjetChange={rafraichir} />
         )}
         {etape === 'format' && projet && brief && (
           <EtapeFormatDevis
@@ -193,11 +193,12 @@ export function AssistantProjet(p: ProprietesAssistantProjet) {
 
 /* ─────────────────── Sous-arbre post-création (propositions) ─────────────── */
 
-function AssistantPostCreation({ etape, projet, brief, marqueId, onProjetChange }: {
+function AssistantPostCreation({ etape, projet, brief, marqueId, apercuProduitUrl, onProjetChange }: {
   etape: 'strategie' | 'direction';
   projet: ProjetCourant;
   brief: BriefCanonique;
   marqueId: string;
+  apercuProduitUrl?: string;
   onProjetChange: () => void;
 }) {
   const cycle = usePropositionsBrief(projet.id, projet.versionCourante);
@@ -206,7 +207,7 @@ function AssistantPostCreation({ etape, projet, brief, marqueId, onProjetChange 
   // d'hypothèses (Veille) restent honnêtement inactives (pas de bouton mort).
   return etape === 'strategie'
     ? <EtapeStrategie brief={brief} cycle={cycle} onApplied={onApplied} sources={[]} marqueId={marqueId} />
-    : <EtapeDirection brief={brief} cycle={cycle} onApplied={onApplied} />;
+    : <EtapeDirection brief={brief} cycle={cycle} onApplied={onApplied} apercuProduitUrl={apercuProduitUrl} />;
 }
 
 /* ─────────────────────────────── Le pied ────────────────────────────────── */

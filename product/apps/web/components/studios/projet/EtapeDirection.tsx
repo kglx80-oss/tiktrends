@@ -24,10 +24,11 @@ import type { CyclePropositionsBrief } from './usePropositionsBrief';
  */
 
 const note: CSSProperties = { fontSize: 13, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
-export function EtapeDirection({ brief, cycle, onApplied }: {
+export function EtapeDirection({ brief, cycle, onApplied, apercuProduitUrl }: {
   brief: BriefCanonique;
   cycle: CyclePropositionsBrief;
   onApplied: () => void;
+  apercuProduitUrl?: string;
 }) {
   const [style, setStyle] = useState(brief.styleIntent ?? '');
   const jarvis = cycle.liste?.ok ? cycle.liste.jarvis : null;
@@ -41,7 +42,7 @@ export function EtapeDirection({ brief, cycle, onApplied }: {
           <div className={css.wzad} data-champ="resume-direction">
             <div className={css.wzadhead}><div><strong>{brief.concept || 'Votre concept'}</strong><small>Direction en préparation</small></div></div>
             {brief.texts.length > 0 && <p>{brief.texts[0]}</p>}
-            <div className={css.emptyPreview}>Aucun visuel généré pour cette direction</div>
+            {apercuProduitUrl ? <div className={`${css.wprev} ${css.wr45} ${css.big}`}><img src={apercuProduitUrl} alt="Photo produit sélectionnée · aperçu, pas une image générée" />{brief.texts[0] && <span className={css.wprevcap}>{brief.texts[0]}</span>}</div> : <div className={css.emptyPreview}>Aucun visuel généré pour cette direction</div>}
             <div className={css.wanglebody}><span data-resume="Angle">{brief.angle || 'Angle à définir'}</span><span data-resume="Concept">{brief.concept || 'Concept à définir'}</span><span data-resume="Intention de style">{brief.styleIntent || 'Style à définir'}</span></div>
           </div>
         </section>
