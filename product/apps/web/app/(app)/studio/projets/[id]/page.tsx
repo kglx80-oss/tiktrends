@@ -13,6 +13,8 @@ import { ParcoursProjet } from '../../../../../components/studios/projet/Parcour
 import { ConceptHote } from '../../../../../components/studios/projet/ConceptHote';
 import { VariantesEtTests } from '../../../../../components/studios/VariantesEtTests';
 import { TachesProjet } from '../../../../../components/studios/taches/TachesProjet';
+import { CanvasCreationProjet } from '../../../../../components/studios/projet/CanvasCreationProjet';
+import { lireParcoursImage } from '../../../../actions/studios/image';
 import { CanvasProjet } from '../../../../../components/studios/canvas/CanvasProjet';
 import { LigneeProjet } from '../../../../../components/studios/canvas/LigneeProjet';
 import { Icon } from '../../../../../components/Icon';
@@ -82,13 +84,25 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
   const courante = r.detail.versions.find((v) => v.courante) ?? null;
   const atelier = liensAtelierProjet(r.detail.projet.id, inter.actif);
   const exportAutorise = roleAtLeast(s.role, 'member');
+  const imageCourante = ['ads', 'image'].includes(r.detail.projet.kind) && r.detail.version.id === courante?.id;
+  // Les médias sont relus dans la portée serveur. L'ancienne version conserve
+  // son graphe : le parcours image liste les dernières tâches toutes versions.
+  const parcoursImage = imageCourante ? await lireParcoursImage({ projectId: r.detail.projet.id }).catch(() => null) : null;
+  const canvasVisuel = imageCourante ? <CanvasCreationProjet
+    brief={r.detail.brief} produit={r.detail.produit?.nom ?? null}
+    jobs={parcoursImage?.ok ? parcoursImage.vue.jobs : []}
+    erreur={parcoursImage?.ok ? null : parcoursImage?.message ?? 'Les créations ne peuvent pas être relues. Actualisez la page.'}
+    graphe={canvas}
+    editeurHref={atelier.find(a => a.segment === 'image')?.href}
+    preparationHref={inter.actif('generation_image') && exportAutorise ? atelier.find(a => a.segment === 'produit')?.href : undefined}
+  /> : canvas;
 
   return (
     <main style={cadrePage}>
       <EspaceProjet
         entete={<ParcoursProjet compact detail={r.detail} atelier={atelier} exportAutorise={exportAutorise} generationActive={inter.actif(r.detail.projet.kind === 'video' ? 'video' : 'generation_image')} />}
         brief={<VueProjet detail={r.detail} exportAutorise={exportAutorise} atelier={atelier} masquerPropositions masquerEntete />}
-        canvas={canvas}
+        canvas={canvasVisuel}
         lignee={lignee}
         conversation={<ConceptHote compact
           projectId={r.detail.projet.id}
