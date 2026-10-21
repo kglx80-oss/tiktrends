@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent as PointerEventReact } from 'react';
 import {
-  composerCanvas, etatInitialCanvas, reduireCanvas, LIBELLES_NATURE_CANVAS, PAS_CLAVIER_CANVAS, GRAND_PAS_CLAVIER_CANVAS, PAS_ZOOM_CANVAS,
+  composerCanvas, LIBELLES_ETAPE_CANVAS, etatInitialCanvas, reduireCanvas, LIBELLES_NATURE_CANVAS, PAS_CLAVIER_CANVAS, GRAND_PAS_CLAVIER_CANVAS, PAS_ZOOM_CANVAS,
   type CarteCanvas, type DispositionCanvas, type EtatCanvas, type GesteCanvas, type ModeleCanvas, type TailleCanvas,
 } from '@tiktrends/core';
 import { enregistrerDispositionCanvas, reinitialiserDispositionCanvas } from '../../../app/actions/studios/canvas';
@@ -36,6 +36,7 @@ export interface PropsCanvas {
   projectId: string;
   version: { id: string; n: number; courante: boolean };
   modele: ModeleCanvas;
+  apercus?: Record<string, string>;
   disposition: DispositionCanvas;
   rev: number;
 }
@@ -49,7 +50,7 @@ function reducteur(modele: ModeleCanvas) {
   return (e: EtatCanvas, g: GesteCanvas) => reduireCanvas(modele, e, g).etat;
 }
 
-export function CanvasMetier({ projectId, version, modele, disposition, rev: revInitiale }: PropsCanvas) {
+export function CanvasMetier({ projectId, version, modele, apercus = {}, disposition, rev: revInitiale }: PropsCanvas) {
   const reduire = useMemo(() => reducteur(modele), [modele]);
   const [etat, envoyer] = useReducer(reduire, disposition, (d) => etatInitialCanvas(d, 'liste'));
   const etatRef = useRef(etat);
@@ -241,6 +242,7 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
       {vide && (
         <p data-etat="vide" style={texte}>Rien à relier pour l’instant · ajoute des plans (atelier Vidéo) ou une mise en page (Éditer l’image) : leurs sorties apparaîtront ici avec leurs dépendances.</p>
       )}
+      {!vide && <div aria-label="Étapes du projet" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--muted)' }}>{modele.etapes.map(etape => <span key={etape} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><i aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: etape === 'contexte' ? '#9c81b4' : etape === 'images' ? 'var(--accent)' : '#88a9a3' }} />{LIBELLES_ETAPE_CANVAS[etape]}</span>)}</div>}
       {!vide && (
         <div role="group" aria-label="Affichage du canvas" style={rangee}>
           <button type="button" aria-pressed={etat.mode === 'liste'} onClick={() => basculer('liste')} style={{ ...bouton, ...(etat.mode === 'liste' ? boutonActif : {}) }}>Liste</button>
@@ -279,7 +281,7 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
                 onPointerMove={bouger} onPointerUp={fin} onPointerCancel={() => { geste.current = null; setGlisse(null); }}
                 style={{
                   ...tuile, position: 'relative', overflow: 'hidden', contain: 'paint', height: `min(${HAUTEUR_ZONE}px, 70vh)`,
-                  borderRadius: 16, border: '1px solid var(--line-2)', background: 'var(--bg)', touchAction: 'none', cursor: 'grab',
+                  borderRadius: 16, border: '1px solid var(--line-2)', background: 'radial-gradient(var(--line-2) 1px, transparent 1px) 0 0 / 24px 24px var(--bg)', touchAction: 'none', cursor: 'grab',
                 }}>
                 <div data-fond-canvas style={{ position: 'absolute', inset: 0 }} />
                 <div data-monde-canvas style={{ position: 'absolute', left: 0, top: 0, transformOrigin: '0 0', transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.k})` }}>
@@ -322,8 +324,9 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
                         onPointerMove={bouger} onPointerUp={fin}
                         style={{
                           ...styleCarte(c.nature, choisie), position: 'absolute', left: p.x + (g?.dx ?? 0), top: p.y + (g?.dy ?? 0), width: p.w, height: p.h,
-                          overflow: 'hidden', touchAction: 'none',
+                          overflow: 'hidden', touchAction: 'none', paddingRight: apercus[c.id] ? 76 : 10,
                         }}>
+                        {apercus[c.id] && <img src={apercus[c.id]} alt={`Aperçu · ${c.titre}`} draggable={false} loading="lazy" onError={e => { e.currentTarget.hidden = true; }} style={{ position: 'absolute', right: 0, top: 0, width: 68, height: '100%', objectFit: 'cover', borderLeft: '1px solid var(--line-2)' }} />}
                         <span style={pastilleNature}>{LIBELLES_NATURE_CANVAS[c.nature]}</span>
                         <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.titre}</span>
                         {media && <span style={{ ...mini, fontSize: 12 }}>{media}</span>}

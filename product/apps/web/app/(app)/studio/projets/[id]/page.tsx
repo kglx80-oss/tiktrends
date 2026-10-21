@@ -88,21 +88,20 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
   // Les médias sont relus dans la portée serveur. L'ancienne version conserve
   // son graphe : le parcours image liste les dernières tâches toutes versions.
   const parcoursImage = imageCourante ? await lireParcoursImage({ projectId: r.detail.projet.id }).catch(() => null) : null;
-  const canvasVisuel = imageCourante ? <CanvasCreationProjet
+  const galerie = imageCourante ? <CanvasCreationProjet
     brief={r.detail.brief} produit={r.detail.produit?.nom ?? null}
     jobs={parcoursImage?.ok ? parcoursImage.vue.jobs : []}
     erreur={parcoursImage?.ok ? null : parcoursImage?.message ?? 'Les créations ne peuvent pas être relues. Actualisez la page.'}
-    graphe={canvas}
     editeurHref={atelier.find(a => a.segment === 'image')?.href}
     preparationHref={inter.actif('generation_image') && exportAutorise ? atelier.find(a => a.segment === 'produit')?.href : undefined}
-  /> : canvas;
+  /> : null;
 
   return (
     <main style={cadrePage}>
       <EspaceProjet
         entete={<ParcoursProjet compact detail={r.detail} atelier={atelier} exportAutorise={exportAutorise} generationActive={inter.actif(r.detail.projet.kind === 'video' ? 'video' : 'generation_image')} />}
         brief={<VueProjet detail={r.detail} exportAutorise={exportAutorise} atelier={atelier} masquerPropositions masquerEntete />}
-        canvas={canvasVisuel}
+        canvas={canvas}
         lignee={lignee}
         conversation={<ConceptHote compact
           projectId={r.detail.projet.id}
@@ -114,7 +113,7 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
           initialThread={filConcept.thread ?? null}
           initialErreur={filConcept.error ?? null}
         />}
-        creations={<><div id="taches-projet" data-emplacement="taches">{taches}</div><div data-emplacement="variantes">{variantes}</div></>}
+        creations={<>{galerie}<div id="taches-projet" data-emplacement="taches">{taches}</div><div data-emplacement="variantes">{variantes}</div></>}
       />
     </main>
   );

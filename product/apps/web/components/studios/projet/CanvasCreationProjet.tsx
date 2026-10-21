@@ -11,7 +11,7 @@ import css from './CanvasCreationProjet.module.css';
 /** Projection visuelle de médias déjà livrés. Aucun ajout de calque, génération ou export au clic. */
 export function CanvasCreationProjet({ brief, produit, jobs, erreur, graphe, editeurHref, preparationHref }: {
   brief: BriefCanonique | null; produit: string | null; jobs: JobImageVue[];
-  erreur?: string | null; graphe: ReactNode; editeurHref?: string | null; preparationHref?: string | null;
+  erreur?: string | null; graphe?: ReactNode; editeurHref?: string | null; preparationHref?: string | null;
 }) {
   const router = useRouter();
   const [actualisation, commencerActualisation] = useTransition();
@@ -61,6 +61,6 @@ export function CanvasCreationProjet({ brief, produit, jobs, erreur, graphe, edi
     {erreur && <p role="alert" className={css.message}>{erreur}</p>}
     {choisie?.media && <div className={css.selection} role="status"><span>Création {medias.indexOf(choisie) + 1} sélectionnée · {choisie.libelleQualite}</span><a href={choisie.media.url} target="_blank" rel="noopener noreferrer">Ouvrir l’image</a></div>}
     {!!medias.length && <p className={css.caption}>Créations récentes du projet · toutes versions. Glissez le fond pour vous déplacer.</p>}
-    <details className={css.details}><summary>Structure et dépendances du projet</summary>{graphe}</details>
+    {graphe && <details className={css.details}><summary>Structure et dépendances du projet</summary>{graphe}</details>}
   </section>;
 }

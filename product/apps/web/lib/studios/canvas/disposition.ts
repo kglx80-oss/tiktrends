@@ -6,6 +6,7 @@ import {
   type ContenuVersion, type DispositionCanvas, type ErreurStudio, type ModeleCanvas,
 } from '@tiktrends/core';
 import { lireProjet, lireVersion } from '../depot';
+import { urlsApercu } from '../editeur/apercus';
 import type { ContexteStudio } from '../garde';
 
 /**
@@ -116,6 +117,7 @@ export interface CanvasProjetLu {
   projectId: string;
   version: { id: string; n: number; courante: boolean };
   modele: ModeleCanvas;
+  apercus: Record<string, string>;
   disposition: DispositionCanvas;
   rev: number;
 }
@@ -138,6 +140,16 @@ export async function lireCanvasPour(ctx: ContexteStudio, projectId: unknown, ve
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, message: 'Le contenu de cette version n’a pas la forme attendue · le canvas n’est pas dessiné.', violations: violations.slice(0, 5) });
   }
   const modele = deriverCanvas(v.version.content as ContenuVersion);
+  // Seules les références de CETTE version sont projetées ; les routes médias
+  // relisent les droits. Aucun dernier job arbitrairement attribué à un nœud.
+  const contenu = v.version.content as ContenuVersion;
+  const references: Record<string, string> = {};
+  if (contenu.productRef?.assetId) references['entree:produit'] = contenu.productRef.assetId;
+  for (const [id, plan] of Object.entries(contenu.shots.byId)) {
+    if (plan.keyframeAssetId) references[`keyframe:${id}`] = plan.keyframeAssetId;
+  }
+  const urls = urlsApercu(Object.values(references), p.projet.id);
+  const apercus = Object.fromEntries(Object.entries(references).flatMap(([carte, asset]) => urls[asset] ? [[carte, urls[asset]]] : []));
   const d = await lireDispositionCanvasPour(ctx, p.projet.id);
   if (!d.ok) return d;
   return {
@@ -145,7 +157,7 @@ export async function lireCanvasPour(ctx: ContexteStudio, projectId: unknown, ve
     canvas: {
       projectId: p.projet.id,
       version: { id: v.version.id, n: v.version.n, courante: v.version.id === p.projet.currentVersionId },
-      modele,
+      modele, apercus,
       // Entière · `composerCanvas` ignore les cartes absentes, un geste ne les efface pas.
       disposition: d.disposition,
       rev: d.rev,
