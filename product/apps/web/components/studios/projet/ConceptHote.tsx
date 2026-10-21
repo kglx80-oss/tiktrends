@@ -44,7 +44,8 @@ const reponse: CSSProperties = {
 
 type Onglet = 'conversation' | 'creations';
 
-export function ConceptHote({ projectId, brandName, kind, generationImageActive, versionCourante, initialThread, initialErreur = null, ancienneVersion = false }: {
+export function ConceptHote({ projectId, brandName, kind, generationImageActive, versionCourante, initialThread, initialErreur = null, ancienneVersion = false, compact = false }: {
+  compact?: boolean;
   projectId: string;
   brandName: string;
   /** Le type du projet (`ads`, `image`, `video`, `text`) · décide quelles actions typées sont pertinentes. */
@@ -187,7 +188,7 @@ export function ConceptHote({ projectId, brandName, kind, generationImageActive,
 
   return (
     <div data-hote="concept" style={{ display: 'grid', gap: 14 }}>
-      {isMobile && (
+      {compact ? <>{conversation}<details><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>Propositions et actions du projet</summary>{creations}</details></> : isMobile && (
         <div role="tablist" aria-label="Concept" data-onglets style={{ display: 'flex', gap: 6 }}>
           {(['conversation', 'creations'] as const).map((o) => (
             <button
@@ -201,7 +202,7 @@ export function ConceptHote({ projectId, brandName, kind, generationImageActive,
         </div>
       )}
 
-      {isMobile ? (
+      {!compact && (isMobile ? (
         <div style={{ display: 'grid' }}>
           <div hidden={onglet !== 'conversation' || undefined}>{conversation}</div>
           <div hidden={onglet !== 'creations' || undefined}>{creations}</div>
@@ -211,7 +212,7 @@ export function ConceptHote({ projectId, brandName, kind, generationImageActive,
           {conversation}
           {creations}
         </div>
-      )}
+      ))}
     </div>
   );
 }

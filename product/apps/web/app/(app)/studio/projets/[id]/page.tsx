@@ -8,6 +8,7 @@ import { roleAtLeast } from '../../../../../lib/rbac';
 import { lireProjetDetail } from '../../../../actions/studios/sources';
 import { chatThreadAction } from '../../../../actions/jarvis-chat';
 import { VueProjet } from '../../../../../components/studios/projet/VueProjet';
+import { EspaceProjet } from '../../../../../components/studios/projet/EspaceProjet';
 import { ParcoursProjet } from '../../../../../components/studios/projet/ParcoursProjet';
 import { ConceptHote } from '../../../../../components/studios/projet/ConceptHote';
 import { VariantesEtTests } from '../../../../../components/studios/VariantesEtTests';
@@ -84,11 +85,12 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
 
   return (
     <main style={cadrePage}>
-      <ParcoursProjet detail={r.detail} atelier={atelier} exportAutorise={exportAutorise} generationActive={inter.actif(r.detail.projet.kind === 'video' ? 'video' : 'generation_image')} />
-      <div data-emplacement="taches" style={{ marginBottom: 18 }}>{taches}</div>
-      <div id="conversation-projet" style={{ scrollMarginTop: 100 }} />
-      <div data-emplacement="concept-hote" style={{ marginBottom: 18 }}>
-        <ConceptHote
+      <EspaceProjet
+        entete={<ParcoursProjet compact detail={r.detail} atelier={atelier} exportAutorise={exportAutorise} generationActive={inter.actif(r.detail.projet.kind === 'video' ? 'video' : 'generation_image')} />}
+        brief={<VueProjet detail={r.detail} exportAutorise={exportAutorise} atelier={atelier} masquerPropositions masquerEntete />}
+        canvas={canvas}
+        lignee={lignee}
+        conversation={<ConceptHote compact
           projectId={r.detail.projet.id}
           brandName={r.detail.projet.marque}
           kind={r.detail.projet.kind}
@@ -97,21 +99,9 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
           versionCourante={courante ? { id: courante.id, n: courante.n } : null}
           initialThread={filConcept.thread ?? null}
           initialErreur={filConcept.error ?? null}
-        />
-      </div>
-      <div data-emplacement="variantes" style={{ marginTop: 18 }}>{variantes}</div>
-      <details style={{ ...surface, padding: 18, marginTop: 18 }}>
-        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Détails et outils du projet</summary>
-        <VueProjet detail={r.detail} exportAutorise={exportAutorise} atelier={atelier} masquerPropositions masquerEntete />
-      </details>
-      {canvas && <details data-emplacement="canvas" style={{ ...surface, padding: 18, marginTop: 18 }}>
-        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Ouvrir le canvas</summary>
-        {canvas}
-      </details>}
-      {lignee && <details data-emplacement="canvas-lignee" style={{ ...surface, padding: 18, marginTop: 18 }}>
-        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Origine des créations et variantes</summary>
-        {lignee}
-      </details>}
+        />}
+        creations={<><div id="taches-projet" data-emplacement="taches">{taches}</div><div data-emplacement="variantes">{variantes}</div></>}
+      />
     </main>
   );
 }

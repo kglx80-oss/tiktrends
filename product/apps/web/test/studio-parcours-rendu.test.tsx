@@ -73,3 +73,7 @@ it('harness local composants réels, données synthétiques', async () => {
   }
   ecran.mobile = false;
 });
+
+it('en-tête compact garde les destinations et les droits de l’atelier', () => {
+ const el=document.createElement('div');el.innerHTML=renderToStaticMarkup(<ParcoursProjet compact detail={detail} atelier={atelier} generationActive exportAutorise={false}/>);expect(el.querySelector('[data-action-principale]')?.getAttribute('href')).toBe('/studio/projets/projet-demo/produit');expect(el.querySelector('a[href$="/export"]')).toBeNull();expect(el.querySelector('h1')?.textContent).toBe(detail.projet.title);
+});

@@ -41,7 +41,7 @@ export interface PropsCanvas {
 }
 
 const TAILLE_DEFAUT: TailleCanvas = { largeur: 860, hauteur: 520 };
-const HAUTEUR_ZONE = 520;
+const HAUTEUR_ZONE = 620;
 
 type Message = { genre: 'info' | 'erreur'; texte: string } | null;
 
@@ -235,7 +235,7 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
     <section aria-labelledby="canvas-projet-titre" data-canvas-projet={projectId} data-mode={etat.mode} style={section}>
       <div style={{ display: 'grid', gap: 4 }}>
         <h2 id="canvas-projet-titre" style={titre}>Canvas du projet · version {version.n}</h2>
-        <p style={mini}>Cartes reliées par leurs dépendances réelles · une flèche va de ce qui est lu vers ce qui le lit. Déplacer une carte range ta vue : ni l’ordre, ni les dépendances, ni la version ne changent.</p>
+        <details><summary style={{ ...mini, cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>Comment utiliser le canvas</summary><p style={mini}>Cartes reliées par leurs dépendances réelles · une flèche va de ce qui est lu vers ce qui le lit. Déplacer une carte range ta vue : ni l’ordre, ni les dépendances, ni la version ne changent.</p></details>
       </div>
 
       {vide && (
@@ -279,7 +279,7 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
                 onPointerMove={bouger} onPointerUp={fin} onPointerCancel={() => { geste.current = null; setGlisse(null); }}
                 style={{
                   ...tuile, position: 'relative', overflow: 'hidden', contain: 'paint', height: `min(${HAUTEUR_ZONE}px, 70vh)`,
-                  background: 'var(--rail)', touchAction: 'none', cursor: 'grab',
+                  borderRadius: 16, border: '1px solid var(--line-2)', background: 'var(--bg)', touchAction: 'none', cursor: 'grab',
                 }}>
                 <div data-fond-canvas style={{ position: 'absolute', inset: 0 }} />
                 <div data-monde-canvas style={{ position: 'absolute', left: 0, top: 0, transformOrigin: '0 0', transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.k})` }}>
@@ -337,7 +337,7 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
         </div>
 
         {!etroit && (
-          <aside data-canvas-detail aria-label="Détail de la carte" style={{ flex: '1 1 280px', minWidth: 0, display: 'grid', gap: 10, alignContent: 'start' }}>
+          <aside data-canvas-detail hidden={!detail} aria-label="Détail de la carte" style={{ flex: '1 1 280px', minWidth: 0, display: detail ? 'grid' : 'none', gap: 10, alignContent: 'start' }}>
             {detail ?? <p style={mini}>Choisis une carte pour voir ce qu’elle lit, ce qu’elle alimente, et la cibler dans Jarvis.</p>}
           </aside>
         )}

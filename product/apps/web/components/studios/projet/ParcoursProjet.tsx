@@ -2,11 +2,12 @@ import Link from 'next/link';
 import type { DetailProjet } from '../../../lib/studios/sources/projet';
 import type { LienAtelier } from '../../../lib/navigation';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
-import { h1 } from '../../ui';
+import css from './EspaceProjet.module.css';
+import { btn, btnGhost, h1 } from '../../ui';
 import { PastilleEtape } from './CarteProjet';
 
 /** Orientation avant la conversation ; les droits et devis restent dans les ateliers. */
-export function ParcoursProjet({ detail, atelier, exportAutorise, generationActive }: { detail: DetailProjet; atelier: LienAtelier[]; exportAutorise: boolean; generationActive: boolean }) {
+export function ParcoursProjet({ detail, atelier, exportAutorise, generationActive, compact = false }: { compact?: boolean; detail: DetailProjet; atelier: LienAtelier[]; exportAutorise: boolean; generationActive: boolean }) {
   const { projet, brief, produit, version } = detail;
   const ancienne = !detail.versions.some(v => v.id === version.id && v.courante);
   const cible = projet.kind === 'video' ? 'video' : projet.kind === 'text' ? 'textes' : 'image';
@@ -21,6 +22,10 @@ export function ParcoursProjet({ detail, atelier, exportAutorise, generationActi
     : cadre && preparationLien && (generationActive || cible === 'textes')
       ? { href: preparationLien, label: cible === 'image' ? 'Préparer mon image' : cible === 'video' ? 'Préparer ma vidéo' : 'Préparer mes textes', aide: 'Retrouve tes choix dans l’atelier, puis vérifie le devis avant de lancer.' }
       : { href: '#conversation-projet', label: 'Préparer avec Jarvis', aide: cadre ? 'Précise tes choix avec Jarvis avant de poursuivre dans l’atelier.' : 'Décris ta création à Jarvis, puis choisis la proposition à appliquer.' };
+  if (compact) return <header data-parcours="projet" className={css.head}>
+    <div className={css.headTitle}><h1>{projet.title}</h1><p>{projet.marque} · Version {version.n}{ancienne ? ' · Lecture seule' : ''}</p>{detail.briefIllisible && <p role="alert">Le brief de cette version est illisible.</p>}</div>
+    <div className={css.actions}><Link href="/studio/projets" style={btnGhost}>Projets</Link><Link data-action-principale href={prochaine.href} style={btnGhost}>{prochaine.label}</Link>{exportLien && <Link href={exportLien} style={btn}>Exporter</Link>}</div>
+  </header>;
   return <header data-parcours="projet" style={{ display: 'grid', gap: 14, marginBottom: 22, minWidth: 0 }}>
     <Link href="/studio/projets" style={{ color: 'var(--ink-2)', width: 'fit-content', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', fontSize: 13 }}>Retour aux projets</Link>
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
