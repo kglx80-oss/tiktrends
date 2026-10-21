@@ -27,9 +27,16 @@ function dom(d = detail, active = true, exportAutorise = true) {
 describe('prochaine étape visible du projet', () => {
   it('brief présent : un CTA vers atelier, format et photos, devis avant lancement', () => {
     const el = dom(); expect(el.querySelectorAll('[data-action-principale]')).toHaveLength(1);
-    expect(el.querySelector('[data-action-principale]')?.getAttribute('href')).toBe('/studio/projets/projet-demo/image');
+    expect(el.querySelector('[data-action-principale]')?.getAttribute('href')).toBe('/studio/projets/projet-demo/produit');
+    expect([...el.querySelectorAll('nav a')].find(a => a.textContent === 'Générer l’image')?.getAttribute('href')).toBe('/studio/projets/projet-demo/produit');
+    expect([...el.querySelectorAll('nav a')].find(a => a.textContent === 'Éditer l’image')?.getAttribute('href')).toBe('/studio/projets/projet-demo/image');
     expect(el.textContent).toContain('Hydra Complex'); expect(el.textContent).toContain('4:5'); expect(el.textContent).toContain('devis avant de lancer');
     expect(el.querySelector('a[href="/studio/projets/projet-demo/produit"]')).not.toBeNull();
+  });
+  it.each([['video', 'video'], ['text', 'textes']] as const)('préserve la destination %s', (kind, segment) => {
+    const el = dom({ ...detail, projet: { ...detail.projet, kind } });
+    expect(el.querySelector('[data-action-principale]')?.getAttribute('href')).toBe(`/studio/projets/projet-demo/${segment}`);
+    expect(el.textContent).not.toContain('Éditer l’image');
   });
   it('brief absent : prépare avec Jarvis', () => {
     const el = dom({ ...detail, brief: null, produit: null });
@@ -38,10 +45,14 @@ describe('prochaine étape visible du projet', () => {
   it('génération fermée et export interdit : aucun CTA génération ni lien export', () => {
     const el = dom(detail, false, false);
     expect(el.querySelector('[data-action-principale]')?.textContent).toBe('Préparer avec Jarvis'); expect(el.textContent).not.toContain('Générer l’image');
+    expect([...el.querySelectorAll('nav a')].find(a => a.textContent === 'Ouvrir l’atelier')?.getAttribute('href')).toBe('/studio/projets/projet-demo/produit');
+    expect([...el.querySelectorAll('nav a')].find(a => a.textContent === 'Éditer l’image')?.getAttribute('href')).toBe('/studio/projets/projet-demo/image');
     expect(el.querySelector('a[href$="/export"]')).toBeNull(); expect(el.querySelector('[role="status"]')?.textContent).toContain('pas activée');
   });
   it('ancienne version et brief illisible : retour courant et erreur visibles', () => {
     const el = dom({ ...detail, briefIllisible: true, versions: [{ ...detail.versions[0]!, courante: false }] });
+    expect(el.querySelector('[data-action-principale]')?.getAttribute('href')).toBe('/studio/projets/projet-demo');
+    expect([...el.querySelectorAll('nav a')].find(a => a.textContent === 'Générer l’image')?.getAttribute('href')).toBe('/studio/projets/projet-demo/produit');
     expect(el.querySelector('[data-action-principale]')?.textContent).toBe('Reprendre la version courante'); expect(el.querySelector('header')?.textContent).toContain('Version 2'); expect(el.querySelector('[role="status"]')?.textContent).toContain('lecture seule'); expect(el.querySelector('[role="alert"]')?.textContent).toContain('illisible');
   });
 });

@@ -13,11 +13,13 @@ export function ParcoursProjet({ detail, atelier, exportAutorise, generationActi
   const production = atelier.find(a => a.segment === cible);
   const exportLien = exportAutorise ? atelier.find(a => a.segment === 'export')?.href : null;
   const produitLien = atelier.find(a => a.segment === 'produit')?.href;
+  // Le parcours de génération image vit avec le produit ; /image est l’éditeur de calques.
+  const preparationLien = cible === 'image' ? produitLien : production?.href;
   const cadre = !!brief && !!(brief.composition.trim() || brief.objective.trim());
   const prochaine = ancienne
     ? { href: `/studio/projets/${projet.id}`, label: 'Reprendre la version courante', aide: 'Tu consultes une version antérieure en lecture seule.' }
-    : cadre && production?.href && (generationActive || cible === 'textes')
-      ? { href: production.href, label: cible === 'image' ? 'Préparer mon image' : cible === 'video' ? 'Préparer ma vidéo' : 'Préparer mes textes', aide: 'Retrouve tes choix dans l’atelier, puis vérifie le devis avant de lancer.' }
+    : cadre && preparationLien && (generationActive || cible === 'textes')
+      ? { href: preparationLien, label: cible === 'image' ? 'Préparer mon image' : cible === 'video' ? 'Préparer ma vidéo' : 'Préparer mes textes', aide: 'Retrouve tes choix dans l’atelier, puis vérifie le devis avant de lancer.' }
       : { href: '#conversation-projet', label: 'Préparer avec Jarvis', aide: cadre ? 'Précise tes choix avec Jarvis avant de poursuivre dans l’atelier.' : 'Décris ta création à Jarvis, puis choisis la proposition à appliquer.' };
   return <header data-parcours="projet" style={{ display: 'grid', gap: 14, marginBottom: 22, minWidth: 0 }}>
     <Link href="/studio/projets" style={{ color: 'var(--ink-2)', width: 'fit-content', minHeight: CIBLE_TACTILE_MIN, display: 'inline-flex', alignItems: 'center', fontSize: 13 }}>Retour aux projets</Link>
@@ -34,7 +36,8 @@ export function ParcoursProjet({ detail, atelier, exportAutorise, generationActi
     {!generationActive && cible !== 'textes' && <p role="status" style={{ margin: 0, color: 'var(--ink-2)', fontSize: 13 }}>La génération n’est pas activée pour cet espace. La préparation reste accessible.</p>}
     <nav aria-label="Parcours de création" style={{ display: 'flex', gap: '6px 24px', flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--line-2)', borderBottom: '1px solid var(--line-2)', padding: '4px 0', fontSize: 13 }}>
       <Link href="#conversation-projet" style={lien}>Préparer la création</Link>
-      {production?.href ? <Link href={production.href} style={lien}>{cible === 'textes' ? 'Écrire les textes' : generationActive ? `Générer ${cible === 'video' ? 'la vidéo' : 'l’image'}` : 'Ouvrir l’atelier'}</Link> : <span aria-disabled="true" style={{ ...lien, color: 'var(--muted)' }}>Génération non activée</span>}
+      {preparationLien ? <Link href={preparationLien} style={lien}>{cible === 'textes' ? 'Écrire les textes' : generationActive ? `Générer ${cible === 'video' ? 'la vidéo' : 'l’image'}` : 'Ouvrir l’atelier'}</Link> : <span aria-disabled="true" style={{ ...lien, color: 'var(--muted)' }}>Génération non activée</span>}
+      {cible === 'image' && production?.href && <Link href={production.href} style={lien}>Éditer l’image</Link>}
       {exportLien ? <Link href={exportLien} style={lien}>Exporter</Link> : <span aria-disabled="true" style={{ ...lien, color: 'var(--muted)' }}>Export indisponible</span>}
     </nav>
     <div style={{ display: 'flex', gap: '8px 24px', flexWrap: 'wrap', color: 'var(--ink-2)', fontSize: 13, minWidth: 0 }}>
