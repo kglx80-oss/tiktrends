@@ -53,7 +53,7 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
   const [portee, setPortee] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [importEnCours, setImportEnCours] = useState(false);
-  const [retour, setRetour] = useState<{ ok: boolean; texte: string; conflit?: boolean } | null>(null);
+  const [retour, setRetour] = useState<{ ok: boolean; texte: string; conflit?: boolean; incertain?: boolean } | null>(null);
 
   const groupes = useMemo(() => {
     const m = new Map<string, VueProduit['fichiers']>();
@@ -69,7 +69,7 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
       if (r.ok) { setRetour({ ok: true, texte: nom }); router.refresh(); }
       else setRetour({ ok: false, texte: messageErreur(r), conflit: r.code === 'VERSION_CONFLICT' });
     } catch {
-      setRetour({ ok: false, texte: 'Le serveur n’a pas répondu · rien n’a été enregistré. Réessaie.' });
+      setRetour({ ok: false, texte: 'La connexion a été interrompue. L’enregistrement a peut-être abouti : recharge la page pour vérifier avant de recommencer.', incertain: true });
     } finally {
       setEnCours(false);
     }
@@ -87,8 +87,8 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
     <div style={{ display: 'grid', gap: 18 }}>
       {retour && (
         <div role={retour.ok ? 'status' : 'alert'} style={signal(retour.ok ? 'ok' : retour.conflit ? 'warn' : 'err')}>
-          <span style={{ fontWeight: 600 }}>{retour.ok ? 'Enregistré · ' : retour.conflit ? 'Conflit de version · ' : 'Refusé · '}</span>{retour.texte}
-          {retour.conflit && <div style={{ marginTop: 8 }}><button type="button" style={boutonSecondaire} onClick={() => router.refresh()}>Recharger la version courante</button></div>}
+          <span style={{ fontWeight: 600 }}>{retour.ok ? 'Enregistré · ' : retour.incertain ? 'À vérifier · ' : retour.conflit ? 'Conflit de version · ' : 'Refusé · '}</span>{retour.texte}
+          {(retour.conflit || retour.incertain) && <div style={{ marginTop: 8 }}><button type="button" style={boutonSecondaire} onClick={() => router.refresh()}>Recharger la version courante</button></div>}
         </div>
       )}
 
