@@ -5,7 +5,7 @@ import { FEATURES, denyReason } from '../../../../../../lib/rbac';
 import { lireProduitProjet } from '../../../../../actions/studios/produit';
 import { EcranProduit } from '../../../../../../components/studios/produit/EcranProduit';
 import { RefusProjet } from '../../../../../../components/studios/produit/EnTeteProjet';
-import { cadrePage } from '../../../../../../components/ui';
+import { cadrePage, h1 } from '../../../../../../components/ui';
 import Link from 'next/link';
 
 
@@ -33,7 +33,7 @@ export default async function ProduitProjetPage({ params }: { params: Promise<{ 
   return (
     <main style={cadrePage}>
       <div style={{ display: 'grid', gap: 18 }}>
-        <header style={{ display: 'grid', gap: 12 }}><Link href={`/studio/projets/${id}`} style={{ color: 'var(--ink-2)', minHeight: 44 }}>Retour au projet</Link><h1 style={{ margin: 0, fontSize: 26 }}>Créer votre visuel</h1><p style={{ margin: 0, color: 'var(--ink-2)' }}>{r.vue.projet.marque} · {r.vue.projet.title}</p></header>
+        <header style={{ display: 'grid', gap: 12 }}><Link href={`/studio/projets/${id}`} style={{ color: 'var(--ink-2)', minHeight: 44 }}>Retour au projet</Link><h1 style={h1}>Créer votre visuel</h1><p style={{ margin: 0, color: 'var(--ink-2)' }}>{r.vue.projet.marque} · {r.vue.projet.title}</p></header>
         <EcranProduit vue={r.vue} />
       </div>
     </main>

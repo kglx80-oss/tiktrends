@@ -85,7 +85,7 @@ describe('/studio/projets/[id]/produit', () => {
     const avant = await empreinteBase();
     const d = await produit(projectId);
     expect(await empreinteBase(), 'la visite a écrit').toBe(avant);
-    expect(d.querySelector('h1')?.textContent).toBe('Produit et références');
+    expect(d.querySelector('h1')?.textContent).toBe('Créer votre visuel');
     expect(d.querySelector('[data-etat="sans-photo"]')?.textContent).toContain('Lunettes Sport Bandeau');
     const photos = [...d.querySelectorAll('[data-photo]')];
     expect(photos.map((p) => p.getAttribute('data-photo'))).toEqual(['1', '2', '3', '4', '5', '6', '7']);
