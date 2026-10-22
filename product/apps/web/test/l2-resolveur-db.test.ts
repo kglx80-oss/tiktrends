@@ -127,6 +127,18 @@ describe('chaîne complète', () => {
     expect((await run(r.ok ? r.runId : null)).sourceRefs).toEqual([{ type: 'source', id: 'src_veille_1', version: 'v1', titre: 'Pub concurrente' }]);
   });
 
+  it('réponse coupée : diagnostic distinct, coût tracé et aucun second appel', async () => {
+    const appeler = vi.fn(async () => ({ texte: JSON.stringify(SORTIE_JARVIS_ROUTE), modele: 'simule', stopReason: 'max_tokens', jetonsEntree: 100, jetonsSortie: 4000, coutUsd: 0.03 }));
+    const r = await executerTache(demande({ adaptateur: { ...fournisseur, appeler } }));
+    expect(r).toMatchObject({ ok: false, code: 'SORTIE_TRONQUEE' });
+    expect(appeler).toHaveBeenCalledTimes(1);
+    if (r.ok) return;
+    const trace = await run(r.runId);
+    expect(trace).toMatchObject({ status: 'failed' });
+    expect(JSON.stringify(trace)).toContain('SORTIE_TRONQUEE');
+    expect(trace.costUsdMicros).toBe(30000);
+  });
+
   it('PROMPT-03 · sortie conforme au schéma qui cite une preuve inexistante · rejetée, trace « failed »', async () => {
     reponse = { ...SORTIE_JARVIS_ROUTE, evidenceIds: ['preuve_inventee'] };
     const r = await executerTache(demande());

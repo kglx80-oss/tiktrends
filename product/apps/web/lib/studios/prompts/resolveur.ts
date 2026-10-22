@@ -258,6 +258,11 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
     return { ok: false, statut: 'erreur', code, constats, runId, releaseId: release.ligne.id };
   }
   const latenceMs = Date.now() - debut;
+  if (reponse.stopReason === 'max_tokens') {
+    const constats = [constat('SORTIE_TRONQUEE', template.key, 'La réponse a atteint la limite de sortie du fournisseur. Aucun nouvel appel automatique.')];
+    const runId = await ecrireRun(d, trace, { statut: 'failed', compiledHash: req.compiledHash, modele: reponse.modele, outputHash: sha256Texte(reponse.texte), latenceMs, coutUsd: reponse.coutUsd, jetons: { entree: reponse.jetonsEntree, sortie: reponse.jetonsSortie }, constats });
+    return { ok: false, statut: 'erreur', code: 'SORTIE_TRONQUEE', constats, runId, releaseId: release.ligne.id };
+  }
   const juge = evaluerSortie(template.key, budget.entree, reponse.texte, s.validateur, semantique, { faites: 0, maximum: 0 });
   const commun = { compiledHash: req.compiledHash, modele: reponse.modele, outputHash: sha256Texte(reponse.texte), latenceMs, coutUsd: reponse.coutUsd, jetons: { entree: reponse.jetonsEntree, sortie: reponse.jetonsSortie } };
   if (!juge.ok) {

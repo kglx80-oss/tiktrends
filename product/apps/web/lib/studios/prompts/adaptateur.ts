@@ -63,6 +63,8 @@ export interface AppelModele {
 }
 
 export interface ReponseModele {
+  /** Motif fournisseur, pour distinguer une réponse coupée d’un JSON mal formé. */
+  stopReason?: string | null;
   texte: string;
   modele: string;
   jetonsEntree: number;
@@ -105,7 +107,7 @@ export function adaptateurAnthropicGarde(): AdaptateurModele | null {
       const texte = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
       const entree = res.usage?.input_tokens ?? 0;
       const sortie = res.usage?.output_tokens ?? 0;
-      return { texte, modele, jetonsEntree: entree, jetonsSortie: sortie, coutUsd: costOfTokens(modele, entree, sortie) };
+      return { texte, modele, stopReason: res.stop_reason, jetonsEntree: entree, jetonsSortie: sortie, coutUsd: costOfTokens(modele, entree, sortie) };
     },
   };
 }

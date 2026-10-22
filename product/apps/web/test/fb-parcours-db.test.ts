@@ -205,6 +205,19 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ id: a.job.id, etat: 'completed', media: { url: expect.stringContaining('/api/studios/media/') } });
   });
 
+  it('mode fidèle : JSON encadré par Markdown accepté sans second appel et reste validé', async () => {
+    const { projectId } = await projetEpingle();
+    repondreConsigne();
+    const conforme = reponse;
+    reponse = (a) => `\`\`\`json\n${JSON.stringify(conforme(a))}\n\`\`\``;
+    const c = await compilerEtAttesterPour(ctxDe(ids, 'ua'), { projectId, mode: 'faithful_composite' }, deps);
+    expect(c, JSON.stringify(c)).toMatchObject({ ok: true, statut: 'compilee' });
+    expect(texte.recues).toHaveLength(1);
+    const instructions = texte.recues[0]!.messages.filter(m => m.role === 'system').map(m => m.contenu).join(' ');
+    expect(instructions).toContain('sans Markdown');
+    expect(texte.recues[0]!.maxJetonsSortie).toBe(4000);
+  });
+
   it('compiler n’écrit rien dans le projet : une trace et UNE attestation serveur de la consigne validée', async () => {
     const { projectId } = await projetEpingle();
     const v = await courante(projectId);

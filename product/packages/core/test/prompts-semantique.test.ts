@@ -230,6 +230,19 @@ describe('sémantique · chaîne complète d’une sortie', () => {
     const r2 = evaluerSortie('brand.extract', entree, '{ pas du json', validateur, OPTIONS, { faites: 1, maximum: 1 });
     expect(r2).toMatchObject({ ok: false, reparationPossible: false });
   });
+  it('accepte un seul emballage JSON Markdown complet sans assouplir les contrôles', () => {
+    const sortie = ready({ facts: [], tone: '', audiences: [], objections: [], missingEvidence: [] });
+    const json = JSON.stringify(sortie);
+    const juger = (brut: string) => evaluerSortie('brand.extract', entree, brut, validateur, OPTIONS, { faites: 0, maximum: 0 });
+    expect(juger(`\n\`\`\`json\n${json}\n\`\`\`\n`)).toEqual(juger(json));
+    expect(juger(`\`\`\`\n${json}\n\`\`\``)).toEqual(juger(json));
+    for (const brut of [`Voici le JSON :\n\`\`\`json\n${json}\n\`\`\``, `\`\`\`json\n${json}\n\`\`\`\nsuite`, `\`\`\`json\n${json}`, `\`\`\`json\n${json}\n\`\`\`\n\`\`\`json\n${json}\n\`\`\``]) {
+      expect(juger(brut)).toMatchObject({ ok: false, code: 'SORTIE_JSON_INVALIDE' });
+    }
+    expect(juger('```json\n{"status":"ready"}\n```')).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
+    const faux = ready({ facts: [{ id: 'fait-n1', claim: 'x', sourceIds: ['src-x'], kind: 'observed', confidence: 'low' }], tone: '', audiences: [], objections: [], missingEvidence: [] });
+    expect(juger(`\`\`\`json\n${JSON.stringify(faux)}\n\`\`\``)).toMatchObject({ ok: false, code: 'SEMANTIQUE' });
+  });
   it('schéma d’abord, sémantique ensuite', () => {
     expect(evaluerSortie('brand.extract', entree, { status: 'ready' }, validateur, OPTIONS, { faites: 0, maximum: 1 })).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
     const sortie = ready({ facts: [{ id: 'fait-n1', claim: 'x', sourceIds: ['src-x'], kind: 'observed', confidence: 'low' }], tone: '', audiences: [], objections: [], missingEvidence: [] });
