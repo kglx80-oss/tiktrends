@@ -91,6 +91,30 @@ export function modeleTexte(): string {
   return process.env.ANTHROPIC_GEN_MODEL || 'claude-sonnet-5';
 }
 
+export type PayloadAnthropic = Anthropic.MessageCreateParamsNonStreaming & {
+  thinking?: { type: 'disabled' };
+  output_config?: { format: { type: 'json_schema'; schema: Record<string, unknown> } };
+};
+
+/** Construction pure partagée : envoi, devis à blanc et garde du montant approuvé. */
+export function payloadAnthropic(a: Omit<AppelModele, 'workspaceId'>, modele: string): PayloadAnthropic {
+  if (a.action === 'studio-prompt:image.compile' && modele === 'claude-sonnet-5' && !a.schemaSortie) throw new Error('Contrat structuré image absent : aucun appel fournisseur.');
+  const system = a.messages.filter((m) => m.role === 'system').map((m) => ({ type: 'text' as const, text: m.contenu }));
+  // Les pièces vont dans le PREMIER message utilisateur (la compilation n'en produit qu'un).
+  const user = a.messages.filter((m) => m.role === 'user').map((m, i) => ({ role: 'user' as const, content: contenuUtilisateur(m.contenu, i === 0 ? a.pieces ?? [] : []) }));
+  // Sonnet 5 active la réflexion adaptative par défaut, dans la même borne
+  // de sortie que le JSON. Cette tâche attend seulement une instance du
+  // contrat : réserver les 4000 jetons à cette sortie, sans relever le coût.
+  // Le SDK 0.27.3 transmet le champ mais son type précède cette option.
+  // Ne pas étendre aux modèles 5.5, qui n'acceptent pas `disabled`.
+  const params: PayloadAnthropic = {
+    model: modele, max_tokens: a.maxJetonsSortie, system, messages: user,
+    ...(a.action === 'studio-prompt:image.compile' && modele === 'claude-sonnet-5'
+      ? { thinking: { type: 'disabled' as const }, ...(a.schemaSortie ? { output_config: { format: { type: 'json_schema' as const, schema: schemaStructure(a.schemaSortie) } } } : {}) } : {}),
+  };
+  return params;
+}
+
 /** L'adaptateur réel · `null` si le fournisseur n'est pas configuré (aucun repli). */
 export function adaptateurAnthropicGarde(): AdaptateurModele | null {
   if (!process.env.ANTHROPIC_API_KEY) return null;
@@ -100,26 +124,10 @@ export function adaptateurAnthropicGarde(): AdaptateurModele | null {
     modelePour: (profil) => (PROFILS_ROUTES_ANTHROPIC.includes(profil) ? modeleTexte() : null),
     async appeler(a) {
       exigerPiecesConformes(a);
-      if (a.action === 'studio-prompt:image.compile' && modeleTexte() === 'claude-sonnet-5' && !a.schemaSortie) throw new Error('Contrat structuré image absent : aucun appel fournisseur.');
+      const modele = modeleTexte();
+      const params = payloadAnthropic(a, modele);
       const client = guardedAnthropic({ workspaceId: a.workspaceId, action: a.action });
       if (!client) throw new Error('Fournisseur non configuré.');
-      const modele = modeleTexte();
-      const system = a.messages.filter((m) => m.role === 'system').map((m) => ({ type: 'text' as const, text: m.contenu }));
-      // Les pièces vont dans le PREMIER message utilisateur (la compilation n'en produit qu'un).
-      const user = a.messages.filter((m) => m.role === 'user').map((m, i) => ({ role: 'user' as const, content: contenuUtilisateur(m.contenu, i === 0 ? a.pieces ?? [] : []) }));
-      // Sonnet 5 active la réflexion adaptative par défaut, dans la même borne
-      // de sortie que le JSON. Cette tâche attend seulement une instance du
-      // contrat : réserver les 4000 jetons à cette sortie, sans relever le coût.
-      // Le SDK 0.27.3 transmet le champ mais son type précède cette option.
-      // Ne pas étendre aux modèles 5.5, qui n'acceptent pas `disabled`.
-      const params: Anthropic.MessageCreateParamsNonStreaming & {
-        thinking?: { type: 'disabled' };
-        output_config?: { format: { type: 'json_schema'; schema: Record<string, unknown> } };
-      } = {
-        model: modele, max_tokens: a.maxJetonsSortie, system, messages: user,
-        ...(a.action === 'studio-prompt:image.compile' && modele === 'claude-sonnet-5'
-          ? { thinking: { type: 'disabled' as const }, ...(a.schemaSortie ? { output_config: { format: { type: 'json_schema' as const, schema: schemaStructure(a.schemaSortie) } } } : {}) } : {}),
-      };
       const res = await client.messages.create(params);
       const texte = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
       const entree = res.usage?.input_tokens ?? 0;

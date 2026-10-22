@@ -82,6 +82,7 @@ describe('devis de compilation · la requête réellement envoyée', () => {
     const sys = rc.requete.messages.filter((m) => m.role === 'system').map((m) => m.contenu);
     const usr = rc.requete.messages.filter((m) => m.role === 'user').map((m) => m.contenu);
     expect({ model: envoye.model, max_tokens: envoye.max_tokens, system: envoye.system.map((b) => b.text), user: envoye.messages.map((m) => m.content) }, 'la requête du devis n’est pas celle qui part').toEqual({ model: rc.requete.modele, max_tokens: rc.requete.maxJetonsSortie, system: sys, user: usr });
+    expect(envoye).toEqual(rc.requete.payload);
     expect(borneMaxAppel(envoye)).toBe(rc.requete.borneUsd);
 
     const [reservation] = await db.select().from(schema.aiSpend);

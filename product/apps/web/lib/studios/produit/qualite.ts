@@ -11,9 +11,9 @@ import { ajouterAudit } from '../audit';
 import { estUuid, lireAsset, lireJob, lireVersion } from '../depot';
 // L6-B · contrôle visuel routé (F-D) branché sur la même règle des composants.
 import { executerTache, type ResolveurMediasTache } from '../prompts/resolveur';
-import type { AdaptateurModele } from '../prompts/adaptateur';
+import { payloadAnthropic, type AdaptateurModele } from '../prompts/adaptateur';
 // R3 · contrôle visuel = ligne du devis approuvé, borne appliquée avant l'appel.
-import { borneMaxAppel, controleVisionApprouve, depasseMontantApprouve, lireSnapshotJob, requeteDepuisMessagesCompiles } from '@tiktrends/core';
+import { borneMaxAppel, controleVisionApprouve, depasseMontantApprouve, lireSnapshotJob } from '@tiktrends/core';
 // E2 · reprise du contrôle manquant, exclusion mutuelle, issue incertaine réconciliée avant relance.
 import {
   CLE_MARQUEUR_CONTROLE_VISION, causeIncertaine, decisionControleVision, issueEchecAppel, lireMarqueurControleVision, messageControleIncertain,
@@ -180,7 +180,7 @@ export function adaptateurBorne(a: AdaptateurModele, approuveMicros: number, tem
     nom: a.nom, simule: a.simule, modelePour: (p) => a.modelePour(p),
     async appeler(x) {
       const modele = a.modelePour(x.profil) ?? 'modele-non-route';
-      const borne = borneMaxAppel(requeteDepuisMessagesCompiles({ modele, messages: x.messages, images: x.pieces?.length ?? 0, maxJetonsSortie: x.maxJetonsSortie }));
+      const borne = borneMaxAppel(payloadAnthropic(x, modele));
       const refus = depasseMontantApprouve(borne, approuveMicros);
       if (refus) {
         const e = new Error(`Appel refusé avant envoi · ${refus}.`);
