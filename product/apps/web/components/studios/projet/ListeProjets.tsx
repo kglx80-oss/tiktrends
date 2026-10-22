@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { CIBLE_TACTILE_MIN, compteursFiltreProjets, filtrerProjets, type CleFiltreProjet, type EtatNouveauProjet } from '@tiktrends/core';
 import type { CarteProjet as Carte } from '../../../lib/studios/sources/projet';
 import { CarteProjet } from './CarteProjet';
+import { SuppressionProjet, RestaurerProjet } from './SuppressionProjet';
 import { NouveauProjet } from './NouveauProjet';
 import { Icon } from '../../Icon';
 import { surface } from '../../ui';
@@ -12,8 +13,8 @@ import styles from './StudiosListe.module.css';
 /**
  * La zone liste des Studios · recherche + rangée de filtres + grille (alignement
  * V5, image 5.webp). Tout est CLIENT et PUR : on ne filtre que des cartes déjà
- * chargées sous leur droit (`listerCartesPour`), aucune requête n'est relancée,
- * rien n'est écrit. La règle (compteurs, filtrage) vit au noyau
+ * chargées sous leur droit (`listerCartesPour`). La suppression et son annulation
+ * passent par des actions serveur contrôlées. La règle (compteurs, filtrage) vit au noyau
  * (`compteursFiltreProjets`, `filtrerProjets`), ce composant ne fait que montrer.
  *
  * Les filtres portent sur l'ÉTAPE réelle du projet · le prototype montre des
@@ -22,15 +23,20 @@ import styles from './StudiosListe.module.css';
  * On copie la STRUCTURE de la rangée, pas ces libellés fictifs.
  */
 
-export function ListeProjets({ cartes, nouveau }: { cartes: Carte[]; nouveau: EtatNouveauProjet }) {
+export function ListeProjets({ cartes, nouveau, peutSupprimer = false }: { cartes: Carte[]; nouveau: EtatNouveauProjet; peutSupprimer?: boolean }) {
+  const [supprimes, setSupprimes] = useState<Carte[]>([]);
+  const [selection, setSelection] = useState<Carte | null>(null);
+  const visibles = useMemo(() => cartes.filter(c => !supprimes.some(s => s.id === c.id)), [cartes, supprimes]);
   const [cle, setCle] = useState<CleFiltreProjet>('tous');
   const [recherche, setRecherche] = useState('');
 
-  const options = useMemo(() => compteursFiltreProjets(cartes), [cartes]);
-  const filtrees = useMemo(() => filtrerProjets(cartes, { cle, recherche }), [cartes, cle, recherche]);
+  const options = useMemo(() => compteursFiltreProjets(visibles), [visibles]);
+  const filtrees = useMemo(() => filtrerProjets(visibles, { cle, recherche }), [visibles, cle, recherche]);
 
   return (
     <div>
+      {supprimes.map(c => <RestaurerProjet key={c.id} carte={c} onRestaure={() => setSupprimes(l => l.filter(s => s.id !== c.id))} />)}
+      {selection && <SuppressionProjet carte={selection} onFermer={() => setSelection(null)} onSupprime={() => { setSupprimes(l => [...l, selection]); setSelection(null); }} />}
       <div className={styles.bar}>
         <div role="group" aria-label="Filtrer les projets par étape" className={styles.filters}>
           {options.map((o) => {
@@ -59,10 +65,11 @@ export function ListeProjets({ cartes, nouveau }: { cartes: Carte[]; nouveau: Et
           <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)' }}>
             <button type="button" onClick={() => { setCle('tous'); setRecherche(''); }} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent-strong)', fontSize: 13, fontWeight: 600, cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN }}>Réinitialiser les filtres</button>
           </p>
+          {visibles.length === 0 && <NouveauProjet etat={nouveau} variante="carte" />}
         </section>
       ) : (
         <div data-etat="rempli" className={styles.grid}>
-          {filtrees.map((c) => <CarteProjet key={c.id} carte={c} />)}
+          {filtrees.map((c) => <CarteProjet key={c.id} carte={c} onSupprimer={peutSupprimer ? () => setSelection(c) : undefined} />)}
           <NouveauProjet etat={nouveau} variante="carte" />
         </div>
       )}

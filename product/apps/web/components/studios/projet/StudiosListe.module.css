@@ -30,3 +30,19 @@
 @media(max-width:600px){.grid{gap:10px}.body{padding:10px}.title{font-size:14px}.search{max-width:none;width:100%;margin-left:0}.filters{flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:4px}.filter{flex:none}}
 @media(max-width:420px){.grid{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){.card{transition:none}.card:hover{translate:none}}
+
+.cardWrap { position: relative; min-width: 0; display: flex; }
+.cardWrap > .card { flex: 1; }
+.remove { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.remove:hover { color: var(--accent); border-color: var(--accent); }
+.remove:focus-visible, .deleteDialog button:focus-visible, .undoNotice button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.deleteDialog { width: min(460px, calc(100vw - 32px)); box-sizing: border-box; padding: 24px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); color: var(--ink); }
+.deleteDialog::backdrop { background: color-mix(in srgb, var(--ink) 40%, transparent); }
+.deleteDialog h2 { margin: 0 0 16px; font-size: 20px; }
+.deleteDialog p { font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.deleteDialog .deleteTitle { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.deleteButtons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.deleteButtons button, .undoNotice button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.deleteButtons .deleteConfirm { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.deleteButtons button:disabled, .undoNotice button:disabled { opacity: .6; cursor: wait; }
+.undoNotice { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); color: var(--ink); font-size: 14px; }

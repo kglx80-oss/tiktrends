@@ -334,3 +334,18 @@ describe('annulerJob · commande', () => {
     expect(await comptes()).toEqual(avant);
   });
 });
+
+describe('Projet supprimé · aucun nouveau devis ni lancement', () => {
+  it('refuse un devis préparé avant archivage sans réservation ni tâche', async () => {
+    const p = await projetTest(db, ids, ids.brandA1, ids.ua);
+    const ctx = ctxDe(ids, 'ua');
+    const d = await creerDevis(ctx, { projectId: p.projectId, operations: ['keyframe:s_ouverture'], variante: true });
+    expect(d.ok).toBe(true); if (!d.ok) return;
+    const { supprimerProjetPour } = await import('../lib/studios/sources/archivage');
+    expect(await supprimerProjetPour(ctx, p.projectId)).toEqual({ ok: true });
+    const avant = await comptes();
+    expect(await creerDevis(ctx, { projectId: p.projectId, operations: ['keyframe:s_ouverture'], variante: true })).toMatchObject({ ok: false, code: 'NOT_FOUND' });
+    expect(await approuverEtMettreEnFile(ctx, { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: d.devis.maximumCredits, idempotencyKey: `archive-${p.projectId}` }, { illimite: false })).toMatchObject({ ok: false, code: 'NOT_FOUND' });
+    expect(await comptes()).toEqual(avant);
+  });
+});

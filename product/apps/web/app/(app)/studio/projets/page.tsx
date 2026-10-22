@@ -121,7 +121,7 @@ export default async function ProjetsPage({ searchParams }: { searchParams: Prom
           </p>
         </section>
       ) : (
-        <ListeProjets cartes={cartes} nouveau={nouveau} />
+        <ListeProjets cartes={cartes} nouveau={nouveau} peutSupprimer={peutProposer} />
       )}
     </main>
   );
