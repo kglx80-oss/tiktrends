@@ -215,6 +215,9 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect(texte.recues).toHaveLength(1);
     const instructions = texte.recues[0]!.messages.filter(m => m.role === 'system').map(m => m.contenu).join(' ');
     expect(instructions).toContain('sans Markdown');
+    const contrat = JSON.parse(instructions.split('OUTPUT_SCHEMA_JSON=')[1]!);
+    expect(contrat.properties.result.anyOf[0].required).toEqual(['generationInstruction', 'negativeConstraints', 'referenceBindings', 'protectedComponents', 'needsDeterministicOverlay']);
+    expect(JSON.stringify(contrat)).not.toContain('storyboard_plan_output');
     expect(texte.recues[0]!.maxJetonsSortie).toBe(4000);
   });
 

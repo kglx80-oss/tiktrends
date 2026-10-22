@@ -59,6 +59,8 @@ export interface ValidateurContrats {
   readonly schemaId: string;
   /** Noms des `$defs` disponibles. */
   readonly defs: ReadonlySet<string>;
+  /** Schéma autonome exact, incluant seulement ses définitions référencées. */
+  schemaPourReference(ref: string): Record<string, unknown> | null;
   validerEntree(key: string, data: unknown): ResultatValidation;
   validerSortie(key: string, data: unknown): ResultatValidation;
   /** Valide une donnée contre une définition nommée (`Shot`, `Style`, `Quote`…). */
@@ -125,6 +127,25 @@ export function creerValidateurContrats(schema: Readonly<Record<string, unknown>
   return {
     schemaId,
     defs,
+    schemaPourReference: (ref) => {
+      const nom = nomDefinition(ref);
+      if (!nom || !defs.has(nom)) return null;
+      const definitions = defsBrutes as Record<string, unknown>;
+      const requis: Record<string, unknown> = {};
+      function visiter(valeur: unknown): void {
+        if (!valeur || typeof valeur !== 'object') return;
+        if (Array.isArray(valeur)) { valeur.forEach(visiter); return; }
+        const objet = valeur as Record<string, unknown>;
+        if (typeof objet.$ref === 'string') {
+          const cible = /^#\/\$defs\/(.+)$/.exec(objet.$ref)?.[1];
+          if (!cible || !defs.has(cible)) throw new Error('Référence de contrat non résolue.');
+          if (!(cible in requis)) { requis[cible] = definitions[cible]; visiter(definitions[cible]); }
+        }
+        Object.values(objet).forEach(visiter);
+      }
+      visiter(definitions[nom]);
+      return JSON.parse(JSON.stringify({ ...(definitions[nom] as Record<string, unknown>), ...(Object.keys(requis).length ? { $defs: requis } : {}) })) as Record<string, unknown>;
+    },
     validerEntree: (key, data) => {
       const r = refs.get(key);
       return r ? valider(r.entree, data) : inconnu(key);
