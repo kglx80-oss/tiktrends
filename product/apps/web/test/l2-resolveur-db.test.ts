@@ -147,6 +147,19 @@ describe('chaîne complète', () => {
     expect(trace.costUsdMicros).toBe(30000);
   });
 
+  it('refus fournisseur : diagnostic distinct, coût tracé et aucun second appel', async () => {
+    const appeler = vi.fn(async () => ({ texte: 'réponse confidentielle du fournisseur', modele: 'simule', stopReason: 'refusal', jetonsEntree: 100, jetonsSortie: 4000, coutUsd: 0.03 }));
+    const r = await executerTache(demande({ adaptateur: { ...fournisseur, appeler } }));
+    expect(r).toMatchObject({ ok: false, code: 'PROVIDER_REFUSAL' });
+    expect(appeler).toHaveBeenCalledTimes(1);
+    if (r.ok) return;
+    const trace = await run(r.runId);
+    expect(trace).toMatchObject({ status: 'failed' });
+    expect(JSON.stringify(trace)).toContain('PROVIDER_REFUSAL');
+    expect(trace.costUsdMicros).toBe(30000);
+    expect(JSON.stringify(trace)).not.toContain('réponse confidentielle du fournisseur');
+  });
+
   it('PROMPT-03 · sortie conforme au schéma qui cite une preuve inexistante · rejetée, trace « failed »', async () => {
     reponse = { ...SORTIE_JARVIS_ROUTE, evidenceIds: ['preuve_inventee'] };
     const r = await executerTache(demande());

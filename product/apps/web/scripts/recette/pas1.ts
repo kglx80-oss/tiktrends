@@ -209,7 +209,7 @@ export async function executerPas1(d: DependancesPas1): Promise<ResultatPas1> {
   const modelePour = (profil: string) => (PROFILS_ROUTES_ANTHROPIC.includes(profil) ? modeleTexte() : null);
   const rc = await requeteCompilationPas1(ctx, { projectId: RECETTE.projectId, mode: MODE_PAS1, maintenant: horloge(), modelePour });
   if (!rc.ok) return refuser([`Devis impossible · ${rc.raison} · rien n’est lancé.`]);
-  const req = core.requeteDepuisMessagesCompiles({ modele: rc.requete.modele, messages: rc.requete.messages, images: 0, maxJetonsSortie: rc.requete.maxJetonsSortie });
+  const req = rc.requete.payload;
   // La ligne « contrôle visuel » ira au devis L3 quand le fournisseur de vision est configuré (`creerDevis`).
   // En réel, le lancement EXIGE ANTHROPIC_API_KEY (compilation), qui configure aussi la vision : le devis
   // lu sans clé (README §4.5) montre donc déjà la ligne, et le montant à recopier ne change pas au lancement.

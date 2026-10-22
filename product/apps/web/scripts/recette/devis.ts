@@ -23,7 +23,7 @@
  *   `executerTache` → release active (pointeur), `resoudreTemplate`,
  *     `construireContexte`, `allouerContexte` (budget par défaut du
  *     résolveur), `compilerRequete` (politique serveur, socle, rendu) ;
- *   adaptateur réel → `requeteDepuisMessagesCompiles` → `borneMaxAppel`.
+ *   adaptateur réel → `payloadAnthropic` → `borneMaxAppel`.
  *
  * Garde au RÉSULTAT (`test/e2-devis-pas1.test.ts`) : les messages et le
  * plafond de sortie calculés ici sont IDENTIQUES à ceux que l'adaptateur
@@ -37,13 +37,15 @@
  */
 
 import {
-  borneMaxAppel, controlerAvantCompilation, entreeCompilation, requeteDepuisMessagesCompiles, sourcesCitees,
+  borneMaxAppel, controlerAvantCompilation, entreeCompilation, sourcesCitees, mesurerRequete, borneJetonsEntree,
   JETONS_ENTREE_MAX_PROPOSITION, JETONS_RESERVE_CONTEXTE, JETONS_SORTIE_MAX_PROPOSITION,
   type ContenuVersion, type ModeImage,
 } from '@tiktrends/core';
-import { allouerContexte, compilerRequete, resoudreTemplate, POLITIQUE_SERVEUR, type MessageCompile } from '../../lib/studios/prompts/noyau';
+import { allouerContexte, instructionsContratSortie, compterJetonsParDefaut, compilerRequete, resoudreTemplate, POLITIQUE_SERVEUR, type MessageCompile } from '../../lib/studios/prompts/noyau';
 import { releaseActive } from '../../lib/studios/prompts/depot-prompts';
 import { construireContexte } from '../../lib/studios/prompts/contexte';
+import { payloadAnthropic, type PayloadAnthropic } from '../../lib/studios/prompts/adaptateur';
+import { schemaStructure } from '../../lib/studios/prompts/schema-structure';
 import { chargerSource } from '../../lib/studios/prompts/source';
 import { chargerCatalogueProjet } from '../../lib/studios/produit/catalogue';
 import { formatImageDuContenu } from '../../lib/studios/image/verification';
@@ -55,6 +57,7 @@ export interface RequeteCompilationCalculee {
   profil: string;
   messages: ReadonlyArray<MessageCompile>;
   maxJetonsSortie: number;
+  payload: PayloadAnthropic;
   /** Borne du coût de CETTE requête (ce que `guardedAnthropic` réservera), en dollars. */
   borneUsd: number;
   /** Même borne, micro-dollars entiers arrondis au supérieur. */
@@ -101,9 +104,18 @@ export async function requeteCompilationPas1(
     references: entree.references, resolvedDocuments: entree.resolvedDocuments, selectionIds: prep.referenceIds,
     sources: sourcesCitees(cat.brief, cat.sourcesProjet, cat.epingle ?? cat.instantane),
   });
-  const budget = allouerContexte({ context: contexte, taskInputs: entree.taskInputs }, { budgetJetons: JETONS_ENTREE_MAX_PROPOSITION, reserveJetons: JETONS_RESERVE_CONTEXTE });
-  if (!budget.ok) return { ok: false, raison: `contexte hors budget (${budget.code})` };
   const s = chargerSource();
+  const schemaSortie = s.validateur.schemaPourReference(template.outputSchemaRef);
+  if (!schemaSortie) return { ok: false, raison: 'contrat de sortie absent' };
+  let reserveFormat = 0;
+  try {
+    if (template.key === 'image.compile' && modele === 'claude-sonnet-5') {
+      const format = { format: { type: 'json_schema', schema: schemaStructure(schemaSortie) } };
+      reserveFormat = borneJetonsEntree(mesurerRequete({ output_config: format })) - borneJetonsEntree(mesurerRequete({}));
+    }
+  } catch { return { ok: false, raison: 'contrat de sortie incompatible' }; }
+  const budget = allouerContexte({ context: contexte, taskInputs: entree.taskInputs }, { budgetJetons: JETONS_ENTREE_MAX_PROPOSITION, reserveJetons: JETONS_RESERVE_CONTEXTE + reserveFormat + compterJetonsParDefaut(instructionsContratSortie(schemaSortie)) });
+  if (!budget.ok) return { ok: false, raison: `contexte hors budget (${budget.code})` };
   const comp = compilerRequete({
     politique: POLITIQUE_SERVEUR, socle: { commonSystemInstructions: release.contenu.commonSystemInstructions, commonSystemHash: release.entrees.socle.contentHash },
     rendu: release.contenu.rendering, template, entree: budget.entree, validateur: s.validateur, semantique: { validerDocument: s.validerDocument },
@@ -111,6 +123,7 @@ export async function requeteCompilationPas1(
   if (!comp.ok) return { ok: false, raison: `compilation refusée (${comp.code})` };
 
   const maxJetonsSortie = JETONS_SORTIE_MAX_PROPOSITION;
-  const borneUsd = borneMaxAppel(requeteDepuisMessagesCompiles({ modele, messages: comp.requete.messages, images: 0, maxJetonsSortie }));
-  return { ok: true, requete: { modele, profil: template.modelProfile, messages: comp.requete.messages, maxJetonsSortie, borneUsd, borneUsdMicros: Math.ceil(borneUsd * 1_000_000 - 1e-6) } };
+  const payload = payloadAnthropic({ profil: template.modelProfile, action: `studio-prompt:${template.key}`, messages: comp.requete.messages, schemaSortie, maxJetonsSortie }, modele);
+  const borneUsd = borneMaxAppel(payload);
+  return { ok: true, requete: { modele, profil: template.modelProfile, messages: comp.requete.messages, maxJetonsSortie, payload, borneUsd, borneUsdMicros: Math.ceil(borneUsd * 1_000_000 - 1e-6) } };
 }
