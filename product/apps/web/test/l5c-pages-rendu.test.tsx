@@ -85,7 +85,7 @@ describe('/studio/projets/[id]/produit', () => {
     const avant = await empreinteBase();
     const d = await produit(projectId);
     expect(await empreinteBase(), 'la visite a écrit').toBe(avant);
-    expect(d.querySelector('h1')?.textContent).toBe('Produit et références');
+    expect(d.querySelector('h1')?.textContent).toBe('Créer votre visuel');
     expect(d.querySelector('[data-etat="sans-photo"]')?.textContent).toContain('Lunettes Sport Bandeau');
     const photos = [...d.querySelectorAll('[data-photo]')];
     expect(photos.map((p) => p.getAttribute('data-photo'))).toEqual(['1', '2', '3', '4', '5', '6', '7']);
@@ -98,6 +98,7 @@ describe('/studio/projets/[id]/produit', () => {
     expect(associer.hasAttribute('disabled')).toBe(true);
     expect([...d.querySelectorAll('[data-mode]')].map((m) => m.getAttribute('data-pret'))).toEqual(['non', 'non']);
     expect(d.querySelector('[data-mode="faithful_composite"]')?.textContent).toContain('épingle le produit et UNE photo précise avant de compiler');
+    expect(d.querySelector('[data-mode="faithful_composite"]')?.textContent).toContain('La conservation exacte de la photo produit n’est pas encore disponible');
   });
 
   it('IMG-01 · après épinglage · photo 5 sur 7 visible, version, empreinte, composants ; IMG-04 · Style concurrent et ses interdits', async () => {
@@ -121,7 +122,7 @@ describe('/studio/projets/[id]/produit', () => {
     // Deux rôles, deux lignes · le rôle est un mot.
     const lignes = [...d.querySelectorAll('[data-association]')].map((x) => x.getAttribute('data-association'));
     expect(lignes).toEqual(expect.arrayContaining([`${source.sourceId}|style`, `${source.sourceId}|composition`]));
-    expect([...d.querySelectorAll('[data-mode]')].map((m) => m.getAttribute('data-pret'))).toEqual(['oui', 'oui']);
+    expect([...d.querySelectorAll('[data-mode]')].map((m) => m.getAttribute('data-pret'))).toEqual(['non', 'oui']);
     const interdit = d.querySelector('[data-mode="generative_scene"] [data-interdit="transfert"]')?.textContent ?? '';
     expect(interdit).toContain('Style et Composition d’une annonce concurrente de « Lumière Botanique »');
     expect(interdit).toContain('ni son sujet, ni son personnage, ni son produit, ni son logo');

@@ -12,7 +12,8 @@
  *     ne peut pas modifier (cahier §8.3 : « Les politiques de sécurité et
  *     validateurs restent dans le code ») ;
  *  2. message `system` · `commonSystemInstructions` puis `taskInstructions`,
- *     tels que la release les fixe ;
+ *     tels que la release les fixe, puis le contrat de sortie exact désigné
+ *     par ce template (contrat serveur, inclus dans compiledHash) ;
  *  3. message `user` · le `userTemplate` où `{{context}}` et `{{taskInputs}}`
  *     sont remplacés UNE fois par leur JSON. Le remplacement parcourt le
  *     GABARIT, jamais les données : un extrait de source qui contient
@@ -90,7 +91,7 @@ export interface RequeteCompilee {
 }
 
 export type CodeBlocage = 'MISSING_VARIABLE' | 'INVALID_SCHEMA' | 'MISSING_REFERENCE' | 'UNSUPPORTED_CAPABILITY' | 'VERSION_CONFLICT' | 'FORBIDDEN';
-export type CodeErreur = 'POLITIQUE_ABSENTE' | 'TEMPLATE_ALTERE' | 'SOCLE_ALTERE' | 'GABARIT_INVALIDE' | 'OUTIL_INTERDIT' | 'POLITIQUE_VARIABLE';
+export type CodeErreur = 'POLITIQUE_ABSENTE' | 'TEMPLATE_ALTERE' | 'SOCLE_ALTERE' | 'GABARIT_INVALIDE' | 'OUTIL_INTERDIT' | 'POLITIQUE_VARIABLE' | 'SCHEMA_SORTIE_ABSENT';
 
 export type ResultatCompilation =
   | { ok: true; requete: RequeteCompilee }
@@ -106,7 +107,7 @@ export interface DemandeCompilation {
   template: TemplatePrompt;
   /** `{ context, taskInputs }` tel que le ContextResolver l'a produit. */
   entree: unknown;
-  validateur: Pick<ValidateurContrats, 'validerEntree'>;
+  validateur: Pick<ValidateurContrats, 'validerEntree' | 'schemaPourReference'>;
   semantique: OptionsSemantiques;
 }
 
@@ -142,6 +143,10 @@ function codeBlocage(constats: ReadonlyArray<Constat>): CodeBlocage {
  * Compile une requête. Aucune donnée manquante n'est remplacée par une valeur
  * par défaut : manque = `blocked`, défaut du registre = `erreur`.
  */
+export function instructionsContratSortie(schema: Record<string, unknown>): string {
+  return 'Produis une instance JSON conforme au contrat ci-dessous, jamais le schéma lui-même. Un seul objet JSON, sans Markdown ni commentaire. Reste concis : aucune répétition du contexte ; conserve tous les champs requis, références et composants obligatoires. Les limites maxLength sont des plafonds, pas des objectifs de longueur.\nOUTPUT_SCHEMA_JSON=' + jsonCanonique(schema, 'js');
+}
+
 export function compilerRequete(d: DemandeCompilation): ResultatCompilation {
   const erreur = (code: CodeErreur, cible: string, message: string): ResultatCompilation => ({ ok: false, statut: 'erreur', code, constats: [constat(code, cible, message)] });
 
@@ -188,9 +193,12 @@ export function compilerRequete(d: DemandeCompilation): ResultatCompilation {
     return { ok: false, statut: 'blocked', code: 'INVALID_SCHEMA', constats: [constat('DONNEE_NON_ENCODABLE', cible, 'Donnée non sérialisable en JSON UTF-8 strict.')] };
   }
 
+  const sortie = d.validateur.schemaPourReference(t.outputSchemaRef);
+  if (!sortie) return erreur('SCHEMA_SORTIE_ABSENT', t.outputSchemaRef, 'Contrat de sortie absent : aucun appel autorisé.');
+  const contratSortie = instructionsContratSortie(sortie);
   const messages: MessageCompile[] = [
     { role: 'system', nature: 'politique_serveur', contenu: d.politique.texte },
-    { role: 'system', nature: 'instructions_tache', contenu: `${d.socle.commonSystemInstructions}\n\n${t.taskInstructions}` },
+    { role: 'system', nature: 'instructions_tache', contenu: `${d.socle.commonSystemInstructions}\n\n${t.taskInstructions}\n\n${contratSortie}` },
     { role: 'user', nature: 'donnees_utilisateur', contenu: rendreGabarit(t.userTemplate, valeurs) },
   ];
   const politique = { id: d.politique.id, version: d.politique.version, hash: sha256Texte(d.politique.texte) };

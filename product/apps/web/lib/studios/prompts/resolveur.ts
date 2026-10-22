@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  allouerContexte, compilerRequete, constat, couchesResolution, empreinteJson, evaluerSortie, releaseDuJob, resoudreTemplate,
+  allouerContexte, instructionsContratSortie, compterJetonsParDefaut, compilerRequete, constat, couchesResolution, empreinteJson, evaluerSortie, releaseDuJob, resoudreTemplate,
   sha256Texte, POLITIQUE_SERVEUR,
   type Constat, type EntreeTache, type SortieTache, type TemplatePrompt, type RapportBudget, type Couche,
 } from './noyau';
@@ -212,7 +212,13 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
   const modele = d.adaptateur.modelePour(template.modelProfile);
   if (!modele) return bloque('UNSUPPORTED_CAPABILITY', [constat('UNSUPPORTED_CAPABILITY', template.modelProfile, `Profil « ${template.modelProfile} » non routé dans ce lot · aucun fournisseur de repli.`)]);
 
-  const budget = allouerContexte(entree, d.budget ?? PORTEE_DEFAUT_BUDGET);
+  const s = chargerSource();
+  const schemaSortie = s.validateur.schemaPourReference(template.outputSchemaRef);
+  if (!schemaSortie) return bloque('SCHEMA_SORTIE_ABSENT', [constat('SCHEMA_SORTIE_ABSENT', template.outputSchemaRef, 'Contrat de sortie absent.')]);
+  const borne = d.budget ?? PORTEE_DEFAUT_BUDGET;
+  // Le contrat envoyé au modèle occupe l'entrée : le réserver avant de
+  // tronquer les sources facultatives, sans relever le plafond annoncé.
+  const budget = allouerContexte(entree, { ...borne, reserveJetons: borne.reserveJetons + compterJetonsParDefaut(instructionsContratSortie(schemaSortie)) });
   if (!budget.ok) return bloque(budget.code, budget.constats);
   trace.budget = budget.rapport;
   trace.contextSnapshotHash = empreinteJson(budget.entree.context, 'js');
@@ -221,7 +227,6 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
     return champ.some((x) => x.sourceId === s.id && x.version === s.version);
   });
 
-  const s = chargerSource();
   const socle = { commonSystemInstructions: release.contenu.commonSystemInstructions, commonSystemHash: release.entrees.socle.contentHash };
   const semantique = { validerDocument: s.validerDocument, ...(d.capacites ? { capacites: d.capacites } : {}), ...(d.sansTexte !== undefined ? { sansTexte: d.sansTexte } : {}) };
   const comp = compilerRequete({ politique: POLITIQUE_SERVEUR, socle, rendu: release.contenu.rendering, template, entree: budget.entree, validateur: s.validateur, semantique });
@@ -258,6 +263,11 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
     return { ok: false, statut: 'erreur', code, constats, runId, releaseId: release.ligne.id };
   }
   const latenceMs = Date.now() - debut;
+  if (reponse.stopReason === 'max_tokens') {
+    const constats = [constat('SORTIE_TRONQUEE', template.key, 'La réponse a atteint la limite de sortie du fournisseur. Aucun nouvel appel automatique.')];
+    const runId = await ecrireRun(d, trace, { statut: 'failed', compiledHash: req.compiledHash, modele: reponse.modele, outputHash: sha256Texte(reponse.texte), latenceMs, coutUsd: reponse.coutUsd, jetons: { entree: reponse.jetonsEntree, sortie: reponse.jetonsSortie }, constats });
+    return { ok: false, statut: 'erreur', code: 'SORTIE_TRONQUEE', constats, runId, releaseId: release.ligne.id };
+  }
   const juge = evaluerSortie(template.key, budget.entree, reponse.texte, s.validateur, semantique, { faites: 0, maximum: 0 });
   const commun = { compiledHash: req.compiledHash, modele: reponse.modele, outputHash: sha256Texte(reponse.texte), latenceMs, coutUsd: reponse.coutUsd, jetons: { entree: reponse.jetonsEntree, sortie: reponse.jetonsSortie } };
   if (!juge.ok) {

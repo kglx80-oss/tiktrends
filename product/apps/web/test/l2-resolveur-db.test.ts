@@ -35,7 +35,8 @@ import { db, schema, eq } from '@tiktrends/db';
 import { creerConnaissance, publierVersion, retirerConnaissance, validerSaisie, refConnaissance } from '@tiktrends/core';
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { executerTache, epinglerDevis, type DemandeTache } from '../lib/studios/prompts/resolveur';
-import { POLITIQUE_SERVEUR } from '../lib/studios/prompts/noyau';
+import { POLITIQUE_SERVEUR, instructionsContratSortie } from '../lib/studios/prompts/noyau';
+import { chargerSource } from '../lib/studios/prompts/source';
 import { ecrireConnaissance, lireUneConnaissance } from '../lib/jarvis-connaissances';
 import { semer } from './studios-semis';
 import { acteurPlateforme, publierRegistreDeTest } from './l2-outils';
@@ -102,7 +103,7 @@ describe('chaîne complète', () => {
     expect(recu.messages.map((m) => m.nature)).toEqual(['politique_serveur', 'instructions_tache', 'donnees_utilisateur']);
     expect(recu.messages[0]!.contenu).toBe(POLITIQUE_SERVEUR.texte);
     const c = (await depot.releaseActive())!.contenu;
-    expect(recu.messages[1]!.contenu).toBe(`${c.commonSystemInstructions}\n\n${c.templates.find((t) => t.key === 'jarvis.route')!.taskInstructions}`);
+    expect(recu.messages[1]!.contenu).toBe(`${c.commonSystemInstructions}\n\n${c.templates.find((t) => t.key === 'jarvis.route')!.taskInstructions}\n\n${instructionsContratSortie(chargerSource().validateur.schemaPourReference(c.templates.find(t => t.key === 'jarvis.route')!.outputSchemaRef)!)}`);
     const l = await run(r.runId);
     const versionId = (await depot.listerVersions()).find((v) => v.key === 'jarvis.route')!.id;
     expect(l).toMatchObject({ status: 'succeeded', templateKey: 'jarvis.route', promptReleaseId: rel.a, promptVersionId: versionId, compiledHash: r.compiledHash, model: 'modele-simule', costUsdMicros: 0 });
@@ -125,6 +126,25 @@ describe('chaîne complète', () => {
     expect(user).toContain(JSON.stringify(ordre).slice(1, -1));
     expect(user).toContain('"trust":"untrusted_data"');
     expect((await run(r.ok ? r.runId : null)).sourceRefs).toEqual([{ type: 'source', id: 'src_veille_1', version: 'v1', titre: 'Pub concurrente' }]);
+  });
+
+  it('réserve le contrat de sortie dans le plafond avant tout appel', async () => {
+    const avant = fournisseur.recues.length;
+    const r = await executerTache(demande({ budget: { budgetJetons: 4500, reserveJetons: 4000 } }));
+    expect(r).toMatchObject({ ok: false, code: 'CONTEXT_BUDGET_INSUFFICIENT' });
+    expect(fournisseur.recues).toHaveLength(avant);
+  });
+
+  it('réponse coupée : diagnostic distinct, coût tracé et aucun second appel', async () => {
+    const appeler = vi.fn(async () => ({ texte: JSON.stringify(SORTIE_JARVIS_ROUTE), modele: 'simule', stopReason: 'max_tokens', jetonsEntree: 100, jetonsSortie: 4000, coutUsd: 0.03 }));
+    const r = await executerTache(demande({ adaptateur: { ...fournisseur, appeler } }));
+    expect(r).toMatchObject({ ok: false, code: 'SORTIE_TRONQUEE' });
+    expect(appeler).toHaveBeenCalledTimes(1);
+    if (r.ok) return;
+    const trace = await run(r.runId);
+    expect(trace).toMatchObject({ status: 'failed' });
+    expect(JSON.stringify(trace)).toContain('SORTIE_TRONQUEE');
+    expect(trace.costUsdMicros).toBe(30000);
   });
 
   it('PROMPT-03 · sortie conforme au schéma qui cite une preuve inexistante · rejetée, trace « failed »', async () => {

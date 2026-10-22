@@ -44,11 +44,22 @@ describe('compilation · messages distincts (rendering.method)', () => {
     if (!r.ok) return;
     const [politique, instructions, donnees] = r.requete.messages;
     expect(politique).toEqual({ role: 'system', nature: 'politique_serveur', contenu: POLITIQUE_SERVEUR.texte });
-    expect(instructions).toEqual({ role: 'system', nature: 'instructions_tache', contenu: `${pack.commonSystemInstructions}\n\n${template('source.analyze').taskInstructions}` });
+    expect(instructions).toEqual({ role: 'system', nature: 'instructions_tache', contenu: expect.stringContaining(`${pack.commonSystemInstructions}\n\n${template('source.analyze').taskInstructions}`) });
+    const contrat = JSON.parse(instructions!.contenu.split('OUTPUT_SCHEMA_JSON=')[1]!);
+    expect(contrat).toEqual(validateur.schemaPourReference(template('source.analyze').outputSchemaRef));
     expect(donnees!.role).toBe('user');
     expect(donnees!.contenu.startsWith('Traite uniquement les données JSON suivantes')).toBe(true);
     expect(r.requete.outils).toEqual([]);
     expect(r.requete.reparationsMaximum).toBe(1);
+  });
+});
+
+describe('contrat de sortie envoyé au fournisseur', () => {
+  it('son contenu entre dans compiledHash et un contrat absent bloque avant appel', () => {
+    const normal = compilerRequete(demande());
+    const modifie = compilerRequete(demande({ validateur: { ...validateur, schemaPourReference: (ref) => ({ ...validateur.schemaPourReference(ref), description: 'contrat de test différent' }) } }));
+    expect(normal.ok && modifie.ok && normal.requete.compiledHash !== modifie.requete.compiledHash).toBe(true);
+    expect(compilerRequete(demande({ validateur: { ...validateur, schemaPourReference: () => null } }))).toMatchObject({ ok: false, code: 'SCHEMA_SORTIE_ABSENT' });
   });
 });
 

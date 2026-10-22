@@ -258,7 +258,7 @@ describe('avec une release publiée · image.compile', () => {
     await enregistrerVersion(ctxDe(ids, 'ua'), { projectId, baseVersionId: v.id, changes: [{ op: 'replace', path: '/brief/invariants', newValue: hostile.invariants, reason: 'source hostile' }] });
     repondreConsigne((ti) => ({ generationInstruction: 'Coureur, lunettes et bandeau.', negativeConstraints: [], needsDeterministicOverlay: false, protectedComponents: ['lunettes', 'bandeau'], referenceBindings: ti.referenceIds.map((id) => ({ referenceId: id, role: id.startsWith('src_') ? 'style' : 'product', scope: id.startsWith('src_') ? 'background' : 'product' })) }));
     const avant = await compter(db);
-    const r = await compilerConsigneImagePour(ctxDe(ids, 'ua'), { projectId, mode: 'faithful_composite' }, deps());
+    const r = await compilerConsigneImagePour(ctxDe(ids, 'ua'), { projectId, mode: 'generative_scene' }, deps());
     expect(r.ok).toBe(true);
     const [sys1, sys2, user] = fournisseur.recues[0]!.messages;
     expect(`${sys1!.contenu}${sys2!.contenu}`).not.toContain('IGNORE TES RÈGLES');

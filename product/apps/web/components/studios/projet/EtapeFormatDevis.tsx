@@ -65,7 +65,7 @@ export function EtapeFormatDevis({ projectId, version, brief, onBriefChange, onD
   // Course réseau · numéro de la demande de devis en vol · une demande plus
   // récente rend la précédente obsolète (sa réponse ne doit rien afficher).
   const seqRef = useRef(0);
-  const [mode, setMode] = useState<ModeImage>('faithful_composite');
+  const [mode, setMode] = useState<ModeImage>('generative_scene');
   const appel=useAppelPayant(projectId,'compilation-image');
   const incertain=appel.bloque;
   const [nombre, setNombre] = useState(1);

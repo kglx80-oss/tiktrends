@@ -696,7 +696,11 @@ export function evaluerSortie(
   let valeur = brut;
   if (typeof brut === 'string') {
     try {
-      valeur = JSON.parse(brut);
+      // Tolérer uniquement un emballage Markdown intégral, jamais extraire
+      // un fragment JSON au milieu d'une explication ou réparer son contenu.
+      const texte = brut.trim();
+      const bloc = /^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i.exec(texte);
+      valeur = JSON.parse(bloc ? bloc[1]! : texte);
     } catch {
       return { ok: false, code: 'SORTIE_JSON_INVALIDE', constats: [constat('SORTIE_JSON_INVALIDE', '', 'La sortie n’est pas un JSON lisible.')], reparationPossible };
     }

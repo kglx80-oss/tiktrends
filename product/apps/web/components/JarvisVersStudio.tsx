@@ -47,9 +47,9 @@ export function JarvisVersStudio({ params, brandId, proposition }: { params: Rec
     finally { verrou.current = false; setCharge(false); }
   }
   return <section aria-label="Passer au Studio" style={{ ...cadreSurface, display: 'grid', gap: 12, fontSize: 14, padding: 14, background: 'var(--surface)' }}>
-    {!ouvert ? <button type="button" onClick={() => void ouvrir()} style={bouton}>Continuer dans le Studio</button> : <>
-      <label style={{ display: 'grid', gap: 8 }}>Ta direction créative<textarea aria-label="Composition à transmettre au Studio" value={brief} disabled={charge || incertain} onChange={e => setBrief(e.target.value)} rows={4} style={champ} /></label>
-      <p style={{ margin: 0, color: 'var(--ink-2)' }}>{brief.length} / 2 000 · uniquement les éléments adaptés à ta marque.</p>
+    {!ouvert ? <button type="button" onClick={() => void ouvrir()} style={bouton}>Créer ce visuel</button> : <>
+      <label style={{ display: 'grid', gap: 8 }}>Le visuel à créer<textarea aria-label="Composition à transmettre au Studio" value={brief} disabled={charge || incertain} onChange={e => setBrief(e.target.value)} rows={4} style={champ} /></label>
+      <p style={{ margin: 0, color: 'var(--ink-2)' }}>{brief.length > 2000 ? 'La proposition est trop longue : gardez uniquement la description du visuel et les textes à afficher (2 000 caractères maximum).' : 'Vous pouvez ajuster cette proposition avant de continuer.'}</p>
       <label>Proportions <select aria-label="Proportions" style={champ} value={format} disabled={charge || incertain} onChange={e => setFormat(e.target.value)}>{['1:1', '4:5', '9:16', '16:9'].map(f => <option key={f}>{f}</option>)}</select></label>
       <label>Produit de ta marque <select aria-label="Produit de ta marque" style={champ} value={productId} disabled={charge || incertain} onChange={e => setProductId(e.target.value)}><option value="">Choisir dans le Studio</option>{produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}</select></label>
       <details><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center', color: 'var(--accent-strong)' }}>Ajuster le style, les textes ou le type</summary><div style={{ display: 'grid', gap: 12, paddingTop: 8 }}>
@@ -59,8 +59,8 @@ export function JarvisVersStudio({ params, brandId, proposition }: { params: Rec
       <p>Les textes seront disponibles dans le Studio, à placer sur tes calques.</p>
       </div></details>
       {preparationErreur && <p role="status">{preparationErreur}</p>}
-      <p>Aucun coût à cette étape. Un devis sera demandé avant toute génération.</p>
-      <button style={bouton} type="button" disabled={charge || !brief.trim() || brief.length > 2000} onClick={() => void creer()}>{charge ? 'Création du projet…' : kind === 'image' ? 'Continuer · choisir la photo' : 'Ouvrir le Studio vidéo'}</button>
+      <p>Étape suivante : confirmez la photo du produit. Jarvis préparera ensuite le visuel avec un coût annoncé, puis vous validerez le prix de génération.</p>
+      <button style={bouton} type="button" disabled={charge || !brief.trim() || brief.length > 2000} onClick={() => void creer()}>{charge ? 'Création du projet…' : kind === 'image' ? 'Continuer vers ma photo produit' : 'Ouvrir le Studio vidéo'}</button>
       {erreur && <p role="alert">{erreur}</p>}
     </>}
   </section>;
