@@ -9,7 +9,7 @@ import { randomUUID, createHash } from 'node:crypto';
  * registre, vrais médias `studio_assets` lus dans la portée par le serveur.
  */
 
-const h = vi.hoisted(() => ({ recus: [] as Array<Record<string, any>> }));
+const h = vi.hoisted(() => ({ recus: [] as Array<Record<string, any>>, reservations: [] as number[] }));
 
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
@@ -25,6 +25,10 @@ vi.mock('@tiktrends/ai', async (importOriginal) => {
       messages: {
         create: async (params: Record<string, any>) => {
           h.recus.push(params);
+          const { db: base, schema: tables } = await import('@tiktrends/db');
+          const depenses = await base.select().from(tables.aiSpend);
+          const reserve = depenses.find((d) => d.inputTokens === null && d.outputTokens === null);
+          h.reservations.push(Number(reserve?.actualUsd));
           const sortie = { status: 'ready', questions: [], warnings: [], evidenceIds: [], result: { verdict: 'requires_review', issues: [], unverifiable: ['étiquette'], summary: 'À revoir' } };
           return { content: [{ type: 'text', text: JSON.stringify(sortie) }], usage: { input_tokens: 2400, output_tokens: 60 } };
         },
@@ -38,6 +42,8 @@ import { imageVide, versionDepuisEmpreinte, planifierPiecesVision } from '@tiktr
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { executerTache, resolveurMediasStudio } from '../lib/studios/prompts/resolveur';
 import { adaptateurAnthropicGarde, PiecesInvalides } from '../lib/studios/prompts/adaptateur';
+import { coutMaximalAppel } from '../lib/spend-guard';
+import type Anthropic from '@anthropic-ai/sdk';
 import { encoder } from '../lib/studios/benchmark/jeu-synthetique';
 import { adaptateurSimuleBenchmark } from '../lib/studios/benchmark/campagne';
 import { publierRegistreDeTest } from './l2-outils';
@@ -155,5 +161,43 @@ describe('le simulé suit le même contrat que le réel', () => {
     const appel = { messages: [], maxJetonsSortie: 10, workspaceId: W, action: 'fd:sim' };
     await expect(sim.appeler({ ...appel, profil: 'vision_analysis', pieces: [{ ...plan.pieces[0]!, octets: altere }] })).rejects.toBeInstanceOf(PiecesInvalides);
     await expect(sim.appeler({ ...appel, profil: 'reasoning_structured', pieces: plan.pieces })).rejects.toBeInstanceOf(PiecesInvalides);
+  });
+});
+
+
+describe('compilation image · réflexion ciblée sans hausse de la borne ni du budget', () => {
+  it.each([
+    ['claude-sonnet-5', 'studio-prompt:image.compile', true],
+    ['claude-sonnet-5', 'studio-prompt:quality.visual', false],
+    ['claude-sonnet-5-5', 'studio-prompt:image.compile', false],
+    ['claude-sonnet-4', 'studio-prompt:image.compile', false],
+  ])('%s / %s : politique explicite seulement pour le couple autorisé', async (modele, action, desactive) => {
+    const ancienModele = process.env.ANTHROPIC_GEN_MODEL;
+    process.env.ANTHROPIC_GEN_MODEL = modele;
+    h.recus.length = 0;
+    h.reservations.length = 0;
+    try {
+      await adaptateurAnthropicGarde()!.appeler({
+        profil: 'reasoning_structured', workspaceId: W, action,
+        messages: [{ role: 'user', nature: 'donnees_utilisateur', contenu: 'JSON compact' }],
+        maxJetonsSortie: 4000,
+      });
+      expect(h.recus).toHaveLength(1);
+      const payload = h.recus[0]!;
+      expect(payload).toMatchObject({ model: modele, max_tokens: 4000 });
+      if (desactive) expect(payload.thinking).toEqual({ type: 'disabled' });
+      else expect(payload).not.toHaveProperty('thinking');
+      // Réservation présente AVANT le client, exactement égale à celle de
+      // l'ancien payload : le correctif ne relève aucune borne de dépense.
+      const ancienPayload: Anthropic.MessageCreateParamsNonStreaming = {
+        model: modele, max_tokens: 4000, system: [],
+        messages: [{ role: 'user', content: 'JSON compact' }],
+      };
+      expect(h.reservations).toEqual([coutMaximalAppel(ancienPayload)]);
+      expect(h.reservations[0]).toBeGreaterThan(0);
+    } finally {
+      if (ancienModele === undefined) delete process.env.ANTHROPIC_GEN_MODEL;
+      else process.env.ANTHROPIC_GEN_MODEL = ancienModele;
+    }
   });
 });

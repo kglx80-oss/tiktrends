@@ -103,7 +103,19 @@ export function adaptateurAnthropicGarde(): AdaptateurModele | null {
       const system = a.messages.filter((m) => m.role === 'system').map((m) => ({ type: 'text' as const, text: m.contenu }));
       // Les pièces vont dans le PREMIER message utilisateur (la compilation n'en produit qu'un).
       const user = a.messages.filter((m) => m.role === 'user').map((m, i) => ({ role: 'user' as const, content: contenuUtilisateur(m.contenu, i === 0 ? a.pieces ?? [] : []) }));
-      const res = await client.messages.create({ model: modele, max_tokens: a.maxJetonsSortie, system, messages: user });
+      // Sonnet 5 active la réflexion adaptative par défaut, dans la même borne
+      // de sortie que le JSON. Cette tâche attend seulement une instance du
+      // contrat : réserver les 4000 jetons à cette sortie, sans relever le coût.
+      // Le SDK 0.27.3 transmet le champ mais son type précède cette option.
+      // Ne pas étendre aux modèles 5.5, qui n'acceptent pas `disabled`.
+      const params: Anthropic.MessageCreateParamsNonStreaming & {
+        thinking?: { type: 'disabled' };
+      } = {
+        model: modele, max_tokens: a.maxJetonsSortie, system, messages: user,
+        ...(a.action === 'studio-prompt:image.compile' && modele === 'claude-sonnet-5'
+          ? { thinking: { type: 'disabled' as const } } : {}),
+      };
+      const res = await client.messages.create(params);
       const texte = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
       const entree = res.usage?.input_tokens ?? 0;
       const sortie = res.usage?.output_tokens ?? 0;

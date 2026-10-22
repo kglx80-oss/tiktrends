@@ -132,8 +132,9 @@ function CarteJob({ j, p }: { j: JobImageVue; p: ProprietesVueParcours }) {
               <span style={pastille(COULEUR_QUALITE[j.qualite] ?? 'var(--line-2)')} data-qualite={j.qualite}>Qualité</span>
               <span style={{ ...texte, color: 'var(--ink)' }}>{j.libelleQualite}</span>
             </div>
-            <p style={mini}>Le média est rangé dans les médias du projet · pose-le comme calque dans l’éditeur.</p>
-            <a href={`/studio/projets/${v.projet.id}/image`} style={{ ...boutonSecondaire, display: 'inline-flex', alignItems: 'center', textDecoration: 'none', width: 'fit-content' }}>Ouvrir l’éditeur d’image</a>
+            <p style={mini}>Votre image est enregistrée dans le projet.</p>
+            <a href={j.media.url} download style={{ ...boutonPrimaire, display: 'inline-flex', alignItems: 'center', textDecoration: 'none', width: 'fit-content' }}>Télécharger mon visuel</a>
+            <a href={`/studio/projets/${v.projet.id}/image`} style={{ ...boutonSecondaire, display: 'inline-flex', alignItems: 'center', textDecoration: 'none', width: 'fit-content' }}>Modifier dans l’éditeur</a>
             {j.qualite === 'requires_review' && v.peutRelire && v.composantsObligatoires.length > 0 && (
               <Relecture job={j} composants={v.composantsObligatoires} surRelire={p.surRelire} occupe={!!p.enCours} />
             )}

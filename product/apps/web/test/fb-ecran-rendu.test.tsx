@@ -147,7 +147,15 @@ describe('états de l’écran · au HTML rendu', () => {
     expect([img.getAttribute('src'), img.getAttribute('alt')]).toEqual(['/api/studios/media/m1', 'Image générée, 1080 × 1350']);
     expect(e.querySelector('[data-qualite]')!.getAttribute('data-qualite')).toBe('requires_review');
     expect(e.textContent).toContain('À relire · aucun contrôle visuel automatique n’a confirmé les composants');
-    expect(e.querySelector('a')!.getAttribute('href')).toBe('/studio/projets/p1/image');
+    const telecharger = e.querySelector<HTMLAnchorElement>('a[download]')!;
+    expect(telecharger.textContent).toBe('Télécharger mon visuel');
+    expect(telecharger.getAttribute('href')).toBe('/api/studios/media/m1');
+    expect(telecharger.getAttribute('download')).toBe('');
+    expect(e.textContent).toContain('Votre image est enregistrée dans le projet.');
+    const editeur = e.querySelector<HTMLAnchorElement>('a:not([download])')!;
+    expect(editeur.getAttribute('href')).toBe('/studio/projets/p1/image');
+    expect(editeur.textContent).toBe('Modifier dans l’éditeur');
+    expect(d.querySelectorAll('a[download]')).toHaveLength(1);
     // Revue composant par composant, aucun présumé présent.
     expect([...e.querySelectorAll('[data-relecture] input[type="radio"]')].some((x) => (x as HTMLInputElement).checked)).toBe(false);
     expect(bouton(e, 'relire')!.disabled).toBe(true);
