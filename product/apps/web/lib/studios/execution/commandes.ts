@@ -98,7 +98,7 @@ async function projetEtVersions(ex: ExecStudio, ctx: ContexteStudio, projectId: 
   const V = schema.studioProjectVersions;
   const q = ex.select().from(P).where(and(eq(P.id, projectId), porteeSql(P, ctx))).limit(1);
   const [projet] = verrou ? await q.for('share') : await q;
-  if (horsPortee(ctx, projet) || !projet!.currentVersionId) return introuvable(ctx);
+  if (horsPortee(ctx, projet) || projet!.status !== 'active' || !projet!.currentVersionId) return introuvable(ctx);
   const [courante] = await ex.select().from(V).where(and(eq(V.id, projet!.currentVersionId), eq(V.projectId, projet!.id), porteeSql(V, ctx))).limit(1);
   if (!courante) return introuvable(ctx);
   let avant = courante;
@@ -339,7 +339,7 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
 
       const P = schema.studioProjects;
       const [projet] = await tx.select().from(P).where(and(eq(P.id, q.projectId), porteeSql(P, ctx))).limit(1).for('share');
-      if (horsPortee(ctx, projet)) throw new Refus(introuvable(ctx));
+      if (horsPortee(ctx, projet) || projet!.status !== 'active') throw new Refus(introuvable(ctx));
 
       const AP = schema.studioApprovals;
       const [approbation] = await tx.select().from(AP).where(eq(AP.quoteId, q.id)).limit(1);

@@ -48,10 +48,11 @@ export function BarreEtapes({ etape }: { etape: EtapeProjet }) {
   );
 }
 
-export function CarteProjet({ carte }: { carte: Carte }) {
+export function CarteProjet({ carte, onSupprimer }: { carte: Carte; onSupprimer?: () => void }) {
   const bloquants = carte.manques.filter((m) => m.bloquant);
   const affiches = (bloquants.length ? bloquants : carte.manques).slice(0, 3);
   return (
+    <div className={styles.cardWrap}>
     <a href={`/studio/projets/${carte.id}`} data-projet={carte.id} aria-label={`${carte.title} · ${carte.marque} · ${carte.libelleEtape}`}
       className={styles.card}>
       <div className={styles.media}>
@@ -66,5 +67,7 @@ export function CarteProjet({ carte }: { carte: Carte }) {
         {affiches.length > 0 && <small className={styles.missing}>Ce qui manque · {affiches.map((m) => m.libelle).join(' · ')}{carte.manques.length > affiches.length && ` · et ${carte.manques.length - affiches.length} autre(s)`}</small>}
       </div>
     </a>
+    {onSupprimer && <button type="button" className={styles.remove} aria-label={`Supprimer le projet ${carte.title}`} title="Supprimer le projet" onClick={onSupprimer}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg></button>}
+    </div>
   );
 }
