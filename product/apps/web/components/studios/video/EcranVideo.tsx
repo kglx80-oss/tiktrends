@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../projet/useAppelPayant';
 import { appliquerOperationVideo as appliquerNoyau, impactVideo, messageHorsLigneStudio, ECHEC_RESEAU_STUDIO, type ErreurStudio, type OperationVideo } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
 import {
@@ -60,8 +61,11 @@ export function apercuDuGeste(vue: DonneesVideo, operation: OperationVideo): Ape
   return { operation, libelle: r.libelle, impact: impactVideo(vue.contenu, r.contenu, { mediasExistants: vue.mediasValides }), durees: r.durees, signalements: r.signalements, refus: null };
 }
 
-export function EcranVideo({ vue }: { vue: DonneesVideo }) {
+export function EcranVideo({ vue, onRecharger }: { vue: DonneesVideo; onRecharger?: () => Promise<void> | void }) {
   const router = useRouter();
+  const appelStoryboard=useAppelPayant(vue.projet.id,'storyboard');
+  const appelConsigne=useAppelPayant(vue.projet.id,'compilation-video');
+  const recharger = useCallback(() => { if (onRecharger) void onRecharger(); else router.refresh(); }, [onRecharger, router]);
   const [apercu, setApercu] = useState<ApercuGeste | null>(null);
   const [storyboard, setStoryboard] = useState<StoryboardPropose | null>(null);
   const [questions, setQuestions] = useState<string[]>([]);
@@ -71,20 +75,24 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
 
   useEffect(() => {
     if (!vue.jobs.some((j) => !['completed', 'failed', 'cancelled'].includes(j.etat))) return;
-    const t = setTimeout(() => router.refresh(), RELECTURE_MS);
+    const t = setTimeout(recharger, RELECTURE_MS);
     return () => clearTimeout(t);
-  }, [vue, router]);
+  }, [vue, recharger]);
 
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: (r: { ok: true }) => string, apres?: () => void) {
+    const payant=nom==='storyboard'?appelStoryboard:nom.startsWith('compiler:')?appelConsigne:null;
+    const tentative=payant?.commencer();if(payant&&!tentative)return;
     setEnCours(nom);
     setRetour(null);
     const reessayable = gesteVideoReessayable(nom);
     dernierGeste.current = reessayable ? () => { void agir(nom, f, succes, apres); } : null;
     try {
       const r = await f();
-      if (r.ok) { setRetour({ ok: true, texte: succes(r) }); apres?.(); router.refresh(); } else setRetour({ ok: false, code: r.code, reessayable, texte: `${messageErreur(r)}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}` });
+      if(payant&&tentative)payant.terminer(tentative,resultatPayantIncertain(r));
+      if (r.ok) { setRetour({ ok: true, texte: succes(r) }); apres?.(); recharger(); } else setRetour({ ok: false, code: r.code, reessayable, texte: `${messageErreur(r)}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}` });
     } catch {
-      setRetour({ ok: false, code: ECHEC_RESEAU_STUDIO, reessayable, texte: messageHorsLigneStudio('enregistrement') });
+      if(payant&&tentative)payant.terminer(tentative,true);
+      setRetour({ ok: false, code: ECHEC_RESEAU_STUDIO, reessayable, texte: payant?MESSAGE_APPEL_PAYANT:messageHorsLigneStudio('enregistrement') });
     } finally {
       setEnCours(null);
     }
@@ -92,9 +100,9 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
 
   const projectId = vue.projet.id;
   return (
-    <VueVideo
-      vue={vue} apercu={apercu} storyboard={storyboard} questions={questions} enCours={enCours} retour={retour}
-      surRecharger={() => { setRetour(null); setApercu(null); router.refresh(); }}
+    <>{(appelStoryboard.bloque||appelConsigne.bloque)&&<p role="status">{MESSAGE_APPEL_PAYANT} <a href={`/studio/projets/${vue.projet.id}`}>Voir le suivi</a></p>}<VueVideo
+      vue={{...vue,disponibilite:{...vue.disponibilite,storyboard:appelStoryboard.bloque?{disponible:false,raison:MESSAGE_APPEL_PAYANT}:vue.disponibilite.storyboard,consigne:appelConsigne.bloque?{disponible:false,raison:MESSAGE_APPEL_PAYANT}:vue.disponibilite.consigne}}} apercu={apercu} storyboard={storyboard} questions={questions} enCours={enCours} retour={retour}
+      surRecharger={() => { setRetour(null); setApercu(null); recharger(); }}
       surReessayer={() => dernierGeste.current?.()}
       surPrevoir={(op) => { setRetour(null); setApercu(apercuDuGeste(vue, op)); }}
       surAbandonner={() => setApercu(null)}
@@ -141,6 +149,6 @@ export function EcranVideo({ vue }: { vue: DonneesVideo }) {
         if (!d) return;
         void agir(`lancer-clip:${shotId}`, () => approuverEtLancerClip({ quoteId: d.id, inputHash: d.inputHash, creditsAnnonces: d.credits, idempotencyKey: cleDuClicVideo(d.id) }), () => 'Animation lancée · le clip est en file, tu peux fermer la page.');
       }}
-    />
+    /></>
   );
 }

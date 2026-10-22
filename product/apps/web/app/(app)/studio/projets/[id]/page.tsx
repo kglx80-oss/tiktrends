@@ -8,10 +8,13 @@ import { roleAtLeast } from '../../../../../lib/rbac';
 import { lireProjetDetail } from '../../../../actions/studios/sources';
 import { chatThreadAction } from '../../../../actions/jarvis-chat';
 import { VueProjet } from '../../../../../components/studios/projet/VueProjet';
+import { EspaceProjet } from '../../../../../components/studios/projet/EspaceProjet';
 import { ParcoursProjet } from '../../../../../components/studios/projet/ParcoursProjet';
 import { ConceptHote } from '../../../../../components/studios/projet/ConceptHote';
 import { VariantesEtTests } from '../../../../../components/studios/VariantesEtTests';
 import { TachesProjet } from '../../../../../components/studios/taches/TachesProjet';
+import { CanvasCreationProjet } from '../../../../../components/studios/projet/CanvasCreationProjet';
+import { lireParcoursImage } from '../../../../actions/studios/image';
 import { CanvasProjet } from '../../../../../components/studios/canvas/CanvasProjet';
 import { LigneeProjet } from '../../../../../components/studios/canvas/LigneeProjet';
 import { Icon } from '../../../../../components/Icon';
@@ -81,14 +84,26 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
   const courante = r.detail.versions.find((v) => v.courante) ?? null;
   const atelier = liensAtelierProjet(r.detail.projet.id, inter.actif);
   const exportAutorise = roleAtLeast(s.role, 'member');
+  const imageCourante = ['ads', 'image'].includes(r.detail.projet.kind) && r.detail.version.id === courante?.id;
+  // Les médias sont relus dans la portée serveur. L'ancienne version conserve
+  // son graphe : le parcours image liste les dernières tâches toutes versions.
+  const parcoursImage = imageCourante ? await lireParcoursImage({ projectId: r.detail.projet.id }).catch(() => null) : null;
+  const galerie = imageCourante ? <CanvasCreationProjet
+    brief={r.detail.brief} produit={r.detail.produit?.nom ?? null}
+    jobs={parcoursImage?.ok ? parcoursImage.vue.jobs : []}
+    erreur={parcoursImage?.ok ? null : parcoursImage?.message ?? 'Les créations ne peuvent pas être relues. Actualisez la page.'}
+    editeurHref={atelier.find(a => a.segment === 'image')?.href}
+    preparationHref={inter.actif('generation_image') && exportAutorise ? atelier.find(a => a.segment === 'produit')?.href : undefined}
+  /> : null;
 
   return (
     <main style={cadrePage}>
-      <ParcoursProjet detail={r.detail} atelier={atelier} exportAutorise={exportAutorise} generationActive={inter.actif(r.detail.projet.kind === 'video' ? 'video' : 'generation_image')} />
-      <div data-emplacement="taches" style={{ marginBottom: 18 }}>{taches}</div>
-      <div id="conversation-projet" style={{ scrollMarginTop: 100 }} />
-      <div data-emplacement="concept-hote" style={{ marginBottom: 18 }}>
-        <ConceptHote
+      <EspaceProjet
+        entete={<ParcoursProjet compact detail={r.detail} atelier={atelier} exportAutorise={exportAutorise} generationActive={inter.actif(r.detail.projet.kind === 'video' ? 'video' : 'generation_image')} />}
+        brief={<VueProjet detail={r.detail} exportAutorise={exportAutorise} atelier={atelier} masquerPropositions masquerEntete />}
+        canvas={canvas}
+        lignee={lignee}
+        conversation={<ConceptHote compact
           projectId={r.detail.projet.id}
           brandName={r.detail.projet.marque}
           kind={r.detail.projet.kind}
@@ -97,21 +112,9 @@ export default async function ProjetPage({ params, searchParams }: { params: Pro
           versionCourante={courante ? { id: courante.id, n: courante.n } : null}
           initialThread={filConcept.thread ?? null}
           initialErreur={filConcept.error ?? null}
-        />
-      </div>
-      <div data-emplacement="variantes" style={{ marginTop: 18 }}>{variantes}</div>
-      <details style={{ ...surface, padding: 18, marginTop: 18 }}>
-        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Détails et outils du projet</summary>
-        <VueProjet detail={r.detail} exportAutorise={exportAutorise} atelier={atelier} masquerPropositions masquerEntete />
-      </details>
-      {canvas && <details data-emplacement="canvas" style={{ ...surface, padding: 18, marginTop: 18 }}>
-        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Ouvrir le canvas</summary>
-        {canvas}
-      </details>}
-      {lignee && <details data-emplacement="canvas-lignee" style={{ ...surface, padding: 18, marginTop: 18 }}>
-        <summary style={{ cursor: 'pointer', minHeight: CIBLE_TACTILE_MIN, color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>Origine des créations et variantes</summary>
-        {lignee}
-      </details>}
+        />}
+        creations={<>{galerie}<div id="taches-projet" data-emplacement="taches">{taches}</div><div data-emplacement="variantes">{variantes}</div></>}
+      />
     </main>
   );
 }

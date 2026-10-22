@@ -75,6 +75,8 @@ export interface LienCanvas {
 }
 
 export interface ModeleCanvas {
+  /** Projection visuelle seule, sans effet sur les dépendances ni leur empreinte. */
+  dimensions?: Record<string, { w: number; h: number }>;
   /** Cartes dans l'ORDRE du canvas (colonne, puis rangée) · le même pour la liste. */
   cartes: CarteCanvas[];
   /** Liens dérivés, triés · jamais saisis. */

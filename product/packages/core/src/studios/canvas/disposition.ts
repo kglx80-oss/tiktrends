@@ -22,10 +22,15 @@ import type { ModeleCanvas } from './modele';
 export interface PointCanvas { x: number; y: number }
 export interface RectCanvas { x: number; y: number; w: number; h: number }
 
+/** Gabarit visuel issu du prototype final : image 220 px, aperçu intérieur 4/5.
+ * Gabarit maximal et pas historiques v2 : ils restent stables pour projeter
+ * les dispositions sauvegardées. Les nouvelles rangées utilisent leur hauteur
+ * réelle et 36 px de séparation (voir sommetRangee).
+ */
 /** Taille d'une carte et espacements de la grille, en unités du monde (px à zoom 1). */
-export const CARTE_CANVAS = { largeur: 216, hauteur: 92 } as const;
-export const GOUTTIERE_CANVAS = 80;
-export const COULOIR_CANVAS = 36;
+export const CARTE_CANVAS = { largeur: 220, hauteur: 340 } as const;
+export const GOUTTIERE_CANVAS = 82;
+export const COULOIR_CANVAS = 134;
 
 /** Plafond de positions stockées · 200 plans parlants (UX-06) ≈ 4 × 200 + 10 cartes, avec marge. */
 export const POSITIONS_CANVAS_MAX = 2000;
@@ -42,12 +47,23 @@ export const dispositionVide = (): DispositionCanvas => ({ positions: {} });
 /* ─────────────────────────── Grille ──────────────────────────────────────── */
 
 const pasX = CARTE_CANVAS.largeur + GOUTTIERE_CANVAS;
-const pasY = CARTE_CANVAS.hauteur + COULOIR_CANVAS;
+export function dimensionsCarte(m: ModeleCanvas, id: string): { w: number; h: number } {
+  return m.dimensions?.[id] ?? { w: CARTE_CANVAS.largeur, h: 160 };
+}
+
+/** Les rangées partagent leur sommet ; aucune grande image ne déborde sur la suivante. */
+function sommetRangee(m: ModeleCanvas, rangee: number): number {
+  const hauteurs = new Map<number, number>();
+  for (const [id, g] of Object.entries(m.grille)) hauteurs.set(g.rangee, Math.max(hauteurs.get(g.rangee) ?? 0, dimensionsCarte(m, id).h));
+  let y = 0;
+  for (let r = 0; r < rangee; r++) y += (hauteurs.get(r) ?? 160) + 36;
+  return y;
+}
 
 /** Position automatique d'une carte (coin haut gauche). */
 export function positionAuto(m: ModeleCanvas, id: string): PointCanvas | null {
   const g = m.grille[id];
-  return g ? { x: g.colonne * pasX, y: g.rangee * pasY } : null;
+  return g ? { x: g.colonne * pasX, y: sommetRangee(m, g.rangee) } : null;
 }
 
 /* ─────────────────────────── Validation ──────────────────────────────────── */
@@ -140,12 +156,12 @@ const decale = (n: number, demi: number, pas: number) => {
 function routeAuto(m: ModeleCanvas, de: string, vers: string): PointCanvas[] {
   const a = m.grille[de]!;
   const b = m.grille[vers]!;
-  const W = CARTE_CANVAS.largeur;
-  const H = CARTE_CANVAS.hauteur;
-  const xs = a.colonne * pasX + W;
-  const ys = a.rangee * pasY + H / 2;
+  const source = dimensionsCarte(m, de);
+  const cible = dimensionsCarte(m, vers);
+  const xs = a.colonne * pasX + source.w;
+  const ys = sommetRangee(m, a.rangee) + source.h / 2;
   const xt = b.colonne * pasX;
-  const yt = b.rangee * pasY + H / 2;
+  const yt = sommetRangee(m, b.rangee) + cible.h / 2;
   // Tronc de la source dans la moitié gauche de sa gouttière, tronc de la cible dans la moitié droite.
   const gxS = xs + decale(a.rangee, GOUTTIERE_CANVAS / 2 - 6, 8);
   if (b.colonne === a.colonne + 1) {
@@ -153,7 +169,7 @@ function routeAuto(m: ModeleCanvas, de: string, vers: string): PointCanvas[] {
   }
   const gxT = xt - decale(b.rangee + a.colonne, GOUTTIERE_CANVAS / 2 - 6, 8);
   // Couloir juste au-dessus de la rangée cible · aucune carte n'y est.
-  const yc = b.rangee * pasY - COULOIR_CANVAS / 2 + (decale(a.colonne + a.rangee, COULOIR_CANVAS / 2 - 4, 4) - COULOIR_CANVAS / 4);
+  const yc = sommetRangee(m, b.rangee) - 18 + (decale(a.colonne + a.rangee, 14, 4) - 9);
   return [{ x: xs, y: ys }, { x: gxS, y: ys }, { x: gxS, y: yc }, { x: gxT, y: yc }, { x: gxT, y: yt }, { x: xt, y: yt }];
 }
 
@@ -174,7 +190,7 @@ export function composerCanvas(m: ModeleCanvas, d: DispositionCanvas): CanvasCom
   const utile = dispositionPourModele(m, d);
   const cartes: CartePlacee[] = m.cartes.map((c) => {
     const p = positionCarte(m, utile, c.id)!;
-    return { id: c.id, x: p.x, y: p.y, w: CARTE_CANVAS.largeur, h: CARTE_CANVAS.hauteur, deplacee: Object.prototype.hasOwnProperty.call(utile.positions, c.id) };
+    return { id: c.id, x: p.x, y: p.y, ...dimensionsCarte(m, c.id), deplacee: Object.prototype.hasOwnProperty.call(utile.positions, c.id) };
   });
   const parId = new Map(cartes.map((c) => [c.id, c]));
   const routes: RouteCanvas[] = m.liens.map((l) => {

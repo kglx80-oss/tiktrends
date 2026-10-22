@@ -45,9 +45,13 @@ import { spendStatus } from '../../spend-guard';
 
 export type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
 
-const JOBS_MAX = 6;
+// Le lot multi-format permet 3 formats × 4 images. La lecture récente doit
+// contenir au moins un lot complet ; ce n’est pas un historique exhaustif.
+const JOBS_MAX = 12;
 
 export interface DependancesLecture {
+  /** Suivi ciblé d’un lot : au plus 12 UUID, toujours relus dans la portée du projet. */
+  jobIds?: unknown;
   veilleOuverte: boolean;
   maintenant: Date;
   releasePubliee: boolean;
@@ -130,6 +134,10 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
   if (!c.ok) return c;
   const cat = c.catalogue;
   const projet = cat.projet;
+  if (o.jobIds !== undefined && (!Array.isArray(o.jobIds) || o.jobIds.length < 1 || o.jobIds.length > JOBS_MAX || o.jobIds.some(id => !estUuid(id)) || new Set(o.jobIds).size !== o.jobIds.length)) {
+    return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId });
+  }
+  const idsCibles = o.jobIds as string[] | undefined;
   const contenu = cat.contenu;
   const portee = { workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id };
 
@@ -159,8 +167,8 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
 
   // Jobs de l'image du studio (toutes versions), les plus récents d'abord.
   const J = schema.studioJobs;
-  const lignesJobs = (await db.select().from(J).where(and(eq(J.workspaceId, projet.workspaceId), eq(J.brandId, projet.brandId), eq(J.projectId, projet.id)))
-    .orderBy(desc(J.createdAt)).limit(30)).filter((j) => estDevisImage(lireSnapshotJob(j.snapshot)?.lignes)).slice(0, JOBS_MAX);
+  const lignesJobs = (await db.select().from(J).where(and(eq(J.workspaceId, projet.workspaceId), eq(J.brandId, projet.brandId), eq(J.projectId, projet.id), idsCibles ? inArray(J.id, idsCibles) : undefined))
+    .orderBy(desc(J.createdAt)).limit(idsCibles ? JOBS_MAX : 30)).filter((j) => estDevisImage(lireSnapshotJob(j.snapshot)?.lignes)).slice(0, JOBS_MAX);
   const idsMedias = lignesJobs.map((j) => (j.result as { assets?: Record<string, string> } | null)?.assets?.[OPERATION_IMAGE]).filter((x): x is string => estUuid(x));
   const S = schema.studioAssets;
   const medias = idsMedias.length

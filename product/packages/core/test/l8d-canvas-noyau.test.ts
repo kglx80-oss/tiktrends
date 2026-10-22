@@ -267,7 +267,7 @@ describe('canvas · vue', () => {
     }
   });
 
-  it('bornes de zoom · ajuster 20 plans tient au-dessus de ZOOM_MIN (mesure du tableau de vue.ts)', () => {
+  it('bornes de zoom · ajuster 20 plans tient au-dessus de ZOOM_MIN (cartes verticales)', () => {
     const k = composerCanvas(deriverCanvas(grand(20)), dispositionVide());
     const necessaire = Math.min((t.largeur - 48) / k.bornes.w, (t.hauteur - 48) / k.bornes.h);
     expect(necessaire).toBeGreaterThan(ZOOM_MIN_CANVAS);
@@ -297,7 +297,7 @@ describe('canvas · vue', () => {
     expect(premiere.y * v.k + v.y).toBeGreaterThanOrEqual(0);
     expect((premiere.x + premiere.w) * v.k + v.x).toBeLessThanOrEqual(zone.largeur);
     // Un petit canvas qui tient reste ajusté (tout visible).
-    const petit = composerCanvas(deriverCanvas(image()), dispositionVide());
+    const petit = composerCanvas(deriverCanvas(contenuVide()), dispositionVide());
     expect(vueInitiale(petit.bornes, { largeur: 1200, hauteur: 600 })).toEqual(vueAjustee(petit.bornes, { largeur: 1200, hauteur: 600 }));
     // La plus petite écriture d'une carte (12 px) reste ≥ 9 px.
     expect(12 * ZOOM_LISIBLE_CANVAS).toBeGreaterThanOrEqual(9);
@@ -347,5 +347,29 @@ describe('canvas · la carte cible explicitement Jarvis', () => {
     expect(cible('identite:c_lea').cibleJarvis).toBe('character:c_lea');
     expect(cible('brief').cibleJarvis).toBe('brief');
     for (const id of ['montage', 'mix', 'sous_titres', 'export', 'composition']) expect(cible(id).cibleJarvis).toBeNull();
+  });
+});
+
+ describe('canvas · dimensions de présentation réelles', () => {
+  it('route les cartes mixtes sans traversée, focalise le bon rectangle et garde les gestes', () => {
+    const base = deriverCanvas(contenuVideo());
+    const modele = { ...base, dimensions: Object.fromEntries(base.cartes.map(c => [c.id, { w: 220, h: c.id === 'keyframe:s_produit' ? 340 : 160 }])) };
+    const compose = composerCanvas(modele, dispositionVide());
+    const image = compose.cartes.find(c => c.id === 'keyframe:s_produit')!;
+    const brief = compose.cartes.find(c => c.id === 'brief')!;
+    expect(image.h).toBe(340);
+    expect(brief.h).toBe(160);
+    expect(traverseesCanvas(compose)).toEqual([]);
+    const route = compose.routes.find(r => r.vers === image.id)!;
+    expect(route.points.at(-1)).toEqual({ x: image.x, y: image.y + image.h / 2 });
+    const etat = etatInitialCanvas(dispositionVide());
+    const taille = { largeur: 860, hauteur: 520 };
+    const focus = reduireCanvas(modele, etat, { type: 'focaliser', id: brief.id, taille });
+    expect(focus.etat.vue).toEqual(vueFocus(etat.vue, brief, taille));
+    expect(focus.aEnregistrer).toBeNull();
+    const deplace = reduireCanvas(modele, etat, { type: 'deplacer', id: image.id, dx: 8, dy: 8 });
+    expect(deplace.aEnregistrer?.positions[image.id]).toEqual({ x: image.x + 8, y: image.y + 8 });
+    expect(composerCanvas(modele, deplace.etat.disposition).cartes.find(c => c.id === image.id)?.h).toBe(340);
+    expect(modele.liens).toEqual(base.liens);
   });
 });

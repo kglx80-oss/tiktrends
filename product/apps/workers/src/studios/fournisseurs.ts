@@ -13,6 +13,7 @@ import {
   type PortDepense, type PreparationFal, type StorageConfig,
 } from '@tiktrends/integrations';
 import { demarrerBoucleStudio } from './boucle';
+import { refusDerivationFormat } from './formats-attestes';
 import { relireMasque } from './retouche';
 import type { BaseStudio } from './types';
 
@@ -135,6 +136,8 @@ export function preparateurFal(base: BaseStudio, o: { modeles: { generation: str
     if (!job) return { ok: false, motif: 'job introuvable' };
     const snap = lireSnapshotJob(job.snapshot);
     if (!snap) return { ok: false, motif: 'instantané illisible' };
+    const refusFormat = await refusDerivationFormat(base, job, snap);
+    if (refusFormat) return { ok: false, motif: refusFormat };
     let r: Pick<RequeteFal & { ok: true }, 'ok' | 'modele' | 'corps' | 'operations' | 'empreinte' | 'limites'> | Extract<RequeteFal, { ok: false }>;
     let ids: string[];
     if (estParametresClip(snap.parametres)) {

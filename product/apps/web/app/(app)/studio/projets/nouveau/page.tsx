@@ -1,25 +1,22 @@
 import { redirect } from 'next/navigation';
 import {
   aPermissionEspace, briefDepuisTest, capacitesDuRefus, etatNouveauProjet, lienRetourVeille, lireContexteNouveauProjet,
-  notesContexte, objectifDepuisIteration, titreNouveauProjetParDefaut, CHEMIN_PROJETS, CHEMIN_NOUVEAU_CONCEPT, OBJECTIF_MAX, LIBELLES_TYPE_PROJET,
+  notesContexte, objectifDepuisIteration, titreNouveauProjetParDefaut, CHEMIN_PROJETS, OBJECTIF_MAX,
   type EtatRepriseIteration,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
 import { effectiveAccess } from '../../../../../lib/access';
-import { isFounder } from '../../../../../lib/founder';
-import { FEATURES, canAccess, roleAtLeast } from '../../../../../lib/rbac';
+import { FEATURES, canAccess } from '../../../../../lib/rbac';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
-import { produitsDeLaMarque } from '../../../../../lib/studios/sources/preparation';
 import { chargerSources } from '../../../../../lib/studios/sources/sources';
 import { adsDeLaMarque } from '../../../../../lib/adsmap-marque';
 import { adDetailAction } from '../../../../actions/adsmap-verdict';
-import { personasDeLaMarque } from '../../../../../lib/studios/personas-marque';
+import { ouvrirAssistantProjet } from '../../../../actions/studios/assistant';
 import { CapaciteNonActive } from '../../../../../components/studios/CapaciteNonActive';
-import { PreparationProjet } from '../../../../../components/studios/projet/PreparationProjet';
-import { AssistantProjet } from '../../../../../components/studios/projet/AssistantProjet';
-import { cadrePage, h1, sub } from '../../../../../components/ui';
+import { AssistantDepuisContexte } from '../../../../../components/studios/projet/AssistantDepuisContexte';
+import { cadrePage } from '../../../../../components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,14 +49,13 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
   if (coupe) return <main style={cadrePage}><CapaciteNonActive capacites={capacitesDuRefus(coupe)} /></main>;
 
   const active = await getActiveBrand(s.workspaceId);
-  const produits = active && g.ctx.marques.includes(active.id) ? (await produitsDeLaMarque(active.id)).map(({ id, nom, photoDisponible }) => ({ id, nom, photoDisponible })) : [];
   const peutProposer = aPermissionEspace(g.ctx.permissions, 'studio.propose');
   const etat = etatNouveauProjet({ peutProposer, marqueActive: active ? { id: active.id, name: active.name } : null });
 
   // L'annonce sauvegardée · relue dans la portée (lecture seule).
   let annonce: { annonceur: string } | null = null;
   if (c.ref) {
-    const r = await chargerSources(g.ctx, [{ type: 'sauvegarde', id: c.ref }], { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
+    const r = await chargerSources({ ...g.ctx, marques: active && g.ctx.marques.includes(active.id) ? [active.id] : [] }, [{ type: 'sauvegarde', id: c.ref }], { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
     if (r.ok && r.sources[0]) annonce = { annonceur: r.sources[0].annonceur || 'une annonce sauvegardée' };
   }
 
@@ -68,7 +64,7 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
   let depuisTest: { objectif: string; titre: string } | null = null;
   if (c.iter) {
     const adsmapOuvert = canAccess(effectiveAccess(s), FEATURE_ADSMAP);
-    const dansMarque = adsmapOuvert && active ? (await adsDeLaMarque(s.workspaceId, active.id, [c.iter])).has(c.iter) : false;
+    const dansMarque = adsmapOuvert && active && g.ctx.marques.includes(active.id) ? (await adsDeLaMarque(s.workspaceId, active.id, [c.iter])).has(c.iter) : false;
     const d = dansMarque ? (await adDetailAction(c.iter)).detail : undefined;
     if (!d) iteration = { etat: 'refuse' };
     else {
@@ -84,45 +80,18 @@ export default async function PreparerProjetPage({ searchParams }: { searchParam
     }
   }
 
-  const objectif = [depuisTest?.objectif ?? '', c.objectif].filter(Boolean).join('\n').slice(0, OBJECTIF_MAX);
+  const objectif = [depuisTest && c.iter ? `Test source Adsmap : ${c.iter}` : '', depuisTest?.objectif ?? '', c.objectif].filter(Boolean).join('\n').slice(0, OBJECTIF_MAX);
   const marqueNom = etat.etat === 'pret' ? etat.marque.nom : '';
   const titre = depuisTest?.titre ?? (annonce ? `D’après ${annonce.annonceur}` : titreNouveauProjetParDefaut(c.type, marqueNom || 'ta marque'));
 
-  // Sans contexte de lien (objectif, annonce, test, Veille), c'est la création
-  // « depuis zéro ». Depuis le mandat du 20/10, l'entrée CLIENTE de ce geste est
-  // l'écran conversationnel « Nouveau concept créatif » (`CHEMIN_NOUVEAU_CONCEPT`)
-  // · l'assistant en étapes ci-dessous reste en SECOURS pour l'équipe interne
-  // (ADMIN+), jamais une porte cliente de plus. Aucune fonction serveur retirée :
-  // `creerProjet` demeure l'écriture canonique, et les flux AVEC contexte
-  // (reprise d'itération, annonce, Veille) passent plus bas, inchangés.
-  if (!c.aContexte) {
-    const secoursAdmin = isFounder(s.user.email) && roleAtLeast(s.role, 'admin');
-    if (!secoursAdmin) redirect(CHEMIN_NOUVEAU_CONCEPT);
-    const personas = etat.etat === 'pret' ? await personasDeLaMarque(g.ctx, etat.marque.id) : [];
-    return (
-      <main style={cadrePage}>
-        <h1 style={h1}>Nouveau projet</h1>
-        <p style={sub}>Un projet {LIBELLES_TYPE_PROJET[c.type]?.toLowerCase() ?? ''} pour ta marque active · rien n’est généré ni facturé ici.</p>
-        <AssistantProjet etat={etat} initial={{ type: c.type, titre, intention: objectif }} personas={personas} />
-      </main>
-    );
-  }
-
-  return (
-    <main style={cadrePage}>
-      <h1 style={h1}>Préparer un projet</h1>
-      <p style={sub}>
-        Le contexte de ton lien est repris ci-dessous · relis-le, ajuste l’objectif, puis crée le projet. Rien n’est généré ni facturé ici.
-      </p>
-      <PreparationProjet
-        etat={etat}
-        produits={produits}
-        initial={{ type: c.type, titre, objectif }}
-        annonce={annonce && c.ref ? { ref: c.ref, annonceur: annonce.annonceur } : null}
-        iterationReprise={iteration?.etat === 'reprise'}
-        notes={notesContexte(c, { refJointe: !!annonce, iteration })}
-        retourVeille={c.retourVeille ? { href: lienRetourVeille(c.retourVeille) ?? '/veille', rv: c.retourVeille } : null}
-      />
-    </main>
-  );
+  // Tous les liens conservent leurs preuves et rejoignent le même assistant.
+  const ouverture = await ouvrirAssistantProjet();
+  if (!ouverture.ok) return <main style={cadrePage}><p role="alert">{ouverture.message}</p></main>;
+  const reference = annonce && c.ref ? { origine: 'veille' as const, id: c.ref, titre: `D’après ${annonce.annonceur}`, intention: '', sources: [{ type: 'sauvegarde' as const, id: c.ref }], testId: null } : null;
+  const depart = depuisTest && c.iter ? { origine: 'iteration' as const, id: c.iter, titre, intention: objectif, sources: [], testId: c.iter } : reference;
+  return <AssistantDepuisContexte
+    {...ouverture.props}
+    initial={{ type: c.type, titre, intention: objectif }}
+    contexteInitial={{ depart, references: reference ? [reference] : [], notes: notesContexte(c, { refJointe: !!annonce, iteration }), retourVeille: c.retourVeille ? { href: lienRetourVeille(c.retourVeille) ?? '/veille' } : null }}
+  />;
 }

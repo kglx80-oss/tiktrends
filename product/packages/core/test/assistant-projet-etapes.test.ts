@@ -29,21 +29,23 @@ const pleine = (): SaisieBriefV5 => ({
 });
 
 describe('machine d’étapes · brief → stratégie → direction → format → confirm câblés', () => {
-  it('le parcours a tout câblé sauf creation ; confirm n’ajoute pas de puce au rail', () => {
+  it('le parcours est câblé jusqu’au suivi de création ; confirm n’ajoute pas de puce au rail', () => {
     const parStatut = Object.fromEntries(ETAPES_ASSISTANT.map((e) => [e.id, e.statut]));
-    expect(parStatut).toEqual({ start: 'actif', brief: 'actif', strategie: 'actif', direction: 'actif', format: 'actif', confirm: 'actif', creation: 'bientot' });
+    expect(parStatut).toEqual({ start: 'actif', brief: 'actif', strategie: 'actif', direction: 'actif', format: 'actif', confirm: 'actif', creation: 'actif' });
     // confirm (sous-vue de « Format & devis ») et start ne portent pas de puce · rail à cinq.
     expect(ETAPES_RAIL.map((e) => e.id)).toEqual(['brief', 'strategie', 'direction', 'format', 'creation']);
     expect(etapeDisponible('format')).toBe(true);
     expect(etapeDisponible('confirm')).toBe(true);
-    expect(etapeDisponible('creation')).toBe(false);
+    expect(etapeDisponible('creation')).toBe(true);
   });
 
-  it('les transitions vont direction → format → confirm, et sautent creation « bientôt »', () => {
+  it('les transitions vont direction → format → confirm → creation', () => {
     expect(etapeProjetSuivante('strategie')).toBe('direction');
     expect(etapeProjetSuivante('direction')).toBe('format');
     expect(etapeProjetSuivante('format')).toBe('confirm');
-    expect(etapeProjetSuivante('confirm')).toBeNull(); // creation est « bientôt »
+    expect(etapeProjetSuivante('confirm')).toBe('creation');
+    expect(etapeProjetSuivante('creation')).toBeNull();
+    expect(etapeProjetPrecedente('creation')).toBe('confirm');
     expect(etapeProjetPrecedente('confirm')).toBe('format'); // « Modifier » revient au format
     expect(etapeProjetPrecedente('format')).toBe('direction');
     expect(etapeProjetPrecedente('start')).toBeNull();
@@ -58,11 +60,12 @@ describe('machine d’étapes · brief → stratégie → direction → format �
     expect(etatRail('format', etapeRail('format'))).toBe('current');
   });
 
-  it('l’état du rail · creation « bientôt » le reste, jamais « faite »', () => {
+  it('l’état du rail distingue création à venir et création courante', () => {
     expect(etatRail('brief', 'brief')).toBe('current');
     expect(etatRail('strategie', 'brief')).toBe('todo');
     expect(etatRail('format', 'brief')).toBe('todo'); // format est câblé désormais, pas « bientôt »
-    expect(etatRail('creation', 'confirm')).toBe('bientot');
+    expect(etatRail('creation', 'confirm')).toBe('todo');
+    expect(etatRail('creation', 'creation')).toBe('current');
     // une étape actif franchie est « done »
     expect(etatRail('brief', 'direction')).toBe('done');
     expect(etatRail('direction', etapeRail('confirm'))).toBe('done');

@@ -112,3 +112,12 @@ describe('GUARD #5 · l’écran du concept héberge le chat À CÔTÉ des créa
     expect(tabs.map((t) => t.textContent)).toEqual(['Conversation', 'Créations']);
   });
 });
+
+it('panneau Jarvis compact conserve conversation, coût et propositions accessibles', () => {
+  const d = document.createElement('div');
+  d.innerHTML = renderToStaticMarkup(<ConceptHote compact projectId="p1" brandName="Neva" kind="ads" generationImageActive={false} versionCourante={{ id: 'v3', n: 3 }} initialThread={thread} />);
+  expect(d.querySelector('[data-pane="conversation"] textarea')).not.toBeNull();
+  expect(d.querySelector('[data-cout-message]')?.textContent).toContain('plafond IA');
+  expect(d.querySelector('details summary')?.textContent).toBe('Propositions et actions du projet');
+  expect(d.querySelector('details [data-pane="creations"]')).not.toBeNull();
+});

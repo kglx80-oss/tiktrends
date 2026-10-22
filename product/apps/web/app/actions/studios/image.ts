@@ -45,14 +45,14 @@ type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
 /** Le fournisseur d'images est-il branché ici ? Même règle que le worker (F-A). */
 const fournisseurImageBranche = () => decisionFournisseurStudio(process.env).ok;
 
-export async function lireParcoursImage(entree: { projectId: unknown }): Promise<Reponse<{ vue: VueParcoursImage }>> {
+export async function lireParcoursImage(entree: { projectId: unknown; jobIds?: unknown }): Promise<Reponse<{ vue: VueParcoursImage }>> {
   const g = await gardeSources('studio.read');
   if (!g.ok) return g;
   const inter = await etatInterrupteurs(g.ctx.workspaceId);
   if (!inter.actif('generation_image')) return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: g.ctx.traceId, message: messageCapaciteCoupee(['generation_image']), targetIds: ['generation_image'] });
   const [pointeur, plafond] = await Promise.all([lirePointeur().catch(() => null), spendStatus()]);
   const r = await lireParcoursImagePour(g.ctx, entree?.projectId, {
-    veilleOuverte: g.veilleOuverte, maintenant: new Date(),
+    veilleOuverte: g.veilleOuverte, maintenant: new Date(), jobIds: entree?.jobIds,
     releasePubliee: pointeur !== null, fournisseurTexte: !!process.env.ANTHROPIC_API_KEY, plafondAtteint: plafond.blocked,
     fournisseurImage: fournisseurImageBranche(), coutCompilationUsd: coutMaximalTexte(modeleTexte()),
   });

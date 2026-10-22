@@ -13,33 +13,17 @@
 import type { ModeleCanvas } from './modele';
 import {
   composerCanvas, deplacerCarte, positionCarte, reinitialiserDisposition,
-  CARTE_CANVAS, type DispositionCanvas, type PointCanvas, type RectCanvas,
+  dimensionsCarte, type DispositionCanvas, type PointCanvas, type RectCanvas,
 } from './disposition';
 
 export interface VueCanvas { x: number; y: number; k: number }
 export interface TailleCanvas { largeur: number; hauteur: number }
 
-/**
- * Bornes du zoom · MESURÉES, pas posées. Ajuster une vidéo de N plans (deux
- * sur trois en voix off, un sur trois en lipsync, deux identités, produit,
- * style, mise en page) dans une zone canvas de 860 × 520 px, marge 24 :
- *
- * | Plans | Cartes | Liens | Bornes (monde) | k nécessaire |
- * |-------|--------|-------|----------------|--------------|
- * | 3     | 24     | 45    | 1992 × 860     | 0,408        |
- * | 6     | 36     | 84    | 1992 × 1500    | 0,315        |
- * | 10    | 52     | 136   | 1992 × 2524    | 0,187        |
- * | 20    | 92     | 264   | 1992 × 5084    | 0,093        |
- * | 50    | 212    | 649   | 1992 × 12764   | 0,037        |
- *
- * `ZOOM_MIN` = 0,085 laisse ajuster le projet de référence UX-06 (20 plans,
- * k = 0,093) avec une marge ; une carte y fait encore 18 px de large. En
- * dessous, plus rien ne se lit · au-delà de ~22 plans l'ajustement plafonne,
- * on navigue (pan, focus) et la vue liste reste l'équivalent complet.
- * `ZOOM_MAX` = 2 garde une carte entière dans la zone mobile
- * (358 px utiles ≥ 216 × 1,6 au focus).
+/** Vue d'ensemble des cartes verticales : un projet de 20 plans nécessite
+ * environ 2,9 % dans 860×520. Ce zoom sert à voir les relations, pas à lire.
+ * L'ouverture reste à ZOOM_LISIBLE ; focus et liste permettent la lecture.
  */
-export const ZOOM_MIN_CANVAS = 0.085;
+export const ZOOM_MIN_CANVAS = 0.025;
 export const ZOOM_MAX_CANVAS = 2;
 export const PAS_ZOOM_CANVAS = 1.2;
 /** Marge autour du contenu ajusté, en pixels d'écran. */
@@ -146,7 +130,7 @@ export function etatInitialCanvas(d: DispositionCanvas, mode: ModeCanvas = 'list
 
 function rectCarte(m: ModeleCanvas, d: DispositionCanvas, id: string): RectCanvas | null {
   const p = positionCarte(m, d, id);
-  return p ? { x: p.x, y: p.y, w: CARTE_CANVAS.largeur, h: CARTE_CANVAS.hauteur } : null;
+  return p ? { x: p.x, y: p.y, ...dimensionsCarte(m, id) } : null;
 }
 
 /**

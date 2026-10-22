@@ -2,10 +2,11 @@ import 'server-only';
 import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  deriverCanvas, dispositionVide, erreurStudio, validerContenuVersion, validerDispositionCanvas,
+  CARTE_CANVAS, GOUTTIERE_CANVAS, COULOIR_CANVAS, deriverCanvas, dispositionVide, erreurStudio, validerContenuVersion, validerDispositionCanvas,
   type ContenuVersion, type DispositionCanvas, type ErreurStudio, type ModeleCanvas,
 } from '@tiktrends/core';
 import { lireProjet, lireVersion } from '../depot';
+import { urlsApercu } from '../editeur/apercus';
 import type { ContexteStudio } from '../garde';
 
 /**
@@ -35,7 +36,7 @@ export const cleDispositionCanvas = (userId: string, projectId: string) => `${PR
 type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
 
 interface ValeurStockee {
-  v: 1;
+  v: 1 | 2;
   rev: number;
   workspaceId: string;
   brandId: string;
@@ -61,7 +62,16 @@ export async function lireDispositionCanvasPour(ctx: ContexteStudio, projectId: 
       return { ok: true, disposition: dispositionVide(), rev: v && Number.isInteger(v.rev) ? (v.rev as number) : 0 };
     }
     const d = validerDispositionCanvas({ positions: v.positions });
-    return { ok: true, disposition: d.ok ? d.disposition : dispositionVide(), rev: v.rev as number };
+    // Projection pure : les coordonnées v1 restent en base jusqu'au prochain
+    // geste. Les pas sont proportionnels pour préserver les espaces libres.
+    const disposition = d.ok ? d.disposition : dispositionVide();
+    if (v.v !== 2) {
+      for (const point of Object.values(disposition.positions)) {
+        point.x = Math.round(point.x * (CARTE_CANVAS.largeur + GOUTTIERE_CANVAS) / 296);
+        point.y = Math.round(point.y * (CARTE_CANVAS.hauteur + COULOIR_CANVAS) / 128);
+      }
+    }
+    return { ok: true, disposition, rev: v.rev as number };
   } catch (err) {
     return echec(ctx, err);
   }
@@ -85,7 +95,7 @@ export async function enregistrerDispositionCanvasPour(
   const attendue = e.rev;
   const projet = p.projet;
   const valeur: ValeurStockee = {
-    v: 1, rev: attendue + 1, workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id, positions: d.disposition.positions,
+    v: 2, rev: attendue + 1, workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id, positions: d.disposition.positions,
   };
   const A = schema.appSettings;
   const cle = cleDispositionCanvas(ctx.userId, projet.id);
@@ -116,6 +126,7 @@ export interface CanvasProjetLu {
   projectId: string;
   version: { id: string; n: number; courante: boolean };
   modele: ModeleCanvas;
+  apercus: Record<string, string>;
   disposition: DispositionCanvas;
   rev: number;
 }
@@ -138,6 +149,16 @@ export async function lireCanvasPour(ctx: ContexteStudio, projectId: unknown, ve
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, message: 'Le contenu de cette version n’a pas la forme attendue · le canvas n’est pas dessiné.', violations: violations.slice(0, 5) });
   }
   const modele = deriverCanvas(v.version.content as ContenuVersion);
+  // Seules les références de CETTE version sont projetées ; les routes médias
+  // relisent les droits. Aucun dernier job arbitrairement attribué à un nœud.
+  const contenu = v.version.content as ContenuVersion;
+  const references: Record<string, string> = {};
+  if (contenu.productRef?.assetId) references['entree:produit'] = contenu.productRef.assetId;
+  for (const [id, plan] of Object.entries(contenu.shots.byId)) {
+    if (plan.keyframeAssetId) references[`keyframe:${id}`] = plan.keyframeAssetId;
+  }
+  const urls = urlsApercu(Object.values(references), p.projet.id);
+  const apercus = Object.fromEntries(Object.entries(references).flatMap(([carte, asset]) => urls[asset] ? [[carte, urls[asset]]] : []));
   const d = await lireDispositionCanvasPour(ctx, p.projet.id);
   if (!d.ok) return d;
   return {
@@ -145,7 +166,7 @@ export async function lireCanvasPour(ctx: ContexteStudio, projectId: unknown, ve
     canvas: {
       projectId: p.projet.id,
       version: { id: v.version.id, n: v.version.n, courante: v.version.id === p.projet.currentVersionId },
-      modele,
+      modele, apercus,
       // Entière · `composerCanvas` ignore les cartes absentes, un geste ne les efface pas.
       disposition: d.disposition,
       rev: d.rev,

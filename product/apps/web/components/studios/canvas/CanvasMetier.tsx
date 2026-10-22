@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent as PointerEventReact } from 'react';
 import {
-  composerCanvas, etatInitialCanvas, reduireCanvas, LIBELLES_NATURE_CANVAS, PAS_CLAVIER_CANVAS, GRAND_PAS_CLAVIER_CANVAS, PAS_ZOOM_CANVAS,
+  composerCanvas, LIBELLES_ETAPE_CANVAS, etatInitialCanvas, reduireCanvas, LIBELLES_NATURE_CANVAS, PAS_CLAVIER_CANVAS, GRAND_PAS_CLAVIER_CANVAS, PAS_ZOOM_CANVAS,
   type CarteCanvas, type DispositionCanvas, type EtatCanvas, type GesteCanvas, type ModeleCanvas, type TailleCanvas,
 } from '@tiktrends/core';
 import { enregistrerDispositionCanvas, reinitialiserDispositionCanvas } from '../../../app/actions/studios/canvas';
@@ -11,7 +11,7 @@ import { tuile } from '../../ui';
 import { ciblerJarvis } from './cibler-jarvis';
 import { DetailCarte, LIBELLE_MEDIA } from './DetailCarte';
 import { ListeCanvas } from './ListeCanvas';
-import { bouton, boutonActif, desactive, mini, pastilleNature, rangee, section, styleCarte, texte, titre } from './styles';
+import { bouton, boutonActif, desactive, mini, rangee, section, styleCarte, texte, titre } from './styles';
 
 /**
  * Canvas métier du projet (cahier 01 §127, UX-04) · cartes reliées par leurs
@@ -36,12 +36,14 @@ export interface PropsCanvas {
   projectId: string;
   version: { id: string; n: number; courante: boolean };
   modele: ModeleCanvas;
+  apercus?: Record<string, string>;
   disposition: DispositionCanvas;
   rev: number;
 }
 
 const TAILLE_DEFAUT: TailleCanvas = { largeur: 860, hauteur: 520 };
-const HAUTEUR_ZONE = 520;
+const HAUTEUR_ZONE = 620;
+const APERCUS_VIDES: Record<string, string> = {};
 
 type Message = { genre: 'info' | 'erreur'; texte: string } | null;
 
@@ -49,7 +51,8 @@ function reducteur(modele: ModeleCanvas) {
   return (e: EtatCanvas, g: GesteCanvas) => reduireCanvas(modele, e, g).etat;
 }
 
-export function CanvasMetier({ projectId, version, modele, disposition, rev: revInitiale }: PropsCanvas) {
+export function CanvasMetier({ projectId, version, modele: modeleSource, apercus = APERCUS_VIDES, disposition, rev: revInitiale }: PropsCanvas) {
+  const modele = useMemo(() => ({ ...modeleSource, dimensions: Object.fromEntries(modeleSource.cartes.map(c => [c.id, { w: 220, h: apercus[c.id] ? 340 : 160 }])) }), [modeleSource, apercus]);
   const reduire = useMemo(() => reducteur(modele), [modele]);
   const [etat, envoyer] = useReducer(reduire, disposition, (d) => etatInitialCanvas(d, 'liste'));
   const etatRef = useRef(etat);
@@ -234,13 +237,13 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
   return (
     <section aria-labelledby="canvas-projet-titre" data-canvas-projet={projectId} data-mode={etat.mode} style={section}>
       <div style={{ display: 'grid', gap: 4 }}>
-        <h2 id="canvas-projet-titre" style={titre}>Canvas du projet · version {version.n}</h2>
-        <p style={mini}>Cartes reliées par leurs dépendances réelles · une flèche va de ce qui est lu vers ce qui le lit. Déplacer une carte range ta vue : ni l’ordre, ni les dépendances, ni la version ne changent.</p>
+        <h2 id="canvas-projet-titre" style={{ ...titre, position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>Canvas du projet · version {version.n}</h2>
       </div>
 
       {vide && (
         <p data-etat="vide" style={texte}>Rien à relier pour l’instant · ajoute des plans (atelier Vidéo) ou une mise en page (Éditer l’image) : leurs sorties apparaîtront ici avec leurs dépendances.</p>
       )}
+      {!vide && <div aria-label="Étapes du projet" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--muted)' }}>{modele.etapes.map(etape => <span key={etape} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><i aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: etape === 'contexte' ? 'var(--canvas-contexte)' : etape === 'images' ? 'var(--accent)' : 'var(--canvas-etape)' }} />{LIBELLES_ETAPE_CANVAS[etape]}</span>)}</div>}
       {!vide && (
         <div role="group" aria-label="Affichage du canvas" style={rangee}>
           <button type="button" aria-pressed={etat.mode === 'liste'} onClick={() => basculer('liste')} style={{ ...bouton, ...(etat.mode === 'liste' ? boutonActif : {}) }}>Liste</button>
@@ -270,16 +273,13 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
             <ListeCanvas modele={modele} selection={etat.selection} onChoisir={(id) => choisir(id)} />
           ) : (
             <>
-              <p id="canvas-aide-clavier" style={{ ...mini, marginBottom: 6 }}>
-                Tab parcourt les cartes dans l’ordre des étapes · Entrée choisit une carte, puis les flèches la déplacent (Maj : grand pas). Sur le fond : + et − zooment, 0 ajuste. Les mêmes actions existent en boutons.
-              </p>
               <div ref={zone} data-canvas-zone role="group" tabIndex={0} aria-label="Zone du canvas" aria-describedby="canvas-aide-clavier"
                 onKeyDown={surToucheZone}
                 onPointerDown={(ev) => { if (ev.target === ev.currentTarget || (ev.target as HTMLElement).dataset?.fondCanvas !== undefined) debut(ev, 'fond'); }}
                 onPointerMove={bouger} onPointerUp={fin} onPointerCancel={() => { geste.current = null; setGlisse(null); }}
                 style={{
                   ...tuile, position: 'relative', overflow: 'hidden', contain: 'paint', height: `min(${HAUTEUR_ZONE}px, 70vh)`,
-                  background: 'var(--rail)', touchAction: 'none', cursor: 'grab',
+                  borderRadius: 16, border: '1px solid var(--line-2)', background: 'radial-gradient(var(--line-2) 1px, transparent 1px) 0 0 / 24px 24px var(--bg)', touchAction: 'none', cursor: 'grab',
                 }}>
                 <div data-fond-canvas style={{ position: 'absolute', inset: 0 }} />
                 <div data-monde-canvas style={{ position: 'absolute', left: 0, top: 0, transformOrigin: '0 0', transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.k})` }}>
@@ -322,11 +322,14 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
                         onPointerMove={bouger} onPointerUp={fin}
                         style={{
                           ...styleCarte(c.nature, choisie), position: 'absolute', left: p.x + (g?.dx ?? 0), top: p.y + (g?.dy ?? 0), width: p.w, height: p.h,
-                          overflow: 'hidden', touchAction: 'none',
+                          overflow: 'hidden', touchAction: 'none', padding: 0, gap: 0,
                         }}>
-                        <span style={pastilleNature}>{LIBELLES_NATURE_CANVAS[c.nature]}</span>
-                        <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.titre}</span>
-                        {media && <span style={{ ...mini, fontSize: 12 }}>{media}</span>}
+                        <span style={{ display: 'grid', gap: 3, padding: '10px 12px', minHeight: 54, boxSizing: 'border-box', borderBottom: '1px solid var(--line-2)' }}>
+                          <span style={{ fontSize: 10.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{LIBELLES_NATURE_CANVAS[c.nature]}</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.25, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{c.titre}</span>
+                        </span>
+                        {apercus[c.id] ? <img src={apercus[c.id]} alt={`Aperçu · ${c.titre}`} draggable={false} loading="lazy" onError={e => { e.currentTarget.hidden = true; }} style={{ display: 'block', width: 'calc(100% - 20px)', aspectRatio: '4 / 5', maxHeight: 248, flex: '0 1 auto', minHeight: 0, margin: '8px 10px 0', borderRadius: 11, objectFit: 'cover', pointerEvents: 'none' }} /> : <span style={{ padding: '14px', fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)', overflow: 'hidden', overflowWrap: 'anywhere' }}>{c.resume}</span>}
+                        {(media || apercus[c.id]) && <span style={{ ...mini, fontSize: 11.5, padding: '8px 12px', marginTop: 'auto', borderTop: '1px solid var(--line-2)' }}>{media || LIBELLES_ETAPE_CANVAS[c.etape]}</span>}
                       </button>
                     );
                   })}
@@ -337,11 +340,16 @@ export function CanvasMetier({ projectId, version, modele, disposition, rev: rev
         </div>
 
         {!etroit && (
-          <aside data-canvas-detail aria-label="Détail de la carte" style={{ flex: '1 1 280px', minWidth: 0, display: 'grid', gap: 10, alignContent: 'start' }}>
+          <aside data-canvas-detail hidden={!detail} aria-label="Détail de la carte" style={{ flex: '1 1 280px', minWidth: 0, display: detail ? 'grid' : 'none', gap: 10, alignContent: 'start' }}>
             {detail ?? <p style={mini}>Choisis une carte pour voir ce qu’elle lit, ce qu’elle alimente, et la cibler dans Jarvis.</p>}
           </aside>
         )}
       </div>
+
+      <details><summary style={{ ...mini, cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>Aide du canvas</summary>
+        <p style={mini}>Une flèche relie chaque élément à ce qui l’utilise. Déplacer une carte organise votre vue sans changer le projet.</p>
+        <p id="canvas-aide-clavier" style={mini}>Tab parcourt les cartes ; Entrée sélectionne ; les flèches déplacent la carte (Maj : grand pas). Sur le fond : + et − zooment, 0 ajuste.</p>
+      </details>
 
       {/* Mobile · le détail en panneau refermable (focus piégé puis rendu à la carte). */}
       {etroit && (

@@ -165,3 +165,27 @@ describe('canvas · portée', () => {
     expect(await CanvasProjet({ projectId: A.projectId, versionId: A.versionId })).toBeNull();
   });
 });
+
+describe('canvas · compatibilité de la géométrie historique', () => {
+  it('projette v1 en lecture sans écrire puis persiste v2 une seule fois au geste', async () => {
+    etat.session = session(ids, 'ub');
+    const cle = cleDispositionCanvas(ids.ub, B.projectId);
+    const ancienne = { v: 1, rev: 7, workspaceId: ids.wsB, brandId: ids.brandB1, projectId: B.projectId, positions: { mix: { x: 296, y: 128 }, export: { x: 296, y: 256 } } };
+    await db.insert(schema.appSettings).values({ key: cle, value: ancienne });
+    const lu = await lireCanvasProjet({ projectId: B.projectId });
+    expect(lu.ok).toBe(true);
+    if (!lu.ok) return;
+    expect(lu.canvas.rev).toBe(7);
+    expect(lu.canvas.disposition.positions).toEqual({ mix: { x: 302, y: 474 }, export: { x: 302, y: 948 } });
+    expect(lu.canvas.disposition.positions.export!.y - lu.canvas.disposition.positions.mix!.y).toBeGreaterThanOrEqual(340);
+    const [intacte] = await db.select().from(schema.appSettings).where(eq(schema.appSettings.key, cle));
+    expect(intacte!.value).toEqual(ancienne);
+    const sauve = await enregistrerDispositionCanvas({ projectId: B.projectId, disposition: lu.canvas.disposition, rev: 7 });
+    expect(sauve.ok).toBe(true);
+    const relu = await lireCanvasProjet({ projectId: B.projectId });
+    expect(relu.ok && relu.canvas.disposition).toEqual(lu.canvas.disposition);
+    const [v2] = await db.select().from(schema.appSettings).where(eq(schema.appSettings.key, cle));
+    expect((v2!.value as {v: number}).v).toBe(2);
+    await db.delete(schema.appSettings).where(eq(schema.appSettings.key, cle));
+  });
+});

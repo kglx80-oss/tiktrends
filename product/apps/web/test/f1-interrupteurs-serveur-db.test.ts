@@ -229,6 +229,7 @@ const JAMAIS_COUPEES: Record<string, string> = {
   'execution.estimerImpact': 'lecture et calcul, aucun devis ni débit',
   'execution.annulerJob': 'un job payé doit toujours pouvoir être annulé',
   'execution.etatJob': 'un job payé doit toujours pouvoir être suivi',
+  'lot-images.lireLotImages': 'suivre les jobs déjà approuvés du lot, sans devis ni écriture, même après coupure',
   'execution.accepterMedia': 'trancher un média déjà livré',
   'execution.rejeterMedia': 'trancher un média déjà livré',
   'produit.trancherComposants': 'trancher un média déjà livré',

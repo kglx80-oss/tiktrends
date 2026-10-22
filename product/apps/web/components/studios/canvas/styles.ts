@@ -36,16 +36,17 @@ export const COULEUR_NATURE: Readonly<Record<NatureCarteCanvas, string>> = {
   calcul: 'var(--ok)',
 };
 
-export function styleCarte(nature: NatureCarteCanvas, choisie: boolean): CSSProperties {
+export function styleCarte(_nature: NatureCarteCanvas, choisie: boolean): CSSProperties {
   const cadre = choisie ? 'var(--accent-strong)' : COULEUR_TUILE;
   return {
     ...cadreTuile,
     borderStyle: 'solid',
-    borderWidth: '1px 1px 1px 4px',
-    borderColor: `${cadre} ${cadre} ${cadre} ${COULEUR_NATURE[nature]}`,
-    boxShadow: choisie ? '0 0 0 2px var(--accent-strong)' : 'none',
+    borderWidth: '1px',
+    borderColor: cadre,
+    boxShadow: 'none',
+    borderRadius: 'var(--r-card)',
     boxSizing: 'border-box',
-    background: 'var(--bg)',
+    background: 'var(--surface)',
     color: 'var(--ink)',
     textAlign: 'left',
     cursor: 'pointer',

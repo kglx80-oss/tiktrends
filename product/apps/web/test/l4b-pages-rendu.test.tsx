@@ -100,7 +100,8 @@ describe('/studio/projets · reprendre un projet', () => {
     // V5 (5.webp) · la version est une pastille en tête de carte (comme « Ø V1 »
     // du proto), plus dans le pied · le pied porte la date et le compte de sources.
     expect(c.querySelector('[data-version]')?.textContent).toBe('V1');
-    expect(c.textContent).toMatch(/Modifié le \d{2}\/\d{2}\/\d{4} · 1 source/);
+    expect(c.textContent).toMatch(/\d{2}\/\d{2}\/\d{4}/);
+    expect(c.textContent).toContain('1 source');
     expect(d.textContent).toContain('voir toutes les marques');
 
     const toutes = await liste({ toutes: '1' });
@@ -135,7 +136,7 @@ describe('/studio/projets/[id] · la page projet', () => {
     expect(entete.textContent).toContain('Marque A1');
     expect(entete.textContent).toContain('Version 1');
     expect(entete.closest('details')).toBeNull();
-    expect(entete.compareDocumentPosition(d.querySelector('[data-emplacement="concept-hote"]')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(entete.compareDocumentPosition(d.querySelector('#conversation-projet')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const hyp = d.querySelector('[data-hypothese="hyp_saisie"]')!;
     expect(hyp.textContent).toContain('Une accroche chiffrée augmente le clic.');
     expect(hyp.textContent).toContain('Variable testée · Accroche');

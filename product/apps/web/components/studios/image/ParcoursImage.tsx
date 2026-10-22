@@ -1,4 +1,5 @@
 'use client';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../projet/useAppelPayant';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -50,6 +51,7 @@ function cleDuClic(quoteId: string): string {
 /** `versionId` · la version que la page affiche : quand elle change (épinglage, références), l'état se relit. */
 export function ParcoursImage({ projectId, versionId }: { projectId: string; versionId: string }) {
   const router = useRouter();
+  const appel=useAppelPayant(projectId,'compilation-image');
   const [vue, setVue] = useState<VueParcoursImage | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   // F1 · génération coupée pour l'espace : un état, pas une erreur (aucun geste offert).
@@ -101,13 +103,16 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   }, [vue, charger]);
 
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: string, apres?: () => void) {
+    const tentative=nom==='compiler'?appel.commencer():null;if(nom==='compiler'&&!tentative)return;
     setEnCours(nom);
     setRetour(null);
     try {
       const r = await f();
+      if(tentative)appel.terminer(tentative,resultatPayantIncertain(r));
       if (r.ok) { setRetour({ ok: true, texte: succes }); apres?.(); } else setRetour({ ok: false, texte: messageErreur(r) });
     } catch {
-      setRetour({ ok: false, texte: 'Le serveur n’a pas répondu · rien n’a été confirmé. Recharge avant de réessayer.' });
+      if(tentative)appel.terminer(tentative,true);
+      setRetour({ ok: false, texte: tentative?MESSAGE_APPEL_PAYANT:'Le serveur n’a pas répondu · rien n’a été confirmé. Recharge avant de réessayer.' });
     } finally {
       setEnCours(null);
       await charger();
@@ -126,8 +131,8 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   }
 
   return (
-    <VueParcours
-      vue={vue} mode={mode} enCours={enCours} retour={retour} questions={questions}
+    <>{appel.bloque&&<p role="status">{MESSAGE_APPEL_PAYANT}</p>}<VueParcours
+      vue={{...vue,disponibilite:{...vue.disponibilite,compilation:appel.bloque?{disponible:false,raison:MESSAGE_APPEL_PAYANT}:vue.disponibilite.compilation}}} mode={mode} enCours={enCours} retour={retour} questions={questions}
       surMode={setMode}
       surCompiler={() => agir('compiler', async () => {
         setQuestions([]);
@@ -144,7 +149,7 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
       }}
       surAnnuler={(jobId) => agir(`annuler:${jobId}`, () => annulerJob({ jobId }), 'Annulation demandée.')}
       surRelire={(jobId, constats) => agir('relire', () => trancherComposants({ jobId, constats }), 'Relecture enregistrée.')}
-    />
+    /></>
   );
 }
 

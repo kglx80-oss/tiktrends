@@ -1,34 +1,36 @@
 'use client';
 
-import { useEffect, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { CHEMIN_NOUVEAU_CONCEPT, type EtatNouveauProjet } from '@tiktrends/core';
+import Link from 'next/link';
+import { type EtatNouveauProjet } from '@tiktrends/core';
 import { Icon } from '../../Icon';
 import { btn, vide } from '../../ui';
+import { ouvrirAssistantProjet } from '../../../app/actions/studios/assistant';
+import { AssistantProjet, type ProprietesAssistantProjet } from './AssistantProjet';
+import { FenetreAssistant } from './FenetreAssistant';
 
 const note: CSSProperties = { fontSize: 12.5, color: 'var(--ink-2)', margin: 0, lineHeight: 1.5 };
 
-/**
- * « Nouveau concept créatif » (vocabulaire CLIENT, mandat Kevin du 20/10) · le
- * CTA de la liste des Studios. Un « concept créatif » EST un projet studio ·
- * seul le mot change à l'écran, jamais l'objet ni la table.
- *
- * Le geste n'ouvre plus la modale Titre/Type · il NAVIGUE vers l'écran de
- * création conversationnelle (`CHEMIN_NOUVEAU_CONCEPT`), qui n'écrit rien et
- * n'appelle rien au rendu. La création réelle démarre au premier message, hors
- * de ce composant. L'écriture canonique (`creerProjet`) n'a pas bougé.
- *
- * L'état proposé est décidé au noyau (`etatNouveauProjet`) · jamais de porte
- * morte : en lecture seule, ou sans marque active, l'écran le DIT. Le libellé
- * vient du noyau (`etat.libelle`), jamais en dur ici.
- *
- * Deux déclencheurs : `variante='bouton'` (en-tête) et `variante='carte'`
- * (dernière tuile de la grille, raccourci N). La carte ne s'affiche que si l'état
- * est « prêt » · sinon l'en-tête porte déjà la raison, on ne double pas une tuile
- * morte.
- */
+/** Le CTA ouvre le parcours du prototype sans quitter la liste. Son chargement
+ * relit les droits ; aucune création ni dépense n'est déclenchée à l'ouverture. */
 export function NouveauProjet({ etat, variante = 'bouton' }: { etat: EtatNouveauProjet; variante?: 'bouton' | 'carte' }) {
   const router = useRouter();
+  const ouverture = useRef(false);
+  const [titreEtape, setTitreEtape] = useState('Que voulez-vous créer ?');
+  const [ouvert, setOuvert] = useState(false);
+  const [props, setProps] = useState<ProprietesAssistantProjet | null>(null);
+  const [erreur, setErreur] = useState('');
+  const ouvrir = useCallback(async () => {
+    if (ouverture.current) return;
+    ouverture.current = true;
+    setOuvert(true); setErreur(''); setProps(null);
+    try { const r = await ouvrirAssistantProjet(); if (r.ok) setProps(r.props); else setErreur(r.message); }
+    catch { setErreur('Impossible d’ouvrir le projet. Réessaie.'); }
+    finally { ouverture.current = false; }
+  }, []);
+  const fermer = () => { setOuvert(false); router.refresh(); };
+  const fenetre = ouvert ? <FenetreAssistant onFermer={fermer} titre={titreEtape}>{props ? <AssistantProjet {...props} onFermer={fermer} onTitreChange={setTitreEtape} /> : <div style={{ padding: 32 }} role={erreur ? 'alert' : 'status'}>{erreur || 'Chargement…'}{erreur && <button onClick={() => void ouvrir()} style={btn}>Réessayer</button>}</div>}</FenetreAssistant> : null;
   const carte = variante === 'carte';
   const pret = etat.etat === 'pret';
 
@@ -37,16 +39,17 @@ export function NouveauProjet({ etat, variante = 'bouton' }: { etat: EtatNouveau
   useEffect(() => {
     if (!carte || !pret) return;
     function surTouche(e: KeyboardEvent) {
+      if (document.querySelector('dialog[open]')) return;
       if (e.key !== 'n' && e.key !== 'N') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const c = document.activeElement;
       if (c && (c.tagName === 'INPUT' || c.tagName === 'TEXTAREA' || c.tagName === 'SELECT' || (c as HTMLElement).isContentEditable)) return;
       e.preventDefault();
-      router.push(CHEMIN_NOUVEAU_CONCEPT);
+      void ouvrir();
     }
     window.addEventListener('keydown', surTouche);
     return () => window.removeEventListener('keydown', surTouche);
-  }, [carte, pret, router]);
+  }, [carte, pret, ouvrir]);
 
   if (etat.etat === 'lecture-seule') {
     return carte ? null : <p data-nouveau-projet="lecture-seule" style={{ ...note, maxWidth: 360 }}>{etat.message}</p>;
@@ -61,18 +64,18 @@ export function NouveauProjet({ etat, variante = 'bouton' }: { etat: EtatNouveau
 
   if (carte) {
     return (
-      <a href={CHEMIN_NOUVEAU_CONCEPT} data-nouveau-projet="carte" aria-keyshortcuts="N"
+      <>{fenetre}<Link href="/studio/projets/nouveau" onClick={(e) => { e.preventDefault(); void ouvrir(); }} data-nouveau-projet="carte" aria-keyshortcuts="N"
         style={{ ...vide, background: 'transparent', cursor: 'pointer', textDecoration: 'none', padding: 16, minHeight: 180, display: 'grid', gap: 8, placeContent: 'center', justifyItems: 'center', textAlign: 'center', color: 'var(--ink-2)' }}>
         <span aria-hidden style={{ width: 44, height: 44, borderRadius: 999, background: 'var(--paper)', color: 'var(--accent-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={20} /></span>
-        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{etat.libelle}</span>
-        <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Décris ce que tu veux créer, en conversation</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>Nouveau projet</span>
+        <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Brief → création, étape par étape</span>
         <span aria-hidden style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', padding: '2px 7px', borderRadius: 6, border: '1px solid var(--line-2)', background: 'var(--surface)' }}>N</span>
-      </a>
+      </Link></>
     );
   }
   return (
-    <a href={CHEMIN_NOUVEAU_CONCEPT} data-nouveau-projet="pret" style={{ ...btn, gap: 8, textDecoration: 'none' }}>
-      <Icon name="plus" size={16} />{etat.libelle}
-    </a>
+    <>{fenetre}<Link href="/studio/projets/nouveau" onClick={(e) => { e.preventDefault(); void ouvrir(); }} data-nouveau-projet="pret" style={{ ...btn, gap: 8, textDecoration: 'none' }}>
+      <Icon name="plus" size={16} />Nouveau projet
+    </Link></>
   );
 }

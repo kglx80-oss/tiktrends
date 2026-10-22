@@ -8,13 +8,10 @@
  *
  * ── Le périmètre (lots 2a + 2b) ──────────────────────────────────────────────
  *
- * Quatre étapes sont RÉELLEMENT câblées · `start` (choix du livrable), `brief`
- * (champs V5 écrits à la création), puis `strategie` et `direction`, qui
- * opèrent sur le projet DÉJÀ créé via le vrai cycle de propositions (une
- * proposition relue avant d'être appliquée · aucune écriture sans geste). Les
- * étapes `format` (format & devis) et `creation` restent « bientôt » · elles ne
- * sont pas navigables et ne portent AUCUN contrôle simulé. Jamais de bouton
- * mort, jamais de faux succès : on ne propose une étape que lorsqu'elle aboutit.
+ * Le brief, la stratégie, la direction, le format et le devis sont câblés.
+ * Après confirmation serveur, `creation` affiche la tâche réellement lancée
+ * et son média. L'hôte exige un job avant d'ouvrir cette étape ; la disponibilité
+ * de l'écran n'autorise jamais une génération ni ne simule une création.
  *
  * Stratégie et direction n'écrivent JAMAIS directement dans une version : elles
  * ne produisent que le CHANGEMENT (pur, borné à `/brief`) d'une proposition. Le
@@ -67,8 +64,8 @@ export interface DefinitionEtape {
 /**
  * Le parcours complet, dans l'ordre. `start` est l'entrée (hors des cinq
  * étapes numérotées du rail V5). `start`, `brief`, `strategie`, `direction`,
- * `format` et `confirm` sont câblées ; `creation` (l'après-lancement) reste
- * honnêtement « bientôt ». `confirm` est la confirmation du devis, rattachée
+ * `format`, `confirm` et `creation` sont câblées. L'hôte réserve `creation`
+ * à une tâche existante. `confirm` est la confirmation du devis, rattachée
  * à la puce « Format & devis » (elle n'ajoute pas de sixième puce).
  */
 export const ETAPES_ASSISTANT: readonly DefinitionEtape[] = [
@@ -78,7 +75,7 @@ export const ETAPES_ASSISTANT: readonly DefinitionEtape[] = [
   { id: 'direction', libelle: 'Direction', statut: 'actif', rail: true },
   { id: 'format', libelle: 'Format & devis', statut: 'actif', rail: true },
   { id: 'confirm', libelle: 'Confirmation', statut: 'actif', rail: false },
-  { id: 'creation', libelle: 'Création', statut: 'bientot', rail: true },
+  { id: 'creation', libelle: 'Création', statut: 'actif', rail: true },
 ];
 
 /** Les cinq étapes numérotées du rail (le prototype compte « Étape N sur 5 »). */

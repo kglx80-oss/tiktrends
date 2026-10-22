@@ -20,8 +20,11 @@ import type { DevisImageVue, VueParcoursImage } from '../lib/studios/image/parco
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+vi.mock('../app/actions/studios/variantes', () => ({ listerVariantes: async () => ({ ok: true, donnees: { variantes: [], droits: { proposer: true } } }), creerVariante: vi.fn() }));
 
 const h = vi.hoisted(() => ({
+  lectures: 0,
+  compiler: [] as unknown[], retenir: [] as unknown[], jeteCompiler: false, serveurIncertain:false,
   approuver: [] as unknown[], devisDemande: [] as unknown[], manuel: [] as unknown[], appliquer: [] as unknown[],
   reponseApprouver: null as unknown, reponseDevis: null as unknown, vue: null as VueParcoursImage | null,
   // Mutation PAYANTE dont la RÉPONSE est perdue : la demande est ENREGISTRÉE
@@ -34,7 +37,10 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('../app/actions/studios/image', () => ({
+  compilerConsigneImage: async (e: unknown) => { h.compiler.push(e); if (h.jeteCompiler) throw new Error('réseau'); if(h.serveurIncertain)return {ok:false,code:'PROVIDER_UNCERTAIN',message:'Fournisseur incertain'}; h.vue = { ...h.vue!, enAttente: consigne, retenue: null }; return {ok:true, statut:'compilee'}; },
+  retenirConsigneImage: async (e: unknown) => { h.retenir.push(e); h.vue = {...h.vue!, enAttente:null, retenue:{...consigne, verdict:{ok:true}}, version:{id:'v2',n:2}}; return {ok:true}; },
   lireParcoursImage: async () => {
+    h.lectures++;
     if (h.lireDiffere) return h.lireDiffere();
     return h.vue ? { ok: true, vue: h.vue } : { ok: false, code: 'UNSUPPORTED_CAPABILITY', message: 'coupée', targetIds: ['generation_image'], recoverable: true, traceId: 't' };
   },
@@ -51,6 +57,7 @@ vi.mock('../app/actions/studios/propositions', () => ({
   appliquerProposition: async (e: unknown) => { h.appliquer.push(e); return { ok: true, projectId: 'proj-1', proposition: { id: 'prop-f' }, version: { id: 'v2', n: 2 }, deja: false }; },
 }));
 
+import { EtatCreationAssistant } from '../components/studios/projet/EtatCreationAssistant';
 import { EtapeConfirmation } from '../components/studios/projet/EtapeConfirmation';
 import { EtapeFormatDevis } from '../components/studios/projet/EtapeFormatDevis';
 import { MESSAGE_LANCEMENT_INCERTAIN, MESSAGE_DEVIS_INCONNU, type BriefCanonique } from '@tiktrends/core';
@@ -64,11 +71,12 @@ const devis: DevisImageVue = {
 
 const briefVide: BriefCanonique = { objective: 'o', audience: '', hypothesisId: null, testedVariable: '', facts: [], invariants: [], variables: [], references: [], composition: '', styleIntent: '', texts: [], formats: [], exclusions: [] };
 
+const consigne = {runId:'run-1', mode:'faithful_composite' as const, libelleMode:'Produit fidèle', generationInstruction:'Placer le flacon au centre sur fond rose', negativeConstraints:['Ne pas inventer de promesse'], protectedComponents:['Logo'], liaisons:[], format:{largeur:1080,hauteur:1350}, compileeLe:'2026-10-21'};
 const vueParcours = (devisVu: DevisImageVue | null): VueParcoursImage => ({
-  projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 }, modes: [],
+  projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 }, modes: [{mode:'faithful_composite',libelle:'Produit fidèle',pret:true}],
   format: { largeur: 1080, hauteur: 1350, libelle: 'Portrait · 4:5', depuisBrief: false },
-  disponibilite: {} as VueParcoursImage['disponibilite'], coutCompilationUsd: 0.14, prix: { credits: 4, usdMicros: 600_000 },
-  enAttente: null, retenue: null, devis: devisVu, jobs: [],
+  disponibilite: {compilation:{disponible:true,raison:''},retenir:{disponible:true,raison:''},devis:{disponible:true,raison:''},lancement:{disponible:true,raison:''}}, coutCompilationUsd: 0.14, prix: { credits: 4, usdMicros: 600_000 },
+  enAttente: null, retenue: {...consigne,verdict:{ok:true}}, devis: devisVu, jobs: [],
   controleVision: { disponible: true, borneParImageUsdMicros: 147_000 }, composantsObligatoires: [], peutRelire: true,
 });
 
@@ -88,12 +96,12 @@ const cocher = async (el: Element | null) => {
   await act(async () => { c.dispatchEvent(new Event('click', { bubbles: true })); c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); });
 };
 
-beforeEach(() => { h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
-afterEach(() => { document.body.innerHTML = ''; });
+beforeEach(() => { window.sessionStorage.clear(); h.lectures=0; h.compiler=[]; h.retenir=[]; h.jeteCompiler=false;h.serveurIncertain=false; h.approuver = []; h.devisDemande = []; h.manuel = []; h.appliquer = []; h.reponseApprouver = null; h.reponseDevis = null; h.vue = null; h.jeteApprouver = false; h.jeteDevis = false; h.lireDiffere = null; });
+afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; });
 
 describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation transactionnelle', () => {
   it('le montant, les lignes et l’échéance du devis s’affichent AVANT le bouton de confirmation', async () => {
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => {}} onLance={() => {}} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => {}} onLance={() => {}} />);
     const bloc = hote.querySelector('[data-devis="q1"]');
     const bouton = hote.querySelector('[data-bouton="confirmer-generer"]');
     expect(bloc, 'devis non rendu').not.toBeNull();
@@ -111,7 +119,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
 
   it('« Confirmer » est verrouillé tant que le devis n’est pas vérifié, puis appelle approuverEtLancerImage', async () => {
     const lances: unknown[] = [];
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => {}} onLance={(j) => lances.push(j)} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => {}} onLance={(j) => lances.push(j)} />);
     const bouton = () => hote.querySelector('[data-bouton="confirmer-generer"]') as HTMLButtonElement;
     expect(bouton().disabled, 'le bouton doit être verrouillé avant vérification').toBe(true);
     await clic(bouton()); // clic verrouillé · rien ne part
@@ -131,7 +139,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
   it('un dépassement de plafond (BUDGET_EXCEEDED) est MONTRÉ et rien n’est lancé', async () => {
     h.reponseApprouver = { ok: false, code: 'BUDGET_EXCEEDED', message: 'Le plafond de dépense ne permet pas ce lancement · 2,40 $ > 2,00 $.', targetIds: ['q1'], recoverable: true, traceId: 't' };
     const lances: unknown[] = [];
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => {}} onLance={(j) => lances.push(j)} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => {}} onLance={(j) => lances.push(j)} />);
     await cocher(hote.querySelector('[data-champ="verifie"] input'));
     await clic(hote.querySelector('[data-bouton="confirmer-generer"]'));
     await flush();
@@ -144,7 +152,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
 
   it('« Modifier » revient au format (invalide le devis)', async () => {
     const modifs: number[] = [];
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => modifs.push(1)} onLance={() => {}} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => modifs.push(1)} onLance={() => {}} />);
     await clic(hote.querySelector('[data-bouton="modifier"]'));
     expect(modifs, '« Modifier » n’a pas rappelé onModifier').toHaveLength(1);
     await fermer();
@@ -154,7 +162,7 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
     h.jeteApprouver = true; // la demande est enregistrée AVANT la perte réseau
     const lances: unknown[] = [];
     const modifs: number[] = [];
-    const { hote, fermer } = await monter(<EtapeConfirmation devis={devis} onModifier={() => modifs.push(1)} onLance={(j) => lances.push(j)} />);
+    const { hote, fermer } = await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={() => modifs.push(1)} onLance={(j) => lances.push(j)} />);
     const confirmer = () => hote.querySelector('[data-bouton="confirmer-generer"]') as HTMLButtonElement;
     const modifier = () => hote.querySelector('[data-bouton="modifier"]') as HTMLButtonElement;
 
@@ -185,29 +193,48 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
 });
 
 describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () => {
-  it('« Voir le devis serveur » écrit le format choisi puis demande le devis, et remonte le devis réel', async () => {
-    h.vue = vueParcours(null); // pas encore de devis
-    const devisPrets: DevisImageVue[] = [];
-    const { hote, fermer } = await monter(
-      <EtapeFormatDevis projectId="proj-1" version={{ id: 'v1', n: 1 }} brief={briefVide}
-        onBriefChange={() => {}} onDevisPret={(d) => devisPrets.push(d)} onRetour={() => {}} />,
-    );
-    await flush();
-    // choisir 9:16 puis demander le devis
-    await clic(hote.querySelector('[data-format="9:16"]'));
-    // au moment du devis, le serveur a créé le devis · la relecture lue rend vue.devis
-    h.vue = vueParcours(devis);
-    await clic(hote.querySelector('[data-bouton="voir-devis"]'));
-    await flush();
-    // le format a été écrit (ratio nu) via une proposition appliquée (gratuit)
-    expect((h.manuel[0] as { changes: Array<{ path: string; newValue: unknown }> }).changes[0]!.path).toBe('/brief/formats');
-    expect((h.manuel[0] as { changes: Array<{ newValue: unknown }> }).changes[0]!.newValue).toEqual(['9:16']);
-    expect(h.appliquer, 'le format n’a pas été appliqué').toHaveLength(1);
-    // le devis réel a été demandé puis remonté au parent (pas fabriqué)
-    expect(h.devisDemande, 'demanderDevisImage non appelé').toHaveLength(1);
-    expect(devisPrets, 'devis réel non remonté').toHaveLength(1);
-    expect(devisPrets[0]!.id).toBe('q1');
-    await fermer();
+  it('nouveau projet : coût avant compilation explicite, relecture puis retenir avant devis', async () => {
+    h.vue = {...vueParcours(null),retenue:null};
+    const {hote,fermer}=await monter(<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={{...briefVide,formats:['4:5']}} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />);
+    expect(h.compiler).toHaveLength(0);
+    expect((hote.querySelector('[data-bouton="voir-devis"]') as HTMLButtonElement).disabled).toBe(true);
+    const cout=hote.querySelector('[data-cout="compilation"]')!; const bouton=hote.querySelector('[data-bouton="compiler-consigne"]')!;
+    expect(cout.textContent).toContain('payante'); expect(cout.compareDocumentPosition(bouton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await clic(bouton); await flush(); expect(h.compiler).toHaveLength(1); expect(h.retenir).toHaveLength(0); expect(h.devisDemande).toHaveLength(0);
+    expect(hote.textContent).toContain(consigne.generationInstruction);
+    await clic(hote.querySelector('[data-bouton="retenir-consigne"]')); await flush(); expect(h.retenir).toHaveLength(1);
+    h.vue={...h.vue!,devis}; await clic(hote.querySelector('[data-bouton="voir-devis"]')); await flush(); expect(h.devisDemande).toHaveLength(1); await fermer();
+  });
+  it('format modifié : enregistré avant préparation, aucun devis ni génération automatique', async()=>{
+    h.vue={...vueParcours(null),retenue:null};
+    const {hote,fermer}=await monter(<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={briefVide} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />);
+    await clic(hote.querySelector('[data-format="9:16"]')); await clic(hote.querySelector('[data-bouton="compiler-consigne"]'));
+    expect(h.manuel[0]).toMatchObject({changes:[{path:'/brief/formats',newValue:['9:16']}]}); expect(h.appliquer).toHaveLength(1); expect(h.compiler).toHaveLength(1); expect(h.devisDemande).toHaveLength(0); expect(h.approuver).toHaveLength(0); await fermer();
+  });
+  it('réponse compilation perdue : aucune relance payante automatique',async()=>{
+    h.vue={...vueParcours(null),retenue:null}; h.jeteCompiler=true;
+    const {hote,fermer}=await monter(<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={{...briefVide,formats:['4:5']}} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />);
+    await clic(hote.querySelector('[data-bouton="compiler-consigne"]')); await clic(hote.querySelector('[data-bouton="compiler-consigne"]'));
+    expect(h.compiler).toHaveLength(1); expect(hote.querySelector('[role="alert"]')?.textContent).toContain('incertaine'); await fermer();
+  });
+
+  it('compilation serveur incertaine conserve le verrou après remontage',async()=>{
+    h.vue={...vueParcours(null),retenue:null};h.serveurIncertain=true;
+    const element=<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={{...briefVide,formats:['4:5']}} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />;
+    const premier=await monter(element);await clic(premier.hote.querySelector('[data-bouton="compiler-consigne"]'));await premier.fermer();
+    const second=await monter(element);await clic(second.hote.querySelector('[data-bouton="compiler-consigne"]'));expect(h.compiler).toHaveLength(1);expect((second.hote.querySelector('[data-bouton="compiler-consigne"]') as HTMLButtonElement).disabled).toBe(true);await second.fermer();
+  });
+
+  it('produit ou photo manquants : lien réel, compilation verrouillée',async()=>{
+    h.vue={...vueParcours(null),retenue:null,modes:[{mode:'faithful_composite',libelle:'Produit fidèle',pret:false}],disponibilite:{...vueParcours(null).disponibilite,compilation:{disponible:false,raison:'Choisir une photo produit'}}};
+    const {hote,fermer}=await monter(<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={{...briefVide,formats:['4:5']}} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />);
+    expect(hote.querySelector('a[href="/studio/projets/proj-1/produit"]')?.textContent).toContain('photo');
+    await clic(hote.querySelector('[data-bouton="compiler-consigne"]')); expect(h.compiler).toHaveLength(0); await fermer();
+  });
+  it('plafond atteint : motif serveur affiché, aucune préparation payante',async()=>{
+    h.vue={...vueParcours(null),retenue:null,disponibilite:{...vueParcours(null).disponibilite,compilation:{disponible:false,raison:'Plafond de dépense atteint'}}};
+    const {hote,fermer}=await monter(<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={{...briefVide,formats:['4:5']}} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />);
+    expect(hote.textContent).toContain('Plafond de dépense atteint'); await clic(hote.querySelector('[data-bouton="compiler-consigne"]')); expect(h.compiler).toHaveLength(0); await fermer();
   });
 
   it('relecture décochée ⇒ controleVision:false transmis au devis (ligne retirée)', async () => {
@@ -290,6 +317,12 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     await fermer();
   });
 
+  it('lecture refusée : message réel et actualisation, aucun chargement infini',async()=>{
+    h.lireDiffere=async()=>({ok:false,code:'NOT_FOUND',message:'Projet introuvable',targetIds:[],recoverable:false,traceId:'t'});
+    const {hote,fermer}=await monter(<EtapeFormatDevis projectId="proj-1" version={{id:'v1',n:1}} brief={briefVide} onBriefChange={()=>{}} onDevisPret={()=>{}} onRetour={()=>{}} />);
+    expect(hote.textContent).toContain('Projet introuvable'); expect(hote.textContent).not.toContain('Chargement des possibilités'); expect(hote.textContent).toContain('Actualiser les possibilités'); expect(h.compiler).toHaveLength(0); await fermer();
+  });
+
   it('génération coupée pour l’espace ⇒ état honnête, aucun bouton de devis', async () => {
     h.vue = null; // lireParcoursImage renvoie UNSUPPORTED_CAPABILITY
     const { hote, fermer } = await monter(
@@ -300,6 +333,28 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     expect(hote.querySelector('[data-zone="format-non-active"]'), 'état « non activé » non rendu').not.toBeNull();
     expect(hote.querySelector('[data-bouton="voir-devis"]'), 'aucun bouton de devis quand c’est coupé').toBeNull();
     await fermer();
+  });
+});
+
+describe('création réelle dans l’assistant',()=>{
+  it('affiche uniquement le média de la tâche demandée et son statut qualité',async()=>{
+    h.vue={...vueParcours(null),jobs:[{id:'job-1',etat:'completed',libelleEtat:'Terminée',message:'Image disponible',raisonEchec:null,annulable:false,terminal:true,qualite:'requires_review',libelleQualite:'À relire',creditsReserves:4,creditsRendus:0,creeLe:'2026-10-21',media:{assetId:'asset-1',url:'/api/asset/asset-1',largeur:1080,hauteur:1350}}]};
+    const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="job-1" onFermer={()=>{}} />);
+    expect(hote.querySelector('img')?.getAttribute('src')).toBe('/api/asset/asset-1'); expect(hote.textContent).toContain('À relire'); expect(hote.querySelector('a')?.getAttribute('href')).toBe('/studio/projets/proj-1'); expect(h.approuver).toHaveLength(0); expect(h.compiler).toHaveLength(0); await fermer();
+  });
+  it('suivi en lecture seule : actualise puis arrête le polling quand la tâche est terminale',async()=>{
+    vi.useFakeTimers();
+    const job={id:'job-1',etat:'running' as const,libelleEtat:'En cours',message:'Rendu en cours',raisonEchec:null,annulable:false,terminal:false,qualite:'requires_review' as const,libelleQualite:'À relire',creditsReserves:4,creditsRendus:null,creeLe:'2026-10-21',media:null};
+    h.vue={...vueParcours(null),jobs:[job]}; const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="job-1" onFermer={()=>{}} />);
+    expect(h.lectures).toBe(1); expect(hote.textContent).toContain('En cours');
+    h.vue={...h.vue,jobs:[{...job,etat:'completed',terminal:true,libelleEtat:'Terminée'}]};
+    await act(async()=>{await vi.advanceTimersByTimeAsync(3000)}); expect(h.lectures).toBe(2);
+    await act(async()=>{await vi.advanceTimersByTimeAsync(12000)}); expect(h.lectures).toBe(2);
+    expect(h.compiler).toHaveLength(0); expect(h.approuver).toHaveLength(0); expect(h.devisDemande).toHaveLength(0); await fermer();
+  });
+  it('tâche inconnue : erreur visible, aucune création ni relance inventée',async()=>{
+    h.vue=vueParcours(null); const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="inconnu" onFermer={()=>{}} />);
+    expect(hote.querySelector('[role="alert"]')?.textContent).toContain('n’apparaissent pas'); expect(hote.querySelector('img')).toBeNull(); expect(h.approuver).toHaveLength(0); await fermer();
   });
 });
 
@@ -315,3 +370,16 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
  *  · retirer `disabled={occupe}` des contrôles format/relecture/Retour → « verrouillés pendant la demande » tombe.
  *  · catch du devis remis à « rien n'a été deviser » → « réponse de devis PERDUE » tombe.
  */
+
+it('une réponse perdue verrouille aussi un NOUVEAU devis du même projet après remontage',async()=>{
+  h.jeteApprouver=true;
+  const premier=await monter(<EtapeConfirmation projectId="proj-1" devis={devis} onModifier={()=>{}} onLance={()=>{}}/>);
+  await cocher(premier.hote.querySelector('[data-champ="verifie"] input'));
+  await clic(premier.hote.querySelector('[data-bouton="confirmer-generer"]'));
+  await premier.fermer();
+  const second=await monter(<EtapeConfirmation projectId="proj-1" devis={{...devis,id:'autre-devis'}} onModifier={()=>{}} onLance={()=>{}}/>);
+  expect((second.hote.querySelector('[data-bouton="confirmer-generer"]') as HTMLButtonElement).disabled).toBe(true);
+  expect(second.hote.textContent).toContain('incertain');
+  expect(h.approuver).toHaveLength(1);
+  await second.fermer();
+});

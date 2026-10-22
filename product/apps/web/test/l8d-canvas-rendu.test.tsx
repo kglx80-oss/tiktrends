@@ -257,3 +257,20 @@ describe('canvas · mobile · détail en panneau refermable', () => {
     expect(document.activeElement).toBe(carte);
   });
 });
+
+ describe('canvas · miniatures attachées aux cartes', () => {
+  it('ne montre que les aperçus fournis et conserve sélection et liens sans écriture', () => {
+    largeEcran = true;
+    monter(<CanvasMetier {...props()} apercus={{ 'keyframe:s_produit': '/api/studios/media/image-attachee' }} />);
+    const carte = document.querySelector<HTMLButtonElement>('[data-carte="keyframe:s_produit"]')!;
+    expect(carte.querySelector('img')?.getAttribute('src')).toBe('/api/studios/media/image-attachee');
+    expect(document.querySelectorAll('[data-canvas-zone] img')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-liens-canvas] polyline')).toHaveLength(modele.liens.length);
+    cliquer(carte);
+    expect(carte.getAttribute('aria-pressed')).toBe('true');
+    expect(appels.enregistrer).toEqual([]);
+    act(() => carte.querySelector('img')!.dispatchEvent(new Event('error')));
+    expect(carte.querySelector('img')!.hidden).toBe(true);
+    expect(carte.textContent).toContain('Image clé');
+  });
+});

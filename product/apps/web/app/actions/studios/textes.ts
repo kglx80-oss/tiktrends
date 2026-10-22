@@ -28,12 +28,12 @@ export async function lireTextesProjet(entree: { projectId: unknown }): Promise<
   return lireVueTextesPour(g.ctx, entree?.projectId, (b) => disponibiliteTextesServeur(g.ctx, b));
 }
 
-export async function ecrireTextes(entree: { projectId: unknown; baseVersionId: unknown; type: unknown; maxCaracteres?: unknown; nombre?: unknown; langue?: unknown }): Promise<ResultatEcriture> {
+export async function ecrireTextes(entree: { projectId: unknown; baseVersionId: unknown; type: unknown; maxCaracteres?: unknown; nombre?: unknown; langue?: unknown; ton?: unknown }): Promise<ResultatEcriture> {
   const g = await gardeStudio('studio.propose', 'textes');
   if (!g.ok) return { ...g, saisieManuelle: true };
   return ecrireTextesPour(g.ctx, {
     projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, type: entree?.type,
-    maxCaracteres: entree?.maxCaracteres, nombre: entree?.nombre, langue: entree?.langue,
+    maxCaracteres: entree?.maxCaracteres, nombre: entree?.nombre, langue: entree?.langue, ton: entree?.ton,
   }, dependancesTextesProduction());
 }
 

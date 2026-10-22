@@ -189,6 +189,9 @@ export function sourcesCitees(b: BriefCanonique, sources: readonly SourceReferen
   return out;
 }
 
+export const TONS_ECRITURE = ['Chaleureux et direct', 'Pédagogique', 'Énergique'] as const;
+export type TonEcriture = typeof TONS_ECRITURE[number];
+
 export interface EntreeEcriture {
   brief: BriefCanonique;
   versionId: string;
@@ -196,6 +199,7 @@ export interface EntreeEcriture {
   maxCaracteres: number;
   nombre: number;
   langue: string;
+  ton?: TonEcriture;
 }
 
 /**
@@ -221,6 +225,7 @@ export function entreeEcriture(e: EntreeEcriture) {
   const doc = documentBrief(e.brief, e.versionId);
   const briefId = doc.id;
   const invariants = [
+    ...(e.ton ? [`Ton rédactionnel demandé : ${e.ton}. Respecter les règles de marque et les faits du brief.`] : []),
     ...e.brief.invariants,
     ...e.brief.exclusions.map((x) => `Exclusion : ${x}`),
     ...(e.brief.testedVariable.trim() ? [`Seule la variable du test change : ${e.brief.testedVariable.trim()}`] : []),

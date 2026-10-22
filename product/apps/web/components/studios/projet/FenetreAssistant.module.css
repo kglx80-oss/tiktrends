@@ -1,0 +1,12 @@
+@font-face{font-family:StudioPrototype;src:url(/fonts/sans-400.ttf) format("truetype");font-weight:400;font-style:normal;font-display:swap}
+.dialog{font-family:StudioPrototype,Arial,sans-serif;width:min(1200px,calc(100vw - 48px));height:min(840px,calc(100dvh - 48px));max-width:none;max-height:none;margin:auto;padding:0;overflow:hidden;border:1px solid var(--line-2);border-radius:18px;background:var(--surface);color:var(--ink);box-shadow:0 24px 64px #2b14242b,0 4px 12px #2b14241a}
+.dialog[open]{display:flex;flex-direction:column}
+.dialog::backdrop{background:#2b142466;backdrop-filter:blur(3px)}
+.head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 12px 12px 24px;border-bottom:1px solid var(--line-2);flex:none}
+.head h2{margin:0;font-size:14px;font-weight:500;color:var(--ink-2)}
+.close{display:grid;place-items:center;width:44px;height:44px;background:transparent;border:0;border-radius:10px;color:var(--ink-2);cursor:pointer}
+.close:hover{background:var(--paper);color:var(--ink)}
+.body{padding:0;flex:1;min-height:0;display:flex;overflow:hidden}
+.body>*{flex:1;min-width:0;min-height:0}
+.loading{padding:32px;color:var(--ink-2)}
+@media(max-width:600px){.dialog{width:100%;height:94dvh}.head{padding-left:20px}}

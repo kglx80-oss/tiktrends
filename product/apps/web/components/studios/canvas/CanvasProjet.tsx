@@ -22,5 +22,5 @@ export async function CanvasProjet({ projectId, versionId }: { projectId: string
     );
   }
   const c = r.canvas;
-  return <CanvasMetier projectId={c.projectId} version={c.version} modele={c.modele} disposition={c.disposition} rev={c.rev} />;
+  return <CanvasMetier projectId={c.projectId} version={c.version} modele={c.modele} apercus={c.apercus} disposition={c.disposition} rev={c.rev} />;
 }

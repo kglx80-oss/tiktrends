@@ -22,6 +22,11 @@ export function ciblerJarvis(cible: string, doc: Document = document, o: { fluid
   const formulaire = emplacement?.querySelector('section[aria-label="Demander une proposition"]') ?? null;
   if (!formulaire) return 'panneau-absent';
 
+  // Le panneau compact du projet range les propositions dans un volet.
+  // L'ouvrir révèle la cible avant de déplacer le focus ; aucun envoi.
+  let parent = formulaire.parentElement;
+  while (parent) { if (parent.tagName === 'DETAILS') (parent as HTMLDetailsElement).open = true; parent = parent.parentElement; }
+
   // Onglet « Demander à Jarvis » · le choisir n'envoie rien.
   const onglet = [...formulaire.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((b) => b.textContent?.trim() === 'Demander à Jarvis');
   if (onglet && onglet.getAttribute('aria-selected') !== 'true') onglet.click();

@@ -152,6 +152,9 @@
   --cat-bleu:     #7aa2ff;
   --cat-vert:     #18cc8c;
   --cat-ambre:    #f5a623;
+  /* Repères catégoriels du canvas · palette du prototype. */
+  --canvas-contexte: #9c81b4;
+  --canvas-etape: #88a9a3;
   --cat-violet:   #c07bff;
   --cat-lavande:  #c9b8ff;
   --cat-gris:     #8a94a6;
@@ -264,6 +267,9 @@
   --cat-bleu:     #1d4ed8;
   --cat-vert:     #1a6f4b;
   --cat-ambre:    #8a5a00;
+  /* Repères catégoriels du canvas · palette du prototype. */
+  --canvas-contexte: #9c81b4;
+  --canvas-etape: #88a9a3;
   --cat-violet:   #7c3aed;
   --cat-lavande:  #6d4fc2;
   --cat-gris:     #5b6474;
@@ -358,6 +364,9 @@
   --cat-bleu:     #7aa2ff;
   --cat-vert:     #18cc8c;
   --cat-ambre:    #f5a623;
+  /* Repères catégoriels du canvas · palette du prototype. */
+  --canvas-contexte: #9c81b4;
+  --canvas-etape: #88a9a3;
   --cat-violet:   #c07bff;
   --cat-lavande:  #c9b8ff;
   --cat-gris:     #95a0b2;
@@ -452,6 +461,9 @@
   --cat-bleu:     #1d4ed8;
   --cat-vert:     #1a6f4b;
   --cat-ambre:    #8a5a00;
+  /* Repères catégoriels du canvas · palette du prototype. */
+  --canvas-contexte: #9c81b4;
+  --canvas-etape: #88a9a3;
   --cat-violet:   #7c3aed;
   --cat-lavande:  #6d4fc2;
   --cat-gris:     #5b6474;
