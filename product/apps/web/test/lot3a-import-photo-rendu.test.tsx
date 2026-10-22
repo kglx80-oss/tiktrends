@@ -106,7 +106,7 @@ describe('états · en cours, réussi', () => {
     expect(statut()).toContain('Import en cours');
     expect(statut()).toContain('« flacon.jpg »');
     expect(bouton('Import…')?.disabled).toBe(true);
-    expect(bouton('Épingler cette photo')?.disabled).toBe(true);
+    expect(bouton('Utiliser cette photo et continuer')?.disabled).toBe(true);
     expect(m.importer).toHaveBeenCalledTimes(1);
     expect(m.importer.mock.calls[0]![0]).toMatchObject({ projectId: 'p1', baseVersionId: 'v1', productId: 'pr1', dataUri: DATA });
     await act(async () => { d.resoudre(OK); await d.p; });

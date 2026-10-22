@@ -38,6 +38,7 @@ import {
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
 import { epinglerProduitPour, associerReferencePour } from '../lib/studios/produit/commandes';
+import { creerProjetDepuisSourcesPour } from '../lib/studios/sources/projet';
 import { enregistrerVersion } from '../lib/studios/depot';
 import { compilerEtAttesterPour, retenirConsignePour } from '../lib/studios/image/consigne';
 import { lireParcoursImagePour, devisImagePour, approuverImagePour, controlerMediaPour } from '../lib/studios/image/parcours';
@@ -168,6 +169,42 @@ beforeAll(async () => {
 beforeEach(() => { etat.session = session(ids, 'ua'); texte.recues.length = 0; appels = []; });
 
 describe('parcours nominal · consigne persistée → devis → approbation → job → média dans le projet → revue', () => {
+  it('clone Veille : direction conservée, photo confirmée, préparation, devis, approbation puis média', async () => {
+    const direction = { composition: 'Produit centré sur fond crème, espace libre au-dessus.', styleIntent: 'Lumière douce', formats: ['1:1'], texts: [] };
+    const creation = await creerProjetDepuisSourcesPour(ctxDe(ids, 'ua'), {
+      sources: [{ type: 'veille', annonce: { id: 'clone-e2e', platform: 'meta', status: 'active', daysRunning: 40, mediaType: 'image', thumbnailUrl: 'https://cdn.exemple.test/a.jpg', advertiserName: 'Référence source', body: 'Image produit de référence' } }],
+      brandId: ids.brandA1, kind: 'image', titre: 'Adaptation visuelle', objectif: 'Adapter cette composition à notre marque', productId: cat.produit.id,
+      directionVisuelle: direction, cleClic: `clone-${randomUUID()}`,
+    }, O);
+    expect(creation, JSON.stringify(creation)).toMatchObject({ ok: true });
+    if (!creation.ok) return;
+    const projectId = creation.projet.id;
+    const v1 = await courante(projectId);
+    expect((v1.content as ContenuVersion).brief).toMatchObject({ composition: direction.composition, styleIntent: direction.styleIntent, formats: direction.formats });
+    const manque = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
+    expect(manque.ok && manque.vue.disponibilite.compilation).toEqual({ disponible: false, raison: 'Choisis et confirme une photo de ton produit pour préparer le visuel.' });
+    const refus = await compilerEtAttesterPour(ctxDe(ids, 'ua'), { projectId, mode: 'generative_scene' }, deps);
+    expect(refus).toMatchObject({ ok: false, message: expect.stringContaining('Choisis et confirme une photo') });
+    expect(texte.recues).toHaveLength(0);
+    const pin = await epinglerProduitPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v1.id, productId: cat.produit.id, photoId: await photo(projectId, 5), composants: ['lunettes', 'bandeau'] }, O);
+    expect(pin, JSON.stringify(pin)).toMatchObject({ ok: true });
+    expect(((await courante(projectId)).content as ContenuVersion).brief).toMatchObject({ composition: direction.composition });
+    const { compilation } = await consigneRetenue(projectId, 'Produit centré sur fond crème, lumière douce.');
+    expect(texte.recues[0]!.messages.map((m) => m.contenu).join(' ')).toContain(direction.composition);
+    const q = await devisPret(projectId);
+    expect(await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.projectId, projectId))).toHaveLength(0);
+    const a = await approuver(q);
+    expect(a, JSON.stringify(a)).toMatchObject({ ok: true });
+    if (!a.ok) return;
+    expect(await executer(a.job.id)).toBe('completed');
+    const posts = appels.filter((x) => x.methode === 'POST');
+    expect(posts).toHaveLength(1);
+    expect(JSON.parse(posts[0]!.corps!)).toMatchObject({ image_urls: [PHOTOS[4]], aspect_ratio: '1:1' });
+    expect(compilation.consigne.consigne).toBeTruthy();
+    const vue = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
+    expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ id: a.job.id, etat: 'completed', media: { url: expect.stringContaining('/api/studios/media/') } });
+  });
+
   it('compiler n’écrit rien dans le projet : une trace et UNE attestation serveur de la consigne validée', async () => {
     const { projectId } = await projetEpingle();
     const v = await courante(projectId);

@@ -10,6 +10,7 @@ import {
 import type { ContexteStudio } from '../garde';
 import { estUuid, lireJob } from '../depot';
 import { chargerCatalogueProjet } from '../produit/catalogue';
+import { messagePreparationCompilation } from '../produit/compilation';
 import { controlerComposantsSortie } from '../produit/qualite';
 import { creerDevis, approuverEtMettreEnFile, etatJob, type DevisPresente, type JobPresente, type OptionsApprobation } from '../execution/commandes';
 import { ROUTE_APERCU_MEDIA } from '../editeur/apercus';
@@ -141,12 +142,17 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
   const contenu = cat.contenu;
   const portee = { workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id };
 
-  const modes = MODES_IMAGE.map((mode) => ({ mode, libelle: LIBELLES_MODE_IMAGE[mode], pret: controlerAvantCompilation({ mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers }).ok }));
+  const preparations = MODES_IMAGE.map((mode) => controlerAvantCompilation({ mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers }));
+  const modes = MODES_IMAGE.map((mode, i) => ({ mode, libelle: LIBELLES_MODE_IMAGE[mode], pret: preparations[i]!.ok }));
   const disponibilite = disponibiliteImage({
     peutGenerer: aPermissionEspace(ctx.permissions, 'studio.generate'), peutProposer: aPermissionEspace(ctx.permissions, 'studio.propose'),
     briefPresent: !!cat.brief, preparationOk: modes.some((m) => m.pret), releasePubliee: o.releasePubliee, fournisseurTexte: o.fournisseurTexte,
     plafondAtteint: o.plafondAtteint, fournisseurImage: o.fournisseurImage,
   });
+
+  if (aPermissionEspace(ctx.permissions, 'studio.generate') && cat.brief && !modes.some((m) => m.pret)) {
+    disponibilite.compilation = { disponible: false, raison: messagePreparationCompilation(preparations[0]!) };
+  }
 
   const etat = await verifierConsigne(db, portee, contenu);
   const compilee = await derniereConsigneCompilee(db, portee, cat.version.id);

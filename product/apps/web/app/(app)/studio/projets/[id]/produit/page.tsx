@@ -4,10 +4,10 @@ import { effectiveAccess } from '../../../../../../lib/access';
 import { FEATURES, denyReason } from '../../../../../../lib/rbac';
 import { lireProduitProjet } from '../../../../../actions/studios/produit';
 import { EcranProduit } from '../../../../../../components/studios/produit/EcranProduit';
-import { EnTeteProjet, RefusProjet } from '../../../../../../components/studios/produit/EnTeteProjet';
+import { RefusProjet } from '../../../../../../components/studios/produit/EnTeteProjet';
 import { cadrePage } from '../../../../../../components/ui';
-import { liensAtelierProjet } from '../../../../../../lib/navigation';
-import { etatInterrupteurs } from '../../../../../../lib/studios/interrupteurs';
+import Link from 'next/link';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -30,11 +30,10 @@ export default async function ProduitProjetPage({ params }: { params: Promise<{ 
     const plan = (r.code === 'FORBIDDEN' || r.code === 'AUTH_REQUIRED') && denyReason(effectiveAccess(s), feature) === 'plan';
     return <main style={cadrePage}><RefusProjet r={r} plan={plan} projectId={id} /></main>;
   }
-  const inter = await etatInterrupteurs(s.workspaceId);
   return (
     <main style={cadrePage}>
       <div style={{ display: 'grid', gap: 18 }}>
-        <EnTeteProjet projet={r.vue.projet} version={r.vue.version} titre="Produit et références" sousTitre="la photo exacte, ses composants et le rôle de chaque fichier" atelier={liensAtelierProjet(r.vue.projet.id, inter.actif)} mode="produit" />
+        <header style={{ display: 'grid', gap: 12 }}><Link href={`/studio/projets/${id}`} style={{ color: 'var(--ink-2)', minHeight: 44 }}>Retour au projet</Link><h1 style={{ margin: 0, fontSize: 26 }}>Créer votre visuel</h1><p style={{ margin: 0, color: 'var(--ink-2)' }}>{r.vue.projet.marque} · {r.vue.projet.title}</p></header>
         <EcranProduit vue={r.vue} />
       </div>
     </main>

@@ -35,6 +35,13 @@ export const MESSAGE_COMPILATION_SANS_FOURNISSEUR = 'Le fournisseur de texte n�
 
 const MODES: readonly ModeImage[] = ['faithful_composite', 'generative_scene'];
 
+/** Première action utile, plutôt qu’un refus générique sur les références. */
+export function messagePreparationCompilation(preparation: PreparationCompilation): string {
+  if (preparation.violations.some((v) => v.chemin === '/productRef')) return 'Choisis et confirme une photo de ton produit pour préparer le visuel.';
+  const raisons = [...new Set(preparation.violations.map((v) => v.raison))];
+  return raisons.length ? `À corriger avant de préparer le visuel : ${raisons.join(' · ')}.` : '';
+}
+
 /** Contrôle seul · lecture pure, pour l'écran (aucun appel, aucune écriture). */
 export async function preparerCompilationPour(ctx: ContexteStudio, e: { projectId: unknown; mode: unknown }, o: { veilleOuverte: boolean; maintenant: Date }): Promise<Resultat<{ preparation: PreparationCompilation }>> {
   if (!estUuid(e.projectId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
@@ -62,7 +69,7 @@ export async function compilerConsigneImagePour(
   const cat = c.catalogue;
   const prep = controlerAvantCompilation({ mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers });
   if (!prep.ok || !cat.brief) {
-    return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, targetIds: [cat.projet.id], violations: prep.violations, message: 'La consigne image n’est pas compilée : les références ne respectent pas leurs rôles · rien n’est parti, rien n’a été facturé.' });
+    return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, targetIds: [cat.projet.id], violations: prep.violations, message: `${messagePreparationCompilation(prep)} Aucun appel IA n’a été lancé.` });
   }
   if (!o.adaptateur) return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: MESSAGE_COMPILATION_SANS_FOURNISSEUR });
 

@@ -75,7 +75,7 @@ describe('états de l’écran · au HTML rendu', () => {
     const d = rendre(vue({}, { ...TOUT, releasePubliee: false, fournisseurImage: false }));
     expect(bouton(d, 'compiler')!.disabled).toBe(true);
     expect(txt(d, '[data-indisponible="compilation"]')).toBe('Indisponible · La compilation de la consigne image n’est pas encore activée : aucune version des consignes n’est publiée. Rien n’est facturé.');
-    expect(txt(d, '[data-cout="compilation"]')).toBe('Appel texte payant · environ 0,14 $ (estimation) · borne exacte réservée avant l’envoi, sous le plafond · aucun crédit débité, aucun média produit.');
+    expect(txt(d, '[data-cout="compilation"]')).toBe('Appel texte payant · environ 0,14 $ (estimation) · borne exacte réservée avant l’envoi, sous le plafond · préparation uniquement, l’image sera facturée séparément.');
     expect(txt(d, '[data-indisponible="lancement"]')).toContain('Le fournisseur d’images n’est pas branché sur ce serveur');
     expect(bouton(d, 'devis')!.disabled).toBe(true);
     expect(bouton(d, 'lancer')).toBeNull();
@@ -83,7 +83,7 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(txt(d, '[data-etat="sans-job"]')).toBe('Aucune génération lancée pour ce projet.');
     // Un mode bloqué par le contrôle n'est pas choisissable.
     expect(d.querySelector<HTMLButtonElement>('[data-mode="faithful_composite"]')!.disabled).toBe(true);
-    expect(txt(d, '[data-mode="faithful_composite"]')).toContain('bloqué par le contrôle');
+    expect(txt(d, '[data-mode="faithful_composite"]')).toContain('indisponible');
   });
 
   it('consigne compilée, pas retenue · on la LIT (instruction, protégés, interdits, fichiers transmis) avant de la retenir', () => {
@@ -94,7 +94,7 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(txt(c, '[data-champ="interdits"]')).toBe('Pas de texte dans l’image');
     expect(txt(c, '[data-champ="liaisons"]')).toBe('Fichiers transmis au fournisseur : Lunettes Sport Bandeau · photo 5 (rôle Produit, portée Produit).');
     expect(bouton(d, 'retenir')!.disabled).toBe(false);
-    expect(c.textContent).toContain('Crée une nouvelle version du projet · aucun appel, aucun coût.');
+    expect(c.textContent).toContain('Validation gratuite · aucune génération.');
     expect(bouton(d, 'devis')!.disabled).toBe(true);
     expect(d.textContent).toContain('Retiens d’abord une consigne compilée.');
   });
@@ -117,7 +117,7 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(bouton(d0, 'lancer')).toBeNull();
     const d = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 } }));
     expect(txt(d, '[data-prix="devis"]')).toBe('Devis · 4 crédits · 0,08 $ au plus de coût fournisseur · valable jusqu’à 12:30.');
-    expect(bouton(d, 'lancer')!.textContent).toBe('Approuver et lancer · 4 crédits');
+    expect(bouton(d, 'lancer')!.textContent).toBe('Générer mon visuel · 4 crédits');
     expect(bouton(d, 'lancer')!.disabled).toBe(false);
     expect(d.textContent).toContain('Débite 4 crédits maintenant · rendus si aucune image n’est livrée.');
     // Fournisseur d'images absent : le bouton reste visible, inactif, avec sa raison.
@@ -206,6 +206,27 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     expect(m.compiler).toHaveBeenCalledWith({ projectId: 'p1', mode: 'generative_scene' });
     expect(txt(conteneur, '[data-champ="questions"]')).toContain('Quel décor ?');
     expect(m.lancer).not.toHaveBeenCalled();
+  });
+
+  it('valider propose le prix sans lancer de génération ni nouvelle compilation', async () => {
+    await monter(vue({ enAttente: CONSIGNE }));
+    m.retenir.mockResolvedValue({ ok: true });
+    m.devis.mockResolvedValue({ ok: true });
+    await act(async () => { bouton(conteneur, 'retenir')!.click(); });
+    expect(m.retenir).toHaveBeenCalledWith({ projectId: 'p1', baseVersionId: 'v3', runId: CONSIGNE.runId });
+    expect(m.devis).toHaveBeenCalledWith({ projectId: 'p1', controleVision: false });
+    expect(m.retenir.mock.invocationCallOrder[0]).toBeLessThan(m.devis.mock.invocationCallOrder[0]!);
+    expect(m.compiler).not.toHaveBeenCalled();
+    expect(m.lancer).not.toHaveBeenCalled();
+  });
+
+  it('validation refusée : aucun devis ni lancement, le refus reste visible', async () => {
+    await monter(vue({ enAttente: CONSIGNE }));
+    m.retenir.mockResolvedValue({ ok: false, code: 'CONFLICT', message: 'Projet modifié, rechargez.' });
+    await act(async () => { bouton(conteneur, 'retenir')!.click(); });
+    expect(m.devis).not.toHaveBeenCalled();
+    expect(m.lancer).not.toHaveBeenCalled();
+    expect(txt(conteneur, '[data-retour]')).toContain('Projet modifié');
   });
 
   it('mode proposé · celui de la consigne retenue, pas le premier de la liste', async () => {

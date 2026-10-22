@@ -300,6 +300,12 @@ function vueProduit(): VueProduit {
 }
 
 describe('UX-03 · produit · la prochaine action est dite', () => {
+  it('photo unique sélectionnée sans écriture et génération masquée avant confirmation', () => {
+    monter(<EcranProduit vue={vueProduit()} />);
+    expect(document.querySelector('[role=radio]')?.getAttribute('aria-checked')).toBe('true');
+    expect(bouton('Utiliser cette photo et continuer').disabled).toBe(false);
+    expect(document.querySelector('[data-zone=parcours-image]')).toBeNull();
+  });
   it('rôle et portée choisis, fichier absent · « Associer » dit « Choisis un fichier. »', () => {
     monter(<EcranProduit vue={vueProduit()} />);
     const [, fichier, role, portee] = [...document.querySelectorAll('select')] as HTMLSelectElement[];
@@ -313,8 +319,9 @@ describe('UX-03 · produit · la prochaine action est dite', () => {
   });
 
   it('épingler sans photo · la raison est reliée au bouton', () => {
-    monter(<EcranProduit vue={vueProduit()} />);
-    const b = bouton('Épingler cette photo');
+    const v = vueProduit(); v.produits[0]!.photos = [];
+    monter(<EcranProduit vue={v} />);
+    const b = bouton('Utiliser cette photo et continuer');
     expect(b.disabled).toBe(true);
     expect(document.getElementById(b.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Choisis d’abord une photo.');
   });

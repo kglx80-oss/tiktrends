@@ -161,8 +161,8 @@ export function VueParcours(p: ProprietesVueParcours) {
   return (
     <section aria-labelledby={`${id}-titre`} style={panneau} data-zone="parcours-image">
       <div style={{ display: 'grid', gap: 6 }}>
-        <h2 id={`${id}-titre`} style={titre}>Image générée</h2>
-        <p style={sousTitre}>Quatre gestes séparés : compiler la consigne, la retenir, demander un devis, approuver et lancer. Rien ne part sans ton clic.</p>
+        <h2 id={`${id}-titre`} style={titre}>{v.jobs.some(j => !j.terminal) ? 'Votre visuel est en cours de création' : v.devis && verdictOk ? 'Générer votre visuel' : v.enAttente ? 'Validez votre direction créative' : verdictOk ? 'Votre visuel est prêt à être généré' : 'Préparer votre visuel'}</h2>
+        <p style={sousTitre}>Jarvis prépare la création à partir de vos choix. Vous vérifiez le prix avant de lancer la génération.</p>
       </div>
 
       {p.retour && (
@@ -172,41 +172,43 @@ export function VueParcours(p: ProprietesVueParcours) {
       )}
 
       <div style={carte} data-etape="consigne">
-        <h3 style={{ ...titre, fontSize: 16 }}>1 · Consigne image</h3>
+
         <p style={mini}>Format {v.format.largeur} × {v.format.hauteur} · {v.format.libelle}{v.format.depuisBrief ? ' · lu dans le brief' : ' · défaut, le brief ne précise pas de format'}.</p>
-        <div role="radiogroup" aria-label="Mode de la consigne" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+        <details hidden={!!v.enAttente || verdictOk}><summary style={{ ...etiquette, cursor: 'pointer', minHeight: 44 }}>Méthode de création</summary><div role="radiogroup" aria-label="Mode de la consigne" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
           {v.modes.map((m) => {
             const choisi = m.mode === p.mode;
             return (
               <button key={m.mode} type="button" role="radio" aria-checked={choisi} disabled={!m.pret || !!p.enCours} onClick={() => p.surMode(m.mode)} data-mode={m.mode}
                 style={{ ...boutonSecondaire, justifyContent: 'flex-start', textAlign: 'left', border: choisi ? '2px solid var(--accent-strong)' : boutonSecondaire.border, ...(m.pret ? {} : desactive) }}>
-                {m.libelle}{choisi ? ' · choisi' : ''}{m.pret ? '' : ' · bloqué par le contrôle'}
+                {m.mode === 'faithful_composite' ? 'Conserver la photo du produit, créer le décor' : 'Créer une nouvelle mise en scène du produit'}{choisi ? ' · choisi' : ''}{m.pret ? '' : ' · indisponible'}
               </button>
             );
           })}
         </div>
-        <div style={rangee}>
-          <Bouton nom="compiler" actif={compilable} enCours={p.enCours === 'compiler'} libelle="Compiler la consigne" libelleEnCours="Compilation…" surClic={p.surCompiler} />
-          <span style={mini} data-cout="compilation">Appel texte payant · {libelleCoutTexteEstime(v.coutCompilationUsd)} · {NOTE_BORNE_TEXTE} · aucun crédit débité, aucun média produit.</span>
+        </details>
+        <div hidden={!!v.enAttente || verdictOk}><div style={rangee}>
+          <Bouton nom="compiler" actif={compilable} enCours={p.enCours === 'compiler'} libelle="Préparer mon visuel avec Jarvis" libelleEnCours="Jarvis prépare votre visuel…" surClic={p.surCompiler} />
+          <span style={mini} data-cout="compilation">Appel texte payant · {libelleCoutTexteEstime(v.coutCompilationUsd)} · {NOTE_BORNE_TEXTE} · préparation uniquement, l’image sera facturée séparément.</span>
         </div>
         {!d.compilation.disponible && <p style={signal('warn')} data-indisponible="compilation">Indisponible · {d.compilation.raison}</p>}
         {p.questions.length > 0 && (
           <div style={signal('info')} data-champ="questions">
             <p style={{ ...texte, color: 'var(--ink)' }}>La consigne n’est pas compilée : il manque des informations.</p>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>{p.questions.map((q) => <li key={q} style={texte}>{q}</li>)}</ul>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>{p.questions.map((q) => <li key={q} style={texte}>{q}</li>)}</ul><a href={`/studio/projets/${v.projet.id}#conversation-projet`} style={{ ...boutonSecondaire, textDecoration: 'none', marginTop: 12 }}>Préciser ma création avec Jarvis</a>
           </div>
         )}
 
+        </div>
         {v.enAttente && (
           <div style={{ ...carte, background: 'var(--surface)' }} data-consigne="en-attente">
             <div style={rangee}>
-              <span style={pastille('var(--accent-strong)')}>Compilée</span>
-              <span style={{ ...texte, color: 'var(--ink)' }}>Consigne validée par le serveur · pas encore retenue</span>
+              <span style={pastille('var(--accent-strong)')}>À valider</span>
+              <span style={{ ...texte, color: 'var(--ink)' }}>Voici la direction proposée pour votre image</span>
             </div>
             <DetailsConsigne c={v.enAttente} />
             <div style={rangee}>
-              <Bouton nom="retenir" actif={d.retenir.disponible && !p.enCours} enCours={p.enCours === 'retenir'} libelle="Retenir cette consigne" libelleEnCours="Enregistrement…" surClic={() => p.surRetenir(v.enAttente!.runId)} />
-              <span style={mini}>{d.retenir.disponible ? 'Crée une nouvelle version du projet · aucun appel, aucun coût.' : d.retenir.raison}</span>
+              <Bouton nom="retenir" actif={d.retenir.disponible && !p.enCours} enCours={p.enCours === 'retenir'} libelle="Valider et voir le prix" libelleEnCours="Enregistrement…" surClic={() => p.surRetenir(v.enAttente!.runId)} />
+              <span style={mini}>{d.retenir.disponible ? 'Validation gratuite · aucune génération.' : d.retenir.raison}</span>
             </div>
           </div>
         )}
@@ -215,16 +217,16 @@ export function VueParcours(p: ProprietesVueParcours) {
           <div style={{ ...carte, background: 'var(--surface)' }} data-consigne="retenue" data-pret={v.retenue.verdict.ok ? 'oui' : 'non'}>
             <div style={rangee}>
               <span style={pastille(v.retenue.verdict.ok ? 'var(--ok)' : 'var(--warn)')}>{v.retenue.verdict.ok ? 'Prête' : 'Bloquée'}</span>
-              <span style={{ ...texte, color: 'var(--ink)' }}>Consigne retenue dans la version {v.version.n}</span>
+              <span style={{ ...texte, color: 'var(--ink)' }}>Direction créative validée</span>
             </div>
             {!v.retenue.verdict.ok && <p style={signal('warn')} data-champ="verdict">{v.retenue.verdict.motif}</p>}
-            <DetailsConsigne c={v.retenue} />
+            <details><summary style={{ ...mini, cursor: 'pointer', minHeight: 44 }}>Voir la direction validée</summary><DetailsConsigne c={v.retenue} /></details>
           </div>
         ) : !v.enAttente && <p style={texte} data-consigne="aucune">Aucune consigne retenue pour ce projet.</p>}
       </div>
 
-      <div style={carte} data-etape="devis">
-        <h3 style={{ ...titre, fontSize: 16 }}>2 · Devis</h3>
+      <div style={{ ...carte, ...(!verdictOk ? { display: 'none' } : {}) }} data-etape="devis" hidden={!verdictOk}>
+        <h3 style={{ ...titre, fontSize: 16 }}>Prix de votre image</h3>
         <p style={texte} data-prix="annonce">Une image · {libellePrix(v.prix)} · barème du produit.</p>
         {v.controleVision?.disponible && (
           <label style={{ ...texte, display: 'flex', gap: 8, alignItems: 'center', minHeight: 44 }} data-case="controle-vision">
@@ -233,7 +235,7 @@ export function VueParcours(p: ProprietesVueParcours) {
           </label>
         )}
         <div style={rangee}>
-          <Bouton nom="devis" primaire={false} actif={verdictOk && d.devis.disponible && !p.enCours} enCours={p.enCours === 'devis'} libelle="Demander un devis" libelleEnCours="Devis…" surClic={() => p.surDevis({ controleVision: !!v.controleVision?.disponible && controleVision })} />
+          <Bouton nom="devis" primaire={false} actif={verdictOk && d.devis.disponible && !p.enCours} enCours={p.enCours === 'devis'} libelle={v.devis ? "Actualiser le prix" : "Voir le prix de la génération"} libelleEnCours="Devis…" surClic={() => p.surDevis({ controleVision: !!v.controleVision?.disponible && controleVision })} />
           <span style={mini}>{raisonDevis || `Le devis ne débite rien · il fige le prix pendant ${minutes} minutes.`}</span>
         </div>
         {v.devis && (
@@ -247,7 +249,7 @@ export function VueParcours(p: ProprietesVueParcours) {
               </ul>
             )}
             <div style={rangee}>
-              <Bouton nom="lancer" actif={d.lancement.disponible && !p.enCours} enCours={p.enCours === 'lancer'} libelle={`Approuver et lancer · ${libelleCredits(v.devis.credits)}`} libelleEnCours="Lancement…" surClic={p.surLancer} />
+              <Bouton nom="lancer" actif={d.lancement.disponible && !p.enCours} enCours={p.enCours === 'lancer'} libelle={`Générer mon visuel · ${libelleCredits(v.devis.credits)}`} libelleEnCours="Lancement…" surClic={p.surLancer} />
               <span style={mini}>{d.lancement.disponible ? `Débite ${libelleCredits(v.devis.credits)} maintenant · rendus si aucune image n’est livrée.` : d.lancement.raison}</span>
             </div>
           </div>
@@ -255,8 +257,8 @@ export function VueParcours(p: ProprietesVueParcours) {
         {!d.lancement.disponible && !v.devis && <p style={signal('warn')} data-indisponible="lancement">Lancement indisponible · {d.lancement.raison}</p>}
       </div>
 
-      <div style={carte} data-etape="generation">
-        <h3 style={{ ...titre, fontSize: 16 }}>3 · Génération et média</h3>
+      <div style={{ ...carte, ...(v.jobs.length === 0 ? { display: 'none' } : {}) }} data-etape="generation" hidden={v.jobs.length === 0}>
+        <h3 style={{ ...titre, fontSize: 16 }}>Vos visuels</h3>
         {v.jobs.length === 0
           ? <p style={texte} data-etat="sans-job">Aucune génération lancée pour ce projet.</p>
           : v.jobs.map((j) => <CarteJob key={j.id} j={j} p={p} />)}

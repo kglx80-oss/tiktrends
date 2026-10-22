@@ -60,6 +60,7 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   const [enCours, setEnCours] = useState<string | null>(null);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
   const [questions, setQuestions] = useState<string[]>([]);
+  const operation = useRef(false);
   const controles = useRef(new Set<string>());
 
   const charger = useCallback(async () => {
@@ -103,7 +104,9 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   }, [vue, charger]);
 
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: string, apres?: () => void) {
+    if (operation.current) return;
     const tentative=nom==='compiler'?appel.commencer():null;if(nom==='compiler'&&!tentative)return;
+    operation.current = true;
     setEnCours(nom);
     setRetour(null);
     try {
@@ -116,16 +119,17 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
     } finally {
       setEnCours(null);
       await charger();
+      operation.current = false;
     }
   }
 
   if (nonActive) return <ParcoursNonActive message={nonActive} />;
 
-  if (!vue) {
+  if (!vue || erreur) {
     return (
       <section style={panneau} data-zone="parcours-image" aria-busy={!erreur}>
         {erreur ? <p style={signal('err')} role="alert">{erreur}</p> : <p style={texte}>Chargement de l’état de l’image…</p>}
-        <p style={mini}>Rien n’est lancé à l’ouverture de la page.</p>
+        <p style={mini}>Rien n’est lancé à l’ouverture de la page.</p>{erreur && <button type="button" onClick={() => void charger()}>Actualiser l’état du visuel</button>}
       </section>
     );
   }
@@ -139,13 +143,18 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
         const r = await compilerConsigneImage({ projectId, mode });
         if (r.ok && r.statut === 'questions') { setQuestions(r.questions); return { ok: false, code: 'INVALID_SCHEMA', status: 422, message: 'La consigne n’est pas compilée · réponds aux questions dans le brief puis recompile.', targetIds: [], recoverable: true, traceId: '' } as ErreurStudio; }
         return r;
-      }, 'Consigne compilée et validée par le serveur · relis-la puis retiens-la.')}
-      surRetenir={(runId) => agir('retenir', () => retenirConsigneImage({ projectId, baseVersionId: vue.version.id, runId }), 'Consigne retenue · nouvelle version du projet.', () => router.refresh())}
+      }, 'Votre direction créative est prête à être relue.')}
+      surRetenir={(runId) => agir('retenir', async () => {
+        const r = await retenirConsigneImage({ projectId, baseVersionId: vue.version.id, runId });
+        if (!r.ok) return r;
+        router.refresh();
+        return demanderDevisImage({ projectId, controleVision: !!vue.controleVision?.disponible });
+      }, 'Direction validée. Vérifiez le prix ci-dessous avant de générer.')}
       surDevis={(o) => agir('devis', () => demanderDevisImage({ projectId, controleVision: o?.controleVision }), 'Devis prêt · relis le prix avant d’approuver.')}
       surLancer={() => {
         const d = vue.devis;
         if (!d) return;
-        void agir('lancer', () => approuverEtLancerImage({ quoteId: d.id, inputHash: d.inputHash, creditsAnnonces: d.credits, idempotencyKey: cleDuClic(d.id) }), 'Lancé · le job est en file, tu peux fermer la page.');
+        void agir('lancer', () => approuverEtLancerImage({ quoteId: d.id, inputHash: d.inputHash, creditsAnnonces: d.credits, idempotencyKey: cleDuClic(d.id) }), 'Votre image est en cours de création. Elle apparaîtra ici dès qu’elle sera prête.');
       }}
       surAnnuler={(jobId) => agir(`annuler:${jobId}`, () => annulerJob({ jobId }), 'Annulation demandée.')}
       surRelire={(jobId, constats) => agir('relire', () => trancherComposants({ jobId, constats }), 'Relecture enregistrée.')}

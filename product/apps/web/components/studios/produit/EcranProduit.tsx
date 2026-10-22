@@ -45,7 +45,7 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
   const e = vue.epingle;
   const [produitId, setProduitId] = useState<string>(e?.productId ?? vue.produitSansPhoto?.productId ?? vue.produits[0]?.id ?? '');
   const produit = vue.produits.find((p) => p.id === produitId) ?? null;
-  const [photoId, setPhotoId] = useState<string>(e && e.productId === produitId ? e.photo.assetId : '');
+  const [photoId, setPhotoId] = useState<string>(e && e.productId === produitId ? e.photo.assetId : produit?.photos.length === 1 ? produit.photos[0]!.assetId : '');
   const [composants, setComposants] = useState<string>((e?.composantsObligatoires ?? []).join(', '));
   const [transfos, setTransfos] = useState<TransformationProduit[]>(e?.transformationsAutorisees ?? [...TRANSFORMATIONS_PAR_DEFAUT]);
   const [fichier, setFichier] = useState('');
@@ -92,17 +92,17 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
         </div>
       )}
 
-      <section aria-labelledby={`${id}-epingle`} style={panneau} data-zone="produit-epingle">
-        <h2 id={`${id}-epingle`} style={titre}>Produit épinglé</h2>
+      <section aria-labelledby={`${id}-epingle`} style={{ ...panneau, ...(!e ? { display: 'none' } : {}) }} data-zone="produit-epingle">
+        <h2 id={`${id}-epingle`} style={titre}>{e ? 'Votre produit est prêt' : 'Choisissez la photo à utiliser'}</h2>
         {e ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
             {e.apercu
-              ? <img src={e.apercu} alt={`${e.nom}, photo ${e.photo.position} épinglée`} width={160} height={160} style={{ width: 160, height: 160, objectFit: 'contain', borderRadius: 12, background: 'var(--rail)', border: '1px solid var(--line-2)', flex: '0 0 auto' }} />
+              ? <img src={e.apercu} alt={`${e.nom}, photo ${e.photo.position} épinglée`} width={96} height={96} style={{ width: 96, height: 96, objectFit: 'contain', borderRadius: 12, background: 'var(--rail)', border: '1px solid var(--line-2)', flex: '0 0 auto' }} />
               : <div role="img" aria-label="Photo épinglée indisponible" style={{ ...vide, width: 160, height: 160, display: 'grid', placeItems: 'center', ...mini }}>Photo indisponible</div>}
             <div style={{ display: 'grid', gap: 6, minWidth: 0, flex: '1 1 260px' }}>
               <p style={{ ...texte, color: 'var(--ink)', fontSize: 16, fontWeight: 600 }}>{e.nom}</p>
               <p style={texte}>Photo {e.photo.position} sur {e.photo.total} · {e.variante.libelle}</p>
-              <p style={mini} data-champ="empreinte">Version {e.photo.assetVersion} · {LIBELLES_NATURE_EMPREINTE[e.photo.nature]} {abrege(e.photo.sha256)}</p>
+              <details><summary style={{ ...mini, cursor: 'pointer', minHeight: 44 }}>Détails de la photo</summary><p style={mini} data-champ="empreinte">Version {e.photo.assetVersion} · {LIBELLES_NATURE_EMPREINTE[e.photo.nature]} {abrege(e.photo.sha256)}</p>
               <p style={mini}>Identifiant {e.photo.assetId}</p>
               <div style={rangee} aria-label="Composants obligatoires">
                 <span style={{ ...mini, color: 'var(--ink-2)' }}>Composants obligatoires :</span>
@@ -111,30 +111,30 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
                   : <span style={mini}>aucun déclaré · le contrôle visuel de l’identité reste exigé</span>}
               </div>
               <p style={mini}>Permis : {e.transformationsAutorisees.map((t) => LIBELLES_TRANSFORMATION[t].toLowerCase()).join(', ') || 'aucun geste'}.</p>
-              <p style={{ ...mini, color: e.etat === 'presente' ? 'var(--ok)' : 'var(--warn)' }} data-etat-photo={e.etat}>{e.libelleEtat}</p>
+              <p style={{ ...mini, color: e.etat === 'presente' ? 'var(--ok)' : 'var(--warn)' }} data-etat-photo={e.etat}>{e.libelleEtat}</p></details>
             </div>
           </div>
         ) : (
           <p style={texte} data-etat="sans-photo">
-            Aucune photo épinglée.{vue.produitSansPhoto ? ` Le projet vise « ${vue.produitSansPhoto.nom} » sans photo précise : choisis-la ci-dessous.` : ' Choisis un produit et UNE photo ci-dessous.'}
+            {vue.produitSansPhoto ? `La création utilisera « ${vue.produitSansPhoto.nom} ». Confirmez sa photo ci-dessous pour continuer.` : 'Choisissez un produit de votre marque, puis confirmez sa photo.'}
           </p>
         )}
       </section>
 
-      <section aria-labelledby={`${id}-choix`} style={panneau}>
-        <h2 id={`${id}-choix`} style={titre}>Choisir le produit et sa photo</h2>
-        <p style={sousTitre}>Le catalogue de la marque, tel quel · rien n’est copié ailleurs. La photo choisie est celle que la création utilisera, à l’identique.</p>
+      <details open={!e} style={panneau}><summary style={{ ...titre, cursor: 'pointer', minHeight: 44 }}>{e ? 'Changer le produit ou la photo' : 'Confirmez la photo produit'}</summary><section aria-labelledby={`${id}-choix`} style={{ display: 'grid', gap: 16 }}>
+        <h2 id={`${id}-choix`} style={{ ...titre, position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>Choisir le produit et sa photo</h2>
+        <p style={sousTitre}>Cette photo servira de référence pour votre visuel.</p>
         {vue.produits.length === 0 ? (
           <p style={texte} data-etat="catalogue-vide">Le catalogue de la marque n’a aucun produit · ajoute-en un depuis la fiche de la marque.</p>
         ) : (
           <>
             <div>
               <label htmlFor={`${id}-produit`} style={etiquette}>Produit</label>
-              <select id={`${id}-produit`} value={produitId} onChange={(x) => { setProduitId(x.target.value); setPhotoId(''); }} style={champ} disabled={!vue.peutModifier}>
+              <select id={`${id}-produit`} value={produitId} onChange={(x) => { setProduitId(x.target.value); const photos = vue.produits.find(p => p.id === x.target.value)?.photos ?? []; setPhotoId(photos.length === 1 ? photos[0]!.assetId : ''); }} style={champ} disabled={!vue.peutModifier}>
                 {vue.produits.map((p) => <option key={p.id} value={p.id}>{p.nom} · {p.photos.length} photo{p.photos.length > 1 ? 's' : ''}</option>)}
               </select>
             </div>
-            <p style={mini}>Variante : unique · le catalogue n’a pas de variantes.</p>
+
             <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
               <legend style={etiquette}>Photo précise</legend>
               {produit && produit.photos.length === 0 && <p style={texte} data-etat="produit-sans-photo">Ce produit n’a aucune photo · {vue.peutModifier ? 'importe-la depuis ton ordinateur, plus bas.' : 'une personne qui peut modifier le projet peut l’importer.'}</p>}
@@ -146,13 +146,13 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
                       style={{ ...carte, padding: 8, gap: 6, cursor: vue.peutModifier ? 'pointer' : 'default', minHeight: CIBLE, border: choisie ? '2px solid var(--accent-strong)' : '1px solid var(--line-2)', textAlign: 'left', color: 'var(--ink)' }}>
                       <img src={ph.apercu} alt={`Photo ${ph.position}`} loading="lazy" style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'contain', borderRadius: 8, background: 'var(--rail)' }} />
                       <span style={{ fontSize: 13, fontWeight: 600 }}>Photo {ph.position}{choisie ? ' · choisie' : ''}</span>
-                      <span style={mini}>{ph.nature === 'contenu' ? 'Contenu' : 'Adresse'} {abrege(ph.sha256)}</span>
+
                     </button>
                   );
                 })}
               </div>
             </fieldset>
-            <div>
+            <details><summary style={{ ...etiquette, cursor: 'pointer', minHeight: 44 }}>Réglages avancés du produit</summary><div>
               <label htmlFor={`${id}-composants`} style={etiquette}>Composants obligatoires</label>
               <input id={`${id}-composants`} value={composants} onChange={(x) => setComposants(x.target.value)} disabled={!vue.peutModifier}
                 placeholder="Ex. lunettes, bandeau" aria-describedby={`${id}-composants-aide`} style={champ} />
@@ -171,25 +171,28 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
               </div>
               <p style={{ ...mini, marginTop: 6 }}>Toujours interdit : changer la forme, les couleurs ou l’étiquette, ajouter ou retirer un composant.</p>
             </fieldset>
+            </details>
             {vue.peutModifier ? (
               <div style={rangee}>
                 <button type="button" disabled={epinglageBloque} aria-busy={enCours} aria-describedby={`${id}-epingle-raison`} style={{ ...boutonPrimaire, ...(epinglageBloque ? desactive : {}) }}
-                  onClick={() => agir('Photo épinglée · nouvelle version du projet.', () => epinglerProduit({ projectId: vue.projet.id, baseVersionId: vue.version.id, productId: produitId, photoId, composants: listeComposants, transformations: transfos }))}>
-                  {enCours ? 'Épinglage…' : 'Épingler cette photo'}
+                  onClick={() => agir('Photo enregistrée. Vous pouvez maintenant préparer votre visuel.', () => epinglerProduit({ projectId: vue.projet.id, baseVersionId: vue.version.id, productId: produitId, photoId, composants: listeComposants, transformations: transfos }))}>
+                  {enCours ? 'Enregistrement…' : 'Utiliser cette photo et continuer'}
                 </button>
-                <span id={`${id}-epingle-raison`} style={mini} data-raison="epinglage">{raisonEpingle ?? 'Crée une nouvelle version · aucun appel, aucun coût.'}</span>
+                <span id={`${id}-epingle-raison`} style={mini} data-raison="epinglage">{raisonEpingle ?? 'Gratuit · aucune génération à cette étape.'}</span>
               </div>
             ) : <p style={mini}>Ton rôle permet de consulter, pas d’épingler.</p>}
             {vue.peutModifier && (
-              <ImportPhotoProduit projectId={vue.projet.id} versionId={vue.version.id} produit={produit ? { id: produit.id, nom: produit.nom } : null}
+              <details><summary style={{ ...mini, cursor: 'pointer', minHeight: 44 }}>Importer une autre photo</summary><ImportPhotoProduit projectId={vue.projet.id} versionId={vue.version.id} produit={produit ? { id: produit.id, nom: produit.nom } : null}
                 composants={listeComposants} transformations={transfos} peutModifier={vue.peutModifier} occupe={enCours}
-                onOccupe={setImportEnCours} onReussi={(photo) => { setPhotoId(photo); setRetour(null); }} />
+                onOccupe={setImportEnCours} onReussi={(photo) => { setPhotoId(photo); setRetour(null); }} /></details>
             )}
           </>
         )}
-      </section>
+      </section></details>
 
-      <section aria-labelledby={`${id}-refs`} style={panneau} data-zone="references">
+      {e && <ParcoursImage projectId={vue.projet.id} versionId={vue.version.id} />}
+
+      <details style={panneau}><summary style={{ ...titre, cursor: 'pointer', minHeight: 44 }}>Références et réglages avancés</summary><section aria-labelledby={`${id}-refs`} style={panneau} data-zone="references">
         <h2 id={`${id}-refs`} style={titre}>Références et rôles</h2>
         <p style={sousTitre}>Chaque fichier porte un rôle que tu choisis · aucun rôle n’est deviné. Un même fichier peut porter deux rôles : deux lignes.</p>
         {!vue.briefPresent && <p style={signal('warn')}>Ce projet n’a pas de brief · les références s’y rangent. Crée le projet depuis une source ou un brief.</p>}
@@ -275,8 +278,7 @@ export function EcranProduit({ vue }: { vue: VueProduit }) {
         })}
       </section>
 
-      {/* F-B · consigne compilée → devis → approbation → job → média, après le contrôle qu'elle exige. */}
-      <ParcoursImage projectId={vue.projet.id} versionId={vue.version.id} />
+      </details>
     </div>
   );
 }
