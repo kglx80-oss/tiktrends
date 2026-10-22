@@ -71,9 +71,9 @@ const devis: DevisImageVue = {
 
 const briefVide: BriefCanonique = { objective: 'o', audience: '', hypothesisId: null, testedVariable: '', facts: [], invariants: [], variables: [], references: [], composition: '', styleIntent: '', texts: [], formats: [], exclusions: [] };
 
-const consigne = {runId:'run-1', mode:'faithful_composite' as const, libelleMode:'Produit fidèle', generationInstruction:'Placer le flacon au centre sur fond rose', negativeConstraints:['Ne pas inventer de promesse'], protectedComponents:['Logo'], liaisons:[], format:{largeur:1080,hauteur:1350}, compileeLe:'2026-10-21'};
+const consigne = {runId:'run-1', mode:'generative_scene' as const, libelleMode:'Mise en scène', generationInstruction:'Placer le flacon au centre sur fond rose', negativeConstraints:['Ne pas inventer de promesse'], protectedComponents:['Logo'], liaisons:[], format:{largeur:1080,hauteur:1350}, compileeLe:'2026-10-21'};
 const vueParcours = (devisVu: DevisImageVue | null): VueParcoursImage => ({
-  projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 }, modes: [{mode:'faithful_composite',libelle:'Produit fidèle',pret:true}],
+  projet: { id: 'proj-1' }, version: { id: 'v1', n: 1 }, modes: [{mode:'generative_scene',libelle:'Mise en scène',pret:true}],
   format: { largeur: 1080, hauteur: 1350, libelle: 'Portrait · 4:5', depuisBrief: false },
   disponibilite: {compilation:{disponible:true,raison:''},retenir:{disponible:true,raison:''},devis:{disponible:true,raison:''},lancement:{disponible:true,raison:''}}, coutCompilationUsd: 0.14, prix: { credits: 4, usdMicros: 600_000 },
   enAttente: null, retenue: {...consigne,verdict:{ok:true}}, devis: devisVu, jobs: [],

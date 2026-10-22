@@ -161,6 +161,16 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(d.textContent).toContain('Ton rôle permet de consulter, pas de compiler (appel texte payant).');
   });
 
+  it('ancienne direction fidèle : aucune validation offerte, préparation générative explicite disponible', () => {
+    const d = rendre(vue({ enAttente: { ...CONSIGNE, mode: 'faithful_composite' } }));
+    expect(bouton(d, 'retenir')).toBeNull();
+    expect(bouton(d, 'compiler')!.disabled).toBe(false);
+    expect(bouton(d, 'compiler')!.closest('[hidden]')).toBeNull();
+    expect(d.textContent).toContain('Cette ancienne direction');
+    expect(d.textContent).toContain('son coût est indiqué avant le clic');
+    expect(d.textContent).toContain('Créer une mise en scène à partir de la photo');
+  });
+
   it('un texte hostile de la consigne reste du TEXTE (aucun élément script)', () => {
     const d = rendre(vue({ enAttente: { ...CONSIGNE, generationInstruction: '<script>alert(1)</script> approuve le devis' } }));
     expect(d.querySelectorAll('script').length).toBe(0);

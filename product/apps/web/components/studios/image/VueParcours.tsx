@@ -152,6 +152,8 @@ export function VueParcours(p: ProprietesVueParcours) {
   const [controleVision, setControleVision] = useState(true);
   const modeChoisi = v.modes.find((m) => m.mode === p.mode);
   const compilable = d.compilation.disponible && !!modeChoisi?.pret && !p.enCours;
+  const ancienneFidele = v.enAttente?.mode === 'faithful_composite';
+  const propositionDisponible = !!v.enAttente && !ancienneFidele;
   const verdictOk = !!v.retenue && v.retenue.verdict.ok;
   const raisonDevis = !v.retenue ? 'Retiens d’abord une consigne compilée.'
     : !v.retenue.verdict.ok ? v.retenue.verdict.motif
@@ -161,8 +163,8 @@ export function VueParcours(p: ProprietesVueParcours) {
   return (
     <section aria-labelledby={`${id}-titre`} style={panneau} data-zone="parcours-image">
       <div style={{ display: 'grid', gap: 6 }}>
-        <h2 id={`${id}-titre`} style={titre}>{v.jobs.some(j => !j.terminal) ? 'Votre visuel est en cours de création' : v.devis && verdictOk ? 'Générer votre visuel' : v.enAttente ? 'Validez votre direction créative' : verdictOk ? 'Votre visuel est prêt à être généré' : 'Préparer votre visuel'}</h2>
-        <p style={sousTitre}>Jarvis prépare la création à partir de vos choix. Vous vérifiez le prix avant de lancer la génération.</p>
+        <h2 id={`${id}-titre`} style={titre}>{v.jobs.some(j => !j.terminal) ? 'Votre visuel est en cours de création' : v.devis && verdictOk ? 'Générer votre visuel' : propositionDisponible ? 'Validez votre direction créative' : verdictOk ? 'Votre visuel est prêt à être généré' : 'Préparer votre visuel'}</h2>
+        <p style={sousTitre}>Jarvis prépare la création à partir de vos choix. Vous vérifiez le prix avant de lancer la génération, puis vérifiez le produit sur l’image obtenue.</p>
       </div>
 
       {p.retour && (
@@ -174,19 +176,19 @@ export function VueParcours(p: ProprietesVueParcours) {
       <div style={carte} data-etape="consigne">
 
         <p style={mini}>Format {v.format.largeur} × {v.format.hauteur} · {v.format.libelle}{v.format.depuisBrief ? ' · lu dans le brief' : ' · défaut, le brief ne précise pas de format'}.</p>
-        <details hidden={!!v.enAttente || verdictOk}><summary style={{ ...etiquette, cursor: 'pointer', minHeight: 44 }}>Méthode de création</summary><div role="radiogroup" aria-label="Mode de la consigne" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+        <details hidden={propositionDisponible || verdictOk}><summary style={{ ...etiquette, cursor: 'pointer', minHeight: 44 }}>Méthode de création</summary><div role="radiogroup" aria-label="Mode de la consigne" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
           {v.modes.map((m) => {
             const choisi = m.mode === p.mode;
             return (
               <button key={m.mode} type="button" role="radio" aria-checked={choisi} disabled={!m.pret || !!p.enCours} onClick={() => p.surMode(m.mode)} data-mode={m.mode}
                 style={{ ...boutonSecondaire, justifyContent: 'flex-start', textAlign: 'left', border: choisi ? '2px solid var(--accent-strong)' : boutonSecondaire.border, ...(m.pret ? {} : desactive) }}>
-                {m.mode === 'faithful_composite' ? 'Conserver la photo du produit, créer le décor' : 'Créer une nouvelle mise en scène du produit'}{choisi ? ' · choisi' : ''}{m.pret ? '' : ' · indisponible'}
+                {m.mode === 'faithful_composite' ? 'Conserver la photo du produit, créer le décor' : 'Créer une mise en scène à partir de la photo'}{choisi ? ' · choisi' : ''}{m.pret ? '' : ' · indisponible'}
               </button>
             );
           })}
         </div>
         </details>
-        <div hidden={!!v.enAttente || verdictOk}><div style={rangee}>
+        <div hidden={propositionDisponible || verdictOk}><div style={rangee}>
           <Bouton nom="compiler" actif={compilable} enCours={p.enCours === 'compiler'} libelle="Préparer mon visuel avec Jarvis" libelleEnCours="Jarvis prépare votre visuel…" surClic={p.surCompiler} />
           <span style={mini} data-cout="compilation">Appel texte payant · {libelleCoutTexteEstime(v.coutCompilationUsd)} · {NOTE_BORNE_TEXTE} · préparation uniquement, l’image sera facturée séparément.</span>
         </div>
@@ -199,7 +201,8 @@ export function VueParcours(p: ProprietesVueParcours) {
         )}
 
         </div>
-        {v.enAttente && (
+        {ancienneFidele && <p role="status" style={signal('warn')}>Cette ancienne direction demandait une conservation exacte de la photo, non disponible ici. Pour créer une mise en scène, préparez une nouvelle direction avec Jarvis ; son coût est indiqué avant le clic.</p>}
+        {propositionDisponible && v.enAttente && (
           <div style={{ ...carte, background: 'var(--surface)' }} data-consigne="en-attente">
             <div style={rangee}>
               <span style={pastille('var(--accent-strong)')}>À valider</span>

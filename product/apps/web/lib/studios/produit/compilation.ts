@@ -33,6 +33,8 @@ export interface DependancesCompilation {
 export const MESSAGE_COMPILATION_SANS_RELEASE = 'La compilation de la consigne image n’est pas encore activée : aucune version des consignes n’est publiée. Rien n’a été facturé.';
 export const MESSAGE_COMPILATION_SANS_FOURNISSEUR = 'Le fournisseur de texte n’est pas configuré sur ce serveur · la consigne image ne peut pas être compilée ici. Rien n’a été facturé.';
 
+export const MESSAGE_MODE_FIDELE_INDISPONIBLE = 'La conservation exacte de la photo produit n’est pas encore disponible dans ce parcours. Choisissez « Créer une mise en scène à partir de la photo », puis vérifiez le produit dans le résultat.';
+
 const MODES: readonly ModeImage[] = ['faithful_composite', 'generative_scene'];
 
 /** Première action utile, plutôt qu’un refus générique sur les références. */
@@ -45,10 +47,12 @@ export function messagePreparationCompilation(preparation: PreparationCompilatio
 /** Contrôle seul · lecture pure, pour l'écran (aucun appel, aucune écriture). */
 export async function preparerCompilationPour(ctx: ContexteStudio, e: { projectId: unknown; mode: unknown }, o: { veilleOuverte: boolean; maintenant: Date }): Promise<Resultat<{ preparation: PreparationCompilation }>> {
   if (!estUuid(e.projectId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
-  const mode = MODES.includes(e.mode as ModeImage) ? (e.mode as ModeImage) : 'faithful_composite';
+  const mode = MODES.includes(e.mode as ModeImage) ? (e.mode as ModeImage) : 'generative_scene';
   const c = await chargerCatalogueProjet(ctx, e.projectId, o);
   if (!c.ok) return c;
-  return { ok: true, preparation: controlerAvantCompilation({ mode, brief: c.catalogue.brief, produit: c.catalogue.epingle, fichiers: c.catalogue.fichiers }) };
+  const preparation = controlerAvantCompilation({ mode, brief: c.catalogue.brief, produit: c.catalogue.epingle, fichiers: c.catalogue.fichiers });
+  if (mode === 'faithful_composite') return { ok: true, preparation: { ...preparation, ok: false, violations: [...preparation.violations, { chemin: '/mode', raison: MESSAGE_MODE_FIDELE_INDISPONIBLE }] } };
+  return { ok: true, preparation };
 }
 
 export type ResultatCompilation =
@@ -66,6 +70,7 @@ export async function compilerConsigneImagePour(
   const mode = e.mode as ModeImage;
   const c = await chargerCatalogueProjet(ctx, e.projectId, o);
   if (!c.ok) return c;
+  if (mode === 'faithful_composite') return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: MESSAGE_MODE_FIDELE_INDISPONIBLE });
   const cat = c.catalogue;
   const prep = controlerAvantCompilation({ mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers });
   if (!prep.ok || !cat.brief) {

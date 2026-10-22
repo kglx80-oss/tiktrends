@@ -32,7 +32,7 @@ import { randomUUID } from 'node:crypto';
 import { db, schema, eq, and } from '@tiktrends/db';
 import {
   consigneDuContenu, parametresDepuisConsigne, parametresDepuisConsignePlan, empreinteConsigne, empreinteEntreesDevisImage, lireParametresImage, promptFal,
-  OPERATION_IMAGE, PLAN_IMAGE, ACTION_CONSIGNE_COMPILEE, PRICING_VERSION,
+  OPERATION_IMAGE, PLAN_IMAGE, CLE_CONSIGNE_STYLE, ACTION_CONSIGNE_COMPILEE, PRICING_VERSION,
   type ContenuVersion, type BriefCanonique, type SnapshotJob, type DecisionFournisseur, type StockageStudio, type LigneDevis,
 } from '@tiktrends/core';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
@@ -205,12 +205,40 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ id: a.job.id, etat: 'completed', media: { url: expect.stringContaining('/api/studios/media/') } });
   });
 
-  it('mode fidèle : JSON encadré par Markdown accepté sans second appel et reste validé', async () => {
+  it('mode fidèle indisponible : aucun appel, devis ni débit, même avec un ancien devis', async () => {
+    const { projectId } = await projetEpingle();
+    const avantCompilation = await compter(db);
+    expect(await compilerEtAttesterPour(ctxDe(ids, 'ua'), { projectId, mode: 'faithful_composite' }, deps)).toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY' });
+    expect(texte.recues).toHaveLength(0);
+    expect(delta(avantCompilation, await compter(db))).toEqual({});
+    await consigneRetenue(projectId);
+    const q = await devisPret(projectId);
+    // Simule une version et un devis déjà conservés avant l'indisponibilité.
+    const v = await courante(projectId);
+    const contenu = v.content as ContenuVersion;
+    const c = consigneDuContenu(contenu)!;
+    const historique = await enregistrerVersion(ctxDe(ids, 'ua'), { projectId, baseVersionId: v.id, changes: [{ op: 'replace', path: `/styleRef/${CLE_CONSIGNE_STYLE}`, newValue: { ...c, mode: 'faithful_composite' }, reason: 'fixture historique synthétique' }] });
+    if (!historique.ok) throw new Error(JSON.stringify(historique));
+    const [original] = await db.select().from(schema.studioQuotes).where(eq(schema.studioQuotes.id, q.id));
+    const ancienId = randomUUID();
+    await db.insert(schema.studioQuotes).values({ ...original!, id: ancienId, projectVersionId: historique.version.id });
+    const avant = await compter(db);
+    const credits = await solde();
+    expect(await devisImagePour(ctxDe(ids, 'ua'), { projectId }, T)).toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY' });
+    expect(await approuver({ ...q, id: ancienId })).toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY' });
+    expect(await solde()).toBe(credits);
+    expect(delta(avant, await compter(db))).toEqual({});
+    const vue = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
+    expect(vue.ok && vue.vue.retenue).toMatchObject({ mode: 'faithful_composite', verdict: { ok: false } });
+    expect(vue.ok && vue.vue.modes).toEqual(expect.arrayContaining([{ mode: 'faithful_composite', libelle: expect.any(String), pret: false }, { mode: 'generative_scene', libelle: expect.any(String), pret: true }]));
+  });
+
+  it('mise en scène : JSON encadré par Markdown accepté sans second appel et reste validé', async () => {
     const { projectId } = await projetEpingle();
     repondreConsigne();
     const conforme = reponse;
     reponse = (a) => `\`\`\`json\n${JSON.stringify(conforme(a))}\n\`\`\``;
-    const c = await compilerEtAttesterPour(ctxDe(ids, 'ua'), { projectId, mode: 'faithful_composite' }, deps);
+    const c = await compilerEtAttesterPour(ctxDe(ids, 'ua'), { projectId, mode: 'generative_scene' }, deps);
     expect(c, JSON.stringify(c)).toMatchObject({ ok: true, statut: 'compilee' });
     expect(texte.recues).toHaveLength(1);
     const instructions = texte.recues[0]!.messages.filter(m => m.role === 'system').map(m => m.contenu).join(' ');

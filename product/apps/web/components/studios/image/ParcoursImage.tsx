@@ -77,7 +77,7 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   useEffect(() => {
     // Le mode de la consigne en cours (retenue ou compilée), sinon le premier que le contrôle laisse passer.
     if (vue && !mode) {
-      const voulu = vue.enAttente?.mode ?? vue.retenue?.mode;
+      const voulu = vue.enAttente?.mode ?? vue.retenue?.mode ?? 'generative_scene';
       const m = vue.modes.find((x) => x.mode === voulu && x.pret) ?? vue.modes.find((x) => x.pret);
       if (m) setMode(m.mode);
     }
