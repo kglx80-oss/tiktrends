@@ -43,6 +43,8 @@ export interface PreparationCompilation {
   composantsProteges: string[];
   invariants: string[];
   avertissements: string[];
+  /** Choix enregistré, confirmé par le contrôle de portée/version ci-dessous. */
+  photoProduitConfirmee?: { assetId: string; produit: string };
 }
 
 export function interditsDeTransfert(f: FichierCatalogue, roles: readonly RoleReference[]): string {
@@ -91,6 +93,7 @@ export function controlerAvantCompilation(e: {
   return {
     ok: v.length === 0, violations: v, references: [...refs], referenceIds: [...new Set(refs.map((r) => r.assetId))],
     interditsTransfert: interdits, composantsProteges: composants, invariants, avertissements,
+    ...(v.length === 0 && e.produit ? { photoProduitConfirmee: { assetId: e.produit.photo.assetId, produit: e.produit.nom } } : {}),
   };
 }
 
@@ -154,11 +157,19 @@ export function consigneFinale(r: ConsigneImage, prep: PreparationCompilation): 
  */
 export function entreeCompilation(e: { prep: PreparationCompilation; brief: BriefCanonique; versionId: string; mode: ModeImage; largeur: number; hauteur: number }) {
   const docBrief = documentBrief(e.brief, e.versionId);
+  const photo = e.prep.ok ? e.prep.photoProduitConfirmee : undefined;
   const concept = [
+    `Mode choisi pour cet appel : ${e.mode} (${LIBELLES_MODE_IMAGE[e.mode]}).`,
+    ...(photo ? [
+      `Choix produit déjà enregistré : ${photo.produit}. Photo confirmée et associée au rôle Produit : ${photo.assetId}.`,
+      'La photo est la référence visuelle sélectionnée pour la création ; ses attributs visuels non décrits restent fournis par cette référence, sans description inventée.',
+      'Cette compilation reçoit les identifiants et les données catalogue, pas les pixels : aucune analyse visuelle de la photo n’est attestée ici. La génération reçoit les photos liées par la consigne.',
+    ] : []),
     e.brief.composition ? `Composition : ${e.brief.composition}` : '',
     e.brief.styleIntent ? `Intention de style : ${e.brief.styleIntent}` : '',
     e.brief.formats.length ? `Formats : ${e.brief.formats.join(', ')}` : '',
-    e.brief.texts.length ? 'Textes : posés par des calques texte, jamais dans les pixels.' : 'Aucun texte prévu.',
+    e.brief.texts.length ? `Textes exacts demandés dans le brief : ${JSON.stringify(e.brief.texts)}.` : 'Aucun texte renseigné dans le champ Textes ; les indications de la composition restent à prendre en compte.',
+    'Aucun ajout automatique de calques texte après génération n’est disponible dans ce parcours. Ne pas inventer de placeholders Title/Subtitle ni promettre de post-traitement automatique.',
   ].filter(Boolean).join('\n');
   const docConcept = documentResolu(`concept_${e.versionId}`, e.versionId, concept);
   return {
