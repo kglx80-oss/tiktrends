@@ -42,6 +42,7 @@ import { imageVide, versionDepuisEmpreinte, planifierPiecesVision } from '@tiktr
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { executerTache, resolveurMediasStudio } from '../lib/studios/prompts/resolveur';
 import { adaptateurAnthropicGarde, PiecesInvalides } from '../lib/studios/prompts/adaptateur';
+import { schemaStructure } from '../lib/studios/prompts/schema-structure';
 import { coutMaximalAppel } from '../lib/spend-guard';
 import type Anthropic from '@anthropic-ai/sdk';
 import { encoder } from '../lib/studios/benchmark/jeu-synthetique';
@@ -166,6 +167,20 @@ describe('le simulé suit le même contrat que le réel', () => {
 
 
 describe('compilation image · réflexion ciblée sans hausse de la borne ni du budget', () => {
+  it('contrat absent : refus avant réservation et avant client', async () => {
+    const ancien = process.env.ANTHROPIC_GEN_MODEL;
+    process.env.ANTHROPIC_GEN_MODEL = 'claude-sonnet-5';
+    const avant = (await db.select().from(schema.aiSpend)).length;
+    h.recus.length = 0;
+    try {
+      await expect(adaptateurAnthropicGarde()!.appeler({ profil: 'reasoning_structured', workspaceId: W, action: 'studio-prompt:image.compile', messages: [], maxJetonsSortie: 4000 })).rejects.toThrow('Contrat structuré image absent');
+      expect(h.recus).toHaveLength(0);
+      expect((await db.select().from(schema.aiSpend)).length).toBe(avant);
+    } finally {
+      if (ancien === undefined) delete process.env.ANTHROPIC_GEN_MODEL;
+      else process.env.ANTHROPIC_GEN_MODEL = ancien;
+    }
+  });
   it.each([
     ['claude-sonnet-5', 'studio-prompt:image.compile', true],
     ['claude-sonnet-5', 'studio-prompt:quality.visual', false],
@@ -176,24 +191,33 @@ describe('compilation image · réflexion ciblée sans hausse de la borne ni du 
     process.env.ANTHROPIC_GEN_MODEL = modele;
     h.recus.length = 0;
     h.reservations.length = 0;
+    const contrat = { type: 'object', properties: { instruction: { type: 'string', maxLength: 12000 } }, required: ['instruction'], additionalProperties: false };
     try {
       await adaptateurAnthropicGarde()!.appeler({
         profil: 'reasoning_structured', workspaceId: W, action,
         messages: [{ role: 'user', nature: 'donnees_utilisateur', contenu: 'JSON compact' }],
-        maxJetonsSortie: 4000,
+        maxJetonsSortie: 4000, schemaSortie: contrat,
       });
       expect(h.recus).toHaveLength(1);
       const payload = h.recus[0]!;
       expect(payload).toMatchObject({ model: modele, max_tokens: 4000 });
-      if (desactive) expect(payload.thinking).toEqual({ type: 'disabled' });
-      else expect(payload).not.toHaveProperty('thinking');
-      // Réservation présente AVANT le client, exactement égale à celle de
-      // l'ancien payload : le correctif ne relève aucune borne de dépense.
+      if (desactive) {
+        expect(payload.thinking).toEqual({ type: 'disabled' });
+        expect(payload.output_config).toEqual({ format: { type: 'json_schema', schema: schemaStructure(contrat) } });
+      } else {
+        expect(payload).not.toHaveProperty('thinking');
+        expect(payload).not.toHaveProperty('output_config');
+      }
+      expect(payload).not.toHaveProperty('tools');
+      // Réservation présente AVANT le client, schéma inclus si envoyé.
+      // Le plafond et la borne de sortie restent inchangés.
       const ancienPayload: Anthropic.MessageCreateParamsNonStreaming = {
         model: modele, max_tokens: 4000, system: [],
         messages: [{ role: 'user', content: 'JSON compact' }],
       };
-      expect(h.reservations).toEqual([coutMaximalAppel(ancienPayload)]);
+      const attendu = coutMaximalAppel({ ...ancienPayload, ...(desactive ? { output_config: payload.output_config } : {}) });
+      expect(h.reservations).toEqual([attendu]);
+      if (desactive) expect(attendu).toBeGreaterThan(coutMaximalAppel(ancienPayload));
       expect(h.reservations[0]).toBeGreaterThan(0);
     } finally {
       if (ancienModele === undefined) delete process.env.ANTHROPIC_GEN_MODEL;

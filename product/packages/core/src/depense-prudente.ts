@@ -263,7 +263,7 @@ function mesurerContenu(c: unknown, m: EntreeMesuree): void {
 }
 
 /** Mesure une requête Messages (forme de l'API, sans dépendre du SDK). */
-export function mesurerRequete(p: { system?: unknown; messages?: unknown; tools?: unknown }): EntreeMesuree {
+export function mesurerRequete(p: { system?: unknown; messages?: unknown; tools?: unknown; output_config?: unknown }): EntreeMesuree {
   const m: EntreeMesuree = { octets: 0, images: 0, blocs: 0, octetsOutils: 0 };
   if (p.system !== undefined && p.system !== null && p.system !== '') mesurerContenu(p.system, m);
   for (const msg of Array.isArray(p.messages) ? p.messages : []) {
@@ -271,6 +271,12 @@ export function mesurerRequete(p: { system?: unknown; messages?: unknown; tools?
     mesurerContenu((msg as { content?: unknown } | null)?.content ?? '', m);
   }
   if (Array.isArray(p.tools) && p.tools.length > 0) m.octetsOutils = octetsUtf8(json(p.tools));
+  // Le format structuré ajoute un schéma et un prompt système fournisseur.
+  // On lui applique la même marge prudente que les contrats d'outils (×2
+  // sur les octets + encadrement), sans déclarer d'outil au modèle.
+  if (p.output_config !== undefined) {
+    m.octetsOutils += octetsUtf8(json(p.output_config));
+  }
   return m;
 }
 
@@ -286,6 +292,7 @@ export interface RequeteChiffrable {
   system?: unknown;
   messages?: unknown;
   tools?: unknown;
+  output_config?: unknown;
 }
 
 /**

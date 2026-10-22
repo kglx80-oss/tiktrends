@@ -10,7 +10,7 @@ import {
 import { lireCampagneBenchmark, releaseActive, releaseChargee, type ReleaseChargee } from './depot-prompts';
 import {
   admissibiliteEvaluation, versionDepuisEmpreinte, JETONS_ENTREE_MAX_PROPOSITION, JETONS_RESERVE_CONTEXTE, JETONS_SORTIE_MAX_PROPOSITION,
-  CLE_REGLES_MARQUE, VERSION_REGLES_MARQUE,
+  CLE_REGLES_MARQUE, VERSION_REGLES_MARQUE, mesurerRequete, borneJetonsEntree,
   type DemandeEvaluation,
 } from '@tiktrends/core';
 import { planifierPiecesVision, type CorrespondancePiece, type MediaResoluVision, type PieceNative } from '@tiktrends/core';
@@ -18,6 +18,7 @@ import { lecteurMedias, type LecteurMedias } from '../rendu/medias';
 import { construireContexte, type EntreeContexte, type SourceSnapshot } from './contexte';
 import { CLE_CONVERSATION_JARVIS, validerPolitiqueConversation, type PolitiqueConversation } from './conversation';
 import { POLITIQUE_JARVIS_1_0_0 } from './complement-tiktrends';
+import { schemaStructure } from './schema-structure';
 import { chargerSource } from './source';
 import { microsUsd, type SourceTrace } from './traces';
 import { PiecesInvalides, type AdaptateurModele } from './adaptateur';
@@ -215,10 +216,19 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
   const s = chargerSource();
   const schemaSortie = s.validateur.schemaPourReference(template.outputSchemaRef);
   if (!schemaSortie) return bloque('SCHEMA_SORTIE_ABSENT', [constat('SCHEMA_SORTIE_ABSENT', template.outputSchemaRef, 'Contrat de sortie absent.')]);
+  let reserveFormat = 0;
+  if (template.key === 'image.compile' && modele === 'claude-sonnet-5') {
+    try {
+      const format = { format: { type: 'json_schema', schema: schemaStructure(schemaSortie) } };
+      reserveFormat = borneJetonsEntree(mesurerRequete({ output_config: format })) - borneJetonsEntree(mesurerRequete({}));
+    } catch {
+      return bloque('SCHEMA_SORTIE_INCOMPATIBLE', [constat('SCHEMA_SORTIE_INCOMPATIBLE', template.outputSchemaRef, 'Contrat incompatible avec la sortie structurée du fournisseur. Aucun appel.')]);
+    }
+  }
   const borne = d.budget ?? PORTEE_DEFAUT_BUDGET;
   // Le contrat envoyé au modèle occupe l'entrée : le réserver avant de
   // tronquer les sources facultatives, sans relever le plafond annoncé.
-  const budget = allouerContexte(entree, { ...borne, reserveJetons: borne.reserveJetons + compterJetonsParDefaut(instructionsContratSortie(schemaSortie)) });
+  const budget = allouerContexte(entree, { ...borne, reserveJetons: borne.reserveJetons + reserveFormat + compterJetonsParDefaut(instructionsContratSortie(schemaSortie)) });
   if (!budget.ok) return bloque(budget.code, budget.constats);
   trace.budget = budget.rapport;
   trace.contextSnapshotHash = empreinteJson(budget.entree.context, 'js');
@@ -253,7 +263,7 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
   const debut = Date.now();
   let reponse: Awaited<ReturnType<AdaptateurModele['appeler']>>;
   try {
-    reponse = await d.adaptateur.appeler({ profil: template.modelProfile, messages: req.messages, maxJetonsSortie: MAX_JETONS_SORTIE, workspaceId: d.portee.workspaceId, action: `studio-prompt:${template.key}`, ...(pieces.length ? { pieces } : {}) });
+    reponse = await d.adaptateur.appeler({ profil: template.modelProfile, messages: req.messages, schemaSortie, maxJetonsSortie: MAX_JETONS_SORTIE, workspaceId: d.portee.workspaceId, action: `studio-prompt:${template.key}`, ...(pieces.length ? { pieces } : {}) });
   } catch (e) {
     const nom = (e as Error).name;
     if (e instanceof PiecesInvalides || nom === 'PiecesInvalides') return bloque('MEDIA_HORS_BORNES', [constat('MEDIA_HORS_BORNES', template.key, (e as Error).message)]);
@@ -263,6 +273,11 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
     return { ok: false, statut: 'erreur', code, constats, runId, releaseId: release.ligne.id };
   }
   const latenceMs = Date.now() - debut;
+  if (reponse.stopReason === 'refusal') {
+    const constats = [constat('PROVIDER_REFUSAL', template.key, 'Le fournisseur a refusé cette demande. Aucun nouvel appel automatique.')];
+    const runId = await ecrireRun(d, trace, { statut: 'failed', compiledHash: req.compiledHash, modele: reponse.modele, outputHash: sha256Texte(reponse.texte), latenceMs, coutUsd: reponse.coutUsd, jetons: { entree: reponse.jetonsEntree, sortie: reponse.jetonsSortie }, constats });
+    return { ok: false, statut: 'erreur', code: 'PROVIDER_REFUSAL', constats, runId, releaseId: release.ligne.id };
+  }
   if (reponse.stopReason === 'max_tokens') {
     const constats = [constat('SORTIE_TRONQUEE', template.key, 'La réponse a atteint la limite de sortie du fournisseur. Aucun nouvel appel automatique.')];
     const runId = await ecrireRun(d, trace, { statut: 'failed', compiledHash: req.compiledHash, modele: reponse.modele, outputHash: sha256Texte(reponse.texte), latenceMs, coutUsd: reponse.coutUsd, jetons: { entree: reponse.jetonsEntree, sortie: reponse.jetonsSortie }, constats });

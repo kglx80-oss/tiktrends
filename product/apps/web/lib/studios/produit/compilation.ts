@@ -101,6 +101,7 @@ export async function compilerConsigneImagePour(
     if (r.code === 'RELEASE_ACTIVE_ABSENTE') return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId, message: MESSAGE_COMPILATION_SANS_RELEASE });
     if (r.code === 'UNSUPPORTED_CAPABILITY') return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId, message: MESSAGE_COMPILATION_SANS_FOURNISSEUR });
     if (r.code === 'BUDGET_EXCEEDED') return erreurStudio('BUDGET_EXCEEDED', { traceId });
+    if (r.code === 'PROVIDER_REFUSAL') return erreurStudio('INVALID_SCHEMA', { traceId, message: 'Le fournisseur a refusé la préparation de cette image. Aucune consigne retenue, aucun nouvel appel automatique.' });
     if (r.code === 'PROVIDER_ERROR') return erreurStudio('PROVIDER_UNCERTAIN', { traceId, message: 'Le fournisseur n’a pas répondu · rien n’est relancé automatiquement.' });
     return erreurStudio('INVALID_SCHEMA', { traceId, message: 'La consigne reçue n’est pas exploitable · rien n’a été retenu.' });
   }

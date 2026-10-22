@@ -23,6 +23,7 @@
  * empreinte égale aux octets, type relu) et refuse sans rien dépenser.
  */
 
+import { schemaStructure } from './schema-structure';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { MessageCompile } from './noyau';
 import { guardedAnthropic } from '../../spend-guard';
@@ -55,6 +56,8 @@ export interface AppelModele {
   profil: string;
   messages: ReadonlyArray<MessageCompile>;
   maxJetonsSortie: number;
+  /** Contrat résolu côté serveur, jamais fourni par le navigateur. */
+  schemaSortie?: Record<string, unknown>;
   /** Pièces natives (profil `vision_analysis` seulement) · octets lus par le serveur, index = `nativeAttachmentIndex`. */
   pieces?: ReadonlyArray<PieceNative>;
   /** Imputation de la dépense (`ai_spend.workspace_id`, `action`). */
@@ -97,6 +100,7 @@ export function adaptateurAnthropicGarde(): AdaptateurModele | null {
     modelePour: (profil) => (PROFILS_ROUTES_ANTHROPIC.includes(profil) ? modeleTexte() : null),
     async appeler(a) {
       exigerPiecesConformes(a);
+      if (a.action === 'studio-prompt:image.compile' && modeleTexte() === 'claude-sonnet-5' && !a.schemaSortie) throw new Error('Contrat structuré image absent : aucun appel fournisseur.');
       const client = guardedAnthropic({ workspaceId: a.workspaceId, action: a.action });
       if (!client) throw new Error('Fournisseur non configuré.');
       const modele = modeleTexte();
@@ -110,10 +114,11 @@ export function adaptateurAnthropicGarde(): AdaptateurModele | null {
       // Ne pas étendre aux modèles 5.5, qui n'acceptent pas `disabled`.
       const params: Anthropic.MessageCreateParamsNonStreaming & {
         thinking?: { type: 'disabled' };
+        output_config?: { format: { type: 'json_schema'; schema: Record<string, unknown> } };
       } = {
         model: modele, max_tokens: a.maxJetonsSortie, system, messages: user,
         ...(a.action === 'studio-prompt:image.compile' && modele === 'claude-sonnet-5'
-          ? { thinking: { type: 'disabled' as const } } : {}),
+          ? { thinking: { type: 'disabled' as const }, ...(a.schemaSortie ? { output_config: { format: { type: 'json_schema' as const, schema: schemaStructure(a.schemaSortie) } } } : {}) } : {}),
       };
       const res = await client.messages.create(params);
       const texte = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
