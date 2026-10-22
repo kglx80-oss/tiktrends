@@ -219,7 +219,7 @@ export function promptFal(c: ConsigneImage): string {
   const parties = [c.generationInstruction.trim()];
   if (c.protectedComponents.length) parties.push(`Composants à préserver à l’identique : ${c.protectedComponents.join(' ; ')}.`);
   if (c.negativeConstraints.length) parties.push(`À éviter absolument : ${c.negativeConstraints.join(' ; ')}.`);
-  if (c.needsDeterministicOverlay) parties.push('Aucun texte écrit dans l’image : les textes sont posés ensuite par des calques.');
+  if (c.needsDeterministicOverlay) parties.push('Générer le fond sans surtexte publicitaire. Les zones réservées aux textes doivent rester réellement vides : ne pas y écrire de texte de remplacement (Title, Subtitle, titre, sous-titre, lorem ipsum). Conserver uniquement les inscriptions déjà présentes sur le produit de référence. Aucun ajout automatique de calques n’est effectué par cet appel.');
   return parties.join('\n\n');
 }
 

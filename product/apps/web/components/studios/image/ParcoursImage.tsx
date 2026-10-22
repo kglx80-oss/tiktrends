@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { capacitesDuRefus, type ErreurStudio, type ModeImage } from '@tiktrends/core';
 import type { VueParcoursImage } from '../../../lib/studios/image/parcours';
 import {
-  lireParcoursImage, compilerConsigneImage, retenirConsigneImage, demanderDevisImage, approuverEtLancerImage, controlerMediaImage,
+  enregistrerPrecisionsImage, lireParcoursImage, compilerConsigneImage, retenirConsigneImage, demanderDevisImage, approuverEtLancerImage, controlerMediaImage,
 } from '../../../app/actions/studios/image';
 import { annulerJob } from '../../../app/actions/studios/execution';
 import { trancherComposants } from '../../../app/actions/studios/produit';
@@ -59,6 +59,7 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
   const [mode, setMode] = useState<ModeImage | ''>('');
   const [enCours, setEnCours] = useState<string | null>(null);
   const [retour, setRetour] = useState<{ ok: boolean; texte: string } | null>(null);
+  const [questionsVersion, setQuestionsVersion] = useState<string | null>(null);
   const [questions, setQuestions] = useState<string[]>([]);
   const operation = useRef(false);
   const controles = useRef(new Set<string>());
@@ -138,10 +139,15 @@ export function ParcoursImage({ projectId, versionId }: { projectId: string; ver
     <>{appel.bloque&&<p role="status">{MESSAGE_APPEL_PAYANT}</p>}<VueParcours
       vue={{...vue,disponibilite:{...vue.disponibilite,compilation:appel.bloque?{disponible:false,raison:MESSAGE_APPEL_PAYANT}:vue.disponibilite.compilation}}} mode={mode} enCours={enCours} retour={retour} questions={questions}
       surMode={setMode}
+      surPreciser={(precisions) => agir('preciser', async () => {
+        const r = await enregistrerPrecisionsImage({ projectId, baseVersionId: questionsVersion ?? vue.version.id, precisions });
+        if (r.ok) { setQuestions([]); setQuestionsVersion(null); router.refresh(); }
+        return r;
+      }, 'Précisions enregistrées gratuitement. Vous pouvez maintenant préparer votre visuel ; le coût est indiqué avant le clic.')}
       surCompiler={() => agir('compiler', async () => {
         setQuestions([]);
         const r = await compilerConsigneImage({ projectId, mode });
-        if (r.ok && r.statut === 'questions') { setQuestions(r.questions); return { ok: false, code: 'INVALID_SCHEMA', status: 422, message: 'La consigne n’est pas compilée · réponds aux questions dans le brief puis recompile.', targetIds: [], recoverable: true, traceId: '' } as ErreurStudio; }
+        if (r.ok && r.statut === 'questions') { setQuestions(r.questions); setQuestionsVersion(r.projectVersionId); return { ok: false, code: 'INVALID_SCHEMA', status: 422, message: 'Répondez ci-dessous pour préciser votre visuel.', targetIds: [], recoverable: true, traceId: '' } as ErreurStudio; }
         return r;
       }, 'Votre direction créative est prête à être relue.')}
       surRetenir={(runId) => agir('retenir', async () => {

@@ -39,6 +39,7 @@ import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
 import { epinglerProduitPour, associerReferencePour } from '../lib/studios/produit/commandes';
 import { creerProjetDepuisSourcesPour } from '../lib/studios/sources/projet';
+import { enregistrerPrecisionsImagePour } from '../lib/studios/image/precisions';
 import { enregistrerVersion } from '../lib/studios/depot';
 import { compilerEtAttesterPour, retenirConsignePour } from '../lib/studios/image/consigne';
 import { lireParcoursImagePour, devisImagePour, approuverImagePour, controlerMediaPour } from '../lib/studios/image/parcours';
@@ -169,6 +170,31 @@ beforeAll(async () => {
 beforeEach(() => { etat.session = session(ids, 'ua'); texte.recues.length = 0; appels = []; });
 
 describe('parcours nominal · consigne persistée → devis → approbation → job → média dans le projet → revue', () => {
+  it('précisions gratuites : conserve photo/composition, invalide devis, protège version et droits', async () => {
+    const { projectId } = await projetEpingle();
+    await consigneRetenue(projectId);
+    const q = await devisPret(projectId);
+    const avant = await courante(projectId);
+    const credits = await solde();
+    const ctx = ctxDe(ids, 'ua');
+    const r = await enregistrerPrecisionsImagePour(ctx, { projectId, baseVersionId: avant.id, precisions: 'Produit visible, fond crème.' });
+    expect(r, JSON.stringify(r)).toMatchObject({ ok: true });
+    const apres = await courante(projectId);
+    const a = avant.content as ContenuVersion;
+    const b = apres.content as ContenuVersion;
+    expect(b.brief).toEqual({ ...a.brief, composition: [a.brief!.composition, 'Précisions confirmées : Produit visible, fond crème.'].filter(Boolean).join('\n\n') });
+    expect(apres.id).not.toBe(avant.id);
+    const vue = await lireParcoursImagePour(ctx, projectId, { ...SANS_FOURNISSEUR, ...O });
+    expect(vue.ok && vue.vue.devis).toBeNull();
+    expect((await approuver(q)).ok).toBe(false);
+    expect(await solde()).toBe(credits);
+    expect(await enregistrerPrecisionsImagePour(ctx, { projectId, baseVersionId: avant.id, precisions: 'Autre' })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
+    expect(await enregistrerPrecisionsImagePour(ctxDe(ids, 'uv'), { projectId, baseVersionId: apres.id, precisions: 'Autre' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
+    expect(await enregistrerPrecisionsImagePour(ctxDe(ids, 'ub'), { projectId, baseVersionId: apres.id, precisions: 'Autre' })).toMatchObject({ ok: false, code: 'NOT_FOUND' });
+    expect(await enregistrerPrecisionsImagePour(ctx, { projectId, baseVersionId: apres.id, precisions: ' ' })).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
+    expect((await courante(projectId)).id).toBe(apres.id);
+  });
+
   it('clone Veille : direction conservée, photo confirmée, préparation, devis, approbation puis média', async () => {
     const direction = { composition: 'Produit centré sur fond crème, espace libre au-dessus.', styleIntent: 'Lumière douce', formats: ['1:1'], texts: [] };
     const creation = await creerProjetDepuisSourcesPour(ctxDe(ids, 'ua'), {

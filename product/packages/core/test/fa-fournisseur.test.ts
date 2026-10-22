@@ -82,6 +82,9 @@ describe('paramètres natifs · du job aux paramètres fal', () => {
     expect(String(r.corps.prompt)).toContain('Lunettes posées');
     expect(String(r.corps.prompt)).toContain('Composants à préserver à l’identique : bandeau');
     expect(String(r.corps.prompt)).toContain('À éviter absolument : ni le logo');
+    expect(String(r.corps.prompt)).toContain('zones réservées aux textes doivent rester réellement vides');
+    expect(String(r.corps.prompt)).toContain('Conserver uniquement les inscriptions déjà présentes sur le produit de référence');
+    expect(String(r.corps.prompt)).not.toContain('les textes sont posés ensuite');
     expect(r.operations).toEqual(['keyframe:s1']);
     expect(r.limites).toContain('instruction négative non supportée par le modèle · intégrée à la consigne');
     // Empreinte du corps EXPURGÉ : aucune adresse, identifiants et empreintes à la place.

@@ -22,6 +22,7 @@ import { panneau, carte, titre, sousTitre, etiquette, texte, mini, boutonPrimair
 export interface GestesParcours {
   surMode: (m: ModeImage) => void;
   surCompiler: () => void;
+  surPreciser?: (precisions: string) => void;
   surRetenir: (runId: string) => void;
   /** R3 · `controleVision: false` si la case du contrôle visuel a été décochée. */
   surDevis: (o?: { controleVision: boolean }) => void;
@@ -58,10 +59,26 @@ function Bouton({ actif, enCours, libelle, libelleEnCours, surClic, primaire = t
   );
 }
 
+function PrecisionsQuestions({ questions, actif, enCours, surEnregistrer }: { questions: string[]; actif: boolean; enCours: boolean; surEnregistrer: (texte: string) => void }) {
+  const id = useId();
+  const [reponse, setReponse] = useState('');
+  return <div style={signal('info')} data-champ="questions">
+    <p style={texte}>Précisez votre visuel ici.</p>
+    <ul style={{ margin: 0, paddingLeft: 18 }}>{questions.map(q => <li key={q} style={texte}>{q}</li>)}</ul>
+    <label htmlFor={id} style={{ ...etiquette, display: 'block', marginTop: 12 }}>Vos précisions</label>
+    <textarea id={id} value={reponse} onChange={e => setReponse(e.target.value)} maxLength={2000} rows={4} disabled={!actif} style={{ width: '100%', boxSizing: 'border-box', padding: 12, borderRadius: 12, border: '1px solid var(--line-2)', background: 'var(--surface)', color: 'var(--ink)', font: 'inherit' }} />
+    <Bouton nom="preciser" actif={actif && !!reponse.trim()} enCours={enCours} libelle="Enregistrer mes précisions" libelleEnCours="Enregistrement…" surClic={() => surEnregistrer(reponse)} />
+    <p style={mini}>Gratuit · votre photo et votre composition sont conservées. Aucune génération n’est lancée.</p>
+  </div>;
+}
+
 function DetailsConsigne({ c }: { c: ConsigneVue }) {
   return (
     <div style={{ display: 'grid', gap: 8 }}>
-      <p style={{ ...texte, color: 'var(--ink)' }} data-champ="instruction">{c.generationInstruction}</p>
+      <p style={{ ...texte, color: 'var(--ink)' }} data-champ="resume">{c.generationInstruction.length > 360 ? `${c.generationInstruction.slice(0, 360)}…` : c.generationInstruction}</p>
+      <p style={mini} data-reference-produit>{c.liaisons.filter(l => l.role === 'product').map(l => `Photo produit : ${l.libelle}`).join(' · ') || 'Aucune photo produit liée.'}</p>
+      <details><summary style={{ ...mini, cursor: 'pointer', minHeight: 44 }}>Détails de la préparation</summary>
+      <p style={texte} data-champ="instruction">{c.generationInstruction}</p>
       <p style={mini}>Mode : {c.libelleMode} · format {c.format.largeur} × {c.format.hauteur} · compilée le {date(c.compileeLe)}</p>
       {c.protectedComponents.length > 0 && <p style={mini} data-champ="proteges">Composants protégés : {c.protectedComponents.join(', ')}.</p>}
       {c.negativeConstraints.length > 0 && (
@@ -77,6 +94,7 @@ function DetailsConsigne({ c }: { c: ConsigneVue }) {
           ? `Fichiers transmis au fournisseur : ${c.liaisons.map((l) => `${l.libelle} (rôle ${libelleRole(l.role)}, portée ${libellePortee(l.scope)})`).join(' ; ')}.`
           : 'Aucun fichier transmis au fournisseur · génération à partir du texte seul.'}
       </p>
+      </details>
     </div>
   );
 }
@@ -113,7 +131,7 @@ function CarteJob({ j, p }: { j: JobImageVue; p: ProprietesVueParcours }) {
     <article style={carte} data-job={j.id} data-etat-job={j.etat}>
       <div style={rangee}>
         <span style={pastille(COULEUR_ETAT[j.etat] ?? 'var(--accent-strong)')}>{j.libelleEtat}</span>
-        <span style={mini}>Lancée le {date(j.creeLe)} · {libelleCredits(j.creditsReserves)} réservé{j.creditsReserves > 1 ? 's' : ''}{j.creditsRendus ? ` · ${libelleCredits(j.creditsRendus)} rendu${j.creditsRendus > 1 ? 's' : ''}` : ''}</span>
+        <span style={mini}>Lancée le {date(j.creeLe)} · {j.creditsReserves ? `${libelleCredits(j.creditsReserves)} réservé${j.creditsReserves > 1 ? 's' : ''}` : 'Aucun crédit réservé'}{j.creditsRendus ? ` · ${libelleCredits(j.creditsRendus)} rendu${j.creditsRendus > 1 ? 's' : ''}` : ''}</span>
       </div>
       <p style={texte} data-champ="message">{j.message}</p>
       {j.raisonEchec && <p style={signal('err')} data-champ="raison">Raison : {j.raisonEchec}</p>}
@@ -159,12 +177,13 @@ export function VueParcours(p: ProprietesVueParcours) {
   const raisonDevis = !v.retenue ? 'Retiens d’abord une consigne compilée.'
     : !v.retenue.verdict.ok ? v.retenue.verdict.motif
     : !d.devis.disponible ? d.devis.raison : '';
+  const livre = v.jobs.some(j => j.etat === 'completed' && j.media);
   const minutes = Math.round(VALIDITE_DEVIS_MS / 60_000);
 
   return (
     <section aria-labelledby={`${id}-titre`} style={panneau} data-zone="parcours-image">
       <div style={{ display: 'grid', gap: 6 }}>
-        <h2 id={`${id}-titre`} style={titre}>{v.jobs.some(j => !j.terminal) ? 'Votre visuel est en cours de création' : v.devis && verdictOk ? 'Générer votre visuel' : propositionDisponible ? 'Validez votre direction créative' : verdictOk ? 'Votre visuel est prêt à être généré' : 'Préparer votre visuel'}</h2>
+        <h2 id={`${id}-titre`} style={titre}>{v.jobs.some(j => !j.terminal) ? 'Votre visuel est en cours de création' : livre ? 'Votre visuel est prêt' : v.devis && verdictOk ? 'Générer votre visuel' : propositionDisponible ? 'Validez votre direction créative' : verdictOk ? 'Votre visuel est prêt à être généré' : 'Préparer votre visuel'}</h2>
         <p style={sousTitre}>Jarvis prépare la création à partir de vos choix. Vous vérifiez le prix avant de lancer la génération, puis vérifiez le produit sur l’image obtenue.</p>
       </div>
 
@@ -189,17 +208,12 @@ export function VueParcours(p: ProprietesVueParcours) {
           })}
         </div>
         </details>
-        <div hidden={propositionDisponible || verdictOk}><div style={rangee}>
+        <div hidden={propositionDisponible || verdictOk}><div style={{ ...rangee, ...(p.questions.length ? { display: 'none' } : {}) }} hidden={p.questions.length > 0}>
           <Bouton nom="compiler" actif={compilable} enCours={p.enCours === 'compiler'} libelle="Préparer mon visuel avec Jarvis" libelleEnCours="Jarvis prépare votre visuel…" surClic={p.surCompiler} />
           <span style={mini} data-cout="compilation">Appel texte payant · {libelleCoutTexteEstime(v.coutCompilationUsd)} · {NOTE_BORNE_TEXTE} · préparation uniquement, l’image sera facturée séparément.</span>
         </div>
         {!d.compilation.disponible && <p style={signal('warn')} data-indisponible="compilation">Indisponible · {d.compilation.raison}</p>}
-        {p.questions.length > 0 && (
-          <div style={signal('info')} data-champ="questions">
-            <p style={{ ...texte, color: 'var(--ink)' }}>La consigne n’est pas compilée : il manque des informations.</p>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>{p.questions.map((q) => <li key={q} style={texte}>{q}</li>)}</ul><a href={`/studio/projets/${v.projet.id}#conversation-projet`} style={{ ...boutonSecondaire, textDecoration: 'none', marginTop: 12 }}>Préciser ma création avec Jarvis</a>
-          </div>
-        )}
+        {p.questions.length > 0 && <PrecisionsQuestions questions={p.questions} actif={v.peutRelire && !!p.surPreciser && !p.enCours} enCours={p.enCours === 'preciser'} surEnregistrer={(texte) => p.surPreciser?.(texte)} />}
 
         </div>
         {ancienneFidele && <p role="status" style={signal('warn')}>Cette ancienne direction demandait une conservation exacte de la photo, non disponible ici. Pour créer une mise en scène, préparez une nouvelle direction avec Jarvis ; son coût est indiqué avant le clic.</p>}
@@ -229,6 +243,14 @@ export function VueParcours(p: ProprietesVueParcours) {
         ) : !v.enAttente && <p style={texte} data-consigne="aucune">Aucune consigne retenue pour ce projet.</p>}
       </div>
 
+      <div style={{ ...carte, ...(v.jobs.length === 0 ? { display: 'none' } : {}) }} data-etape="generation" hidden={v.jobs.length === 0}>
+        <h3 style={{ ...titre, fontSize: 16 }}>Vos visuels</h3>
+        {v.jobs.length === 0
+          ? <p style={texte} data-etat="sans-job">Aucune génération lancée pour ce projet.</p>
+          : v.jobs.map((j) => <CarteJob key={j.id} j={j} p={p} />)}
+      </div>
+      <details open={livre ? undefined : true} style={{ display: verdictOk ? undefined : 'none' }}>
+        <summary hidden={!livre} style={{ ...mini, cursor: 'pointer', minHeight: 44 }}>Créer un autre visuel · prix et confirmation</summary>
       <div style={{ ...carte, ...(!verdictOk ? { display: 'none' } : {}) }} data-etape="devis" hidden={!verdictOk}>
         <h3 style={{ ...titre, fontSize: 16 }}>Prix de votre image</h3>
         <p style={texte} data-prix="annonce">Une image · {libellePrix(v.prix)} · barème du produit.</p>
@@ -261,12 +283,8 @@ export function VueParcours(p: ProprietesVueParcours) {
         {!d.lancement.disponible && !v.devis && <p style={signal('warn')} data-indisponible="lancement">Lancement indisponible · {d.lancement.raison}</p>}
       </div>
 
-      <div style={{ ...carte, ...(v.jobs.length === 0 ? { display: 'none' } : {}) }} data-etape="generation" hidden={v.jobs.length === 0}>
-        <h3 style={{ ...titre, fontSize: 16 }}>Vos visuels</h3>
-        {v.jobs.length === 0
-          ? <p style={texte} data-etat="sans-job">Aucune génération lancée pour ce projet.</p>
-          : v.jobs.map((j) => <CarteJob key={j.id} j={j} p={p} />)}
-      </div>
+
+      </details>
     </section>
   );
 }

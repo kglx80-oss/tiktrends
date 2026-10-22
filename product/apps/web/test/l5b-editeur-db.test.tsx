@@ -128,10 +128,12 @@ describe('lecture · format du brief, photo produit, médias du SEUL projet', ()
   it('page · état vide qui propose de créer le document au format du brief', async () => {
     qui('ua');
     const d = await page(projet);
-    expect(d.querySelector('[data-etat="document-vide"]')?.textContent).toContain('Ce projet n’a pas encore de document image');
+    expect(d.querySelector('[data-etat="document-vide"]')?.textContent).toContain('Finaliser votre création');
     expect(d.querySelector('[data-format-source]')?.textContent).toBe('Format lu dans le brief : « Story 9:16 ».');
     expect(d.querySelector('input[name="format-document"][value="9:16"]')?.hasAttribute('checked')).toBe(true);
-    expect(d.textContent).toContain('Poser la photo produit du projet, centrée, à 55 % de la largeur');
+    expect(d.textContent).toContain('Ouvrir ma création dans l’éditeur');
+    expect(d.querySelector('select')?.value).toBeTruthy();
+    expect(d.textContent).not.toContain('Poser la photo produit du projet, centrée, à 55 % de la largeur');
   });
 });
 
