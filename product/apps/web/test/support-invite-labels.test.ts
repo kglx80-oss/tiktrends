@@ -16,10 +16,10 @@ describe('S24 · libellés liés · support & invitation', () => {
     expect(s).toContain("<span style={{ ...lbl, display: 'block' }}>Message</span>");
   });
 
-  it('Invitation · E-mail et Rôle sont enrobés', () => {
-    const s = read('components/InviteMemberButton.tsx');
-    expect(s, 'un libellé voisin non lié subsiste').not.toContain('<label style={lbl}>E-mail</label>');
-    expect(s).toContain('<span style={lbl}>E-mail</span>');
-    expect(s).toContain('<span style={lbl}>Rôle</span>');
+  it('Invitation · E-mail et Rôle portent leur nom accessible', () => {
+    // Vague 2 · l'invitation vit dans l'écran Spatial Équipe (formulaire en ligne de la maquette).
+    const s = read('spatial/vues/reglages/Equipe.tsx');
+    expect(s).toContain('aria-label="Email à inviter"');
+    expect(s).toContain('aria-label="Rôle"');
   });
 });

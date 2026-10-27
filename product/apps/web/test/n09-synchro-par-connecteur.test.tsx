@@ -1,24 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Fraicheur } from '../app/(app)/connections/DataConnections';
+import { fraicheurConnecteur } from '@tiktrends/core';
 
 /**
  * CDC v7 · N09 · chaque connecteur date sa PROPRE dernière synchro. Un horodatage
  * partagé (`insights_synced_at`) mentait · une synchro Shopify le remettait à
  * l'instant, faisant passer des KPI Meta anciens pour frais.
  */
-describe('N09 · badge de fraîcheur · résultat visible', () => {
-  it('affiche « Synchronisé le … » quand une date existe', () => {
-    const html = renderToStaticMarkup(<Fraicheur iso="2026-09-10T08:30:00.000Z" />);
-    expect(html).toContain('Synchronisé le');
+// Vague 2 · l'écran V5 est retiré · la fraîcheur des cartes Spatial passe par
+// la règle du noyau `fraicheurConnecteur` (utilisée par `app/(spatial)/sp/connections`).
+describe('N09 · fraîcheur d’une carte · résultat visible', () => {
+  it('affiche « synchronisé le … » quand une date existe', () => {
+    expect(fraicheurConnecteur('2026-09-10T08:30:00.000Z', 'Europe/Paris')).toBe('synchronisé le 10 septembre');
   });
-  it('n\'affiche rien tant qu\'aucune synchro n\'a abouti', () => {
-    expect(renderToStaticMarkup(<Fraicheur iso={null} />)).toBe('');
+  it('dit « pas encore synchronisé » tant qu\'aucune synchro n\'a abouti', () => {
+    expect(fraicheurConnecteur(null, 'Europe/Paris')).toBe('pas encore synchronisé');
   });
   it('ignore une date illisible plutôt que d\'afficher « Invalid Date »', () => {
-    expect(renderToStaticMarkup(<Fraicheur iso="pas-une-date" />)).toBe('');
+    expect(fraicheurConnecteur('pas-une-date', 'Europe/Paris')).toBe('pas encore synchronisé');
+  });
+  it('l’écran Spatial passe par la règle', () => {
+    expect(readFileSync(join(process.cwd(), 'app/(spatial)/sp/connections/page.tsx'), 'utf8')).toContain('fraicheurConnecteur(iso, FUSEAU_ACCUEIL)');
   });
 });
 

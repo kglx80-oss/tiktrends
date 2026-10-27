@@ -70,7 +70,6 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     { fichier: 'app/(app)/assets/AssetsLibrary.tsx', attendus: ['<Empty', 'tone="todo"', 'title="Aucun asset pour l\'instant."'] },
     // Connexions · l'étape d'activation. Sans marque active, c'était une impasse
     // grise sans bouton · devient un `todo` qui pousse à choisir une marque.
-    { fichier: 'app/(app)/connections/DataConnections.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/brands'"] },
     // Crédits · l'historique vide devient une invitation à générer, comme sa
     // page sœur Consommation, au lieu d'une phrase grise sur une page d'argent.
     { fichier: 'app/(app)/credits/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/studio/projets'"] },

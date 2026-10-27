@@ -51,13 +51,10 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
     // ce qui compte est qu'il existe. Une route historique peut n'être plus
     // qu'une redirection serveur (route handler · `/analytics` → l'Accueil,
     // lot 19A) · elle mène quelque part, pas dans le vide.
-    // Un écran Spatial EXCLUSIF est servi par Spatial même en mode V5 (sa page vit
-    // sous `app/(spatial)/sp`, la garde `spatial-fondation` exige qu'elle existe) ·
-    // le rail y mène bien quelque part.
-    const reelles = new Set([
-      ...pagesDe(join(process.cwd(), 'app'), '', ['page.tsx', 'route.ts']),
-      ...ECRANS_SPATIAUX.filter((e) => e.exclusif).map((e) => e.chemin),
-    ]);
+    const reelles = new Set(pagesDe(join(process.cwd(), 'app'), '', ['page.tsx', 'route.ts']));
+    // Un écran EXCLUSIF n'a plus de page V5 · le middleware le sert toujours
+    // par Spatial (`app/(spatial)/sp`), il mène donc quelque part.
+    for (const e of ECRANS_SPATIAUX) if (e.exclusif && reelles.has(`/sp${e.chemin}`)) reelles.add(e.chemin);
     const fantomes = ROUTES.map((r) => r.path).filter((p) => !reelles.has(p));
     expect(fantomes, `Chemin(s) déclaré(s) sans page · le rail y mènerait dans le vide : ${fantomes.join(', ')}`)
       .toEqual([]);

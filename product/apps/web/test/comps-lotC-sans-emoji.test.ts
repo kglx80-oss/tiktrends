@@ -13,7 +13,6 @@ import { join } from 'node:path';
  */
 const FICHIERS = [
   'components/SavedBoards.tsx',
-  'components/StorageConfigurator.tsx',
   'components/TrackerFeed.tsx',
   'components/MarquesSuivies.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
@@ -31,7 +30,6 @@ describe('Composants lot C · plus aucun emoji d’interface', () => {
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
     expect(tout).toMatch(/<Icon name="folder"/);   // SavedBoards
-    expect(tout).toMatch(/<Icon name="gear"/);       // StorageConfigurator
     expect(tout).toMatch(/<Icon name="radar"/);      // TrackerFeed
     expect(tout).toMatch(/<Icon name="sparkles"/);   // MarquesSuivies
   });

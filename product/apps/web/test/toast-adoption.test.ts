@@ -18,7 +18,8 @@ const CAS: Array<{ fichier: string; messages: string[]; canal?: RegExp }> = [
   // Spatial · le canal est le geste de la rubrique (`useGeste` · toast sur retour sans erreur).
   { fichier: 'spatial/vues/resultats/Tri.tsx', messages: ['validé', 'Proposition écartée'], canal: /useGeste/ },
   { fichier: 'app/(app)/assets/AssetsLibrary.tsx', messages: ['Élément importé.'] },
-  { fichier: 'app/(app)/connections/DataConnections.tsx', messages: ['Shopify déconnecté.', 'Meta déconnecté.'] },
+  // Vague 2 · Connexions vit dans Spatial · son canal de retour est le toast de la coquille.
+  { fichier: 'spatial/vues/reglages/interactifs.tsx', messages: ['`${nom} déconnecté`', '`${nom} synchronisé`'], canal: /useSpatial\(\)/ },
   { fichier: 'app/(app)/assets/DriveConnect.tsx', messages: ['Google Drive déconnecté.'] },
   { fichier: 'components/SavedBoards.tsx', messages: ['Rangé dans', 'Retiré du board.'] },
   { fichier: 'spatial/vues/resultats/ActionsLot.tsx', messages: ['ajoutée au lot', 'retirée du lot'], canal: /toast\(t\)/ },
@@ -26,10 +27,10 @@ const CAS: Array<{ fichier: string; messages: string[]; canal?: RegExp }> = [
 ];
 
 describe('chaque action autrefois muette émet désormais un retour', () => {
-  for (const { fichier, messages, canal = /useToast/ } of CAS) {
+  for (const { fichier, messages, canal } of CAS) {
     it(`${fichier} · branche le canal et confirme`, () => {
       const src = readFileSync(join(WEB, fichier), 'utf8');
-      expect(src, `${fichier} ne branche pas le canal de retour`).toMatch(canal);
+      expect(src, `${fichier} n'importe pas son canal de retour`).toMatch(canal ?? /useToast/);
       for (const m of messages) {
         expect(src.includes(m), `${fichier} ne confirme plus « ${m} »`).toBe(true);
       }
