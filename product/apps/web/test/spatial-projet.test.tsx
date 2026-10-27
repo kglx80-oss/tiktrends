@@ -335,3 +335,43 @@ describe('Spatial · D2 · comportements', () => {
     expect(html).not.toContain('class="vpbtn"');
   });
 });
+
+describe('Spatial · D2 · « Cibler Jarvis » depuis un nœud des couloirs', () => {
+  const liste = (peutProposer = true) => ({
+    ok: true as const, projectId: 'p1', versionCourante: { id: 'v3', n: 3 }, propositions: [], peutProposer,
+    jarvis: { disponible: true, motif: null, raison: '', coutMaxUsd: 0.02, mentionCout: 'Appel texte payant · 0,02 $ au plus.' },
+    cibles: [{ cible: 'shot:s1', libelle: 'Plan 1', champs: [] }, { cible: 'brief', libelle: 'Brief', champs: [] }],
+  });
+  const avecCible = (peutProposer = true) => {
+    const base = propsProjet();
+    const couloirs = COULOIRS_MAQUETTE.map((c) => ({ ...c, noeuds: c.noeuds.map((x) => (x.id === 'brief:v3' || x.id === 'hypothese:v3' ? { ...x, cible: { cible: 'brief', libelle: 'Brief' } } : x)) }));
+    return propsProjet({ couloirs, brief: { ...base.brief, propositions: { initial: liste(peutProposer) as never, versionCourante: { id: 'v3', n: 3 } } } });
+  };
+
+  it('le nœud du brief porte « Cibler Jarvis » · le clic ouvre les propositions, cible choisie, focus dans la demande, RIEN d’envoyé', async () => {
+    monter(<Projet {...avecCible()} />);
+    expect(hote.querySelectorAll('[data-cibler-jarvis]')).toHaveLength(2);
+    expect(hote.querySelector('[data-noeud="creation:b"] [data-cibler-jarvis]')).toBeNull();
+    await cliquer(hote.querySelector('[data-noeud="hypothese:v3"] [data-cibler-jarvis]'));
+    expect(hote.querySelector('#propositions')).not.toBeNull();
+    expect((hote.querySelector('#propositions select') as HTMLSelectElement).value).toBe('brief');
+    expect([...hote.querySelectorAll('#propositions .seg button')].find((b) => b.textContent === 'Demander à Jarvis')!.getAttribute('aria-pressed')).toBe('true');
+    expect(document.activeElement).toBe(hote.querySelector('[data-champ="demande-jarvis"]'));
+    expect(hote.querySelector('#propositions')!.textContent).toMatch(/Cible « Brief » choisie.*Rien n’est envoyé/);
+    expect(actions.proposerBrief).not.toHaveBeenCalled();
+    expect(actions.proposerPatch).not.toHaveBeenCalled();
+  });
+
+  it('sans droit de proposer, le ciblage le dit et ne place rien · aucun envoi', async () => {
+    monter(<Projet {...avecCible(false)} />);
+    await cliquer(hote.querySelector('[data-noeud="brief:v3"] [data-cibler-jarvis]'));
+    expect(hote.querySelector('#propositions')!.textContent).toMatch(/ne proposent pas « Brief »/);
+    expect(hote.querySelector('[data-champ="demande-jarvis"]')).toBeNull();
+    expect(actions.proposerBrief).not.toHaveBeenCalled();
+  });
+
+  it('un nœud sans cible (parité, autre version) n’offre pas le geste', () => {
+    monter(<Projet {...propsProjet()} />);
+    expect(hote.querySelector('[data-cibler-jarvis]')).toBeNull();
+  });
+});

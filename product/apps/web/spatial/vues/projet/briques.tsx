@@ -20,8 +20,13 @@ export function Ad({ src, bandeau, classe = '', alt = '', style, styleImage, enf
   );
 }
 
-/** Un nœud du canvas (`div.node`) · les parties dans l'ordre de la maquette. */
-export function Noeud({ n }: { n: NoeudSpatial }) {
+/**
+ * Un nœud du canvas (`div.node`) · les parties dans l'ordre de la maquette. Un
+ * nœud du brief de la version courante porte en plus « Cibler Jarvis » (geste
+ * de la fiche V5), rendu par l'écran client (`geste`) · il choisit la cible
+ * des propositions, il n'envoie rien.
+ */
+export function Noeud({ n, geste }: { n: NoeudSpatial; geste?: ReactNode }) {
   return (
     <div className={`node ${n.classe}`} data-noeud={n.id}>
       <span className="k">{n.etiquette}</span>
@@ -37,6 +42,7 @@ export function Noeud({ n }: { n: NoeudSpatial }) {
       {n.lien && (n.lien.forme === 'bouton'
         ? <Lien className="btn pri sm" href={n.lien.href}>{n.lien.libelle}</Lien>
         : <Lien className="pill c" style={{ justifySelf: 'start' }} href={n.lien.href}>{n.lien.libelle}</Lien>)}
+      {geste}
     </div>
   );
 }
