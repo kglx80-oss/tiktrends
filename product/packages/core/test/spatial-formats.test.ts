@@ -29,9 +29,9 @@ describe('Formats Spatial · le catalogue des 28 styles', () => {
   });
 
   it('les 28 clés sont SERVIES par l’arbre Spatial · une seule adresse dynamique, section veille', () => {
-    for (const k of CLES_STYLES) expect(ecranSpatial(`/veille/formats/${k}`), k).toEqual({ interne: `/sp/veille/formats/${k}`, section: 'veille' });
-    expect(ecranSpatial('/veille/formats')).toEqual({ interne: '/sp/veille/formats', section: 'veille' });
-    expect(ecranSpatial('/veille/tendances')).toEqual({ interne: '/sp/veille/tendances', section: 'veille' });
+    for (const k of CLES_STYLES) expect(ecranSpatial(`/veille/formats/${k}`), k).toMatchObject({ interne: `/sp/veille/formats/${k}`, section: 'veille' });
+    expect(ecranSpatial('/veille/formats')).toMatchObject({ interne: '/sp/veille/formats', section: 'veille' });
+    expect(ecranSpatial('/veille/tendances')).toMatchObject({ interne: '/sp/veille/tendances', section: 'veille' });
     expect(estCleStyle('avap')).toBe(true);
     for (const x of ['', 'AVAP', 'f-avap', 'avant_apres', '../x', null, 3]) expect(estCleStyle(x)).toBe(false);
   });

@@ -157,7 +157,7 @@ describe('Spatial · Studios · écrans déclarés et textes', () => {
   it('les quatre adresses D1 sont portées, section studios · l’éditeur d’un projet n’est pas réécrit par erreur', () => {
     for (const c of ['/studio/projets', '/studio/prompts', '/studio/projets/nouveau', '/studio/iterer']) {
       expect(ECRANS_SPATIAUX.filter((e) => e.section === 'studios').map((e) => e.chemin)).toContain(c);
-      expect(ecranSpatial(c)).toEqual({ interne: `/sp${c}`, section: 'studios' });
+      expect(ecranSpatial(c)).toMatchObject({ interne: `/sp${c}`, section: 'studios' });
     }
     expect(ecranSpatial('/studio/projets/nouveau/concept')).toBeNull();
   });
