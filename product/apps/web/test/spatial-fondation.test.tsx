@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ECRANS_SPATIAUX, entreesRail, entreesRailEspace } from '@tiktrends/core';
+import { ECRANS_SPATIAUX, entreesRail, entreesRailEspace, deriverRoutesCss, routesColorees } from '@tiktrends/core';
 import { parite, squelette, fragmentReference } from './spatial/parite';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard', useRouter: () => ({ push: () => {}, refresh: () => {} }) }));
@@ -30,6 +30,16 @@ describe('Spatial · la feuille de style est celle de la maquette, à l’octet 
     expect(reel.length, 'taille du CSS Spatial').toBe(attendu.length);
     expect(reel === attendu, 'spatial.css a été modifié · le pixel perfect suppose le CSS de la maquette TEL QUEL').toBe(true);
   });
+
+  it('spatial-routes.css = la dérivation EXACTE des règles à adresse « #route » · les couleurs des tuiles et anneaux suivent `data-route`', () => {
+    const css = lire('spatial/spatial.css');
+    expect(lire('spatial/spatial-routes.css'), 'feuille dérivée périmée · la régénérer par deriverRoutesCss(spatial.css)').toBe(deriverRoutesCss(css));
+    expect(routesColorees(css)).toEqual(['formats', 'importer', 'jarvis', 'lots', 'marque', 'nouveau', 'radar', 'sauvegardes', 'studios', 'veille']);
+    expect(lire('spatial/spatial-routes.css')).not.toContain('href=');
+    // Aucune règle oubliée (ex. dans un @media) · autant de sélecteurs dérivés que d'originaux.
+    const n = (t: string, re: RegExp) => (t.match(re) ?? []).length;
+    expect(n(lire('spatial/spatial-routes.css'), /\[data-route="/g)).toBe(n(css, /\[href="#/g));
+  });
 });
 
 /* ───────────────────────── 2 · les deux interfaces ne se mélangent pas ───────────────────────── */
@@ -54,7 +64,7 @@ describe('Spatial · isolation des feuilles de style', () => {
   });
 
   it('l’arbre Spatial ne charge QUE le CSS de la maquette · jamais globals.css ni les jetons V5', () => {
-    expect(imports(lire('app/(spatial)/layout.tsx'))).toEqual(['../../spatial/spatial.css']);
+    expect(imports(lire('app/(spatial)/layout.tsx'))).toEqual(['../../spatial/spatial.css', '../../spatial/spatial-routes.css']);
     const fichiers: string[] = [];
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const p = join(d, n); statSync(p).isDirectory() ? parcourir(p) : /\.(tsx?|css)$/.test(n) && fichiers.push(p); } };
     parcourir(join(WEB, 'app', '(spatial)')); parcourir(join(WEB, 'spatial'));
