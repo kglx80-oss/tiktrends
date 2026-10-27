@@ -182,7 +182,7 @@ export function Accueil(p: PropsAccueil) {
       {p.raccourcis.length > 0 && (
         <nav className="qrow" aria-label="Raccourcis">
           {p.raccourcis.map((r) => (
-            <Lien className="qa2 qa3" href={r.href} key={r.cle} style={r.pastille ? { position: 'relative' } : undefined}>
+            <Lien className="qa2 qa3" href={r.href} data-route={r.route} key={r.cle} style={r.pastille ? { position: 'relative' } : undefined}>
               <span className="ico"><Ic n={r.icone} /></span>
               <span className="qt"><strong>{r.titre}</strong><small>{r.sous}</small></span>
               {r.pastille && <span className="qbadge" title={r.pastille.titre}>{r.pastille.valeur}</span>}

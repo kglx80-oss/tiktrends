@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  PASTILLES_JARVIS_ACCUEIL, periodeReporting, syntheseReporting, choixRapidesPeriode,
+  PASTILLES_JARVIS_ACCUEIL, raccourcisAccueil, periodeReporting, syntheseReporting, choixRapidesPeriode,
   type CarteConfiguration, type CarteQuoiIterer, type EtapeBoucleAccueil, type JourneeMesuree,
 } from '@tiktrends/core';
 import { parite, squelette, fragmentReference } from './spatial/parite';
@@ -69,11 +69,11 @@ const PROPS: PropsAccueil = {
   surtitre: 'Mercredi 22 octobre · M', salutation: 'Bonjour K',
   jarvis: { titre: 'Comment je peux t’aider sur M ?', sources: ['Meta', 'TikTok', 'Veille', 'Fiche marque'], pastilles: PASTILLES_JARVIS_ACCUEIL },
   raccourcis: [
-    { cle: 'nouveau', icone: 'brush', titre: 'a', sous: 'a', href: '/studio/projets/nouveau', pastille: null },
-    { cle: 'formats', icone: 'eye', titre: 'b', sous: 'b', href: '/veille/formats', pastille: null },
-    { cle: 'forfaits', icone: 'spark', titre: 'c', sous: 'c', href: '/billing', pastille: null },
-    { cle: 'importer', icone: 'down', titre: 'd', sous: 'd', href: '/adsmap/import', pastille: null },
-    { cle: 'fiche', icone: 'tag', titre: 'e', sous: 'e', href: '/brands/b1', pastille: { valeur: '6', titre: '6 éléments' } },
+    { cle: 'nouveau', route: 'nouveau', icone: 'brush', titre: 'a', sous: 'a', href: '/studio/projets/nouveau', pastille: null },
+    { cle: 'formats', route: 'formats', icone: 'eye', titre: 'b', sous: 'b', href: '/veille/formats', pastille: null },
+    { cle: 'forfaits', route: 'forfaits', icone: 'spark', titre: 'c', sous: 'c', href: '/billing', pastille: null },
+    { cle: 'importer', route: 'importer', icone: 'down', titre: 'd', sous: 'd', href: '/adsmap/import', pastille: null },
+    { cle: 'fiche', route: 'marque', icone: 'tag', titre: 'e', sous: 'e', href: '/brands/b1', pastille: { valeur: '6', titre: '6 éléments' } },
   ],
   attente: '2 choses t’attendent : x et y.',
   maintenant: { titre: 'À faire maintenant : conclure le lot #1', detail: 'd', action: 'Conclure le lot', href: '/adsmap/lots?lot=l1' },
@@ -104,6 +104,15 @@ describe('Spatial · Accueil · parité de structure avec la maquette', () => {
   it('« Bonjour … » reproduit la maquette (en-tête, Jarvis, raccourcis, configuration, reporting, itérations, boucle, nouveautés, reprise)', () => {
     const p = parite(rendre(<Accueil {...PROPS} />), 'accueil', { ignorer: IGNORER });
     expect(p.rendu).toEqual(p.reference);
+  });
+
+  it('chaque raccourci porte la route de la maquette · la couleur de son icône en dépend (spatial-routes.css)', () => {
+    const r = raccourcisAccueil({ nouveauProjet: '/studio/projets/nouveau', formats: true, forfaits: true, importer: true, fiche: { href: '/brands/b1', manques: ['x'] } });
+    const html = rendre(<Accueil {...PROPS} raccourcis={r} />);
+    const routes = [...html.matchAll(/class="qa2 qa3"[^>]*data-route="([a-z]+)"/g)].map((m) => m[1]);
+    const attendu = [...fragmentReference('accueil').matchAll(/class="qa2 qa3" href="#([a-z]+)"/g)].map((m) => m[1]);
+    expect(attendu).toHaveLength(5);
+    expect(routes).toEqual(attendu);
   });
 
   it('la garde voit un écart · une tuile de reporting en moins, une classe retirée, un bloc retiré la font tomber', () => {
@@ -177,7 +186,7 @@ describe('Spatial · Accueil · la carte de configuration se déplie sur les ét
     const racine = createRoot(hote);
     await act(async () => { racine.render(<CarteConfigurationAccueil carte={CARTE} questionnaire="/onboarding?redo=1" fiche={null} />); });
     expect(hote.querySelectorAll('.cfgi').length).toBe(3);
-    expect(hote.querySelector('.cfgm')?.textContent).toBe('Voir les 4 étapes');
+    expect(hote.querySelector('.cfgm')?.textContent).toBe('Voir les 4 étapes · 8 requises');
     await act(async () => { (hote.querySelector('.cfgm') as HTMLButtonElement).click(); });
     expect(hote.querySelectorAll('.cfgi').length).toBe(4);
     expect(hote.querySelectorAll('.cfgi.ok').length).toBe(1);

@@ -86,7 +86,7 @@ export function CarteConfigurationAccueil({ carte, questionnaire, fiche }: { car
         ))}
       </div>
       <button type="button" className="cfgm" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
-        {ouvert ? 'Masquer les étapes terminées' : `Voir les ${carte.etapes.length} étapes`}
+        {ouvert ? 'Masquer les étapes terminées' : `Voir les ${carte.etapes.length} étapes${carte.etapes.length !== carte.total ? ` · ${carte.total} requises` : ''}`}
       </button>
     </section>
   );

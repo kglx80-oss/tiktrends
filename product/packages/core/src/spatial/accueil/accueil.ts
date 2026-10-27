@@ -55,6 +55,8 @@ export function ligneAttente(phrase: PhraseAttente | null): string | null {
 
 export interface RaccourciAccueil {
   cle: 'nouveau' | 'formats' | 'forfaits' | 'importer' | 'fiche';
+  /** L'adresse de la maquette · la couleur de l'icône en dépend (`data-route`, `spatial-routes.css`). */
+  route: 'nouveau' | 'formats' | 'forfaits' | 'importer' | 'marque';
   icone: string;
   titre: string;
   sous: string;
@@ -79,14 +81,14 @@ export function raccourcisAccueil(p: {
   fiche: { href: string; manques: readonly string[] } | null;
 }): RaccourciAccueil[] {
   const out: RaccourciAccueil[] = [];
-  if (p.nouveauProjet) out.push({ cle: 'nouveau', icone: 'brush', titre: 'Nouveau projet', sous: 'Brief → création, étape par étape', href: p.nouveauProjet, pastille: null });
-  if (p.formats) out.push({ cle: 'formats', icone: 'eye', titre: 'Formats & Veille', sous: `${NB_FORMATS_VEILLE} formats, concurrents`, href: '/veille/formats', pastille: null });
-  if (p.forfaits) out.push({ cle: 'forfaits', icone: 'spark', titre: 'Forfaits & crédits', sous: 'Recharger, changer de plan', href: '/billing', pastille: null });
-  if (p.importer) out.push({ cle: 'importer', icone: 'down', titre: 'Importer des résultats', sous: 'Relier les mesures aux créas', href: CHEMIN_IMPORT_RESULTATS, pastille: null });
+  if (p.nouveauProjet) out.push({ cle: 'nouveau', route: 'nouveau', icone: 'brush', titre: 'Nouveau projet', sous: 'Brief → création, étape par étape', href: p.nouveauProjet, pastille: null });
+  if (p.formats) out.push({ cle: 'formats', route: 'formats', icone: 'eye', titre: 'Formats & Veille', sous: `${NB_FORMATS_VEILLE} formats, concurrents`, href: '/veille/formats', pastille: null });
+  if (p.forfaits) out.push({ cle: 'forfaits', route: 'forfaits', icone: 'spark', titre: 'Forfaits & crédits', sous: 'Recharger, changer de plan', href: '/billing', pastille: null });
+  if (p.importer) out.push({ cle: 'importer', route: 'importer', icone: 'down', titre: 'Importer des résultats', sous: 'Relier les mesures aux créas', href: CHEMIN_IMPORT_RESULTATS, pastille: null });
   if (p.fiche) {
     const n = p.fiche.manques.length;
     out.push({
-      cle: 'fiche', icone: 'tag', titre: 'Fiche marque', href: p.fiche.href,
+      cle: 'fiche', route: 'marque', icone: 'tag', titre: 'Fiche marque', href: p.fiche.href,
       sous: n === 0 ? 'Complète · identité, offre, audiences' : `${pl(n, 'élément', 'éléments')} à compléter`,
       pastille: n > 0 ? { valeur: String(n), titre: `${pl(n, 'élément', 'éléments')} de la fiche à compléter` } : null,
     });
