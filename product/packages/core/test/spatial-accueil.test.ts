@@ -27,9 +27,9 @@ describe('Spatial · Accueil · Jarvis préremplie, jamais envoyée', () => {
   });
   it('l’écran Jarvis relit exactement la question posée', () => {
     const q = 'Quel angle tester ensuite pour « Été » & co ?';
-    expect(lireQuestionJarvis(new URLSearchParams(lienQuestionJarvis(q).split('?')[1]))).toBe(q);
-    expect(lireQuestionJarvis({ q: ['a', 'b'] })).toBe('a');
-    expect(lireQuestionJarvis({})).toBe('');
+    expect(lireQuestionJarvis(new URLSearchParams(lienQuestionJarvis(q).split('?')[1]).get('q'))).toBe(q);
+    expect(lireQuestionJarvis(['a', 'b'])).toBe('a');
+    expect(lireQuestionJarvis(undefined)).toBe('');
     expect(lireQuestionJarvis(null)).toBe('');
   });
   it('aucune source prêtée à Jarvis sans marque · le titre suit la marque', () => {
