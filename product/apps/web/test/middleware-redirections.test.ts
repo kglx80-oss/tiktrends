@@ -56,8 +56,9 @@ describe('middleware · adresses retirées servies en 307 HTTP, contexte repris'
   });
 
   it('chemin non concerné ⇒ passe inchangé (aucune redirection)', () => {
+    // En mode V5 · la réécriture Spatial (défaut) est gardée à part, plus bas.
     for (const adresse of NON_CONCERNES) {
-      const r = appeler(adresse);
+      const r = appeler(adresse, { cookie: 'tt_ui=v5' });
       expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-next')]).toEqual([adresse, 200, null, '1']);
     }
   });
@@ -95,8 +96,13 @@ describe('middleware · bascule Spatial (cookie tt_ui)', () => {
     expect(r.headers.get('x-middleware-request-x-tt-section')).toBe('reglages');
   });
 
-  it('mode V5, sans cookie, ou écran non porté ⇒ aucune réécriture', () => {
-    for (const [adresse, ui] of [['/usage', 'v5'], ['/usage', undefined], ['/console', 'spatial'], ['/sp/usage', 'spatial']] as const) {
+  it('sans cookie ⇒ Spatial par défaut · l’écran porté est réécrit', () => {
+    const r = avec('/usage');
+    expect([r.status, r.headers.get('x-middleware-rewrite')]).toEqual([200, `${HOTE}/sp/usage`]);
+  });
+
+  it('mode V5, ou écran non porté ⇒ aucune réécriture', () => {
+    for (const [adresse, ui] of [['/usage', 'v5'], ['/console', 'spatial'], ['/console', undefined], ['/sp/usage', 'spatial']] as const) {
       const r = avec(adresse, ui);
       expect([adresse, ui, r.headers.get('x-middleware-rewrite'), r.headers.get('x-middleware-next')]).toEqual([adresse, ui, null, '1']);
     }

@@ -24,8 +24,12 @@ import { ECRANS_ADMIN } from './ecrans/admin';
 export const UI_COOKIE = 'tt_ui';
 export type ModeUi = 'spatial' | 'v5';
 
-/** Le défaut pendant la construction. Basculé à `spatial` en fin de chantier. */
-export const UI_DEFAUT: ModeUi = 'v5';
+/**
+ * Le défaut · Spatial (mandat du 27/10, tous les écrans de la maquette portés).
+ * `?ui=v5` rouvre l'ancienne interface pour ce navigateur (cookie), le temps
+ * qu'elle serve encore les fonctions hors maquette.
+ */
+export const UI_DEFAUT: ModeUi = 'spatial';
 
 export function uiDepuisCookie(v: string | undefined | null): ModeUi {
   return v === 'spatial' || v === 'v5' ? v : UI_DEFAUT;
