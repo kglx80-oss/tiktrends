@@ -1,9 +1,0 @@
-   ▲ Next.js 15.5.23
-   - Local:        http://localhost:3200
-   - Network:      http://192.0.2.2:3200
-
- ✓ Starting...
- ⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
- ✓ Ready in 8.3s
-<claude-code-hint v="1" type="plugin" value="stripe@claude-plugins-official" />
-<claude-code-hint v="1" type="plugin" value="stripe@claude-plugins-official" />
