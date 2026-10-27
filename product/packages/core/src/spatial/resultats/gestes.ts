@@ -189,6 +189,18 @@ export function controleArbitrage(a: { calcule: string | null; retenu: string; m
   return null;
 }
 
+/**
+ * Le budget TOTAL d'un lot · PRÉVU (le lot est un brief à recopier dans la
+ * régie, rien n'est dépensé ici), jamais « engagé ». Sur un lot vide il vaut
+ * 0 €, ce qui se lirait comme une contradiction à côté de la projection par
+ * variante · on dit que le total suit le nombre de variantes.
+ */
+export function budgetPrevuLot(totalBudget: number, variantes: number): string {
+  return variantes === 0
+    ? '0 € prévus · le total suit le nombre de variantes (aucune pour l’instant)'
+    : `${totalBudget.toLocaleString('fr-FR')} € prévus au total`;
+}
+
 /* ───────────────────────── file de décisions ───────────────────────── */
 
 export const LIBELLE_DECISION: Record<string, string> = {

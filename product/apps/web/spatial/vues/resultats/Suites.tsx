@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  COUT_BROUILLON_JARVIS, HYPOTHESE_MIN, MODE_LABEL, ecrireFiltreSuites, lienFicheTest, lireFiltreSuites, resultatParentSuite, sensDuSuite, videSuites,
+  COUT_BROUILLON_JARVIS, HYPOTHESE_MIN, MODE_LABEL, REGLE_ITERATION, ecrireFiltreSuites, lienFicheTest, lireFiltreSuites, resultatParentSuite, sensDuSuite, videSuites,
   type FiltreSuites,
 } from '@tiktrends/core';
 import { createIterationAction, type IterationPlanView, type IterationRow } from '../../../app/actions/adsmap-iterate';
@@ -83,6 +83,7 @@ export function Suites(p: PropsSuites) {
           {visibles.map((r) => <CarteSuite key={`${r.adId}-${r.changedVariable}`} r={r} onCree={(c) => setCreee({ ...c, label: r.label })} />)}
         </div>
       )}
+      <p className="faint" style={{ fontSize: '12px', marginTop: 14, maxWidth: 760 }}>Un tunnel est ordonné · une créa qui échoue à la conversion a été vue, regardée et cliquée, ces réponses sont déjà payées. C’est pourquoi chaque suite affiche d’abord ce qu’il ne faut pas toucher, et change exactement une variable. La règle d’itération : {REGLE_ITERATION}</p>
     </Vue>
   );
 }

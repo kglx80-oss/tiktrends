@@ -60,6 +60,7 @@ import { ReglagesProtocole } from '../spatial/vues/resultats/ReglagesProtocole';
 import { VueEnsemble } from '../spatial/vues/resultats/VueEnsemble';
 import { Lot } from '../spatial/vues/resultats/Lot';
 import { Importer } from '../spatial/vues/resultats/Importer';
+import { ActionsLot } from '../spatial/vues/resultats/ActionsLot';
 import type { AdRow } from '../app/actions/adsmap';
 import type { IterationRow } from '../app/actions/adsmap-iterate';
 
@@ -336,5 +337,105 @@ describe('Spatial · Résultats · importer · chaque écart est listé avant qu
     expect(liens(hote)).toEqual(expect.arrayContaining(['/adsmap/tri', '/adsmap/tests']));
     expect(hote.textContent).toContain('1 ad(s) attendent leur hypothèse');
     fin();
+  });
+});
+
+describe('Spatial · Résultats · comportements repris de l’ancienne Adsmap', () => {
+  const initial = () => ({ protocol: { structure: 'abo_one_adset_per_ad' as const, dailyBudgetPerAd: 20, durationDays: 7, audienceRule: 'broad', campaignNamePattern: 'CAMP', budgetVarianceTolerance: 0.2 }, verdict: { ...DEFAULT_VERDICT_CONFIG, targetCpa: 25 }, namingPattern: 'NOM', isDefault: false });
+
+  it('protocole · un seul geste à la fois · deux clics du même instant n’enregistrent qu’une fois', async () => {
+    a.enregistrer.mockClear();
+    const { hote, fin } = monter(<ReglagesProtocole initial={initial()} peutModifier />);
+    const b = bouton(hote, /Enregistrer les réglages/)!;
+    await act(async () => { b.click(); b.click(); });
+    expect(a.enregistrer).toHaveBeenCalledTimes(1);
+    fin();
+  });
+
+  it('protocole · tolérance, confiance et écart de budget se saisissent en %, partent en fraction', async () => {
+    a.enregistrer.mockClear();
+    const { hote, fin } = monter(<ReglagesProtocole initial={initial()} peutModifier />);
+    const champ = (libelle: RegExp) => [...hote.querySelectorAll('label.field')].find((l) => libelle.test(l.textContent ?? ''))!.querySelector('input')!;
+    act(() => saisir(champ(/Tolérance/), '35'));
+    act(() => saisir(champ(/Niveau de confiance/), '90'));
+    act(() => saisir(champ(/Écart de budget toléré \(%\)/), '15'));
+    await act(async () => bouton(hote, /Enregistrer les réglages/)!.click());
+    const envoye = a.enregistrer.mock.calls[0]![0] as ReturnType<typeof initial>;
+    expect(envoye.verdict.babyTolerance).toBeCloseTo(0.35);
+    expect(envoye.verdict.ciLevelOneSided).toBeCloseTo(0.9);
+    expect(envoye.protocol.budgetVarianceTolerance).toBeCloseTo(0.15);
+    fin();
+  });
+
+  it('protocole · sans donnée Meta, « Proposer » ne change rien et le dit · CPA et nom de campagne saisis survivent', async () => {
+    a.suggerer.mockResolvedValueOnce({ suggestion: { verdict: { ...DEFAULT_VERDICT_CONFIG }, protocol: { dailyBudgetPerAd: 20 }, notes: ['Pas assez de données'], fromRealData: false } });
+    a.enregistrer.mockClear();
+    const { hote, fin } = monter(<ReglagesProtocole initial={initial()} peutModifier />);
+    await act(async () => bouton(hote, /Proposer des seuils/)!.click());
+    expect(hote.textContent).toContain('Sans données Meta · rien n’a été modifié');
+    await act(async () => bouton(hote, /Enregistrer les réglages/)!.click());
+    const envoye = a.enregistrer.mock.calls[0]![0] as ReturnType<typeof initial>;
+    expect(envoye.verdict.targetCpa).toBe(25);
+    expect(envoye.protocol.campaignNamePattern).toBe('CAMP');
+    fin();
+  });
+
+  it('lot · ce qui manque se lit à l’écran, chaque variante mène à sa fiche, un vivier vide mène aux Studios, un lot vide explique son 0 €', () => {
+    const html = rendre(<ActionsLot mode="composition" lotId="l1" pret={false}
+      variantes={[]}
+      vivier={[{ id: 'v9', variante: 'v9', concept: 'Trois erreurs', manques: ['l’hypothèse', 'l’offre'], nom: null }]}
+      brief={{ campagne: 'C', structure: 'ABO', budgetJour: 20, jours: 7, audience: 'broad', total: 0, conclusivite: 'ok' }} />);
+    expect(html).toContain('Il manque l’hypothèse, l’offre');
+    expect(html).toContain('0 € prévus · le total suit le nombre de variantes');
+    const plein = rendre(<ActionsLot mode="composition" lotId="l1" pret={false}
+      variantes={[{ id: ID, variante: 'v1', concept: 'c', manques: [], nom: 'NOM-1', blocage: 'Offre absente', avis: 'Accroche déjà perdue ici', adset: 'AS-1' }]}
+      vivier={[]} brief={null} />);
+    expect(plein).toContain(`href="/adsmap/tests/${ID}"`);
+    expect(plein).toContain('Offre absente');
+    expect(plein).toContain('Accroche déjà perdue ici');
+    expect(plein).toContain('href="/studio/projets/nouveau"');
+  });
+
+  it('fiche ouverte depuis les Studios · le chemin du retour est rendu', () => {
+    const html = rendre(<FicheTest titre="t" sous="s" provenance={null} retour={{ href: '/studio/projets', libelle: 'Retour aux Studios' }} hypothese={null} arbitre={null} apprentissages={[]} filiation={{ parent: null, enfants: [] }}
+      resultat={{ type: 'vide', texte: 'Pas encore lancée', prochaine: null }} />);
+    expect(html).toMatch(/href="\/studio\/projets"[^>]*>.*Retour aux Studios/);
+    expect(rendre(<FicheTest titre="t" sous="s" provenance={null} retour={null} hypothese={null} arbitre={null} apprentissages={[]} filiation={{ parent: null, enfants: [] }}
+      resultat={{ type: 'vide', texte: 'x', prochaine: null }} />)).not.toContain('Retour aux Studios');
+  });
+
+  it('table · un test sans verdict s’ouvre, il ne s’« arbitre » pas', () => {
+    const html = rendre(<Tests sousNav={NAV} sous="s" lots={[]} filtres={{}} lignes={[ligne({ verdict: null, verdictStatus: null })]} erreur={null} reperes={reperesTests([])} admin />);
+    expect(html).toMatch(/>Ouvrir<\/a>/);
+    expect(html).not.toMatch(/>Arbitrer<\/a>/);
+  });
+
+  it('suites · le filtre de mode vit dans l’adresse sans empiler · le mode se lit en texte', () => {
+    const r = { adId: 'p1', label: 'v1', spend: null, mode: 'better' as const, changedVariable: 'cta' as const, stageTargeted: null, freeze: [], rationale: 'r', priority: 1, edgeLegal: true, modeLabel: 'Corriger', modeHint: 'h', variableLabel: 'l’appel à l’action', stageLabel: null, freezeLabels: [], conceptTitle: 'c', parentVerdict: 'winner' as const, parentComparable: true, parentEtapeLachee: null };
+    const longueur = window.history.length;
+    const { hote, fin } = monter(<Suites sousNav={NAV} sous="s" erreur={null} plan={{ rows: [r], examined: 1, summary: '1' }} />);
+    expect(hote.querySelector('.pill')!.textContent).toBe('Corriger');
+    act(() => bouton(hote, /^Corriger · 1$/)!.click());
+    expect(window.location.search).toBe('?mode=better');
+    expect(window.history.length).toBe(longueur);
+    fin();
+    window.history.replaceState(null, '', window.location.pathname);
+  });
+
+  it('essais · le conseil du prochain essai est hors des replis · chaque lecture garde son ancre', () => {
+    const html = rendre(<Essais sousNav={NAV} sous="s" essais={{}} notes={{}} calibration={{}} copies={{}} conseil={{ question: 'Tester l’accroche ?', pourquoi: 'p', avantTout: null, variable: 'hook' }} />);
+    const conseil = html.indexOf('Tester l’accroche ?');
+    expect(conseil, 'le conseil du prochain essai a disparu').toBeGreaterThan(-1);
+    expect(conseil, 'le conseil est enfermé dans un repli').toBeLessThan(html.indexOf('<details'));
+    for (const id of ['essais', 'bilan-notes', 'bilan-copie']) expect(html).toContain(`id="${id}"`);
+    expect(html).toContain('href="/studio/projets"');
+  });
+
+  it('radar · sans concurrent suivi, « Armer » se lit désactivé (pas en bouton principal) et mène à la Veille', () => {
+    const v = { state: { armed: false, cap: 3, lastRunAt: null, nightlyCostUsd: 0.06, monthlyCostUsd: 1.8, followed: 0 }, findings: [], spend: { spentUsd: 0, capUsd: 10, summary: '' } };
+    const html = rendre(<RadarAdsmap sousNav={NAV} sous="s" erreur={null} vue={v} />);
+    expect(html).toMatch(/<button type="button" class="btn sm " disabled="">Armer le radar/);
+    expect(html).toContain('href="/veille"');
+    expect(html).toMatch(/au plus <b>trois<\/b> créas décrites/);
   });
 });

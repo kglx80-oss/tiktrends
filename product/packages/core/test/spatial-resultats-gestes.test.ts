@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   redirectionTestProfond, redirectionVueAdsmap, lienFicheTest, lireFiltresTests, adresseTests, filtresTestsActifs, reperesTests, pastilleVerdict,
   controleArbitrage, lireCarte, decompteCarte, sensDuSuite, outilsResultats, classeDecision, enJeuDecision, echeancePartage,
-  COUT_PROPOSITION_CARTE, costFor, ecranSpatial, TAUX_NON_CALCULABLE,
+  COUT_PROPOSITION_CARTE, costFor, budgetPrevuLot, ecranSpatial, TAUX_NON_CALCULABLE,
   type FaitsLigneTest, type NoeudCarteFait,
 } from '../src';
 
@@ -131,6 +131,11 @@ describe('Spatial · Résultats · gestes · suites, décisions, partage', () =>
     expect(outilsResultats({ admin: false }).map((o) => o.href)).not.toContain('/adsmap/partage');
     expect(outilsResultats({ admin: false }).map((o) => o.href)).not.toContain('/adsmap/radar');
     expect(outilsResultats({ admin: true }).map((o) => o.href)).toEqual(expect.arrayContaining(['/adsmap/partage', '/adsmap/radar', '/adsmap/tests']));
+  });
+  it('le budget d’un lot est PRÉVU · sur un lot vide, le 0 € s’explique', () => {
+    expect(budgetPrevuLot(0, 0)).toBe('0 € prévus · le total suit le nombre de variantes (aucune pour l’instant)');
+    expect(budgetPrevuLot(1680, 4)).toBe('1\u202f680 € prévus au total');
+    expect(budgetPrevuLot(1680, 4)).not.toContain('engagé');
   });
   it('le coût d’une proposition de carte vient du barème réel', () => {
     expect(COUT_PROPOSITION_CARTE).toBe(`${costFor('map_proposal')} crédits`);

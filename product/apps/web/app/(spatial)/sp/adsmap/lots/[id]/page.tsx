@@ -58,7 +58,7 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
 
   return (
     <Lot
-      sous={`Lot #${l.numero} · ${plateformesLot(l)} · ${d.ctx.fenetreJours} jours`}
+      sous={[`Lot #${l.numero}`, LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].court, plateformesLot(l), `${d.ctx.fenetreJours} jours`].filter(Boolean).join(' · ')}
       titre={l.but?.trim() || `Lot #${l.numero}`}
       verdict={{ gagnant: !!syn.gagnante, titre: syn.titre, phrase: syn.phrase, niveau: syn.niveau }}
       variantes={l.ads.map((a, i) => {

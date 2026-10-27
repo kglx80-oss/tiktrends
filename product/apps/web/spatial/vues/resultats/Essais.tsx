@@ -27,9 +27,9 @@ export interface PropsEssais {
   conseil: { question: string; pourquoi: string; avantTout: string | null; variable: string | null } | null;
 }
 
-function Revelation({ titre, badge, alerte, children }: { titre: string; badge: string; alerte?: boolean; children: ReactNode }) {
+function Revelation({ id, titre, badge, alerte, children }: { id: string; titre: string; badge: string; alerte?: boolean; children: ReactNode }) {
   return (
-    <details className="tile sec" style={alerte ? { borderColor: '#7ef0b040' } : undefined}>
+    <details id={id} className="tile sec" style={alerte ? { borderColor: '#7ef0b040' } : undefined}>
       <summary style={{ cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', listStyle: 'none' }}>
         <span className="pill">{badge}</span><strong style={{ fontSize: '15px' }}>{titre}</strong>
       </summary>
@@ -46,7 +46,7 @@ export function Essais(p: PropsEssais) {
   const ev = p.essais.view;
   const notes = p.notes.bilan;
   const calib = 'calibration' in p.calibration ? p.calibration.calibration : undefined;
-  const rel = p.copies.bilan;
+  const relectures = p.copies.bilan;
   return (
     <Vue>
       <EnTete titre="Essais et relectures" sous={p.sous} />
@@ -55,7 +55,7 @@ export function Essais(p: PropsEssais) {
       <div className="kpis rvk">
         <div className="tile kpi"><div className="lbl">Lots d’essai</div><div className="v">{ev?.lots.length ?? 0}</div><small>une seule variable par lot</small></div>
         <div className="tile kpi"><div className="lbl">Créas notées</div><div className="v">{notes?.notes ?? 0}</div><small>Score Jarvis · un pronostic</small></div>
-        <div className="tile kpi"><div className="lbl">Pubs relues</div><div className="v">{rel?.relues ?? 0}</div><small>générées entièrement</small></div>
+        <div className="tile kpi"><div className="lbl">Pubs relues</div><div className="v">{relectures?.relues ?? 0}</div><small>générées entièrement</small></div>
       </div>
       {p.conseil && (
         <section className="tile" style={{ marginBottom: 14, borderColor: p.conseil.avantTout ? '#ff9b9b40' : undefined }}>
@@ -69,10 +69,10 @@ export function Essais(p: PropsEssais) {
         </section>
       )}
 
-      <Revelation titre="Qu’ont répondu tes lots d’essai ?" badge="Essais" alerte={ev?.cumuls.some((c) => c.conclusif)}>
+      <Revelation id="essais" titre="Qu’ont répondu tes lots d’essai ?" badge="Essais" alerte={ev?.cumuls.some((c) => c.conclusif)}>
         <p className="muted" style={{ fontSize: '12.5px' }}>Un lot d’essai fait varier <b>une seule chose</b> et tient tout le reste · c’est la seule comparaison de l’outil où l’écart est vraiment attribuable à ce qu’on testait.</p>
         {p.essais.error ? <p role="alert" style={{ color: 'var(--bad)', fontSize: '12.5px' }}>{p.essais.error}</p>
-          : !ev?.lots.length ? <p className="muted" style={{ fontSize: '12.5px' }}>Aucun lot d’essai poussé dans la carte. Pour préparer un nouvel essai, ouvre les variantes d’un projet Studios · les fiches rattachées et leurs lots se suivent dans Résultats.</p>
+          : !ev?.lots.length ? <p className="muted" style={{ fontSize: '12.5px' }}>Aucun lot d’essai poussé dans la carte. Ce bilan lit les essais historiques. Pour préparer un nouvel essai, ouvre les variantes d’un projet Studios ; les fiches rattachées et leurs lots se suivent dans Résultats.</p>
             : (
               <>
                 {ev.cumuls.filter((c) => c.essais > 0).map((c) => (
@@ -93,12 +93,12 @@ export function Essais(p: PropsEssais) {
         <p className="faint" style={{ fontSize: '11.5px' }}>Un lot seul donne <b>une observation par bras</b> · pas un taux. C’est en répétant l’essai que l’écart devient une mesure, et on ne conclut qu’au-dessus de ce que le hasard expliquerait.</p>
       </Revelation>
 
-      <Revelation titre="Ce que tes notes disent ensemble" badge="Score Jarvis" alerte={!!calib?.predictif}>
+      <Revelation id="bilan-notes" titre="Ce que tes notes disent ensemble" badge="Score Jarvis" alerte={!!calib?.predictif}>
         {calib && calib.predictif !== null && (
           <p style={{ fontSize: '12.5px' }}><b style={{ color: calib.predictif ? 'var(--good)' : undefined }}>{calib.predictif ? 'Ton Score Jarvis prédit le marché.' : 'Ton Score Jarvis ne se détache pas encore du hasard.'}</b> {calib.resume} <span className="faint">· sur {calib.conclusifs} créa(s) notée(s) et mesurée(s).</span></p>
         )}
         {p.notes.error ? <p role="alert" style={{ color: 'var(--bad)', fontSize: '12.5px' }}>{p.notes.error}</p>
-          : !notes?.notes ? <p className="muted" style={{ fontSize: '12.5px' }}>Aucune créa notée pour l’instant · les notes existantes restent lues ici.</p>
+          : !notes?.notes ? <p className="muted" style={{ fontSize: '12.5px' }}>Aucune créa notée pour l’instant. Le Score Jarvis se lançait depuis le panneau d’une pub des anciennes Pubs IA, retirées le 10/10 · il n’est pas encore disponible dans les projets Studios. Les notes existantes restent lues ici.</p>
             : (
               <>
                 <p style={{ fontSize: '12.5px', color: notes.defauts.avecDefaut ? 'var(--bad)' : 'var(--good)' }}><b>{notes.defauts.resume}</b></p>
@@ -116,15 +116,15 @@ export function Essais(p: PropsEssais) {
             )}
       </Revelation>
 
-      <Revelation titre="Quel moteur écrit tes mots, et garde ton produit" badge="Pubs générées entièrement" alerte={rel?.dimensions.some((d) => d.conclusif)}>
+      <Revelation id="bilan-copie" titre="Quel moteur écrit tes mots, et garde ton produit" badge="Pubs générées entièrement" alerte={relectures?.dimensions.some((d) => d.conclusif)}>
         <p className="muted" style={{ fontSize: '12.5px' }}>En mode « générée entièrement », c’est le modèle d’images qui écrit la typographie. Chaque pub est relue à sa génération · voici la somme de ces relectures.</p>
         {p.copies.error ? <p role="alert" style={{ color: 'var(--bad)', fontSize: '12.5px' }}>{p.copies.error}</p>
-          : !rel?.relues ? <p className="muted" style={{ fontSize: '12.5px' }}>Aucune publicité relue pour l’instant · les relectures existantes restent lues ici.</p>
+          : !relectures?.relues ? <p className="muted" style={{ fontSize: '12.5px' }}>Aucune publicité relue pour l’instant. La relecture tournait sur les pubs « Générée entièrement » des anciennes Pubs IA, retirées le 10/10 · les relectures existantes restent lues ici.</p>
             : (
               <>
-                <p style={{ fontSize: '12.5px', color: (rel.tauxReecriture ?? 0) > 0 || (rel.tauxProduit ?? 0) > 0 ? 'var(--bad)' : 'var(--good)' }}><b>{rel.resume}</b></p>
+                <p style={{ fontSize: '12.5px', color: (relectures.tauxReecriture ?? 0) > 0 || (relectures.tauxProduit ?? 0) > 0 ? 'var(--bad)' : 'var(--good)' }}><b>{relectures.resume}</b></p>
                 {p.copies.temoin?.resume && <p style={{ fontSize: '12px', color: p.copies.temoin.evolutions.some((e) => e.sens === 'degradation') ? 'var(--bad)' : 'var(--good)' }}>Témoin · {p.copies.temoin.resume}</p>}
-                {rel.dimensions.filter((d) => d.conclusif).map((d) => (
+                {relectures.dimensions.filter((d) => d.conclusif).map((d) => (
                   <div className="tile" key={d.dimension}>
                     <strong style={{ fontSize: '13px' }}>{DIMENSION_COPIE_LABEL[d.dimension]} · {d.resume}</strong>
                     <div className="tl">

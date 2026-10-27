@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { lienFicheTest, type VerdictValue } from '@tiktrends/core';
+import { CHEMIN_NOUVEAU_PROJET, budgetPrevuLot, lienFicheTest, type VerdictValue } from '@tiktrends/core';
 import { launchBatchAction, prepareBatchAction, setBatchAdAction } from '../../../app/actions/adsmap-batch';
 import { validateVerdictAction, type ValidateInput } from '../../../app/actions/adsmap-verdict';
 import { Ic, Lien } from '../../communs';
@@ -96,7 +96,7 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
             <button className="btn sm" type="button" disabled={!!occupe} onClick={() => geste(`ajouter-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: true }), () => `${v.variante} ajoutée au lot`)}>Ajouter</button>
           </div>
         ))}
-        {p.vivier.length === 0 && <div className="ev"><span className="ico"><Ic n="plus" /></span><span className="faint">Aucune variante libre · suis une créa du Studio dans Adsmap pour en ajouter.</span><span /></div>}
+        {p.vivier.length === 0 && <div className="ev"><span className="ico"><Ic n="plus" /></span><span className="faint">Aucune variante libre · crée une itération depuis une gagnante, ou prépare une créa dans un projet Studios.</span><Lien className="btn sm" href={CHEMIN_NOUVEAU_PROJET}>Préparer un projet</Lien></div>}
       </div>
       {p.brief && (
         <>
@@ -106,7 +106,7 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
             <div className="ev"><span className="ico"><Ic n="grid" /></span><span>Structure</span><strong>{p.brief.structure}</strong></div>
             <div className="ev"><span className="ico"><Ic n="cal" /></span><span>Budget et durée</span><strong className="num">{p.brief.budgetJour} € / jour / variante · {p.brief.jours} jours</strong></div>
             <div className="ev"><span className="ico"><Ic n="users" /></span><span>Audience</span><strong>{p.brief.audience}</strong></div>
-            <div className="ev"><span className="ico"><Ic n="chart" /></span><span>Budget total prévu (rien n’est dépensé ici)</span><strong className="num">{p.brief.total.toLocaleString('fr-FR')} €</strong></div>
+            <div className="ev"><span className="ico"><Ic n="chart" /></span><span>Budget total (rien n’est dépensé ici)</span><strong className="num">{budgetPrevuLot(p.brief.total, p.variantes.length)}</strong></div>
           </div>
           <p className="faint" style={{ fontSize: '12.5px', marginTop: 8 }}>{p.brief.conclusivite}</p>
         </>
