@@ -94,3 +94,26 @@ export function iterationsRecentes(lots: readonly LotIteration[], maintenant: Da
     href: lienLotApercu(l.id),
   }));
 }
+
+/** La longueur maximale d'une question préparée · celle du champ de saisie. */
+export const LONGUEUR_MAX_QUESTION_JARVIS = 4000;
+
+/**
+ * La question passée par l'adresse (`/jarvis?q=…`, barre Jarvis de l'Accueil)
+ * · un BROUILLON, jamais envoyé seul. Première valeur si le paramètre est
+ * répété, balises et caractères de contrôle retirés (le retour à la ligne est
+ * gardé), espaces resserrés, bornée à la longueur du champ. Vide = rien à préparer.
+ */
+export function lireQuestionJarvis(v: string | readonly string[] | null | undefined): string {
+  const brut = Array.isArray(v) ? v[0] : v;
+  if (typeof brut !== 'string') return '';
+  return brut
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[<>]/g, ' ')
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, LONGUEUR_MAX_QUESTION_JARVIS)
+    .trim();
+}

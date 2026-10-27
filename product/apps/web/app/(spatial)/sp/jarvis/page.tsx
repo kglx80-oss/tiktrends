@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { encartKpiJarvis, extraitConversation, iterationsRecentes, type IterationRecente } from '@tiktrends/core';
+import { encartKpiJarvis, extraitConversation, iterationsRecentes, lireQuestionJarvis, type IterationRecente } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../lib/jarvis-acces';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -25,17 +25,19 @@ const RESULTATS = FEATURES.find((f) => f.key === 'adsmap')!;
  * la feature Résultats (`adsmap`). « Chiffres clés » · état vide honnête
  * (`encartKpiJarvis(null)` · la dépense pub n'est pas agrégée).
  */
-export default async function JarvisSpatial() {
+export default async function JarvisSpatial({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   const refus = refusJarvis(s);
   if (refus) return <RefusJarvis raison={TEXTE_REFUS_JARVIS[refus]} plan={refus === 'plan'} proprietaire={s.role === 'owner'} />;
 
+  // `?q=` · la question saisie dans la barre Jarvis de l'Accueil · un brouillon, aucun envoi ni appel IA à l'ouverture.
+  const brouillon = lireQuestionJarvis(((await searchParams) ?? {}).q);
   const maintenant = new Date();
   const kpi = encartKpiJarvis(null);
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) {
-    return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={COUT_CONVERSATION_JARVIS} maintenant={maintenant.toISOString()} />;
+    return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={COUT_CONVERSATION_JARVIS} maintenant={maintenant.toISOString()} brouillon={brouillon} />;
   }
 
   const r = await chatThreadAction(null);
@@ -71,6 +73,7 @@ export default async function JarvisSpatial() {
       kpi={kpi}
       cout={COUT_CONVERSATION_JARVIS}
       maintenant={maintenant.toISOString()}
+      brouillon={brouillon}
     />
   );
 }

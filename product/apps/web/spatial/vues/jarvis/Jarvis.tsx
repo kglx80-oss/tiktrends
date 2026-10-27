@@ -43,6 +43,8 @@ export interface PropsJarvis {
   cout: string;
   /** L'horloge du serveur · les dates courtes du premier rendu ne divergent pas au réveil client. */
   maintenant: string;
+  /** Une question préparée ailleurs (`/jarvis?q=…`) · préremplit le champ, JAMAIS envoyée seule. */
+  brouillon?: string;
 }
 
 const heure = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
@@ -55,7 +57,7 @@ export function Jarvis(p: PropsJarvis) {
   // `ouverte` · null = rien d'ouvert (accueil) · { id: null } = le fil principal.
   const [ouverte, setOuverte] = useState<{ id: string | null } | null>(null);
   const [tours, setTours] = useState<ChatTurn[]>([]);
-  const [saisie, setSaisie] = useState('');
+  const [saisie, setSaisie] = useState(p.brouillon ?? '');
   const [enCours, setEnCours] = useState(false);
   const [partiel, setPartiel] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);

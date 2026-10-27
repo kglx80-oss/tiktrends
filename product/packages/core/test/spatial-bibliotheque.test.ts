@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   donneesDrive, vueDrive, cheminVers, cheminValide, dossiersRangement, formatTaille, libelleJour, pastilleDroit, connexionDrive, typeFichier,
   ETAT_DRIVE_INITIAL, RACINES_DRIVE,
-  quandConversation, ilYA, reponseLisible, extraitConversation, filtrerConversations, iterationsRecentes,
+  quandConversation, ilYA, lireQuestionJarvis, LONGUEUR_MAX_QUESTION_JARVIS, reponseLisible, extraitConversation, filtrerConversations, iterationsRecentes,
   type DossierSource, type MediaSource, type EtatDrive,
 } from '../src';
 
@@ -173,5 +173,15 @@ describe('Spatial · Jarvis · règles de l’écran', () => {
     expect(it[0]).toMatchObject({ titre: 'Lot #5 · Accroche courte', pastille: { classe: 'c', libelle: 'En diffusion' }, href: '/adsmap/lots?lot=l5' });
     expect(it[1]!.pastille).toEqual({ classe: 'g', libelle: 'Analysé' });
     expect(iterationsRecentes([], maintenant)).toEqual([]);
+  });
+
+  it('la question de l’adresse (`?q=`) · brouillon sans HTML, borné, première valeur seulement', () => {
+    expect(lireQuestionJarvis('  Quel angle <b>tester</b> ?  ')).toBe('Quel angle tester ?');
+    expect(lireQuestionJarvis('<script>alert(1)</script>Salut')).toBe('alert(1) Salut');
+    expect(lireQuestionJarvis(['Première', 'Seconde'])).toBe('Première');
+    expect(lireQuestionJarvis(undefined)).toBe('');
+    expect(lireQuestionJarvis('a\u0000b')).toBe('a b');
+    expect(lireQuestionJarvis('x'.repeat(5000))).toHaveLength(LONGUEUR_MAX_QUESTION_JARVIS);
+    expect(lireQuestionJarvis('1 < 2 > 0')).not.toMatch(/[<>]/);
   });
 });

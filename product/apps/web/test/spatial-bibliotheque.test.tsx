@@ -199,6 +199,19 @@ describe('Spatial · Jarvis reproduit la maquette', () => {
     fetchSpy.mockRestore(); root.unmount(); el.remove();
   });
 
+  it('`?q=` (Accueil) préremplit la saisie · aucun envoi, aucune conversation créée à l’ouverture', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    creerConversation.mockClear();
+    const el = document.createElement('div'); document.body.appendChild(el);
+    const root = createRoot(el);
+    await act(async () => { root.render(<FournisseurSpatial value={CTX}><Jarvis {...propsJarvis()} brouillon="Quel angle tester ensuite ?" /></FournisseurSpatial>); });
+    expect((el.querySelector('#jin') as HTMLInputElement).value).toBe('Quel angle tester ensuite ?');
+    expect(el.querySelector('.jempty')).not.toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(creerConversation).not.toHaveBeenCalled();
+    fetchSpy.mockRestore(); root.unmount(); el.remove();
+  });
+
   it('la recherche filtre réellement les archives', async () => {
     const el = document.createElement('div'); document.body.appendChild(el);
     const root = createRoot(el);
