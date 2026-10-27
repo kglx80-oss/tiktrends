@@ -154,6 +154,8 @@ const EXCEPTIONS: Record<string, string> = {
   // qui évite de repayer le fournisseur de veille · seul `setVeilleCache` est
   // toléré, prouvé borné par `l0-veille-scale.test.tsx`.
   'app/(app)/veille/scale/page.tsx': 'setVeilleCache',
+  // Même cache, même règle `veillePersistable`, dans l'interface Spatial.
+  'app/(spatial)/sp/veille/scale/page.tsx': 'setVeilleCache',
 };
 
 /** Le texte d'une cible · pour un route handler, seulement ce que sert GET. */
