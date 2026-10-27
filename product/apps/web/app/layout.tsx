@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { cookies, headers } from 'next/headers';
-import { COULEUR_BARRE, ENTETE_SECTION, THEME_COOKIE, sectionValide, themeDepuisCookie, type SectionSpatiale, type Theme } from '@tiktrends/core';
+import { COULEUR_BARRE, COULEUR_BARRE_SPATIALE, ENTETE_SECTION, THEME_COOKIE, sectionValide, themeDepuisCookie, type SectionSpatiale, type Theme } from '@tiktrends/core';
 import { RAIL_COOKIE, railCollapsedFromCookie } from '../lib/rail-preference';
 // Aucune feuille de style ici · chaque arbre apporte la sienne. L'ancienne
 // interface importe `globals.css` dans ses segments, l'arbre Spatial n'importe
@@ -36,8 +36,6 @@ async function sectionSpatiale(): Promise<SectionSpatiale | null> {
   return sectionValide((await headers()).get(ENTETE_SECTION));
 }
 
-/** Le fond de la maquette Spatial (`html,body{background:#0b1220}`) · couleur de barre du navigateur. */
-const BARRE_SPATIALE = '#0b1220';
 
 // Sans `width`, un mobile rend la page à ~980px de large puis dézoome · rien ne
 // s'adapte, tout est minuscule. C'est le socle de tout le responsive.
@@ -46,7 +44,7 @@ export async function generateViewport(): Promise<Viewport> {
   return {
     width: 'device-width',
     initialScale: 1,
-    themeColor: (await sectionSpatiale()) ? BARRE_SPATIALE : COULEUR_BARRE[await themeDemande()],
+    themeColor: (await sectionSpatiale()) ? COULEUR_BARRE_SPATIALE : COULEUR_BARRE[await themeDemande()],
   };
 }
 
