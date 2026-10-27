@@ -17,8 +17,9 @@ describe('Spatial · bascule', () => {
   });
 
   it('un chemin porté est réécrit vers l’arbre interne avec sa section, un chemin non porté jamais', () => {
-    expect(ecranSpatial('/usage')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: false });
-    expect(ecranSpatial('/usage/')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: false });
+    expect(ecranSpatial('/usage')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: true });
+    expect(ecranSpatial('/dashboard')).toMatchObject({ interne: '/sp/dashboard', section: 'accueil', exclusif: false });
+    expect(ecranSpatial('/usage/')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: true });
     expect(ecranSpatial('/usage/x')).toBeNull();
     // Un chemin qu'aucune rubrique ne porte (`/billing` l'est désormais, rubrique G).
     expect(ecranSpatial('/console')).toBeNull();

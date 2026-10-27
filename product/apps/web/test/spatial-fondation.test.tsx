@@ -181,8 +181,8 @@ const pagesV5Restantes = (liste: ReadonlyArray<{ chemin: string; exclusif?: true
 
 describe('Spatial · un écran exclusif n’a plus de page dans l’ancienne interface', () => {
   it('la garde voit une page V5 restante', () => {
-    expect(adressesV5()).toContain('/usage');
-    expect(pagesV5Restantes([{ chemin: '/usage', exclusif: true }, { chemin: '/settings' }])).toEqual(['/usage']);
+    expect(adressesV5()).toContain('/credits');
+    expect(pagesV5Restantes([{ chemin: '/credits', exclusif: true }, { chemin: '/dashboard' }])).toEqual(['/credits']);
   });
   it('aucun écran déclaré exclusif ne garde sa page V5', () => {
     expect(pagesV5Restantes(ECRANS_SPATIAUX), 'écran exclusif · supprimer sa page V5 (le middleware le sert toujours par Spatial)').toEqual([]);

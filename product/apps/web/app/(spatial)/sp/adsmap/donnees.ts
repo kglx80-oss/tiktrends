@@ -1,6 +1,6 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
-import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial,
@@ -204,4 +204,43 @@ export async function chargerApprentissages(workspaceId: string, brandId: string
     source: typeof (r.evidence as { source?: unknown } | null)?.source === 'string' ? (r.evidence as { source: string }).source : null,
     creeLe: (r.createdAt as Date).toISOString(),
   }));
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Le NOM de ce que chaque décision concerne (test, lot, concept, angle, désir),
+ * lu dans la marque active · clé `kind:id`. Lecture seule. Une cible hors de la
+ * marque, supprimée ou mal formée n'a pas d'entrée · l'écran le dit.
+ */
+export async function chargerCiblesDecisions(workspaceId: string, brandId: string, cibles: ReadonlyArray<{ kind: string; id: string }>): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!db) return out;
+  const ids = (k: string) => [...new Set(cibles.filter((c) => c.kind === k && UUID.test(c.id)).map((c) => c.id))];
+  const [ads, lots, concepts, angles, desirs] = [ids('ad'), ids('batch'), ids('concept'), ids('angle'), ids('desire')];
+  const dansLaMarque = and(eq(schema.personas.brandId, brandId), eq(schema.desires.workspaceId, workspaceId));
+  await Promise.all([
+    ads.length && db.select({ id: schema.ads.id, code: schema.ads.variantCode, titre: schema.concepts.title }).from(schema.ads)
+      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id)).innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id)).innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .where(and(inArray(schema.ads.id, ads), dansLaMarque))
+      .then((r) => r.forEach((x) => out.set(`ad:${x.id}`, `${x.code} · ${x.titre}`))),
+    lots.length && db.select({ id: schema.batches.id, n: schema.batches.number, but: schema.batches.goal }).from(schema.batches)
+      .where(and(inArray(schema.batches.id, lots), eq(schema.batches.brandId, brandId)))
+      .then((r) => r.forEach((x) => out.set(`batch:${x.id}`, `#${x.n}${x.but?.trim() ? ` · ${x.but.trim()}` : ''}`))),
+    concepts.length && db.select({ id: schema.concepts.id, l: schema.concepts.title }).from(schema.concepts)
+      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id)).innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .where(and(inArray(schema.concepts.id, concepts), dansLaMarque))
+      .then((r) => r.forEach((x) => out.set(`concept:${x.id}`, x.l))),
+    angles.length && db.select({ id: schema.angles.id, l: schema.angles.label }).from(schema.angles)
+      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id)).innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .where(and(inArray(schema.angles.id, angles), dansLaMarque))
+      .then((r) => r.forEach((x) => out.set(`angle:${x.id}`, x.l))),
+    desirs.length && db.select({ id: schema.desires.id, l: schema.desires.label }).from(schema.desires)
+      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .where(and(inArray(schema.desires.id, desirs), dansLaMarque))
+      .then((r) => r.forEach((x) => out.set(`desire:${x.id}`, x.l))),
+  ]);
+  return out;
 }

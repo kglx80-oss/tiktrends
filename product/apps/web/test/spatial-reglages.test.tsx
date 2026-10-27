@@ -135,10 +135,17 @@ describe('Spatial · Réglages · parité de structure avec la maquette', () => 
 });
 
 describe('Spatial · Forfaits · l’offre est celle de l’application, mot pour mot', () => {
-  const v5 = readFileSync(join(__dirname, '..', 'app', '(app)', 'billing', 'page.tsx'), 'utf8');
-  it('chaque fonction et chaque accroche de formule figure sur l’écran V5 (aucune divergence d’offre)', () => {
-    const absents = ORDRE_FORMULES.flatMap((k) => [DESCRIPTIF_FORMULES[k].accroche, ...DESCRIPTIF_FORMULES[k].fonctions].filter((t) => !v5.includes(`'${t}'`)).map((t) => `${k} · ${t}`));
-    expect(absents).toEqual([]);
+  // Vague 2 · l'écran V5 `/billing` est retiré · son offre (`FEATURES`, `HINT`)
+  // est figée ici, mot pour mot · une divergence d'offre fait tomber la garde
+  // (aucun changement d'offre sans mandat).
+  const OFFRE_V5: Record<string, { accroche: string; fonctions: string[] }> = {
+    starter: { accroche: 'Pour démarrer et explorer', fonctions: ['Dashboard & Analytics', 'Tagging manuel', '1 marque', 'Support e-mail'] },
+    core: { accroche: 'Le cœur de l’offre créative', fonctions: ['Tout Starter', 'Studios (pub, image, vidéo, textes)', 'Jarvis · règles maison', 'Radar & Veille', 'Jusqu’à 3 marques'] },
+    plus: { accroche: 'Pour les agences multi-marques', fonctions: ['Tout Core', 'Marques illimitées', 'Membres & rôles avancés', 'Clone de pubs gagnantes', 'Priorité de génération'] },
+    business: { accroche: 'Volumes et marque blanche', fonctions: ['Tout Plus', 'Marque blanche complète', 'Accès API', 'Accompagnement dédié', 'Volumes sur mesure'] },
+  };
+  it('chaque fonction et chaque accroche de formule est celle de l’offre V5 (aucune divergence d’offre)', () => {
+    expect(Object.fromEntries(ORDRE_FORMULES.map((k) => [k, { accroche: DESCRIPTIF_FORMULES[k].accroche, fonctions: [...DESCRIPTIF_FORMULES[k].fonctions] }]))).toEqual(OFFRE_V5);
   });
   it('le nombre de marques annoncé reprend la ligne « marques » de l’offre V5', () => {
     for (const k of ORDRE_FORMULES) {
@@ -156,7 +163,7 @@ const fichiers = (d: string): string[] => readdirSync(d).flatMap((n) => { const 
 
 describe('Spatial · Réglages · aucune donnée d’exemple ni ponctuation interdite', () => {
   const sp = join(WEB, 'app', '(spatial)', 'sp');
-  const sources = [...fichiers(join(WEB, 'spatial', 'vues', 'reglages')), ...['settings', 'team', 'connections', 'billing'].flatMap((d) => fichiers(join(sp, d)))];
+  const sources = [...fichiers(join(WEB, 'spatial', 'vues', 'reglages')), ...['settings', 'team', 'connections', 'billing', 'usage'].flatMap((d) => fichiers(join(sp, d)))];
   it('aucun nom, prix ou « Prototype » de la maquette dans les vues et les pages', () => {
     const fautes = sources.flatMap((f) => {
       const s = readFileSync(f, 'utf8');

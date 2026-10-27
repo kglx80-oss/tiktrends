@@ -34,3 +34,15 @@ export function feuilleDeRouteConnecteurs(dejaCartes: readonly string[] = []): {
     .filter((c) => c.noms.length > 0);
   return { categories, enPreparation: etatCatalogue(CONNECTEURS_DISPONIBLES, categories.flatMap((c) => c.noms)).enPreparation };
 }
+
+/**
+ * La fraîcheur d'un connecteur sur sa carte (N09 · chaque connecteur date SA
+ * dernière synchro) · « synchronisé le … », ou « pas encore synchronisé » tant
+ * qu'aucune synchro n'a abouti. Une date illisible ne s'affiche jamais en
+ * « Invalid Date ».
+ */
+export function fraicheurConnecteur(iso: string | null | undefined, fuseau: string): string {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return 'pas encore synchronisé';
+  return `synchronisé le ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: fuseau })}`;
+}

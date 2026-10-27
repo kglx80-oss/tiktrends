@@ -12,7 +12,6 @@ import { join } from 'node:path';
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 const analytics = read('components/accueil/VueAnalytics.tsx');
 const meta = read('app/(app)/analytics/MetaKeyMetrics.tsx');
-const team = read('app/(app)/team/page.tsx');
 
 describe('Tableaux · min-width + cadre scrollable, plus de colonnes écrasées', () => {
   it('Analytics · le tableau ROAS a une min-width et défile', () => {
@@ -32,8 +31,4 @@ describe('Tableaux · min-width + cadre scrollable, plus de colonnes écrasées'
   // REPLIE sur mobile plutôt que de défiler à l'horizontale · le défilement reste
   // réservé aux vrais tableaux (ROAS d'Analytics, KPI Meta ci-dessus). On garde
   // donc la garde de repli ici · l'inverse de l'ancien patron « min-width + scroll ».
-  it('Team · la liste des membres se replie, elle ne défile plus', () => {
-    expect(team, 'la grille figée + scroll subsiste').not.toContain("'1fr 1fr 160px', minWidth: 480");
-    expect(team, 'la liste ne se replie pas (flexWrap)').toContain("flexWrap: 'wrap'");
-  });
 });
