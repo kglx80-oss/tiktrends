@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { jargonEcran, texteVisible } from './helpers/jargon-ecran';
+import { texteVisible } from './helpers/jargon-ecran';
 import { BANDEAU_DEMO_VEILLE } from '@tiktrends/core';
 
 /**
@@ -36,11 +36,5 @@ describe('Veille · écrans client sans « non configuré sur le serveur »', ()
     expect(html, 'le bandeau client n’est pas rendu').toContain(BANDEAU_DEMO_VEILLE);
     expect(texteVisible(html), 'le bandeau parle encore du serveur').not.toMatch(/configur[ée]+ sur le serveur/);
   });
-  it('fiche concurrent · retour « bibliothèque indisponible »', async () => {
-    const { default: Page } = await import('../app/(app)/brands/[id]/competitors/[name]/page');
-    const html = renderToStaticMarkup(await Page({ params: Promise.resolve({ id: 'b', name: 'Rival' }), searchParams: Promise.resolve({ e: 'nolibrary' }) } as never));
-    const t = texteVisible(html);
-    expect(t, 'le message d’erreur n’est pas rendu').toMatch(/pas encore activée pour ton espace/);
-    expect(jargonEcran(t), `jargon : ${t}`).toEqual([]);
-  });
+  // Vague 2 · la fiche concurrent est servie par Spatial · copie gardée dans `concurrent-cta.test.tsx`.
 });

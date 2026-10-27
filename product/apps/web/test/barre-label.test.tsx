@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { BarreLabel } from '../components/BarreLabel';
 
 /**
@@ -59,14 +57,5 @@ describe('BarreLabel · une ligne classée, sa barre parle', () => {
  * les états vides. Le RÉSULTAT, lui, est garanti par le rendu de BarreLabel
  * ci-dessus.
  */
-describe('la page concurrent a adopté BarreLabel · plus de barre à la main', () => {
-  const src = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/competitors/[name]/page.tsx'), 'utf8');
-  it('importe et utilise BarreLabel', () => {
-    expect(src).toContain("import { BarreLabel }");
-    expect(src).toContain('<BarreLabel');
-  });
-  it('ne calcule plus aucune largeur de barre à la main', () => {
-    // Le motif banni : une largeur en pourcentage interpolée (gabarit `…%`).
-    expect(src, 'largeur de barre écrite à la main').not.toMatch(/width:\s*`[^`]*%[^`]*`/);
-  });
-});
+// Vague 2 · la page concurrent V5 est retirée · la barre du rapport Spatial vient de la maquette (`.amar`).
+

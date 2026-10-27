@@ -7,5 +7,6 @@ import type { EcranSpatial } from '../types';
  * chantiers parallèles ne se disputent jamais la même ligne.
  */
 export const ECRANS_BIBLIOTHEQUE: readonly EcranSpatial[] = [
-  { chemin: '/assets', section: 'bibliotheque' },
+  // `exclusif` · la page V5 est retirée (vague 2).
+  { chemin: '/assets', section: 'bibliotheque', exclusif: true },
 ];
