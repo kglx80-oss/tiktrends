@@ -55,6 +55,8 @@ export interface GestionBibliotheque {
   analyse: { cout: number | null; raison: string | null; sansTags: number; maxLot: number };
   /** Le sélecteur Google Drive est configuré sur la plateforme. */
   selecteurDrive: boolean;
+  /** Administrateur de l'espace · seul à ranger un fichier en template (coulisses, garde serveur identique). */
+  admin: boolean;
 }
 
 const style = (s: Record<string, string | number>) => s as CSSProperties;
@@ -510,7 +512,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <aside className="tile dprev" aria-label="Aperçu">
             <div className="sech" style={{ margin: 0 }}><strong style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fa.nom}</strong><button className="btn icon sm" style={{ width: 34, marginLeft: 'auto' }} type="button" onClick={() => setApercu(null)} aria-label="Fermer l’aperçu"><Ic n="x" /></button></div>
             <div className="dbig"><Vignette f={fa} /></div>
-            <div className="kc"><PastilleFichier f={fa} /></div>
+            <div className="kc"><PastilleFichier f={fa} />{fa.ia?.template && <span className="pill c" data-badge="template">Template</span>}</div>
             {fa.droit === 'a_preciser' && <div className="banner" style={{ margin: 0 }}><Ic n="warn" /><span>Droits à préciser : ce fichier ne peut pas encore servir dans une publicité.</span></div>}
             <dl className="kv2" style={{ gridTemplateColumns: '110px minmax(0,1fr)', margin: 0 }}>
               <dt>Type</dt><dd>{LIBELLE_TYPE_FICHIER[fa.type]}</dd>
@@ -537,7 +539,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                 <div data-geste="ia-fichier" style={{ display: 'grid', gap: 8 }}>
                   <span className="lbl" style={{ margin: 0 }}>Usage par l’IA</span>
                   <label className="npr" style={{ cursor: 'pointer' }}><input type="checkbox" checked={fa.ia.utilisable} disabled={occupe} onChange={() => void basculerIa(fa, 'utilisable')} /><div><strong>Utilisable par l’IA</strong><small>Les Studios peuvent s’en servir pour composer</small></div></label>
-                  <label className="npr" style={{ cursor: 'pointer' }}><input type="checkbox" checked={fa.ia.template} disabled={occupe} onChange={() => void basculerIa(fa, 'template')} /><div><strong>Template</strong><small>Visible du client comme modèle</small></div></label>
+                  {g.admin && <label className="npr" style={{ cursor: 'pointer' }}><input type="checkbox" checked={fa.ia.template} disabled={occupe} onChange={() => void basculerIa(fa, 'template')} /><div><strong>Template</strong><small>Visible du client comme modèle</small></div></label>}
                   {fa.ia.tags.length > 0 && <div className="chips" style={{ marginTop: 0 }}>{fa.ia.tags.map((t) => <span className="pill" key={t}>{t}</span>)}</div>}
                   {fa.type === 'image' && (
                     <button className="btn" type="button" onClick={() => void analyserUne(fa)} disabled={!!g.analyse.raison || occupe} title={g.analyse.raison ?? undefined}><Ic n="spark" />{fa.ia.tags.length ? 'Analyser à nouveau' : 'Analyser l’image'}{prixImage(1)}</button>

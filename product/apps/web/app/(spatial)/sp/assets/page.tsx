@@ -98,6 +98,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
         // Même prix que l'écran V5 (`costFor('tag_image', 1)` par image), annoncé avant le clic.
         analyse: { cout: unlimitedCredits(s.user.email) ? null : costFor('tag_image', 1), raison: raisonAnalyse, sansTags, maxLot: LOT_ANALYSE_IMAGES },
         selecteurDrive: !!driveState?.pickerReady,
+        admin,
       }}
     />
   );

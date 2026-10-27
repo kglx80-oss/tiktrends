@@ -44,7 +44,7 @@ const media = (id: string, extra: Partial<MediaSource> = {}): MediaSource => ({
   id, name: `${id}.jpg`, kind: 'image', mimeType: 'image/jpeg', source: 'upload', url: `/api/asset?id=${id}`, thumbUrl: null, sizeBytes: 1000, createdAt: T0, folderId: null, rights: null,
   ia: { utilisable: true, template: false, tags: [] }, ...extra,
 });
-const GESTION: GestionBibliotheque = { analyse: { cout: 1, raison: null, sansTags: 3, maxLot: LOT_ANALYSE_IMAGES }, selecteurDrive: true };
+const GESTION: GestionBibliotheque = { analyse: { cout: 1, raison: null, sansTags: 3, maxLot: LOT_ANALYSE_IMAGES }, selecteurDrive: true, admin: true };
 const monter = async (over: { gestion?: GestionBibliotheque; connecte?: boolean } = {}) => {
   el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el);
   const donnees = donneesDrive({ dossiers: [], medias: [media('m1'), media('m2', { name: 'plage-ete.jpg', ia: { utilisable: false, template: true, tags: ['plage', 'été'] } })] });
@@ -97,6 +97,14 @@ describe('Spatial · Bibliothèque · usage par l’IA d’un fichier', () => {
     expect(f.template).toHaveBeenCalledWith({ id: 'm2', on: false });
     await clic(bouton(ia as HTMLElement, /Analyser/));
     expect(f.tag).toHaveBeenCalledWith({ id: 'm2' });
+  });
+  it('templates · le badge se voit de tous, seul l’administrateur range un fichier en template', async () => {
+    const h = await monter({ gestion: { ...GESTION, admin: false } });
+    await clic(bouton(h, /Aperçu de plage-ete\.jpg/));
+    expect(h.querySelector('[data-badge="template"]')?.textContent).toBe('Template');
+    const ia = h.querySelector('[data-geste="ia-fichier"]')!;
+    expect(ia.querySelectorAll('input[type="checkbox"]'), 'un non-administrateur voit l’écriture du template').toHaveLength(1);
+    expect(ia.textContent).not.toContain('Visible du client comme modèle');
   });
   it('sans IA · l’analyse est fermée avec sa raison, aucun appel', async () => {
     const h = await monter({ gestion: { ...GESTION, analyse: { ...GESTION.analyse, raison: 'Analyse non activée' } } });
