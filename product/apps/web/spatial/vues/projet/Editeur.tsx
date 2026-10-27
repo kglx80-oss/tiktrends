@@ -13,8 +13,8 @@ import {
 } from '@tiktrends/core';
 import { createPortal } from 'react-dom';
 import { enregistrerDocument } from '../../../app/actions/studios/projets';
-import { listerVersionsDocument, relireDocumentEditeur, restaurerVersionDocument } from '../../../lib/studios/editeur/actions';
-import type { MediaEditeur, VersionListee } from '../../../lib/studios/editeur/types';
+import { apercuVersionDocument, listerVersionsDocument, relireDocumentEditeur, restaurerVersionDocument } from '../../../lib/studios/editeur/actions';
+import type { ApercuVersion, MediaEditeur, VersionListee, VersionRestauree } from '../../../lib/studios/editeur/types';
 import { useZoomEditeur } from '../../../lib/studios/editeur/use-zoom-editeur';
 import { effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale } from '../../../lib/studios/editeur/sauvegarde-locale';
 import { useSpatial } from '../../coquille/contexte';
@@ -69,6 +69,20 @@ function chargerPolices() {
   }
 }
 const pct = (v: number, t: number) => `${(v / t) * 100}%`;
+
+/**
+ * Le focus ne tombe jamais sur `<body>` quand son élément disparaît (UX-02,
+ * porté de l'éditeur V5) · au rendu suivant, le premier sélecteur présent le prend.
+ */
+function focaliserApres(...selecteurs: string[]) {
+  setTimeout(() => {
+    for (const s of selecteurs) {
+      const el = document.querySelector<HTMLElement>(s);
+      if (el && !(el as HTMLButtonElement).disabled) { el.focus(); return; }
+    }
+  }, 0);
+}
+const selecteurCalque = (id: string) => `[data-layer="${id.replace(/["\\]/g, '\\$&')}"]`;
 
 /** Téléphone · le seuil de la maquette (`max-width:760px`). Le rendu serveur vaut ordinateur, la lecture suit au montage. */
 const MEDIA_TELEPHONE = '(max-width: 760px)';
@@ -133,7 +147,7 @@ export function Editeur(props: PropsEditeur) {
   const [formatNouveau, setFormatNouveau] = useState<FormatDocument>(props.formatPropose.format);
   const [avecProduit, setAvecProduit] = useState(!!produit);
   const [mediasOuverts, setMediasOuverts] = useState(false);
-  const [versions, setVersions] = useState<{ etat: 'ferme' | 'chargement' | 'ok' | 'erreur'; liste: VersionListee[]; message?: string }>({ etat: 'ferme', liste: [] });
+  const [versionsOuvertes, setVersionsOuvertes] = useState(false);
   const [brouillon, setBrouillon] = useState<{ id: string; texte: string } | null>(null);
   const [taille, setTaille] = useState<{ id: string; px: number } | null>(null);
   const [glisse, setGlisse] = useState<{ id: string; x0: number; y0: number; px: number; py: number; dx: number; dy: number; largeur: number } | null>(null);
@@ -221,6 +235,7 @@ export function Editeur(props: PropsEditeur) {
     if (reappliquer && conflit.reappliquable) setH(conflit.document ? enregistrerEtape(historiqueInitial(conflit.document), conflit.reappliquable, 'Réappliquer mes modifications') : historiqueInitial(conflit.reappliquable));
     else setH(conflit.document ? historiqueInitial(conflit.document) : null);
     setConflit(null); setSelection(null);
+    focaliserApres('[data-action="enregistrer"]', '[data-action="versions"]');
     toast(reappliquer ? `Version ${v.n} rechargée · tes modifications sont réappliquées, enregistre pour les garder` : `Version ${v.n} rechargée`);
   };
 
@@ -283,23 +298,11 @@ export function Editeur(props: PropsEditeur) {
   const validerTexte = () => { if (calque?.kind === 'text' && brouillon?.id === calque.id && brouillon.texte !== calque.text) surCalque((d, id) => modifierTexte(d, id, { text: brouillon.texte })); setBrouillon(null); };
   const validerTaille = () => { if (calque?.kind === 'text' && taille?.id === calque.id && taille.px !== calque.fontSizePx) surCalque((d, id) => modifierTexte(d, id, { fontSizePx: taille.px })); setTaille(null); };
 
-  async function ouvrirVersions() {
-    if (versions.etat === 'ok' || versions.etat === 'chargement') { setVersions({ etat: 'ferme', liste: [] }); return; }
-    setVersions({ etat: 'chargement', liste: [] });
-    let r: Awaited<ReturnType<typeof listerVersionsDocument>> | null = null;
-    try { r = await listerVersionsDocument(projet.id); } catch { r = null; }
-    setVersions(!r ? { etat: 'erreur', liste: [], message: 'Le serveur ne répond pas · vérifie ta connexion puis réessaie.' } : r.ok ? { etat: 'ok', liste: r.versions } : { etat: 'erreur', liste: [], message: `${r.message} (identifiant support : ${r.traceId})` });
-  }
-  async function restaurer(v: VersionListee) {
-    setEnCours(true);
-    let r: Awaited<ReturnType<typeof restaurerVersionDocument>> | null = null;
-    try { r = await restaurerVersionDocument({ projectId: projet.id, versionId: v.id, baseVersionId: base.id }); } catch { r = null; }
-    setEnCours(false);
-    if (!r || !r.ok) { setErreur(r ? `${r.message} (identifiant support : ${r.traceId})` : 'Le serveur ne répond pas · la restauration n’a pas eu lieu.'); return; }
+  /** Une version restaurée (copie exacte d'une ancienne, nouvelle version) devient la base de l'éditeur. */
+  function restauree(r: VersionRestauree) {
     setBase({ id: r.version.id, n: r.version.n, document: r.document });
     setH(r.document ? historiqueInitial(r.document) : null);
     setSelection(null);
-    setVersions({ etat: 'ferme', liste: [] });
     toast(`Version ${r.restauree.n} restaurée · c’est maintenant la version ${r.version.n}.`);
   }
 
@@ -363,7 +366,7 @@ export function Editeur(props: PropsEditeur) {
             <span className={`pill ${statut.etat === 'enregistre' ? 'c' : statut.etat === 'modifie' ? '' : 'w'}`} role="status" style={{ marginLeft: 'auto' }}>{statut.etat === 'enregistre' && <Ic n="check" />}{statut.libelle}</span>
             <button className="btn sm" type="button" disabled={!annulable} title={annulable ? `Annuler · ${annulable} (Ctrl+Z)` : 'Rien à annuler'} onClick={() => derniers.current.annuler()}>Annuler</button>
             <button className="btn sm" type="button" disabled={!retablissable} title={retablissable ? `Rétablir · ${retablissable} (Ctrl+Maj+Z)` : 'Rien à rétablir'} onClick={() => derniers.current.retablir()}>Rétablir</button>
-            <button className="btn sm pri" type="button" disabled={!modifie || enCours || conflit !== null} onClick={() => void enregistrer()}><Ic n="check" />{enCours ? 'Enregistrement…' : 'Enregistrer'}</button>
+            <button className="btn sm pri" type="button" data-action="enregistrer" disabled={!modifie || enCours || conflit !== null} onClick={() => void enregistrer()}><Ic n="check" />{enCours ? 'Enregistrement…' : 'Enregistrer'}</button>
           </>
         )}
         {!editable && <span className="pill" style={{ marginLeft: 'auto' }}><Ic n="lock" />Lecture seule</span>}
@@ -465,7 +468,7 @@ export function Editeur(props: PropsEditeur) {
       {telephone && panneau === 'proprietes' && calque && (
         <PanneauPleinEcran titre={`Propriétés de « ${calque.name} »`} nom="proprietes" onFermer={() => setPanneau(null)}>
           <div className="insp">{inspecteur}</div>
-          {editable && <GestesCalque calque={calque} operer={operer} retire={(suivant) => { setSelection(suivant); setPanneau(null); }} ordre={pile.map((c) => c.id).reverse()} />}
+          {editable && <GestesCalque calque={calque} operer={operer} retire={(suivant) => { setSelection(suivant); setPanneau(null); focaliserApres('[data-ouvrir-panneau="calques"]'); }} ordre={pile.map((c) => c.id).reverse()} />}
         </PanneauPleinEcran>
       )}
 
@@ -473,10 +476,9 @@ export function Editeur(props: PropsEditeur) {
         <section className="tile sec" aria-label="Gestes du calque">
           <div className="sech" style={{ margin: 0 }}><h2>Gestes du calque</h2><span className="faint" style={{ fontSize: '12.5px' }}>Chaque geste est annulable · rien n’est généré ni facturé</span></div>
           <div className="kc" style={{ marginTop: 10 }}>
-            <button className="chip" type="button" onClick={() => operer((d) => ajouterTexte(d))}><Ic n="text" />Ajouter un texte</button>
+            <button className="chip" type="button" data-ajouter="texte" onClick={() => operer((d) => ajouterTexte(d))}><Ic n="text" />Ajouter un texte</button>
             <button className="chip" type="button" onClick={() => operer((d) => ajouterForme(d))}><Ic n="spark" />Ajouter une forme</button>
             <button className="chip" type="button" aria-pressed={mediasOuverts} disabled={medias.length === 0} title={medias.length ? undefined : 'Aucun média du projet à poser'} onClick={() => setMediasOuverts((v) => !v)}><Ic n="img" />Média du projet</button>
-            <button className="chip" type="button" aria-pressed={versions.etat !== 'ferme'} onClick={() => void ouvrirVersions()}><Ic n="loop" />Versions</button>
           </div>
           {mediasOuverts && (
             <div className="grid3" style={{ marginTop: 12 }}>
@@ -489,26 +491,140 @@ export function Editeur(props: PropsEditeur) {
               ))}
             </div>
           )}
-          {calque && <GestesCalque calque={calque} operer={operer} retire={(suivant) => setSelection(suivant)} ordre={pile.map((c) => c.id).reverse()} />}
-          {versions.etat !== 'ferme' && (
-            <div className="mtable" style={{ marginTop: 12 }}>
-              {versions.etat === 'chargement' && <p className="faint" style={{ fontSize: '12.5px' }}>Lecture des versions…</p>}
-              {versions.etat === 'erreur' && <Message ton="err">{versions.message}</Message>}
-              {versions.liste.map((v) => {
-                const decision = decisionRestauration({ editable, modifie, enCours, conflit: conflit !== null, estCourante: v.id === base.id || v.courante });
-                return (
-                  <div key={v.id} className="mrow" style={{ gridTemplateColumns: '1fr 1.6fr auto' }}>
-                    <strong>Version {v.n}{v.courante ? ' · courante' : ''}</strong>
-                    <span className="faint">{new Date(v.creeLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} · {v.auteur} · {v.raison.replace(/^Éditeur de calques · /, '')}</span>
-                    <button className="btn sm" type="button" disabled={!decision.permis} title={decision.permis ? annonceRestauration(v.n, base.n) : decision.raison ?? undefined} onClick={() => void restaurer(v)}>Restaurer</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {calque && <GestesCalque calque={calque} operer={operer} retire={(suivant) => { setSelection(suivant); focaliserApres(...(suivant ? [selecteurCalque(suivant)] : []), '[data-ajouter="texte"]', '[data-action="versions"]'); }} ordre={pile.map((c) => c.id).reverse()} />}
         </section>
       )}
+
+      <section className="tile sec" aria-label="Versions du projet" data-panneau="versions">
+        <div className="sech" style={{ margin: 0 }}>
+          <h2>Versions</h2>
+          <span className="faint" style={{ fontSize: '12.5px' }}>Restaurer une ancienne version en crée une nouvelle · l’historique n’est jamais réécrit</span>
+          <button className="btn sm" type="button" data-action="versions" aria-expanded={versionsOuvertes} style={{ marginLeft: 'auto' }} onClick={() => setVersionsOuvertes((o) => !o)}><Ic n="loop" />{versionsOuvertes ? 'Masquer les versions' : 'Voir les versions'}</button>
+        </div>
+        {versionsOuvertes && (
+          <VersionsDocument projectId={projet.id} base={base} editable={editable} modifie={modifie} enCours={enCours} conflit={conflit !== null} onRestauree={restauree} />
+        )}
+      </section>
     </Vue>
+  );
+}
+
+/**
+ * Les versions du projet (portées de l'éditeur V5 · `PanneauVersions`) ·
+ * auteur, date, raison ; pour une version choisie, son APERÇU et ce que sa
+ * restauration changerait par rapport à la courante (phrases du noyau), puis
+ * l'annonce de ce qui va se passer AU-DESSUS du bouton. Restaurer crée une
+ * nouvelle version (base obligatoire, 409 sans rien écraser) · rien n'est effacé.
+ * Lecture seule · la liste et l'aperçu restent, la restauration est refusée.
+ */
+type EtatLecture<T> = { etat: 'chargement' } | { etat: 'ok'; valeur: T } | { etat: 'erreur'; message: string };
+const HORS_LIGNE = 'Le serveur ne répond pas · vérifie ta connexion puis réessaie.';
+const messageServeur = (r: { message: string; traceId?: string }) => (r.traceId ? `${r.message} (identifiant support : ${r.traceId})` : r.message);
+
+function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit, onRestauree }: {
+  projectId: string; base: { id: string; n: number }; editable: boolean; modifie: boolean; enCours: boolean; conflit: boolean;
+  onRestauree: (r: VersionRestauree) => void;
+}) {
+  const [liste, setListe] = useState<EtatLecture<VersionListee[]>>({ etat: 'chargement' });
+  const [choisie, setChoisie] = useState<string | null>(null);
+  const [apercu, setApercu] = useState<EtatLecture<ApercuVersion> | null>(null);
+  const [restauration, setRestauration] = useState<{ enCours: boolean; erreur: string | null }>({ enCours: false, erreur: null });
+
+  useEffect(() => {
+    let vivant = true;
+    setListe({ etat: 'chargement' });
+    void (async () => {
+      let r: Awaited<ReturnType<typeof listerVersionsDocument>> | null = null;
+      try { r = await listerVersionsDocument(projectId); } catch { r = null; }
+      if (!vivant) return;
+      setListe(!r ? { etat: 'erreur', message: HORS_LIGNE } : r.ok ? { etat: 'ok', valeur: r.versions } : { etat: 'erreur', message: messageServeur(r) });
+    })();
+    return () => { vivant = false; };
+  }, [projectId, base.id]);
+
+  async function comparer(versionId: string) {
+    if (choisie === versionId) { setChoisie(null); setApercu(null); return; }
+    setChoisie(versionId); setApercu({ etat: 'chargement' }); setRestauration({ enCours: false, erreur: null });
+    let r: Awaited<ReturnType<typeof apercuVersionDocument>> | null = null;
+    try { r = await apercuVersionDocument({ projectId, versionId }); } catch { r = null; }
+    setApercu(!r ? { etat: 'erreur', message: HORS_LIGNE } : r.ok ? { etat: 'ok', valeur: r.apercu } : { etat: 'erreur', message: messageServeur(r) });
+  }
+
+  async function restaurer(v: VersionListee) {
+    setRestauration({ enCours: true, erreur: null });
+    let r: Awaited<ReturnType<typeof restaurerVersionDocument>> | null = null;
+    try { r = await restaurerVersionDocument({ projectId, versionId: v.id, baseVersionId: base.id }); } catch { r = null; }
+    if (!r) { setRestauration({ enCours: false, erreur: `${HORS_LIGNE} Rien n’a été restauré.` }); return; }
+    if (!r.ok) {
+      setRestauration({ enCours: false, erreur: r.code === 'VERSION_CONFLICT' ? 'Une autre session a enregistré une version entre-temps · rien n’a été restauré. Recharge la page pour partir de la version courante, puis recommence.' : messageServeur(r) });
+      return;
+    }
+    setRestauration({ enCours: false, erreur: null }); setChoisie(null); setApercu(null);
+    onRestauree(r);
+  }
+
+  if (liste.etat === 'chargement') return <p className="faint" role="status" style={{ fontSize: '12.5px', marginTop: 10 }}>Lecture des versions…</p>;
+  if (liste.etat === 'erreur') return <div style={{ marginTop: 10 }}><Message ton="err">{liste.message}</Message></div>;
+  return (
+    <div className="mtable" data-versions="" style={{ marginTop: 12 }}>
+      {liste.valeur.map((v) => {
+        const ouverte = choisie === v.id;
+        const a = ouverte && apercu?.etat === 'ok' ? apercu.valeur : null;
+        const courante = v.courante || v.id === base.id;
+        const decision = decisionRestauration({ editable, modifie, enCours: enCours || restauration.enCours, conflit, estCourante: courante, sansDifference: a !== null && a.comparaison.phrases.length === 0 });
+        return (
+          <div key={v.id} className="tile" data-version-n={v.n} style={{ display: 'grid', gap: 10, padding: 14 }}>
+            <div className="kc" style={{ alignItems: 'center' }}>
+              <strong style={{ fontSize: 13 }}>Version {v.n}</strong>
+              {v.courante && <span className="pill g" data-courante="">Courante</span>}
+              <span className="faint" style={{ fontSize: '11.5px', flex: '1 1 200px' }}>{new Date(v.creeLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} · {v.auteur}{v.raison ? ` · ${v.raison.replace(/^Éditeur de calques · /, '')}` : ''}</span>
+              <button className="btn sm" type="button" data-comparer={v.n} aria-expanded={ouverte} onClick={() => void comparer(v.id)}>{ouverte ? 'Fermer' : v.courante ? 'Aperçu' : 'Aperçu et comparaison'}</button>
+            </div>
+            {ouverte && (
+              <div data-detail-version={v.n} style={{ display: 'grid', gap: 10 }}>
+                {apercu?.etat === 'chargement' && <p className="faint" role="status" style={{ fontSize: '12.5px' }}>Lecture de la version {v.n}…</p>}
+                {apercu?.etat === 'erreur' && <Message ton="err">{apercu.message}</Message>}
+                {a && (
+                  <>
+                    {a.document
+                      ? <div data-apercu-version="" style={{ width: 180 }}><Miniature doc={a.document} apercus={a.apercus} /></div>
+                      : <p className="faint" style={{ fontSize: '12.5px' }}>{a.documentIllisible ? 'Le document de cette version ne se lit plus · pas d’aperçu.' : 'Pas de document image dans cette version.'}</p>}
+                    {!v.courante && (
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        <span className="lbl">Ce que la restauration change par rapport à la version {a.courante.n}</span>
+                        {a.comparaison.phrases.length === 0
+                          ? <p className="faint" style={{ fontSize: '12.5px' }}>Aucune différence · cette version a le même contenu que la courante.</p>
+                          : <ul data-comparaison="" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 4, fontSize: '12.5px' }}>{a.comparaison.phrases.map((x) => <li key={x}>{x}</li>)}{a.comparaison.tronquee && <li>Et d’autres différences.</li>}</ul>}
+                        <p className="muted" data-annonce-restauration="" style={{ fontSize: '12.5px' }}>{annonceRestauration(v.n, base.n)}</p>
+                        {!decision.permis && <p className="faint" data-refus-restauration="" style={{ fontSize: '11.5px' }}>{decision.raison}</p>}
+                        {restauration.erreur && <p className="muted" role="alert" style={{ fontSize: '12.5px' }}>{restauration.erreur}</p>}
+                        <div className="kc"><button className="btn sm pri" type="button" data-action="restaurer" disabled={!decision.permis} onClick={() => { if (decision.permis) void restaurer(v); }}>{restauration.enCours ? 'Restauration…' : 'Restaurer cette version'}</button></div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** L'aperçu d'un document en lecture seule (même rendu que la surface, sans geste). */
+function Miniature({ doc, apercus }: { doc: DocumentStudio; apercus: Record<string, string> }) {
+  return (
+    <div className={`ad ${classeFormat(formatDuDocument(doc))}`} aria-label={`Aperçu de la version, ${doc.width} × ${doc.height} pixels`} role="img"
+      style={{ position: 'relative', width: '100%', aspectRatio: `${doc.width} / ${doc.height}`, containerType: 'inline-size' }}>
+      <div className="ph" style={{ position: 'relative' }}>
+        {calquesParZ(doc).map((c, rang) => c.visible && (
+          <div key={c.id} style={{ position: 'absolute', left: pct(c.x, doc.width), top: pct(c.y, doc.height), width: pct(c.width, doc.width), height: pct(c.height, doc.height), transform: c.rotationDeg ? `rotate(${c.rotationDeg}deg)` : undefined, opacity: c.opacity, zIndex: rang + 1 }}>
+            <ContenuCalque c={c} doc={doc} apercu={c.kind === 'image' || c.kind === 'logo' ? apercus[c.assetId] ?? null : null} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
