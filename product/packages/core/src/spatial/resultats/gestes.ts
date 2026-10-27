@@ -30,6 +30,16 @@ export function redirectionTestProfond(sp: Record<string, string | string[] | un
   return `${lienFicheTest(p.adId)}${p.depuisStudio ? `?${PARAM_DEPUIS}=${DEPUIS_STUDIO}` : ''}`;
 }
 
+/**
+ * Les vues de l'ancienne Adsmap gardées dans l'adresse (`?vue=table`, `?vue=carte`,
+ * favoris, ancien lien d'après import) · Spatial ouvre l'écran qui les porte.
+ * `null` pour la vue par défaut (« À décider » n'était pas demandée explicitement).
+ */
+export function redirectionVueAdsmap(sp: Record<string, string | string[] | undefined>): string | null {
+  const v = premier(sp.vue);
+  return v === 'table' ? '/adsmap/tests' : v === 'carte' ? '/adsmap/carte' : v === 'decider' ? '/adsmap/decisions' : null;
+}
+
 /* ───────────────────────── les outils de la rubrique ───────────────────────── */
 
 export interface OutilResultats { href: string; libelle: string; icone: string }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  redirectionTestProfond, lienFicheTest, lireFiltresTests, adresseTests, filtresTestsActifs, reperesTests, pastilleVerdict,
+  redirectionTestProfond, redirectionVueAdsmap, lienFicheTest, lireFiltresTests, adresseTests, filtresTestsActifs, reperesTests, pastilleVerdict,
   controleArbitrage, lireCarte, decompteCarte, sensDuSuite, outilsResultats, classeDecision, enJeuDecision, echeancePartage,
   COUT_PROPOSITION_CARTE, costFor, ecranSpatial, TAUX_NON_CALCULABLE,
   type FaitsLigneTest, type NoeudCarteFait,
@@ -18,6 +18,13 @@ describe('Spatial · Résultats · gestes · le lien profond de l’ancienne Ads
     expect(redirectionTestProfond({})).toBeNull();
     expect(redirectionTestProfond({ ad: '../admin' })).toBeNull();
     expect(redirectionTestProfond({ ad: `${ID}' or 1=1` })).toBeNull();
+  });
+  it('les vues gardées dans l’adresse (`?vue=`) ouvrent l’écran qui les porte', () => {
+    expect(redirectionVueAdsmap({ vue: 'table' })).toBe('/adsmap/tests');
+    expect(redirectionVueAdsmap({ vue: 'carte' })).toBe('/adsmap/carte');
+    expect(redirectionVueAdsmap({ vue: 'decider' })).toBe('/adsmap/decisions');
+    expect(redirectionVueAdsmap({ vue: 'autre' })).toBeNull();
+    expect(redirectionVueAdsmap({})).toBeNull();
   });
 });
 

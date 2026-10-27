@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import {
-  outilsResultats, redirectionTestProfond,
+  outilsResultats, redirectionTestProfond, redirectionVueAdsmap,
   accrocheResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
   phraseLot, plateformesLot, lienLotSpatial, LIBELLE_NIVEAU, presentationLot, sousNavResultats, suiteLot, syntheseLot, volumeMinimumLot, etatLotSpatial,
 } from '@tiktrends/core';
@@ -17,8 +17,9 @@ const JOUR = 86_400_000;
 export default async function ResultatsSpatial({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const g = await gardeResultats();
   if (!g.ok) return <RefusResultats titre="Résultats" raison={g.raison} />;
-  // Le lien profond de l'ancienne Adsmap (`?ad=<id>`, Studios, suites, radar) · la fiche du test.
-  const profond = redirectionTestProfond(await searchParams);
+  // Le lien profond de l'ancienne Adsmap (`?ad=<id>`, Studios, suites, radar) · la fiche du test ; `?vue=` · l'écran qui la porte.
+  const sp = await searchParams;
+  const profond = redirectionTestProfond(sp) ?? redirectionVueAdsmap(sp);
   if (profond) redirect(profond);
 
   const maintenant = new Date();
