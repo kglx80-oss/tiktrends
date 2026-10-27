@@ -26,9 +26,10 @@ const { stub } = vi.hoisted(() => ({ stub: () => new Proxy({}, { has: (_t: objec
 vi.mock('../app/actions/assets', () => ({ ...stub() }));
 
 import { PreparationProjet, type ProprietesPreparationProjet } from '../components/studios/projet/PreparationProjet';
-import { AssetsLibrary } from '../app/(app)/assets/AssetsLibrary';
-import { ToastProvider } from '../components/Toast';
-import type { AssetItem } from '../app/actions/assets';
+// Vague 2 · l'écran V5 `/assets` est retiré · la création historique se lit dans la Bibliothèque Spatiale.
+import { connexionDrive, donneesDrive } from '@tiktrends/core';
+import { Bibliotheque } from '../spatial/vues/bibliotheque/Bibliotheque';
+import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 
 const REF = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const pret: ProprietesPreparationProjet['etat'] = { etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau projet' };
@@ -117,20 +118,23 @@ describe('préparer un projet · le seul geste qui écrit', () => {
 });
 
 describe('bibliothèque · création historique en lecture seule', () => {
-  it('ouvrir et télécharger · ni suppression, ni bascule IA, ni template, ni analyse', () => {
-    const item: AssetItem = {
-      id: 'g1', name: 'Pub · 12/09/2026', kind: 'image', source: 'historique', url: '/api/ad/g1', thumbUrl: null,
-      brandId: null, useForAi: false, sizeBytes: null, tags: [], createdAt: '2026-09-12T10:00:00Z', isTemplate: false,
-      historique: { libelle: 'Création historique · pub', telecharger: '/api/ad/g1' },
-    };
-    const d = document.createElement('div');
-    d.innerHTML = renderToStaticMarkup(<ToastProvider><AssetsLibrary initial={[item]} brandName="Neva" storageEnabled={false} isAdmin /></ToastProvider>);
-    const carte = q(d, '[data-asset-id="g1"]')!;
-    expect(carte.getAttribute('data-origine')).toBe('historique');
-    expect(q(carte, '[data-champ="origine"]')?.textContent).toBe('Création historique · pub');
-    expect(q(carte, '[data-lien="telecharger"]')?.getAttribute('href')).toBe('/api/ad/g1');
-    expect(q(carte, '[data-lien="media"]')?.getAttribute('href')).toBe('/api/ad/g1');
-    expect(carte.textContent).not.toMatch(/Suppr\.|Template|Analyser/);
-    expect(carte.querySelector('input[type="checkbox"]')).toBeNull();
+  it('ouvrir et télécharger · ni suppression, ni droits, ni bascule IA, ni template, ni analyse', async () => {
+    const donnees = donneesDrive({ dossiers: [], medias: [{
+      id: 'g1', name: 'Pub · 12/09/2026', kind: 'image', mimeType: 'image/png', source: 'historique', url: '/api/ad/g1', thumbUrl: null, sizeBytes: null,
+      createdAt: '2026-09-12T10:00:00Z', historique: { libelle: 'Création historique · pub', telecharger: '/api/ad/g1' },
+    }] });
+    const ctx: CtxSpatial = { utilisateur: { nom: 'K', initiales: 'K', email: 'k@x.fr', role: 'Propriétaire' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
+    const el = document.createElement('div'); document.body.appendChild(el);
+    const r = createRoot(el);
+    await act(async () => { r.render(<FournisseurSpatial value={ctx}><Bibliotheque donnees={donnees} lectureSeule={null} stockage={false} drive={connexionDrive(null)} maintenant="2026-10-20T10:00:00Z" gestion={{ analyse: { cout: 1, raison: null, sansTags: 0, maxLot: 20 }, selecteurDrive: false, admin: true, messageDrive: null }} /></FournisseurSpatial>); });
+    // L'ancienne création vit sous « Anciens studios ».
+    await act(async () => { [...el.querySelectorAll('nav.btabs button')].find((b) => b.textContent?.includes('Anciens'))!.click(); });
+    await act(async () => { (el.querySelector('button[aria-label="Aperçu de Pub · 12/09/2026"]') as HTMLButtonElement).click(); });
+    const apercu = q(el, 'aside[aria-label="Aperçu"]')!;
+    expect(apercu.querySelector('.pill')?.textContent).toBe('Ancien studio');
+    expect(q(apercu, 'a[download]')?.getAttribute('href')).toBe('/api/ad/g1');
+    expect(apercu.textContent).not.toMatch(/Supprimer|Droits d’usage|Ranger dans|Template|Analyser|Utilisable par l’IA/);
+    expect(apercu.querySelector('input[type="checkbox"], select')).toBeNull();
+    act(() => { r.unmount(); }); el.remove();
   });
 });

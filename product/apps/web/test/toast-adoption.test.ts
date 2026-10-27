@@ -16,10 +16,10 @@ const WEB = process.cwd();
 const CAS: Array<{ fichier: string; messages: string[]; canal?: RegExp }> = [
   { fichier: 'components/TrackerFeed.tsx', messages: ['Tout marqué comme vu.'] },       // veille
   { fichier: 'app/(app)/adsmap/tri/Curation.tsx', messages: ['validé.', 'Proposition écartée.'] },
-  { fichier: 'app/(app)/assets/AssetsLibrary.tsx', messages: ['Élément importé.'] },
   // Vague 2 · Connexions vit dans Spatial · son canal de retour est le toast de la coquille.
+  // Vague 2 · la Bibliothèque vit dans Spatial · import par lien et synchro Drive confirmés.
+  { fichier: 'spatial/vues/bibliotheque/Bibliotheque.tsx', messages: ['élément${ok > 1 ? \'s\' : \'\'} importé', 'Google Drive synchronisé · '], canal: /useSpatial\(\)/ },
   { fichier: 'spatial/vues/reglages/interactifs.tsx', messages: ['`${nom} déconnecté`', '`${nom} synchronisé`'], canal: /useSpatial\(\)/ },
-  { fichier: 'app/(app)/assets/DriveConnect.tsx', messages: ['Google Drive déconnecté.'] },
   { fichier: 'components/SavedBoards.tsx', messages: ['Rangé dans', 'Retiré du board.'] },
   { fichier: 'app/(app)/adsmap/lots/Lots.tsx', messages: ['Ad ajoutée au lot.', 'Ad retirée du lot.'] },
 ];
