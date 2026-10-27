@@ -93,6 +93,9 @@ import { join, relative } from 'node:path';
  *
  * Spatial · vague 2 · Réglages · les pages V5 `/connections` (41) et `/team` (2)
  * sont retirées (écrans exclusifs Spatial) · 251 − 43 = 208.
+ *
+ * Spatial · vague 2 · Bibliothèque · l'écran V5 `/assets` (4 · lavis Google Drive)
+ * est retiré · 208 − 4 = 204.
  */
 const WEB = process.cwd();
 
@@ -112,7 +115,6 @@ const EXCLUS: Record<string, string> = {
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 142,
   'app/(app)/analytics': 6,
-  'app/(app)/assets': 4,
   'app/(app)/brands': 6,
   'app/(app)/credits': 12,
   'app/(app)/veille': 13,
@@ -126,9 +128,6 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
 const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/analytics/CreativeIntel.tsx': 2,
   'app/(app)/analytics/MetaKeyMetrics.tsx': 4,
-  'app/(app)/assets/AssetsLibrary.tsx': 2,
-  'app/(app)/assets/DriveConnect.tsx': 1,
-  'app/(app)/assets/page.tsx': 1,
   'app/(app)/brands/[id]/BrandDA.tsx': 2,
   'app/(app)/brands/[id]/competitors/[name]/page.tsx': 1,
   'app/(app)/brands/[id]/PaletteMarque.tsx': 1,
@@ -146,7 +145,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/LogoMarque.tsx': 4,
 };
 
-const PLAFOND_TOTAL = 208;
+const PLAFOND_TOTAL = 204;
 
 const RACINES = ['app', 'components', 'lib'];
 

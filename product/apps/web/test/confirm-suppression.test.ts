@@ -18,7 +18,8 @@ import { join } from 'node:path';
 
 const BRANDS = readFileSync(join(process.cwd(), 'app/(app)/brands/page.tsx'), 'utf8');
 const BRAND = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/page.tsx'), 'utf8');
-const ASSETS = readFileSync(join(process.cwd(), 'app/(app)/assets/AssetsLibrary.tsx'), 'utf8');
+// Vague 2 · la bibliothèque est servie par Spatial.
+const ASSETS = readFileSync(join(process.cwd(), 'spatial/vues/bibliotheque/Bibliotheque.tsx'), 'utf8');
 
 describe('les suppressions destructives sont confirmées', () => {
   it('la liste des marques confirme la suppression', () => {
