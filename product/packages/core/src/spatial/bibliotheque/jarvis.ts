@@ -48,8 +48,8 @@ export interface ActionReponse { cle: string; libelle: string; href: string; eff
 /**
  * Une réponse de Jarvis, lisible · citations et marqueurs d'action retirés,
  * aucun tiret cadratin. Seules les actions de NAVIGATION (gratuites, une
- * adresse) sont gardées · une action payante n'est pas proposée ici (son
- * parcours, avec son coût annoncé, vit dans l'ancienne interface).
+ * adresse) sont gardées · le seul geste payant (« Écrire ce concept ») est lu à
+ * part, coût annoncé avant le clic (`conceptPropose`, `jarvis-sources`).
  */
 export function reponseLisible(brut: string): { texte: string; actions: ActionReponse[] } {
   const { texte } = extraireCitations(brut);

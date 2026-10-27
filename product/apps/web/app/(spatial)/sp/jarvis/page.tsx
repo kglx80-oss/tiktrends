@@ -1,14 +1,16 @@
 import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { encartKpiJarvis, extraitConversation, iterationsRecentes, lireQuestionJarvis, type IterationRecente } from '@tiktrends/core';
+import { completudeFicheJarvis, encartKpiJarvis, extraitConversation, iterationsRecentes, lireQuestionJarvis, type IterationRecente } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../lib/jarvis-acces';
 import { getActiveBrand } from '../../../../lib/brands';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { COUT_CONVERSATION_JARVIS } from '../../../../lib/veille-jarvis';
-import { chatThreadAction } from '../../../actions/jarvis-chat';
+import { chatThreadAction, onboardingThreadAction } from '../../../actions/jarvis-chat';
+import { projetsPourColonneJarvis } from '../../../../lib/studios/jarvis-projets';
+import { ficheMarqueLue } from '../../../../lib/jarvis-fiche';
 import { Jarvis, type ConversationArchive } from '../../../../spatial/vues/jarvis/Jarvis';
 import { RefusJarvis } from '../../../../spatial/vues/jarvis/RefusJarvis';
 
@@ -24,6 +26,10 @@ const RESULTATS = FEATURES.find((f) => f.key === 'adsmap')!;
  * MÊME portée. « Dernières itérations » · les vrais lots de la marque, derrière
  * la feature Résultats (`adsmap`). « Chiffres clés » · état vide honnête
  * (`encartKpiJarvis(null)` · la dépense pub n'est pas agrégée).
+ *
+ * Vague 3 · la colonne de contexte (projets Studios de la marque, MÊMES gardes
+ * que l'écran « Projets » · complétude réelle de la fiche) et, sans marque, le
+ * fil d'accueil réel (`onboardingThreadAction`, portée espace + personne).
  */
 export default async function JarvisSpatial({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -37,10 +43,14 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
   const kpi = encartKpiJarvis(null);
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) {
-    return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={COUT_CONVERSATION_JARVIS} maintenant={maintenant.toISOString()} brouillon={brouillon} />;
+    // Sans marque, Jarvis ne se mure pas · la vraie conversation d'accueil (lecture seule à l'ouverture).
+    const a = await onboardingThreadAction();
+    const accueil = a.thread ? { tours: a.thread.turns, amorces: a.thread.starters } : undefined;
+    return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={COUT_CONVERSATION_JARVIS} maintenant={maintenant.toISOString()} brouillon={brouillon} accueil={accueil} />;
   }
 
-  const r = await chatThreadAction(null);
+  const [r, fiche, projets] = await Promise.all([chatThreadAction(null), ficheMarqueLue(brand.id), projetsPourColonneJarvis(brand.id)]);
+  const completude = fiche ? completudeFicheJarvis(fiche, brand.id) : null;
   const t = r.thread ?? null;
   const nommees = t?.conversations ?? [];
   const extraits = new Map<string, string>();
@@ -74,6 +84,7 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
       cout={COUT_CONVERSATION_JARVIS}
       maintenant={maintenant.toISOString()}
       brouillon={brouillon}
+      annexes={{ projets, completude: completude && { score: completude.score, faits: completude.faits, total: completude.total, ficheHref: completude.ficheHref } }}
     />
   );
 }

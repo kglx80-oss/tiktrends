@@ -157,16 +157,19 @@ const propsJarvis = () => ({
 });
 
 describe('Spatial · Jarvis reproduit la maquette', () => {
-  it('structure identique au fragment (la suppression de conversation, sans action réelle, est absente)', () => {
+  it('structure identique au fragment (`button.jx` · RENOMMER, aucune action ne supprime une conversation)', () => {
     const html = rendre(<Jarvis {...propsJarvis()} />);
-    // `button.jx` · aucune action ne supprime une conversation (seul le fil s'efface, dans la conversation ouverte).
-    const reference = fragmentReference('jarvis').replace(/<button type="button" class="jx"[\s\S]*?<\/button>/g, '');
+    // Vague 3 · le bouton `.jx` de la maquette porte le renommage réel (`renommerConversationAction`) ·
+    // la suppression n'a pas d'action (seul le fil s'efface, dans la conversation ouverte).
+    expect(html).toContain('aria-label="Renommer « Titre 0 »"');
+    // Seule l'icône change, et c'est voulu · une croix promettrait une suppression qui n'existe pas.
+    const reference = fragmentReference('jarvis').replace(/(<button type="button" class="jx"[^>]*><svg class="i s"><use href=")#i-x"/g, '$1#i-text"');
     expect(squelette(html)).toEqual(squelette(reference));
   });
 
   it('la garde voit un écart · retirer une classe la fait tomber', () => {
     const html = rendre(<Jarvis {...propsJarvis()} />).replace('class="jsearch"', 'class=""');
-    const reference = fragmentReference('jarvis').replace(/<button type="button" class="jx"[\s\S]*?<\/button>/g, '');
+    const reference = fragmentReference('jarvis').replace(/(<button type="button" class="jx"[^>]*><svg class="i s"><use href=")#i-x"/g, '$1#i-text"');
     expect(squelette(html)).not.toEqual(squelette(reference));
   });
 
