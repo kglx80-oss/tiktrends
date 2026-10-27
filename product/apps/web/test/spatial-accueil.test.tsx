@@ -157,21 +157,23 @@ describe('Spatial · Accueil · la barre Jarvis ouvre une vraie conversation, sa
     const hote = document.createElement('div'); document.body.appendChild(hote);
     const racine = createRoot(hote);
     await act(async () => { racine.render(<FournisseurSpatial value={CTX}><BarreJarvis titre="t" sources={[]} pastilles={PASTILLES_JARVIS_ACCUEIL} /></FournisseurSpatial>); });
-    // `/jarvis` n'est pas porté ici · la navigation est un rechargement (location.assign).
+    // Porté en Spatial, `/jarvis` se rejoint par le routeur ; sinon par un
+    // rechargement (location.assign). La garde lit les deux.
     const assign = vi.fn();
+    const vers = () => [...pousse.mock.calls, ...assign.mock.calls].map((c) => c[0] as string);
     const loc = window.location;
     Object.defineProperty(window, 'location', { configurable: true, value: { ...loc, assign } });
     try {
       await act(async () => { (hote.querySelector('button.chip') as HTMLButtonElement).click(); });
-      expect(assign).toHaveBeenCalledWith('/jarvis?q=Strat%C3%A9gie+%3A+que+me+conseilles-tu+%3F');
+      expect(vers()).toEqual(['/jarvis?q=Strat%C3%A9gie+%3A+que+me+conseilles-tu+%3F']);
       const champ = hote.querySelector('#jhin') as HTMLInputElement;
       champ.value = '  Quel angle tester ?  ';
       await act(async () => { (hote.querySelector('form') as HTMLFormElement).requestSubmit(); });
-      expect(assign).toHaveBeenLastCalledWith('/jarvis?q=Quel+angle+tester+%3F');
+      expect(vers().at(-1)).toBe('/jarvis?q=Quel+angle+tester+%3F');
       // Vide · rien ne part, la saisie reprend le focus.
       champ.value = '   ';
       await act(async () => { (hote.querySelector('form') as HTMLFormElement).requestSubmit(); });
-      expect(assign).toHaveBeenCalledTimes(2);
+      expect(vers()).toHaveLength(2);
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, value: loc });
       await act(async () => racine.unmount());

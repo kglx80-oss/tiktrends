@@ -1,3 +1,5 @@
+import { LONGUEUR_MAX_QUESTION_JARVIS } from '../bibliotheque/jarvis';
+
 /**
  * Spatial · Accueil · la barre « Ta question à Jarvis… » (`jhero jhome` de la
  * maquette). Pur · ni base, ni réseau, ni horloge.
@@ -13,15 +15,13 @@
  * ── Le contrat avec l'écran Jarvis ───────────────────────────────────────────
  *
  * La question voyage dans le paramètre `q` (`PARAM_QUESTION_JARVIS`). L'écran
- * Jarvis la lit par `lireQuestionJarvis` et la pose dans sa saisie
+ * Jarvis la lit par `lireQuestionJarvis` (`bibliotheque/jarvis`, la seule lecture) et la pose dans sa saisie
  * (`brouillonInitial` de `JarvisChat`, « toujours soumise par un clic
  * explicite »). Bornée à la longueur que la saisie accepte (4 000 caractères).
  */
 
 const CHEMIN_JARVIS = '/jarvis';
 export const PARAM_QUESTION_JARVIS = 'q';
-/** La saisie de Jarvis tronque à 4 000 caractères (`JarvisChat`) · la même borne ici. */
-export const LONGUEUR_MAX_QUESTION_JARVIS = 4000;
 
 /** Une question nettoyée · espaces de bord retirés, bornée · `null` si vide. */
 export function questionJarvisPropre(v: unknown): string | null {
@@ -37,12 +37,6 @@ export function lienQuestionJarvis(question: unknown): string {
   return `${CHEMIN_JARVIS}?${new URLSearchParams({ [PARAM_QUESTION_JARVIS]: q })}`;
 }
 
-/** Côté Jarvis · la question préremplie lue dans les paramètres de la page (`''` sans question). */
-export function lireQuestionJarvis(params: Record<string, string | string[] | undefined> | URLSearchParams | null | undefined): string {
-  if (!params) return '';
-  const brut = params instanceof URLSearchParams ? params.get(PARAM_QUESTION_JARVIS) : params[PARAM_QUESTION_JARVIS];
-  return questionJarvisPropre(Array.isArray(brut) ? brut[0] : brut) ?? '';
-}
 
 /**
  * Les pastilles de demande de la maquette · un thème, une question type. Ce ne

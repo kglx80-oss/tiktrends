@@ -195,3 +195,24 @@ export async function ajouterConcurrents(brandId: string, selection: string[]): 
   });
   return { ok: true };
 }
+
+/**
+ * Spatial · le scan, depuis le formulaire OU depuis le bouton d'un concurrent de la
+ * fiche (`cible` = marque + nom). Enveloppe MINCE de l'action existante
+ * `analyzeCompetitorAction` · elle garde ses gardes (admin, marque de
+ * l'espace), son débit de crédits (prix affiché sur le bouton), sa barrière de
+ * dépense IA (`guardedAnthropic`) et sa redirection vers le rapport.
+ */
+export async function scannerConcurrentAction(fd: FormData): Promise<void> {
+  const cible = typeof fd.get('cible') === 'string' ? String(fd.get('cible')) : '';
+  const f = new FormData();
+  if (cible) {
+    const i = cible.indexOf('\n');
+    f.set('brandId', i > 0 ? cible.slice(0, i) : '');
+    f.set('name', i > 0 ? cible.slice(i + 1) : '');
+  } else {
+    f.set('brandId', String(fd.get('brandId') ?? ''));
+    f.set('name', String(fd.get('name') ?? ''));
+  }
+  await analyzeCompetitorAction(f);
+}

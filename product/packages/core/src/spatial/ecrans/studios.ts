@@ -11,4 +11,9 @@ export const ECRANS_STUDIOS: readonly EcranSpatial[] = [
   { chemin: '/studio/projets/[id]', section: 'studios' },
   { chemin: '/studio/projets/[id]/image', section: 'studios' },
   { chemin: '/studio/projets/[id]/video', section: 'studios' },
+  // D1 · liste, création, itération.
+  { chemin: '/studio/projets', section: 'studios' },
+  { chemin: '/studio/prompts', section: 'studios' },
+  { chemin: '/studio/projets/nouveau', section: 'studios' },
+  { chemin: '/studio/iterer', section: 'studios' },
 ];
