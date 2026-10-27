@@ -128,7 +128,7 @@ describe('bibliothèque · création historique en lecture seule', () => {
     const r = createRoot(el);
     await act(async () => { r.render(<FournisseurSpatial value={ctx}><Bibliotheque donnees={donnees} lectureSeule={null} stockage={false} drive={connexionDrive(null)} maintenant="2026-10-20T10:00:00Z" gestion={{ analyse: { cout: 1, raison: null, sansTags: 0, maxLot: 20 }, selecteurDrive: false, admin: true, messageDrive: null }} /></FournisseurSpatial>); });
     // L'ancienne création vit sous « Anciens studios ».
-    await act(async () => { [...el.querySelectorAll('nav.btabs button')].find((b) => b.textContent?.includes('Anciens'))!.click(); });
+    await act(async () => { ([...el.querySelectorAll('nav.btabs button')].find((b) => b.textContent?.includes('Anciens'))! as HTMLButtonElement).click(); });
     await act(async () => { (el.querySelector('button[aria-label="Aperçu de Pub · 12/09/2026"]') as HTMLButtonElement).click(); });
     const apercu = q(el, 'aside[aria-label="Aperçu"]')!;
     expect(apercu.querySelector('.pill')?.textContent).toBe('Ancien studio');

@@ -45,7 +45,6 @@ import { VueAnalytics } from '../components/accueil/VueAnalytics';
 import { MetaKeyMetrics } from '../app/(app)/analytics/MetaKeyMetrics';
 import { ShopifyConnect } from '../app/(app)/brands/[id]/ShopifyConnect';
 import { LogoMarque } from '../components/LogoMarque';
-import { ToastProvider } from '../components/Toast';
 
 /** Les clés de tous les `LogoMarque` d'un rendu, dans l'ordre. */
 const logos = (html: string) => [...html.matchAll(/data-logo-marque="([^"]+)"/g)].map((m) => m[1]!);
