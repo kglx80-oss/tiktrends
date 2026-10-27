@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { journalCredits, panneauStockage, servicesEspace } from '@tiktrends/core';
+import { CONNECTEURS_DISPONIBLES, feuilleDeRouteConnecteurs, journalCredits, panneauStockage, servicesEspace } from '@tiktrends/core';
 import { jargonEcran, texteVisible } from './helpers/jargon-ecran';
 
 vi.mock('next/navigation', () => ({
@@ -13,6 +13,7 @@ vi.mock('next/navigation', () => ({
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 import { Espace, type GestionEspace } from '../spatial/vues/reglages/Espace';
 import { Utilisation } from '../spatial/vues/reglages/Utilisation';
+import { Connexions } from '../spatial/vues/reglages/Connexions';
 import { SOUS_NAV_REGLAGES } from '../spatial/vues/reglages/sous-nav';
 
 /**
@@ -149,5 +150,29 @@ describe('Spatial · Crédits & factures · journal des mouvements (écran V5 `/
     const e = bloc(vue(journalCredits([], { depuis, limite: 120, jours: 30, fuseau: 'Europe/Paris' })), 'journal');
     expect(e.textContent).toContain('Aucun mouvement pour l’instant');
     expect(e.querySelector('a[href="/studio/projets"]')).not.toBeNull();
+  });
+});
+
+describe('Spatial · Connexions · feuille de route (écran V5 `/connections`, N09)', () => {
+  const vue = () => rendre(
+    <Connexions
+      sousNav={SOUS_NAV_REGLAGES} marque="M" cartes={[]} branchables={CONNECTEURS_DISPONIBLES.length} retours={{}}
+      meta={{ oauth: false, connecter: async () => ({}), synchroniser: async () => ({}), deconnecter: async () => ({}), choisirCompte: async () => ({}), comptes: [], compte: null }}
+      shopify={{ oauth: false, connecter: async () => ({}), synchroniser: async () => ({}), deconnecter: async () => ({}), domaine: null }}
+      drive={{ connexion: null, synchroniser: async () => ({}), deconnecter: async () => ({}), dossier: null }}
+      feuilleDeRoute={feuilleDeRouteConnecteurs(['Dropbox'])}
+    />,
+  );
+  it('les connecteurs à venir sont listés, sans aucun bouton', () => {
+    const e = bloc(vue(), 'feuille-de-route');
+    const noms = [...e.querySelectorAll('.chip')].map((x) => x.textContent);
+    expect(noms).toContain('TikTok Ads');
+    expect(noms).toHaveLength(39);
+    expect(e.querySelectorAll('button, a')).toHaveLength(0);
+    expect(e.querySelector('.sech')?.textContent).toContain('39 connecteurs en préparation');
+  });
+  it('un connecteur disponible, ou qui a déjà sa carte, n’y reparaît jamais', () => {
+    const noms = [...bloc(vue(), 'feuille-de-route').querySelectorAll('.chip')].map((x) => x.textContent);
+    for (const n of [...CONNECTEURS_DISPONIBLES, 'Dropbox']) expect(noms, `« ${n} » listé « Bientôt »`).not.toContain(n);
   });
 });
