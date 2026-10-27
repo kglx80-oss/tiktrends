@@ -1,8 +1,11 @@
-import { initialeNom, listePropre, morceauxTexte, policeTechnique } from '@tiktrends/core';
+import { champsModifiablesMarque, costFor, initialeNom, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque } from '@tiktrends/core';
+import { deleteBrandAction, updateBrandAction } from '../../../../../actions/brands';
+import { extractBrandVisualDaAction, saveBrandDAAction, saveBrandVisualDaAction } from '../../../../../actions/brand-detail';
+import { ajouterConcurrents, proposerConcurrents } from '../../../../../actions/competitor';
 import { brandMediaPreview } from '../../../../../../lib/brand-media-url';
 import { Identite } from '../../../../../../spatial/vues/marque/Identite';
 import type { LigneKv } from '../../../../../../spatial/vues/marque/base';
-import { chargerMarque, propsFavicon, propsSync } from '../donnees';
+import { chargerMarque, propsFavicon, propsSync, valeursFiche } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +25,11 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
   const langues = listePropre(b.languages, 6);
   const polices = (b.fonts ?? []).filter((f) => f && !policeTechnique(f));
   const ton = morceauxTexte(b.tone, 6);
+  // Gestes de la fiche V5 (vague 2) · mêmes actions, mêmes gardes serveur (admin, marque de l'espace).
+  const valeurs = valeursFiche(b);
+  const style = styleVisuelMarque(b.brandKit as DaVisuelleMarque | null);
+  const raisonStyle = !c.aiReady ? 'IA non configurée sur le serveur' : null;
+  const logos = [...new Set([b.logoUrl, ...(b.logos ?? [])].filter((u): u is string => !!u))];
 
   return (
     <Identite
@@ -42,6 +50,28 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
       ton={{
         complet: !!(ton.length && b.audience?.trim() && b.usp?.trim()),
         lignes: [options('Ton', ton, 'Non renseigné'), texte('Audience', b.audience, 'Non renseignée'), texte('Promesse', b.usp, 'Non renseignée')],
+      }}
+      gestion={{
+        nom: b.name,
+        champs: champsModifiablesMarque(valeurs),
+        edition: { action: updateBrandAction, valeurs },
+        style: {
+          lignes: style.lignes, champs: style.champs,
+          analyser: raisonStyle ? null : extractBrandVisualDaAction, cout: c.unlimited ? null : costFor('brief'), raison: raisonStyle,
+          corriger: saveBrandVisualDaAction,
+        },
+        logos: {
+          logos, defaut: b.logoUrl ?? null, apercus: Object.fromEntries(logos.map((u) => [u, brandMediaPreview(b.id, u)])),
+          couleurs: b.colors ?? [], polices: b.fonts ?? [], enregistrer: saveBrandDAAction,
+        },
+        // Même prix que l'écran V5 (`costFor('brief')`), annoncé sur le bouton.
+        sourcing: {
+          prix: c.unlimited ? '0 crédit débité · coût fournisseur sous plafond' : `${costFor('brief')} crédits`,
+          proposer: c.aiReady ? proposerConcurrents : null, ajouter: ajouterConcurrents,
+          raison: c.aiReady ? null : 'Jarvis n’est pas disponible actuellement',
+        },
+        supprimer: deleteBrandAction,
+        retours: c.retours,
       }}
       vocabulaire={[pastilles('Mots à utiliser', listePropre(b.preferredWords, 10), 'g', 'Aucun'), pastilles('Mots à éviter', listePropre(b.avoidWords, 10), 'r', 'Aucun')]}
     />
