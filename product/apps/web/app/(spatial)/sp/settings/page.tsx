@@ -1,10 +1,14 @@
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { DESCRIPTIF_FORMULES, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, prixFormule, teinteAvatar } from '@tiktrends/core';
+import { DESCRIPTIF_FORMULES, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, prixFormule, servicesEspace, teinteAvatar } from '@tiktrends/core';
+import { storageConfigured } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES, PLAN_LABEL, PLAN_PRICE, roleAtLeast, type Plan } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
+import { isFounder } from '../../../../lib/founder';
+import { saveWorkspaceNameAction } from '../../../actions/admin';
+import { configureBucketAction, embeddedImagesStatusAction, migrateEmbeddedImagesAction, testStorageAction } from '../../../actions/storage';
 import { Espace } from '../../../../spatial/vues/reglages/Espace';
 import { SOUS_NAV_REGLAGES } from '../../../../spatial/vues/reglages/sous-nav';
 
@@ -30,6 +34,9 @@ export default async function EspaceSpatial() {
     nommage = nb?.np ?? null;
   }
   const studio = FEATURES.find((f) => f.key === 'studio')!;
+  // Gestes de l'écran V5 `/settings` (vague 2) · même garde admin (posée plus haut).
+  const operateur = isFounder(s.user.email);
+  const stockageActif = storageConfigured();
 
   return (
     <Espace
@@ -43,6 +50,14 @@ export default async function EspaceSpatial() {
       ajouter="/brands/new"
       formules={ORDRE_FORMULES.map((k) => ({ nom: PLAN_LABEL[k], actuelle: k === plan, valeur: DESCRIPTIF_FORMULES[k].marques, detail: PLAN_PRICE[k] === 0 ? prixFormule(0) : `${prixFormule(PLAN_PRICE[k])} / mois` }))}
       preferences={{ langue: locale === 'en' ? 'en' : 'fr', fuseau: FUSEAU_ACCUEIL, devise: 'Euro (€)', nommage }}
+      gestion={{
+        renommer: saveWorkspaceNameAction,
+        services: servicesEspace(process.env),
+        stockage: {
+          ...panneauStockage({ actif: stockageActif, operateur }), actif: stockageActif, operateur,
+          actions: { configurer: configureBucketAction, tester: testStorageAction, etat: embeddedImagesStatusAction, ranger: migrateEmbeddedImagesAction },
+        },
+      }}
       video={canAccess({ role: s.role, plan: s.plan, equipe: s.equipe ?? undefined }, studio) ? lienNouveauProjet({ type: 'video' }) : null}
     />
   );
