@@ -22,10 +22,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const m = vi.hoisted(() => ({
-  lire: vi.fn(), compiler: vi.fn(), retenir: vi.fn(), devis: vi.fn(), lancer: vi.fn(), controler: vi.fn(), annuler: vi.fn(), trancher: vi.fn(), refresh: vi.fn(),
+  preciser: vi.fn(), lire: vi.fn(), compiler: vi.fn(), retenir: vi.fn(), devis: vi.fn(), lancer: vi.fn(), controler: vi.fn(), annuler: vi.fn(), trancher: vi.fn(), refresh: vi.fn(),
 }));
 vi.mock('../app/actions/studios/image', () => ({
-  lireParcoursImage: m.lire, compilerConsigneImage: m.compiler, retenirConsigneImage: m.retenir, demanderDevisImage: m.devis,
+  enregistrerPrecisionsImage: m.preciser, lireParcoursImage: m.lire, compilerConsigneImage: m.compiler, retenirConsigneImage: m.retenir, demanderDevisImage: m.devis,
   approuverEtLancerImage: m.lancer, controlerMediaImage: m.controler,
 }));
 vi.mock('../app/actions/studios/execution', () => ({ annulerJob: m.annuler }));
@@ -208,6 +208,16 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     await act(async () => { racine!.render(<ParcoursImage projectId="p1" versionId="v3" />); });
   }
 
+  it('visuel livré avant les prix, direction technique repliée', async () => {
+    await monter(vue({ retenue: { ...CONSIGNE, verdict: OK }, jobs: [job({ etat: 'completed', terminal: true, qualite: 'requires_review', media: { assetId: 'a', url: '/api/studios/media/a', largeur: 1024, hauteur: 1024 } })] }));
+    expect(conteneur.querySelector('h2')!.textContent).toBe('Votre visuel est prêt');
+    const devis = conteneur.querySelector('[data-etape="devis"]')!;
+    expect(devis.parentElement!.tagName).toBe('DETAILS');
+    expect(devis.parentElement!.hasAttribute('open')).toBe(false);
+    expect(conteneur.querySelector('[data-etape="generation"]')!.compareDocumentPosition(devis) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(conteneur.querySelector('[data-champ="instruction"]')!.closest('details')!.hasAttribute('open')).toBe(false);
+  });
+
   it('rendu serveur · « Chargement », AUCUNE action appelée (la visite n’écrit rien)', () => {
     const html = renderToStaticMarkup(<ParcoursImage projectId="p1" versionId="v3" />);
     expect(html).toContain('Chargement de l’état de l’image…');
@@ -224,6 +234,28 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     expect(m.compiler).toHaveBeenCalledWith({ projectId: 'p1', mode: 'generative_scene' });
     expect(txt(conteneur, '[data-champ="questions"]')).toContain('Quel décor ?');
     expect(m.lancer).not.toHaveBeenCalled();
+  });
+
+  it('réponses gratuites sans relance IA, texte gardé en cas de conflit', async () => {
+    await monter(vue());
+    m.compiler.mockResolvedValue({ ok: true, statut: 'questions', questions: ['Quel décor ?'], projectVersionId: 'v3' });
+    await act(async () => { bouton(conteneur, 'compiler')!.click(); });
+    const champ = conteneur.querySelector('textarea')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(champ, 'Fond crème');
+      champ.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    m.preciser.mockResolvedValue({ ok: false, message: 'Projet modifié', code: 'VERSION_CONFLICT' });
+    await act(async () => { bouton(conteneur, 'preciser')!.click(); });
+    expect(champ.value).toBe('Fond crème');
+    expect(txt(conteneur, '[data-retour]')).toContain('Projet modifié');
+    m.preciser.mockResolvedValue({ ok: true });
+    await act(async () => { bouton(conteneur, 'preciser')!.click(); });
+    expect(m.preciser).toHaveBeenLastCalledWith({ projectId: 'p1', baseVersionId: 'v3', precisions: 'Fond crème' });
+    expect(conteneur.querySelector('textarea')).toBeNull();
+    expect(m.compiler).toHaveBeenCalledTimes(1);
+    expect(m.lancer).not.toHaveBeenCalled();
+    expect(m.devis).not.toHaveBeenCalled();
   });
 
   it('valider propose le prix sans lancer de génération ni nouvelle compilation', async () => {

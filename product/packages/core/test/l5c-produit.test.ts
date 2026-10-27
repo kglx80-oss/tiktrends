@@ -10,7 +10,7 @@ import { validerRelationsBrief, type BriefCanonique, type ReferenceBrief } from 
 import {
   epinglerProduit, lireReferenceEpinglee, etatPhotoEpinglee, changementsEpinglage, associationProduit, VARIANTE_UNIQUE,
   ajouterAssociation, retirerAssociation, controlerAssociations,
-  controlerAvantCompilation, controlerSortieCompilation, consigneFinale,
+  controlerAvantCompilation, controlerSortieCompilation, consigneFinale, entreeCompilation,
   verdictComposants, criteresComposants,
   type ReferenceProduitEpinglee, type ConsigneImage,
 } from '../src/studios/produit';
@@ -220,6 +220,25 @@ describe('IMG-04 · contrôle avant et après image.compile · aucun transfert d
     expect(prep.interditsTransfert[0]).toContain('« Lumière Botanique »');
     expect(prep.composantsProteges).toEqual(['lunettes', 'bandeau']);
     expect(prep.invariants).toEqual(expect.arrayContaining(['Composant obligatoire visible : bandeau', prep.interditsTransfert[0]]));
+  });
+
+  it('entrée : mode courant et photo confirmée explicites, composition non modifiée et aucune vision inventée', () => {
+    const b = { ...avecRefs(refsStyle()), composition: 'Choix créatif à confirmer : chevelure ou packaging.' };
+    const avant = structuredClone(b);
+    const prep = controlerAvantCompilation({ mode: 'generative_scene', brief: b, produit: r, fichiers });
+    expect(prep.photoProduitConfirmee).toEqual({ assetId: r.photo.assetId, produit: r.nom });
+    const entree = entreeCompilation({ prep, brief: b, versionId: 'v2', mode: 'generative_scene', largeur: 1080, hauteur: 1350 });
+    const concept = entree.resolvedDocuments[1]!.content.claim;
+    expect(entree.taskInputs.mode).toBe('generative_scene');
+    expect(concept).toContain('Mode choisi pour cet appel : generative_scene');
+    expect(concept).toContain(`Photo confirmée et associée au rôle Produit : ${r.photo.assetId}`);
+    expect(concept).toContain('aucune analyse visuelle de la photo n’est attestée');
+    expect(concept).toContain('sans description inventée');
+    expect(concept).toContain(b.composition);
+    expect(b).toEqual(avant);
+    const absente = controlerAvantCompilation({ mode: 'generative_scene', brief: b, produit: null, fichiers });
+    expect(absente.photoProduitConfirmee).toBeUndefined();
+    expect(entreeCompilation({ prep: absente, brief: b, versionId: 'v2', mode: 'generative_scene', largeur: 1080, hauteur: 1350 }).resolvedDocuments[1]!.content.claim).not.toContain('Photo confirmée');
   });
 
   it('sans produit épinglé, ou photo épinglée absente des références · bloqué avant tout appel', () => {

@@ -1,6 +1,7 @@
 'use server';
 
 import { aPermissionEspace, messageCapaciteCoupee, coutMaximalTexte, decisionFournisseurStudio, erreurStudio, type ErreurStudio, type StatutQualite } from '@tiktrends/core';
+import { enregistrerPrecisionsImagePour } from '../../../lib/studios/image/precisions';
 import { gardeStudio } from '../../../lib/studios/garde';
 import { gardeSources } from '../../../lib/studios/sources/acces';
 import { etatInterrupteurs, refusCapacite, refusCapacitesDevis, refusCapacitesJob } from '../../../lib/studios/interrupteurs';
@@ -114,4 +115,11 @@ export async function controlerMediaImage(entree: { jobId: unknown }): Promise<R
     if (coupe) return coupe;
   }
   return controlerMediaPour(g.ctx, { jobId: entree?.jobId });
+}
+
+/** Précisions manuelles : aucun appel IA, nouvelle version sous les droits existants. */
+export async function enregistrerPrecisionsImage(entree: { projectId: unknown; baseVersionId: unknown; precisions: unknown }) {
+  const g = await gardeStudio('studio.propose', 'projets');
+  if (!g.ok) return g;
+  return enregistrerPrecisionsImagePour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, precisions: entree?.precisions });
 }

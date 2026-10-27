@@ -24,6 +24,7 @@ import { h1 } from '../../ui';
 import { DialogueConflit, type EtatConflit } from './DialogueConflit';
 import { DialogueMedias } from './DialogueMedias';
 import { DocumentVide } from './DocumentVide';
+import { documentDepuisVisuel } from './document-depuis-visuel';
 import { PanneauCalques } from './PanneauCalques';
 import { PanneauProprietes, type ActionsProprietes } from './PanneauProprietes';
 import { PanneauVersions } from './PanneauVersions';
@@ -253,7 +254,14 @@ export function EditeurCalques(props: PropsEditeur) {
     focusSiPerdu('[data-action="enregistrer"]', '[data-editeur-titre]');
   };
 
-  const creer = (format: FormatDocument, avecProduit: boolean) => {
+  const creer = (format: FormatDocument, avecProduit: boolean, mediaId?: string, textes: string[] = []) => {
+    if (mediaId) {
+      const media = medias.find((m) => m.assetId === mediaId);
+      if (!media) { setRefus('Choisissez un visuel disponible dans ce projet.'); return; }
+      try { void enregistrer(documentDepuisVisuel(format, media, textes), 'Composition du visuel et de ses textes'); }
+      catch (e) { setRefus(e instanceof Error ? e.message : 'Impossible de préparer la composition.'); }
+      return;
+    }
     void enregistrer(documentInitial(format, { produit: avecProduit ? produit : null }), 'Création du document');
   };
 
@@ -509,7 +517,7 @@ export function EditeurCalques(props: PropsEditeur) {
 
       {!present ? (
         <div style={{ display: 'grid', gap: 12 }}>
-          <DocumentVide formatPropose={formatPropose} produitDisponible={produit !== null} peutEnregistrer={editable} enCours={enCours} onCreer={creer} />
+          <DocumentVide medias={medias} apercus={apercus} textes={Array.isArray(contenu.brief?.texts) ? contenu.brief.texts.filter((t): t is string => typeof t === 'string') : []} formatPropose={formatPropose} produitDisponible={produit !== null} peutEnregistrer={editable} enCours={enCours} onCreer={creer} />
           <div>
             <button type="button" onClick={() => setVersionsOuvert((v) => !v)} aria-expanded={versionsOuvert} aria-controls="versions-editeur" data-action="versions" style={bouton}>Versions</button>
           </div>
