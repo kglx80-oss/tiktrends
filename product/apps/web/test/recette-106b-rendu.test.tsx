@@ -23,30 +23,10 @@ vi.mock('../app/actions/competitor', () => ({ analyzeCompetitorAction: async () 
 const chaine = { select: () => chaine, from: () => chaine, where: () => chaine, limit: async () => [{ id: 'b', name: 'Neva', competitors: [{ name: 'Rival' }] }] };
 vi.mock('@tiktrends/db', async (orig) => ({ ...(await orig<typeof import('@tiktrends/db')>()), db: chaine }));
 
-import { StorageConfigurator } from '../components/StorageConfigurator';
 
 
 
-describe('Réglages · panneau Stockage · copie client (recette #106b)', () => {
-  it('client, stockage pas activé · ce qui manque, qui agit, aucun terme d’infrastructure', () => {
-    const html = renderToStaticMarkup(<StorageConfigurator enabled={false} />);
-    expect(jargonEcran(texteVisible(html)), `jargon : ${texteVisible(html)}`).toEqual([]);
-    expect(texteVisible(html)).toMatch(/côté plateforme, pas depuis ton espace/);
-    // Lot 11 · le lien dit ce qu'il fait · un ticket interne, lu par les admins de l'espace.
-    expect(html).toMatch(/<a [^>]*href="\/support"[^>]*>Ouvrir un ticket interne<\/a>/);
-    expect(texteVisible(html)).toContain('seuls ses admins le lisent');
-  });
-  it('client, stockage activé · aucune commande globale du bucket', () => {
-    const html = renderToStaticMarkup(<StorageConfigurator enabled />);
-    expect(html).not.toContain('<button');
-    expect(jargonEcran(texteVisible(html)), `jargon : ${texteVisible(html)}`).toEqual([]);
-  });
-  it('opérateur (équipe plateforme) · garde ses consignes techniques', () => {
-    expect(texteVisible(renderToStaticMarkup(<StorageConfigurator enabled={false} operateur />))).toContain('.env.deploy');
-    expect(texteVisible(renderToStaticMarkup(<StorageConfigurator enabled operateur />))).toContain('Configurer le stockage privé');
-  });
-});
-
+// Vague 2 · le panneau Stockage vit dans l'écran Spatial Espace · garde portée dans `spatial-reglages-gestes.test.tsx`.
 describe('Veille · écrans client sans « non configuré sur le serveur »', () => {
   it('« Ce qui scale » en démonstration', async () => {
     delete process.env.TRENDTRACK_API_KEY;

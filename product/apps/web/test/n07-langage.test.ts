@@ -23,8 +23,9 @@ const lire = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 const ONBOARDING = lire('app/onboarding/OnboardingWizard.tsx');
 const PLAN = lire('app/actions/adsmap-iterate.ts');
 const ENTRAINEMENT = lire('app/(app)/jarvis/JarvisTraining.tsx');
-const AD_DRAWER = lire('app/(app)/adsmap/AdDrawer.tsx');
-const SUITES = lire('app/(app)/adsmap/suites/page.tsx');
+// L'ancienne Adsmap est retirée · la fiche d'un test et les Suites vivent dans Spatial.
+const AD_DRAWER = lire('app/(spatial)/sp/adsmap/tests/[id]/page.tsx');
+const SUITES = lire('spatial/vues/resultats/Suites.tsx');
 
 describe('N07 · l’onboarding ne promet plus la performance', () => {
   it('l’accroche guide par la donnée, du repérage au test · pas « des créas qui performent »', () => {

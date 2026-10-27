@@ -20,7 +20,8 @@ import { join } from 'node:path';
 const ACTIONS = readFileSync(join(process.cwd(), 'app/actions/adsmap-attribution.ts'), 'utf8');
 // Le cumul des relectures a déménagé avec les essais à leur destination (Adsmap) ·
 // c'est la section montée sur Adsmap qui le rend désormais, plus la page Sources.
-const PAGE = readFileSync(join(process.cwd(), 'app/(app)/jarvis/sections/SectionEssais.tsx'), 'utf8');
+// Spatial · l'écran « Essais et relectures » (page qui charge + vue qui rend).
+const PAGE = ['app/(spatial)/sp/adsmap/essais/page.tsx', 'spatial/vues/resultats/Essais.tsx'].map((f) => readFileSync(join(process.cwd(), f), 'utf8')).join('\n');
 
 /** Le corps de l'action de cumul · c'est là que la lecture doit vivre. */
 const CUMUL = ACTIONS.slice(ACTIONS.indexOf('export async function bilanCopieAction('));

@@ -271,9 +271,9 @@ describe('Spatial · Résultats · protocole, import, boucle, navigation', () =>
     expect(sousNavResultats({ admin: true }).map((x) => x.href)).toEqual(['/adsmap', '/adsmap/boucle', '/adsmap/hypotheses', '/adsmap/lots', '/adsmap/protocole', '/adsmap/import', '/adsmap/apprentissages']);
     expect(sousNavResultats({ admin: false }).map((x) => x.href)).toEqual(['/adsmap', '/adsmap/boucle', '/adsmap/hypotheses', '/adsmap/protocole', '/adsmap/apprentissages']);
   });
-  it('les écrans portés de la rubrique sont servis par Spatial, les autres restent en V5', () => {
-    for (const c of ['/adsmap', '/adsmap/boucle', '/adsmap/lots/abc', '/adsmap/import']) expect(ecranSpatial(c)).toMatchObject({ section: 'resultats' });
-    for (const c of ['/adsmap/suites', '/adsmap/tri', '/adsmap/radar']) expect(ecranSpatial(c)).toBeNull();
-    expect(ECRANS_SPATIAUX.filter((e) => e.section === 'resultats')).toHaveLength(8);
+  it('les écrans portés de la rubrique sont servis par Spatial, un chemin inconnu ne l’est pas', () => {
+    for (const c of ['/adsmap', '/adsmap/boucle', '/adsmap/lots/abc', '/adsmap/import', '/adsmap/suites', '/adsmap/tri', '/adsmap/radar']) expect(ecranSpatial(c)).toMatchObject({ section: 'resultats' });
+    for (const c of ['/adsmap/inconnu', '/adsmap/tests/abc/plus']) expect(ecranSpatial(c)).toBeNull();
+    expect(ECRANS_SPATIAUX.filter((e) => e.section === 'resultats')).toHaveLength(18);
   });
 });

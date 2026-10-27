@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { lireVolume, optionsPeriode } from '@tiktrends/core';
 import { saveSettingsAction, type SettingsBundle } from '../../../app/actions/adsmap-protocol';
@@ -23,6 +23,8 @@ export interface PropsProtocole {
   initial: SettingsBundle;
   garanties: ReadonlyArray<{ ok: boolean; texte: string }>;
   peutModifier: boolean;
+  /** Les réglages détaillés (formulaire complet de l'ancienne page) · absents, rien n'est ajouté à la maquette. */
+  detail?: ReactNode;
 }
 
 export function Protocole(p: PropsProtocole) {
@@ -89,6 +91,7 @@ export function Protocole(p: PropsProtocole) {
             : 'Réservé aux administrateurs de l’espace.')}</small>
         </div>
       </section>
+      {p.detail}
     </Vue>
   );
 }

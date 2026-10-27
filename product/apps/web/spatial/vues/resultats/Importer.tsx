@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Remontee } from '@tiktrends/core';
+import { LIBELLE_VERDICT, libelleStatutTest, type Remontee, type VerdictValue } from '@tiktrends/core';
 import { syncAdsMapAction } from '../../../app/actions/adsmap';
 import { applyImportAction, previewImportAction, type PreviewResult } from '../../../app/actions/adsmap-import';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
@@ -24,6 +24,7 @@ import type { SousNavResultats } from './communs';
  */
 
 const COULEUR = { meta: '#0467df', tableau: '#34a853' } as const;
+const COLONNES_APERCU = 'minmax(0,1.3fr) minmax(0,1.3fr) 110px minmax(0,1fr) auto';
 const LETTRE = { meta: 'M', tableau: 'S' } as const;
 
 export interface PropsImporter {
@@ -145,6 +146,38 @@ export function Importer(p: PropsImporter) {
           </div>
         </div>
       </section>
+      {rep && !fait && (
+        <section className="tile sec" aria-label="Ce qui sera créé">
+          <h2>Ce qui sera créé · rien n’est encore écrit</h2>
+          <p className="muted" style={{ fontSize: '12.5px' }}>{rep.rowsRead} lignes lues · {rep.ads} variantes, {rep.concepts} concepts, {rep.angles} angles, {rep.desires} désirs, {rep.batches} lots, {rep.verdicts} verdicts, {rep.learnings} apprentissages.{rep.rowsRead === rep.ads ? ` Aucune ligne perdue · ${rep.conceptsMerged} ligne(s) regroupée(s) en variantes d’un même concept.` : ''}</p>
+          {rep.warnings.length > 0 && (
+            <ul className="check2">
+              {rep.warnings.map((w, i) => <li key={i}><span className="cb"><Ic n="warn" /></span><span>{w}</span><span /></li>)}
+            </ul>
+          )}
+          {apercu?.sample && apercu.sample.length > 0 && (
+            <div className="mtable" style={{ marginTop: 12 }}>
+              <div className="mrow h" style={{ gridTemplateColumns: COLONNES_APERCU }}><span>Concept</span><span>Angle · désir</span><span>Statut</span><span>Verdict · date</span><span>Variante</span></div>
+              {apercu.sample.map((r, i) => (
+                <div className="mrow" key={i} style={{ gridTemplateColumns: COLONNES_APERCU }}>
+                  <span>{r.concept}</span><span className="muted">{r.angle} · {r.desire}</span><span>{libelleStatutTest(r.status)}</span>
+                  <span className="muted">{r.verdict ? (LIBELLE_VERDICT[r.verdict as VerdictValue]?.court ?? r.verdict) : 'Aucun'} · {r.date ?? 'sans date'}</span><span className="num">{r.variant}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Personas, désirs, angles et concepts arrivent « proposés » · à trier avant de compter. Les verdicts du tableau sont repris tels quels, marqués NON comparables (le protocole d’alors est inconnu).</p>
+        </section>
+      )}
+      {fait && rep && (
+        <section className="tile sec" role="status">
+          <p style={{ fontSize: '13px' }}><b>Import terminé.</b> {rep.ads} ad(s), {rep.concepts} concept(s) et {rep.batches} lot(s) créés.{rep.demotedToDraft > 0 ? ` ${rep.demotedToDraft} ad(s) attendent leur hypothèse avant de pouvoir repartir en test.` : ''}</p>
+          <div className="foot2" style={{ marginTop: 10 }}>
+            <Lien className="btn sm pri" href="/adsmap/tri">Trier ce qui est arrivé</Lien>
+            <Lien className="btn sm" href="/adsmap/tests">Ouvrir tous les tests</Lien>
+          </div>
+        </section>
+      )}
     </Vue>
   );
 }
