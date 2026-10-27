@@ -27,10 +27,12 @@ vi.mock('../lib/brands', () => ({ listBrands: async () => [], getActiveBrand: as
 vi.mock('../lib/notifications', () => ({ unreadCount: async () => 0 }));
 vi.mock('../lib/credits', () => ({ unlimitedCredits: () => false }));
 vi.mock('../app/actions/auth', () => ({ logoutAction: async () => {} }));
+vi.mock('../lib/spatial/pastilles/resultats', () => ({ pastilleResultats: vi.fn(async () => ({ classe: 'badge', valeur: '', libelle: 'Un lot prêt à conclure' })) }));
+vi.mock('../lib/spatial/pastilles/marque', () => ({ pastilleMarque: vi.fn(async (b: string) => ({ classe: 'rbadge', valeur: '5', libelle: `5 étapes · ${b}` })) }));
 
 import { middleware } from '../middleware';
 import { chargerCoquille, poserPastilles } from '../lib/spatial/coquille';
-import { entreesRail } from '@tiktrends/core';
+import { entreesRail, entreesRailEspace } from '@tiktrends/core';
 
 const HOTE = 'https://app.tiktrends.test';
 
@@ -78,6 +80,14 @@ describe('Spatial · pastilles du rail · point d’entrée', () => {
     const ouverts = new Set(['/adsmap']);
     await poserPastilles(entreesRail({ ouverts, marque: null }), { ouverts, workspaceId: 'w', brandId: null }, sources);
     expect(sources.resultats.source).not.toHaveBeenCalled();
+  });
+
+  it('branchées par défaut · Résultats (lots à conclure) et Marque (étapes restantes), chacune sur SON entrée', async () => {
+    const ouverts = new Set(['/adsmap', '/brands', '/settings']);
+    const rail = await poserPastilles(entreesRail({ ouverts, marque }), { ouverts, workspaceId: 'w', brandId: 'b1' });
+    const espace = await poserPastilles(entreesRailEspace({ ouverts, marque }), { ouverts, workspaceId: 'w', brandId: 'b1' });
+    expect(rail.filter((e) => e.pastille).map((e) => [e.cle, e.pastille!.libelle])).toEqual([['resultats', 'Un lot prêt à conclure']]);
+    expect(espace.filter((e) => e.pastille).map((e) => [e.cle, e.pastille!.valeur, e.pastille!.libelle])).toEqual([['marque', '5', '5 étapes · b1']]);
   });
 
   it('une source qui échoue ne fait pas tomber la coquille', async () => {
