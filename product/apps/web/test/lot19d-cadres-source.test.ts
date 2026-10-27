@@ -56,7 +56,6 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
   'components/AdCard.tsx': 'Veille · autre lot',
   'components/RetourVeille.tsx': 'Veille · autre lot',
   'components/DefileAncreVeille.tsx': 'Veille · autre lot',
-  'components/RenameMarque.tsx': 'autre lot',
   // Composants qui ne servent QUE la Bibliothèque · l'écran propriétaire les reprend.
   // (Les composants de l'Accueil sont entrés au lot avec le lot 19A.)
   'components/GrammaireCategorie.tsx': 'Bibliothèque seule',

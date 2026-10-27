@@ -12,7 +12,8 @@ import { join } from 'node:path';
  */
 const LAYOUT = readFileSync(join(process.cwd(), 'app/(app)/layout.tsx'), 'utf8');
 const SHELL = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
-const FICHE = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/page.tsx'), 'utf8');
+// Vague 2 · la fiche est servie par Spatial (vue d'ensemble).
+const FICHE = readFileSync(join(process.cwd(), 'app/(spatial)/sp/brands/[id]/page.tsx'), 'utf8');
 
 describe('H4 · le groupe « Marque » tire ses entrées du noyau', () => {
   it('le layout monte le groupe « Marque » à partir de entreesMarque(bid)', () => {
@@ -57,8 +58,8 @@ describe('H4 · l’état actif du rail est ancre-conscient', () => {
 });
 
 describe('H4 · la fiche ne pose le lien Assets qu’à portée explicite', () => {
-  it('la fiche décide l’accès aux assets via accesAssets (marque consultée vs active)', () => {
-    expect(FICHE, 'la fiche ne décide plus l’accès aux assets par accesAssets').toContain('accesAssets(b.id, await getActiveBrand(s.workspaceId))');
-    expect(FICHE, 'le lien Assets n’est plus conditionné à la marque consultée = active').toContain("assets.kind === 'lien'");
+  it('la fiche ferme l’ajout d’assets quand la marque consultée n’est pas l’active', () => {
+    expect(FICHE, 'l’ajout d’assets n’est plus conditionné à la marque consultée = active').toContain('const raisonAssets = !c.estActive ?');
+    expect(FICHE, 'l’ajout d’assets n’est plus fermé avec sa raison').toContain('televerser: raisonAssets ? null : uploadImageAssetsAction');
   });
 });

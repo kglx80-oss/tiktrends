@@ -292,6 +292,12 @@ function vueTextes(o: Partial<VueTextes> = {}): VueTextes {
 }
 
 describe('Spatial · Studios · atelier Textes', () => {
+  it('le brief partagé dit la variable testée en clair (« l’accroche »), jamais le code Adsmap', () => {
+    monter(<Textes vue={vueTextes()} atelier={ATELIER} />);
+    const ligne = [...hote.querySelectorAll('.ev')].find((e) => e.textContent?.startsWith('Variable testée'));
+    expect(ligne?.querySelector('small')?.textContent).toBe('l’accroche');
+  });
+
   it('« Écrire » · le 1er clic n’appelle rien et dit le coût · le 2e appelle ecrireTextes', async () => {
     monter(<Textes vue={vueTextes()} atelier={ATELIER} />);
     expect(hote.querySelector('[data-cout="texte"]')?.textContent).toContain('0,02 $');

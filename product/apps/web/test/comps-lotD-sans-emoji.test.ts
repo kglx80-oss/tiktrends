@@ -13,7 +13,6 @@ import { join } from 'node:path';
 const FICHIERS = [
   'components/DecouverteSection.tsx',
   'components/GrammaireCategorie.tsx',
-  'components/ScenarioCard.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
 // Pictogrammes, sauf ★☆ (favori), ✓ (2713), ✕ (2715).
@@ -28,7 +27,6 @@ describe('Composants lot D · plus aucun emoji d’interface', () => {
   });
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
-    expect(tout).toMatch(/<Icon name="film"/);       // ScenarioCard
     expect(tout).toMatch(/<Icon name="sparkles"/);   // DecouverteSection · GrammaireCategorie · ScenarioCard
   });
 });

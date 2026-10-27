@@ -40,10 +40,8 @@ vi.mock('../app/actions/assets', () => stub());
 vi.mock('../app/actions/brand-detail', () => stub());
 
 import { CONNECTEURS_DISPONIBLES, CONNEXIONS_REELLES, connecteursBranches, estConnexionReelle } from '@tiktrends/core';
-import NouvelleMarque from '../app/(app)/brands/new/page';
 import { VueAnalytics } from '../components/accueil/VueAnalytics';
 import { MetaKeyMetrics } from '../app/(app)/analytics/MetaKeyMetrics';
-import { ShopifyConnect } from '../app/(app)/brands/[id]/ShopifyConnect';
 import { DriveConnect } from '../app/(app)/assets/DriveConnect';
 import { AssetsLibrary } from '../app/(app)/assets/AssetsLibrary';
 import { LogoMarque } from '../components/LogoMarque';
@@ -55,12 +53,10 @@ const logos = (html: string) => [...html.matchAll(/data-logo-marque="([^"]+)"/g)
 const kpi = new Proxy({}, { get: () => 1 });
 const ECRANS: Array<{ ecran: string; attendu: string[]; rendre: () => Promise<string> | string }> = [
   { ecran: 'Analytics sans compte', attendu: ['meta'], rendre: async () => renderToStaticMarkup(await VueAnalytics()) },
-  { ecran: 'Nouvelle marque', attendu: ['shopify'], rendre: async () => renderToStaticMarkup(await NouvelleMarque({ searchParams: Promise.resolve({}) })) },
   {
     ecran: 'Key Metrics Meta', attendu: ['meta'],
     rendre: () => renderToStaticMarkup(<MetaKeyMetrics insights={{ accountName: 'Neva FR', currency: '€', window: kpi, previous: kpi, topAds: [], spend30d: 1, purchases30d: 1, revenue30d: 1, roas30d: 1 } as never} syncedAt={null} />),
   },
-  { ecran: 'Fiche marque · Shopify', attendu: ['shopify'], rendre: () => renderToStaticMarkup(<ShopifyConnect brandId="b" initialDomain={null} />) },
   {
     ecran: 'Assets · Google Drive', attendu: ['googledrive', 'googledrive'],
     rendre: () => renderToStaticMarkup(<ToastProvider><DriveConnect state={{ available: true, pickerReady: true, needBrand: false, brandName: 'Neva', connected: false, folderId: null, folderName: null, syncedAt: null, dernier: null }} /></ToastProvider>),

@@ -4,14 +4,16 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, typ
 import { useRouter } from 'next/navigation';
 import {
   vueDrive, cheminVers, dossiersRangement, pastilleDroit, formatTaille, libelleJour, ETAT_DRIVE_INITIAL, SECTIONS_DRIVE, DROITS_ASSET,
-  LIBELLE_TYPE_FICHIER, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
+  LIBELLE_TYPE_FICHIER, FILTRES_TYPE_DRIVE, TYPES_IMPORT_LIEN, type FiltreTypeDrive, lireImportLiens, type TypeImportLien, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
 } from '@tiktrends/core';
-import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction } from '../../../app/actions/assets';
+import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction } from '../../../app/actions/assets';
 import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction } from '../../../app/actions/bibliotheque-dossiers';
 import { syncDriveNowAction } from '../../../app/actions/drive';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 import { LogoApp, ICONE_TYPE } from './logos';
+import { useSelecteurDrive } from './selecteur-drive';
+import { DialogueSpatial } from '../marque/interactifs';
 
 /**
  * « Bibliothèque » · `docs/spatial/reference/bibliotheque.html`, balisage à
@@ -39,6 +41,27 @@ export interface PropsBibliotheque {
   maintenant: string;
   /** Message de retour de la connexion Google (succès ou erreur client). */
   retourDrive?: string | null;
+  /**
+   * Les gestes de l'écran V5 `/assets` sans fragment de maquette (vague 2) ·
+   * import par lien, asset commun à toutes les marques, usage par l'IA et
+   * template, analyse des images (payante, prix annoncé), sélecteur Google
+   * Drive. Absents, l'écran est celui de la maquette (garde de parité).
+   */
+  gestion?: GestionBibliotheque;
+}
+
+export interface GestionBibliotheque {
+  /** L'analyse d'images par l'IA · `cout` par image (`null` · illimité), `raison` quand elle est fermée. */
+  analyse: { cout: number | null; raison: string | null; sansTags: number; maxLot: number };
+  /** Le sélecteur Google Drive est configuré sur la plateforme. */
+  selecteurDrive: boolean;
+  /** Administrateur de l'espace · seul à ranger un fichier en template (coulisses, garde serveur identique). */
+  admin: boolean;
+  /**
+   * Google Drive pas activé (ou son sélecteur) pour l'espace · ce qui manque,
+   * qui agit, le repli par lien et le ticket interne (copie client, recette #106).
+   */
+  messageDrive: { constat: string; suite: string; action: { libelle: string; href: string } | null } | null;
 }
 
 const style = (s: Record<string, string | number>) => s as CSSProperties;
@@ -105,6 +128,9 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const [menu, setMenu] = useState(false);
   const [glisse, setGlisse] = useState(false);
   const [occupe, setOccupe] = useState(false);
+  const [commun, setCommun] = useState(false);
+  const [dialogueLien, setDialogueLien] = useState(false);
+  const [lien, setLien] = useState<{ texte: string; nom: string; type: TypeImportLien }>({ texte: '', nom: '', type: 'video' });
   const fichierRef = useRef<HTMLInputElement>(null);
   const maintenant = useMemo(() => new Date(p.maintenant), [p.maintenant]);
   const ecriture = p.lectureSeule === null;
@@ -120,6 +146,9 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const corbeille = etat.section === 'corbeille';
   const nTrash = p.donnees.dossiers.filter((d) => d.reel && d.supprime && !dossierDe(d.parent ?? '')?.supprime).length;
   const rafraichir = () => router.refresh();
+  const g = p.gestion;
+  const selecteur = useSelecteurDrive(toast, rafraichir);
+  const prixImage = (n: number) => (g?.analyse.cout != null ? ` · ${g.analyse.cout * n} crédit${g.analyse.cout * n > 1 ? 's' : ''}` : '');
 
   const aller = (id: string) => {
     const chemin = cheminVers(p.donnees, id);
@@ -157,7 +186,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
           const pre = await presignAssetUploadAction({ filename: f.name, contentType: f.type || 'application/octet-stream', sizeBytes: f.size });
           if (pre.error || !pre.uploadUrl || !pre.publicUrl) { echecs.push(pre.error ?? f.name); continue; }
           try { await envoyerVersBucket(pre.uploadUrl, f); } catch { echecs.push(f.name); continue; }
-          const reg = await registerUploadedAssetAction({ name: f.name, url: pre.publicUrl, mimeType: f.type, sizeBytes: f.size });
+          const reg = await registerUploadedAssetAction({ name: f.name, url: pre.publicUrl, mimeType: f.type, sizeBytes: f.size, common: commun });
           if (reg.error) echecs.push(reg.error); else ok++;
         }
       } else {
@@ -165,7 +194,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
         if (images.length < files.length) echecs.push('sans stockage, seules les images se téléversent');
         if (images.length) {
           const items = await Promise.all(images.map(async (f) => ({ name: f.name, dataUri: await fichierEnDataUri(f) })));
-          const r = await uploadImageAssetsAction({ items });
+          const r = await uploadImageAssetsAction({ items, common: commun });
           if (r.error) echecs.push(r.error); else ok = r.count ?? images.length;
         }
       }
@@ -173,6 +202,54 @@ export function Bibliotheque(p: PropsBibliotheque) {
     setOccupe(false);
     toast(ok ? `${ok} fichier${ok > 1 ? 's' : ''} importé${ok > 1 ? 's' : ''} dans « ${v.depot} »${echecs.length ? ` · ${echecs[0]}` : ''}` : (echecs[0] ?? 'Aucun fichier importé'));
     if (ok) { setEtat((e) => ({ ...e, section: 'drive', recherche: '', chemin: ['r:assets'] })); rafraichir(); }
+  }
+
+  async function importerLiens() {
+    if (!ecriture || occupe) return;
+    const lu = lireImportLiens(lien.texte, lien.nom);
+    if (!lu.liens.length) { toast(lu.erreur ?? 'Aucun lien à importer'); return; }
+    setOccupe(true);
+    let ok = 0; let echec: string | null = null;
+    for (const l of lu.liens) {
+      const r = await importAssetAction({ name: l.nom, url: l.url, kind: lien.type, common: commun }).catch(() => ({ error: 'L’import a échoué.' }));
+      if (r.error) echec = echec ?? r.error; else ok++;
+    }
+    setOccupe(false);
+    toast(ok ? `${ok} élément${ok > 1 ? 's' : ''} importé${ok > 1 ? 's' : ''}${echec ? ` · ${echec}` : lu.erreur ? ` · ${lu.erreur}` : ''}` : (echec ?? 'Aucun élément importé'));
+    if (ok) { setDialogueLien(false); setLien({ texte: '', nom: '', type: lien.type }); setEtat((e) => ({ ...e, section: 'drive', recherche: '', chemin: ['r:assets'] })); rafraichir(); }
+  }
+
+  async function analyserLot() {
+    setMenu(false);
+    if (!g || g.analyse.raison || occupe) return;
+    setOccupe(true);
+    const r = await tagUntaggedImagesAction().catch(() => ({ error: 'L’analyse a échoué.' } as { tagged?: number; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(`${r.tagged ?? 0} image${(r.tagged ?? 0) > 1 ? 's' : ''} analysée${(r.tagged ?? 0) > 1 ? 's' : ''}`);
+    rafraichir();
+  }
+
+  async function analyserUne(f: FichierDrive) {
+    if (!g || g.analyse.raison || occupe) return;
+    setOccupe(true);
+    const r = await tagAssetAction({ id: f.id }).catch(() => ({ error: 'L’analyse a échoué.' } as { tags?: string[]; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(r.tags?.length ? `Tags posés · ${r.tags.slice(0, 4).join(', ')}` : 'Aucun tag retenu pour cette image');
+    rafraichir();
+  }
+
+  async function basculerIa(f: FichierDrive, cle: 'utilisable' | 'template') {
+    if (!f.ia || occupe) return;
+    setOccupe(true);
+    const r = cle === 'utilisable'
+      ? await toggleAssetAiAction({ id: f.id, useForAi: !f.ia.utilisable }).catch(() => ({ error: 'L’enregistrement a échoué.' }))
+      : await basculerTemplateAction({ id: f.id, on: !f.ia.template }).catch(() => ({ error: 'L’enregistrement a échoué.' }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(cle === 'utilisable' ? (f.ia.utilisable ? 'Ce fichier ne servira plus à l’IA' : 'Ce fichier peut servir à l’IA') : (f.ia.template ? 'Retiré des templates' : 'Rangé dans les templates'));
+    rafraichir();
   }
 
   async function synchroniser() {
@@ -234,7 +311,9 @@ export function Bibliotheque(p: PropsBibliotheque) {
     <div className="dapp on">
       <LogoApp app="gdrive" taille={30} interieur={18} />
       <div className="dapp-t"><strong>Google Drive</strong><small>{p.drive.resume}</small></div>
-      <button className="dapp-ic" type="button" onClick={() => void synchroniser()} disabled={!p.drive.peutSynchroniser || occupe || !ecriture} aria-label="Synchroniser Google Drive" title={p.drive.peutSynchroniser ? 'Synchroniser maintenant' : 'Choisis d’abord un dossier Drive'}><Ic n="loop" /></button>
+      {!p.drive.peutSynchroniser && g?.selecteurDrive
+        ? <button className="dapp-ic" type="button" onClick={selecteur.choisirDossier} disabled={!!selecteur.occupe || !ecriture} aria-label="Choisir le dossier Google Drive" title="Choisir le dossier à synchroniser"><Ic n="folder" /></button>
+        : <button className="dapp-ic" type="button" onClick={() => void synchroniser()} disabled={!p.drive.peutSynchroniser || occupe || !ecriture} aria-label="Synchroniser Google Drive" title={p.drive.peutSynchroniser ? 'Synchroniser maintenant' : 'Choisis d’abord un dossier Drive'}><Ic n="loop" /></button>}
     </div>
   ) : (
     <button type="button" className="dapp" disabled={p.drive.etat !== 'a-connecter' || !ecriture} title={p.drive.etat === 'a-connecter' ? undefined : p.drive.resume} onClick={() => { window.location.href = '/api/oauth/google'; }}>
@@ -335,6 +414,13 @@ export function Bibliotheque(p: PropsBibliotheque) {
       </nav>
       <div className="bpre">
         {p.lectureSeule && <div className="bbanner"><Ic n="lock" /><p><b>Lecture seule.</b> {p.lectureSeule}</p></div>}
+        {g?.messageDrive && (
+          <div className="bbanner" data-geste="drive-inactif">
+            <LogoApp app="gdrive" taille={28} interieur={16} />
+            <p><b>{g.messageDrive.constat}</b> {g.messageDrive.suite}</p>
+            {g.messageDrive.action && <Lien className="btn sm" href={g.messageDrive.action.href}>{g.messageDrive.action.libelle}</Lien>}
+          </div>
+        )}
         {v.banniere && (
           <div className="bbanner">
             <Ic n="shield" />
@@ -353,6 +439,15 @@ export function Bibliotheque(p: PropsBibliotheque) {
                 <button type="button" onClick={() => { setMenu(false); fichierRef.current?.click(); }}><Ic n="down" />Importer des fichiers</button>
                 {p.drive.etat === 'connecte' && p.drive.peutSynchroniser && <button type="button" onClick={() => void synchroniser()}><LogoApp app="gdrive" taille={18} interieur={12} />Synchroniser Google Drive</button>}
                 {p.drive.etat === 'a-connecter' && <button type="button" onClick={() => { window.location.href = '/api/oauth/google'; }}><LogoApp app="gdrive" taille={18} interieur={12} />Connecter Google Drive</button>}
+                {g && (
+                  <>
+                    <button type="button" onClick={() => { setMenu(false); setDialogueLien(true); }}><Ic n="plus" />Importer par lien</button>
+                    {p.drive.etat === 'connecte' && g.selecteurDrive && <button type="button" onClick={() => { setMenu(false); selecteur.choisirDossier(); }} disabled={!!selecteur.occupe}><LogoApp app="gdrive" taille={18} interieur={12} />{p.drive.peutSynchroniser ? 'Changer de dossier Drive' : 'Choisir le dossier Drive'}</button>}
+                    {p.drive.etat === 'connecte' && g.selecteurDrive && <button type="button" onClick={() => { setMenu(false); selecteur.choisirFichiers(); }} disabled={!!selecteur.occupe}><LogoApp app="gdrive" taille={18} interieur={12} />Importer des fichiers Drive</button>}
+                    {g.analyse.sansTags > 0 && <button type="button" onClick={() => void analyserLot()} disabled={!!g.analyse.raison || occupe} title={g.analyse.raison ?? undefined}><Ic n="spark" />Analyser {Math.min(g.analyse.sansTags, g.analyse.maxLot)} image{Math.min(g.analyse.sansTags, g.analyse.maxLot) > 1 ? 's' : ''} sans tags{g.analyse.cout != null ? ` · jusqu’à ${g.analyse.cout * Math.min(g.analyse.sansTags, g.analyse.maxLot)} crédits` : ''}</button>}
+                    <button type="button" aria-pressed={commun} onClick={() => setCommun((c) => !c)}><Ic n={commun ? 'check' : 'users'} />{commun ? 'Import commun à toutes les marques · activé' : 'Importer comme commun à toutes les marques'}</button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -407,6 +502,11 @@ export function Bibliotheque(p: PropsBibliotheque) {
             <select className="dsort" id="dsort" aria-label="Trier" value={etat.tri} onChange={(e) => { const tri = e.target.value as TriDrive; setEtat((x) => ({ ...x, tri })); }}>
               <option value="nom">Trier : Nom</option><option value="date">Trier : Ajouté</option><option value="taille">Trier : Taille</option>
             </select>
+            {g && (
+              <select className="dsort" aria-label="Type de fichier" value={etat.type ?? 'tous'} onChange={(e) => { const type = e.target.value as FiltreTypeDrive; setEtat((x) => ({ ...x, type })); }}>
+                {FILTRES_TYPE_DRIVE.map((t) => <option key={t.cle} value={t.cle}>{t.libelle}</option>)}
+              </select>
+            )}
           </div>
           {selection.size > 0 && (
             <div className="dbulk">
@@ -424,7 +524,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <aside className="tile dprev" aria-label="Aperçu">
             <div className="sech" style={{ margin: 0 }}><strong style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fa.nom}</strong><button className="btn icon sm" style={{ width: 34, marginLeft: 'auto' }} type="button" onClick={() => setApercu(null)} aria-label="Fermer l’aperçu"><Ic n="x" /></button></div>
             <div className="dbig"><Vignette f={fa} /></div>
-            <div className="kc"><PastilleFichier f={fa} /></div>
+            <div className="kc"><PastilleFichier f={fa} />{fa.ia?.template && <span className="pill c" data-badge="template">Template</span>}</div>
             {fa.droit === 'a_preciser' && <div className="banner" style={{ margin: 0 }}><Ic n="warn" /><span>Droits à préciser : ce fichier ne peut pas encore servir dans une publicité.</span></div>}
             <dl className="kv2" style={{ gridTemplateColumns: '110px minmax(0,1fr)', margin: 0 }}>
               <dt>Type</dt><dd>{LIBELLE_TYPE_FICHIER[fa.type]}</dd>
@@ -447,6 +547,17 @@ export function Bibliotheque(p: PropsBibliotheque) {
                   </select>
                 </>
               )}
+              {fa.ia && ecriture && g && (
+                <div data-geste="ia-fichier" style={{ display: 'grid', gap: 8 }}>
+                  <span className="lbl" style={{ margin: 0 }}>Usage par l’IA</span>
+                  <label className="npr" style={{ cursor: 'pointer' }}><input type="checkbox" checked={fa.ia.utilisable} disabled={occupe} onChange={() => void basculerIa(fa, 'utilisable')} /><div><strong>Utilisable par l’IA</strong><small>Les Studios peuvent s’en servir pour composer</small></div></label>
+                  {g.admin && <label className="npr" style={{ cursor: 'pointer' }}><input type="checkbox" checked={fa.ia.template} disabled={occupe} onChange={() => void basculerIa(fa, 'template')} /><div><strong>Template</strong><small>Visible du client comme modèle</small></div></label>}
+                  {fa.ia.tags.length > 0 && <div className="chips" style={{ marginTop: 0 }}>{fa.ia.tags.map((t) => <span className="pill" key={t}>{t}</span>)}</div>}
+                  {fa.type === 'image' && (
+                    <button className="btn" type="button" onClick={() => void analyserUne(fa)} disabled={!!g.analyse.raison || occupe} title={g.analyse.raison ?? undefined}><Ic n="spark" />{fa.ia.tags.length ? 'Analyser à nouveau' : 'Analyser l’image'}{prixImage(1)}</button>
+                  )}
+                </div>
+              )}
               {fa.projet && <Lien className="btn pri" href={fa.projet.href}><Ic n="brush" />Ouvrir le projet</Lien>}
               <a className="btn" href={fa.telecharger ?? fa.url} target="_blank" rel="noopener noreferrer" download><Ic n="down" />Télécharger</a>
               {!fa.lectureSeule && ecriture && <button className="btn" type="button" onClick={() => void supprimerFichier(fa)}><Ic n="x" />Supprimer définitivement</button>}
@@ -454,6 +565,19 @@ export function Bibliotheque(p: PropsBibliotheque) {
           </aside>
         )}
       </div>
+      {g && (
+        <DialogueSpatial titre="Importer par lien" ouvert={dialogueLien} fermer={() => setDialogueLien(false)}>
+          <form style={{ display: 'grid', gap: 10 }} onSubmit={(e) => { e.preventDefault(); void importerLiens(); }}>
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>Une adresse par ligne · rushs, vidéos ou liens de partage Google Drive (« Tous les utilisateurs disposant du lien »). Ils arrivent dans « {v.depot} »{commun ? ', communs à toutes les marques' : ''}.</p>
+            <textarea value={lien.texte} onChange={(e) => setLien((x) => ({ ...x, texte: e.target.value }))} rows={4} required aria-label="Adresses à importer" placeholder="https://…" style={{ padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 13px var(--sf)', resize: 'vertical' }} />
+            <input value={lien.nom} onChange={(e) => setLien((x) => ({ ...x, nom: e.target.value }))} aria-label="Nom (une seule adresse)" placeholder="Nom (facultatif, pour une seule adresse)" style={{ padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 13px var(--sf)' }} />
+            <select className="dsort" aria-label="Type de fichier" value={lien.type} onChange={(e) => setLien((x) => ({ ...x, type: e.target.value as TypeImportLien }))}>
+              {TYPES_IMPORT_LIEN.map((t) => <option key={t.cle} value={t.cle}>{t.libelle}</option>)}
+            </select>
+            <div className="pbtns"><button className="btn" type="button" onClick={() => setDialogueLien(false)}>Annuler</button><button className="btn pri" type="submit" disabled={occupe || !lien.texte.trim()}>Importer</button></div>
+          </form>
+        </DialogueSpatial>
+      )}
     </Vue>
   );
 }

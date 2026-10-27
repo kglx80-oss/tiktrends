@@ -20,7 +20,6 @@ vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: 'b', name: 
 vi.mock('../app/(app)/analytics/CreativeIntel', () => ({ CreativeIntel: () => null }));
 vi.mock('../app/(app)/jarvis/sections/SectionAttribution', () => ({ SectionAttribution: () => null }));
 
-import NouvelleMarque from '../app/(app)/brands/new/page';
 import { VueAnalytics as AnalyticsPage } from '../components/accueil/VueAnalytics';
 
 /** Le bloc qui contient `titre`, du plus proche conteneur ouvrant au titre. */
@@ -34,13 +33,7 @@ function bloc(html: string, titre: string, ouvrant: RegExp): string {
 }
 
 describe('Lot A · vrais logos des outils proposés', () => {
-  it('Nouvelle marque · la carte Shopify porte le logo Shopify, plus l’icône générique', async () => {
-    const html = renderToStaticMarkup(await NouvelleMarque({ searchParams: Promise.resolve({}) }));
-    const carte = bloc(html, 'Connecter une boutique Shopify', /<form\b/g);
-    // Lot V5 · A1 · le logo de la connexion est `LogoMarque`.
-    expect(carte, 'logo Shopify absent de la carte').toMatch(/data-logo-marque="shopify"[^>]*>\s*<svg\b/);
-  });
-
+  // Vague 2 · `/brands/new` est servi par Spatial (carte Shopify de la maquette, sans logo d'outil).
   it('Analytics sans compte · l’encart Meta porte la pastille officielle Meta', async () => {
     const html = renderToStaticMarkup(await AnalyticsPage());
     const encart = bloc(html, 'Branche Meta Ads pour tes vrais KPI', /<div style="border:1px solid var\(--accent-strong\)/g);
