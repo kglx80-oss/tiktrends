@@ -24,10 +24,13 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => { throw new Error(`REDIRECT ${url}`); },
   useRouter: () => ({ push: () => {}, refresh: () => {} }),
+  usePathname: () => '/admin/prompts/registre',
 }));
 
 import { db, schema } from '@tiktrends/db';
-import IaStudiosPage from '../app/(app)/admin/ia-studios/page';
+// Spatial · vague 3 · l'écran V5 « IA et Studios » est retiré · le « Registre IA » Spatial le remplace.
+import RegistreSpatial from '../app/(spatial)/sp/admin/prompts/registre/page';
+import { avecSpatial } from './spatial/fournisseur';
 import { approuverBenchmarkAction } from '../app/actions/studios/prompts';
 import { approuverBudgetBenchmarkAction, joindreFichesBenchmarkAction } from '../lib/studios/benchmark/actions';
 import { lancerCampagneSimulee } from '../lib/studios/benchmark/programme';
@@ -41,7 +44,7 @@ const REFUSES: Array<[string, () => unknown]> = [
   ['admin d’espace', () => base({ role: 'admin', equipe: null })],
   ['lecteur', () => base({ role: 'client_viewer', equipe: null })],
 ];
-const page = async () => renderToStaticMarkup(await IaStudiosPage({ searchParams: Promise.resolve({ onglet: 'evaluations' }) }));
+const page = async () => renderToStaticMarkup(avecSpatial(await RegistreSpatial({ searchParams: Promise.resolve({ onglet: 'evaluations' }) })));
 const evaluations = async () => (await db.select().from(schema.studioPromptEvaluations)).length;
 let staged = '';
 
@@ -68,15 +71,16 @@ describe('ce que voit l’équipe plateforme', () => {
   it('devis par cas et total AVANT tout clic, approbation, rapport SIMULÉ marqué, geste indisponible sans évaluation réelle', async () => {
     const html = await page();
     expect(html).toContain('Benchmark F01-F24 · devis');
-    expect(html).toContain('<b>Total · 9,925 $</b>');
+    expect(html).toMatch(/<b[^>]*>Total · 9,925 \$<\/b>/);
     expect(html).toContain('Devis par cas (24)');
-    expect(html).toMatch(/F07<\/td><td[^>]*>1<\/td><td[^>]*>0<\/td><td[^>]*>0,218 \$/);
+    expect(html).toMatch(/F07<\/span><span>1<\/span><span>0<\/span><span>0,218 \$/);
     expect(html).not.toContain('non chiffrable ·');
     expect(html).toContain('Approuver ce budget…');
     // R3 · les tâches texte du benchmark sont des ESTIMATIONS (entrée comptée à 3,5 car./jeton) :
     // le total ne se dit plus « au plus » (adaptation de la règle « maximum seulement si borne »).
-    expect(html).toContain('Devis du benchmark complet : <b>9,925 $</b> · estimation, maximum non garanti.');
-    expect(html).toContain('data-qualification="estimation">Estimation · maximum non garanti · 42 tâches texte, 2 médias (animation) · entrée comptée à 3,5 caractères par jeton · pas une borne ; forfait vidéo · le prix réel dépend de la durée et du modèle');
+    expect(html).toContain('Devis du benchmark complet · <b>9,925 $</b> · estimation, maximum non garanti.');
+    expect(html).toContain('data-qualification="estimation"');
+    expect(html).toContain('Estimation · maximum non garanti · 42 tâches texte, 2 médias (animation) · entrée comptée à 3,5 caractères par jeton · pas une borne ; forfait vidéo · le prix réel dépend de la durée et du modèle');
     expect(html).toMatch(/aria-label="Rapport SIMULÉ [^"]+"/);
     expect(html).toContain('SIMULÉ · exécution sur fournisseurs simulés, aucune évaluation réelle de la qualité');
     expect(html).toContain('Ne vaut pas évaluation');
@@ -104,11 +108,9 @@ describe('ce que voit l’équipe plateforme', () => {
 
 describe('SEC-09 · un administrateur d’espace n’obtient aucun de ces pouvoirs', () => {
   for (const [nom, s] of REFUSES) {
-    it(`${nom} · écran de refus, et chaque commande refusée sans rien écrire`, async () => {
+    it(`${nom} · renvoyé avant toute lecture, et chaque commande refusée sans rien écrire`, async () => {
       h.session = s();
-      const html = await page();
-      expect(html).toContain('Accès réservé à l’équipe de la plateforme.');
-      for (const x of ['Benchmark F01-F24', 'Approuver ce budget', 'Joindre les fiches', 'SIMULÉ']) expect(html).not.toContain(x);
+      await expect(page()).rejects.toThrow('REDIRECT /dashboard');
       const n = await evaluations();
       const avant = (await depot.lireReleaseParId(staged))!.evaluation;
       const reponses = [

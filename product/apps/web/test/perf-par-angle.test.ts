@@ -53,7 +53,7 @@ describe('perfParAngle · le vote du marché par angle', () => {
   });
 });
 
-const PAGE = readFileSync(join(process.cwd(), 'app/(app)/admin/intelligence/page.tsx'), 'utf8');
+const PAGE = readFileSync(join(process.cwd(), 'app/(spatial)/sp/admin/intelligence/page.tsx'), 'utf8');
 
 describe('l’écran relie la performance réelle à l’angle', () => {
   it('il joint les verdicts ADSMAP et appelle perfParAngle', () => {

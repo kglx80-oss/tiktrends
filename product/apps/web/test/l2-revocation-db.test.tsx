@@ -30,7 +30,9 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push:
 
 import { db, schema, eq } from '@tiktrends/db';
 import { vueReleases } from '../lib/studios/prompts/vues-registre';
-import { EcranReleases } from '../app/(app)/admin/ia-studios/Ecrans';
+// Spatial · vague 3 · l'écran V5 « IA et Studios » est retiré · le « Registre IA » Spatial le remplace.
+import { Registre } from '../spatial/vues/admin/Registre';
+import { avecSpatial } from './spatial/fournisseur';
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { executerTache, epinglerDevis, resoudreConversationJarvis, type DemandeTache } from '../lib/studios/prompts/resolveur';
 import { semer } from './studios-semis';
@@ -126,7 +128,7 @@ describe('révocation · visible dans l’ADMIN', () => {
     const v = await vueReleases();
     const a = v.releases.find((r) => r.id === relA)!;
     expect(a.revocation).toBe('consigne fautive');
-    const html = renderToStaticMarkup(EcranReleases({ releases: v.releases, pointee: v.pointee, environnement: 'test', peutPublier: true, peutRevenir: true, peutEvaluer: true, peutCreer: false, selection: v.selection }));
+    const html = renderToStaticMarkup(avecSpatial(Registre({ bandeau: { payants: 0, actualise: 'à l’instant' }, onglet: 'releases', contenu: { onglet: 'releases', releases: v.releases, pointee: v.pointee, environnement: 'test', peutPublier: true, peutRevenir: true, peutEvaluer: true, peutCreer: false, selection: v.selection } })));
     expect(html).toContain('Révoquée · consigne fautive');
     expect(html).toContain('Pointée · non servie');
     expect(html).not.toContain('>Révoquer<');
