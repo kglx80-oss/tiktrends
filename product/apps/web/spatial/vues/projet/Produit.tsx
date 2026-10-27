@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ACCEPT_PHOTO_IMPORT, EFFET_ROLE, LIBELLES_MODE_IMAGE, LIBELLES_NATURE_EMPREINTE, LIBELLES_PORTEE, LIBELLES_ROLE, LIBELLES_TRANSFORMATION,
@@ -50,6 +50,7 @@ function messageErreur(r: ErreurStudio): string {
 export function Produit({ vue, atelier }: PropsProduit) {
   const router = useRouter();
   const { toast } = useSpatial();
+  const id = useId();
   const e = vue.epingle;
   const [produitId, setProduitId] = useState<string>(e?.productId ?? vue.produitSansPhoto?.productId ?? vue.produits[0]?.id ?? '');
   const produit = vue.produits.find((p) => p.id === produitId) ?? null;
@@ -189,11 +190,11 @@ export function Produit({ vue, atelier }: PropsProduit) {
             </details>
             {vue.peutModifier ? (
               <div className="kc">
-                <button className="btn sm pri" type="button" data-geste="epingler" disabled={raisonEpingle !== null} aria-busy={enCours}
+                <button className="btn sm pri" type="button" data-geste="epingler" disabled={raisonEpingle !== null} aria-busy={enCours} aria-describedby={`${id}-epingle-raison`}
                   onClick={() => void agir('Photo enregistrée · tu peux maintenant préparer ton visuel.', () => epinglerProduit({ projectId: vue.projet.id, baseVersionId: vue.version.id, productId: produitId, photoId, composants: listeComposants, transformations: transfos }))}>
                   <Ic n="check" />{enCours ? 'Enregistrement…' : 'Utiliser cette photo et continuer'}
                 </button>
-                <small className="faint" style={{ fontSize: '11.5px' }} data-raison="epinglage">{raisonEpingle ?? 'Gratuit · aucune génération à cette étape.'}</small>
+                <small className="faint" style={{ fontSize: '11.5px' }} data-raison="epinglage" id={`${id}-epingle-raison`}>{raisonEpingle ?? 'Gratuit · aucune génération à cette étape.'}</small>
               </div>
             ) : <small className="faint" style={{ fontSize: '11.5px' }}>Ton rôle permet de consulter, pas d’épingler.</small>}
             {vue.peutModifier && (
@@ -252,9 +253,9 @@ export function Produit({ vue, atelier }: PropsProduit) {
             {role && <small className="faint" style={{ fontSize: '11.5px' }} data-effet-role={role}>{LIBELLES_ROLE[role as keyof typeof LIBELLES_ROLE]} · {EFFET_ROLE[role as keyof typeof EFFET_ROLE]}</small>}
             {concurrent && <Message ton="info">Annonce concurrente · seulement Style ou Composition, sur le décor ou l’image entière. Ni son sujet, ni son produit, ni son logo ne passent.</Message>}
             <div className="kc">
-              <button className="btn sm pri" type="button" data-geste="associer" disabled={raisonAssocie !== null}
+              <button className="btn sm pri" type="button" data-geste="associer" disabled={raisonAssocie !== null} aria-describedby={raisonAssocie ? `${id}-associer-raison` : undefined}
                 onClick={() => void agir('Référence associée · nouvelle version du projet.', () => associerReference({ projectId: vue.projet.id, baseVersionId: vue.version.id, assetId: fichier, role, scope: portee }))}>Associer</button>
-              {raisonAssocie && <small className="faint" style={{ fontSize: '11.5px' }} data-raison="association">{raisonAssocie}</small>}
+              {raisonAssocie && <small className="faint" style={{ fontSize: '11.5px' }} data-raison="association" id={`${id}-associer-raison`}>{raisonAssocie}</small>}
             </div>
           </div>
         )}
@@ -332,7 +333,7 @@ function ImportPhoto({ projectId, versionId, produit, composants, transformation
       </div>
       {affichage && (
         <div role={affichage.role} data-import={etat.etape} data-motif={etat.motif} style={{ display: 'grid', gap: 6 }}>
-          <Message ton={affichage.ton === 'ok' ? 'ok' : affichage.ton === 'info' ? 'info' : 'err'}><b>{affichage.titre}</b> · {affichage.texte}</Message>
+          <p className="muted" style={{ fontSize: '12.5px' }}><b>{affichage.titre}</b> · {affichage.texte}</p>
           {affichage.recuperations.length > 0 && (
             <div className="kc">{affichage.recuperations.map((g) => <button key={g} className="btn sm" type="button" onClick={() => recuperer(g)} data-recuperation={g}>{LIBELLES_RECUPERATION[g]}</button>)}</div>
           )}

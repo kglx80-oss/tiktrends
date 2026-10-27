@@ -37,14 +37,16 @@ vi.mock('../app/actions/studios/image', () => ({
   lireParcoursImage: m.lireParcours, compilerConsigneImage: vi.fn(), retenirConsigneImage: vi.fn(), demanderDevisImage: vi.fn(), approuverEtLancerImage: vi.fn(), controlerMediaImage: vi.fn(),
 }));
 vi.mock('../app/actions/studios/execution', () => ({ annulerJob: vi.fn() }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1', useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
+vi.mock('../lib/studios/produit/compression-photo', () => ({ compresserPhoto: vi.fn() }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...r }: { href: string; children: unknown }) => <a href={href} {...(r as object)}>{children as never}</a> }));
 
 import { disponibiliteTextes, erreurStudio, LIBELLES_ROLE, type DocumentStudio } from '@tiktrends/core';
 import { EditeurCalques, type PropsEditeur } from '../components/studios/editeur/EditeurCalques';
 import { PanneauCalques } from '../components/studios/editeur/PanneauCalques';
 import { EcranTextes, cleBrouillonTextes } from '../components/studios/textes/EcranTextes';
-import { EcranProduit } from '../components/studios/produit/EcranProduit';
+import { Produit } from '../spatial/vues/projet/Produit';
+import { avecSpatial } from './spatial/fournisseur';
 import type { VueTextes } from '../lib/studios/textes/textes';
 import type { VueProduit } from '../lib/studios/produit/vue';
 import { contenuVideo, documentStudio, copie } from '../../../packages/core/test/studios-fixtures';
@@ -299,15 +301,16 @@ function vueProduit(): VueProduit {
   } as unknown as VueProduit;
 }
 
+/** Produit · porté sur l'atelier Spatial (`spatial/vues/projet/Produit.tsx`) quand la page V5 a été retirée (vague 2). */
 describe('UX-03 · produit · la prochaine action est dite', () => {
   it('photo unique sélectionnée sans écriture et génération masquée avant confirmation', () => {
-    monter(<EcranProduit vue={vueProduit()} />);
+    monter(avecSpatial(<Produit vue={vueProduit()} atelier={[]} />));
     expect(document.querySelector('[role=radio]')?.getAttribute('aria-checked')).toBe('true');
     expect(bouton('Utiliser cette photo et continuer').disabled).toBe(false);
     expect(document.querySelector('[data-zone=parcours-image]')).toBeNull();
   });
   it('rôle et portée choisis, fichier absent · « Associer » dit « Choisis un fichier. »', () => {
-    monter(<EcranProduit vue={vueProduit()} />);
+    monter(avecSpatial(<Produit vue={vueProduit()} atelier={[]} />));
     const [, fichier, role, portee] = [...document.querySelectorAll('select')] as HTMLSelectElement[];
     expect(fichier!.value).toBe('');
     choisir(role!, 'style');
@@ -320,7 +323,7 @@ describe('UX-03 · produit · la prochaine action est dite', () => {
 
   it('épingler sans photo · la raison est reliée au bouton', () => {
     const v = vueProduit(); v.produits[0]!.photos = [];
-    monter(<EcranProduit vue={v} />);
+    monter(avecSpatial(<Produit vue={v} atelier={[]} />));
     const b = bouton('Utiliser cette photo et continuer');
     expect(b.disabled).toBe(true);
     expect(document.getElementById(b.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Choisis d’abord une photo.');

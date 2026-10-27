@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusApresGeste, cleRetour } from './projet/focus-geste';
+import { useFocusApresGeste, cleRetour } from '../../lib/studios/focus-geste';
 import { changementDepuisSaisie, reponsePourVue } from '@tiktrends/core';
 import {
   listerPropositions, proposerPatch, proposerBrief, creerPropositionManuelle, appliquerProposition, rejeterProposition,

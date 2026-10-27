@@ -54,11 +54,12 @@ export function NouveauConcept({ etat, sous }: { etat: EtatNouveauProjet; sous: 
   return (
     <Vue>
       <EnTete titre="Nouveau concept créatif" sous={sous} />
-      {etat.etat === 'lecture-seule' && <TuileVide titre="Lecture seule" texte={etat.message} />}
-      {etat.etat === 'sans-marque' && <TuileVide titre="Aucune marque active" texte={etat.message} action={<Lien className="btn sm" href={etat.lien.href} style={{ marginTop: 12 }}>{etat.lien.libelle}</Lien>} />}
+      {etat.etat === 'lecture-seule' && <div data-concept="lecture-seule"><TuileVide titre="Lecture seule" texte={etat.message} /></div>}
+      {etat.etat === 'sans-marque' && <div data-concept="sans-marque"><TuileVide titre="Aucune marque active" texte={etat.message} action={<Lien className="btn sm" href={etat.lien.href} style={{ marginTop: 12 }}>{etat.lien.libelle}</Lien>} /></div>}
       {etat.etat === 'pret' && (
         <section className="tile" data-concept="pret" style={{ display: 'grid', gap: 12, maxWidth: 760 }}>
           <div className="coach"><span className="orb">J</span><p data-accroche="">{accrocheNouveauConcept(etat.marque.nom)}</p></div>
+          <div data-composeur="" style={{ display: 'grid', gap: 12 }}>
           <textarea className="ta" rows={3} value={saisie} disabled={enCours || !!demarrage} aria-label="Décrire ton concept créatif" placeholder={`Décris ce que tu veux créer pour ${etat.marque.nom}…`}
             onChange={(e) => setSaisie(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(); } }} />
           <div className="kc">
@@ -66,6 +67,7 @@ export function NouveauConcept({ etat, sous }: { etat: EtatNouveauProjet; sous: 
               title="Démarrer le concept · ton premier message crée le projet et la conversation"><Ic n="spark" />{enCours ? 'Démarrage…' : 'Envoyer'}</button>
             <Lien className="btn sm" href={CHEMIN_PROJETS}>Annuler</Lien>
             <small className="faint" style={{ fontSize: '11.5px' }} data-cout-message="">Ton premier message démarre le concept · {MENTION_COUT_MESSAGE_CONCEPT}</small>
+          </div>
           </div>
           {demarrage && !enCours && <Lien className="btn sm" href={`/studio/projets/${demarrage.projectId}`}>Ouvrir le concept créé et vérifier la conversation</Lien>}
           {erreur && <div className="banner" role="alert" data-concept-erreur="" style={{ margin: 0 }}><Ic n="x" /><span>{erreur}</span></div>}

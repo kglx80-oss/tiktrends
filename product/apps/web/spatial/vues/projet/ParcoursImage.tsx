@@ -175,7 +175,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
     <section className="tile sec" data-zone="parcours-image" style={{ display: 'grid', gap: 12 }}>
       <div className="sech" style={{ margin: 0 }}><h2>{titre}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Jarvis prépare, tu vérifies le prix avant de lancer, puis le produit sur l’image</span></div>
       {appel.bloque && <div className="banner" role="status" style={{ margin: 0 }}><span className="orb" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span><span>{MESSAGE_APPEL_PAYANT} <Lien href={`/studio/projets/${projectId}#taches`}>Voir le suivi</Lien></span></div>}
-      {retour && <Message ton={retour.ton}>{retour.texte}</Message>}
+      {retour && <div data-retour={retour.ton === 'ok' ? 'ok' : 'refus'}><Message ton={retour.ton}>{retour.texte}</Message></div>}
       <small className="faint" style={{ fontSize: '11.5px' }}>Format {vue.format.largeur} × {vue.format.hauteur} · {vue.format.libelle}{vue.format.depuisBrief ? ' · lu dans le brief' : ' · défaut, le brief ne précise pas de format'}.</small>
 
       {!(propositionDisponible || verdictOk) && (
@@ -183,7 +183,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           <div className="kc" role="group" aria-label="Méthode de création">
             {vue.modes.map((m) => (
               <button key={m.mode} type="button" className="chip" aria-pressed={m.mode === mode} data-mode={m.mode} disabled={!m.pret || !!enCours} onClick={() => setMode(m.mode)}>
-                {m.mode === 'faithful_composite' ? 'Garder la photo, créer le décor' : 'Mise en scène à partir de la photo'}{m.pret ? '' : ' · indisponible'}
+                {m.mode === 'faithful_composite' ? 'Conserver la photo du produit, créer le décor' : 'Créer une mise en scène à partir de la photo'}{m.pret ? '' : ' · indisponible'}
               </button>
             ))}
           </div>
@@ -198,7 +198,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           ) : (
             <div className="kc">
               <button className="btn sm pri" type="button" data-bouton="compiler" disabled={!compilable} onClick={() => setArme('compiler')}><Ic n="spark" />{enCours === 'compiler' ? 'Jarvis prépare…' : 'Préparer mon visuel avec Jarvis'}</button>
-              <small className="faint" style={{ fontSize: '11.5px' }} data-cout="compilation">Appel texte payant · {coutCompilation}</small>
+              <small className="faint" style={{ fontSize: '11.5px' }} data-cout="compilation">Appel texte payant · {coutCompilation} · préparation uniquement, l’image sera facturée séparément.</small>
             </div>
           )}
           {!d.compilation.disponible && <small className="faint" style={{ fontSize: '11.5px' }} data-indisponible="compilation">Indisponible · {d.compilation.raison}</small>}
@@ -261,7 +261,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
                     <button className="btn sm" type="button" onClick={() => setArme(null)}>Annuler</button>
                   </>
                   : <button className="btn sm pri" type="button" data-bouton="lancer" disabled={!d.lancement.disponible || !!enCours} onClick={() => setArme('lancer')}><Ic n="spark" />Générer mon visuel · {libelleCredits(vue.devis.credits)}</button>}
-                <small className="faint" style={{ fontSize: '11.5px' }}>{d.lancement.disponible ? `Débite ${libelleCredits(vue.devis.credits)} au lancement · rendus si aucune image n’est livrée.` : d.lancement.raison}</small>
+                <small className="faint" style={{ fontSize: '11.5px' }}>{d.lancement.disponible ? `Débite ${libelleCredits(vue.devis.credits)} au second clic · rendus si aucune image n’est livrée.` : d.lancement.raison}</small>
               </div>
             </div>
           )}
@@ -269,6 +269,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
         </div>
       )}
 
+      {vue.jobs.length === 0 && <small className="faint" style={{ fontSize: '11.5px' }} data-etat="sans-job">Aucune génération lancée pour ce projet.</small>}
       {vue.jobs.length > 0 && (
         <div style={{ display: 'grid', gap: 10 }} data-etape="generation">
           <div className="lbl" style={{ margin: 0 }}>Tes visuels</div>
@@ -307,9 +308,10 @@ function CarteJob({ j, vue, enCours, devisPossible, surAnnuler, surRelire }: {
     <div className="prow" data-job={j.id} data-etat-job={j.etat} style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
       {j.media && <img src={j.media.url} alt={`Image générée${j.media.largeur && j.media.hauteur ? `, ${j.media.largeur} × ${j.media.hauteur}` : ''}`} loading="lazy" />}
       <div className="t">
-        <strong style={{ fontSize: '12.5px' }}><span className={`pill ${CLASSE_ETAT[j.etat] ?? 'c'}`}>{j.libelleEtat}</span> {j.message}</strong>
+        <strong style={{ fontSize: '12.5px' }}><span className={`pill ${CLASSE_ETAT[j.etat] ?? 'c'}`}>{j.libelleEtat}</span> <span data-champ="message">{j.message}</span></strong>
         <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Lancée le {date(j.creeLe)} · {libelleCredits(j.creditsReserves)} réservé{j.creditsReserves > 1 ? 's' : ''}{j.creditsRendus ? ` · ${libelleCredits(j.creditsRendus)} rendu${j.creditsRendus > 1 ? 's' : ''}` : ''}</small>
         {j.raisonEchec && <small style={{ display: 'block', fontSize: '11.5px' }} data-champ="raison">Raison · {j.raisonEchec}</small>}
+        {j.media && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Ton image est enregistrée dans le projet.</small>}
         {j.media && <small style={{ display: 'block', fontSize: '11.5px' }}><span className={`pill ${CLASSE_QUALITE[j.qualite] ?? ''}`} data-qualite={j.qualite}>Qualité</span> {j.libelleQualite}</small>}
         {!j.media && j.etat === 'completed' && <small style={{ display: 'block', fontSize: '11.5px' }}>Le fichier n’est pas lisible dans les médias du projet · écris au support avec l’identifiant {j.id}.</small>}
         {j.qualite === 'requires_review' && vue.peutRelire && vue.composantsObligatoires.length > 0 && (
@@ -321,14 +323,14 @@ function CarteJob({ j, vue, enCours, devisPossible, surAnnuler, surRelire }: {
                 {([true, false] as const).map((v) => <button key={String(v)} type="button" className="chip" aria-pressed={choix[c] === v} onClick={() => setChoix((p) => ({ ...p, [c]: v }))}>{v ? 'Présent' : 'Absent'}</button>)}
               </div>
             ))}
-            <div className="kc"><button className="btn sm" type="button" disabled={!complet || !!enCours} onClick={() => surRelire(vue.composantsObligatoires.map((c) => ({ composant: c, present: choix[c] ?? null })))}>Enregistrer la relecture</button></div>
+            <div className="kc"><button className="btn sm" type="button" data-bouton="relire" disabled={!complet || !!enCours} onClick={() => surRelire(vue.composantsObligatoires.map((c) => ({ composant: c, present: choix[c] ?? null })))}>Enregistrer la relecture</button></div>
           </div>
         )}
       </div>
       <div className="kc">
-        {j.media && <a className="btn sm" href={j.media.url} download><Ic n="down" />Télécharger</a>}
-        {j.media && <Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/image`}><Ic n="brush" />Éditer</Lien>}
-        {j.annulable && devisPossible && <button className="btn sm" type="button" disabled={!!enCours} title="Si l’envoi est déjà parti, le fournisseur peut facturer · le coût réel est réconcilié" onClick={surAnnuler}>{enCours === `annuler:${j.id}` ? 'Annulation…' : 'Annuler'}</button>}
+        {j.media && <a className="btn sm" href={j.media.url} download>Télécharger mon visuel</a>}
+        {j.media && <Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/image`}>Modifier dans l’éditeur</Lien>}
+        {j.annulable && devisPossible && <button className="btn sm" type="button" data-bouton="annuler" disabled={!!enCours} title="Si l’envoi est déjà parti, le fournisseur peut facturer · le coût réel est réconcilié" onClick={surAnnuler}>{enCours === `annuler:${j.id}` ? 'Annulation…' : 'Annuler'}</button>}
       </div>
     </div>
   );

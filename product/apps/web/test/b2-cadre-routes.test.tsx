@@ -43,8 +43,10 @@ describe('B2 · le cadre extérieur commun, rendu', () => {
 
 describe('B2 · chaque écran pose cadrePage, sans largeur extérieure à la main', () => {
   it('on parcourt bien tous les écrans', () => {
-    // Vague 2 · les écrans V5 retirés quittent le parcours (44 mesurés après la Bibliothèque) ·
-    // le seuil garde seulement que la lecture des pages n'est pas cassée.
+    // Mesuré : 45 pages V5 avant la vague 2 Spatial, 40 après Résultats et
+    // Studios, 37 après la Bibliothèque (27/10). Les retraits continuent
+    // (écrans devenus exclusifs) · le seuil ne garde que la lecture des pages
+    // (il tombe à 0 si le chemin du scan casse).
     expect(pages.length).toBeGreaterThanOrEqual(10);
   });
   for (const p of pages) {

@@ -115,7 +115,7 @@ export function GrilleProjets({ projets, archives: archivesInitiales = null, nou
           {affiches.map((p) => {
             const gestes = gestesCarteSpatiale({ id: p.id, archive: enArchives }, peutArchiver);
             return (
-              <div className="pwrap" key={p.id} data-archive={enArchives ? '' : undefined}>
+              <div className="pwrap" key={p.id} data-projet={p.id} data-archive={enArchives ? '' : undefined}>
                 <Lien className="pcard" href={p.href}>
                   <div className="cover">
                     {p.couverture.map((c, i) => <Creative key={i} c={c} />)}

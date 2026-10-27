@@ -63,7 +63,8 @@ export default async function StudiosSpatial({ searchParams }: { searchParams: P
   const r = await listerProjetsCartes();
   if (!r.ok) {
     const refus = refusStudiosSpatial({ capacites: capacitesDuRefus(r), code: r.code, plan: denyReason(effectiveAccess(s), FEATURE_STUDIO) === 'plan', message: r.message, traceId: r.traceId });
-    return <RefusStudios titre={TITRE} sous={SOUS} sousNav={SOUS_NAV_STUDIOS} actif="/studio/projets" refus={refus} />;
+    // Capacité coupée · aucune porte vers une page des Studios (la sous-navigation reste cachée).
+    return <RefusStudios titre={TITRE} sous={SOUS} sousNav={capacitesDuRefus(r).length ? undefined : SOUS_NAV_STUDIOS} actif="/studio/projets" refus={refus} />;
   }
 
   const active = await getActiveBrand(s.workspaceId);
@@ -98,7 +99,7 @@ export default async function StudiosSpatial({ searchParams }: { searchParams: P
         </p>
       )}
       {nouveau.etat !== 'pret' && (
-        <p className="faint" style={{ fontSize: '12.5px', margin: '0 0 12px' }}>
+        <p className="faint" style={{ fontSize: '12.5px', margin: '0 0 12px' }} data-nouveau-projet={nouveau.etat}>
           {nouveau.message}{nouveau.etat === 'sans-marque' && <> · <Lien href={nouveau.lien.href} style={lienFaible}>{nouveau.lien.libelle}</Lien></>}
         </p>
       )}
@@ -106,7 +107,7 @@ export default async function StudiosSpatial({ searchParams }: { searchParams: P
   );
 
   const vide = r.cartes.length === 0
-    ? { titre: 'Ton premier projet', texte: 'Crée-le ici, ou pars d’une annonce de la Veille avec « Préparer une création » · rien n’est généré tant que tu ne lances rien.' }
+    ? { titre: 'Ton premier projet', texte: <>Crée-le ici, ou pars d’une annonce de la <Lien href="/veille" style={lienFaible}>Veille</Lien> avec « Préparer une création » · rien n’est généré tant que tu ne lances rien.</> }
     : cartes.length === 0
       ? { titre: `Aucun projet pour ${active?.name ?? 'cette marque'}`, texte: <>Les autres marques en ont · <Lien href="/studio/projets?toutes=1" style={lienFaible}>voir leurs projets</Lien>.</> }
       : null;
