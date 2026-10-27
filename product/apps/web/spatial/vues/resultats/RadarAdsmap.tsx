@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { COUT_BROUILLON_JARVIS, HYPOTHESE_MIN, lienFicheTest } from '@tiktrends/core';
+import { COUT_BROUILLON_JARVIS, HYPOTHESE_MIN, libelleMecanique, lienFicheTest } from '@tiktrends/core';
 import {
   conceptFromFindingAction, radarCostPreviewAction, runRadarNowAction, setRadarAction,
   type RadarFindingRow, type RadarView,
@@ -135,7 +135,7 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
       ) : (
         <div className="foot2">
           <button type="button" className="btn sm" disabled={!!occupe} onClick={() => { void ecrire(); }}><Ic n="spark" />{occupe === 'ecrire' ? 'Jarvis écrit…' : `Demander le concept à Jarvis · ${COUT_BROUILLON_JARVIS}`}</button>
-          {mecanique && <small>Il reprendra la mécanique · {mecanique}, jamais les mots.</small>}
+          {mecanique && <small>Il reprendra la mécanique · {libelleMecanique(mecanique)}, jamais les mots.</small>}
         </div>
       )}
       {posee && <Lien className="btn sm" href={lienFicheTest(posee)} style={{ justifySelf: 'start' }}>Ouvrir sa fiche</Lien>}

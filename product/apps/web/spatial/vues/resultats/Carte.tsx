@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import {
-  COUT_PROPOSITION_CARTE, decompteCarte, lienFicheTest, lireCarte,
+  COUT_PROPOSITION_CARTE, decompteCarte, libelleMecanique, lienFicheTest, lireCarte,
   type AreteCarteFait, type NoeudArbre, type NoeudCarteFait,
 } from '@tiktrends/core';
 import { proposeAnglesAction, proposeConceptsAction, proposeDesiresAction, proposePersonasAction, type ProposeResult } from '../../../app/actions/adsmap-propose';
@@ -62,7 +62,7 @@ export function Carte(p: PropsCarte) {
     <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minWidth: 0 }}>
       <span className="faint" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.06em' }}>{TYPE[n.kind]}</span>
       <strong>{n.label}</strong>
-      {n.mechanism && <span className="faint" style={{ fontSize: '12px' }}>· {n.mechanism}</span>}
+      {n.mechanism && <span className="faint" style={{ fontSize: '12px' }}>· {libelleMecanique(n.mechanism)}</span>}
       {n.proposee && <span className="pill">Proposé</span>}
       {n.manque && <span className="pill w" title={n.manque}><Ic n="warn" />{n.manque}</span>}
     </span>
