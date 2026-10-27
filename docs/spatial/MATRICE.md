@@ -64,3 +64,16 @@ et garde verte), jamais ici.
 | `f-…` (×28) | Pages de format | veille | `/veille/formats/[format]` | C2 · Formats et tendances |
 
 Formats : `avap`, `vs`, `avis`, `callout`, `probsol`, `promo`, `chat`, `mag`, `ugc`, `packshot`, `liste`, `demo`, `benef`, `logo`, `question`, `collage`, `flatlay`, `story`, `notes`, `tweet`, `meme`, `minimal`, `presse`, `chiffre`, `social`, `texte`, `lifestyle`, `trendy`.
+
+## Écrans hors maquette (vague 2)
+
+Gestes de l'ancienne interface sans écran dans la maquette, composés avec les
+classes existantes de `spatial.css` (tuiles, `seg subnav`, `.field`, `.chip`…).
+
+| Geste V5 | Adresse | Rubrique |
+| --- | --- | --- |
+| Produit et références (épinglage, import photo, parcours image, références) | `/studio/projets/[id]/produit` | D2 · Studios |
+| Textes liés au brief | `/studio/projets/[id]/textes` | D2 · Studios |
+| Identités et voix | `/studio/projets/[id]/identites` | D2 · Studios |
+| Exporter l’image | `/studio/projets/[id]/export` | D2 · Studios |
+| Nouveau concept créatif | `/studio/projets/nouveau/concept` | D1 · Studios |

@@ -129,7 +129,7 @@ function propsProjet(o: Partial<PropsProjet> = {}): PropsProjet {
     creations: {
       projectId: 'p1', versionCouranteId: 'v3', lots: [], messageVide: 'Aucun lot.', editeurHref: '/studio/projets/p1/image', preparerHref: null, videoHref: null,
       variantes: [], erreurVariantes: null, relecture: { disponible: false, mention: null, raison: null, coutMaxUsd: null }, taches: [], erreurTaches: null,
-      panneauCompletHref: '/studio/projets/p1?ui=v5#titre-variantes', relire: false,
+      peutProposer: true, adsmap: { acces: true, protocoleMarque: null, offres: [], pages: [] }, relire: false,
     },
     ...o,
   };
@@ -308,6 +308,21 @@ describe('Spatial · D2 · comportements', () => {
     const html = rendre(<Editeur {...propsEditeur({ selectionInitiale: 'produit' })} />);
     expect(html).toContain('Le produit est verrouillé');
     expect(html).not.toContain('id="stext"');
+  });
+
+  it('vidéo · la barre flottante (`#orn`) dit les plans RÉELLEMENT animés et mène aux variantes', async () => {
+    const orn = document.createElement('div');
+    orn.id = 'orn'; orn.hidden = true; document.body.appendChild(orn);
+    const v = vueVideo(3);
+    v.clips = { s1: { etat: 'valide', media: { assetId: 'c1', url: IMG }, keyframePrete: true, devis: null }, s2: { etat: 'obsolete', media: null, keyframePrete: true, devis: null } };
+    monter(<Video vue={v} marque="M" variantesHref="/studio/projets/p1#variantes" />);
+    await act(async () => { await Promise.resolve(); });
+    expect(orn.hidden).toBe(false);
+    expect(orn.querySelector('[data-orn-video]')?.textContent).toBe('1 / 3 plans animés');
+    expect([...orn.querySelectorAll('a')].map((x) => x.getAttribute('href'))).toEqual(['/studio/projets/p1', '/studio/projets/p1#variantes']);
+    act(() => racine?.unmount()); racine = null;
+    expect(orn.hidden).toBe(true);
+    orn.remove();
   });
 
   it('vidéo · sans vidéo finale, le lecteur dit l’état réel au lieu d’un rendu simulé', () => {

@@ -7,7 +7,7 @@ import {
   type EtatImportPhoto, type RecuperationImport, type TransformationProduit, type ErreurStudio,
 } from '@tiktrends/core';
 import { importerPhotoProduit } from '../../../app/actions/studios/produit';
-import { compresserPhoto } from './compression-photo';
+import { compresserPhoto } from '../../../lib/studios/produit/compression-photo';
 import { carte, titre, mini, boutonPrimaire, boutonSecondaire, desactive, signal, rangee } from '../propositions/styles';
 
 /**
