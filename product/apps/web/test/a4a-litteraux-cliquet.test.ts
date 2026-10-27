@@ -96,6 +96,9 @@ import { join, relative } from 'node:path';
  *
  * Spatial · vague 2 · Marque · la fiche V5 (`BrandDA` 2, `PaletteMarque` 1,
  * `ShopifyConnect` 1) et `/brands/new` (1) sont retirées · 208 − 5 = 203.
+ *
+ * Spatial · vague 2 · Bibliothèque · l'écran V5 `/assets` (4 · lavis Google Drive)
+ * est retiré · 203 − 4 = 199.
  */
 const WEB = process.cwd();
 
@@ -115,7 +118,6 @@ const EXCLUS: Record<string, string> = {
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 142,
   'app/(app)/analytics': 6,
-  'app/(app)/assets': 4,
   'app/(app)/brands': 1,
   'app/(app)/credits': 12,
   'app/(app)/veille': 13,
@@ -129,9 +131,6 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
 const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/analytics/CreativeIntel.tsx': 2,
   'app/(app)/analytics/MetaKeyMetrics.tsx': 4,
-  'app/(app)/assets/AssetsLibrary.tsx': 2,
-  'app/(app)/assets/DriveConnect.tsx': 1,
-  'app/(app)/assets/page.tsx': 1,
   'app/(app)/brands/[id]/competitors/[name]/page.tsx': 1,
   'app/(app)/credits/page.tsx': 12,
   'app/(app)/veille/scale/SwipeFile.tsx': 13,
@@ -145,7 +144,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/LogoMarque.tsx': 4,
 };
 
-const PLAFOND_TOTAL = 203;
+const PLAFOND_TOTAL = 199;
 
 const RACINES = ['app', 'components', 'lib'];
 

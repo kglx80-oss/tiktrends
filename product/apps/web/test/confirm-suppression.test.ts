@@ -21,7 +21,8 @@ const BRANDS = readFileSync(join(process.cwd(), 'app/(app)/brands/page.tsx'), 'u
 const VUES = ['Personas.tsx', 'personas-client.tsx', 'Offre.tsx', 'Identite.tsx'].map((f) => readFileSync(join(process.cwd(), 'spatial/vues/marque', f), 'utf8')).join('\n');
 const PAGES = ['personas', 'offre', 'identite'].map((d) => readFileSync(join(process.cwd(), 'app/(spatial)/sp/brands/[id]', d, 'page.tsx'), 'utf8')).join('\n');
 const INTERACTIFS = readFileSync(join(process.cwd(), 'spatial/vues/marque/interactifs.tsx'), 'utf8');
-const ASSETS = readFileSync(join(process.cwd(), 'app/(app)/assets/AssetsLibrary.tsx'), 'utf8');
+// Vague 2 · la bibliothèque est servie par Spatial.
+const ASSETS = readFileSync(join(process.cwd(), 'spatial/vues/bibliotheque/Bibliotheque.tsx'), 'utf8');
 
 describe('les suppressions destructives sont confirmées', () => {
   it('la liste des marques confirme la suppression', () => {
