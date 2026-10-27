@@ -1,0 +1,7 @@
+/* Dérivée de spatial.css par deriverRoutesCss (noyau) · ne pas éditer à la main. */
+.qa2[data-route="nouveau"] .ico,.stat2[data-route="studios"] .ring .pr{--q1:#8b5cf6;--q2:#ec4899}
+.qa2[data-route="formats"] .ico,.qa2[data-route="veille"] .ico,.stat2[data-route="sauvegardes"] .ring .pr,.stat2[data-route="radar"] .ring .pr{--q1:#ffb020;--q2:#ff6b3d}
+.qa2[data-route="jarvis"] .ico{--q1:#8fd8ff;--q2:#c084fc}
+.qa2[data-route="importer"] .ico,.stat2[data-route="lots"] .ring .pr{--q1:#34d399;--q2:#22d3ee}
+.qa2[data-route="marque"] .ico{--q1:#fb7185;--q2:#f59e0b}
+.qa2[data-route="veille"] .ico,.qa2[data-route="jarvis"] .ico,.qa2[data-route="importer"] .ico{color:#111}
