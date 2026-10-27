@@ -51,6 +51,10 @@ Ouvrir la maquette : la charger dans un navigateur, `#<route>` affiche un écran
 3. **Composant présentationnel** sous `apps/web/spatial/vues/<rubrique>/`, qui reçoit
    tout en props et rend le balisage de la maquette à l'identique (mêmes balises,
    mêmes classes, mêmes styles en ligne que la maquette quand elle en a).
+   Quand la maquette colore un lien par son adresse à dièse (`.qa2[href="#nouveau"]`,
+   `.stat2[href="#lots"]`), le lien réel porte `data-route="nouveau"` : la feuille
+   `spatial-routes.css`, dérivée mécaniquement de `spatial.css` (`deriverRoutesCss`),
+   reprend ces règles sur `[data-route]`. Sans cet attribut, la couleur disparaît.
 4. **Page serveur** `app/(spatial)/sp/<adresse>/page.tsx` : mêmes gardes que la page
    V5 équivalente (session, rôle, formule, capacité), lit les données, rend la vue.
    Les actions passent par les actions serveur EXISTANTES (et la barrière de dépense
