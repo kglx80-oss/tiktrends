@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { traceMrr } from '@tiktrends/core';
+import { LARGEUR_MIN_TABLE_TELEPHONE, styleTableDefilante, traceMrr } from '@tiktrends/core';
 import { Ic } from '../../communs';
 import { Vide } from './base';
 
@@ -81,7 +81,7 @@ export function ComptesListe({ filtres, comptes, colonnes }: { filtres: Readonly
     <>
       <div className="sech"><h2>Comptes</h2><label className="jsearch" style={{ marginLeft: 'auto', minWidth: 220 }}><Ic n="search" /><input id="auq" type="search" placeholder="Rechercher un compte" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" /></label></div>
       <Puces filtres={filtres} actif={f} choisir={setF} attr="data-auf" />
-      <div className="atable">
+      <div className="atable" data-table="comptes" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.comptes)}>
         <div className="atr ath" style={{ gridTemplateColumns: colonnes }}><span>Compte</span><span>Forfait</span><span>MRR</span><span>Crédits utilisés</span><span>Santé</span><span>Profil</span><span>Inscrit le</span><span /></div>
         <div id="accrows">
           {vus.map((c) => (

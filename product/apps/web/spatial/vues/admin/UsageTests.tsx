@@ -1,4 +1,4 @@
-import { Vue } from '../../communs';
+import { Lien, Vue } from '../../communs';
 import { Barre, TeteAdmin, Vide, type BandeauAdmin } from './base';
 
 /**
@@ -30,8 +30,8 @@ export function UsageTests(p: PropsUsageTests) {
         <section className="tile">
           <div className="sech"><h2>Fonctionnalités progressives</h2></div>
           <div className="aflags">
-            <Vide>Aucun déploiement par part de comptes · les Studios s’ouvrent par interrupteur (capacité, espace), réglés dans leur écran de l’ancienne interface.</Vide>
-            <a className="btn sm" href="/admin/studios-interrupteurs">Interrupteurs Studios</a>
+            <Vide>Aucun déploiement par part de comptes · les Studios s’ouvrent par interrupteur (capacité, espace), réglés dans leur écran « Interrupteurs Studios ».</Vide>
+            <Lien className="btn sm" href="/admin/studios-interrupteurs">Interrupteurs Studios</Lien>
           </div>
         </section>
       </div>

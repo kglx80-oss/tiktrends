@@ -4,3 +4,4 @@ export * from './plateforme';
 export * from './finances';
 export * from './sav';
 export * from './pilotage';
+export * from './outils';

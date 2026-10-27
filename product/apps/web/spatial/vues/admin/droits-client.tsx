@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { Ic } from '../../communs';
-import { enregistrerMatriceAction, enregistrerStaffAction } from '../../../app/actions/equipe';
+import { enregistrerMatriceAction, enregistrerStaffAction, retirerStaffAction } from '../../../app/actions/equipe';
+import { DialogueSpatial } from '../marque/interactifs';
 
 /**
  * La matrice des droits et l'invitation · les gestes passent par les actions
@@ -52,6 +53,41 @@ export function InviterMembre({ roles }: { roles: ReadonlyArray<{ cle: string; l
           <button className="btn sm pri" type="submit">Enregistrer</button>
         </form>
       )}
+    </>
+  );
+}
+
+/**
+ * Gérer UN membre de l'équipe interne · changer son rôle (`enregistrerStaffAction`,
+ * même e-mail) ou le retirer (`retirerStaffAction`). Les deux actions reposent
+ * la garde « accès total » et l'admissibilité, refusent de se retirer ou de se
+ * rétrograder soi-même, et redirigent avec leur message (`?ok=` / `?e=`). Le
+ * retrait se confirme dans la fenêtre · on ne se retire jamais soi-même d'ici.
+ */
+export function GererMembre({ email, role, moi, roles }: { email: string; role: string; moi: boolean; roles: ReadonlyArray<{ cle: string; libelle: string }> }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [retrait, setRetrait] = useState(false);
+  return (
+    <>
+      <button className="btn sm" type="button" aria-haspopup="dialog" aria-label={`Gérer ${email}`} onClick={() => { setRetrait(false); setOuvert(true); }}>Gérer</button>
+      <DialogueSpatial titre={email} ouvert={ouvert} fermer={() => setOuvert(false)}>
+        <form action={enregistrerStaffAction} style={{ display: 'grid', gap: 10 }} data-geste="changer-role">
+          <input type="hidden" name="email" value={email} />
+          <label className="field">Rôle<select name="role" defaultValue={role}>{roles.map((r) => <option key={r.cle} value={r.cle}>{r.libelle}</option>)}</select></label>
+          <div className="kc"><button className="btn sm pri" type="submit">Changer le rôle</button></div>
+        </form>
+        {moi ? (
+          <small className="faint">C’est ton compte · tu ne peux ni te retirer ni te rétrograder toi-même.</small>
+        ) : retrait ? (
+          <form action={retirerStaffAction} style={{ display: 'grid', gap: 10 }} data-geste="retirer">
+            <input type="hidden" name="email" value={email} />
+            <p className="muted" style={{ margin: 0, fontSize: '12.5px' }}>{email} perd l’accès à l’administration de la plateforme. Son compte client, lui, reste intact.</p>
+            <div className="kc"><button className="btn sm pri" type="submit">Confirmer le retrait</button><button className="btn sm" type="button" onClick={() => setRetrait(false)}>Annuler</button></div>
+          </form>
+        ) : (
+          <div className="kc"><button className="btn sm" type="button" onClick={() => setRetrait(true)}>Retirer de l’équipe…</button></div>
+        )}
+      </DialogueSpatial>
     </>
   );
 }

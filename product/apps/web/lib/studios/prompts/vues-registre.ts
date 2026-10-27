@@ -1,22 +1,70 @@
 import 'server-only';
 import { etatConnaissance } from '@tiktrends/core';
-import { PROFILS_MODELE } from '../../../../lib/studios/prompts/noyau';
-import * as depot from '../../../../lib/studios/prompts/depot-prompts';
-import { listerRuns, lireRun } from '../../../../lib/studios/prompts/resolveur';
-import { chargerSource } from '../../../../lib/studios/prompts/source';
-import { champsAffiches, variablesDe, diffVersions } from '../../../../lib/studios/prompts/vue';
-import { LIBELLE_TYPE, entierVersVersion, lireEntrees, lireEvaluation, lireRevocation, typeDe, type TypeEntree } from '../../../../lib/studios/prompts/correspondance';
-import { expurgerRun, type EvaluationTrace, type LigneRun, type PieceTrace } from '../../../../lib/studios/prompts/traces';
-import { PROFILS_ROUTES_ANTHROPIC, modeleTexte } from '../../../../lib/studios/prompts/adaptateur';
-import { listerConnaissances } from '../../../../lib/jarvis-connaissances';
-import type { VueCle, VueDetail, VueRelease, VueEvaluation, VueRun, VueVersion, VueBenchmark } from './Ecrans';
-import { planEtDevis } from '../../../../lib/studios/benchmark/programme';
+import { PROFILS_MODELE } from './noyau';
+import * as depot from './depot-prompts';
+import { listerRuns, lireRun } from './resolveur';
+import { chargerSource } from './source';
+import { champsAffiches, variablesDe, diffVersions } from './vue';
+import { LIBELLE_TYPE, entierVersVersion, lireEntrees, lireEvaluation, lireRevocation, typeDe, type TypeEntree } from './correspondance';
+import { expurgerRun, type EvaluationTrace, type LigneRun, type PieceTrace } from './traces';
+import { PROFILS_ROUTES_ANTHROPIC, modeleTexte } from './adaptateur';
+import { listerConnaissances } from '../../jarvis-connaissances';
+import { planEtDevis } from '../benchmark/programme';
 import { usdLisible } from '@tiktrends/core';
 
 /**
- * Lectures des écrans « IA et Studios » · rows → vues SÉRIALISABLES.
+ * Lectures du registre de prompts (écran « Registre IA », ancien « IA et Studios ») · rows → vues SÉRIALISABLES.
  * Appelées par la page APRÈS la garde plateforme ; aucune n'écrit.
  */
+
+/* ─────────────── Les vues SÉRIALISABLES du registre (écran Spatial « Registre IA ») ─────────────── */
+
+export interface ChampEditable { champ: string; libelle: string; valeur: string; liste?: boolean }
+
+export interface VueVersion {
+  id: string; version: string; statut: string; empreinte: string; origine: string; motif: string; creeLe: string; valideeLe: string | null; horsSource: boolean;
+}
+
+export interface VueCle { type: string; libelleType: string; cle: string; titre: string; versions: VueVersion[] }
+
+export interface VueDetail {
+  cle: VueCle; version: VueVersion; champs: Array<{ champ: string; libelle: string; texte: string; contrat: boolean }>;
+  variables: string[]; schemas: { entree: string; sortie: string; profil: string } | null; exemples: string | null;
+  editables: ChampEditable[]; diff: { avec: VueVersion; champs: Array<{ libelle: string; lignes: Array<{ op: string; texte: string }> }> } | null;
+}
+
+export interface VueRelease {
+  id: string; statut: string; empreinte: string; packHash: string; creeLe: string; motif: string; pointee: boolean;
+  tests: boolean | null; benchmark: boolean; recetteManuelle: boolean; versions: number; conversation: string | null;
+  /** Motif de révocation · `null` si la release n'est pas révoquée. */
+  revocation: string | null;
+}
+
+export interface VueEvaluation { id: string; cible: string; type: string; passe: boolean; creeLe: string; tests: Array<{ id: string; passe: boolean; detail: string }>; benchmark: Array<{ id: string; titre: string; motif: string }> }
+
+export interface VueBenchmark {
+  devis: {
+    chiffrable: boolean; total: number | null; totalLisible: string; partielLisible: string | null; nonChiffrables: string[]; empreinte: string | null; refus: string[];
+    /** R3 · « maximum » seulement si toutes les lignes sont des bornes ; sinon estimation, avec la raison. */
+    qualification: { maximum: boolean; libelle: string; raison: string | null };
+    cas: Array<{ cas: string; appels: number; medias: number; totalLisible: string; chiffrable: boolean; motif: string | null }>;
+  };
+  releases: Array<{ id: string; statut: string; empreinte: string; revoquee: boolean; benchmarkApprouve: boolean }>;
+  approbations: Array<{ id: string; release: string; budgetLisible: string; devisLisible: string; le: string; expireLe: string; consommee: boolean; par: string }>;
+  campagnes: Array<{ id: string; releaseId: string; release: string; mode: 'reel' | 'simule'; banniere: string; passe: boolean; verdict: string; invariants: string; refus: string[]; depenseLisible: string; le: string; empreinteRapport: string }>;
+  fiches: Array<{ id: string; releaseId: string; release: string; passe: boolean; verdict: string; refus: string[]; le: string; fiches: number }>;
+}
+
+export interface VueRun {
+  id: string; quand: string; templateKey: string; statut: string; modele: string; releaseId: string | null; releaseHash: string; version: string;
+  compiledHash: string; contextSnapshotHash: string; outputHash: string | null; latenceMs: number | null; coutUsd: number | null;
+  sources: Array<{ type: string; titre: string; version: string }>; couches: Array<{ couche: string; empreinte: string }>; constats: string[];
+  espace: string; marque: string; traceId: string | null; budget: string | null;
+  /** Exécution d'évaluation (release staged dans une campagne de benchmark) · `null` sinon. */
+  evaluation: { mode: string; approbationId: string; releaseStatut: string } | null;
+  /** Pièces natives réellement envoyées (vision) · identifiants et empreintes, jamais les octets. */
+  pieces: Array<{ bindingId: string; assetId: string; assetVersion: string; sha256: string; nativeAttachmentIndex: number; mime: string; octets: number | null; largeur: number | null; hauteur: number | null; jetonsMax: number | null }>;
+}
 
 const date = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString().slice(0, 16).replace('T', ' ') : '');
 

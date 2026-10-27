@@ -29,7 +29,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }), redirect: (u: string) => { throw new Error(`REDIRECT ${u}`); } }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { vueReleases } from '../app/(app)/admin/ia-studios/donnees';
+import { vueReleases } from '../lib/studios/prompts/vues-registre';
 import { EcranReleases } from '../app/(app)/admin/ia-studios/Ecrans';
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { executerTache, epinglerDevis, resoudreConversationJarvis, type DemandeTache } from '../lib/studios/prompts/resolveur';
