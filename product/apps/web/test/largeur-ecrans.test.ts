@@ -32,7 +32,6 @@ describe('largeurs de contenu · les écrans data élargis', () => {
   const cas: Array<{ fichier: string; large: string; ancienne: string }> = [
     // Depuis B2 (#118), le cadre extérieur vient de `cadrePage` (1200, charte) ·
     // voir b2-cadre-routes. On garde ici l'interdit des anciennes largeurs bridées.
-    { fichier: 'brands/[id]/page.tsx', large: 'cadrePage', ancienne: 'maxWidth: 940' },
   ];
 
   for (const c of cas) {

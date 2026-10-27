@@ -40,7 +40,6 @@ const { AppShell } = await import('../components/AppShell');
 const { SavedTabs } = await import('../components/SavedTabs');
 const { MarquesSuivies } = await import('../components/MarquesSuivies');
 const { TrackerFeed } = await import('../components/TrackerFeed');
-const { ScenarioCard } = await import('../components/ScenarioCard');
 const { BibliothequeVide } = await import('../components/BibliothequeVide');
 const { prendreFocusApresVidage } = await import('../components/focusVidage');
 const { railNav, accountSections, ouverturesParRole } = await import('../lib/rbac');
@@ -227,20 +226,6 @@ describe('Sauvegardes › Nouveautés · « Tout marquer vu » se voit sans rend
   });
 });
 
-describe('Fiche marque › Scénario · l’échec rend le focus et s’annonce (lot 16)', () => {
-  it('« Crédits insuffisants » · alerte, focus sur le bouton, rien d’autre', async () => {
-    // Chromium retire le focus d'un bouton qui se désactive (mesuré · <body>
-    // 4 fois sur 4) · jsdom non · on rejoue cette perte pendant l'essai.
-    actions.generateScenarioImageAction.mockImplementation(async () => { (document.activeElement as HTMLElement | null)?.blur(); return { error: 'Crédits insuffisants (4 requis).' }; });
-    act(() => { root!.render(<ScenarioCard brandId="b" scenarioId="s1" title="Pause café" context={null} imageUrl={null} cost={4} canGenerate />); });
-    const b = bouton(/Générer le visuel/)!;
-    await act(async () => { b.focus(); b.click(); });
-    await attendre();
-    expect(document.querySelector('[role=alert]')?.textContent).toBe('Crédits insuffisants (4 requis).');
-    expect(document.activeElement, 'le focus tombe sur <body> après l’échec').toBe(bouton(/Générer le visuel/));
-    expect(refresh).not.toHaveBeenCalled();
-  });
-});
 
 describe('Bibliothèque entièrement vide · le focus revient après la bascule serveur (lot 16, revue Codex)', () => {
   beforeEach(() => { prendreFocusApresVidage(); }); // aucune demande en attente d'un test à l'autre

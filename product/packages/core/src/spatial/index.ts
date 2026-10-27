@@ -11,6 +11,7 @@ export * from './projet';
 export * from './resultats';
 export * from './bibliotheque/drive';
 export * from './bibliotheque/jarvis';
+export * from './bibliotheque/import-lien';
 export * from './formats';
 export * from './veille';
 export * from './studios';

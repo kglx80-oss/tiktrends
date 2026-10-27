@@ -15,7 +15,9 @@ const action = readFileSync(join(process.cwd(), 'app/actions/brand-detail.ts'), 
 const iFn = action.indexOf('export async function extractBrandVisualDaAction');
 const iEnd = action.indexOf('\nconst norm =', iFn);
 const fn = action.slice(iFn, iEnd > iFn ? iEnd : iFn + 2200);
-const ui = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/BrandDA.tsx'), 'utf8');
+// Vague 2 · le bouton vit sur l'Identité Spatiale (vue + page qui passe le prix).
+const ui = readFileSync(join(process.cwd(), 'spatial/vues/marque/Identite.tsx'), 'utf8');
+const pageUi = readFileSync(join(process.cwd(), 'app/(spatial)/sp/brands/[id]/identite/page.tsx'), 'utf8');
 
 describe('Analyse du style · la dépense passe par la barrière', () => {
   it('l’action existe et est bornée à sa marque (garde d’accès), AVANT toute dépense', () => {
@@ -49,6 +51,7 @@ describe('Analyse du style · la dépense passe par la barrière', () => {
   });
 
   it('le bouton annonce le prix AVANT le clic', () => {
-    expect(ui, 'le prix n’est pas écrit sur le bouton').toContain('Analyser le style · {costFor(\'brief\')} cr.');
+    expect(ui, 'le prix n’est pas écrit sur le bouton').toContain('Analyser le style{g.style.cout != null ? ` · ${g.style.cout} crédit');
+    expect(pageUi, 'le prix passé n’est pas celui de l’action').toContain("cout: c.unlimited ? null : costFor('brief')");
   });
 });

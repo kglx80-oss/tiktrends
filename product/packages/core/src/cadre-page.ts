@@ -68,7 +68,6 @@ export const EXCEPTIONS_LECTURE: Readonly<Record<string, { lecture: LectureInter
   '/profile': { lecture: 'formulaire', raison: 'formulaire de profil · des champs étirés sur 1136 se lisent mal' },
   '/support': { lecture: 'formulaire', raison: 'formulaire de demande et liste courte' },
   '/support/[id]': { lecture: 'fil', raison: 'fil de conversation · mesure de lecture' },
-  '/brands/new': { lecture: 'formulaire', raison: 'formulaire de création de marque' },
   // États sans accès ou sans marque · un message court, pas un écran de données.
   '/jarvis': { lecture: 'fil', raison: 'état sans marque · message court (le chat garde le cadre entier)' },
   '/jarvis/sources': { lecture: 'fil', raison: 'état sans marque · message court' },

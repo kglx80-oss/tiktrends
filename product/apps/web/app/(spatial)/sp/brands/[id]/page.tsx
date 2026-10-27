@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  carteConfigurationMarque, costFor, initialeNom, lignesACompleter, listePropre, morceauxTexte, prixEuros, statutPersona, teinteAvatar,
+  carteConfigurationMarque, costFor, initialeNom, messageServiceInactif, lignesACompleter, listePropre, morceauxTexte, prixEuros, statutPersona, teinteAvatar,
 } from '@tiktrends/core';
 import { updateBrandAction } from '../../../../actions/brands';
 import { generateFullBrandAction } from '../../../../actions/brand-detail';
@@ -50,7 +50,7 @@ export default async function MarqueSpatiale({ params, searchParams }: { params:
   const produit = produits[0] ?? null;
   const refusEcriture = refusEcritureBibliotheque(s);
   const raisonAssets = !c.estActive ? `Active ${b.name} dans le sélecteur de marque pour y ajouter des images` : refusEcriture ? TEXTE_REFUS_BIBLIOTHEQUE[refusEcriture] : null;
-  const remplirRaison = c.aiReady ? null : 'IA non configurée sur le serveur';
+  const remplirRaison = c.aiReady ? null : messageServiceInactif('ia_profil');
   // Les personas à valider d'abord (ils attendent un geste), puis les validés.
   const audiences = [...personas].filter((x) => x.status !== 'rejected' && x.status !== 'archived').slice(0, 3);
 

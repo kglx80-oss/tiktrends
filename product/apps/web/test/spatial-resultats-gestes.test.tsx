@@ -217,6 +217,27 @@ describe('Spatial · Résultats · carte', () => {
   });
 });
 
+describe('Spatial · Résultats · valeurs machine en clair (vu au banc riche, 27/10)', () => {
+  it('carte · le mécanisme d’un angle se lit en français, jamais le code', () => {
+    const noeuds = [
+      { id: 'p1', kind: 'persona' as const, label: 'Clara', parentId: null, status: 'validated', childCount: 1 },
+      { id: 'd1', kind: 'desire' as const, label: 'Peau apaisée', parentId: 'p1', status: 'validated', childCount: 1 },
+      { id: 'a1', kind: 'angle' as const, label: 'Le geste qui apaise', parentId: 'd1', status: 'validated', childCount: 0, mechanism: 'problem_agitate' },
+    ];
+    const html = rendre(<Carte sousNav={NAV} sous="s" noeuds={noeuds} aretes={[]} tronquee={false} erreur={null} construire={false} />);
+    expect(html).toContain('· Problème agité');
+    expect(html).not.toContain('problem_agitate');
+  });
+  it('radar · la mécanique reprise d’une trouvaille se lit en français', () => {
+    const f = { externalId: 'x1', advertiser: 'Typology', signal: null, signalLabel: 'Tient', daysRunning: 40, format: 'image', hookType: 'question', openingType: 'before_after', summary: null, reason: null, reportedAt: null };
+    const v = { state: { armed: false, cap: 3, lastRunAt: null, nightlyCostUsd: 0.06, monthlyCostUsd: 1.8, followed: 2 }, findings: [f], spend: { spentUsd: 2, capUsd: 10, summary: '2 $ sur 10 $.' } };
+    const { hote, fin } = monter(<RadarAdsmap sousNav={NAV} sous="s" erreur={null} vue={v as never} />);
+    expect(hote.textContent).toContain('Il reprendra la mécanique · Avant / après, jamais les mots.');
+    expect(hote.textContent).not.toContain('before_after');
+    fin();
+  });
+});
+
 describe('Spatial · Résultats · partage client', () => {
   it('créer un lien part avec la durée choisie · un lien expiré ne se copie pas', async () => {
     a.creerLien.mockClear();

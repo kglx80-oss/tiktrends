@@ -78,6 +78,15 @@ function entree(): EntreeLignee {
 const lien = (m: ModeleLignee, de: string, vers: string): LienLignee | undefined => m.liens.find((l) => l.de === de && l.vers === vers);
 
 describe('Lot 4a · projection de lignée · ce que le graphe relie', () => {
+  it('la variable testée d’un brief s’affiche en clair sur le nœud hypothèse, jamais le code Adsmap (vu au banc, 27/10)', () => {
+    const m = projeterLignee(entree());
+    const resumes = m.noeuds.filter((n) => n.type === 'hypothese').map((n) => n.resume);
+    expect(resumes).toHaveLength(2);
+    expect(resumes.join(' | ')).toContain('variable testée : l’accroche');
+    expect(resumes.join(' | ')).toContain('variable testée : le visuel d’ouverture');
+    expect(resumes.join(' | ')).not.toMatch(/opening_visual|: hook\b/);
+  });
+
   const m = projeterLignee(entree());
   const ids = new Set(m.noeuds.map((n) => n.id));
 

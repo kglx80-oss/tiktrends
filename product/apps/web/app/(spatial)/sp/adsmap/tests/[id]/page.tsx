@@ -1,7 +1,7 @@
 import {
   LIBELLE_ETAPE_TEST, LIBELLE_VERDICT, REGLE_ITERATION, RETOUR_STUDIO, VALEUR_ABSENTE, briefDepuisTest, estGagnanteValidee,
   libellePorteeTest, libelleVariableTest, lienFicheTest, lienIterationStudio, lienNouveauProjet, lienSourceVeille,
-  lireLienProfondAdsmap, pastilleVerdict, presentationTest, verdictEffectif,
+  lireLienProfondAdsmap, pastilleVerdict, pourcentFr, presentationTest, verdictEffectif,
   type VerdictValue,
 } from '@tiktrends/core';
 import { adDetailAction } from '../../../../../actions/adsmap-verdict';
@@ -14,7 +14,7 @@ import { gardeResultats } from '../../donnees';
 
 export const dynamic = 'force-dynamic';
 
-const pct = (v: number | null) => (v === null ? VALEUR_ABSENTE : `${(v * 100).toFixed(1)} %`);
+const pct = (v: number | null) => pourcentFr(v, VALEUR_ABSENTE);
 const eur = (v: number | null) => (v === null ? VALEUR_ABSENTE : `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} €`);
 
 /**

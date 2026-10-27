@@ -11,8 +11,6 @@ import { join } from 'node:path';
  */
 const FICHIERS = [
   'components/BrandWizard.tsx',
-  'components/BrandOnboarding.tsx',
-  'components/BrandCreated.tsx',
   'app/onboarding/OnboardingWizard.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
@@ -31,7 +29,6 @@ describe('Composants lot B · plus aucun emoji d’interface', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
     expect(tout).toMatch(/<Icon name="sparkles"/);   // BrandWizard
     expect(tout).toMatch(/<Icon name="spark"/);        // BrandOnboarding / Onboarding
-    expect(tout).toMatch(/<Icon name="star"/);         // BrandCreated
     expect(tout).toMatch(/<Icon name={icon}/);         // OnboardingWizard Card
   });
 });
