@@ -112,16 +112,17 @@ export const ROLES_INVITABLES: readonly CleRole[] = ['admin', 'member', 'client_
 
 /** Les initiales d'une personne · deux lettres, depuis le nom ou l'e-mail. */
 export function initialesPersonne(nom: string | null | undefined, email: string): string {
-  const base = (nom ?? '').trim() || email.split('@')[0]!.replace(/[._-]+/g, ' ');
-  const mots = base.split(/\s+/).filter(Boolean);
+  const base = (nom ?? '').trim() || email.split('@')[0]!;
+  // Des lettres seulement · « Kevin (banc) » donne KB, jamais « K( ».
+  const mots = base.split(/[^\p{L}]+/u).filter(Boolean);
   const s = mots.length >= 2 ? mots[0]![0]! + mots[1]![0]! : (mots[0] ?? '?').slice(0, 2);
   return s.toUpperCase();
 }
 
 /** Le nom court de la maquette (« Kevin G. ») · prénom + initiale du nom. */
 export function nomCourt(nom: string | null | undefined, email: string): string {
-  const mots = (nom ?? '').trim().split(/\s+/).filter(Boolean);
+  const mots = (nom ?? '').trim().split(/\s+/).filter((m) => /\p{L}/u.test(m));
   if (mots.length === 0) return email;
   if (mots.length === 1) return mots[0]!;
-  return `${mots[0]} ${mots[mots.length - 1]![0]!.toUpperCase()}.`;
+  return `${mots[0]} ${/\p{L}/u.exec(mots[mots.length - 1]!)![0]!.toUpperCase()}.`;
 }

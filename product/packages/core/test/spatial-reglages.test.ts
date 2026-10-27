@@ -52,6 +52,8 @@ describe('Spatial · Équipe · noms et initiales', () => {
   });
   it('nom court de la maquette', () => {
     expect([nomCourt('Ana Maria Lopez', 'a@x.fr'), nomCourt('Ana', 'a@x.fr'), nomCourt(null, 'a@x.fr')]).toEqual(['Ana L.', 'Ana', 'a@x.fr']);
+    // Vu au banc · « Kevin (banc) » donnait « Kevin (. » et « K( ».
+    expect([nomCourt('Kevin (banc)', 'k@x.fr'), initialesPersonne('Kevin (banc)', 'k@x.fr'), nomCourt('Kevin -', 'k@x.fr')]).toEqual(['Kevin B.', 'KB', 'Kevin']);
   });
 });
 
