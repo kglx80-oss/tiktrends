@@ -3,3 +3,5 @@ export * from './bascule';
 export * from './rail';
 export * from './conso';
 export * from './avatar';
+export * from './bibliotheque/drive';
+export * from './bibliotheque/jarvis';
