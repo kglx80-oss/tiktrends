@@ -7,5 +7,10 @@ import type { EcranSpatial } from '../types';
  * chantiers parallèles ne se disputent jamais la même ligne.
  */
 export const ECRANS_REGLAGES: readonly EcranSpatial[] = [
+  { chemin: '/settings', section: 'reglages' },
+  { chemin: '/settings/partenaires', section: 'reglages' },
+  { chemin: '/team', section: 'reglages' },
+  { chemin: '/connections', section: 'reglages' },
   { chemin: '/usage', section: 'reglages' },
+  { chemin: '/billing', section: 'reglages' },
 ];
