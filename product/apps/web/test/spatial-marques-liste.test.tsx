@@ -46,6 +46,9 @@ describe('Spatial · liste des marques', () => {
     const html = renderToStaticMarkup(<FournisseurSpatial value={CTX}><ListeMarques {...props({ marques: [] })} /></FournisseurSpatial>);
     expect(html).toContain('Aucune marque pour l’instant');
     expect(html).toContain('Créer la première marque');
+    // Porté de l'écran V5 · l'état vide n'a qu'UN geste de création.
+    const vide = /<div class="dempty">[\s\S]*?<\/div><\/div>/.exec(html)?.[0] ?? '';
+    expect(vide.match(/href="\/brands\/new"/g)).toHaveLength(1);
   });
   it('« Rendre active » appelle l’action réelle avec l’identifiant, puis relit l’écran · le retour de suppression est annoncé', async () => {
     const p = props();

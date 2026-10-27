@@ -9,8 +9,8 @@ import { join } from 'node:path';
  * BrandCreated (🎉 → star, via Modal icon=ReactNode), OnboardingWizard (les
  * champs `icon` des options/objectifs + 👋/🚀 → icônes/mots).
  */
+// Vague 3 · le parcours V5 `BrandWizard` est retiré avec la liste V5 des marques.
 const FICHIERS = [
-  'components/BrandWizard.tsx',
   'app/onboarding/OnboardingWizard.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
@@ -27,7 +27,6 @@ describe('Composants lot B · plus aucun emoji d’interface', () => {
   });
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
-    expect(tout).toMatch(/<Icon name="sparkles"/);   // BrandWizard
     expect(tout).toMatch(/<Icon name="spark"/);        // BrandOnboarding / Onboarding
     expect(tout).toMatch(/<Icon name={icon}/);         // OnboardingWizard Card
   });

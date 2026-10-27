@@ -24,7 +24,8 @@ import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 const WEB = process.cwd();
 const PERIMETRE = [
   'components',
-  ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'brands', 'credits', 'profile', 'support', 'console']
+  // Vague 3 · `brands` (la liste V5) est retirée · servie par Spatial.
+  ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'credits', 'profile', 'support', 'console']
     .map((d) => join('app', '(app)', d)),
   ...['depenses', 'finance', 'incidents', 'intelligence', 'paiement', 'plans', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
   // Lot 19B (#724) · les écrans et composants que les Connaissances ont créés ou

@@ -27,10 +27,6 @@ describe('Splits 2 colonnes · ils s’empilent en mobile', () => {
     expect(s, 'le split onboarding ne s’empile pas').toContain("mobile ? '1fr' : 'minmax(0,1fr) minmax(0,520px)'");
   });
 
-  it('BrandWizard · les deux dispositions basculent en 1 colonne', () => {
-    const s = read('components/BrandWizard.tsx');
-    expect(s).toContain("import { useIsMobile }");
-    expect(s.split("mobile ? '1fr' : 'minmax(").length - 1, 'les deux grilles doivent s’empiler').toBe(2);
-  });
+  // Vague 3 · `BrandWizard` (parcours V5 de création) est retiré avec la liste V5 des marques.
 
 });

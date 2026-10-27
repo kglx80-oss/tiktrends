@@ -21,7 +21,6 @@ import { join } from 'node:path';
 vi.mock('next/navigation', () => ({ redirect: () => { throw new Error('redirect'); }, notFound: () => { throw new Error('404'); }, useRouter: () => ({ refresh() {}, push() {}, replace() {} }), usePathname: () => '/', useSearchParams: () => new URLSearchParams() }));
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', workspaceName: 'Espace', role: 'owner', plan: 'business', user: { id: 'u', email: 'demo@exemple.invalid' } }) }));
 vi.mock('../lib/ai-status', () => ({ anthropicConfigured: () => false }));
-vi.mock('../components/BrandWizard', () => ({ BrandWizard: () => null }));
 vi.mock('../app/actions/brands', () => ({ createBrandFromShopifyAction: async () => {} }));
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: 'b', name: 'Neva' }) }));

@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
  * Supprimer une marque après le studio · vraie action, vraie base (pglite,
@@ -35,7 +34,8 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, d
 import { db, schema, eq } from '@tiktrends/db';
 import { MESSAGES_SUPPRESSION_MARQUE } from '@tiktrends/core';
 import { deleteBrandAction } from '../app/actions/brands';
-import BrandsPage from '../app/(app)/brands/page';
+// Vague 3 · la liste des marques est servie par Spatial (exclusive).
+import BrandsPage from '../app/(spatial)/sp/brands/page';
 
 const admin = () => ({ user: { id: ids.user, email: 'admin@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', role: 'owner', plan: 'core', equipe: null });
 async function supprimer(id: string): Promise<string> {
@@ -89,8 +89,9 @@ describe('supprimer une marque après le studio', () => {
 
   it('le motif du refus est affiché sur la page des marques', async () => {
     for (const code of ['studio_historique', 'studio_restrictions'] as const) {
-      const html = renderToStaticMarkup(await BrandsPage({ searchParams: Promise.resolve({ e: code }) }));
-      expect(html).toContain(MESSAGES_SUPPRESSION_MARQUE[code]);
+      // L'écran annonce `?e=` par le toast de la coquille · la page lui passe le motif exact.
+      const el = (await BrandsPage()) as React.ReactElement<{ retours: Record<string, string> }>;
+      expect(el.props.retours[`e:${code}`]).toBe(MESSAGES_SUPPRESSION_MARQUE[code]);
     }
   });
 });
