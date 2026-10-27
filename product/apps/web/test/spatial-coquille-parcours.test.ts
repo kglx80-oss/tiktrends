@@ -72,8 +72,9 @@ describe('Spatial · pastilles du rail · point d’entrée', () => {
 
   it('sans droit Résultats ou sans marque, aucune lecture', async () => {
     sources.resultats.source.mockClear();
+    // L'entrée Résultats est présente (rail construit ailleurs) mais sa destination n'est PAS ouverte · la garde propre de la source tient.
     const ferme = new Set(['/jarvis']);
-    await poserPastilles(entreesRail({ ouverts: ferme, marque }), { ouverts: ferme, workspaceId: 'w', brandId: 'b1' }, sources);
+    await poserPastilles(entreesRail({ ouverts: new Set(['/adsmap']), marque }), { ouverts: ferme, workspaceId: 'w', brandId: 'b1' }, sources);
     const ouverts = new Set(['/adsmap']);
     await poserPastilles(entreesRail({ ouverts, marque: null }), { ouverts, workspaceId: 'w', brandId: null }, sources);
     expect(sources.resultats.source).not.toHaveBeenCalled();
