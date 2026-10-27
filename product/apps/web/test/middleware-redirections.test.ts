@@ -39,7 +39,7 @@ const CAS: Array<[string, string]> = [
 
 /** Chemins qui ne sont PAS des adresses retirées · ni appariés, ni touchés. */
 // `/studio/projets` (liste) et Résultats sont des écrans Spatial EXCLUSIFS depuis la vague 2 · réécrits même en mode V5, gardés plus bas.
-const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets/nouveau?type=ads&angle=x', '/studio/projets/abc/image', '/studio/ads/x', '/jarvis', '/saved', '/assets', '/veille', '/api/health', '/_next/static/chunks/main.js'];
+const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets/nouveau?type=ads&angle=x', '/studio/projets/abc/image', '/studio/ads/x', '/saved', '/assets', '/veille', '/api/health', '/_next/static/chunks/main.js'];
 
 const appeler = (adresse: string, headers: Record<string, string> = {}) => middleware(new NextRequest(HOTE + adresse, { headers }));
 
@@ -61,6 +61,13 @@ describe('middleware · adresses retirées servies en 307 HTTP, contexte repris'
     for (const adresse of NON_CONCERNES) {
       const r = appeler(adresse, { cookie: 'tt_ui=v5' });
       expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-next')]).toEqual([adresse, 200, null, '1']);
+    }
+  });
+
+  it('Jarvis est exclusif (vague 3) · même en mode V5, ses écrans sont servis par Spatial', () => {
+    for (const adresse of ['/jarvis', '/jarvis/sources', '/jarvis/veille']) {
+      const r = appeler(adresse, { cookie: 'tt_ui=v5' });
+      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite')]).toEqual([adresse, 200, null, `${HOTE}/sp${adresse}`]);
     }
   });
 

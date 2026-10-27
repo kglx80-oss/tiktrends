@@ -26,23 +26,25 @@ import { outilsResultats } from '@tiktrends/core';
  */
 const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 
-const jarvis = lit('app/(app)/jarvis/page.tsx');
-const colonne = lit('app/(app)/jarvis/JarvisColonne.tsx');
-const sources = lit('app/(app)/jarvis/sources/page.tsx');
+// Vague 3 · Jarvis est exclusif à Spatial · la conversation, sa colonne et les
+// Sources sont lues dans l'arbre Spatial (page = gardes, vue = rendu).
+const jarvis = lit('app/(spatial)/sp/jarvis/page.tsx') + lit('spatial/vues/jarvis/Jarvis.tsx');
+const colonne = lit('spatial/vues/jarvis/Jarvis.tsx');
+const sources = lit('app/(spatial)/sp/jarvis/sources/page.tsx') + lit('spatial/vues/jarvis/Sources.tsx') + lit('spatial/vues/jarvis/sources-client.tsx');
 const sAttribution = lit('app/(app)/jarvis/sections/SectionAttribution.tsx');
 // Les essais ont rejoint Résultats dans Spatial · page (garde, chargement) + vue (rendu).
 const sEssais = lit('app/(spatial)/sp/adsmap/essais/page.tsx') + lit('spatial/vues/resultats/Essais.tsx');
 const sMarche = lit('app/(app)/jarvis/sections/SectionMarche.tsx');
-const contexte = lit('app/(app)/jarvis/JarvisContexte.tsx');
+// Le contexte de marque (accroches comprises) vit sur l'écran Sources de Spatial.
+const contexte = sources;
 const chatAction = lit('app/actions/jarvis-chat.ts');
 const analytics = lit('components/accueil/VueAnalytics.tsx');
 const veille = lit('app/(app)/veille/page.tsx');
 
 describe('Jarvis · la conversation, seule ; le détail à sa destination', () => {
   it('la page de chat accueille la conversation et renvoie aux sources (colonne V5)', () => {
-    expect(jarvis).toContain('<JarvisChat');
-    // Le renvoi aux sources vit désormais dans la colonne secondaire
-    // (« Documents & sources »), pas dans un en-tête de la page.
+    expect(jarvis).toContain('<Jarvis');
+    // Le renvoi aux sources vit dans la colonne d'archives (groupe « Contexte »).
     expect(colonne).toContain('href="/jarvis/sources"');
   });
 
@@ -60,7 +62,7 @@ describe('chaque famille est à sa destination, rien de perdu', () => {
       'Ce qu’il a appris de cette marque',   // mémoire mesurée
       'id="decrire"',                        // décrire les créas
       'Réglages maison',                     // fondateur
-      'Moteurs orchestrés',                  // fondateur
+      'MOTEURS_JARVIS',                      // fondateur
       'Ce que Jarvis coûte',                 // dépense (fondateur)
     ]) {
       expect(sources, `bloc manquant sur Sources : ${marqueur}`).toContain(marqueur);
@@ -88,7 +90,7 @@ describe('chaque famille est à sa destination, rien de perdu', () => {
 
   it('les accroches vivent dans le contexte de marque, alimentées par le fil', () => {
     expect(contexte, 'le panneau contexte ne montre pas les accroches').toContain('Accroches');
-    expect(contexte).toContain('contexte.hooks');
+    expect(contexte).toContain('c.hooks');
     expect(chatAction, 'le fil ne fournit pas les accroches au contexte').toMatch(/hooks/);
     expect(chatAction).toContain('jarvisHookView');
   });

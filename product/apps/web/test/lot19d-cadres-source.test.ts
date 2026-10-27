@@ -31,15 +31,11 @@ const PERIMETRE = [
   // modifiés, plus la page et l'écran de refus de Jarvis (message 55).
   join('app', '(app)', 'admin', 'connaissances'),
   join('app', '(app)', 'admin', 'page.tsx'),
-  join('app', '(app)', 'jarvis', 'sources'),
-  join('app', '(app)', 'jarvis', 'page.tsx'),
-  join('app', '(app)', 'jarvis', 'RefusJarvis.tsx'),
+  // Vague 3 · les écrans V5 `/jarvis` et `/jarvis/sources` (et leurs panneaux)
+  // sont retirés, servis par Spatial · restent la conversation et le contexte,
+  // montés par le panneau Jarvis de la Veille V5.
   join('app', '(app)', 'jarvis', 'JarvisChat.tsx'),
   join('app', '(app)', 'jarvis', 'JarvisContexte.tsx'),
-  // Rendus sur /jarvis/sources (écran de #724).
-  join('app', '(app)', 'jarvis', 'JarvisRules.tsx'),
-  join('app', '(app)', 'jarvis', 'JarvisTraining.tsx'),
-  join('app', '(app)', 'jarvis', 'DescribePanel.tsx'),
   // Lot 19C · les écrans des formats créatifs (message 55) · `veille/formats`
   // SEUL, pas toute la Veille ; le choix « Format » et Sauvegardes qui le porte.
   join('app', '(app)', 'veille', 'formats'),

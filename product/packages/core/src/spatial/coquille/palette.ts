@@ -22,7 +22,7 @@ export interface EntreePalette { cle: string; href: string; icone: string; titre
 export interface GroupePalette { titre: GroupePaletteCle; entrees: EntreePalette[] }
 
 /** Les adresses servies par l'ancienne interface (une page existe sous `app/(app)`). */
-const SERVIES_V5 = new Set(['/dashboard', '/studio/projets', '/studio/projets/nouveau', '/veille', '/veille/formats', '/adsmap', '/adsmap/lots', '/adsmap/import', '/assets', '/jarvis', '/connections', '/settings']);
+const SERVIES_V5 = new Set(['/dashboard', '/studio/projets', '/studio/projets/nouveau', '/veille', '/veille/formats', '/adsmap', '/adsmap/lots', '/adsmap/import', '/assets', '/connections', '/settings']);
 
 /** Une destination existe-t-elle vraiment ? · page V5, ou écran porté dans Spatial. */
 export function destinationExiste(href: string): boolean {

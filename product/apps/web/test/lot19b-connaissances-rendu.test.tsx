@@ -200,22 +200,6 @@ describe('page · le garde lit le rôle d’ÉQUIPE, jamais le rôle d’espace'
   });
 });
 
-describe('/jarvis/sources · titre sur l’axe du cadre', () => {
-  // La page lit la base et la mémoire · on garde la règle sur la source : le
-  // titre est le jeton `h1`, et plus rien ne le précède dans sa rangée (l'icône
-  // le décalait de 32 px).
-  const src = readFileSync(join(process.cwd(), 'app/(app)/jarvis/sources/page.tsx'), 'utf8');
-  it('les deux titres utilisent le jeton h1 et aucune icône ne les précède', () => {
-    expect(src.match(/<h1 style=\{h1\}>Sources de Jarvis<\/h1>/g)?.length).toBe(2);
-    expect(src).not.toMatch(/<Icon name="brain"[^\n]*\n\s*<h1/);
-    expect(src).not.toMatch(/<h1 style=\{\{/);
-    // La rangée de titre est le PREMIER élément du cadre · rien ne la pousse vers le bas.
-    const corps = src.slice(src.lastIndexOf('<main style={cadrePage}>'));
-    const premier = corps.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').match(/<main style=\{cadrePage\}>\s*<div[^>]*>\s*<div[^>]*>\s*<h1 style=\{h1\}>/);
-    expect(premier, 'le titre n’est pas en tête du cadre').not.toBeNull();
-  });
-});
-
 describe('Jarvis · ce qui entre, ce qui est cité', () => {
   it('le contexte montre les connaissances incluses, leur portée, et le retrait sans promesse d’oubli', () => {
     const html = renderToStaticMarkup(

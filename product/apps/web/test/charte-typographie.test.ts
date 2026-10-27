@@ -50,8 +50,7 @@ describe('charte · en-têtes sobres · pas de bandeau dégradé', () => {
   // Les en-têtes de page portaient un bandeau `linear-gradient(135deg, rgba(230,0,126…`
   // (Jarvis, Sources) et l'accueil un `rgba(230,0,126,.22)`. Sobres désormais.
   const REFS = [
-    'app/(app)/jarvis/page.tsx',
-    'app/(app)/jarvis/sources/page.tsx',
+    // Vague 3 · les pages V5 de Jarvis et de ses Sources sont retirées (Spatial exclusif).
     'components/AssistantHome.tsx',
   ];
   for (const rel of REFS) {

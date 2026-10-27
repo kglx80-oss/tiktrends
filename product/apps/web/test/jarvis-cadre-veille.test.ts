@@ -14,21 +14,9 @@ import { join } from 'node:path';
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
 describe('Jarvis · cadre + composeur aux bords Veille, lecture bornée à l’intérieur', () => {
-  const page = read('app/(app)/jarvis/page.tsx');
+  // Vague 3 · la page V5 `/jarvis` est retirée (Spatial exclusif) · le composant
+  // de conversation reste, monté par le panneau Jarvis de la Veille V5.
   const chat = read('app/(app)/jarvis/JarvisChat.tsx');
-  const veille = read('app/(app)/veille/page.tsx');
-
-  it('le cadre conversationnel prend les bords Veille (1200), plus le plafond 760', () => {
-    // La référence · Veille est à 1200. Si elle bouge, ce test le signale.
-    expect(veille, 'la référence Veille n’est plus au cadre commun (1200)').toMatch(/const wrap = cadrePage;/);
-    // Le <main> conversationnel (le DERNIER du fichier) suit ces bords.
-    const iMain = page.lastIndexOf('<main style=');
-    expect(iMain, 'le cadre conversationnel est introuvable').toBeGreaterThan(-1);
-    const cadre = page.slice(iMain, iMain + 170);
-    expect(cadre, 'le cadre conversationnel n’est pas aligné à 1200').toMatch(/^<main style=\{cadrePage\}>/);
-    // Mutation : remettre `maxWidth: 760` sur le cadre fait tomber cette assertion.
-    expect(cadre, 'le plafond 760 est revenu sur le cadre').not.toContain('maxWidth: 760');
-  });
 
   it('le composeur et le fil ne portent plus de plafond 760 (ils suivent le cadre)', () => {
     // Mutation : reposer un `maxWidth: 760` (numérique) sur le composeur ou le fil

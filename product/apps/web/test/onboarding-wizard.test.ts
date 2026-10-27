@@ -54,7 +54,8 @@ describe('Accueil · quatre écrans, progression, Retour, Passer, fin → Jarvis
  */
 describe('Accueil · facultatif, ré-entrée volontaire seulement', () => {
   const page = readFileSync(join(process.cwd(), 'app/onboarding/page.tsx'), 'utf8');
-  const jarvis = readFileSync(join(process.cwd(), 'app/(app)/jarvis/page.tsx'), 'utf8');
+  // Vague 3 · Jarvis est exclusif à Spatial · la ré-entrée vit dans sa colonne de contexte.
+  const jarvis = readFileSync(join(process.cwd(), 'spatial/vues/jarvis/Jarvis.tsx'), 'utf8');
 
   it('un compte onboardé n’est renvoyé au dashboard QUE sans reprise demandée', () => {
     // La reprise (?redo) court-circuite la redirection · sans elle, un compte

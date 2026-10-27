@@ -6,9 +6,11 @@ import type { EcranSpatial } from '../types';
  * absent reste servi par l'ancienne interface. Un fichier par rubrique · deux
  * chantiers parallèles ne se disputent jamais la même ligne.
  */
+// `exclusif` (vague 3) · les pages V5 `/jarvis`, `/jarvis/sources` et `/jarvis/veille`
+// sont retirées · leurs gestes vivent dans Spatial.
 export const ECRANS_JARVIS: readonly EcranSpatial[] = [
-  { chemin: '/jarvis', section: 'jarvis' },
+  { chemin: '/jarvis', section: 'jarvis', exclusif: true },
   // Vague 3 · écrans sans fragment de maquette, composés dans le langage de l'écran Jarvis.
-  { chemin: '/jarvis/sources', section: 'jarvis' },
-  { chemin: '/jarvis/veille', section: 'jarvis' },
+  { chemin: '/jarvis/sources', section: 'jarvis', exclusif: true },
+  { chemin: '/jarvis/veille', section: 'jarvis', exclusif: true },
 ];

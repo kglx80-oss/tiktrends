@@ -65,11 +65,8 @@ vi.mock('../lib/deployment', () => ({ currentDeployment: async () => ({ ok: fals
 import ConnaissancesPage from '../app/(app)/admin/connaissances/page';
 import { EcranConnaissances, Formulaire } from '../app/(app)/admin/connaissances/EcranConnaissances';
 import type { VueAdminConnaissances } from '../app/actions/connaissances';
-import SourcesPage from '../app/(app)/jarvis/sources/page';
-import { RefusJarvis } from '../app/(app)/jarvis/RefusJarvis';
 import { JarvisContexte } from '../app/(app)/jarvis/JarvisContexte';
 import { JarvisChat } from '../app/(app)/jarvis/JarvisChat';
-import { DescribePanel } from '../app/(app)/jarvis/DescribePanel';
 import AdminBackstage from '../app/(app)/admin/page';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -130,7 +127,6 @@ const vue = (l: Connaissance[]): VueAdminConnaissances => ({
 });
 const VALEURS = (niveau: 'plateforme' | 'espace' | 'marque') => ({ titre: 'T', type: 'methode' as const, texte: 'x', mode: 'saisie' as const, fichier: null, niveau, workspaceId: niveau === 'plateforme' ? '' : 'w', brandId: niveau === 'marque' ? 'b' : '' });
 const fondateur = { user: { id: 'u', email: 'kguilbaux@agence-glx.fr', name: 'K' }, workspaceId: 'w', workspaceName: 'Espace', role: 'owner', plan: 'business', equipe: { role: 'adminplus', matrice: {} } };
-const membreCore = { ...fondateur, user: { id: 'u2', email: 'membre@client.test', name: null }, role: 'member', plan: 'core', equipe: null };
 
 /* -------------------------------------------------------------------------- */
 /*  Montage jsdom · les états ouverts par un geste                            */
@@ -171,10 +167,7 @@ describe('message 55 · écrans de #724 rendus · chaque cadre porte son rôle',
       await clic(c, 'Publier'); // le formulaire, sans la case
       return c.innerHTML;
     }],
-    ['/jarvis/sources · fondateur (déploiement, dépense bloquée, moteurs)', async () => { h.session = fondateur; return renderToStaticMarkup(await SourcesPage()); }],
-    ['/jarvis/sources · membre Core (sans la mémoire Plus)', async () => { h.session = membreCore; return renderToStaticMarkup(await SourcesPage()); }],
-    ['DescribePanel · tranche chiffrée (jsdom)', async () => (await monter(<DescribePanel />)).innerHTML],
-    ['/jarvis · refus (offre, rôle)', async () => renderToStaticMarkup(<><RefusJarvis titre="Jarvis" why="plan" owner /><RefusJarvis titre="Jarvis" why="role" owner={false} /></>)],
+    // Vague 3 · `/jarvis/sources`, son panneau « Décrire » et l'écran de refus V5 sont retirés (Spatial exclusif, sans jetons de cadre V5).
     ['JarvisChat · fil en échec (jsdom)', async () => (await monter(<JarvisChat fiche={null} brandId="b1" brandName="Neva" kpiSource={null} projets={[]} />)).innerHTML],
     ['JarvisChat · fil chargé (jsdom)', async () => {
       h.thread = { turns: [{ id: '1', role: 'user', content: 'Q', at: T }, { id: '2', role: 'assistant', content: 'R', at: T }], starters: [], measuredAds: 0, brandName: 'Neva', contexte: { brandId: 'b1', identity: null, rules: null, hooks: null, connaissances: null }, sources: {}, conversationId: null, conversations: [] };
