@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
   lireDepartAssistant, listerDepartsAssistant, type ChoixDepartAssistant, type DepartAssistant, type OrigineDepartAssistant,
 } from '../../../../app/actions/studios/departs-assistant';
@@ -23,7 +24,8 @@ export function PanneauAssistant({ titre, onFermer, children }: { titre: string;
     boite.current?.querySelector<HTMLElement>('button:not(:disabled), select, input')?.focus();
     return () => { precedent?.focus?.(); };
   }, []);
-  return (
+  // Rendu dans `body` · la fenêtre `main.win` (verre dépoli) forme son propre empilement · le voile doit couvrir l'écran.
+  return createPortal(
     <div className="paywrap" data-panneau-assistant="" onMouseDown={(e) => { if (e.target === e.currentTarget) onFermer(); }}>
       <div ref={boite} className="paybox glass" role="dialog" aria-modal="true" aria-labelledby={id}
         style={{ width: 'min(620px,100%)', maxHeight: 'calc(100dvh - 40px)', overflowY: 'auto' }}
@@ -41,7 +43,8 @@ export function PanneauAssistant({ titre, onFermer, children }: { titre: string;
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
