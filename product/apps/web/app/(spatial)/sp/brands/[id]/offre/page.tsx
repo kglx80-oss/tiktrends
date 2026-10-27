@@ -1,13 +1,19 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { listePropre, morceauxTexte, prixEuros, resumeProduits, statutFicheProduit } from '@tiktrends/core';
-import { addProductAction, syncShopifyProductsAction } from '../../../../../actions/brand-detail';
+import { costFor, listePropre, morceauxTexte, prixEuros, resumeProduits, statutFicheProduit } from '@tiktrends/core';
+import { addProductAction, deleteProductAction, importProductsAction, syncShopifyProductsAction } from '../../../../../actions/brand-detail';
 import { brandMediaPreview } from '../../../../../../lib/brand-media-url';
 import { Offre } from '../../../../../../spatial/vues/marque/Offre';
 import type { LigneKv } from '../../../../../../spatial/vues/marque/base';
 import { chargerMarque, propsSync } from '../donnees';
 
 export const dynamic = 'force-dynamic';
+
+/** L'import des produits depuis le site · mêmes conditions que l'écran V5 (site renseigné, IA configurée), prix annoncé. */
+function importer(c: Awaited<ReturnType<typeof chargerMarque>>) {
+  const raison = !c.b.url ? 'Renseigne le site de la marque pour importer' : !c.aiReady ? 'IA non configurée sur le serveur' : null;
+  return { action: raison ? null : importProductsAction, cout: c.unlimited ? null : costFor('brief'), raison };
+}
 
 export default async function OffreSpatiale({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,6 +43,11 @@ export default async function OffreSpatiale({ params }: { params: Promise<{ id: 
       ajouter={addProductAction}
       shopify={b.shopifyDomain ? { appel: syncShopifyProductsAction, domaine: b.shopifyDomain } : null}
       retours={c.retours}
+      gestion={{
+        retirer: deleteProductAction,
+        importer: importer(c),
+        boutique: { domaine: b.shopifyDomain ?? null, synchroniser: syncShopifyProductsAction },
+      }}
     />
   );
 }

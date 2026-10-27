@@ -14,7 +14,7 @@ import { createRoot, type Root } from 'react-dom/client';
 
 const m = vi.hoisted(() => ({ importer: vi.fn(), compresser: vi.fn(), refresh: vi.fn(), lireParcours: vi.fn() }));
 vi.mock('../app/actions/studios/produit', () => ({ epinglerProduit: vi.fn(), associerReference: vi.fn(), retirerReference: vi.fn(), trancherComposants: vi.fn(), importerPhotoProduit: m.importer }));
-vi.mock('../components/studios/produit/compression-photo', () => ({ compresserPhoto: m.compresser }));
+vi.mock('../lib/studios/produit/compression-photo', () => ({ compresserPhoto: m.compresser }));
 vi.mock('../app/actions/studios/image', () => ({
   lireParcoursImage: m.lireParcours, compilerConsigneImage: vi.fn(), retenirConsigneImage: vi.fn(), demanderDevisImage: vi.fn(), approuverEtLancerImage: vi.fn(), controlerMediaImage: vi.fn(),
 }));

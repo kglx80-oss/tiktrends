@@ -18,11 +18,8 @@ export default async function ProjetSpatial({ params, searchParams }: { params: 
   if (!s) redirect('/login');
   const { id } = await params;
   const { version } = await searchParams;
-  // `/studio/projets/nouveau` · tant que son écran Spatial n'existe pas, le motif `[id]` l'attrape · on ne le lit
-  // jamais comme un projet, on renvoie vers l'écran qui le sert (lien plein, l'interface précédente).
-  if (segmentReserveProjets(id)) {
-    return <EtatProjet projectId={id} raison={{ type: 'ailleurs', titre: 'Nouveau projet', message: 'La création de projet s’ouvre dans l’interface précédente le temps de son portage.', href: `/studio/projets/${id}?ui=v5`, libelle: 'Créer un projet' }} />;
-  }
+  // Un segment fixe (`nouveau`) n'est jamais lu comme un projet · son propre écran Spatial (segment statique) le sert avant `[id]`.
+  if (segmentReserveProjets(id)) return <EtatProjet projectId={id} raison={{ type: 'introuvable', message: 'Ce projet n’existe pas ou n’est pas accessible.' }} />;
   const r = await chargerProjet(s, id, version);
   if (!r.ok) return <EtatProjet raison={r.raison} projectId={id} />;
   return <Projet {...r.props} />;

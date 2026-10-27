@@ -23,7 +23,7 @@ vi.mock('next/link', () => ({ default: ({ href, children, ...r }: { href: string
 
 import { erreurStudio } from '@tiktrends/core';
 import { EditeurCalques, type PropsEditeur } from '../components/studios/editeur/EditeurCalques';
-import { cleSauvegarde } from '../components/studios/editeur/sauvegarde-locale';
+import { cleSauvegarde } from '../lib/studios/editeur/sauvegarde-locale';
 import { contenuVideo, documentStudio, copie } from '../../../packages/core/test/studios-fixtures';
 
 let offsetOrigine: PropertyDescriptor | undefined;

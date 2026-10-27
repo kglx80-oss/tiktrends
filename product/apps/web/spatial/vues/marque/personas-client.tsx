@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { Ic, Lien } from '../../communs';
-import { FormulaireSurcouche } from './interactifs';
+import { FormulaireSurcouche, SupprimerConfirme } from './interactifs';
 
 /**
  * Le choix du persona affiché (`[data-pers]` de la maquette) et sa fiche ·
@@ -32,9 +32,11 @@ const titreBoite = (t: string, couleur = 'var(--fg2)') => <div className="lbl" s
 const ligne = (t: string, i: number) => <span key={i} style={{ fontSize: 13 }}>{t}</span>;
 const manque = (t: string) => <span className="faint" style={{ fontSize: 13 }}>{t}</span>;
 
-export function ChoixPersona({ brandId, personas, scenarios, jarvis, creerPub, ajouterPersona, ajouterScenario }: {
+export function ChoixPersona({ brandId, personas, scenarios, jarvis, creerPub, ajouterPersona, ajouterScenario, retirerPersona }: {
   brandId: string; personas: readonly PersonaVue[]; scenarios: ReadonlyArray<{ titre: string; contexte: string | null }>;
   jarvis: string | null; creerPub: string | null; ajouterPersona: ActionFormulaire | null; ajouterScenario: ActionFormulaire | null;
+  /** Retirer le persona affiché · `deletePersonaAction` (geste de la fiche V5). Absent, le bouton n'est pas rendu. */
+  retirerPersona?: ActionFormulaire | null;
 }) {
   const [k, setK] = useState(0);
   const P = personas[Math.min(k, personas.length - 1)];
@@ -74,6 +76,9 @@ export function ChoixPersona({ brandId, personas, scenarios, jarvis, creerPub, a
               {jarvis
                 ? <Lien className="btn sm" href={jarvis}><Ic n="chat" />Demander à Jarvis</Lien>
                 : <button className="btn sm" type="button" disabled title="Jarvis n’est pas ouvert à ton rôle ou à ta formule"><Ic n="chat" />Demander à Jarvis</button>}
+              {retirerPersona !== undefined && (
+                <SupprimerConfirme action={retirerPersona} champs={{ brandId, id: P.id }} className="btn sm" libelle={`Retirer le persona ${P.nom}`} confirmation={`Retirer le persona « ${P.nom} » ?`}><Ic n="x" />Retirer</SupprimerConfirme>
+              )}
             </div>
           </div>
           {P.citations[0] && (

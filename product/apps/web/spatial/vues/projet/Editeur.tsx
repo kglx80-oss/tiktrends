@@ -14,7 +14,7 @@ import {
 import { enregistrerDocument } from '../../../app/actions/studios/projets';
 import { listerVersionsDocument, relireDocumentEditeur, restaurerVersionDocument } from '../../../lib/studios/editeur/actions';
 import type { MediaEditeur, VersionListee } from '../../../lib/studios/editeur/types';
-import { effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale } from '../../../components/studios/editeur/sauvegarde-locale';
+import { effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale } from '../../../lib/studios/editeur/sauvegarde-locale';
 import { useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Message } from './briques';

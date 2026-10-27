@@ -1,6 +1,6 @@
 import { dateCourteUtc, type EtapeProjet, type ManqueProjet } from '../../studios/brief';
 import { ORDRE_ETAPES_PROJET, rangEtapeProjet, type CarteIterationAccueil } from '../../accueil-v5';
-import { compteursFiltreProjets, type CleFiltreProjet, type ProjetFiltrable } from '../../studios/liste-projets';
+import { compteursFiltreProjets, filtrerProjets, type CleFiltreProjet, type ProjetFiltrable } from '../../studios/liste-projets';
 import { DEFINITIONS_CAPACITES, type CapaciteStudio } from '../../studios/interrupteurs';
 
 /**
@@ -12,10 +12,10 @@ import { DEFINITIONS_CAPACITES, type CapaciteStudio } from '../../studios/interr
  * ── Honnêteté ────────────────────────────────────────────────────────────────
  *
  * La maquette filtre par STATUT (En cours / En revue / Brouillons / Archivés) ·
- * `studio_projects.status` ne vaut que `active` / `archived`, et la liste ne lit
- * que les actifs. L'axe réel est l'ÉTAPE (`completudeProjet`) · les filtres
- * reprennent la rangée de la maquette avec les étapes réelles et leurs
- * compteurs réels (`compteursFiltreProjets`).
+ * `studio_projects.status` ne vaut que `active` / `archived`. L'axe réel des
+ * projets actifs est l'ÉTAPE (`completudeProjet`) · les filtres reprennent la
+ * rangée de la maquette avec les étapes réelles et leurs compteurs réels
+ * (`compteursFiltreProjets`), puis « Archivés » (statut réel, relu à part).
  */
 
 /** Classe de la pastille d'étape (`span.pill`, maquette : c / w / neutre). */
@@ -63,11 +63,45 @@ export function repriseCarteSpatiale(c: { manques: readonly ManqueProjet[]; sour
   return quand ? `${tete} · ${quand}` : tete;
 }
 
-export interface FiltreProjetSpatial { cle: CleFiltreProjet; libelle: string }
+/** Les filtres Spatial · les étapes réelles, plus « Archivés » (statut `archived`, relu à part). */
+export type CleFiltreSpatial = CleFiltreProjet | 'archive';
 
-/** La rangée `seg` · « Tous · 6 », puis chaque étape réelle avec son compteur. */
-export function filtresProjetsSpatial(cartes: readonly ProjetFiltrable[]): FiltreProjetSpatial[] {
-  return compteursFiltreProjets(cartes).map((o) => ({ cle: o.cle, libelle: `${o.libelle} · ${o.n}` }));
+export interface FiltreProjetSpatial { cle: CleFiltreSpatial; libelle: string }
+
+/**
+ * La rangée `seg` · « Tous · 6 », puis chaque étape réelle avec son compteur,
+ * puis « Archivés · n » (maquette) quand les projets archivés ont été relus
+ * (`archives` = leur nombre réel ; `null` · non relus, le filtre n'est pas
+ * proposé plutôt que d'afficher un zéro faux).
+ */
+export function filtresProjetsSpatial(cartes: readonly ProjetFiltrable[], archives: number | null = null): FiltreProjetSpatial[] {
+  const f: FiltreProjetSpatial[] = compteursFiltreProjets(cartes).map((o) => ({ cle: o.cle, libelle: `${o.libelle} · ${o.n}` }));
+  if (archives !== null) f.push({ cle: 'archive', libelle: `Archivés · ${archives}` });
+  return f;
+}
+
+/**
+ * Recherche dans les cartes déjà chargées · titre, marque, type (règle
+ * `filtrerProjets`, insensible aux accents). « Archivés » montre les projets
+ * archivés relus, filtrés par la même recherche, sans filtre d'étape.
+ */
+export function cartesFiltreesSpatial<T extends ProjetFiltrable>(actives: readonly T[], archives: readonly T[], f: { cle: CleFiltreSpatial; recherche: string }): T[] {
+  return f.cle === 'archive' ? filtrerProjets(archives, { cle: 'tous', recherche: f.recherche }) : filtrerProjets(actives, { cle: f.cle, recherche: f.recherche });
+}
+
+/**
+ * Les gestes de la carte (`.pacts`) qui ont un service réel, dans l'ordre de
+ * la maquette (Itérer, Dupliquer, Archiver, Supprimer). « Itérer » ouvre les
+ * variantes du projet (l'itération part d'une variante mesurée, `iterer`) ;
+ * « Archiver » / « Restaurer » (`supprimerProjet` · statut `archived`,
+ * réversible). « Dupliquer » et « Supprimer définitivement » n'ont pas de
+ * service · ils ne sont pas rendus (aucune suppression de donnée sans mandat).
+ */
+export function gestesCarteSpatiale(c: { id: string; archive: boolean }, peutModifier: boolean): Array<{ cle: 'iterer'; href: string } | { cle: 'archiver' | 'restaurer' }> {
+  const g: Array<{ cle: 'iterer'; href: string } | { cle: 'archiver' | 'restaurer' }> = [];
+  if (!c.archive) g.push({ cle: 'iterer', href: `/studio/projets/${encodeURIComponent(c.id)}#variantes` });
+  if (peutModifier) g.push({ cle: c.archive ? 'restaurer' : 'archiver' });
+  return g;
 }
 
 /** La pastille d'une prochaine itération · verdict ARBITRÉ et lot réel, icône selon que le lot est conclu. */

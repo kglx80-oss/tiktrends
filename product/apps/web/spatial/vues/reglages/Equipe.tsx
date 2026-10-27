@@ -86,7 +86,7 @@ export function Equipe(p: PropsEquipe) {
               </div>
               {m.moi ? <span className="pill">{m.role}</span> : (
                 <>
-                  <select aria-label={`Rôle de ${m.nom}`} value={m.role} disabled title="Le changement de rôle d’un membre n’est pas encore disponible" onChange={() => {}} style={{ padding: '7px 10px', borderRadius: 12, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 12.5px var(--sf)' }}>
+                  <select aria-label={`Rôle de ${m.nom}`} defaultValue={m.role} disabled title="Le changement de rôle d’un membre n’est pas encore disponible" style={{ padding: '7px 10px', borderRadius: 12, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 12.5px var(--sf)' }}>
                     {p.tousRoles.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                   <button className="btn sm icon" type="button" aria-label={`Retirer ${m.nom}`} disabled title="Le retrait d’un membre n’est pas encore disponible"><Ic n="x" /></button>
