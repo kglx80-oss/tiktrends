@@ -78,7 +78,8 @@ export async function chargerEspaces(maintenant: Date, tickets?: readonly Ticket
     db.select().from(W).orderBy(desc(W.createdAt)),
     db.select({
       ws: L.workspaceId,
-      conso30: sql<number>`coalesce(-sum(case when ${L.delta} < 0 and ${L.createdAt} > ${depuis} then ${L.delta} else 0 end), 0)`,
+      // La date passe par `gte` (conversion de la colonne) · une Date brute dans `sql` casse postgres.js.
+      conso30: sql<number>`coalesce(-sum(case when ${L.delta} < 0 and ${gte(L.createdAt, depuis)} then ${L.delta} else 0 end), 0)`,
       debits: sql<number>`count(*) filter (where ${L.delta} < 0)`,
       derniere: sql<string | null>`max(${L.createdAt})`,
     }).from(L).groupBy(L.workspaceId),
