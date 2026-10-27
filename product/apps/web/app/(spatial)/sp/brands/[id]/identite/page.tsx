@@ -1,4 +1,4 @@
-import { champsModifiablesMarque, connecteursBranches, costFor, initialeNom, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque } from '@tiktrends/core';
+import { champsModifiablesMarque, connecteursBranches, costFor, initialeNom, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque, messageServiceInactif } from '@tiktrends/core';
 import { deleteBrandAction, updateBrandAction } from '../../../../../actions/brands';
 import { extractBrandVisualDaAction, saveBrandDAAction, saveBrandVisualDaAction } from '../../../../../actions/brand-detail';
 import { ajouterConcurrents, proposerConcurrents } from '../../../../../actions/competitor';
@@ -28,7 +28,7 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
   // Gestes de la fiche V5 (vague 2) · mêmes actions, mêmes gardes serveur (admin, marque de l'espace).
   const valeurs = valeursFiche(b);
   const style = styleVisuelMarque(b.brandKit as DaVisuelleMarque | null);
-  const raisonStyle = !c.aiReady ? 'IA non configurée sur le serveur' : null;
+  const raisonStyle = !c.aiReady ? messageServiceInactif('ia_profil') : null;
   const logos = [...new Set([b.logoUrl, ...(b.logos ?? [])].filter((u): u is string => !!u))];
 
   return (

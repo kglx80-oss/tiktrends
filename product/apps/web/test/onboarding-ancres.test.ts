@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { etapesConfigurationMarque } from '@tiktrends/core';
 
 /**
  * « Compléter le profil » et « Définir la charte » doivent MENER quelque part.
@@ -17,27 +18,15 @@ import { join } from 'node:path';
  * la page) · on lit chaque source là où sa cible habite.
  */
 
-const page = readFileSync(
-  join(__dirname, '..', 'app', '(app)', 'brands', '[id]', 'page.tsx'),
-  'utf8',
-);
-const brandDa = readFileSync(
-  join(__dirname, '..', 'app', '(app)', 'brands', '[id]', 'BrandDA.tsx'),
-  'utf8',
-);
+// Vague 2 · la fiche V5 (et ses ancres #profil / #charte) est retirée · la carte
+// « Finis de configurer » de l'écran Spatial mène à « À compléter » de la vue
+// d'ensemble. On garde les DEUX bouts liés · l'étape (règle du noyau) et la cible.
+const vue = readFileSync(join(__dirname, '..', 'spatial', 'vues', 'marque', 'Marque.tsx'), 'utf8');
 
-describe('démarrage · les étapes profil/charte mènent à leur section', () => {
-  it('l’étape « profil » ancre vers #profil, et la page porte cette ancre', () => {
-    const ligne = page.split('\n').find((l) => l.includes("key: 'profil'")) ?? '';
-    expect(ligne, 'l’étape profil doit ancrer vers #profil (pas la page nue)').toContain('#profil');
-    expect(page, 'la page doit porter la cible id="profil"').toContain('id="profil"');
-  });
-
-  it('l’étape « charte » ancre vers #charte, et BrandDA porte cette ancre', () => {
-    const ligne = page.split('\n').find((l) => l.includes("key: 'charte'")) ?? '';
-    expect(ligne, 'l’étape charte doit ancrer vers #charte').toContain('#charte');
-    // La page RENDU la cible via BrandDA · le lien reste tenu bout à bout.
-    expect(page, 'la page doit rendre BrandDA (qui porte la cible)').toContain('<BrandDA');
-    expect(brandDa, 'la section « Charte & kit » doit porter la cible id="charte"').toContain('id="charte"');
+describe('démarrage · l’étape « fiche » mène à sa section', () => {
+  it('l’étape « fiche » ancre vers #a-completer, et l’écran porte cette ancre', () => {
+    const e = etapesConfigurationMarque({ manquesFiche: 3, metaConnecte: true, concurrentsSuivis: 3, concurrentsRenseignes: 3, sauvegardes: 5, lotsLances: 1, personnes: 2 }, 'b1').find((x) => x.cle === 'fiche')!;
+    expect(e.href, 'l’étape fiche doit ancrer vers la section à compléter (pas la page nue)').toBe('/brands/b1#a-completer');
+    expect(vue, 'l’écran doit porter la cible id="a-completer"').toContain('id="a-completer"');
   });
 });

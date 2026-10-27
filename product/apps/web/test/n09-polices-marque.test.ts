@@ -9,8 +9,9 @@ import { join } from 'node:path';
  */
 describe('N09 · le filtre d’icônes couvre l’affichage et la sauvegarde', () => {
   it('la charte affichée nettoie les polices stockées', () => {
-    const brandDa = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/BrandDA.tsx'), 'utf8');
-    expect(brandDa).toMatch(/fonts: fonts\.filter\(\(f\) => !policeTechnique\(f\)\)/);
+    // Vague 2 · la charte s'affiche sur l'Identité Spatiale.
+    const identite = readFileSync(join(process.cwd(), 'app/(spatial)/sp/brands/[id]/identite/page.tsx'), 'utf8');
+    expect(identite).toMatch(/const polices = \(b\.fonts \?\? \[\]\)\.filter\(\(f\) => f && !policeTechnique\(f\)\)/);
   });
 
   it('l’enregistrement de la charte écarte une fonte d’icônes saisie à la main', () => {

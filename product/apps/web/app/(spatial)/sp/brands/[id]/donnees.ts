@@ -2,7 +2,7 @@ import 'server-only';
 import { notFound, redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messagesRetourMarque, type FicheMarqueLue } from '@tiktrends/core';
+import { costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
 import { getSession, type Session } from '../../../../../lib/auth';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../../lib/rbac';
 import { anthropicConfigured } from '../../../../../lib/ai-status';
@@ -77,7 +77,7 @@ export function valeursFiche(b: MarqueLue): Record<string, string> {
 }
 
 export function propsSync(c: ContexteMarque): PropsSyncSite {
-  const raison = !c.aiReady ? 'IA non configurée sur le serveur' : !c.domaine ? 'Renseigne le site de la marque pour le relire' : null;
+  const raison = !c.aiReady ? messageServiceInactif('ia_profil') : !c.domaine ? 'Renseigne le site de la marque pour le relire' : null;
   return { brandId: c.b.id, site: c.domaine, relancer: raison ? null : generateFullBrandAction, raison, cout: c.unlimited ? null : costFor('brief') };
 }
 
