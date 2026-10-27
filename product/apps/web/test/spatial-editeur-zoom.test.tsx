@@ -170,4 +170,15 @@ describe('Spatial · Éditeur · panneaux plein écran au téléphone', () => {
     await cliquer(document.querySelector('.wshead .btn.pri'));
     expect(actions.enregistrerDocument).toHaveBeenCalledWith(expect.objectContaining({ baseVersionId: 'v3', changes: [expect.objectContaining({ path: '/document/layers/accroche/text', newValue: 'Accroche du téléphone' })] }));
   });
+  it('« Supprimer » dans le panneau plein écran · le panneau se ferme et le focus revient sur « Calques », jamais sur <body>', async () => {
+    telephone = true;
+    await monter(props({ selectionInitiale: 'accroche' }));
+    await cliquer($('[data-ouvrir-panneau="proprietes"]'));
+    const supprimer = [...document.querySelectorAll('[data-panneau-mobile="proprietes"] button')].find((b) => b.textContent?.includes('Supprimer'))!;
+    await cliquer(supprimer);
+    await act(async () => { await new Promise((r) => setTimeout(r, 5)); });
+    expect($('[data-panneau-mobile]')).toBeNull();
+    expect($('[data-calque="accroche"]')).toBeNull();
+    expect(document.activeElement).toBe($('[data-ouvrir-panneau="calques"]'));
+  });
 });
