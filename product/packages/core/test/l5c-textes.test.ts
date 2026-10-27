@@ -110,6 +110,13 @@ describe('comparer, exporter sans média, coût annoncé', () => {
     expect(c.motsCommuns).toBe(2);
   });
 
+  it('export Markdown · une variable testée Adsmap (code) s’écrit en clair', () => {
+    const meta = { titre: 'Lunettes · rentrée', marque: 'Marque A1', versionN: 3, versionId: VERSION, exporteLe: '2026-10-08T09:00:00.000Z', brief: { ...brief(), testedVariable: 'hook' } };
+    const md = exporterTextes([], meta, 'markdown').contenu;
+    expect(md).toContain('Variable testée : l’accroche');
+    expect(md).not.toMatch(/Variable testée : hook/);
+  });
+
   it('export Markdown, CSV (guillemets échappés), JSON · faits cités relus', () => {
     const b = brief();
     const t: TexteStudio[] = [
