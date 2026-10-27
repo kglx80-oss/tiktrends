@@ -1,16 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { jargonTechnique, LIBELLE_CONNECTER_DRIVE } from '@tiktrends/core';
 
 /**
- * Recette #106 · retour Codex sur 4f2d2d2 · `/assets?e=drive_state` affichait
- * « Relance « Connecter Google Drive » » au-dessus d'un bloc « connexion pas
- * encore activée » qui ne propose ni ce bouton ni cette action.
+ * Le retour de la connexion Google (`?e=drive_…`) parle de l'état AFFICHÉ ·
+ * un message qui cite un geste le trouve à l'écran, sans jargon technique.
  *
- * On REND la page Assets (session et données simulées, aucune base, aucun
- * réseau) pour chaque état Drive et chaque code de retour, et on lit le HTML ·
- * le message ne cite un bouton que s'il est à l'écran, et propose un geste qui
- * l'est.
+ * Vague 2 · l'écran V5 `/assets` est retiré · on MONTE l'écran Spatial (seul à
+ * servir `/assets`) et on lit le message annoncé (toast) et les gestes rendus.
  */
 const etat = vi.hoisted(() => ({ role: 'owner', drive: null as null | Record<string, unknown> }));
 const { stub } = vi.hoisted(() => ({ stub: () => new Proxy({}, { has: (_t: object, k: string | symbol) => k !== 'then', get: (_t: object, k: string | symbol) => (k === 'then' ? undefined : k === '__esModule' ? true : async () => ({})) }) }));
@@ -18,11 +17,20 @@ vi.mock('next/navigation', () => ({ redirect: () => { throw new Error('redirect'
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', workspaceName: 'Espace', role: etat.role, plan: 'business', user: { id: 'u', email: 'demo@exemple.invalid' } }) }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: 'b', name: 'Neva' }) }));
 vi.mock('@tiktrends/integrations', () => ({ storageConfigured: () => false }));
+vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
+vi.mock('../lib/studios/bibliotheque', () => ({ listerSortiesStudiosBibliotheque: async () => [], sortieCommeAsset: (x: unknown) => x }));
+vi.mock('../lib/creations-historiques', () => ({ listerCreationsHistoriques: async () => [], creationCommeAsset: (x: unknown) => x }));
+vi.mock('../lib/ai-status', () => ({ anthropicConfigured: () => true }));
 vi.mock('../app/actions/assets', () => ({ ...stub(), listAssets: async () => [] }));
 vi.mock('../app/actions/drive', () => ({ ...stub(), getDriveState: async () => etat.drive }));
+vi.mock('../app/actions/bibliotheque-dossiers', () => stub());
 
-import AssetsPage from '../app/(app)/assets/page';
-import { ToastProvider } from '../components/Toast';
+import BibliothequeSpatiale from '../app/(spatial)/sp/assets/page';
+import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+let root: Root | null = null; let el: HTMLDivElement | null = null;
+afterEach(() => { act(() => { root?.unmount(); }); el?.remove(); root = null; el = null; });
 
 const base = { pickerReady: false, brandName: 'Neva', folderId: null, folderName: null, syncedAt: null, dernier: null };
 const ETATS: Record<string, { role: string; drive: null | Record<string, unknown> }> = {
@@ -34,30 +42,32 @@ const ETATS: Record<string, { role: string; drive: null | Record<string, unknown
 };
 const CODES = ['drive_config', 'drive_state', 'drive_session', 'drive_norefresh', 'drive_exchange', 'drive_nobrand', 'drive_inconnu'];
 
-async function rendre(nom: string, code: string) {
+async function monter(nom: string, code: string) {
   Object.assign(etat, ETATS[nom]);
-  const html = renderToStaticMarkup(<ToastProvider>{await AssetsPage({ searchParams: Promise.resolve({ e: code }) })}</ToastProvider>);
-  // Le bandeau de retour est le premier bloc coloré après l'aide de la page ·
-  // son texte d'erreur porte le rôle --err-text (V5 · T5, ex-#ff9db0).
-  const m = html.match(/color:var\(--err-text\)">([^<]+)<\/div>/);
-  expect(m, `${nom}/${code} · pas de message de retour`).not.toBeNull();
-  return { html, message: m![1]!.replace(/&#x27;|&#39;/g, '’') };
+  const toast = vi.fn();
+  const ctx: CtxSpatial = { utilisateur: { nom: 'D', initiales: 'D', email: 'd@x.fr', role: 'Propriétaire' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast };
+  const vue = await BibliothequeSpatiale({ searchParams: Promise.resolve({ e: code }) });
+  el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el);
+  await act(async () => { root!.render(<FournisseurSpatial value={ctx}>{vue}</FournisseurSpatial>); });
+  expect(toast, `${nom}/${code} · pas de message de retour`).toHaveBeenCalledTimes(1);
+  return { el, message: String(toast.mock.calls[0]![0]) };
 }
-const boutonPresent = (html: string, libelle: string) => new RegExp(`>\\s*(?:<[^>]+>\\s*)*${libelle}\\s*</(a|button)>`).test(html);
+const actif = (h: HTMLElement, libelle: string) => [...h.querySelectorAll('button')].some((b) => b.textContent?.includes(libelle) && !b.disabled);
 
 describe('Assets · le retour Drive parle de l’état affiché', () => {
   for (const nom of Object.keys(ETATS)) {
     for (const code of CODES) {
       it(`${nom} · ${code}`, async () => {
-        const { html, message } = await rendre(nom, code);
+        const { el: h, message } = await monter(nom, code);
         expect(jargonTechnique(message), 'jargon technique').toEqual([]);
         if (message.includes(LIBELLE_CONNECTER_DRIVE)) {
-          expect(boutonPresent(html, LIBELLE_CONNECTER_DRIVE), `le message cite « ${LIBELLE_CONNECTER_DRIVE} » mais ce bouton n’est pas affiché`).toBe(true);
+          expect(actif(h, LIBELLE_CONNECTER_DRIVE), `le message cite « ${LIBELLE_CONNECTER_DRIVE} » mais ce bouton n’est pas proposé`).toBe(true);
         }
         if (nom === 'inactive') {
           expect(message).toMatch(/pas encore activée/);
-          expect(boutonPresent(html, 'Ouvrir un ticket interne')).toBe(true);
-          expect(boutonPresent(html, 'Importer par lien')).toBe(true);
+          // « Importe tes fichiers Drive par lien » · le geste existe (menu « Nouveau »).
+          await act(async () => { [...h.querySelectorAll('button')].find((b) => b.textContent === 'Nouveau')!.click(); });
+          expect(actif(h, 'Importer par lien'), 'le message renvoie à un import par lien absent').toBe(true);
         }
       });
     }

@@ -92,8 +92,9 @@ import {
 } from '../app/actions/assets';
 import { followBrand, unfollowBrand } from '../app/actions/inspo';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
-import AssetsPage from '../app/(app)/assets/page';
-import { ToastProvider } from '../components/Toast';
+// Vague 2 · l'écran V5 `/assets` est retiré · la page servie est la Spatiale.
+import BibliothequeSpatiale from '../app/(spatial)/sp/assets/page';
+import { FournisseurSpatial } from '../spatial/coquille/contexte';
 
 const ids = etat.ids;
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -310,10 +311,10 @@ describe('Marques suivies · followBrand / unfollowBrand', () => {
 });
 
 describe('Page /assets · lecture d’avant, écriture selon la feature', () => {
-  // Sous le fournisseur de toasts, comme dans la coquille · la page se rend pour
-  // de vrai, bibliothèque comprise, et on lit son HTML.
-  const rendre = async () => renderToStaticMarkup(<ToastProvider>{await AssetsPage({ searchParams: Promise.resolve({}) })}</ToastProvider>);
-  const GESTES = ['Téléverser', 'Importer par lien', 'Suppr.', 'Analyser', '1 crédit / image'];
+  // La page Spatiale se rend pour de vrai, bibliothèque comprise, et on lit son HTML.
+  const rendre = async () => renderToStaticMarkup(<FournisseurSpatial value={{ utilisateur: { nom: 'A', initiales: 'A', email: 'a@x.fr', role: 'Membre' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} }}>{await BibliothequeSpatiale({ searchParams: Promise.resolve({}) })}</FournisseurSpatial>);
+  /** Le bouton « Nouveau » (téléverser, importer par lien, analyser, dossiers) · fermé en lecture seule. */
+  const nouveau = (html: string) => /<button class="btn pri" type="button" aria-expanded="false"( disabled="")?>.*?Nouveau<\/button>/.exec(html);
 
   it('client_viewer · renvoyé à l’accueil', async () => {
     etat.session = session(ids, 'uv');
@@ -327,15 +328,17 @@ describe('Page /assets · lecture d’avant, écriture selon la feature', () => 
     etat.session = session(ids, 'ua', { plan: 'starter' });
     const html = await rendre();
     expect(html, 'page /assets · member Starter · ses médias existants ne sont plus visibles').toContain('flacon');
-    expect(html, 'page /assets · member Starter · le bandeau d’offre n’est pas affiché').toContain('data-bandeau="offre-bibliotheque"');
+    expect(html, 'page /assets · member Starter · le bandeau de lecture seule n’est pas affiché').toContain('<b>Lecture seule.</b>');
     expect(html).toContain(TEXTE_REFUS_BIBLIOTHEQUE.plan);
-    for (const g of GESTES) expect(html, `page /assets · member Starter · geste « ${g} » proposé malgré la lecture seule`).not.toContain(g);
+    const b = nouveau(html);
+    expect(b, 'le bouton « Nouveau » est introuvable').not.toBeNull();
+    expect(b![1], 'page /assets · member Starter · « Nouveau » ouvert malgré la lecture seule').toBe(' disabled=""');
   });
   it('member en Core · ni bandeau, et les gestes sont là', async () => {
     etat.session = session(ids, 'ua');
     const html = await rendre();
     expect(html).toContain('flacon');
-    expect(html, 'page /assets · member Core · bandeau d’offre affiché à tort').not.toContain('data-bandeau="offre-bibliotheque"');
-    for (const g of ['Téléverser', 'Importer par lien', 'Suppr.']) expect(html, `page /assets · member Core · geste « ${g} » absent`).toContain(g);
+    expect(html, 'page /assets · member Core · bandeau de lecture seule affiché à tort').not.toContain('<b>Lecture seule.</b>');
+    expect(nouveau(html)?.[1], 'page /assets · member Core · « Nouveau » fermé').toBeUndefined();
   });
 });

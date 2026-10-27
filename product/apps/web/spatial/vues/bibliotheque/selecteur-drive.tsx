@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { resumeImportDrive } from '@tiktrends/core';
 import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveFilesAction, syncDriveNowAction } from '../../../app/actions/drive';
 
 /**
@@ -9,7 +10,7 @@ import { getDrivePickerConfigAction, setDriveFolderAction, syncDriveFilesAction,
  * puis `syncDriveNowAction`), ou importer des fichiers choisis un à un
  * (`syncDriveFilesAction`, utile pour « Partagé avec moi »). Le jeton et la
  * clé viennent du serveur (`getDrivePickerConfigAction`), jamais du code.
- * Module client · n'exporte qu'un hook (garde `spatial-fondation`).
+ * Repris de l'ancien écran V5 · module client, n'exporte qu'un hook (garde `spatial-fondation`).
  */
 
 declare global { interface Window { gapi?: any; google?: any } }
@@ -29,11 +30,6 @@ function chargerPicker(): Promise<any> {
 }
 
 const MIMES = 'image/png,image/jpeg,image/webp,image/gif,image/avif,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/wav';
-
-/** Résumé honnête d'un import · trouvés, importés, déjà là. */
-const resume = (trouves: number, ajoutes: number, deja: number) =>
-  trouves === 0 ? 'Le dossier ne contient aucun fichier importable (images, vidéos, audio).'
-    : `${ajoutes} fichier${ajoutes > 1 ? 's' : ''} importé${ajoutes > 1 ? 's' : ''}${deja ? ` · ${deja} déjà là` : ''}`;
 
 export function useSelecteurDrive(dire: (m: string) => void, rafraichir: () => void) {
   const [occupe, setOccupe] = useState<'' | 'dossier' | 'fichiers'>('');
@@ -64,12 +60,12 @@ export function useSelecteurDrive(dire: (m: string) => void, rafraichir: () => v
             const r = await setDriveFolderAction({ folderId: doc.id, folderName: doc.name || 'Dossier Drive' });
             if (r.error) { dire(r.error); return; }
             const s = await syncDriveNowAction();
-            dire(s.error ? s.error : `Dossier « ${doc.name || 'Drive'} » choisi · ${resume(s.found ?? 0, s.added ?? 0, s.skipped ?? 0)}`);
+            dire(s.error ? s.error : `Dossier « ${doc.name || 'Drive'} » choisi · ${resumeImportDrive({ found: s.found ?? 0, added: s.added ?? 0, skipped: s.skipped ?? 0 })}`);
           } else {
             const files = (data.docs || []).map((d: any) => ({ id: d.id, name: d.name, mimeType: d.mimeType, sizeBytes: d.sizeBytes }));
             if (!files.length) return;
             const r = await syncDriveFilesAction(files);
-            dire(r.error ? r.error : resume(files.length, r.added ?? 0, r.skipped ?? 0));
+            dire(r.error ? r.error : resumeImportDrive({ found: files.length, added: r.added ?? 0, skipped: r.skipped ?? 0 }));
           }
           rafraichir();
         } finally { setOccupe(''); }

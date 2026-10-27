@@ -1,27 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { connexionDrive } from '@tiktrends/core';
 
 /**
  * CDC v7 · N09 · un dossier Drive connecté explique son import (trouvés /
  * importés / ignorés / erreurs) via le résumé commun · les deux chemins de
  * synchro (dossier, fichiers) passent par la même décision.
  */
-describe('N09 · Drive · les deux synchros passent par resumeImportDrive', () => {
-  const dc = readFileSync(join(process.cwd(), 'app/(app)/assets/DriveConnect.tsx'), 'utf8');
-  it('la synchro de dossier utilise le résumé commun · plus de message ad hoc', () => {
-    expect(dc).toMatch(/resumeImportDrive\(\{ found: r\.found \?\? 0/);
-    expect(dc, 'l’ancien message « 0 fichier média trouvé » brut subsiste').not.toContain('0 fichier média trouvé dans ce dossier.');
+// Vague 2 · l'écran V5 `/assets` (et `DriveConnect`) est retiré · la Bibliothèque
+// Spatiale porte la synchro de dossier, le sélecteur (dossier, fichiers) et la tuile Drive.
+describe('N09 · Drive · les synchros passent par resumeImportDrive', () => {
+  const vue = readFileSync(join(process.cwd(), 'spatial/vues/bibliotheque/Bibliotheque.tsx'), 'utf8');
+  const sel = readFileSync(join(process.cwd(), 'spatial/vues/bibliotheque/selecteur-drive.tsx'), 'utf8');
+  it('la synchro de dossier (bouton et sélecteur) utilise le résumé commun', () => {
+    expect(vue).toMatch(/resumeImportDrive\(\{ found: r\.found \?\? 0/);
+    expect(sel).toMatch(/resumeImportDrive\(\{ found: s\.found \?\? 0/);
   });
   it('la synchro de fichiers choisis utilise aussi le résumé commun', () => {
-    expect(dc).toMatch(/resumeImportDrive\(\{ found: files\.length/);
+    expect(sel).toMatch(/resumeImportDrive\(\{ found: files\.length/);
   });
-
-  // CDC v8 · N09 · « jamais synchronisé » est un inconnu · le tiroir le dit au
-  // lieu de le confondre avec « synchronisé, rien trouvé » par l'absence de date.
-  it('le tiroir Drive distingue « jamais synchronisé » de « synchronisé »', () => {
-    expect(dc, 'le tiroir n’adopte pas l’état de synchro du noyau').toContain('etatSyncDrive(');
-    expect(dc, '« jamais synchronisé » n’est pas dit explicitement').toContain('Jamais synchronisé');
+  it('la tuile Drive distingue « jamais synchronisé », « synchronisé » et un échec récent', () => {
+    const base = { available: true, needBrand: false, connected: true, folderId: 'f', folderName: 'R' };
+    expect(connexionDrive({ ...base, syncedAt: null }).resume).toContain('jamais synchronisé');
+    expect(connexionDrive({ ...base, syncedAt: '2026-10-01T00:00:00.000Z' }).resume).toContain('synchronisé le');
+    expect(connexionDrive({ ...base, syncedAt: '2026-10-01T00:00:00.000Z', dernier: { at: '2026-10-02T00:00:00.000Z', ok: false } }).resume).toContain('dernière synchro en échec');
   });
 });
 
@@ -30,14 +33,8 @@ describe('N09 · Drive · les deux synchros passent par resumeImportDrive', () =
  * (importés/téléversés), sorties des projets Studios et, depuis le retrait des
  * anciens studios (10/10), leurs créations historiques · chacune nommée.
  */
-describe('N09 · le compteur d’assets explique sa portée', () => {
-  const page = readFileSync(join(process.cwd(), 'app/(app)/assets/page.tsx'), 'utf8');
-  it('le total nomme la bibliothèque et dit ce qu’il compte (Studios, créations historiques)', () => {
-    expect(page).toContain('asset(s) en bibliothèque');
-    expect(page, 'la portée n’est pas dite').toContain('sorties livrées des projets Studios et créations des anciens studios');
-    expect(page, 'les créations historiques ne sont pas comptées à part').toContain('création(s) historique(s)');
-  });
-});
+// Vague 2 · la portée se lit sur les onglets de la Bibliothèque Spatiale
+// (assets de la marque, créations Studios, anciens studios), comptés à part.
 
 /**
  * CDC v8 · N09 · le bilan de synchro est CONSERVÉ (survit au rechargement) et
@@ -46,7 +43,6 @@ describe('N09 · le compteur d’assets explique sa portée', () => {
  */
 describe('N09 · le bilan de synchro Drive est conservé et distingue succès / tentative', () => {
   const drive = readFileSync(join(process.cwd(), 'app/actions/drive.ts'), 'utf8');
-  const dc = readFileSync(join(process.cwd(), 'app/(app)/assets/DriveConnect.tsx'), 'utf8');
 
   it('l’action persiste le bilan sur SUCCÈS · trouvés/importés/ignorés/erreurs', () => {
     expect(drive, 'le bilan complet n’est pas conservé sur succès').toContain('ok: true, found: res.found, added: res.added, skipped: res.skipped, errors: res.errors');
@@ -64,10 +60,4 @@ describe('N09 · le bilan de synchro Drive est conservé et distingue succès / 
     expect(drive).toContain('dernier: schema.brands.driveLastSync');
   });
 
-  it('le tiroir distingue dernier succès et dernière tentative échouée, et conserve le bilan', () => {
-    expect(dc).toContain('derniereTentativeDriveEnEchec(');
-    expect(dc, 'un échec récent n’est pas signalé').toMatch(/· échec/);
-    expect(dc, 'le dernier succès n’est plus nommé comme tel').toContain('Dernier succès');
-    expect(dc, 'le bilan conservé n’est pas réaffiché').toContain('Dernier import');
-  });
 });

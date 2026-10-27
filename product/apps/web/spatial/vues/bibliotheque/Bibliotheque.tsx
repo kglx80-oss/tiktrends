@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, typ
 import { useRouter } from 'next/navigation';
 import {
   vueDrive, cheminVers, dossiersRangement, pastilleDroit, formatTaille, libelleJour, ETAT_DRIVE_INITIAL, SECTIONS_DRIVE, DROITS_ASSET,
-  LIBELLE_TYPE_FICHIER, FILTRES_TYPE_DRIVE, TYPES_IMPORT_LIEN, type FiltreTypeDrive, lireImportLiens, type TypeImportLien, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
+  LIBELLE_TYPE_FICHIER, FILTRES_TYPE_DRIVE, resumeImportDrive, TYPES_IMPORT_LIEN, type FiltreTypeDrive, lireImportLiens, type TypeImportLien, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction } from '../../../app/actions/assets';
 import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction } from '../../../app/actions/bibliotheque-dossiers';
@@ -258,7 +258,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
     const r = await syncDriveNowAction();
     setOccupe(false);
     if (r.error) { toast(r.error); return; }
-    toast(`Google Drive synchronisé · ${r.added ?? 0} ajouté${(r.added ?? 0) > 1 ? 's' : ''}, ${r.skipped ?? 0} déjà là`);
+    // Le résumé commun (N09) · trouvés, importés, déjà là, en erreur · un dossier vide s'explique.
+    toast(`Google Drive synchronisé · ${resumeImportDrive({ found: r.found ?? 0, added: r.added ?? 0, skipped: r.skipped ?? 0 })}`);
     rafraichir();
   }
 
