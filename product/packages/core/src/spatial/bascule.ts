@@ -73,6 +73,14 @@ export function cheminPorte(href: string): boolean {
 /** En-tête posé par le middleware sur une requête réécrite · lu par le layout racine. */
 export const ENTETE_SECTION = 'x-tt-section';
 
+/**
+ * En-tête posé par le middleware sur une requête réécrite · le chemin PUBLIC
+ * servi. Le layout Spatial ne connaît pas l'adresse affichée · la coquille en a
+ * besoin pour ne pas renvoyer au parcours d'accueil… le parcours d'accueil
+ * lui-même (`/onboarding`, servi sous le même layout).
+ */
+export const ENTETE_CHEMIN = 'x-tt-chemin';
+
 export function sectionValide(v: string | null | undefined): SectionSpatiale | null {
   return v && (SECTIONS_SPATIALES as readonly string[]).includes(v) ? (v as SectionSpatiale) : null;
 }

@@ -29,7 +29,7 @@ export function PastilleCredits() {
  * variante courte de la maquette (Jarvis) : crédits et avatar seuls.
  */
 export function EnTete({ titre, sous, outils = 'complets' }: { titre: ReactNode; sous?: ReactNode; outils?: 'complets' | 'credits' }) {
-  const { utilisateur, nonLues, ouvrirPalette, basculer } = useSpatial();
+  const { utilisateur, nonLues, ouvrirPalette, basculer, panneau } = useSpatial();
   return (
     <header className="top">
       <div className="ttl">{sous != null && <small>{sous}</small>}<h1>{titre}</h1></div>
@@ -37,11 +37,11 @@ export function EnTete({ titre, sous, outils = 'complets' }: { titre: ReactNode;
         {outils === 'complets' ? (
           <>
             <button className="search" type="button" id="srch" onClick={ouvrirPalette}><Ic n="search" />Rechercher<kbd>⌘K</kbd></button>
-            <button className="bell" id="bell" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label={nonLues ? `Notifications · ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications'} onClick={() => basculer('notifs')}>
+            <button className="bell" id="bell" type="button" aria-haspopup="dialog" aria-expanded={panneau === 'notifs'} aria-label={nonLues ? `Notifications · ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications'} onClick={() => basculer('notifs')}>
               <Ic n="bell" s={false} />{nonLues > 0 && <span className="nb">{nonLues > 99 ? '99+' : nonLues}</span>}
             </button>
             <PastilleCredits />
-            <button className="me" id="me" type="button" aria-haspopup="dialog" aria-label={`${utilisateur.nom || utilisateur.email}, profil`} onClick={() => basculer('profil')}>{utilisateur.initiales}</button>
+            <button className="me" id="me" type="button" aria-haspopup="dialog" aria-expanded={panneau === 'profil'} aria-label={`${utilisateur.nom || utilisateur.email}, profil`} onClick={() => basculer('profil')}>{utilisateur.initiales}</button>
           </>
         ) : (
           <>
