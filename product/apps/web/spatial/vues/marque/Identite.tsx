@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { EnTete, Ic, SousNav, Vue } from '../../communs';
+import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import type { ChampModifiableMarque } from '@tiktrends/core';
 import { CarteFavicon, ListeKv, SyncSite, type ActionFormulaire, type LigneKv, type PropsFaviconMarque, type PropsSyncSite } from './base';
 import { AnnonceRetour, BoutonServeur, CompleterChamp, CorrigerStyle, LogosCharte, SourcingConcurrents, SupprimerConfirme, type ChampStyleVisuel } from './interactifs';
@@ -43,6 +43,8 @@ export interface GestionIdentite {
   };
   logos: Omit<Parameters<typeof LogosCharte>[0], 'brandId'>;
   sourcing: Omit<Parameters<typeof SourcingConcurrents>[0], 'brandId'>;
+  /** Les comptes RÉELLEMENT branchés de la marque (règle `connecteursBranches` · un jeton présent). */
+  connexions: ReadonlyArray<{ label: string }>;
   supprimer: ActionFormulaire | null;
   retours: Record<string, string>;
 }
@@ -83,6 +85,13 @@ function TuilesGestion({ brandId, g }: { brandId: string; g: GestionIdentite }) 
           <LogosCharte brandId={brandId} {...g.logos} />
         </section>
       </div>
+      <section className="tile" data-geste="connexions-marque" style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        <div style={{ flex: '1 1 220px' }}><h2 style={{ margin: 0 }}>Comptes branchés</h2><p className="faint" style={{ fontSize: '12.5px', margin: '4px 0 0' }}>Les résultats et les ventes de la marque remontent par ces comptes.</p></div>
+        <div className="chips" style={{ marginTop: 0 }}>
+          {g.connexions.length > 0 ? g.connexions.map((x) => <span className="pill g" key={x.label}><Ic n="check" />{x.label}</span>) : <span className="faint" style={{ fontSize: 13 }}>Aucun compte branché</span>}
+        </div>
+        <Lien className="btn sm" href="/connections"><Ic n="plug" />Connexions</Lien>
+      </section>
       <section className="tile" data-geste="sourcing-concurrents" style={{ marginTop: 16, display: 'grid', gap: 10 }}>
         <h2 style={{ margin: 0 }}>Trouver mes concurrents avec Jarvis</h2>
         <p className="faint" style={{ fontSize: '12.5px', margin: 0 }}>Précise ton marché et ta cible · Jarvis propose des pistes à partir de la fiche, tu vérifies leurs annonces, puis tu ajoutes ta sélection aux concurrents de la fiche.</p>

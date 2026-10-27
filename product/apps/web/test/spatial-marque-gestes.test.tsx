@@ -51,6 +51,7 @@ function identite(g: Partial<GestionIdentite> = {}) {
     style: { ...styleVisuelMarque({ style: 'éditorial', aEviter: ['stock'] }), analyser: action, cout: 5, raison: null, corriger: action },
     logos: { logos: ['https://a.fr/logo.png', 'https://a.fr/logo2.png'], defaut: 'https://a.fr/logo.png', apercus: {}, couleurs: ['#111'], polices: [], enregistrer: async () => ({ ok: true }) },
     sourcing: { prix: '5 crédits', proposer: async () => ({ names: [] }), ajouter: async () => ({ ok: true }), raison: null },
+    connexions: [{ label: 'Meta' }],
     supprimer: action,
     retours: {},
     ...g,
@@ -106,6 +107,12 @@ describe('Spatial · Identité · style visuel, logos, concurrents, suppression'
     const e = bloc(identite(), 'sourcing-concurrents');
     expect(e.querySelector('button')?.textContent).toBe('Proposer des concurrents · 5 crédits');
     expect(e.textContent).toContain('Aucun ajout automatique');
+  });
+  it('comptes branchés · ceux qui le sont réellement, et le chemin vers Connexions', () => {
+    const e = bloc(identite(), 'connexions-marque');
+    expect([...e.querySelectorAll('.pill.g')].map((x) => x.textContent)).toEqual(['Meta']);
+    expect(e.querySelector('a[href="/connections"]')).not.toBeNull();
+    expect(bloc(identite({ connexions: [] }), 'connexions-marque').textContent).toContain('Aucun compte branché');
   });
   it('supprimer la marque · bouton nommé, confirmé avant envoi', () => {
     const e = bloc(identite(), 'supprimer-marque');

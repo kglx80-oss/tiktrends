@@ -1,4 +1,4 @@
-import { champsModifiablesMarque, costFor, initialeNom, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque } from '@tiktrends/core';
+import { champsModifiablesMarque, connecteursBranches, costFor, initialeNom, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque } from '@tiktrends/core';
 import { deleteBrandAction, updateBrandAction } from '../../../../../actions/brands';
 import { extractBrandVisualDaAction, saveBrandDAAction, saveBrandVisualDaAction } from '../../../../../actions/brand-detail';
 import { ajouterConcurrents, proposerConcurrents } from '../../../../../actions/competitor';
@@ -70,6 +70,7 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
           proposer: c.aiReady ? proposerConcurrents : null, ajouter: ajouterConcurrents,
           raison: c.aiReady ? null : 'Jarvis n’est pas disponible actuellement',
         },
+        connexions: connecteursBranches({ metaToken: b.metaToken, shopifyToken: b.shopifyToken }),
         supprimer: deleteBrandAction,
         retours: c.retours,
       }}
