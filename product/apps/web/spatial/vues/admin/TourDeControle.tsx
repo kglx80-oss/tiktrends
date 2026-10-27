@@ -2,6 +2,9 @@ import { Ic, Lien, Vue } from '../../communs';
 import { Barre, Kpis, Pill, TeteAdmin, Vide, type BandeauAdmin, type ClassePill, type KpiAdmin } from './base';
 import { ICONE_RACCOURCI_ADMIN, SOUS_NAV_ADMIN } from './sous-nav';
 
+/** Les colonnes de la table · portées par CHAQUE ligne, comme toutes les tables `.atable` de la maquette (la règle `.atable .atr{grid-template-columns:inherit}` hérite sinon d'un conteneur qui n'en a pas : une cellule par ligne). */
+const COLONNES_FORFAITS = '1.3fr .8fr 1fr 1.4fr';
+
 /**
  * « Tour de contrôle » · `docs/spatial/reference/admin.html`, balisage à
  * l'identique. PRÉSENTATIONNEL · la page (`app/(spatial)/sp/admin`) lit tout en
@@ -64,9 +67,9 @@ export function TourDeControle(p: PropsTourDeControle) {
         <section className="tile">
           <div className="sech"><h2>Rentabilité par forfait</h2><Lien className="more" href="/admin/finance">Détail <Ic n="arrow" /></Lien></div>
           <div className="atable">
-            <div className="atr ath"><span>Forfait</span><span>Abonnés</span><span>MRR</span><span>Marge</span></div>
+            <div className="atr ath" style={{ gridTemplateColumns: COLONNES_FORFAITS }}><span>Forfait</span><span>Abonnés</span><span>MRR</span><span>Marge</span></div>
             {p.forfaits.map((f) => (
-              <div className="atr" key={f.libelle}><span><b>{f.libelle}</b> <small className="faint">{f.prix}</small></span><span>{f.abonnes}</span><span>{f.mrr}</span><span><Barre part={f.marge} />{f.margeTexte}</span></div>
+              <div className="atr" style={{ gridTemplateColumns: COLONNES_FORFAITS }} key={f.libelle}><span><b>{f.libelle}</b> <small className="faint">{f.prix}</small></span><span>{f.abonnes}</span><span>{f.mrr}</span><span><Barre part={f.marge} />{f.margeTexte}</span></div>
             ))}
           </div>
         </section>

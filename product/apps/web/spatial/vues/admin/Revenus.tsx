@@ -2,6 +2,9 @@ import { Ic, Vue } from '../../communs';
 import { Barre, Kpi, TeteAdmin, Vide, type BandeauAdmin, type KpiAdmin } from './base';
 import { RevenusHero } from './client';
 
+/** Les colonnes de la table · portées par CHAQUE ligne, comme toutes les tables `.atable` de la maquette (la règle `.atable .atr{grid-template-columns:inherit}` hérite sinon d'un conteneur qui n'en a pas : une cellule par ligne). */
+const COLONNES_RENTABILITE = '1.3fr .8fr 1fr 1.2fr 1fr 1.4fr .8fr 1fr';
+
 /**
  * « Revenus & MRR » · `docs/spatial/reference/a-revenus.html`. PRÉSENTATIONNEL.
  *
@@ -46,9 +49,9 @@ export function Revenus(p: PropsRevenus) {
       <section className="tile sec">
         <div className="sech"><h2>Rentabilité par abonnement</h2><span className="faint" style={{ fontSize: '12.5px' }}>Marge = prix − coût IA si toute l’allocation est consommée − frais de paiement</span></div>
         <div className="atable">
-          <div className="atr ath"><span>Forfait</span><span>Abonnés</span><span>MRR</span><span>Coût IA / abonné</span><span>Frais paiement</span><span>Marge</span><span>Churn</span><span>LTV</span></div>
+          <div className="atr ath" style={{ gridTemplateColumns: COLONNES_RENTABILITE }}><span>Forfait</span><span>Abonnés</span><span>MRR</span><span>Coût IA / abonné</span><span>Frais paiement</span><span>Marge</span><span>Churn</span><span>LTV</span></div>
           {p.rentabilite.map((r) => (
-            <div className="atr" key={r.libelle}><span><b>{r.libelle}</b> <small className="faint">{r.prix}</small></span><span>{r.abonnes}</span><span>{r.mrr}</span><span>{r.coutIa}</span><span>{r.frais}</span><span><Barre part={r.marge} />{r.margeTexte}</span><span>{r.churn}</span><span>{r.ltv}</span></div>
+            <div className="atr" style={{ gridTemplateColumns: COLONNES_RENTABILITE }} key={r.libelle}><span><b>{r.libelle}</b> <small className="faint">{r.prix}</small></span><span>{r.abonnes}</span><span>{r.mrr}</span><span>{r.coutIa}</span><span>{r.frais}</span><span><Barre part={r.marge} />{r.margeTexte}</span><span>{r.churn}</span><span>{r.ltv}</span></div>
           ))}
         </div>
       </section>
