@@ -18,7 +18,6 @@ const FICHIERS = [
   'components/BrandSwitcher.tsx',
   'components/QuickSettingsModal.tsx',
   'components/ProfileModal.tsx',
-  'components/InviteMemberButton.tsx',
   'components/JourneyPanel.tsx',
   'components/SubmitButton.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
@@ -38,7 +37,6 @@ describe('Composants lot E · plus aucun emoji d’interface', () => {
     expect(tout).toMatch(/<Icon name="tag"/);        // BrandSwitcher
     expect(tout).toMatch(/<Icon name="gear"/);        // QuickSettingsModal
     expect(tout).toMatch(/<Icon name="user"/);        // ProfileModal
-    expect(tout).toMatch(/<Icon name="users"/);       // InviteMemberButton
     expect(tout).toMatch(/<Icon name="upload"/);      // ProfileModal
     expect(tout).toMatch(/<Icon name="sparkles"/);    // BrandSwitcher · JourneyPanel
   });

@@ -7,7 +7,7 @@ import { CREDIT_COSTS, type CreditAction } from '../../credits';
  * ceux de l'application (`lib/rbac.ts`, `lib/credit-packs.ts`, Stripe), passés
  * en paramètres. Ce module ne fait que dire ce que l'écran affiche à partir
  * d'eux, et reprendre MOT POUR MOT le descriptif des formules de l'écran V5
- * (`app/(app)/billing/page.tsx`) · une garde vérifie qu'ils ne divergent pas.
+ * (retiré à la vague 2) · une garde (`spatial-reglages.test.tsx`) fige l'offre mot pour mot.
  */
 
 export type CleFormule = 'starter' | 'core' | 'plus' | 'business';

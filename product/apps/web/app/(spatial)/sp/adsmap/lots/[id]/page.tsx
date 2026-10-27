@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import {
   attendArbitrage, barresCpa, coachLot, controlesLot, lotArbitrable, plateformesLot, presentationLot, syntheseLot, verdictAffiche,
-  LIBELLE_VERDICT,
+  LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest,
 } from '@tiktrends/core';
 import { batchDetailAction } from '../../../../../actions/adsmap-batch';
 import { Lot } from '../../../../../../spatial/vues/resultats/Lot';
@@ -34,9 +34,13 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
   if (g.admin && (pres.etat === 'composition' || pres.etat === 'pret')) {
     const fiche = await batchDetailAction(l.id);
     const b = fiche.detail?.brief;
+    const detail = new Map((fiche.detail?.ads ?? []).map((a) => [a.id, a]));
     actions = {
       mode: 'composition', lotId: l.id, pret: pres.etat === 'pret',
-      variantes: l.ads.map((a) => ({ id: a.id, variante: a.variante, concept: a.concept, manques: a.manques, nom: a.nomGenere })),
+      variantes: l.ads.map((a) => ({
+        id: a.id, variante: a.variante, concept: a.concept, manques: a.manques, nom: a.nomGenere,
+        blocage: detail.get(a.id)?.blocking ?? null, avis: detail.get(a.id)?.prelaunch?.summary ?? null, adset: detail.get(a.id)?.adsetName ?? null,
+      })),
       // Le vivier · mêmes règles que `candidatesAction` (hors lot, pas encore lancées).
       vivier: d.horsLot.filter((a) => a.statut === 'draft' || a.statut === 'proposed' || a.statut === 'ready')
         .map((a) => ({ id: a.id, variante: a.variante, concept: a.concept, manques: a.manques, nom: a.nomGenere })),
@@ -54,7 +58,7 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
 
   return (
     <Lot
-      sous={`Lot #${l.numero} · ${plateformesLot(l)} · ${d.ctx.fenetreJours} jours`}
+      sous={[`Lot #${l.numero}`, LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].court, plateformesLot(l), `${d.ctx.fenetreJours} jours`].filter(Boolean).join(' · ')}
       titre={l.but?.trim() || `Lot #${l.numero}`}
       verdict={{ gagnant: !!syn.gagnante, titre: syn.titre, phrase: syn.phrase, niveau: syn.niveau }}
       variantes={l.ads.map((a, i) => {
@@ -64,6 +68,11 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
       controles={controlesLot(l, pres, d.config.minImpressions)}
       coach={coachLot(pres, syn, l.ads.length)}
       actions={actions ? <ActionsLot {...actions} /> : null}
+      reserves={[LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}
+      fiches={l.ads.map((a) => {
+        const v = verdictAffiche(a.verdict);
+        return { href: lienFicheTest(a.id), libelle: `${a.variante} · ${a.concept}`, detail: `${libelleStatutTest(a.statut)} · ${v ? LIBELLE_VERDICT[v].court : 'pas de verdict'}` };
+      })}
     />
   );
 }

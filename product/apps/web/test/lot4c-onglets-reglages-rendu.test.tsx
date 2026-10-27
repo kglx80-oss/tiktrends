@@ -42,13 +42,17 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 
 type Rendu = () => Promise<unknown>;
+const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/billing']);
 const sp = { searchParams: Promise.resolve({}) };
 const PAGES: Record<string, Rendu> = {
-  '/settings': async () => (await import('../app/(app)/settings/page')).default(sp),
-  '/team': async () => (await import('../app/(app)/team/page')).default(sp),
-  '/connections': async () => (await import('../app/(app)/connections/page')).default(sp),
-  '/usage': async () => (await import('../app/(app)/usage/page')).default(),
-  '/billing': async () => (await import('../app/(app)/billing/page')).default(sp),
+  // Vague 2 · ces cinq écrans n'ont plus de page V5 · seul Spatial les sert
+  // (déclarés exclusifs). Leur GARDE est lue ici sur la page Spatial ; ils ne
+  // portent pas la barre d'onglets V5 (la sous-navigation Spatial la remplace).
+  '/settings': async () => (await import('../app/(spatial)/sp/settings/page')).default(),
+  '/team': async () => (await import('../app/(spatial)/sp/team/page')).default(),
+  '/connections': async () => (await import('../app/(spatial)/sp/connections/page')).default(),
+  '/usage': async () => (await import('../app/(spatial)/sp/usage/page')).default(),
+  '/billing': async () => (await import('../app/(spatial)/sp/billing/page')).default(),
   '/profile': async () => (await import('../app/(app)/profile/page')).default(sp),
   '/admin': async () => (await import('../app/(app)/admin/page')).default(),
   '/admin/finance': async () => (await import('../app/(app)/admin/finance/page')).default(),
@@ -126,7 +130,7 @@ describe('lot 4c · chaque page ne propose que des onglets qu’elle n’ouvrira
         const ouvertes = famille.filter((c) => issues[c]!.ouvre);
         for (const chemin of famille) {
           const r = issues[chemin]!;
-          if (!r.ouvre) continue;
+          if (!r.ouvre || SPATIAUX.has(chemin)) continue;
           expect(r.html, `${chemin} · rendu impossible pour ${nomRole} : ${r.erreur}`).not.toBeNull();
           const o = onglets(r.html!, zone);
           if (ouvertes.length < 2) { expect(o, `${chemin} · barre d’un seul onglet`).toEqual([]); continue; }
@@ -147,7 +151,7 @@ describe('lot 4c · chaque page ne propose que des onglets qu’elle n’ouvrira
         if (ouvertes.length < 2) expect(onglets(seule, zone), `barre seule · ${nomRole}`).toEqual([]);
         // Une page fermée à ce rôle n'apparaît dans AUCUNE barre de la famille.
         const fermees = famille.filter((c) => !issues[c]!.ouvre);
-        for (const chemin of ouvertes) {
+        for (const chemin of ouvertes.filter((c) => !SPATIAUX.has(c))) {
           const proposes = onglets(issues[chemin]!.html ?? '', zone).map((x) => x.href);
           for (const f of fermees) expect(proposes, `${chemin} propose ${f} à ${nomRole}`).not.toContain(f);
         }
@@ -185,8 +189,10 @@ describe('lot 4c · page d’entrée de l’Administration', () => {
     for (const carte of html!.match(/<a\b[^>]*data-outil="[^"]+"[\s\S]*?<\/a>/g) ?? []) expect(carte).toContain('<svg');
     // Chaque lien mène à une page qui existe.
     for (const href of attendus) {
-      const dossier = join(process.cwd(), 'app', '(app)', ...href.split('/').filter(Boolean), 'page.tsx');
-      expect(() => readFileSync(dossier), `${href} · page absente`).not.toThrow();
+      // Une page V5, ou un écran exclusif servi par Spatial (`app/(spatial)/sp`).
+      const segs = href.split('/').filter(Boolean);
+      const existe = existsSync(join(process.cwd(), 'app', '(app)', ...segs, 'page.tsx')) || existsSync(join(process.cwd(), 'app', '(spatial)', 'sp', ...segs, 'page.tsx'));
+      expect(existe, `${href} · page absente`).toBe(true);
     }
   });
 
@@ -214,7 +220,7 @@ describe('lot 4c · chaque page porte SA barre, sur SON chemin', () => {
   });
 
   it('la source de chaque page rend le composant partagé avec son propre chemin', () => {
-    for (const chemin of Object.keys(PAGES)) {
+    for (const chemin of Object.keys(PAGES).filter((c) => !SPATIAUX.has(c))) {
       const src = readFileSync(join(process.cwd(), 'app', '(app)', ...chemin.split('/').filter(Boolean), 'page.tsx'), 'utf8');
       const comp = REGLAGES.includes(chemin) ? 'OngletsReglages' : 'OngletsAdministration';
       expect(src, `${chemin} · <${comp} chemin="${chemin}"> absent`).toMatch(new RegExp(`<${comp} session=\\{[\\w.]+\\} chemin="${chemin.replace(/\//g, '\\/')}" />`));

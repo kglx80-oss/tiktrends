@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { IMAGE_MODELS } from '@tiktrends/core';
+import { IMAGE_MODELS, servicesEspace } from '@tiktrends/core';
 
 /**
  * Réglages · la description de ce que débloque la clé image ne doit pas se
@@ -23,9 +21,9 @@ function famillesCatalogue(): string[] {
 
 describe('Réglages · la clé image nomme les moteurs réels', () => {
   it('la description Fal.ai cite un moteur présent au catalogue', () => {
-    const src = readFileSync(join(process.cwd(), 'app/(app)/settings/page.tsx'), 'utf8');
-    const ligne = src.split('\n').find((l) => l.includes("env: 'FAL_KEY'"));
-    expect(ligne, 'intégration FAL_KEY introuvable dans Réglages').toBeTruthy();
+    // Vague 2 · les services de l'espace viennent de la règle du noyau (écran Spatial Espace).
+    const ligne = servicesEspace({}).find((x) => x.cle === 'image-video')?.debloque;
+    expect(ligne, 'service image et vidéo introuvable dans Réglages').toBeTruthy();
     const fams = famillesCatalogue();
     expect(
       fams.some((f) => ligne!.includes(f)),

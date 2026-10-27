@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation';
 import {
+  outilsResultats, redirectionTestProfond, redirectionVueAdsmap,
   accrocheResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
   phraseLot, plateformesLot, lienLotSpatial, LIBELLE_NIVEAU, presentationLot, sousNavResultats, suiteLot, syntheseLot, volumeMinimumLot, etatLotSpatial,
 } from '@tiktrends/core';
@@ -12,9 +14,13 @@ const PERIODE_JOURS = 14;
 const JOUR = 86_400_000;
 
 /** Résultats · vue d'ensemble · mêmes gardes que l'Adsmap V5 (`app/(app)/adsmap`). */
-export default async function ResultatsSpatial() {
+export default async function ResultatsSpatial({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const g = await gardeResultats();
   if (!g.ok) return <RefusResultats titre="Résultats" raison={g.raison} />;
+  // Le lien profond de l'ancienne Adsmap (`?ad=<id>`, Studios, suites, radar) · la fiche du test ; `?vue=` · l'écran qui la porte.
+  const sp = await searchParams;
+  const profond = redirectionTestProfond(sp) ?? redirectionVueAdsmap(sp);
+  if (profond) redirect(profond);
 
   const maintenant = new Date();
   const fin = new Date(Date.UTC(maintenant.getUTCFullYear(), maintenant.getUTCMonth(), maintenant.getUTCDate()) + JOUR);
@@ -80,6 +86,7 @@ export default async function ResultatsSpatial() {
       vedette={vedette}
       autres={cartes}
       commencer={g.admin ? { libelle: 'Préparer un lot', href: '/adsmap/lots' } : { libelle: 'Voir les hypothèses', href: '/adsmap/hypotheses' }}
+      outils={outilsResultats({ admin: g.admin })}
     />
   );
 }

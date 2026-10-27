@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROUTES, VUES, ROUTES_HISTORIQUES, matchRoute, breadcrumb, isBrandScoped, routeLabel } from '../lib/navigation';
-import { lienNouveauProjet, lireContexteNouveauProjet } from '@tiktrends/core';
+import { ECRANS_SPATIAUX, lienNouveauProjet, lireContexteNouveauProjet } from '@tiktrends/core';
 import { FEATURES } from '../lib/rbac';
 import { ADMIN_NAV } from '../components/AppShell';
-import { cheminsExclusifsServis } from './spatial/servie';
 
 describe('la carte décrit toutes les pages · sinon elle dérive', () => {
   /**
@@ -52,8 +51,10 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
     // ce qui compte est qu'il existe. Une route historique peut n'être plus
     // qu'une redirection serveur (route handler · `/analytics` → l'Accueil,
     // lot 19A) · elle mène quelque part, pas dans le vide.
-    // Une page V5 retirée au profit d'un écran Spatial EXCLUSIF (vague 2) reste servie, par Spatial.
-    const reelles = new Set([...pagesDe(join(process.cwd(), 'app'), '', ['page.tsx', 'route.ts']), ...cheminsExclusifsServis()]);
+    const reelles = new Set(pagesDe(join(process.cwd(), 'app'), '', ['page.tsx', 'route.ts']));
+    // Un écran EXCLUSIF n'a plus de page V5 · le middleware le sert toujours
+    // par Spatial (`app/(spatial)/sp`), il mène donc quelque part.
+    for (const e of ECRANS_SPATIAUX) if (e.exclusif && reelles.has(`/sp${e.chemin}`)) reelles.add(e.chemin);
     const fantomes = ROUTES.map((r) => r.path).filter((p) => !reelles.has(p));
     expect(fantomes, `Chemin(s) déclaré(s) sans page · le rail y mènerait dans le vide : ${fantomes.join(', ')}`)
       .toEqual([]);

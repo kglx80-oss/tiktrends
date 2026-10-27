@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { FUSEAU_ACCUEIL, messagesRetourConnexions } from '@tiktrends/core';
+import { CONNECTEURS_DISPONIBLES, FUSEAU_ACCUEIL, feuilleDeRouteConnecteurs, fraicheurConnecteur, messagesRetourConnexions } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -10,7 +10,7 @@ import { SOUS_NAV_REGLAGES } from '../../../../spatial/vues/reglages/sous-nav';
 
 export const dynamic = 'force-dynamic';
 
-const le = (iso: string | null) => (iso ? `synchronisé le ${new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: FUSEAU_ACCUEIL })}` : 'pas encore synchronisé');
+const le = (iso: string | null) => fraicheurConnecteur(iso, FUSEAU_ACCUEIL);
 
 export default async function ConnexionsSpatiales() {
   const s = await getSession();
@@ -37,7 +37,8 @@ export default async function ConnexionsSpatiales() {
 
   return (
     <Connexions
-      sousNav={SOUS_NAV_REGLAGES} marque={brand?.name ?? null} cartes={cartes} branchables={3}
+      sousNav={SOUS_NAV_REGLAGES} marque={brand?.name ?? null} cartes={cartes} branchables={CONNECTEURS_DISPONIBLES.length}
+      feuilleDeRoute={feuilleDeRouteConnecteurs(['Dropbox'])}
       meta={{ oauth: !!(process.env.META_APP_ID && process.env.APP_URL), connecter: connectMetaAction, synchroniser: syncMetaAction, deconnecter: disconnectMetaAction, choisirCompte: selectMetaAccountAction, comptes: meta?.accounts ?? [], compte: meta?.adAccountId ?? null }}
       shopify={{ oauth: !!(process.env.SHOPIFY_API_KEY && process.env.APP_URL), connecter: connectShopifyAction, synchroniser: syncShopifyAction, deconnecter: disconnectShopifyAction, domaine: shop?.domain ?? null }}
       drive={{ connexion: drive.available ? '/api/oauth/google' : null, synchroniser: syncDriveNowAction, deconnecter: disconnectDriveAction, dossier: drive.folderName }}

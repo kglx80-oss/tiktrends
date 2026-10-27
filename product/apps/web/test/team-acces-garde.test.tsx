@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
  * Lot 9 · autorisation Kevin · `/team` réservé aux propriétaires et admins.
+ * Vague 2 · l'écran V5 est retiré, la garde est portée sur l'écran Spatial
+ * (`app/(spatial)/sp/team/page.tsx`), seul à servir `/team`.
  *
  * On REND la page serveur avec une session simulée et une base factice qui
  * compte ses lectures. Autorisé · les e-mails et le lien d'invitation sont dans
@@ -14,7 +16,7 @@ const etat = vi.hoisted(() => ({
   lectures: 0,
 }));
 
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect:${u}`); }, useRouter: () => ({ refresh() {}, push() {}, replace() {} }) }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect:${u}`); }, useRouter: () => ({ refresh() {}, push() {}, replace() {} }), useSearchParams: () => new URLSearchParams(), usePathname: () => '/team' }));
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 vi.mock('../lib/mailer', () => ({ appUrl: () => 'https://app.exemple.invalid' }));
 vi.mock('../app/actions/invites', () => ({ revokeInviteAction: async () => {}, createInviteAction: async () => {} }));
@@ -36,20 +38,22 @@ vi.mock('@tiktrends/db', () => {
 });
 vi.mock('drizzle-orm', () => ({ and: () => ({}), eq: () => ({}) }));
 
-import TeamPage from '../app/(app)/team/page';
+import EquipeSpatiale from '../app/(spatial)/sp/team/page';
+import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 import { FEATURES, canAccess, type Access } from '../lib/rbac';
 
 const session = (role: string) => ({ workspaceId: 'w', workspaceName: 'Espace', role, plan: 'business', user: { id: 'u', email: 'moi@exemple.invalid' } });
-const rendre = async () => renderToStaticMarkup(await TeamPage({ searchParams: Promise.resolve({}) }));
+const CTX: CtxSpatial = { utilisateur: { nom: 'M', initiales: 'M', email: 'moi@exemple.invalid', role: 'Propriétaire' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
+const rendre = async () => renderToStaticMarkup(<FournisseurSpatial value={CTX}>{await EquipeSpatiale()}</FournisseurSpatial>);
 afterEach(() => { etat.session = null; etat.lectures = 0; });
 
 describe('/team · réservé aux propriétaires et admins', () => {
   for (const role of ['owner', 'admin']) {
-    it(`${role} · autorisé, voit membres et lien d'invitation`, async () => {
+    it(`${role} · autorisé, voit membres et invitations`, async () => {
       etat.session = session(role);
       const html = await rendre();
       expect(html).toContain('secret.membre@exemple.invalid');
-      expect(html).toContain('https://app.exemple.invalid/invite/jeton-secret-0001');
+      expect(html).toContain('invite.secrete@exemple.invalid');
     });
   }
   for (const role of ['member', 'client_viewer']) {
