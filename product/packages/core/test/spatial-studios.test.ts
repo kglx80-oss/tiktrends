@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  autresIterationsSpatial, choixInitialIteration, choixIterationSpatial, depuisSpatial, ecranSpatial, etapesNouveauSpatial, filtresProjetsSpatial,
+  autresIterationsSpatial, choixInitialIteration, construireBriefV5, saisieBriefVide, saisieDepuisBrief, CHAMPS_FORMULAIRE_BRIEF, enTeteEtapeNouveau, numeroEtapeNouveau, ETAPES_NOUVEAU_SPATIAL, choixIterationSpatial, depuisSpatial, ecranSpatial, etapesNouveauSpatial, filtresProjetsSpatial,
   infoEtapeNouveau, lienIterationStudio, pastilleIterationSpatiale, refusStudiosSpatial, repriseCarteSpatiale, segmentsEtapeSpatiale, videIterationSpatial,
   CLASSE_ETAPE_SPATIALE, DEPARTS_SPATIAL, ECRANS_SPATIAUX, JARVIS_NOUVEAU, LIVRABLES_SPATIAL, MAX_CHOIX_ITERATION, NOTE_ITERATION_SPATIALE,
   RAISON_NON_GAGNANTE, RAISON_ROLE_ITERATION, TYPES_NOUVEAU_PROJET, VIDE_PROMPTS_SPATIAL, ETAPES_ITERATION_SPATIALE,
@@ -137,14 +137,36 @@ describe('Spatial · Studios · nouveau projet', () => {
     expect(LIVRABLES_SPATIAL.map((l) => l.type).sort()).toEqual([...TYPES_NOUVEAU_PROJET].sort());
   });
 
-  it('les départs mènent aux vrais écrans · « zéro » reste ici', () => {
-    expect(DEPARTS_SPATIAL.map((d) => [d.cle, d.href])).toEqual([['zero', null], ['veille', '/veille'], ['test', '/studio/iterer']]);
+  it('les départs « Veille » et « test » ouvrent le panneau de choix relu au serveur · « zéro » efface le départ', () => {
+    expect(DEPARTS_SPATIAL.map((d) => [d.cle, d.origine])).toEqual([['zero', null], ['veille', 'veille'], ['test', 'iteration']]);
   });
 
-  it('les étapes suivent l’ordre réel · la courante « on », la précédente « done »', () => {
-    expect(etapesNouveauSpatial(1).map((e) => e.classe)).toEqual(['on', '', '', '']);
-    expect(etapesNouveauSpatial(2).map((e) => e.classe)).toEqual(['done', 'on', '', '']);
-    expect(infoEtapeNouveau(2)).toMatch(/gratuit/);
+  it('les quatre puces de la maquette suivent l’ordre RÉEL · brief avant style, devis et créations sous « Format & devis »', () => {
+    expect(etapesNouveauSpatial('start').map((e) => e.classe)).toEqual(['on', '', '', '']);
+    expect(etapesNouveauSpatial('brief').map((e) => e.classe)).toEqual(['done', 'on', '', '']);
+    expect(etapesNouveauSpatial('direction').map((e) => e.classe)).toEqual(['done', 'done', 'on', '']);
+    expect(etapesNouveauSpatial('creation').map((e) => e.classe)).toEqual(['done', 'done', 'done', 'on']);
+    expect(etapesNouveauSpatial('start').map((e) => e.cible)).toEqual(['start', 'brief', 'strategie', 'format']);
+    expect(ETAPES_NOUVEAU_SPATIAL.flatMap((e) => e.groupe)).toEqual(['start', 'brief', 'strategie', 'direction', 'format', 'confirm', 'creation']);
+    expect(numeroEtapeNouveau('confirm')).toBe(4);
+  });
+
+  it('le brief relu redonne la saisie de l’assistant · aller-retour sans perte sur les champs du formulaire', () => {
+    const saisie = { ...saisieBriefVide(), intention: 'Vendre', audience: 'Parents', objectifType: 'conversion' as const, plateformes: ['tiktok' as const], persona: { id: 'p', label: 'Claire' }, angle: 'Question', concept: 'Plongeon', contraintes: 'A\nB' };
+    const b = construireBriefV5(saisie);
+    const relu = construireBriefV5(saisieDepuisBrief(b));
+    for (const cle of CHAMPS_FORMULAIRE_BRIEF) expect(relu[cle], cle).toEqual(b[cle]);
+    expect(saisieDepuisBrief(b)).toEqual(saisie);
+  });
+
+  it('la barre d’action dit ce qui est gratuit, et ne dit jamais gratuit ce qui coûte', () => {
+    expect(infoEtapeNouveau('brief')).toMatch(/gratuit/);
+    for (const e of ['strategie', 'direction', 'format', 'confirm', 'creation'] as const) expect(infoEtapeNouveau(e)).not.toMatch(/gratuit/);
+    expect(infoEtapeNouveau('format')).toMatch(/ne débite rien/);
+    expect(infoEtapeNouveau('confirm')).toMatch(/aucun débit avant ta confirmation/);
+    expect(enTeteEtapeNouveau('format', 'video').titre).toBe('Storyboard & devis');
+    expect(enTeteEtapeNouveau('format', 'text').titre).toBe('Textes & devis');
+    expect(enTeteEtapeNouveau('format', 'ads').titre).toBe('Formats & devis');
   });
 
   it('aucun prix n’est promis sur cet écran · Jarvis annonce le sien dans le projet', () => {
