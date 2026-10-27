@@ -111,25 +111,6 @@ export function texteTourJarvis(contenu: string): string {
   return sansTiretCadratin(parseAnswer(texte).text).trim();
 }
 
-/**
- * Une hypothèse « Si …, alors … » découpée pour mettre ses deux mots
- * charnières en gras (maquette : `<b>Si</b> … <b>alors</b> …`). Le texte est
- * celui du brief, tel quel · rien n'est réécrit, seuls les mots sont repérés.
- */
-export function segmentsHypothese(enonce: string): Array<{ texte: string; fort: boolean }> {
-  const out: Array<{ texte: string; fort: boolean }> = [];
-  const re = /(^|[\s(«"'’])(Si|si|alors|Alors)(?=[\s,])/g;
-  let dernier = 0;
-  for (let m = re.exec(enonce); m; m = re.exec(enonce)) {
-    const debut = m.index + m[1]!.length;
-    if (debut > dernier) out.push({ texte: enonce.slice(dernier, debut), fort: false });
-    out.push({ texte: m[2]!, fort: true });
-    dernier = debut + m[2]!.length;
-  }
-  if (dernier < enonce.length) out.push({ texte: enonce.slice(dernier), fort: false });
-  return out.filter((s) => s.texte.length > 0);
-}
-
 /** Ce qu'un couloir vide dit · un état honnête, jamais un nœud d'exemple. */
 export const VIDE_COULOIR: Readonly<Record<'contexte' | 'hypothese' | 'creations' | 'mesure' | 'iteration', string>> = {
   contexte: 'Aucun contexte lu pour ce projet.',
