@@ -1,3 +1,4 @@
+import '../globals.css';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
