@@ -130,3 +130,22 @@ export function ilYa(iso: string | Date, maintenant: Date): string {
   if (h < 24) return `il y a ${h} h`;
   return `il y a ${Math.floor(h / 24)} j`;
 }
+
+/* ───────────── Sauvegardes · filtres portés de l'écran Formats (vague 3) ───────────── */
+
+export const FORMAT_TOUS = 'tous' as const;
+export interface FiltresSauvegardes { texte: string; format: string; media: 'tous' | 'video' | 'image'; plateforme: string }
+export const FILTRES_SAUVEGARDES: FiltresSauvegardes = { texte: '', format: FORMAT_TOUS, media: 'tous', plateforme: 'tous' };
+
+/**
+ * Filtre les sauvegardes · texte (corps ou annonceur), format classé
+ * (`non_classe` = la file à classer), média et plateforme. Aucun filtre = tout.
+ */
+export function filtrerSauvegardes<T extends { platform: string; video: boolean; texte: string; annonceur: string; format: string | null }>(items: readonly T[], f: FiltresSauvegardes): T[] {
+  const q = f.texte.trim().toLowerCase();
+  return items.filter((i) =>
+    (!q || `${i.texte} ${i.annonceur}`.toLowerCase().includes(q))
+    && (f.format === FORMAT_TOUS || (f.format === 'non_classe' ? !i.format : i.format === f.format))
+    && (f.media === 'tous' || (f.media === 'video') === i.video)
+    && (f.plateforme === 'tous' || i.platform === f.plateforme));
+}
