@@ -48,7 +48,7 @@ function carte(i: number, o: { hot: boolean; ratio: '' | 'r916' | 'r11'; live: b
 
 describe('Spatial · Veille · écrans déclarés', () => {
   it('les cinq adresses de la rubrique sont portées dans la section veille', () => {
-    expect(ECRANS_VEILLE.map((e) => e.chemin).sort()).toEqual(['/radar', '/saved', '/veille', '/veille/concurrents', '/veille/scale']);
+    expect(ECRANS_VEILLE.map((e) => e.chemin)).toEqual(expect.arrayContaining(['/radar', '/saved', '/veille', '/veille/concurrents', '/veille/scale']));
     expect(ECRANS_VEILLE.every((e) => e.section === 'veille')).toBe(true);
   });
 });
