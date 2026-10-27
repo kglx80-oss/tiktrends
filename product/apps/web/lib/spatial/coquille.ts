@@ -1,9 +1,9 @@
 import 'server-only';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { entreesRail, entreesRailEspace, initialesAvatar } from '@tiktrends/core';
+import { entreesRail, entreesRailEspace, initialesAvatar, ENTETE_CHEMIN, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
 import { getSession } from '../auth';
 import { effectiveAccess } from '../access';
 import { isFounder } from '../founder';
@@ -29,6 +29,39 @@ function hrefs(x: unknown, out = new Set<string>()): Set<string> {
   return out;
 }
 
+/** Une source de pastille du rail · une lecture seule, `null` quand rien n'est à signaler. */
+export type SourcePastille = (workspaceId: string, brandId: string) => Promise<NonNullable<EntreeRail['pastille']> | null>;
+
+/**
+ * Les pastilles du rail (`badge` / `rbadge` de la maquette) · UNE source par
+ * entrée, avec la destination qui doit être OUVERTE pour qu'on l'appelle
+ * (l'appeler sans le droit dévoilerait un compte que l'écran refuserait).
+ *
+ * Point d'entrée · « Résultats » (lots prêts à conclure) vient de la PR #872
+ * (`lib/spatial/pastilles/resultats.ts`), pas encore dans `main` au moment de
+ * cette PR. Son branchement, une fois #872 fusionnée, tient en deux lignes :
+ *   import { pastilleResultats } from './pastilles/resultats';
+ *   resultats: { destination: '/adsmap', source: pastilleResultats },
+ * La garde `spatial-coquille-parcours` éprouve déjà la règle (appel seulement
+ * si ouvert, pastille posée sur la bonne entrée).
+ */
+export const SOURCES_PASTILLES: Partial<Record<SectionSpatiale, { destination: string; source: SourcePastille }>> = {};
+
+export async function poserPastilles(
+  entrees: EntreeRail[],
+  c: { ouverts: ReadonlySet<string>; workspaceId: string; brandId: string | null },
+  sources: Partial<Record<SectionSpatiale, { destination: string; source: SourcePastille }>> = SOURCES_PASTILLES,
+): Promise<EntreeRail[]> {
+  if (!c.brandId) return entrees;
+  const brandId = c.brandId;
+  return Promise.all(entrees.map(async (e) => {
+    const s = sources[e.cle];
+    if (!s || !c.ouverts.has(s.destination)) return e;
+    const pastille = await s.source(c.workspaceId, brandId).catch(() => null);
+    return pastille ? { ...e, pastille } : e;
+  }));
+}
+
 /**
  * Les données RÉELLES de la coquille Spatial · mêmes gardes et mêmes sources
  * que la coquille V5 (`app/(app)/layout.tsx`) : session obligatoire, onboarding
@@ -47,7 +80,10 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
     unreadCount(s.user.id).catch(() => 0),
   ]);
   const w = (ws as Array<{ c: number; ob: Date | null }>)[0];
-  if (roleAtLeast(s.role, 'owner') && w && !w.ob) redirect('/onboarding');
+  // Le parcours d'accueil d'abord · sauf SUR le parcours (`/onboarding`, servi
+  // sous ce même layout) · sinon la page se renverrait à elle-même.
+  const chemin = (await headers()).get(ENTETE_CHEMIN);
+  if (roleAtLeast(s.role, 'owner') && w && !w.ob && chemin !== '/onboarding') redirect('/onboarding');
 
   const ouverts = hrefs([railNav(access), sectionsCompteOuvertes(access)]);
   const marque = active ? { id: active.id, nom: active.name } : null;
@@ -59,8 +95,8 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
   const nom = (moi as Array<{ n: string | null }>)[0]?.n || s.user.name || '';
 
   return {
-    entrees: entreesRail({ ouverts, marque }),
-    espace: entreesRailEspace({ ouverts, marque }),
+    entrees: await poserPastilles(entreesRail({ ouverts, marque }), { ouverts, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
+    espace: await poserPastilles(entreesRailEspace({ ouverts, marque }), { ouverts, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
     // Le fond flou de la maquette (`--img`) · l'image de la marque active. À
     // défaut d'un visuel produit dédié, son logo · sans marque, aucun fond.
     marque: active ? { id: active.id, nom: active.name, logoUrl: active.logoUrl ?? null, imageUrl: active.logoUrl ?? null } : null,
@@ -74,5 +110,12 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
     credits: { solde: w?.c ?? 0, dotation: PLAN_CREDITS[plan] ?? 0, illimite: unlimitedCredits(s.user.email) },
     nonLues: Number(nonLues) || 0,
     deconnexion: logoutAction,
+    // La palette ⌘K et « Tous les modules » · les mêmes chemins ouverts que le rail.
+    ouverts: [...ouverts].sort(),
+    // Le tiroir Jarvis · la feature `jarvis` (rôle + formule), comme l'entrée du rail.
+    jarvis: ouverts.has('/jarvis'),
+    // « Démarrage » du menu profil · la reprise volontaire du parcours (V5 :
+    // `?redo=1`). Les réponses sont celles de l'ESPACE · réservé à qui le gère.
+    demarrage: roleAtLeast(s.role, 'admin') ? '/onboarding?redo=1' : null,
   };
 }

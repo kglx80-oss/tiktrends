@@ -8,7 +8,7 @@ import { createContext, useContext } from 'react';
  * Fourni par `Coquille` · en test, une vue se rend sous `FournisseurSpatial`
  * avec des valeurs explicites.
  */
-export type PanneauSpatial = 'profil' | 'notifs' | 'marques' | 'modules' | null;
+export type PanneauSpatial = 'profil' | 'notifs' | 'marques' | 'modules' | 'jarvis' | null;
 
 export interface CtxSpatial {
   utilisateur: { nom: string; initiales: string; email: string; role: string };
@@ -17,6 +17,13 @@ export interface CtxSpatial {
   ouvrirPalette: () => void;
   basculer: (p: Exclude<PanneauSpatial, null>) => void;
   toast: (message: string) => void;
+  /** La surcouche ouverte · l'en-tête en tire `aria-expanded` (cloche, avatar). */
+  panneau?: PanneauSpatial;
+  /**
+   * Ouvre le tiroir Jarvis · `brouillon` PRÉREMPLIT le champ, rien n'est envoyé
+   * (l'envoi reste un clic, coût annoncé). Absent hors coquille.
+   */
+  ouvrirJarvis?: (brouillon?: string) => void;
 }
 
 const DEFAUT: CtxSpatial = {
