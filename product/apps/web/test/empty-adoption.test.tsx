@@ -71,9 +71,6 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     // Crédits · l'historique vide devient une invitation à générer, comme sa
     // page sœur Consommation, au lieu d'une phrase grise sur une page d'argent.
     { fichier: 'app/(app)/credits/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/studio/projets'"] },
-    // Liens de partage (marque blanche) · le geste « créer » est déjà au-dessus,
-    // donc une ligne `EmptyLine`, pas un bloc redondant.
-    { fichier: 'app/(app)/adsmap/SharePanel.tsx', attendus: ['<EmptyLine>', 'marque blanche'] },
     // Support · une liste de tickets vide est une BONNE nouvelle · ton `good`.
     { fichier: 'app/(app)/support/page.tsx', attendus: ['<EmptyLine tone="good">', 'tout roule'] },
     { fichier: 'app/(app)/support/[id]/page.tsx', attendus: ['<EmptyLine>'] },
@@ -118,7 +115,8 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     // pas de doublon.
     // Les trois états vides (essais/notes/relectures) ont déménagé avec leur
     // section à leur destination (Adsmap) · on les éprouve là où ils vivent.
-    const src = lit('app/(app)/jarvis/sections/SectionEssais.tsx');
+    // Spatial · l'écran « Essais et relectures » de Résultats.
+    const src = lit('spatial/vues/resultats/Essais.tsx');
 
     const cta = src.split("href: '/studio/ads'").length - 1;
     expect(cta, 'CTA « Ouvrir Pubs IA » empilé dans un état wait · doublon de parcours').toBe(0);

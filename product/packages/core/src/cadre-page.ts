@@ -69,12 +69,9 @@ export const EXCEPTIONS_LECTURE: Readonly<Record<string, { lecture: LectureInter
   '/support': { lecture: 'formulaire', raison: 'formulaire de demande et liste courte' },
   '/support/[id]': { lecture: 'fil', raison: 'fil de conversation · mesure de lecture' },
   '/brands/new': { lecture: 'formulaire', raison: 'formulaire de création de marque' },
-  '/adsmap/protocole': { lecture: 'formulaire', raison: 'réglage du protocole en formulaire' },
-  '/adsmap/import': { lecture: 'formulaire', raison: 'import en formulaire guidé' },
   // États sans accès ou sans marque · un message court, pas un écran de données.
   '/jarvis': { lecture: 'fil', raison: 'état sans marque · message court (le chat garde le cadre entier)' },
   '/jarvis/sources': { lecture: 'fil', raison: 'état sans marque · message court' },
-  '/adsmap': { lecture: 'fil', raison: 'état sans accès ou sans marque · message court' },
 };
 
 /** La gouttière fluide, écrite comme le style en ligne l'attend. */

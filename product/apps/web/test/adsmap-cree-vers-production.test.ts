@@ -17,16 +17,16 @@ const lire = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
 describe('Adsmap · une création aiguille vers la production', () => {
   it('Suites · le succès (tenu au niveau de la page) mène à la fiche de la suite créée', () => {
-    const src = lire('app/(app)/adsmap/suites/Suites.tsx');
+    const src = lire('spatial/vues/resultats/Suites.tsx');
     const i = src.indexOf('{creee && (');
     expect(i, 'aucun message de succès tenu par la page').toBeGreaterThan(-1);
-    expect(src.slice(i, i + 900), 'le succès ne mène pas à la fiche créée').toContain('href={lienFicheAdsmap(creee.adId)}');
+    expect(src.slice(i, i + 900), 'le succès ne mène pas à la fiche créée').toContain('href={lienFicheTest(creee.adId)}');
   });
 
   it('Radar · le succès « Concept posé » mène à la fiche du concept posé', () => {
-    const src = lire('app/(app)/adsmap/radar/Radar.tsx');
-    const i = src.indexOf("note?.startsWith('Concept posé')");
+    const src = lire('spatial/vues/resultats/RadarAdsmap.tsx');
+    const i = src.indexOf('{posee && ');
     expect(i, 'aucun lien conditionné au succès « Concept posé »').toBeGreaterThan(-1);
-    expect(src.slice(i, i + 300), 'le succès ne mène pas à la fiche').toContain('lienFicheAdsmap(posee)');
+    expect(src.slice(i, i + 300), 'le succès ne mène pas à la fiche').toContain('lienFicheTest(posee)');
   });
 });

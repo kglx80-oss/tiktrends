@@ -16,16 +16,16 @@ const lire = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
 describe('Adsmap · les états vides orphelins mènent quelque part', () => {
   it('vivier de lot vide → un lien vers le Studio', () => {
-    const src = lire('app/(app)/adsmap/lots/Lots.tsx');
-    const i = src.indexOf('Aucune ad libre.');
+    const src = lire('spatial/vues/resultats/ActionsLot.tsx');
+    const i = src.indexOf('Aucune variante libre');
     expect(i, 'l’état vide du vivier a disparu').toBeGreaterThan(-1);
     const bloc = src.slice(i, i + 400);
     expect(bloc, 'le vivier vide ne mène nulle part').toContain('href={CHEMIN_NOUVEAU_PROJET}');
   });
 
   it('radar sans concurrent suivi → un lien vers la veille', () => {
-    const src = lire('app/(app)/adsmap/radar/Radar.tsx');
-    const i = src.indexOf('Aucun concurrent suivi');
+    const src = lire('spatial/vues/resultats/RadarAdsmap.tsx');
+    const i = src.indexOf('{v.state.followed === 0 && <Lien');
     expect(i, 'l’état vide du radar a disparu').toBeGreaterThan(-1);
     const bloc = src.slice(i, i + 400);
     expect(bloc, 'le radar sans concurrent ne mène nulle part').toContain('href="/veille"');

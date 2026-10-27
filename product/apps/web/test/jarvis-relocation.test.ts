@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { outilsResultats } from '@tiktrends/core';
 
 /**
  * La relocalisation du détail de Jarvis · garde de SOURCE, comme les autres
@@ -29,12 +30,12 @@ const jarvis = lit('app/(app)/jarvis/page.tsx');
 const colonne = lit('app/(app)/jarvis/JarvisColonne.tsx');
 const sources = lit('app/(app)/jarvis/sources/page.tsx');
 const sAttribution = lit('app/(app)/jarvis/sections/SectionAttribution.tsx');
-const sEssais = lit('app/(app)/jarvis/sections/SectionEssais.tsx');
+// Les essais ont rejoint Résultats dans Spatial · page (garde, chargement) + vue (rendu).
+const sEssais = lit('app/(spatial)/sp/adsmap/essais/page.tsx') + lit('spatial/vues/resultats/Essais.tsx');
 const sMarche = lit('app/(app)/jarvis/sections/SectionMarche.tsx');
 const contexte = lit('app/(app)/jarvis/JarvisContexte.tsx');
 const chatAction = lit('app/actions/jarvis-chat.ts');
 const analytics = lit('components/accueil/VueAnalytics.tsx');
-const adsmap = lit('app/(app)/adsmap/page.tsx');
 const veille = lit('app/(app)/veille/page.tsx');
 
 describe('Jarvis · la conversation, seule ; le détail à sa destination', () => {
@@ -77,7 +78,7 @@ describe('chaque famille est à sa destination, rien de perdu', () => {
     for (const m of ['id="essais"', 'id="bilan-notes"', 'id="bilan-copie"', 'calibrationScoreAction']) {
       expect(sEssais, `marqueur manquant dans la section essais : ${m}`).toContain(m);
     }
-    expect(adsmap, 'Adsmap ne monte pas la section essais/notes/relectures').toContain('<SectionEssais');
+    expect(outilsResultats({ admin: false }).map((o) => o.href), 'Résultats ne mène plus aux essais').toContain('/adsmap/essais');
   });
 
   it('le marché vit dans la section montée sur la Veille', () => {
@@ -121,7 +122,10 @@ describe('les gardes d’accès survivent au déménagement · rien n’est éla
   });
 
   it('chaque section relocalisée porte SA propre garde d’offre (adsmap) et ne rend rien sinon', () => {
-    for (const [nom, src] of [['attribution', sAttribution], ['essais', sEssais], ['marché', sMarche]] as const) {
+    // Essais (Spatial) · la garde de la rubrique (offre Plus, marque active), refus dit à l'écran.
+    expect(sEssais, 'essais · la garde d’accès manque').toContain('const g = await gardeResultats();');
+    expect(sEssais, 'essais · le refus n’est pas rendu').toContain('if (!g.ok) return <RefusResultats');
+    for (const [nom, src] of [['attribution', sAttribution], ['marché', sMarche]] as const) {
       expect(src, `${nom} · la garde d’accès manque`).toContain('canAccess(effectiveAccess(s), adsmap)');
       expect(src, `${nom} · ne rend pas null sans accès/marque`).toContain('return null');
     }

@@ -12,16 +12,7 @@ import { join } from 'node:path';
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 
 describe('S13 · erreurs via Bandeau (Inbox, Lots) et reset Veille', () => {
-  it('Inbox annonce ses erreurs via Bandeau, plus par un <p> rouge à la main', () => {
-    const s = read('app/(app)/adsmap/Inbox.tsx');
-    expect(s).toContain('<Bandeau ton="error">{error}</Bandeau>');
-    expect(s, 'un <p> rouge d’erreur subsiste').not.toContain("color: '#ff8095', fontSize: 13 }}>{error}");
-  });
 
-  it('Lots annonce son erreur via Bandeau', () => {
-    const s = read('app/(app)/adsmap/lots/Lots.tsx');
-    expect(s).toContain('<Bandeau ton="error">{error}</Bandeau>');
-  });
 
   it('Veille propose Réinitialiser quand un critère est actif', () => {
     const s = read('app/(app)/veille/page.tsx');

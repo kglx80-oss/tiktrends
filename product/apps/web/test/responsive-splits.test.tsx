@@ -33,9 +33,4 @@ describe('Splits 2 colonnes · ils s’empilent en mobile', () => {
     expect(s.split("mobile ? '1fr' : 'minmax(").length - 1, 'les deux grilles doivent s’empiler').toBe(2);
   });
 
-  it('Lots Adsmap · contenu + rail 320px s’empilent', () => {
-    const s = read('app/(app)/adsmap/lots/Lots.tsx');
-    expect(s).toContain("import { useIsMobile }");
-    expect(s, 'le rail 320px ne s’empile pas').toContain("mobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 320px)'");
-  });
 });

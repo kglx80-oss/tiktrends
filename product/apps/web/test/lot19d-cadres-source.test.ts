@@ -24,12 +24,9 @@ import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 const WEB = process.cwd();
 const PERIMETRE = [
   'components',
-  ...['dashboard', 'analytics', 'adsmap', 'studio', 'tags', 'radar', 'brands', 'credits', 'profile', 'support', 'console']
+  ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'brands', 'credits', 'profile', 'support', 'console']
     .map((d) => join('app', '(app)', d)),
   ...['depenses', 'finance', 'incidents', 'intelligence', 'paiement', 'plans', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
-  // Transférés au lot pour ce seul changement (rendus sur /adsmap) · le reste de jarvis/** n'est pas couvert.
-  join('app', '(app)', 'jarvis', 'sections', 'SectionEssais.tsx'),
-  join('app', '(app)', 'jarvis', 'sections', 'Revelation.tsx'),
   // Lot 19B (#724) · les écrans et composants que les Connaissances ont créés ou
   // modifiés, plus la page et l'écran de refus de Jarvis (message 55).
   join('app', '(app)', 'admin', 'connaissances'),
@@ -72,8 +69,6 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
   'components/CreditsMenu.tsx': 'chrome · menu de la barre',
   'components/NotificationBell.tsx': 'chrome · menu de la barre',
   'components/SupportWidget.tsx': 'chrome · widget flottant',
-  // Le Canvas Adsmap ne change pas (consigne du propriétaire · CLAUDE.md).
-  'app/(app)/adsmap/Canvas.tsx': 'Canvas · protégé',
 };
 
 /**
