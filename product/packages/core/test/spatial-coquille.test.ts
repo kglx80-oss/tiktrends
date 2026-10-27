@@ -68,11 +68,11 @@ describe('Spatial · coquille · palette ⌘K', () => {
   it('mêmes groupes que la maquette, chaque entrée vers une page qui EXISTE (V5 ou portée)', () => {
     const g = groupesPalette({ ouverts: TOUT, marque: { id: 'b1' }, projets: [{ id: 'p1', titre: 'Collection été' }] });
     expect(g.map((x) => x.titre)).toEqual(['Pages', 'Projets', 'Actions']);
-    // Hypothèses, Apprentissages, Boucle et Nouvelle itération n'existent pas en V5 · absentes tant que non portées.
-    expect(g[0]!.entrees.map((e) => e.cle)).toEqual(['accueil', 'studios', 'veille', 'resultats', 'lots', 'bibliotheque', 'jarvis', 'marque', 'connexions']);
+    // Hypothèses, Apprentissages et Boucle n'existent qu'en Spatial (#872) · présentes parce que portées.
+    expect(g[0]!.entrees.map((e) => e.cle)).toEqual(['accueil', 'studios', 'veille', 'resultats', 'boucle', 'lots', 'hypotheses', 'apprentissages', 'bibliotheque', 'jarvis', 'marque', 'connexions']);
     expect(g[0]!.entrees.find((e) => e.cle === 'marque')!.href).toBe('/brands/b1');
     expect(g[1]!.entrees).toEqual([{ cle: 'projet-p1', href: '/studio/projets/p1', icone: 'brush', titre: 'Collection été' }]);
-    expect(g[2]!.entrees.map((e) => e.cle)).toEqual(['nouveau', 'importer']);
+    expect(g[2]!.entrees.map((e) => e.cle)).toEqual(['iterer', 'nouveau', 'importer']);
     for (const e of g.flatMap((x) => x.entrees)) expect(destinationExiste(e.href), e.href).toBe(true);
   });
 

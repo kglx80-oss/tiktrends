@@ -226,7 +226,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
           <span className="sepr" />
           {d.espace.map((e) => <EntreeLien key={e.cle} e={e} actif={e.cle === section} />)}
           {d.admin && (
-            <Lien href="/admin" id="radmin" className="radmin">
+            <Lien href="/admin" id="radmin" className={section === 'admin' ? 'radmin on' : 'radmin'} aria-current={section === 'admin' ? 'page' : undefined}>
               <Ic n="shield" s={false} /><span className="lab"><strong>Tour de contrôle</strong><small>Admin+ · pilotage interne</small></span><span className="tip">Tour de contrôle · Admin+</span>
             </Lien>
           )}

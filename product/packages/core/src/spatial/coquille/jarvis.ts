@@ -1,5 +1,4 @@
-import { extraireCitations } from '../../connaissances';
-import { parseAnswer, visibleWhileStreaming } from '../../adsmap/jarvis-actions';
+import { visibleWhileStreaming } from '../../adsmap/jarvis-actions';
 import { sansTiretCadratin } from '../../ponctuation-ecran';
 
 /**
@@ -40,10 +39,7 @@ export function brouillonAvecSuggestion(saisie: string, suggestion: string): str
   return (s ? `${s}\n${suggestion}` : suggestion).slice(0, 4000);
 }
 
-/** Le texte lisible d'un tour de Jarvis · citations et marqueurs d'action retirés, ponctuation d'écran. */
-export function texteTourJarvis(contenu: string): string {
-  return sansTiretCadratin(parseAnswer(extraireCitations(contenu).texte).text);
-}
+// Le texte lisible d'un tour de Jarvis · `texteTourJarvis` (spatial/projet), la seule définition.
 
 /** Le texte affichable PENDANT le flux (un marqueur d'action à moitié reçu n'apparaît pas). */
 export function texteFluxJarvis(partiel: string): string {

@@ -29,6 +29,7 @@ import { squelette, fragmentReference } from './spatial/parite';
  */
 
 const h = vi.hoisted(() => ({
+  chemin: '/dashboard',
   push: vi.fn(), refresh: vi.fn(),
   setActiveBrand: vi.fn(async () => {}),
   fetchNotifications: vi.fn(async () => ({ items: [] as unknown[], unread: 0 })),
@@ -38,7 +39,7 @@ const h = vi.hoisted(() => ({
   save: vi.fn(async () => ({ ok: true as const, brandId: 'b-new' })),
 }));
 vi.mock('@tiktrends/db', () => ({ db: undefined, schema: {} }));
-vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard', useRouter: () => ({ push: h.push, refresh: h.refresh }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => h.chemin, useRouter: () => ({ push: h.push, refresh: h.refresh }) }));
 vi.mock('../app/actions/brands', () => ({ setActiveBrand: h.setActiveBrand }));
 vi.mock('../app/actions/notifications', () => ({ fetchNotifications: h.fetchNotifications, markAllNotificationsRead: h.markAll, markNotificationRead: h.markOne }));
 vi.mock('../app/actions/studios/projets', () => ({ listerProjets: h.projets }));
@@ -256,6 +257,19 @@ function donnees(): DonneesCoquille {
 const EnTeteFactice = () => null;
 
 describe('Spatial · coquille · comportement des surcouches', () => {
+  it('sur un écran Admin, le Tour de contrôle est allumé (radmin on, comme la maquette) · ailleurs non', async () => {
+    h.chemin = '/admin/churn';
+    try {
+      await monter(<Coquille donnees={{ ...donnees(), admin: true }}><EnTeteFactice /></Coquille>);
+      const r = document.getElementById('radmin')!;
+      expect([r.className, r.getAttribute('aria-current')]).toEqual(['radmin on', 'page']);
+    } finally { h.chemin = '/dashboard'; }
+  });
+  it('hors Admin, le Tour de contrôle reste éteint', async () => {
+    await monter(<Coquille donnees={{ ...donnees(), admin: true }}><EnTeteFactice /></Coquille>);
+    expect(document.getElementById('radmin')!.className).toBe('radmin');
+  });
+
   it('⌘K ouvre la palette (focus dans le champ), les flèches déplacent la sélection, Échap ferme et rend le focus', async () => {
     await monter(<Coquille donnees={donnees()}><button id="avant">x</button></Coquille>);
     (document.getElementById('avant') as HTMLElement).focus();
