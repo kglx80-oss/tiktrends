@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
-import { CarteNavigable } from './interactifs';
+import { CarteNavigable, RenommerEspace, StockageEspace, type ActionsStockage } from './interactifs';
 
 /**
  * « Espace » · `docs/spatial/reference/reglages.html` (maquette : `vEspace` +
@@ -25,6 +25,54 @@ export interface PropsEspace {
   formules: readonly FormuleMini[];
   preferences: { langue: 'fr' | 'en'; fuseau: string; devise: string; nommage: string | null };
   video: string | null;
+  /**
+   * Les gestes de l'écran V5 `/settings` sans fragment de maquette (vague 2) ·
+   * nom de l'espace, services activés, stockage. Absents, l'écran reste celui de
+   * la maquette (garde de parité).
+   */
+  gestion?: GestionEspace;
+}
+
+export interface GestionEspace {
+  renommer: ((prev: { ok?: boolean; error?: string } | null, fd: FormData) => Promise<{ ok?: boolean; error?: string }>) | null;
+  services: ReadonlyArray<{ cle: string; libelle: string; debloque: string; branche: boolean }>;
+  stockage: {
+    titre: string; badge: string; actif: boolean; intro: string; operateur: boolean;
+    /** Le texte affiché quand rien n'est actionnable (stockage inactif) · et son lien de ticket, s'il y en a un. */
+    inactif: { texte: string; lien: { libelle: string; href: string } | null } | null;
+    actions: ActionsStockage;
+  };
+}
+
+/** Les tuiles des gestes V5 portés · même langage que la maquette (`.tile`, `.nprefs`, `.npr`, `.pill`). */
+function TuilesGestion({ espace, g }: { espace: string; g: GestionEspace }) {
+  const actifs = g.services.filter((x) => x.branche).length;
+  return (
+    <>
+      <section className="tile" data-geste="nom-espace" style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
+        <div><div className="lbl" style={{ margin: 0 }}>Espace</div><h2 style={{ margin: '4px 0 0' }}>Nom de l’espace</h2></div>
+        <p className="muted" style={{ fontSize: 13, margin: 0 }}>Le nom affiché de l’espace (agence ou client), dans le rail et les invitations.</p>
+        <RenommerEspace nom={espace} renommer={g.renommer} />
+        <div style={{ height: 1, background: 'var(--edge2)' }} />
+        <div data-geste="stockage" style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}><h2 style={{ margin: 0 }}>{g.stockage.titre}</h2><span className={`pill${g.stockage.actif ? ' g' : ''}`}>{g.stockage.badge}</span></div>
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>{g.stockage.intro}</p>
+          {g.stockage.inactif
+            ? <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>{g.stockage.inactif.texte}{g.stockage.inactif.lien && <> <Lien href={g.stockage.inactif.lien.href}>{g.stockage.inactif.lien.libelle}</Lien></>}</p>
+            : <StockageEspace actif={g.stockage.actif} operateur={g.stockage.operateur} actions={g.stockage.actions} />}
+        </div>
+      </section>
+      <section className="tile" data-geste="services">
+        <div className="sech" style={{ margin: '0 0 10px' }}><h2>Services activés</h2><span className="faint" style={{ fontSize: '12.5px' }}>{actifs} sur {g.services.length}</span></div>
+        <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>Un service à activer s’active côté plateforme, pas depuis ton espace · un ticket au <Lien href="/support">support</Lien> reste dans ton espace (seuls ses admins le lisent).</p>
+        <div className="nprefs">
+          {g.services.map((x) => (
+            <div className="npr" key={x.cle}><div><strong>{x.libelle}</strong><small>{x.debloque}</small></div><span className={`pill${x.branche ? ' g' : ''}`}>{x.branche ? 'Branché' : 'À brancher'}</span></div>
+          ))}
+        </div>
+      </section>
+    </>
+  );
 }
 
 const boiteFormule = (f: FormuleMini) => (
@@ -69,6 +117,7 @@ export function Espace(p: PropsEspace) {
             <dt>Nommage</dt><dd>{p.preferences.nommage ? <span className="files">{p.preferences.nommage}</span> : <span className="faint">Modèle par défaut des lots · réglable dans Protocole</span>}</dd>
           </dl>
         </section>
+        {p.gestion && <TuilesGestion espace={p.espace} g={p.gestion} />}
         <section className="tile soon" style={{ gridColumn: '1/-1' }}>
           <div className="ad r916"><div className="ph" /><div className="band"> </div></div>
           <div style={{ flex: 1 }}><div className="lbl">Studios</div><h2>Le Studio vidéo</h2><p className="muted">Crée une vidéo à partir de ta fiche marque, puis itère une variable à la fois.</p></div>

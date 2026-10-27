@@ -36,6 +36,8 @@ export interface PropsStudios {
   sousNav: ReadonlyArray<{ href: string; libelle: ReactNode }>;
   iterations: IterationsSpatiales | null;
   projets: ProjetSpatial[];
+  /** Les projets archivés relus (filtre « Archivés », restauration) · `null` s'ils n'ont pas pu être relus. */
+  archives?: ProjetSpatial[] | null;
   /** Le geste « Nouveau projet » · absent quand le rôle ou l'absence de marque l'interdit (la raison est dans `note`). */
   nouveau: { href: string } | null;
   /** Une ligne d'information sous la barre (marque active, rôle en lecture seule…). */
@@ -108,7 +110,7 @@ export function Studios(p: PropsStudios) {
           )}
         </section>
       )}
-      <GrilleProjets projets={p.projets} nouveau={p.nouveau} note={p.note} peutArchiver={p.peutArchiver} vide={p.vide ?? null} />
+      <GrilleProjets projets={p.projets} archives={p.archives ?? null} nouveau={p.nouveau} note={p.note} peutArchiver={p.peutArchiver} vide={p.vide ?? null} />
     </Vue>
   );
 }

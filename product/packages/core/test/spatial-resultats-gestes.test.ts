@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   redirectionTestProfond, redirectionVueAdsmap, lienFicheTest, lireFiltresTests, adresseTests, filtresTestsActifs, reperesTests, pastilleVerdict,
-  controleArbitrage, lireCarte, decompteCarte, sensDuSuite, outilsResultats, classeDecision, enJeuDecision, echeancePartage,
+  controleArbitrage, lireCarte, libelleDecision, titreDecision, LIBELLE_DECISION, decompteCarte, sensDuSuite, outilsResultats, classeDecision, enJeuDecision, echeancePartage,
   COUT_PROPOSITION_CARTE, costFor, ECRANS_SPATIAUX, budgetPrevuLot, ecranSpatial, TAUX_NON_CALCULABLE,
   type FaitsLigneTest, type NoeudCarteFait,
 } from '../src';
@@ -153,5 +153,26 @@ describe('Spatial · Résultats · la rubrique est exclusive (l’ancienne Adsma
     const resultats = ECRANS_SPATIAUX.filter((e) => e.section === 'resultats');
     expect(resultats.length).toBeGreaterThan(10);
     expect(resultats.filter((e) => !e.exclusif).map((e) => e.chemin), 'écran de Résultats non exclusif · il tomberait en 404 en mode V5').toEqual([]);
+  });
+});
+
+describe('Spatial · Résultats · une décision se lit en français, avec un vrai titre', () => {
+  const TYPES_EN_BASE = ['validate_verdict', 'review_learning', 'accept_iteration', 'kill_suggested', 'coverage_gap', 'unmapped_ad', 'protocol_violation', 'cro_handoff', 'prelaunch_warning', 'ai_budget_reached'];
+  it('chaque type admis par la base a un libellé lisible · jamais la clé technique', () => {
+    for (const t of TYPES_EN_BASE) {
+      expect(libelleDecision(t), t).not.toMatch(/_/);
+      expect(LIBELLE_DECISION[t], `${t} sans libellé`).toBeDefined();
+    }
+    expect(libelleDecision('review_learning')).toBe('Apprentissage à relire');
+    expect(libelleDecision('type_inconnu')).toBe('Décision à examiner');
+  });
+  it('le titre enregistré prime · sinon le nom de ce qu’elle concerne · sinon une phrase honnête, jamais « n.c. »', () => {
+    expect(titreDecision({ type: 'kill_suggested', titre: 'v1 brûle 80 €', cible: { kind: 'ad', nom: 'v1 · X' } })).toBe('v1 brûle 80 €');
+    expect(titreDecision({ type: 'review_learning', titre: 'n.c.', cible: { kind: 'ad', nom: 'v2 · Listicle' } })).toBe('Test v2 · Listicle');
+    expect(titreDecision({ type: 'protocol_violation', titre: undefined, cible: { kind: 'batch', nom: '#3 · Accroche' } })).toBe('Lot #3 · Accroche');
+    expect(titreDecision({ type: 'coverage_gap', titre: '', cible: { kind: 'desire', nom: 'Gagner du temps' } })).toBe('Désir « Gagner du temps »');
+    const perdu = titreDecision({ type: 'review_learning', titre: 'n.c.', cible: { kind: 'ad', nom: null } });
+    expect(perdu).toMatch(/^Apprentissage à relire · ce qu’elle concerne n’est plus identifiable/);
+    expect(perdu).not.toContain('n.c.');
   });
 });

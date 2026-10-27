@@ -73,6 +73,19 @@ export default async function StudiosSpatial({ searchParams }: { searchParams: P
   const nouveau = etatNouveauProjet({ peutProposer, marqueActive: active ? { id: active.id, name: active.name } : null });
   const { iterations } = await chargerProchainesIterations(s, { marque: active ? { id: active.id } : null, peutIterer: nouveau.etat === 'pret' });
   const maintenant = new Date();
+  // Les projets archivés · même action, même garde et même portée (lecture seule). Un refus ne coupe pas la page · le filtre n'est pas proposé.
+  const lus = await listerProjetsCartes({ archives: true }).catch(() => null);
+  const archivees = lus?.ok ? (toutes ? lus.cartes : lus.cartes.filter((c) => c.brandId === active!.id)) : null;
+  const versSpatial = (c: (typeof r.cartes)[number]) => ({
+    id: c.id, href: `/studio/projets/${c.id}`, title: c.title, marque: c.marque, libelleType: c.libelleType, etape: c.etape,
+    // La photo produit épinglée · la route relit les droits avant de servir le fichier. Sans elle, la couverture reste vide.
+    couverture: c.apercu ? [{ src: c.apercu }] : [],
+    version: c.versionN != null ? `V${c.versionN}` : null,
+    pastille: { libelle: c.libelleEtape, classe: CLASSE_ETAPE_SPATIALE[c.etape] },
+    segments: segmentsEtapeSpatiale(c.etape),
+    libelleStp: c.marque || 'Marque',
+    reprise: repriseCarteSpatiale(c, maintenant),
+  });
 
   const lienFaible = { color: 'inherit', textDecoration: 'underline' } as const;
   const note = (
@@ -102,16 +115,8 @@ export default async function StudiosSpatial({ searchParams }: { searchParams: P
     <Studios
       sousNav={SOUS_NAV_STUDIOS}
       iterations={iterationsSpatiales(iterations)}
-      projets={cartes.map((c) => ({
-        id: c.id, href: `/studio/projets/${c.id}`, title: c.title, marque: c.marque, libelleType: c.libelleType, etape: c.etape,
-        // La photo produit épinglée · la route relit les droits avant de servir le fichier. Sans elle, la couverture reste vide.
-        couverture: c.apercu ? [{ src: c.apercu }] : [],
-        version: c.versionN != null ? `V${c.versionN}` : null,
-        pastille: { libelle: c.libelleEtape, classe: CLASSE_ETAPE_SPATIALE[c.etape] },
-        segments: segmentsEtapeSpatiale(c.etape),
-        libelleStp: c.marque || 'Marque',
-        reprise: repriseCarteSpatiale(c, maintenant),
-      }))}
+      projets={cartes.map(versSpatial)}
+      archives={archivees ? archivees.map(versSpatial) : null}
       nouveau={nouveau.etat === 'pret' ? { href: CHEMIN_NOUVEAU_PROJET } : null}
       note={note}
       peutArchiver={peutProposer}

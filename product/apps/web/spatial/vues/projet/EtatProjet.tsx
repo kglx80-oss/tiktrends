@@ -12,22 +12,9 @@ export type RaisonEtat =
   | { type: 'introuvable'; message: string }
   | { type: 'refuse'; plan: boolean; quoi: string }
   | { type: 'erreur'; message: string; traceId: string }
-  | { type: 'capacite'; capacites: CapaciteStudio[] }
-  /** Écran pas encore porté dans Spatial · servi par l'interface précédente (lien plein, `?ui=v5`). */
-  | { type: 'ailleurs'; titre: string; message: string; href: string; libelle: string };
+  | { type: 'capacite'; capacites: CapaciteStudio[] };
 
 export function EtatProjet({ raison, projectId, titre }: { raison: RaisonEtat; projectId: string; titre?: string }) {
-  if (raison.type === 'ailleurs') {
-    return (
-      <Vue>
-        <EnTete titre={raison.titre} sous="Studios" />
-        <section className="tile" data-etat="ailleurs" style={{ display: 'grid', gap: 10, maxWidth: 640 }}>
-          <p className="muted" style={{ fontSize: 13 }}>{raison.message}</p>
-          <div className="kc"><a className="btn sm pri" href={raison.href}>{raison.libelle}</a><Lien className="btn sm" href="/studio/projets"><Ic n="back" />Projets</Lien></div>
-        </section>
-      </Vue>
-    );
-  }
   if (raison.type === 'capacite') {
     const caps = raison.capacites.length ? raison.capacites : (['projets'] as CapaciteStudio[]);
     const defs = caps.map((c) => DEFINITIONS_CAPACITES[c]);

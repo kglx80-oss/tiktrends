@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../projet/useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../../../lib/studios/appel-payant';
 import { useEffect, useId, useState } from 'react';
 import {
   libelleCoutTexteEstime, NOTE_BORNE_TEXTE, raisonAjoutTexte, TYPES_TEXTE, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, VARIANTES_MAX, VARIANTES_DEFAUT,

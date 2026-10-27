@@ -145,8 +145,9 @@ describe('Spatial · projet · en-tête, génération, états', () => {
     expect(ecranSpatial('/studio/projets/abc')).toMatchObject({ interne: '/sp/studio/projets/abc', section: 'studios' });
     expect(cheminPorte('/studio/projets/abc/image')).toBe(true);
     expect(cheminPorte('/studio/projets/abc/video?x=1')).toBe(true);
-    // Les sous-écrans non portés restent servis par l'interface précédente.
-    for (const s of ['produit', 'textes', 'identites', 'export']) expect(cheminPorte(`/studio/projets/abc/${s}`)).toBe(false);
+    // Vague 2 · les ateliers du projet sont portés à leur tour · le fichier produit reste servi par sa route.
+    for (const s of ['produit', 'textes', 'identites', 'export']) expect(cheminPorte(`/studio/projets/abc/${s}`)).toBe(true);
+    expect(cheminPorte('/studio/projets/abc/produit/fichier/a1')).toBe(false);
   });
 });
 

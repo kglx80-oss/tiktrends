@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MODES_PAROLE, NOTE_BORNE_TEXTE, RELECTURE_CREATIONS_MS,
   appliquerOperationVideo as appliquerNoyau, classeFormat, dureeLisible, etatPlan, formatDuDocument, gestesPlan, idsPlansAlloues,
-  impactVideo, legendeFormat, libelleAnimationIndisponible, libelleCoutTexteEstime, libelleCredits, libellePrix, libelleUsd,
+  impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCoutTexteEstime, libelleCredits, libellePrix, libelleUsd,
   messageHorsLigneStudio, minuteSeconde, pistesMontage, relectureNecessaire, saisieVierge, sourceLecteur,
   type BilanDurees, type CleGestePlan, type ErreurStudio, type EtatJob, type ImpactVideo, type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan,
 } from '@tiktrends/core';
@@ -14,9 +14,10 @@ import {
   appliquerOperationVideo, approuverEtLancerClip, approuverEtLancerKeyframe, assemblerVideoFinale, compilerConsignePlan,
   demanderDevisClip, demanderDevisKeyframe, planifierStoryboard, retenirConsignePlan,
 } from '../../../app/actions/studios/video';
-import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../components/studios/projet/useAppelPayant';
+import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
 import { useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
+import { Ornement } from '../studios/Ornement';
 import { Message } from './briques';
 
 /**
@@ -360,6 +361,12 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
           </div>
         )}
       </section>
+      {/* La barre flottante de la maquette (`#orn`) · retour au projet, plans RÉELLEMENT animés, tester les variantes (rattachement, lot d'essai). */}
+      <Ornement>
+        <Lien className="btn" href={`/studio/projets/${v.projet.id}`}><Ic n="back" />Projet</Lien>
+        <span className="info" data-orn-video="">{infoOrnementVideo(ordre.length, ordre.filter((s) => v.clips[s]?.etat === 'valide').length)}</span>
+        <Lien className="btn pri" href={variantesHref}><Ic n="flask" />Tester les variantes</Lien>
+      </Ornement>
     </Vue>
   );
 }

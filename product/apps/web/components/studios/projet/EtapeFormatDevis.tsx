@@ -15,7 +15,7 @@ import styles from './FormatDevis.module.css';
 import { preparerLotFormats } from '../../../app/actions/studios/lot-formats';
 import { preparerLotImages } from '../../../app/actions/studios/lot-images';
 import type { VueLotImages } from '../../../lib/studios/image/lot-images';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from './useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../../../lib/studios/appel-payant';
 import Link from 'next/link';
 import { Icon } from '../../Icon';
 import { btn, btnGhost, tuile } from '../../ui';

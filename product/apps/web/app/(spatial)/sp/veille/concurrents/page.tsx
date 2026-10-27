@@ -62,7 +62,7 @@ export default async function ConcurrentsSpatial() {
   const suggestions: SuggestionConcurrent[] = (fiche?.competitors ?? [])
     .map((n) => n.trim()).filter((n, i, t) => n && t.findIndex((x) => x.toLocaleLowerCase('fr') === n.toLocaleLowerCase('fr')) === i)
     .filter((n) => !scannesNoms.has(n.toLocaleLowerCase('fr')))
-    .map((nom) => ({ nom, ...pastilleMarque(nom), detail: 'Renseigné dans la fiche · pas encore scanné', cible: `${active.id}${SEP}${nom}` }));
+    .map((nom) => ({ nom, ...pastilleMarque(nom), detail: 'Pas encore scanné', cible: `${active.id}${SEP}${nom}` }));
 
   const scannes: ConcurrentScanne[] = rapports.map((r) => {
     const l = lectureRapportConcurrent(r);

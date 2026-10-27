@@ -10,7 +10,7 @@ import { approuverEtLancerImage } from '../../../app/actions/studios/image';
 import type { DevisImageVue } from '../../../lib/studios/image/parcours';
 import type { JobPresente } from '../../../lib/studios/execution/commandes';
 import styles from './FormatDevis.module.css';
-import { useAppelPayant, resultatPayantIncertain, MESSAGE_APPEL_PAYANT } from './useAppelPayant';
+import { useAppelPayant, resultatPayantIncertain, MESSAGE_APPEL_PAYANT } from '../../../lib/studios/appel-payant';
 import { Icon } from '../../Icon';
 import { btn, btnGhost } from '../../ui';
 
