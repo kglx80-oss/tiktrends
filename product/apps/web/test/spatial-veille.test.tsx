@@ -177,4 +177,20 @@ describe('Spatial · Veille · parité des autres écrans', () => {
     const p = parite(html, 'concurrents');
     expect(p.rendu).toEqual(p.reference);
   });
+
+  it('« Concurrents » · chaque suggestion affiche le prix du scan AVANT le clic, le bouton garde le libellé court', () => {
+    // Défaut vu au banc riche (27/10) : « Scanner · 6 crédits » dans une carte de
+    // 260 px écrasait le nom et le détail sur cinq lignes. Le prix reste lisible,
+    // dans la ligne de détail de CHAQUE carte (et dans le titre du bouton).
+    const suggestions = ['Typology', 'Aroma-Zone'].map((nom) => ({ nom, initiale: nom[0]!, fond: '#ffb3c7', detail: 'Pas encore scanné', cible: `b\n${nom}` }));
+    const t = document.createElement('template');
+    t.innerHTML = rendre(<Concurrents pastilleRadar={SOUS_NAV_TEST} marque={{ id: 'b', nom: 'Marque' }} scanner={async () => {}} refus={null} cout={6} suggestions={suggestions} scannes={[]} />);
+    const cartes = [...t.content.querySelectorAll('.ccs')];
+    expect(cartes).toHaveLength(2);
+    for (const c of cartes) {
+      expect(c.querySelector('small')!.textContent).toBe('Pas encore scanné · 6 crédits le scan');
+      expect(c.querySelector('button')!.textContent).toBe('Scanner');
+      expect(c.querySelector('button')!.getAttribute('title')).toMatch(/· 6 crédits$/);
+    }
+  });
 });
