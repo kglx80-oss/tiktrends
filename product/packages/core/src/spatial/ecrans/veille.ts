@@ -11,4 +11,9 @@ export const ECRANS_VEILLE: readonly EcranSpatial[] = [
   { chemin: '/veille/formats', section: 'veille' },
   { chemin: '/veille/formats/[format]', section: 'veille' },
   { chemin: '/veille/tendances', section: 'veille' },
+  { chemin: '/veille', section: 'veille' },
+  { chemin: '/veille/concurrents', section: 'veille' },
+  { chemin: '/veille/scale', section: 'veille' },
+  { chemin: '/saved', section: 'veille' },
+  { chemin: '/radar', section: 'veille' },
 ];

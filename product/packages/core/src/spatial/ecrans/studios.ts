@@ -6,4 +6,10 @@ import type { EcranSpatial } from '../types';
  * absent reste servi par l'ancienne interface. Un fichier par rubrique · deux
  * chantiers parallèles ne se disputent jamais la même ligne.
  */
-export const ECRANS_STUDIOS: readonly EcranSpatial[] = [];
+export const ECRANS_STUDIOS: readonly EcranSpatial[] = [
+  // D1 · liste, création, itération.
+  { chemin: '/studio/projets', section: 'studios' },
+  { chemin: '/studio/prompts', section: 'studios' },
+  { chemin: '/studio/projets/nouveau', section: 'studios' },
+  { chemin: '/studio/iterer', section: 'studios' },
+];
