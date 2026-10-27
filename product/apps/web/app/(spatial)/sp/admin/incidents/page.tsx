@@ -23,7 +23,7 @@ const LIMITE = 80;
  * l'espace ET fondateur), avant toute lecture. Lecture seule · la date passe
  * par `gte`, jamais brute dans `sql`.
  */
-export default async function IncidentsSpatial({ searchParams }: { searchParams?: Promise<{ j?: string }> } = {}) {
+export default async function IncidentsSpatial({ searchParams }: { searchParams?: Promise<{ j?: string }> }) {
   await porteAdmin();
   const sp = (await searchParams) ?? {};
   const jours = (PERIODES_INCIDENTS as readonly number[]).includes(Number(sp.j)) ? Number(sp.j) : 7;

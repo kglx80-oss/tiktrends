@@ -188,3 +188,23 @@ describe('Spatial · un écran exclusif n’a plus de page dans l’ancienne int
     expect(pagesV5Restantes(ECRANS_SPATIAUX), 'écran exclusif · supprimer sa page V5 (le middleware le sert toujours par Spatial)').toEqual([]);
   });
 });
+
+/* ───────────────────────── pages · props obligatoires (contrainte PageProps de Next) ───────────────────────── */
+
+describe('Spatial · une page ne déclare jamais ses props optionnelles', () => {
+  // `export default async function P({ searchParams }: {...} = {})` passe le
+  // typecheck du dépôt mais casse `next build` (« does not satisfy the
+  // constraint 'PageProps' ») · vu sur six pages Admin de la vague 3, avant CI.
+  const defautOptionnel = (src: string) => /^export default (?:async )?function \w*\([^)]*\}\s*=\s*\{\}\s*\)/m.test(src);
+  it('la règle voit le défaut', () => {
+    expect(defautOptionnel('export default async function P({ a }: { a?: 1 } = {}) {}')).toBe(true);
+    expect(defautOptionnel('export default async function P({ a }: { a?: 1 }) {}')).toBe(false);
+  });
+  it('aucune page de l’arbre Spatial', () => {
+    const pages: string[] = [];
+    const parcourir = (d: string) => { for (const n of readdirSync(d)) { const p = join(d, n); statSync(p).isDirectory() ? parcourir(p) : /^page\.tsx?$/.test(n) && pages.push(p); } };
+    parcourir(join(WEB, 'app', '(spatial)'));
+    expect(pages.length).toBeGreaterThan(50);
+    expect(pages.filter((p) => defautOptionnel(readFileSync(p, 'utf8'))).map((p) => p.slice(WEB.length + 1))).toEqual([]);
+  });
+});

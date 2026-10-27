@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
  * redirige vers `/admin/depenses?reconciliee=…#reconciliees`.
  */
 type Parametres = Record<string, string | string[] | undefined>;
-export default async function CoutsSpatial({ searchParams }: { searchParams?: Promise<Parametres> } = {}) {
+export default async function CoutsSpatial({ searchParams }: { searchParams?: Promise<Parametres> }) {
   await porteAdmin();
   const q = (await searchParams) ?? {};
   const maintenant = new Date();

@@ -30,7 +30,7 @@ async function c(q: Promise<{ n: number }[]>): Promise<number> { try { return Nu
  * actions existantes (`updatePlanConfigAction`, `grantTestPackAction`,
  * `revokeTrialAction`), qui reposent la garde et redirigent ici (`?ok=` / `?e=`).
  */
-export default async function ConsoleSpatial({ searchParams }: { searchParams?: Promise<{ ok?: string; e?: string }> } = {}) {
+export default async function ConsoleSpatial({ searchParams }: { searchParams?: Promise<{ ok?: string; e?: string }> }) {
   const s = await porteAdmin();
   const { ok, e } = (await searchParams) ?? {};
   const [b, deploiement, cfg] = await Promise.all([bandeauSeul(), currentDeployment(), getPlanConfig()]);

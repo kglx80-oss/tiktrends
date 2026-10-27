@@ -26,7 +26,7 @@ const ERR: Record<string, string> = { forbidden: 'Réservé au fondateur.', plan
  * l'ancien écran (appliquer une formule, ajuster les crédits, recharger
  * l'allocation de SON espace) sont servis ici, par leurs actions existantes.
  */
-export default async function ForfaitsSpatial({ searchParams }: { searchParams?: Promise<{ ok?: string; e?: string }> } = {}) {
+export default async function ForfaitsSpatial({ searchParams }: { searchParams?: Promise<{ ok?: string; e?: string }> }) {
   const s = await porteAdmin();
   const { ok, e } = (await searchParams) ?? {};
   const maintenant = new Date();

@@ -21,7 +21,7 @@ type Parametres = { onglet?: string; cle?: string; v?: string; comparer?: string
  * `prompt.publish`, `prompt.rollback`, `prompt.evaluate`,
  * `run.inspect_redacted`) et la commande serveur la repose.
  */
-export default async function RegistreSpatial({ searchParams }: { searchParams?: Promise<Parametres> } = {}) {
+export default async function RegistreSpatial({ searchParams }: { searchParams?: Promise<Parametres> }) {
   const g = await gardePlateforme('prompt.read');
   if (!g.ok) redirect(g.code === 'AUTH_REQUIRED' ? '/login' : '/dashboard');
   const sp = (await searchParams) ?? {};

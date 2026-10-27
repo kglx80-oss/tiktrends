@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * toute lecture · un owner ou un admin d'espace est renvoyé, sans aucune
  * donnée. L'écriture passe par les actions auditées, qui reposent la garde.
  */
-export default async function InterrupteursSpatial({ searchParams }: { searchParams?: Promise<{ q?: string; espace?: string }> } = {}) {
+export default async function InterrupteursSpatial({ searchParams }: { searchParams?: Promise<{ q?: string; espace?: string }> }) {
   const g = await gardePlateforme('provider.configure');
   if (!g.ok) redirect(g.code === 'AUTH_REQUIRED' ? '/login' : '/dashboard');
   const sp = (await searchParams) ?? {};

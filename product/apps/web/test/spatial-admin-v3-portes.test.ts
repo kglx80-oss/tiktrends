@@ -47,8 +47,8 @@ describe('Spatial · Admin · vague 3 · portes des écrans portés', () => {
     expect(await porte(RegistrePage({ searchParams: Promise.resolve({ onglet: 'releases' }) }))).toBe('REDIRECT /dashboard');
     expect(await porte(InterrupteursPage({ searchParams: Promise.resolve({ espace: 'w' }) }))).toBe('REDIRECT /dashboard');
     h.garde = { ok: false, code: 'AUTH_REQUIRED', message: 'non', traceId: 't' };
-    expect(await porte(RegistrePage())).toBe('REDIRECT /login');
-    expect(await porte(InterrupteursPage())).toBe('REDIRECT /login');
+    expect(await porte(RegistrePage({}))).toBe('REDIRECT /login');
+    expect(await porte(InterrupteursPage({}))).toBe('REDIRECT /login');
     expect(h.lectures).toEqual([]);
   });
 
@@ -64,9 +64,9 @@ describe('Spatial · Admin · vague 3 · portes des écrans portés', () => {
 
   it('Console, Incidents, Intelligence, Coûts · admin d’espace ET fondateur · un admin d’espace seul est renvoyé, sans lecture', async () => {
     h.session = session({ role: 'admin' });
-    for (const p of [ConsolePage(), IncidentsPage(), IntelligencePage(), CoutsPage()]) expect(await porte(p)).toBe('REDIRECT /dashboard');
+    for (const p of [ConsolePage({}), IncidentsPage({}), IntelligencePage(), CoutsPage({})]) expect(await porte(p)).toBe('REDIRECT /dashboard');
     h.session = session({ role: 'member' }); h.fondateur = true;
-    expect(await porte(ConsolePage())).toBe('REDIRECT /dashboard');
+    expect(await porte(ConsolePage({}))).toBe('REDIRECT /dashboard');
     expect(h.lectures).toEqual([]);
   });
 });
