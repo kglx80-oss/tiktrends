@@ -31,6 +31,7 @@ vi.mock('../lib/brands', () => ({ getActiveBrand: async () => h.active, listBran
 vi.mock('next/navigation', () => ({
   redirect: (u: string) => { throw new Error(`redirect ${u}`); },
   notFound: () => { throw new Error('notFound'); },
+  usePathname: () => '/studio/projets',
   useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }),
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
@@ -38,15 +39,18 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 import { db, schema, eq, and } from '@tiktrends/db';
 import { cleInterrupteursEspace } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
-import ProjetsPage from '../app/(app)/studio/projets/page';
-import NouveauConceptPage from '../app/(app)/studio/projets/nouveau/concept/page';
+// Vague 2 · la liste et l'écran de concept ne sont plus servis que par Spatial (pages V5 retirées) ·
+// la préparation `/studio/projets/nouveau` (assistant V5) reste une page V5.
+import ProjetsPage from '../app/(spatial)/sp/studio/projets/page';
+import NouveauConceptPage from '../app/(spatial)/sp/studio/projets/nouveau/concept/page';
+import { avecSpatial } from './spatial/fournisseur';
 import PreparerProjetPage from '../app/(app)/studio/projets/nouveau/page';
 import { AssistantDepuisContexte } from '../components/studios/projet/AssistantDepuisContexte';
 
 const ids = h.ids;
 const CONCEPT = '/studio/projets/nouveau';
 const projetsPage = () => ProjetsPage({ searchParams: Promise.resolve({}) });
-const rendu = async (el: ReturnType<typeof projetsPage>) => { const d = document.createElement('div'); d.innerHTML = renderToStaticMarkup(await el); return d; };
+const rendu = async (el: Promise<import('react').ReactElement>) => { const d = document.createElement('div'); d.innerHTML = renderToStaticMarkup(avecSpatial(await el)); return d; };
 const projetsDe = (brandId: string, userId: string) => db.select().from(schema.studioProjects)
   .where(and(eq(schema.studioProjects.brandId, brandId), eq(schema.studioProjects.ownerId, userId)));
 
@@ -60,11 +64,11 @@ afterEach(async () => {
 describe('/studio/projets · l’entrée « Nouveau concept créatif » navigue, ne crée pas sur place', () => {
   it('la liste porte un lien de secours vers le wizard (membre, marque active) · aucun formulaire au rendu', async () => {
     const d = await rendu(projetsPage());
-    const cta = d.querySelector('a[data-nouveau-projet="pret"]');
-    expect(cta, 'lien « Nouveau concept créatif » absent de la liste').not.toBeNull();
+    const cta = d.querySelector('a.ctanew');
+    expect(cta, 'lien « Nouveau projet » absent de la liste').not.toBeNull();
     expect(cta!.getAttribute('href')).toBe(CONCEPT);
     expect(cta!.textContent).toContain('Nouveau projet');
-    expect(d.querySelector('a[href="/veille"]')?.textContent).toBe('Ouvrir la Veille');
+    expect(d.querySelector('a[href="/veille"]')?.textContent).toBe('Veille');
     // Plus de modale Titre/Type ouverte depuis la liste.
     expect(d.querySelector('form[data-formulaire="nouveau-projet"]')).toBeNull();
     expect(d.querySelector('#np-titre')).toBeNull();
@@ -92,7 +96,7 @@ describe('jamais de porte morte', () => {
   it('sans marque active · on le dit, avec la porte vers les marques', async () => {
     h.active = null;
     const d = await rendu(projetsPage());
-    expect(d.querySelector('a[data-nouveau-projet="pret"]')).toBeNull();
+    expect(d.querySelector('a.ctanew')).toBeNull();
     const e = d.querySelector('[data-nouveau-projet="sans-marque"]');
     expect(e?.textContent).toContain('choisis une marque active');
     expect(e?.querySelector('a[href="/brands"]')?.textContent).toBe('Choisir une marque');
@@ -101,7 +105,7 @@ describe('jamais de porte morte', () => {
   it('lecture seule (équipe, rôle d’espace lecteur) · on le dit, et le serveur refuse aussi', async () => {
     h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: {}, plateformeAdmissible: false } as SessionTest['equipe'] });
     const d = await rendu(projetsPage());
-    expect(d.querySelector('a[data-nouveau-projet="pret"]')).toBeNull();
+    expect(d.querySelector('a.ctanew')).toBeNull();
     expect(d.querySelector('[data-nouveau-projet="lecture-seule"]')?.textContent).toContain('pas d’en créer');
     const { creerProjet } = await import('../app/actions/studios/projets');
     const r = await creerProjet({ brandId: ids.brandA1, kind: 'ads', title: 'Forcé' });
@@ -112,8 +116,8 @@ describe('jamais de porte morte', () => {
     const value = { actives: [], coupees: ['projets'] };
     await db.insert(schema.appSettings).values({ key: cleInterrupteursEspace(ids.wsA), value }).onConflictDoUpdate({ target: schema.appSettings.key, set: { value } });
     const d = await rendu(projetsPage());
-    expect(d.querySelector('[data-etat="non-active"]')?.getAttribute('data-capacites')).toBe('projets');
-    expect(d.querySelector('[data-nouveau-projet]')).toBeNull();
+    expect(d.querySelector('.tile h3')?.textContent).toBe('Non activé pour cet espace');
+    expect(d.querySelector('[data-nouveau-projet], a.ctanew')).toBeNull();
   });
 });
 

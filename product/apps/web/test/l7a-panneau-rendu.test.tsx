@@ -4,7 +4,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 /**
- * L7-A · le panneau d'export au HTML RENDU.
+ * L7-A · le panneau d'export au HTML RENDU · porté sur l'atelier Spatial « Export »
+ * (`spatial/vues/projet/Export.tsx`) quand la page V5 a été retirée (vague 2).
  *
  *  · préflight refusé : chaque point nomme sa CIBLE (calque, police, média),
  *    les boutons d'export sont inactifs, rien n'est envoyé ;
@@ -21,11 +22,12 @@ import { createRoot, type Root } from 'react-dom/client';
 
 const m = vi.hoisted(() => ({ exporter: vi.fn(), refresh: vi.fn() }));
 vi.mock('../app/actions/studios/export', () => ({ exporterVersion: m.exporter, lireExportProjet: vi.fn() }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1/export', useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
 
 import type { ViolationExport } from '@tiktrends/core';
 import type { ExportRealise, VueExport } from '../lib/studios/export/export';
-import { PanneauExport } from '../components/studios/export/PanneauExport';
+import { Export } from '../spatial/vues/projet/Export';
+import { avecSpatial } from './spatial/fournisseur';
 
 const SHA = '3f2a9c1e04ab'.padEnd(64, '7');
 const realise = (o: Partial<ExportRealise> = {}): ExportRealise => ({
@@ -52,7 +54,7 @@ let root: Root;
 beforeEach(() => { m.exporter.mockReset(); m.refresh.mockReset(); racine = document.createElement('div'); document.body.appendChild(racine); root = createRoot(racine); });
 afterEach(() => { act(() => root.unmount()); racine.remove(); });
 
-const monter = async (v: VueExport) => { await act(async () => { root.render(<PanneauExport vue={v} />); }); };
+const monter = async (v: VueExport) => { await act(async () => { root.render(avecSpatial(<Export vue={v} atelier={[]} />)); }); };
 const bouton = (f: string) => racine.querySelector(`button[data-format="${f}"]`) as HTMLButtonElement | null;
 const clic = async (f: string) => { await act(async () => { bouton(f)!.click(); }); };
 

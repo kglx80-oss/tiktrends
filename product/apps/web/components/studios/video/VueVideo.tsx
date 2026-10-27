@@ -8,7 +8,7 @@ import { libelleCoutTexteEstime, NOTE_BORNE_TEXTE,
 } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo, KeyframeVue, ClipVue, JobVideoVue } from '../../../lib/studios/video/lecture';
 import { tuile } from '../../ui';
-import { useFocusApresGeste, cleRetour } from '../projet/focus-geste';
+import { useFocusApresGeste, cleRetour } from '../../../lib/studios/focus-geste';
 import { panneau, carte, titre, sousTitre, etiquette, texte, mini, boutonPrimaire, boutonSecondaire, desactive, signal, pastille, rangee, champ, CIBLE } from '../propositions/styles';
 
 /**

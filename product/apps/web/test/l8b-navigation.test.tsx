@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHmac } from 'node:crypto';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -36,13 +36,11 @@ import { studioDepuisVeille } from '../lib/veille-link';
 import { retourNettoye } from '../lib/studios/sources/sources';
 import { VueProjet } from '../components/studios/projet/VueProjet';
 import StudioPage from '../app/(app)/studio/page';
+import { fichierServi, RACINE_SPATIALE } from './spatial/servie';
 
 const APP = join(process.cwd(), 'app', '(app)');
-const fichierPage = (motif: string): string | null => {
-  const base = join(APP, ...motif.split('/').filter(Boolean));
-  for (const f of ['page.tsx', 'route.ts']) if (existsSync(join(base, f))) return join(base, f);
-  return null;
-};
+// Une page V5 retirée au profit d'un écran Spatial EXCLUSIF (vague 2) reste servie, par Spatial.
+const fichierPage = (motif: string): string | null => fichierServi(motif);
 
 describe('UX-05 · chaque route historique est servie et lit encore ses paramètres', () => {
   it('la carte couvre les trois origines · Studio, Pubs IA, Veille', () => {
@@ -71,8 +69,9 @@ describe('UX-05 · chaque route historique est servie et lit encore ses paramèt
         const perdus = r.params.filter((p) => !new RegExp(`\\bsp\\.${p}\\b`).test(source));
         expect(perdus, `${r.chemin} ne lit plus : ${perdus.join(', ')}`).toEqual([]);
       }
-      // Recherche globale conservée · la page vit sous la coquille de l'appli (barre « Rechercher »).
-      expect(f!.startsWith(APP)).toBe(true);
+      // Recherche globale conservée · la page vit sous la coquille de l'appli (barre « Rechercher ») ou sous
+      // la coquille Spatiale (palette ⌘K) quand l'écran est exclusif.
+      expect(f!.startsWith(APP) || f!.startsWith(RACINE_SPATIALE)).toBe(true);
     });
   }
 });

@@ -31,7 +31,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
   return { ...actual, db };
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, usePathname: () => '/studio/projets', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { createHash, randomUUID } from 'node:crypto';
@@ -42,7 +42,9 @@ import { session, semer } from './studios-semis';
 import { projetVideo } from './l4a-outils';
 import { jargonEcran, texteVisible } from './helpers/jargon-ecran';
 import { injecterLecteurMedias } from '../lib/studios/rendu/medias';
-import IdentitesPage from '../app/(app)/studio/projets/[id]/identites/page';
+// Vague 2 · la page V5 est retirée · la garde passe sur l'écran Spatial servi à la même adresse.
+import IdentitesPage from '../app/(spatial)/sp/studio/projets/[id]/identites/page';
+import { avecSpatial } from './spatial/fournisseur';
 import { contenuContradictoire } from '../../../packages/core/test/l6b-fixtures';
 
 const ids = h.ids;
@@ -51,7 +53,7 @@ const stockage = new Map<string, Uint8Array>();
 
 async function rendre(id: string) {
   const d = document.createElement('div');
-  d.innerHTML = renderToStaticMarkup(await IdentitesPage({ params: Promise.resolve({ id }) }));
+  d.innerHTML = renderToStaticMarkup(avecSpatial(await IdentitesPage({ params: Promise.resolve({ id }) })));
   return d;
 }
 async function empreinteBase() {

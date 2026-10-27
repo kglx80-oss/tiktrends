@@ -277,7 +277,11 @@ describe('Spatial · Studios · parcours image · le prix avant tout appel payan
     a.lireParcoursImage.mockResolvedValue({ ok: false, code: 'UNSUPPORTED_CAPABILITY', status: 409, message: 'Génération d’images non activée.', targetIds: ['generation_image'], recoverable: false, traceId: 't' });
     monter(<ParcoursImage projectId="p1" versionId="v2" />);
     await act(async () => { await Promise.resolve(); });
-    expect(hote.querySelector('[data-etat="non-active"]')).toBeTruthy();
+    const etat = hote.querySelector('[data-etat="non-active"]')!;
+    expect(etat.querySelector('.lbl')?.textContent).toBe('Génération d’images · non activée pour cet espace');
+    expect(etat.textContent).toContain('Génération d’images non activée.');
+    expect(etat.querySelector('[role="alert"]'), 'un état, pas une erreur').toBeNull();
+    expect(etat.querySelectorAll('button')).toHaveLength(0);
     expect(hote.querySelector('[data-bouton="compiler"]')).toBeNull();
   });
 });

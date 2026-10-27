@@ -12,7 +12,7 @@ import type { ChatThread } from '../app/actions/jarvis-chat';
  * Concept créatif VIVANT · PR3 + PR4, au DOM RENDU (jsdom). On REND les vrais
  * composants et on lit le résultat.
  *
- * GUARD #3 · anti double-envoi · deux clics du MÊME tick ne démarrent qu'UN
+ * GUARD #3 · anti double-envoi (écran Spatial, porté de la V5 en vague 2) · deux clics du MÊME tick ne démarrent qu'UN
  *   concept · `demarrerConcept` est appelé UNE fois, une SEULE navigation part.
  *   Mutation : retirer `verrouAction` du composeur fait partir deux démarrages.
  *
@@ -21,13 +21,14 @@ import type { ChatThread } from '../app/actions/jarvis-chat';
  */
 
 const replaceSpy = vi.fn();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {}, replace: replaceSpy, refresh: () => {} }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/nouveau/concept', useRouter: () => ({ push: () => {}, replace: replaceSpy, refresh: () => {} }) }));
 // Le démarrage réel est prouvé en base ailleurs (concept-conversation-vivante-db) ·
 // ici on isole le VERROU · on compte les appels, on ne touche pas la base.
 const demarrerSpy = vi.fn(async () => ({ ok: true as const, demarrage: { projectId: 'p-new', conversationId: 'c-new' } }));
 vi.mock('../app/actions/studios/concept', () => ({ demarrerConcept: () => demarrerSpy() }));
 
-import { NouveauConcept } from '../components/studios/projet/NouveauConcept';
+import { NouveauConcept } from '../spatial/vues/studios/NouveauConcept';
+import { avecSpatial } from './spatial/fournisseur';
 import { ConceptHote } from '../components/studios/projet/ConceptHote';
 
 const pret: EtatNouveauProjet = { etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau concept créatif' };
@@ -46,7 +47,7 @@ describe('GUARD #3 · le composeur ne démarre qu’UN concept même sur un doub
   it('deux clics synchrones · demarrerConcept une fois, une seule navigation vers le concept', async () => {
     const fetchSpy = vi.fn(async () => new Response('Voici une piste de concept.'));
     vi.stubGlobal('fetch', fetchSpy);
-    act(() => { root!.render(<NouveauConcept etat={pret} />); });
+    act(() => { root!.render(avecSpatial(<NouveauConcept etat={pret} sous="Studios · Neva" />)); });
     const ta = el!.querySelector('[data-composeur] textarea') as HTMLTextAreaElement;
     taper(ta, 'Un concept de rentrée pour Neva');
     const envoi = el!.querySelector('[data-envoi="pret"]') as HTMLButtonElement;
