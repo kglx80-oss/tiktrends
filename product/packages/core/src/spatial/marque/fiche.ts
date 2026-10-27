@@ -1,3 +1,4 @@
+import { messageServiceInactif } from '../../copie-service';
 import { completudeFicheMarque, ELEMENTS_FICHE_MARQUE, type FicheMarqueLue } from '../../accueil-v5';
 
 /**
@@ -137,7 +138,7 @@ const OK_MARQUE: Record<string, string> = {
   product: 'Produit ajouté.', imported: 'Produits importés.', shopify: 'Boutique Shopify connectée : produits, images et charte importés.',
 };
 const ERR_MARQUE: Record<string, string> = {
-  nourl: 'Renseigne le site de la marque pour importer.', ai: 'IA non configurée sur le serveur.', credits: 'Crédits insuffisants.',
+  nourl: 'Renseigne le site de la marque pour importer.', ai: messageServiceInactif('ia_profil'), credits: 'Crédits insuffisants.',
   import: 'L’import a échoué, réessaie.', generate: 'La génération a échoué, réessaie.',
   name: 'Donne un nom à la marque.', shopify_domain: 'Indique le domaine de ta boutique Shopify.',
   shopify_notfound: 'Catalogue Shopify introuvable sur ce domaine. Vérifie l’adresse, ou essaie le domaine .myshopify.com.',

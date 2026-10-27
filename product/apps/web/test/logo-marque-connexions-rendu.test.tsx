@@ -40,10 +40,8 @@ vi.mock('../app/actions/assets', () => stub());
 vi.mock('../app/actions/brand-detail', () => stub());
 
 import { CONNECTEURS_DISPONIBLES, CONNEXIONS_REELLES, connecteursBranches, estConnexionReelle } from '@tiktrends/core';
-import NouvelleMarque from '../app/(app)/brands/new/page';
 import { VueAnalytics } from '../components/accueil/VueAnalytics';
 import { MetaKeyMetrics } from '../app/(app)/analytics/MetaKeyMetrics';
-import { ShopifyConnect } from '../app/(app)/brands/[id]/ShopifyConnect';
 import { LogoMarque } from '../components/LogoMarque';
 
 /** Les clés de tous les `LogoMarque` d'un rendu, dans l'ordre. */
@@ -52,12 +50,10 @@ const logos = (html: string) => [...html.matchAll(/data-logo-marque="([^"]+)"/g)
 const kpi = new Proxy({}, { get: () => 1 });
 const ECRANS: Array<{ ecran: string; attendu: string[]; rendre: () => Promise<string> | string }> = [
   { ecran: 'Analytics sans compte', attendu: ['meta'], rendre: async () => renderToStaticMarkup(await VueAnalytics()) },
-  { ecran: 'Nouvelle marque', attendu: ['shopify'], rendre: async () => renderToStaticMarkup(await NouvelleMarque({ searchParams: Promise.resolve({}) })) },
   {
     ecran: 'Key Metrics Meta', attendu: ['meta'],
     rendre: () => renderToStaticMarkup(<MetaKeyMetrics insights={{ accountName: 'Neva FR', currency: '€', window: kpi, previous: kpi, topAds: [], spend30d: 1, purchases30d: 1, revenue30d: 1, roas30d: 1 } as never} syncedAt={null} />),
   },
-  { ecran: 'Fiche marque · Shopify', attendu: ['shopify'], rendre: () => renderToStaticMarkup(<ShopifyConnect brandId="b" initialDomain={null} />) },
   // Vague 2 · la Bibliothèque est servie par Spatial (logos d'outil `LogoApp`, hors `LogoMarque`).
 ];
 

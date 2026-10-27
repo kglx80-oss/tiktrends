@@ -43,7 +43,8 @@ export function Mcp() {
             <li>À l’ouverture, cette page donnera la configuration à coller dans ton client.</li>
           </ol>
           <div className="mcpcode">
-            <pre>Aucune configuration · le serveur n’est pas encore ouvert.</pre>
+            {/* Le bouton « Copier » est posé en haut à droite du bloc (.mcpcode .btn) · une seule longue ligne passait dessous. Lignes courtes (mesurées au banc à 1440, 390 et 360 : ni chevauchement, ni défilement). */}
+            <pre>{'Rien à copier.\n\nLe serveur MCP n’est pas\nencore ouvert.'}</pre>
             <button className="btn sm" type="button" disabled title={RAISON}><Ic n="copy" />Copier</button>
           </div>
         </section>

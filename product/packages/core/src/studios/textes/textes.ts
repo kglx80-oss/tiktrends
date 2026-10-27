@@ -24,6 +24,7 @@ import type { BriefCanonique } from '../brief';
 import { presentationSource, titreSource, type SourceReferenceStudio } from '../sources/reference';
 import { idSourceProduit, type FaitProduit } from '../sources/produit';
 import { hypotheseDuBrief } from '../brief';
+import { libelleVariable } from '../variantes/test';
 import type { ContenuVersion, ViolationStudio } from '../document';
 import type { ChangementPatch } from '../patch';
 import { jsonCanonique, sha256Hex } from '../version';
@@ -382,7 +383,7 @@ export function exporterTextes(textes: readonly TexteStudio[], meta: MetaExportT
     `# Textes · ${meta.titre}`, '',
     `Marque : ${meta.marque} · Version ${meta.versionN} · Exporté le ${meta.exporteLe.slice(0, 10)}`, '',
     'Ces textes ne déclenchent aucune génération · copie-les dans l’outil de ton choix.', '',
-    ...(meta.brief.testedVariable ? [`Variable testée : ${meta.brief.testedVariable}`, ''] : []),
+    ...(meta.brief.testedVariable ? [`Variable testée : ${libelleVariable(meta.brief.testedVariable)}`, ''] : []),
     ...(textes.length === 0 ? ['_Aucun texte retenu._', ''] : []),
     ...groupes.flatMap((g) => [
       `## ${g.type === 'libre' ? 'Textes libres' : LIBELLES_TYPE_TEXTE[g.type]}`, '',

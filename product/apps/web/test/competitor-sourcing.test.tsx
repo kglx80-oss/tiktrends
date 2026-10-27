@@ -4,7 +4,7 @@ const f = vi.hoisted(() => ({
   session: { role: 'admin', workspaceId: 'w', user: { email: 'a@example.org' } } as { role: string; workspaceId: string; user: { email: string } } | null,
   rows: [] as unknown[][], reserve: vi.fn(), refund: vi.fn(), generate: vi.fn(), update: vi.fn(), lock: vi.fn(),
 }));
-vi.mock('next/navigation', () => ({ redirect: vi.fn(), useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock('next/navigation', () => ({ redirect: vi.fn(), useRouter: () => ({ refresh: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 vi.mock('../lib/auth', () => ({ getSession: async () => f.session }));
 vi.mock('../lib/credits', () => ({ unlimitedCredits: () => false, reserveCredits: f.reserve, refundCredits: f.refund }));
 vi.mock('../lib/spend-guard', () => ({ guardedAnthropic: () => ({}) }));
@@ -16,7 +16,8 @@ vi.mock('@tiktrends/db', () => {
   return { db, schema: { brands: { id: 'id', workspaceId: 'workspaceId' } } };
 });
 import { proposerConcurrents, ajouterConcurrents } from '../app/actions/competitor';
-import { ConcurrentSourcing } from '../components/ConcurrentSourcing';
+// Vague 2 · le sourcing vit sur l'Identité Spatiale (même action, même prix).
+import { SourcingConcurrents } from '../spatial/vues/marque/interactifs';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -27,7 +28,7 @@ beforeEach(() => {
 });
 describe('Sourcing concurrents', () => {
   it('annonce le prix avant le clic et ne lance aucun appel au rendu', () => {
-    const html = renderToStaticMarkup(<ConcurrentSourcing brandId="b" ready />);
+    const html = renderToStaticMarkup(<SourcingConcurrents brandId="b" prix="5 crédits" proposer={proposerConcurrents} ajouter={ajouterConcurrents} raison={null} />);
     expect(html).toContain('Proposer des concurrents · 5 crédits');
     expect(html).toContain('Aucun ajout automatique');
     expect(f.generate).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled();

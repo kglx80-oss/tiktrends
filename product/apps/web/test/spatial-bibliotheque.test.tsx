@@ -244,6 +244,19 @@ describe('Spatial · MCP TikTrends reproduit la maquette, en « bientôt »', ()
     expect(squelette(html, { ignorer: IGNORER })).not.toEqual(squelette(fragmentReference('mcp'), { ignorer: IGNORER }));
   });
 
+  it('le bloc de configuration ne passe pas sous le bouton « Copier » et ne défile pas (vu au banc, 1440 et 390)', () => {
+    // Le bouton est absolu en haut à droite (.mcpcode .btn) et partage la hauteur
+    // de la 1re ligne du <pre> (blanc · white-space:pre). Mesuré au banc (marge
+    // 1re ligne → bouton, place utile du <pre>) :
+    //   ancien texte, 1 ligne de 58 car. · chevauche de 51 px (1440), 243 px (390)
+    //   « Aucune configuration. » 21 car. · +24 px à 390, chevauche de 6 px à 360, défile à 390
+    //   « Rien à copier. » 14 car., lignes ≤ 24 car. · +267 / +75 / +45 px, place 452 / 260 / 230 px, aucun défilement
+    const doc = new DOMParser().parseFromString(rendre(<Mcp />), 'text/html');
+    const lignes = doc.querySelector('.mcpcode pre')!.textContent!.split('\n');
+    expect(lignes[0]!.length).toBeLessThanOrEqual(14);
+    expect(lignes.filter((l) => l.length > 24)).toEqual([]);
+  });
+
   it('aucune clé, aucun outil, aucune adresse · chaque contrôle est désactivé', () => {
     const html = rendre(<Mcp />);
     for (const x of ['tt_live', 'mcp.tiktrends.app', 'Serveur en ligne', '99,98', 'lire_fiche_marque', 'neva']) expect(html, x).not.toContain(x);

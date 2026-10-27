@@ -1,34 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { etapesConfigurationMarque } from '@tiktrends/core';
 
 /**
- * CDC v8 · F08 · l'étape de démarrage des concurrents dit « renseigner », pas
- * « suivre ». Saisir un nom dans le profil RENSEIGNE un concurrent (situer la
- * catégorie) · le suivi ACTIF se met en place depuis la Veille et se compte au
- * Radar. « Suivre les concurrents · Fait » prétendait un suivi actif que le Radar
- * contredisait (0 suivi).
+ * CDC v8 · F08 · l'étape de démarrage des concurrents ne prétend pas un suivi
+ * actif. Saisir un nom dans le profil RENSEIGNE un concurrent (situer la
+ * catégorie) · le suivi ACTIF se met en place depuis la Veille. « Suivre les
+ * concurrents · Fait » prétendait un suivi actif que le Radar contredisait.
  *
- * L'étape vit dans le composant serveur `brands/[id]/page.tsx` (imports
- * `server-only`), non montable en test · on lit donc sa DÉFINITION dans la
- * source, comme l'adoption d'une clé de marque ailleurs. Ce qu'on vérifie n'est
- * pas un rendu mais le CONTRAT de l'étape · son libellé et son cta.
+ * Vague 2 · la fiche V5 est retirée · l'étape vit dans la règle du noyau de la
+ * carte « Finis de configurer » (`etapesConfigurationMarque`, écran Spatial).
  */
+const etat = { manquesFiche: 0, metaConnecte: true, concurrentsSuivis: 0, concurrentsRenseignes: 0, sauvegardes: 0, lotsLances: 0, personnes: 1 };
+const etape = (e: Partial<typeof etat>) => etapesConfigurationMarque({ ...etat, ...e }, 'b1').find((x) => x.cle === 'concurrents')!;
+
 describe('F08 · l’étape de démarrage « concurrents » ne prétend pas un suivi actif', () => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const page = readFileSync(join(here, '../app/(app)/brands/[id]/page.tsx'), 'utf8');
-  // La ligne de l'étape `concurrents`.
-  const ligne = page.split('\n').find((l) => l.includes("key: 'concurrents'")) ?? '';
-
-  it('l’étape porte « Renseigner les concurrents » et le cta « Renseigner »', () => {
-    expect(ligne, 'l’étape concurrents doit exister').not.toBe('');
-    expect(ligne).toContain("label: 'Renseigner les concurrents'");
-    expect(ligne).toContain("cta: 'Renseigner'");
+  it('des concurrents seulement RENSEIGNÉS ne valent pas « fait »', () => {
+    const e = etape({ concurrentsRenseignes: 5, concurrentsSuivis: 0 });
+    expect(e.faite).toBe(false);
+    expect(e.detail).toContain('5 concurrents renseignés dans la fiche · 0 suivi');
   });
-
-  it('l’étape ne prétend plus « Suivre » (ni label ni cta)', () => {
-    expect(ligne).not.toContain("label: 'Suivre les concurrents'");
-    expect(ligne).not.toContain("cta: 'Suivre'");
+  it('l’étape n’est faite qu’avec des concurrents RÉELLEMENT suivis', () => {
+    expect(etape({ concurrentsRenseignes: 0, concurrentsSuivis: 3 }).faite).toBe(true);
   });
 });
