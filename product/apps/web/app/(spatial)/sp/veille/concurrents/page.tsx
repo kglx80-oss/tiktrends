@@ -6,7 +6,7 @@ import { getSession } from '../../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, roleAtLeast, PLAN_LABEL } from '../../../../../lib/rbac';
 import { effectiveAccess } from '../../../../../lib/access';
 import { getActiveBrand } from '../../../../../lib/brands';
-import { analyzeCompetitorAction, type CompetitorReport } from '../../../../actions/competitor';
+import { scannerConcurrentAction, type CompetitorReport } from '../../../../actions/competitor';
 import { Concurrents, type ConcurrentScanne, type SuggestionConcurrent } from '../../../../../spatial/vues/veille/Concurrents';
 import { VeilleFermee } from '../../../../../spatial/vues/veille/Fermee';
 import { pastilleRadar } from '../acces';
@@ -14,29 +14,9 @@ import { pastilleRadar } from '../acces';
 export const dynamic = 'force-dynamic';
 
 const Veille = FEATURES.find((f) => f.key === 'inspo')!;
+/** Séparateur marque · nom de la cible d'un scan (lu par `scannerConcurrentAction`). */
 const SEP = '\n';
 
-/**
- * Le scan, depuis le formulaire OU depuis le bouton d'un concurrent de la
- * fiche (`cible` = marque + nom). Enveloppe MINCE de l'action existante
- * `analyzeCompetitorAction` · elle garde ses gardes (admin, marque de
- * l'espace), son débit de crédits (prix affiché sur le bouton), sa barrière de
- * dépense IA (`guardedAnthropic`) et sa redirection vers le rapport.
- */
-async function scanner(fd: FormData): Promise<void> {
-  'use server';
-  const cible = typeof fd.get('cible') === 'string' ? String(fd.get('cible')) : '';
-  const f = new FormData();
-  if (cible) {
-    const i = cible.indexOf(SEP);
-    f.set('brandId', i > 0 ? cible.slice(0, i) : '');
-    f.set('name', i > 0 ? cible.slice(i + 1) : '');
-  } else {
-    f.set('brandId', String(fd.get('brandId') ?? ''));
-    f.set('name', String(fd.get('name') ?? ''));
-  }
-  await analyzeCompetitorAction(f);
-}
 
 /**
  * « Concurrents » (Spatial · nouvelle adresse) · la liste des concurrents de la
@@ -112,7 +92,7 @@ export default async function ConcurrentsSpatial() {
     <Concurrents
       pastilleRadar={radar}
       marque={{ id: active.id, nom: active.name }}
-      scanner={admin ? scanner : null}
+      scanner={admin ? scannerConcurrentAction : null}
       refus={admin ? null : 'Le scan est réservé aux administrateurs de l’espace'}
       cout={cout}
       suggestions={suggestions}
