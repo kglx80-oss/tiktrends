@@ -3,7 +3,7 @@ import {act} from 'react';
 import {createRoot,type Root} from 'react-dom/client';
 import {renderToString} from 'react-dom/server';
 import {beforeEach,afterEach,it,expect,vi} from 'vitest';
-import {useAppelPayant,resultatPayantIncertain} from '../components/studios/projet/useAppelPayant';
+import {useAppelPayant,resultatPayantIncertain} from '../lib/studios/appel-payant';
 (globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
 let root:Root;let el:HTMLDivElement;let appel:ReturnType<typeof useAppelPayant>;
 function Vue({projet='p'}:{projet?:string}){appel=useAppelPayant(projet,'textes');return <button disabled={appel.bloque}>{appel.etat}</button>}

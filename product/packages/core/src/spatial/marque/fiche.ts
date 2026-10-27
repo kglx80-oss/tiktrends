@@ -133,7 +133,7 @@ export function manquantesLibelle(sources: readonly SourceJarvis[]): string | nu
  */
 const OK_MARQUE: Record<string, string> = {
   saved: 'Fiche mise à jour.', created: 'Marque créée.', generated: 'Fiche complétée depuis le site (profil, audience, concurrents).',
-  da: 'Style du site analysé · il guide désormais chaque créa générée.', persona: 'Persona ajouté.', scenario: 'Scénario ajouté.',
+  da: 'Style du site analysé · il guide désormais chaque créa générée.', 'da-edit': 'Style corrigé · ta version prime sur celle de l’agent.', persona: 'Persona ajouté.', scenario: 'Scénario ajouté.',
   product: 'Produit ajouté.', imported: 'Produits importés.', shopify: 'Boutique Shopify connectée : produits, images et charte importés.',
 };
 const ERR_MARQUE: Record<string, string> = {

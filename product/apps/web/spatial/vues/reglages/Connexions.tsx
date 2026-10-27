@@ -37,6 +37,8 @@ export interface PropsConnexions {
   shopify: ActionsConnexionShopify;
   drive: ActionsConnexionDrive;
   retours: Record<string, string>;
+  /** Les connecteurs à venir (règle `feuilleDeRouteConnecteurs` du noyau) · listés, jamais cliquables. Absents, l'écran est celui de la maquette. */
+  feuilleDeRoute?: { categories: ReadonlyArray<{ categorie: string; noms: readonly string[] }>; enPreparation: number };
 }
 
 export function Connexions(p: PropsConnexions) {
@@ -65,6 +67,19 @@ export function Connexions(p: PropsConnexions) {
           </article>
         ))}
       </div>
+      {p.feuilleDeRoute && p.feuilleDeRoute.categories.length > 0 && (
+        <section data-geste="feuille-de-route">
+          <div className="sech"><h2>Bientôt</h2><span className="faint" style={{ fontSize: '12.5px' }}>{p.feuilleDeRoute.enPreparation} connecteur{p.feuilleDeRoute.enPreparation > 1 ? 's' : ''} en préparation · rien à brancher pour l’instant</span></div>
+          <div className="tile" style={{ display: 'grid', gap: 14 }}>
+            {p.feuilleDeRoute.categories.map((c) => (
+              <div key={c.categorie}>
+                <div className="lbl" style={{ margin: 0 }}>{c.categorie}</div>
+                <div className="chips" style={{ marginTop: 8 }}>{c.noms.map((n) => <span className="chip" key={n} style={{ cursor: 'default' }}>{n}</span>)}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <AnnonceRetour messages={p.retours} />
     </Vue>
   );

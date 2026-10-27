@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { lignesConfigurationMarque, type EtapeConfigurationMarque } from '@tiktrends/core';
+import { lienAnnonceurVeille, lignesConfigurationMarque, type EtapeConfigurationMarque } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
 import { Anneau, Ic, Lien } from '../../communs';
 
@@ -161,13 +161,15 @@ export function CarteConfiguration({ marque, etapes, faites, total, part, questi
  * `updateBrandAction` (l'action existante de la fiche V5). Les AUTRES champs
  * partent tels quels, en caché · rien n'est écrasé.
  */
-export function CompleterChamp({ action, valeurs, champ, titre, saisie, aide }: {
-  action: ActionFormulaire | null; valeurs: Record<string, string>; champ: string; titre: string; saisie: 'texte' | 'virgules' | 'lignes'; aide: string;
+export function CompleterChamp({ action, valeurs, champ, titre, saisie, aide, libelle = 'Compléter' }: {
+  action: ActionFormulaire | null; valeurs: Record<string, string>; champ: string; titre: string; saisie: 'ligne' | 'texte' | 'virgules' | 'lignes'; aide: string;
+  /** Le libellé du bouton · « Modifier » pour une valeur déjà remplie. */
+  libelle?: string;
 }) {
   const [ouvert, setOuvert] = useState(false);
   return (
     <>
-      <button className="btn sm" type="button" onClick={() => setOuvert(true)} disabled={!action} title={!action ? 'Réservé aux administrateurs de l’espace' : undefined}>Compléter</button>
+      <button className="btn sm" type="button" onClick={() => setOuvert(true)} disabled={!action} title={!action ? 'Réservé aux administrateurs de l’espace' : undefined} aria-label={`${libelle} · ${titre}`}>{libelle}</button>
       <DialogueSpatial titre={titre} ouvert={ouvert} fermer={() => setOuvert(false)}>
         {action && (
           <form action={action} style={{ display: 'grid', gap: 12 }}>
@@ -177,7 +179,9 @@ export function CompleterChamp({ action, valeurs, champ, titre, saisie, aide }: 
               ? <textarea name={champ} defaultValue={valeurs[champ] ?? ''} rows={4} autoFocus style={{ ...STYLE_CHAMP_SPATIAL, resize: 'vertical' }} />
               : saisie === 'lignes'
                 ? <textarea name={champ} defaultValue={valeurs[champ] ?? ''} rows={5} autoFocus placeholder="Une marque par ligne" style={{ ...STYLE_CHAMP_SPATIAL, resize: 'vertical' }} />
-                : <input name={champ} defaultValue={valeurs[champ] ?? ''} autoFocus placeholder="Séparés par des virgules" style={STYLE_CHAMP_SPATIAL} />}
+                : saisie === 'ligne'
+                  ? <input name={champ} defaultValue={valeurs[champ] ?? ''} autoFocus required={champ === 'name'} style={STYLE_CHAMP_SPATIAL} />
+                  : <input name={champ} defaultValue={valeurs[champ] ?? ''} autoFocus placeholder="Séparés par des virgules" style={STYLE_CHAMP_SPATIAL} />}
             <div className="pbtns"><button className="btn" type="button" onClick={() => setOuvert(false)}>Annuler</button><button className="btn pri" type="submit">Enregistrer</button></div>
           </form>
         )}
@@ -259,5 +263,218 @@ export function FormulaireSurcouche({ action, cache, champs, titre, intro, envoy
         )}
       </DialogueSpatial>
     </>
+  );
+}
+
+/* ───────────────────────── Logos de la charte ───────────────────────── */
+
+/**
+ * Les logos de la charte (repris de l'éditeur V5 `BrandGuidelines`) · ajouter
+ * un logo par son adresse, choisir celui par défaut, en retirer un. Enregistré
+ * par `saveBrandDAAction` avec les couleurs et polices ACTUELLES (rien d'autre
+ * ne change). Le téléversement d'un fichier n'existe pas côté serveur · absent.
+ */
+export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices, enregistrer }: {
+  brandId: string; logos: readonly string[]; defaut: string | null;
+  /** L'adresse d'affichage (proxy) de chaque logo connu. */
+  apercus: Record<string, string>;
+  couleurs: readonly string[]; polices: readonly string[];
+  enregistrer: ((i: { brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[] }) => Promise<{ ok?: true; error?: string }>) | null;
+}) {
+  const { toast } = useSpatial();
+  const router = useRouter();
+  const [brouillon, setBrouillon] = useState('');
+  const [encours, demarrer] = useTransition();
+  const sauver = (logoUrl: string, liste: string[], succes: string) => {
+    if (!enregistrer || encours) return;
+    demarrer(async () => {
+      const r = await enregistrer({ brandId, logoUrl, logos: liste, colors: [...couleurs], fonts: [...polices] }).catch(() => ({ error: 'L’enregistrement a échoué. Réessaie.' }));
+      if (r.error) { toast(r.error); return; }
+      toast(succes);
+      setBrouillon('');
+      router.refresh();
+    });
+  };
+  const ferme = !enregistrer ? 'Réservé aux administrateurs de l’espace' : undefined;
+  const ajout = brouillon.trim();
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {logos.length === 0
+        ? <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>Aucun logo dans la charte · « Récupérer la charte » le lit sur le site, ou ajoute son adresse.</p>
+        : (
+          <div className="nprefs">
+            {logos.map((u) => (
+              <div className="npr" key={u}>
+                <span className="applogo" style={{ width: 42, height: 42, overflow: 'hidden' }}>{apercus[u] ? <img src={apercus[u]} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} /> : <Ic n="img" />}</span>
+                <div><strong style={{ overflowWrap: 'anywhere' }}>{u.replace(/^https?:\/\//, '')}</strong><small>{u === defaut ? 'Logo par défaut' : 'Variante'}</small></div>
+                {u === defaut
+                  ? <span className="pill g"><Ic n="check" />Par défaut</span>
+                  : <button className="btn sm" type="button" disabled={!!ferme || encours} title={ferme} onClick={() => sauver(u, [...logos], 'Logo par défaut enregistré')}>Par défaut</button>}
+                <button className="btn sm icon" type="button" aria-label={`Retirer le logo ${u}`} disabled={!!ferme || encours} title={ferme}
+                  onClick={() => sauver(u === defaut ? (logos.find((x) => x !== u) ?? '') : (defaut ?? ''), logos.filter((x) => x !== u), 'Logo retiré de la charte')}><Ic n="x" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      <form style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }} onSubmit={(e) => {
+        e.preventDefault();
+        if (!/^https?:\/\/\S+$/i.test(ajout)) { toast('Colle l’adresse complète du logo (https://…)'); return; }
+        if (logos.includes(ajout)) { toast('Ce logo est déjà dans la charte'); return; }
+        sauver(defaut || ajout, [...logos, ajout], 'Logo ajouté à la charte');
+      }}>
+        <input value={brouillon} onChange={(e) => setBrouillon(e.target.value)} placeholder="https://…/logo.png" aria-label="Adresse d’un logo" disabled={!!ferme} style={STYLE_CHAMP_SPATIAL} />
+        <button className="btn sm" type="submit" disabled={!!ferme || encours || !ajout} title={ferme}><Ic n="plus" />Ajouter</button>
+      </form>
+    </div>
+  );
+}
+
+/* ───────────────────────── Style visuel · correction ───────────────────────── */
+
+export interface ChampStyleVisuel { nom: string; libelle: string; valeur: string; exemple: string }
+
+/**
+ * « Corriger » le style déduit du site · `saveBrandVisualDaAction` (aucun
+ * crédit, ta version prime sur celle de l'agent). Une surcouche, comme
+ * « Compléter ».
+ */
+export function CorrigerStyle({ action, brandId, champs }: { action: ActionFormulaire | null; brandId: string; champs: readonly ChampStyleVisuel[] }) {
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <>
+      <button className="btn sm" type="button" onClick={() => setOuvert(true)} disabled={!action} title={!action ? 'Réservé aux administrateurs de l’espace' : undefined}>Corriger</button>
+      <DialogueSpatial titre="Corriger le style déduit" ouvert={ouvert} fermer={() => setOuvert(false)}>
+        {action && (
+          <form action={action} style={{ display: 'grid', gap: 10 }}>
+            <input type="hidden" name="brandId" value={brandId} />
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>Ta version prime sur celle de l’agent · aucun crédit. Sépare les éléments « à éviter » par une virgule ou un retour à la ligne.</p>
+            {champs.map((c) => (
+              <label key={c.nom} style={{ display: 'grid', gap: 4 }}>
+                <span className="lbl" style={{ margin: 0 }}>{c.libelle}</span>
+                <textarea name={c.nom} defaultValue={c.valeur} rows={2} placeholder={c.exemple} style={{ ...STYLE_CHAMP_SPATIAL, resize: 'vertical' }} />
+              </label>
+            ))}
+            <div className="pbtns"><button className="btn" type="button" onClick={() => setOuvert(false)}>Annuler</button><button className="btn pri" type="submit">Enregistrer le style</button></div>
+          </form>
+        )}
+      </DialogueSpatial>
+    </>
+  );
+}
+
+/* ───────────────────────── Supprimer (confirmé) ───────────────────────── */
+
+/**
+ * Un bouton de suppression d'une action serveur à formulaire EXISTANTE
+ * (marque, persona, scénario, produit) · confirmé avant l'envoi, comme l'écran
+ * V5 (`ConfirmButton`). Le serveur garde ses refus (ex. marque qui porte un
+ * historique Studios).
+ */
+export function SupprimerConfirme({ action, champs, confirmation, className = 'btn sm icon', libelle, children }: {
+  action: ActionFormulaire | null; champs: Record<string, string>; confirmation: string; className?: string; libelle: string; children: ReactNode;
+}) {
+  const [encours, demarrer] = useTransition();
+  return (
+    <button className={className} type="button" aria-label={libelle} disabled={!action || encours} title={!action ? 'Réservé aux administrateurs de l’espace' : undefined}
+      onClick={() => {
+        if (!action || encours || !window.confirm(confirmation)) return;
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(champs)) fd.set(k, v);
+        demarrer(async () => { await action(fd); });
+      }}>{children}</button>
+  );
+}
+
+/* ───────────────────────── Boutique Shopify de la marque ───────────────────────── */
+
+/**
+ * Brancher (ou changer) la boutique Shopify de la marque par son domaine ·
+ * `syncShopifyProductsAction` importe produits, images et prix (repris de
+ * l'écran V5 `ShopifyConnect`, aucune installation). Le résultat RÉEL est dit.
+ */
+export function BoutiqueShopify({ brandId, domaine, synchroniser }: {
+  brandId: string; domaine: string | null;
+  synchroniser: ((i: { brandId: string; domain?: string }) => Promise<{ imported?: number; updated?: number; error?: string }>) | null;
+}) {
+  const { toast } = useSpatial();
+  const router = useRouter();
+  const [valeur, setValeur] = useState(domaine ?? '');
+  const [encours, demarrer] = useTransition();
+  return (
+    <form style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }} onSubmit={(e) => {
+      e.preventDefault();
+      if (!synchroniser || encours) return;
+      demarrer(async () => {
+        const r = await synchroniser({ brandId, domain: valeur.trim() || undefined }).catch(() => ({ error: 'La synchronisation a échoué. Réessaie.' } as { imported?: number; updated?: number; error?: string }));
+        if (r.error) { toast(r.error); return; }
+        toast(`Boutique synchronisée · ${r.imported ?? 0} produit${(r.imported ?? 0) > 1 ? 's' : ''} ajouté${(r.imported ?? 0) > 1 ? 's' : ''}, ${r.updated ?? 0} mis à jour`);
+        router.refresh();
+      });
+    }}>
+      <input value={valeur} onChange={(e) => setValeur(e.target.value)} placeholder="ta-boutique.com ou ta-boutique.myshopify.com" aria-label="Domaine de la boutique Shopify" disabled={!synchroniser || encours} style={STYLE_CHAMP_SPATIAL} />
+      <button className="btn sm pri" type="submit" disabled={!synchroniser || encours} title={!synchroniser ? 'Réservé aux administrateurs de l’espace' : undefined}><Ic n="loop" />{encours ? 'Synchronisation…' : domaine ? 'Synchroniser' : 'Connecter'}</button>
+    </form>
+  );
+}
+
+/* ───────────────────────── Concurrents · pistes de Jarvis ───────────────────────── */
+
+/**
+ * « Trouver mes concurrents avec Jarvis » (repris de l'écran V5
+ * `ConcurrentSourcing`) · `proposerConcurrents` (appel IA payant, prix sur le
+ * bouton, barrière `guardedAnthropic`) propose des pistes NON vérifiées ;
+ * rien n'est ajouté sans sélection explicite (`ajouterConcurrents`, gratuit,
+ * additif).
+ */
+export function SourcingConcurrents({ brandId, prix, proposer, ajouter, raison }: {
+  brandId: string; prix: string;
+  proposer: ((brandId: string, contexte: string) => Promise<{ names: string[] } | { error: string }>) | null;
+  ajouter: ((brandId: string, selection: string[]) => Promise<{ ok: true } | { error: string }>) | null;
+  raison: string | null;
+}) {
+  const router = useRouter();
+  const [contexte, setContexte] = useState('');
+  const [pistes, setPistes] = useState<string[]>([]);
+  const [choix, setChoix] = useState<string[]>([]);
+  const [message, setMessage] = useState('');
+  const [encours, demarrer] = useTransition();
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      <textarea value={contexte} onChange={(e) => { setContexte(e.target.value); setPistes([]); setChoix([]); setMessage(''); }} maxLength={1200} rows={3} disabled={encours}
+        aria-label="Quel type de concurrent recherches-tu ?" placeholder="Ex. soins capillaires naturels, cible 25-40 ans, prix moyen" style={{ ...STYLE_CHAMP_SPATIAL, resize: 'vertical' }} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+        <button className="btn sm pri" type="button" disabled={!proposer || encours} title={!proposer ? raison ?? undefined : undefined} onClick={() => demarrer(async () => {
+          if (!proposer) return;
+          setMessage('');
+          try {
+            const r = await proposer(brandId, contexte);
+            if ('error' in r) { setMessage(r.error); return; }
+            setPistes(r.names); setChoix([]);
+            setMessage(r.names.length ? 'Pistes non vérifiées : consulte leurs annonces, puis sélectionne les marques pertinentes.' : 'Aucune nouvelle piste proposée. Précise ton marché ou ajoute un concurrent à la main.');
+          } catch { setMessage('Réponse interrompue. Vérifie ton solde avant de réessayer : l’appel a pu être facturé.'); }
+        })}><Ic n="spark" />{encours ? 'Jarvis travaille…' : `Proposer des concurrents · ${prix}`}</button>
+        <span className="faint" style={{ fontSize: 12 }}>{proposer ? 'Un clic lance un appel IA. Aucun ajout automatique.' : raison}</span>
+      </div>
+      {message && <p role="status" className="muted" style={{ fontSize: 13, margin: 0 }}>{message}</p>}
+      {pistes.length > 0 && (
+        <div className="nprefs">
+          {pistes.map((n) => (
+            <label className="npr" key={n} style={{ cursor: 'pointer' }}>
+              <input type="checkbox" checked={choix.includes(n)} disabled={encours} onChange={(e) => setChoix((c) => (e.target.checked ? [...c, n] : c.filter((x) => x !== n)))} />
+              <div><strong style={{ overflowWrap: 'anywhere' }}>{n}</strong><small>Piste non vérifiée</small></div>
+              <a className="btn sm" href={lienAnnonceurVeille({ advertiserName: n, platform: 'meta' }, '') ?? '/veille'} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Voir ses annonces</a>
+            </label>
+          ))}
+          <button className="btn sm" type="button" disabled={!ajouter || encours || choix.length === 0} onClick={() => demarrer(async () => {
+            if (!ajouter) return;
+            try {
+              const r = await ajouter(brandId, choix);
+              if ('error' in r) { setMessage(r.error); return; }
+              setPistes([]); setChoix([]); setMessage('Sélection ajoutée. Tes concurrents existants sont conservés.'); router.refresh();
+            } catch { setMessage('Ajout non confirmé. Recharge la fiche avant de réessayer.'); }
+          })}><Ic n="plus" />Ajouter la sélection · sans appel IA</button>
+        </div>
+      )}
+    </div>
   );
 }

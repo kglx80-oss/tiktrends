@@ -6,7 +6,7 @@ import {ecrireTextes,enregistrerTextes} from '../../../app/actions/studios/texte
 import {EcranTextes} from '../textes/EcranTextes';
 import {btn as btnPrimary,btnGhost} from '../../ui';
 import s from './LivrableAssistant.module.css';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from './useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../../../lib/studios/appel-payant';
 /** Le devis texte annonce la borne serveur; chaque clic ne demande qu'un type. */
 export function TextesAssistant({vue,onRecharger}:{vue:VueTextes;onRecharger?:()=>Promise<void>}){
  const [ton,setTon]=useState<TonEcriture>('Chaleureux et direct');const [type,setType]=useState<TypeTexte>('hook');const [nombre,setNombre]=useState(3);const [langue,setLangue]=useState('fr');const [longueur,setLongueur]=useState('courte');

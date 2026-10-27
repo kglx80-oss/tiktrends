@@ -1,4 +1,4 @@
-import type { ClassePastille, CouloirSpatial, EtatGeneration } from '@tiktrends/core';
+import type { ClassePastille, CouloirSpatial, EtatGeneration, ProtocoleTest } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -90,6 +90,16 @@ export interface VarianteSpatiale {
   lienTest: string | null;
   lecture: { conclusion: string; phrase: string } | null;
   gestes: { iterer: boolean; relire: boolean; rattacher: boolean };
+  /** Ce que le formulaire « Rattacher au test » reprend de la variante (hypothèse, variable, parente). */
+  rattachement: { hypothese: string | null; variable: string | null; aUnParent: boolean };
+}
+
+/** Ce qu'Adsmap offre au rattachement d'une variante · relu sous le droit Adsmap (offre, rôle). */
+export interface AdsmapRattachement {
+  acces: boolean;
+  protocoleMarque: ProtocoleTest | null;
+  offres: Array<{ id: string; libelle: string }>;
+  pages: Array<{ id: string; libelle: string }>;
 }
 
 export interface TacheSpatiale { id: string; titre: string; classe: ClassePastille; detail: string; explication: string; interrompue: boolean }
@@ -107,8 +117,10 @@ export interface PropsCreationsProjet {
   relecture: { disponible: boolean; mention: string | null; raison: string | null; coutMaxUsd: number | null };
   taches: TacheSpatiale[] | null;
   erreurTaches: string | null;
-  /** Le panneau V5 complet (rattachement d'un test, lot d'essai) · pas encore porté. */
-  panneauCompletHref: string;
+  /** Le rôle peut-il proposer (rattacher, préparer un lot d'essai) ? */
+  peutProposer: boolean;
+  /** Adsmap pour le rattachement · `null` quand les variantes n'ont pas pu être lues. */
+  adsmap: AdsmapRattachement | null;
   /** Un travail est en cours · la page se relit d'elle-même. */
   relire: boolean;
 }

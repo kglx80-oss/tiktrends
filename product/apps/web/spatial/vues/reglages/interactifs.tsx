@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { COPIE_STOCKAGE } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic } from '../../communs';
 import { DialogueSpatial } from '../marque/interactifs';
@@ -200,5 +201,134 @@ export function RechargeCredits({ packs, acheter, raison }: { packs: readonly Pa
         </div>
       )}
     </>
+  );
+}
+
+/* ───────────────────────── Espace · nom ───────────────────────── */
+
+/**
+ * Le nom de l'espace · `saveWorkspaceNameAction` (l'action existante, garde
+ * admin côté serveur). La réussite ne s'annonce qu'au retour sans erreur.
+ */
+export function RenommerEspace({ nom, renommer }: {
+  nom: string;
+  renommer: ((prev: { ok?: boolean; error?: string } | null, fd: FormData) => Promise<{ ok?: boolean; error?: string }>) | null;
+}) {
+  const { toast } = useSpatial();
+  const router = useRouter();
+  const [valeur, setValeur] = useState(nom);
+  const [encours, demarrer] = useTransition();
+  const propre = valeur.trim();
+  return (
+    <form style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }} onSubmit={(e) => {
+      e.preventDefault();
+      if (!renommer || encours) return;
+      const fd = new FormData();
+      fd.set('name', propre);
+      demarrer(async () => {
+        const r = await renommer(null, fd).catch(() => ({ error: 'L’action a échoué. Réessaie.' }));
+        if (r.error) { toast(r.error); return; }
+        toast('Nom de l’espace enregistré');
+        router.refresh();
+      });
+    }}>
+      <input name="name" value={valeur} onChange={(e) => setValeur(e.target.value)} aria-label="Nom de l’espace" required disabled={!renommer} style={CHAMP} />
+      <button className="btn sm pri" type="submit" disabled={!renommer || encours || !propre || propre === nom} title={!renommer ? 'Réservé aux administrateurs de l’espace' : undefined}>{encours ? 'Enregistrement…' : 'Enregistrer'}</button>
+    </form>
+  );
+}
+
+/* ───────────────────────── Espace · stockage ───────────────────────── */
+
+export interface ActionsStockage {
+  configurer: () => Promise<{ ok?: true; steps?: Array<{ label: string; ok: boolean; detail: string }>; error?: string }>;
+  tester: () => Promise<{ put?: boolean; privateRead?: boolean; anonymousDenied?: boolean; deleted?: boolean; error?: string }>;
+  etat: () => Promise<{ etat?: { restantes: number; poidsMo: number }; error?: string }>;
+  ranger: () => Promise<{ migrees?: number; restantes?: number; error?: string }>;
+}
+
+/**
+ * Les gestes du stockage (repris du configurateur V5) · préparer, tester,
+ * ranger les images encore en base. Branchés sur `app/actions/storage.ts` ·
+ * l'équipe de la plateforme seule prépare et teste (comme la V5) ; le
+ * rangement des images s'offre dès que le stockage est actif.
+ */
+export function StockageEspace({ actif, operateur, actions }: { actif: boolean; operateur: boolean; actions: ActionsStockage }) {
+  // Copie client ou consignes de la plateforme · règle du noyau (recette #106b).
+  const copie = operateur ? COPIE_STOCKAGE.operateur : COPIE_STOCKAGE.client;
+  const [occupe, setOccupe] = useState<'' | 'config' | 'test' | 'ranger'>('');
+  const [etapes, setEtapes] = useState<Array<{ label: string; ok: boolean; detail: string }>>([]);
+  const [test, setTest] = useState<{ put?: boolean; privateRead?: boolean; anonymousDenied?: boolean; deleted?: boolean } | null>(null);
+  const [erreur, setErreur] = useState('');
+  const [etat, setEtat] = useState<{ restantes: number; poidsMo: number } | null>(null);
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (!actif) return;
+    void actions.etat().then((r) => { if (r.etat) setEtat(r.etat); }).catch(() => {});
+  }, [actif, actions]);
+
+  const lancer = (q: 'config' | 'test' | 'ranger') => {
+    if (occupe) return;
+    setOccupe(q); setErreur('');
+    void (async () => {
+      try {
+        if (q === 'config') {
+          setEtapes([]); setTest(null);
+          const r = await actions.configurer();
+          if (r.error) setErreur(r.error);
+          if (r.steps) setEtapes(r.steps);
+        } else if (q === 'test') {
+          setTest(null);
+          const r = await actions.tester();
+          if (r.error) setErreur(r.error);
+          setTest(r);
+        } else {
+          setNote('');
+          const r = await actions.ranger();
+          if (r.error) { setErreur(r.error); return; }
+          setNote(r.restantes ? `${r.migrees ?? 0} image(s) rangée(s) · il en reste ${r.restantes}. Relance pour continuer.` : `${r.migrees ?? 0} image(s) rangée(s) · la base ne contient plus d’image.`);
+          const f = await actions.etat();
+          if (f.etat) setEtat(f.etat);
+        }
+      } catch {
+        setErreur('L’action a échoué. Réessaie.');
+      } finally {
+        setOccupe('');
+      }
+    })();
+  };
+
+  const ligne = (label: string, ok: boolean, detail?: string) => (
+    <div className="npr" key={label}><div><strong>{label}</strong>{detail && <small>{detail}</small>}</div><span className={`pill ${ok ? 'g' : 'r'}`}>{ok ? 'OK' : 'KO'}</span></div>
+  );
+
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {operateur && actif && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button className="btn sm pri" type="button" disabled={!!occupe} onClick={() => lancer('config')}><Ic n="gear" />{occupe === 'config' ? 'Configuration…' : copie.configurer}</button>
+          <button className="btn sm" type="button" disabled={!!occupe} onClick={() => lancer('test')}><Ic n="check" />{occupe === 'test' ? 'Test…' : 'Tester le stockage'}</button>
+        </div>
+      )}
+      {erreur && <p role="alert" style={{ margin: 0, fontSize: 12.5, color: 'var(--bad)' }}>{erreur}</p>}
+      {etapes.length > 0 && <div className="nprefs">{etapes.map((s) => ligne(s.label, s.ok, s.detail))}</div>}
+      {etat && etat.restantes > 0 && (
+        <div className="npr" style={{ flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 220px' }}><strong>{copie.migrationTitre(etat.restantes, etat.poidsMo)}</strong><small>{copie.migrationTexte}</small></div>
+          <button className="btn sm" type="button" disabled={!!occupe} onClick={() => lancer('ranger')}>{occupe === 'ranger' ? 'Rangement…' : copie.deplacer}</button>
+        </div>
+      )}
+      {note && <p className="faint" style={{ margin: 0, fontSize: 12.5 }}>{note}</p>}
+      {test && (
+        <div className="nprefs">
+          {ligne('Écriture (dépôt d’un témoin)', !!test.put)}
+          {ligne('Lecture privée authentifiée', !!test.privateRead)}
+          {ligne('Accès anonyme refusé', !!test.anonymousDenied)}
+          {ligne('Suppression du témoin', !!test.deleted)}
+          <p className="faint" style={{ margin: 0, fontSize: 12.5 }}>{test.put && test.privateRead && test.anonymousDenied && test.deleted ? copie.testOk : test.put ? copie.testLecture : copie.testEcriture}</p>
+        </div>
+      )}
+    </div>
   );
 }
