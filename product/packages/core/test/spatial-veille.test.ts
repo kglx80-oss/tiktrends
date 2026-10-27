@@ -102,7 +102,7 @@ describe('Spatial · Veille · recherche Jarvis', () => {
   });
 
   it('les cinq adresses de la rubrique sont servies par Spatial, section veille', () => {
-    for (const c of ['/veille', '/veille/concurrents', '/veille/scale', '/saved', '/radar']) expect(ecranSpatial(c)).toEqual({ interne: `/sp${c}`, section: 'veille' });
+    for (const c of ['/veille', '/veille/concurrents', '/veille/scale', '/saved', '/radar']) expect(ecranSpatial(c)).toMatchObject({ interne: `/sp${c}`, section: 'veille' });
   });
 });
 

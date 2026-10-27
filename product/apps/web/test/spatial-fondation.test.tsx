@@ -157,3 +157,34 @@ describe('Spatial · parité de structure avec la maquette', () => {
     expect(p.rendu).toEqual(p.reference);
   });
 });
+
+/* ───────────────────────── écrans exclusifs · la page V5 est retirée ───────────────────────── */
+
+/** Les adresses publiques servies par l'ancienne interface (pages hors `(spatial)`, groupes retirés). */
+function adressesV5(): string[] {
+  const out: string[] = [];
+  const app = join(WEB, 'app');
+  const parcourir = (d: string, segs: string[]) => {
+    for (const n of readdirSync(d)) {
+      const p = join(d, n);
+      if (statSync(p).isDirectory()) { if (n !== '(spatial)' && n !== 'api') parcourir(p, /^\(.*\)$/.test(n) ? segs : [...segs, n]); }
+      else if (/^page\.tsx?$/.test(n)) out.push('/' + segs.join('/'));
+    }
+  };
+  parcourir(app, []);
+  return out;
+}
+const pagesV5Restantes = (liste: ReadonlyArray<{ chemin: string; exclusif?: true }>) => {
+  const v5 = new Set(adressesV5());
+  return liste.filter((e) => e.exclusif && v5.has(e.chemin)).map((e) => e.chemin);
+};
+
+describe('Spatial · un écran exclusif n’a plus de page dans l’ancienne interface', () => {
+  it('la garde voit une page V5 restante', () => {
+    expect(adressesV5()).toContain('/usage');
+    expect(pagesV5Restantes([{ chemin: '/usage', exclusif: true }, { chemin: '/settings' }])).toEqual(['/usage']);
+  });
+  it('aucun écran déclaré exclusif ne garde sa page V5', () => {
+    expect(pagesV5Restantes(ECRANS_SPATIAUX), 'écran exclusif · supprimer sa page V5 (le middleware le sert toujours par Spatial)').toEqual([]);
+  });
+});

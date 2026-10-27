@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   uiDepuisCookie, uiDemandee, UI_DEFAUT, ecranSpatial, cheminPorte, sectionValide, ECRANS_SPATIAUX,
-  entreesRail, entreesRailEspace, consommationParSemaine, consommationSur, partSolde, SECTIONS_SPATIALES, initialesAvatar, sectionDuChemin,
+  ecranSpatialDans, servirEnSpatial, entreesRail, entreesRailEspace, consommationParSemaine, consommationSur, partSolde, SECTIONS_SPATIALES, initialesAvatar, sectionDuChemin,
 } from '../src';
 
 describe('Spatial · bascule', () => {
@@ -17,8 +17,8 @@ describe('Spatial · bascule', () => {
   });
 
   it('un chemin porté est réécrit vers l’arbre interne avec sa section, un chemin non porté jamais', () => {
-    expect(ecranSpatial('/usage')).toEqual({ interne: '/sp/usage', section: 'reglages' });
-    expect(ecranSpatial('/usage/')).toEqual({ interne: '/sp/usage', section: 'reglages' });
+    expect(ecranSpatial('/usage')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: false });
+    expect(ecranSpatial('/usage/')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: false });
     expect(ecranSpatial('/usage/x')).toBeNull();
     // Un chemin qu'aucune rubrique ne porte (`/billing` l'est désormais, rubrique G).
     expect(ecranSpatial('/console')).toBeNull();
@@ -36,6 +36,13 @@ describe('Spatial · bascule', () => {
       expect(vus.has(e.chemin), `doublon ${e.chemin}`).toBe(false);
       vus.add(e.chemin);
     }
+  });
+
+  it('écran exclusif · servi par Spatial même en mode V5 ; un écran non exclusif suit le cookie', () => {
+    const liste = [{ chemin: '/a', section: 'accueil' as const }, { chemin: '/b/[id]', section: 'veille' as const, exclusif: true as const }];
+    const a = ecranSpatialDans(liste, '/a'), b = ecranSpatialDans(liste, '/b/42');
+    expect([a?.exclusif, b?.exclusif, b?.interne]).toEqual([false, true, '/sp/b/42']);
+    expect([servirEnSpatial(a, 'spatial'), servirEnSpatial(a, 'v5'), servirEnSpatial(b, 'v5'), servirEnSpatial(null, 'spatial')]).toEqual([true, false, true, false]);
   });
 
   it('seules les sections connues passent l’en-tête', () => {
