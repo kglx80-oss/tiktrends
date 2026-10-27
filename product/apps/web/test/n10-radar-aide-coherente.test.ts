@@ -10,7 +10,7 @@ import { MAX_PER_ADVERTISER } from '@tiktrends/core';
  * inconnu. L'aide qui promettait l'ancienne règle mentait sur le produit.
  */
 describe('N10 · l’aide du Radar colle au comportement livré', () => {
-  const page = readFileSync(join(process.cwd(), 'app/(app)/adsmap/radar/page.tsx'), 'utf8');
+  const page = readFileSync(join(process.cwd(), 'spatial/vues/resultats/RadarAdsmap.tsx'), 'utf8');
 
   it('la formulation d’exclusion à vie a disparu', () => {
     expect(page, 'l’ancienne règle « cède la place » subsiste')

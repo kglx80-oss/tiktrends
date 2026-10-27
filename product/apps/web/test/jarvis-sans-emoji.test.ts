@@ -27,7 +27,8 @@ FICHIERS.push({ rel: 'lib/jarvis-state.ts', src: readFileSync(join(process.cwd()
 FICHIERS.push({ rel: 'jarvis/sources/page.tsx', src: readFileSync(join(DIR, 'sources/page.tsx'), 'utf8') });
 // Les sections relocalisées (montées sur Adsmap, Analytics, Veille) vivent dans
 // `jarvis/sections` · même règle · un emoji réintroduit là-bas doit tomber ici.
-for (const f of ['SectionAttribution.tsx', 'SectionEssais.tsx', 'SectionMarche.tsx']) {
+// (Les essais ont rejoint Résultats dans Spatial · gardés par `adsmap-sans-emoji`.)
+for (const f of ['SectionAttribution.tsx', 'SectionMarche.tsx']) {
   FICHIERS.push({ rel: `jarvis/sections/${f}`, src: readFileSync(join(DIR, 'sections', f), 'utf8') });
 }
 

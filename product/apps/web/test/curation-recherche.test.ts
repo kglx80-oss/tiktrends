@@ -22,14 +22,15 @@ describe('R05 · curation · recherche + voir plus', () => {
   });
 
   it('l’écran cherche à la demande et peut charger la suite', () => {
-    const s = read('app/(app)/adsmap/tri/Curation.tsx');
-    expect(s, 'la recherche n’est pas passée à l’action').toContain('curationViewAction({ q, limit })');
-    // Appliquée à la demande (M6) · saisie distincte de la recherche appliquée.
-    expect(s).toContain('const appliquer = ()');
-    expect(s).toContain("if (e.key === 'Enter')");
+    // Spatial · la recherche et la borne vivent dans l'adresse, la page les passe à l'action.
+    const page = read('app/(spatial)/sp/adsmap/tri/page.tsx');
+    const s = read('spatial/vues/resultats/Tri.tsx');
+    expect(page, 'la recherche n’est pas passée à l’action').toMatch(/curationViewAction\(\{ q: premier\(sp\.q\)[^}]*limit:/);
+    // Appliquée à la demande (M6) · à l'envoi du formulaire, pas à chaque frappe.
+    expect(s, 'la recherche ne part pas à la demande').toContain("onSubmit={(e) => { e.preventDefault(); router.push(adresse(saisie.trim(), 20)); }}");
     // Pagination · voir plus augmente la borne.
-    expect(s).toContain('setLimit((l) => l + 20)');
+    expect(s, 'la suite ne se charge pas').toContain('router.push(adresse(v.q, v.limit + 20))');
     // Compte « X sur Y » quand une recherche est active.
-    expect(s).toContain('sur ${view.counts[kind]}');
+    expect(s).toContain('sur ${v.counts[kind]}');
   });
 });

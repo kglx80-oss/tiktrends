@@ -14,15 +14,16 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 
 describe('R04 · budget de brief = prévu, pas engagé', () => {
   it('le brief de lancement annonce un budget PRÉVU', () => {
-    const s = read('app/(app)/adsmap/lots/Lots.tsx');
+    const s = read('spatial/vues/resultats/ActionsLot.tsx');
     expect(s, 'le brief affiche encore le budget « engagés »').not.toContain('€ engagés au total');
-    expect(s, 'le brief n’annonce pas un budget prévu').toContain('€ prévus au total');
+    // Le libellé vient du noyau (`budgetPrevuLot` · « … € prévus au total »).
+    expect(s, 'le brief n’annonce pas un budget prévu').toContain('budgetPrevuLot(');
   });
 
   it('la dépense RÉELLE d’un test gardé garde « engagés » (vrai débit)', () => {
-    const s = read('app/(app)/adsmap/suites/Suites.tsx');
+    const s = read('spatial/vues/resultats/Suites.tsx');
     // Non touché · « engagés » reste, mais borné à une dépense réelle (spend > 0).
-    expect(s).toContain('row.spend > 0');
+    expect(s).toContain('r.spend > 0');
     expect(s).toContain('€ engagés');
   });
 });
