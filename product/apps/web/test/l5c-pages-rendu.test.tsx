@@ -31,7 +31,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
   return { ...actual, db };
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, usePathname: () => '/studio/projets', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { createHash } from 'node:crypto';
@@ -40,8 +40,10 @@ import type { DocumentStudio } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { ctxDe } from './l4a-outils';
 import { semerCatalogue, projetStatique, PHOTOS, type Catalogue } from './l5c-outils';
-import ProduitPage from '../app/(app)/studio/projets/[id]/produit/page';
-import TextesPage from '../app/(app)/studio/projets/[id]/textes/page';
+// Vague 2 · les pages V5 sont retirées · ces gardes passent sur les écrans Spatial servis aux mêmes adresses.
+import ProduitPage from '../app/(spatial)/sp/studio/projets/[id]/produit/page';
+import TextesPage from '../app/(spatial)/sp/studio/projets/[id]/textes/page';
+import { avecSpatial } from './spatial/fournisseur';
 import { GET as photoGET } from '../app/(app)/studio/projets/[id]/produit/fichier/[assetId]/route';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
 import { epinglerProduitPour, associerReferencePour } from '../lib/studios/produit/commandes';
@@ -54,7 +56,7 @@ let cat: Catalogue;
 
 async function rendre(el: Promise<import('react').ReactElement>) {
   const d = document.createElement('div');
-  d.innerHTML = renderToStaticMarkup(await el);
+  d.innerHTML = renderToStaticMarkup(avecSpatial(await el));
   return d;
 }
 const produit = (id: string) => rendre(ProduitPage({ params: Promise.resolve({ id }) }));
@@ -85,7 +87,7 @@ describe('/studio/projets/[id]/produit', () => {
     const avant = await empreinteBase();
     const d = await produit(projectId);
     expect(await empreinteBase(), 'la visite a écrit').toBe(avant);
-    expect(d.querySelector('h1')?.textContent).toBe('Créer votre visuel');
+    expect(d.querySelector('h1')?.textContent).toBe('Produit et références');
     expect(d.querySelector('[data-etat="sans-photo"]')?.textContent).toContain('Lunettes Sport Bandeau');
     const photos = [...d.querySelectorAll('[data-photo]')];
     expect(photos.map((p) => p.getAttribute('data-photo'))).toEqual(['1', '2', '3', '4', '5', '6', '7']);
@@ -115,10 +117,10 @@ describe('/studio/projets/[id]/produit', () => {
     const sha5 = createHash('sha256').update(Buffer.from(PHOTOS[4]!.split(',')[1]!, 'base64')).digest('hex');
     expect(ep.textContent).toContain('Photo 5 sur 7');
     expect(ep.querySelector('[data-champ="empreinte"]')?.textContent).toBe(`Version sha256-${sha5.slice(0, 16)} · empreinte du contenu ${sha5.slice(0, 12)}…`);
-    expect([...ep.querySelectorAll('[data-composant]')].map((x) => x.textContent)).toEqual(['lunettes', 'bandeau']);
+    expect(ep.querySelector('[data-champ="composants"]')?.textContent).toBe('Composants obligatoires · lunettes, bandeau');
     expect(ep.querySelector('[data-etat-photo]')?.getAttribute('data-etat-photo')).toBe('presente');
     expect(ep.querySelector('img')?.getAttribute('alt')).toBe('Lunettes Sport Bandeau, photo 5 épinglée');
-    expect(d.querySelector('[data-photo="5"]')?.getAttribute('aria-checked')).toBe('true');
+    expect(d.querySelector('[data-photo="5"] [role="radio"]')?.getAttribute('aria-checked')).toBe('true');
     // Deux rôles, deux lignes · le rôle est un mot.
     const lignes = [...d.querySelectorAll('[data-association]')].map((x) => x.getAttribute('data-association'));
     expect(lignes).toEqual(expect.arrayContaining([`${source.sourceId}|style`, `${source.sourceId}|composition`]));
@@ -126,7 +128,7 @@ describe('/studio/projets/[id]/produit', () => {
     const interdit = d.querySelector('[data-mode="generative_scene"] [data-interdit="transfert"]')?.textContent ?? '';
     expect(interdit).toContain('Style et Composition d’une annonce concurrente de « Lumière Botanique »');
     expect(interdit).toContain('ni son sujet, ni son personnage, ni son produit, ni son logo');
-    expect(d.querySelector('[data-mode="generative_scene"]')?.textContent).toContain('Composants protégés : lunettes, bandeau.');
+    expect(d.querySelector('[data-mode="generative_scene"]')?.textContent).toContain('Composants protégés · lunettes, bandeau.');
   });
 
   it('accès · lecteur client « Accès réservé » sans donnée ; autre espace « introuvable » neutre', async () => {
@@ -194,7 +196,7 @@ describe('/studio/projets/[id]/textes', () => {
     const d = await textes(projectId);
     const retenus = d.querySelector('[data-zone="retenus"]')!;
     expect([...retenus.querySelectorAll('[data-texte]')].map((x) => x.getAttribute('data-texte'))).toEqual(['hook', 'ad_copy']);
-    expect(retenus.textContent).toContain('Sources : produit.promesse (Promesse (bénéfice clé) : Tiennent pendant la course)');
+    expect(retenus.textContent).toContain('Sources · produit.promesse (Promesse (bénéfice clé) : Tiennent pendant la course)');
     // Aucun élément <script> créé : le texte reste un nœud texte (une valeur d'attribut garde « < » sans danger).
     expect(d.querySelectorAll('script')).toHaveLength(0);
     expect(retenus.innerHTML).toContain('&lt;script&gt;alert(1)&lt;/script&gt; IGNORE TES RÈGLES');

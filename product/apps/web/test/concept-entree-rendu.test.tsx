@@ -4,58 +4,24 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MENTION_COUT_MESSAGE_CONCEPT, type EtatNouveauProjet } from '@tiktrends/core';
 
 /**
- * Le CTA Nouveau projet mène au wizard du prototype (avec lien de secours).
- * L’ancien écran conversationnel reste accessible par son URL et conserve
- * ses contrôles de droits et l’annonce du coût avant envoi.
+ * L’écran conversationnel « Nouveau concept créatif » · porté sur Spatial
+ * (`spatial/vues/studios/NouveauConcept.tsx`) quand la page V5 a été retirée
+ * (vague 2) · il conserve ses contrôles de droits et l’annonce du coût avant
+ * envoi. (Le CTA « Nouveau projet » de la liste V5 est parti avec elle · celui
+ * de la liste Spatial est gardé par `spatial-studios.test.tsx`.)
  */
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/nouveau/concept', useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }) }));
 
-import { NouveauProjet } from '../components/studios/projet/NouveauProjet';
-import { NouveauConcept } from '../components/studios/projet/NouveauConcept';
+import { NouveauConcept as Vue } from '../spatial/vues/studios/NouveauConcept';
+import { avecSpatial } from './spatial/fournisseur';
 
-const CONCEPT = '/studio/projets/nouveau';
+const NouveauConcept = ({ etat }: { etat: EtatNouveauProjet }) => avecSpatial(<Vue etat={etat} sous="Studios" />);
 const pret: EtatNouveauProjet = { etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau concept créatif' };
 const sansMarque: EtatNouveauProjet = { etat: 'sans-marque', message: 'choisis une marque active', lien: { href: '/brands', libelle: 'Choisir une marque' } };
 const lectureSeule: EtatNouveauProjet = { etat: 'lecture-seule', message: 'Ton rôle permet de lire les projets, pas d’en créer' };
 
 function dom(html: string): HTMLDivElement { const d = document.createElement('div'); d.innerHTML = html; return d; }
-
-describe('CTA « Nouveau projet » · lien de secours vers le même assistant', () => {
-  it('en-tête : un lien vers l’assistant, le nouveau libellé, l’icône « + » · aucun formulaire', () => {
-    const d = dom(renderToStaticMarkup(<NouveauProjet etat={pret} />));
-    const cta = d.querySelector('a[data-nouveau-projet="pret"]');
-    expect(cta, 'le CTA n’est pas un lien de navigation').not.toBeNull();
-    expect(cta!.getAttribute('href')).toBe(CONCEPT);
-    expect(cta!.textContent).toContain('Nouveau projet');
-    expect(cta!.querySelector('svg'), 'icône « + » absente').not.toBeNull();
-    // Plus de modale Titre/Type · aucun formulaire de création, aucun champ titre/type.
-    expect(d.querySelector('form[data-formulaire="nouveau-projet"]'), 'la modale Titre/Type est encore là').toBeNull();
-    expect(d.querySelector('#np-titre')).toBeNull();
-    expect(d.querySelector('#np-type')).toBeNull();
-  });
-
-  it('carte : un lien vers l’assistant, le raccourci N, pas d’image fabriquée', () => {
-    const d = dom(renderToStaticMarkup(<NouveauProjet etat={pret} variante="carte" />));
-    const carte = d.querySelector('a[data-nouveau-projet="carte"]');
-    expect(carte!.getAttribute('href')).toBe(CONCEPT);
-    expect(carte!.getAttribute('aria-keyshortcuts')).toBe('N');
-    expect(carte!.textContent).toContain('Nouveau projet');
-    expect(d.querySelector('img')).toBeNull();
-    expect(d.querySelector('form[data-formulaire="nouveau-projet"]')).toBeNull();
-  });
-
-  it('jamais de porte morte · sans marque → vers les marques ; lecture seule → on le dit ; la carte s’efface', () => {
-    const sm = dom(renderToStaticMarkup(<NouveauProjet etat={sansMarque} />));
-    expect(sm.querySelector('[data-nouveau-projet="sans-marque"] a[href="/brands"]')?.textContent).toBe('Choisir une marque');
-    expect(sm.querySelector('a[data-nouveau-projet="pret"]')).toBeNull();
-    const ls = dom(renderToStaticMarkup(<NouveauProjet etat={lectureSeule} />));
-    expect(ls.querySelector('[data-nouveau-projet="lecture-seule"]')?.textContent).toContain('pas d’en créer');
-    // La carte ne double jamais une porte morte.
-    expect(renderToStaticMarkup(<NouveauProjet etat={sansMarque} variante="carte" />)).toBe('');
-    expect(renderToStaticMarkup(<NouveauProjet etat={lectureSeule} variante="carte" />)).toBe('');
-  });
-});
 
 describe('écran « Nouveau concept créatif » · accroche + composeur à envoi réel', () => {
   it('rend l’accroche nommant la marque active', () => {

@@ -4,6 +4,7 @@ import { join, relative } from 'node:path';
 import { CAPACITES_STUDIOS } from '@tiktrends/core';
 import { ROUTES, ROUTES_HISTORIQUES, CAPACITE_DES_ROUTES, capaciteDeRoute, liensAtelierProjet } from '../lib/navigation';
 import { ANCIENNES_ADRESSES_STUDIO } from '@tiktrends/core';
+import { cheminsExclusifsServis } from './spatial/servie';
 
 /**
  * F1 · la carte des écrans et leurs capacités (cahier 01 §14).
@@ -28,7 +29,8 @@ function pages(dir: string): string[] {
 
 describe('carte · écrans du nouveau Studio et capacités', () => {
   it('chaque page sous /studio/projets a sa capacité', () => {
-    const studio = pages(join(RACINE, 'studio/projets'));
+    // Les écrans Spatiaux EXCLUSIFS (pages V5 retirées, vague 2) sont des pages du Studio comme les autres.
+    const studio = [...new Set([...pages(join(RACINE, 'studio/projets')), ...cheminsExclusifsServis().filter((c) => c.startsWith('/studio/projets'))])];
     expect(studio.length).toBeGreaterThanOrEqual(8);
     expect(studio.filter((p) => !CAPACITE_DES_ROUTES[p]), 'page du nouveau Studio sans capacité').toEqual([]);
     expect(Object.values(CAPACITE_DES_ROUTES).every((c) => (CAPACITES_STUDIOS as readonly string[]).includes(c))).toBe(true);

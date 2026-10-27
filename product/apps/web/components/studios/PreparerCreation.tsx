@@ -11,7 +11,7 @@ import type { Preparation } from '../../lib/studios/sources/preparation';
 import { Modal } from '../Modal';
 import { Icon } from '../Icon';
 import { btn, btnGhost, input, lbl, tuile, cadreSignal } from '../ui';
-import { useFocusApresGeste, cleRetour } from './projet/focus-geste';
+import { useFocusApresGeste, cleRetour } from '../../lib/studios/focus-geste';
 
 /**
  * « Préparer une création » · le panneau qui part d'une annonce de Veille ou

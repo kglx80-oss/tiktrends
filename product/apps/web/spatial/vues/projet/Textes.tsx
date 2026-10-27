@@ -283,7 +283,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
           <div className="kc">
             <button className="btn sm" type="button" disabled={retenus.length === 0} onClick={async () => { const ok = await copier(retenus.map((t) => `${libelleType(t.type)} · ${t.texte}`).join('\n\n')); dire(ok ? 'ok' : 'err', ok ? 'Tous les textes retenus sont copiés.' : 'Le navigateur a refusé la copie.'); }}><Ic n="copy" />Copier tous les textes</button>
             {vue.peutExporter && (['markdown', 'csv', 'json'] as const).map((f) => (
-              <button key={f} className="btn sm" type="button" data-export={f} disabled={enCours !== null} onClick={() => void exporter(f)}><Ic n="down" />{f === 'markdown' ? 'Markdown' : f === 'csv' ? 'CSV' : 'JSON'}</button>
+              <button key={f} className="btn sm" type="button" data-export={f} disabled={enCours !== null} onClick={() => void exporter(f)}><Ic n="down" />{f === 'markdown' ? 'Exporter en Markdown' : f === 'csv' ? 'Exporter en CSV' : 'Exporter en JSON'}</button>
             ))}
           </div>
         </section>

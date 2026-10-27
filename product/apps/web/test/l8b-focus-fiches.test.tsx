@@ -4,8 +4,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 /**
- * L8-B · UX-02 / UX-03 · identités, propositions, export du brief, MONTÉS
- * (jsdom) · on lit où est le focus et ce qui reste à l'écran après un geste.
+ * L8-B · UX-02 / UX-03 · identités (atelier Spatial, porté de la V5 en vague 2),
+ * propositions, export du brief, MONTÉS (jsdom) · on lit où est le focus et ce qui reste à l'écran après un geste.
  *
  * Mesuré avant au navigateur (390 × 720, au clavier) : BODY après « Nouvelle
  * fiche », « Annuler », « Enregistrer la fiche » et « Proposer cette
@@ -21,12 +21,13 @@ vi.mock('../app/actions/studios/propositions', () => ({
   listerPropositions: m.lister, proposerPatch: vi.fn(), proposerBrief: vi.fn(), creerPropositionManuelle: m.manuelle, appliquerProposition: vi.fn(), rejeterProposition: vi.fn(),
 }));
 vi.mock('../app/actions/studios/sources', () => ({ exporterBrief: m.exporter }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1/identites', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 
 import { disponibiliteJarvis, messageHorsLigneStudio } from '@tiktrends/core';
 import type { VueIdentites } from '../lib/studios/identites/commandes';
 import type { ListePropositions } from '../lib/studios/propositions/types';
-import { EcranIdentites } from '../components/studios/identites/EcranIdentites';
+import { Identites } from '../spatial/vues/projet/Identites';
+import { avecSpatial } from './spatial/fournisseur';
 import { PanneauPropositions } from '../components/studios/PanneauPropositions';
 import { ExporterBrief } from '../components/studios/projet/ExporterBrief';
 
@@ -60,7 +61,7 @@ function saisir(el: HTMLInputElement | HTMLTextAreaElement, v: string) {
 
 describe('identités · le focus suit le formulaire et le message', () => {
   it('« Nouvelle fiche » met le focus dans le premier champ ; « Annuler » le rend à « Nouvelle fiche »', () => {
-    monter(<EcranIdentites vue={VUE} />);
+    monter(avecSpatial(<Identites vue={VUE} voixActive atelier={[]} />));
     act(() => { bouton('Nouvelle fiche').focus(); bouton('Nouvelle fiche').click(); });
     const nom = q('[data-zone="edition-fiche"] input')!;
     expect(actif(), 'le focus n’est pas entré dans le formulaire ouvert').toBe(nom);
@@ -70,7 +71,7 @@ describe('identités · le focus suit le formulaire et le message', () => {
 
   it('hors ligne · « Hors ligne » dit ce qui n’a pas eu lieu, le focus va au message, la saisie reste', async () => {
     m.enregistrer.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-    monter(<EcranIdentites vue={VUE} />);
+    monter(avecSpatial(<Identites vue={VUE} voixActive atelier={[]} />));
     act(() => bouton('Nouvelle fiche').click());
     act(() => saisir(q('[data-zone="edition-fiche"] input') as HTMLInputElement, 'Léa'));
     await act(async () => bouton('Enregistrer la fiche').click());

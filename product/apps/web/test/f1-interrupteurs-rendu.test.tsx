@@ -30,21 +30,30 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => null, listBrands: async () => [] }));
 vi.mock('../lib/spend-guard', () => ({ spendStatus: async () => ({ spentUsd: 0, capUsd: 10, summary: '', blocked: false }) }));
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, usePathname: () => '/studio/projets', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { db, schema, eq } from '@tiktrends/db';
 import { cleInterrupteursEspace } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { projetTest } from './l3-harnais';
-import ProjetsPage from '../app/(app)/studio/projets/page';
+// Vague 2 · liste, vidéo, identités et textes ne sont plus servis que par Spatial (pages V5 retirées) ·
+// la fiche du projet et l'éditeur d'image restent des pages V5.
+import ProjetsSpatial from '../app/(spatial)/sp/studio/projets/page';
 import ProjetPage from '../app/(app)/studio/projets/[id]/page';
-import VideoPage from '../app/(app)/studio/projets/[id]/video/page';
+import VideoSpatial from '../app/(spatial)/sp/studio/projets/[id]/video/page';
 import ImagePage from '../app/(app)/studio/projets/[id]/image/page';
-import IdentitesPage from '../app/(app)/studio/projets/[id]/identites/page';
-import TextesPage from '../app/(app)/studio/projets/[id]/textes/page';
+import IdentitesSpatial from '../app/(spatial)/sp/studio/projets/[id]/identites/page';
+import TextesSpatial from '../app/(spatial)/sp/studio/projets/[id]/textes/page';
 import InterrupteursPage from '../app/(app)/admin/studios-interrupteurs/page';
-import { ParcoursNonActive } from '../components/studios/image/ParcoursImage';
+import { avecSpatial } from './spatial/fournisseur';
+import type { ReactElement } from 'react';
+
+const sp = async (el: Promise<ReactElement>) => renderToStaticMarkup(avecSpatial(await el));
+const VideoPage = (p: { params: Promise<{ id: string }> }) => sp(VideoSpatial(p));
+const IdentitesPage = (p: { params: Promise<{ id: string }> }) => sp(IdentitesSpatial(p));
+const TextesPage = (p: { params: Promise<{ id: string }> }) => sp(TextesSpatial(p));
+const ProjetsPage = (p: { searchParams: Promise<{ toutes?: string }> }) => sp(ProjetsSpatial(p));
 
 const ids = h.ids;
 let projet = '';
@@ -85,15 +94,15 @@ describe('atelier du projet · filtrage de la navigation', () => {
 
 describe('URL directe d’un écran coupé · la page le dit', () => {
   it('vidéo · « Non activé pour cet espace », retour au projet, aucune porte vers un ancien studio retiré', async () => {
-    const d = dom(renderToStaticMarkup(await VideoPage(params(projet))));
+    const d = dom(await VideoPage(params(projet)));
     const s = d.querySelector('[data-etat="non-active"]')!;
     expect(s.getAttribute('data-capacites')).toBe('video');
-    expect(s.querySelector('h1')?.textContent).toBe('Vidéo · storyboard, images clés et clips');
-    expect(s.querySelector('[role="status"]')?.textContent).toContain('Non activé pour cet espace');
+    expect(d.querySelector('h1')?.textContent).toBe('Vidéo · storyboard, images clés et clips');
+    expect(s.getAttribute('role')).toBe('status');
+    expect(s.textContent).toContain('Non activé pour cet espace');
     expect(s.textContent).toContain('Rien n’a été écrit ni débité.');
     const liens = [...s.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')]);
     expect(liens).toEqual([
-      ['‹ Projet', `/studio/projets/${projet}`],
       ['Revenir au projet', `/studio/projets/${projet}`],
       ['Écrire au support', '/support'],
     ]);
@@ -107,9 +116,9 @@ describe('URL directe d’un écran coupé · la page le dit', () => {
     expect(d.textContent).toContain('Coupé par l’équipe de la plateforme.');
   });
 
-  it('textes coupés · la sous-page passe par RefusProjet, qui rend le même écran', async () => {
+  it('textes coupés · la sous-page rend le même état « non activé » que les autres écrans du projet', async () => {
     await reglage({ actives: [], coupees: ['textes'] });
-    const d = dom(renderToStaticMarkup(await TextesPage(params(projet))));
+    const d = dom(await TextesPage(params(projet)));
     expect(d.querySelector('[data-etat="non-active"]')?.getAttribute('data-capacites')).toBe('textes');
     expect(d.querySelector('a[href^="/studio/textes"]'), 'porte vers l’ancien studio Textes IA, retiré').toBeNull();
     expect(d.querySelector('a[href="/support"]')?.textContent).toBe('Écrire au support');
@@ -117,32 +126,27 @@ describe('URL directe d’un écran coupé · la page le dit', () => {
 
   it('projets coupés · la liste le dit et renvoie à l’accueil (jamais à une page coupée ni à un ancien studio)', async () => {
     await reglage({ actives: [], coupees: ['projets'] });
-    const d = dom(renderToStaticMarkup(await ProjetsPage({ searchParams: Promise.resolve({}) })));
-    expect(d.querySelector('[data-etat="non-active"]')?.getAttribute('data-capacites')).toBe('projets');
-    expect(d.querySelector('a[href="/dashboard"]')?.textContent).toBe('‹ Accueil');
+    const d = dom(await ProjetsPage({ searchParams: Promise.resolve({}) }));
+    expect(d.querySelector('.tile h3')?.textContent).toBe('Non activé pour cet espace');
+    expect(d.textContent).toContain('coupé pour ton espace pendant sa recette. Rien n’a été écrit ni débité.');
+    expect(d.querySelector('a[href="/dashboard"]')?.textContent).toBe('Accueil');
     expect(d.querySelector('a[href^="/studio"]'), 'porte vers une page des Studios coupée ou retirée').toBeNull();
   });
 });
 
 describe('voix coupée · lire oui, changer non', () => {
   it('le panneau voix le dit ; aucun sélecteur de mode n’est actif', async () => {
-    const d = dom(renderToStaticMarkup(await IdentitesPage(params(projet))));
+    const d = dom(await IdentitesPage(params(projet)));
     expect(d.querySelector('[data-zone="voix"] [data-etat="non-active"]')?.textContent).toContain('Voix · non activé pour cet espace.');
     for (const s of d.querySelectorAll('[data-zone="voix"] select')) expect(s.hasAttribute('disabled')).toBe(true);
     await reglage({ actives: ['voix'], coupees: [] });
-    const actif = dom(renderToStaticMarkup(await IdentitesPage(params(projet))));
+    const actif = dom(await IdentitesPage(params(projet)));
     expect(actif.querySelector('[data-zone="voix"] [data-etat="non-active"]')).toBeNull();
   });
 });
 
-describe('parcours image coupé · un état, pas une erreur', () => {
-  it('aucun geste offert, le message du serveur est dit', () => {
-    const d = dom(renderToStaticMarkup(<ParcoursNonActive message="« Génération d’images » · non activé pour cet espace. Rien n’a été écrit ni débité." />));
-    expect(d.querySelector('[data-etat="non-active"] h2')?.textContent).toBe('Génération d’images · non activé pour cet espace');
-    expect(d.querySelector('[role="alert"]')).toBeNull();
-    expect(d.querySelectorAll('button').length).toBe(0);
-  });
-});
+// « Parcours image coupé · un état, pas une erreur » · porté avec l'atelier Spatial « Produit » (vague 2) ·
+// `spatial-studios-ateliers.test.tsx` (« génération coupée pour l’espace · un état, aucun geste payant »).
 
 describe('ADMIN · lecture des interrupteurs par espace', () => {
   const plateforme = () => session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });

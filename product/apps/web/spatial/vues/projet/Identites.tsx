@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BORNES_IDENTITE, CATEGORIES_ATTRIBUT, ECHEC_RESEAU_STUDIO, LIBELLES_CATEGORIE, LIBELLES_VUE, VUES_IDENTITE,
@@ -9,10 +9,10 @@ import {
 } from '@tiktrends/core';
 import type { IdentiteVue, VueIdentites } from '../../../lib/studios/identites/commandes';
 import { choisirModeParole, enregistrerIdentite, lierIdentite, resoudreContradiction } from '../../../app/actions/studios/identites';
+import { cleRetour, useFocusApresGeste } from '../../../lib/studios/focus-geste';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Vue } from '../../communs';
 import { EnTeteAtelier } from './Atelier';
-import { Message } from './briques';
 
 /**
  * Atelier « Identités et voix » d'un projet (`/studio/projets/[id]/identites`),
@@ -65,6 +65,14 @@ export function Identites({ vue, voixActive, atelier }: PropsIdentites) {
   const nomIdentite = (iid: string) => vue.identites.find((i) => i.identityId === iid)?.nom ?? iid;
   const rang = (sid: string) => vue.plans.find((p) => p.shotId === sid)?.rang ?? sid;
   const echec = retour && !retour.ok ? etatEchecStudio(retour.code) : null;
+  // Le focus suit le geste (règle `cibleFocusApresGeste`) · formulaire ouvert, message de retour, puis « Nouvelle fiche ».
+  const ecran = useRef<HTMLDivElement>(null);
+  const retourRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  useFocusApresGeste({ apercu: false, retour: cleRetour(retour), formulaire: !!edition }, {
+    conteneur: ecran, retour: retourRef, formulaire: formRef,
+    repli: () => ecran.current?.querySelector<HTMLElement>('[data-geste="nouvelle-fiche"]') ?? null,
+  });
 
   async function geste(cle: string, action: () => Promise<{ ok: true; version: { n: number }; inchange: boolean } | ErreurStudio>, ok: string) {
     setEnCours(cle); setRetour(null);
@@ -84,11 +92,12 @@ export function Identites({ vue, voixActive, atelier }: PropsIdentites) {
 
   return (
     <Vue>
+      <div ref={ecran}>
       <EnTeteAtelier titre="Identités et voix" projet={{ id: vue.projet.id, title: vue.projet.title, marque: vue.projet.marque, versionN: vue.version.n }} atelier={atelier}
         actif={`/studio/projets/${vue.projet.id}/identites`} aide="Personnages récurrents, plans liés, contradictions et modes de parole · aucun geste de cet écran ne coûte." />
       {retour && (
-        <div className="sec" data-retour={retour.ok ? 'ok' : 'refus'}>
-          <Message ton={retour.ok ? 'ok' : 'err'}>{retour.ok ? '' : `${echec!.mot} · `}{retour.texte}</Message>
+        <div className="sec" data-retour={retour.ok ? 'ok' : 'refus'} ref={retourRef} tabIndex={-1}>
+          <p role={retour.ok ? 'status' : 'alert'} className="muted" style={{ fontSize: '12.5px' }}><span className={`pill ${retour.ok ? 'g' : 'w'}`}>{retour.ok ? 'Fait' : echec!.mot}</span>{' · '}{retour.texte}</p>
           {retour.conflit && <button className="btn sm" type="button" onClick={() => window.location.reload()} style={{ marginTop: 8 }}>Recharger la version courante</button>}
         </div>
       )}
@@ -109,8 +118,8 @@ export function Identites({ vue, voixActive, atelier }: PropsIdentites) {
                   <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Plan {rang(k.shotId)} · fiche de {k.nomIdentite} · {k.nature === 'absence' ? 'élément absent du plan' : 'couleur différente'}</small>
                   {k.resolutions.map((r) => r.type === 'identite' && (
                     <small key={r.type} className="faint" style={{ display: 'block', fontSize: '11.5px' }}>
-                      Changer la fiche touche {r.plansTouches.length} plan{r.plansTouches.length > 1 ? 's' : ''} ({r.plansTouches.map((s) => `plan ${rang(s)}`).join(', ')}) · leurs images seront à refaire.
-                      {r.contradictionsApres > 0 ? ` Ensuite, ${r.contradictionsApres} contradiction${r.contradictionsApres > 1 ? 's resteraient' : ' resterait'}.` : ' Plus aucune contradiction ensuite.'}
+                      Touche {r.plansTouches.length} plan{r.plansTouches.length > 1 ? 's' : ''} ({r.plansTouches.map((s) => `plan ${rang(s)}`).join(', ')}) : leurs images seront à refaire.
+                      {r.contradictionsApres > 0 ? ` Après ce choix, ${r.contradictionsApres} contradiction${r.contradictionsApres > 1 ? 's resteraient' : ' resterait'} dans le projet.` : ' Plus aucune contradiction ensuite.'}
                     </small>
                   ))}
                   {k.resolutions.length === 1 && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Fiche d’une ancienne forme · seule la correction du plan est proposée. Recrée la fiche pour pouvoir la changer.</small>}
@@ -140,7 +149,7 @@ export function Identites({ vue, voixActive, atelier }: PropsIdentites) {
             <div className="t" style={{ display: 'grid', gap: 6 }}>
               <strong style={{ fontSize: 13 }}>{i.nom} <span className={`pill ${i.structuree ? 'g' : 'w'}`}>{i.structuree ? `Fiche version ${i.version}` : 'Ancienne forme · lecture seule'}</span></strong>
               {i.description && <small className="faint" style={{ fontSize: '11.5px' }}>{i.description}</small>}
-              <div className="kc">{i.attributs.map((a) => <span key={a.id} className="pill">{libelleAttributIdentite(a)}{a.detail ? ` · ${a.detail}` : ''}</span>)}</div>
+              <ul className="kc" style={{ listStyle: 'none', margin: 0, padding: 0 }}>{i.attributs.map((a) => <li key={a.id} className="pill">{libelleAttributIdentite(a)}{a.detail ? ` · ${a.detail}` : ''}</li>)}</ul>
               <div>
                 <div className="lbl">Plans liés</div>
                 {vue.plans.length === 0 ? <small className="faint" style={{ fontSize: '11.5px' }}>Aucun plan · le storyboard crée les plans.</small> : (
@@ -166,7 +175,7 @@ export function Identites({ vue, voixActive, atelier }: PropsIdentites) {
           </div>
         ))}
         {edition && (
-          <form className="sugg" data-zone="edition-fiche" style={{ display: 'grid', gap: 10 }}
+          <form ref={formRef} className="sugg" data-zone="edition-fiche" style={{ display: 'grid', gap: 10 }}
             onSubmit={async (ev) => {
               ev.preventDefault();
               const ok = await geste('fiche', () => enregistrerIdentite({
@@ -220,21 +229,21 @@ export function Identites({ vue, voixActive, atelier }: PropsIdentites) {
         <div className="sech" style={{ margin: 0 }}><h2>Voix et temps</h2></div>
         {!voixActive && (
           <div className="banner" role="status" data-etat="non-active" data-capacite="voix" style={{ margin: 0 }}>
-            <Ic n="lock" /><span><b>Voix · non activée pour cet espace.</b> Les modes de parole restent lisibles · les changer s’ouvrira avec la voix, d’abord pour des espaces pilotes.</span>
+            <Ic n="lock" /><span><b>Voix · non activé pour cet espace.</b> Les modes de parole restent lisibles · les changer s’ouvrira avec la voix, d’abord pour des espaces pilotes.</span>
           </div>
         )}
         <small className="faint" style={{ fontSize: '11.5px' }} data-capacite="synthese">
           {v.capacites.synthese.disponible ? 'Synthèse vocale disponible · chaque prise est devisée avant d’être produite.' : `Synthèse vocale indisponible · ${v.capacites.synthese.raison.replace(/^La synthèse vocale n’est pas disponible · /, '')}`} La voix ne prononce que la narration validée de chaque plan.
         </small>
-        <div className="tl">
+        <ul className="tl" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {v.modes.map((m) => (
-            <div className="ev" key={m.mode} data-mode={m.mode} data-disponible={m.disponible ? 'oui' : 'non'}>
+            <li className="ev" key={m.mode} data-mode={m.mode} data-disponible={m.disponible ? 'oui' : 'non'}>
               <span className="ico"><Ic n={m.disponible ? 'check' : 'lock'} /></span>
               <span>{m.libelle}<small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{m.description}{m.raison ? ` · ${m.raison}` : ''}</small></span>
               <span className={`pill ${m.disponible ? 'g' : ''}`.trim()}>{m.disponible ? (m.mode === 'voiceover' ? 'Proposé' : 'Possible') : 'Indisponible'}</span>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
         {v.plansLipsync.length > 0 && (
           <div className="banner" role="alert" data-etat="lipsync-indisponible" style={{ margin: 0 }}>
             <Ic n="warn" /><span><b>Parole synchronisée demandée sans fournisseur</b> · {v.plansLipsync.map((s) => `plan ${rang(s)}`).join(', ')}. Rien n’est simulé · passe {v.plansLipsync.length > 1 ? 'ces plans' : 'ce plan'} en voix off ou retire la parole.</span>
@@ -268,6 +277,7 @@ export function Identites({ vue, voixActive, atelier }: PropsIdentites) {
         })}
         <p style={{ fontSize: '12.5px' }} className={v.temps.depassementMs > 0 ? '' : 'muted'} data-temps={v.temps.depassementMs > 0 ? 'depassement' : 'dans-la-cible'}>{v.temps.message}</p>
       </section>
+      </div>
     </Vue>
   );
 }
