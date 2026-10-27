@@ -13,7 +13,7 @@ const NOW = new Date('2026-10-22T10:00:00Z');
 describe('Spatial · Accueil · déclaration', () => {
   it('/dashboard est porté, section accueil', () => {
     expect(ECRANS_SPATIAUX).toContainEqual({ chemin: '/dashboard', section: 'accueil' });
-    expect(ecranSpatial('/dashboard')).toEqual({ interne: '/sp/dashboard', section: 'accueil' });
+    expect(ecranSpatial('/dashboard')).toMatchObject({ interne: '/sp/dashboard', section: 'accueil' });
   });
 });
 

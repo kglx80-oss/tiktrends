@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 // middleware ne tire que ces règles et leurs dépendances (le point d'entrée
 // tirerait tout le noyau, `ajv` compris).
 import { redirectionServeur } from '@tiktrends/core/src/redirections-serveur';
-import { ENTETE_CHEMIN, ENTETE_SECTION, UI_COOKIE, ecranSpatial, uiDemandee, uiDepuisCookie } from '@tiktrends/core/src/spatial/bascule';
+import { ENTETE_CHEMIN, ENTETE_SECTION, UI_COOKIE, ecranSpatial, servirEnSpatial, uiDemandee, uiDepuisCookie } from '@tiktrends/core/src/spatial/bascule';
 
 /**
  * 1 · `?ui=spatial` / `?ui=v5` · pose le cookie `tt_ui` et revient à la même
@@ -39,9 +39,9 @@ export function middleware(request: NextRequest): NextResponse {
   const cible = redirectionServeur(pathname, searchParams);
   if (cible) return NextResponse.redirect(new URL(cible, request.url), 307);
 
-  if (uiDepuisCookie(request.cookies.get(UI_COOKIE)?.value) === 'spatial') {
+  {
     const e = ecranSpatial(pathname);
-    if (e) {
+    if (e && servirEnSpatial(e, uiDepuisCookie(request.cookies.get(UI_COOKIE)?.value))) {
       const u = request.nextUrl.clone();
       u.pathname = e.interne;
       const h = new Headers(request.headers);
