@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageConfigured } from '@tiktrends/integrations';
 import {
-  connexionDrive, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, messageErreurConnexionDrive, LIMITE_BIBLIOTHEQUE,
+  connexionDrive, costFor, FUSEAU_ACCUEIL, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
   type DossierSource, type MediaSource,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -14,6 +14,8 @@ import { listerSortiesStudiosBibliotheque, sortieCommeAsset } from '../../../../
 import { listerCreationsHistoriques, creationCommeAsset } from '../../../../lib/creations-historiques';
 import { listAssets } from '../../../actions/assets';
 import { getDriveState } from '../../../actions/drive';
+import { anthropicConfigured } from '../../../../lib/ai-status';
+import { unlimitedCredits } from '../../../../lib/credits';
 import { Bibliotheque } from '../../../../spatial/vues/bibliotheque/Bibliotheque';
 
 export const dynamic = 'force-dynamic';
@@ -73,7 +75,11 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
     mimeType: extras.get(a.id)?.mimeType ?? null, folderId: extras.get(a.id)?.folderId ?? null, rights: extras.get(a.id)?.rights ?? null,
     ...(a.studio ? { studio: { projetId: a.studio.projetId, projetTitre: a.studio.projetTitre, href: a.studio.href } } : {}),
     ...(a.historique ? { historique: a.historique } : {}),
+    // Usage par l'IA (geste de l'écran V5) · seulement pour un média de la bibliothèque.
+    ...(!a.studio && !a.historique ? { ia: { utilisable: a.useForAi, template: a.isTemplate, tags: a.tags ?? [] } } : {}),
   }));
+  const sansTags = items.filter((a) => !a.studio && !a.historique && a.kind === 'image' && !(a.tags ?? []).length).length;
+  const raisonAnalyse = refusEcriture ? TEXTE_REFUS_BIBLIOTHEQUE[refusEcriture] : !anthropicConfigured() ? messageServiceInactif('analyse_image') : null;
 
   // Retour de la connexion Google · la copie client existante, accordée à l'état AFFICHÉ.
   const sp = (await searchParams) ?? {};
@@ -85,9 +91,14 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
       donnees={donneesDrive({ dossiers, medias })}
       lectureSeule={refusEcriture ? TEXTE_REFUS_BIBLIOTHEQUE[refusEcriture] : null}
       stockage={storageConfigured()}
-      drive={connexionDrive(driveState)}
+      drive={connexionDrive(driveState, FUSEAU_ACCUEIL)}
       maintenant={new Date().toISOString()}
       retourDrive={retourDrive}
+      gestion={{
+        // Même prix que l'écran V5 (`costFor('tag_image', 1)` par image), annoncé avant le clic.
+        analyse: { cout: unlimitedCredits(s.user.email) ? null : costFor('tag_image', 1), raison: raisonAnalyse, sansTags, maxLot: LOT_ANALYSE_IMAGES },
+        selecteurDrive: !!driveState?.pickerReady,
+      }}
     />
   );
 }

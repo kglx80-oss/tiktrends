@@ -34,7 +34,8 @@ export type ServiceInactif =
   | 'veille'            // recherche publicitaire en direct (Veille, Jarvis, concurrents)
   | 'ia_profil'         // pré-remplissage IA d'une marque (assistant de création)
   | 'relecture_image'   // relecture automatique d'un visuel (Image IA)
-  | 'jarvis';           // conversation Jarvis
+  | 'jarvis'            // conversation Jarvis
+  | 'analyse_image';    // tags posés par l'IA sur une image (Bibliothèque)
 
 export const MESSAGES_SERVICE_INACTIF: Record<ServiceInactif, string> = {
   stockage: `Le téléversement direct des gros fichiers n’est pas encore activé pour ton espace · ${QUI}. En attendant, importe tes vidéos par lien.`,
@@ -42,6 +43,7 @@ export const MESSAGES_SERVICE_INACTIF: Record<ServiceInactif, string> = {
   ia_profil: `Le pré-remplissage par l’IA n’est pas encore activé pour ton espace · ${QUI}. Tu peux remplir le profil à la main.`,
   relecture_image: `La relecture automatique des visuels n’est pas encore activée pour ton espace · ${QUI}.`,
   jarvis: `Jarvis n’est pas encore activé pour ton espace · ${QUI}.`,
+  analyse_image: `L’analyse automatique des images n’est pas encore activée pour ton espace · ${QUI}. Tu peux ranger tes fichiers à la main.`,
 };
 
 /** Le message client d'un service absent. */
