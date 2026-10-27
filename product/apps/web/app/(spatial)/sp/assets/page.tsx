@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageConfigured } from '@tiktrends/integrations';
 import {
-  connexionDrive, costFor, FUSEAU_ACCUEIL, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
+  connexionDrive, costFor, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, FUSEAU_ACCUEIL, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
   type DossierSource, type MediaSource,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -99,6 +99,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
         analyse: { cout: unlimitedCredits(s.user.email) ? null : costFor('tag_image', 1), raison: raisonAnalyse, sansTags, maxLot: LOT_ANALYSE_IMAGES },
         selecteurDrive: !!driveState?.pickerReady,
         admin,
+        messageDrive: driveState && !driveState.available ? DRIVE_CONNEXION_INACTIVE : driveState?.connected && !driveState.pickerReady ? DRIVE_SELECTEUR_INACTIF : null,
       }}
     />
   );

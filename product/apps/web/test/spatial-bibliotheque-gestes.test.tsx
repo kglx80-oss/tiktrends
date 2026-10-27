@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { connexionDrive, donneesDrive, LOT_ANALYSE_IMAGES, lireImportLiens, vueDrive, ETAT_DRIVE_INITIAL, type MediaSource } from '@tiktrends/core';
+import { DRIVE_CONNEXION_INACTIVE, connexionDrive, donneesDrive, jargonTechnique, LOT_ANALYSE_IMAGES, lireImportLiens, vueDrive, ETAT_DRIVE_INITIAL, type MediaSource } from '@tiktrends/core';
 
 const f = vi.hoisted(() => ({
   importer: vi.fn(async () => ({ ok: true as const })),
@@ -44,7 +44,7 @@ const media = (id: string, extra: Partial<MediaSource> = {}): MediaSource => ({
   id, name: `${id}.jpg`, kind: 'image', mimeType: 'image/jpeg', source: 'upload', url: `/api/asset?id=${id}`, thumbUrl: null, sizeBytes: 1000, createdAt: T0, folderId: null, rights: null,
   ia: { utilisable: true, template: false, tags: [] }, ...extra,
 });
-const GESTION: GestionBibliotheque = { analyse: { cout: 1, raison: null, sansTags: 3, maxLot: LOT_ANALYSE_IMAGES }, selecteurDrive: true, admin: true };
+const GESTION: GestionBibliotheque = { analyse: { cout: 1, raison: null, sansTags: 3, maxLot: LOT_ANALYSE_IMAGES }, selecteurDrive: true, admin: true, messageDrive: null };
 const monter = async (over: { gestion?: GestionBibliotheque; connecte?: boolean } = {}) => {
   el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el);
   const donnees = donneesDrive({ dossiers: [], medias: [media('m1'), media('m2', { name: 'plage-ete.jpg', ia: { utilisable: false, template: true, tags: ['plage', 'été'] } })] });
@@ -152,6 +152,17 @@ describe('Spatial · Bibliothèque · sélecteur Google Drive', () => {
     await clic(bouton(h, /^Nouveau$/));
     expect(bouton(h, /Choisir le dossier Drive/)).toBeTruthy();
     expect(bouton(h, /Importer des fichiers Drive/)).toBeTruthy();
+  });
+  it('Drive pas activé · ce qui manque, qui agit, le repli par lien et le ticket interne, sans jargon', async () => {
+    const h = await monter({ gestion: { ...GESTION, messageDrive: DRIVE_CONNEXION_INACTIVE } });
+    const b = h.querySelector('[data-geste="drive-inactif"]')!;
+    const t = b.textContent ?? '';
+    expect(t).toContain(DRIVE_CONNEXION_INACTIVE.constat);
+    expect(t).toMatch(/côté plateforme, pas depuis ton espace/);
+    expect(t).toContain('seuls ses admins le lisent');
+    expect(t).toMatch(/importer tes fichiers Drive par lien/);
+    expect(jargonTechnique(t)).toEqual([]);
+    expect(b.querySelector('a[href="/support"]')?.textContent).toBe('Ouvrir un ticket interne');
   });
   it('sélecteur non configuré · aucun bouton de sélection', async () => {
     const h = await monter({ connecte: true, gestion: { ...GESTION, selecteurDrive: false } });

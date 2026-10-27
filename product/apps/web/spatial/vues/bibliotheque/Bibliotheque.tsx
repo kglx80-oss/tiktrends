@@ -57,6 +57,11 @@ export interface GestionBibliotheque {
   selecteurDrive: boolean;
   /** Administrateur de l'espace · seul à ranger un fichier en template (coulisses, garde serveur identique). */
   admin: boolean;
+  /**
+   * Google Drive pas activé (ou son sélecteur) pour l'espace · ce qui manque,
+   * qui agit, le repli par lien et le ticket interne (copie client, recette #106).
+   */
+  messageDrive: { constat: string; suite: string; action: { libelle: string; href: string } | null } | null;
 }
 
 const style = (s: Record<string, string | number>) => s as CSSProperties;
@@ -409,6 +414,13 @@ export function Bibliotheque(p: PropsBibliotheque) {
       </nav>
       <div className="bpre">
         {p.lectureSeule && <div className="bbanner"><Ic n="lock" /><p><b>Lecture seule.</b> {p.lectureSeule}</p></div>}
+        {g?.messageDrive && (
+          <div className="bbanner" data-geste="drive-inactif">
+            <LogoApp app="gdrive" taille={28} interieur={16} />
+            <p><b>{g.messageDrive.constat}</b> {g.messageDrive.suite}</p>
+            {g.messageDrive.action && <Lien className="btn sm" href={g.messageDrive.action.href}>{g.messageDrive.action.libelle}</Lien>}
+          </div>
+        )}
         {v.banniere && (
           <div className="bbanner">
             <Ic n="shield" />
