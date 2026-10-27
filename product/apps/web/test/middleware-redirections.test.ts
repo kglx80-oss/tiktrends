@@ -38,7 +38,7 @@ const CAS: Array<[string, string]> = [
 ];
 
 /** Chemins qui ne sont PAS des adresses retirées · ni appariés, ni touchés. */
-const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets', '/studio/projets/nouveau?type=ads&angle=x', '/studio/projets/abc/image', '/studio/ads/x', '/jarvis', '/adsmap', '/adsmap/tri', '/adsmap/lots', '/veille', '/api/health', '/_next/static/chunks/main.js'];
+const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets', '/studio/projets/nouveau?type=ads&angle=x', '/studio/projets/abc/image', '/studio/ads/x', '/jarvis', '/saved', '/assets', '/veille', '/api/health', '/_next/static/chunks/main.js'];
 
 const appeler = (adresse: string, headers: Record<string, string> = {}) => middleware(new NextRequest(HOTE + adresse, { headers }));
 
@@ -60,6 +60,13 @@ describe('middleware · adresses retirées servies en 307 HTTP, contexte repris'
     for (const adresse of NON_CONCERNES) {
       const r = appeler(adresse, { cookie: 'tt_ui=v5' });
       expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-next')]).toEqual([adresse, 200, null, '1']);
+    }
+  });
+
+  it('Résultats est exclusif · même en mode V5, ses adresses sont servies par Spatial (sans redirection)', () => {
+    for (const adresse of ['/adsmap', '/adsmap/tri', '/adsmap/lots', '/adsmap/tests/abc']) {
+      const r = appeler(adresse, { cookie: 'tt_ui=v5' });
+      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite')]).toEqual([adresse, 200, null, `${HOTE}/sp${adresse}`]);
     }
   });
 
@@ -122,7 +129,8 @@ describe('filet · la page redirect() de chaque adresse vise la même cible que 
     '/studio/image': () => import('../app/(app)/studio/image/page'),
     '/studio/video': () => import('../app/(app)/studio/video/page'),
     '/studio/textes': () => import('../app/(app)/studio/textes/page'),
-    '/adsmap/jarvis': () => import('../app/(app)/adsmap/jarvis/page') as Promise<{ default: Page }>,
+    // L'ancienne page V5 est retirée (Résultats exclusif) · le filet est la page Spatial.
+    '/adsmap/jarvis': () => import('../app/(spatial)/sp/adsmap/jarvis/page') as Promise<{ default: Page }>,
   };
 
   it('chaque adresse retirée a sa page filet', () => {

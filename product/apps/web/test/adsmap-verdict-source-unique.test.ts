@@ -3,54 +3,39 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * CDC v6 · R01 · un seul qualificatif de verdict, partout. La règle (libellé,
- * ton, exclusion de la relative des gagnantes, taux honnête) est prouvée au
- * noyau (`verdict-libelle.test.ts`). Ici on vérifie que les trois écrans Adsmap
- * (table, canvas, tiroir) tirent de cette SOURCE UNIQUE et ne réintroduisent pas
- * la divergence · composants client volumineux, non rendables · adoption source.
+ * Adsmap · le verdict vient d'une source UNIQUE (CDC v6 · R01, N02). L'ancienne
+ * Adsmap est retirée · les écrans Spatial de Résultats lisent le libellé et le
+ * verdict EFFECTIF par les règles du noyau (`pastilleVerdict`, `lireCarte`,
+ * `reperesTests`), testées dans `packages/core/test/spatial-resultats-gestes.test.ts`.
  */
-const read = (rel: string) => readFileSync(join(process.cwd(), `app/(app)/adsmap/${rel}`), 'utf8');
-const ECRANS = ['AdsMapTable.tsx', 'Canvas.tsx', 'AdDrawer.tsx'] as const;
+const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
+const TABLE = read('spatial/vues/resultats/Tests.tsx');
+const CARTE = read('spatial/vues/resultats/Carte.tsx');
+const FICHE = read('app/(spatial)/sp/adsmap/tests/[id]/page.tsx');
+const REGLES = read('../../packages/core/src/spatial/resultats/gestes.ts');
 
 describe('Adsmap · le verdict vient d’une source unique', () => {
-  for (const f of ECRANS) {
-    it(`${f} tire ses libellés de LIBELLE_VERDICT, sans carte codée en dur`, () => {
-      const s = read(f);
-      expect(s, 'ne consomme pas la source unique du noyau').toContain('LIBELLE_VERDICT');
-      expect(s, 'garde une carte de libellés codée en dur').not.toContain("winner: 'Gagnante', baby_winner:");
+  for (const [nom, s] of [['table', TABLE], ['carte', CARTE], ['fiche', FICHE]] as const) {
+    it(`${nom} · aucune carte de libellés codée en dur`, () => {
+      expect(s, 'garde une carte de libellés codée en dur').not.toContain("winner: 'Gagnante'");
       expect(s, 'affiche encore la relative comme une gagnante').not.toContain("relative_winner: 'Gagnante");
     });
   }
-
-  it('table & canvas ne comptent plus la relative parmi les gagnantes', () => {
-    for (const f of ['AdsMapTable.tsx', 'Canvas.tsx'] as const) {
-      const s = read(f);
-      expect(s, `${f} inclut encore la relative dans un ensemble de gagnantes`)
-        .not.toContain("['winner', 'baby_winner', 'relative_winner']");
-    }
-    // La table calcule un taux honnête (Non calculable plutôt que 0 %).
-    const t = read('AdsMapTable.tsx');
-    expect(t, 'la table ne passe pas par le taux honnête du noyau').toContain('tauxReussite(');
-    expect(t, 'la table n’affiche pas « Non calculable »').toContain('Non calculable');
+  it('table · carte · fiche passent par les règles du noyau (verdict effectif)', () => {
+    expect(TABLE).toContain('pastilleVerdict(');
+    expect(CARTE).toContain('lireCarte(');
+    expect(FICHE).toContain('pastilleVerdict(');
+    expect(FICHE, 'la fiche active « gagnante » sans exiger la comparabilité').toContain('estGagnanteValidee(');
+    expect(FICHE).toContain('verdictEffectif(');
+    expect(REGLES).toContain('verdictEffectif(verdict as VerdictValue | null, !!comparable)');
   });
-
+  it('les repères de la table passent par le taux honnête du noyau', () => {
+    expect(REGLES, 'la table ne passe pas par le taux honnête du noyau').toContain('tauxReussite(');
+    expect(REGLES).toContain('TAUX_NON_CALCULABLE');
+  });
   it('Suites reçoit la comparabilité · une gagnante non prouvée ne « gagne » pas (N02)', () => {
-    // Le plan d'itération (moteur des Suites) doit consommer `comparable` · sinon
-    // un import non comparable ressort « Elle a gagné ».
-    const action = readFileSync(join(process.cwd(), 'app/actions/adsmap-iterate.ts'), 'utf8');
+    const action = read('app/actions/adsmap-iterate.ts');
     expect(action, 'le plan ne charge pas la comparabilité').toContain('comparable: schema.verdicts.comparable');
     expect(action, 'le plan ne transmet pas la comparabilité').toContain('comparable: !!r.comparable');
-  });
-
-  it('les trois écrans appliquent le verdict EFFECTIF · un gagnant non comparable est prometteuse (N02)', () => {
-    // La qualification consomme la comparabilité, partout · un « winner » importé
-    // sans protocole ne se compte ni ne s'affiche comme une victoire prouvée.
-    for (const f of ECRANS) {
-      expect(read(f), `${f} n’applique pas verdictEffectif`).toContain('verdictEffectif(');
-    }
-    // Le décompte des gagnantes (canvas) et le gate « Cette créa gagne » (tiroir)
-    // exigent la comparabilité · pas le simple ensemble absolu.
-    expect(read('Canvas.tsx'), 'Canvas compte des gagnantes non comparables').toContain('estGagnanteValidee(');
-    expect(read('AdDrawer.tsx'), 'le tiroir active « gagnante » sans exiger la comparabilité').toContain('estGagnanteValidee(');
   });
 });
