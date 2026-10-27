@@ -49,4 +49,4 @@ export function Barre({ part, over = false, style }: { part: number; over?: bool
 }
 
 /** L'état vide d'une tuile · une phrase qui dit pourquoi il n'y a rien. */
-export const Vide = ({ children }: { children: ReactNode }) => <p className="faint" style={{ fontSize: '12.5px', margin: '6px 0 0' }}>{children}</p>;
+export const Vide = ({ children }: { children: ReactNode }) => <p className="faint" style={{ fontSize: '12.5px', margin: '6px 0 0', gridColumn: '1 / -1' }}>{children}</p>;
