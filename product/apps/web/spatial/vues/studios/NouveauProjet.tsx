@@ -263,8 +263,8 @@ export function NouveauProjet(p: PropsNouveauProjet) {
           {etapes.map((e, i) => (
             <Fragment key={e.n}>
               {i > 0 && <span className="sep" />}
-              {e.classe === 'done' && peutAller(e.cible)
-                ? <button type="button" className="done" data-aller={e.cible} onClick={() => void allerA(e.cible)}><b>✓</b>{e.libelle}</button>
+              {e.classe !== 'on' && peutAller(e.cible)
+                ? <button type="button" className={e.classe} data-aller={e.cible} onClick={() => void allerA(e.cible)}><b>{e.classe === 'done' ? '✓' : e.n}</b>{e.libelle}</button>
                 : <button type="button" className={e.classe} data-etape-spatiale={e.cible} disabled aria-current={e.classe === 'on' ? 'step' : undefined}><b>{e.classe === 'done' ? '✓' : e.n}</b>{e.libelle}</button>}
             </Fragment>
           ))}

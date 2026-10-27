@@ -265,6 +265,13 @@ describe('Spatial · Nouveau projet · le brief structuré', () => {
     expect(sources.ajouterSourcesAuProjet).toHaveBeenCalledWith({ projectId: 'p1', sources: [{ type: 'sauvegarde', id: '11111111-1111-4111-8111-111111111111' }] });
   });
 
+  it('sans marque active · on le dit, avec la porte vers les marques, sans assistant', async () => {
+    await monter(<NouveauProjet {...propsNouveau({ etat: { etat: 'sans-marque', message: 'Choisis une marque active pour créer un projet.', lien: { href: '/brands', libelle: 'Choisir une marque' } } })} />);
+    expect($('[data-zone="assistant-projet"]')!.getAttribute('data-etat')).toBe('sans-marque');
+    expect($('a[href="/brands"]')).not.toBeNull();
+    expect($('[data-bouton="vers-brief"]')).toBeNull();
+  });
+
   it('en lecture seule, aucun geste de création n’est rendu', async () => {
     await monter(<NouveauProjet {...propsNouveau({ etat: { etat: 'lecture-seule', message: 'Ton rôle permet de lire les projets, pas d’en créer.' } })} />);
     expect($('.pickc')).toBeNull();
@@ -462,6 +469,17 @@ describe('Spatial · Nouveau projet · confirmation d’une image', () => {
 });
 
 describe('Spatial · Nouveau projet · vidéo et textes', () => {
+  it('le format de textes mène à l’atelier textes réel · aucune lecture image ni vidéo, aucun devis image', async () => {
+    await jusquaStrategie({ initial: { type: 'text', titre: 'Textes · Marque', intention: '', etape: 'start' } });
+    await cliquer($('[data-bouton="vers-direction"]'));
+    await cliquer($('[data-bouton="vers-format"]'));
+    expect($('[data-zone="assistant-livrable"]')!.getAttribute('data-type')).toBe('text');
+    expect([...document.querySelectorAll('#orn a')].map((a) => a.getAttribute('href'))).toContain('/studio/projets/p1/textes');
+    expect(image.lireParcoursImage).not.toHaveBeenCalled();
+    expect(image.demanderDevisImage).not.toHaveBeenCalled();
+    expect(document.querySelector('.sech h2')!.textContent).toBe('Textes & devis');
+  });
+
   it('le format d’une vidéo mène à l’atelier vidéo réel · aucune lecture image, aucun devis inventé', async () => {
     await jusquaStrategie({ initial: { type: 'video', titre: 'Vidéo · Marque', intention: '', etape: 'start' } });
     await cliquer($('[data-bouton="vers-direction"]'));
