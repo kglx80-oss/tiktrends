@@ -61,11 +61,25 @@ function correspond(motif: string, chemin: string): boolean {
  * `null` · l'ancienne interface le sert. Les chemins déjà internes (`/sp/…`)
  * ne sont jamais réécrits une seconde fois.
  */
-export function ecranSpatial(chemin: string): { interne: string; section: SectionSpatiale } | null {
+export function ecranSpatial(chemin: string): { interne: string; section: SectionSpatiale; exclusif: boolean } | null {
+  return ecranSpatialDans(ECRANS_SPATIAUX, chemin);
+}
+
+/** `ecranSpatial` sur une liste donnée · testable sans toucher aux déclarations. */
+export function ecranSpatialDans(liste: readonly EcranSpatial[], chemin: string): { interne: string; section: SectionSpatiale; exclusif: boolean } | null {
   if (chemin === PREFIXE_SPATIAL || chemin.startsWith(PREFIXE_SPATIAL + '/')) return null;
   const propre = chemin.length > 1 ? chemin.replace(/\/+$/, '') : chemin;
-  const e = ECRANS_SPATIAUX.find((x) => correspond(x.chemin, propre));
-  return e ? { interne: PREFIXE_SPATIAL + (propre === '/' ? '' : propre), section: e.section } : null;
+  const e = liste.find((x) => correspond(x.chemin, propre));
+  return e ? { interne: PREFIXE_SPATIAL + (propre === '/' ? '' : propre), section: e.section, exclusif: e.exclusif === true } : null;
+}
+
+/**
+ * Le middleware sert-il ce chemin par Spatial ? Oui si l'écran est porté ET
+ * (le navigateur est en mode Spatial OU l'écran est exclusif · sa page V5
+ * n'existe plus, le mode V5 n'a rien à servir).
+ */
+export function servirEnSpatial(e: { exclusif: boolean } | null, mode: ModeUi): boolean {
+  return !!e && (mode === 'spatial' || e.exclusif);
 }
 
 /** Un lien de l'interface Spatial vers ce chemin reste-t-il dans l'arbre Spatial ? */
