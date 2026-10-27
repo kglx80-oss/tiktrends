@@ -146,7 +146,7 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: Sa
         <Lien className="btn sm" href={i.cloner}><Ic n="copy" />Cloner</Lien>
       </div>
       {gestes && <ChoixFormat i={i} ferme={gestes.formatFerme} classe={classe} />}
-      {gestes && (gestes.test.ouvert ? <PreparerTest platform={i.platform} externalId={i.externalId} /> : <small className="faint" style={{ fontSize: 11 }}>{gestes.test.raison}</small>)}
+      {gestes && (gestes.test.ouvert ? <PreparerTest platform={i.platform} externalId={i.externalId} /> : <p data-pont-refus className="faint" style={{ fontSize: 11, margin: 0 }}>{gestes.test.raison}</p>)}
       {menu && (
         <div className="tile fpanel" role="menu" style={{ gridTemplateColumns: 'minmax(0,1fr)' }}>
           {dossiers.filter((d) => d !== i.folder).map((d) => (

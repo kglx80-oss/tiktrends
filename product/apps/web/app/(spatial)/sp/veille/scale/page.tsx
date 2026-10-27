@@ -79,7 +79,8 @@ export default async function ScaleSpatial({ searchParams }: { searchParams: Pro
     const memoire = persistable ? undefined : lireRecherche(cleMemoire);
     peutRafraichir = persistable && refreshAllowed(cache);
     if (cache && isFresh(cache) && !(rafraichir && peutRafraichir)) { ads = cache.ads; lu = { at: cache.fetchedAt, cache: true }; }
-    else if (memoire && !rafraichir) ads = memoire.ads;
+    // Le « Rafraîchir » n'a pas de plancher en mémoire · il n'y est pas honoré (cache court), comme la V5.
+    else if (memoire) ads = memoire.ads;
     else {
       try {
         const r = await ttSearchAds({ apiKey }, { search: terme, searchIn: mono ? 'domain' : 'ad_copy', status: 'all', sortBy: 'reachDelta30d', country, limit: 100, offset: 0 });
