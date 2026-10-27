@@ -33,6 +33,7 @@
 
 import { empreinteContenu } from '../version';
 import { libelleVariante, natureDuMime } from '../variantes/variante';
+import { libelleVariable } from '../variantes/test';
 import { LIBELLE_VERDICT } from '../../adsmap/verdict-libelle';
 import type { VerdictValue } from '../../adsmap/types';
 import type { DonneesVariantes, VarianteLue } from '../variantes/vue';
@@ -199,7 +200,7 @@ export function projeterLignee(e: EntreeLignee): ModeleLignee {
     }, [v.n, 0, 0, 2]);
 
     if (b && (b.hypothese || b.hypotheseId)) {
-      const variable = b.variable ? ` · variable testée : ${court(b.variable, 40)}` : '';
+      const variable = b.variable ? ` · variable testée : ${court(libelleVariable(b.variable), 40)}` : '';
       pose({
         id: idHypothese(v.id), type: 'hypothese', titre: `Hypothèse · version ${v.n}`,
         resume: court(`${b.hypothese ?? 'Hypothèse citée au brief.'}${variable}`, 140),

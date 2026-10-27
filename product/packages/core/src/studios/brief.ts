@@ -37,6 +37,7 @@ import { LIBELLES_ELEMENT, LIBELLES_MODALITE, controlerNarrationObservee } from 
 import { structureImportable, fuitesConcurrent, type ChampImportable } from './sources/import';
 import { idSourceProduit, type ReferenceProduitStudio } from './sources/produit';
 import type { HypotheseTest } from './sources/hypotheses';
+import { libelleVariable } from './variantes/test';
 import {
   violationsFormeReferenceAdsmap, violationPorteeReferenceAdsmap,
   type ReferenceAdsmap, type KindReferenceAdsmap, type PorteeAdsmap, type ResolveurReferencesAdsmap,
@@ -576,7 +577,7 @@ export function exporterBrief(b: BriefCanonique, meta: MetaExportBrief, format: 
     ...section('Hypothèse', h ? [
       h.statement,
       '',
-      puce(`Variable testée : ${b.testedVariable || 'à préciser'}`),
+      puce(`Variable testée : ${b.testedVariable ? libelleVariable(b.testedVariable) : 'à préciser'}`),
       ...(h.control ? [puce(`Témoin : ${h.control}`)] : []),
       ...(h.treatment ? [puce(`Traitement : ${h.treatment}`)] : []),
       ...(h.metric ? [puce(`Mesure : ${h.metric}`)] : []),

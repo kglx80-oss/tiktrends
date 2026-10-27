@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  cleBrouillonTextes, comparerTextes, libelleCoutTexteEstime, raisonAjoutTexte,
+  cleBrouillonTextes, comparerTextes, libelleVariable, libelleCoutTexteEstime, raisonAjoutTexte,
   LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, NOTE_BORNE_TEXTE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
   type ErreurStudio, type TexteStudio, type TypeTexte, type VarianteTexte,
 } from '@tiktrends/core';
@@ -177,7 +177,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
             <div className="tl">
               <div className="ev"><span className="ico"><Ic n="flask" /></span><span>Objectif<small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{vue.brief.objectif || 'à préciser'}</small></span></div>
               <div className="ev"><span className="ico"><Ic n="bulb" /></span><span>Hypothèse<small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{vue.brief.hypothese ?? 'aucune'}</small></span></div>
-              <div className="ev"><span className="ico"><Ic n="loop" /></span><span>Variable testée<small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{vue.brief.variable || 'à préciser'}</small></span></div>
+              <div className="ev"><span className="ico"><Ic n="loop" /></span><span>Variable testée<small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{vue.brief.variable ? libelleVariable(vue.brief.variable) : 'à préciser'}</small></span></div>
               <details>
                 <summary className="faint" style={{ cursor: 'pointer', fontSize: '12.5px' }}>{faits.length} fait{faits.length > 1 ? 's' : ''} citables par les allégations</summary>
                 <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: '11.5px' }}>{faits.map((f) => <li key={f.id}><code>{f.id}</code> · {f.claim}</li>)}</ul>

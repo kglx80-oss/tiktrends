@@ -172,6 +172,12 @@ describe('FLOW-10 · export du brief pour produire ailleurs', () => {
     expect(e.contenu).not.toContain('—');
   });
 
+  it('Markdown · une variable testée Adsmap (code) s’écrit en clair', () => {
+    const e = exporterBrief({ ...brief(), testedVariable: 'opening_visual' }, meta, 'markdown');
+    expect(e.contenu).toContain('- Variable testée : le visuel d’ouverture');
+    expect(e.contenu).not.toContain('opening_visual');
+  });
+
   it('JSON · relisible, le brief exact et les sources', () => {
     const e = exporterBrief(brief(), meta, 'json');
     const j = JSON.parse(e.contenu);
