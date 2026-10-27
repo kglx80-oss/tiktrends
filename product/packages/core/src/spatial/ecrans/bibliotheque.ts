@@ -6,4 +6,6 @@ import type { EcranSpatial } from '../types';
  * absent reste servi par l'ancienne interface. Un fichier par rubrique · deux
  * chantiers parallèles ne se disputent jamais la même ligne.
  */
-export const ECRANS_BIBLIOTHEQUE: readonly EcranSpatial[] = [];
+export const ECRANS_BIBLIOTHEQUE: readonly EcranSpatial[] = [
+  { chemin: '/assets', section: 'bibliotheque' },
+];
