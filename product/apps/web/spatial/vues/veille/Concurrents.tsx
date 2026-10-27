@@ -61,8 +61,9 @@ export function Concurrents(p: PropsConcurrents) {
             {p.suggestions.map((s) => (
               <div className="tile ccs" key={s.nom}>
                 <span className="av" style={{ background: s.fond }}>{s.initiale}</span>
-                <div style={{ flex: 1, minWidth: 0 }}><strong>{s.nom}</strong><small className="faint">{s.detail}</small></div>
-                <button className="btn sm" type="submit" form="ccform" formNoValidate name="cible" value={s.cible} disabled={!p.scanner} title={p.refus ?? `Scanner ${s.nom} · ${prix}`}>Scanner · {prix}</button>
+                {/* Le prix vit dans la ligne de détail · le bouton garde le libellé court de la maquette (« Scanner · 6 crédits » écrasait le nom sur cinq lignes). */}
+                <div style={{ flex: 1, minWidth: 0 }}><strong>{s.nom}</strong><small className="faint">{s.detail} · {prix} le scan</small></div>
+                <button className="btn sm" type="submit" form="ccform" formNoValidate name="cible" value={s.cible} disabled={!p.scanner} title={p.refus ?? `Scanner ${s.nom} · ${prix}`} aria-label={`Scanner ${s.nom} · ${prix}`}>Scanner</button>
               </div>
             ))}
           </div>

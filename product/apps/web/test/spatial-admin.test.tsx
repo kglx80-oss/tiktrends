@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { parite } from './spatial/parite';
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fragmentReference, parite } from './spatial/parite';
 
 const actions = vi.hoisted(() => ({
   reply: vi.fn(async (_fd: FormData) => {}),
@@ -394,5 +396,48 @@ describe('Spatial · Tour de contrôle · comportements', () => {
     await cliquer(bouton(h, 'Vérifier'));
     expect(actions.diagnostic).toHaveBeenCalledTimes(1);
     expect(toasts).toEqual(['Stripe · 1 point bloquant']);
+  });
+});
+
+/* ───── Tables `.atable` · chaque ligne porte ses colonnes (défaut vu au banc riche, 27/10) ───── */
+
+describe('Spatial · Admin · grilles : une ligne de table = une rangée, un état vide = toute la largeur', () => {
+  // `.atable .atr:not(.ath){grid-template-columns:inherit}` hérite du conteneur,
+  // qui n'en déclare aucune : sans colonnes en ligne, chaque cellule prend sa
+  // propre rangée (8 lignes empilées par forfait). Deux tables de la maquette
+  // les omettaient (Tour de contrôle, Revenus) ; toutes les autres les portent.
+  const lignes = (html: string) => {
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    return [...t.content.querySelectorAll('.atable > .atr')] as HTMLElement[];
+  };
+  const pistes = (e: HTMLElement) => e.style.gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length;
+
+  it('Tour de contrôle et Revenus · chaque ligne (en-tête compris) déclare autant de colonnes que de cellules', () => {
+    for (const html of [rendre(<TourDeControle {...propsTourDeControle()} />), rendre(<Revenus {...propsRevenus()} />)]) {
+      const ls = lignes(html);
+      expect(ls.length).toBeGreaterThan(1);
+      expect(ls.map((l) => `${pistes(l)}/${l.children.length}`)).toEqual(ls.map((l) => `${l.children.length}/${l.children.length}`));
+    }
+  });
+
+  it('un état vide posé dans une grille (`.wfall` 6 colonnes, `.funnel` 4) occupe toute la largeur, pas une colonne', () => {
+    const vides: HTMLElement[] = [];
+    for (const html of [rendre(<Revenus {...propsRevenus()} />), rendre(<Churn {...propsChurn()} />)]) {
+      const t = document.createElement('template');
+      t.innerHTML = html;
+      vides.push(...([...t.content.querySelectorAll('[data-vide] > p')] as HTMLElement[]));
+    }
+    expect(vides.length).toBeGreaterThanOrEqual(4);
+    expect(vides.map((v) => v.style.gridColumn.replace(/\s/g, ''))).toEqual(vides.map(() => '1/-1'));
+  });
+
+  it('les fragments de référence · toute ligne `.atable > .atr` déclare ses colonnes', () => {
+    const dossier = join(__dirname, '..', '..', '..', '..', 'docs', 'spatial', 'reference');
+    const fautives: string[] = [];
+    for (const f of readdirSync(dossier).filter((n) => n.endsWith('.html'))) {
+      lignes(fragmentReference(f.replace(/\.html$/, ''))).forEach((l, i) => { if (!pistes(l)) fautives.push(`${f} · ligne ${i + 1}`); });
+    }
+    expect(fautives).toEqual([]);
   });
 });

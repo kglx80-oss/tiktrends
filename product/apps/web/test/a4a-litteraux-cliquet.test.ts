@@ -101,7 +101,7 @@ const EXCLUS: Record<string, string> = {
   'app/api/ad/[id]/route.tsx': 'rendu d’export (ImageResponse) · image servie telle quelle',
   'app/opengraph-image.tsx': 'image Open Graph exportée · vue hors de l’application',
   'lib/emails.ts': 'HTML d’e-mail · rendu par le client mail, hors thème',
-  'components/studios/produit/compression-photo.ts': 'fond blanc d’un JPEG recompressé · pixel de la photo produite, pas de l’interface',
+  'lib/studios/produit/compression-photo.ts': 'fond blanc d’un JPEG recompressé · pixel de la photo produite, pas de l’interface',
   'lib/studios/rendu/masque-pixels.ts': 'fond d’aplatissement d’un export JPEG · pixel du média produit',
 };
 

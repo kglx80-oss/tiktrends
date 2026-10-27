@@ -6,7 +6,7 @@ import {planifierStoryboard,appliquerOperationVideo} from '../../../app/actions/
 import {EcranVideo,apercuDuGeste} from '../video/EcranVideo';
 import {btn as btnPrimary,btnGhost} from '../../ui';
 import s from './LivrableAssistant.module.css';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from './useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../../../lib/studios/appel-payant';
 export function VideoAssistant({vue,onRecharger}:{vue:VueVideo;onRecharger:()=>Promise<void>}){
  const [nb,setNb]=useState(4);const [duree,setDuree]=useState(15);const [plans,setPlans]=useState<PlanStudio[]|null>(null);const [base,setBase]=useState(vue.version.id);const [message,setMessage]=useState('');const [occupe,setOccupe]=useState(false);const appel=useAppelPayant(vue.projet.id,'storyboard');const incertain=appel.bloque;const verrou=useRef(false);const outils=useRef<HTMLDetailsElement>(null);
  const [musique,setMusique]=useState(vue.contenu.timeline?.music?.assetId??'');const [gain,setGain]=useState(vue.contenu.timeline?.music?.gainDb??-12);const [operation,setOperation]=useState<OperationVideo|null>(null);const [baseMontage,setBaseMontage]=useState(vue.version.id);const [montageIncertain,setMontageIncertain]=useState(false);

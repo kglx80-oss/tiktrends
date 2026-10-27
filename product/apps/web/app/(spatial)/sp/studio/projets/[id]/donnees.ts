@@ -43,6 +43,17 @@ export function raisonDuRefus(r: ErreurStudio, s: Session, quoi: string): Raison
   return { type: 'erreur', message: r.message, traceId: r.traceId };
 }
 
+/**
+ * Les ateliers d'un projet pour la rangée de navigation · actifs pour l'espace
+ * (interrupteurs), l'export masqué sous le rôle Membre (mêmes règles que la
+ * fiche). Lecture seule.
+ */
+export async function atelierDuProjet(s: Session, projectId: string): Promise<Array<{ segment: string; href: string | null }>> {
+  const inter = await etatInterrupteurs(s.workspaceId);
+  const exportAutorise = roleAtLeast(s.role, 'member');
+  return liensAtelierProjet(projectId, inter.actif).map((a) => ({ segment: a.segment, href: a.segment === 'export' && !exportAutorise ? null : a.href }));
+}
+
 const TON_TACHE: Record<string, ClassePastille> = { interrompu: 'w', echec: 'w', termine: 'g', attente: 'c' };
 
 /** La fiche marque lue en base (complétude réelle) · mêmes champs que l'Accueil V5. */
@@ -140,6 +151,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
       lienTest: lu.test?.linkId ?? null,
       lecture: v.lecture ? { conclusion: v.lecture.conclusion, phrase: v.lecture.phrase } : null,
       gestes: v.gestes,
+      rattachement: { hypothese: lu.hypothese, variable: lu.variable, aUnParent: lu.parentVariantId !== null },
     };
   });
   const tachesSp: TacheSpatiale[] | null = taches?.ok ? taches.taches.map((t) => ({
@@ -216,7 +228,8 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         relecture: { disponible: relecture.disponible, raison: relecture.raison, coutMaxUsd: relecture.coutMaxUsd, mention: relecture.coutMaxUsd !== null ? libelleCoutRelecture(relecture.coutMaxUsd) : null },
         taches: tachesSp,
         erreurTaches: taches && !taches.ok ? `${taches.message} · identifiant support ${taches.traceId}` : null,
-        panneauCompletHref: `/studio/projets/${pid}?ui=v5#titre-variantes`,
+        peutProposer: !!donnees?.droits.proposer,
+        adsmap: donnees ? donnees.adsmap : null,
         relire: relectureNecessaire((donnees?.lots ?? []).map((l) => l.etat as EtatJob)),
       },
     },

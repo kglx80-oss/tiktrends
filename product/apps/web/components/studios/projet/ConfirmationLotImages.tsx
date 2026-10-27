@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { libelleCredits, libelleUsd, phraseCoutDevis } from '@tiktrends/core';
 import { approuverLotImages } from '../../../app/actions/studios/lot-images';
 import type { VueLotImages } from '../../../lib/studios/image/lot-images';
-import { useAppelPayant, resultatPayantIncertain, MESSAGE_APPEL_PAYANT } from './useAppelPayant';
+import { useAppelPayant, resultatPayantIncertain, MESSAGE_APPEL_PAYANT } from '../../../lib/studios/appel-payant';
 import { btn, btnGhost } from '../../ui';
 import styles from './FormatDevis.module.css';
 
