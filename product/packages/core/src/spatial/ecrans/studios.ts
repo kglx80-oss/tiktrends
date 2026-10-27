@@ -7,6 +7,10 @@ import type { EcranSpatial } from '../types';
  * chantiers parallèles ne se disputent jamais la même ligne.
  */
 export const ECRANS_STUDIOS: readonly EcranSpatial[] = [
+  // D2 · projet, éditeur, vidéo.
+  { chemin: '/studio/projets/[id]', section: 'studios' },
+  { chemin: '/studio/projets/[id]/image', section: 'studios' },
+  { chemin: '/studio/projets/[id]/video', section: 'studios' },
   // D1 · liste, création, itération.
   { chemin: '/studio/projets', section: 'studios' },
   { chemin: '/studio/prompts', section: 'studios' },

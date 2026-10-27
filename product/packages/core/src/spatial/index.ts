@@ -3,6 +3,7 @@ export * from './bascule';
 export * from './rail';
 export * from './conso';
 export * from './avatar';
+export * from './projet';
 export * from './resultats';
 export * from './bibliotheque/drive';
 export * from './bibliotheque/jarvis';
