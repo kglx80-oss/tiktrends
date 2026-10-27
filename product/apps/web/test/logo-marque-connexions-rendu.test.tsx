@@ -42,10 +42,7 @@ vi.mock('../app/actions/brand-detail', () => stub());
 import { CONNECTEURS_DISPONIBLES, CONNEXIONS_REELLES, connecteursBranches, estConnexionReelle } from '@tiktrends/core';
 import { VueAnalytics } from '../components/accueil/VueAnalytics';
 import { MetaKeyMetrics } from '../app/(app)/analytics/MetaKeyMetrics';
-import { DriveConnect } from '../app/(app)/assets/DriveConnect';
-import { AssetsLibrary } from '../app/(app)/assets/AssetsLibrary';
 import { LogoMarque } from '../components/LogoMarque';
-import { ToastProvider } from '../components/Toast';
 
 /** Les clés de tous les `LogoMarque` d'un rendu, dans l'ordre. */
 const logos = (html: string) => [...html.matchAll(/data-logo-marque="([^"]+)"/g)].map((m) => m[1]!);
@@ -57,11 +54,7 @@ const ECRANS: Array<{ ecran: string; attendu: string[]; rendre: () => Promise<st
     ecran: 'Key Metrics Meta', attendu: ['meta'],
     rendre: () => renderToStaticMarkup(<MetaKeyMetrics insights={{ accountName: 'Neva FR', currency: '€', window: kpi, previous: kpi, topAds: [], spend30d: 1, purchases30d: 1, revenue30d: 1, roas30d: 1 } as never} syncedAt={null} />),
   },
-  {
-    ecran: 'Assets · Google Drive', attendu: ['googledrive', 'googledrive'],
-    rendre: () => renderToStaticMarkup(<ToastProvider><DriveConnect state={{ available: true, pickerReady: true, needBrand: false, brandName: 'Neva', connected: false, folderId: null, folderName: null, syncedAt: null, dernier: null }} /></ToastProvider>),
-  },
-  { ecran: 'Assets · bibliothèque', attendu: ['googledrive'], rendre: () => renderToStaticMarkup(<ToastProvider><AssetsLibrary initial={[]} brandName="Neva" storageEnabled={false} isAdmin /></ToastProvider>) },
+  // Vague 2 · la Bibliothèque est servie par Spatial (logos d'outil `LogoApp`, hors `LogoMarque`).
 ];
 
 describe('chaque logo de marque rendu correspond à une connexion réelle', () => {
@@ -102,7 +95,8 @@ describe('la liste du noyau est celle des écrans', () => {
     parcourir(join(process.cwd(), 'app'));
     parcourir(join(process.cwd(), 'components'));
     const poses = fichiers.flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/<LogoMarque\s+marque="([^"]+)"/g)].map((m) => ({ f, cle: m[1]! })));
-    expect(poses.length, 'aucune pose de LogoMarque trouvée · la lecture est cassée').toBeGreaterThan(5);
+    // Vague 2 · les écrans V5 retirés emportent leurs poses · il en reste (analytics, accueil) ; zéro = lecture cassée.
+    expect(poses.length, 'aucune pose de LogoMarque trouvée · la lecture est cassée').toBeGreaterThan(0);
     for (const { f, cle } of poses) expect(estConnexionReelle(cle), `${f} · LogoMarque « ${cle} » n’est pas une connexion réelle`).toBe(true);
   });
 });

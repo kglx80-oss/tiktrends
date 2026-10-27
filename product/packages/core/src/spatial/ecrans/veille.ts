@@ -16,4 +16,6 @@ export const ECRANS_VEILLE: readonly EcranSpatial[] = [
   { chemin: '/veille/scale', section: 'veille' },
   { chemin: '/saved', section: 'veille' },
   { chemin: '/radar', section: 'veille' },
+  // Vague 2 · le rapport détaillé d'un concurrent (écran V5 sans fragment de maquette).
+  { chemin: '/brands/[id]/competitors/[name]', section: 'veille' },
 ];

@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { randomUUID } from 'node:crypto';
 import type { IdsStudios, SessionTest } from './studios-semis';
 
@@ -38,8 +37,10 @@ import { db, schema, eq } from '@tiktrends/db';
 import { cleInterrupteursEspace } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { projetTest } from './l3-harnais';
-import AssetsPage from '../app/(app)/assets/page';
-import { ToastProvider } from '../components/Toast';
+// Vague 2 · l'écran V5 `/assets` est retiré · on lit ce que la page Spatiale
+// (seule à servir `/assets`) remet à l'écran · ses fichiers, origine et gestes possibles.
+import BibliothequeSpatiale from '../app/(spatial)/sp/assets/page';
+import type { FichierDrive } from '@tiktrends/core';
 
 const ids = h.ids;
 const m = {} as Record<'livreA' | 'brouillonA' | 'echecA' | 'rejeteA' | 'entreeA' | 'livreA2' | 'livreB' | 'exportB' | 'historiqueA', string>;
@@ -95,39 +96,37 @@ beforeEach(() => {
 });
 afterEach(async () => { vi.unstubAllEnvs(); await db.delete(schema.appSettings).where(eq(schema.appSettings.key, cleInterrupteursEspace(ids.wsA))); });
 
-async function rendre(): Promise<HTMLElement> {
-  const html = renderToStaticMarkup(<ToastProvider>{await AssetsPage({ searchParams: Promise.resolve({}) })}</ToastProvider>);
-  const d = document.createElement('div');
-  d.innerHTML = html;
-  return d;
+async function rendre(): Promise<FichierDrive[]> {
+  const el = (await BibliothequeSpatiale({ searchParams: Promise.resolve({}) })) as React.ReactElement<{ donnees: { fichiers: FichierDrive[] } }>;
+  return el.props.donnees.fichiers;
 }
-const carte = (d: HTMLElement, id: string) => d.querySelector<HTMLElement>(`[data-asset-id="${id}"]`);
-const visibles = (d: HTMLElement) => [...d.querySelectorAll('[data-asset-id]')].map((e) => e.getAttribute('data-asset-id'));
+const carte = (d: FichierDrive[], id: string) => d.find((f) => f.id === id) ?? null;
+const visibles = (d: FichierDrive[]) => d.map((f) => f.id);
+/** L'origine affichée · sortie Studios (lien du projet), ancienne création (téléchargement), ou bibliothèque. */
+const origine = (f: FichierDrive) => (f.projet ? 'studios' : f.telecharger ? 'historique' : 'bibliotheque');
 
-describe('/assets · les sorties livrées des projets Studios rejoignent la bibliothèque', () => {
+describe('/assets (Spatial) · les sorties livrées des projets Studios rejoignent la bibliothèque', () => {
   it('marque A1 active · la sortie livrée apparaît, avec son origine, le lien du projet et sa vignette gardée', async () => {
     const d = await rendre();
     const c = carte(d, m.livreA);
     expect(c, 'la sortie Studios livrée de la marque A1 n’apparaît pas dans la bibliothèque').not.toBeNull();
-    expect(c!.getAttribute('data-origine')).toBe('studios');
-    const lien = c!.querySelector('a[data-lien="projet"]');
-    expect(lien?.textContent).toBe(`Studios · ${projets.A1.titre}`);
-    expect(lien?.getAttribute('href')).toBe(`/studio/projets/${projets.A1.id}`);
-    expect(c!.querySelector('img')?.getAttribute('src')).toBe(`/api/studios/media/${m.livreA}`);
-    expect(c!.querySelector('a[data-lien="media"]')?.getAttribute('href')).toBe(`/api/studios/media/${m.livreA}`);
-    expect(c!.textContent).toContain('Lecture seule');
+    expect(origine(c!)).toBe('studios');
+    expect(c!.projet).toEqual({ href: `/studio/projets/${projets.A1.id}`, titre: projets.A1.titre });
+    expect(c!.vignette).toBe(`/api/studios/media/${m.livreA}`);
+    expect(c!.url).toBe(`/api/studios/media/${m.livreA}`);
+    expect(c!.lectureSeule).toBe(true);
     // La bibliothèque historique reste là, avec ses gestes.
     const hist = carte(d, m.historiqueA)!;
-    expect(hist.getAttribute('data-origine')).toBe('bibliotheque');
-    expect([...hist.querySelectorAll('button')].some((b) => b.textContent === 'Suppr.')).toBe(true);
-    expect(d.textContent).toContain('dont 1 issu(s) des Studios');
+    expect(origine(hist)).toBe('bibliotheque');
+    expect(hist.lectureSeule).toBe(false);
   });
 
   it('aucune action destructrice ni d’écriture sur la ligne Studios', async () => {
     const c = carte(await rendre(), m.livreA)!;
-    expect(c.querySelectorAll('button').length, 'un bouton (Suppr., Template, Analyser) est offert sur une sortie Studios').toBe(0);
-    expect(c.querySelectorAll('input').length, 'la bascule IA est offerte sur une sortie Studios').toBe(0);
-    expect(c.textContent).not.toContain('Suppr.');
+    // Lecture seule · l'écran n'offre alors ni suppression, ni droits, ni rangement.
+    expect(c.lectureSeule, 'une sortie Studios est modifiable').toBe(true);
+    expect(c.ia, 'la bascule IA, le template ou l’analyse sont offerts sur une sortie Studios').toBeUndefined();
+    expect(c.droit).toBeNull();
   });
 
   it('brouillon, lot échoué, sortie écartée, entrée de travail · rien de tout ça n’apparaît', async () => {
@@ -154,7 +153,7 @@ describe('/assets · les sorties livrées des projets Studios rejoignent la bibl
     expect(v).toContain(m.livreA2);
     expect(v).not.toContain(m.livreB);
     expect(v, 'un export de l’espace B fuit dans la bibliothèque de A').not.toContain(m.exportB);
-    expect(carte(d, m.livreA2)!.querySelector('a[data-lien="projet"]')?.textContent).toBe(`Studios · ${projets.A2.titre}`);
+    expect(carte(d, m.livreA2)!.projet?.titre).toBe(projets.A2.titre);
   });
 
   it('membre restreint à A1 · la marque A2 lui reste fermée', async () => {
@@ -178,7 +177,7 @@ describe('/assets · les sorties livrées des projets Studios rejoignent la bibl
   it('projets Studios coupés pour l’espace · aucune ligne Studios (la vignette répondrait 404)', async () => {
     await db.insert(schema.appSettings).values({ key: cleInterrupteursEspace(ids.wsA), value: { actives: [], coupees: ['projets'] } });
     const d = await rendre();
-    expect(d.querySelectorAll('[data-origine="studios"]').length, 'une sortie Studios est listée alors que les projets sont coupés pour l’espace').toBe(0);
+    expect(d.filter((f) => origine(f) === 'studios').length, 'une sortie Studios est listée alors que les projets sont coupés pour l’espace').toBe(0);
     expect(visibles(d)).toContain(m.historiqueA);
   });
 });
