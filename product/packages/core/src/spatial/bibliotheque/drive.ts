@@ -1,4 +1,5 @@
 import { droitAutorisePub, estDroitAsset, libelleDroit } from '../../bibliotheque-dossiers';
+import { derniereTentativeDriveEnEchec, type DernierSyncDrive } from '../../connecteurs-catalogue';
 
 /**
  * Spatial · la Bibliothèque « rangée comme un drive » (maquette `bibliotheque`).
@@ -63,6 +64,12 @@ export interface FichierDrive {
   projet?: { href: string; titre: string };
   /** Téléchargement d'une ancienne création. */
   telecharger?: string;
+  /**
+   * L'usage par l'IA d'un média de la bibliothèque (repris de l'écran V5) ·
+   * utilisable par l'IA, rangé en template, tags posés par l'analyse. Absent
+   * pour une sortie Studios ou une ancienne création (lecture seule).
+   */
+  ia?: { utilisable: boolean; template: boolean; tags: readonly string[] };
 }
 
 export interface DonneesDrive {
@@ -78,6 +85,7 @@ export interface MediaSource {
   sizeBytes: number | null; createdAt: string; folderId?: string | null; rights?: string | null;
   studio?: { projetId: string; projetTitre: string; href: string };
   historique?: { libelle: string; telecharger: string };
+  ia?: { utilisable: boolean; template: boolean; tags: readonly string[] };
 }
 
 const LIBELLE_SOURCE: Record<string, string> = { upload: 'Téléversé', url: 'Lien', drive: 'Google Drive', studios: 'Studios', historique: 'Ancien studio' };
@@ -121,7 +129,7 @@ export function donneesDrive(src: { dossiers: readonly DossierSource[]; medias: 
     } else if (m.historique) {
       fichiers.push({ ...base, parent: 'r:anciens', droit: null, lectureSeule: true, telecharger: m.historique.telecharger });
     } else {
-      fichiers.push({ ...base, parent: m.folderId && ids.has(m.folderId) ? m.folderId : ID_ASSETS, droit: m.rights ?? null, lectureSeule: false });
+      fichiers.push({ ...base, parent: m.folderId && ids.has(m.folderId) ? m.folderId : ID_ASSETS, droit: m.rights ?? null, lectureSeule: false, ...(m.ia ? { ia: m.ia } : {}) });
     }
   }
   dossiers.push(...projets.values());
@@ -234,6 +242,21 @@ export interface EtatDrive {
   tri: TriDrive;
   /** Les nœuds dépliés dans l'arbre. */
   ouverts: ReadonlySet<string>;
+  /** Filtre par type de fichier (geste de l'écran V5) · absent ou `tous` = aucun filtre. */
+  type?: FiltreTypeDrive;
+}
+
+/** Le filtre par type de l'écran V5 (images, vidéos, audio, autres). */
+export type FiltreTypeDrive = 'tous' | 'image' | 'video' | 'audio' | 'autre';
+export const FILTRES_TYPE_DRIVE: ReadonlyArray<{ cle: FiltreTypeDrive; libelle: string }> = [
+  { cle: 'tous', libelle: 'Tous les types' }, { cle: 'image', libelle: 'Images' }, { cle: 'video', libelle: 'Vidéos' }, { cle: 'audio', libelle: 'Audio' }, { cle: 'autre', libelle: 'Autres fichiers' },
+];
+/** Un fichier passe-t-il le filtre ? Un SVG est une image, un PDF un « autre » fichier. */
+export function passeFiltreType(t: TypeFichierDrive, f: FiltreTypeDrive | undefined): boolean {
+  if (!f || f === 'tous') return true;
+  if (f === 'image') return t === 'image' || t === 'svg';
+  if (f === 'autre') return t === 'pdf' || t === 'autre';
+  return t === f;
 }
 
 export const ETAT_DRIVE_INITIAL: EtatDrive = {
@@ -351,7 +374,8 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   const fichiersVivants = () => d.fichiers.filter((f) => ix.vivant(f.parent));
   if (q) {
     dossiers = d.dossiers.filter((x) => !estRacine(x.id) && ix.vivant(x.id) && normaliser(x.nom).includes(q));
-    fichiers = fichiersVivants().filter((f) => normaliser(f.nom).includes(q));
+    // Le nom, ou un tag posé par l'analyse (la recherche V5 portait sur les deux).
+    fichiers = fichiersVivants().filter((f) => normaliser(f.nom).includes(q) || (f.ia?.tags ?? []).some((t) => normaliser(t).includes(q)));
   } else if (e.section === 'recents') {
     fichiers = [...fichiersVivants()].sort((a, b) => b.creeLe.localeCompare(a.creeLe) || a.id.localeCompare(b.id)).slice(0, 12);
   } else if (e.section === 'corbeille') {
@@ -365,6 +389,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   }
 
   const cartes = trierDossiers(ix, dossiers, e.tri).map((x) => carte(ix, x, e.section === 'corbeille'));
+  fichiers = fichiers.filter((f) => passeFiltreType(f.type, e.type));
   const triés = e.section === 'recents' ? fichiers : trierFichiers(fichiers, e.tri);
 
   const cur = courant ? ix.parDossier.get(courant)! : null;
@@ -414,10 +439,14 @@ export function dossiersRangement(d: DonneesDrive): Array<{ id: string | null; n
  */
 export interface ConnexionDriveSpatiale { etat: 'connecte' | 'a-connecter' | 'indisponible'; resume: string; peutSynchroniser: boolean }
 
-export function connexionDrive(s: { available: boolean; needBrand: boolean; connected: boolean; folderId: string | null; folderName: string | null } | null): ConnexionDriveSpatiale {
+export function connexionDrive(s: { available: boolean; needBrand: boolean; connected: boolean; folderId: string | null; folderName: string | null; syncedAt?: string | null; dernier?: DernierSyncDrive | null } | null, fuseau = 'Europe/Paris'): ConnexionDriveSpatiale {
   if (!s) return { etat: 'indisponible', resume: 'Réservé aux administrateurs', peutSynchroniser: false };
   if (!s.available) return { etat: 'indisponible', resume: 'Pas encore activé pour ton espace', peutSynchroniser: false };
   if (s.needBrand) return { etat: 'indisponible', resume: 'Choisis d’abord une marque active', peutSynchroniser: false };
   if (!s.connected) return { etat: 'a-connecter', resume: 'Connecter', peutSynchroniser: false };
-  return { etat: 'connecte', resume: s.folderName ? `Dossier « ${s.folderName} »` : 'Aucun dossier choisi', peutSynchroniser: !!s.folderId };
+  // L'état de la synchro (repris de l'écran V5) · le dernier SUCCÈS, et une dernière tentative en échec dite comme telle.
+  const quand = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: fuseau });
+  const echec = derniereTentativeDriveEnEchec({ syncedAt: s.syncedAt ?? null, dernier: s.dernier ?? null });
+  const suite = !s.folderId ? '' : echec ? ' · dernière synchro en échec' : s.syncedAt ? ` · synchronisé le ${quand(s.syncedAt)}` : ' · jamais synchronisé';
+  return { etat: 'connecte', resume: s.folderName ? `Dossier « ${s.folderName} »${suite}` : 'Aucun dossier choisi', peutSynchroniser: !!s.folderId };
 }
