@@ -14,6 +14,8 @@ import { RAIL_COOKIE, railCollapsedFromCookie } from '../rail-preference';
 import { railNav, sectionsCompteOuvertes, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, PLAN_CREDITS, type Plan } from '../rbac';
 import { logoutAction } from '../../app/actions/auth';
 import type { DonneesCoquille } from '../../spatial/coquille/Coquille';
+import { pastilleResultats } from './pastilles/resultats';
+import { pastilleMarque } from './pastilles/marque';
 
 const ORDRE_PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 
@@ -37,15 +39,15 @@ export type SourcePastille = (workspaceId: string, brandId: string) => Promise<N
  * entrée, avec la destination qui doit être OUVERTE pour qu'on l'appelle
  * (l'appeler sans le droit dévoilerait un compte que l'écran refuserait).
  *
- * Point d'entrée · « Résultats » (lots prêts à conclure) vient de la PR #872
- * (`lib/spatial/pastilles/resultats.ts`), pas encore dans `main` au moment de
- * cette PR. Son branchement, une fois #872 fusionnée, tient en deux lignes :
- *   import { pastilleResultats } from './pastilles/resultats';
- *   resultats: { destination: '/adsmap', source: pastilleResultats },
- * La garde `spatial-coquille-parcours` éprouve déjà la règle (appel seulement
- * si ouvert, pastille posée sur la bonne entrée).
+ * « Résultats » · les lots prêts à conclure (`pastilles/resultats`). « Marque »
+ * · les étapes de configuration restantes, le même chiffre que la carte de
+ * l'écran (`pastilles/marque`). La garde `spatial-coquille-parcours` éprouve la
+ * règle (appel seulement si ouvert, pastille posée sur la bonne entrée).
  */
-export const SOURCES_PASTILLES: Partial<Record<SectionSpatiale, { destination: string; source: SourcePastille }>> = {};
+export const SOURCES_PASTILLES: Partial<Record<SectionSpatiale, { destination: string; source: SourcePastille }>> = {
+  resultats: { destination: '/adsmap', source: pastilleResultats },
+  marque: { destination: '/brands', source: (_ws, brandId) => pastilleMarque(brandId) },
+};
 
 export async function poserPastilles(
   entrees: EntreeRail[],
