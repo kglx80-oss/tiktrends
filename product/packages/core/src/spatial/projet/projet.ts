@@ -4,6 +4,7 @@ import { parseAnswer } from '../../adsmap/jarvis-actions';
 import { sansTiretCadratin } from '../../ponctuation-ecran';
 import { LIBELLES_NATURE_FAIT, LIBELLES_OBJECTIF_V5, LIBELLES_PLATEFORME_V5, type BriefCanonique } from '../../studios/brief';
 import type { HypotheseTest } from '../../studios/sources/hypotheses';
+import { libelleVariable } from '../../studios/variantes/test';
 import type { ClassePastille } from './noeuds';
 
 /**
@@ -127,6 +128,9 @@ export interface ChampBriefSpatial { libelle: string; valeurs: string[]; options
  * seulement, dans l'ordre de la fiche V5. `options` · rendu en pastilles
  * (`span.opt2.on`), sinon en texte.
  */
+/** Un code Adsmap (`opening_visual`) devient son libellé · un texte libre reste tel quel, une absence reste absente. */
+const enClair = (v: string | null | undefined) => (v && v.trim() ? libelleVariable(v.trim()) : null);
+
 export function champsBrief(b: BriefCanonique, h: HypotheseTest | null): ChampBriefSpatial[] {
   const out: ChampBriefSpatial[] = [];
   const pose = (libelle: string, valeurs: ReadonlyArray<string | null | undefined>, options = false) => {
@@ -144,14 +148,14 @@ export function champsBrief(b: BriefCanonique, h: HypotheseTest | null): ChampBr
   pose('Ton', [b.styleIntent]);
   if (h) {
     pose('Hypothèse', [h.statement]);
-    pose('Variable testée', [b.testedVariable || h.variable]);
+    pose('Variable testée', [enClair(b.testedVariable || h.variable)]);
     pose('Témoin', [h.control]);
     pose('Traitement', [h.treatment]);
     pose('Mesure', [h.metric]);
     pose('Règle de décision', [h.decisionRule]);
     pose('Limites', h.limitations);
   } else {
-    pose('Variable testée', [b.testedVariable]);
+    pose('Variable testée', [enClair(b.testedVariable)]);
   }
   pose('Formats', b.formats, true);
   pose('Textes', b.texts);

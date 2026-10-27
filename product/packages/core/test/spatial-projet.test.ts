@@ -131,6 +131,13 @@ describe('Spatial · projet · en-tête, génération, états', () => {
     expect(e).not.toMatch(/mo…$/);
   });
 
+  it('le brief en lignes · une variable testée Adsmap (code) s’écrit en clair, un texte libre reste tel quel', () => {
+    const b: BriefCanonique = { objective: 'Tester', audience: '', hypothesisId: null, testedVariable: 'opening_visual', facts: [], invariants: [], variables: [], references: [], composition: '', styleIntent: '', texts: [], formats: [], exclusions: [] };
+    expect(champsBrief(b, null).find((x) => x.libelle === 'Variable testée')!.valeurs).toEqual(['le visuel d’ouverture']);
+    expect(champsBrief({ ...b, testedVariable: 'Visuel avant/après' }, null).find((x) => x.libelle === 'Variable testée')!.valeurs).toEqual(['Visuel avant/après']);
+    expect(champsBrief({ ...b, testedVariable: '' }, null).find((x) => x.libelle === 'Variable testée')).toBeUndefined();
+  });
+
   it('le brief en lignes · seuls les champs renseignés, l’objectif en pastille', () => {
     const b: BriefCanonique = { objective: 'Faire découvrir', audience: 'Parents', hypothesisId: 'h1', testedVariable: 'accroche', facts: [{ id: 'f1', claim: 'Vu chez Ploufy', sourceIds: [], kind: 'observed', confidence: 'medium' }], invariants: [], variables: [], references: [], composition: '', styleIntent: 'Complice', texts: ['A', 'B'], formats: ['4:5'], exclusions: [], objectifType: 'conversion' };
     const c = champsBrief(b, { id: 'h1', statement: 'Si A, alors B', sourceIds: [], variable: 'accroche', control: '', treatment: '', invariants: [], metric: 'CTR', decisionRule: '', limitations: [] });
