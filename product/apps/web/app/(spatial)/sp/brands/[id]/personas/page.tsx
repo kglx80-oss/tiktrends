@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { citationsPersona, initialeNom, listePropre, statutPersona, teinteAvatar } from '@tiktrends/core';
-import { addPersonaAction, addScenarioAction } from '../../../../../actions/brand-detail';
+import { citationsPersona, imageModelByKey, initialeNom, listePropre, statutPersona, teinteAvatar } from '@tiktrends/core';
+import { falConfigured } from '@tiktrends/integrations';
+import { addPersonaAction, addScenarioAction, deletePersonaAction, deleteScenarioAction, generateScenarioImageAction } from '../../../../../actions/brand-detail';
 import { Personas } from '../../../../../../spatial/vues/marque/Personas';
 import { chargerMarque } from '../donnees';
 
@@ -28,6 +29,14 @@ export default async function PersonasSpatiale({ params }: { params: Promise<{ i
       jarvis={c.jarvis} creerPub={c.creerPub}
       ajouterPersona={addPersonaAction} ajouterScenario={addScenarioAction}
       retours={c.retours}
+      gestion={{
+        retirerPersona: deletePersonaAction, retirerScenario: deleteScenarioAction,
+        scenarios: scenarios.map((x) => ({ id: x.id, titre: x.title, contexte: x.context, image: x.imageUrl ?? null })),
+        // Même moteur et même prix que l'écran V5 (`imageModelByKey('nano')`) · annoncé AVANT le clic.
+        visuel: falConfigured()
+          ? { appel: generateScenarioImageAction, cout: c.unlimited ? null : imageModelByKey('nano').credits, raison: null }
+          : { appel: null, cout: null, raison: 'La génération d’image n’est pas activée' },
+      }}
     />
   );
 }
