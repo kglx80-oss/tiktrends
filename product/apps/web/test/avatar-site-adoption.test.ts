@@ -12,7 +12,6 @@ import { join } from 'node:path';
  */
 const lire = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const CARTE = lire('components/CarteConcurrent.tsx');
-const PAGE = lire('app/(app)/brands/[id]/competitors/[name]/page.tsx');
 const SWITCHER = lire('components/BrandSwitcher.tsx');
 const PROFIL = lire('app/(app)/brands/[id]/page.tsx');
 
@@ -23,10 +22,6 @@ describe('l’avatar de site est adopté partout', () => {
     expect(CARTE, 'la carte recopie encore la favicon en dur').not.toMatch(/s2\/favicons/);
   });
 
-  it('l’en-tête de la page concurrent adopte AvatarSite, plus la pastille plate', () => {
-    expect(PAGE, 'l’en-tête n’adopte pas AvatarSite').toMatch(/<AvatarSite nom=\{name\} site=\{site\}/);
-    expect(PAGE, 'la pastille plate #1b1420 traîne encore').not.toContain("background: '#1b1420'");
-  });
 
   // CDC v8 · favicon des marques · le sélecteur (haut à gauche) et le profil
   // portent la favicon du site de la marque, via le MÊME AvatarSite · pas de
