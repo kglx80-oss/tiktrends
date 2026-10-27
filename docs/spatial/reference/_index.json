@@ -1,0 +1,470 @@
+[
+ {
+  "route": "f-avap",
+  "section": "veille",
+  "titre": "Avant / Après",
+  "octets": 9881
+ },
+ {
+  "route": "f-vs",
+  "section": "veille",
+  "titre": "Nous vs les autres",
+  "octets": 8803
+ },
+ {
+  "route": "f-avis",
+  "section": "veille",
+  "titre": "Avis client",
+  "octets": 8857
+ },
+ {
+  "route": "f-callout",
+  "section": "veille",
+  "titre": "Callout",
+  "octets": 9477
+ },
+ {
+  "route": "f-probsol",
+  "section": "veille",
+  "titre": "Problème / Solution",
+  "octets": 8414
+ },
+ {
+  "route": "f-promo",
+  "section": "veille",
+  "titre": "Promo / Offre",
+  "octets": 8602
+ },
+ {
+  "route": "f-chat",
+  "section": "veille",
+  "titre": "Fake chat",
+  "octets": 8965
+ },
+ {
+  "route": "f-mag",
+  "section": "veille",
+  "titre": "Advertorial",
+  "octets": 8526
+ },
+ {
+  "route": "f-ugc",
+  "section": "veille",
+  "titre": "UGC / POV",
+  "octets": 8686
+ },
+ {
+  "route": "f-packshot",
+  "section": "veille",
+  "titre": "Packshot",
+  "octets": 8730
+ },
+ {
+  "route": "f-liste",
+  "section": "veille",
+  "titre": "Liste / Guide",
+  "octets": 8845
+ },
+ {
+  "route": "f-demo",
+  "section": "veille",
+  "titre": "Démonstration",
+  "octets": 10875
+ },
+ {
+  "route": "f-benef",
+  "section": "veille",
+  "titre": "Bénéfices",
+  "octets": 9396
+ },
+ {
+  "route": "f-logo",
+  "section": "veille",
+  "titre": "Gros logo",
+  "octets": 8410
+ },
+ {
+  "route": "f-question",
+  "section": "veille",
+  "titre": "Grande question",
+  "octets": 8424
+ },
+ {
+  "route": "f-collage",
+  "section": "veille",
+  "titre": "Collage",
+  "octets": 11778
+ },
+ {
+  "route": "f-flatlay",
+  "section": "veille",
+  "titre": "Flatlay",
+  "octets": 8868
+ },
+ {
+  "route": "f-story",
+  "section": "veille",
+  "titre": "Story Instagram",
+  "octets": 9729
+ },
+ {
+  "route": "f-notes",
+  "section": "veille",
+  "titre": "Notes iPhone",
+  "octets": 9621
+ },
+ {
+  "route": "f-tweet",
+  "section": "veille",
+  "titre": "Post X / réseau social",
+  "octets": 10131
+ },
+ {
+  "route": "f-meme",
+  "section": "veille",
+  "titre": "Mème",
+  "octets": 8585
+ },
+ {
+  "route": "f-minimal",
+  "section": "veille",
+  "titre": "Minimaliste",
+  "octets": 8567
+ },
+ {
+  "route": "f-presse",
+  "section": "veille",
+  "titre": "Vu dans la presse",
+  "octets": 9450
+ },
+ {
+  "route": "f-chiffre",
+  "section": "veille",
+  "titre": "Promesse chiffrée",
+  "octets": 8780
+ },
+ {
+  "route": "f-social",
+  "section": "veille",
+  "titre": "Preuve sociale",
+  "octets": 10177
+ },
+ {
+  "route": "f-texte",
+  "section": "veille",
+  "titre": "Texte fort",
+  "octets": 8999
+ },
+ {
+  "route": "f-lifestyle",
+  "section": "veille",
+  "titre": "Lifestyle",
+  "octets": 8464
+ },
+ {
+  "route": "f-trendy",
+  "section": "veille",
+  "titre": "Tendance",
+  "octets": 9212
+ },
+ {
+  "route": "accueil",
+  "section": "accueil",
+  "titre": "Bonjour Kevin",
+  "octets": 25639
+ },
+ {
+  "route": "studios",
+  "section": "studios",
+  "titre": "Studios",
+  "octets": 14465
+ },
+ {
+  "route": "prompts",
+  "section": "studios",
+  "titre": "Prompts conseillés",
+  "octets": 5470
+ },
+ {
+  "route": "projet",
+  "section": "studios",
+  "titre": "Le plaisir du premier plongeon",
+  "octets": 7100
+ },
+ {
+  "route": "nouveau",
+  "section": "studios",
+  "titre": "Nouveau projet",
+  "octets": 4086
+ },
+ {
+  "route": "editeur",
+  "section": "studios",
+  "titre": "Éditeur",
+  "octets": 4368
+ },
+ {
+  "route": "iterer",
+  "section": "studios",
+  "titre": "Nouvelle itération",
+  "octets": 4730
+ },
+ {
+  "route": "veille",
+  "section": "veille",
+  "titre": "Pubs du moment",
+  "octets": 44999
+ },
+ {
+  "route": "sauvegardes",
+  "section": "veille",
+  "titre": "Sauvegardes",
+  "octets": 6587
+ },
+ {
+  "route": "scale",
+  "section": "veille",
+  "titre": "Ce qui scale",
+  "octets": 7150
+ },
+ {
+  "route": "formats",
+  "section": "veille",
+  "titre": "Tous les formats",
+  "octets": 46034
+ },
+ {
+  "route": "tendances",
+  "section": "veille",
+  "titre": "Tendances",
+  "octets": 30742
+ },
+ {
+  "route": "radar",
+  "section": "veille",
+  "titre": "Radar",
+  "octets": 11223
+ },
+ {
+  "route": "resultats",
+  "section": "resultats",
+  "titre": "Résultats",
+  "octets": 6861
+ },
+ {
+  "route": "hypotheses",
+  "section": "resultats",
+  "titre": "Hypothèses",
+  "octets": 5856
+ },
+ {
+  "route": "lots",
+  "section": "resultats",
+  "titre": "Lots de test",
+  "octets": 7126
+ },
+ {
+  "route": "protocole",
+  "section": "resultats",
+  "titre": "Protocole",
+  "octets": 3346
+ },
+ {
+  "route": "importer",
+  "section": "resultats",
+  "titre": "Importer des résultats",
+  "octets": 3822
+ },
+ {
+  "route": "apprentissages",
+  "section": "resultats",
+  "titre": "Apprentissages",
+  "octets": 6425
+ },
+ {
+  "route": "lot1",
+  "section": "resultats",
+  "titre": "Affirmation ou question ?",
+  "octets": 3756
+ },
+ {
+  "route": "bibliotheque",
+  "section": "bibliotheque",
+  "titre": "Bibliothèque",
+  "octets": 16183
+ },
+ {
+  "route": "jarvis",
+  "section": "jarvis",
+  "titre": "Jarvis",
+  "octets": 9006
+ },
+ {
+  "route": "marque",
+  "section": "marque",
+  "titre": "Marque",
+  "octets": 9809
+ },
+ {
+  "route": "identite",
+  "section": "marque",
+  "titre": "Identité",
+  "octets": 5947
+ },
+ {
+  "route": "offre",
+  "section": "marque",
+  "titre": "Offre",
+  "octets": 5514
+ },
+ {
+  "route": "clients",
+  "section": "marque",
+  "titre": "Personas",
+  "octets": 7582
+ },
+ {
+  "route": "regles",
+  "section": "marque",
+  "titre": "Règles",
+  "octets": 7301
+ },
+ {
+  "route": "reglages",
+  "section": "reglages",
+  "titre": "Espace",
+  "octets": 5107
+ },
+ {
+  "route": "equipe",
+  "section": "reglages",
+  "titre": "Équipe",
+  "octets": 7839
+ },
+ {
+  "route": "connexions",
+  "section": "reglages",
+  "titre": "Connexions",
+  "octets": 6722
+ },
+ {
+  "route": "utilisation",
+  "section": "reglages",
+  "titre": "Crédits & factures",
+  "octets": 4407
+ },
+ {
+  "route": "admin",
+  "section": "admin",
+  "titre": "Tour de contrôle",
+  "octets": 10638
+ },
+ {
+  "route": "bienvenue",
+  "section": "accueil",
+  "titre": "Bienvenue sur TikTrends",
+  "octets": 2553
+ },
+ {
+  "route": "forfaits",
+  "section": "reglages",
+  "titre": "Forfaits & crédits",
+  "octets": 11631
+ },
+ {
+  "route": "a-churn",
+  "section": "admin",
+  "titre": "Churn & rétention",
+  "octets": 17772
+ },
+ {
+  "route": "a-revenus",
+  "section": "admin",
+  "titre": "Revenus & MRR",
+  "octets": 9709
+ },
+ {
+  "route": "a-abos",
+  "section": "admin",
+  "titre": "Forfaits & offres",
+  "octets": 6823
+ },
+ {
+  "route": "a-comptes",
+  "section": "admin",
+  "titre": "Inscriptions & comptes",
+  "octets": 10462
+ },
+ {
+  "route": "a-sav",
+  "section": "admin",
+  "titre": "Tickets SAV",
+  "octets": 7631
+ },
+ {
+  "route": "a-couts",
+  "section": "admin",
+  "titre": "Coûts IA & marges",
+  "octets": 7716
+ },
+ {
+  "route": "a-modeles",
+  "section": "admin",
+  "titre": "Modèles IA connectés",
+  "octets": 7773
+ },
+ {
+  "route": "a-usage",
+  "section": "admin",
+  "titre": "Usage & tests",
+  "octets": 5696
+ },
+ {
+  "route": "a-paiements",
+  "section": "admin",
+  "titre": "Stripe & Whop",
+  "octets": 11626
+ },
+ {
+  "route": "a-droits",
+  "section": "admin",
+  "titre": "Rôles & droits",
+  "octets": 13379
+ },
+ {
+  "route": "concurrents",
+  "section": "veille",
+  "titre": "Concurrents",
+  "octets": 7654
+ },
+ {
+  "route": "mcp",
+  "section": "mcp",
+  "titre": "MCP TikTrends",
+  "octets": 9086
+ },
+ {
+  "route": "boucle",
+  "section": "resultats",
+  "titre": "Boucle d’itération",
+  "octets": 10530
+ },
+ {
+  "route": "a-prompts",
+  "section": "admin",
+  "titre": "Bibliothèque IA",
+  "octets": 8849
+ },
+ {
+  "route": "partenaires",
+  "section": "reglages",
+  "titre": "Accès partenaires",
+  "octets": 11622
+ },
+ {
+  "route": "video",
+  "section": "studios",
+  "titre": "Collection été · le grand saut",
+  "octets": 5960
+ }
+]

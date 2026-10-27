@@ -68,9 +68,43 @@ describe('middleware · adresses retirées servies en 307 HTTP, contexte repris'
     }
   });
 
-  it('le matcher de Next n’apparie RIEN d’autre (le middleware ne tourne pas ailleurs)', () => {
-    for (const url of NON_CONCERNES) expect([url, unstable_doesMiddlewareMatch({ config, url })]).toEqual([url, false]);
-    expect([...config.matcher].sort()).toEqual([...CHEMINS_REDIRIGES_SERVEUR].sort());
+  it('le matcher couvre les pages (bascule Spatial) mais jamais l’API, les ressources Next ni les fichiers', () => {
+    for (const url of ['/', '/login', '/dashboard', '/usage', '/veille', '/studio/projets/abc/image']) expect([url, unstable_doesMiddlewareMatch({ config, url })]).toEqual([url, true]);
+    for (const url of ['/api/health', '/_next/static/chunks/main.js', '/icon.svg', '/robots.txt']) expect([url, unstable_doesMiddlewareMatch({ config, url })]).toEqual([url, false]);
+  });
+});
+
+describe('middleware · bascule Spatial (cookie tt_ui)', () => {
+  const avec = (adresse: string, ui?: string) => appeler(adresse, ui ? { cookie: `tt_ui=${ui}` } : {});
+
+  it('?ui=spatial ⇒ pose le cookie et revient à la même adresse sans le paramètre', () => {
+    const r = appeler('/usage?ui=spatial&x=1');
+    expect([r.status, r.headers.get('location')]).toEqual([307, `${HOTE}/usage?x=1`]);
+    expect(r.cookies.get('tt_ui')?.value).toBe('spatial');
+    expect(appeler('/usage?ui=v5').cookies.get('tt_ui')?.value).toBe('v5');
+    // Une valeur inconnue est ignorée · aucun cookie, aucune redirection.
+    const n = appeler('/usage?ui=rose');
+    expect([n.status, n.cookies.get('tt_ui')]).toEqual([200, undefined]);
+  });
+
+  it('mode Spatial + écran porté ⇒ réécrit vers l’arbre interne, section transmise, adresse inchangée', () => {
+    const r = avec('/usage', 'spatial');
+    expect(r.status).toBe(200);
+    expect(r.headers.get('location')).toBeNull();
+    expect(r.headers.get('x-middleware-rewrite')).toBe(`${HOTE}/sp/usage`);
+    expect(r.headers.get('x-middleware-request-x-tt-section')).toBe('reglages');
+  });
+
+  it('mode V5, sans cookie, ou écran non porté ⇒ aucune réécriture', () => {
+    for (const [adresse, ui] of [['/usage', 'v5'], ['/usage', undefined], ['/billing', 'spatial'], ['/sp/usage', 'spatial']] as const) {
+      const r = avec(adresse, ui);
+      expect([adresse, ui, r.headers.get('x-middleware-rewrite'), r.headers.get('x-middleware-next')]).toEqual([adresse, ui, null, '1']);
+    }
+  });
+
+  it('les adresses retirées gardent leur 307 en mode Spatial', () => {
+    const r = avec('/studio', 'spatial');
+    expect([r.status, r.headers.get('location')]).toEqual([307, `${HOTE}/studio/projets`]);
   });
 });
 

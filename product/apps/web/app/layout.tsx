@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from 'next';
-import { cookies } from 'next/headers';
-import { COULEUR_BARRE, THEME_COOKIE, themeDepuisCookie, type Theme } from '@tiktrends/core';
-import './globals.css';
+import { cookies, headers } from 'next/headers';
+import { COULEUR_BARRE, ENTETE_SECTION, THEME_COOKIE, sectionValide, themeDepuisCookie, type SectionSpatiale, type Theme } from '@tiktrends/core';
+import { RAIL_COOKIE, railCollapsedFromCookie } from '../lib/rail-preference';
+// Aucune feuille de style ici · chaque arbre apporte la sienne. L'ancienne
+// interface importe `globals.css` dans ses segments, l'arbre Spatial n'importe
+// que celle de la maquette (`app/(spatial)/layout.tsx`). Les deux ne se
+// mélangent jamais (garde `spatial-fondation`).
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://app.tiktrends.co'),
@@ -27,6 +31,14 @@ async function themeDemande(): Promise<Theme> {
   return themeDepuisCookie((await cookies()).get(THEME_COOKIE)?.value);
 }
 
+/** Spatial · la section d'accent posée par le middleware sur un écran porté (sinon `null`). */
+async function sectionSpatiale(): Promise<SectionSpatiale | null> {
+  return sectionValide((await headers()).get(ENTETE_SECTION));
+}
+
+/** Le fond de la maquette Spatial (`html,body{background:#0b1220}`) · couleur de barre du navigateur. */
+const BARRE_SPATIALE = '#0b1220';
+
 // Sans `width`, un mobile rend la page à ~980px de large puis dézoome · rien ne
 // s'adapte, tout est minuscule. C'est le socle de tout le responsive.
 // La couleur de barre du navigateur suit le thème (`--bg` de chaque palette).
@@ -34,7 +46,7 @@ export async function generateViewport(): Promise<Viewport> {
   return {
     width: 'device-width',
     initialScale: 1,
-    themeColor: COULEUR_BARRE[await themeDemande()],
+    themeColor: (await sectionSpatiale()) ? BARRE_SPATIALE : COULEUR_BARRE[await themeDemande()],
   };
 }
 
@@ -42,9 +54,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // L'attribut part avec le PREMIER octet du document · les jetons de
   // `tokens.css` s'appliquent avant toute peinture, aucun flash de thème.
   const theme = await themeDemande();
+  // Spatial · section d'accent et rail déplié posés dès le premier octet
+  // (`body[data-sec]`, `body.rail-open` de la maquette) · aucun saut visuel.
+  const section = await sectionSpatiale();
+  const railOuvert = section ? !railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value) : false;
   return (
     <html lang="fr" data-theme={theme}>
-      <body>{children}</body>
+      <body data-sec={section ?? undefined} className={railOuvert ? 'rail-open' : undefined}>{children}</body>
     </html>
   );
 }
