@@ -5,5 +5,8 @@ export * from './conso';
 export * from './avatar';
 export * from './bibliotheque/drive';
 export * from './bibliotheque/jarvis';
+export * from './formats';
+export * from './veille';
+export * from './studios';
 export * from './accueil';
 export * from './routes-css';
