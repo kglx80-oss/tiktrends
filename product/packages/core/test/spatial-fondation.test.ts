@@ -9,6 +9,8 @@ describe('Spatial · bascule', () => {
     expect(uiDepuisCookie('spatial')).toBe('spatial');
     expect(uiDepuisCookie('v5')).toBe('v5');
     for (const v of [undefined, null, '', 'SPATIAL', 'clair', 'x']) expect(uiDepuisCookie(v)).toBe(UI_DEFAUT);
+    // Bascule faite · sans cookie, c'est Spatial.
+    expect(UI_DEFAUT).toBe('spatial');
     expect(uiDemandee('spatial')).toBe('spatial');
     expect(uiDemandee('nimporte')).toBeNull();
     expect(uiDemandee(null)).toBeNull();
