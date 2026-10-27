@@ -46,7 +46,8 @@ describe('Consulter n’écrit rien · aucun enrichissement au rendu', () => {
 
   it('le scanner voit bien les pages concernées (Studio, vidéo, fiche marque)', () => {
     const noms = fichiers.map((f) => relative(APP, f));
-    for (const attendu of ['(app)/studio/ads/page.tsx', '(app)/studio/video/page.tsx', '(app)/brands/[id]/page.tsx']) {
+    // Vague 2 · la fiche marque n'est plus servie que par Spatial.
+    for (const attendu of ['(app)/studio/ads/page.tsx', '(app)/studio/video/page.tsx', '(spatial)/sp/brands/[id]/page.tsx', '(spatial)/sp/brands/[id]/offre/page.tsx']) {
       expect(noms, `le scanner ne voit pas ${attendu} · il regarderait ailleurs`).toContain(attendu);
     }
   });
@@ -65,11 +66,15 @@ describe('Consulter n’écrit rien · aucun enrichissement au rendu', () => {
 describe('L’enrichissement reste disponible · par ses gestes explicites', () => {
   const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
-  it('« Récupérer la DA » · bouton de la fiche marque', () => {
-    expect(src('app/(app)/brands/[id]/BrandDA.tsx'), 'le bouton ne déclenche plus la récupération de la DA').toMatch(/importBrandDAAction\(/);
+  // Vague 2 · la fiche est servie par Spatial · l'action part en prop, le
+  // bouton client l'appelle au clic (jamais au rendu).
+  it('« Récupérer la charte » · bouton de la fiche marque', () => {
+    expect(src('app/(spatial)/sp/brands/[id]/donnees.ts'), 'la récupération de la charte n’est plus passée à l’écran').toMatch(/recuperer: c\.domaine \? importBrandDAAction : null/);
+    expect(src('spatial/vues/marque/base.tsx'), 'le bouton ne déclenche plus la récupération').toContain('appel={p.recuperer}');
   });
   it('synchronisation du catalogue Shopify · bouton de la fiche marque', () => {
-    expect(src('app/(app)/brands/[id]/ShopifyConnect.tsx'), 'la synchronisation Shopify n’est plus branchée').toMatch(/syncShopifyProductsAction\(/);
+    expect(src('app/(spatial)/sp/brands/[id]/offre/page.tsx'), 'la synchronisation Shopify n’est plus branchée').toMatch(/synchroniser: syncShopifyProductsAction/);
+    expect(src('spatial/vues/marque/interactifs.tsx')).toMatch(/await synchroniser\(\{ brandId/);
   });
 });
 

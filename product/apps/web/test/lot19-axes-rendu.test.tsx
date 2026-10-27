@@ -58,7 +58,6 @@ const fichiers: string[] = [];
     else if (/\.tsx$/.test(n)) fichiers.push(p);
   }
 })(APP);
-fichiers.push(join(process.cwd(), 'components', 'RenameMarque.tsx'));
 
 describe('Lot 19 · chaque titre d’écran porte le jeton h1 de la charte', () => {
   it('le jeton · 28 → 32 px, graisse 500, aucune marge', () => {

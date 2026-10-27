@@ -90,6 +90,9 @@ import { join, relative } from 'node:path';
  * décaler le sombre validé), et les blancs d'accent de survol au-delà de 0,20
  * (hors de la portée de --line-2). L'onboarding garde le dégradé de sa vitrine
  * (aplat de marque saturé) et sa pastille cochée verte (aplat autoportant).
+ *
+ * Spatial · vague 2 · Marque · la fiche V5 (`BrandDA` 2, `PaletteMarque` 1,
+ * `ShopifyConnect` 1) et `/brands/new` (1) sont retirées · 251 − 5 = 246.
  */
 const WEB = process.cwd();
 
@@ -110,7 +113,7 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 142,
   'app/(app)/analytics': 6,
   'app/(app)/assets': 4,
-  'app/(app)/brands': 6,
+  'app/(app)/brands': 1,
   'app/(app)/connections': 41,
   'app/(app)/credits': 12,
   'app/(app)/team': 2,
@@ -128,11 +131,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/assets/AssetsLibrary.tsx': 2,
   'app/(app)/assets/DriveConnect.tsx': 1,
   'app/(app)/assets/page.tsx': 1,
-  'app/(app)/brands/[id]/BrandDA.tsx': 2,
   'app/(app)/brands/[id]/competitors/[name]/page.tsx': 1,
-  'app/(app)/brands/[id]/PaletteMarque.tsx': 1,
-  'app/(app)/brands/[id]/ShopifyConnect.tsx': 1,
-  'app/(app)/brands/new/page.tsx': 1,
   'app/(app)/connections/page.tsx': 41,
   'app/(app)/credits/page.tsx': 12,
   'app/(app)/team/page.tsx': 2,
@@ -147,7 +146,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/LogoMarque.tsx': 4,
 };
 
-const PLAFOND_TOTAL = 251;
+const PLAFOND_TOTAL = 246;
 
 const RACINES = ['app', 'components', 'lib'];
 

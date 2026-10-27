@@ -23,61 +23,9 @@ vi.mock('../app/actions/competitor', () => ({ analyzeCompetitorAction: async () 
 const chaine = { select: () => chaine, from: () => chaine, where: () => chaine, limit: async () => [{ id: 'b', name: 'Neva', competitors: [{ name: 'Rival' }] }] };
 vi.mock('@tiktrends/db', async (orig) => ({ ...(await orig<typeof import('@tiktrends/db')>()), db: chaine }));
 
-import { RetourMarques, LienEnteteMarque, OngletsFiche } from '../app/(app)/brands/[id]/NavFiche';
-import { RenameMarque } from '../components/RenameMarque';
 import { StorageConfigurator } from '../components/StorageConfigurator';
 
-/** Valeur numérique d'une propriété CSS en ligne (px) dans un attribut style rendu. */
-const px = (style: string, prop: string) => { const m = style.match(new RegExp(`(?:^|;)${prop}:(-?[\\d.]+)px`)); return m ? Number(m[1]) : 0; };
-const styleDe = (html: string, re: RegExp) => (html.match(re)?.[1] ?? '');
 
-describe('Fiche Marque · zone cliquable de 44 px, visuel inchangé', () => {
-  it('« ‹ Marques » · lien en ligne, rembourrage 19 + 10 autour de ses 15 px', () => {
-    const st = styleDe(renderToStaticMarkup(<RetourMarques />), /<a [^>]*style="([^"]+)"/);
-    expect(15 + px(st, 'padding-top') + px(st, 'padding-bottom'), `zone du retour : ${st}`).toBe(44);
-    expect(px(st, 'margin-top'), 'le lien en ligne ne doit pas bouger').toBe(0);
-  });
-
-  it('onglets · seul l’actif porte aria-current, chaque onglet fait 44 sans repousser le filet', () => {
-    const html = renderToStaticMarkup(<OngletsFiche id="b" actif="products" onglets={[{ key: 'overview', label: 'Aperçu' }, { key: 'products', label: 'Produits', count: 3 }]} />);
-    const liens = [...html.matchAll(/<a ([^>]*)>/g)].map((m) => m[1] ?? "");
-    expect(liens.filter((a) => a.includes('aria-current="page"')).length, 'l’onglet actif ne s’annonce pas').toBe(1);
-    expect(liens.find((a) => a.includes('aria-current'))!, 'aria-current sur le mauvais onglet').toContain('tab=products');
-    for (const a of liens) {
-      const st = styleDe(a, /style="([^"]+)"/);
-      // 13.5 px de texte · 18 de ligne + 2 de soulignement · la boîte visuelle mesurée fait 40.
-      const [, haut, bas] = st.match(/padding:(\d+)px \d+px (\d+)px/) ?? ['', '9', '9'];
-      const zone = 40 - 9 - 9 + Number(haut) + Number(bas);
-      expect(zone, `onglet sous 44 : ${st}`).toBe(44);
-      expect(px(st, 'margin-top'), 'l’extension n’est pas compensée · la rangée grossit').toBe(-(Number(haut) - 9));
-    }
-  });
-
-  it('lien d’en-tête · la pilule visible garde sa taille, le lien fait 44', () => {
-    const html = renderToStaticMarkup(<LienEnteteMarque href="/connections">Connexions</LienEnteteMarque>);
-    const ext = styleDe(html, /<a [^>]*style="([^"]+)"/);
-    const pil = styleDe(html, /<span style="([^"]+)"/);
-    expect(37 + px(ext, 'padding-top') + px(ext, 'padding-bottom'), `zone : ${ext}`).toBe(44);
-    expect(px(ext, 'margin-top') + px(ext, 'padding-top'), 'extension haute non compensée').toBe(0);
-    expect(px(ext, 'margin-bottom') + px(ext, 'padding-bottom'), 'extension basse non compensée').toBe(0);
-    expect(pil, 'la pilule a changé de taille').toContain('min-height:36px');
-    expect(ext, 'la bordure est passée sur le lien étendu').not.toContain('border:');
-  });
-
-  it('crayon « Renommer » · bouton 44 transparent, carré visible de 34, marge compensée', () => {
-    const html = renderToStaticMarkup(<RenameMarque id="b" name="Neva" />);
-    const bt = styleDe(html, /<button [^>]*style="([^"]+)"/);
-    expect(px(bt, 'width'), `bouton : ${bt}`).toBe(44);
-    expect(px(bt, 'height')).toBe(44);
-    const m = bt.match(/margin:(-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px/);
-    expect(m, `marge absente : ${bt}`).toBeTruthy();
-    const [, mh, ml, mb] = m!.map(Number);
-    expect(34 - mh! - mb!, 'l’extension verticale ne fait pas 44').toBe(44);
-    expect(34 - 2 * ml!, 'l’extension horizontale ne fait pas 44').toBe(44);
-    expect(mb, 'le crayon déborde sur le sous-titre').toBe(0);
-    expect(html).toMatch(/<span style="width:34px;height:34px/);
-  });
-});
 
 describe('Réglages · panneau Stockage · copie client (recette #106b)', () => {
   it('client, stockage pas activé · ce qui manque, qui agit, aucun terme d’infrastructure', () => {

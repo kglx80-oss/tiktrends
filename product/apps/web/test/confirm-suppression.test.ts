@@ -17,7 +17,10 @@ import { join } from 'node:path';
  */
 
 const BRANDS = readFileSync(join(process.cwd(), 'app/(app)/brands/page.tsx'), 'utf8');
-const BRAND = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/page.tsx'), 'utf8');
+// Vague 2 · la fiche est servie par Spatial · le retrait passe par `SupprimerConfirme` (window.confirm).
+const VUES = ['Personas.tsx', 'personas-client.tsx', 'Offre.tsx', 'Identite.tsx'].map((f) => readFileSync(join(process.cwd(), 'spatial/vues/marque', f), 'utf8')).join('\n');
+const PAGES = ['personas', 'offre', 'identite'].map((d) => readFileSync(join(process.cwd(), 'app/(spatial)/sp/brands/[id]', d, 'page.tsx'), 'utf8')).join('\n');
+const INTERACTIFS = readFileSync(join(process.cwd(), 'spatial/vues/marque/interactifs.tsx'), 'utf8');
 const ASSETS = readFileSync(join(process.cwd(), 'app/(app)/assets/AssetsLibrary.tsx'), 'utf8');
 
 describe('les suppressions destructives sont confirmées', () => {
@@ -28,11 +31,13 @@ describe('les suppressions destructives sont confirmées', () => {
       .not.toMatch(/deleteBrandAction[\s\S]{0,220}?<button[^>]*>Supprimer/);
   });
 
-  it('personas, scénarios et produits confirment leur suppression', () => {
-    for (const action of ['deletePersonaAction', 'deleteScenarioAction', 'deleteProductAction']) {
-      const re = new RegExp(`${action}[\\s\\S]{0,220}?ConfirmButton`);
-      expect(BRAND, `${action} ne passe pas par ConfirmButton`).toMatch(re);
+  it('marque, personas, scénarios et produits confirment leur suppression', () => {
+    for (const action of ['deleteBrandAction', 'deletePersonaAction', 'deleteScenarioAction', 'deleteProductAction']) expect(PAGES, `${action} n’est plus passée à l’écran`).toContain(action);
+    for (const prop of ['g.supprimer', 'retirerPersona', 'g.retirerScenario', 'p.gestion.retirer']) {
+      expect(VUES, `${prop} ne passe pas par SupprimerConfirme`).toMatch(new RegExp(`<SupprimerConfirme action=\\{${prop.replace('.', '\\.')}\\}`));
     }
+    // Le bouton confirme AVANT l'envoi · un refus n'envoie rien.
+    expect(INTERACTIFS).toMatch(/!window\.confirm\(confirmation\)\) return;[\s\S]{0,200}?await action\(fd\)/);
   });
 
   it('la suppression d’un asset demande confirmation', () => {

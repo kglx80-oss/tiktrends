@@ -65,7 +65,6 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     // Produits d'une marque : l'ancienne phrase grise devient un `todo` dont le
     // geste est le formulaire d'ajout (children) · et le rappel comptes pub
     // adopte la même grammaire avec une sortie vers les Connexions.
-    { fichier: 'app/(app)/brands/[id]/page.tsx', attendus: ['<Empty', 'tone="todo"', '<AddProductForm', "href: '/connections'"] },
     // Bibliothèque d'assets : `todo` avec le bouton d'upload en children.
     { fichier: 'app/(app)/assets/AssetsLibrary.tsx', attendus: ['<Empty', 'tone="todo"', 'title="Aucun asset pour l\'instant."'] },
     // Connexions · l'étape d'activation. Sans marque active, c'était une impasse

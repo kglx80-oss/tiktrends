@@ -11,17 +11,13 @@ import { join } from 'node:path';
  *
  * On ne teste PAS la présence d'un appel · on lit ce qui s'affiche.
  */
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
-// Les actions serveur tirent tout le graphe serveur (auth, db, ai) · hors sujet
-// pour un test de RENDU. On les remplace par des stubs · on lit ce qui s'affiche.
-vi.mock('../app/actions/brand-detail', () => ({
-  importBrandDAAction: async () => ({}),
-  saveBrandDAAction: async () => ({}),
-  extractBrandVisualDaAction: async () => {},
-  saveBrandVisualDaAction: async () => {},
-}));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }), useSearchParams: () => new URLSearchParams(), usePathname: () => '/brands/b1/identite' }));
 
-import { BrandDA } from '../app/(app)/brands/[id]/BrandDA';
+// Vague 2 · la fiche V5 est retirée · le style déduit se lit sur l'Identité
+// Spatiale (tuile « Style visuel », règle `styleVisuelMarque` du noyau).
+import { styleVisuelMarque, type DaVisuelleMarque } from '@tiktrends/core';
+import { Identite } from '../spatial/vues/marque/Identite';
+import { sousNavMarque } from '../spatial/vues/marque/base';
 
 const da = {
   style: 'éditorial minimaliste, beaucoup de blanc',
@@ -32,16 +28,29 @@ const da = {
   aEviter: ['rendu stock', 'dégradés criards'],
 };
 
+const action = async () => {};
 function html(over: { daVisuelle?: typeof da | null } = {}): string {
-  return renderToStaticMarkup(
-    <BrandDA brandId="b1" logoUrl={null} logos={[]} colors={[]} fonts={[]} daVisuelle={da} {...over} />,
+  const st = styleVisuelMarque(('daVisuelle' in over ? over.daVisuelle : da) as DaVisuelleMarque | null);
+  const out = renderToStaticMarkup(
+    <Identite
+      sousNav={sousNavMarque('b1')} brandId="b1" favicon={{ brandId: 'b1', image: null, initiale: 'A', titre: 't', detail: 'd', recuperer: null, raisonRecuperer: null }}
+      sync={{ brandId: 'b1', site: null, relancer: null, raison: 'r', cout: null }} identite={{ complet: true, lignes: [] }} couleurs={[]} typo={[]} ton={{ complet: true, lignes: [] }} vocabulaire={[]}
+      gestion={{
+        nom: 'A', champs: [], edition: { action, valeurs: {} },
+        style: { lignes: st.lignes, champs: st.champs, analyser: action, cout: 5, raison: null, corriger: action },
+        logos: { logos: [], defaut: null, apercus: {}, couleurs: [], polices: [], enregistrer: null },
+        sourcing: { prix: '5 crédits', proposer: null, ajouter: null, raison: 'r' }, connexions: [], supprimer: null, retours: {},
+      }}
+    />,
   );
+  const i = out.indexOf('data-geste="style-visuel"');
+  return out.slice(i, out.indexOf('</section>', i));
 }
 
 describe('Le style déduit du site se voit et se corrige', () => {
   it('rend chaque facette du style déduit, en mots', () => {
     const out = html();
-    expect(out, 'l’en-tête du style déduit manque').toContain('Style déduit du site');
+    expect(out, 'le style déduit n’est pas listé').toContain('<dt>Style</dt>');
     for (const bout of [da.style, da.photo, da.ambiance, da.lumiere, da.couleurs]) {
       expect(out, `facette absente du rendu : ${bout}`).toContain(bout);
     }
@@ -51,7 +60,8 @@ describe('Le style déduit du site se voit et se corrige', () => {
 
   it('une DA vide n’affiche aucun bloc de style (rien à montrer)', () => {
     const out = html({ daVisuelle: null });
-    expect(out, 'un bloc de style s’affiche alors qu’il n’y a rien').not.toContain('Style déduit du site');
+    expect(out, 'un bloc de style s’affiche alors qu’il n’y a rien').not.toContain('<dt>');
+    expect(out).toContain('Aucun style déduit');
   });
 
   it('la correction du style ne dépense pas · action gardée, écrit brandKit', () => {
@@ -76,8 +86,8 @@ describe('Le style déduit du site se voit et se corrige', () => {
     expect(out, 'le style tient malgré la DA malformée').toContain('net et lumineux');
   });
 
-  it('l’écran de marque passe la DA visuelle au composant', () => {
-    const page = readFileSync(join(process.cwd(), 'app/(app)/brands/[id]/page.tsx'), 'utf8');
-    expect(page, 'brandKit n’est pas transmis à BrandDA').toMatch(/<BrandDA(?:(?!\/>)[\s\S])*?daVisuelle=\{[^}]*brandKit/);
+  it('l’écran de marque passe la DA visuelle à l’écran', () => {
+    const page = readFileSync(join(process.cwd(), 'app/(spatial)/sp/brands/[id]/identite/page.tsx'), 'utf8');
+    expect(page, 'brandKit n’est pas transmis à l’Identité').toContain('styleVisuelMarque(b.brandKit as DaVisuelleMarque | null)');
   });
 });

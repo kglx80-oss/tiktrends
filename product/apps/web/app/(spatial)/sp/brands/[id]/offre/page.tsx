@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { costFor, listePropre, morceauxTexte, prixEuros, resumeProduits, statutFicheProduit } from '@tiktrends/core';
+import { costFor, listePropre, morceauxTexte, prixEuros, resumeProduits, statutFicheProduit, messageServiceInactif } from '@tiktrends/core';
 import { addProductAction, deleteProductAction, importProductsAction, syncShopifyProductsAction } from '../../../../../actions/brand-detail';
 import { brandMediaPreview } from '../../../../../../lib/brand-media-url';
 import { Offre } from '../../../../../../spatial/vues/marque/Offre';
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 /** L'import des produits depuis le site · mêmes conditions que l'écran V5 (site renseigné, IA configurée), prix annoncé. */
 function importer(c: Awaited<ReturnType<typeof chargerMarque>>) {
-  const raison = !c.b.url ? 'Renseigne le site de la marque pour importer' : !c.aiReady ? 'IA non configurée sur le serveur' : null;
+  const raison = !c.b.url ? 'Renseigne le site de la marque pour importer' : !c.aiReady ? messageServiceInactif('ia_profil') : null;
   return { action: raison ? null : importProductsAction, cout: c.unlimited ? null : costFor('brief'), raison };
 }
 
