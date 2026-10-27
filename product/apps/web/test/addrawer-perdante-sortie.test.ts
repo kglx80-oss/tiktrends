@@ -13,10 +13,12 @@ import { join } from 'node:path';
  * `renderToStaticMarkup` n'exécute pas l'effet, donc la branche « perdante » ne
  * se rend pas seule. Adoption par la source, bornée à la branche `!gagnante`.
  */
-const src = readFileSync(join(process.cwd(), 'app/(app)/adsmap/AdDrawer.tsx'), 'utf8');
-// La branche suit désormais celle « pas encore de verdict » (I1) · `) : !gagnante ? (`.
-const iStart = src.indexOf('!gagnante ? (');
-const iEnd = src.indexOf(') : !ouvrirIteration ? (', iStart);
+// L'ancien tiroir est retiré · la fiche Spatial d'un test décide de la suite
+// (page serveur) · la vue `ActionsFiche` rend le lien (garde de rendu dans
+// `spatial-resultats-gestes.test.tsx`).
+const src = readFileSync(join(process.cwd(), 'app/(spatial)/sp/adsmap/tests/[id]/page.tsx'), 'utf8');
+const iStart = src.indexOf(': !gagnante');
+const iEnd = src.indexOf(": { type: 'gagnante'", iStart);
 const branche = src.slice(iStart, iEnd > iStart ? iEnd : undefined);
 
 describe('AdDrawer · une perdante mène au Studio, pas à une impasse', () => {
@@ -28,6 +30,6 @@ describe('AdDrawer · une perdante mène au Studio, pas à une impasse', () => {
   it('un vrai lien vers la préparation d’un projet, avec l’angle en amorce', () => {
     // L'angle du test passé en amorce · pas un lien nu vers un projet vide.
     expect(branche, 'la sortie vers les Studios manque, ou l’angle du test n’est pas transmis')
-      .toContain("href={lienNouveauProjet({ type: 'ads', angle: d.angle ?? d.concept");
+      .toContain("lien: lienNouveauProjet({ type: 'ads', angle: d.angle ?? d.concept");
   });
 });

@@ -13,21 +13,23 @@ import { join } from 'node:path';
  */
 const WEB = process.cwd();
 
-const CAS: Array<{ fichier: string; messages: string[] }> = [
+const CAS: Array<{ fichier: string; messages: string[]; canal?: RegExp }> = [
   { fichier: 'components/TrackerFeed.tsx', messages: ['Tout marqué comme vu.'] },       // veille
-  { fichier: 'app/(app)/adsmap/tri/Curation.tsx', messages: ['validé.', 'Proposition écartée.'] },
+  // Spatial · le canal est le geste de la rubrique (`useGeste` · toast sur retour sans erreur).
+  { fichier: 'spatial/vues/resultats/Tri.tsx', messages: ['validé', 'Proposition écartée'], canal: /useGeste/ },
   { fichier: 'app/(app)/assets/AssetsLibrary.tsx', messages: ['Élément importé.'] },
   { fichier: 'app/(app)/connections/DataConnections.tsx', messages: ['Shopify déconnecté.', 'Meta déconnecté.'] },
   { fichier: 'app/(app)/assets/DriveConnect.tsx', messages: ['Google Drive déconnecté.'] },
   { fichier: 'components/SavedBoards.tsx', messages: ['Rangé dans', 'Retiré du board.'] },
-  { fichier: 'app/(app)/adsmap/lots/Lots.tsx', messages: ['Ad ajoutée au lot.', 'Ad retirée du lot.'] },
+  { fichier: 'spatial/vues/resultats/ActionsLot.tsx', messages: ['ajoutée au lot', 'retirée du lot'], canal: /toast\(t\)/ },
+  { fichier: 'spatial/vues/resultats/geste.tsx', messages: [], canal: /if \(t\) \{ setMessage\(\{ texte: t, erreur: false \}\); toast\(t\); \}/ },
 ];
 
 describe('chaque action autrefois muette émet désormais un retour', () => {
-  for (const { fichier, messages } of CAS) {
+  for (const { fichier, messages, canal = /useToast/ } of CAS) {
     it(`${fichier} · branche le canal et confirme`, () => {
       const src = readFileSync(join(WEB, fichier), 'utf8');
-      expect(src, `${fichier} n'importe pas useToast`).toMatch(/useToast/);
+      expect(src, `${fichier} ne branche pas le canal de retour`).toMatch(canal);
       for (const m of messages) {
         expect(src.includes(m), `${fichier} ne confirme plus « ${m} »`).toBe(true);
       }

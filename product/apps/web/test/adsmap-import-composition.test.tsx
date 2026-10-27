@@ -18,22 +18,9 @@ import { join } from 'node:path';
  */
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-const panel = read('app/(app)/adsmap/import/ImportPanel.tsx');
-const page = read('app/(app)/adsmap/import/page.tsx');
+// Spatial · la page Importer garde la fonction `import` (rôle admin) via la garde de la rubrique.
+const page = read('app/(spatial)/sp/adsmap/import/page.tsx');
 const action = read('app/actions/adsmap-import.ts');
-
-describe('Import · la table d’aperçu scrolle chez elle (la page ne déborde plus à 390)', () => {
-  it('la section (item de grille) porte min-width:0, sinon elle grandit au min-content de la table', () => {
-    expect(panel, 'sans minWidth:0 sur `panel`, la section grandit à 720 et la page déborde à 390')
-      .toContain('const panel: CSSProperties = { minWidth: 0,');
-  });
-
-  it('le cadre de défilement de l’aperçu reste en place (non-régression)', () => {
-    // Le conteneur qui scrolle + la table qui garde sa largeur minimale lisible.
-    expect(panel).toContain("overflowX: 'auto'");
-    expect(panel).toContain('minWidth: 720');
-  });
-});
 
 describe('Import · le support est ANCRÉ (il ne recouvre plus la légende)', () => {
   it('/adsmap/import entre dans la liste des écrans à support ancré', () => {
@@ -43,7 +30,7 @@ describe('Import · le support est ANCRÉ (il ne recouvre plus la légende)', ()
 
 describe('Import · permissions et deux-temps INCHANGÉS (non-régression)', () => {
   it('l’import reste réservé aux admins · page et actions gardées', () => {
-    expect(page).toContain("roleAtLeast(s.role, 'admin')");
+    expect(page).toContain("gardeResultats('import')");
     expect(action).toContain("adsmapGuard({ minRole: 'admin' })");
   });
 

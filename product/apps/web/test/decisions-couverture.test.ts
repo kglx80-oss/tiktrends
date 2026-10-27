@@ -26,8 +26,10 @@ describe('R03 · le résumé de la file connaît la couverture', () => {
   it('le bouton « Mesurer » lit le MÊME horodatage · pas de contradiction possible', () => {
     // « Jamais mesurée » (le bouton) et « rien ne brûle » (l'entête) doivent se
     // lire sur le même signal · sinon ils se contredisent sur le même écran.
-    const page = readFileSync(join(process.cwd(), 'app/(app)/adsmap/page.tsx'), 'utf8');
-    expect(page).toContain('schema.brands.adsmapSyncedAt');
-    expect(page).toMatch(/SyncButton syncedAt=/);
+    // Spatial · « Mesurer maintenant » vit sur Importer, qui lit la date par `chargerConnexion`.
+    const donnees = readFileSync(join(process.cwd(), 'app/(spatial)/sp/adsmap/donnees.ts'), 'utf8');
+    const page = readFileSync(join(process.cwd(), 'app/(spatial)/sp/adsmap/import/page.tsx'), 'utf8');
+    expect(donnees).toContain('le: schema.brands.adsmapSyncedAt');
+    expect(page).toContain('chargerConnexion(');
   });
 });

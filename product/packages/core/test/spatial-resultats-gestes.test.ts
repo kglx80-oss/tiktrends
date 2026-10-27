@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   redirectionTestProfond, redirectionVueAdsmap, lienFicheTest, lireFiltresTests, adresseTests, filtresTestsActifs, reperesTests, pastilleVerdict,
   controleArbitrage, lireCarte, decompteCarte, sensDuSuite, outilsResultats, classeDecision, enJeuDecision, echeancePartage,
-  COUT_PROPOSITION_CARTE, costFor, budgetPrevuLot, ecranSpatial, TAUX_NON_CALCULABLE,
+  COUT_PROPOSITION_CARTE, costFor, ECRANS_SPATIAUX, budgetPrevuLot, ecranSpatial, TAUX_NON_CALCULABLE,
   type FaitsLigneTest, type NoeudCarteFait,
 } from '../src';
 
@@ -145,5 +145,13 @@ describe('Spatial · Résultats · gestes · suites, décisions, partage', () =>
 describe('Spatial · Résultats · gestes · chaque geste porté a son écran déclaré', () => {
   it.each(['/adsmap/tests', '/adsmap/tests/abc', '/adsmap/decisions', '/adsmap/carte', '/adsmap/partage', '/adsmap/suites', '/adsmap/tri', '/adsmap/radar', '/adsmap/essais', '/adsmap/jarvis'])('%s est servi par Spatial', (chemin) => {
     expect(ecranSpatial(chemin)).toMatchObject({ section: 'resultats' });
+  });
+});
+
+describe('Spatial · Résultats · la rubrique est exclusive (l’ancienne Adsmap est retirée)', () => {
+  it('chaque écran de Résultats est servi par Spatial même en mode V5', () => {
+    const resultats = ECRANS_SPATIAUX.filter((e) => e.section === 'resultats');
+    expect(resultats.length).toBeGreaterThan(10);
+    expect(resultats.filter((e) => !e.exclusif).map((e) => e.chemin), 'écran de Résultats non exclusif · il tomberait en 404 en mode V5').toEqual([]);
   });
 });
