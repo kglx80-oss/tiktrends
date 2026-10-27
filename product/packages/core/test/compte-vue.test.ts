@@ -20,6 +20,14 @@ describe('Usage · familles et motifs lisibles', () => {
     expect(libelleMotif('foo:bar:baz')).toBe('Action interne');
     expect(libelleMotif('Pubs IA · 4 statiques')).toBe('Pubs IA · 4 statiques');
   });
+
+  it('les motifs d’abonnement écrits par clé disent le nom de la formule, sans flèche ASCII (vu au banc riche)', () => {
+    expect(libelleMotif('Abonnement core · allocation')).toBe('Abonnement Core · allocation');
+    expect(libelleMotif('Abonnement business · allocation')).toBe('Abonnement Business · allocation');
+    expect(libelleMotif('Changement de formule -> plus')).toBe('Changement de formule · Plus');
+    expect(libelleMotif('Abonnement inconnue · allocation')).toBe('Abonnement inconnue · allocation');
+    expect(familleMouvement(libelleMotif('Abonnement core · allocation')).label).toBe(familleMouvement('Abonnement core · allocation').label);
+  });
 });
 
 describe('Usage · répartition honnête', () => {

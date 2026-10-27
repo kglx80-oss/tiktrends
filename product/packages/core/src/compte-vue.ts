@@ -38,9 +38,18 @@ const MOTIFS_MACHINE: Array<[RegExp, string]> = [
   [/^market:analyze:/i, 'Veille · analyse du marché'],
 ];
 
+/** Les formules écrites par clé dans le grand livre (webhook Stripe, changement de formule) · leur nom d'écran. */
+const FORMULES_MOTIF: Readonly<Record<string, string>> = { starter: 'Starter', core: 'Core', plus: 'Plus', business: 'Business' };
+const formule = (cle: string) => FORMULES_MOTIF[cle.toLowerCase()] ?? cle;
+
 /** Le motif tel qu'un client le lit · les clés machine deviennent une phrase. */
 export function libelleMotif(motif: string): string {
   for (const [re, txt] of MOTIFS_MACHINE) if (re.test(motif)) return txt;
+  // « Abonnement core · allocation » (webhook) et « Changement de formule -> plus » (facturation) · vu au banc riche.
+  const abo = /^Abonnement (\w+) · allocation$/.exec(motif);
+  if (abo) return `Abonnement ${formule(abo[1]!)} · allocation`;
+  const chg = /^Changement de formule\s*->\s*(\w+)$/.exec(motif);
+  if (chg) return `Changement de formule · ${formule(chg[1]!)}`;
   if (/^[a-z_]+:[a-z_]+:/i.test(motif)) return 'Action interne';
   return motif;
 }
