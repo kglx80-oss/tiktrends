@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { VerdictValue } from '@tiktrends/core';
+import { lienFicheTest, type VerdictValue } from '@tiktrends/core';
 import { launchBatchAction, prepareBatchAction, setBatchAdAction } from '../../../app/actions/adsmap-batch';
 import { validateVerdictAction, type ValidateInput } from '../../../app/actions/adsmap-verdict';
-import { Ic } from '../../communs';
+import { Ic, Lien } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 
 /**
@@ -20,7 +20,11 @@ import { useSpatial } from '../../coquille/contexte';
  *    valide qu'avec un apprentissage écrit (invariant §2.4, vérifié par l'action).
  */
 
-export interface VarianteComposee { id: string; variante: string; concept: string; manques: string[]; nom: string | null }
+export interface VarianteComposee {
+  id: string; variante: string; concept: string; manques: string[]; nom: string | null;
+  /** Ce qui bloque le lancement, l'avis d'avant lancement, l'ad set proposé (`batchDetailAction`) · absents hors du lot. */
+  blocage?: string | null; avis?: string | null; adset?: string | null;
+}
 export interface VarianteAArbitrer { id: string; variante: string; verdict: string; raison: string | null; calcule: VerdictValue }
 export interface BriefLot { campagne: string; structure: string; budgetJour: number; jours: number; audience: string; total: number; conclusivite: string }
 
@@ -71,8 +75,14 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
         {p.variantes.map((v) => (
           <div className="ev" key={v.id}>
             <span className="ico"><Ic n="img" /></span>
-            <span><strong>{v.variante}</strong> · {v.concept}<br /><span className="faint" style={{ fontSize: '11.5px' }}>{v.manques.length ? `Il manque ${v.manques.join(', ')}` : v.nom ? `Nom régie · ${v.nom}` : 'Complète · nom régie généré à la préparation'}</span></span>
-            <button className="btn sm" type="button" disabled={!!occupe} onClick={() => geste(`retirer-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: false }), () => `${v.variante} retirée du lot`)}>Retirer</button>
+            <span><strong>{v.variante}</strong> · {v.concept}<br /><span className="faint" style={{ fontSize: '11.5px' }}>{v.manques.length ? `Il manque ${v.manques.join(', ')}` : v.nom ? `Nom régie · ${v.nom}${v.adset ? ` · ad set ${v.adset}` : ''}` : 'Complète · nom régie généré à la préparation'}</span>
+              {v.blocage && <><br /><span style={{ fontSize: '11.5px', color: 'var(--warn)' }}>{v.blocage}</span></>}
+              {v.avis && <><br /><span className="faint" style={{ fontSize: '11.5px' }}>Avant lancement · {v.avis}</span></>}
+            </span>
+            <span style={{ display: 'flex', gap: 6 }}>
+              <Lien className="btn sm" href={lienFicheTest(v.id)}>Fiche</Lien>
+              <button className="btn sm" type="button" disabled={!!occupe} onClick={() => geste(`retirer-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: false }), () => `${v.variante} retirée du lot`)}>Retirer</button>
+            </span>
           </div>
         ))}
         {p.variantes.length === 0 && <div className="ev"><span className="ico"><Ic n="img" /></span><span className="faint">Aucune variante · ajoute-en depuis les variantes disponibles.</span><span /></div>}
