@@ -1,6 +1,7 @@
 import { DEFAULT_VERDICT_CONFIG, garantiesProtocole, sousNavResultats } from '@tiktrends/core';
 import { getSettingsAction } from '../../../../actions/adsmap-protocol';
 import { Protocole } from '../../../../../spatial/vues/resultats/Protocole';
+import { ReglagesProtocole } from '../../../../../spatial/vues/resultats/ReglagesProtocole';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
 import { gardeResultats } from '../donnees';
 
@@ -22,6 +23,7 @@ export default async function ProtocoleSpatial() {
       initial={settings}
       garanties={garantiesProtocole({ structure: settings.protocol.structure, cibleCpa: settings.verdict.targetCpa, multiplePerdante: settings.verdict.loserMultiple })}
       peutModifier={g.admin}
+      detail={<ReglagesProtocole initial={settings} peutModifier={g.admin} />}
     />
   );
 }

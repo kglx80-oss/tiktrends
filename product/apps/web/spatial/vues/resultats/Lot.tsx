@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { LIBELLE_NIVEAU, type NiveauPreuve } from '@tiktrends/core';
-import { EnTete, Ic, Vue } from '../../communs';
+import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Points, Pub } from './communs';
 
 /**
@@ -20,6 +20,10 @@ export interface PropsLot {
   coach: { avant: string; fort: string; apres: string };
   /** Les actions réelles permises à la personne sur ce lot · absentes en lecture. */
   actions?: ReactNode;
+  /** Ce que la nature du lot (historique importé) ou son contrôle de protocole changent à la lecture. */
+  reserves?: readonly string[];
+  /** La fiche de chaque variante (verdict, apprentissage, suite) · absente, rien n'est ajouté à la maquette. */
+  fiches?: ReadonlyArray<{ href: string; libelle: string; detail: string }>;
 }
 
 export function Lot(p: PropsLot) {
@@ -56,6 +60,17 @@ export function Lot(p: PropsLot) {
         <span className="orb">J</span>
         <p style={{ flex: 1, minWidth: 200 }}>{p.coach.avant} <b>{p.coach.fort}</b> {p.coach.apres}</p>
       </section>
+      {p.reserves?.map((r) => <p className="faint" key={r} style={{ fontSize: '12.5px', marginTop: 10 }}>{r}</p>)}
+      {p.fiches && p.fiches.length > 0 && (
+        <section className="tile sec" aria-label="Les variantes du lot">
+          <h2>Les variantes du lot</h2>
+          <div className="tl">
+            {p.fiches.map((f) => (
+              <div className="ev" key={f.href}><span className="ico"><Ic n="img" /></span><span><strong>{f.libelle}</strong><br /><span className="faint" style={{ fontSize: '11.5px' }}>{f.detail}</span></span><Lien className="btn sm" href={f.href}>Fiche</Lien></div>
+            ))}
+          </div>
+        </section>
+      )}
       {p.actions}
     </Vue>
   );

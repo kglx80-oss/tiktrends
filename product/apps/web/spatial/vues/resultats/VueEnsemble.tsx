@@ -45,6 +45,12 @@ export interface PropsVueEnsemble {
   autres: readonly AutreLot[];
   /** Sans vedette ni autre lot · où commencer (Lots pour un admin, Hypothèses sinon). */
   commencer: { libelle: string; href: string };
+  /**
+   * Les écrans hors maquette de la rubrique (gestes de l'ancienne Adsmap · règle
+   * `outilsResultats`), sous les autres tests. Absent · rien n'est ajouté au
+   * balisage de la maquette.
+   */
+  outils?: ReadonlyArray<{ href: string; libelle: string; icone: string }>;
 }
 
 export function VueEnsemble(p: PropsVueEnsemble) {
@@ -107,6 +113,11 @@ export function VueEnsemble(p: PropsVueEnsemble) {
         </div>
       ) : (
         <p className="faint">Aucun autre lot pour cette marque.</p>
+      )}
+      {p.outils && p.outils.length > 0 && (
+        <nav className="toolbar sec" aria-label="Aller plus loin dans les résultats">
+          {p.outils.map((o) => <Lien className="btn sm" key={o.href} href={o.href}><Ic n={o.icone} />{o.libelle}</Lien>)}
+        </nav>
       )}
     </Vue>
   );
