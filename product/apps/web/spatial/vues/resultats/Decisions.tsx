@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LIBELLE_DECISION, classeDecision, enJeuDecision, lienFicheTest } from '@tiktrends/core';
+import { classeDecision, enJeuDecision, libelleDecision, lienFicheTest } from '@tiktrends/core';
 import { refreshDecisionsAction, resolveDecisionAction } from '../../../app/actions/adsmap-decisions';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useGeste, Retour } from './geste';
@@ -59,7 +59,7 @@ export function Decisions(p: PropsDecisions) {
               const enJeu = enJeuDecision(d.enJeu);
               return (
                 <div className="ev" key={d.id} style={{ alignItems: 'start' }}>
-                  <span className={`pill ${classeDecision(d.priorite)}`}>{LIBELLE_DECISION[d.type] ?? d.type}</span>
+                  <span className={`pill ${classeDecision(d.priorite)}`}>{libelleDecision(d.type)}</span>
                   <span style={{ display: 'grid', gap: 4 }}>
                     <strong>{d.titre}</strong>
                     {d.action && <span className="muted" style={{ fontSize: '12.5px' }}>{d.action}</span>}

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { DEFAULT_VERDICT_CONFIG, outilsResultats, reperesTests, sousNavResultats } from '@tiktrends/core';
+import { DEFAULT_VERDICT_CONFIG, outilsResultats, reperesTests, sousNavResultats, titreDecision } from '@tiktrends/core';
 
 const nav = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/adsmap', useRouter: () => nav }));
@@ -437,5 +437,19 @@ describe('Spatial · Résultats · comportements repris de l’ancienne Adsmap',
     expect(html).toMatch(/<button type="button" class="btn sm " disabled="">Armer le radar/);
     expect(html).toContain('href="/veille"');
     expect(html).toMatch(/au plus <b>trois<\/b> créas décrites/);
+  });
+});
+
+describe('Spatial · Résultats · À décider se lit sans clé technique ni « n.c. » (banc)', () => {
+  it('le type est en français, le titre nomme le test ou dit honnêtement qu’il est perdu', () => {
+    const html = rendre(<Decisions sousNav={NAV} sous="s" resume="r" ecartees={0} erreur={null} decisions={[
+      { id: 'd1', type: 'review_learning', titre: titreDecision({ type: 'review_learning', titre: 'n.c.', cible: { kind: 'ad', nom: 'v2 · Listicle' } }), action: 'Relire', priorite: 3, enJeu: null, adId: ID },
+      { id: 'd2', type: 'coverage_gap', titre: titreDecision({ type: 'coverage_gap', titre: 'n.c.', cible: { kind: 'angle', nom: null } }), action: '', priorite: 4, enJeu: null, adId: null },
+    ]} />);
+    expect(html).toContain('Apprentissage à relire');
+    expect(html).toContain('Piste inexplorée');
+    expect(html).toContain('<strong>Test v2 · Listicle</strong>');
+    expect(html).toContain('n’est plus identifiable');
+    expect(html).not.toMatch(/review_learning|coverage_gap|>n\.c\.</);
   });
 });

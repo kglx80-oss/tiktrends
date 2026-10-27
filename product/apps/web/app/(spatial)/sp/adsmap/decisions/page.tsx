@@ -1,8 +1,8 @@
-import { sousNavResultats } from '@tiktrends/core';
+import { sousNavResultats, titreDecision } from '@tiktrends/core';
 import { listDecisionsAction } from '../../../../actions/adsmap-decisions';
 import { Decisions } from '../../../../../spatial/vues/resultats/Decisions';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
-import { gardeResultats } from '../donnees';
+import { chargerCiblesDecisions, gardeResultats } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,16 +13,25 @@ export default async function DecisionsSpatial() {
 
   const r = await listDecisionsAction();
   const inbox = r.inbox;
+  const items = inbox?.items ?? [];
+  // Le nom de ce que chaque décision concerne · une ligne sans titre enregistré
+  // affiche le test, le lot ou le concept, jamais « n.c. ».
+  const noms = await chargerCiblesDecisions(g.s.workspaceId, g.marque.id, items.map((d) => ({ kind: d.targetKind, id: d.targetId })));
   return (
     <Decisions
       sousNav={sousNavResultats({ admin: g.admin })}
       sous={`Résultats · ${g.marque.nom}`}
       resume={inbox?.summary ?? ''}
       ecartees={inbox?.dismissed ?? 0}
-      decisions={(inbox?.items ?? []).map((d) => ({
-        id: d.id, type: d.type, titre: d.title, action: d.action, priorite: d.priority, enJeu: d.spendAtStake,
-        adId: d.targetKind === 'ad' && d.targetId ? d.targetId : null,
-      }))}
+      decisions={items.map((d) => {
+        const nom = noms.get(`${d.targetKind}:${d.targetId}`) ?? null;
+        return {
+          id: d.id, type: d.type, titre: titreDecision({ type: d.type, titre: d.title, cible: { kind: d.targetKind, nom } }),
+          action: d.action, priorite: d.priority, enJeu: d.spendAtStake,
+          // La fiche n'est proposée que pour un test retrouvé dans la marque · sinon elle s'ouvrirait sur « introuvable ».
+          adId: d.targetKind === 'ad' && nom ? d.targetId : null,
+        };
+      })}
       erreur={r.error ?? null}
     />
   );

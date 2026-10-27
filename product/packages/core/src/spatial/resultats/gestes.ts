@@ -203,10 +203,41 @@ export function budgetPrevuLot(totalBudget: number, variantes: number): string {
 
 /* ───────────────────────── file de décisions ───────────────────────── */
 
+/**
+ * Le type d'une décision, en français lisible · TOUTES les valeurs que la base
+ * admet (`adsmap_decision_type`), y compris celles que le moteur actuel ne
+ * produit plus mais que d'anciennes lignes portent. Jamais la clé technique.
+ */
 export const LIBELLE_DECISION: Record<string, string> = {
-  kill_suggested: 'À couper', unmapped_ad: 'Non mesurée', validate_verdict: 'À arbitrer', protocol_violation: 'Protocole',
-  prelaunch_warning: 'Avant lancement', accept_iteration: 'À itérer', coverage_gap: 'Territoire',
+  kill_suggested: 'À couper', unmapped_ad: 'Non mesurée', validate_verdict: 'Verdict à arbitrer',
+  review_learning: 'Apprentissage à relire', protocol_violation: 'Protocole non respecté',
+  prelaunch_warning: 'Avant lancement', accept_iteration: 'Itération à lancer', coverage_gap: 'Piste inexplorée',
+  cro_handoff: 'Page à améliorer', ai_budget_reached: 'Plafond IA atteint',
 };
+
+/** Le libellé d'un type de décision · un type inconnu reste lisible, jamais affiché brut. */
+export const libelleDecision = (type: string) => LIBELLE_DECISION[type] ?? 'Décision à examiner';
+
+/** Ce sur quoi porte une décision, nommé (lu en base) · `nom` nul quand la cible est introuvable. */
+export interface CibleDecision { kind: string; nom: string | null }
+
+const NOMMER_CIBLE: Record<string, (n: string) => string> = {
+  ad: (n) => `Test ${n}`, batch: (n) => `Lot ${n}`, concept: (n) => `Concept « ${n} »`,
+  angle: (n) => `Angle « ${n} »`, desire: (n) => `Désir « ${n} »`,
+};
+
+/**
+ * Le titre d'une décision · la phrase enregistrée par le moteur quand elle
+ * existe, sinon le NOM de ce qu'elle concerne (test, lot, concept…), sinon une
+ * formulation honnête · jamais « n.c. », qui se lirait comme une donnée.
+ */
+export function titreDecision(d: { type: string; titre: string | null | undefined; cible: CibleDecision | null }): string {
+  const t = d.titre?.trim();
+  if (t && t !== VALEUR_ABSENTE) return t;
+  const nom = d.cible?.nom?.trim();
+  if (nom) return (NOMMER_CIBLE[d.cible!.kind] ?? ((n: string) => n))(nom);
+  return `${libelleDecision(d.type)} · ce qu’elle concerne n’est plus identifiable (supprimé, ou rattaché à une autre marque)`;
+}
 
 /** La pastille d'une décision selon sa priorité · 1 = de l'argent brûle maintenant. */
 export function classeDecision(priorite: number): ClassePastilleTest {
