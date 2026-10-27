@@ -96,7 +96,7 @@ describe('middleware · bascule Spatial (cookie tt_ui)', () => {
   });
 
   it('mode V5, sans cookie, ou écran non porté ⇒ aucune réécriture', () => {
-    for (const [adresse, ui] of [['/usage', 'v5'], ['/usage', undefined], ['/billing', 'spatial'], ['/sp/usage', 'spatial']] as const) {
+    for (const [adresse, ui] of [['/usage', 'v5'], ['/usage', undefined], ['/console', 'spatial'], ['/sp/usage', 'spatial']] as const) {
       const r = avec(adresse, ui);
       expect([adresse, ui, r.headers.get('x-middleware-rewrite'), r.headers.get('x-middleware-next')]).toEqual([adresse, ui, null, '1']);
     }
