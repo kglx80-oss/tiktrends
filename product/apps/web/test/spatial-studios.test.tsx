@@ -10,7 +10,7 @@ import { parite, squelette, fragmentReference } from './spatial/parite';
 
 /**
  * Spatial · rubrique Studios (D1) · `/studio/projets`, `/studio/prompts`,
- * `/studio/projets/nouveau`, `/studio/iterer`.
+ * `/studio/iterer` (« Nouveau projet » · `spatial-studios-assistant.test.tsx`).
  *
  * 1 · PARITÉ DE STRUCTURE · chaque vue, rendue avec des props équivalentes à la
  *     maquette (mêmes nombres d'éléments), reproduit le squelette du fragment
@@ -35,7 +35,6 @@ vi.mock('../app/actions/brands', () => marques);
 const { FournisseurSpatial } = await import('../spatial/coquille/contexte');
 const { Studios } = await import('../spatial/vues/studios/Studios');
 const { Prompts } = await import('../spatial/vues/studios/Prompts');
-const { NouveauProjet } = await import('../spatial/vues/studios/NouveauProjet');
 const { Iterer } = await import('../spatial/vues/studios/Iterer');
 const { SOUS_NAV_STUDIOS } = await import('../spatial/vues/studios/sous-nav');
 type ProjetSpatial = import('../spatial/vues/studios/GrilleProjets').ProjetSpatial;
@@ -92,14 +91,6 @@ const CHOIX = [
   choix('c', [{ libelle: 'Décliner', classe: 'g' }], false),
   choix('v', [{ libelle: 'Décliner', classe: 'c' }], false),
 ];
-
-const propsNouveau = (o: Partial<Parameters<typeof NouveauProjet>[0]> = {}): Parameters<typeof NouveauProjet>[0] => ({
-  sous: 'Studios · Marque', etat: { etat: 'pret', marque: { id: 'b1', nom: 'Marque' }, libelle: 'Nouveau concept créatif' },
-  marques: [{ id: 'b1', nom: 'Marque', active: true }, { id: 'b2', nom: 'Autre', active: false }], ajouterMarque: '/brands/new',
-  initial: { type: 'ads', titre: 'Pub statique · Marque', objectif: '', etape: 1 },
-  titresParDefaut: { ads: 'Pub statique · Marque', image: 'Image · Marque', video: 'Vidéo · Marque', text: 'Textes · Marque' },
-  produits: [{ id: 'pr1', nom: 'Lunettes' }], notes: [], repris: [], annonce: null, retourVeille: null, ...o,
-});
 
 /* ─────────────────────────────── 1 · parité ─────────────────────────────── */
 
@@ -162,22 +153,6 @@ describe('Spatial · Studios · parité de structure avec la maquette', () => {
     expect(t.content.querySelector('.banner')).toBeNull();
     expect(t.content.querySelector('.prompt')).toBeNull();
     expect(t.content.querySelector('.tile h3')!.textContent).toBe('Aucun prompt conseillé publié pour l’instant');
-  });
-
-  it('« Nouveau projet » (étape 1) reproduit la maquette', () => {
-    const html = rendre(<NouveauProjet {...propsNouveau()} />);
-    // Le bandeau Jarvis de la maquette vend un remplissage payant de l'étape, service qui n'existe pas avant le projet (assertion dédiée).
-    const p = parite(html, 'nouveau', { ignorer: ['.jfill'] });
-    expect(p.rendu).toEqual(p.reference);
-  });
-
-  it('le bandeau Jarvis dit où il propose vraiment, sans aucun bouton payant', () => {
-    const t = document.createElement('template');
-    t.innerHTML = rendre(<NouveauProjet {...propsNouveau()} />);
-    const j = t.content.querySelector('section.jfill')!;
-    expect(squelette(j.outerHTML)).toEqual(['section.jfill', '  span.orb', '  div.jft', '    strong', '    small']);
-    expect(j.textContent).toMatch(/prix avant le clic/);
-    expect(t.content.querySelectorAll('.jfill button')).toHaveLength(0);
   });
 
   it('« Nouvelle itération » (étape 1) reproduit la maquette', () => {
@@ -250,37 +225,4 @@ describe('Spatial · Studios · les gestes appellent les vraies actions', () => 
     expect(routeur.push).toHaveBeenCalledWith('/studio/projets/nouveau?type=ads&iter=a');
   });
 
-  it('« Nouveau projet » · le type choisi, un titre, et « Créer le projet » appelle `creerProjet` · rien d’autre', async () => {
-    await monter(<NouveauProjet {...propsNouveau()} />);
-    await cliquer(document.querySelector('[data-wliv="image"]'));
-    expect(document.querySelector('[data-wliv="image"]')!.getAttribute('aria-pressed')).toBe('true');
-    await cliquer(document.querySelector('[data-wfrom="zero"]'));
-    expect((document.querySelector('label.field input') as HTMLInputElement).value).toBe('Image · Marque');
-    await cliquer(boutons('#orn button', 'Créer le projet'));
-    expect(projets.creerProjet).toHaveBeenCalledWith({ brandId: 'b1', kind: 'image', title: 'Image · Marque' });
-    expect(sources.creerProjetDepuisContexte).not.toHaveBeenCalled();
-    expect(routeur.push).not.toHaveBeenCalledWith(expect.stringContaining('nouveau'));
-  });
-
-  it('« Nouveau projet » · un objectif repris (test Adsmap) passe par `creerProjetDepuisContexte`, avec sa clé de clic', async () => {
-    await monter(<NouveauProjet {...propsNouveau({ initial: { type: 'ads', titre: 'Itération de B', objectif: 'Test source Adsmap : x', etape: 2 }, repris: ['Le brief du test Adsmap gagnant est repris'] })} />);
-    expect(document.querySelector('.banner')!.textContent).toMatch(/repris/);
-    await cliquer(boutons('#orn button', 'Créer le projet'));
-    expect(sources.creerProjetDepuisContexte).toHaveBeenCalledWith(expect.objectContaining({ brandId: 'b1', kind: 'ads', titre: 'Itération de B', objectif: 'Test source Adsmap : x', cleClic: expect.stringMatching(/^sp-[a-z0-9]+$/) }));
-    expect(projets.creerProjet).not.toHaveBeenCalled();
-  });
-
-  it('« Nouveau projet » · changer de marque passe par `setActiveBrand` puis relit la page', async () => {
-    await monter(<NouveauProjet {...propsNouveau()} />);
-    await cliquer(boutons('.opt2', 'Autre'));
-    expect(marques.setActiveBrand).toHaveBeenCalledWith('b2');
-    expect(routeur.refresh).toHaveBeenCalled();
-  });
-
-  it('en lecture seule, aucun geste de création n’est rendu', async () => {
-    await monter(<NouveauProjet {...propsNouveau({ etat: { etat: 'lecture-seule', message: 'Ton rôle permet de lire les projets, pas d’en créer.' } })} />);
-    expect(document.querySelector('.pickc')).toBeNull();
-    expect(document.getElementById('orn')!.hidden).toBe(true);
-    expect(document.body.textContent).toMatch(/pas d’en créer/);
-  });
 });
