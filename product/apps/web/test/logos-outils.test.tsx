@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CLES_LOGO_OUTIL, cleLogoOutil, connecteursBranches, SEUIL_CONTRASTE_PASTILLE, contrasteWcag } from '@tiktrends/core';
+import { CATALOGUE_CONNECTEURS, CONNECTEURS_DISPONIBLES, CLES_LOGO_OUTIL, cleLogoOutil, connecteursBranches, SEUIL_CONTRASTE_PASTILLE, contrasteWcag } from '@tiktrends/core';
 import { BrandTile, LogoOutil, logoDisponible } from '../components/BrandIcons';
 import { TRACES_SIMPLE_ICONS } from '../components/logos-outils';
-import { ConnecteurBientot } from '../components/ConnecteurBientot';
 import { LogoMarque } from '../components/LogoMarque';
 
 /**
@@ -24,13 +23,13 @@ import { LogoMarque } from '../components/LogoMarque';
  *  · aucun nom du fournisseur de données interne n'atteint l'écran.
  */
 
-/** Les noms d'outils RÉELLEMENT affichés dans le catalogue Connexions. */
-const PAGE_CONNEXIONS = readFileSync(join(process.cwd(), 'app/(app)/connections/page.tsx'), 'utf8');
-const CATALOGUE: Array<{ name: string; color: string; glyph: string }> = [
-  ...PAGE_CONNEXIONS.matchAll(/\{ name: '([^']+)', color: '(#[0-9A-Fa-f]{6})', glyph: '([^']+)'/g),
-].map((m) => ({ name: m[1]!, color: m[2]!, glyph: m[3]! }));
-const DISPONIBLES = (PAGE_CONNEXIONS.match(/const DISPONIBLES = \[([^\]]+)\]/)?.[1] ?? '')
-  .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
+/**
+ * Vague 2 · l'écran V5 `/connections` (et ses tuiles « Bientôt » à logo) est
+ * retiré · la feuille de route Spatial liste les noms sans logo. Les
+ * disponibles et le catalogue viennent du noyau.
+ */
+const CATALOGUE = CATALOGUE_CONNECTEURS.flatMap((c) => c.noms.map((name) => ({ name })));
+const DISPONIBLES: readonly string[] = CONNECTEURS_DISPONIBLES;
 
 /**
  * Ce que chaque outil du catalogue DOIT montrer · son logo, ou `null` pour le
@@ -51,9 +50,9 @@ const ATTENDU: Record<string, string | null> = {
   'Gmail': 'gmail', 'Outlook': null, 'Google Sheets': 'googlesheets', 'Google Docs': 'googledocs', 'Excel': null, 'Slack': 'slack',
 };
 
-describe('le catalogue lu dans la page est bien celui qu’on juge', () => {
-  it('la lecture trouve les connecteurs à venir et les disponibles', () => {
-    expect(CATALOGUE.length, 'le catalogue n’a pas été lu dans connections/page.tsx').toBeGreaterThan(30);
+describe('le catalogue est bien celui qu’on juge', () => {
+  it('le catalogue du noyau porte les connecteurs à venir et les disponibles', () => {
+    expect(CATALOGUE.length).toBeGreaterThan(30);
     expect(DISPONIBLES).toEqual(['Shopify', 'Meta Ads', 'Google Drive']);
   });
   it('chaque outil affiché a une décision de logo (logo officiel ou repli)', () => {
@@ -61,27 +60,6 @@ describe('le catalogue lu dans la page est bien celui qu’on juge', () => {
       expect(Object.keys(ATTENDU), `« ${n} » est affiché sans décision de logo`).toContain(n);
     }
   });
-});
-
-describe('Connexions · chaque tuile du catalogue montre le logo attendu, ou le repli', () => {
-  for (const c of CATALOGUE) {
-    const attendu = ATTENDU[c.name];
-    it(`${c.name} · ${attendu ? `logo ${attendu}` : 'repli monogramme'}`, () => {
-      const html = renderToStaticMarkup(<ConnecteurBientot c={c} />);
-      // Le nom reste ÉCRIT · c'est lui qui porte le nom accessible.
-      expect(html).toContain(`>${c.name.replace(/&/g, '&amp;')}</div>`);
-      // La tuile est décorative.
-      expect(html, `la tuile de ${c.name} n'est pas aria-hidden`).toMatch(/<span aria-hidden="true" data-logo="/);
-      if (attendu) {
-        expect(html, `${c.name} devrait montrer son logo officiel`).toContain(`data-logo="officiel" data-outil="${attendu}"`);
-        expect(html, `${c.name} · logo sans SVG`).toContain('<svg');
-      } else {
-        expect(html, `${c.name} devrait montrer le repli explicite`).toContain('data-logo="repli"');
-        expect(html, `${c.name} · un SVG est rendu sans tracé officiel`).not.toContain('<svg');
-        expect(html, `${c.name} · le monogramme manque`).toContain(`>${c.glyph.replace(/&/g, '&amp;')}</span>`);
-      }
-    });
-  }
 });
 
 describe('les connecteurs disponibles et la fiche marque montrent leur logo', () => {
@@ -151,9 +129,8 @@ describe('marque blanche · le fournisseur de données interne n’apparaît jam
     expect(html).not.toContain('<svg');
     expect(html).toContain('data-logo="repli"');
   });
-  it('le catalogue rendu ne contient pas son nom', () => {
-    const html = CATALOGUE.map((c) => renderToStaticMarkup(<ConnecteurBientot c={c} />)).join('');
-    expect(html).not.toMatch(/trendtrack/i);
+  it('le catalogue affiché ne contient pas son nom', () => {
+    expect(CATALOGUE.map((c) => c.name).join(' ')).not.toMatch(/trendtrack/i);
   });
   it('les fichiers de logos ne contiennent aucun tracé ni nom du fournisseur interne', () => {
     for (const f of ['components/BrandIcons.tsx', 'components/logos-outils.ts']) {

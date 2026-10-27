@@ -24,7 +24,7 @@ import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 const WEB = process.cwd();
 const PERIMETRE = [
   'components',
-  ...['dashboard', 'analytics', 'adsmap', 'studio', 'assets', 'tags', 'radar', 'brands', 'connections', 'billing', 'credits', 'usage', 'team', 'profile', 'settings', 'support', 'console']
+  ...['dashboard', 'analytics', 'adsmap', 'studio', 'assets', 'tags', 'radar', 'brands', 'credits', 'profile', 'support', 'console']
     .map((d) => join('app', '(app)', d)),
   ...['depenses', 'finance', 'incidents', 'intelligence', 'paiement', 'plans', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
   // Transférés au lot pour ce seul changement (rendus sur /adsmap) · le reste de jarvis/** n'est pas couvert.

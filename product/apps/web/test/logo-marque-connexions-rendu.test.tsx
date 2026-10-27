@@ -39,8 +39,7 @@ vi.mock('../app/actions/drive', () => stub());
 vi.mock('../app/actions/assets', () => stub());
 vi.mock('../app/actions/brand-detail', () => stub());
 
-import { CONNEXIONS_REELLES, connecteursBranches, estConnexionReelle } from '@tiktrends/core';
-import ConnectionsPage from '../app/(app)/connections/page';
+import { CONNECTEURS_DISPONIBLES, CONNEXIONS_REELLES, connecteursBranches, estConnexionReelle } from '@tiktrends/core';
 import NouvelleMarque from '../app/(app)/brands/new/page';
 import { VueAnalytics } from '../components/accueil/VueAnalytics';
 import { MetaKeyMetrics } from '../app/(app)/analytics/MetaKeyMetrics';
@@ -55,10 +54,6 @@ const logos = (html: string) => [...html.matchAll(/data-logo-marque="([^"]+)"/g)
 
 const kpi = new Proxy({}, { get: () => 1 });
 const ECRANS: Array<{ ecran: string; attendu: string[]; rendre: () => Promise<string> | string }> = [
-  {
-    ecran: 'Connexions (page réelle)', attendu: ['shopify', 'meta'],
-    rendre: async () => renderToStaticMarkup(<ToastProvider>{await ConnectionsPage({ searchParams: Promise.resolve({}) })}</ToastProvider>),
-  },
   { ecran: 'Analytics sans compte', attendu: ['meta'], rendre: async () => renderToStaticMarkup(await VueAnalytics()) },
   { ecran: 'Nouvelle marque', attendu: ['shopify'], rendre: async () => renderToStaticMarkup(await NouvelleMarque({ searchParams: Promise.resolve({}) })) },
   {
@@ -93,11 +88,9 @@ describe('chaque logo de marque rendu correspond à une connexion réelle', () =
 });
 
 describe('la liste du noyau est celle des écrans', () => {
-  it('CONNEXIONS_REELLES = ce que la page Connexions déclare branchable', () => {
-    const src = readFileSync(join(process.cwd(), 'app/(app)/connections/page.tsx'), 'utf8');
-    const dispo = (src.match(/const DISPONIBLES = \[([^\]]+)\]/)?.[1] ?? '').split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
-    expect(dispo.length, 'DISPONIBLES introuvable dans connections/page.tsx').toBeGreaterThan(0);
-    expect(Object.values(CONNEXIONS_REELLES), 'le noyau et la page Connexions divergent sur les connexions réelles').toEqual(dispo);
+  it('CONNEXIONS_REELLES = ce que l’écran Connexions déclare branchable', () => {
+    // Vague 2 · l'écran V5 est retiré · l'écran Spatial compte ses branchables sur CONNECTEURS_DISPONIBLES.
+    expect(Object.values(CONNEXIONS_REELLES), 'le noyau et l’écran Connexions divergent sur les connexions réelles').toEqual([...CONNECTEURS_DISPONIBLES]);
   });
 
   it('aucun écran ne pose LogoMarque avec une clé écrite en dur hors des connexions réelles', () => {

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { CONNECTEURS_DISPONIBLES, FUSEAU_ACCUEIL, feuilleDeRouteConnecteurs, messagesRetourConnexions } from '@tiktrends/core';
+import { CONNECTEURS_DISPONIBLES, FUSEAU_ACCUEIL, feuilleDeRouteConnecteurs, fraicheurConnecteur, messagesRetourConnexions } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -10,7 +10,7 @@ import { SOUS_NAV_REGLAGES } from '../../../../spatial/vues/reglages/sous-nav';
 
 export const dynamic = 'force-dynamic';
 
-const le = (iso: string | null) => (iso ? `synchronisé le ${new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: FUSEAU_ACCUEIL })}` : 'pas encore synchronisé');
+const le = (iso: string | null) => fraicheurConnecteur(iso, FUSEAU_ACCUEIL);
 
 export default async function ConnexionsSpatiales() {
   const s = await getSession();
