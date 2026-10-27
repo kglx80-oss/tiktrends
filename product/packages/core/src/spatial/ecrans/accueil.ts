@@ -8,4 +8,5 @@ import type { EcranSpatial } from '../types';
  */
 export const ECRANS_ACCUEIL: readonly EcranSpatial[] = [
   { chemin: '/onboarding', section: 'accueil' },
+  { chemin: '/dashboard', section: 'accueil' },
 ];

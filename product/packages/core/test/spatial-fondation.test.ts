@@ -18,11 +18,12 @@ describe('Spatial · bascule', () => {
     expect(ecranSpatial('/usage')).toEqual({ interne: '/sp/usage', section: 'reglages' });
     expect(ecranSpatial('/usage/')).toEqual({ interne: '/sp/usage', section: 'reglages' });
     expect(ecranSpatial('/usage/x')).toBeNull();
-    expect(ecranSpatial('/billing')).toBeNull();
+    // Un chemin qu'aucune rubrique ne porte (`/billing` l'est désormais, rubrique G).
+    expect(ecranSpatial('/console')).toBeNull();
     // Un chemin déjà interne n'est jamais réécrit une seconde fois.
     expect(ecranSpatial('/sp/usage')).toBeNull();
     expect(cheminPorte('/usage?onglet=x#a')).toBe(true);
-    expect(cheminPorte('/billing')).toBe(false);
+    expect(cheminPorte('/console')).toBe(false);
   });
 
   it('chaque écran porté déclare une section connue et un chemin public unique', () => {
