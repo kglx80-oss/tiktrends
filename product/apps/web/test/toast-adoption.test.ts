@@ -13,21 +13,22 @@ import { join } from 'node:path';
  */
 const WEB = process.cwd();
 
-const CAS: Array<{ fichier: string; messages: string[] }> = [
+const CAS: Array<{ fichier: string; messages: string[]; canal?: RegExp }> = [
   { fichier: 'components/TrackerFeed.tsx', messages: ['Tout marqué comme vu.'] },       // veille
   { fichier: 'app/(app)/adsmap/tri/Curation.tsx', messages: ['validé.', 'Proposition écartée.'] },
   { fichier: 'app/(app)/assets/AssetsLibrary.tsx', messages: ['Élément importé.'] },
-  { fichier: 'app/(app)/connections/DataConnections.tsx', messages: ['Shopify déconnecté.', 'Meta déconnecté.'] },
+  // Vague 2 · Connexions vit dans Spatial · son canal de retour est le toast de la coquille.
+  { fichier: 'spatial/vues/reglages/interactifs.tsx', messages: ['`${nom} déconnecté`', '`${nom} synchronisé`'], canal: /useSpatial\(\)/ },
   { fichier: 'app/(app)/assets/DriveConnect.tsx', messages: ['Google Drive déconnecté.'] },
   { fichier: 'components/SavedBoards.tsx', messages: ['Rangé dans', 'Retiré du board.'] },
   { fichier: 'app/(app)/adsmap/lots/Lots.tsx', messages: ['Ad ajoutée au lot.', 'Ad retirée du lot.'] },
 ];
 
 describe('chaque action autrefois muette émet désormais un retour', () => {
-  for (const { fichier, messages } of CAS) {
+  for (const { fichier, messages, canal } of CAS) {
     it(`${fichier} · branche le canal et confirme`, () => {
       const src = readFileSync(join(WEB, fichier), 'utf8');
-      expect(src, `${fichier} n'importe pas useToast`).toMatch(/useToast/);
+      expect(src, `${fichier} n'importe pas son canal de retour`).toMatch(canal ?? /useToast/);
       for (const m of messages) {
         expect(src.includes(m), `${fichier} ne confirme plus « ${m} »`).toBe(true);
       }

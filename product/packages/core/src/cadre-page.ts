@@ -66,7 +66,6 @@ export type LectureInterieure = keyof typeof LECTURE;
  */
 export const EXCEPTIONS_LECTURE: Readonly<Record<string, { lecture: LectureInterieure; raison: string }>> = {
   '/profile': { lecture: 'formulaire', raison: 'formulaire de profil · des champs étirés sur 1136 se lisent mal' },
-  '/settings': { lecture: 'formulaire', raison: 'réglages en formulaire' },
   '/support': { lecture: 'formulaire', raison: 'formulaire de demande et liste courte' },
   '/support/[id]': { lecture: 'fil', raison: 'fil de conversation · mesure de lecture' },
   '/brands/new': { lecture: 'formulaire', raison: 'formulaire de création de marque' },

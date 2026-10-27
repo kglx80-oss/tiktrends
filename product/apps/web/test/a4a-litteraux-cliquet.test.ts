@@ -90,6 +90,9 @@ import { join, relative } from 'node:path';
  * décaler le sombre validé), et les blancs d'accent de survol au-delà de 0,20
  * (hors de la portée de --line-2). L'onboarding garde le dégradé de sa vitrine
  * (aplat de marque saturé) et sa pastille cochée verte (aplat autoportant).
+ *
+ * Spatial · vague 2 · Réglages · les pages V5 `/connections` (41) et `/team` (2)
+ * sont retirées (écrans exclusifs Spatial) · 251 − 43 = 208.
  */
 const WEB = process.cwd();
 
@@ -111,9 +114,7 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app/(app)/analytics': 6,
   'app/(app)/assets': 4,
   'app/(app)/brands': 6,
-  'app/(app)/connections': 41,
   'app/(app)/credits': 12,
-  'app/(app)/team': 2,
   'app/(app)/veille': 13,
   'app/onboarding': 5,
   'app/tarifs': 8,
@@ -133,9 +134,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/brands/[id]/PaletteMarque.tsx': 1,
   'app/(app)/brands/[id]/ShopifyConnect.tsx': 1,
   'app/(app)/brands/new/page.tsx': 1,
-  'app/(app)/connections/page.tsx': 41,
   'app/(app)/credits/page.tsx': 12,
-  'app/(app)/team/page.tsx': 2,
   'app/(app)/veille/scale/SwipeFile.tsx': 13,
   'app/Landing.tsx': 142,
   'app/onboarding/OnboardingWizard.tsx': 5,
@@ -147,7 +146,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/LogoMarque.tsx': 4,
 };
 
-const PLAFOND_TOTAL = 251;
+const PLAFOND_TOTAL = 208;
 
 const RACINES = ['app', 'components', 'lib'];
 

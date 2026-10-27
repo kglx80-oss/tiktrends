@@ -12,45 +12,45 @@ import { renderToStaticMarkup } from 'react-dom/server';
  * HTML. `illimite` pilote `unlimitedCredits` · les deux branches sont rendues.
  */
 const etat = { illimite: true };
-vi.mock('next/navigation', () => ({ redirect: () => { throw new Error('redirect'); } }));
+vi.mock('next/navigation', () => ({ redirect: () => { throw new Error('redirect'); }, useRouter: () => ({ push: () => {}, refresh: () => {} }), useSearchParams: () => new URLSearchParams(), usePathname: () => '/billing' }));
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', workspaceName: 'Espace', role: 'owner', plan: 'business', user: { id: 'u', email: 'demo@exemple.invalid' } }) }));
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
 vi.mock('../lib/founder', () => ({ isFounder: () => true }));
 vi.mock('../lib/credits', () => ({ unlimitedCredits: () => etat.illimite }));
 vi.mock('../lib/stripe', () => ({ stripeConfigured: () => false, planPurchasable: () => false }));
-vi.mock('../app/actions/stripe', () => ({ createCheckoutAction: async () => {}, createPortalAction: async () => {} }));
+vi.mock('../app/actions/stripe', () => ({ createCheckoutAction: async () => {}, createPortalAction: async () => {}, createTopupCheckoutAction: async () => {} }));
 
-import BillingPage from '../app/(app)/billing/page';
+import ForfaitsSpatial from '../app/(spatial)/sp/billing/page';
+import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 import CreditsPage from '../app/(app)/credits/page';
 
 const texte = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '’').replace(/\s+/g, ' ');
-const rendre = async (P: typeof BillingPage) => texte(renderToStaticMarkup(await P({ searchParams: Promise.resolve({}) })));
+const rendre = async (P: typeof CreditsPage) => texte(renderToStaticMarkup(await P({ searchParams: Promise.resolve({}) })));
+const CTX: CtxSpatial = { utilisateur: { nom: 'D', initiales: 'D', email: 'demo@exemple.invalid', role: 'Propriétaire' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
+// L'anneau de l'en-tête (coquille) est neutralisé · seul celui de l'écran est lu.
+const forfaits = async () => renderToStaticMarkup(<FournisseurSpatial value={CTX}>{await ForfaitsSpatial()}</FournisseurSpatial>).replace(/<a class="credit"[^]*?<\/a>/, '');
 
+/*
+ * Vague 2 · l'écran V5 `/billing` est retiré · la garde est portée sur l'écran
+ * Spatial (`app/(spatial)/sp/billing/page.tsx`), seul à servir `/billing`.
+ */
 describe('/billing · un compte illimité lit « Illimité »', () => {
-  it('la case Crédits dit « Illimité », plus « ◈ 0 / 24 000 »', async () => {
+  it('l’anneau dit « ∞ » et le texte « illimités », plus un solde nul', async () => {
     etat.illimite = true;
-    const t = await rendre(BillingPage);
-    const caseCredits = t.slice(t.indexOf('Crédits'), t.indexOf('Crédits') + 60);
-    expect(caseCredits, 'illimité affiché comme un solde nul').not.toMatch(/◈ 0/);
-    expect(caseCredits).toMatch(/Illimité · formule 24 000 \/ mois/);
+    const html = await forfaits();
+    expect(html).toContain('<span>∞</span>');
+    const t = texte(html);
+    expect(t).toContain('Crédits illimités sur ce compte.');
+    expect(t, 'illimité présenté comme épuisé').not.toContain('Crédits bientôt épuisés');
   });
-  it('l’introduction ne promet plus de débit par génération à un compte illimité (lot 12)', async () => {
-    etat.illimite = true;
-    const t = await rendre(BillingPage);
-    expect(t).not.toContain('se consomment à chaque génération');
-    expect(t).toContain('tes propres générations ne la débitent pas');
+  it('un compte au barème garde son solde réel', async () => {
     etat.illimite = false;
-    expect(await rendre(BillingPage)).toContain('se consomment à chaque génération');
+    const html = await forfaits();
+    expect(html).toContain('<span>0</span>');
+    expect(texte(html)).not.toContain('Crédits illimités');
   });
-  it('un compte au barème garde son solde sur l’allocation', async () => {
-    etat.illimite = false;
-    const t = await rendre(BillingPage);
-    expect(t).toMatch(/◈ 0 \/ 24 000/);
-  });
-  it('le pied ne renvoie plus à un Support qui ne reçoit pas la demande', async () => {
-    const t = await rendre(BillingPage);
-    expect(t, 'promesse d’un contact qui n’existe pas').not.toMatch(/écris-nous/i);
-    expect(t).toContain('un ticket au support reste dans ton espace');
+  it('aucune promesse d’un contact qui n’existe pas', async () => {
+    expect(texte(await forfaits()), 'promesse d’un contact qui n’existe pas').not.toMatch(/écris-nous/i);
   });
 });
 

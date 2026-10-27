@@ -38,10 +38,8 @@ describe('cibles tactiles · contrôles partagés et de contenu', () => {
   const cas: Array<{ f: string; ancre: string }> = [
     { f: 'components/Empty.tsx', ancre: "marginTop: 16, padding: '9px 18px'" },
     { f: 'components/NewBrandButton.tsx', ancre: 'const base =' },
-    { f: 'app/(app)/connections/DataConnections.tsx', ancre: 'const tapBase' },
     { f: 'app/(app)/brands/page.tsx', ancre: '>Voir détails<' },
     { f: 'app/(app)/brands/page.tsx', ancre: '>Supprimer<' },
-    { f: 'app/(app)/usage/page.tsx', ancre: 'Abonnement &amp; factures' },
   ];
   for (const { f, ancre } of cas) {
     it(`${f} · « ${ancre} » atteint la cible`, () => {
@@ -72,12 +70,4 @@ describe('cibles tactiles · chrome partagé (rail, recherche, logo)', () => {
   });
 });
 
-describe('grilles ordinaires · l’équipe se replie, pas de défilement forcé', () => {
-  const team = read('app/(app)/team/page.tsx');
-  it('la liste des membres se replie (flexWrap) au lieu d’une grille figée', () => {
-    // Plus de colonnes fixes ni de largeur mini qui force le scroll horizontal.
-    expect(team, 'la grille figée subsiste').not.toContain("gridTemplateColumns: '1fr 1fr 160px'");
-    expect(team, 'la largeur mini force encore le scroll').not.toContain('minWidth: 480');
-    expect(team, 'la liste ne se replie pas').toContain("flexWrap: 'wrap'");
-  });
-});
+// Vague 2 · l'écran V5 Équipe est retiré · la liste Spatial (`.team .member`) se replie par la feuille de la maquette.

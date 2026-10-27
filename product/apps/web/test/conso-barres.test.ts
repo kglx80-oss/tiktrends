@@ -13,25 +13,14 @@ import { join } from 'node:path';
  * source, par élément. Le RÉSULTAT de BarreValeur est prouvé par barre-valeur.test.tsx.
  */
 const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-const usage = lit('app/(app)/usage/page.tsx');
 const credits = lit('app/(app)/credits/page.tsx');
 
 // Une largeur de barre écrite à la main · un gabarit `…%` sur `width`.
 const LARGEUR_MAIN = /width:\s*`[^`]*%[^`]*`/;
 
-describe('Consommation · la répartition par type d’action passe par BarreValeur', () => {
-  it('importe et utilise BarreValeur + partDeMax', () => {
-    expect(usage).toContain("import { BarreValeur }");
-    // partDeMax reste importé du noyau · d'autres jetons peuvent l'accompagner
-    // (ex. CIBLE_TACTILE_MIN pour les cibles tactiles) sans casser cette garde.
-    expect(usage).toMatch(/import \{[^}]*\bpartDeMax\b[^}]*\} from '@tiktrends\/core'/);
-    expect(usage).toContain('<BarreValeur part={partDeMax(total, maxFamily)}');
-  });
-  it('ne calcule plus aucune largeur de barre à la main', () => {
-    expect(usage, 'largeur de barre écrite à la main').not.toMatch(LARGEUR_MAIN);
-  });
-});
-
+// Vague 2 · l'écran V5 `/usage` est retiré · la répartition Spatial (part bornée
+// par `journalCredits`, valeur écrite à côté de la barre) est gardée dans
+// `spatial-reglages-gestes.test.tsx`.
 describe('Crédits · la barre « consommé ce cycle » passe par BarreValeur', () => {
   it('importe et utilise BarreValeur + partDeMax', () => {
     expect(credits).toContain("import { BarreValeur }");

@@ -98,6 +98,7 @@ describe('Spatial · Espace · stockage (recette #106b)', () => {
     expect(t).toMatch(/Stockage des fichiers lourds À ACTIVER/);
     expect(jargonEcran(t), `jargon à l’écran : ${t}`).toEqual([]);
     expect(t).toMatch(/côté plateforme/);
+    expect(t).toContain('seuls ses admins le lisent');
     expect(e.querySelector('a[href="/support"]')?.textContent).toBe('Ouvrir un ticket interne');
     expect(e.querySelectorAll('button')).toHaveLength(0);
   });
