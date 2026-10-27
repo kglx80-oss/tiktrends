@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../projet/useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../../../lib/studios/appel-payant';
 import { appliquerOperationVideo as appliquerNoyau, impactVideo, messageHorsLigneStudio, ECHEC_RESEAU_STUDIO, type ErreurStudio, type OperationVideo } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
 import {

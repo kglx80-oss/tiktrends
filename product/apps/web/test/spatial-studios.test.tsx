@@ -105,13 +105,15 @@ const propsNouveau = (o: Partial<Parameters<typeof NouveauProjet>[0]> = {}): Par
 
 describe('Spatial · Studios · parité de structure avec la maquette', () => {
   it('« Studios » reproduit la maquette', () => {
-    const html = rendre(<Studios {...propsStudios()} />);
+    // La recherche de projets (geste de l'ancienne interface, vague 2) n'a pas d'équivalent dans la maquette · retirée ici, gardée par son propre test.
+    const html = rendre(<Studios {...propsStudios()} />).replace(/<label class="jsearch"[\s\S]*?<\/label>/, '');
+    expect(html).not.toContain('data-recherche-projet');
     const p = parite(html, 'studios', {
       ignorer: [
         PH,
         // La maquette filtre par cinq STATUTS fictifs · le modèle réel n'a que des ÉTAPES (Tous + 3), voir l'assertion dédiée.
         '.toolbar > .seg',
-        // Quatre gestes par carte dans la maquette · seul « Archiver » a une action réelle (assertion dédiée).
+        // Quatre gestes par carte dans la maquette · « Itérer » et « Archiver » ont une action réelle (assertion dédiée).
         '.pacts',
         // Carte 1 de la maquette = lot « à conclure » (« Conclure d’abord ») · le plan réel ne montre que des verdicts arbitrés.
         '.itc:first-child .foot2',
@@ -120,20 +122,23 @@ describe('Spatial · Studios · parité de structure avec la maquette', () => {
     expect(p.rendu).toEqual(p.reference);
   });
 
-  it('les filtres sont les étapes RÉELLES, avec leurs compteurs · et les gestes de carte se réduisent à « Archiver »', () => {
+  it('les filtres sont les étapes RÉELLES puis « Archivés », avec leurs compteurs · les gestes de carte sont « Itérer » et « Archiver »', () => {
     const t = document.createElement('template');
-    t.innerHTML = rendre(<Studios {...propsStudios()} />);
+    t.innerHTML = rendre(<Studios {...propsStudios({ archives: [] })} />);
     const filtres = [...t.content.querySelectorAll('.toolbar > .seg > button')].map((b) => [b.textContent, b.getAttribute('aria-pressed')]);
-    expect(filtres).toEqual([['Tous · 6', 'true'], ['Brief à compléter · 2', 'false'], ['Brief prêt · 1', 'false'], ['En production · 3', 'false']]);
+    expect(filtres).toEqual([['Tous · 6', 'true'], ['Brief à compléter · 2', 'false'], ['Brief prêt · 1', 'false'], ['En production · 3', 'false'], ['Archivés · 0', 'false']]);
     const pacts = [...t.content.querySelectorAll('.pacts')];
     expect(pacts).toHaveLength(6);
     for (const a of pacts) {
-      expect(squelette(a.outerHTML)).toEqual(['div.pacts', '  button', '    svg.i.s @i-folder']);
+      // L'ordre de la maquette (Itérer, Dupliquer, Archiver, Supprimer), sans les deux gestes qui n'ont pas de service.
+      expect(squelette(a.outerHTML)).toEqual(['div.pacts', '  a', '    svg.i.s @i-loop', '  button', '    svg.i.s @i-folder']);
+      expect(a.querySelector('a')!.getAttribute('aria-label')).toMatch(/^Itérer sur /);
       expect(a.querySelector('button')!.getAttribute('aria-label')).toMatch(/^Archiver /);
     }
-    // Sans droit d'archiver, aucun geste n'est rendu.
+    // Sans droit d'archiver, seul « Itérer » (lecture) reste · les archivés non relus ne proposent pas de filtre.
     t.innerHTML = rendre(<Studios {...propsStudios({ peutArchiver: false })} />);
-    expect(t.content.querySelectorAll('.pacts')).toHaveLength(0);
+    expect([...t.content.querySelectorAll('.pacts')].map((x) => squelette(x.outerHTML))[0]).toEqual(['div.pacts', '  a', '    svg.i.s @i-loop']);
+    expect(t.content.querySelector('[data-pf="archive"]')).toBeNull();
   });
 
   it('« Prompts conseillés » reproduit la maquette', () => {

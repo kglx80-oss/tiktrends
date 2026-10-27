@@ -159,7 +159,8 @@ describe('Spatial · Studios · écrans déclarés et textes', () => {
       expect(ECRANS_SPATIAUX.filter((e) => e.section === 'studios').map((e) => e.chemin)).toContain(c);
       expect(ecranSpatial(c)).toMatchObject({ interne: `/sp${c}`, section: 'studios' });
     }
-    expect(ecranSpatial('/studio/projets/nouveau/concept')).toBeNull();
+    // Vague 2 · le nouveau concept créatif est porté à son tour (il n'est jamais pris pour un projet).
+    expect(ecranSpatial('/studio/projets/nouveau/concept')).toMatchObject({ interne: '/sp/studio/projets/nouveau/concept', section: 'studios' });
   });
 
   it('aucun tiret cadratin ni nom de fournisseur dans les textes décidés ici', () => {

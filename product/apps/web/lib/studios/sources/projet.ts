@@ -397,11 +397,12 @@ export const LIMITE_CARTES_DEFAUT = 60;
 /** Cartes de reprise · lecture pure, trois requêtes quel que soit le nombre de projets. */
 export async function listerCartesPour(
   ctx: ContexteStudio,
-  o: { brandId?: string | null; veilleOuverte: boolean; maintenant: Date; limite?: number },
+  o: { brandId?: string | null; veilleOuverte: boolean; maintenant: Date; limite?: number; statut?: 'active' | 'archived' },
 ): Promise<CarteProjet[]> {
   const P = schema.studioProjects;
   const V = schema.studioProjectVersions;
-  const conds: SQL[] = [porteeSql(P, ctx), eq(P.status, 'active')];
+  // `archived` · les projets archivés (réversible, `restaurerProjet`), relus dans la même portée.
+  const conds: SQL[] = [porteeSql(P, ctx), eq(P.status, o.statut === 'archived' ? 'archived' : 'active')];
   if (o.brandId) {
     if (!ctx.marques.includes(o.brandId)) return [];
     conds.push(eq(P.brandId, o.brandId));

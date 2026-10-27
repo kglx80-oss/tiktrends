@@ -11,6 +11,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 import { db, schema, eq } from '@tiktrends/db';
 import { idsStudios, semer, session } from './studios-semis';
 import { supprimerProjet, restaurerProjet } from '../app/actions/studios/archivage';
+import { listerProjetsCartes } from '../app/actions/studios/sources';
 const ids = idsStudios();
 beforeAll(async () => { await semer(db, schema, ids); });
 async function projet(brandId = ids.brandA1, workspaceId = ids.wsA) {
@@ -28,6 +29,21 @@ describe('Suppression réversible · vraie base et actions', () => {
   for (let n = 0; n < 2; n++) expect(await restaurerProjet({ projectId: p.id })).toEqual({ ok: true });
   expect(await lire(p.id)).toMatchObject({ status: 'active', rowVersion: 2 });
   expect(await db.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.targetId, p.id))).toHaveLength(2);
+ });
+ it('Spatial · filtre « Archivés » · un projet archivé quitte la liste et rejoint les archivés relus dans la même portée', async () => {
+  h.session = session(ids, 'ua'); const { p } = await projet();
+  const ids_ = async (archives: boolean) => { const r = await listerProjetsCartes({ archives }); expect(r.ok).toBe(true); return r.ok ? r.cartes.map((c) => c.id) : []; };
+  expect(await ids_(false)).toContain(p.id);
+  expect(await ids_(true)).not.toContain(p.id);
+  expect(await supprimerProjet({ projectId: p.id })).toEqual({ ok: true });
+  expect(await ids_(false)).not.toContain(p.id);
+  expect(await ids_(true)).toContain(p.id);
+  // Hors portée · un archivé d'un autre espace n'est jamais relu.
+  const ailleurs = await projet(ids.brandB1, ids.wsB);
+  await db.update(schema.studioProjects).set({ status: 'archived' }).where(eq(schema.studioProjects.id, ailleurs.p.id));
+  expect(await ids_(true)).not.toContain(ailleurs.p.id);
+  expect(await restaurerProjet({ projectId: p.id })).toEqual({ ok: true });
+  expect(await ids_(true)).not.toContain(p.id);
  });
  it('refuse session absente, lecteur et identifiants hors portée', async () => {
   const { p } = await projet(); h.session = null;

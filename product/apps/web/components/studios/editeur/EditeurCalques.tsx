@@ -32,7 +32,7 @@ import { ZoneTravail } from './ZoneTravail';
 import { useZoomEditeur } from './use-zoom-editeur';
 import {
   effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale,
-} from './sauvegarde-locale';
+} from '../../../lib/studios/editeur/sauvegarde-locale';
 import { bouton, boutonInactif, boutonPrimaire, COULEUR_ETAT, legende, panneau } from './styles';
 
 /**

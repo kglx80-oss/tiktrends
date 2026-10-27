@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { RELECTURE_CREATIONS_MS } from '@tiktrends/core';
+import { RELECTURE_CREATIONS_MS, valeursRattachement, type ValeursRattachement } from '@tiktrends/core';
 import { creerVariante, iterer } from '../../../app/actions/studios/variantes';
-import { relireApprentissage } from '../../../app/actions/studios/tests';
+import { rattacherVarianteAuTest, relireApprentissage } from '../../../app/actions/studios/tests';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import { Ad, Message } from './briques';
+import { FormulaireRattachement, LotEssai, type Saisie } from './Rattachement';
 import type { LotSpatial, PropsCreationsProjet, SortieSpatiale, VarianteSpatiale } from './types';
 
 /**
@@ -15,7 +16,8 @@ import type { LotSpatial, PropsCreationsProjet, SortieSpatiale, VarianteSpatiale
  * par création) avec les sorties RÉELLES des lots du projet et leur état réel
  * (en file, en cours, échec, prête) · jamais un rendu simulé. Puis, dans les
  * tuiles Spatial, ce que la fiche V5 portait ici : variantes et tests
- * (choisir, itérer, relire l'apprentissage), tâches de génération.
+ * (choisir, itérer, relire l'apprentissage, rattacher à un test Adsmap,
+ * préparer un lot d'essai), tâches de génération.
  *
  * Tant qu'un lot travaille, la page se relit toutes les 4 s (lecture seule).
  */
@@ -25,6 +27,23 @@ export function OngletCreations(p: PropsCreationsProjet) {
   const [enCours, setEnCours] = useState<string | null>(null);
   const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string } | null>(null);
   const [relireOuverte, setRelireOuverte] = useState<string | null>(null);
+  // Le formulaire « Rattacher au test » ouvert, et la saisie d'un plan d'essai qui le préremplit.
+  const [rattacher, setRattacher] = useState<string | null>(null);
+  const [prefill, setPrefill] = useState<Record<string, Saisie>>({});
+  const aujourdHui = new Date().toISOString().slice(0, 10);
+
+  async function envoyerTest(variantId: string, v: ValeursRattachement) {
+    const r = await rattacherVarianteAuTest({ variantId, saisie: v });
+    if (!r.ok) return r;
+    const texte = r.deja ? 'Cette variante était déjà rattachée · fiche Adsmap inchangée.' : 'Variante rattachée · la fiche Adsmap est en brouillon.';
+    setRattacher(null); setRetour({ ton: 'ok', texte }); toast(texte); router.refresh();
+    return { ok: true as const };
+  }
+  const ouvrirAvecPlan = (variantId: string, saisie: Saisie) => {
+    setPrefill((p) => ({ ...p, [variantId]: saisie }));
+    setRattacher(variantId);
+    document.querySelector(`[data-variante="${variantId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   useEffect(() => {
     if (!p.relire) return;
@@ -97,15 +116,25 @@ export function OngletCreations(p: PropsCreationsProjet) {
 
       <section className="tile sec" id="variantes">
         <div className="sech" style={{ margin: 0 }}><h2>Variantes et tests</h2><span className="faint" style={{ fontSize: '12.5px' }}>Une variante = une sortie retenue, prête à être testée</span>
-          {/* Lien plein · `?ui=v5` repose le cookie de l'interface précédente, qui porte encore ce formulaire. */}
-          <a className="btn sm" href={p.panneauCompletHref} style={{ marginLeft: 'auto' }} title="Rattacher un test Adsmap, préparer un lot d’essai · panneau complet de l’interface précédente">Rattacher un test</a>
         </div>
+        {p.peutProposer && p.adsmap && !p.adsmap.acces && p.variantes.some((v) => !v.test) && (
+          <p className="faint" style={{ fontSize: '11.5px', marginTop: 6 }}>Le rattachement à un test passe par Adsmap, disponible à partir de l’offre Plus.</p>
+        )}
         {p.erreurVariantes ? <Message ton="err">{p.erreurVariantes}</Message> : p.variantes.length === 0 ? (
           <p className="muted" style={{ fontSize: '12.5px', marginTop: 10 }}>Aucune variante · retiens une sortie livrée pour la tester.</p>
         ) : (
           <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
             {p.variantes.map((v) => (
               <CarteVariante key={v.id} v={v} enCours={enCours} relecture={p.relecture} ouverte={relireOuverte === v.id}
+                surRattacher={p.adsmap?.acces && v.gestes.rattacher ? () => setRattacher((o) => (o === v.id ? null : v.id)) : null}
+                formulaire={rattacher === v.id && p.adsmap ? (
+                  <FormulaireRattachement key={`${v.id}:${prefill[v.id] ? 'essai' : 'libre'}`} idVariante={v.id} adsmap={p.adsmap} aUnParent={v.rattachement.aUnParent}
+                    initial={valeursRattachement({
+                      hypothese: prefill[v.id]?.hypothese ?? v.rattachement.hypothese, variable: prefill[v.id]?.variable ?? v.rattachement.variable,
+                      valeurVariable: prefill[v.id]?.valeurVariable ?? null, protocole: p.adsmap.protocoleMarque, aujourdHui,
+                    })}
+                    envoyer={(x) => envoyerTest(v.id, x)} fermer={() => setRattacher(null)} />
+                ) : null}
                 surIterer={() => p.versionCouranteId && void geste(`iterer:${v.id}`, () => iterer({ variantId: v.id, baseVersionId: p.versionCouranteId }), `Nouveau brief créé depuis ${v.libelle} · aucune génération lancée.`)}
                 surOuvrirRelecture={() => setRelireOuverte((o) => (o === v.id ? null : v.id))}
                 surRelire={() => void geste(`relire:${v.id}`, async () => {
@@ -117,6 +146,10 @@ export function OngletCreations(p: PropsCreationsProjet) {
           </div>
         )}
       </section>
+
+      {p.peutProposer && !p.erreurVariantes && p.lots.length > 0 && (
+        <LotEssai projectId={p.projectId} variantes={p.variantes.map((v) => ({ id: v.id, libelle: v.libelle, version: v.version }))} ouvrirRattachement={ouvrirAvecPlan} />
+      )}
 
       <section className="tile sec" id="taches">
         <div className="sech" style={{ margin: 0 }}><h2>Tâches</h2><span className="faint" style={{ fontSize: '12.5px' }}>Les générations de ce projet et leur état réel · rien n’est relancé d’ici</span></div>
@@ -138,9 +171,11 @@ export function OngletCreations(p: PropsCreationsProjet) {
   );
 }
 
-function CarteVariante({ v, enCours, relecture, ouverte, surIterer, surOuvrirRelecture, surRelire }: {
+function CarteVariante({ v, enCours, relecture, ouverte, surIterer, surOuvrirRelecture, surRelire, surRattacher, formulaire }: {
   v: VarianteSpatiale; enCours: string | null; relecture: PropsCreationsProjet['relecture']; ouverte: boolean;
   surIterer: () => void; surOuvrirRelecture: () => void; surRelire: () => void;
+  /** « Rattacher au test » · absent sans accès Adsmap, sans droit, ou quand un test est déjà ouvert. */
+  surRattacher: (() => void) | null; formulaire: ReactNode;
 }) {
   return (
     <div className="prow" data-variante={v.id} style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -161,11 +196,13 @@ function CarteVariante({ v, enCours, relecture, ouverte, surIterer, surOuvrirRel
       </div>
       <div className="kc">
         {v.test && <Lien className="btn sm" href={v.test.href}><Ic n="chart" />Adsmap</Lien>}
+        {surRattacher && <button className="btn sm" type="button" data-geste="rattacher" aria-expanded={!!formulaire} onClick={surRattacher}><Ic n="flask" />Rattacher au test</button>}
         {v.gestes.iterer && <button className="btn sm" type="button" disabled={!!enCours} onClick={surIterer}><Ic n="loop" />{enCours === `iterer:${v.id}` ? 'Itération…' : 'Itérer'}</button>}
         {v.gestes.relire && v.lienTest && relecture.coutMaxUsd !== null && (ouverte
           ? <button className="btn sm pri" type="button" disabled={!!enCours || !relecture.disponible} onClick={surRelire}>{enCours === `relire:${v.id}` ? 'Relecture…' : 'Confirmer la relecture'}</button>
           : <button className="btn sm" type="button" disabled={!!enCours} onClick={surOuvrirRelecture}><Ic n="bulb" />Relire</button>)}
       </div>
+      {formulaire}
     </div>
   );
 }

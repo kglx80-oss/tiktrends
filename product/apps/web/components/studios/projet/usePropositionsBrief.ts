@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from './useAppelPayant';
+import {useAppelPayant,MESSAGE_APPEL_PAYANT,resultatPayantIncertain} from '../../../lib/studios/appel-payant';
 import type { ChangementPatch } from '@tiktrends/core';
 import {
   listerPropositions, proposerBrief, creerPropositionManuelle, appliquerProposition, rejeterProposition,

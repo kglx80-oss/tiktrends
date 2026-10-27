@@ -1,4 +1,10 @@
-'use client';
+/**
+ * Verrou des appels payants d'un projet (un appel en cours ou au résultat
+ * incertain bloque toute nouvelle demande du même geste). Module NEUTRE · partagé
+ * par l'interface Spatial et l'ancienne interface, sans `'use client'` : le hook
+ * ne s'exécute que dans un composant client, la constante et la règle restent
+ * des valeurs ordinaires (jamais des références client).
+ */
 import {useCallback,useSyncExternalStore} from 'react';
 type Etat='pending'|'uncertain';
 type Tentative={etat:Etat;token:string};

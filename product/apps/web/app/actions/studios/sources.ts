@@ -138,12 +138,14 @@ export async function lireProjetDetail(entree: { projectId: unknown; versionId?:
 }
 
 /** Lecture pure · les cartes de reprise. */
-export async function listerProjetsCartes(entree?: { brandId?: unknown }): Promise<Reponse<{ cartes: CarteProjet[] }>> {
+export async function listerProjetsCartes(entree?: { brandId?: unknown; archives?: unknown }): Promise<Reponse<{ cartes: CarteProjet[] }>> {
   const g = await gardeSources('studio.read');
   if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
   if (coupe) return coupe;
   const { listerCartesPour } = await import('../../../lib/studios/sources/projet');
   const brandId = typeof entree?.brandId === 'string' ? entree.brandId : null;
-  return { ok: true, cartes: await listerCartesPour(g.ctx, { brandId, veilleOuverte: g.veilleOuverte, maintenant: new Date() }) };
+  // `archives: true` · les projets archivés de la même portée (filtre « Archivés », restauration).
+  const statut = entree?.archives === true ? 'archived' as const : 'active' as const;
+  return { ok: true, cartes: await listerCartesPour(g.ctx, { brandId, veilleOuverte: g.veilleOuverte, maintenant: new Date(), statut }) };
 }
