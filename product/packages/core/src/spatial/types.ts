@@ -10,3 +10,6 @@ export interface EcranSpatial {
   chemin: string;
   section: SectionSpatiale;
 }
+
+/** Couleur de barre du navigateur sous Spatial · le fond de la maquette (`html,body{background:#0b1220}`). */
+export const COULEUR_BARRE_SPATIALE = '#0b1220';
