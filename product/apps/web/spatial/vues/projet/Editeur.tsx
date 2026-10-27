@@ -1,19 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ClavierReact, type PointerEvent as PointeurReact } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent as ClavierReact, type PointerEvent as PointeurReact, type ReactNode } from 'react';
 import {
   FORMATS_DOCUMENT, FORMATS_EDITEUR, ORDRE_FORMATS, PART_PRODUIT_INITIALE, POLICES_EDITEUR,
   ajouterForme, ajouterMedia, ajouterTexte, alignerCalque, annulerEtape, appliquerOperation, bornesTailleTexte, calqueApresRetrait, calquesParZ,
   classeFormat, definirVerrou, definirVisibilite, deplacementVersDocument, documentInitial, dupliquerCalque, enregistrerEtape, formatDuDocument,
-  historiqueInitial, iconeCalque, longueurTexte, memeValeur, modifierRemplissage, modifierTexte, noteCalques, nuancier, patchDocument,
+  historiqueInitial, iconeCalque, libelleZoom, longueurTexte, raccourciZoom, MARGE_ZONE_EDITEUR, memeValeur, modifierRemplissage, modifierTexte, noteCalques, nuancier, patchDocument,
   policeEditeur, prochainAnnuler, prochainRetablir, reappliquerModifications, renommerCalque, reordonnerCalque, retablirEtape,
   statutEnregistrement, supprimerCalque, titreInspecteur, transformerCalque, annonceRestauration, decisionRestauration,
   type CalqueStudio, type ContenuVersion, type DocumentStudio, type FormatDocument, type FormatPropose, type HistoriqueCalques,
   type ModeAlignement, type ProduitInitial, type ResultatOperation, type SensOrdre,
 } from '@tiktrends/core';
+import { createPortal } from 'react-dom';
 import { enregistrerDocument } from '../../../app/actions/studios/projets';
 import { listerVersionsDocument, relireDocumentEditeur, restaurerVersionDocument } from '../../../lib/studios/editeur/actions';
 import type { MediaEditeur, VersionListee } from '../../../lib/studios/editeur/types';
+import { useZoomEditeur } from '../../../lib/studios/editeur/use-zoom-editeur';
 import { effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale } from '../../../lib/studios/editeur/sauvegarde-locale';
 import { useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
@@ -68,6 +70,55 @@ function chargerPolices() {
 }
 const pct = (v: number, t: number) => `${(v / t) * 100}%`;
 
+/** Téléphone · le seuil de la maquette (`max-width:760px`). Le rendu serveur vaut ordinateur, la lecture suit au montage. */
+const MEDIA_TELEPHONE = '(max-width: 760px)';
+function suivreTelephone(f: () => void) {
+  if (typeof window === 'undefined' || !window.matchMedia) return () => {};
+  const mq = window.matchMedia(MEDIA_TELEPHONE);
+  mq.addEventListener('change', f);
+  return () => mq.removeEventListener('change', f);
+}
+function useTelephone(): boolean {
+  return useSyncExternalStore(suivreTelephone, () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(MEDIA_TELEPHONE).matches, () => false);
+}
+
+/**
+ * Un panneau PLEIN ÉCRAN du téléphone (calques, propriétés) · comme l'éditeur
+ * V5 : modal, Échap ou « Fermer » le referment, le focus y reste piégé puis
+ * revient à l'élément d'origine. Il ne fait qu'AFFICHER les mêmes contrôles.
+ */
+function PanneauPleinEcran({ titre, nom, onFermer, children }: { titre: string; nom: string; onFermer: () => void; children: ReactNode }) {
+  const id = useId();
+  const boite = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const precedent = document.activeElement as HTMLElement | null;
+    boite.current?.querySelector<HTMLElement>('[data-fermer-panneau]')?.focus();
+    return () => { precedent?.focus?.(); };
+  }, []);
+  // Rendu dans `body` · la fenêtre `main.win` (verre dépoli) forme son propre empilement, le dock du téléphone passerait dessus.
+  return createPortal(
+    <div className="paywrap" style={{ padding: 0, placeItems: 'stretch', zIndex: 61 }}>
+      <div ref={boite} className="tile glass" role="dialog" aria-modal="true" aria-labelledby={id} data-panneau-mobile={nom} tabIndex={-1}
+        style={{ borderRadius: 0, height: '100dvh', overflowY: 'auto', display: 'grid', gap: 14, alignContent: 'start' }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onFermer(); return; }
+          if (e.key !== 'Tab') return;
+          const f = [...(boite.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href]') ?? [])];
+          const premier = f[0]; const dernier = f[f.length - 1];
+          if (e.shiftKey && document.activeElement === premier) { e.preventDefault(); dernier?.focus(); }
+          else if (!e.shiftKey && document.activeElement === dernier) { e.preventDefault(); premier?.focus(); }
+        }}>
+        <div className="sech" style={{ margin: 0 }}>
+          <h2 id={id}>{titre}</h2>
+          <button className="btn sm" type="button" data-fermer-panneau="" style={{ marginLeft: 'auto' }} onClick={onFermer}><Ic n="x" />Fermer</button>
+        </div>
+        {children}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function Editeur(props: PropsEditeur) {
   const { projet, produit, medias, apercus, peutEnregistrer: editable } = props;
   const { toast } = useSpatial();
@@ -87,6 +138,8 @@ export function Editeur(props: PropsEditeur) {
   const [taille, setTaille] = useState<{ id: string; px: number } | null>(null);
   const [glisse, setGlisse] = useState<{ id: string; x0: number; y0: number; px: number; py: number; dx: number; dy: number; largeur: number } | null>(null);
   const cadre = useRef<HTMLDivElement>(null);
+  const telephone = useTelephone();
+  const [panneau, setPanneau] = useState<'calques' | 'proprietes' | null>(null);
 
   useEffect(() => { chargerPolices(); }, []);
 
@@ -99,6 +152,11 @@ export function Editeur(props: PropsEditeur) {
   const pile = present ? calquesParZ(present) : [];
   const format = present ? formatDuDocument(present) : null;
   const couleurs = useMemo(() => nuancier(props.couleursMarque, present, 4), [props.couleursMarque, present]);
+  // Zoom de la zone de travail · état d'AFFICHAGE seulement, jamais dans le document ni l'historique.
+  const zoom = useZoomEditeur(present ? { width: present.width, height: present.height } : null);
+  // Un panneau ouvert sur un calque disparu (suppression, restauration) se referme.
+  useEffect(() => { if (panneau === 'proprietes' && !calque) setPanneau(null); }, [panneau, calque]);
+  useEffect(() => { if (!telephone) setPanneau(null); }, [telephone]);
 
   /* ── Copie de secours (cet appareil seulement) ─────────────────────────── */
   useEffect(() => {
@@ -166,12 +224,13 @@ export function Editeur(props: PropsEditeur) {
     toast(reappliquer ? `Version ${v.n} rechargée · tes modifications sont réappliquées, enregistre pour les garder` : `Version ${v.n} rechargée`);
   };
 
-  /* ── Raccourcis · Ctrl+Z, Ctrl+Maj+Z, Ctrl+S (comme la V5) ─────────────── */
-  const derniers = useRef({ annuler: () => {}, retablir: () => {}, enregistrer: () => {} });
+  /* ── Raccourcis · Ctrl+Z, Ctrl+Maj+Z, Ctrl+S, zoom Ctrl+ · Ctrl− · Ctrl+0 (comme la V5) ── */
+  const derniers = useRef({ annuler: () => {}, retablir: () => {}, enregistrer: () => {}, zoomer: ((): boolean => false) as (a: Parameters<typeof zoom.agir>[0]) => boolean });
   derniers.current = {
     annuler: () => { if (h && annulable) setH(annulerEtape(h)); },
     retablir: () => { if (h && retablissable) setH(retablirEtape(h)); },
     enregistrer: () => { void enregistrer(); },
+    zoomer: zoom.agir,
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -180,6 +239,9 @@ export function Editeur(props: PropsEditeur) {
       const cible = e.target as HTMLElement | null;
       const dansChamp = !!cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA' || cible.tagName === 'SELECT');
       if (k === 's') { e.preventDefault(); if (dansChamp) cible.blur(); setTimeout(() => derniers.current.enregistrer(), 0); return; }
+      // Zoom · Ctrl/⌘ + · − · 0, jamais pendant une saisie (la touche reste alors au navigateur) ni sans zone mesurée.
+      const az = raccourciZoom({ key: e.key, code: e.code, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, dansChamp });
+      if (az) { if (derniers.current.zoomer(az)) e.preventDefault(); return; }
       if (dansChamp) return;
       if (k === 'z' && !e.shiftKey) { e.preventDefault(); derniers.current.annuler(); }
       else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); derniers.current.retablir(); }
@@ -241,11 +303,61 @@ export function Editeur(props: PropsEditeur) {
     toast(`Version ${r.restauree.n} restaurée · c’est maintenant la version ${r.version.n}.`);
   }
 
+  const choisirCalque = (id: string) => { setSelection(id); if (telephone) setPanneau('proprietes'); };
+  const listeCalques = (
+    <>
+      {pile.map((c) => (
+        <button key={c.id} type="button" className="layer" data-layer={c.id} aria-pressed={selection === c.id} onClick={() => choisirCalque(c.id)}>
+          <Ic n={iconeCalque(c)} />{c.name}<span className="faint">{c.locked && <Ic n="lock" />}</span>
+        </button>
+      ))}
+      <p className="faint" style={{ fontSize: '11.5px', marginTop: 8 }}>{noteCalques(present)}</p>
+    </>
+  );
+  const inspecteur = (
+    <>
+            <div className="lbl">{titreInspecteur(calque)}</div>
+            {calque?.kind === 'text' && present && (
+              <>
+                <label className="field">Texte<textarea id="stext" spellCheck={false} value={texte} disabled={!editable || calque.locked}
+                  onChange={(e) => setBrouillon({ id: calque.id, texte: e.target.value })} onBlur={validerTexte} /></label>
+                <span className="faint num" id="scount" style={{ fontSize: '11.5px' }}>{longueurTexte(texte)}</span>
+                <label className="field">Taille du texte<input type="range" id="ssize" {...bornesTailleTexte(present, tailleTexte)} value={tailleTexte} disabled={!editable || calque.locked}
+                  onChange={(e) => setTaille({ id: calque.id, px: Number(e.target.value) })} onPointerUp={validerTaille} onKeyUp={validerTaille} onBlur={validerTaille} /></label>
+                <div className="field">Couleur du texte<div className="swatches">
+                  {couleurs.map((c) => <button key={c} type="button" data-sw={c} aria-pressed={calque.color === c} style={{ background: c }} aria-label={`Couleur ${c}`} disabled={!editable || calque.locked} onClick={() => surCalque((d, id) => modifierTexte(d, id, { color: c }))} />)}
+                </div></div>
+              </>
+            )}
+            {calque?.kind === 'shape' && (
+              <div className="field">Couleur de la forme<div className="swatches">
+                {couleurs.map((c) => <button key={c} type="button" data-sw={c} aria-pressed={calque.fill === c} style={{ background: c }} aria-label={`Couleur ${c}`} disabled={!editable || calque.locked} onClick={() => surCalque((d, id) => modifierRemplissage(d, id, c))} />)}
+              </div></div>
+            )}
+            {(calque?.kind === 'image' || calque?.kind === 'logo') && (
+              <p className="muted" style={{ fontSize: 13 }}>{calque.id === 'produit' ? 'Photo produit issue du projet · référencée, jamais copiée ni régénérée.' : `${calque.kind === 'logo' ? 'Logo' : 'Média'} du projet · ${calque.width} × ${calque.height} px dans le document, référencé, jamais copié.`}</p>
+            )}
+            {!calque && <p className="muted" style={{ fontSize: 13 }}>{present ? 'Choisis un calque dans la liste ou sur l’aperçu pour le modifier.' : 'Crée d’abord le document.'}</p>}
+            <div style={{ borderTop: '1px solid var(--edge2)', paddingTop: 14, display: 'grid', gap: 8 }}>
+              <Lien className="btn pri" href={props.variantesHref}><Ic n="loop" />Tester des variantes</Lien>
+              {props.exporterHref
+                ? <Lien className="btn" href={props.exporterHref}><Ic n="down" />Exporter</Lien>
+                : <button className="btn" type="button" disabled title="L’export n’est pas ouvert pour ton rôle ou ton espace"><Ic n="down" />Exporter</button>}
+            </div>
+    </>
+  );
+
   return (
     <Vue>
       <EnTete titre="Éditeur" sous={`${projet.titre} · version ${base.n}${present ? ` · ${present.width} × ${present.height} px` : ''}`} />
       <div className="wshead">
         <Lien className="btn sm" href={`/studio/projets/${projet.id}`}><Ic n="back" />Retour au projet</Lien>
+        {telephone && present && (
+          <>
+            <button className="btn sm" type="button" data-ouvrir-panneau="calques" aria-haspopup="dialog" onClick={() => setPanneau('calques')}><Ic n="grid" />Calques · {pile.length}</button>
+            <button className="btn sm" type="button" data-ouvrir-panneau="proprietes" aria-haspopup="dialog" disabled={!calque} title={calque ? undefined : 'Choisis d’abord un calque'} onClick={() => setPanneau('proprietes')}>{calque ? `Propriétés de « ${calque.name} »` : 'Propriétés'}</button>
+          </>
+        )}
         {editable && present && (
           <>
             <span className={`pill ${statut.etat === 'enregistre' ? 'c' : statut.etat === 'modifie' ? '' : 'w'}`} role="status" style={{ marginLeft: 'auto' }}>{statut.etat === 'enregistre' && <Ic n="check" />}{statut.libelle}</span>
@@ -289,15 +401,10 @@ export function Editeur(props: PropsEditeur) {
       )}
 
       <div className="studio">
-        <aside className="tile layers" aria-label="Calques">
+        {!telephone && <aside className="tile layers" aria-label="Calques">
           <div className="lbl" style={{ marginBottom: 6 }}>Calques</div>
-          {pile.map((c) => (
-            <button key={c.id} type="button" className="layer" data-layer={c.id} aria-pressed={selection === c.id} onClick={() => setSelection(c.id)}>
-              <Ic n={iconeCalque(c)} />{c.name}<span className="faint">{c.locked && <Ic n="lock" />}</span>
-            </button>
-          ))}
-          <p className="faint" style={{ fontSize: '11.5px', marginTop: 8 }}>{noteCalques(present)}</p>
-        </aside>
+          {listeCalques}
+        </aside>}
 
         <div className="canvas">
           <div className="seg" role="group" aria-label="Format">
@@ -309,9 +416,10 @@ export function Editeur(props: PropsEditeur) {
           </div>
           <div style={{ position: 'relative', width: '100%', display: 'grid', placeItems: 'center' }} id="art">
             {present ? (
+              <ZoneZoom zoom={zoom} hauteur={telephone ? '60vh' : '520px'}>
               <div ref={cadre} className={`ad ${classeFormat(format)}`} role="group" tabIndex={0} aria-label={`Aperçu du document, ${present.width} × ${present.height} pixels, ${pile.length} calque${pile.length > 1 ? 's' : ''}`}
                 onKeyDown={clavierSurface} onPointerDown={() => setSelection(null)} onPointerMove={bouge} onPointerUp={fin} onPointerCancel={fin}
-                style={{ position: 'relative', aspectRatio: `${present.width} / ${present.height}`, containerType: 'inline-size', touchAction: glisse ? 'none' : 'auto' }}>
+                style={{ position: 'relative', aspectRatio: `${present.width} / ${present.height}`, containerType: 'inline-size', touchAction: glisse ? 'none' : 'auto', ...(zoom.disposition ? { width: '100%', maxWidth: 'none' } : {}) }}>
                 <div className="ph" style={{ position: 'relative' }}>
                   {pile.map((c, rang) => {
                     if (!c.visible) return null;
@@ -326,6 +434,7 @@ export function Editeur(props: PropsEditeur) {
                   })}
                 </div>
               </div>
+              </ZoneZoom>
             ) : (
               <div className="tile" style={{ display: 'grid', gap: 10, maxWidth: 420 }} data-etat="document-vide">
                 <strong>Ce projet n’a pas encore de document image</strong>
@@ -340,40 +449,25 @@ export function Editeur(props: PropsEditeur) {
               </div>
             )}
           </div>
-          <p className="faint" style={{ fontSize: '11.5px' }}>{calque?.locked ? 'Calque verrouillé : déverrouille-le pour le modifier.' : present ? 'Calque sélectionné encadré · glisse-le ou utilise les flèches (Maj : 10 px).' : `Formats proposés : ${ORDRE_FORMATS.map((f) => FORMATS_DOCUMENT[f].libelle).join(', ')}.`}</p>
+          <p className="faint" style={{ fontSize: '11.5px' }}>{calque?.locked ? 'Calque verrouillé : déverrouille-le pour le modifier.' : present ? `Calque sélectionné encadré · glisse-le ou utilise les flèches (Maj : 10 px).${telephone ? '' : ' Zoom · Ctrl + molette autour du pointeur, Ctrl+ et Ctrl− par paliers, Ctrl+0 ajuste · la molette seule déplace la vue.'}` : `Formats proposés : ${ORDRE_FORMATS.map((f) => FORMATS_DOCUMENT[f].libelle).join(', ')}.`}</p>
         </div>
 
-        <aside className="tile insp">
-          <div className="lbl">{titreInspecteur(calque)}</div>
-          {calque?.kind === 'text' && present && (
-            <>
-              <label className="field">Texte<textarea id="stext" spellCheck={false} value={texte} disabled={!editable || calque.locked}
-                onChange={(e) => setBrouillon({ id: calque.id, texte: e.target.value })} onBlur={validerTexte} /></label>
-              <span className="faint num" id="scount" style={{ fontSize: '11.5px' }}>{longueurTexte(texte)}</span>
-              <label className="field">Taille du texte<input type="range" id="ssize" {...bornesTailleTexte(present, tailleTexte)} value={tailleTexte} disabled={!editable || calque.locked}
-                onChange={(e) => setTaille({ id: calque.id, px: Number(e.target.value) })} onPointerUp={validerTaille} onKeyUp={validerTaille} onBlur={validerTaille} /></label>
-              <div className="field">Couleur du texte<div className="swatches">
-                {couleurs.map((c) => <button key={c} type="button" data-sw={c} aria-pressed={calque.color === c} style={{ background: c }} aria-label={`Couleur ${c}`} disabled={!editable || calque.locked} onClick={() => surCalque((d, id) => modifierTexte(d, id, { color: c }))} />)}
-              </div></div>
-            </>
-          )}
-          {calque?.kind === 'shape' && (
-            <div className="field">Couleur de la forme<div className="swatches">
-              {couleurs.map((c) => <button key={c} type="button" data-sw={c} aria-pressed={calque.fill === c} style={{ background: c }} aria-label={`Couleur ${c}`} disabled={!editable || calque.locked} onClick={() => surCalque((d, id) => modifierRemplissage(d, id, c))} />)}
-            </div></div>
-          )}
-          {(calque?.kind === 'image' || calque?.kind === 'logo') && (
-            <p className="muted" style={{ fontSize: 13 }}>{calque.id === 'produit' ? 'Photo produit issue du projet · référencée, jamais copiée ni régénérée.' : `${calque.kind === 'logo' ? 'Logo' : 'Média'} du projet · ${calque.width} × ${calque.height} px dans le document, référencé, jamais copié.`}</p>
-          )}
-          {!calque && <p className="muted" style={{ fontSize: 13 }}>{present ? 'Choisis un calque dans la liste ou sur l’aperçu pour le modifier.' : 'Crée d’abord le document.'}</p>}
-          <div style={{ borderTop: '1px solid var(--edge2)', paddingTop: 14, display: 'grid', gap: 8 }}>
-            <Lien className="btn pri" href={props.variantesHref}><Ic n="loop" />Tester des variantes</Lien>
-            {props.exporterHref
-              ? <Lien className="btn" href={props.exporterHref}><Ic n="down" />Exporter</Lien>
-              : <button className="btn" type="button" disabled title="L’export n’est pas ouvert pour ton rôle ou ton espace"><Ic n="down" />Exporter</button>}
-          </div>
-        </aside>
+        {!telephone && <aside className="tile insp">
+          {inspecteur}
+        </aside>}
       </div>
+
+      {telephone && panneau === 'calques' && (
+        <PanneauPleinEcran titre="Calques" nom="calques" onFermer={() => setPanneau(null)}>
+          <div className="layers">{listeCalques}</div>
+        </PanneauPleinEcran>
+      )}
+      {telephone && panneau === 'proprietes' && calque && (
+        <PanneauPleinEcran titre={`Propriétés de « ${calque.name} »`} nom="proprietes" onFermer={() => setPanneau(null)}>
+          <div className="insp">{inspecteur}</div>
+          {editable && <GestesCalque calque={calque} operer={operer} retire={(suivant) => { setSelection(suivant); setPanneau(null); }} ordre={pile.map((c) => c.id).reverse()} />}
+        </PanneauPleinEcran>
+      )}
 
       {present && editable && (
         <section className="tile sec" aria-label="Gestes du calque">
@@ -469,5 +563,39 @@ function GestesCalque({ calque, operer, retire, ordre }: { calque: CalqueStudio;
         <button className="chip" type="button" disabled={calque.locked} onClick={() => { const suivant = calqueApresRetrait(ordre, id); operer((d) => supprimerCalque(d, id)); retire(suivant); }}><Ic n="x" />Supprimer</button>
       </div>
     </div>
+  );
+}
+
+/**
+ * La zone de travail ZOOMABLE (portée de l'éditeur V5 · `ZoneTravail`) · le
+ * document dans une boîte défilante et sa barre (− · valeur · + · Ajuster),
+ * dans le `#art` de la maquette. − et + zooment par paliers autour du centre,
+ * Ctrl/⌘ + molette autour du pointeur, « Ajuster » cadre le document entier,
+ * la valeur ramène à 100 %. Avant la mesure (rendu serveur), le document garde
+ * la taille de la maquette. Rien ne touche le document ni l'historique.
+ */
+function ZoneZoom({ zoom, hauteur, children }: { zoom: ReturnType<typeof useZoomEditeur>; hauteur: string; children: ReactNode }) {
+  const { zoom: z, disposition: d, mode } = zoom;
+  const mesure = z !== null;
+  const valeur = mesure ? libelleZoom(z) : 'Ajusté';
+  return (
+    <>
+      <div className="seg" role="toolbar" aria-label="Affichage du document" data-barre="zoom" style={{ marginBottom: 10 }}>
+        <button type="button" data-zoom-action="moins" aria-label="Zoom arrière" aria-keyshortcuts="Control+- Meta+-" title="Zoom arrière (Ctrl −)" disabled={!mesure || zoom.auMin} onClick={() => zoom.agir('moins')}>−</button>
+        <button type="button" data-zoom-action="reelle" aria-label={`Zoom ${valeur} · revenir à la taille réelle (100 %)`} title="Taille réelle (100 %)" disabled={!mesure} onClick={() => zoom.agir('reelle')}><span className="num" data-zoom-valeur="">{valeur}</span></button>
+        <button type="button" data-zoom-action="plus" aria-label="Zoom avant" aria-keyshortcuts="Control+= Meta+= Control++ Meta++" title="Zoom avant (Ctrl +)" disabled={!mesure || zoom.auMax} onClick={() => zoom.agir('plus')}>+</button>
+        <button type="button" data-zoom-action="ajuster" aria-pressed={mode === 'ajuste'} aria-keyshortcuts="Control+0 Meta+0" title="Cadrer le document entier dans la zone (Ctrl 0)" onClick={() => zoom.agir('ajuster')}>Ajuster</button>
+      </div>
+      <div ref={zoom.refZone} data-zone-travail="" data-zoom={mesure ? String(Math.round(z * 1000) / 1000) : 'css'} data-mode-zoom={mode}
+        style={{ position: 'relative', width: '100%', height: hauteur, overflow: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}>
+        {d ? (
+          <div style={{ position: 'relative', width: d.contenu.largeur, height: d.contenu.hauteur }}>
+            <div style={{ position: 'absolute', left: d.origine.x, top: d.origine.y, width: d.document.largeur }}>{children}</div>
+          </div>
+        ) : (
+          <div style={{ boxSizing: 'border-box', height: '100%', padding: MARGE_ZONE_EDITEUR, display: 'grid', placeItems: 'center' }}>{children}</div>
+        )}
+      </div>
+    </>
   );
 }
