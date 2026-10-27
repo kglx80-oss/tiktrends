@@ -5,7 +5,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
- * F-B · l'écran du parcours image au HTML RENDU.
+ * F-B · l'écran du parcours image au HTML RENDU · porté sur le parcours
+ * Spatial (`spatial/vues/projet/ParcoursImage.tsx`, atelier « Produit ») quand
+ * la page V5 a été retirée (vague 2). Mêmes états, mêmes gestes ; un geste
+ * payant (compiler, lancer) demande désormais un SECOND clic de confirmation.
  *
  *  · chaque état se lit en MOTS : indisponible (sans release, sans
  *    fournisseur d'images, lecteur), consigne compilée en attente, retenue
@@ -30,12 +33,12 @@ vi.mock('../app/actions/studios/image', () => ({
 }));
 vi.mock('../app/actions/studios/execution', () => ({ annulerJob: m.annuler }));
 vi.mock('../app/actions/studios/produit', () => ({ trancherComposants: m.trancher }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1/produit', useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
 
 import { disponibiliteImage, verdictConsigne, qualifierDevis, type VerdictConsigne } from '@tiktrends/core';
 import type { VueParcoursImage, JobImageVue, ConsigneVue } from '../lib/studios/image/parcours';
-import { VueParcours, type ProprietesVueParcours } from '../components/studios/image/VueParcours';
-import { ParcoursImage } from '../components/studios/image/ParcoursImage';
+import { ParcoursImage } from '../spatial/vues/projet/ParcoursImage';
+import { avecSpatial } from './spatial/fournisseur';
 
 const TOUT = { peutGenerer: true, peutProposer: true, briefPresent: true, preparationOk: true, releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true };
 const CONSIGNE: ConsigneVue = {
@@ -61,10 +64,15 @@ function vue(o: Partial<VueParcoursImage> = {}, dispo = TOUT): VueParcoursImage 
     controleVision: { disponible: false, borneParImageUsdMicros: 0 }, ...o,
   };
 }
-const gestes = () => ({ surMode: vi.fn(), surCompiler: vi.fn(), surRetenir: vi.fn(), surDevis: vi.fn(), surLancer: vi.fn(), surAnnuler: vi.fn(), surRelire: vi.fn() });
-function rendre(v: VueParcoursImage, o: Partial<ProprietesVueParcours> = {}) {
+/** L'écran rendu au client (jsdom) sur une vue donnée · aucune lecture au montage (`initial`). */
+const montes: Array<{ racine: Root; d: HTMLDivElement }> = [];
+afterEach(() => { for (const x of montes.splice(0)) { act(() => x.racine.unmount()); x.d.remove(); } });
+function rendre(v: VueParcoursImage) {
   const d = document.createElement('div');
-  d.innerHTML = renderToStaticMarkup(<VueParcours vue={v} mode="generative_scene" enCours={null} retour={null} questions={[]} {...gestes()} {...o} />);
+  document.body.appendChild(d);
+  const racine = createRoot(d);
+  act(() => { racine.render(avecSpatial(<ParcoursImage projectId="p1" versionId="v3" initial={v} />)); });
+  montes.push({ racine, d });
   return d;
 }
 const bouton = (d: ParentNode, nom: string) => d.querySelector<HTMLButtonElement>(`[data-bouton="${nom}"]`);
@@ -76,8 +84,8 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(bouton(d, 'compiler')!.disabled).toBe(true);
     expect(txt(d, '[data-indisponible="compilation"]')).toBe('Indisponible · La compilation de la consigne image n’est pas encore activée : aucune version des consignes n’est publiée. Rien n’est facturé.');
     expect(txt(d, '[data-cout="compilation"]')).toBe('Appel texte payant · environ 0,14 $ (estimation) · borne exacte réservée avant l’envoi, sous le plafond · préparation uniquement, l’image sera facturée séparément.');
-    expect(txt(d, '[data-indisponible="lancement"]')).toContain('Le fournisseur d’images n’est pas branché sur ce serveur');
-    expect(bouton(d, 'devis')!.disabled).toBe(true);
+    // Sans consigne retenue, ni le devis ni le lancement ne sont proposés (aucun bouton mort).
+    expect(bouton(d, 'devis')).toBeNull();
     expect(bouton(d, 'lancer')).toBeNull();
     expect(txt(d, '[data-consigne="aucune"]')).toBe('Aucune consigne retenue pour ce projet.');
     expect(txt(d, '[data-etat="sans-job"]')).toBe('Aucune génération lancée pour ce projet.');
@@ -90,13 +98,13 @@ describe('états de l’écran · au HTML rendu', () => {
     const d = rendre(vue({ enAttente: CONSIGNE }));
     const c = d.querySelector('[data-consigne="en-attente"]')!;
     expect(txt(c, '[data-champ="instruction"]')).toBe(CONSIGNE.generationInstruction);
-    expect(txt(c, '[data-champ="proteges"]')).toBe('Composants protégés : lunettes, bandeau.');
-    expect(txt(c, '[data-champ="interdits"]')).toBe('Pas de texte dans l’image');
-    expect(txt(c, '[data-champ="liaisons"]')).toBe('Fichiers transmis au fournisseur : Lunettes Sport Bandeau · photo 5 (rôle Produit, portée Produit).');
+    expect(txt(c, '[data-champ="proteges"]')).toBe('Composants protégés · lunettes, bandeau.');
+    expect(txt(c, '[data-champ="interdits"]')).toBe('À éviter · Pas de texte dans l’image');
+    expect(txt(c, '[data-champ="liaisons"]')).toBe('Fichiers transmis au fournisseur · Lunettes Sport Bandeau · photo 5 (rôle Produit, portée Produit).');
     expect(bouton(d, 'retenir')!.disabled).toBe(false);
     expect(c.textContent).toContain('Validation gratuite · aucune génération.');
-    expect(bouton(d, 'devis')!.disabled).toBe(true);
-    expect(d.textContent).toContain('Retiens d’abord une consigne compilée.');
+    // Pas de devis tant que rien n'est retenu · le geste n'est pas offert.
+    expect(bouton(d, 'devis')).toBeNull();
   });
 
   it('consigne retenue bloquée (liaison concurrente) · le motif est écrit, le devis n’est pas proposé', () => {
@@ -106,7 +114,7 @@ describe('états de l’écran · au HTML rendu', () => {
     const d = rendre(vue({ retenue: { ...CONSIGNE, verdict: bloquee } }));
     expect(d.querySelector('[data-consigne="retenue"]')!.getAttribute('data-pret')).toBe('non');
     expect(txt(d, '[data-champ="verdict"]')).toBe(bloquee.motif);
-    expect(bouton(d, 'devis')!.disabled).toBe(true);
+    expect(bouton(d, 'devis')).toBeNull();
   });
 
   it('devis · prix AVANT le clic en crédits et en dollars, puis « Approuver et lancer » séparé et explicite', () => {
@@ -119,7 +127,7 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(txt(d, '[data-prix="devis"]')).toBe('Devis · 4 crédits · 0,08 $ au plus de coût fournisseur · valable jusqu’à 12:30.');
     expect(bouton(d, 'lancer')!.textContent).toBe('Générer mon visuel · 4 crédits');
     expect(bouton(d, 'lancer')!.disabled).toBe(false);
-    expect(d.textContent).toContain('Débite 4 crédits maintenant · rendus si aucune image n’est livrée.');
+    expect(d.textContent).toContain('Débite 4 crédits au second clic · rendus si aucune image n’est livrée.');
     // Fournisseur d'images absent : le bouton reste visible, inactif, avec sa raison.
     const d2 = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h', credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 } }, { ...TOUT, fournisseurImage: false }));
     expect(bouton(d2, 'lancer')!.disabled).toBe(true);
@@ -139,7 +147,7 @@ describe('états de l’écran · au HTML rendu', () => {
     const etats = [...d.querySelectorAll('[data-etat-job]')].map((x) => [x.getAttribute('data-etat-job'), txt(x, '[data-champ="message"]')]);
     expect(etats.map((e) => e[0])).toEqual(['queued', 'running', 'reconciliation_required', 'failed', 'completed']);
     expect(etats[0]![1]).toBe('En file · rien n’est encore envoyé au fournisseur.');
-    expect(txt(d, '[data-job="d"] [data-champ="raison"]')).toBe('Raison : Une référence a disparu ou changé avant l’envoi · rien n’a été envoyé au fournisseur, aucune substitution.');
+    expect(txt(d, '[data-job="d"] [data-champ="raison"]')).toBe('Raison · Une référence a disparu ou changé avant l’envoi · rien n’a été envoyé au fournisseur, aucune substitution.');
     expect(d.querySelector('[data-job="d"]')!.textContent).toContain('4 crédits rendus');
     expect(d.querySelectorAll('[data-bouton="annuler"]').length).toBe(2);
     const e = d.querySelector('[data-job="e"]')!;
@@ -151,22 +159,24 @@ describe('états de l’écran · au HTML rendu', () => {
     expect(telecharger.textContent).toBe('Télécharger mon visuel');
     expect(telecharger.getAttribute('href')).toBe('/api/studios/media/m1');
     expect(telecharger.getAttribute('download')).toBe('');
-    expect(e.textContent).toContain('Votre image est enregistrée dans le projet.');
+    expect(e.textContent).toContain('Ton image est enregistrée dans le projet.');
     const editeur = e.querySelector<HTMLAnchorElement>('a:not([download])')!;
     expect(editeur.getAttribute('href')).toBe('/studio/projets/p1/image');
     expect(editeur.textContent).toBe('Modifier dans l’éditeur');
     expect(d.querySelectorAll('a[download]')).toHaveLength(1);
     // Revue composant par composant, aucun présumé présent.
-    expect([...e.querySelectorAll('[data-relecture] input[type="radio"]')].some((x) => (x as HTMLInputElement).checked)).toBe(false);
+    expect(e.querySelectorAll('[data-relecture] [aria-pressed="true"]')).toHaveLength(0);
     expect(bouton(e, 'relire')!.disabled).toBe(true);
     expect(e.textContent).toContain('aucun n’est présumé présent');
   });
 
   it('lecteur à studio.read · aucun bouton de geste actif, aucune relecture, aucune annulation', () => {
     const d = rendre(vue({ enAttente: CONSIGNE, retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h', credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 }, jobs: [job()] }, { ...TOUT, peutGenerer: false, peutProposer: false }));
-    for (const n of ['compiler', 'retenir', 'devis', 'lancer']) expect(bouton(d, n)!.disabled, n).toBe(true);
+    const presents = ['compiler', 'retenir', 'devis', 'lancer'].filter((n) => bouton(d, n));
+    expect(presents.length).toBeGreaterThan(0);
+    for (const n of presents) expect(bouton(d, n)!.disabled, n).toBe(true);
     expect(bouton(d, 'annuler')).toBeNull();
-    expect(d.textContent).toContain('Ton rôle permet de consulter, pas de compiler (appel texte payant).');
+    expect(rendre(vue({}, { ...TOUT, peutGenerer: false, peutProposer: false })).textContent).toContain('Ton rôle permet de consulter, pas de compiler (appel texte payant).');
   });
 
   it('ancienne direction fidèle : aucune validation offerte, préparation générative explicite disponible', () => {
@@ -205,22 +215,25 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     conteneur = document.createElement('div');
     document.body.appendChild(conteneur);
     racine = createRoot(conteneur);
-    await act(async () => { racine!.render(<ParcoursImage projectId="p1" versionId="v3" />); });
+    await act(async () => { racine!.render(avecSpatial(<ParcoursImage projectId="p1" versionId="v3" />)); });
   }
 
   it('rendu serveur · « Chargement », AUCUNE action appelée (la visite n’écrit rien)', () => {
-    const html = renderToStaticMarkup(<ParcoursImage projectId="p1" versionId="v3" />);
+    const html = renderToStaticMarkup(avecSpatial(<ParcoursImage projectId="p1" versionId="v3" />));
     expect(html).toContain('Chargement de l’état de l’image…');
     expect(html).toContain('Rien n’est lancé à l’ouverture de la page.');
     for (const f of Object.values(m)) expect(f).not.toHaveBeenCalled();
   });
 
-  it('montage · une lecture, rien d’autre ; « Compiler » appelle la compilation du mode choisi', async () => {
+  it('montage · une lecture, rien d’autre ; « Compiler » (après confirmation du coût) appelle la compilation du mode choisi', async () => {
     await monter(vue());
     expect(m.lire).toHaveBeenCalledTimes(1);
     for (const f of [m.compiler, m.retenir, m.devis, m.lancer, m.controler]) expect(f).not.toHaveBeenCalled();
     m.compiler.mockResolvedValue({ ok: true, statut: 'questions', questions: ['Quel décor ?'], runId: null, projectVersionId: 'v3', preparation: {} });
     await act(async () => { bouton(conteneur, 'compiler')!.click(); });
+    expect(m.compiler, 'le premier clic d’un geste payant n’appelle rien').not.toHaveBeenCalled();
+    expect(txt(conteneur, '[data-confirmation="compiler"]')).toContain('environ 0,14 $');
+    await act(async () => { conteneur.querySelector<HTMLButtonElement>('[data-confirmation="compiler"] .btn.pri')!.click(); });
     expect(m.compiler).toHaveBeenCalledWith({ projectId: 'p1', mode: 'generative_scene' });
     expect(txt(conteneur, '[data-champ="questions"]')).toContain('Quel décor ?');
     expect(m.lancer).not.toHaveBeenCalled();
@@ -244,28 +257,42 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     await act(async () => { bouton(conteneur, 'retenir')!.click(); });
     expect(m.devis).not.toHaveBeenCalled();
     expect(m.lancer).not.toHaveBeenCalled();
-    expect(txt(conteneur, '[data-retour]')).toContain('Projet modifié');
+    expect(txt(conteneur, '[data-retour="refus"]')).toContain('Projet modifié');
   });
 
   it('mode proposé · celui de la consigne retenue, pas le premier de la liste', async () => {
     const deuxPrets = vue({ retenue: { ...CONSIGNE, verdict: OK } });
     deuxPrets.modes = deuxPrets.modes.map((x) => ({ ...x, pret: true }));
     await monter(deuxPrets);
-    expect(conteneur.querySelector('[data-mode="generative_scene"]')!.getAttribute('aria-checked')).toBe('true');
-    expect(conteneur.querySelector('[data-mode="faithful_composite"]')!.getAttribute('aria-checked')).toBe('false');
+    // La consigne retenue masque le choix de méthode · on la relit, avec son mode, avant tout geste.
+    expect(conteneur.querySelector('[data-consigne="retenue"]')!.textContent).toContain('Mise en scène générée');
+    const sansRetenue = vue();
+    sansRetenue.modes = sansRetenue.modes.map((x) => ({ ...x, pret: true }));
+    sansRetenue.enAttente = null;
+    act(() => racine!.unmount());
+    await monter({ ...sansRetenue, retenue: null });
+    expect(conteneur.querySelector('[data-mode="generative_scene"]')!.getAttribute('aria-pressed')).toBe('true');
+    expect(conteneur.querySelector('[data-mode="faithful_composite"]')!.getAttribute('aria-pressed')).toBe('false');
   });
 
   it('« Approuver et lancer » · devis affiché transmis tel quel, même clé d’un clic à l’autre (aucun second débit)', async () => {
     await monter(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 } }));
     m.lancer.mockResolvedValue({ ok: false, code: 'BUDGET_EXCEEDED', status: 402, message: 'Crédits insuffisants', targetIds: [], recoverable: false, traceId: 't' });
+    const lancer = async () => {
+      await act(async () => { bouton(conteneur, 'lancer')!.click(); });
+      expect(conteneur.querySelector('[data-confirmation="lancer"]')!.textContent).toBe('Confirmer · débiter 4 crédits');
+      await act(async () => { conteneur.querySelector<HTMLButtonElement>('[data-confirmation="lancer"]')!.click(); });
+    };
     await act(async () => { bouton(conteneur, 'lancer')!.click(); });
-    await act(async () => { bouton(conteneur, 'lancer')!.click(); });
+    expect(m.lancer, 'le premier clic d’un geste payant n’appelle rien').not.toHaveBeenCalled();
+    await act(async () => { conteneur.querySelector<HTMLButtonElement>('[data-confirmation="lancer"]')!.click(); });
+    await lancer();
     expect(m.lancer).toHaveBeenCalledTimes(2);
     const [a, b] = m.lancer.mock.calls.map((c) => c[0] as { quoteId: string; inputHash: string; creditsAnnonces: number; idempotencyKey: string });
     expect(a).toMatchObject({ quoteId: 'q1', inputHash: 'h'.repeat(64), creditsAnnonces: 4 });
     expect(a!.idempotencyKey).toMatch(/^img-/);
     expect(b!.idempotencyKey).toBe(a!.idempotencyKey);
-    expect(txt(conteneur, '[data-retour]')).toBe('Refusé · Crédits insuffisants');
+    expect(txt(conteneur, '[data-retour="refus"]')).toBe('Refusé Crédits insuffisants · identifiant support t');
     expect(m.devis).not.toHaveBeenCalled();
   });
 
@@ -288,7 +315,7 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     m.controler.mockResolvedValue({ ok: false, code: 'PROVIDER_UNCERTAIN', message: 'Contrôle visuel précédent incertain · rapproche-le de la facture avant toute relance.', traceId: 't1' });
     await monter(vue({ jobs: [livre] }));
     for (let i = 0; i < 5; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    expect(txt(conteneur, '[data-retour]'), 'le refus du contrôle visuel est avalé').toBe('Refusé · Contrôle visuel précédent incertain · rapproche-le de la facture avant toute relance.');
+    expect(txt(conteneur, '[data-retour="refus"]'), 'le refus du contrôle visuel est avalé').toBe('Refusé Contrôle visuel précédent incertain · rapproche-le de la facture avant toute relance.');
   });
 
   it('job non terminé · l’état se relit toutes les 4 s, sans autre geste', async () => {

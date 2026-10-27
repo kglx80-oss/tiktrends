@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, useTransition, type CSSProperties } from 'react';
-import { useFocusApresGeste, cleRetour } from '../../../../components/studios/projet/focus-geste';
+import { useFocusApresGeste, cleRetour } from '../../../../lib/studios/focus-geste';
 import { messageHorsLigneStudio } from '@tiktrends/core';
 import { useRouter } from 'next/navigation';
 import { Modal, PiedModale } from '../../../../components/Modal';

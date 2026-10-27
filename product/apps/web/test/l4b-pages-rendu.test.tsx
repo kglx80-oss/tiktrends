@@ -28,11 +28,13 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => h.active, listBrands: async () => [] }));
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, usePathname: () => '/studio/projets', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
 import { session, semer } from './studios-semis';
-import ProjetsPage from '../app/(app)/studio/projets/page';
+// Vague 2 · la liste V5 est retirée · la garde passe sur l'écran Spatial servi à `/studio/projets`.
+import ProjetsPage from '../app/(spatial)/sp/studio/projets/page';
+import { avecSpatial } from './spatial/fournisseur';
 import ProjetPage from '../app/(app)/studio/projets/[id]/page';
 import { creerProjetDepuisSources } from '../app/actions/studios/sources';
 
@@ -47,7 +49,7 @@ let projetSauvegarde = '';
 
 const liste = async (sp: Record<string, string> = {}) => {
   const d = document.createElement('div');
-  d.innerHTML = renderToStaticMarkup(await ProjetsPage({ searchParams: Promise.resolve(sp) }));
+  d.innerHTML = renderToStaticMarkup(avecSpatial(await ProjetsPage({ searchParams: Promise.resolve(sp) })));
   return d;
 };
 const fiche = async (id: string, sp: Record<string, string> = {}) => {
@@ -68,7 +70,9 @@ describe('/studio/projets · reprendre un projet', () => {
   it('premier usage · aucun projet · les trois gestes et le chemin vers la Veille', async () => {
     qui('ua'); h.active = null;
     const d = await liste();
-    expect(d.querySelector('[data-etat="premier-usage"]')?.textContent).toContain('Préparer une création');
+    expect(d.querySelector('.tile h3')?.textContent).toBe('Ton premier projet');
+    expect(d.textContent).toContain('Préparer une création');
+    expect(d.querySelector('[data-projet]')).toBeNull();
     expect(d.querySelector('a[href="/veille"]')).not.toBeNull();
   });
 
@@ -89,19 +93,16 @@ describe('/studio/projets · reprendre un projet', () => {
     h.active = { id: ids.brandA1, name: 'Marque A1' };
     const d = await liste();
     expect(await empreinteBase(), 'la visite a écrit').toBe(avant);
-    expect(d.querySelector('[data-etat="rempli"]')).not.toBeNull();
     const cartes = [...d.querySelectorAll('[data-projet]')];
     expect(cartes.map((c) => c.getAttribute('data-projet'))).toEqual([projet]);
     const c = cartes[0]!;
     expect(c.textContent).toContain('Marque A1');
     expect(c.textContent).toContain('Pub statique');
-    expect(c.querySelector('[data-etape]')?.textContent).toBe('Brief à compléter');
-    expect(c.textContent).toContain('Ce qui manque · Produit de la marque à choisir');
-    // V5 (5.webp) · la version est une pastille en tête de carte (comme « Ø V1 »
-    // du proto), plus dans le pied · le pied porte la date et le compte de sources.
-    expect(c.querySelector('[data-version]')?.textContent).toBe('V1');
-    expect(c.textContent).toMatch(/\d{2}\/\d{2}\/\d{4}/);
-    expect(c.textContent).toContain('1 source');
+    // Spatial · l'étape en pastille, la version en pastille de couverture, le pied dit d'abord ce qui bloque, puis la fraîcheur.
+    expect(c.querySelector('.meta .pill')?.textContent).toBe('Brief à compléter');
+    expect(c.querySelector('.stp')?.textContent).toContain('Produit de la marque à choisir');
+    expect(c.querySelector('.pill.ver')?.textContent).toBe('V1');
+    expect(c.querySelector('.stp')?.textContent).toMatch(/à l’instant|il y a/);
     expect(d.textContent).toContain('voir toutes les marques');
 
     const toutes = await liste({ toutes: '1' });
@@ -113,14 +114,15 @@ describe('/studio/projets · reprendre un projet', () => {
     qui('ua'); h.active = { id: ids.brandA2, name: 'Marque A2' };
     await db.update(schema.studioProjects).set({ status: 'archived' }).where(eq(schema.studioProjects.id, projetSauvegarde));
     const d = await liste();
-    expect(d.querySelector('[data-etat="vide-marque"]')?.textContent).toContain('Aucun projet pour Marque A2');
+    expect(d.querySelector('.tile h3')?.textContent).toBe('Aucun projet pour Marque A2');
+    expect(d.querySelector('[data-projet]')).toBeNull();
     await db.update(schema.studioProjects).set({ status: 'active' }).where(eq(schema.studioProjects.id, projetSauvegarde));
   });
 
   it('accès refusé · lecteur · aucune donnée de projet', async () => {
     qui('uv'); h.active = null;
     const d = await liste();
-    expect(d.querySelector('[data-etat="acces-refuse"]')?.textContent).toContain('Accès réservé');
+    expect(d.querySelector('.tile h3')?.textContent).toBe('Accès réservé');
     expect(d.innerHTML).not.toContain('Accroche chiffrée');
   });
 });

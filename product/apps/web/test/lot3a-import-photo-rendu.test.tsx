@@ -4,8 +4,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 /**
- * UX V2 · lot 3a · photo produit importée dans le projet · RÉSULTATS lus dans
- * le DOM (jsdom) : ce que l'écran DIT et OFFRE à chaque étape, et ce que
+ * UX V2 · lot 3a · photo produit importée dans le projet · porté sur l'atelier
+ * Spatial « Produit » (vague 2, page V5 retirée) · RÉSULTATS lus dans le DOM (jsdom) : ce que l'écran DIT et OFFRE à chaque étape, et ce que
  * l'action reçoit. La compression (canvas, absente de jsdom) est simulée ; la
  * règle de fichier, elle, est la vraie (noyau).
  */
@@ -19,11 +19,12 @@ vi.mock('../app/actions/studios/image', () => ({
   lireParcoursImage: m.lireParcours, compilerConsigneImage: vi.fn(), retenirConsigneImage: vi.fn(), demanderDevisImage: vi.fn(), approuverEtLancerImage: vi.fn(), controlerMediaImage: vi.fn(),
 }));
 vi.mock('../app/actions/studios/execution', () => ({ annulerJob: vi.fn() }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1/produit', useRouter: () => ({ refresh: m.refresh, push: () => {} }) }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...r }: { href: string; children: unknown }) => <a href={href} {...(r as object)}>{children as never}</a> }));
 
 import { MESSAGES_REFUS_PHOTO, ACCEPT_PHOTO_IMPORT } from '@tiktrends/core';
-import { EcranProduit } from '../components/studios/produit/EcranProduit';
+import { Produit } from '../spatial/vues/projet/Produit';
+import { avecSpatial } from './spatial/fournisseur';
 import type { VueProduit } from '../lib/studios/produit/vue';
 
 const DATA = 'data:image/jpeg;base64,/9j/4AAQ';
@@ -55,7 +56,7 @@ function monter(vue: VueProduit) {
   conteneur = document.createElement('div');
   document.body.appendChild(conteneur);
   racine = createRoot(conteneur);
-  act(() => racine!.render(<EcranProduit vue={vue} />));
+  act(() => racine!.render(avecSpatial(<Produit vue={vue} atelier={[]} />)));
 }
 const zone = () => document.querySelector('[data-zone="import-photo"]') as HTMLElement | null;
 const bouton = (libelle: string) => [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === libelle) as HTMLButtonElement | undefined;
@@ -72,13 +73,13 @@ const differe = <T,>() => { let resoudre!: (v: T) => void; let rejeter!: (e: unk
 const OK = { ok: true, version: { id: 'v2', n: 2 }, inchange: false, photoId: 'pph_nouvelle', ajoutee: true };
 
 describe('le geste existe, il est nommé et borné', () => {
-  it('rôle qui peut modifier · zone d’import, bouton de 44 px, formats limités à JPG, PNG, WebP', () => {
+  // La taille des cibles vient de la feuille de la maquette (`.btn`), plus d'un style en ligne de 44 px.
+  it('rôle qui peut modifier · zone d’import, bouton nommé, formats limités à JPG, PNG, WebP', () => {
     monter(vueProduit());
     expect(zone(), 'aucune zone d’import de photo produit dans le projet').not.toBeNull();
     const b = bouton('Choisir une photo et l’épingler')!;
     expect(b, 'bouton d’import absent').toBeTruthy();
     expect(b.disabled).toBe(false);
-    expect(b.style.minHeight).toBe('44px');
     expect(champFichier().getAttribute('accept')).toBe(ACCEPT_PHOTO_IMPORT);
     expect(zone()!.textContent).toContain('« Sérum Clarté »');
   });
@@ -130,7 +131,7 @@ describe('états · échecs, chacun avec un chemin de récupération', () => {
     expect(alerte()).toBe(`Import refusé · ${MESSAGES_REFUS_PHOTO.format}Choisir une autre photo`);
     expect(m.compresser).not.toHaveBeenCalled();
     expect(m.importer).not.toHaveBeenCalled();
-    expect(bouton('Choisir une autre photo')?.style.minHeight).toBe('44px');
+    expect(bouton('Choisir une autre photo')).toBeTruthy();
   });
 
   it('trop lourd même compressé · alerte « trop lourd », rien envoyé', async () => {

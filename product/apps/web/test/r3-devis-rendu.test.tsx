@@ -1,27 +1,32 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
  * R3 · un devis ne dit « au plus » que si TOUTES ses lignes sont des bornes.
  *
- * On REND le composant (écran du parcours image, formulaire de budget du
- * benchmark) et on lit le HTML : la phrase du coût, les lignes et leur nature,
+ * On REND le composant (parcours image Spatial · porté de la V5 en vague 2,
+ * formulaire de budget du benchmark) et on lit le HTML : la phrase du coût, les lignes et leur nature,
  * la case du contrôle visuel (prix dit AVANT le clic, cochée par défaut,
  * décochable), et ce que le geste « Demander un devis » envoie.
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1/produit', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
+const a = vi.hoisted(() => ({ devis: vi.fn(async () => ({ ok: true })), lire: vi.fn() }));
+vi.mock('../app/actions/studios/image', () => ({ lireParcoursImage: a.lire, compilerConsigneImage: vi.fn(), retenirConsigneImage: vi.fn(), demanderDevisImage: a.devis, approuverEtLancerImage: vi.fn(), controlerMediaImage: vi.fn() }));
+vi.mock('../app/actions/studios/execution', () => ({ annulerJob: vi.fn() }));
+vi.mock('../app/actions/studios/produit', () => ({ trancherComposants: vi.fn() }));
 
 import {
   disponibiliteImage, qualifierDevis, vueLignesDevis, borneControleVisionParImageMicros, avecControleVision,
   type LigneDevis, type VerdictConsigne,
 } from '@tiktrends/core';
 import type { VueParcoursImage, ConsigneVue } from '../lib/studios/image/parcours';
-import { VueParcours } from '../components/studios/image/VueParcours';
+import { ParcoursImage } from '../spatial/vues/projet/ParcoursImage';
+import { avecSpatial } from './spatial/fournisseur';
 import { FormulaireBudgetBenchmark } from '../app/(app)/admin/ia-studios/Commandes';
 
 const TOUT = { peutGenerer: true, peutProposer: true, briefPresent: true, preparationOk: true, releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true };
@@ -46,10 +51,14 @@ function vue(lignes: LigneDevis[] | null, controleVision = { disponible: true, b
     devis: lignes ? { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: total, expiresAt: '2026-10-08T10:30:00Z', qualification: qualifierDevis(lignes), lignes: vueLignesDevis(lignes) } : null,
   };
 }
-const gestes = () => ({ surMode: vi.fn(), surCompiler: vi.fn(), surRetenir: vi.fn(), surDevis: vi.fn(), surLancer: vi.fn(), surAnnuler: vi.fn(), surRelire: vi.fn() });
+const montes: Array<{ racine: Root; d: HTMLDivElement }> = [];
+afterEach(() => { for (const x of montes.splice(0)) { act(() => x.racine.unmount()); x.d.remove(); } });
 function rendre(v: VueParcoursImage) {
   const d = document.createElement('div');
-  d.innerHTML = renderToStaticMarkup(<VueParcours vue={v} mode="generative_scene" enCours={null} retour={null} questions={[]} {...gestes()} />);
+  document.body.appendChild(d);
+  const racine = createRoot(d);
+  act(() => { racine.render(avecSpatial(<ParcoursImage projectId="p1" versionId="v3" initial={v} />)); });
+  montes.push({ racine, d });
   return d;
 }
 const txt = (d: ParentNode, sel: string) => (d.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -84,24 +93,20 @@ describe('devis du parcours image · la phrase dit borne ou estimation', () => {
 describe('case « contrôle visuel » · prix avant le clic, cochée par défaut, décochable', () => {
   it('disponible ⇒ cochée, le prix par image est dit ; indisponible ⇒ absente (rien d’annoncé)', () => {
     const d = rendre(vue(null));
-    const c = d.querySelector<HTMLInputElement>('[data-case="controle-vision"] input');
-    expect(c?.checked).toBe(true);
+    const c = d.querySelector<HTMLButtonElement>('[data-case="controle-vision"]');
+    expect(c?.getAttribute('aria-pressed')).toBe('true');
     expect(txt(d, '[data-case="controle-vision"]')).toBe(`Contrôle visuel de l’image livrée · ${(Math.ceil(BORNE_VISION / 10_000) / 100).toFixed(2).replace('.', ',')} $ au plus par image, ajouté au devis · décocher pour s’en passer`);
     expect(rendre(vue(null, { disponible: false, borneParImageUsdMicros: BORNE_VISION })).querySelector('[data-case="controle-vision"]')).toBeNull();
   });
 
   it('le geste « Demander un devis » envoie la case : cochée ⇒ true ; décochée ⇒ false', async () => {
-    const g = gestes();
-    const hote = document.createElement('div');
-    document.body.appendChild(hote);
-    const racine = createRoot(hote);
-    await act(async () => { racine.render(<VueParcours vue={vue(null)} mode="generative_scene" enCours={null} retour={null} questions={[]} {...g} />); });
+    a.lire.mockResolvedValue({ ok: true, vue: vue(null) });
+    const hote = rendre(vue(null));
     await act(async () => { hote.querySelector<HTMLButtonElement>('[data-bouton="devis"]')!.click(); });
-    expect(g.surDevis).toHaveBeenLastCalledWith({ controleVision: true });
-    await act(async () => { hote.querySelector<HTMLInputElement>('[data-case="controle-vision"] input')!.click(); });
+    expect(a.devis).toHaveBeenLastCalledWith({ projectId: 'p1', controleVision: true });
+    await act(async () => { hote.querySelector<HTMLButtonElement>('[data-case="controle-vision"]')!.click(); });
     await act(async () => { hote.querySelector<HTMLButtonElement>('[data-bouton="devis"]')!.click(); });
-    expect(g.surDevis, 'la case décochée n’est pas transmise · le contrôle visuel serait devisé malgré tout').toHaveBeenLastCalledWith({ controleVision: false });
-    await act(async () => { racine.unmount(); });
+    expect(a.devis, 'la case décochée n’est pas transmise · le contrôle visuel serait devisé malgré tout').toHaveBeenLastCalledWith({ projectId: 'p1', controleVision: false });
   });
 });
 
