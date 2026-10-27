@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { JournalCredits } from '@tiktrends/core';
 import { Anneau, EnTete, Ic, Lien, SousNav, Vue, formatNombre } from '../../communs';
 
 /**
@@ -18,6 +19,52 @@ export interface PropsUtilisation {
   factures: ReadonlyArray<FactureSpatiale>;
   /** Pas de facture listable ici · le message et, s'il existe, l'accès au portail de paiement. */
   sansFacture?: { message: string; portail: (() => Promise<void>) | null };
+  /**
+   * Le journal des mouvements (geste de l'écran V5 `/usage`, sans fragment de
+   * maquette · vague 2) · répartition et mouvements. Absent, l'écran reste
+   * celui de la maquette (garde de parité).
+   */
+  journal?: JournalCredits & { ajoute: number; consomme: number };
+}
+
+/** Le journal · `.tl .ev` pour la répartition (comme « Coût par opération »), `.mtable` pour les mouvements (comme « Factures »). */
+function TuilesJournal({ j }: { j: NonNullable<PropsUtilisation['journal']> }) {
+  return (
+    <>
+      <section className="tile" data-geste="repartition">
+        <div className="sech" style={{ margin: '0 0 8px' }}><h2>Où partent tes crédits</h2><span className="faint" style={{ fontSize: '12.5px' }}>{j.fenetre}</span></div>
+        <p className="faint" style={{ fontSize: '12.5px', margin: '0 0 10px' }}>{formatNombre(j.consomme)} débités (avant remboursements) · {formatNombre(j.ajoute)} ajoutés (allocation, recharges, remboursements)</p>
+        {j.familles.length === 0
+          ? <p className="faint" style={{ fontSize: 13, margin: 0 }}>Aucune consommation sur la période.</p>
+          : (
+            <div className="tl">
+              {j.familles.map((f) => (
+                <div className="ev" key={f.libelle}>
+                  <span className="ico"><Ic n="chart" /></span>
+                  <span style={{ flex: 1, display: 'grid', gap: 4 }}>{f.libelle}<i aria-hidden style={{ display: 'block', height: 6, borderRadius: 6, width: `${Math.max(f.part, 3)}%`, background: 'linear-gradient(90deg,var(--acc),var(--acc2))' }} /></span>
+                  <strong className="num">{formatNombre(f.total)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+      </section>
+      <section className="tile" data-geste="journal" style={{ gridColumn: '1/-1' }}>
+        <div className="sech" style={{ margin: '0 0 8px' }}><h2>Journal détaillé</h2><span className="faint" style={{ fontSize: '12.5px' }}>{j.limiteAtteinte ? `${j.lignes.length} mouvements les plus récents` : `${j.lignes.length} mouvement${j.lignes.length > 1 ? 's' : ''}`}</span></div>
+        {j.lignes.length === 0
+          ? <div className="mtable"><div className="mrow" style={{ gridTemplateColumns: '1fr auto' }}><span className="faint">Aucun mouvement pour l’instant · chaque génération consomme des crédits, ce relevé se remplit dès la première.</span><Lien className="btn sm" href="/studio/projets">Ouvrir les Studios</Lien></div></div>
+          : (
+            <div className="mtable">
+              {j.lignes.map((l) => (
+                <div className="mrow" key={l.id} style={{ gridTemplateColumns: '1.6fr 1fr 130px auto' }}>
+                  <strong style={{ overflowWrap: 'anywhere' }}>{l.libelle}</strong><span className="faint">{l.famille}</span><span className="faint">{l.quand}</span>
+                  <span className={`pill${l.positif ? ' g' : ''}`}>{l.delta}</span>
+                </div>
+              ))}
+            </div>
+          )}
+      </section>
+    </>
+  );
 }
 
 export function Utilisation(p: PropsUtilisation) {
@@ -48,6 +95,7 @@ export function Utilisation(p: PropsUtilisation) {
             ))}
           </div>
         </section>
+        {p.journal && <TuilesJournal j={p.journal} />}
         <section className="tile" style={{ gridColumn: '1/-1' }}>
           <h2>Factures</h2>
           <div className="mtable" style={{ marginTop: 10 }}>
