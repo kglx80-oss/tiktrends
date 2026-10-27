@@ -24,6 +24,18 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/veille', useRouter: () 
 vi.mock('../app/actions/inspo', () => actions);
 vi.mock('../app/actions/adsmap-bridge', () => pont);
 vi.mock('../app/actions/market-learn', () => marche);
+const suivi = vi.hoisted(() => ({
+  briefMarqueAction: vi.fn(async () => ({ brief: { total: 8, gagnants: 3, partVideo: 0.75, ancienneteMediane: 21, doyenneJours: 90, angles: [{ angle: 'testimonial', label: 'Témoignage', n: 5, part: 0.6 }], ctas: [{ cta: 'Acheter', n: 4 }], domaines: ['neva.fr'] } })),
+  scanTrackerAction: vi.fn(async () => ({ scanned: 2, newAds: 3 })), markTrackerSeenAction: vi.fn(async () => {}),
+  decouverteMarcheAction: vi.fn(async () => ({ ads: [{ id: 'd1', platform: 'meta', status: 'active', advertiserName: 'Découverte', daysRunning: 40 }] })),
+  grammaireCategorieAction: vi.fn(async () => ({ lignes: [{ axe: 'Mise en page', valeur: 'Produit centré' }], n: 12 })),
+  grammaireVideoAction: vi.fn(async () => ({ lignes: [], n: 0 })),
+}));
+vi.mock('../app/actions/brief-marque', () => ({ briefMarqueAction: suivi.briefMarqueAction }));
+vi.mock('../app/actions/tracker', () => ({ scanTrackerAction: suivi.scanTrackerAction, markTrackerSeenAction: suivi.markTrackerSeenAction }));
+vi.mock('../app/actions/decouverte', () => ({ decouverteMarcheAction: suivi.decouverteMarcheAction }));
+vi.mock('../app/actions/layout-marche', () => ({ grammaireCategorieAction: suivi.grammaireCategorieAction }));
+vi.mock('../app/actions/video-marche', () => ({ grammaireVideoAction: suivi.grammaireVideoAction }));
 
 const { FournisseurSpatial } = await import('../spatial/coquille/contexte');
 const { CeQuiScale } = await import('../spatial/vues/veille/CeQuiScale');
@@ -48,7 +60,7 @@ const rendre = (n: React.ReactNode) => renderToStaticMarkup(<FournisseurSpatial 
 
 /* ───────────────────────── Ce qui scale ───────────────────────── */
 
-const ad = (id: string, o: Partial<InspoAd>): InspoAd => ({ id, platform: 'meta', status: 'active', ...o });
+const ad = (id: string, o: Partial<InspoAd>): InspoAd => ({ id, platform: 'meta', status: 'active', ...o }) as InspoAd;
 const ligne = (id: string, rang: number, o: { video: boolean; annonceur: string; angle: 'testimonial' | 'offer'; jours: number; croissance: number }) => ({
   cle: `meta:${id}`, rang, image: null, accroche: `Accroche ${id}`, detail: o.annonceur, part: 50, jours: `${o.jours} j`, cloner: `/studio?ref=${id}`,
   o: { ...o, texte: `Texte ${id}`, reach: 0, depense: 0 },
@@ -192,5 +204,43 @@ describe('Spatial · Radar · tes créas notées', () => {
     expect(html).toContain('href="/connections"');
     expect(html).not.toContain('Score');
     expect(rendre(<Radar {...propsRadar} />)).not.toContain('Radar créatif');
+  });
+});
+
+/* ───────────────────────── Radar · gestes de l'ancien onglet Sauvegardes ───────────────────────── */
+
+const marqueSuivie = { cle: 'f1', nom: 'Neva', initiale: 'N', fond: 'var(--glass2)', site: 'neva.fr', vignettes: [], nouveautes: '2 nouvelles', voir: '/veille?q=Neva',
+  gestes: { plateforme: 'meta', biblio: { href: 'https://www.facebook.com/ads/library/?q=Neva', libelle: 'Meta · rechercher l’annonceur' }, siteWeb: 'https://neva.fr' } };
+
+describe('Spatial · Radar · marques suivies, nouveautés, exploration', () => {
+  it('« Brief » lit les pubs de la marque (action réelle, sans IA) · la créa se prépare depuis l’angle dominant', async () => {
+    await monter(<Radar {...propsRadar} marques={[marqueSuivie]} />);
+    await cliquer(bouton('Brief'));
+    expect(suivi.briefMarqueAction).toHaveBeenCalledWith({ platform: 'meta', name: 'Neva' });
+    expect(document.body.textContent).toContain('3/8');
+    expect(document.querySelector('[aria-label="Brief · Neva"] a.btn.pri')?.getAttribute('href')).toMatch(/^\/studio\/projets\/nouveau\?type=video&angle=/);
+    expect(document.querySelector('[data-gestes-marque] button[aria-pressed="true"]')?.textContent).toContain('Suivi');
+  });
+  it('« Vérifier maintenant » et « Tout marquer vu » appellent le suivi réel · fermé, la raison est dite', async () => {
+    await monter(<Radar {...propsRadar} marques={[marqueSuivie]} suivi={{ scan: { actif: true, raison: null }, nonVues: 2, explorer: false }} />);
+    await cliquer(bouton('Vérifier maintenant'));
+    expect(suivi.scanTrackerAction).toHaveBeenCalled();
+    expect(toasts.at(-1)).toBe('3 nouvelle(s) pub(s) détectée(s)');
+    await cliquer(bouton('Tout marquer vu'));
+    expect(suivi.markTrackerSeenAction).toHaveBeenCalled();
+    const ferme = rendre(<Radar {...propsRadar} suivi={{ scan: { actif: false, raison: 'Suis d’abord des marques dans la Veille.' }, nonVues: 0, explorer: false }} />);
+    expect(ferme).toMatch(/<button type="button" class="btn sm" disabled="" title="Suis d’abord des marques dans la Veille\."/);
+    expect(ferme).not.toContain('Tout marquer vu');
+  });
+  it('explorer · la découverte et la carte d’identité de la catégorie, à la demande seulement', async () => {
+    await monter(<Radar {...propsRadar} suivi={{ scan: { actif: true, raison: null }, nonVues: 0, explorer: true }} />);
+    expect(suivi.decouverteMarcheAction).not.toHaveBeenCalled();
+    await cliquer(bouton('Trouver des créas éprouvées'));
+    expect(document.body.textContent).toContain('Découverte');
+    expect(bouton('Génère ta version') ?? document.querySelector('a.btn.sm[href^="/studio"]')).toBeTruthy();
+    await cliquer(bouton('Lire ce qui gagne'));
+    expect(suivi.grammaireCategorieAction).toHaveBeenCalled();
+    expect(suivi.grammaireVideoAction).toHaveBeenCalled();
+    expect(document.body.textContent).toContain('Produit centré');
   });
 });

@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { InspoAd, MetaAdsInsights } from '@tiktrends/integrations';
-import { alertesSemaine, apercuImage, ligneRadarCreatif, nouveautesMarque, pastilleMarque, resumeRadarCreatif } from '@tiktrends/core';
+import { alertesSemaine, apercuImage, bibliothequePub, etatScanNouveautes, libelleBibliotheque, ligneRadarCreatif, nouveautesMarque, pastilleMarque, resumeRadarCreatif, siteMarque } from '@tiktrends/core';
 import { buildLiveAnalysis } from '../../../../lib/analysis';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
@@ -57,6 +57,10 @@ export default async function RadarSpatial() {
         vignettes: siens.slice(0, 3).map((e) => apercuImage({ isVideo: (e.snapshot?.mediaType ?? '').toLowerCase().includes('vid'), thumbnailUrl: e.snapshot?.thumbnailUrl, mediaUrl: e.snapshot?.mediaUrl })),
         nouveautes: nouveautesMarque(siens.filter((e) => e.unseen).length),
         voir: voirMarque(f.platform, f.name, f.domain),
+        gestes: (() => {
+          const biblio = bibliothequePub({ platform: f.platform, name: f.name });
+          return { plateforme: f.platform, biblio: biblio ? { href: biblio.url, libelle: libelleBibliotheque(biblio)! } : null, siteWeb: siteMarque({ landingDomain: f.domain ?? undefined }) };
+        })(),
       };
     });
   }
@@ -84,6 +88,11 @@ export default async function RadarSpatial() {
       ouvert={ouvert}
       pastilleRadar={pastilleRadar(access)}
       alertes={alertes}
+      suivi={ouvert ? {
+        scan: etatScanNouveautes({ veilleActive: !!process.env.TRENDTRACK_API_KEY, marquesSuivies: marques.length }),
+        nonVues: evenements.filter((e) => e.unseen).length,
+        explorer: !!process.env.TRENDTRACK_API_KEY,
+      } : undefined}
       creatif={ouvert ? creatif : undefined}
       marques={marques}
       inclus={`Inclus dans ton offre ${PLAN_LABEL[s.plan as Plan] ?? ''}`.trim()}

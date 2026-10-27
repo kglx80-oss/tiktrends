@@ -1,6 +1,8 @@
 import type { ligneRadarCreatif } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { SousNavVeille, Vignette } from './base';
+import { BoutonSuivi } from './client';
+import { BriefMarque, DecouverteCategorie, GestesNouveautes, GrammaireMarche } from './radar-client';
 
 /**
  * « Radar » · `docs/spatial/reference/radar.html`. Le suivi des marques que
@@ -10,7 +12,11 @@ import { SousNavVeille, Vignette } from './base';
  * sorties qui existent · aucun achat simulé, aucun essai inventé.
  */
 export interface AlerteRadar { titre: string; texte: string; action: { href: string; libelle: string } }
-export interface MarqueRadar { cle: string; nom: string; initiale: string; fond: string; site: string; vignettes: ReadonlyArray<string | null>; nouveautes: string | null; voir: string }
+export interface MarqueRadar {
+  cle: string; nom: string; initiale: string; fond: string; site: string; vignettes: ReadonlyArray<string | null>; nouveautes: string | null; voir: string;
+  /** Vague 3 · les gestes de l'ancien onglet « Marques suivies » · brief, ne plus suivre, liens externes. Absents, la carte de la maquette. */
+  gestes?: { plateforme: string; biblio: { href: string; libelle: string } | null; siteWeb: string | null };
+}
 export interface PropsRadar {
   ouvert: boolean;
   pastilleRadar: string | null;
@@ -25,6 +31,8 @@ export interface PropsRadar {
    * (`brands.ads_insights`, jamais d'exemple). `null` sans synchronisation · le
    * geste réel est de brancher Meta Ads. Absent, l'écran est celui de la maquette.
    */
+  /** Vague 3 · « Vérifier maintenant », « Tout marquer vu » et l'exploration de la catégorie (ancien onglet Sauvegardes). */
+  suivi?: { scan: { actif: boolean; raison: string | null }; nonVues: number; explorer: boolean };
   creatif?: { maj: string | null; resume: ReadonlyArray<{ libelle: string; classe: string; n: number }>; lignes: ReadonlyArray<LigneRadarCreatif> } | null;
 }
 
@@ -68,6 +76,14 @@ function Suivi({ marques, ouvert }: { marques: ReadonlyArray<MarqueRadar>; ouver
               {m.nouveautes ? <span className="pill c" style={{ fontSize: '11.5px' }}>{m.nouveautes}</span> : <span className="faint" style={{ fontSize: '11.5px' }}>Aucune nouveauté</span>}
               <Lien className="btn sm" href={m.voir} style={{ marginLeft: 'auto' }} tabIndex={ouvert ? undefined : -1}>Voir</Lien>
             </div>
+            {ouvert && m.gestes && (
+              <div className="kc" style={{ flexWrap: 'wrap' }} data-gestes-marque>
+                <BriefMarque platform={m.gestes.plateforme} nom={m.nom} />
+                <BoutonSuivi plateforme={m.gestes.plateforme} nom={m.nom} initial />
+                {m.gestes.biblio && <a className="btn sm" href={m.gestes.biblio.href} target="_blank" rel="noopener noreferrer">{m.gestes.biblio.libelle}</a>}
+                {m.gestes.siteWeb && <a className="btn sm" href={m.gestes.siteWeb} target="_blank" rel="noopener noreferrer">Site</a>}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -130,8 +146,15 @@ export function Radar(p: PropsRadar) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', margin: '-4px 0 14px' }}>
             <span className="faint" style={{ fontSize: '12px' }}>{p.inclus}</span>
             <Lien className="btn sm" href="/jarvis"><Ic n="chat" />Ouvrir Jarvis</Lien>
+            {p.suivi && <GestesNouveautes scan={p.suivi.scan} nonVues={p.suivi.nonVues} />}
           </div>
           <Suivi marques={p.marques} ouvert />
+          {p.suivi?.explorer && (
+            <section className="sec" aria-label="Explorer ma catégorie">
+              <div className="sech"><h2>Explorer ma catégorie</h2></div>
+              <div className="grid2"><DecouverteCategorie /><GrammaireMarche /></div>
+            </section>
+          )}
           {p.creatif !== undefined && <RadarCreatif c={p.creatif} />}
         </>
       ) : (
