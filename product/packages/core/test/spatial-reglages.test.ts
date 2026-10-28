@@ -67,9 +67,9 @@ describe('Spatial · Réglages · retours d’action et écrans portés', () => 
     for (const c of ['/settings', '/settings/partenaires', '/team', '/connections', '/usage', '/billing', '/brands/x', '/brands/x/identite', '/brands/x/offre', '/brands/x/personas', '/brands/x/regles']) {
       expect(ecranSpatial(c), c).not.toBeNull();
     }
-    // La liste des marques reste à l'ancienne interface ; le rapport d'un
-    // concurrent est servi par Spatial depuis la vague 2, rubrique Veille.
-    expect(ecranSpatial('/brands')).toBeNull();
+    // Le rapport d'un concurrent est servi par Spatial depuis la vague 2, rubrique Veille.
+    // Vague 3 · la liste des marques est servie par Spatial (rubrique Marque).
+    expect(ecranSpatial('/brands')).toMatchObject({ section: 'marque' });
     expect(ecranSpatial('/brands/x/competitors/y')).toMatchObject({ section: 'veille' });
   });
 });
