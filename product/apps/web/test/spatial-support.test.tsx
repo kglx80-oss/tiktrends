@@ -74,10 +74,10 @@ const liste = async () => dom(renderToStaticMarkup(await SupportSpatial()));
 const fil = async (id: string) => dom(renderToStaticMarkup(await TicketSpatial({ params: Promise.resolve({ id }) })));
 const titres = (d: HTMLElement) => [...d.querySelectorAll('[data-geste="tickets"] a strong')].map((x) => x.textContent).sort();
 
-describe('Spatial · Support · déclaré exclusif', () => {
-  it('liste et fil servis par Spatial même en mode V5, accent Réglages', () => {
-    expect(ecranSpatial('/support')).toEqual({ interne: '/sp/support', section: 'reglages', exclusif: true });
-    expect(ecranSpatial('/support/abc')).toEqual({ interne: '/sp/support/abc', section: 'reglages', exclusif: true });
+describe('Spatial · Support · servi par Spatial', () => {
+  it('liste et fil servis par Spatial, accent Réglages', () => {
+    expect(ecranSpatial('/support')).toEqual({ interne: '/sp/support', section: 'reglages' });
+    expect(ecranSpatial('/support/abc')).toEqual({ interne: '/sp/support/abc', section: 'reglages' });
   });
 });
 
