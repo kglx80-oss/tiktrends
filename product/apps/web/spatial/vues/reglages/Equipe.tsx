@@ -31,8 +31,8 @@ export interface PropsEquipe {
   retours: Record<string, string>;
 }
 
-const CHAMP = { flex: '1 1 220px', minWidth: 0, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 13px var(--sf)', outline: 0 } as const;
-const CHOIX = { padding: '10px 12px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 13px var(--sf)' } as const;
+const CHAMP = { flex: '1 1 220px', minWidth: 0, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)', outline: 0 } as const;
+const CHOIX = { padding: '10px 12px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)' } as const;
 const LIGNE = { padding: '10px 0', borderTop: '1px solid var(--edge2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } as const;
 
 export function Equipe(p: PropsEquipe) {
@@ -86,7 +86,7 @@ export function Equipe(p: PropsEquipe) {
               </div>
               {m.moi ? <span className="pill">{m.role}</span> : (
                 <>
-                  <select aria-label={`Rôle de ${m.nom}`} defaultValue={m.role} disabled title="Le changement de rôle d’un membre n’est pas encore disponible" style={{ padding: '7px 10px', borderRadius: 12, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 12.5px var(--sf)' }}>
+                  <select aria-label={`Rôle de ${m.nom}`} defaultValue={m.role} disabled title="Le changement de rôle d’un membre n’est pas encore disponible" style={{ padding: '7px 10px', borderRadius: 12, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 12.5px var(--sf)' }}>
                     {p.tousRoles.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                   <button className="btn sm icon" type="button" aria-label={`Retirer ${m.nom}`} disabled title="Le retrait d’un membre n’est pas encore disponible"><Ic n="x" /></button>
@@ -96,7 +96,7 @@ export function Equipe(p: PropsEquipe) {
           ))}
           {p.invitations.map((v) => (
             <div className="member" key={v.id} style={{ ...LIGNE, opacity: 0.8 }}>
-              <span className="av" style={{ background: '#ffffff26', color: '#fff' }}>{v.email[0]!.toUpperCase()}</span>
+              <span className="av" style={{ background: '#ffffff26', color: 'var(--fg)' }}>{v.email[0]!.toUpperCase()}</span>
               <div style={{ flex: '1 1 160px', minWidth: 0 }}><strong style={{ fontSize: 13 }}>{v.email}</strong><span className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.expiree ? `Expirée · lien inactif · ${v.role}` : `Invitation envoyée · ${v.role}`}</span></div>
               <span className="pill w">{v.expiree ? 'Expirée' : 'En attente'}</span>
               {!v.expiree && <CopierLien lien={v.lien}>Copier le lien</CopierLien>}

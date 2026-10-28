@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { contenuVide, type ContenuVersion, type CouloirSpatial, type DocumentStudio, type NoeudSpatial, type PlanStudio } from '@tiktrends/core';
+import { contenuVide, largeurMinFrise, type ContenuVersion, type CouloirSpatial, type DocumentStudio, type NoeudSpatial, type PlanStudio } from '@tiktrends/core';
 import { parite, squelette } from './spatial/parite';
 
 /**
@@ -210,9 +210,22 @@ describe('Spatial · D2 · parité de structure avec la maquette', () => {
     expect(entete.rendu).toEqual(entete.reference);
     const b = rendre(<Video vue={vueVideo(4)} marque="Marque" variantesHref="/studio/projets/p1#variantes" />);
     const montage = parite(b, 'video', { selecteur: 'section.tile.sec' });
-    expect(montage.rendu).toEqual(montage.reference);
+    expect(sansFriseDefilante(montage.rendu)).toEqual(montage.reference);
   });
 });
+
+/**
+ * Planche v4 · G3 · seul ajout HORS maquette dans le montage · la frise défile
+ * dans son cadre au téléphone (`.vtl` · `styleTableDefilante(largeurMinFrise)`)
+ * et ses cinq pistes ne s'élargissent pas au texte de la voix (`minWidth: 0`).
+ * On retire ces propriétés de style · et seulement si elles sont TOUTES là.
+ */
+function sansFriseDefilante(rendu: string[]): string[] {
+  const vtl = rendu.filter((l) => l.trim() === 'div.vtl[style:grid-template-columns,overflow-x]').length;
+  const pistes = rendu.filter((l) => /^\s*div(\.vticks)?\[style:min-width\]$/.test(l)).length;
+  if (vtl !== 1 || pistes !== 5) return rendu;
+  return rendu.map((l) => l.replace('div.vtl[style:grid-template-columns,overflow-x]', 'div.vtl').replace(/^(\s*div(\.vticks)?)\[style:min-width\]$/, '$1'));
+}
 
 /* ───────────────────────────── 2 · La garde voit un écart ───────────────────────────── */
 
@@ -333,6 +346,48 @@ describe('Spatial · D2 · comportements', () => {
     expect(html).toContain('class="vrend"');
     expect(html).toContain('En cours');
     expect(html).not.toContain('class="vpbtn"');
+  });
+});
+
+describe('Spatial · atelier Vidéo au téléphone (planche v4 · G2 · G3)', () => {
+  const lire = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
+
+  it('G3 · la frise du montage défile dans son cadre, une largeur par scène, sans s’élargir au texte de la voix', () => {
+    const d = lire(rendre(<Video vue={vueVideo(3)} marque="M" variantesHref="/x" />));
+    const frise = d.querySelector('.vtl') as HTMLElement;
+    expect(frise.style.overflowX, 'la frise ne défile pas · la 3e scène et 0:15 sortent du cadre, rognés').toBe('auto');
+    // La largeur suit la part de la scène la plus courte (noyau `largeurMinFrise`), lue ici sur les scènes rendues.
+    const parts = [...frise.querySelectorAll('.vtr:first-child b')].map((b) => ({ flex: Number.parseFloat((b as HTMLElement).style.flex) }));
+    expect(parts).toHaveLength(3);
+    const min = largeurMinFrise(parts);
+    expect(min).toBeGreaterThan(294);
+    expect(frise.style.gridTemplateColumns).toBe(`minmax(${min}px, 1fr)`);
+    const pistes = [...frise.querySelectorAll(':scope > .vtr > div')] as HTMLElement[];
+    expect(pistes).toHaveLength(5);
+    for (const p of pistes) expect(p.style.minWidth, 'une piste s’élargit au texte entier de la voix').toBe('0px');
+  });
+
+  it('G2 · au téléphone, les boutons de l’aperçu passent AU-DESSUS du lecteur, hors des barres flottantes', () => {
+    const avant = window.matchMedia;
+    window.matchMedia = ((q: string) => ({ matches: q === '(max-width: 760px)', media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
+    try {
+      monter(<Video vue={vueVideo(3)} marque="M" variantesHref="/x" />);
+      const colonne = hote.querySelector('.vstudio > div')!;
+      const enfants = [...colonne.children];
+      const actions = colonne.querySelector('[data-actions-apercu]')!;
+      expect(actions.getAttribute('data-actions-apercu')).toBe('haut');
+      expect(enfants.indexOf(actions), 'les boutons de l’aperçu restent sous le lecteur · masqués par les barres').toBeLessThan(enfants.indexOf(colonne.querySelector('.vplayer')!));
+      expect(colonne.querySelectorAll('[data-actions-apercu]')).toHaveLength(1);
+      expect(actions.textContent).toContain('MP4');
+      expect(actions.textContent).toContain('Tester les variantes');
+    } finally { window.matchMedia = avant; }
+  });
+
+  it('G2 · à l’ordinateur (et au rendu serveur), l’ordre de la maquette · lecteur, puis ses boutons', () => {
+    const d = lire(rendre(<Video vue={vueVideo(3)} marque="M" variantesHref="/x" />));
+    const colonne = d.querySelector('.vstudio > div')!;
+    const enfants = [...colonne.children];
+    expect(enfants.indexOf(colonne.querySelector('[data-actions-apercu="bas"]')!)).toBeGreaterThan(enfants.indexOf(colonne.querySelector('.vplayer')!));
   });
 });
 

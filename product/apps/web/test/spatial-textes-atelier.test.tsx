@@ -195,3 +195,26 @@ describe('hors ligne et conflit', () => {
     }
   });
 });
+
+describe('planche v4 · G9 · sélecteurs du verre et comparaison lisible', () => {
+  const deux = () => vueTextes({ textes: [
+    { id: 't1', type: 'hook', langue: 'fr', texte: 'Ta peau a soif ?', sources: [] },
+    { id: 't2', type: 'hook', langue: 'fr', texte: 'Je découvre', sources: [] },
+  ] as VueTextes['textes'] });
+
+  it('les trois sélecteurs hors champ (calque, texte A, texte B) portent le style de la maquette, plus le gris natif', () => {
+    monter(deux());
+    const nus = [...hote.querySelectorAll('select')].filter((s) => !s.closest('label.field') && !s.classList.contains('dsort'));
+    expect(nus.map((s) => s.getAttribute('aria-label')), 'un sélecteur natif non stylé reste à l’écran').toEqual([]);
+    for (const l of ['Texte A', 'Texte B']) expect(q(`select[aria-label="${l}"]`)?.className).toBe('dsort');
+    expect(hote.querySelectorAll('select.dsort[aria-label="Calque texte"]')).toHaveLength(2);
+  });
+
+  it('deux textes sans mot commun · le retiré puis l’ajouté, séparés, jamais « soifJe ?découvre »', () => {
+    monter(deux());
+    const p = q('[data-zone="comparaison"] p[aria-label="Différences de A vers B"]')!;
+    expect(p.textContent, 'les textes comparés se collent').toBe('Ta peau a soif ? Je découvre');
+    expect([...p.querySelectorAll('del')].map((d) => d.textContent)).toEqual(['Ta peau a soif ?']);
+    expect([...p.querySelectorAll('ins')].map((d) => d.textContent)).toEqual(['Je découvre']);
+  });
+});

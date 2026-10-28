@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   COULOIRS, annonceCibleJarvis, champsBrief, cibleJarvisNoeud, ciblerCouloirs, cheminPorte, classeFormat, couloirsDepuisLignee, couloirsDepuisProjet, ecranSpatial, etatGeneration, etatPlan,
   extraitBulle, formatDuDocument, gesteGenerer, gestesPlan, iconeCalque, legendeFormat, longueurTexte, minuteSeconde, noteCalques, nuancier,
-  pastilleEnregistrement, pistesMontage, planDuJob, relectureNecessaire, repliPossible, replierPerdants, reperesTemps, resumeFicheMarque,
+  pastilleEnregistrement, largeurMinFrise, LARGEUR_SCENE_FRISE, pistesMontage, planDuJob, relectureNecessaire, repliPossible, replierPerdants, reperesTemps, resumeFicheMarque,
   segmentReserveProjets, segmentsHypothese, sourceLecteur, sousTitreProjet, texteTourJarvis,
   type BriefCanonique, type DocumentStudio, type EntreeGestesPlan, type ModeleLignee, type NoeudLignee,
 } from '../src';
@@ -283,5 +283,20 @@ describe('Spatial · projet · « Cibler Jarvis » depuis un nœud', () => {
   it('l’annonce ne promet aucun envoi', () => {
     expect(annonceCibleJarvis('Brief', true)).toMatch(/Rien n’est envoyé/);
     expect(annonceCibleJarvis('Brief', false)).toMatch(/Rien n’a été envoyé/);
+  });
+});
+
+describe('Spatial · atelier Vidéo · la frise du montage défile au lieu d’être rognée (planche v4 · G3)', () => {
+  it('chaque scène, même la plus courte, garde la largeur de son libellé', () => {
+    // Trois scènes égales (15 s) · 3 × 112 + 2 écarts · au-delà des ~294 px utiles d'un écran de 390.
+    expect(largeurMinFrise([{ flex: 1 / 3 }, { flex: 1 / 3 }, { flex: 1 / 3 }])).toBe(342);
+    expect(largeurMinFrise([{ flex: 1 / 3 }, { flex: 1 / 3 }, { flex: 1 / 3 }])).toBeGreaterThan(294);
+    // Une scène de 10 % du montage impose 1 120 px · elle reste lisible.
+    const n = largeurMinFrise([{ flex: 0.1 }, { flex: 0.45 }, { flex: 0.45 }]);
+    expect(n * 0.1).toBeGreaterThanOrEqual(LARGEUR_SCENE_FRISE);
+    // Bornée, et sans scène · aucune contrainte.
+    expect(largeurMinFrise([{ flex: 0.001 }, { flex: 0.999 }])).toBe(2400);
+    expect(largeurMinFrise([])).toBe(0);
+    expect(largeurMinFrise([{ flex: 0 }, { flex: Number.NaN }])).toBe(0);
   });
 });

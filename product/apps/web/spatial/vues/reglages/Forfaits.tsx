@@ -69,7 +69,7 @@ export function Forfaits(p: PropsForfaits) {
             <p className="muted" style={{ fontSize: 13, margin: 0 }}>
               {p.plan.illimite ? 'Crédits illimités sur ce compte.'
                 : r.jours === null ? 'Aucune consommation sur les 30 derniers jours.'
-                  : <>Au rythme actuel (≈ {formatNombre(r.parJour)} crédit{r.parJour > 1 ? 's' : ''} par jour), il te reste <b style={{ color: '#fff' }}>{formatNombre(r.jours)} jour{r.jours > 1 ? 's' : ''}</b> de crédits.</>}
+                  : <>Au rythme actuel (≈ {formatNombre(r.parJour)} crédit{r.parJour > 1 ? 's' : ''} par jour), il te reste <b style={{ color: 'var(--fg)' }}>{formatNombre(r.jours)} jour{r.jours > 1 ? 's' : ''}</b> de crédits.</>}
             </p>
           </div>
           {p.plan.illimite || r.suffisant

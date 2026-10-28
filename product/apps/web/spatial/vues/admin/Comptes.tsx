@@ -17,7 +17,9 @@ import { ComptesListe, type LigneCompte } from './client';
  * expérience pub, objectifs, site, formule, inscription et onboarding.
  */
 export const COLONNES_COMPTES = '1.4fr .9fr .8fr 1.1fr .9fr .9fr .8fr auto';
-export const COLONNES_DECLARATIONS = '1.1fr 1.4fr .9fr 1fr 1.3fr 1fr .7fr .8fr .8fr';
+// Rééquilibrées le 28/10 sur la largeur que demande chaque colonne (mesurée au banc) · la pastille « Onboardé »
+// (« 22 oct. 26 », 86 px) était rognée même à 980 px avec l'ancien partage (.8fr) · voir `LARGEUR_MIN_TABLE_TELEPHONE`.
+export const COLONNES_DECLARATIONS = '1.1fr 1.3fr 1fr .9fr 1.2fr .8fr .65fr .8fr 1fr';
 
 export interface LigneDeclaration extends DeclarationAffichee {
   id: string;

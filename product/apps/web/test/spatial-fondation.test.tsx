@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ECRANS_SPATIAUX, entreesRail, entreesRailEspace, deriverRoutesCss, routesColorees } from '@tiktrends/core';
+import { ECRANS_SPATIAUX, entreesRail, entreesRailEspace, deriverRoutesCss, deriverThemeClairCss, routesColorees } from '@tiktrends/core';
 import { parite, squelette, fragmentReference } from './spatial/parite';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard', useRouter: () => ({ push: () => {}, refresh: () => {} }) }));
@@ -40,6 +40,23 @@ describe('Spatial · la feuille de style est celle de la maquette, à l’octet 
     const n = (t: string, re: RegExp) => (t.match(re) ?? []).length;
     expect(n(lire('spatial/spatial-routes.css'), /\[data-route="/g)).toBe(n(css, /\[href="#/g));
   });
+
+  it('spatial-clair.css = la dérivation EXACTE du thème clair', () => {
+    expect(lire('spatial/spatial-clair.css'), 'feuille du thème clair périmée · la régénérer par deriverThemeClairCss(spatial.css)').toBe(deriverThemeClairCss(lire('spatial/spatial.css')));
+  });
+
+  it('spatial-clair.css · aucune règle hors `html[data-theme="clair"]`, aucune propriété de mise en page', () => {
+    const clair = lire('spatial/spatial-clair.css');
+    const sansCom = clair.replace(/\/\*[\s\S]*?\*\//g, '');
+    // Chaque sélecteur de chaque règle est sous le thème clair · en sombre, la feuille ne s'applique pas.
+    const selecteurs = [...sansCom.matchAll(/(?:^|[}\n])\s*([^@{}\s][^{}]*)\{/g)].flatMap((m) => m[1]!.split(/,(?![^(]*\))/)).map((x) => x.trim());
+    expect(selecteurs.length).toBeGreaterThan(500);
+    expect(selecteurs.filter((x) => !x.startsWith('html[data-theme="clair"]')), 'règle appliquée hors du thème clair').toEqual([]);
+    // Seules des propriétés de couleur (et leurs longues) · la mise en page n'existe qu'une fois, dans la maquette.
+    const props = new Set([...sansCom.matchAll(/[{;]\s*([a-z-]+)\s*:/g)].map((m) => m[1]!));
+    const miseEnPage = [...props].filter((p) => /^(display|position|inset|top|left|right|bottom|width|height|min-|max-|margin|padding|grid|flex|gap|order|font|line-height|letter-spacing|zoom|transform|translate|overflow|z-index|border-radius|aspect-ratio|align|justify|place|float|clear|visibility|opacity|content|transition|animation)/.test(p));
+    expect(miseEnPage, 'propriété de mise en page dans la feuille du thème clair').toEqual([]);
+  });
 });
 
 /* ───────────────────────── 2 · les deux interfaces ne se mélangent pas ───────────────────────── */
@@ -64,7 +81,7 @@ describe('Spatial · isolation des feuilles de style', () => {
   });
 
   it('l’arbre Spatial ne charge QUE le CSS de la maquette · jamais globals.css ni les jetons V5', () => {
-    expect(imports(lire('app/(spatial)/layout.tsx'))).toEqual(['../../spatial/spatial.css', '../../spatial/spatial-routes.css']);
+    expect(imports(lire('app/(spatial)/layout.tsx'))).toEqual(['../../spatial/spatial.css', '../../spatial/spatial-routes.css', '../../spatial/spatial-clair.css']);
     const fichiers: string[] = [];
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const p = join(d, n); statSync(p).isDirectory() ? parcourir(p) : /\.(tsx?|css)$/.test(n) && fichiers.push(p); } };
     parcourir(join(WEB, 'app', '(spatial)')); parcourir(join(WEB, 'spatial'));

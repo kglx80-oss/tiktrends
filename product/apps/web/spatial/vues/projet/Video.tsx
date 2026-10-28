@@ -6,7 +6,7 @@ import {
   GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MESSAGE_REPONSE_PERDUE_MONTAGE, MODES_PAROLE, NOTE_BORNE_TEXTE, RELECTURE_CREATIONS_MS,
   appliquerOperationVideo as appliquerNoyau, classeFormat, decisionConfirmationApercu, dureeLisible, ECHEC_RESEAU_STUDIO, etatEchecStudio, etatPlan, ecritureVideoReconnue, gesteVideoReessayable, formatDuDocument, gestesPlan, idsPlansAlloues,
   impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCoutTexteEstime, libelleCredits, libellePrix, libelleUsd,
-  messageHorsLigneStudio, minuteSeconde, pistesMontage, relectureNecessaire, saisieVierge, sourceLecteur,
+  largeurMinFrise, messageHorsLigneStudio, minuteSeconde, pistesMontage, styleTableDefilante, relectureNecessaire, saisieVierge, sourceLecteur,
   type BilanDurees, type CleGestePlan, type ErreurStudio, type EtatJob, type ImpactVideo, type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan,
 } from '@tiktrends/core';
 import type { VueVideo as DonneesVideo } from '../../../lib/studios/video/lecture';
@@ -17,7 +17,7 @@ import {
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
 import { cleRetour, useFocusApresGeste } from '../../../lib/studios/focus-geste';
 import { useSpatial } from '../../coquille/contexte';
-import { EnTete, Ic, Lien, Vue } from '../../communs';
+import { EnTete, Ic, Lien, Vue, useTelephone } from '../../communs';
 import { Ornement } from '../studios/Ornement';
 import { Message } from './briques';
 
@@ -102,6 +102,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
   const [scriptOuvert, setScriptOuvert] = useState(false);
   const [lecture, setLecture] = useState<'arret' | 'lecture' | 'pause'>('arret');
   const lecteur = useRef<HTMLVideoElement>(null);
+  const telephone = useTelephone();
   // Le focus suit le geste (règle `cibleFocusApresGeste`) · l'aperçu qui s'ouvre, le message de retour,
   // puis, l'aperçu refermé sans rien, le bouton du geste qui l'avait ouvert.
   const ecran = useRef<HTMLDivElement>(null);
@@ -216,6 +217,18 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
   const progression: CSSProperties = { ['--d' as string]: `${Math.max(1, Math.round(dureeLecture))}s`, ...(lecture === 'pause' ? { animationPlayState: 'paused' } : {}) };
   const etatLecteur = plan ? etatPlan({ shotId: plan, keyframe: k!.etat, clip: c!.etat, jobs: v.jobs.map((j) => ({ operation: j.operation, etat: j.etat as EtatJob })) }) : null;
 
+  // Les boutons de l'aperçu · sous le lecteur (maquette). Au téléphone, le lecteur 9:16 remplit le premier écran
+  // et ses boutons tombaient sous les deux barres flottantes (ornement + navigation, ~150 px) · ils passent
+  // AU-DESSUS du lecteur, visibles dès l'arrivée (planche v4 · G2).
+  const actionsApercu = (
+    <div className="kc" data-actions-apercu={telephone ? 'haut' : 'bas'}>
+      {finale
+        ? <a className="btn sm" href={finale.url} download><Ic n="down" />MP4</a>
+        : <button className="btn sm" type="button" disabled title="Aucune vidéo finale assemblée"><Ic n="down" />MP4</button>}
+      <Lien className="btn sm pri" href={variantesHref}><Ic n="flask" />Tester les variantes</Lien>
+    </div>
+  );
+
   return (
     <Vue>
       <div ref={ecran}>
@@ -223,6 +236,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
       {(appelStoryboard.bloque || appelConsigne.bloque) && <div className="banner" role="status"><span className="orb" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span><span>{MESSAGE_APPEL_PAYANT} <Lien href={`/studio/projets/${v.projet.id}#taches`}>Voir le suivi</Lien></span></div>}
       <div className="vstudio">
         <div style={{ display: 'grid', gap: 10 }}>
+          {telephone && actionsApercu}
           <div className="vplayer">
             <div className={`ad ${classeFormat(format)}`} style={format ? undefined : { aspectRatio: `${v.format.largeur} / ${v.format.hauteur}` }}>
               <div className="ph">
@@ -241,12 +255,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
             <span>{finale ? `Vidéo finale · ${date(finale.creeLe)}` : `Version ${v.version.n} · ${ordre.length} plan${ordre.length > 1 ? 's' : ''}`}</span>
             <span>{legendeFormat(v.format, finale?.dureeMs ?? v.dureeTotaleMs)}</span>
           </div>
-          <div className="kc">
-            {finale
-              ? <a className="btn sm" href={finale.url} download><Ic n="down" />MP4</a>
-              : <button className="btn sm" type="button" disabled title="Aucune vidéo finale assemblée"><Ic n="down" />MP4</button>}
-            <Lien className="btn sm pri" href={variantesHref}><Ic n="flask" />Tester les variantes</Lien>
-          </div>
+          {!telephone && actionsApercu}
         </div>
 
         <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
@@ -311,12 +320,14 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
         <div className="sech" style={{ margin: '0 0 10px' }}><h2>Montage · version {v.version.n}</h2>
           <button className="btn sm" type="button" data-vedit="1" style={{ marginLeft: 'auto' }} aria-pressed={scriptOuvert} onClick={() => setScriptOuvert((o) => !o)}><Ic n="brush" />{scriptOuvert ? 'Fermer le script' : 'Modifier le script'}</button>
         </div>
-        <div className="vtl">
-          <div className="vtr"><span>Scènes</span><div>{pistes.scenes.map((s) => <b key={s.shotId} style={{ flex: s.flex }}>{s.libelle}</b>)}</div></div>
-          <div className="vtr"><span>Texte à l’écran</span><div>{pistes.textes.map((s) => <b key={s.shotId} className="t" style={{ flex: s.flex }}>{s.libelle}</b>)}</div></div>
-          <div className="vtr"><span>{pistes.voix.titre}</span><div><b className="a" style={{ flex: 1 }}>{pistes.voix.texte}</b></div></div>
-          <div className="vtr"><span>{pistes.musique.titre}</span><div><b className="m" style={{ flex: 1 }} /></div></div>
-          <div className="vtr"><span /><div className="vticks">{pistes.reperes.map((r, i) => <small key={i}>{r}</small>)}</div></div>
+        {/* La frise garde une largeur par scène (`largeurMinFrise`) et défile dans son cadre au téléphone · ses pistes
+            (`minWidth: 0`) ne s'élargissent pas au texte entier de la voix (planche v4 · G3). */}
+        <div className="vtl" data-frise="" style={styleTableDefilante(largeurMinFrise(pistes.scenes))}>
+          <div className="vtr"><span>Scènes</span><div style={{ minWidth: 0 }}>{pistes.scenes.map((s) => <b key={s.shotId} style={{ flex: s.flex }}>{s.libelle}</b>)}</div></div>
+          <div className="vtr"><span>Texte à l’écran</span><div style={{ minWidth: 0 }}>{pistes.textes.map((s) => <b key={s.shotId} className="t" style={{ flex: s.flex }}>{s.libelle}</b>)}</div></div>
+          <div className="vtr"><span>{pistes.voix.titre}</span><div style={{ minWidth: 0 }}><b className="a" style={{ flex: 1 }}>{pistes.voix.texte}</b></div></div>
+          <div className="vtr"><span>{pistes.musique.titre}</span><div style={{ minWidth: 0 }}><b className="m" style={{ flex: 1 }} /></div></div>
+          <div className="vtr"><span /><div className="vticks" style={{ minWidth: 0 }}>{pistes.reperes.map((r, i) => <small key={i}>{r}</small>)}</div></div>
         </div>
       </section>
 

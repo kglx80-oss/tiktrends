@@ -252,7 +252,7 @@ export function Accueil(p: PropsAccueil) {
                     {p.nouveautes.map((n) => (
                       <div className="it" key={n.id}>
                         <span className="ico" style={n.couleur ? { color: `var(--${n.couleur})` } : undefined}><Ic n={n.icone} /></span>
-                        <div><p style={{ color: '#fff' }}>{n.texte}</p><small>{n.quand}</small></div>
+                        <div><p style={{ color: 'var(--fg)' }}>{n.texte}</p><small>{n.quand}</small></div>
                         {n.action && <Lien className="btn sm" href={n.action.href}>{n.action.libelle}</Lien>}
                       </div>
                     ))}

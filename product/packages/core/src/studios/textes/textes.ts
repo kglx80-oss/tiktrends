@@ -344,7 +344,40 @@ export function comparerTextes(a: string, b: string): { segments: SegmentCompara
   }
   while (i < n) pousse('retire', ma[i++]!);
   while (j < m) pousse('ajoute', mb[j++]!);
-  return { segments, longueurA, longueurB, motsCommuns: communs };
+  return { segments: regrouperChangements(segments), longueurA, longueurB, motsCommuns: communs };
+}
+
+/**
+ * Un espace seul n'est pas un mot commun · la plus longue sous-suite commune
+ * s'accroche aux espaces des deux textes et entrelace retraits et ajouts
+ * (« Ta peau a soif ? » → « Je découvre » donnait « Ta peau a soif|Je| |?|découvre »,
+ * lu « Ta peau a soifJe ?découvre », planche v4 · G9). Entre deux changements,
+ * un segment égal fait d'espaces est rendu aux deux côtés, et chaque passage
+ * changé se lit d'un bloc · tout le retiré, puis tout l'ajouté.
+ */
+function regrouperChangements(segments: SegmentComparaison[]): SegmentComparaison[] {
+  const out: SegmentComparaison[] = [];
+  let k = 0;
+  while (k < segments.length) {
+    const s = segments[k]!;
+    if (s.type === 'egal') { out.push(s); k++; continue; }
+    let fin = k;
+    for (let j = k + 1; j < segments.length; j++) {
+      const x = segments[j]!;
+      if (x.type !== 'egal') { fin = j; continue; }
+      if (!x.texte.trim() && j + 1 < segments.length && segments[j + 1]!.type !== 'egal') continue;
+      break;
+    }
+    let retire = '', ajoute = '';
+    for (const x of segments.slice(k, fin + 1)) {
+      if (x.type !== 'ajoute') retire += x.texte;
+      if (x.type !== 'retire') ajoute += x.texte;
+    }
+    if (retire) out.push({ type: 'retire', texte: retire });
+    if (ajoute) out.push({ type: 'ajoute', texte: ajoute });
+    k = fin + 1;
+  }
+  return out;
 }
 
 /* ─────────────────────────────── Export ──────────────────────────────────── */

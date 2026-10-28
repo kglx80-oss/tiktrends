@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { Fragment, useEffect, useId, useState } from 'react';
 import {
   cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, libelleCoutTexteEstime, raisonAjoutTexte,
   ECHEC_RESEAU_STUDIO, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, NOTE_BORNE_TEXTE, TONS_ECRITURE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
@@ -327,7 +327,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
               {t.sources.length > 0 && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Sources · {t.sources.map((s) => `${s} (${libelleFait(s)})`).join(' · ')}</small>}
               {vue.peutEcrire && (vue.calques.length ? (
                 <div className="kc" style={{ marginTop: 6 }}>
-                  <select aria-label="Calque texte" value={calque[t.id] ?? vue.calques[0]!.id} onChange={(e) => setCalque((c) => ({ ...c, [t.id]: e.target.value }))}>
+                  <select className="dsort" style={{ maxWidth: '100%' }} aria-label="Calque texte" value={calque[t.id] ?? vue.calques[0]!.id} onChange={(e) => setCalque((c) => ({ ...c, [t.id]: e.target.value }))}>
                     {vue.calques.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
                   </select>
                   <button className="btn sm" type="button" disabled={enCours !== null} onClick={() => void injecter(t)}>Proposer dans ce calque</button>
@@ -347,6 +347,9 @@ export function Textes({ vue, atelier }: PropsTextes) {
   );
 }
 
+/** Un retrait suivi d'un ajout, sans espace entre eux · ils se liraient comme un seul mot (« soif ?Je »). */
+const colles = (avant: { type: string; texte: string } | undefined, s: { texte: string }) => avant?.type === 'retire' && !/\s$/.test(avant.texte) && !/^\s/.test(s.texte);
+
 /** Comparer deux textes mot à mot (règle pure `comparerTextes`) · retiré barré, ajouté souligné, le sens porté par le libellé. */
 function Comparaison({ textes }: { textes: Array<{ cle: string; libelle: string; texte: string }> }) {
   const [a, setA] = useState(textes[0]?.cle ?? '');
@@ -359,13 +362,13 @@ function Comparaison({ textes }: { textes: Array<{ cle: string; libelle: string;
     <div className="sugg" data-zone="comparaison" style={{ display: 'grid', gap: 8 }}>
       <strong style={{ fontSize: 13 }}>Comparer deux textes</strong>
       <div className="kc">
-        <select aria-label="Texte A" value={ta.cle} onChange={(e) => setA(e.target.value)}>{textes.map((t) => <option key={t.cle} value={t.cle}>{t.libelle}</option>)}</select>
-        <select aria-label="Texte B" value={tb.cle} onChange={(e) => setB(e.target.value)}>{textes.map((t) => <option key={t.cle} value={t.cle}>{t.libelle}</option>)}</select>
+        <select className="dsort" style={{ maxWidth: '100%' }} aria-label="Texte A" value={ta.cle} onChange={(e) => setA(e.target.value)}>{textes.map((t) => <option key={t.cle} value={t.cle}>{t.libelle}</option>)}</select>
+        <select className="dsort" style={{ maxWidth: '100%' }} aria-label="Texte B" value={tb.cle} onChange={(e) => setB(e.target.value)}>{textes.map((t) => <option key={t.cle} value={t.cle}>{t.libelle}</option>)}</select>
       </div>
       <p style={{ fontSize: 13, whiteSpace: 'pre-wrap' }} aria-label="Différences de A vers B">
         {c.segments.map((s, i) => (s.type === 'egal' ? <span key={i}>{s.texte}</span>
           : s.type === 'retire' ? <del key={i} aria-label={`retiré : ${s.texte}`}>{s.texte}</del>
-            : <ins key={i} aria-label={`ajouté : ${s.texte}`}>{s.texte}</ins>))}
+            : <Fragment key={i}>{colles(c.segments[i - 1], s) && ' '}<ins aria-label={`ajouté : ${s.texte}`}>{s.texte}</ins></Fragment>))}
       </p>
       <small className="faint" style={{ fontSize: '11.5px' }}>A · {c.longueurA} caractères · B · {c.longueurB} caractères · {c.motsCommuns} mot{c.motsCommuns > 1 ? 's' : ''} en commun</small>
     </div>
