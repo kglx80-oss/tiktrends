@@ -163,7 +163,8 @@ export function BoutonRevoquer({ releaseId }: { releaseId: string }) {
   );
 }
 
-export interface ChampEditable { champ: string; libelle: string; valeur: string; liste?: boolean }
+import type { ChampEditable } from '../../../../lib/studios/prompts/types-registre';
+export type { ChampEditable } from '../../../../lib/studios/prompts/types-registre';
 
 /** Édition d'un brouillon (en place) ou création d'une nouvelle version depuis une version figée. */
 export function EditeurBrouillon({ baseId, champs, empreinteAttendue, brouillon }: { baseId: string; champs: ChampEditable[]; empreinteAttendue: string; brouillon: boolean }) {

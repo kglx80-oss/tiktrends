@@ -22,4 +22,12 @@ export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/admin/usage', section: 'admin' },
   { chemin: '/admin/paiement', section: 'admin' },
   { chemin: '/admin/equipe', section: 'admin' },
+  // Vague 3 · écrans de l'ancienne interface hors maquette, portés dans la même
+  // section (sous-navigation « outils de la plateforme », après les douze de la maquette).
+  { chemin: '/admin/prompts/registre', section: 'admin' },
+  { chemin: '/admin/incidents', section: 'admin' },
+  { chemin: '/admin/intelligence', section: 'admin' },
+  { chemin: '/admin/connaissances', section: 'admin' },
+  { chemin: '/admin/studios-interrupteurs', section: 'admin' },
+  { chemin: '/console', section: 'admin' },
 ];

@@ -6,7 +6,7 @@ import { getSession } from '../../../../lib/auth';
 import { environnementPrompts } from '../../../../lib/studios/prompts/environnement';
 import { cadrePage, h1 } from '../../../../components/ui';
 import { EcranVersions, EcranReleases, EcranEvaluations, EcranBenchmark, EcranRoutage, EcranExecutions, EcranConnaissances, Erreur, surfaceBloc } from './Ecrans';
-import { vueVersions, vueReleases, vueEvaluations, vueBenchmark, vueRoutage, vueExecutions, vueConnaissances } from './donnees';
+import { vueVersions, vueReleases, vueEvaluations, vueBenchmark, vueRoutage, vueExecutions, vueConnaissances } from '../../../../lib/studios/prompts/vues-registre';
 import { OngletsAdministration } from '../../../../components/OngletsReglages';
 
 export const dynamic = 'force-dynamic';
