@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { InspoAd } from '@tiktrends/integrations';
-import { PROVEN_DAYS, apercuImage, estActiveVeille, etiquetteStyleVeille, explicationPontAdsmap, lienNouveauProjet, lireFiltresSauvegardes, lireFormatCreatif, pastilleMarque, raisonPontAdsmap, tourneLongtemps } from '@tiktrends/core';
+import { PROVEN_DAYS, apercuImage, collectionsSauvegardes, estActiveVeille, etiquetteStyleVeille, explicationPontAdsmap, lienNouveauProjet, lireCollectionSauvegardes, lireFiltresSauvegardes, lireFormatCreatif, pastilleMarque, raisonPontAdsmap, tourneLongtemps } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, roleAtLeast } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
@@ -24,7 +24,10 @@ const PLATEFORME: Record<string, string> = { meta: 'Meta', tiktok: 'TikTok', goo
  * Vague 4 · les anciens onglets de l'écran V5 ont leur destination Spatial ·
  * « Concurrents suivis » (`?onglet=marques`) est le Radar, « Nouveautés »
  * (`?onglet=nouveautes`) la vue « Suivies » des pubs du moment. Les filtres de
- * départ (format, tri, média) se lisent dans l'adresse (`lireFiltresSauvegardes`).
+ * départ (format, tri, média) se lisent dans l'adresse (`lireFiltresSauvegardes`),
+ * la collection active aussi (`?collection=f:<dossier>`, `lireCollectionSauvegardes`) ·
+ * validée contre les dossiers des sauvegardes lues ICI (espace, marque active) ·
+ * une collection d'ailleurs ou inexistante est ignorée et l'écran le dit.
  */
 export default async function SauvegardesSpatiales({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -89,6 +92,7 @@ export default async function SauvegardesSpatiales({ searchParams }: { searchPar
 
   return (
     <Sauvegardes items={items} pastilleRadar={pastilleRadar(acces)} creerProjet={lienNouveauProjet({ type: 'ads' })}
-      gestes={{ formatFerme, test: raisonTest ? { ouvert: false, raison: raisonTest } : { ouvert: true } }} filtresInitiaux={lireFiltresSauvegardes(sp)} />
+      gestes={{ formatFerme, test: raisonTest ? { ouvert: false, raison: raisonTest } : { ouvert: true } }} filtresInitiaux={lireFiltresSauvegardes(sp)}
+      collection={lireCollectionSauvegardes(sp, collectionsSauvegardes(items))} />
   );
 }
