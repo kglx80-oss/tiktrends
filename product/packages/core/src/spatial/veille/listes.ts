@@ -40,6 +40,38 @@ export function collectionValide(v: string | null | undefined, collections: Read
   return v && collections.some((c) => c.cle === v) ? v : COLLECTION_TOUTES;
 }
 
+/** Le paramètre d'adresse de la collection active des Sauvegardes. */
+export const PARAM_COLLECTION = 'collection';
+export const MESSAGE_COLLECTION_IGNOREE = 'Cette collection n’existe pas pour cette marque · toutes les sauvegardes sont affichées.';
+
+/**
+ * La collection active lue dans l'adresse (`/saved?collection=f:Hiver`) ·
+ * validée contre les collections RÉELLES de la page (les dossiers des
+ * sauvegardes de l'espace et de la marque active). Une collection inconnue,
+ * d'une autre marque ou d'un autre espace est ignorée (toutes) et `ignoree`
+ * le dit · l'écran ne fait pas semblant de l'avoir ouverte.
+ */
+export function lireCollectionSauvegardes(
+  sp: Readonly<Record<string, string | string[] | undefined>>,
+  collections: ReadonlyArray<{ cle: string }>,
+): { cle: string; ignoree: boolean } {
+  const brut = sp[PARAM_COLLECTION];
+  const v = (Array.isArray(brut) ? brut[0] : brut) ?? '';
+  const cle = collectionValide(v, collections);
+  return { cle, ignoree: v !== '' && cle !== v };
+}
+
+/**
+ * L'adresse après un changement de collection · « Toutes » garde une adresse
+ * nue, les autres paramètres (format, tri, média…) sont conservés dans leur ordre.
+ */
+export function ecrireCollectionSauvegardes(recherche: string, cle: string): string {
+  const p = new URLSearchParams(recherche.startsWith('?') ? recherche.slice(1) : recherche);
+  if (cle && cle !== COLLECTION_TOUTES) p.set(PARAM_COLLECTION, cle); else p.delete(PARAM_COLLECTION);
+  const s = p.toString();
+  return s ? `?${s}` : '';
+}
+
 /** Une sauvegarde « tourne longtemps » au seuil éprouvé du noyau (`PROVEN_DAYS`). */
 export const tourneLongtemps = (jours: number | null | undefined) => (jours ?? 0) >= PROVEN_DAYS;
 
