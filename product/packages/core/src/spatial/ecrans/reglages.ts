@@ -20,4 +20,7 @@ export const ECRANS_REGLAGES: readonly EcranSpatial[] = [
   { chemin: '/connections', section: 'reglages', exclusif: true },
   { chemin: '/usage', section: 'reglages', exclusif: true },
   { chemin: '/billing', section: 'reglages', exclusif: true },
+  // Vague 4 · le support de l'espace (écrans V5 sans fragment de maquette).
+  { chemin: '/support', section: 'reglages', exclusif: true },
+  { chemin: '/support/[id]', section: 'reglages', exclusif: true },
 ];

@@ -35,4 +35,6 @@ export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/admin/connaissances', section: 'admin', exclusif: true },
   { chemin: '/admin/studios-interrupteurs', section: 'admin', exclusif: true },
   { chemin: '/console', section: 'admin', exclusif: true },
+  // Vague 4 · « Crédits & marges » (écran V5 `/credits` sans fragment de maquette).
+  { chemin: '/credits', section: 'admin', exclusif: true },
 ];

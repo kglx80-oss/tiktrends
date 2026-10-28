@@ -6,3 +6,4 @@ export * from './sav';
 export * from './pilotage';
 export * from './outils';
 export * from './declarations';
+export * from './credits-marges';
