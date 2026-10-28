@@ -79,11 +79,16 @@ export interface MetriquesMetaAnalytics {
   topAds: Array<{ nom: string; roas: string; roasBon: boolean; cpa: string; depense: string }>;
 }
 
-/** Les KPI Meta de la marque active, tels que l'ancienne vue les affichait. */
-export function metriquesMetaAnalytics(ins: InsightsMetaEntree, synchro: Date | string | null): MetriquesMetaAnalytics {
+/**
+ * Les KPI Meta de la marque active, tels que l'ancienne vue les affichait. Le
+ * sous-titre s'ouvre sur LE libellé de la connexion (`etatConnexionMeta`, le
+ * même que l'Accueil et le Radar), puis date les KPI eux-mêmes (`meta_synced_at`) ·
+ * une mesure Adsmap plus récente ne fait pas passer des KPI anciens pour frais.
+ */
+export function metriquesMetaAnalytics(ins: InsightsMetaEntree, synchro: Date | string | null, connexion: string): MetriquesMetaAnalytics {
   const devise = ins.currency || '€';
   const date = synchro ? new Date(synchro) : null;
-  const synchroTexte = date && !Number.isNaN(date.getTime()) ? ` · synchro ${date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}` : '';
+  const synchroTexte = date && !Number.isNaN(date.getTime()) ? ` · KPI du ${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : '';
   const kpis = METRIQUES.map((m) => {
     const d = variationMeta(ins.window[m.cle], ins.previous[m.cle]);
     const bon = d == null ? null : (m.hausseBonne ? d >= 0 : d <= 0);
@@ -99,7 +104,7 @@ export function metriquesMetaAnalytics(ins: InsightsMetaEntree, synchro: Date | 
     ...(b?.ageGender.length ? [rep('Par âge & genre', b.ageGender.slice(0, 8))] : []),
   ];
   return {
-    sous: `Meta Ads · 30 j vs 30 j précédents${ins.accountName ? ` · ${ins.accountName}${synchroTexte}` : ''}`,
+    sous: `${connexion} · 30 j vs 30 j précédents${ins.accountName ? ` · ${ins.accountName}` : ''}${synchroTexte}`,
     kpis,
     repartitions,
     topAds: (ins.topAds ?? []).slice(0, 8).map((a) => ({ nom: a.name, roas: `${a.roas}×`, roasBon: a.roas >= 2, cpa: formatMeta(a.cpa, devise, 'money'), depense: formatMeta(a.spend, devise, 'money') })),

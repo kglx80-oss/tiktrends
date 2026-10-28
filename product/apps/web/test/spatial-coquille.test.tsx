@@ -310,6 +310,10 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     await attendre();
     expect(panneau.hidden).toBe(true);
     expect(document.activeElement).toBe(bell);
+    // Même défaut que G17 (profil) · posée dans la fenêtre déjà floutée, la pop-up ne floute plus
+    // ce qui est dessous · fond quasi plein. Lu dans le HTML servi (jsdom écarte `color-mix()`).
+    const servi = /<section[^>]*id="notif"[^>]*>/.exec(renderToStaticMarkup(<Coquille donnees={donnees()}><EnTete titre="T" /></Coquille>))?.[0] ?? '';
+    expect(servi, 'pop-up Notifications translucide · la page se lit dessous').toContain('background:color-mix(in srgb,var(--ink) 96%,transparent)');
   });
 
   it('le profil s’ouvre sur l’avatar et se ferme d’un clic à côté', async () => {

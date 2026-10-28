@@ -96,19 +96,58 @@ export function accrocheDe(body: string | null | undefined, max = 120): string {
 
 /* ───────────── Radar · ce que le suivi a repéré ───────────── */
 
-export interface EvenementSuivi { advertiserName: string; createdAt: Date; unseen: boolean }
+export interface EvenementSuivi { advertiserName: string; createdAt: Date; unseen: boolean; followedBrandId?: string | null }
+
+/** La fenêtre des nouveautés du Radar · 7 jours glissants, pour l'en-tête ET les cartes. */
+export const FENETRE_NOUVEAUTES_JOURS = 7;
+
+export interface NouveautesSuivies { semaine: number; nonVues: number }
+
+/**
+ * LA règle de comptage du Radar (planche de banc v4) · l'en-tête annonçait
+ * « Aroma-Zone a lancé 3 nouvelles pubs cette semaine » pendant que chaque
+ * carte disait « Aucune nouveauté ». Deux règles · l'en-tête comptait les
+ * événements des 7 derniers jours (vus ou non) regroupés par NOM d'annonceur,
+ * la carte comptait les événements NON VUS de tout temps, par marque suivie.
+ * Ici une seule · par marque suivie (son id, jamais le nom d'annonceur qui peut
+ * différer), sur la même fenêtre, et la part non vue dans cette fenêtre.
+ */
+export function compterNouveautes(evenements: ReadonlyArray<EvenementSuivi>, maintenant: Date): Map<string, NouveautesSuivies> {
+  const depuis = maintenant.getTime() - FENETRE_NOUVEAUTES_JOURS * 86_400_000;
+  const out = new Map<string, NouveautesSuivies>();
+  for (const e of evenements) {
+    if (!e.followedBrandId || e.createdAt.getTime() < depuis) continue;
+    const c = out.get(e.followedBrandId) ?? { semaine: 0, nonVues: 0 };
+    c.semaine++;
+    if (e.unseen) c.nonVues++;
+    out.set(e.followedBrandId, c);
+  }
+  return out;
+}
 
 /**
  * Les alertes de la semaine · une par marque suivie qui a sorti au moins une
- * nouvelle pub depuis 7 jours (nouveautés RÉELLES du suivi), la plus active
- * d'abord. Aucune alerte inventée · une semaine calme n'en donne aucune.
+ * nouvelle pub dans la fenêtre (nouveautés RÉELLES du suivi), la plus active
+ * d'abord. Elles lisent LES MÊMES comptes que les cartes (`compterNouveautes`).
+ * Aucune alerte inventée · une semaine calme n'en donne aucune.
  */
-export function alertesSemaine(evenements: ReadonlyArray<EvenementSuivi>, maintenant: Date, max = 3): Array<{ marque: string; n: number; titre: string }> {
-  const depuis = maintenant.getTime() - 7 * 86_400_000;
-  const parMarque = new Map<string, number>();
-  for (const e of evenements) if (e.createdAt.getTime() >= depuis) parMarque.set(e.advertiserName, (parMarque.get(e.advertiserName) ?? 0) + 1);
-  return [...parMarque.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr')).slice(0, max)
-    .map(([marque, n]) => ({ marque, n, titre: `${marque} a lancé ${n} nouvelle${n > 1 ? 's' : ''} pub${n > 1 ? 's' : ''} cette semaine` }));
+export function alertesSemaine(
+  marques: ReadonlyArray<{ cle: string; nom: string }>, comptes: ReadonlyMap<string, NouveautesSuivies>, max = 3,
+): Array<{ cle: string; marque: string; n: number; titre: string }> {
+  return marques.flatMap((m) => { const n = comptes.get(m.cle)?.semaine ?? 0; return n > 0 ? [{ cle: m.cle, marque: m.nom, n }] : []; })
+    .sort((a, b) => b.n - a.n || a.marque.localeCompare(b.marque, 'fr')).slice(0, max)
+    .map((a) => ({ ...a, titre: `${a.marque} a lancé ${a.n} nouvelle${a.n > 1 ? 's' : ''} pub${a.n > 1 ? 's' : ''} cette semaine` }));
+}
+
+export const AUCUNE_NOUVEAUTE_SEMAINE = 'Aucune nouveauté cette semaine';
+
+/** Le libellé de la carte d'une marque suivie · le même compte que l'en-tête, dit pareil. */
+export function nouveautesSemaine(c: NouveautesSuivies | undefined): string {
+  const n = c?.semaine ?? 0;
+  if (n <= 0) return AUCUNE_NOUVEAUTE_SEMAINE;
+  const s = n > 1 ? 's' : '';
+  const nv = c!.nonVues;
+  return `${n} nouvelle${s} pub${s} cette semaine${nv > 0 ? ` · ${nv} non vue${nv > 1 ? 's' : ''}` : ''}`;
 }
 
 /** Le libellé de nouveautés d'une marque suivie (non vues), ou `null` (rien de neuf). */
