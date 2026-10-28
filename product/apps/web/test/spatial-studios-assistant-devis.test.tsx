@@ -5,8 +5,9 @@ import { createRoot } from 'react-dom/client';
 import type { DevisImageVue, VueParcoursImage } from '../lib/studios/image/parcours';
 
 /**
- * Raccord V5 · Lot 2c · les étapes FORMAT & DEVIS et CONFIRMATION, au RÉSULTAT
- * (HTML). On monte les VRAIS composants (jsdom) et on LIT ce qu'on voit :
+ * Spatial · « Nouveau projet » · FORMAT & DEVIS, CONFIRMATION et CRÉATIONS, au
+ * RÉSULTAT (HTML). Gardes PORTÉES de l'assistant V5 retiré (ex-`assistant2c-rendu`)
+ * sur les étapes Spatial, mêmes scénarios. On monte les VRAIES vues et on LIT :
  *
  *  · le DEVIS serveur réel (montant, lignes, échéance) s'affiche AVANT le bouton
  *    de confirmation · on compare l'ordre dans le DOM, pas la présence d'un appel ;
@@ -57,9 +58,15 @@ vi.mock('../app/actions/studios/propositions', () => ({
   appliquerProposition: async (e: unknown) => { h.appliquer.push(e); return { ok: true, projectId: 'proj-1', proposition: { id: 'prop-f' }, version: { id: 'v2', n: 2 }, deja: false }; },
 }));
 
-import { EtatCreationAssistant } from '../components/studios/projet/EtatCreationAssistant';
-import { EtapeConfirmation } from '../components/studios/projet/EtapeConfirmation';
-import { EtapeFormatDevis } from '../components/studios/projet/EtapeFormatDevis';
+vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/nouveau', useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+vi.mock('../app/actions/studios/lot-formats', () => ({ preparerLotFormats: vi.fn() }));
+vi.mock('../app/actions/studios/lot-images', () => ({ preparerLotImages: vi.fn(), approuverLotImages: vi.fn() }));
+const { FournisseurSpatial } = await import('../spatial/coquille/contexte');
+const { FormatDevis: EtapeFormatDevis } = await import('../spatial/vues/studios/assistant/FormatDevis');
+const { ConfirmationDevis: EtapeConfirmation } = await import('../spatial/vues/studios/assistant/Confirmation');
+const { Creations } = await import('../spatial/vues/studios/assistant/Creations');
+const CTX = { utilisateur: { nom: 'Kevin', initiales: 'KG', email: 'k@x.fr', role: 'Propriétaire' }, credits: { solde: 100, dotation: 200, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
+const EtatCreationAssistant = ({ projectId, jobId }: { projectId: string; jobId: string; onFermer?: () => void }) => <Creations projectId={projectId} jobIds={[jobId]} />;
 import { MESSAGE_LANCEMENT_INCERTAIN, MESSAGE_DEVIS_INCONNU, type BriefCanonique } from '@tiktrends/core';
 
 const devis: DevisImageVue = {
@@ -81,11 +88,14 @@ const vueParcours = (devisVu: DevisImageVue | null): VueParcoursImage => ({
 });
 
 async function monter(node: React.ReactElement) {
-  const hote = document.createElement('div');
-  document.body.appendChild(hote);
-  const racine = createRoot(hote);
-  await act(async () => { racine.render(node); });
-  return { hote, fermer: async () => { await act(async () => { racine.unmount(); }); hote.remove(); } };
+  const el = document.createElement('div');
+  document.body.appendChild(el);
+  if (!document.getElementById('orn')) { const orn = document.createElement('div'); orn.id = 'orn'; orn.hidden = true; document.body.appendChild(orn); }
+  const racine = createRoot(el);
+  await act(async () => { racine.render(<FournisseurSpatial value={CTX}>{node}</FournisseurSpatial>); });
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  // Les gestes de l'étape vivent dans la barre flottante (`#orn`) · on lit tout le document.
+  return { hote: document.body, fermer: async () => { await act(async () => { racine.unmount(); }); el.remove(); } };
 }
 const clic = async (el: Element | null) => { expect(el).not.toBeNull(); await act(async () => { (el as HTMLElement).click(); await Promise.resolve(); }); };
 const flush = async () => { await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }); };
@@ -340,7 +350,7 @@ describe('création réelle dans l’assistant',()=>{
   it('affiche uniquement le média de la tâche demandée et son statut qualité',async()=>{
     h.vue={...vueParcours(null),jobs:[{id:'job-1',etat:'completed',libelleEtat:'Terminée',message:'Image disponible',raisonEchec:null,annulable:false,terminal:true,qualite:'requires_review',libelleQualite:'À relire',creditsReserves:4,creditsRendus:0,creeLe:'2026-10-21',media:{assetId:'asset-1',url:'/api/asset/asset-1',largeur:1080,hauteur:1350}}]};
     const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="job-1" onFermer={()=>{}} />);
-    expect(hote.querySelector('img')?.getAttribute('src')).toBe('/api/asset/asset-1'); expect(hote.textContent).toContain('À relire'); expect(hote.querySelector('a')?.getAttribute('href')).toBe('/studio/projets/proj-1'); expect(h.approuver).toHaveLength(0); expect(h.compiler).toHaveLength(0); await fermer();
+    expect(hote.querySelector('img')?.getAttribute('src')).toBe('/api/asset/asset-1'); expect(hote.textContent).toContain('À relire'); expect(hote.querySelector('#orn a')?.getAttribute('href')).toBe('/studio/projets/proj-1'); expect(h.approuver).toHaveLength(0); expect(h.compiler).toHaveLength(0); await fermer();
   });
   it('suivi en lecture seule : actualise puis arrête le polling quand la tâche est terminale',async()=>{
     vi.useFakeTimers();
@@ -359,7 +369,7 @@ describe('création réelle dans l’assistant',()=>{
 });
 
 /*
- * Mutations éprouvées (cassées → test rouge sur la bonne assertion → restaurées) :
+ * Mutations éprouvées sur la V5 (rejouées sur la vue Spatial, voir la PR) :
  *  · rendre le bouton de confirmation AVANT le bloc devis → « devis avant le clic » tombe (ordre DOM).
  *  · retirer le `disabled={!verifie}` → « verrouillé avant vérification » tombe.
  *  · avaler le BUDGET_EXCEEDED (ne pas afficher l'erreur) → « dépassement montré » tombe.

@@ -362,7 +362,8 @@ describe('les CTA de deep-link portent un paramètre que la cible relit', () => 
     const appels = [...radar.matchAll(/lienNouveauProjet\(\{([^}]*)\}\)/g)].map((m) => m[1]!);
     expect(appels.length, 'Le Radar doit garder un CTA vers les Studios').toBeGreaterThan(0);
     const emis = appels.flatMap((a) => [...a.matchAll(/(\w+):/g)].map((m) => m[1]!));
-    const page = readFileSync(join(process.cwd(), 'app', '(app)', 'studio', 'projets', 'nouveau', 'page.tsx'), 'utf8');
+    // Vague 3 · la préparation d'un projet n'est plus servie que par Spatial.
+    const page = readFileSync(join(process.cwd(), 'app', '(spatial)', 'sp', 'studio', 'projets', 'nouveau', 'page.tsx'), 'utf8');
     expect(page, 'la préparation d’un projet ne relit plus son adresse').toMatch(/lireContexteNouveauProjet\(await searchParams\)/);
     const lus = new Set(ROUTES_HISTORIQUES.find((r) => r.chemin === '/studio/projets/nouveau')?.params ?? []);
     const morts = emis.filter((p) => !lus.has(p));

@@ -5,7 +5,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
- * L8-A · écrans image, produit, textes et éditeur · RÉSULTATS lus dans le DOM
+ * L8-A · écrans image, produit et textes (l'éditeur, retiré de la V5, est gardé
+ * sur sa vue Spatial) · RÉSULTATS lus dans le DOM
  * (jsdom) ou le HTML rendu, jamais la présence d'un appel. Chaque bloc répare
  * un défaut MESURÉ au navigateur (inventaire L8-A, base locale semée,
  * 1280/1440/390 × 720) :
@@ -41,15 +42,12 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1', use
 vi.mock('../lib/studios/produit/compression-photo', () => ({ compresserPhoto: vi.fn() }));
 vi.mock('next/link', () => ({ default: ({ href, children, ...r }: { href: string; children: unknown }) => <a href={href} {...(r as object)}>{children as never}</a> }));
 
-import { disponibiliteTextes, erreurStudio, LIBELLES_ROLE, type DocumentStudio } from '@tiktrends/core';
-import { EditeurCalques, type PropsEditeur } from '../components/studios/editeur/EditeurCalques';
-import { PanneauCalques } from '../components/studios/editeur/PanneauCalques';
+import { disponibiliteTextes, erreurStudio, LIBELLES_ROLE } from '@tiktrends/core';
 import { EcranTextes, cleBrouillonTextes } from '../components/studios/textes/EcranTextes';
 import { Produit } from '../spatial/vues/projet/Produit';
 import { avecSpatial } from './spatial/fournisseur';
 import type { VueTextes } from '../lib/studios/textes/textes';
 import type { VueProduit } from '../lib/studios/produit/vue';
-import { contenuVideo, documentStudio, copie } from '../../../packages/core/test/studios-fixtures';
 
 let offsetOrigine: PropertyDescriptor | undefined;
 beforeAll(() => {
@@ -91,117 +89,7 @@ const saisir = (el: HTMLInputElement | HTMLTextAreaElement, valeur: string) => a
   el.dispatchEvent(new Event('input', { bubbles: true }));
 });
 const choisir = (el: HTMLSelectElement, valeur: string) => act(() => { el.value = valeur; el.dispatchEvent(new Event('change', { bubbles: true })); });
-const telephone = () => {
-  (window as unknown as { matchMedia: (q: string) => MediaQueryList }).matchMedia = (query: string) => ({
-    matches: true, media: query, onchange: null, addEventListener: () => {}, removeEventListener: () => {},
-    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
-  }) as MediaQueryList;
-};
-
-const LONG = 'Halo rose pâle derrière le flacon principal avec dégradé très doux vers le bord du cadre';
-function docLong(): DocumentStudio {
-  const d = copie(documentStudio());
-  (d.layers.l_titre as { name: string }).name = LONG;
-  return d;
-}
-const PROPS = (o: Partial<PropsEditeur> = {}): PropsEditeur => ({
-  projet: { id: 'p1', titre: 'Sérum · visuel', marque: 'Marque A1' }, version: { id: 'v1', n: 1 }, contenu: contenuVideo(), document: documentStudio(),
-  formatPropose: { format: '4:5', depuisBrief: false, texte: null }, produit: null, medias: [], apercus: {}, peutEnregistrer: true, ...o,
-});
-
-/* ───────────────────────────── Éditeur · calques ───────────────────────────── */
-
-describe('UX-01 · calques à noms longs, état lisible sans la couleur', () => {
-  it('le nom entier est rendu sur deux lignes au plus, les gestes passent à la ligne au lieu de l’écraser', () => {
-    const html = renderToStaticMarkup(
-      <PanneauCalques doc={docLong()} selection="l_titre" editable onChoisir={() => {}} onVisibilite={() => {}} onVerrou={() => {}} onAjouterTexte={() => {}} onAjouterForme={() => {}} onAjouterMedia={() => {}} />,
-    );
-    const d = new DOMParser().parseFromString(html, 'text/html');
-    const ligne = d.querySelector('[data-ligne-calque="l_titre"]') as HTMLElement;
-    expect(ligne.style.flexWrap, 'la ligne du calque ne passe pas à la ligne · le nom est écrasé par les gestes').toBe('wrap');
-    const nom = ligne.querySelector('[data-nom-calque]') as HTMLElement;
-    expect(nom.textContent).toBe(LONG);
-    expect(nom.style.whiteSpace, 'nom tronqué sur une seule ligne').not.toBe('nowrap');
-    expect(nom.getAttribute('style')).toContain('-webkit-line-clamp:2');
-  });
-
-  it('choisi, masqué, verrouillé se LISENT dans la ligne (pas seulement en couleur ou en aria-label)', () => {
-    const doc = copie(documentStudio());
-    (doc.layers.l_titre as { visible: boolean }).visible = false;
-    const html = renderToStaticMarkup(
-      <PanneauCalques doc={doc} selection="l_titre" editable onChoisir={() => {}} onVisibilite={() => {}} onVerrou={() => {}} onAjouterTexte={() => {}} onAjouterForme={() => {}} onAjouterMedia={() => {}} />,
-    );
-    const d = new DOMParser().parseFromString(html, 'text/html');
-    const vu = (id: string) => (d.querySelector(`[data-choisir-calque="${id}"]`) as HTMLElement).textContent;
-    expect(vu('l_titre'), 'le calque choisi ne se lit pas').toContain('choisi');
-    expect(vu('l_titre'), 'l’état « masqué » n’est porté que par la couleur').toContain('masqué');
-    expect(vu('l_logo'), 'l’état verrouillé n’est porté que par la couleur du cadenas').toContain('verrouillé');
-    expect(vu('l_fond')).not.toContain('choisi');
-  });
-});
-
-describe('390 · onglets Calques / Aperçu · aucun style en conflit', () => {
-  it('basculer d’un onglet à l’autre ne fait signaler aucun style en conflit par React (border et bordure partielle)', async () => {
-    telephone();
-    const erreurs: string[] = [];
-    const avant = console.error;
-    console.error = (...a: unknown[]) => { erreurs.push(a.map(String).join(' ')); };
-    try {
-      monter(<EditeurCalques {...PROPS()} />);
-      for (const id of ['onglet-apercu', 'onglet-calques', 'onglet-apercu']) await cliquer(q(`#${id}`)!);
-    } finally { console.error = avant; }
-    expect(erreurs.filter((e) => /style property during rerender/i.test(e)), 'React signale un style en conflit sur les onglets mobiles').toEqual([]);
-    expect(q('#onglet-apercu')!.getAttribute('aria-selected')).toBe('true');
-  });
-});
-
-describe('UX-02 · le focus ne tombe jamais sur <body> quand son élément disparaît', () => {
-  it('390 · « Supprimer » dans le panneau plein écran · le focus passe au calque qui prend la place', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    telephone();
-    monter(<EditeurCalques {...PROPS()} />);
-    await cliquer(q('[data-choisir-calque="l_titre"]')!);
-    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
-    expect(q('[data-panneau-mobile="proprietes"]')).not.toBeNull();
-    await cliquer(bouton('Supprimer'));
-    expect(q('[data-panneau-mobile="proprietes"]')).toBeNull();
-    expect(q('[data-choisir-calque="l_titre"]')).toBeNull();
-    // Affichés du premier plan vers l'arrière : Logo, Titre, Fond · « Fond » prend la place de « Titre ».
-    expect(document.activeElement, 'focus perdu après la suppression').toBe(q('[data-choisir-calque="l_fond"]'));
-  });
-
-  it('dernier calque supprimé · le focus va sur « ajouter un texte »', async () => {
-    const d = copie(documentStudio());
-    delete (d.layers as Record<string, unknown>).l_fond;
-    delete (d.layers as Record<string, unknown>).l_logo;
-    monter(<EditeurCalques {...PROPS({ document: d })} />);
-    await cliquer(q('[data-choisir-calque="l_titre"]')!);
-    await cliquer(bouton('Supprimer'));
-    expect(document.activeElement).toBe(q('[data-ajouter="texte"]'));
-  });
-
-  it('conflit · « Recharger la version courante » depuis « Voir le conflit » · le focus revient sur « Enregistrer »', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const courant = copie(documentStudio());
-    (courant.layers.l_titre as { x: number }).x = 10;
-    m.enregistrer.mockResolvedValueOnce(erreurStudio('VERSION_CONFLICT', { traceId: 't2', conflit: { versionCouranteId: 'v3', differences: [{ chemin: '/document/layers/l_titre/x', base: 60, courant: 10 }] } }));
-    m.relire.mockResolvedValue({ ok: true, version: { id: 'v3', n: 3 }, document: courant });
-    monter(<EditeurCalques {...PROPS()} />);
-    await cliquer(q('[data-choisir-calque="l_titre"]')!);
-    const x = [...document.querySelectorAll('label')].find((l) => l.textContent === 'X')!;
-    const champX = document.getElementById(x.htmlFor) as HTMLInputElement;
-    saisir(champX, '300');
-    act(() => { champX.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
-    await cliquer(bouton('Enregistrer'));
-    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
-    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
-    await cliquer(bouton('Voir le conflit'));
-    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
-    await cliquer(bouton('Recharger la version courante'));
-    expect(q('[data-dialogue="conflit"]')).toBeNull();
-    expect(document.activeElement, 'focus perdu après « Recharger »').toBe(bouton('Enregistrer'));
-  });
-});
+/* L'éditeur d'image est gardé sur sa vue Spatial (`spatial-editeur-gestes`, `spatial-editeur-zoom`) · ses cas ont quitté ce fichier avec l'éditeur V5. */
 
 /* ──────────────────────────────── Textes ──────────────────────────────────── */
 
