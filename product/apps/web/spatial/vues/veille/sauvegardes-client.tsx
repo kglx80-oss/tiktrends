@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from 'react';
 import {
-  COLLECTION_TOUTES, FILTRES_SAUVEGARDES, FORMAT_INCERTAIN, FORMAT_NON_CLASSE, FORMAT_TOUS, TRIS_FORMATS, collectionsSauvegardes, filtrerSauvegardes, formatFiltrable, provenanceSauvegarde, trierSauvegardes,
+  COLLECTION_TOUTES, FILTRES_SAUVEGARDES, FORMAT_INCERTAIN, FORMAT_NON_CLASSE, FORMAT_TOUS, TRIS_FORMATS, collectionsSauvegardes, ecrireCollectionSauvegardes, filtrerSauvegardes, MESSAGE_COLLECTION_IGNOREE, lireCollectionSauvegardes, formatFiltrable, provenanceSauvegarde, trierSauvegardes,
   type FiltresSauvegardes, type TriFormats, dansCollection, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, verrouAction, videoLisible,
 } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
@@ -26,7 +26,14 @@ import { Vignette } from './base';
  * Vague 4 · ce que l'écran Formats V5 ajoutait · les quatre tris, la file des
  * « incertaines » (à part des non classées), la provenance (sauvegardée le,
  * classée le, par qui) et des filtres de départ lus dans l'adresse.
+ *
+ * La collection active vit dans l'adresse (`?collection=f:Hiver`) · relue au
+ * rendu serveur (`initiale`, validée contre les dossiers réels), réécrite à
+ * chaque choix (entrée remplacée, autres paramètres gardés) et relue au
+ * montage, quand le routeur restaure la page au retour arrière. Une collection
+ * inconnue est ignorée et l'écran le dit (`collectionIgnoree`).
  */
+
 
 /** Les droits des gestes de la carte, calculés par la page (jamais au client). */
 export interface GestesSauvegarde {
@@ -60,11 +67,13 @@ export interface SauvegardeDonnees {
   jours?: number | null;
 }
 
-export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = COLLECTION_TOUTES, gestes, filtresInitiaux = FILTRES_SAUVEGARDES }: { items: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; initiale?: string; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes }) {
+export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = COLLECTION_TOUTES, collectionIgnoree = false, gestes, filtresInitiaux = FILTRES_SAUVEGARDES }: { items: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; initiale?: string; collectionIgnoree?: boolean; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes }) {
   const [items, setItems] = useState(depart);
   const [filtres, setFiltres] = useState<FiltresSauvegardes>(filtresInitiaux);
   const fx = (p: Partial<FiltresSauvegardes>) => setFiltres((x) => ({ ...x, ...p }));
   const [actif, setActif] = useState(initiale);
+  const [ignoree, setIgnoree] = useState(collectionIgnoree);
+  const choisir = (cle: string) => { setActif(cle); setIgnoree(false); };
   const [enCreation, setEnCreation] = useState<string | null>(null);
   const [saisie, setSaisie] = useState<string | null>(null);
   const collections = useMemo(() => {
@@ -73,6 +82,23 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
     if (enCreation && !c.some((x) => x.cle === `f:${enCreation}`)) c.splice(c.length - 1, 0, { cle: `f:${enCreation}`, libelle: enCreation, n: 0 });
     return c;
   }, [items, enCreation]);
+  // L'adresse suit la collection choisie · entrée remplacée, jamais empilée.
+  const premier = useRef(true);
+  useEffect(() => {
+    if (premier.current) { premier.current = false; return; }
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${ecrireCollectionSauvegardes(window.location.search, actif)}${window.location.hash}`);
+  }, [actif]);
+  // Au montage · le retour arrière peut restaurer la page rendue sans la collection · on relit l'adresse.
+  useEffect(() => {
+    const lu = lireCollectionSauvegardes(Object.fromEntries(new URLSearchParams(window.location.search)), collections);
+    setActif(lu.cle);
+    if (lu.ignoree) {
+      setIgnoree(true);
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${ecrireCollectionSauvegardes(window.location.search, lu.cle)}${window.location.hash}`);
+    }
+    // Au montage seulement · ensuite l'état fait foi et l'adresse le suit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const dansVue = items.filter((i) => dansCollection(i.folder, actif));
   const filtrables = dansVue.map((i) => ({ i, platform: i.platform, video: i.video, texte: i.ad.body ?? '', annonceur: i.marque.nom, format: formatFiltrable(i.format) }));
   const visibles = (gestes ? trierSauvegardes(filtrerSauvegardes(filtrables, filtres).map((x) => x.i), filtres.tri) : dansVue);
@@ -84,12 +110,12 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
     <div className="colls">
       <nav className="tile" aria-label="Collections">
         {collections.map((c) => (
-          <button key={c.cle} type="button" aria-pressed={actif === c.cle} onClick={() => setActif(c.cle)}><span>{c.libelle}</span><span className="faint">{c.n}</span></button>
+          <button key={c.cle} type="button" aria-pressed={actif === c.cle} onClick={() => choisir(c.cle)}><span>{c.libelle}</span><span className="faint">{c.n}</span></button>
         ))}
         {saisie == null ? (
           <button type="button" onClick={() => setSaisie('')}><Ic n="plus" /> Nouvelle collection</button>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); const n = saisie.trim().slice(0, 60); if (n) { setEnCreation(n); setActif(`f:${n}`); } setSaisie(null); }} style={{ display: 'flex', gap: 6, padding: '4px 6px' }}>
+          <form onSubmit={(e) => { e.preventDefault(); const n = saisie.trim().slice(0, 60); if (n) { setEnCreation(n); choisir(`f:${n}`); } setSaisie(null); }} style={{ display: 'flex', gap: 6, padding: '4px 6px' }}>
             <input autoFocus value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="Nom de la collection" aria-label="Nom de la nouvelle collection" maxLength={60} style={{ flex: 1, minWidth: 0 }} />
             <button className="btn sm" type="submit">Créer</button>
           </form>
@@ -116,6 +142,7 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
               </select></label>
             </div>
           )}
+          {ignoree && <small className="faint" role="status" data-collection-ignoree="1" style={{ flex: '1 1 100%', fontSize: '12.5px' }}>{MESSAGE_COLLECTION_IGNOREE}</small>}
           <span className="faint" style={{ fontSize: '12.5px' }}>{visibles.length} créa{visibles.length > 1 ? 's' : ''}{actif === `f:${enCreation}` && visibles.length === 0 ? ` · range une créa dans « ${enCreation} » depuis son bouton « Gardée »` : ''}</span>
           <Lien className="btn pri sm" href={creerProjet} style={{ marginLeft: 'auto' }}>Créer un projet Studios</Lien>
         </div>
