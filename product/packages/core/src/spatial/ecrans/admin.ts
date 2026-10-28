@@ -9,11 +9,10 @@ import type { EcranSpatial } from '../types';
  * Tour de contrôle · personnel de la plateforme uniquement (chaque page repose
  * la garde de son écran V5). Ordre de la sous-navigation de la maquette.
  *
- * Vague 3 · tous les écrans sont EXCLUSIFS (pages V5 retirées ou inexistantes),
- * sauf « Revenus & MRR » (`/admin/finance` · bénéfice net après impôt et
- * recommandations de marge sans équivalent) · sa page V5 reste ouverte par
- * `?ui=v5`. « Inscriptions & comptes » (`/admin/signups`) est exclusif depuis
- * la vague 2 Spatial v4 · les déclarations d'onboarding y sont portées.
+ * Un écran `exclusif` est servi par Spatial même avec `?ui=v5` · sa page V5 est
+ * retirée (garde `spatial-fondation`). Un écran non exclusif garde sa page V5
+ * tant qu'un de ses gestes n'a pas d'équivalent Spatial · la PR qui le retire
+ * dit lequel.
  */
 export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/admin', section: 'admin', exclusif: true },

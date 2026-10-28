@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 
@@ -28,8 +28,7 @@ const PERIMETRE = [
   ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'credits', 'profile', 'support']
     .map((d) => join('app', '(app)', d)),
   // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
-  // Vague 2 Spatial v4 · Inscriptions (`signups`) retirée à son tour.
-  ...['finance'].map((d) => join('app', '(app)', 'admin', d)),
+  ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
   // Lot 19B (#724) · les écrans et composants que les Connaissances ont créés ou
   // modifiés, plus la page et l'écran de refus de Jarvis (message 55).
   // Vague 3 · les écrans V5 `/jarvis` et `/jarvis/sources` (et leurs panneaux)
@@ -89,7 +88,8 @@ const fichiers: string[] = [];
       else if (/\.tsx?$/.test(n)) fichiers.push(p.split(sep).join('/'));
     }
   }
-})(PERIMETRE);
+// Une page V5 retirée (écran devenu exclusif Spatial) sort du périmètre d'elle-même.
+})(PERIMETRE.filter((d) => existsSync(join(WEB, d))));
 const dansLeLot = (f: string) => !Object.keys(HORS_LOT).some((h) => f === h || f.startsWith(h + '/'));
 
 // Fin d'un objet de style · `}}`, `};`, `} as const;`, `}),`…
