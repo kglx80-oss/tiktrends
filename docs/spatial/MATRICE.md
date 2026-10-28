@@ -92,3 +92,13 @@ entrées de la maquette dans la sous-navigation (`OUTILS_ADMIN`).
 | Connaissances de l'équipe | `/admin/connaissances` | H · Admin |
 | Interrupteurs Studios et budget d'essai | `/admin/studios-interrupteurs` | H · Admin |
 | Console (déploiement, tarifs, comptes de test) | `/console` | H · Admin |
+
+## Écrans hors maquette (vague 4 · comptes)
+
+Écrans de l'ancienne interface sans déclaration Spatial, portés puis déclarés
+exclusifs (page V5 retirée).
+
+| Geste V5 | Adresse | Rubrique |
+| --- | --- | --- |
+| Mon profil (photo, nom, confidentialité, mot de passe, espace et accès) | `/profile` | G · Réglages |
+| Tagging (échantillon de démonstration non repris · état vide honnête) | `/tags` | G · Réglages (accent Veille) |

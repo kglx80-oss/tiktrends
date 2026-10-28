@@ -1,7 +1,7 @@
 import 'server-only';
 import { db, schema } from '@tiktrends/db';
 import {
-  appliquerOperationVideo, lireOperationVideo, impactVideo, erreurStudio, CHEMINS_VIDEO,
+  appliquerOperationVideo, lireOperationVideo, impactVideo, erreurStudio, empreinteContenu, estRejeuEcriture, CHEMINS_VIDEO, MESSAGE_APERCU_PERIME,
   type ContenuVersion, type ErreurStudio, type BilanDurees, type LigneImpactVideo,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -17,6 +17,10 @@ import { mediasProduits } from './lecture';
  *    écrit une nouvelle version (`enregistrerVersion` : base obligatoire, 409,
  *    audit) sur `/shots` et `/timeline` seulement, et range le plan d'impact
  *    du geste (`studio_impact_plans`, immuable). Aucun devis, aucun job.
+ *    La base est la version de l'APERÇU (version attendue) : une base
+ *    périmée est refusée (409, aperçu à recalculer) ; la relance d'une
+ *    demande dont la réponse s'est perdue retrouve la version déjà écrite
+ *    (`estRejeuEcriture`, `deja: true`) · jamais une seconde écriture.
  *  · `devisKeyframePour` · `studio.generate`, devis L3 d'UNE image clé de plan
  *    (variante volontaire), raccordé à sa consigne `shot.image` ;
  *  · `approuverKeyframePour` · `studio.generate`, la SEULE qui engage de
@@ -44,7 +48,7 @@ export interface ImpactPresente {
 }
 
 export async function appliquerOperationVideoPour(ctx: ContexteStudio, e: { projectId: unknown; baseVersionId: unknown; operation: unknown }):
-  Promise<Resultat<{ version: VersionStudio; inchange: boolean; impact: ImpactPresente; durees: BilanDurees; signalements: string[] }>> {
+  Promise<Resultat<{ version: VersionStudio; inchange: boolean; deja: boolean; impact: ImpactPresente; durees: BilanDurees; signalements: string[] }>> {
   if (!estUuid(e.projectId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   const op = lireOperationVideo(e.operation);
   if (!op.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'operation', raison: op.message }] });
@@ -63,7 +67,20 @@ export async function appliquerOperationVideoPour(ctx: ContexteStudio, e: { proj
     return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: r.violations.length ? r.violations : [{ chemin: 'operation', raison: r.message }], message: r.message });
   }
   const w = await enregistrerVersion(ctx, { projectId: projet.id, baseVersionId: base.version.id, changes: r.changes, allowedPaths: CHEMINS_VIDEO, raison: r.libelle });
-  if (!w.ok) return w;
+  if (!w.ok) {
+    if (w.code !== 'VERSION_CONFLICT') return w;
+    // Relance d'une demande déjà écrite (réponse perdue) · on rend la version écrite, rien de plus.
+    const cid = w.conflit?.versionCouranteId;
+    const c = cid ? await lireVersion(ctx, cid) : null;
+    if (c?.ok && estRejeuEcriture({ baseId: base.version.id, auteurId: ctx.userId, empreinteAttendue: empreinteContenu(r.contenu), courante: c.version })) {
+      const j = impactVideo(avant, c.version.content as ContenuVersion, { mediasExistants: medias.valides });
+      return {
+        ok: true, version: c.version, inchange: true, deja: true, durees: r.durees, signalements: r.signalements,
+        impact: { resume: j.resume, aRefaire: j.aRefaire, conservees: j.conservees, mediasObsoletes: j.mediasObsoletes, aucuneGeneration: j.aucuneGeneration, planHash: j.plan.empreinte },
+      };
+    }
+    return { ...w, message: MESSAGE_APERCU_PERIME };
+  }
   const i = impactVideo(avant, w.version.content as ContenuVersion, { mediasExistants: medias.valides });
   if (!w.inchange) {
     try {
@@ -79,7 +96,7 @@ export async function appliquerOperationVideoPour(ctx: ContexteStudio, e: { proj
     }
   }
   return {
-    ok: true, version: w.version, inchange: w.inchange, durees: r.durees, signalements: r.signalements,
+    ok: true, version: w.version, inchange: w.inchange, deja: false, durees: r.durees, signalements: r.signalements,
     impact: { resume: i.resume, aRefaire: i.aRefaire, conservees: i.conservees, mediasObsoletes: i.mediasObsoletes, aucuneGeneration: i.aucuneGeneration, planHash: i.plan.empreinte },
   };
 }
