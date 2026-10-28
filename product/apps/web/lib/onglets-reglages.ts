@@ -1,12 +1,10 @@
 import 'server-only';
 import {
   accesTotal, permissionsStudio, restreindrePlateforme, aPermissionPlateforme, estRoleEspace, peutGererConnaissances,
-  type DroitsAdministration, type DroitsSousNavAdmin,
+  type DroitsSousNavAdmin,
 } from '@tiktrends/core';
-import { roleAtLeast, sectionsCompteOuvertes } from './rbac';
-import { effectiveAccess } from './access';
+import { roleAtLeast } from './rbac';
 import { isFounder } from './founder';
-import { refusJarvis } from './jarvis-acces';
 import type { Session } from './auth';
 
 /**
@@ -17,14 +15,6 @@ import type { Session } from './auth';
  * ici. Les pages gardent leurs redirections et leurs écrans de refus.
  */
 type SessionDroits = Pick<Session, 'role' | 'plan' | 'user' | 'equipe'>;
-
-/**
- * Les clés du menu de compte que la garde réelle ouvre (`sectionsCompteOuvertes`,
- * lot 12) · un membre ou un lecteur n'en a aucune de la section « Espace ».
- */
-export function menuCompteOuvert(s: SessionDroits): Set<string> {
-  return new Set(sectionsCompteOuvertes(effectiveAccess(s)).flatMap((g) => g.items.map((i) => i.key)));
-}
 
 /**
  * Les permissions de portée plateforme de la session · même calcul que
@@ -48,17 +38,5 @@ export function droitsSousNavAdmin(s: SessionDroits): DroitsSousNavAdmin {
     providerConfigure: aPermissionPlateforme(plateforme, 'provider.configure'),
     connaissances: peutGererConnaissances(s.equipe?.role),
     equipe: !!s.equipe && accesTotal(s.equipe.role),
-  };
-}
-
-export function droitsAdministration(s: SessionDroits): DroitsAdministration {
-  const adminEspace = roleAtLeast(s.role, 'admin');
-  const plateforme = permissionsPlateforme(s);
-  return {
-    fondateur: adminEspace && isFounder(s.user.email),
-    adminEspace,
-    accesTotalEquipe: !!s.equipe && accesTotal(s.equipe.role),
-    plateforme: aPermissionPlateforme(plateforme, 'prompt.read') && aPermissionPlateforme(plateforme, 'provider.configure'),
-    jarvis: refusJarvis(s) === null,
   };
 }

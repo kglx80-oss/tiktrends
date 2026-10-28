@@ -1,6 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AssistantAccueil } from '../spatial/vues/accueil/assistant';
 
@@ -36,37 +34,5 @@ describe('N08 · le champ assistant a un libellé PERSISTANT associé', () => {
   });
 });
 
-describe('N08 · le contrat de navigation mobile (garde de source)', () => {
-  const shell = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
-
-  it('le lien actif expose aria-current="page", pas seulement une teinte', () => {
-    // UX V2 · « page » sur l'écran exact, « true » sur un descendant de la section.
-    expect(shell).toMatch(/aria-current=\{courant \?\? \(active \? 'page' : undefined\)\}/);
-  });
-
-  it('UX V2 · plus aucun dépliant anonyme · le rail plat ne cache rien, chaque icône repliée est nommée', () => {
-    // Les sous-écrans sont devenus les onglets de leur section · il n'y a plus
-    // de chevron « Déplier » à nommer. En replié, l'icône porte le nom du module.
-    expect(shell, 'un dépliant « Déplier » subsiste dans le rail').not.toMatch(/'Déplier'/);
-    expect(shell, 'l’icône repliée n’est pas nommée').toMatch(/title=\{titre\} aria-label=\{titre\}/);
-  });
-
-  it('le déclencheur du tiroir annonce son état et sa cible', () => {
-    expect(shell, 'le hamburger n’annonce pas ouvert/fermé').toMatch(/aria-expanded=\{drawer\}/);
-    expect(shell, 'le hamburger ne pointe pas le panneau').toContain('aria-controls="nav-rail"');
-    expect(shell, 'le tiroir n’a pas d’identifiant de panneau').toContain('id="nav-rail"');
-  });
-
-  it('Escape ferme le tiroir et rend le focus au déclencheur', () => {
-    // Lot 15 · Échap passe par la règle en couches (lib/chrome-coquille,
-    // `echapFermeTiroir`, éprouvée à part) · elle ferme toujours le tiroir quand
-    // aucune couche interne n'a traité la touche.
-    expect(shell, 'pas de gestion d’Escape sur le tiroir').toMatch(/if \(echapFermeTiroir\(\{ touche: e\.key[\s\S]{0,160}\}\)\) fermerTiroir\(\)/);
-    expect(shell, 'la fermeture ne rend pas le focus au déclencheur').toMatch(/setDrawer\(false\); burgerRef\.current\?\.focus\(\)/);
-    expect(shell, 'le focus n’entre pas dans le panneau à l’ouverture').toMatch(/railRef\.current\?\.querySelector<HTMLElement>\('a,button'\)\?\.focus\(\)/);
-  });
-
-  it('le tiroir mobile est une fenêtre modale nommée', () => {
-    expect(shell).toMatch(/role: 'dialog' as const, 'aria-modal': true, 'aria-label': 'Navigation'/);
-  });
-});
+// Le contrat de navigation mobile de la coquille V5 (`AppShell`, `lib/chrome-coquille`) est retiré avec elle ·
+// la coquille Spatial garde le sien au rendu (`spatial-coquille` · aria-current, Échap, aria-expanded).

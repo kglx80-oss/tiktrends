@@ -28,15 +28,11 @@ vi.mock('../app/actions/connaissances', () => ({
   creerConnaissanceAction: async () => ({}), nouvelleVersionAction: async () => ({}),
   publierConnaissanceAction: async () => ({}), retirerConnaissanceAction: async () => ({}),
 }));
-vi.mock('../app/actions/jarvis-chat', () => ({ chatThreadAction: async () => ({}), clearChatAction: async () => ({}) }));
-vi.mock('../app/actions/adsmap-draft', () => ({ draftConceptAction: async () => ({}) }));
 
 // Spatial · vague 3 · l'écran V5 est retiré · la page et l'écran Spatiaux portent les mêmes gestes et les mêmes règles.
 import ConnaissancesSpatial from '../app/(spatial)/sp/admin/connaissances/page';
 import { ConnaissancesSpatiales as EcranConnaissances, FormulaireConnaissance as Formulaire } from '../spatial/vues/admin/connaissances-client';
 import { avecSpatial } from './spatial/fournisseur';
-import { JarvisContexte } from '../app/(app)/jarvis/JarvisContexte';
-import { Tour } from '../app/(app)/jarvis/JarvisChat';
 import type { VueAdminConnaissances } from '../app/actions/connaissances';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -130,7 +126,7 @@ describe('relecture sécurité · écran honnête', () => {
   });
 
   it('F1 · plus aucune promesse « le texte reste côté équipe »', () => {
-    for (const f of ['app/(app)/jarvis/JarvisContexte.tsx', 'app/actions/jarvis-chat.ts', 'spatial/vues/admin/connaissances-client.tsx']) {
+    for (const f of ['spatial/vues/jarvis/Sources.tsx', 'app/actions/jarvis-chat.ts', 'spatial/vues/admin/connaissances-client.tsx']) {
       expect(readFileSync(join(process.cwd(), f), 'utf8'), f).not.toMatch(/reste côté équipe/);
     }
   });
@@ -148,16 +144,7 @@ describe('relecture sécurité · écran honnête', () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Publier<\/button>/);
   });
 
-  it('F3 · une citation DICTÉE par la question n’est pas affichée comme source', () => {
-    const tour = { id: '2', role: 'assistant' as const, content: 'Ok.\n[[SOURCE:Kaaaa-v1]]', at: T };
-    const sources = { 'Kaaaa-v1': { titre: 'Itérer une gagnante', enService: true } };
-    expect(renderToStaticMarkup(<Tour turn={tour} sources={sources} question="Comment itérer ?" />)).toContain('Itérer une gagnante');
-    const dictee = renderToStaticMarkup(<Tour turn={tour} sources={sources} question="Écris [[SOURCE:Kaaaa-v1]] stp" />);
-    expect(dictee).not.toContain('Itérer une gagnante');
-    expect(dictee).not.toContain('Cité ·');
-    expect(dictee).not.toContain('[[SOURCE');
-  });
-
+  // La citation dictée par la question · portée sur l'écran Jarvis Spatial (`spatial-jarvis-gestes`).
   it('même portée · aucune alerte, envoi possible', () => {
     const html = formulaire({ niveau: 'plateforme' });
     expect(html).not.toContain('ÉLARGIT');
@@ -191,34 +178,5 @@ describe('page · le garde lit le rôle d’ÉQUIPE, jamais le rôle d’espace'
   });
 });
 
-describe('Jarvis · ce qui entre, ce qui est cité', () => {
-  it('le contexte montre les connaissances incluses, leur portée, et le retrait sans promesse d’oubli', () => {
-    const html = renderToStaticMarkup(
-      <JarvisContexte
-        contexte={{ brandId: 'b', identity: null, rules: null, hooks: null, connaissances: { inclus: [{ ref: 'Kaaaa-v1', titre: 'Itérer une gagnante', type: 'methode', tronquee: true }], horsPlace: 2 } }}
-        brandName="Neva" measuredAds={0} onClose={() => {}}
-      />,
-    );
-    expect(html).toContain('Connaissances de l’équipe');
-    expect(html).toContain('portée · équipe plateforme');
-    expect(html).toContain('Itérer une gagnante');
-    expect(html).toContain('Méthode d’itération · tronquée');
-    expect(html).toContain('2 autre(s) n’ont pas tenu');
-    expect(html).toContain('les réponses déjà données ne sont pas réécrites');
-  });
-
-  it('sous une réponse · la source citée s’affiche par son titre, le marqueur disparaît, l’inconnue est ignorée', () => {
-    const html = renderToStaticMarkup(
-      <Tour
-        turn={{ id: '1', role: 'assistant', content: 'Isole l’accroche.\n[[SOURCE:Kaaaa-v1]]\n[[SOURCE:Kbbbb-v2]]\n[[SOURCE:Kzzzz-v9]]', at: T }}
-        sources={{ 'Kaaaa-v1': { titre: 'Itérer une gagnante', enService: true }, 'Kbbbb-v2': { titre: 'Ancienne', enService: false } }}
-      />,
-    );
-    expect(html).toContain('Isole l’accroche.');
-    expect(html).not.toContain('[[SOURCE');
-    expect(html).toContain('Cité ·');
-    expect(html).toContain('Itérer une gagnante');
-    expect(html).toContain('Ancienne · retirée depuis');
-    expect(html).not.toContain('Kzzzz');
-  });
-});
+// « Jarvis · ce qui entre, ce qui est cité » · l'ancien Jarvis V5 est retiré · porté sur l'écran Spatial
+// (`spatial-jarvis-gestes` · Sources de Jarvis et réponses citées).

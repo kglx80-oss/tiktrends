@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { RAIL_COOKIE, railCollapsedFromCookie, railCookieString } from '../lib/rail-preference';
 
 /**
@@ -34,32 +32,5 @@ describe('railCollapsedFromCookie · la valeur du cookie décide, défaut déplo
   });
 });
 
-/**
- * Le câblage anti-flicker · garde de SOURCE, comme les autres invariants du
- * rail (`rail-actif`, `rail-replie`, `n08`). `AppShell` dépend du routeur pour
- * se rendre · on tient donc le contrat sur le texte, et on le prouve en le
- * cassant : réintroduire `useState(false)` + un effet localStorage fait tomber
- * ces assertions.
- */
-describe('AppShell · l’état du rail part de la valeur SERVEUR, pas d’un effet', () => {
-  const shell = readFileSync(join(process.cwd(), 'components/AppShell.tsx'), 'utf8');
-  const layout = readFileSync(join(process.cwd(), 'app/(app)/layout.tsx'), 'utf8');
-
-  it('l’état initial vient de la prop serveur `collapsedInitial`', () => {
-    expect(shell).toContain('useState(collapsedInitial)');
-  });
-
-  it('plus aucun effet ne lit localStorage pour corriger le repli après montage', () => {
-    expect(shell, 'la lecture localStorage du repli rouvre le flash déployé→replié')
-      .not.toContain('tt_rail_collapsed');
-  });
-
-  it('le basculement réécrit le cookie · le prochain rendu serveur sera juste', () => {
-    expect(shell).toContain('railCookieString(n)');
-  });
-
-  it('le layout lit le cookie côté serveur et le passe à la coquille', () => {
-    expect(layout).toContain('railCollapsedFromCookie');
-    expect(layout).toContain('collapsedInitial={collapsedInitial}');
-  });
-});
+// Le câblage dans la coquille V5 (`AppShell`, layout `(app)`) est retiré avec elle · la coquille
+// Spatial lit la même règle au rendu (`lib/spatial/coquille`, layout racine) et la réécrit au basculement.

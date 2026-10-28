@@ -42,7 +42,6 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/saved',
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
-vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }), useToastSiPresent: () => null }));
 vi.mock('../app/actions/adsmap-bridge', () => ({ trackSavedAdAction: async () => ({}) }));
 
 import { db, schema } from '@tiktrends/db';

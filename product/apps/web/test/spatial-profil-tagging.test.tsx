@@ -59,9 +59,9 @@ const tagging = async () => renderToStaticMarkup(await TaggingSpatial());
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
 const liens = (html: string) => [...dom(html).querySelectorAll('[data-geste="acces"] a')].map((a) => [a.getAttribute('href'), a.textContent]);
 
-describe('Spatial · Mon profil · déclaré exclusif', () => {
-  it('servi par Spatial même en mode V5, accent Réglages', () => {
-    expect(ecranSpatial('/profile')).toEqual({ interne: '/sp/profile', section: 'reglages', exclusif: true });
+describe('Spatial · Mon profil · servi par Spatial', () => {
+  it('servi par Spatial, accent Réglages', () => {
+    expect(ecranSpatial('/profile')).toEqual({ interne: '/sp/profile', section: 'reglages' });
   });
 });
 
@@ -138,8 +138,8 @@ describe('Spatial · Mon profil · la page réelle', () => {
 });
 
 describe('Spatial · Tagging · aucun chiffre d’exemple, la limite dite', () => {
-  it('déclaré exclusif, accent de la Veille', () => {
-    expect(ecranSpatial('/tags')).toEqual({ interne: '/sp/tags', section: 'veille', exclusif: true });
+  it('servi par Spatial, accent de la Veille', () => {
+    expect(ecranSpatial('/tags')).toEqual({ interne: '/sp/tags', section: 'veille' });
   });
 
   it('sans session · renvoi à la connexion', async () => {

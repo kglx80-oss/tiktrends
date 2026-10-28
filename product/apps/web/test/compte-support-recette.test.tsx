@@ -88,7 +88,8 @@ describe('Support · promesses tenues, fil accessible', () => {
   it('plus aucune promesse d’une équipe qui ne reçoit pas les tickets', () => {
     // Vague 4 · l'écran `/support` est servi par Spatial · sa promesse (et la
     // portée du ticket) est gardée sur le rendu (`spatial-support.test.tsx`).
-    for (const p of ['components/SupportWidget.tsx']) {
+    // Le widget d'aide V5 (`components/SupportWidget`) est retiré avec la coquille · l'écran Spatial du support le remplace.
+    for (const p of ['spatial/vues/reglages/Support.tsx']) {
       const s = src(p);
       expect(s, `${p} · promesse non tenue`).not.toMatch(/On te répond|on te répond vite|on répond vite|Notre équipe te répond/);
     }

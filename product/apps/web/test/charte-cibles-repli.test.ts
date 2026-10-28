@@ -27,45 +27,14 @@ const near = (src: string, ancre: string, fenetre = 260) => {
 
 describe('cibles tactiles · jetons de bouton partagés à la cible', () => {
   const ui = read('components/ui.tsx');
-  it('ui.btn et ui.btnGhost portent minHeight CIBLE_TACTILE_MIN', () => {
+  // `btnGhost` est retiré avec ses derniers appelants (préparation V5 des Studios).
+  it('ui.btn porte minHeight CIBLE_TACTILE_MIN', () => {
     expect(ui).toMatch(/import \{[^}]*\bCIBLE_TACTILE_MIN\b[^}]*\} from '@tiktrends\/core'/);
     expect(near(ui, 'export const btn:'), 'ui.btn sous la cible').toContain('minHeight: CIBLE_TACTILE_MIN');
-    expect(near(ui, 'export const btnGhost:'), 'ui.btnGhost sous la cible').toContain('minHeight: CIBLE_TACTILE_MIN');
   });
 });
 
-describe('cibles tactiles · contrôles partagés et de contenu', () => {
-  const cas: Array<{ f: string; ancre: string }> = [
-    { f: 'components/Empty.tsx', ancre: "marginTop: 16, padding: '9px 18px'" },
-    // Vague 3 · la liste V5 des marques (et son bouton de création) est retirée · Spatial exclusif.
-  ];
-  for (const { f, ancre } of cas) {
-    it(`${f} · « ${ancre} » atteint la cible`, () => {
-      const src = read(f);
-      expect(src, `${f} n'importe pas CIBLE_TACTILE_MIN`).toContain('CIBLE_TACTILE_MIN');
-      // La ligne (ou le bloc de style local) qui porte le libellé doit poser la cible.
-      const ligne = src.split('\n').find((l) => l.includes(ancre)) ?? near(src, ancre, 320);
-      expect(ligne, `${ancre} sous la cible dans ${f}`).toContain('minHeight: CIBLE_TACTILE_MIN');
-    });
-  }
-});
-
-describe('cibles tactiles · chrome partagé (rail, recherche, logo)', () => {
-  const shell = read('components/AppShell.tsx');
-  it('le bouton « Replier la barre » atteint la cible', () => {
-    expect(near(shell, 'const collapseBtn')).toContain('width: CIBLE_TACTILE_MIN, height: CIBLE_TACTILE_MIN');
-  });
-  it('la recherche globale (barre commune) et le logo d’accueil portent la cible', () => {
-    // Lot V5 · B · la barre mobile pose le mot-symbole via LogoHome, dont la
-    // cible (minHeight + minWidth CIBLE_TACTILE_MIN) est gardée ailleurs.
-    expect(shell).toContain('<LogoHome collapsed={false} />');
-    expect(read('components/LogoHome.tsx')).toContain('minHeight: CIBLE_TACTILE_MIN, minWidth: CIBLE_TACTILE_MIN');
-    // Kevin 29/09 · la recherche globale a quitté le rail pour la barre
-    // supérieure commune · son lanceur porte la cible en hauteur.
-    const iSearch = shell.indexOf('aria-label="Rechercher"');
-    expect(iSearch, 'le lanceur de recherche globale est introuvable').toBeGreaterThan(-1);
-    expect(shell.slice(iSearch, iSearch + 400), 'le lanceur de recherche sous la cible').toContain('minHeight: CIBLE_TACTILE_MIN');
-  });
-});
+// `Empty` et la coquille V5 (`AppShell`, `LogoHome` · rail, recherche, logo) sont retirés · la coquille
+// Spatial pose ses cibles par la feuille de la maquette (`spatial-coquille-mobile`).
 
 // Vague 2 · l'écran V5 Équipe est retiré · la liste Spatial (`.team .member`) se replie par la feuille de la maquette.

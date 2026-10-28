@@ -1,18 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROUTES, VUES, ROUTES_HISTORIQUES, matchRoute, breadcrumb, isBrandScoped, routeLabel } from '../lib/navigation';
+import { ROUTES, ROUTES_HISTORIQUES, matchRoute } from '../lib/navigation';
 import { ECRANS_SPATIAUX, lienNouveauProjet, lireContexteNouveauProjet } from '@tiktrends/core';
 import { FEATURES } from '../lib/rbac';
-import { ADMIN_NAV } from '../components/AppShell';
 
 describe('la carte décrit toutes les pages · sinon elle dérive', () => {
   /**
    * Le garde qui empêche le retour au désordre.
    *
    * La navigation avait divergé parce que rien ne reliait les écrans à leur
-   * déclaration. Ajouter une page sans l'inscrire ici la rendrait invisible du
-   * fil d'Ariane · silencieusement, comme avant.
+   * déclaration. Le fil d'Ariane de la coquille V5 est retiré avec elle (et la
+   * garde « chaque page V5 a son entrée ») · la carte garde les libellés de
+   * l'atelier d'un projet (`liensAtelierProjet`) et ne doit mener nulle part
+   * dans le vide.
    */
   const pagesDe = (dir: string, prefixe = '', fichiers: readonly string[] = ['page.tsx']): string[] => {
     const out: string[] = [];
@@ -29,14 +30,6 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
     return out;
   };
 
-  it('chaque page.tsx a son entrée', () => {
-    const racine = join(process.cwd(), 'app', '(app)');
-    const declarees = new Set(ROUTES.map((r) => r.path));
-    const orphelines = pagesDe(racine).filter((p) => !declarees.has(p));
-    expect(orphelines, `Page(s) absente(s) de ROUTES · elles n'auront pas de fil d'Ariane : ${orphelines.join(', ')}`)
-      .toEqual([]);
-  });
-
   /**
    * Le garde manquait dans l'autre sens.
    *
@@ -52,9 +45,9 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
     // qu'une redirection serveur (route handler · `/analytics` → l'Accueil,
     // lot 19A) · elle mène quelque part, pas dans le vide.
     const reelles = new Set(pagesDe(join(process.cwd(), 'app'), '', ['page.tsx', 'route.ts']));
-    // Un écran EXCLUSIF n'a plus de page V5 · le middleware le sert toujours
-    // par Spatial (`app/(spatial)/sp`), il mène donc quelque part.
-    for (const e of ECRANS_SPATIAUX) if (e.exclusif && reelles.has(`/sp${e.chemin}`)) reelles.add(e.chemin);
+    // L'ancienne interface est retirée · un écran porté est servi par Spatial
+    // (`app/(spatial)/sp`, le middleware le réécrit), il mène donc quelque part.
+    for (const e of ECRANS_SPATIAUX) if (reelles.has(`/sp${e.chemin}`)) reelles.add(e.chemin);
     const fantomes = ROUTES.map((r) => r.path).filter((p) => !reelles.has(p));
     expect(fantomes, `Chemin(s) déclaré(s) sans page · le rail y mènerait dans le vide : ${fantomes.join(', ')}`)
       .toEqual([]);
@@ -69,26 +62,6 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
   it('aucun chemin déclaré deux fois', () => {
     const vus = ROUTES.map((r) => r.path);
     expect(new Set(vus).size).toBe(vus.length);
-  });
-
-  /**
-   * Le rail ADMIN+ dérive à part.
-   *
-   * Le rail plateforme (`ADMIN_NAV`, dans AppShell) est une liste À PART de
-   * `ROUTES` et des cartes de /admin. Une page d'admin ajoutée + déclarée dans
-   * ROUTES peut donc rester INVISIBLE du rail — c'est arrivé à /admin/equipe,
-   * livré mais absent du menu. On cloue les deux bords : chaque entrée /admin/*
-   * du rail a une page réelle, et l'écran Équipe & droits y figure.
-   */
-  it('le rail ADMIN+ ne mène jamais dans le vide, et porte l’écran Équipe', () => {
-    const reelles = new Set(pagesDe(join(process.cwd(), 'app')));
-    // Spatial · vague 3 · un écran d'Admin EXCLUSIF est servi par Spatial (`app/(spatial)/sp`) · il mène quelque part.
-    for (const e of ECRANS_SPATIAUX) if (e.exclusif && reelles.has(`/sp${e.chemin}`)) reelles.add(e.chemin);
-    const morts = ADMIN_NAV
-      .map((e) => e.href)
-      .filter((h) => h.startsWith('/admin/') && !reelles.has(h));
-    expect(morts, `Entrée(s) du rail ADMIN+ sans page : ${morts.join(', ')}`).toEqual([]);
-    expect(ADMIN_NAV.map((e) => e.href), 'le rail ADMIN+ doit porter Équipe & droits').toContain('/admin/equipe');
   });
 });
 
@@ -115,238 +88,16 @@ describe('la résolution d’un chemin', () => {
   });
 
   it('expose le libellé d’un écran', () => {
-    expect(routeLabel('/adsmap/radar')).toBe('Radar de veille');
-    expect(routeLabel('/radar')).toBe('Radar créatif');
+    expect(matchRoute('/adsmap/radar')?.label).toBe('Radar de veille');
+    expect(matchRoute('/radar')?.label).toBe('Radar créatif');
   });
 });
 
-describe('le fil d’Ariane dit où l’on est', () => {
-  it('un enfant hors marque montre son parent', () => {
-    // Le tagging vit sous la veille · dire « Trouver › Veille › Tagging »
-    // apprend quelque chose, là où « Espace › Membres » n'apprend rien.
-    expect(breadcrumb('/tags').map((x) => x.label)).toEqual(['Accueil', 'Veille', 'Tagging']);
-    // Un identifiant opaque n'est jamais affiché comme un nom (recette L8-B : l'UUID d'un projet Studios remplissait le fil).
-    const projet = breadcrumb('/studio/projets/56d88ca8-6a28-4612-9990-2a7680737355/export').map((x) => x.label);
-    expect(projet, 'le fil affiche l’UUID brut du projet').not.toContain('56d88ca8-6a28-4612-9990-2a7680737355');
-    expect(projet).toContain('Projet');
-    // Un segment lisible (nom de concurrent) reste nommé tel quel.
-    expect(breadcrumb('/brands/b1/competitors/Lumi%C3%A8re%20Botanique').map((x) => x.label)).toContain('Lumière Botanique');
-  });
-
-  it('rien à dire sur une racine de section hors marque', () => {
-    // « Espace › Membres » sur l'écran Membres ajoute une ligne et zéro information.
-    expect(breadcrumb('/team')).toEqual([]);
-  });
-
-  it('rien à dire sur un chemin inconnu', () => {
-    expect(breadcrumb('/nexistepas')).toEqual([]);
-  });
-
-  it('rien à dire sur un écran caché · on ne fait que le traverser', () => {
-    expect(breadcrumb('/onboarding')).toEqual([]);
-    expect(breadcrumb('/adsmap/jarvis')).toEqual([]);
-  });
-
-  it('ouvre par l’accueil, puis l’entrée du rail · aucun ancien nom de rubrique', () => {
-    const c = breadcrumb('/adsmap/suites');
-    expect(c[0], 'un retour à l’accueil en tête du fil').toEqual({ label: 'Accueil', href: '/dashboard' });
-    // UX V2 · le rail est plat (Résultats, Veille…) · « Laboratoire », « Atelier »,
-    // « Observatoire » ne sont plus à l'écran, le fil ne les écrit plus.
-    expect(c[1]).toEqual({ label: 'Résultats', href: '/adsmap' });
-    for (const chemin of ['/adsmap/suites', '/tags', '/studio/projets/nouveau', '/veille/formats']) {
-      const libelles = breadcrumb(chemin).map((x) => x.label);
-      for (const ancien of ['Observatoire', 'Atelier', 'Laboratoire', 'Pilotage']) expect(libelles, `${chemin} écrit encore « ${ancien} »`).not.toContain(ancien);
-    }
-  });
-
-  it('les blocs Espace et Plateforme restent nommés · ils sont distincts dans le rail', () => {
-    expect(breadcrumb('/brands/new').map((x) => x.label)).toEqual(['Accueil', 'Espace', 'Marques', 'Nouvelle marque']);
-    expect(breadcrumb('/admin/finance').map((x) => x.label)).toEqual(['Accueil', 'Plateforme', 'Coulisses', 'Finance · MRR']);
-  });
-
-  it('donne le chemin complet, pas une flèche vers le parent', () => {
-    const c = breadcrumb('/adsmap/suites').map((x) => x.label);
-    expect(c).toEqual(['Accueil', 'Résultats', 'Suites']);
-  });
-
-  it('le dernier maillon n’est jamais un lien', () => {
-    const c = breadcrumb('/adsmap/suites');
-    expect(c[c.length - 1]!.href).toBeNull();
-  });
-
-  it('les maillons intermédiaires sont cliquables', () => {
-    const c = breadcrumb('/adsmap/lots');
-    expect(c[1]).toEqual({ label: 'Résultats', href: '/adsmap' });
-  });
-
-  it('la marque s’insère après la section quand l’écran en dépend', () => {
-    const c = breadcrumb('/adsmap/radar', { brandScoped: true, brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Accueil', 'TrueFords', 'Résultats', 'Radar de veille']);
-  });
-
-  it('une racine par marque mérite un fil · le contexte manquerait sinon', () => {
-    const c = breadcrumb('/jarvis', { brandScoped: true, brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Accueil', 'TrueFords', 'Jarvis']);
-  });
-
-  it('le maillon marque est CLIQUABLE vers sa fiche quand on a son id', () => {
-    // Sur un écran marque-par-marque (ici /jarvis), on doit pouvoir remonter à la
-    // marque depuis le fil · sinon « Vitalys » s'affiche mais ne mène nulle part.
-    const c = breadcrumb('/jarvis', { brandScoped: true, brandName: 'Vitalys', brandId: 'b1' });
-    const marque = c.find((x) => x.label === 'Vitalys');
-    expect(marque?.href, 'on doit pouvoir revenir à la fiche de la marque').toBe('/brands/b1');
-  });
-
-  it('sans id de marque, le maillon marque reste non-cliquable (pas de lien mort)', () => {
-    const c = breadcrumb('/jarvis', { brandScoped: true, brandName: 'Vitalys' });
-    expect(c.find((x) => x.label === 'Vitalys')?.href).toBeNull();
-  });
-
-  it('sans nom de marque, on n’invente pas de maillon', () => {
-    const c = breadcrumb('/adsmap/lots', { brandScoped: true, brandName: null });
-    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Résultats', 'Lots de test']);
-  });
-
-  it('un segment dynamique prend le nom de la marque', () => {
-    const c = breadcrumb('/brands/abc-123', { brandName: 'TrueFords' });
-    expect(c.map((x) => x.label)).toEqual(['Accueil', 'Espace', 'Marques', 'TrueFords']);
-  });
-
-  it('la fiche d’une marque nomme la marque CONSULTÉE, pas l’active', () => {
-    // Sur /brands/[id], le dernier maillon doit être la marque de l'URL. Avec une
-    // marque active DIFFÉRENTE (Neva) et une marque consultée (Klorea), le fil
-    // dit « Klorea » · le bug affichait « Neva ».
-    const c = breadcrumb('/brands/klorea-1', {
-      brandName: 'Neva',
-      resolveBrand: (id) => (id === 'klorea-1' ? 'Klorea' : null),
-    });
-    expect(c[c.length - 1]!.label).toBe('Klorea');
-    expect(c.map((x) => x.label)).not.toContain('Neva');
-  });
-
-  it('sans résolveur, la fiche retombe sur le nom d’active (jamais le motif [id])', () => {
-    const c = breadcrumb('/brands/abc-123', { brandName: 'TrueFords' });
-    expect(c[c.length - 1]!.label).toBe('TrueFords');
-  });
-
-  it('un concurrent tire son nom de l’URL, décodé', () => {
-    const c = breadcrumb('/brands/abc/competitors/Nike%20France', { brandName: 'TrueFords' });
-    expect(c[c.length - 1]!.label).toBe('Nike France');
-    expect(c[3]).toEqual({ label: 'TrueFords', href: '/brands/abc' });
-  });
-
-  it('les liens intermédiaires portent le vrai identifiant, pas le motif', () => {
-    const c = breadcrumb('/brands/abc/competitors/nike', { brandName: 'M' });
-    expect(c.every((x) => !x.href?.includes('['))).toBe(true);
-  });
-});
-
-describe('les écrans qui travaillent marque par marque sont déclarés', () => {
-  it('Adsmap et Jarvis en font partie', () => {
-    expect(isBrandScoped('/adsmap')).toBe(true);
-    expect(isBrandScoped('/jarvis')).toBe(true);
-  });
-
-  it('les écrans d’espace n’en font pas partie', () => {
-    expect(isBrandScoped('/team')).toBe(false);
-    expect(isBrandScoped('/billing')).toBe(false);
-  });
-
-  it('un chemin inconnu ne l’est pas non plus', () => {
-    expect(isBrandScoped('/nexistepas')).toBe(false);
-  });
-});
-
-describe('le rail et le fil décrivent la même hiérarchie', () => {
-  /**
-   * Le garde qui manquait pour de bon.
-   *
-   * `FEATURES` (le rail) et `ROUTES` (le fil) sont deux vues d'une seule
-   * arborescence. C'est exactement la configuration qui avait produit le désordre
-   * initial : deux listes qui décrivent la même chose finissent toujours par ne
-   * plus la décrire pareil. Faute de les fusionner — le rail porte des rôles et
-   * des offres qui n'ont rien à faire dans un fil d'Ariane — on vérifie qu'elles
-   * s'accordent.
-   */
-  const railHrefs = () => FEATURES
-    .filter((f) => f.group !== 'account')
-    .map((f) => f.href.split('?')[0]!);
-
-  it('chaque entrée du rail est déclarée dans la carte', () => {
-    const connus = new Set(ROUTES.map((r) => r.path));
-    const absentes = railHrefs().filter((h) => !connus.has(h));
-    expect(absentes, `Entrée(s) de rail sans route : ${absentes.join(', ')}`).toEqual([]);
-  });
-
-  it('les libellés concordent · deux noms pour un écran est un bug d’affichage', () => {
-    const parChemin = new Map(ROUTES.map((r) => [r.path, r.label]));
-    const ecarts = FEATURES
-      .filter((f) => f.group !== 'account')
-      // Une entrée à requête qui est une VUE déclarée (lot 19A · Analytics sous
-      // l'Accueil) se compare à SA déclaration, pas à l'écran nu du même chemin.
-      .map((f) => ({ href: f.href.split('?')[0]!, rail: f.label, fil: VUES.find((v) => v.href === f.href)?.label ?? parChemin.get(f.href.split('?')[0]!) }))
-      .filter((x) => x.fil && x.fil !== x.rail);
-    expect(ecarts, `Libellés divergents : ${ecarts.map((e) => `${e.href} (${e.rail} ≠ ${e.fil})`).join(', ')}`)
-      .toEqual([]);
-  });
-
-  it('la filiation concorde · un sous-écran du rail a le même parent dans la carte', () => {
-    const parCle = new Map(FEATURES.map((f) => [f.key, f]));
-    const parChemin = new Map(ROUTES.map((r) => [r.path, r]));
-    const ecarts: string[] = [];
-    for (const f of FEATURES) {
-      if (!f.parent || f.group === 'account') continue;
-      const route = parChemin.get(f.href.split('?')[0]!);
-      const parentRail = parCle.get(f.parent);
-      if (!route || !parentRail) continue;
-      const parentCarte = VUES.find((v) => v.href === f.href)?.parent ?? route.parent;
-      if (parentCarte !== parentRail.href.split('?')[0]) {
-        ecarts.push(`${f.href} · rail dit ${parentRail.href}, carte dit ${route.parent ?? 'aucun'}`);
-      }
-    }
-    expect(ecarts, ecarts.join(' | ')).toEqual([]);
-  });
-
+describe('les entrées de navigation (`FEATURES`, lues par la coquille Spatial) restent distinctes', () => {
   it('aucun libellé de rail n’apparaît deux fois · « Radar » l’a fait, et on ne savait plus lequel', () => {
     const labels = FEATURES.filter((f) => f.group !== 'account').map((f) => f.label);
     const doublons = labels.filter((l, i) => labels.indexOf(l) !== i);
     expect([...new Set(doublons)], `Libellé(s) en double : ${doublons.join(', ')}`).toEqual([]);
-  });
-});
-
-describe('chaque icône du rail existe · sinon un item rend un glyphe faux, en silence', () => {
-  /**
-   * Ce qui a manqué et qu'on ne voyait pas.
-   *
-   * `FEATURES[].icon` nomme un glyphe. Le rail retombait en silence sur `grid`
-   * quand un nom était absent du jeu · « Tri des propositions » portait `check`,
-   * absent, il s'affichait donc avec l'icône du dashboard sans que rien ne le
-   * signale. On lit le jeu dans la SOURCE et on vérifie que tout `icon` déclaré y
-   * a un tracé · un ajout d'item sans glyphe casse ici, plus à l'écran.
-   *
-   * La palette ⌘K rendait autrefois un emoji (table `emojiFor` dans AppShell) ·
-   * elle rend désormais la MÊME icône au trait que le rail (`<Icon name={it.icon}>`).
-   * Il n'y a donc plus qu'un seul jeu à garder · le tracé SVG couvre les deux.
-   */
-  const iconSrc = readFileSync(join(process.cwd(), 'components', 'Icon.tsx'), 'utf8');
-  // Extrait les clés d'une table `const <nom>… = { … }`. Les clés sont les seuls
-  // `mot:` immédiatement suivis d'une valeur littérale (chemins SVG et emojis
-  // sont des chaînes entre quotes, sans `mot:`).
-  const clesDeTable = (src: string, nomTable: string): Set<string> => {
-    const debut = src.indexOf(`const ${nomTable}`);
-    if (debut < 0) throw new Error(`Table ${nomTable} introuvable`);
-    const ouvre = src.indexOf('{', debut);
-    const ferme = src.indexOf('};', ouvre);
-    const bloc = src.slice(ouvre, ferme);
-    return new Set([...bloc.matchAll(/(\w+):\s*'/g)].map((m) => m[1]!));
-  };
-  const iconesDeclarees = [...new Set(FEATURES.map((f) => f.icon))];
-
-  it('le jeu partagé a un tracé pour chaque icône déclarée · rail ET palette', () => {
-    const tracés = clesDeTable(iconSrc, 'ICON_PATHS'); // jeu partagé dans Icon.tsx
-    const absentes = iconesDeclarees.filter((i) => !tracés.has(i));
-    expect(absentes, `Icône(s) sans tracé SVG · le rail retombe sur « grid » : ${absentes.join(', ')}`)
-      .toEqual([]);
   });
 });
 

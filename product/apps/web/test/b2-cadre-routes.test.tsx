@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { BORDURES, EXCEPTIONS_LECTURE, LECTURE } from '@tiktrends/core';
+import { BORDURES, LECTURE } from '@tiktrends/core';
 import { cadrePage, colonneLecture } from '../components/ui';
 
 /**
@@ -14,18 +14,13 @@ import { cadrePage, colonneLecture } from '../components/ui';
  * posée à la main, ou une lecture resserrée hors de la liste nommée au noyau.
  * La mesure en navigateur (recette B2) prouve le rendu ; ce garde empêche la
  * dérive de revenir.
+ *
+ * Retrait de la coquille V5 · le parcours des pages de `app/(app)` disparaît
+ * avec le groupe (mesuré : 5 pages au départ de ce retrait, toutes des filets
+ * de redirection sans <main>, déplacés hors coquille sous `app/studio`). Les
+ * écrans Spatial posent le cadre de la maquette (`spatial.css`), gardé par
+ * `spatial-fondation`. Restent ici le rendu du cadre partagé et les jetons.
  */
-const APP = join(process.cwd(), 'app', '(app)');
-const pages: string[] = [];
-(function parcourir(d: string) {
-  for (const n of readdirSync(d)) {
-    const p = join(d, n);
-    if (statSync(p).isDirectory()) parcourir(p);
-    else if (n === 'page.tsx') pages.push(p);
-  }
-})(APP);
-const routeDe = (p: string) => '/' + relative(APP, p).split(sep).slice(0, -1).join('/');
-
 describe('B2 · le cadre extérieur commun, rendu', () => {
   // Lot V5 · B · le cadre commun passe à la largeur V5 (1500, mesurée sur la
   // référence) · une seule source (CADRE_PAGE), le rendu la porte partout.
@@ -38,45 +33,6 @@ describe('B2 · le cadre extérieur commun, rendu', () => {
   it('colonneLecture · resserre sans recentrer (pas de margin auto)', () => {
     const h = renderToStaticMarkup(<div style={colonneLecture('formulaire')} />);
     expect(h).toBe(`<div style="max-width:${LECTURE.formulaire}px"></div>`);
-  });
-});
-
-describe('B2 · chaque écran pose cadrePage, sans largeur extérieure à la main', () => {
-  it('on parcourt bien tous les écrans', () => {
-    // Mesuré : 45 pages V5 avant la vague 2 Spatial, 40 après Résultats et
-    // Studios, 37 après la Bibliothèque (27/10). Les retraits continuent
-    // (écrans devenus exclusifs) · le seuil ne garde que la lecture des pages
-    // (il tombe à 0 si le chemin du scan casse).
-    // Mesuré : 6 après la vague 4 (Veille, Accueil, Finance, Inscriptions, Profil, Tags, Support, Crédits) (28/10/2026) · plancher 3.
-    // Mesuré : 5 après le retrait de la fiche projet V5 `/studio/projets/[id]` (28/10/2026) · plancher 3 inchangé.
-    expect(pages.length).toBeGreaterThanOrEqual(3);
-  });
-  for (const p of pages) {
-    const route = routeDe(p);
-    const src = readFileSync(p, 'utf8');
-    it(route, () => {
-      const mains = [...src.matchAll(/<main style=\{([^\n]*?)\}>/g)].map((m) => m[1]!);
-      // Tout <main> doit être lu par ce garde · une écriture qu'il ne reconnaît pas passerait en silence.
-      expect(mains.length, `${route} · un <main> échappe au garde`).toBe((src.match(/<main\b/g) ?? []).length);
-      for (const s of mains) {
-        expect(s, `${route} · <main> pose sa propre largeur`).not.toMatch(/maxWidth/);
-        expect(s === 'wrap' || /cadrePage/.test(s), `${route} · <main style={${s}}> n'utilise pas cadrePage`).toBe(true);
-      }
-      if (mains.includes('wrap')) {
-        const def = /const wrap = ([^;]*);/.exec(src)?.[1] ?? '';
-        expect(def, `${route} · wrap ne vient pas de cadrePage`).toMatch(/^(cadrePage|\{ \.\.\.cadrePage[^}]*\})$/);
-        expect(def, `${route} · wrap repose une largeur extérieure`).not.toMatch(/maxWidth|padding/);
-      }
-      const lectures = [...src.matchAll(/colonneLecture\('(\w+)'\)/g)].map((m) => m[1]!);
-      for (const l of lectures) {
-        expect(EXCEPTIONS_LECTURE[route], `${route} · lecture resserrée sans exception nommée au noyau`).toBeDefined();
-        expect(l, `${route} · lecture « ${l} » ≠ exception nommée`).toBe(EXCEPTIONS_LECTURE[route]!.lecture);
-      }
-    });
-  }
-  it('chaque exception nommée au noyau existe encore comme écran', () => {
-    const routes = new Set(pages.map(routeDe));
-    for (const r of Object.keys(EXCEPTIONS_LECTURE)) expect(routes.has(r), r).toBe(true);
   });
 });
 

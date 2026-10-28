@@ -53,7 +53,6 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/veille/formats',
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
-vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }), useToastSiPresent: () => null }));
 
 import { db, schema } from '@tiktrends/db';
 import { classerFormatSauvegarde, saveAd } from '../app/actions/inspo';

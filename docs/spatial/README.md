@@ -23,18 +23,22 @@ Ouvrir la maquette : la charger dans un navigateur, `#<route>` affiche un écran
   on reproduit le **DOM et les classes** de la maquette, le CSS fait le reste.
 - **Arbre isolé** · les écrans Spatial vivent sous `app/(spatial)/sp/<adresse>`,
   avec leur propre layout qui ne charge **que** `spatial.css` (ni Tailwind, ni
-  `globals.css`, ni les jetons V5). L'ancienne interface garde ses segments.
-- **Bascule** · cookie `tt_ui` (`?ui=spatial` / `?ui=v5`). **Spatial est le défaut**
-  (sans cookie) ; `?ui=v5` rouvre l'ancienne interface. En mode Spatial, le
-  middleware réécrit une adresse PORTÉE vers `/sp/…` · l'adresse du navigateur ne
-  change pas. Un écran porté = une entrée dans
+  `globals.css`, ni les jetons V5). Seules les pages publiques (connexion,
+  inscription, tarifs, mentions, vue client partagée) gardent `globals.css`.
+- **Routage** · l'ancienne interface (coquille V5, groupe `app/(app)`, cookie
+  `tt_ui`, `?ui=v5`) est **retirée**. Le middleware réécrit toute adresse PORTÉE
+  vers `/sp/…` · l'adresse du navigateur ne change pas ; une adresse inconnue
+  tombe en 404. Les anciennes adresses de création (`/studio`, `/studio/ads`,
+  `/studio/image`, `/studio/video`, `/studio/textes`) et `/adsmap/jarvis` sont
+  des 307 du middleware (`redirectionServeur`, noyau), avec leurs pages filet
+  hors coquille (`app/studio/…`) · garde `middleware-redirections`. Un écran porté = une entrée dans
   `packages/core/src/spatial/ecrans/<rubrique>.ts` + sa page sous `app/(spatial)/sp`.
   La garde refuse un chemin déclaré sans page, et une page sans déclaration.
 - **Filet** · `app/(spatial)/sp/error.tsx` · un écran qui échoue propose de
-  réessayer ou d'ouvrir le même écran dans l'ancienne interface.
+  réessayer ou de revenir à l'accueil.
 - **Coquille** · `apps/web/spatial/coquille/Coquille.tsx` (rail, `main.win`,
   bulle Jarvis, panneaux, palette ⌘K, toast, sprite). Données réelles chargées par
-  `apps/web/lib/spatial/coquille.ts` (mêmes gardes que la coquille V5).
+  `apps/web/lib/spatial/coquille.ts` (mêmes gardes que l'ancienne coquille V5).
 - **Briques communes** · `apps/web/spatial/communs` : `Vue`, `EnTete`, `SousNav`,
   `Ic` (icône du sprite), `Anneau`, `PastilleCredits`, `Lien` (navigation client
   vers un écran porté, rechargement sinon · les deux interfaces ne partagent

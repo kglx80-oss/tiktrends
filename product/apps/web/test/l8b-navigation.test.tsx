@@ -34,11 +34,10 @@ import {
 import { ROUTES, ROUTES_HISTORIQUES, matchRoute } from '../lib/navigation';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { retourNettoye } from '../lib/studios/sources/sources';
-import StudioPage from '../app/(app)/studio/page';
-import { fichierServi, RACINE_SPATIALE } from './spatial/servie';
+import StudioPage from '../app/studio/page';
+import { fichierServi, RACINE_APP, RACINE_SPATIALE } from './spatial/servie';
 
-const APP = join(process.cwd(), 'app', '(app)');
-// Une page V5 retirée au profit d'un écran Spatial EXCLUSIF (vague 2) reste servie, par Spatial.
+// L'ancienne interface est retirée · une adresse est servie par son écran Spatial, ou par son filet hors coquille.
 const fichierPage = (motif: string): string | null => fichierServi(motif);
 
 describe('UX-05 · chaque route historique est servie et lit encore ses paramètres', () => {
@@ -76,9 +75,10 @@ describe('UX-05 · chaque route historique est servie et lit encore ses paramèt
         const perdus = r.params.filter((p) => !new RegExp(`\\bsp\\.${p}\\b`).test(source));
         expect(perdus, `${r.chemin} ne lit plus : ${perdus.join(', ')}`).toEqual([]);
       }
-      // Recherche globale conservée · la page vit sous la coquille de l'appli (barre « Rechercher ») ou sous
-      // la coquille Spatiale (palette ⌘K) quand l'écran est exclusif.
-      expect(f!.startsWith(APP) || f!.startsWith(RACINE_SPATIALE)).toBe(true);
+      // Recherche globale conservée · la page vit sous la coquille Spatiale (palette ⌘K) · seuls les filets
+      // de redirection des anciennes adresses vivent hors coquille (`app/studio/…`).
+      const filet = (ANCIENNES_ADRESSES_STUDIO as readonly string[]).includes(r.chemin);
+      expect([r.chemin, filet ? f!.startsWith(join(RACINE_APP, 'studio')) : f!.startsWith(RACINE_SPATIALE)]).toEqual([r.chemin, true]);
     });
   }
 });

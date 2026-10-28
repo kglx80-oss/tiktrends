@@ -39,7 +39,7 @@ import { db, schema, eq, and } from '@tiktrends/db';
 import { lireReferenceEpinglee, idPhotoProduit, colonnesApresImport, DATA_URI_PHOTO_MAX, MESSAGES_REFUS_PHOTO, PHOTOS_PRODUIT_MAX, type ContenuVersion, type BriefCanonique } from '@tiktrends/core';
 import { importerPhotoProduitPour } from '../lib/studios/produit/import-photo';
 import * as actions from '../app/actions/studios/produit';
-import { GET as apercu } from '../app/(app)/studio/projets/[id]/produit/fichier/[assetId]/route';
+import { GET as apercu } from '../app/studio/projets/[id]/produit/fichier/[assetId]/route';
 import { semer, session } from './studios-semis';
 import { ctxDe } from './l4a-outils';
 import { semerCatalogue, projetStatique, compter, delta, type Catalogue } from './l5c-outils';

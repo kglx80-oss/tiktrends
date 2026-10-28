@@ -6,7 +6,7 @@ import { middleware, config } from '../middleware';
 
 /**
  * Le middleware · les adresses retirées sortent en VRAIE 307 HTTP, avant tout
- * rendu (une page `redirect()` sous `(app)` sort en 200 diffusé et le
+ * rendu (une page `redirect()` sous l'ancienne coquille sortait en 200 diffusé et le
  * navigateur lève l'erreur React #310 · mesuré en production locale).
  *
  * On appelle la vraie fonction avec une vraie `NextRequest` et on lit la
@@ -37,12 +37,9 @@ const CAS: Array<[string, string]> = [
   ['/adsmap/jarvis?x=1', '/jarvis'],
 ];
 
-/** Chemins qui ne sont PAS des adresses retirées · ni appariés, ni touchés. */
-// `/studio/projets` (liste), Résultats, `/assets` et Jarvis sont des écrans Spatial EXCLUSIFS depuis la vague 2 (« Nouveau projet » et l'éditeur
-// d'image depuis la vague 3) · réécrits même en mode V5, gardés plus bas.
-// Vague 4 · `/saved`, `/veille` et `/dashboard` sont des écrans Spatial EXCLUSIFS (réécrits même en mode V5) · retirés de cette liste.
-// La fiche projet `/studio/projets/[id]` est EXCLUSIVE (page V5 retirée) · sa route de fichier, elle, n'est pas concernée.
-const NON_CONCERNES = ['/', '/login', '/analytics', '/studio/projets/abc/produit/fichier/a1', '/studio/ads/x', '/api/health', '/_next/static/chunks/main.js'];
+/** Chemins qui ne sont PAS des adresses retirées ni des écrans Spatiaux · ni appariés, ni touchés (page publique, route, 404). */
+// La fiche projet `/studio/projets/[id]` est un écran Spatial · sa route de fichier, elle, n'est pas concernée.
+const NON_CONCERNES = ['/', '/login', '/analytics', '/studio/projets/abc/produit/fichier/a1', '/studio/ads/x', '/adresse-jamais-portee', '/api/health', '/_next/static/chunks/main.js'];
 
 const appeler = (adresse: string, headers: Record<string, string> = {}) => middleware(new NextRequest(HOTE + adresse, { headers }));
 
@@ -59,32 +56,10 @@ describe('middleware · adresses retirées servies en 307 HTTP, contexte repris'
     expect([r.status, r.headers.get('location')]).toEqual([307, `${HOTE}/studio/projets/nouveau?type=video&angle=Plan`]);
   });
 
-  it('chemin non concerné ⇒ passe inchangé (aucune redirection)', () => {
-    // En mode V5 · la réécriture Spatial (défaut) est gardée à part, plus bas.
+  it('chemin non concerné ⇒ passe inchangé (aucune redirection, aucune réécriture)', () => {
     for (const adresse of NON_CONCERNES) {
-      const r = appeler(adresse, { cookie: 'tt_ui=v5' });
-      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-next')]).toEqual([adresse, 200, null, '1']);
-    }
-  });
-
-  it('Jarvis est exclusif (vague 3) · même en mode V5, ses écrans sont servis par Spatial', () => {
-    for (const adresse of ['/jarvis', '/jarvis/sources', '/jarvis/veille']) {
-      const r = appeler(adresse, { cookie: 'tt_ui=v5' });
-      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite')]).toEqual([adresse, 200, null, `${HOTE}/sp${adresse}`]);
-    }
-  });
-
-  it('l’Accueil est exclusif (vague 2 Spatial v4) · même en mode V5, `/dashboard` (et sa vue Analytics, cible de `/analytics` et des `redirect(\'/dashboard\')`) est servi par Spatial', () => {
-    for (const adresse of ['/dashboard', '/dashboard?vue=analytics']) {
-      const r = appeler(adresse, { cookie: 'tt_ui=v5' });
-      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite')]).toEqual([adresse, 200, null, `${HOTE}/sp${adresse}`]);
-    }
-  });
-
-  it('Résultats est exclusif · même en mode V5, ses adresses sont servies par Spatial (sans redirection)', () => {
-    for (const adresse of ['/adsmap', '/adsmap/tri', '/adsmap/lots', '/adsmap/tests/abc']) {
-      const r = appeler(adresse, { cookie: 'tt_ui=v5' });
-      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite')]).toEqual([adresse, 200, null, `${HOTE}/sp${adresse}`]);
+      const r = appeler(adresse);
+      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite'), r.headers.get('x-middleware-next')]).toEqual([adresse, 200, null, null, '1']);
     }
   });
 
@@ -100,50 +75,37 @@ describe('middleware · adresses retirées servies en 307 HTTP, contexte repris'
   });
 });
 
-describe('middleware · bascule Spatial (cookie tt_ui)', () => {
-  const avec = (adresse: string, ui?: string) => appeler(adresse, ui ? { cookie: `tt_ui=${ui}` } : {});
-
-  it('?ui=spatial ⇒ pose le cookie et revient à la même adresse sans le paramètre', () => {
-    const r = appeler('/usage?ui=spatial&x=1');
-    expect([r.status, r.headers.get('location')]).toEqual([307, `${HOTE}/usage?x=1`]);
-    expect(r.cookies.get('tt_ui')?.value).toBe('spatial');
-    expect(appeler('/usage?ui=v5').cookies.get('tt_ui')?.value).toBe('v5');
-    // Une valeur inconnue est ignorée · aucun cookie, aucune redirection.
-    const n = appeler('/usage?ui=rose');
-    expect([n.status, n.cookies.get('tt_ui')]).toEqual([200, undefined]);
-  });
-
-  it('mode Spatial + écran porté ⇒ réécrit vers l’arbre interne, section transmise, adresse inchangée', () => {
-    const r = avec('/usage', 'spatial');
+describe('middleware · interface Spatial seule (l’ancienne interface est retirée)', () => {
+  it('écran porté ⇒ réécrit vers l’arbre interne, section transmise, adresse inchangée', () => {
+    const r = appeler('/usage');
     expect(r.status).toBe(200);
     expect(r.headers.get('location')).toBeNull();
     expect(r.headers.get('x-middleware-rewrite')).toBe(`${HOTE}/sp/usage`);
     expect(r.headers.get('x-middleware-request-x-tt-section')).toBe('reglages');
   });
 
-  it('sans cookie ⇒ Spatial par défaut · l’écran porté est réécrit', () => {
-    const r = avec('/usage');
-    expect([r.status, r.headers.get('x-middleware-rewrite')]).toEqual([200, `${HOTE}/sp/usage`]);
-  });
-
-  it('mode V5, ou écran non porté ⇒ aucune réécriture', () => {
-    for (const [adresse, ui] of [['/studio/ads/x', 'v5'], ['/adresse-jamais-portee', 'spatial'], ['/adresse-jamais-portee', undefined], ['/sp/usage', 'spatial']] as const) {
-      const r = avec(adresse, ui);
-      expect([adresse, ui, r.headers.get('x-middleware-rewrite'), r.headers.get('x-middleware-next')]).toEqual([adresse, ui, null, '1']);
+  it('chaque rubrique est servie par Spatial · Accueil, Studios (fiche comprise), Résultats, Jarvis, Veille', () => {
+    for (const adresse of ['/dashboard', '/dashboard?vue=analytics', '/onboarding', '/studio/projets', '/studio/prompts', '/studio/iterer', '/studio/projets/abc', '/studio/projets/nouveau', '/studio/projets/nouveau/concept', '/studio/projets/abc/image', '/studio/projets/abc/produit', '/studio/projets/abc/textes', '/studio/projets/abc/identites', '/studio/projets/abc/export', '/studio/projets/abc/video', '/adsmap', '/adsmap/tri', '/adsmap/lots', '/adsmap/tests/abc', '/jarvis', '/jarvis/sources', '/jarvis/veille', '/veille', '/saved']) {
+      const r = appeler(adresse);
+      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite')]).toEqual([adresse, 200, null, `${HOTE}/sp${adresse}`]);
     }
   });
 
-  it('Studios · un écran EXCLUSIF (page V5 retirée) est réécrit même en mode V5 · la fiche aussi, seule la route de fichier reste hors Spatial', () => {
-    for (const adresse of ['/studio/projets/abc', '/studio/projets', '/studio/prompts', '/studio/iterer', '/studio/projets/nouveau', '/studio/projets/nouveau/concept', '/studio/projets/abc/image', '/studio/projets/abc/produit', '/studio/projets/abc/textes', '/studio/projets/abc/identites', '/studio/projets/abc/export', '/studio/projets/abc/video']) {
-      expect([adresse, avec(adresse, 'v5').headers.get('x-middleware-rewrite')]).toEqual([adresse, `${HOTE}/sp${adresse}`]);
-    }
-    for (const adresse of ['/studio/projets/abc/produit/fichier/a1']) {
-      expect([adresse, avec(adresse, 'v5').headers.get('x-middleware-rewrite')]).toEqual([adresse, null]);
+  it('`?ui=v5` et le cookie `tt_ui` n’ont plus aucun effet · ni redirection, ni cookie, ni retour à l’ancienne interface', () => {
+    for (const [adresse, cookie] of [['/usage?ui=v5', undefined], ['/usage?ui=spatial', undefined], ['/usage', 'tt_ui=v5'], ['/onboarding', 'tt_ui=v5']] as const) {
+      const r = appeler(adresse, cookie ? { cookie } : {});
+      const chemin = adresse.split('?')[0]!;
+      expect([adresse, r.status, r.headers.get('location'), r.cookies.get('tt_ui'), r.headers.get('x-middleware-rewrite')?.replace(/\?.*$/, '')]).toEqual([adresse, 200, null, undefined, `${HOTE}/sp${chemin}`]);
     }
   });
 
-  it('les adresses retirées gardent leur 307 en mode Spatial', () => {
-    const r = avec('/studio', 'spatial');
+  it('un chemin déjà interne n’est jamais réécrit une seconde fois', () => {
+    const r = appeler('/sp/usage');
+    expect([r.headers.get('x-middleware-rewrite'), r.headers.get('x-middleware-next')]).toEqual([null, '1']);
+  });
+
+  it('les adresses retirées gardent leur 307', () => {
+    const r = appeler('/studio');
     expect([r.status, r.headers.get('location')]).toEqual([307, `${HOTE}/studio/projets`]);
   });
 });
@@ -151,11 +113,12 @@ describe('middleware · bascule Spatial (cookie tt_ui)', () => {
 describe('filet · la page redirect() de chaque adresse vise la même cible que le middleware', () => {
   type Page = (p: { searchParams: Promise<Record<string, string | string[] | undefined>> }) => unknown;
   const PAGES: Record<string, () => Promise<{ default: Page }>> = {
-    '/studio': () => import('../app/(app)/studio/page') as Promise<{ default: Page }>,
-    '/studio/ads': () => import('../app/(app)/studio/ads/page'),
-    '/studio/image': () => import('../app/(app)/studio/image/page'),
-    '/studio/video': () => import('../app/(app)/studio/video/page'),
-    '/studio/textes': () => import('../app/(app)/studio/textes/page'),
+    // Hors coquille depuis le retrait de l'ancienne interface (`app/studio/…`, plus sous `(app)`).
+    '/studio': () => import('../app/studio/page') as Promise<{ default: Page }>,
+    '/studio/ads': () => import('../app/studio/ads/page'),
+    '/studio/image': () => import('../app/studio/image/page'),
+    '/studio/video': () => import('../app/studio/video/page'),
+    '/studio/textes': () => import('../app/studio/textes/page'),
     // L'ancienne page V5 est retirée (Résultats exclusif) · le filet est la page Spatial.
     '/adsmap/jarvis': () => import('../app/(spatial)/sp/adsmap/jarvis/page') as Promise<{ default: Page }>,
   };

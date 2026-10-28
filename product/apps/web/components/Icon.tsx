@@ -84,8 +84,3 @@ export function Icon({ name, size = 17 }: { name: string; size?: number }) {
     </svg>
   );
 }
-
-/** Le nom d'icône qui correspond au type d'un asset · plus jamais un emoji. */
-export function iconForAssetKind(kind: string): string {
-  return kind === 'image' ? 'image' : kind === 'video' ? 'film' : kind === 'audio' ? 'music' : 'file';
-}

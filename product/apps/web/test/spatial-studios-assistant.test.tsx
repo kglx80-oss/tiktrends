@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { construireBriefV5, saisieBriefVide, type BriefCanonique } from '@tiktrends/core';
+import { construireBriefV5, messageHorsLigneStudio, saisieBriefVide, type BriefCanonique } from '@tiktrends/core';
 import type { DevisImageVue, VueParcoursImage } from '../lib/studios/image/parcours';
 import { parite, squelette } from './spatial/parite';
 
@@ -210,6 +210,19 @@ describe('Spatial · Nouveau projet · le brief structuré', () => {
     await cliquer($('[data-bouton="creer-projet"]'));
     expect(projets.creerProjet).not.toHaveBeenCalled();
     expect($('[role="alert"]')!.textContent).toMatch(/intention/);
+  });
+
+  // Porté de `l8b-hors-ligne` (« Préparer une création », composant V5 retiré) · créer hors ligne n'est jamais muet.
+  it('créer hors ligne · le message « hors ligne » est dit, la saisie reste, aucun second appel', async () => {
+    projets.creerProjet.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await monter(<NouveauProjet {...propsNouveau()} />);
+    await cliquer($('[data-bouton="vers-brief"]'));
+    await saisir('[data-champ="intention"]', 'Une accroche chiffrée augmente le clic');
+    await cliquer($('[data-bouton="creer-projet"]'));
+    expect($('[role="alert"]')!.textContent).toContain(messageHorsLigneStudio('creation'));
+    expect(($('[data-champ="intention"]') as HTMLTextAreaElement).value).toBe('Une accroche chiffrée augmente le clic');
+    await cliquer($('[data-bouton="creer-projet"]'));
+    expect(projets.creerProjet).toHaveBeenCalledTimes(1);
   });
 
   it('un produit choisi sans photo bloque la création · la photo choisie est épinglée après', async () => {

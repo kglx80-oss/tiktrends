@@ -65,9 +65,9 @@ const page = async () => { const d = document.createElement('div'); d.innerHTML 
 const zone = (d: HTMLElement, g: string) => d.querySelector(`[data-geste="${g}"]`)!;
 const plat = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
 
-describe('Spatial · Crédits & marges · déclaré exclusif, dans le Tour de contrôle', () => {
-  it('servi par Spatial même en mode V5, section Admin', () => {
-    expect(ecranSpatial('/credits')).toEqual({ interne: '/sp/credits', section: 'admin', exclusif: true });
+describe('Spatial · Crédits & marges · servi par Spatial, dans le Tour de contrôle', () => {
+  it('servi par Spatial, section Admin', () => {
+    expect(ecranSpatial('/credits')).toEqual({ interne: '/sp/credits', section: 'admin' });
   });
   it('la sous-navigation l’affiche, onglet courant', async () => {
     const courant = (await page()).querySelector('nav.subnav a[aria-current="page"]');

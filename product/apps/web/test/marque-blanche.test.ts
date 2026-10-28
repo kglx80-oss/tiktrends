@@ -25,9 +25,10 @@ const CLIENT = [
   'spatial/vues/accueil/Accueil.tsx',
   'spatial/vues/accueil/Analytics.tsx',
   'spatial/vues/accueil/assistant.tsx',
-  'app/(app)/studio/page.tsx',
-  'app/(app)/studio/image/page.tsx',
-  'app/(app)/studio/video/page.tsx',
+  // Filets de redirection des anciennes adresses, hors coquille depuis le retrait de la V5.
+  'app/studio/page.tsx',
+  'app/studio/image/page.tsx',
+  'app/studio/video/page.tsx',
 ];
 
 // Fournisseurs à ne jamais montrer côté client · en MOTS entiers (les frontières

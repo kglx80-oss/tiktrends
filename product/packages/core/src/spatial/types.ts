@@ -12,13 +12,6 @@ export type SectionSpatiale = (typeof SECTIONS_SPATIALES)[number];
 export interface EcranSpatial {
   chemin: string;
   section: SectionSpatiale;
-  /**
-   * Seul Spatial sert cet écran · sa page V5 est RETIRÉE. Le middleware le
-   * réécrit même en mode V5 (`?ui=v5`), et la garde `spatial-fondation` refuse
-   * qu'il garde une page dans l'ancienne interface. À poser seulement quand
-   * TOUS les gestes de la page V5 ont leur équivalent Spatial.
-   */
-  exclusif?: true;
 }
 
 /** Couleur de barre du navigateur sous Spatial, par thème · le fond de la

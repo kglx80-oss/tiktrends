@@ -14,12 +14,8 @@ import { join } from 'node:path';
  * des glyphes clavier/typographiques, pas des pictogrammes colorés · la classe
  * PICTO ci-dessous les EXCLUT explicitement (trous 2303→2305 et 2317→2319).
  */
-// Lot V5 · B · le héros ADMIN+ a quitté le menu de compte (AppShell) pour la
-// pop-up profil (ProfilPopup) · elle rejoint la liste des fichiers gardés.
+// La coquille V5 (`AppShell`, `ProfilPopup`, `CommandPalette`) est retirée · reste le jeu d'icônes partagé.
 const FICHIERS = [
-  'components/AppShell.tsx',
-  'components/ProfilPopup.tsx',
-  'components/CommandPalette.tsx',
   'components/Icon.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
@@ -33,9 +29,5 @@ describe('Coquille & palette lot I · plus aucun emoji d’interface', () => {
       const trouves = [...new Set(src.match(PICTO) ?? [])];
       expect(trouves, `pictogramme(s) encore dans ${rel} : ${trouves.join(' ')}`).toEqual([]);
     }
-  });
-  it('le héros admin rend l’icône gauge du jeu', () => {
-    const tout = FICHIERS.map((f) => f.src).join('\n');
-    expect(tout).toMatch(/<Icon name="gauge"/);
   });
 });

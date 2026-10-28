@@ -1,23 +1,20 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ECRANS_SPATIAUX, ONGLETS_REGLAGES, PAGES_ADMINISTRATION } from '@tiktrends/core';
-import { OngletsReglages, OngletsAdministration } from '../components/OngletsReglages';
+import { ONGLETS_REGLAGES, PAGES_ADMINISTRATION } from '@tiktrends/core';
 
 /**
  * UX V2 · lot 4c · les onglets de Réglages et d'Administration, au RÉSULTAT.
  *
  * On REND les vraies pages serveur (session simulée, base pglite vide) pour cinq
- * rôles, et on lit deux choses dans le HTML :
+ * rôles, et on lit si la page S'OUVRE à ce rôle (refus = redirection ou écran
+ * « Accès réservé » · c'est la garde écrite dans la page, pas une copie).
  *
- *  1. la page S'OUVRE-t-elle à ce rôle ? Refus = redirection ou écran « Accès
- *     réservé » · c'est la garde écrite dans la page, pas une copie ;
- *  2. quels onglets propose-t-elle ?
- *
- * La règle éprouvée · aucune page ne propose un onglet que sa destination
- * refuserait, et chaque page ouverte de la famille y figure (rien de caché à
- * tort). L'onglet de la page affichée porte `aria-current="page"`.
+ * Les barres d'onglets V5 (`OngletsReglages`, `OngletsAdministration`) sont
+ * retirées avec l'ancienne coquille · toutes ces pages sont servies par
+ * Spatial, dont la sous-navigation du Tour de contrôle est éprouvée plus bas
+ * (chaque entrée proposée s'ouvre).
  */
 const etat = vi.hoisted(() => ({ session: null as unknown }));
 const ids = vi.hoisted(() => {
@@ -42,19 +39,9 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 
 type Rendu = () => Promise<unknown>;
-const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/billing', '/profile',
-  // Vague 3 · Admin · l'accueil des coulisses, les gestes et les outils de la plateforme ne sont plus servis que par Spatial.
-  '/admin', '/admin/equipe', '/admin/plans', '/admin/paiement', '/admin/incidents', '/admin/depenses', '/admin/intelligence',
-  '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console',
-  // Vague 2 Spatial v4 · Finance et Inscriptions sont rendues par leur page Spatial (même porte que l'ancienne page).
-  '/admin/finance', '/admin/signups',
-  // Vague 4 · « Crédits & marges ».
-  '/credits']);
 const sp = { searchParams: Promise.resolve({}) };
 const PAGES: Record<string, Rendu> = {
-  // Vague 2 (et vague 4 · `/profile`) · ces écrans n'ont plus de page V5 · seul Spatial les sert
-  // (déclarés exclusifs). Leur GARDE est lue ici sur la page Spatial ; ils ne
-  // portent pas la barre d'onglets V5 (la sous-navigation Spatial la remplace).
+  // Ces écrans n'ont plus de page V5 · seul Spatial les sert. Leur GARDE est lue ici sur la page Spatial.
   '/settings': async () => (await import('../app/(spatial)/sp/settings/page')).default(),
   '/team': async () => (await import('../app/(spatial)/sp/team/page')).default(),
   '/connections': async () => (await import('../app/(spatial)/sp/connections/page')).default(),
@@ -89,7 +76,6 @@ const ROLES: Record<string, () => unknown> = {
   // que les pages) · la complétude ne s'applique pas à lui.
   'manager d’équipe (matrice)': () => base({ role: 'owner', equipe: { role: 'manager', matrice: { manager: ['reglages', 'equipe'] }, plateformeAdmissible: true } }),
 };
-const SOUS_ENSEMBLE = new Set(['manager d’équipe (matrice)']);
 
 type Issue = { ouvre: boolean; html: string | null; erreur?: string };
 async function rendre(chemin: string): Promise<Issue> {
@@ -105,17 +91,6 @@ async function rendre(chemin: string): Promise<Issue> {
   }
 }
 
-/** Les onglets d'une barre rendue · `href` et `aria-current`. */
-function onglets(html: string, zone: string): Array<{ href: string; courant: boolean; style: string }> {
-  const nav = new RegExp(`<nav[^>]*data-zone="onglets-${zone}"[^>]*>([\\s\\S]*?)</nav>`).exec(html)?.[1];
-  if (!nav) return [];
-  return [...nav.matchAll(/<a\b([^>]*)>/g)].map((m) => ({
-    href: /href="([^"]*)"/.exec(m[1]!)?.[1] ?? '',
-    courant: /aria-current="page"/.test(m[1]!),
-    style: /style="([^"]*)"/.exec(m[1]!)?.[1] ?? '',
-  }));
-}
-
 const REGLAGES = ONGLETS_REGLAGES.map((e) => e.href);
 const ADMINISTRATION = PAGES_ADMINISTRATION.filter((p) => !p.horsOnglets).map((p) => p.href);
 
@@ -126,46 +101,7 @@ beforeAll(async () => {
 });
 afterEach(() => { etat.session = null; });
 
-describe('lot 4c · chaque page ne propose que des onglets qu’elle n’ouvrirait pas en vain', () => {
-  for (const [nomRole, session] of Object.entries(ROLES)) {
-    it(`${nomRole} · Réglages et Administration`, async () => {
-      etat.session = session();
-      const issues: Record<string, Issue> = {};
-      for (const chemin of Object.keys(PAGES)) issues[chemin] = await rendre(chemin);
-
-      for (const [famille, zone] of [[REGLAGES, 'reglages'], [ADMINISTRATION, 'administration']] as const) {
-        const ouvertes = famille.filter((c) => issues[c]!.ouvre);
-        for (const chemin of famille) {
-          const r = issues[chemin]!;
-          if (!r.ouvre || SPATIAUX.has(chemin)) continue;
-          expect(r.html, `${chemin} · rendu impossible pour ${nomRole} : ${r.erreur}`).not.toBeNull();
-          const o = onglets(r.html!, zone);
-          if (ouvertes.length < 2) { expect(o, `${chemin} · barre d’un seul onglet`).toEqual([]); continue; }
-          const proposes = o.map((x) => x.href);
-          for (const href of proposes) expect(issues[href]?.ouvre, `${chemin} propose ${href}, que la page refuse à ${nomRole}`).toBe(true);
-          if (!SOUS_ENSEMBLE.has(nomRole)) expect([...proposes].sort(), `${chemin} · onglets ouverts manquants pour ${nomRole}`).toEqual([...ouvertes].sort());
-          else expect([...proposes].sort(), `${chemin} · matrice d’équipe`).toEqual(zone === 'reglages' ? ['/profile', '/settings', '/team'] : []);
-          if (proposes.includes(chemin)) expect(o.filter((x) => x.courant).map((x) => x.href), `${chemin} · onglet courant`).toEqual([chemin]);
-          else expect(o.some((x) => x.courant), `${chemin} · un onglet courant sans sa page`).toBe(false);
-          for (const x of o) expect(x.style, `${x.href} · cible tactile`).toContain('min-height:44px');
-        }
-        // La barre seule, hors de toute page (ex. rendue par erreur ailleurs) ·
-        // jamais une page fermée, quel que soit le rôle.
-        const seule = renderToStaticMarkup(zone === 'reglages'
-          ? <OngletsReglages session={etat.session as never} chemin={famille[0]!} />
-          : <OngletsAdministration session={etat.session as never} chemin={famille[0]!} />);
-        for (const href of onglets(seule, zone).map((x) => x.href)) expect(issues[href]?.ouvre, `barre seule · ${href} proposé à ${nomRole}, que la page refuse`).toBe(true);
-        if (ouvertes.length < 2) expect(onglets(seule, zone), `barre seule · ${nomRole}`).toEqual([]);
-        // Une page fermée à ce rôle n'apparaît dans AUCUNE barre de la famille.
-        const fermees = famille.filter((c) => !issues[c]!.ouvre);
-        for (const chemin of ouvertes.filter((c) => !SPATIAUX.has(c))) {
-          const proposes = onglets(issues[chemin]!.html ?? '', zone).map((x) => x.href);
-          for (const f of fermees) expect(proposes, `${chemin} propose ${f} à ${nomRole}`).not.toContain(f);
-        }
-      }
-    });
-  }
-
+describe('lot 4c · la garde de chaque page, par rôle', () => {
   it('les ouvertures attendues par rôle · la garde des pages, inchangée', async () => {
     const ouvre = async (role: string) => {
       etat.session = ROLES[role]!();
@@ -184,10 +120,10 @@ describe('lot 4c · chaque page ne propose que des onglets qu’elle n’ouvrira
 describe('lot 4c · entrée de l’Administration', () => {
   // Vague 3 · l'accueil V5 des coulisses (cartes par groupe) est retiré · le Tour de contrôle Spatial et sa
   // sous-navigation le remplacent. Reste gardé ici · aucun onglet ne mène à une page absente.
-  it('chaque page d’Administration existe (page V5 ou écran Spatial) · aucun lien mort', () => {
+  it('chaque page d’Administration existe (écran Spatial) · aucun lien mort', () => {
     for (const p of PAGES_ADMINISTRATION) {
       const segs = p.href.split('/').filter(Boolean);
-      const existe = existsSync(join(process.cwd(), 'app', '(app)', ...segs, 'page.tsx')) || existsSync(join(process.cwd(), 'app', '(spatial)', 'sp', ...segs, 'page.tsx'));
+      const existe = existsSync(join(process.cwd(), 'app', '(spatial)', 'sp', ...segs, 'page.tsx'));
       expect(existe, `${p.href} · page absente`).toBe(true);
     }
   });
@@ -229,26 +165,5 @@ describe('lot 4c · entrée de l’Administration', () => {
     const admissible = (await rendre('/admin')).html!;
     expect(admissible, 'le fondateur admissible voit bien Modèles IA').toContain('href="/admin/ia-studios"');
     expect(admissible, 'le fondateur admissible voit bien les Interrupteurs').toContain('href="/admin/studios-interrupteurs"');
-  });
-});
-
-describe('lot 4c · chaque page porte SA barre, sur SON chemin', () => {
-  it('toute sous-page de `/admin` présente sur le disque a son onglet (aucune oubliée)', () => {
-    const dossier = join(process.cwd(), 'app', '(app)', 'admin');
-    const surDisque = !existsSync(dossier) ? [] : readdirSync(dossier, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && existsSync(join(dossier, d.name, 'page.tsx')))
-      .map((d) => `/admin/${d.name}`);
-    // Une page V5 d'Administration ne reste sur le disque que pour un écran Spatial NON exclusif (vague 2 Spatial v4 · dérivé de la déclaration).
-    expect(surDisque.sort()).toEqual(ECRANS_SPATIAUX.filter((e) => !e.exclusif && e.chemin.startsWith('/admin/')).map((e) => e.chemin).sort());
-    for (const c of surDisque) expect(ADMINISTRATION, `${c} · page d’Administration sans onglet`).toContain(c);
-    for (const c of surDisque) expect(Object.keys(PAGES), `${c} · non rendue par ce test`).toContain(c);
-  });
-
-  it('la source de chaque page rend le composant partagé avec son propre chemin', () => {
-    for (const chemin of Object.keys(PAGES).filter((c) => !SPATIAUX.has(c))) {
-      const src = readFileSync(join(process.cwd(), 'app', '(app)', ...chemin.split('/').filter(Boolean), 'page.tsx'), 'utf8');
-      const comp = REGLAGES.includes(chemin) ? 'OngletsReglages' : 'OngletsAdministration';
-      expect(src, `${chemin} · <${comp} chemin="${chemin}"> absent`).toMatch(new RegExp(`<${comp} session=\\{[\\w.]+\\} chemin="${chemin.replace(/\//g, '\\/')}" />`));
-    }
   });
 });

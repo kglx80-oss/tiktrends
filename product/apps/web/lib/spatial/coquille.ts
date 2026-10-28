@@ -66,7 +66,7 @@ export async function poserPastilles(
 
 /**
  * Les données RÉELLES de la coquille Spatial · mêmes gardes et mêmes sources
- * que la coquille V5 (`app/(app)/layout.tsx`) : session obligatoire, onboarding
+ * que l'ancienne coquille V5 (`app/(app)/layout.tsx`, retirée) : session obligatoire, onboarding
  * d'abord pour un propriétaire neuf, accès effectif (rôle + formule), marques
  * de l'espace, crédits, notifications non lues.
  */

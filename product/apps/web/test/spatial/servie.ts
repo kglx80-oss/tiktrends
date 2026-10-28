@@ -3,27 +3,28 @@ import { join } from 'node:path';
 import { ECRANS_SPATIAUX, PREFIXE_SPATIAL } from '@tiktrends/core';
 
 /**
- * Une adresse est-elle SERVIE ? Par sa page de l'ancienne interface, ou · quand
- * celle-ci a été retirée · par l'écran Spatial EXCLUSIF qui la remplace (le
- * middleware le sert dans les deux modes, `servirEnSpatial`). Les gardes de
- * navigation (« une route déclarée mène quelque part ») passent par ici, pour
- * qu'un retrait de page V5 couvert par Spatial ne passe pas pour un 404, et
- * qu'un retrait NON couvert tombe toujours.
+ * Une adresse est-elle SERVIE ? L'ancienne interface (groupe `(app)`) est
+ * retirée · une adresse l'est par son écran Spatial (le middleware réécrit tout
+ * écran porté), ou par un fichier hors coquille posé à son chemin (filet de
+ * redirection `app/studio/…`, route de fichier). Les gardes de navigation
+ * (« une route déclarée mène quelque part ») passent par ici, pour qu'un
+ * retrait NON couvert tombe toujours.
  */
 const APP = join(__dirname, '..', '..', 'app');
 const SP = join(APP, '(spatial)', PREFIXE_SPATIAL.slice(1));
 
-/** Les écrans Spatial exclusifs qui ont leur page sous `app/(spatial)/sp` · motifs (`[id]`) compris. */
-export function cheminsExclusifsServis(): string[] {
-  return ECRANS_SPATIAUX.filter((e) => e.exclusif && existsSync(join(SP, ...e.chemin.split('/').filter(Boolean), 'page.tsx'))).map((e) => e.chemin);
+/** Les écrans Spatial qui ont leur page sous `app/(spatial)/sp` · motifs (`[id]`) compris. */
+export function cheminsSpatiauxServis(): string[] {
+  return ECRANS_SPATIAUX.filter((e) => existsSync(join(SP, ...e.chemin.split('/').filter(Boolean), 'page.tsx'))).map((e) => e.chemin);
 }
 
-/** Le fichier qui sert un motif dans un groupe de l'ancienne interface (`app/(app)`), sinon sa page Spatiale exclusive. */
-export function fichierServi(motif: string, groupe = '(app)'): string | null {
+/** Le fichier qui sert un motif · sa page Spatiale, sinon une page ou une route hors coquille à son chemin. */
+export function fichierServi(motif: string): string | null {
   const segs = motif.split('/').filter(Boolean);
-  for (const f of ['page.tsx', 'route.ts']) { const p = join(APP, groupe, ...segs, f); if (existsSync(p)) return p; }
-  if (cheminsExclusifsServis().includes(motif)) return join(SP, ...segs, 'page.tsx');
+  if (cheminsSpatiauxServis().includes(motif)) return join(SP, ...segs, 'page.tsx');
+  for (const f of ['page.tsx', 'route.ts']) { const p = join(APP, ...segs, f); if (existsSync(p)) return p; }
   return null;
 }
 
+export const RACINE_APP = APP;
 export const RACINE_SPATIALE = SP;

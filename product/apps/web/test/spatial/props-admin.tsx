@@ -129,7 +129,7 @@ export const propsCouts = (): React.ComponentProps<typeof Couts> => ({
   bandeau: BANDEAU,
   kpis: [{ lbl: 'A', v: '1', d: 'a', c: 'dn' }, { lbl: 'B', v: '1', d: 'a', c: 'up' }, { lbl: 'C', v: '1', d: 'a', c: 'up' }, { lbl: 'D', v: '1', d: 'a', c: 'up' }],
   fournisseurs: ['anthropic', 'fal', 'openai', 'google', 'x', 'y'].map((c) => ({ cle: c, montant: '1 $', appels: '1 appel', largeur: 50, part: '1 %' })),
-  budget: { part: 75, titre: 't', detail: 'd', detailHref: '/admin/depenses?ui=v5' },
+  budget: { part: 75, titre: 't', detail: 'd', detailHref: '/admin/depenses' },
   legendeOperations: 'l',
   operations: Array.from({ length: 5 }, (_, i) => ({ libelle: `o${i}`, credits: '1', revenu: '1', cout: '1', marge: 70, margeTexte: '70 %', aRevoir: i === 4 })),
   note: 'n', aReconcilier: null,

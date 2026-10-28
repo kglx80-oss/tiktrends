@@ -24,36 +24,14 @@ import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 const WEB = process.cwd();
 const PERIMETRE = [
   'components',
-  // Vague 3 · `brands` (la liste V5) et `console` sont retirés · servis par Spatial.
-  // Vague 4 · `support`, `tags`, `profile` et `credits` sont retirés · servis par Spatial · `radar` aussi (Veille exclusive).
-  ...['dashboard', 'analytics', 'studio']
-    .map((d) => join('app', '(app)', d)),
-  // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
-  ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
-  // Lot 19B (#724) · les écrans et composants que les Connaissances ont créés ou
-  // modifiés, plus la page et l'écran de refus de Jarvis (message 55).
-  // Vague 3 · les écrans V5 `/jarvis` et `/jarvis/sources` (et leurs panneaux)
-  // sont retirés, servis par Spatial · restent la conversation et le contexte,
-  // montés par le panneau Jarvis de la Veille V5.
-  join('app', '(app)', 'jarvis', 'JarvisChat.tsx'),
-  join('app', '(app)', 'jarvis', 'JarvisContexte.tsx'),
-  // Lot 19C · les écrans des formats créatifs et Sauvegardes · retirés à la vague 4 (Veille exclusive Spatial).
-  // Lot 19A · `jarvis/sections/SectionAttribution.tsx` est retirée avec l'ancien Accueil (vague 2 Spatial v4).
+  // Retrait de la coquille V5 (dernière étape) · `app/(app)` n'existe plus · ses derniers fichiers
+  // (`dashboard`, `analytics`, `studio`, `admin/finance`, `admin/signups`, `jarvis/JarvisChat`,
+  // `jarvis/JarvisContexte`) sont retirés ou déplacés hors coquille (filets de redirection, sans cadre).
 ];
 
 /** Fichiers du dossier `components` hors de ce lot, et pourquoi. */
-export const HORS_LOT: Readonly<Record<string, string>> = {
-  'components/AppShell.tsx': 'chrome de l’application · autre lot',
-  'components/Breadcrumb.tsx': 'chrome · autre lot',
-  // `components/RetourVeille.tsx` est retiré avec la fiche projet V5 (le retour vit dans la fiche Spatiale).
-  // Chrome de l'application, hors <main> · menus déroulants et panneau d'aide
-  // flottant (prolongement d'un contrôle de la barre), hors de la mesure des pages.
-  'components/BrandSwitcher.tsx': 'chrome · menu de la barre',
-  'components/CommandPalette.tsx': 'chrome · palette de commandes',
-  'components/CreditsMenu.tsx': 'chrome · menu de la barre',
-  'components/NotificationBell.tsx': 'chrome · menu de la barre',
-  'components/SupportWidget.tsx': 'chrome · widget flottant',
-};
+// La coquille V5 (`AppShell`, `Breadcrumb`, menus de la barre, palette, widget d'aide) est retirée · plus rien hors lot.
+export const HORS_LOT: Readonly<Record<string, string>> = {};
 
 /**
  * Déclarations gardées exprès · et pourquoi. La clé est `fichier::extrait exact
@@ -152,10 +130,10 @@ describe('lot 19D · garde source · bordures et rayons par rôle', () => {
     // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · le périmètre fond à chaque retrait V5.
     // Mesuré : 84 fichiers après les retraits de la vague 4 (Veille, Accueil, Finance, Inscriptions, Profil, Tags, Support, Crédits) (28/10/2026) · plancher 70.
     // Mesuré : 48 fichiers après le retrait de la fiche projet V5 et de ses composants `components/studios/*` (28/10/2026) · plancher 40.
-    expect(lot.length).toBeGreaterThan(40);
+    // Mesuré : 4 fichiers après le retrait de la coquille V5 (28/10/2026) · `components/` ne garde que
+    // `AuthShell`, `Icon`, `LegalDoc` et `ui` (pages publiques) · plancher 4.
+    expect(lot.length).toBeGreaterThanOrEqual(4);
     expect(lot).toContain('components/ui.tsx');
-    // Vague 2 Spatial v4 · l'ancien Accueil, sa vue Analytics et les pages V5 de l'Admin sont retirés (Spatial exclusif) · reste le panneau de parcours partagé.
-    for (const f of ['components/JourneyPanel.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
   });
   it('aucun cadre hors de son rôle (--line-2 sur un cadre, rayon 13–24 hors 20)', () => {
     const fautes = lot.flatMap(cadresHorsRole);

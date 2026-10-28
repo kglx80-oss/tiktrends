@@ -47,7 +47,7 @@ describe('Consulter n’écrit rien · aucun enrichissement au rendu', () => {
   it('le scanner voit bien les pages concernées (Studio, vidéo, fiche marque)', () => {
     const noms = fichiers.map((f) => relative(APP, f));
     // Vague 2 · la fiche marque n'est plus servie que par Spatial.
-    for (const attendu of ['(app)/studio/ads/page.tsx', '(app)/studio/video/page.tsx', '(spatial)/sp/brands/[id]/page.tsx', '(spatial)/sp/brands/[id]/offre/page.tsx']) {
+    for (const attendu of ['studio/ads/page.tsx', 'studio/video/page.tsx', '(spatial)/sp/brands/[id]/page.tsx', '(spatial)/sp/brands/[id]/offre/page.tsx']) {
       expect(noms, `le scanner ne voit pas ${attendu} · il regarderait ailleurs`).toContain(attendu);
     }
   });
@@ -179,7 +179,7 @@ describe('Consulter n’écrit rien · route handlers GET et rendus, par le grap
       expect(ecrivains.has(n), `le graphe ne reconnaît pas ${n} comme écrivain`).toBe(true);
     }
     const noms = cibles.map((f) => relative(join(RACINE, 'app'), f));
-    for (const attendu of ['api/ad/[id]/route.tsx', '(spatial)/sp/jarvis/sources/page.tsx', '(app)/studio/video/page.tsx', 'api/studios/media/[id]/route.ts']) {
+    for (const attendu of ['api/ad/[id]/route.tsx', '(spatial)/sp/jarvis/sources/page.tsx', 'studio/video/page.tsx', 'api/studios/media/[id]/route.ts']) {
       expect(noms, `le scanner ne voit pas ${attendu}`).toContain(attendu);
     }
   });

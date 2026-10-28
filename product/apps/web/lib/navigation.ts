@@ -1,4 +1,4 @@
-import { CHEMIN_ACCUEIL, RUBRIQUE_ANALYTICS, lireVueAccueil, DEFINITIONS_CAPACITES, type CapaciteStudio } from '@tiktrends/core';
+import { DEFINITIONS_CAPACITES, type CapaciteStudio } from '@tiktrends/core';
 
 /**
  * Où l'on est, et comment on y est arrivé.
@@ -35,21 +35,17 @@ import { CHEMIN_ACCUEIL, RUBRIQUE_ANALYTICS, lireVueAccueil, DEFINITIONS_CAPACIT
  * ici. C'est la même leçon que le journal de migrations : « ne pas oublier » n'est
  * pas une règle applicable, seule une vérification qui ne dépend de personne
  * tient dans la durée.
+ *
+ * ── Retrait de la coquille V5 ────────────────────────────────────────────────
+ *
+ * Le fil d'Ariane de l'ancienne interface (`breadcrumb`, `filEnTete`,
+ * `routeLabel`, `isBrandScoped`) est retiré avec elle · l'interface Spatial a
+ * sa propre navigation. La carte reste · elle décrit les écrans et porte les
+ * capacités Studios (`capaciteDeRoute`, `liensAtelierProjet`).
  */
 
-/** Sections de premier niveau · elles ouvrent tout fil d'Ariane. */
+/** Sections de premier niveau (regroupements de la carte des routes). */
 export type Section = 'Pilotage' | 'Observatoire' | 'Atelier' | 'Laboratoire' | 'Espace' | 'Plateforme';
-
-/**
- * Les sections que le fil d'Ariane NOMME. Le rail UX V2 est une liste plate
- * (Accueil, Veille, Studios, Bibliothèque, Résultats, Jarvis) · les anciens
- * noms de rubrique (Observatoire, Atelier, Laboratoire) n'apparaissent plus
- * nulle part à l'écran ; les écrire dans le fil donnerait un nom que
- * l'utilisateur ne retrouve pas dans le menu. Espace et Plateforme restent
- * nommés · ce sont les deux blocs distincts du rail (« Votre espace »,
- * Administration). La clé `section` reste sur chaque route (regroupements).
- */
-export const SECTIONS_NOMMEES_FIL: ReadonlySet<Section> = new Set<Section>(['Espace', 'Plateforme']);
 
 export interface RouteNode {
   /** Motif de chemin · les segments dynamiques s'écrivent `[id]`. */
@@ -189,194 +185,6 @@ export function matchRoute(pathname: string): RouteNode | null {
 
   const dynamiques = (r: RouteNode) => segments(r.path).filter((m) => m.startsWith('[')).length;
   return candidats.sort((a, b) => dynamiques(a) - dynamiques(b))[0]!;
-}
-
-export interface Crumb { label: string; href: string | null }
-
-export interface CrumbOptions {
-  /** Nom de la marque active · rend « Marques › TrueFords » plutôt que « Marque ». */
-  brandName?: string | null;
-  /**
-   * Ajoute la marque au fil sur les écrans qui travaillent marque par marque.
-   * Sans elle, « ADSMAP › Radar » décrit un écran qui n'existe pas.
-   */
-  brandScoped?: boolean;
-  /**
-   * Id de la marque active · rend le maillon marque CLIQUABLE (retour à sa fiche)
-   * sur les écrans marque-par-marque, où sinon on ne pouvait pas remonter à la
-   * marque depuis le fil.
-   */
-  brandId?: string | null;
-  /**
-   * Résout le nom d'une marque par son id · sert au maillon dynamique de la
-   * fiche `/brands/[id]`, qui doit nommer la marque CONSULTÉE (le segment de
-   * l'URL), pas la marque ACTIVE. Sans lui, ouvrir la fiche d'une autre marque
-   * que l'active affichait le nom de l'active · un écran qui décrit la mauvaise
-   * marque.
-   */
-  resolveBrand?: (id: string) => string | null;
-  /**
-   * Recherche courante (`?vue=analytics`) · lot 19A. Sur l'Accueil, elle choisit
-   * l'ÉCRAN (la vue Analytics) · le fil doit nommer cet écran, pas l'Accueil.
-   */
-  recherche?: string;
-}
-
-/**
- * Les VUES d'un écran · même chemin, la recherche choisit l'écran (lot 19A).
- * La vue Analytics de l'Accueil (`/dashboard?vue=analytics`, règle
- * `lireVueAccueil` au noyau) était la page `/analytics` · elle garde son
- * libellé, l'Accueil pour parent, et sa portée marque (elle travaille sur la
- * marque active · le fil la nomme, comme il le faisait sur `/analytics`).
- * Déclarée ICI pour que le rail (une entrée à requête) et le fil s'accordent.
- */
-export interface VueDeRoute { path: string; href: string; label: string; parent: string; parMarque: boolean; active: (recherche: string) => boolean }
-export const VUES: VueDeRoute[] = [
-  { path: CHEMIN_ACCUEIL, href: RUBRIQUE_ANALYTICS, label: 'Analytics', parent: CHEMIN_ACCUEIL, parMarque: true, active: (r) => lireVueAccueil(r) === 'analytics' },
-];
-
-function filDeVue(route: RouteNode, opts: CrumbOptions): Crumb[] | null {
-  const vue = VUES.find((v) => v.path === route.path && v.active(opts.recherche ?? ''));
-  if (!vue) return null;
-  const parent = PAR_CHEMIN.get(vue.parent);
-  const crumbs: Crumb[] = [{ label: parent?.label ?? 'Accueil', href: vue.parent }];
-  if (vue.parMarque && opts.brandName) crumbs.push({ label: opts.brandName, href: opts.brandId ? `/brands/${opts.brandId}` : null });
-  crumbs.push({ label: vue.label, href: null });
-  return crumbs;
-}
-
-/** Écrans dont le contenu dépend entièrement de la marque active. */
-// `/dashboard` n'y est PLUS · c'est l'Accueil, la vraie racine · un fil
-// « Accueil › Pilotage › Marque › Accueil » au-dessus de la page d'accueil ne dit
-// rien et se pointe lui-même. La Home montre déjà la marque active (ses cartes).
-const PAR_MARQUE = new Set([
-  '/adsmap', '/adsmap/suites', '/adsmap/lots', '/adsmap/protocole',
-  '/adsmap/import', '/adsmap/radar', '/adsmap/tri',
-  '/jarvis', '/assets', '/analytics',
-]);
-
-export function isBrandScoped(pathname: string): boolean {
-  const r = matchRoute(pathname);
-  return !!r && PAR_MARQUE.has(r.path);
-}
-
-/**
- * Le chemin complet jusqu'à l'écran courant.
- *
- * Le dernier maillon n'a pas de lien · c'est là qu'on est, et un lien vers
- * soi-même est une promesse de mouvement qui n'aboutit pas.
- *
- * Renvoie un tableau VIDE quand il n'y a rien d'utile à dire : route inconnue,
- * écran caché, ou racine de section. Afficher « Analyse › Dashboard » sur le
- * dashboard ajoute une ligne et zéro information.
- */
-export function breadcrumb(pathname: string, opts: CrumbOptions = {}): Crumb[] {
-  const route = matchRoute(pathname);
-  if (!route || route.hidden) return [];
-  const vue = filDeVue(route, opts);
-  if (vue) return vue;
-
-  // Remontée de filiation · bornée, sûre même si la carte contenait un cycle.
-  const chaine: RouteNode[] = [];
-  const vus = new Set<string>();
-  let cur: RouteNode | undefined = route;
-  while (cur && !vus.has(cur.path)) {
-    vus.add(cur.path);
-    chaine.unshift(cur);
-    cur = cur.parent ? PAR_CHEMIN.get(cur.parent) : undefined;
-  }
-
-  // Une racine de section n'a rien à raconter · le rail la montre déjà.
-  if (chaine.length === 1 && !opts.brandScoped) return [];
-
-  const parts = segments(pathname);
-  // Une porte de retour explicite en tête du fil · on descend quelque part, on
-  // veut pouvoir remonter à l'accueil d'un clic sans chercher « Dashboard » dans
-  // le rail. N'apparaît que sur les pages DESCENDUES · une racine de section ne
-  // rend aucun fil (voir plus haut), donc jamais d'« Accueil » qui pointerait
-  // sur la page qu'on regarde.
-  const crumbs: Crumb[] = [{ label: 'Accueil', href: '/dashboard' }];
-  if (SECTIONS_NOMMEES_FIL.has(route.section)) crumbs.push({ label: route.section, href: null });
-
-  if (opts.brandScoped && opts.brandName) {
-    // La marque vient juste après la section · c'est le contexte dans lequel
-    // tout le reste se lit. Cliquable vers sa fiche quand on a son id · sinon on
-    // ne pouvait pas remonter à la marque depuis un écran marque-par-marque.
-    crumbs.push({ label: opts.brandName, href: opts.brandId ? `/brands/${opts.brandId}` : null });
-  }
-
-  for (let i = 0; i < chaine.length; i++) {
-    const n = chaine[i]!;
-    const dernier = i === chaine.length - 1;
-    crumbs.push({
-      label: libelle(n, parts, opts),
-      // On ne lie jamais l'écran courant · un lien vers soi-même promet un
-      // mouvement qui n'arrive pas.
-      href: dernier ? null : hydrate(n.path, parts),
-    });
-  }
-  return crumbs;
-}
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function libelle(n: RouteNode, parts: string[], opts: CrumbOptions): string {
-  if (n.dynamic === 'brand') {
-    // Le segment `[id]` du motif · la marque CONSULTÉE. On la nomme par son id
-    // (résolu), pas par la marque active · sinon la fiche d'une autre marque
-    // s'annonçait sous le nom de l'active.
-    const motif = segments(n.path);
-    const i = motif.findIndex((m) => m.startsWith('['));
-    const id = i >= 0 ? parts[i] : undefined;
-    const nom = id && opts.resolveBrand ? opts.resolveBrand(id) : null;
-    return nom || opts.brandName || n.label;
-  }
-  if (n.dynamic === 'segment') {
-    // Le DERNIER segment dynamique · sur `/brands/[id]/competitors/[name]`,
-    // c'est le concurrent qu'on nomme, pas la marque qui le contient.
-    const motif = segments(n.path);
-    let i = -1;
-    for (let k = motif.length - 1; k >= 0; k--) {
-      if (motif[k]!.startsWith('[')) { i = k; break; }
-    }
-    const brut = i >= 0 ? parts[i] : undefined;
-    if (brut) {
-      let lu = brut;
-      try { lu = decodeURIComponent(brut); } catch { /* segment brut */ }
-      // Un identifiant opaque (UUID) n'est pas un nom : le fil affichait l'UUID
-      // brut d'un projet Studios, sur deux lignes à 390 (recette L8-B). On dit
-      // alors ce qu'est l'écran (« Projet »), jamais l'identifiant.
-      if (UUID.test(lu)) return n.label;
-      return lu;
-    }
-  }
-  return n.label;
-}
-
-/** Remplace les segments dynamiques d'un motif par ceux du chemin réel. */
-function hydrate(motif: string, parts: string[]): string {
-  const m = segments(motif);
-  return '/' + m.map((seg, i) => (seg.startsWith('[') ? (parts[i] ?? seg) : seg)).join('/');
-}
-
-/** Libellé d'écran · sert aussi aux titres d'onglet et aux journaux. */
-export function routeLabel(pathname: string): string | null {
-  return matchRoute(pathname)?.label ?? null;
-}
-
-/**
- * Le fil de l'EN-TÊTE (V5 · H01) · il occupe une place réservée de la barre
- * du haut, il ne coûte plus une ligne de page. Sur une page descendue, c'est
- * le fil complet (`breadcrumb`) ; sur une racine de section, l'écran courant
- * seul (« Accueil », « Veille »), sans lien vers lui-même. Route inconnue ou
- * cachée · rien.
- */
-export function filEnTete(pathname: string, opts: CrumbOptions = {}): Crumb[] {
-  const fil = breadcrumb(pathname, opts);
-  if (fil.length) return fil;
-  const route = matchRoute(pathname);
-  if (!route || route.hidden) return [];
-  return [{ label: route.label, href: null }];
 }
 
 /* -------------------------------------------------------------------------- */
