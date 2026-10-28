@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -14,12 +13,6 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 // Spatial · la page Protocole et ses réglages détaillés.
 const form = read('spatial/vues/resultats/ReglagesProtocole.tsx');
 const page = read('app/(spatial)/sp/adsmap/protocole/page.tsx');
-
-describe('Protocole · le support est ANCRÉ (il ne recouvre plus le contenu)', () => {
-  it('/adsmap/protocole entre dans la liste des écrans à support ancré', () => {
-    expect(placementLanceurSupport('/adsmap/protocole'), 'le support de /adsmap/protocole flotte encore et recouvre le contenu au défilement').toBe('ancre');
-  });
-});
 
 describe('Protocole · permissions et champs INCHANGÉS (non-régression)', () => {
   it('l’édition reste réservée aux admins · canEdit pilote le disabled des champs', () => {

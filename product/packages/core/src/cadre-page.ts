@@ -65,7 +65,7 @@ export type LectureInterieure = keyof typeof LECTURE;
  * extérieur, lui, reste le même · seul le contenu s'arrête plus tôt.
  */
 export const EXCEPTIONS_LECTURE: Readonly<Record<string, { lecture: LectureInterieure; raison: string }>> = {
-  // Vague 3 · `/jarvis` et `/jarvis/sources` sont servis par Spatial (exclusifs) · plus d'exception V5.
+  // Vague 3 · `/jarvis` et `/jarvis/sources` sont servis par Spatial · plus d'exception V5.
   // Vague 4 · `/profile`, `/support` et `/support/[id]` aussi.
 };
 

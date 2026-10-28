@@ -70,7 +70,7 @@ describe('Spatial · Studios · écrans portés et ordre des motifs', () => {
     for (const ch of ['/studio/projets/p1/produit', '/studio/projets/p1/textes', '/studio/projets/p1/identites', '/studio/projets/p1/export', '/studio/projets/nouveau/concept']) {
       expect(ecranSpatial(ch), ch).toMatchObject({ interne: `/sp${ch}`, section: 'studios' });
     }
-    // Le premier motif qui correspond décide · le segment fixe passe avant `[id]` (son statut, exclusif ou non, est le sien).
+    // Le premier motif qui correspond décide · le segment fixe passe avant `[id]`.
     const premier = ECRANS_SPATIAUX.find((e) => e.chemin === '/studio/projets/nouveau' || e.chemin === '/studio/projets/[id]');
     expect(premier?.chemin).toBe('/studio/projets/nouveau');
     // Le sous-chemin d'un fichier produit n'est pas un écran (il reste servi par sa route).

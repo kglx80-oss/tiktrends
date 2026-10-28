@@ -1,15 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
 import { CAPACITES_STUDIOS } from '@tiktrends/core';
 import { ROUTES, ROUTES_HISTORIQUES, CAPACITE_DES_ROUTES, capaciteDeRoute, liensAtelierProjet } from '../lib/navigation';
 import { ANCIENNES_ADRESSES_STUDIO } from '@tiktrends/core';
-import { cheminsExclusifsServis } from './spatial/servie';
+import { cheminsSpatiauxServis } from './spatial/servie';
 
 /**
  * F1 · la carte des écrans et leurs capacités (cahier 01 §14).
  *
- *  · chaque PAGE du nouveau Studio (`app/(app)/studio/projets/**`) dépend
+ *  · chaque PAGE du nouveau Studio (écrans Spatiaux `/studio/projets/**`) dépend
  *    d'une capacité déclarée ; une page ajoutée sans capacité fait tomber ce
  *    test ;
  *  · aucune ancienne adresse (Studio, Pubs IA, Image/Vidéo/Textes IA, retirés
@@ -18,19 +16,10 @@ import { cheminsExclusifsServis } from './spatial/servie';
  *  · l'atelier d'un projet ne produit jamais de lien vers un écran coupé.
  */
 
-const RACINE = join(__dirname, '../app/(app)');
-function pages(dir: string): string[] {
-  return readdirSync(dir).flatMap((n) => {
-    const p = join(dir, n);
-    if (statSync(p).isDirectory()) return pages(p);
-    return n === 'page.tsx' ? ['/' + relative(RACINE, dir).split('\\').join('/')] : [];
-  });
-}
-
 describe('carte · écrans du nouveau Studio et capacités', () => {
   it('chaque page sous /studio/projets a sa capacité', () => {
-    // Les écrans Spatiaux EXCLUSIFS (pages V5 retirées, vague 2) sont des pages du Studio comme les autres.
-    const studio = [...new Set([...pages(join(RACINE, 'studio/projets')), ...cheminsExclusifsServis().filter((c) => c.startsWith('/studio/projets'))])];
+    // L'ancienne interface est retirée · les pages du Studio sont ses écrans Spatiaux.
+    const studio = cheminsSpatiauxServis().filter((c) => c.startsWith('/studio/projets'));
     expect(studio.length).toBeGreaterThanOrEqual(8);
     expect(studio.filter((p) => !CAPACITE_DES_ROUTES[p]), 'page du nouveau Studio sans capacité').toEqual([]);
     expect(Object.values(CAPACITE_DES_ROUTES).every((c) => (CAPACITES_STUDIOS as readonly string[]).includes(c))).toBe(true);

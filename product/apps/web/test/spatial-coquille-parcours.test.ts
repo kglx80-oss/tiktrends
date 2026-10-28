@@ -38,7 +38,7 @@ const HOTE = 'https://app.tiktrends.test';
 
 describe('Spatial · parcours d’accueil · pas de boucle de redirection', () => {
   it('le middleware transmet le chemin PUBLIC de l’écran réécrit', () => {
-    const r = middleware(new NextRequest(`${HOTE}/onboarding`, { headers: { cookie: 'tt_ui=spatial' } }));
+    const r = middleware(new NextRequest(`${HOTE}/onboarding`));
     expect(r.headers.get('x-middleware-rewrite')).toBe(`${HOTE}/sp/onboarding`);
     expect(r.headers.get(`x-middleware-request-${ENTETE_CHEMIN}`)).toBe('/onboarding');
     expect(r.headers.get('x-middleware-request-x-tt-section')).toBe('accueil');

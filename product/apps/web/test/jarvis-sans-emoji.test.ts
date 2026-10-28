@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -13,16 +13,14 @@ import { join } from 'node:path';
  * typographiques monochromes ✓ (U+2713) et → (U+2192) · ce ne sont pas des
  * pictogrammes colorés, c'est de la ponctuation, et le proprio ne les vise pas.
  */
-const DIR = join(process.cwd(), 'app/(app)/jarvis');
-const FICHIERS = readdirSync(DIR)
-  .filter((n) => n.endsWith('.tsx'))
-  .map((n) => ({ rel: `jarvis/${n}`, src: readFileSync(join(DIR, n), 'utf8') }));
+// L'ancien dossier `app/(app)/jarvis` (conversation V5) est retiré avec la coquille.
+const FICHIERS: Array<{ rel: string; src: string }> = [];
 
 // La liste des couches vit HORS du dossier · les icônes de section y étaient
 // définies en emoji (`icon: '🎯'`), invisibles au scan du dossier · c'est
 // exactement le trou qui a laissé passer la page Jarvis. On l'ajoute ici.
 FICHIERS.push({ rel: 'lib/jarvis-state.ts', src: readFileSync(join(process.cwd(), 'lib/jarvis-state.ts'), 'utf8') });
-// Vague 3 · Jarvis est exclusif à Spatial · ses écrans (conversation, Sources,
+// Vague 3 · Jarvis est servi par Spatial · ses écrans (conversation, Sources,
 // depuis la Veille) et la page Sources sont scannés à la même règle.
 for (const rel of ['spatial/vues/jarvis/Jarvis.tsx', 'spatial/vues/jarvis/Sources.tsx', 'spatial/vues/jarvis/sources-client.tsx', 'spatial/vues/jarvis/JarvisVeille.tsx', 'app/(spatial)/sp/jarvis/sources/page.tsx']) {
   FICHIERS.push({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') });
@@ -52,8 +50,7 @@ describe('Jarvis · plus aucun emoji d’interface', () => {
 
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
-    // Les panneaux V5 restants (contexte) et les vues Spatial (icônes du sprite).
-    expect(tout).toMatch(/<Icon name="brain"/);
+    // Les vues Spatial (icônes du sprite) · les panneaux V5 (`<Icon name="brain">`) sont retirés.
     expect(tout).toMatch(/<Ic n="spark"/);
     expect(tout).toMatch(/<Ic n="folder"/);
   });

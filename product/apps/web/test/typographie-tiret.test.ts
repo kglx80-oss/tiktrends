@@ -28,7 +28,7 @@ import ts from 'typescript';
  *    et empreinté (sha256) · on ne le réécrit pas pour une règle d'écran ;
  *  · la prose produite par un modèle à l'exécution · elle ne vit pas dans le
  *    code, elle passe par `sansTiretCadratin` (noyau) à l'affichage, gardé au
- *    rendu par `test/a2-jarvis-sans-tiret-rendu.test.tsx`.
+ *    rendu par `test/spatial-jarvis-gestes.test.tsx` (réponse de Jarvis).
  */
 
 const DOSSIERS = ['app', 'components', 'lib'] as const;

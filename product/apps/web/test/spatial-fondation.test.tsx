@@ -68,10 +68,15 @@ describe('Spatial · isolation des feuilles de style', () => {
     expect(imports(lire('app/layout.tsx'))).toEqual([]);
   });
 
-  it('chaque segment de l’ancienne interface charge globals.css (sinon il perdrait ses styles)', () => {
+  it('chaque segment public hors Spatial qui REND une page charge globals.css (sinon il perdrait ses styles)', () => {
     const app = join(WEB, 'app');
-    const segments = readdirSync(app).filter((n) => statSync(join(app, n)).isDirectory() && !['actions', 'api', '(spatial)'].includes(n));
-    expect(segments.length).toBeGreaterThanOrEqual(9);
+    // Un segment qui ne rend rien (filets de redirection `studio`, route `analytics`) n'a pas de feuille à charger.
+    const pagesDe = (d: string): string[] => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? pagesDe(p) : n === 'page.tsx' ? [readFileSync(p, 'utf8')] : []; });
+    const rend = (n: string) => pagesDe(join(app, n)).some((src) => /return\s*\(?\s*</.test(src));
+    const segments = readdirSync(app).filter((n) => statSync(join(app, n)).isDirectory() && !['actions', 'api', '(spatial)'].includes(n) && rend(n));
+    // Mesuré au retrait de la coquille V5 · c, forgot, invite, legal, login, reset, signup, tarifs (8 ;
+    // `(app)` et `onboarding` retirés, `studio` et `analytics` ne rendent rien).
+    expect(segments.sort()).toEqual(['c', 'forgot', 'invite', 'legal', 'login', 'reset', 'signup', 'tarifs']);
     for (const s of segments) {
       const l = join('app', s, 'layout.tsx');
       expect(existsSync(join(WEB, l)), `${s} · layout.tsx manquant`).toBe(true);
@@ -178,10 +183,10 @@ describe('Spatial · parité de structure avec la maquette', () => {
   });
 });
 
-/* ───────────────────────── écrans exclusifs · la page V5 est retirée ───────────────────────── */
+/* ───────────────────────── l'ancienne interface est retirée ───────────────────────── */
 
-/** Les adresses publiques servies par l'ancienne interface (pages hors `(spatial)`, groupes retirés). */
-function adressesV5(): string[] {
+/** Les adresses publiques servies par une page HORS de l'arbre Spatial (groupes transparents, `api` exclu). */
+function adressesHorsSpatial(): string[] {
   const out: string[] = [];
   const app = join(WEB, 'app');
   const parcourir = (d: string, segs: string[]) => {
@@ -194,21 +199,34 @@ function adressesV5(): string[] {
   parcourir(app, []);
   return out;
 }
-const pagesV5Restantes = (liste: ReadonlyArray<{ chemin: string; exclusif?: true }>) => {
-  const v5 = new Set(adressesV5());
-  return liste.filter((e) => e.exclusif && v5.has(e.chemin)).map((e) => e.chemin);
+/** Les écrans portés qui gardent une page hors Spatial · le middleware les réécrit, cette page serait morte. */
+const pagesHorsSpatialRestantes = (liste: ReadonlyArray<{ chemin: string }>) => {
+  const hors = new Set(adressesHorsSpatial());
+  return liste.filter((e) => hors.has(e.chemin)).map((e) => e.chemin);
 };
 
-describe('Spatial · un écran exclusif n’a plus de page dans l’ancienne interface', () => {
-  it('la garde voit une page V5 restante', () => {
-    // Une page V5 qui reste (`/studio/ads`, redirection vers les projets) · la fiche projet `/studio/projets/[id]`
-    // est retirée (Spatial exclusif, canvas libre porté), `/credits` depuis la vague 4.
-    expect(adressesV5()).toContain('/studio/ads');
-    expect(adressesV5()).not.toContain('/studio/projets/[id]');
-    expect(pagesV5Restantes([{ chemin: '/studio/ads', exclusif: true }, { chemin: '/credits' }])).toEqual(['/studio/ads']);
+describe('Spatial · l’ancienne interface (V5) est retirée', () => {
+  it('le groupe `(app)` n’existe plus · aucune page, aucun layout de l’ancienne coquille', () => {
+    expect(existsSync(join(WEB, 'app', '(app)')), 'app/(app) réapparaît').toBe(false);
+    expect(existsSync(join(WEB, 'components', 'AppShell.tsx')), 'la coquille V5 réapparaît').toBe(false);
   });
-  it('aucun écran déclaré exclusif ne garde sa page V5', () => {
-    expect(pagesV5Restantes(ECRANS_SPATIAUX), 'écran exclusif · supprimer sa page V5 (le middleware le sert toujours par Spatial)').toEqual([]);
+  it('la garde voit une page restante · un filet de redirection hors Spatial, jamais une page d’écran porté', () => {
+    expect(adressesHorsSpatial()).toContain('/studio/ads');
+    expect(adressesHorsSpatial()).not.toContain('/studio/projets/[id]');
+    expect(pagesHorsSpatialRestantes([{ chemin: '/studio/ads' }, { chemin: '/credits' }])).toEqual(['/studio/ads']);
+  });
+  it('aucun lien vers l’ancienne interface (`?ui=`) ni lecture du cookie `tt_ui` dans le code servi', () => {
+    const fichiers: string[] = [];
+    const parcourir = (d: string) => { for (const n of readdirSync(d)) { const p = join(d, n); statSync(p).isDirectory() ? parcourir(p) : /\.tsx?$/.test(n) && fichiers.push(p); } };
+    for (const r of ['app', 'spatial', 'lib', 'components']) parcourir(join(WEB, r));
+    fichiers.push(join(WEB, 'middleware.ts'));
+    const sansCommentaires = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const fautifs = fichiers.filter((f) => /[?&]ui=(v5|spatial)|\btt_ui\b/.test(sansCommentaires(readFileSync(f, 'utf8'))));
+    expect(fichiers.length, 'le parcours ne lit rien').toBeGreaterThan(300);
+    expect(fautifs.map((f) => f.slice(WEB.length + 1))).toEqual([]);
+  });
+  it('aucun écran porté ne garde une page hors de l’arbre Spatial', () => {
+    expect(pagesHorsSpatialRestantes(ECRANS_SPATIAUX), 'écran porté · supprimer sa page hors Spatial (le middleware le sert toujours par Spatial)').toEqual([]);
   });
 });
 

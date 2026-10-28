@@ -2,25 +2,24 @@ import type { EcranSpatial } from '../types';
 
 /**
  * Écrans Spatial PORTÉS de la rubrique « reglages ». Un chemin listé ici est servi
- * par l'arbre Spatial (`app/(spatial)/sp`) quand `tt_ui=spatial` · un chemin
- * absent reste servi par l'ancienne interface. Un fichier par rubrique · deux
+ * par l'arbre Spatial (`app/(spatial)/sp`) · un chemin absent n'a aucune page
+ * (404) · l'ancienne interface est retirée. Un fichier par rubrique · deux
  * chantiers parallèles ne se disputent jamais la même ligne.
  */
-// `exclusif` · la page V5 est retirée (vague 2) · le middleware sert l'écran
-// par Spatial même en mode `?ui=v5`.
+// Les pages V5 sont retirées (vague 2 et 4).
 export const ECRANS_REGLAGES: readonly EcranSpatial[] = [
   // Vague 4 · écrans V5 sans fragment de maquette · « Mon profil » (menu profil)
   // et « Tagging » (échantillon de démonstration nommé · accent de la Veille,
   // sa rubrique dans l'ancienne navigation).
-  { chemin: '/profile', section: 'reglages', exclusif: true },
-  { chemin: '/tags', section: 'veille', exclusif: true },
-  { chemin: '/settings', section: 'reglages', exclusif: true },
-  { chemin: '/settings/partenaires', section: 'reglages', exclusif: true },
-  { chemin: '/team', section: 'reglages', exclusif: true },
-  { chemin: '/connections', section: 'reglages', exclusif: true },
-  { chemin: '/usage', section: 'reglages', exclusif: true },
-  { chemin: '/billing', section: 'reglages', exclusif: true },
+  { chemin: '/profile', section: 'reglages' },
+  { chemin: '/tags', section: 'veille' },
+  { chemin: '/settings', section: 'reglages' },
+  { chemin: '/settings/partenaires', section: 'reglages' },
+  { chemin: '/team', section: 'reglages' },
+  { chemin: '/connections', section: 'reglages' },
+  { chemin: '/usage', section: 'reglages' },
+  { chemin: '/billing', section: 'reglages' },
   // Vague 4 · le support de l'espace (écrans V5 sans fragment de maquette).
-  { chemin: '/support', section: 'reglages', exclusif: true },
-  { chemin: '/support/[id]', section: 'reglages', exclusif: true },
+  { chemin: '/support', section: 'reglages' },
+  { chemin: '/support/[id]', section: 'reglages' },
 ];

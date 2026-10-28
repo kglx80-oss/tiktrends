@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { lireVueAccueil, hrefVueAccueil, redirectionAnalytics, refusVueAnalytics, resoudreAccueil, requeteDuRouteurClient, VUES_ACCUEIL } from '../src/accueil-vue';
 import { roleVoitRubrique } from '../src/equipe-plateforme';
-import { placementLanceurSupport } from '../src/lanceur-support';
 import { chargementCompletRequis } from '../src/meme-chemin';
 import { cheminOuvert } from '../src/accueil-acces';
 
@@ -77,10 +76,6 @@ describe('accueil · la redirection de l’ancienne route /analytics', () => {
     expect(requeteDuRouteurClient({ rsc: null, recherche: '?a=1' })).toBe(false);
     expect(requeteDuRouteurClient({ rsc: undefined, recherche: '' })).toBe(false);
     expect(requeteDuRouteurClient({ rsc: '0', recherche: '?rsc=1' })).toBe(false);
-  });
-  it('le lanceur de support reste ancré sur la nouvelle route (comme sur /analytics)', () => {
-    expect(placementLanceurSupport('/analytics')).toBe('ancre');
-    expect(placementLanceurSupport('/dashboard')).toBe('ancre');
   });
 });
 

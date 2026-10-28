@@ -30,7 +30,11 @@
  * frontières, émet une vraie 307 (son renvoi vers `/login`).
  *
  * Les pages `redirect()` de ces adresses restent en FILET (même règle, même
- * cible) si le middleware venait à ne pas tourner.
+ * cible) si le middleware venait à ne pas tourner. Depuis le retrait de
+ * l'ancienne interface, celles des Studios vivent HORS coquille
+ * (`app/studio/…`, aucun layout ni `loading.tsx`) · celle de `/adsmap/jarvis`
+ * est la page Spatiale. Garde `middleware-redirections` · chaque adresse, sa
+ * cible exacte, page et middleware d'accord.
  */
 
 import { destinationAncienneAdresse } from './studios/anciennes-adresses';

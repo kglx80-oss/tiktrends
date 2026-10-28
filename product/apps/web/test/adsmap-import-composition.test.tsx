@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { placementLanceurSupport } from '@tiktrends/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -21,12 +20,6 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 // Spatial · la page Importer garde la fonction `import` (rôle admin) via la garde de la rubrique.
 const page = read('app/(spatial)/sp/adsmap/import/page.tsx');
 const action = read('app/actions/adsmap-import.ts');
-
-describe('Import · le support est ANCRÉ (il ne recouvre plus la légende)', () => {
-  it('/adsmap/import entre dans la liste des écrans à support ancré', () => {
-    expect(placementLanceurSupport('/adsmap/import'), 'le support de /adsmap/import flotte encore et recouvre le contenu au défilement').toBe('ancre');
-  });
-});
 
 describe('Import · permissions et deux-temps INCHANGÉS (non-régression)', () => {
   it('l’import reste réservé aux admins · page et actions gardées', () => {

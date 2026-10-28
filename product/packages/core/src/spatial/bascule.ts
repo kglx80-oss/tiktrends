@@ -11,34 +11,15 @@ import { ECRANS_REGLAGES } from './ecrans/reglages';
 import { ECRANS_ADMIN } from './ecrans/admin';
 
 /**
- * Spatial · la bascule entre l'interface V5 et l'interface Spatial (nouvelle
+ * Spatial · le routage des adresses publiques vers l'arbre Spatial (nouvelle
  * DA, mandat Kevin du 27/10). Pur · ni base, ni réseau, ni dépendance · le
  * middleware (paquet Edge) l'importe tel quel.
  *
- * Le mode vient du cookie `tt_ui`. Pendant la construction, le défaut reste
- * l'ancienne interface · `?ui=spatial` (ou `?ui=v5`) pose le cookie. Un écran
- * n'est servi par l'arbre Spatial que s'il est PORTÉ (listé dans `ecrans/`) ·
- * tout le reste continue de fonctionner dans l'ancienne interface.
+ * L'ancienne interface (V5) est RETIRÉE · plus de cookie `tt_ui` ni de
+ * paramètre `?ui=`. Toute adresse PORTÉE (listée dans `ecrans/`) est servie par
+ * l'arbre Spatial · une adresse absente n'a pas de page (404 normale), sauf les
+ * pages publiques hors coquille (connexion, inscription, mentions…).
  */
-
-export const UI_COOKIE = 'tt_ui';
-export type ModeUi = 'spatial' | 'v5';
-
-/**
- * Le défaut · Spatial (mandat du 27/10, tous les écrans de la maquette portés).
- * `?ui=v5` rouvre l'ancienne interface pour ce navigateur (cookie), le temps
- * qu'elle serve encore les fonctions hors maquette.
- */
-export const UI_DEFAUT: ModeUi = 'spatial';
-
-export function uiDepuisCookie(v: string | undefined | null): ModeUi {
-  return v === 'spatial' || v === 'v5' ? v : UI_DEFAUT;
-}
-
-/** `?ui=` · seules deux valeurs posent le cookie, tout le reste est ignoré. */
-export function uiDemandee(v: string | null | undefined): ModeUi | null {
-  return v === 'spatial' || v === 'v5' ? v : null;
-}
 
 /** L'arbre Spatial vit sous ce préfixe interne (jamais vu du navigateur). */
 export const PREFIXE_SPATIAL = '/sp';
@@ -58,28 +39,19 @@ function correspond(motif: string, chemin: string): boolean {
 
 /**
  * Le chemin public est-il porté ? → le chemin INTERNE à servir et sa section.
- * `null` · l'ancienne interface le sert. Les chemins déjà internes (`/sp/…`)
- * ne sont jamais réécrits une seconde fois.
+ * `null` · le chemin n'est pas un écran Spatial (page publique, route, 404).
+ * Les chemins déjà internes (`/sp/…`) ne sont jamais réécrits une seconde fois.
  */
-export function ecranSpatial(chemin: string): { interne: string; section: SectionSpatiale; exclusif: boolean } | null {
+export function ecranSpatial(chemin: string): { interne: string; section: SectionSpatiale } | null {
   return ecranSpatialDans(ECRANS_SPATIAUX, chemin);
 }
 
 /** `ecranSpatial` sur une liste donnée · testable sans toucher aux déclarations. */
-export function ecranSpatialDans(liste: readonly EcranSpatial[], chemin: string): { interne: string; section: SectionSpatiale; exclusif: boolean } | null {
+export function ecranSpatialDans(liste: readonly EcranSpatial[], chemin: string): { interne: string; section: SectionSpatiale } | null {
   if (chemin === PREFIXE_SPATIAL || chemin.startsWith(PREFIXE_SPATIAL + '/')) return null;
   const propre = chemin.length > 1 ? chemin.replace(/\/+$/, '') : chemin;
   const e = liste.find((x) => correspond(x.chemin, propre));
-  return e ? { interne: PREFIXE_SPATIAL + (propre === '/' ? '' : propre), section: e.section, exclusif: e.exclusif === true } : null;
-}
-
-/**
- * Le middleware sert-il ce chemin par Spatial ? Oui si l'écran est porté ET
- * (le navigateur est en mode Spatial OU l'écran est exclusif · sa page V5
- * n'existe plus, le mode V5 n'a rien à servir).
- */
-export function servirEnSpatial(e: { exclusif: boolean } | null, mode: ModeUi): boolean {
-  return !!e && (mode === 'spatial' || e.exclusif);
+  return e ? { interne: PREFIXE_SPATIAL + (propre === '/' ? '' : propre), section: e.section } : null;
 }
 
 /** Un lien de l'interface Spatial vers ce chemin reste-t-il dans l'arbre Spatial ? */

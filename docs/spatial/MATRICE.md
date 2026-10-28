@@ -96,8 +96,8 @@ entrées de la maquette dans la sous-navigation (`OUTILS_ADMIN`).
 
 ## Écrans hors maquette (vague 4 · comptes)
 
-Écrans de l'ancienne interface sans déclaration Spatial, portés puis déclarés
-exclusifs (page V5 retirée).
+Écrans de l'ancienne interface sans déclaration Spatial, portés puis leur page
+V5 retirée (l'ancienne interface est depuis entièrement retirée).
 
 | Geste V5 | Adresse | Rubrique |
 | --- | --- | --- |

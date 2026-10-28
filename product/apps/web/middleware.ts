@@ -3,52 +3,39 @@ import { NextResponse, type NextRequest } from 'next/server';
 // middleware ne tire que ces règles et leurs dépendances (le point d'entrée
 // tirerait tout le noyau, `ajv` compris).
 import { redirectionServeur } from '@tiktrends/core/src/redirections-serveur';
-import { ENTETE_CHEMIN, ENTETE_SECTION, UI_COOKIE, ecranSpatial, servirEnSpatial, uiDemandee, uiDepuisCookie } from '@tiktrends/core/src/spatial/bascule';
+import { ENTETE_CHEMIN, ENTETE_SECTION, ecranSpatial } from '@tiktrends/core/src/spatial/bascule';
 
 /**
- * 1 · `?ui=spatial` / `?ui=v5` · pose le cookie `tt_ui` et revient à la même
- *     adresse sans le paramètre (307). Aucune autre valeur n'est prise.
+ * 1 · Adresses retirées · servies en vraie 307 HTTP, AVANT tout rendu. La
+ *     cible est décidée par la règle pure (`redirectionServeur`) · les cinq
+ *     anciennes adresses de création (`/studio`, `/studio/ads`, `/studio/image`,
+ *     `/studio/video`, `/studio/textes`) et `/adsmap/jarvis`. Leurs pages
+ *     `redirect()` (`app/studio/…`, hors coquille) restent en filet.
  *
- * 2 · Adresses retirées · servies en vraie 307 HTTP, AVANT tout rendu.
- *     Une page sous `(app)` qui appelle `redirect()` sort en `200` (la
- *     coquille et son `loading.tsx` ont déjà commencé à diffuser) · au
- *     navigateur, React lève l'erreur #310 le temps que la redirection client
- *     aboutisse. La cible est décidée par la règle pure (`redirectionServeur`).
- *
- * 3 · Interface Spatial (mandat Kevin du 27/10) · quand `tt_ui=spatial`, un
- *     écran PORTÉ (`ecranSpatial`, noyau) est réécrit vers l'arbre
- *     `app/(spatial)/sp` · l'adresse du navigateur ne change pas. La section
- *     d'accent part dans l'en-tête `x-tt-section` (lue par le layout racine).
- *     Un écran non porté passe inchangé · l'ancienne interface le sert.
+ * 2 · Interface Spatial (mandat Kevin du 27/10) · un écran PORTÉ
+ *     (`ecranSpatial`, noyau) est réécrit vers l'arbre `app/(spatial)/sp` ·
+ *     l'adresse du navigateur ne change pas. La section d'accent part dans
+ *     l'en-tête `x-tt-section` (lue par le layout racine). L'ancienne interface
+ *     (V5) est retirée · plus de cookie `tt_ui` ni de `?ui=` · un chemin non
+ *     porté passe inchangé (page publique, route, ou 404 normale).
  *
  * Session · le middleware n'en lit aucune. Un visiteur non connecté suit la
- * 307 ou la réécriture, puis la coquille le renvoie à `/login`, comme avant.
+ * 307 ou la réécriture, puis la coquille Spatial le renvoie à `/login`.
  */
 export function middleware(request: NextRequest): NextResponse {
   const { pathname, searchParams } = request.nextUrl;
 
-  const demande = uiDemandee(searchParams.get('ui'));
-  if (demande) {
-    const u = request.nextUrl.clone();
-    u.searchParams.delete('ui');
-    const r = NextResponse.redirect(u, 307);
-    r.cookies.set(UI_COOKIE, demande, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
-    return r;
-  }
-
   const cible = redirectionServeur(pathname, searchParams);
   if (cible) return NextResponse.redirect(new URL(cible, request.url), 307);
 
-  {
-    const e = ecranSpatial(pathname);
-    if (e && servirEnSpatial(e, uiDepuisCookie(request.cookies.get(UI_COOKIE)?.value))) {
-      const u = request.nextUrl.clone();
-      u.pathname = e.interne;
-      const h = new Headers(request.headers);
-      h.set(ENTETE_SECTION, e.section);
-      h.set(ENTETE_CHEMIN, pathname);
-      return NextResponse.rewrite(u, { request: { headers: h } });
-    }
+  const e = ecranSpatial(pathname);
+  if (e) {
+    const u = request.nextUrl.clone();
+    u.pathname = e.interne;
+    const h = new Headers(request.headers);
+    h.set(ENTETE_SECTION, e.section);
+    h.set(ENTETE_CHEMIN, pathname);
+    return NextResponse.rewrite(u, { request: { headers: h } });
   }
   return NextResponse.next();
 }

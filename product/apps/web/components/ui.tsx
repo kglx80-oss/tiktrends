@@ -23,11 +23,6 @@ export const btn: CSSProperties = {
   minHeight: CIBLE_TACTILE_MIN, padding: '10px 16px', borderRadius: 999, border: 'none',
   background: 'var(--grad-accent)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 13, cursor: 'pointer',
 };
-export const btnGhost: CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  minHeight: CIBLE_TACTILE_MIN, padding: '7px 14px', borderRadius: 999, border: '1px solid var(--line-2)',
-  background: 'transparent', color: 'var(--ink-2)', fontWeight: 600, fontSize: 12, cursor: 'pointer',
-};
 /**
  * Les cadres de la charte, PAR RÔLE (lot 19D) · bordure et rayon lus au noyau
  * (`styleCadre`), jamais un nombre choisi à l'écran. Mesuré avant · le même

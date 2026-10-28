@@ -148,14 +148,6 @@ describe('Spatial · Résultats · gestes · chaque geste porté a son écran d�
   });
 });
 
-describe('Spatial · Résultats · la rubrique est exclusive (l’ancienne Adsmap est retirée)', () => {
-  it('chaque écran de Résultats est servi par Spatial même en mode V5', () => {
-    const resultats = ECRANS_SPATIAUX.filter((e) => e.section === 'resultats');
-    expect(resultats.length).toBeGreaterThan(10);
-    expect(resultats.filter((e) => !e.exclusif).map((e) => e.chemin), 'écran de Résultats non exclusif · il tomberait en 404 en mode V5').toEqual([]);
-  });
-});
-
 describe('Spatial · Résultats · une décision se lit en français, avec un vrai titre', () => {
   const TYPES_EN_BASE = ['validate_verdict', 'review_learning', 'accept_iteration', 'kill_suggested', 'coverage_gap', 'unmapped_ad', 'protocol_violation', 'cro_handoff', 'prelaunch_warning', 'ai_budget_reached'];
   it('chaque type admis par la base a un libellé lisible · jamais la clé technique', () => {

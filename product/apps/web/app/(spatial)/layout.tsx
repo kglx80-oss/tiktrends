@@ -14,8 +14,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * L'arbre Spatial (nouvelle DA, mandat Kevin du 27/10). Servi sous `/sp/…`,
- * jamais vu du navigateur · le middleware y réécrit les écrans PORTÉS quand
- * `tt_ui=spatial` (`ecranSpatial`, noyau). Mêmes gardes que la coquille V5.
+ * jamais vu du navigateur · le middleware y réécrit les écrans PORTÉS
+ * (`ecranSpatial`, noyau). Mêmes gardes que l'ancienne coquille V5 (retirée).
  */
 export default async function SpatialLayout({ children }: { children: ReactNode }) {
   const donnees = await chargerCoquille();

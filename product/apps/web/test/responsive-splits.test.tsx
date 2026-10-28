@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { AuthShell } from '../components/AuthShell';
 
 /**
@@ -11,7 +9,6 @@ import { AuthShell } from '../components/AuthShell';
  * On empile : AuthShell (composant serveur pur) via l'astuce auto-fit bornée ;
  * les trois autres (clients) basculent en 1 colonne via useIsMobile.
  */
-const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 
 describe('Splits 2 colonnes · ils s’empilent en mobile', () => {
   it('AuthShell (connexion) · la grille s’effondre sans jamais déborder (rendu)', () => {
@@ -21,12 +18,6 @@ describe('Splits 2 colonnes · ils s’empilent en mobile', () => {
       .toContain('grid-template-columns:repeat(auto-fit, minmax(min(440px, 100%), 1fr))');
   });
 
-  it('Onboarding · le split bascule en 1 colonne en mobile', () => {
-    const s = read('app/onboarding/OnboardingWizard.tsx');
-    expect(s).toContain("import { useIsMobile }");
-    expect(s, 'le split onboarding ne s’empile pas').toContain("mobile ? '1fr' : 'minmax(0,1fr) minmax(0,520px)'");
-  });
-
+  // L'accueil V5 (`OnboardingWizard`) est retiré · le parcours Spatial suit la feuille de la maquette.
   // Vague 3 · `BrandWizard` (parcours V5 de création) est retiré avec la liste V5 des marques.
-
 });

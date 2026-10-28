@@ -1,104 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Empty, EmptyLine } from '../components/Empty';
 
 /**
- * Un état vide n'est pas une impasse · c'est le premier écran d'une fonction, et
- * il doit dire quoi faire. Des listes vides étaient des phrases grises sans
- * issue. On les passe au composant `Empty` · sur le ton `todo`, le type IMPOSE
- * une action (erreur de compilation sinon), donc plus de cul-de-sac.
+ * Les états vides d'attente n'empilent pas de CTA vers un écran disparu.
  *
- * (On ne peut pas rendre les écrans migrés ici · ils importent des actions
- * serveur `server-only`. On prouve donc le CONTRAT d'Empty par le rendu, et
- * l'adoption par la source.)
+ * Le composant `Empty` de l'ancienne interface est retiré avec elle · les
+ * écrans Spatial posent leurs états vides (`EtatVide`) et les gardent sur le
+ * rendu. Reste ici la doctrine de l'écran « Essais et relectures ».
  */
-
-describe("un état « todo » rend une sortie · c'est le contrat", () => {
-  const html = renderToStaticMarkup(
-    <Empty tone="todo" icon="bookmark" title="Aucune créa sauvegardée." action={{ label: 'Ouvrir la veille', href: '/veille' }} />,
-  );
-  it('affiche le fait et une action cliquable', () => {
-    expect(html).toContain('Aucune créa sauvegardée.');
-    expect(html).toContain('Ouvrir la veille');
-    expect(html).toContain('href="/veille"');
-  });
-  it('l’illustration est une icône AU TRAIT (SVG), plus jamais un emoji', () => {
-    expect(html).toContain('<svg');
-    expect(html, 'un état vide premium ne porte pas d’emoji').not.toMatch(/🔖|📦|🗂️|🔍|🔭|🗺️/u);
-  });
-});
-
-describe("un « todo » peut poser le geste SUR PLACE · le children est une sortie aussi", () => {
-  // Un formulaire d'ajout ou un bouton d'upload est un geste au même titre qu'un
-  // lien · le type accepte alors `todo` sans `action`, mais JAMAIS sans geste du
-  // tout (voir la mutation dans le commentaire d'en-tête · elle ne compile pas).
-  const html = renderToStaticMarkup(
-    <Empty tone="todo" icon="box" title="Aucun produit pour l'instant." why="Ajoute-en un ci-dessous.">
-      <button type="submit">+ Ajouter le produit</button>
-    </Empty>,
-  );
-  it('affiche le fait et le déclencheur en children', () => {
-    expect(html).toContain('Aucun produit pour l&#x27;instant.');
-    expect(html).toContain('+ Ajouter le produit');
-    expect(html).toContain('<button');
-  });
-});
-
-describe('EmptyLine · une bonne nouvelle se voit, un manque reste sobre', () => {
-  it('le ton « good » rend en vert · pas dans le gris d’un manque', () => {
-    const bon = renderToStaticMarkup(<EmptyLine tone="good">Tout roule.</EmptyLine>);
-    expect(bon).toContain('Tout roule.');
-    expect(bon, 'une réussite doit se lire en vert (rôle --ok-text)').toContain('var(--ok-text)');
-    const neutre = renderToStaticMarkup(<EmptyLine>Rien pour l’instant.</EmptyLine>);
-    expect(neutre, 'un simple manque ne s’affiche pas en vert').not.toContain('--ok-text');
-  });
-});
-
-describe('les états vides migrés adoptent le composant partagé', () => {
+describe('les états vides d’attente restent explicites, sans CTA mort', () => {
   const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-  const CAS: Array<{ fichier: string; attendus: string[] }> = [
-    // Vague 4 · Sauvegardes et Ce qui scale sont servis par Spatial (états vides `EtatVide`, gardés par leurs tests Spatial).
-    // Produits d'une marque : l'ancienne phrase grise devient un `todo` dont le
-    // geste est le formulaire d'ajout (children) · et le rappel comptes pub
-    // adopte la même grammaire avec une sortie vers les Connexions.
-    // Connexions · l'étape d'activation. Sans marque active, c'était une impasse
-    // grise sans bouton · devient un `todo` qui pousse à choisir une marque.
-    // Crédits · vague 4 · servi par Spatial · l'historique vide qui invite à
-    // générer est gardé sur le rendu (`spatial-credits.test.tsx`).
-    // Support · vague 4 · servi par Spatial · la liste vide « tout roule » est
-    // gardée sur le rendu (`spatial-support.test.tsx`).
-  ];
-  for (const { fichier, attendus } of CAS) {
-    it(`${fichier} adopte Empty`, () => {
-      const src = lit(fichier);
-      for (const a of attendus) expect(src.includes(a), `${fichier} · manque « ${a} »`).toBe(true);
-    });
-  }
-
-  it('chaque icône passée à Empty existe dans le jeu premium · jamais le repli grid', async () => {
-    const { ICON_PATHS } = await import('../components/Icon');
-    const { readdirSync, statSync } = await import('node:fs');
-    const base = process.cwd();
-    const walk = (dir: string): string[] => readdirSync(dir).flatMap((e) => {
-      const p = join(dir, e);
-      return statSync(p).isDirectory() ? walk(p) : p.endsWith('.tsx') && !p.includes('/test/') ? [p] : [];
-    });
-    const introuvables: string[] = [];
-    for (const racine of ['app', 'components']) {
-      for (const f of walk(join(base, racine))) {
-        const src = readFileSync(f, 'utf8');
-        if (!src.includes('<Empty')) continue;
-        // Les noms d'icône passés en clair à un Empty (chaîne littérale).
-        for (const m of src.matchAll(/icon="([a-z]+)"/g)) {
-          const name = m[1]!;
-          if (!(name in ICON_PATHS)) introuvables.push(`${f.slice(base.length + 1)} · « ${name} »`);
-        }
-      }
-    }
-    expect(introuvables, `Icône(s) Empty absente(s) du jeu · repli muet sur grid : ${introuvables.join(', ')}`).toEqual([]);
-  });
 
   it('les bilans historiques restent explicites et les essais orientent vers Studios sans empiler de CTA', () => {
     // Ces trois sections d'analyse se remplissent quand on travaille AILLEURS ·

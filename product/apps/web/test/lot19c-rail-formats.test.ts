@@ -1,18 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { railEntreeActive } from '@tiktrends/core';
 import { FEATURES, canAccess, railNav, rubriqueDeFeature, type Access } from '../lib/rbac';
 
 /**
- * Lot 19C · l'entrée de rail « Formats » · on lit ce que le rail REND
- * (`railNav`, la liste exacte que le rail affiche) et l'état actif calculé au
- * noyau (`railEntreeActive`, celui qu'utilise AppShell).
+ * Lot 19C · l'entrée « Formats » de la navigation · on lit ce que `railNav`
+ * REND (la liste filtrée par les droits, lue par la coquille Spatial). L'état
+ * actif du rail V5 (`railEntreeActive`) est retiré avec l'ancienne coquille.
  *
  * - member · core · présente sous Veille, juste après Sauvegardes, ouverte
  *   (UX V2 · les sous-entrées sont les ONGLETS de la section Veille) ;
  * - offre sous Core · présente mais VERROUILLÉE, comme Veille et Sauvegardes
  *   (le rail montre les rubriques de l'offre supérieure, la page explique) ;
- * - rôle inférieur (lecteur client) · absente ;
- * - sur /veille/formats · « Formats » est l'entrée active, et elle seule.
+ * - rôle inférieur (lecteur client) · absente.
  */
 const items = (a: Access) => railNav(a).flatMap((g) => g.items.map((i) => ({ ...i, groupe: g.group })));
 
@@ -41,11 +39,5 @@ describe('rail · entrée « Formats »', () => {
 
   it('rubrique d’équipe · Veille', () => {
     expect(rubriqueDeFeature('formats')).toBe('veille');
-  });
-
-  it('sur /veille/formats · Formats est active, et elle seule', () => {
-    const l = items({ role: 'member', plan: 'core' });
-    const actives = l.filter((i) => railEntreeActive(i.href, { pathname: '/veille/formats', tab: 'overview', hash: '', ancres: new Set() })).map((i) => i.key);
-    expect(actives).toEqual(['formats']);
   });
 });

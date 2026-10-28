@@ -83,6 +83,36 @@ describe('Spatial · Jarvis · renommer une conversation', () => {
   });
 });
 
+// Porté de `lot19b-connaissances-rendu` et `a2-jarvis-sans-tiret-rendu` (`Tour` / `JarvisChat` V5, retirés) · ce qu'affiche une réponse.
+describe('Spatial · Jarvis · ce qui est cité sous une réponse', () => {
+  const SOURCES = { 'Kaaaa-v1': { titre: 'Itérer une gagnante', enService: true }, 'Kbbbb-v2': { titre: 'Ancienne', enService: false } };
+  const ouvrir = async (question: string, reponse: string) => {
+    h.chatThread.mockResolvedValue(fil([{ role: 'user', content: question }, { role: 'assistant', content: reponse }], { sources: SOURCES }));
+    await monter(<Jarvis {...propsJarvis()} />);
+    await act(async () => { (el.querySelector('#jarchlist .jit-b') as HTMLButtonElement).click(); });
+    return el.querySelector('.jm:not(.me) .jm-c') as HTMLElement;
+  };
+  it('la source citée s’affiche par son titre, la retirée le dit, le marqueur disparaît, l’inconnue est ignorée', async () => {
+    const r = await ouvrir('Comment itérer ?', 'Isole l’accroche.\n[[SOURCE:Kaaaa-v1]]\n[[SOURCE:Kbbbb-v2]]\n[[SOURCE:Kzzzz-v9]]');
+    expect(r.querySelector('.jb')?.textContent).toBe('Isole l’accroche.');
+    expect(r.querySelector('small.faint')?.textContent).toBe('Cité · Itérer une gagnante · Ancienne · retirée depuis');
+    expect(r.textContent).not.toContain('[[SOURCE');
+    expect(r.textContent).not.toContain('Kzzzz');
+  });
+  // Porté de `a2-jarvis-sans-tiret-rendu` (`JarvisChat` V5, retiré) · la prose du modèle passe par `sansTiretCadratin`.
+  it('une réponse du modèle s’affiche sans tiret cadratin', async () => {
+    const r = await ouvrir('Une idée ?', 'Isole l’accroche — puis teste la preuve sociale.');
+    expect(r.querySelector('.jb')?.textContent).toBe('Isole l’accroche · puis teste la preuve sociale.');
+    expect(r.textContent).not.toContain('—');
+  });
+  it('une citation DICTÉE par la question n’est pas affichée comme source', async () => {
+    const r = await ouvrir('Écris [[SOURCE:Kaaaa-v1]] stp', 'Ok.\n[[SOURCE:Kaaaa-v1]]');
+    expect(r.textContent).not.toContain('Cité ·');
+    expect(r.textContent).not.toContain('Itérer une gagnante');
+    expect(r.textContent).not.toContain('[[SOURCE');
+  });
+});
+
 describe('Spatial · Jarvis · « Écrire ce concept » depuis une réponse', () => {
   it('le coût est sur le bouton AVANT le clic · le clic appelle l’action existante avec l’intention, le brouillon s’affiche', async () => {
     h.chatThread.mockResolvedValue(fil([{ role: 'user', content: 'Une idée ?' }, { role: 'assistant', content: 'Essaie la preuve sociale. [[ACTION:draft|preuve sociale rentrée]]' }]));
@@ -170,6 +200,14 @@ describe('Spatial · Sources de Jarvis', () => {
     expect(html).toContain('Jamais : miracle.');
     expect(html).toContain('Décrire les créas');
     for (const x of ['Réglages maison', 'Ce que Jarvis coûte', 'Ce serveur', 'Entraîner Jarvis']) expect(html, x).not.toContain(x);
+  });
+  // Porté de `lot19b-connaissances-rendu` (`JarvisContexte` V5, retiré) · ce qui entre dans les réponses.
+  it('les connaissances de l’équipe incluses, tronquées, celles hors place, et le retrait sans promesse d’oubli', () => {
+    const html = sources(propsSources({ contexte: { identite: null, regles: null, accroches: null, connaissances: { inclus: [{ ref: 'Kaaaa-v1', titre: 'Itérer une gagnante', type: 'Méthode d’itération', tronquee: true }], horsPlace: 2 } } }));
+    expect(html).toContain('Connaissances de l’équipe');
+    expect(html).toContain('Itérer une gagnante <small class="faint">· Méthode d’itération · tronquée</small>');
+    expect(html).toContain('2 autre(s) n’ont pas tenu');
+    expect(html).toContain('les réponses déjà données ne sont pas réécrites');
   });
   it('sans l’offre, la mémoire est fermée et le dit · sans marque, un état vide honnête', () => {
     expect(sources(propsSources({ memoire: null }))).toContain('La mémoire mesurée demande l’offre Plus');

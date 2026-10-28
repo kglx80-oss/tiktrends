@@ -20,7 +20,8 @@ import { join } from 'node:path';
  */
 
 const lire = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
-const ONBOARDING = lire('app/onboarding/OnboardingWizard.tsx');
+// L'accueil V5 (`app/onboarding/OnboardingWizard`) est retiré · le parcours Spatial (vues et règles) le remplace.
+const ONBOARDING = ['spatial/vues/coquille/ParcoursAccueil.tsx', 'spatial/vues/coquille/Bienvenue.tsx', '../../packages/core/src/spatial/coquille/parcours.ts'].map(lire).join('\n');
 const PLAN = lire('app/actions/adsmap-iterate.ts');
 // Vague 3 · l'entraînement vit sur « Sources de Jarvis » dans Spatial.
 const ENTRAINEMENT = lire('spatial/vues/jarvis/sources-client.tsx');
@@ -29,9 +30,9 @@ const AD_DRAWER = lire('app/(spatial)/sp/adsmap/tests/[id]/page.tsx');
 const SUITES = lire('spatial/vues/resultats/Suites.tsx');
 
 describe('N07 · l’onboarding ne promet plus la performance', () => {
-  it('l’accroche guide par la donnée, du repérage au test · pas « des créas qui performent »', () => {
-    expect(ONBOARDING, 'l’onboarding promet encore la performance').not.toContain('créas qui performent');
-    expect(ONBOARDING).toContain('guidées par la donnée, du repérage au test');
+  it('le parcours d’accueil ne promet pas « des créas qui performent »', () => {
+    expect(ONBOARDING.length, 'le parcours d’accueil n’est plus lu').toBeGreaterThan(1000);
+    expect(ONBOARDING, 'l’onboarding promet encore la performance').not.toMatch(/créas? qui performent/);
   });
 });
 
@@ -43,12 +44,14 @@ describe('N07 · le plan d’itération classe par revue, pas par revenu', () =>
 });
 
 describe('N07 (v8) · les promesses absolues restantes sont retirées', () => {
-  const APPSHELL = lire('components/AppShell.tsx');
+  // La palette ⌘K de la coquille V5 est retirée · celle de Spatial est décrite au noyau.
+  const PALETTE = lire('../../packages/core/src/spatial/coquille/palette.ts');
   // Vague 2 Spatial v4 · l'Accueil est servi par Spatial · sa vue, ses blocs et les règles qui écrivent ses textes.
   const ACCUEIL = ['spatial/vues/accueil/Accueil.tsx', 'spatial/vues/accueil/interactifs.tsx', 'spatial/vues/accueil/assistant.tsx', '../../packages/core/src/spatial/accueil/accueil.ts', '../../packages/core/src/spatial/accueil/jarvis.ts'].map(lire).join('\n');
 
   it('« Cloner une pub gagnante » ne revient pas dans la palette', () => {
-    expect(APPSHELL, 'la palette de commandes qualifie encore la source de « gagnante »').not.toContain('Cloner une pub gagnante');
+    expect(PALETTE, 'la palette de commandes n’est plus lue').toContain('export function groupesPalette');
+    expect(PALETTE, 'la palette de commandes qualifie encore la source de « gagnante »').not.toMatch(/Cloner une pub gagnante/);
   });
 
   it('l’accueil ne promet plus « ta prochaine créative gagnante »', () => {

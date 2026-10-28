@@ -44,7 +44,7 @@ import { semerCatalogue, projetStatique, PHOTOS, type Catalogue } from './l5c-ou
 import ProduitPage from '../app/(spatial)/sp/studio/projets/[id]/produit/page';
 import TextesPage from '../app/(spatial)/sp/studio/projets/[id]/textes/page';
 import { avecSpatial } from './spatial/fournisseur';
-import { GET as photoGET } from '../app/(app)/studio/projets/[id]/produit/fichier/[assetId]/route';
+import { GET as photoGET } from '../app/studio/projets/[id]/produit/fichier/[assetId]/route';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
 import { epinglerProduitPour, associerReferencePour } from '../lib/studios/produit/commandes';
 import { enregistrerTextesPour } from '../lib/studios/textes/textes';

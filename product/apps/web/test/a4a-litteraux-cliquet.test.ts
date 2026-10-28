@@ -112,13 +112,15 @@ import { join, relative } from 'node:path';
  * Spatial · la fiche projet V5 et `components/studios` (canvas, propositions,
  * variantes, tâches) sont retirés · aucun littéral n'y vivait (tout passait par
  * les jetons) · − 0. Mesuré 161.
+ * Spatial · retrait de la coquille V5 (dernière étape) · `app/onboarding/
+ * OnboardingWizard` (5), `components/BrandGuidelines` (2) et
+ * `components/LogoMarque` (4) sont retirés ; `components/BrandIcons` et
+ * `components/logos-outils` (exclus) aussi · 161 − 11 = 150. Mesuré 150.
  */
 const WEB = process.cwd();
 
 /** Exclus, avec la raison · la couleur y fait partie du MÉDIA, pas de l'interface. */
 const EXCLUS: Record<string, string> = {
-  'components/BrandIcons.tsx': 'logos de marques tierces · teintes officielles des SVG',
-  'components/logos-outils.ts': 'tracés Simple Icons · teinte officielle de chaque marque',
   'lib/ad-render.tsx': 'rendu d’export · la couleur fait partie de la publicité produite',
   'app/api/ad/[id]/route.tsx': 'rendu d’export (ImageResponse) · image servie telle quelle',
   'app/opengraph-image.tsx': 'image Open Graph exportée · vue hors de l’application',
@@ -130,21 +132,16 @@ const EXCLUS: Record<string, string> = {
 /** Plafond par répertoire · le plan des lots de tokenisation. */
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 142,
-  'app/onboarding': 5,
   'app/tarifs': 8,
-  'components': 6,
 };
 
 /** Plafond par fichier · tout fichier absent de cette table est « déjà propre » (0). */
 const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/Landing.tsx': 142,
-  'app/onboarding/OnboardingWizard.tsx': 5,
   'app/tarifs/page.tsx': 8,
-  'components/BrandGuidelines.tsx': 2,
-  'components/LogoMarque.tsx': 4,
 };
 
-const PLAFOND_TOTAL = 161;
+const PLAFOND_TOTAL = 150;
 
 const RACINES = ['app', 'components', 'lib'];
 

@@ -1,27 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  uiDepuisCookie, uiDemandee, UI_DEFAUT, ecranSpatial, cheminPorte, sectionValide, ECRANS_SPATIAUX,
-  ecranSpatialDans, servirEnSpatial, entreesRail, entreesRailEspace, consommationParSemaine, consommationSur, partSolde, SECTIONS_SPATIALES, initialesAvatar, sectionDuChemin,
+  ecranSpatial, cheminPorte, sectionValide, ECRANS_SPATIAUX,
+  ecranSpatialDans, entreesRail, entreesRailEspace, consommationParSemaine, consommationSur, partSolde, SECTIONS_SPATIALES, initialesAvatar, sectionDuChemin,
 } from '../src';
 
 describe('Spatial · bascule', () => {
-  it('le cookie ne vaut que deux valeurs, le reste retombe sur le défaut', () => {
-    expect(uiDepuisCookie('spatial')).toBe('spatial');
-    expect(uiDepuisCookie('v5')).toBe('v5');
-    for (const v of [undefined, null, '', 'SPATIAL', 'clair', 'x']) expect(uiDepuisCookie(v)).toBe(UI_DEFAUT);
-    // Bascule faite · sans cookie, c'est Spatial.
-    expect(UI_DEFAUT).toBe('spatial');
-    expect(uiDemandee('spatial')).toBe('spatial');
-    expect(uiDemandee('nimporte')).toBeNull();
-    expect(uiDemandee(null)).toBeNull();
+  it('la bascule V5 est retirée · plus de cookie ni de mode, le noyau n’en exporte plus rien', async () => {
+    const noyau = (await import('../src')) as Record<string, unknown>;
+    expect(['UI_COOKIE', 'UI_DEFAUT', 'uiDepuisCookie', 'uiDemandee', 'servirEnSpatial'].filter((n) => n in noyau)).toEqual([]);
   });
 
   it('un chemin porté est réécrit vers l’arbre interne avec sa section, un chemin non porté jamais', () => {
-    expect(ecranSpatial('/usage')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: true });
-    // Vague 2 Spatial v4 · `/dashboard` est exclusif · `/onboarding` reste l'exemple d'un écran porté NON exclusif.
-    expect(ecranSpatial('/onboarding')).toMatchObject({ interne: '/sp/onboarding', section: 'accueil', exclusif: false });
-    expect(ecranSpatial('/dashboard')).toMatchObject({ interne: '/sp/dashboard', section: 'accueil', exclusif: true });
-    expect(ecranSpatial('/usage/')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: true });
+    expect(ecranSpatial('/usage')).toEqual({ interne: '/sp/usage', section: 'reglages' });
+    expect(ecranSpatial('/onboarding')).toEqual({ interne: '/sp/onboarding', section: 'accueil' });
+    expect(ecranSpatial('/dashboard')).toEqual({ interne: '/sp/dashboard', section: 'accueil' });
+    expect(ecranSpatial('/usage/')).toEqual({ interne: '/sp/usage', section: 'reglages' });
     expect(ecranSpatial('/usage/x')).toBeNull();
     // Un chemin qu'aucune rubrique ne porte (`/billing` l'est désormais, rubrique G ;
     // `/credits` aussi, vague 4 · Admin).
@@ -42,11 +35,11 @@ describe('Spatial · bascule', () => {
     }
   });
 
-  it('écran exclusif · servi par Spatial même en mode V5 ; un écran non exclusif suit le cookie', () => {
-    const liste = [{ chemin: '/a', section: 'accueil' as const }, { chemin: '/b/[id]', section: 'veille' as const, exclusif: true as const }];
-    const a = ecranSpatialDans(liste, '/a'), b = ecranSpatialDans(liste, '/b/42');
-    expect([a?.exclusif, b?.exclusif, b?.interne]).toEqual([false, true, '/sp/b/42']);
-    expect([servirEnSpatial(a, 'spatial'), servirEnSpatial(a, 'v5'), servirEnSpatial(b, 'v5'), servirEnSpatial(null, 'spatial')]).toEqual([true, false, true, false]);
+  it('le motif à segment dynamique est réécrit tel quel, chemin réel conservé', () => {
+    const liste = [{ chemin: '/a', section: 'accueil' as const }, { chemin: '/b/[id]', section: 'veille' as const }];
+    expect([ecranSpatialDans(liste, '/a'), ecranSpatialDans(liste, '/b/42'), ecranSpatialDans(liste, '/b')]).toEqual([
+      { interne: '/sp/a', section: 'accueil' }, { interne: '/sp/b/42', section: 'veille' }, null,
+    ]);
   });
 
   it('seules les sections connues passent l’en-tête', () => {

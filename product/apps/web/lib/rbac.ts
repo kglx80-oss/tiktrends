@@ -36,16 +36,11 @@ export function planAtLeast(plan: Plan, min: Plan): boolean {
  * des lieux que l'utilisateur ne retrouvait nulle part ailleurs.
  *
  * Les sous-écrans gardent leur entrée (droits, palette, matrice d'équipe) ·
- * le rail n'en montre que la tête, et la page les présente en ONGLETS
- * (`sectionsRail`, `sectionDuChemin`, plus bas). `account` porte le menu
+ * le rail n'en montre que la tête. `account` porte le menu
  * profil (Compte, Espace, Admin).
  */
 export type NavGroup = 'Principal' | 'account';
 export const RAIL_GROUPS: NavGroup[] = ['Principal'];
-/** Libellé d'en-tête affiché au-dessus d'un groupe · vide · le rail plat n'en pose aucun. */
-export const RAIL_GROUP_LABEL: Record<string, string> = {
-  Principal: '',
-};
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
 // Allocation de crédits mensuelle par abonnement.
@@ -119,7 +114,7 @@ export const FEATURES: Feature[] = [
   { key: 'billing',   label: 'Abonnement & factures', href: '/billing', icon: 'card', group: 'account', section: 'Espace', minRole: 'admin', minPlan: 'starter' },
   { key: 'settings',  label: 'Réglages',     href: '/settings',    icon: 'gear',   group: 'account', section: 'Espace', minRole: 'admin',  minPlan: 'starter' },
   // Note : Console + Crédits/marges (coûts réels API) sont réservés à la plateforme
-  // (ADMIN+ · isFounder), pas exposés dans le menu client. Voir app/(app)/admin.
+  // (ADMIN+ · isFounder), pas exposés dans le menu client. Voir les écrans Spatial de l'Admin (`app/(spatial)/sp/admin`).
 ];
 
 /**
@@ -224,51 +219,4 @@ export function sectionsCompteOuvertes(a: Access): Array<{ section: AccountSecti
   return accountSections(a)
     .map((g) => (g.section === 'Espace' && !roleAtLeast(a.role, 'admin') ? { ...g, items: [] } : g))
     .filter((g) => g.items.length > 0);
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Rail UX V2 · sections et onglets (pur, testable)                          */
-/* -------------------------------------------------------------------------- */
-
-/** Une section du rail · son entrée et ses sous-écrans visibles (onglets de page). */
-export interface EntreeRail { key: string; href: string; isSub: boolean }
-export interface SectionRail<T extends EntreeRail = NavItem> { tete: T; onglets: T[] }
-
-const cheminDe = (href: string): string => href.split('#')[0]!.split('?')[0]!;
-const contient = (base: string, chemin: string): boolean => chemin === base || chemin.startsWith(base + '/');
-
-/** Les sections du rail, à partir de la navigation déjà filtrée par les droits (`railNav`). */
-export function sectionsRail<T extends EntreeRail>(nav: Array<{ items: T[] }>): Array<SectionRail<T>> {
-  const out: Array<SectionRail<T>> = [];
-  for (const it of nav.flatMap((g) => g.items)) {
-    if (it.isSub && out.length) out[out.length - 1]!.onglets.push(it);
-    else if (!it.isSub) out.push({ tete: it, onglets: [] });
-  }
-  return out;
-}
-
-/**
- * La section qui CONTIENT un chemin · son entrée, ou l'un de ses sous-écrans,
- * ou un de leurs descendants (« Studios » reste allumé dans un projet, « Veille »
- * sur les Sauvegardes). La section la plus précise gagne.
- */
-export function sectionDuChemin<T extends EntreeRail>(sections: ReadonlyArray<SectionRail<T>>, pathname: string): SectionRail<T> | null {
-  let meilleure: { s: SectionRail<T>; long: number } | null = null;
-  for (const s of sections) {
-    for (const href of [s.tete.href, ...s.onglets.map((o) => o.href)]) {
-      const base = cheminDe(href);
-      if (contient(base, pathname) && (!meilleure || base.length > meilleure.long)) meilleure = { s, long: base.length };
-    }
-  }
-  return meilleure?.s ?? null;
-}
-
-/**
- * UX V2 · le groupe « Marque » (marque active, admin d'espace) ne s'intercale
- * pas dans la liste des modules · il rejoint « Votre espace ». Le rail plat
- * garde ses six modules dans leur ordre, Bibliothèque comprise.
- */
-export const GROUPE_MARQUE = 'Marque';
-export function separerRailMarque<G extends { group: string }>(nav: G[]): { modules: G[]; marque: G | null } {
-  return { modules: nav.filter((g) => g.group !== GROUPE_MARQUE), marque: nav.find((g) => g.group === GROUPE_MARQUE) ?? null };
 }
