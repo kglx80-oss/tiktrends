@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 
@@ -88,7 +88,8 @@ const fichiers: string[] = [];
       else if (/\.tsx?$/.test(n)) fichiers.push(p.split(sep).join('/'));
     }
   }
-})(PERIMETRE);
+// Une page V5 retirée (écran devenu exclusif Spatial) sort du périmètre d'elle-même.
+})(PERIMETRE.filter((d) => existsSync(join(WEB, d))));
 const dansLeLot = (f: string) => !Object.keys(HORS_LOT).some((h) => f === h || f.startsWith(h + '/'));
 
 // Fin d'un objet de style · `}}`, `};`, `} as const;`, `}),`…
@@ -164,7 +165,6 @@ describe('lot 19D · garde source · bordures et rayons par rôle', () => {
     // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · plancher 120.
     expect(lot.length).toBeGreaterThan(120);
     expect(lot).toContain('components/ui.tsx');
-    expect(lot).toContain('app/(app)/admin/finance/page.tsx');
     // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.
     for (const f of ['components/JourneyPanel.tsx', 'components/HomeBandeau.tsx', 'components/accueil/VueAnalytics.tsx', 'app/(app)/analytics/MetaKeyMetrics.tsx', 'app/(app)/dashboard/page.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
   });

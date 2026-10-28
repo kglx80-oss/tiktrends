@@ -2,6 +2,7 @@
 export * from './format';
 export * from './plateforme';
 export * from './finances';
+export * from './finance-formules';
 export * from './sav';
 export * from './pilotage';
 export * from './outils';
