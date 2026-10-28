@@ -63,10 +63,7 @@ describe('Cibles tactiles · composants partagés', () => {
   const adoptions: Array<[string, string[]]> = [
     ['components/Bandeau.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['components/JourneyPanel.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
-    ['components/AssistantHome.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
-    ['components/AssistantChat.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['components/LogoHome.tsx', ['minHeight: CIBLE_TACTILE_MIN', 'minWidth: CIBLE_TACTILE_MIN']],
-    ['components/accueil/VueAnalytics.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['app/(app)/jarvis/JarvisChat.tsx', ['minHeight: CIBLE_TACTILE_MIN']],
     ['app/(app)/jarvis/JarvisContexte.tsx', ['CIBLE_TACTILE_MIN']],
   ];

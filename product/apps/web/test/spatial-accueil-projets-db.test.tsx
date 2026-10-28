@@ -4,17 +4,18 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { IdsStudios, SessionTest } from './studios-semis';
 
 /**
- * UX V2 · lot 5 · l'Accueil part du PROJET · sur une VRAIE base (pglite).
+ * Spatial · l'Accueil « Reprendre » · sur une VRAIE base (pglite). Portée de
+ * `uxv2-accueil-projets-db` (l'ancien Accueil V5 est retiré).
  *
- * On rend la vraie page `/dashboard` (la vraie action de liste, ses gardes, sa
- * portée) et on LIT le HTML :
+ * On rend la vraie page Spatial `/dashboard` (la vraie action de liste, ses
+ * gardes, sa portée) et on LIT le HTML :
  *  · le projet repris est le plus récemment modifié DE LA PORTÉE · un projet
  *    d'un autre espace, d'une marque hors restriction, ou archivé n'apparaît
- *    JAMAIS (ni repris, ni dans « Tes autres projets ») ;
+ *    JAMAIS ;
  *  · l'aperçu est la sortie livrée réelle du projet repris, servie par la
  *    route gardée · sans sortie, aucune image ;
- *  · les états · rôle sans Studios, capacité coupée, panne de lecture,
- *    premier usage · le reste de l'Accueil s'affiche toujours ;
+ *  · les états · capacité coupée, panne de lecture, premier usage · dits, sans
+ *    geste mort, et le reste de l'Accueil s'affiche toujours ;
  *  · une visite n'écrit RIEN (empreinte de toutes les tables avant/après).
  */
 
@@ -66,7 +67,7 @@ vi.mock('../app/actions/studios/sources', async (importOriginal) => {
 import { db, schema, eq, sql } from '@tiktrends/db';
 import { cleInterrupteursEspace } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
-import Dashboard from '../app/(app)/dashboard/page';
+import AccueilSpatial from '../app/(spatial)/sp/dashboard/page';
 
 const ids = h.ids;
 const P: Record<string, string> = {};
@@ -110,15 +111,13 @@ afterEach(async () => {
 
 async function accueil(s: SessionTest) {
   h.session = s;
-  const html = renderToStaticMarkup(await Dashboard({ searchParams: Promise.resolve({}) }));
+  const html = renderToStaticMarkup(await AccueilSpatial({ searchParams: Promise.resolve({}) }));
   const d = document.createElement('div');
   d.innerHTML = html;
   return { html, d, texte: d.textContent ?? '' };
 }
-const titres = (d: HTMLElement) => ({
-  reprendre: d.querySelector('[data-reprendre] h3')?.textContent ?? null,
-  autres: [...d.querySelectorAll('[data-autres-projets] [data-projet] h3')].map((e) => e.textContent),
-});
+/** Les lignes de « Reprendre », dans l'ordre · titre et lien. */
+const lignes = (d: HTMLElement) => [...d.querySelectorAll('a.prow')].map((a) => [a.querySelector('strong')?.textContent, a.getAttribute('href')]);
 const TOUS_TITRES = ['A1 · le plus ancien', 'A1 · le plus récent', 'A1 · au milieu', 'A2 · repris en premier', 'A1 · archivé', 'B · projet secret'];
 
 /** Empreinte de TOUTES les tables · une écriture, quelle qu'elle soit, la change. */
@@ -132,19 +131,18 @@ async function empreinteBase(): Promise<Record<string, string>> {
   return out;
 }
 
-describe('Accueil · reprendre le dernier projet DE LA PORTÉE', () => {
-  it('membre de l’espace A · le plus récent repris, les suivants dans l’ordre, aperçu réel', async () => {
+
+describe('Spatial · Accueil · reprendre le dernier projet DE LA PORTÉE', () => {
+  it('membre de l’espace A · le plus récent d’abord, les suivants dans l’ordre, aperçu réel du repris', async () => {
     const { d } = await accueil(session(ids, 'ua'));
-    expect(d.querySelector('[data-accueil-projets]')?.getAttribute('data-accueil-projets')).toBe('liste');
-    const t = titres(d);
-    expect(t.reprendre, 'le projet repris n’est pas le plus récemment modifié de la portée').toBe('A2 · repris en premier');
-    expect(t.autres, '« Tes autres projets » faux ou dans le désordre').toEqual(['A1 · le plus récent', 'A1 · au milieu', 'A1 · le plus ancien']);
-    expect(d.querySelector('a[data-reprendre-lien]')?.getAttribute('href')).toBe(`/studio/projets/${P.a2}`);
-    expect(d.querySelector('a[data-reprendre-lien]')?.textContent).toBe('Reprendre le projet');
+    expect(lignes(d), 'le projet repris n’est pas le plus récemment modifié de la portée, ou l’ordre est faux').toEqual([
+      ['A2 · repris en premier', `/studio/projets/${P.a2}`], ['A1 · le plus récent', `/studio/projets/${P.a1Recent}`],
+      ['A1 · au milieu', `/studio/projets/${P.a1Milieu}`], ['A1 · le plus ancien', `/studio/projets/${P.a1Ancien}`],
+    ]);
     // L'aperçu · la sortie LIVRÉE (rendu), pas le dépôt plus récent · par la route gardée.
-    expect(d.querySelector('[data-apercu-reprise] img')?.getAttribute('src'), 'aperçu absent ou faux').toBe(`/api/studios/media/${apercuA2}`);
-    expect(d.querySelector('a[data-nouveau-projet-accueil]')?.getAttribute('href')).toBe('/studio/projets/nouveau');
-    expect([...d.querySelectorAll('a')].find((a) => a.textContent?.startsWith('Voir tous les projets'))?.getAttribute('href')).toBe('/studio/projets?toutes=1');
+    expect(d.querySelector('a.prow img')?.getAttribute('src'), 'aperçu absent ou faux').toBe(`/api/studios/media/${apercuA2}`);
+    expect([...d.querySelectorAll('a.more')].find((a) => a.textContent?.startsWith('Tous les projets'))?.getAttribute('href')).toBe('/studio/projets?toutes=1');
+    expect(d.querySelector('nav[aria-label="Raccourcis"] a[data-route="nouveau"]')?.getAttribute('href')).toBe('/studio/projets/nouveau');
   });
 
   it('jamais un projet d’un autre espace, ni archivé', async () => {
@@ -155,122 +153,52 @@ describe('Accueil · reprendre le dernier projet DE LA PORTÉE', () => {
 
   it('membre restreint à A1 · le projet de A2 (plus récent) n’apparaît jamais, ni son aperçu', async () => {
     const { d, texte, html } = await accueil(session(ids, 'ur'));
-    expect(titres(d).reprendre).toBe('A1 · le plus récent');
+    expect(lignes(d)[0]?.[0]).toBe('A1 · le plus récent');
     expect(texte, 'un projet d’une marque hors restriction fuit').not.toContain('A2 · repris en premier');
     expect(html).not.toContain(P.a2!);
     expect(html, 'l’aperçu d’une marque hors portée fuit').not.toContain(apercuA2);
-    // Aucune sortie livrée pour ce projet · aucune image inventée.
-    expect(d.querySelector('[data-apercu-reprise]')).toBeNull();
+    expect(d.querySelector('a.prow img'), 'une image inventée').toBeNull();
   });
 
   it('espace B · son seul projet, aucun projet de A', async () => {
     const { d, texte } = await accueil(session(ids, 'ub'));
-    expect(titres(d).reprendre).toBe('B · projet secret');
-    expect(titres(d).autres).toEqual([]);
+    expect(lignes(d).map((l) => l[0])).toEqual(['B · projet secret']);
     for (const t of TOUS_TITRES.filter((x) => !x.startsWith('B'))) expect(texte, `projet de A visible depuis B · ${t}`).not.toContain(t);
   });
 });
 
-describe('Accueil · le nouveau bloc est EN TÊTE, tout l’existant reste dessous', () => {
-  it('projets → pilotage → bandeau → marques → prochaine étape → analyse → assistant → exemple', async () => {
-    const { html, d } = await accueil(session(ids, 'ua', { role: 'admin' }));
-    const etape = html.includes('aria-label="Ta prochaine étape"') ? 'aria-label="Ta prochaine étape"' : 'aria-label="Prépare ta prochaine itération"';
-    const ordre = [
-      'data-accueil-projets="liste"', 'data-accueil-pilotage', 'aria-label="À la une"', 'aria-label="Tes marques"', etape,
-      'Analyser &amp; décider', 'Demande à l’assistant', 'Données de démonstration',
-    ].map((m) => [m, html.indexOf(m)] as const);
-    for (const [m, i] of ordre) expect(i, `section absente · ${m}`).toBeGreaterThan(-1);
-    for (let k = 1; k < ordre.length; k++) expect(ordre[k - 1]![1], `${ordre[k - 1]![0]} doit précéder ${ordre[k]![0]}`).toBeLessThan(ordre[k]![1]);
-    // Onglets Accueil · Analytics toujours là.
-    expect(d.querySelector('nav[aria-label="Vues de l’accueil"]')).not.toBeNull();
-    // La rangée Studios d'avant ne double pas les gestes de la tête.
-    expect(html, 'la rangée Studios double « Nouveau projet »').not.toContain('Créer les variantes de ton test');
-  });
-});
-
-describe('Accueil · le bandeau se tait quand la tête porte déjà ses gestes', () => {
-  it('marque active, projets et Résultats en tête · plus de « Prépare ton prochain test » (Voir mes tests, Créer une pub en doublon)', async () => {
-    h.marque = { id: ids.brandA1, name: 'A1' };
-    try {
-      const { html } = await accueil(session(ids, 'ua', { role: 'admin' }));
-      expect(html, 'la tête de projets manque').toContain('data-accueil-projets="liste"');
-      expect(html, 'le bandeau double la tête (Voir mes tests, Créer une pub)').not.toContain('aria-label="À la une"');
-    } finally { h.marque = null; }
-  });
-
-  it('sans marque active · « Choisir une marque » n’est porté nulle part · le bandeau reste', async () => {
-    const { html } = await accueil(session(ids, 'ua', { role: 'admin' }));
-    expect(html).toContain('aria-label="À la une"');
-  });
-});
-
-describe('Accueil · piloter l’activité selon les droits', () => {
-  const pilotage = (d: HTMLElement) => [...d.querySelectorAll('[data-accueil-pilotage] a')].map((a) => a.getAttribute('href'));
-  it('membre · Résultats et Jarvis, PAS Activité et coûts (réservée aux admins)', async () => {
-    const { d } = await accueil(session(ids, 'ua'));
-    expect(pilotage(d)).toEqual(['/adsmap', '/jarvis']);
-  });
-  it('propriétaire · Résultats, Activité et coûts, Jarvis', async () => {
-    const { d, texte } = await accueil(session(ids, 'ua', { role: 'owner' }));
-    expect(pilotage(d)).toEqual(['/adsmap', '/usage', '/jarvis']);
-    expect(texte).toContain('Activité et coûts');
-  });
-  it('équipe plateforme au rôle d’espace « membre » · la matrice voit /usage, la page la refuserait · absent', async () => {
-    // Lot 12 · `/usage` est gardée par le rôle d'ESPACE (admin) · le menu de compte suit cette garde.
-    const s = session(ids, 'ua', { equipe: { role: 'admin', matrice: {}, plateformeAdmissible: false } as SessionTest['equipe'] });
-    const { d } = await accueil(s);
-    expect(pilotage(d), 'lien vers une page qui renverrait à l’accueil').not.toContain('/usage');
-    expect(pilotage(d)).toEqual(['/adsmap', '/jarvis']);
-  });
-  it('client en lecture · aucun bloc projet, aucun pilotage, l’Accueil d’avant reste', async () => {
-    const { d, texte } = await accueil(session(ids, 'uv'));
-    expect(d.querySelector('[data-accueil-projets]'), 'bloc projet montré à un rôle sans Studios').toBeNull();
-    expect(d.querySelector('[data-accueil-pilotage]'), 'pilotage sans aucun accès ouvert').toBeNull();
-    for (const t of TOUS_TITRES) expect(texte).not.toContain(t);
-    expect(texte).toContain('Bonjour');
-    expect(d.querySelector('[aria-label="Tes marques"]'), 'les marques ont disparu').not.toBeNull();
-  });
-});
-
-describe('Accueil · états dégradés · le reste s’affiche toujours', () => {
+describe('Spatial · Accueil · états dégradés · le reste s’affiche toujours', () => {
   it('capacité « projets » coupée pour l’espace · une note, aucun projet, aucun geste mort', async () => {
     const value = { actives: [], coupees: ['projets'] };
     await db.insert(schema.appSettings).values({ key: cleInterrupteursEspace(ids.wsA), value }).onConflictDoUpdate({ target: schema.appSettings.key, set: { value } });
     const { d, html, texte } = await accueil(session(ids, 'ua'));
-    expect(d.querySelector('[data-accueil-projets]')?.getAttribute('data-accueil-projets')).toBe('coupee');
+    expect(d.querySelector('[data-reprendre-etat="coupee"]')?.getAttribute('role')).toBe('status');
     expect(texte).toContain('non activé pour cet espace');
     for (const t of TOUS_TITRES) expect(texte, `projet montré malgré la coupure · ${t}`).not.toContain(t);
     expect(html, 'un lien vers la préparation reste malgré la coupure').not.toMatch(/href="\/studio\/projets\/nouveau"/);
-    expect(d.querySelector('[aria-label="Tes marques"]')).not.toBeNull();
+    expect(html, 'un lien vers la liste coupée reste').not.toMatch(/href="\/studio\/projets(\?[^"]*)?"/);
+    expect(d.querySelector('h1')?.textContent).toMatch(/^Bonjour/);
   });
 
-  it('panne de lecture · bloc discret, le reste de l’Accueil s’affiche', async () => {
+  it('panne de lecture · dite, discrète · le reste de l’Accueil s’affiche', async () => {
     h.panne = true;
     const { d, texte } = await accueil(session(ids, 'ua'));
-    const bloc = d.querySelector('[data-accueil-projets="erreur"]');
-    expect(bloc, 'la panne n’est pas dite').not.toBeNull();
-    expect(bloc!.getAttribute('role')).toBe('status');
+    expect(d.querySelector('[data-reprendre-etat="erreur"]')?.getAttribute('role'), 'la panne n’est pas dite').toBe('status');
     expect(texte).toContain('n’ont pas pu être lus');
-    expect(d.querySelector('[aria-label="Tes marques"]'), 'la panne a emporté le reste de l’Accueil').not.toBeNull();
-    expect(texte).toContain('Demande à l’assistant');
-    // La rangée Studios d'avant reste la porte vers les projets.
-    expect(texte).toContain('Créer les variantes de ton test');
+    expect(d.querySelector('h1')?.textContent).toMatch(/^Bonjour/);
+    expect(d.querySelector('nav[aria-label="Raccourcis"]'), 'la panne a emporté le reste de l’Accueil').not.toBeNull();
   });
 
-  it('premier usage (aucun projet) · « Nouveau projet » proposé, l’accompagnement reste', async () => {
+  it('premier usage (aucun projet) · « Nouveau projet » proposé, aucun projet inventé', async () => {
     const { d, texte } = await accueil(session(ids, 'ua', { workspaceId: ids.wsC, workspaceName: 'Espace C' }));
-    const bloc = d.querySelector('[data-accueil-projets="premier-usage"]');
-    expect(bloc, 'le premier usage n’est pas rendu').not.toBeNull();
-    expect(bloc!.querySelector('a[href="/studio/projets/nouveau"]')?.textContent).toBe('Nouveau projet');
-    expect(d.querySelector('[data-reprendre]'), 'un projet à reprendre inventé').toBeNull();
+    expect(texte).toContain('Aucun projet pour l’instant');
+    expect(d.querySelector('a.prow'), 'un projet à reprendre inventé').toBeNull();
     for (const t of TOUS_TITRES) expect(texte).not.toContain(t);
-    // L'accompagnement existant (prochaine étape / parcours) est toujours rendu.
-    expect(texte).toMatch(/Prochaine étape|Prépare ta prochaine itération|En attente/);
   });
 });
 
-describe('Accueil · une visite n’écrit RIEN', () => {
-  it('membre, restreint, lecteur, propriétaire, espace vide, capacité coupée, panne · base identique', async () => {
+describe('Spatial · Accueil · une visite n’écrit RIEN', () => {
+  it('membre, restreint, lecteur, propriétaire, espace vide, panne · base identique', async () => {
     const avant = await empreinteBase();
     h.requetes = [];
     expect(Object.keys(avant).length, 'l’empreinte ne lit pas les tables').toBeGreaterThan(20);
@@ -279,7 +207,6 @@ describe('Accueil · une visite n’écrit RIEN', () => {
     }
     h.panne = true;
     await accueil(session(ids, 'ua'));
-    // Aucune instruction d'écriture n'est même ENVOYÉE (une écriture idempotente ne changerait pas l'empreinte).
     const lues = h.requetes.filter((t) => /^\s*select\b/i.test(t));
     expect(lues.length, 'le journal ne voit pas les requêtes de l’Accueil').toBeGreaterThan(10);
     expect(h.requetes.filter((t) => /^\s*(insert|update|delete|truncate|alter|create|drop)\b/i.test(t)), 'la visite de l’Accueil envoie une écriture').toEqual([]);

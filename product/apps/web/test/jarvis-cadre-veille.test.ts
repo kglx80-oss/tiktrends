@@ -54,12 +54,4 @@ describe('Jarvis · cadre + composeur aux bords Veille, lecture bornée à l’i
     expect(chat, 'les bulles utilisateur ne bornent plus la lecture').toContain("maxWidth: 'min(760px, 86%)'");
   });
 });
-
-describe('Jarvis · SectionAttribution · h3 à la graisse charte (500, plus 800)', () => {
-  const s = read('app/(app)/jarvis/sections/SectionAttribution.tsx');
-  it('les h3 partagés sont en 500 (charte), plus en 800', () => {
-    // Mutation : remettre fontWeight 800 sur ces h3 fait tomber.
-    expect(s, 'un h3 est resté en graisse 800').not.toContain("fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>");
-    expect(s, 'les h3 ne sont pas passés en 500').toContain("fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>");
-  });
-});
+// Vague 2 Spatial v4 · `SectionAttribution` (V5) est retirée · son bilan est porté dans la vue Analytics de l'Accueil Spatial (`spatial-accueil-analytics`).

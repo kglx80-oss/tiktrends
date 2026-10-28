@@ -7,6 +7,7 @@ import {
   depuisRelatif, etapesBoucleAccueil, fileQuoiDeNeuf, jourParis, ligneAttente, lignesReprendre, lotsAConclure,
   periodeReporting, raccourcisAccueil, salutationAccueil, sourcesJarvisAccueil, sousTitreReporting,
   surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil,
+  SUGGESTIONS_ASSISTANT_ACCUEIL, costFor, noteAccesAccueil, prixQuestionAssistant, refusAssistant, resoudreAccueil,
   type JourneeMesuree, type LotAccueil,
 } from '@tiktrends/core';
 import type { Session } from '../../../../lib/auth';
@@ -18,6 +19,8 @@ import { onboardingState } from '../../../../lib/onboarding-state';
 import { chargerTeteAccueilProjets } from '../../../../lib/accueil-projets';
 import { chargerAccueilV5 } from '../../../../lib/accueil-v5';
 import { compterBoucle } from '../../../../lib/boucle-resultats';
+import { anthropicConfigured } from '../../../../lib/ai-status';
+import { unlimitedCredits } from '../../../../lib/credits';
 import type { EtatQuoiIterer, EtatReporting, PropsAccueil } from '../../../../spatial/vues/accueil/Accueil';
 
 /**
@@ -217,10 +220,29 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
       lignes: [], tous: '/studio/projets',
       vide: { message: 'Aucun projet pour l’instant · un projet part d’un brief et mène à la création, étape par étape.', lien: tete.etat.nouveau ? { libelle: tete.etat.nouveau.libelle, href: tete.etat.nouveau.href } : null },
     };
+  } else if (tete.etat.etat === 'coupee') {
+    // Capacité Studios coupée pour l'espace · la note, aucun geste (la liste mènerait à « non activé »).
+    reprendre = { lignes: [], tous: null, vide: { message: tete.etat.message, lien: null, etat: 'coupee' } };
+  } else if (tete.etat.etat === 'erreur') {
+    // Lecture en panne · dit, discret · le reste de l'Accueil s'affiche (ancien Accueil, état « erreur »).
+    reprendre = {
+      lignes: [], tous: tete.etat.tous.href,
+      vide: { message: `Tes projets n’ont pas pu être lus pour l’instant · le reste de l’accueil reste disponible, recharge la page pour réessayer.${tete.etat.traceId ? ` Identifiant support : ${tete.etat.traceId}.` : ''}`, lien: null, etat: 'erreur' },
+    };
   }
 
   const jarvisOuvert = refusJarvis(s) === null;
+  // Gestes de l'ancien Accueil (vague 2 Spatial v4) · mêmes règles du noyau, mêmes droits.
+  const { onglets } = resoudreAccueil({ params, ouvert });
+  // L'assistant · SEC-03, la règle de l'action serveur (`askAssistant`). Quand Jarvis est ouvert, sa barre en tient lieu.
+  const assistant = !jarvisOuvert && refusAssistant({ roleEspace: s.role }) === null
+    ? { pret: anthropicConfigured(), prix: prixQuestionAssistant({ cout: costFor('chat'), illimite: unlimitedCredits(s.user.email) }), suggestions: SUGGESTIONS_ASSISTANT_ACCUEIL }
+    : null;
   return {
+    onglets: onglets.map((o) => ({ href: o.href, libelle: o.libelle, actif: o.actif })),
+    note: noteAccesAccueil(ouvert),
+    kpi: v5.kpi,
+    assistant,
     surtitre: surtitreSpatialAccueil({ maintenant, marque: marque?.nom ?? null }),
     salutation: salutationAccueil(s.user.name || s.user.email.split('@')[0]),
     jarvis: jarvisOuvert ? { titre: titreJarvisAccueil(marque?.nom ?? null), sources: sourcesJarvisAccueil({ marqueActive: !!marque }), pastilles: PASTILLES_JARVIS_ACCUEIL } : null,

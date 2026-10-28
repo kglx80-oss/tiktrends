@@ -8,5 +8,6 @@ import type { EcranSpatial } from '../types';
  */
 export const ECRANS_ACCUEIL: readonly EcranSpatial[] = [
   { chemin: '/onboarding', section: 'accueil' },
-  { chemin: '/dashboard', section: 'accueil' },
+  // Exclusif (vague 2 Spatial v4) · l'ancien Accueil est retiré, ses gestes (vue Analytics, KPI, assistant, note de rôle) sont portés.
+  { chemin: '/dashboard', section: 'accueil', exclusif: true },
 ];
