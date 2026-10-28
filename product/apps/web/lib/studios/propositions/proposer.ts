@@ -203,5 +203,5 @@ export async function creerPropositionManuelle(ctx: ContexteStudio, e: EntreeMan
   if (!construite.ok) return refusConstruction(ctx, construite);
   const s = await stockerProposition(ctx, { projet, baseVersion: courante, construite: construite.proposition, origine: 'human' }, base);
   if (!s.ok) return s;
-  return { ok: true, statut: 'proposee', projectId: projet.id, proposition: s.proposition, runId: null };
+  return { ok: true, statut: 'proposee', projectId: projet.id, proposition: s.proposition, runId: null, deja: s.deja };
 }

@@ -65,7 +65,8 @@ export type ErreurProposition = ErreurStudio & { motif?: MotifIndisponibilite | 
 export type ReponseProposition<T> = ({ ok: true } & T) | ErreurProposition;
 
 export type ResultatProposer =
-  | { statut: 'proposee'; projectId: string; proposition: PropositionPresentee; runId: string | null }
+  /** `deja` · relance d'une saisie humaine déjà stockée (réponse perdue) · la même proposition, aucun doublon. */
+  | { statut: 'proposee'; projectId: string; proposition: PropositionPresentee; runId: string | null; deja?: boolean }
   | { statut: 'questions'; projectId: string; questions: string[]; avertissements: string[]; runId: string | null };
 
 export interface ResultatApplication {

@@ -153,8 +153,11 @@ export function Textes({ vue, atelier }: PropsTextes) {
       const r = await injecterTexte({ projectId: vue.projet.id, baseVersionId: version.id, layerId, texte: t.texte });
       if (!r.ok) { dire('err', messageErreur(r), { conflit: r.code === 'VERSION_CONFLICT', code: r.code }); return; }
       const nom = vue.calques.find((c) => c.id === layerId)?.nom ?? layerId;
-      dire('ok', `Proposition créée pour le calque « ${nom} » · rien n’est appliqué tant que tu ne l’appliques pas depuis le projet.`, { lien: true });
-    } catch { dire('err', 'Le serveur n’a pas répondu · aucune proposition créée. Vérifie ta connexion puis réessaie.', { code: ECHEC_RESEAU_STUDIO }); }
+      const deja = r.statut === 'proposee' && r.deja === true;
+      dire('ok', deja
+        ? `Cette proposition existait déjà pour le calque « ${nom} » · aucun doublon créé. Rien n’est appliqué tant que tu ne l’appliques pas depuis le projet.`
+        : `Proposition créée pour le calque « ${nom} » · rien n’est appliqué tant que tu ne l’appliques pas depuis le projet.`, { lien: true });
+    } catch { dire('err', 'Le serveur n’a pas répondu · la proposition a pu être créée. Réessaie : une demande déjà enregistrée ne crée jamais de doublon.', { code: ECHEC_RESEAU_STUDIO }); }
     finally { setEnCours(null); }
   }
 

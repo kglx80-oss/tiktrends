@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
-  objetDansPortee, erreurStudio, differencesDetaillees, empreinteContenu, etatACreation, etatEffectif, expirationProposition,
+  objetDansPortee, erreurStudio, differencesDetaillees, empreinteContenu, etatACreation, etatEffectif, estRejeuProposition, expirationProposition,
   deciderApplication, deciderRejet, lireCible, libelleCible, libelleCibleEtVersion, changementsLisibles, impactProposition,
   libelleNoeud, ciblesDisponibles, champsEditables, LIBELLES_ETAT, LIBELLES_ORIGINE, SCHEMA_VERSION_CONTENU,
   type ContenuVersion, type ErreurStudio, type EstimationNonExecutoire, type PlanImpact, type PropositionConstruite,
@@ -245,7 +245,7 @@ export interface EntreeStockage {
  * Stocke UNE proposition `proposed` et son plan d'impact calculé SERVEUR, plus
  * l'audit, dans une transaction. Aucun devis, aucun job, aucun débit.
  */
-export async function stockerProposition(ctx: ContexteStudio, e: EntreeStockage, base: BaseStudio = db): Promise<Resultat<{ proposition: PropositionPresentee }>> {
+export async function stockerProposition(ctx: ContexteStudio, e: EntreeStockage, base: BaseStudio = db): Promise<Resultat<{ proposition: PropositionPresentee; deja: boolean }>> {
   const maintenant = e.maintenant ?? new Date();
   const creation = etatACreation();
   if (!creation.verdict.ok) return erreurStudio('INVARIANT_CONFLICT', { traceId: ctx.traceId, message: creation.verdict.raison });
@@ -258,6 +258,24 @@ export async function stockerProposition(ctx: ContexteStudio, e: EntreeStockage,
       const baseV = await versionDuProjet(tx, ctx, pc.projet.id, e.baseVersion.id);
       if (!baseV) throw new Refus(introuvable(ctx));
       const contenuBase = baseV.content as ContenuVersion;
+      const versions = new Map<string, Version>([[baseV.id, baseV], [pc.courante.id, pc.courante]]);
+      // Relance d'une saisie humaine dont la réponse s'est perdue · la même
+      // demande encore ouverte est rendue telle quelle (`estRejeuProposition`),
+      // rien n'est stocké une seconde fois.
+      if (e.origine === 'human') {
+        const ouvertes = await tx.select().from(PR).where(and(
+          eq(PR.projectId, pc.projet.id), eq(PR.baseVersionId, baseV.id), eq(PR.createdBy, ctx.userId), eq(PR.state, 'proposed'), porteeSql(PR, ctx),
+        )).orderBy(desc(PR.createdAt)).limit(20);
+        const meme = ouvertes.find((o) => estRejeuProposition(
+          { auteurId: ctx.userId, baseVersionId: baseV.id, cible: e.construite.target, changes: e.construite.changes },
+          { createdBy: o.createdBy, baseVersionId: o.baseVersionId, target: o.target, changes: o.changes, state: o.state, origin: o.origin, expiresAt: o.expiresAt as Date | null },
+          maintenant,
+        ));
+        if (meme) {
+          const [lp] = await tx.select().from(IP).where(and(eq(IP.proposalId, meme.id), isNull(IP.toVersionId), porteeSql(IP, ctx))).limit(1);
+          return { ok: true as const, proposition: presenter(meme, versions, pc.courante, lp, maintenant), deja: true };
+        }
+      }
       const existantes = await sortiesExistantes(tx, ctx, pc.projet.id, baseV.id);
       const { plan, estimation } = impactProposition(contenuBase, e.construite.contenuApres, existantes);
 
@@ -274,8 +292,7 @@ export async function stockerProposition(ctx: ContexteStudio, e: EntreeStockage,
         versionBefore: baseV.id, versionAfter: null, reason: e.origine === 'jarvis' ? 'proposition de Jarvis' : 'proposition saisie',
         details: { origine: e.origine, cible: e.construite.target, chemins: e.construite.changes.map((c) => c.path).slice(0, 100), planHash: plan.empreinte, ...(e.details ?? {}) },
       });
-      const versions = new Map<string, Version>([[baseV.id, baseV], [pc.courante.id, pc.courante]]);
-      return { ok: true as const, proposition: presenter(ligne!, versions, pc.courante, lp, maintenant) };
+      return { ok: true as const, proposition: presenter(ligne!, versions, pc.courante, lp, maintenant), deja: false };
     });
   } catch (err) {
     if (err instanceof Refus) return err.erreur;

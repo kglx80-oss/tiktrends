@@ -232,6 +232,26 @@ describe('injection EXPLICITE dans un calque texte choisi · par une proposition
     await enregistrerTextesPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: versionId, textes: [{ type: 'cta', texte: 'x' }] });
     expect(await injecterTextePour(ctxDe(ids, 'ua'), { projectId, baseVersionId: versionId, layerId: 'l_titre', texte: 'y' })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
   });
+
+  it('relance après une réponse perdue · la même proposition rendue, aucun doublon ; un autre texte en crée une nouvelle', async () => {
+    const { projectId, versionId } = await projetStatique(db, ids, cat, { document: DOC });
+    const P = schema.studioProposals;
+    const demande = { projectId, baseVersionId: versionId, layerId: 'l_titre', texte: 'Elles tiennent toute la journée.' };
+    const r1 = await injecterTextePour(ctxDe(ids, 'ua'), demande);
+    expect(r1, JSON.stringify(r1)).toMatchObject({ ok: true, statut: 'proposee', deja: false });
+    const avant = await compter(db);
+    // La réponse de r1 s'est perdue · la personne relance exactement la même demande.
+    const r2 = await injecterTextePour(ctxDe(ids, 'ua'), demande);
+    expect(r2, JSON.stringify(r2)).toMatchObject({ ok: true, statut: 'proposee', deja: true });
+    if (!r1.ok || r1.statut !== 'proposee' || !r2.ok || r2.statut !== 'proposee') return;
+    expect(r2.proposition.id, 'la relance a créé une seconde proposition').toBe(r1.proposition.id);
+    expect(delta(avant, await compter(db)), 'la relance a écrit quelque chose').toEqual({});
+    expect(await db.select().from(P).where(eq(P.projectId, projectId))).toHaveLength(1);
+    // Un autre texte sur le même calque est une autre demande.
+    const r3 = await injecterTextePour(ctxDe(ids, 'ua'), { ...demande, texte: 'Un autre titre.' });
+    expect(r3).toMatchObject({ ok: true, statut: 'proposee', deja: false });
+    expect(await db.select().from(P).where(eq(P.projectId, projectId))).toHaveLength(2);
+  });
 });
 
 

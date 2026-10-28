@@ -168,7 +168,7 @@ describe('hors ligne et conflit', () => {
     await cliquer(bouton('Exporter en CSV'));
     expect(q('[role="alert"]')?.textContent, 'export hors ligne muet').toContain('aucun fichier exporté');
     await cliquer(bouton('Proposer dans ce calque'));
-    expect(q('[role="alert"]')?.textContent, 'proposition hors ligne muette').toContain('aucune proposition créée');
+    expect(q('[role="alert"]')?.textContent, 'proposition hors ligne muette').toContain('ne crée jamais de doublon');
     expect(zoneManuelle().value).toBe('Brouillon en cours');
   });
 
