@@ -47,7 +47,8 @@ describe('B2 · chaque écran pose cadrePage, sans largeur extérieure à la mai
     // Studios, 37 après la Bibliothèque (27/10). Les retraits continuent
     // (écrans devenus exclusifs) · le seuil ne garde que la lecture des pages
     // (il tombe à 0 si le chemin du scan casse).
-    expect(pages.length).toBeGreaterThanOrEqual(10);
+    // Mesuré : 6 après la vague 4 (Veille, Accueil, Finance, Inscriptions, Profil, Tags, Support, Crédits) (28/10/2026) · plancher 3.
+    expect(pages.length).toBeGreaterThanOrEqual(3);
   });
   for (const p of pages) {
     const route = routeDe(p);
