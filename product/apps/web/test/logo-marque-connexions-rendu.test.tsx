@@ -11,8 +11,7 @@ import { join } from 'node:path';
  * Un logo officiel posé à côté d'un geste de connexion se lit « ce connecteur
  * existe ». Poser celui de TikTok, Slack ou Stripe là où rien n'est branché
  * ferait croire à un connecteur absent. On REND les vrais écrans qui
- * représentent une connexion (page Connexions, Analytics, Nouvelle marque,
- * fiche marque · Shopify, Assets · Google Drive, Key Metrics Meta) et on lit
+ * représentent une connexion (fiche marque · bande « Connecté ») et on lit
  * le HTML ·
  *  · chaque `LogoMarque` rendu porte une clé de `CONNEXIONS_REELLES` ;
  *  · chaque écran montre bien le logo de SA connexion ;
@@ -24,8 +23,6 @@ vi.mock('../lib/ai-status', () => ({ anthropicConfigured: () => false }));
 vi.mock('../app/actions/brands', () => ({ createBrandFromShopifyAction: async () => {} }));
 vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => ({ id: 'b', name: 'Neva' }) }));
-vi.mock('../app/(app)/analytics/CreativeIntel', () => ({ CreativeIntel: () => null }));
-vi.mock('../app/(app)/jarvis/sections/SectionAttribution', () => ({ SectionAttribution: () => null }));
 const { stub } = vi.hoisted(() => ({ stub: (extra: Record<string, unknown> = {}) => new Proxy(extra, { has: (_t: object, k: string | symbol) => k !== 'then', get: (t: Record<string, unknown>, k: string | symbol) => (k === 'then' ? undefined : k === '__esModule' ? true : typeof k === 'string' && k in t ? t[k] : async () => ({})) }) }));
 vi.mock('../app/actions/connections', () => stub({
   getConnectionState: async () => ({
@@ -39,34 +36,15 @@ vi.mock('../app/actions/assets', () => stub());
 vi.mock('../app/actions/brand-detail', () => stub());
 
 import { CONNECTEURS_DISPONIBLES, CONNEXIONS_REELLES, connecteursBranches, estConnexionReelle } from '@tiktrends/core';
-import { VueAnalytics } from '../components/accueil/VueAnalytics';
-import { MetaKeyMetrics } from '../app/(app)/analytics/MetaKeyMetrics';
 import { LogoMarque } from '../components/LogoMarque';
 
 /** Les clés de tous les `LogoMarque` d'un rendu, dans l'ordre. */
 const logos = (html: string) => [...html.matchAll(/data-logo-marque="([^"]+)"/g)].map((m) => m[1]!);
 
-const kpi = new Proxy({}, { get: () => 1 });
-const ECRANS: Array<{ ecran: string; attendu: string[]; rendre: () => Promise<string> | string }> = [
-  { ecran: 'Analytics sans compte', attendu: ['meta'], rendre: async () => renderToStaticMarkup(await VueAnalytics()) },
-  {
-    ecran: 'Key Metrics Meta', attendu: ['meta'],
-    rendre: () => renderToStaticMarkup(<MetaKeyMetrics insights={{ accountName: 'Neva FR', currency: '€', window: kpi, previous: kpi, topAds: [], spend30d: 1, purchases30d: 1, revenue30d: 1, roas30d: 1 } as never} syncedAt={null} />),
-  },
-  // Vague 2 · la Bibliothèque est servie par Spatial (logos d'outil `LogoApp`, hors `LogoMarque`).
-];
-
+// Vague 2 Spatial v4 · la vue Analytics et ses Key Metrics sont servies par Spatial
+// (pastille `logo2` de la maquette, hors `LogoMarque`) · aucun écran V5 de
+// connexion ne reste à rendre ici, la bande « Connecté » de la fiche marque si.
 describe('chaque logo de marque rendu correspond à une connexion réelle', () => {
-  for (const e of ECRANS) {
-    it(`${e.ecran} · ${e.attendu.join(', ')}`, async () => {
-      const vus = logos(await e.rendre());
-      for (const cle of vus) {
-        expect(estConnexionReelle(cle), `${e.ecran} · le logo « ${cle} » représente un connecteur qui n’existe pas`).toBe(true);
-      }
-      expect(vus, `${e.ecran} · le logo de la connexion manque ou change`).toEqual(e.attendu);
-    });
-  }
-
   it('fiche marque · la bande « Connecté » ne montre que des connexions réelles', () => {
     const branches = connecteursBranches({ metaToken: 'x', shopifyToken: 'y' });
     const html = branches.map((b) => renderToStaticMarkup(<LogoMarque marque={b.key} taille="xs" decoratif />)).join('');
@@ -93,9 +71,11 @@ describe('la liste du noyau est celle des écrans', () => {
     };
     parcourir(join(process.cwd(), 'app'));
     parcourir(join(process.cwd(), 'components'));
-    const poses = fichiers.flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/<LogoMarque\s+marque="([^"]+)"/g)].map((m) => ({ f, cle: m[1]! })));
-    // Vague 2 · les écrans V5 retirés emportent leurs poses · il en reste (analytics, accueil) ; zéro = lecture cassée.
-    expect(poses.length, 'aucune pose de LogoMarque trouvée · la lecture est cassée').toBeGreaterThan(0);
+    const sources = fichiers.map((f) => ({ f, src: readFileSync(f, 'utf8') }));
+    const poses = sources.flatMap(({ f, src }) => [...src.matchAll(/<LogoMarque\s+marque="([^"]+)"/g)].map((m) => ({ f, cle: m[1]! })));
+    // Vague 2 Spatial v4 · les dernières poses de LogoMarque dans les écrans (Analytics V5, Key Metrics) sont retirées ·
+    // mesuré : 0 pose, 235 fichiers .tsx lus. Le filet reste armé pour toute pose future · la lecture, elle, doit voir les écrans.
+    expect(sources.length, 'aucun écran lu · la lecture est cassée').toBeGreaterThan(150);
     for (const { f, cle } of poses) expect(estConnexionReelle(cle), `${f} · LogoMarque « ${cle} » n’est pas une connexion réelle`).toBe(true);
   });
 });

@@ -42,8 +42,7 @@ const PERIMETRE = [
   join('app', '(app)', 'veille', 'formats'),
   join('app', '(app)', 'saved', 'FormatChoix.tsx'),
   join('app', '(app)', 'saved', 'page.tsx'),
-  // Lot 19A · rendu dans la vue Analytics de l'Accueil (seul appelant).
-  join('app', '(app)', 'jarvis', 'sections', 'SectionAttribution.tsx'),
+  // Lot 19A · `jarvis/sections/SectionAttribution.tsx` est retirée avec l'ancien Accueil (vague 2 Spatial v4).
 ];
 
 /** Fichiers du dossier `components` hors de ce lot, et pourquoi. */
