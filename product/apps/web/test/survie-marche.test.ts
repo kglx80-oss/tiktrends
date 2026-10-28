@@ -54,7 +54,7 @@ describe('analyseSurvie · la courbe mesurée', () => {
   });
 });
 
-const PAGE = readFileSync(join(process.cwd(), 'app/(app)/admin/intelligence/page.tsx'), 'utf8');
+const PAGE = readFileSync(join(process.cwd(), 'app/(spatial)/sp/admin/intelligence/page.tsx'), 'utf8');
 
 describe('l’écran admin montre la mesure sans toucher au seuil', () => {
   it('lit la donnée réelle et appelle analyseSurvie', () => {

@@ -24,13 +24,12 @@ import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 const WEB = process.cwd();
 const PERIMETRE = [
   'components',
-  ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'brands', 'credits', 'profile', 'support', 'console']
+  ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'brands', 'credits', 'profile', 'support']
     .map((d) => join('app', '(app)', d)),
-  ...['depenses', 'finance', 'incidents', 'intelligence', 'paiement', 'plans', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
+  // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
+  ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
   // Lot 19B (#724) · les écrans et composants que les Connaissances ont créés ou
   // modifiés, plus la page et l'écran de refus de Jarvis (message 55).
-  join('app', '(app)', 'admin', 'connaissances'),
-  join('app', '(app)', 'admin', 'page.tsx'),
   join('app', '(app)', 'jarvis', 'sources'),
   join('app', '(app)', 'jarvis', 'page.tsx'),
   join('app', '(app)', 'jarvis', 'RefusJarvis.tsx'),
@@ -167,7 +166,7 @@ describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   it('on parcourt bien le périmètre du lot', () => {
     expect(lot.length).toBeGreaterThan(140);
     expect(lot).toContain('components/ui.tsx');
-    expect(lot).toContain('app/(app)/console/page.tsx');
+    expect(lot).toContain('app/(app)/admin/finance/page.tsx');
     // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.
     for (const f of ['components/JourneyPanel.tsx', 'components/HomeBandeau.tsx', 'components/accueil/VueAnalytics.tsx', 'app/(app)/analytics/MetaKeyMetrics.tsx', 'app/(app)/dashboard/page.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
   });

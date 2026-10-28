@@ -50,3 +50,24 @@ export const LARGEUR_MIN_TABLE_TELEPHONE = { defauts: 720, comptes: 680, forfait
 export function styleTableDefilante(largeurMin: number): { overflowX: 'auto'; gridTemplateColumns: string } {
   return { overflowX: 'auto', gridTemplateColumns: `minmax(${Math.max(0, Math.round(largeurMin))}px, 1fr)` };
 }
+
+/**
+ * Le diagnostic du déploiement de la console · ce que le serveur exécute
+ * VRAIMENT (commit du build, version de maquette, migrations, date du build).
+ * Une valeur absente se dit (« inconnu », `·`) · elle n'est jamais un zéro.
+ */
+export function diagnosticDeploiementAdmin(etat: DeploymentState, builtAt: string | null, absente = '·'): {
+  etat: { libelle: string; c: '' | 'g' | 'w' | 'r' }; resume: string; cases: Array<{ k: string; v: string }>;
+} {
+  const e = etatDeploiementAdmin(etat);
+  const quand = builtAt ? new Date(builtAt) : null;
+  return {
+    etat: { libelle: e.libelle, c: e.classe }, resume: etat.summary,
+    cases: [
+      { k: 'Commit du build', v: etat.build || 'inconnu' },
+      { k: 'Maquette', v: `v${etat.renderVersion}` },
+      { k: 'Migrations', v: `${etat.applied ?? absente} / ${etat.inBuild}` },
+      { k: 'Build', v: quand && !Number.isNaN(quand.getTime()) ? quand.toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : absente },
+    ],
+  };
+}

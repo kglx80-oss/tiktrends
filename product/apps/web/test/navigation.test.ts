@@ -82,6 +82,8 @@ describe('la carte décrit toutes les pages · sinon elle dérive', () => {
    */
   it('le rail ADMIN+ ne mène jamais dans le vide, et porte l’écran Équipe', () => {
     const reelles = new Set(pagesDe(join(process.cwd(), 'app')));
+    // Spatial · vague 3 · un écran d'Admin EXCLUSIF est servi par Spatial (`app/(spatial)/sp`) · il mène quelque part.
+    for (const e of ECRANS_SPATIAUX) if (e.exclusif && reelles.has(`/sp${e.chemin}`)) reelles.add(e.chemin);
     const morts = ADMIN_NAV
       .map((e) => e.href)
       .filter((h) => h.startsWith('/admin/') && !reelles.has(h));

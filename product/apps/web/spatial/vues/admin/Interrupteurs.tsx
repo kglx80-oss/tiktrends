@@ -38,7 +38,7 @@ const usd = (n: number) => `${n.toFixed(2).replace('.', ',')} $`;
 const CHEMIN = '/admin/studios-interrupteurs';
 
 function Etat({ d }: { d: DecisionCapacite }) {
-  return <span data-active={d.active ? 'oui' : 'non'} data-source={d.source}><Pill c={d.active ? 'g' : ''}>{d.active ? 'Active' : 'Coupée'}</Pill> <small className="faint">{LIBELLES_SOURCE[d.source]}</small></span>;
+  return <span data-active={d.active ? 'oui' : 'non'} data-source={d.source}><Pill c={d.active ? 'g' : ''}>{d.active ? 'Active' : 'Coupée'}</Pill><small className="faint"> · {LIBELLES_SOURCE[d.source]}</small></span>;
 }
 
 export function Interrupteurs({ bandeau, vue, detail, budget, peutEcrire, recherche }: PropsInterrupteurs) {
