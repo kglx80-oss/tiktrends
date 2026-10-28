@@ -25,8 +25,8 @@ const WEB = process.cwd();
 const PERIMETRE = [
   'components',
   // Vague 3 · `brands` (la liste V5) et `console` sont retirés · servis par Spatial.
-  // Vague 4 · `support`, `tags`, `profile` et `credits` sont retirés · servis par Spatial.
-  ...['dashboard', 'analytics', 'studio', 'radar']
+  // Vague 4 · `support`, `tags`, `profile` et `credits` sont retirés · servis par Spatial · `radar` aussi (Veille exclusive).
+  ...['dashboard', 'analytics', 'studio']
     .map((d) => join('app', '(app)', d)),
   // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
   ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
@@ -37,11 +37,7 @@ const PERIMETRE = [
   // montés par le panneau Jarvis de la Veille V5.
   join('app', '(app)', 'jarvis', 'JarvisChat.tsx'),
   join('app', '(app)', 'jarvis', 'JarvisContexte.tsx'),
-  // Lot 19C · les écrans des formats créatifs (message 55) · `veille/formats`
-  // SEUL, pas toute la Veille ; le choix « Format » et Sauvegardes qui le porte.
-  join('app', '(app)', 'veille', 'formats'),
-  join('app', '(app)', 'saved', 'FormatChoix.tsx'),
-  join('app', '(app)', 'saved', 'page.tsx'),
+  // Lot 19C · les écrans des formats créatifs et Sauvegardes · retirés à la vague 4 (Veille exclusive Spatial).
   // Lot 19A · `jarvis/sections/SectionAttribution.tsx` est retirée avec l'ancien Accueil (vague 2 Spatial v4).
 ];
 
@@ -49,14 +45,7 @@ const PERIMETRE = [
 export const HORS_LOT: Readonly<Record<string, string>> = {
   'components/AppShell.tsx': 'chrome de l’application · autre lot',
   'components/Breadcrumb.tsx': 'chrome · autre lot',
-  'components/AdCard.tsx': 'Veille · autre lot',
   'components/RetourVeille.tsx': 'Veille · autre lot',
-  'components/DefileAncreVeille.tsx': 'Veille · autre lot',
-  // Composants qui ne servent QUE la Bibliothèque · l'écran propriétaire les reprend.
-  // (Les composants de l'Accueil sont entrés au lot avec le lot 19A.)
-  'components/GrammaireCategorie.tsx': 'Bibliothèque seule',
-  'components/MarquesSuivies.tsx': 'Bibliothèque seule',
-  'components/TrackerFeed.tsx': 'Bibliothèque seule',
   // Chrome de l'application, hors <main> · menus déroulants et panneau d'aide
   // flottant (prolongement d'un contrôle de la barre), hors de la mesure des pages.
   'components/BrandSwitcher.tsx': 'chrome · menu de la barre',
@@ -70,10 +59,8 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
  * Déclarations gardées exprès · et pourquoi. La clé est `fichier::extrait exact
  * de la ligne` · une exception ne vaut que dans SON fichier.
  */
-export const EXCEPTIONS_LIGNE_2: Readonly<Record<string, string>> = {
-  "components/SavedBoards.tsx::zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12,":
-    'Sauvegardes · menu déroulant du sélecteur de board · prolonge son contrôle (même cas que Composer)',
-};
+// Vague 4 · l'exception de `SavedBoards` (menu du sélecteur de board) est partie avec le composant.
+export const EXCEPTIONS_LIGNE_2: Readonly<Record<string, string>> = {};
 export const EXCEPTIONS_RAYON: Readonly<Record<string, string>> = {};
 const exceptee = (table: Readonly<Record<string, string>>, f: string, l: string) =>
   Object.keys(table).some((k) => { const [fk, extrait] = k.split('::') as [string, string]; return fk === f && l.includes(extrait); });
@@ -162,9 +149,9 @@ function cadresHorsRole(f: string): string[] {
 describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   const lot = fichiers.filter(dansLeLot);
   it('on parcourt bien le périmètre du lot', () => {
-    // Mesuré : 108 fichiers le 28/10 (ancien Accueil, Mon profil et Tagging retirés), 106 avec Finance et
-    // Inscriptions retirées aussi · le périmètre fond à chaque retrait V5 · plancher 80.
-    expect(lot.length).toBeGreaterThan(80);
+    // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · le périmètre fond à chaque retrait V5.
+    // Mesuré : 84 fichiers après les retraits de la vague 4 (Veille, Accueil, Finance, Inscriptions, Profil, Tags, Support, Crédits) (28/10/2026) · plancher 70.
+    expect(lot.length).toBeGreaterThan(70);
     expect(lot).toContain('components/ui.tsx');
     // Vague 2 Spatial v4 · l'ancien Accueil, sa vue Analytics et les pages V5 de l'Admin sont retirés (Spatial exclusif) · reste le panneau de parcours partagé.
     for (const f of ['components/JourneyPanel.tsx']) expect(lot, `${f} sort du lot`).toContain(f);

@@ -38,14 +38,15 @@ describe('apercuImage · quelle image on montre', () => {
   });
 });
 
-const ADMEDIA = readFileSync(join(process.cwd(), 'components/AdMedia.tsx'), 'utf8');
-const SWIPE = readFileSync(join(process.cwd(), 'app/(app)/veille/scale/SwipeFile.tsx'), 'utf8');
+// Vague 4 · les cartes de la Veille sont celles de Spatial (AdMedia et SwipeFile V5 retirés).
+const ECRANS = ['app/(spatial)/sp/veille/cartes.ts', 'app/(spatial)/sp/veille/scale/page.tsx', 'app/(spatial)/sp/saved/page.tsx', 'app/(spatial)/sp/radar/page.tsx']
+  .map((f) => [f, readFileSync(join(process.cwd(), f), 'utf8')] as const);
 
-describe('les deux affichages passent par la règle partagée', () => {
-  it('AdMedia et SwipeFile choisissent l’aperçu avec apercuImage', () => {
-    expect(ADMEDIA).toMatch(/apercuImage\(/);
-    expect(SWIPE).toMatch(/apercuImage\(/);
-    // Le repli ne se déclenche plus sur la seule absence de thumbnail.
-    expect(ADMEDIA, 'AdMedia lit encore thumbnailUrl seul pour l’image').not.toMatch(/\?\s*<img src=\{thumbnailUrl\}/);
+describe('les affichages passent par la règle partagée', () => {
+  it('chaque écran de la Veille choisit l’aperçu avec apercuImage · jamais thumbnailUrl seul', () => {
+    for (const [f, src] of ECRANS) {
+      expect(src, f).toMatch(/apercuImage\(\{ isVideo/);
+      expect(src, `${f} lit encore thumbnailUrl seul pour l’image`).not.toMatch(/image: (?:ad|a\.ad|e\.snapshot)\??\.thumbnailUrl/);
+    }
   });
 });

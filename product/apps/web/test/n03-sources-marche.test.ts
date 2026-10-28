@@ -8,9 +8,14 @@ import { join } from 'node:path';
  * distincts la portent · sa solidité.
  */
 describe('N03 · le panneau marché affiche le nombre de sources', () => {
-  const panel = readFileSync(join(process.cwd(), 'app/(app)/jarvis/MarketPanel.tsx'), 'utf8');
+  // Vague 4 · le panneau V5 (`MarketPanel`) est retiré · la mémoire marché vit dans Pubs du moment
+  // (Spatial) · le texte vient du noyau (`lectureMarche`), la vue l'affiche.
+  const regle = readFileSync(join(process.cwd(), '../../packages/core/src/spatial/veille/marche.ts'), 'utf8');
+  const vue = readFileSync(join(process.cwd(), 'spatial/vues/veille/marche-client.tsx'), 'utf8');
+  const panel = regle + vue;
   it('chaque confrontation porte son compte de sources', () => {
-    expect(panel).toMatch(/\{c\.sources\} source\{c\.sources > 1 \? 's' : ''\}/);
+    expect(regle).toMatch(/sources: `\$\{c\.sources\} source\$\{c\.sources > 1 \? 's' : ''\}`/);
+    expect(vue).toContain('{c.sources}</small>');
   });
 
   // CDC v8 · N03 · chaque part d'usage porte DEUX axes distincts · le canal
@@ -18,9 +23,8 @@ describe('N03 · le panneau marché affiche le nombre de sources', () => {
   // d'où vient la source ET que sa pertinence reste « à qualifier », sans qu'on
   // déduise l'une de l'autre.
   it('chaque part d’usage porte son canal ET sa qualification, distincts', () => {
-    expect(panel, 'le canal d’acquisition n’est pas lu').toContain('LIBELLE_CANAL[r.canal]');
-    expect(panel, 'la qualification métier n’est pas lue').toContain('LIBELLE_QUALIFICATION[r.qualification]');
-    expect(panel, 'le canal n’est pas affiché').toMatch(/\{canal\.court\}/);
-    expect(panel, 'la qualification n’est pas affichée').toMatch(/\{qualif\.court\}/);
+    expect(panel, 'le canal d’acquisition n’est pas lu').toContain('LIBELLE_CANAL[r.canal].court');
+    expect(panel, 'la qualification métier n’est pas lue').toContain('LIBELLE_QUALIFICATION[r.qualification].court');
+    expect(vue, 'canal et qualification ne sont pas affichés, distincts').toContain('{r.canal} · {r.qualification}');
   });
 });

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ongletsResultats, apercuLotsResultats, tonStatutLot, LIBELLE_NATURE, type FaitsLotApercu, type EtapeParcours } from '@tiktrends/core';
-import { ParcoursBoucle } from '../components/ParcoursBoucle';
+import { ongletsResultats, apercuLotsResultats, tonStatutLot, type FaitsLotApercu } from '@tiktrends/core';
 import { BarreOnglets } from '../components/BarreOnglets';
 
 /**
@@ -14,43 +13,7 @@ import { BarreOnglets } from '../components/BarreOnglets';
  */
 
 
-describe('V5 · la boucle en bande compacte (HTML rendu)', () => {
-  const etapes: EtapeParcours[] = [
-    { cle: 'hypothese', numero: 1, titre: 'Hypothèse', nature: 'hypothese', aide: 'AIDE_A_RETIRER_DE_LA_BANDE', etat: { atteinte: true, texte: '3 tests portent une hypothèse écrite.' }, liens: [{ libelle: 'Voir les tests', href: '#tests' }] },
-    { cle: 'lot', numero: 2, titre: 'Lot', nature: 'organisation', aide: 'AIDE_LOT', etat: { atteinte: true, texte: '3 lots · 2 lancés.' }, liens: [{ libelle: 'Ouvrir les lots', href: '/adsmap/lots' }, { libelle: 'Protocole', href: '/adsmap/protocole' }] },
-  ];
-
-  it('porte la variante « bande » et garde la DONNÉE réelle de chaque étape', () => {
-    const h = renderToStaticMarkup(<ParcoursBoucle titre="Boucle" etapes={etapes} variant="bande" />);
-    expect(h).toContain('data-variante="bande"');
-    // La donnée mesurée de l'étape reste affichée (on ne perd rien d'essentiel).
-    expect(h).toContain('3 tests portent une hypothèse écrite.');
-    expect(h).toContain('3 lots · 2 lancés.');
-    // La nature reste dite à l'écran.
-    expect(h).toContain(LIBELLE_NATURE.hypothese);
-  });
-
-  it('compacte · l’aide explicative est retirée de la bande', () => {
-    const h = renderToStaticMarkup(<ParcoursBoucle titre="Boucle" etapes={etapes} variant="bande" />);
-    // Mutation de contrôle · si la bande re-rendait l'aide, ce texte reparaîtrait.
-    expect(h).not.toContain('AIDE_A_RETIRER_DE_LA_BANDE');
-    expect(h).not.toContain('AIDE_LOT');
-  });
-
-  it('chaque tuile est cliquable vers sa destination PRINCIPALE (le premier lien)', () => {
-    const h = renderToStaticMarkup(<ParcoursBoucle titre="Boucle" etapes={etapes} variant="bande" />);
-    expect(h).toContain('href="#tests"');
-    expect(h).toContain('href="/adsmap/lots"');
-    // La destination secondaire du noyau n'encombre plus la bande (atteignable ailleurs).
-    expect(h).not.toContain('href="/adsmap/protocole"');
-  });
-
-  it('la variante « riche » (Veille) garde aide ET liens · aucune régression', () => {
-    const h = renderToStaticMarkup(<ParcoursBoucle titre="Boucle" etapes={etapes} />);
-    expect(h).toContain('AIDE_A_RETIRER_DE_LA_BANDE');
-    expect(h).toContain('href="/adsmap/protocole"');
-  });
-});
+// Vague 4 · `ParcoursBoucle` (V5) est retiré avec la Veille V5, son dernier écran · Résultats est servi par Spatial.
 
 describe('V5 · les onglets de section (noyau pur)', () => {
   it('les six libellés de la maquette mènent aux routes RÉELLES, dans l’ordre', () => {

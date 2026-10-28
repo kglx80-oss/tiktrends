@@ -47,10 +47,10 @@ vi.mock('../app/actions/adsmap-bridge', () => ({ trackSavedAdAction: async () =>
 
 import { db, schema } from '@tiktrends/db';
 import { classerFormatSauvegarde, saveAd } from '../app/actions/inspo';
-import FormatsPage from '../app/(app)/veille/formats/page';
-import SavedPage from '../app/(app)/saved/page';
-import { VueFormats } from '../app/(app)/veille/formats/VueFormats';
-import { CRITERES_FORMATS_DEFAUT } from '@tiktrends/core';
+// Vague 4 · les pages V5 `/veille/formats` et `/saved` sont retirées · leurs gardes de rendu sont
+// portées sur les écrans Spatial (Tous les formats, Sauvegardes), même base, mêmes données.
+import FormatsPage from '../app/(spatial)/sp/veille/formats/page';
+import SavedPage from '../app/(spatial)/sp/saved/page';
 import type { InspoAd } from '@tiktrends/integrations';
 
 const ad = (id: string, mediaType: string, extra: Partial<InspoAd> = {}): InspoAd =>
@@ -152,100 +152,62 @@ describe('contrôle de la fonctionnalité Veille', () => {
   });
 });
 
-const rendre = async (sp: Record<string, string> = {}) => renderToStaticMarkup(await FormatsPage({ searchParams: Promise.resolve(sp) }));
-const compteDe = (h: string, id: string) => { const m = h.match(new RegExp(`data-format="${id}" data-compte="(\\d+)"`)); return m ? Number(m[1]) : null; };
+const rendreSaved = async (sp: Record<string, string> = {}) => renderToStaticMarkup(await SavedPage({ searchParams: Promise.resolve(sp) }));
+const cartes = (h: string) => [...h.matchAll(/<article class="vitem">([\s\S]*?)<\/article>/g)].map((m) => m[1]!);
+const nomsCartes = (h: string) => cartes(h).map((c) => c.match(/Marque ([a-z0-9-]+)/)?.[1]);
+const carteDe = (h: string, id: string) => cartes(h).find((c) => c.includes(`Marque ${id}<`)) ?? '';
+type PropsFormats = { perimetre: string; files: Array<{ href: string; libelle: string }>; raison?: string };
 
-describe('/veille/formats · compteurs réels, rendu', () => {
-  it('chaque format présent porte son nombre réel · non classées comptées à part · aucun format à 0 présenté', async () => {
+describe('Tous les formats (Spatial) · compteurs réels', () => {
+  it('le périmètre compte les classées réelles, les non classées à part · l’autre espace n’entre dans aucun compte', async () => {
     // État connu · A = partagee-1 (packshot), video-1 (non classée), image-classee (packshot),
     // valeur-inconnue (non classée), ancienne-valeur (face_camera), sans-vignette (texte_seul).
-    const h = await rendre();
-    expect(compteDe(h, 'packshot')).toBe(2);
-    expect(compteDe(h, 'face_camera')).toBe(1);
-    expect(compteDe(h, 'texte_seul')).toBe(1);
-    const presents = [...h.matchAll(/data-format="([a-z_]+)" data-compte="(\d+)"/g)];
-    expect(presents.map((m) => m[1]).sort()).toEqual(['face_camera', 'packshot', 'texte_seul']);
-    expect(presents.every((m) => Number(m[2]) > 0)).toBe(true);
-    expect(h).toContain('6 sauvegardes · 4 classées · 2 non classées');
-    expect(h).toContain('2 sauvegardes à classer');
-    // L'autre espace n'entre dans aucun compte.
-    expect(h).not.toContain('seulement-b');
+    const el = (await FormatsPage({ searchParams: Promise.resolve({}) })) as { props: PropsFormats };
+    expect(el.props.perimetre).toBe('Compté sur tes 4 sauvegardes classées · 2 à classer dans Sauvegardes');
+    expect(el.props.files).toEqual([{ href: '/saved?format=non_classe', libelle: 'Classer mes 2 sauvegardes' }]);
   });
+  it('sans la Veille, l’écran est verrouillé et ne lit aucune annonce', async () => {
+    session.plan = 'starter';
+    const el = (await FormatsPage({ searchParams: Promise.resolve({}) })) as { props: PropsFormats };
+    expect(el.props.raison).toBe('plan');
+    expect(el.props.perimetre).toBeUndefined();
+  });
+});
 
+describe('Sauvegardes (Spatial) · les vues de l’ancien écran Formats', () => {
   it('une valeur inconnue en base est comptée non classée, sans crash', async () => {
-    const h = await rendre({ format: 'non_classe' });
-    expect(h).toContain('data-annonce="valeur-inconnue"');
-    expect(h).toContain('data-annonce="video-1"');
-    expect(h).not.toContain('data-annonce="image-classee"');
+    const h = await rendreSaved({ format: 'non_classe' });
+    expect(nomsCartes(h).sort()).toEqual(['valeur-inconnue', 'video-1']);
+    expect(h, 'l’autre espace n’apparaît jamais').not.toContain('seulement-b');
   });
-
-  it('le périmètre affiché · tes sauvegardes classées, jamais toute la bibliothèque', async () => {
-    const h = await rendre();
-    expect(h).toContain('tes sauvegardes classées');
-    expect(h).toContain('Ce n’est pas toute la bibliothèque de la Veille');
+  it('le filtre par média restreint la liste', async () => {
+    expect(nomsCartes(await rendreSaved({ media: 'video' })).sort()).toEqual(['ancienne-valeur', 'video-1']);
   });
-
-  it('le filtre par média restreint les comptes et la liste proposée', async () => {
-    const h = await rendre({ media: 'video' });
-    expect(compteDe(h, 'face_camera')).toBe(1);
-    expect(compteDe(h, 'packshot')).toBeNull();
-    expect(h).toContain('2 sauvegardes dans ces critères');
+  it('les critères sont relus depuis l’adresse · format et tri « classées récemment »', async () => {
+    const h = await rendreSaved({ format: 'packshot', tri: 'classe' });
+    expect(nomsCartes(h), 'tri « classées récemment » · la classée aujourd’hui d’abord').toEqual(['partagee-1', 'image-classee']);
   });
-
-  it('les critères sont relus depuis l’URL · grille, critère retirable, retour qui garde le média', async () => {
-    const h = await rendre({ format: 'packshot', media: 'image', tri: 'classe' });
-    const annonces = [...h.matchAll(/data-annonce="([^"]+)"/g)].map((m) => m[1]);
-    expect(annonces, 'tri « classées récemment » · la classée aujourd’hui d’abord').toEqual(['partagee-1', 'image-classee']);
-    expect(h).toContain('href="/veille/formats?media=image&amp;tri=classe" aria-label="Retirer le critère Format · Packshot"');
-    expect(h).toContain('href="/veille/formats?media=image"');
-    expect(h).toContain('← Tous les formats');
-    expect(h).toMatch(/href="\/veille\/formats\?format=packshot&amp;media=image&amp;tri=classe" aria-current="true"/);
-  });
-
   it('le choix « Format » d’une vidéo ne propose aucun format image seule', async () => {
-    const h = await rendre({ format: 'non_classe' });
-    const carte = h.slice(h.indexOf('data-annonce="video-1"'));
+    const carte = carteDe(await rendreSaved(), 'video-1');
     const select = carte.slice(carte.indexOf('<select'), carte.indexOf('</select>'));
     expect(select).toContain('value="face_camera"');
     expect(select).not.toContain('value="packshot"');
     expect(select).toContain('<option value="non_classe" selected="">Non classé</option>');
-    expect(carte.slice(0, carte.indexOf('<select'))).toMatch(/<label for="[^"]+"[^>]*>Format<\/label>/);
+    expect(carte).toMatch(/<label class="field"[^>]*>Format<select/);
   });
-
-  it('une vignette absente montre « Aperçu indisponible » · le classement survit', async () => {
-    const h = await rendre({ format: 'texte_seul' });
-    const carte = h.slice(h.indexOf('data-annonce="sans-vignette"'));
-    expect(carte).toContain('Aperçu indisponible');
+  it('une vignette absente · le classement et sa provenance survivent', async () => {
+    const carte = carteDe(await rendreSaved({ format: 'texte_seul' }), 'sans-vignette');
     expect(carte).toContain('<option value="texte_seul" selected="">Texte seul</option>');
     expect(carte).toContain('classée le 04/10/2026 par Camille');
-  });
-
-  it('sans la Veille, la page est verrouillée et ne montre aucune annonce', async () => {
-    session.plan = 'starter';
-    const h = await rendre();
-    expect(h).toContain('Fonctionnalité incluse dès l’abonnement Core');
-    expect(h).not.toContain('data-format=');
-  });
-});
-
-describe('/veille/formats · états vides', () => {
-  it('aucune sauvegarde · ni compteurs à zéro ni filtres, une explication et une sortie', () => {
-    const h = renderToStaticMarkup(<VueFormats annonces={[]} criteres={CRITERES_FORMATS_DEFAUT} marque="Vide" suivis={[]} adsmap={false} />);
-    expect(h).toContain('Aucune annonce sauvegardée.');
-    expect(h).toContain('href="/veille"');
-    expect(h, 'pas de « 0 sauvegarde · 0 classée » présenté comme un compte').not.toContain('data-compteurs');
-    expect(h, 'pas de filtres qui ne trouveraient rien').not.toContain('aria-label="Média"');
-    expect(h).not.toContain('data-format=');
   });
 });
 
 /**
  * Sauvegardes · le choix « Format » de la carte suit le DROIT Veille calculé
- * côté serveur (`saved/page.tsx`) · sans Veille, désactivé dès la carte avec sa
- * raison ; avec, actif. On rend la page réelle (pglite) et on lit le HTML.
+ * côté serveur · sans Veille, désactivé dès la carte avec sa raison, liée au
+ * choix ; avec, actif. On rend la page réelle (pglite) et on lit le HTML.
  */
-describe('/saved · choix « Format » selon le droit Veille', () => {
-  const rendreSaved = async () => renderToStaticMarkup(await SavedPage({ searchParams: Promise.resolve({}) }));
+describe('/saved (Spatial) · choix « Format » selon le droit Veille', () => {
   const selects = (h: string) => [...h.matchAll(/<select[^>]*data-format-choix[^>]*>/g)].map((m) => m[0]);
 
   it('avec la Veille (Core) · chaque choix est actif, aucune raison affichée', async () => {
@@ -263,7 +225,6 @@ describe('/saved · choix « Format » selon le droit Veille', () => {
     expect(s.every((x) => /\sdisabled=""/.test(x)), 'tous les choix désactivés').toBe(true);
     expect(h).toContain('Classement réservé à la Veille · offre Core.');
     const id = s[0]!.match(/aria-describedby="([^" ]+)/)![1]!;
-    expect(h, 'la raison est liée au choix (lecteur d’écran)').toContain(`id="${id}" data-format-indisponible="true"`);
+    expect(h, 'la raison est liée au choix (lecteur d’écran)').toMatch(new RegExp(`id="${id.replace(/[:]/g, '\\:')}" data-format-indisponible="true"`));
   });
 });
-

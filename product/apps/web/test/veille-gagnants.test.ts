@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { estGagnantVeille } from '@tiktrends/core';
 
 /**
@@ -39,21 +37,5 @@ describe('estGagnantVeille · le signal, pas l’opinion', () => {
   });
 });
 
-const CARD = readFileSync(join(process.cwd(), 'components/AdCard.tsx'), 'utf8');
-const FEED = readFileSync(join(process.cwd(), 'components/TrackerFeed.tsx'), 'utf8');
-
-describe('le gagnant est flagué et pousse le clone', () => {
-  it('la carte flague le gagnant et met en avant SON clone', () => {
-    expect(CARD).toMatch(/estGagnantVeille\(ad\)/);
-    // CDC v7 · N07 · langage · une source observée n'est pas un « gagnant » ·
-    // le badge dit « Piste forte », l'action « Décline cette piste ». Un proxy
-    // public (longévité/portée) n'est pas une preuve de rentabilité.
-    expect(CARD, 'la source observée porte un badge de piste').toMatch(/<Icon name="trophy"[^>]*\/> Piste forte/);
-    expect(CARD, 'l’action mise en avant décline la piste, ne « clone un gagnant »').toMatch(/Décline cette piste/);
-    expect(CARD, 'le langage promet encore une victoire').not.toMatch(/Clone ce gagnant/);
-  });
-
-  it('le fil auto remonte les gagnants en tête', () => {
-    expect(FEED).toMatch(/estGagnantVeille\(b\.ad\)/);
-  });
-});
+// Vague 4 · la carte V5 (`AdCard`) et le fil `TrackerFeed` sont retirés · la règle reste au noyau,
+// les cartes Spatial disent la tendance (`estTendanceVeille`) et les signaux (`signauxVeille`).

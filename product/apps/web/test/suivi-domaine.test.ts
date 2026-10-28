@@ -11,8 +11,9 @@ import { siteMarque } from '@tiktrends/core';
  */
 
 const INSPO = readFileSync(join(process.cwd(), 'app/actions/inspo.ts'), 'utf8');
-const BTN = readFileSync(join(process.cwd(), 'components/InspoButtons.tsx'), 'utf8');
-const MARQUES = readFileSync(join(process.cwd(), 'components/MarquesSuivies.tsx'), 'utf8');
+// Vague 4 · « Suivre » et les marques suivies sont servis par Spatial (Veille, Radar).
+const BTN = readFileSync(join(process.cwd(), 'spatial/vues/veille/client.tsx'), 'utf8');
+const MARQUES = readFileSync(join(process.cwd(), 'app/(spatial)/sp/radar/page.tsx'), 'utf8') + readFileSync(join(process.cwd(), 'spatial/vues/veille/Radar.tsx'), 'utf8');
 const SCHEMA = readFileSync(join(process.cwd(), '../../packages/db/src/schema.ts'), 'utf8');
 
 describe('siteMarque · le lien construit tient (résultat)', () => {
@@ -29,7 +30,7 @@ describe('le domaine circule du Suivre à la puce', () => {
   });
 
   it('le bouton Suivre transmet le domaine de la créa', () => {
-    expect(BTN).toMatch(/domain: ad\.landingDomain/);
+    expect(BTN).toMatch(/domain: ad\?\.landingDomain/);
   });
 
   it('l’action range le domaine à l’insertion', () => {
@@ -39,7 +40,7 @@ describe('le domaine circule du Suivre à la puce', () => {
   });
 
   it('la puce rend le lien site depuis le domaine stocké', () => {
-    expect(MARQUES).toMatch(/siteMarque\(\{ landingDomain: b\.domain \}\)/);
-    expect(MARQUES).toMatch(/site ↗/);
+    expect(MARQUES).toMatch(/siteWeb: siteMarque\(\{ landingDomain: f\.domain \?\? undefined \}\)/);
+    expect(MARQUES).toMatch(/\{m\.gestes\.siteWeb && <a className="btn sm" href=\{m\.gestes\.siteWeb\}[^>]*>Site<\/a>\}/);
   });
 });

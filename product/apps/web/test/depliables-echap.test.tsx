@@ -2,8 +2,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { CIBLE_TACTILE_MIN } from '@tiktrends/core';
 import { PageInfo } from '../components/PageInfo';
 
@@ -44,10 +42,6 @@ describe('Aide repliable · Échap et cible', () => {
     act(() => { h.querySelector('a')!.focus(); });
     expect(d.open, 'aller au lien de l’aide la referme').toBe(true);
   });
-  it('les Filtres de la Veille (dans le flux) ne se referment pas en sortant', () => {
-    const src = readFileSync(join(process.cwd(), 'app/(app)/veille/page.tsx'), 'utf8');
-    expect(src).toContain("<DepliableEchap style={{ border: '1px solid var(--line)'");
-  });
   it('44 px au doigt, taille compacte à la souris', () => {
     pointeur(true);
     let h = monter(<PageInfo>texte</PageInfo>);
@@ -59,11 +53,5 @@ describe('Aide repliable · Échap et cible', () => {
   });
 });
 
-describe('Veille · « Filtres » se referme à Échap', () => {
-  it('le panneau Filtres passe par DepliableEchap', () => {
-    const src = readFileSync(join(process.cwd(), 'app/(app)/veille/page.tsx'), 'utf8');
-    const i = src.indexOf("<DepliableEchap style={{ border: '1px solid var(--line)'");
-    expect(i, 'Filtres n’est pas un dépliable fermé par Échap').toBeGreaterThan(-1);
-    expect(src.slice(i, src.indexOf('</DepliableEchap>', i))).toContain('Filtres');
-  });
-});
+// Vague 4 · « Filtres se referme à Échap » est gardé sur la barre de la Veille Spatial
+// (`spatial-veille-gestes`) · la page V5 `/veille` est retirée.

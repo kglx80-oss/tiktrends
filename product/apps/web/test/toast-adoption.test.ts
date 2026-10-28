@@ -14,14 +14,15 @@ import { join } from 'node:path';
 const WEB = process.cwd();
 
 const CAS: Array<{ fichier: string; messages: string[]; canal?: RegExp }> = [
-  { fichier: 'components/TrackerFeed.tsx', messages: ['Tout marqué comme vu.'] },       // veille
+  // Vague 4 · la Veille est servie par Spatial · nouveautés (Radar) et collections (Sauvegardes).
+  { fichier: 'spatial/vues/veille/radar-client.tsx', messages: ['Nouveautés marquées vues'], canal: /useSpatial\(\)/ },
   // Spatial · le canal est le geste de la rubrique (`useGeste` · toast sur retour sans erreur).
   { fichier: 'spatial/vues/resultats/Tri.tsx', messages: ['validé', 'Proposition écartée'], canal: /useGeste/ },
   // Vague 2 · Connexions vit dans Spatial · son canal de retour est le toast de la coquille.
   // Vague 2 · la Bibliothèque vit dans Spatial · import par lien et synchro Drive confirmés.
   { fichier: 'spatial/vues/bibliotheque/Bibliotheque.tsx', messages: ['élément${ok > 1 ? \'s\' : \'\'} importé', 'Google Drive synchronisé · '], canal: /useSpatial\(\)/ },
   { fichier: 'spatial/vues/reglages/interactifs.tsx', messages: ['`${nom} déconnecté`', '`${nom} synchronisé`'], canal: /useSpatial\(\)/ },
-  { fichier: 'components/SavedBoards.tsx', messages: ['Rangé dans', 'Retiré du board.'] },
+  { fichier: 'spatial/vues/veille/sauvegardes-client.tsx', messages: ['Rangée dans', 'Sortie de la collection'], canal: /useSpatial\(\)/ },
   { fichier: 'spatial/vues/resultats/ActionsLot.tsx', messages: ['ajoutée au lot', 'retirée du lot'], canal: /toast\(t\)/ },
   { fichier: 'spatial/vues/resultats/geste.tsx', messages: [], canal: /if \(t\) \{ setMessage\(\{ texte: t, erreur: false \}\); toast\(t\); \}/ },
 ];

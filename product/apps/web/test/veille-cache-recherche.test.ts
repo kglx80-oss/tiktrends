@@ -63,12 +63,14 @@ describe('borne · un cache mémoire n’est pas un stockage', () => {
   });
 });
 
-const PAGE = readFileSync(join(process.cwd(), 'app/(app)/veille/page.tsx'), 'utf8');
+// Vague 4 · la page V5 est retirée · Pubs du moment (Spatial) branche le même cache.
+const PAGE = readFileSync(join(process.cwd(), 'app/(spatial)/sp/veille/page.tsx'), 'utf8');
 
 describe('la page branche le cache', () => {
   it('lit le cache avant l’appel, écrit après, et respecte ?refresh', () => {
     expect(PAGE).toMatch(/lireRecherche\(cle\)/);
     expect(PAGE).toMatch(/ecrireRecherche\(cle, \{ ads, total \}\)/);
-    expect(PAGE, 'refresh doit court-circuiter la lecture').toMatch(/sp\.refresh \? undefined : lireRecherche\(cle\)/);
+    expect(PAGE, 'refresh doit court-circuiter la lecture').toMatch(/rafraichir \? undefined : lireRecherche\(cle\)/);
+    expect(PAGE).toContain("const rafraichir = sp.refresh === '1';");
   });
 });

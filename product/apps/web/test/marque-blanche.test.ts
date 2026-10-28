@@ -20,7 +20,7 @@ import { join } from 'node:path';
  */
 
 const CLIENT = [
-  'components/TrackerFeed.tsx',
+  // Vague 4 · `TrackerFeed` (V5) est retiré · les écrans Spatial de la Veille sont couverts par le balayage ci-dessous.
   // Vague 2 Spatial v4 · l'Accueil (et sa vue Analytics) est servi par Spatial.
   'spatial/vues/accueil/Accueil.tsx',
   'spatial/vues/accueil/Analytics.tsx',
@@ -76,7 +76,8 @@ function tsxRecursif(dir: string): string[] {
 
 describe('marque blanche · « Trendtrack » jamais à l’écran, même en surface opérateur', () => {
   const base = process.cwd();
-  const fichiers = [...tsxRecursif(join(base, 'app')), ...tsxRecursif(join(base, 'components'))]
+  // Vague 4 · la Veille est servie par Spatial · ses vues (`spatial/`) entrent dans le balayage.
+  const fichiers = [...tsxRecursif(join(base, 'app')), ...tsxRecursif(join(base, 'components')), ...tsxRecursif(join(base, 'spatial'))]
     .filter((p) => !p.includes('/test/'));
 
   it('a scanné un jeu d’écrans non vide', () => {
