@@ -109,6 +109,9 @@ import { join, relative } from 'node:path';
  * `analytics/MetaKeyMetrics` 4, `analytics/CreativeIntel` 2) · − 12.
  * Spatial · vague 4 · l'écran V5 `/credits` (12 · pastilles sur dégradé vif,
  * lavis de la synthèse, aplat de code) est retiré · − 12. Mesuré 198 − 37 = 161.
+ * Spatial · la fiche projet V5 et `components/studios` (canvas, propositions,
+ * variantes, tâches) sont retirés · aucun littéral n'y vivait (tout passait par
+ * les jetons) · − 0. Mesuré 161.
  */
 const WEB = process.cwd();
 

@@ -66,7 +66,11 @@ describe('Lot 19 · chaque titre d’écran porte le jeton h1 de la charte', () 
     // la lecture des fichiers (il tombe à 0 si le parcours casse).
     // Mesuré : 5 après le retrait de la Veille V5 (vague 4), main à jour (Support, Profil, Tags déjà retirés) (28/10/2026) · plancher 3.
     // Mesuré : 2 après la vague 4 complète (Accueil, Finance, Inscriptions et Crédits retirés aussi) (28/10/2026) · plancher 1.
-    expect(avecTitre.length).toBeGreaterThanOrEqual(1);
+    // Mesuré : 0 écran V5 titré après le retrait de la fiche projet V5 (28/10/2026) · il reste 11 fichiers .tsx sous
+    // `app/(app)` (redirections, Pubs IA, atelier vidéo, Sauvegardes, Jarvis), aucun ne porte de <h1>. Le plancher
+    // garde la LECTURE (le parcours tombe à 0 fichier s'il casse) · les titres Spatial sont gardés par `spatial-*`.
+    expect(fichiers.length).toBeGreaterThanOrEqual(8);
+    expect(avecTitre.length).toBeGreaterThanOrEqual(0);
   });
   for (const f of avecTitre) {
     const nom = relative(APP, f).split(sep).join('/');

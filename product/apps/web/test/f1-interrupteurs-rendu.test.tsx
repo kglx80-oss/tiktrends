@@ -38,9 +38,10 @@ import { cleInterrupteursEspace } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { projetTest } from './l3-harnais';
 // Vague 2 et 3 · liste, vidéo, identités, textes et éditeur d'image ne sont plus servis que par Spatial
-// (pages V5 retirées) · la fiche du projet reste une page V5.
+// (pages V5 retirées) · la fiche du projet aussi · ses ateliers vivent dans l'onglet « Brief & références ».
 import ProjetsSpatial from '../app/(spatial)/sp/studio/projets/page';
-import ProjetPage from '../app/(app)/studio/projets/[id]/page';
+import { chargerProjet } from '../app/(spatial)/sp/studio/projets/[id]/donnees';
+import { Projet } from '../spatial/vues/projet/Projet';
 import VideoSpatial from '../app/(spatial)/sp/studio/projets/[id]/video/page';
 import ImageSpatial from '../app/(spatial)/sp/studio/projets/[id]/image/page';
 import IdentitesSpatial from '../app/(spatial)/sp/studio/projets/[id]/identites/page';
@@ -56,6 +57,12 @@ const IdentitesPage = (p: { params: Promise<{ id: string }> }) => sp(IdentitesSp
 const TextesPage = (p: { params: Promise<{ id: string }> }) => sp(TextesSpatial(p));
 const ImagePage = (p: { params: Promise<{ id: string }> }) => sp(ImageSpatial(p));
 const ProjetsPage = (p: { searchParams: Promise<{ toutes?: string }> }) => sp(ProjetsSpatial(p));
+/** La fiche Spatiale, onglet « Brief & références » (ateliers du projet) · même lecture serveur que la page. */
+const ficheBrief = async (id: string) => {
+  const r = await chargerProjet(h.session as never, id);
+  if (!r.ok) throw new Error(JSON.stringify(r.raison));
+  return renderToStaticMarkup(avecSpatial(<Projet {...r.props} ongletInitial="brief" />));
+};
 
 const ids = h.ids;
 let projet = '';
@@ -75,21 +82,21 @@ afterEach(async () => { vi.unstubAllEnvs(); await db.delete(schema.appSettings).
 
 describe('atelier du projet · filtrage de la navigation', () => {
   it('défauts · la vidéo n’est pas un lien, elle se dit « non activé pour cet espace » ; le reste mène à son écran', async () => {
-    const d = dom(renderToStaticMarkup(await ProjetPage({ params: Promise.resolve({ id: projet }), searchParams: Promise.resolve({}) })));
-    const nav = d.querySelector('nav[aria-label="Atelier du projet"]')!;
-    expect([...nav.querySelectorAll('a')].map((a) => a.getAttribute('data-atelier'))).toEqual(['brief', 'image', 'textes', 'produit', 'identites']);
-    expect(d.querySelector('[data-zone="barre-projet"] a[data-atelier="export"]'), 'l’export actif n’est plus proposé').not.toBeNull();
-    expect(nav.querySelector(`a[href$="/video"]`), 'lien mort vers la vidéo coupée').toBeNull();
-    const coupee = nav.querySelector('[data-atelier="video"]')!;
-    expect(coupee.tagName).toBe('SPAN');
-    expect(coupee.getAttribute('aria-disabled')).toBe('true');
-    expect(coupee.textContent).toBe('Vidéo · non activé pour cet espace');
+    const d = dom(await ficheBrief(projet));
+    const ateliers = [...d.querySelectorAll('[data-atelier]')];
+    expect(ateliers.filter((a) => a.querySelector('a')).map((a) => a.getAttribute('data-atelier'))).toEqual(['image', 'produit', 'textes', 'identites', 'export']);
+    expect(d.querySelector('.wshead a[href$="/export"]'), 'l’export actif n’est plus proposé').not.toBeNull();
+    expect(d.querySelector(`a[href$="/video"]`), 'lien mort vers la vidéo coupée').toBeNull();
+    const coupee = d.querySelector('[data-atelier="video"]')!;
+    expect(coupee.querySelector('a')).toBeNull();
+    expect(coupee.textContent).toContain('non activé pour cet espace');
+    expect(coupee.querySelector('.pill')?.textContent).toBe('Non activé');
   });
 
   it('espace pilote vidéo · le lien revient', async () => {
     await reglage({ actives: ['video'], coupees: [] });
-    const d = dom(renderToStaticMarkup(await ProjetPage({ params: Promise.resolve({ id: projet }), searchParams: Promise.resolve({}) })));
-    expect(d.querySelector(`nav[aria-label="Atelier du projet"] a[href="/studio/projets/${projet}/video"]`)?.textContent).toBe('Vidéo');
+    const d = dom(await ficheBrief(projet));
+    expect(d.querySelector(`[data-atelier="video"] a[href="/studio/projets/${projet}/video"]`)?.textContent).toBe('Ouvrir');
     expect(d.textContent).not.toContain('non activé pour cet espace');
   });
 });

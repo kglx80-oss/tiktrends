@@ -27,7 +27,7 @@ import type { LotSpatial, PropsProjet, TacheSpatiale, VarianteSpatiale } from '.
 
 /**
  * Lecture serveur de la fiche projet Spatial · les MÊMES sources que la fiche
- * V5 (`app/(app)/studio/projets/[id]/page.tsx`) : `lireProjetDetail`, la
+ * V5 (retirée · Spatial sert la fiche en exclusif) : `lireProjetDetail`, la
  * lignée (`lireLigneeProjet`), les variantes et lots (`listerVariantes`), les
  * tâches, les propositions, le fil Jarvis du projet, les interrupteurs de
  * l'espace, le canvas métier et la disposition personnelle (`lireCanvasProjet`,

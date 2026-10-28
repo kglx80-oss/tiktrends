@@ -6,7 +6,7 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * L8-D · persistance de la disposition du canvas, au RÉSULTAT · vraie base
  * (pglite + les migrations du dépôt).
  *
- *  · consulter (action ET composant serveur de la page) n'écrit RIEN ;
+ *  · consulter (action ET fiche Spatiale en « Disposition libre ») n'écrit RIEN ;
  *  · déplacer écrit UNE ligne `app_settings`, propre à la personne et au
  *    projet · ni la version, ni le projet, ni `studio_layouts` ne bougent ;
  *  · une autre personne garde sa propre disposition (vide) ;
@@ -27,12 +27,18 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
   return { ...actual, db };
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
+vi.mock('../lib/brands', () => ({ getActiveBrand: async () => null, listBrands: async () => [] }));
+vi.mock('../lib/spend-guard', () => ({ spendStatus: async () => ({ spentUsd: 0, capUsd: 10, summary: '', blocked: false }) }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('notFound'); }, usePathname: () => '/studio/projets/p', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 
 import { db, schema, eq, sql } from '@tiktrends/db';
 import { session, semer } from './studios-semis';
 import { projetVideo } from './l4a-outils';
 import { lireCanvasProjet, enregistrerDispositionCanvas, reinitialiserDispositionCanvas } from '../app/actions/studios/canvas';
-import { CanvasProjet } from '../components/studios/canvas/CanvasProjet';
+// La fiche V5 (et son `CanvasProjet`) est retirée · la page servie est la fiche Spatiale, canvas en disposition libre.
+import ProjetSpatial from '../app/(spatial)/sp/studio/projets/[id]/page';
+import { avecSpatial } from './spatial/fournisseur';
+const fiche = async (id: string) => renderToStaticMarkup(avecSpatial(await ProjetSpatial({ params: Promise.resolve({ id }), searchParams: Promise.resolve({ disposition: 'libre' }) })));
 import { cleDispositionCanvas } from '../lib/studios/canvas/disposition';
 import type { BaseStudio } from '../lib/studios/execution/types';
 
@@ -69,9 +75,9 @@ describe('canvas · consulter n’écrit rien', () => {
     expect(r.canvas.modele.cartes.map((c) => c.id)).toContain('clip:s_produit');
     expect(r.canvas.disposition).toEqual({ positions: {} });
     expect(r.canvas.rev).toBe(0);
-    const html = renderToStaticMarkup(await CanvasProjet({ projectId: A.projectId, versionId: A.versionId }));
+    const html = await fiche(A.projectId);
     expect(html).toContain('data-carte="export"');
-    expect(html).toContain('data-vue-canvas="liste"');
+    expect(html).toContain(`data-canvas-libre="${A.projectId}"`);
     expect(await instantane(), 'consulter le canvas a écrit en base').toEqual(avant);
   });
 });
@@ -158,11 +164,11 @@ describe('canvas · portée', () => {
     expect(!r.ok && r.code).toBe('NOT_FOUND');
   });
 
-  it('sans session · refus, le composant serveur ne montre rien', async () => {
+  it('sans session · refus, la fiche renvoie à la connexion', async () => {
     etat.session = null;
     const r = await lireCanvasProjet({ projectId: A.projectId });
     expect(!r.ok && r.code).toBe('AUTH_REQUIRED');
-    expect(await CanvasProjet({ projectId: A.projectId, versionId: A.versionId })).toBeNull();
+    await expect(fiche(A.projectId)).rejects.toThrow('redirect /login');
   });
 });
 

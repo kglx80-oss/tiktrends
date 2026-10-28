@@ -48,6 +48,7 @@ describe('B2 · chaque écran pose cadrePage, sans largeur extérieure à la mai
     // (écrans devenus exclusifs) · le seuil ne garde que la lecture des pages
     // (il tombe à 0 si le chemin du scan casse).
     // Mesuré : 6 après la vague 4 (Veille, Accueil, Finance, Inscriptions, Profil, Tags, Support, Crédits) (28/10/2026) · plancher 3.
+    // Mesuré : 5 après le retrait de la fiche projet V5 `/studio/projets/[id]` (28/10/2026) · plancher 3 inchangé.
     expect(pages.length).toBeGreaterThanOrEqual(3);
   });
   for (const p of pages) {

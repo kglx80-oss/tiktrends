@@ -2,9 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { renderToStaticMarkup } from 'react-dom/server';
 import type { EtatNouveauProjet } from '@tiktrends/core';
-import type { ChatThread } from '../app/actions/jarvis-chat';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -16,8 +14,9 @@ import type { ChatThread } from '../app/actions/jarvis-chat';
  *   concept · `demarrerConcept` est appelé UNE fois, une SEULE navigation part.
  *   Mutation : retirer `verrouAction` du composeur fait partir deux démarrages.
  *
- * GUARD #5 · l'écran du concept rend le CHAT et la zone CRÉATIONS (le panneau de
- *   propositions existant) ; en mobile, deux ONGLETS (Conversation / Créations).
+ * GUARD #5 (l'hôte V5 du concept, chat et créations côte à côte) est retiré avec
+ *   la fiche V5 · le panneau Jarvis Spatial du projet (fil, coût du message,
+ *   propositions dans « Brief & références ») est gardé par `spatial-projet-jarvis`.
  */
 
 const replaceSpy = vi.fn();
@@ -29,7 +28,6 @@ vi.mock('../app/actions/studios/concept', () => ({ demarrerConcept: () => demarr
 
 import { NouveauConcept } from '../spatial/vues/studios/NouveauConcept';
 import { avecSpatial } from './spatial/fournisseur';
-import { ConceptHote } from '../components/studios/projet/ConceptHote';
 
 const pret: EtatNouveauProjet = { etat: 'pret', marque: { id: 'b1', nom: 'Neva' }, libelle: 'Nouveau concept créatif' };
 
@@ -62,63 +60,4 @@ describe('GUARD #3 · le composeur ne démarre qu’UN concept même sur un doub
     expect(replaceSpy).toHaveBeenCalledTimes(1);
     expect(replaceSpy).toHaveBeenCalledWith('/studio/projets/p-new');
   });
-});
-
-/* ───────────────────────────── GUARD #5 · l'hôte ──────────────────────────── */
-
-const thread: ChatThread = {
-  turns: [
-    { id: 't1', role: 'user', content: 'Un concept de rentrée', at: '2026-10-20T10:00:00Z' },
-    { id: 't2', role: 'assistant', content: 'Voici une piste de concept.', at: '2026-10-20T10:00:05Z' },
-  ],
-  starters: [], measuredAds: 0, brandName: 'Neva',
-  contexte: { brandId: 'b1', identity: null, rules: null, hooks: null, connaissances: null },
-  conversationId: 'c-new', conversations: [],
-};
-
-describe('GUARD #5 · l’écran du concept héberge le chat À CÔTÉ des créations', () => {
-  it('desktop · chat et zone créations (panneau de propositions) présents, pas d’onglets', () => {
-    const d = document.createElement('div');
-    d.innerHTML = renderToStaticMarkup(
-      <ConceptHote projectId="p1" brandName="Neva" kind="ads" generationImageActive={false} versionCourante={{ id: 'v3', n: 3 }} initialThread={thread} />,
-    );
-    expect(d.querySelector('[data-hote="concept"]'), 'hôte absent').not.toBeNull();
-    // Le CHAT · le fil montre le message et la réponse.
-    const chat = d.querySelector('[data-pane="conversation"]')!;
-    expect(chat, 'colonne conversation absente').not.toBeNull();
-    expect(chat.textContent).toContain('Un concept de rentrée');
-    expect(chat.querySelector('textarea'), 'composeur du chat absent').not.toBeNull();
-    // Coût annoncé AVANT l'envoi · la VÉRITÉ de la route (aucun crédit débité,
-    // fournisseur IA sous plafond), jamais « N crédit » par message ni « gratuit ».
-    const cout = chat.querySelector('[data-cout-message]');
-    expect(cout?.textContent, 'coût du message non annoncé').toContain('plafond IA');
-    expect(cout?.textContent, 'faux débit « N crédit » par message').not.toMatch(/coûte\s+\d+\s+crédit/i);
-    expect(cout?.textContent, 'aucune promesse de gratuité').not.toContain('gratuit');
-    // La zone CRÉATIONS · le panneau de propositions EXISTANT, pas une fausse carte.
-    const creations = d.querySelector('[data-pane="creations"]')!;
-    expect(creations, 'colonne créations absente').not.toBeNull();
-    expect(creations.querySelector('[data-emplacement="propositions"] [data-panneau="propositions"]')?.textContent, 'panneau de propositions absent').toContain('Propositions');
-    // Desktop · pas d’onglets (ceux-ci sont la vue mobile).
-    expect(d.querySelector('[data-onglets]'), 'les onglets ne devraient apparaître qu’en mobile').toBeNull();
-    expect(d.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
-  });
-
-  it('mobile · deux onglets Conversation / Créations', () => {
-    vi.stubGlobal('matchMedia', (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false }));
-    act(() => { root!.render(<ConceptHote projectId="p1" brandName="Neva" kind="ads" generationImageActive={false} versionCourante={{ id: 'v3', n: 3 }} initialThread={thread} />); });
-    const onglets = el!.querySelector('[data-onglets]');
-    expect(onglets, 'les onglets mobiles sont absents').not.toBeNull();
-    const tabs = [...el!.querySelectorAll('[role="tab"]')];
-    expect(tabs.map((t) => t.getAttribute('data-onglet'))).toEqual(['conversation', 'creations']);
-    expect(tabs.map((t) => t.textContent)).toEqual(['Conversation', 'Créations']);
-  });
-});
-
-it('panneau Jarvis compact conserve conversation, coût et propositions accessibles', () => {
-  const d = document.createElement('div');
-  d.innerHTML = renderToStaticMarkup(<ConceptHote compact projectId="p1" brandName="Neva" kind="ads" generationImageActive={false} versionCourante={{ id: 'v3', n: 3 }} initialThread={thread} />);
-  expect(d.querySelector('[data-pane="conversation"] textarea')).not.toBeNull();
-  expect(d.querySelector('[data-cout-message]')?.textContent).toContain('plafond IA');
-  expect(d.querySelector('details summary')?.textContent).toBe('Propositions et actions du projet');
-  expect(d.querySelector('details [data-pane="creations"]')).not.toBeNull();
 });
