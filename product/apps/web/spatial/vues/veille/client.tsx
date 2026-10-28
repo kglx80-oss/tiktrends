@@ -9,6 +9,7 @@ import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actio
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import type { CarteVeilleDonnees } from './types';
+import { ImageApercu } from './apercu-client';
 
 /**
  * Les briques INTERACTIVES de la Veille Spatial. Chaque geste appelle une
@@ -130,7 +131,7 @@ export function CarteVeille({ c, coutJarvis }: { c: CarteVeilleDonnees; coutJarv
       </div>
       <p className="xp">{c.texte}</p>
       <button type="button" className="xv" aria-label={`Voir le détail de la pub ${c.marque.nom}`} onClick={() => setOuvert(true)}>
-        <div className={`comp ${c.ratio}`.trim()}>{c.image && <img src={c.image} alt="" loading="lazy" referrerPolicy="no-referrer" />}</div>
+        <div className={`comp ${c.ratio}`.trim()}><ImageApercu src={c.image} /></div>
         {c.tendance && <span className="xt hot"><Ic n="chart" />Tendance</span>}<span className="xt st">{c.style}</span>
       </button>
       <div className="xf"><div><small>{c.domaine}</small><strong>{c.titre}</strong></div>{c.cta && <span className="xcta">{c.cta}</span>}</div>
@@ -157,7 +158,7 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
         <button ref={croix} type="button" className="xmx" aria-label="Fermer" onClick={fermer}><Ic n="x" s={false} /></button>
         <div className="xmv"><div className={`comp ${c.ratio}`.trim()}>{video
           ? <video src={video} poster={c.image ?? undefined} controls playsInline preload="none" aria-label={`Vidéo de la pub ${c.marque.nom}`} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
-          : c.image && <img src={c.image} alt="" referrerPolicy="no-referrer" />}</div></div>
+          : <ImageApercu src={c.image} alt={`Aperçu de la pub ${c.marque.nom}`} lazy={false} />}</div></div>
         <div className="xmi">
           <div className="xh"><span className="av" style={{ background: c.marque.fond }}>{c.marque.initiale}</span><div className="xn"><strong>{c.marque.nom}</strong><small><i className={c.active ? 'live' : 'off'} />{d.statut}</small></div></div>
           {c.texte && <p>{c.texte}</p>}
