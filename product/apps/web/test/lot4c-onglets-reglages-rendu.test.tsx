@@ -45,7 +45,9 @@ type Rendu = () => Promise<unknown>;
 const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/billing', '/profile',
   // Vague 3 · Admin · l'accueil des coulisses, les gestes et les outils de la plateforme ne sont plus servis que par Spatial.
   '/admin', '/admin/equipe', '/admin/plans', '/admin/paiement', '/admin/incidents', '/admin/depenses', '/admin/intelligence',
-  '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console']);
+  '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console',
+  // Vague 4 · « Crédits & marges ».
+  '/credits']);
 const sp = { searchParams: Promise.resolve({}) };
 const PAGES: Record<string, Rendu> = {
   // Vague 2 (et vague 4 · `/profile`) · ces écrans n'ont plus de page V5 · seul Spatial les sert
@@ -70,7 +72,7 @@ const PAGES: Record<string, Rendu> = {
   '/admin/ia-studios': async () => (await import('../app/(spatial)/sp/admin/ia-studios/page')).default(),
   '/admin/studios-interrupteurs': async () => (await import('../app/(spatial)/sp/admin/studios-interrupteurs/page')).default(sp),
   '/console': async () => (await import('../app/(spatial)/sp/console/page')).default(sp),
-  '/credits': async () => (await import('../app/(app)/credits/page')).default(sp),
+  '/credits': async () => (await import('../app/(spatial)/sp/credits/page')).default(),
 };
 
 const base = (o: Record<string, unknown>) => ({ user: { id: ids.user, email: 'client@exemple.invalid', name: 'Client' }, workspaceId: ids.ws, workspaceName: 'Espace', plan: 'business', equipe: null, ...o });

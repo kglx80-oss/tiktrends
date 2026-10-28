@@ -25,8 +25,8 @@ const WEB = process.cwd();
 const PERIMETRE = [
   'components',
   // Vague 3 · `brands` (la liste V5) et `console` sont retirés · servis par Spatial.
-  // Vague 4 · `support`, `tags` et `profile` sont retirés · servis par Spatial.
-  ...['dashboard', 'analytics', 'studio', 'radar', 'credits']
+  // Vague 4 · `support`, `tags`, `profile` et `credits` sont retirés · servis par Spatial.
+  ...['dashboard', 'analytics', 'studio', 'radar']
     .map((d) => join('app', '(app)', d)),
   // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
   ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
