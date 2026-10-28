@@ -23,12 +23,12 @@ vi.mock('../lib/spend-guard', () => ({
   depensesAReconcilier: async () => { etat.lectures++; if (etat.panne) throw new Error('base indisponible'); return etat.vue; },
 }));
 vi.mock('../lib/deployment', () => ({ currentDeployment: async () => null }));
-vi.mock('../app/(app)/jarvis/JarvisRules', () => ({ JarvisRules: () => null }));
-vi.mock('../app/(app)/jarvis/JarvisTraining', () => ({ JarvisTraining: () => null }));
-vi.mock('../app/(app)/jarvis/DescribePanel', () => ({ DescribePanel: () => null }));
+// Vague 3 · l'écran est servi par Spatial · ses gestes clients et le fil (contexte) sont neutralisés.
+vi.mock('../spatial/vues/jarvis/sources-client', () => ({ DecrireCreas: () => null, EntrainementJarvis: () => null, ReglesJarvis: () => null }));
+vi.mock('../app/actions/jarvis-chat', () => ({ chatThreadAction: async () => ({}) }));
 
 import { vueReconciliation } from '@tiktrends/core';
-import JarvisSourcesPage from '../app/(app)/jarvis/sources/page';
+import JarvisSourcesPage from '../app/(spatial)/sp/jarvis/sources/page';
 
 const ligne = (n: number, usd: number) => ({ id: `l${n}`, createdAt: new Date(Date.UTC(2026, 9, 8, 12, n)), provider: 'anthropic', model: 'm', action: `a${n}`, workspaceId: null, estimatedUsd: usd, actualUsd: usd, cause: 'coupure' });
 const rappel = (html: string) => /<p data-rappel-reconciliation[\s\S]*?<\/p>/.exec(html)?.[0] ?? '';
@@ -41,9 +41,9 @@ describe('R4 · rappel « à réconcilier » sur /jarvis/sources', () => {
     etat.vue = vueReconciliation([ligne(1, 0.1), ligne(2, 2.5)]);
     const r = rappel(renderToStaticMarkup(await JarvisSourcesPage()));
     expect(r, 'le rappel n’est pas rendu').not.toBe('');
-    expect(texte(r)).toBe('À réconcilier · 2 dépenses à réconcilier avec la facture · 2,60 $ comptés au maximum en attendant. Rapprocher ›');
+    expect(texte(r)).toBe('À réconcilier · 2 dépenses à réconcilier avec la facture · 2,60 $ comptés au maximum en attendant. Rapprocher');
     expect(r).toContain('href="/admin/depenses#a-reconcilier"');
-    expect(r).toMatch(/min-height:(4[4-9]|[5-9]\d)px/);
+    expect(r).toContain('class="btn sm"');
   });
 
   it('rien en attente · aucun rappel (le silence)', async () => {

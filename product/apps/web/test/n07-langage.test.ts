@@ -22,7 +22,8 @@ import { join } from 'node:path';
 const lire = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
 const ONBOARDING = lire('app/onboarding/OnboardingWizard.tsx');
 const PLAN = lire('app/actions/adsmap-iterate.ts');
-const ENTRAINEMENT = lire('app/(app)/jarvis/JarvisTraining.tsx');
+// Vague 3 · l'entraînement vit sur « Sources de Jarvis » dans Spatial.
+const ENTRAINEMENT = lire('spatial/vues/jarvis/sources-client.tsx');
 // L'ancienne Adsmap est retirée · la fiche d'un test et les Suites vivent dans Spatial.
 const AD_DRAWER = lire('app/(spatial)/sp/adsmap/tests/[id]/page.tsx');
 const SUITES = lire('spatial/vues/resultats/Suites.tsx');
@@ -59,14 +60,14 @@ describe('N07 (v8) · les promesses absolues restantes sont retirées', () => {
 
 describe('N07 · l’entraînement de Jarvis ne promet plus la performance', () => {
   it('les pubs sources sont « qui tiennent », pas « qui performent » ni « gagnantes »', () => {
-    expect(ENTRAINEMENT, 'l’écran promet encore la performance').not.toContain('pubs qui <b>performent</b>');
+    expect(ENTRAINEMENT, 'l’écran promet encore la performance').not.toMatch(/pubs qui (<b>)?performent/);
     expect(ENTRAINEMENT, 'le bouton promet encore des « pubs gagnantes »').not.toContain('pubs gagnantes');
     expect(ENTRAINEMENT).toContain('tiennent dans la durée');
   });
   it('on distille des PISTES, pas des « patterns gagnants », et on ORIENTE, pas « tirer la performance »', () => {
     expect(ENTRAINEMENT, '« patterns gagnants » subsiste').not.toContain('patterns gagnants');
     expect(ENTRAINEMENT, '« tirer la performance vers le haut » subsiste').not.toContain('tirer la performance');
-    expect(ENTRAINEMENT).toMatch(/distille des <b>pistes<\/b>/);
+    expect(ENTRAINEMENT).toMatch(/distille des pistes/);
   });
   it('le compte rendu parle de pubs ANALYSÉES, pas « performantes »', () => {
     expect(ENTRAINEMENT, 'le toast promet encore des « pub(s) performante(s) »').not.toContain('pub(s) performante(s)');

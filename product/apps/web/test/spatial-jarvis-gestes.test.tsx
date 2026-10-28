@@ -131,6 +131,8 @@ describe('Spatial · Jarvis · sans marque, la conversation d’accueil', () => 
     const champ = el.querySelector('#jin') as HTMLInputElement;
     expect(champ.disabled).toBe(false);
     expect(el.querySelector('.jempty a[href="/brands/new"]')).not.toBeNull();
+    // Porté de l'ancien écran d'accueil · jamais le mur « Sélectionne une marque active ».
+    expect(el.textContent).not.toContain('Sélectionne une marque active');
     await act(async () => { ([...el.querySelectorAll('.jempty button.chip')].find((b) => b.textContent === 'Par où commencer ?') as HTMLButtonElement).click(); });
     expect(champ.value).toBe('Par où commencer ?');
     expect(fetchSpy).not.toHaveBeenCalled();

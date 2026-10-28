@@ -20,8 +20,11 @@ const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 // une barre, c'est une position.
 const LARGEUR_MAIN = /width:\s*`[^`]*%[^`]*`/;
 
+// Vague 3 · l'écran V5 `jarvis/sources` est retiré · sa mémoire mesurée vit dans
+// Spatial (`spatial/vues/jarvis/Sources.tsx`, barres `.bar` de la maquette), et
+// la couleur « au-dessus de la moyenne » y est gardée par
+// `spatial-jarvis-gestes.test.tsx` et le noyau (`memoireParDimension`).
 const CAS = [
-  'app/(app)/jarvis/sources/page.tsx',
   'app/(app)/jarvis/MarketPanel.tsx',
 ];
 
@@ -36,13 +39,4 @@ describe('les barres de Jarvis ont adopté BarreValeur', () => {
       expect(src, `${fichier} · largeur de barre écrite à la main`).not.toMatch(LARGEUR_MAIN);
     });
   }
-
-  it('la couleur conditionnelle « au-dessus de la moyenne » est préservée sur la barre', () => {
-    // Le vert d'un taux au-dessus de la moyenne doit rester porté par la barre
-    // (prop couleur de BarreValeur), pas perdu dans la migration.
-    const src = lit('app/(app)/jarvis/sources/page.tsx');
-    const bloc = src.slice(src.indexOf('<BarreValeur'), src.indexOf('<BarreValeur') + 400);
-    expect(bloc).toContain('couleur=');
-    expect(bloc).toContain('au_dessus');
-  });
 });

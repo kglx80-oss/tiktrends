@@ -18,7 +18,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => { h.marqueLue++; return null; } }));
 
 import { chatThreadAction } from '../app/actions/jarvis-chat';
-import { RefusJarvis } from '../app/(app)/jarvis/RefusJarvis';
+import { RefusJarvis } from '../spatial/vues/jarvis/RefusJarvis';
 import { TEXTE_REFUS_JARVIS } from '../lib/jarvis-acces';
 
 const base = (o: Record<string, unknown>) => ({ user: { id: 'u', email: 'x@synth.test', name: null }, workspaceId: 'w', workspaceName: 'W', ...o });
@@ -44,7 +44,7 @@ describe('chatThreadAction · le refus retourné dit la vraie raison', () => {
 describe('RefusJarvis · l’écran dit la même phrase', () => {
   for (const raison of ['plan', 'role'] as const) {
     it(raison, () => {
-      expect(texte(renderToStaticMarkup(<RefusJarvis titre="Jarvis" why={raison} owner={false} />))).toContain(TEXTE_REFUS_JARVIS[raison]);
+      expect(texte(renderToStaticMarkup(<RefusJarvis raison={TEXTE_REFUS_JARVIS[raison]} plan={raison === 'plan'} proprietaire={false} />))).toContain(TEXTE_REFUS_JARVIS[raison]);
     });
   }
 });

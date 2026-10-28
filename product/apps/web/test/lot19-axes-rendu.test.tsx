@@ -43,9 +43,6 @@ const HORS_TITRE_DE_PAGE: Record<string, string> = {
   // interdits (admin/equipe) · traités à leur fusion.
   'admin/page.tsx': 'en-tête de l’espace ADMIN+ · fichier partagé avec le lot 19B',
   'admin/equipe/page.tsx': 'écran Équipe ADMIN+ · hors périmètre (consigne)',
-  'jarvis/page.tsx': 'conversation · le titre est la question d’accueil (charte Jarvis)',
-  'jarvis/sources/page.tsx': 'zone du lot 19B',
-  'jarvis/error.tsx': 'zone du lot 19B',
   'saved/page.tsx': 'zone du lot 19C',
 };
 

@@ -180,7 +180,7 @@ describe('Consulter n’écrit rien · route handlers GET et rendus, par le grap
       expect(ecrivains.has(n), `le graphe ne reconnaît pas ${n} comme écrivain`).toBe(true);
     }
     const noms = cibles.map((f) => relative(join(RACINE, 'app'), f));
-    for (const attendu of ['api/ad/[id]/route.tsx', '(app)/jarvis/sources/page.tsx', '(app)/studio/video/page.tsx', 'api/studios/media/[id]/route.ts']) {
+    for (const attendu of ['api/ad/[id]/route.tsx', '(spatial)/sp/jarvis/sources/page.tsx', '(app)/studio/video/page.tsx', 'api/studios/media/[id]/route.ts']) {
       expect(noms, `le scanner ne voit pas ${attendu}`).toContain(attendu);
     }
   });

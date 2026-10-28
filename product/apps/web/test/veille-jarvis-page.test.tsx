@@ -7,13 +7,13 @@ vi.mock('next/navigation', () => ({ redirect: (url: string) => { throw new Error
 vi.mock('next/link', () => ({ default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a> }));
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', role: 'owner' }) }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: mocks.brand }));
-vi.mock('../lib/jarvis-acces', () => ({ refusJarvis: () => null }));
+vi.mock('../lib/jarvis-acces', () => ({ refusJarvis: () => null, TEXTE_REFUS_JARVIS: { plan: '', role: '' } }));
 vi.mock('../lib/jarvis-fiche', () => ({ ficheMarqueLue: async () => null }));
 vi.mock('../lib/studios/jarvis-projets', () => ({ projetsPourColonneJarvis: async () => [] }));
 vi.mock('../lib/studios/sources/acces', () => ({ gardeSources: mocks.garde }));
 vi.mock('../lib/studios/sources/sources', () => ({ chargerSources: mocks.charger }));
-vi.mock('../app/(app)/jarvis/JarvisChat', () => ({ JarvisChat: ({ brouillonInitial }: { brouillonInitial: string }) => <textarea defaultValue={brouillonInitial} /> }));
-const { default: Page } = await import('../app/(app)/jarvis/veille/page');
+// Vague 3 · l'écran est servi par Spatial (exclusif) · on rend sa vraie vue, le brouillon est dans le champ.
+const { default: Page } = await import('../app/(spatial)/sp/jarvis/veille/page');
 const params = { action: 'scripts', ref: 'b10bb82f-31c8-42e1-bf59-99a0438d6abf' };
 beforeEach(() => {
   vi.clearAllMocks();
