@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { and, asc, count, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  attendReponse, mrrPlateforme,
+  attendReponse, entreesAdminOuvertes, mrrPlateforme,
   type EspacePlateforme, type TarifsPlateforme, type TicketPlateforme, type StatutTicket, type TypeTicket,
 } from '@tiktrends/core';
 import { getSession, type Session } from '../../../../lib/auth';
@@ -11,6 +11,8 @@ import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
 import { getPlanConfig } from '../../../../lib/settings';
 import type { BandeauAdmin } from '../../../../spatial/vues/admin/base';
+import { SOUS_NAV_ADMIN_COMPLETE } from '../../../../spatial/vues/admin/sous-nav';
+import { droitsSousNavAdmin } from '../../../../lib/onglets-reglages';
 
 /**
  * Les lectures du Tour de contrôle Spatial · TOUTES après la porte. Aucune
@@ -114,16 +116,26 @@ export async function chargerResiliations(maintenant: Date, mois = 12): Promise<
 export const resiliationsSur30j = (dates: readonly Date[], maintenant: Date) =>
   dates.filter((d) => d.getTime() > maintenant.getTime() - 30 * JOUR).length;
 
-/** Le bandeau Admin+ · nombre RÉEL de comptes payants, lu à l'instant. */
-export function bandeau(espaces: readonly EspacePlateforme[], tarifs: TarifsPlateforme): BandeauAdmin {
-  return { payants: mrrPlateforme(espaces, tarifs).payants, actualise: 'à l’instant' };
+/**
+ * Les entrées de la sous-navigation que la session ouvre (SEC-10) · la porte
+ * RÉELLE de chaque page (`droitsSousNavAdmin`, `entreesAdminOuvertes`).
+ */
+export async function navAdmin(): Promise<readonly string[]> {
+  const s = await getSession();
+  if (!s) return [];
+  return entreesAdminOuvertes(SOUS_NAV_ADMIN_COMPLETE, droitsSousNavAdmin(s)).map((i) => i.href);
+}
+
+/** Le bandeau Admin+ · nombre RÉEL de comptes payants, lu à l'instant, et la sous-navigation que la session ouvre. */
+export function bandeau(espaces: readonly EspacePlateforme[], tarifs: TarifsPlateforme, nav: readonly string[]): BandeauAdmin {
+  return { payants: mrrPlateforme(espaces, tarifs).payants, actualise: 'à l’instant', nav };
 }
 
 /** Le bandeau seul, pour un écran qui ne charge pas les espaces · un comptage léger. */
 export async function bandeauSeul(): Promise<BandeauAdmin> {
   const maintenant = new Date();
-  const [tarifs, espaces] = await Promise.all([chargerTarifs(), chargerEspaces(maintenant, [])]);
-  return bandeau(espaces, tarifs);
+  const [tarifs, espaces, nav] = await Promise.all([chargerTarifs(), chargerEspaces(maintenant, []), navAdmin()]);
+  return bandeau(espaces, tarifs, nav);
 }
 
 /** La dépense IA réelle sur 30 jours, par fournisseur et par modèle (`ai_spend`). */

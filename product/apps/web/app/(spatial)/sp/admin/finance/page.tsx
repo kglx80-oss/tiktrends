@@ -4,7 +4,7 @@ import {
 } from '@tiktrends/core';
 import { PLAN_CREDITS, PLAN_LABEL, PLAN_PRICE } from '../../../../../lib/rbac';
 import { Revenus, type PropsFinanceFormules } from '../../../../../spatial/vues/admin/Revenus';
-import { bandeau, chargerEspaces, chargerResiliations, chargerTarifs, porteAdmin, resiliationsSur30j } from '../donnees';
+import { bandeau, chargerEspaces, chargerResiliations, chargerTarifs, porteAdmin, resiliationsSur30j, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +70,7 @@ export default async function RevenusSpatial() {
 
   return (
     <Revenus
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       hero={{
         titre: `MRR · ${adminMoisLong(maintenant)}`, valeur: adminEuros(m.mrr), variation: null,
         detail: `ARR estimé ${adminEuros(m.arr)} · aucun relevé des mois précédents`,

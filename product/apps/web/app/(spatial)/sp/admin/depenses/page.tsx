@@ -8,7 +8,7 @@ import {
 } from '@tiktrends/core';
 import { spendStatus, spendByAction, depensesAReconcilier, depensesReconciliees } from '../../../../../lib/spend-guard';
 import { Couts } from '../../../../../spatial/vues/admin/Couts';
-import { bandeau, chargerDepenseParFournisseur, chargerEspaces, chargerTarifs, porteAdmin } from '../donnees';
+import { bandeau, chargerDepenseParFournisseur, chargerEspaces, chargerTarifs, porteAdmin, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +39,7 @@ export default async function CoutsSpatial({ searchParams }: { searchParams?: Pr
 
   return (
     <Couts
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       kpis={[
         { lbl: 'Coûts IA · 30 j', v: adminDollars(depense.spentUsd), d: adminPluriel(appels, 'appel') },
         { lbl: 'Part du plafond', v: adminPourcent(part), d: `plafond ${adminDollars(depense.capUsd)}`, c: part >= 80 ? 'w' : 'up' },

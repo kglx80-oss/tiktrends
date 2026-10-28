@@ -5,7 +5,7 @@ import {
 } from '@tiktrends/core';
 import { spendStatus, depensesAReconcilier } from '../../../../lib/spend-guard';
 import { TourDeControle } from '../../../../spatial/vues/admin/TourDeControle';
-import { bandeau, chargerEspaces, chargerRecharges, chargerResiliations, chargerTarifs, chargerTickets, porteAdmin, resiliationsSur30j } from './donnees';
+import { bandeau, chargerEspaces, chargerRecharges, chargerResiliations, chargerTarifs, chargerTickets, porteAdmin, resiliationsSur30j, navAdmin } from './donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +49,7 @@ export default async function TourDeControleSpatial() {
 
   return (
     <TourDeControle
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       kpis={[
         { lbl: 'MRR', v: adminEuros(m.mrr), d: `ARR ${adminEuros(m.arr)}` },
         { lbl: 'Abonnés payants', v: adminNombre(m.payants), d: `sur ${adminPluriel(espaces.length, 'espace')}` },

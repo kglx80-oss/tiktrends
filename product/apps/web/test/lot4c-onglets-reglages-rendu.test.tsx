@@ -198,6 +198,37 @@ describe('lot 4c · entrée de l’Administration', () => {
     // Spatial) · la protection reste le refus des pages elles-mêmes, gardé ici.
     expect((await rendre('/admin/ia-studios')).ouvre, 'la page refuse bien ce compte').toBe(false);
     expect((await rendre('/admin/studios-interrupteurs')).ouvre, 'la page refuse bien ce compte').toBe(false);
+    // La sous-navigation Spatial du Tour de contrôle ne les propose pas non plus.
+    const { html, ouvre } = await rendre('/admin');
+    expect(ouvre, 'le Tour de contrôle s’ouvre à ce fondateur').toBe(true);
+    expect(html).toContain('href="/admin/churn"');
+    expect(html, 'Modèles IA proposé à un compte que la page refuse').not.toContain('href="/admin/ia-studios"');
+    expect(html, 'Interrupteurs proposés à un compte que la page refuse').not.toContain('href="/admin/studios-interrupteurs"');
+  });
+
+  it('Tour de contrôle Spatial · chaque entrée proposée s’ouvre, pour chaque compte qui y entre (SEC-10)', async () => {
+    const comptes = [
+      { nom: 'fondateur non admissible', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false } },
+      { nom: 'fondateur admissible', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } },
+      { nom: 'fondateur sans équipe', equipe: undefined },
+    ];
+    let proposees = 0;
+    for (const c of comptes) {
+      etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: c.equipe });
+      const { html, ouvre } = await rendre('/admin');
+      expect(ouvre, `${c.nom} · le Tour de contrôle s’ouvre`).toBe(true);
+      for (const href of Object.keys(PAGES).filter((h) => h.startsWith('/admin/') || h === '/console')) {
+        if (!html!.includes(`href="${href}"`)) continue;
+        proposees++;
+        expect((await rendre(href)).ouvre, `${c.nom} · ${href} proposé dans la sous-navigation, que la page refuse`).toBe(true);
+      }
+    }
+    // Mesuré : 30 entrées proposées sur les trois comptes (28/10/2026) · plancher 20.
+    expect(proposees).toBeGreaterThanOrEqual(20);
+    etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
+    const admissible = (await rendre('/admin')).html!;
+    expect(admissible, 'le fondateur admissible voit bien Modèles IA').toContain('href="/admin/ia-studios"');
+    expect(admissible, 'le fondateur admissible voit bien les Interrupteurs').toContain('href="/admin/studios-interrupteurs"');
   });
 });
 

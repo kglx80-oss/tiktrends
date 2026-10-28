@@ -5,7 +5,7 @@ import {
 } from '@tiktrends/core';
 import { stripeConfigured } from '../../../../../lib/stripe';
 import { Paiements } from '../../../../../spatial/vues/admin/Paiements';
-import { bandeau, chargerEspaces, chargerTarifs, porteAdmin } from '../donnees';
+import { bandeau, chargerEspaces, chargerTarifs, porteAdmin, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +34,7 @@ export default async function PaiementsSpatial() {
 
   return (
     <Paiements
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       controle
       cartes={[
         {
