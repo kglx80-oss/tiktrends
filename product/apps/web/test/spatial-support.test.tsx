@@ -119,6 +119,18 @@ describe('Spatial · Support · la liste', () => {
     expect([...f.querySelectorAll('option')].map((o) => o.textContent)).toEqual(['Question', 'Bug', 'Suggestion']);
   });
 
+  it('G10 (planche v4) · le champ Message est le champ multi-ligne de la maquette · `.field` ne stylant que `input` et `select`, un `textarea` nu tombait en chasse fixe sur 36 px', async () => {
+    const css = readFileSync(join(__dirname, '..', 'spatial', 'spatial.css'), 'utf8');
+    expect(css, '`.field` style désormais `textarea` · relire G10').not.toMatch(/\.field textarea/);
+    const ta = /(?:^|\n)\.ta\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(ta, 'la classe `.ta` de la maquette a changé').toMatch(/min-height:90px/);
+    expect(ta).toMatch(/font:14px\/1\.5 var\(--sf\)/);
+    const f = (await liste()).querySelector('[data-geste="nouveau-ticket"] form')!;
+    const message = [...f.querySelectorAll('label')].find((l) => l.textContent?.startsWith('Message'))?.querySelector('textarea');
+    expect(message?.getAttribute('name')).toBe('body');
+    expect(message?.classList.contains('ta'), 'champ Message sans la classe `.ta` · police à chasse fixe, 36 px de haut').toBe(true);
+  });
+
   it('aucun pictogramme · le type est nommé en mots', async () => {
     const zone = (await liste()).querySelector('.grid2')!;
     expect(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{2300}-\u{23FF}\u{2728}\u{2726}\u{FE0F}]/u.test(zone.textContent ?? '')).toBe(false);

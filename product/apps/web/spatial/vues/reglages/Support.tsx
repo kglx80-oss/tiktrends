@@ -40,7 +40,7 @@ export function Support(p: PropsSupport) {
                 </label>
                 <label className="field" style={{ gridColumn: 'span 2' }}>Titre<input name="title" required placeholder="Ex : l’export PDF ne fonctionne pas" /></label>
               </div>
-              <label className="field">Message<textarea name="body" required placeholder="Décris le contexte, ce que tu attendais, ce qui s’est passé." /></label>
+              <label className="field">Message<textarea className="ta" name="body" required placeholder="Décris le contexte, ce que tu attendais, ce qui s’est passé." /></label>
               <div><button className="btn pri" type="submit"><Ic n="arrow" />Envoyer le ticket</button></div>
             </form>
           ) : <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>L’ouverture d’un ticket est indisponible pour le moment.</p>}
