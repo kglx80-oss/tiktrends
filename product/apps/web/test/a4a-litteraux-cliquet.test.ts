@@ -101,6 +101,9 @@ import { join, relative } from 'node:path';
  * est retiré · 203 − 4 = 199.
  *
  * Spatial · vague 2 · Veille · la fiche concurrent V5 (1) est retirée · 199 − 1 = 198.
+ *
+ * Spatial · vague 4 · Veille · les pages V5 `/veille`, `/veille/scale` (swipe
+ * file · 13), `/veille/formats`, `/radar` et `/saved` sont retirées · 198 − 13 = 185.
  */
 const WEB = process.cwd();
 
@@ -121,7 +124,6 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 142,
   'app/(app)/analytics': 6,
   'app/(app)/credits': 12,
-  'app/(app)/veille': 13,
   'app/onboarding': 5,
   'app/tarifs': 8,
   'components': 11,
@@ -133,7 +135,6 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'app/(app)/analytics/CreativeIntel.tsx': 2,
   'app/(app)/analytics/MetaKeyMetrics.tsx': 4,
   'app/(app)/credits/page.tsx': 12,
-  'app/(app)/veille/scale/SwipeFile.tsx': 13,
   'app/Landing.tsx': 142,
   'app/onboarding/OnboardingWizard.tsx': 5,
   'app/tarifs/page.tsx': 8,
@@ -144,7 +145,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/LogoMarque.tsx': 4,
 };
 
-const PLAFOND_TOTAL = 198;
+const PLAFOND_TOTAL = 185;
 
 const RACINES = ['app', 'components', 'lib'];
 

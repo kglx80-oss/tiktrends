@@ -48,7 +48,8 @@ describe('consigneAngleMarche · l’angle ET le format', () => {
   });
 });
 
-const MARQUES = readFileSync(join(process.cwd(), 'components/MarquesSuivies.tsx'), 'utf8');
+// Vague 4 · le brief d'une marque suivie vit dans le Radar Spatial (`BriefMarque`).
+const MARQUES = readFileSync(join(process.cwd(), 'spatial/vues/veille/radar-client.tsx'), 'utf8');
 
 describe('le CTA studio arme le format', () => {
   it('la consigne passe partVideo au studio', () => {

@@ -28,7 +28,7 @@ vi.mock('../app/actions/studios/propositions', () => ({ listerPropositions: asyn
 vi.mock('../app/actions/studios/sources', () => ({ exporterBrief: async () => ({ ok: false }) }));
 
 import {
-  contexteVeille, ancreCarteVeille, annonceObservee, referenceSource, lienRetourVeille, PARAM_RETOUR_VEILLE, completudeProjet,
+  contexteVeille, lireCriteresVeille, ancreCarteVeille, annonceObservee, referenceSource, lienRetourVeille, PARAM_RETOUR_VEILLE, completudeProjet,
   ANCIENNES_ADRESSES_STUDIO, CHEMIN_PROJETS, CHEMIN_NOUVEAU_PROJET, PARAMS_NOUVEAU_PROJET, destinationAncienneAdresse,
 } from '@tiktrends/core';
 import { ROUTES, ROUTES_HISTORIQUES, matchRoute } from '../lib/navigation';
@@ -64,6 +64,14 @@ describe('UX-05 · chaque route historique est servie et lit encore ses paramèt
         // La préparation relit son adresse par la règle du noyau (bornée, validée).
         expect(source, `${r.chemin} ne relit plus son adresse`).toContain('lireContexteNouveauProjet(await searchParams)');
         const perdus = r.params.filter((p) => !(PARAMS_NOUVEAU_PROJET as readonly string[]).includes(p));
+        expect(perdus, `${r.chemin} ne lit plus : ${perdus.join(', ')}`).toEqual([]);
+      } else if (r.chemin === '/veille') {
+        // Vague 4 · Pubs du moment (Spatial, exclusif) relit ses critères par la règle du noyau,
+        // et le retour (`rv`) directement · on vérifie ce que la règle RELIT, pas sa présence.
+        expect(source, '/veille ne relit plus ses critères par le noyau').toContain('lireCriteresVeille(sp)');
+        expect(source, '/veille ne relit plus le retour').toMatch(/\bsp\.rv\b/);
+        const lu = lireCriteresVeille({ q: 'serum', p: 'tiktok', searchIn: 'brand', media: 'video', sort: 'reach', status: 'active', country: 'fr', page: '2' });
+        const perdus = r.params.filter((p) => p !== 'rv' && !(p in lu));
         expect(perdus, `${r.chemin} ne lit plus : ${perdus.join(', ')}`).toEqual([]);
       } else {
         const perdus = r.params.filter((p) => !new RegExp(`\\bsp\\.${p}\\b`).test(source));

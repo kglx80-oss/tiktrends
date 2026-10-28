@@ -34,12 +34,13 @@ const sources = lit('app/(spatial)/sp/jarvis/sources/page.tsx') + lit('spatial/v
 const sAttribution = lit('app/(app)/jarvis/sections/SectionAttribution.tsx');
 // Les essais ont rejoint Résultats dans Spatial · page (garde, chargement) + vue (rendu).
 const sEssais = lit('app/(spatial)/sp/adsmap/essais/page.tsx') + lit('spatial/vues/resultats/Essais.tsx');
-const sMarche = lit('app/(app)/jarvis/sections/SectionMarche.tsx');
+// Vague 4 · la mémoire marché vit dans Pubs du moment (Spatial) · `MemoireMarche`, garde dans la page.
+const sMarche = lit('spatial/vues/veille/marche-client.tsx');
 // Le contexte de marque (accroches comprises) vit sur l'écran Sources de Spatial.
 const contexte = sources;
 const chatAction = lit('app/actions/jarvis-chat.ts');
 const analytics = lit('components/accueil/VueAnalytics.tsx');
-const veille = lit('app/(app)/veille/page.tsx');
+const veille = lit('app/(spatial)/sp/veille/page.tsx') + lit('spatial/vues/veille/PubsDuMoment.tsx');
 
 describe('Jarvis · la conversation, seule ; le détail à sa destination', () => {
   it('la page de chat accueille la conversation et renvoie aux sources (colonne V5)', () => {
@@ -84,8 +85,8 @@ describe('chaque famille est à sa destination, rien de perdu', () => {
   });
 
   it('le marché vit dans la section montée sur la Veille', () => {
-    expect(sMarche).toContain('MarketPanel');
-    expect(veille, 'la Veille ne monte pas la mémoire marché').toContain('<SectionMarche');
+    expect(sMarche).toContain('marketViewAction()');
+    expect(veille, 'la Veille ne monte pas la mémoire marché').toContain('<MemoireMarche marque={p.marche.marque} />');
   });
 
   it('les accroches vivent dans le contexte de marque, alimentées par le fil', () => {
@@ -127,9 +128,12 @@ describe('les gardes d’accès survivent au déménagement · rien n’est éla
     // Essais (Spatial) · la garde de la rubrique (offre Plus, marque active), refus dit à l'écran.
     expect(sEssais, 'essais · la garde d’accès manque').toContain('const g = await gardeResultats();');
     expect(sEssais, 'essais · le refus n’est pas rendu').toContain('if (!g.ok) return <RefusResultats');
-    for (const [nom, src] of [['attribution', sAttribution], ['marché', sMarche]] as const) {
+    for (const [nom, src] of [['attribution', sAttribution]] as const) {
       expect(src, `${nom} · la garde d’accès manque`).toContain('canAccess(effectiveAccess(s), adsmap)');
       expect(src, `${nom} · ne rend pas null sans accès/marque`).toContain('return null');
     }
+    // Le marché (Spatial) · offre Résultats ET marque active, sinon la vue ne reçoit rien et ne rend rien.
+    expect(veille, 'marché · la garde d’accès manque').toContain('marche={brand && canAccess(access, RESULTATS) ? { marque: brand.name } : null}');
+    expect(veille, 'marché · rendu sans garde').toContain('{p.marche && <MemoireMarche');
   });
 });

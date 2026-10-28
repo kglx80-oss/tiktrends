@@ -2,7 +2,6 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
  * L4-B · le panneau « Préparer une création », monté dans un vrai DOM (jsdom),
@@ -30,11 +29,9 @@ vi.mock('../app/actions/studios/sources', () => ({
   proposerHypotheses: (e: any) => { h.appels.proposer.push(e); return new Promise((resoudre) => h.attentes.push({ resoudre, entree: e })); },
   creerProjetDepuisSources: async (e: any) => { h.appels.creer.push(e); return { ok: true, projet: { id: 'p_cree', title: e.titre, kind: e.kind, brandId: e.brandId }, versionId: 'v1', deja: h.appels.creer.length > 1 }; },
 }));
-vi.mock('../components/InspoButtons', () => ({ SaveButton: () => <button type="button">★</button>, FollowButton: () => <button type="button">+ Suivre</button> }));
 
 import { annonceObservee, referenceSource, faitsProduit } from '@tiktrends/core';
 import { PreparerCreation } from '../components/studios/PreparerCreation';
-import { AdCard } from '../components/AdCard';
 
 const ANNONCE = {
   id: '9001', platform: 'meta', daysRunning: 64, mediaType: 'image', thumbnailUrl: 'https://cdn.exemple.test/v.jpg',
@@ -149,22 +146,5 @@ describe('brouillon rédigé · il reste dans sa marque', () => {
   });
 });
 
-describe('carte de Veille · le bouton s’ajoute, rien ne se perd', () => {
-  const carte = (props: Record<string, unknown>) => {
-    const d = document.createElement('div');
-    d.innerHTML = renderToStaticMarkup(<AdCard ad={{ ...ANNONCE, status: 'active' } as never} {...props} />);
-    return d;
-  };
-  it('en Veille et en Sauvegardes · « Préparer une création » est LE geste (aucun lien vers un ancien studio)', () => {
-    for (const d of [carte({ contexteRetour: 'q=serum', ctaSobre: true, cibles44: true }), carte({ cloneRef: '11111111-1111-4111-8111-111111111111', saved: true })]) {
-      expect([...d.querySelectorAll('button')].some((b) => b.textContent?.includes('Préparer une création'))).toBe(true);
-      expect(d.querySelector('a[href^="/studio"]')).toBeNull();
-    }
-  });
-  it('hors source accessible (découverte, tracker) · pas de bouton, le lien vers la préparation d’un projet', () => {
-    const d = carte({});
-    expect([...d.querySelectorAll('button')].some((b) => b.textContent?.includes('Préparer une création'))).toBe(false);
-    // Une piste qui tient (diffusée depuis 64 j) garde son libellé « Décline cette piste ».
-    expect(d.querySelector('a[href^="/studio/projets/nouveau?"]')?.textContent).toMatch(/Décline cette piste|Préparer une création/);
-  });
-});
+// Vague 4 · la carte V5 de la Veille (`AdCard`) est retirée · les cartes Spatial mènent à la
+// préparation d'un projet (`studioDepuisVeille`), gardé par `spatial-veille-gestes` et `studio-depuis-veille`.

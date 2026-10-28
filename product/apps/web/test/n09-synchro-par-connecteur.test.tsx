@@ -57,7 +57,8 @@ describe('N09 · les lecteurs Meta lisent la fraîcheur Meta, pas la valeur part
     expect(a).toMatch(/syncedAt: schema\.brands\.metaSyncedAt/);
   });
   it('Radar data ses créas Meta avec metaSyncedAt', () => {
-    const r = readFileSync(join(process.cwd(), 'app/(app)/radar/page.tsx'), 'utf8');
+    // Vague 4 · le Radar est servi par Spatial (page V5 retirée).
+    const r = readFileSync(join(process.cwd(), 'app/(spatial)/sp/radar/page.tsx'), 'utf8');
     expect(r).toMatch(/at: schema\.brands\.metaSyncedAt/);
   });
 });

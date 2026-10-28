@@ -30,7 +30,9 @@ for (const rel of ['spatial/vues/jarvis/Jarvis.tsx', 'spatial/vues/jarvis/Source
 // Les sections relocalisées (montées sur Adsmap, Analytics, Veille) vivent dans
 // `jarvis/sections` · même règle · un emoji réintroduit là-bas doit tomber ici.
 // (Les essais ont rejoint Résultats dans Spatial · gardés par `adsmap-sans-emoji`.)
-for (const f of ['SectionAttribution.tsx', 'SectionMarche.tsx']) {
+// Vague 4 · `SectionMarche` est retirée avec la Veille V5 · la mémoire marché Spatial (`marche-client`) est scannée.
+FICHIERS.push({ rel: 'spatial/vues/veille/marche-client.tsx', src: readFileSync(join(process.cwd(), 'spatial/vues/veille/marche-client.tsx'), 'utf8') });
+for (const f of ['SectionAttribution.tsx']) {
   FICHIERS.push({ rel: `jarvis/sections/${f}`, src: readFileSync(join(DIR, 'sections', f), 'utf8') });
 }
 

@@ -25,7 +25,8 @@ const WEB = process.cwd();
 const PERIMETRE = [
   'components',
   // Vague 3 · `brands` (la liste V5) et `console` sont retirés · servis par Spatial.
-  ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'credits', 'profile', 'support']
+  // Vague 4 · `radar` est retiré (Veille exclusive Spatial).
+  ...['dashboard', 'analytics', 'studio', 'tags', 'credits', 'profile', 'support']
     .map((d) => join('app', '(app)', d)),
   // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
   ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
@@ -36,11 +37,7 @@ const PERIMETRE = [
   // montés par le panneau Jarvis de la Veille V5.
   join('app', '(app)', 'jarvis', 'JarvisChat.tsx'),
   join('app', '(app)', 'jarvis', 'JarvisContexte.tsx'),
-  // Lot 19C · les écrans des formats créatifs (message 55) · `veille/formats`
-  // SEUL, pas toute la Veille ; le choix « Format » et Sauvegardes qui le porte.
-  join('app', '(app)', 'veille', 'formats'),
-  join('app', '(app)', 'saved', 'FormatChoix.tsx'),
-  join('app', '(app)', 'saved', 'page.tsx'),
+  // Lot 19C · les écrans des formats créatifs et Sauvegardes · retirés à la vague 4 (Veille exclusive Spatial).
   // Lot 19A · rendu dans la vue Analytics de l'Accueil (seul appelant).
   join('app', '(app)', 'jarvis', 'sections', 'SectionAttribution.tsx'),
 ];
@@ -49,14 +46,7 @@ const PERIMETRE = [
 export const HORS_LOT: Readonly<Record<string, string>> = {
   'components/AppShell.tsx': 'chrome de l’application · autre lot',
   'components/Breadcrumb.tsx': 'chrome · autre lot',
-  'components/AdCard.tsx': 'Veille · autre lot',
   'components/RetourVeille.tsx': 'Veille · autre lot',
-  'components/DefileAncreVeille.tsx': 'Veille · autre lot',
-  // Composants qui ne servent QUE la Bibliothèque · l'écran propriétaire les reprend.
-  // (Les composants de l'Accueil sont entrés au lot avec le lot 19A.)
-  'components/GrammaireCategorie.tsx': 'Bibliothèque seule',
-  'components/MarquesSuivies.tsx': 'Bibliothèque seule',
-  'components/TrackerFeed.tsx': 'Bibliothèque seule',
   // Chrome de l'application, hors <main> · menus déroulants et panneau d'aide
   // flottant (prolongement d'un contrôle de la barre), hors de la mesure des pages.
   'components/BrandSwitcher.tsx': 'chrome · menu de la barre',
@@ -70,10 +60,8 @@ export const HORS_LOT: Readonly<Record<string, string>> = {
  * Déclarations gardées exprès · et pourquoi. La clé est `fichier::extrait exact
  * de la ligne` · une exception ne vaut que dans SON fichier.
  */
-export const EXCEPTIONS_LIGNE_2: Readonly<Record<string, string>> = {
-  "components/SavedBoards.tsx::zIndex: 30, background: 'var(--surface)', border: '1px solid var(--line-2)', borderRadius: 12,":
-    'Sauvegardes · menu déroulant du sélecteur de board · prolonge son contrôle (même cas que Composer)',
-};
+// Vague 4 · l'exception de `SavedBoards` (menu du sélecteur de board) est partie avec le composant.
+export const EXCEPTIONS_LIGNE_2: Readonly<Record<string, string>> = {};
 export const EXCEPTIONS_RAYON: Readonly<Record<string, string>> = {};
 const exceptee = (table: Readonly<Record<string, string>>, f: string, l: string) =>
   Object.keys(table).some((k) => { const [fk, extrait] = k.split('::') as [string, string]; return fk === f && l.includes(extrait); });
@@ -162,7 +150,8 @@ describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   const lot = fichiers.filter(dansLeLot);
   it('on parcourt bien le périmètre du lot', () => {
     // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · plancher 120.
-    expect(lot.length).toBeGreaterThan(120);
+    // Mesuré : 117 après le retrait de la Veille V5 (28/10/2026, vague 4) · plancher 100.
+    expect(lot.length).toBeGreaterThan(100);
     expect(lot).toContain('components/ui.tsx');
     expect(lot).toContain('app/(app)/admin/finance/page.tsx');
     // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.

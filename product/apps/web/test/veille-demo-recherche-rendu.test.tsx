@@ -1,74 +1,62 @@
 import { describe, expect, it, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactElement } from 'react';
 
 /**
  * Recette #106 · constat Codex · en démonstration (aucune source branchée), la
  * Veille ignorait le mot-clé · `/veille?q=zzzzzzzz` montrait encore les deux
  * cartes d'échantillon et l'état « aucun résultat » était inatteignable.
  *
- * On REND la page elle-même (serveur simulé · pas de base, pas de réseau, pas
- * de source) et on lit le HTML · un mot-clé sans correspondance montre l'état
- * vide, un mot-clé qui correspond ne garde que sa carte.
+ * Vague 4 · la page V5 est retirée · la garde est portée sur Pubs du moment
+ * (Spatial) · on appelle la page elle-même (serveur simulé · pas de base, pas de
+ * réseau, pas de source) et on lit ce qu'elle donne à la vue · les cartes
+ * réellement affichées, l'état vide, le sous-titre.
  */
-vi.mock('next/navigation', () => ({ redirect: () => { throw new Error('redirect'); }, useRouter: () => ({ refresh: () => {}, push: () => {} }), usePathname: () => '/veille', useSearchParams: () => new URLSearchParams() }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error('redirect ' + u); }, useRouter: () => ({ refresh: () => {}, push: () => {} }), usePathname: () => '/veille', useSearchParams: () => new URLSearchParams() }));
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', role: 'owner', plan: 'business', user: { id: 'u', email: 'demo@exemple.invalid' } }) }));
 vi.mock('../lib/access', () => ({ effectiveAccess: () => ({}) }));
 vi.mock('../lib/rbac', async (orig) => ({ ...(await orig<typeof import('../lib/rbac')>()), canAccess: () => true }));
-vi.mock('@tiktrends/db', () => ({ db: null, schema: {} }));
+vi.mock('@tiktrends/db', async (orig) => ({ ...(await orig<typeof import('@tiktrends/db')>()), db: null }));
 vi.mock('../lib/brands', () => ({ getActiveBrand: async () => null }));
 vi.mock('../lib/veille-recette-base', () => ({ baseUrlRecette: () => undefined, cleEffective: () => undefined }));
-// Un lien client se distingue d'une navigation complète dans le HTML rendu.
-vi.mock('next/link', () => ({ default: ({ href, children, ...p }: { href: string; children: React.ReactNode }) => <a data-lien-client href={href} {...p}>{children}</a> }));
-vi.mock('../app/(app)/jarvis/sections/SectionMarche', () => ({ SectionMarche: () => null }));
-vi.mock('../components/AdCard', () => ({
-  AdCard: ({ ad }: { ad: { id: string; advertiserName?: string } }) => <article data-carte={ad.id}>{ad.advertiserName}</article>,
-  compact: (n: number) => String(n),
-}));
 
-import InspoPage from '../app/(app)/veille/page';
+import VeillePage from '../app/(spatial)/sp/veille/page';
 
-const rendre = async (sp: Record<string, string>) => renderToStaticMarkup(await InspoPage({ searchParams: Promise.resolve(sp) }));
-const cartes = (html: string) => [...html.matchAll(/data-carte="([^"]+)"/g)].map((m) => m[1]);
+type Props = { sous: string; cartes: Array<{ cle: string }>; vide: { titre: string; texte: string; action: { href: string; libelle: string } | null } | null };
+const visiter = async (sp: Record<string, string>) => ((await VeillePage({ searchParams: Promise.resolve(sp) })) as ReactElement<Props>).props;
+const cartes = (p: Props) => p.cartes.map((c) => c.cle);
 
 describe('Veille · démonstration · la recherche filtre vraiment l’échantillon', () => {
   it('sans mot-clé, l’échantillon entier', async () => {
-    expect(cartes(await rendre({})).length).toBeGreaterThanOrEqual(2);
+    expect(cartes(await visiter({})).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('un mot-clé sans correspondance montre l’état vide, plus aucune carte', async () => {
-    const html = await rendre({ q: 'zzzzzzzz' });
-    expect(cartes(html), 'le mot-clé est ignoré en démonstration').toEqual([]);
-    expect(html, 'l’état « aucun résultat » ne s’affiche pas').toContain('Aucune annonce dont le texte de l’annonce contient « zzzzzzzz »');
-    // Recette #106 (4f2d2d2) · le bouton ne naviguait pas en lien client depuis
-    // `?q=…` · la remise à zéro est une navigation complète.
-    const reinit = [...html.matchAll(/<a([^>]*)>Réinitialiser<\/a>/g)].map((m) => m[1]);
-    expect(reinit.length, 'pas de Réinitialiser dans l’état vide').toBeGreaterThan(0);
-    for (const attrs of reinit) {
-      expect(attrs).toContain('href="/veille"');
-      expect(attrs, 'Réinitialiser est un lien client · il ne navigue pas depuis /veille?q=…').not.toContain('data-lien-client');
-    }
+  it('un mot-clé sans correspondance montre l’état vide, plus aucune carte · avec une sortie', async () => {
+    const p = await visiter({ q: 'zzzzzzzz' });
+    expect(cartes(p), 'le mot-clé est ignoré en démonstration').toEqual([]);
+    expect(p.vide?.titre, 'l’état « aucun résultat » ne s’affiche pas').toContain('Aucune annonce dont le texte de l’annonce contient « zzzzzzzz »');
+    expect(p.vide?.action?.href).toMatch(/^\/veille/);
   });
 
   it('un mot-clé qui correspond ne garde que sa carte (dans le périmètre choisi)', async () => {
-    const html = await rendre({ q: 'neutrogena', searchIn: 'brand' });
-    expect(cartes(html)).toEqual(['sample_neutrogena']);
-    expect(html).not.toContain('Aucune annonce dont');
+    const p = await visiter({ q: 'neutrogena', searchIn: 'brand' });
+    expect(cartes(p)).toEqual(['meta:sample_neutrogena']);
+    expect(p.vide).toBeNull();
+  });
+
+  it('ex #106b · une marque introuvable dans le texte · l’état vide nomme le périmètre et propose de chercher dans la marque', async () => {
+    const p = await visiter({ q: 'neutrogena' });
+    expect(cartes(p)).toEqual([]);
+    expect(p.vide?.titre, 'l’état vide ne dit pas où l’on a cherché').toContain('Aucune annonce dont le texte de l’annonce contient « neutrogena »');
+    expect(p.vide?.action, 'pas de passage vers la marque').toEqual({ href: '/veille?q=neutrogena&searchIn=brand', libelle: 'Chercher dans le nom de la marque' });
   });
 
   it('un filtre posé s’applique aussi (média image · aucun visuel dans l’échantillon)', async () => {
-    expect(cartes(await rendre({ media: 'image' })), 'le filtre média est ignoré en démonstration').toEqual([]);
+    expect(cartes(await visiter({ media: 'image' })), 'le filtre média est ignoré en démonstration').toEqual([]);
   });
 
-  it('le bandeau de démonstration ne parle plus de configuration serveur', async () => {
-    const html = await rendre({});
-    expect(html).toContain('Mode démonstration');
-    expect(html).not.toMatch(/configur[ée]+ sur le serveur/);
-  });
-
-  it('l’aide nomme l’action réelle de la carte et ne promet aucun résultat', async () => {
-    const html = await rendre({});
-    expect(html, 'l’aide promet un bouton qui n’existe pas').not.toContain('Générer une variante');
-    expect(html, 'l’aide ne nomme pas le geste réel de la carte').toContain('Préparer une création');
-    expect(html).toContain('pas un résultat garanti');
+  it('la démonstration est dite, sans parler de configuration serveur', async () => {
+    const p = await visiter({});
+    expect(p.sous).toMatch(/^Démonstration · /);
+    expect(p.sous).not.toMatch(/configur[ée]+ sur le serveur/);
   });
 });

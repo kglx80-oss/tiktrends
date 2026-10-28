@@ -22,7 +22,8 @@ describe('veilleSeedDefaut · le mot-clé d’amorçage', () => {
   });
 });
 
-const PAGE = readFileSync(join(process.cwd(), 'app/(app)/veille/page.tsx'), 'utf8');
+// Vague 4 · la page V5 est retirée · Pubs du moment (Spatial) porte le même défaut.
+const PAGE = readFileSync(join(process.cwd(), 'app/(spatial)/sp/veille/page.tsx'), 'utf8');
 
 describe('la page Veille peuple l’écran par défaut', () => {
   it('sans requête, elle amorce un browse gagnants au lieu de rester vide', () => {
@@ -32,15 +33,17 @@ describe('la page Veille peuple l’écran par défaut', () => {
     // anciennes » sur les actives · le seuil dur de jours n'est PAS branché sur
     // la source (R14) · on ne le prétend donc plus, le tri suffit à faire remonter
     // les installées.
-    const bloc = PAGE.slice(PAGE.indexOf('} else if (platform === \'meta\')'), PAGE.indexOf('// État sauvegardé'));
-    expect(bloc, 'le tri gagnant a disparu du browse par défaut').toMatch(/sortBy: 'longestRunning'/);
+    const bloc = PAGE.slice(PAGE.indexOf('} else if (platform === \'meta\')'), PAGE.indexOf('const contexte = contexteVeille(sp);'));
+    // Sans requête ni choix, le tri envoyé est « plus anciennes » (gagnants installés).
+    expect(PAGE, 'le tri gagnant a disparu du browse par défaut').toMatch(/c\.sort \?\? \(query \? 'newest' : 'longestRunning'\)/);
+    expect(bloc).toMatch(/sortBy: sort/);
     expect(bloc, 'le statut actif a disparu du browse par défaut').toMatch(/status: 'active'/);
     // On ne passe plus un seuil de jours que la source ignore silencieusement.
     expect(bloc, 'un seuil de jours non honoré est encore envoyé').not.toMatch(/minDaysRunning: 30/);
   });
 
   it('si la catégorie ne rend rien, elle se rabat sur le marché large · jamais vide', () => {
-    const bloc = PAGE.slice(PAGE.indexOf('} else if (platform === \'meta\')'), PAGE.indexOf('// État sauvegardé'));
+    const bloc = PAGE.slice(PAGE.indexOf('} else if (platform === \'meta\')'), PAGE.indexOf('const contexte = contexteVeille(sp);'));
     expect(bloc, 'pas de détection d’un résultat vide').toMatch(/ads\.length === 0/);
     expect(bloc, 'pas de repli sur la niche large · la Veille resterait vide').toMatch(/NICHE_DEFAUT/);
   });

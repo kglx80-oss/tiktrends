@@ -12,8 +12,6 @@ import { join } from 'node:path';
  * pictogrammes colorés d'interface.
  */
 const FICHIERS = [
-  'components/AdCard.tsx',
-  'app/(app)/saved/page.tsx',
   'components/AssistantChat.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
@@ -29,7 +27,7 @@ describe('Cartes & découverte lot H · plus aucun emoji d’interface', () => {
   });
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
-    expect(tout).toMatch(/<Icon name="trophy"/);      // AdCard
-    expect(tout).toMatch(/<Icon name="sparkles"/);     // AdCard · saved · AssistantChat
+    // Vague 4 · AdCard et la page Sauvegardes V5 sont retirées (la Veille est servie par Spatial).
+    expect(tout).toMatch(/<Icon name="sparkles"/);     // AssistantChat
   });
 });

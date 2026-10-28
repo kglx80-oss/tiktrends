@@ -49,14 +49,15 @@ describe('briefConcurrent · la forme du compte', () => {
 });
 
 const ACTION = readFileSync(join(process.cwd(), 'app/actions/brief-marque.ts'), 'utf8');
-const PAGE = readFileSync(join(process.cwd(), 'app/(app)/saved/page.tsx'), 'utf8');
+// Vague 4 · les marques suivies vivent dans le Radar Spatial (la page V5 Sauvegardes est retirée).
+const PAGE = readFileSync(join(process.cwd(), 'spatial/vues/veille/Radar.tsx'), 'utf8');
 
 describe('le brief marque reste GRATUIT et branché', () => {
   it('l’action n’appelle aucun modèle · pas de dépense', () => {
     expect(ACTION).toMatch(/briefConcurrent\(/);
     expect(ACTION, 'le brief marque ne doit pas décrire au modèle (coût)').not.toMatch(/analyzeAdAsset|guardedAnthropic|generate/);
   });
-  it('la page Sauvegardes rend le composant Marques suivies', () => {
-    expect(PAGE).toMatch(/MarquesSuivies/);
+  it('le Radar rend le brief de chaque marque suivie', () => {
+    expect(PAGE).toMatch(/<BriefMarque platform=\{m\.gestes\.plateforme\} nom=\{m\.nom\} \/>/);
   });
 });

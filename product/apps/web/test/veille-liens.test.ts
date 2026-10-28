@@ -142,24 +142,16 @@ describe('siteMarque · domaine puis URL', () => {
   });
 });
 
-const CARD = readFileSync(join(process.cwd(), 'components/AdCard.tsx'), 'utf8');
-const SWIPE = readFileSync(join(process.cwd(), 'app/(app)/veille/scale/SwipeFile.tsx'), 'utf8');
-// Le lien bibliothèque des marques suivies vit désormais dans le composant
-// client `MarquesSuivies` (qui porte aussi le brief à la demande).
-const SAVED = readFileSync(join(process.cwd(), 'components/MarquesSuivies.tsx'), 'utf8');
+// Vague 4 · les surfaces V5 (carte, swipe file, marques suivies) sont retirées · les écrans Spatial
+// de la Veille construisent le lien bibliothèque avec la même règle.
+const SURFACES = ['app/(spatial)/sp/veille/cartes.ts', 'app/(spatial)/sp/veille/scale/page.tsx', 'app/(spatial)/sp/radar/page.tsx']
+  .map((f) => [f, readFileSync(join(process.cwd(), f), 'utf8')] as const);
 
 describe('les surfaces de veille exposent bien le lien bibliothèque', () => {
-  it('carte, swipe file et marques suivies appellent bibliothequePub', () => {
-    expect(CARD).toMatch(/bibliothequePub\(/);
-    expect(SWIPE).toMatch(/bibliothequePub\(/);
-    expect(SAVED).toMatch(/bibliothequePub\(/);
-  });
-
-  // CDC v8 · F07 · carte et swipe file nomment le repli via `libelleBibliotheque`
-  // (« … rechercher l'annonceur ») · le lien ne se présente plus comme la créa
-  // exacte. Marques suivies porte déjà un libellé générique honnête.
-  it('carte et swipe file nomment le repli comme une recherche', () => {
-    expect(CARD).toMatch(/libelleBibliotheque\(/);
-    expect(SWIPE).toMatch(/libelleBibliotheque\(/);
+  it('carte, ce qui scale et marques suivies appellent bibliothequePub et nomment le repli comme une recherche', () => {
+    for (const [f, src] of SURFACES) {
+      expect(src, f).toMatch(/bibliothequePub\(/);
+      expect(src, f).toMatch(/libelleBibliotheque\(/);
+    }
   });
 });

@@ -43,7 +43,6 @@ const HORS_TITRE_DE_PAGE: Record<string, string> = {
   // interdits (admin/equipe) · traités à leur fusion.
   'admin/page.tsx': 'en-tête de l’espace ADMIN+ · fichier partagé avec le lot 19B',
   'admin/equipe/page.tsx': 'écran Équipe ADMIN+ · hors périmètre (consigne)',
-  'saved/page.tsx': 'zone du lot 19C',
 };
 
 const APP = join(process.cwd(), 'app', '(app)');
@@ -65,7 +64,8 @@ describe('Lot 19 · chaque titre d’écran porte le jeton h1 de la charte', () 
     // Mesuré : 23 écrans V5 titrés après le retrait de l'Admin V5 (28/10, vague 3
     // Spatial · les écrans retirés quittent le parcours). Le plancher ne garde que
     // la lecture des fichiers (il tombe à 0 si le parcours casse).
-    expect(avecTitre.length).toBeGreaterThanOrEqual(10);
+    // Mesuré : 9 après le retrait de la Veille V5 (28/10/2026, vague 4) · plancher 4.
+    expect(avecTitre.length).toBeGreaterThanOrEqual(4);
   });
   for (const f of avecTitre) {
     const nom = relative(APP, f).split(sep).join('/');
@@ -85,12 +85,4 @@ describe('Lot 19 · chaque titre d’écran porte le jeton h1 de la charte', () 
   }
 });
 
-describe('Lot 19 · dette 18B · le lien « Veille » de Ce qui scale est une cible de 44 px', () => {
-  it('mesuré à 20 px de haut avant · il porte la hauteur minimale de la charte', () => {
-    const src = readFileSync(join(APP, 'veille', 'scale', 'page.tsx'), 'utf8');
-    const lien = /<Link href="\/veille" style=\{\{([^}]*)\}\}>Veille<\/Link>/.exec(src)?.[1];
-    expect(lien, 'le lien « Veille » du titre a disparu').toBeDefined();
-    expect(lien, 'le lien « Veille » n’a pas la hauteur de cible de la charte').toMatch(/minHeight: CIBLE_TACTILE_MIN/);
-    expect(lien, 'sans inline-flex, minHeight ne s’applique pas à un lien en ligne').toMatch(/display: 'inline-flex'/);
-  });
-});
+// Vague 4 · « Ce qui scale » est servi par Spatial (sous-navigation de la Veille) · le lien V5 « Veille » est parti avec la page.

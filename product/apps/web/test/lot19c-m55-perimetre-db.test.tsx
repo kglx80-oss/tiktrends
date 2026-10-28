@@ -58,7 +58,9 @@ vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }), u
 import { db, schema } from '@tiktrends/db';
 import { classerFormatSauvegarde, saveAd } from '../app/actions/inspo';
 import { trackSavedAdAction } from '../app/actions/adsmap-bridge';
-import FormatsPage from '../app/(app)/veille/formats/page';
+// Vague 4 · la page V5 `/veille/formats` est retirée · ses gardes de rendu sont portées sur les
+// Sauvegardes Spatial filtrées par format (`/saved?format=…`), même base, mêmes données.
+import SavedPage from '../app/(spatial)/sp/saved/page';
 import type { InspoAd } from '@tiktrends/integrations';
 
 const ad = (id: string, mediaType: string): InspoAd =>
@@ -71,8 +73,8 @@ async function ligne(ws: string, ext: string) {
     .where(and(eq(schema.savedAds.workspaceId, ws), eq(schema.savedAds.platform, 'meta'), eq(schema.savedAds.externalId, ext)));
   return r;
 }
-const rendre = async (sp: Record<string, string> = {}) => renderToStaticMarkup(await FormatsPage({ searchParams: Promise.resolve(sp) }));
-const carte = (h: string, ext: string) => { const i = h.indexOf(`data-annonce="${ext}"`); return i < 0 ? '' : h.slice(i, h.indexOf('</article>', i)); };
+const rendre = async (sp: Record<string, string> = {}) => renderToStaticMarkup(await SavedPage({ searchParams: Promise.resolve(sp) }));
+const carte = (h: string, ext: string) => [...h.matchAll(/<article class="vitem">([\s\S]*?)<\/article>/g)].map((m) => m[1]!).find((c) => c.includes(`Annonceur ${ext}<`)) ?? '';
 
 beforeAll(async () => {
   await db!.insert(schema.users).values([
@@ -130,7 +132,7 @@ describe('b · auteur du classement', () => {
     expect(h).not.toMatch(/@(agence-a|autre-espace)\.test/);
     expect(carte(h, 'y-sans-nom'), 'un membre sans nom n’a pas de libellé').toContain('par un membre de l’espace');
     expect(carte(h, 'y-externe-sans-nom')).toContain('classée le 04/10/2026');
-    expect(carte(h, 'y-externe-sans-nom'), 'un auteur hors de l’espace est nommé').not.toMatch(/classée le [^<]*<!-- --> par /);
+    expect(carte(h, 'y-externe-sans-nom'), 'un auteur hors de l’espace est nommé').not.toMatch(/classée le 04\/10\/2026 par /);
   });
 });
 
@@ -158,14 +160,14 @@ describe('c · espace ET marque active', () => {
     expect((await ligne(ids.wsB, 'b-seule'))!.snapshot).toEqual(avant!.snapshot);
   });
 
-  it('/veille/formats · la marque active seule · ni l’autre marque ni l’autre espace', async () => {
+  it('les sauvegardes à classer · la marque active seule · ni l’autre marque ni l’autre espace', async () => {
     const h = await rendre({ format: 'non_classe' });
-    expect(h).toContain('data-annonce="y-a-classer"');
+    expect(carte(h, 'y-a-classer'), 'la sauvegarde à classer de la marque active manque').not.toBe('');
     expect(h, 'une sauvegarde d’une autre marque est listée').not.toContain('x-autre-marque');
     expect(h, 'une sauvegarde d’un autre espace est listée').not.toContain('b-seule');
     session.marque = 'X';
     const hx = await rendre({ format: 'non_classe' });
-    expect(hx).toContain('data-annonce="x-autre-marque"');
+    expect(carte(hx, 'x-autre-marque')).not.toBe('');
     expect(hx).not.toContain('y-a-classer');
   });
 
@@ -207,11 +209,11 @@ describe('d · pont Adsmap · droit vérifié côté serveur', () => {
 
   it('le bouton suit le même droit · absent en Core, présent en Plus', async () => {
     const core = await rendre({ format: 'packshot' });
-    expect(core).toContain('data-annonce="y-camille"');
-    expect(core, 'le pont Adsmap est proposé sans le droit Adsmap').not.toContain('Préparer un test · Adsmap');
+    expect(carte(core, 'y-camille')).not.toBe('');
+    expect(core, 'le pont Résultats est proposé sans le droit Adsmap').not.toContain('Préparer un test</button>');
     session.plan = 'plus';
     const plus = await rendre({ format: 'packshot' });
-    expect(plus).toContain('Préparer un test · Adsmap');
+    expect(plus).toContain('Préparer un test</button>');
   });
 });
 
@@ -221,7 +223,7 @@ describe('e · ancienne taxonomie déjà en base', () => {
     const c = carte(h, 'y-ancienne');
     expect(c, 'la sauvegarde à l’ancienne valeur n’est pas rendue').not.toBe('');
     expect(c).toContain('<option value="face_camera" selected="">Face caméra</option>');
-    expect(c, 'ancienne valeur reclassée en silence').toContain('classée avec une version antérieure de la liste, à revoir');
+    expect(c, 'ancienne valeur reclassée en silence').toMatch(/classée avec une version antérieure de la liste, à revoir/i);
   });
 
   it('une valeur retirée (ai_generated) · non classée, et signalée', async () => {
@@ -229,7 +231,7 @@ describe('e · ancienne taxonomie déjà en base', () => {
     const c = carte(h, 'y-retiree');
     expect(c, 'la sauvegarde à la valeur retirée n’est pas rendue').not.toBe('');
     expect(c).toContain('<option value="non_classe" selected="">Non classé</option>');
-    expect(c, 'valeur retirée effacée en silence').toContain('classée avec une version antérieure de la liste, à revoir');
+    expect(c, 'valeur retirée effacée en silence').toMatch(/classée avec une version antérieure de la liste, à revoir/i);
   });
 
   it('un classement v1 n’est PAS signalé', async () => {

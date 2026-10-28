@@ -59,9 +59,7 @@ describe('EmptyLine · une bonne nouvelle se voit, un manque reste sobre', () =>
 describe('les états vides migrés adoptent le composant partagé', () => {
   const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
   const CAS: Array<{ fichier: string; attendus: string[] }> = [
-    { fichier: 'components/SavedBoards.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/veille'"] },
-    { fichier: 'app/(app)/saved/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/veille'"] },
-    { fichier: 'app/(app)/veille/scale/page.tsx', attendus: ['<Empty', 'tone="wait"'] },
+    // Vague 4 · Sauvegardes et Ce qui scale sont servis par Spatial (états vides `EtatVide`, gardés par leurs tests Spatial).
     // Produits d'une marque : l'ancienne phrase grise devient un `todo` dont le
     // geste est le formulaire d'ajout (children) · et le rappel comptes pub
     // adopte la même grammaire avec une sortie vers les Connexions.

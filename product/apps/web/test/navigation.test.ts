@@ -360,7 +360,8 @@ describe('les CTA de deep-link portent un paramètre que la cible relit', () => 
    * l'angle transmis arrive bien comme objectif proposé.
    */
   it('le CTA Radar → Studios émet un paramètre lu par la préparation d’un projet', () => {
-    const radar = readFileSync(join(process.cwd(), 'app', '(app)', 'radar', 'page.tsx'), 'utf8');
+    // Vague 4 · le Radar est servi par Spatial · le CTA de chaque créa notée vient du noyau (`ligneRadarCreatif`).
+    const radar = readFileSync(join(process.cwd(), '..', '..', 'packages', 'core', 'src', 'spatial', 'veille', 'radar-creatif.ts'), 'utf8');
     const appels = [...radar.matchAll(/lienNouveauProjet\(\{([^}]*)\}\)/g)].map((m) => m[1]!);
     expect(appels.length, 'Le Radar doit garder un CTA vers les Studios').toBeGreaterThan(0);
     const emis = appels.flatMap((a) => [...a.matchAll(/(\w+):/g)].map((m) => m[1]!));

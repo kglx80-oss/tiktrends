@@ -157,9 +157,8 @@ const EXCEPTIONS: Record<string, string> = {
   'app/api/cron/videos-historiques/route.ts': 'cron protégé',
   // Cache technique BORNÉ (niches proposées × pays proposés, `veillePersistable`)
   // qui évite de repayer le fournisseur de veille · seul `setVeilleCache` est
-  // toléré, prouvé borné par `l0-veille-scale.test.tsx`.
-  'app/(app)/veille/scale/page.tsx': 'setVeilleCache',
-  // Même cache, même règle `veillePersistable`, dans l'interface Spatial.
+  // toléré, prouvé borné par `spatial-veille-scale-cache.test.tsx` (la page V5
+  // `/veille/scale` est retirée, vague 4).
   'app/(spatial)/sp/veille/scale/page.tsx': 'setVeilleCache',
 };
 

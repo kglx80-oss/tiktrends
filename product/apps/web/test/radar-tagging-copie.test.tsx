@@ -23,10 +23,9 @@ describe('Radar créatif · un seul nom, fidèle à ce que fait la page', () => 
     expect(FEATURES.find((f) => f.key === 'radar')!.label).toBe('Radar créatif');
     expect(routeLabel('/radar')).toBe('Radar créatif');
     const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
-    expect(src('app/(app)/radar/page.tsx')).toContain('<h1 style={h1}>Radar créatif</h1>');
-    // UX V2 · lot 4a · le lien Veille → Radar est l'ONGLET de section (libellé
-    // FEATURES, vérifié ci-dessus) · la page ne porte plus de raccourci doublon.
-    expect(src('app/(app)/veille/page.tsx')).not.toContain('href="/radar"');
+    // Vague 4 · les pages V5 `/radar` et `/veille` sont retirées · le Radar créatif est la section
+    // « Tes créas notées » du Radar Spatial.
+    expect(src('spatial/vues/veille/Radar.tsx')).toContain('<h2>Radar créatif · tes créas notées</h2>');
     expect(src('components/AssistantHome.tsx')).toContain("titre: 'Radar créatif', sous: 'Repérer les créas à retravailler'");
   });
   it('plus aucun « Radar produits » ni « produits qui montent » affiché nulle part', () => {

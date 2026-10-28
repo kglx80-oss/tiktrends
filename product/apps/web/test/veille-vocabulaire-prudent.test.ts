@@ -12,10 +12,11 @@ import { fileURLToPath } from 'node:url';
  */
 describe('F10 · la Veille ne parle plus de « gagnants » installés', () => {
   const here = dirname(fileURLToPath(import.meta.url));
-  const page = readFileSync(join(here, '../app/(app)/veille/page.tsx'), 'utf8');
+  // Vague 4 · Pubs du moment (Spatial) · la page V5 est retirée.
+  const page = readFileSync(join(here, '../app/(spatial)/sp/veille/page.tsx'), 'utf8');
 
   it('emploie « pistes installées », jamais « gagnants installés »', () => {
-    expect(page).toContain('pistes installées');
+    expect(page).toContain('Pistes installées de ta catégorie');
     expect(page).not.toContain('gagnants installés');
   });
 });

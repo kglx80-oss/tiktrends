@@ -34,7 +34,8 @@ describe('consigneAngleMarche · reprends l’angle, pas les mots', () => {
   });
 });
 
-const MARQUES = readFileSync(join(process.cwd(), 'components/MarquesSuivies.tsx'), 'utf8');
+// Vague 4 · le brief d'une marque suivie vit dans le Radar Spatial (`BriefMarque`).
+const MARQUES = readFileSync(join(process.cwd(), 'spatial/vues/veille/radar-client.tsx'), 'utf8');
 
 describe('le brief arme le studio', () => {
   it('la puce ouvre la préparation d’un projet avec la consigne d’angle dominant', () => {

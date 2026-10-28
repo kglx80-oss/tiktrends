@@ -40,7 +40,8 @@ const CAS: Array<[string, string]> = [
 /** Chemins qui ne sont PAS des adresses retirées · ni appariés, ni touchés. */
 // `/studio/projets` (liste), Résultats, `/assets` et Jarvis sont des écrans Spatial EXCLUSIFS depuis la vague 2 (« Nouveau projet » et l'éditeur
 // d'image depuis la vague 3) · réécrits même en mode V5, gardés plus bas.
-const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets/abc', '/studio/ads/x', '/saved', '/veille', '/api/health', '/_next/static/chunks/main.js'];
+// Vague 4 · `/saved` et `/veille` sont des écrans Spatial EXCLUSIFS (réécrits même en mode V5) · retirés de cette liste.
+const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets/abc', '/studio/ads/x', '/api/health', '/_next/static/chunks/main.js'];
 
 const appeler = (adresse: string, headers: Record<string, string> = {}) => middleware(new NextRequest(HOTE + adresse, { headers }));
 
