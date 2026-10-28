@@ -2,6 +2,7 @@ import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { SousNavVeille, EtatVide } from './base';
 import { BarreVeille, CarteVeille, type PropsBarreVeille } from './client';
 import type { CarteVeilleDonnees } from './types';
+import { MemoireMarche } from './marche-client';
 
 /**
  * « Pubs du moment » · `docs/spatial/reference/veille.html`, balisage à
@@ -24,6 +25,10 @@ export interface PropsPubsDuMoment {
   vide: { titre: string; texte: string; action: { href: string; libelle: string } | null } | null;
   pages: { precedente: string | null; suivante: string | null; libelle: string } | null;
   coutJarvis: string;
+  /** Vague 3 · « Revenir à ta recherche » (arrivé de « Ses annonces dans la Veille ») · le terme d'origine. */
+  retour?: { href: string; terme: string | null } | null;
+  /** Vague 3 · la mémoire marché (offre Résultats, marque active) · absente sinon. */
+  marche?: { marque: string } | null;
 }
 
 export function PubsDuMoment(p: PropsPubsDuMoment) {
@@ -32,6 +37,7 @@ export function PubsDuMoment(p: PropsPubsDuMoment) {
     <Vue>
       <EnTete titre="Pubs du moment" sous={p.sous} />
       <SousNavVeille actif="/veille" pastilleRadar={p.pastilleRadar} />
+      {p.retour && <p style={{ margin: '0 0 10px' }}><Lien className="btn sm" href={p.retour.href}><Ic n="back" />Revenir à ta recherche{p.retour.terme ? ` · « ${p.retour.terme} »` : ''}</Lien></p>}
       <div className="xtop">
         <form className="xai" id="xaiform" autoComplete="off" action="/veille" method="get">
           <label className="xsearch xbig">
@@ -65,6 +71,7 @@ export function PubsDuMoment(p: PropsPubsDuMoment) {
           {p.pages.suivante ? <Lien className="btn sm" href={p.pages.suivante}>Suivant<Ic n="arrow" /></Lien> : <button className="btn sm" type="button" disabled>Suivant<Ic n="arrow" /></button>}
         </div>
       )}
+      {p.marche && <MemoireMarche marque={p.marche.marque} />}
     </Vue>
   );
 }

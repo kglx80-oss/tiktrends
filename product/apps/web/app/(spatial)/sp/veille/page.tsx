@@ -3,7 +3,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
 import {
-  analyserRechercheVeille, contexteVeille, filtrerEchantillonVeille, lienVeille, lireCriteresVeille, lireCpmVeille, NICHE_DEFAUT,
+  analyserRechercheVeille, contexteVeille, lienRetourVeille, termeRetourVeille, filtrerEchantillonVeille, lienVeille, lireCriteresVeille, lireCpmVeille, NICHE_DEFAUT,
   perimetreVeille, pucesVeille, suggestionsVeille, veilleSeedDefaut, videRechercheVeille, type PerimetreVeille, type TriVeille,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -22,6 +22,8 @@ export const dynamic = 'force-dynamic';
 
 const Veille = FEATURES.find((f) => f.key === 'inspo')!;
 const LIMIT = 24;
+// La mémoire marché reste derrière l'offre Résultats (`adsmap`) et une marque active · même porte que l'ancienne section.
+const RESULTATS = FEATURES.find((f) => f.key === 'adsmap')!;
 
 /**
  * « Pubs du moment » (Spatial) · mêmes gardes, mêmes appels à la source, mêmes
@@ -192,6 +194,8 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
       vide={vide}
       pages={pagine ? { precedente: page > 1 ? lienVeille(c, { page: page - 1 }) : null, suivante: page < totalPages ? lienVeille(c, { page: page + 1 }) : null, libelle: `${page} / ${totalPages}` } : null}
       coutJarvis={COUT_CONVERSATION_JARVIS}
+      retour={(() => { const href = lienRetourVeille(sp.rv); return href ? { href, terme: termeRetourVeille(sp.rv) } : null; })()}
+      marche={brand && canAccess(access, RESULTATS) ? { marque: brand.name } : null}
     />
   );
 }
