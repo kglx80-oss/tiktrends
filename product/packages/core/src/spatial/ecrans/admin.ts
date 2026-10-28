@@ -19,7 +19,7 @@ export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/admin/churn', section: 'admin', exclusif: true },
   { chemin: '/admin/finance', section: 'admin', exclusif: true },
   { chemin: '/admin/plans', section: 'admin', exclusif: true },
-  { chemin: '/admin/signups', section: 'admin' },
+  { chemin: '/admin/signups', section: 'admin', exclusif: true },
   { chemin: '/admin/sav', section: 'admin', exclusif: true },
   { chemin: '/admin/depenses', section: 'admin', exclusif: true },
   { chemin: '/admin/prompts', section: 'admin', exclusif: true },
@@ -35,4 +35,6 @@ export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/admin/connaissances', section: 'admin', exclusif: true },
   { chemin: '/admin/studios-interrupteurs', section: 'admin', exclusif: true },
   { chemin: '/console', section: 'admin', exclusif: true },
+  // Vague 4 · « Crédits & marges » (écran V5 `/credits` sans fragment de maquette).
+  { chemin: '/credits', section: 'admin', exclusif: true },
 ];

@@ -47,7 +47,9 @@ const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/bill
   '/admin', '/admin/equipe', '/admin/plans', '/admin/paiement', '/admin/incidents', '/admin/depenses', '/admin/intelligence',
   '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console',
   // Vague 2 Spatial v4 · Finance et Inscriptions sont rendues par leur page Spatial (même porte que l'ancienne page).
-  '/admin/finance', '/admin/signups']);
+  '/admin/finance', '/admin/signups',
+  // Vague 4 · « Crédits & marges ».
+  '/credits']);
 const sp = { searchParams: Promise.resolve({}) };
 const PAGES: Record<string, Rendu> = {
   // Vague 2 (et vague 4 · `/profile`) · ces écrans n'ont plus de page V5 · seul Spatial les sert
@@ -72,7 +74,7 @@ const PAGES: Record<string, Rendu> = {
   '/admin/ia-studios': async () => (await import('../app/(spatial)/sp/admin/ia-studios/page')).default(),
   '/admin/studios-interrupteurs': async () => (await import('../app/(spatial)/sp/admin/studios-interrupteurs/page')).default(sp),
   '/console': async () => (await import('../app/(spatial)/sp/console/page')).default(sp),
-  '/credits': async () => (await import('../app/(app)/credits/page')).default(sp),
+  '/credits': async () => (await import('../app/(spatial)/sp/credits/page')).default(),
 };
 
 const base = (o: Record<string, unknown>) => ({ user: { id: ids.user, email: 'client@exemple.invalid', name: 'Client' }, workspaceId: ids.ws, workspaceName: 'Espace', plan: 'business', equipe: null, ...o });
