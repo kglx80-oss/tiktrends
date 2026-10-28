@@ -244,3 +244,201 @@ describe('Spatial · Radar · marques suivies, nouveautés, exploration', () => 
     expect(document.body.textContent).toContain('Produit centré');
   });
 });
+
+/* ───────────────────────── Vague 4 · les gestes de l'écran Formats V5, dans Sauvegardes ───────────────────────── */
+
+const { TousLesFormats } = await import('../spatial/vues/formats/TousLesFormats');
+
+describe('Spatial · Sauvegardes · vague 4 · tri, incertaines, filtres de départ', () => {
+  const G = { formatFerme: null, test: { ouvert: true as const } };
+  const noms = () => [...document.querySelectorAll('.vitem .who')].map((w) => w.textContent?.replace(/^M|Meta$/g, ''));
+  it('les quatre tris de l’écran Formats réordonnent réellement les cartes', async () => {
+    await monter(<CollectionsSauvegardes gestes={G} creerProjet="/p" items={[
+      sauvegarde('1', { sauvegardeLe: '2026-10-01T00:00:00Z', jours: 5 }),
+      sauvegarde('2', { sauvegardeLe: '2026-10-03T00:00:00Z', jours: 50 }),
+      sauvegarde('3', { sauvegardeLe: '2026-10-02T00:00:00Z', jours: 20 }),
+    ]} />);
+    expect(noms()).toEqual(['Marque 2', 'Marque 3', 'Marque 1']);
+    await choisir(document.querySelector('select[aria-label="Trier les sauvegardes"]') as HTMLSelectElement, 'ancien');
+    expect(noms()).toEqual(['Marque 1', 'Marque 3', 'Marque 2']);
+    await choisir(document.querySelector('select[aria-label="Trier les sauvegardes"]') as HTMLSelectElement, 'duree');
+    expect(noms()).toEqual(['Marque 2', 'Marque 3', 'Marque 1']);
+  });
+  it('une incertaine a sa propre file · elle ne se mêle pas aux non classées', async () => {
+    await monter(<CollectionsSauvegardes gestes={G} creerProjet="/p" items={[sauvegarde('1'), sauvegarde('2', { format: { id: null, versionAncienne: true, etat: 'incertain' } })]} />);
+    const filtre = document.querySelector('select[aria-label="Filtrer par format"]') as HTMLSelectElement;
+    expect([...filtre.options].map((o) => o.textContent)).toContain('Incertaines · exclues des formats');
+    await choisir(filtre, 'non_classe');
+    expect(noms()).toEqual(['Marque 1']);
+    await choisir(filtre, 'incertain');
+    expect(noms()).toEqual(['Marque 2']);
+    expect(rendre(<CollectionsSauvegardes gestes={G} creerProjet="/p" items={[sauvegarde('1')]} />)).not.toContain('Incertaines');
+  });
+  it('les filtres de départ (lus dans l’adresse par la page) s’appliquent au premier rendu · la provenance s’affiche', () => {
+    const html = rendre(<CollectionsSauvegardes gestes={G} creerProjet="/p" filtresInitiaux={{ texte: '', format: 'packshot', media: 'tous', plateforme: 'tous', tri: 'recent' }} items={[
+      sauvegarde('1'), sauvegarde('2', { format: { id: 'packshot', versionAncienne: false, etat: 'classe' }, sauvegardeLe: '2026-10-05T09:00:00Z', classeeLe: '2026-10-06T09:00:00Z', auteur: 'Kevin' }),
+    ]} />);
+    expect((html.match(/class="vitem"/g) ?? []).length).toBe(1);
+    expect(html).toContain('Meta · sauvegardée le 05/10/2026 · classée le 06/10/2026 par Kevin');
+  });
+});
+
+describe('Spatial · Tous les formats · vague 4 · les files de classement', () => {
+  it('« Classer » et « incertaines » mènent aux Sauvegardes filtrées · absentes sans file', () => {
+    const base = { sousNav: [], styles: [], image: null, marque: null, perimetre: 'p' };
+    const html = rendre(<TousLesFormats {...base} files={[{ href: '/saved?format=non_classe', libelle: 'Classer mes 3 sauvegardes' }]} />);
+    expect(html).toMatch(/<a class="chip" data-file-classement="true" href="\/saved\?format=non_classe">Classer mes 3 sauvegardes/);
+    expect(rendre(<TousLesFormats {...base} />)).not.toContain('data-file-classement');
+  });
+});
+
+describe('Spatial · Ce qui scale · vague 4 · l’analyse d’une marque', () => {
+  it('le lien vers toutes ses pubs, seulement pour une marque', () => {
+    const html = rendre(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ marque: { terme: 'rival.fr', href: '/veille?q=rival.fr' } })} />);
+    expect(html).toMatch(/data-analyse-marque[^>]*>Analyse d’une marque · toutes les créas de <b>rival\.fr<\/b>.*href="\/veille\?q=rival\.fr"[^>]*>Voir toutes ses pubs/);
+    expect(rendre(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />)).not.toContain('data-analyse-marque');
+  });
+});
+
+describe('Spatial · vague 4 · la vidéo d’une pub se lit (comme l’ancienne carte)', () => {
+  const vid = { mediaType: 'video', mediaUrl: 'https://cdn.test/v.mp4', thumbnailUrl: 'https://cdn.test/v.jpg' };
+  it('Sauvegardes · une vidéo lisible ouvre son fichier · une vidéo sans adresse garde la pastille seule', () => {
+    const html = rendre(<CollectionsSauvegardes creerProjet="/p" items={[sauvegarde('1', { video: true, ad: ad('x1', vid) }), sauvegarde('2', { video: true, ad: ad('x2', { mediaType: 'video' }) })]} />);
+    expect(html).toMatch(/<a class="play" href="https:\/\/cdn\.test\/v\.mp4" target="_blank"[^>]*aria-label="Lire la vidéo de Marque 1"/);
+    expect((html.match(/class="play"/g) ?? []).length).toBe(2);
+  });
+  it('Ce qui scale · « Lire la vidéo » seulement pour une vidéo lisible', async () => {
+    const lignes = [{ ...LIGNES[0]!, ad: ad('a', { advertiserName: 'Neva', ...vid }) }, LIGNES[1]!];
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ lignes })} />);
+    const liens = [...document.querySelectorAll('.scaleL a')].filter((a) => a.textContent === 'Lire la vidéo');
+    expect(liens.map((a) => a.getAttribute('href'))).toEqual(['https://cdn.test/v.mp4']);
+  });
+});
+
+describe('Spatial · Ce qui scale · vague 4 · les filtres vivent dans l’adresse (ex lot 18B, swipe file V5)', () => {
+  const sansOutilsUrl = () => window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+  afterEach(sansOutilsUrl);
+  it('un changement réécrit l’adresse (niche gardée), sans entrée d’historique de plus · Réinitialiser la nettoie', async () => {
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&annonceur=Ploufy');
+    const avant = window.history.length;
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ initial: { ...FILTRES_OUTIL_SCALE, annonceur: 'Ploufy' } })} />);
+    await cliquer(bouton('Vidéos'));
+    expect(window.location.search, 'le filtre ne survit pas au rechargement').toBe('?q=skincare&country=FR&annonceur=Ploufy&type=video');
+    expect(window.history.length).toBe(avant);
+    await cliquer(bouton('Réinitialiser'));
+    expect(window.location.search, 'la réinitialisation laisse des critères dans l’adresse').toBe('?q=skincare&country=FR');
+  });
+  it('revenu par le Retour avec une page restaurée sans critères · l’adresse est relue au montage', async () => {
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&annonceur=Ploufy');
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />);
+    expect(document.querySelector('[data-compte]')?.textContent, 'critère de l’adresse non relu').toBe('2 sur 3');
+    expect(document.querySelector('button[aria-label="Retirer le critère · Ploufy"]')).not.toBeNull();
+  });
+});
+
+/* ───────── Vague 4 · les gardes de comportement des écrans V5 retirés (Sauvegardes, Formats, ★), portées ───────── */
+
+describe('Spatial · Sauvegardes · vague 4 · aucun faux succès (ex lots 19C et 20B)', () => {
+  const G = { formatFerme: null, test: { ouvert: true as const } };
+  it('classer · panne réseau · le choix revient, l’échec est dit, le focus revient au choix (jamais sur la page)', async () => {
+    actions.classerFormatSauvegarde.mockRejectedValueOnce(new Error('réseau') as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1')]} creerProjet="/p" gestes={G} />);
+    const sel = document.querySelector('.vitem select[data-format-choix]') as HTMLSelectElement;
+    await choisir(sel, 'packshot');
+    const enr = bouton('Enregistrer')!;
+    enr.focus();
+    await cliquer(enr);
+    expect(sel.value).toBe('non_classe');
+    expect(toasts.at(-1)).toMatch(/^Échec de l’enregistrement/);
+    expect(document.activeElement, 'le focus est tombé sur la page').toBe(sel);
+  });
+  it('classer · refus · même retour du focus · un focus parti sur une autre carte n’est pas repris', async () => {
+    let finir: (v: unknown) => void = () => {};
+    actions.classerFormatSauvegarde.mockImplementationOnce(() => new Promise((r) => { finir = r; }) as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1'), sauvegarde('2')]} creerProjet="/p" gestes={G} />);
+    const [s1, s2] = [...document.querySelectorAll('.vitem select[data-format-choix]')] as HTMLSelectElement[];
+    await choisir(s1!, 'packshot');
+    await cliquer(bouton('Enregistrer'));
+    s2!.focus();
+    await act(async () => { finir({ ok: false, error: 'Refusé par le serveur.' }); });
+    expect(toasts.at(-1)).toBe('Refusé par le serveur.');
+    expect(document.activeElement, 'le focus parti ailleurs a été volé').toBe(s2);
+  });
+  it('ranger · exception réseau · la créa reste dans sa collection, l’échec est dit, aucun « Rangée dans »', async () => {
+    actions.setSavedAdFolder.mockRejectedValueOnce(new Error('réseau') as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1', { folder: 'Hooks' }), sauvegarde('2', { folder: 'Ailleurs' })]} creerProjet="/p" gestes={G} />);
+    await cliquer(bouton('Hooks'));
+    await cliquer(bouton('Gardée'));
+    await cliquer(bouton('Ranger dans « Ailleurs »'));
+    expect(document.querySelectorAll('.vitem'), 'la créa a quitté sa collection sur un échec').toHaveLength(1);
+    expect(toasts.join('|')).not.toMatch(/Rangée dans/);
+    expect(toasts.at(-1)).toMatch(/^Échec/);
+  });
+  it('« Préparer un test » · après une erreur, un nouvel essai part · l’erreur s’efface pendant l’attente · double clic, une requête · le succès est définitif', async () => {
+    pont.trackSavedAdAction.mockResolvedValueOnce({ error: 'Choisis d’abord une marque active.' } as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1')]} creerProjet="/p" gestes={G} />);
+    await cliquer(bouton('Préparer un test'));
+    expect(document.querySelector('.vitem [role="status"]')?.textContent).toBe('Choisis d’abord une marque active.');
+    let finir: (v: unknown) => void = () => {};
+    pont.trackSavedAdAction.mockImplementationOnce(() => new Promise((r) => { finir = r; }) as never);
+    const b = bouton('Préparer un test')!;
+    await act(async () => { b.click(); b.click(); });
+    expect(document.querySelector('.vitem [role="status"]')?.textContent, 'l’erreur reste affichée pendant le nouvel essai').not.toMatch(/marque active/);
+    await act(async () => { finir({}); });
+    expect(pont.trackSavedAdAction, 'double clic · deux requêtes').toHaveBeenCalledTimes(2);
+    const fait = bouton('Brouillon de test créé')!;
+    expect(fait.disabled).toBe(true);
+  });
+  it('« Préparer un test » · exception réseau · le bouton n’est pas bloqué, l’échec est dit', async () => {
+    pont.trackSavedAdAction.mockRejectedValueOnce(new Error('réseau') as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1')]} creerProjet="/p" gestes={G} />);
+    await cliquer(bouton('Préparer un test'));
+    expect(document.querySelector('.vitem [role="status"]')?.textContent).toMatch(/^Échec/);
+    expect(bouton('Préparer un test')!.disabled).toBe(false);
+  });
+});
+
+describe('Spatial · Ce qui scale · vague 4 · les états vides se lisent (ex R15, swipe file V5)', () => {
+  it('sans aucune créa · un état vide explicite · un filtre qui ne rend rien · un état distinct, avec « Réinitialiser »', async () => {
+    const vide = rendre(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={{ titre: 'Aucune créa trouvée pour cette niche', texte: 't', action: null }} outils={outils({ lignes: [] })} />);
+    expect(vide).toContain('Aucune créa trouvée pour cette niche');
+    expect(vide).not.toContain('Aucune créa ne passe ces critères');
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&texte=zzz-introuvable');
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ initial: { ...FILTRES_OUTIL_SCALE, texte: 'zzz-introuvable' } })} />);
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+    expect(document.body.textContent).toContain('Aucune créa ne passe ces critères');
+    expect(document.querySelector('[data-compte]')?.textContent).toBe('0 sur 3');
+    expect(bouton('Réinitialiser')).toBeTruthy();
+  });
+});
+
+describe('Spatial · Ce qui scale · vague 4 · ergonomie du swipe file (ex lot ergonomie Veille)', () => {
+  const champ = () => document.querySelector('.tile[aria-label="Filtrer et trier"] input') as HTMLInputElement;
+  it('une puce retirée relâche SON critère, pas les autres', async () => {
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&type=video&annonceur=Ploufy');
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ initial: { ...FILTRES_OUTIL_SCALE, type: 'video', annonceur: 'Ploufy' } })} />);
+    await cliquer(document.querySelector('button[aria-label="Retirer le critère · Vidéos"]'));
+    expect(document.querySelector('button[aria-label="Retirer le critère · Ploufy"]'), 'retirer « Vidéos » a relâché l’annonceur').not.toBeNull();
+    expect(document.querySelector('button[aria-label="Retirer le critère · Vidéos"]')).toBeNull();
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+  });
+  it('« / » hors champ met le focus sur la recherche · un select focalisé garde le focus', async () => {
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />);
+    await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '/' })); });
+    expect(document.activeElement).toBe(champ());
+    const sel = document.querySelector('.tile[aria-label="Filtrer et trier"] select') as HTMLSelectElement;
+    sel.focus();
+    await act(async () => { sel.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })); });
+    expect(document.activeElement, '« / » a volé le focus d’un select').toBe(sel);
+  });
+  it('réinitialiser rend le focus au champ (le bouton disparaît)', async () => {
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&texte=zzz');
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ initial: { ...FILTRES_OUTIL_SCALE, texte: 'zzz' } })} />);
+    const r = bouton('Réinitialiser')!;
+    r.focus();
+    await cliquer(r);
+    expect(bouton('Réinitialiser')).toBeUndefined();
+    expect(document.activeElement, 'le focus est tombé sur la page').toBe(champ());
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+  });
+});

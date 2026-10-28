@@ -59,6 +59,7 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
   const query = c.q ?? '';
   const platform = c.p ?? 'meta';
   const page = c.page ?? 1;
+  const rafraichir = sp.refresh === '1';
   const baseUrl = baseUrlRecette();
   const apiKey = cleEffective(baseUrl, process.env.TRENDTRACK_API_KEY);
   const brand = db ? await getActiveBrand(s.workspaceId) : null;
@@ -114,7 +115,8 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
     total = ads.length;
   } else if (query) {
     const cle = cleRecherche([platform, urlLike ? 'dom' : 'q', effSearch, effSearchIn, page, c.media, c.status, sort, c.country]);
-    const enCache = lireRecherche(cle);
+    // `?refresh=1` court-circuite le cache mémoire · un appel frais (et réécrit le cache), comme la V5.
+    const enCache = rafraichir ? undefined : lireRecherche(cle);
     if (enCache) { ads = enCache.ads; total = enCache.total; }
     else {
       try {
@@ -131,7 +133,7 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
     // Sans requête · les pistes installées de la catégorie de la marque (V5).
     const chercher = async (seed: string) => {
       const cle = cleRecherche(['defaut', platform, seed, page, c.country, sort, c.media]);
-      const enCache = lireRecherche(cle);
+      const enCache = rafraichir ? undefined : lireRecherche(cle);
       if (enCache) return enCache;
       const r = await ttSearchAds({ apiKey, baseUrl }, { search: seed, limit: LIMIT, offset: (page - 1) * LIMIT, status: 'active', searchIn: 'ad_copy', sortBy: sort, country: c.country, mediaType: c.media });
       ecrireRecherche(cle, { ads: r.ads, total: r.total });
@@ -160,7 +162,7 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
     : sample ? 'Démonstration · un échantillon réel, la recherche en direct n’est pas encore activée pour ton espace'
       : error ? 'La source de données ne répond pas pour l’instant'
         : query ? `≈ ${total.toLocaleString('fr-FR')} annonce${total > 1 ? 's' : ''} pour « ${query} »${urlLike ? ' · recherche par domaine' : ''}`
-          : defaut ? `Pistes installées de ta catégorie · « ${defaut.seed} »${defaut.parCategorie ? '' : ' · hors catégorie'} · signaux d’observation, pas des preuves`
+          : defaut ? `Pistes installées de ta catégorie · « ${defaut.seed} »${defaut.parCategorie ? '' : ' · hors catégorie, précise la catégorie de ta marque pour cibler'} · signaux d’observation, pas des preuves`
             : 'Lance une recherche pour voir les pubs du marché';
 
   let vide: { titre: string; texte: string; action: { href: string; libelle: string } | null } | null = null;

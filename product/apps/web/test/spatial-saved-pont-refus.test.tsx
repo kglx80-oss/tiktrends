@@ -17,7 +17,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
  */
 const ids = vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
-  return { ws: randomUUID(), marque: randomUUID(), user: randomUUID() };
+  return { ws: randomUUID(), marque: randomUUID(), user: randomUUID(), dehors: randomUUID() };
 });
 type EquipeTest = { role: 'membre'; matrice: Record<string, never> } | null;
 const session = vi.hoisted(() => ({ plan: 'starter' as string, role: 'member' as string, marque: true, equipe: null as EquipeTest }));
@@ -42,20 +42,25 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { db, schema } from '@tiktrends/db';
+import { VERSION_FORMATS_CREATIFS } from '@tiktrends/core';
 import SavedPage from '../app/(spatial)/sp/saved/page';
 
 beforeAll(async () => {
   await db!.insert(schema.users).values({ id: ids.user, email: 'membre@agence.test', name: 'Membre' });
+  await db!.insert(schema.users).values({ id: ids.dehors, email: 'autre@ailleurs.test', name: 'Hors espace' });
   await db!.insert(schema.workspaces).values({ id: ids.ws, name: 'Agence', plan: 'starter' });
+  await db!.insert(schema.workspaceMembers).values({ workspaceId: ids.ws, userId: ids.user, role: 'member' });
   await db!.insert(schema.brands).values({ id: ids.marque, workspaceId: ids.ws, name: 'Marque' });
+  // Vague 4 · p1 classée par un membre de l'espace, p2 par une personne d'un autre espace (son nom n'est jamais lu).
+  const classement = (auteur: string) => ({ id: 'packshot', version: VERSION_FORMATS_CREATIFS, date: '2026-10-06T10:00:00.000Z', auteur });
   for (const n of ['p1', 'p2']) {
     await db!.insert(schema.savedAds).values({ workspaceId: ids.ws, brandId: ids.marque, platform: 'meta', externalId: n, folder: n === 'p1' ? 'Hooks' : null,
-      snapshot: { id: n, platform: 'meta', status: 'active', mediaType: 'image', advertiserName: 'Annonceur ' + n } });
+      snapshot: { id: n, platform: 'meta', status: 'active', mediaType: 'image', advertiserName: 'Annonceur ' + n, formatCreatif: classement(n === 'p1' ? ids.user : ids.dehors) } });
   }
 });
 beforeEach(() => { session.plan = 'starter'; session.role = 'member'; session.marque = true; session.equipe = null; });
 
-const page = async () => renderToStaticMarkup(await SavedPage());
+const page = async (sp: Record<string, string> = {}) => renderToStaticMarkup(await SavedPage({ searchParams: Promise.resolve(sp) }));
 const nCartes = (h: string) => (h.match(/data-format-choix/g) ?? []).length;
 const refus = (h: string) => [...h.matchAll(/<p data-pont-refus[^>]*>([^<]*)<\/p>/g)].map((m) => m[1]);
 const boutonsPont = (h: string) => (h.match(/<button[^>]*>(?:(?!<\/button>).)*Préparer un test(?:(?!<\/button>).)*<\/button>/g) ?? []).length;
@@ -94,5 +99,27 @@ describe('Sauvegardes (Spatial) · pont Résultats fermé · la raison réelle �
     expect(boutonsPont(h), 'le bouton Adsmap a disparu du parcours autorisé').toBe(2);
     expect(h).not.toMatch(/<button[^>]*disabled[^>]*>(?:(?!<\/button>).)*Préparer un test/);
     expect(refus(h), 'une explication de refus s’affiche sur un pont ouvert').toEqual([]);
+  });
+});
+
+describe('Sauvegardes (Spatial) · vague 4 · ce que l’écran Formats et les onglets V5 faisaient', () => {
+  it('la provenance · classée le, par un membre de l’espace · le nom d’une personne hors espace n’est jamais lu', async () => {
+    session.plan = 'plus';
+    const h = await page();
+    const prov = [...h.matchAll(/<small[^>]*data-provenance[^>]*>([^<]*)<\/small>/g)].map((m) => m[1]);
+    expect(prov, 'la provenance n’est pas rendue').toHaveLength(2);
+    expect(prov.some((x) => /^Meta · sauvegardée le \d\d\/\d\d\/\d{4} · classée le 06\/10\/2026 par Membre$/.test(x!)), prov.join(' | ')).toBe(true);
+    expect(prov.some((x) => /classée le 06\/10\/2026$/.test(x!)), 'la sauvegarde classée hors espace doit rester sans nom').toBe(true);
+    expect(h).not.toContain('Hors espace');
+  });
+  it('les filtres de départ viennent de l’adresse · format et tri', async () => {
+    session.plan = 'plus';
+    const h = await page({ format: 'packshot', tri: 'duree' });
+    expect(h).toMatch(/<option value="packshot" selected="">/);
+    expect(h).toMatch(/<option value="duree" selected="">/);
+  });
+  it('les anciens onglets mènent à leur destination Spatial', async () => {
+    await expect(page({ onglet: 'marques' })).rejects.toThrow('redirect /radar');
+    await expect(page({ onglet: 'nouveautes' })).rejects.toThrow('redirect /veille?vue=suivies');
   });
 });

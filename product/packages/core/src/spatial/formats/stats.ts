@@ -1,4 +1,4 @@
-import type { AnnonceFormat } from '../../formats-creatifs';
+import { FORMAT_INCERTAIN, FORMAT_NON_CLASSE, libelleClasserSauvegardes, type AnnonceFormat } from '../../formats-creatifs';
 import { MIN_N_WINDOW } from '../../adsmap/trend';
 import { STYLES_CREA, styleCorrespond, styleDuFormat, type CleStyle, type FamilleStyle, type StyleCrea } from './catalogue';
 import { ecartTendance, type Tendance } from './tendances';
@@ -156,4 +156,16 @@ export function perimetreFormats(c: { classees: number; nonClassees: number }, m
   const m = marque ? ` · marque ${marque}` : '';
   const reste = c.nonClassees > 0 ? ` · ${c.nonClassees} à classer dans Sauvegardes` : '';
   return base + m + reste;
+}
+
+/**
+ * Vague 4 · les files de classement de l'ancien écran Formats, menées aux
+ * Sauvegardes filtrées · « Classer mes N sauvegardes » (non classées) et les
+ * incertaines (exclues des formats). Une file vide n'est pas proposée.
+ */
+export function filesClassement(c: { nonClassees: number; incertaines: number }): Array<{ href: string; libelle: string }> {
+  const out: Array<{ href: string; libelle: string }> = [];
+  if (c.nonClassees > 0) out.push({ href: `/saved?format=${FORMAT_NON_CLASSE}`, libelle: libelleClasserSauvegardes(c.nonClassees) });
+  if (c.incertaines > 0) out.push({ href: `/saved?format=${FORMAT_INCERTAIN}`, libelle: `${c.incertaines} incertaine${c.incertaines > 1 ? 's' : ''} · à revoir` });
+  return out;
 }

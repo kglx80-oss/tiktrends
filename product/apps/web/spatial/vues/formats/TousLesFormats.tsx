@@ -29,6 +29,8 @@ export interface PropsTousLesFormats {
   marque: string | null;
   /** La ligne sous le compteur · le périmètre réel des chiffres. */
   perimetre: string;
+  /** Vague 4 · les files de classement (Sauvegardes filtrées) · absentes quand elles sont vides. */
+  files?: ReadonlyArray<{ href: string; libelle: string }>;
 }
 
 type Menu = 'fam' | 'sort';
@@ -101,6 +103,7 @@ export function TousLesFormats(p: PropsTousLesFormats) {
         <span id="fcount"><b>{visibles}</b> style{visibles > 1 ? 's' : ''}</span>
         {famille !== 'tous' && <button type="button" className="chip" onClick={() => setFamille('tous')}>{famille}<Ic n="x" /></button>}
         <span className="faint">{p.perimetre}</span>
+        {p.files?.map((f) => <Lien key={f.href} className="chip" href={f.href} data-file-classement>{f.libelle}<Ic n="arrow" /></Lien>)}
       </div>
       <div className="fgrid2">
         {liste.map((c, i) => {

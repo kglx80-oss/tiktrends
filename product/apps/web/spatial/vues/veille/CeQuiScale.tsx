@@ -27,6 +27,8 @@ export interface OutilsScale {
   annonceurs: readonly string[];
   angles: ReadonlyArray<{ cle: string; libelle: string }>;
   requetes: readonly string[];
+  /** Vague 4 · l'analyse d'UNE marque (domaine tapé) · son inventaire complet est dans les pubs du moment. */
+  marque?: { terme: string; href: string } | null;
 }
 
 export function CeQuiScale({ sous, lignes, pastilleRadar, vide, outils }: { sous: string; lignes: ReadonlyArray<LigneScale>; pastilleRadar: string | null; vide: { titre: string; texte: string; action: { href: string; libelle: string } | null } | null; outils?: OutilsScale }) {
@@ -47,6 +49,11 @@ export function CeQuiScale({ sous, lignes, pastilleRadar, vide, outils }: { sous
             {outils.rafraichir && <Lien className="btn sm" href={outils.rafraichir}><Ic n="loop" />Rafraîchir</Lien>}
           </div>
         </form>
+      )}
+      {outils?.marque && (
+        <p className="faint" data-analyse-marque style={{ fontSize: '12.5px', margin: '0 0 12px' }}>
+          Analyse d’une marque · toutes les créas de <b>{outils.marque.terme}</b> qui montent, sans plafond. <Lien href={outils.marque.href}>Voir toutes ses pubs</Lien>
+        </p>
       )}
       {outils && outils.lignes.length > 0 && (
         <div className="grid3" style={{ marginBottom: 14 }} aria-label="Résumé de la niche">

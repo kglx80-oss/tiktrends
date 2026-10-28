@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, lienVeille, pucesVeille, verrouAction, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille } from '@tiktrends/core';
+import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, estAncreCarteVeille, lienVeille, pucesVeille, verrouAction, videoLisible, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
 import { useSpatial } from '../../coquille/contexte';
@@ -76,6 +76,27 @@ export function BoutonSuivi({ plateforme, nom, ad, initial, classe = 'btn sm' }:
   );
 }
 
+/* ───────────────────────── retour sur la carte d'origine ───────────────────────── */
+
+/**
+ * Revenir à SA carte (ex `DefileAncreVeille`, lot 18B) · l'adresse de retour
+ * porte l'ancre de la carte (`#ad-<plateforme>-<id>`), mais le défilement natif
+ * ne tenait pas (mesuré · la carte hors de l'écran). Au montage, la carte est
+ * centrée et reçoit le focus · au clavier, la tabulation repart d'elle.
+ */
+export function DefileAncre() {
+  useEffect(() => {
+    const h = window.location.hash.slice(1);
+    if (!estAncreCarteVeille(h)) return;
+    const carte = document.getElementById(h);
+    if (!carte) return;
+    carte.scrollIntoView({ block: 'center' });
+    if (!carte.hasAttribute('tabindex')) carte.setAttribute('tabindex', '-1');
+    carte.focus({ preventScroll: true });
+  }, []);
+  return null;
+}
+
 /* ───────────────────────── la carte et son détail ───────────────────────── */
 
 const LOGO_META = (
@@ -128,11 +149,15 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
     return () => document.removeEventListener('keydown', echap);
   }, [fermer]);
   const d = c.detail;
+  // Vague 4 · la vidéo se lit en place (comme l'ancienne carte) · une image reste une image.
+  const video = videoLisible(c.ad);
   return (
     <div className="xmod" role="dialog" aria-modal="true" aria-label={`Pub ${c.marque.nom}`} onClick={(e) => { if (e.target === e.currentTarget) fermer(); }}>
       <div className="xmbox glass">
         <button ref={croix} type="button" className="xmx" aria-label="Fermer" onClick={fermer}><Ic n="x" s={false} /></button>
-        <div className="xmv"><div className={`comp ${c.ratio}`.trim()}>{c.image && <img src={c.image} alt="" referrerPolicy="no-referrer" />}</div></div>
+        <div className="xmv"><div className={`comp ${c.ratio}`.trim()}>{video
+          ? <video src={video} poster={c.image ?? undefined} controls playsInline preload="none" aria-label={`Vidéo de la pub ${c.marque.nom}`} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
+          : c.image && <img src={c.image} alt="" referrerPolicy="no-referrer" />}</div></div>
         <div className="xmi">
           <div className="xh"><span className="av" style={{ background: c.marque.fond }}>{c.marque.initiale}</span><div className="xn"><strong>{c.marque.nom}</strong><small><i className={c.active ? 'live' : 'off'} />{d.statut}</small></div></div>
           {c.texte && <p>{c.texte}</p>}
@@ -205,6 +230,13 @@ export function BarreVeille({ criteres, plateforme, vue, tri, cpm, stat }: Props
     document.addEventListener('click', dehors);
     return () => document.removeEventListener('click', dehors);
   }, [dd]);
+  // Échap referme d'abord la liste ouverte, puis le panneau des filtres (comme l'ancien « Filtres » de la Veille).
+  useEffect(() => {
+    if (!dd && !montrer) return;
+    const echap = (e: KeyboardEvent) => { if (e.key !== 'Escape') return; if (dd) setDd(null); else setMontrer(false); };
+    document.addEventListener('keydown', echap);
+    return () => document.removeEventListener('keydown', echap);
+  }, [dd, montrer]);
   const puces = pucesVeille(criteres);
   const triMeta = plateforme === 'meta';
   const triActif = tri;

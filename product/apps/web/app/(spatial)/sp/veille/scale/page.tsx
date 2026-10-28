@@ -158,6 +158,7 @@ export default async function ScaleSpatial({ searchParams }: { searchParams: Pro
     initial: lireOutilsScale(sp, { annonceurs, angles: angles.map((a) => a.cle) }),
     annonceurs, angles,
     requetes: requetesOutilsScale(sample ? '' : q, country),
+    marque: mono && !sample && !error ? { terme, href: `/veille?${new URLSearchParams({ q: terme })}` } : null,
   };
 
   return <CeQuiScale sous={sous} lignes={lignes} pastilleRadar={radar} vide={vide} outils={outils} />;
