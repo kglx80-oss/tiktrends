@@ -60,6 +60,7 @@ import { Couts } from '../spatial/vues/admin/Couts';
 import { Droits } from '../spatial/vues/admin/Droits';
 import { Prompts } from '../spatial/vues/admin/Prompts';
 import { Registre } from '../spatial/vues/admin/Registre';
+import { EditeurVersion, FichesBenchmark } from '../spatial/vues/admin/registre-client';
 import { Console } from '../spatial/vues/admin/Console';
 import { Incidents } from '../spatial/vues/admin/Incidents';
 import { Interrupteurs } from '../spatial/vues/admin/Interrupteurs';
@@ -395,5 +396,25 @@ describe('Spatial · Admin · vague 3 · Connaissances, Interrupteurs, Console, 
     const d = doc(rendre(<Incidents bandeau={B} jours={30} total={0} limite={80} causes={[]} zones={[]} lignes={[]} />));
     expect([...d.querySelectorAll('nav[aria-label="Période"] a')].map((x) => [x.getAttribute('href'), x.getAttribute('aria-current')])).toEqual([['/admin/incidents?j=1', null], ['/admin/incidents?j=7', null], ['/admin/incidents?j=30', 'page']]);
     expect(d.querySelector('[data-etat="vide"]')!.textContent).toContain('Aucun incident sur 30 jours.');
+  });
+});
+
+/* ───────────────────────── Registre · zones de saisie stylées ───────────────────────── */
+
+describe('Spatial · Admin · registre · aucune zone de saisie native (même cause que la planche v4 · G10)', () => {
+  it('l’éditeur de version et les fiches du benchmark rendent des `textarea.ta`, jamais le champ brut du navigateur', () => {
+    const html = rendre(<>
+      <EditeurVersion baseId="b1" empreinteAttendue="e" brouillon champs={[{ champ: 'consigne', libelle: 'Consigne', valeur: 'Une ligne' }, { champ: 'exemples', libelle: 'Exemples', valeur: 'a\nb', liste: true }]} />
+      <FichesBenchmark releases={[{ id: 'r1', libelle: 'v1' }]} />
+    </>);
+    const zones = [...doc(html).querySelectorAll('textarea')];
+    expect(zones).toHaveLength(4);
+    for (const z of zones) expect(z.className, 'une zone de saisie sans style · police à chasse fixe du navigateur').toBe('ta');
+  });
+  it('le motif de révocation (dans sa confirmation, ouverte au clic) aussi · chaque `<textarea` du module porte `ta`', () => {
+    const src = readFileSync(join(__dirname, '..', 'spatial', 'vues', 'admin', 'registre-client.tsx'), 'utf8');
+    const zones = src.match(/<textarea\b[^>]*/g) ?? [];
+    expect(zones.length).toBeGreaterThanOrEqual(4);
+    expect(zones.filter((z) => !z.includes('className="ta"')), 'zone de saisie sans `className="ta"`').toEqual([]);
   });
 });
