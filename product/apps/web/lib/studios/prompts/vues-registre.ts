@@ -19,7 +19,8 @@ import { usdLisible } from '@tiktrends/core';
 
 /* ─────────────── Les vues SÉRIALISABLES du registre (écran Spatial « Registre IA ») ─────────────── */
 
-export interface ChampEditable { champ: string; libelle: string; valeur: string; liste?: boolean }
+import type { ChampEditable } from './types-registre';
+export type { ChampEditable } from './types-registre';
 
 export interface VueVersion {
   id: string; version: string; statut: string; empreinte: string; origine: string; motif: string; creeLe: string; valideeLe: string | null; horsSource: boolean;

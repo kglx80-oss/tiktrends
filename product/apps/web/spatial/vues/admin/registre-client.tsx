@@ -9,7 +9,7 @@ import {
   approuverBenchmarkAction, approuverRecetteManuelleAction,
 } from '../../../app/actions/studios/prompts';
 import { approuverBudgetBenchmarkAction, joindreFichesBenchmarkAction } from '../../../lib/studios/benchmark/actions';
-import type { ChampEditable } from '../../../lib/studios/prompts/vues-registre';
+import type { ChampEditable } from '../../../lib/studios/prompts/types-registre';
 import { DialogueSpatial } from '../marque/interactifs';
 
 /**

@@ -119,7 +119,8 @@ function fichiers(dir: string, out: string[] = []): string[] {
   return out;
 }
 const RACINE = process.cwd();
-const sources = [...fichiers(join(RACINE, 'app')), ...fichiers(join(RACINE, 'components')), ...fichiers(join(RACINE, 'lib'))]
+// `spatial/` aussi · les vues de la nouvelle interface ont leurs composants client.
+const sources = [...fichiers(join(RACINE, 'app')), ...fichiers(join(RACINE, 'components')), ...fichiers(join(RACINE, 'lib')), ...fichiers(join(RACINE, 'spatial'))]
   .map((p) => ({ p: p.slice(RACINE.length + 1), s: readFileSync(p, 'utf8') }));
 
 describe('frontière client et prompts concurrents (PROMPT-12)', () => {
