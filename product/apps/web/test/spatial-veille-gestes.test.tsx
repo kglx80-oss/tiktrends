@@ -108,6 +108,25 @@ describe('Spatial · Veille · détail d’une pub', () => {
     await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
     expect(document.querySelector('.xmod')).toBeNull();
   });
+  it('vague 4 · une pub vidéo se lit dans le détail (lecteur réel, aperçu en affiche) · une image reste une image', async () => {
+    const base = {
+      cle: 'meta:v1', ancre: null, marque: { nom: 'Annonceur', initiale: 'A', fond: '#ffb3c7' }, active: true, jours: '3 j', signaux: [],
+      pays: null, portee: null, depense: null, croissance: null, texte: null, image: 'https://cdn.test/v.jpg', ratio: '' as const, tendance: false, style: 'Vidéo',
+      domaine: null, titre: 'Annonceur', cta: null, iterer: '/studio', sauvee: false, suivie: false,
+      detail: { statut: 'Active', liens: [], kpis: [] as Array<[string, string]>, lecture: 'Lecture', annonceur: null, jarvis: [], texte: null },
+    };
+    await monter(<CarteVeille c={{ ...base, ad: { ...AD, mediaType: 'video', mediaUrl: 'https://cdn.test/v.mp4' } }} coutJarvis="" />);
+    await cliquer(racine.querySelector('button.xv'));
+    const v = document.querySelector('.xmod .xmv video');
+    expect(v?.getAttribute('src')).toBe('https://cdn.test/v.mp4');
+    expect(v?.getAttribute('poster')).toBe('https://cdn.test/v.jpg');
+    expect(v?.hasAttribute('controls')).toBe(true);
+    await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    await monter(<CarteVeille c={{ ...base, ad: { ...AD, mediaType: 'image', mediaUrl: 'https://cdn.test/i.jpg' } }} coutJarvis="" />);
+    await cliquer(racine.querySelector('button.xv'));
+    expect(document.querySelector('.xmod .xmv video')).toBeNull();
+    expect(document.querySelector('.xmod .xmv img')?.getAttribute('src')).toBe('https://cdn.test/v.jpg');
+  });
 });
 
 describe('Spatial · Sauvegardes · collections', () => {

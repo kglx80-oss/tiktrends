@@ -299,3 +299,18 @@ describe('Spatial · Ce qui scale · vague 4 · l’analyse d’une marque', () 
     expect(rendre(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />)).not.toContain('data-analyse-marque');
   });
 });
+
+describe('Spatial · vague 4 · la vidéo d’une pub se lit (comme l’ancienne carte)', () => {
+  const vid = { mediaType: 'video', mediaUrl: 'https://cdn.test/v.mp4', thumbnailUrl: 'https://cdn.test/v.jpg' };
+  it('Sauvegardes · une vidéo lisible ouvre son fichier · une vidéo sans adresse garde la pastille seule', () => {
+    const html = rendre(<CollectionsSauvegardes creerProjet="/p" items={[sauvegarde('1', { video: true, ad: ad('x1', vid) }), sauvegarde('2', { video: true, ad: ad('x2', { mediaType: 'video' }) })]} />);
+    expect(html).toMatch(/<a class="play" href="https:\/\/cdn\.test\/v\.mp4" target="_blank"[^>]*aria-label="Lire la vidéo de Marque 1"/);
+    expect((html.match(/class="play"/g) ?? []).length).toBe(2);
+  });
+  it('Ce qui scale · « Lire la vidéo » seulement pour une vidéo lisible', async () => {
+    const lignes = [{ ...LIGNES[0]!, ad: ad('a', { advertiserName: 'Neva', ...vid }) }, LIGNES[1]!];
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ lignes })} />);
+    const liens = [...document.querySelectorAll('.scaleL a')].filter((a) => a.textContent === 'Lire la vidéo');
+    expect(liens.map((a) => a.getAttribute('href'))).toEqual(['https://cdn.test/v.mp4']);
+  });
+});

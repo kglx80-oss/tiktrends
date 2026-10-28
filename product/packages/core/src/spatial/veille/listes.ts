@@ -209,3 +209,14 @@ export function provenanceSauvegarde(p: { platform: string; sauvegardeLe: string
   if (classe) parts.push(`classée le ${classe}${p.auteur ? ` par ${p.auteur}` : ''}`);
   return parts.join(' · ');
 }
+
+/**
+ * Vague 4 · la vidéo d'une annonce, lisible en place comme dans l'ancienne
+ * Veille (`AdMedia`) · seulement une annonce VIDÉO dont la source donne une
+ * adresse http(s) · sinon rien (l'aperçu reste l'image, aucun lecteur vide).
+ */
+export function videoLisible(ad: { mediaType?: string | null; mediaUrl?: string | null }): string | null {
+  const url = ad.mediaUrl?.trim();
+  if (!url || !(ad.mediaType ?? '').toLowerCase().includes('vid')) return null;
+  return /^https?:\/\//i.test(url) ? url : null;
+}

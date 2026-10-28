@@ -3,6 +3,7 @@ import {
   ecrireOutilsScale, lireOutilsScale, filtrerOutilsScale, criteresOutilsScale, FILTRES_OUTIL_SCALE, lectureMarche, resumeRadarCreatif,
   filtrerSauvegardes, FILTRES_SAUVEGARDES, type DonneesOutilScale,
   lireFiltresSauvegardes, trierSauvegardes, formatFiltrable, provenanceSauvegarde, filesClassement,
+  videoLisible,
 } from '../src';
 
 const o = (annonceur: string, jours: number, croissance: number, video = false): { o: DonneesOutilScale } => ({ o: { video, annonceur, angle: 'offer', texte: `pub ${annonceur}`, jours, croissance, reach: 0, depense: 0 } });
@@ -91,5 +92,14 @@ describe('Spatial · Sauvegardes · vague 4 (règles)', () => {
       { href: '/saved?format=incertain', libelle: '1 incertaine · à revoir' },
     ]);
     expect(filesClassement({ nonClassees: 0, incertaines: 0 })).toEqual([]);
+  });
+});
+
+describe('Spatial · vague 4 · videoLisible', () => {
+  it('une vidéo à adresse http(s) seulement', () => {
+    expect(videoLisible({ mediaType: 'VIDEO', mediaUrl: ' https://cdn/v.mp4 ' })).toBe('https://cdn/v.mp4');
+    expect(videoLisible({ mediaType: 'image', mediaUrl: 'https://cdn/i.jpg' })).toBeNull();
+    expect(videoLisible({ mediaType: 'video', mediaUrl: 'javascript:alert(1)' })).toBeNull();
+    expect(videoLisible({ mediaType: 'video', mediaUrl: null })).toBeNull();
   });
 });

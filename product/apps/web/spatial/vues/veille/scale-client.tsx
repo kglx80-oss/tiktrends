@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
 import {
-  TRIS_OUTIL_SCALE, criteresOutilsScale, ecrireOutilsScale, filtrerOutilsScale,
+  TRIS_OUTIL_SCALE, criteresOutilsScale, ecrireOutilsScale, filtrerOutilsScale, videoLisible,
   type DonneesOutilScale, type FiltresOutilScale, type TriOutilScale, type TypeOutilScale,
 } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
@@ -76,6 +76,7 @@ export function ScaleInteractif({ lignes, initial, annonceurs, angles }: {
               <div className="dbar"><i><b style={{ width: `${l.part}%` }} /></i><span>{l.jours}</span></div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <Lien className="btn sm" href={l.cloner}><Ic n="copy" />Cloner</Lien>
+                {videoLisible(l.ad) && <a className="btn sm" href={videoLisible(l.ad)!} target="_blank" rel="noopener noreferrer"><Ic n="arrow" />Lire la vidéo</a>}
                 <BoutonSauvegarde ad={l.ad} initial={l.sauvee} />
                 {l.o.annonceur && <BoutonSuivi plateforme={l.ad.platform} nom={l.o.annonceur} ad={l.ad} initial={l.suivie} />}
                 {l.site && <a className="btn sm" href={l.site.href} target="_blank" rel="noopener noreferrer">{l.site.libelle}</a>}

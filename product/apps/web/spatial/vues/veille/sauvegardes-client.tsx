@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from 'react';
 import {
   COLLECTION_TOUTES, FILTRES_SAUVEGARDES, FORMAT_INCERTAIN, FORMAT_NON_CLASSE, FORMAT_TOUS, TRIS_FORMATS, collectionsSauvegardes, filtrerSauvegardes, formatFiltrable, provenanceSauvegarde, trierSauvegardes,
-  type FiltresSauvegardes, type TriFormats, dansCollection, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, verrouAction,
+  type FiltresSauvegardes, type TriFormats, dansCollection, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, verrouAction, videoLisible,
 } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { classerFormatSauvegarde, setSavedAdFolder, unsaveAd } from '../../../app/actions/inspo';
@@ -153,7 +153,9 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: Sa
       <div style={{ position: 'relative' }}>
         <Vignette image={i.image} />
         {i.longue && <span className="scale">{i.longue}</span>}
-        {i.video && <span className="play"><Ic n="arrow" /></span>}
+        {i.video && (() => { const v = videoLisible(i.ad); return v
+          ? <a className="play" href={v} target="_blank" rel="noopener noreferrer" aria-label={`Lire la vidéo de ${i.marque.nom}`}><Ic n="arrow" /></a>
+          : <span className="play"><Ic n="arrow" /></span>; })()}
       </div>
       <div className="vmeta"><span>{i.meta[0]}</span><span>{i.meta[1]}</span></div>
       <div className="row">{i.pastilles.map((p) => <span key={p.libelle} className={`pill ${p.classe}`.trim()}>{p.libelle}</span>)}</div>

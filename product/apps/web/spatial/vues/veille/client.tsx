@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, lienVeille, pucesVeille, verrouAction, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille } from '@tiktrends/core';
+import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, lienVeille, pucesVeille, verrouAction, videoLisible, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
 import { useSpatial } from '../../coquille/contexte';
@@ -128,11 +128,15 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
     return () => document.removeEventListener('keydown', echap);
   }, [fermer]);
   const d = c.detail;
+  // Vague 4 · la vidéo se lit en place (comme l'ancienne carte) · une image reste une image.
+  const video = videoLisible(c.ad);
   return (
     <div className="xmod" role="dialog" aria-modal="true" aria-label={`Pub ${c.marque.nom}`} onClick={(e) => { if (e.target === e.currentTarget) fermer(); }}>
       <div className="xmbox glass">
         <button ref={croix} type="button" className="xmx" aria-label="Fermer" onClick={fermer}><Ic n="x" s={false} /></button>
-        <div className="xmv"><div className={`comp ${c.ratio}`.trim()}>{c.image && <img src={c.image} alt="" referrerPolicy="no-referrer" />}</div></div>
+        <div className="xmv"><div className={`comp ${c.ratio}`.trim()}>{video
+          ? <video src={video} poster={c.image ?? undefined} controls playsInline preload="none" aria-label={`Vidéo de la pub ${c.marque.nom}`} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
+          : c.image && <img src={c.image} alt="" referrerPolicy="no-referrer" />}</div></div>
         <div className="xmi">
           <div className="xh"><span className="av" style={{ background: c.marque.fond }}>{c.marque.initiale}</span><div className="xn"><strong>{c.marque.nom}</strong><small><i className={c.active ? 'live' : 'off'} />{d.statut}</small></div></div>
           {c.texte && <p>{c.texte}</p>}
