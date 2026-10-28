@@ -104,7 +104,9 @@ import { join, relative } from 'node:path';
  *
  * Spatial · vague 2 v4 · Accueil · l'ancien Accueil et sa vue Analytics sont retirés
  * (`AssistantHome` 3, `HomeMarques` 2, `accueil/VueAnalytics` 1,
- * `analytics/MetaKeyMetrics` 4, `analytics/CreativeIntel` 2) · 198 − 12 = 186.
+ * `analytics/MetaKeyMetrics` 4, `analytics/CreativeIntel` 2) · − 12.
+ * Spatial · vague 4 · l'écran V5 `/credits` (12 · pastilles sur dégradé vif,
+ * lavis de la synthèse, aplat de code) est retiré · − 12. Mesuré 198 − 24 = 174.
  */
 const WEB = process.cwd();
 
@@ -123,7 +125,6 @@ const EXCLUS: Record<string, string> = {
 /** Plafond par répertoire · le plan des lots de tokenisation. */
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 142,
-  'app/(app)/credits': 12,
   'app/(app)/veille': 13,
   'app/onboarding': 5,
   'app/tarifs': 8,
@@ -132,7 +133,6 @@ const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
 
 /** Plafond par fichier · tout fichier absent de cette table est « déjà propre » (0). */
 const PLAFOND_PAR_FICHIER: Record<string, number> = {
-  'app/(app)/credits/page.tsx': 12,
   'app/(app)/veille/scale/SwipeFile.tsx': 13,
   'app/Landing.tsx': 142,
   'app/onboarding/OnboardingWizard.tsx': 5,
@@ -141,7 +141,7 @@ const PLAFOND_PAR_FICHIER: Record<string, number> = {
   'components/LogoMarque.tsx': 4,
 };
 
-const PLAFOND_TOTAL = 186;
+const PLAFOND_TOTAL = 174;
 
 const RACINES = ['app', 'components', 'lib'];
 

@@ -79,36 +79,23 @@ describe('Usage et Crédits · chiffres et motifs', () => {
     expect(j.limiteAtteinte, 'la limite de lignes n’est pas dite').toBe(true);
     expect(j.fenetre, 'un total tronqué se présente comme « 30 jours »').toBe('3 derniers mouvements (une partie des 30 jours)');
   });
-  it('Crédits · plus de report de 25 % promis, consommé borné, illimité = ∞', () => {
-    const s = src('app/(app)/credits/page.tsx');
-    expect(s, 'promesse de report jamais appliquée').not.toContain('Report partiel de 25');
-    expect(s).toContain('partConsommeeCycle({ allocation: alloc, solde: balance, illimite, mouvements: ledger.length })');
-    expect(s).toContain("{illimite ? '∞'");
-    expect(s, 'un « · » seul tenait lieu de valeur quand la part ne se mesure pas').not.toContain("conso.pct === null ? '·'");
-    expect(s).toContain('>Sans objet</span>');
-    expect(s, 'six actions s’affichaient en clé brute (« chat », « asset_analysis »)').not.toContain('ACTION_FR[k] || k');
-    expect(s).toContain('LIBELLE_ACTION_CREDIT[k');
-    expect(s).toContain('libelleMotif(l.reason)');
-  });
+  // Crédits · vague 4 · l'écran V5 `/credits` est retiré · ses promesses (pas de
+  // report de 25 %, consommé borné, illimité = ∞, libellés lisibles) sont gardées
+  // sur le rendu Spatial (`spatial-credits.test.tsx`).
 });
 
 describe('Support · promesses tenues, fil accessible', () => {
   it('plus aucune promesse d’une équipe qui ne reçoit pas les tickets', () => {
-    for (const p of ['app/(app)/support/page.tsx', 'components/SupportWidget.tsx']) {
+    // Vague 4 · l'écran `/support` est servi par Spatial · sa promesse (et la
+    // portée du ticket) est gardée sur le rendu (`spatial-support.test.tsx`).
+    for (const p of ['components/SupportWidget.tsx']) {
       const s = src(p);
       expect(s, `${p} · promesse non tenue`).not.toMatch(/On te répond|on te répond vite|on répond vite|Notre équipe te répond/);
     }
-    expect(src('app/(app)/support/page.tsx')).toContain('il n\'est pas transmis automatiquement à l\'équipe TikTrends');
     // Lot 11 · Réglages promettait « un service à activer se demande à notre équipe, depuis le support ».
     expect(src('spatial/vues/reglages/Espace.tsx'), 'Réglages · promesse non tenue').not.toMatch(/se demande à notre équipe/);
     expect(src('spatial/vues/reglages/Espace.tsx')).toContain('(seuls ses admins le lisent)');
   });
-  it('ticket · retour à la liste, réponse nommée, statuts annoncés, « rouvrir » fidèle', () => {
-    const s = src('app/(app)/support/[id]/page.tsx');
-    expect(s).toContain('href="/support"');
-    expect(s).toContain("aria-label={isAdmin ? 'Ta réponse dans le fil' : 'Ton message dans le fil'}");
-    expect(s).toContain('aria-pressed={tk.status === v}');
-    expect(s, '« Envoyer la réponse » mesuré à 40 px en 390').toMatch(/minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px'[^>]*>Envoyer la réponse/);
-    expect(s, 'promet une réouverture que le serveur ne fait pas').not.toContain('Réponds ci-dessous pour le rouvrir');
-  });
+  // Le fil d'un ticket (retour à la liste, réponse nommée, statuts annoncés,
+  // « rouvrir » fidèle) · porté sur le rendu Spatial (`spatial-support.test.tsx`).
 });

@@ -44,7 +44,11 @@ export function etatEssaiAdmin(t: { expired: boolean; daysLeft: number | null })
  * courte tiennent sur une ligne), plus une colonne de marge pour les vraies
  * données, plus longues que celles de la parité.
  */
-export const LARGEUR_MIN_TABLE_TELEPHONE = { defauts: 720, comptes: 680, forfaits: 640 } as const;
+export const LARGEUR_MIN_TABLE_TELEPHONE = {
+  defauts: 720, comptes: 680, forfaits: 640,
+  // Neuf colonnes · la largeur minimale de l'ancienne table `/admin/signups` (900 px), reprise telle quelle.
+  declarations: 900,
+} as const;
 
 /** Le style en ligne d'une table défilante (`.atable`) · ses lignes gardent leurs propres colonnes. */
 export function styleTableDefilante(largeurMin: number): { overflowX: 'auto'; gridTemplateColumns: string } {
