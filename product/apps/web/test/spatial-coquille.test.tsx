@@ -138,7 +138,8 @@ describe('Spatial · surcouches · parité avec la maquette', () => {
 
   it('Profil · vrai utilisateur, vrais liens · sans aperçu de rôle', () => {
     const rendu = rendre(<section className="notif glass memenu" id="memenu" aria-label="Profil"><MenuProfil utilisateur={CTX.utilisateur} equipe="/team" forfaits="/billing" demarrage="/onboarding?redo=1" deconnexion={async () => {}} /></section>);
-    egal(retirer(rendu, ['a[href="/profile"]', 'a[href="/support"]']), ref('_profil', ['.ngrp', '.nprefs']));
+    // Le choix du thème (au DOM de l'aperçu du rôle) est garé à part · `spatial-theme-clair.test.tsx`.
+    egal(retirer(rendu, ['a[href="/profile"]', 'a[href="/support"]', '#ngrp-theme', '[data-zone="choix-theme"]', '[role="status"]']), ref('_profil', ['.ngrp', '.nprefs']));
     expect(rendu, 'le support de l’espace n’est plus atteignable depuis la coquille').toContain('href="/support"');
   });
 
@@ -319,6 +320,10 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     expect(menu.hidden).toBe(false);
     expect(menu.textContent).toContain('k@x.fr · Propriétaire');
     expect(menu.querySelector('[data-role]')).toBeNull(); // pas d'aperçu de rôle simulé
+    // G17 · fond quasi plein (le flou ne prend pas dans la fenêtre déjà floutée) · la page ne se lit plus au travers.
+    // Lu dans le HTML servi · jsdom écarte `color-mix()` de son CSSOM.
+    const servi = /<section[^>]*id="memenu"[^>]*>/.exec(renderToStaticMarkup(<Coquille donnees={donnees()}><EnTete titre="T" /></Coquille>))?.[0] ?? '';
+    expect(servi, 'pop-up profil translucide · la page se lit dessous').toContain('background:color-mix(in srgb,var(--ink) 96%,transparent)');
     await act(async () => { document.getElementById('ailleurs')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
     expect(menu.hidden).toBe(true);
   });

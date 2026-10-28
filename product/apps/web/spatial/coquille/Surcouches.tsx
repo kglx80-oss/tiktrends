@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { filtrerPalette, selectionVoisine, typeEntreePalette, type EntreePalette, type GroupePalette } from '@tiktrends/core';
+import { COULEUR_BARRE_SPATIALE, THEMES, filtrerPalette, selectionVoisine, typeEntreePalette, type EntreePalette, type GroupePalette, type Theme } from '@tiktrends/core';
+import { appliquerTheme, themeCourant } from '../../lib/theme-preference';
 import { Ic, Lien } from '../communs/base';
 
 /**
@@ -30,7 +31,7 @@ export interface MenuProfilProps {
  * L'« Aperçu du rôle » de la maquette (changer de rôle pour voir) est une
  * simulation · absent. « Mon profil » (page réelle `/profile`) et « Support »
  * (les tickets de l'espace, `/support`, ouverts à toute session) s'ajoutent aux
- * boutons de la maquette.
+ * boutons de la maquette. À la place de l'aperçu, le choix du THÈME (`ChoixTheme`).
  */
 export function MenuProfil({ utilisateur, equipe, forfaits, demarrage, deconnexion }: MenuProfilProps) {
   const [enCours, demarrer] = useTransition();
@@ -43,6 +44,7 @@ export function MenuProfil({ utilisateur, equipe, forfaits, demarrage, deconnexi
           <small className="faint">{utilisateur.email} · {utilisateur.role}</small>
         </div>
       </header>
+      <ChoixTheme />
       <div className="nact" style={{ marginTop: 2 }}>
         {equipe && <Lien className="btn sm" href={equipe}><Ic n="users" />Équipe</Lien>}
         {forfaits && <Lien className="btn sm" href={forfaits}><Ic n="spark" />Forfaits</Lien>}
@@ -53,6 +55,45 @@ export function MenuProfil({ utilisateur, equipe, forfaits, demarrage, deconnexi
           {enCours ? 'Déconnexion…' : 'Se déconnecter'}
         </button>
       </div>
+    </>
+  );
+}
+
+const THEME_LIBELLE: Record<Theme, { titre: string; detail: string }> = {
+  sombre: { titre: 'Sombre', detail: 'Verre sombre sur ta créa' },
+  clair: { titre: 'Clair', detail: 'Verre clair, encre nuit' },
+};
+
+/**
+ * Le thème de l'interface (« Sombre » · « Clair »), comme dans l'ancienne
+ * pop-up profil (`BasculeTheme`), au DOM de la maquette · l'« Aperçu du rôle »
+ * (`.ngrp` + `.nprefs` de boutons `.npr.rolebtn` à `aria-pressed`). Le choix
+ * passe par le mécanisme EXISTANT, `appliquerTheme` · cookie `tt_theme` relu au
+ * rendu serveur suivant (`<html data-theme>` posé dès le premier octet, aucun
+ * flash), attribut sur `<html>` tout de suite (la feuille `spatial-clair.css`
+ * s'applique sans rechargement) et barre du navigateur (`COULEUR_BARRE_SPATIALE`).
+ * Le thème courant se lit sur `<html>` · le menu ne se monte qu'à l'ouverture,
+ * côté client.
+ */
+export function ChoixTheme() {
+  const [theme, setTheme] = useState<Theme>(() => (typeof document === 'undefined' ? 'sombre' : themeCourant()));
+  const [annonce, setAnnonce] = useState('');
+  const choisir = (t: Theme) => {
+    setTheme(appliquerTheme(t, document, COULEUR_BARRE_SPATIALE));
+    setAnnonce(`Thème ${THEME_LIBELLE[t].titre.toLowerCase()} appliqué`);
+  };
+  return (
+    <>
+      <div className="ngrp" id="ngrp-theme">Thème</div>
+      <div className="nprefs" role="group" aria-labelledby="ngrp-theme" data-zone="choix-theme">
+        {THEMES.map((t) => (
+          <button key={t} type="button" className="npr rolebtn" data-theme-choix={t} aria-pressed={theme === t} onClick={() => choisir(t)}>
+            <div><strong>{THEME_LIBELLE[t].titre}</strong><small>{THEME_LIBELLE[t].detail}</small></div>
+            <span className="pk-r"><i></i></span>
+          </button>
+        ))}
+      </div>
+      <span className="sr" role="status" aria-live="polite">{annonce}</span>
     </>
   );
 }
