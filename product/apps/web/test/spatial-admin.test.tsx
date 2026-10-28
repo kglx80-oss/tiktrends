@@ -244,6 +244,23 @@ describe('Spatial · Tour de contrôle · comportements', () => {
     expect(actions.matrice).not.toHaveBeenCalled();
   });
 
+  it('Revenus · planche v4 · G8 · un seul mois relevé · l’écran le DIT au lieu d’un graphique muet', () => {
+    const douze = Array.from({ length: 12 }, (_, i) => ({ libelle: `m${i}`, valeur: i === 11 ? 1687 : null, enCours: i === 11 }));
+    const lire = (n: React.ReactNode) => { const d = document.createElement('div'); d.innerHTML = rendre(n); return d; };
+    const h = lire(<RevenusHero titre="MRR" valeur="1 687 €" variation={null} detail="d" serie={douze} />);
+    const vide = h.querySelector('[data-vide="courbe-mrr"]');
+    expect(vide?.textContent, 'aucun état vide · la grille reste muette').toContain('Un seul mois relevé (m11)');
+    expect(vide?.textContent).toContain('Rien n’est reconstitué');
+    expect(h.querySelector('.rvchart'), 'une grille sans courbe se dessine encore').toBeNull();
+    expect(h.querySelector('.seg'), 'une bascule de période sans objet reste affichée').toBeNull();
+    const rien = lire(<RevenusHero titre="MRR" valeur="0 €" variation={null} detail="d" serie={douze.map((m) => ({ ...m, valeur: null }))} />);
+    expect(rien.querySelector('[data-vide="courbe-mrr"]')?.textContent).toContain('Aucun relevé mensuel du MRR');
+    // Deux mois relevés · la courbe revient, l'état vide disparaît.
+    const deux = lire(<RevenusHero titre="MRR" valeur="1 687 €" variation={null} detail="d" serie={douze.map((m, i) => ({ ...m, valeur: i >= 10 ? 1600 + i : null }))} />);
+    expect(deux.querySelector('.rvchart path')).not.toBeNull();
+    expect(deux.querySelector('[data-vide="courbe-mrr"]')).toBeNull();
+  });
+
   it('Revenus · « 6 mois » recadre les mois affichés', async () => {
     const h = await monter(<RevenusHero {...propsRevenus().hero} />);
     expect(h.querySelectorAll('.rvmo span')).toHaveLength(12);

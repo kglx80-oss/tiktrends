@@ -1,4 +1,4 @@
-import type { EcranCreditsMarges } from '@tiktrends/core';
+import { LARGEUR_MIN_TABLE_TELEPHONE, styleTableDefilante, type EcranCreditsMarges } from '@tiktrends/core';
 import { Lien, Vue } from '../../communs';
 import { Kpis, Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
 
@@ -22,6 +22,11 @@ export interface PropsCreditsMarges {
   vide: { titre: string; pourquoi: string; action: { href: string; libelle: string } };
 }
 
+/**
+ * Les colonnes · portées par chaque ligne. Au téléphone, les quatre tables
+ * défilent dans leur cadre à une largeur minimale MESURÉE
+ * (`LARGEUR_MIN_TABLE_TELEPHONE`, noyau) · aucune valeur n'est rognée.
+ */
 const COL_OP = '1.5fr 1.3fr .8fr .6fr .8fr .6fr .6fr';
 const COL_NET = '1fr .7fr .9fr .9fr 1fr .8fr 1fr';
 const COL_RISQUE = '1fr .6fr .8fr .8fr 1.5fr .8fr';
@@ -47,7 +52,7 @@ export function CreditsMarges(p: PropsCreditsMarges) {
       <section className="tile sec" data-geste="operations">
         <div className="sech"><h2>Économie & marges · règle maison</h2><Pill c="c">Coût réel × {p.regle.markup}</Pill></div>
         <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>On facture le coût API réel × {p.regle.markup} (marge cible, réglée par CREDIT_MARKUP sur le serveur). Un crédit vaut {p.regle.credit} de revente · crédits = plafond(coût réel × {p.regle.markup} ÷ valeur d’un crédit). Les coûts réels sont des estimations, à rapprocher des factures.</p>
-        <div className="atable">
+        <div className="atable" data-table="operations" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.operationsCredits)}>
           <div className="atr ath" style={{ gridTemplateColumns: COL_OP }}><span>Action</span><span>Fournisseur</span><span>Coût réel</span><span>Crédits</span><span>Revente</span><span>Marge</span><span>Reco</span></div>
           {e.operations.map((o) => (
             <div className="atr" key={o.action} data-action={o.action} style={{ gridTemplateColumns: COL_OP }}>
@@ -68,7 +73,7 @@ export function CreditsMarges(p: PropsCreditsMarges) {
         {e.nets.length === 0 ? <Vide>Aucune formule payante.</Vide> : (
           <>
             <Kpis items={e.nets.map((n) => ({ lbl: `${n.forfait} · ${n.prix} € / mois HT`, v: `+${n.net} €`, d: `net / mois · ${n.netPct} % du prix · ${n.netAn} € / an`, c: n.net >= 0 ? 'up' : 'dn' }))} />
-            <div className="atable">
+            <div className="atable" data-table="nets" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.netsCredits)}>
               <div className="atr ath" style={{ gridTemplateColumns: COL_NET }}><span>Formule</span><span>Prix HT</span><span>− Coût API</span><span>− Frais</span><span>= Marge brute</span><span>− IS</span><span>= Marge nette</span></div>
               {e.nets.map((n) => (
                 <div className="atr" key={n.forfait} style={{ gridTemplateColumns: COL_NET }}>
@@ -84,7 +89,7 @@ export function CreditsMarges(p: PropsCreditsMarges) {
       <section className="tile sec" data-geste="risques">
         <div className="sech"><h2>Rentabilité & optimisation</h2><Pill c={fragiles ? 'w' : 'g'}>{fragiles ? `${fragiles} formule${fragiles > 1 ? 's' : ''} à surveiller` : 'Marges saines'}</Pill></div>
         <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>Le vrai risque est le pire cas · un client qui dépense toute son allocation sur l’action la moins rentable. On vise au moins 70 % de marge brute même dans ce scénario.</p>
-        <div className="atable">
+        <div className="atable" data-table="risques" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.risquesCredits)}>
           <div className="atr ath" style={{ gridTemplateColumns: COL_RISQUE }}><span>Formule</span><span>Prix</span><span>Marge pleine</span><span>Marge plancher</span><span>Action à risque</span><span>Prix conseillé</span></div>
           {e.risques.map((r) => (
             <div className="atr" key={r.forfait} data-forfait={r.forfait} style={{ gridTemplateColumns: COL_RISQUE }}>
@@ -99,7 +104,7 @@ export function CreditsMarges(p: PropsCreditsMarges) {
         {e.corrections.length > 0 && (
           <div data-geste="corrections" style={{ marginTop: 14 }}>
             <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>Corrections de barème conseillées · {e.corrections.length}</h3>
-            <div className="atable">
+            <div className="atable" data-table="corrections" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.correctionsCredits)}>
               {e.corrections.map((c) => (
                 <div className="atr" key={c.action} style={{ gridTemplateColumns: '1.6fr .6fr .6fr .9fr' }}>
                   <span>{c.libelle} <small className="faint">· marge {c.marge}</small></span><span className="faint">{c.actuel} crédits</span><span><b>{c.reco}</b></span>

@@ -25,5 +25,7 @@ describe('Spatial · Admin · outils de la plateforme (vague 3)', () => {
     expect(styleTableDefilante(-3).gridTemplateColumns).toBe('minmax(0px, 1fr)');
     // Les largeurs retenues dépassent la zone utile d'un écran de 390 px (~294 px) et la plus petite cellule mesurée (≥ 64 px).
     for (const v of Object.values(LARGEUR_MIN_TABLE_TELEPHONE)) expect(v).toBeGreaterThanOrEqual(640);
+    // Planche v4 · G18 · le profil déclaré défilait de 34 px à 1280 (zone utile mesurée · 866 px) et rognait « Onboardé ».
+    expect(LARGEUR_MIN_TABLE_TELEPHONE.declarations).toBeLessThanOrEqual(866);
   });
 });
