@@ -53,7 +53,13 @@ export interface PropsBriefProjet {
   titreBrief: string;
   etatBrief: 'ok' | 'vide' | 'illisible';
   champs: ChampBrief[];
-  references: Array<{ id: string; titre: string; detail: string; apercu: string | null; href: string | null; libelleLien: string }>;
+  references: Array<{
+    id: string; titre: string; detail: string; apercu: string | null; href: string | null; libelleLien: string;
+    /** Provenance de la fiche V5 · statut, droit, empreinte, ressources, absences, extrait (`provenanceSource`). */
+    provenance?: { statut: string; etat: string; lignes: string[] };
+  }>;
+  /** Références illisibles ignorées · dites (`phraseSourcesIllisibles`). */
+  sourcesIllisibles?: string | null;
   produit: { nom: string; faits: string[]; manques: string[]; instantane: string; photo: string | null; href: string | null } | null;
   veilleHref: string | null;
   fiche: { score: number; texte: string; href: string | null } | null;
@@ -74,6 +80,8 @@ export interface LotSpatial {
   qualite: string | null;
   message: string | null;
   sorties: SortieSpatiale[];
+  /** Branche antérieure · ses résultats restent rangés ici (`vueVariantes`) · `null` pour la version courante. */
+  note?: string | null;
 }
 
 export interface VarianteSpatiale {
@@ -85,10 +93,12 @@ export interface VarianteSpatiale {
   hypothese: string;
   variable: string;
   comparaison: string;
-  test: { href: string; resume: string; verdict: string } | null;
+  test: { href: string; resume: string; verdict: string; details?: Array<{ libelle: string; valeur: string }>; isolation?: string | null } | null;
+  /** « Rangée dans Version 1 · la version courante n'est pas modifiée. » · `null` sur la version courante. */
+  noteRangement?: string | null;
   /** Lien du test rattaché (`studio_test_links`) · la relecture de l'apprentissage le vise. */
   lienTest: string | null;
-  lecture: { conclusion: string; phrase: string } | null;
+  lecture: { conclusion: string; phrase: string; prudence?: string; variableSuivante?: string } | null;
   gestes: { iterer: boolean; relire: boolean; rattacher: boolean };
   /** Ce que le formulaire « Rattacher au test » reprend de la variante (hypothèse, variable, parente). */
   rattachement: { hypothese: string | null; variable: string | null; aUnParent: boolean };
@@ -102,7 +112,11 @@ export interface AdsmapRattachement {
   pages: Array<{ id: string; libelle: string }>;
 }
 
-export interface TacheSpatiale { id: string; titre: string; classe: ClassePastille; detail: string; explication: string; interrompue: boolean }
+export interface TacheSpatiale {
+  id: string; titre: string; classe: ClassePastille; detail: string; explication: string; interrompue: boolean;
+  /** Avancement MESURÉ (0 à 100) · `null` ou absent, aucun pourcentage n'est montré. */
+  progression?: number | null;
+}
 
 export interface PropsCreationsProjet {
   projectId: string;

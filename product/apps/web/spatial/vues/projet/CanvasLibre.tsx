@@ -223,7 +223,7 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
                 <span className="k">{LIBELLES_NATURE_CANVAS[k.nature].toUpperCase()} · {LIBELLES_ETAPE_CANVAS[k.etape].toUpperCase()}</span>
                 <strong>{k.titre}</strong>
                 {c.apercus[k.id]
-                  ? <img src={c.apercus[k.id]} alt={`Aperçu · ${k.titre}`} draggable={false} loading="lazy" style={{ display: 'block', width: '100%', aspectRatio: '4 / 5', maxHeight: 230, borderRadius: 12, objectFit: 'cover', pointerEvents: 'none' }} />
+                  ? <img src={c.apercus[k.id]} alt={`Aperçu · ${k.titre}`} draggable={false} loading="lazy" onError={(e) => { e.currentTarget.hidden = true; }} style={{ display: 'block', width: '100%', aspectRatio: '4 / 5', maxHeight: 230, borderRadius: 12, objectFit: 'cover', pointerEvents: 'none' }} />
                   : <span>{k.resume}</span>}
                 {media && <span className="faint" style={{ marginLeft: 0 }}>{media}</span>}
               </button>

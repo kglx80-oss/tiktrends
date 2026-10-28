@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { RELECTURE_CREATIONS_MS, valeursRattachement, type ValeursRattachement } from '@tiktrends/core';
+import { RELECTURE_CREATIONS_MS, bandeauTachesInterrompues, valeursRattachement, type ValeursRattachement } from '@tiktrends/core';
 import { creerVariante, iterer } from '../../../app/actions/studios/variantes';
 import { rattacherVarianteAuTest, relireApprentissage } from '../../../app/actions/studios/tests';
 import { useSpatial } from '../../coquille/contexte';
@@ -85,6 +85,11 @@ export function OngletCreations(p: PropsCreationsProjet) {
           </div>
         </section>
       ) : (
+        <>
+        {/* Une branche antérieure le dit (fiche V5) · ses résultats restent rangés, la version courante n'est pas remplacée. */}
+        {[...new Map(p.lots.filter((l) => l.note).map((l) => [l.version, l.note!])).entries()].map(([version, note]) => (
+          <p key={version} className="faint" data-branche={version} style={{ fontSize: '11.5px', margin: '0 0 8px' }}>{version} · {note}</p>
+        ))}
         <div className="lib2">
           {figures.map(({ cle, lot, sortie }) => (
             <figure key={cle} data-lot={lot.jobId} data-etat={lot.etat.libelle}>
@@ -113,6 +118,7 @@ export function OngletCreations(p: PropsCreationsProjet) {
             </figure>
           ))}
         </div>
+        </>
       )}
       {retour && <div className="sec"><Message ton={retour.ton}>{retour.texte}</Message></div>}
 
@@ -155,14 +161,15 @@ export function OngletCreations(p: PropsCreationsProjet) {
 
       <section className="tile sec" id="taches">
         <div className="sech" style={{ margin: 0 }}><h2>Tâches</h2><span className="faint" style={{ fontSize: '12.5px' }}>Les générations de ce projet et leur état réel · rien n’est relancé d’ici</span></div>
+        {(() => { const b = bandeauTachesInterrompues((p.taches ?? []).filter((t) => t.interrompue).length); return b && <div className="banner" role="alert" data-bandeau="interrompues" style={{ margin: '10px 0 0' }}><Ic n="warn" /><span>{b}</span></div>; })()}
         {p.erreurTaches ? <Message ton="err">{p.erreurTaches}</Message> : !p.taches || p.taches.length === 0 ? (
           <p className="muted" style={{ fontSize: '12.5px', marginTop: 10 }}>Aucune tâche lancée pour ce projet.</p>
         ) : (
           <div className="tl">
             {p.taches.map((t) => (
-              <div className="ev" key={t.id} data-tache={t.id}>
+              <div className="ev" key={t.id} data-tache={t.id} data-interrompu={t.interrompue ? 'oui' : 'non'} data-progression={typeof t.progression === 'number' ? t.progression : undefined}>
                 <span className="ico"><Ic n={t.interrompue ? 'warn' : 'spark'} /></span>
-                <span>{t.detail}<small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{t.explication}{t.interrompue ? ' · relance bloquée jusqu’au rapprochement du coût.' : ''}</small></span>
+                <span>{t.detail}<small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{t.explication}{t.interrompue ? <span data-relance="bloquee"> · relance bloquée jusqu’au rapprochement du coût.</span> : ''}</small></span>
                 <span className={`pill ${t.classe}`}>{t.titre}</span>
               </div>
             ))}
@@ -187,8 +194,13 @@ function CarteVariante({ v, enCours, relecture, ouverte, surIterer, surOuvrirRel
         <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.statut} · variable : {v.variable}</small>
         <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.hypothese}</small>
         <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.comparaison}</small>
+        {v.noteRangement && <small className="faint" data-rangement="" style={{ display: 'block', fontSize: '11.5px' }}>{v.noteRangement}</small>}
         {v.test && <small style={{ display: 'block', fontSize: '11.5px' }}>{v.test.resume} · {v.test.verdict}</small>}
+        {v.test?.details?.map((d) => <small key={d.libelle} className="faint" data-test-detail={d.libelle} style={{ display: 'block', fontSize: '11.5px' }}>{d.libelle} · {d.valeur}</small>)}
+        {v.test?.isolation && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.test.isolation}</small>}
         {v.lecture && <small style={{ display: 'block', fontSize: '11.5px' }}>{v.lecture.conclusion} · {v.lecture.phrase}</small>}
+        {v.lecture?.prudence && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.lecture.prudence}</small>}
+        {v.lecture?.variableSuivante && <small className="faint" data-variable-suivante="" style={{ display: 'block', fontSize: '11.5px' }}>Prochaine variable proposée · {v.lecture.variableSuivante}</small>}
         {ouverte && (
           <div className="sugg" style={{ marginTop: 8 }}>
             <p style={{ fontSize: '12.5px' }}>Jarvis relit le test et propose l’apprentissage · {relecture.mention ?? 'coût annoncé indisponible'}</p>

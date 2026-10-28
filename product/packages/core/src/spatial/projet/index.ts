@@ -4,3 +4,6 @@ export * from './video';
 export * from './editeur';
 export * from './atelier';
 export * from './disposition-libre';
+export * from './provenance';
+export * from './propositions';
+export * from './taches';

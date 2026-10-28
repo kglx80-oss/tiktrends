@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { annonceCibleJarvis, changementDepuisSaisie } from '@tiktrends/core';
+import {
+  RAISON_LECTEUR_PROPOSITIONS, annonceCibleJarvis, changementDepuisSaisie, differencesConflit, lectureImpact, noteEtatProposition, proseAffichee,
+} from '@tiktrends/core';
 import {
   appliquerProposition, creerPropositionManuelle, listerPropositions, proposerBrief, proposerPatch, rejeterProposition,
 } from '../../../app/actions/studios/propositions';
@@ -19,10 +21,18 @@ import { Message } from './briques';
  *  · lire · cible, version, avant / après ;
  *  · appliquer · nouvelle version du document, rien de généré ni débité ;
  *  · rejeter.
- * Elles visent TOUJOURS la version courante · un 409 le dit et propose de relire.
+ * Elles visent TOUJOURS la version courante · un 409 le dit, montre ce qui a
+ * changé depuis la base, et propose de relire.
+ *
+ * Porté aussi de la carte V5 · état daté (base périmée AVANT le clic, expirée,
+ * appliquée, rejetée), raison de chaque changement, plan d'impact (coût
+ * indicatif non débité, rien n'est généré), sources citées, raison quand le
+ * rôle ne peut pas trancher, « Réessayer » sur une lecture échouée, et le
+ * focus qui suit le retour d'un geste. Une liste d'un AUTRE projet n'est
+ * jamais affichée (FLOW-03).
  */
 
-type Retour = { ton: 'ok' | 'err'; texte: string; conflit?: boolean } | null;
+type Retour = { ton: 'ok' | 'err'; texte: string; conflit?: { differences: ReturnType<typeof differencesConflit>; traceId: string } } | null;
 
 const erreur = (e: ErreurProposition) => `${e.message}${e.traceId ? ` · identifiant support ${e.traceId}` : ''}`;
 
@@ -35,7 +45,10 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
 }) {
   const router = useRouter();
   const { toast } = useSpatial();
-  const [liste, setListe] = useState(initial);
+  const [listeBrute, setListe] = useState(initial);
+  // FLOW-03 · une liste d'un autre projet n'est jamais affichée.
+  const liste = listeBrute && (!listeBrute.ok || listeBrute.projectId === projectId) ? listeBrute : null;
+  const zoneRetour = useRef<HTMLDivElement>(null);
   const [retour, setRetour] = useState<Retour>(null);
   const [enCours, setEnCours] = useState<string | null>(null);
   const [mode, setMode] = useState<'jarvis' | 'main'>('jarvis');
@@ -67,6 +80,9 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
     champDemande.current?.focus({ preventScroll: true });
   }, [focaliser]);
 
+  // Le retour d'un geste prend le focus · un lecteur d'écran l'entend, le clavier repart de là.
+  useEffect(() => { if (retour) zoneRetour.current?.focus({ preventScroll: true }); }, [retour]);
+
   const recharger = useCallback(async () => {
     try { setListe(await listerPropositions({ projectId })); } catch { setRetour({ ton: 'err', texte: 'Le serveur ne répond pas · vérifie ta connexion puis réessaie.' }); }
   }, [projectId]);
@@ -77,7 +93,9 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
       const r = await appel();
       if (!r.ok) {
         const e = r as unknown as ErreurProposition;
-        setRetour({ ton: 'err', texte: e.code === 'VERSION_CONFLICT' ? 'Le projet a changé depuis l’ouverture de cette page · relis la version courante. Rien n’a été écrasé.' : erreur(e), conflit: e.code === 'VERSION_CONFLICT' });
+        setRetour(e.code === 'VERSION_CONFLICT'
+          ? { ton: 'err', texte: `Conflit de version · rien n’a été écrasé. ${e.message}`, conflit: { differences: differencesConflit(e.conflit?.differences), traceId: e.traceId } }
+          : { ton: 'err', texte: erreur(e) });
         return;
       }
       const t = succes(r);
@@ -93,8 +111,9 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
   }
 
   if (!versionCourante) return <p className="muted" style={{ fontSize: '12.5px' }}>Les propositions apparaîtront dès que le projet aura une première version.</p>;
-  if (!liste) return <p className="muted" style={{ fontSize: '12.5px' }}>Les propositions n’ont pas pu être lues · recharge la page.</p>;
-  if (!liste.ok) return <Message ton="err">{erreur(liste)}</Message>;
+  const reessayer = <button className="btn sm" type="button" data-reessayer="" onClick={() => { setRetour(null); void recharger(); }}>Réessayer</button>;
+  if (!liste) return <div style={{ display: 'grid', gap: 8 }}><p className="muted" style={{ fontSize: '12.5px' }}>Les propositions n’ont pas pu être lues.</p>{retour && <Message ton={retour.ton}>{retour.texte}</Message>}<div className="kc">{reessayer}</div></div>;
+  if (!liste.ok) return <div style={{ display: 'grid', gap: 8 }}><Message ton="err">{erreur(liste)}</Message>{liste.code !== 'NOT_FOUND' && liste.code !== 'FORBIDDEN' && <div className="kc">{reessayer}</div>}</div>;
 
   const ouvertes = liste.propositions.filter((x) => x.etat === 'proposed').length;
   const premierBrief = champ?.forme === 'objectif-brief';
@@ -163,7 +182,22 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
       )}
 
       {annonce && <Message ton="info">{annonce}</Message>}
-      {retour && <Message ton={retour.ton}>{retour.texte}{retour.conflit && <> <button className="btn sm" type="button" onClick={() => { setRetour(null); router.refresh(); void recharger(); }}>Relire la version courante</button></>}</Message>}
+      {retour && (
+        <div ref={zoneRetour} tabIndex={-1} data-retour={retour.ton === 'ok' ? 'succes' : 'refus'} style={{ outline: 'none' }}>
+          <Message ton={retour.ton}>{retour.texte}</Message>
+          {retour.conflit && (
+            <div style={{ display: 'grid', gap: 6 }} data-conflit="">
+              {retour.conflit.differences.lignes.length > 0 && <span className="lbl">Ce qui a changé depuis la base · {retour.conflit.differences.lignes.length + retour.conflit.differences.reste}</span>}
+              {retour.conflit.differences.lignes.map((d) => (
+                <p key={d.chemin} className="faint" style={{ fontSize: '12px', overflowWrap: 'anywhere' }}><code>{d.chemin}</code> · {d.avant} → {d.apres}</p>
+              ))}
+              {retour.conflit.differences.reste > 0 && <p className="faint" style={{ fontSize: '12px' }}>… et {retour.conflit.differences.reste} autre(s)</p>}
+              <div className="kc"><button className="btn sm" type="button" onClick={() => { setRetour(null); router.refresh(); void recharger(); }}>Relire la version courante</button></div>
+              <p className="faint" style={{ fontSize: '11.5px' }}>Identifiant support · {retour.conflit.traceId}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {triees.length === 0
         ? <p className="faint" style={{ fontSize: '12.5px' }}>{liste.peutProposer ? 'Aucune proposition pour l’instant · demande-en une à Jarvis ou modifie un champ à la main.' : 'Aucune proposition pour l’instant.'}</p>
@@ -176,26 +210,40 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
                   <strong style={{ fontSize: 13 }}>{x.libelleCible}</strong>
                   <span className="faint" style={{ fontSize: '11.5px' }}>{x.libelleOrigine} · {x.libelleCibleVersion}</span>
                 </div>
-                {x.perimee && x.etat === 'proposed' && <p className="faint" style={{ fontSize: '11.5px' }}>Faite sur une version antérieure · l’appliquer rendra un conflit, rien ne sera écrasé.</p>}
+                {(() => { const n = noteEtatProposition(x, liste.versionCourante.n); return n && <p className={n.ton === 'warn' ? '' : 'faint'} role="note" data-note-etat={n.ton} style={{ fontSize: '11.5px' }}>{n.ton === 'warn' && <span className="pill w">À savoir</span>} {n.texte}</p>; })()}
+                {/* La prose de Jarvis passe par `proseAffichee` (« — » rendu « · ») · l'avant / après jamais réécrit, c'est la valeur appliquée. */}
+                {x.explication && <p className="muted" style={{ fontSize: '12.5px', whiteSpace: 'pre-wrap' }}>{proseAffichee(x.explication, x.origine)}</p>}
                 {x.changements.map((c, i) => (
-                  <div key={`${c.chemin}-${i}`} style={{ display: 'grid', gap: 4 }}>
-                    <span className="lbl">{c.libelle}</span>
-                    {c.avant && <p className="faint" style={{ fontSize: '12.5px' }}>Avant · {c.avant}</p>}
-                    <p style={{ fontSize: '12.5px' }}>Après · {c.apres || 'retiré'}</p>
+                  <div key={`${c.chemin}-${i}`} style={{ display: 'grid', gap: 4 }} data-changement={c.chemin}>
+                    <span className="lbl">{c.libelle} · {c.op === 'add' ? 'Ajout' : c.op === 'remove' ? 'Suppression' : 'Modification'}</span>
+                    <p className="faint" style={{ fontSize: '12.5px', whiteSpace: 'pre-wrap' }}>Avant · {c.avant || '(vide)'}</p>
+                    <p style={{ fontSize: '12.5px', whiteSpace: 'pre-wrap' }}>Après · {c.apres || 'retiré'}</p>
+                    {c.raison && <p className="faint" style={{ fontSize: '11.5px' }}>Raison · {proseAffichee(c.raison, x.origine)}</p>}
                   </div>
                 ))}
-                {x.explication && <p className="muted" style={{ fontSize: '12.5px' }}>{x.explication}</p>}
-                {x.impact && (x.impact.aRefaire.length > 0 || x.impact.obsoletes.length > 0) && (
-                  <p className="faint" style={{ fontSize: '11.5px' }}>
-                    À refaire · {x.impact.aRefaire.map((n) => n.libelle).join(', ') || 'rien'}{x.impact.obsoletes.length ? ` · devient obsolète : ${x.impact.obsoletes.map((n) => n.libelle).join(', ')}` : ''} · rien n’est lancé à l’application.
-                  </p>
-                )}
+                {x.etat === 'proposed' && (() => {
+                  const l = lectureImpact(x.impact);
+                  if (!l) return <p className="faint" style={{ fontSize: '11.5px' }}>Plan d’impact indisponible pour cette proposition.</p>;
+                  return (
+                    <div style={{ display: 'grid', gap: 4 }} data-impact="">
+                      <span className="lbl">Impact si tu appliques</span>
+                      {(l.sansMedia ? l.groupes.slice(0, 1) : l.groupes).map((g) => (
+                        <p key={g.titre} className="faint" style={{ fontSize: '11.5px' }}><b>{g.titre}</b> · {g.elements.length ? g.elements.join(', ') : g.vide}</p>
+                      ))}
+                      {l.sansMedia && <p className="faint" style={{ fontSize: '11.5px' }}>{l.sansMedia}</p>}
+                      <p className="faint" style={{ fontSize: '11.5px' }}>{l.cout}</p>
+                      <p style={{ fontSize: '12px' }}><span className="pill g">Sans génération</span> {l.mention}</p>
+                    </div>
+                  );
+                })()}
+                {x.sources.length > 0 && <p className="faint" style={{ fontSize: '11.5px' }}>Sources citées · {x.sources.join(', ')}</p>}
                 {x.etat === 'proposed' && liste.peutProposer && (
                   <div className="kc">
                     <button className="btn pri sm" type="button" disabled={!!enCours} onClick={() => void appliquer(x)}><Ic n="check" />{enCours === `appliquer:${x.id}` ? 'Application…' : 'Appliquer'}</button>
                     <button className="btn sm" type="button" disabled={!!enCours} onClick={() => void rejeter(x)}><Ic n="x" />{enCours === `rejeter:${x.id}` ? 'Rejet…' : 'Rejeter'}</button>
                   </div>
                 )}
+                {x.etat === 'proposed' && !liste.peutProposer && <p className="faint" style={{ fontSize: '11.5px' }} data-raison-lecteur="">{RAISON_LECTEUR_PROPOSITIONS}</p>}
               </div>
             ))}
           </div>

@@ -254,3 +254,61 @@ describe('Spatial · fiche projet · « Revenir à la recherche de Veille » (fi
     expect(sans).not.toContain('data-retour-veille');
   });
 });
+
+describe('Spatial · fiche projet · provenance des références (fiche V5)', () => {
+  it('chaque référence dit son statut, son droit, ses ressources ; une source retirée s’ouvre d’office et n’a plus de lien ; les illisibles sont comptées', () => {
+    const base = props();
+    const html = renderToStaticMarkup(<FournisseurSpatial value={CTX}><Projet {...props({ ongletInitial: 'brief', brief: { ...base.brief, sourcesIllisibles: '1 référence de source illisible · ignorée.', references: [
+      { id: 's1', titre: 'Lumière', detail: 'Annonce observée en Veille · meta', apercu: null, href: '/veille?q=serum', libelleLien: 'Voir la source dans la Veille', provenance: { statut: 'active', etat: 'Accessible', lignes: ['Droit · observation publique, structure seulement · empreinte abc', 'Ressources · aucune'] } },
+      { id: 's2', titre: 'Retirée', detail: 'Annonce sauvegardée · meta · plus accessible', apercu: null, href: null, libelleLien: 'Voir la sauvegarde', provenance: { statut: 'supprimee', etat: 'Source retirée · depuis le 20/10/2026 · observations conservées', lignes: ['La source n’est plus accessible · aucun lien.'] } },
+    ] } })} /></FournisseurSpatial>);
+    expect(html).toMatch(/data-source="s1" data-statut="active">.*<details style="font-size:11.5px"><summary class="faint">Accessible<\/summary>.*Droit · observation publique.*Voir la source dans la Veille/);
+    expect(html).toMatch(/data-source="s2" data-statut="supprimee">.*<details style="font-size:11.5px" open=""><summary class="faint">Source retirée · depuis le 20\/10\/2026 · observations conservées<\/summary>.*La source n’est plus accessible · aucun lien\./);
+    expect(html).toMatch(/data-sources-illisibles="">1 référence de source illisible · ignorée\./);
+  });
+});
+
+describe('Spatial · disposition libre · cartes, liens et miniatures (porté de L8-D)', () => {
+  it('toutes les cartes du modèle, dans son ordre ; autant de liens que de dépendances ; l’état du média écrit', () => {
+    monter(props({ dispositionInitiale: 'libre' }));
+    expect([...hote.querySelectorAll<HTMLElement>('[data-canvas-zone] [data-carte]')].map((e) => e.dataset.carte)).toEqual(modele.cartes.map((c) => c.id));
+    expect(hote.querySelectorAll('[data-liens-canvas] polyline')).toHaveLength(modele.liens.length);
+    expect(carte('keyframe:s_produit').textContent).toContain('Pas encore produit');
+  });
+
+  it('les liens vivent dans la zone rognée · le détail est hors de la zone', async () => {
+    monter(props({ dispositionInitiale: 'libre' }));
+    const zone = q('[data-canvas-zone]')!;
+    expect(zone.style.overflow).toBe('hidden');
+    expect(zone.contains(q('[data-liens-canvas]'))).toBe(true);
+    await cliquer(carte(PLAN.id));
+    const detail = q('[data-detail-carte]')!;
+    expect(detail).not.toBeNull();
+    expect(zone.contains(detail), 'le détail est DANS la zone du canvas').toBe(false);
+  });
+
+  it('miniatures · seulement les aperçus fournis ; une image qui ne se charge pas est masquée, la carte garde son titre', () => {
+    const base = props({ dispositionInitiale: 'libre' });
+    const c = (base.libre as { ok: true; canvas: import('../spatial/vues/projet/types').CanevasLibre }).canvas;
+    monter({ ...base, libre: { ok: true, canvas: { ...c, apercus: { 'keyframe:s_produit': '/api/studios/media/image-attachee' } } } });
+    const k = carte('keyframe:s_produit');
+    expect(k.querySelector('img')?.getAttribute('src')).toBe('/api/studios/media/image-attachee');
+    expect(hote.querySelectorAll('[data-canvas-zone] img')).toHaveLength(1);
+    act(() => k.querySelector('img')!.dispatchEvent(new Event('error')));
+    expect(k.querySelector('img')!.hidden).toBe(true);
+    expect(k.textContent).toContain('Image clé');
+    expect(appels.enregistrer).toEqual([]);
+  });
+});
+
+describe('Spatial · fiche projet · une ancre ouvre l’onglet qui la porte (fiche V5 · liens de tâches et de variantes)', () => {
+  afterEach(() => { window.location.hash = ''; });
+  it('#variantes et #taches ouvrent « Créations », #propositions ouvre « Brief & références »', () => {
+    window.location.hash = '#variantes';
+    monter(props());
+    expect(q('[data-ptab="crea"]')!.getAttribute('aria-pressed')).toBe('true');
+    expect(q('#variantes')).not.toBeNull();
+    act(() => { window.location.hash = '#propositions'; window.dispatchEvent(new HashChangeEvent('hashchange')); });
+    expect(q('[data-ptab="brief"]')!.getAttribute('aria-pressed')).toBe('true');
+  });
+});

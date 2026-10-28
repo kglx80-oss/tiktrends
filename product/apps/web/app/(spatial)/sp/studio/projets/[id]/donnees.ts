@@ -3,7 +3,7 @@ import { and, count, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
-  couloirsDepuisProjet, dateCourteUtc, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, libelleCoutRelecture, pastilleEnregistrement, relectureNecessaire,
+  couloirsDepuisProjet, dateCourteUtc, detailTache, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, libelleCoutRelecture, pastilleEnregistrement, relectureNecessaire,
   resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
@@ -148,7 +148,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
   const lots: LotSpatial[] = (vue?.versions ?? []).flatMap((bv) => bv.lots.map((l) => {
     const lu = donnees!.lots.find((x) => x.jobId === l.jobId)!;
     return {
-      jobId: l.jobId, titre: l.titre, version: bv.titre, etat: etatGeneration(lu.etat as EtatJob), qualite: l.qualite, message: l.message,
+      jobId: l.jobId, titre: l.titre, version: bv.titre, note: bv.note, etat: etatGeneration(lu.etat as EtatJob), qualite: l.qualite, message: l.message,
       sorties: l.sorties.map((x) => ({ assetId: x.assetId, libelle: `${l.titre} · ${x.libelle}`, apercu: apercus[x.assetId] ?? null, detail: x.dimensions, choisir: x.choisir, raison: x.raison, varianteId: x.varianteId })),
     };
   }));
@@ -157,15 +157,16 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
     return {
       id: v.id, libelle: v.libelle, apercu: apercus[lu.assetId] ?? null, version: v.versionTitre, statut: `${v.statutTechnique} · ${v.statutQualite}`,
       hypothese: v.hypothese, variable: v.variable, comparaison: v.comparaison,
-      test: v.test ? { href: v.test.adsmapHref, resume: v.test.resume, verdict: v.test.verdict } : null,
+      test: v.test ? { href: v.test.adsmapHref, resume: v.test.resume, verdict: v.test.verdict, details: v.test.details, isolation: v.test.isolation } : null,
+      noteRangement: v.noteRangement,
       lienTest: lu.test?.linkId ?? null,
-      lecture: v.lecture ? { conclusion: v.lecture.conclusion, phrase: v.lecture.phrase } : null,
+      lecture: v.lecture ? { conclusion: v.lecture.conclusion, phrase: v.lecture.phrase, prudence: v.lecture.prudence, variableSuivante: v.lecture.variableSuivante } : null,
       gestes: v.gestes,
       rattachement: { hypothese: lu.hypothese, variable: lu.variable, aUnParent: lu.parentVariantId !== null },
     };
   });
   const tachesSp: TacheSpatiale[] | null = taches?.ok ? taches.taches.map((t) => ({
-    id: t.id, titre: t.etat.titre, classe: TON_TACHE[t.etat.ton] ?? '', detail: `${t.libelleOperation} · lancée le ${dateCourteUtc(t.creeLe)}`,
+    id: t.id, titre: t.etat.titre, classe: TON_TACHE[t.etat.ton] ?? '', detail: detailTache(t), progression: t.progression,
     explication: t.etat.explication, interrompue: t.etat.interrompu,
   })) : null;
   const relecture = donnees?.relecture ?? { disponible: false, raison: null, coutMaxUsd: null };
@@ -214,8 +215,10 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         references: d.sources.map((x) => ({
           id: x.sourceId, titre: titreSource(x), apercu: x.apercu, href: x.lienSource,
           detail: `${LIBELLES_TYPE_SOURCE[x.type]} · ${x.plateforme} · observée le ${dateCourteUtc(x.observeLe)}${x.statut !== 'active' ? ' · plus accessible' : ''}`,
-          libelleLien: x.type === 'veille_ad' ? 'Voir' : 'Ouvrir',
+          libelleLien: x.type === 'veille_ad' ? 'Voir la source dans la Veille' : 'Voir la sauvegarde',
+          provenance: provenanceSource(x, !!x.lienSource),
         })),
+        sourcesIllisibles: phraseSourcesIllisibles(d.sourcesIllisibles),
         produit: d.produit ? {
           nom: d.produit.nom, instantane: dateCourteUtc(d.produit.instantaneLe), photo: null, href: lien('produit'),
           faits: d.produit.faits.filter((f) => f.cle !== 'nom').map((f) => `${f.libelle} · ${f.valeur}`),
