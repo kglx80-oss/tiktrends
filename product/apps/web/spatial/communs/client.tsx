@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { partSolde } from '@tiktrends/core';
 import { useSpatial } from '../coquille/contexte';
 import { Anneau, Ic, Lien, formatNombre } from './base';
@@ -54,3 +54,19 @@ export function EnTete({ titre, sous, outils = 'complets' }: { titre: ReactNode;
   );
 }
 
+/** Téléphone · le seuil de la maquette (`max-width:760px`). */
+const MEDIA_TELEPHONE = '(max-width: 760px)';
+function suivreTelephone(f: () => void) {
+  if (typeof window === 'undefined' || !window.matchMedia) return () => {};
+  const mq = window.matchMedia(MEDIA_TELEPHONE);
+  mq.addEventListener('change', f);
+  return () => mq.removeEventListener('change', f);
+}
+/**
+ * Vrai sur un écran de téléphone · pour un geste que la feuille de la maquette
+ * (intouchable) ne sait pas adapter. Le rendu serveur vaut ordinateur (donc la
+ * parité avec la maquette), la lecture suit au montage et aux rotations.
+ */
+export function useTelephone(): boolean {
+  return useSyncExternalStore(suivreTelephone, () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(MEDIA_TELEPHONE).matches, () => false);
+}

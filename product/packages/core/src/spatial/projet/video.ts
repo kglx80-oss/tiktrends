@@ -69,6 +69,37 @@ export function pistesMontage(e: {
   };
 }
 
+/**
+ * La largeur minimale de la frise du montage · chaque scène doit pouvoir porter
+ * son libellé. Au téléphone, `.vtr` passe à une colonne et la frise se
+ * partageait ~294 px · la 3e scène, la fin de la voix et le repère 0:15
+ * sortaient du cadre, rognés sans défilement (planche v4 · G3). La frise défile
+ * désormais dans son cadre à cette largeur.
+ *
+ * Mesuré le 28/10 (banc, Chromium, `.vtr b` · 11,5 px gras + 16 px de marge) :
+ *
+ * | libellé            | px  |
+ * | ------------------ | --- |
+ * | Plan 12            |  57 |
+ * | Accroche, Problème |  69 |
+ * | Preuve sociale     |  97 |
+ * | Démonstration      |  98 |
+ * | Appel à l’action   | 101 |
+ * | Bénéfice produit   | 107 |
+ *
+ * Retenu · 112 px pour la scène la plus COURTE (les scènes ont une largeur
+ * proportionnelle à leur durée), 3 px d'écart entre scènes, plafond 2 400 px.
+ * Un libellé plus long reste coupé ici · il est entier dans la liste des plans.
+ */
+export const LARGEUR_SCENE_FRISE = 112;
+export function largeurMinFrise(scenes: ReadonlyArray<{ flex: number }>): number {
+  const parts = scenes.map((s) => s.flex).filter((f) => Number.isFinite(f) && f > 0);
+  if (parts.length === 0) return 0;
+  const total = parts.reduce((t, f) => t + f, 0);
+  const plusCourte = Math.min(...parts) / total;
+  return Math.min(2400, Math.ceil(LARGEUR_SCENE_FRISE / plusCourte + 3 * (parts.length - 1)));
+}
+
 export interface JobPlan { operation: string; etat: EtatJob }
 
 /** Le plan concerné par un job (`keyframe:<plan>`, `clip:<plan>`) · `null` sinon. */
