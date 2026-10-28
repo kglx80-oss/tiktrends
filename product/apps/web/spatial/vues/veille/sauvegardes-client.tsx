@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState, useTransition } from 'react';
 import {
-  COLLECTION_TOUTES, FILTRES_SAUVEGARDES, FORMAT_NON_CLASSE, FORMAT_TOUS, collectionsSauvegardes, filtrerSauvegardes, type FiltresSauvegardes, dansCollection, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, verrouAction,
+  COLLECTION_TOUTES, FILTRES_SAUVEGARDES, FORMAT_INCERTAIN, FORMAT_NON_CLASSE, FORMAT_TOUS, TRIS_FORMATS, collectionsSauvegardes, filtrerSauvegardes, formatFiltrable, provenanceSauvegarde, trierSauvegardes,
+  type FiltresSauvegardes, type TriFormats, dansCollection, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, verrouAction,
 } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { classerFormatSauvegarde, setSavedAdFolder, unsaveAd } from '../../../app/actions/inspo';
@@ -21,6 +22,10 @@ import { Vignette } from './base';
  * sauvegardes, classer le FORMAT d'une créa (`classerFormatSauvegarde`, geste
  * explicite « Enregistrer »), et « Préparer un test » dans Résultats
  * (`trackSavedAdAction`, un brouillon · rien n'est lancé, aucune dépense).
+ *
+ * Vague 4 · ce que l'écran Formats V5 ajoutait · les quatre tris, la file des
+ * « incertaines » (à part des non classées), la provenance (sauvegardée le,
+ * classée le, par qui) et des filtres de départ lus dans l'adresse.
  */
 
 /** Les droits des gestes de la carte, calculés par la page (jamais au client). */
@@ -45,13 +50,19 @@ export interface SauvegardeDonnees {
   meta: [string, string];
   pastilles: ReadonlyArray<{ libelle: string; classe: '' | 'g' }>;
   cloner: string;
-  /** Le format classé (`lireFormatCreatif`) · `null` = non classée. */
-  format?: { id: string | null; versionAncienne: boolean };
+  /** Le format classé (`lireFormatCreatif`) · `null` = non classée · `etat` distingue l'incertaine. */
+  format?: { id: string | null; versionAncienne: boolean; etat?: string };
+  /** Vague 4 · la provenance (ISO) et les jours de diffusion, pour les tris de l'écran Formats. */
+  sauvegardeLe?: string | null;
+  classeeLe?: string | null;
+  /** Le nom du membre de l'espace qui a classé · lu côté serveur, jamais l'e-mail. */
+  auteur?: string | null;
+  jours?: number | null;
 }
 
-export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = COLLECTION_TOUTES, gestes }: { items: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; initiale?: string; gestes?: GestesSauvegarde }) {
+export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = COLLECTION_TOUTES, gestes, filtresInitiaux = FILTRES_SAUVEGARDES }: { items: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; initiale?: string; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes }) {
   const [items, setItems] = useState(depart);
-  const [filtres, setFiltres] = useState<FiltresSauvegardes>(FILTRES_SAUVEGARDES);
+  const [filtres, setFiltres] = useState<FiltresSauvegardes>(filtresInitiaux);
   const fx = (p: Partial<FiltresSauvegardes>) => setFiltres((x) => ({ ...x, ...p }));
   const [actif, setActif] = useState(initiale);
   const [enCreation, setEnCreation] = useState<string | null>(null);
@@ -63,8 +74,9 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
     return c;
   }, [items, enCreation]);
   const dansVue = items.filter((i) => dansCollection(i.folder, actif));
-  const filtrables = dansVue.map((i) => ({ i, platform: i.platform, video: i.video, texte: i.ad.body ?? '', annonceur: i.marque.nom, format: i.format?.id ?? null }));
-  const visibles = (gestes ? filtrerSauvegardes(filtrables, filtres).map((x) => x.i) : dansVue);
+  const filtrables = dansVue.map((i) => ({ i, platform: i.platform, video: i.video, texte: i.ad.body ?? '', annonceur: i.marque.nom, format: formatFiltrable(i.format) }));
+  const visibles = (gestes ? trierSauvegardes(filtrerSauvegardes(filtrables, filtres).map((x) => x.i), filtres.tri) : dansVue);
+  const incertaines = items.some((i) => i.format?.etat === FORMAT_INCERTAIN) || filtres.format === FORMAT_INCERTAIN;
   const formatsPresents = [...new Set(items.map((i) => i.format?.id).filter((x): x is string => !!x))].filter(estFormatCreatif);
   const plateformes = [...new Set(items.map((i) => i.platform))];
   const dossiers = collections.filter((c) => c.cle.startsWith('f:')).map((c) => c.libelle);
@@ -90,6 +102,7 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
               <label className="field">Chercher<input type="search" value={filtres.texte} onChange={(e) => fx({ texte: e.target.value })} placeholder="Un mot du texte ou un annonceur" aria-label="Chercher dans les sauvegardes" /></label>
               <label className="field">Format<select value={filtres.format} onChange={(e) => fx({ format: e.target.value })} aria-label="Filtrer par format">
                 <option value={FORMAT_TOUS}>Tous les formats</option><option value={FORMAT_NON_CLASSE}>Non classées · à classer</option>
+                {incertaines && <option value={FORMAT_INCERTAIN}>Incertaines · exclues des formats</option>}
                 {formatsPresents.map((f) => <option key={f} value={f}>{formatCreatif(f).libelle}</option>)}
               </select></label>
               <label className="field">Média<select value={filtres.media} onChange={(e) => fx({ media: e.target.value as FiltresSauvegardes['media'] })} aria-label="Filtrer par média">
@@ -98,6 +111,9 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
               {plateformes.length > 1 && <label className="field">Plateforme<select value={filtres.plateforme} onChange={(e) => fx({ plateforme: e.target.value })} aria-label="Filtrer par plateforme">
                 <option value="tous">Toutes</option>{plateformes.map((x) => <option key={x} value={x}>{x === 'meta' ? 'Meta' : x === 'tiktok' ? 'TikTok' : x === 'google' ? 'Google' : x}</option>)}
               </select></label>}
+              <label className="field">Tri<select value={filtres.tri} onChange={(e) => fx({ tri: e.target.value as TriFormats })} aria-label="Trier les sauvegardes">
+                {TRIS_FORMATS.map((t) => <option key={t.id} value={t.id}>{t.libelle}</option>)}
+              </select></label>
             </div>
           )}
           <span className="faint" style={{ fontSize: '12.5px' }}>{visibles.length} créa{visibles.length > 1 ? 's' : ''}{actif === `f:${enCreation}` && visibles.length === 0 ? ` · range une créa dans « ${enCreation} » depuis son bouton « Gardée »` : ''}</span>
@@ -108,7 +124,7 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
             <CarteSauvegarde key={i.id} i={i} dossiers={dossiers} gestes={gestes}
               range={(folder) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, folder } : x)))}
               retire={() => setItems((l) => l.filter((x) => x.id !== i.id))}
-              classe={(id) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, format: { id, versionAncienne: false } } : x)))} />
+              classe={(id, date) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, format: { id, versionAncienne: false, etat: id ? 'classe' : FORMAT_NON_CLASSE }, classeeLe: id ? date : null, auteur: null } : x)))} />
           ))}
         </div>
       </div>
@@ -116,7 +132,7 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
   );
 }
 
-function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: SauvegardeDonnees; dossiers: string[]; range: (f: string | null) => void; retire: () => void; gestes?: GestesSauvegarde; classe: (id: string | null) => void }) {
+function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: SauvegardeDonnees; dossiers: string[]; range: (f: string | null) => void; retire: () => void; gestes?: GestesSauvegarde; classe: (id: string | null, date: string | null) => void }) {
   const [menu, setMenu] = useState(false);
   const [attente, demarrer] = useTransition();
   const verrou = useRef(verrouAction());
@@ -141,6 +157,7 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: Sa
       </div>
       <div className="vmeta"><span>{i.meta[0]}</span><span>{i.meta[1]}</span></div>
       <div className="row">{i.pastilles.map((p) => <span key={p.libelle} className={`pill ${p.classe}`.trim()}>{p.libelle}</span>)}</div>
+      {gestes && i.sauvegardeLe !== undefined && <small className="faint" data-provenance style={{ fontSize: 11, overflowWrap: 'anywhere' }}>{provenanceSauvegarde({ platform: i.platform, sauvegardeLe: i.sauvegardeLe, classeeLe: i.classeeLe ?? null, auteur: i.auteur ?? null })}</small>}
       <div className="acts">
         <button className="btn sm" type="button" aria-pressed="true" aria-expanded={menu} aria-haspopup="menu" disabled={attente} onClick={() => setMenu(!menu)}><Ic n="bookmark" />Gardée</button>
         <Lien className="btn sm" href={i.cloner}><Ic n="copy" />Cloner</Lien>
@@ -165,7 +182,7 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: Sa
  * puis « Enregistrer » · un geste explicite (une flèche du clavier n'écrit
  * rien). « Enregistré » seulement au oui du serveur · sinon le choix revient.
  */
-function ChoixFormat({ i, ferme, classe }: { i: SauvegardeDonnees; ferme: string | null; classe: (id: string | null) => void }) {
+function ChoixFormat({ i, ferme, classe }: { i: SauvegardeDonnees; ferme: string | null; classe: (id: string | null, date: string | null) => void }) {
   const { toast } = useSpatial();
   const options = formatsPourMedia(mediaAnnonce(i.ad.mediaType));
   const initial = i.format?.id ?? null;
@@ -183,7 +200,7 @@ function ChoixFormat({ i, ferme, classe }: { i: SauvegardeDonnees; ferme: string
         const r = await classerFormatSauvegarde({ platform: i.platform, externalId: i.externalId, format: v });
         if (!r.ok) { setValeur(enregistre); toast(r.error); return; }
         setEnregistre(v);
-        classe(r.format ?? null);
+        classe(r.format ?? null, r.date ?? null);
         toast(r.format ? `Enregistré · ${formatCreatif(r.format).libelle}` : 'Enregistré · non classée');
       } catch { setValeur(enregistre); toast('Échec de l’enregistrement · vérifie ta connexion puis réessaie.'); }
       finally { verrou.current.relacher(); }

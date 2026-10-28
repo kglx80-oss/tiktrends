@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ecrireOutilsScale, lireOutilsScale, filtrerOutilsScale, criteresOutilsScale, FILTRES_OUTIL_SCALE, lectureMarche, resumeRadarCreatif,
   filtrerSauvegardes, FILTRES_SAUVEGARDES, type DonneesOutilScale,
+  lireFiltresSauvegardes, trierSauvegardes, formatFiltrable, provenanceSauvegarde, filesClassement,
 } from '../src';
 
 const o = (annonceur: string, jours: number, croissance: number, video = false): { o: DonneesOutilScale } => ({ o: { video, annonceur, angle: 'offer', texte: `pub ${annonceur}`, jours, croissance, reach: 0, depense: 0 } });
@@ -43,5 +44,52 @@ describe('Spatial · Sauvegardes · filtres', () => {
     expect(filtrerSauvegardes(s, { ...FILTRES_SAUVEGARDES, format: 'non_classe' }).map((x) => x.annonceur)).toEqual(['Ploufy']);
     expect(filtrerSauvegardes(s, { ...FILTRES_SAUVEGARDES, format: 'packshot', media: 'image' }).map((x) => x.annonceur)).toEqual(['Neva']);
     expect(filtrerSauvegardes(s, { ...FILTRES_SAUVEGARDES, plateforme: 'tiktok', texte: 'dan' })).toHaveLength(1);
+  });
+});
+
+/* ───────────── Vague 4 · ce que l'écran Formats V5 savait faire, dans Sauvegardes ───────────── */
+
+describe('Spatial · Sauvegardes · vague 4 (règles)', () => {
+  it('lireFiltresSauvegardes · format, tri et média lus dans l’adresse · une valeur inconnue revient au défaut', () => {
+    expect(lireFiltresSauvegardes({ format: 'non_classe', tri: 'duree', media: 'video' })).toEqual({ ...FILTRES_SAUVEGARDES, format: 'non_classe', tri: 'duree', media: 'video' });
+    expect(lireFiltresSauvegardes({ format: 'incertain' }).format).toBe('incertain');
+    expect(lireFiltresSauvegardes({ format: 'packshot' }).format).toBe('packshot');
+    expect(lireFiltresSauvegardes({ format: 'inconnu', tri: 'n/a', media: 'gif' })).toEqual(FILTRES_SAUVEGARDES);
+    expect(lireFiltresSauvegardes({ format: ['packshot', 'x'] }).format).toBe('packshot');
+  });
+  it('trierSauvegardes · les quatre tris de l’écran Formats · une date absente passe en dernier', () => {
+    const l = [
+      { id: 'a', sauvegardeLe: '2026-10-01T00:00:00Z', classeeLe: '2026-10-09T00:00:00Z', jours: 5 },
+      { id: 'b', sauvegardeLe: '2026-10-03T00:00:00Z', classeeLe: null, jours: 50 },
+      { id: 'c', sauvegardeLe: '2026-10-02T00:00:00Z', classeeLe: '2026-10-04T00:00:00Z', jours: null },
+      { id: 'd', sauvegardeLe: null, classeeLe: null, jours: 20 },
+    ];
+    const ids = (t: Parameters<typeof trierSauvegardes>[1]) => trierSauvegardes(l, t).map((x) => x.id);
+    expect(ids('recent')).toEqual(['b', 'c', 'a', 'd']);
+    expect(ids('ancien')).toEqual(['d', 'a', 'c', 'b']);
+    expect(ids('classe')).toEqual(['a', 'c', 'b', 'd']);
+    expect(ids('duree')).toEqual(['b', 'd', 'a', 'c']);
+    expect(l.map((x) => x.id), 'la liste reçue a été modifiée').toEqual(['a', 'b', 'c', 'd']);
+  });
+  it('formatFiltrable · l’incertaine a sa file, la non classée n’a pas de format', () => {
+    expect(formatFiltrable({ id: null, etat: 'incertain' })).toBe('incertain');
+    expect(formatFiltrable({ id: 'packshot', etat: 'classe' })).toBe('packshot');
+    expect(formatFiltrable({ id: null, etat: 'non_classe' })).toBeNull();
+    expect(formatFiltrable(undefined)).toBeNull();
+    const items = [{ platform: 'meta', video: false, texte: '', annonceur: '', format: formatFiltrable({ id: null, etat: 'incertain' }) }, { platform: 'meta', video: false, texte: '', annonceur: '', format: null }];
+    expect(filtrerSauvegardes(items, { ...FILTRES_SAUVEGARDES, format: 'non_classe' })).toHaveLength(1);
+    expect(filtrerSauvegardes(items, { ...FILTRES_SAUVEGARDES, format: 'incertain' })[0]!.format).toBe('incertain');
+  });
+  it('provenanceSauvegarde · sauvegardée le, classée le, par qui (seulement quand le nom est connu)', () => {
+    expect(provenanceSauvegarde({ platform: 'meta', sauvegardeLe: '2026-10-05T09:00:00Z', classeeLe: '2026-10-06T09:00:00Z', auteur: 'Kevin' })).toBe('Meta · sauvegardée le 05/10/2026 · classée le 06/10/2026 par Kevin');
+    expect(provenanceSauvegarde({ platform: 'tiktok', sauvegardeLe: null, classeeLe: '2026-10-06T09:00:00Z', auteur: null })).toBe('TikTok · sauvegardée le n/c · classée le 06/10/2026');
+    expect(provenanceSauvegarde({ platform: 'google', sauvegardeLe: '2026-10-05T09:00:00Z', classeeLe: null, auteur: 'Kevin' })).toBe('Google · sauvegardée le 05/10/2026');
+  });
+  it('filesClassement · « à classer » et « incertaines » mènent aux Sauvegardes filtrées · une file vide n’est pas proposée', () => {
+    expect(filesClassement({ nonClassees: 3, incertaines: 1 })).toEqual([
+      { href: '/saved?format=non_classe', libelle: 'Classer mes 3 sauvegardes' },
+      { href: '/saved?format=incertain', libelle: '1 incertaine · à revoir' },
+    ]);
+    expect(filesClassement({ nonClassees: 0, incertaines: 0 })).toEqual([]);
   });
 });

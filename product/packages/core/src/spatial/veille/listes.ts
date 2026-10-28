@@ -1,4 +1,5 @@
 import { PROVEN_DAYS } from '../../adsmap/market-stats';
+import { FORMAT_INCERTAIN, FORMAT_NON_CLASSE, TRIS_FORMATS, dateCourteFormat, estFormatCreatif, libellePlateforme, type TriFormats } from '../../formats-creatifs';
 
 /**
  * Spatial · Veille · les listes des écrans Sauvegardes, Ce qui scale, Radar et
@@ -134,12 +135,15 @@ export function ilYa(iso: string | Date, maintenant: Date): string {
 /* ───────────── Sauvegardes · filtres portés de l'écran Formats (vague 3) ───────────── */
 
 export const FORMAT_TOUS = 'tous' as const;
-export interface FiltresSauvegardes { texte: string; format: string; media: 'tous' | 'video' | 'image'; plateforme: string }
-export const FILTRES_SAUVEGARDES: FiltresSauvegardes = { texte: '', format: FORMAT_TOUS, media: 'tous', plateforme: 'tous' };
+export interface FiltresSauvegardes { texte: string; format: string; media: 'tous' | 'video' | 'image'; plateforme: string; tri: TriFormats }
+export const FILTRES_SAUVEGARDES: FiltresSauvegardes = { texte: '', format: FORMAT_TOUS, media: 'tous', plateforme: 'tous', tri: 'recent' };
 
 /**
  * Filtre les sauvegardes · texte (corps ou annonceur), format classé
- * (`non_classe` = la file à classer), média et plateforme. Aucun filtre = tout.
+ * (`non_classe` = la file à classer · `incertain` = les classements sous le
+ * seuil de confiance, exclus des formats et de la file), média et plateforme.
+ * Aucun filtre = tout. L'appelant passe `format: 'incertain'` pour une
+ * sauvegarde incertaine (`formatFiltrable`).
  */
 export function filtrerSauvegardes<T extends { platform: string; video: boolean; texte: string; annonceur: string; format: string | null }>(items: readonly T[], f: FiltresSauvegardes): T[] {
   const q = f.texte.trim().toLowerCase();
@@ -148,4 +152,60 @@ export function filtrerSauvegardes<T extends { platform: string; video: boolean;
     && (f.format === FORMAT_TOUS || (f.format === 'non_classe' ? !i.format : i.format === f.format))
     && (f.media === 'tous' || (f.media === 'video') === i.video)
     && (f.plateforme === 'tous' || i.platform === f.plateforme));
+}
+
+/* ───────────── Sauvegardes · ce que l'écran Formats V5 savait faire (vague 4) ───────────── */
+
+/** La valeur de format d'une sauvegarde pour `filtrerSauvegardes` · l'incertaine a sa propre file. */
+export function formatFiltrable(f: { id: string | null; etat?: string } | null | undefined): string | null {
+  if (!f) return null;
+  if (f.etat === FORMAT_INCERTAIN) return FORMAT_INCERTAIN;
+  return f.id ?? null;
+}
+
+/**
+ * Les filtres de départ lus dans l'adresse (`/saved?format=non_classe&tri=duree`) ·
+ * le lien « Classer maintenant » de Formats et les anciennes adresses de
+ * l'écran Formats y mènent. Une valeur inconnue est ignorée (défaut).
+ */
+export function lireFiltresSauvegardes(sp: Readonly<Record<string, string | string[] | undefined>>): FiltresSauvegardes {
+  const un = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
+  const format = un(sp.format);
+  const tri = un(sp.tri);
+  const media = un(sp.media);
+  return {
+    ...FILTRES_SAUVEGARDES,
+    format: format === FORMAT_NON_CLASSE || format === FORMAT_INCERTAIN || estFormatCreatif(format) ? format : FORMAT_TOUS,
+    tri: TRIS_FORMATS.some((t) => t.id === tri) ? (tri as TriFormats) : FILTRES_SAUVEGARDES.tri,
+    media: media === 'video' || media === 'image' ? media : 'tous',
+  };
+}
+
+const instant = (iso: string | null | undefined) => { const t = iso ? Date.parse(iso) : NaN; return Number.isNaN(t) ? -Infinity : t; };
+
+/**
+ * Les quatre tris de l'écran Formats V5 (`TRIS_FORMATS`) appliqués aux
+ * sauvegardes · mêmes comparaisons que `grilleFormat`. Une date absente passe
+ * en dernier. Ne modifie pas la liste reçue.
+ */
+export function trierSauvegardes<T extends { sauvegardeLe?: string | null; classeeLe?: string | null; jours?: number | null }>(items: readonly T[], tri: TriFormats): T[] {
+  const cmp: Record<TriFormats, (a: T, b: T) => number> = {
+    recent: (a, b) => instant(b.sauvegardeLe) - instant(a.sauvegardeLe),
+    ancien: (a, b) => instant(a.sauvegardeLe) - instant(b.sauvegardeLe),
+    classe: (a, b) => instant(b.classeeLe) - instant(a.classeeLe) || instant(b.sauvegardeLe) - instant(a.sauvegardeLe),
+    duree: (a, b) => (b.jours ?? -1) - (a.jours ?? -1) || instant(b.sauvegardeLe) - instant(a.sauvegardeLe),
+  };
+  return [...items].sort((a, b) => cmp[tri](a, b) || 0);
+}
+
+/**
+ * La provenance d'une sauvegarde, comme l'écran Formats V5 · « Meta ·
+ * sauvegardée le 05/10/2026 · classée le 06/10/2026 par Kevin ». Le nom n'est
+ * dit que s'il a été lu chez un membre de l'espace (la page s'en charge).
+ */
+export function provenanceSauvegarde(p: { platform: string; sauvegardeLe: string | null; classeeLe: string | null; auteur: string | null }): string {
+  const parts = [`${libellePlateforme(p.platform)} · sauvegardée le ${dateCourteFormat(p.sauvegardeLe) ?? 'n/c'}`];
+  const classe = dateCourteFormat(p.classeeLe);
+  if (classe) parts.push(`classée le ${classe}${p.auteur ? ` par ${p.auteur}` : ''}`);
+  return parts.join(' · ');
 }

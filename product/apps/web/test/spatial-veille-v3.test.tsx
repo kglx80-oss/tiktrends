@@ -244,3 +244,58 @@ describe('Spatial · Radar · marques suivies, nouveautés, exploration', () => 
     expect(document.body.textContent).toContain('Produit centré');
   });
 });
+
+/* ───────────────────────── Vague 4 · les gestes de l'écran Formats V5, dans Sauvegardes ───────────────────────── */
+
+const { TousLesFormats } = await import('../spatial/vues/formats/TousLesFormats');
+
+describe('Spatial · Sauvegardes · vague 4 · tri, incertaines, filtres de départ', () => {
+  const G = { formatFerme: null, test: { ouvert: true as const } };
+  const noms = () => [...document.querySelectorAll('.vitem .who')].map((w) => w.textContent?.replace(/^M|Meta$/g, ''));
+  it('les quatre tris de l’écran Formats réordonnent réellement les cartes', async () => {
+    await monter(<CollectionsSauvegardes gestes={G} creerProjet="/p" items={[
+      sauvegarde('1', { sauvegardeLe: '2026-10-01T00:00:00Z', jours: 5 }),
+      sauvegarde('2', { sauvegardeLe: '2026-10-03T00:00:00Z', jours: 50 }),
+      sauvegarde('3', { sauvegardeLe: '2026-10-02T00:00:00Z', jours: 20 }),
+    ]} />);
+    expect(noms()).toEqual(['Marque 2', 'Marque 3', 'Marque 1']);
+    await choisir(document.querySelector('select[aria-label="Trier les sauvegardes"]') as HTMLSelectElement, 'ancien');
+    expect(noms()).toEqual(['Marque 1', 'Marque 3', 'Marque 2']);
+    await choisir(document.querySelector('select[aria-label="Trier les sauvegardes"]') as HTMLSelectElement, 'duree');
+    expect(noms()).toEqual(['Marque 2', 'Marque 3', 'Marque 1']);
+  });
+  it('une incertaine a sa propre file · elle ne se mêle pas aux non classées', async () => {
+    await monter(<CollectionsSauvegardes gestes={G} creerProjet="/p" items={[sauvegarde('1'), sauvegarde('2', { format: { id: null, versionAncienne: true, etat: 'incertain' } })]} />);
+    const filtre = document.querySelector('select[aria-label="Filtrer par format"]') as HTMLSelectElement;
+    expect([...filtre.options].map((o) => o.textContent)).toContain('Incertaines · exclues des formats');
+    await choisir(filtre, 'non_classe');
+    expect(noms()).toEqual(['Marque 1']);
+    await choisir(filtre, 'incertain');
+    expect(noms()).toEqual(['Marque 2']);
+    expect(rendre(<CollectionsSauvegardes gestes={G} creerProjet="/p" items={[sauvegarde('1')]} />)).not.toContain('Incertaines');
+  });
+  it('les filtres de départ (lus dans l’adresse par la page) s’appliquent au premier rendu · la provenance s’affiche', () => {
+    const html = rendre(<CollectionsSauvegardes gestes={G} creerProjet="/p" filtresInitiaux={{ texte: '', format: 'packshot', media: 'tous', plateforme: 'tous', tri: 'recent' }} items={[
+      sauvegarde('1'), sauvegarde('2', { format: { id: 'packshot', versionAncienne: false, etat: 'classe' }, sauvegardeLe: '2026-10-05T09:00:00Z', classeeLe: '2026-10-06T09:00:00Z', auteur: 'Kevin' }),
+    ]} />);
+    expect((html.match(/class="vitem"/g) ?? []).length).toBe(1);
+    expect(html).toContain('Meta · sauvegardée le 05/10/2026 · classée le 06/10/2026 par Kevin');
+  });
+});
+
+describe('Spatial · Tous les formats · vague 4 · les files de classement', () => {
+  it('« Classer » et « incertaines » mènent aux Sauvegardes filtrées · absentes sans file', () => {
+    const base = { sousNav: [], styles: [], image: null, marque: null, perimetre: 'p' };
+    const html = rendre(<TousLesFormats {...base} files={[{ href: '/saved?format=non_classe', libelle: 'Classer mes 3 sauvegardes' }]} />);
+    expect(html).toMatch(/<a class="chip" data-file-classement="true" href="\/saved\?format=non_classe">Classer mes 3 sauvegardes/);
+    expect(rendre(<TousLesFormats {...base} />)).not.toContain('data-file-classement');
+  });
+});
+
+describe('Spatial · Ce qui scale · vague 4 · l’analyse d’une marque', () => {
+  it('le lien vers toutes ses pubs, seulement pour une marque', () => {
+    const html = rendre(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ marque: { terme: 'rival.fr', href: '/veille?q=rival.fr' } })} />);
+    expect(html).toMatch(/data-analyse-marque[^>]*>Analyse d’une marque · toutes les créas de <b>rival\.fr<\/b>.*href="\/veille\?q=rival\.fr"[^>]*>Voir toutes ses pubs/);
+    expect(rendre(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />)).not.toContain('data-analyse-marque');
+  });
+});
