@@ -1,6 +1,6 @@
 import { and, count, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { VALEUR_ABSENTE, adminDateCourte, adminEuros, adminNombre, etatDeploiementAdmin, etatEssaiAdmin } from '@tiktrends/core';
+import { VALEUR_ABSENTE, adminDateCourte, adminEuros, adminNombre, diagnosticDeploiementAdmin, etatEssaiAdmin } from '@tiktrends/core';
 import { ROLE_LABEL, PLAN_LABEL, type Plan, type Role } from '../../../../lib/rbac';
 import { computePlatformMetrics } from '../../../../lib/platform-metrics';
 import { getPlanConfig } from '../../../../lib/settings';
@@ -54,22 +54,13 @@ export default async function ConsoleSpatial({ searchParams }: { searchParams?: 
   ]) : [0, 0, 0, 0, 0, 0, [], [], [], [], []] as const;
   const ticketsDe = new Map(parAuteur.filter((r) => r.uid).map((r) => [r.uid as string, Number(r.n)]));
   const maintenant = Date.now();
-  const etat = etatDeploiementAdmin(deploiement);
   const eur = (n: number) => adminEuros(n);
 
   return (
     <Console
       bandeau={b}
       message={(ok && MESSAGES[ok]) || (e && MESSAGES[e]) || null}
-      deploiement={{
-        etat: { libelle: etat.libelle, c: etat.classe }, resume: deploiement.summary,
-        cases: [
-          { k: 'Commit du build', v: deploiement.build || 'inconnu' },
-          { k: 'Maquette', v: `v${deploiement.renderVersion}` },
-          { k: 'Migrations', v: `${deploiement.applied ?? VALEUR_ABSENTE} / ${deploiement.inBuild}` },
-          { k: 'Build', v: process.env.BUILD_TIME ? new Date(process.env.BUILD_TIME).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : VALEUR_ABSENTE },
-        ],
-      }}
+      deploiement={diagnosticDeploiementAdmin(deploiement, process.env.BUILD_TIME ?? null, VALEUR_ABSENTE)}
       plateforme={{
         kpis: [
           { lbl: 'MRR', v: eur(metrics.mrr), s: `ARR ${eur(metrics.arr)}` },

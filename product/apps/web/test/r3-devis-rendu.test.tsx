@@ -27,7 +27,8 @@ import {
 import type { VueParcoursImage, ConsigneVue } from '../lib/studios/image/parcours';
 import { ParcoursImage } from '../spatial/vues/projet/ParcoursImage';
 import { avecSpatial } from './spatial/fournisseur';
-import { FormulaireBudgetBenchmark } from '../app/(app)/admin/ia-studios/Commandes';
+// Spatial · vague 3 · le formulaire vit dans le « Registre IA » (l'écran V5 « IA et Studios » est retiré).
+import { BudgetBenchmark } from '../spatial/vues/admin/registre-client';
 
 const TOUT = { peutGenerer: true, peutProposer: true, briefPresent: true, preparationOk: true, releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true };
 const CONSIGNE: ConsigneVue = {
@@ -112,9 +113,9 @@ describe('case « contrôle visuel » · prix avant le clic, cochée par défaut
 
 describe('budget du benchmark · « au plus » seulement pour une borne', () => {
   it('estimation ⇒ « · estimation, maximum non garanti » ; borne ⇒ « au plus »', () => {
-    const r = (m: boolean) => renderToStaticMarkup(<FormulaireBudgetBenchmark releases={[{ id: 'r1', libelle: 'R1' }]} devisLisible="9,925 $" devisUsd={9.925} devisMaximum={m} />);
-    expect(r(false)).toContain('Devis du benchmark complet : <b>9,925 $</b> · estimation, maximum non garanti.');
+    const r = (m: boolean) => renderToStaticMarkup(<BudgetBenchmark releases={[{ id: 'r1', libelle: 'R1' }]} devisLisible="9,925 $" devisUsd={9.925} devisMaximum={m} />);
+    expect(r(false)).toContain('Devis du benchmark complet · <b>9,925 $</b> · estimation, maximum non garanti.');
     expect(r(false)).not.toContain('au plus');
-    expect(r(true)).toContain('Devis du benchmark complet : <b>9,925 $</b> au plus.');
+    expect(r(true)).toContain('Devis du benchmark complet · <b>9,925 $</b> au plus.');
   });
 });

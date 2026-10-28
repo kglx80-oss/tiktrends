@@ -109,7 +109,7 @@ export function Couts(p: PropsCouts) {
                   <div className="atr" key={l.id} data-ligne-reconcilier={l.id} style={{ gridTemplateColumns: COL_R }}>
                     <span className="faint">{l.quand}</span>
                     <span><b>{l.action}</b><small className="faint" style={{ display: 'block' }}>{l.fournisseur}{l.modele ? ` · ${l.modele}` : ''}</small></span>
-                    <span>{l.reserve}</span>
+                    <span><b>{l.reserve}</b><small className="faint" style={{ display: 'block', whiteSpace: 'normal' }}>au maximum, compté au plafond</small></span>
                     <span className="faint" style={{ whiteSpace: 'normal' }}>{l.cause} · {l.aFaire}</span>
                     <span>{l.cle ? <ReconcilierLigne ligneId={l.id} action={l.action} reserve={l.reserve} reserveMicros={l.reserveMicros} cle={l.cle} /> : null}</span>
                   </div>
@@ -130,8 +130,8 @@ export function Couts(p: PropsCouts) {
             {p.reconciliees.lignes.map((l) => (
               <div className="atr" key={l.id} data-ligne-reconciliee={l.id} style={{ gridTemplateColumns: '1.2fr 1fr 1.6fr' }}>
                 <span><b>{l.action}</b>{l.id === p.reconciliees!.recente && <> <Pill c="g">À l’instant</Pill></>}<small className="faint" style={{ display: 'block' }}>{l.appel} · {l.fournisseur}{l.modele ? ` · ${l.modele}` : ''}</small></span>
-                <span><b>{l.reserve} → {l.facture}</b><small className="faint" style={{ display: 'block' }}>{l.depasse ? 'Dépassement · ' : ''}{l.ecart}</small></span>
-                <span className="faint" style={{ whiteSpace: 'normal' }}>Preuve {l.preuve} · {l.motif} · {l.auteur}, le {l.le}</span>
+                <span><b>{l.reserve} → {l.facture}</b><small className="faint" style={{ display: 'block' }}>{l.depasse ? 'Dépassement · ' : ''}Écart {l.ecart}</small></span>
+                <span className="faint" style={{ whiteSpace: 'normal' }}>Preuve {l.preuve} · Motif {l.motif} · Par {l.auteur}, le {l.le}</span>
               </div>
             ))}
           </div>

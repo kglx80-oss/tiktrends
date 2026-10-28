@@ -1,10 +1,12 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
  * R4 · les dépenses « à réconcilier » À L'ÉCRAN du propriétaire, sur une VRAIE
  * base (pglite, migrations du dépôt dont 0055). On REND la vraie page
- * `/admin/depenses` et on lit le HTML :
+ * `/admin/depenses` (Spatial, « Coûts IA & marges » · vague 3, l'écran V5 est
+ * retiré) et on lit le HTML :
  *
  *  · rempli · nombre, montant compté au maximum, cause en clair, date, action,
  *    et le geste attendu (comparer à la facture) ; une ligne ordinaire n'y
@@ -12,7 +14,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
  *  · vide · le silence dit ; erreur de lecture · dite, la page tient ;
  *  · consulter n'écrit RIEN (lignes `ai_spend` identiques, au champ près) ;
  *  · porte · un admin d'espace qui n'est pas fondateur (plateforme) est
- *    renvoyé AVANT toute lecture, un membre aussi ; rien ne fuit.
+ *    renvoyé AVANT toute lecture (au tableau de bord, porte Spatiale
+ *    `porteAdmin`), un membre aussi ; rien ne fuit.
  */
 
 const etat = vi.hoisted(() => ({ session: null as unknown, lectures: 0 }));
@@ -27,12 +30,18 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
   };
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); } }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, usePathname: () => '/admin/depenses', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
+vi.mock('../app/actions/reconciliation-depense', () => ({ reconcilierDepenseAction: async () => ({ statut: 'initial', message: '' }) }));
 
 import { randomUUID } from 'node:crypto';
 import { db, schema } from '@tiktrends/db';
-import DepensesPage from '../app/(app)/admin/depenses/page';
-import { SectionReconciliation } from '../app/(app)/admin/depenses/SectionReconciliation';
+import CoutsSpatial from '../app/(spatial)/sp/admin/depenses/page';
+import { Couts } from '../spatial/vues/admin/Couts';
+import { avecSpatial } from './spatial/fournisseur';
+import { propsCouts } from './spatial/props-admin';
+
+const DepensesPage = () => CoutsSpatial({ searchParams: Promise.resolve({}) });
+const rendre = async () => renderToStaticMarkup(avecSpatial(await DepensesPage()));
 
 const FONDATEUR = 'fondateur-r4@exemple.invalid';
 const env = { f: process.env.FOUNDER_EMAILS, cap: process.env.AI_SPEND_CAP_USD };
@@ -72,7 +81,7 @@ async function semer() {
 describe('R4 · /admin/depenses · section « à réconcilier » au HTML rendu', () => {
   it('rempli · nombre, montant au maximum, cause en clair, date, action, geste attendu', async () => {
     await semer();
-    const html = renderToStaticMarkup(await DepensesPage());
+    const html = await rendre();
     const s = section(html);
     expect(s, 'la section « à réconcilier » n’est pas rendue').not.toBe('');
     expect(s).toContain('data-reconciliation="rempli"');
@@ -85,11 +94,14 @@ describe('R4 · /admin/depenses · section « à réconcilier » au HTML rendu',
     expect(t).toContain('connexion coupée ou réponse perdue après envoi');
     expect(t).toContain('délai dépassé · le fournisseur a pu terminer et facturer');
     expect(t).toContain('Retrouve chaque appel sur la facture du fournisseur à la date indiquée et compare au maximum réservé.');
-    const lignes = [...s.matchAll(/data-ligne-reconcilier="[^"]+"[\s\S]*?<\/li>/g)].map((m) => texte(m[0]));
+    const t2 = document.createElement('template'); t2.innerHTML = s;
+    const lignes = [...t2.content.querySelectorAll('[data-ligne-reconcilier]')].map((e) => e.textContent!.replace(/\s+/g, ' '));
     expect(lignes.length).toBe(2);
     expect(lignes[0]).toContain('studio:brief');
-    expect(lignes[0]).toContain('0,4200 $ au maximum, compté au plafond');
-    expect(lignes[0]).toMatch(/Quand \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
+    expect(lignes[0]).toContain('0,4200 $au maximum, compté au plafond');
+    expect(lignes[0]).toMatch(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
+    // Chaque ligne porte son geste (R5) · la clé d'idempotence vient du serveur.
+    expect(t2.content.querySelectorAll('[data-geste-reconcilier]').length).toBe(2);
     expect(lignes[0]).toMatch(/Chercher cet appel sur la facture Anthropic du \d{2}\/\d{2}\/\d{4} · comparer à 0,4200 \$ comptés au plafond\./);
     expect(lignes[1]).toContain('studio:image');
     expect(t, 'une ligne ordinaire ou hors fenêtre est listée').not.toMatch(/jarvis:chat|vieux:appel/);
@@ -100,7 +112,7 @@ describe('R4 · /admin/depenses · section « à réconcilier » au HTML rendu',
   });
 
   it('vide · le silence est dit, aucune liste', async () => {
-    const s = section(renderToStaticMarkup(await DepensesPage()));
+    const s = section(await rendre());
     expect(s).toContain('data-reconciliation="vide"');
     expect(texte(s)).toContain('Rien à rapprocher');
     expect(texte(s)).toContain('Aucune dépense à réconcilier.');
@@ -108,7 +120,8 @@ describe('R4 · /admin/depenses · section « à réconcilier » au HTML rendu',
   });
 
   it('erreur de lecture · dite en toutes lettres (alerte), sans liste', () => {
-    const s = renderToStaticMarkup(<SectionReconciliation ecran={null} erreur="erreur de lecture en base" />);
+    const p = propsCouts();
+    const s = renderToStaticMarkup(avecSpatial(<Couts {...p} aReconcilier={{ erreur: 'erreur de lecture en base', resume: '', consigne: '', parFournisseur: [], lignes: [] }} />));
     expect(s).toContain('data-reconciliation="erreur"');
     expect(s).toContain('role="alert"');
     expect(texte(s)).toContain('Lecture impossible');
@@ -118,24 +131,24 @@ describe('R4 · /admin/depenses · section « à réconcilier » au HTML rendu',
   it('consulter n’écrit rien · lignes `ai_spend` identiques au champ près', async () => {
     await semer();
     const avant = await tout();
-    renderToStaticMarkup(await DepensesPage());
-    renderToStaticMarkup(await DepensesPage());
+    await rendre();
+    await rendre();
     expect(await tout(), 'la consultation a modifié ai_spend').toEqual(avant);
     expect(etat.lectures).toBe(2);
   });
 });
 
 describe('R4 · /admin/depenses · porte plateforme', () => {
-  it('admin d’espace non fondateur · renvoyé vers /admin AVANT toute lecture', async () => {
+  it('admin d’espace non fondateur · renvoyé AVANT toute lecture', async () => {
     await semer();
     etat.session = sess('admin', 'admin-espace@exemple.invalid');
-    await expect(DepensesPage()).rejects.toThrow('redirect /admin');
+    await expect(DepensesPage()).rejects.toThrow('redirect /dashboard');
     expect(etat.lectures, 'un admin d’espace a déclenché la lecture des dépenses').toBe(0);
   });
 
   it('propriétaire d’un espace client non fondateur · même refus', async () => {
     etat.session = sess('owner', 'client@exemple.invalid');
-    await expect(DepensesPage()).rejects.toThrow('redirect /admin');
+    await expect(DepensesPage()).rejects.toThrow('redirect /dashboard');
     expect(etat.lectures).toBe(0);
   });
 

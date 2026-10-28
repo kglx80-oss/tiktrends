@@ -1,7 +1,7 @@
 import 'server-only';
-import { getSession, type Session } from '../../../../lib/auth';
-import { roleAtLeast } from '../../../../lib/rbac';
-import { isFounder } from '../../../../lib/founder';
+import { getSession, type Session } from './auth';
+import { roleAtLeast } from './rbac';
+import { isFounder } from './founder';
 
 /**
  * La porte de `/admin/depenses` · UNE règle pour la page (lecture) et pour le

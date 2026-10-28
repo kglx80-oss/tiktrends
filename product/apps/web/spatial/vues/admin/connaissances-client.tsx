@@ -95,7 +95,7 @@ export function ConnaissancesSpatiales({ vueInitiale, espaces, marques }: { vueI
           <li><b>Incluse</b> · elle était dans le contexte d’une réponse de Jarvis (compté à chaque réponse).</li>
           <li><b>Citée</b> · déclarée par le modèle · la réponse s’en est réclamée par un marqueur de source. Ce n’est pas une preuve d’usage, et une question qui dicte le marqueur n’est pas comptée.</li>
           <li>Les connaissances sont lues comme des <b>données</b> · elles ne lèvent pas les règles de Jarvis, et les règles maison d’une marque passent devant.</li>
-          <li>Une connaissance <b>retirée</b> n’entre plus dans les réponses suivantes, y compris dans une conversation ouverte. Les réponses déjà données ne sont pas réécrites.</li>
+          <li>Une connaissance <b>retirée</b> n’entre plus dans les réponses suivantes, y compris dans une conversation déjà ouverte. Les réponses déjà données ne sont pas réécrites.</li>
         </ul>
       </section>
 
@@ -144,7 +144,7 @@ export function ConnaissancesSpatiales({ vueInitiale, espaces, marques }: { vueI
   );
 }
 
-function FormulaireConnaissance({ initial, porteeAvant, titreFormulaire, espaces, marques, occupe, onAnnuler, onEnvoyer }: {
+export function FormulaireConnaissance({ initial, porteeAvant, titreFormulaire, espaces, marques, occupe, onAnnuler, onEnvoyer }: {
   initial: Brouillon; titreFormulaire: string; espaces: Espace[]; marques: Marque[]; occupe: boolean; onAnnuler?: () => void; porteeAvant?: PorteeConnaissance;
   onEnvoyer: (s: SaisieConnaissance, publier: boolean, confirmerPortee: boolean, confirmerPlateforme: boolean) => Promise<boolean>;
 }) {
