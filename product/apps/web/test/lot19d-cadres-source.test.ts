@@ -163,11 +163,12 @@ function cadresHorsRole(f: string): string[] {
 describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   const lot = fichiers.filter(dansLeLot);
   it('on parcourt bien le périmètre du lot', () => {
-    // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · plancher 120.
-    expect(lot.length).toBeGreaterThan(120);
+    // Mesuré : 108 fichiers le 28/10 (ancien Accueil, Mon profil et Tagging retirés), 106 avec Finance et
+    // Inscriptions retirées aussi · le périmètre fond à chaque retrait V5 · plancher 80.
+    expect(lot.length).toBeGreaterThan(80);
     expect(lot).toContain('components/ui.tsx');
-    // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.
-    for (const f of ['components/JourneyPanel.tsx', 'components/HomeBandeau.tsx', 'components/accueil/VueAnalytics.tsx', 'app/(app)/analytics/MetaKeyMetrics.tsx', 'app/(app)/dashboard/page.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
+    // Vague 2 Spatial v4 · l'ancien Accueil, sa vue Analytics et les pages V5 de l'Admin sont retirés (Spatial exclusif) · reste le panneau de parcours partagé.
+    for (const f of ['components/JourneyPanel.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
   });
   it('aucun cadre hors de son rôle (--line-2 sur un cadre, rayon 13–24 hors 20)', () => {
     const fautes = lot.flatMap(cadresHorsRole);
