@@ -1,4 +1,4 @@
-import type { ClassePastille, CouloirSpatial, EtatGeneration, ProtocoleTest } from '@tiktrends/core';
+import type { ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -136,4 +136,22 @@ export interface PropsProjet {
   brief: PropsBriefProjet;
   creations: PropsCreationsProjet;
   ongletInitial?: OngletProjet;
+  /**
+   * La disposition LIBRE du canvas (canvas métier de la V5, même stockage) ·
+   * `ok: false` quand la lecture est refusée (le contrôle reste visible,
+   * inactif, avec sa raison). Absent · le contrôle n'est pas offert.
+   */
+  libre?: { ok: true; canvas: CanevasLibre } | { ok: false; raison: string };
+  /** Le mode lu dans l'adresse (`?disposition=libre`) · les couloirs par défaut. */
+  dispositionInitiale?: ModeDispositionProjet;
+}
+
+/** Le canvas métier d'une version et la disposition PERSONNELLE de la session (`lireCanvasProjet`). */
+export interface CanevasLibre {
+  projectId: string;
+  version: { id: string; n: number; courante: boolean };
+  modele: ModeleCanvas;
+  apercus: Record<string, string>;
+  disposition: DispositionCanvas;
+  rev: number;
 }

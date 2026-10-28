@@ -98,6 +98,8 @@ export function OngletCreations(p: PropsCreationsProjet) {
               {!sortie && lot.message && <small className="faint" style={{ fontSize: '11.5px' }}>{lot.message}</small>}
               {sortie && (
                 <div className="kc">
+                  {/* « Ouvrir l'image » de la fiche V5 · la sortie en grand, dans un nouvel onglet (route média, droits relus). */}
+                  {sortie.apercu && <a className="btn sm" href={sortie.apercu} target="_blank" rel="noopener noreferrer" data-ouvrir-image=""><Ic n="eye" />Ouvrir</a>}
                   {p.editeurHref && <Lien className="btn sm" href={p.editeurHref}><Ic n="brush" />Éditer</Lien>}
                   {sortie.choisir && (
                     <button className="btn sm" type="button" disabled={!!enCours} title="Retenir cette sortie comme variante · aucun coût"

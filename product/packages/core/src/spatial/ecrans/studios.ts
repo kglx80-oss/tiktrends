@@ -13,10 +13,10 @@ import type { EcranSpatial } from '../types';
  *
  * EXCLUSIF · la page V5 est retirée, Spatial sert l'écran même en mode V5.
  * Reste servie par la V5 en mode V5 :
- *  · `/studio/projets/[id]` · le canvas métier LIBRE (déplacer les cartes,
- *    disposition enregistrée ou réinitialisée) · décision du propriétaire
- *    attendue (les couloirs fixes de la maquette suffisent-ils ?). « Cibler
- *    Jarvis » depuis un nœud est porté dans les couloirs.
+ *  · `/studio/projets/[id]` · tous ses gestes vivent dans Spatial · le canvas
+ *    métier LIBRE est porté (« Disposition libre », `?disposition=libre`,
+ *    même stockage que la V5), les couloirs de la maquette restent le
+ *    défaut. Le retrait de la page V5 suit dans sa propre PR.
  * Vague 3 · l'assistant en cinq étapes (`/studio/projets/nouveau`) et le zoom
  * et les panneaux plein écran de l'éditeur (`/studio/projets/[id]/image`)
  * vivent dans Spatial · leurs pages V5 sont retirées.
