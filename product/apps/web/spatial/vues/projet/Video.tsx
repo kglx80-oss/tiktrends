@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MODES_PAROLE, NOTE_BORNE_TEXTE, RELECTURE_CREATIONS_MS,
-  appliquerOperationVideo as appliquerNoyau, classeFormat, dureeLisible, etatPlan, formatDuDocument, gestesPlan, idsPlansAlloues,
+  GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MESSAGE_REPONSE_PERDUE_MONTAGE, MODES_PAROLE, NOTE_BORNE_TEXTE, RELECTURE_CREATIONS_MS,
+  appliquerOperationVideo as appliquerNoyau, classeFormat, decisionConfirmationApercu, dureeLisible, etatPlan, formatDuDocument, gestesPlan, idsPlansAlloues,
   impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCoutTexteEstime, libelleCredits, libellePrix, libelleUsd,
   messageHorsLigneStudio, minuteSeconde, pistesMontage, relectureNecessaire, saisieVierge, sourceLecteur,
   type BilanDurees, type CleGestePlan, type ErreurStudio, type EtatJob, type ImpactVideo, type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan,
@@ -43,16 +43,16 @@ import { Message } from './briques';
  * Rien n'est lancé sans le geste explicite de la personne.
  */
 
-interface Apercu { operation: OperationVideo; libelle: string; impact: ImpactVideo | null; durees: BilanDurees | null; signalements: string[]; refus: string | null }
+interface Apercu { operation: OperationVideo; version: { id: string; n: number }; libelle: string; impact: ImpactVideo | null; durees: BilanDurees | null; signalements: string[]; refus: string | null }
 type Retour = { ton: 'ok' | 'err'; texte: string } | null;
 
 function apercuDuGeste(vue: DonneesVideo, operation: OperationVideo): Apercu {
   const r = appliquerNoyau(vue.contenu, operation, { sortiesExistantes: vue.mediasValides });
   if (!r.ok) {
     const detail = r.violations.map((v) => v.raison).join(' · ');
-    return { operation, libelle: 'changement refusé', impact: null, durees: null, signalements: [], refus: detail ? `${r.message} ${detail}` : r.message };
+    return { operation, version: vue.version, libelle: 'changement refusé', impact: null, durees: null, signalements: [], refus: detail ? `${r.message} ${detail}` : r.message };
   }
-  return { operation, libelle: r.libelle, impact: impactVideo(vue.contenu, r.contenu, { mediasExistants: vue.mediasValides }), durees: r.durees, signalements: r.signalements, refus: null };
+  return { operation, version: vue.version, libelle: r.libelle, impact: impactVideo(vue.contenu, r.contenu, { mediasExistants: vue.mediasValides }), durees: r.durees, signalements: r.signalements, refus: null };
 }
 
 /** Même clé que l'écran V5 · un double clic, une reconnexion ou un changement d'interface retrouvent le même job. */
@@ -123,16 +123,22 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
       else setRetour({ ton: 'err', texte: messageErreur(r) });
     } catch {
       if (payant && tentative) payant.terminer(tentative, true);
-      setRetour({ ton: 'err', texte: payant ? MESSAGE_APPEL_PAYANT : messageHorsLigneStudio('enregistrement') });
+      setRetour({ ton: 'err', texte: payant ? MESSAGE_APPEL_PAYANT : nom === 'confirmer' ? MESSAGE_REPONSE_PERDUE_MONTAGE : messageHorsLigneStudio('enregistrement') });
     } finally { setEnCours(null); }
   }
 
   const prevoir = (op: OperationVideo) => { setRetour(null); setApercu(apercuDuGeste(v, op)); };
+  // L'aperçu se confirme sur SA version (version attendue) · jamais sur celle
+  // que la vue a relue entre-temps (relecture des jobs, autre geste).
+  const confirmation = apercu ? decisionConfirmationApercu(apercu.version, v.version) : null;
   const confirmer = () => {
     const a = apercu;
     if (!a) return;
-    void agir('confirmer', () => appliquerOperationVideo({ projectId: v.projet.id, baseVersionId: v.version.id, operation: a.operation }), (r) => {
-      const x = r as { impact?: { resume: string }; durees?: { phrase: string } };
+    const d = decisionConfirmationApercu(a.version, v.version);
+    if (!d.ok) { setRetour({ ton: 'err', texte: d.message }); return; }
+    void agir('confirmer', () => appliquerOperationVideo({ projectId: v.projet.id, baseVersionId: a.version.id, operation: a.operation }), (r) => {
+      const x = r as { deja?: boolean; impact?: { resume: string }; durees?: { phrase: string } };
+      if (x.deja) return `${a.libelle} · déjà enregistré, ta première demande avait abouti · rien n’a été écrit deux fois.`;
       return `${a.libelle} · nouvelle version. ${x.impact?.resume ?? ''} ${x.durees?.phrase ?? ''}`.trim();
     }, () => { setApercu(null); if (a.operation.type === 'scenario') setStoryboard(null); });
   };
@@ -294,8 +300,11 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
               {apercu.signalements.map((s) => <p key={s} className="faint" style={{ fontSize: '12.5px' }}>{s}</p>)}
             </div>
           )}
+          {confirmation && !confirmation.ok && <Message ton="err">{confirmation.message}</Message>}
           <div className="kc" style={{ marginTop: 10 }}>
-            <button className="btn sm pri" type="button" disabled={!!apercu.refus || !disponibilite.montage.disponible || !!enCours} onClick={confirmer}>{enCours === 'confirmer' ? 'Enregistrement…' : 'Enregistrer ce changement'}</button>
+            {confirmation && !confirmation.ok
+              ? <button className="btn sm pri" type="button" disabled={!!enCours} onClick={() => prevoir(apercu.operation)}>Recalculer l’aperçu</button>
+              : <button className="btn sm pri" type="button" disabled={!!apercu.refus || !disponibilite.montage.disponible || !!enCours} onClick={confirmer}>{enCours === 'confirmer' ? 'Enregistrement…' : 'Enregistrer ce changement'}</button>}
             <button className="btn sm" type="button" disabled={!!enCours} onClick={() => setApercu(null)}>Ne rien changer</button>
             <span className="faint" style={{ fontSize: '11.5px' }}>{disponibilite.montage.disponible ? 'Nouvelle version du projet · aucun appel, aucun coût, aucun devis.' : disponibilite.montage.raison}</span>
           </div>

@@ -59,7 +59,7 @@ export async function lireVideo(entree: { projectId: unknown }): Promise<Reponse
   });
 }
 
-export async function appliquerOperationVideo(entree: { projectId: unknown; baseVersionId: unknown; operation: unknown }): Promise<Reponse<{ version: VersionStudio; inchange: boolean; impact: ImpactPresente; durees: BilanDurees; signalements: string[] }>> {
+export async function appliquerOperationVideo(entree: { projectId: unknown; baseVersionId: unknown; operation: unknown }): Promise<Reponse<{ version: VersionStudio; inchange: boolean; deja: boolean; impact: ImpactPresente; durees: BilanDurees; signalements: string[] }>> {
   const g = await gardeStudio('studio.propose', 'video');
   if (!g.ok) return g;
   const r = await appliquerOperationVideoPour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, operation: entree?.operation });
