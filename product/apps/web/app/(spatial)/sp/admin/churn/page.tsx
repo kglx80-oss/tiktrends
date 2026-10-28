@@ -1,6 +1,6 @@
 import { VALEUR_ABSENTE, adminEuros, adminPluriel, adminPourcent, ancienneteMoyenneMois, comptesARisque, filtresComptes, ligneRisqueAffichee, mrrARisque, mrrPlateforme, resiliationsParMois, tauxChurn30 } from '@tiktrends/core';
 import { Churn } from '../../../../../spatial/vues/admin/Churn';
-import { bandeau, chargerEspaces, chargerResiliations, chargerTarifs, porteAdmin, resiliationsSur30j } from '../donnees';
+import { bandeau, chargerEspaces, chargerResiliations, chargerTarifs, porteAdmin, resiliationsSur30j, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,7 @@ export default async function ChurnSpatial() {
 
   return (
     <Churn
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       kpis={[
         { lbl: 'Churn comptes · 30 j', v: adminPourcent(churn), d: adminPluriel(r30, 'résiliation'), c: r30 > 0 ? 'dn' : '', s: `base · ${adminPluriel(m.payants + r30, 'compte payant', 'comptes payants')}` },
         { lbl: 'Churn revenu brut', v: VALEUR_ABSENTE, d: 'Montant non relevé', s: 'la résiliation Stripe ne garde pas le prix' },

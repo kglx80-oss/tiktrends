@@ -3,7 +3,7 @@ import {
   filtresComptes, inscriptions, libelleRisque, mrrARisque, mrrEspace, niveauRisque, parcoursInscription, partCreditsUtilises, signauxRisque,
 } from '@tiktrends/core';
 import { Comptes } from '../../../../../spatial/vues/admin/Comptes';
-import { bandeau, chargerDeclarations, chargerEspaces, chargerTarifs, porteAdmin } from '../donnees';
+import { bandeau, chargerDeclarations, chargerEspaces, chargerTarifs, porteAdmin, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +25,7 @@ export default async function ComptesSpatial() {
 
   return (
     <Comptes
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       kpis={[
         { lbl: 'Inscriptions · 30 j', v: adminNombre(ins.n30), d: variation.texte, c: variation.classe },
         { lbl: 'Essais en cours', v: adminNombre(ins.essaisEnCours), d: `Fin dans 7 j : ${adminNombre(ins.essaisFinDans7j)}` },

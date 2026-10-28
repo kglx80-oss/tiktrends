@@ -1,5 +1,5 @@
 import { Ic, Lien, Vue } from '../../communs';
-import { Barre, Kpis, Pill, TeteAdmin, Vide, type BandeauAdmin, type ClassePill, type KpiAdmin } from './base';
+import { Barre, Kpis, Pill, TeteAdmin, Vide, sousNavVisible, type BandeauAdmin, type ClassePill, type KpiAdmin } from './base';
 import { ICONE_RACCOURCI_ADMIN, SOUS_NAV_ADMIN } from './sous-nav';
 
 /** Les colonnes de la table · portées par CHAQUE ligne, comme toutes les tables `.atable` de la maquette (la règle `.atable .atr{grid-template-columns:inherit}` hérite sinon d'un conteneur qui n'en a pas : une cellule par ligne). */
@@ -84,7 +84,7 @@ export function TourDeControle(p: PropsTourDeControle) {
         </section>
       </div>
       <div className="ashort sec">
-        {SOUS_NAV_ADMIN.filter((s) => s.href !== '/admin').map((s) => (
+        {sousNavVisible(SOUS_NAV_ADMIN, p.bandeau).filter((s) => s.href !== '/admin').map((s) => (
           <Lien key={s.href} className="tile ash" href={s.href}><span className="aic"><Ic n={ICONE_RACCOURCI_ADMIN[s.href] ?? 'arrow'} /></span><strong>{s.libelle}</strong></Lien>
         ))}
       </div>

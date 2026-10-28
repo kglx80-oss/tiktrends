@@ -11,7 +11,7 @@ import { isFounder } from '../../../../lib/founder';
 import { unlimitedCredits } from '../../../../lib/credits';
 import { trialStatus } from '../../../../lib/trial';
 import { CreditsMarges } from '../../../../spatial/vues/admin/CreditsMarges';
-import { bandeau, chargerEspaces, chargerTarifs } from '../admin/donnees';
+import { bandeau, chargerEspaces, chargerTarifs, navAdmin } from '../admin/donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +45,7 @@ export default async function CreditsMargesSpatial() {
 
   return (
     <CreditsMarges
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       essai={essai.isTrial && essai.daysLeft != null ? {
         texte: `${sorte === 'staff' ? 'Compte staff' : 'Compte de test / beta'}${essai.expired ? ' · période terminée' : ` · ${essai.daysLeft} jour${essai.daysLeft > 1 ? 's' : ''} restant${essai.daysLeft > 1 ? 's' : ''}`}`,
         conseil: essai.expired ? 'Contacte-nous pour continuer.' : 'Profite de tes crédits de test pour explorer TikTrends.',

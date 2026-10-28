@@ -9,7 +9,7 @@ import { afficherCredits, texteCredits } from '@tiktrends/core';
 import { PLAN_CREDITS, type Plan } from '../../../../../lib/rbac';
 import { unlimitedCredits } from '../../../../../lib/credits';
 import { Forfaits } from '../../../../../spatial/vues/admin/Forfaits';
-import { bandeau, chargerEspaces, chargerRecharges, chargerTarifs, porteAdmin } from '../donnees';
+import { bandeau, chargerEspaces, chargerRecharges, chargerTarifs, porteAdmin, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +43,7 @@ export default async function ForfaitsSpatial({ searchParams }: { searchParams?:
 
   return (
     <Forfaits
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       reglage="/console"
       forfaits={tarifs.ordre.map((f) => {
         const vendable = f === 'starter' ? signupOpen() : planPurchasable(f as Plan);

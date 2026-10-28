@@ -8,3 +8,4 @@ export * from './pilotage';
 export * from './outils';
 export * from './declarations';
 export * from './credits-marges';
+export * from './sous-nav';
