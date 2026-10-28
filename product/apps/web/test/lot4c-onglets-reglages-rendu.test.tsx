@@ -192,14 +192,10 @@ describe('lot 4c · entrée de l’Administration', () => {
     }
   });
 
-  it('fondateur sans compte admissible (SEC-10) · ni le registre ni les interrupteurs proposés', async () => {
+  it('fondateur sans compte admissible (SEC-10) · ni les modèles IA ni les interrupteurs ne s’ouvrent', async () => {
     etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false } });
-    // La barre V5 d'Administration · lue sur `/credits`, dernière page V5 qui la porte (Finance est exclusive Spatial).
-    const { html } = await rendre('/credits');
-    const o = onglets(html!, 'administration').map((x) => x.href);
-    expect(o).toContain('/admin/connaissances');
-    expect(o).not.toContain('/admin/ia-studios');
-    expect(o).not.toContain('/admin/studios-interrupteurs');
+    // Vague 4 · plus aucune page V5 ne porte la barre d'Administration (toutes servies par
+    // Spatial) · la protection reste le refus des pages elles-mêmes, gardé ici.
     expect((await rendre('/admin/ia-studios')).ouvre, 'la page refuse bien ce compte').toBe(false);
     expect((await rendre('/admin/studios-interrupteurs')).ouvre, 'la page refuse bien ce compte').toBe(false);
   });
