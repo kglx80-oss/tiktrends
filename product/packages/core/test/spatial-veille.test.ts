@@ -3,7 +3,7 @@ import {
   croissance7j, classeCroissance, estTendanceVeille, depenseEstimeeVeille, euroCourt, nombreCourt, pastilleMarque, lireCpmVeille,
   signauxVeille, lectureVeille, etiquetteStyleVeille, PROVEN_DAYS,
   analyserRechercheVeille, lienVeille, lireCriteresVeille, pucesVeille, suggestionsVeille,
-  collectionsSauvegardes, dansCollection, collectionValide, classerParDuree, accrocheDe, alertesSemaine, nouveautesMarque,
+  collectionsSauvegardes, dansCollection, collectionValide, ecrireCollectionSauvegardes, lireCollectionSauvegardes, classerParDuree, accrocheDe, alertesSemaine, nouveautesMarque,
   lectureRapportConcurrent, ilYa, ecranSpatial,
 } from '../src';
 
@@ -119,6 +119,20 @@ describe('Spatial · Veille · listes', () => {
     expect(dansCollection(null, 'none')).toBe(true);
     expect(dansCollection('A', 'none')).toBe(false);
     expect(collectionValide('f:Z', collectionsSauvegardes(items))).toBe('all');
+  });
+
+  it('la collection active dans l’adresse · relue et validée contre les dossiers réels, réécrite sans toucher au reste', () => {
+    const c = collectionsSauvegardes([{ folder: 'Hiver' }, { folder: null }]);
+    expect(lireCollectionSauvegardes({ collection: 'f:Hiver' }, c)).toEqual({ cle: 'f:Hiver', ignoree: false });
+    expect(lireCollectionSauvegardes({ collection: ['none', 'f:Hiver'] }, c)).toEqual({ cle: 'none', ignoree: false });
+    expect(lireCollectionSauvegardes({}, c)).toEqual({ cle: 'all', ignoree: false });
+    expect(lireCollectionSauvegardes({ collection: 'all' }, c)).toEqual({ cle: 'all', ignoree: false });
+    for (const v of ['f:Ailleurs', 'Hiver', 'f:']) expect(lireCollectionSauvegardes({ collection: v }, c), v).toEqual({ cle: 'all', ignoree: true });
+    expect(ecrireCollectionSauvegardes('?format=non_classe&tri=ancien', 'f:Été')).toBe('?format=non_classe&tri=ancien&collection=f%3A%C3%89t%C3%A9');
+    expect(ecrireCollectionSauvegardes('?collection=none&tri=ancien', 'all')).toBe('?tri=ancien');
+    expect(ecrireCollectionSauvegardes('', 'all')).toBe('');
+    const ecrite = ecrireCollectionSauvegardes('', 'f:Été & co');
+    expect(lireCollectionSauvegardes(Object.fromEntries(new URLSearchParams(ecrite)), [{ cle: 'f:Été & co' }])).toEqual({ cle: 'f:Été & co', ignoree: false });
   });
 
   it('« Ce qui scale » range par durée, la première à 100 %', () => {
