@@ -23,7 +23,6 @@ describe('Radar créatif · un seul nom, fidèle à ce que fait la page', () => 
     // Vague 4 · les pages V5 `/radar` et `/veille` sont retirées · le Radar créatif est la section
     // « Tes créas notées » du Radar Spatial.
     expect(src('spatial/vues/veille/Radar.tsx')).toContain('<h2>Radar créatif · tes créas notées</h2>');
-    expect(src('components/AssistantHome.tsx')).toContain("titre: 'Radar créatif', sous: 'Repérer les créas à retravailler'");
   });
   it('plus aucun « Radar produits » ni « produits qui montent » affiché nulle part', () => {
     const fautifs = ['app', 'components', 'lib'].flatMap((d) => fichiers(join(process.cwd(), d)))

@@ -103,7 +103,12 @@ import { join, relative } from 'node:path';
  * Spatial · vague 2 · Veille · la fiche concurrent V5 (1) est retirée · 199 − 1 = 198.
  *
  * Spatial · vague 4 · Veille · les pages V5 `/veille`, `/veille/scale` (swipe
- * file · 13), `/veille/formats`, `/radar` et `/saved` sont retirées · 198 − 13 = 185.
+ * file · 13), `/veille/formats`, `/radar` et `/saved` sont retirées · − 13.
+ * Spatial · vague 2 v4 · Accueil · l'ancien Accueil et sa vue Analytics sont retirés
+ * (`AssistantHome` 3, `HomeMarques` 2, `accueil/VueAnalytics` 1,
+ * `analytics/MetaKeyMetrics` 4, `analytics/CreativeIntel` 2) · − 12.
+ * Spatial · vague 4 · l'écran V5 `/credits` (12 · pastilles sur dégradé vif,
+ * lavis de la synthèse, aplat de code) est retiré · − 12. Mesuré 198 − 37 = 161.
  */
 const WEB = process.cwd();
 
@@ -122,30 +127,21 @@ const EXCLUS: Record<string, string> = {
 /** Plafond par répertoire · le plan des lots de tokenisation. */
 const PLAFOND_PAR_REPERTOIRE: Record<string, number> = {
   'app': 142,
-  'app/(app)/analytics': 6,
-  'app/(app)/credits': 12,
   'app/onboarding': 5,
   'app/tarifs': 8,
-  'components': 11,
-  'components/accueil': 1,
+  'components': 6,
 };
 
 /** Plafond par fichier · tout fichier absent de cette table est « déjà propre » (0). */
 const PLAFOND_PAR_FICHIER: Record<string, number> = {
-  'app/(app)/analytics/CreativeIntel.tsx': 2,
-  'app/(app)/analytics/MetaKeyMetrics.tsx': 4,
-  'app/(app)/credits/page.tsx': 12,
   'app/Landing.tsx': 142,
   'app/onboarding/OnboardingWizard.tsx': 5,
   'app/tarifs/page.tsx': 8,
-  'components/accueil/VueAnalytics.tsx': 1,
-  'components/AssistantHome.tsx': 3,
   'components/BrandGuidelines.tsx': 2,
-  'components/HomeMarques.tsx': 2,
   'components/LogoMarque.tsx': 4,
 };
 
-const PLAFOND_TOTAL = 185;
+const PLAFOND_TOTAL = 161;
 
 const RACINES = ['app', 'components', 'lib'];
 

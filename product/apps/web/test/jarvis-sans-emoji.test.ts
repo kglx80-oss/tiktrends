@@ -32,9 +32,7 @@ for (const rel of ['spatial/vues/jarvis/Jarvis.tsx', 'spatial/vues/jarvis/Source
 // (Les essais ont rejoint Résultats dans Spatial · gardés par `adsmap-sans-emoji`.)
 // Vague 4 · `SectionMarche` est retirée avec la Veille V5 · la mémoire marché Spatial (`marche-client`) est scannée.
 FICHIERS.push({ rel: 'spatial/vues/veille/marche-client.tsx', src: readFileSync(join(process.cwd(), 'spatial/vues/veille/marche-client.tsx'), 'utf8') });
-for (const f of ['SectionAttribution.tsx']) {
-  FICHIERS.push({ rel: `jarvis/sections/${f}`, src: readFileSync(join(DIR, 'sections', f), 'utf8') });
-}
+// Vague 2 Spatial v4 · `SectionAttribution` est retirée avec l'ancien Accueil (bilan porté dans Spatial).
 
 // Pictogrammes : plan emoji + symboles divers + étoiles décoratives. Pas ✓ ni →.
 const PICTO = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{2728}\u{2726}\u{FE0F}]/gu;

@@ -44,7 +44,8 @@ describe('N07 · le plan d’itération classe par revue, pas par revenu', () =>
 
 describe('N07 (v8) · les promesses absolues restantes sont retirées', () => {
   const APPSHELL = lire('components/AppShell.tsx');
-  const ACCUEIL = lire('components/AssistantHome.tsx');
+  // Vague 2 Spatial v4 · l'Accueil est servi par Spatial · sa vue, ses blocs et les règles qui écrivent ses textes.
+  const ACCUEIL = ['spatial/vues/accueil/Accueil.tsx', 'spatial/vues/accueil/interactifs.tsx', 'spatial/vues/accueil/assistant.tsx', '../../packages/core/src/spatial/accueil/accueil.ts', '../../packages/core/src/spatial/accueil/jarvis.ts'].map(lire).join('\n');
 
   it('« Cloner une pub gagnante » ne revient pas dans la palette', () => {
     expect(APPSHELL, 'la palette de commandes qualifie encore la source de « gagnante »').not.toContain('Cloner une pub gagnante');
@@ -52,9 +53,8 @@ describe('N07 (v8) · les promesses absolues restantes sont retirées', () => {
 
   it('l’accueil ne promet plus « ta prochaine créative gagnante »', () => {
     expect(ACCUEIL).not.toContain('créative gagnante');
-    // Lot Dashboard · l'en-tête oriente l'ITÉRATION (observe/teste/apprends),
-    // pas la performance ni une création vedette.
-    expect(ACCUEIL).toContain('Observe, teste, apprends de chaque itération');
+    // L'Accueil oriente l'ITÉRATION · « Quoi itérer, d’après tes performances », pas une création vedette.
+    expect(ACCUEIL).toContain('Quoi itérer, d’après tes performances');
   });
 });
 

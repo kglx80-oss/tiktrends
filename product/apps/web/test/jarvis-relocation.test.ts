@@ -31,7 +31,8 @@ const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const jarvis = lit('app/(spatial)/sp/jarvis/page.tsx') + lit('spatial/vues/jarvis/Jarvis.tsx');
 const colonne = lit('spatial/vues/jarvis/Jarvis.tsx');
 const sources = lit('app/(spatial)/sp/jarvis/sources/page.tsx') + lit('spatial/vues/jarvis/Sources.tsx') + lit('spatial/vues/jarvis/sources-client.tsx');
-const sAttribution = lit('app/(app)/jarvis/sections/SectionAttribution.tsx');
+// Vague 2 Spatial v4 · le bilan avancé (attribution, tendance) vit dans la vue Analytics de l'Accueil Spatial.
+const sAttribution = lit('spatial/vues/accueil/Analytics.tsx') + lit('app/(spatial)/sp/dashboard/analytics.ts');
 // Les essais ont rejoint Résultats dans Spatial · page (garde, chargement) + vue (rendu).
 const sEssais = lit('app/(spatial)/sp/adsmap/essais/page.tsx') + lit('spatial/vues/resultats/Essais.tsx');
 // Vague 4 · la mémoire marché vit dans Pubs du moment (Spatial) · `MemoireMarche`, garde dans la page.
@@ -39,7 +40,7 @@ const sMarche = lit('spatial/vues/veille/marche-client.tsx');
 // Le contexte de marque (accroches comprises) vit sur l'écran Sources de Spatial.
 const contexte = sources;
 const chatAction = lit('app/actions/jarvis-chat.ts');
-const analytics = lit('components/accueil/VueAnalytics.tsx');
+const analytics = lit('spatial/vues/accueil/Analytics.tsx');
 const veille = lit('app/(spatial)/sp/veille/page.tsx') + lit('spatial/vues/veille/PubsDuMoment.tsx');
 
 describe('Jarvis · la conversation, seule ; le détail à sa destination', () => {
@@ -74,7 +75,7 @@ describe('chaque famille est à sa destination, rien de perdu', () => {
     expect(sAttribution).toContain('id="attribution"');
     expect(sAttribution).toContain('Est-ce que ça marche mieux qu’avant ?');
     expect(sAttribution).toContain('attributionViewAction');
-    expect(analytics, 'Analytics ne monte pas le bilan avancé').toContain('<SectionAttribution');
+    expect(analytics, 'Analytics ne monte pas le bilan avancé').toContain('<Bilan b={p.bilan} />');
   });
 
   it('les essais, le Score et les relectures vivent dans la section montée sur Adsmap', () => {
@@ -128,10 +129,9 @@ describe('les gardes d’accès survivent au déménagement · rien n’est éla
     // Essais (Spatial) · la garde de la rubrique (offre Plus, marque active), refus dit à l'écran.
     expect(sEssais, 'essais · la garde d’accès manque').toContain('const g = await gardeResultats();');
     expect(sEssais, 'essais · le refus n’est pas rendu').toContain('if (!g.ok) return <RefusResultats');
-    for (const [nom, src] of [['attribution', sAttribution]] as const) {
-      expect(src, `${nom} · la garde d’accès manque`).toContain('canAccess(effectiveAccess(s), adsmap)');
-      expect(src, `${nom} · ne rend pas null sans accès/marque`).toContain('return null');
-    }
+    // Attribution (vague 2 Spatial v4) · la vue Analytics de l'Accueil Spatial ne lit le bilan que sous le droit Adsmap ET avec une marque active (rendu éprouvé par `spatial-accueil-analytics`).
+    expect(sAttribution, 'attribution · la garde d’accès manque').toContain('if (brand && canAccess(acces, ADSMAP))');
+    expect(sAttribution, 'attribution · le bilan se rend sans garde').toContain('{p.bilan && <Bilan b={p.bilan} />}');
     // Le marché (Spatial) · offre Résultats ET marque active, sinon la vue ne reçoit rien et ne rend rien.
     expect(veille, 'marché · la garde d’accès manque').toContain('marche={brand && canAccess(access, RESULTATS) ? { marque: brand.name } : null}');
     expect(veille, 'marché · rendu sans garde').toContain('{p.marche && <MemoireMarche');

@@ -22,10 +22,11 @@ vi.mock('../app/actions/stripe', () => ({ createCheckoutAction: async () => {}, 
 
 import ForfaitsSpatial from '../app/(spatial)/sp/billing/page';
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
-import CreditsPage from '../app/(app)/credits/page';
+// Vague 4 · l'écran V5 `/credits` est retiré · la garde lit l'écran Spatial.
+import CreditsPage from '../app/(spatial)/sp/credits/page';
 
 const texte = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '’').replace(/\s+/g, ' ');
-const rendre = async (P: typeof CreditsPage) => texte(renderToStaticMarkup(await P({ searchParams: Promise.resolve({}) })));
+const rendre = async (P: typeof CreditsPage) => texte(renderToStaticMarkup(<FournisseurSpatial value={CTX}>{await P()}</FournisseurSpatial>));
 const CTX: CtxSpatial = { utilisateur: { nom: 'D', initiales: 'D', email: 'demo@exemple.invalid', role: 'Propriétaire' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
 // L'anneau de l'en-tête (coquille) est neutralisé · seul celui de l'écran est lu.
 const forfaits = async () => renderToStaticMarkup(<FournisseurSpatial value={CTX}>{await ForfaitsSpatial()}</FournisseurSpatial>).replace(/<a class="credit"[^]*?<\/a>/, '');

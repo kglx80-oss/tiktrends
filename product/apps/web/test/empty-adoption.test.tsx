@@ -65,9 +65,8 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     // adopte la même grammaire avec une sortie vers les Connexions.
     // Connexions · l'étape d'activation. Sans marque active, c'était une impasse
     // grise sans bouton · devient un `todo` qui pousse à choisir une marque.
-    // Crédits · l'historique vide devient une invitation à générer, comme sa
-    // page sœur Consommation, au lieu d'une phrase grise sur une page d'argent.
-    { fichier: 'app/(app)/credits/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/studio/projets'"] },
+    // Crédits · vague 4 · servi par Spatial · l'historique vide qui invite à
+    // générer est gardé sur le rendu (`spatial-credits.test.tsx`).
     // Support · vague 4 · servi par Spatial · la liste vide « tout roule » est
     // gardée sur le rendu (`spatial-support.test.tsx`).
   ];

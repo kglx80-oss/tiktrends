@@ -20,8 +20,7 @@ describe('toute page de démo connectable offre une sortie vers le réel', () =>
   it.each([
     // Vague 4 · le Radar est servi par Spatial · sans créas synchronisées, aucun exemple, la porte « Brancher Meta Ads ».
     ['radar', 'spatial/vues/veille/Radar.tsx'],
-    ['dashboard', 'components/ApercuExemple.tsx'],
-    ['analytics', 'components/accueil/VueAnalytics.tsx'],
+    // L'aperçu d'exemple de l'Accueil et la démo d'Analytics sont retirés avec l'ancien Accueil (vague 2 Spatial v4) · aucune démo n'y est portée.
   ])('%s montre la porte vers /connections', (_n, p) => {
     expect(P(p), 'aucune sortie « brancher un compte » sur une page d’exemple').toContain('/connections');
   });

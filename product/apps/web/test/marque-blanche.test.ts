@@ -21,7 +21,10 @@ import { join } from 'node:path';
 
 const CLIENT = [
   // Vague 4 · `TrackerFeed` (V5) est retiré · les écrans Spatial de la Veille sont couverts par le balayage ci-dessous.
-  'components/AssistantHome.tsx',
+  // Vague 2 Spatial v4 · l'Accueil (et sa vue Analytics) est servi par Spatial.
+  'spatial/vues/accueil/Accueil.tsx',
+  'spatial/vues/accueil/Analytics.tsx',
+  'spatial/vues/accueil/assistant.tsx',
   'app/(app)/studio/page.tsx',
   'app/(app)/studio/image/page.tsx',
   'app/(app)/studio/video/page.tsx',

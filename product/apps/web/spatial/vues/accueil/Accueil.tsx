@@ -1,10 +1,12 @@
 import type { CSSProperties } from 'react';
 import type {
-  AFaireMaintenant, CarteConfiguration, CarteQuoiIterer, EtapeBoucleAccueil, LigneReprendre, NouveauteAccueil,
+  AFaireMaintenant, KpiAccueil, CarteConfiguration, CarteQuoiIterer, EtapeBoucleAccueil, LigneReprendre, NouveauteAccueil,
   PeriodeReporting, RaccourciAccueil, SyntheseReporting, TonVariation,
 } from '@tiktrends/core';
-import { EnTete, Ic, Lien, Vue } from '../../communs';
+import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { BarreJarvis, CarteConfigurationAccueil, ChoixPeriode } from './interactifs';
+import { AssistantAccueil } from './assistant';
+import type { OngletAccueil } from './Analytics';
 
 /**
  * L'Accueil Spatial (« Bonjour … ») · `docs/spatial/reference/accueil.html`,
@@ -37,7 +39,20 @@ export interface PropsAccueil {
   iterer: EtatQuoiIterer | null;
   boucle: { etapes: readonly EtapeBoucleAccueil[]; href: string } | null;
   nouveautes: readonly NouveauteAccueil[] | null;
-  reprendre: { lignes: readonly LigneReprendre[]; tous: string; vide: { message: string; lien: LienSimple | null } | null } | null;
+  /** `tous` · `null` quand la liste des projets ne s'ouvrirait pas (capacité coupée) · aucun geste mort. `etat` · un état dégradé dit (`role="status"`). */
+  reprendre: { lignes: readonly LigneReprendre[]; tous: string | null; vide: { message: string; lien: LienSimple | null; etat?: 'coupee' | 'erreur' } | null } | null;
+  /*
+   * Hors maquette · gestes de l'ancien Accueil portés (vague 2 Spatial v4).
+   * Absents, rien ne s'affiche (la parité avec la maquette n'en dépend pas).
+   */
+  /** Accueil · Analytics · seulement si le rôle ouvre Analytics (`resoudreAccueil`). */
+  onglets?: readonly OngletAccueil[];
+  /** Ce que le rôle n'ouvre pas, et pourquoi (`noteAccesAccueil`). */
+  note?: string | null;
+  /** Les KPI de l'Accueil (`kpiAccueil`) · chaque source lue sous son droit, une source fermée se tait. */
+  kpi?: readonly KpiAccueil[];
+  /** L'assistant · quand Jarvis est fermé mais que l'action `askAssistant` admet le rôle. */
+  assistant?: { pret: boolean; prix: string; suggestions: readonly string[] } | null;
 }
 
 /** Une vignette de publicité (`div.ad` de la maquette) · le média réel, ou un cadre vide. */
@@ -178,7 +193,10 @@ export function Accueil(p: PropsAccueil) {
   return (
     <Vue>
       <EnTete titre={p.salutation} sous={p.surtitre} />
+      {p.onglets && p.onglets.length > 0 && <SousNav items={p.onglets} actif={p.onglets.find((o) => o.actif)?.href ?? ''} />}
+      {p.note && <p className="faint" role="note" style={petit('12.5px', { margin: '6px 0 0' })}>{p.note}</p>}
       {p.jarvis && <BarreJarvis titre={p.jarvis.titre} sources={p.jarvis.sources} pastilles={p.jarvis.pastilles} />}
+      {p.assistant && <AssistantAccueil {...p.assistant} />}
       {p.raccourcis.length > 0 && (
         <nav className="qrow" aria-label="Raccourcis">
           {p.raccourcis.map((r) => (
@@ -191,6 +209,19 @@ export function Accueil(p: PropsAccueil) {
         </nav>
       )}
       {p.attente && <p className="lead2" style={{ marginTop: 18 }}>{p.attente}</p>}
+      {p.kpi && p.kpi.length > 0 && (
+        <section className="sec" data-section="kpi" aria-label="Indicateurs de l’Accueil">
+          <div className="dkpis">
+            {p.kpi.map((k) => (
+              <Lien className="tile dk" href={k.href} key={k.cle} data-kpi={k.cle} title={`Source : ${k.source}`}>
+                <span className="lbl">{k.libelle}</span>
+                <span className="v num">{k.valeur}</span>
+                <span className="d faint">{k.detail} · {k.periode}</span>
+              </Lien>
+            ))}
+          </div>
+        </section>
+      )}
       {p.maintenant && (
         <Lien className="tile nowbar" href={p.maintenant.href}>
           <span className="pulse" />
@@ -223,7 +254,7 @@ export function Accueil(p: PropsAccueil) {
             )}
             {p.reprendre && (
               <div className="tile">
-                <div className="sech" style={{ margin: '0 0 10px' }}><div className="lbl">Reprendre</div><Lien className="more" href={p.reprendre.tous}>Tous les projets <Ic n="arrow" /></Lien></div>
+                <div className="sech" style={{ margin: '0 0 10px' }}><div className="lbl">Reprendre</div>{p.reprendre.tous && <Lien className="more" href={p.reprendre.tous}>Tous les projets <Ic n="arrow" /></Lien>}</div>
                 {p.reprendre.lignes.length > 0 ? (
                   <div className="grid2">
                     {p.reprendre.lignes.map((l) => (
@@ -235,7 +266,7 @@ export function Accueil(p: PropsAccueil) {
                   </div>
                 ) : p.reprendre.vide && (
                   <>
-                    <p className="muted" style={petit('13px')}>{p.reprendre.vide.message}</p>
+                    <p className="muted" style={petit('13px')} role={p.reprendre.vide.etat ? 'status' : undefined} data-reprendre-etat={p.reprendre.vide.etat}>{p.reprendre.vide.message}</p>
                     {p.reprendre.vide.lien && <Lien className="btn sm pri" href={p.reprendre.vide.lien.href} style={{ marginTop: 10 }}>{p.reprendre.vide.lien.libelle}</Lien>}
                   </>
                 )}

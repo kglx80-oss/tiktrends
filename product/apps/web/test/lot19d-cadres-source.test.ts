@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 
@@ -25,8 +25,8 @@ const WEB = process.cwd();
 const PERIMETRE = [
   'components',
   // Vague 3 · `brands` (la liste V5) et `console` sont retirés · servis par Spatial.
-  // Vague 4 · `support`, `tags` et `profile` sont retirés · servis par Spatial · `radar` aussi (Veille exclusive).
-  ...['dashboard', 'analytics', 'studio', 'credits']
+  // Vague 4 · `support`, `tags`, `profile` et `credits` sont retirés · servis par Spatial · `radar` aussi (Veille exclusive).
+  ...['dashboard', 'analytics', 'studio']
     .map((d) => join('app', '(app)', d)),
   // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
   ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
@@ -38,8 +38,7 @@ const PERIMETRE = [
   join('app', '(app)', 'jarvis', 'JarvisChat.tsx'),
   join('app', '(app)', 'jarvis', 'JarvisContexte.tsx'),
   // Lot 19C · les écrans des formats créatifs et Sauvegardes · retirés à la vague 4 (Veille exclusive Spatial).
-  // Lot 19A · rendu dans la vue Analytics de l'Accueil (seul appelant).
-  join('app', '(app)', 'jarvis', 'sections', 'SectionAttribution.tsx'),
+  // Lot 19A · `jarvis/sections/SectionAttribution.tsx` est retirée avec l'ancien Accueil (vague 2 Spatial v4).
 ];
 
 /** Fichiers du dossier `components` hors de ce lot, et pourquoi. */
@@ -76,7 +75,8 @@ const fichiers: string[] = [];
       else if (/\.tsx?$/.test(n)) fichiers.push(p.split(sep).join('/'));
     }
   }
-})(PERIMETRE);
+// Une page V5 retirée (écran devenu exclusif Spatial) sort du périmètre d'elle-même.
+})(PERIMETRE.filter((d) => existsSync(join(WEB, d))));
 const dansLeLot = (f: string) => !Object.keys(HORS_LOT).some((h) => f === h || f.startsWith(h + '/'));
 
 // Fin d'un objet de style · `}}`, `};`, `} as const;`, `}),`…
@@ -149,13 +149,12 @@ function cadresHorsRole(f: string): string[] {
 describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   const lot = fichiers.filter(dansLeLot);
   it('on parcourt bien le périmètre du lot', () => {
-    // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · plancher 120.
-    // Mesuré : 106 après le retrait de la Veille V5 (vague 4), main à jour (Support, Profil, Tags déjà retirés) (28/10/2026) · plancher 90.
-    expect(lot.length).toBeGreaterThan(90);
+    // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · le périmètre fond à chaque retrait V5.
+    // Mesuré : 84 fichiers après les retraits de la vague 4 (Veille, Accueil, Finance, Inscriptions, Profil, Tags, Support, Crédits) (28/10/2026) · plancher 70.
+    expect(lot.length).toBeGreaterThan(70);
     expect(lot).toContain('components/ui.tsx');
-    expect(lot).toContain('app/(app)/admin/finance/page.tsx');
-    // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.
-    for (const f of ['components/JourneyPanel.tsx', 'components/HomeBandeau.tsx', 'components/accueil/VueAnalytics.tsx', 'app/(app)/analytics/MetaKeyMetrics.tsx', 'app/(app)/dashboard/page.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
+    // Vague 2 Spatial v4 · l'ancien Accueil, sa vue Analytics et les pages V5 de l'Admin sont retirés (Spatial exclusif) · reste le panneau de parcours partagé.
+    for (const f of ['components/JourneyPanel.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
   });
   it('aucun cadre hors de son rôle (--line-2 sur un cadre, rayon 13–24 hors 20)', () => {
     const fautes = lot.flatMap(cadresHorsRole);

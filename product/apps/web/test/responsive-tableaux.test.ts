@@ -10,20 +10,14 @@ import { join } from 'node:path';
  * l'horizontale au lieu d'écraser. On éprouve le CSS livré par la source.
  */
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
-const analytics = read('components/accueil/VueAnalytics.tsx');
-const meta = read('app/(app)/analytics/MetaKeyMetrics.tsx');
+// Vague 2 Spatial v4 · la vue Analytics vit dans l'Accueil Spatial (le tableau « ROAS » de démonstration n'est pas porté).
+const analytics = read('spatial/vues/accueil/Analytics.tsx');
 
 describe('Tableaux · min-width + cadre scrollable, plus de colonnes écrasées', () => {
-  it('Analytics · le tableau ROAS a une min-width et défile', () => {
-    const trow = analytics.slice(analytics.indexOf('const trow ='), analytics.indexOf('const trow =') + 200);
-    expect(trow, 'les 6 colonnes n’ont pas de min-width · elles se tassent').toContain('minWidth: 560');
-    expect(analytics, 'le cadre du tableau ne défile pas').toContain("...surface, overflowX: 'auto'");
-  });
-
-  it('Meta · les deux lignes (en-tête + créas) partagent min-width et cadre scrollable', () => {
-    const n = meta.split("'1fr 90px 90px 100px', minWidth: 420").length - 1;
-    expect(n, 'l’en-tête ET les lignes doivent porter la min-width').toBe(2);
-    expect(meta, 'le cadre du tableau ne défile pas').toContain("...surface, overflowX: 'auto'");
+  it('Meta · le tableau des top créas défile (largeur minimale) et l’en-tête comme les lignes portent ses colonnes', () => {
+    expect(analytics, 'le cadre du tableau ne défile pas').toContain('data-table="top-roas" style={styleTableDefilante(420)}');
+    const n = analytics.split('gridTemplateColumns: COLONNES_TOP').length - 1;
+    expect(n, 'l’en-tête ET les lignes doivent porter les colonnes').toBe(2);
   });
 
   // La liste des membres N'EST PAS un vrai tableau dense · trois champs simples
