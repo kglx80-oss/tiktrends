@@ -28,7 +28,8 @@ export interface MenuProfilProps {
 /**
  * Le menu profil · vrai nom, vrai e-mail, vrai rôle, vraie déconnexion.
  * L'« Aperçu du rôle » de la maquette (changer de rôle pour voir) est une
- * simulation · absent. « Mon profil » (page réelle `/profile`) s'ajoute aux
+ * simulation · absent. « Mon profil » (page réelle `/profile`) et « Support »
+ * (les tickets de l'espace, `/support`, ouverts à toute session) s'ajoutent aux
  * boutons de la maquette.
  */
 export function MenuProfil({ utilisateur, equipe, forfaits, demarrage, deconnexion }: MenuProfilProps) {
@@ -46,6 +47,7 @@ export function MenuProfil({ utilisateur, equipe, forfaits, demarrage, deconnexi
         {equipe && <Lien className="btn sm" href={equipe}><Ic n="users" />Équipe</Lien>}
         {forfaits && <Lien className="btn sm" href={forfaits}><Ic n="spark" />Forfaits</Lien>}
         <Lien className="btn sm" href="/profile">Mon profil</Lien>
+        <Lien className="btn sm" href="/support">Support</Lien>
         {demarrage && <Lien className="btn sm" href={demarrage} data-obopen="1">Démarrage</Lien>}
         <button className="btn sm" type="button" style={{ marginLeft: 'auto' }} disabled={enCours} onClick={() => demarrer(() => deconnexion())}>
           {enCours ? 'Déconnexion…' : 'Se déconnecter'}

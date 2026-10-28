@@ -77,6 +77,7 @@ classes existantes de `spatial.css` (tuiles, `seg subnav`, `.field`, `.chip`…)
 | Identités et voix | `/studio/projets/[id]/identites` | D2 · Studios |
 | Exporter l’image | `/studio/projets/[id]/export` | D2 · Studios |
 | Nouveau concept créatif | `/studio/projets/nouveau/concept` | D1 · Studios |
+| Support de l’espace (ouvrir un ticket, liste, fil, réponse, statut) · vague 4, pages V5 retirées | `/support`, `/support/[id]` | G · Réglages |
 
 ## Écrans hors maquette (vague 3 · Admin)
 

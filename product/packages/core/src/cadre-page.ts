@@ -66,9 +66,8 @@ export type LectureInterieure = keyof typeof LECTURE;
  */
 export const EXCEPTIONS_LECTURE: Readonly<Record<string, { lecture: LectureInterieure; raison: string }>> = {
   '/profile': { lecture: 'formulaire', raison: 'formulaire de profil · des champs étirés sur 1136 se lisent mal' },
-  '/support': { lecture: 'formulaire', raison: 'formulaire de demande et liste courte' },
-  '/support/[id]': { lecture: 'fil', raison: 'fil de conversation · mesure de lecture' },
   // Vague 3 · `/jarvis` et `/jarvis/sources` sont servis par Spatial (exclusifs) · plus d'exception V5.
+  // Vague 4 · `/support` et `/support/[id]` aussi.
 };
 
 /** La gouttière fluide, écrite comme le style en ligne l'attend. */
