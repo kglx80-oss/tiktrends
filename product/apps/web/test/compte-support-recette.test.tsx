@@ -79,17 +79,9 @@ describe('Usage et Crédits · chiffres et motifs', () => {
     expect(j.limiteAtteinte, 'la limite de lignes n’est pas dite').toBe(true);
     expect(j.fenetre, 'un total tronqué se présente comme « 30 jours »').toBe('3 derniers mouvements (une partie des 30 jours)');
   });
-  it('Crédits · plus de report de 25 % promis, consommé borné, illimité = ∞', () => {
-    const s = src('app/(app)/credits/page.tsx');
-    expect(s, 'promesse de report jamais appliquée').not.toContain('Report partiel de 25');
-    expect(s).toContain('partConsommeeCycle({ allocation: alloc, solde: balance, illimite, mouvements: ledger.length })');
-    expect(s).toContain("{illimite ? '∞'");
-    expect(s, 'un « · » seul tenait lieu de valeur quand la part ne se mesure pas').not.toContain("conso.pct === null ? '·'");
-    expect(s).toContain('>Sans objet</span>');
-    expect(s, 'six actions s’affichaient en clé brute (« chat », « asset_analysis »)').not.toContain('ACTION_FR[k] || k');
-    expect(s).toContain('LIBELLE_ACTION_CREDIT[k');
-    expect(s).toContain('libelleMotif(l.reason)');
-  });
+  // Crédits · vague 4 · l'écran V5 `/credits` est retiré · ses promesses (pas de
+  // report de 25 %, consommé borné, illimité = ∞, libellés lisibles) sont gardées
+  // sur le rendu Spatial (`spatial-credits.test.tsx`).
 });
 
 describe('Support · promesses tenues, fil accessible', () => {

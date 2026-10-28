@@ -5,3 +5,4 @@ export * from './finances';
 export * from './sav';
 export * from './pilotage';
 export * from './outils';
+export * from './credits-marges';

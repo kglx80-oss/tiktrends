@@ -31,6 +31,8 @@ export const OUTILS_ADMIN = [
   { href: '/admin/connaissances', libelle: 'Connaissances' },
   { href: '/admin/studios-interrupteurs', libelle: 'Interrupteurs Studios' },
   { href: '/console', libelle: 'Console' },
+  // Vague 4 · l'ancien écran `/credits` (barème, coût réel, marges, pire cas).
+  { href: '/credits', libelle: 'Crédits & marges' },
 ] as const;
 
 /** La sous-navigation affichée · la maquette, puis les outils de la plateforme. */

@@ -90,4 +90,5 @@ entrées de la maquette dans la sous-navigation (`OUTILS_ADMIN`).
 | Intelligence marché | `/admin/intelligence` | H · Admin |
 | Connaissances de l'équipe | `/admin/connaissances` | H · Admin |
 | Interrupteurs Studios et budget d'essai | `/admin/studios-interrupteurs` | H · Admin |
+| Crédits & marges (barème, coût réel × markup, marge nette après IS, pire cas, historique de l’espace) · vague 4, page V5 retirée | `/credits` | H · Admin |
 | Console (déploiement, tarifs, comptes de test) | `/console` | H · Admin |
