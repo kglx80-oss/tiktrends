@@ -44,8 +44,9 @@ import { session, semer } from './studios-semis';
 import ProjetsPage from '../app/(spatial)/sp/studio/projets/page';
 import NouveauConceptPage from '../app/(spatial)/sp/studio/projets/nouveau/concept/page';
 import { avecSpatial } from './spatial/fournisseur';
-import PreparerProjetPage from '../app/(app)/studio/projets/nouveau/page';
-import { AssistantDepuisContexte } from '../components/studios/projet/AssistantDepuisContexte';
+// Vague 3 · « Nouveau projet » n'est plus servi que par Spatial (page V5 retirée).
+import PreparerProjetPage from '../app/(spatial)/sp/studio/projets/nouveau/page';
+import { NouveauProjet } from '../spatial/vues/studios/NouveauProjet';
 
 const ids = h.ids;
 const CONCEPT = '/studio/projets/nouveau';
@@ -125,7 +126,7 @@ describe('pas de 4e porte orpheline · l’assistant « depuis zéro » ne doubl
   it('sans contexte, rend le même assistant sans écrire au GET', async () => {
     const avant = (await projetsDe(ids.brandA1, ids.ua)).length;
     const page = await PreparerProjetPage({ searchParams: Promise.resolve({}) });
-    expect(page.type).toBe(AssistantDepuisContexte);
+    expect(page.type).toBe(NouveauProjet);
     expect(page.props.etat).toMatchObject({ etat: 'pret', marque: { id: ids.brandA1 } });
     expect((await projetsDe(ids.brandA1, ids.ua)).length).toBe(avant);
   });

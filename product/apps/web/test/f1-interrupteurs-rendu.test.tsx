@@ -37,12 +37,12 @@ import { db, schema, eq } from '@tiktrends/db';
 import { cleInterrupteursEspace } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { projetTest } from './l3-harnais';
-// Vague 2 · liste, vidéo, identités et textes ne sont plus servis que par Spatial (pages V5 retirées) ·
-// la fiche du projet et l'éditeur d'image restent des pages V5.
+// Vague 2 et 3 · liste, vidéo, identités, textes et éditeur d'image ne sont plus servis que par Spatial
+// (pages V5 retirées) · la fiche du projet reste une page V5.
 import ProjetsSpatial from '../app/(spatial)/sp/studio/projets/page';
 import ProjetPage from '../app/(app)/studio/projets/[id]/page';
 import VideoSpatial from '../app/(spatial)/sp/studio/projets/[id]/video/page';
-import ImagePage from '../app/(app)/studio/projets/[id]/image/page';
+import ImageSpatial from '../app/(spatial)/sp/studio/projets/[id]/image/page';
 import IdentitesSpatial from '../app/(spatial)/sp/studio/projets/[id]/identites/page';
 import TextesSpatial from '../app/(spatial)/sp/studio/projets/[id]/textes/page';
 import InterrupteursPage from '../app/(app)/admin/studios-interrupteurs/page';
@@ -53,6 +53,7 @@ const sp = async (el: Promise<ReactElement>) => renderToStaticMarkup(avecSpatial
 const VideoPage = (p: { params: Promise<{ id: string }> }) => sp(VideoSpatial(p));
 const IdentitesPage = (p: { params: Promise<{ id: string }> }) => sp(IdentitesSpatial(p));
 const TextesPage = (p: { params: Promise<{ id: string }> }) => sp(TextesSpatial(p));
+const ImagePage = (p: { params: Promise<{ id: string }> }) => sp(ImageSpatial(p));
 const ProjetsPage = (p: { searchParams: Promise<{ toutes?: string }> }) => sp(ProjetsSpatial(p));
 
 const ids = h.ids;
@@ -110,7 +111,7 @@ describe('URL directe d’un écran coupé · la page le dit', () => {
 
   it('éditeur coupé en urgence pour l’espace · la page image le dit (et pas « Document indisponible »)', async () => {
     await reglage({ actives: [], coupees: ['editeur'] });
-    const d = dom(renderToStaticMarkup(await ImagePage(params(projet))));
+    const d = dom(await ImagePage(params(projet)));
     expect(d.querySelector('[data-etat="non-active"]')?.getAttribute('data-capacites')).toBe('editeur');
     expect(d.textContent).not.toContain('Document indisponible');
     expect(d.textContent).toContain('Coupé par l’équipe de la plateforme.');

@@ -4,7 +4,7 @@ import {createRoot} from 'react-dom/client';
 import {it,expect,vi} from 'vitest';
 const m=vi.hoisted(()=>({lister:vi.fn(),creer:vi.fn(),proposer:vi.fn()}));
 vi.mock('../app/actions/studios/propositions',()=>({listerPropositions:m.lister,creerPropositionManuelle:m.creer,proposerBrief:m.proposer,appliquerProposition:vi.fn(),rejeterProposition:vi.fn()}));
-import {usePropositionsBrief,type CyclePropositionsBrief} from '../components/studios/projet/usePropositionsBrief';
+import {usePropositionsBrief,type CyclePropositionsBrief} from '../lib/studios/propositions/use-propositions-brief';
 (globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
 it('proposition manuelle reste liée à la version du brief affiché même si la liste indique plus récent',async()=>{
  let cycle:CyclePropositionsBrief;function Vue(){cycle=usePropositionsBrief('p',{id:'version-affichee',n:1});return null}
