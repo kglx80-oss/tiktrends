@@ -329,6 +329,29 @@ export const PALETTE_CLAIRE_SPATIALE: Readonly<Record<string, string>> = {
   sh: '0 30px 60px -30px #0b122033,inset 0 1px 0 #ffffffcc',
 };
 
+/* ─────────────────────────── Pop-up profil (G17) ─────────────────────────── */
+
+/**
+ * Part du fond PLEIN de la page (`--ink` · bleu nuit en sombre, papier en clair)
+ * sous la pop-up profil. La maquette la pose à 85 % (`.notif{background:#1b2433d9}`)
+ * en comptant sur le flou du verre · posée DANS la fenêtre déjà floutée, la
+ * pop-up ne floute plus ce qui est dessous (le premier `backdrop-filter` borne
+ * le second) et la page se lit à travers (relevé G17 · fantôme mesuré 1,60:1).
+ * À 96 %, le pire texte de la page vu au travers (`fantomeSousSurcouche`)
+ * tombe à 1,09:1 en sombre et 1,08:1 en clair · illisible.
+ */
+export const PART_FOND_SURCOUCHE = 96;
+export const FOND_SURCOUCHE_OPAQUE = `color-mix(in srgb,var(--ink) ${PART_FOND_SURCOUCHE}%,transparent)`;
+
+/** Contraste d'un texte de la page vu à travers la surcouche, sans flou · le
+ *  « fantôme ». `fond` · la valeur de `--ink` du thème ; `texte` · le pire texte. */
+export function fantomeSousSurcouche(fond: string, texte: string, part = PART_FOND_SURCOUCHE): number {
+  const f = lireCouleurCss(fond);
+  const surcouche = versHex([f[0], f[1], f[2], part / 100]);
+  const rgb = (c: Rgba) => `rgb(${c[0]},${c[1]},${c[2]})`;
+  return contrasteCouleurs(rgb(composer(surcouche, texte)), rgb(composer(surcouche, fond)));
+}
+
 /* ─────────────────────────── Mesure ─────────────────────────── */
 
 /**

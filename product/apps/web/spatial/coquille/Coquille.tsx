@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
+import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
 import { railCookieString } from '../../lib/rail-preference';
 import { setActiveBrand } from '../../app/actions/brands';
 import { listerProjets } from '../../app/actions/studios/projets';
@@ -264,7 +264,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
         {panneau === 'modules' && <FeuilleModules modules={modulesMobiles({ ouverts, marque: d.marque })} />}
       </div>
 
-      <section className="notif glass memenu" id="memenu" tabIndex={-1} hidden={panneau !== 'profil'} aria-label="Profil">
+      <section className="notif glass memenu" id="memenu" tabIndex={-1} hidden={panneau !== 'profil'} aria-label="Profil" style={{ background: FOND_SURCOUCHE_OPAQUE }}>
         {panneau === 'profil' && (
           <MenuProfil utilisateur={d.utilisateur} equipe={ouvert('/team') ? '/team' : null} forfaits={ouvert('/billing') ? '/billing' : null}
             demarrage={d.demarrage ?? null} deconnexion={d.deconnexion} />

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   CIBLE_TEXTE_CLAIR, COULEUR_BARRE_SPATIALE, ENCRE_CLAIRE, PALETTE_CLAIRE_SPATIALE, PAPIER_CLAIR,
-  assombrirPourTexte, contrasteCouleurs, deriverThemeClairCss, estNeutre, fondsClairsPireCas, inverserNeutre, mesurerThemeClair,
+  PART_FOND_SURCOUCHE, assombrirPourTexte, contrasteCouleurs, fantomeSousSurcouche, deriverThemeClairCss, estNeutre, fondsClairsPireCas, inverserNeutre, mesurerThemeClair,
 } from '../src';
 
 const SPATIAL = readFileSync(join(__dirname, '..', '..', '..', 'apps', 'web', 'spatial', 'spatial.css'), 'utf8');
@@ -94,5 +94,18 @@ describe('Spatial · thème clair · la dérivation', () => {
     expect(clair).not.toContain('#c4e6ef');
     const derniere = clair.trimEnd().split('\n').slice(-2, -1)[0]!;
     expect(derniere).toBe('html[data-theme="clair"] .qa2[data-route="veille"] .ico,html[data-theme="clair"] .qa2[data-route="jarvis"] .ico,html[data-theme="clair"] .qa2[data-route="importer"] .ico{color:#111}');
+  });
+});
+
+describe('Spatial · pop-up profil · la page ne se lit plus au travers (G17)', () => {
+  // Mesuré · le pire texte de la page (blanc en sombre, encre en clair) vu sous la
+  // pop-up, sans flou · la maquette (#1b2433 à 85 %) 1,60 en sombre ; à 85 % de
+  // --ink, 1,53 en sombre et 1,37 en clair · lisible ; à 96 %, 1,09 et 1,08.
+  it('à 96 %, le fantôme reste sous 1,15:1 dans les deux thèmes · la maquette (85 %) dépassait 1,5', () => {
+    expect(PART_FOND_SURCOUCHE).toBe(96);
+    const sombre = fantomeSousSurcouche('#0b1220', '#ffffff'), clair = fantomeSousSurcouche(PAPIER_CLAIR, ENCRE_CLAIRE);
+    expect([sombre.toFixed(2), clair.toFixed(2)]).toEqual(['1.09', '1.08']);
+    expect(Math.max(sombre, clair)).toBeLessThan(1.15);
+    expect(fantomeSousSurcouche('#1b2433', '#ffffff', 85).toFixed(2)).toBe('1.60');
   });
 });

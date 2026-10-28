@@ -320,6 +320,10 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     expect(menu.hidden).toBe(false);
     expect(menu.textContent).toContain('k@x.fr · Propriétaire');
     expect(menu.querySelector('[data-role]')).toBeNull(); // pas d'aperçu de rôle simulé
+    // G17 · fond quasi plein (le flou ne prend pas dans la fenêtre déjà floutée) · la page ne se lit plus au travers.
+    // Lu dans le HTML servi · jsdom écarte `color-mix()` de son CSSOM.
+    const servi = /<section[^>]*id="memenu"[^>]*>/.exec(renderToStaticMarkup(<Coquille donnees={donnees()}><EnTete titre="T" /></Coquille>))?.[0] ?? '';
+    expect(servi, 'pop-up profil translucide · la page se lit dessous').toContain('background:color-mix(in srgb,var(--ink) 96%,transparent)');
     await act(async () => { document.getElementById('ailleurs')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
     expect(menu.hidden).toBe(true);
   });
