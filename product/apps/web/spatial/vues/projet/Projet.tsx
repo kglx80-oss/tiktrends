@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { VIDE_COULOIR, repliPossible, replierPerdants, type CibleJarvisNoeud } from '@tiktrends/core';
+import { VIDE_COULOIR, rechercheDisposition, repliPossible, replierPerdants, type CibleJarvisNoeud, type ModeDispositionProjet } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Noeud } from './briques';
 import { useNaviguer } from './naviguer';
 import { PanneauJarvis } from './PanneauJarvis';
+import { CanvasLibre } from './CanvasLibre';
 import { OngletBrief } from './OngletBrief';
 import { OngletCreations } from './OngletCreations';
 import type { OngletProjet, PropsProjet } from './types';
@@ -23,6 +24,11 @@ import type { OngletProjet, PropsProjet } from './types';
  *    itération) et la conversation Jarvis liée au projet ;
  *  · « Créations » · lots et sorties livrées avec leur état réel (en file, en
  *    cours, échec, prête), variantes et tests, tâches.
+ *
+ * Le canvas a deux dispositions · les COULOIRS fixes de la maquette (par
+ * défaut) et la disposition LIBRE (« Disposition libre », `?disposition=libre`) ·
+ * le canvas métier de la V5, cartes déplaçables à la souris et au clavier,
+ * disposition personnelle enregistrée par les actions V5 (`CanvasLibre`).
  *
  * Changer d'onglet n'écrit rien. Aucune génération n'est lancée d'ici · le
  * geste « Générer… » ouvre la préparation, où le devis est montré avant tout.
@@ -43,6 +49,14 @@ export function Projet(p: PropsProjet) {
   const [cibleJarvis, setCibleJarvis] = useState<(CibleJarvisNoeud & { jeton: number }) | null>(null);
   const cibler = (c: CibleJarvisNoeud) => { setCibleJarvis((p) => ({ ...c, jeton: (p?.jeton ?? 0) + 1 })); setOnglet('brief'); };
   const naviguer = useNaviguer();
+  const libreOk = p.libre?.ok ? p.libre.canvas : null;
+  const [disposition, setDisposition] = useState<ModeDispositionProjet>(libreOk && p.dispositionInitiale === 'libre' ? 'libre' : 'couloirs');
+  // Le mode vit dans l'adresse · rien n'est écrit en base, l'historique n'est pas allongé.
+  const basculerDisposition = () => {
+    const mode: ModeDispositionProjet = disposition === 'libre' ? 'couloirs' : 'libre';
+    setDisposition(mode);
+    try { window.history.replaceState(window.history.state, '', `${window.location.pathname}${rechercheDisposition(window.location.search, mode)}${window.location.hash}`); } catch { /* navigateur sans historique */ }
+  };
 
   // Une ancre (lien de tâche, retour de l'atelier) ouvre l'onglet qui la porte.
   useEffect(() => {
@@ -64,6 +78,7 @@ export function Projet(p: PropsProjet) {
             <button key={o.cle} type="button" data-ptab={o.cle} aria-pressed={onglet === o.cle} onClick={() => setOnglet(o.cle)}>{o.libelle}</button>
           ))}
         </div>
+        {p.retourVeille && <Lien className="btn sm" href={p.retourVeille.href} data-retour-veille=""><Ic n="back" />Revenir à la recherche de Veille{p.retourVeille.terme ? ` · « ${p.retourVeille.terme} »` : ''}</Lien>}
         <span className={`pill ${p.pastille.classe}`} style={{ marginLeft: 'auto' }}><Ic n={p.pastille.icone} />{p.pastille.libelle}</span>
         {p.exporterHref && <Lien className="btn sm" href={p.exporterHref}><Ic n="down" />Exporter</Lien>}
       </div>
@@ -76,10 +91,19 @@ export function Projet(p: PropsProjet) {
                 onClick={() => { if (p.generer.href) naviguer(p.generer.href); }}>
                 <Ic n="spark" />{p.generer.libelle}
               </button>
-              <button className="chip" type="button" data-fold="" aria-pressed={replie && repli.possible} disabled={!repli.possible} title={repli.raison ?? 'Masque les créations battues par une mesure'}
-                onClick={() => setReplie((r) => !r)}>Replier les perdants</button>
-              <span className="faint" style={{ marginLeft: 'auto', fontSize: '11.5px' }}>{p.aideCanvas}</span>
+              {disposition === 'couloirs' && (
+                <button className="chip" type="button" data-fold="" aria-pressed={replie && repli.possible} disabled={!repli.possible} title={repli.raison ?? 'Masque les créations battues par une mesure'}
+                  onClick={() => setReplie((r) => !r)}>Replier les perdants</button>
+              )}
+              {p.libre && (
+                <button className="chip" type="button" data-disposition-libre="" aria-pressed={disposition === 'libre'} disabled={!libreOk}
+                  title={p.libre.ok ? 'Déplace les cartes du canvas · ta disposition est enregistrée pour toi seul' : p.libre.raison}
+                  onClick={basculerDisposition}><Ic n="grid" />Disposition libre</button>
+              )}
+              {disposition === 'couloirs' && <span className="faint" style={{ marginLeft: 'auto', fontSize: '11.5px' }}>{p.aideCanvas}</span>}
             </div>
+            {p.libre && !p.libre.ok && <p className="faint" data-libre-raison="" style={{ fontSize: '11.5px', margin: '0 0 10px' }}>{p.libre.raison}</p>}
+            {disposition === 'libre' && libreOk ? <CanvasLibre c={libreOk} cibler={cibler} /> : (
             <div className="lanes">
               {couloirs.map((c) => (
                 <div className="lane" key={c.cle}>
@@ -94,6 +118,7 @@ export function Projet(p: PropsProjet) {
                 </div>
               ))}
             </div>
+            )}
           </div>
           <PanneauJarvis {...p.jarvis} ouvrirBrief={() => setOnglet('brief')} />
         </div>

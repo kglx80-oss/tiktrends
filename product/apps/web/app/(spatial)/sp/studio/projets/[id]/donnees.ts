@@ -3,7 +3,7 @@ import { and, count, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
-  couloirsDepuisProjet, dateCourteUtc, etatGeneration, extraitBulle, gesteGenerer, libelleCoutRelecture, pastilleEnregistrement, relectureNecessaire,
+  couloirsDepuisProjet, dateCourteUtc, detailTache, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, libelleCoutRelecture, pastilleEnregistrement, relectureNecessaire,
   resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
@@ -19,6 +19,7 @@ import { listerTachesProjet } from '../../../../../../lib/studios/execution/comm
 import { urlsApercu } from '../../../../../../lib/studios/editeur/apercus';
 import { lireProjetDetail } from '../../../../../actions/studios/sources';
 import { lireLigneeProjet } from '../../../../../actions/studios/lignee';
+import { lireCanvasProjet } from '../../../../../actions/studios/canvas';
 import { listerPropositions } from '../../../../../actions/studios/propositions';
 import { chatThreadAction } from '../../../../../actions/jarvis-chat';
 import type { RaisonEtat } from '../../../../../../spatial/vues/projet/EtatProjet';
@@ -29,7 +30,8 @@ import type { LotSpatial, PropsProjet, TacheSpatiale, VarianteSpatiale } from '.
  * V5 (`app/(app)/studio/projets/[id]/page.tsx`) : `lireProjetDetail`, la
  * lignée (`lireLigneeProjet`), les variantes et lots (`listerVariantes`), les
  * tâches, les propositions, le fil Jarvis du projet, les interrupteurs de
- * l'espace. LECTURE seule · la visite n'écrit rien, ne génère rien.
+ * l'espace, le canvas métier et la disposition personnelle (`lireCanvasProjet`,
+ * « Disposition libre »). LECTURE seule · la visite n'écrit rien, ne génère rien.
  */
 
 const feature = FEATURES.find((f) => f.key === 'studio')!;
@@ -88,13 +90,15 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
   const generationActive = inter.actif(d.projet.kind === 'video' ? 'video' : 'generation_image');
 
   const g = await gardeStudio('studio.read');
-  const [lignee, variantes, taches, propositions, fil, fiche] = await Promise.all([
+  const [lignee, variantes, taches, propositions, fil, fiche, canvas] = await Promise.all([
     lireLigneeProjet({ projectId: pid }).catch(() => null),
     g.ok ? listerVariantes(g.ctx, { projectId: pid }, { adsmapAcces: await accesAdsmap(), relecture: await etatRelecture() }).catch(() => null) : Promise.resolve(null),
     g.ok ? listerTachesProjet(g.ctx, { projectId: pid }).catch(() => null) : Promise.resolve(null),
     courante ? listerPropositions({ projectId: pid }).catch(() => null) : Promise.resolve(null),
     chatThreadAction({ projectId: pid }).catch(() => ({ error: 'Le fil de Jarvis n’a pas pu être lu.' } as { thread?: undefined; error?: string })),
     lireFiche(s.workspaceId, d.projet.brandId).catch(() => null),
+    // Canvas libre · la version VUE (une ancienne version garde son graphe), la disposition de CETTE personne.
+    lireCanvasProjet({ projectId: pid, versionId: d.version.id }).catch(() => null),
   ]);
 
   const donnees = variantes?.ok ? variantes.donnees : null;
@@ -144,7 +148,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
   const lots: LotSpatial[] = (vue?.versions ?? []).flatMap((bv) => bv.lots.map((l) => {
     const lu = donnees!.lots.find((x) => x.jobId === l.jobId)!;
     return {
-      jobId: l.jobId, titre: l.titre, version: bv.titre, etat: etatGeneration(lu.etat as EtatJob), qualite: l.qualite, message: l.message,
+      jobId: l.jobId, titre: l.titre, version: bv.titre, note: bv.note, etat: etatGeneration(lu.etat as EtatJob), qualite: l.qualite, message: l.message,
       sorties: l.sorties.map((x) => ({ assetId: x.assetId, libelle: `${l.titre} · ${x.libelle}`, apercu: apercus[x.assetId] ?? null, detail: x.dimensions, choisir: x.choisir, raison: x.raison, varianteId: x.varianteId })),
     };
   }));
@@ -153,15 +157,16 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
     return {
       id: v.id, libelle: v.libelle, apercu: apercus[lu.assetId] ?? null, version: v.versionTitre, statut: `${v.statutTechnique} · ${v.statutQualite}`,
       hypothese: v.hypothese, variable: v.variable, comparaison: v.comparaison,
-      test: v.test ? { href: v.test.adsmapHref, resume: v.test.resume, verdict: v.test.verdict } : null,
+      test: v.test ? { href: v.test.adsmapHref, resume: v.test.resume, verdict: v.test.verdict, details: v.test.details, isolation: v.test.isolation } : null,
+      noteRangement: v.noteRangement,
       lienTest: lu.test?.linkId ?? null,
-      lecture: v.lecture ? { conclusion: v.lecture.conclusion, phrase: v.lecture.phrase } : null,
+      lecture: v.lecture ? { conclusion: v.lecture.conclusion, phrase: v.lecture.phrase, prudence: v.lecture.prudence, variableSuivante: v.lecture.variableSuivante } : null,
       gestes: v.gestes,
       rattachement: { hypothese: lu.hypothese, variable: lu.variable, aUnParent: lu.parentVariantId !== null },
     };
   });
   const tachesSp: TacheSpatiale[] | null = taches?.ok ? taches.taches.map((t) => ({
-    id: t.id, titre: t.etat.titre, classe: TON_TACHE[t.etat.ton] ?? '', detail: `${t.libelleOperation} · lancée le ${dateCourteUtc(t.creeLe)}`,
+    id: t.id, titre: t.etat.titre, classe: TON_TACHE[t.etat.ton] ?? '', detail: detailTache(t), progression: t.progression,
     explication: t.etat.explication, interrompue: t.etat.interrompu,
   })) : null;
   const relecture = donnees?.relecture ?? { disponible: false, raison: null, coutMaxUsd: null };
@@ -179,6 +184,10 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         liens: { produit: lien('produit'), video: lien('video'), textes: lien('textes') },
       }),
       couloirs,
+      retourVeille: retourVeilleProjet(d.sources),
+      libre: canvas?.ok
+        ? { ok: true, canvas: { projectId: canvas.canvas.projectId, version: canvas.canvas.version, modele: canvas.canvas.modele, apercus: canvas.canvas.apercus, disposition: canvas.canvas.disposition, rev: canvas.canvas.rev } }
+        : { ok: false, raison: canvas ? raisonCanevasIndisponible(canvas) : 'La disposition libre n’a pas pu être lue · recharge la page pour réessayer.' },
       aideCanvas: lignee?.ok ? `${nbNoeuds} nœud${nbNoeuds > 1 ? 's' : ''} · la lignée réelle du projet` : 'Ce que la fiche du projet porte · la lignée complète n’est pas disponible',
       jarvis: {
         projectId: pid, marque: d.projet.marque,
@@ -206,8 +215,10 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         references: d.sources.map((x) => ({
           id: x.sourceId, titre: titreSource(x), apercu: x.apercu, href: x.lienSource,
           detail: `${LIBELLES_TYPE_SOURCE[x.type]} · ${x.plateforme} · observée le ${dateCourteUtc(x.observeLe)}${x.statut !== 'active' ? ' · plus accessible' : ''}`,
-          libelleLien: x.type === 'veille_ad' ? 'Voir' : 'Ouvrir',
+          libelleLien: x.type === 'veille_ad' ? 'Voir la source dans la Veille' : 'Voir la sauvegarde',
+          provenance: provenanceSource(x, !!x.lienSource),
         })),
+        sourcesIllisibles: phraseSourcesIllisibles(d.sourcesIllisibles),
         produit: d.produit ? {
           nom: d.produit.nom, instantane: dateCourteUtc(d.produit.instantaneLe), photo: null, href: lien('produit'),
           faits: d.produit.faits.filter((f) => f.cle !== 'nom').map((f) => `${f.libelle} · ${f.valeur}`),

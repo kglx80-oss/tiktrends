@@ -43,9 +43,17 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
           <div className="lbl">Références</div>
           <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
             {p.references.map((r) => (
-              <div className="prow" key={r.id}>
+              <div className="prow" key={r.id} data-source={r.id} data-statut={r.provenance?.statut}>
                 {r.apercu && <img src={r.apercu} alt="" />}
-                <div className="t"><strong style={{ fontSize: '12.5px' }}>{r.titre}</strong><small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{r.detail}</small></div>
+                <div className="t">
+                  <strong style={{ fontSize: '12.5px' }}>{r.titre}</strong><small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{r.detail}</small>
+                  {r.provenance && (
+                    <details style={{ fontSize: '11.5px' }} open={r.provenance.statut !== 'active'}>
+                      <summary className="faint">{r.provenance.etat}</summary>
+                      {r.provenance.lignes.map((l) => <small key={l} className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{l}</small>)}
+                    </details>
+                  )}
+                </div>
                 {r.href && <Lien className="btn sm" href={r.href}>{r.libelleLien}</Lien>}
               </div>
             ))}
@@ -57,6 +65,7 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
               </div>
             )}
             {p.references.length === 0 && !p.produit && <p className="faint" style={{ fontSize: '12.5px' }}>Aucune référence liée à ce projet.</p>}
+            {p.sourcesIllisibles && <p className="faint" style={{ fontSize: '11.5px' }} data-sources-illisibles="">{p.sourcesIllisibles}</p>}
             {p.veilleHref && <Lien className="btn sm" href={p.veilleHref}><Ic n="plus" />Ajouter depuis la Veille</Lien>}
           </div>
         </section>

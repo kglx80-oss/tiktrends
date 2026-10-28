@@ -8,9 +8,11 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  *
  *  · `/studio/projets` · premier usage, rempli (marque, type, étape, manques,
  *    date), vide pour la marque active, accès refusé · aucune écriture à la visite.
- *  · `/studio/projets/[id]` · marque et version visibles, brief complet,
- *    hypothèse, variable, produit, complétude, sources (tombstone compris),
- *    historique, export, deux emplacements réservés · introuvable neutre hors portée.
+ *  · `/studio/projets/[id]` · l'écran SPATIAL (la fiche V5 est retirée) ·
+ *    marque et version visibles, brief complet, hypothèse, variable,
+ *    complétude, sources et leur provenance (tombstone compris), retour
+ *    Veille, historique, export, propositions, variantes · introuvable neutre
+ *    hors portée.
  */
 
 const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null, active: null as { id: string; name: string } | null }));
@@ -35,7 +37,11 @@ import { session, semer } from './studios-semis';
 // Vague 2 · la liste V5 est retirée · la garde passe sur l'écran Spatial servi à `/studio/projets`.
 import ProjetsPage from '../app/(spatial)/sp/studio/projets/page';
 import { avecSpatial } from './spatial/fournisseur';
-import ProjetPage from '../app/(app)/studio/projets/[id]/page';
+// La fiche V5 est retirée · la garde passe sur l'écran Spatial servi à `/studio/projets/[id]`.
+import ProjetSpatial from '../app/(spatial)/sp/studio/projets/[id]/page';
+import { chargerProjet } from '../app/(spatial)/sp/studio/projets/[id]/donnees';
+import { Projet } from '../spatial/vues/projet/Projet';
+import type { OngletProjet } from '../spatial/vues/projet/types';
 import { creerProjetDepuisSources } from '../app/actions/studios/sources';
 
 const ids = h.ids;
@@ -54,7 +60,15 @@ const liste = async (sp: Record<string, string> = {}) => {
 };
 const fiche = async (id: string, sp: Record<string, string> = {}) => {
   const d = document.createElement('div');
-  d.innerHTML = renderToStaticMarkup(await ProjetPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve(sp) }));
+  d.innerHTML = renderToStaticMarkup(avecSpatial(await ProjetSpatial({ params: Promise.resolve({ id }), searchParams: Promise.resolve(sp) })));
+  return d;
+};
+/** Un onglet de la fiche Spatiale (la page rend « Canvas ») · même lecture serveur que la page. */
+const onglet = async (id: string, o: OngletProjet) => {
+  const r = await chargerProjet(h.session as never, id);
+  if (!r.ok) throw new Error(JSON.stringify(r.raison));
+  const d = document.createElement('div');
+  d.innerHTML = renderToStaticMarkup(avecSpatial(<Projet {...r.props} ongletInitial={o} />));
   return d;
 };
 async function empreinteBase() {
@@ -128,67 +142,60 @@ describe('/studio/projets · reprendre un projet', () => {
 });
 
 describe('/studio/projets/[id] · la page projet', () => {
-  it('marque et version visibles, brief, hypothèse, variable, produit, complétude, sources, historique, export, emplacements', async () => {
+  it('marque et version visibles, brief, hypothèse, variable, complétude, sources, retour Veille, historique, export, propositions, variantes', async () => {
     qui('ua');
     const avant = await empreinteBase();
     const d = await fiche(projet);
+    const brief = await onglet(projet, 'brief');
+    const crea = await onglet(projet, 'crea');
     expect(await empreinteBase(), 'la visite a écrit').toBe(avant);
     expect(d.querySelector('h1')?.textContent).toBe('Accroche chiffrée · test de rentrée');
-    const entete = d.querySelector('header[data-parcours="projet"]')!;
-    expect(entete.textContent).toContain('Marque A1');
-    expect(entete.textContent).toContain('Version 1');
-    expect(entete.closest('details')).toBeNull();
-    expect(entete.compareDocumentPosition(d.querySelector('#conversation-projet')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const hyp = d.querySelector('[data-hypothese="hyp_saisie"]')!;
-    expect(hyp.textContent).toContain('Une accroche chiffrée augmente le clic.');
-    expect(hyp.textContent).toContain('Variable testée · Accroche');
-    expect(hyp.textContent).toContain('Témoin · Bénéfice');
-    expect(hyp.textContent).toContain('Mesure · Taux de clic (CTR)');
-    expect(d.textContent).toContain('Aucun produit choisi');
-    expect(d.querySelector('[data-manque="produit"]')?.textContent).toContain('à faire');
-    const src = d.querySelector('[data-source]')!;
+    const sous = d.querySelector('header.top small')!.textContent!;
+    expect(sous).toContain('Marque A1');
+    expect(sous).toMatch(/V1|version 1/i);
+    // Le canvas et le panneau Jarvis du projet, par défaut.
+    expect(d.querySelector('.lanes')).not.toBeNull();
+    expect(d.querySelector('aside.jpanel')).not.toBeNull();
+    // Retour vers la recherche de Veille d'où vient le projet (lot 18B).
+    expect(d.querySelector('[data-retour-veille]')?.getAttribute('href')).toBe('/veille?q=serum&p=meta#ad-meta-9001');
+    const kv = (dt: string) => [...brief.querySelectorAll('dl.kv2 dt')].find((x) => x.textContent === dt)?.nextElementSibling?.textContent;
+    expect(kv('Hypothèse')).toBe('Une accroche chiffrée augmente le clic.');
+    expect(kv('Variable testée')).toBe('Accroche');
+    expect(kv('Témoin')).toBe('Bénéfice');
+    expect(kv('Mesure')).toBe('Taux de clic (CTR)');
+    expect(brief.querySelector('[data-manque="produit"]')?.textContent).toContain('à faire');
+    const src = brief.querySelector('[data-source]')!;
     expect(src.getAttribute('data-statut')).toBe('active');
     expect(src.textContent).toContain('Narration · absente · Aucune transcription ni piste audio');
     expect(src.querySelector('a')?.getAttribute('href')).toBe('/veille?q=serum&p=meta#ad-meta-9001');
-    expect(d.querySelector('a[href="/veille?q=serum&p=meta#ad-meta-9001"]')?.textContent).toContain('Voir la source dans la Veille');
-    expect(d.querySelector('[data-version-n="1"]')?.textContent).toContain('courante');
-    expect(d.textContent).toContain('Exporter le brief');
-    expect(d.querySelector('[data-emplacement="propositions"]')).not.toBeNull();
-    // Intégration L4-A · le panneau des propositions est RENDU dans son emplacement, pas seulement réservé.
-    expect(d.querySelector('[data-emplacement="propositions"] [data-panneau="propositions"]')?.textContent, 'panneau des propositions absent de la page projet').toContain('Propositions');
-    expect(d.querySelector('[data-emplacement="variantes"]')).not.toBeNull();
-    // Intégration L4-C · « Variantes et tests » est RENDU dans son emplacement.
-    expect(d.querySelector('[data-emplacement="variantes"] #titre-variantes')?.textContent, 'variantes et tests absents de la page projet').toBe('Variantes et tests');
-    // Intégration L5 → UX V2 lot 2 · la barre de projet mène à chaque mode du
-    // projet (Brief, Image, Vidéo, Textes, Produit, Identités) et à l'export.
-    const atelier = [...d.querySelectorAll('nav[aria-label="Atelier du projet"] a')].map((a) => [a.textContent, a.getAttribute('href')]);
-    expect(atelier, 'modes du projet absents de la page projet').toEqual([
-      ['Brief', `/studio/projets/${projet}`],
-      ['Image', `/studio/projets/${projet}/image`],
-      // L6-A · le studio vidéo du projet.
-      ['Vidéo', `/studio/projets/${projet}/video`],
-      ['Textes', `/studio/projets/${projet}/textes`],
-      ['Produit', `/studio/projets/${projet}/produit`],
-      // L6-B · identités des personnages et voix.
-      ['Identités et voix', `/studio/projets/${projet}/identites`],
-    ]);
-    // L7-A · export image vérifié de la version · l'action principale de la barre.
-    expect(d.querySelector('[data-zone="barre-projet"] a[data-atelier="export"]')?.getAttribute('href')).toBe(`/studio/projets/${projet}/export`);
-    // Le Brief est le mode courant de la fiche.
-    expect(d.querySelector('nav[aria-label="Atelier du projet"] [aria-current="page"]')?.textContent).toBe('Brief');
-    expect(d.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
-    expect(d.innerHTML).not.toMatch(/Trendtrack/i);
+    expect(src.querySelector('a')?.textContent).toBe('Voir la source dans la Veille');
+    expect(brief.querySelector('[data-version-n="1"]')?.textContent).toContain('Courante');
+    expect(brief.textContent).toContain('Exporter le brief');
+    // Intégration L4-A · le panneau des propositions est RENDU, pas seulement réservé.
+    expect(brief.querySelector('#propositions')?.textContent, 'propositions absentes de la fiche').toContain('Version courante · version 1');
+    // Intégration L4-C · « Variantes » est RENDU dans l'onglet Créations.
+    expect(crea.querySelector('#variantes'), 'variantes absentes de la fiche').not.toBeNull();
+    // Les ateliers du projet et l'export (action de l'en-tête).
+    expect([...brief.querySelectorAll('[data-atelier] a')].map((a) => a.getAttribute('href'))).toEqual(expect.arrayContaining([
+      `/studio/projets/${projet}/image`, `/studio/projets/${projet}/textes`, `/studio/projets/${projet}/produit`, `/studio/projets/${projet}/identites`,
+    ]));
+    expect(d.querySelector(`.wshead a[href="/studio/projets/${projet}/export"]`)).not.toBeNull();
+    for (const x of [d, brief, crea]) {
+      expect(x.innerHTML, 'tiret cadratin à l’écran').not.toContain('—');
+      expect(x.innerHTML).not.toMatch(/Trendtrack/i);
+    }
   });
 
   it('source retirée · tombstone affiché, plus de lien ni d’aperçu, observations gardées', async () => {
     qui('ua');
     await db.delete(schema.savedAds).where(eq(schema.savedAds.externalId, '7002'));
-    const d = await fiche(projetSauvegarde);
+    const d = await onglet(projetSauvegarde, 'brief');
     const src = d.querySelector('[data-source]')!;
     expect(src.getAttribute('data-statut')).toBe('supprimee');
     expect(src.textContent).toContain('Source retirée');
     expect(src.textContent).toContain('observations conservées');
     expect(src.textContent).toContain('La source n’est plus accessible · aucun lien.');
+    expect(src.querySelector('a')).toBeNull();
     expect(src.querySelector('img')).toBeNull();
     expect(d.querySelector('[data-manque="source_inaccessible"]')).not.toBeNull();
   });
