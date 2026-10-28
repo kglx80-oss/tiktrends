@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createRoot, type Root } from 'react-dom/client';
 import type { InspoAd } from '@tiktrends/integrations';
 import { FILTRES_OUTIL_SCALE, ligneRadarCreatif, requetesOutilsScale, resumeRadarCreatif, statsOutilsScale, type CreaNotee } from '@tiktrends/core';
@@ -440,5 +442,49 @@ describe('Spatial · Ce qui scale · vague 4 · ergonomie du swipe file (ex lot 
     expect(bouton('Réinitialiser')).toBeUndefined();
     expect(document.activeElement, 'le focus est tombé sur la page').toBe(champ());
     window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+  });
+});
+
+/* ───────────────────────── Mise en page (planche v4, banc) ───────────────────────── */
+
+describe('Spatial · Veille · mise en page constatée au banc (planche v4)', () => {
+  const CSS = readFileSync(join(__dirname, '..', 'spatial', 'spatial.css'), 'utf8');
+
+  it('G7 · Ce qui scale · la maquette met les actions dans une colonne `auto` et redéfinit `.dbar` en flex (la cause)', () => {
+    expect(CSS, 'la grille de `.srow` a changé · relire G7').toContain('.srow{display:grid;grid-template-columns:28px 60px minmax(0,1fr) 220px auto;');
+    expect(CSS, 'la seconde `.dbar` (Drive) a disparu · relire G7').toContain('.dbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}');
+  });
+
+  it('G7 · les actions d’une créa passent sous la ligne (colonnes 3 → fin) · le nom de l’annonceur n’est plus recouvert par la durée', () => {
+    const t = document.createElement('template');
+    t.innerHTML = rendre(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />);
+    const lignes = [...t.content.querySelectorAll('.scaleL .srow')] as HTMLElement[];
+    expect(lignes).toHaveLength(3);
+    for (const r of lignes) {
+      const enfants = [...r.children] as HTMLElement[];
+      expect(enfants, 'rang, vignette, texte, durée, actions').toHaveLength(5);
+      const actionsLigne = enfants[4]!;
+      expect(actionsLigne.querySelector('a.btn, button.btn'), 'le cinquième enfant porte les actions').not.toBeNull();
+      expect(actionsLigne.style.gridColumn, 'les actions réclament la colonne `auto` · elles écrasent le texte (G7)').toBe('3 / -1');
+      const duree = enfants[3]!;
+      expect(duree.className).toBe('dbar');
+      expect(duree.style.marginBottom, 'la marge basse du Drive décale la durée').toBe('0px');
+      expect((duree.querySelector('i') as HTMLElement).style.flex, 'la jauge de durée tombe à 0 px en flex').toMatch(/^1/);
+    }
+  });
+
+  it('G6 · Mémoire marché · le paragraphe garde sa largeur (le bouton passe dessous) et les pastilles passent à la ligne', async () => {
+    marche.marketViewAction.mockResolvedValue({ view: { rows: [], contrasts: [{ dimension: 'duration_bucket', key: '15-30s', kind: 'majoritaire', statement: 'durée « 15-30s » · 100 % des annonceurs éprouvés sur ce marché, et tu ne l’as jamais assez testée pour conclure.', sources: 5 }], sampleSize: 80, provenSize: 75, advertisers: 5, summary: '' } });
+    await monter(<MemoireMarche marque="Neva" />);
+    const section = document.getElementById('lecture-marche')!;
+    const [entete, ...cartes] = [...section.querySelectorAll('.member')] as HTMLElement[];
+    expect(entete!.style.flexWrap, 'la rangée ne passe pas à la ligne · paragraphe coincé dans ~70 px à 390').toBe('wrap');
+    expect((entete!.querySelector('p') as HTMLElement).style.flex, 'le paragraphe se laisse écraser à la largeur d’un mot').toBe('1 1 260px');
+    expect(cartes.length).toBeGreaterThan(0);
+    for (const c of cartes) {
+      expect(c.style.flexWrap).toBe('wrap');
+      expect((c.querySelector('.pill') as HTMLElement).style.whiteSpace, 'la pastille sans retour à la ligne élargit la carte hors de l’écran').toBe('normal');
+      expect((c.querySelector('small') as HTMLElement).style.whiteSpace, '« 5 sources » se coupe en « source »').toBe('nowrap');
+    }
   });
 });
