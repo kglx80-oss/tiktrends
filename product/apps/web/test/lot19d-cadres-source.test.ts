@@ -45,7 +45,7 @@ const PERIMETRE = [
 export const HORS_LOT: Readonly<Record<string, string>> = {
   'components/AppShell.tsx': 'chrome de l’application · autre lot',
   'components/Breadcrumb.tsx': 'chrome · autre lot',
-  'components/RetourVeille.tsx': 'Veille · autre lot',
+  // `components/RetourVeille.tsx` est retiré avec la fiche projet V5 (le retour vit dans la fiche Spatiale).
   // Chrome de l'application, hors <main> · menus déroulants et panneau d'aide
   // flottant (prolongement d'un contrôle de la barre), hors de la mesure des pages.
   'components/BrandSwitcher.tsx': 'chrome · menu de la barre',
@@ -151,7 +151,8 @@ describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   it('on parcourt bien le périmètre du lot', () => {
     // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · le périmètre fond à chaque retrait V5.
     // Mesuré : 84 fichiers après les retraits de la vague 4 (Veille, Accueil, Finance, Inscriptions, Profil, Tags, Support, Crédits) (28/10/2026) · plancher 70.
-    expect(lot.length).toBeGreaterThan(70);
+    // Mesuré : 48 fichiers après le retrait de la fiche projet V5 et de ses composants `components/studios/*` (28/10/2026) · plancher 40.
+    expect(lot.length).toBeGreaterThan(40);
     expect(lot).toContain('components/ui.tsx');
     // Vague 2 Spatial v4 · l'ancien Accueil, sa vue Analytics et les pages V5 de l'Admin sont retirés (Spatial exclusif) · reste le panneau de parcours partagé.
     for (const f of ['components/JourneyPanel.tsx']) expect(lot, `${f} sort du lot`).toContain(f);

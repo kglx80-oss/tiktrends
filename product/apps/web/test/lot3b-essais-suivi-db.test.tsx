@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import type { IdsStudios, SessionTest } from './studios-semis';
 
 /**
@@ -9,7 +12,12 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * créée par le rattachement existant, lot et verdict posés en base). On lit le
  * RÉSULTAT : le plan rendu par le serveur, le HTML de l'écran, et l'état de la
  * base avant/après · jamais la présence d'un appel. Aucun réseau, aucune dépense.
+ *
+ * L'écran est celui de SPATIAL (onglet « Créations » de la fiche, lot d'essai)
+ * · le panneau V5 des variantes est retiré avec la fiche V5.
  */
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const etat = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null }));
 vi.hoisted(() => {
@@ -25,18 +33,23 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
   return { ...actual, db };
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh() {}, push() {} }), notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh() {}, push() {} }), usePathname: () => '/studio/projets/p', redirect: (u: string) => { throw new Error(`redirect ${u}`); }, notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
+vi.mock('../lib/brands', () => ({ getActiveBrand: async () => null, listBrands: async () => [] }));
+vi.mock('../lib/spend-guard', () => ({ spendStatus: async () => ({ spentUsd: 0, capUsd: 10, summary: '', blocked: false }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { hypotheseEssai, type DonneesVariantes, type PlanLotEssai } from '@tiktrends/core';
-import { semer } from './studios-semis';
+import { hypotheseEssai, type DonneesVariantes } from '@tiktrends/core';
+import { semer, session } from './studios-semis';
 import { ctxDe } from './l3-harnais';
 import { projetAvecBrief, lancerLot, executer, sortiesDuJob, KEYFRAMES, saisieTest, briefCanonique } from './l4c-harnais';
 import { creerVariante, listerVariantes } from '../lib/studios/variantes/variantes';
 import { rattacherVarianteAuTest } from '../lib/studios/variantes/tests';
 import { preparerLotEssai } from '../lib/studios/variantes/essai';
 import { enregistrerVersion } from '../lib/studios/depot';
-import { PanneauVariantes } from '../components/studios/variantes/PanneauVariantes';
+import { chargerProjet } from '../app/(spatial)/sp/studio/projets/[id]/donnees';
+import { Projet } from '../spatial/vues/projet/Projet';
+import { LotEssai } from '../spatial/vues/projet/Rattachement';
+import { avecSpatial } from './spatial/fournisseur';
 
 const ids = etat.ids;
 const scene = { p: '', r: '', matinS1: '', matinS2: '', nuitS1: '', autreProjet: '', adId: '', lotB: '' };
@@ -47,9 +60,15 @@ async function donnees(qui: 'ua' | 'uv' = 'ua'): Promise<DonneesVariantes> {
   if (!r.ok) throw new Error(r.code);
   return r.donnees;
 }
-const html = (d: DonneesVariantes, recette = {}) => renderToStaticMarkup(<PanneauVariantes donnees={d} recette={recette} />);
+/** L'onglet « Créations » de la fiche Spatiale · même lecture serveur que la page. */
+async function crea(): Promise<string> {
+  etat.session = session(ids, 'ua');
+  const r = await chargerProjet(etat.session as never, scene.p);
+  if (!r.ok) throw new Error(JSON.stringify(r.raison));
+  return renderToStaticMarkup(avecSpatial(<Projet {...r.props} ongletInitial="crea" />));
+}
 const texteVisible = (h: string) => h.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#39;/g, '’').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
-const carte = (h: string, id: string) => { const i = h.indexOf(`data-variante="${id}"`); return texteVisible(h.slice(i, h.indexOf('</article>', i))); };
+const carte = (h: string, id: string) => { const i = h.indexOf(`data-variante="${id}"`); const fin = [h.indexOf('data-variante=', i + 15), h.indexOf('data-essai', i)].filter((x) => x > 0); return texteVisible(h.slice(i, Math.min(...fin))); };
 
 async function variantesDuLot(ctxQui: 'ua', projectId: string, jobId: string): Promise<Record<string, string>> {
   const s = await sortiesDuJob(db, jobId);
@@ -158,25 +177,25 @@ describe('préparer un lot d’essai · lecture serveur, règle du noyau', () =>
 
 describe('suivi Adsmap visible · lot, statut, verdict, lien vers Résultats', () => {
   it('la variante en test · lot 3 en test, fiche en brouillon, verdict calculé à valider, lien profond', async () => {
-    const h = html(await donnees());
+    const h = await crea();
     const c = carte(h, scene.matinS1);
-    expect(c).toContain('Suivi Adsmap · Fiche Adsmap en brouillon');
-    expect(c).toContain('Lot de test Lot 3 · En test');
-    expect(c).toContain('Verdict · Gagnante · à valider dans Résultats · calculé le');
-    expect(c).toContain('Voir la fiche dans Résultats');
+    expect(c).toContain('Fiche Adsmap en brouillon');
+    expect(c).toContain('Lot de test · Lot 3 · En test');
+    expect(c).toContain('Gagnante · à valider dans Résultats · calculé le');
     expect(h).toContain(`href="/adsmap?ad=${scene.adId}&amp;depuis=studio"`);
-    // Sans test, l'écran le dit au lieu d'inventer un état.
-    expect(carte(h, scene.nuitS1)).toContain('Pas encore rattachée à un test.');
+    // Sans test, aucun état inventé · ni suivi, ni verdict.
+    expect(carte(h, scene.nuitS1)).not.toContain('Lot de test');
+    expect(carte(h, scene.nuitS1)).not.toContain('Gagnante');
   });
 
   it('sans lot et sans verdict · dit en mots ; un lot d’un autre espace n’est jamais lu', async () => {
     await db.update(schema.ads).set({ batchId: scene.lotB }).where(eq(schema.ads.id, scene.adId));
     await db.delete(schema.verdicts).where(eq(schema.verdicts.adId, scene.adId));
     try {
-      const c = carte(html(await donnees()), scene.matinS1);
-      expect(c).toContain('Lot de test Hors lot · la fiche n’est encore dans aucun lot de test.');
+      const c = carte(await crea(), scene.matinS1);
+      expect(c).toContain('Lot de test · Hors lot · la fiche n’est encore dans aucun lot de test.');
       expect(c).not.toContain('Lot 9');
-      expect(c).toContain('Verdict · Pas encore de résultat mesuré.');
+      expect(c).toContain('Pas encore de résultat mesuré.');
     } finally {
       const [b] = await db.select().from(schema.batches).where(eq(schema.batches.number, 3));
       await db.update(schema.ads).set({ batchId: b!.id }).where(eq(schema.ads.id, scene.adId));
@@ -185,65 +204,66 @@ describe('suivi Adsmap visible · lot, statut, verdict, lien vers Résultats', (
   });
 });
 
-describe('rendu · préparer un lot d’essai dans les variantes', () => {
-  async function planReel(): Promise<PlanLotEssai> {
-    const r = await preparerLotEssai(ctxDe(ids, 'ua'), { projectId: scene.p, variable: 'univers', variantIds: [scene.matinS1, scene.nuitS1] }, { adsmapAcces: true });
-    if (!r.ok) throw new Error(r.code);
-    return r.plan;
+describe('rendu Spatial · préparer un lot d’essai dans les créations (vraie action, vraie base)', () => {
+  const variantes = () => [scene.matinS1, scene.nuitS1, scene.matinS2].map((id) => ({ id, libelle: id.slice(0, 6), version: 'Version 1' }));
+  async function monter(ouvrir = vi.fn()) {
+    // Offre Plus · l'accès Adsmap est relu par l'action, comme en production.
+    etat.session = session(ids, 'ua', { plan: 'plus' });
+    const hote = document.createElement('div');
+    document.body.appendChild(hote);
+    const root = createRoot(hote);
+    await act(async () => { root.render(avecSpatial(<LotEssai projectId={scene.p} variantes={variantes()} ouvrirRattachement={ouvrir} />)); });
+    const choisir = async (variable: string, ids2: string[]) => {
+      await act(async () => { hote.querySelector<HTMLButtonElement>(`[data-essai-variable="${variable}"]`)!.click(); });
+      for (const v of ids2) await act(async () => { hote.querySelector<HTMLButtonElement>(`[data-essai-variante="${v}"]`)!.click(); });
+      await act(async () => { [...hote.querySelectorAll('button')].find((b) => b.textContent?.includes('Préparer le lot d’essai'))!.click(); });
+      await vi.waitFor(() => expect(hote.querySelector('[data-plan-essai], [role="alert"]')).not.toBeNull(), { timeout: 5000 });
+    };
+    return { hote, choisir, fin: () => { act(() => root.unmount()); hote.remove(); } };
   }
 
-  it('formulaire · trois variables, chaque variante à cocher, bouton sans coût désactivé tant que rien n’est choisi', async () => {
-    const h = html(await donnees());
-    const t = texteVisible(h);
-    expect(h).toContain('data-essai="formulaire"');
-    expect(t).toContain('Préparer un lot d’essai');
-    for (const l of ['Les accroches', 'Les mises en page', 'Les ambiances']) expect(t).toContain(l);
-    expect((h.match(/type="checkbox"/g) ?? []).length).toBe(3);
-    expect(h).toMatch(/<button type="button" disabled=""[^>]*>Préparer le lot d’essai · sans génération, sans coût/);
-    expect(t).toContain('Choisis ce qui varie et au moins deux variantes.');
+  it('formulaire · trois variables, chaque variante à choisir, bouton sans coût inactif tant que rien n’est choisi', async () => {
+    const m = await monter();
+    const t = m.hote.textContent!;
+    expect(m.hote.querySelector('[data-essai="formulaire"]')).not.toBeNull();
+    expect(m.hote.querySelectorAll('[data-essai-variable]')).toHaveLength(3);
+    expect(m.hote.querySelectorAll('[data-essai-variante]')).toHaveLength(3);
+    expect(t).toContain('sans génération, sans coût');
+    expect([...m.hote.querySelectorAll('button')].find((b) => b.textContent?.includes('Préparer le lot d’essai'))!.disabled).toBe(true);
+    m.fin();
   });
 
-  it('plan affiché · essai réel, hypothèse, tenu, coût nul, saisie pour la seule variante libre, lien vers les lots', async () => {
-    const plan = await planReel();
-    const h = html(await donnees(), { essai: { variable: 'univers', selection: [scene.matinS1, scene.nuitS1], plan } });
-    const i = h.indexOf('data-plan-essai=');
-    const bloc = h.slice(i);
-    const t = texteVisible(bloc);
-    expect(h).toContain('data-plan-essai="essai"');
-    expect(t).toContain('Essai · Les ambiances');
+  it('plan affiché · essai réel, hypothèse, tenu, coût nul, saisie pour la seule variante libre, lien vers les lots ; « Rattacher avec ce plan » transmet la saisie du plan', async () => {
+    const ouvrir = vi.fn();
+    const m = await monter(ouvrir);
+    await m.choisir('univers', [scene.matinS1, scene.nuitS1]);
+    const bloc = m.hote.querySelector('[data-plan-essai]')!;
+    expect(bloc.getAttribute('data-plan-essai')).toBe('essai');
+    const t = bloc.textContent!;
+    expect(t).toContain('Essai réel');
     expect(t).toContain(hypotheseEssai('univers', 2));
-    expect(t).toContain('Tenu dans tout le lot tous les textes, la mise en page');
+    expect(t).toContain('tous les textes, la mise en page');
     expect(t).toContain('Aucune génération ici');
-    expect(t).toContain('Variable au rattachement le visuel d’ouverture');
-    expect((bloc.match(/>Rattacher avec ce plan</g) ?? []).length, 'seule la variante sans test ouvert').toBe(1);
-    expect(bloc).toMatch(/data-ligne-essai="en_test"[\s\S]*Déjà en test/);
-    expect(bloc).toContain('href="/adsmap/lots"');
-  });
-
-  it('« Rattacher avec ce plan » ouvre le formulaire EXISTANT prérempli · hypothèse, variable et valeur du plan', async () => {
-    const plan = await planReel();
-    const saisie = plan.lignes.find((l) => l.variantId === scene.nuitS1)!.saisie!;
-    const h = html(await donnees(), { formulaireOuvert: scene.nuitS1, prefill: { [scene.nuitS1]: saisie } });
-    const f = h.slice(h.indexOf(`data-formulaire-test="${scene.nuitS1}"`));
-    expect(f).toContain(`${hypotheseEssai('univers', 2)}</textarea>`);
-    expect(f).toMatch(/<select[^>]*name="variable"[^>]*>.*<option value="opening_visual" selected="">/s);
-    expect(f).toMatch(/name="valeurVariable" value="néon de nuit, contrasté"/);
+    expect(t).toContain('le visuel d’ouverture');
+    const rattacher = [...bloc.querySelectorAll('button')].filter((b) => b.textContent === 'Rattacher avec ce plan');
+    expect(rattacher, 'seule la variante sans test ouvert').toHaveLength(1);
+    expect(bloc.querySelector('[data-ligne-essai="en_test"]')?.textContent).toContain('Déjà en test');
+    expect(bloc.querySelector('a[href="/adsmap/lots"]')).not.toBeNull();
+    await act(async () => { rattacher[0]!.click(); });
+    expect(ouvrir).toHaveBeenCalledWith(scene.nuitS1, expect.objectContaining({ hypothese: hypotheseEssai('univers', 2), variable: 'opening_visual', valeurVariable: 'néon de nuit, contrasté' }));
+    expect(bloc.innerHTML).not.toContain('—');
+    expect(bloc.innerHTML.toLowerCase()).not.toContain('trendtrack');
+    m.fin();
   });
 
   it('plan refusé · dit pourquoi, aucune saisie proposée', async () => {
-    const r = await preparerLotEssai(ctxDe(ids, 'ua'), { projectId: scene.p, variable: 'univers', variantIds: [scene.matinS1, scene.matinS2] }, { adsmapAcces: true });
-    if (!r.ok) throw new Error(r.code);
-    const h = html(await donnees(), { essai: { variable: 'univers', selection: [scene.matinS1, scene.matinS2], plan: r.plan } });
-    expect(h).toContain('data-plan-essai="refus"');
-    expect(texteVisible(h)).toContain('Pas un essai');
-    expect(texteVisible(h)).toContain('son devis annonce le prix avant le clic. Rien n’est lancé ici.');
-    expect(h).not.toContain('>Rattacher avec ce plan<');
-  });
-
-  it('lecteur · aucune préparation ; aucun tiret cadratin, aucune marque tierce', async () => {
-    expect(texteVisible(html(await donnees('uv')))).not.toContain('Préparer un lot d’essai');
-    const h = html(await donnees(), { essai: { variable: 'univers', selection: [scene.matinS1, scene.nuitS1], plan: await planReel() } });
-    expect(h).not.toContain('—');
-    expect(h.toLowerCase()).not.toContain('trendtrack');
+    const m = await monter();
+    await m.choisir('univers', [scene.matinS1, scene.matinS2]);
+    const bloc = m.hote.querySelector('[data-plan-essai]')!;
+    expect(bloc.getAttribute('data-plan-essai')).toBe('refus');
+    expect(bloc.textContent).toContain('Pas un essai');
+    expect(bloc.textContent).toContain('son devis annonce le prix avant le clic. Rien n’est lancé ici.');
+    expect([...bloc.querySelectorAll('button')].some((b) => b.textContent === 'Rattacher avec ce plan')).toBe(false);
+    m.fin();
   });
 });

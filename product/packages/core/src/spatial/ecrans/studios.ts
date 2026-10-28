@@ -12,11 +12,12 @@ import type { EcranSpatial } from '../types';
  * `nouveau` serait lu comme un identifiant de projet (et prendrait son statut).
  *
  * EXCLUSIF · la page V5 est retirée, Spatial sert l'écran même en mode V5.
- * Reste servie par la V5 en mode V5 :
- *  · `/studio/projets/[id]` · tous ses gestes vivent dans Spatial · le canvas
- *    métier LIBRE est porté (« Disposition libre », `?disposition=libre`,
- *    même stockage que la V5), les couloirs de la maquette restent le
- *    défaut. Le retrait de la page V5 suit dans sa propre PR.
+ * Toutes les pages V5 de la rubrique sont retirées. La dernière, la fiche
+ * `/studio/projets/[id]`, l'est après le portage de son canvas métier LIBRE
+ * (« Disposition libre », `?disposition=libre`, même stockage que la V5 ·
+ * les couloirs de la maquette restent le défaut) et du retour vers la Veille.
+ * Seule la route de fichier `/studio/projets/[id]/produit/fichier/[assetId]`
+ * (téléchargement, pas une page) reste sous `app/(app)`.
  * Vague 3 · l'assistant en cinq étapes (`/studio/projets/nouveau`) et le zoom
  * et les panneaux plein écran de l'éditeur (`/studio/projets/[id]/image`)
  * vivent dans Spatial · leurs pages V5 sont retirées.
@@ -29,7 +30,7 @@ export const ECRANS_STUDIOS: readonly EcranSpatial[] = [
   { chemin: '/studio/projets/nouveau/concept', section: 'studios', exclusif: true },
   { chemin: '/studio/iterer', section: 'studios', exclusif: true },
   // D2 · projet, éditeur, vidéo.
-  { chemin: '/studio/projets/[id]', section: 'studios' },
+  { chemin: '/studio/projets/[id]', section: 'studios', exclusif: true },
   { chemin: '/studio/projets/[id]/image', section: 'studios', exclusif: true },
   { chemin: '/studio/projets/[id]/video', section: 'studios', exclusif: true },
   // Vague 2 · les ateliers du projet (hors maquette, composés des classes de la maquette).

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHmac } from 'node:crypto';
-import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
  * L8-B · UX-05 · navigation · routes historiques toujours servies, et le
@@ -13,7 +12,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
  * chemin est déclaré dans `ROUTES`, sa page existe, et elle lit encore chaque
  * paramètre que des liens en circulation portent. Puis on suit le vrai chemin
  * du retour : critères de la Veille → `contexteVeille` (carte) → nettoyage
- * serveur à la création (`retourNettoye`) → page projet RENDUE (`VueProjet`) →
+ * serveur à la création (`retourNettoye`) → fiche projet Spatiale (`retourVeilleProjet`,
+ * la règle que `donnees.ts` passe à l'écran · rendu gardé par `l4b-pages-rendu`) →
  * href du lien « Revenir à la recherche de Veille ».
  *
  * Une partie VIVANTE (facultative) interroge un serveur local de recette si
@@ -28,13 +28,12 @@ vi.mock('../app/actions/studios/propositions', () => ({ listerPropositions: asyn
 vi.mock('../app/actions/studios/sources', () => ({ exporterBrief: async () => ({ ok: false }) }));
 
 import {
-  contexteVeille, lireCriteresVeille, ancreCarteVeille, annonceObservee, referenceSource, lienRetourVeille, PARAM_RETOUR_VEILLE, completudeProjet,
+  contexteVeille, lireCriteresVeille, ancreCarteVeille, annonceObservee, referenceSource, lienRetourVeille, PARAM_RETOUR_VEILLE, retourVeilleProjet,
   ANCIENNES_ADRESSES_STUDIO, CHEMIN_PROJETS, CHEMIN_NOUVEAU_PROJET, PARAMS_NOUVEAU_PROJET, destinationAncienneAdresse,
 } from '@tiktrends/core';
 import { ROUTES, ROUTES_HISTORIQUES, matchRoute } from '../lib/navigation';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { retourNettoye } from '../lib/studios/sources/sources';
-import { VueProjet } from '../components/studios/projet/VueProjet';
 import StudioPage from '../app/(app)/studio/page';
 import { fichierServi, RACINE_SPATIALE } from './spatial/servie';
 
@@ -92,18 +91,8 @@ function retourDuProjet(): string {
   const contexte = `${contexteVeille(CRITERES)}#${ancre}`; // ce que la carte de Veille passe à « Préparer une création »
   const stocke = retourNettoye(contexte); // ce que le serveur garde dans la référence de source
   const source = referenceSource({ type: 'veille_ad', annonce: annonceObservee(AD)!, savedAdId: null, portee: { workspaceId: 'ws', brandId: 'b1' }, observeLe: new Date('2026-10-09T08:00:00Z'), format: null, retourVeille: stocke });
-  const vueSource = { ...source, apercu: null, lienSource: lienRetourVeille(stocke) };
-  const html = renderToStaticMarkup(
-    <VueProjet exportAutorise detail={{
-      projet: { id: 'p1', title: 'D’après Neutrogena', kind: 'ads', libelleType: 'Publicité', status: 'active', brandId: 'b1', marque: 'Maison Ondine', createdAt: '2026-10-09T08:00:00Z', updatedAt: '2026-10-09T08:00:00Z' },
-      version: { id: 'v1', n: 1, createdAt: '2026-10-09T08:00:00Z', contentHash: 'h'.repeat(64) },
-      brief: null, briefIllisible: false, hypothese: null, produit: null, sources: [vueSource], sourcesIllisibles: 0,
-      completude: completudeProjet({ brief: null, produit: null, sources: [vueSource], aDuContenuDeProduction: false }),
-      versions: [{ id: 'v1', n: 1, createdAt: '2026-10-09T08:00:00Z', reason: '', courante: true }],
-    } as never} />,
-  );
-  const d = /<a href="([^"]+)"[^>]*>(?:(?!<\/a>).)*Revenir à la recherche de Veille/s.exec(html);
-  return d ? d[1]!.replace(/&amp;/g, '&') : '';
+  // La fiche projet Spatiale (la fiche V5 est retirée) · la même règle que `donnees.ts` passe à l'écran.
+  return retourVeilleProjet([source])?.href ?? '';
 }
 
 describe('UX-05 · « Revenir à la recherche de Veille » depuis un projet créé depuis la Veille', () => {

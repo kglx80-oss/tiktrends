@@ -7,8 +7,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 /**
  * A2 · ce qu'on VOIT d'une réponse de Jarvis · plus de « — » dans la prose,
  * code et URL intacts, saisie de l'utilisateur intacte. On rend le VRAI
- * composant de message (`Tour`), le VRAI fil pendant le flux (`JarvisChat`) et
- * la VRAIE carte de proposition studio, puis on lit le HTML.
+ * composant de message (`Tour`) et le VRAI fil pendant le flux (`JarvisChat`),
+ * puis on lit le HTML. La carte de proposition studio (fiche V5 retirée) est
+ * gardée sur l'écran Spatial par `spatial-projet-propositions`.
  */
 
 vi.mock('@tiktrends/db', () => ({ db: undefined, schema: {} }));
@@ -18,8 +19,6 @@ vi.mock('../app/actions/jarvis-chat', () => ({ chatThreadAction: async () => ({ 
 vi.mock('../app/actions/adsmap-draft', () => ({ draftConceptAction: async () => ({}) }));
 
 import { JarvisChat, Tour } from '../app/(app)/jarvis/JarvisChat';
-import { CarteProposition } from '../components/studios/propositions/CarteProposition';
-import type { PropositionPresentee } from '../lib/studios/propositions/types';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 // jsdom ne fait pas défiler · le fil suit le bas par `scrollTo`, neutralisé ici.
@@ -102,31 +101,5 @@ describe('A2 · réponse de Jarvis affichée sans tiret cadratin', () => {
       expect(t).toContain(`Lis ${URL_TIRET} · c’est court.`);
       expect(t, 'le bloc de code a été réécrit pendant le flux').toContain(CODE);
     });
-  });
-});
-
-describe('A2 · carte de proposition studio', () => {
-  const base: PropositionPresentee = {
-    id: 'p1', projectId: 'pr1', origine: 'jarvis', libelleOrigine: 'Jarvis', etat: 'rejected', libelleEtat: 'Rejetée',
-    cible: 'shot:s1', libelleCible: 'Plan 1', baseVersion: { id: 'v1', n: 1 }, libelleCibleVersion: 'Plan 1 · version 1',
-    perimee: false,
-    changements: [{ op: 'replace', chemin: '/shots/byId/s1/onScreenText', libelle: 'Texte à l’écran', avant: 'Avant — ancien', apres: 'Après — nouveau', raison: 'Plus net — plus court' }],
-    explication: 'Le hook porte — on serre le texte.', sources: [], impact: null,
-    creeLe: T, expireLe: null, decideLe: null, versionAppliquee: null,
-  };
-  const carte = (p: PropositionPresentee) => lu(renderToStaticMarkup(<CarteProposition p={p} versionCouranteN={1} peutAgir />));
-
-  it('Jarvis · explication et raison réécrites, avant/après INTACTS (valeur appliquée)', () => {
-    const t = carte(base);
-    expect(t, 'explication de Jarvis encore en « — »').toContain('Le hook porte · on serre le texte.');
-    expect(t).toContain('Plus net · plus court');
-    expect(t, 'la valeur qui sera appliquée a été réécrite').toContain('Après — nouveau');
-    expect(t).toContain('Avant — ancien');
-  });
-
-  it('saisie humaine · rien n’est réécrit', () => {
-    const t = carte({ ...base, origine: 'human', libelleOrigine: 'Saisie' });
-    expect(t).toContain('Le hook porte — on serre le texte.');
-    expect(t).toContain('Plus net — plus court');
   });
 });

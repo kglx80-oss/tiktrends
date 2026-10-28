@@ -19,10 +19,10 @@ export default async function ProjetSpatial({ params, searchParams }: { params: 
   const s = await getSession();
   if (!s) redirect('/login');
   const { id } = await params;
-  const { version, disposition } = await searchParams;
+  const sp = await searchParams;
   // Un segment fixe (`nouveau`) n'est jamais lu comme un projet · son propre écran Spatial (segment statique) le sert avant `[id]`.
   if (segmentReserveProjets(id)) return <EtatProjet projectId={id} raison={{ type: 'introuvable', message: 'Ce projet n’existe pas ou n’est pas accessible.' }} />;
-  const r = await chargerProjet(s, id, version);
+  const r = await chargerProjet(s, id, sp.version);
   if (!r.ok) return <EtatProjet raison={r.raison} projectId={id} />;
-  return <Projet {...r.props} dispositionInitiale={modeDisposition(disposition)} />;
+  return <Projet {...r.props} dispositionInitiale={modeDisposition(sp.disposition)} />;
 }
