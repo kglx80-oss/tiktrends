@@ -138,7 +138,8 @@ describe('Spatial · surcouches · parité avec la maquette', () => {
 
   it('Profil · vrai utilisateur, vrais liens · sans aperçu de rôle', () => {
     const rendu = rendre(<section className="notif glass memenu" id="memenu" aria-label="Profil"><MenuProfil utilisateur={CTX.utilisateur} equipe="/team" forfaits="/billing" demarrage="/onboarding?redo=1" deconnexion={async () => {}} /></section>);
-    egal(retirer(rendu, ['a[href="/profile"]', 'a[href="/support"]']), ref('_profil', ['.ngrp', '.nprefs']));
+    // Le choix du thème (au DOM de l'aperçu du rôle) est garé à part · `spatial-theme-clair.test.tsx`.
+    egal(retirer(rendu, ['a[href="/profile"]', 'a[href="/support"]', '#ngrp-theme', '[data-zone="choix-theme"]', '[role="status"]']), ref('_profil', ['.ngrp', '.nprefs']));
     expect(rendu, 'le support de l’espace n’est plus atteignable depuis la coquille').toContain('href="/support"');
   });
 

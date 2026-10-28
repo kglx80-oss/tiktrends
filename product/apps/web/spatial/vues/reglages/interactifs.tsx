@@ -14,7 +14,7 @@ import { DialogueSpatial } from '../marque/interactifs';
  * composants (garde `spatial-fondation`).
  */
 
-const CHAMP: CSSProperties = { flex: '1 1 220px', minWidth: 0, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 13px var(--sf)', outline: 0 };
+const CHAMP: CSSProperties = { flex: '1 1 220px', minWidth: 0, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)', outline: 0 };
 
 type Resultat = { ok?: true; error?: string };
 
