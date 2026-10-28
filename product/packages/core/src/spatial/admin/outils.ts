@@ -56,12 +56,14 @@ export const LARGEUR_MIN_TABLE_TELEPHONE = {
   // | Crédits · marge nette                   |    7     |     440      |  640   |
   // | Crédits · rentabilité & optimisation    |    6     |     440      |  640   |
   // | Crédits · corrections de barème         |    4     |     520      |  640   |
-  // | Revenus · rentabilité par abonnement    |    8     |     800      |  800   |
+  // | Revenus · rentabilité par abonnement    |    8     |  600 à 800   |  800   |
   // | Inscriptions · profil déclaré (9 col.)  |    9     |     860      |  860   |
   //
   // Sans largeur minimale, ces tables se partageaient ~294 px · 51 textes rognés
-  // sur Crédits (« 0,… € », « Anthr… »), 17 sur Revenus. Le plancher de 640
-  // (plus petite cellule ≥ 64 px) vaut pour toutes. Le profil déclaré était à
+  // sur Crédits (« 0,… € », « Anthr… »), 17 sur Revenus. Le plancher de 640 de
+  // la vague 3 est gardé pour toutes (marge sur les vraies données). Revenus ·
+  // 600 sans rien de rogné, 800 pour qu'aucune marge (barre + « 63,1 % ») ne
+  // passe sur deux lignes selon la passe. Le profil déclaré était à
   // 900 avec des colonnes trop étroites pour la pastille « Onboardé » (rognée
   // même à 980) · ses colonnes sont rééquilibrées et 860 tient aussi dans la
   // zone utile d'un écran de 1280 (866 px) · plus de défilement de 34 px.
