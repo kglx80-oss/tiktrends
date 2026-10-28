@@ -18,7 +18,7 @@ import { SourcesJarvis, type ContexteSources } from '../../../../../spatial/vues
 
 export const dynamic = 'force-dynamic';
 
-const ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
+const RESULTATS = FEATURES.find((f) => f.key === 'adsmap')!;
 
 /**
  * « Sources de Jarvis » (Spatial) · mêmes gardes et mêmes lectures que l'écran
@@ -35,7 +35,7 @@ export default async function SourcesJarvisSpatial() {
   if (refus) return <RefusJarvis raison={TEXTE_REFUS_JARVIS[refus]} plan={refus === 'plan'} proprietaire={s.role === 'owner'} />;
 
   const fondateur = isFounder(s.user.email);
-  const voitMemoire = canAccess(effectiveAccess(s), ADSMAP);
+  const voitMemoire = canAccess(effectiveAccess(s), RESULTATS);
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return <SourcesJarvis marque={null} couches={[]} memoire={null} contexte={null} testsMesures={0} fondateur={null} />;
 
