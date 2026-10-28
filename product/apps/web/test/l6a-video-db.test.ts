@@ -32,7 +32,7 @@ import { randomUUID } from 'node:crypto';
 import { db, schema, eq, and } from '@tiktrends/db';
 import {
   empreintesKeyframes, consigneDuPlan, parametresDepuisConsignePlan, empreinteConsignesDevis, empreinteEntreesDevisImage, entreesConsignePlan,
-  grapheImpact, calculerPlanImpact, lireParametresImage, ACTION_CONSIGNE_PLAN, PRICING_VERSION, INTERDIT_TEXTE_IMAGE_CLE, surimpressions, PISTES_VIDEO,
+  grapheImpact, calculerPlanImpact, lireParametresImage, ACTION_CONSIGNE_PLAN, MESSAGE_APERCU_PERIME, PRICING_VERSION, INTERDIT_TEXTE_IMAGE_CLE, surimpressions, PISTES_VIDEO,
   type ContenuVersion, type SnapshotJob, type LigneDevis, type PlanStudio,
 } from '@tiktrends/core';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
@@ -463,5 +463,43 @@ describe('droits, portée, lecture pure', () => {
     // Deux onglets : le second geste part d'une base périmée.
     await geste(projectId, { type: 'ordre', ordre: ['s3', 's1', 's2'] });
     expect(await appliquerOperationVideoPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v.id, operation: { type: 'sans_texte' } })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
+  });
+});
+
+/* ─────────────── Relance après réponse perdue · aperçu périmé ─────────────── */
+
+describe('enregistrer un geste de montage · version attendue = version de l’aperçu', () => {
+  it('réponse perdue · la relance (même base, même geste) rend la version déjà écrite · aucune seconde version, aucun second plan d’impact', async () => {
+    const projectId = await projetVideo();
+    const v1 = await courante(projectId);
+    const avant = await compte(projectId);
+    const op = { type: 'ordre', ordre: ['s2', 's1', 's3'] };
+    const premiere = await appliquerOperationVideoPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v1.id, operation: op });
+    expect(premiere.ok).toBe(true);
+    // La réponse s'est perdue · la personne relance depuis le MÊME aperçu.
+    const relance = await appliquerOperationVideoPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v1.id, operation: op });
+    const apres = await compte(projectId);
+    expect({ versions: apres.versions - avant.versions, impacts: apres.impacts - avant.impacts }, 'la relance a écrit une seconde fois').toEqual({ versions: 1, impacts: 1 });
+    expect(relance, 'la relance d’une écriture déjà faite est refusée au lieu d’être reconnue').toMatchObject({ ok: true, deja: true, inchange: true });
+    expect(relance.ok && premiere.ok && relance.version.id).toBe(premiere.ok && premiere.version.id);
+    expect((await courante(projectId)).id).toBe(premiere.ok && premiere.version.id);
+    // Par l'action serveur aussi (droits, revalidation) · même réponse.
+    expect(await actions.appliquerOperationVideo({ projectId, baseVersionId: v1.id, operation: op })).toMatchObject({ ok: true, deja: true });
+    expect((await compte(projectId)).versions).toBe(apres.versions);
+  });
+
+  it('aperçu périmé · un autre geste est passé entre l’aperçu et la confirmation ⇒ 409, aperçu à recalculer, rien d’écrit', async () => {
+    const projectId = await projetVideo();
+    const v1 = await courante(projectId);
+    await geste(projectId, { type: 'narration', shotId: 's2', narration: 'Une autre voix, écrite ailleurs.' });
+    const avant = await compte(projectId);
+    const r = await appliquerOperationVideoPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v1.id, operation: { type: 'ordre', ordre: ['s2', 's1', 's3'] } });
+    expect(r).toMatchObject({ ok: false, code: 'VERSION_CONFLICT', message: MESSAGE_APERCU_PERIME });
+    expect(await compte(projectId)).toEqual(avant);
+    // Même geste, même base, mais par une AUTRE personne · ce n'est pas une relance, c'est un conflit.
+    const v2 = await courante(projectId);
+    const op = { type: 'sans_texte' };
+    expect((await appliquerOperationVideoPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v2.id, operation: op })).ok).toBe(true);
+    expect(await appliquerOperationVideoPour(ctxDe(ids, 'ur'), { projectId, baseVersionId: v2.id, operation: op })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
   });
 });

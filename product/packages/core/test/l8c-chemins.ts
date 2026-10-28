@@ -89,7 +89,7 @@ export const CHEMINS_CHAUDS: readonly CheminChaud[] = [
     preparer: (c) => { const l = premierLibre(c); return () => { const r = transformerCalque(c.document!, l.id, { x: l.x + 1 }); if (!r.ok) throw new Error(r.message); statutEnregistrement({ base: c.document, present: r.document, enCours: false, conflit: false, erreur: false }); return impactEdition(c, r.document); }; },
   },
   {
-    // L'aperçu d'un geste de montage (`apercuDuGeste`, `EcranVideo.tsx`) : l'opération puis son impact.
+    // L’aperçu d’un geste de montage (`apercuDuGeste`, atelier vidéo Spatial) : l’opération puis son impact.
     id: 'geste_video', libelle: 'Aperçu d’un geste de montage (appliquerOperationVideo + impactVideo)',
     preparer: (c) => { const o = [...c.shots.order].reverse(); return () => { const r = appliquerOperationVideo(c, { type: 'ordre', ordre: o }); if (!r.ok) throw new Error(r.message); return impactVideo(c, r.contenu); }; },
   },
