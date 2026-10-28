@@ -3,7 +3,7 @@ import {
   croissance7j, classeCroissance, estTendanceVeille, depenseEstimeeVeille, euroCourt, nombreCourt, pastilleMarque, lireCpmVeille,
   signauxVeille, lectureVeille, etiquetteStyleVeille, PROVEN_DAYS,
   analyserRechercheVeille, lienVeille, lireCriteresVeille, pucesVeille, suggestionsVeille,
-  collectionsSauvegardes, dansCollection, collectionValide, ecrireCollectionSauvegardes, lireCollectionSauvegardes, classerParDuree, accrocheDe, alertesSemaine, nouveautesMarque,
+  collectionsSauvegardes, dansCollection, collectionValide, ecrireCollectionSauvegardes, lireCollectionSauvegardes, classerParDuree, accrocheDe, alertesSemaine, compterNouveautes, nouveautesMarque, nouveautesSemaine,
   lectureRapportConcurrent, ilYa, ecranSpatial,
 } from '../src';
 
@@ -146,15 +146,33 @@ describe('Spatial · Veille · listes', () => {
   it('les alertes de la semaine ne viennent que des nouveautés réelles des 7 derniers jours', () => {
     const now = new Date('2026-10-27T12:00:00Z');
     const j = (n: number) => new Date(now.getTime() - n * 86_400_000);
-    const a = alertesSemaine([
-      { advertiserName: 'A', createdAt: j(1), unseen: true }, { advertiserName: 'A', createdAt: j(2), unseen: false },
-      { advertiserName: 'B', createdAt: j(3), unseen: true }, { advertiserName: 'C', createdAt: j(9), unseen: true },
+    const comptes = compterNouveautes([
+      { advertiserName: 'A', followedBrandId: 'a', createdAt: j(1), unseen: true }, { advertiserName: 'A SAS', followedBrandId: 'a', createdAt: j(2), unseen: false },
+      { advertiserName: 'B', followedBrandId: 'b', createdAt: j(3), unseen: true }, { advertiserName: 'C', followedBrandId: 'c', createdAt: j(9), unseen: true },
+      { advertiserName: 'Orphelin', followedBrandId: null, createdAt: j(1), unseen: true },
     ], now);
+    const marques = [{ cle: 'a', nom: 'A' }, { cle: 'b', nom: 'B' }, { cle: 'c', nom: 'C' }];
+    const a = alertesSemaine(marques, comptes);
     expect(a.map((x) => [x.marque, x.n])).toEqual([['A', 2], ['B', 1]]);
     expect(a[0]!.titre).toBe('A a lancé 2 nouvelles pubs cette semaine');
-    expect(alertesSemaine([], now)).toEqual([]);
+    expect(alertesSemaine(marques, new Map())).toEqual([]);
     expect(nouveautesMarque(0)).toBeNull();
     expect(nouveautesMarque(1)).toBe('1 nouvelle non vue');
+  });
+
+  it('en-tête et carte · LE même compte (vues comprises), la même fenêtre · jamais « 3 nouvelles » au-dessus de « Aucune nouveauté »', () => {
+    const now = new Date('2026-10-27T12:00:00Z');
+    const j = (n: number) => new Date(now.getTime() - n * 86_400_000);
+    // Le cas du banc · trois pubs de la semaine, toutes déjà vues ; plus deux vieilles non vues.
+    const comptes = compterNouveautes([
+      ...[1, 2, 3].map((d) => ({ advertiserName: 'Aroma-Zone', followedBrandId: 'az', createdAt: j(d), unseen: false })),
+      { advertiserName: 'Typology', followedBrandId: 'ty', createdAt: j(20), unseen: true }, { advertiserName: 'Typology', followedBrandId: 'ty', createdAt: j(30), unseen: true },
+    ], now);
+    const marques = [{ cle: 'az', nom: 'Aroma-Zone' }, { cle: 'ty', nom: 'Typology' }];
+    expect(alertesSemaine(marques, comptes).map((x) => x.titre)).toEqual(['Aroma-Zone a lancé 3 nouvelles pubs cette semaine']);
+    expect(nouveautesSemaine(comptes.get('az'))).toBe('3 nouvelles pubs cette semaine');
+    expect(nouveautesSemaine(comptes.get('ty')), 'hors fenêtre · ni alerte ni nouveauté de la semaine').toBe('Aucune nouveauté cette semaine');
+    expect(nouveautesSemaine({ semaine: 2, nonVues: 1 })).toBe('2 nouvelles pubs cette semaine · 1 non vue');
   });
 
   it('la lecture d’un rapport concurrent tient en parts réelles', () => {

@@ -1,4 +1,4 @@
-import type { ligneRadarCreatif } from '@tiktrends/core';
+import { AUCUNE_NOUVEAUTE_SEMAINE, type ligneRadarCreatif } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { SousNavVeille, Vignette } from './base';
 import { BoutonSuivi } from './client';
@@ -73,7 +73,7 @@ function Suivi({ marques, ouvert }: { marques: ReadonlyArray<MarqueRadar>; ouver
             </div>
             <div className="kc">{m.vignettes.map((v, i) => <span key={i} style={{ width: '56px' }}><Vignette image={v} /></span>)}</div>
             <div className="member">
-              {m.nouveautes ? <span className="pill c" style={{ fontSize: '11.5px' }}>{m.nouveautes}</span> : <span className="faint" style={{ fontSize: '11.5px' }}>Aucune nouveauté</span>}
+              {m.nouveautes ? <span className="pill c" style={{ fontSize: '11.5px' }}>{m.nouveautes}</span> : <span className="faint" style={{ fontSize: '11.5px' }}>{AUCUNE_NOUVEAUTE_SEMAINE}</span>}
               <Lien className="btn sm" href={m.voir} style={{ marginLeft: 'auto' }} tabIndex={ouvert ? undefined : -1}>Voir</Lien>
             </div>
             {ouvert && m.gestes && (
