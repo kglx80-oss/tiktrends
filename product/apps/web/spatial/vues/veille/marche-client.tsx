@@ -41,8 +41,10 @@ export function MemoireMarche({ marque }: { marque: string }) {
     <section className="sec" id="lecture-marche" aria-label="Mémoire marché de Jarvis">
       <div className="sech"><h2>Mémoire marché de Jarvis</h2><span className="faint" style={{ fontSize: '12.5px' }}>{marque} · les créas concurrentes que tu suis, confrontées à tes chiffres</span></div>
       <div className="tile" style={{ display: 'grid', gap: 10 }}>
-        <div className="member">
-          <p className="muted" style={{ fontSize: '12.5px', flex: 1 }}>On ne connaît aucun chiffre de performance des autres : le seul signal disponible est qu’une pub qui tourne encore après trois semaines est une pub que son annonceur continue de payer.</p>
+        {/* `flex-wrap` · en mobile le paragraphe tombait dans ~70 px (un mot par
+            ligne) à côté du bouton · il garde au moins 260 px, le bouton passe dessous. */}
+        <div className="member" style={{ flexWrap: 'wrap' }}>
+          <p className="muted" style={{ fontSize: '12.5px', flex: '1 1 260px', minWidth: 0 }}>On ne connaît aucun chiffre de performance des autres : le seul signal disponible est qu’une pub qui tourne encore après trois semaines est une pub que son annonceur continue de payer.</p>
           <button type="button" className="btn sm pri" onClick={() => void apprendre()} disabled={occupe} style={{ marginLeft: 'auto' }}><Ic n="spark" />{occupe ? 'Analyse…' : 'Apprendre des marques suivies · 2 crédits par créa'}</button>
         </div>
         {l && <small className="faint">{l.compte}</small>}
@@ -52,7 +54,9 @@ export function MemoireMarche({ marque }: { marque: string }) {
           <div className="grid2">
             {l.contrastes.map((c) => (
               <div className="tile" key={c.cle} style={{ display: 'grid', gap: 4 }}>
-                <div className="member"><span className={`pill ${c.ton}`} style={{ marginLeft: 0 }}>{c.titre}</span><small className="faint" style={{ marginLeft: 'auto' }} title="Annonceurs distincts derrière cette observation">{c.sources}</small></div>
+                {/* La pastille (`white-space:nowrap` dans la maquette) élargissait la
+                    carte au-delà de l'écran · elle passe à la ligne, « N sources » aussi. */}
+                <div className="member" style={{ flexWrap: 'wrap', rowGap: 4 }}><span className={`pill ${c.ton}`} style={{ marginLeft: 0, whiteSpace: 'normal' }}>{c.titre}</span><small className="faint" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }} title="Annonceurs distincts derrière cette observation">{c.sources}</small></div>
                 <p style={{ fontSize: '12.5px' }}>{c.phrase}</p>
               </div>
             ))}
