@@ -132,7 +132,10 @@ describe('Spatial · parité de structure avec la maquette', () => {
       utilisateur: CTX.utilisateur, espaceNom: 'GLX', credits: CTX.credits, nonLues: 4, deconnexion: async () => {},
     };
     const html = renderToStaticMarkup(<Coquille donnees={d}><div className="view" /></Coquille>);
-    const p = parite(html, '_coquille', { selecteur: 'nav.rail', ignorer: ['.brandrow .logo'] });
+    const p = parite(html, '_coquille', {
+      selecteur: 'nav.rail', ignorer: ['.brandrow .logo'],
+      correctifs: [{ selecteur: '.brandrow', style: ['width'], motif: 'barre mobile · la rangée de marque vide (width:100%) écrasait les onglets à 20 px' }],
+    });
     expect(p.rendu).toEqual(p.reference);
   });
 

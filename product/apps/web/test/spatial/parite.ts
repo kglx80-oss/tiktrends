@@ -18,6 +18,12 @@ import { join } from 'node:path';
  *  · `ignorer` · des sélecteurs dont on retire les DESCENDANTS des deux côtés
  *    (ex. le logo de marque · SVG fictif dans la maquette, image réelle ici).
  *
+ * Et un écart DÉCLARÉ · `correctifs` · là où le CSS de la maquette (repris tel
+ * quel, intouchable) déborde ou rogne au banc, l'outil corrige par un style en
+ * ligne ou une classe existante. Le correctif est ajouté à la RÉFÉRENCE avant
+ * la comparaison · le rendu doit donc le porter exactement (le retirer fait
+ * tomber la parité), et rien d'autre ne s'écarte de la maquette.
+ *
  * À lancer dans un test `// @vitest-environment jsdom`.
  */
 
@@ -65,6 +71,30 @@ export interface OptionsParite {
   ignorer?: string[];
 }
 
+/**
+ * Un correctif de mise en page déclaré · les éléments de la RÉFÉRENCE qui
+ * répondent à `selecteur` reçoivent ces propriétés de style en ligne et ces
+ * classes. `motif` dit le défaut constaté au banc (obligatoire · un écart sans
+ * raison écrite n'a rien à faire ici).
+ */
+export interface CorrectifParite { selecteur: string; style?: string[]; classes?: string[]; motif: string }
+
+function corriger(html: string, correctifs: readonly CorrectifParite[]): string {
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  for (const c of correctifs) {
+    const cibles = [...t.content.querySelectorAll(c.selecteur)];
+    if (cibles.length === 0) throw new Error(`parité · correctif « ${c.motif} » · aucun élément ${c.selecteur} dans la référence`);
+    for (const e of cibles) {
+      for (const k of c.classes ?? []) e.classList.add(k);
+      const deja = (e.getAttribute('style') || '').split(';').map((d) => d.split(':')[0]!.trim().toLowerCase());
+      const ajout = (c.style ?? []).filter((pr) => !deja.includes(pr)).map((pr) => `${pr}:x`);
+      if (ajout.length) e.setAttribute('style', [e.getAttribute('style') || '', ...ajout].filter(Boolean).join(';'));
+    }
+  }
+  return t.innerHTML;
+}
+
 export function squelette(html: string, o: OptionsParite = {}): string[] {
   const racine = element(html, o.selecteur);
   for (const sel of o.ignorer ?? []) racine.querySelectorAll(sel).forEach((n) => { n.innerHTML = ''; });
@@ -74,6 +104,7 @@ export function squelette(html: string, o: OptionsParite = {}): string[] {
 }
 
 /** Les deux squelettes, prêts pour `expect(rendu).toEqual(reference)` (diff lisible). */
-export function parite(htmlRendu: string, route: string, o: OptionsParite = {}): { rendu: string[]; reference: string[] } {
-  return { rendu: squelette(htmlRendu, o), reference: squelette(fragmentReference(route), o) };
+export function parite(htmlRendu: string, route: string, o: OptionsParite & { correctifs?: readonly CorrectifParite[] } = {}): { rendu: string[]; reference: string[] } {
+  const ref = o.correctifs?.length ? corriger(fragmentReference(route), o.correctifs) : fragmentReference(route);
+  return { rendu: squelette(htmlRendu, o), reference: squelette(ref, o) };
 }
