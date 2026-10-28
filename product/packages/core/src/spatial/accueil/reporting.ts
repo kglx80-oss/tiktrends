@@ -239,10 +239,13 @@ export function graphiqueReporting(cur: readonly JourneeMesuree[], n: number): G
   };
 }
 
-/** Le sous-titre · ce que couvrent les chiffres, et quand ils ont été relus. */
-export function sousTitreReporting(p: { marque: string; synchro: string | null }): string {
-  return [p.marque, 'annonces rattachées à tes tests', p.synchro ? `synchronisé ${p.synchro}` : null, 'comparé à la période précédente']
-    .filter(Boolean).join(' · ');
+/**
+ * Le sous-titre · ce que couvrent les chiffres, et l'état de la connexion Meta
+ * dit par LE libellé partagé (`etatConnexionMeta`) · le même mot que la vue
+ * Analytics et le Radar.
+ */
+export function sousTitreReporting(p: { marque: string; connexion: string }): string {
+  return [p.marque, p.connexion, 'annonces rattachées à tes tests', 'comparé à la période précédente'].join(' · ');
 }
 
 /**
