@@ -85,12 +85,12 @@ export async function compilerConsignePlan(entree: { projectId: unknown; shotId:
   return compilerConsignePlanPour(g.ctx, { projectId: entree?.projectId, shotId: entree?.shotId }, { adaptateur: d.adaptateur, environnement: d.environnement, maintenant: new Date() });
 }
 
-export async function retenirConsignePlan(entree: { projectId: unknown; baseVersionId: unknown; runId: unknown }): Promise<Reponse<{ version: VersionStudio; inchange: boolean }>> {
+export async function retenirConsignePlan(entree: { projectId: unknown; baseVersionId: unknown; runId: unknown }): Promise<Reponse<{ version: VersionStudio; inchange: boolean; deja: boolean }>> {
   const g = await gardeStudio('studio.propose', 'video');
   if (!g.ok) return g;
   const r = await retenirConsignePlanPour(g.ctx, { projectId: entree?.projectId, baseVersionId: entree?.baseVersionId, runId: entree?.runId });
   if (r.ok) revalidatePath(chemin(entree?.projectId));
-  return r.ok ? { ok: true, version: r.version, inchange: r.inchange } : r;
+  return r.ok ? { ok: true, version: r.version, inchange: r.inchange, deja: r.deja } : r;
 }
 
 export async function demanderDevisKeyframe(entree: { projectId: unknown; shotId: unknown }): Promise<Reponse<{ devis: DevisPresente }>> {

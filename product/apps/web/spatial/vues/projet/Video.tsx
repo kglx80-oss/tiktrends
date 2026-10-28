@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSPr
 import { useRouter } from 'next/navigation';
 import {
   GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MESSAGE_REPONSE_PERDUE_MONTAGE, MODES_PAROLE, NOTE_BORNE_TEXTE, RELECTURE_CREATIONS_MS,
-  appliquerOperationVideo as appliquerNoyau, classeFormat, decisionConfirmationApercu, dureeLisible, ECHEC_RESEAU_STUDIO, etatEchecStudio, etatPlan, gesteVideoReessayable, formatDuDocument, gestesPlan, idsPlansAlloues,
+  appliquerOperationVideo as appliquerNoyau, classeFormat, decisionConfirmationApercu, dureeLisible, ECHEC_RESEAU_STUDIO, etatEchecStudio, etatPlan, ecritureVideoReconnue, gesteVideoReessayable, formatDuDocument, gestesPlan, idsPlansAlloues,
   impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCoutTexteEstime, libelleCredits, libellePrix, libelleUsd,
   messageHorsLigneStudio, minuteSeconde, pistesMontage, relectureNecessaire, saisieVierge, sourceLecteur,
   type BilanDurees, type CleGestePlan, type ErreurStudio, type EtatJob, type ImpactVideo, type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan,
@@ -138,7 +138,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
       else setRetour({ ton: 'err', texte: messageErreur(r), code: r.code, reessayable });
     } catch {
       if (payant && tentative) payant.terminer(tentative, true);
-      setRetour({ ton: 'err', code: ECHEC_RESEAU_STUDIO, reessayable, texte: payant ? MESSAGE_APPEL_PAYANT : nom === 'confirmer' ? MESSAGE_REPONSE_PERDUE_MONTAGE : messageHorsLigneStudio('enregistrement') });
+      setRetour({ ton: 'err', code: ECHEC_RESEAU_STUDIO, reessayable, texte: payant ? MESSAGE_APPEL_PAYANT : ecritureVideoReconnue(nom) ? MESSAGE_REPONSE_PERDUE_MONTAGE : messageHorsLigneStudio('enregistrement') });
     } finally { setEnCours(null); }
   }
 
@@ -181,7 +181,15 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
       if (r.ok && 'statut' in r && r.statut === 'questions') { setQuestions(r.questions); return { ok: true as const }; }
       return r;
     }, () => 'Consigne compilée et validée par le serveur · relis-la puis retiens-la.', () => setGeste('retenir'));
-    else if (cle === 'retenir' && k.enAttente) void agir(`retenir:${sid}`, () => retenirConsignePlan({ projectId: v.projet.id, baseVersionId: v.version.id, runId: k.enAttente!.runId }), () => 'Consigne retenue · nouvelle version, seule l’image clé de ce plan est concernée.', () => setGeste('devis'));
+    else if (cle === 'retenir' && k.enAttente) {
+      // La consigne en attente est celle compilée sur la version affichée (`consignesCompileesSur`) ·
+      // la base est figée au clic, « Réessayer » la renvoie telle quelle (version attendue).
+      const base = v.version.id;
+      const runId = k.enAttente.runId;
+      void agir(`retenir:${sid}`, () => retenirConsignePlan({ projectId: v.projet.id, baseVersionId: base, runId }), (r) => (r as { deja?: boolean }).deja
+        ? 'Consigne déjà retenue · ta première demande avait abouti, rien n’a été écrit deux fois.'
+        : 'Consigne retenue · nouvelle version, seule l’image clé de ce plan est concernée.', () => setGeste('devis'));
+    }
     else if (cle === 'devis') void agir(`devis:${sid}`, () => demanderDevisKeyframe({ projectId: v.projet.id, shotId: sid }), () => 'Devis prêt · relis le prix avant d’approuver.', () => setGeste('lancer'));
     else if (cle === 'lancer' && k.devis) { const d = k.devis; void agir(`lancer:${sid}`, () => approuverEtLancerKeyframe({ quoteId: d.id, inputHash: d.inputHash, creditsAnnonces: d.credits, idempotencyKey: cleDuClic(d.id) }), () => 'Lancé · le job est en file, tu peux fermer la page.', () => setGeste(null)); }
     else if (cle === 'devis-clip') void agir(`devis-clip:${sid}`, () => demanderDevisClip({ projectId: v.projet.id, shotId: sid }), () => 'Devis du clip prêt · relis le prix avant d’approuver.', () => setGeste('lancer-clip'));

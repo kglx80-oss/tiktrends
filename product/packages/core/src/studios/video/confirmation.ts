@@ -57,6 +57,17 @@ export function estRejeuEcriture(e: EntreeRejeu): boolean {
 }
 
 /**
+ * Gestes de l'atelier vidéo dont le serveur reconnaît la relance d'une écriture
+ * déjà faite (`estRejeuEcriture`, `deja: true`) : enregistrer un changement de
+ * montage, retenir la consigne d'un plan. Leur réponse perdue se dit avec
+ * `MESSAGE_REPONSE_PERDUE_MONTAGE` (« a pu aboutir »), jamais « rien n'a été
+ * enregistré ».
+ */
+export function ecritureVideoReconnue(nom: string): boolean {
+  return nom === 'confirmer' || nom.startsWith('retenir:');
+}
+
+/**
  * Gestes de l'atelier vidéo que « Réessayer » peut rejouer sans rien dépenser :
  * enregistrer un changement de montage (relance sûre, `estRejeuEcriture`),
  * retenir une consigne, demander un devis (gratuit). Un appel texte payant

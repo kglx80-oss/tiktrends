@@ -3,7 +3,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   preparerShotImage, construireConsignePlan, lireConsignePlan, empreinteConsignePlan, entreesConsignePlan, changementsConsignePlan,
-  formatVideo, estSansTexte, erreurStudio, ACTION_CONSIGNE_PLAN, CHEMINS_CONSIGNE_PLAN,
+  formatVideo, estSansTexte, erreurStudio, appliquerPatch, empreinteContenu, estRejeuEcriture, ACTION_CONSIGNE_PLAN, CHEMINS_CONSIGNE_PLAN,
   type ConsignePlanPersistee, type ContenuVersion, type ErreurStudio,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -26,7 +26,10 @@ import type { ExecStudio } from '../execution/types';
  *  2. `retenirConsignePlanPour` · le navigateur ne donne que le `runId` : le
  *     serveur relit l'attestation de CE projet, vérifie que les entrées de
  *     l'image clé n'ont pas changé, puis écrit `styleRef.consignesPlans.<plan>`
- *     dans une nouvelle version (`enregistrerVersion`, 409 respecté).
+ *     dans une nouvelle version (`enregistrerVersion`, 409 respecté). La
+ *     relance d'une demande dont la réponse s'est perdue (même base, même
+ *     compilation, même auteur · `estRejeuEcriture`) rend la version déjà
+ *     écrite (`deja: true`) · jamais une seconde écriture, jamais un 409.
  */
 
 export type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
@@ -145,7 +148,7 @@ export async function compilerConsignePlanPour(ctx: ContexteStudio, e: { project
 }
 
 /** Range la consigne ATTESTÉE d'une compilation dans une nouvelle version · `styleRef.consignesPlans.<plan>` seul. */
-export async function retenirConsignePlanPour(ctx: ContexteStudio, e: { projectId: unknown; baseVersionId: unknown; runId: unknown }): Promise<Resultat<{ version: VersionStudio; inchange: boolean; consigne: ConsignePlanPersistee }>> {
+export async function retenirConsignePlanPour(ctx: ContexteStudio, e: { projectId: unknown; baseVersionId: unknown; runId: unknown }): Promise<Resultat<{ version: VersionStudio; inchange: boolean; deja: boolean; consigne: ConsignePlanPersistee }>> {
   if (!estUuid(e.projectId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   const p = await lireProjet(ctx, e.projectId);
   if (!p.ok) return p;
@@ -162,7 +165,19 @@ export async function retenirConsignePlanPour(ctx: ContexteStudio, e: { projectI
   }
   const rang = contenu.shots.order.indexOf(a.consigne.shotId) + 1;
   const raison = `Consigne d’image retenue · plan ${rang} · compilation ${a.consigne.runId.slice(0, 8)}`;
-  const w = await enregistrerVersion(ctx, { projectId: projet.id, baseVersionId: base.version.id, changes: changementsConsignePlan(contenu, a.consigne, raison), allowedPaths: CHEMINS_CONSIGNE_PLAN, raison });
-  if (!w.ok) return w;
-  return { ...w, consigne: a.consigne };
+  const changes = changementsConsignePlan(contenu, a.consigne, raison);
+  const w = await enregistrerVersion(ctx, { projectId: projet.id, baseVersionId: base.version.id, changes, allowedPaths: CHEMINS_CONSIGNE_PLAN, raison });
+  if (!w.ok) {
+    if (w.code !== 'VERSION_CONFLICT') return w;
+    // Relance d'une demande déjà écrite (réponse perdue) · on rend la version écrite, rien de plus.
+    const attendu = appliquerPatch(contenu, changes, CHEMINS_CONSIGNE_PLAN);
+    const cid = w.conflit?.versionCouranteId;
+    const c = attendu.ok && cid ? await lireVersion(ctx, cid) : null;
+    if (attendu.ok && c?.ok && c.version.projectId === projet.id
+      && estRejeuEcriture({ baseId: base.version.id, auteurId: ctx.userId, empreinteAttendue: empreinteContenu(attendu.resultat), courante: c.version })) {
+      return { ok: true, version: c.version, inchange: true, deja: true, consigne: a.consigne };
+    }
+    return w;
+  }
+  return { ...w, deja: false, consigne: a.consigne };
 }

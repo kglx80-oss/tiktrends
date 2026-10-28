@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decisionConfirmationApercu, estRejeuEcriture, MESSAGE_APERCU_PERIME } from '../src';
+import { decisionConfirmationApercu, ecritureVideoReconnue, estRejeuEcriture, gesteVideoReessayable, MESSAGE_APERCU_PERIME } from '../src';
 
 /**
  * Studio vidéo · confirmer un aperçu de montage · règles pures.
@@ -30,5 +30,18 @@ describe('estRejeuEcriture', () => {
     expect(estRejeuEcriture({ baseId: 'v1', auteurId: 'u2', empreinteAttendue: 'h', courante })).toBe(false);
     expect(estRejeuEcriture({ baseId: 'v1', auteurId: 'u1', empreinteAttendue: 'autre', courante })).toBe(false);
     expect(estRejeuEcriture({ baseId: 'v1', auteurId: 'u1', empreinteAttendue: 'h', courante: { ...courante, authorId: null } })).toBe(false);
+  });
+});
+
+describe('ecritureVideoReconnue · réponse perdue dite « a pu aboutir »', () => {
+  it('enregistrer un montage et retenir une consigne · le serveur reconnaît leur relance', () => {
+    expect(ecritureVideoReconnue('confirmer')).toBe(true);
+    expect(ecritureVideoReconnue('retenir:s1')).toBe(true);
+  });
+  it('un devis, un lancement, un appel payant · pas de reconnaissance d’écriture', () => {
+    for (const nom of ['devis:s1', 'devis-clip:s1', 'lancer:s1', 'compiler:s1', 'storyboard']) expect(ecritureVideoReconnue(nom)).toBe(false);
+  });
+  it('toute écriture reconnue est aussi rejouable sans dépense', () => {
+    for (const nom of ['confirmer', 'retenir:s1']) expect(gesteVideoReessayable(nom)).toBe(true);
   });
 });
