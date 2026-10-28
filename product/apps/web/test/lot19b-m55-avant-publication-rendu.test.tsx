@@ -27,7 +27,8 @@ vi.mock('../app/actions/connaissances', () => ({
   retirerConnaissanceAction: async () => ({}),
 }));
 
-import { Formulaire, EcranConnaissances } from '../app/(app)/admin/connaissances/EcranConnaissances';
+// Spatial · vague 3 · l'écran V5 est retiré · les mêmes règles vivent dans l'écran Spatial.
+import { FormulaireConnaissance as Formulaire, ConnaissancesSpatiales as EcranConnaissances } from '../spatial/vues/admin/connaissances-client';
 import type { VueAdminConnaissances } from '../app/actions/connaissances';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

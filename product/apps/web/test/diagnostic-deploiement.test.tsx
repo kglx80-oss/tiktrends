@@ -1,16 +1,34 @@
-import { describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { deploymentState } from '@tiktrends/core';
-import { DiagnosticDeploiement } from '../components/DiagnosticDeploiement';
+import { deploymentState, diagnosticDeploiementAdmin } from '@tiktrends/core';
+vi.mock('next/navigation', () => ({ usePathname: () => '/console', useRouter: () => ({ push: () => {}, refresh: () => {} }) }));
+vi.mock('../app/actions/platform', () => ({ updatePlanConfigAction: async () => {} }));
+vi.mock('../app/actions/beta', () => ({ grantTestPackAction: async () => {}, revokeTrialAction: async () => {} }));
+import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
+import { Console } from '../spatial/vues/admin/Console';
 
 /**
  * CDC v7 · lot 0 · réconcilier code et app · le panneau de diagnostic dit quelle
  * version tourne VRAIMENT. On vérifie le HTML rendu · commit, état nommé (texte,
  * pas couleur seule) et résumé, pour chaque cas · à jour, en attente, en avance,
- * illisible. La règle d'état est au noyau (`deploymentState`) · ici l'affichage.
+ * illisible. La règle d'état est au noyau (`deploymentState`,
+ * `diagnosticDeploiementAdmin`) · ici l'affichage. Spatial · vague 3 · le
+ * panneau vit dans la Console Spatiale (l'ancien composant V5 est retiré).
  */
-const html = (o: { build?: string | null; inBuild: number; applied: number | null }) =>
-  renderToStaticMarkup(<DiagnosticDeploiement etat={deploymentState({ renderVersion: 9, ...o })} builtAt="2026-09-17T10:00:00Z" />);
+const CTX: CtxSpatial = { utilisateur: { nom: 'K', initiales: 'K', email: 'k@x.fr', role: 'Propriétaire' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
+const html = (o: { build?: string | null; inBuild: number; applied: number | null }) => {
+  const page = renderToStaticMarkup(
+    <FournisseurSpatial value={CTX}>
+      <Console bandeau={{ payants: 0, actualise: 'à l’instant' }} message={null}
+        deploiement={diagnosticDeploiementAdmin(deploymentState({ renderVersion: 9, ...o }), '2026-09-17T10:00:00Z')}
+        plateforme={{ kpis: [], repartition: [], espaces: [], tarifs: [] }} essais={{ espaces: [], creditsDefaut: 0, joursDefaut: 0, lignes: [] }}
+        espace={{ nom: 'W', kpis: [], roles: [], membres: [], tickets: [] }} />
+    </FournisseurSpatial>,
+  );
+  const t = document.createElement('template'); t.innerHTML = page;
+  return t.content.querySelector('[data-console="deploiement"]')!.outerHTML;
+};
 
 describe('le panneau de diagnostic du déploiement', () => {
   it('affiche le commit du build pour réconcilier code et production', () => {
@@ -58,6 +76,7 @@ describe('le panneau de diagnostic du déploiement', () => {
   it('schéma à jour mais commit inconnu · le badge NE dit PAS « À jour » vert', () => {
     const h = html({ build: null, inBuild: 53, applied: 53 });
     expect(h, 'le badge doit qualifier · code non identifié').toContain('code non identifié');
+    expect(h, 'le badge non identifié n’est pas vert').not.toContain('pill g');
     // Le vert « À jour » est réservé à un code identifié · l'icône de succès n'y est pas.
     expect(h, 'le résumé sépare schéma et code').toMatch(/Schéma à jour|schéma à jour ≠ code à jour/);
     // Un build identifié, lui, garde le vert · qualifié « Schéma à jour · commit

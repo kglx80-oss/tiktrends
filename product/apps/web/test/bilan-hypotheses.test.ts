@@ -46,7 +46,7 @@ describe('bilanHypotheses · l’angle testé → la pertinence', () => {
   });
 });
 
-const PAGE = readFileSync(join(process.cwd(), 'app/(app)/admin/intelligence/page.tsx'), 'utf8');
+const PAGE = readFileSync(join(process.cwd(), 'app/(spatial)/sp/admin/intelligence/page.tsx'), 'utf8');
 
 describe('la boucle est câblée · l’angle consigné est lu', () => {
   it('l’écran fondateur lit les générations et appelle bilanHypotheses', () => {

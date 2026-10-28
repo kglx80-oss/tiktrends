@@ -32,6 +32,6 @@ describe('les cartes de l’accueil mènent à un écran qui agit, pas au hub nu
     expect(destinations).toContain('/studio/projets/nouveau');
     expect(destinations).toContain('/studio/projets');
     expect(destinations.filter((h) => /^\/studio\/(ads|image|video|textes)\b/.test(h)), 'carte vers un ancien studio retiré').toEqual([]);
-    expect(existsSync(join(process.cwd(), 'app', '(app)', 'studio', 'projets', 'nouveau', 'page.tsx'))).toBe(true);
+    expect(existsSync(join(process.cwd(), 'app', '(spatial)', 'sp', 'studio', 'projets', 'nouveau', 'page.tsx'))).toBe(true);
   });
 });

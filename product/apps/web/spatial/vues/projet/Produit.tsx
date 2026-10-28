@@ -276,7 +276,7 @@ const LIBELLES_RECUPERATION: Readonly<Record<RecuperationImport, string>> = {
  * par la même règle du noyau, ajoutée au catalogue du produit puis épinglée
  * (`importerPhotoProduit`). Chaque échec offre un geste de récupération.
  */
-function ImportPhoto({ projectId, versionId, produit, composants, transformations, occupe, onOccupe, onReussi }: {
+export function ImportPhoto({ projectId, versionId, produit, composants, transformations, occupe, onOccupe, onReussi }: {
   projectId: string; versionId: string; produit: { id: string; nom: string } | null; composants: string[]; transformations: TransformationProduit[];
   occupe: boolean; onOccupe: (b: boolean) => void; onReussi: (photoId: string) => void;
 }) {

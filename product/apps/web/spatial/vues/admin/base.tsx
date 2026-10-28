@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { EnTete, Ic, Lien, SousNav } from '../../communs';
-import { SOUS_NAV_ADMIN } from './sous-nav';
+import { SOUS_NAV_ADMIN_COMPLETE } from './sous-nav';
 
 /**
  * Les briques du Tour de contrôle (sans état · serveur ou client). Balisage de
@@ -14,13 +14,13 @@ export interface BandeauAdmin { payants: number; actualise: string }
 export const texteBandeau = (b: BandeauAdmin) =>
   `Données de toute la plateforme · ${b.payants.toLocaleString('fr-FR')} compte${b.payants > 1 ? 's' : ''} payant${b.payants > 1 ? 's' : ''} · actualisé ${b.actualise}`;
 
-/** En-tête + bandeau Admin+ + sous-navigation · la tête commune des douze écrans. */
+/** En-tête + bandeau Admin+ + sous-navigation · la tête commune des écrans du Tour de contrôle. */
 export function TeteAdmin({ titre, sous, actif, bandeau }: { titre: string; sous: string; actif: string; bandeau: BandeauAdmin }) {
   return (
     <>
       <EnTete titre={titre} sous={`Tour de contrôle · ${sous}`} />
       <div className="astrip"><Ic n="shield" /><b>Admin+</b><span>{texteBandeau(bandeau)}</span><Lien href="/dashboard" className="astrip-b"><Ic n="back" />Retour à l’outil</Lien></div>
-      <SousNav items={SOUS_NAV_ADMIN} actif={actif} />
+      <SousNav items={SOUS_NAV_ADMIN_COMPLETE} actif={actif} />
     </>
   );
 }

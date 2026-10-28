@@ -2,7 +2,7 @@ import 'server-only';
 import { and, count, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, couloirsDepuisLignee,
+  CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
   couloirsDepuisProjet, dateCourteUtc, etatGeneration, extraitBulle, gesteGenerer, libelleCoutRelecture, pastilleEnregistrement, relectureNecessaire,
   resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
@@ -106,7 +106,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
 
   // ── Canvas · la lignée réelle, sinon ce que la fiche porte ───────────────
   const hypotheseVue = d.hypothese ? { enonce: d.hypothese.statement, mesure: d.hypothese.metric || null } : null;
-  const couloirs = lignee?.ok && lignee.lignee.lignee.noeuds.length > 1
+  const couloirsLus = lignee?.ok && lignee.lignee.lignee.noeuds.length > 1
     ? couloirsDepuisLignee(lignee.lignee.lignee, {
       versionVue: d.version.id,
       apercusCreations: Object.fromEntries((donnees?.variantes ?? []).flatMap((v) => (apercus[v.assetId] ? [[`creation:${v.id}`, apercus[v.assetId]!]] : []))),
@@ -120,6 +120,12 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
       sources: d.sources.map((x) => ({ id: x.sourceId, titre: titreSource(x), detail: `${LIBELLES_TYPE_SOURCE[x.type]} · ${x.plateforme}`, href: x.lienSource, apercu: x.apercu })),
       creations: (donnees?.lots ?? []).flatMap((l) => l.sorties.flatMap((x) => (apercus[x.assetId] ? [{ id: x.assetId, src: apercus[x.assetId]!, titre: `Lot ${l.lot} · sortie ${x.position + 1}` }] : []))),
     }, ficheNoeud);
+  // « Cibler Jarvis » · seulement sur la version courante, et seulement si le rôle peut demander une proposition.
+  const listeLue = propositions?.ok ? propositions : null;
+  const couloirs = ciblerCouloirs(couloirsLus, {
+    versionCourante: ancienne ? null : d.version.id,
+    cibles: listeLue?.peutProposer ? listeLue.cibles.map((c) => ({ cible: c.cible, libelle: c.libelle })) : [],
+  });
   const nbNoeuds = couloirs.reduce((t, c) => t + c.noeuds.length, 0);
 
   // ── Jarvis ───────────────────────────────────────────────────────────────

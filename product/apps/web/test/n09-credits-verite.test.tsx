@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CreditsMenu } from '../components/CreditsMenu';
 import { AssistantHome } from '../components/AssistantHome';
@@ -41,11 +39,5 @@ describe('N09 · l’accueil (Dashboard) dit la même vérité que la barre', ()
   });
 });
 
-describe('N09 · l’écran de pilotage passe par la décision commune (garde de source)', () => {
-  it('le « Solde crédits » du fondateur passe par afficherCredits · plus de fmt(balance) brut', () => {
-    const page = readFileSync(join(process.cwd(), 'app/(app)/admin/plans/page.tsx'), 'utf8');
-    expect(page, 'le solde ne passe pas par la décision commune').toMatch(/afficherCredits\(\{ balance, unlimited: unlimitedCredits/);
-    expect(page).toMatch(/value=\{soldeAffiche\}/);
-    expect(page, 'le solde brut fmt(balance) est encore affiché').not.toMatch(/value=\{fmt\(balance\)\}/);
-  });
-});
+// « L’écran de pilotage passe par la décision commune » · porté au RENDU de « Forfaits & offres »
+// (Spatial, vague 3 · l’écran V5 /admin/plans est retiré) · `recette-n-admin-plans-rendu.test.tsx`.

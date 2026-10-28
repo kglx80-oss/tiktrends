@@ -77,3 +77,17 @@ classes existantes de `spatial.css` (tuiles, `seg subnav`, `.field`, `.chip`…)
 | Identités et voix | `/studio/projets/[id]/identites` | D2 · Studios |
 | Exporter l’image | `/studio/projets/[id]/export` | D2 · Studios |
 | Nouveau concept créatif | `/studio/projets/nouveau/concept` | D1 · Studios |
+
+## Écrans hors maquette (vague 3 · Admin)
+
+Écrans de l'ancienne interface portés dans la section `admin`, après les douze
+entrées de la maquette dans la sous-navigation (`OUTILS_ADMIN`).
+
+| Geste V5 | Adresse | Rubrique |
+| --- | --- | --- |
+| Registre de prompts (versions, releases, évaluations, routage, traces) · ancien `/admin/ia-studios` | `/admin/prompts/registre` | H · Admin |
+| Incidents techniques | `/admin/incidents` | H · Admin |
+| Intelligence marché | `/admin/intelligence` | H · Admin |
+| Connaissances de l'équipe | `/admin/connaissances` | H · Admin |
+| Interrupteurs Studios et budget d'essai | `/admin/studios-interrupteurs` | H · Admin |
+| Console (déploiement, tarifs, comptes de test) | `/console` | H · Admin |

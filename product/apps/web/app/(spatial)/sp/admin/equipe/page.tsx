@@ -20,8 +20,9 @@ const ERR: Record<string, string> = {
 /**
  * « Rôles & droits » · porte de `/admin/equipe` (V5) · le rôle d'ÉQUIPE à accès
  * total (adminplus/admin), pas « fondateur » · un admin ajouté ici gère l'équipe
- * à son tour, comme dans l'écran V5. Les écritures passent par les actions de
- * l'équipe, qui reposent la garde et l'admissibilité (SEC-10).
+ * à son tour, comme dans l'écran V5. Les écritures (matrice, ajout, changement
+ * de rôle, retrait) passent par les actions de l'équipe, qui reposent la garde
+ * et l'admissibilité (SEC-10).
  */
 export default async function DroitsSpatial({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const s = await getSession();
@@ -63,7 +64,11 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
       equipe={staffRows
         .map((r) => ({ email: r.email, role: r.role as RolePlateforme, depuis: r.createdAt as Date }))
         .sort((a, c) => rang(a.role) - rang(c.role) || a.email.localeCompare(c.email))
-        .map((m) => ({ email: m.email, initiales: initialesAvatar('', m.email), role: LIBELLE_ROLE_PLATEFORME[m.role], total: accesTotal(m.role), depuis: `depuis le ${adminDateCourte(m.depuis)}` }))}
+        .map((m) => ({
+          email: m.email, initiales: initialesAvatar('', m.email), role: LIBELLE_ROLE_PLATEFORME[m.role], total: accesTotal(m.role), depuis: `depuis le ${adminDateCourte(m.depuis)}`,
+          cleRole: m.role, moi: m.email.trim().toLowerCase() === s.user.email.trim().toLowerCase(),
+        }))}
+      gestion={peutEcrire}
       audit={auditRows.map((a) => {
         const acteur = a.nom || a.email || (a.role.startsWith('script:') ? 'Script' : 'Équipe');
         return { id: a.id, initiales: initialesAvatar(a.nom ?? '', a.email ?? acteur), acteur, texte: texteAudit(a.action), quand: adminIlYa(a.le as Date, maintenant) };

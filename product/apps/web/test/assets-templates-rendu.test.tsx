@@ -1,5 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -12,29 +11,9 @@ import { join } from 'node:path';
  * garde par la source les invariants d'accès que le relecteur a exigés · le
  * tagging IA ne doit ni retirer ni poser le marqueur (chemins non gardés).
  */
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
-vi.mock('../components/Toast', () => ({ useToast: () => ({ toast: () => {} }) }));
-vi.mock('../app/actions/assets', () => ({
-  uploadImageAssetsAction: async () => ({}), importAssetAction: async () => ({}),
-  deleteAssetAction: async () => ({}), toggleAssetAiAction: async () => ({}),
-  basculerTemplateAction: async () => ({}), presignAssetUploadAction: async () => ({}),
-  registerUploadedAssetAction: async () => ({}), tagAssetAction: async () => ({}),
-  tagUntaggedImagesAction: async () => ({}),
-}));
-
-import { AssetsLibrary } from '../app/(app)/assets/AssetsLibrary';
-
-const asset = (over: Record<string, unknown> = {}) => ({
-  id: 'a1', name: 'Studio crème', kind: 'image', source: 'upload',
-  url: 'data:image/png;base64,AAAA', thumbUrl: null, brandId: null,
-  useForAi: true, sizeBytes: 1000, tags: ['premium'], isTemplate: false,
-  createdAt: new Date().toISOString(), ...over,
-});
-
-const html = (isAdmin: boolean, isTemplate: boolean) =>
-  renderToStaticMarkup(
-    <AssetsLibrary initial={[asset({ isTemplate }) as never]} brandName={null} storageEnabled={false} isAdmin={isAdmin} />,
-  );
+// Vague 2 · l'écran V5 `/assets` est retiré · le RENDU (badge visible de tous,
+// écriture réservée à l'administrateur) est gardé sur l'écran Spatial
+// (`spatial-bibliotheque-gestes.test.tsx`, « templates · … »). Ici, les gardes serveur.
 
 const src = readFileSync(join(process.cwd(), 'app/actions/assets.ts'), 'utf8');
 const fn = (name: string) => {
@@ -44,15 +23,6 @@ const fn = (name: string) => {
 };
 
 describe('Templates dans la bibliothèque · coulisses vues du client', () => {
-  it('un asset template porte un badge visible du client', () => {
-    expect(html(false, true), 'le badge Template manque').toContain('Template');
-  });
-
-  it('seul l’admin voit le bouton d’écriture (coulisses)', () => {
-    expect(html(true, false), 'l’admin ne voit pas le bouton template').toContain('En faire un template');
-    expect(html(false, false), 'le client voit un bouton d’écriture interdit').not.toContain('En faire un template');
-  });
-
   it('le statut template est dérivé côté serveur · le marqueur ne sort pas', () => {
     const toItem = src.slice(src.indexOf('function toItem'), src.indexOf('function toItem') + 1600);
     expect(toItem, 'le marqueur n’est pas retiré des tags renvoyés').toContain('tags: tagsVisibles(r.tags)');

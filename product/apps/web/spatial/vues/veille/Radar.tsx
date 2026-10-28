@@ -1,5 +1,8 @@
+import type { ligneRadarCreatif } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { SousNavVeille, Vignette } from './base';
+import { BoutonSuivi } from './client';
+import { BriefMarque, DecouverteCategorie, GestesNouveautes, GrammaireMarche } from './radar-client';
 
 /**
  * « Radar » · `docs/spatial/reference/radar.html`. Le suivi des marques que
@@ -9,7 +12,11 @@ import { SousNavVeille, Vignette } from './base';
  * sorties qui existent · aucun achat simulé, aucun essai inventé.
  */
 export interface AlerteRadar { titre: string; texte: string; action: { href: string; libelle: string } }
-export interface MarqueRadar { cle: string; nom: string; initiale: string; fond: string; site: string; vignettes: ReadonlyArray<string | null>; nouveautes: string | null; voir: string }
+export interface MarqueRadar {
+  cle: string; nom: string; initiale: string; fond: string; site: string; vignettes: ReadonlyArray<string | null>; nouveautes: string | null; voir: string;
+  /** Vague 3 · les gestes de l'ancien onglet « Marques suivies » · brief, ne plus suivre, liens externes. Absents, la carte de la maquette. */
+  gestes?: { plateforme: string; biblio: { href: string; libelle: string } | null; siteWeb: string | null };
+}
 export interface PropsRadar {
   ouvert: boolean;
   pastilleRadar: string | null;
@@ -19,6 +26,14 @@ export interface PropsRadar {
   inclus: string;
   /** Fermé · l'offre qui ouvre le Radar, et ce que cette session peut faire. */
   verrou: { titre: string; texte: string; passer: { href: string; libelle: string } | { raison: string }; superposition: { titre: string; sous: string } } | null;
+  /**
+   * Vague 3 · le Radar créatif de l'ancien écran · tes créas Meta notées A→D
+   * (`brands.ads_insights`, jamais d'exemple). `null` sans synchronisation · le
+   * geste réel est de brancher Meta Ads. Absent, l'écran est celui de la maquette.
+   */
+  /** Vague 3 · « Vérifier maintenant », « Tout marquer vu » et l'exploration de la catégorie (ancien onglet Sauvegardes). */
+  suivi?: { scan: { actif: boolean; raison: string | null }; nonVues: number; explorer: boolean };
+  creatif?: { maj: string | null; resume: ReadonlyArray<{ libelle: string; classe: string; n: number }>; lignes: ReadonlyArray<LigneRadarCreatif> } | null;
 }
 
 function Alertes({ alertes, ouvert }: { alertes: ReadonlyArray<AlerteRadar>; ouvert: boolean }) {
@@ -61,6 +76,14 @@ function Suivi({ marques, ouvert }: { marques: ReadonlyArray<MarqueRadar>; ouver
               {m.nouveautes ? <span className="pill c" style={{ fontSize: '11.5px' }}>{m.nouveautes}</span> : <span className="faint" style={{ fontSize: '11.5px' }}>Aucune nouveauté</span>}
               <Lien className="btn sm" href={m.voir} style={{ marginLeft: 'auto' }} tabIndex={ouvert ? undefined : -1}>Voir</Lien>
             </div>
+            {ouvert && m.gestes && (
+              <div className="kc" style={{ flexWrap: 'wrap' }} data-gestes-marque>
+                <BriefMarque platform={m.gestes.plateforme} nom={m.nom} />
+                <BoutonSuivi plateforme={m.gestes.plateforme} nom={m.nom} initial />
+                {m.gestes.biblio && <a className="btn sm" href={m.gestes.biblio.href} target="_blank" rel="noopener noreferrer">{m.gestes.biblio.libelle}</a>}
+                {m.gestes.siteWeb && <a className="btn sm" href={m.gestes.siteWeb} target="_blank" rel="noopener noreferrer">Site</a>}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -71,6 +94,43 @@ function Suivi({ marques, ouvert }: { marques: ReadonlyArray<MarqueRadar>; ouver
         <div className="mrow"><span className="faint" style={{ gridColumn: '1/-1' }}>Les recherches enregistrées ne sont pas encore disponibles · tes critères de Veille vivent dans l’adresse de la page.</span></div>
       </div>
     </>
+  );
+}
+
+export type LigneRadarCreatif = ReturnType<typeof ligneRadarCreatif>;
+
+/** Le Radar créatif · tes créas notées, la recommandation et le lien vers un projet. */
+function RadarCreatif({ c }: { c: NonNullable<PropsRadar['creatif']> | null }) {
+  return (
+    <section className="sec" aria-label="Radar créatif">
+      <div className="sech"><h2>Radar créatif · tes créas notées</h2><span className="faint" style={{ fontSize: '12.5px' }}>{c ? `Meta Ads · 30 derniers jours${c.maj ? ` · maj ${c.maj}` : ''}` : 'Aucune créa synchronisée'}</span></div>
+      {!c ? (
+        <div className="tile member">
+          <p className="muted" style={{ fontSize: '12.5px', flex: 1 }}>Chaque créa est notée Hook, Hold, CTR et Conv (A à D, comparées aux autres créas de ton compte), puis rangée en recommandation · scaler, pousser, itérer, rafraîchir, couper. Il faut tes vraies créas Meta Ads.</p>
+          <Lien className="btn sm pri" href="/connections" style={{ marginLeft: 'auto' }}>Brancher Meta Ads</Lien>
+        </div>
+      ) : (
+        <>
+          <div className="kc" style={{ marginBottom: 10 }}>{c.resume.map((r) => <span key={r.libelle} className={`pill ${r.classe}`.trim()} style={{ marginLeft: 0 }}>{r.libelle} · {r.n}</span>)}</div>
+          <div className="mtable">
+            {c.lignes.map((l) => (
+              <div className="tile" key={l.cle} style={{ display: 'grid', gap: 8 }} data-crea={l.cle}>
+                <div className="member" style={{ flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ minWidth: 0, flex: '1 1 220px' }}><strong>{l.titre}</strong> <span className="pill" style={{ marginLeft: 4, fontSize: 10 }}>{l.plateforme}</span><br /><small className="faint">{l.detail}</small></div>
+                  {l.notes.map((n) => <span key={n.cle} className={`pill ${n.classe}`} style={{ marginLeft: 0 }} title={`${n.libelle} · ${n.note}`}>{n.libelle} {n.note}</span>)}
+                  <span className="faint" style={{ fontSize: '12px' }}>Score {l.score}</span>
+                  <span className={`pill ${l.reco.classe}`.trim()} style={{ marginLeft: 0 }}>{l.reco.libelle}</span>
+                </div>
+                <div className="member" style={{ flexWrap: 'wrap', gap: 6 }}>
+                  {l.diagnostic.map((d, i) => <span key={i} className="chip">{d}</span>)}
+                  <Lien className="btn sm" href={l.projet.href} style={{ marginLeft: 'auto' }}><Ic n="spark" />{l.projet.libelle}</Lien>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -86,8 +146,16 @@ export function Radar(p: PropsRadar) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', margin: '-4px 0 14px' }}>
             <span className="faint" style={{ fontSize: '12px' }}>{p.inclus}</span>
             <Lien className="btn sm" href="/jarvis"><Ic n="chat" />Ouvrir Jarvis</Lien>
+            {p.suivi && <GestesNouveautes scan={p.suivi.scan} nonVues={p.suivi.nonVues} />}
           </div>
           <Suivi marques={p.marques} ouvert />
+          {p.suivi?.explorer && (
+            <section className="sec" aria-label="Explorer ma catégorie">
+              <div className="sech"><h2>Explorer ma catégorie</h2></div>
+              <div className="grid2"><DecouverteCategorie /><GrammaireMarche /></div>
+            </section>
+          )}
+          {p.creatif !== undefined && <RadarCreatif c={p.creatif} />}
         </>
       ) : (
         <>

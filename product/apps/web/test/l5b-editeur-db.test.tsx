@@ -42,7 +42,8 @@ import { creerProjet, enregistrerDocument } from '../app/actions/studios/projets
 import { relireDocumentEditeur } from '../lib/studios/editeur/actions';
 import { lireEditeurPour } from '../lib/studios/editeur/lecture';
 import { gardeStudio } from '../lib/studios/garde';
-import EditeurImagePage from '../app/(app)/studio/projets/[id]/image/page';
+import EditeurImagePage from '../app/(spatial)/sp/studio/projets/[id]/image/page';
+import { avecSpatial } from './spatial/fournisseur';
 
 const ids = h.ids;
 const qui = (q: 'ua' | 'uv' | 'ur' | 'ub') => { h.session = session(ids, q); };
@@ -84,7 +85,8 @@ async function enregistrer(baseVersionId: string, avant: DocumentStudio | null, 
 }
 const page = async (id: string) => {
   const d = document.createElement('div');
-  d.innerHTML = renderToStaticMarkup(await EditeurImagePage({ params: Promise.resolve({ id }) }));
+  // L'éditeur d'image n'est plus servi que par Spatial (vague 3 · page V5 retirée).
+  d.innerHTML = renderToStaticMarkup(avecSpatial(await EditeurImagePage({ params: Promise.resolve({ id }) })));
   return d;
 };
 
@@ -129,9 +131,9 @@ describe('lecture · format du brief, photo produit, médias du SEUL projet', ()
     qui('ua');
     const d = await page(projet);
     expect(d.querySelector('[data-etat="document-vide"]')?.textContent).toContain('Ce projet n’a pas encore de document image');
-    expect(d.querySelector('[data-format-source]')?.textContent).toBe('Format lu dans le brief : « Story 9:16 ».');
-    expect(d.querySelector('input[name="format-document"][value="9:16"]')?.hasAttribute('checked')).toBe(true);
-    expect(d.textContent).toContain('Poser la photo produit du projet, centrée, à 55 % de la largeur');
+    expect(d.querySelector('[data-etat="document-vide"]')?.textContent).toContain('Format lu dans le brief : « Story 9:16 ».');
+    expect(d.querySelector('[data-sf="9:16"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(d.textContent).toContain('Poser la photo produit, centrée, à 55 % de la largeur');
   });
 });
 
@@ -265,16 +267,16 @@ describe('profils · lecture seule, hors portée', () => {
     qui('uv');
     const d = await page(projet);
     expect(d.querySelector('[data-etat="acces-refuse"]')?.textContent).toContain('Ton rôle ne permet pas d’ouvrir les projets du Studio');
-    expect(d.querySelector('[data-editeur="calques"]')).toBeNull();
+    expect(d.querySelector('.studio')).toBeNull();
   });
 
   it('lecteur d’équipe (studio.read sans studio.propose) · page en lecture seule, enregistrement FORBIDDEN, rien écrit', async () => {
     h.session = session(ids, 'uv', { equipe: { role: 'membre', matrice: { membre: ['studio'] } } } as never);
     const d = await page(projet);
-    expect(d.querySelector('[data-editeur="calques"]'), d.innerHTML.slice(0, 400)).not.toBeNull();
-    expect(d.querySelector('[data-etat="lecture-seule"]')?.textContent ?? '', 'bandeau « Lecture seule » absent pour un rôle sans studio.propose').toContain('Lecture seule');
+    expect(d.querySelector('.studio'), d.innerHTML.slice(0, 400)).not.toBeNull();
+    expect(d.querySelector('.wshead .pill')?.textContent ?? '', 'pastille « Lecture seule » absente pour un rôle sans studio.propose').toContain('Lecture seule');
     expect(d.querySelector('[data-action="enregistrer"]')).toBeNull();
-    expect(d.querySelector('[aria-label="Ajouter un calque"]')).toBeNull();
+    expect(d.querySelector('[data-ajouter="texte"]')).toBeNull();
     const base = await courante();
     const n = (await versions()).length;
     const r = await enregistrer(base.version.id, base.document, ok(transformerCalque(base.document!, 'texte_1', { x: 1 })).document);
@@ -297,15 +299,15 @@ describe('profils · lecture seule, hors portée', () => {
   it('membre · la page rend la surface du document aux bonnes proportions, le texte en texte, la photo servie par la route média', async () => {
     qui('ua');
     const d = await page(projet);
-    const s = d.querySelector('[data-surface="document"]')!;
-    expect([s.getAttribute('data-largeur'), s.getAttribute('data-hauteur')]).toEqual(['1080', '1920']);
+    const s = d.querySelector('#art .ad[role="group"]')!;
+    expect(s.getAttribute('aria-label')).toContain('1080 × 1920 pixels');
     expect(s.getAttribute('style')).toContain('aspect-ratio:1080 / 1920');
-    const t = s.querySelector('[data-calque="texte_1"] [data-texte="editable"]');
+    const t = s.querySelector('[data-calque="texte_1"] > div');
     expect(t?.textContent).toBe('-20 % ce soir');
     expect(t?.getAttribute('style'), 'aperçu avec crénage, le rendu L5-A n’en applique aucun').toContain('font-kerning:none');
     // Intégration L5 · la photo produit (média studio) est servie par la route L5-A, le texte reste du texte.
     expect([...s.querySelectorAll('img')].map((i) => [i.getAttribute('alt'), i.getAttribute('src')])).toEqual([['Photo produit', `/api/studios/media/${assetProduit}`]]);
-    expect(s.querySelector('[data-calque="produit"] [data-apercu="absent"]')).toBeNull();
-    expect(d.querySelector('[data-statut]')?.textContent).toBe('Enregistré');
+    expect(s.textContent).not.toContain('aperçu indisponible');
+    expect(d.querySelector('.wshead .pill[role="status"]')?.textContent).toBe('Enregistré');
   });
 });

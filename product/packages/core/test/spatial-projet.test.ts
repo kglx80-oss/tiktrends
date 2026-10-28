@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COULOIRS, champsBrief, cheminPorte, classeFormat, couloirsDepuisLignee, couloirsDepuisProjet, ecranSpatial, etatGeneration, etatPlan,
+  COULOIRS, annonceCibleJarvis, champsBrief, cibleJarvisNoeud, ciblerCouloirs, cheminPorte, classeFormat, couloirsDepuisLignee, couloirsDepuisProjet, ecranSpatial, etatGeneration, etatPlan,
   extraitBulle, formatDuDocument, gesteGenerer, gestesPlan, iconeCalque, legendeFormat, longueurTexte, minuteSeconde, noteCalques, nuancier,
   pastilleEnregistrement, pistesMontage, planDuJob, relectureNecessaire, repliPossible, replierPerdants, reperesTemps, resumeFicheMarque,
   segmentReserveProjets, segmentsHypothese, sourceLecteur, sousTitreProjet, texteTourJarvis,
@@ -262,5 +262,26 @@ describe('Spatial · éditeur · format, calques, couleurs', () => {
     expect(nuancier(['#111111', '#222222', '#333333', '#444444', '#555555'], null, 4)).toHaveLength(4);
     expect(longueurTexte('Prêts ?')).toBe('7 caractères');
     expect(longueurTexte('A')).toBe('1 caractère');
+  });
+});
+
+describe('Spatial · projet · « Cibler Jarvis » depuis un nœud', () => {
+  const cibles = [{ cible: 'shot:s1', libelle: 'Plan 1' }, { cible: 'brief', libelle: 'Brief' }];
+  it('seuls brief, hypothèse et direction de la version COURANTE ciblent le brief', () => {
+    for (const id of ['brief:v3', 'hypothese:v3', 'direction:v3']) expect(cibleJarvisNoeud(id, { versionCourante: 'v3', cibles })).toEqual({ cible: 'brief', libelle: 'Brief' });
+    for (const id of ['brief:v2', 'creation:a', 'resultat:b', 'iteration:v3', 'marque', 'reference:s1']) expect(cibleJarvisNoeud(id, { versionCourante: 'v3', cibles }), id).toBeNull();
+  });
+  it('version antérieure ou formulaire sans cible « brief » (lecture seule) · aucun geste', () => {
+    expect(cibleJarvisNoeud('brief:v3', { versionCourante: null, cibles })).toBeNull();
+    expect(cibleJarvisNoeud('brief:v3', { versionCourante: 'v3', cibles: [] })).toBeNull();
+  });
+  it('les couloirs gardent leurs nœuds · seuls les nœuds ciblables reçoivent une cible', () => {
+    const couloirs = [{ cle: 'contexte' as const, titre: 'Contexte', noeuds: [{ id: 'brief:v3' }, { id: 'marque' }] }] as never;
+    const r = ciblerCouloirs(couloirs, { versionCourante: 'v3', cibles });
+    expect(r[0]!.noeuds.map((x) => [x.id, x.cible?.cible ?? null])).toEqual([['brief:v3', 'brief'], ['marque', null]]);
+  });
+  it('l’annonce ne promet aucun envoi', () => {
+    expect(annonceCibleJarvis('Brief', true)).toMatch(/Rien n’est envoyé/);
+    expect(annonceCibleJarvis('Brief', false)).toMatch(/Rien n’a été envoyé/);
   });
 });

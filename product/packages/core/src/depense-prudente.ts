@@ -524,7 +524,7 @@ const usd4v = (n: number) => `${n.toFixed(4).replace('.', ',')} $`;
 /**
  * R6 · OÙ se fait le geste de réconciliation (R5) · la section « À
  * réconcilier » de l'écran des dépenses du propriétaire
- * (`app/(app)/admin/depenses/SectionReconciliation.tsx`, `id="a-reconcilier"`).
+ * (Spatial · « Coûts IA & marges », `spatial/vues/admin/Couts.tsx`, `id="a-reconcilier"`).
  */
 export const ADRESSE_A_RECONCILIER = '/admin/depenses#a-reconcilier';
 

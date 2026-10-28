@@ -2,9 +2,9 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { InspoAd } from '@tiktrends/integrations';
-import { PROVEN_DAYS, apercuImage, estActiveVeille, etiquetteStyleVeille, lienNouveauProjet, pastilleMarque, tourneLongtemps } from '@tiktrends/core';
+import { PROVEN_DAYS, apercuImage, estActiveVeille, etiquetteStyleVeille, explicationPontAdsmap, lienNouveauProjet, lireFormatCreatif, pastilleMarque, raisonPontAdsmap, tourneLongtemps } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
-import { roleAtLeast } from '../../../../lib/rbac';
+import { FEATURES, canAccess, denyReason, roleAtLeast } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { studioDepuisVeille } from '../../../../lib/veille-link';
@@ -49,8 +49,21 @@ export default async function SauvegardesSpatiales() {
       pastilles: [{ libelle: etiquetteStyleVeille(ad), classe: '' as const }, ...(longue ? [{ libelle: 'Tourne longtemps', classe: 'g' as const }] : [])],
       // Mode clone des Studios · la sauvegarde sert de référence de structure.
       cloner: studioDepuisVeille(ad, { ref: r.id }),
+      format: (() => { const f = lireFormatCreatif(r.snapshot); return { id: f.id, versionAncienne: f.versionAncienne }; })(),
     };
   });
 
-  return <Sauvegardes items={items} pastilleRadar={pastilleRadar(effectiveAccess(s))} creerProjet={lienNouveauProjet({ type: 'ads' })} />;
+  // Les droits des gestes · le MÊME calcul que les gardes des actions (classement · Veille ; test · Résultats + marque active).
+  const acces = effectiveAccess(s);
+  const Veille = FEATURES.find((f) => f.key === 'inspo')!;
+  const Resultats = FEATURES.find((f) => f.key === 'adsmap')!;
+  const formatFerme = canAccess(acces, Veille) ? null
+    : denyReason(acces, Veille) === 'plan' ? 'Classement réservé à la Veille · offre Core.' : 'Classement réservé aux rôles qui ont accès à la Veille.';
+  const raisonTest = brand && canAccess(acces, Resultats) ? null
+    : explicationPontAdsmap(raisonPontAdsmap(denyReason(acces, Resultats), !!brand), 'Préparer un test dans Résultats');
+
+  return (
+    <Sauvegardes items={items} pastilleRadar={pastilleRadar(acces)} creerProjet={lienNouveauProjet({ type: 'ads' })}
+      gestes={{ formatFerme, test: raisonTest ? { ouvert: false, raison: raisonTest } : { ouvert: true } }} />
+  );
 }

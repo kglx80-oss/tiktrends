@@ -43,11 +43,11 @@ describe('B2 · le cadre extérieur commun, rendu', () => {
 
 describe('B2 · chaque écran pose cadrePage, sans largeur extérieure à la main', () => {
   it('on parcourt bien tous les écrans', () => {
-    // Mesuré : 45 pages V5 avant la vague 2 Spatial, 40 après le retrait des
-    // pages V5 de Résultats et des Studios (écrans devenus exclusifs, 27/10).
-    // Le seuil garde de la marge · il ne sert qu'à prouver que le parcours voit
-    // bien les pages (il tombe à 0 si le chemin du scan casse).
-    expect(pages.length).toBeGreaterThanOrEqual(35);
+    // Mesuré : 45 pages V5 avant la vague 2 Spatial, 40 après Résultats et
+    // Studios, 37 après la Bibliothèque (27/10). Les retraits continuent
+    // (écrans devenus exclusifs) · le seuil ne garde que la lecture des pages
+    // (il tombe à 0 si le chemin du scan casse).
+    expect(pages.length).toBeGreaterThanOrEqual(10);
   });
   for (const p of pages) {
     const route = routeDe(p);

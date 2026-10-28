@@ -3,10 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import {
-  creerConnaissance, publierVersion, nouvelleVersion, validerSaisie, vueConnaissance, apercuContextePlateforme, refConnaissance,
-  ATTRIBUT_ROLE_CADRE, type Connaissance, type SaisieConnaissance, type Resultat,
-} from '@tiktrends/core';
+import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 
 /**
  * Message 55 · les écrans de #724 RENDUS portent les cadres de la charte (#725 ·
@@ -62,15 +59,11 @@ vi.mock('../lib/jarvis-state', () => ({
 vi.mock('../lib/spend-guard', () => ({ spendStatus: async () => ({ blocked: true, summary: 'Plafond synthétique atteint.' }) }));
 vi.mock('../lib/deployment', () => ({ currentDeployment: async () => ({ ok: false, summary: 'Écart synthétique.', renderVersion: 1, applied: 3, inBuild: 4, build: 'abc1234' }) }));
 
-import ConnaissancesPage from '../app/(app)/admin/connaissances/page';
-import { EcranConnaissances, Formulaire } from '../app/(app)/admin/connaissances/EcranConnaissances';
-import type { VueAdminConnaissances } from '../app/actions/connaissances';
 import SourcesPage from '../app/(app)/jarvis/sources/page';
 import { RefusJarvis } from '../app/(app)/jarvis/RefusJarvis';
 import { JarvisContexte } from '../app/(app)/jarvis/JarvisContexte';
 import { JarvisChat } from '../app/(app)/jarvis/JarvisChat';
 import { DescribePanel } from '../app/(app)/jarvis/DescribePanel';
-import AdminBackstage from '../app/(app)/admin/page';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 // jsdom ne fait pas défiler · le fil appelle `scrollTo` à chaque tour.
@@ -113,22 +106,7 @@ const nCadres = (html: string) => [...normaliser(html).matchAll(BALISE)].filter(
 /*  Les données                                                               */
 /* -------------------------------------------------------------------------- */
 
-const ok = <T,>(r: Resultat<T>): T => { if (!r.ok) throw new Error(r.erreur); return r.valeur; };
-const s = (o: Partial<SaisieConnaissance>) => ok(validerSaisie({ titre: 'T', type: 'instruction', texte: 'x', origine: { mode: 'saisie' }, portee: { niveau: 'plateforme' }, ...o }));
 const T = '2026-10-05T08:00:00.000Z';
-const ID = (k: number) => `0000005${k}-bbbb-4bbb-8bbb-bbbbbbbbbbbb`;
-function fixtures(): Connaissance[] {
-  let a = creerConnaissance(ID(1), s({ titre: 'Méthode', type: 'methode', texte: 'Une variable à la fois.' }), 'e', T);
-  a = ok(publierVersion(a, 1, 'e', T));
-  a = ok(nouvelleVersion(a, s({ titre: 'Méthode', type: 'methode', texte: 'v2' }), 1, 'e', T));
-  const b = creerConnaissance(ID(2), s({ titre: 'Brouillon', type: 'donnees', texte: 'CPM' }), 'e', T);
-  return [a, b];
-}
-const vue = (l: Connaissance[]): VueAdminConnaissances => ({
-  items: l.map((c) => ({ ...vueConnaissance(c), usage: { [refConnaissance(c.id, 1)]: { inclus: 2, cite: 1, dernierInclus: T, dernierCite: T } } })),
-  apercu: apercuContextePlateforme(l),
-});
-const VALEURS = (niveau: 'plateforme' | 'espace' | 'marque') => ({ titre: 'T', type: 'methode' as const, texte: 'x', mode: 'saisie' as const, fichier: null, niveau, workspaceId: niveau === 'plateforme' ? '' : 'w', brandId: niveau === 'marque' ? 'b' : '' });
 const fondateur = { user: { id: 'u', email: 'kguilbaux@agence-glx.fr', name: 'K' }, workspaceId: 'w', workspaceName: 'Espace', role: 'owner', plan: 'business', equipe: { role: 'adminplus', matrice: {} } };
 const membreCore = { ...fondateur, user: { id: 'u2', email: 'membre@client.test', name: null }, role: 'member', plan: 'core', equipe: null };
 
@@ -148,29 +126,11 @@ async function monter(node: ReactNode): Promise<HTMLDivElement> {
   await act(async () => { await new Promise((x) => setTimeout(x, 0)); });
   return conteneur;
 }
-const clic = async (c: HTMLElement, texte: string) => {
-  const b = [...c.querySelectorAll('button')].find((x) => x.textContent?.startsWith(texte));
-  if (!b) throw new Error(`bouton « ${texte} » introuvable`);
-  await act(async () => { b.click(); });
-};
 
 /* -------------------------------------------------------------------------- */
 
 describe('message 55 · écrans de #724 rendus · chaque cadre porte son rôle', () => {
   const ecrans: Array<[string, () => Promise<string>]> = [
-    ['/admin/connaissances · liste + formulaire', async () => { h.session = fondateur; h.vue = vue(fixtures()); return renderToStaticMarkup(await ConnaissancesPage()); }],
-    ['/admin/connaissances · lecture en échec', async () => { h.session = fondateur; h.erreur = 'Lecture impossible.'; return renderToStaticMarkup(await ConnaissancesPage()); }],
-    ['/admin/connaissances · vide', async () => renderToStaticMarkup(<EcranConnaissances vueInitiale={vue([])} espaces={[]} marques={[]} />)],
-    ['formulaire · élargissement de portée', async () => renderToStaticMarkup(<Formulaire initial={VALEURS('plateforme')} porteeAvant={{ niveau: 'marque', workspaceId: 'w', brandId: 'b' }} titreFormulaire="v2" espaces={[]} marques={[]} occupe={false} onAnnuler={() => {}} onEnvoyer={async () => true} />)],
-    ['formulaire · portée espace', async () => renderToStaticMarkup(<Formulaire initial={VALEURS('espace')} titreFormulaire="Nouvelle" espaces={[{ id: 'w', name: 'E' }]} marques={[]} occupe={false} onEnvoyer={async () => true} />)],
-    ['carte · versions dépliées, publication ouverte et refusée (jsdom)', async () => {
-      const c = await monter(<EcranConnaissances vueInitiale={vue(fixtures())} espaces={[]} marques={[]} />);
-      await clic(c, 'Versions (');
-      await clic(c, 'Publier v2');
-      await clic(c, 'Publier v2');
-      await clic(c, 'Publier'); // le formulaire, sans la case
-      return c.innerHTML;
-    }],
     ['/jarvis/sources · fondateur (déploiement, dépense bloquée, moteurs)', async () => { h.session = fondateur; return renderToStaticMarkup(await SourcesPage()); }],
     ['/jarvis/sources · membre Core (sans la mémoire Plus)', async () => { h.session = membreCore; return renderToStaticMarkup(await SourcesPage()); }],
     ['DescribePanel · tranche chiffrée (jsdom)', async () => (await monter(<DescribePanel />)).innerHTML],
@@ -183,7 +143,6 @@ describe('message 55 · écrans de #724 rendus · chaque cadre porte son rôle',
     ['JarvisContexte · connaissances incluses', async () => renderToStaticMarkup(
       <JarvisContexte contexte={{ brandId: 'b', identity: 'Identité', rules: 'Règles', hooks: null, connaissances: { inclus: [{ ref: 'Kaaaa-v1', titre: 'Itérer', type: 'methode', tronquee: true }], horsPlace: 1 } }} brandName="Neva" measuredAds={2} onClose={() => {}} />,
     )],
-    ['/admin · tableau de bord (carte Connaissances)', async () => { h.session = fondateur; return renderToStaticMarkup(await AdminBackstage()); }],
   ];
 
   it('on lit bien des cadres', async () => {
@@ -199,20 +158,6 @@ describe('message 55 · écrans de #724 rendus · chaque cadre porte son rôle',
       expect(fautes, `Cadre(s) hors rôle :\n${fautes.join('\n')}`).toEqual([]);
     });
   }
-
-  it('les cartes de la liste et le formulaire sont des surfaces · l’état vide est `vide`', async () => {
-    const liste = normaliser(renderToStaticMarkup(<EcranConnaissances vueInitiale={vue(fixtures())} espaces={[]} marques={[]} />));
-    const article = /<article\b[^>]*style="([^"]*)"/.exec(liste)?.[1] ?? '';
-    expect(article, 'carte de connaissance non rendue').not.toBe('');
-    expect(article).toContain('border:1px solid var(--line);border-radius:var(--r-card)');
-    const vide = normaliser(renderToStaticMarkup(<EcranConnaissances vueInitiale={vue([])} espaces={[]} marques={[]} />));
-    expect(vide).toMatch(/border:1px dashed var\(--line-2\);border-radius:var\(--r-card\)[^"]*"><p[^>]*>Aucune connaissance/);
-  });
-
-  it('l’avertissement avant publication · signal au rayon d’une tuile (plateforme), tuile neutre (espace)', () => {
-    const p = renderToStaticMarkup(<Formulaire initial={VALEURS('plateforme')} titreFormulaire="N" espaces={[]} marques={[]} occupe={false} onEnvoyer={async () => true} />);
-    expect(/data-avant-publication="plateforme" style="([^"]*)"/.exec(p)?.[1]).toContain('border:1px solid color-mix(in srgb, var(--warn) 45%, transparent);border-radius:var(--r-md)');
-    const e = renderToStaticMarkup(<Formulaire initial={VALEURS('espace')} titreFormulaire="N" espaces={[]} marques={[]} occupe={false} onEnvoyer={async () => true} />);
-    expect(/data-avant-publication="espace" style="([^"]*)"/.exec(e)?.[1]).toContain('border:1px solid var(--line);border-radius:var(--r-md)');
-  });
+  // Spatial · vague 3 · les cadres V5 des Connaissances (liste, formulaire, avertissement) et de l'accueil
+  // des coulisses disparaissent avec leurs écrans · l'écran Spatial suit la maquette (`spatial-admin-v3`).
 });

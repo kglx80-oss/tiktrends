@@ -65,7 +65,10 @@ describe('Lot 19 · chaque titre d’écran porte le jeton h1 de la charte', () 
   });
   const avecTitre = fichiers.filter((f) => /<h1\b/.test(readFileSync(f, 'utf8')));
   it('on parcourt bien les écrans titrés', () => {
-    expect(avecTitre.length).toBeGreaterThanOrEqual(30);
+    // Mesuré : 23 écrans V5 titrés après le retrait de l'Admin V5 (28/10, vague 3
+    // Spatial · les écrans retirés quittent le parcours). Le plancher ne garde que
+    // la lecture des fichiers (il tombe à 0 si le parcours casse).
+    expect(avecTitre.length).toBeGreaterThanOrEqual(10);
   });
   for (const f of avecTitre) {
     const nom = relative(APP, f).split(sep).join('/');
