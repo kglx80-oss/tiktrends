@@ -1,13 +1,58 @@
 import {
-  VALEUR_ABSENTE, adminEuros, adminMois, adminMoisLong, adminNombre, adminPluriel, adminPourcent, estPayant, ltvMoyenne,
+  VALEUR_ABSENTE, MARGE_BRUTE_CIBLE, adminEuros, corporateTaxRate, creditMarkup, eurosFinance, financeParFormule, adminMois, adminMoisLong, adminNombre, adminPluriel, adminPourcent, estPayant, ltvMoyenne,
   margeBrutePonderee, mrrPlateforme, noteRepartitionMrr, partsMrr, rentabiliteForfaits, tauxChurn30,
 } from '@tiktrends/core';
-import { Revenus } from '../../../../../spatial/vues/admin/Revenus';
+import { PLAN_CREDITS, PLAN_LABEL, PLAN_PRICE } from '../../../../../lib/rbac';
+import { Revenus, type PropsFinanceFormules } from '../../../../../spatial/vues/admin/Revenus';
 import { bandeau, chargerEspaces, chargerResiliations, chargerTarifs, porteAdmin, resiliationsSur30j } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
-/** « Revenus & MRR » · porte de `/admin/finance` (V5) · fondateur ET admin de l'espace. */
+/**
+ * Les indicateurs de l'ancienne page Finance, TELS QU'ELLE LES CALCULAIT
+ * (noyau `financeParFormule`) · la formule de chaque espace × le prix et la
+ * dotation du CATALOGUE du code (`PLAN_PRICE`, `PLAN_CREDITS`), marge
+ * `CREDIT_MARKUP`, IS `CORPORATE_TAX_RATE`. Aucune définition nouvelle.
+ */
+function financeFormules(formules: readonly string[]): PropsFinanceFormules {
+  const markup = creditMarkup(), taux = corporateTaxRate();
+  const f = financeParFormule({ formules, prix: PLAN_PRICE, credits: PLAN_CREDITS, libelles: PLAN_LABEL, markup, taux });
+  const cible = `${Math.round(MARGE_BRUTE_CIBLE * 100)} %`;
+  return {
+    intro: `Revenu récurrent et bénéfice net de la plateforme. La marge nette déduit coût API (pire cas, allocation pleine), frais de paiement et IS (${Math.round(taux * 100)} %).`,
+    base: 'Base de ce calcul · la formule de chaque espace, abonnement Stripe actif ou non, × le prix du catalogue. Le MRR en tête d’écran compte les seuls abonnements Stripe actifs, aux tarifs en vigueur · les deux résultats peuvent différer, la définition du MRR reste à décider.',
+    kpis: [
+      { lbl: 'MRR', v: eurosFinance(f.mrr), d: 'Revenu mensuel récurrent' },
+      { lbl: 'ARR', v: eurosFinance(f.arr), d: 'Annualisé (MRR × 12)' },
+      { lbl: 'Bénéfice net / mois', v: eurosFinance(f.beneficeNetMensuel), d: 'Après coût API, frais, IS', c: f.beneficeNetMensuel > 0 ? 'up' : '' },
+      { lbl: 'Clients payants', v: String(f.clientsPayants), d: `ARPA ${eurosFinance(f.arpa)}` },
+    ],
+    lignes: f.lignes.map((r) => ({
+      plan: r.plan, libelle: r.libelle, prix: eurosFinance(r.prix), clients: String(r.clients), mrr: eurosFinance(r.prix * r.clients),
+      netAbonne: eurosFinance(r.net.netEur), netPct: `${r.net.netPct}%`, netPositif: r.net.netEur > 0, netMois: eurosFinance(r.net.netEur * r.clients),
+      saine: r.risque.healthy,
+    })),
+    cible,
+    recos: f.lignes.map((r) => ({
+      plan: r.plan, libelle: r.libelle, prix: eurosFinance(r.prix), surAlloue: r.surAlloue,
+      lignes: [
+        { k: 'Crédits actuels', v: r.credits.toLocaleString('fr-FR'), accent: false },
+        { k: `Crédits pour ${cible} de marge`, v: r.creditsOptimaux.toLocaleString('fr-FR'), accent: r.surAlloue },
+        { k: 'Coût API pire cas', v: eurosFinance(r.net.apiCostEur), accent: false },
+        { k: 'Prix conseillé (crédits actuels)', v: eurosFinance(r.risque.recommendedPriceEur), accent: r.risque.recommendedPriceEur > r.prix },
+        { k: 'Pire cas de marge', v: `${r.risque.worstMarginPct}% · ${r.risque.worstAction}`, accent: false },
+      ],
+      conseil: r.surAlloue ? `Réduire à ~${r.creditsOptimaux.toLocaleString('fr-FR')} crédits (ou passer le prix à ${eurosFinance(r.risque.recommendedPriceEur)}) pour sécuriser la marge.` : null,
+    })),
+    reglages: 'Réglages via variables serveur : CREDIT_MARKUP (marge), CORPORATE_TAX_RATE (IS). Les allocations et prix des formules sont dans lib/rbac.ts (PLAN_CREDITS / PLAN_PRICE).',
+  };
+}
+
+/**
+ * « Revenus & MRR » · `/admin/finance`, écran EXCLUSIF (l'ancienne page est
+ * retirée, ses indicateurs vivent ici) · fondateur ET admin de l'espace, la
+ * même porte que l'ancienne page.
+ */
 export default async function RevenusSpatial() {
   await porteAdmin();
   const maintenant = new Date();
@@ -48,6 +93,7 @@ export default async function RevenusSpatial() {
         coutIa: adminEuros(r.coutIaPireCas, 2), frais: adminEuros(r.fraisPaiement, 2), marge: r.margePct, margeTexte: adminPourcent(r.margePct),
         churn: VALEUR_ABSENTE, ltv: VALEUR_ABSENTE,
       }))}
+      financeFormules={financeFormules(espaces.map((e) => e.forfait))}
     />
   );
 }

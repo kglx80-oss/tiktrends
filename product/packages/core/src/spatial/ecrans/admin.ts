@@ -17,7 +17,7 @@ import type { EcranSpatial } from '../types';
 export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/admin', section: 'admin', exclusif: true },
   { chemin: '/admin/churn', section: 'admin', exclusif: true },
-  { chemin: '/admin/finance', section: 'admin' },
+  { chemin: '/admin/finance', section: 'admin', exclusif: true },
   { chemin: '/admin/plans', section: 'admin', exclusif: true },
   { chemin: '/admin/signups', section: 'admin', exclusif: true },
   { chemin: '/admin/sav', section: 'admin', exclusif: true },
