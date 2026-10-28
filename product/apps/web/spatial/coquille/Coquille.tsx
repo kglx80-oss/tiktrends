@@ -280,7 +280,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
         )}
       </section>
 
-      <section className="notif glass" id="notif" tabIndex={-1} hidden={panneau !== 'notifs'} aria-label="Notifications">
+      <section className="notif glass" id="notif" tabIndex={-1} hidden={panneau !== 'notifs'} aria-label="Notifications" style={{ background: FOND_SURCOUCHE_OPAQUE }}>
         {panneau === 'notifs' && (
           <VueNotifications items={notifs.items} nonLues={notifs.nonLues} filtre={filtre} maintenant={maintenant}
             onFiltre={setFiltre} onToutLire={notifs.toutLire} onOuvrir={ouvrirNotif} onMarquer={notifs.marquer} />

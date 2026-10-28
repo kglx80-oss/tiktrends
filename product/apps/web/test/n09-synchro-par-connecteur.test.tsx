@@ -52,14 +52,21 @@ describe('N09 · l\'écriture de fraîcheur ne déborde pas d\'un connecteur sur
 });
 
 describe('N09 · les lecteurs Meta lisent la fraîcheur Meta, pas la valeur partagée', () => {
-  it('Analytics data ses KPI Meta avec metaSyncedAt', () => {
-    // Vague 2 Spatial v4 · la vue Analytics de l'Accueil Spatial.
-    const a = readFileSync(join(process.cwd(), 'app/(spatial)/sp/dashboard/analytics.ts'), 'utf8');
-    expect(a).toMatch(/syncedAt: schema\.brands\.metaSyncedAt/);
+  // Planche de banc v4 · l'Accueil, Analytics et le Radar passent par LA même lecture
+  // (`lib/connexion-meta.ts`) · elle date par les colonnes Meta, jamais `insightsSyncedAt`.
+  const lecture = readFileSync(join(process.cwd(), 'lib/connexion-meta.ts'), 'utf8');
+  it('la lecture partagée date par metaSyncedAt et adsmapSyncedAt, jamais la valeur partagée', () => {
+    expect(lecture).toMatch(/syncedAt: schema\.brands\.metaSyncedAt/);
+    expect(lecture).toMatch(/mesuresLe: schema\.brands\.adsmapSyncedAt/);
+    expect(lecture).not.toContain('insightsSyncedAt');
   });
-  it('Radar data ses créas Meta avec metaSyncedAt', () => {
-    // Vague 4 · le Radar est servi par Spatial (page V5 retirée).
-    const r = readFileSync(join(process.cwd(), 'app/(spatial)/sp/radar/page.tsx'), 'utf8');
-    expect(r).toMatch(/at: schema\.brands\.metaSyncedAt/);
+  it.each([
+    ['Analytics', 'app/(spatial)/sp/dashboard/analytics.ts'],
+    ['Radar', 'app/(spatial)/sp/radar/page.tsx'],
+    ['Accueil', 'app/(spatial)/sp/dashboard/chargement.ts'],
+  ])('%s passe par la lecture partagée', (_n, f) => {
+    const src = readFileSync(join(process.cwd(), f), 'utf8');
+    expect(src).toContain('lireConnexionMeta(');
+    expect(src).not.toMatch(/schema\.brands\.(metaSyncedAt|adsmapSyncedAt|insightsSyncedAt)/);
   });
 });

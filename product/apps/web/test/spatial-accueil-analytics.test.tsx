@@ -99,7 +99,7 @@ describe('Spatial · Analytics · parcours autorisés', () => {
       const h = await rendre({ vue: 'analytics' });
       expect(h).not.toContain('analytics-refusee');
       expect(h).toContain('data-vue="analytics"');
-      expect(h, 'sans base, l’encart de la phase « à brancher »').toContain('Branche Meta Ads pour tes vrais KPI');
+      expect(h, 'sans base, l’encart de la phase « à brancher »').toContain('Meta Ads non connecté');
       expect(etat.lectures, 'la vue autorisée ne lit plus ses données').toEqual(expect.arrayContaining(['marque active', 'db']));
       expect(h, 'l’Accueil se rend sous la vue Analytics').not.toContain('Bonjour');
     });
@@ -121,20 +121,21 @@ describe('Spatial · Analytics · l’encart Meta suit la phase réelle du conne
   it('non connecté · invite à connecter', async () => {
     etat.marque = { token: null, ads: null };
     const t = texte(await rendre({ vue: 'analytics' }));
-    expect(t).toContain('Branche Meta Ads pour tes vrais KPI');
-    expect(t).toContain('Connecter Meta Ads ›');
+    expect(t).toContain('Meta Ads non connecté');
+    expect(t).toContain('Connecter Meta Ads');
   });
   it('connecté sans données · invite à synchroniser, jamais à connecter', async () => {
     etat.marque = { token: 'jeton-factice', compte: 'act_1', ads: null, syncedAt: null };
     const t = texte(await rendre({ vue: 'analytics' }));
     expect(t, 'on invite à connecter un compte déjà connecté').not.toContain('Connecter Meta Ads');
     expect(t).toContain('première synchronisation en attente');
-    expect(t).toContain('Synchroniser Meta Ads ›');
+    expect(t).toContain('Synchroniser Meta Ads');
   });
   it('connecté, plusieurs comptes, aucun choisi · invite à choisir le compte', async () => {
     etat.marque = { token: 'jeton-factice', compte: null, comptes: [{ id: 'act_1' }, { id: 'act_2' }], ads: null };
     const t = texte(await rendre({ vue: 'analytics' }));
-    expect(t).toContain('choisis le compte pub');
+    expect(t).toContain('Meta Ads connecté · compte pub à choisir');
+    expect(t).toContain('Choisir le compte pub');
     expect(t).not.toContain('Connecter Meta Ads');
   });
   it('avec données · les KPI Meta lus (valeur, variation, top créas), pas d’encart · aucune démo', async () => {
@@ -145,9 +146,9 @@ describe('Spatial · Analytics · l’encart Meta suit la phase réelle du conne
     } };
     const h = await rendre({ vue: 'analytics' });
     const t = texte(h);
-    expect(t).not.toMatch(/Connecter Meta Ads|Synchroniser Meta Ads|choisis le compte pub|DÉMO|démonstration/);
+    expect(t).not.toMatch(/Connecter Meta Ads|Synchroniser Meta Ads|compte pub à choisir|en attente|DÉMO|démonstration/);
     expect(t).toContain('Key Metrics');
-    expect(t).toContain('Compte Neva · synchro 20 oct.');
+    expect(t).toMatch(/Meta Ads · synchronisé [^·]+ · 30 j vs 30 j précédents · Compte Neva · KPI du 20 oct\./);
     expect(t, 'la dépense et sa variation (+20 %)').toMatch(/Dépense 1 ?200 € \+20 %/);
     expect(t, 'un CPA qui baisse est une bonne nouvelle').toContain('CPA 20.00 € -20 %');
     expect(h, 'la baisse du CPA se colore en bien').toMatch(/<span class="d" style="color:var\(--good\)">-20 %<\/span>/);

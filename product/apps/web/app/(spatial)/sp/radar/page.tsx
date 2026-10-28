@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import type { InspoAd, MetaAdsInsights } from '@tiktrends/integrations';
-import { alertesSemaine, apercuImage, bibliothequePub, compterNouveautes, etatScanNouveautes, libelleBibliotheque, ligneRadarCreatif, nouveautesSemaine, pastilleMarque, resumeRadarCreatif, siteMarque } from '@tiktrends/core';
+import type { InspoAd } from '@tiktrends/integrations';
+import { alertesSemaine, apercuImage, bibliothequePub, compterNouveautes, etatConnexionMeta, etatScanNouveautes, libelleBibliotheque, ligneRadarCreatif, manqueRadarCreatif, nouveautesSemaine, pastilleMarque, resumeRadarCreatif, siteMarque } from '@tiktrends/core';
 import { buildLiveAnalysis } from '../../../../lib/analysis';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
+import { lireConnexionMeta } from '../../../../lib/connexion-meta';
 import { Radar, type MarqueRadar } from '../../../../spatial/vues/veille/Radar';
 import { pastilleRadar } from '../veille/acces';
 
@@ -77,13 +78,21 @@ export default async function RadarSpatial() {
     action: { href: parCle.get(a.cle)?.voir ?? '/veille?vue=suivies', libelle: 'Voir ses pubs' },
   }));
   // Radar créatif (vague 3) · les créas Meta RÉELLES de la marque active, notées comme l'ancien écran · jamais d'exemple.
+  // L'état de la connexion Meta · LA même lecture et LA même règle que l'Accueil et la vue
+  // Analytics (planche v4 · le Radar disait « Brancher Meta Ads » à un compte synchronisé).
   let creatif: { maj: string | null; resume: ReturnType<typeof resumeRadarCreatif>; lignes: ReturnType<typeof ligneRadarCreatif>[] } | null = null;
+  let connexionMeta: { libelle: string; manque: { texte: string; action: string } } | undefined;
   if (db && ouvert && brand) {
-    const [b] = await db.select({ ads: schema.brands.adsInsights, at: schema.brands.metaSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
-    const ins = (b?.ads ?? null) as MetaAdsInsights | null;
+    const lue = await lireConnexionMeta(brand.id, s.workspaceId);
+    if (lue) {
+      const etat = etatConnexionMeta(lue.entree, new Date());
+      connexionMeta = { libelle: etat.libelle, manque: manqueRadarCreatif(etat) };
+    }
+    const ins = lue?.insights ?? null;
     if (ins?.ads?.length) {
       const rows = buildLiveAnalysis(ins.ads);
-      creatif = { maj: b?.at ? new Date(b.at as Date).toLocaleDateString('fr-FR') : null, resume: resumeRadarCreatif(rows), lignes: rows.map(ligneRadarCreatif) };
+      const kpiLe = lue!.entree.kpiLe;
+      creatif = { maj: kpiLe ? new Date(kpiLe).toLocaleDateString('fr-FR') : null, resume: resumeRadarCreatif(rows), lignes: rows.map(ligneRadarCreatif) };
     }
   }
   const plan = PLAN_LABEL[feature.minPlan as Plan];
@@ -99,6 +108,7 @@ export default async function RadarSpatial() {
         explorer: !!process.env.TRENDTRACK_API_KEY,
       } : undefined}
       creatif={ouvert ? creatif : undefined}
+      connexionMeta={ouvert ? connexionMeta : undefined}
       marques={marques}
       inclus={`Inclus dans ton offre ${PLAN_LABEL[s.plan as Plan] ?? ''}`.trim()}
       verrou={ouvert ? null : {

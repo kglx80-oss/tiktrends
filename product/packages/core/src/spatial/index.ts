@@ -19,3 +19,4 @@ export * from './studios';
 export * from './accueil';
 export * from './routes-css';
 export * from './theme-clair';
+export * from './connexion-meta';

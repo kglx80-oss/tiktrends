@@ -19,8 +19,8 @@ describe('Spatial · Analytics · KPI Meta (calcul de l’ancienne vue)', () => 
   });
   it('valeurs, sens de la variation (un CPA qui baisse est bon), répartitions et top créas', () => {
     const m = metriquesMetaAnalytics({ accountName: 'Compte', currency: '€', window: KPI, previous: { ...KPI, spend: 1000, cpa: 25, cpm: 0 },
-      topAds: [{ name: 'A', spend: 400, roas: 1.5, cpa: 12 }], breakdowns: { platform: [{ key: 'instagram', spend: 800, roas: 2.4 }, { key: 'facebook', spend: 200, roas: 0 }], ageGender: [] } }, new Date(2026, 9, 20));
-    expect(m.sous).toBe('Meta Ads · 30 j vs 30 j précédents · Compte · synchro 20 oct.');
+      topAds: [{ name: 'A', spend: 400, roas: 1.5, cpa: 12 }], breakdowns: { platform: [{ key: 'instagram', spend: 800, roas: 2.4 }, { key: 'facebook', spend: 200, roas: 0 }], ageGender: [] } }, new Date(2026, 9, 20), 'Meta Ads · synchronisé hier');
+    expect(m.sous).toBe('Meta Ads · synchronisé hier · 30 j vs 30 j précédents · Compte · KPI du 20 oct.');
     expect(m.kpis.find((k) => k.libelle === 'Dépense')).toEqual({ libelle: 'Dépense', valeur: '1 200 €'.replace(' ', ' '), variation: '+20 %', ton: 'bon' });
     expect(m.kpis.find((k) => k.libelle === 'CPA')).toEqual({ libelle: 'CPA', valeur: '20.00 €', variation: '-20 %', ton: 'bon' });
     expect(m.kpis.find((k) => k.libelle === 'CPM')).toEqual({ libelle: 'CPM', valeur: '10.00 €', variation: null, ton: null });

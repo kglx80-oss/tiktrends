@@ -34,6 +34,12 @@ export interface PropsRadar {
   /** Vague 3 · « Vérifier maintenant », « Tout marquer vu » et l'exploration de la catégorie (ancien onglet Sauvegardes). */
   suivi?: { scan: { actif: boolean; raison: string | null }; nonVues: number; explorer: boolean };
   creatif?: { maj: string | null; resume: ReadonlyArray<{ libelle: string; classe: string; n: number }>; lignes: ReadonlyArray<LigneRadarCreatif> } | null;
+  /**
+   * L'état de la connexion Meta · LE libellé partagé avec l'Accueil et la vue
+   * Analytics (`etatConnexionMeta`), et ce qui manque au Radar créatif sans le
+   * contredire (`manqueRadarCreatif`). Absent (pas de marque active), le texte générique.
+   */
+  connexionMeta?: { libelle: string; manque: { texte: string; action: string } };
 }
 
 function Alertes({ alertes, ouvert }: { alertes: ReadonlyArray<AlerteRadar>; ouvert: boolean }) {
@@ -100,14 +106,15 @@ function Suivi({ marques, ouvert }: { marques: ReadonlyArray<MarqueRadar>; ouver
 export type LigneRadarCreatif = ReturnType<typeof ligneRadarCreatif>;
 
 /** Le Radar créatif · tes créas notées, la recommandation et le lien vers un projet. */
-function RadarCreatif({ c }: { c: NonNullable<PropsRadar['creatif']> | null }) {
+function RadarCreatif({ c, connexion }: { c: NonNullable<PropsRadar['creatif']> | null; connexion: PropsRadar['connexionMeta'] }) {
+  const etat = connexion?.libelle ?? 'Meta Ads';
   return (
-    <section className="sec" aria-label="Radar créatif">
-      <div className="sech"><h2>Radar créatif · tes créas notées</h2><span className="faint" style={{ fontSize: '12.5px' }}>{c ? `Meta Ads · 30 derniers jours${c.maj ? ` · maj ${c.maj}` : ''}` : 'Aucune créa synchronisée'}</span></div>
+    <section className="sec" aria-label="Radar créatif" data-section="radar-creatif">
+      <div className="sech"><h2>Radar créatif · tes créas notées</h2><span className="faint" style={{ fontSize: '12.5px' }}>{c ? `${etat} · 30 derniers jours${c.maj ? ` · créas relevées le ${c.maj}` : ''}` : connexion?.libelle ?? 'Aucune créa relevée'}</span></div>
       {!c ? (
         <div className="tile member">
-          <p className="muted" style={{ fontSize: '12.5px', flex: 1 }}>Chaque créa est notée Hook, Hold, CTR et Conv (A à D, comparées aux autres créas de ton compte), puis rangée en recommandation · scaler, pousser, itérer, rafraîchir, couper. Il faut tes vraies créas Meta Ads.</p>
-          <Lien className="btn sm pri" href="/connections" style={{ marginLeft: 'auto' }}>Brancher Meta Ads</Lien>
+          <p className="muted" style={{ fontSize: '12.5px', flex: 1 }}>Chaque créa est notée Hook, Hold, CTR et Conv (A à D, comparées aux autres créas de ton compte), puis rangée en recommandation · scaler, pousser, itérer, rafraîchir, couper. {connexion?.manque.texte ?? 'Il faut tes vraies créas Meta Ads.'}</p>
+          <Lien className="btn sm pri" href="/connections" style={{ marginLeft: 'auto' }}>{connexion?.manque.action ?? 'Ouvrir Connexions'}</Lien>
         </div>
       ) : (
         <>
@@ -155,7 +162,7 @@ export function Radar(p: PropsRadar) {
               <div className="grid2"><DecouverteCategorie /><GrammaireMarche /></div>
             </section>
           )}
-          {p.creatif !== undefined && <RadarCreatif c={p.creatif} />}
+          {p.creatif !== undefined && <RadarCreatif c={p.creatif} connexion={p.connexionMeta} />}
         </>
       ) : (
         <>
