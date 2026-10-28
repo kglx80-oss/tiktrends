@@ -18,7 +18,9 @@ describe('Spatial · bascule', () => {
 
   it('un chemin porté est réécrit vers l’arbre interne avec sa section, un chemin non porté jamais', () => {
     expect(ecranSpatial('/usage')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: true });
-    expect(ecranSpatial('/dashboard')).toMatchObject({ interne: '/sp/dashboard', section: 'accueil', exclusif: false });
+    // Vague 2 Spatial v4 · `/dashboard` est exclusif · `/onboarding` reste l'exemple d'un écran porté NON exclusif.
+    expect(ecranSpatial('/onboarding')).toMatchObject({ interne: '/sp/onboarding', section: 'accueil', exclusif: false });
+    expect(ecranSpatial('/dashboard')).toMatchObject({ interne: '/sp/dashboard', section: 'accueil', exclusif: true });
     expect(ecranSpatial('/usage/')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: true });
     expect(ecranSpatial('/usage/x')).toBeNull();
     // Un chemin qu'aucune rubrique ne porte (`/billing` l'est désormais, rubrique G).
