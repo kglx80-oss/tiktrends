@@ -7,10 +7,10 @@ import type { EcranSpatial } from '../types';
  * chantiers parallèles ne se disputent jamais la même ligne.
  */
 // `exclusif` · les pages V5 de la fiche et de la création sont retirées (vague 2) ·
-// les sous-écrans n'en ont jamais eu. La liste `/brands` est portée en vague 3.
+// les sous-écrans n'en ont jamais eu. La liste `/brands` est portée puis retirée en vague 3.
 export const ECRANS_MARQUE: readonly EcranSpatial[] = [
   // Vague 3 · la liste des marques (écran sans fragment de maquette).
-  { chemin: '/brands', section: 'marque' },
+  { chemin: '/brands', section: 'marque', exclusif: true },
   // `/brands/new` d'abord · le segment dynamique `[id]` l'avalerait sinon
   // (la création d'une marque ne doit pas tomber sur une fiche introuvable).
   { chemin: '/brands/new', section: 'marque', exclusif: true },

@@ -24,7 +24,8 @@ import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 const WEB = process.cwd();
 const PERIMETRE = [
   'components',
-  ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'brands', 'credits', 'profile', 'support']
+  // Vague 3 · `brands` (la liste V5) et `console` sont retirés · servis par Spatial.
+  ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'credits', 'profile', 'support']
     .map((d) => join('app', '(app)', d)),
   // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
   ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),

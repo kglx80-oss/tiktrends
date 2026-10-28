@@ -37,9 +37,7 @@ describe('cibles tactiles · jetons de bouton partagés à la cible', () => {
 describe('cibles tactiles · contrôles partagés et de contenu', () => {
   const cas: Array<{ f: string; ancre: string }> = [
     { f: 'components/Empty.tsx', ancre: "marginTop: 16, padding: '9px 18px'" },
-    { f: 'components/NewBrandButton.tsx', ancre: 'const base =' },
-    { f: 'app/(app)/brands/page.tsx', ancre: '>Voir détails<' },
-    { f: 'app/(app)/brands/page.tsx', ancre: '>Supprimer<' },
+    // Vague 3 · la liste V5 des marques (et son bouton de création) est retirée · Spatial exclusif.
   ];
   for (const { f, ancre } of cas) {
     it(`${f} · « ${ancre} » atteint la cible`, () => {

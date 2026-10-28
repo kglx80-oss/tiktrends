@@ -16,7 +16,8 @@ import { join } from 'node:path';
  * `ConfirmButton`, aucune n'a de `<button ...>Supprimer/Retirer` nu.
  */
 
-const BRANDS = readFileSync(join(process.cwd(), 'app/(app)/brands/page.tsx'), 'utf8');
+// Vague 3 · la liste des marques est servie par Spatial · la suppression passe par `SupprimerConfirme`.
+const BRANDS = readFileSync(join(process.cwd(), 'spatial/vues/marque/ListeMarques.tsx'), 'utf8') + readFileSync(join(process.cwd(), 'app/(spatial)/sp/brands/page.tsx'), 'utf8');
 // Vague 2 · la fiche est servie par Spatial · le retrait passe par `SupprimerConfirme` (window.confirm).
 const VUES = ['Personas.tsx', 'personas-client.tsx', 'Offre.tsx', 'Identite.tsx'].map((f) => readFileSync(join(process.cwd(), 'spatial/vues/marque', f), 'utf8')).join('\n');
 const PAGES = ['personas', 'offre', 'identite'].map((d) => readFileSync(join(process.cwd(), 'app/(spatial)/sp/brands/[id]', d, 'page.tsx'), 'utf8')).join('\n');
@@ -26,10 +27,10 @@ const ASSETS = readFileSync(join(process.cwd(), 'spatial/vues/bibliotheque/Bibli
 
 describe('les suppressions destructives sont confirmées', () => {
   it('la liste des marques confirme la suppression', () => {
-    expect(BRANDS).toMatch(/deleteBrandAction[\s\S]*?ConfirmButton/);
-    // Plus de bouton de soumission nu dans la form de suppression de marque.
-    expect(BRANDS, 'un bouton nu subsiste dans la suppression de marque')
-      .not.toMatch(/deleteBrandAction[\s\S]{0,220}?<button[^>]*>Supprimer/);
+    expect(BRANDS).toMatch(/<SupprimerConfirme action=\{p\.supprimer\}[\s\S]*?confirmation=/);
+    expect(BRANDS).toContain('supprimer={deleteBrandAction}');
+    // Aucun formulaire nu vers l'action de suppression.
+    expect(BRANDS, 'un formulaire nu subsiste dans la suppression de marque').not.toMatch(/<form[^>]*action=\{deleteBrandAction\}/);
   });
 
   it('marque, personas, scénarios et produits confirment leur suppression', () => {
