@@ -1,5 +1,7 @@
+import { LARGEUR_MIN_TABLE_TELEPHONE, styleTableDefilante } from '@tiktrends/core';
 import { Lien, Vue } from '../../communs';
 import { Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
+import { SectionLeviers, type LeviersFormule } from './leviers';
 
 /**
  * « Forfaits & offres » · `docs/spatial/reference/a-abos.html`. PRÉSENTATIONNEL.
@@ -9,6 +11,8 @@ import { Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
  * packs de crédits et leurs ventes, l'essai gratuit de l'inscription. Le
  * réglage des tarifs reste celui de la console (action existante, fondateur).
  * Sans source · l'offre annuelle, les codes promo, la création d'un forfait.
+ * Vague 3 · les leviers internes de l'ancien écran (formule, crédits,
+ * allocation de l'espace du fondateur) suivent, sur les actions existantes.
  */
 const COLONNES = '1.3fr .8fr .9fr .8fr .9fr 1fr auto';
 
@@ -19,6 +23,8 @@ export interface PropsForfaits {
   reglage: string | null;
   packs: ReadonlyArray<{ credits: string; prix: string; ventes: string; unitaire: string }>;
   essai: ReadonlyArray<{ libelle: string; valeur: string }>;
+  /** Les leviers internes du fondateur sur SON espace (vague 3) · absents sinon. */
+  leviers?: LeviersFormule | null;
 }
 
 export function Forfaits(p: PropsForfaits) {
@@ -27,7 +33,7 @@ export function Forfaits(p: PropsForfaits) {
       <TeteAdmin titre="Forfaits & offres" sous="forfaits" actif="/admin/plans" bandeau={p.bandeau} />
       <section className="tile">
         <div className="sech"><h2>Forfaits publiés</h2><span className="faint" style={{ marginLeft: 'auto', fontSize: '12.5px' }}>Les abonnés actuels gardent leur prix Stripe</span></div>
-        <div className="atable">
+        <div className="atable" data-table="forfaits" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.forfaits)}>
           <div className="atr ath" style={{ gridTemplateColumns: COLONNES }}><span>Forfait</span><span>Prix / mois</span><span>Crédits / mois</span><span>Espaces</span><span>Annuel</span><span>Vendable en ligne</span><span /></div>
           {p.forfaits.map((f) => (
             <div className="atr" key={f.cle} style={{ gridTemplateColumns: COLONNES }}>
@@ -59,6 +65,7 @@ export function Forfaits(p: PropsForfaits) {
           {p.essai.map((e) => <div className="atr" key={e.libelle} style={{ gridTemplateColumns: '1fr 1fr' }}><span className="faint">{e.libelle}</span><span><b>{e.valeur}</b></span></div>)}
         </div>
       </section>
+      {p.leviers && <SectionLeviers l={p.leviers} />}
     </Vue>
   );
 }

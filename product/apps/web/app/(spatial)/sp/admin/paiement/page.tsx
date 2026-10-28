@@ -35,6 +35,7 @@ export default async function PaiementsSpatial() {
   return (
     <Paiements
       bandeau={bandeau(espaces, tarifs)}
+      controle
       cartes={[
         {
           cle: 'stripe', nom: 'Stripe', sous: 'Abonnements et recharges de crédits', connecte: configure, etat: configure ? 'Connecté' : 'Non configuré',

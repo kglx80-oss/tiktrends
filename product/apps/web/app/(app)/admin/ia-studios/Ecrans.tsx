@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
-import { BoutonCommande, BoutonConfirme, BoutonRevoquer, EditeurBrouillon, FormulaireRelease, FormulaireBudgetBenchmark, FormulaireFichesBenchmark, BoutonBenchmarkApprouve, BoutonRecetteManuelle, type ChampEditable } from './Commandes';
+import { BoutonCommande, BoutonConfirme, BoutonRevoquer, EditeurBrouillon, FormulaireRelease, FormulaireBudgetBenchmark, FormulaireFichesBenchmark, BoutonBenchmarkApprouve, BoutonRecetteManuelle } from './Commandes';
+import type { VueCle, VueDetail, VueRelease, VueEvaluation, VueBenchmark, VueRun } from '../../../../lib/studios/prompts/vues-registre';
+export type { VueCle, VueDetail, VueRelease, VueEvaluation, VueBenchmark, VueRun, VueVersion } from '../../../../lib/studios/prompts/vues-registre';
 
 /**
  * Les onglets de « IA et Studios », rendus côté serveur à partir de données
@@ -49,15 +51,6 @@ function Texte({ children }: { children: string }) {
 
 /* ─────────────────────────────── Prompts ─────────────────────────────── */
 
-export interface VueVersion {
-  id: string; version: string; statut: string; empreinte: string; origine: string; motif: string; creeLe: string; valideeLe: string | null; horsSource: boolean;
-}
-export interface VueCle { type: string; libelleType: string; cle: string; titre: string; versions: VueVersion[] }
-export interface VueDetail {
-  cle: VueCle; version: VueVersion; champs: Array<{ champ: string; libelle: string; texte: string; contrat: boolean }>;
-  variables: string[]; schemas: { entree: string; sortie: string; profil: string } | null; exemples: string | null;
-  editables: ChampEditable[]; diff: { avec: VueVersion; champs: Array<{ libelle: string; lignes: Array<{ op: string; texte: string }> }> } | null;
-}
 
 export function EcranVersions({ onglet, cles, detail, peutEditer, plan, brouillonsImportes = 0 }: { onglet: string; cles: VueCle[]; detail: VueDetail | null; peutEditer: boolean; plan: { aCreer: number; deja: number } | null; brouillonsImportes?: number }) {
   return (
@@ -182,12 +175,6 @@ function DetailVersion({ onglet, d, peutEditer }: { onglet: string; d: VueDetail
 
 /* ─────────────────────────────── Releases ────────────────────────────── */
 
-export interface VueRelease {
-  id: string; statut: string; empreinte: string; packHash: string; creeLe: string; motif: string; pointee: boolean;
-  tests: boolean | null; benchmark: boolean; recetteManuelle: boolean; versions: number; conversation: string | null;
-  /** Motif de révocation · `null` si la release n'est pas révoquée. */
-  revocation: string | null;
-}
 
 export function EcranReleases({ releases, pointee, environnement, peutPublier, peutRevenir, peutEvaluer, peutCreer, selection }: {
   releases: VueRelease[]; pointee: string | null; environnement: 'production' | 'test'; peutPublier: boolean; peutRevenir: boolean; peutEvaluer: boolean; peutCreer: boolean;
@@ -252,7 +239,6 @@ export function EcranReleases({ releases, pointee, environnement, peutPublier, p
 
 /* ─────────────────────────────── Évaluations ─────────────────────────── */
 
-export interface VueEvaluation { id: string; cible: string; type: string; passe: boolean; creeLe: string; tests: Array<{ id: string; passe: boolean; detail: string }>; benchmark: Array<{ id: string; titre: string; motif: string }> }
 
 export function EcranEvaluations({ evaluations }: { evaluations: VueEvaluation[] }) {
   if (evaluations.length === 0) return <Vide titre="Aucune évaluation.">Lance « Évaluer » sur une release en attente (onglet Releases). L’évaluation est structurelle, sur données synthétiques, sans appel modèle ni dépense.</Vide>;
@@ -283,18 +269,6 @@ export function EcranEvaluations({ evaluations }: { evaluations: VueEvaluation[]
 
 /* ─────────────────────────── Benchmark F01-F24 ───────────────────────── */
 
-export interface VueBenchmark {
-  devis: {
-    chiffrable: boolean; total: number | null; totalLisible: string; partielLisible: string | null; nonChiffrables: string[]; empreinte: string | null; refus: string[];
-    /** R3 · « maximum » seulement si toutes les lignes sont des bornes ; sinon estimation, avec la raison. */
-    qualification: { maximum: boolean; libelle: string; raison: string | null };
-    cas: Array<{ cas: string; appels: number; medias: number; totalLisible: string; chiffrable: boolean; motif: string | null }>;
-  };
-  releases: Array<{ id: string; statut: string; empreinte: string; revoquee: boolean; benchmarkApprouve: boolean }>;
-  approbations: Array<{ id: string; release: string; budgetLisible: string; devisLisible: string; le: string; expireLe: string; consommee: boolean; par: string }>;
-  campagnes: Array<{ id: string; releaseId: string; release: string; mode: 'reel' | 'simule'; banniere: string; passe: boolean; verdict: string; invariants: string; refus: string[]; depenseLisible: string; le: string; empreinteRapport: string }>;
-  fiches: Array<{ id: string; releaseId: string; release: string; passe: boolean; verdict: string; refus: string[]; le: string; fiches: number }>;
-}
 
 /**
  * Benchmark F01-F24 · devis (par cas et total), approbation de budget,
@@ -434,16 +408,6 @@ export function EcranRoutage({ lignes }: { lignes: Array<{ profil: string; fourn
 
 /* ─────────────────────────────── Exécutions ──────────────────────────── */
 
-export interface VueRun {
-  id: string; quand: string; templateKey: string; statut: string; modele: string; releaseId: string | null; releaseHash: string; version: string;
-  compiledHash: string; contextSnapshotHash: string; outputHash: string | null; latenceMs: number | null; coutUsd: number | null;
-  sources: Array<{ type: string; titre: string; version: string }>; couches: Array<{ couche: string; empreinte: string }>; constats: string[];
-  espace: string; marque: string; traceId: string | null; budget: string | null;
-  /** Exécution d'évaluation (release staged dans une campagne de benchmark) · `null` sinon. */
-  evaluation: { mode: string; approbationId: string; releaseStatut: string } | null;
-  /** Pièces natives réellement envoyées (vision) · identifiants et empreintes, jamais les octets. */
-  pieces: Array<{ bindingId: string; assetId: string; assetVersion: string; sha256: string; nativeAttachmentIndex: number; mime: string; octets: number | null; largeur: number | null; hauteur: number | null; jetonsMax: number | null }>;
-}
 
 export function EcranExecutions({ runs, detail }: { runs: VueRun[]; detail: VueRun | null }) {
   if (runs.length === 0) return <Vide titre="Aucune exécution tracée.">Chaque conversation Jarvis et chaque tâche studio résolue par le registre laisse ici une trace expurgée (empreintes, sources, modèle, coût).</Vide>;

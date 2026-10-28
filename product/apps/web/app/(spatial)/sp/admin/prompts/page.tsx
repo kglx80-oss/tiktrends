@@ -18,9 +18,9 @@ const FAMILLES: ReadonlyArray<{ cle: FamillePrompt; libelle: string; colonne: st
   { cle: 'skills', libelle: 'Templates', colonne: 'Template' },
 ];
 
-/** L'éditeur du registre (V5) · onglet et clé tels que l'écran « IA et Studios » les lit. Lien plein. */
+/** L'éditeur du registre (Spatial, « Registre IA ») · onglet et clé tels qu'il les lit. */
 const editeur = (e: EntreeBibliotheque) =>
-  `/admin/ia-studios?ui=v5&onglet=${e.type === 'recette' ? 'recettes' : 'prompts'}&cle=${encodeURIComponent(`${e.type}:${e.cle}`)}`;
+  `/admin/prompts/registre?onglet=${e.type === 'recette' ? 'recettes' : 'prompts'}&cle=${encodeURIComponent(`${e.type}:${e.cle}`)}`;
 
 /**
  * « Bibliothèque IA » · NOUVELLE adresse · la bibliothèque de prompts ADMIN
