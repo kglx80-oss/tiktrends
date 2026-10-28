@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { ATTRIBUT_ROLE_CADRE } from '@tiktrends/core';
 
@@ -89,7 +89,8 @@ const fichiers: string[] = [];
       else if (/\.tsx?$/.test(n)) fichiers.push(p.split(sep).join('/'));
     }
   }
-})(PERIMETRE);
+// Une page V5 retirée (écran devenu exclusif Spatial) sort du périmètre d'elle-même.
+})(PERIMETRE.filter((d) => existsSync(join(WEB, d))));
 const dansLeLot = (f: string) => !Object.keys(HORS_LOT).some((h) => f === h || f.startsWith(h + '/'));
 
 // Fin d'un objet de style · `}}`, `};`, `} as const;`, `}),`…
@@ -162,12 +163,12 @@ function cadresHorsRole(f: string): string[] {
 describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   const lot = fichiers.filter(dansLeLot);
   it('on parcourt bien le périmètre du lot', () => {
-    // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · plancher 120.
-    expect(lot.length).toBeGreaterThan(120);
+    // Mesuré : 108 fichiers le 28/10 (ancien Accueil, Mon profil et Tagging retirés), 106 avec Finance et
+    // Inscriptions retirées aussi · le périmètre fond à chaque retrait V5 · plancher 80.
+    expect(lot.length).toBeGreaterThan(80);
     expect(lot).toContain('components/ui.tsx');
-    expect(lot).toContain('app/(app)/admin/finance/page.tsx');
-    // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.
-    for (const f of ['components/JourneyPanel.tsx', 'components/HomeBandeau.tsx', 'components/accueil/VueAnalytics.tsx', 'app/(app)/analytics/MetaKeyMetrics.tsx', 'app/(app)/dashboard/page.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
+    // Vague 2 Spatial v4 · l'ancien Accueil, sa vue Analytics et les pages V5 de l'Admin sont retirés (Spatial exclusif) · reste le panneau de parcours partagé.
+    for (const f of ['components/JourneyPanel.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
   });
   it('aucun cadre hors de son rôle (--line-2 sur un cadre, rayon 13–24 hors 20)', () => {
     const fautes = lot.flatMap(cadresHorsRole);

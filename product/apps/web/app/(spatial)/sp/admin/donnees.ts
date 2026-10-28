@@ -161,3 +161,28 @@ export async function chargerRecharges(maintenant: Date): Promise<Array<{ ws: st
 }
 
 
+
+/**
+ * Les déclarations d'onboarding des espaces les plus récents · la MÊME lecture
+ * que l'ancienne page `/admin/signups` (60 derniers espaces, colonne
+ * `onboarding`, et l'e-mail du premier membre trouvé pour chaque espace).
+ */
+export async function chargerDeclarations(limite: number): Promise<Array<{
+  id: string; nom: string; forfait: string; onboarding: unknown; creeLe: Date; onboardeLe: Date | null; proprietaire: string | null;
+}>> {
+  if (!db) return [];
+  const W = schema.workspaces;
+  const rows = await db.select({ id: W.id, nom: W.name, forfait: W.plan, onboarding: W.onboarding, onboardeLe: W.onboardedAt, creeLe: W.createdAt })
+    .from(W).orderBy(desc(W.createdAt)).limit(limite);
+  const ids = rows.map((r) => r.id);
+  const membres = ids.length ? await db.select({ ws: schema.workspaceMembers.workspaceId, email: schema.users.email })
+    .from(schema.workspaceMembers)
+    .leftJoin(schema.users, eq(schema.workspaceMembers.userId, schema.users.id))
+    .where(inArray(schema.workspaceMembers.workspaceId, ids)) : [];
+  const parEspace = new Map<string, string>();
+  for (const m of membres) if (m.ws && m.email && !parEspace.has(m.ws)) parEspace.set(m.ws, m.email);
+  return rows.map((r) => ({
+    id: r.id, nom: r.nom, forfait: r.forfait, onboarding: r.onboarding,
+    creeLe: r.creeLe as Date, onboardeLe: date(r.onboardeLe), proprietaire: parEspace.get(r.id) ?? null,
+  }));
+}

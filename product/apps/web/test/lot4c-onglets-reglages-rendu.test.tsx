@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ONGLETS_REGLAGES, PAGES_ADMINISTRATION } from '@tiktrends/core';
+import { ECRANS_SPATIAUX, ONGLETS_REGLAGES, PAGES_ADMINISTRATION } from '@tiktrends/core';
 import { OngletsReglages, OngletsAdministration } from '../components/OngletsReglages';
 
 /**
@@ -46,6 +46,8 @@ const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/bill
   // Vague 3 · Admin · l'accueil des coulisses, les gestes et les outils de la plateforme ne sont plus servis que par Spatial.
   '/admin', '/admin/equipe', '/admin/plans', '/admin/paiement', '/admin/incidents', '/admin/depenses', '/admin/intelligence',
   '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console',
+  // Vague 2 Spatial v4 · Finance et Inscriptions sont rendues par leur page Spatial (même porte que l'ancienne page).
+  '/admin/finance', '/admin/signups',
   // Vague 4 · « Crédits & marges ».
   '/credits']);
 const sp = { searchParams: Promise.resolve({}) };
@@ -60,8 +62,8 @@ const PAGES: Record<string, Rendu> = {
   '/billing': async () => (await import('../app/(spatial)/sp/billing/page')).default(),
   '/profile': async () => (await import('../app/(spatial)/sp/profile/page')).default(),
   '/admin': async () => (await import('../app/(spatial)/sp/admin/page')).default(),
-  '/admin/finance': async () => (await import('../app/(app)/admin/finance/page')).default(),
-  '/admin/signups': async () => (await import('../app/(app)/admin/signups/page')).default(),
+  '/admin/finance': async () => (await import('../app/(spatial)/sp/admin/finance/page')).default(),
+  '/admin/signups': async () => (await import('../app/(spatial)/sp/admin/signups/page')).default(),
   '/admin/equipe': async () => (await import('../app/(spatial)/sp/admin/equipe/page')).default(sp),
   '/admin/plans': async () => (await import('../app/(spatial)/sp/admin/plans/page')).default(sp),
   '/admin/paiement': async () => (await import('../app/(spatial)/sp/admin/paiement/page')).default(),
@@ -190,13 +192,10 @@ describe('lot 4c · entrée de l’Administration', () => {
     }
   });
 
-  it('fondateur sans compte admissible (SEC-10) · ni le registre ni les interrupteurs proposés', async () => {
+  it('fondateur sans compte admissible (SEC-10) · ni les modèles IA ni les interrupteurs ne s’ouvrent', async () => {
     etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false } });
-    const { html } = await rendre('/admin/finance');
-    const o = onglets(html!, 'administration').map((x) => x.href);
-    expect(o).toContain('/admin/connaissances');
-    expect(o).not.toContain('/admin/ia-studios');
-    expect(o).not.toContain('/admin/studios-interrupteurs');
+    // Vague 4 · plus aucune page V5 ne porte la barre d'Administration (toutes servies par
+    // Spatial) · la protection reste le refus des pages elles-mêmes, gardé ici.
     expect((await rendre('/admin/ia-studios')).ouvre, 'la page refuse bien ce compte').toBe(false);
     expect((await rendre('/admin/studios-interrupteurs')).ouvre, 'la page refuse bien ce compte').toBe(false);
   });
@@ -205,11 +204,11 @@ describe('lot 4c · entrée de l’Administration', () => {
 describe('lot 4c · chaque page porte SA barre, sur SON chemin', () => {
   it('toute sous-page de `/admin` présente sur le disque a son onglet (aucune oubliée)', () => {
     const dossier = join(process.cwd(), 'app', '(app)', 'admin');
-    const surDisque = readdirSync(dossier, { withFileTypes: true })
+    const surDisque = !existsSync(dossier) ? [] : readdirSync(dossier, { withFileTypes: true })
       .filter((d) => d.isDirectory() && existsSync(join(dossier, d.name, 'page.tsx')))
       .map((d) => `/admin/${d.name}`);
-    // Vague 3 · seules Finance et Inscriptions gardent une page V5 (gestes sans équivalent Spatial complet).
-    expect(surDisque.sort()).toEqual(['/admin/finance', '/admin/signups']);
+    // Une page V5 d'Administration ne reste sur le disque que pour un écran Spatial NON exclusif (vague 2 Spatial v4 · dérivé de la déclaration).
+    expect(surDisque.sort()).toEqual(ECRANS_SPATIAUX.filter((e) => !e.exclusif && e.chemin.startsWith('/admin/')).map((e) => e.chemin).sort());
     for (const c of surDisque) expect(ADMINISTRATION, `${c} · page d’Administration sans onglet`).toContain(c);
     for (const c of surDisque) expect(Object.keys(PAGES), `${c} · non rendue par ce test`).toContain(c);
   });
