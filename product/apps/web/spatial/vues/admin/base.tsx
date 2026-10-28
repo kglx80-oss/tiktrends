@@ -9,7 +9,22 @@ import { SOUS_NAV_ADMIN_COMPLETE } from './sous-nav';
  */
 
 /** Le bandeau `.astrip` · chiffres RÉELS lus par la page. */
-export interface BandeauAdmin { payants: number; actualise: string }
+export interface BandeauAdmin {
+  payants: number;
+  actualise: string;
+  /**
+   * Les entrées de la sous-navigation que la session ouvre (SEC-10 ·
+   * `entreesAdminOuvertes`, lu par la page). Absent · aucune session lue
+   * (aperçu, test de vue) · la liste complète.
+   */
+  nav?: readonly string[];
+}
+
+/** La sous-navigation filtrée sur ce que la session ouvre · l'écran courant reste toujours visible. */
+export function sousNavVisible<T extends { href: string }>(items: readonly T[], bandeau: BandeauAdmin, actif?: string): T[] {
+  const nav = bandeau.nav;
+  return nav ? items.filter((i) => i.href === actif || nav.includes(i.href)) : [...items];
+}
 
 export const texteBandeau = (b: BandeauAdmin) =>
   `Données de toute la plateforme · ${b.payants.toLocaleString('fr-FR')} compte${b.payants > 1 ? 's' : ''} payant${b.payants > 1 ? 's' : ''} · actualisé ${b.actualise}`;
@@ -20,7 +35,7 @@ export function TeteAdmin({ titre, sous, actif, bandeau }: { titre: string; sous
     <>
       <EnTete titre={titre} sous={`Tour de contrôle · ${sous}`} />
       <div className="astrip"><Ic n="shield" /><b>Admin+</b><span>{texteBandeau(bandeau)}</span><Lien href="/dashboard" className="astrip-b"><Ic n="back" />Retour à l’outil</Lien></div>
-      <SousNav items={SOUS_NAV_ADMIN_COMPLETE} actif={actif} />
+      <SousNav items={sousNavVisible(SOUS_NAV_ADMIN_COMPLETE, bandeau, actif)} actif={actif} />
     </>
   );
 }

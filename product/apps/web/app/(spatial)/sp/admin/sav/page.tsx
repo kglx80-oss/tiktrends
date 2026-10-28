@@ -4,7 +4,7 @@ import {
   pastilleEtatTicket, signauxRisque, ticketsDeLOnglet,
 } from '@tiktrends/core';
 import { Sav } from '../../../../../spatial/vues/admin/Sav';
-import { bandeau, chargerEspaces, chargerTarifs, chargerTickets, porteAdmin } from '../donnees';
+import { bandeau, chargerEspaces, chargerTarifs, chargerTickets, porteAdmin, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +47,7 @@ export default async function SavSpatial() {
 
   return (
     <Sav
-      bandeau={bandeau(espaces, tarifs)}
+      bandeau={bandeau(espaces, tarifs, await navAdmin())}
       kpis={[
         { lbl: 'Ouverts', v: adminNombre(ind.ouverts), d: ind.sansReponse ? `${adminNombre(ind.sansReponse)} sans réponse` : 'Tous ont une réponse', c: ind.sansReponse ? 'dn' : 'up' },
         { lbl: '1re réponse', v: adminDuree(ind.premiereReponseMin), d: `médiane · ${adminPluriel(ind.reponsesMesurees, 'ticket')} · 30 j` },
