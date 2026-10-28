@@ -86,21 +86,16 @@ describe('Usage et Crédits · chiffres et motifs', () => {
 
 describe('Support · promesses tenues, fil accessible', () => {
   it('plus aucune promesse d’une équipe qui ne reçoit pas les tickets', () => {
-    for (const p of ['app/(app)/support/page.tsx', 'components/SupportWidget.tsx']) {
+    // Vague 4 · l'écran `/support` est servi par Spatial · sa promesse (et la
+    // portée du ticket) est gardée sur le rendu (`spatial-support.test.tsx`).
+    for (const p of ['components/SupportWidget.tsx']) {
       const s = src(p);
       expect(s, `${p} · promesse non tenue`).not.toMatch(/On te répond|on te répond vite|on répond vite|Notre équipe te répond/);
     }
-    expect(src('app/(app)/support/page.tsx')).toContain('il n\'est pas transmis automatiquement à l\'équipe TikTrends');
     // Lot 11 · Réglages promettait « un service à activer se demande à notre équipe, depuis le support ».
     expect(src('spatial/vues/reglages/Espace.tsx'), 'Réglages · promesse non tenue').not.toMatch(/se demande à notre équipe/);
     expect(src('spatial/vues/reglages/Espace.tsx')).toContain('(seuls ses admins le lisent)');
   });
-  it('ticket · retour à la liste, réponse nommée, statuts annoncés, « rouvrir » fidèle', () => {
-    const s = src('app/(app)/support/[id]/page.tsx');
-    expect(s).toContain('href="/support"');
-    expect(s).toContain("aria-label={isAdmin ? 'Ta réponse dans le fil' : 'Ton message dans le fil'}");
-    expect(s).toContain('aria-pressed={tk.status === v}');
-    expect(s, '« Envoyer la réponse » mesuré à 40 px en 390').toMatch(/minHeight: CIBLE_TACTILE_MIN, padding: '10px 18px'[^>]*>Envoyer la réponse/);
-    expect(s, 'promet une réouverture que le serveur ne fait pas').not.toContain('Réponds ci-dessous pour le rouvrir');
-  });
+  // Le fil d'un ticket (retour à la liste, réponse nommée, statuts annoncés,
+  // « rouvrir » fidèle) · porté sur le rendu Spatial (`spatial-support.test.tsx`).
 });

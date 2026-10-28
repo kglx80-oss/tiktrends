@@ -55,3 +55,14 @@ export function estRejeuEcriture(e: EntreeRejeu): boolean {
     && e.courante.authorId === e.auteurId
     && e.courante.contentHash === e.empreinteAttendue;
 }
+
+/**
+ * Gestes de l'atelier vidéo que « Réessayer » peut rejouer sans rien dépenser :
+ * enregistrer un changement de montage (relance sûre, `estRejeuEcriture`),
+ * retenir une consigne, demander un devis (gratuit). Un appel texte payant
+ * (storyboard, consigne) ne se rejoue jamais par ce bouton · son prix est
+ * annoncé à côté de son propre bouton. « Lancer » garde sa clé de clic.
+ */
+export function gesteVideoReessayable(nom: string): boolean {
+  return nom === 'confirmer' || nom.startsWith('retenir:') || nom.startsWith('devis:') || nom.startsWith('devis-clip:');
+}

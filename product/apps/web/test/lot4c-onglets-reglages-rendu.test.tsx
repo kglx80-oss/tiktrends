@@ -42,7 +42,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 
 type Rendu = () => Promise<unknown>;
-const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/billing',
+const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/billing', '/profile',
   // Vague 3 · Admin · l'accueil des coulisses, les gestes et les outils de la plateforme ne sont plus servis que par Spatial.
   '/admin', '/admin/equipe', '/admin/plans', '/admin/paiement', '/admin/incidents', '/admin/depenses', '/admin/intelligence',
   '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console',
@@ -50,7 +50,7 @@ const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/bill
   '/credits']);
 const sp = { searchParams: Promise.resolve({}) };
 const PAGES: Record<string, Rendu> = {
-  // Vague 2 · ces cinq écrans n'ont plus de page V5 · seul Spatial les sert
+  // Vague 2 (et vague 4 · `/profile`) · ces écrans n'ont plus de page V5 · seul Spatial les sert
   // (déclarés exclusifs). Leur GARDE est lue ici sur la page Spatial ; ils ne
   // portent pas la barre d'onglets V5 (la sous-navigation Spatial la remplace).
   '/settings': async () => (await import('../app/(spatial)/sp/settings/page')).default(),
@@ -58,7 +58,7 @@ const PAGES: Record<string, Rendu> = {
   '/connections': async () => (await import('../app/(spatial)/sp/connections/page')).default(),
   '/usage': async () => (await import('../app/(spatial)/sp/usage/page')).default(),
   '/billing': async () => (await import('../app/(spatial)/sp/billing/page')).default(),
-  '/profile': async () => (await import('../app/(app)/profile/page')).default(sp),
+  '/profile': async () => (await import('../app/(spatial)/sp/profile/page')).default(),
   '/admin': async () => (await import('../app/(spatial)/sp/admin/page')).default(),
   '/admin/finance': async () => (await import('../app/(app)/admin/finance/page')).default(),
   '/admin/signups': async () => (await import('../app/(app)/admin/signups/page')).default(),

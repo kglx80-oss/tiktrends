@@ -77,6 +77,7 @@ classes existantes de `spatial.css` (tuiles, `seg subnav`, `.field`, `.chip`…)
 | Identités et voix | `/studio/projets/[id]/identites` | D2 · Studios |
 | Exporter l’image | `/studio/projets/[id]/export` | D2 · Studios |
 | Nouveau concept créatif | `/studio/projets/nouveau/concept` | D1 · Studios |
+| Support de l’espace (ouvrir un ticket, liste, fil, réponse, statut) · vague 4, pages V5 retirées | `/support`, `/support/[id]` | G · Réglages |
 
 ## Écrans hors maquette (vague 3 · Admin)
 
@@ -92,3 +93,13 @@ entrées de la maquette dans la sous-navigation (`OUTILS_ADMIN`).
 | Interrupteurs Studios et budget d'essai | `/admin/studios-interrupteurs` | H · Admin |
 | Crédits & marges (barème, coût réel × markup, marge nette après IS, pire cas, historique de l’espace) · vague 4, page V5 retirée | `/credits` | H · Admin |
 | Console (déploiement, tarifs, comptes de test) | `/console` | H · Admin |
+
+## Écrans hors maquette (vague 4 · comptes)
+
+Écrans de l'ancienne interface sans déclaration Spatial, portés puis déclarés
+exclusifs (page V5 retirée).
+
+| Geste V5 | Adresse | Rubrique |
+| --- | --- | --- |
+| Mon profil (photo, nom, confidentialité, mot de passe, espace et accès) | `/profile` | G · Réglages |
+| Tagging (échantillon de démonstration non repris · état vide honnête) | `/tags` | G · Réglages (accent Veille) |
