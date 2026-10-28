@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, lienVeille, pucesVeille, verrouAction, videoLisible, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille } from '@tiktrends/core';
+import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, estAncreCarteVeille, lienVeille, pucesVeille, verrouAction, videoLisible, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
 import { useSpatial } from '../../coquille/contexte';
@@ -74,6 +74,27 @@ export function BoutonSuivi({ plateforme, nom, ad, initial, classe = 'btn sm' }:
       <Ic n="eye" />{b.etat ? 'Suivi' : 'Suivre'}
     </button>
   );
+}
+
+/* ───────────────────────── retour sur la carte d'origine ───────────────────────── */
+
+/**
+ * Revenir à SA carte (ex `DefileAncreVeille`, lot 18B) · l'adresse de retour
+ * porte l'ancre de la carte (`#ad-<plateforme>-<id>`), mais le défilement natif
+ * ne tenait pas (mesuré · la carte hors de l'écran). Au montage, la carte est
+ * centrée et reçoit le focus · au clavier, la tabulation repart d'elle.
+ */
+export function DefileAncre() {
+  useEffect(() => {
+    const h = window.location.hash.slice(1);
+    if (!estAncreCarteVeille(h)) return;
+    const carte = document.getElementById(h);
+    if (!carte) return;
+    carte.scrollIntoView({ block: 'center' });
+    if (!carte.hasAttribute('tabindex')) carte.setAttribute('tabindex', '-1');
+    carte.focus({ preventScroll: true });
+  }, []);
+  return null;
 }
 
 /* ───────────────────────── la carte et son détail ───────────────────────── */
@@ -209,6 +230,13 @@ export function BarreVeille({ criteres, plateforme, vue, tri, cpm, stat }: Props
     document.addEventListener('click', dehors);
     return () => document.removeEventListener('click', dehors);
   }, [dd]);
+  // Échap referme d'abord la liste ouverte, puis le panneau des filtres (comme l'ancien « Filtres » de la Veille).
+  useEffect(() => {
+    if (!dd && !montrer) return;
+    const echap = (e: KeyboardEvent) => { if (e.key !== 'Escape') return; if (dd) setDd(null); else setMontrer(false); };
+    document.addEventListener('keydown', echap);
+    return () => document.removeEventListener('keydown', echap);
+  }, [dd, montrer]);
   const puces = pucesVeille(criteres);
   const triMeta = plateforme === 'meta';
   const triActif = tri;

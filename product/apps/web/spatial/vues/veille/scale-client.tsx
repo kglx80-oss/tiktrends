@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
 import {
-  TRIS_OUTIL_SCALE, criteresOutilsScale, ecrireOutilsScale, filtrerOutilsScale, videoLisible,
+  TRIS_OUTIL_SCALE, criteresOutilsScale, ecrireOutilsScale, filtrerOutilsScale, lireOutilsScale, videoLisible,
   type DonneesOutilScale, type FiltresOutilScale, type TriOutilScale, type TypeOutilScale,
 } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
@@ -40,15 +40,35 @@ export function ScaleInteractif({ lignes, initial, annonceurs, angles }: {
     const suite = ecrireOutilsScale(window.location.search, f);
     window.history.replaceState(null, '', `${window.location.pathname}${suite}${window.location.hash}`);
   }, [f]);
+  // Revenu par le Retour, le routeur peut restaurer la page telle que le serveur l'a rendue (sans
+  // critères) alors que l'adresse les porte · on relit l'adresse au montage (comme l'ancien swipe file).
+  useEffect(() => {
+    const lu = lireOutilsScale(Object.fromEntries(new URLSearchParams(window.location.search)), { annonceurs, angles: angles.map((a) => a.cle) });
+    setF((x) => (JSON.stringify(x) === JSON.stringify(lu) ? x : lu));
+    // Au montage seulement · ensuite l'état fait foi et l'adresse le suit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const visibles = useMemo(() => filtrerOutilsScale(lignes, f), [lignes, f]);
   const criteres = criteresOutilsScale(f);
   const maj = (p: Partial<FiltresOutilScale>) => setF((x) => ({ ...x, ...p }));
-  const tout = () => setF((x) => ({ ...x, type: 'all', annonceur: 'all', angle: 'all', texte: '' }));
+  const champ = useRef<HTMLInputElement>(null);
+  // Réinitialiser vide les critères PUIS rend le focus au champ (le bouton disparaît avec eux).
+  const tout = () => { setF((x) => ({ ...x, type: 'all', annonceur: 'all', angle: 'all', texte: '' })); champ.current?.focus(); };
+  // « / » met le focus sur la recherche · jamais quand un champ a déjà le focus (on ne vole pas la frappe).
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      const c = e.target as HTMLElement | null;
+      if (c && (['INPUT', 'TEXTAREA', 'SELECT'].includes(c.tagName) || c.isContentEditable)) return;
+      if (e.key === '/') { e.preventDefault(); champ.current?.focus(); }
+    };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, []);
   return (
     <>
       <div className="tile" style={{ display: 'grid', gap: 10, marginBottom: 14 }} aria-label="Filtrer et trier">
         <div className="fields" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
-          <label className="field">Chercher dans le texte<input value={f.texte} maxLength={200} onChange={(e) => maj({ texte: e.target.value })} placeholder="Un mot du texte ou un annonceur" /></label>
+          <label className="field">Chercher dans le texte<input ref={champ} value={f.texte} maxLength={200} onChange={(e) => maj({ texte: e.target.value })} placeholder="Un mot du texte ou un annonceur" /></label>
           <label className="field">Annonceur<select value={f.annonceur} onChange={(e) => maj({ annonceur: e.target.value })}><option value="all">Tous les annonceurs</option>{annonceurs.map((a) => <option key={a} value={a}>{a}</option>)}</select></label>
           <label className="field">Angle<select value={f.angle} onChange={(e) => maj({ angle: e.target.value })}><option value="all">Tous les angles</option>{angles.map((a) => <option key={a.cle} value={a.cle}>{a.libelle}</option>)}</select></label>
           <label className="field">Trier par<select value={f.tri} onChange={(e) => maj({ tri: e.target.value as TriOutilScale })}>{TRIS_OUTIL_SCALE.map((t) => <option key={t.cle} value={t.cle}>{t.libelle}</option>)}</select></label>

@@ -49,6 +49,15 @@ describe('Pubs du moment (Spatial) · `?refresh=1`', () => {
   });
 });
 
+describe('Pubs du moment (Spatial) · l’échantillon hors catégorie est dit (ex N03, Veille V5)', () => {
+  it('sans catégorie de marque · « hors catégorie » et l’invitation à la préciser · une recherche ne le dit pas', async () => {
+    const defaut = (await VeillePage({ searchParams: Promise.resolve({}) })) as ReactElement<{ sous: string }>;
+    expect(defaut.props.sous).toMatch(/^Pistes installées de ta catégorie · « [^»]+ » · hors catégorie, précise la catégorie de ta marque pour cibler · /);
+    const cherche = (await VeillePage({ searchParams: Promise.resolve({ q: 'serum' }) })) as ReactElement<{ sous: string }>;
+    expect(cherche.props.sous).not.toContain('hors catégorie');
+  });
+});
+
 describe('Ce qui scale (Spatial) · l’analyse d’une marque', () => {
   type Outils = { outils: { marque: { terme: string; href: string } | null } };
   it('un domaine tapé · la vue reçoit le lien vers toutes ses pubs · une niche · rien', async () => {

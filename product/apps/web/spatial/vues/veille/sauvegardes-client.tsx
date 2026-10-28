@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from 'react';
 import {
   COLLECTION_TOUTES, FILTRES_SAUVEGARDES, FORMAT_INCERTAIN, FORMAT_NON_CLASSE, FORMAT_TOUS, TRIS_FORMATS, collectionsSauvegardes, filtrerSauvegardes, formatFiltrable, provenanceSauvegarde, trierSauvegardes,
   type FiltresSauvegardes, type TriFormats, dansCollection, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, verrouAction, videoLisible,
@@ -137,6 +137,14 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: Sa
   const [attente, demarrer] = useTransition();
   const verrou = useRef(verrouAction());
   const { toast } = useSpatial();
+  const gardee = useRef<HTMLButtonElement>(null);
+  // Échap referme le menu et rend le focus au bouton « Gardée » (ex sélecteur de board V5).
+  useEffect(() => {
+    if (!menu) return;
+    const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMenu(false); gardee.current?.focus(); } };
+    document.addEventListener('keydown', echap);
+    return () => document.removeEventListener('keydown', echap);
+  }, [menu]);
   const agir = (faire: () => Promise<{ ok: boolean; error?: string }>, ok: () => void, message: string) => {
     if (!verrou.current.tenter()) return;
     setMenu(false);
@@ -161,7 +169,7 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: Sa
       <div className="row">{i.pastilles.map((p) => <span key={p.libelle} className={`pill ${p.classe}`.trim()}>{p.libelle}</span>)}</div>
       {gestes && i.sauvegardeLe !== undefined && <small className="faint" data-provenance style={{ fontSize: 11, overflowWrap: 'anywhere' }}>{provenanceSauvegarde({ platform: i.platform, sauvegardeLe: i.sauvegardeLe, classeeLe: i.classeeLe ?? null, auteur: i.auteur ?? null })}</small>}
       <div className="acts">
-        <button className="btn sm" type="button" aria-pressed="true" aria-expanded={menu} aria-haspopup="menu" disabled={attente} onClick={() => setMenu(!menu)}><Ic n="bookmark" />Gardée</button>
+        <button ref={gardee} className="btn sm" type="button" aria-pressed="true" aria-expanded={menu} aria-haspopup="menu" disabled={attente} onClick={() => setMenu(!menu)}><Ic n="bookmark" />Gardée</button>
         <Lien className="btn sm" href={i.cloner}><Ic n="copy" />Cloner</Lien>
       </div>
       {gestes && <ChoixFormat i={i} ferme={gestes.formatFerme} classe={classe} />}
@@ -193,6 +201,14 @@ function ChoixFormat({ i, ferme, classe }: { i: SauvegardeDonnees; ferme: string
   const [valeur, setValeur] = useState<string>(initial ?? FORMAT_NON_CLASSE);
   const [attente, demarrer] = useTransition();
   const verrou = useRef(verrouAction());
+  const idRaison = useId();
+  const champ = useRef<HTMLSelectElement>(null);
+  // Un échec remet le choix enregistré · le bouton « Enregistrer » disparaît avec la modification, le
+  // focus revient au choix (ex lot 20B) au lieu de tomber sur la page · sauf s'il est parti ailleurs.
+  const [refocus, setRefocus] = useState(false);
+  const rendreFocus = () => { const actif = document.activeElement; if (!actif || actif === document.body || champ.current?.closest('article')?.contains(actif)) setRefocus(true); };
+  // Le choix est désactivé pendant l'enregistrement · le focus lui revient une fois réactivé.
+  useEffect(() => { if (refocus && !attente) { champ.current?.focus(); setRefocus(false); } }, [refocus, attente]);
   const modifie = !ferme && valeur !== enregistre;
   const enregistrer = () => {
     if (!modifie || !verrou.current.tenter()) return;
@@ -200,24 +216,24 @@ function ChoixFormat({ i, ferme, classe }: { i: SauvegardeDonnees; ferme: string
     demarrer(async () => {
       try {
         const r = await classerFormatSauvegarde({ platform: i.platform, externalId: i.externalId, format: v });
-        if (!r.ok) { setValeur(enregistre); toast(r.error); return; }
+        if (!r.ok) { setValeur(enregistre); toast(r.error); rendreFocus(); return; }
         setEnregistre(v);
         classe(r.format ?? null, r.date ?? null);
         toast(r.format ? `Enregistré · ${formatCreatif(r.format).libelle}` : 'Enregistré · non classée');
-      } catch { setValeur(enregistre); toast('Échec de l’enregistrement · vérifie ta connexion puis réessaie.'); }
+      } catch { setValeur(enregistre); toast('Échec de l’enregistrement · vérifie ta connexion puis réessaie.'); rendreFocus(); }
       finally { verrou.current.relacher(); }
     });
   };
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}>
       <label className="field" style={{ flex: 1, minWidth: 0 }}>Format
-        <select value={valeur} disabled={!!ferme || attente} onChange={(e) => setValeur(e.target.value)} title={ferme ?? undefined} data-format-choix>
+        <select ref={champ} value={valeur} disabled={!!ferme || attente} onChange={(e) => setValeur(e.target.value)} title={ferme ?? undefined} aria-describedby={ferme ? idRaison : undefined} data-format-choix>
           <option value={FORMAT_NON_CLASSE}>Non classé</option>
           {options.map((f) => <option key={f.id} value={f.id}>{f.libelle}</option>)}
         </select>
       </label>
       {modifie && <button type="button" className="btn sm pri" onClick={enregistrer} disabled={attente}>{attente ? 'Enregistrement…' : 'Enregistrer'}</button>}
-      {ferme && <small className="faint" style={{ fontSize: 11 }}>{ferme}</small>}
+      {ferme && <small className="faint" id={idRaison} data-format-indisponible style={{ fontSize: 11 }}>{ferme}</small>}
       {!ferme && i.format?.versionAncienne && !modifie && <small className="faint" style={{ fontSize: 11 }}>Classée avec une version antérieure de la liste, à revoir</small>}
     </div>
   );

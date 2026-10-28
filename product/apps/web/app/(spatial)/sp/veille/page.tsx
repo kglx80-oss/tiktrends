@@ -162,7 +162,7 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
     : sample ? 'Démonstration · un échantillon réel, la recherche en direct n’est pas encore activée pour ton espace'
       : error ? 'La source de données ne répond pas pour l’instant'
         : query ? `≈ ${total.toLocaleString('fr-FR')} annonce${total > 1 ? 's' : ''} pour « ${query} »${urlLike ? ' · recherche par domaine' : ''}`
-          : defaut ? `Pistes installées de ta catégorie · « ${defaut.seed} »${defaut.parCategorie ? '' : ' · hors catégorie'} · signaux d’observation, pas des preuves`
+          : defaut ? `Pistes installées de ta catégorie · « ${defaut.seed} »${defaut.parCategorie ? '' : ' · hors catégorie, précise la catégorie de ta marque pour cibler'} · signaux d’observation, pas des preuves`
             : 'Lance une recherche pour voir les pubs du marché';
 
   let vide: { titre: string; texte: string; action: { href: string; libelle: string } | null } | null = null;

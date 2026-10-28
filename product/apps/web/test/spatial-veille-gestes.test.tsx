@@ -19,7 +19,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/veille', useRouter: () 
 vi.mock('../app/actions/inspo', () => actions);
 
 const { FournisseurSpatial } = await import('../spatial/coquille/contexte');
-const { BarreVeille, CarteVeille, IconeSauvegarde } = await import('../spatial/vues/veille/client');
+const { BarreVeille, BoutonSuivi, CarteVeille, DefileAncre, IconeSauvegarde } = await import('../spatial/vues/veille/client');
 const { CollectionsSauvegardes } = await import('../spatial/vues/veille/sauvegardes-client');
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -56,6 +56,31 @@ describe('Spatial · Veille · sauvegarder', () => {
     expect(b.getAttribute('aria-pressed')).toBe('false');
     expect(toasts).toEqual(['Annonce déjà sauvegardée pour une autre marque']);
   });
+  it('vague 4 (ex InspoButtons V5) · double clic pendant l’action · une seule requête, le bouton se désactive', async () => {
+    let finir: (v: unknown) => void = () => {};
+    actions.saveAd.mockImplementationOnce(() => new Promise((r) => { finir = r; }) as never);
+    await monter(<IconeSauvegarde ad={AD} initial={false} />);
+    const b = racine.querySelector('button.xi') as HTMLButtonElement;
+    await act(async () => { b.click(); b.click(); });
+    expect(b.disabled, 'le bouton reste actif pendant l’action').toBe(true);
+    await act(async () => { finir({ ok: true }); });
+    expect(actions.saveAd).toHaveBeenCalledTimes(1);
+    expect(b.getAttribute('aria-pressed')).toBe('true');
+  });
+  it('vague 4 (ex lot 19C, ★ V5) · panne réseau · le marque-page revient vide, l’échec est dit · retirer, idem', async () => {
+    actions.saveAd.mockRejectedValueOnce(new Error('réseau') as never);
+    await monter(<IconeSauvegarde ad={AD} initial={false} />);
+    const b = racine.querySelector('button.xi')!;
+    await cliquer(b);
+    expect(b.getAttribute('aria-pressed')).toBe('false');
+    expect(toasts.at(-1)).toMatch(/^Échec/);
+    actions.unsaveAd.mockResolvedValueOnce({ ok: false, error: 'Ton rôle ne permet pas de retirer.' } as never);
+    await monter(<IconeSauvegarde key="a2" ad={{ ...AD, id: 'a2' }} initial />);
+    const plein = racine.querySelector('button.xi')!;
+    await cliquer(plein);
+    expect(plein.getAttribute('aria-pressed'), 'un refus de retrait vide le marque-page').toBe('true');
+    expect(toasts.at(-1)).toBe('Ton rôle ne permet pas de retirer.');
+  });
 });
 
 describe('Spatial · Veille · barre de vue', () => {
@@ -85,6 +110,18 @@ describe('Spatial · Veille · barre de vue', () => {
     await monter(barre({ p: 'tiktok', media: 'video' }));
     await cliquer([...racine.querySelectorAll('.fsum .chip')].find((b) => b.textContent?.startsWith('Vidéo')));
     expect(nav.push).toHaveBeenLastCalledWith('/veille?p=tiktok');
+  });
+  it('vague 4 · Échap referme la liste ouverte, puis le panneau des filtres (comme l’ancien « Filtres »)', async () => {
+    await monter(barre());
+    const echap = () => act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    await cliquer(bouton('Filtres'));
+    await cliquer(bouton('Pays'));
+    expect(racine.querySelector('.fpanel')).not.toBeNull();
+    await echap();
+    expect(racine.querySelector('.fpanel'), 'Échap n’a pas refermé la liste').toBeNull();
+    expect(racine.querySelector('.xfilters'), 'la liste fermée, le panneau doit rester').not.toBeNull();
+    await echap();
+    expect(racine.querySelector('.xfilters'), 'Échap n’a pas refermé le panneau des filtres').toBeNull();
   });
 });
 
@@ -158,5 +195,95 @@ describe('Spatial · Sauvegardes · collections', () => {
     await cliquer(bouton('Gardée'));
     await cliquer(bouton('Retirer des sauvegardes'));
     expect(racine.querySelectorAll('article.vitem')).toHaveLength(0);
+  });
+  it('vague 4 (ex sélecteur de board V5) · aria-expanded suit l’ouverture · Échap referme et rend le focus au bouton', async () => {
+    await monter(<CollectionsSauvegardes items={[item('x', 'A'), item('y', null)]} creerProjet="/p" />);
+    const b = [...racine.querySelectorAll('article.vitem button[aria-haspopup="menu"]')][0] as HTMLButtonElement;
+    expect(b.getAttribute('aria-expanded')).toBe('false');
+    b.focus();
+    await cliquer(b);
+    expect(b.getAttribute('aria-expanded')).toBe('true');
+    (racine.querySelector('[role="menu"] button') as HTMLButtonElement).focus();
+    await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(racine.querySelector('[role="menu"]'), 'Échap ne referme pas le menu').toBeNull();
+    expect(document.activeElement, 'le focus n’est pas rendu au bouton').toBe(b);
+  });
+});
+
+describe('Spatial · suivre · vague 4 · un refus se voit (ex « + Suivre » et ✕ V5)', () => {
+  it('« Suivre » refusé · le bouton revient à « Suivre » et le refus se dit · accepté · « Suivi »', async () => {
+    actions.followBrand.mockResolvedValueOnce({ ok: false, error: 'La Veille est incluse dès l’offre Core.' } as never);
+    await monter(<BoutonSuivi plateforme="meta" nom="Rival" ad={{ ...AD, landingDomain: 'rival.fr' }} initial={false} />);
+    const b = racine.querySelector('button[aria-pressed]') as HTMLButtonElement;
+    await cliquer(b);
+    expect(b.getAttribute('aria-pressed'), '« Suivi » affiché malgré le refus').toBe('false');
+    expect(b.textContent).toBe('Suivre');
+    expect(toasts.at(-1)).toBe('La Veille est incluse dès l’offre Core.');
+    await cliquer(b);
+    expect(actions.followBrand).toHaveBeenLastCalledWith({ platform: 'meta', name: 'Rival', externalId: undefined, logoUrl: undefined, domain: 'rival.fr' });
+    expect(b.getAttribute('aria-pressed')).toBe('true');
+    expect(b.textContent).toBe('Suivi');
+  });
+  it('ne plus suivre refusé · la marque reste suivie et le refus se dit', async () => {
+    actions.unfollowBrand.mockResolvedValueOnce({ ok: false, error: 'Ton rôle ne permet pas d’utiliser la Veille.' } as never);
+    await monter(<BoutonSuivi plateforme="meta" nom="Rival" initial />);
+    const b = racine.querySelector('button[aria-pressed]') as HTMLButtonElement;
+    await cliquer(b);
+    expect(b.getAttribute('aria-pressed')).toBe('true');
+    expect(toasts.at(-1)).toBe('Ton rôle ne permet pas d’utiliser la Veille.');
+  });
+});
+
+describe('Spatial · Pubs du moment · vague 4 · retour sur la carte d’origine (ex lot 18B)', () => {
+  const ouvrir = async (hash: string) => {
+    window.history.replaceState(null, '', `/veille?q=routine${hash}`);
+    racine.innerHTML = '';
+    const page = document.createElement('main');
+    page.innerHTML = '<a href="/">haut</a><article id="ad-meta-mock-044"><a href="/studio">Itérer</a></article><div id="autre"></div>';
+    document.body.prepend(page);
+    const vues: string[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) { vues.push(this.id); };
+    await monter(<DefileAncre />);
+    return vues;
+  };
+  it('l’ancre d’une carte · la carte est recentrée et reçoit le focus', async () => {
+    const vues = await ouvrir('#ad-meta-mock-044');
+    expect(vues, 'le retour laisse la carte hors de l’écran').toEqual(['ad-meta-mock-044']);
+    expect(document.activeElement?.id, 'au clavier, la tabulation repart du haut de page').toBe('ad-meta-mock-044');
+  });
+  it('Pubs du moment monte le retour · arrivée sur l’ancre, la carte rendue reçoit le focus', async () => {
+    const { PubsDuMoment } = await import('../spatial/vues/veille/PubsDuMoment');
+    window.history.replaceState(null, '', '/veille?q=routine#ad-meta-mock-044');
+    Element.prototype.scrollIntoView = function () {};
+    const carte = {
+      cle: 'meta:mock-044', ancre: 'ad-meta-mock-044', ad: { ...AD, id: 'mock-044' }, marque: { nom: 'B', initiale: 'B', fond: '#ffb3c7' }, active: true, jours: '3 j', signaux: [],
+      pays: null, portee: null, depense: null, croissance: null, texte: null, image: null, ratio: '' as const, tendance: false, style: 'Image',
+      domaine: null, titre: 'B', cta: null, iterer: '/studio', sauvee: false, suivie: false,
+      detail: { statut: 'Active', liens: [], kpis: [] as Array<[string, string]>, lecture: 'L', annonceur: null, jarvis: [], texte: null },
+    };
+    await monter(<PubsDuMoment sous="s" pastilleRadar={null} recherche={{ phrase: '', compris: null, suggestions: [] }} cartes={[carte]} vide={null} pages={null} coutJarvis=""
+      barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 1, annonceurs: 1, suite: '' } }} />);
+    expect(document.activeElement?.id, 'Pubs du moment ne ramène pas sur la carte d’origine').toBe('ad-meta-mock-044');
+  });
+  it('une ancre qui n’est pas une carte · rien ne bouge', async () => {
+    const vues = await ouvrir('#autre');
+    expect(vues).toEqual([]);
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
+describe('Spatial · Pubs du moment · vague 4 · annonceur et ancre de la carte (ex lot 18B, carte V5)', () => {
+  it('la carte porte son ancre · le détail mène aux pubs du même annonceur dans la Veille', async () => {
+    const c = {
+      cle: 'meta:mock-044', ancre: 'ad-meta-mock-044', ad: { ...AD, id: 'mock-044', advertiserName: 'Brume & Sel' }, marque: { nom: 'Brume & Sel', initiale: 'B', fond: '#ffb3c7' }, active: true, jours: '34 j', signaux: [],
+      pays: null, portee: null, depense: null, croissance: null, texte: null, image: null, ratio: '' as const, tendance: false, style: 'Image',
+      domaine: null, titre: 'Brume & Sel', cta: null, iterer: '/studio/projets/nouveau', sauvee: false, suivie: false,
+      detail: { statut: 'Active', liens: [], kpis: [] as Array<[string, string]>, lecture: 'L', annonceur: '/veille?q=Brume+%26+Sel&searchIn=brand&rv=q%3Droutine', jarvis: [], texte: null },
+    };
+    await monter(<CarteVeille c={c} coutJarvis="" />);
+    expect(racine.querySelector('article.xa')?.id).toBe('ad-meta-mock-044');
+    await cliquer(racine.querySelector('button.xv'));
+    const lien = [...document.querySelectorAll('.xmod a')].find((a) => a.textContent === 'Toutes les pubs Brume & Sel');
+    expect(lien?.getAttribute('href')).toBe('/veille?q=Brume+%26+Sel&searchIn=brand&rv=q%3Droutine');
   });
 });

@@ -1,6 +1,6 @@
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { SousNavVeille, EtatVide } from './base';
-import { BarreVeille, CarteVeille, type PropsBarreVeille } from './client';
+import { BarreVeille, CarteVeille, DefileAncre, type PropsBarreVeille } from './client';
 import type { CarteVeilleDonnees } from './types';
 import { MemoireMarche } from './marche-client';
 
@@ -62,7 +62,7 @@ export function PubsDuMoment(p: PropsPubsDuMoment) {
       </div>
       <BarreVeille {...p.barre} />
       {p.cartes.length > 0
-        ? <div className="xgrid">{p.cartes.map((c) => <CarteVeille key={c.cle} c={c} coutJarvis={p.coutJarvis} />)}</div>
+        ? <><div className="xgrid">{p.cartes.map((c) => <CarteVeille key={c.cle} c={c} coutJarvis={p.coutJarvis} />)}</div><DefileAncre /></>
         : p.vide && <EtatVide titre={p.vide.titre} texte={p.vide.texte} action={p.vide.action} />}
       {p.pages && (
         <div className="kc" style={{ justifyContent: 'center', marginTop: 18 }}>

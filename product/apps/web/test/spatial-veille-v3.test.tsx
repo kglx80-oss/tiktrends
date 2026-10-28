@@ -314,3 +314,131 @@ describe('Spatial · vague 4 · la vidéo d’une pub se lit (comme l’ancienne
     expect(liens.map((a) => a.getAttribute('href'))).toEqual(['https://cdn.test/v.mp4']);
   });
 });
+
+describe('Spatial · Ce qui scale · vague 4 · les filtres vivent dans l’adresse (ex lot 18B, swipe file V5)', () => {
+  const sansOutilsUrl = () => window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+  afterEach(sansOutilsUrl);
+  it('un changement réécrit l’adresse (niche gardée), sans entrée d’historique de plus · Réinitialiser la nettoie', async () => {
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&annonceur=Ploufy');
+    const avant = window.history.length;
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ initial: { ...FILTRES_OUTIL_SCALE, annonceur: 'Ploufy' } })} />);
+    await cliquer(bouton('Vidéos'));
+    expect(window.location.search, 'le filtre ne survit pas au rechargement').toBe('?q=skincare&country=FR&annonceur=Ploufy&type=video');
+    expect(window.history.length).toBe(avant);
+    await cliquer(bouton('Réinitialiser'));
+    expect(window.location.search, 'la réinitialisation laisse des critères dans l’adresse').toBe('?q=skincare&country=FR');
+  });
+  it('revenu par le Retour avec une page restaurée sans critères · l’adresse est relue au montage', async () => {
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&annonceur=Ploufy');
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />);
+    expect(document.querySelector('[data-compte]')?.textContent, 'critère de l’adresse non relu').toBe('2 sur 3');
+    expect(document.querySelector('button[aria-label="Retirer le critère · Ploufy"]')).not.toBeNull();
+  });
+});
+
+/* ───────── Vague 4 · les gardes de comportement des écrans V5 retirés (Sauvegardes, Formats, ★), portées ───────── */
+
+describe('Spatial · Sauvegardes · vague 4 · aucun faux succès (ex lots 19C et 20B)', () => {
+  const G = { formatFerme: null, test: { ouvert: true as const } };
+  it('classer · panne réseau · le choix revient, l’échec est dit, le focus revient au choix (jamais sur la page)', async () => {
+    actions.classerFormatSauvegarde.mockRejectedValueOnce(new Error('réseau') as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1')]} creerProjet="/p" gestes={G} />);
+    const sel = document.querySelector('.vitem select[data-format-choix]') as HTMLSelectElement;
+    await choisir(sel, 'packshot');
+    const enr = bouton('Enregistrer')!;
+    enr.focus();
+    await cliquer(enr);
+    expect(sel.value).toBe('non_classe');
+    expect(toasts.at(-1)).toMatch(/^Échec de l’enregistrement/);
+    expect(document.activeElement, 'le focus est tombé sur la page').toBe(sel);
+  });
+  it('classer · refus · même retour du focus · un focus parti sur une autre carte n’est pas repris', async () => {
+    let finir: (v: unknown) => void = () => {};
+    actions.classerFormatSauvegarde.mockImplementationOnce(() => new Promise((r) => { finir = r; }) as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1'), sauvegarde('2')]} creerProjet="/p" gestes={G} />);
+    const [s1, s2] = [...document.querySelectorAll('.vitem select[data-format-choix]')] as HTMLSelectElement[];
+    await choisir(s1!, 'packshot');
+    await cliquer(bouton('Enregistrer'));
+    s2!.focus();
+    await act(async () => { finir({ ok: false, error: 'Refusé par le serveur.' }); });
+    expect(toasts.at(-1)).toBe('Refusé par le serveur.');
+    expect(document.activeElement, 'le focus parti ailleurs a été volé').toBe(s2);
+  });
+  it('ranger · exception réseau · la créa reste dans sa collection, l’échec est dit, aucun « Rangée dans »', async () => {
+    actions.setSavedAdFolder.mockRejectedValueOnce(new Error('réseau') as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1', { folder: 'Hooks' }), sauvegarde('2', { folder: 'Ailleurs' })]} creerProjet="/p" gestes={G} />);
+    await cliquer(bouton('Hooks'));
+    await cliquer(bouton('Gardée'));
+    await cliquer(bouton('Ranger dans « Ailleurs »'));
+    expect(document.querySelectorAll('.vitem'), 'la créa a quitté sa collection sur un échec').toHaveLength(1);
+    expect(toasts.join('|')).not.toMatch(/Rangée dans/);
+    expect(toasts.at(-1)).toMatch(/^Échec/);
+  });
+  it('« Préparer un test » · après une erreur, un nouvel essai part · l’erreur s’efface pendant l’attente · double clic, une requête · le succès est définitif', async () => {
+    pont.trackSavedAdAction.mockResolvedValueOnce({ error: 'Choisis d’abord une marque active.' } as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1')]} creerProjet="/p" gestes={G} />);
+    await cliquer(bouton('Préparer un test'));
+    expect(document.querySelector('.vitem [role="status"]')?.textContent).toBe('Choisis d’abord une marque active.');
+    let finir: (v: unknown) => void = () => {};
+    pont.trackSavedAdAction.mockImplementationOnce(() => new Promise((r) => { finir = r; }) as never);
+    const b = bouton('Préparer un test')!;
+    await act(async () => { b.click(); b.click(); });
+    expect(document.querySelector('.vitem [role="status"]')?.textContent, 'l’erreur reste affichée pendant le nouvel essai').not.toMatch(/marque active/);
+    await act(async () => { finir({}); });
+    expect(pont.trackSavedAdAction, 'double clic · deux requêtes').toHaveBeenCalledTimes(2);
+    const fait = bouton('Brouillon de test créé')!;
+    expect(fait.disabled).toBe(true);
+  });
+  it('« Préparer un test » · exception réseau · le bouton n’est pas bloqué, l’échec est dit', async () => {
+    pont.trackSavedAdAction.mockRejectedValueOnce(new Error('réseau') as never);
+    await monter(<CollectionsSauvegardes items={[sauvegarde('1')]} creerProjet="/p" gestes={G} />);
+    await cliquer(bouton('Préparer un test'));
+    expect(document.querySelector('.vitem [role="status"]')?.textContent).toMatch(/^Échec/);
+    expect(bouton('Préparer un test')!.disabled).toBe(false);
+  });
+});
+
+describe('Spatial · Ce qui scale · vague 4 · les états vides se lisent (ex R15, swipe file V5)', () => {
+  it('sans aucune créa · un état vide explicite · un filtre qui ne rend rien · un état distinct, avec « Réinitialiser »', async () => {
+    const vide = rendre(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={{ titre: 'Aucune créa trouvée pour cette niche', texte: 't', action: null }} outils={outils({ lignes: [] })} />);
+    expect(vide).toContain('Aucune créa trouvée pour cette niche');
+    expect(vide).not.toContain('Aucune créa ne passe ces critères');
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&texte=zzz-introuvable');
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ initial: { ...FILTRES_OUTIL_SCALE, texte: 'zzz-introuvable' } })} />);
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+    expect(document.body.textContent).toContain('Aucune créa ne passe ces critères');
+    expect(document.querySelector('[data-compte]')?.textContent).toBe('0 sur 3');
+    expect(bouton('Réinitialiser')).toBeTruthy();
+  });
+});
+
+describe('Spatial · Ce qui scale · vague 4 · ergonomie du swipe file (ex lot ergonomie Veille)', () => {
+  const champ = () => document.querySelector('.tile[aria-label="Filtrer et trier"] input') as HTMLInputElement;
+  it('une puce retirée relâche SON critère, pas les autres', async () => {
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&type=video&annonceur=Ploufy');
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ initial: { ...FILTRES_OUTIL_SCALE, type: 'video', annonceur: 'Ploufy' } })} />);
+    await cliquer(document.querySelector('button[aria-label="Retirer le critère · Vidéos"]'));
+    expect(document.querySelector('button[aria-label="Retirer le critère · Ploufy"]'), 'retirer « Vidéos » a relâché l’annonceur').not.toBeNull();
+    expect(document.querySelector('button[aria-label="Retirer le critère · Vidéos"]')).toBeNull();
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+  });
+  it('« / » hors champ met le focus sur la recherche · un select focalisé garde le focus', async () => {
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />);
+    await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '/' })); });
+    expect(document.activeElement).toBe(champ());
+    const sel = document.querySelector('.tile[aria-label="Filtrer et trier"] select') as HTMLSelectElement;
+    sel.focus();
+    await act(async () => { sel.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })); });
+    expect(document.activeElement, '« / » a volé le focus d’un select').toBe(sel);
+  });
+  it('réinitialiser rend le focus au champ (le bouton disparaît)', async () => {
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR&texte=zzz');
+    await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils({ initial: { ...FILTRES_OUTIL_SCALE, texte: 'zzz' } })} />);
+    const r = bouton('Réinitialiser')!;
+    r.focus();
+    await cliquer(r);
+    expect(bouton('Réinitialiser')).toBeUndefined();
+    expect(document.activeElement, 'le focus est tombé sur la page').toBe(champ());
+    window.history.replaceState(null, '', '/veille/scale?q=skincare&country=FR');
+  });
+});
