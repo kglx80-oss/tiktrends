@@ -181,9 +181,9 @@ const pagesV5Restantes = (liste: ReadonlyArray<{ chemin: string; exclusif?: true
 
 describe('Spatial · un écran exclusif n’a plus de page dans l’ancienne interface', () => {
   it('la garde voit une page V5 restante', () => {
-    // Une page V5 qui reste (Accueil) · `/credits` est retirée depuis la vague 4.
-    expect(adressesV5()).toContain('/dashboard');
-    expect(pagesV5Restantes([{ chemin: '/dashboard', exclusif: true }, { chemin: '/credits' }])).toEqual(['/dashboard']);
+    // Une page V5 qui reste (la fiche projet, canvas) · `/credits` est retirée depuis la vague 4.
+    expect(adressesV5()).toContain('/studio/projets/[id]');
+    expect(pagesV5Restantes([{ chemin: '/studio/projets/[id]', exclusif: true }, { chemin: '/credits' }])).toEqual(['/studio/projets/[id]']);
   });
   it('aucun écran déclaré exclusif ne garde sa page V5', () => {
     expect(pagesV5Restantes(ECRANS_SPATIAUX), 'écran exclusif · supprimer sa page V5 (le middleware le sert toujours par Spatial)').toEqual([]);
