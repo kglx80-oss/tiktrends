@@ -503,3 +503,47 @@ describe('enregistrer un geste de montage · version attendue = version de l’a
     expect(await appliquerOperationVideoPour(ctxDe(ids, 'ur'), { projectId, baseVersionId: v2.id, operation: op })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
   });
 });
+
+/* ─────────── Retenir la consigne d'un plan · relance après réponse perdue ─────────── */
+
+describe('retenir la consigne d’un plan · version attendue = version de la compilation', () => {
+  it('réponse perdue · la relance (même base, même compilation) rend la version déjà écrite · aucune seconde version', async () => {
+    const projectId = await projetVideo();
+    const c = await compilerConsignePlanPour(ctxDe(ids, 'ua'), { projectId, shotId: 's3' }, deps);
+    if (!c.ok || c.statut !== 'compilee') throw new Error(JSON.stringify(c));
+    const v0 = await courante(projectId);
+    expect(v0.id).toBe(c.projectVersionId);
+    const avant = await compte(projectId);
+    const premiere = await retenirConsignePlanPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v0.id, runId: c.runId });
+    expect(premiere.ok).toBe(true);
+    // La réponse s'est perdue · « Réessayer » rejoue la MÊME demande (même base, même runId).
+    const relance = await retenirConsignePlanPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v0.id, runId: c.runId });
+    expect((await compte(projectId)).versions - avant.versions, 'la relance a écrit une seconde fois').toBe(1);
+    expect(relance, 'la relance d’une consigne déjà retenue est refusée au lieu d’être reconnue').toMatchObject({ ok: true, deja: true, inchange: true });
+    expect(relance.ok && premiere.ok && relance.version.id).toBe(premiere.ok && premiere.version.id);
+    expect(relance.ok && consigneDuPlan(relance.version.content as ContenuVersion, 's3')).toEqual(c.consigne);
+    // Par l'action serveur aussi (droits, revalidation) · même réponse, rien d'écrit.
+    expect(await actions.retenirConsignePlan({ projectId, baseVersionId: v0.id, runId: c.runId })).toMatchObject({ ok: true, deja: true });
+    expect((await compte(projectId)).versions - avant.versions).toBe(1);
+  });
+
+  it('ce n’est pas une relance · autre compilation, autre personne, autre geste entre-temps ⇒ 409, rien d’écrit', async () => {
+    const projectId = await projetVideo();
+    const c1 = await compilerConsignePlanPour(ctxDe(ids, 'ua'), { projectId, shotId: 's3' }, deps);
+    const c2 = await compilerConsignePlanPour(ctxDe(ids, 'ua'), { projectId, shotId: 's3' }, deps);
+    if (!c1.ok || c1.statut !== 'compilee' || !c2.ok || c2.statut !== 'compilee') throw new Error(JSON.stringify([c1, c2]));
+    const v0 = await courante(projectId);
+    expect((await retenirConsignePlanPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v0.id, runId: c1.runId })).ok).toBe(true);
+    const avant = await compte(projectId);
+    // Une AUTRE compilation retenue sur la même base · ce n'est pas la même écriture.
+    expect(await retenirConsignePlanPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v0.id, runId: c2.runId })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
+    // La même compilation relancée par une AUTRE personne · conflit.
+    expect(await retenirConsignePlanPour(ctxDe(ids, 'ur'), { projectId, baseVersionId: v0.id, runId: c1.runId })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
+    // Un autre geste est passé après l'écriture · la relance ne la reconnaît plus, conflit.
+    await geste(projectId, { type: 'narration', shotId: 's1', narration: 'Une autre voix, écrite ailleurs.' });
+    const apresGeste = await compte(projectId);
+    expect(await retenirConsignePlanPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v0.id, runId: c1.runId })).toMatchObject({ ok: false, code: 'VERSION_CONFLICT' });
+    expect(apresGeste.versions - avant.versions).toBe(1);
+    expect(await compte(projectId)).toEqual(apresGeste);
+  });
+});

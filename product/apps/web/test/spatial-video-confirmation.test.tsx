@@ -28,6 +28,8 @@ const serveur = vi.hoisted(() => ({
   courante: null as unknown as { id: string; n: number; contenu: unknown },
   ecritures: [] as Array<{ par: string; base: string; vers: string }>,
   perdreLaReponse: false,
+  /** Consigne du plan s1 compilée sur v3 (`runId`), et la version qui l'a retenue. */
+  consigne: { runId: 'run-1', compileeSur: 'v3', retenueDans: null as string | null, parent: null as string | null },
 }));
 
 function ecrire(par: string, baseVersionId: string, operation: unknown) {
@@ -77,7 +79,10 @@ function vueDuServeur(): VueVideo {
   return {
     projet: { id: 'p1', titre: 'Projet vidéo' }, version: { id: c.id, n: c.n }, contenu: c.contenu, briefPresent: true, sansTexte: false,
     format: { largeur: 1080, hauteur: 1920, libelle: '9:16', depuisBrief: true }, segments, dureeTotaleMs: debut,
-    keyframes: {}, clips: {}, mediasValides: [], musiques: [],
+    keyframes: serveur.consigne.retenueDans === null && c.id === serveur.consigne.compileeSur
+      ? { s1: { etat: 'a_produire', media: null, retenue: null, devis: null, enAttente: { runId: serveur.consigne.runId, instruction: 'Plan serré sur le flacon.', interdits: [], composants: [], compileeLe: '2026-10-28T10:00:00.000Z' } } }
+      : {},
+    clips: {}, mediasValides: [], musiques: [],
     disponibilite: { storyboard: OUI, montage: OUI, consigne: OUI, devis: OUI, lancement: OUI, animation: OUI },
     coutTexteUsd: 0.02, prix: { credits: 4, usdMicros: 40_000 }, prixClip: { credits: 40, usdMicros: 400_000, dureeS: 5 },
     videoFinale: { possible: false, raison: 'Aucun clip', nonInclus: [], dureeMs: debut, derniere: null },
@@ -97,6 +102,27 @@ beforeEach(() => {
   serveur.courante = { id: 'v3', n: 3, contenu };
   serveur.ecritures = [];
   serveur.perdreLaReponse = false;
+  serveur.consigne = { runId: 'run-1', compileeSur: 'v3', retenueDans: null, parent: null };
+  // « Retenir la consigne » au contrat réel · version attendue, et une relance de
+  // la MÊME demande déjà écrite (fille directe de la base, même auteur, même
+  // compilation) rend la version écrite (`deja: true`) · tout autre écart est un 409.
+  actions.retenirConsignePlan.mockImplementation(async (e: { baseVersionId: string; runId: string }) => {
+    const c = serveur.courante as V;
+    let r;
+    if (e.baseVersionId === c.id) {
+      const nouvelle: V = { id: `v${c.n + 1}`, n: c.n + 1, contenu: c.contenu };
+      serveur.courante = nouvelle;
+      serveur.consigne = { ...serveur.consigne, retenueDans: nouvelle.id, parent: c.id };
+      serveur.ecritures.push({ par: 'moi', base: c.id, vers: nouvelle.id });
+      r = { ok: true as const, version: { id: nouvelle.id, n: nouvelle.n }, inchange: false, deja: false };
+    } else if (serveur.consigne.retenueDans === c.id && serveur.consigne.parent === e.baseVersionId && e.runId === serveur.consigne.runId) {
+      r = { ok: true as const, version: { id: c.id, n: c.n }, inchange: true, deja: true };
+    } else {
+      r = { ok: false as const, code: 'VERSION_CONFLICT' as const, status: 409, recoverable: true, targetIds: [], traceId: 't', message: 'Ce projet a changé depuis ton ouverture · recharge-le, puis reporte tes modifications.' };
+    }
+    if (serveur.perdreLaReponse) { serveur.perdreLaReponse = false; throw new Error('réponse perdue'); }
+    return r;
+  });
   actions.appliquerOperationVideo.mockImplementation(async (e: { baseVersionId: string; operation: unknown }) => {
     const r = ecrire('moi', e.baseVersionId, e.operation);
     if (serveur.perdreLaReponse) { serveur.perdreLaReponse = false; throw new Error('réponse perdue'); }
@@ -158,5 +184,25 @@ describe('Studio vidéo Spatial · aperçu périmé', () => {
     expect(ecrituresDe('moi')).toEqual([{ par: 'moi', base: 'v4', vers: 'v5' }]);
     expect((serveur.courante as V).contenu.shots.order).toEqual(['s2', 's1', 's3']);
     expect((serveur.courante as V).contenu.shots.byId.s3!.narration).toBe('Nouvelle voix.');
+  });
+});
+
+describe('Studio vidéo Spatial · « Retenir la consigne » relancé après une réponse perdue', () => {
+  it('le message ne prétend pas que rien n’a été écrit · « Réessayer » envoie la base de la compilation et reconnaît l’écriture déjà faite', async () => {
+    await cliquer(hote.querySelector('[data-vlev="retenir"]'));
+    serveur.perdreLaReponse = true;
+    await cliquer(bouton('Retenir cette consigne'));
+    expect(ecrituresDe('moi')).toEqual([{ par: 'moi', base: 'v3', vers: 'v4' }]);
+    const apresPerte = hote.querySelector('[data-retour]')?.textContent ?? '';
+    expect(apresPerte, 'l’écran affirme que rien n’a été enregistré alors que l’écriture a pu aboutir').not.toContain('rien n’a été enregistré');
+    expect(apresPerte).toContain(MESSAGE_REPONSE_PERDUE_MONTAGE);
+    // La vue se relit (jobs en cours) · la consigne n'est plus « en attente », la relance reste offerte.
+    afficher();
+    await cliquer(hote.querySelector('[data-bouton="reessayer"]'));
+    expect(actions.retenirConsignePlan).toHaveBeenLastCalledWith({ projectId: 'p1', baseVersionId: 'v3', runId: 'run-1' });
+    expect(ecrituresDe('moi'), 'la relance a écrit une seconde version').toHaveLength(1);
+    const apresRelance = hote.querySelector('[data-retour]');
+    expect(apresRelance?.getAttribute('data-retour'), apresRelance?.textContent ?? '').toBe('ok');
+    expect(apresRelance?.textContent).toContain('déjà retenue');
   });
 });
