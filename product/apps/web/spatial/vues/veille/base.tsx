@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Ic, Lien, SousNav } from '../../communs';
+import { ImageApercu } from './apercu-client';
 
 /**
  * Les briques SANS état de la rubrique Veille (serveur ou client) · balisage de
@@ -46,12 +47,13 @@ export function EtatVide({ icone = 'search', titre, texte, action }: { icone?: s
 /**
  * La vignette d'une créa (`div.ad` de la maquette) · la maquette y COMPOSE une
  * fausse pub (photo + bandeau de texte) ; ici, l'image RÉELLE de l'annonce,
- * sans texte ajouté par-dessus. Sans image, la vignette reste vide.
+ * sans texte ajouté par-dessus. Sans image, ou si elle ne charge pas, le repli
+ * « Aperçu indisponible » de la V5 (`ImageApercu`).
  */
 export function Vignette({ image, classe = '' }: { image: string | null; classe?: string }) {
   return (
     <div className={`ad ${classe}`.trim()}>
-      <div className="ph">{image && <img src={image} alt="" loading="lazy" referrerPolicy="no-referrer" />}</div>
+      <div className="ph"><ImageApercu src={image} /></div>
     </div>
   );
 }
