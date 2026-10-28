@@ -31,15 +31,11 @@ const PERIMETRE = [
   ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
   // Lot 19B (#724) · les écrans et composants que les Connaissances ont créés ou
   // modifiés, plus la page et l'écran de refus de Jarvis (message 55).
-  join('app', '(app)', 'jarvis', 'sources'),
-  join('app', '(app)', 'jarvis', 'page.tsx'),
-  join('app', '(app)', 'jarvis', 'RefusJarvis.tsx'),
+  // Vague 3 · les écrans V5 `/jarvis` et `/jarvis/sources` (et leurs panneaux)
+  // sont retirés, servis par Spatial · restent la conversation et le contexte,
+  // montés par le panneau Jarvis de la Veille V5.
   join('app', '(app)', 'jarvis', 'JarvisChat.tsx'),
   join('app', '(app)', 'jarvis', 'JarvisContexte.tsx'),
-  // Rendus sur /jarvis/sources (écran de #724).
-  join('app', '(app)', 'jarvis', 'JarvisRules.tsx'),
-  join('app', '(app)', 'jarvis', 'JarvisTraining.tsx'),
-  join('app', '(app)', 'jarvis', 'DescribePanel.tsx'),
   // Lot 19C · les écrans des formats créatifs (message 55) · `veille/formats`
   // SEUL, pas toute la Veille ; le choix « Format » et Sauvegardes qui le porte.
   join('app', '(app)', 'veille', 'formats'),
@@ -165,7 +161,8 @@ function cadresHorsRole(f: string): string[] {
 describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   const lot = fichiers.filter(dansLeLot);
   it('on parcourt bien le périmètre du lot', () => {
-    expect(lot.length).toBeGreaterThan(140);
+    // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · plancher 120.
+    expect(lot.length).toBeGreaterThan(120);
     expect(lot).toContain('components/ui.tsx');
     expect(lot).toContain('app/(app)/admin/finance/page.tsx');
     // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.

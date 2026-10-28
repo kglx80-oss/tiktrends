@@ -59,11 +59,8 @@ vi.mock('../lib/jarvis-state', () => ({
 vi.mock('../lib/spend-guard', () => ({ spendStatus: async () => ({ blocked: true, summary: 'Plafond synthétique atteint.' }) }));
 vi.mock('../lib/deployment', () => ({ currentDeployment: async () => ({ ok: false, summary: 'Écart synthétique.', renderVersion: 1, applied: 3, inBuild: 4, build: 'abc1234' }) }));
 
-import SourcesPage from '../app/(app)/jarvis/sources/page';
-import { RefusJarvis } from '../app/(app)/jarvis/RefusJarvis';
 import { JarvisContexte } from '../app/(app)/jarvis/JarvisContexte';
 import { JarvisChat } from '../app/(app)/jarvis/JarvisChat';
-import { DescribePanel } from '../app/(app)/jarvis/DescribePanel';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 // jsdom ne fait pas défiler · le fil appelle `scrollTo` à chaque tour.
@@ -107,8 +104,6 @@ const nCadres = (html: string) => [...normaliser(html).matchAll(BALISE)].filter(
 /* -------------------------------------------------------------------------- */
 
 const T = '2026-10-05T08:00:00.000Z';
-const fondateur = { user: { id: 'u', email: 'kguilbaux@agence-glx.fr', name: 'K' }, workspaceId: 'w', workspaceName: 'Espace', role: 'owner', plan: 'business', equipe: { role: 'adminplus', matrice: {} } };
-const membreCore = { ...fondateur, user: { id: 'u2', email: 'membre@client.test', name: null }, role: 'member', plan: 'core', equipe: null };
 
 /* -------------------------------------------------------------------------- */
 /*  Montage jsdom · les états ouverts par un geste                            */
@@ -131,10 +126,7 @@ async function monter(node: ReactNode): Promise<HTMLDivElement> {
 
 describe('message 55 · écrans de #724 rendus · chaque cadre porte son rôle', () => {
   const ecrans: Array<[string, () => Promise<string>]> = [
-    ['/jarvis/sources · fondateur (déploiement, dépense bloquée, moteurs)', async () => { h.session = fondateur; return renderToStaticMarkup(await SourcesPage()); }],
-    ['/jarvis/sources · membre Core (sans la mémoire Plus)', async () => { h.session = membreCore; return renderToStaticMarkup(await SourcesPage()); }],
-    ['DescribePanel · tranche chiffrée (jsdom)', async () => (await monter(<DescribePanel />)).innerHTML],
-    ['/jarvis · refus (offre, rôle)', async () => renderToStaticMarkup(<><RefusJarvis titre="Jarvis" why="plan" owner /><RefusJarvis titre="Jarvis" why="role" owner={false} /></>)],
+    // Vague 3 · `/jarvis/sources`, son panneau « Décrire » et l'écran de refus V5 sont retirés (Spatial exclusif, sans jetons de cadre V5).
     ['JarvisChat · fil en échec (jsdom)', async () => (await monter(<JarvisChat fiche={null} brandId="b1" brandName="Neva" kpiSource={null} projets={[]} />)).innerHTML],
     ['JarvisChat · fil chargé (jsdom)', async () => {
       h.thread = { turns: [{ id: '1', role: 'user', content: 'Q', at: T }, { id: '2', role: 'assistant', content: 'R', at: T }], starters: [], measuredAds: 0, brandName: 'Neva', contexte: { brandId: 'b1', identity: null, rules: null, hooks: null, connaissances: null }, sources: {}, conversationId: null, conversations: [] };
@@ -148,7 +140,9 @@ describe('message 55 · écrans de #724 rendus · chaque cadre porte son rôle',
   it('on lit bien des cadres', async () => {
     let n = 0;
     for (const [, rendre] of ecrans) n += nCadres(await rendre());
-    expect(n).toBeGreaterThanOrEqual(40);
+    // Mesuré : 10 cadres après le retrait des écrans V5 Admin et Jarvis (28/10 ·
+    // ils sont servis par Spatial). Le plancher ne garde que la lecture des rendus.
+    expect(n).toBeGreaterThanOrEqual(5);
   });
   for (const [nom, rendre] of ecrans) {
     it(nom, async () => {

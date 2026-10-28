@@ -22,9 +22,11 @@ const FICHIERS = readdirSync(DIR)
 // définies en emoji (`icon: '🎯'`), invisibles au scan du dossier · c'est
 // exactement le trou qui a laissé passer la page Jarvis. On l'ajoute ici.
 FICHIERS.push({ rel: 'lib/jarvis-state.ts', src: readFileSync(join(process.cwd(), 'lib/jarvis-state.ts'), 'utf8') });
-// Le détail a déménagé dans le sous-dossier `sources` · on l'ajoute au scan,
-// sinon un emoji réintroduit là-bas passerait sous le radar.
-FICHIERS.push({ rel: 'jarvis/sources/page.tsx', src: readFileSync(join(DIR, 'sources/page.tsx'), 'utf8') });
+// Vague 3 · Jarvis est exclusif à Spatial · ses écrans (conversation, Sources,
+// depuis la Veille) et la page Sources sont scannés à la même règle.
+for (const rel of ['spatial/vues/jarvis/Jarvis.tsx', 'spatial/vues/jarvis/Sources.tsx', 'spatial/vues/jarvis/sources-client.tsx', 'spatial/vues/jarvis/JarvisVeille.tsx', 'app/(spatial)/sp/jarvis/sources/page.tsx']) {
+  FICHIERS.push({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') });
+}
 // Les sections relocalisées (montées sur Adsmap, Analytics, Veille) vivent dans
 // `jarvis/sections` · même règle · un emoji réintroduit là-bas doit tomber ici.
 // (Les essais ont rejoint Résultats dans Spatial · gardés par `adsmap-sans-emoji`.)
@@ -50,19 +52,20 @@ describe('Jarvis · plus aucun emoji d’interface', () => {
 
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
+    // Les panneaux V5 restants (contexte) et les vues Spatial (icônes du sprite).
     expect(tout).toMatch(/<Icon name="brain"/);
-    expect(tout).toMatch(/<Icon name="cap"/);
-    expect(tout).toMatch(/<Icon name="lock"/);
-    expect(tout).toMatch(/<Icon name="sparkles"/);
+    expect(tout).toMatch(/<Ic n="spark"/);
+    expect(tout).toMatch(/<Ic n="folder"/);
   });
 
   it('les couches d’état portent un NOM d’icône du jeu, rendu dynamiquement', () => {
     const state = FICHIERS.find((f) => f.rel === 'lib/jarvis-state.ts')!.src;
-    const page = FICHIERS.find((f) => f.rel === 'jarvis/sources/page.tsx')!.src;
+    const page = FICHIERS.find((f) => f.rel === 'app/(spatial)/sp/jarvis/sources/page.tsx')!.src;
     // les descripteurs ne portent plus d'emoji mais des noms du jeu…
     expect(state, 'les sections doivent porter un nom d’icône, pas un emoji').toMatch(/icon: 'target'/);
     expect(state).toMatch(/icon: 'radar'/);
-    // …et la page les rend via <Icon name={l.icon}>, pas en texte brut.
-    expect(page, 'la page doit rendre l’icône, pas afficher la chaîne').toMatch(/<Icon name=\{l\.icon\}/);
+    // …et l'écran Spatial n'affiche jamais ce nom en texte brut (l'état se dit par une pastille).
+    expect(page, 'l’écran ne doit pas afficher le nom d’icône').not.toMatch(/l\.icon/);
+    expect(page).toContain('libelleEtat: STATE_LABEL[l.state]');
   });
 });

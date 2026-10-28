@@ -82,8 +82,9 @@ import { creerConnaissance, publierVersion, validerSaisie, type SaisieConnaissan
 import { POST } from '../app/api/jarvis/chat/route';
 import { chatThreadAction } from '../app/actions/jarvis-chat';
 import { invaliderConnaissances } from '../lib/jarvis-connaissances';
-import JarvisPage from '../app/(app)/jarvis/page';
-import SourcesPage from '../app/(app)/jarvis/sources/page';
+// Vague 3 · Jarvis est exclusif à Spatial · les MÊMES portes sont gardées sur ses écrans.
+import JarvisPage from '../app/(spatial)/sp/jarvis/page';
+import SourcesPage from '../app/(spatial)/sp/jarvis/sources/page';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 
 const T = '2026-10-05T08:00:00.000Z';
@@ -198,8 +199,9 @@ describe('b · parcours autorisés inchangés · la consigne porte les connaissa
 
 describe('c · pages refusées · l’écran de refus existant, aucune donnée', () => {
   const pages: Array<[string, () => Promise<React.ReactElement>, string]> = [
-    ['/jarvis', () => JarvisPage(), 'Jarvis'],
-    ['/jarvis/sources', () => SourcesPage(), 'Sources de Jarvis'],
+    ['/jarvis', () => JarvisPage({}), 'Jarvis'],
+    // L'écran de refus Spatial titre « Jarvis » (la rubrique), sans rien de la marque.
+    ['/jarvis/sources', () => SourcesPage(), 'Jarvis'],
   ];
   for (const [chemin, page, titre] of pages) {
     for (const [nom, session] of REFUSES) {
@@ -207,7 +209,7 @@ describe('c · pages refusées · l’écran de refus existant, aucune donnée',
         h.session = session();
         const html = renderToStaticMarkup(await page());
         expect(html).toContain(`>${titre}</h1>`);
-        expect(html).toMatch(/Fonctionnalité incluse dès l(’|'|&#x27;)abonnement Core|Accès réservé/);
+        expect(html).toMatch(/Jarvis est inclus dès l(’|'|&#x27;)offre Core|Accès réservé/);
         for (const sec of SECRETS) expect(html).not.toContain(sec);
         expect(h.tablesLues).toEqual([]);
         expect(h.marqueLue).toBe(0);
@@ -216,17 +218,17 @@ describe('c · pages refusées · l’écran de refus existant, aucune donnée',
   }
   it('Starter · la raison est l’offre · client_viewer et freelance · le rôle', async () => {
     h.session = REFUSES[0]![1]();
-    expect(renderToStaticMarkup(await JarvisPage())).toContain('Jarvis est disponible à partir du plan Core');
+    expect(renderToStaticMarkup(await JarvisPage({}))).toContain('Jarvis est disponible à partir du plan Core');
     for (const i of [1, 2]) {
       h.session = REFUSES[i]![1]();
-      expect(renderToStaticMarkup(await JarvisPage())).toContain('Ton rôle ne permet pas d');
+      expect(renderToStaticMarkup(await JarvisPage({}))).toContain('Ton rôle ne permet pas d');
     }
   });
   it('autorisé · /jarvis rend la conversation, pas le refus', async () => {
     h.session = AUTORISES[1]![1]();
-    const html = renderToStaticMarkup(await JarvisPage());
+    const html = renderToStaticMarkup(await JarvisPage({}));
     expect(html).toContain('MarqueNeva55');
     expect(html).not.toContain('Accès réservé');
-    expect(html).not.toContain('Fonctionnalité incluse');
+    expect(html).not.toContain('Jarvis est inclus dès');
   });
 });

@@ -12,7 +12,8 @@ import { join } from 'node:path';
  */
 const ECRANS = [
   'app/(app)/analytics/CreativeIntel.tsx',
-  'app/(app)/jarvis/JarvisRules.tsx',
+  // Vague 3 · les règles créatives de « Sources de Jarvis » vivent dans Spatial.
+  'spatial/vues/jarvis/sources-client.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
 // Un seuil de score en dur = « score >= 80/75/60/55/45 » (ou s.score, etc.).

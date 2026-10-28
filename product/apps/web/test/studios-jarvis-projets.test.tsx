@@ -44,7 +44,8 @@ vi.mock('next/navigation', () => ({
 
 import { db, schema, eq } from '@tiktrends/db';
 import { POST } from '../app/api/jarvis/chat/route';
-import JarvisPage from '../app/(app)/jarvis/page';
+// Vague 3 · Jarvis est exclusif à Spatial · la colonne de contexte porte les projets.
+import JarvisPage from '../app/(spatial)/sp/jarvis/page';
 import { demarrerMockFournisseur } from './lot19b-mock-fournisseur';
 
 let mock: Awaited<ReturnType<typeof demarrerMockFournisseur>>;
@@ -58,7 +59,7 @@ async function consigneEnvoyee(): Promise<string> {
   expect(mock.recues.length).toBe(avant + 1);
   return mock.recues.at(-1)!.system;
 }
-const pageJarvis = async () => renderToStaticMarkup(await JarvisPage());
+const pageJarvis = async () => renderToStaticMarkup(await JarvisPage({}));
 
 beforeAll(async () => {
   mock = await demarrerMockFournisseur(() => 'Réponse simulée.');
@@ -132,13 +133,13 @@ describe('route Jarvis · la consigne envoyée connaît les projets Studios de l
   });
 });
 
-describe('page Jarvis V5 · les projets de la marque dans la colonne secondaire', () => {
+describe('page Jarvis · les projets de la marque dans la colonne de contexte', () => {
   it('avec le droit · les VRAIS projets sont listés (titre + lien) et la colonne renvoie aux sources', async () => {
     const html = await pageJarvis();
     // Un lien par projet de la marque (vers son écran), pas un lien d'en-tête générique.
     expect(html).toMatch(new RegExp(`href="/studio/projets/${ids.projetA}"`));
     expect(html).toContain('PROJET_A_NEVA sérum été');
-    // Le renvoi aux sources vit dans la colonne (« Documents & sources »).
+    // Le renvoi aux sources vit dans la colonne (groupe « Contexte »).
     expect(html).toContain('href="/jarvis/sources"');
   });
 
