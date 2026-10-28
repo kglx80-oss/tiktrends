@@ -11,7 +11,8 @@ import { join } from 'node:path';
  * recodé en dur ici retomberait dans le piège · on l'interdit.
  */
 const ECRANS = [
-  'app/(app)/analytics/CreativeIntel.tsx',
+  // Vague 2 Spatial v4 · la diversité créative de la vue Analytics (Accueil Spatial) se calcule dans le noyau.
+  '../../packages/core/src/spatial/accueil/analytics.ts',
   // Vague 3 · les règles créatives de « Sources de Jarvis » vivent dans Spatial.
   'spatial/vues/jarvis/sources-client.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));

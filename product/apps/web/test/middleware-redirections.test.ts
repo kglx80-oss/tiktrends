@@ -40,7 +40,8 @@ const CAS: Array<[string, string]> = [
 /** Chemins qui ne sont PAS des adresses retirées · ni appariés, ni touchés. */
 // `/studio/projets` (liste), Résultats, `/assets` et Jarvis sont des écrans Spatial EXCLUSIFS depuis la vague 2 (« Nouveau projet » et l'éditeur
 // d'image depuis la vague 3) · réécrits même en mode V5, gardés plus bas.
-const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets/abc', '/studio/ads/x', '/saved', '/veille', '/api/health', '/_next/static/chunks/main.js'];
+// Vague 2 Spatial v4 · `/dashboard` est exclusif (garde ci-dessous) · il n'est plus « non concerné ».
+const NON_CONCERNES = ['/', '/login', '/analytics', '/studio/projets/abc', '/studio/ads/x', '/saved', '/veille', '/api/health', '/_next/static/chunks/main.js'];
 
 const appeler = (adresse: string, headers: Record<string, string> = {}) => middleware(new NextRequest(HOTE + adresse, { headers }));
 
@@ -67,6 +68,13 @@ describe('middleware · adresses retirées servies en 307 HTTP, contexte repris'
 
   it('Jarvis est exclusif (vague 3) · même en mode V5, ses écrans sont servis par Spatial', () => {
     for (const adresse of ['/jarvis', '/jarvis/sources', '/jarvis/veille']) {
+      const r = appeler(adresse, { cookie: 'tt_ui=v5' });
+      expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite')]).toEqual([adresse, 200, null, `${HOTE}/sp${adresse}`]);
+    }
+  });
+
+  it('l’Accueil est exclusif (vague 2 Spatial v4) · même en mode V5, `/dashboard` (et sa vue Analytics, cible de `/analytics` et des `redirect(\'/dashboard\')`) est servi par Spatial', () => {
+    for (const adresse of ['/dashboard', '/dashboard?vue=analytics']) {
       const r = appeler(adresse, { cookie: 'tt_ui=v5' });
       expect([adresse, r.status, r.headers.get('location'), r.headers.get('x-middleware-rewrite')]).toEqual([adresse, 200, null, `${HOTE}/sp${adresse}`]);
     }
@@ -118,7 +126,7 @@ describe('middleware · bascule Spatial (cookie tt_ui)', () => {
   });
 
   it('mode V5, ou écran non porté ⇒ aucune réécriture', () => {
-    for (const [adresse, ui] of [['/dashboard', 'v5'], ['/adresse-jamais-portee', 'spatial'], ['/adresse-jamais-portee', undefined], ['/sp/usage', 'spatial']] as const) {
+    for (const [adresse, ui] of [['/studio/projets/abc', 'v5'], ['/adresse-jamais-portee', 'spatial'], ['/adresse-jamais-portee', undefined], ['/sp/usage', 'spatial']] as const) {
       const r = avec(adresse, ui);
       expect([adresse, ui, r.headers.get('x-middleware-rewrite'), r.headers.get('x-middleware-next')]).toEqual([adresse, ui, null, '1']);
     }

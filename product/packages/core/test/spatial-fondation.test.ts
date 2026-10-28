@@ -18,15 +18,18 @@ describe('Spatial · bascule', () => {
 
   it('un chemin porté est réécrit vers l’arbre interne avec sa section, un chemin non porté jamais', () => {
     expect(ecranSpatial('/usage')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: true });
-    expect(ecranSpatial('/dashboard')).toMatchObject({ interne: '/sp/dashboard', section: 'accueil', exclusif: false });
+    // Vague 2 Spatial v4 · `/dashboard` est exclusif · `/onboarding` reste l'exemple d'un écran porté NON exclusif.
+    expect(ecranSpatial('/onboarding')).toMatchObject({ interne: '/sp/onboarding', section: 'accueil', exclusif: false });
+    expect(ecranSpatial('/dashboard')).toMatchObject({ interne: '/sp/dashboard', section: 'accueil', exclusif: true });
     expect(ecranSpatial('/usage/')).toMatchObject({ interne: '/sp/usage', section: 'reglages', exclusif: true });
     expect(ecranSpatial('/usage/x')).toBeNull();
-    // Un chemin qu'aucune rubrique ne porte (`/billing` l'est désormais, rubrique G).
-    expect(ecranSpatial('/credits')).toBeNull();
+    // Un chemin qu'aucune rubrique ne porte (`/billing` l'est désormais, rubrique G ;
+    // `/credits` aussi, vague 4 · Admin).
+    expect(ecranSpatial('/analytics')).toBeNull();
     // Un chemin déjà interne n'est jamais réécrit une seconde fois.
     expect(ecranSpatial('/sp/usage')).toBeNull();
     expect(cheminPorte('/usage?onglet=x#a')).toBe(true);
-    expect(cheminPorte('/credits')).toBe(false);
+    expect(cheminPorte('/analytics')).toBe(false);
   });
 
   it('chaque écran porté déclare une section connue et un chemin public unique', () => {

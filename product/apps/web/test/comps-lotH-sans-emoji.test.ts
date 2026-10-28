@@ -14,7 +14,6 @@ import { join } from 'node:path';
 const FICHIERS = [
   'components/AdCard.tsx',
   'app/(app)/saved/page.tsx',
-  'components/AssistantChat.tsx',
 ].map((rel) => ({ rel, src: readFileSync(join(process.cwd(), rel), 'utf8') }));
 
 // Pictogrammes, sauf ★☆ (favori), ✓ (2713), ✕ (2715).
@@ -30,6 +29,6 @@ describe('Cartes & découverte lot H · plus aucun emoji d’interface', () => {
   it('les conversions rendent des icônes du jeu', () => {
     const tout = FICHIERS.map((f) => f.src).join('\n');
     expect(tout).toMatch(/<Icon name="trophy"/);      // AdCard
-    expect(tout).toMatch(/<Icon name="sparkles"/);     // AdCard · saved · AssistantChat
+    expect(tout).toMatch(/<Icon name="sparkles"/);     // AdCard · saved
   });
 });

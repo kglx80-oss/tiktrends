@@ -46,18 +46,6 @@ describe('charte · jetons de titre partagés', () => {
   });
 });
 
-describe('charte · en-têtes sobres · pas de bandeau dégradé', () => {
-  // Les en-têtes de page portaient un bandeau `linear-gradient(135deg, rgba(230,0,126…`
-  // (Jarvis, Sources) et l'accueil un `rgba(230,0,126,.22)`. Sobres désormais.
-  const REFS = [
-    // Vague 3 · les pages V5 de Jarvis et de ses Sources sont retirées (Spatial exclusif).
-    'components/AssistantHome.tsx',
-  ];
-  for (const rel of REFS) {
-    it(`${rel} n’a plus de bandeau rose en en-tête`, () => {
-      const src = lit(rel);
-      expect(src, `${rel} · bandeau dégradé 135deg encore présent`).not.toMatch(/linear-gradient\(135deg, rgba\(230,0,126/);
-      expect(src, `${rel} · bandeau d'accueil rose encore présent`).not.toContain('rgba(230,0,126,.22)');
-    });
-  }
-});
+// « En-têtes sobres · pas de bandeau dégradé » · les derniers écrans gardés (Jarvis, Sources, l'ancien Accueil `AssistantHome`)
+// sont retirés et servis par Spatial (vague 3, puis vague 2 Spatial v4) · la garde n'a plus d'objet.
+

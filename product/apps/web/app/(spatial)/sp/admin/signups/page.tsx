@@ -1,20 +1,24 @@
 import {
-  CLASSE_RISQUE, VALEUR_ABSENTE, adminDateCourte, adminVariation, adminEuros, adminNombre, adminPluriel, adminPourcent, comptesARisque, estEnEssai, estPayant,
+  CLASSE_RISQUE, LIMITE_DECLARATIONS, VALEUR_ABSENTE, dateDeclaration, declarationOnboarding, adminDateCourte, adminVariation, adminEuros, adminNombre, adminPluriel, adminPourcent, comptesARisque, estEnEssai, estPayant,
   filtresComptes, inscriptions, libelleRisque, mrrARisque, mrrEspace, niveauRisque, parcoursInscription, partCreditsUtilises, signauxRisque,
 } from '@tiktrends/core';
 import { Comptes } from '../../../../../spatial/vues/admin/Comptes';
-import { bandeau, chargerEspaces, chargerTarifs, porteAdmin } from '../donnees';
+import { bandeau, chargerDeclarations, chargerEspaces, chargerTarifs, porteAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
 const LIMITE = 200;
 
-/** « Inscriptions & comptes » · porte de `/admin/signups` (V5) · fondateur ET admin de l'espace. */
+/**
+ * « Inscriptions & comptes » · `/admin/signups`, écran EXCLUSIF (l'ancienne page
+ * est retirée, ses déclarations d'onboarding vivent ici) · fondateur ET admin
+ * de l'espace, la même porte que l'ancienne page.
+ */
 export default async function ComptesSpatial() {
   await porteAdmin();
   const maintenant = new Date();
   const tarifs = await chargerTarifs();
-  const espaces = await chargerEspaces(maintenant);
+  const [espaces, declarations] = await Promise.all([chargerEspaces(maintenant), chargerDeclarations(LIMITE_DECLARATIONS)]);
   const ins = inscriptions(espaces, tarifs, maintenant);
   const risque = comptesARisque(espaces, tarifs, maintenant);
   const variation = adminVariation(ins.variationPct, 'aucune le mois d’avant');
@@ -47,6 +51,13 @@ export default async function ComptesSpatial() {
           inscrit: adminDateCourte(e.creeLe),
         };
       })}
+      declarations={{
+        sous: `Chaque nouveau compte et son profil déclaré à l’onboarding · ${adminPluriel(declarations.length, 'espace')}${declarations.length >= LIMITE_DECLARATIONS ? ' (les plus récents)' : ''}`,
+        lignes: declarations.map((d) => ({
+          id: d.id, nom: d.nom, proprietaire: d.proprietaire ?? VALEUR_ABSENTE, ...declarationOnboarding(d.onboarding),
+          forfait: tarifs.libelles[d.forfait] ?? d.forfait, inscrit: dateDeclaration(d.creeLe), onboarde: d.onboardeLe ? dateDeclaration(d.onboardeLe) : null,
+        })),
+      }}
       note={`${espaces.length > LIMITE ? `Les ${LIMITE} derniers espaces inscrits sur ${adminNombre(espaces.length)}` : adminPluriel(espaces.length, 'espace')} · crédits utilisés = consommation sur 30 jours ÷ dotation de la formule.`}
     />
   );

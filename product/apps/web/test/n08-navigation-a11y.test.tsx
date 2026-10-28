@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { AssistantChat } from '../components/AssistantChat';
+import { AssistantAccueil } from '../spatial/vues/accueil/assistant';
+
+vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 
 /**
  * CDC v7 · N08 · navigation mobile et formulaire assistant.
@@ -18,7 +20,8 @@ import { AssistantChat } from '../components/AssistantChat';
  */
 
 describe('N08 · le champ assistant a un libellé PERSISTANT associé', () => {
-  const html = renderToStaticMarkup(<AssistantChat ready />);
+  // Vague 2 Spatial v4 · l'assistant de l'Accueil Spatial (porté de l'ancien `AssistantChat`).
+  const html = renderToStaticMarkup(<AssistantAccueil pret prix="1 crédit par question" suggestions={['Une question']} />);
 
   it('un label est lié au champ (htmlFor ↔ id), pas un simple placeholder', () => {
     const idMatch = html.match(/<input[^>]*\sid="([^"]+)"/);

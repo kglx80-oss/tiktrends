@@ -18,7 +18,8 @@ const lit = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 
 describe('les écrans de marque lisent la marque, pas tout l’espace', () => {
   it('Analytics · le nuage de tags scope les assets à la marque (ou communs)', () => {
-    const src = lit('components/accueil/VueAnalytics.tsx');
+    // Vague 2 Spatial v4 · la vue Analytics de l'Accueil Spatial (même lecture que l'ancienne vue).
+    const src = lit('app/(spatial)/sp/dashboard/analytics.ts');
     expect(src, 'les assets du nuage de tags doivent être scopés marque-ou-commun, pas tout l’espace')
       .toMatch(/isNull\(schema\.assets\.brandId\)/);
   });
