@@ -65,7 +65,11 @@ export interface NoeudSpatial {
   lien: { href: string; libelle: string; forme: 'pastille' | 'bouton' } | null;
   /** Création mesurée et battue · repliable. */
   perdant: boolean;
+  /** La cible de proposition que « Cibler Jarvis » choisit depuis ce nœud · absente, le geste n'est pas offert. */
+  cible?: CibleJarvisNoeud | null;
 }
+
+export interface CibleJarvisNoeud { cible: string; libelle: string }
 
 export interface CouloirSpatial { cle: CleCouloir; titre: string; noeuds: NoeudSpatial[] }
 
@@ -216,4 +220,33 @@ export function repliPossible(couloirs: readonly CouloirSpatial[]): { possible: 
 export function replierPerdants(couloirs: readonly CouloirSpatial[], replie: boolean): CouloirSpatial[] {
   if (!replie) return couloirs.map((c) => ({ ...c, noeuds: [...c.noeuds] }));
   return couloirs.map((c) => ({ ...c, noeuds: c.noeuds.filter((n) => !n.perdant) }));
+}
+
+/* ─────────────────────── « Cibler Jarvis » depuis un nœud ─────────────────────── */
+
+const NOEUDS_DU_BRIEF = /^(brief|hypothese|direction):(.+)$/;
+
+/**
+ * La cible de proposition d'un nœud (geste « Cibler Jarvis » de la fiche V5,
+ * porté dans les couloirs). Seuls les nœuds que le BRIEF porte (brief,
+ * hypothèse, direction) de la VERSION COURANTE ont une cible · et seulement si
+ * le formulaire de propositions la propose vraiment (`cibles`, vide pour un
+ * rôle en lecture ou une version antérieure). Cibler ne demande rien à Jarvis ·
+ * l'envoi, payant et annoncé, reste un clic séparé.
+ */
+export function cibleJarvisNoeud(id: string, o: { versionCourante: string | null; cibles: readonly CibleJarvisNoeud[] }): CibleJarvisNoeud | null {
+  const m = NOEUDS_DU_BRIEF.exec(id);
+  if (!m || o.versionCourante === null || m[2] !== o.versionCourante) return null;
+  return o.cibles.find((c) => c.cible === 'brief') ?? null;
+}
+
+export function ciblerCouloirs(couloirs: readonly CouloirSpatial[], o: { versionCourante: string | null; cibles: readonly CibleJarvisNoeud[] }): CouloirSpatial[] {
+  return couloirs.map((c) => ({ ...c, noeuds: c.noeuds.map((n) => ({ ...n, cible: cibleJarvisNoeud(n.id, o) })) }));
+}
+
+/** Ce que dit l'écran après « Cibler Jarvis » · rien n'est envoyé. */
+export function annonceCibleJarvis(libelle: string, disponible: boolean): string {
+  return disponible
+    ? `Cible « ${libelle} » choisie dans les propositions · écris ta demande. Rien n’est envoyé avant ton clic sur « Demander à Jarvis ».`
+    : `Les propositions ne proposent pas « ${libelle} » sur la version courante · choisis la cible à la main. Rien n’a été envoyé.`;
 }
