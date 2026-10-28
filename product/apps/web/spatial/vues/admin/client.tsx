@@ -112,21 +112,35 @@ export function RevenusHero({ titre, valeur, variation, detail, serie }: {
   const [n, setN] = useState(12);
   const vue = serie.slice(-n);
   const t = traceMrr(vue.map((m) => m.valeur));
+  // Moins de deux mois relevés sur toute la série · aucune courbe ne se trace, quelle que soit la période.
+  // L'écran le DIT au lieu d'un graphique muet (grille seule), et la bascule de période, sans objet, disparaît.
+  const releves = serie.filter((m) => m.valeur != null);
+  const sansCourbe = traceMrr(serie.map((m) => m.valeur)) === null;
   return (
     <section className="tile rvhero">
       <div className="rvh">
         <div><span className="lbl" style={{ margin: 0 }}>{titre}</span><div className="rvbig"><b>{valeur}</b>{variation != null && <span className="pill g">{variation}</span>}</div><small className="faint">{detail}</small></div>
-        <div className="seg" role="group" aria-label="Période">
-          {[6, 12].map((k) => <button key={k} type="button" aria-pressed={n === k} onClick={() => setN(k)}>{k} mois</button>)}
-        </div>
+        {!sansCourbe && (
+          <div className="seg" role="group" aria-label="Période">
+            {[6, 12].map((k) => <button key={k} type="button" aria-pressed={n === k} onClick={() => setN(k)}>{k} mois</button>)}
+          </div>
+        )}
       </div>
-      <svg className="rvchart" viewBox="0 0 600 190" preserveAspectRatio="none" aria-hidden="true">
-        <defs><linearGradient id="rvg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--acc)" stopOpacity=".45" /><stop offset="1" stopColor="var(--acc)" stopOpacity="0" /></linearGradient></defs>
-        {[18, 68, 118, 168].map((y) => <line key={y} x1="0" x2="600" y1={y} y2={y} stroke="#ffffff14" strokeDasharray="3 5" />)}
-        {t && <path d={t.aire} fill="url(#rvg)" />}
-        {t && <path d={t.ligne} fill="none" stroke="var(--acc)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
-      </svg>
-      <div className="rvmo">{vue.map((m, i) => <span key={i} className={m.enCours ? 'on' : ''}>{m.libelle}</span>)}</div>
+      {sansCourbe ? (
+        <p className="faint" data-vide="courbe-mrr" style={{ fontSize: '12.5px', margin: 0 }}>
+          {releves.length === 0
+            ? 'Aucun relevé mensuel du MRR · la courbe se trace à partir de deux mois relevés. Rien n’est reconstitué.'
+            : `Un seul mois relevé (${releves[0]!.libelle}) · la courbe du MRR se trace à partir de deux mois relevés, et les mois précédents ne sont pas enregistrés. Rien n’est reconstitué.`}
+        </p>
+      ) : (
+        <svg className="rvchart" viewBox="0 0 600 190" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="rvg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--acc)" stopOpacity=".45" /><stop offset="1" stopColor="var(--acc)" stopOpacity="0" /></linearGradient></defs>
+          {[18, 68, 118, 168].map((y) => <line key={y} x1="0" x2="600" y1={y} y2={y} stroke="#ffffff14" strokeDasharray="3 5" />)}
+          {t && <path d={t.aire} fill="url(#rvg)" />}
+          {t && <path d={t.ligne} fill="none" stroke="var(--acc)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+        </svg>
+      )}
+      {!sansCourbe && <div className="rvmo">{vue.map((m, i) => <span key={i} className={m.enCours ? 'on' : ''}>{m.libelle}</span>)}</div>}
     </section>
   );
 }

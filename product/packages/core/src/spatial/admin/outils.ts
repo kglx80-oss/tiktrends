@@ -46,8 +46,28 @@ export function etatEssaiAdmin(t: { expired: boolean; daysLeft: number | null })
  */
 export const LARGEUR_MIN_TABLE_TELEPHONE = {
   defauts: 720, comptes: 680, forfaits: 640,
-  // Neuf colonnes · la largeur minimale de l'ancienne table `/admin/signups` (900 px), reprise telle quelle.
-  declarations: 900,
+  // Les tables suivantes · mesurées le 28/10 (banc, Chromium, 390 × 844, données
+  // semées) · plus petite largeur où AUCUNE cellule n'est rognée (`.atr>span`,
+  // `scrollWidth > clientWidth`) et aucun montant ne passe sur deux lignes :
+  //
+  // | table                                   | colonnes | seuil mesuré | retenu |
+  // | --------------------------------------- | -------- | ------------ | ------ |
+  // | Crédits · économie & marges             |    7     |     660      |  760   |
+  // | Crédits · marge nette                   |    7     |     440      |  640   |
+  // | Crédits · rentabilité & optimisation    |    6     |     440      |  640   |
+  // | Crédits · corrections de barème         |    4     |     520      |  640   |
+  // | Revenus · rentabilité par abonnement    |    8     |     800      |  800   |
+  // | Inscriptions · profil déclaré (9 col.)  |    9     |     860      |  860   |
+  //
+  // Sans largeur minimale, ces tables se partageaient ~294 px · 51 textes rognés
+  // sur Crédits (« 0,… € », « Anthr… »), 17 sur Revenus. Le plancher de 640
+  // (plus petite cellule ≥ 64 px) vaut pour toutes. Le profil déclaré était à
+  // 900 avec des colonnes trop étroites pour la pastille « Onboardé » (rognée
+  // même à 980) · ses colonnes sont rééquilibrées et 860 tient aussi dans la
+  // zone utile d'un écran de 1280 (866 px) · plus de défilement de 34 px.
+  declarations: 860,
+  operationsCredits: 760, netsCredits: 640, risquesCredits: 640, correctionsCredits: 640,
+  rentabiliteRevenus: 800,
 } as const;
 
 /** Le style en ligne d'une table défilante (`.atable`) · ses lignes gardent leurs propres colonnes. */

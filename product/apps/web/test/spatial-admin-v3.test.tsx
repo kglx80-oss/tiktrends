@@ -65,7 +65,8 @@ import { Incidents } from '../spatial/vues/admin/Incidents';
 import { Interrupteurs } from '../spatial/vues/admin/Interrupteurs';
 import { Connaissances } from '../spatial/vues/admin/Connaissances';
 import { DiagnosticStripe } from '../spatial/vues/admin/paiements-client';
-import { propsComptes, propsCouts, propsDroits, propsForfaits, propsPaiements, propsPrompts } from './spatial/props-admin';
+import { Revenus } from '../spatial/vues/admin/Revenus';
+import { propsComptes, propsCouts, propsDroits, propsForfaits, propsPaiements, propsPrompts, propsRevenus } from './spatial/props-admin';
 
 const CTX: CtxSpatial = {
   utilisateur: { nom: 'Kevin', initiales: 'KG', email: 'k@x.fr', role: 'Propriétaire' },
@@ -132,6 +133,12 @@ describe('Spatial · Admin · vague 3 · les tables larges défilent au téléph
     ['Paiements en défaut', rendre(<Paiements {...propsPaiements()} />), LARGEUR_MIN_TABLE_TELEPHONE.defauts, '#afail'],
     ['Comptes', rendre(<Comptes {...propsComptes()} />), LARGEUR_MIN_TABLE_TELEPHONE.comptes, '[data-table="comptes"]'],
     ['Forfaits publiés', rendre(<Forfaits {...propsForfaits()} />), LARGEUR_MIN_TABLE_TELEPHONE.forfaits, '[data-table="forfaits"]'],
+    // Planche v4 · G5 · « Rentabilité par abonnement » s'écrasait dans ~294 px (« For… A… M… 33… »).
+    ['Revenus · rentabilité par abonnement', rendre(<Revenus {...propsRevenus()} />), LARGEUR_MIN_TABLE_TELEPHONE.rentabiliteRevenus, '[data-table="rentabilite"]'],
+    // Planche v4 · G18 · le profil déclaré · ses colonnes rééquilibrées, sa largeur minimale tient à 1280.
+    ['Inscriptions · profil déclaré', rendre(<Comptes {...propsComptes()} declarations={{ sous: 's', lignes: ['a', 'b'].map((id) => ({
+      id, nom: `Espace ${id}`, proprietaire: `${id}@exemple.fr`, profil: 'Marque / E-com', experience: null, objectifs: [], site: null, forfait: 'Core', inscrit: '22 oct. 26', onboarde: '22 oct. 26',
+    })) }} />), LARGEUR_MIN_TABLE_TELEPHONE.declarations, '[data-table="declarations"]'],
   ];
   it.each(cas)('%s · la table défile et garde une largeur minimale mesurée, ses lignes leurs colonnes', (_n, html, min, sel) => {
     const t = doc(html).querySelector(`.atable${sel}`) as HTMLElement;
