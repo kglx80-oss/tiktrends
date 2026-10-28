@@ -214,9 +214,18 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   return (
     <FournisseurSpatial value={ctx}>
       <div className="bg" aria-hidden="true" /><div className="bg2" aria-hidden="true" />
-      <div className="app">
+      {/* `min-height` · la feuille de la maquette pose `html,body{min-height:100%}`,
+          qui ne résout pas (hauteur de `html` indéfinie) · sur une page plus
+          courte que l'écran en mobile, le `body` opaque s'arrêtait sous le
+          contenu et le fond flou apparaissait en bande grise dessous. */}
+      <div className="app" style={{ minHeight: '100vh' }}>
         <nav className="rail glass" aria-label="Navigation principale">
-          <div className="brandrow">
+          {/* `width:auto` · la maquette donne `width:100%` à la rangée de marque ;
+              en barre mobile (≤ 760 px) ses deux enfants sont masqués, mais elle
+              réclamait toute la largeur et écrasait les onglets à 20 px. En
+              bureau, `auto` rend la même largeur (rail fermé · déjà `auto` ;
+              rail ouvert · `align-items:stretch`). */}
+          <div className="brandrow" style={{ width: 'auto' }}>
             <button className={d.marque?.logoUrl ? 'logo hasfav' : 'logo'} id="brandsw" type="button" aria-label={`Changer de marque${d.marque ? ` · ${d.marque.nom}` : ''}`} onClick={() => basculer('marques')} aria-expanded={panneau === 'marques'}>
               {d.marque?.logoUrl ? <img src={d.marque.logoUrl} alt="" width={32} height={32} /> : (d.marque?.nom ?? '?').slice(0, 1).toUpperCase()}
             </button>
