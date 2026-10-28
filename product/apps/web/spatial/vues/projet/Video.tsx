@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MODES_PAROLE, NOTE_BORNE_TEXTE, RELECTURE_CREATIONS_MS,
-  appliquerOperationVideo as appliquerNoyau, classeFormat, dureeLisible, etatPlan, formatDuDocument, gestesPlan, idsPlansAlloues,
+  GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MESSAGE_REPONSE_PERDUE_MONTAGE, MODES_PAROLE, NOTE_BORNE_TEXTE, RELECTURE_CREATIONS_MS,
+  appliquerOperationVideo as appliquerNoyau, classeFormat, decisionConfirmationApercu, dureeLisible, ECHEC_RESEAU_STUDIO, etatEchecStudio, etatPlan, gesteVideoReessayable, formatDuDocument, gestesPlan, idsPlansAlloues,
   impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCoutTexteEstime, libelleCredits, libellePrix, libelleUsd,
   messageHorsLigneStudio, minuteSeconde, pistesMontage, relectureNecessaire, saisieVierge, sourceLecteur,
   type BilanDurees, type CleGestePlan, type ErreurStudio, type EtatJob, type ImpactVideo, type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan,
@@ -15,6 +15,7 @@ import {
   demanderDevisClip, demanderDevisKeyframe, planifierStoryboard, retenirConsignePlan,
 } from '../../../app/actions/studios/video';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
+import { cleRetour, useFocusApresGeste } from '../../../lib/studios/focus-geste';
 import { useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Ornement } from '../studios/Ornement';
@@ -25,8 +26,9 @@ import { Message } from './briques';
  * à l'identique (lecteur, plans, gestes, montage).
  *
  * La maquette simule des variantes A/B/C qui « se rendent » toutes seules et
- * six leviers à prix fixe. Ici tout est la chaîne vidéo RÉELLE de la V5
- * (`EcranVideo`) :
+ * six leviers à prix fixe. Ici tout est la chaîne vidéo RÉELLE, reprise de
+ * l'écran V5 (`EcranVideo`, retiré ; ses gardes vivent dans
+ * `spatial-video-atelier.test.tsx`) :
  *  · le lecteur · la dernière vidéo finale assemblée, sinon l'image clé du
  *    plan choisi ;
  *  · « Plans » · chaque plan du storyboard et son état réel (en file, en
@@ -39,20 +41,25 @@ import { Message } from './briques';
  *    « Modifier le script » ouvre l'édition, chaque changement montre son
  *    impact (noyau) avant d'être enregistré ;
  *  · storyboard (appel texte payant, ou saisie manuelle gratuite), vidéo
- *    finale (calcul serveur, 0 crédit), générations.
+ *    finale (calcul serveur, 0 crédit), générations ;
+ *  · la fiche du plan choisi · chaque champ dans sa case, son clip animé ;
+ *  · le focus suit le geste (aperçu, message), Échap referme l'aperçu ; un
+ *    refus dit son MOT (conflit, hors ligne) et le geste suivant
+ *    (« Recharger la version courante », « Réessayer » s'il ne coûte rien).
  * Rien n'est lancé sans le geste explicite de la personne.
  */
 
-interface Apercu { operation: OperationVideo; libelle: string; impact: ImpactVideo | null; durees: BilanDurees | null; signalements: string[]; refus: string | null }
-type Retour = { ton: 'ok' | 'err'; texte: string } | null;
+interface Apercu { operation: OperationVideo; version: { id: string; n: number }; libelle: string; impact: ImpactVideo | null; durees: BilanDurees | null; signalements: string[]; refus: string | null }
+/** `code` · le mot du refus (`etatEchecStudio`) ; `reessayable` · « Réessayer » rejoue le même geste sans rien dépenser. */
+type Retour = { ton: 'ok' | 'err'; texte: string; code?: string; reessayable?: boolean } | null;
 
 function apercuDuGeste(vue: DonneesVideo, operation: OperationVideo): Apercu {
   const r = appliquerNoyau(vue.contenu, operation, { sortiesExistantes: vue.mediasValides });
   if (!r.ok) {
     const detail = r.violations.map((v) => v.raison).join(' · ');
-    return { operation, libelle: 'changement refusé', impact: null, durees: null, signalements: [], refus: detail ? `${r.message} ${detail}` : r.message };
+    return { operation, version: vue.version, libelle: 'changement refusé', impact: null, durees: null, signalements: [], refus: detail ? `${r.message} ${detail}` : r.message };
   }
-  return { operation, libelle: r.libelle, impact: impactVideo(vue.contenu, r.contenu, { mediasExistants: vue.mediasValides }), durees: r.durees, signalements: r.signalements, refus: null };
+  return { operation, version: vue.version, libelle: r.libelle, impact: impactVideo(vue.contenu, r.contenu, { mediasExistants: vue.mediasValides }), durees: r.durees, signalements: r.signalements, refus: null };
 }
 
 /** Même clé que l'écran V5 · un double clic, une reconnexion ou un changement d'interface retrouvent le même job. */
@@ -95,6 +102,12 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
   const [scriptOuvert, setScriptOuvert] = useState(false);
   const [lecture, setLecture] = useState<'arret' | 'lecture' | 'pause'>('arret');
   const lecteur = useRef<HTMLVideoElement>(null);
+  // Le focus suit le geste (règle `cibleFocusApresGeste`) · l'aperçu qui s'ouvre, le message de retour,
+  // puis, l'aperçu refermé sans rien, le bouton du geste qui l'avait ouvert.
+  const ecran = useRef<HTMLDivElement>(null);
+  const apercuRef = useRef<HTMLElement>(null);
+  const retourRef = useRef<HTMLDivElement>(null);
+  const dernierGeste = useRef<(() => void) | null>(null);
 
   const recharger = useCallback(() => router.refresh(), [router]);
   useEffect(() => {
@@ -116,23 +129,34 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
     const tentative = payant?.commencer();
     if (payant && !tentative) return;
     setEnCours(nom); setRetour(null);
+    const reessayable = gesteVideoReessayable(nom);
+    dernierGeste.current = reessayable ? () => { void agir(nom, f, succes, apres); } : null;
     try {
       const r = await f();
       if (payant && tentative) payant.terminer(tentative, resultatPayantIncertain(r));
       if (r.ok) { const t = succes(r); setRetour({ ton: 'ok', texte: t }); toast(t); apres?.(); recharger(); }
-      else setRetour({ ton: 'err', texte: messageErreur(r) });
+      else setRetour({ ton: 'err', texte: messageErreur(r), code: r.code, reessayable });
     } catch {
       if (payant && tentative) payant.terminer(tentative, true);
-      setRetour({ ton: 'err', texte: payant ? MESSAGE_APPEL_PAYANT : messageHorsLigneStudio('enregistrement') });
+      setRetour({ ton: 'err', code: ECHEC_RESEAU_STUDIO, reessayable, texte: payant ? MESSAGE_APPEL_PAYANT : nom === 'confirmer' ? MESSAGE_REPONSE_PERDUE_MONTAGE : messageHorsLigneStudio('enregistrement') });
     } finally { setEnCours(null); }
   }
 
   const prevoir = (op: OperationVideo) => { setRetour(null); setApercu(apercuDuGeste(v, op)); };
+  // L'aperçu se confirme sur SA version (version attendue) · jamais sur celle
+  // que la vue a relue entre-temps (relecture des jobs, autre geste).
+  const confirmation = apercu ? decisionConfirmationApercu(apercu.version, v.version) : null;
+  useFocusApresGeste({ apercu: !!apercu, retour: cleRetour(retour), formulaire: false }, { conteneur: ecran, apercu: apercuRef, retour: retourRef });
+  const echec = retour?.ton === 'err' && retour.code ? etatEchecStudio(retour.code) : null;
+  const rechargerVersion = () => { setRetour(null); setApercu(null); recharger(); };
   const confirmer = () => {
     const a = apercu;
     if (!a) return;
-    void agir('confirmer', () => appliquerOperationVideo({ projectId: v.projet.id, baseVersionId: v.version.id, operation: a.operation }), (r) => {
-      const x = r as { impact?: { resume: string }; durees?: { phrase: string } };
+    const d = decisionConfirmationApercu(a.version, v.version);
+    if (!d.ok) { setRetour({ ton: 'err', texte: d.message, code: 'VERSION_CONFLICT' }); return; }
+    void agir('confirmer', () => appliquerOperationVideo({ projectId: v.projet.id, baseVersionId: a.version.id, operation: a.operation }), (r) => {
+      const x = r as { deja?: boolean; impact?: { resume: string }; durees?: { phrase: string } };
+      if (x.deja) return `${a.libelle} · déjà enregistré, ta première demande avait abouti · rien n’a été écrit deux fois.`;
       return `${a.libelle} · nouvelle version. ${x.impact?.resume ?? ''} ${x.durees?.phrase ?? ''}`.trim();
     }, () => { setApercu(null); if (a.operation.type === 'scenario') setStoryboard(null); });
   };
@@ -186,6 +210,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
 
   return (
     <Vue>
+      <div ref={ecran}>
       <EnTete titre={v.projet.titre || 'Projet vidéo'} sous={`Studios${marque ? ` · ${marque}` : ''} · vidéo ${Math.round(v.dureeTotaleMs / 1000)} s`} />
       {(appelStoryboard.bloque || appelConsigne.bloque) && <div className="banner" role="status"><span className="orb" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span><span>{MESSAGE_APPEL_PAYANT} <Lien href={`/studio/projets/${v.projet.id}#taches`}>Voir le suivi</Lien></span></div>}
       <div className="vstudio">
@@ -263,7 +288,13 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
             {plan && gestes.every((g) => !g.actif) && <small className="faint">{gestes.find((g) => g.raison)?.raison ?? 'Aucun geste disponible pour ce plan.'}</small>}
             {!disponibilite.animation.disponible && <small className="faint">Animation · {libelleAnimationIndisponible(disponibilite.animation)}. Aucun clip n’est proposé ni facturé.</small>}
             {questions.length > 0 && <Message ton="info">Le modèle demande des précisions · {questions.join(' · ')}</Message>}
-            {retour && <Message ton={retour.ton}>{retour.texte}</Message>}
+            {retour && (
+              <div ref={retourRef} tabIndex={-1} data-retour={retour.ton === 'ok' ? 'ok' : 'refus'} data-echec={echec ? retour.code : undefined}>
+                <p role={retour.ton === 'ok' ? 'status' : 'alert'} className="muted" style={{ fontSize: '12.5px' }}><span className={`pill ${retour.ton === 'ok' ? 'g' : 'w'}`}>{retour.ton === 'ok' ? 'Fait' : echec?.mot ?? 'Refusé'}</span>{' · '}{retour.texte}</p>
+                {echec?.action === 'recharger' && <button className="btn sm" type="button" data-bouton="recharger" disabled={!!enCours} onClick={rechargerVersion} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
+                {echec?.action === 'reessayer' && retour.reessayable && <button className="btn sm" type="button" data-bouton="reessayer" disabled={!!enCours} onClick={() => dernierGeste.current?.()} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
+              </div>
+            )}
           </section>
         </div>
       </div>
@@ -281,8 +312,12 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
         </div>
       </section>
 
+      {plan && c && <FichePlan rang={rang} p={v.contenu.shots.byId[plan]!} seg={v.segments.find((x) => x.shotId === plan) ?? null} c={c} />}
+
       {apercu && (
-        <section className="tile sec" data-zone="apercu-impact" aria-label="Impact du changement avant enregistrement">
+        // Échap équivaut à « Ne rien changer », qui reste le bouton visible.
+        <section ref={apercuRef} tabIndex={-1} className="tile sec" data-zone="apercu-impact" aria-label="Impact du changement avant enregistrement · Échap pour ne rien changer"
+          onKeyDown={(e) => { if (e.key === 'Escape' && !enCours) { e.stopPropagation(); setApercu(null); } }}>
           <div className="sech" style={{ margin: 0 }}><h2>Avant d’enregistrer · {apercu.libelle}</h2></div>
           {apercu.refus ? <Message ton="err">{apercu.refus}</Message> : apercu.impact && (
             <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
@@ -294,8 +329,11 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
               {apercu.signalements.map((s) => <p key={s} className="faint" style={{ fontSize: '12.5px' }}>{s}</p>)}
             </div>
           )}
+          {confirmation && !confirmation.ok && <Message ton="err">{confirmation.message}</Message>}
           <div className="kc" style={{ marginTop: 10 }}>
-            <button className="btn sm pri" type="button" disabled={!!apercu.refus || !disponibilite.montage.disponible || !!enCours} onClick={confirmer}>{enCours === 'confirmer' ? 'Enregistrement…' : 'Enregistrer ce changement'}</button>
+            {confirmation && !confirmation.ok
+              ? <button className="btn sm pri" type="button" disabled={!!enCours} onClick={() => prevoir(apercu.operation)}>Recalculer l’aperçu</button>
+              : <button className="btn sm pri" type="button" disabled={!!apercu.refus || !disponibilite.montage.disponible || !!enCours} onClick={confirmer}>{enCours === 'confirmer' ? 'Enregistrement…' : 'Enregistrer ce changement'}</button>}
             <button className="btn sm" type="button" disabled={!!enCours} onClick={() => setApercu(null)}>Ne rien changer</button>
             <span className="faint" style={{ fontSize: '11.5px' }}>{disponibilite.montage.disponible ? 'Nouvelle version du projet · aucun appel, aucun coût, aucun devis.' : disponibilite.montage.raison}</span>
           </div>
@@ -367,7 +405,35 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
         <span className="info" data-orn-video="">{infoOrnementVideo(ordre.length, ordre.filter((s) => v.clips[s]?.etat === 'valide').length)}</span>
         <Lien className="btn pri" href={variantesHref}><Ic n="flask" />Tester les variantes</Lien>
       </Ornement>
+      </div>
     </Vue>
+  );
+}
+
+/** Le plan choisi · chaque champ du storyboard dans SA case, et son clip animé quand il existe. */
+function FichePlan({ rang, p, seg, c }: { rang: number; p: PlanStudio; seg: DonneesVideo['segments'][number] | null; c: DonneesVideo['clips'][string] }) {
+  const duree = seg
+    ? `${dureeLisible(seg.dureeMs)} · ${seg.estimee ? 'estimée' : 'réelle'} · de ${dureeLisible(seg.debutMs)} à ${dureeLisible(seg.debutMs + seg.dureeMs)}`
+    : `${dureeLisible(p.estimatedDurationMs)} · estimée`;
+  const champs: Array<[string, string]> = [
+    ['Sujet', p.subject], ['Action', p.action], ['Cadrage', p.framing], ['Caméra', p.camera], ['Lumière', p.lighting], ['Décor', p.environment],
+    [`Narration (dite) · ${LIBELLES_MODE_PAROLE[p.speechMode]}`, p.speechMode === 'none' ? 'aucune' : p.narration],
+    ['Texte écran (lu)', p.onScreenText.join(' / ') || 'aucun'],
+    ['Durée', duree],
+  ];
+  return (
+    <section className="tile sec" data-zone="plan-choisi" aria-label={`Plan ${rang} · fiche`}>
+      <div className="sech" style={{ margin: 0 }}><h2>Plan {rang} · {p.purpose || 'fiche du plan'}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Le storyboard tel qu’il sera produit</span></div>
+      <dl className="kv2" data-champs-plan={p.shotId}>
+        {champs.map(([dt, dd]) => <Fragment key={dt}><dt>{dt}</dt><dd>{dd || 'à préciser'}</dd></Fragment>)}
+      </dl>
+      {c.media && (
+        <div data-clip={p.shotId} style={{ display: 'grid', gap: 6, marginTop: 12, maxWidth: 240 }}>
+          <video src={c.media.url} controls playsInline preload="metadata" aria-label={`Clip animé du plan ${rang}`} style={{ width: '100%', borderRadius: 14, display: 'block' }} />
+          <small className="faint" style={{ fontSize: '11.5px' }}>{c.etat === 'valide' ? 'Clip animé valide' : 'Clip animé obsolète · reste consultable, à refaire pour cette version'}</small>
+        </div>
+      )}
+    </section>
   );
 }
 
