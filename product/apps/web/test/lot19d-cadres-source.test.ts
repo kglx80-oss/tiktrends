@@ -28,7 +28,8 @@ const PERIMETRE = [
   ...['dashboard', 'analytics', 'studio', 'tags', 'radar', 'credits', 'profile', 'support']
     .map((d) => join('app', '(app)', d)),
   // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
-  ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
+  // Vague 2 Spatial v4 · Inscriptions (`signups`) retirée à son tour.
+  ...['finance'].map((d) => join('app', '(app)', 'admin', d)),
   // Lot 19B (#724) · les écrans et composants que les Connaissances ont créés ou
   // modifiés, plus la page et l'écran de refus de Jarvis (message 55).
   // Vague 3 · les écrans V5 `/jarvis` et `/jarvis/sources` (et leurs panneaux)

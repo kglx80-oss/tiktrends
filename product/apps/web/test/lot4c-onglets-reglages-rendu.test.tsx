@@ -45,7 +45,9 @@ type Rendu = () => Promise<unknown>;
 const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/billing',
   // Vague 3 · Admin · l'accueil des coulisses, les gestes et les outils de la plateforme ne sont plus servis que par Spatial.
   '/admin', '/admin/equipe', '/admin/plans', '/admin/paiement', '/admin/incidents', '/admin/depenses', '/admin/intelligence',
-  '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console']);
+  '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console',
+  // Vague 2 Spatial v4 · Inscriptions exclusives, page V5 retirée.
+  '/admin/signups']);
 const sp = { searchParams: Promise.resolve({}) };
 const PAGES: Record<string, Rendu> = {
   // Vague 2 · ces cinq écrans n'ont plus de page V5 · seul Spatial les sert
@@ -59,7 +61,7 @@ const PAGES: Record<string, Rendu> = {
   '/profile': async () => (await import('../app/(app)/profile/page')).default(sp),
   '/admin': async () => (await import('../app/(spatial)/sp/admin/page')).default(),
   '/admin/finance': async () => (await import('../app/(app)/admin/finance/page')).default(),
-  '/admin/signups': async () => (await import('../app/(app)/admin/signups/page')).default(),
+  '/admin/signups': async () => (await import('../app/(spatial)/sp/admin/signups/page')).default(),
   '/admin/equipe': async () => (await import('../app/(spatial)/sp/admin/equipe/page')).default(sp),
   '/admin/plans': async () => (await import('../app/(spatial)/sp/admin/plans/page')).default(sp),
   '/admin/paiement': async () => (await import('../app/(spatial)/sp/admin/paiement/page')).default(),
@@ -206,8 +208,8 @@ describe('lot 4c · chaque page porte SA barre, sur SON chemin', () => {
     const surDisque = readdirSync(dossier, { withFileTypes: true })
       .filter((d) => d.isDirectory() && existsSync(join(dossier, d.name, 'page.tsx')))
       .map((d) => `/admin/${d.name}`);
-    // Vague 3 · seules Finance et Inscriptions gardent une page V5 (gestes sans équivalent Spatial complet).
-    expect(surDisque.sort()).toEqual(['/admin/finance', '/admin/signups']);
+    // Vague 3 · seule Finance garde une page V5 (gestes sans équivalent Spatial complet) · Inscriptions est exclusive (vague 2 Spatial v4).
+    expect(surDisque.sort()).toEqual(['/admin/finance']);
     for (const c of surDisque) expect(ADMINISTRATION, `${c} · page d’Administration sans onglet`).toContain(c);
     for (const c of surDisque) expect(Object.keys(PAGES), `${c} · non rendue par ce test`).toContain(c);
   });

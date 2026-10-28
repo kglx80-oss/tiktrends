@@ -11,16 +11,16 @@ import type { EcranSpatial } from '../types';
  *
  * Vague 3 · tous les écrans sont EXCLUSIFS (pages V5 retirées ou inexistantes),
  * sauf « Revenus & MRR » (`/admin/finance` · bénéfice net après impôt et
- * recommandations de marge sans équivalent) et « Inscriptions & comptes »
- * (`/admin/signups` · propriétaire, expérience, objectifs et site déclarés à
- * l'onboarding sans équivalent) · leur page V5 reste ouverte par `?ui=v5`.
+ * recommandations de marge sans équivalent) · sa page V5 reste ouverte par
+ * `?ui=v5`. « Inscriptions & comptes » (`/admin/signups`) est exclusif depuis
+ * la vague 2 Spatial v4 · les déclarations d'onboarding y sont portées.
  */
 export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/admin', section: 'admin', exclusif: true },
   { chemin: '/admin/churn', section: 'admin', exclusif: true },
   { chemin: '/admin/finance', section: 'admin' },
   { chemin: '/admin/plans', section: 'admin', exclusif: true },
-  { chemin: '/admin/signups', section: 'admin' },
+  { chemin: '/admin/signups', section: 'admin', exclusif: true },
   { chemin: '/admin/sav', section: 'admin', exclusif: true },
   { chemin: '/admin/depenses', section: 'admin', exclusif: true },
   { chemin: '/admin/prompts', section: 'admin', exclusif: true },
