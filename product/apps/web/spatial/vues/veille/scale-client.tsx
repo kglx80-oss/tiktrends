@@ -93,8 +93,14 @@ export function ScaleInteractif({ lignes, initial, annonceurs, angles }: {
                 <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.accroche}</strong>
                 <span className="faint" style={{ fontSize: '11.5px' }}>{l.detail}</span>
               </div>
-              <div className="dbar"><i><b style={{ width: `${l.part}%` }} /></i><span>{l.jours}</span></div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {/* `.dbar` est redéfinie plus loin dans la feuille (barre du Drive · flex,
+                  marge basse) · la jauge de durée y tombait à 0 px. Elle reprend la place
+                  libre (`flex:1`), sans toucher à `display` (masquée sous 1100 px). */}
+              <div className="dbar" style={{ marginBottom: 0 }}><i style={{ flex: 1 }}><b style={{ width: `${l.part}%` }} /></i><span>{l.jours}</span></div>
+              {/* Les actions passent sous la ligne (colonnes 3 → fin) · dans la colonne
+                  `auto` de la maquette, elles réclamaient leur largeur d'une ligne et
+                  écrasaient le nom de l'annonceur sous la durée (G7, 1280 px). */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', gridColumn: '3 / -1' }}>
                 <Lien className="btn sm" href={l.cloner}><Ic n="copy" />Cloner</Lien>
                 {videoLisible(l.ad) && <a className="btn sm" href={videoLisible(l.ad)!} target="_blank" rel="noopener noreferrer"><Ic n="arrow" />Lire la vidéo</a>}
                 <BoutonSauvegarde ad={l.ad} initial={l.sauvee} />

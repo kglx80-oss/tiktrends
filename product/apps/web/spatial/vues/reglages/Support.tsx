@@ -40,7 +40,7 @@ export function Support(p: PropsSupport) {
                 </label>
                 <label className="field" style={{ gridColumn: 'span 2' }}>Titre<input name="title" required placeholder="Ex : l’export PDF ne fonctionne pas" /></label>
               </div>
-              <label className="field">Message<textarea name="body" required placeholder="Décris le contexte, ce que tu attendais, ce qui s’est passé." /></label>
+              <label className="field">Message<textarea className="ta" name="body" required placeholder="Décris le contexte, ce que tu attendais, ce qui s’est passé." /></label>
               <div><button className="btn pri" type="submit"><Ic n="arrow" />Envoyer le ticket</button></div>
             </form>
           ) : <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>L’ouverture d’un ticket est indisponible pour le moment.</p>}
@@ -106,7 +106,7 @@ export function Ticket(p: PropsTicket) {
           {p.fil.map((m) => m.equipe ? (
             <div className="savmsg a" key={m.id}><div className="savbub"><small>{m.auteur} · équipe · {m.le}</small><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.corps}</p></div><span className="savav sm" style={{ background: 'linear-gradient(135deg,var(--acc),var(--acc2))', color: 'var(--on)' }}>{m.initiales}</span></div>
           ) : (
-            <div className="savmsg c" key={m.id}><span className="savav sm" style={{ background: 'var(--glass3)', color: '#fff' }}>{m.initiales}</span><div className="savbub"><small>{m.auteur} · {m.le}</small><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.corps}</p></div></div>
+            <div className="savmsg c" key={m.id}><span className="savav sm" style={{ background: 'var(--glass3)', color: 'var(--fg)' }}>{m.initiales}</span><div className="savbub"><small>{m.auteur} · {m.le}</small><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.corps}</p></div></div>
           ))}
           {p.fil.length === 0 && <div className="savsys">Aucun message dans ce fil pour l’instant.</div>}
           {t.statutCle === 'resolved' && <div className="savsys g"><Ic n="check" />Ticket résolu</div>}

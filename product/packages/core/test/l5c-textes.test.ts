@@ -110,6 +110,23 @@ describe('comparer, exporter sans média, coût annoncé', () => {
     expect(c.motsCommuns).toBe(2);
   });
 
+  it('planche v4 · G9 · deux textes sans mot commun · tout le retiré, puis tout l’ajouté, jamais entrelacés sur un espace', () => {
+    const c = comparerTextes('Ta peau a soif ?', 'Je découvre');
+    expect(c.segments).toEqual([{ type: 'retire', texte: 'Ta peau a soif ?' }, { type: 'ajoute', texte: 'Je découvre' }]);
+    expect(c.motsCommuns).toBe(0);
+    // Un passage changé au milieu d'un texte se lit d'un bloc, les mots communs restent égaux autour.
+    const d = comparerTextes('Ta peau a soif ce soir', 'Ta peau brille vraiment ce soir');
+    expect(d.segments).toEqual([
+      { type: 'egal', texte: 'Ta peau ' }, { type: 'retire', texte: 'a soif' }, { type: 'ajoute', texte: 'brille vraiment' }, { type: 'egal', texte: ' ce soir' },
+    ]);
+    // Rien n'est perdu · le retiré et l'égal refont A, l'ajouté et l'égal refont B.
+    for (const [a, b] of [['Ta peau a soif ?', 'Je découvre'], ['Ta peau a soif ce soir', 'Ta peau brille vraiment ce soir'], ['Un deux trois', 'Un trois quatre']]) {
+      const x = comparerTextes(a!, b!);
+      expect(x.segments.filter((s) => s.type !== 'ajoute').map((s) => s.texte).join('')).toBe(a);
+      expect(x.segments.filter((s) => s.type !== 'retire').map((s) => s.texte).join('')).toBe(b);
+    }
+  });
+
   it('export Markdown · une variable testée Adsmap (code) s’écrit en clair', () => {
     const meta = { titre: 'Lunettes · rentrée', marque: 'Marque A1', versionN: 3, versionId: VERSION, exporteLe: '2026-10-08T09:00:00.000Z', brief: { ...brief(), testedVariable: 'hook' } };
     const md = exporterTextes([], meta, 'markdown').contenu;

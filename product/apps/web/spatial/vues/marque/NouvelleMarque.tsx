@@ -16,7 +16,7 @@ export interface PropsNouvelleMarque {
   retours: Record<string, string>;
 }
 
-const CHAMP = { flex: '1 1 260px', minWidth: 0, boxSizing: 'border-box', padding: '12px 16px', borderRadius: 16, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 14px var(--sf)', outline: 0 } as const;
+const CHAMP = { flex: '1 1 260px', minWidth: 0, boxSizing: 'border-box', padding: '12px 16px', borderRadius: 16, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 14px var(--sf)', outline: 0 } as const;
 const FORM = { display: 'grid', gap: 12, marginBottom: 16, borderColor: 'color-mix(in srgb,var(--acc) 45%,transparent)' } as const;
 
 export function NouvelleMarque(p: PropsNouvelleMarque) {

@@ -44,7 +44,7 @@ export async function generateViewport(): Promise<Viewport> {
   return {
     width: 'device-width',
     initialScale: 1,
-    themeColor: (await sectionSpatiale()) ? COULEUR_BARRE_SPATIALE : COULEUR_BARRE[await themeDemande()],
+    themeColor: ((await sectionSpatiale()) ? COULEUR_BARRE_SPATIALE : COULEUR_BARRE)[await themeDemande()],
   };
 }
 

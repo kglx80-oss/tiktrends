@@ -114,7 +114,7 @@ export function Revenus(p: PropsRevenus) {
       </div>
       <section className="tile sec">
         <div className="sech"><h2>Rentabilité par abonnement</h2><span className="faint" style={{ fontSize: '12.5px' }}>Marge = prix − coût IA si toute l’allocation est consommée − frais de paiement</span></div>
-        <div className="atable">
+        <div className="atable" data-table="rentabilite" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.rentabiliteRevenus)}>
           <div className="atr ath" style={{ gridTemplateColumns: COLONNES_RENTABILITE }}><span>Forfait</span><span>Abonnés</span><span>MRR</span><span>Coût IA / abonné</span><span>Frais paiement</span><span>Marge</span><span>Churn</span><span>LTV</span></div>
           {p.rentabilite.map((r) => (
             <div className="atr" style={{ gridTemplateColumns: COLONNES_RENTABILITE }} key={r.libelle}><span><b>{r.libelle}</b> <small className="faint">{r.prix}</small></span><span>{r.abonnes}</span><span>{r.mrr}</span><span>{r.coutIa}</span><span>{r.frais}</span><span><Barre part={r.marge} />{r.margeTexte}</span><span>{r.churn}</span><span>{r.ltv}</span></div>

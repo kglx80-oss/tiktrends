@@ -22,12 +22,13 @@ export function themeCourant(doc: Document = document): Theme {
   return themeDepuisCookie(doc.documentElement.getAttribute(ATTRIBUT_THEME));
 }
 
-/** Pose un thème · cookie d'un an, attribut sur `<html>`, barre du navigateur.
- *  Rend le thème posé. */
-export function appliquerTheme(theme: Theme, doc: Document = document): Theme {
+/** Pose un thème · cookie d'un an, attribut sur `<html>`, barre du navigateur
+ *  (`barres` · la couleur de chaque thème, celles de l'ancienne interface par
+ *  défaut, `COULEUR_BARRE_SPATIALE` sous Spatial). Rend le thème posé. */
+export function appliquerTheme(theme: Theme, doc: Document = document, barres: Record<Theme, string> = COULEUR_BARRE): Theme {
   try { doc.cookie = themeCookieString(theme); } catch { /* cookie indisponible · l'écran bascule quand même */ }
   doc.documentElement.setAttribute(ATTRIBUT_THEME, theme);
-  doc.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', COULEUR_BARRE[theme]));
+  doc.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', barres[theme]));
   return theme;
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { COST_MODEL, CREDIT_COSTS, ecranSpatial } from '@tiktrends/core';
+import { COST_MODEL, CREDIT_COSTS, LARGEUR_MIN_TABLE_TELEPHONE, ecranSpatial } from '@tiktrends/core';
 
 /**
  * Vague 4 · « Crédits & marges » (`/credits`) · écran V5 du personnel de la
@@ -157,5 +157,24 @@ describe('Spatial · Crédits & marges · le modèle économique', () => {
   });
   it('les gestes de pilotage restent dans « Forfaits »', async () => {
     expect((await page()).querySelector('a[href="/admin/plans"]')).not.toBeNull();
+  });
+});
+
+describe('Spatial · Crédits & marges · au téléphone, aucune valeur rognée (planche v4 · G4)', () => {
+  // Sans largeur minimale, les quatre tables se partageaient ~294 px à 390 · 51 textes rognés (« 0,… € », « Anthr… »).
+  // Chacune défile désormais dans son cadre à une largeur MESURÉE au banc ; ses lignes gardent leurs propres colonnes.
+  it.each([
+    ['operations', LARGEUR_MIN_TABLE_TELEPHONE.operationsCredits],
+    ['nets', LARGEUR_MIN_TABLE_TELEPHONE.netsCredits],
+    ['risques', LARGEUR_MIN_TABLE_TELEPHONE.risquesCredits],
+    ['corrections', LARGEUR_MIN_TABLE_TELEPHONE.correctionsCredits],
+  ] as const)('« %s » défile à %i px au moins', async (table, min) => {
+    const t = (await page()).querySelector(`.atable[data-table="${table}"]`) as HTMLElement | null;
+    expect(t, `table ${table} absente`).toBeTruthy();
+    expect(t!.style.overflowX, `${table} · la table ne défile pas, ses cellules seront rognées`).toBe('auto');
+    expect(t!.style.gridTemplateColumns).toBe(`minmax(${min}px, 1fr)`);
+    const lignes = [...t!.querySelectorAll('.atr')] as HTMLElement[];
+    expect(lignes.length).toBeGreaterThan(1);
+    for (const l of lignes) expect(l.style.gridTemplateColumns.split(/\s+/).length, `${table} · une ligne sans colonnes propres s'empilerait`).toBeGreaterThan(3);
   });
 });

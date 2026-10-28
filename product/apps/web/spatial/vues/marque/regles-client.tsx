@@ -64,7 +64,7 @@ export function ReglesMarque({ texte, enregistrer, raison, jarvis, sources }: {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input ref={champ} id="rin" placeholder={T.exemple} disabled={!enregistrer || encours} title={!enregistrer ? raison ?? undefined : undefined} style={{ flex: '1 1 260px', minWidth: 0, boxSizing: 'border-box', padding: '12px 16px', borderRadius: 16, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 14px var(--sf)', outline: 0 }} />
+          <input ref={champ} id="rin" placeholder={T.exemple} disabled={!enregistrer || encours} title={!enregistrer ? raison ?? undefined : undefined} style={{ flex: '1 1 260px', minWidth: 0, boxSizing: 'border-box', padding: '12px 16px', borderRadius: 16, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 14px var(--sf)', outline: 0 }} />
           <button className="btn pri" type="submit" disabled={!enregistrer || encours} title={!enregistrer ? raison ?? undefined : undefined}><Ic n="plus" />Ajouter</button>
         </div>
         <small className="faint" style={{ fontSize: '11.5px' }}>{enregistrer ? `${T.consigne} · s’applique dès la prochaine génération.` : raison}</small>

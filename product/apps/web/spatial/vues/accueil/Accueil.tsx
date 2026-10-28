@@ -130,15 +130,20 @@ function QuoiIterer({ q }: { q: EtatQuoiIterer }) {
                 <div className="qp">
                   <span className={`pill ${c.etiquette.classe}`} style={{ justifySelf: 'start' }}>{c.etiquette.texte}</span>
                   <strong>{c.nom}</strong>
-                  <div className="qk">{c.indicateurs.map((i) => <div key={i.libelle}><small>{i.libelle}</small><b className={i.classe}>{i.valeur}</b></div>)}</div>
+                  {/* Mini-tuiles · 72 px minimum, la troisième passe à la ligne en mobile
+                      plutôt que de rogner leurs libellés (« RO… », « Dép… », G12). */}
+                  <div className="qk" style={{ flexWrap: 'wrap' }}>{c.indicateurs.map((i) => <div key={i.libelle} style={{ flex: '1 1 72px' }}><small>{i.libelle}</small><b className={i.classe}>{i.valeur}</b></div>)}</div>
                 </div>
                 <div className="qb">
                   {c.recommande && <span className="pill g" style={{ justifySelf: 'start' }}>Recommandé</span>}
                   <h3>{c.titre}</h3>
                   <p className="muted" style={petit('13px')}>{c.raison}</p>
+                  {/* Pastilles · `white-space:nowrap` dans la maquette · « Garde · l’accroche,
+                      le visuel d’ouverture et le format » élargissait la carte au-delà de
+                      l’écran en mobile, titre et texte avec elle (G12). */}
                   <div className="kc">
-                    {c.signaux.map((s) => <span className={`pill ${s.classe}`} key={s.texte}>{s.texte}</span>)}
-                    {c.garde && <span className="pill"><Ic n="lock" />{c.garde}</span>}
+                    {c.signaux.map((s) => <span className={`pill ${s.classe}`} key={s.texte} style={{ whiteSpace: 'normal' }}>{s.texte}</span>)}
+                    {c.garde && <span className="pill" style={{ whiteSpace: 'normal' }}><Ic n="lock" />{c.garde}</span>}
                   </div>
                   <div className="kc" style={{ alignItems: 'center' }}>
                     <span className="dots" aria-label={c.preuve.libelle}>{[0, 1, 2].map((i) => <b key={i} className={i < c.preuve.niveau ? '' : 'o'} />)}</span>
@@ -180,7 +185,8 @@ function Boucle({ b }: { b: NonNullable<PropsAccueil['boucle']> }) {
             <strong>{e.titre}</strong><span className="muted" style={petit('12.5px')}>{e.sous}</span>
             {e.progression && <><div className="bar"><i><b style={{ width: `${e.progression.part}%` }} /></i><span>{e.progression.texte}</span></div><span className="faint" style={petit('11.5px')}>{e.progression.note}</span></>}
             {e.action
-              ? <span className={`btn sm ${e.alerte ? 'pri' : ''}`} style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>{e.alerte && <span className="pulse" style={{ width: 7, height: 7 }} />}{e.action}</span>
+              // Le libellé (« Conclure le lot #3 ») débordait du bouton `nowrap` dans une étape de ~160 px (G14).
+              ? <span className={`btn sm ${e.alerte ? 'pri' : ''}`} style={{ marginTop: 'auto', alignSelf: 'flex-start', whiteSpace: 'normal', maxWidth: '100%' }}>{e.alerte && <span className="pulse" style={{ width: 7, height: 7 }} />}{e.action}</span>
               : <span className="faint" style={petit('11.5px', { marginTop: 'auto' })} />}
           </Lien>
         ))}
@@ -202,7 +208,9 @@ export function Accueil(p: PropsAccueil) {
           {p.raccourcis.map((r) => (
             <Lien className="qa2 qa3" href={r.href} data-route={r.route} key={r.cle} style={r.pastille ? { position: 'relative' } : undefined}>
               <span className="ico"><Ic n={r.icone} /></span>
-              <span className="qt"><strong>{r.titre}</strong><small>{r.sous}</small></span>
+              {/* Titre et détail passent à la ligne · tronqués à ~100 px sur cinq colonnes
+                  (« Nouveau pro… », « Formats & V… », 1280 px, G13). */}
+              <span className="qt"><strong style={{ whiteSpace: 'normal' }}>{r.titre}</strong><small style={{ whiteSpace: 'normal' }}>{r.sous}</small></span>
               {r.pastille && <span className="qbadge" title={r.pastille.titre}>{r.pastille.valeur}</span>}
             </Lien>
           ))}
@@ -244,7 +252,7 @@ export function Accueil(p: PropsAccueil) {
                     {p.nouveautes.map((n) => (
                       <div className="it" key={n.id}>
                         <span className="ico" style={n.couleur ? { color: `var(--${n.couleur})` } : undefined}><Ic n={n.icone} /></span>
-                        <div><p style={{ color: '#fff' }}>{n.texte}</p><small>{n.quand}</small></div>
+                        <div><p style={{ color: 'var(--fg)' }}>{n.texte}</p><small>{n.quand}</small></div>
                         {n.action && <Lien className="btn sm" href={n.action.href}>{n.action.libelle}</Lien>}
                       </div>
                     ))}

@@ -125,7 +125,7 @@ export function RevoquerRelease({ releaseId }: { releaseId: string }) {
       <Confirmation ouvert={ouvert} fermer={() => setOuvert(false)} titre="Révoquer cette release ?" sousTitre="Geste d’urgence · tracé dans l’audit."
         points={['Plus aucune tâche studio ni nouveau devis ne l’utilise, même les jobs déjà épinglés sur elle.', 'Jarvis garde sa consigne 1.0.0 tant qu’elle reste pointée · publie ou reviens à une autre release.', 'Rien n’est effacé, et une révocation ne se défait pas.']}
         pied={<><button className="btn sm pri" type="button" disabled={g.enCours || !motif.trim()} onClick={confirmer}>{g.enCours ? 'En cours…' : 'Révoquer'}</button><button className="btn sm" type="button" onClick={() => setOuvert(false)}>Annuler</button></>}>
-        <label className="field" htmlFor={id}>Motif<textarea id={id} rows={3} value={motif} onChange={(e) => setMotif(e.target.value)} style={{ font: '14px/1.5 var(--sf)' }} /></label>
+        <label className="field" htmlFor={id}>Motif<textarea className="ta" id={id} rows={3} value={motif} onChange={(e) => setMotif(e.target.value)} /></label>
         {!g.r?.ok && <RetourGeste r={g.r} succes="" />}
       </Confirmation>
       {g.r?.ok && <RetourGeste r={g.r} succes="Release révoquée · plus aucune résolution ne l’utilise." />}
@@ -152,7 +152,7 @@ export function EditeurVersion({ baseId, champs, empreinteAttendue, brouillon }:
     <form onSubmit={(e) => { e.preventDefault(); envoyer(); }} style={{ display: 'grid', gap: 12 }} data-editeur={brouillon ? 'brouillon' : 'nouvelle-version'}>
       {champs.map((c) => (
         <label key={c.champ} className="field" htmlFor={`${id}-${c.champ}`}>{c.libelle}{c.liste ? ' · une entrée par ligne' : ''}
-          <textarea id={`${id}-${c.champ}`} value={valeurs[c.champ] ?? ''} rows={Math.min(14, Math.max(2, (valeurs[c.champ] ?? '').split('\n').length + 1))}
+          <textarea className="ta" id={`${id}-${c.champ}`} value={valeurs[c.champ] ?? ''} rows={Math.min(14, Math.max(2, (valeurs[c.champ] ?? '').split('\n').length + 1))}
             onChange={(e) => setValeurs((v) => ({ ...v, [c.champ]: e.target.value }))} />
         </label>
       ))}
@@ -218,8 +218,8 @@ export function FichesBenchmark({ releases }: { releases: ReadonlyArray<{ id: st
   return (
     <form onSubmit={(e) => { e.preventDefault(); g.lancer(() => joindreFichesBenchmarkAction({ releaseId, rapport, fiches })); }} style={{ display: 'grid', gap: 10 }} data-geste="fiches-benchmark">
       <label className="field" htmlFor={`${id}-r`}>Release<select id={`${id}-r`} value={releaseId} onChange={(e) => setReleaseId(e.target.value)}>{releases.map((x) => <option key={x.id} value={x.id}>{x.libelle}</option>)}</select></label>
-      <label className="field" htmlFor={`${id}-p`}>Contenu de rapport.json (campagne RÉELLE)<textarea id={`${id}-p`} rows={4} value={rapport} onChange={(e) => setRapport(e.target.value)} /></label>
-      <label className="field" htmlFor={`${id}-f`}>Fiches remplies · liste JSON des fiche-revue.json<textarea id={`${id}-f`} rows={4} value={fiches} onChange={(e) => setFiches(e.target.value)} /></label>
+      <label className="field" htmlFor={`${id}-p`}>Contenu de rapport.json (campagne RÉELLE)<textarea className="ta" id={`${id}-p`} rows={4} value={rapport} onChange={(e) => setRapport(e.target.value)} /></label>
+      <label className="field" htmlFor={`${id}-f`}>Fiches remplies · liste JSON des fiche-revue.json<textarea className="ta" id={`${id}-f`} rows={4} value={fiches} onChange={(e) => setFiches(e.target.value)} /></label>
       <div className="kc"><button className="btn sm pri" type="submit" disabled={g.enCours || vide}>{g.enCours ? 'Vérification…' : 'Joindre les fiches'}</button></div>
       <RetourGeste r={g.r} succes={passe ? 'Fiches jointes · évaluation réelle passée.' : 'Fiches jointes · l’évaluation n’est pas passée (voir la liste).'} />
     </form>

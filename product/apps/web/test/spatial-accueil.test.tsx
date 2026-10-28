@@ -7,7 +7,7 @@ import {
   PASTILLES_JARVIS_ACCUEIL, raccourcisAccueil, periodeReporting, syntheseReporting, choixRapidesPeriode,
   type CarteConfiguration, type CarteQuoiIterer, type EtapeBoucleAccueil, type JourneeMesuree,
 } from '@tiktrends/core';
-import { parite, squelette, fragmentReference } from './spatial/parite';
+import { parite, squelette, fragmentReference, type CorrectifParite } from './spatial/parite';
 
 const pousse = vi.fn();
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard', useRouter: () => ({ push: pousse, refresh: () => {} }) }));
@@ -100,9 +100,22 @@ const PROPS: PropsAccueil = {
  */
 const IGNORER = ['.ad .ph', '.qis > article:nth-of-type(4) .qa'];
 
+/**
+ * Correctifs de mise en page DÉCLARÉS (planche v4, banc) · le CSS de la
+ * maquette, repris tel quel, rogne ou déborde à ces endroits · l'outil les
+ * corrige en ligne, et la parité exige exactement ces écarts.
+ */
+const CORRECTIFS_ACCUEIL: CorrectifParite[] = [
+  { selecteur: '.qrow .qt strong, .qrow .qt small', style: ['white-space'], motif: 'G13 · raccourcis tronqués à ~100 px à 1280 (« Nouveau pro… »)' },
+  { selecteur: '.pipe .stage > .btn', style: ['white-space', 'max-width'], motif: 'G14 · « Conclure le lot #3 » déborde de son bouton à 1280' },
+  { selecteur: '#suggestions .qb .kc:not([style]) .pill', style: ['white-space'], motif: 'G12 · la pastille « Garde · … » élargit la carte hors de l’écran à 390' },
+  { selecteur: '#suggestions .qk', style: ['flex-wrap'], motif: 'G12 · mini-tuiles rognées (« RO… », « Dép… ») à 390' },
+  { selecteur: '#suggestions .qk > div', style: ['flex'], motif: 'G12 · mini-tuiles rognées (« RO… », « Dép… ») à 390' },
+];
+
 describe('Spatial · Accueil · parité de structure avec la maquette', () => {
   it('« Bonjour … » reproduit la maquette (en-tête, Jarvis, raccourcis, configuration, reporting, itérations, boucle, nouveautés, reprise)', () => {
-    const p = parite(rendre(<Accueil {...PROPS} />), 'accueil', { ignorer: IGNORER });
+    const p = parite(rendre(<Accueil {...PROPS} />), 'accueil', { ignorer: IGNORER, correctifs: CORRECTIFS_ACCUEIL });
     expect(p.rendu).toEqual(p.reference);
   });
 
@@ -121,6 +134,37 @@ describe('Spatial · Accueil · parité de structure avec la maquette', () => {
     expect(squelette(rendre(<Accueil {...sansKpi} />), { ignorer: IGNORER })).not.toEqual(ref);
     expect(squelette(rendre(<Accueil {...PROPS} />).replace('class="tile nowbar"', 'class="tile"'), { ignorer: IGNORER })).not.toEqual(ref);
     expect(squelette(rendre(<Accueil {...PROPS} boucle={null} />), { ignorer: IGNORER })).not.toEqual(ref);
+  });
+});
+
+describe('Spatial · Accueil · mise en page constatée au banc (planche v4)', () => {
+  const dom = () => { const t = document.createElement('template'); t.innerHTML = rendre(<Accueil {...PROPS} />); return t.content; };
+  const styles = (els: Iterable<Element>, prop: string) => [...els].map((e) => (e as HTMLElement).style.getPropertyValue(prop));
+
+  it('G13 · le titre et le détail des raccourcis passent à la ligne au lieu d’être tronqués', () => {
+    const qt = dom().querySelectorAll('.qrow .qt strong, .qrow .qt small');
+    expect(qt.length).toBe(10);
+    expect(styles(qt, 'white-space'), 'raccourcis tronqués (« Nouveau pro… ») · le texte complet n’est lisible nulle part').toEqual(Array(10).fill('normal'));
+  });
+
+  it('G14 · le libellé d’action d’une étape de la boucle passe à la ligne dans son bouton', () => {
+    const btn = [...dom().querySelectorAll('.pipe .stage > .btn')] as HTMLElement[];
+    expect(btn.map((b) => b.textContent)).toContain('Conclure le lot #1');
+    for (const b of btn) {
+      expect(b.style.whiteSpace, '« Conclure le lot #3 » déborde de son bouton').toBe('normal');
+      expect(b.style.maxWidth).toBe('100%');
+    }
+  });
+
+  it('G12 · les pastilles d’une gagnante passent à la ligne et les mini-tuiles aussi · la carte ne sort plus de l’écran', () => {
+    const d = dom();
+    const pastilles = d.querySelectorAll('#suggestions .qb .kc .pill');
+    expect([...pastilles].map((p) => p.textContent)).toContain('Garde · accroche');
+    expect(styles(pastilles, 'white-space').every((v) => v === 'normal'), 'une pastille `nowrap` élargit la carte hors de l’écran à 390').toBe(true);
+    for (const qk of d.querySelectorAll('#suggestions .qk')) {
+      expect((qk as HTMLElement).style.flexWrap, 'mini-tuiles rognées (« RO… ») · la troisième ne passe pas à la ligne').toBe('wrap');
+      expect(styles(qk.children, 'flex').every((v) => v === '1 1 72px')).toBe(true);
+    }
   });
 });
 

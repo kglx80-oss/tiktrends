@@ -14,7 +14,7 @@ import { Anneau, Ic, Lien } from '../../communs';
  */
 
 /** Le champ de saisie de la maquette (`#invmail`, `#rin`) · styles en ligne repris tels quels. */
-const STYLE_CHAMP_SPATIAL: CSSProperties = { flex: '1 1 220px', minWidth: 0, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: '#fff', font: '500 13px var(--sf)', outline: 0 };
+const STYLE_CHAMP_SPATIAL: CSSProperties = { flex: '1 1 220px', minWidth: 0, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)', outline: 0 };
 
 /* ───────────────────────── Dialogue ───────────────────────── */
 
