@@ -8,13 +8,13 @@ import { CollectionsSauvegardes, type GestesSauvegarde, type SauvegardeDonnees }
  * gardées de la marque active (`saved_ads`), rangées par collection (= leur
  * dossier réel). Sans sauvegarde, un état vide qui mène à la Veille.
  */
-export function Sauvegardes({ items, pastilleRadar, creerProjet, gestes, filtresInitiaux }: { items: ReadonlyArray<SauvegardeDonnees>; pastilleRadar: string | null; creerProjet: string; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes }) {
+export function Sauvegardes({ items, pastilleRadar, creerProjet, gestes, filtresInitiaux, collection }: { items: ReadonlyArray<SauvegardeDonnees>; pastilleRadar: string | null; creerProjet: string; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes; collection?: { cle: string; ignoree: boolean } }) {
   return (
     <Vue>
       <EnTete titre="Sauvegardes" sous="Tes créas classées par collection, avec leur source" />
       <SousNavVeille actif="/saved" pastilleRadar={pastilleRadar} />
       {items.length > 0
-        ? <CollectionsSauvegardes items={items} creerProjet={creerProjet} gestes={gestes} filtresInitiaux={filtresInitiaux} />
+        ? <CollectionsSauvegardes items={items} creerProjet={creerProjet} gestes={gestes} filtresInitiaux={filtresInitiaux} initiale={collection?.cle} collectionIgnoree={collection?.ignoree} />
         : <EtatVide icone="bookmark" titre="Aucune créa sauvegardée pour l’instant" texte="Depuis Pubs du moment, le marque-page d’une carte garde la créa ici, avec sa source." action={{ href: '/veille', libelle: 'Ouvrir les pubs du moment' }} />}
     </Vue>
   );
