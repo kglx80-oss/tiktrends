@@ -42,7 +42,10 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 
 type Rendu = () => Promise<unknown>;
-const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/billing']);
+const SPATIAUX = new Set(['/settings', '/team', '/connections', '/usage', '/billing',
+  // Vague 3 · Admin · l'accueil des coulisses, les gestes et les outils de la plateforme ne sont plus servis que par Spatial.
+  '/admin', '/admin/equipe', '/admin/plans', '/admin/paiement', '/admin/incidents', '/admin/depenses', '/admin/intelligence',
+  '/admin/connaissances', '/admin/ia-studios', '/admin/studios-interrupteurs', '/console']);
 const sp = { searchParams: Promise.resolve({}) };
 const PAGES: Record<string, Rendu> = {
   // Vague 2 · ces cinq écrans n'ont plus de page V5 · seul Spatial les sert
@@ -54,19 +57,19 @@ const PAGES: Record<string, Rendu> = {
   '/usage': async () => (await import('../app/(spatial)/sp/usage/page')).default(),
   '/billing': async () => (await import('../app/(spatial)/sp/billing/page')).default(),
   '/profile': async () => (await import('../app/(app)/profile/page')).default(sp),
-  '/admin': async () => (await import('../app/(app)/admin/page')).default(),
+  '/admin': async () => (await import('../app/(spatial)/sp/admin/page')).default(),
   '/admin/finance': async () => (await import('../app/(app)/admin/finance/page')).default(),
   '/admin/signups': async () => (await import('../app/(app)/admin/signups/page')).default(),
-  '/admin/equipe': async () => (await import('../app/(app)/admin/equipe/page')).default(sp),
-  '/admin/plans': async () => (await import('../app/(app)/admin/plans/page')).default(sp),
-  '/admin/paiement': async () => (await import('../app/(app)/admin/paiement/page')).default(),
-  '/admin/incidents': async () => (await import('../app/(app)/admin/incidents/page')).default(sp),
-  '/admin/depenses': async () => (await import('../app/(app)/admin/depenses/page')).default(sp),
-  '/admin/intelligence': async () => (await import('../app/(app)/admin/intelligence/page')).default(),
-  '/admin/connaissances': async () => (await import('../app/(app)/admin/connaissances/page')).default(),
-  '/admin/ia-studios': async () => (await import('../app/(app)/admin/ia-studios/page')).default(sp),
-  '/admin/studios-interrupteurs': async () => (await import('../app/(app)/admin/studios-interrupteurs/page')).default(sp),
-  '/console': async () => (await import('../app/(app)/console/page')).default(sp),
+  '/admin/equipe': async () => (await import('../app/(spatial)/sp/admin/equipe/page')).default(sp),
+  '/admin/plans': async () => (await import('../app/(spatial)/sp/admin/plans/page')).default(sp),
+  '/admin/paiement': async () => (await import('../app/(spatial)/sp/admin/paiement/page')).default(),
+  '/admin/incidents': async () => (await import('../app/(spatial)/sp/admin/incidents/page')).default(sp),
+  '/admin/depenses': async () => (await import('../app/(spatial)/sp/admin/depenses/page')).default(sp),
+  '/admin/intelligence': async () => (await import('../app/(spatial)/sp/admin/intelligence/page')).default(),
+  '/admin/connaissances': async () => (await import('../app/(spatial)/sp/admin/connaissances/page')).default(),
+  '/admin/ia-studios': async () => (await import('../app/(spatial)/sp/admin/ia-studios/page')).default(),
+  '/admin/studios-interrupteurs': async () => (await import('../app/(spatial)/sp/admin/studios-interrupteurs/page')).default(sp),
+  '/console': async () => (await import('../app/(spatial)/sp/console/page')).default(sp),
   '/credits': async () => (await import('../app/(app)/credits/page')).default(sp),
 };
 
@@ -174,37 +177,26 @@ describe('lot 4c · chaque page ne propose que des onglets qu’elle n’ouvrira
   });
 });
 
-describe('lot 4c · page d’entrée de l’Administration', () => {
-  it('équipe plateforme · les sous-pages par groupe, avec leur description, sans lien mort', async () => {
-    etat.session = ROLES['équipe plateforme']!();
-    const { html } = await rendre('/admin');
-    expect(html).not.toBeNull();
-    const groupes = [...html!.matchAll(/data-groupe-admin="([^"]+)"/g)].map((m) => m[1]);
-    expect(groupes).toEqual(['Finance', 'Comptes et équipe', 'Technique', 'IA et connaissances', 'Marché', 'Côté espace']);
-    const liens = [...html!.matchAll(/<a\b[^>]*data-outil="[^"]+"[^>]*>/g)].map((m) => /href="([^"]+)"/.exec(m[0])?.[1]);
-    const attendus = PAGES_ADMINISTRATION.filter((p) => p.cle !== 'admin').map((p) => p.href);
-    expect([...new Set(liens)].sort()).toEqual([...attendus].sort());
-    for (const p of PAGES_ADMINISTRATION.filter((x) => x.cle !== 'admin')) expect(html, p.href).toContain(p.description.replace(/&/g, '&amp;'));
-    // Chaque carte porte une icône du jeu partagé (un <svg>), jamais un emoji.
-    for (const carte of html!.match(/<a\b[^>]*data-outil="[^"]+"[\s\S]*?<\/a>/g) ?? []) expect(carte).toContain('<svg');
-    // Chaque lien mène à une page qui existe.
-    for (const href of attendus) {
-      // Une page V5, ou un écran exclusif servi par Spatial (`app/(spatial)/sp`).
-      const segs = href.split('/').filter(Boolean);
+describe('lot 4c · entrée de l’Administration', () => {
+  // Vague 3 · l'accueil V5 des coulisses (cartes par groupe) est retiré · le Tour de contrôle Spatial et sa
+  // sous-navigation le remplacent. Reste gardé ici · aucun onglet ne mène à une page absente.
+  it('chaque page d’Administration existe (page V5 ou écran Spatial) · aucun lien mort', () => {
+    for (const p of PAGES_ADMINISTRATION) {
+      const segs = p.href.split('/').filter(Boolean);
       const existe = existsSync(join(process.cwd(), 'app', '(app)', ...segs, 'page.tsx')) || existsSync(join(process.cwd(), 'app', '(spatial)', 'sp', ...segs, 'page.tsx'));
-      expect(existe, `${href} · page absente`).toBe(true);
+      expect(existe, `${p.href} · page absente`).toBe(true);
     }
   });
 
   it('fondateur sans compte admissible (SEC-10) · ni le registre ni les interrupteurs proposés', async () => {
     etat.session = base({ role: 'owner', user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: 'K' }, equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: false } });
-    const { html } = await rendre('/admin');
+    const { html } = await rendre('/admin/finance');
     const o = onglets(html!, 'administration').map((x) => x.href);
     expect(o).toContain('/admin/connaissances');
     expect(o).not.toContain('/admin/ia-studios');
     expect(o).not.toContain('/admin/studios-interrupteurs');
-    expect(html).not.toContain('data-outil="ia-studios"');
     expect((await rendre('/admin/ia-studios')).ouvre, 'la page refuse bien ce compte').toBe(false);
+    expect((await rendre('/admin/studios-interrupteurs')).ouvre, 'la page refuse bien ce compte').toBe(false);
   });
 });
 
@@ -214,7 +206,8 @@ describe('lot 4c · chaque page porte SA barre, sur SON chemin', () => {
     const surDisque = readdirSync(dossier, { withFileTypes: true })
       .filter((d) => d.isDirectory() && existsSync(join(dossier, d.name, 'page.tsx')))
       .map((d) => `/admin/${d.name}`);
-    expect(surDisque.length).toBeGreaterThanOrEqual(11);
+    // Vague 3 · seules Finance et Inscriptions gardent une page V5 (gestes sans équivalent Spatial complet).
+    expect(surDisque.sort()).toEqual(['/admin/finance', '/admin/signups']);
     for (const c of surDisque) expect(ADMINISTRATION, `${c} · page d’Administration sans onglet`).toContain(c);
     for (const c of surDisque) expect(Object.keys(PAGES), `${c} · non rendue par ce test`).toContain(c);
   });

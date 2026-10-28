@@ -37,15 +37,16 @@ import { db, schema, eq } from '@tiktrends/db';
 import { cleInterrupteursEspace } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { projetTest } from './l3-harnais';
-// Vague 2 · liste, vidéo, identités et textes ne sont plus servis que par Spatial (pages V5 retirées) ·
-// la fiche du projet et l'éditeur d'image restent des pages V5.
+// Vague 2 et 3 · liste, vidéo, identités, textes et éditeur d'image ne sont plus servis que par Spatial
+// (pages V5 retirées) · la fiche du projet reste une page V5.
 import ProjetsSpatial from '../app/(spatial)/sp/studio/projets/page';
 import ProjetPage from '../app/(app)/studio/projets/[id]/page';
 import VideoSpatial from '../app/(spatial)/sp/studio/projets/[id]/video/page';
-import ImagePage from '../app/(app)/studio/projets/[id]/image/page';
+import ImageSpatial from '../app/(spatial)/sp/studio/projets/[id]/image/page';
 import IdentitesSpatial from '../app/(spatial)/sp/studio/projets/[id]/identites/page';
 import TextesSpatial from '../app/(spatial)/sp/studio/projets/[id]/textes/page';
-import InterrupteursPage from '../app/(app)/admin/studios-interrupteurs/page';
+// Spatial · vague 3 · l'écran V5 est retiré · la page Spatiale porte la même garde et la même lecture.
+import InterrupteursSpatial from '../app/(spatial)/sp/admin/studios-interrupteurs/page';
 import { avecSpatial } from './spatial/fournisseur';
 import type { ReactElement } from 'react';
 
@@ -53,6 +54,7 @@ const sp = async (el: Promise<ReactElement>) => renderToStaticMarkup(avecSpatial
 const VideoPage = (p: { params: Promise<{ id: string }> }) => sp(VideoSpatial(p));
 const IdentitesPage = (p: { params: Promise<{ id: string }> }) => sp(IdentitesSpatial(p));
 const TextesPage = (p: { params: Promise<{ id: string }> }) => sp(TextesSpatial(p));
+const ImagePage = (p: { params: Promise<{ id: string }> }) => sp(ImageSpatial(p));
 const ProjetsPage = (p: { searchParams: Promise<{ toutes?: string }> }) => sp(ProjetsSpatial(p));
 
 const ids = h.ids;
@@ -110,7 +112,7 @@ describe('URL directe d’un écran coupé · la page le dit', () => {
 
   it('éditeur coupé en urgence pour l’espace · la page image le dit (et pas « Document indisponible »)', async () => {
     await reglage({ actives: [], coupees: ['editeur'] });
-    const d = dom(renderToStaticMarkup(await ImagePage(params(projet))));
+    const d = dom(await ImagePage(params(projet)));
     expect(d.querySelector('[data-etat="non-active"]')?.getAttribute('data-capacites')).toBe('editeur');
     expect(d.textContent).not.toContain('Document indisponible');
     expect(d.textContent).toContain('Coupé par l’équipe de la plateforme.');
@@ -151,24 +153,21 @@ describe('voix coupée · lire oui, changer non', () => {
 describe('ADMIN · lecture des interrupteurs par espace', () => {
   const plateforme = () => session(ids, 'ua', { role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] });
 
-  it('un owner d’espace voit le refus, aucune donnée', async () => {
+  it('un owner d’espace est renvoyé AVANT toute lecture (porte Spatiale, même garde plateforme)', async () => {
     h.session = session(ids, 'ua', { role: 'owner' });
-    const d = dom(renderToStaticMarkup(await InterrupteursPage({ searchParams: Promise.resolve({}) })));
-    expect(d.querySelector('[data-etat="acces-refuse"]')?.textContent).toContain('Accès réservé à l’équipe de la plateforme.');
-    expect(d.querySelector('[data-espace]')).toBeNull();
-    expect(d.querySelector('[data-capacite]')).toBeNull();
+    await expect(InterrupteursSpatial({ searchParams: Promise.resolve({}) })).rejects.toThrow('redirect /dashboard');
   });
 
   it('la plateforme lit l’état général, l’environnement et le détail d’un espace pilote', async () => {
     h.session = plateforme();
     vi.stubEnv('STUDIOS_CAPACITES_GENERALES', 'controle_visuel nimporte');
     await reglage({ actives: ['video'], coupees: ['textes'] });
-    const d = dom(renderToStaticMarkup(await InterrupteursPage({ searchParams: Promise.resolve({ espace: ids.wsA }) })));
+    const d = dom(renderToStaticMarkup(avecSpatial(await InterrupteursSpatial({ searchParams: Promise.resolve({ espace: ids.wsA }) }))));
     const etat = (sel: string) => { const e = d.querySelector(sel)!.querySelector('[data-active]')!; return [e.getAttribute('data-active'), e.textContent]; };
     expect(etat('[data-capacite="generation_image"]')).toEqual(['non', 'Coupée · défaut']);
     expect(etat('[data-capacite="controle_visuel"]')).toEqual(['oui', 'Active · généralisée (environnement)']);
     expect(etat('[data-capacite="projets"]')).toEqual(['oui', 'Active · défaut']);
-    expect(d.querySelector('[data-env="STUDIOS_CAPACITES_GENERALES"]')?.textContent).toContain('ignorées (inconnues) : nimporte');
+    expect(d.querySelector('[data-env="STUDIOS_CAPACITES_GENERALES"]')?.textContent).toContain('ignorées (inconnues) · nimporte');
     expect(etat('[data-detail-capacite="video"]')).toEqual(['oui', 'Active · espace pilote (réglage plateforme)']);
     expect(etat('[data-detail-capacite="textes"]')).toEqual(['non', 'Coupée · coupée pour cet espace (réglage plateforme)']);
     expect(d.querySelector('[data-formulaire="interrupteurs"] select[name="video"] option[selected]')?.textContent).toBe('Allumée (pilote)');

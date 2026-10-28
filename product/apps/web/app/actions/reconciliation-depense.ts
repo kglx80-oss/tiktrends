@@ -7,7 +7,7 @@ import {
   validerSaisieReconciliation, decisionReconciliation,
   type ErreurSaisieReconciliation,
 } from '@tiktrends/core';
-import { porteDepenses } from '../(app)/admin/depenses/porte';
+import { porteDepenses } from '../../lib/porte-depenses';
 
 /**
  * R5 · réconcilier une dépense « à réconcilier » avec la facture du

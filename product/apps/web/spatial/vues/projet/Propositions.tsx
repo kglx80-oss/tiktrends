@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { changementDepuisSaisie } from '@tiktrends/core';
+import { annonceCibleJarvis, changementDepuisSaisie } from '@tiktrends/core';
 import {
   appliquerProposition, creerPropositionManuelle, listerPropositions, proposerBrief, proposerPatch, rejeterProposition,
 } from '../../../app/actions/studios/propositions';
@@ -26,10 +26,12 @@ type Retour = { ton: 'ok' | 'err'; texte: string; conflit?: boolean } | null;
 
 const erreur = (e: ErreurProposition) => `${e.message}${e.traceId ? ` · identifiant support ${e.traceId}` : ''}`;
 
-export function Propositions({ projectId, initial, versionCourante }: {
+export function Propositions({ projectId, initial, versionCourante, cibleDemandee = null }: {
   projectId: string;
   initial: ReponseProposition<ListePropositions> | null;
   versionCourante: { id: string; n: number } | null;
+  /** « Cibler Jarvis » depuis un nœud du canvas · choisit la cible et place le focus, n'envoie RIEN. */
+  cibleDemandee?: { cible: string; libelle: string; jeton: number } | null;
 }) {
   const router = useRouter();
   const { toast } = useSpatial();
@@ -46,6 +48,24 @@ export function Propositions({ projectId, initial, versionCourante }: {
   const [valeur, setValeur] = useState<string | null>(null);
   const [explication, setExplication] = useState('');
   const base = ok?.versionCourante ?? versionCourante;
+  const champDemande = useRef<HTMLTextAreaElement>(null);
+  const [annonce, setAnnonce] = useState<string | null>(null);
+  const [focaliser, setFocaliser] = useState(0);
+  useEffect(() => {
+    if (!cibleDemandee) return;
+    const dispo = !!ok?.peutProposer && ok.cibles.some((c) => c.cible === cibleDemandee.cible);
+    setAnnonce(annonceCibleJarvis(cibleDemandee.libelle, dispo));
+    if (!dispo) return;
+    setMode('jarvis'); setCible(cibleDemandee.cible); setChemin(''); setValeur(null);
+    setFocaliser((n) => n + 1);
+    // Un nouveau jeton seulement (un nouveau clic) relance le ciblage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cibleDemandee?.jeton]);
+  useEffect(() => {
+    if (!focaliser) return;
+    champDemande.current?.scrollIntoView?.({ block: 'center' });
+    champDemande.current?.focus({ preventScroll: true });
+  }, [focaliser]);
 
   const recharger = useCallback(async () => {
     try { setListe(await listerPropositions({ projectId })); } catch { setRetour({ ton: 'err', texte: 'Le serveur ne répond pas · vérifie ta connexion puis réessaie.' }); }
@@ -117,7 +137,7 @@ export function Propositions({ projectId, initial, versionCourante }: {
           </label>
           {mode === 'jarvis' ? (
             <>
-              <label className="field">Ta demande<textarea className="ta" value={demande} maxLength={4000} rows={3} onChange={(e) => setDemande(e.target.value)} placeholder="Ex. Corrige seulement le texte à l’écran, plus court" /></label>
+              <label className="field">Ta demande<textarea ref={champDemande} className="ta" data-champ="demande-jarvis" value={demande} maxLength={4000} rows={3} onChange={(e) => setDemande(e.target.value)} placeholder="Ex. Corrige seulement le texte à l’écran, plus court" /></label>
               <p className="faint" style={{ fontSize: '11.5px' }} data-cout>{liste.jarvis.mentionCout}</p>
               {!liste.jarvis.disponible && <p className="faint" style={{ fontSize: '11.5px' }}>Indisponible · {liste.jarvis.raison}</p>}
               <div className="kc"><button className="btn pri sm" type="button" disabled={jarvisBloque} onClick={() => void demanderJarvis()}><Ic n="spark" />{enCours === 'demande' ? 'Jarvis prépare…' : 'Demander à Jarvis'}</button></div>
@@ -142,6 +162,7 @@ export function Propositions({ projectId, initial, versionCourante }: {
         </div>
       )}
 
+      {annonce && <Message ton="info">{annonce}</Message>}
       {retour && <Message ton={retour.ton}>{retour.texte}{retour.conflit && <> <button className="btn sm" type="button" onClick={() => { setRetour(null); router.refresh(); void recharger(); }}>Relire la version courante</button></>}</Message>}
 
       {triees.length === 0

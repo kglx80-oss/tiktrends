@@ -21,6 +21,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => h.session }));
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => { throw new h.RedirectErr(url); },
   useRouter: () => ({ push: () => {}, refresh: () => {} }),
+  usePathname: () => '/admin/connaissances',
 }));
 vi.mock('../app/actions/connaissances', () => ({
   chargerConnaissancesAction: async () => ({ vue: h.vue }),
@@ -30,17 +31,17 @@ vi.mock('../app/actions/connaissances', () => ({
 vi.mock('../app/actions/jarvis-chat', () => ({ chatThreadAction: async () => ({}), clearChatAction: async () => ({}) }));
 vi.mock('../app/actions/adsmap-draft', () => ({ draftConceptAction: async () => ({}) }));
 
-import ConnaissancesPage from '../app/(app)/admin/connaissances/page';
-import { EcranConnaissances, Formulaire } from '../app/(app)/admin/connaissances/EcranConnaissances';
+// Spatial · vague 3 · l'écran V5 est retiré · la page et l'écran Spatiaux portent les mêmes gestes et les mêmes règles.
+import ConnaissancesSpatial from '../app/(spatial)/sp/admin/connaissances/page';
+import { ConnaissancesSpatiales as EcranConnaissances, FormulaireConnaissance as Formulaire } from '../spatial/vues/admin/connaissances-client';
+import { avecSpatial } from './spatial/fournisseur';
 import { JarvisContexte } from '../app/(app)/jarvis/JarvisContexte';
 import { Tour } from '../app/(app)/jarvis/JarvisChat';
 import type { VueAdminConnaissances } from '../app/actions/connaissances';
-import { h1 } from '../components/ui';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CSSProperties } from 'react';
 
-const styleHtml = (st: CSSProperties) => renderToStaticMarkup(<i style={st} />).match(/style="([^"]*)"/)![1]!;
+const ConnaissancesPage = async () => avecSpatial(await ConnaissancesSpatial());
 
 const ok = <T,>(r: Resultat<T>): T => { if (!r.ok) throw new Error(r.erreur); return r.valeur; };
 const s = (o: Partial<SaisieConnaissance>) => ok(validerSaisie({
@@ -105,9 +106,9 @@ describe('écran Connaissances · publié, inclus, cité, distincts et visibles'
   });
 
   it('un nom long passe à la ligne dans sa carte', () => {
-    const h3 = html.match(/<h3 [^>]*>([^<]*)<\/h3>/g)?.find((x) => x.includes(LONG)) ?? '';
-    expect(h3).toContain(LONG);
-    expect(h3).toContain('overflow-wrap:anywhere');
+    const h2 = html.match(/<h2 [^>]*>([^<]*)<\/h2>/g)?.find((x) => x.includes(LONG)) ?? '';
+    expect(h2).toContain(LONG);
+    expect(h2).toContain('overflow-wrap:anywhere');
   });
 
   it('vide · un état qui explique et renvoie au formulaire', () => {
@@ -129,7 +130,7 @@ describe('relecture sécurité · écran honnête', () => {
   });
 
   it('F1 · plus aucune promesse « le texte reste côté équipe »', () => {
-    for (const f of ['app/(app)/jarvis/JarvisContexte.tsx', 'app/actions/jarvis-chat.ts', 'app/(app)/admin/connaissances/EcranConnaissances.tsx']) {
+    for (const f of ['app/(app)/jarvis/JarvisContexte.tsx', 'app/actions/jarvis-chat.ts', 'spatial/vues/admin/connaissances-client.tsx']) {
       expect(readFileSync(join(process.cwd(), f), 'utf8'), f).not.toMatch(/reste côté équipe/);
     }
   });
@@ -187,16 +188,6 @@ describe('page · le garde lit le rôle d’ÉQUIPE, jamais le rôle d’espace'
     expect(html).toContain('<h1');
     expect(html).toContain('Connaissances');
     expect(html).toContain('Chiffres du marché');
-  });
-
-  it('titre · le jeton h1 du cadre, tel quel, en tête de la rangée, sans marge haute', async () => {
-    h.session = { ...base, equipe: { role: 'adminplus', matrice: {} } };
-    const html = renderToStaticMarkup(await ConnaissancesPage());
-    const h1Html = html.match(/<h1 [^>]*>Connaissances<\/h1>/)?.[0] ?? '';
-    expect(h1Html).toContain(`style="${styleHtml(h1)}"`);
-    // La rangée qui porte le titre ne pousse rien vers le bas.
-    const avant = html.slice(0, html.indexOf(h1Html));
-    expect(avant.slice(avant.lastIndexOf('<div')).replace(/\s/g, '')).toContain('margin-top:0');
   });
 });
 

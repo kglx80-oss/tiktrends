@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 /**
- * G-A · onglet Exécutions de l'ADMIN « IA et Studios » (besoin F-D n° 1).
+ * G-A · onglet Exécutions de l'ADMIN « Registre IA » (ex « IA et Studios ») (besoin F-D n° 1).
  *
  * Le manque : la trace `studio_prompt_runs.config` porte depuis F-D le marquage
  * `evaluation` (exécution d'une release staged dans une campagne de benchmark)
@@ -31,14 +31,17 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => { throw new Error(`REDIRECT ${url}`); },
   useRouter: () => ({ push: () => {}, refresh: () => {} }),
+  usePathname: () => '/admin/prompts/registre',
 }));
 
 import { db, schema } from '@tiktrends/db';
-import IaStudiosPage from '../app/(app)/admin/ia-studios/page';
+// Spatial · vague 3 · l'écran V5 « IA et Studios » est retiré · le « Registre IA » Spatial le remplace (même garde, mêmes vues).
+import RegistreSpatial from '../app/(spatial)/sp/admin/prompts/registre/page';
+import { avecSpatial } from './spatial/fournisseur';
 import { expurgerRun, type LigneRun } from '../lib/studios/prompts/traces';
 
 const EQUIPE = () => ({ user: { id: ids.user, email: 'quelquun@client.test', name: null }, workspaceId: ids.ws, workspaceName: 'Démo', plan: 'business', role: 'owner', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } });
-const page = async (sp: Record<string, string>) => renderToStaticMarkup(await IaStudiosPage({ searchParams: Promise.resolve(sp) }));
+const page = async (sp: Record<string, string>) => renderToStaticMarkup(avecSpatial(await RegistreSpatial({ searchParams: Promise.resolve(sp) })));
 
 const SHA_SORTIE = 'a1'.repeat(32);
 const SHA_REF = 'b2'.repeat(32);

@@ -27,7 +27,8 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push:
 
 import { annonceObservee, referenceSource, faitsProduit, messageHorsLigneStudio } from '@tiktrends/core';
 import { PreparerCreation } from '../components/studios/PreparerCreation';
-import { BoutonCommande, FormulaireRelease } from '../app/(app)/admin/ia-studios/Commandes';
+// Spatial · vague 3 · les gestes du registre vivent dans le « Registre IA » (l'écran V5 « IA et Studios » est retiré).
+import { CommandeRegistre, NouvelleRelease } from '../spatial/vues/admin/registre-client';
 
 const ANNONCE = { id: '9001', platform: 'meta', daysRunning: 64, mediaType: 'image', advertiserName: 'Lumière Botanique', body: 'Votre peau mérite mieux.', callToAction: 'Acheter', landingDomain: 'lb.fr' };
 const source = referenceSource({ type: 'veille_ad', annonce: annonceObservee(ANNONCE)!, savedAdId: null, portee: { workspaceId: 'ws', brandId: null }, observeLe: new Date('2026-10-01T09:00:00Z'), format: null, retourVeille: 'q=serum' });
@@ -88,10 +89,10 @@ describe('Préparer une création · hors ligne', () => {
   });
 });
 
-describe('IA et Studios · une commande hors ligne ne fait plus tomber l’écran', () => {
+describe('Registre IA · une commande hors ligne ne fait plus tomber l’écran', () => {
   it('« Importer en brouillon » hors ligne · refus lisible sous le bouton, aucune exception', async () => {
     m.importer.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-    monter(<BoutonCommande commande="importer" libelle="Importer en brouillon" succes="Importé." />);
+    monter(<CommandeRegistre commande="importer" libelle="Importer en brouillon" succes="Importé." />);
     await act(async () => bouton('Importer en brouillon').click());
     await flush();
     expect(q('[role="alert"]')!.textContent).toBe(`Hors ligne · ${messageHorsLigneStudio('commande')}`);
@@ -100,7 +101,7 @@ describe('IA et Studios · une commande hors ligne ne fait plus tomber l’écra
   });
   it('« Créer la release » hors ligne · le motif saisi reste', async () => {
     m.creerRelease.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-    monter(<FormulaireRelease />);
+    monter(<NouvelleRelease />);
     act(() => saisir(q('input') as HTMLInputElement, 'éclairage plus chaud'));
     await act(async () => bouton('Créer la release').click());
     await flush();

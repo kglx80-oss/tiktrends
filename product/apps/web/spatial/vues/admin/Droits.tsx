@@ -1,6 +1,6 @@
 import { Vue } from '../../communs';
 import { Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
-import { InviterMembre, MatriceDroitsSpatiale, type CaseDroit } from './droits-client';
+import { GererMembre, InviterMembre, MatriceDroitsSpatiale, type CaseDroit } from './droits-client';
 
 /**
  * « Rôles & droits » · `docs/spatial/reference/a-droits.html`. PRÉSENTATIONNEL.
@@ -10,7 +10,8 @@ import { InviterMembre, MatriceDroitsSpatiale, type CaseDroit } from './droits-c
  * interne (`platform_staff`), le registre d'audit de la plateforme
  * (`studio_audit_events` de portée plateforme). Le modèle de droits est
  * binaire (accès ou aucun) · aucun niveau « lecture » ou « modification »
- * n'est inventé. Le retrait d'un membre reste dans l'écran V5.
+ * n'est inventé. Vague 3 · chaque membre se gère d'ici (changer de rôle,
+ * retirer · actions de l'équipe) quand le compte peut écrire (`gestion`).
  */
 export interface PropsDroits {
   bandeau: BandeauAdmin;
@@ -19,7 +20,9 @@ export interface PropsDroits {
   lignes: ReadonlyArray<{ rubrique: string; cases: readonly CaseDroit[] }>;
   verrouille: boolean;
   rolesInvitation: ReadonlyArray<{ cle: string; libelle: string }> | null;
-  equipe: ReadonlyArray<{ email: string; initiales: string; role: string; total: boolean; depuis: string }>;
+  equipe: ReadonlyArray<{ email: string; initiales: string; role: string; total: boolean; depuis: string; cleRole?: string; moi?: boolean }>;
+  /** Les gestes par membre (rôle, retrait) · absent en lecture seule. */
+  gestion?: boolean;
   audit: ReadonlyArray<{ id: string; initiales: string; acteur: string; texte: string; quand: string }>;
 }
 
@@ -36,7 +39,10 @@ export function Droits(p: PropsDroits) {
           <div className="sech"><h2>Équipe interne</h2>{p.rolesInvitation && <InviterMembre roles={p.rolesInvitation} />}</div>
           <div className="atable">
             {p.equipe.map((m) => (
-              <div className="atr" key={m.email} style={{ gridTemplateColumns: 'auto 1.2fr 1fr 1fr' }}><span className="me" style={{ width: 30, height: 30, fontSize: '10.5px' }}>{m.initiales}</span><span><b>{m.email}</b></span><span><Pill c={m.total ? 'w' : ''}>{m.role}</Pill></span><span className="faint">{m.depuis}</span></div>
+              <div className="atr" key={m.email} style={{ gridTemplateColumns: p.gestion && p.rolesInvitation ? 'auto 1.2fr 1fr 1fr auto' : 'auto 1.2fr 1fr 1fr' }}>
+                <span className="me" style={{ width: 30, height: 30, fontSize: '10.5px' }}>{m.initiales}</span><span><b>{m.email}</b></span><span><Pill c={m.total ? 'w' : ''}>{m.role}</Pill></span><span className="faint">{m.depuis}</span>
+                {p.gestion && p.rolesInvitation && <span><GererMembre email={m.email} role={m.cleRole ?? ''} moi={!!m.moi} roles={p.rolesInvitation} /></span>}
+              </div>
             ))}
             {p.equipe.length === 0 && <Vide>Aucun membre inscrit · les fondateurs ont l’accès total par le code.</Vide>}
           </div>

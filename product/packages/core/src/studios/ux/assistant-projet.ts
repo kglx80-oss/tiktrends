@@ -181,6 +181,22 @@ export function saisieBriefVide(): SaisieBriefV5 {
   return { intention: '', audience: '', objectifType: null, plateformes: [], persona: null, angle: '', concept: '', contraintes: '' };
 }
 
+/**
+ * La saisie du formulaire RELUE depuis un brief enregistré (retour à l'étape
+ * brief après création) · l'inverse de `construireBriefV5` sur les champs
+ * éditables ; ce que le formulaire ne porte pas reste dans le brief.
+ */
+export function saisieDepuisBrief(brief: BriefCanonique): SaisieBriefV5 {
+  return {
+    intention: brief.objective, audience: brief.audience, contraintes: brief.invariants.join('\n'),
+    objectifType: brief.objectifType ?? null, plateformes: brief.plateformes ?? [], persona: brief.personaRef ?? null,
+    angle: brief.angle ?? '', concept: brief.concept ?? '',
+  };
+}
+
+/** Les champs du brief que le formulaire de l'assistant réécrit (le reste garde sa version courante). */
+export const CHAMPS_FORMULAIRE_BRIEF = ['objective', 'audience', 'invariants', 'objectifType', 'plateformes', 'personaRef', 'angle', 'concept'] as const;
+
 const borne = (t: string) => t.trim().slice(0, TEXTE_MAX);
 const lignes = (t: string) => t.split('\n').map((x) => x.trim()).filter(Boolean).slice(0, LISTE_MAX);
 

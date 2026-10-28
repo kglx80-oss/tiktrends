@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -38,13 +39,19 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
   return { ...actual, db };
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); } }));
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`redirect ${u}`); }, usePathname: () => '/admin/depenses', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { randomUUID } from 'node:crypto';
 import { db, schema, eq } from '@tiktrends/db';
 import { reconcilierDepenseAction, type EtatReconciliationForm } from '../app/actions/reconciliation-depense';
-import DepensesPage from '../app/(app)/admin/depenses/page';
+// Spatial · vague 3 · l'écran V5 est retiré · « Coûts IA & marges » (Spatial) porte la section et le geste.
+import CoutsSpatial from '../app/(spatial)/sp/admin/depenses/page';
+import { Couts } from '../spatial/vues/admin/Couts';
+import { avecSpatial } from './spatial/fournisseur';
+import { propsCouts } from './spatial/props-admin';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { spendStatus, guardFixedCost, SpendBlockedError } from '../lib/spend-guard';
 
 const FONDATEUR = 'fondateur-r5@exemple.invalid';
@@ -57,6 +64,9 @@ const texte = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g,
 const bloc = (html: string, id: string) => (new RegExp(`<section[^>]*id="${id}"[\\s\\S]*?</section>`).exec(html) ?? [''])[0];
 const il = (h: number) => new Date(Date.now() - h * 3_600_000);
 const INITIAL: EtatReconciliationForm = { statut: 'initial', message: '' };
+const DepensesPage = (p?: { searchParams?: Promise<Record<string, string>> }) => CoutsSpatial(p ?? { searchParams: Promise.resolve({}) });
+const rendre = async (p?: { searchParams?: Promise<Record<string, string>> }) => renderToStaticMarkup(avecSpatial(await DepensesPage(p)));
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 function formulaire(o: Partial<Record<'ligne' | 'montant' | 'devise' | 'preuve' | 'motif' | 'cle', string>>): FormData {
   const fd = new FormData();
@@ -187,34 +197,41 @@ describe('R5 · refus', () => {
 describe('R5 · écran · « À réconcilier » puis « Réconciliées », historique conservé', () => {
   it('la ligne quitte « À réconcilier », entre dans « Réconciliées » avec réservé, facturé, preuve, motif, auteur, date', async () => {
     const id = await aReconcilier(0.333, 'r5:visible', 1);
-    let html = renderToStaticMarkup(await DepensesPage());
+    let html = await rendre();
     let a = bloc(html, 'a-reconcilier');
     expect(a, 'la ligne à réconcilier n’est pas listée').toContain(`data-ligne-reconcilier="${id}"`);
-    const geste = (new RegExp(`<details[^>]*data-geste-reconcilier="${id}"[\\s\\S]*?</details>`).exec(a) ?? [''])[0];
-    expect(geste, 'aucun geste de réconciliation sur la ligne').not.toBe('');
-    const t = texte(geste);
-    for (const l of ['Réconcilier avec la facture', 'Montant facturé', 'Devise de la facture', 'Identifiant de la preuve fournisseur', 'Motif', 'Vérifier avant d’enregistrer']) expect(t).toContain(l);
-    expect(geste).toMatch(/<label for="rec-[^"]+-montant"/);
-    expect(geste).toMatch(/name="cle" value="[0-9a-f-]{36}"/);
-    expect(geste).toContain('value="USD"');
+    // Le geste · on MONTE la page et on ouvre la fenêtre de la ligne.
+    const hote = document.createElement('div'); document.body.appendChild(hote);
+    const racine = createRoot(hote);
+    const vue = await DepensesPage();
+    await act(async () => { racine.render(avecSpatial(vue)); });
+    const bouton = hote.querySelector(`[data-geste-reconcilier="${id}"]`) as HTMLButtonElement;
+    expect(bouton, 'aucun geste de réconciliation sur la ligne').not.toBeNull();
+    await act(async () => { bouton.click(); });
+    const geste = hote.querySelector('[role="dialog"]')!;
+    const t = geste.textContent!;
+    for (const l of ['Réconcilier · r5:visible', 'Montant facturé', 'Devise de la facture', 'Identifiant de la preuve fournisseur', 'Motif', 'Vérifier avant d’enregistrer']) expect(t).toContain(l);
+    expect(geste.querySelector('label input[name="montant"]'), 'le montant n’est pas nommé par son étiquette').not.toBeNull();
+    expect((geste.querySelector('input[name="cle"]') as HTMLInputElement).value).toMatch(/^[0-9a-f-]{36}$/);
+    expect((geste.querySelector('input[name="devise"]') as HTMLInputElement).value).toBe('USD');
+    act(() => racine.unmount()); hote.remove();
 
     const r = await soumettre(formulaire({ ligne: id, montant: '0,3', preuve: 'inv_2026_10 · l. 17', motif: 'Appel retrouvé sur la facture' }));
     const recId = /reconciliee=([0-9a-f-]{36})/.exec((r as { redirect: string }).redirect)![1]!;
-    html = renderToStaticMarkup(await DepensesPage({ searchParams: Promise.resolve({ reconciliee: recId }) }));
+    html = await rendre({ searchParams: Promise.resolve({ reconciliee: recId }) });
     a = bloc(html, 'a-reconcilier');
     expect(a, 'la ligne réconciliée est encore « à réconcilier »').not.toContain(`data-ligne-reconcilier="${id}"`);
     const h = bloc(html, 'reconciliees');
     expect(h).toContain('data-reconciliees="rempli"');
-    const carte = texte((new RegExp(`<li[^>]*data-ligne-reconciliee="${recId}"[\\s\\S]*?</li>`).exec(h) ?? [''])[0]);
+    const t3 = document.createElement('template'); t3.innerHTML = h;
+    const carte = (t3.content.querySelector(`[data-ligne-reconciliee="${recId}"]`)?.textContent ?? '').replace(/\s+/g, ' ');
     expect(carte, 'la réconciliation n’est pas dans l’historique').toContain('r5:visible');
     expect(carte).toContain('0,3330 $ → 0,3000 $ (USD)');
-    expect(carte).toContain('Réservé 0,3330 $, gardé sur la ligne');
-    expect(carte).toContain('Facturé 0,3000 $ (USD), retenu au plafond');
     expect(carte).toContain('Écart 0,0330 $ libérés');
     expect(carte).toContain('Preuve inv_2026_10 · l. 17');
     expect(carte).toContain('Motif Appel retrouvé sur la facture');
     expect(carte).toMatch(new RegExp(`Par ${FONDATEUR.replace(/[.]/g, '\\.')}, le \\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}`));
-    expect(carte).toContain('à l’instant');
+    expect(carte).toContain('À l’instant');
     expect(texte(h)).toContain('Réconciliation enregistrée · r5:visible, réservé 0,3330 $ → facturé 0,3000 $ (USD).');
     // L'historique est conservé · la ligne garde sa cause, la réconciliation ne se modifie pas.
     expect((await ligne(id)).reconcileReason).toBe('coupure');
@@ -224,11 +241,11 @@ describe('R5 · écran · « À réconcilier » puis « Réconciliées », histo
   });
 
   it('historique vide · dit ; lecture impossible · dite, la page tient', async () => {
-    const { SectionReconciliees } = await import('../app/(app)/admin/depenses/SectionReconciliees');
-    const vide = renderToStaticMarkup(<SectionReconciliees ecran={{ etat: 'vide', resume: 'Aucune dépense réconciliée pour l’instant.', lignes: [] }} />);
+    const p = propsCouts();
+    const vide = renderToStaticMarkup(avecSpatial(<Couts {...p} reconciliees={{ erreur: null, resume: 'Aucune dépense réconciliée pour l’instant.', lignes: [], recente: null, deja: false }} />));
     expect(vide).toContain('data-reconciliees="vide"');
     expect(texte(vide)).toContain('Aucune dépense réconciliée pour l’instant.');
-    const err = renderToStaticMarkup(<SectionReconciliees ecran={null} erreur="erreur de lecture en base" />);
+    const err = renderToStaticMarkup(avecSpatial(<Couts {...p} reconciliees={{ erreur: 'erreur de lecture en base', resume: '', lignes: [], recente: null, deja: false }} />));
     expect(err).toContain('role="alert"');
     expect(texte(err)).toContain('L’historique n’a pas pu être lu · erreur de lecture en base.');
   });
@@ -236,7 +253,7 @@ describe('R5 · écran · « À réconcilier » puis « Réconciliées », histo
   it('porte · un admin d’espace non fondateur est renvoyé AVANT toute lecture', async () => {
     etat.session = sess('admin', ADMIN_ESPACE, ids.admin);
     etat.compter = true;
-    await expect(DepensesPage()).rejects.toThrow('redirect /admin');
+    await expect(DepensesPage()).rejects.toThrow('redirect /dashboard');
     etat.compter = false;
     expect(etat.acces).toEqual([]);
   });

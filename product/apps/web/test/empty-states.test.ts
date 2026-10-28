@@ -32,7 +32,6 @@ const HORS_PERIMETRE = [
   'components/Empty.tsx',
   'app/c/',            // vue client partagée · sans rail ni marque active
   'app/(app)/admin/',  // coulisses plateforme, jamais vues par un client
-  'app/(app)/console',
   'app/(app)/credits',
 ];
 

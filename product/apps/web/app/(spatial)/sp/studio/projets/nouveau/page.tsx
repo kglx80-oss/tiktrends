@@ -15,6 +15,7 @@ import { chargerSources } from '../../../../../../lib/studios/sources/sources';
 import { adsDeLaMarque } from '../../../../../../lib/adsmap-marque';
 import { adDetailAction } from '../../../../../actions/adsmap-verdict';
 import { ouvrirAssistantProjet } from '../../../../../actions/studios/assistant';
+import type { DepartAssistant } from '../../../../../actions/studios/departs-assistant';
 import { NouveauProjet } from '../../../../../../spatial/vues/studios/NouveauProjet';
 import { RefusStudios } from '../../../../../../spatial/vues/studios/Refus';
 
@@ -30,7 +31,10 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  *    Adsmap, dans la marque active, et s'il est une gagnante arbitrée avec un
  *    apprentissage (`briefDepuisTest`) · son brief devient l'objectif ;
  *  · ce qui n'est pas repris est DIT (`notesContexte`).
- * LECTURE SEULE à l'ouverture · seul « Créer le projet » écrit (gratuit).
+ * L'assistant RÉEL s'y déroule (brief structuré, stratégie, style, format et
+ * devis) · LECTURE SEULE à l'ouverture, rien n'est créé avant « Continuer
+ * vers la stratégie » (création gratuite), rien n'est débité sans devis
+ * annoncé puis confirmé.
  */
 export default async function NouveauProjetSpatial({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -77,14 +81,22 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
   const titresParDefaut = Object.fromEntries(TYPES_NOUVEAU_PROJET.map((t) => [t, titreNouveauProjetParDefaut(t, marqueNom || 'ta marque')])) as Record<TypeNouveauProjet, string>;
   const titre = depuisTest?.titre ?? (annonce ? `D’après ${annonce.annonceur}` : titresParDefaut[c.type]);
 
-  // Produits de la marque active · la même lecture que l'assistant V5 (portée de l'espace, aucune écriture).
+  // Personas Adsmap et produits (avec leurs photos) de la marque active · la lecture de l'assistant, aucune écriture.
   const ouverture = etat.etat === 'pret' ? await ouvrirAssistantProjet() : null;
-  const produits = ouverture?.ok ? ouverture.props.produits.map((x) => ({ id: x.id, nom: x.nom })) : [];
+  const personas = ouverture?.ok ? ouverture.props.personas : [];
+  const produits = ouverture?.ok ? ouverture.props.produits : [];
   const marques = (await listBrands(s.workspaceId)).filter((b) => g.ctx.marques.includes(b.id)).map((b) => ({ id: b.id, nom: b.name, active: b.id === active?.id }));
 
+  // Le départ repris · l'annonce relue devient une référence (attachée au projet à sa création), le test gagnant devient le départ.
+  const reference: DepartAssistant | null = annonce && c.ref
+    ? { origine: 'veille', id: c.ref, titre: `D’après ${annonce.annonceur}`, intention: '', sources: [{ type: 'sauvegarde', id: c.ref }], testId: null }
+    : null;
+  const depart: DepartAssistant | null = depuisTest && c.iter
+    ? { origine: 'iteration', id: c.iter, titre, intention: objectif, sources: [], testId: c.iter }
+    : reference;
   const repris = [
-    annonce ? `Source jointe au projet · l’annonce sauvegardée de ${annonce.annonceur}.` : '',
-    iteration?.etat === 'reprise' ? 'Le brief du test Adsmap gagnant est repris dans l’objectif · relis-le avant de créer.' : '',
+    annonce ? `Source jointe au projet à sa création · l’annonce sauvegardée de ${annonce.annonceur}.` : '',
+    iteration?.etat === 'reprise' ? 'Le brief du test Adsmap gagnant est repris dans l’intention · relis-le avant de continuer.' : '',
   ].filter(Boolean);
 
   return (
@@ -94,13 +106,15 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
       marques={marques}
       ajouterMarque={roleAtLeast(s.role, 'admin') ? '/brands/new' : null}
       // Un lien porteur de contexte (test, annonce, objectif) ouvre directement le brief, où le repris est dit.
-      initial={{ type: c.type, titre, objectif, etape: c.aContexte ? 2 : 1 }}
+      initial={{ type: c.type, titre, intention: objectif, etape: c.aContexte ? 'brief' : 'start' }}
       titresParDefaut={titresParDefaut}
+      personas={personas}
       produits={produits}
-      notes={notesContexte(c, { refJointe: !!annonce, iteration })}
-      repris={repris}
-      annonce={annonce && c.ref ? { ref: c.ref } : null}
-      retourVeille={c.retourVeille ? { href: lienRetourVeille(c.retourVeille) ?? '/veille', rv: c.retourVeille } : null}
+      contexte={{
+        depart, references: reference ? [reference] : [], repris,
+        notes: notesContexte(c, { refJointe: !!annonce, iteration }),
+        retourVeille: c.retourVeille ? { href: lienRetourVeille(c.retourVeille) ?? '/veille' } : null,
+      }}
     />
   );
 }

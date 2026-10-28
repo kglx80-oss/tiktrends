@@ -17,7 +17,7 @@ import type { PropsBriefProjet } from './types';
  * textes, identités et voix, image, vidéo, export), export du brief.
  * Rien n'est écrit à la visite.
  */
-export function OngletBrief(p: PropsBriefProjet) {
+export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: string; libelle: string; jeton: number } | null }) {
   return (
     <>
       <div className="grid3">
@@ -112,7 +112,7 @@ export function OngletBrief(p: PropsBriefProjet) {
 
       <section className="tile sec" id="propositions">
         <div className="lbl">Propositions</div>
-        <Propositions projectId={p.projectId} initial={p.propositions.initial} versionCourante={p.propositions.versionCourante} />
+        <Propositions projectId={p.projectId} initial={p.propositions.initial} versionCourante={p.propositions.versionCourante} cibleDemandee={p.cibleJarvis ?? null} />
       </section>
 
       <div className="grid2 sec">

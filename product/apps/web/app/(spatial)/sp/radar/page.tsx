@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import type { InspoAd } from '@tiktrends/integrations';
-import { alertesSemaine, apercuImage, nouveautesMarque, pastilleMarque } from '@tiktrends/core';
+import type { InspoAd, MetaAdsInsights } from '@tiktrends/integrations';
+import { alertesSemaine, apercuImage, bibliothequePub, etatScanNouveautes, libelleBibliotheque, ligneRadarCreatif, nouveautesMarque, pastilleMarque, resumeRadarCreatif, siteMarque } from '@tiktrends/core';
+import { buildLiveAnalysis } from '../../../../lib/analysis';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
@@ -56,6 +57,10 @@ export default async function RadarSpatial() {
         vignettes: siens.slice(0, 3).map((e) => apercuImage({ isVideo: (e.snapshot?.mediaType ?? '').toLowerCase().includes('vid'), thumbnailUrl: e.snapshot?.thumbnailUrl, mediaUrl: e.snapshot?.mediaUrl })),
         nouveautes: nouveautesMarque(siens.filter((e) => e.unseen).length),
         voir: voirMarque(f.platform, f.name, f.domain),
+        gestes: (() => {
+          const biblio = bibliothequePub({ platform: f.platform, name: f.name });
+          return { plateforme: f.platform, biblio: biblio ? { href: biblio.url, libelle: libelleBibliotheque(biblio)! } : null, siteWeb: siteMarque({ landingDomain: f.domain ?? undefined }) };
+        })(),
       };
     });
   }
@@ -66,6 +71,16 @@ export default async function RadarSpatial() {
     texte: 'Relevé par le suivi des marques que tu suis · ouvre ses pubs pour voir ce qui change.',
     action: { href: parNom.get(a.marque)?.voir ?? '/veille?vue=suivies', libelle: 'Voir ses pubs' },
   }));
+  // Radar créatif (vague 3) · les créas Meta RÉELLES de la marque active, notées comme l'ancien écran · jamais d'exemple.
+  let creatif: { maj: string | null; resume: ReturnType<typeof resumeRadarCreatif>; lignes: ReturnType<typeof ligneRadarCreatif>[] } | null = null;
+  if (db && ouvert && brand) {
+    const [b] = await db.select({ ads: schema.brands.adsInsights, at: schema.brands.metaSyncedAt }).from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
+    const ins = (b?.ads ?? null) as MetaAdsInsights | null;
+    if (ins?.ads?.length) {
+      const rows = buildLiveAnalysis(ins.ads);
+      creatif = { maj: b?.at ? new Date(b.at as Date).toLocaleDateString('fr-FR') : null, resume: resumeRadarCreatif(rows), lignes: rows.map(ligneRadarCreatif) };
+    }
+  }
   const plan = PLAN_LABEL[feature.minPlan as Plan];
 
   return (
@@ -73,6 +88,12 @@ export default async function RadarSpatial() {
       ouvert={ouvert}
       pastilleRadar={pastilleRadar(access)}
       alertes={alertes}
+      suivi={ouvert ? {
+        scan: etatScanNouveautes({ veilleActive: !!process.env.TRENDTRACK_API_KEY, marquesSuivies: marques.length }),
+        nonVues: evenements.filter((e) => e.unseen).length,
+        explorer: !!process.env.TRENDTRACK_API_KEY,
+      } : undefined}
+      creatif={ouvert ? creatif : undefined}
       marques={marques}
       inclus={`Inclus dans ton offre ${PLAN_LABEL[s.plan as Plan] ?? ''}`.trim()}
       verrou={ouvert ? null : {

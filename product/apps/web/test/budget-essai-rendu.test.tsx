@@ -30,7 +30,9 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { db, schema, eq, cleBudgetEssai } from '@tiktrends/db';
 import { session, semer } from './studios-semis';
-import InterrupteursPage from '../app/(app)/admin/studios-interrupteurs/page';
+// Spatial · vague 3 · l'écran V5 est retiré · la page Spatiale porte la même garde et la même lecture.
+import { avecSpatial } from './spatial/fournisseur';
+import InterrupteursSpatial from '../app/(spatial)/sp/admin/studios-interrupteurs/page';
 import { enregistrerBudgetEssaiAction } from '../app/actions/studios/interrupteurs';
 
 const ids = h.ids;
@@ -66,7 +68,7 @@ describe('budget d’essai · posé par la plateforme, lu à l’écran', () => 
     expect(au[0]).toMatchObject({ workspaceId: ids.wsA, reason: 'Recette manuelle Studios' });
     await db.insert(schema.aiSpend).values({ workspaceId: ids.wsA, provider: 'fal', model: 'x', action: 'essai', estimatedUsd: 2.5, actualUsd: 2.5 });
     await db.insert(schema.aiSpend).values({ workspaceId: ids.wsB, provider: 'fal', model: 'x', action: 'autre', estimatedUsd: 9, actualUsd: 9 });
-    const d = dom(renderToStaticMarkup(await InterrupteursPage({ searchParams: Promise.resolve({ espace: ids.wsA }) })));
+    const d = dom(renderToStaticMarkup(avecSpatial(await InterrupteursSpatial({ searchParams: Promise.resolve({ espace: ids.wsA }) }))));
     const b = d.querySelector('[data-budget-essai="pose"]');
     expect(b, 'bloc budget absent').not.toBeNull();
     expect(b!.querySelector('[data-budget-restant]')?.getAttribute('data-budget-restant')).toBe('12.50');

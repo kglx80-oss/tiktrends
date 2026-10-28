@@ -38,8 +38,9 @@ const CAS: Array<[string, string]> = [
 ];
 
 /** Chemins qui ne sont PAS des adresses retirées · ni appariés, ni touchés. */
-// `/studio/projets` (liste), Résultats et `/assets` sont des écrans Spatial EXCLUSIFS depuis la vague 2 · réécrits même en mode V5, gardés plus bas.
-const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets/nouveau?type=ads&angle=x', '/studio/projets/abc/image', '/studio/ads/x', '/jarvis', '/saved', '/veille', '/api/health', '/_next/static/chunks/main.js'];
+// `/studio/projets` (liste), Résultats et `/assets` sont des écrans Spatial EXCLUSIFS depuis la vague 2 (« Nouveau projet » et l'éditeur
+// d'image depuis la vague 3) · réécrits même en mode V5, gardés plus bas.
+const NON_CONCERNES = ['/', '/login', '/dashboard', '/analytics', '/studio/projets/abc', '/studio/ads/x', '/jarvis', '/saved', '/veille', '/api/health', '/_next/static/chunks/main.js'];
 
 const appeler = (adresse: string, headers: Record<string, string> = {}) => middleware(new NextRequest(HOTE + adresse, { headers }));
 
@@ -110,17 +111,17 @@ describe('middleware · bascule Spatial (cookie tt_ui)', () => {
   });
 
   it('mode V5, ou écran non porté ⇒ aucune réécriture', () => {
-    for (const [adresse, ui] of [['/dashboard', 'v5'], ['/console', 'spatial'], ['/console', undefined], ['/sp/usage', 'spatial']] as const) {
+    for (const [adresse, ui] of [['/dashboard', 'v5'], ['/adresse-jamais-portee', 'spatial'], ['/adresse-jamais-portee', undefined], ['/sp/usage', 'spatial']] as const) {
       const r = avec(adresse, ui);
       expect([adresse, ui, r.headers.get('x-middleware-rewrite'), r.headers.get('x-middleware-next')]).toEqual([adresse, ui, null, '1']);
     }
   });
 
-  it('Studios · un écran EXCLUSIF (page V5 retirée) est réécrit même en mode V5 · la fiche, la préparation et l’éditeur restent V5', () => {
-    for (const adresse of ['/studio/projets', '/studio/prompts', '/studio/iterer', '/studio/projets/nouveau/concept', '/studio/projets/abc/produit', '/studio/projets/abc/textes', '/studio/projets/abc/identites', '/studio/projets/abc/export', '/studio/projets/abc/video']) {
+  it('Studios · un écran EXCLUSIF (page V5 retirée) est réécrit même en mode V5 · seule la fiche reste V5', () => {
+    for (const adresse of ['/studio/projets', '/studio/prompts', '/studio/iterer', '/studio/projets/nouveau', '/studio/projets/nouveau/concept', '/studio/projets/abc/image', '/studio/projets/abc/produit', '/studio/projets/abc/textes', '/studio/projets/abc/identites', '/studio/projets/abc/export', '/studio/projets/abc/video']) {
       expect([adresse, avec(adresse, 'v5').headers.get('x-middleware-rewrite')]).toEqual([adresse, `${HOTE}/sp${adresse}`]);
     }
-    for (const adresse of ['/studio/projets/nouveau', '/studio/projets/abc', '/studio/projets/abc/image', '/studio/projets/abc/produit/fichier/a1']) {
+    for (const adresse of ['/studio/projets/abc', '/studio/projets/abc/produit/fichier/a1']) {
       expect([adresse, avec(adresse, 'v5').headers.get('x-middleware-rewrite')]).toEqual([adresse, null]);
     }
   });

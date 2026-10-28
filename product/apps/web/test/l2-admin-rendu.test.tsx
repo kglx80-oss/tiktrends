@@ -26,11 +26,14 @@ vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => { throw new Error(`REDIRECT ${url}`); },
   useRouter: () => ({ push: () => {}, refresh: () => {} }),
+  usePathname: () => '/admin/prompts/registre',
 }));
 
 import { db, schema } from '@tiktrends/db';
-import IaStudiosPage from '../app/(app)/admin/ia-studios/page';
-import AdminBackstage from '../app/(app)/admin/page';
+// Spatial · vague 3 · l'écran V5 « IA et Studios » et l'accueil des coulisses sont retirés · le « Registre IA »
+// Spatial (`/admin/prompts/registre`) porte la même garde et les mêmes vues.
+import RegistreSpatial from '../app/(spatial)/sp/admin/prompts/registre/page';
+import { avecSpatial } from './spatial/fournisseur';
 import * as actions from '../app/actions/studios/prompts';
 import * as depot from '../lib/studios/prompts/depot-prompts';
 import { acteurPlateforme } from './l2-outils';
@@ -47,7 +50,7 @@ const REFUSES: Array<[string, () => unknown]> = [
 ];
 
 async function page(sp: Record<string, string> = {}) {
-  return renderToStaticMarkup(await IaStudiosPage({ searchParams: Promise.resolve(sp) }));
+  return renderToStaticMarkup(avecSpatial(await RegistreSpatial({ searchParams: Promise.resolve(sp) })));
 }
 const pointeur = async () => (await depot.lirePointeur())?.releaseId ?? null;
 
@@ -60,12 +63,10 @@ beforeEach(() => { h.session = EQUIPE(); });
 
 describe('accès refusé · aucune donnée du registre', () => {
   for (const [nom, s] of REFUSES) {
-    it(`${nom} · écran de refus`, async () => {
+    it(`${nom} · renvoyé avant toute lecture, aucune donnée rendue`, async () => {
       await depot.importerPack(acteurPlateforme());
       h.session = s();
-      const html = await page({ onglet: 'prompts' });
-      expect(html).toContain('Accès réservé à l’équipe de la plateforme.');
-      for (const secret of ['jarvis.route', 'brief.build', 'Importer en brouillon', 'Publier']) expect(html).not.toContain(secret);
+      await expect(page({ onglet: 'prompts' })).rejects.toThrow('REDIRECT /dashboard');
     });
   }
   it('sans session · renvoi à la connexion', async () => {
@@ -171,11 +172,11 @@ describe('écrans remplis', () => {
   });
 });
 
-describe('hub ADMIN', () => {
-  it('une carte « IA et Studios » mène à l’espace', async () => {
-    h.session = { ...EQUIPE(), user: { id: ids.user, email: 'kguilbaux@agence-glx.fr', name: null } };
-    const html = renderToStaticMarkup(await AdminBackstage());
-    expect(html).toContain('href="/admin/ia-studios"');
-    expect(html).toContain('IA et Studios');
+describe('accès au registre', () => {
+  it('la sous-navigation du Tour de contrôle mène au « Registre IA », marqué courant', async () => {
+    const html = await page({ onglet: 'prompts' });
+    const lien = /<a[^>]*>Registre IA<\/a>/.exec(html)?.[0] ?? '';
+    expect(lien).toContain('href="/admin/prompts/registre"');
+    expect(lien).toContain('aria-current="page"');
   });
 });
