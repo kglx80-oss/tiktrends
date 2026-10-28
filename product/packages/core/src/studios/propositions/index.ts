@@ -7,3 +7,4 @@ export * from './cycle';
 export * from './construction';
 export * from './presentation';
 export * from './saisie';
+export * from './rejeu';
