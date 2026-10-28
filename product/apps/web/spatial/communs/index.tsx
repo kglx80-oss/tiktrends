@@ -4,4 +4,4 @@
  * NOMMÉS · Next ne connaît les exports d'un module client que par leur nom.
  */
 export { Ic, Vue, Lien, Anneau, SousNav, formatNombre } from './base';
-export { EnTete, PastilleCredits } from './client';
+export { EnTete, PastilleCredits, useTelephone } from './client';
