@@ -162,9 +162,9 @@ function cadresHorsRole(f: string): string[] {
 describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   const lot = fichiers.filter(dansLeLot);
   it('on parcourt bien le périmètre du lot', () => {
-    // Mesuré : 117 fichiers après le retrait de l'ancien Accueil (vague 2 Spatial v4, 28/10), 115 une fois Finance
-    // et Inscriptions retirées aussi · plancher 100.
-    expect(lot.length).toBeGreaterThan(100);
+    // Mesuré : 108 fichiers le 28/10 (ancien Accueil, Mon profil et Tagging retirés), 106 avec Finance et
+    // Inscriptions retirées aussi · le périmètre fond à chaque retrait V5 · plancher 80.
+    expect(lot.length).toBeGreaterThan(80);
     expect(lot).toContain('components/ui.tsx');
     // Vague 2 Spatial v4 · l'ancien Accueil, sa vue Analytics et les pages V5 de l'Admin sont retirés (Spatial exclusif) · reste le panneau de parcours partagé.
     for (const f of ['components/JourneyPanel.tsx']) expect(lot, `${f} sort du lot`).toContain(f);
