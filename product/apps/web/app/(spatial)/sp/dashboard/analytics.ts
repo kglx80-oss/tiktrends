@@ -3,12 +3,13 @@ import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import {
-  bilanAvanceAccueil, cheminOuvert, diversiteCreative, encartMetaAnalytics, etatConnecteur, metriquesMetaAnalytics,
-  refusVueAnalytics, resoudreAccueil, type BilanAvanceAccueil, type DiversiteCreative, type ParamsRequete, type PhaseConnecteur,
+  bilanAvanceAccueil, cheminOuvert, diversiteCreative, encartMetaConnexion, etatConnexionMeta, metriquesMetaAnalytics,
+  refusVueAnalytics, resoudreAccueil, type BilanAvanceAccueil, type DiversiteCreative, type EtatConnexionMeta, type ParamsRequete,
 } from '@tiktrends/core';
 import type { Session } from '../../../../lib/auth';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
+import { lireConnexionMeta } from '../../../../lib/connexion-meta';
 import { FEATURES, canAccess, denyReason, ouverturesParRole } from '../../../../lib/rbac';
 import { attributionViewAction, creativeTrendAction } from '../../../actions/adsmap-attribution';
 import type { PropsAnalytics } from '../../../../spatial/vues/accueil/Analytics';
@@ -19,8 +20,9 @@ import type { PropsAnalytics } from '../../../../spatial/vues/accueil/Analytics'
  *
  *  · le droit Analytics de la matrice (`canAccess`) est vérifié AVANT toute
  *    lecture · refusé, rien n'est lu (ni marque, ni KPI, ni générations) ;
- *  · KPI Meta de la marque active (`brands.ads_insights`, date de synchro MÉTA),
- *    et la phase réelle du connecteur (`etatConnecteur`) pour l'encart ;
+ *  · KPI Meta de la marque active (`brands.ads_insights`) et l'état de la
+ *    connexion Meta · LA même lecture et LA même règle que l'Accueil et le Radar
+ *    (`lireConnexionMeta` → `etatConnexionMeta`) ;
  *  · diversité créative · 200 dernières générations « ad »/« image » de la
  *    marque, tags des assets de la marque OU communs de l'espace (400) ;
  *  · bilan avancé de Jarvis · sous son propre droit Adsmap, par les actions
@@ -41,15 +43,13 @@ export async function chargerAnalyticsSpatial(s: Session, params: ParamsRequete)
   const brand = await getActiveBrand(s.workspaceId);
   let insights: MetaAdsInsights | null = null;
   let synchro: Date | null = null;
-  let phase: PhaseConnecteur = 'a_brancher';
+  let connexion: EtatConnexionMeta = etatConnexionMeta({ jeton: false, compte: false, comptes: 0, kpiLe: null, mesuresLe: null }, new Date());
   let diversite: DiversiteCreative | null = null;
   if (db && brand) {
-    const [b] = await db.select({ ads: schema.brands.adsInsights, syncedAt: schema.brands.metaSyncedAt, token: schema.brands.metaToken, compte: schema.brands.metaAdAccountId, comptes: schema.brands.metaAdAccounts })
-      .from(schema.brands).where(eq(schema.brands.id, brand.id)).limit(1);
-    if (b?.ads && (b.ads as MetaAdsInsights).window) insights = b.ads as MetaAdsInsights;
-    synchro = b?.syncedAt ?? null;
-    const nbComptes = Array.isArray(b?.comptes) ? (b!.comptes as unknown[]).length : 0;
-    phase = etatConnecteur({ connecte: !!b?.token, compteRequisManquant: !!b?.token && nbComptes > 1 && !b?.compte, donnees: !!insights });
+    const lue = await lireConnexionMeta(brand.id, s.workspaceId);
+    if (lue?.insights?.window) insights = lue.insights;
+    synchro = lue ? (lue.entree.kpiLe as Date | null) : null;
+    if (lue) connexion = etatConnexionMeta(lue.entree, new Date());
 
     const gens = await db.select({ input: schema.generations.input }).from(schema.generations)
       .where(and(eq(schema.generations.brandId, brand.id), inArray(schema.generations.kind, ['ad', 'image'])))
@@ -74,8 +74,8 @@ export async function chargerAnalyticsSpatial(s: Session, params: ParamsRequete)
 
   return {
     onglets: vues, etat: 'ouvert',
-    meta: insights ? metriquesMetaAnalytics(insights, synchro) : null,
-    encart: insights ? null : encartMetaAnalytics(phase),
+    meta: insights ? metriquesMetaAnalytics(insights, synchro, connexion.libelle) : null,
+    encart: insights ? null : encartMetaConnexion(connexion),
     diversite,
     bilan,
   };

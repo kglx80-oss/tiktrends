@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   CHEMIN_BOUCLE_ACCUEIL, PASTILLES_JARVIS_ACCUEIL,
   aFaireMaintenant, carteConfiguration, cartesQuoiIterer, cheminOuvert, choixRapidesPeriode, completudeFicheMarque,
-  depuisRelatif, etapesBoucleAccueil, fileQuoiDeNeuf, jourParis, ligneAttente, lignesReprendre, lotsAConclure,
+  etapesBoucleAccueil, etatConnexionMeta, manqueMeta, fileQuoiDeNeuf, jourParis, ligneAttente, lignesReprendre, lotsAConclure,
   periodeReporting, raccourcisAccueil, salutationAccueil, sourcesJarvisAccueil, sousTitreReporting,
   surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil,
   SUGGESTIONS_ASSISTANT_ACCUEIL, costFor, noteAccesAccueil, prixQuestionAssistant, refusAssistant, resoudreAccueil,
@@ -13,6 +13,7 @@ import {
 import type { Session } from '../../../../lib/auth';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
+import { lireConnexionMeta } from '../../../../lib/connexion-meta';
 import { FEATURES, canAccess, denyReason, ouverturesParRole, roleAtLeast, sectionsCompteOuvertes } from '../../../../lib/rbac';
 import { refusJarvis } from '../../../../lib/jarvis-acces';
 import { onboardingState } from '../../../../lib/onboarding-state';
@@ -110,23 +111,23 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
     }).from(schema.notifications)
       .where(and(eq(schema.notifications.userId, s.user.id), eq(schema.notifications.workspaceId, s.workspaceId)))
       .orderBy(desc(schema.notifications.createdAt)).limit(4)) : Promise.resolve(null),
-    analyticsOuvert ? lire('connexion Meta', async () => {
-      const [b] = await db!.select({ token: schema.brands.metaToken, synchro: schema.brands.adsmapSyncedAt })
-        .from(schema.brands).where(and(eq(schema.brands.id, marque!.id), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
-      return b ? { connecte: !!b.token, synchro: b.synchro as Date | null } : null;
-    }) : Promise.resolve(null),
+    // LA lecture de la connexion Meta · la même que la vue Analytics et le Radar (planche de banc v4).
+    analyticsOuvert ? lire('connexion Meta', () => lireConnexionMeta(marque!.id, s.workspaceId)) : Promise.resolve(null),
   ]);
 
   /* ── Reporting Meta ─────────────────────────────────────────────────── */
   let reporting: EtatReporting | null = null;
   if (analyticsOuvert && metaBrand && marque) {
-    const lienConnexions = ouvert('/connections') ? { libelle: 'Connecter mes comptes', href: '/connections' } : null;
-    if (!metaBrand.connecte) {
+    // L'état et son libellé viennent de LA règle partagée (`etatConnexionMeta`) · l'Accueil
+    // ne dit plus « synchronisé hier » pendant qu'Analytics dit « en attente » (planche v4).
+    const connexion = etatConnexionMeta(metaBrand.entree, maintenant);
+    if (connexion.phase === 'a_brancher' || connexion.phase === 'compte_a_choisir') {
+      const lienConnexions = ouvert('/connections') && connexion.action ? { libelle: connexion.action, href: '/connections' } : null;
       reporting = {
-        etat: 'connecter', sous: `${marque.nom} · aucun compte publicitaire connecté`,
+        etat: 'connecter', sous: `${marque.nom} · ${connexion.libelle}`,
         message: lienConnexions
-          ? 'Connecte ton compte publicitaire Meta pour suivre ici ta dépense, ton ROAS et tes achats, comparés à la période précédente.'
-          : 'Aucun compte publicitaire Meta n’est connecté pour cette marque · un administrateur de l’espace le connecte dans Connexions.',
+          ? manqueMeta(connexion, { quoi: 'ta dépense, ton ROAS et tes achats, comparés à la période précédente', absent: '' })
+          : `${connexion.libelle} pour cette marque · un administrateur de l’espace s’en occupe dans Connexions.`,
         lien: lienConnexions,
       };
     } else {
@@ -145,12 +146,18 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
         date: String(r.date), depense: Number(r.depense), impressions: Number(r.impressions), clics: Number(r.clics),
         achats: Number(r.achats), revenu: Number(r.revenu), vues3s: Number(r.vues3s),
       })));
-      const sous = sousTitreReporting({ marque: marque.nom, synchro: depuisRelatif(metaBrand.synchro, maintenant) });
+      const sous = sousTitreReporting({ marque: marque.nom, connexion: connexion.libelle });
       const rapides = choixRapidesPeriode(jourParis(maintenant));
       const synthese = lignes ? syntheseReporting(lignes, periode) : null;
+      const jamais = connexion.phase === 'jamais_synchronise';
       reporting = synthese
         ? { etat: 'mesures', sous, periode, rapides, synthese }
-        : {
+        : jamais && lignes
+          // Jamais synchronisé · le geste est la première synchro (dans Connexions), pas Résultats.
+          ? { etat: 'vide', sous, periode, rapides,
+            message: manqueMeta(connexion, { quoi: 'ta dépense, ton ROAS et tes achats, comparés à la période précédente', absent: '' }),
+            lien: ouvert('/connections') && connexion.action ? { libelle: connexion.action, href: '/connections' } : null }
+          : {
           etat: 'vide', sous, periode, rapides,
           message: lignes
             ? 'Aucune journée mesurée sur cette période · les chiffres remontent quand une annonce en test de Résultats est rattachée au compte et synchronisée.'
