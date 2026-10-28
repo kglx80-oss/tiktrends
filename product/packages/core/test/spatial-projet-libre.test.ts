@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aideCanevasLibre, annonceDeplacement, messageEnregistrementLibre, modeDisposition, phraseAvalCarte, raisonCanevasIndisponible,
-  rechercheDisposition, texteZoneLibre,
+  rechercheDisposition, retourVeilleProjet, texteZoneLibre,
 } from '../src';
 
 /**
@@ -61,5 +61,16 @@ describe('disposition libre · ce que l’écran dit', () => {
     expect(phraseAvalCarte([{ nature: 'generation' }, { nature: 'generation' }, { nature: 'calcul' }])).toBe('La modifier rendrait obsolètes 2 générations et 1 calcul en aval · rien n’est refait sans ton accord.');
     expect(aideCanevasLibre(1, 0)).toBe('1 carte · place automatique · glisse une carte ou utilise les flèches');
     expect(aideCanevasLibre(12, 2)).toBe('12 cartes · 2 placées à la main · ta disposition, personnelle');
+  });
+});
+
+describe('fiche projet · « Revenir à la recherche de Veille »', () => {
+  it('la première source ACTIVE venue de la Veille · terme dit ; retirée ou absente · rien, forgée · la Veille seule', () => {
+    expect(retourVeilleProjet([{ statut: 'retiree', retourVeille: 'q=ancien' }, { statut: 'active', retourVeille: null }, { statut: 'active', retourVeille: 'q=routine#ad-meta-1' }]))
+      .toEqual({ href: expect.stringMatching(/^\/veille\?q=routine/), terme: 'routine' });
+    expect(retourVeilleProjet([{ statut: 'retiree', retourVeille: 'q=routine' }])).toBeNull();
+    // Une valeur forgée ne sort jamais de la Veille (même règle que la V5).
+    expect(retourVeilleProjet([{ statut: 'active', retourVeille: '//evil.example/x' }])).toEqual({ href: '/veille', terme: null });
+    expect(retourVeilleProjet([])).toBeNull();
   });
 });

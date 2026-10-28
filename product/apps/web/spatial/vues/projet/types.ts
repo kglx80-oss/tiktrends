@@ -142,6 +142,8 @@ export interface PropsProjet {
    * inactif, avec sa raison). Absent · le contrôle n'est pas offert.
    */
   libre?: { ok: true; canvas: CanevasLibre } | { ok: false; raison: string };
+  /** Projet né d'une carte de Veille · « Revenir à la recherche de Veille » (critères relus par `lienRetourVeille`). */
+  retourVeille?: { href: string; terme: string | null } | null;
   /** Le mode lu dans l'adresse (`?disposition=libre`) · les couloirs par défaut. */
   dispositionInitiale?: ModeDispositionProjet;
 }

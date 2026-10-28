@@ -16,6 +16,7 @@
 import type { ErreurStudio } from '../../studios/erreurs';
 import type { CarteCanvas, EtatMediaCanvas } from '../../studios/canvas/modele';
 import type { PointCanvas } from '../../studios/canvas/disposition';
+import { lienRetourVeille, termeRetourVeille } from '../../retour-veille';
 
 export type ModeDispositionProjet = 'couloirs' | 'libre';
 
@@ -107,4 +108,15 @@ export function aideCanevasLibre(nbCartes: number, deplacees: number): string {
   return deplacees > 0
     ? `${cartes} · ${deplacees} placée${deplacees > 1 ? 's' : ''} à la main · ta disposition, personnelle`
     : `${cartes} · place automatique · glisse une carte ou utilise les flèches`;
+}
+
+/**
+ * « Revenir à la recherche de Veille » (fiche V5, lot 18B) · la première source
+ * ACTIVE venue d'une carte de Veille. Le lien est relu par `lienRetourVeille`
+ * (une valeur forgée ne sort jamais de la Veille) · sans contexte, rien.
+ */
+export function retourVeilleProjet(sources: ReadonlyArray<{ statut: string; retourVeille?: string | null }>): { href: string; terme: string | null } | null {
+  const rv = sources.find((x) => x.statut === 'active' && x.retourVeille)?.retourVeille ?? null;
+  const href = rv ? lienRetourVeille(rv) : null;
+  return href ? { href, terme: termeRetourVeille(rv) } : null;
 }

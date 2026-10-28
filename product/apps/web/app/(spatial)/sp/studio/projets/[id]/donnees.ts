@@ -3,7 +3,7 @@ import { and, count, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
-  couloirsDepuisProjet, dateCourteUtc, raisonCanevasIndisponible, etatGeneration, extraitBulle, gesteGenerer, libelleCoutRelecture, pastilleEnregistrement, relectureNecessaire,
+  couloirsDepuisProjet, dateCourteUtc, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, libelleCoutRelecture, pastilleEnregistrement, relectureNecessaire,
   resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
@@ -183,6 +183,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         liens: { produit: lien('produit'), video: lien('video'), textes: lien('textes') },
       }),
       couloirs,
+      retourVeille: retourVeilleProjet(d.sources),
       libre: canvas?.ok
         ? { ok: true, canvas: { projectId: canvas.canvas.projectId, version: canvas.canvas.version, modele: canvas.canvas.modele, apercus: canvas.canvas.apercus, disposition: canvas.canvas.disposition, rev: canvas.canvas.rev } }
         : { ok: false, raison: canvas ? raisonCanevasIndisponible(canvas) : 'La disposition libre n’a pas pu être lue · recharge la page pour réessayer.' },

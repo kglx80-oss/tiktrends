@@ -245,3 +245,12 @@ describe('Spatial · fiche projet · « Ouvrir l’image » (galerie de la fiche
     expect(html).toMatch(/<a class="btn sm" href="\/api\/studios\/media\/a1" target="_blank" rel="noopener noreferrer" data-ouvrir-image="">/);
   });
 });
+
+describe('Spatial · fiche projet · « Revenir à la recherche de Veille » (fiche V5, lot 18B)', () => {
+  it('un projet né d’une carte de Veille ramène à la recherche, terme dit · sans contexte, rien', () => {
+    const avec = renderToStaticMarkup(<FournisseurSpatial value={CTX}><Projet {...props({ retourVeille: { href: '/veille?q=routine#ad-meta-1', terme: 'routine' } })} /></FournisseurSpatial>);
+    expect(avec).toMatch(/<a class="btn sm" data-retour-veille="" href="\/veille\?q=routine#ad-meta-1">.*Revenir à la recherche de Veille · « routine »<\/a>/);
+    const sans = renderToStaticMarkup(<FournisseurSpatial value={CTX}><Projet {...props()} /></FournisseurSpatial>);
+    expect(sans).not.toContain('data-retour-veille');
+  });
+});

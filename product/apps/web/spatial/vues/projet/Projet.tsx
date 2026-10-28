@@ -78,6 +78,7 @@ export function Projet(p: PropsProjet) {
             <button key={o.cle} type="button" data-ptab={o.cle} aria-pressed={onglet === o.cle} onClick={() => setOnglet(o.cle)}>{o.libelle}</button>
           ))}
         </div>
+        {p.retourVeille && <Lien className="btn sm" href={p.retourVeille.href} data-retour-veille=""><Ic n="back" />Revenir à la recherche de Veille{p.retourVeille.terme ? ` · « ${p.retourVeille.terme} »` : ''}</Lien>}
         <span className={`pill ${p.pastille.classe}`} style={{ marginLeft: 'auto' }}><Ic n={p.pastille.icone} />{p.pastille.libelle}</span>
         {p.exporterHref && <Lien className="btn sm" href={p.exporterHref}><Ic n="down" />Exporter</Lien>}
       </div>
