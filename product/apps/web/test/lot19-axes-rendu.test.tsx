@@ -64,8 +64,8 @@ describe('Lot 19 · chaque titre d’écran porte le jeton h1 de la charte', () 
     // Mesuré : 23 écrans V5 titrés après le retrait de l'Admin V5 (28/10, vague 3
     // Spatial · les écrans retirés quittent le parcours). Le plancher ne garde que
     // la lecture des fichiers (il tombe à 0 si le parcours casse).
-    // Mesuré : 9 après le retrait de la Veille V5 (28/10/2026, vague 4) · plancher 4.
-    expect(avecTitre.length).toBeGreaterThanOrEqual(4);
+    // Mesuré : 5 après le retrait de la Veille V5 (vague 4), main à jour (Support, Profil, Tags déjà retirés) (28/10/2026) · plancher 3.
+    expect(avecTitre.length).toBeGreaterThanOrEqual(3);
   });
   for (const f of avecTitre) {
     const nom = relative(APP, f).split(sep).join('/');

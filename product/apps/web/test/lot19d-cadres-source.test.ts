@@ -25,8 +25,8 @@ const WEB = process.cwd();
 const PERIMETRE = [
   'components',
   // Vague 3 · `brands` (la liste V5) et `console` sont retirés · servis par Spatial.
-  // Vague 4 · `radar` est retiré (Veille exclusive Spatial).
-  ...['dashboard', 'analytics', 'studio', 'tags', 'credits', 'profile', 'support']
+  // Vague 4 · `support`, `tags` et `profile` sont retirés · servis par Spatial · `radar` aussi (Veille exclusive).
+  ...['dashboard', 'analytics', 'studio', 'credits']
     .map((d) => join('app', '(app)', d)),
   // Spatial · vague 3 · les autres écrans de l'Admin et la console sont retirés (exclusifs Spatial).
   ...['finance', 'signups'].map((d) => join('app', '(app)', 'admin', d)),
@@ -150,8 +150,8 @@ describe('lot 19D · garde source · bordures et rayons par rôle', () => {
   const lot = fichiers.filter(dansLeLot);
   it('on parcourt bien le périmètre du lot', () => {
     // Mesuré : 136 fichiers après le retrait des pages V5 Jarvis (28/10) · plancher 120.
-    // Mesuré : 117 après le retrait de la Veille V5 (28/10/2026, vague 4) · plancher 100.
-    expect(lot.length).toBeGreaterThan(100);
+    // Mesuré : 106 après le retrait de la Veille V5 (vague 4), main à jour (Support, Profil, Tags déjà retirés) (28/10/2026) · plancher 90.
+    expect(lot.length).toBeGreaterThan(90);
     expect(lot).toContain('components/ui.tsx');
     expect(lot).toContain('app/(app)/admin/finance/page.tsx');
     // L'Accueil et sa vue Analytics (lot 19A) · composants et sous-blocs rendus.

@@ -27,15 +27,8 @@ describe('toute page de démo connectable offre une sortie vers le réel', () =>
   });
 });
 
-// Tagging lit un échantillon FIXE (`fixtures.tagged`) · aucun compte ne
-// l'alimente. Comme la Veille, on ne lui promet pas une porte qui ne mène
-// nulle part (recette #106 · « Branche un compte pour analyser tes vraies
-// créas » était faux).
-describe('Tagging · démo non branchable, aucune porte promise', () => {
-  it('ne renvoie pas vers /connections', () => {
-    expect(P('app/(app)/tags/page.tsx')).not.toContain('/connections');
-  });
-});
+// Tagging · vague 4 · l'écran V5 est retiré · la garde (aucune porte vers
+// /connections) est portée sur le rendu Spatial (`spatial-profil-tagging`).
 
 // Vague 4 · les pages V5 de la Veille (`/veille`, `/veille/scale`) sont retirées · Spatial dit l'état
 // (démonstration, erreur de la source) dans son sous-titre · la garde du Bandeau partagé est partie avec elles.

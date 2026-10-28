@@ -68,9 +68,8 @@ describe('les états vides migrés adoptent le composant partagé', () => {
     // Crédits · l'historique vide devient une invitation à générer, comme sa
     // page sœur Consommation, au lieu d'une phrase grise sur une page d'argent.
     { fichier: 'app/(app)/credits/page.tsx', attendus: ['<Empty', 'tone="todo"', "href: '/studio/projets'"] },
-    // Support · une liste de tickets vide est une BONNE nouvelle · ton `good`.
-    { fichier: 'app/(app)/support/page.tsx', attendus: ['<EmptyLine tone="good">', 'tout roule'] },
-    { fichier: 'app/(app)/support/[id]/page.tsx', attendus: ['<EmptyLine>'] },
+    // Support · vague 4 · servi par Spatial · la liste vide « tout roule » est
+    // gardée sur le rendu (`spatial-support.test.tsx`).
   ];
   for (const { fichier, attendus } of CAS) {
     it(`${fichier} adopte Empty`, () => {
