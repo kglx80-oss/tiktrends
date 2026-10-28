@@ -8,4 +8,7 @@ import type { EcranSpatial } from '../types';
  */
 export const ECRANS_JARVIS: readonly EcranSpatial[] = [
   { chemin: '/jarvis', section: 'jarvis' },
+  // Vague 3 · écrans sans fragment de maquette, composés dans le langage de l'écran Jarvis.
+  { chemin: '/jarvis/sources', section: 'jarvis' },
+  { chemin: '/jarvis/veille', section: 'jarvis' },
 ];
