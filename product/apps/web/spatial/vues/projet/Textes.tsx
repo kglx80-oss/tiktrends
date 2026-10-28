@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
-  cleBrouillonTextes, comparerTextes, libelleVariable, libelleCoutTexteEstime, raisonAjoutTexte,
-  LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, NOTE_BORNE_TEXTE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
-  type ErreurStudio, type TexteStudio, type TypeTexte, type VarianteTexte,
+  cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, libelleCoutTexteEstime, raisonAjoutTexte,
+  ECHEC_RESEAU_STUDIO, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, NOTE_BORNE_TEXTE, TONS_ECRITURE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
+  type ErreurStudio, type TexteStudio, type TonEcriture, type TypeTexte, type VarianteTexte,
 } from '@tiktrends/core';
 import type { VueTextes } from '../../../lib/studios/textes/textes';
 import { ecrireTextes, enregistrerTextes, exporterTextes, injecterTexte } from '../../../app/actions/studios/textes';
@@ -16,12 +16,13 @@ import { Message } from './briques';
 
 /**
  * Atelier « Textes » d'un projet (`/studio/projets/[id]/textes`), porté de
- * l'écran V5 (`EcranTextes`) sur les MÊMES actions · hooks, corps, CTA et
- * scripts liés au même brief que les studios.
+ * l'écran V5 (`EcranTextes` et son assistant, retirés) sur les MÊMES actions ·
+ * hooks, corps, CTA et scripts liés au même brief que les studios.
  *
  *  · Écrire avec l'IA · appel texte PAYANT, coût maximal annoncé AVANT le
- *    clic, second clic de confirmation, verrou d'appel payant ; rien n'entre
- *    dans le projet sans « Retenir » ;
+ *    clic, second clic de confirmation, verrou d'appel payant ; ton et langue
+ *    choisis partent avec la demande ; rien n'entre dans le projet sans
+ *    « Retenir » ;
  *  · Écrire à la main · aucun appel, mêmes règles (allégation = fait du brief) ;
  *  · Retenus · modifier, retirer, copier, comparer, proposer dans un calque
  *    texte (proposition, rien d'appliqué) ;
@@ -37,6 +38,8 @@ export interface PropsTextes {
 }
 
 type Edition = Pick<TexteStudio, 'type' | 'langue' | 'texte' | 'sources'>;
+/** Langues d'écriture proposées · le serveur accepte un code de deux lettres, `fr` par défaut. */
+const LANGUES: ReadonlyArray<{ code: string; libelle: string }> = [{ code: 'fr', libelle: 'Français' }, { code: 'en', libelle: 'Anglais' }, { code: 'de', libelle: 'Allemand' }];
 interface Brouillon { manuel: Edition; edition: { id: string; valeur: string } | null }
 const libelleType = (t: TexteStudio['type']) => (t === 'libre' ? 'Texte libre' : LIBELLES_TYPE_TEXTE[t]);
 
@@ -70,6 +73,10 @@ export function Textes({ vue, atelier }: PropsTextes) {
   const [ecartees, setEcartees] = useState<Array<{ id: string; raison: string }>>([]);
   const [questions, setQuestions] = useState<string[]>([]);
   const [type, setType] = useState<TypeTexte>('hook');
+  const [ton, setTon] = useState<TonEcriture>(TONS_ECRITURE[0]);
+  const [langue, setLangue] = useState('fr');
+  const idTitreManuel = useId();
+  const idRaisonAjout = useId();
   const limite = vue.limites.find((l) => l.type === type)!;
   const [nombre, setNombre] = useState(VARIANTES_DEFAUT);
   const [max, setMax] = useState<Record<string, number>>({});
@@ -79,7 +86,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
   const [calque, setCalque] = useState<Record<string, string>>({});
   const [enCours, setEnCours] = useState<string | null>(null);
   const [arme, setArme] = useState(false);
-  const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string; conflit?: boolean; lien?: boolean } | null>(null);
+  const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string; conflit?: boolean; lien?: boolean; code?: string } | null>(null);
   const d = vue.disponibilite;
   const faits = vue.brief?.faits ?? [];
   const libelleFait = (fid: string) => faits.find((f) => f.id === fid)?.claim ?? 'fait absent de cette version';
@@ -94,18 +101,19 @@ export function Textes({ vue, atelier }: PropsTextes) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const recharger = () => { ecrireBrouillon(vue.projet.id, { manuel, edition }); window.location.reload(); };
-  const dire = (ton: 'ok' | 'err', texte: string, o: { conflit?: boolean; lien?: boolean } = {}) => { setRetour({ ton, texte, ...o }); if (ton === 'ok') toast(texte); };
+  const dire = (t: 'ok' | 'err', texte: string, o: { conflit?: boolean; lien?: boolean; code?: string } = {}) => { setRetour({ ton: t, texte, ...o }); if (t === 'ok') toast(texte); };
+  const echec = retour?.ton === 'err' && retour.code ? etatEchecStudio(retour.code) : null;
 
   async function sauver(liste: Edition[], ok: string): Promise<boolean> {
     setEnCours('sauver'); setRetour(null);
     try {
       const r = await enregistrerTextes({ projectId: vue.projet.id, baseVersionId: version.id, textes: liste });
-      if (!r.ok) { dire('err', messageErreur(r), { conflit: r.code === 'VERSION_CONFLICT' }); return false; }
+      if (!r.ok) { dire('err', messageErreur(r), { conflit: r.code === 'VERSION_CONFLICT', code: r.code }); return false; }
       setVersion({ id: r.version.id, n: r.version.n });
       setRetenus(r.textes);
       dire('ok', r.inchange ? 'Aucun changement à enregistrer.' : `${ok} · version ${r.version.n}.`);
       return true;
-    } catch { dire('err', 'Le serveur n’a pas répondu · rien n’a été enregistré.'); return false; }
+    } catch { dire('err', 'Le serveur n’a pas répondu · rien n’a été enregistré.', { code: ECHEC_RESEAU_STUDIO }); return false; }
     finally { setEnCours(null); }
   }
 
@@ -114,12 +122,12 @@ export function Textes({ vue, atelier }: PropsTextes) {
     if (!tentative) return;
     setArme(false); setEnCours('ecrire'); setRetour(null); setQuestions([]);
     try {
-      const r = await ecrireTextes({ projectId: vue.projet.id, baseVersionId: version.id, type, nombre, maxCaracteres: maxType, langue: 'fr' });
+      const r = await ecrireTextes({ projectId: vue.projet.id, baseVersionId: version.id, type, nombre, maxCaracteres: maxType, langue, ton });
       appel.terminer(tentative, resultatPayantIncertain(r));
-      if (!r.ok) { dire('err', messageErreur(r), { conflit: r.code === 'VERSION_CONFLICT' }); return; }
+      if (!r.ok) { dire('err', messageErreur(r), { conflit: r.code === 'VERSION_CONFLICT', code: r.code }); return; }
       if (r.statut === 'questions') { setQuestions(r.questions); return; }
       setProposees(r.variantes); setEcartees(r.ecartees);
-    } catch { appel.terminer(tentative, true); dire('err', MESSAGE_APPEL_PAYANT); }
+    } catch { appel.terminer(tentative, true); dire('err', MESSAGE_APPEL_PAYANT, { code: ECHEC_RESEAU_STUDIO }); }
     finally { setEnCours(null); }
   }
 
@@ -127,13 +135,13 @@ export function Textes({ vue, atelier }: PropsTextes) {
     setEnCours(`export-${format}`); setRetour(null);
     try {
       const r = await exporterTextes({ projectId: vue.projet.id, versionId: version.id, format });
-      if (!r.ok) { dire('err', messageErreur(r)); return; }
+      if (!r.ok) { dire('err', messageErreur(r), { code: r.code }); return; }
       const url = URL.createObjectURL(new Blob([r.contenu], { type: `${r.typeMime};charset=utf-8` }));
       const a = document.createElement('a');
       a.href = url; a.download = r.nomFichier; a.click();
       URL.revokeObjectURL(url);
       dire('ok', `Export ${r.nomFichier} · aucun média lancé, rien de facturé.`);
-    } catch { dire('err', 'Le serveur n’a pas répondu · aucun fichier exporté. Vérifie ta connexion puis réessaie.'); }
+    } catch { dire('err', 'Le serveur n’a pas répondu · aucun fichier exporté. Vérifie ta connexion puis réessaie.', { code: ECHEC_RESEAU_STUDIO }); }
     finally { setEnCours(null); }
   }
 
@@ -143,10 +151,10 @@ export function Textes({ vue, atelier }: PropsTextes) {
     setEnCours(`injecter-${t.id}`); setRetour(null);
     try {
       const r = await injecterTexte({ projectId: vue.projet.id, baseVersionId: version.id, layerId, texte: t.texte });
-      if (!r.ok) { dire('err', messageErreur(r), { conflit: r.code === 'VERSION_CONFLICT' }); return; }
+      if (!r.ok) { dire('err', messageErreur(r), { conflit: r.code === 'VERSION_CONFLICT', code: r.code }); return; }
       const nom = vue.calques.find((c) => c.id === layerId)?.nom ?? layerId;
       dire('ok', `Proposition créée pour le calque « ${nom} » · rien n’est appliqué tant que tu ne l’appliques pas depuis le projet.`, { lien: true });
-    } catch { dire('err', 'Le serveur n’a pas répondu · aucune proposition créée. Vérifie ta connexion puis réessaie.'); }
+    } catch { dire('err', 'Le serveur n’a pas répondu · aucune proposition créée. Vérifie ta connexion puis réessaie.', { code: ECHEC_RESEAU_STUDIO }); }
     finally { setEnCours(null); }
   }
 
@@ -165,7 +173,10 @@ export function Textes({ vue, atelier }: PropsTextes) {
         actif={`/studio/projets/${vue.projet.id}/textes`} aide="Hooks, corps, CTA et scripts sur les mêmes faits et la même hypothèse que les studios." />
       {retour && (
         <div className="sec">
-          <Message ton={retour.ton}>{retour.texte}{retour.lien && <> <Lien href={`/studio/projets/${vue.projet.id}#propositions`}>Ouvrir le projet</Lien></>}</Message>
+          <p role={retour.ton === 'ok' ? 'status' : 'alert'} className="muted" style={{ fontSize: '12.5px' }}>
+            <span className={`pill ${retour.ton === 'ok' ? 'g' : 'w'}`}>{retour.ton === 'ok' ? 'Fait' : echec?.mot ?? 'Refusé'}</span>{' · '}{retour.texte}
+            {retour.lien && <> <Lien href={`/studio/projets/${vue.projet.id}#propositions`}>Ouvrir le projet</Lien></>}
+          </p>
           {retour.conflit && <button className="btn sm" type="button" onClick={recharger} style={{ marginTop: 8 }}>Recharger la version courante</button>}
         </div>
       )}
@@ -198,6 +209,12 @@ export function Textes({ vue, atelier }: PropsTextes) {
             </label>
             <label className="field">Caractères au plus
               <input type="number" min={1} max={limite.max} value={maxType} onChange={(e) => setMax((m) => ({ ...m, [type]: Math.min(limite.max, Math.max(1, Number(e.target.value) || 1)) }))} />
+            </label>
+            <label className="field">Ton
+              <select value={ton} onChange={(e) => { setTon(e.target.value as TonEcriture); setArme(false); }}>{TONS_ECRITURE.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+            </label>
+            <label className="field">Langue
+              <select value={langue} onChange={(e) => { setLangue(e.target.value); setArme(false); }}>{LANGUES.map((l) => <option key={l.code} value={l.code}>{l.libelle}</option>)}</select>
             </label>
           </div>
           <small className="faint" style={{ fontSize: '11.5px' }}>{limite.mesuree ? `${limite.max} · palier mesuré où la police de l’accroche atteint son plancher.` : `${limite.max} · borne du contrat, aucune limite mesurée pour ce type · resserre-la si besoin.`}</small>
@@ -247,8 +264,8 @@ export function Textes({ vue, atelier }: PropsTextes) {
       )}
 
       <div className="grid2 sec">
-        <section className="tile" data-zone="ecrire-main" id="ecrire-main" style={{ display: 'grid', gap: 10 }}>
-          <div className="lbl" style={{ margin: 0 }}>Écrire à la main</div>
+        <section className="tile" data-zone="ecrire-main" id="ecrire-main" aria-labelledby={idTitreManuel} style={{ display: 'grid', gap: 10 }}>
+          <div className="lbl" id={idTitreManuel} style={{ margin: 0 }}>Écrire à la main</div>
           <small className="faint" style={{ fontSize: '11.5px' }}>Aucun appel, aucun coût · les mêmes règles : une allégation cite un fait du brief.</small>
           {vue.peutEcrire ? (
             <>
@@ -269,9 +286,9 @@ export function Textes({ vue, atelier }: PropsTextes) {
                 </div>
               )}
               <div className="kc">
-                <button className="btn sm pri" type="button" data-geste="ajouter" disabled={raisonAjout !== null}
+                <button className="btn sm pri" type="button" data-geste="ajouter" disabled={raisonAjout !== null} aria-describedby={raisonAjout ? idRaisonAjout : undefined}
                   onClick={async () => { if (await sauver([...retenus, manuel], 'Texte ajouté')) setManuel({ type: manuel.type, langue: 'fr', texte: '', sources: [] }); }}>Ajouter aux textes retenus</button>
-                {raisonAjout && <small className="faint" style={{ fontSize: '11.5px' }} data-raison="ajout">{raisonAjout}</small>}
+                {raisonAjout && <small className="faint" style={{ fontSize: '11.5px' }} data-raison="ajout" id={idRaisonAjout}>{raisonAjout}</small>}
               </div>
             </>
           ) : <small className="faint" style={{ fontSize: '11.5px' }}>Ton rôle permet de lire et d’exporter, pas d’écrire.</small>}

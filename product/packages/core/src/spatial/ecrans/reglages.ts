@@ -9,10 +9,18 @@ import type { EcranSpatial } from '../types';
 // `exclusif` · la page V5 est retirée (vague 2) · le middleware sert l'écran
 // par Spatial même en mode `?ui=v5`.
 export const ECRANS_REGLAGES: readonly EcranSpatial[] = [
+  // Vague 4 · écrans V5 sans fragment de maquette · « Mon profil » (menu profil)
+  // et « Tagging » (échantillon de démonstration nommé · accent de la Veille,
+  // sa rubrique dans l'ancienne navigation).
+  { chemin: '/profile', section: 'reglages', exclusif: true },
+  { chemin: '/tags', section: 'veille', exclusif: true },
   { chemin: '/settings', section: 'reglages', exclusif: true },
   { chemin: '/settings/partenaires', section: 'reglages', exclusif: true },
   { chemin: '/team', section: 'reglages', exclusif: true },
   { chemin: '/connections', section: 'reglages', exclusif: true },
   { chemin: '/usage', section: 'reglages', exclusif: true },
   { chemin: '/billing', section: 'reglages', exclusif: true },
+  // Vague 4 · le support de l'espace (écrans V5 sans fragment de maquette).
+  { chemin: '/support', section: 'reglages', exclusif: true },
+  { chemin: '/support/[id]', section: 'reglages', exclusif: true },
 ];
