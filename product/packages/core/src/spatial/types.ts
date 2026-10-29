@@ -16,5 +16,7 @@ export interface EcranSpatial {
 
 /** Couleur de barre du navigateur sous Spatial, par thème · le fond de la
  *  maquette (`html,body{background:#0b1220}`) en sombre, le papier du thème
- *  clair dérivé (`theme-clair.ts`) en clair. */
+ *  clair dérivé (`theme-clair.ts`) en clair. Indexée par thème RÉSOLU · en
+ *  « auto », `couleurBarreViewport` en tire une couleur par réglage de
+ *  l'appareil, et `scriptThemeAuto` la suit quand ce réglage change. */
 export const COULEUR_BARRE_SPATIALE: Record<Theme, string> = { sombre: '#0b1220', clair: PAPIER_CLAIR };
