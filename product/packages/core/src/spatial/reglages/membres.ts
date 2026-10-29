@@ -19,7 +19,7 @@ import { ROLES_INVITABLES, type CleRole } from './forfaits';
  */
 
 const RANG: Record<CleRole, number> = { client_viewer: 0, member: 1, admin: 2, owner: 3 };
-export const estCleRole = (r: unknown): r is CleRole => typeof r === 'string' && r in RANG;
+export const estCleRole = (r: unknown): r is CleRole => typeof r === 'string' && Object.hasOwn(RANG, r);
 
 export type RefusMembre = 'forbidden' | 'membre_absent' | 'soi' | 'proprietaire' | 'dernier_proprietaire' | 'role';
 
@@ -66,9 +66,23 @@ export const RAISON_REFUS_MEMBRE: Readonly<Record<RefusMembre, string>> = {
   role: 'Rôle invalide.',
 };
 
+/**
+ * Les invitations en attente que le retrait annule. Un lien d'invitation
+ * s'accepte sans preuve de l'adresse · une personne retirée pourrait donc
+ * revenir par un lien qu'elle a gardé. Un admin ou un propriétaire voyait TOUS
+ * les liens de l'espace (`/team`) · on les annule tous ; sinon, seulement les
+ * siens.
+ */
+export function revocationInvitationsAuRetrait(role: CleRole): 'espace' | 'les_siennes' {
+  return RANG[role] >= RANG.admin ? 'espace' : 'les_siennes';
+}
+
 /** Le texte de confirmation avant un retrait · ce qui part, ce qui reste. */
-export function confirmationRetraitMembre(nom: string): string {
-  return `Retirer ${nom} de l’espace ? Il perd l’accès tout de suite. Ce qu’il a créé reste dans l’espace. Une nouvelle invitation à la même adresse n’est pas encore possible.`;
+export function confirmationRetraitMembre(nom: string, role: CleRole = 'member'): string {
+  const invitations = revocationInvitationsAuRetrait(role) === 'espace'
+    ? ' Les invitations en attente de l’espace sont annulées, puisqu’il en voyait les liens.'
+    : '';
+  return `Retirer ${nom} de l’espace ? Il perd l’accès tout de suite. Ce qu’il a créé reste dans l’espace.${invitations} Une nouvelle invitation à la même adresse n’est pas encore possible.`;
 }
 
 /**

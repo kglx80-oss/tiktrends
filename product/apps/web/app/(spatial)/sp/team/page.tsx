@@ -46,7 +46,7 @@ export default async function EquipeSpatiale() {
     const r = raison(refusGesteMembre({ acteur, cible: { id: m.userId, role: cle(m.role) }, proprietaires }));
     return {
       userId: m.userId, roleCle: m.role, raisonRole: r, raisonRetrait: r,
-      confirmation: confirmationRetraitMembre(nomCourt(m.name, m.email)),
+      confirmation: confirmationRetraitMembre(nomCourt(m.name, m.email), cle(m.role)),
     };
   };
 

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { randomUUID } from 'crypto';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { estCleRole, refusChangementRole, refusRetraitMembre, type CleRole, type RefusMembre } from '@tiktrends/core';
+import { estCleRole, refusChangementRole, refusRetraitMembre, revocationInvitationsAuRetrait, type CleRole, type RefusMembre } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 
 /**
@@ -37,10 +37,13 @@ async function avecEquipe(userId: string, faire: (ctx: {
     const lignes = await tx.select({ userId: M.userId, role: M.role }).from(M).where(eq(M.workspaceId, s.workspaceId)).for('update');
     const role = (r: unknown): CleRole => (estCleRole(r) ? r : 'client_viewer');
     const c = lignes.find((l) => l.userId === userId);
+    // Le rôle de l'acteur est relu SOUS le verrou · pas celui de la session, lu
+    // avant la transaction, qu'un geste concurrent a pu changer entre-temps.
+    const moi = lignes.find((l) => l.userId === s.user.id);
+    if (!moi) return { refus: 'forbidden' };
     return faire({
       tx, workspaceId: s.workspaceId,
-      // Le rôle de l'acteur est celui de la session (relu en base à chaque requête par `getSession`).
-      acteur: { id: s.user.id, role: role(s.role) },
+      acteur: { id: s.user.id, role: role(moi.role) },
       cible: c ? { id: c.userId, role: role(c.role) } : null,
       proprietaires: lignes.filter((l) => l.role === 'owner').length,
     });
@@ -60,11 +63,17 @@ export async function retirerMembreAction(formData: FormData): Promise<void> {
     const S = schema.studioMemberBrandScopes;
     const portees = await tx.select({ brandId: S.brandId }).from(S).where(and(eq(S.workspaceId, workspaceId), eq(S.userId, cible.id)));
     await tx.delete(schema.workspaceMembers).where(and(eq(schema.workspaceMembers.workspaceId, workspaceId), eq(schema.workspaceMembers.userId, cible.id)));
+    // Un lien d'invitation gardé ne doit pas lui rouvrir la porte (`revocationInvitationsAuRetrait`).
+    const I = schema.invites;
+    const enAttente = and(eq(I.workspaceId, workspaceId), eq(I.status, 'pending'));
+    const annulees = await tx.update(I).set({ status: 'revoked' })
+      .where(revocationInvitationsAuRetrait(cible.role) === 'espace' ? enAttente : and(enAttente, eq(I.invitedBy, cible.id)))
+      .returning({ id: I.id });
     await tx.insert(schema.studioAuditEvents).values({
       actorId: acteur.id, effectiveRole: acteur.role, workspaceId, brandId: null,
       action: 'equipe.membre.retire', targetType: 'workspace_member', targetId: cible.id,
       versionBefore: cible.role, versionAfter: null, reason: '', traceId: randomUUID(),
-      details: { restrictionsMarques: portees.map((p) => p.brandId) },
+      details: { restrictionsMarques: portees.map((p) => p.brandId), invitationsAnnulees: annulees.map((a) => a.id) },
     });
     return { ok: 'membre_retire' };
   });

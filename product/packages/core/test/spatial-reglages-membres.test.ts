@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  RAISON_REFUS_MEMBRE, confirmationRetraitMembre, messagesRetourEquipe, refusChangementRole, refusRetraitMembre, optionsRoleMembre,
+  RAISON_REFUS_MEMBRE, confirmationRetraitMembre, estCleRole, revocationInvitationsAuRetrait, messagesRetourEquipe, refusChangementRole, refusRetraitMembre, optionsRoleMembre,
   type CleRole,
 } from '../src';
 
@@ -72,5 +72,22 @@ describe('Équipe · textes', () => {
     expect(t).toContain('Retirer Marine D. de l’espace ?');
     expect(t).toContain('Ce qu’il a créé reste dans l’espace.');
     expect(t).not.toContain('—');
+  });
+});
+
+describe('Équipe · invitations annulées au retrait', () => {
+  it('un admin ou un propriétaire voyait tous les liens · toutes les invitations de l’espace ; sinon les siennes', () => {
+    expect(revocationInvitationsAuRetrait('owner')).toBe('espace');
+    expect(revocationInvitationsAuRetrait('admin')).toBe('espace');
+    expect(revocationInvitationsAuRetrait('member')).toBe('les_siennes');
+    expect(revocationInvitationsAuRetrait('client_viewer')).toBe('les_siennes');
+  });
+  it('la confirmation d’un admin annonce l’annulation des invitations, pas celle d’un membre', () => {
+    expect(confirmationRetraitMembre('Paul', 'admin')).toContain('Les invitations en attente de l’espace sont annulées');
+    expect(confirmationRetraitMembre('Paul', 'member')).not.toContain('invitations en attente');
+  });
+  it('une clé héritée d’Object n’est pas un rôle', () => {
+    for (const k of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) expect(estCleRole(k), k).toBe(false);
+    expect(estCleRole('admin')).toBe(true);
   });
 });

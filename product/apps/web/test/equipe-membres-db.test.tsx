@@ -107,6 +107,58 @@ describe('Équipe · retrait d’un membre', () => {
   });
 });
 
+const invitation = async (e: Espace, par: string | null, email: string) => {
+  const [i] = await db.insert(schema.invites).values({ workspaceId: e.ws, email, role: 'admin', token: randomUUID(), invitedBy: par ? e.ids[par] : null }).returning({ id: schema.invites.id });
+  return i!.id;
+};
+const statut = async (id: string) => (await db.select({ s: schema.invites.status }).from(schema.invites).where(eq(schema.invites.id, id)))[0]?.s;
+
+describe('Équipe · un lien d’invitation gardé ne rouvre pas la porte', () => {
+  it('retirer un admin annule TOUTES les invitations en attente de l’espace (il en voyait les liens), pas celles d’un autre espace', async () => {
+    const e = await espace({ proprio: 'owner', admin: 'admin' });
+    const autre = await espace({ x: 'owner' });
+    const parLui = await invitation(e, 'admin', 'jetable@exemple.invalid');
+    const parProprio = await invitation(e, 'proprio', 'nouvelle@exemple.invalid');
+    const ailleurs = await invitation(autre, 'x', 'ailleurs@exemple.invalid');
+    agir(e, 'proprio', 'owner');
+    await expect(retirerMembreAction(fd({ userId: e.ids.admin! }))).rejects.toThrow('REDIRECT /team?ok=membre_retire');
+    expect(await statut(parLui)).toBe('revoked');
+    expect(await statut(parProprio)).toBe('revoked');
+    expect(await statut(ailleurs), 'un autre espace n’est jamais touché').toBe('pending');
+    const [j] = await journal(e);
+    expect((j?.details as { invitationsAnnulees: string[] }).invitationsAnnulees.sort()).toEqual([parLui, parProprio].sort());
+  });
+
+  it('retirer un membre n’annule que ses propres invitations', async () => {
+    const e = await espace({ proprio: 'owner', marine: 'member' });
+    const parElle = await invitation(e, 'marine', 'a@exemple.invalid');
+    const parProprio = await invitation(e, 'proprio', 'b@exemple.invalid');
+    agir(e, 'proprio', 'owner');
+    await expect(retirerMembreAction(fd({ userId: e.ids.marine! }))).rejects.toThrow('REDIRECT /team?ok=membre_retire');
+    expect(await statut(parElle)).toBe('revoked');
+    expect(await statut(parProprio)).toBe('pending');
+  });
+});
+
+describe('Équipe · le rôle de l’acteur est relu sous le verrou, pas pris à la session', () => {
+  it('une session « propriétaire » périmée (rétrogradé entre-temps) est refusée, rien d’écrit', async () => {
+    const e = await espace({ o1: 'owner', o2: 'member', o3: 'owner' });
+    agir(e, 'o2', 'owner');
+    await expect(retirerMembreAction(fd({ userId: e.ids.o3! }))).rejects.toThrow('REDIRECT /team?e=forbidden');
+    await expect(changerRoleMembreAction(fd({ userId: e.ids.o3!, role: 'member' }))).rejects.toThrow('REDIRECT /team?e=forbidden');
+    expect(await roleDe(e, 'o3')).toBe('owner');
+    expect(await journal(e)).toEqual([]);
+  });
+
+  it('une session dont l’adhésion a disparu est refusée', async () => {
+    const e = await espace({ o1: 'owner', paul: 'member' });
+    const fantome = await espace({ fantome: 'owner' });
+    etat.session = { workspaceId: e.ws, workspaceName: 'Espace test', role: 'owner', plan: 'business', user: { id: fantome.ids.fantome, email: 'f@exemple.invalid', name: 'f' } };
+    await expect(retirerMembreAction(fd({ userId: e.ids.paul! }))).rejects.toThrow('REDIRECT /team?e=forbidden');
+    expect(await roleDe(e, 'paul')).toBe('member');
+  });
+});
+
 describe('Équipe · changement de rôle', () => {
   it('un propriétaire passe un membre admin · écrit et journalisé avant/après', async () => {
     const e = await espace({ proprio: 'owner', marine: 'member' });
