@@ -54,7 +54,7 @@ describe('Équipe · le lien d’invitation se copie, l’état est annoncé', (
     const html = renderToStaticMarkup(
       <FournisseurSpatial value={ctx(() => {})}>
         <Equipe
-          sousNav={SOUS_NAV_REGLAGES} plan="Core" formules={[]} suivante={null} membres={[]} roles={[]} tousRoles={[]} inviter={null} revoquer={async () => {}} retours={{}}
+          sousNav={SOUS_NAV_REGLAGES} plan="Core" formules={[]} suivante={null} membres={[]} roles={[]} optionsRole={[]} changerRole={null} retirer={null} inviter={null} revoquer={async () => {}} retours={{}}
           invitations={[{ id: 'i1', email: 'perime@exemple.invalid', role: 'Membre', expiree: true, lien: 'https://app.exemple/invite/x' }, { id: 'i2', email: 'actif@exemple.invalid', role: 'Membre', expiree: false, lien: 'https://app.exemple/invite/y' }]}
         />
       </FournisseurSpatial>,

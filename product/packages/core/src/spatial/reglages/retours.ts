@@ -1,3 +1,5 @@
+import { RAISON_REFUS_MEMBRE } from './membres';
+
 /**
  * Spatial · Réglages · les messages des actions serveur qui redirigent
  * (`?ok=` / `?e=`) · mêmes textes que les écrans V5 (`/team`, `/billing`,
@@ -15,8 +17,11 @@ export function messagesRetourEquipe(): Record<string, string> {
     invite: 'Invitation créée · aucun e-mail n’est parti (envoi non configuré) · copie le lien de l’invitation pour l’envoyer.',
     invite_mail: 'Invitation créée · l’e-mail est parti, le lien reste aussi copiable.',
     revoked: 'Invitation révoquée.',
+    membre_retire: 'Membre retiré · il n’a plus accès à l’espace, ce qu’il a créé y reste.',
+    role_change: 'Rôle mis à jour.',
   }, {
-    forbidden: 'Action réservée aux administrateurs.', email: 'Renseigne un e-mail.', role: 'Rôle invalide.',
+    ...RAISON_REFUS_MEMBRE,
+    email: 'Renseigne un e-mail.',
     already: 'Cette personne a déjà un compte.', notfound: 'Invitation introuvable.', bad: 'Demande incomplète · réessaie depuis la liste.',
   });
 }

@@ -332,3 +332,52 @@ export function StockageEspace({ actif, operateur, actions }: { actif: boolean; 
     </div>
   );
 }
+
+/* ───────────────────────── Équipe · rôle et retrait d'un membre ───────────────────────── */
+
+type ActionEquipe = (fd: FormData) => Promise<void>;
+
+/**
+ * Le menu de rôle d'un membre · `changerRoleMembreAction` (le serveur relit la
+ * règle `refusChangementRole` et redirige avec son retour, annoncé par
+ * `AnnonceRetour`). Fermé, avec sa raison, quand la règle refuse déjà.
+ */
+export function RoleMembre({ userId, nom, actuel, options, action, raison, style }: {
+  userId: string; nom: string; actuel: string;
+  options: ReadonlyArray<{ valeur: string; libelle: string; choisissable: boolean }>;
+  action: ActionEquipe | null; raison: string | null; style: CSSProperties;
+}) {
+  const [encours, demarrer] = useTransition();
+  const ferme = !action || !!raison;
+  return (
+    <select aria-label={`Rôle de ${nom}`} defaultValue={actuel} disabled={ferme || encours} title={ferme ? raison ?? 'Réservé aux administrateurs de l’espace' : undefined} aria-busy={encours || undefined} style={style}
+      onChange={(e) => {
+        if (ferme || encours) return;
+        const fd = new FormData();
+        fd.set('userId', userId); fd.set('role', e.target.value);
+        demarrer(async () => { await action!(fd); });
+      }}>
+      {options.map((o) => <option key={o.valeur} value={o.valeur} disabled={!o.choisissable}>{o.libelle}</option>)}
+    </select>
+  );
+}
+
+/**
+ * Retirer un membre · confirmé avant l'envoi (ce qui part, ce qui reste), puis
+ * `retirerMembreAction`. Fermé, avec sa raison, quand la règle refuse déjà.
+ */
+export function RetirerMembre({ userId, nom, confirmation, action, raison, children }: {
+  userId: string; nom: string; confirmation: string; action: ActionEquipe | null; raison: string | null; children: ReactNode;
+}) {
+  const [encours, demarrer] = useTransition();
+  const ferme = !action || !!raison;
+  return (
+    <button className="btn sm icon" type="button" aria-label={`Retirer ${nom}`} disabled={ferme || encours} title={ferme ? raison ?? 'Réservé aux administrateurs de l’espace' : undefined} aria-busy={encours || undefined}
+      onClick={() => {
+        if (ferme || encours || !window.confirm(confirmation)) return;
+        const fd = new FormData();
+        fd.set('userId', userId);
+        demarrer(async () => { await action!(fd); });
+      }}>{children}</button>
+  );
+}
