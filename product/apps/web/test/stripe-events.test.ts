@@ -120,11 +120,13 @@ describe('fin d’abonnement et renouvellement', () => {
 
   it('une facture payée renouvelle selon la formule en base', () => {
     // La formule n’est PAS lue depuis la facture : c’est l’espace qui fait foi.
-    expect(route(ev('invoice.paid', { customer: 'cus_1' }))).toEqual({ kind: 'renew', customerId: 'cus_1' });
+    expect(route(ev('invoice.paid', { customer: 'cus_1' }))).toEqual({ kind: 'renew', customerId: 'cus_1', finPeriode: null });
+    // Offre V2 · l'échéance de la période payée est recopiée (préavis de bascule).
+    expect(route(ev('invoice.paid', { customer: 'cus_1', lines: { data: [{ period: { end: 1_800_000_000 } }] } }))).toEqual({ kind: 'renew', customerId: 'cus_1', finPeriode: new Date(1_800_000_000_000) });
   });
 
   it('accepte un client transmis en objet étendu', () => {
-    expect(route(ev('invoice.paid', { customer: { id: 'cus_9' } }))).toEqual({ kind: 'renew', customerId: 'cus_9' });
+    expect(route(ev('invoice.paid', { customer: { id: 'cus_9' } }))).toEqual({ kind: 'renew', customerId: 'cus_9', finPeriode: null });
   });
 });
 

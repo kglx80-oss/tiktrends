@@ -8,3 +8,4 @@ export * from './affichage';
 export * from './regime';
 export * from './bascule';
 export * from './page-forfaits';
+export * from './stripe';

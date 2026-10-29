@@ -6,9 +6,12 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { type Plan } from '../../lib/rbac';
-import { getStripe, priceIdFor } from '../../lib/stripe';
+import { getStripe, priceIdFor, priceIdForV2 } from '../../lib/stripe';
 import { packByKey } from '../../lib/credit-packs';
-import { UNITE_CREDIT_COURANTE } from '@tiktrends/core';
+import {
+  UNITE_CREDIT_COURANTE, estForfaitV2, forfaitRechargesV2, lireFacturation, parametresCheckoutAbonnementV2, parametresCheckoutRechargeV2,
+  rechargesV2, tarifsV2Actifs, variablePrixRecharge,
+} from '@tiktrends/core';
 
 const appUrl = () => (process.env.APP_URL || 'https://app.tiktrends.co').replace(/\/$/, '');
 
@@ -42,6 +45,19 @@ export async function createCheckoutAction(formData: FormData): Promise<void> {
 
   const plan = String(formData.get('plan') || '') as Plan;
   const stripe = getStripe();
+
+  // Offre V2 (sous `TARIFS_V2` seulement) · prix par forfait ET facturation, Stripe Tax activé.
+  if (tarifsV2Actifs(process.env) && estForfaitV2(plan)) {
+    const facturation = lireFacturation(formData.get('facturation'));
+    const prixV2 = priceIdForV2(plan, facturation);
+    if (!stripe || !prixV2) redirect('/billing?e=stripe');
+    const client = await ensureCustomer(stripe, s.workspaceId, s.user.email);
+    const sessionV2 = await stripe.checkout.sessions.create(parametresCheckoutAbonnementV2({ customer: client, price: prixV2, workspaceId: s.workspaceId, forfait: plan, facturation, appUrl: appUrl() }));
+    if (!sessionV2.url) redirect('/billing?e=stripe');
+    redirect(sessionV2.url);
+  }
+
+  // L'offre d'aujourd'hui · inchangée (garde `stripe-checkout-v2`).
   const price = priceIdFor(plan);
   if (!stripe || !price) redirect('/billing?e=stripe');
 
@@ -88,8 +104,23 @@ export async function createTopupCheckoutAction(formData: FormData): Promise<voi
   if (!s || !db) redirect('/login');
   if (s.role !== 'owner') redirect('/billing?e=forbidden');
 
-  const pack = packByKey(String(formData.get('pack') || ''));
+  const cle = String(formData.get('pack') || '');
   const stripe = getStripe();
+
+  // Recharge V2 · seulement sous `TARIFS_V2`, et seulement au prix du forfait V2 de l'espace.
+  const forfait = forfaitRechargesV2(s.plan);
+  if (tarifsV2Actifs(process.env) && forfait && cle.startsWith('v2_')) {
+    const packV2 = rechargesV2(forfait).find((x) => x.key === cle);
+    if (!stripe || !packV2) redirect('/billing?e=stripe');
+    const client = await ensureCustomer(stripe, s.workspaceId, s.user.email);
+    const sessionV2 = await stripe.checkout.sessions.create(parametresCheckoutRechargeV2({
+      customer: client, price: process.env[variablePrixRecharge(forfait, packV2.credits)] || null, pack: packV2, forfait, workspaceId: s.workspaceId, appUrl: appUrl(),
+    }));
+    if (!sessionV2.url) redirect('/billing?e=stripe');
+    redirect(sessionV2.url);
+  }
+
+  const pack = packByKey(cle);
   if (!stripe || !pack) redirect('/billing?e=stripe');
 
   const customerId = await ensureCustomer(stripe, s.workspaceId, s.user.email);

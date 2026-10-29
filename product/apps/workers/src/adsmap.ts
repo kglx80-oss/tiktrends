@@ -60,6 +60,16 @@ export function triggerAdsMapSync(): Promise<AdsMapTriggerResult> {
  * prêt quand quelqu'un ouvre son écran au réveil. Rien pour une marque non
  * armée · le coût d'un passage à vide est une requête.
  */
+/** Allocation mensuelle des abonnés annuels (offre V2) · aucun appel payant. */
+export function triggerAllocations(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/allocations', 'allocations', 5 * 60_000);
+}
+
+/** Bascule des abonnés actuels vers l'offre V2 à leur échéance · sans effet sans `TARIFS_V2`. */
+export function triggerBascule(): Promise<AdsMapTriggerResult> {
+  return triggerCron('/api/cron/bascule-forfaits', 'bascule', 5 * 60_000);
+}
+
 export function triggerRadar(): Promise<AdsMapTriggerResult> {
   return triggerCron('/api/cron/radar', 'radar', 10 * 60_000);
 }

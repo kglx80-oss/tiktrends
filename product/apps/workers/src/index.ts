@@ -3,7 +3,7 @@ import { queues, connection } from './queue';
 import { startWorkers } from './worker';
 import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
-import { triggerAdsMapSync, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
+import { triggerAdsMapSync, triggerAllocations, triggerBascule, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
 import { fixtures } from '@tiktrends/integrations';
 import { db, convertirUnite } from '@tiktrends/db';
 
@@ -15,6 +15,8 @@ function startCronWorker() {
     if (job.name === 'radar-scan') return await triggerRadar();
     if (job.name === 'tracker-scan') return await triggerTracker();
     if (job.name === 'videos-historiques') return await triggerVideosHistoriques();
+    if (job.name === 'allocations-annuelles') return await triggerAllocations();
+    if (job.name === 'bascule-forfaits') return await triggerBascule();
     return { skipped: job.name };
   }, { connection });
   w.on('completed', (j) => console.log('[cron] completed', j.name));
@@ -82,6 +84,11 @@ async function main() {
     jobId: 'videos-historiques',
     removeOnComplete: 20, removeOnFail: 20,
   });
+
+  // Facturation V2 · allocation mensuelle des annuels (03:20) et bascule des abonnés
+  // actuels à leur échéance (03:40) · la seconde ne fait rien sans `TARIFS_V2`.
+  await queues.cron.add('allocations-annuelles', {}, { repeat: { pattern: '20 3 * * *' }, jobId: 'allocations-annuelles', removeOnComplete: 20, removeOnFail: 20 });
+  await queues.cron.add('bascule-forfaits', {}, { repeat: { pattern: '40 3 * * *' }, jobId: 'bascule-forfaits', removeOnComplete: 20, removeOnFail: 20 });
 
   await queues.ingest.add('demo-tiktok', { platform: 'tiktok', ads: (fixtures.tiktok as { ads: unknown[] }).ads });
   await queues.radar.add('demo', { brandId: 'demo' });
