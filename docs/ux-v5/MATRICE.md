@@ -1,5 +1,13 @@
 # UX V5 · matrice de raccordement
 
+> **V5 retirée · 29/10/2026.** L'interface V5 décrite ici n'existe plus · l'ancienne
+> interface (groupe `app/(app)`, coquille `AppShell`, bascule `?ui=v5`) a été
+> retirée par #941, après le portage écran par écran vers Spatial (#865 à #937).
+> La référence vivante est `docs/spatial/` (`README.md` pour l'architecture et la
+> méthode, `MATRICE.md` pour écran → adresse → vue). Cette page et les quatre
+> inventaires sont gardés tels quels, comme historique · leurs chemins de fichiers
+> (`app/(app)/…`, `components/…`) ne désignent plus forcément du code présent.
+
 Référence : prototype V5.15 de Kevin du 14/10/2026 (dossier « TikTrends-V5-Dossier-Claude-Code-14oct », 64 fichiers, empreintes du manifeste vérifiées). Code : `main` à `394ed04`, plus les dix PR UX V2 ouvertes (#782 à #791).
 
 Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manque et ce qui attend une décision. Le détail contrôle par contrôle (libellé exact, fichier:ligne, garde serveur, persistance, coût) vit dans les quatre inventaires :
