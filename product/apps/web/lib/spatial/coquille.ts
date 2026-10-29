@@ -7,6 +7,7 @@ import { entreesRail, entreesRailEspace, initialesAvatar, ENTETE_CHEMIN, type En
 import { getSession } from '../auth';
 import { effectiveAccess } from '../access';
 import { isFounder } from '../founder';
+import { regimeSession } from '../credits-appels';
 import { unlimitedCredits } from '../credits';
 import { listBrands, getActiveBrand } from '../brands';
 import { unreadCount } from '../notifications';
@@ -109,7 +110,7 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
     railOuvert: !railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value),
     utilisateur: { nom, initiales: initialesAvatar(nom, s.user.email), email: s.user.email, role: ROLE_LABEL[s.role] },
     espaceNom: s.workspaceName,
-    credits: { solde: w?.c ?? 0, dotation: PLAN_CREDITS[plan] ?? 0, illimite: unlimitedCredits(s.user.email) },
+    credits: { solde: w?.c ?? 0, dotation: PLAN_CREDITS[plan] ?? 0, illimite: unlimitedCredits(s.user.email), regime: regimeSession(s) },
     nonLues: Number(nonLues) || 0,
     deconnexion: logoutAction,
     // La palette ⌘K et « Tous les modules » · les mêmes chemins ouverts que le rail.

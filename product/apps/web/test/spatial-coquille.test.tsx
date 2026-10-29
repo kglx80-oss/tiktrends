@@ -393,7 +393,7 @@ describe('Spatial · coquille · comportement des surcouches', () => {
       expect(h.thread).toHaveBeenCalledTimes(1);
       expect(fetchFactice).not.toHaveBeenCalled(); // aucune IA à l'ouverture
       expect(document.activeElement?.id).toBe('jdin');
-      expect(tiroir.textContent).toContain('Aucun crédit débité pour la conversation'); // coût annoncé AVANT
+      expect(tiroir.textContent).toContain('Conversation incluse · aucun crédit débité par message.'); // coût annoncé AVANT, en crédits (régime actuel, 29/10)
       await clic(tiroir.querySelector('[data-jdq]'));
       expect((document.getElementById('jdin') as HTMLInputElement).value).toBe('Propose trois angles');
       expect(fetchFactice).not.toHaveBeenCalled(); // une suggestion n'envoie rien

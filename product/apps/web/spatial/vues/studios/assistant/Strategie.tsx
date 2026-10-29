@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import {
-  changementAngleManuel, changementHypotheseRetenue, demandeAnglesDepuisBrief, mentionAppelIA,
+  changementAngleManuel, changementHypotheseRetenue, demandeAnglesDepuisBrief, mentionAppelTexte,
   OBJECTIF_MAX,
   type BriefCanonique, type HypotheseTest,
 } from '@tiktrends/core';
+import { useRegime } from '../../../coquille/contexte';
 import { preparerCreation, proposerHypotheses } from '../../../../app/actions/studios/sources';
 import type { CyclePropositionsBrief } from '../../../../lib/studios/propositions/use-propositions-brief';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../../lib/studios/appel-payant';
@@ -37,6 +38,7 @@ export function Strategie({ projectId, brief, cycle, onApplied, sources, marqueI
   sources: unknown[];
   marqueId: string;
 }) {
+  const regime = useRegime();
   const [angle, setAngle] = useState(brief.angle ?? '');
   const [hypotheses, setHypotheses] = useState<HypotheseTest[] | null>(null);
   const [hErreur, setHErreur] = useState<string | null>(null);
@@ -138,7 +140,7 @@ export function Strategie({ projectId, brief, cycle, onApplied, sources, marqueI
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
             <p className="faint" style={{ fontSize: '11.5px' }} data-cout="hypotheses">
-              {dispo === null ? 'Lecture du coût des suggestions…' : dispo.disponible ? `${mentionAppelIA(null)}. Rien d’appliqué sans ton accord.` : (dispo.raison ?? 'Suggestions indisponibles ici.')}
+              {dispo === null ? 'Lecture du coût des suggestions…' : dispo.disponible ? `${mentionAppelTexte(regime, dispo.plafondUsd)}. Rien d’appliqué sans ton accord.` : (dispo.raison ?? 'Suggestions indisponibles ici.')}
             </p>
             {appelHypotheses.bloque && <p className="faint" role="status" style={{ fontSize: '11.5px' }}>{MESSAGE_APPEL_PAYANT}</p>}
             <div className="kc">

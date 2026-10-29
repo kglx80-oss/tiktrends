@@ -4,7 +4,9 @@ import { getActiveBrand } from '../../../../../lib/brands';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../../lib/jarvis-acces';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { chargerSources } from '../../../../../lib/studios/sources/sources';
-import { ACTIONS_JARVIS_VEILLE, brouillonJarvisVeille, COUT_CONVERSATION_JARVIS, lireEntreeJarvisVeille } from '../../../../../lib/veille-jarvis';
+import { ACTIONS_JARVIS_VEILLE, brouillonJarvisVeille, lireEntreeJarvisVeille } from '../../../../../lib/veille-jarvis';
+import { annonceConversationJarvis } from '@tiktrends/core';
+import { regimeSession } from '../../../../../lib/credits-appels';
 import { EnTete, Ic, Lien, Vue } from '../../../../../spatial/communs';
 import { RefusJarvis } from '../../../../../spatial/vues/jarvis/RefusJarvis';
 import { JarvisVeille } from '../../../../../spatial/vues/jarvis/JarvisVeille';
@@ -57,7 +59,7 @@ export default async function JarvisVeilleSpatial({ searchParams }: { searchPara
       params={transmis}
       retour={entree.retour ?? '/veille'}
       brouillon={brouillonJarvisVeille(entree.action, source, brand.name)}
-      cout={COUT_CONVERSATION_JARVIS}
+      cout={annonceConversationJarvis(regimeSession(s))}
     />
   );
 }

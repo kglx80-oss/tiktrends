@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { brouillonAvecSuggestion, sousTitreTiroirJarvis, suggestionsTiroirJarvis, texteFluxJarvis, texteTourJarvis, verrouAction } from '@tiktrends/core';
 import { chatThreadAction, type ChatThread } from '../../app/actions/jarvis-chat';
-import { COUT_CONVERSATION_JARVIS } from '../../lib/veille-jarvis';
+import { annonceConversationJarvis, type RegimeTarifaire } from '@tiktrends/core';
+import { useRegime } from './contexte';
 import { Ic, Lien } from '../communs/base';
 
 /**
@@ -46,6 +47,8 @@ export interface VueTiroirJarvisProps {
   onFermer: () => void;
   champ?: React.Ref<HTMLInputElement>;
   fil?: React.Ref<HTMLDivElement>;
+  /** Régime tarifaire de l'espace · le prix d'un message dit AVANT l'envoi. Absent = `actuel` (inclus). */
+  regime?: RegimeTarifaire;
 }
 
 const CREER: CSSProperties = { all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: 'linear-gradient(135deg,color-mix(in srgb,var(--acc) 26%,transparent),transparent 75%),#ffffff0a', border: '1px solid color-mix(in srgb,var(--acc) 45%,transparent)' };
@@ -88,7 +91,7 @@ export function VueTiroirJarvis(p: VueTiroirJarvisProps) {
             value={p.saisie} disabled={p.enCours} onChange={(e) => p.onSaisie(e.target.value)} />
           <button className="btn pri sm" type="submit" aria-label="Envoyer" disabled={p.enCours || !p.saisie.trim()}><Ic n="arrow" /></button>
         </div>
-        <small className="faint" style={COUT}>{COUT_CONVERSATION_JARVIS}</small>
+        <small className="faint" style={COUT}>{annonceConversationJarvis(p.regime ?? 'actuel')}</small>
       </form>
     </>
   );
@@ -111,6 +114,7 @@ export function TiroirJarvis({ ouvert, marque, creer, brouillon, onFermer, onNav
   onNaviguer: (href: string) => void;
   toast: (m: string) => void;
 }) {
+  const regime = useRegime();
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [charge, setCharge] = useState(false);
@@ -197,6 +201,7 @@ export function TiroirJarvis({ ouvert, marque, creer, brouillon, onFermer, onNav
           enCours={enCours}
           onSaisie={setSaisie}
           onEnvoyer={() => void envoyer()}
+          regime={regime}
           onSuggestion={(q) => { setSaisie((s) => brouillonAvecSuggestion(s, q)); champ.current?.focus(); }}
           onCopier={(t) => {
             try { void navigator.clipboard.writeText(t).then(() => toast('Réponse copiée'), () => toast('Copie impossible ici')); } catch { toast('Copie impossible ici'); }

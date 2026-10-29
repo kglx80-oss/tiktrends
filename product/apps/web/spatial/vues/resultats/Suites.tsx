@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  COUT_BROUILLON_JARVIS, HYPOTHESE_MIN, MODE_LABEL, REGLE_ITERATION, ecrireFiltreSuites, lienFicheTest, lireFiltreSuites, resultatParentSuite, sensDuSuite, videSuites,
+  annonceBrouillonJarvis, HYPOTHESE_MIN, MODE_LABEL, REGLE_ITERATION, ecrireFiltreSuites, lienFicheTest, lireFiltreSuites, resultatParentSuite, sensDuSuite, videSuites,
   type FiltreSuites,
 } from '@tiktrends/core';
 import { createIterationAction, type IterationPlanView, type IterationRow } from '../../../app/actions/adsmap-iterate';
@@ -12,6 +12,7 @@ import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useGeste, Retour } from './geste';
 import { Brouillon } from './Brouillon';
 import type { SousNavResultats } from './communs';
+import { useRegime } from '../../coquille/contexte';
 
 /**
  * « Suites » · le plan d'itération de l'ancienne Adsmap (`/adsmap/suites`) ·
@@ -89,6 +90,7 @@ export function Suites(p: PropsSuites) {
 }
 
 function CarteSuite({ r, onCree }: { r: IterationRow; onCree: (c: { adId: string; asIteration: boolean }) => void }) {
+  const regime = useRegime();
   const { occupe, message, geste } = useGeste();
   const [ouvert, setOuvert] = useState(false);
   const [hypo, setHypo] = useState('');
@@ -134,8 +136,8 @@ function CarteSuite({ r, onCree }: { r: IterationRow; onCree: (c: { adId: string
         <div className="foot2" style={{ marginTop: 6 }}>
           <button type="button" className="btn sm pri" onClick={() => setOuvert(true)}><Ic n="plus" />Créer la suite</button>
           {!brouillon && (
-            <button type="button" className="btn sm" disabled={!!occupe} title={`Un appel modèle · ${COUT_BROUILLON_JARVIS}`} onClick={() => { void ecrire(); }}>
-              <Ic n="spark" />{occupe === 'ecrire' ? 'Jarvis écrit…' : `Demander le concept à Jarvis · ${COUT_BROUILLON_JARVIS}`}
+            <button type="button" className="btn sm" disabled={!!occupe} title={`Un appel modèle · ${annonceBrouillonJarvis(regime)}`} onClick={() => { void ecrire(); }}>
+              <Ic n="spark" />{occupe === 'ecrire' ? 'Jarvis écrit…' : `Demander le concept à Jarvis · ${annonceBrouillonJarvis(regime)}`}
             </button>
           )}
         </div>

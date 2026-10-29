@@ -14,6 +14,8 @@ import {
   jarvisFullMemory, jarvisStats, jarvisHooks, briefConceptBeforeLaunch,
 } from '../../lib/jarvis-memory';
 import { GUARD } from '../../lib/guard-error';
+import { coutActionRegime } from '@tiktrends/core';
+import { regimeSession, refusCreditsAppel, reserverAppel } from '../../lib/credits-appels';
 
 /**
  * Jarvis écrit le concept.
@@ -54,6 +56,13 @@ export async function draftConceptAction(req: DraftRequest): Promise<{ view?: Dr
   const client = guardedAnthropic({ workspaceId: g.s.workspaceId, action: 'adsmap-draft' });
   if (!client) return { error: GUARD.aiOff() };
 
+  // Facturation 100 % crédits (29/10, point 4) · `brouillon_concept` en régime V2
+  // (annoncé sur le bouton, `COUT_BROUILLON_JARVIS`), inclus sinon. Débité si un
+  // concept exploitable sort, rendu sinon.
+  const annonce = coutActionRegime('brouillon_concept', regimeSession(g.s));
+  const resa = await reserverAppel({ workspaceId: g.s.workspaceId, email: g.s.user.email, annonce, raison: 'Jarvis · brouillon de concept' });
+  if (!resa) return { error: refusCreditsAppel(annonce ?? 0) };
+
   try {
     const [memoire, stats, hooks, marque] = await Promise.all([
       jarvisFullMemory(g.brand.id, g.s.workspaceId).catch(() => ''),
@@ -75,6 +84,7 @@ export async function draftConceptAction(req: DraftRequest): Promise<{ view?: Dr
 
     let draft = await draftConcept(client, { system });
     if (!isUsableDraft(draft)) {
+      await resa.annuler();
       return { error: 'Jarvis n’a pas rendu un concept exploitable. Reformule ta demande en une phrase plus concrète.' };
     }
 
@@ -104,6 +114,7 @@ export async function draftConceptAction(req: DraftRequest): Promise<{ view?: Dr
       hooks,
     }).lines.map((l) => l.text);
 
+    await resa.regler(null);
     return {
       view: {
         draft: { ...draft, rationale },
@@ -113,6 +124,7 @@ export async function draftConceptAction(req: DraftRequest): Promise<{ view?: Dr
       },
     };
   } catch (e) {
+    await resa.annuler().catch(() => { /* rendu au mieux */ });
     return { error: logAndTranslate('adsmap:draft', e, { subject: 'l’écriture du concept', workspaceId: g.s.workspaceId }) };
   }
 }

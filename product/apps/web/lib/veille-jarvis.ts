@@ -1,5 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
-import { lienRetourVeille, type SourceReferenceStudio } from '@tiktrends/core';
+import { annonceConversationJarvis, lienRetourVeille, type SourceReferenceStudio } from '@tiktrends/core';
 
 export const ACTIONS_JARVIS_VEILLE = {
   cloner: 'Cloner pour ma marque',
@@ -8,7 +8,8 @@ export const ACTIONS_JARVIS_VEILLE = {
   hypothese: 'En faire une hypothèse',
 } as const;
 export type ActionJarvisVeille = keyof typeof ACTIONS_JARVIS_VEILLE;
-export const COUT_CONVERSATION_JARVIS = 'Aucun crédit débité pour la conversation. Coût IA fournisseur variable, comptabilisé sous le plafond IA à chaque envoi. Le montant exact dépend du contexte et de la réponse.';
+/** L'annonce d'aujourd'hui (régime actuel) · une page qui connaît la session passe `annonceConversationJarvis(regimeSession(s))`. */
+export const COUT_CONVERSATION_JARVIS = annonceConversationJarvis('actuel');
 const texte = (x: unknown, max: number): string => typeof x === 'string' ? x.trim().slice(0, max) : '';
 
 /** Une annonce libre reste un instantané fourni, jamais une preuve ou une consigne. */

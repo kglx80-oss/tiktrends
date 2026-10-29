@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
+import type { RegimeTarifaire } from '@tiktrends/core';
 
 /**
  * Le contexte de la coquille Spatial · ce que les vues lisent pour leur
@@ -12,7 +13,8 @@ export type PanneauSpatial = 'profil' | 'notifs' | 'marques' | 'modules' | 'jarv
 
 export interface CtxSpatial {
   utilisateur: { nom: string; initiales: string; email: string; role: string };
-  credits: { solde: number; dotation: number; illimite: boolean };
+  /** `regime` · régime tarifaire de l'espace (`regimeTarifaire`) · absent = `actuel` (tests, hors coquille). */
+  credits: { solde: number; dotation: number; illimite: boolean; regime?: RegimeTarifaire };
   nonLues: number;
   ouvrirPalette: () => void;
   basculer: (p: Exclude<PanneauSpatial, null>) => void;
@@ -39,3 +41,6 @@ export const SpatialCtx = createContext<CtxSpatial>(DEFAUT);
 export const FournisseurSpatial = SpatialCtx.Provider;
 export const useSpatial = () => useContext(SpatialCtx);
 
+
+/** Le régime tarifaire de l'espace · `actuel` hors coquille. */
+export const useRegime = (): RegimeTarifaire => useContext(SpatialCtx).credits.regime ?? 'actuel';

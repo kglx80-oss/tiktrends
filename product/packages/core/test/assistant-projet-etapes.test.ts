@@ -6,6 +6,7 @@ import {
   formatDejaEcrit, controleVisionDevis, etapeFormatPrete,
   type SaisieBriefV5, type SaisieFormat,
 } from '../src/studios/ux/assistant-projet';
+import { controleVisionActif } from '../src/studios/execution/tarifs';
 import { validerFormeBrief, CLES_BRIEF, type BriefCanonique } from '../src/studios/brief';
 
 /**
@@ -107,12 +108,19 @@ describe('étape FORMAT & DEVIS · format réel + relecture, décisions Kevin', 
     expect(formatDejaEcrit(null, '4:5')).toBe(false); // défaut non écrit ⇒ à écrire si choisi
   });
 
-  it('relecture ⇒ paramètre controleVision du devis réel · ON laisse (undefined), OFF retire (false)', () => {
-    expect(controleVisionDevis({ format: '4:5', relectureAuto: true })).toBeUndefined();
+  it('relecture ⇒ paramètre controleVision du devis réel · EXPLICITE (29/10 · le défaut du serveur dépend du régime tarifaire)', () => {
+    expect(controleVisionDevis({ format: '4:5', relectureAuto: true })).toBe(true);
     expect(controleVisionDevis({ format: '4:5', relectureAuto: false })).toBe(false);
-    // jamais `true` forcé · c'est le serveur qui décide si la ligne est exécutable
-    const vals = ([true, false] as const).map((r) => controleVisionDevis({ format: '4:5', relectureAuto: r } as SaisieFormat));
-    expect(vals).not.toContain(true);
+    // `true` ne force rien · le serveur décide encore si la ligne est exécutable (`controleVisionActif`).
+    expect(controleVisionActif({ demande: true, fournisseurVision: false, devisImage: true })).toBe(false);
+    expect(controleVisionActif({ demande: true, fournisseurVision: true, devisImage: false })).toBe(false);
+  });
+
+  it('contrôle visuel · coché d’office en régime actuel, à la demande en V2', () => {
+    expect(controleVisionActif({ demande: undefined, fournisseurVision: true, devisImage: true })).toBe(true);
+    expect(controleVisionActif({ demande: undefined, fournisseurVision: true, devisImage: true, parDefaut: false })).toBe(false);
+    expect(controleVisionActif({ demande: true, fournisseurVision: true, devisImage: true, parDefaut: false })).toBe(true);
+    expect(controleVisionActif({ demande: false, fournisseurVision: true, devisImage: true })).toBe(false);
   });
 
   it('l’étape format est prête dès qu’un format valide est posé', () => {
@@ -192,5 +200,5 @@ describe('complétude et vérification avant envoi', () => {
  *  · etapeProjetSuivante('format') rendant null → « transitions direction → format → confirm » tombe.
  *  · etapeRail('confirm') rendant 'confirm' → « confirm allume Format & devis » tombe (sixième puce).
  *  · changementFormatManuel écrivant un libellé au lieu du ratio nu → « reconnu par le format réel » tombe.
- *  · controleVisionDevis forçant true → « jamais true forcé » tombe.
+ *  · controleVisionActif ignorant `parDefaut` → « à la demande en V2 » tombe.
  */

@@ -1,9 +1,10 @@
 import 'server-only';
+import { regimeSession } from '../../../../../../lib/credits-appels';
 import { and, count, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
-  couloirsDepuisProjet, dateCourteUtc, detailTache, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, libelleCoutRelecture, pastilleEnregistrement, relectureNecessaire,
+  couloirsDepuisProjet, dateCourteUtc, detailTache, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, mentionAppelTexte, pastilleEnregistrement, relectureNecessaire,
   resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
@@ -242,7 +243,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         preparerHref: preparer, videoHref: d.projet.kind === 'video' ? lien('video') : null,
         variantes: varSpatiales,
         erreurVariantes: variantes && !variantes.ok ? `${variantes.message} · identifiant support ${variantes.traceId}` : g.ok ? null : 'Accès refusé · ton rôle ne permet pas d’ouvrir les variantes de ce projet.',
-        relecture: { disponible: relecture.disponible, raison: relecture.raison, coutMaxUsd: relecture.coutMaxUsd, mention: relecture.coutMaxUsd !== null ? libelleCoutRelecture(relecture.coutMaxUsd) : null },
+        relecture: { disponible: relecture.disponible, raison: relecture.raison, coutMaxUsd: relecture.coutMaxUsd, mention: relecture.coutMaxUsd !== null ? mentionAppelTexte(regimeSession(s), relecture.coutMaxUsd) : null },
         taches: tachesSp,
         erreurTaches: taches && !taches.ok ? `${taches.message} · identifiant support ${taches.traceId}` : null,
         peutProposer: !!donnees?.droits.proposer,

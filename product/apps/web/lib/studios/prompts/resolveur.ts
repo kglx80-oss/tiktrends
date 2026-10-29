@@ -10,9 +10,10 @@ import {
 import { lireCampagneBenchmark, releaseActive, releaseChargee, type ReleaseChargee } from './depot-prompts';
 import {
   admissibiliteEvaluation, versionDepuisEmpreinte, JETONS_ENTREE_MAX_PROPOSITION, JETONS_RESERVE_CONTEXTE, JETONS_SORTIE_MAX_PROPOSITION,
-  CLE_REGLES_MARQUE, VERSION_REGLES_MARQUE, mesurerRequete, borneJetonsEntree,
+  CLE_REGLES_MARQUE, VERSION_REGLES_MARQUE, mesurerRequete, borneJetonsEntree, costOfTokens, creditsAppelAnnonce,
   type DemandeEvaluation,
 } from '@tiktrends/core';
+import { regimeEspace, refusCreditsAppel, reserverAppel } from '../../credits-appels';
 import { planifierPiecesVision, type CorrespondancePiece, type MediaResoluVision, type PieceNative } from '@tiktrends/core';
 import { lecteurMedias, type LecteurMedias } from '../rendu/medias';
 import { construireContexte, type EntreeContexte, type SourceSnapshot } from './contexte';
@@ -47,6 +48,9 @@ import type { EnvironnementPrompts } from './environnement';
  * dépense qu'avant.
  */
 
+
+/** Le tarif de référence d'un appel texte des Studios pour la borne facturée (`ANTHROPIC_GEN_MODEL`, Sonnet 5 par défaut). */
+const MODELE_FACTURATION_TEXTE = () => process.env.ANTHROPIC_GEN_MODEL || 'claude-sonnet-5';
 const PORTEE_DEFAUT_BUDGET = { budgetJetons: JETONS_ENTREE_MAX_PROPOSITION, reserveJetons: JETONS_RESERVE_CONTEXTE } as const;
 /** Plafond de sortie d'une tâche structurée · le schéma borne déjà chaque champ. */
 const MAX_JETONS_SORTIE = JETONS_SORTIE_MAX_PROPOSITION;
@@ -260,11 +264,23 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
     trace.pieces = plan.correspondances;
   }
 
+  // Facturation 100 % crédits (29/10, point 4) · en régime V2 un appel texte des
+  // Studios se débite en crédits · la BORNE de la requête (jetons d'entrée
+  // mesurés, sortie au plafond, tarif du modèle de génération) est réservée,
+  // puis ajustée au coût réel ; un appel qui ne rend rien d'utilisable rend
+  // tout. Régime actuel : inclus, rien n'est réservé (comportement d'aujourd'hui).
+  const mesure = mesurerRequete({ messages: req.messages });
+  const borneUsd = costOfTokens(MODELE_FACTURATION_TEXTE(), borneJetonsEntree({ ...mesure, images: mesure.images + pieces.length }), MAX_JETONS_SORTIE);
+  const annonceCredits = creditsAppelAnnonce(await regimeEspace(d.portee.workspaceId), borneUsd);
+  const resa = await reserverAppel({ workspaceId: d.portee.workspaceId, annonce: annonceCredits, raison: `Studio · appel texte (${template.key})` });
+  if (!resa) return bloque('BUDGET_EXCEEDED', [constat('BUDGET_EXCEEDED', template.key, refusCreditsAppel(annonceCredits ?? 0))]);
+
   const debut = Date.now();
   let reponse: Awaited<ReturnType<AdaptateurModele['appeler']>>;
   try {
     reponse = await d.adaptateur.appeler({ profil: template.modelProfile, messages: req.messages, schemaSortie, maxJetonsSortie: MAX_JETONS_SORTIE, workspaceId: d.portee.workspaceId, action: `studio-prompt:${template.key}`, ...(pieces.length ? { pieces } : {}) });
   } catch (e) {
+    await resa.annuler().catch(() => { /* rendu au mieux */ });
     const nom = (e as Error).name;
     if (e instanceof PiecesInvalides || nom === 'PiecesInvalides') return bloque('MEDIA_HORS_BORNES', [constat('MEDIA_HORS_BORNES', template.key, (e as Error).message)]);
     const code = nom === 'SpendBlockedError' ? 'BUDGET_EXCEEDED' : 'PROVIDER_ERROR';
@@ -273,6 +289,8 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
     return { ok: false, statut: 'erreur', code, constats, runId, releaseId: release.ligne.id };
   }
   const latenceMs = Date.now() - debut;
+  // Refus ou sortie tronquée · rien d'utilisable, les crédits sont rendus.
+  if (reponse.stopReason === 'refusal' || reponse.stopReason === 'max_tokens') await resa.annuler().catch(() => { /* rendu au mieux */ });
   if (reponse.stopReason === 'refusal') {
     const constats = [constat('PROVIDER_REFUSAL', template.key, 'Le fournisseur a refusé cette demande. Aucun nouvel appel automatique.')];
     const runId = await ecrireRun(d, trace, { statut: 'failed', compiledHash: req.compiledHash, modele: reponse.modele, outputHash: sha256Texte(reponse.texte), latenceMs, coutUsd: reponse.coutUsd, jetons: { entree: reponse.jetonsEntree, sortie: reponse.jetonsSortie }, constats });
@@ -286,9 +304,11 @@ export async function executerTache(d: DemandeTache): Promise<ResultatTache> {
   const juge = evaluerSortie(template.key, budget.entree, reponse.texte, s.validateur, semantique, { faites: 0, maximum: 0 });
   const commun = { compiledHash: req.compiledHash, modele: reponse.modele, outputHash: sha256Texte(reponse.texte), latenceMs, coutUsd: reponse.coutUsd, jetons: { entree: reponse.jetonsEntree, sortie: reponse.jetonsSortie } };
   if (!juge.ok) {
+    await resa.annuler().catch(() => { /* rendu au mieux */ });
     const runId = await ecrireRun(d, trace, { ...commun, statut: 'failed', constats: juge.constats });
     return { ok: false, statut: 'erreur', code: juge.code, constats: juge.constats, runId, releaseId: release.ligne.id };
   }
+  await resa.regler(reponse.coutUsd ?? null).catch((e) => console.error('[studio:prompt] crédits', (e as Error).message));
   const runId = await ecrireRun(d, trace, { ...commun, statut: 'succeeded' });
   return { ok: true, sortie: juge.sortie, runId, releaseId: release.ligne.id, releaseHash: release.ligne.releaseHash, compiledHash: req.compiledHash, sources: [...new Set(trace.sources.map((x) => x.titre))] };
 }
