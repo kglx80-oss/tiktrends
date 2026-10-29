@@ -31,7 +31,7 @@ const CTX: CtxSpatial = {
 };
 const rendre = (n: React.ReactNode) => renderToStaticMarkup(<FournisseurSpatial value={CTX}>{n}</FournisseurSpatial>);
 const action = async () => {};
-const favicon: PropsFaviconMarque = { brandId: 'b1', image: null, initiale: 'A', titre: 't', detail: 'd', recuperer: null, raisonRecuperer: null };
+const favicon: PropsFaviconMarque = { brandId: 'b1', image: null, initiale: 'A', titre: 't', detail: 'd', recuperer: null, raisonRecuperer: null, importLogo: { logos: [], defaut: null, couleurs: [], polices: [], actions: null, raison: 'r' } };
 const sync: PropsSyncSite = { brandId: 'b1', site: 'a.fr', relancer: null, raison: 'r', cout: 5 };
 const nav = sousNavMarque('b1');
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
