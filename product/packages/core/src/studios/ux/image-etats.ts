@@ -65,3 +65,63 @@ export function calqueApresRetrait(ordre: readonly string[], retire: string): st
   if (i < 0) return reste[0]!;
   return reste[Math.min(i, reste.length - 1)]!;
 }
+
+/*
+ * Planche finale · D3 · atelier Produit, trois choses que l'écran disait mal.
+ */
+
+/** L'état « prêt » de la carte produit · une seule règle, celle du contrôle avant compilation. */
+export interface EtatProduitPret { pret: boolean; titre: string; remede: string | null }
+
+/**
+ * La carte disait « Ton produit est prêt » dès qu'un produit était épinglé, à
+ * côté d'un contrôle avant compilation « Bloqué » sur les DEUX modes. Le cas
+ * est réel hors banc · un brief reconstruit après l'épinglage
+ * (`propositionDepuisBrief`) remplace ses références et sort la photo du rôle
+ * Produit. « Prêt » veut donc dire ce que « Préparer mon visuel » exige · au
+ * moins un mode passe le contrôle. Sinon le titre le dit et nomme le geste qui
+ * répare, sans rien deviner de plus que les chemins des violations.
+ */
+export function etatProduitPret(e: {
+  epingle: boolean;
+  peutModifier: boolean;
+  modes: ReadonlyArray<{ ok: boolean; violations: ReadonlyArray<{ chemin: string }> }>;
+}): EtatProduitPret {
+  if (!e.epingle) return { pret: false, titre: 'Produit du visuel', remede: null };
+  if (e.modes.some((m) => m.ok)) return { pret: true, titre: 'Ton produit est prêt', remede: null };
+  const chemins = new Set(e.modes.flatMap((m) => m.violations.map((v) => v.chemin)));
+  const titre = 'Ton produit n’est pas encore prêt';
+  if (!e.peutModifier) return { pret: false, titre, remede: 'Une personne qui peut modifier le projet peut le corriger · le contrôle avant compilation dit quoi.' };
+  if (chemins.has('/brief')) return { pret: false, titre, remede: 'Le projet n’a pas encore de brief · construis-le depuis la fiche du projet, puis reviens ici.' };
+  if (chemins.has('/productRef/photo')) return { pret: false, titre, remede: 'La photo épinglée a changé dans le catalogue · choisis une photo ci-dessous, puis « Utiliser cette photo et continuer ».' };
+  if (chemins.has('/brief/references')) return { pret: false, titre, remede: 'Clique « Utiliser cette photo et continuer » ci-dessous · la photo redevient la référence Produit du brief.' };
+  return { pret: false, titre, remede: 'Corrige les points du contrôle avant compilation · chaque mode dit ce qui bloque.' };
+}
+
+/**
+ * Le message d'un job commence par son état (« Échec · … », « Terminé · … »,
+ * `vueJob`) · posé après la pastille du même état, l'écran disait « Échec ·
+ * Échec · ». On garde le détail seul, sa première lettre relevée ; un message
+ * qui n'est QUE l'état (« Annulé. ») ne dit rien de plus · chaîne vide.
+ */
+export function detailSansEtat(libelleEtat: string, message: string): string {
+  const m = message.trim();
+  if (m === libelleEtat || m === `${libelleEtat}.`) return '';
+  const prefixe = `${libelleEtat} · `;
+  if (!m.startsWith(prefixe)) return m;
+  const reste = m.slice(prefixe.length);
+  return reste.charAt(0).toUpperCase() + reste.slice(1);
+}
+
+/**
+ * Ce que l'écran dit de la version de la photo épinglée. Il affichait
+ * l'empreinte brute (« Version sha256-4648864bdc1a6804 · empreinte de
+ * l'adresse … 4648864bdc1a… ») · un identifiant technique, rien que
+ * l'utilisateur puisse lire ou vérifier. Ce qui compte pour lui : la photo est
+ * figée à l'épinglage, et une photo distante n'est suivie que par son adresse.
+ */
+export function resumeVersionPhoto(nature: 'contenu' | 'adresse'): string {
+  return nature === 'adresse'
+    ? 'Photo distante, figée à l’épinglage · suivie par son adresse, pas par son contenu'
+    : 'Photo figée à l’épinglage · une nouvelle photo du catalogue ne la remplace pas sans ton geste';
+}
