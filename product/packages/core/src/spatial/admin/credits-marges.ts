@@ -8,9 +8,10 @@
  * calculs que l'écran V5 retiré · seule la mise en forme vit ici.
  */
 import { analyzeCosts, analyzePlanNet, analyzePlanRisk, repricingSuggestions } from '../../economics';
+import { MARGE_CIBLE } from '../../offre/marges';
 
-/** Marge brute visée même au pire cas (l'écran V5 · `TARGET_MARGIN`). */
-export const MARGE_PLANCHER_CIBLE = 70;
+/** Marge brute visée même au pire cas · la cible unique de la plateforme (`offre/marges.ts`). */
+export const MARGE_PLANCHER_CIBLE = Math.round(MARGE_CIBLE * 100);
 
 /**
  * Les euros de l'écran · décimales par palier (petits coûts < 1 € au millième,

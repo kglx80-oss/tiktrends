@@ -13,12 +13,13 @@
 import { analyzePlanNet, COST_MODEL, CREDIT_EUR } from '../../economics';
 import { CREDIT_COSTS } from '../../credits';
 import type { LigneForfait } from './plateforme';
+import { MARGE_CIBLE } from '../../offre/marges';
 
 /**
- * Marge brute jugée saine · la cible de l'écran Finance existant
- * (`/admin/finance`, `TARGET_GROSS`). Sous ce seuil, une opération est « à revoir ».
+ * Marge brute jugée saine · la cible unique de la plateforme (`MARGE_CIBLE`,
+ * `offre/marges.ts`, décision du 29/10). Sous ce seuil, une opération est « à revoir ».
  */
-export const MARGE_CIBLE_PCT = 65;
+export const MARGE_CIBLE_PCT = Math.round(MARGE_CIBLE * 100);
 
 export interface RentabiliteForfait extends LigneForfait {
   /** Coût IA par abonné si toute l'allocation est consommée (pire cas, €). */

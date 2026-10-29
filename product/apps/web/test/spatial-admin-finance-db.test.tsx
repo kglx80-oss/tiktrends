@@ -74,11 +74,12 @@ describe('Spatial · Revenus & MRR · indicateurs de l’ancienne page Finance',
     etat.session = session('kguilbaux@agence-glx.fr');
     const html = await rendre();
     const recoSec = /<section[^>]*data-section="finance-reco"[^>]*>([\s\S]*?)<\/section>/.exec(html)?.[1] ?? '';
-    expect(texte(recoSec)).toContain('Cible : |65 % de marge brute|');
+    expect(texte(recoSec)).toContain('Cible : |70 % de marge brute|');
     // Une carte par formule · le texte entre son attribut et la carte suivante.
     const carte = (plan: string) => texte(recoSec.split('data-reco="').find((c) => c.startsWith(`${plan}"`)) ?? '');
-    expect(carte('core')).not.toContain('Sur-alloué');
-    expect(carte('core')).toContain('|Crédits pour 65 % de marge|2');
+    // Cible unique 70 % (29/10) · Core (2 000 crédits pour 1 782 optimaux, +12 %) passe sur-alloué.
+    expect(carte('core')).toContain('Sur-alloué');
+    expect(carte('core')).toContain('|Crédits pour 70 % de marge|1');
     expect(carte('plus')).toContain('Sur-alloué');
     expect(carte('plus')).toContain('pour sécuriser la marge.');
   });

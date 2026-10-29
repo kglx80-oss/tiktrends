@@ -8,17 +8,18 @@
  * ne fait que DÉPLACER dans le noyau le calcul que la page V5 faisait en
  * ligne, à l'identique : mêmes formules payantes (Core, Plus, Business), mêmes
  * fonctions (`analyzePlanNet`, `analyzePlanRisk`, `CREDIT_EUR`), même cible de
- * marge brute (65 %), même base (la formule de CHAQUE espace, abonnement Stripe
+ * marge brute (la cible unique `MARGE_CIBLE`, 70 % depuis le 29/10), même base (la formule de CHAQUE espace, abonnement Stripe
  * actif ou non, × le prix du catalogue du code). L'écran Spatial calcule son
  * propre MRR autrement (`mrrPlateforme` · abonnements Stripe actifs aux tarifs
  * en vigueur) · les deux restent affichés, chacun avec sa base, sans trancher.
  */
 import { analyzePlanNet, analyzePlanRisk, CREDIT_EUR, type PlanNet, type PlanRisk } from '../../economics';
+import { MARGE_CIBLE } from '../../offre/marges';
 
 /** Les formules payantes de l'ancienne page, dans son ordre. */
 export const FORMULES_FINANCE = ['core', 'plus', 'business'] as const;
-/** La marge brute cible « saine » de l'ancienne page. */
-export const MARGE_BRUTE_CIBLE = 0.65;
+/** La marge brute cible · la cible unique de la plateforme (`offre/marges.ts`). */
+export const MARGE_BRUTE_CIBLE = MARGE_CIBLE;
 
 export interface LigneFinanceFormule {
   plan: string;

@@ -1,10 +1,11 @@
-/** Recharges de crédits ponctuelles (paiement unique Stripe, en plus de l'abonnement). */
-export interface CreditPack { key: string; credits: number; eur: number }
+import { RECHARGES_ACTUELLES, type Recharge } from '@tiktrends/core';
 
-export const CREDIT_PACKS: CreditPack[] = [
-  { key: 'pack_1k', credits: 1000, eur: 19 },
-  { key: 'pack_5k', credits: 5000, eur: 79 },
-  { key: 'pack_20k', credits: 20000, eur: 279 },
-];
+/**
+ * Recharges de crédits ponctuelles (paiement unique Stripe, en plus de l'abonnement).
+ * DÉRIVÉES de l'offre du noyau (`RECHARGES_ACTUELLES`) · aucun prix n'est écrit ici.
+ */
+export type CreditPack = Recharge;
+
+export const CREDIT_PACKS: readonly CreditPack[] = RECHARGES_ACTUELLES;
 
 export const packByKey = (k: string): CreditPack | undefined => CREDIT_PACKS.find((p) => p.key === k);
