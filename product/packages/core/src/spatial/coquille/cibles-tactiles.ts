@@ -102,6 +102,21 @@ export const PRIMITIVES_TACTILES: readonly PrimitiveTactile[] = [
   { selecteur: '.more', mode: 'agrandir', style: CENTRER, motif: 'lien « Tous les projets » / « Détail » d’un en-tête de section · 21 px' },
   { selecteur: '.dmore', mode: 'agrandir', motif: 'lien « Toutes les connexions » de la Bibliothèque · 20 px' },
   { selecteur: '.tnc', mode: 'deborder', largeur: 22, hauteur: 22, rayon: 6, motif: 'flèche « Replier » d’un dossier de l’arbre · 22 × 22, dessin gardé' },
+  // Les onglets, listes et icônes propres à un écran · Studios, Fiche projet, Pubs du moment, Sauvegardes, Bibliothèque, Admin.
+  { selecteur: '.pacts a', mode: 'agrandir', motif: 'geste « Itérer » d’une carte projet (Studios) · 30 × 30' },
+  { selecteur: '.pacts button', mode: 'agrandir', motif: 'geste « Archiver » / « Restaurer » d’une carte projet (Studios) · 30 × 30' },
+  { selecteur: '.pill', mode: 'agrandir', motif: 'pastille cliquable « Ouvrir la fiche », « Cibler Jarvis » (fiche projet) · 27 px' },
+  { selecteur: '.xtabs button', mode: 'agrandir', motif: 'onglets « Toutes les pubs / Tendance / Suivies » (Pubs du moment) · 26 px' },
+  { selecteur: '.xfc', mode: 'agrandir', motif: 'tri et filtres (Pubs du moment) · 29 à 31 px' },
+  { selecteur: '.xi', mode: 'agrandir', motif: 'icône « Sauvegarder » d’une carte (Pubs du moment) · 32 × 32' },
+  { selecteur: '.play', mode: 'agrandir', motif: 'lecture d’une vidéo sauvegardée · 46 px, 41 sous le zoom de la Veille' },
+  { selecteur: '.colls nav button', mode: 'agrandir', motif: 'collections (Sauvegardes) · 35 px' },
+  { selecteur: '.btabs button', mode: 'agrandir', motif: 'espaces « Assets de la marque / Créations » (Bibliothèque) · 38 px' },
+  { selecteur: '.dsec button', mode: 'agrandir', motif: 'sections « Mon drive / Récents / Corbeille » (Bibliothèque) · 35 px' },
+  { selecteur: '.crumb button', mode: 'agrandir', motif: 'fil d’Ariane du drive (Bibliothèque) · 27 px' },
+  { selecteur: '.tnb', mode: 'agrandir', motif: 'dossier de l’arbre (Bibliothèque) · 31 px' },
+  { selecteur: '.facts button', mode: 'agrandir', motif: 'case de sélection d’un dossier (Bibliothèque) · 28 × 28' },
+  { selecteur: '.astrip-b', mode: 'agrandir', motif: 'retour à l’outil du bandeau Admin+ · 28 px' },
 ];
 
 /** La largeur de bordure transparente qui porte une piste de `hauteur` px à la cible. */

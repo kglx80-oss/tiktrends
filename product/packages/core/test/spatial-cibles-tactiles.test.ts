@@ -66,6 +66,12 @@ describe('Spatial · cibles tactiles (règles)', () => {
     expect(styleCibleTactile(PRIMITIVES_TACTILES.find((p) => p.selecteur === 'summary')!)).toMatchObject({ minHeight: '44px', alignContent: 'center' });
   });
 
+  it('les contrôles propres à un écran relevés au banc sont couverts', () => {
+    expect(PRIMITIVES_TACTILES.map((p) => p.selecteur)).toEqual(expect.arrayContaining([
+      '.pacts a', '.pacts button', '.pill', '.xtabs button', '.xfc', '.xi', '.play', '.colls nav button', '.btabs button', '.dsec button', '.crumb button', '.tnb', '.facts button', '.astrip-b',
+    ]));
+  });
+
   it('le filtre interactif · liens, boutons, champs, résumés et rôles ARIA de contrôle', () => {
     for (const s of ['a[href]', 'button', 'select', 'textarea', 'summary', '[role=switch]', '[role=tab]']) expect(SELECTEUR_INTERACTIF.split(',')).toContain(s);
   });

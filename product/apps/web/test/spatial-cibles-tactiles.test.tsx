@@ -260,6 +260,46 @@ describe('Spatial · cibles tactiles · les contrôles sous 24 px de la planche'
   });
 });
 
+/** Les contrôles propres à un écran, tels que leurs vues les écrivent. */
+function Ecrans() {
+  return (
+    <div className="view">
+      <div className="pacts"><a href="#iterer" aria-label="Itérer sur Huile" data-t="iterer" /><button type="button" aria-label="Archiver Huile" data-t="archiver" /></div>
+      <a className="pill c" href="/brands" data-t="pill">Ouvrir la fiche</a>
+      <span className="pill" data-t="pill-affichee">Gagnante</span>
+      <div className="xtabs" role="group" aria-label="Vue"><button type="button" aria-pressed="true" data-t="xtab">Toutes les pubs</button></div>
+      <button type="button" className="xfc" data-t="xfc">Tri : Plus anciennes</button>
+      <button type="button" className="xi" aria-label="Sauvegarder" data-t="xi" />
+      <a className="play" href="/veille?ad=1" aria-label="Lire" data-t="play" />
+      <div className="colls"><nav><button type="button" aria-pressed="true" data-t="coll">Toutes les sauvegardes</button></nav></div>
+      <nav className="btabs" aria-label="Espaces"><button type="button" className="on" data-t="btab">Assets de la marque</button></nav>
+      <nav className="dsec" aria-label="Sections"><button type="button" data-t="dsec">Récents</button></nav>
+      <div className="crumb"><button type="button" data-t="crumb">Mon drive</button></div>
+      <button type="button" className="tnb" data-t="tnb">Campagne automne</button>
+      <div className="facts"><button type="button" className="fsel" aria-pressed="false" aria-label="Sélectionner Packshots" data-t="case-dossier" /></div>
+      <a className="astrip-b" href="/dashboard" data-t="astrip">Retour à l’outil</a>
+    </div>
+  );
+}
+const CONTROLES_ECRANS = ['iterer', 'archiver', 'pill', 'xtab', 'xfc', 'xi', 'play', 'coll', 'btab', 'dsec', 'crumb', 'tnb', 'case-dossier', 'astrip'];
+
+describe('Spatial · cibles tactiles · les contrôles propres à un écran', () => {
+  it('gestes de carte projet, pastilles cliquables, onglets et filtres de la Veille, collections, onglets et arbre de la Bibliothèque, bandeau Admin+ · 44 px', () => {
+    monter(<Ecrans />);
+    for (const t of CONTROLES_ECRANS) {
+      expect(el(t).style.minHeight, `${t} sous 44 px au téléphone`).toBe('44px');
+      expect(el(t).style.minWidth, `${t} moins de 44 px de large`).toBe('44px');
+    }
+    expect(el('pill-affichee').getAttribute('style'), 'une pastille affichée n’est pas un contrôle').toBeNull();
+  });
+
+  it('au bureau, aucun ne change', () => {
+    telephone = false;
+    monter(<Ecrans />);
+    for (const t of CONTROLES_ECRANS) expect(el(t).getAttribute('style'), `${t} restylé au bureau`).toBeNull();
+  });
+});
+
 describe('Spatial · cibles tactiles · le bureau ne change pas', () => {
   it('au bureau, aucune primitive ne reçoit de style · la parité avec la maquette tient à 1280', () => {
     telephone = false;
