@@ -173,7 +173,7 @@ export async function proposerConcurrents(brandId: string, contexte: string): Pr
     return { names };
   } catch {
     if (!unlimited) await refundCredits(g.workspaceId, cost, 'Remboursement · proposition concurrents');
-    return { error: unlimited ? 'La proposition a échoué. Aucun crédit client débité ; le coût fournisseur éventuel reste suivi.' : 'La proposition a échoué. Les crédits de cette intervention sont remboursés ; le coût fournisseur éventuel reste suivi.' };
+    return { error: unlimited ? 'La proposition a échoué. Aucun crédit débité.' : 'La proposition a échoué. Les crédits de cette intervention sont remboursés.' };
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import {
-  infoEtapeNouveau, libelleCredits, libelleUsd, peutConfirmerLancement, phraseCoutDevis,
+  infoEtapeNouveau, libelleCredits, MENTION_INCLUS, peutConfirmerLancement, phraseCreditsDevis,
   MESSAGE_LANCEMENT_INCERTAIN,
   type ErreurStudio,
 } from '@tiktrends/core';
@@ -88,13 +88,13 @@ export function ConfirmationDevis({ projectId, devis, onModifier, onLance, aperc
         <section className="tile" aria-label="Devis serveur" data-devis={devis.id} style={{ display: 'grid', gap: 10 }}>
           <div className="lbl">Devis serveur</div>
           <div data-prix="devis">
-            <div className="big num" style={{ fontSize: 36 }}>{libelleUsd(devis.usdMicros)}</div>
-            <p className="muted" style={{ fontSize: '12.5px' }}>{phraseCoutDevis(devis.usdMicros, devis.qualification)} · {libelleCredits(devis.credits)} · valable jusqu’à {heure(devis.expiresAt)}</p>
+            <div className="big num" style={{ fontSize: 36 }}>{libelleCredits(devis.credits)}</div>
+            <p className="muted" style={{ fontSize: '12.5px' }}>{phraseCreditsDevis(devis.credits)} · valable jusqu’à {heure(devis.expiresAt)}</p>
           </div>
           <div className="mtable" data-lignes="devis">
             {devis.lignes.map((l, i) => (
               <div key={i} data-ligne-nature={l.natureCout} className="kc" style={{ justifyContent: 'space-between', fontSize: '12.5px' }}>
-                <span className="muted">{l.libelle}</span><b>{libelleUsd(l.usdMicros)}{l.natureCout === 'borne' ? '' : ' · estimation'}</b>
+                <span className="muted">{l.libelle}</span><b>{l.credits > 0 ? libelleCredits(l.credits) : MENTION_INCLUS}</b>
               </div>
             ))}
           </div>
@@ -151,8 +151,8 @@ export function ConfirmationLot({ lot, onModifier, onLance, apercuProduitUrl }: 
           lignes={[['Crédits du lot', libelleCredits(lot.totalCredits)], ['Validité', `Jusqu’à ${heure(lot.expiresAt)}`]]} />
         <section className="tile" aria-label="Devis total du lot" style={{ display: 'grid', gap: 10 }}>
           <div className="lbl">Ton devis</div>
-          <div className="big num" style={{ fontSize: 36 }} data-prix="lot">{libelleUsd(lot.totalUsdMicros)}</div>
-          <p className="muted" style={{ fontSize: '12.5px' }}>{phraseCoutDevis(lot.totalUsdMicros, lot.qualification)}</p>
+          <div className="big num" style={{ fontSize: 36 }} data-prix="lot">{libelleCredits(lot.totalCredits)}</div>
+          <p className="muted" style={{ fontSize: '12.5px' }}>{phraseCreditsDevis(lot.totalCredits)}</p>
           <p className="faint" style={{ fontSize: '11.5px' }}>{lot.nombre} sorties · aucune variation d’accroche ou de composition imposée.</p>
           <label className="kc" data-champ="verifie" style={{ alignItems: 'center', fontSize: 13 }}>
             <input type="checkbox" checked={confirme} disabled={occupe || appel.bloque} onChange={(e) => setConfirme(e.target.checked)} style={{ width: 18, height: 18 }} />

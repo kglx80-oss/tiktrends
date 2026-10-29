@@ -139,14 +139,14 @@ export async function setRadarAction(input: { armed: boolean; cap?: number }): P
  * la même · on la dit dans le compte rendu plutôt que de laisser croire qu'un
  * essai manuel serait gratuit.
  */
-export async function runRadarNowAction(): Promise<{ digest?: string; analyzed?: number; spentUsd?: number; error?: string }> {
+export async function runRadarNowAction(): Promise<{ digest?: string; analyzed?: number; error?: string }> {
   const g = await adsmapGuard({ minRole: 'admin' });
   if ('error' in g) return { error: g.error };
 
   try {
     const r = await runRadarForBrand(g.s.workspaceId, g.brand.id);
     revalidatePath('/adsmap/radar');
-    return { digest: r.digest, analyzed: r.analyzed, spentUsd: r.spentUsd };
+    return { digest: r.digest, analyzed: r.analyzed }; // la dépense en dollars reste au serveur (décision du 29/10)
   } catch (e) {
     return { error: logAndTranslate('adsmap:radar-run', e, { subject: 'le passage du radar', workspaceId: g.s.workspaceId }) };
   }

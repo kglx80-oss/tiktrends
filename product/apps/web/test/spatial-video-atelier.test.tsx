@@ -170,10 +170,10 @@ describe('prix annoncé AVANT le clic', () => {
     expect(levier('devis').textContent).toContain('40 cr.');
     await cliquer(levier('lancer'));
     expect(m.approuverEtLancerKeyframe).not.toHaveBeenCalled();
-    expect(q('[data-geste="lancer"]')!.textContent).toMatch(/^Lancer l’image clé · plan 3Devis · 4 crédits · 0,08 \$ au plus de coût fournisseur · valable jusqu’à/);
+    expect(q('[data-geste="lancer"]')!.textContent).toMatch(/^Lancer l’image clé · plan 3Devis · 4 crédits · valable jusqu’à/);  // en crédits (29/10) · jamais un montant en argent
     expect(bouton('Approuver et lancer · 4 crédits')).toBeTruthy();
     await cliquer(levier('consigne'));
-    expect(q('[data-geste="consigne"]')!.textContent).toContain('Appel texte payant · environ 0,14 $ (estimation)');
+    expect(q('[data-geste="consigne"]')!.textContent).toContain('Appel IA · inclus · aucun crédit débité');  // en crédits (29/10)
     expect(m.compilerConsignePlan).not.toHaveBeenCalled();
   });
 
@@ -231,7 +231,7 @@ describe('indisponibilités dites, aucun geste actif qui ne mène nulle part', (
     await cliquer(q('[data-vsel="s1"]'));
     expect(levier('devis-clip').disabled).toBe(false);
     await cliquer(levier('lancer-clip'));
-    expect(q('[data-geste="lancer-clip"]')!.textContent).toContain('20 crédits · 0,60 $ au plus de coût fournisseur');
+    expect(q('[data-geste="lancer-clip"]')!.textContent).toContain('Devis du clip · 20 crédits · valable jusqu’à'); expect(q('[data-geste="lancer-clip"]')!.textContent).not.toContain('$');  // en crédits (29/10) · jamais un montant en argent
     expect(bouton('Approuver et animer · 20 crédits')?.disabled).toBe(false);
     expect(m.approuverEtLancerClip).not.toHaveBeenCalled();
   });
@@ -398,7 +398,7 @@ describe('chaque geste de montage montre son impact AVANT tout envoi', () => {
     m.planifierStoryboard.mockResolvedValue({ ok: true, statut: 'propose', plans: [propose], totalMs: 3000, avertissements: [] });
     afficher(vue());
     await ouvrirScript();
-    expect(q('[data-cout="storyboard"]')!.textContent).toContain('environ 0,14 $');
+    expect(q('[data-cout="storyboard"]')!.textContent).toContain('Appel IA · inclus');  // en crédits (29/10) · jamais un montant en argent
     expect(m.planifierStoryboard).not.toHaveBeenCalled();
     await cliquer(bouton('Proposer un storyboard depuis le brief'));
     expect(m.planifierStoryboard).toHaveBeenCalledWith({ projectId: 'p1', nbPlans: 3, dureeCibleMs: 9000, speechMode: 'voiceover' });

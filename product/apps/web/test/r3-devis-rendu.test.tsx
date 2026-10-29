@@ -64,39 +64,39 @@ function rendre(v: VueParcoursImage) {
 }
 const txt = (d: ParentNode, sel: string) => (d.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim();
 
-describe('devis du parcours image · la phrase dit borne ou estimation', () => {
-  it('image + contrôle visuel, deux bornes ⇒ « au plus », arrondi au centime SUPÉRIEUR, lignes listées « borne »', () => {
+describe('devis du parcours image · le client lit des CRÉDITS (décision du 29/10)', () => {
+  // Le coût fournisseur (borne ou estimation, en dollars) reste au serveur et à
+  // l'Admin · le client lit les crédits réservés, et ce qu'ils deviennent.
+  it('image + contrôle visuel · crédits du devis, lignes en crédits, aucun dollar', () => {
     const { lignes } = avecControleVision([IMAGE], { modele: 'claude-sonnet-5' });
     const d = rendre(vue(lignes));
-    const total = 80_000 + BORNE_VISION;
-    const centimesSup = (Math.ceil(total / 10_000) / 100).toFixed(2).replace('.', ',');
-    expect(txt(d, '[data-prix="devis"]')).toBe(`Devis · 4 crédits · ${centimesSup} $ au plus de coût fournisseur · valable jusqu’à 12:30.`);
+    expect(txt(d, '[data-prix="devis"]')).toBe('Devis · 4 crédits · Réservés à l’approbation, rendus s’ils ne sont pas consommés · valable jusqu’à 12:30.');
     expect([...d.querySelectorAll('[data-lignes="devis"] li')].map((l) => [l.getAttribute('data-ligne-nature'), l.textContent])).toEqual([
-      ['borne', 'Image · keyframe:s_image · 0,08 $ · borne'],
-      ['borne', `Contrôle visuel · 1 image · ${(BORNE_VISION / 1e6).toFixed(2).replace('.', ',')} $ · borne`],
+      ['borne', 'Image · keyframe:s_image · 4 crédits'],
+      ['borne', 'Contrôle visuel · 1 image · Inclus · aucun crédit débité'],
     ]);
+    expect(d.textContent).not.toMatch(/\$|€/);
   });
 
-  it('une ligne estimée ⇒ jamais « au plus » : « estimation · maximum non garanti » et la raison', () => {
+  it('une ligne estimée (animation) · les crédits réservés, jamais un montant en dollars', () => {
     const d = rendre(vue([IMAGE, ANIMATION]));
-    const p = txt(d, '[data-prix="devis"]');
-    expect(p, 'un devis avec une ligne estimée se présente comme un maximum').not.toContain('au plus');
-    expect(p).toBe('Devis · 4 crédits · 0,68 $ de coût fournisseur · estimation · maximum non garanti (Animation · clip:s1 · forfait vidéo · le prix réel dépend de la durée et du modèle) · valable jusqu’à 12:30.');
-    expect(d.querySelector('[data-ligne-nature="estimation"]')?.textContent).toBe('Animation · clip:s1 · 0,60 $ · estimation (forfait vidéo · le prix réel dépend de la durée et du modèle)');
+    expect(txt(d, '[data-prix="devis"]')).toBe('Devis · 4 crédits · Réservés à l’approbation, rendus s’ils ne sont pas consommés · valable jusqu’à 12:30.');
+    expect(d.querySelector('[data-ligne-nature="estimation"]')?.textContent).toMatch(/^Animation · clip:s1 · /);
+    expect(d.textContent).not.toMatch(/\$|€/);
   });
 
-  it('devis écrit avant R3 (lignes sans nature) ⇒ estimation, jamais « au plus »', () => {
+  it('devis écrit avant R3 (lignes sans nature) · aucun dollar', () => {
     const ancien = [{ ...IMAGE, natureCout: undefined, motifEstimation: undefined }];
-    expect(txt(rendre(vue(ancien)), '[data-prix="devis"]')).toContain('estimation · maximum non garanti (Image · keyframe:s_image · devis antérieur à la qualification des montants)');
+    expect(rendre(vue(ancien)).textContent).not.toMatch(/\$|€/);
   });
 });
 
 describe('case « contrôle visuel » · prix avant le clic, cochée par défaut, décochable', () => {
-  it('disponible ⇒ cochée, le prix par image est dit ; indisponible ⇒ absente (rien d’annoncé)', () => {
+  it('disponible ⇒ cochée, le prix est dit (inclus, régime actuel) ; indisponible ⇒ absente (rien d’annoncé)', () => {
     const d = rendre(vue(null));
     const c = d.querySelector<HTMLButtonElement>('[data-case="controle-vision"]');
     expect(c?.getAttribute('aria-pressed')).toBe('true');
-    expect(txt(d, '[data-case="controle-vision"]')).toBe(`Contrôle visuel de l’image livrée · ${(Math.ceil(BORNE_VISION / 10_000) / 100).toFixed(2).replace('.', ',')} $ au plus par image, ajouté au devis · décocher pour s’en passer`);
+    expect(txt(d, '[data-case="controle-vision"]')).toBe('Contrôle visuel de l’image livrée · inclus, aucun crédit débité · décocher pour s’en passer');
     expect(rendre(vue(null, { disponible: false, borneParImageUsdMicros: BORNE_VISION })).querySelector('[data-case="controle-vision"]')).toBeNull();
   });
 

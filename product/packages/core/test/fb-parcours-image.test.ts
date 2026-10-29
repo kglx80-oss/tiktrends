@@ -119,7 +119,7 @@ describe('version · la consigne se range dans styleRef et le plan s_image, le c
     const l = lignesDuDevis(calculerPlanImpact(CONTENU, r.resultat, { sortiesExistantes: [] }), [OPERATION_IMAGE]);
     expect(l).toMatchObject({ ok: true, totalCredits: CREDIT_COSTS.image, totalUsdMicros: Math.round(FIXED_COSTS.fal_image * 1e6) });
     expect(prixImage()).toEqual({ credits: CREDIT_COSTS.image, usdMicros: GRILLE_STUDIO.image_generation.usdMicros });
-    expect(libellePrix(prixImage())).toBe('40 crédits · 0,08 $ au plus de coût fournisseur');
+    expect(libellePrix(prixImage())).toBe('40 crédits'); // en crédits seulement (29/10)
   });
 });
 

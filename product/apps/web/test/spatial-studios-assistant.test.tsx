@@ -338,7 +338,7 @@ describe('Spatial · Nouveau projet · stratégie et style sur le projet créé'
     await jusquaStrategie({ contexte: { depart: ref, references: [ref], notes: [], repris: [], retourVeille: null } });
     expect(sources.preparerCreation).toHaveBeenCalledWith({ sources: [{ type: 'sauvegarde', id: 's1' }], brandId: 'b1' });
     const cout = $('[data-cout="hypotheses"]')!;
-    expect(cout.textContent).toMatch(/Appel texte payant · environ 0,13 \$ \(estimation\)/);
+    expect(cout.textContent).toContain('Appel IA · inclus · aucun crédit débité');  // en crédits (29/10) · jamais un montant en argent
     expect(sources.proposerHypotheses).not.toHaveBeenCalled();
     await cliquer($('[data-bouton="proposer-hypotheses"]'));
     expect(sources.proposerHypotheses).toHaveBeenCalledTimes(1);
@@ -376,7 +376,7 @@ describe('Spatial · Nouveau projet · format et devis', () => {
   it('la préparation payante annonce son coût AVANT le bouton · le devis reste fermé tant que la consigne n’est pas validée', async () => {
     await monterFormat(brief(), vueParcours());
     const cout = $('[data-cout="compilation"]')!;
-    expect(cout.textContent).toMatch(/Préparation IA payante · environ 0,14 \$ \(estimation\)/);
+    expect(cout.textContent).toContain('Préparation · Appel IA · inclus · aucun crédit débité');  // en crédits (29/10) · jamais un montant en argent
     expect(avant(cout, $('[data-bouton="compiler-consigne"]')!)).toBe(true);
     expect(($('[data-bouton="voir-devis"]') as HTMLButtonElement).disabled).toBe(true);
     expect(image.compilerConsigneImage).not.toHaveBeenCalled();
@@ -425,7 +425,7 @@ describe('Spatial · Nouveau projet · format et devis', () => {
     await cliquer($('[data-bouton="voir-devis"]'));
     const prix = $('[data-prix="lot"]')!;
     const confirmer = $('[data-bouton="confirmer-lot"]') as HTMLButtonElement;
-    expect(prix.textContent).toMatch(/2,40/);
+    expect(prix.textContent).toMatch(/crédits/); expect(prix.textContent).not.toMatch(/\$/);  // en crédits (29/10) · jamais un montant en argent
     expect(avant(prix, confirmer)).toBe(true);
     expect(confirmer.disabled).toBe(true);
     await cliquer(confirmer);
@@ -449,7 +449,7 @@ describe('Spatial · Nouveau projet · confirmation d’une image', () => {
     const cb = await monterConfirmation();
     const prix = $('[data-prix="devis"]')!;
     const bouton = $('[data-bouton="confirmer-generer"]') as HTMLButtonElement;
-    expect(prix.textContent).toMatch(/0,60/);
+    expect(prix.textContent).toMatch(/^4 crédits/); expect(prix.textContent).not.toMatch(/\$/);  // en crédits (29/10) · jamais un montant en argent
     expect($('[data-lignes="devis"]')!.textContent).toMatch(/Image · publicité/);
     expect(avant(prix, bouton)).toBe(true);
     expect(bouton.disabled).toBe(true);

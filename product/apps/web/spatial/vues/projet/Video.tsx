@@ -3,9 +3,9 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MESSAGE_REPONSE_PERDUE_MONTAGE, MODES_PAROLE, NOTE_BORNE_TEXTE, RELECTURE_CREATIONS_MS,
+  GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MESSAGE_REPONSE_PERDUE_MONTAGE, MODES_PAROLE, RELECTURE_CREATIONS_MS,
   appliquerOperationVideo as appliquerNoyau, classeFormat, decisionConfirmationApercu, dureeLisible, ECHEC_RESEAU_STUDIO, etatEchecStudio, etatPlan, ecritureVideoReconnue, gesteVideoReessayable, formatDuDocument, gestesPlan, idsPlansAlloues,
-  impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCoutTexteEstime, libelleCredits, libellePrix, libelleUsd,
+  impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCredits, libellePrix, mentionAppelIA,
   largeurMinFrise, messageHorsLigneStudio, minuteSeconde, pistesMontage, styleTableDefilante, relectureNecessaire, saisieVierge, sourceLecteur,
   type BilanDurees, type CleGestePlan, type ErreurStudio, type EtatJob, type ImpactVideo, type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan,
 } from '@tiktrends/core';
@@ -123,7 +123,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
     storyboard: appelStoryboard.bloque ? { disponible: false, raison: MESSAGE_APPEL_PAYANT } : v.disponibilite.storyboard,
     consigne: appelConsigne.bloque ? { disponible: false, raison: MESSAGE_APPEL_PAYANT } : v.disponibilite.consigne,
   }), [v.disponibilite, appelStoryboard.bloque, appelConsigne.bloque]);
-  const coutTexte = `${libelleCoutTexteEstime(v.coutTexteUsd)} · ${NOTE_BORNE_TEXTE}`;
+  const coutTexte = mentionAppelIA(null);
 
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: (r: { ok: true }) => string, apres?: () => void) {
     const payant = nom === 'storyboard' ? appelStoryboard : nom.startsWith('compiler:') ? appelConsigne : null;
@@ -170,7 +170,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
     disponibilite: { consigne: disponibilite.consigne, montage: disponibilite.montage, devis: disponibilite.devis, lancement: disponibilite.lancement, animation: disponibilite.animation },
     keyframe: { etat: k.etat, consigneEnAttente: !!k.enAttente, consigneRetenue: k.retenue ? { ok: k.retenue.verdict.ok, motif: k.retenue.verdict.ok ? '' : k.retenue.verdict.motif } : null, devisCredits: k.devis?.credits ?? null },
     clip: { keyframePrete: c.keyframePrete, devisCredits: c.devis?.credits ?? null },
-    prixImageCredits: v.prix.credits, prixClip: { credits: v.prixClip.credits, dureeS: v.prixClip.dureeS }, coutTexte: libelleCoutTexteEstime(v.coutTexteUsd),
+    prixImageCredits: v.prix.credits, prixClip: { credits: v.prixClip.credits, dureeS: v.prixClip.dureeS }, coutTexte: mentionAppelIA(null),
   }) : [];
   const gesteChoisi = gestes.find((g) => g.cle === geste) ?? null;
 
@@ -471,15 +471,15 @@ function DetailGeste({ cle, k, c, vue, coutTexte }: {
   cle: CleGestePlan; k: DonneesVideo['keyframes'][string]; c: DonneesVideo['clips'][string]; vue: DonneesVideo; coutTexte: string;
 }) {
   const p = (t: string) => <p className="faint" style={{ fontSize: '12.5px' }}>{t}</p>;
-  if (cle === 'consigne') return p(`Appel texte payant · ${coutTexte} · aucun crédit, aucune image.`);
+  if (cle === 'consigne') return p(`${coutTexte} · aucune image.`);
   if (cle === 'retenir') return k.enAttente ? <>{p(`Consigne compilée · ${k.enAttente.instruction}`)}{p('Nouvelle version · aucun appel, aucun coût.')}</> : p('Aucune consigne en attente.');
   if (cle === 'devis') return <>
     {k.retenue && p(`Consigne retenue · ${k.retenue.instruction} · à éviter : ${k.retenue.interdits.map((x) => x.replace(/\.$/, '')).join(' · ')}`)}
     {p(`Une image clé · ${libellePrix(vue.prix)} · le devis ne débite rien.`)}
   </>;
-  if (cle === 'lancer') return k.devis ? p(`Devis · ${libelleCredits(k.devis.credits)} · ${libelleUsd(k.devis.usdMicros)} au plus de coût fournisseur · valable jusqu’à ${heure(k.devis.expiresAt)}. Débite ${libelleCredits(k.devis.credits)} maintenant · rendus si aucune image n’est livrée.`) : p('Demande d’abord un devis.');
-  if (cle === 'devis-clip') return p(`Un clip de ${vue.prixClip.dureeS} s depuis l’image clé · ${libelleCredits(vue.prixClip.credits)} · ${libelleUsd(vue.prixClip.usdMicros)} au plus · le devis ne débite rien.`);
-  return c.devis ? p(`Devis du clip · ${libelleCredits(c.devis.credits)} · ${libelleUsd(c.devis.usdMicros)} au plus de coût fournisseur · valable jusqu’à ${heure(c.devis.expiresAt)}. Le montant affiché est la réserve, rendue si aucun clip n’est livré.`) : p('Demande d’abord le devis du clip.');
+  if (cle === 'lancer') return k.devis ? p(`Devis · ${libelleCredits(k.devis.credits)} · valable jusqu’à ${heure(k.devis.expiresAt)}. Débite ${libelleCredits(k.devis.credits)} maintenant · rendus si aucune image n’est livrée.`) : p('Demande d’abord un devis.');
+  if (cle === 'devis-clip') return p(`Un clip de ${vue.prixClip.dureeS} s depuis l’image clé · ${libelleCredits(vue.prixClip.credits)} · le devis ne débite rien.`);
+  return c.devis ? p(`Devis du clip · ${libelleCredits(c.devis.credits)} · valable jusqu’à ${heure(c.devis.expiresAt)}. Les crédits sont réservés, rendus si aucun clip n’est livré.`) : p('Demande d’abord le devis du clip.');
 }
 
 /** L'édition du script · chaque changement passe par l'aperçu de son impact avant d'être enregistré. */
@@ -562,7 +562,7 @@ function Script({ vue: v, ordre, libre, prevoir, coutTexte, enCours, storyboardD
       </div>
       <div className="kc" style={{ marginTop: 10 }}>
         <button className="btn sm pri" type="button" disabled={!storyboardDispo.disponible || !!enCours} onClick={() => surStoryboard({ nbPlans: nb, dureeCibleMs: Math.round(duree * 1000), speechMode: mode })}><Ic n="spark" />{enCours === 'storyboard' ? 'Rédaction…' : 'Proposer un storyboard depuis le brief'}</button>
-        <span className="faint" style={{ fontSize: '11.5px' }} data-cout="storyboard">{storyboardDispo.disponible ? `Appel texte payant · ${coutTexte} · rien n’est écrit avant que tu retiennes les plans.` : storyboardDispo.raison}</span>
+        <span className="faint" style={{ fontSize: '11.5px' }} data-cout="storyboard">{storyboardDispo.disponible ? `${coutTexte} · rien n’est écrit avant que tu retiennes les plans.` : storyboardDispo.raison}</span>
       </div>
       <div className="kc" style={{ marginTop: 8 }}>
         <button className="btn sm" type="button" disabled={!libre} onClick={() => setManuels(ids.map((_, i) => saisieVierge(i, nb, Math.round(duree * 1000), mode)))}>Écrire les plans à la main</button>

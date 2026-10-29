@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  capacitesDuRefus, libelleCaseControleVision, libelleCoutTexteEstime, libelleCredits, libellePrix, libelleUsd, phraseCoutDevis,
-  LIBELLES_PORTEE, LIBELLES_ROLE, NOTE_BORNE_TEXTE, VALIDITE_DEVIS_MS,
+  capacitesDuRefus, libelleCaseControleVisuel, libelleCredits, libellePrix, mentionAppelIA, phraseCreditsDevis, MENTION_INCLUS,
+  LIBELLES_PORTEE, LIBELLES_ROLE, VALIDITE_DEVIS_MS,
   type ErreurStudio, type ModeImage, type PorteeReference, type RoleReference,
 } from '@tiktrends/core';
 import type { ConsigneVue, JobImageVue, VueParcoursImage } from '../../../lib/studios/image/parcours';
@@ -147,7 +147,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   const verdictOk = !!vue.retenue && vue.retenue.verdict.ok;
   const raisonDevis = !vue.retenue ? 'Retiens d’abord une consigne compilée.' : !vue.retenue.verdict.ok ? vue.retenue.verdict.motif : !d.devis.disponible ? d.devis.raison : '';
   const titre = vue.jobs.some((j) => !j.terminal) ? 'Ton visuel est en cours de création' : vue.devis && verdictOk ? 'Générer ton visuel' : propositionDisponible ? 'Valide ta direction créative' : verdictOk ? 'Ton visuel est prêt à être généré' : 'Préparer ton visuel';
-  const coutCompilation = `${libelleCoutTexteEstime(vue.coutCompilationUsd)} · ${NOTE_BORNE_TEXTE}`;
+  const coutCompilation = mentionAppelIA(null);
 
   const compiler = () => agir('compiler', async () => {
     setQuestions([]);
@@ -189,7 +189,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           </div>
           {arme === 'compiler' ? (
             <div className="sugg" data-confirmation="compiler">
-              <p style={{ fontSize: '12.5px' }}>Appel texte payant · {coutCompilation} · préparation uniquement, l’image sera facturée séparément.</p>
+              <p style={{ fontSize: '12.5px' }}>{coutCompilation} · préparation uniquement, l’image sera facturée séparément.</p>
               <div className="kc" style={{ marginTop: 8 }}>
                 <button className="btn sm pri" type="button" disabled={!compilable} onClick={() => void compiler()}>{enCours === 'compiler' ? 'Jarvis prépare…' : 'Confirmer la préparation'}</button>
                 <button className="btn sm" type="button" onClick={() => setArme(null)}>Annuler</button>
@@ -198,7 +198,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           ) : (
             <div className="kc">
               <button className="btn sm pri" type="button" data-bouton="compiler" disabled={!compilable} onClick={() => setArme('compiler')}><Ic n="spark" />{enCours === 'compiler' ? 'Jarvis prépare…' : 'Préparer mon visuel avec Jarvis'}</button>
-              <small className="faint" style={{ fontSize: '11.5px' }} data-cout="compilation">Appel texte payant · {coutCompilation} · préparation uniquement, l’image sera facturée séparément.</small>
+              <small className="faint" style={{ fontSize: '11.5px' }} data-cout="compilation">{coutCompilation} · préparation uniquement, l’image sera facturée séparément.</small>
             </div>
           )}
           {!d.compilation.disponible && <small className="faint" style={{ fontSize: '11.5px' }} data-indisponible="compilation">Indisponible · {d.compilation.raison}</small>}
@@ -237,7 +237,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           <p style={{ fontSize: '12.5px' }} data-prix="annonce">Une image · {libellePrix(vue.prix)} · barème du produit.</p>
           {vue.controleVision?.disponible && (
             <button type="button" className="chip" aria-pressed={controleVision} data-case="controle-vision" onClick={() => setControleVision((c) => !c)}>
-              <Ic n={controleVision ? 'check' : 'x'} />{libelleCaseControleVision(vue.controleVision.borneParImageUsdMicros)}
+              <Ic n={controleVision ? 'check' : 'x'} />{libelleCaseControleVisuel(null)}
             </button>
           )}
           <div className="kc">
@@ -248,10 +248,10 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           </div>
           {vue.devis && (
             <div className="sugg" data-devis={vue.devis.id}>
-              <p style={{ fontSize: '12.5px' }} data-prix="devis">Devis · {libelleCredits(vue.devis.credits)} · {phraseCoutDevis(vue.devis.usdMicros, vue.devis.qualification)} · valable jusqu’à {heure(vue.devis.expiresAt)}.</p>
+              <p style={{ fontSize: '12.5px' }} data-prix="devis">Devis · {libelleCredits(vue.devis.credits)} · {phraseCreditsDevis(vue.devis.credits)} · valable jusqu’à {heure(vue.devis.expiresAt)}.</p>
               {vue.devis.lignes.length > 1 && (
                 <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: '11.5px' }} data-lignes="devis">
-                  {vue.devis.lignes.map((l, i) => <li key={i} data-ligne-nature={l.natureCout}>{l.libelle} · {libelleUsd(l.usdMicros)} · {l.natureCout === 'borne' ? 'borne' : `estimation (${l.motifEstimation ?? 'non bornée'})`}</li>)}
+                  {vue.devis.lignes.map((l, i) => <li key={i} data-ligne-nature={l.natureCout}>{l.libelle} · {l.credits > 0 ? libelleCredits(l.credits) : MENTION_INCLUS}</li>)}
                 </ul>
               )}
               <div className="kc" style={{ marginTop: 8 }}>

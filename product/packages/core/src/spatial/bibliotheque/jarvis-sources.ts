@@ -1,4 +1,6 @@
 import { parseAnswer, JARVIS_ACTIONS } from '../../adsmap/jarvis-actions';
+import { costFor } from '../../credits';
+import { formatCredits } from '../../offre/affichage';
 import { extraireCitations, citationsComptees } from '../../connaissances';
 import type { StatRow } from '../../adsmap/brand-stats';
 
@@ -138,13 +140,13 @@ export interface CouvertureDescription {
 
 /**
  * La couverture des créas décrites, dite avant le bouton · combien sont décrites,
- * la part, ce que coûte la PROCHAINE tranche et la totalité (en dollars, la
- * dépense réelle), et si le bouton a quelque chose à faire.
+ * la part, ce que coûte la PROCHAINE tranche et la totalité (en CRÉDITS, le
+ * débit réel · `asset_analysis` par créa, décision du 29/10), et si le bouton a quelque chose à faire.
  */
 export function lectureCouverture(c: CouvertureDescription) {
   const restant = c.pendingAsset + c.pendingWritten;
   const part = c.total > 0 ? Math.round((c.described / c.total) * 100) : null;
-  const usd = (n: number) => `${n.toFixed(2).replace('.', ',')} $`;
+  const credits = (creas: number) => formatCredits(creas * costFor('asset_analysis'));
   const morceaux = [c.total === 0 ? 'Aucune créa dans la carte pour l’instant.' : `${c.described} créa(s) décrite(s) sur ${c.total}${part !== null ? ` · ${part} %` : ''}`];
   if (c.manual > 0) morceaux.push(`dont ${c.manual} corrigée(s) à la main, que l’agent ne touche pas`);
   if (c.fromWritten > 0) morceaux.push(`dont ${c.fromWritten} déduite(s) du brief, à confiance plafonnée`);
@@ -153,8 +155,8 @@ export function lectureCouverture(c: CouvertureDescription) {
   return {
     restant, part, faible,
     texte: morceaux.join(' · ') + (faible ? ' · sous la moitié, les lignes tirées de ces champs restent peu fiables.' : ''),
-    tranche: restant > 0 ? { cout: usd(c.nextCostUsd), detail: `${c.nextBatch} créa(s) · ${usd(c.totalCostUsd)} pour les ${restant} restantes` } : null,
-    bouton: restant > 0 ? `Décrire ${c.nextBatch} créa(s) · ${usd(c.nextCostUsd)}` : 'Tout est décrit',
+    tranche: restant > 0 ? { cout: credits(c.nextBatch), detail: `${c.nextBatch} créa(s) · ${credits(restant)} pour les ${restant} restantes` } : null,
+    bouton: restant > 0 ? `Décrire ${c.nextBatch} créa(s) · ${credits(c.nextBatch)}` : 'Tout est décrit',
   };
 }
 

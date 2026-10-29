@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { ORDRE_FORMULES, ROLES_INVITABLES, etatInvitation, formuleSuivante, initialesPersonne, messagesRetourEquipe, nomCourt, prixFormule, teinteAvatar } from '@tiktrends/core';
+import { DESCRIPTIF_FORMULES, ORDRE_FORMULES, ROLES_INVITABLES, etatInvitation, formuleSuivante, initialesPersonne, messagesRetourEquipe, nomCourt, teinteAvatar } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
-import { PLAN_CREDITS, PLAN_LABEL, PLAN_PRICE, ROLE_LABEL, roleAtLeast, type Plan, type Role } from '../../../../lib/rbac';
+import { PLAN_CREDITS, PLAN_LABEL, ROLE_LABEL, roleAtLeast, type Plan, type Role } from '../../../../lib/rbac';
 import { appUrl } from '../../../../lib/mailer';
 import { createInviteAction, revokeInviteAction } from '../../../actions/invites';
 import { Equipe } from '../../../../spatial/vues/reglages/Equipe';
@@ -36,7 +36,7 @@ export default async function EquipeSpatiale() {
   return (
     <Equipe
       sousNav={SOUS_NAV_REGLAGES} plan={PLAN_LABEL[plan]}
-      formules={ORDRE_FORMULES.map((k) => ({ nom: PLAN_LABEL[k], actuelle: k === plan, valeur: `${PLAN_CREDITS[k].toLocaleString('fr-FR')} crédits`, detail: PLAN_PRICE[k] === 0 ? prixFormule(0) : `${prixFormule(PLAN_PRICE[k])} / mois` }))}
+      formules={ORDRE_FORMULES.map((k) => ({ nom: PLAN_LABEL[k], actuelle: k === plan, valeur: `${PLAN_CREDITS[k].toLocaleString('fr-FR')} crédits`, detail: DESCRIPTIF_FORMULES[k].marques }))} /* le prix d'un forfait ne se lit qu'au moment de le choisir (Forfaits, décision du 29/10) */
       suivante={suivante ? { libelle: `${PLAN_LABEL[suivante]} · ${PLAN_CREDITS[suivante].toLocaleString('fr-FR')} crédits`, href: '/billing' } : null}
       membres={tries.map((m, i) => ({ cle: m.email, initiales: initialesPersonne(m.name, m.email), teinte: teinteAvatar(i), nom: nomCourt(m.name, m.email), email: m.email, role: ROLE_LABEL[m.role], moi: m.email === s.user.email }))}
       invitations={invitations.map((v) => ({ id: v.id, email: v.email, role: ROLE_LABEL[v.role as Role], expiree: etatInvitation(v.expiresAt as Date | null, maintenant) === 'expiree', lien: `${base}/invite/${v.token}` }))}

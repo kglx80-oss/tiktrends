@@ -263,7 +263,8 @@ describe('Spatial · Résultats · suites', () => {
   it('le prix de Jarvis est dit avant le clic · « Créer » attend une vraie hypothèse · la réserve non prouvée reste visible', async () => {
     a.suite.mockClear();
     const { hote, fin } = monter(<Suites sousNav={NAV} sous="s" erreur={null} plan={{ rows: [r], examined: 1, summary: '1 suite' }} />);
-    expect(bouton(hote, /Demander le concept à Jarvis/)!.textContent).toMatch(/\$/);
+    expect(bouton(hote, /Demander le concept à Jarvis/)!.textContent).toContain('inclus, aucun crédit débité'); // en crédits (29/10)
+    expect(hote.textContent).not.toMatch(/\$/);
     expect(hote.textContent).toContain('pas comme itération');
     expect(hote.textContent).toContain('l’accroche');
     act(() => bouton(hote, /^Créer la suite$/)!.click());
@@ -290,7 +291,8 @@ describe('Spatial · Résultats · tri, radar, essais', () => {
     const v = { state: { armed: false, cap: 3, lastRunAt: null, nightlyCostUsd: 0.06, monthlyCostUsd: 1.8, followed: 0 }, findings: [], spend: { spentUsd: 2, capUsd: 10, summary: '2 $ sur 10 $.' } };
     const { hote, fin } = monter(<RadarAdsmap sousNav={NAV} sous="s" erreur={null} vue={v} />);
     const armer = bouton(hote, /Armer le radar/)!;
-    expect(armer.textContent).toMatch(/au plus 0,\d\d \$ par nuit/);
+    expect(armer.textContent).toBe('Armer le radar'); // inclus · aucun prix à dire (29/10)
+    expect(hote.textContent).toContain('Jusqu’à 3 créas décrites par nuit · inclus · aucun crédit débité');
     expect(armer.disabled).toBe(true);
     expect(hote.textContent).toContain('Il reste 8,00 $');
     fin();

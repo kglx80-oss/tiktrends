@@ -269,7 +269,8 @@ describe('présentation · avant/après, impact, Jarvis', () => {
     expect(d).toMatchObject({ disponible: false, motif: 'RELEASE_ACTIVE_ABSENTE' });
     expect(d.raison).toContain('à la main');
     expect(d.coutMaxUsd).toBeGreaterThan(0);
-    expect(d.mentionCout).toContain('payant');
+    expect(d.mentionCout).toContain('Appel IA'); // dit en crédits (29/10) · jamais un montant en argent
+    expect(d.mentionCout).not.toMatch(/\$|€/);
     expect(d.mentionCout.toLowerCase()).not.toContain('gratuit');
     expect(formatUsd(0.132)).toBe('0,14 $');
     expect(disponibiliteJarvis({ releasePubliee: true, fournisseurConfigure: true, plafondAtteint: false, peutProposer: true, modele: 'claude-sonnet-5' }).disponible).toBe(true);

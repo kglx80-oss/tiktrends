@@ -345,6 +345,7 @@ export function echeancePartage(l: { expired: boolean; expiresAt: string | null 
  * réécriture en plus seulement quand une accroche réfutée l'impose (pire cas
  * 0,06 $) · cf. `draftConceptAction`. Sous le plafond de dépense de l'espace.
  */
-export const COUT_BROUILLON_JARVIS = '≈ 0,03 $ · 0,06 $ au plus';
+/** Le brouillon de concept Jarvis · inclus aujourd'hui (aucun débit), dit en crédits (décision du 29/10). La borne en dollars reste au serveur. */
+export const COUT_BROUILLON_JARVIS = 'inclus, aucun crédit débité';
 /** Une proposition d'agent sur la carte · le barème réel (`map_proposal`), remboursé quand l'agent ne rend rien. */
 export const COUT_PROPOSITION_CARTE = `${costFor('map_proposal')} crédits`;
