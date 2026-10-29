@@ -2,6 +2,7 @@ import { Ic, Vue } from '../../communs';
 import { Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
 import { LARGEUR_MIN_TABLE_TELEPHONE, styleTableDefilante } from '@tiktrends/core';
 import { DiagnosticStripe, VerifierStripe } from './paiements-client';
+import { PretOffreV2 } from './offre-v2-client';
 import { ETAPES_TEST_PAIEMENT } from './etapes-paiement';
 
 /**
@@ -39,6 +40,8 @@ export interface PropsPaiements {
   rapprochement: { lignes: ReadonlyArray<{ libelle: string; valeur: string; etat: { libelle: string; classe: '' | 'g' | 'w' } }>; ecarts: readonly string[] };
   /** Vague 3 · le contrôle de la chaîne (diagnostic détaillé + test manuel) de l'ancien écran. */
   controle?: boolean;
+  /** « Prêt pour l'offre V2 ? » · personnel de la plateforme seulement (`personnelPlateforme`). */
+  offreV2?: boolean;
 }
 
 export function Paiements(p: PropsPaiements) {
@@ -114,6 +117,13 @@ export function Paiements(p: PropsPaiements) {
             </ol>
           </section>
         </div>
+      )}
+      {p.offreV2 && (
+        <section className="tile sec" id="offre-v2">
+          <div className="sech"><h2>Prêt pour l’offre V2 ?</h2><span className="faint" style={{ fontSize: '12.5px' }}>Essentiel · Pro · Agence</span></div>
+          <p className="muted" style={{ margin: '0 0 12px', fontSize: '12.5px' }}>Avant de poser TARIFS_V2=1 · chaque variable attendue (par son nom, jamais sa valeur), les six prix lus dans Stripe face aux montants TTC du code (devise, récurrence, taxe incluse), Stripe Tax, l’endpoint webhook et ses événements, le portail client. Lecture seule, au clic.</p>
+          <PretOffreV2 />
+        </section>
       )}
     </Vue>
   );

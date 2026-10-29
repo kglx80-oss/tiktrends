@@ -9,4 +9,5 @@ export * from './regime';
 export * from './bascule';
 export * from './page-forfaits';
 export * from './stripe';
+export * from './diagnostic-v2';
 export * from './page-publique';
