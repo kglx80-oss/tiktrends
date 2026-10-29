@@ -365,6 +365,12 @@ describe('création réelle dans l’assistant',()=>{
     await act(async()=>{await vi.advanceTimersByTimeAsync(12000)}); expect(h.lectures).toBe(2);
     expect(h.compiler).toHaveLength(0); expect(h.approuver).toHaveLength(0); expect(h.devisDemande).toHaveLength(0); await fermer();
   });
+  it('planche finale D3 · le statut d’une tâche en échec ne répète pas son état (« Échec · Échec · … »)',async()=>{
+    h.vue={...vueParcours(null),jobs:[{id:'job-1',etat:'failed',libelleEtat:'Échec',message:'Échec · aucun crédit consommé en plus de ce qui est indiqué.',raisonEchec:null,annulable:false,terminal:true,qualite:'pending',libelleQualite:'',creditsReserves:4,creditsRendus:null,creeLe:'2026-10-21',media:null}]};
+    const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="job-1" onFermer={()=>{}} />);
+    const statuts=[...hote.querySelectorAll('p[role="status"]')].map((x)=>x.textContent);
+    expect(statuts, JSON.stringify(statuts)).toContain('Échec · Aucun crédit consommé en plus de ce qui est indiqué.'); await fermer();
+  });
   it('tâche inconnue : erreur visible, aucune création ni relance inventée',async()=>{
     h.vue=vueParcours(null); const {hote,fermer}=await monter(<EtatCreationAssistant projectId="proj-1" jobId="inconnu" onFermer={()=>{}} />);
     expect(hote.querySelector('[role="alert"]')?.textContent).toContain('n’apparaissent pas'); expect(hote.querySelector('img')).toBeNull(); expect(h.approuver).toHaveLength(0); await fermer();

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  capacitesDuRefus, libelleCaseControleVisuel, libelleCredits, libellePrix, mentionAppelIA, phraseCreditsDevis, MENTION_INCLUS,
+  capacitesDuRefus, detailSansEtat, libelleCaseControleVisuel, libelleCredits, libellePrix, mentionAppelIA, phraseCreditsDevis, MENTION_INCLUS,
   LIBELLES_PORTEE, LIBELLES_ROLE, VALIDITE_DEVIS_MS,
   type ErreurStudio, type ModeImage, type PorteeReference, type RoleReference,
 } from '@tiktrends/core';
@@ -308,7 +308,7 @@ function CarteJob({ j, vue, enCours, devisPossible, surAnnuler, surRelire }: {
     <div className="prow" data-job={j.id} data-etat-job={j.etat} style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
       {j.media && <img src={j.media.url} alt={`Image générée${j.media.largeur && j.media.hauteur ? `, ${j.media.largeur} × ${j.media.hauteur}` : ''}`} loading="lazy" />}
       <div className="t">
-        <strong style={{ fontSize: '12.5px' }}><span className={`pill ${CLASSE_ETAT[j.etat] ?? 'c'}`}>{j.libelleEtat}</span> <span data-champ="message">{j.message}</span></strong>
+        <strong style={{ fontSize: '12.5px' }}><span className={`pill ${CLASSE_ETAT[j.etat] ?? 'c'}`}>{j.libelleEtat}</span> <span data-champ="message">{detailSansEtat(j.libelleEtat, j.message)}</span></strong>
         <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Lancée le {date(j.creeLe)} · {libelleCredits(j.creditsReserves)} réservé{j.creditsReserves > 1 ? 's' : ''}{j.creditsRendus ? ` · ${libelleCredits(j.creditsRendus)} rendu${j.creditsRendus > 1 ? 's' : ''}` : ''}</small>
         {j.raisonEchec && <small style={{ display: 'block', fontSize: '11.5px' }} data-champ="raison">Raison · {j.raisonEchec}</small>}
         {j.media && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Ton image est enregistrée dans le projet.</small>}

@@ -156,6 +156,12 @@ describe('Spatial · Accueil · mise en page constatée au banc (planche v4)', (
     }
   });
 
+  it('D5 · chaque créa réelle s’affiche entière (« Quoi itérer », la boucle, la reprise) · son accroche n’est pas rognée en haut', () => {
+    const imgs = [...dom().querySelectorAll<HTMLImageElement>('.ad .ph img')];
+    expect(imgs.length, 'le jeu de données ne montre aucune créa').toBeGreaterThanOrEqual(5);
+    expect(imgs.map((i) => i.style.objectFit), '`.ad .ph img` est en `cover` dans la maquette · la créa perd son haut').toEqual(Array(imgs.length).fill('contain'));
+  });
+
   it('G12 · les pastilles d’une gagnante passent à la ligne et les mini-tuiles aussi · la carte ne sort plus de l’écran', () => {
     const d = dom();
     const pastilles = d.querySelectorAll('#suggestions .qb .kc .pill');

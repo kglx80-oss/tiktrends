@@ -233,6 +233,55 @@ describe('Spatial · Studios · atelier Produit', () => {
     expect(hote.querySelector('[data-mode="faithful_composite"]')?.textContent).toContain('Aucune photo épinglée.');
     expect(hote.querySelector('[data-mode="generative_scene"]')?.getAttribute('data-pret')).toBe('oui');
   });
+
+  // Planche finale · D3 · la carte produit disait « prêt » à côté de deux
+  // contrôles « Bloqué », et affichait l'empreinte sha256 brute.
+  const SHA = '4648864bdc1a6804'.padEnd(64, 'e');
+  const epingle = {
+    schema: 'x', productId: 'pr1', assetId: 'ph1', nom: 'Huile d’argan', faits: [], manques: [], photoDisponible: true, instantaneLe: '', variante: { libelle: 'Variante unique' },
+    photo: { assetId: 'ph1', assetVersion: `sha256-${SHA.slice(0, 16)}`, sha256: SHA, nature: 'adresse', position: 1, total: 1 },
+    composantsObligatoires: ['Flacon ambré'], attributsImmuables: [], transformationsAutorisees: [], provenanceFaits: {}, epingleLe: '',
+    etat: 'presente', libelleEtat: 'Photo épinglée présente dans le catalogue', apercu: '/x.png',
+  } as never;
+  const bloque = { ok: false, violations: [{ chemin: '/brief/references', raison: 'la photo épinglée n’est pas la référence Produit du brief' }], composantsProteges: [], interditsTransfert: [], avertissements: [] } as never;
+  const passe = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [] } as never;
+
+  it('D3 · deux modes bloqués · la carte ne dit plus « prêt » et nomme le geste qui répare', async () => {
+    a.lireParcoursImage.mockResolvedValue({ ok: true, vue: vueParcours() });
+    monter(<Produit vue={vueProduit({ epingle, preparation: { faithful_composite: bloque, generative_scene: bloque } })} atelier={ATELIER} />);
+    await act(async () => { await Promise.resolve(); });
+    const carte = hote.querySelector('[data-zone="produit-epingle"]')!;
+    expect([...hote.querySelectorAll('[data-zone="controle-compilation"] [data-mode]')].map((m) => m.getAttribute('data-pret'))).toEqual(['non', 'non']);
+    expect(carte.querySelector('.lbl')?.textContent, 'la carte dit « prêt » à côté de deux « Bloqué »').toBe('Ton produit n’est pas encore prêt');
+    expect(carte.querySelector('[data-remede="produit"]')?.textContent).toContain('« Utiliser cette photo et continuer »');
+    expect(bouton('Utiliser cette photo et continuer'), 'le geste nommé existe à l’écran').toBeTruthy();
+  });
+
+  it('D3 · un mode passe le contrôle · « Ton produit est prêt », sans remède', async () => {
+    a.lireParcoursImage.mockResolvedValue({ ok: true, vue: vueParcours() });
+    monter(<Produit vue={vueProduit({ epingle, preparation: { faithful_composite: bloque, generative_scene: passe } })} atelier={ATELIER} />);
+    await act(async () => { await Promise.resolve(); });
+    const carte = hote.querySelector('[data-zone="produit-epingle"]')!;
+    expect(carte.querySelector('.lbl')?.textContent).toBe('Ton produit est prêt');
+    expect(carte.querySelector('[data-remede]')).toBeNull();
+  });
+
+  it('D3 · aucune empreinte brute à l’écran · la version de la photo est résumée en clair', async () => {
+    a.lireParcoursImage.mockResolvedValue({ ok: true, vue: vueParcours() });
+    monter(<Produit vue={vueProduit({ epingle })} atelier={ATELIER} />);
+    await act(async () => { await Promise.resolve(); });
+    const carte = hote.querySelector('[data-zone="produit-epingle"]')!;
+    expect(carte.textContent, 'jargon technique à l’écran').not.toMatch(/sha256|empreinte|4648864b/i);
+    expect(carte.querySelector('[data-champ="empreinte"]')?.textContent).toBe('Photo distante, figée à l’épinglage · suivie par son adresse, pas par son contenu');
+  });
+
+  it('D13 · la pastille d’état de la photo peut passer à la ligne (390 px) · jamais coupée au bord de la carte', async () => {
+    a.lireParcoursImage.mockResolvedValue({ ok: true, vue: vueParcours() });
+    monter(<Produit vue={vueProduit({ epingle })} atelier={ATELIER} />);
+    await act(async () => { await Promise.resolve(); });
+    const pastille = hote.querySelector<HTMLElement>('[data-etat-photo] .pill')!;
+    expect(pastille.style.whiteSpace, '`.pill` est en nowrap dans la maquette').toBe('normal');
+  });
 });
 
 function vueParcours(o: Partial<VueParcoursImage> = {}): VueParcoursImage {
@@ -271,6 +320,21 @@ describe('Spatial · Studios · parcours image · le prix avant tout appel payan
     const e = (a.approuverEtLancerImage.mock.calls[0] as unknown as [{ quoteId: string; creditsAnnonces: number; idempotencyKey: string }])[0];
     expect(e).toMatchObject({ quoteId: 'q1', creditsAnnonces: 4 });
     expect(e.idempotencyKey).toBe(sessionStorage.getItem('tt-studio-image-cle-q1'));
+  });
+
+  it('D3 · la pastille dit l’état, le message ne le répète pas (« Échec · Échec · », « Terminé · Terminé · »)', async () => {
+    const j = (o: Record<string, unknown>) => ({ id: 'j', etat: 'failed', libelleEtat: 'Échec', message: '', raisonEchec: null, annulable: false, terminal: true, qualite: 'pending', libelleQualite: '', creditsReserves: 0, creditsRendus: null, media: null, creeLe: '2026-10-22T13:35:00Z', ...o });
+    const v = vueParcours({ jobs: [
+      j({ id: 'a', message: 'Échec · aucun crédit consommé en plus de ce qui est indiqué.' }),
+      j({ id: 'b', etat: 'completed', qualite: 'passed', libelleEtat: 'Terminé', message: 'Terminé · fichier enregistré et accepté.' }),
+      j({ id: 'c', etat: 'cancelled', libelleEtat: 'Annulé', message: 'Annulé.' }),
+    ] as never });
+    a.lireParcoursImage.mockResolvedValue({ ok: true, vue: v });
+    monter(<ParcoursImage projectId="p1" versionId="v2" initial={v} />);
+    const ligne = (id: string) => hote.querySelector(`[data-job="${id}"] strong`)?.textContent?.replace(/\s+/g, ' ').trim();
+    expect(ligne('a')).toBe('Échec Aucun crédit consommé en plus de ce qui est indiqué.');
+    expect(ligne('b')).toBe('Terminé Fichier enregistré et accepté.');
+    expect(ligne('c')).toBe('Annulé');
   });
 
   it('génération coupée pour l’espace · un état, aucun geste payant', async () => {

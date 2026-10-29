@@ -116,7 +116,9 @@ describe('/studio/projets/[id]/produit', () => {
     const ep = d.querySelector('[data-zone="produit-epingle"]')!;
     const sha5 = createHash('sha256').update(Buffer.from(PHOTOS[4]!.split(',')[1]!, 'base64')).digest('hex');
     expect(ep.textContent).toContain('Photo 5 sur 7');
-    expect(ep.querySelector('[data-champ="empreinte"]')?.textContent).toBe(`Version sha256-${sha5.slice(0, 16)} · empreinte du contenu ${sha5.slice(0, 12)}…`);
+    // L'empreinte brute ne s'affiche plus (planche finale, D3) · la version est résumée en clair.
+    expect(ep.querySelector('[data-champ="empreinte"]')?.textContent).toBe('Photo figée à l’épinglage · une nouvelle photo du catalogue ne la remplace pas sans ton geste');
+    expect(ep.textContent).not.toContain(sha5.slice(0, 12));
     expect(ep.querySelector('[data-champ="composants"]')?.textContent).toBe('Composants obligatoires · lunettes, bandeau');
     expect(ep.querySelector('[data-etat-photo]')?.getAttribute('data-etat-photo')).toBe('presente');
     expect(ep.querySelector('img')?.getAttribute('alt')).toBe('Lunettes Sport Bandeau, photo 5 épinglée');
