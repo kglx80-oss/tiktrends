@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import type { BoutonFormule } from '@tiktrends/core';
-import { Anneau, EnTete, Ic, SousNav, Vue, formatNombre } from '../../communs';
+import type { BoutonFormule, BoutonForfaitV2 } from '@tiktrends/core';
+import { Anneau, EnTete, Ic, Lien, SousNav, Vue, formatNombre } from '../../communs';
 import { AnnonceRetour, BoutonServeur } from '../marque/interactifs';
 import { RechargeCredits, type PackVue } from './interactifs';
 
@@ -26,7 +26,19 @@ export interface FormuleVue {
   radar: boolean;
   actuelle: boolean;
   miseEnAvant: boolean;
-  bouton: BoutonFormule;
+  bouton: BoutonFormule | BoutonForfaitV2;
+  /** Offre V2 · la période sous le prix (« / mois TTC »), à la place de « / mois HT ». */
+  periode?: string;
+  /** Offre V2 · ce qui est prélevé (« soit 243,60 € par an »). */
+  sousPrix?: string | null;
+  /** Offre V2 · la phrase de la carte, sous le nom. */
+  accroche?: string;
+  /** Offre V2 · ce qui est compté et refusé au-delà · une liste « Limites » distincte des « Fonctions ». */
+  limites?: readonly string[];
+  /** Offre V2 · « Sans engagement, annulable à tout moment », sous le bouton. */
+  engagement?: string;
+  /** L'étiquette de la carte mise en avant (« Populaire » aujourd'hui, « Le plus populaire » en V2). */
+  etiquette?: string | null;
 }
 
 export interface PropsForfaits {
@@ -41,8 +53,15 @@ export interface PropsForfaits {
   raisonAchat: string | null;
   faq: ReadonlyArray<{ question: string; reponse: string }>;
   retours: Record<string, string>;
+  /**
+   * Offre V2 (sous `TARIFS_V2`) · la bascule mensuel / annuel, en liens (la page
+   * se relit côté serveur) · absente = l'offre d'aujourd'hui, « Annuel » désactivé.
+   */
+  facturation?: { actuelle: 'mensuel' | 'annuel'; mensuel: string; annuel: string; remise: string } | null;
   /** Préavis de bascule d'un abonné actuel vers l'offre V2 (`preavisBascule`, sous `TARIFS_V2`) · absent sinon. */
   preavis?: { titre: string; texte: string; droits: readonly string[] } | null;
+  /** Le titre de la section des cartes · « Changer de forfait » en V2, « Changer de plan » aujourd'hui. */
+  titrePlans?: string;
 }
 
 const TAG = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '2px 0 4px', borderRadius: 14, background: 'color-mix(in srgb,var(--acc) 14%,#ffffff08)', border: '1px solid color-mix(in srgb,var(--acc) 35%,transparent)' } as const;
@@ -56,7 +75,7 @@ export function Forfaits(p: PropsForfaits) {
     const b = f.bouton;
     if (b.type === 'desactive') return <button className="btn" type="button" disabled>{b.libelle}</button>;
     if (b.type === 'portail') return <BoutonServeur className={`btn ${b.primaire ? 'pri' : ''}`.trim()} action={p.portail} raison="Paiement indisponible" attente="Ouverture…">{b.libelle}</BoutonServeur>;
-    return <BoutonServeur className="btn pri" action={p.abonnement} champs={{ plan: f.cle }} raison="Paiement indisponible" attente="Redirection…">{b.libelle}</BoutonServeur>;
+    return <BoutonServeur className="btn pri" action={p.abonnement} champs={p.facturation ? { plan: f.cle, facturation: p.facturation.actuelle } : { plan: f.cle }} raison="Paiement indisponible" attente="Redirection…">{b.libelle}</BoutonServeur>;
   };
   return (
     <Vue>
@@ -88,22 +107,39 @@ export function Forfaits(p: PropsForfaits) {
       )}
       <section className="sec">
         <div className="sech">
-          <h2>Changer de plan</h2>
-          <div className="seg" role="group" aria-label="Facturation" style={{ marginLeft: 'auto' }}>
-            <button type="button" aria-pressed="true">Mensuel</button>
-            <button type="button" aria-pressed="false" disabled title="La facturation annuelle n’est pas proposée">Annuel</button>
-          </div>
+          <h2>{p.titrePlans ?? 'Changer de plan'}</h2>
+          {p.facturation ? (
+            <div className="seg" role="group" aria-label="Facturation" style={{ marginLeft: 'auto' }} data-facturation={p.facturation.actuelle}>
+              <Lien href={p.facturation.mensuel} aria-current={p.facturation.actuelle === 'mensuel' ? 'page' : undefined}>Mensuel</Lien>
+              <Lien href={p.facturation.annuel} aria-current={p.facturation.actuelle === 'annuel' ? 'page' : undefined}>Annuel <span className="pill g" style={{ marginLeft: 6 }}>{p.facturation.remise}</span></Lien>
+            </div>
+          ) : (
+            <div className="seg" role="group" aria-label="Facturation" style={{ marginLeft: 'auto' }}>
+              <button type="button" aria-pressed="true">Mensuel</button>
+              <button type="button" aria-pressed="false" disabled title="La facturation annuelle n’est pas proposée">Annuel</button>
+            </div>
+          )}
         </div>
         <div className="plans">
           {p.formules.map((f) => (
             <article key={f.cle} className={`tile plan ${f.miseEnAvant && !f.actuelle ? 'rec' : ''} ${f.actuelle ? 'cur' : ''}`}>
-              {f.actuelle ? <span className="pill g rectag">Plan actuel</span> : f.miseEnAvant ? <span className="pill rectag">Populaire</span> : null}
+              {f.actuelle ? <span className="pill g rectag">Plan actuel</span> : f.miseEnAvant ? <span className="pill rectag">{f.etiquette ?? 'Populaire'}</span> : null}
               <h3>{f.nom}</h3>
-              <div className="pp"><b>{f.prix}</b>{f.parMois && <small>/ mois HT</small>}</div>
+              {f.accroche && <small className="muted" style={{ fontSize: 12.5, marginTop: -6 }} data-accroche>{f.accroche}</small>}
+              <div className="pp"><b>{f.prix}</b>{f.parMois && <small>{f.periode ?? '/ mois HT'}</small>}</div>
+              {f.sousPrix && <small className="faint" style={{ fontSize: 11.5, marginTop: -4 }} data-sous-prix>{f.sousPrix}</small>}
               <div style={TAG}><span style={TAG_ICO}><Ic n="users" /></span><span style={{ display: 'grid', lineHeight: 1.2 }}><b style={{ font: '600 14px var(--sfd)' }}>{f.credits} crédits / mois</b><small className="faint" style={{ fontSize: 11 }}>partagés par toute l’équipe de l’espace</small></span></div>
               {f.radar && <div style={RADAR}><span style={RADAR_ICO}><Ic n="eye" /></span><span style={{ display: 'grid', lineHeight: 1.2 }}><b style={{ font: '600 13.5px var(--sfd)' }}>Radar &amp; Veille</b><small className="faint" style={{ fontSize: 11 }}>Inclus dans la formule</small></span></div>}
-              <ul>{f.fonctions.map((x) => <li key={x}><Ic n="check" />{x}</li>)}</ul>
+              {f.limites ? (
+                <>
+                  <div className="lbl" data-liste="fonctions">Fonctions</div>
+                  <ul>{f.fonctions.map((x) => <li key={x}><Ic n="check" />{x}</li>)}</ul>
+                  <div className="lbl" data-liste="limites">Limites</div>
+                  <ul>{f.limites.map((x) => <li key={x}><Ic n="lock" />{x}</li>)}</ul>
+                </>
+              ) : <ul>{f.fonctions.map((x) => <li key={x}><Ic n="check" />{x}</li>)}</ul>}
               {bouton(f)}
+              {f.engagement && <small className="faint" style={{ fontSize: 11.5, textAlign: 'center' }} data-engagement>{f.engagement}</small>}
             </article>
           ))}
         </div>

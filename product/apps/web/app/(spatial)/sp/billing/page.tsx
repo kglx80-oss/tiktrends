@@ -3,7 +3,7 @@ import { and, eq, gte, lt } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   DESCRIPTIF_FORMULES, FORMULE_MISE_EN_AVANT, ORDRE_FORMULES, boutonFormule, formuleDeReference, consommationSur, deltaUniteCourante, economiePack, equivalencePack,
-  messagesRetourForfaits, partSolde, preavisBascule, tarifsV2Actifs, prixFormule, rythmeCredits, texteBaremeCredits,
+  messagesRetourForfaits, partSolde, preavisBascule, tarifsV2Actifs, cartesForfaitsV2, faqForfaitsV2, forfaitRechargesV2, lireFacturation, rechargesV2, REMISE_ANNUELLE_LIBELLE, TITRE_CHANGER_FORFAIT_V2, prixFormule, rythmeCredits, texteBaremeCredits,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { PLAN_CREDITS, PLAN_LABEL, PLAN_PRICE, roleAtLeast, type Plan } from '../../../../lib/rbac';
@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 
 const JOURS = 30;
 
-export default async function ForfaitsSpatial() {
+export default async function ForfaitsSpatial({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard'); // même garde que /billing V5
@@ -44,32 +44,51 @@ export default async function ForfaitsSpatial() {
   const dotation = PLAN_CREDITS[plan] ?? 0;
   const raisonAchat = !paiement ? 'Le paiement en ligne n’est pas encore disponible.' : !proprietaire ? 'Seul le propriétaire de l’espace achète des crédits.' : null;
 
+  // L'offre d'aujourd'hui · inchangée tant que `TARIFS_V2` n'est pas posé (garde `forfaits-v2-rendu`).
+  const formulesActuelles = ORDRE_FORMULES.map((k) => ({
+    cle: k, nom: PLAN_LABEL[k], prix: prixFormule(PLAN_PRICE[k]), parMois: PLAN_PRICE[k] > 0,
+    credits: PLAN_CREDITS[k].toLocaleString('fr-FR'), fonctions: DESCRIPTIF_FORMULES[k].fonctions, radar: k !== 'starter',
+    actuelle: k === plan, miseEnAvant: k === FORMULE_MISE_EN_AVANT,
+    bouton: boutonFormule({ formule: k, actuelle: formuleDeReference(plan), proprietaire, paiement, abonne, achetable: planPurchasable(k), libelle: PLAN_LABEL[k], prix: PLAN_PRICE[k] }),
+  }));
+  const vuePack = (liste: readonly { key: string; credits: number; eur: number }[]) => liste.map((x) => {
+    const e = economiePack(liste, x.key);
+    return { key: x.key, credits: x.credits.toLocaleString('fr-FR'), prix: `${x.eur.toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(x.eur) ? 0 : 2 })} €`, economie: e ? `−${e} %` : null, equivalence: equivalencePack(x.credits), nouveauSolde: (solde + x.credits).toLocaleString('fr-FR') };
+  });
+  const faqActuelle = [
+    { question: 'Que deviennent mes crédits non utilisés ?', reponse: 'Les crédits du plan sont remis à niveau à chaque échéance, sans effacer les crédits achetés en recharge.' },
+    { question: 'Puis-je changer de plan à tout moment ?', reponse: 'Oui, depuis « Gérer mon abonnement » : le portail de paiement sécurisé gère le changement de formule et la résiliation.' },
+    { question: 'Comment sont comptés les crédits ?', reponse: texteBaremeCredits() },
+  ];
+
+  // L'offre V2 (Essentiel, Pro, Agence) · seulement sous `TARIFS_V2` (décision du 29/10).
+  const v2 = tarifsV2Actifs(process.env);
+  const facturation = lireFacturation((await searchParams)?.facturation);
+  const rechargesDuForfait = forfaitRechargesV2(plan);
+  const formules = v2
+    ? cartesForfaitsV2({ plan, facturation, proprietaire, paiement, abonne, achetable: () => false /* le paiement V2 (Checkout, Stripe Tax, prix par variable) arrive avec la PR G · d'ici là « Bientôt », jamais un bouton qui échoue */ }).map((c) => ({
+      cle: c.cle, nom: c.nom, accroche: c.accroche, prix: c.prix, parMois: true, periode: c.periode, sousPrix: c.sousPrix, credits: c.credits,
+      fonctions: c.fonctions, limites: c.limites, engagement: c.engagement, etiquette: c.etiquette, radar: true,
+      actuelle: c.actuelle, miseEnAvant: c.miseEnAvant, bouton: c.bouton,
+    }))
+    : formulesActuelles;
+
   return (
     <Forfaits
       sousNav={SOUS_NAV_REGLAGES}
       plan={{ nom: PLAN_LABEL[plan], dotation, solde, illimite, part: illimite ? 100 : partSolde(solde, dotation) }}
       rythme={rythmeCredits(solde, consommes, JOURS)}
-      formules={ORDRE_FORMULES.map((k) => ({
-        cle: k, nom: PLAN_LABEL[k], prix: prixFormule(PLAN_PRICE[k]), parMois: PLAN_PRICE[k] > 0,
-        credits: PLAN_CREDITS[k].toLocaleString('fr-FR'), fonctions: DESCRIPTIF_FORMULES[k].fonctions, radar: k !== 'starter',
-        actuelle: k === plan, miseEnAvant: k === FORMULE_MISE_EN_AVANT,
-        bouton: boutonFormule({ formule: k, actuelle: formuleDeReference(plan), proprietaire, paiement, abonne, achetable: planPurchasable(k), libelle: PLAN_LABEL[k], prix: PLAN_PRICE[k] }),
-      }))}
+      formules={formules}
+      titrePlans={v2 ? TITRE_CHANGER_FORFAIT_V2 : undefined}
+      facturation={v2 ? { actuelle: facturation, mensuel: '/billing?facturation=mensuel', annuel: '/billing?facturation=annuel', remise: REMISE_ANNUELLE_LIBELLE } : null}
       portail={proprietaire && paiement && abonne ? createPortalAction : null}
       abonnement={proprietaire && paiement ? createCheckoutAction : null}
-      packs={CREDIT_PACKS.map((x) => {
-        const e = economiePack(CREDIT_PACKS, x.key);
-        return { key: x.key, credits: x.credits.toLocaleString('fr-FR'), prix: `${x.eur.toLocaleString('fr-FR')} €`, economie: e ? `−${e} %` : null, equivalence: equivalencePack(x.credits), nouveauSolde: (solde + x.credits).toLocaleString('fr-FR') };
-      })}
+      packs={vuePack(v2 && rechargesDuForfait ? rechargesV2(rechargesDuForfait) : CREDIT_PACKS)}
       acheter={raisonAchat ? null : createTopupCheckoutAction}
       raisonAchat={raisonAchat}
-      faq={[
-        { question: 'Que deviennent mes crédits non utilisés ?', reponse: 'Les crédits du plan sont remis à niveau à chaque échéance, sans effacer les crédits achetés en recharge.' },
-        { question: 'Puis-je changer de plan à tout moment ?', reponse: 'Oui, depuis « Gérer mon abonnement » : le portail de paiement sécurisé gère le changement de formule et la résiliation.' },
-        { question: 'Comment sont comptés les crédits ?', reponse: texteBaremeCredits() },
-      ]}
+      faq={v2 && rechargesDuForfait ? faqForfaitsV2() : faqActuelle}
       retours={messagesRetourForfaits()}
-      preavis={preavisBascule({ plan, tarifsV2: tarifsV2Actifs(process.env), abonne, finPeriode: echeance })}
+      preavis={preavisBascule({ plan, tarifsV2: v2, abonne, finPeriode: echeance })}
     />
   );
 }
