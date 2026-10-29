@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { Fragment } from 'react';
 import Link from 'next/link';
-import { CIBLE_TACTILE_MIN as CIBLE, teinte } from '@tiktrends/core';
+import {
+  CIBLE_TACTILE_MIN as CIBLE, ENGAGEMENT_V2, FORFAITS_V2, NOTE_SOUSCRIPTION_V2, REMISE_ANNUELLE_LIBELLE,
+  comparatifDroitsV2, descriptionTarifsV2, faqPubliqueV2, offresPubliquesV2, tarifsV2Actifs, teinte,
+} from '@tiktrends/core';
 import { PLAN_PRICE, PLAN_CREDITS, planAtLeast, type Plan } from '../../lib/rbac';
 import type { CleForfaitActuel } from '@tiktrends/core';
 
@@ -13,9 +16,21 @@ import type { CleForfaitActuel } from '@tiktrends/core';
  *
  * Le tarif annuel est dérivé du mensuel avec « 2 mois offerts » (×10) · c'est
  * une convention par défaut, annoncée à l'écran, à confirmer par le propriétaire.
+ *
+ * Offre V2 (Essentiel, Pro, Agence) · servie seulement sous l'interrupteur
+ * serveur `TARIFS_V2`, lue dans `offresPubliquesV2` (noyau), les cartes mêmes
+ * de Réglages · Forfaits · aucun prix ni crédit écrit ici. Sans
+ * l'interrupteur, la page rend exactement l'offre d'aujourd'hui (garde
+ * `tarifs-v2-rendu.test.tsx`).
+ *
+ * Rendue à chaque requête · `TARIFS_V2` vit dans `.env.deploy`, lu à
+ * l'exécution et jamais au build (docker-compose `env_file`) : une page
+ * prérendue figerait l'offre du jour de la construction de l'image.
  */
 
-export const metadata: Metadata = {
+export const dynamic = 'force-dynamic';
+
+const METADATA_ACTUELLE: Metadata = {
   title: 'Tarifs',
   description: 'Un tarif par niveau de la boucle · commence gratuitement, passe à l’échelle quand tu gagnes. Starter, Core, Plus, Business.',
   alternates: { canonical: '/tarifs' },
@@ -28,6 +43,12 @@ export const metadata: Metadata = {
     description: 'Un tarif par niveau de la boucle · commence gratuitement, passe à l’échelle quand tu gagnes.',
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  if (!tarifsV2Actifs(process.env)) return METADATA_ACTUELLE;
+  const description = descriptionTarifsV2();
+  return { ...METADATA_ACTUELLE, description, openGraph: { ...METADATA_ACTUELLE.openGraph, description } };
+}
 
 const CSS = `
 .lp{--ink2:var(--ink-2);color:var(--ink);font-family:'Geist','Helvetica Neue',Arial,sans-serif;overflow:hidden}
@@ -206,29 +227,11 @@ function NavLinks() {
   );
 }
 
-export default function TarifsPage() {
+function GrilleActuelle() {
   const annuelTotal = (p: Plan) => PLAN_PRICE[p] * 10; // 2 mois offerts
   const annuelMensuel = (p: Plan) => (PLAN_PRICE[p] === 0 ? 0 : Math.round((PLAN_PRICE[p] * 10) / 12));
-
   return (
-    <div className="lp">
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
-
-      {/* NAV */}
-      <nav className="lp-nav">
-        <div className="lp-wrap lp-navrow">
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 11, minHeight: CIBLE }}>
-            <Logo />
-            <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.02em' }}>TikTrends</span>
-          </Link>
-          <NavLinks />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE, fontSize: 15, fontWeight: 500, color: 'var(--ink2)' }}>Connexion</Link>
-            <Link href="/signup" className="lp-btn sm">Démarrer</Link>
-          </div>
-        </div>
-      </nav>
-
+    <>
       {/* HERO + TARIFS */}
       <section className="lp-wrap" style={{ padding: '70px 40px 20px', textAlign: 'center' }}>
         <div className="lp-eyebrow" style={{ marginBottom: 16 }}>Tarifs</div>
@@ -275,7 +278,13 @@ export default function TarifsPage() {
           })}
         </div>
       </section>
+    </>
+  );
+}
 
+function ComparatifActuel() {
+  return (
+    <>
       {/* TABLEAU COMPARATIF */}
       <section className="lp-wrap" style={{ padding: '60px 40px 20px' }}>
         <h2 className="lp-h1" style={{ fontSize: 'clamp(28px,3.4vw,38px)', textAlign: 'center', marginBottom: 30 }}>Comparer les offres</h2>
@@ -317,7 +326,13 @@ export default function TarifsPage() {
           </table>
         </div>
       </section>
+    </>
+  );
+}
 
+function FaqActuelle() {
+  return (
+    <>
       {/* FAQ */}
       <section className="lp-wrap" style={{ padding: '60px 40px 20px' }}>
         <h2 className="lp-h1" style={{ fontSize: 'clamp(28px,3.4vw,38px)', textAlign: 'center', marginBottom: 30 }}>Questions fréquentes</h2>
@@ -335,6 +350,183 @@ export default function TarifsPage() {
           ))}
         </div>
       </section>
+    </>
+  );
+}
+
+/* ───────────── Offre V2 · sous `TARIFS_V2` · tout vient du noyau ───────────── */
+
+// Rien qu'en V2 · trois cartes au lieu de quatre, les limites sous les fonctions,
+// la mention d'engagement sous le bouton. Émise seulement sous l'interrupteur.
+const CSS_V2 = `
+.tp-grid.tp-g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tp-lim{margin-top:16px;padding-top:14px;border-top:1px solid ${teinte('line', 0.08 / 0.12)};display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--ink2);text-align:left}
+.tp-limt{font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
+.tp-eng{font-size:12px;color:var(--muted);margin-top:10px}
+.tp-feat{text-align:left}
+@media (max-width:900px){.tp-grid.tp-g3{grid-template-columns:1fr;max-width:460px;margin-left:auto;margin-right:auto}}
+`;
+
+function GrilleV2() {
+  const offres = offresPubliquesV2();
+  return (
+    <section className="lp-wrap" style={{ padding: '70px 40px 20px', textAlign: 'center' }}>
+      <div className="lp-eyebrow" style={{ marginBottom: 16 }}>Tarifs</div>
+      <h1 className="lp-h1" style={{ maxWidth: 760, margin: '0 auto' }}>Un tarif par niveau de la boucle</h1>
+      <p className="lp-ink2" style={{ fontSize: 18, maxWidth: 560, margin: '20px auto 0' }}>Prix TTC, crédits IA inclus chaque mois. {ENGAGEMENT_V2}.</p>
+
+      <input id="tp-annuel" className="tp-bill" type="checkbox" />
+      <div className="tp-billrow">
+        <span className="tp-lab-mo">Mensuel</span>
+        <label htmlFor="tp-annuel" className="tp-toggle" aria-label="Basculer entre mensuel et annuel"><span className="tp-knob" /></label>
+        <span className="tp-lab-yr">Annuel<span className="tp-save">{REMISE_ANNUELLE_LIBELLE}</span></span>
+      </div>
+
+      <div className="tp-grid tp-g3">
+        {offres.map((o) => (
+          <div key={o.cle} className={o.miseEnAvant ? 'tp-tier hot' : 'tp-tier'} data-forfait={o.cle}>
+            {o.etiquette && <span className="tp-badge">{o.etiquette}</span>}
+            <h3 style={{ fontSize: 17, fontWeight: 700, textAlign: 'left' }}>{o.nom}</h3>
+            <p className="lp-muted" style={{ fontSize: 12.5, marginTop: 3, textAlign: 'left' }}>{o.accroche}</p>
+            <div className="tp-price">
+              <span className="tp-mo" data-prix="mensuel"><b>{o.mensuel.prix}</b> <span className="tp-per">{o.mensuel.periode}</span></span>
+              <span className="tp-yr" data-prix="annuel"><b>{o.annuel.prix}</b> <span className="tp-per">{o.annuel.periode}</span></span>
+            </div>
+            <div className="tp-note" style={{ textAlign: 'left' }}>
+              <span className="tp-mo">Facturé chaque mois</span>
+              <span className="tp-yr" data-prix="echeance-annuelle">{o.annuel.sousPrix}</span>
+            </div>
+            <div className="tp-cr">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-strong)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+              <b style={{ color: 'var(--ink)' }} data-credits>{o.credits}</b> crédits IA / mois
+            </div>
+            <div className="tp-feat">
+              {o.fonctions.map((f) => (
+                <div key={f}><Yes />{f}</div>
+              ))}
+            </div>
+            <div className="tp-lim">
+              <span className="tp-limt">Limites</span>
+              {o.limites.map((l) => <span key={l}>{l}</span>)}
+            </div>
+            <Link href={o.bouton.href} className={o.miseEnAvant ? 'lp-btn' : 'lp-ghost'} style={{ width: '100%', marginTop: 22 }}>{o.bouton.libelle}</Link>
+            <p className="tp-eng">{o.engagement}</p>
+          </div>
+        ))}
+      </div>
+      <p className="lp-muted" style={{ fontSize: 13, marginTop: 22 }}>{NOTE_SOUSCRIPTION_V2}</p>
+    </section>
+  );
+}
+
+function ComparatifV2() {
+  const offres = offresPubliquesV2();
+  const hot = (o: { miseEnAvant: boolean }) => (o.miseEnAvant ? 'hot' : undefined);
+  // Les accès (Studios, Adsmap…) · ceux du forfait actuel que chaque forfait V2 reprend (`accesDe`).
+  // Le groupe « Espace » d'aujourd'hui laisse la place aux droits V2, comptés au serveur.
+  const groupes = TABLE.filter((g) => g.group !== 'Espace');
+  return (
+    <section className="lp-wrap" style={{ padding: '60px 40px 20px' }}>
+      <h2 className="lp-h1" style={{ fontSize: 'clamp(28px,3.4vw,38px)', textAlign: 'center', marginBottom: 30 }}>Comparer les offres</h2>
+      <div className="tp-tablewrap">
+        <table className="tp-table">
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left' }}> </th>
+              {offres.map((o) => (
+                <th key={o.cle} className={hot(o)}>{o.nom}<div className="lp-muted" style={{ fontSize: 12, fontWeight: 500, marginTop: 2 }}>{o.mensuel.prix} {o.mensuel.periode}</div></th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Crédits IA / mois</th>
+              {offres.map((o) => (
+                <td key={o.cle} className={hot(o)} style={{ fontWeight: 800 }}>{o.credits}</td>
+              ))}
+            </tr>
+            {groupes.map((grp) => (
+              <Fragment key={grp.group}>
+                <tr className="tp-grp">
+                  <td colSpan={offres.length + 1}>{grp.group}</td>
+                </tr>
+                {grp.rows.map((row) => (
+                  <tr key={row.label}>
+                    <th>{row.label}</th>
+                    {offres.map((o) => (
+                      <td key={o.cle} className={hot(o)}>
+                        {planAtLeast(FORFAITS_V2[o.cle].accesDe, row.min) ? <span className="tp-yes"><Yes /></span> : <span className="tp-no"><No /></span>}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+            <tr className="tp-grp">
+              <td colSpan={offres.length + 1}>Droits</td>
+            </tr>
+            {comparatifDroitsV2().map((ligne) => (
+              <tr key={ligne.libelle}>
+                <th>{ligne.libelle}</th>
+                {offres.map((o) => {
+                  const v = ligne.valeurs[o.cle];
+                  return (
+                    <td key={o.cle} className={hot(o)}>
+                      {v === true ? <span className="tp-yes"><Yes /></span> : v === false ? <span className="tp-no"><No /></span> : v}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function FaqV2() {
+  return (
+    <section className="lp-wrap" style={{ padding: '60px 40px 20px' }}>
+      <h2 className="lp-h1" style={{ fontSize: 'clamp(28px,3.4vw,38px)', textAlign: 'center', marginBottom: 30 }}>Questions fréquentes</h2>
+      <div className="tp-faq">
+        {faqPubliqueV2().map((f) => (
+          <div key={f.question} className="lp-card" style={{ padding: '22px 26px' }}>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{f.question}</div>
+            <p className="lp-muted" style={{ fontSize: 14 }}>{f.reponse}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default function TarifsPage() {
+  const v2 = tarifsV2Actifs(process.env);
+
+  return (
+    <div className="lp">
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      {v2 && <style dangerouslySetInnerHTML={{ __html: CSS_V2 }} />}
+
+      {/* NAV */}
+      <nav className="lp-nav">
+        <div className="lp-wrap lp-navrow">
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 11, minHeight: CIBLE }}>
+            <Logo />
+            <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.02em' }}>TikTrends</span>
+          </Link>
+          <NavLinks />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', minHeight: CIBLE, fontSize: 15, fontWeight: 500, color: 'var(--ink2)' }}>Connexion</Link>
+            <Link href="/signup" className="lp-btn sm">Démarrer</Link>
+          </div>
+        </div>
+      </nav>
+
+      {v2 ? <GrilleV2 /> : <GrilleActuelle />}
+      {v2 ? <ComparatifV2 /> : <ComparatifActuel />}
+      {v2 ? <FaqV2 /> : <FaqActuelle />}
 
       {/* CTA */}
       <section style={{ position: 'relative', overflow: 'hidden', marginTop: 20 }}>
