@@ -1,4 +1,5 @@
 import { cheminPorte } from '../bascule';
+import type { PreferenceTheme } from '../../themes';
 
 /**
  * Spatial · la palette ⌘K et le panneau « Tous les modules » de la coquille
@@ -14,11 +15,21 @@ import { cheminPorte } from '../bascule';
  *    PORTÉE dans Spatial (`cheminPorte`) · jamais de lien vers une page absente ;
  *  · les projets sont les vrais projets récents de la marque active ;
  *  · « Conclure le lot #1 » (exemple de la maquette) n'a pas de source simple
- *    et sûre ici · l'action n'est pas proposée.
+ *    et sûre ici · l'action n'est pas proposée ;
+ *  · un groupe « Apparence » (hors maquette, demande du propriétaire) · le
+ *    thème sombre, clair ou auto, appliqué SUR PLACE (`theme`), sans quitter
+ *    l'écran. Son adresse (clic du milieu) est la section « Apparence » des
+ *    Réglages, ou de « Mon profil » pour qui n'a pas les Réglages.
  */
 
-export type GroupePaletteCle = 'Pages' | 'Projets' | 'Actions';
-export interface EntreePalette { cle: string; href: string; icone: string; titre: string }
+export type GroupePaletteCle = 'Pages' | 'Projets' | 'Actions' | 'Apparence';
+export interface EntreePalette {
+  cle: string; href: string; icone: string; titre: string;
+  /** Une commande de thème · appliquée sur place au lieu de naviguer. */
+  theme?: PreferenceTheme;
+  /** Mots trouvés par la saisie en plus du titre (« mode nuit », « dark »…). */
+  motsCles?: string;
+}
 export interface GroupePalette { titre: GroupePaletteCle; entrees: EntreePalette[] }
 
 /**
@@ -63,21 +74,41 @@ export function groupesPalette(c: ContextePalette): GroupePalette[] {
     p('importer', '/adsmap/import', 'down', 'Importer des résultats', o('/adsmap/import')),
   ];
   const g = (titre: GroupePaletteCle, l: Array<EntreePalette | null>): GroupePalette => ({ titre, entrees: l.filter((x): x is EntreePalette => !!x) });
-  return [g('Pages', pages), g('Projets', projets), g('Actions', actions)].filter((x) => x.entrees.length > 0);
+  return [g('Pages', pages), g('Projets', projets), g('Actions', actions), g('Apparence', entreesTheme(o('/settings')))].filter((x) => x.entrees.length > 0);
+}
+
+/**
+ * Les trois commandes de thème · ouvertes à toute session (une préférence
+ * d'apparence n'a pas de droit). `reglages` · la personne a les Réglages
+ * (`/settings`, admin) ; sinon l'adresse est « Mon profil ».
+ */
+export function entreesTheme(reglages: boolean): EntreePalette[] {
+  const href = `${reglages ? '/settings' : '/profile'}#apparence`;
+  const l: Array<[PreferenceTheme, string, string]> = [
+    ['sombre', 'Thème sombre', 'apparence mode nuit dark'],
+    ['clair', 'Thème clair', 'apparence mode jour light'],
+    ['auto', 'Thème auto (système)', 'apparence mode automatique appareil systeme'],
+  ];
+  return l.filter(() => destinationExiste(href)).map(([theme, titre, motsCles]) => ({ cle: `theme-${theme}`, href, icone: 'spark', titre, theme, motsCles }));
 }
 
 /** Le petit libellé de droite (`small`) · vide pour une page, comme la maquette. */
 export function typeEntreePalette(groupe: GroupePaletteCle): string {
-  return groupe === 'Actions' ? 'Action' : groupe === 'Projets' ? 'Projet' : '';
+  return groupe === 'Actions' ? 'Action' : groupe === 'Projets' ? 'Projet' : groupe === 'Apparence' ? 'Thème' : '';
 }
 
 const plat = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
-/** Le filtre de la saisie · insensible à la casse ET aux accents (« hypo » trouve « Hypothèses »). */
+/**
+ * Le filtre de la saisie · insensible à la casse ET aux accents (« hypo »
+ * trouve « Hypothèses »). Chaque mot de la saisie doit se trouver dans le titre
+ * ou les mots-clés (« mode sombre » trouve « Thème sombre »).
+ */
 export function filtrerPalette(groupes: readonly GroupePalette[], requete: string): GroupePalette[] {
-  const q = plat(requete.trim());
-  if (!q) return [...groupes];
-  return groupes.map((g) => ({ ...g, entrees: g.entrees.filter((e) => plat(e.titre).includes(q)) })).filter((g) => g.entrees.length > 0);
+  const mots = plat(requete.trim()).split(/\s+/).filter(Boolean);
+  if (!mots.length) return [...groupes];
+  const trouve = (e: EntreePalette) => { const t = plat(`${e.titre} ${e.motsCles ?? ''}`); return mots.every((m) => t.includes(m)); };
+  return groupes.map((g) => ({ ...g, entrees: g.entrees.filter(trouve) })).filter((g) => g.entrees.length > 0);
 }
 
 /** Flèches haut/bas · la sélection boucle (maquette : `(i ± 1 + n) % n`). */

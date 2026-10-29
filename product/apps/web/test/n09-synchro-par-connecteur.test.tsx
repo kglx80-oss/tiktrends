@@ -52,7 +52,7 @@ describe('N09 · l\'écriture de fraîcheur ne déborde pas d\'un connecteur sur
 });
 
 describe('N09 · les lecteurs Meta lisent la fraîcheur Meta, pas la valeur partagée', () => {
-  // Planche de banc v4 · l'Accueil, Analytics et le Radar passent par LA même lecture
+  // Planche de banc v4 · l'Accueil, Analytics, le Radar et Connexions passent par LA même lecture
   // (`lib/connexion-meta.ts`) · elle date par les colonnes Meta, jamais `insightsSyncedAt`.
   const lecture = readFileSync(join(process.cwd(), 'lib/connexion-meta.ts'), 'utf8');
   it('la lecture partagée date par metaSyncedAt et adsmapSyncedAt, jamais la valeur partagée', () => {
@@ -64,6 +64,7 @@ describe('N09 · les lecteurs Meta lisent la fraîcheur Meta, pas la valeur part
     ['Analytics', 'app/(spatial)/sp/dashboard/analytics.ts'],
     ['Radar', 'app/(spatial)/sp/radar/page.tsx'],
     ['Accueil', 'app/(spatial)/sp/dashboard/chargement.ts'],
+    ['Connexions', 'app/(spatial)/sp/connections/page.tsx'],
   ])('%s passe par la lecture partagée', (_n, f) => {
     const src = readFileSync(join(process.cwd(), f), 'utf8');
     expect(src).toContain('lireConnexionMeta(');

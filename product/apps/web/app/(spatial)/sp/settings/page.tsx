@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { DESCRIPTIF_FORMULES, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, prixFormule, servicesEspace, teinteAvatar } from '@tiktrends/core';
+import { DESCRIPTIF_FORMULES, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, prixFormule, servicesEspace, teinteAvatar, THEME_COOKIE, preferenceDepuisCookie } from '@tiktrends/core';
 import { storageConfigured } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES, PLAN_LABEL, PLAN_PRICE, roleAtLeast, type Plan } from '../../../../lib/rbac';
@@ -58,6 +59,7 @@ export default async function EspaceSpatial() {
           actions: { configurer: configureBucketAction, tester: testStorageAction, etat: embeddedImagesStatusAction, ranger: migrateEmbeddedImagesAction },
         },
       }}
+      theme={preferenceDepuisCookie((await cookies()).get(THEME_COOKIE)?.value)}
       video={canAccess({ role: s.role, plan: s.plan, equipe: s.equipe ?? undefined }, studio) ? lienNouveauProjet({ type: 'video' }) : null}
     />
   );

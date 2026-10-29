@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   presentationNotif, FILTRES_NOTIF, TYPES_NOTIF_CONNUS, notifDansFiltre, nonLuesParFiltre, grouperNotifs, quandNotif, libelleNonLues,
-  groupesPalette, filtrerPalette, selectionVoisine, modulesMobiles, destinationExiste, typeEntreePalette,
+  groupesPalette, entreesTheme, filtrerPalette, selectionVoisine, modulesMobiles, destinationExiste, typeEntreePalette,
   sousTitreTiroirJarvis, suggestionsTiroirJarvis, brouillonAvecSuggestion, texteTourJarvis,
   etapesParcours, progressionParcours, libelleEtapeParcours, reponsesParcours, basculerObjectif, texteBienvenueParcours,
   boutonPrincipalParcours, marqueSaisieValide, lignesOffreParcours, PROFILS_PARCOURS, OBJECTIFS_PARCOURS,
@@ -67,7 +67,7 @@ const TOUT = new Set(['/studio/projets', '/veille', '/adsmap', '/adsmap/lots', '
 describe('Spatial · coquille · palette ⌘K', () => {
   it('mêmes groupes que la maquette, chaque entrée vers une page qui EXISTE (V5 ou portée)', () => {
     const g = groupesPalette({ ouverts: TOUT, marque: { id: 'b1' }, projets: [{ id: 'p1', titre: 'Collection été' }] });
-    expect(g.map((x) => x.titre)).toEqual(['Pages', 'Projets', 'Actions']);
+    expect(g.map((x) => x.titre)).toEqual(['Pages', 'Projets', 'Actions', 'Apparence']);
     // Hypothèses, Apprentissages et Boucle n'existent qu'en Spatial (#872) · présentes parce que portées.
     expect(g[0]!.entrees.map((e) => e.cle)).toEqual(['accueil', 'studios', 'veille', 'resultats', 'boucle', 'lots', 'hypotheses', 'apprentissages', 'bibliotheque', 'jarvis', 'marque', 'connexions']);
     expect(g[0]!.entrees.find((e) => e.cle === 'marque')!.href).toBe('/brands/b1');
@@ -78,13 +78,39 @@ describe('Spatial · coquille · palette ⌘K', () => {
 
   it('les droits filtrent · un membre sans Résultats ni réglages ne voit que ses pages', () => {
     const g = groupesPalette({ ouverts: new Set(['/studio/projets', '/jarvis']), marque: { id: 'b1' }, projets: [] });
-    expect(g.map((x) => x.titre)).toEqual(['Pages', 'Actions']);
+    expect(g.map((x) => x.titre)).toEqual(['Pages', 'Actions', 'Apparence']);
     expect(g[0]!.entrees.map((e) => e.cle)).toEqual(['accueil', 'studios', 'jarvis']);
   });
 
   it('sans accès Studios, aucun projet même fourni', () => {
     const g = groupesPalette({ ouverts: new Set(), marque: null, projets: [{ id: 'p', titre: 'x' }] });
-    expect(g.map((x) => x.titre)).toEqual(['Pages']);
+    expect(g.map((x) => x.titre)).toEqual(['Pages', 'Apparence']);
+  });
+
+  it('« Apparence » · sombre, clair, auto pour toute session, adresse Réglages (admin) ou Mon profil', () => {
+    const admin = groupesPalette({ ouverts: TOUT, marque: null, projets: [] }).find((x) => x.titre === 'Apparence')!;
+    expect(admin.entrees.map((e) => [e.cle, e.titre, e.theme, e.href])).toEqual([
+      ['theme-sombre', 'Thème sombre', 'sombre', '/settings#apparence'],
+      ['theme-clair', 'Thème clair', 'clair', '/settings#apparence'],
+      ['theme-auto', 'Thème auto (système)', 'auto', '/settings#apparence'],
+    ]);
+    const membre = groupesPalette({ ouverts: new Set(), marque: null, projets: [] }).find((x) => x.titre === 'Apparence')!;
+    expect(membre.entrees.map((e) => e.href)).toEqual(['/profile#apparence', '/profile#apparence', '/profile#apparence']);
+    for (const e of [...admin.entrees, ...membre.entrees]) expect(destinationExiste(e.href), e.href).toBe(true);
+    expect(entreesTheme(true)).toEqual(admin.entrees);
+    expect(typeEntreePalette('Apparence')).toBe('Thème');
+  });
+
+  it('la saisie trouve le thème par son nom, ses mots-clés, mot par mot', () => {
+    const g = groupesPalette({ ouverts: TOUT, marque: null, projets: [] });
+    const cles = (q: string) => filtrerPalette(g, q).flatMap((x) => x.entrees.map((e) => e.cle));
+    expect(cles('theme')).toEqual(['theme-sombre', 'theme-clair', 'theme-auto']);
+    expect(cles('clair')).toEqual(['theme-clair']);
+    expect(cles('mode sombre')).toEqual(['theme-sombre']);
+    expect(cles('dark')).toEqual(['theme-sombre']);
+    expect(cles('auto')).toEqual(['theme-auto']);
+    expect(cles('apparence')).toEqual(['theme-sombre', 'theme-clair', 'theme-auto']);
+    expect(cles('sombre clair')).toEqual([]);
   });
 
   it('le filtre ignore casse et accents, et retire les groupes vides', () => {

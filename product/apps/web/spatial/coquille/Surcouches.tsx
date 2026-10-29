@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { COULEUR_BARRE_SPATIALE, THEMES, filtrerPalette, selectionVoisine, typeEntreePalette, type EntreePalette, type GroupePalette, type Theme } from '@tiktrends/core';
-import { appliquerTheme, themeCourant } from '../../lib/theme-preference';
+import { ATTRIBUT_PREFERENCE_THEME, COULEUR_BARRE_SPATIALE, PREFERENCES_THEME, filtrerPalette, selectionVoisine, typeEntreePalette, type EntreePalette, type GroupePalette, type PreferenceTheme } from '@tiktrends/core';
+import { appliquerTheme, preferenceCourante } from '../../lib/theme-preference';
 import { Ic, Lien } from '../communs/base';
 
 /**
@@ -59,35 +59,53 @@ export function MenuProfil({ utilisateur, equipe, forfaits, demarrage, deconnexi
   );
 }
 
-const THEME_LIBELLE: Record<Theme, { titre: string; detail: string }> = {
+const THEME_LIBELLE: Record<PreferenceTheme, { titre: string; detail: string }> = {
   sombre: { titre: 'Sombre', detail: 'Verre sombre sur ta créa' },
   clair: { titre: 'Clair', detail: 'Verre clair, encre nuit' },
+  auto: { titre: 'Auto', detail: 'Suit le réglage de ton appareil' },
 };
 
+/** L'annonce d'un thème appliqué · lue par la pop-up, la palette, les Réglages. */
+function annonceTheme(p: PreferenceTheme): string {
+  return p === 'auto' ? 'Thème auto appliqué · il suit ton appareil' : `Thème ${THEME_LIBELLE[p].titre.toLowerCase()} appliqué`;
+}
+
 /**
- * Le thème de l'interface (« Sombre » · « Clair »), comme dans l'ancienne
- * pop-up profil (`BasculeTheme`), au DOM de la maquette · l'« Aperçu du rôle »
- * (`.ngrp` + `.nprefs` de boutons `.npr.rolebtn` à `aria-pressed`). Le choix
- * passe par le mécanisme EXISTANT, `appliquerTheme` · cookie `tt_theme` relu au
- * rendu serveur suivant (`<html data-theme>` posé dès le premier octet, aucun
- * flash), attribut sur `<html>` tout de suite (la feuille `spatial-clair.css`
+ * Le thème de l'interface (« Sombre » · « Clair » · « Auto »), comme dans
+ * l'ancienne pop-up profil (`BasculeTheme`), au DOM de la maquette · l'« Aperçu
+ * du rôle » (`.ngrp` + `.nprefs` de boutons `.npr.rolebtn` à `aria-pressed`).
+ * Le choix passe par le mécanisme EXISTANT, `appliquerTheme` · cookie
+ * `tt_theme` relu au rendu serveur suivant (`<html data-theme>` posé dès le
+ * premier octet, aucun flash ; « auto » résolu par le script de `<head>`),
+ * attribut sur `<html>` tout de suite (la feuille `spatial-clair.css`
  * s'applique sans rechargement) et barre du navigateur (`COULEUR_BARRE_SPATIALE`).
- * Le thème courant se lit sur `<html>` · le menu ne se monte qu'à l'ouverture,
- * côté client.
+ *
+ * Servi à deux endroits · la pop-up profil (montée à l'ouverture, côté client ·
+ * la préférence se lit sur `<html>`) et la section « Apparence » des Réglages
+ * et de « Mon profil » (rendue au serveur · `initiale` vient du cookie, même
+ * HTML à l'hydratation). Un choix fait ailleurs (palette, autre instance) est
+ * suivi · l'état relit `data-theme-pref` quand il change.
  */
-export function ChoixTheme() {
-  const [theme, setTheme] = useState<Theme>(() => (typeof document === 'undefined' ? 'sombre' : themeCourant()));
+export function ChoixTheme({ initiale, idGroupe = 'ngrp-theme' }: { initiale?: PreferenceTheme; idGroupe?: string } = {}) {
+  const [pref, setPref] = useState<PreferenceTheme>(() => initiale ?? (typeof document === 'undefined' ? 'sombre' : preferenceCourante()));
   const [annonce, setAnnonce] = useState('');
-  const choisir = (t: Theme) => {
-    setTheme(appliquerTheme(t, document, COULEUR_BARRE_SPATIALE));
-    setAnnonce(`Thème ${THEME_LIBELLE[t].titre.toLowerCase()} appliqué`);
+  useEffect(() => {
+    const suivre = () => setPref(preferenceCourante());
+    suivre();
+    const o = new MutationObserver(suivre);
+    o.observe(document.documentElement, { attributes: true, attributeFilter: [ATTRIBUT_PREFERENCE_THEME] });
+    return () => o.disconnect();
+  }, []);
+  const choisir = (t: PreferenceTheme) => {
+    setPref(appliquerTheme(t, document, COULEUR_BARRE_SPATIALE));
+    setAnnonce(annonceTheme(t));
   };
   return (
     <>
-      <div className="ngrp" id="ngrp-theme">Thème</div>
-      <div className="nprefs" role="group" aria-labelledby="ngrp-theme" data-zone="choix-theme">
-        {THEMES.map((t) => (
-          <button key={t} type="button" className="npr rolebtn" data-theme-choix={t} aria-pressed={theme === t} onClick={() => choisir(t)}>
+      <div className="ngrp" id={idGroupe}>Thème</div>
+      <div className="nprefs" role="group" aria-labelledby={idGroupe} data-zone="choix-theme">
+        {PREFERENCES_THEME.map((t) => (
+          <button key={t} type="button" className="npr rolebtn" data-theme-choix={t} aria-pressed={pref === t} onClick={() => choisir(t)}>
             <div><strong>{THEME_LIBELLE[t].titre}</strong><small>{THEME_LIBELLE[t].detail}</small></div>
             <span className="pk-r"><i></i></span>
           </button>
@@ -106,14 +124,18 @@ export interface PaletteProps {
   onFermer: () => void;
   /** Requête initiale (tests) · vide par défaut. */
   requeteInitiale?: string;
+  /** Après une commande de thème appliquée (groupe « Apparence ») · son annonce. */
+  onTheme?: (annonce: string) => void;
 }
 
 /**
  * La palette `#pal` · groupes de la maquette (Pages, Projets, Actions), vraies
  * destinations (`groupesPalette`, noyau). Flèches haut/bas déplacent la
  * sélection `.on`, Entrée l'ouvre, Échap ferme, un clic sur le voile ferme.
+ * Une commande de thème (`theme`) s'applique sur place (`appliquerTheme`) puis
+ * ferme la palette · la préférence courante porte « · actif ».
  */
-export function Palette({ groupes, onNaviguer, onFermer, requeteInitiale = '' }: PaletteProps) {
+export function Palette({ groupes, onNaviguer, onFermer, requeteInitiale = '', onTheme }: PaletteProps) {
   const [requete, setRequete] = useState(requeteInitiale);
   const [sel, setSel] = useState(0);
   const champ = useRef<HTMLInputElement>(null);
@@ -121,6 +143,14 @@ export function Palette({ groupes, onNaviguer, onFermer, requeteInitiale = '' }:
   const plats: EntreePalette[] = useMemo(() => filtres.flatMap((g) => g.entrees), [filtres]);
   useEffect(() => { champ.current?.focus(); }, []);
   useEffect(() => { setSel(0); }, [requete]);
+  const [actif, setActif] = useState<PreferenceTheme | null>(null);
+  useEffect(() => { setActif(preferenceCourante()); }, []);
+  const ouvrir = (e: EntreePalette) => {
+    if (!e.theme) { onNaviguer(e.href); return; }
+    appliquerTheme(e.theme, document, COULEUR_BARRE_SPATIALE);
+    onTheme?.(annonceTheme(e.theme));
+    onFermer();
+  };
   let k = -1;
   return (
     <div className="pal" id="pal" onClick={(e) => { if (e.target === e.currentTarget) onFermer(); }}>
@@ -129,11 +159,11 @@ export function Palette({ groupes, onNaviguer, onFermer, requeteInitiale = '' }:
           value={requete} onChange={(e) => setRequete(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setSel((i) => selectionVoisine(i, plats.length, e.key === 'ArrowDown' ? 1 : -1)); }
-            else if (e.key === 'Enter') { const a = plats[sel]; if (a) { e.preventDefault(); onNaviguer(a.href); } }
+            else if (e.key === 'Enter') { const a = plats[sel]; if (a) { e.preventDefault(); ouvrir(a); } }
           }} />
         <div className="res" id="palres">
           {plats.length ? filtres.map((g) => (
-            <GroupeRendu key={g.titre} g={g} sel={sel} index={() => ++k} onNaviguer={onNaviguer} />
+            <GroupeRendu key={g.titre} g={g} sel={sel} index={() => ++k} ouvrir={ouvrir} actif={actif} />
           )) : <p className="faint" style={{ padding: 12 }}>Aucun résultat pour « {requete} »</p>}
         </div>
       </div>
@@ -141,7 +171,7 @@ export function Palette({ groupes, onNaviguer, onFermer, requeteInitiale = '' }:
   );
 }
 
-function GroupeRendu({ g, sel, index, onNaviguer }: { g: GroupePalette; sel: number; index: () => number; onNaviguer: (href: string) => void }) {
+function GroupeRendu({ g, sel, index, ouvrir, actif }: { g: GroupePalette; sel: number; index: () => number; ouvrir: (e: EntreePalette) => void; actif: PreferenceTheme | null }) {
   return (
     <>
       <span className="g">{g.titre}</span>
@@ -149,8 +179,9 @@ function GroupeRendu({ g, sel, index, onNaviguer }: { g: GroupePalette; sel: num
         const i = index();
         return (
           <a key={e.cle} href={e.href} data-palgo="" className={i === sel ? 'on' : undefined} aria-current={i === sel ? 'true' : undefined}
-            onClick={(ev) => { if (ev.metaKey || ev.ctrlKey || ev.shiftKey) return; ev.preventDefault(); onNaviguer(e.href); }}>
-            <Ic n={e.icone} />{e.titre}<small>{typeEntreePalette(g.titre)}</small>
+            data-theme-commande={e.theme}
+            onClick={(ev) => { if (ev.metaKey || ev.ctrlKey || ev.shiftKey) return; ev.preventDefault(); ouvrir(e); }}>
+            <Ic n={e.theme && e.theme === actif ? 'check' : e.icone} />{e.titre}<small>{typeEntreePalette(g.titre)}{e.theme && e.theme === actif ? ' · actif' : ''}</small>
           </a>
         );
       })}
