@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { act } from 'react';
+import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CIBLE_TACTILE_PX, PRIMITIVES_TACTILES, ZOOM_VUE_SECTION, debordTactile, entreesRail, entreesRailEspace } from '@tiktrends/core';
@@ -77,9 +77,9 @@ const basculer = (t: boolean) => act(() => { telephone = t; ecouteurs.forEach((f
 
 let racine: Root | null = null;
 let hote: HTMLElement;
-const monter = () => {
+const monter = (contenu: ReactNode = <Ecran />) => {
   hote = document.createElement('div'); document.body.appendChild(hote);
-  act(() => { racine = createRoot(hote); racine.render(<Coquille donnees={DONNEES}><Ecran /></Coquille>); });
+  act(() => { racine = createRoot(hote); racine.render(<Coquille donnees={DONNEES}>{contenu}</Coquille>); });
   return hote;
 };
 const el = (t: string) => hote.querySelector(`[data-t="${t}"]`) as HTMLElement;
@@ -91,7 +91,7 @@ describe('Spatial · cibles tactiles · ce que la maquette dessine (la cause)', 
     expect(px(regle('.btn'), 'min-height')).toBe(42);
     expect(px(regle('.bell'), 'height')).toBe(40);
     expect(px(regle('.me'), 'height')).toBe(38);
-    for (const p of PRIMITIVES_TACTILES) {
+    for (const p of PRIMITIVES_TACTILES.filter((x) => x.selecteur.startsWith('.'))) {
       expect(CSS.includes(`${p.selecteur}{`) || CSS.includes(`${p.selecteur},`), `primitive ${p.selecteur} absente de la feuille`).toBe(true);
     }
   });
@@ -202,6 +202,61 @@ describe('Spatial · cibles tactiles · la coquille montée au téléphone', () 
     expect(el('btn').getAttribute('style') ?? '', 'un style posé au téléphone reste au bureau').toBe('');
     expect(el('sw2').getAttribute('style') ?? '').toBe('');
     expect(el('btn-propre').style.minHeight, 'la valeur de l’écran ne doit pas être effacée').toBe('30px');
+  });
+});
+
+/** Les contrôles sous 24 px de la planche, écrits comme les vues les écrivent. */
+function Champs() {
+  return (
+    <div className="view">
+      <div className="sech"><div className="lbl">Reprendre</div><a className="more" href="#projets" data-t="more">Tous les projets</a></div>
+      <button type="button" className="cfgm" data-t="cfgm">Voir les 9 étapes · 8 requises</button>
+      <div className="jask"><input placeholder="Ta question à Jarvis" aria-label="Ta question à Jarvis" data-t="question" /></div>
+      <input type="search" aria-label="Rechercher un projet par titre" data-t="recherche" />
+      <select className="dsort" aria-label="Trier" data-t="tri"><option>Nom</option></select>
+      <details><summary className="faint" data-t="resume">Réglages avancés du produit</summary><p>…</p></details>
+      <a className="dmore" href="/connections" data-t="dmore">Toutes les connexions</a>
+      <button type="button" className="tnc op" aria-label="Replier Créations" data-t="tnc" />
+      <label><input type="checkbox" data-t="case" /> Relecture automatique</label>
+      <input type="range" aria-label="Volume" data-t="curseur" />
+    </div>
+  );
+}
+
+describe('Spatial · cibles tactiles · les contrôles sous 24 px de la planche', () => {
+  it('champs de texte et listes · 44 px de haut (18 à 22 px dans une pilule, 38 à 40 sinon)', () => {
+    monter(<Champs />);
+    for (const t of ['question', 'recherche', 'tri']) expect(el(t).style.minHeight, `${t} sous 44 px`).toBe('44px');
+  });
+
+  it('résumé dépliable, lien-bouton, liens d’en-tête · 44 px, libellé centré', () => {
+    monter(<Champs />);
+    for (const t of ['resume', 'cfgm', 'more', 'dmore']) expect(el(t).style.minHeight, `${t} sous 44 px`).toBe('44px');
+    expect(el('resume').style.alignContent, 'le résumé garde son triangle (list-item) · centré par align-content').toBe('center');
+    expect(el('resume').style.display, 'un résumé passé en flex perd son triangle').toBe('');
+    expect(el('more').style.alignItems).toBe('center');
+  });
+
+  it('la flèche « Replier » de l’arbre · zone de 44 px par une bordure transparente, le dessin de 22 px ne bouge pas', () => {
+    expect(px(regle('.tnc'), 'height')).toBe(22);
+    monter(<Champs />);
+    const s = el('tnc').style;
+    expect([s.width, s.height], 'la flèche (boîte intérieure) serait écrasée de deux bordures').toEqual(['44px', '44px']);
+    expect(s.borderWidth).toBe('11px');
+    expect(s.margin).toBe('-11px');
+    expect(s.minHeight).toBe('');
+  });
+
+  it('une case à cocher, un curseur ne grandissent pas · leur `<label>` porte la cible', () => {
+    monter(<Champs />);
+    expect(el('case').getAttribute('style')).toBeNull();
+    expect(el('curseur').getAttribute('style')).toBeNull();
+  });
+
+  it('au bureau, aucun de ces contrôles ne change', () => {
+    telephone = false;
+    monter(<Champs />);
+    for (const t of ['question', 'recherche', 'tri', 'resume', 'cfgm', 'more', 'dmore', 'tnc']) expect(el(t).getAttribute('style'), `${t} restylé au bureau`).toBeNull();
   });
 });
 
