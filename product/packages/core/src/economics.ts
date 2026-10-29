@@ -4,7 +4,7 @@
  * Règle maison (v1) : on facture le client au COÛT API RÉEL × 3 (marge cible).
  * Le multiplicateur est réglable via la variable d'environnement CREDIT_MARKUP.
  *
- * 1 crédit ≈ 0,05 € de valeur de revente (aligné sur le plan Core : 99 € / 2000 crédits).
+ * 1 crédit ≈ 0,005 € de valeur de revente (aligné sur le plan Core : 99 € / 20 000 crédits, nouvelle unité).
  * Les coûts réels ci-dessous sont des ESTIMATIONS de première passe (moyennes constatées
  * chez les fournisseurs), volontairement centralisées ici pour être ajustées facilement.
  */
@@ -12,8 +12,8 @@ import type { CreditAction } from './credits';
 import { CREDIT_COSTS } from './credits';
 import type { ProductionMode } from './production-mode';
 
-/** Valeur de revente d'un crédit, en euros (référence : plan Core 99 € / 2000 crédits). */
-export const CREDIT_EUR = 0.05;
+/** Valeur de revente d'un crédit, en euros (référence : plan Core 99 € / 20 000 crédits, nouvelle unité ÷ 10). */
+export const CREDIT_EUR = 0.005;
 
 /** Marge cible par défaut appliquée au coût réel (× coût API). */
 export const DEFAULT_MARKUP = 3;
@@ -143,18 +143,18 @@ export interface ImageModelSpec {
  * Le nombre de crédits suit la même logique que le reste (coût réel × marge), arrondi.
  */
 export const IMAGE_MODELS: ImageModelSpec[] = [
-  { key: 'nano',         label: 'Nano Banana 2',         falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.039, credits: 4,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
-  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.09,  credits: 8,  timeoutMs: 180_000, note: 'Rendu 2K · détail & cohérence renforcés', supportsRef: true, params: { resolution: '2K' } },
+  { key: 'nano',         label: 'Nano Banana 2',         falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.039, credits: 40,  note: 'Fidélité produit · idéal pubs', recommended: true, supportsRef: true },
+  { key: 'nano_high',    label: 'Nano Banana 2 · Haute', falModel: 'fal-ai/nano-banana-2/edit', falModelNoRef: 'fal-ai/nano-banana-2', realEur: 0.09,  credits: 80,  timeoutMs: 180_000, note: 'Rendu 2K · détail & cohérence renforcés', supportsRef: true, params: { resolution: '2K' } },
 
   // GPT Image 2 · fal est partenaire officiel du lancement, les endpoints sont
   // sous le préfixe `openai/`. La qualité est un PARAMÈTRE, pas un endpoint :
   // c'est elle qui fait varier le prix d'un facteur quatre, et c'est pour ça
   // que les deux variantes sont annoncées séparément plutôt que masquées
   // derrière un réglage qu'on découvre sur la facture.
-  { key: 'gpt2',         label: 'GPT Image 2',           falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.049, credits: 5,  timeoutMs: 180_000,  note: 'Texte net & respect strict du brief', supportsRef: true, params: { quality: 'medium' } },
-  { key: 'gpt2_high',    label: 'GPT Image 2 · Haute',   falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.195, credits: 20, timeoutMs: 300_000, note: 'Qualité maximale · quatre fois le prix, à réserver au visuel final', supportsRef: true, params: { quality: 'high' } },
+  { key: 'gpt2',         label: 'GPT Image 2',           falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.049, credits: 50,  timeoutMs: 180_000,  note: 'Texte net & respect strict du brief', supportsRef: true, params: { quality: 'medium' } },
+  { key: 'gpt2_high',    label: 'GPT Image 2 · Haute',   falModel: 'openai/gpt-image-2/edit', falModelNoRef: 'openai/gpt-image-2', realEur: 0.195, credits: 200, timeoutMs: 300_000, note: 'Qualité maximale · quatre fois le prix, à réserver au visuel final', supportsRef: true, params: { quality: 'high' } },
 
-  { key: 'gpt_image',    label: 'GPT Image 1',           falModel: 'fal-ai/gpt-image-1/edit-image/byok', realEur: 0.08,  credits: 8,  timeoutMs: 180_000,  note: 'Génération précédente · demande une clé OpenAI sur le serveur', supportsRef: true },
+  { key: 'gpt_image',    label: 'GPT Image 1',           falModel: 'fal-ai/gpt-image-1/edit-image/byok', realEur: 0.08,  credits: 80,  timeoutMs: 180_000,  note: 'Génération précédente · demande une clé OpenAI sur le serveur', supportsRef: true },
 ];
 
 /**

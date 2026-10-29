@@ -187,7 +187,7 @@ beforeAll(async () => {
   await semer(db, schema, ids);
   cat = await semerCatalogue(db, ids);
   await publierRegistreDeTest(depotPrompts, acteurPlateforme());
-  await db.update(schema.workspaces).set({ creditsBalance: 200 }).where(eq(schema.workspaces.id, ids.wsA));
+  await db.update(schema.workspaces).set({ creditsBalance: 2000 }).where(eq(schema.workspaces.id, ids.wsA));
 });
 beforeEach(() => { etat.session = session(ids, 'ua'); texte.recues.length = 0; texteEcran = []; instruction = 'Léa en veste jaune devant le miroir, lumière du matin, plan rapproché.'; });
 
@@ -270,7 +270,7 @@ describe('images clés des plans · consigne shot.image attestée, devis, approb
     const s0 = await solde();
     const d = await devisKeyframePour(ctxDe(ids, 'ua'), { projectId, shotId: 's3' }, T);
     if (!d.ok) throw new Error(JSON.stringify(d));
-    expect(d.devis.lignes.map((l: LigneDevis) => [l.operation, l.profil, l.credits])).toEqual([['keyframe:s3', 'image_generation', 4]]);
+    expect(d.devis.lignes.map((l: LigneDevis) => [l.operation, l.profil, l.credits])).toEqual([['keyframe:s3', 'image_generation', 40]]);
     const [audit] = await db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, d.devis.id), eq(schema.studioAuditEvents.action, 'quote.create')));
     expect(audit!.details).toMatchObject({ consignesPlans: empreinteConsignesDevis([c.consigne]) });
     const [q] = await db.select().from(schema.studioQuotes).where(eq(schema.studioQuotes.id, d.devis.id));
@@ -282,17 +282,17 @@ describe('images clés des plans · consigne shot.image attestée, devis, approb
     }, empreinteConsignesDevis([c.consigne])));
 
     // Sans fournisseur d'images · rien n'est approuvé ni débité.
-    const refus = await approuverKeyframePour(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: 4, idempotencyKey: `l6a-${randomUUID()}` }, { illimite: false, plafond: null, fournisseurImage: false, maintenant: T });
+    const refus = await approuverKeyframePour(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: 40, idempotencyKey: `l6a-${randomUUID()}` }, { illimite: false, plafond: null, fournisseurImage: false, maintenant: T });
     expect(refus).toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY' });
     expect(await solde()).toBe(s0);
 
-    const a = await approuverKeyframePour(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: 4, idempotencyKey: `l6a-${randomUUID()}` }, { illimite: false, plafond: null, fournisseurImage: true, maintenant: T });
+    const a = await approuverKeyframePour(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: 40, idempotencyKey: `l6a-${randomUUID()}` }, { illimite: false, plafond: null, fournisseurImage: true, maintenant: T });
     if (!a.ok) throw new Error(JSON.stringify(a));
     const [job] = await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.id, a.job.id));
     const snap = job!.snapshot as SnapshotJob;
     expect(snap.parametres).toEqual(parametresDepuisConsignePlan(c.consigne));
     expect(lireParametresImage(snap.parametres)).toMatchObject({ ok: true, parametres: { schema: 'studio_image/1', promptRunId: c.runId, references: [{ assetId: id5, role: 'product' }] } });
-    expect(await solde()).toBe(s0 - 4);
+    expect(await solde()).toBe(s0 - 40);
   });
 
   it('sans consigne · consigne écrite à la main (non attestée) · devis refusés, rien écrit', async () => {

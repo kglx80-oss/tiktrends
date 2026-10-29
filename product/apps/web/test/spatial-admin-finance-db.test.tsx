@@ -56,7 +56,7 @@ describe('Spatial · Revenus & MRR · indicateurs de l’ancienne page Finance',
     etat.session = session('kguilbaux@agence-glx.fr');
     const html = await rendre();
     const sec = texte(/<section[^>]*data-section="finance-formules"[^>]*>([\s\S]*?)<\/section>/.exec(html)?.[1] ?? '');
-    const net = analyzePlanNet('Core', 99, 2000, creditMarkup(), corporateTaxRate()).netEur + analyzePlanNet('Plus', 299, 7000, creditMarkup(), corporateTaxRate()).netEur;
+    const net = analyzePlanNet('Core', 99, 20000, creditMarkup(), corporateTaxRate()).netEur + analyzePlanNet('Plus', 299, 70000, creditMarkup(), corporateTaxRate()).netEur;
     expect(kpi(sec, 'MRR')).toBe(eurosFinance(398));
     expect(kpi(sec, 'ARR')).toBe(eurosFinance(398 * 12));
     expect(kpi(sec, 'Bénéfice net / mois')).toBe(eurosFinance(net));

@@ -87,7 +87,7 @@ async function consigneNeuve(projectId: string, plans: string[]) {
 
 beforeAll(async () => {
   await semer(db, schema, ids);
-  await poserSolde(db, ids.wsA, 50);
+  await poserSolde(db, ids.wsA, 500); // nouvelle unité (÷ 10)
 });
 beforeEach(() => { etat.session = session(ids, 'ua'); });
 

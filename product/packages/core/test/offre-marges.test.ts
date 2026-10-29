@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACTIONS_BAREME, BAREME_V2, BORNE_EUR_PAR_CREDIT, COUT_REFERENCE_ACTION, CREDIT_COSTS, FACTEUR_UNITE, FORFAITS_V2, IMAGE_MODELS,
+  ACTIONS_BAREME, BAREME_V2, BORNE_EUR_PAR_CREDIT, COUT_REFERENCE_ACTION, CREDIT_COSTS, FORFAITS_V2, IMAGE_MODELS,
   MARGE_CIBLE, MARGE_PLANCHER_RECHARGE, coutEurParCreditImageV2, coutEurParCreditV2, creditsActuels, creditsMaxPourMarge,
   creditsPourCoutUsd, creditsPourCoutUsdMicros, creditsV2Image, nomForfait, pireCoutEurParCreditV2, prixEcheanceTtc,
   tableauMargesRecharges, tableauMargesV2, type CreditAction,
@@ -81,9 +81,9 @@ describe('barème V2 · un crédit coûte au plus la borne, quelle que soit l’
   it('chaque action débitée aujourd’hui a un coût de référence, et aucune ne devient moins chère', () => {
     for (const a of Object.keys(CREDIT_COSTS) as CreditAction[]) {
       expect(COUT_REFERENCE_ACTION[a]?.usd, `${a} sans coût de référence`).toBeGreaterThan(0);
-      expect(BAREME_V2[a]).toBeGreaterThanOrEqual(creditsActuels(a)! * FACTEUR_UNITE);
+      expect(BAREME_V2[a]).toBeGreaterThanOrEqual(creditsActuels(a)!);
     }
-    for (const m of IMAGE_MODELS) expect(creditsV2Image(m.key)).toBeGreaterThanOrEqual(m.credits * FACTEUR_UNITE);
+    for (const m of IMAGE_MODELS) expect(creditsV2Image(m.key)).toBeGreaterThanOrEqual(m.credits);
   });
 
   it('les appels aujourd’hui gratuits ont un prix V2', () => {

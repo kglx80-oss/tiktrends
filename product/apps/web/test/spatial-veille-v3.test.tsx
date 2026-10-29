@@ -178,7 +178,7 @@ describe('Spatial · Pubs du moment · mémoire marché', () => {
     expect(document.body.textContent).toContain('Le marché dit l’inverse de tes chiffres');
     expect(document.body.textContent).toContain('4 sources');
     const b = bouton('Apprendre des marques suivies')!;
-    expect(b.textContent).toContain('2 crédits par créa');
+    expect(b.textContent).toContain('20 crédits par créa');
     expect(marche.learnFromFollowedAction).not.toHaveBeenCalled();
     await cliquer(b);
     expect(marche.learnFromFollowedAction).toHaveBeenCalled();

@@ -38,7 +38,7 @@ describe('ligne du contrôle visuel · cochée par défaut, chiffrée, bornée',
   it('activée par défaut : une ligne, une unité par image, 0 crédit, total inclus, nature borne', () => {
     const v = avecControleVision(l.lignes, { modele: 'claude-sonnet-5' });
     expect(v.lignes.map((x) => [x.operation, x.profil, x.unites, x.credits, x.usdMicros, x.natureCout])).toEqual([
-      ['composition', 'calcul', 1, 0, 0, 'borne'], ['keyframe:s_image', 'image_generation', 1, 4, 80_000, 'borne'],
+      ['composition', 'calcul', 1, 0, 0, 'borne'], ['keyframe:s_image', 'image_generation', 1, 40, 80_000, 'borne'],
       [OPERATION_CONTROLE_VISION, 'controle_visuel', 1, 0, 147_024, 'borne'],
     ]);
     expect([v.totalCredits, v.totalUsdMicros]).toEqual([l.totalCredits, 80_000 + 147_024]);

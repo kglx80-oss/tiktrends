@@ -6,6 +6,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { isFounder } from '../../lib/founder';
 import { PLAN_CREDITS, type Plan } from '../../lib/rbac';
+import { convertirUniteEspace } from '../../lib/credits';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
@@ -13,6 +14,7 @@ const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim()
  *  une consommation concurrente entre la lecture et l'écriture du solde. */
 async function addCredits(workspaceId: string, delta: number, reason: string) {
   if (!db || !delta) return;
+  await convertirUniteEspace(workspaceId); // le delta est dans la nouvelle unité
   await db.update(schema.workspaces)
     .set({ creditsBalance: sql`greatest(0, ${schema.workspaces.creditsBalance} + ${delta})` })
     .where(eq(schema.workspaces.id, workspaceId));

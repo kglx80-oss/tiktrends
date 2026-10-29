@@ -26,7 +26,7 @@ describe('offre · source unique', () => {
       expect([PLAN_LABEL[p], PLAN_PRICE[p], PLAN_CREDITS[p]]).toEqual([FORFAITS_ACTUELS[p].libelle, FORFAITS_ACTUELS[p].prixMensuelEur, FORFAITS_ACTUELS[p].creditsMois]);
     }
     expect(CREDIT_PACKS).toEqual(RECHARGES_ACTUELLES);
-    expect(packByKey('pack_5k')).toEqual({ key: 'pack_5k', credits: 5000, eur: 79 });
+    expect(packByKey('pack_5k')).toEqual({ key: 'pack_5k', credits: 50000, eur: 79 });
   });
 
   it('aucun prix de forfait ou de recharge écrit en dur dans apps/web', () => {

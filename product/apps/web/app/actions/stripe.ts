@@ -8,6 +8,7 @@ import { getSession } from '../../lib/auth';
 import { type Plan } from '../../lib/rbac';
 import { getStripe, priceIdFor } from '../../lib/stripe';
 import { packByKey } from '../../lib/credit-packs';
+import { UNITE_CREDIT_COURANTE } from '@tiktrends/core';
 
 const appUrl = () => (process.env.APP_URL || 'https://app.tiktrends.co').replace(/\/$/, '');
 
@@ -105,8 +106,9 @@ export async function createTopupCheckoutAction(formData: FormData): Promise<voi
     }],
     success_url: `${appUrl()}/billing?ok=topup`,
     cancel_url: `${appUrl()}/billing?e=cancel`,
-    metadata: { workspaceId: s.workspaceId, kind: 'topup', credits: String(pack.credits) },
-    payment_intent_data: { metadata: { workspaceId: s.workspaceId, kind: 'topup', credits: String(pack.credits) } },
+    // `unite` · les crédits sont dans la nouvelle unité (÷ 10) · une session sans ce marqueur est lue en ancienne unité (`creditsRecharge`).
+    metadata: { workspaceId: s.workspaceId, kind: 'topup', credits: String(pack.credits), unite: String(UNITE_CREDIT_COURANTE) },
+    payment_intent_data: { metadata: { workspaceId: s.workspaceId, kind: 'topup', credits: String(pack.credits), unite: String(UNITE_CREDIT_COURANTE) } },
   });
   if (!session.url) redirect('/billing?e=stripe');
   redirect(session.url);

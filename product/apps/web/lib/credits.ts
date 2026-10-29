@@ -1,6 +1,6 @@
 import 'server-only';
 import { and, eq, gte } from 'drizzle-orm';
-import { db, schema, setDebitPoches, setRemboursementPoches } from '@tiktrends/db';
+import { convertirUnite, db, schema, setDebitPoches, setRemboursementPoches } from '@tiktrends/db';
 import { allouerPoches, type PlanAllocation } from '@tiktrends/core';
 import { isFounder } from './founder';
 
@@ -50,6 +50,8 @@ export type ExecuteurCredits = Pick<typeof db, 'update' | 'insert'>;
  */
 export async function debiterCreditsDans(tx: ExecuteurCredits, workspaceId: string, cost: number, reason: string, refId: string | null): Promise<boolean> {
   if (cost <= 0) return true;
+  // Jamais un coût de la nouvelle unité sur un solde de l'ancienne (`offre/unite.ts`).
+  await convertirUnite(tx, workspaceId);
   const rows = await tx.update(schema.workspaces)
     .set(setDebitPoches(cost))
     .where(and(eq(schema.workspaces.id, workspaceId), gte(schema.workspaces.creditsBalance, cost)))
@@ -65,6 +67,7 @@ export async function debiterCreditsDans(tx: ExecuteurCredits, workspaceId: stri
  */
 export async function crediterCreditsDans(tx: ExecuteurCredits, workspaceId: string, amount: number, reason: string, refId: string | null): Promise<void> {
   if (amount <= 0) return;
+  await convertirUnite(tx, workspaceId);
   await tx.update(schema.workspaces)
     .set(setRemboursementPoches(amount))
     .where(eq(schema.workspaces.id, workspaceId));
@@ -99,6 +102,7 @@ export async function allouerFormule(workspaceId: string, allocation: number, re
   if (!db) return null;
   const W = schema.workspaces;
   return db.transaction(async (tx) => {
+    await convertirUnite(tx, workspaceId);
     const [w] = await tx.select({ solde: W.creditsBalance, restant: W.planCreditsLeft, derniere: W.lastPlanCredits, hors: W.extraCreditsSpent })
       .from(W).where(eq(W.id, workspaceId)).limit(1).for('update');
     if (!w) return null;
@@ -112,4 +116,20 @@ export async function allouerFormule(workspaceId: string, allocation: number, re
     if (r.delta !== 0) await tx.insert(schema.creditLedger).values({ workspaceId, delta: r.delta, reason });
     return r;
   });
+}
+
+/**
+ * Convertit un espace dans la nouvelle unité de crédit avant une écriture de
+ * solde faite HORS des fonctions ci-dessus (recharge du webhook, don du
+ * fondateur, essai) · sans effet s'il l'est déjà (`offre/unite.ts`).
+ */
+export async function convertirUniteEspace(workspaceId: string): Promise<void> {
+  if (!db) return;
+  await db.transaction(async (tx) => { await convertirUnite(tx, workspaceId); });
+}
+
+/** Balayage · convertit tous les espaces encore en ancienne unité. Rend leur nombre. */
+export async function convertirTousLesEspaces(): Promise<number> {
+  if (!db) return 0;
+  return db.transaction((tx) => convertirUnite(tx));
 }

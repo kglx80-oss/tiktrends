@@ -10,4 +10,4 @@ export function trialStatus(w: { trialEndsAt: Date | string | null | undefined; 
 }
 
 export const TRIAL_DEFAULT_DAYS = 14;
-export const TRIAL_DEFAULT_CREDITS = 300;
+export const TRIAL_DEFAULT_CREDITS = 3000; // nouvelle unité (÷ 10) · les 300 d'avant ×10

@@ -38,7 +38,7 @@ let release2 = '';
 
 beforeAll(async () => {
   await semer(db, schema, ids);
-  await poserSolde(db, ids.wsA, 50);
+  await poserSolde(db, ids.wsA, 500); // nouvelle unité (÷ 10)
   const [r1] = await db.insert(schema.studioPromptReleases).values({ scope: 'workspace', workspaceId: ids.wsA, entries: {}, releaseHash: R1, status: 'active', reason: 'test' }).returning();
   const [r2] = await db.insert(schema.studioPromptReleases).values({ scope: 'workspace', workspaceId: ids.wsA, entries: {}, releaseHash: R2, status: 'active', reason: 'test' }).returning();
   release1 = r1!.id;

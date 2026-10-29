@@ -173,7 +173,7 @@ beforeAll(async () => {
   await semer(db, schema, ids);
   cat = await semerCatalogue(db, ids);
   await publierRegistreDeTest(depotPrompts, acteurPlateforme());
-  await db.update(schema.workspaces).set({ creditsBalance: 100 }).where(eq(schema.workspaces.id, ids.wsA));
+  await db.update(schema.workspaces).set({ creditsBalance: 1000 }).where(eq(schema.workspaces.id, ids.wsA));
 });
 beforeEach(() => { etat.session = session(ids, 'ua'); texte.recues.length = 0; appels = []; });
 
@@ -189,11 +189,11 @@ describe('contrôle visuel coché par défaut · ligne du devis, exécuté dans 
     const q = await devisPret(projectId);
     const borne = borneControleVisionParImageMicros(MODELE);
     expect(q.lignes.map((l: LigneDevis) => [l.operation, l.profil, l.unites, l.credits, l.usdMicros, l.natureCout])).toEqual([
-      [OPERATION_IMAGE, 'image_generation', 1, 4, 80_000, 'borne'],
+      [OPERATION_IMAGE, 'image_generation', 1, 40, 80_000, 'borne'],
       [OPERATION_CONTROLE_VISION, 'controle_visuel', 1, 0, borne, 'borne'],
     ]);
     // Le total INCLUT la ligne ; le prix en crédits de l'offre ne change pas.
-    expect([q.maximumCredits, q.maximumUsdMicros]).toEqual([4, 80_000 + borne]);
+    expect([q.maximumCredits, q.maximumUsdMicros]).toEqual([40, 80_000 + borne]);
     expect(q.qualification).toEqual({ nature: 'borne', libelle: 'maximum', raison: null });
     const vue = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
     expect(vue.ok && vue.vue.devis?.lignes.map((l) => l.libelle)).toEqual(['Image · keyframe:s_image', 'Contrôle visuel · 1 image']);
@@ -225,7 +225,7 @@ describe('contrôle visuel coché par défaut · ligne du devis, exécuté dans 
     const d = await devisImagePour(ctxDe(ids, 'ua'), { projectId, controleVision: false }, T);
     if (!d.ok) throw new Error(JSON.stringify(d));
     expect(d.devis.lignes.map((l: LigneDevis) => l.operation)).toEqual([OPERATION_IMAGE]);
-    expect([d.devis.maximumCredits, d.devis.maximumUsdMicros]).toEqual([4, 80_000]);
+    expect([d.devis.maximumCredits, d.devis.maximumUsdMicros]).toEqual([40, 80_000]);
     const a = await approuver(d.devis);
     if (!a.ok) throw new Error(JSON.stringify(a));
     expect(await executer(a.job.id)).toBe('completed');

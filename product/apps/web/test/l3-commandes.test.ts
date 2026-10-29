@@ -40,7 +40,7 @@ let projet = { projectId: '', versionId: '' };
 
 beforeAll(async () => {
   await semer(db, schema, ids);
-  await poserSolde(db, ids.wsA, 100);
+  await poserSolde(db, ids.wsA, 1000); // nouvelle unité (÷ 10)
   projet = await projetTest(db, ids, ids.brandA1, ids.ua);
 });
 

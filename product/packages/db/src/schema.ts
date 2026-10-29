@@ -46,6 +46,13 @@ export const workspaces = pgTable('workspaces', {
   // hors abonnement depuis l'allocation (rendu en premier par un remboursement).
   planCreditsLeft: integer('plan_credits_left'),
   extraCreditsSpent: integer('extra_credits_spent').notNull().default(0),
+  // Unité du crédit des compteurs de cette ligne (migration 0061) · 1 = ancienne
+  // unité (défaut SQL : lignes existantes et lignes écrites par l'ancien code
+  // pendant la fenêtre de migration), 10 = nouvelle unité. Le NOUVEAU code
+  // insère 10 (`$defaultFn`) et convertit une ligne à 1 avant d'y écrire un
+  // solde (`packages/db/src/unite-credits.ts`).
+  creditUnit: integer('credit_unit').notNull().$defaultFn(() => 10),
+  creditUnitConvertedAt: timestamp('credit_unit_converted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

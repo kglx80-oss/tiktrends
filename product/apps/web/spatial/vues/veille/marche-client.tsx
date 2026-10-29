@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { lectureMarche } from '@tiktrends/core';
+import { CREDIT_COSTS, lectureMarche } from '@tiktrends/core';
 import { learnFromFollowedAction, marketViewAction, type MarketView } from '../../../app/actions/market-learn';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic } from '../../communs';
@@ -45,7 +45,7 @@ export function MemoireMarche({ marque }: { marque: string }) {
             ligne) à côté du bouton · il garde au moins 260 px, le bouton passe dessous. */}
         <div className="member" style={{ flexWrap: 'wrap' }}>
           <p className="muted" style={{ fontSize: '12.5px', flex: '1 1 260px', minWidth: 0 }}>On ne connaît aucun chiffre de performance des autres : le seul signal disponible est qu’une pub qui tourne encore après trois semaines est une pub que son annonceur continue de payer.</p>
-          <button type="button" className="btn sm pri" onClick={() => void apprendre()} disabled={occupe} style={{ marginLeft: 'auto' }}><Ic n="spark" />{occupe ? 'Analyse…' : 'Apprendre des marques suivies · 2 crédits par créa'}</button>
+          <button type="button" className="btn sm pri" onClick={() => void apprendre()} disabled={occupe} style={{ marginLeft: 'auto' }}><Ic n="spark" />{occupe ? 'Analyse…' : `Apprendre des marques suivies · ${CREDIT_COSTS.asset_analysis} crédits par créa`}</button>
         </div>
         {l && <small className="faint">{l.compte}</small>}
         {msg && <p role={msg.erreur ? 'alert' : 'status'} style={{ fontSize: '12.5px', color: msg.erreur ? 'var(--bad)' : undefined }}>{msg.texte}</p>}
@@ -81,7 +81,7 @@ export function MemoireMarche({ marque }: { marque: string }) {
             </div>
           </details>
         )}
-        <small className="faint">2 crédits par créa décrite · par lots de 20. Une créa déjà décrite n’est jamais repayée.</small>
+        <small className="faint">{CREDIT_COSTS.asset_analysis} crédits par créa décrite · par lots de 20. Une créa déjà décrite n’est jamais repayée.</small>
       </div>
     </section>
   );

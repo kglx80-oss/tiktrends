@@ -12,9 +12,9 @@
  *    (`marges.ts`) vraie au pire cas.
  *
  * Règle V2 d'une action à prix fixe :
- *   crédits = max(barème actuel × FACTEUR_UNITE, arrondi au multiple de 5
+ *   crédits = max(barème actuel (nouvelle unité), arrondi au multiple de 5
  *                 supérieur de ⌈coût € ÷ BORNE⌉)
- * Aucune action ne devient moins chère qu'aujourd'hui (le plancher ×10), et
+ * Aucune action ne devient moins chère qu'aujourd'hui (le plancher), et
  * l'arrondi ne fait que BAISSER le coût par crédit.
  *
  * Règle V2 d'un appel à coût variable (appels texte des Studios, contrôle
@@ -97,14 +97,14 @@ export const COUT_REFERENCE_ACTION: Readonly<Record<ActionBareme, CoutReference>
   brouillon_concept: { usd: 0.06, source: 'brouillon de concept Jarvis · 0,06 $ au plus (Adsmap)', nature: 'borne' },
 };
 
-/** Barème actuel d'une action (ancienne unité) · `null` quand elle ne débite rien aujourd'hui. */
+/** Barème actuel d'une action (nouvelle unité) · `null` quand elle ne débite rien aujourd'hui. */
 export function creditsActuels(a: ActionBareme): number | null {
   return a in CREDIT_COSTS ? CREDIT_COSTS[a as CreditAction] : null;
 }
 
-/** Crédits V2 d'une action à prix fixe (nouvelle unité). */
+/** Crédits V2 d'une action à prix fixe (nouvelle unité · le barème actuel y est déjà). */
 export function creditsV2Action(a: ActionBareme): number {
-  const plancher = (creditsActuels(a) ?? 0) * FACTEUR_UNITE;
+  const plancher = creditsActuels(a) ?? 0;
   return Math.max(plancher, arrondi5(creditsPourCoutUsd(COUT_REFERENCE_ACTION[a].usd)));
 }
 
@@ -118,7 +118,7 @@ export const BAREME_V2: Readonly<Record<ActionBareme, number>> = Object.fromEntr
 /** Crédits V2 d'une image selon son moteur (même règle, coût du moteur). */
 export function creditsV2Image(cleModele: string): number {
   const m = IMAGE_MODELS.find((x) => x.key === cleModele) ?? IMAGE_MODELS[0]!;
-  return Math.max(m.credits * FACTEUR_UNITE, arrondi5(creditsPourCoutUsd(m.realEur)));
+  return Math.max(m.credits, arrondi5(creditsPourCoutUsd(m.realEur)));
 }
 
 /** Coût fournisseur en euros d'un crédit V2 de cette action · ≤ `BORNE_EUR_PAR_CREDIT` (garde). */

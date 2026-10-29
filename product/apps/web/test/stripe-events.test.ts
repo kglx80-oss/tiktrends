@@ -60,8 +60,12 @@ describe('paiement non abouti', () => {
 
 describe('recharge ponctuelle', () => {
   it('crédite le nombre de crédits acheté', () => {
-    const i = route(ev('checkout.session.completed', session({ workspaceId: 'ws_1', kind: 'topup', credits: '2500' })));
+    // Session de la nouvelle unité (marqueur `unite`) · créditée telle quelle.
+    const i = route(ev('checkout.session.completed', session({ workspaceId: 'ws_1', kind: 'topup', credits: '2500', unite: '10' })));
     expect(i).toMatchObject({ kind: 'topup', workspaceId: 'ws_1', credits: 2500 });
+    // Session ouverte par l'ancien code (sans marqueur) et payée après le changement d'unité · ×10, rien n'est perdu.
+    const ancienne = route(ev('checkout.session.completed', session({ workspaceId: 'ws_1', kind: 'topup', credits: '2500' })));
+    expect(ancienne).toMatchObject({ kind: 'topup', credits: 25000 });
   });
 
   it('ne crédite pas une recharge sans quantité valable', () => {

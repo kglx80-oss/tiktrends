@@ -14,3 +14,4 @@ export * from './schema';
 export { eq, and, or, not, desc, asc, inArray, isNull, isNotNull, sql, count } from 'drizzle-orm';
 export * from './plafond-depense';
 export * from './poches-credits';
+export * from './unite-credits';

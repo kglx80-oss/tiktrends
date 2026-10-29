@@ -167,7 +167,7 @@ describe('valeurs · le plan choisi, le clip, le texte', () => {
 describe('prix annoncé AVANT le clic', () => {
   it('image clé · crédits ET dollars au devis, devis et lancement séparés, coût de la consigne dit', async () => {
     afficher(vue(), 's3');
-    expect(levier('devis').textContent).toContain('4 cr.');
+    expect(levier('devis').textContent).toContain('40 cr.');
     await cliquer(levier('lancer'));
     expect(m.approuverEtLancerKeyframe).not.toHaveBeenCalled();
     expect(q('[data-geste="lancer"]')!.textContent).toMatch(/^Lancer l’image clé · plan 3Devis · 4 crédits · 0,08 \$ au plus de coût fournisseur · valable jusqu’à/);

@@ -35,7 +35,7 @@ describe('Sourcing concurrents', () => {
   });
   it('produit une sélection non persistée, sans noms existants ni doublons', async () => {
     expect(await proposerConcurrents('b', 'France')).toEqual({ names: ['Nouvelle'] });
-    expect(f.reserve).toHaveBeenCalledWith('w', 5, expect.any(String));
+    expect(f.reserve).toHaveBeenCalledWith('w', 50, expect.any(String));
     expect(f.update).not.toHaveBeenCalled(); expect(f.generate).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ siteText: expect.stringContaining('France') }));
   });
   it('refuse une marque hors espace avant tout débit', async () => {
@@ -67,6 +67,6 @@ describe('Sourcing concurrents', () => {
   it('rembourse les crédits si la proposition échoue', async () => {
     f.generate.mockRejectedValue(new Error('provider'));
     expect(await proposerConcurrents('b', '')).toHaveProperty('error');
-    expect(f.refund).toHaveBeenCalledWith('w', 5, expect.any(String));
+    expect(f.refund).toHaveBeenCalledWith('w', 50, expect.any(String));
   });
 });

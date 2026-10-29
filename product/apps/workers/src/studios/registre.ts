@@ -1,5 +1,5 @@
-import { schema, eq, setRemboursementPoches } from '@tiktrends/db';
-import { decisionReglement, refsDuJob, type IssueFinanciere, type SnapshotJob } from '@tiktrends/core';
+import { schema, eq, setRemboursementPoches, convertirUnite } from '@tiktrends/db';
+import { decisionReglement, facteurRendu, refsDuJob, type IssueFinanciere, type SnapshotJob } from '@tiktrends/core';
 import type { JobStudio, TxStudio, EntreeJournal } from './types';
 
 /**
@@ -48,9 +48,15 @@ export async function reglerJob(
     o.journal.push({ t, type: 'registre', worker: o.worker, jobId: job.id, kind: 'release', credits: d.release.credits, usdMicros: d.release.usdMicros, ref: refs.release });
   }
   if (d.release.credits > 0) {
+    // Unité ÷ 10 · le registre studio est immuable, une réservation écrite AVANT
+    // la conversion de l'espace est en ancienne unité : elle rend ×10
+    // (`facteurRendu`, `offre/unite.ts`). Le solde est converti d'abord.
+    await convertirUnite(tx, job.workspaceId);
+    const [w] = await tx.select({ convertiLe: schema.workspaces.creditUnitConvertedAt }).from(schema.workspaces).where(eq(schema.workspaces.id, job.workspaceId)).limit(1);
+    const rendu = d.release.credits * facteurRendu(new Date(reserve.createdAt), w?.convertiLe ?? null);
     await tx.update(schema.workspaces)
-      .set(setRemboursementPoches(d.release.credits)) // rend d'abord ce qui a été pris hors abonnement (règle `rembourserPoches`)
+      .set(setRemboursementPoches(rendu)) // rend d'abord ce qui a été pris hors abonnement (règle `rembourserPoches`)
       .where(eq(schema.workspaces.id, job.workspaceId));
-    await tx.insert(schema.creditLedger).values({ workspaceId: job.workspaceId, delta: d.release.credits, reason: 'Studio · crédits non consommés rendus', refId: refs.release });
+    await tx.insert(schema.creditLedger).values({ workspaceId: job.workspaceId, delta: rendu, reason: 'Studio · crédits non consommés rendus', refId: refs.release });
   }
 }
