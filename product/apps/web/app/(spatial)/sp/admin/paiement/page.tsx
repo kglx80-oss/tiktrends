@@ -4,6 +4,7 @@ import {
   VALEUR_ABSENTE, adminEuros, adminIlYa, adminNombre, adminPluriel, enDefautDePaiement, mrrEspace, mrrPlateforme, rapprochementStripe,
 } from '@tiktrends/core';
 import { stripeConfigured } from '../../../../../lib/stripe';
+import { personnelPlateforme } from '../../../../../lib/personnel-plateforme';
 import { Paiements } from '../../../../../spatial/vues/admin/Paiements';
 import { bandeau, chargerEspaces, chargerTarifs, porteAdmin, navAdmin } from '../donnees';
 
@@ -14,7 +15,7 @@ const STATUT: Record<string, string> = { past_due: 'En retard', unpaid: 'Impayé
 
 /** « Stripe & Whop » · porte de `/admin/paiement` (V5) · fondateur ET admin de l'espace. */
 export default async function PaiementsSpatial() {
-  await porteAdmin();
+  const session = await porteAdmin();
   const maintenant = new Date();
   const tarifs = await chargerTarifs();
   const espaces = await chargerEspaces(maintenant, []);
@@ -36,6 +37,7 @@ export default async function PaiementsSpatial() {
     <Paiements
       bandeau={bandeau(espaces, tarifs, await navAdmin())}
       controle
+      offreV2={personnelPlateforme(session)}
       cartes={[
         {
           cle: 'stripe', nom: 'Stripe', sous: 'Abonnements et recharges de crédits', connecte: configure, etat: configure ? 'Connecté' : 'Non configuré',
