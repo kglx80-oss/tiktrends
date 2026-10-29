@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { MOT_DE_PASSE_MIN, liensAccesProfil, messagesRetourProfil } from '@tiktrends/core';
+import { MOT_DE_PASSE_MIN, liensAccesProfil, messagesRetourProfil, THEME_COOKIE, preferenceDepuisCookie } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { PLAN_LABEL, ROLE_LABEL, roleAtLeast } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
@@ -34,6 +35,7 @@ export default async function ProfilSpatial() {
       changerMotDePasse={db ? changePasswordAction : null}
       motDePasseMin={MOT_DE_PASSE_MIN}
       retours={messagesRetourProfil()}
+      theme={preferenceDepuisCookie((await cookies()).get(THEME_COOKIE)?.value)}
     />
   );
 }

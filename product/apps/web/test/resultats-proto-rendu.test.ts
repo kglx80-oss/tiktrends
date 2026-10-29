@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ongletsResultats, apercuLotsResultats, tonStatutLot, type FaitsLotApercu } from '@tiktrends/core';
+import { apercuLotsResultats, tonStatutLot, type FaitsLotApercu } from '@tiktrends/core';
 
 /**
  * V5 · Résultats · alignement de la vue d'ensemble sur la maquette de Kevin.
@@ -12,29 +12,6 @@ import { ongletsResultats, apercuLotsResultats, tonStatutLot, type FaitsLotAperc
 
 
 // Vague 4 · `ParcoursBoucle` (V5) est retiré avec la Veille V5, son dernier écran · Résultats est servi par Spatial.
-
-describe('V5 · les onglets de section (noyau pur)', () => {
-  it('les six libellés de la maquette mènent aux routes RÉELLES, dans l’ordre', () => {
-    const toutes = new Set(['adsmap', 'tri', 'lots', 'protocole', 'import', 'suites']);
-    const o = ongletsResultats(toutes, '/adsmap');
-    expect(o.map((x) => x.libelle)).toEqual(["Vue d'ensemble", 'Hypothèses', 'Lots de test', 'Protocole', 'Importer', 'Apprentissages']);
-    expect(o.map((x) => x.href)).toEqual(['/adsmap', '/adsmap/tri', '/adsmap/lots', '/adsmap/protocole', '/adsmap/import', '/adsmap/suites']);
-  });
-
-  it('un onglet n’apparaît QUE si sa fonction est accessible (lots/import = admin)', () => {
-    const membre = new Set(['adsmap', 'tri', 'protocole', 'suites']); // ni lots ni import
-    const o = ongletsResultats(membre, '/adsmap');
-    expect(o.map((x) => x.cle)).not.toContain('lots');
-    expect(o.map((x) => x.cle)).not.toContain('import');
-    expect(o.map((x) => x.cle)).toContain('hypotheses');
-  });
-
-  it('l’onglet courant est marqué par le chemin, le plus précis gagne', () => {
-    const toutes = new Set(['adsmap', 'tri', 'lots', 'protocole', 'import', 'suites']);
-    expect(ongletsResultats(toutes, '/adsmap').find((x) => x.courant)?.cle).toBe('vue-ensemble');
-    expect(ongletsResultats(toutes, '/adsmap/lots').find((x) => x.courant)?.cle).toBe('lots');
-  });
-});
 
 describe('V5 · apercuLotsResultats (noyau pur)', () => {
   it('ne fabrique rien · but vide → null, statut inconnu → lui-même, importé lu des faits', () => {

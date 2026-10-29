@@ -8,15 +8,9 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { BRAND_COOKIE } from '../../lib/brands';
-import { generateBrandProfile, type BrandProfileDraft } from '@tiktrends/ai';
-import { fetchSiteText } from '../../lib/site-text';
-import { costFor, policeTechnique, messageServiceInactif, refusSuppressionMarque } from '@tiktrends/core';
-import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
+import { policeTechnique, refusSuppressionMarque } from '@tiktrends/core';
 import { discoverShopify } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
-import { logAndTranslate } from '../../lib/error-log';
-import { guardedAnthropic } from '../../lib/spend-guard';
-import { GUARD } from '../../lib/guard-error';
 
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const lines = (v: FormDataEntryValue | null) => norm(v).split('\n').map((x) => x.trim()).filter(Boolean);
@@ -34,42 +28,6 @@ export async function setActiveBrand(brandId: string): Promise<void> {
     if (!b) return;
   }
   c.set(BRAND_COOKIE, brandId, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365 });
-}
-
-/* ===================== Génération IA du profil depuis le site ===================== */
-export interface BrandDraftState { error?: string; draft?: BrandProfileDraft; cost?: number }
-
-export async function generateBrandDraftAction(_prev: BrandDraftState, formData: FormData): Promise<BrandDraftState> {
-  const s = await getSession();
-  if (!s) return { error: GUARD.session() };
-  if (!roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
-
-  const name = norm(formData.get('name'));
-  const url = norm(formData.get('url'));
-  if (!name) return { error: 'Indique au moins le nom de la marque.' };
-
-  const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'brands' });
-  // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
-  if (!client) return { error: messageServiceInactif('ia_profil') };
-
-  const cost = costFor('brief');
-  const unlimited = unlimitedCredits(s.user.email);
-
-  let siteText: string | undefined;
-  if (url) { try { siteText = await fetchSiteText(url); } catch { /* on continue sans le contenu du site */ } }
-
-  // Débit atomique avant l'appel IA (remboursé en cas d'échec).
-  if (!unlimited && !(await reserveCredits(s.workspaceId, cost, 'Marque · génération IA du profil'))) {
-    return { error: `Crédits insuffisants (${cost} requis). Recharge depuis Crédits.` };
-  }
-
-  try {
-    const draft = await generateBrandProfile(client, { name, url: url || undefined, siteText });
-    return { draft, cost };
-  } catch (e) {
-    if (!unlimited) await refundCredits(s.workspaceId, cost, 'Remboursement · profil de marque');
-    return { error: logAndTranslate('brands:profile', e, { subject: 'la génération du profil', workspaceId: s.workspaceId }) };
-  }
 }
 
 /* ===================== Création de marque (wizard complet) ===================== */
@@ -199,29 +157,6 @@ export async function updateBrandAction(formData: FormData): Promise<void> {
     competitors: lines(formData.get('competitors')),
     languages: commas(formData.get('languages')),
   }).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId)));
-  redirect(`/brands/${id}?ok=saved`);
-}
-
-/**
- * Renommer une marque · le nom seul, depuis l'en-tête de la fiche.
- *
- * Le nom était modifiable uniquement dans le formulaire de profil, enfoui en bas
- * de page · on ne le trouvait pas et la marque restait « Ma boutique ». Ici,
- * édition en place sur le titre. Mêmes gardes que `updateBrandAction` · admin de
- * l'espace, et mise à jour PORTÉE à l'espace de la session (un admin ne renomme
- * pas la marque d'un autre espace en devinant un id).
- */
-export async function renameBrandAction(formData: FormData): Promise<void> {
-  const s = await getSession();
-  if (!s || !db) redirect('/login');
-  if (!roleAtLeast(s.role, 'admin')) redirect('/brands?e=forbidden');
-  const id = norm(formData.get('id'));
-  const name = norm(formData.get('name'));
-  if (!id) redirect('/brands');
-  // Un nom vide n'écrase rien · on revient sans toucher à la marque.
-  if (!name) redirect(`/brands/${id}`);
-  await db.update(schema.brands).set({ name })
-    .where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId)));
   redirect(`/brands/${id}?ok=saved`);
 }
 

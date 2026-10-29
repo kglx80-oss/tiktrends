@@ -36,7 +36,7 @@ export const ORDRE_FORMATS: readonly FormatDocument[] = ['4:5', '1:1', '9:16'];
 
 /**
  * Défaut quand le brief ne dit rien · 4:5, le cadre que le produit rend déjà
- * par défaut pour une publicité (`production-mode.ts`, `scene-framing.ts`).
+ * par défaut pour une publicité (`production-mode.ts`).
  * L'écran annonce que c'est un défaut.
  */
 export const FORMAT_PAR_DEFAUT: FormatDocument = '4:5';

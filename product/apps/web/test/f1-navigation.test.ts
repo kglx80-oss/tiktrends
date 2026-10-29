@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CAPACITES_STUDIOS } from '@tiktrends/core';
-import { ROUTES, ROUTES_HISTORIQUES, CAPACITE_DES_ROUTES, capaciteDeRoute, liensAtelierProjet } from '../lib/navigation';
+import { ROUTES_HISTORIQUES, CAPACITE_DES_ROUTES, liensAtelierProjet } from '../lib/navigation';
 import { ANCIENNES_ADRESSES_STUDIO } from '@tiktrends/core';
 import { cheminsSpatiauxServis } from './spatial/servie';
 
@@ -12,8 +12,9 @@ import { cheminsSpatiauxServis } from './spatial/servie';
  *    test ;
  *  · aucune ancienne adresse (Studio, Pubs IA, Image/Vidéo/Textes IA, retirés
  *    le 10/10, qui ne font plus que rediriger) ni la Veille n'a de capacité ;
- *    les anciennes adresses sont cachées de la carte (jamais dans un fil) ;
- *  · l'atelier d'un projet ne produit jamais de lien vers un écran coupé.
+ *  · l'atelier d'un projet ne produit jamais de lien vers un écran coupé, et
+ *    chaque écran y porte son libellé (la carte `ROUTES` qui les portait est
+ *    retirée · les libellés vivent dans `ATELIER`).
  */
 
 describe('carte · écrans du nouveau Studio et capacités', () => {
@@ -27,29 +28,21 @@ describe('carte · écrans du nouveau Studio et capacités', () => {
 
   it('aucun écran de l’ancienne expérience ne dépend d’une capacité', () => {
     const historiques = [...ROUTES_HISTORIQUES.map((r) => r.chemin).filter((c) => !c.startsWith('/studio/projets')), '/studio/ads', '/studio/image', '/studio/video', '/studio/textes', '/studio'];
-    expect(historiques.filter((c) => capaciteDeRoute(c) !== null)).toEqual([]);
-    expect(ROUTES.filter((r) => CAPACITE_DES_ROUTES[r.path] && !r.path.startsWith('/studio/projets')).map((r) => r.path)).toEqual([]);
-  });
-
-  it('la page ADMIN est déclarée dans la carte (fil d’Ariane, section Plateforme)', () => {
-    expect(ROUTES.find((r) => r.path === '/admin/studios-interrupteurs')).toMatchObject({ parent: '/admin', section: 'Plateforme' });
-  });
-
-  it('les anciennes adresses de création sont des redirections cachées, jamais une destination', () => {
-    for (const a of ANCIENNES_ADRESSES_STUDIO) expect(ROUTES.find((r) => r.path === a), a).toMatchObject({ hidden: true });
+    expect(historiques.filter((c) => CAPACITE_DES_ROUTES[c] !== undefined)).toEqual([]);
+    expect(Object.keys(CAPACITE_DES_ROUTES).filter((c) => !c.startsWith('/studio/projets') || (ANCIENNES_ADRESSES_STUDIO as readonly string[]).includes(c))).toEqual([]);
   });
 });
 
 describe('atelier · aucun lien mort', () => {
   it('une capacité coupée ⇒ pas d’adresse, une mention ; active ⇒ l’adresse de l’écran', () => {
     const l = liensAtelierProjet('p1', (c) => c !== 'video');
-    expect(l.map((x) => [x.segment, x.href, x.mention])).toEqual([
-      ['image', '/studio/projets/p1/image', null],
-      ['produit', '/studio/projets/p1/produit', null],
-      ['textes', '/studio/projets/p1/textes', null],
-      ['video', null, 'non activé pour cet espace'],
-      ['identites', '/studio/projets/p1/identites', null],
-      ['export', '/studio/projets/p1/export', null],
+    expect(l.map((x) => [x.segment, x.libelle, x.href, x.mention])).toEqual([
+      ['image', 'Éditer l’image', '/studio/projets/p1/image', null],
+      ['produit', 'Produit et références', '/studio/projets/p1/produit', null],
+      ['textes', 'Textes liés au brief', '/studio/projets/p1/textes', null],
+      ['video', 'Vidéo · storyboard et montage', null, 'non activé pour cet espace'],
+      ['identites', 'Identités et voix', '/studio/projets/p1/identites', null],
+      ['export', 'Exporter l’image', '/studio/projets/p1/export', null],
     ]);
   });
 });

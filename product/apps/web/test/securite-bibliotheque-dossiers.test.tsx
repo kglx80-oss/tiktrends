@@ -33,7 +33,7 @@ import { and, eq } from 'drizzle-orm';
 import { session, semer } from './studios-semis';
 import * as actionsDossiers from '../app/actions/bibliotheque-dossiers';
 import {
-  creerDossierAction, renommerDossierAction, deplacerDossierAction, supprimerDossierAction,
+  creerDossierAction, supprimerDossierAction,
   restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction,
 } from '../app/actions/bibliotheque-dossiers';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
@@ -63,8 +63,6 @@ beforeAll(async () => {
 /** Chaque action, appelée comme l'écran l'appellera · le nom sert au message d'échec. */
 const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['creerDossierAction', () => creerDossierAction({ nom: 'Dossier' })],
-  ['renommerDossierAction', () => renommerDossierAction({ id: 'x', nom: 'Renommé' })],
-  ['deplacerDossierAction', () => deplacerDossierAction({ id: 'x', parentId: null })],
   ['supprimerDossierAction', () => supprimerDossierAction({ id: 'x' })],
   ['restaurerDossierAction', () => restaurerDossierAction({ id: 'x' })],
   ['affecterAssetDossierAction', () => affecterAssetDossierAction({ assetId: A.image, folderId: null })],
@@ -142,17 +140,6 @@ describe('Dossiers · member en Core · chaque geste marche, scope espace tenu',
     enfant = r.id!;
     expect((await foldersWs(ids.wsA)).find((f) => f.id === enfant)!.brandId).toBe(ids.brandA1);
   });
-  it('renommerDossierAction · le nom change', async () => {
-    expect(await renommerDossierAction({ id: enfant, nom: 'Hiver 2026' })).toEqual({ ok: true });
-    expect((await foldersWs(ids.wsA)).find((f) => f.id === enfant)!.name).toBe('Hiver 2026');
-  });
-  it('deplacerDossierAction · poser le parent, et refuser un cycle', async () => {
-    // Déplacer la racine SOUS son propre enfant = cycle → refusé.
-    expect((await deplacerDossierAction({ id: racine, parentId: enfant })).ok).toBeUndefined();
-    // Déplacer l'enfant à la racine = permis.
-    expect(await deplacerDossierAction({ id: enfant, parentId: null })).toEqual({ ok: true });
-    expect((await foldersWs(ids.wsA)).find((f) => f.id === enfant)!.parentId).toBeNull();
-  });
   it('affecterAssetDossierAction · pose folderId, puis l’enlève', async () => {
     expect(await affecterAssetDossierAction({ assetId: A.image, folderId: racine })).toEqual({ ok: true });
     expect((await asset(A.image)).folderId).toBe(racine);
@@ -181,24 +168,19 @@ describe('Dossiers · member en Core · chaque geste marche, scope espace tenu',
     expect(await restaurerDossierAction({ id: racine })).toEqual({ ok: true });
     expect((await foldersWs(ids.wsA)).find((f) => f.id === racine)!.deletedAt).toBeNull();
   });
-  it('dossier SYSTÈME (verrouillé) · renommage, déplacement et suppression refusés · l’arbre ne bouge pas', async () => {
+  it('dossier SYSTÈME (verrouillé) · suppression refusée · l’arbre ne bouge pas', async () => {
     etat.session = session(ids, 'ua');
     const [sys] = await db!.insert(schema.libraryFolders).values({ workspaceId: ids.wsA, name: 'Système', locked: true }).returning();
-    // Une destination VIVANTE, même espace, même marque (null) que le dossier système.
-    const dest = (await creerDossierAction({ nom: 'Destination' })).id!;
-    expect((await renommerDossierAction({ id: sys!.id, nom: 'X' })).ok).toBeUndefined();
-    expect((await deplacerDossierAction({ id: sys!.id, parentId: dest })).ok).toBeUndefined();
     expect((await supprimerDossierAction({ id: sys!.id })).ok).toBeUndefined();
     const row = (await foldersWs(ids.wsA)).find((f) => f.id === sys!.id)!;
     expect(row.name).toBe('Système');
-    expect(row.parentId).toBeNull();   // le déplacement n’a pas touché l’arbre
+    expect(row.parentId).toBeNull();
     expect(row.deletedAt).toBeNull();
   });
-  it('un dossier d’un AUTRE espace reste hors d’atteinte (renommage, suppression)', async () => {
+  it('un dossier d’un AUTRE espace reste hors d’atteinte (suppression)', async () => {
     etat.session = session(ids, 'ub');
     const [fb] = await db!.insert(schema.libraryFolders).values({ workspaceId: ids.wsB, name: 'Privé B' }).returning();
     etat.session = session(ids, 'ua');
-    expect((await renommerDossierAction({ id: fb!.id, nom: 'Piraté' })).ok).toBeUndefined();
     expect((await supprimerDossierAction({ id: fb!.id })).ok).toBeUndefined();
     const row = (await db!.select().from(schema.libraryFolders).where(and(eq(schema.libraryFolders.id, fb!.id))))[0]!;
     expect(row.name).toBe('Privé B');

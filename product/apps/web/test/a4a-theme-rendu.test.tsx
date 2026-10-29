@@ -69,7 +69,7 @@ describe('layout racine · data-theme posé au rendu serveur', () => {
 describe('bascule client · cookie, attribut, barre', () => {
   afterEach(() => {
     document.cookie = `${THEME_COOKIE}=; Max-Age=0; Path=/`;
-    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.removeAttribute('data-theme'); document.documentElement.removeAttribute('data-theme-pref');
     document.head.innerHTML = '';
   });
 

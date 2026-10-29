@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
-import { CONNECTEURS_DISPONIBLES, FUSEAU_ACCUEIL, feuilleDeRouteConnecteurs, fraicheurConnecteur, messagesRetourConnexions } from '@tiktrends/core';
+import { CONNECTEURS_DISPONIBLES, FUSEAU_ACCUEIL, etatConnexionMeta, feuilleDeRouteConnecteurs, fraicheurConnecteur, messagesRetourConnexions } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
+import { lireConnexionMeta } from '../../../../lib/connexion-meta';
 import { connectMetaAction, connectShopifyAction, disconnectMetaAction, disconnectShopifyAction, getConnectionState, selectMetaAccountAction, syncMetaAction, syncShopifyAction } from '../../../actions/connections';
 import { disconnectDriveAction, getDriveState, syncDriveNowAction } from '../../../actions/drive';
 import { Connexions, type CarteConnexionVue } from '../../../../spatial/vues/reglages/Connexions';
@@ -19,11 +20,17 @@ export default async function ConnexionsSpatiales() {
   const [brand, etat, drive] = await Promise.all([getActiveBrand(s.workspaceId), getConnectionState(), getDriveState()]);
   const meta = etat?.meta ?? null;
   const shop = etat?.shopify ?? null;
+  // Meta · LA lecture et LA règle de l'Accueil, d'Analytics et du Radar (`lireConnexionMeta` →
+  // `etatConnexionMeta`) · la carte date par la dernière synchro réelle (KPI du compte OU mesure
+  // Adsmap), jamais par `meta_synced_at` seul, et dit le même libellé que les trois autres écrans.
+  const lue = brand ? await lireConnexionMeta(brand.id, s.workspaceId) : null;
+  const etatMeta = etatConnexionMeta(lue?.entree ?? { jeton: false, compte: false, comptes: 0, kpiLe: null, mesuresLe: null }, new Date());
+  const metaBranche = etatMeta.phase !== 'a_brancher';
 
   const cartes: CarteConnexionVue[] = [
-    { cle: 'meta', groupe: 'Résultats publicitaires', nom: 'Meta Ads', etape1: !meta?.connected,
+    { cle: 'meta', groupe: 'Résultats publicitaires', nom: 'Meta Ads', etape1: !metaBranche,
       description: 'Dépenses, impressions et achats de tes campagnes remontent dans TikTrends : c’est ce qui permet de conclure un test.',
-      connecte: !!meta?.connected, resume: meta?.connected ? [meta.adAccountId ?? 'compte à choisir', le(meta.syncedAt)].join(' · ') : null },
+      connecte: metaBranche, resume: [metaBranche ? meta?.adAccountId : null, etatMeta.libelle].filter(Boolean).join(' · ') },
     { cle: 'shopify', groupe: 'Produits et ventes', nom: 'Shopify', etape1: false,
       description: 'Les ventes et les produits de ta boutique remontent pour relier tes créas aux ventes réelles.',
       connecte: !!shop?.connected, resume: shop?.connected ? [shop.domain ?? 'boutique', le(shop.syncedAt)].join(' · ') : null },

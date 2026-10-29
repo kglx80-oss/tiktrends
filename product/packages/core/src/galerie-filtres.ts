@@ -8,8 +8,8 @@
  *
  * Le noyau ne connaît NI `AdItem`, NI le rendu · il reçoit des items déjà
  * réduits à leurs axes discrets (titre, format, date, état qualité, état
- * performance) et rend l'ordre filtré. L'écran dérive ces axes (via
- * `qualiteCarte`, le verdict) et réaffiche ses cartes dans cet ordre.
+ * performance) et rend l'ordre filtré. L'écran dérive ces axes et réaffiche
+ * ses cartes dans cet ordre.
  */
 
 export type CritereQualite = 'toutes' | 'prete' | 'a_verifier' | 'a_revoir' | 'non_verifiee';
