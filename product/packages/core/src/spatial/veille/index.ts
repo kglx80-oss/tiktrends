@@ -5,3 +5,4 @@ export * from './rapport';
 export * from './scale-outils';
 export * from './marche';
 export * from './radar-creatif';
+export * from './vues';
