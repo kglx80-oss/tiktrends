@@ -54,6 +54,8 @@ export const workspaces = pgTable('workspaces', {
   creditUnit: integer('credit_unit').notNull().$defaultFn(() => 10),
   creditUnitConvertedAt: timestamp('credit_unit_converted_at', { withTimezone: true }),
   subscriptionPeriodEnd: timestamp('subscription_period_end', { withTimezone: true }), // échéance de l'abonnement Stripe en cours (0062, préavis de bascule)
+  billingInterval: text('billing_interval'),                                  // « mensuel » / « annuel » (0063, offre V2)
+  nextAllocationAt: timestamp('next_allocation_at', { withTimezone: true }), // prochaine allocation mensuelle d'un annuel (0063)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

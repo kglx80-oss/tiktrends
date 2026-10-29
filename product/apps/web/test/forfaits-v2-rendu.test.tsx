@@ -96,12 +96,17 @@ describe('Forfaits · avec TARIFS_V2, l’offre V2', () => {
     for (const p of ['19 €', '79 €', '279 €']) expect(texte(html)).toContain(p);
   });
 
-  it('paiement configuré · tant que le Checkout V2 n’existe pas (PR G), les cartes V2 disent « Bientôt », jamais un « S’abonner » qui échouerait', async () => {
+  it('paiement configuré · une carte V2 se vend dès que SON prix est posé (« S’abonner » au prix de l’échéance), sinon « Bientôt », jamais un bouton qui échoue', async () => {
     process.env.TARIFS_V2 = '1';
     process.env.STRIPE_SECRET_KEY = 'sk_test_factice';
+    process.env.STRIPE_PRICE_PRO_MENSUEL = 'price_pro_m';
     etat.plan = 'starter';
-    const c = cartes(await rendre());
-    expect(c.every((x) => x.includes('|Bientôt|'))).toBe(true);
-    expect(c.some((x) => x.includes('S’abonner'))).toBe(false);
+    try {
+      const c = cartes(await rendre());
+      expect(c[1]).toContain('|S’abonner · 49 € / mois|');
+      expect(c[0]).toContain('|Bientôt|');
+      expect(c[2]).toContain('|Bientôt|');
+      expect(cartes(await rendre({ facturation: 'annuel' }))[1]).toContain('|Bientôt|'); // le prix ANNUEL de Pro n'est pas posé
+    } finally { delete process.env.STRIPE_PRICE_PRO_MENSUEL; }
   });
 });

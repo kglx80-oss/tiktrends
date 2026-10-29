@@ -11,16 +11,20 @@ import type { Plan } from './rbac';
  * signer de fausses requêtes.
  */
 
-const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
+const PLANS: Plan[] = ['starter', 'core', 'plus', 'business', 'essentiel', 'pro', 'agence'];
+type Facturation = 'mensuel' | 'annuel';
+const asFacturation = (v: unknown): Facturation | null => (v === 'annuel' || v === 'mensuel' ? v : null);
+/** Secondes Stripe → date · `null` si absente. */
+const date = (s: unknown): Date | null => (typeof s === 'number' && s > 0 ? new Date(s * 1000) : null);
 const asPlan = (v: unknown): Plan | null => (typeof v === 'string' && PLANS.includes(v as Plan) ? (v as Plan) : null);
 
 /** Ce que l'espace doit devenir. `refill` dit si l'allocation doit être re-servie. */
 export type StripeIntent =
   | { kind: 'ignore'; reason: string }
   | { kind: 'topup'; workspaceId: string | null; customerId: string | null; credits: number }
-  | { kind: 'plan'; workspaceId: string | null; customerId: string | null; plan: Plan; status: string; subscriptionId: string | null; refill: 'always' | 'if-plan-changed' }
+  | { kind: 'plan'; workspaceId: string | null; customerId: string | null; plan: Plan; status: string; subscriptionId: string | null; refill: 'always' | 'if-plan-changed'; facturation?: Facturation | null; finPeriode?: Date | null }
   | { kind: 'cancel'; workspaceId: string | null; customerId: string | null }
-  | { kind: 'renew'; customerId: string | null };
+  | { kind: 'renew'; customerId: string | null; finPeriode?: Date | null };
 
 /** Métadonnées d'une session : Stripe les renvoie en `Record<string, string>`. */
 function meta(o: { metadata?: Stripe.Metadata | null }): Record<string, string> {
@@ -58,7 +62,7 @@ function fromSession(session: Stripe.Checkout.Session, checkPaid: boolean): Stri
   }
   const plan = asPlan(m.plan);
   if (!plan) return { kind: 'ignore', reason: 'formule absente des métadonnées' };
-  return { kind: 'plan', workspaceId, customerId, plan, status: 'active', subscriptionId: idOf(session.subscription), refill: 'always' };
+  return { kind: 'plan', workspaceId, customerId, plan, status: 'active', subscriptionId: idOf(session.subscription), refill: 'always', facturation: asFacturation(m.facturation) };
 }
 
 /**
@@ -82,9 +86,13 @@ export function routeStripeEvent(event: Stripe.Event, planForPrice: (priceId?: s
       if (!plan) return { kind: 'ignore', reason: 'formule introuvable pour ce prix' };
       // Un simple changement de statut ou une action au portail ne doit PAS
       // re-créditer l'allocation : seul un vrai changement de formule le fait.
+      const item = sub.items?.data?.[0] as (Stripe.SubscriptionItem & { current_period_end?: number }) | undefined;
       return {
         kind: 'plan', workspaceId: m.workspaceId || null, customerId: idOf(sub.customer),
         plan, status: sub.status, subscriptionId: sub.id, refill: 'if-plan-changed',
+        // Offre V2 · l'intervalle du prix dit la facturation, l'élément porte l'échéance (préavis de bascule).
+        facturation: item?.price?.recurring?.interval === 'year' ? 'annuel' : item?.price?.recurring ? 'mensuel' : asFacturation(m.facturation),
+        finPeriode: date(item?.current_period_end ?? (sub as unknown as { current_period_end?: number }).current_period_end),
       };
     }
 
@@ -94,8 +102,10 @@ export function routeStripeEvent(event: Stripe.Event, planForPrice: (priceId?: s
     }
 
     // Renouvellement : la formule courante est lue en base (elle fait foi).
-    case 'invoice.paid':
-      return { kind: 'renew', customerId: idOf((event.data.object as Stripe.Invoice).customer) };
+    case 'invoice.paid': {
+      const inv = event.data.object as Stripe.Invoice;
+      return { kind: 'renew', customerId: idOf(inv.customer), finPeriode: date(inv.lines?.data?.[0]?.period?.end) };
+    }
 
     default:
       return { kind: 'ignore', reason: `type non traité (${event.type})` };

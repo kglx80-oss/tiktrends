@@ -151,6 +151,7 @@ const EXCEPTIONS: Record<string, string> = {
   'app/api/oauth/meta/callback/route.ts': 'callback OAuth',
   'app/api/oauth/shopify/callback/route.ts': 'callback OAuth',
   'app/api/cron/adsmap/route.ts': 'cron protégé',
+  'app/api/cron/allocations/route.ts': 'cron protégé (allocation mensuelle des abonnés annuels, offre V2)',
   'app/api/cron/digest/route.ts': 'cron protégé',
   'app/api/cron/radar/route.ts': 'cron protégé',
   'app/api/cron/tracker/route.ts': 'cron protégé',

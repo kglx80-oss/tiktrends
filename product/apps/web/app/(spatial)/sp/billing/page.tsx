@@ -9,7 +9,7 @@ import { getSession } from '../../../../lib/auth';
 import { PLAN_CREDITS, PLAN_LABEL, PLAN_PRICE, roleAtLeast, type Plan } from '../../../../lib/rbac';
 import { unlimitedCredits } from '../../../../lib/credits';
 import { CREDIT_PACKS } from '../../../../lib/credit-packs';
-import { planPurchasable, stripeConfigured } from '../../../../lib/stripe';
+import { planPurchasable, priceIdForV2, stripeConfigured } from '../../../../lib/stripe';
 import { createCheckoutAction, createPortalAction, createTopupCheckoutAction } from '../../../actions/stripe';
 import { Forfaits } from '../../../../spatial/vues/reglages/Forfaits';
 import { SOUS_NAV_REGLAGES } from '../../../../spatial/vues/reglages/sous-nav';
@@ -66,7 +66,7 @@ export default async function ForfaitsSpatial({ searchParams }: { searchParams?:
   const facturation = lireFacturation((await searchParams)?.facturation);
   const rechargesDuForfait = forfaitRechargesV2(plan);
   const formules = v2
-    ? cartesForfaitsV2({ plan, facturation, proprietaire, paiement, abonne, achetable: () => false /* le paiement V2 (Checkout, Stripe Tax, prix par variable) arrive avec la PR G · d'ici là « Bientôt », jamais un bouton qui échoue */ }).map((c) => ({
+    ? cartesForfaitsV2({ plan, facturation, proprietaire, paiement, abonne, achetable: (k, f) => !!priceIdForV2(k, f) /* vendable dès que le prix de la variable est posé (`docs/FACTURATION-STRIPE.md`) */ }).map((c) => ({
       cle: c.cle, nom: c.nom, accroche: c.accroche, prix: c.prix, parMois: true, periode: c.periode, sousPrix: c.sousPrix, credits: c.credits,
       fonctions: c.fonctions, limites: c.limites, engagement: c.engagement, etiquette: c.etiquette, radar: true,
       actuelle: c.actuelle, miseEnAvant: c.miseEnAvant, bouton: c.bouton,

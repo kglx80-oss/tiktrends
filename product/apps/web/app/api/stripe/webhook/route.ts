@@ -1,81 +1,13 @@
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { PLAN_CREDITS, type Plan } from '../../../../lib/rbac';
-import { allouerFormule, convertirUniteEspace } from '../../../../lib/credits';
 import { getStripe, planForPrice } from '../../../../lib/stripe';
-import { routeStripeEvent, type StripeIntent } from '../../../../lib/stripe-events';
+import { routeStripeEvent } from '../../../../lib/stripe-events';
+import { runIntent } from '../../../../lib/stripe-webhook';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-/**
- * Applique une formule à un espace : plan + statut, et renouvelle l'allocation SANS
- * effacer les crédits achetés en recharge (cf. allouerFormule, règle `allouerPoches`).
- */
-async function applyPlan(workspaceId: string, plan: Plan, opts: { status?: string; subscriptionId?: string | null; refill?: boolean }) {
-  if (!db) return;
-  const set: Record<string, unknown> = { plan };
-  if (opts.status !== undefined) set.subscriptionStatus = opts.status;
-  if (opts.subscriptionId !== undefined) set.stripeSubscriptionId = opts.subscriptionId;
-  await db.update(schema.workspaces).set(set).where(eq(schema.workspaces.id, workspaceId));
-  if (!opts.refill) return;
-
-  await allouerFormule(workspaceId, PLAN_CREDITS[plan] ?? 0, `Abonnement ${plan} · allocation`);
-}
-
-async function workspaceIdFromCustomer(customerId: string | null): Promise<string | null> {
-  if (!db || !customerId) return null;
-  const [w] = await db.select({ id: schema.workspaces.id }).from(schema.workspaces).where(eq(schema.workspaces.stripeCustomerId, customerId)).limit(1);
-  return w?.id ?? null;
-}
-
-/** Résout l'espace : métadonnées de l'événement d'abord, client Stripe en repli. */
-async function resolveWorkspace(i: { workspaceId?: string | null; customerId?: string | null }): Promise<string | null> {
-  return i.workspaceId || (await workspaceIdFromCustomer(i.customerId ?? null));
-}
-
-/** Exécute l'intention décidée par routeStripeEvent. */
-async function runIntent(intent: StripeIntent): Promise<void> {
-  if (!db || intent.kind === 'ignore') return;
-
-  if (intent.kind === 'topup') {
-    const workspaceId = await resolveWorkspace(intent);
-    if (!workspaceId) return;
-    await convertirUniteEspace(workspaceId); // `intent.credits` est dans la nouvelle unité (`creditsRecharge`)
-    await db.update(schema.workspaces)
-      .set({ creditsBalance: sql`${schema.workspaces.creditsBalance} + ${intent.credits}` })
-      .where(eq(schema.workspaces.id, workspaceId));
-    await db.insert(schema.creditLedger).values({ workspaceId, delta: intent.credits, reason: 'Recharge de crédits (Stripe)' });
-    return;
-  }
-
-  if (intent.kind === 'cancel') {
-    const workspaceId = await resolveWorkspace(intent);
-    if (workspaceId) await applyPlan(workspaceId, 'starter', { status: 'canceled', subscriptionId: null, refill: true });
-    return;
-  }
-
-  if (intent.kind === 'renew') {
-    const workspaceId = await resolveWorkspace(intent);
-    if (!workspaceId) return;
-    const [w] = await db.select({ plan: schema.workspaces.plan }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-    const plan = (w?.plan as Plan) || null;
-    if (plan && plan !== 'starter') await applyPlan(workspaceId, plan, { status: 'active', refill: true });
-    return;
-  }
-
-  // intent.kind === 'plan'
-  const workspaceId = await resolveWorkspace(intent);
-  if (!workspaceId) return;
-  let refill = intent.refill === 'always';
-  if (intent.refill === 'if-plan-changed') {
-    const [cur] = await db.select({ plan: schema.workspaces.plan }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-    refill = cur?.plan !== intent.plan && intent.status === 'active';
-  }
-  await applyPlan(workspaceId, intent.plan, { status: intent.status, subscriptionId: intent.subscriptionId, refill });
-}
 
 export async function POST(req: Request) {
   const stripe = getStripe();

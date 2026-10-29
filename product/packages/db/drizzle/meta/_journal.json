@@ -442,6 +442,13 @@
       "when": 1792900000000,
       "tag": "0062_echeance_abonnement",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1793000000000,
+      "tag": "0063_facturation_annuelle",
+      "breakpoints": true
     }
   ]
 }
