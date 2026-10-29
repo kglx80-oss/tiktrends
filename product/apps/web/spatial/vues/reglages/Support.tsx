@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { AnnonceRetour } from '../marque/interactifs';
 
@@ -78,6 +79,20 @@ export interface PropsTicket {
   retours: Record<string, string>;
 }
 
+/**
+ * Planche finale · G11 · la maquette porte une règle GLOBALE `.sm` (la bulle de
+ * message du SAV · `padding: 12px 14px`, `max-width: 85%`, ligne 1932 de
+ * `spatial.css`) qui atteint aussi `.btn.sm` et `.savav.sm` :
+ *  · un bouton de statut ne garde que 85 % de son formulaire (largeur ajustée
+ *    au bouton) · « En cours » passe sur deux lignes, « Ouvert » et « Résolu »
+ *    débordent de leur marge intérieure ;
+ *  · l'avatar de 30 × 30 garde 2 px de contenu une fois la marge de la bulle
+ *    retirée · « SU », « YH » sont rognés.
+ * Mesuré au banc (1280) : bouton 71 × 50 px, avatar `padding: 12px 14px`.
+ */
+const BOUTON_SANS_BULLE: CSSProperties = { maxWidth: 'none' };
+const AVATAR_SANS_BULLE: CSSProperties = { padding: 0 };
+
 export function Ticket(p: PropsTicket) {
   const t = p.ticket;
   return (
@@ -96,7 +111,7 @@ export function Ticket(p: PropsTicket) {
               <form key={s.cle} action={p.changerStatut!}>
                 <input type="hidden" name="ticketId" value={t.id} />
                 <input type="hidden" name="status" value={s.cle} />
-                <button className={`btn sm${t.statutCle === s.cle ? ' pri' : ''}`} type="submit" disabled={t.statutCle === s.cle} aria-pressed={t.statutCle === s.cle}>{s.libelle}</button>
+                <button className={`btn sm${t.statutCle === s.cle ? ' pri' : ''}`} type="submit" disabled={t.statutCle === s.cle} aria-pressed={t.statutCle === s.cle} style={BOUTON_SANS_BULLE}>{s.libelle}</button>
               </form>
             ))}
           </div>
@@ -104,9 +119,9 @@ export function Ticket(p: PropsTicket) {
         <div className="savconv" data-geste="fil">
           <div className="savsys">Ticket ouvert par {t.ouvertPar} · {t.ouvertLe}</div>
           {p.fil.map((m) => m.equipe ? (
-            <div className="savmsg a" key={m.id}><div className="savbub"><small>{m.auteur} · équipe · {m.le}</small><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.corps}</p></div><span className="savav sm" style={{ background: 'linear-gradient(135deg,var(--acc),var(--acc2))', color: 'var(--on)' }}>{m.initiales}</span></div>
+            <div className="savmsg a" key={m.id}><div className="savbub"><small>{m.auteur} · équipe · {m.le}</small><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.corps}</p></div><span className="savav sm" style={{ background: 'linear-gradient(135deg,var(--acc),var(--acc2))', color: 'var(--on)', ...AVATAR_SANS_BULLE }}>{m.initiales}</span></div>
           ) : (
-            <div className="savmsg c" key={m.id}><span className="savav sm" style={{ background: 'var(--glass3)', color: 'var(--fg)' }}>{m.initiales}</span><div className="savbub"><small>{m.auteur} · {m.le}</small><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.corps}</p></div></div>
+            <div className="savmsg c" key={m.id}><span className="savav sm" style={{ background: 'var(--glass3)', color: 'var(--fg)', ...AVATAR_SANS_BULLE }}>{m.initiales}</span><div className="savbub"><small>{m.auteur} · {m.le}</small><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{m.corps}</p></div></div>
           ))}
           {p.fil.length === 0 && <div className="savsys">Aucun message dans ce fil pour l’instant.</div>}
           {t.statutCle === 'resolved' && <div className="savsys g"><Ic n="check" />Ticket résolu</div>}
