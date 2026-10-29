@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import { segmentsHypothese, LIBELLE_NIVEAU, LIBELLE_PRIORITE, type NiveauPreuve } from '@tiktrends/core';
-import { EnTete, Lien, SousNav, Vue } from '../../communs';
+import { CREA_ENTIERE, EnTete, ETIQUETTE_HORS_CREA, Lien, SousNav, Vue } from '../../communs';
 
 /**
  * Les briques locales de la rubrique Résultats · SANS état, utilisables côté
@@ -9,13 +9,13 @@ import { EnTete, Lien, SousNav, Vue } from '../../communs';
  * le reste.
  */
 
-/** Une créa (`div.ad`) · son média RÉEL, ou un cadre vide honnête · jamais l'image d'exemple. */
+/** Une créa (`div.ad`) · son média RÉEL, entier, ou un cadre vide honnête · jamais l'image d'exemple. L'étiquette ne la masque pas (D5). */
 export function Pub({ texte, image, classe, tag, r916 }: { texte: ReactNode; image: string | null; classe?: string; tag?: ReactNode; r916?: boolean }) {
   return (
     <div className={['ad', r916 ? 'r916' : '', classe ?? ''].filter(Boolean).join(' ')}>
-      <div className="ph">{image && <img src={image} alt="" />}</div>
+      <div className="ph">{image && <img src={image} alt="" style={CREA_ENTIERE} />}</div>
       <div className="band">{texte}</div>
-      {tag != null && <span className="tag">{tag}</span>}
+      {tag != null && <span className="tag" style={ETIQUETTE_HORS_CREA}>{tag}</span>}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import type {
   AFaireMaintenant, ChiffresClesMeta, KpiAccueil, CarteConfiguration, CarteQuoiIterer, EtapeBoucleAccueil, LigneReprendre, NouveauteAccueil,
   PeriodeReporting, RaccourciAccueil, SyntheseReporting, TonVariation,
 } from '@tiktrends/core';
-import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
+import { CREA_ENTIERE, EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { BarreJarvis, CarteConfigurationAccueil, ChoixPeriode } from './interactifs';
 import { AssistantAccueil } from './assistant';
 import type { OngletAccueil } from './Analytics';
@@ -66,7 +66,7 @@ export interface PropsAccueil {
 function Pub({ url, r916 = false, classe = '', bande = ' ' }: { url: string | null; r916?: boolean; classe?: string; bande?: string }) {
   return (
     <div className={`ad ${r916 ? 'r916' : ''}  ${classe}`}>
-      <div className="ph">{url && <img src={url} alt="" loading="lazy" />}</div>
+      <div className="ph">{url && <img src={url} alt="" loading="lazy" style={CREA_ENTIERE} />}</div>
       <div className="band">{bande}</div>
     </div>
   );

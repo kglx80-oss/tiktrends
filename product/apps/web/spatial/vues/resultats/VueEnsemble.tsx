@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { KpiResultats, NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Points, Pub, rangeeVariantes, type SousNavResultats } from './communs';
@@ -53,6 +54,14 @@ export interface PropsVueEnsemble {
   outils?: ReadonlyArray<{ href: string; libelle: string; icone: string }>;
 }
 
+/**
+ * D5 · la pastille « Gagnante » (`.rvwin`) était posée sur la créa, en haut à
+ * gauche, sur son accroche. Elle passe sous la légende de la variante · une
+ * rangée APRÈS la barre, pour que les barres restent alignées d'une variante
+ * à l'autre.
+ */
+const GAGNANTE_SOUS_LA_CREA: CSSProperties = { position: 'static', order: 1, justifySelf: 'start' };
+
 export function VueEnsemble(p: PropsVueEnsemble) {
   const v = p.vedette;
   return (
@@ -74,7 +83,7 @@ export function VueEnsemble(p: PropsVueEnsemble) {
               {v.variantes.map((x) => (
                 <figure className={`rvf ${x.gagnante ? 'best' : ''}`} key={x.id}>
                   <Pub texte={x.texte} image={x.image} classe={x.gagnante ? 'won' : undefined} />
-                  {x.gagnante && <span className="rvwin">Gagnante</span>}
+                  {x.gagnante && <span className="rvwin" style={GAGNANTE_SOUS_LA_CREA}>Gagnante</span>}
                   <div className="rvbw"><div className="rvbar" style={{ height: `${x.barre.part}%` }}>{x.barre.libelle}</div></div>
                   <figcaption><b>{x.variante}</b> · {x.categorie}</figcaption>
                 </figure>

@@ -4,7 +4,7 @@ import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ChoixIterationSpatial } from '@tiktrends/core';
-import { parite, squelette, fragmentReference } from './spatial/parite';
+import { parite, squelette, fragmentReference, type CorrectifParite } from './spatial/parite';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -94,6 +94,11 @@ const CHOIX = [
 
 /* ─────────────────────────────── 1 · parité ─────────────────────────────── */
 
+/** Correctif DÉCLARÉ (planche finale, D5) · l'étiquette d'une créa ne se pose plus sur son accroche. */
+const CORRECTIFS_CREAS: CorrectifParite[] = [
+  { selecteur: '.ad .tag', style: ['position', 'order', 'align-self', 'margin', 'background', 'backdrop-filter', '-webkit-backdrop-filter'], motif: 'D5 · « Gagnante » posée sur le titre de la créa (Studios, prochaines itérations)' },
+];
+
 describe('Spatial · Studios · parité de structure avec la maquette', () => {
   it('« Studios » reproduit la maquette', () => {
     // La recherche de projets (geste de l'ancienne interface, vague 2) n'a pas d'équivalent dans la maquette · retirée ici, gardée par son propre test.
@@ -109,6 +114,7 @@ describe('Spatial · Studios · parité de structure avec la maquette', () => {
         // Carte 1 de la maquette = lot « à conclure » (« Conclure d’abord ») · le plan réel ne montre que des verdicts arbitrés.
         '.itc:first-child .foot2',
       ],
+      correctifs: CORRECTIFS_CREAS,
     });
     expect(p.rendu).toEqual(p.reference);
   });
@@ -182,6 +188,19 @@ afterEach(() => { act(() => { root?.unmount(); }); document.body.innerHTML = '';
 const monter = async (n: ReactNode) => { await act(async () => { root!.render(<FournisseurSpatial value={CTX}>{n}</FournisseurSpatial>); }); };
 const cliquer = async (b: Element | null | undefined) => { expect(b, 'élément à cliquer').toBeTruthy(); await act(async () => { (b as HTMLElement).click(); }); };
 const boutons = (sel: string, texte: string | RegExp) => [...document.querySelectorAll(sel)].find((b) => (typeof texte === 'string' ? b.textContent === texte : texte.test(b.textContent ?? '')));
+
+describe('Spatial · Studios · une créa n’est jamais rognée ni masquée (planche finale, D5)', () => {
+  it('« Prochaines itérations » · l’image entière, « Gagnante » hors de l’image', () => {
+    const t = document.createElement('template');
+    t.innerHTML = rendre(<Studios {...propsStudios()} />);
+    const imgs = [...t.content.querySelectorAll<HTMLImageElement>('.ad .ph img')];
+    expect(imgs.length).toBeGreaterThan(0);
+    expect(imgs.every((i) => i.style.objectFit === 'contain'), 'créa rognée en haut (`cover`)').toBe(true);
+    const tags = [...t.content.querySelectorAll<HTMLElement>('.ad .tag')];
+    expect(tags.length, 'le jeu de données n’a aucune étiquette').toBeGreaterThan(0);
+    expect(tags.map((x) => x.style.position), '« Gagnante » posée sur le titre de la créa').toEqual(Array(tags.length).fill('static'));
+  });
+});
 
 describe('Spatial · Studios · les gestes appellent les vraies actions', () => {
   it('filtrer par étape ne montre que les projets de cette étape · le compteur est réel', async () => {
