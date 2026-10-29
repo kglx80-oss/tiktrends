@@ -4,6 +4,9 @@ import { getSession } from '../../lib/auth';
 import { isFounder } from '../../lib/founder';
 import { getStripe, priceIdFor } from '../../lib/stripe';
 import { PLAN_PRICE, PLAN_LABEL, type Plan } from '../../lib/rbac';
+import { personnelPlateforme } from '../../lib/personnel-plateforme';
+import { lireOffreV2 } from '../../lib/stripe-offre-v2';
+import { EVENEMENTS_WEBHOOK_STRIPE, type DiagnosticOffreV2 } from '@tiktrends/core';
 
 /**
  * Diagnostic de la chaîne de paiement · fondateur uniquement.
@@ -30,14 +33,8 @@ export interface StripeDiagnostic {
 
 const PAID: Array<Exclude<Plan, 'starter'>> = ['core', 'plus', 'business'];
 
-/** Événements que le webhook sait traiter · l'endpoint doit tous les envoyer. */
-const NEEDED_EVENTS = [
-  'checkout.session.completed',
-  'checkout.session.async_payment_succeeded',
-  'customer.subscription.updated',
-  'customer.subscription.deleted',
-  'invoice.paid',
-];
+/** Événements que le webhook sait traiter · l'endpoint doit tous les envoyer (liste du noyau, gardée face au routeur). */
+const NEEDED_EVENTS = EVENEMENTS_WEBHOOK_STRIPE;
 
 const appUrl = () => (process.env.APP_URL || 'https://app.tiktrends.co').replace(/\/$/, '');
 const eur = (cents: number) => (cents / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2 });
@@ -136,4 +133,23 @@ export async function runStripeDiagnosticAction(): Promise<StripeDiagnostic> {
   }
 
   return { mode: liveKey ? 'live' : 'test', checks };
+}
+
+export type ResultatOffreV2 = { ok: true; diagnostic: DiagnosticOffreV2 } | { ok: false; message: string };
+
+/**
+ * « Prêt pour l'offre V2 ? » · personnel de la plateforme uniquement. Lecture
+ * SEULE de Stripe (prix, Stripe Tax, webhook, portail), déclenchée par le
+ * bouton « Vérifier », jamais à l'affichage · chaque lecture bornée
+ * (`DELAI_LECTURE_STRIPE_MS`). La règle (prix attendu face au prix lu) vit dans
+ * le noyau (`diagnosticOffreV2`) · aucune valeur de secret n'est rendue.
+ */
+export async function verifierOffreV2Action(): Promise<ResultatOffreV2> {
+  const s = await getSession();
+  if (!personnelPlateforme(s)) return { ok: false, message: 'Réservé au personnel de la plateforme.' };
+  try {
+    return { ok: true, diagnostic: await lireOffreV2(getStripe(), process.env, { urlWebhook: `${appUrl()}/api/stripe/webhook` }) };
+  } catch {
+    return { ok: false, message: 'Vérification impossible · le serveur n’a pas pu interroger Stripe, réessaie dans un instant.' };
+  }
 }

@@ -112,7 +112,7 @@ Les deux tâches planifiées de la facturation (point 5) passent par `CRON_SECRE
   SELECT id, plan, next_allocation_at FROM workspaces WHERE billing_interval = 'annuel';
   ```
 - **Tâches planifiées** : dans les journaux des workers, `[cron] completed allocations-annuelles` et `[cron] completed bascule-forfaits`. La réponse de `/api/cron/bascule-forfaits` donne le nombre d'échéanciers posés.
-- **Diagnostic ADMIN (Stripe & Whop)** : il vérifie aujourd'hui les trois prix actuels, pas encore les six prix V2. Contrôle-les à la main dans Stripe : actif, EUR, récurrent, taxe incluse.
+- **Diagnostic ADMIN (Stripe & Whop)** : la section **« Prêt pour l'offre V2 ? »** (personnel de la plateforme) lit Stripe en lecture seule au clic sur « Vérifier » et dit, ligne par ligne (OK · À faire · Erreur) avec le geste correctif : la clé secrète et son mode (par le préfixe seulement, jamais la valeur), le secret du webhook, les six `STRIPE_PRICE_<FORFAIT>_<MENSUEL|ANNUEL>` (existant, actif, EUR, montant TTC du code, récurrence, taxe incluse, même mode que la clé), les recharges posées, `CRON_SECRET`, Stripe Tax, l'endpoint webhook et ses événements, le portail client (annulation, changement entre les six prix), puis l'état de `TARIFS_V2`. Sa dernière phrase dit « Tout est prêt, tu peux poser TARIFS_V2=1 » ou ce qui manque. La règle vit dans `product/packages/core/src/offre/diagnostic-v2.ts`.
 
 ## 7. Starter (non appliqué · à décider)
 
