@@ -1,5 +1,9 @@
 # Inventaire V5 ↔ code réel · Résultats, Jarvis, ADMIN+ (lecture seule, origin/main 394ed04)
 
+> **Historique · 29/10/2026.** L'interface V5 a été retirée (#941) · la référence
+> vivante est `docs/spatial/`. Cet inventaire est gardé tel quel · ses chemins
+> (`app/(app)/…`, `AppShell`, `components/…`) ne désignent plus forcément du code présent.
+
 **Conventions.** `web/` = `product/apps/web/`. « proto » = `proto5/` : c'est la couche la plus récente qui s'affiche. Pour chaque vue :
 - #results : v5-r4 ;
 - #hypotheses, #lots, #learning : v5-r5 ;
