@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { FEATURES } from '../lib/rbac';
-import { matchRoute } from '../lib/navigation';
 
 /**
  * Recette #106 · deux promesses que l'outil ne tient pas.
@@ -16,9 +15,8 @@ const fichiers = (d: string): string[] => readdirSync(d).flatMap((f) => {
 });
 
 describe('Radar créatif · un seul nom, fidèle à ce que fait la page', () => {
-  it('menu, fil d’Ariane, titre, lien Veille et carte Accueil disent « Radar créatif »', () => {
+  it('menu, titre, lien Veille et carte Accueil disent « Radar créatif »', () => {
     expect(FEATURES.find((f) => f.key === 'radar')!.label).toBe('Radar créatif');
-    expect(matchRoute('/radar')?.label).toBe('Radar créatif');
     const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
     // Vague 4 · les pages V5 `/radar` et `/veille` sont retirées · le Radar créatif est la section
     // « Tes créas notées » du Radar Spatial.

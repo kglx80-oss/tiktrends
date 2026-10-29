@@ -9,7 +9,7 @@ import { createHmac } from 'node:crypto';
  * (recherche, filtres, page) et la carte d'où l'on est parti.
  *
  * On parcourt la carte `ROUTES_HISTORIQUES` (`lib/navigation.ts`) : chaque
- * chemin est déclaré dans `ROUTES`, sa page existe, et elle lit encore chaque
+ * chemin a sa page, et elle lit encore chaque
  * paramètre que des liens en circulation portent. Puis on suit le vrai chemin
  * du retour : critères de la Veille → `contexteVeille` (carte) → nettoyage
  * serveur à la création (`retourNettoye`) → fiche projet Spatiale (`retourVeilleProjet`,
@@ -31,7 +31,7 @@ import {
   contexteVeille, lireCriteresVeille, ancreCarteVeille, annonceObservee, referenceSource, lienRetourVeille, PARAM_RETOUR_VEILLE, retourVeilleProjet,
   ANCIENNES_ADRESSES_STUDIO, CHEMIN_PROJETS, CHEMIN_NOUVEAU_PROJET, PARAMS_NOUVEAU_PROJET, destinationAncienneAdresse,
 } from '@tiktrends/core';
-import { ROUTES, ROUTES_HISTORIQUES, matchRoute } from '../lib/navigation';
+import { ROUTES_HISTORIQUES } from '../lib/navigation';
 import { studioDepuisVeille } from '../lib/veille-link';
 import { retourNettoye } from '../lib/studios/sources/sources';
 import StudioPage from '../app/studio/page';
@@ -45,9 +45,7 @@ describe('UX-05 · chaque route historique est servie et lit encore ses paramèt
     expect(new Set(ROUTES_HISTORIQUES.map((r) => r.origine))).toEqual(new Set(['Studio', 'Pubs IA', 'Veille']));
   });
   for (const r of ROUTES_HISTORIQUES) {
-    it(`${r.chemin} · déclarée, page présente${r.params.length ? `, lit ${r.params.join(', ')}` : ''}`, () => {
-      expect(ROUTES.some((x) => x.path === r.chemin), `${r.chemin} a quitté la carte ROUTES`).toBe(true);
-      expect(matchRoute(r.chemin.replace('[id]', '00000000-0000-4000-8000-000000000000'))?.path).toBe(r.chemin);
+    it(`${r.chemin} · page présente${r.params.length ? `, lit ${r.params.join(', ')}` : ''}`, () => {
       const f = fichierPage(r.chemin);
       expect(f, `${r.chemin} n’a plus de page · les liens existants mèneraient à un 404`).not.toBeNull();
       const source = readFileSync(f!, 'utf8');

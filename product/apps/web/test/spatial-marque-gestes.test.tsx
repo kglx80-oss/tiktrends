@@ -75,7 +75,7 @@ describe('Spatial · Identité · toute la fiche se modifie, même déjà rempli
   });
   it('la liste couvre EXACTEMENT les champs de `updateBrandAction`', () => {
     const src = readFileSync(join(process.cwd(), 'app/actions/brands.ts'), 'utf8');
-    const corps = src.slice(src.indexOf('export async function updateBrandAction'), src.indexOf('export async function renameBrandAction'));
+    const corps = src.slice(src.indexOf('export async function updateBrandAction'), src.indexOf('export async function deleteBrandAction'));
     const lus = [...corps.matchAll(/formData\.get\('(\w+)'\)/g)].map((m) => m[1]!).filter((c) => c !== 'id');
     expect([...new Set(lus)].sort()).toEqual([...CHAMPS_PROFIL_MARQUE].sort());
   });
