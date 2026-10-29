@@ -1,6 +1,9 @@
 'use server';
 
-import type { ErreurStudio, ExportBrief } from '@tiktrends/core';
+import { erreurStudio, type ErreurStudio, type ExportBrief } from '@tiktrends/core';
+import { and, eq } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
+import { refusCloneVideoEspace } from '../../../lib/droits-forfait';
 import { gardeSources } from '../../../lib/studios/sources/acces';
 import { refusCapacite } from '../../../lib/studios/interrupteurs';
 import { getSession } from '../../../lib/auth';
@@ -31,6 +34,20 @@ import type { VueSource } from '../../../lib/studios/sources/sources';
  */
 
 type Reponse<T> = ({ ok: true } & T) | ErreurStudio;
+
+/**
+ * Droits du forfait (29/10, point 6) · cloner une pub (une source de Veille ou
+ * une sauvegarde) en VIDÉO est inclus dès Pro. Refusé au serveur, dans la
+ * commande canonique (toute entrée y passe), avant toute écriture · le refus
+ * nomme le forfait qui débloque. Sans `TARIFS_V2`, aucun refus (`forfaitEffectif`).
+ */
+async function refusClone(ctx: { workspaceId: string; traceId: string }, kind: unknown, aDesSources: boolean): Promise<ErreurStudio | null> {
+  if (kind !== 'video' || !aDesSources) return null;
+  const refus = await refusCloneVideoEspace(ctx.workspaceId);
+  return refus ? erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, targetIds: [], message: refus }) : null;
+}
+/** Une pub parmi les sources (annonce de Veille ou sauvegarde) · une création de la marque n'est pas un clone. */
+const contientUnePub = (v: unknown) => Array.isArray(v) && v.some((e) => !(typeof e === 'object' && e !== null && (e as { type?: unknown }).type === 'creation'));
 
 /** Lecture · la préparation d'une création (sources figées, marque, produits, IA). */
 export async function preparerCreation(entree: { sources: unknown; brandId?: unknown }): Promise<Reponse<Preparation>> {
@@ -77,6 +94,8 @@ export async function creerProjetDepuisSources(entree: EntreeCreationDepuisSourc
   if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
   if (coupe) return coupe;
+  const clone = await refusClone(g.ctx, entree?.kind, contientUnePub(entree?.sources));
+  if (clone) return clone;
   const { creerProjetDepuisSourcesPour } = await import('../../../lib/studios/sources/projet');
   return creerProjetDepuisSourcesPour(g.ctx, {
     sources: entree?.sources, brandId: entree?.brandId, kind: entree?.kind, titre: entree?.titre, objectif: entree?.objectif,
@@ -94,6 +113,8 @@ export async function creerProjetDepuisContexte(entree: { brandId: unknown; kind
   if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
   if (coupe) return coupe;
+  const clone = await refusClone(g.ctx, entree?.kind, entree?.ref !== undefined && entree?.ref !== null && entree?.ref !== '');
+  if (clone) return clone;
   const { creerProjetDepuisContextePour } = await import('../../../lib/studios/sources/projet');
   return creerProjetDepuisContextePour(g.ctx, {
     brandId: entree?.brandId, kind: entree?.kind, titre: entree?.titre, objectif: entree?.objectif,
@@ -113,6 +134,12 @@ export async function ajouterSourcesAuProjet(entree: { projectId: unknown; sourc
   if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
   if (coupe) return coupe;
+  if (db && typeof entree?.projectId === 'string' && /^[0-9a-f-]{36}$/i.test(entree.projectId)) {
+    const [p] = await db.select({ kind: schema.studioProjects.kind }).from(schema.studioProjects)
+      .where(and(eq(schema.studioProjects.id, entree.projectId), eq(schema.studioProjects.workspaceId, g.ctx.workspaceId))).limit(1);
+    const clone = await refusClone(g.ctx, p?.kind, contientUnePub(entree?.sources));
+    if (clone) return clone;
+  }
   const { ajouterSourcesAuProjetPour } = await import('../../../lib/studios/sources/projet');
   return ajouterSourcesAuProjetPour(g.ctx, { projectId: entree?.projectId, sources: entree?.sources }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }

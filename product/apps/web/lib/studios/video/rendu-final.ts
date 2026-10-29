@@ -8,6 +8,8 @@ import {
   type ContenuVersion, type ErreurStudio, type PlanRenduFinal, type StockageStudio,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
+import { refusDureeVideo } from '@tiktrends/core';
+import { forfaitEffectifEspace } from '../../droits-forfait';
 import { lireProjet, lireVersion, lireAsset } from '../depot';
 import { ajouterAudit } from '../audit';
 import { lireMediaDansPortee, lecteurMedias, type LecteurMedias } from '../rendu/medias';
@@ -93,6 +95,10 @@ export async function planVideoFinale(ctx: ContexteStudio, projectId: unknown, l
       message: r.violations.map((x) => x.raison).join(' '),
     });
   }
+  // Droits du forfait (29/10, point 6) · durée maximale de la vidéo finale, refusée au serveur avant tout rendu.
+  // Sans TARIFS_V2, aucun forfait n'a de limite ici (`forfaitEffectif`) · comportement d'aujourd'hui.
+  const refusDuree = refusDureeVideo(await forfaitEffectifEspace(ctx.workspaceId), r.plan.dureeMs);
+  if (refusDuree) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, targetIds: [], violations: [{ chemin: 'video.dureeMs', raison: refusDuree }], message: refusDuree });
   return { ok: true, plan: r.plan, projet: { id: projet.id, brandId: projet.brandId, workspaceId: projet.workspaceId }, versionId: v.version.id, musique: octetsMusique };
 }
 

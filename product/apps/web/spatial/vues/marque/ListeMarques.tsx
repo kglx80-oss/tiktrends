@@ -23,6 +23,8 @@ export interface PropsListeMarques {
   retours: Record<string, string>;
   choisir: (id: string) => Promise<void>;
   supprimer: ((fd: FormData) => Promise<void>) | null;
+  /** Le forfait n'ouvre plus de marque (`refusNouvelleMarque`) · le motif et le forfait qui la lève, AVANT le clic. */
+  limite?: string | null;
 }
 
 const pluriel = (n: number, un: string, plusieurs: string) => `${n} ${n > 1 ? plusieurs : un}`;
@@ -35,8 +37,11 @@ export function ListeMarques(p: PropsListeMarques) {
       <section className="sec">
         <div className="sech">
           <h2>Tes marques ({p.marques.length})</h2>
-          <Lien className="btn pri sm" href="/brands/new" style={{ marginLeft: 'auto' }}><Ic n="plus" />Nouvelle marque</Lien>
+          {p.limite
+            ? <Lien className="btn sm" href="/billing" style={{ marginLeft: 'auto' }}><Ic n="lock" />Voir les forfaits</Lien>
+            : <Lien className="btn pri sm" href="/brands/new" style={{ marginLeft: 'auto' }}><Ic n="plus" />Nouvelle marque</Lien>}
         </div>
+        {p.limite && <p className="muted" data-limite="marques" style={{ fontSize: 13, margin: '0 0 10px' }}>{p.limite}</p>}
         {p.marques.length === 0 ? (
           <div className="tile"><div className="dempty">
             <span className="ico"><Ic n="tag" s={false} /></span>

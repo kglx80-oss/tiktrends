@@ -435,6 +435,13 @@
       "when": 1792800000000,
       "tag": "0061_unite_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792900000000,
+      "tag": "0062_echeance_abonnement",
+      "breakpoints": true
     }
   ]
 }

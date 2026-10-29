@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { DESCRIPTIF_FORMULES, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, servicesEspace, teinteAvatar, THEME_COOKIE, preferenceDepuisCookie } from '@tiktrends/core';
+import { DESCRIPTIF_FORMULES, formuleDeReference, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, servicesEspace, teinteAvatar, THEME_COOKIE, preferenceDepuisCookie } from '@tiktrends/core';
 import { storageConfigured } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
 import { canAccess, FEATURES, PLAN_CREDITS, PLAN_LABEL, roleAtLeast, type Plan } from '../../../../lib/rbac';
@@ -47,7 +47,7 @@ export default async function EspaceSpatial() {
         detail: [b.category || (b.url ? domaineConcurrent(b.url) : null) || 'Fiche à compléter', b.id === active?.id ? 'active' : null].filter(Boolean).join(' · '),
         fond: i === 0 ? null : `linear-gradient(135deg,${teinteAvatar(i)},${teinteAvatar(i + 1)})`,
       }))}
-      inclus={DESCRIPTIF_FORMULES[plan].marques}
+      inclus={DESCRIPTIF_FORMULES[formuleDeReference(plan)].marques}
       ajouter="/brands/new"
       formules={ORDRE_FORMULES.map((k) => ({ nom: PLAN_LABEL[k], actuelle: k === plan, valeur: DESCRIPTIF_FORMULES[k].marques, detail: `${PLAN_CREDITS[k].toLocaleString('fr-FR')} crédits / mois` }))} /* le prix d'un forfait ne se lit qu'au moment de le choisir (Forfaits, décision du 29/10) */
       preferences={{ langue: locale === 'en' ? 'en' : 'fr', fuseau: FUSEAU_ACCUEIL, devise: 'Euro (€)', nommage }}

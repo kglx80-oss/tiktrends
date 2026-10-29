@@ -14,15 +14,21 @@ const OK_LISTE: Record<string, string> = {
 const ERR_LISTE: Record<string, string> = {
   forbidden: 'Action réservée aux administrateurs.', name: 'Donne un nom à la marque.',
   shopify_domain: 'Indique l’adresse de ton site.',
+  limite_marques: 'Ton forfait a atteint son nombre de marques. Passe au forfait supérieur depuis Réglages · Forfaits pour en ajouter.',
   shopify_notfound: 'Impossible de lire cette boutique automatiquement. Vérifie l’adresse, ou crée la marque puis complète le profil.',
   ...MESSAGES_SUPPRESSION_MARQUE,
 };
 
-/** Les messages indexés `ok:<code>` / `e:<code>` · ce que lit l'annonce de l'écran (`AnnonceRetour`). */
-export function messagesListeMarques(): Record<string, string> {
+/**
+ * Les messages indexés `ok:<code>` / `e:<code>` · ce que lit l'annonce de
+ * l'écran (`AnnonceRetour`). `limiteMarques` · le refus réel du forfait de
+ * l'espace (`refusNouvelleMarque`), qui nomme le forfait qui débloque.
+ */
+export function messagesListeMarques(o: { limiteMarques?: string | null } = {}): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(OK_LISTE)) out[`ok:${k}`] = v;
   for (const [k, v] of Object.entries(ERR_LISTE)) out[`e:${k}`] = v;
+  if (o.limiteMarques) out['e:limite_marques'] = o.limiteMarques;
   return out;
 }
 

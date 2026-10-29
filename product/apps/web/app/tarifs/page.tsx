@@ -3,6 +3,7 @@ import { Fragment } from 'react';
 import Link from 'next/link';
 import { CIBLE_TACTILE_MIN as CIBLE, teinte } from '@tiktrends/core';
 import { PLAN_PRICE, PLAN_CREDITS, planAtLeast, type Plan } from '../../lib/rbac';
+import type { CleForfaitActuel } from '@tiktrends/core';
 
 /**
  * Page tarifs publique · statique (aucune session). Les prix et le volume de
@@ -128,15 +129,15 @@ function No() {
   );
 }
 
-const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
-const TIER_LABEL: Record<Plan, string> = { starter: 'Starter', core: 'Core', plus: 'Plus', business: 'Business' };
-const TIER_PITCH: Record<Plan, string> = {
+const PLANS: CleForfaitActuel[] = ['starter', 'core', 'plus', 'business'];
+const TIER_LABEL: Record<CleForfaitActuel, string> = { starter: 'Starter', core: 'Core', plus: 'Plus', business: 'Business' };
+const TIER_PITCH: Record<CleForfaitActuel, string> = {
   starter: 'Observer, sans payer',
   core: 'Créer sans limite',
   plus: 'Tester et itérer',
   business: 'Piloter à l’échelle',
 };
-const TIER_FEATURES: Record<Plan, string[]> = {
+const TIER_FEATURES: Record<CleForfaitActuel, string[]> = {
   starter: ['Dashboard & Analytics', 'Veille en lecture', 'Tagging'],
   core: ['Tout Starter', 'Studios complets', 'Jarvis · copie relue', 'Veille & Radar créatif'],
   plus: ['Tout Core', 'Adsmap complet', 'Suites & lots de test', 'Protocole & seuils'],

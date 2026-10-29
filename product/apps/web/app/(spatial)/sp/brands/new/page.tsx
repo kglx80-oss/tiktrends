@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { messagesRetourMarque } from '@tiktrends/core';
+import { messageLimiteConcurrents, messagesRetourMarque } from '@tiktrends/core';
+import { forfaitEffectif, refusMarqueEspace } from '../../../../../lib/droits-forfait';
 import { getSession } from '../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../lib/rbac';
 import { createBrandAction, createBrandFromShopifyAction } from '../../../../actions/brands';
@@ -17,5 +18,7 @@ export default async function NouvelleMarqueSpatiale() {
   const s = await getSession();
   if (!s) redirect('/login');
   if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
-  return <NouvelleMarque depuisShopify={createBrandFromShopifyAction} creer={createBrandAction} retours={messagesRetourMarque()} />;
+  // Droits du forfait (29/10, point 6) · plus de marque possible ⇒ la liste dit pourquoi et quel forfait l'ouvre, avant tout formulaire.
+  if (await refusMarqueEspace(s.workspaceId, s.plan)) redirect('/brands?e=limite_marques');
+  return <NouvelleMarque depuisShopify={createBrandFromShopifyAction} creer={createBrandAction} retours={messagesRetourMarque({ limiteConcurrents: messageLimiteConcurrents(forfaitEffectif(s.plan)) })} />;
 }

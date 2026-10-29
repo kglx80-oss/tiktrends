@@ -1,5 +1,7 @@
 'use server';
 
+import { refusListeConcurrents } from '@tiktrends/core';
+import { forfaitEffectif, refusMarqueEspace } from '../../lib/droits-forfait';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { and, eq, sql } from 'drizzle-orm';
@@ -38,6 +40,9 @@ export async function createBrandAction(formData: FormData): Promise<void> {
 
   const name = norm(formData.get('name'));
   if (!name) redirect('/brands/new?e=name');
+  // Droits du forfait (29/10, point 6) · nombre de marques et de concurrents, refusés au serveur.
+  if (await refusMarqueEspace(s.workspaceId, s.plan)) redirect('/brands?e=limite_marques');
+  if (refusListeConcurrents(forfaitEffectif(s.plan), 0, lines(formData.get('competitors')).length)) redirect('/brands/new?e=limite_concurrents');
 
   const [b] = await db.insert(schema.brands).values({
     workspaceId: s.workspaceId,
@@ -95,6 +100,7 @@ export async function createBrandFromShopifyAction(formData: FormData): Promise<
   // D'où vient la demande : on renvoie l'erreur sur la page d'origine.
   const back = norm(formData.get('back')) === 'brands' ? '/brands' : '/brands/new';
   if (!domain) redirect(`${back}?e=shopify_domain`);
+  if (await refusMarqueEspace(s.workspaceId, s.plan)) redirect('/brands?e=limite_marques');
 
   // NB : redirect() lève une exception Next -> il doit rester hors du try/catch.
   const found = await discoverShopify(domain);
@@ -136,6 +142,9 @@ export async function updateBrandAction(formData: FormData): Promise<void> {
   if (!roleAtLeast(s.role, 'admin')) redirect('/brands?e=forbidden');
   const id = norm(formData.get('id'));
   if (!id) redirect('/brands');
+  // Droits du forfait (29/10, point 6) · la liste des concurrents ne grandit pas au-delà de la limite.
+  const [avant] = await db.select({ c: schema.brands.competitors }).from(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
+  if (refusListeConcurrents(forfaitEffectif(s.plan), avant?.c?.length ?? 0, lines(formData.get('competitors')).length)) redirect(`/brands/${id}?e=limite_concurrents`);
 
   const name = norm(formData.get('name'));
   await db.update(schema.brands).set({

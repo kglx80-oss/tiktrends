@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { DESCRIPTIF_FORMULES, ORDRE_FORMULES, ROLES_INVITABLES, etatInvitation, formuleSuivante, initialesPersonne, messagesRetourEquipe, nomCourt, teinteAvatar } from '@tiktrends/core';
+import { DESCRIPTIF_FORMULES, formuleDeReference, ORDRE_FORMULES, ROLES_INVITABLES, etatInvitation, formuleSuivante, initialesPersonne, messagesRetourEquipe, nomCourt, teinteAvatar } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { PLAN_CREDITS, PLAN_LABEL, ROLE_LABEL, roleAtLeast, type Plan, type Role } from '../../../../lib/rbac';
 import { appUrl } from '../../../../lib/mailer';
@@ -29,7 +29,7 @@ export default async function EquipeSpatiale() {
   }
   const maintenant = new Date();
   const base = appUrl();
-  const suivante = formuleSuivante(plan);
+  const suivante = formuleSuivante(formuleDeReference(plan));
   // Moi d'abord, comme la maquette.
   const tries = [...membres].sort((a, b) => Number(b.email === s.user.email) - Number(a.email === s.user.email));
 

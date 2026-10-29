@@ -142,6 +142,7 @@ const ERR_MARQUE: Record<string, string> = {
   import: 'L’import a échoué, réessaie.', generate: 'La génération a échoué, réessaie.',
   name: 'Donne un nom à la marque.', shopify_domain: 'Indique le domaine de ta boutique Shopify.',
   shopify_notfound: 'Catalogue Shopify introuvable sur ce domaine. Vérifie l’adresse, ou essaie le domaine .myshopify.com.',
+  limite_concurrents: 'Ton forfait suit un nombre limité de concurrents par marque. Retire-en un, ou passe au forfait supérieur depuis Réglages · Forfaits.',
 };
 
 export function retourActionMarque(ok?: string | null, e?: string | null): { message: string; erreur: boolean } | null {
@@ -150,11 +151,16 @@ export function retourActionMarque(ok?: string | null, e?: string | null): { mes
   return null;
 }
 
-/** Tous les messages, indexés `ok:<code>` / `e:<code>` · ce que lit l'annonce de l'écran. */
-export function messagesRetourMarque(): Record<string, string> {
+/**
+ * Tous les messages, indexés `ok:<code>` / `e:<code>` · ce que lit l'annonce de
+ * l'écran. `limiteConcurrents` · le refus réel du forfait de l'espace
+ * (`messageLimiteConcurrents`), qui nomme le forfait qui débloque.
+ */
+export function messagesRetourMarque(o: { limiteConcurrents?: string | null } = {}): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(OK_MARQUE)) out[`ok:${k}`] = v;
   for (const [k, v] of Object.entries(ERR_MARQUE)) out[`e:${k}`] = v;
+  if (o.limiteConcurrents) out['e:limite_concurrents'] = o.limiteConcurrents;
   return out;
 }
 

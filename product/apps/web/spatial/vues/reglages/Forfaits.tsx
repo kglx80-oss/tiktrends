@@ -41,6 +41,8 @@ export interface PropsForfaits {
   raisonAchat: string | null;
   faq: ReadonlyArray<{ question: string; reponse: string }>;
   retours: Record<string, string>;
+  /** Préavis de bascule d'un abonné actuel vers l'offre V2 (`preavisBascule`, sous `TARIFS_V2`) · absent sinon. */
+  preavis?: { titre: string; texte: string; droits: readonly string[] } | null;
 }
 
 const TAG = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', margin: '2px 0 4px', borderRadius: 14, background: 'color-mix(in srgb,var(--acc) 14%,#ffffff08)', border: '1px solid color-mix(in srgb,var(--acc) 35%,transparent)' } as const;
@@ -77,6 +79,13 @@ export function Forfaits(p: PropsForfaits) {
             : <span className="pill w"><Ic n="warn" />Crédits bientôt épuisés</span>}
         </div>
       </section>
+      {p.preavis && (
+        <section className="tile sec" data-preavis="bascule" style={{ display: 'grid', gap: 8 }}>
+          <div className="sech" style={{ margin: 0 }}><span className="pill w"><Ic n="cal" />Échéance</span><h2 style={{ margin: 0 }}>{p.preavis.titre}</h2></div>
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>{p.preavis.texte}</p>
+          <ul style={{ margin: 0 }}>{p.preavis.droits.map((x) => <li key={x}><Ic n="check" />{x}</li>)}</ul>
+        </section>
+      )}
       <section className="sec">
         <div className="sech">
           <h2>Changer de plan</h2>

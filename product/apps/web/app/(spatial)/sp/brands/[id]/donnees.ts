@@ -2,7 +2,8 @@ import 'server-only';
 import { notFound, redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
+import { costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messageLimiteConcurrents, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
+import { forfaitEffectif } from '../../../../../lib/droits-forfait';
 import { getSession, type Session } from '../../../../../lib/auth';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../../lib/rbac';
 import { anthropicConfigured } from '../../../../../lib/ai-status';
@@ -52,7 +53,7 @@ export async function chargerMarque(id: string): Promise<ContexteMarque> {
     s, b, estActive: active?.id === b.id,
     domaine: b.url ? domaineConcurrent(b.url) : b.shopifyDomain ? domaineConcurrent(b.shopifyDomain) : null,
     unlimited: unlimitedCredits(s.user.email), aiReady: anthropicConfigured(),
-    sousNav: sousNavMarque(b.id), retours: messagesRetourMarque(),
+    sousNav: sousNavMarque(b.id), retours: messagesRetourMarque({ limiteConcurrents: messageLimiteConcurrents(forfaitEffectif(s.plan)) }),
     jarvis: refusJarvis(s) ? null : '/jarvis',
     creerPub: canAccess({ role: s.role, plan: s.plan, equipe: s.equipe ?? undefined }, studio) ? lienNouveauProjet({ type: 'ads' }) : null,
   };

@@ -1,22 +1,27 @@
 // RBAC TikTrends · droits par rôle + gating par abonnement (CDC §F1).
 // Pur (aucune dépendance serveur) : importable partout.
 
-import { roleVoitRubrique, FORFAITS_ACTUELS, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
+import { roleVoitRubrique, FORFAITS_ACTUELS, FORFAITS_V2, RANG_FORFAIT, estForfaitV2, nomForfait, type CleForfait, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
 
 export type Role = 'owner' | 'admin' | 'member' | 'client_viewer';
-export type Plan = 'starter' | 'core' | 'plus' | 'business';
+/**
+ * Les forfaits · actuels (Starter, Core, Plus, Business) et V2 (Essentiel, Pro,
+ * Agence · servis seulement sous `TARIFS_V2`, décision du 29/10). Un forfait V2
+ * ouvre exactement ce qu'ouvre le forfait actuel qu'il remplace (`RANG_FORFAIT`).
+ */
+export type Plan = CleForfait;
 
 // Hiérarchie des rôles (plus le rang est haut, plus il y a de droits).
 const ROLE_RANK: Record<Role, number> = { client_viewer: 0, member: 1, admin: 2, owner: 3 };
 // Hiérarchie des abonnements.
-const PLAN_RANK: Record<Plan, number> = { starter: 0, core: 1, plus: 2, business: 3 };
+const PLAN_RANK: Record<Plan, number> = RANG_FORFAIT;
 
 export const ROLE_LABEL: Record<Role, string> = {
   owner: 'Propriétaire', admin: 'Admin', member: 'Membre', client_viewer: 'Client (lecture)',
 };
-export const PLAN_LABEL: Record<Plan, string> = {
-  starter: FORFAITS_ACTUELS.starter.libelle, core: FORFAITS_ACTUELS.core.libelle, plus: FORFAITS_ACTUELS.plus.libelle, business: FORFAITS_ACTUELS.business.libelle,
-};
+const TOUS_PLANS: readonly Plan[] = ['starter', 'core', 'plus', 'business', 'essentiel', 'pro', 'agence'];
+const parForfait = <T,>(f: (p: Plan) => T): Record<Plan, T> => Object.fromEntries(TOUS_PLANS.map((p) => [p, f(p)])) as Record<Plan, T>;
+export const PLAN_LABEL: Record<Plan, string> = parForfait(nomForfait);
 
 export function roleAtLeast(role: Role, min: Role): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[min];
@@ -46,9 +51,9 @@ export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 // Allocation de crédits mensuelle et prix mensuel par abonnement · DÉRIVÉS de
 // l'offre du noyau (`packages/core/src/offre`), seule source des prix et des
 // volumes (garde `offre-source-unique.test.ts`).
-const parForfait = <T,>(f: (p: Plan) => T): Record<Plan, T> => ({ starter: f('starter'), core: f('core'), plus: f('plus'), business: f('business') });
-export const PLAN_CREDITS: Record<Plan, number> = parForfait((p) => FORFAITS_ACTUELS[p].creditsMois);
-export const PLAN_PRICE: Record<Plan, number> = parForfait((p) => FORFAITS_ACTUELS[p].prixMensuelEur);
+export const PLAN_CREDITS: Record<Plan, number> = parForfait((p) => (estForfaitV2(p) ? FORFAITS_V2[p].creditsMois : FORFAITS_ACTUELS[p].creditsMois));
+/** Prix mensuel · catalogue actuel tel quel, V2 au prix TTC mensuel. */
+export const PLAN_PRICE: Record<Plan, number> = parForfait((p) => (estForfaitV2(p) ? FORFAITS_V2[p].prixMensuelTtc : FORFAITS_ACTUELS[p].prixMensuelEur));
 
 export interface Feature {
   key: string;
