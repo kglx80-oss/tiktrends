@@ -2,10 +2,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { renderToString } from 'react-dom/server';
+import { renderToStaticMarkup, renderToString } from 'react-dom/server';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ENTETE_SECTION, PAPIER_CLAIR, SELECTEUR_CLAIR, THEME_COOKIE } from '@tiktrends/core';
+import { COULEURS_EN_LIGNE, ENTETE_SECTION, PAPIER_CLAIR, PASTILLES_TEINTE_EN_LIGNE, SELECTEUR_CLAIR, THEME_COOKIE, contrasteCouleurs, graphiqueReporting, lireCouleurCss } from '@tiktrends/core';
 
 /**
  * Spatial · le thème CLAIR au RÉSULTAT (l'ancienne interface l'avait · la
@@ -30,6 +30,8 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/veille', useRouter: () 
 
 const { default: RootLayout, generateViewport } = await import('../app/layout');
 const { MenuProfil } = await import('../spatial/coquille/Surcouches');
+const { Accueil } = await import('../spatial/vues/accueil/Accueil');
+const { FournisseurSpatial } = await import('../spatial/coquille/contexte');
 
 const WEB = join(__dirname, '..');
 
@@ -92,6 +94,79 @@ describe('Spatial · thème clair · aucun texte blanc écrit en dur sur le verr
     };
     parcourir(vues);
     expect(trouves, 'texte blanc en dur sur le verre · écrire var(--fg)').toEqual(MONOGRAMMES);
+  });
+});
+
+/** Chaque `.tsx` de l'arbre Spatial · chemin relatif à `spatial/` (sans `vues/`) → source. */
+function sourcesSpatial(): Record<string, string> {
+  const racine = join(WEB, 'spatial'), out: Record<string, string> = {};
+  const parcourir = (d: string) => {
+    for (const n of readdirSync(d)) {
+      const p = join(d, n);
+      if (statSync(p).isDirectory()) parcourir(p);
+      else if (n.endsWith('.tsx')) out[p.slice(racine.length + 1).replace(/^vues\//, '')] = readFileSync(p, 'utf8');
+    }
+  };
+  parcourir(racine);
+  return out;
+}
+
+describe('Spatial · thème clair · les couleurs EN LIGNE des vues (relevés D1, D6)', () => {
+  const sources = sourcesSpatial();
+
+  it('aucune encre PÂLE écrite en dur en ligne · elle resterait pâle sur le papier (« 3 alertes » 1,1:1)', () => {
+    // Pâle · moins de 3:1 sur blanc. Le blanc des monogrammes sur aplat est gardé par le test ci-dessus.
+    const pales: string[] = [];
+    for (const [f, src] of Object.entries(sources)) {
+      for (const m of src.matchAll(/\bcolor:\s*'(#[0-9a-fA-F]{3,8})'/g)) {
+        const [r, g, b] = lireCouleurCss(m[1]!);
+        if (/^#fff(?:fff)?$/i.test(m[1]!)) continue;
+        if (contrasteCouleurs(`rgb(${r},${g},${b})`, '#ffffff') < 3) pales.push(`${f} · ${m[1]}`);
+      }
+      // L'accent de section, vif, n'atteint pas 4,5:1 sur le papier (conseil d'Admin+ 1,46:1) · la feuille le mêle à l'encre, la vue écrit var(--clair-acc,var(--acc)).
+      for (const m of src.matchAll(/\bcolor:\s*'var\(--acc2?\)'/g)) pales.push(`${f} · ${m[0]}`);
+    }
+    expect(pales, 'encre pâle en dur · écrire var(--warn), var(--good)… (même valeur en sombre) ou var(--clair-<nom>,<valeur>)').toEqual([]);
+  });
+
+  it('chaque `var(--clair-<nom>,<repli>)` est déclarée par le noyau, et son repli EST la valeur sombre (le sombre ne bouge pas)', () => {
+    const vus: string[] = [];
+    for (const [f, src] of Object.entries(sources)) {
+      for (const m of src.matchAll(/var\(--clair-([a-z0-9-]+)(?:,((?:[^()]|\([^()]*\))*))?\)/g)) {
+        const nom = m[1]!, repli = m[2];
+        vus.push(nom);
+        expect(COULEURS_EN_LIGNE[nom], `${f} · --clair-${nom} inconnue du noyau`).toBeDefined();
+        expect(repli, `${f} · --clair-${nom} sans repli, ou repli différent de la maquette`).toBe(COULEURS_EN_LIGNE[nom]!.sombre);
+      }
+    }
+    expect([...new Set(vus)].sort()).toEqual(Object.keys(COULEURS_EN_LIGNE).sort());
+  });
+
+  it('chaque pastille d’identité pose sa teinte en ligne · c’est ce qui autorise la feuille à garder son encre', () => {
+    // RapportConcurrent · `.av` sans teinte, sur le verre · encre nuit, lisible en clair (en sombre, défaut de la maquette, hors de ce lot).
+    const SANS_TEINTE: Record<string, number> = { 'veille/RapportConcurrent.tsx': 1 };
+    const classes = PASTILLES_TEINTE_EN_LIGNE.map((c) => c.slice(1)).join('|');
+    const trouves: Record<string, number> = {};
+    for (const [f, src] of Object.entries(sources)) {
+      for (const m of src.matchAll(new RegExp(`className="(?:${classes})(?: [^"]*)?"( style=\\{([^}]*\\}?)\\})?`, 'g'))) {
+        if (!/\bbackground\b|\bstyle\(|LOGO_|\.\.\./.test(m[1] ?? '')) trouves[f] = (trouves[f] ?? 0) + 1;
+      }
+    }
+    expect(trouves).toEqual(SANS_TEINTE);
+  });
+
+  it('Accueil RENDU · une variation défavorable porte la couleur dérivée, repli sombre inchangé', () => {
+    const CTX = { utilisateur: { nom: 'K', initiales: 'K', email: 'k@x.fr', role: 'Propriétaire' }, credits: { solde: 1, dotation: 2, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
+    const html = renderToStaticMarkup(
+      <FournisseurSpatial value={CTX as never}>
+        <Accueil surtitre="s" salutation="Bonjour" jarvis={null} raccourcis={[]} attente={null} maintenant={null} configuration={null} iterer={null} boucle={null} nouveautes={null} reprendre={null}
+          reporting={{ etat: 'mesures', sous: 's', periode: { cle: '14j', jours: 14, debut: '2026-10-15', fin: '2026-10-28', libelle: '14 jours' } as never, rapides: [],
+            synthese: { kpis: [{ libelle: 'ROAS', valeur: '1,53', variation: '▼ −8,6 %', ton: 'mauvais', courbe: '' }, { libelle: 'Achats', valeur: '17', variation: '▲ +3 %', ton: 'bon', courbe: '' }] as never, graphique: graphiqueReporting([], 14) } }} />
+      </FournisseurSpatial>,
+    );
+    const d = document.createElement('div'); d.innerHTML = html;
+    const variations = [...d.querySelectorAll<HTMLElement>('.dkpis .d')].map((e) => [e.textContent, e.getAttribute('style')]);
+    expect(variations).toEqual([['▼ −8,6 %', 'color:var(--clair-baisse,#ffb0bd)'], ['▲ +3 %', 'color:var(--good)']]);
   });
 });
 
