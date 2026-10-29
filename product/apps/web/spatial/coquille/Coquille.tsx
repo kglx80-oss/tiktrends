@@ -7,7 +7,8 @@ import { railCookieString } from '../../lib/rail-preference';
 import { setActiveBrand } from '../../app/actions/brands';
 import { listerProjets } from '../../app/actions/studios/projets';
 import { SPRITE_SYMBOLES } from '../sprite';
-import { Ic, Lien } from '../communs';
+import { Ic, Lien, useTelephone } from '../communs';
+import { useCiblesTactiles } from './CiblesTactiles';
 import { FournisseurSpatial, type CtxSpatial, type PanneauSpatial } from './contexte';
 import { BandeauNotification, VueNotifications, useNotifications } from './Notifications';
 import { FeuilleMarques, FeuilleModules, MenuProfil, Palette } from './Surcouches';
@@ -105,6 +106,10 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   // La section d'accent et le rail suivent l'écran (le premier rendu les tient
   // déjà du serveur · ceci couvre la navigation client).
   useEffect(() => { if (section) document.body.dataset.sec = section; }, [section]);
+  // Au téléphone, les primitives de la maquette (boutons, puces, onglets, cloche,
+  // avatar, interrupteurs) reçoivent une cible tactile de 44 px · après la
+  // section, dont dépend le zoom de la vue.
+  useCiblesTactiles(useTelephone());
   useEffect(() => { document.body.classList.toggle('rail-open', railOuvert); }, [railOuvert]);
   useEffect(() => { document.body.classList.toggle('jd-open', panneau === 'jarvis'); }, [panneau]);
   // Le fond flou de la maquette · l'image de la marque active, sinon rien.
