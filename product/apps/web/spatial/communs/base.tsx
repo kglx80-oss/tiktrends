@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { cheminPorte } from '@tiktrends/core';
 
 /**
@@ -7,6 +7,25 @@ import { cheminPorte } from '@tiktrends/core';
  * balisage de la maquette (`docs/spatial/reference/*.html`). Le CSS de la
  * maquette fait le reste · aucun style n'est réécrit ici.
  */
+
+/**
+ * Planche finale · D5 · une créa RÉELLE (`.ad .ph img`) est la pub elle-même,
+ * accroche comprise. Le `object-fit: cover` de la maquette la rognait en haut ·
+ * le cadre `.ph` (créa 4:5 moins le bandeau) est plus large que la créa. Elle
+ * s'affiche entière, jamais coupée.
+ */
+export const CREA_ENTIERE: CSSProperties = { objectFit: 'contain' };
+
+/**
+ * D5 · l'étiquette d'une créa (`.ad .tag`, « A · gagnante ») était posée sur
+ * l'image, en haut à gauche, et masquait l'accroche. Elle passe au-dessus du
+ * média, dans le cadre de la créa, sur l'encre du bandeau (`.ad .band`) · `.ad`
+ * garde les mêmes couleurs dans les deux thèmes, l'étiquette aussi (blanc sur
+ * #25334a · 12,7:1), sans dépendre du flou ni de l'image dessous.
+ */
+export const ETIQUETTE_HORS_CREA: CSSProperties = {
+  position: 'static', order: -1, alignSelf: 'flex-start', margin: '8px 8px 0', background: '#25334a', backdropFilter: 'none', WebkitBackdropFilter: 'none',
+};
 
 /** Icône du sprite · `<svg class="i s"><use href="#i-…"/></svg>`. */
 export function Ic({ n, s = true, c }: { n: string; s?: boolean; c?: string }) {

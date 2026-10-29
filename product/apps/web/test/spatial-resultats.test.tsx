@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DEFAULT_VERDICT_CONFIG, kpisResultats, sousNavResultats, type CarteHypothese, type EtatLotSpatial } from '@tiktrends/core';
-import { parite, squelette, fragmentReference } from './spatial/parite';
+import { parite, squelette, fragmentReference, type CorrectifParite } from './spatial/parite';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/adsmap', useRouter: () => ({ push: () => {}, refresh: () => {} }) }));
 // Les vues interactives appellent les actions serveur EXISTANTES · neutralisées ici (rendu seul).
@@ -42,6 +42,15 @@ const NAV = sousNavResultats({ admin: true });
 const SANS_CADRAGE_FICTIF = ['.ad .ph'];
 /** React place un `<link rel=preload>` par image en tête du rendu · on compare la vue elle-même. */
 const VUE = { selecteur: 'div.view', ignorer: SANS_CADRAGE_FICTIF };
+/**
+ * Correctifs DÉCLARÉS (planche finale, D5) · l'accroche d'une créa était
+ * masquée par son étiquette (« A · gagnante », fiche du lot) et par la pastille
+ * « Gagnante » (vue d'ensemble) · les deux quittent l'image.
+ */
+const CORRECTIFS_CREAS: CorrectifParite[] = [
+  { selecteur: '.ad .tag', style: ['position', 'order', 'align-self', 'margin', 'background', 'backdrop-filter', '-webkit-backdrop-filter'], motif: 'D5 · étiquette de variante posée sur l’accroche de la créa (fiche du lot)' },
+  { selecteur: '.rvwin', style: ['position', 'order', 'justify-self'], motif: 'D5 · pastille « Gagnante » posée sur l’accroche (vue d’ensemble)' },
+];
 
 describe('Spatial · Résultats · parité de structure avec la maquette', () => {
   it('« Vue d’ensemble » reproduit la maquette', () => {
@@ -65,7 +74,7 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
         commencer={{ libelle: 'Préparer un lot', href: '/adsmap/lots' }}
       />,
     );
-    const p = parite(html, 'resultats', VUE);
+    const p = parite(html, 'resultats', { ...VUE, correctifs: CORRECTIFS_CREAS.filter((c) => c.selecteur === '.rvwin') });
     expect(p.rendu).toEqual(p.reference);
   });
 
@@ -92,7 +101,7 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
         coach={{ avant: 'Le moteur retient :', fort: 'v2 · Gagnante', apres: '.' }}
       />,
     );
-    const p = parite(html, 'lot1', VUE);
+    const p = parite(html, 'lot1', { ...VUE, correctifs: CORRECTIFS_CREAS.filter((c) => c.selecteur === '.ad .tag') });
     expect(p.rendu).toEqual(p.reference);
   });
 
@@ -284,5 +293,38 @@ describe('Spatial · Résultats · les gardes de parité voient un écart', () =
     const ref = squelette(fragmentReference('lots'), VUE);
     const ampute = fragmentReference('lots').replace(/<div class="lotrow"[\s\S]*?Conclure<\/a><\/div>/, '');
     expect(squelette(ampute, VUE)).not.toEqual(ref);
+  });
+});
+
+/*
+ * Planche finale · D5 · sur la fiche d'un lot, l'accroche écrite DANS la créa
+ * était coupée en haut (`object-fit: cover` sur un cadre plus large que la
+ * créa) et recouverte par l'étiquette « A · gagnante ». On lit le HTML rendu ·
+ * l'image est entière, l'étiquette et la pastille sortent de l'image.
+ */
+describe('Spatial · Résultats · le texte d’une créa n’est jamais coupé ni masqué (D5)', () => {
+  const dom = (html: string) => { const t = document.createElement('template'); t.innerHTML = html; return t.content; };
+  const fiche = () => dom(rendre(<Lot sous="s" titre="t" verdict={{ gagnant: true, titre: 'A', phrase: 'p', niveau: 3 }}
+    variantes={['A', 'B', 'C'].map((v, i) => ({ id: v, texte: 'x', image: IMG, tag: `${v} · gagnante`, gagnante: i === 0, barre: { libelle: '1 €', part: 50 } }))}
+    controles={[]} coach={{ avant: '', fort: '', apres: '' }} />));
+
+  it('fiche du lot · chaque créa entière, chaque étiquette hors de l’image (au-dessus, dans le cadre)', () => {
+    const d = fiche();
+    const imgs = [...d.querySelectorAll<HTMLImageElement>('.ad .ph img')];
+    expect(imgs).toHaveLength(3);
+    expect(imgs.map((i) => i.style.objectFit), 'créa rognée en haut').toEqual(['contain', 'contain', 'contain']);
+    for (const tag of d.querySelectorAll<HTMLElement>('.ad .tag')) {
+      expect(tag.style.position, '« A · gagnante » posée en absolu sur l’accroche').toBe('static');
+      expect(tag.style.order, 'l’étiquette passe AVANT le média').toBe('-1');
+    }
+  });
+
+  it('vue d’ensemble · la pastille « Gagnante » quitte l’image et passe sous la légende', () => {
+    const d = dom(rendre(<VueEnsemble sousNav={NAV} sous="s" accroche={{ avant: '', fort: '', apres: '' }} kpis={[]} autres={[]} commencer={{ libelle: 'x', href: '/adsmap/lots' }}
+      vedette={{ statut: { libelle: 'À conclure', classe: 'g' }, meta: 'm', titre: 't', variantes: ['A', 'B', 'C'].map((v, i) => ({ id: v, texte: 'x', image: IMG, variante: v, categorie: 'Format', gagnante: i === 0, barre: { libelle: '1 €', part: 50 } })),
+        note: 'n', passe: 'p', retient: { texte: 'r', niveau: 3, detail: 'd' }, ensuite: 'e', suite: { libelle: 's', href: '/adsmap/suites' }, lot: { libelle: 'l', href: '/adsmap/lots/l' } }} />));
+    expect([...d.querySelectorAll<HTMLImageElement>('.ad .ph img')].every((i) => i.style.objectFit === 'contain')).toBe(true);
+    const win = d.querySelector<HTMLElement>('.rvwin')!;
+    expect([win.style.position, win.style.order], 'pastille posée sur l’accroche').toEqual(['static', '1']);
   });
 });
