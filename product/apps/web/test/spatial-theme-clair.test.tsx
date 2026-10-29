@@ -36,7 +36,7 @@ const WEB = join(__dirname, '..');
 afterEach(() => {
   etat.cookie = undefined;
   document.cookie = `${THEME_COOKIE}=; Max-Age=0; Path=/`;
-  document.documentElement.removeAttribute('data-theme');
+  document.documentElement.removeAttribute('data-theme'); document.documentElement.removeAttribute('data-theme-pref');
   document.head.innerHTML = '';
 });
 
@@ -113,11 +113,12 @@ describe('Spatial · pop-up profil · le choix du thème', () => {
   };
   const bouton = (g: HTMLElement, t: string) => g.querySelector<HTMLButtonElement>(`button[data-theme-choix="${t}"]`)!;
 
-  it('un groupe nommé « Thème », deux boutons Sombre · Clair, le courant pressé (lu sur <html>)', () => {
+  it('un groupe nommé « Thème », trois boutons Sombre · Clair · Auto, le courant pressé (lu sur <html>)', () => {
     document.documentElement.setAttribute('data-theme', 'clair');
     const g = ouvrir();
     expect(document.getElementById(g.getAttribute('aria-labelledby')!)?.textContent).toBe('Thème');
-    expect([...g.querySelectorAll('button')].map((b) => b.querySelector('strong')?.textContent)).toEqual(['Sombre', 'Clair']);
+    expect([...g.querySelectorAll('button')].map((b) => b.querySelector('strong')?.textContent)).toEqual(['Sombre', 'Clair', 'Auto']);
+    expect(bouton(g, 'auto').getAttribute('aria-pressed')).toBe('false');
     expect(bouton(g, 'clair').getAttribute('aria-pressed')).toBe('true');
     expect(bouton(g, 'sombre').getAttribute('aria-pressed')).toBe('false');
   });

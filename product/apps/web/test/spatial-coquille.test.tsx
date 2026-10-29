@@ -290,6 +290,38 @@ describe('Spatial · coquille · comportement des surcouches', () => {
     expect(document.activeElement?.id).toBe('avant');
   });
 
+  it('⌘K · « mode sombre » trouve le thème, « Thème clair » s’applique sur place · cookie, <html>, annonce, sans navigation', async () => {
+    document.documentElement.setAttribute('data-theme', 'sombre');
+    try {
+      await monter(<Coquille donnees={donnees()}><button id="avant">x</button></Coquille>);
+      await touche('k', { metaKey: true });
+      await attendre();
+      const champ = document.getElementById('palin') as HTMLInputElement;
+      const saisir = async (v: string) => {
+        await act(async () => {
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, v);
+          champ.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      };
+      await saisir('theme');
+      expect([...document.querySelectorAll('#palres a[data-theme-commande]')].map((a) => a.getAttribute('data-theme-commande')), 'la palette ne propose pas les trois thèmes').toEqual(['sombre', 'clair', 'auto']);
+      expect(document.querySelector('#palres a[data-theme-commande="sombre"] small')?.textContent).toBe('Thème · actif');
+      await saisir('mode sombre');
+      expect([...document.querySelectorAll('#palres a')].map((a) => a.getAttribute('data-theme-commande'))).toEqual(['sombre']);
+      await saisir('clair');
+      await clic(document.querySelector('#palres a[data-theme-commande="clair"]'));
+      expect(document.documentElement.getAttribute('data-theme'), 'la commande « Thème clair » n’a rien appliqué').toBe('clair');
+      expect(document.documentElement.getAttribute('data-theme-pref')).toBe('clair');
+      expect(document.cookie).toContain('tt_theme=clair');
+      expect(document.getElementById('pal'), 'la palette reste ouverte').toBeNull();
+      expect(document.getElementById('toast')?.textContent).toBe('Thème clair appliqué');
+      expect(h.push, 'une commande de thème ne navigue pas').not.toHaveBeenCalled();
+    } finally {
+      document.documentElement.removeAttribute('data-theme'); document.documentElement.removeAttribute('data-theme-pref');
+      document.cookie = 'tt_theme=; Max-Age=0; Path=/';
+    }
+  });
+
   it('la cloche ouvre les VRAIES notifications · « Tout lire » appelle l’action, Échap ferme et rend le focus à la cloche', async () => {
     h.fetchNotifications.mockResolvedValue({ items: [NOTIFS[0]!, NOTIFS[3]!], unread: 1 });
     const { EnTete } = await import('../spatial/communs');

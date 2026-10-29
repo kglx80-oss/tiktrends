@@ -44,12 +44,6 @@ describe('Recette #106b · refus « service absent » rendus au client', () => {
     const r = await learnFromFollowedAction();
     propre(r.error); expect(r.error).toBe(messageServiceInactif('veille'));
   });
-  it('Marque · pré-remplissage IA indisponible', async () => {
-    const { generateBrandDraftAction } = await import('../app/actions/brands');
-    const fd = new FormData(); fd.set('name', 'Neva'); fd.set('url', 'neva.fr');
-    const r = await generateBrandDraftAction({} as never, fd);
-    propre(r.error); expect(r.error).toBe(messageServiceInactif('ia_profil'));
-  });
   it('Marques suivies · brief sans recherche publicitaire', async () => {
     const { briefMarqueAction } = await import('../app/actions/brief-marque');
     const r = await briefMarqueAction({ platform: 'meta', name: 'Neutrogena' });

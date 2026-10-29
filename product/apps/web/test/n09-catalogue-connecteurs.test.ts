@@ -29,7 +29,10 @@ describe('N09 · le catalogue dit une seule vérité', () => {
 
 describe('N09 · une carte connectée dit sa phase, pas juste « connecté »', () => {
   it('Meta connecté sans compte choisi le dit, et une carte sans synchro le dit', () => {
-    expect(page).toContain("meta.adAccountId ?? 'compte à choisir'");
+    // Meta · la phase vient de LA règle commune (`etatConnexionMeta`, « compte pub à choisir »
+    // compris) · rendu gardé état par état dans `spatial-connexion-meta-db.test.tsx`.
+    expect(page).toContain('etatConnexionMeta(');
+    expect(page).toContain('etatMeta.libelle');
     expect(page).toContain('fraicheurConnecteur(iso, FUSEAU_ACCUEIL)');
   });
 });
