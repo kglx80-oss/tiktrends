@@ -13,6 +13,7 @@ export * from './bibliotheque/drive';
 export * from './bibliotheque/jarvis';
 export * from './bibliotheque/jarvis-sources';
 export * from './bibliotheque/import-lien';
+export * from './bibliotheque/tags-couleur';
 export * from './formats';
 export * from './veille';
 export * from './studios';

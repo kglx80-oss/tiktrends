@@ -19,7 +19,7 @@ vi.mock('../app/actions/assets', () => ({
   uploadImageAssetsAction: vi.fn(), presignAssetUploadAction: vi.fn(), registerUploadedAssetAction: vi.fn(), deleteAssetAction: vi.fn(),
   importAssetAction: f.importer, toggleAssetAiAction: f.ia, basculerTemplateAction: f.template, tagAssetAction: f.tag, tagUntaggedImagesAction: f.lot,
 }));
-vi.mock('../app/actions/bibliotheque-dossiers', () => ({ creerDossierAction: vi.fn(), supprimerDossierAction: vi.fn(), restaurerDossierAction: vi.fn(), affecterAssetDossierAction: vi.fn(), definirDroitsAssetAction: vi.fn() }));
+vi.mock('../app/actions/bibliotheque-dossiers', () => ({ creerDossierAction: vi.fn(), supprimerDossierAction: vi.fn(), restaurerDossierAction: vi.fn(), affecterAssetDossierAction: vi.fn(), definirDroitsAssetAction: vi.fn(), definirTagDossierAction: vi.fn() }));
 vi.mock('../app/actions/drive', () => ({ syncDriveNowAction: vi.fn(), getDrivePickerConfigAction: vi.fn(), setDriveFolderAction: vi.fn(), syncDriveFilesAction: vi.fn() }));
 
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';

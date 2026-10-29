@@ -3,7 +3,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  validerNomDossier, estDroitAsset, type DossierPlat, type DroitAsset,
+  validerNomDossier, estDroitAsset, validerTagCouleur, type CleTagCouleur, type DossierPlat, type DroitAsset,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { GUARD } from '../../lib/guard-error';
@@ -23,8 +23,9 @@ import { refusEcritureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/b
  * dossier (sans appelant, aucun écran ne les proposait) sont retirés · un
  * écran qui les voudra les recréera avec leur garde.
  *
- * Les RÈGLES (nom valide, cycle d'arbre, droit valide) vivent au noyau
- * (`bibliotheque-dossiers.ts`), testées à part · jamais réécrites ici.
+ * Les RÈGLES (nom valide, cycle d'arbre, droit valide, tag de couleur du
+ * catalogue) vivent au noyau (`bibliotheque-dossiers.ts`,
+ * `spatial/bibliotheque/tags-couleur.ts`), testées à part · jamais réécrites ici.
  *
  * Le test `securite-bibliotheque-dossiers` énumère les exports de ce fichier et
  * refuse tout export qui n'est pas une action gardée · un oubli le fait tomber.
@@ -189,5 +190,29 @@ export async function definirDroitsAssetAction(input: { assetId: string; droit: 
     .where(and(eq(schema.assets.id, input.assetId), eq(schema.assets.workspaceId, s.workspaceId)))
     .returning({ id: schema.assets.id });
   if (!maj.length) return { error: 'Asset introuvable.' };
+  return { ok: true };
+}
+
+/**
+ * Pose (ou retire avec `tag: null`) le TAG DE COULEUR d'un dossier vivant de
+ * l'espace (maquette · bouton « Tag de couleur » d'une carte). La clé est
+ * validée au noyau (`validerTagCouleur`) AVANT toute lecture · la base la borne
+ * aussi (CHECK `library_folders_color_tag_ck`). Un dossier système (verrouillé)
+ * se tague · le tag ne détruit rien. Un dossier d'un autre espace, en corbeille
+ * ou inconnu reçoit la même réponse.
+ */
+export async function definirTagDossierAction(input: { id: string; tag: CleTagCouleur | null }): Promise<{ ok?: true; error?: string }> {
+  const g = await gardeEcriture();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+
+  const v = validerTagCouleur(input?.tag);
+  if (!v.ok) return { error: v.raison };
+  const dossier = await lireDossier(s.workspaceId, input?.id);
+  if (!dossier) return { error: 'Dossier introuvable.' };
+
+  await db.update(schema.libraryFolders).set({ colorTag: v.tag, updatedAt: new Date() })
+    .where(and(eq(schema.libraryFolders.id, dossier.id), eq(schema.libraryFolders.workspaceId, s.workspaceId)));
   return { ok: true };
 }

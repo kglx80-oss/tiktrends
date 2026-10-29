@@ -1,5 +1,6 @@
 import { droitAutorisePub, estDroitAsset, libelleDroit } from '../../bibliotheque-dossiers';
 import { derniereTentativeDriveEnEchec, type DernierSyncDrive } from '../../connecteurs-catalogue';
+import { estTagCouleur, tagCouleur, tagsEnUsage, type CleTagCouleur, type TagCouleur } from './tags-couleur';
 
 /**
  * Spatial · la Bibliothèque « rangée comme un drive » (maquette `bibliotheque`).
@@ -42,6 +43,8 @@ export interface DossierDrive {
   /** En corbeille (réversible) · `library_folders.deleted_at`. */
   supprime: boolean;
   creeLe: string;
+  /** Tag de couleur (`library_folders.color_tag`) · seul un dossier réel en porte un. */
+  tag: CleTagCouleur | null;
 }
 
 export interface FichierDrive {
@@ -79,7 +82,7 @@ export interface DonneesDrive {
 
 /* ───────────────────────────── Construction ───────────────────────────── */
 
-export interface DossierSource { id: string; parentId: string | null; name: string; locked: boolean; deletedAt: string | null; createdAt: string }
+export interface DossierSource { id: string; parentId: string | null; name: string; locked: boolean; deletedAt: string | null; createdAt: string; colorTag?: string | null }
 export interface MediaSource {
   id: string; name: string; kind: string; mimeType?: string | null; source: string; url: string; thumbUrl: string | null;
   sizeBytes: number | null; createdAt: string; folderId?: string | null; rights?: string | null;
@@ -106,11 +109,13 @@ export function typeFichier(kind: string, mime?: string | null): TypeFichierDriv
  */
 export function donneesDrive(src: { dossiers: readonly DossierSource[]; medias: readonly MediaSource[] }): DonneesDrive {
   const ids = new Set(src.dossiers.map((d) => d.id));
-  const dossiers: DossierDrive[] = RACINES_DRIVE.map((r) => ({ id: r.id, nom: r.nom, parent: null, reel: false, verrouille: true, supprime: false, creeLe: '' }));
+  const dossiers: DossierDrive[] = RACINES_DRIVE.map((r) => ({ id: r.id, nom: r.nom, parent: null, reel: false, verrouille: true, supprime: false, creeLe: '', tag: null }));
   for (const d of src.dossiers) {
     dossiers.push({
       id: d.id, nom: d.name, parent: d.parentId && ids.has(d.parentId) && d.parentId !== d.id ? d.parentId : ID_ASSETS,
       reel: true, verrouille: d.locked, supprime: d.deletedAt != null, creeLe: d.createdAt,
+      // Une valeur hors catalogue (impossible sous la contrainte CHECK) ne s'affiche pas.
+      tag: estTagCouleur(d.colorTag) ? d.colorTag : null,
     });
   }
   const projets = new Map<string, DossierDrive>();
@@ -123,7 +128,7 @@ export function donneesDrive(src: { dossiers: readonly DossierSource[]; medias: 
     if (m.studio) {
       const pid = `p:${m.studio.projetId}`;
       const p = projets.get(pid);
-      if (!p) projets.set(pid, { id: pid, nom: m.studio.projetTitre, parent: 'r:creations', reel: false, verrouille: true, supprime: false, creeLe: m.createdAt });
+      if (!p) projets.set(pid, { id: pid, nom: m.studio.projetTitre, parent: 'r:creations', reel: false, verrouille: true, supprime: false, creeLe: m.createdAt, tag: null });
       else if (m.createdAt > p.creeLe) p.creeLe = m.createdAt;
       fichiers.push({ ...base, parent: pid, droit: null, lectureSeule: true, projet: { href: m.studio.href, titre: m.studio.projetTitre } });
     } else if (m.historique) {
@@ -244,6 +249,12 @@ export interface EtatDrive {
   ouverts: ReadonlySet<string>;
   /** Filtre par type de fichier (geste de l'écran V5) · absent ou `tous` = aucun filtre. */
   type?: FiltreTypeDrive;
+  /**
+   * Filtre par tag de couleur (maquette · puces « Tags » de l'arbre, adresse
+   * `?tag=`) · les dossiers RÉELS vivants qui le portent, toutes racines
+   * confondues. Sans effet hors de « Mon drive » ou pendant une recherche.
+   */
+  tag?: CleTagCouleur | null;
 }
 
 /** Le filtre par type de l'écran V5 (images, vidéos, audio, autres). */
@@ -266,6 +277,8 @@ export const ETAT_DRIVE_INITIAL: EtatDrive = {
 export interface NoeudArbreDrive {
   id: string; nom: string; niveau: number; racine: boolean; icone: string;
   aEnfants: boolean; ouvert: boolean; actif: boolean; compte: number; separateurAvant: boolean;
+  /** Pastille du tag de couleur, à droite du nom. */
+  tag: TagCouleur | null;
 }
 
 export interface CarteDossierDrive {
@@ -273,6 +286,10 @@ export interface CarteDossierDrive {
   vignettes: Array<{ url: string | null; type: TypeFichierDrive }>;
   /** Dossier réel non verrouillé · sélectionnable (corbeille, restauration). */
   selectionnable: boolean;
+  /** Le tag posé (étiquette de la carte, teinte de la carte). */
+  tag: TagCouleur | null;
+  /** Dossier réel hors corbeille · le bouton « Tag de couleur » s'y propose (verrouillé compris · le tag ne détruit rien). */
+  taggable: boolean;
 }
 
 export interface VueDrive {
@@ -289,6 +306,10 @@ export interface VueDrive {
   depot: string;
   /** Le volume réellement mesuré (les tailles connues) · aucun quota n'existe. */
   volume: string;
+  /** Le filtre par tag APPLIQUÉ (bandeau « Dossiers tagués … ») · null sans filtre. */
+  filtreTag: TagCouleur | null;
+  /** Les puces de filtre · les tags en usage sur les dossiers vivants, avec leur nombre. */
+  tags: Array<TagCouleur & { compte: number; actif: boolean }>;
 }
 
 const normaliser = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -315,6 +336,8 @@ function carte(ix: Index, d: DossierDrive, avecSupprimes = false): CarteDossierD
     sousDossiers: (ix.enfants.get(d.id) ?? []).filter((x) => avecSupprimes || !x.supprime).length,
     vignettes: tous.slice(0, 3).map((f) => ({ url: f.type === 'image' ? f.vignette : null, type: f.type })),
     selectionnable: d.reel && !d.verrouille,
+    tag: tagCouleur(d.tag),
+    taggable: d.reel && !avecSupprimes && !d.supprime,
   };
 }
 
@@ -345,11 +368,13 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   const chemin = cheminValide(d, e.chemin);
   const courant = chemin[chemin.length - 1] ?? null;
   const q = normaliser(e.recherche);
-  const enDrive = e.section === 'drive' && !q;
+  // Le filtre par tag ne vaut que dans « Mon drive », hors recherche (la maquette efface l'un quand l'autre arrive).
+  const filtreTag = e.section === 'drive' && !q ? tagCouleur(e.tag) : null;
+  const enDrive = e.section === 'drive' && !q && !filtreTag;
 
   const onglets = RACINES_DRIVE.map((r) => ({
     id: r.id, nom: r.nom, icone: r.icone, compte: fichiersSousArbre(ix, r.id).length,
-    actif: e.section === 'drive' && chemin[0] === r.id,
+    actif: enDrive && chemin[0] === r.id,
   }));
 
   const arbre: NoeudArbreDrive[] = [];
@@ -359,6 +384,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
     arbre.push({
       id: x.id, nom: x.nom, niveau, racine: niveau === 0, icone: RACINES_DRIVE.find((r) => r.id === x.id)?.icone ?? 'folder',
       aEnfants: enfants.length > 0, ouvert, actif: enDrive && courant === x.id, compte: fichiersSousArbre(ix, x.id).length, separateurAvant: sep,
+      tag: tagCouleur(x.tag),
     });
     if (ouvert) for (const c of enfants) noeud(c, niveau + 1, false);
   };
@@ -366,6 +392,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
 
   const nomSection = SECTIONS_DRIVE.find((s) => s.cle === e.section)!.nom;
   const fil = q ? [{ libelle: `Résultats pour « ${e.recherche.trim()} »`, index: null }]
+    : filtreTag ? [{ libelle: `Dossiers tagués « ${filtreTag.libelle} »`, index: null }]
     : e.section !== 'drive' ? [{ libelle: nomSection, index: null }]
       : [{ libelle: 'Mon drive', index: 0 }, ...chemin.map((id, i) => ({ libelle: ix.parDossier.get(id)!.nom, index: i + 1 }))];
 
@@ -376,6 +403,8 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
     dossiers = d.dossiers.filter((x) => !estRacine(x.id) && ix.vivant(x.id) && normaliser(x.nom).includes(q));
     // Le nom, ou un tag posé par l'analyse (la recherche V5 portait sur les deux).
     fichiers = fichiersVivants().filter((f) => normaliser(f.nom).includes(q) || (f.ia?.tags ?? []).some((t) => normaliser(t).includes(q)));
+  } else if (filtreTag) {
+    dossiers = d.dossiers.filter((x) => x.reel && x.tag === filtreTag.cle && ix.vivant(x.id));
   } else if (e.section === 'recents') {
     fichiers = [...fichiersVivants()].sort((a, b) => b.creeLe.localeCompare(a.creeLe) || a.id.localeCompare(b.id)).slice(0, 12);
   } else if (e.section === 'corbeille') {
@@ -399,6 +428,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   const vide = cartes.length || triés.length ? null
     : e.section === 'corbeille' ? { titre: 'La corbeille est vide', texte: 'Un dossier supprimé reste ici, restaurable, avec son contenu.', icone: 'x' }
       : q ? { titre: 'Aucun fichier trouvé', texte: 'Essaie un autre nom de fichier ou de dossier.', icone: 'down' }
+        : filtreTag ? { titre: `Aucun dossier tagué « ${filtreTag.libelle} »`, texte: 'Pose un tag depuis le bouton « Tag de couleur » d’un dossier.', icone: 'tag' }
         : { titre: 'Ce dossier est vide', texte: creable ? 'Glisse des fichiers ici ou utilise « Nouveau ».' : 'Rien n’a encore été livré ici.', icone: 'down' };
 
   const tailles = d.fichiers.filter((f) => !f.lectureSeule);
@@ -409,6 +439,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   return {
     onglets, banniere: enDrive && courant === ID_ASSETS, arbre, fil, dossiers: cartes, fichiers: triés,
     nouveau, vide, depot: ix.parDossier.get(ID_ASSETS)!.nom, volume,
+    filtreTag, tags: tagsEnUsage(d.dossiers.filter((x) => x.reel && ix.vivant(x.id)).map((x) => x.tag), filtreTag?.cle ?? null),
   };
 }
 

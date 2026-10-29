@@ -34,7 +34,7 @@ import { session, semer } from './studios-semis';
 import * as actionsDossiers from '../app/actions/bibliotheque-dossiers';
 import {
   creerDossierAction, supprimerDossierAction,
-  restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction,
+  restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction,
 } from '../app/actions/bibliotheque-dossiers';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
 
@@ -67,6 +67,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['restaurerDossierAction', () => restaurerDossierAction({ id: 'x' })],
   ['affecterAssetDossierAction', () => affecterAssetDossierAction({ assetId: A.image, folderId: null })],
   ['definirDroitsAssetAction', () => definirDroitsAssetAction({ assetId: A.image, droit: 'photo_marque' })],
+  ['definirTagDossierAction', () => definirTagDossierAction({ id: 'x', tag: 'vert' })],
 ];
 
 /** [qui, session, raison du refus d'écriture] · tous refusés, rien écrit. */
