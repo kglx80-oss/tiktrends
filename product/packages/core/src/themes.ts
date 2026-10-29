@@ -53,13 +53,92 @@ export function themeOppose(t: Theme): Theme {
  * à la session), `samesite=lax` (un cookie d'apparence n'a rien à faire dans
  * une requête tierce).
  */
-export function themeCookieString(t: Theme): string {
+export function themeCookieString(t: PreferenceTheme): string {
   return `${THEME_COOKIE}=${t}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
 }
 
 /** La couleur de la barre du navigateur mobile · égale à `--bg` du thème
  *  (garde : `test/a4a-themes.test.ts`). */
 export const COULEUR_BARRE: Record<Theme, string> = { sombre: '#120810', clair: '#fbf5f6' };
+
+/* ─────────────────────────── Préférence « Auto » ─────────────────────────── */
+
+/**
+ * La PRÉFÉRENCE de la personne · un thème, ou « auto » (suit le réglage de
+ * l'appareil, `prefers-color-scheme`). Le THÈME posé (`data-theme`, ce que
+ * visent les feuilles) reste `sombre` ou `clair` · « auto » se résout.
+ *
+ * Le serveur ne connaît pas le réglage de l'appareil. Avec `tt_theme=auto`, le
+ * layout racine pose `data-theme="auto"` (aucune feuille ne le vise · rendu
+ * sombre si rien ne le résout) et un script minuscule DANS `<head>`
+ * (`scriptThemeAuto`), exécuté par l'analyseur avant toute peinture du corps,
+ * qui le remplace par `clair` ou `sombre` selon `matchMedia`. Le même script
+ * suit le changement de réglage de l'appareil et résout de nouveau tout
+ * `data-theme="auto"` reposé plus tard (rafraîchissement du rendu serveur).
+ * Sans JavaScript, « auto » rend le sombre · le défaut historique.
+ *
+ * Pourquoi un script plutôt qu'une règle `@media (prefers-color-scheme)` ·
+ * la feuille claire Spatial (`spatial-clair.css`, ~100 ko) devrait exister une
+ * seconde fois sous `@media`, et la palette claire de l'ancienne interface
+ * (`tokens.css`) une troisième · un seul script de quelques centaines d'octets
+ * résout les deux arbres, sans toucher la dérivation gardée à l'octet.
+ */
+export const PREFERENCES_THEME = ['sombre', 'clair', 'auto'] as const;
+export type PreferenceTheme = (typeof PREFERENCES_THEME)[number];
+
+/** La préférence sans cookie · le sombre, comportement inchangé (aucune règle
+ *  produit ne demande de suivre l'appareil par défaut). */
+export const PREFERENCE_THEME_DEFAUT: PreferenceTheme = THEME_DEFAUT;
+
+/** L'attribut de la PRÉFÉRENCE sur `<html>` · `data-theme-pref`. Il garde
+ *  « auto » quand `data-theme` porte le thème résolu. */
+export const ATTRIBUT_PREFERENCE_THEME = 'data-theme-pref';
+
+/** La requête média du réglage clair de l'appareil. */
+export const MEDIA_SYSTEME_CLAIR = '(prefers-color-scheme: light)';
+
+/** La préférence d'un cookie · « clair » et « auto » exacts, tout le reste vaut
+ *  sombre (même défaut sûr que `themeDepuisCookie`). */
+export function preferenceDepuisCookie(raw: string | undefined | null): PreferenceTheme {
+  return raw === 'auto' ? 'auto' : themeDepuisCookie(raw);
+}
+
+/** Le thème à poser pour une préférence · « auto » suit l'appareil. */
+export function themeResolu(p: PreferenceTheme, systemeClair: boolean): Theme {
+  return p === 'auto' ? (systemeClair ? 'clair' : 'sombre') : p;
+}
+
+/**
+ * La couleur de la barre du navigateur (`viewport.themeColor`) · une couleur
+ * pour un thème choisi ; en « auto », une couleur par réglage de l'appareil
+ * (`<meta name="theme-color" media="(prefers-color-scheme: …)">`) · juste dès
+ * le premier octet, sans script.
+ */
+export function couleurBarreViewport(p: PreferenceTheme, barres: Record<Theme, string>): string | Array<{ media: string; color: string }> {
+  if (p !== 'auto') return barres[p];
+  return [
+    { media: MEDIA_SYSTEME_CLAIR, color: barres.clair },
+    { media: '(prefers-color-scheme: dark)', color: barres.sombre },
+  ];
+}
+
+/**
+ * Le script inline de `<head>` · résout « auto » avant la peinture, suit le
+ * réglage de l'appareil, et résout tout `data-theme="auto"` reposé plus tard.
+ * Inactif (aucune écriture) quand la préférence n'est pas « auto ». `barres` ·
+ * la couleur de barre du navigateur de chaque thème (ancienne interface ou
+ * Spatial). ES5, sans dépendance, toute erreur avalée · au pire, le sombre.
+ */
+export function scriptThemeAuto(barres: Record<Theme, string>): string {
+  const b = JSON.stringify({ sombre: barres.sombre, clair: barres.clair }).replace(/</g, '\\u003c');
+  return `(function(){try{var d=document.documentElement,b=${b},m=window.matchMedia?window.matchMedia(${JSON.stringify(MEDIA_SYSTEME_CLAIR)}):null;`
+    + `function r(){var p=d.getAttribute(${JSON.stringify(ATTRIBUT_PREFERENCE_THEME)})||d.getAttribute(${JSON.stringify(ATTRIBUT_THEME)});if(p!=="auto")return;`
+    + `var t=m&&m.matches?"clair":"sombre";if(d.getAttribute(${JSON.stringify(ATTRIBUT_THEME)})!==t)d.setAttribute(${JSON.stringify(ATTRIBUT_THEME)},t);`
+    + `var x=document.querySelectorAll('meta[name="theme-color"]');for(var i=0;i<x.length;i++)x[i].setAttribute("content",b[t]);}`
+    + `r();if(m){if(m.addEventListener)m.addEventListener("change",r);else if(m.addListener)m.addListener(r);}`
+    + `if(window.MutationObserver)new MutationObserver(function(){if(d.getAttribute(${JSON.stringify(ATTRIBUT_THEME)})==="auto")r();}).observe(d,{attributes:true,attributeFilter:[${JSON.stringify(ATTRIBUT_THEME)}]});`
+    + `}catch(e){}})();`;
+}
 
 /** `color-scheme` du thème · contrôles natifs, barres, champs auto-remplis. */
 export const SCHEMA_COULEUR: Record<Theme, 'dark' | 'light'> = { sombre: 'dark', clair: 'light' };

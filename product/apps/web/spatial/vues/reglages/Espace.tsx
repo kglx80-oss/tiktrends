@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import type { PreferenceTheme } from '@tiktrends/core';
+import { SectionApparence } from './Apparence';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { CarteNavigable, RenommerEspace, StockageEspace, type ActionsStockage } from './interactifs';
 
@@ -31,6 +33,8 @@ export interface PropsEspace {
    * la maquette (garde de parité).
    */
   gestion?: GestionEspace;
+  /** La préférence de thème (cookie `tt_theme`) · présente, la section « Apparence » s'affiche. */
+  theme?: PreferenceTheme;
 }
 
 export interface GestionEspace {
@@ -117,6 +121,7 @@ export function Espace(p: PropsEspace) {
             <dt>Nommage</dt><dd>{p.preferences.nommage ? <span className="files">{p.preferences.nommage}</span> : <span className="faint">Modèle par défaut des lots · réglable dans Protocole</span>}</dd>
           </dl>
         </section>
+        {p.theme && <SectionApparence theme={p.theme} />}
         {p.gestion && <TuilesGestion espace={p.espace} g={p.gestion} />}
         <section className="tile soon" style={{ gridColumn: '1/-1' }}>
           <div className="ad r916"><div className="ph" /><div className="band"> </div></div>

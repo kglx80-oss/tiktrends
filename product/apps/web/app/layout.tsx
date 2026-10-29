@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { cookies, headers } from 'next/headers';
-import { COULEUR_BARRE, COULEUR_BARRE_SPATIALE, ENTETE_SECTION, THEME_COOKIE, sectionValide, themeDepuisCookie, type SectionSpatiale, type Theme } from '@tiktrends/core';
+import { COULEUR_BARRE, COULEUR_BARRE_SPATIALE, ENTETE_SECTION, THEME_COOKIE, couleurBarreViewport, preferenceDepuisCookie, scriptThemeAuto, sectionValide, type PreferenceTheme, type SectionSpatiale } from '@tiktrends/core';
 import { RAIL_COOKIE, railCollapsedFromCookie } from '../lib/rail-preference';
 // Aucune feuille de style ici · chaque arbre apporte la sienne. L'ancienne
 // interface importe `globals.css` dans ses segments, l'arbre Spatial n'importe
@@ -25,10 +25,11 @@ export const metadata: Metadata = {
   referrer: 'same-origin',
 };
 
-/** V5 · A4a · le thème demandé, lu AU RENDU SERVEUR dans le cookie `tt_theme`
- *  (règle du noyau · seul « clair » vaut clair, le défaut est sombre). */
-async function themeDemande(): Promise<Theme> {
-  return themeDepuisCookie((await cookies()).get(THEME_COOKIE)?.value);
+/** V5 · A4a · la préférence de thème, lue AU RENDU SERVEUR dans le cookie
+ *  `tt_theme` (règle du noyau · « clair » et « auto » exacts, le défaut est
+ *  sombre). */
+async function preferenceDemandee(): Promise<PreferenceTheme> {
+  return preferenceDepuisCookie((await cookies()).get(THEME_COOKIE)?.value);
 }
 
 /** Spatial · la section d'accent posée par le middleware sur un écran porté (sinon `null`). */
@@ -39,25 +40,34 @@ async function sectionSpatiale(): Promise<SectionSpatiale | null> {
 
 // Sans `width`, un mobile rend la page à ~980px de large puis dézoome · rien ne
 // s'adapte, tout est minuscule. C'est le socle de tout le responsive.
-// La couleur de barre du navigateur suit le thème (`--bg` de chaque palette).
+// La couleur de barre du navigateur suit le thème (`--bg` de chaque palette) ·
+// en « auto », une couleur par réglage de l'appareil (`media`).
 export async function generateViewport(): Promise<Viewport> {
   return {
     width: 'device-width',
     initialScale: 1,
-    themeColor: ((await sectionSpatiale()) ? COULEUR_BARRE_SPATIALE : COULEUR_BARRE)[await themeDemande()],
+    themeColor: couleurBarreViewport(await preferenceDemandee(), (await sectionSpatiale()) ? COULEUR_BARRE_SPATIALE : COULEUR_BARRE),
   };
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // L'attribut part avec le PREMIER octet du document · les jetons de
   // `tokens.css` s'appliquent avant toute peinture, aucun flash de thème.
-  const theme = await themeDemande();
+  // En « auto », `data-theme="auto"` est résolu en `clair` / `sombre` par le
+  // script de `<head>` (`scriptThemeAuto`), exécuté avant la peinture du corps ;
+  // le script est toujours posé (il suit l'appareil si la personne passe en
+  // « auto » sans recharger). `suppressHydrationWarning` · le script a changé
+  // `data-theme` avant l'hydratation, c'est voulu.
+  const preference = await preferenceDemandee();
   // Spatial · section d'accent et rail déplié posés dès le premier octet
   // (`body[data-sec]`, `body.rail-open` de la maquette) · aucun saut visuel.
   const section = await sectionSpatiale();
   const railOuvert = section ? !railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value) : false;
   return (
-    <html lang="fr" data-theme={theme}>
+    <html lang="fr" data-theme={preference} data-theme-pref={preference} suppressHydrationWarning>
+      <head>
+        <script id="tt-theme-auto" dangerouslySetInnerHTML={{ __html: scriptThemeAuto(section ? COULEUR_BARRE_SPATIALE : COULEUR_BARRE) }} />
+      </head>
       <body data-sec={section ?? undefined} className={railOuvert ? 'rail-open' : undefined}>{children}</body>
     </html>
   );

@@ -298,7 +298,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
           brouillon={brouillon} onFermer={fermer} onNaviguer={naviguer} toast={toast} />
       )}
 
-      {palette && <Palette groupes={groupes} onNaviguer={naviguer} onFermer={fermer} />}
+      {palette && <Palette groupes={groupes} onNaviguer={naviguer} onFermer={fermer} onTheme={toast} />}
 
       <div className={toastMsg ? 'toast on' : 'toast'} id="toast" role="status" aria-live="polite">{toastMsg}</div>
       <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: SPRITE_SYMBOLES }} />
