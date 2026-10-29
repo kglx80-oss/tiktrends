@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import {
-  AIDE_ESSAI, ESSAI_LABEL, ESSAI_VARIABLES, LIBELLE_METRIQUE, LIBELLE_PROTOCOLE, METRIQUES_TEST, PROTOCOLES_TEST, libelleVariable, variablesRattachement,
+  AIDE_ESSAI, ESSAI_LABEL, TEXTES_HORS_LIGNE, ESSAI_VARIABLES, LIBELLE_METRIQUE, LIBELLE_PROTOCOLE, METRIQUES_TEST, PROTOCOLES_TEST, libelleVariable, variablesRattachement,
   type ErreurStudio, type EssaiVariable, type LigneEssai, type PlanLotEssai, type ValeursRattachement,
 } from '@tiktrends/core';
 import { preparerLotEssai } from '../../../app/actions/studios/tests';
@@ -27,13 +27,15 @@ import type { AdsmapRattachement } from './types';
 
 export type Saisie = NonNullable<LigneEssai['saisie']>;
 
-export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent, envoyer, fermer }: {
+export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent, envoyer, fermer, horsLigne = false }: {
   idVariante: string;
   initial: ValeursRattachement;
   adsmap: AdsmapRattachement;
   aUnParent: boolean;
   envoyer: (v: ValeursRattachement) => Promise<{ ok: true } | ErreurStudio>;
   fermer: () => void;
+  /** Hors ligne · l'envoi est suspendu, la saisie reste (mode hors ligne du panneau V5). */
+  horsLigne?: boolean;
 }) {
   const [v, setV] = useState<ValeursRattachement>(initial);
   const [erreur, setErreur] = useState<ErreurStudio | null>(null);
@@ -46,7 +48,7 @@ export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent,
 
   const soumettre = (e: { preventDefault: () => void }) => {
     e.preventDefault();
-    if (enCours) return;
+    if (enCours || horsLigne) return;
     demarrer(async () => {
       try {
         const r = await envoyer(v);
@@ -127,15 +129,18 @@ export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent,
       </div>
       <small className="faint" style={{ fontSize: '11.5px' }}>Aucun coût · la fiche entre dans Adsmap en brouillon, l’offre et la page se confirment avant le lancement.</small>
       <div className="kc">
-        <button className="btn sm pri" type="submit" disabled={enCours} aria-busy={enCours}><Ic n="flask" />{enCours ? 'Rattachement…' : 'Rattacher au test'}</button>
+        {horsLigne && <span role="status" className="faint" style={{ fontSize: '11.5px' }}>{TEXTES_HORS_LIGNE.formulaire}</span>}
+        <button className="btn sm pri" type="submit" disabled={enCours || horsLigne} aria-busy={enCours}><Ic n="flask" />{enCours ? 'Rattachement…' : 'Rattacher au test'}</button>
         <button className="btn sm" type="button" onClick={fermer}>Fermer</button>
       </div>
     </form>
   );
 }
 
-export function LotEssai({ projectId, variantes, ouvrirRattachement }: {
+export function LotEssai({ projectId, variantes, ouvrirRattachement, horsLigne = false }: {
   projectId: string;
+  /** Hors ligne · la préparation et le rattachement depuis un plan sont suspendus. */
+  horsLigne?: boolean;
   variantes: ReadonlyArray<{ id: string; libelle: string; version: string }>;
   ouvrirRattachement: (variantId: string, saisie: Saisie) => void;
 }) {
@@ -147,7 +152,7 @@ export function LotEssai({ projectId, variantes, ouvrirRattachement }: {
   // Un plan ne vaut que pour les paramètres qui l'ont produit · changer la sélection l'efface, une réponse tardive est ignorée.
   const revision = useRef(0);
   const invalider = () => { revision.current += 1; setPlan(null); setErreur(null); };
-  const pret = variable !== null && selection.length >= 2 && !enCours;
+  const pret = variable !== null && selection.length >= 2 && !enCours && !horsLigne;
 
   if (variantes.length < 2) {
     return (
@@ -203,12 +208,12 @@ export function LotEssai({ projectId, variantes, ouvrirRattachement }: {
         {(variable === null || selection.length < 2) && <small className="faint" style={{ fontSize: '11.5px' }}>{variable === null ? 'Choisis ce qui varie' : 'Choisis au moins deux variantes'}{variable === null && selection.length < 2 ? ' et au moins deux variantes' : ''}.</small>}
       </div>
       {erreur && <div className="banner" role="alert" style={{ margin: 0 }}><Ic n="x" /><span>{erreur.message}{erreur.traceId ? ` · identifiant support ${erreur.traceId}` : ''}</span></div>}
-      {plan && <PlanEssai plan={plan} ouvrirRattachement={ouvrirRattachement} />}
+      {plan && <PlanEssai plan={plan} ouvrirRattachement={ouvrirRattachement} horsLigne={horsLigne} />}
     </section>
   );
 }
 
-function PlanEssai({ plan, ouvrirRattachement }: { plan: PlanLotEssai; ouvrirRattachement: (variantId: string, saisie: Saisie) => void }) {
+function PlanEssai({ plan, ouvrirRattachement, horsLigne }: { plan: PlanLotEssai; ouvrirRattachement: (variantId: string, saisie: Saisie) => void; horsLigne: boolean }) {
   const ok = plan.constat.ok;
   return (
     <div className="sugg" role="status" data-plan-essai={ok ? 'essai' : 'refus'} style={{ display: 'grid', gap: 8 }}>
@@ -226,7 +231,7 @@ function PlanEssai({ plan, ouvrirRattachement }: { plan: PlanLotEssai; ouvrirRat
         <div className="prow" key={l.variantId} data-ligne-essai={l.etat} style={{ flexWrap: 'wrap' }}>
           <div className="t"><strong style={{ fontSize: '12.5px' }}>{l.libelle} · {l.valeur}</strong><small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{l.etatTexte}</small></div>
           <div className="kc">
-            {l.saisie && <button className="btn sm" type="button" onClick={() => ouvrirRattachement(l.variantId, l.saisie!)}>Rattacher avec ce plan</button>}
+            {l.saisie && <button className="btn sm" type="button" disabled={horsLigne} title={horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined} onClick={() => ouvrirRattachement(l.variantId, l.saisie!)}>Rattacher avec ce plan</button>}
             {l.adsmapHref && <Lien className="btn sm" href={l.adsmapHref}><Ic n="chart" />Résultats</Lien>}
           </div>
         </div>
