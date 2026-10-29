@@ -51,11 +51,11 @@ function Alertes({ alertes, ouvert }: { alertes: ReadonlyArray<AlerteRadar>; ouv
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <span className="orb" style={{ width: '32px', height: '32px', fontSize: '12.5px' }}>J</span>
         <h2 style={{ margin: 0, flex: 1, minWidth: '200px' }}>Ce que le suivi a repéré cette semaine</h2>
-        <span className="pill" style={{ borderColor: '#ffd48a66', color: '#ffd48a' }}><Ic n="bell" />{alertes.length ? `${alertes.length} alerte${alertes.length > 1 ? 's' : ''}` : 'Aucune alerte'}</span>
+        <span className="pill" style={{ borderColor: 'color-mix(in srgb,var(--warn) 40%,transparent)', color: 'var(--warn)' }}><Ic n="bell" />{alertes.length ? `${alertes.length} alerte${alertes.length > 1 ? 's' : ''}` : 'Aucune alerte'}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,230px),1fr))', gap: '10px' }}>
         {alertes.map((a) => (
-          <article key={a.titre} style={{ display: 'grid', gap: '8px', alignContent: 'start', padding: '14px', borderRadius: '18px', background: '#0d1424b3', border: '1px solid var(--edge2)' }}>
+          <article key={a.titre} style={{ display: 'grid', gap: '8px', alignContent: 'start', padding: '14px', borderRadius: '18px', background: 'var(--clair-voile-carte,#0d1424b3)', border: '1px solid var(--edge2)' }}>
             <strong style={{ font: '600 14px/1.3 var(--sfd)', textWrap: 'pretty' }}>{a.titre}</strong>
             <p className="muted" style={{ margin: 0, fontSize: '12.5px', lineHeight: 1.45 }}>{a.texte}</p>
             <Lien className={`btn sm ${ouvert ? 'pri' : ''}`.trim()} href={ouvert ? a.action.href : '/radar'} style={{ justifySelf: 'start', marginTop: 'auto' }} tabIndex={ouvert ? undefined : -1}>{a.action.libelle}</Lien>
@@ -174,7 +174,7 @@ export function Radar(p: PropsRadar) {
             <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <span style={{ display: 'grid', placeItems: 'center', width: '58px', height: '58px', borderRadius: '18px', background: 'linear-gradient(135deg,#ffd48a,#ff9f6e)', color: '#2a1a00', flex: 'none', boxShadow: '0 14px 30px -12px #ff9f6eaa' }}><Ic n="eye" s={false} /></span>
               <div style={{ flex: '1 1 320px', minWidth: 0, display: 'grid', gap: '6px' }}>
-                <span className="lbl" style={{ margin: 0, color: '#ffd48a' }}>{v.titre}</span>
+                <span className="lbl" style={{ margin: 0, color: 'var(--warn)' }}>{v.titre}</span>
                 <h2 style={{ margin: 0, fontSize: '23.5px', letterSpacing: '-.02em', textWrap: 'balance' }}>Ne rate plus une pub de tes concurrents</h2>
                 <p className="muted" style={{ margin: 0, fontSize: '14px', maxWidth: '620px', textWrap: 'pretty' }}>{v.texte}</p>
               </div>
@@ -182,7 +182,7 @@ export function Radar(p: PropsRadar) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))', gap: '10px' }}>
               {([['eye', 'Suivi des marques', 'Les nouvelles pubs des marques que tu suis, relevées pour toi'], ['bell', 'Alertes', 'Chaque nouveauté arrive dans tes notifications'], ['bulb', 'Action immédiate', 'De l’alerte à la pub, puis à l’itération dans Studios']] as const).map(([i, t, d]) => (
                 <div key={t} style={{ display: 'grid', gap: '4px', padding: '12px 14px', borderRadius: '16px', background: '#ffffff0a', border: '1px solid var(--edge2)' }}>
-                  <span style={{ color: '#ffd48a' }}><Ic n={i} /></span><strong style={{ fontSize: '13.5px' }}>{t}</strong><small className="faint" style={{ fontSize: '12px' }}>{d}</small>
+                  <span style={{ color: 'var(--warn)' }}><Ic n={i} /></span><strong style={{ fontSize: '13.5px' }}>{t}</strong><small className="faint" style={{ fontSize: '12px' }}>{d}</small>
                 </div>
               ))}
             </div>
@@ -199,7 +199,7 @@ export function Radar(p: PropsRadar) {
               <Alertes alertes={p.alertes} ouvert={false} />
               <Suivi marques={p.marques} ouvert={false} />
             </div>
-            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', justifyItems: 'center', gap: '10px', textAlign: 'center', background: 'linear-gradient(180deg,transparent,#0b1220cc 40%)' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', justifyItems: 'center', gap: '10px', textAlign: 'center', background: 'linear-gradient(180deg,transparent,var(--clair-voile-verrou,#0b1220cc) 40%)' }}>
               <span style={{ display: 'grid', placeItems: 'center', width: '48px', height: '48px', borderRadius: '50%', background: '#ffd48a', color: '#2a1a00' }}><Ic n="lock" s={false} /></span>
               <strong style={{ font: '600 16.5px var(--sfd)' }}>{v.superposition.titre}</strong>
               <small className="faint">{v.superposition.sous}</small>

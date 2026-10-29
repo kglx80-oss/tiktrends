@@ -72,7 +72,7 @@ function Pub({ url, r916 = false, classe = '', bande = ' ' }: { url: string | nu
   );
 }
 
-const COULEUR_TON: Readonly<Record<TonVariation, string>> = { neutre: 'var(--fg2)', bon: 'var(--good)', mauvais: '#ffb0bd' };
+const COULEUR_TON: Readonly<Record<TonVariation, string>> = { neutre: 'var(--fg2)', bon: 'var(--good)', mauvais: 'var(--clair-baisse,#ffb0bd)' };
 const petit = (taille: string, plus: CSSProperties = {}): CSSProperties => ({ fontSize: taille, ...plus });
 
 function Reporting({ r }: { r: EtatReporting }) {
