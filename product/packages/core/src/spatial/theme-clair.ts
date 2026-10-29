@@ -24,8 +24,16 @@
  *    bleu nuit devient le papier. Un texte blanc sur un voile nuit devient un
  *    texte encre sur un voile papier · la PAIRE garde son contraste.
  *  · SATURÉE, posée en texte, trait ou bordure · la teinte et la saturation
- *    restent, la clarté descend jusqu'à 4,7:1 sur blanc (les pastels pensés
- *    pour le verre sombre deviennent leurs versions profondes).
+ *    restent, la clarté descend jusqu'à `CIBLE_TEXTE_CLAIR` sur blanc (les
+ *    pastels pensés pour le verre sombre deviennent leurs versions profondes).
+ *  · Une encre posée sur un fond VIF (accent opaque, aplat saturé) ou sur une
+ *    pastille d'identité garde sa valeur sombre, `var(--ink)` compris ; une
+ *    teinte mêlée à moins de moitié, ou à du transparent, n'est qu'un voile ·
+ *    le texte posé dessus suit le thème (`PART_TEINTE_FOND_VIF`).
+ *  · Une variable de teinte (accent, tag, dossier, étape) posée en texte ou en
+ *    trait se mêle à l'encre (`VAR_TEINTE`).
+ *  · Un fond vif remplacé par un verre neutre reçoit l'encre du thème
+ *    (`basesVives`).
  *  · SATURÉE, posée en fond · gardée (accents, dégradés de section, teintes).
  *  · OMBRE portée · reste sombre, alpha divisé par deux ; un liseré intérieur
  *    (reflet du verre) reste tel quel ; un anneau (`0 0 0 Npx`) suit la règle
@@ -53,8 +61,14 @@ export const SELECTEUR_CLAIR = 'html[data-theme="clair"]';
 export const ENCRE_CLAIRE = '#0b1220';
 export const PAPIER_CLAIR = '#eef1f6';
 
-/** Le seuil visé pour un texte saturé assombri (4,5 AA + marge). */
-export const CIBLE_TEXTE_CLAIR = 6.5;
+/**
+ * Le seuil visé SUR BLANC pour un texte saturé assombri. Le pire fond réel
+ * n'est pas la fenêtre · c'est une pastille de statut (12 % de sa teinte)
+ * posée sur une tuile teintée par l'accent (`mesurerPastillesClaires`). À
+ * 6,5:1 (valeur d'avant), la pastille « Faible » tombait à 4,09 au modèle,
+ * 4,17 mesuré au banc (relevé D6) ; à 7,5:1, 4,70 au modèle, 4,78 au banc.
+ */
+export const CIBLE_TEXTE_CLAIR = 7.5;
 
 /**
  * Part de l'accent de section dans un texte ou un trait d'accent en clair
@@ -158,9 +172,32 @@ function transformerCouleurs(v: string, nature: Nature): string {
   });
 }
 
-/** `var(--acc)` (ou `--acc2`) posé en texte ou en trait · mêlé à l'encre. */
+/**
+ * Les TEINTES posées par variable · l'accent de section (`--acc`, `--acc2`),
+ * les teintes de raccourci (`--q1`, `--q2`), et les teintes de donnée qu'une
+ * vue pose en ligne (`--tc` tag, `--fc` dossier ou type de fichier, `--sc`
+ * étape de la boucle, `--c` étape de tendance). Toutes vives ou pastel, pensées
+ * pour le verre sombre · posées en texte ou en trait, elles se mêlent à l'encre
+ * en clair, comme l'accent (relevé D6 · `.dfold` #60a5fa sur bleu pâle 1,79:1,
+ * `.tni` 1,37:1).
+ */
+const VAR_TEINTE = /var\(--(acc2?|q[12]|tc|fc|sc|c)(?=[,)])/g;
+
+/** Une variable de teinte posée en texte ou en trait · mêlée à l'encre (fallback compris). */
 function accentLisible(v: string): string {
-  return v.replace(/var\(--(acc2?)\)/g, (_m, n: string) => `color-mix(in srgb,var(--${n}) ${PART_ACCENT_TEXTE}%,${ENCRE_CLAIRE})`);
+  let out = '', i = 0;
+  for (const m of v.matchAll(VAR_TEINTE)) {
+    const deb = m.index!;
+    if (deb < i) continue; // déjà dans un `var(…)` mêlé (repli d'une teinte)
+    let prof = 0, fin = deb;
+    for (; fin < v.length; fin++) {
+      if (v[fin] === '(') prof++;
+      else if (v[fin] === ')' && --prof === 0) break;
+    }
+    out += v.slice(i, deb) + `color-mix(in srgb,${v.slice(deb, fin + 1)} ${PART_ACCENT_TEXTE}%,${ENCRE_CLAIRE})`;
+    i = fin + 1;
+  }
+  return out + v.slice(i);
 }
 
 /** Découpe au premier niveau (hors parenthèses et chaînes). */
@@ -214,7 +251,41 @@ const PROP_TELLE_QUELLE = /^(text-shadow|mask-image|-webkit-mask-image)$/;
 /** Les créas · jamais stylées par le thème de l'interface (règle de la maquette). */
 const CREA = /\.(ad|mini|comp|blogo)(?![\w-])/;
 
-const ACCENT_FOND = /var\(--(acc2?|q1|q2|on)[,)]/;
+const ACCENT_FOND = /var\(--(acc2?|q[12]|on|tc|fc|sc|c)[,)]/;
+
+/**
+ * Part minimale d'une teinte dans un `color-mix` pour que le mélange reste un
+ * fond VIF. En dessous, ou mêlée à du transparent ou à un neutre translucide,
+ * la teinte n'est qu'un voile · le mélange suit son verre, qui s'inverse en
+ * clair (bleu pâle, pêche pâle), et le texte blanc posé dessus ne se lit plus
+ * (relevé D6 · « Mon drive » 1,61:1, « Toutes les sauvegardes » 1,35:1, onglet
+ * pressé de la Bibliothèque 1,53:1).
+ */
+export const PART_TEINTE_FOND_VIF = 50;
+
+/** Retire d'une valeur de fond les mélanges où la teinte n'est qu'un voile. */
+function sansVoilesDeTeinte(v: string): string {
+  let out = '', i = 0;
+  for (let k = v.indexOf('color-mix(', i); k >= 0; k = v.indexOf('color-mix(', i)) {
+    let prof = 0, fin = k;
+    for (; fin < v.length; fin++) {
+      if (v[fin] === '(') prof++;
+      else if (v[fin] === ')' && --prof === 0) break;
+    }
+    const corps = v.slice(k + 'color-mix('.length, fin);
+    const [, a = '', b = ''] = decouper(corps, ',');
+    const teinte = ACCENT_FOND.test(a) ? a.trim() : ACCENT_FOND.test(b) ? b.trim() : null;
+    const autre = teinte === a.trim() ? b : a;
+    // Part de la teinte · `var(--acc) 30%` ; absente = 50 % ; calculée (`calc(…)`) = inconnue, donc voile.
+    const part = teinte === null ? 0 : /\)$/.test(teinte) ? 50 : Number(/\)\s+(\d+(?:\.\d+)?)%$/.exec(teinte)?.[1] ?? 0);
+    const autreLit = (autre.match(LITTERAL) ?? [])[0];
+    const autreTranslucide = /\btransparent\b/.test(autre) || (!!autreLit && lireCouleurCss(autreLit)[3] < 0.9);
+    const voile = teinte !== null && (part < PART_TEINTE_FOND_VIF || autreTranslucide);
+    out += v.slice(i, k) + (voile ? 'transparent' : v.slice(k, fin + 1));
+    i = fin + 1;
+  }
+  return out + v.slice(i);
+}
 
 /** Une valeur porte-t-elle une couleur (littéral, variable, mot-clé) ? */
 const porteCouleur = (prop: string, v: string) =>
@@ -232,8 +303,42 @@ function lireDeclarations(corps: string): Decl[] {
 
 /** Le fond de la règle est-il un accent ou une couleur vive opaque ? Son texte a été choisi pour lui. */
 function fondFixe(decls: Decl[]): boolean {
-  return decls.some((d) => PROP_FOND.test(d.prop) && (ACCENT_FOND.test(d.valeur) || (d.valeur.match(LITTERAL) ?? []).some((c) => !estNeutre(c) && lireCouleurCss(c)[3] >= 0.9)));
+  return decls.some((d) => {
+    if (!PROP_FOND.test(d.prop)) return false;
+    const v = sansVoilesDeTeinte(d.valeur);
+    return ACCENT_FOND.test(v) || (v.match(LITTERAL) ?? []).some((c) => !estNeutre(c) && lireCouleurCss(c)[3] >= 0.9);
+  });
 }
+
+/**
+ * Les PASTILLES D'IDENTITÉ · initiales d'une marque, d'un persona, d'un membre,
+ * monogramme d'une source. Leur teinte est posée EN LIGNE par la vue
+ * (`style={{ background: teinte }}`), jamais par la feuille · la règle de la
+ * maquette n'écrit que l'encre, choisie pour cet aplat (nuit sur pastel pour
+ * `.av` et `.savav`, blanc sur aplat de marque pour `.logo2`). Cette encre ne
+ * suit donc pas le thème (relevé D6 · initiales « I » 1,08:1, « M » 3,58:1).
+ * Liste fermée · la garde web vérifie que chaque usage pose sa teinte en ligne.
+ */
+export const PASTILLES_TEINTE_EN_LIGNE = ['.av', '.savav', '.logo2'] as const;
+
+/** Le dernier composé d'un sélecteur (`.xh .av` → `.av`). */
+const dernierCompose = (s: string) => s.trim().split(/\s*[\s>+~]\s*/).pop() ?? '';
+
+const estPastille = (sels: string[]) =>
+  sels.every((s) => (PASTILLES_TEINTE_EN_LIGNE as readonly string[]).includes(dernierCompose(s)));
+
+/**
+ * L'encre FIXE · celle d'un texte posé sur un fond vif (ou sur une pastille
+ * d'identité) · gardée telle qu'en sombre. Une variable de la palette
+ * s'inverserait pourtant avec le thème · `var(--ink)` (l'encre nuit posée sur
+ * l'orbe de Jarvis, sur la pastille « 21 j + », sur les initiales) deviendrait
+ * le papier en clair (relevé D6 · orbe « J » 1,23:1). Elle est donc figée à sa
+ * valeur sombre, l'encre nuit.
+ */
+const encreFigee = (v: string) => v.replace(/var\(--ink\)/g, INK_MAQUETTE);
+
+/** `--ink` de la maquette (`:root` de `spatial.css`) · l'encre nuit du sombre. */
+export const INK_MAQUETTE = '#0b1220';
 
 function transformerDeclaration(d: Decl, texteFixe: boolean): Decl | null {
   const { prop } = d;
@@ -248,7 +353,7 @@ function transformerDeclaration(d: Decl, texteFixe: boolean): Decl | null {
     return { prop, valeur: decouper(d.valeur, ',').map(transformerCoucheOmbre).join(',') };
   }
   if (PROP_TRAIT.test(prop)) {
-    if (texteFixe && /^(color|fill|stroke|-webkit-text-fill-color)$/.test(prop)) return { prop, valeur: d.valeur };
+    if (texteFixe && /^(color|fill|stroke|-webkit-text-fill-color)$/.test(prop)) return { prop, valeur: encreFigee(d.valeur) };
     return { prop, valeur: accentLisible(transformerCouleurs(d.valeur, /^(color|-webkit-text-fill-color)$/.test(prop) ? 'texte' : 'trait')) };
   }
   return { prop, valeur: transformerCouleurs(d.valeur, 'fond') };
@@ -271,8 +376,47 @@ export function prefixerSelecteur(sel: string): string {
 
 /* ─────────────────────────── Feuille ─────────────────────────── */
 
+/** Toutes les règles (tête, corps), `@media`/`@supports` compris, dans l'ordre. */
+function reglesAplaties(css: string): { tete: string; corps: string }[] {
+  const out: { tete: string; corps: string }[] = [];
+  let prof = 0, deb = 0;
+  for (let i = 0; i < css.length; i++) {
+    if (css[i] === '{') prof++;
+    else if (css[i] === '}' && --prof === 0) {
+      const brut = css.slice(deb, i + 1).trim();
+      deb = i + 1;
+      const o = brut.indexOf('{');
+      const tete = brut.slice(0, o).trim(), corps = brut.slice(o + 1, -1);
+      if (/^@(media|supports|container)\b/.test(tete)) out.push(...reglesAplaties(corps));
+      else if (!tete.startsWith('@')) out.push({ tete, corps });
+    }
+  }
+  return out;
+}
+
+const PROP_FOND_POSE = /^(background|background-color|background-image)$/;
+
+/**
+ * Les BASES VIVES · un composé simple (`.ico`) dont la règle pose un fond vif
+ * ET son encre (`.ico{background:linear-gradient(var(--acc),var(--acc2));color:var(--on)}`).
+ * Une règle plus précise qui remplace ce fond par un verre neutre sans redire
+ * l'encre (`.feed .it .ico{background:#ffffff1f}`) hérite d'une encre pensée
+ * pour l'accent · en sombre, blanc sur verre sombre, elle se lit ; en clair,
+ * blanc sur verre pâle, plus du tout (relevé D6 · pictogrammes du fil 1,5:1).
+ * Cette règle reçoit en clair l'encre du thème, `var(--fg)`.
+ */
+function basesVives(css: string): Set<string> {
+  const bases = new Set<string>();
+  for (const { tete, corps } of reglesAplaties(css)) {
+    const decls = lireDeclarations(corps);
+    if (!decls.some((d) => d.prop === 'color') || !fondFixe(decls)) continue;
+    for (const s of decouper(tete, ',').map((x) => x.trim())) if (/^\.[\w-]+$/.test(s)) bases.add(s);
+  }
+  return bases;
+}
+
 /** Règles et blocs `@media`/`@supports` de premier niveau, récursivement. */
-function deriverBloc(css: string, telQuel = false): string[] {
+function deriverBloc(css: string, telQuel = false, vives: ReadonlySet<string> = new Set()): string[] {
   const out: string[] = [];
   let prof = 0, deb = 0;
   for (let i = 0; i < css.length; i++) {
@@ -288,18 +432,23 @@ function deriverBloc(css: string, telQuel = false): string[] {
       const corps = brut.slice(o + 1, -1);
       if (tete.startsWith('@')) {
         if (/^@(media|supports|container)\b/.test(tete)) {
-          const dedans = deriverBloc(corps, telQuel);
+          const dedans = deriverBloc(corps, telQuel, vives);
           if (dedans.length) out.push(`${tete}{${dedans.join('')}}`);
         }
         continue; // @keyframes, @font-face · ni sélecteur ni thème
       }
       if (CREA.test(tete) && decouper(tete, ',').every((s) => CREA.test(s))) continue;
       const decls = lireDeclarations(corps);
-      const fixe = fondFixe(decls);
-      const derivees = decls.map((d) => (telQuel ? garderDeclaration(d) : transformerDeclaration(d, fixe))).filter((d): d is Decl => d !== null);
-      if (!derivees.length) continue;
       const sels = decouper(tete, ',').map((s) => s.trim()).filter((s) => !CREA.test(s));
-      out.push(`${prefixerSelecteur(sels.join(','))}{${derivees.map((d) => `${d.prop}:${d.valeur}`).join(';')}}`);
+      const sansFond = !decls.some((d) => PROP_FOND.test(d.prop));
+      const fixe = fondFixe(decls) || (sansFond && estPastille(sels));
+      const derivees = decls.map((d) => (telQuel ? garderDeclaration(d) : transformerDeclaration(d, fixe))).filter((d): d is Decl => d !== null);
+      if (derivees.length) out.push(`${prefixerSelecteur(sels.join(','))}{${derivees.map((d) => `${d.prop}:${d.valeur}`).join(';')}}`);
+      // Fond vif remplacé par un verre neutre · l'encre du thème (voir `basesVives`).
+      if (!telQuel && !fixe && decls.some((d) => PROP_FOND_POSE.test(d.prop)) && !decls.some((d) => d.prop === 'color')) {
+        const herites = sels.filter((s) => s.split(/\s*[\s>+~]\s*/).length > 1 && vives.has(dernierCompose(s)));
+        if (herites.length) out.push(`${prefixerSelecteur(herites.join(','))}{color:var(--fg)}`);
+      }
     }
   }
   return out;
@@ -328,6 +477,47 @@ export const PALETTE_CLAIRE_SPATIALE: Readonly<Record<string, string>> = {
   bad: assombrirPourTexte('#ff9b9b'),
   sh: '0 30px 60px -30px #0b122033,inset 0 1px 0 #ffffffcc',
 };
+
+/* ─────────────────────────── Couleurs en ligne ─────────────────────────── */
+
+/**
+ * Les COULEURS EN LIGNE des vues · une couleur posée par `style={{…}}` ne passe
+ * pas par la feuille dérivée (relevé D1 · cartes du Radar restées sur leur voile
+ * nuit `#0d1424b3` en clair, texte encre dessus, 2,3:1 ; D6 · variation en baisse
+ * `#ffb0bd` 1,21:1, conseil d'Admin en accent vif 1,46:1).
+ *
+ * Quand la palette a déjà la même valeur en sombre, la vue l'utilise (`#ffd48a`
+ * → `var(--warn)`, `#fff` → `var(--fg)`). Sinon, elle écrit
+ * `var(--clair-<nom>,<valeur de la maquette>)` · en sombre la variable n'existe
+ * pas et le repli EST la valeur d'avant (rendu sombre inchangé) ; en clair, la
+ * valeur est DÉRIVÉE ici par la règle même de la feuille (neutre inversé, texte
+ * saturé assombri, teinte mêlée à l'encre). La garde web refuse un nom inconnu
+ * ou un repli qui n'est pas la valeur sombre déclarée.
+ */
+export const COULEURS_EN_LIGNE: Readonly<Record<string, { sombre: string; nature: 'texte' | 'fond' }>> = {
+  /** Carte posée sur une tuile (alertes du Radar) · même voile que `.xa`. */
+  'voile-carte': { sombre: '#0d1424b3', nature: 'fond' },
+  /** Voile qui masque l'aperçu verrouillé (Radar sans l'offre). */
+  'voile-verrou': { sombre: '#0b1220cc', nature: 'fond' },
+  /** Variation défavorable d'un KPI (Accueil · reporting Meta). */
+  baisse: { sombre: '#ffb0bd', nature: 'texte' },
+  /** L'accent de section écrit en texte (conseils d'Admin+). */
+  acc: { sombre: 'var(--acc)', nature: 'texte' },
+};
+
+/** La valeur claire d'une couleur en ligne · la règle de la feuille, appliquée telle quelle. */
+export function couleurEnLigneClaire(nom: string): string {
+  const c = COULEURS_EN_LIGNE[nom];
+  if (!c) throw new Error(`couleur en ligne inconnue : ${nom}`);
+  return c.nature === 'fond' ? transformerCouleurs(c.sombre, 'fond') : accentLisible(transformerCouleurs(c.sombre, 'texte'));
+}
+
+/*
+ * Posées sur `body` · `--acc` y est fixé par la section (`body[data-sec=…]`), et
+ * une variable qui en dépend se résout là où elle est déclarée.
+ */
+const reglesEnLigne = () =>
+  `${SELECTEUR_CLAIR} body{${Object.keys(COULEURS_EN_LIGNE).map((n) => `--clair-${n}:${couleurEnLigneClaire(n)}`).join(';')}}`;
 
 /* ─────────────────────────── Pop-up profil (G17) ─────────────────────────── */
 
@@ -385,6 +575,34 @@ export function accentTexteClair(accent: string): string {
  * statuts, et texte d'accent de chaque section, sur la fenêtre et la tuile ;
  * encre et `--fg2` sur un bouton neutre (`--glass3`).
  */
+/**
+ * La plus forte teinte d'accent posée sous un texte de tuile dans la maquette
+ * (`.plan.rec`, `.tni` · `color-mix(var(--acc) 26%,transparent)`).
+ */
+export const PART_TEINTE_TUILE = 26;
+
+/** Les statuts de la maquette (`--good`, `--chg`, `--warn`, `--bad` en sombre) · leur pastille `.pill.*` pose 12 % (`1f`) de leur teinte. */
+export const STATUTS_MAQUETTE: Readonly<Record<'good' | 'chg' | 'warn' | 'bad', string>> = { good: '#7ef0b0', chg: '#8fd8ff', warn: '#ffd48a', bad: '#ff9b9b' };
+
+export interface MesurePastille { statut: string; section: string; ratio: number; ok: boolean }
+
+/**
+ * Une pastille de statut en clair, au pire cas · son texte (le statut assombri
+ * à `cible`) sur sa teinte à 12 %, posée sur une tuile teintée à
+ * `PART_TEINTE_TUILE` % par l'accent de chaque section, sur la tuile pire cas.
+ */
+export function mesurerPastillesClaires(cible = CIBLE_TEXTE_CLAIR): MesurePastille[] {
+  const rgb = (c: Rgba) => `rgb(${c[0]},${c[1]},${c[2]})`;
+  const tuile = fondsClairsPireCas().tuile;
+  return Object.entries(STATUTS_MAQUETTE).flatMap(([statut, c]) => Object.entries(ACCENTS_SECTION).map(([section, [acc]]) => {
+    const a = lireCouleurCss(acc);
+    const teintee = rgb(composer(versHex([a[0], a[1], a[2], PART_TEINTE_TUILE / 100]), tuile));
+    const fond = rgb(composer(`${c}1f`, teintee));
+    const ratio = contrasteCouleurs(assombrirPourTexte(c, cible), fond);
+    return { statut, section, ratio, ok: ratio >= SEUILS_CONTRASTE.texte };
+  }));
+}
+
 export function mesurerThemeClair(): MesureClaire[] {
   const f = fondsClairsPireCas();
   const P = PALETTE_CLAIRE_SPATIALE;
@@ -409,7 +627,7 @@ export function deriverThemeClairCss(css: string): string {
   // clair (`.qa2[data-route="veille"] .ico{color:#111}`) doit continuer de battre
   // la règle générale dérivée, comme en sombre.
   const routes = deriverRoutesCss(css).replace(/\/\*[\s\S]*?\*\//g, '');
-  const regles = [...deriverBloc(sansCommentaires), ...deriverBloc(routes, true)];
+  const regles = [...deriverBloc(sansCommentaires, false, basesVives(sansCommentaires)), ...deriverBloc(routes, true)];
   const palette = `${SELECTEUR_CLAIR}{${Object.entries(PALETTE_CLAIRE_SPATIALE).map(([k, v]) => `--${k}:${v}`).join(';')}}`;
-  return ENTETE_THEME_CLAIR_CSS + regles.join('\n') + '\n' + palette + '\n';
+  return ENTETE_THEME_CLAIR_CSS + regles.join('\n') + '\n' + palette + '\n' + reglesEnLigne() + '\n';
 }
