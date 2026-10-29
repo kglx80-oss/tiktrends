@@ -7,6 +7,7 @@ import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { runRadarForBrand, radarState, type RadarState } from '../../lib/radar';
 import { spendStatus } from '../../lib/spend-guard';
+import { personnelPlateforme } from '../../lib/personnel-plateforme';
 import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
 import { revalidatePath } from 'next/cache';
 
@@ -42,8 +43,12 @@ export interface RadarFindingRow {
 export interface RadarView {
   state: RadarState;
   findings: RadarFindingRow[];
-  /** État du plafond global · le radar n'a pas de budget à lui. */
-  spend: { spentUsd: number; capUsd: number; summary: string };
+  /**
+   * État du plafond global · le radar n'a pas de budget à lui. PERSONNEL
+   * seulement (`voitDepensePlateforme`) : c'est la dépense de toute la
+   * plateforme. Absent pour un client · ni à l'écran, ni dans la réponse.
+   */
+  spend?: { spentUsd: number; capUsd: number; summary: string };
 }
 
 export async function radarViewAction(): Promise<{ view?: RadarView; error?: string }> {
@@ -71,7 +76,7 @@ export async function radarViewAction(): Promise<{ view?: RadarView; error?: str
         ))
         .orderBy(desc(schema.marketCreatives.reportedAt))
         .limit(60),
-      spendStatus(),
+      personnelPlateforme(g.s) ? spendStatus() : Promise.resolve(null),
     ]);
 
     const findings: RadarFindingRow[] = rows.map((r) => {
@@ -95,7 +100,7 @@ export async function radarViewAction(): Promise<{ view?: RadarView; error?: str
     return {
       view: {
         state, findings,
-        spend: { spentUsd: spend.spentUsd, capUsd: spend.capUsd, summary: spend.summary },
+        ...(personnelPlateforme(g.s) && spend ? { spend: { spentUsd: spend.spentUsd, capUsd: spend.capUsd, summary: spend.summary } } : {}),
       },
     };
   } catch (e) {
