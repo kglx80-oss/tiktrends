@@ -1,5 +1,9 @@
 ## Inventaire V5 : coquille, profil, Accueil, Studios, Réglages (lecture seule)
 
+> **Historique · 29/10/2026.** L'interface V5 a été retirée (#941) · la référence
+> vivante est `docs/spatial/`. Cet inventaire est gardé tel quel · ses chemins
+> (`app/(app)/…`, `AppShell`, `components/…`) ne désignent plus forcément du code présent.
+
 Ce que j'ai lu :
 - **Code réel** : `origin/main` (394ed04) et les branches `origin/claude/ux-v2-*`.
 - **Prototype** : la couche finale de chaque contrôle, qui est la dernière qui le touche dans l'ordre de `index.html` (extension → experience → v5 → v5-wizard → r2 … r15). `v5-new.js` n'est pas chargé par `index.html` : « Nouveau projet » ouvre donc `studioWizard('start')` (v5-wizard.js).
