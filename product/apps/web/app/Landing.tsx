@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { teinte } from '@tiktrends/core';
+import { ENGAGEMENT_V2, REMISE_ANNUELLE_LIBELLE, fourchettePrixV2, offresPubliquesV2, tarifsV2Actifs, teinte } from '@tiktrends/core';
 import { PLAN_PRICE } from '../lib/rbac';
 
 /**
@@ -205,12 +205,55 @@ const JSONLD = {
   ],
 };
 
+/** Offre V2 (sous `TARIFS_V2`) · la fourchette réelle des trois forfaits, lue dans le noyau. */
+function jsonLdV2() {
+  const f = fourchettePrixV2();
+  const [org, site, app] = JSONLD['@graph'];
+  return { ...JSONLD, '@graph': [org, site, { ...app, offers: { ...app!.offers, lowPrice: String(f.bas), highPrice: String(f.haut), offerCount: String(f.nombre) } }] };
+}
+
+/**
+ * La grille de la page d'accueil sous `TARIFS_V2` · les cartes de
+ * `offresPubliquesV2` (noyau), les mêmes que Réglages · Forfaits · aucun prix
+ * ni crédit écrit ici. Le détail (annuel, droits, comparatif) vit sur /tarifs.
+ */
+function TarifsAccueilV2() {
+  return (
+    <section id="tarifs" className="lp-reveal">
+      <div className="lp-wrap" style={{ padding: '60px 40px 28px', textAlign: 'center' }}>
+        <div className="lp-eyebrow" style={{ marginBottom: 14 }}>Tarifs</div>
+        <h2 className="lp-h2">Un tarif par niveau de la boucle</h2>
+      </div>
+      <div className="lp-wrap" style={{ paddingBottom: 40 }}>
+        <div className="lp-g3">
+          {offresPubliquesV2().map((o) => (
+            <div key={o.cle} data-forfait={o.cle} className="lp-card" style={{ padding: 24, position: 'relative', display: 'flex', flexDirection: 'column', ...(o.miseEnAvant ? { border: `1.5px solid ${teinte('accent', 0.6)}`, background: `linear-gradient(160deg,${teinte('accent', 0.14)},var(--surface))` } : {}) }}>
+              {o.etiquette && <span style={{ position: 'absolute', top: -11, left: 24, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', padding: '4px 11px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--clair-fixe)' }}>{o.etiquette}</span>}
+              <h3 style={{ fontSize: 16, fontWeight: 700 }}>{o.nom}</h3>
+              <div style={{ margin: '12px 0 4px', fontSize: 34, fontWeight: 850 }} data-prix="mensuel">{o.mensuel.prix}<span className="lp-muted" style={{ fontSize: 14 }}> {o.mensuel.periode}</span></div>
+              <p className="lp-muted" style={{ fontSize: 12.5 }} data-prix="annuel">ou {o.annuel.prix} {o.annuel.periode} en annuel ({REMISE_ANNUELLE_LIBELLE})</p>
+              <p className={o.miseEnAvant ? 'lp-ink2' : 'lp-muted'} style={{ fontSize: 13, marginTop: 12 }}>{o.accroche}</p>
+              <p style={{ fontSize: 13, marginTop: 12 }}><b data-credits>{o.credits}</b> crédits IA / mois</p>
+              <p className="lp-muted" style={{ fontSize: 12.5, marginTop: 4, flex: 1 }}>{o.limites.join(' · ')}</p>
+              <Link href={o.bouton.href} className={o.miseEnAvant ? 'lp-btn' : 'lp-ghost'} style={{ width: '100%', marginTop: 18 }}>{o.bouton.libelle}</Link>
+            </div>
+          ))}
+        </div>
+        <p className="lp-muted" style={{ fontSize: 13, marginTop: 20, textAlign: 'center' }}>
+          {ENGAGEMENT_V2} · prix TTC · <Link href="/tarifs" style={{ color: 'var(--ink2)', textDecoration: 'underline' }}>Comparer les forfaits</Link>
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export function Landing() {
+  const v2 = tarifsV2Actifs(process.env);
   const feature = { display: 'flex', gap: 13, alignItems: 'flex-start' as const };
   const featIcon = { width: 26, height: 26, borderRadius: 8, background: teinte('accent', 0.16), border: `1px solid ${teinte('accent', 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } as const;
   return (
     <div className="lp">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(v2 ? jsonLdV2() : JSONLD) }} />
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
       {/* NAV */}
@@ -489,8 +532,8 @@ export function Landing() {
         </div>
       </section>
 
-      {/* TARIFS */}
-      <section id="tarifs" className="lp-reveal">
+      {/* TARIFS · l'offre V2 sous `TARIFS_V2`, celle d'aujourd'hui sinon */}
+      {v2 ? <TarifsAccueilV2 /> : <section id="tarifs" className="lp-reveal">
         <div className="lp-wrap" style={{ padding: '60px 40px 28px', textAlign: 'center' }}>
           <div className="lp-eyebrow" style={{ marginBottom: 14 }}>Tarifs</div>
           <h2 className="lp-h2">Un tarif par niveau de la boucle</h2>
@@ -512,7 +555,7 @@ export function Landing() {
             ))}
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* CTA FINAL */}
       <section className="lp-reveal" style={{ position: 'relative', overflow: 'hidden', marginTop: 20 }}>
