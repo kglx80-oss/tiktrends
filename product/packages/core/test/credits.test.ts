@@ -3,11 +3,12 @@ import { describe, it, expect } from 'vitest';
 import { costFor, canAfford, applyLedger, computeRollover, CREDIT_COSTS, LIBELLE_ACTION_CREDIT } from '../src/credits';
 describe('crédits (§F14)', () => {
   it('coût par action (unités)', () => {
-    expect(costFor('tag_video')).toBe(2);
-    expect(costFor('image', 4)).toBe(16);
-    expect(costFor('transcription_min', 2.4)).toBe(3); // arrondi sup
+    // Nouvelle unité (÷ 10, 29/10) · chaque coût vaut dix fois l'ancien.
+    expect(costFor('tag_video')).toBe(20);
+    expect(costFor('image', 4)).toBe(160);
+    expect(costFor('transcription_min', 2.4)).toBe(30); // arrondi sup
   });
-  it('canAfford', () => { expect(canAfford(5, 'brief')).toBe(true); expect(canAfford(4, 'brief')).toBe(false); });
+  it('canAfford', () => { expect(canAfford(50, 'brief')).toBe(true); expect(canAfford(49, 'brief')).toBe(false); });
   it('ledger + report 25%', () => {
     expect(applyLedger(100, [{ delta: -20, reason: 'brief' }, { delta: 50, reason: 'topup' }])).toBe(130);
     expect(computeRollover(80)).toBe(20);

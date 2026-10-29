@@ -50,7 +50,7 @@ const session = (o: Record<string, unknown> = {}) => ({
 beforeAll(async () => {
   const dans2Jours = new Date(Date.now() + 2 * 86_400_000 - 60_000);
   await db!.insert(schema.workspaces).values([
-    { id: ids.ws, name: 'Agence', plan: 'core', creditsBalance: 1500, trialEndsAt: dans2Jours, accountKind: 'beta' },
+    { id: ids.ws, name: 'Agence', plan: 'core', creditsBalance: 15000, trialEndsAt: dans2Jours, accountKind: 'beta' },
     { id: ids.vide, name: 'Vide', plan: 'core', creditsBalance: 2000 },
   ]);
   await db!.insert(schema.users).values({ id: ids.user, email: FONDATEUR, name: 'K' });
@@ -93,10 +93,10 @@ describe('Spatial · Crédits & marges · mêmes portes que la V5', () => {
 describe('Spatial · Crédits & marges · le compte de l’espace', () => {
   it('solde, allocation de la formule et consommé du cycle · réels', async () => {
     const t = plat(zone(await page(), 'compte').textContent).replace(/ | /g, ' ');
-    expect(t).toContain('1 500');
+    expect(t).toContain('15 000');
     expect(t).toContain('Allocation · Core');
-    expect(t).toContain('2 000');
-    expect(t, '(2000 − 1500) / 2000').toContain('25 %');
+    expect(t).toContain('20 000');
+    expect(t, '(20 000 − 15 000) / 20 000 · nouvelle unité').toContain('25 %');
   });
   it('#106 · illimité = ∞, consommé « Sans objet », jamais un 100 % fantôme', async () => {
     etat.illimite = true;

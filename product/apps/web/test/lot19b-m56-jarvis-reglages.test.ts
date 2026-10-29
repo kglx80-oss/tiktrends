@@ -67,9 +67,9 @@ beforeAll(async () => {
 
   const top = { topAds: [{ name: 'Créa A gagnante', roas: 3, purchases: 12 }, { name: 'Créa B gagnante', roas: 2.5, purchases: 9 }, { name: 'Créa C gagnante', roas: 2, purchases: 7 }] };
   await db.insert(schema.workspaces).values([
-    { id: ids.wsS, name: 'Starter 56', plan: 'starter', creditsBalance: 100 },
-    { id: ids.wsB, name: 'Business 56', plan: 'business', creditsBalance: 100 },
-    { id: ids.wsC, name: 'Core 56', plan: 'core', creditsBalance: 100 },
+    { id: ids.wsS, name: 'Starter 56', plan: 'starter', creditsBalance: 1000 },
+    { id: ids.wsB, name: 'Business 56', plan: 'business', creditsBalance: 1000 },
+    { id: ids.wsC, name: 'Core 56', plan: 'core', creditsBalance: 1000 },
   ]);
   await db.insert(schema.brands).values([
     { id: ids.bS, workspaceId: ids.wsS, name: 'Marque S', creativeRules: 'REGLES_AVANT', jarvisLearnings: 'APPRIS_AVANT', adsInsights: top },
@@ -142,7 +142,7 @@ describe('parcours autorisés inchangés · faux fournisseur local', () => {
     expect([b!.creativeRules, b!.jarvisLearnings]).toEqual(['REGLES_CORE', 'APPRIS_CORE']);
   });
 
-  it('admin Core · proposer les règles · une requête au faux fournisseur, une dépense sous plafond, 5 crédits', async () => {
+  it('admin Core · proposer les règles · une requête au faux fournisseur, une dépense sous plafond, 50 crédits (nouvelle unité)', async () => {
     h.session = base(ids.wsC, { role: 'admin', plan: 'core', equipe: null }); h.marque = ids.bC;
     const avant = await etat();
     const r = await proposeJarvisRulesAction();
@@ -151,7 +151,7 @@ describe('parcours autorisés inchangés · faux fournisseur local', () => {
     const apres = await etat();
     expect(apres.fournisseur).toBe(avant.fournisseur + 1);
     expect(apres.depense).toBe(avant.depense + 1);
-    expect(apres.soldes.find((x) => x.id === ids.wsC)!.c).toBe(avant.soldes.find((x) => x.id === ids.wsC)!.c - 5);
+    expect(apres.soldes.find((x) => x.id === ids.wsC)!.c).toBe(avant.soldes.find((x) => x.id === ids.wsC)!.c - 50);
   });
 
   it('admin Core · entraîner · une requête, une dépense, apprentissages écrits', async () => {

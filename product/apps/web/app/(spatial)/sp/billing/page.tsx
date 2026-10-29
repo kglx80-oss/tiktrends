@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { and, eq, gte, lt } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  DESCRIPTIF_FORMULES, FORMULE_MISE_EN_AVANT, ORDRE_FORMULES, boutonFormule, consommationSur, economiePack, equivalencePack,
+  DESCRIPTIF_FORMULES, FORMULE_MISE_EN_AVANT, ORDRE_FORMULES, boutonFormule, consommationSur, deltaUniteCourante, economiePack, equivalencePack,
   messagesRetourForfaits, partSolde, prixFormule, rythmeCredits, texteBaremeCredits,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -28,14 +28,15 @@ export default async function ForfaitsSpatial() {
   let solde = 0, abonne = false, consommes = 0;
   if (db) {
     const [[w], rows] = await Promise.all([
-      db.select({ c: schema.workspaces.creditsBalance, st: schema.workspaces.subscriptionStatus, sub: schema.workspaces.stripeSubscriptionId })
+      db.select({ c: schema.workspaces.creditsBalance, st: schema.workspaces.subscriptionStatus, sub: schema.workspaces.stripeSubscriptionId, convertiLe: schema.workspaces.creditUnitConvertedAt })
         .from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
-      db.select({ delta: schema.creditLedger.delta, createdAt: schema.creditLedger.createdAt }).from(schema.creditLedger)
+      db.select({ delta: schema.creditLedger.delta, reason: schema.creditLedger.reason, createdAt: schema.creditLedger.createdAt }).from(schema.creditLedger)
         .where(and(eq(schema.creditLedger.workspaceId, s.workspaceId), gte(schema.creditLedger.createdAt, new Date(maintenant.getTime() - JOURS * 86_400_000)), lt(schema.creditLedger.delta, 0))),
     ]);
     solde = w?.c ?? 0;
     abonne = !!w?.sub && ['active', 'trialing', 'past_due'].includes(w?.st ?? '');
-    consommes = consommationSur(rows.map((r) => ({ delta: r.delta, createdAt: r.createdAt as Date })), maintenant, JOURS);
+    // Unité ÷ 10 · une consommation antérieure à la conversion se lit ×10 (`deltaUniteCourante`).
+    consommes = consommationSur(rows.map((r) => ({ delta: deltaUniteCourante({ delta: r.delta, reason: r.reason, createdAt: r.createdAt as Date }, (w?.convertiLe as Date | null) ?? null), createdAt: r.createdAt as Date })), maintenant, JOURS);
   }
   const illimite = unlimitedCredits(s.user.email);
   const paiement = stripeConfigured();

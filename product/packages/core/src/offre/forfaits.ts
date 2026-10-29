@@ -28,16 +28,16 @@ export interface ForfaitActuel {
   libelle: string;
   /** Prix mensuel du catalogue du code, en euros (tel qu'affiché aujourd'hui). */
   prixMensuelEur: number;
-  /** Allocation mensuelle de crédits (unité en vigueur). */
+  /** Allocation mensuelle de crédits (nouvelle unité). */
   creditsMois: number;
 }
 
-/** L'offre actuelle · valeurs INCHANGÉES (celles de `lib/rbac.ts` avant ce module). */
+/** L'offre actuelle · prix INCHANGÉS, crédits dans la nouvelle unité (×10 · pouvoir d'achat identique). */
 export const FORFAITS_ACTUELS: Readonly<Record<CleForfaitActuel, ForfaitActuel>> = {
-  starter: { libelle: 'Starter', prixMensuelEur: 0, creditsMois: 200 },
-  core: { libelle: 'Core', prixMensuelEur: 99, creditsMois: 2000 },
-  plus: { libelle: 'Plus', prixMensuelEur: 299, creditsMois: 7000 },
-  business: { libelle: 'Business', prixMensuelEur: 990, creditsMois: 24000 },
+  starter: { libelle: 'Starter', prixMensuelEur: 0, creditsMois: 2000 },
+  core: { libelle: 'Core', prixMensuelEur: 99, creditsMois: 20000 },
+  plus: { libelle: 'Plus', prixMensuelEur: 299, creditsMois: 70000 },
+  business: { libelle: 'Business', prixMensuelEur: 990, creditsMois: 240000 },
 };
 
 export interface ForfaitV2 {
@@ -116,11 +116,11 @@ export function creditsMoisForfait(p: CleForfait): number {
 
 export interface Recharge { key: string; credits: number; eur: number }
 
-/** Les recharges actuelles · valeurs INCHANGÉES (celles de `lib/credit-packs.ts`). */
+/** Les recharges actuelles · prix INCHANGÉS, crédits dans la nouvelle unité (×10). */
 export const RECHARGES_ACTUELLES: readonly Recharge[] = [
-  { key: 'pack_1k', credits: 1000, eur: 19 },
-  { key: 'pack_5k', credits: 5000, eur: 79 },
-  { key: 'pack_20k', credits: 20000, eur: 279 },
+  { key: 'pack_1k', credits: 10000, eur: 19 },
+  { key: 'pack_5k', credits: 50000, eur: 79 },
+  { key: 'pack_20k', credits: 200000, eur: 279 },
 ];
 
 /** Prix TTC de 1 000 crédits (nouvelle unité) selon le forfait V2 · dégressif. */

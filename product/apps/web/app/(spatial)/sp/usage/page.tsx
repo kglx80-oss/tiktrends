@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
-import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lt } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { CREDIT_COSTS, FUSEAU_ACCUEIL, LIBELLE_ACTION_CREDIT, consommationParSemaine, consommationSur, journalCredits, partSolde, type CreditAction } from '@tiktrends/core';
+import { CREDIT_COSTS, FUSEAU_ACCUEIL, LIBELLE_ACTION_CREDIT, MOTIF_CONVERSION_UNITE, consommationParSemaine, deltaUniteCourante, consommationSur, journalCredits, partSolde, type CreditAction } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_CREDITS, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
 import { unlimitedCredits } from '../../../../lib/credits';
@@ -33,24 +33,24 @@ export default async function UsageSpatial() {
   let ajoute = 0, consomme = 0;
   const depuisJournal = new Date(maintenant.getTime() - JOURS_JOURNAL * 86_400_000);
   if (db) {
-    const [[w], rows, lignes, [agg]] = await Promise.all([
-      db.select({ c: schema.workspaces.creditsBalance, st: schema.workspaces.subscriptionStatus, sub: schema.workspaces.stripeSubscriptionId })
+    const [[w], rows, lignes, fenetre] = await Promise.all([
+      db.select({ c: schema.workspaces.creditsBalance, st: schema.workspaces.subscriptionStatus, sub: schema.workspaces.stripeSubscriptionId, convertiLe: schema.workspaces.creditUnitConvertedAt })
         .from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1),
-      db.select({ delta: schema.creditLedger.delta, createdAt: schema.creditLedger.createdAt }).from(schema.creditLedger)
+      db.select({ delta: schema.creditLedger.delta, reason: schema.creditLedger.reason, createdAt: schema.creditLedger.createdAt }).from(schema.creditLedger)
         .where(and(eq(schema.creditLedger.workspaceId, s.workspaceId), gte(schema.creditLedger.createdAt, depuis), lt(schema.creditLedger.delta, 0))),
       db.select({ id: schema.creditLedger.id, delta: schema.creditLedger.delta, reason: schema.creditLedger.reason, createdAt: schema.creditLedger.createdAt }).from(schema.creditLedger)
         .where(eq(schema.creditLedger.workspaceId, s.workspaceId)).orderBy(desc(schema.creditLedger.createdAt)).limit(LIMITE_JOURNAL),
-      db.select({
-        consomme: sql<number>`coalesce(-sum(case when ${schema.creditLedger.delta} < 0 then ${schema.creditLedger.delta} else 0 end), 0)`,
-        ajoute: sql<number>`coalesce(sum(case when ${schema.creditLedger.delta} > 0 then ${schema.creditLedger.delta} else 0 end), 0)`,
-      }).from(schema.creditLedger).where(and(eq(schema.creditLedger.workspaceId, s.workspaceId), gte(schema.creditLedger.createdAt, depuisJournal))),
+      db.select({ delta: schema.creditLedger.delta, reason: schema.creditLedger.reason, createdAt: schema.creditLedger.createdAt }).from(schema.creditLedger)
+        .where(and(eq(schema.creditLedger.workspaceId, s.workspaceId), gte(schema.creditLedger.createdAt, depuisJournal))),
     ]);
-    journal = lignes.map((l) => ({ id: String(l.id), delta: l.delta, reason: l.reason, createdAt: l.createdAt as Date }));
-    ajoute = Number(agg?.ajoute ?? 0);
-    consomme = Number(agg?.consomme ?? 0);
+    // Unité ÷ 10 · les lignes antérieures à la conversion se lisent ×10, la ligne de conversion n'est ni un achat ni une consommation.
+    const convertiLe = (w?.convertiLe as Date | null) ?? null;
+    const courant = (l: { delta: number; reason: string; createdAt: unknown }) => deltaUniteCourante({ delta: l.delta, reason: l.reason, createdAt: l.createdAt as Date }, convertiLe);
+    journal = lignes.map((l) => ({ id: String(l.id), delta: l.reason === MOTIF_CONVERSION_UNITE ? l.delta : courant(l), reason: l.reason, createdAt: l.createdAt as Date }));
+    for (const l of fenetre) { const d = courant(l); if (d > 0) ajoute += d; else consomme -= d; }
     solde = w?.c ?? 0;
     abonne = !!w?.sub && ['active', 'trialing', 'past_due'].includes(w?.st ?? '');
-    mouvements = rows.map((r) => ({ delta: r.delta, createdAt: r.createdAt as Date }));
+    mouvements = rows.map((r) => ({ delta: courant(r), createdAt: r.createdAt as Date }));
   }
   const illimite = unlimitedCredits(s.user.email);
   const dotation = PLAN_CREDITS[plan] ?? 0;

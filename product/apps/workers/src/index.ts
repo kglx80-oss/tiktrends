@@ -5,6 +5,7 @@ import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
 import { triggerAdsMapSync, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
 import { fixtures } from '@tiktrends/integrations';
+import { db, convertirUnite } from '@tiktrends/db';
 
 /** Worker « cron » : traite les tâches planifiées (ex : synchro data quotidienne). */
 function startCronWorker() {
@@ -23,6 +24,17 @@ function startCronWorker() {
 
 // Démo de bout en bout : enqueue -> worker -> résultat.
 async function main() {
+  // Unité de crédit ÷ 10 · balayage de tous les espaces encore en ancienne
+  // unité (`offre/unite.ts`), une fois au démarrage. Idempotent : un espace
+  // déjà converti n'est plus touché. Les écritures de solde convertissent
+  // aussi l'espace qu'elles touchent · ce balayage n'est pas la seule barrière.
+  if (db) {
+    try {
+      const n = await db.transaction((tx) => convertirUnite(tx));
+      if (n > 0) console.log(`[unite-credits] ${n} espace(s) converti(s) dans la nouvelle unité (×10)`);
+    } catch (e) { console.error('[unite-credits] balayage', (e as Error).message); }
+  }
+
   startWorkers();
   startIngestWorker();
   startCronWorker();

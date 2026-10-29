@@ -1,4 +1,5 @@
 import type Stripe from 'stripe';
+import { UNITE_CREDIT_COURANTE } from '@tiktrends/core';
 import type { Plan } from './rbac';
 
 /**
@@ -28,6 +29,17 @@ function meta(o: { metadata?: Stripe.Metadata | null }): Record<string, string> 
 const idOf = (v: unknown): string | null => (typeof v === 'string' ? v : (v as { id?: string } | null)?.id ?? null);
 
 /**
+ * Crédits d'une recharge payée, dans la NOUVELLE unité (÷ 10). Une session
+ * ouverte par l'ancien code (avant le changement d'unité) n'a pas de marqueur
+ * `unite` : ses crédits sont en ancienne unité, on les multiplie · sans ça,
+ * un client qui paie pendant le déploiement recevrait dix fois moins.
+ */
+export function creditsRecharge(m: Record<string, string>): number {
+  const n = Math.max(0, Math.floor(Number(m.credits) || 0));
+  return m.unite === String(UNITE_CREDIT_COURANTE) ? n : n * UNITE_CREDIT_COURANTE;
+}
+
+/**
  * Intention d'une session de paiement (immédiate ou différée).
  * `checkAsPaid` : pour `checkout.session.completed`, la session peut être conclue
  * SANS être payée (SEPA, iDEAL…) · on attend alors l'événement asynchrone.
@@ -40,7 +52,7 @@ function fromSession(session: Stripe.Checkout.Session, checkPaid: boolean): Stri
     return { kind: 'ignore', reason: `paiement en attente (${session.payment_status})` };
   }
   if (m.kind === 'topup') {
-    const credits = Number(m.credits) || 0;
+    const credits = creditsRecharge(m);
     if (credits <= 0) return { kind: 'ignore', reason: 'recharge sans crédits' };
     return { kind: 'topup', workspaceId, customerId, credits };
   }

@@ -76,8 +76,8 @@ beforeAll(async () => {
   delete process.env.AI_SPEND_CAP_USD;
 
   await db.insert(schema.workspaces).values([
-    { id: ids.wsCore, name: 'Core 6', plan: 'core', creditsBalance: 100 },
-    { id: ids.wsStarter, name: 'Starter 6', plan: 'starter', creditsBalance: 100 },
+    { id: ids.wsCore, name: 'Core 6', plan: 'core', creditsBalance: 1000 },
+    { id: ids.wsStarter, name: 'Starter 6', plan: 'starter', creditsBalance: 1000 },
   ]);
   await db.insert(schema.brands).values([
     { id: ids.bCore, workspaceId: ids.wsCore, name: 'Marque Core', category: 'cosmétique', competitors: ['RivalA'] },
@@ -100,7 +100,7 @@ async function compteurs() {
 }
 
 describe('autorisé · admin Core · une trace studio_prompt_runs, coût inchangé', () => {
-  it('UN appel, UNE dépense, 5 crédits · une trace release/status/coût/crédits', async () => {
+  it('UN appel, UNE dépense, 50 crédits · une trace release/status/coût/crédits', async () => {
     h.session = base(ids.wsCore, { role: 'admin', plan: 'core', equipe: null }); h.marque = ids.bCore;
     const soldeAvant = (await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, ids.wsCore)))[0]!.c;
     const runsAvant = (await db.select({ n: sql<number>`count(*)::int` }).from(schema.studioPromptRuns))[0]!.n;
@@ -110,13 +110,13 @@ describe('autorisé · admin Core · une trace studio_prompt_runs, coût inchang
     const r = await proposeJarvisRulesAction();
     expect(r.error).toBeUndefined();
     expect(r.rules).toContain('Style visuel');
-    expect(r.cost).toBe(5);
+    expect(r.cost).toBe(50);
 
     // Coût INCHANGÉ : un seul appel IA, une seule ligne de dépense, 5 crédits.
     expect(recues.length).toBe(fourAvant + 1);
     expect((await db.select({ n: sql<number>`count(*)::int` }).from(schema.aiSpend))[0]!.n).toBe(depAvant + 1);
     const soldeApres = (await db.select({ c: schema.workspaces.creditsBalance }).from(schema.workspaces).where(eq(schema.workspaces.id, ids.wsCore)))[0]!.c;
-    expect(soldeApres).toBe(soldeAvant - 5);
+    expect(soldeApres).toBe(soldeAvant - 50);
 
     // La trace neuve · release réellement consommée, statut, coût, crédits.
     const runs = await db.select().from(schema.studioPromptRuns).where(eq(schema.studioPromptRuns.templateKey, CLE_REGLES_MARQUE));
@@ -127,7 +127,7 @@ describe('autorisé · admin Core · une trace studio_prompt_runs, coût inchang
     expect(run.status).toBe('succeeded');
     expect(run.workspaceId).toBe(ids.wsCore);
     expect(run.brandId).toBe(ids.bCore);
-    expect(run.credits).toBe(5);
+    expect(run.credits).toBe(50);
     // Coût réel des jetons = exactement ce que le garde de dépense a réglé.
     expect(run.costUsdMicros).toBe(microsUsd(costOfTokens(run.model, JETONS.entree, JETONS.sortie)));
     expect(run.costUsdMicros).toBeGreaterThan(0);

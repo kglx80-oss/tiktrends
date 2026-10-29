@@ -1,20 +1,27 @@
-/** Crédits & ledger (CDC §F14). 1 crédit = coût API réel × 3. Report 25 %. */
+/**
+ * Crédits & ledger (CDC §F14). Report 25 %.
+ *
+ * Barème en NOUVELLE unité (÷ 10 · décision du 29/10, point 3) · chaque valeur
+ * vaut exactement dix fois l'ancienne, et les soldes sont convertis ×10
+ * (`offre/unite.ts`) · le pouvoir d'achat d'un espace ne bouge pas (garde
+ * `offre-unite.test.ts`). Le barème recalibré (V2) vit dans `offre/bareme.ts`.
+ */
 export type CreditAction =
   | 'tag_video' | 'tag_image' | 'transcription_min' | 'script' | 'brief'
   | 'image' | 'review_mining' | 'report' | 'clone_image' | 'chat' | 'video' | 'suggest' | 'score'
   | 'asset_analysis' | 'map_proposal';
 
 export const CREDIT_COSTS: Record<CreditAction, number> = {
-  tag_video: 2, tag_image: 1, transcription_min: 1, script: 3, brief: 5,
-  image: 4, review_mining: 20, report: 6, clone_image: 5, chat: 1, video: 20,
-  suggest: 1, // suggestion IA courte (angle, brief image/vidéo)
-  score: 2,   // Score Jarvis (évaluation performance d'une créa)
+  tag_video: 20, tag_image: 10, transcription_min: 10, script: 30, brief: 50,
+  image: 40, review_mining: 200, report: 60, clone_image: 50, chat: 10, video: 200,
+  suggest: 10, // suggestion IA courte (angle, brief image/vidéo)
+  score: 20,   // Score Jarvis (évaluation performance d'une créa)
   // Analyse d'asset ADSMAP (agent A0) : un appel vision court, sur une frame et
   // une transcription. Facturé comme un tag vidéo · c'est le même ordre de coût.
-  asset_analysis: 2,
+  asset_analysis: 20,
   // Proposition de carte (agents A1-A3) : un appel de génération structurée par
   // lot de propositions. Même ordre qu'un brief · c'est le même travail.
-  map_proposal: 5,
+  map_proposal: 50,
 };
 
 /**

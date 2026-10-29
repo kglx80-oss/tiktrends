@@ -3,3 +3,4 @@ export * from './forfaits';
 export * from './bareme';
 export * from './droits';
 export * from './marges';
+export * from './unite';

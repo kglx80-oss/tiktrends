@@ -134,8 +134,8 @@ describe('Tour de contrôle · churn, inscriptions, rapprochement', () => {
 
 describe('Tour de contrôle · rentabilité et coûts', () => {
   it('marge par formule · prix − coût IA pire cas − frais de paiement (modèle économique du code)', () => {
-    const [core] = rentabiliteForfaits([{ forfait: 'core', libelle: 'Core', prix: 99, credits: 2000, abonnes: 1, mrr: 99 }], 3);
-    // 2000 crédits × 0,05 € ÷ 3 = 33,33 € · frais 99 × 2,9 % + 0,30 € = 3,171 €
+    const [core] = rentabiliteForfaits([{ forfait: 'core', libelle: 'Core', prix: 99, credits: 20000, abonnes: 1, mrr: 99 }], 3);
+    // 20 000 crédits (nouvelle unité) × 0,005 € ÷ 3 = 33,33 € · frais 99 × 2,9 % + 0,30 € = 3,171 €
     expect(core!.coutIaPireCas).toBeCloseTo(33.333, 2);
     expect(core!.fraisPaiement).toBeCloseTo(3.171, 3);
     expect(core!.margePct).toBeCloseTo(((99 - 33.333 - 3.171) / 99) * 100, 1);

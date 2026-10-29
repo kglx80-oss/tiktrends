@@ -3,7 +3,7 @@ import type Stripe from 'stripe';
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { PLAN_CREDITS, type Plan } from '../../../../lib/rbac';
-import { allouerFormule } from '../../../../lib/credits';
+import { allouerFormule, convertirUniteEspace } from '../../../../lib/credits';
 import { getStripe, planForPrice } from '../../../../lib/stripe';
 import { routeStripeEvent, type StripeIntent } from '../../../../lib/stripe-events';
 
@@ -43,6 +43,7 @@ async function runIntent(intent: StripeIntent): Promise<void> {
   if (intent.kind === 'topup') {
     const workspaceId = await resolveWorkspace(intent);
     if (!workspaceId) return;
+    await convertirUniteEspace(workspaceId); // `intent.credits` est dans la nouvelle unité (`creditsRecharge`)
     await db.update(schema.workspaces)
       .set({ creditsBalance: sql`${schema.workspaces.creditsBalance} + ${intent.credits}` })
       .where(eq(schema.workspaces.id, workspaceId));

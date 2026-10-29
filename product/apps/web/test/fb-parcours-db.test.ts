@@ -164,7 +164,7 @@ beforeAll(async () => {
   await semer(db, schema, ids);
   cat = await semerCatalogue(db, ids);
   await publierRegistreDeTest(depotPrompts, acteurPlateforme());
-  await db.update(schema.workspaces).set({ creditsBalance: 100 }).where(eq(schema.workspaces.id, ids.wsA));
+  await db.update(schema.workspaces).set({ creditsBalance: 1000 }).where(eq(schema.workspaces.id, ids.wsA));
 });
 beforeEach(() => { etat.session = session(ids, 'ua'); texte.recues.length = 0; appels = []; });
 
@@ -286,8 +286,8 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     const q = await devisPret(projectId);
     const dd = delta(avantDevis, await compter(db));
     expect([dd.devis, dd.audit, dd.jobs, dd.approbations, dd.credits, dd.registre]).toEqual([1, 1, undefined, undefined, undefined, undefined]);
-    expect(q.lignes.map((l: LigneDevis) => [l.operation, l.profil, l.credits, l.usdMicros])).toEqual([[OPERATION_IMAGE, 'image_generation', 4, 80_000]]);
-    expect([q.maximumCredits, q.maximumUsdMicros, q.projectVersionId]).toEqual([4, 80_000, version.id]);
+    expect(q.lignes.map((l: LigneDevis) => [l.operation, l.profil, l.credits, l.usdMicros])).toEqual([[OPERATION_IMAGE, 'image_generation', 40, 80_000]]);
+    expect([q.maximumCredits, q.maximumUsdMicros, q.projectVersionId]).toEqual([40, 80_000, version.id]);
     const [ligneQ] = await db.select().from(schema.studioQuotes).where(eq(schema.studioQuotes.id, q.id));
     const [rel] = await db.select().from(schema.studioPromptReleases).where(eq(schema.studioPromptReleases.id, ligneQ!.promptReleaseId!));
     expect(ligneQ!.inputHash).toBe(empreinteEntreesDevisImage({
@@ -300,7 +300,7 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     const a = await approuver(q);
     expect(a, JSON.stringify(a)).toMatchObject({ ok: true, deja: false, job: { etat: 'queued' } });
     if (!a.ok) return;
-    expect(await solde()).toBe(s0 - 4);
+    expect(await solde()).toBe(s0 - 40);
     const job = await jobDe(a.job.id);
     const snap = job.snapshot as SnapshotJob;
     expect(snap.parametres).toEqual(parametresDepuisConsigne(compilation.consigne));
@@ -395,10 +395,10 @@ describe('négatifs · rien d’approuvé, rien de débité', () => {
     expect(await creerDevis(ctxDe(ids, 'ua'), { projectId, operations: [OPERATION_IMAGE], variante: true }, base, T)).toMatchObject({ ok: false, code: 'MISSING_REFERENCE' });
     expect(delta(avantDevis, await compter(db))).toEqual({});
     const lignes = [{ operation: OPERATION_IMAGE, nature: 'generation', profil: 'image_generation', unites: 1, credits: 4, usdMicros: 80_000, inclus: false }];
-    const [q] = await db.insert(schema.studioQuotes).values({ workspaceId: ids.wsA, brandId: ids.brandA1, projectId, projectVersionId: w.version.id, impactPlanHash: 'e'.repeat(64), inputHash: 'e'.repeat(64), pricingVersion: PRICING_VERSION, lines: lignes, maximumCredits: 4, maximumUsdMicros: 80_000, expiresAt: new Date(T.getTime() + 600_000), createdBy: ids.ua }).returning();
+    const [q] = await db.insert(schema.studioQuotes).values({ workspaceId: ids.wsA, brandId: ids.brandA1, projectId, projectVersionId: w.version.id, impactPlanHash: 'e'.repeat(64), inputHash: 'e'.repeat(64), pricingVersion: PRICING_VERSION, lines: lignes, maximumCredits: 40, maximumUsdMicros: 80_000, expiresAt: new Date(T.getTime() + 600_000), createdBy: ids.ua }).returning();
     const avant = await compter(db);
     const s0 = await solde();
-    const r = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: q!.id, inputHash: q!.inputHash, creditsAnnonces: 4, idempotencyKey: `fb-${randomUUID()}` }, { illimite: false, maintenant: T });
+    const r = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: q!.id, inputHash: q!.inputHash, creditsAnnonces: 40, idempotencyKey: `fb-${randomUUID()}` }, { illimite: false, maintenant: T });
     expect(r).toMatchObject({ ok: false, code: 'MISSING_REFERENCE' });
     await rien(avant, s0);
     expect((await db.select().from(schema.studioJobs).where(eq(schema.studioJobs.quoteId, q!.id))).length).toBe(0);
@@ -495,7 +495,7 @@ describe('négatifs · rien d’approuvé, rien de débité', () => {
     expect(await actions.compilerConsigneImage({ projectId, mode: 'generative_scene' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     expect(await actions.retenirConsigneImage({ projectId, baseVersionId: version.id, runId: compilation.runId })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     expect(await actions.demanderDevisImage({ projectId })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
-    expect(await actions.approuverEtLancerImage({ quoteId: q.id, inputHash: q.inputHash, creditsAnnonces: 4, idempotencyKey: 'fb-lecteur' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
+    expect(await actions.approuverEtLancerImage({ quoteId: q.id, inputHash: q.inputHash, creditsAnnonces: 40, idempotencyKey: 'fb-lecteur' })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     // Le lecteur client n'a pas le studio : même la lecture est refusée.
     expect(await actions.lireParcoursImage({ projectId })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
     expect(await actions.controlerMediaImage({ jobId: randomUUID() })).toMatchObject({ ok: false, code: 'FORBIDDEN' });
@@ -512,7 +512,7 @@ describe('négatifs · rien d’approuvé, rien de débité', () => {
       await devisImagePour(ub, { projectId }, T), await devisImagePour(ub, { projectId: inconnu }, T),
       await retenirConsignePour(ub, { projectId, baseVersionId: version.id, runId: compilation.runId }),
       await lireParcoursImagePour(ub, projectId, { ...O, ...SANS_FOURNISSEUR }),
-      await approuverImagePour(ub, { quoteId: q.id, inputHash: q.inputHash, creditsAnnonces: 4, idempotencyKey: 'fb-ub' }, { illimite: false, plafond: null, fournisseurImage: true }),
+      await approuverImagePour(ub, { quoteId: q.id, inputHash: q.inputHash, creditsAnnonces: 40, idempotencyKey: 'fb-ub' }, { illimite: false, plafond: null, fournisseurImage: true }),
       await compilerEtAttesterPour(ub, { projectId, mode: 'generative_scene' }, deps),
     ]) expect(r).toMatchObject({ ok: false, code: 'NOT_FOUND', targetIds: [] });
     expect(delta(avant, await compter(db))).toEqual({});
@@ -536,10 +536,10 @@ describe('les autres opérations gardent leur comportement L3 · L6-A : une imag
     expect(await creerDevis(ctxDe(ids, 'ua'), { projectId, operations: ['keyframe:s1'], variante: true }, base, T)).toMatchObject({ ok: false, code: 'MISSING_REFERENCE', targetIds: ['keyframe:s1'] });
     expect(delta(avantDevis, await compter(db))).toEqual({});
     const lignes = [{ operation: 'keyframe:s1', nature: 'generation', profil: 'image_generation', unites: 1, credits: 4, usdMicros: 80_000, inclus: false }];
-    const [q] = await db.insert(schema.studioQuotes).values({ workspaceId: ids.wsA, brandId: ids.brandA1, projectId, projectVersionId: v.id, impactPlanHash: 'e'.repeat(64), inputHash: 'e'.repeat(64), pricingVersion: PRICING_VERSION, lines: lignes, maximumCredits: 4, maximumUsdMicros: 80_000, expiresAt: new Date(T.getTime() + 600_000), createdBy: ids.ua }).returning();
+    const [q] = await db.insert(schema.studioQuotes).values({ workspaceId: ids.wsA, brandId: ids.brandA1, projectId, projectVersionId: v.id, impactPlanHash: 'e'.repeat(64), inputHash: 'e'.repeat(64), pricingVersion: PRICING_VERSION, lines: lignes, maximumCredits: 40, maximumUsdMicros: 80_000, expiresAt: new Date(T.getTime() + 600_000), createdBy: ids.ua }).returning();
     const avant = await compter(db);
     const s0 = await solde();
-    const r = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: q!.id, inputHash: q!.inputHash, creditsAnnonces: 4, idempotencyKey: `fb-${randomUUID()}` }, { illimite: false, maintenant: T });
+    const r = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: q!.id, inputHash: q!.inputHash, creditsAnnonces: 40, idempotencyKey: `fb-${randomUUID()}` }, { illimite: false, maintenant: T });
     expect(r).toMatchObject({ ok: false, code: 'MISSING_REFERENCE' });
     expect(delta(avant, await compter(db))).toEqual({});
     expect(await solde()).toBe(s0);
@@ -555,7 +555,7 @@ describe('les autres opérations gardent leur comportement L3 · L6-A : une imag
     await attesterConsignesPlans(base, { workspaceId: ids.wsA, brandId: ids.brandA1, projectId, userId: ids.ua }, consignes);
     const d = await creerDevis(ctxDe(ids, 'ua'), { projectId, operations: ['keyframe:s1'], variante: true }, base, T);
     if (!d.ok) throw new Error(JSON.stringify(d));
-    const a = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: 4, idempotencyKey: `fb-${randomUUID()}` }, { illimite: true, maintenant: T });
+    const a = await approuverEtMettreEnFile(ctxDe(ids, 'ua'), { quoteId: d.devis.id, inputHash: d.devis.inputHash, creditsAnnonces: 40, idempotencyKey: `fb-${randomUUID()}` }, { illimite: true, maintenant: T });
     if (!a.ok) throw new Error(JSON.stringify(a));
     expect(((await jobDe(a.job.id)).snapshot as SnapshotJob).parametres).toEqual(parametresDepuisConsignePlan(consignes[0]!));
     const [audit] = await db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, d.devis.id), eq(schema.studioAuditEvents.action, 'quote.create')));
