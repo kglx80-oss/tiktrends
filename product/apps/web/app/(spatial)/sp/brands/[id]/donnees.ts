@@ -2,7 +2,7 @@ import 'server-only';
 import { notFound, redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messageLimiteConcurrents, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
+import { RAISON_LOGO_SANS_STOCKAGE, costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messageLimiteConcurrents, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
 import { forfaitEffectif } from '../../../../../lib/droits-forfait';
 import { getSession, type Session } from '../../../../../lib/auth';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../../lib/rbac';
@@ -11,7 +11,10 @@ import { unlimitedCredits } from '../../../../../lib/credits';
 import { getActiveBrand } from '../../../../../lib/brands';
 import { brandMediaPreview } from '../../../../../lib/brand-media-url';
 import { refusJarvis } from '../../../../../lib/jarvis-acces';
-import { generateFullBrandAction, importBrandDAAction } from '../../../../actions/brand-detail';
+import { generateFullBrandAction, importBrandDAAction, saveBrandDAAction } from '../../../../actions/brand-detail';
+import { presignAssetUploadAction } from '../../../../actions/assets';
+import { storageConfigured } from '@tiktrends/integrations';
+import { refusEcritureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../../../../lib/bibliotheque-acces';
 import { sousNavMarque, type PropsFaviconMarque, type PropsSyncSite } from '../../../../../spatial/vues/marque/base';
 
 /**
@@ -91,5 +94,22 @@ export function propsFavicon(c: ContexteMarque): PropsFaviconMarque {
     detail: logo ? 'Affiché dans le menu et le sélecteur de marque.' : 'Le menu montre l’initiale de la marque tant qu’aucun logo n’est enregistré.',
     recuperer: c.domaine ? importBrandDAAction : null,
     raisonRecuperer: c.domaine ? null : 'Renseigne le site de la marque pour récupérer sa charte',
+    importLogo: propsImportLogo(c),
+  };
+}
+
+/**
+ * « Importer » un fichier de logo · le dépôt passe par la Bibliothèque
+ * (`presignAssetUploadAction`, sa garde d'écriture · rôle et offre), la charte
+ * par `saveBrandDAAction` (admin, marque de l'espace · déjà exigé par la page).
+ * Fermé avec la raison de la première garde qui refuserait, ou sans stockage.
+ */
+export function propsImportLogo(c: ContexteMarque): PropsFaviconMarque['importLogo'] {
+  const refus = refusEcritureBibliotheque(c.s);
+  const raison = refus ? TEXTE_REFUS_BIBLIOTHEQUE[refus] : !storageConfigured() ? RAISON_LOGO_SANS_STOCKAGE : null;
+  return {
+    logos: [...new Set([c.b.logoUrl, ...(c.b.logos ?? [])].filter((u): u is string => !!u))], defaut: c.b.logoUrl ?? null,
+    couleurs: c.b.colors ?? [], polices: c.b.fonts ?? [],
+    actions: raison ? null : { preparer: presignAssetUploadAction, enregistrer: saveBrandDAAction }, raison,
   };
 }

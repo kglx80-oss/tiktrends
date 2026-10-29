@@ -1,19 +1,25 @@
 import type { ReactNode } from 'react';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { AnnonceRetour, BoutonServeur } from '../marque/interactifs';
-import { CopierLien } from './interactifs';
+import { CopierLien, RetirerMembre, RoleMembre } from './interactifs';
 import type { FormuleMini } from './Espace';
 
 /**
  * « Équipe » · `docs/spatial/reference/equipe.html` (maquette : `vEquipe`).
  * PRÉSENTATIONNEL · membres (`workspace_members`), invitations en attente
  * (`invites`), invitation par `createInviteAction`, révocation par
- * `revokeInviteAction`. Aucun siège payant ni retrait de membre n'existe côté
- * serveur · le bouton « siège » est absent, le choix de rôle et le retrait d'un
- * membre restent visibles mais fermés, avec leur raison.
+ * `revokeInviteAction`, rôle et retrait d'un membre par `changerRoleMembreAction`
+ * et `retirerMembreAction` (règle du noyau `refusChangementRole` /
+ * `refusRetraitMembre`, relue au serveur). Un contrôle que la règle refuse reste
+ * visible, fermé, avec sa raison. Aucun siège payant n'existe · le bouton
+ * « siège » est absent.
  */
 
-export interface MembreVue { cle: string; initiales: string; teinte: string; nom: string; email: string; role: string; moi: boolean }
+export interface MembreVue {
+  cle: string; initiales: string; teinte: string; nom: string; email: string; role: string; moi: boolean;
+  /** Les gestes sur ce membre · absents pour soi (la ligne ne montre que son rôle). */
+  gestes?: { userId: string; roleCle: string; raisonRole: string | null; raisonRetrait: string | null; confirmation: string };
+}
 export interface InvitationVue { id: string; email: string; role: string; expiree: boolean; lien: string }
 
 export interface PropsEquipe {
@@ -24,8 +30,10 @@ export interface PropsEquipe {
   membres: readonly MembreVue[];
   invitations: readonly InvitationVue[];
   roles: ReadonlyArray<{ valeur: string; libelle: string }>;
-  /** Tous les libellés de rôle, pour le menu (fermé) des autres membres. */
-  tousRoles: readonly string[];
+  /** Les options du menu de rôle d'un membre · « Propriétaire » visible, jamais choisissable. */
+  optionsRole: ReadonlyArray<{ valeur: string; libelle: string; choisissable: boolean }>;
+  changerRole: ((fd: FormData) => Promise<void>) | null;
+  retirer: ((fd: FormData) => Promise<void>) | null;
   inviter: ((fd: FormData) => Promise<void>) | null;
   revoquer: ((fd: FormData) => Promise<void>) | null;
   retours: Record<string, string>;
@@ -33,6 +41,7 @@ export interface PropsEquipe {
 
 const CHAMP = { flex: '1 1 220px', minWidth: 0, boxSizing: 'border-box', padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)', outline: 0 } as const;
 const CHOIX = { padding: '10px 12px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)' } as const;
+const MENU_ROLE = { padding: '7px 10px', borderRadius: 12, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 12.5px var(--sf)' } as const;
 const LIGNE = { padding: '10px 0', borderTop: '1px solid var(--edge2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } as const;
 
 export function Equipe(p: PropsEquipe) {
@@ -86,10 +95,10 @@ export function Equipe(p: PropsEquipe) {
               </div>
               {m.moi ? <span className="pill">{m.role}</span> : (
                 <>
-                  <select aria-label={`Rôle de ${m.nom}`} defaultValue={m.role} disabled title="Le changement de rôle d’un membre n’est pas encore disponible" style={{ padding: '7px 10px', borderRadius: 12, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 12.5px var(--sf)' }}>
-                    {p.tousRoles.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  <button className="btn sm icon" type="button" aria-label={`Retirer ${m.nom}`} disabled title="Le retrait d’un membre n’est pas encore disponible"><Ic n="x" /></button>
+                  <RoleMembre userId={m.gestes?.userId ?? ''} nom={m.nom} actuel={m.gestes?.roleCle ?? ''} options={p.optionsRole}
+                    action={m.gestes ? p.changerRole : null} raison={m.gestes?.raisonRole ?? null} style={MENU_ROLE} />
+                  <RetirerMembre userId={m.gestes?.userId ?? ''} nom={m.nom} confirmation={m.gestes?.confirmation ?? ''}
+                    action={m.gestes ? p.retirer : null} raison={m.gestes?.raisonRetrait ?? null}><Ic n="x" /></RetirerMembre>
                 </>
               )}
             </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { lienAnnonceurVeille, lignesConfigurationMarque, type EtapeConfigurationMarque } from '@tiktrends/core';
+import { FORMATS_LOGO, charteAvecLogoImporte, lienAnnonceurVeille, lignesConfigurationMarque, refusFichierLogo, type EtapeConfigurationMarque } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
 import { Anneau, Ic, Lien } from '../../communs';
 
@@ -272,7 +272,7 @@ export function FormulaireSurcouche({ action, cache, champs, titre, intro, envoy
  * Les logos de la charte (repris de l'éditeur V5 `BrandGuidelines`) · ajouter
  * un logo par son adresse, choisir celui par défaut, en retirer un. Enregistré
  * par `saveBrandDAAction` avec les couleurs et polices ACTUELLES (rien d'autre
- * ne change). Le téléversement d'un fichier n'existe pas côté serveur · absent.
+ * ne change). L'import d'un FICHIER vit sur la carte du logo (`ImportLogo`).
  */
 export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices, enregistrer }: {
   brandId: string; logos: readonly string[]; defaut: string | null;
@@ -476,5 +476,59 @@ export function SourcingConcurrents({ brandId, prix, proposer, ajouter, raison }
         </div>
       )}
     </div>
+  );
+}
+
+/* ───────────────────────── Importer un fichier de logo ───────────────────────── */
+
+/** Le dépôt direct dans le bucket de l'espace (adresse présignée) · même envoi que la Bibliothèque. */
+async function deposerDansLeBucket(url: string, f: File): Promise<boolean> {
+  try {
+    const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': f.type }, body: f });
+    return r.ok;
+  } catch { return false; }
+}
+
+export interface ImportLogoActions {
+  /** `presignAssetUploadAction` · le dépôt du fichier dans le bucket de l'espace. */
+  preparer: (i: { filename: string; contentType: string; sizeBytes: number }) => Promise<{ uploadUrl?: string; publicUrl?: string; error?: string }>;
+  /** `saveBrandDAAction` · la charte, couleurs et polices renvoyées telles quelles. */
+  enregistrer: (i: { brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[] }) => Promise<{ ok?: true; error?: string }>;
+}
+
+/**
+ * « Importer » de la carte du logo (`favCard`) · le fichier choisi est déposé
+ * dans le bucket de l'espace (`presignAssetUploadAction`), puis devient le logo
+ * par défaut de la charte (`saveBrandDAAction`, règle `charteAvecLogoImporte`) ·
+ * les logos déjà là restent en variantes. La réussite ne se dit qu'après le oui
+ * du serveur. Fermé, avec sa raison, sans droit ou sans stockage.
+ */
+export function ImportLogo({ brandId, logos, defaut, couleurs, polices, actions, raison }: {
+  brandId: string; logos: readonly string[]; defaut: string | null; couleurs: readonly string[]; polices: readonly string[];
+  actions: ImportLogoActions | null; raison: string | null;
+}) {
+  const { toast } = useSpatial();
+  const router = useRouter();
+  const [encours, demarrer] = useTransition();
+  const ferme = !actions || !!raison;
+  const choisir = (f: File | undefined) => {
+    if (ferme || encours || !f) return;
+    const refus = refusFichierLogo({ type: f.type, taille: f.size });
+    if (refus) { toast(refus); return; }
+    demarrer(async () => {
+      const pre = await actions!.preparer({ filename: f.name, contentType: f.type, sizeBytes: f.size }).catch(() => ({ error: 'Le téléversement a échoué. Réessaie.' } as { uploadUrl?: string; publicUrl?: string; error?: string }));
+      if (pre.error || !pre.uploadUrl || !pre.publicUrl) { toast(pre.error ?? 'Le téléversement a échoué. Réessaie.'); return; }
+      if (!(await deposerDansLeBucket(pre.uploadUrl, f))) { toast('Le fichier n’a pas pu être envoyé · rien n’a changé dans la charte. Réessaie.'); return; }
+      const charte = charteAvecLogoImporte({ logos, defaut }, pre.publicUrl);
+      const r = await actions!.enregistrer({ brandId, ...charte, colors: [...couleurs], fonts: [...polices] }).catch(() => ({ error: 'L’enregistrement a échoué. Réessaie.' }));
+      if (r.error) { toast(r.error); return; }
+      toast('Logo importé · il devient le logo par défaut de la charte');
+      router.refresh();
+    });
+  };
+  return (
+    <label className="btn sm" aria-disabled={ferme || undefined} aria-busy={encours || undefined} title={ferme ? raison ?? 'Réservé aux administrateurs de l’espace' : 'Importer un fichier de logo (png, jpg, webp)'}>
+      <Ic n="down" />{encours ? 'Import…' : 'Importer'}<input type="file" accept={FORMATS_LOGO.join(',')} hidden disabled={ferme || encours} onChange={(e) => { choisir(e.target.files?.[0]); e.target.value = ''; }} />
+    </label>
   );
 }

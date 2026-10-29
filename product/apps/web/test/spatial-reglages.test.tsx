@@ -67,7 +67,7 @@ describe('Spatial · Réglages · parité de structure avec la maquette', () => 
         membres={[0, 1, 2, 3].map((i) => ({ cle: `m${i}`, initiales: 'AB', teinte: '#111', nom: 'a', email: `m${i}@x.fr`, role: 'Membre', moi: i === 0 }))}
         invitations={[]}
         roles={[{ valeur: 'admin', libelle: 'Admin' }, { valeur: 'member', libelle: 'Membre' }, { valeur: 'client_viewer', libelle: 'Client (lecture)' }]}
-        tousRoles={['Propriétaire', 'Admin', 'Membre', 'Client (lecture)']}
+        optionsRole={[{ valeur: 'owner', libelle: 'Propriétaire', choisissable: false }, { valeur: 'admin', libelle: 'Admin', choisissable: true }, { valeur: 'member', libelle: 'Membre', choisissable: true }, { valeur: 'client_viewer', libelle: 'Client (lecture)', choisissable: true }]} changerRole={action} retirer={action}
         inviter={action} revoquer={action} retours={{}}
       />,
     );

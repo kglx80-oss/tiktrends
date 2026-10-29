@@ -6,3 +6,4 @@ export * from './services';
 export * from './journal';
 export * from './connexions';
 export * from './support';
+export * from './membres';
