@@ -11,19 +11,7 @@ import { GUARD } from '../../lib/guard-error';
 const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 
 /* ------------------------------- Profil ---------------------------------- */
-export async function updateProfileAction(formData: FormData): Promise<void> {
-  const s = await getSession();
-  if (!s || !db) redirect('/login');
-  const name = norm(formData.get('name'));
-  const avatarUrl = norm(formData.get('avatarUrl'));
-  const hide = formData.get('hidePersonalInfo') != null;
-  await db.update(schema.users)
-    .set({ name: name || null, avatarUrl: avatarUrl || null, hidePersonalInfo: hide })
-    .where(eq(schema.users.id, s.user.id));
-  redirect('/profile?ok=1');
-}
-
-/** Variante « en place » (modale) : enregistre sans redirection, revalide la coquille. */
+/** Enregistre le profil en place (sans redirection), revalide la coquille. */
 export async function saveProfileAction(_prev: { ok?: boolean; error?: string } | null, formData: FormData): Promise<{ ok?: boolean; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
@@ -60,16 +48,7 @@ export async function changePasswordAction(formData: FormData): Promise<void> {
 }
 
 /* ------------------------------- Espace ---------------------------------- */
-export async function updateWorkspaceAction(formData: FormData): Promise<void> {
-  const s = await getSession();
-  if (!s || !db) redirect('/login');
-  if (!roleAtLeast(s.role, 'admin')) redirect('/settings?e=forbidden'); // garde serveur
-  const name = norm(formData.get('name'));
-  if (name) await db.update(schema.workspaces).set({ name }).where(eq(schema.workspaces.id, s.workspaceId));
-  redirect('/settings?ok=1');
-}
-
-/** Variante « en place » (modale réglages rapides) : renomme l'espace sans redirection. */
+/** Renomme l'espace en place (sans redirection). */
 export async function saveWorkspaceNameAction(_prev: { ok?: boolean; error?: string } | null, formData: FormData): Promise<{ ok?: boolean; error?: string }> {
   const s = await getSession();
   if (!s || !db) return { error: GUARD.session() };
