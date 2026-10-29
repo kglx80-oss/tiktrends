@@ -3,8 +3,8 @@
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { applyPlanAllocation } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
+import { allouerFormule } from '../../lib/credits';
 import { isFounder } from '../../lib/founder';
 import { PLAN_CREDITS, type Plan } from '../../lib/rbac';
 
@@ -32,16 +32,8 @@ export async function changePlanAction(formData: FormData): Promise<void> {
 
   await db.update(schema.workspaces).set({ plan }).where(eq(schema.workspaces.id, s.workspaceId));
 
-  // Nouvelle allocation SANS effacer les recharges payées : on retire l'ancienne
-  // allocation du solde (les crédits d'abonnement ne se cumulent pas) et on ajoute
-  // la nouvelle ; ce qui restait au-dessus, ce sont les crédits achetés.
-  const alloc = PLAN_CREDITS[plan] ?? 0;
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance, last: schema.workspaces.lastPlanCredits })
-    .from(schema.workspaces).where(eq(schema.workspaces.id, s.workspaceId)).limit(1);
-  const { next, delta } = applyPlanAllocation(w?.c ?? 0, w?.last ?? 0, alloc);
-  await db.update(schema.workspaces).set({ creditsBalance: next, lastPlanCredits: alloc }).where(eq(schema.workspaces.id, s.workspaceId));
-  if (delta !== 0) {
-    await db.insert(schema.creditLedger).values({ workspaceId: s.workspaceId, delta, reason: `Changement de formule -> ${plan}` });
-  }
+  // Nouvelle allocation SANS effacer les recharges payées : la poche d'abonnement
+  // est remplacée, la poche hors abonnement est conservée (règle `allouerPoches`).
+  await allouerFormule(s.workspaceId, PLAN_CREDITS[plan] ?? 0, `Changement de formule -> ${plan}`);
   redirect(`${home}?ok=changed`);
 }

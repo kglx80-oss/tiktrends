@@ -1,6 +1,7 @@
 import 'server-only';
 import { and, eq, gte, sql } from 'drizzle-orm';
-import { db, schema } from '@tiktrends/db';
+import { db, schema, setDebitPoches, setRemboursementPoches } from '@tiktrends/db';
+import { allouerPoches, type PlanAllocation } from '@tiktrends/core';
 import { isFounder } from './founder';
 
 /**
@@ -40,7 +41,8 @@ export function unlimitedCredits(email?: string | null): boolean {
 export type ExecuteurCredits = Pick<typeof db, 'update' | 'insert'>;
 
 /**
- * Débit DANS une transaction de l'appelant · un seul UPDATE conditionnel (deux
+ * Débit DANS une transaction de l'appelant · la poche d'abonnement d'abord, les
+ * crédits achetés ensuite (`debiterPoches`) · un seul UPDATE conditionnel (deux
  * requêtes concurrentes ne passent pas la même vérification de solde), puis la
  * ligne `credit_ledger` avec sa référence. Rend false si le solde est
  * insuffisant : rien n'est écrit. L'appelant qui a déjà écrit autre chose dans
@@ -49,7 +51,7 @@ export type ExecuteurCredits = Pick<typeof db, 'update' | 'insert'>;
 export async function debiterCreditsDans(tx: ExecuteurCredits, workspaceId: string, cost: number, reason: string, refId: string | null): Promise<boolean> {
   if (cost <= 0) return true;
   const rows = await tx.update(schema.workspaces)
-    .set({ creditsBalance: sql`${schema.workspaces.creditsBalance} - ${cost}` })
+    .set(setDebitPoches(cost))
     .where(and(eq(schema.workspaces.id, workspaceId), gte(schema.workspaces.creditsBalance, cost)))
     .returning({ c: schema.workspaces.creditsBalance });
   if (!rows.length) return false;
@@ -57,11 +59,14 @@ export async function debiterCreditsDans(tx: ExecuteurCredits, workspaceId: stri
   return true;
 }
 
-/** Recrédit DANS une transaction de l'appelant · solde et ligne de registre ensemble. */
+/**
+ * Recrédit DANS une transaction de l'appelant · solde et ligne de registre ensemble.
+ * Rend d'abord ce qui a été pris hors abonnement, puis l'abonnement (`rembourserPoches`).
+ */
 export async function crediterCreditsDans(tx: ExecuteurCredits, workspaceId: string, amount: number, reason: string, refId: string | null): Promise<void> {
   if (amount <= 0) return;
   await tx.update(schema.workspaces)
-    .set({ creditsBalance: sql`${schema.workspaces.creditsBalance} + ${amount}` })
+    .set(setRemboursementPoches(amount))
     .where(eq(schema.workspaces.id, workspaceId));
   await tx.insert(schema.creditLedger).values({ workspaceId, delta: amount, reason, refId });
 }
@@ -82,4 +87,29 @@ export async function reserveCredits(workspaceId: string, cost: number, reason: 
 export async function refundCredits(workspaceId: string, amount: number, reason: string, refId: string | null = null): Promise<void> {
   if (!db || amount <= 0) return;
   await db.transaction((tx) => crediterCreditsDans(tx, workspaceId, amount, reason, refId));
+}
+
+/**
+ * Allocation d'une formule (renouvellement Stripe, changement de formule) · la
+ * poche d'abonnement est remplacée, la poche hors abonnement (recharges payées,
+ * essai, dons) est conservée telle quelle (`allouerPoches`). Ligne verrouillée le
+ * temps du calcul : un débit concurrent attend, il ne peut pas être effacé.
+ */
+export async function allouerFormule(workspaceId: string, allocation: number, reason: string): Promise<PlanAllocation | null> {
+  if (!db) return null;
+  const W = schema.workspaces;
+  return db.transaction(async (tx) => {
+    const [w] = await tx.select({ solde: W.creditsBalance, restant: W.planCreditsLeft, derniere: W.lastPlanCredits, hors: W.extraCreditsSpent })
+      .from(W).where(eq(W.id, workspaceId)).limit(1).for('update');
+    if (!w) return null;
+    const r = allouerPoches({ solde: w.solde, abonnementRestant: w.restant, derniereAllocation: w.derniere, horsAbonnementConsommes: w.hors }, allocation);
+    await tx.update(W).set({
+      creditsBalance: r.poches.solde,
+      planCreditsLeft: r.poches.abonnementRestant,
+      lastPlanCredits: r.poches.derniereAllocation,
+      extraCreditsSpent: r.poches.horsAbonnementConsommes,
+    }).where(eq(W.id, workspaceId));
+    if (r.delta !== 0) await tx.insert(schema.creditLedger).values({ workspaceId, delta: r.delta, reason });
+    return r;
+  });
 }
