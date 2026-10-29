@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { CIBLE_TACTILE_MIN, CADRE_PAGE, LECTURE, MARGE_CADRE, gouttiereCss, rayonSignal, styleCadre, type LectureInterieure, teinte } from '@tiktrends/core';
+import { CIBLE_TACTILE_MIN, rayonSignal, styleCadre, teinte } from '@tiktrends/core';
 
 /**
  * Le fond translucide d'une pastille posée SUR une créa · pronostic et verdict
@@ -46,27 +46,6 @@ export function cadreSignal(couleur: string, niveau: 'surface' | 'tuile' = 'surf
 export const panel: CSSProperties = {
   ...surface, background: 'var(--surface)', padding: 22, marginBottom: 20,
 };
-/**
- * Le cadre extérieur de TOUT écran de l'application (B2 · #118) · 1500 au plus
- * (V5), COLLÉ au rail (aligné à gauche · `MARGE_CADRE`, le « gros écart » des
- * écrans larges), gouttières 32 desktop / 16 mobile. Les valeurs vivent au
- * noyau (`CADRE_PAGE`, `MARGE_CADRE`) · un écran ne pose plus sa propre largeur
- * ni son alignement extérieurs.
- */
-export const cadrePage: CSSProperties = {
-  padding: `${CADRE_PAGE.haut}px ${gouttiereCss()} ${CADRE_PAGE.bas}px`,
-  maxWidth: CADRE_PAGE.largeurMax, margin: MARGE_CADRE,
-};
-/**
- * Une lecture resserrée À L'INTÉRIEUR du cadre (formulaire, fil) · alignée à
- * gauche sur le bord du cadre, jamais recentrée · le titre ne resaute pas. Les
- * écrans qui y ont droit sont nommés au noyau (`EXCEPTIONS_LECTURE`).
- */
-export function colonneLecture(l: LectureInterieure): CSSProperties {
-  return { maxWidth: LECTURE[l] };
-}
-/** Ancien nom · même cadre que tout le reste (la lecture se resserre avec `colonneLecture`). */
-export const pageWrap: CSSProperties = cadrePage;
 
 /**
  * Largeurs de contenu · quatre paliers, pas quinze valeurs au hasard.

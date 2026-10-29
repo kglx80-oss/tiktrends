@@ -1,4 +1,6 @@
+import type { PreferenceTheme } from '@tiktrends/core';
 import { EnTete, Lien, Vue } from '../../communs';
+import { SectionApparence } from './Apparence';
 import { AnnonceRetour } from '../marque/interactifs';
 import { IdentiteProfil, type EnregistrerProfil, type IdentiteInitiale } from './profil-client';
 
@@ -20,6 +22,8 @@ export interface PropsProfil {
   changerMotDePasse: ((fd: FormData) => Promise<void>) | null;
   motDePasseMin: number;
   retours: Record<string, string>;
+  /** La préférence de thème (cookie `tt_theme`) · présente, la section « Apparence » s'affiche. */
+  theme?: PreferenceTheme;
 }
 
 export function Profil(p: PropsProfil) {
@@ -49,6 +53,7 @@ export function Profil(p: PropsProfil) {
             <dt>Langue</dt><dd><span className="opt2 on">Français</span><span className="faint" style={{ fontSize: 12 }}>D’autres langues arrivent prochainement.</span></dd>
           </dl>
         </section>
+        {p.theme && <SectionApparence theme={p.theme} />}
         <section className="tile" data-geste="acces">
           <h2>Espace & accès</h2>
           <dl className="kv2">

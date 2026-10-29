@@ -184,8 +184,8 @@ export function promptPubEntiere(o: {
   /** La DA visuelle dérivée du site (déjà tournée en contrainte de prompt) ·
       style maison appliqué à chaque créa, superposé à la direction. */
   daVisuelle?: string | null;
-  /** L'ancrage produit (déjà tourné en consigne · `ancrageProduit`) · interdit
-      qu'un accessoire ou une surface sorte du monde du produit. */
+  /** L'ancrage produit (déjà tourné en consigne) · interdit qu'un accessoire
+      ou une surface sorte du monde du produit. */
   ancrage?: string | null;
   /** Direction artistique · scène, lumière, typographie, disposition, finition. */
   direction?: AdDirection | null;
@@ -194,7 +194,7 @@ export function promptPubEntiere(o: {
   /**
    * Renforts ciblés sur les défauts que CETTE marque a mesurément (accents
    * perdus, texte illisible). Vides le plus souvent · une marque neuve ne durcit
-   * rien. Décidés au noyau (`durcirEntiere`), sur la seule mesure, jamais d'instinct.
+   * rien. Décidés sur la seule mesure, jamais d'instinct.
    */
   durcissements?: string[];
   /**
