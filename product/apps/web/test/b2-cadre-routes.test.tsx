@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { BORDURES, LECTURE } from '@tiktrends/core';
-import { cadrePage, colonneLecture } from '../components/ui';
+import { BORDURES } from '@tiktrends/core';
 
 /**
  * B2 (#118) · TOUS les écrans de l'application posent le même cadre extérieur.
@@ -19,23 +17,10 @@ import { cadrePage, colonneLecture } from '../components/ui';
  * avec le groupe (mesuré : 5 pages au départ de ce retrait, toutes des filets
  * de redirection sans <main>, déplacés hors coquille sous `app/studio`). Les
  * écrans Spatial posent le cadre de la maquette (`spatial.css`), gardé par
- * `spatial-fondation`. Restent ici le rendu du cadre partagé et les jetons.
+ * `spatial-fondation`. Le cadre partagé de `components/ui` (`cadrePage`,
+ * `colonneLecture`, `pageWrap`) n'avait plus aucun appelant · retiré avec son
+ * rendu. Restent ici les jetons de bordure.
  */
-describe('B2 · le cadre extérieur commun, rendu', () => {
-  // Lot V5 · B · le cadre commun passe à la largeur V5 (1500, mesurée sur la
-  // référence) · une seule source (CADRE_PAGE), le rendu la porte partout.
-  it('cadrePage · 1500 au plus (V5), centré, gouttières 32/16', () => {
-    const h = renderToStaticMarkup(<main style={cadrePage} />);
-    expect(h).toContain('max-width:1500px');
-    expect(h).toContain('margin:0 auto');
-    expect(h).toContain('clamp(16px, 4vw, 32px)');
-  });
-  it('colonneLecture · resserre sans recentrer (pas de margin auto)', () => {
-    const h = renderToStaticMarkup(<div style={colonneLecture('formulaire')} />);
-    expect(h).toBe(`<div style="max-width:${LECTURE.formulaire}px"></div>`);
-  });
-});
-
 describe('B2 · les bordures de la charte · jetons', () => {
   const css = readFileSync(join(process.cwd(), '..', '..', 'packages', 'ui', 'tokens.css'), 'utf8');
   const alpha = (nom: string) => Number(new RegExp(`--${nom}:\\s*rgba\\(255,255,255,([0-9.]+)\\)`).exec(css)?.[1]);
