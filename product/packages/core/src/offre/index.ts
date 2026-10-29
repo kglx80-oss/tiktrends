@@ -1,4 +1,4 @@
-/** L'offre · forfaits, recharges, barème, droits et marges · source unique (audit crédits du 29/10). */
+/** L'offre · forfaits, recharges, barème, droits, marges et pages publiques · source unique (audit crédits du 29/10). */
 export * from './forfaits';
 export * from './bareme';
 export * from './droits';
@@ -9,3 +9,5 @@ export * from './regime';
 export * from './bascule';
 export * from './page-forfaits';
 export * from './stripe';
+export * from './diagnostic-v2';
+export * from './page-publique';

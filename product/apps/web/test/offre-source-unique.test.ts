@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { FORFAITS_ACTUELS, RECHARGES_ACTUELLES } from '@tiktrends/core';
+import { FORFAITS_ACTUELS, FORFAITS_V2, RECHARGES_ACTUELLES } from '@tiktrends/core';
 import { PLAN_CREDITS, PLAN_LABEL, PLAN_PRICE } from '../lib/rbac';
 import { CREDIT_PACKS, packByKey } from '../lib/credit-packs';
 
@@ -32,6 +32,8 @@ describe('offre · source unique', () => {
   it('aucun prix de forfait ou de recharge écrit en dur dans apps/web', () => {
     const prix = [...new Set([
       ...Object.values(FORFAITS_ACTUELS).map((f) => f.prixMensuelEur),
+      // L'offre V2 aussi · les pages publiques (`/tarifs`, accueil) la lisent dans le noyau.
+      ...Object.values(FORFAITS_V2).map((f) => f.prixMensuelTtc),
       ...RECHARGES_ACTUELLES.map((r) => r.eur),
     ].filter((n) => n > 0))];
     const motif = new RegExp(`(['"\`>\\s(]|^)(${prix.join('|')})\\s?€|\\beur:\\s*\\d|PLAN_(PRICE|CREDITS)[^=\\n]*=\\s*\\{`, 'm');
