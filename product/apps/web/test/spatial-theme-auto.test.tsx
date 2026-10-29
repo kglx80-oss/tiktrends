@@ -125,6 +125,14 @@ describe('pop-up profil · Sombre · Clair · Auto', () => {
     expect(presses(ouvrir())).toEqual(['sombre:false', 'clair:false', 'auto:true']);
   });
 
+  it('un choix fait ailleurs (palette, Réglages) · l’état pressé suit', async () => {
+    racineDoc().setAttribute('data-theme', 'sombre'); racineDoc().setAttribute('data-theme-pref', 'sombre');
+    const g = ouvrir();
+    const { appliquerTheme } = await import('../lib/theme-preference');
+    await act(async () => { appliquerTheme('clair', document, COULEUR_BARRE_SPATIALE); await new Promise((r) => setTimeout(r, 0)); });
+    expect(presses(g), 'la pop-up montre encore l’ancien choix').toEqual(['sombre:false', 'clair:true', 'auto:false']);
+  });
+
   it('« Auto » · cookie auto, thème de l’appareil, puis l’appareil change et l’écran suit', async () => {
     const a = appareil(true);
     racineDoc().setAttribute('data-theme', 'sombre'); racineDoc().setAttribute('data-theme-pref', 'sombre');
