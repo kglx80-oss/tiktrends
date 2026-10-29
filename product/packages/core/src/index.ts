@@ -1,6 +1,7 @@
 export * from './radar';
 export * from './naming';
 export * from './ingest';
+export * from './tags';
 export * from './diagnostic';
 export * from './credits';
 export * from './spend-guard';

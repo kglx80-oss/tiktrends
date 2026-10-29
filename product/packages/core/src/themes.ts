@@ -109,9 +109,9 @@ function luminance([r, g, b]: Rgba): number {
  * Rapport de contraste WCAG 2 (1 à 21) d'une couleur posée sur un fond, NON
  * arrondi · un 4,496 ne doit pas passer pour 4,5. La transparence du premier
  * plan est composée sur le fond (une bordure `rgba` se mesure telle qu'on la voit).
- * `ratioContraste` (L8-A, arrondi au centième) et `contrasteWcag` (logos,
- * `#RRGGBB` seul) restent pour leurs gardes · aucun ne lit `rgba()` ni `#rgba`,
- * que les jetons de bordure et de voile emploient.
+ * `ratioContraste` (L8-A, arrondi au centième, `#RRGGBB` seul) reste pour
+ * ses gardes · il ne lit ni `rgba()` ni `#rgba`, que les jetons de bordure et
+ * de voile emploient.
  */
 export function contrasteCouleurs(premierPlan: string, fond: string): number {
   const b = composer(fond, '#000000');
