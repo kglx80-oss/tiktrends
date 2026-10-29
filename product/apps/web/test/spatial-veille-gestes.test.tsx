@@ -17,6 +17,12 @@ const actions = vi.hoisted(() => ({
 }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/veille', useRouter: () => ({ push: nav.push, refresh: () => {} }) }));
 vi.mock('../app/actions/inspo', () => actions);
+const vuesActions = vi.hoisted(() => ({
+  garderVueVeille: vi.fn(async (_i: { nom: unknown; params: unknown }): Promise<unknown> => ({ ok: true, vues: [], id: 'x' })),
+  renommerVueVeilleAction: vi.fn(async (_i: { id: unknown; nom: unknown }): Promise<unknown> => ({ ok: true, vues: [] })),
+  supprimerVueVeille: vi.fn(async (_i: { id: unknown }): Promise<unknown> => ({ ok: true, vues: [] })),
+}));
+vi.mock('../app/actions/veille-vues', () => vuesActions);
 
 const { FournisseurSpatial } = await import('../spatial/coquille/contexte');
 const { BarreVeille, BoutonSuivi, CarteVeille, DefileAncre, IconeSauvegarde } = await import('../spatial/vues/veille/client');
@@ -84,7 +90,7 @@ describe('Spatial · Veille · sauvegarder', () => {
 });
 
 describe('Spatial · Veille · barre de vue', () => {
-  const barre = (c = {}) => <BarreVeille criteres={c} plateforme="meta" vue="tout" tri="newest" cpm={9} stat={{ pubs: 2, annonceurs: 1, suite: '' }} />;
+  const barre = (c = {}) => <BarreVeille criteres={c} plateforme="meta" vue="tout" tri="newest" cpm={9} stat={{ pubs: 2, annonceurs: 1, suite: '' }} vues={[]} />;
 
   it('« Tendance » pousse la vue tendance · un filtre pousse son critère', async () => {
     await monter(barre({ q: 'café' }));
@@ -96,14 +102,14 @@ describe('Spatial · Veille · barre de vue', () => {
     expect(nav.push).toHaveBeenLastCalledWith('/veille?q=caf%C3%A9&country=CH');
   });
 
-  it('le CPM change l’estimation · « Nouvelle vue » est désactivé avec sa raison', async () => {
+  it('le CPM change l’estimation · « Nouvelle vue » est ouvert (plus de « pas encore disponible »)', async () => {
     await monter(barre());
     await cliquer(bouton('Dépense estimée'));
     await cliquer(bouton('CPM 12 €', racine.querySelector('.fpanel')!));
     expect(nav.push).toHaveBeenLastCalledWith('/veille?cpm=12');
     const nv = bouton('Nouvelle vue')!;
-    expect(nv.disabled).toBe(true);
-    expect(nv.title).toMatch(/pas encore disponibles/);
+    expect(nv.disabled, '« Nouvelle vue » est encore fermé').toBe(false);
+    expect(racine.innerHTML).not.toMatch(/pas encore disponible/);
   });
 
   it('une puce active se retire seule', async () => {
@@ -262,7 +268,7 @@ describe('Spatial · Pubs du moment · vague 4 · retour sur la carte d’origin
       detail: { statut: 'Active', liens: [], kpis: [] as Array<[string, string]>, lecture: 'L', annonceur: null, jarvis: [], texte: null },
     };
     await monter(<PubsDuMoment sous="s" pastilleRadar={null} recherche={{ phrase: '', compris: null, suggestions: [] }} cartes={[carte]} vide={null} pages={null} coutJarvis=""
-      barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 1, annonceurs: 1, suite: '' } }} />);
+      barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 1, annonceurs: 1, suite: '' }, vues: [] }} />);
     expect(document.activeElement?.id, 'Pubs du moment ne ramène pas sur la carte d’origine').toBe('ad-meta-mock-044');
   });
   it('une ancre qui n’est pas une carte · rien ne bouge', async () => {
@@ -285,5 +291,95 @@ describe('Spatial · Pubs du moment · vague 4 · annonceur et ancre de la carte
     await cliquer(racine.querySelector('button.xv'));
     const lien = [...document.querySelectorAll('.xmod a')].find((a) => a.textContent === 'Toutes les pubs Brume & Sel');
     expect(lien?.getAttribute('href')).toBe('/veille?q=Brume+%26+Sel&searchIn=brand&rv=q%3Droutine');
+  });
+});
+
+describe('Spatial · Veille · vues enregistrées (« Nouvelle vue »)', () => {
+  type Vue = { id: string; nom: string; params: Record<string, string>; creeLe: string };
+  const V = (id: string, nom: string, params: Record<string, string>): Vue => ({ id, nom, params, creeLe: '2026-10-29T10:00:00.000Z' });
+  const barreV = (criteres: Record<string, unknown>, vues: Vue[]) => <BarreVeille criteres={criteres} plateforme="meta" vue={(criteres.vue as 'tendance' | undefined) ?? 'tout'} tri="newest" cpm={9} stat={{ pubs: 2, annonceurs: 1, suite: '' }} vues={vues} />;
+  const panneau = () => racine.querySelector('[role=dialog][aria-label="Vues enregistrées"]');
+  const saisir = async (champ: HTMLInputElement, valeur: string) => {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, valeur);
+      champ.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+  const soumettre = async (f: HTMLFormElement) => { await act(async () => { f.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); }); };
+  const onglet = (nom: string) => [...racine.querySelectorAll('.xtabs button')].find((b) => b.textContent === nom) as HTMLButtonElement | undefined;
+  // Une réponse préparée et non consommée (test qui tombe) ne doit pas fuir dans le suivant.
+  beforeEach(() => { for (const f of Object.values(vuesActions)) f.mockReset(); });
+
+  it('état vide honnête · sans filtre, rien à garder (la raison est dite, le bouton fermé)', async () => {
+    await monter(barreV({}, []));
+    await cliquer(bouton('Nouvelle vue'));
+    const p = panneau()!;
+    expect(p, 'le panneau des vues ne s’ouvre pas').not.toBeNull();
+    expect(p.textContent).toContain('Aucune vue gardée pour l’instant');
+    expect(p.textContent).toContain('Aucun filtre à garder · sans critère, c’est déjà « Toutes les pubs ».');
+    expect(bouton('Garder cette vue', p)!.disabled).toBe(true);
+  });
+
+  it('garder · le nom et les paramètres CANONIQUES partent (jamais la page) · l’onglet apparaît, signalé actif', async () => {
+    const criteres = { country: 'BE', media: 'video', page: 3 };
+    vuesActions.garderVueVeille.mockResolvedValueOnce({ ok: true, id: 'v1', vues: [V('v1', 'Belgique vidéo', { media: 'video', country: 'BE' })] });
+    await monter(barreV(criteres, []));
+    await cliquer(bouton('Nouvelle vue'));
+    const p = panneau()!;
+    expect([...p.querySelectorAll('.chip')].map((c) => c.textContent), 'le panneau ne dit pas ce qui sera gardé').toEqual(['Belgique', 'Vidéo']);
+    await saisir(p.querySelector('input')!, ' Belgique vidéo ');
+    await soumettre(p.querySelector('form')!);
+    expect(vuesActions.garderVueVeille).toHaveBeenCalledWith({ nom: ' Belgique vidéo ', params: { media: 'video', country: 'BE' } });
+    expect(toasts.at(-1)).toBe('Vue « Belgique vidéo » gardée');
+    const o = onglet('Belgique vidéo');
+    expect(o, 'la vue gardée n’apparaît pas dans la barre').toBeDefined();
+    expect(o!.getAttribute('aria-pressed'), 'la vue de l’écran n’est pas signalée').toBe('true');
+    expect(onglet('Toutes les pubs')!.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('un refus du serveur · la liste ne change pas, la raison est dite', async () => {
+    vuesActions.garderVueVeille.mockResolvedValueOnce({ ok: false, error: 'Une vue s’appelle déjà « Belgique ».' });
+    await monter(barreV({ country: 'CH' }, [V('v1', 'Belgique', { country: 'BE' })]));
+    await cliquer(bouton('Nouvelle vue'));
+    await saisir(panneau()!.querySelector('input')!, 'Belgique');
+    await soumettre(panneau()!.querySelector('form')!);
+    expect(toasts.at(-1)).toBe('Une vue s’appelle déjà « Belgique ».');
+    expect([...racine.querySelectorAll('.xtabs button')].map((b) => b.textContent)).toEqual(['Toutes les pubs', 'Tendance', 'Suivies', 'Belgique', 'Nouvelle vue']);
+  });
+
+  it('ouvrir une vue applique ses paramètres (navigation vers son adresse) · hors de son adresse, elle n’est pas signalée', async () => {
+    await monter(barreV({ q: 'café' }, [V('v1', 'Tendance Belgique', { vue: 'tendance', country: 'BE' })]));
+    const o = onglet('Tendance Belgique')!;
+    expect(o.getAttribute('aria-pressed')).toBe('false');
+    await cliquer(o);
+    expect(nav.push).toHaveBeenLastCalledWith('/veille?country=BE&vue=tendance');
+  });
+
+  it('supprimer demande confirmation · non → rien ne part · oui → l’identifiant part, l’onglet disparaît', async () => {
+    const confirmer = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await monter(barreV({}, [V('v1', 'Belgique', { country: 'BE' }), V('v2', 'Vidéo', { media: 'video' })]));
+    await cliquer(bouton('Nouvelle vue'));
+    vuesActions.supprimerVueVeille.mockResolvedValueOnce({ ok: true, vues: [V('v2', 'Vidéo', { media: 'video' })] });
+    await cliquer(panneau()!.querySelector('[aria-label="Supprimer la vue Belgique"]'));
+    expect(vuesActions.supprimerVueVeille).not.toHaveBeenCalled();
+    expect(confirmer).toHaveBeenLastCalledWith('Supprimer la vue « Belgique » ? Les annonces ne changent pas · seul ce raccourci disparaît.');
+    await cliquer(panneau()!.querySelector('[aria-label="Supprimer la vue Belgique"]'));
+    expect(vuesActions.supprimerVueVeille).toHaveBeenCalledWith({ id: 'v1' });
+    expect(onglet('Belgique'), 'l’onglet supprimé reste affiché').toBeUndefined();
+    expect(onglet('Vidéo')).toBeDefined();
+    expect(toasts.at(-1)).toBe('Vue « Belgique » supprimée');
+    confirmer.mockRestore();
+  });
+
+  it('renommer · le nouveau nom part avec l’identifiant, l’onglet suit la liste du serveur', async () => {
+    await monter(barreV({}, [V('v1', 'Belgique', { country: 'BE' })]));
+    await cliquer(bouton('Nouvelle vue'));
+    await cliquer(panneau()!.querySelector('[aria-label="Renommer la vue Belgique"]'));
+    vuesActions.renommerVueVeilleAction.mockResolvedValueOnce({ ok: true, vues: [V('v1', 'Belgique FR', { country: 'BE' })] });
+    const champ = panneau()!.querySelector('input[aria-label="Nouveau nom de la vue Belgique"]') as HTMLInputElement;
+    await saisir(champ, 'Belgique FR');
+    await soumettre(champ.form!);
+    expect(vuesActions.renommerVueVeilleAction).toHaveBeenCalledWith({ id: 'v1', nom: 'Belgique FR' });
+    expect(onglet('Belgique FR')).toBeDefined();
   });
 });

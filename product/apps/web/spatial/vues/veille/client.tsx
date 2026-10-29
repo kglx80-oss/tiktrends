@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, estAncreCarteVeille, lienVeille, pucesVeille, verrouAction, videoLisible, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille } from '@tiktrends/core';
+import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, adresseVueVeille, estAncreCarteVeille, lienVeille, pucesVeille, verrouAction, videoLisible, vueActiveVeille, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille, type VueVeilleEnregistree } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import type { CarteVeilleDonnees } from './types';
 import { ImageApercu } from './apercu-client';
+import { PanneauVues } from './vues-client';
 
 /**
  * Les briques INTERACTIVES de la Veille Spatial. Chaque geste appelle une
@@ -213,17 +214,26 @@ export interface PropsBarreVeille {
   tri: TriVeille;
   cpm: number;
   stat: { pubs: number; annonceurs: number; suite: string };
+  /** Les vues enregistrées de CETTE personne dans CET espace (`lireVuesVeille`) · lues par la page. */
+  vues: ReadonlyArray<VueVeilleEnregistree>;
 }
 
 /**
  * `div.xbar` de la maquette · vues, filtres, tri et CPM. Chaque choix change
  * l'ADRESSE (`lienVeille`) · la page relit les critères et interroge la
  * source · un rechargement ou un Retour retrouve la même vue.
+ *
+ * « Nouvelle vue » garde ces paramètres d'adresse sous un nom (`PanneauVues`) ·
+ * chaque vue gardée devient un onglet qui rouvre son adresse, et l'onglet de la
+ * vue dont l'adresse est celle de l'écran est signalé (`vueActiveVeille`).
  */
-export function BarreVeille({ criteres, plateforme, vue, tri, cpm, stat }: PropsBarreVeille) {
+export function BarreVeille({ criteres, plateforme, vue, tri, cpm, stat, vues: vuesInitiales }: PropsBarreVeille) {
   const router = useRouter();
   const [montrer, setMontrer] = useState(false);
   const [dd, setDd] = useState<string | null>(null);
+  const [vues, setVues] = useState<ReadonlyArray<VueVeilleEnregistree>>(vuesInitiales);
+  const active = vueActiveVeille(vues, criteres);
+  const ouvrir = (href: string) => { setDd(null); router.push(href); };
   const aller = (over: Parameters<typeof lienVeille>[1]) => { setDd(null); router.push(lienVeille(criteres, over)); };
   useEffect(() => {
     if (!dd) return;
@@ -247,14 +257,19 @@ export function BarreVeille({ criteres, plateforme, vue, tri, cpm, stat }: Props
   const filtreOuvert = tous.find((f) => f.cle === dd);
   const valeur = (cle: string) => (criteres as Record<string, unknown>)[cle] as string | undefined;
   const tab = (k: VueVeille, l: string, i: string) => (
-    <button key={k} type="button" aria-pressed={vue === k} onClick={() => aller({ vue: k, sort: k === 'tendance' ? undefined : criteres.sort })}><Ic n={i} />{l}</button>
+    <button key={k} type="button" aria-pressed={vue === k && !active} onClick={() => aller({ vue: k, sort: k === 'tendance' ? undefined : criteres.sort })}><Ic n={i} />{l}</button>
   );
   return (
     <>
       <div className="xbar">
         <div className="xtabs" role="group" aria-label="Vue">
           {tab('tout', 'Toutes les pubs', 'grid')}{tab('tendance', 'Tendance', 'chart')}{tab('suivies', 'Suivies', 'bookmark')}
-          <button type="button" className="xnew" disabled title="Les vues enregistrées ne sont pas encore disponibles · tes filtres vivent dans l’adresse de la page, à garder en favori"><Ic n="plus" />Nouvelle vue</button>
+          {vues.map((v) => (
+            <button key={v.id} type="button" aria-pressed={active === v.id} title={v.nom} onClick={() => ouvrir(adresseVueVeille(v.params))}>
+              <Ic n="folder" /><span style={{ display: 'inline-block', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{v.nom}</span>
+            </button>
+          ))}
+          <button type="button" className="xnew" data-xdd="vues" aria-haspopup="dialog" aria-expanded={dd === 'vues'} onClick={() => { setDd(dd === 'vues' ? null : 'vues'); setMontrer(false); }}><Ic n="plus" />Nouvelle vue</button>
         </div>
         <button type="button" className={`xfc ${montrer ? 'on' : ''}`} aria-expanded={montrer} onClick={() => { setMontrer(!montrer); setDd(null); }}>
           <Ic n="grid" />Filtres{puces.length > 0 && <> · <b>{puces.length}</b></>}<i className="chev" />
@@ -276,7 +291,9 @@ export function BarreVeille({ criteres, plateforme, vue, tri, cpm, stat }: Props
           ))}
         </section>
       )}
-      {dd === 'sort' ? (
+      {dd === 'vues' ? (
+        <PanneauVues criteres={criteres} vues={vues} active={active} majVues={setVues} ouvrir={ouvrir} />
+      ) : dd === 'sort' ? (
         <div className="tile fpanel" role="listbox">
           {triMeta
             ? TRIS_VEILLE.map(([k, l]) => <button key={k} type="button" className="fopt" aria-pressed={triActif === k} onClick={() => aller({ sort: k, vue: vue === 'tendance' ? undefined : vue })}><span>{l}</span></button>)

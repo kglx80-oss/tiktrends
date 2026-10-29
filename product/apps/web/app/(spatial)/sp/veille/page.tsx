@@ -14,6 +14,7 @@ import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../../lib/ve
 import { baseUrlRecette, cleEffective } from '../../../../lib/veille-recette-base';
 import { annonceConversationJarvis } from '@tiktrends/core';
 import { regimeSession } from '../../../../lib/credits-appels';
+import { lireVuesVeille } from '../../../../lib/veille-vues';
 import { PubsDuMoment } from '../../../../spatial/vues/veille/PubsDuMoment';
 import { VeilleFermee } from '../../../../spatial/vues/veille/Fermee';
 import { carteVeille } from './cartes';
@@ -64,6 +65,8 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
   const baseUrl = baseUrlRecette();
   const apiKey = cleEffective(baseUrl, process.env.TRENDTRACK_API_KEY);
   const brand = db ? await getActiveBrand(s.workspaceId) : null;
+  // Les vues enregistrées de CETTE personne dans CET espace (session) · lecture pure.
+  const vues = await lireVuesVeille(s.workspaceId, s.user.id);
 
   // Un domaine ou une URL tapés · recherche par domaine (même règle que la V5).
   const urlLike = /^https?:\/\//i.test(query) || /^[a-z0-9-]+(\.[a-z0-9-]+){1,}(\/|$)/i.test(query);
@@ -192,7 +195,7 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
         } : null,
         suggestions: suggestionsVeille(suivis.find((f) => f.platform === 'meta')?.name),
       }}
-      barre={{ criteres: c, plateforme: platform, vue, cpm, tri: sort, stat: { pubs: ads.length, annonceurs, suite: pagine ? ` · page ${page} / ${totalPages}` : sample ? ' · démonstration' : '' } }}
+      barre={{ criteres: c, plateforme: platform, vue, cpm, tri: sort, stat: { pubs: ads.length, annonceurs, suite: pagine ? ` · page ${page} / ${totalPages}` : sample ? ' · démonstration' : '' }, vues }}
       cartes={cartes}
       vide={vide}
       pages={pagine ? { precedente: page > 1 ? lienVeille(c, { page: page - 1 }) : null, suivante: page < totalPages ? lienVeille(c, { page: page + 1 }) : null, libelle: `${page} / ${totalPages}` } : null}

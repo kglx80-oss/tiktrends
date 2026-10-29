@@ -84,7 +84,7 @@ describe('Spatial · Veille · parité de structure avec la maquette', () => {
       <PubsDuMoment
         sous="Pistes installées" pastilleRadar={SOUS_NAV_TEST}
         recherche={{ phrase: '', compris: null, suggestions }}
-        barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 24, annonceurs: 12, suite: '' } }}
+        barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 24, annonceurs: 12, suite: '' }, vues: [] }}
         cartes={cartes} vide={null} pages={null} coutJarvis="Aucun crédit"
       />,
     );
@@ -96,7 +96,7 @@ describe('Spatial · Veille · parité de structure avec la maquette', () => {
     const { cartes, suggestions } = propsVeille();
     const i = cartes.findIndex((c) => c.tendance);
     cartes[i] = { ...cartes[i]!, tendance: false };
-    const html = rendre(<PubsDuMoment sous="" pastilleRadar={SOUS_NAV_TEST} recherche={{ phrase: '', compris: null, suggestions }} barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 24, annonceurs: 12, suite: '' } }} cartes={cartes} vide={null} pages={null} coutJarvis="" />);
+    const html = rendre(<PubsDuMoment sous="" pastilleRadar={SOUS_NAV_TEST} recherche={{ phrase: '', compris: null, suggestions }} barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 24, annonceurs: 12, suite: '' }, vues: [] }} cartes={cartes} vide={null} pages={null} coutJarvis="" />);
     const p = parite(html, 'veille', { ignorer: IGNORER_VEILLE });
     expect(p.rendu).not.toEqual(p.reference);
     expect(squelette(fragmentReference('veille'), { ignorer: IGNORER_VEILLE }).length).toBeGreaterThan(500);

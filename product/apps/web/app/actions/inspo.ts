@@ -5,34 +5,17 @@ import { db, schema } from '@tiktrends/db';
 import { enregistrementFormat, mediaAnnonce, sansFormatCreatif, validerChoixFormat, type FormatCreatifId } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
-import { FEATURES, canAccess, denyReason } from '../../lib/rbac';
+import { FEATURES, denyReason } from '../../lib/rbac';
 import { effectiveAccess } from '../../lib/access';
+import { gardeVeille } from '../../lib/veille-garde';
 import type { InspoAd } from '@tiktrends/integrations';
 
 /* Appels directs (depuis des boutons client via useTransition) · pas de redirection,
    donc pas de rechargement de page ni de nouvelle recherche Trendtrack. */
 
-/**
- * La Veille (offre Core) · même contrôle que la page `/veille` (lot 19C).
- * Cacher l'écran ne protège rien · une action serveur reste appelable
- * directement. `saveAd` ne vérifiait que la session.
- */
+// La garde de la Veille (rôle ET offre de `inspo`) vit dans `lib/veille-garde`,
+// partagée avec les vues enregistrées · même contrôle que la page `/veille`.
 const Veille = FEATURES.find((f) => f.key === 'inspo')!;
-type SessionVeille = NonNullable<Awaited<ReturnType<typeof getSession>>>;
-
-async function gardeVeille(): Promise<{ s: SessionVeille } | { error: string }> {
-  const s = await getSession();
-  if (!s || !db) return { error: 'Session expirée · reconnecte-toi puis réessaie.' };
-  const a = effectiveAccess(s);
-  if (!canAccess(a, Veille)) {
-    return {
-      error: denyReason(a, Veille) === 'plan'
-        ? 'La Veille est incluse dès l’offre Core · un propriétaire de l’espace peut changer d’offre dans Réglages.'
-        : 'Ton rôle ne permet pas d’utiliser la Veille · demande à un administrateur de l’espace.',
-    };
-  }
-  return { s };
-}
 
 export async function saveAd(input: { platform: string; externalId: string; snapshot: InspoAd }): Promise<{ ok: boolean; error?: string }> {
   const g = await gardeVeille();
