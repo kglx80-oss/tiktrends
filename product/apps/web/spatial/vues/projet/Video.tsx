@@ -220,8 +220,13 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
   // Les boutons de l'aperçu · sous le lecteur (maquette). Au téléphone, le lecteur 9:16 remplit le premier écran
   // et ses boutons tombaient sous les deux barres flottantes (ornement + navigation, ~150 px) · ils passent
   // AU-DESSUS du lecteur, visibles dès l'arrivée (planche v4 · G2).
+  // Planche finale · G2 · la barre flottante (`#orn`) restait posée sur la barre de navigation mobile, 6 px
+  // au-dessus, et masquait le bas de l'écran · ses deux gestes (« Projet », « Tester les variantes ») sont
+  // alors DÉJÀ ici, au-dessus du lecteur ; son compte de plans est masqué au téléphone par la maquette. Au
+  // téléphone, la barre flottante n'est donc plus montée · « Projet » rejoint les boutons de l'aperçu.
   const actionsApercu = (
     <div className="kc" data-actions-apercu={telephone ? 'haut' : 'bas'}>
+      {telephone && <Lien className="btn sm" href={`/studio/projets/${v.projet.id}`}><Ic n="back" />Projet</Lien>}
       {finale
         ? <a className="btn sm" href={finale.url} download><Ic n="down" />MP4</a>
         : <button className="btn sm" type="button" disabled title="Aucune vidéo finale assemblée"><Ic n="down" />MP4</button>}
@@ -419,11 +424,13 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
         )}
       </section>
       {/* La barre flottante de la maquette (`#orn`) · retour au projet, plans RÉELLEMENT animés, tester les variantes (rattachement, lot d'essai). */}
-      <Ornement>
-        <Lien className="btn" href={`/studio/projets/${v.projet.id}`}><Ic n="back" />Projet</Lien>
-        <span className="info" data-orn-video="">{infoOrnementVideo(ordre.length, ordre.filter((s) => v.clips[s]?.etat === 'valide').length)}</span>
-        <Lien className="btn pri" href={variantesHref}><Ic n="flask" />Tester les variantes</Lien>
-      </Ornement>
+      {!telephone && (
+        <Ornement>
+          <Lien className="btn" href={`/studio/projets/${v.projet.id}`}><Ic n="back" />Projet</Lien>
+          <span className="info" data-orn-video="">{infoOrnementVideo(ordre.length, ordre.filter((s) => v.clips[s]?.etat === 'valide').length)}</span>
+          <Lien className="btn pri" href={variantesHref}><Ic n="flask" />Tester les variantes</Lien>
+        </Ornement>
+      )}
       </div>
     </Vue>
   );
