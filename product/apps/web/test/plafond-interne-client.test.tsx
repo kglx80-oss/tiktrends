@@ -21,7 +21,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
  *  · `voitDepensePlateforme` rend toujours vrai ⇒ les cas client tombent
  *    (« 7.77 $ » dans la réponse, l'écran et le refus) ;
  *  · la route renvoie `e.message` brut ⇒ le cas client Jarvis tombe ;
- *  · l'écran affiche le plafond sans condition ⇒ le rendu client tombe.
+ *  · l'action renvoie `spend` à tout le monde ⇒ la réponse ET l'écran client
+ *    tombent (« montant du plafond à l'écran », « plafond global à l'écran »).
  */
 
 const ids = vi.hoisted(() => {
@@ -81,13 +82,14 @@ describe('Radar · le plafond global n’est montré qu’au personnel', () => {
     h.session = client();
     const r = await radarViewAction();
     expect(r.error).toBeUndefined();
-    expect(r.view?.spend, 'dépense de la plateforme envoyée au navigateur').toBeUndefined();
-    expect(JSON.stringify(r)).not.toContain(PLAFOND);
+    // `expect.soft` · chaque fuite est dite, la réponse ET l'écran.
+    expect.soft(r.view?.spend, 'dépense de la plateforme envoyée au navigateur').toBeUndefined();
+    expect.soft(JSON.stringify(r), 'montant du plafond dans la réponse').not.toContain(PLAFOND);
     const html = rendreRadar(r.view);
-    expect(html).toContain('Radar des concurrents');
-    expect(html).not.toContain(PLAFOND);
-    expect(html).not.toMatch(/plafond global|dépensés sur un plafond|Il reste/i);
-    expect(html).toContain('momentanément limité');
+    expect.soft(html).toContain('Radar des concurrents');
+    expect.soft(html, 'montant du plafond à l’écran').not.toContain(PLAFOND);
+    expect.soft(html, 'plafond global à l’écran').not.toMatch(/plafond global|dépensés sur un plafond|Il reste/i);
+    expect.soft(html).toContain('momentanément limité');
   });
 
   it('équipe sans accès total · même lecture qu’un client', async () => {
