@@ -1,7 +1,8 @@
 import 'server-only';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
-import { photosDuProduit, idLogoMarque, versionDepuisEmpreinte, estEmpreinte, droitAutorisePub, type ResolutionReference } from '@tiktrends/core';
+import { photosDuProduit, idLogoMarque, versionDepuisEmpreinte, estEmpreinte, droitAutorisePub, logoTransmissible, type ResolutionReference } from '@tiktrends/core';
+import { storageFromEnv, basePubliqueStockage } from '@tiktrends/integrations';
 import { hacherImage } from '../produit/catalogue';
 import type { ExecStudio } from '../execution/types';
 
@@ -57,7 +58,12 @@ export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspac
         }
       }
       const l = logos.get(id);
-      out.set(id, l ? present(l.sha256, l.url) : { etat: 'absent' });
+      // Adresse enregistrée avant le contrôle d'écriture et hors règle
+      // (`logoTransmissible`) · présente mais jamais transmise, comme le worker
+      // (`sans_media`) ; la base n'est pas touchée.
+      const cfg = storageFromEnv();
+      const bucket = cfg ? { base: basePubliqueStockage(cfg), espace: portee.workspaceId } : null;
+      out.set(id, l ? present(l.sha256, l.url, logoTransmissible(l.url, bucket)) : { etat: 'absent' });
     } else if (id.startsWith('sta_') && UUID.test(id.slice(4))) {
       const S = schema.studioAssets;
       const [m] = await ex.select({ storageKey: S.storageKey, sha256: S.sha256, mime: S.mime }).from(S)

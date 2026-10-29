@@ -59,6 +59,33 @@ const saisir = async (champ: HTMLInputElement | HTMLTextAreaElement, v: string) 
   await act(async () => { setter.call(champ, v); champ.dispatchEvent(new Event('input', { bubbles: true })); });
 };
 
+describe('Spatial · Bibliothèque · téléverser vers le bucket', () => {
+  it('le PUT porte le Content-Type SIGNÉ rendu par le serveur, pas le type (vide) du navigateur', async () => {
+    const actions = await import('../app/actions/assets');
+    vi.mocked(actions.presignAssetUploadAction).mockResolvedValue({ uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/1-img.heic', contentType: 'image/heic' });
+    vi.mocked(actions.registerUploadedAssetAction).mockResolvedValue({ ok: true });
+    const envois: Array<{ methode: string; url: string; entetes: Record<string, string> }> = [];
+    class FauxXhr {
+      status = 200; onload: (() => void) | null = null; onerror: (() => void) | null = null;
+      private e = { methode: '', url: '', entetes: {} as Record<string, string> };
+      open(m: string, u: string) { this.e.methode = m; this.e.url = u; }
+      setRequestHeader(k: string, v: string) { this.e.entetes[k] = v; }
+      send() { envois.push(this.e); this.onload?.(); }
+    }
+    vi.stubGlobal('XMLHttpRequest', FauxXhr);
+    try {
+      const h = await monter();
+      const champ = h.querySelector('#dfile') as HTMLInputElement;
+      Object.defineProperty(champ, 'files', { value: [new File([new Uint8Array(32)], 'IMG_0001.HEIC', { type: '' })], configurable: true });
+      await act(async () => { champ.dispatchEvent(new Event('change', { bubbles: true })); });
+      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+      expect(actions.presignAssetUploadAction).toHaveBeenCalledWith({ filename: 'IMG_0001.HEIC', contentType: 'application/octet-stream', sizeBytes: 32 });
+      expect(envois).toEqual([{ methode: 'PUT', url: 'https://bucket/put?sig', entetes: { 'Content-Type': 'image/heic' } }]);
+      expect(actions.registerUploadedAssetAction).toHaveBeenCalledTimes(1);
+    } finally { vi.unstubAllGlobals(); }
+  });
+});
+
 describe('Spatial · Bibliothèque · importer par lien', () => {
   it('le menu « Nouveau » ouvre l’import par lien · chaque adresse part à importAssetAction, commune si demandé', async () => {
     const h = await monter();

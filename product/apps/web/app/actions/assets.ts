@@ -4,7 +4,7 @@ import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
+import { costFor, decisionDepot, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -17,8 +17,6 @@ import { assetAiUrl } from '../../lib/asset-ai-url';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
-
-const MAX_UPLOAD_BYTES = 1_073_741_824; // 1 Go
 
 type SessionBibliotheque = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 
@@ -351,20 +349,26 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
   return { ok: true, tagged };
 }
 
-/** Demande une URL présignée pour téléverser un fichier directement vers le bucket. */
-export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; error?: string }> {
+/**
+ * Demande une URL présignée pour téléverser un fichier directement vers le
+ * bucket. Type, taille et extension sont décidés par le noyau
+ * (`decisionDepot` · liste blanche, plafond par famille, extension forcée) ;
+ * le type retenu est SIGNÉ dans l'adresse · le client doit l'envoyer tel quel
+ * (`contentType` rendu) dans l'en-tête du PUT, sinon le bucket refuse.
+ */
+export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; contentType?: string; error?: string }> {
   const g = await gardeBibliotheque();
   if ('error' in g) return { error: g.error };
   const { s } = g;
   const cfg = storageFromEnv();
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
   if (!cfg) return { error: messageServiceInactif('stockage') };
-  if (!input.filename || !input.contentType) return { error: 'Fichier invalide.' };
-  if (input.sizeBytes > MAX_UPLOAD_BYTES) return { error: 'Fichier trop lourd (max 1 Go).' };
-  const key = newAssetKey(s.workspaceId, input.filename);
+  const d = decisionDepot({ nom: input?.filename, type: input?.contentType, taille: input?.sizeBytes });
+  if (!d.ok) return { error: d.erreur };
+  const key = newAssetKey(s.workspaceId, d.nomFichier);
   try {
-    const { uploadUrl, publicUrl } = presignPutUrl(cfg, key);
-    return { uploadUrl, publicUrl };
+    const { uploadUrl, publicUrl } = presignPutUrl(cfg, key, d.contentType);
+    return { uploadUrl, publicUrl, contentType: d.contentType };
   } catch (e) {
     return { error: logAndTranslate('assets:upload', e, { subject: 'la préparation du téléversement', workspaceId: s.workspaceId }) };
   }

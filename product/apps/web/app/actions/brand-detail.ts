@@ -9,8 +9,8 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { generateProducts, generateBrandProfile, extractVisualDa } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
-import { falFromEnv, falGenerateImage } from '@tiktrends/integrations';
-import { costFor, imageModelByKey, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
+import { falFromEnv, falGenerateImage, storageFromEnv, basePubliqueStockage } from '@tiktrends/integrations';
+import { costFor, imageModelByKey, policeTechnique, refusCharteLogos, type DaVisuelleMarque } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
@@ -289,11 +289,22 @@ export async function saveBrandDAAction(input: {
   const g = await guardBrand(input.brandId);
   if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
   const clean = (a: string[]) => (Array.isArray(a) ? a.map((x) => String(x).trim()).filter(Boolean).slice(0, 20) : []);
+  const logoUrl = typeof input.logoUrl === 'string' ? input.logoUrl.trim() : '';
+  const logos = clean(input.logos);
+  // Toute adresse de logo NOUVELLE passe la règle du noyau (`https:` public,
+  // ni identifiants, ni IP, ni réseau interne) · celles déjà enregistrées sont
+  // renvoyées telles quelles (aucune donnée réécrite), un objet du bucket de
+  // l'espace (import d'un fichier de logo) est admis.
+  const [avant] = await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos }).from(schema.brands)
+    .where(and(eq(schema.brands.id, input.brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1);
+  const cfg = storageFromEnv();
+  const refus = refusCharteLogos({ logoUrl, logos }, [avant?.logoUrl, ...(avant?.logos ?? [])], cfg ? { base: basePubliqueStockage(cfg), espace: g.workspaceId } : null);
+  if (refus) return { error: refus };
   // Une fonte d'icônes n'est jamais une police de marque · on l'écarte même
   // saisie à la main (CDC v7 · N09), pas seulement à l'extraction du site.
   await db.update(schema.brands).set({
-    logoUrl: input.logoUrl.trim() || null,
-    logos: clean(input.logos),
+    logoUrl: logoUrl || null,
+    logos,
     colors: clean(input.colors),
     fonts: clean(input.fonts).filter((f) => !policeTechnique(f)),
   }).where(eq(schema.brands.id, input.brandId));
