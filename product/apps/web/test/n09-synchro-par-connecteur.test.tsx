@@ -60,13 +60,25 @@ describe('N09 · les lecteurs Meta lisent la fraîcheur Meta, pas la valeur part
     expect(lecture).toMatch(/mesuresLe: schema\.brands\.adsmapSyncedAt/);
     expect(lecture).not.toContain('insightsSyncedAt');
   });
+  // D2 · les chiffres clés passent par `lib/chiffres-cles-meta.ts`, qui lit la connexion par LA lecture ci-dessus.
+  it('la lecture des chiffres clés passe par la lecture de la connexion', () => {
+    const chiffres = readFileSync(join(process.cwd(), 'lib/chiffres-cles-meta.ts'), 'utf8');
+    expect(chiffres).toContain('lireConnexionMeta(');
+    expect(chiffres).not.toMatch(/schema\.brands\.(metaSyncedAt|adsmapSyncedAt|insightsSyncedAt)/);
+  });
   it.each([
     ['Analytics', 'app/(spatial)/sp/dashboard/analytics.ts'],
     ['Radar', 'app/(spatial)/sp/radar/page.tsx'],
     ['Accueil', 'app/(spatial)/sp/dashboard/chargement.ts'],
-    ['Connexions', 'app/(spatial)/sp/connections/page.tsx'],
+    ['Jarvis', 'app/(spatial)/sp/jarvis/page.tsx'],
   ])('%s passe par la lecture partagée', (_n, f) => {
     const src = readFileSync(join(process.cwd(), f), 'utf8');
+    expect(src).toContain('lireChiffresClesMeta(');
+    expect(src).not.toMatch(/schema\.brands\.(metaSyncedAt|adsmapSyncedAt|insightsSyncedAt)/);
+  });
+  // Connexions n'affiche pas de chiffres · elle lit l'ÉTAT de la connexion par la même lecture.
+  it('Connexions passe par la lecture partagée de la connexion', () => {
+    const src = readFileSync(join(process.cwd(), 'app/(spatial)/sp/connections/page.tsx'), 'utf8');
     expect(src).toContain('lireConnexionMeta(');
     expect(src).not.toMatch(/schema\.brands\.(metaSyncedAt|adsmapSyncedAt|insightsSyncedAt)/);
   });

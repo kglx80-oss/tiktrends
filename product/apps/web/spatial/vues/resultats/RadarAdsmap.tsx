@@ -17,7 +17,8 @@ import type { SousNavResultats } from './communs';
  * (`/adsmap/radar`). Il signale les SURVIES (une créa concurrente encore payée
  * après des semaines), pas les naissances. Le COÛT vient avant l'interrupteur ·
  * le pire cas (nuits pleines au plafond choisi, `radarCostPreviewAction`), et le
- * plafond global de dépense reste au-dessus de tout. Armer, éteindre, passer
+ * plafond global de dépense reste au-dessus de tout (montré au PERSONNEL seulement,
+ * `vue.spend` est absent pour un client). Armer, éteindre, passer
  * maintenant · `setRadarAction`, `runRadarNowAction` (admin). Une trouvaille se
  * fait écrire par Jarvis (`draftConceptAction`, coût annoncé) puis se pose sur
  * la carte (`conceptFromFindingAction`) · on reprend la mécanique, jamais les mots.
@@ -59,7 +60,9 @@ export function RadarAdsmap(p: PropsRadarAdsmap) {
               </label>
             </div>
             {apercu && <p style={{ fontSize: '13px' }}>Soit <b>{usd(apercu.nightly)}</b> par nuit au plus · <b>{usd(apercu.monthly)}</b> sur 30 nuits pleines.</p>}
-            <p className="faint" style={{ fontSize: '12px' }}>Chiffre du pire cas · une nuit sans créa ayant franchi de cap ne coûte rien. Le plafond global reste au-dessus de tout : {v.spend.summary} Il reste {usd(Math.max(0, v.spend.capUsd - v.spend.spentUsd))} sur la fenêtre de 30 jours, et le radar s’arrête net s’il est atteint.</p>
+            <p className="faint" style={{ fontSize: '12px' }}>Chiffre du pire cas · une nuit sans créa ayant franchi de cap ne coûte rien.{v.spend
+              ? <> Le plafond global reste au-dessus de tout : {v.spend.summary} Il reste {usd(Math.max(0, v.spend.capUsd - v.spend.spentUsd))} sur la fenêtre de 30 jours, et le radar s’arrête net s’il est atteint.</>
+              : ' Si le service est momentanément limité, le radar s’interrompt de lui-même et reprend la nuit suivante.'}</p>
             <div className="foot2" style={{ marginTop: 8 }}>
               <button type="button" className={`btn sm ${v.state.armed || v.state.followed === 0 ? '' : 'pri'}`} disabled={!!occupe || (!v.state.armed && v.state.followed === 0)} onClick={() => {
                 const armer = !v.state.armed;
@@ -78,7 +81,7 @@ export function RadarAdsmap(p: PropsRadarAdsmap) {
               <summary className="faint" style={{ cursor: 'pointer', fontSize: '12.5px' }}>Ce que le radar surveille, et ce qu’il coûte</summary>
               <p className="muted" style={{ fontSize: '12.5px', marginTop: 6 }}><b>La naissance d’une pub ne dit rien.</b> La plupart meurent en une semaine. Le signal qui compte est la <b>survie</b> : une créa encore diffusée après trois semaines est une créa que son annonceur continue de payer, en connaissant ses chiffres.</p>
               <p className="muted" style={{ fontSize: '12.5px', marginTop: 6 }}>Chaque nuit, un même annonceur donne au plus <b>trois</b> créas décrites · le surplus attend la nuit suivante, il n’est pas jeté. Et un concurrent déjà connu passe <b>après</b> un inconnu à signal égal : la largeur d’abord, sans exclure personne · une créa vraiment prouvée d’une marque déjà couverte reste candidate les nuits d’après.</p>
-              <p className="muted" style={{ fontSize: '12.5px', marginTop: 6 }}><b>Le radar est éteint par défaut</b>, s’arme marque par marque, et s’arrête net si le plafond global de dépense est atteint.</p>
+              <p className="muted" style={{ fontSize: '12.5px', marginTop: 6 }}><b>Le radar est éteint par défaut</b>, s’arme marque par marque, et s’arrête net si le service est momentanément limité.</p>
             </details>
           </section>
           <div className="sech sec"><h2>Trouvailles</h2></div>

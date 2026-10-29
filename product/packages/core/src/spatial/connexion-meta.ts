@@ -95,7 +95,9 @@ export function encartMetaConnexion(etat: EtatConnexionMeta): { titre: string; t
     titre: etat.libelle,
     texte: manqueMeta(etat, {
       quoi: 'ta dépense, ton ROAS, ton CPA, ton panier moyen, tes CPC et CPM et tes top créas, comparés à la période précédente',
-      absent: 'Les KPI du compte (dépense, ROAS, CPA, top créas) n’ont pas encore été relevés · relance leur synchronisation depuis Connexions.',
+      // Les chiffres clés (dépense, CPA, ROAS, valeur d'achat) sont au-dessus, d'après la source que la règle a
+      // retenue (`chiffresClesMeta`) · ce texte ne dit plus « non relevés » pour eux (D2), seulement pour le reste.
+      absent: 'Les indicateurs du compte entier (panier moyen, CPC, CPM, répartitions, top créas) n’ont pas encore été relevés · relance leur synchronisation depuis Connexions.',
     }),
     cta: { libelle: etat.action ?? RELANCE_META, href: '/connections' },
   };

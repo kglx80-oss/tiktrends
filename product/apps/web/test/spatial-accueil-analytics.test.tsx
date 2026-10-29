@@ -147,13 +147,16 @@ describe('Spatial · Analytics · l’encart Meta suit la phase réelle du conne
     const h = await rendre({ vue: 'analytics' });
     const t = texte(h);
     expect(t).not.toMatch(/Connecter Meta Ads|Synchroniser Meta Ads|compte pub à choisir|en attente|DÉMO|démonstration/);
-    expect(t).toContain('Key Metrics');
+    // Les chiffres clés · LA règle partagée (`chiffresClesMeta`, D2), la même phrase de source que l'Accueil, Jarvis et le Radar.
+    expect(t).toContain('Chiffres clés D’après ton compte publicitaire Meta · 30 jours au 20 oct.');
+    expect(t, 'la dépense et sa variation (+20 %)').toMatch(/Dépense 1 ?200 € ▲ \+20,0 %/);
+    expect(t, 'un CPA qui baisse est une bonne nouvelle').toContain('CPA 20,00 € ▼ −20,0 %');
+    expect(h, 'la baisse du CPA se colore en bien').toMatch(/<span class="d" style="color:var\(--good\)">▼ −20,0 %<\/span>/);
+    // Les autres indicateurs, que seul le compte porte · datés de leur relevé.
+    expect(t).toContain('Autres indicateurs du compte');
     expect(t).toMatch(/Meta Ads · synchronisé [^·]+ · 30 j vs 30 j précédents · Compte Neva · KPI du 20 oct\./);
-    expect(t, 'la dépense et sa variation (+20 %)').toMatch(/Dépense 1 ?200 € \+20 %/);
-    expect(t, 'un CPA qui baisse est une bonne nouvelle').toContain('CPA 20.00 € -20 %');
-    expect(h, 'la baisse du CPA se colore en bien').toMatch(/<span class="d" style="color:var\(--good\)">-20 %<\/span>/);
     expect(t).toContain('Par plateforme');
-    expect(t).toContain('Plongeon 3.2× 12.00 € 400.00 €');
+    expect(t).toContain('Plongeon 3,2× 12,00 € 400,00 €');
   });
   it('diversité créative · calculée sur les générations et les tags lus', async () => {
     etat.marque = { token: null, ads: null };

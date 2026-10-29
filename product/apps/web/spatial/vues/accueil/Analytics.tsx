@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
-import { CLASSE_NIVEAU_SCORE, styleTableDefilante, type BilanAvanceAccueil, type DiversiteCreative, type MetriquesMetaAnalytics } from '@tiktrends/core';
+import { CLASSE_NIVEAU_SCORE, styleTableDefilante, type BilanAvanceAccueil, type ChiffresClesMeta, type DiversiteCreative, type MetriquesMetaAnalytics } from '@tiktrends/core';
 import { Anneau, EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
+import { ChiffresCles } from './ChiffresCles';
 
 /**
  * La vue « Analytics » de l'Accueil Spatial (`/dashboard?vue=analytics`) · hors
@@ -17,6 +18,9 @@ export type PropsAnalytics = { onglets: readonly OngletAccueil[] } & (
   | { etat: 'refus'; message: string }
   | {
     etat: 'ouvert';
+    /** LES chiffres clés Meta (`chiffresClesMeta`) et le libellé de la connexion · `null` sans marque active. */
+    chiffres?: { connexion: string; c: ChiffresClesMeta } | null;
+    /** Les autres indicateurs du compte (hors chiffres clés) · seulement si les KPI du compte sont relevés. */
     meta: MetriquesMetaAnalytics | null;
     encart: { titre: string; texte: string; cta: { libelle: string; href: string } } | null;
     diversite: DiversiteCreative | null;
@@ -45,9 +49,9 @@ function Meta({ m }: { m: MetriquesMetaAnalytics }) {
     <section className="sec" data-section="meta">
       <div className="sech">
         <span className="logo2" style={LOGO_META}>M</span>
-        <div><h2>Key Metrics</h2><p className="faint" style={petit('12.5px')}>{m.sous}</p></div>
+        <div><h2>Autres indicateurs du compte</h2><p className="faint" style={petit('12.5px')}>{m.sous}</p></div>
       </div>
-      <div className="dkpis">
+      <div className="grid4">
         {m.kpis.map((k) => (
           <div className="tile dk" key={k.libelle}>
             <span className="lbl">{k.libelle}</span>
@@ -170,6 +174,15 @@ export function Analytics(p: PropsAnalytics) {
         </section>
       ) : (
         <div data-vue="analytics" style={{ display: 'contents' }}>
+          {p.chiffres && (
+            <section className="sec" data-section="chiffres-meta">
+              <div className="sech">
+                <span className="logo2" style={LOGO_META}>M</span>
+                <div><h2>Meta Ads</h2><p className="faint" style={petit('12.5px')}>{p.chiffres.connexion}</p></div>
+              </div>
+              <ChiffresCles c={p.chiffres.c} />
+            </section>
+          )}
           {p.meta ? <Meta m={p.meta} /> : p.encart && (
             <section className="sec" data-section="encart-meta">
               <div className="tile" style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -181,7 +194,7 @@ export function Analytics(p: PropsAnalytics) {
           )}
           {p.diversite && <Diversite d={p.diversite} />}
           {p.bilan && <Bilan b={p.bilan} />}
-          {!p.meta && !p.encart && !p.diversite && !p.bilan && (
+          {!p.chiffres && !p.meta && !p.encart && !p.diversite && !p.bilan && (
             <section className="tile sec"><p className="muted" style={petit('13px')}>Rien à lire pour l’instant · les KPI Meta, la diversité de tes générations et le bilan de Jarvis apparaissent ici dès qu’une marque active a des données.</p></section>
           )}
         </div>

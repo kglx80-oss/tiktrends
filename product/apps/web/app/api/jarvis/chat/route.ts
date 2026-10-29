@@ -12,6 +12,8 @@ import { effectiveAccess } from '../../../../lib/access';
 import { jarvisFullMemory, jarvisStats } from '../../../../lib/jarvis-memory';
 import { consigneAvecConnaissances, consignerUsageConnaissances } from '../../../../lib/jarvis-connaissances';
 import { guardedAnthropic, SpendBlockedError } from '../../../../lib/spend-guard';
+import { personnelPlateforme } from '../../../../lib/personnel-plateforme';
+import { messageRefusDepense } from '@tiktrends/core';
 import { resoudreConversationJarvis, consignerRunConversation } from '../../../../lib/studios/prompts/resolveur';
 import { appliquerPolitiqueConversationProjet, assemblerConsigneJarvis } from '../../../../lib/studios/prompts/conversation';
 import type { SourceTrace } from '../../../../lib/studios/prompts/traces';
@@ -66,6 +68,9 @@ export async function POST(req: Request) {
   // marque, le corps et les connaissances · un refus ne lit rien et ne dit rien
   // de ce que Jarvis aurait lu (voir lib/jarvis-acces).
   if (refusJarvis(s)) return json({ error: 'Accès refusé.' }, 403);
+  // Le refus du plafond ne montre ses montants (dépense de TOUTE la plateforme)
+  // qu'au personnel · un client lit une phrase neutre (`messageRefusDepense`).
+  const personnel = personnelPlateforme(s);
 
   const brand = await getActiveBrand(s.workspaceId);
 
@@ -88,7 +93,7 @@ export async function POST(req: Request) {
   // création de la première marque (consigne générique, SANS contexte de
   // marque). Pas de mur « Sélectionne une marque ». Fil portée espace + personne.
   if (!brand && body?.veille) return json({ error: 'Choisis une marque avant de cloner.' }, 409);
-  if (!brand) return fluxOnboarding({ workspaceId: s.workspaceId, userId: s.user.id }, client, question);
+  if (!brand) return fluxOnboarding({ workspaceId: s.workspaceId, userId: s.user.id }, client, question, personnel);
 
   let veille: Awaited<ReturnType<typeof preparerVeilleVisuelle>> | null = null;
   if (body?.veille) {
@@ -220,7 +225,7 @@ export async function POST(req: Request) {
           // Une coupure en cours de route laisse une réponse partielle · on la
           // garde plutôt que de la jeter, et on le dit dans le fil.
           const m = e instanceof SpendBlockedError
-            ? `\n\n[${e.message}]`
+            ? `\n\n[${messageRefusDepense(e.message, personnel)}]`
             : '\n\n[Réponse interrompue.]';
           complet += m;
           statut = 'failed';
@@ -261,7 +266,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (e) {
-    if (e instanceof SpendBlockedError) return json({ error: e.message }, 429);
+    if (e instanceof SpendBlockedError) return json({ error: messageRefusDepense(e.message, personnel) }, 429);
     console.error('[jarvis:chat]', (e as Error).message);
     return json({ error: 'Jarvis n’a pas pu répondre. Réessaie.' }, 500);
   }
@@ -284,6 +289,7 @@ async function fluxOnboarding(
   portee: { workspaceId: string; userId: string },
   client: NonNullable<ReturnType<typeof guardedAnthropic>>,
   question: string,
+  personnel: boolean,
 ) {
   if (!db) return json({ error: messageServiceInactif('jarvis') }, 503);
   try {
@@ -312,7 +318,7 @@ async function fluxOnboarding(
             }
           }
         } catch (e) {
-          const m = e instanceof SpendBlockedError ? `\n\n[${e.message}]` : '\n\n[Réponse interrompue.]';
+          const m = e instanceof SpendBlockedError ? `\n\n[${messageRefusDepense(e.message, personnel)}]` : '\n\n[Réponse interrompue.]';
           complet += m;
           ctrl.enqueue(encodeur.encode(m));
           console.error('[jarvis:onboarding]', (e as Error).message);
@@ -329,7 +335,7 @@ async function fluxOnboarding(
       headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' },
     });
   } catch (e) {
-    if (e instanceof SpendBlockedError) return json({ error: e.message }, 429);
+    if (e instanceof SpendBlockedError) return json({ error: messageRefusDepense(e.message, personnel) }, 429);
     console.error('[jarvis:onboarding]', (e as Error).message);
     return json({ error: 'Jarvis n’a pas pu répondre. Réessaie.' }, 500);
   }
