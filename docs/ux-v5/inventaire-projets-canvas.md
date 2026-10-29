@@ -1,5 +1,9 @@
 # Inventaire V5 → TikTrends réel (lecture seule, origin/main 394ed04 + PR #782, #783, #784, #791)
 
+> **Historique · 29/10/2026.** L'interface V5 a été retirée (#941) · la référence
+> vivante est `docs/spatial/`. Cet inventaire est gardé tel quel · ses chemins
+> (`app/(app)/…`, `AppShell`, `components/…`) ne désignent plus forcément du code présent.
+
 **En bref.** Dans le code réel, le projet existe : création gratuite, brief, sources Veille, produit, propositions Jarvis, devis serveur, jobs, variantes et tests, export. En revanche, presque rien de l'assistant V5 en 5 étapes n'existe tel quel. Le canvas réel est un graphe de production dérivé. Ce n'est ni un graphe marketing ni un graphe éditable. Les écarts principaux sont :
 - la lignée résultat → itération sur le canvas ;
 - le brief structuré (persona, désir, angle, plateformes, objectif) ;
