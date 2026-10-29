@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte } from 'drizzle-orm';
 import { db, schema, setDebitPoches, setRemboursementPoches } from '@tiktrends/db';
 import { allouerPoches, type PlanAllocation } from '@tiktrends/core';
 import { isFounder } from './founder';
