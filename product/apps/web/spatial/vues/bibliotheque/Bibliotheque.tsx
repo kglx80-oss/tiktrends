@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   vueDrive, cheminVers, dossiersRangement, pastilleDroit, formatTaille, libelleJour, ETAT_DRIVE_INITIAL, SECTIONS_DRIVE, DROITS_ASSET,
   LIBELLE_TYPE_FICHIER, FILTRES_TYPE_DRIVE, resumeImportDrive, TYPES_IMPORT_LIEN, type FiltreTypeDrive, lireImportLiens, type TypeImportLien, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
+  TAGS_COULEUR, messageTagPose, type CarteDossierDrive, type CleTagCouleur,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction } from '../../../app/actions/assets';
-import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction } from '../../../app/actions/bibliotheque-dossiers';
+import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction } from '../../../app/actions/bibliotheque-dossiers';
 import { syncDriveNowAction } from '../../../app/actions/drive';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
@@ -23,12 +24,15 @@ import { DialogueSpatial } from '../marque/interactifs';
  * créer, mettre à la corbeille, restaurer un dossier (`bibliotheque-dossiers`),
  * ranger un média et fixer ses droits, téléverser (`assets` · bucket ou image
  * compressée), supprimer un média (définitif, comme aujourd'hui · confirmé),
- * connecter et synchroniser Google Drive (`drive`).
+ * connecter et synchroniser Google Drive (`drive`), poser ou retirer le tag de
+ * couleur d'un dossier (`definirTagDossierAction`, `library_folders.color_tag`)
+ * et filtrer par tag (puces de l'arbre, adresse `?tag=`).
  *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
- * (aucune donnée), les tags de couleur (aucune colonne), Dropbox (aucun
- * connecteur · rendu désactivé), le quota (aucun quota n'existe · le volume
- * réellement mesuré est affiché), « Exports Meta » (aucun export conservé).
+ * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
+ * (aucun quota n'existe · le volume réellement mesuré est affiché), « Exports
+ * Meta » (aucun export conservé). Un projet Studios (dossier virtuel de
+ * « Créations ») ne porte pas de tag · ce n'est pas un dossier de la bibliothèque.
  */
 
 
@@ -41,6 +45,8 @@ export interface PropsBibliotheque {
   maintenant: string;
   /** Message de retour de la connexion Google (succès ou erreur client). */
   retourDrive?: string | null;
+  /** Le filtre par tag lu dans l'adresse (`?tag=`, validé au noyau) · null = aucun. */
+  filtreTag?: CleTagCouleur | null;
   /**
    * Les gestes de l'écran V5 `/assets` sans fragment de maquette (vague 2) ·
    * import par lien, asset commun à toutes les marques, usage par l'IA et
@@ -122,7 +128,8 @@ function PastilleFichier({ f }: { f: FichierDrive }) {
 export function Bibliotheque(p: PropsBibliotheque) {
   const router = useRouter();
   const { toast } = useSpatial();
-  const [etat, setEtat] = useState<EtatDrive>(ETAT_DRIVE_INITIAL);
+  const [etat, setEtat] = useState<EtatDrive>(() => ({ ...ETAT_DRIVE_INITIAL, tag: p.filtreTag ?? null }));
+  const [tagOuvert, setTagOuvert] = useState<string | null>(null);
   const [affichage, setAffichage] = useState<'grille' | 'liste'>('grille');
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [apercu, setApercu] = useState<string | null>(null);
@@ -151,15 +158,42 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const selecteur = useSelecteurDrive(toast, rafraichir);
   const prixImage = (n: number) => (g?.analyse.cout != null ? ` · ${g.analyse.cout * n} crédit${g.analyse.cout * n > 1 ? 's' : ''}` : '');
 
+  /** L'adresse suit le filtre par tag (`?tag=`) · un lien copié rouvre l'écran filtré, sans recharger la page. */
+  const ecrireTagAdresse = (tag: CleTagCouleur | null) => {
+    try {
+      const u = new URL(window.location.href);
+      if (tag) u.searchParams.set('tag', tag); else u.searchParams.delete('tag');
+      window.history.replaceState(null, '', `${u.pathname}${u.search}${u.hash}`);
+    } catch { /* adresse inchangée · le filtre reste appliqué à l'écran */ }
+  };
   const aller = (id: string) => {
     const chemin = cheminVers(p.donnees, id);
-    setEtat((e) => ({ ...e, section: 'drive', recherche: '', chemin, ouverts: new Set([...e.ouverts, ...chemin]) }));
+    if (etat.tag) ecrireTagAdresse(null);
+    setEtat((e) => ({ ...e, section: 'drive', recherche: '', tag: null, chemin, ouverts: new Set([...e.ouverts, ...chemin]) }));
     setSelection(new Set()); setApercu(null);
   };
   const section = (s: SectionDrive) => {
-    setEtat((e) => ({ ...e, section: s, recherche: '', chemin: s === 'drive' ? [] : e.chemin }));
+    if (etat.tag) ecrireTagAdresse(null);
+    setEtat((e) => ({ ...e, section: s, recherche: '', tag: null, chemin: s === 'drive' ? [] : e.chemin }));
     setSelection(new Set()); setApercu(null);
   };
+  /** Une puce de l'arbre · filtre sur ce tag, ou retire le filtre si c'est déjà lui (maquette). */
+  const filtrerTag = (tag: CleTagCouleur | null) => {
+    const suivant = tag && tag !== etat.tag ? tag : null;
+    ecrireTagAdresse(suivant);
+    setEtat((e) => ({ ...e, section: 'drive', recherche: '', tag: suivant }));
+    setSelection(new Set()); setApercu(null); setTagOuvert(null);
+  };
+
+  // Le menu « Tag de couleur » se ferme d'un clic ailleurs ou d'Échap (maquette).
+  useEffect(() => {
+    if (!tagOuvert) return;
+    const clic = (e: PointerEvent) => { const t = e.target as Element | null; if (!t?.closest?.('.ftpop, .ftb')) setTagOuvert(null); };
+    const touche = (e: KeyboardEvent) => { if (e.key === 'Escape') setTagOuvert(null); };
+    document.addEventListener('pointerdown', clic);
+    document.addEventListener('keydown', touche);
+    return () => { document.removeEventListener('pointerdown', clic); document.removeEventListener('keydown', touche); };
+  }, [tagOuvert]);
   const basculerNoeud = (id: string) => setEtat((e) => { const o = new Set(e.ouverts); if (o.has(id)) o.delete(id); else o.add(id); return { ...e, ouverts: o }; });
   const basculerSel = (id: string) => setSelection((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
@@ -279,6 +313,17 @@ export function Bibliotheque(p: PropsBibliotheque) {
     rafraichir();
   }
 
+  async function poserTag(d: CarteDossierDrive, tag: CleTagCouleur | null) {
+    setTagOuvert(null);
+    if (!ecriture || occupe) return;
+    setOccupe(true);
+    const r = await definirTagDossierAction({ id: d.id, tag }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(messageTagPose(tag, d.nom));
+    rafraichir();
+  }
+
   async function changerDroit(f: FichierDrive, valeur: string) {
     const r = await definirDroitsAssetAction({ assetId: f.id, droit: valeur ? (valeur as DroitAsset) : null });
     if (r.error) { toast(r.error); return; }
@@ -335,18 +380,31 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <div className="fgrid2">
             {v.dossiers.map((d) => {
               const sel = selection.has(d.id);
+              const tagueur = d.taggable && ecriture;
               return (
-                <div className={`fcard ${sel ? 'sel' : ''}`} key={d.id}>
+                <div className={`fcard ${sel ? 'sel' : ''}`} key={d.id} style={d.tag ? style({ '--tc': d.tag.teinte }) : undefined}>
                   <button type="button" className="fopen" onClick={() => (corbeille ? d.selectionnable && basculerSel(d.id) : aller(d.id))}>
                     <span className="fic"><Ic n="folder" s={false} /></span>
-                    <span className="ftx"><strong>{d.nom}</strong><small>{d.compte} élément{d.compte > 1 ? 's' : ''}{d.sousDossiers ? ` · ${d.sousDossiers} sous-dossier${d.sousDossiers > 1 ? 's' : ''}` : ''}{corbeille ? ' · restaurable' : ''}</small></span>
+                    <span className="ftx"><strong>{d.nom}</strong><small>{d.compte} élément{d.compte > 1 ? 's' : ''}{d.sousDossiers ? ` · ${d.sousDossiers} sous-dossier${d.sousDossiers > 1 ? 's' : ''}` : ''}{corbeille ? ' · restaurable' : ''}</small>{d.tag && <span className="ftag"><i />{d.tag.libelle}</span>}</span>
                     <span className="fths">
                       {d.vignettes.map((t, i) => (t.url
                         ? <i key={i} className="fth" style={{ backgroundImage: `url(${JSON.stringify(t.url)})`, backgroundPosition: '50% 50%' }} />
                         : <i key={i} className="fth fi" style={style({ '--fc': ICONE_TYPE[t.type]!.couleur })}><Ic n={ICONE_TYPE[t.type]!.icone} /></i>))}
                     </span>
                   </button>
-                  <div className="facts">{d.selectionnable && ecriture && fsel(d.id)}</div>
+                  <div className="facts">
+                    {d.selectionnable && ecriture && fsel(d.id)}
+                    {tagueur && <button type="button" className={`ftb ${d.tag ? 'has' : ''}`} aria-label="Tag de couleur" aria-expanded={tagOuvert === d.id} disabled={occupe} onClick={() => setTagOuvert((o) => (o === d.id ? null : d.id))}><Ic n="tag" /></button>}
+                  </div>
+                  {tagueur && tagOuvert === d.id && (
+                    <div className="ftpop glass" role="menu" aria-label={`Tag de couleur de ${d.nom}`}>
+                      <span className="lbl" style={{ margin: '0 2px 4px' }}>Tag de couleur</span>
+                      <div className="ftsw">
+                        {TAGS_COULEUR.map((t) => <button type="button" role="menuitemradio" aria-checked={d.tag?.cle === t.cle} key={t.cle} style={style({ '--tc': t.teinte })} disabled={occupe} onClick={() => void poserTag(d, t.cle)}><i />{t.libelle}</button>)}
+                      </div>
+                      {d.tag && <button type="button" className="ftrm" disabled={occupe} onClick={() => void poserTag(d, null)}><Ic n="x" />Retirer le tag</button>}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -415,6 +473,13 @@ export function Bibliotheque(p: PropsBibliotheque) {
         ))}
       </nav>
       <div className="bpre">
+        {v.filtreTag && (
+          <div className="bbanner tagb" style={style({ '--tc': v.filtreTag.teinte })}>
+            <i className="tgdot big" />
+            <p><b>Dossiers tagués « {v.filtreTag.libelle} »</b> · dans tout le drive</p>
+            <button type="button" className="btn sm" onClick={() => filtrerTag(null)}><Ic n="x" />Retirer le filtre</button>
+          </div>
+        )}
         {p.lectureSeule && <div className="bbanner"><Ic n="lock" /><p><b>Lecture seule.</b> {p.lectureSeule}</p></div>}
         {g?.messageDrive && (
           <div className="bbanner" data-geste="drive-inactif">
@@ -480,12 +545,19 @@ export function Bibliotheque(p: PropsBibliotheque) {
                     : <span className="tnc" />}
                   <button type="button" className="tnb" onClick={() => aller(n.id)}>
                     {n.racine ? <span className="tni"><Ic n={n.icone} /></span> : <span className="tno"><Ic n="folder" /></span>}
-                    <span className="tnn">{n.nom}</span><span className="tnk">{n.compte}</span>
+                    <span className="tnn">{n.nom}</span>{n.tag && <i className="tgdot" style={{ background: n.tag.teinte }} title={n.tag.libelle} />}<span className="tnk">{n.compte}</span>
                   </button>
                 </div>
               </Fragment>
             ))}
-            <div className="tgf"><span className="g">Tags</span><div className="tgl"><small className="faint">Tags de couleur · bientôt</small></div></div>
+            <div className="tgf">
+              <span className="g">Tags</span>
+              <div className="tgl">
+                {v.tags.length
+                  ? v.tags.map((t) => <button type="button" className={`tgchip ${t.actif ? 'on' : ''}`} key={t.cle} style={style({ '--tc': t.teinte })} aria-pressed={t.actif} onClick={() => filtrerTag(t.cle)}><i />{t.libelle}<span>{t.compte}</span></button>)
+                  : <small className="faint">Ajoute un tag depuis un dossier.</small>}
+              </div>
+            </div>
           </div>
           <div className="dquota"><small className="faint">{v.volume}</small></div>
         </aside>

@@ -11,9 +11,10 @@ import { squelette, fragmentReference, parite } from './spatial/parite';
 vi.mock('next/navigation', () => ({ usePathname: () => '/assets', useRouter: () => ({ push: () => {}, refresh: () => {} }) }));
 vi.mock('../app/actions/assets', () => ({ uploadImageAssetsAction: vi.fn(), presignAssetUploadAction: vi.fn(), registerUploadedAssetAction: vi.fn(), deleteAssetAction: vi.fn() }));
 const creerDossier = vi.fn(async () => ({ ok: true as const, id: 'n1' }));
+const definirTag = vi.fn(async (_x: { id: string; tag: string | null }) => ({ ok: true as const }));
 vi.mock('../app/actions/bibliotheque-dossiers', () => ({
   creerDossierAction: (...a: unknown[]) => creerDossier(...(a as [])), supprimerDossierAction: vi.fn(), restaurerDossierAction: vi.fn(),
-  affecterAssetDossierAction: vi.fn(), definirDroitsAssetAction: vi.fn(),
+  affecterAssetDossierAction: vi.fn(), definirDroitsAssetAction: vi.fn(), definirTagDossierAction: (x: { id: string; tag: string | null }) => definirTag(x),
 }));
 vi.mock('../app/actions/drive', () => ({ syncDriveNowAction: vi.fn() }));
 vi.mock('../app/actions/jarvis-chat', () => ({ chatThreadAction: vi.fn(), clearChatAction: vi.fn() }));
@@ -45,7 +46,8 @@ const studio = (projetId: string) => media(null, 'image', 'image/png', { source:
 /** Un jeu RÉEL équivalent à la maquette · mêmes nombres d'éléments (5 dossiers d'assets, 3 projets, 1 ancienne création). */
 function jeuMaquette() {
   n = 0;
-  const dossiers = [dossier('d-photos', 'Photos produit'), dossier('d-life', 'Lifestyle & shooting'), dossier('d-ugc', 'UGC'), dossier('d-logos', 'Logos & charte'), dossier('d-sons', 'Musiques & sons')];
+  // Les tags de la maquette sur ses dossiers de la bibliothèque · « Validé » et « À valider » (colonne `color_tag`).
+  const dossiers = [{ ...dossier('d-photos', 'Photos produit'), colorTag: 'vert' }, dossier('d-life', 'Lifestyle & shooting'), { ...dossier('d-ugc', 'UGC'), colorTag: 'orange' }, dossier('d-logos', 'Logos & charte'), dossier('d-sons', 'Musiques & sons')];
   const medias = [
     ...Array.from({ length: 4 }, () => media('d-photos', 'image', 'image/jpeg')),
     ...Array.from({ length: 2 }, () => media('d-life', 'image', 'image/jpeg')),
@@ -75,24 +77,45 @@ function bibliothequeSansFictif(html: string): string {
     .replace(/<span class="tnsep"><\/span><div class="tnr lv0 " style="--lv:0"><span class="tnc"><\/span><button type="button" class="tnb" data-dgo="d-exp">[\s\S]*?<\/button><\/div>/, '')
     // Favoris et « Partagés avec le client » · aucune donnée ne les porte.
     .replace(/<button type="button" data-dsec="(favoris|partages)"[\s\S]*?<\/button>/g, '')
-    // Tags de couleur · aucune colonne · pastilles, étiquettes, teintes et filtre de l'arbre.
-    .replace(/<i class="tgdot"[^>]*><\/i>/g, '')
-    .replace(/<span class="ftag"><i><\/i>[^<]*<\/span>/g, '')
-    .replace(/<div class="fcard " style="--tc:[^"]*">/g, '<div class="fcard " style="">')
-    .replace(/<button type="button" class="ftb [^"]*"[\s\S]*?<\/button>/g, '')
-    .replace(/<div class="tgl">[\s\S]*?<\/div><\/div>/, '<div class="tgl"><small class="faint"></small></div></div>')
+    // Tag « Campagne » posé sur un PROJET Studios · un projet est un dossier virtuel de « Créations », pas un
+    // dossier de la bibliothèque · il ne porte pas de tag (ni pastille dans l'arbre, ni puce de filtre).
+    .replace(/<i class="tgdot" style="background:#f472b6" title="Campagne"><\/i>/, '')
+    .replace(/<button type="button" class="tgchip " data-dtagf="rose"[\s\S]*?<\/button>/, '')
     // Variations de teinte d'une même photo d'exemple · nos vignettes sont les vrais fichiers.
     .replace(/filter:[^;"]*;/g, '')
     // Quota · aucun quota de stockage n'existe · seul le volume mesuré est affiché.
     .replace(/<div class="bar"><i><b style="width:12%"><\/b><\/i><\/div>/, '');
 }
 
+/**
+ * Les pastilles de tag de l'ARBRE se comparent à part · l'arbre de la maquette
+ * garde l'ordre de création de ses exemples (Photos, Lifestyle, UGC…), le nôtre
+ * l'ordre alphabétique (celui des cartes de la même maquette) · la même pastille
+ * tombe donc sur une autre ligne. On la retire des deux squelettes, et le test
+ * suivant vérifie qu'elle est rendue à côté du BON dossier.
+ */
+const sansPastillesArbre = (html: string) => html.replace(/<i class="tgdot"[^>]*><\/i>/g, '');
+
 describe('Spatial · Bibliothèque reproduit la maquette', () => {
   it('structure identique au fragment (hors contenus sans source, retirés et justifiés)', () => {
     const html = rendre(<Bibliotheque {...propsBiblio()} />);
-    const rendu = squelette(html);
-    const reference = squelette(bibliothequeSansFictif(fragmentReference('bibliotheque')));
+    const rendu = squelette(sansPastillesArbre(html));
+    const reference = squelette(sansPastillesArbre(bibliothequeSansFictif(fragmentReference('bibliotheque'))));
     expect(rendu).toEqual(reference);
+  });
+
+  it('tags de couleur · pastille de l’arbre à côté du bon dossier, étiquette et teinte de la carte, puces comptées · comme la maquette', () => {
+    const html = rendre(<Bibliotheque {...propsBiblio()} />);
+    const pastilles = [...html.matchAll(/<span class="tnn">([^<]*)<\/span><i class="tgdot" style="background:([^"]+)" title="([^"]+)"><\/i>/g)].map((m) => [m[1], m[2], m[3]]);
+    expect(pastilles).toEqual([['Photos produit', '#4ade80', 'Validé'], ['UGC', '#fb923c', 'À valider']]);
+    // Même pastille dans la maquette, sur les mêmes dossiers.
+    const ref = fragmentReference('bibliotheque');
+    expect(ref).toContain('<span class="tnn">Photos produit</span><i class="tgdot" style="background:#4ade80" title="Validé"></i>');
+    expect(ref).toContain('<span class="tnn">UGC</span><i class="tgdot" style="background:#fb923c" title="À valider"></i>');
+    expect(html).toMatch(/<div class="fcard " style="--tc:#4ade80"><button type="button" class="fopen"><span class="fic">[\s\S]*?<strong>Photos produit<\/strong><small>[^<]*<\/small><span class="ftag"><i><\/i>Validé<\/span>/);
+    const puces = [...html.matchAll(/<button type="button" class="tgchip ?[^"]*" style="--tc:([^"]+)"[^>]*><i><\/i>([^<]*)<span>(\d+)<\/span><\/button>/g)].map((m) => [m[2], m[1], m[3]]);
+    expect(puces).toEqual([['À valider', '#fb923c', '1'], ['Validé', '#4ade80', '1']]);
+    expect(html).toMatch(/<button type="button" class="ftb has" aria-label="Tag de couleur" aria-expanded="false">/);
   });
 
   it('la garde voit un écart · retirer une classe la fait tomber', () => {
@@ -103,7 +126,7 @@ describe('Spatial · Bibliothèque reproduit la maquette', () => {
   it('aucune donnée d’exemple de la maquette ne s’affiche', () => {
     const html = rendre(<Bibliotheque {...propsBiblio()} />);
     for (const x of ['Neva', 'Exports Meta', 'Favoris', 'Dropbox</strong><small>Connecter', '2,4 Go', '20 Go', 'Prototype']) expect(html, x).not.toContain(x);
-    expect(html).toContain('Tags de couleur · bientôt');
+    expect(html, 'le tag de couleur se dit encore « bientôt »').not.toContain('bientôt</small>');
     expect(html).toMatch(/<button type="button" class="dapp" disabled=""[^>]*Dropbox/);
   });
 
@@ -128,6 +151,46 @@ describe('Spatial · Bibliothèque reproduit la maquette', () => {
     await act(async () => { (el.querySelector('button.fnew') as HTMLButtonElement).click(); });
     expect(creerDossier).toHaveBeenCalledWith({ nom: 'Packshots', parentId: 'd-photos' });
     prompt.mockRestore(); root.unmount(); el.remove();
+  });
+
+  it('« Tag de couleur » · le menu propose les 8 tags de la maquette, poser et retirer appellent la VRAIE action avec le dossier', async () => {
+    definirTag.mockClear();
+    const toasts: string[] = [];
+    const el = document.createElement('div'); document.body.appendChild(el);
+    const root = createRoot(el);
+    await act(async () => { root.render(<FournisseurSpatial value={{ ...CTX, toast: (m: string) => { toasts.push(m); } }}><Bibliotheque {...propsBiblio()} /></FournisseurSpatial>); });
+    const carte = (nom: string) => [...el.querySelectorAll('div.fcard')].find((c) => c.querySelector('strong')?.textContent === nom)!;
+    await act(async () => { (carte('Lifestyle & shooting').querySelector('button.ftb') as HTMLButtonElement).click(); });
+    const items = [...carte('Lifestyle & shooting').querySelectorAll('.ftpop .ftsw button[role="menuitemradio"]')];
+    expect(items.map((b) => b.textContent)).toEqual(['Urgent', 'À valider', 'En cours', 'Validé', 'Client', 'Inspiration', 'Campagne', 'Archive']);
+    expect(carte('Lifestyle & shooting').querySelector('.ftrm'), 'aucun tag posé · pas de « Retirer le tag »').toBeNull();
+    await act(async () => { (items[6] as HTMLButtonElement).click(); });
+    expect(definirTag).toHaveBeenLastCalledWith({ id: 'd-life', tag: 'rose' });
+    expect(toasts).toContain('Tag « Campagne » ajouté à « Lifestyle & shooting »');
+    expect(el.querySelector('.ftpop'), 'le menu se ferme après le geste').toBeNull();
+    // Retirer · sur un dossier déjà tagué (« Photos produit », Validé).
+    await act(async () => { (carte('Photos produit').querySelector('button.ftb') as HTMLButtonElement).click(); });
+    expect(carte('Photos produit').querySelector('.ftsw button[aria-checked="true"]')?.textContent).toBe('Validé');
+    await act(async () => { (carte('Photos produit').querySelector('button.ftrm') as HTMLButtonElement).click(); });
+    expect(definirTag).toHaveBeenLastCalledWith({ id: 'd-photos', tag: null });
+    expect(toasts).toContain('Tag retiré');
+    root.unmount(); el.remove();
+  });
+
+  it('une puce de l’arbre filtre l’écran et écrit `?tag=` dans l’adresse · la recliquer retire le filtre', async () => {
+    window.history.replaceState(null, '', '/assets?ok=1');
+    const el = document.createElement('div'); document.body.appendChild(el);
+    const root = createRoot(el);
+    await act(async () => { root.render(<FournisseurSpatial value={CTX}><Bibliotheque {...propsBiblio()} /></FournisseurSpatial>); });
+    const puce = () => [...el.querySelectorAll('button.tgchip')].find((b) => b.textContent?.startsWith('À valider')) as HTMLButtonElement;
+    await act(async () => { puce().click(); });
+    expect(window.location.search).toBe('?ok=1&tag=orange');
+    expect([...el.querySelectorAll('div.fcard strong')].map((x) => x.textContent)).toEqual(['UGC']);
+    expect(el.querySelector('.bbanner.tagb b')?.textContent).toBe('Dossiers tagués « À valider »');
+    await act(async () => { puce().click(); });
+    expect(window.location.search).toBe('?ok=1');
+    expect(el.querySelector('.bbanner.tagb')).toBeNull();
+    root.unmount(); el.remove();
   });
 
   it('la corbeille liste les VRAIS dossiers supprimés, et seulement eux', async () => {

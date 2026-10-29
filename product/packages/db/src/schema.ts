@@ -235,6 +235,9 @@ export const libraryFolders = pgTable('library_folders', {
   parentId: uuid('parent_id'),               // auto-réf (arborescence) · FK posée ci-dessous
   name: text('name').notNull(),
   locked: boolean('locked').notNull().default(false),
+  // Tag de couleur (maquette V5) · clé parmi `TAGS_COULEUR` du noyau ; null =
+  // aucun tag. La contrainte CHECK est posée en migration (0064).
+  colorTag: text('color_tag'),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

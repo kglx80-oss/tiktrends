@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageConfigured } from '@tiktrends/integrations';
 import {
-  connexionDrive, costFor, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, FUSEAU_ACCUEIL, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
+  connexionDrive, costFor, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, FUSEAU_ACCUEIL, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, lireFiltreTag, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
   type DossierSource, type MediaSource,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -34,6 +34,9 @@ export const dynamic = 'force-dynamic';
  * comprise) dans la portée de la marque active (ou communs), et le rangement et
  * les droits de chaque média, relus dans l'espace de la session. L'état Google
  * Drive n'est lu que pour un administrateur (comme en V5).
+ *
+ * Tags de couleur · chaque dossier porte son `color_tag` ; `?tag=<clé>` ouvre
+ * l'écran filtré sur ce tag (clé hors catalogue · aucun filtre, `lireFiltreTag`).
  */
 export default async function BibliothequeSpatiale({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -63,7 +66,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
           .from(schema.assets).where(and(eq(schema.assets.workspaceId, s.workspaceId), inArray(schema.assets.id, idsMedias)))
         : Promise.resolve([]),
       // Même portée que les médias · la marque active et les dossiers communs, sinon tout l'espace.
-      db.select({ id: F.id, parentId: F.parentId, name: F.name, locked: F.locked, deletedAt: F.deletedAt, createdAt: F.createdAt }).from(F)
+      db.select({ id: F.id, parentId: F.parentId, name: F.name, locked: F.locked, colorTag: F.colorTag, deletedAt: F.deletedAt, createdAt: F.createdAt }).from(F)
         .where(and(eq(F.workspaceId, s.workspaceId), ...(marque ? [or(eq(F.brandId, marque.id), isNull(F.brandId))!] : []))),
     ]);
     for (const l of lignes) extras.set(l.id, { folderId: l.folderId, rights: l.rights, mimeType: l.mimeType });
@@ -94,6 +97,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
       drive={connexionDrive(driveState, FUSEAU_ACCUEIL)}
       maintenant={new Date().toISOString()}
       retourDrive={retourDrive}
+      filtreTag={lireFiltreTag(sp.tag)}
       gestion={{
         // Même prix que l'écran V5 (`costFor('tag_image', 1)` par image), annoncé avant le clic.
         analyse: { cout: unlimitedCredits(s.user.email) ? null : costFor('tag_image', 1), raison: raisonAnalyse, sansTags, maxLot: LOT_ANALYSE_IMAGES },
