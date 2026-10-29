@@ -1,5 +1,9 @@
 # Inventaire V5 et code réel · Veille, Bibliothèque, Marques (lecture seule)
 
+> **Historique · 29/10/2026.** L'interface V5 a été retirée (#941) · la référence
+> vivante est `docs/spatial/`. Cet inventaire est gardé tel quel · ses chemins
+> (`app/(app)/…`, `AppShell`, `components/…`) ne désignent plus forcément du code présent.
+
 En bref : sur environ 200 contrôles de la V5 dans ce périmètre, 25 environ sont raccordés au code tel quel. Une trentaine sont partiels. Le reste est à créer, et une vingtaine relèvent d'une décision de Kevin. Le fichier `tiktrends-prototype.html` n'a pas été lu directement : j'ai lu `proto5`, ses calques et `LIRE-MOI-V5.txt`. L'équivalence avec le fichier unique n'a pas été vérifiée.
 
 Les trois blocs entièrement absents :
