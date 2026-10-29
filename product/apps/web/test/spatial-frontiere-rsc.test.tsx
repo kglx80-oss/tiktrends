@@ -39,11 +39,12 @@ describe('Spatial · Équipe · rendue par le serveur avec d’autres membres', 
         { cle: 'moi', initiales: 'KB', teinte: '#111', nom: 'Kevin', email: 'k@x.fr', role: 'Propriétaire', moi: true },
         { cle: 'm1', initiales: 'ML', teinte: '#222', nom: 'Marine', email: 'm@x.fr', role: 'Admin', moi: false },
       ],
-      invitations: [], roles: [{ valeur: 'member', libelle: 'Membre' }], tousRoles: ['Propriétaire', 'Admin', 'Membre'],
+      invitations: [], roles: [{ valeur: 'member', libelle: 'Membre' }], optionsRole: [{ valeur: 'admin', libelle: 'Admin', choisissable: true }], changerRole: null, retirer: null,
       inviter: null, revoquer: null, retours: {},
     });
     const texte = JSON.stringify(arbre, (_k, v) => (typeof v === 'function' ? undefined : v));
-    expect(texte, 'la ligne du second membre doit être rendue').toContain('Rôle de Marine');
+    // Le menu de rôle est un composant client (`RoleMembre`) · la ligne du second membre le porte, nommé.
+    expect(texte, 'la ligne du second membre doit être rendue').toContain('"nom":"Marine"');
     expect(gestionnairesSurHotes(arbre)).toEqual([]);
   });
 });
