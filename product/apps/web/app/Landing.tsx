@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { teinte } from '@tiktrends/core';
+import { PLAN_PRICE } from '../lib/rbac';
 
 /**
  * Page d'accueil publique · DA TikTrends (sombre magenta).
@@ -497,10 +498,10 @@ export function Landing() {
         <div className="lp-wrap" style={{ paddingBottom: 40 }}>
           <div className="lp-g4">
             {[
-              { n: 'Starter', p: '0€', per: '', d: 'Observer · Dashboard, Analytics, Tagging', hot: false },
-              { n: 'Core', p: '99€', per: '/mois', d: 'Créer · Studios, Jarvis, Veille', hot: false },
-              { n: 'Plus', p: '299€', per: '/mois', d: 'Tester · Adsmap complet, protocole', hot: true },
-              { n: 'Business', p: '990€', per: '/mois', d: 'Piloter · marques multiples, rôles', hot: false },
+              { n: 'Starter', p: `${PLAN_PRICE.starter}€`, per: '', d: 'Observer · Dashboard, Analytics, Tagging', hot: false },
+              { n: 'Core', p: `${PLAN_PRICE.core}€`, per: '/mois', d: 'Créer · Studios, Jarvis, Veille', hot: false },
+              { n: 'Plus', p: `${PLAN_PRICE.plus}€`, per: '/mois', d: 'Tester · Adsmap complet, protocole', hot: true },
+              { n: 'Business', p: `${PLAN_PRICE.business}€`, per: '/mois', d: 'Piloter · marques multiples, rôles', hot: false },
             ].map((t) => (
               <div key={t.n} className="lp-card" style={{ padding: 24, position: 'relative', ...(t.hot ? { border: `1.5px solid ${teinte('accent', 0.6)}`, background: 'linear-gradient(160deg,#241320,#1a1019)' } : {}) }}>
                 {t.hot && <span style={{ position: 'absolute', top: -11, left: 24, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', padding: '4px 11px', borderRadius: 999, background: 'var(--grad-accent)', color: 'var(--clair-fixe)' }}>Recommandé</span>}

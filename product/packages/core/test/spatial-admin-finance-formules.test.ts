@@ -24,10 +24,13 @@ describe('Spatial · Admin · « Finance · MRR & marges » (calcul de l’ancie
     expect(financeParFormule({ formules: ['core'], prix: PRIX, credits: CREDITS, libelles: LIBELLES, markup: 3, taux: 0 }).beneficeNetMensuel).toBeGreaterThan(core.netEur);
   });
 
-  it('la reco de marge · cible 65 % de marge brute, crédits optimaux et sur-allocation au-delà de 10 %', () => {
-    expect(f.lignes[0]!.risque).toEqual(analyzePlanRisk('Core', 99, 2000, 65));
-    expect(f.lignes[0]!.creditsOptimaux).toBe(Math.floor((99 * 0.35 * 3) / 0.05));
-    expect(f.lignes[0]!.surAlloue).toBe(false);
+  it('la reco de marge · cible unique 70 % de marge brute (29/10), crédits optimaux et sur-allocation au-delà de 10 %', () => {
+    expect(f.lignes[0]!.risque).toEqual(analyzePlanRisk('Core', 99, 2000, 70));
+    expect(f.lignes[0]!.creditsOptimaux).toBe(1782);
+    // 2 000 crédits pour 1 782 optimaux · +12 % : Core est sur-alloué à 70 %.
+    expect(f.lignes[0]!.surAlloue).toBe(true);
+    const juste = financeParFormule({ formules: [], prix: PRIX, credits: { ...CREDITS, core: 1900 }, libelles: LIBELLES, markup: 3, taux: 0.25 });
+    expect(juste.lignes[0]!.surAlloue).toBe(false);
     const sur = financeParFormule({ formules: [], prix: PRIX, credits: { ...CREDITS, core: 2300 }, libelles: LIBELLES, markup: 3, taux: 0.25 });
     expect(sur.lignes[0]!.surAlloue).toBe(true);
     expect(sur.clientsPayants).toBe(0);

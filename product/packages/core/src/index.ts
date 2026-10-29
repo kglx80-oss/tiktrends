@@ -185,3 +185,4 @@ export * from './purge-cache';
 
 export * from './studios/direction-visuelle';
 export * from './spatial';
+export * from './offre';

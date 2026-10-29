@@ -53,7 +53,7 @@ export default async function CoutsSpatial({ searchParams }: { searchParams?: Pr
       }}
       legendeOperations={`Valeur d’un crédit : ${adminEuros(VALEUR_CREDIT_EUR, 2)} · coûts fournisseurs estimés`}
       operations={margesOperations().map((o) => ({ libelle: o.libelle, credits: adminNombre(o.credits), revenu: adminEuros(o.revenuEur, 3), cout: adminEuros(o.coutEur, 3), marge: o.margePct, margeTexte: adminPourcent(o.margePct), aRevoir: o.aRevoir }))}
-      note="Revenu = crédits débités × valeur d’un crédit. Coût = estimation du modèle économique (packages/core/economics.ts), à rapprocher des factures. « À revoir » sous 65 % de marge, la cible de l’écran Finance."
+      note="Revenu = crédits débités × valeur d’un crédit. Coût = estimation du modèle économique (packages/core/economics.ts), à rapprocher des factures. « À revoir » sous 70 % de marge, la cible unique de la plateforme."
       aReconcilier={{
         erreur: reconciliation.erreur, resume: reconciliation.ecran?.resume ?? '', consigne: reconciliation.ecran?.consigne ?? '',
         parFournisseur: reconciliation.ecran?.parFournisseur ?? [],

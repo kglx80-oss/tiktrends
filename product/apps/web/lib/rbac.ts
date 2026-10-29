@@ -1,7 +1,7 @@
 // RBAC TikTrends · droits par rôle + gating par abonnement (CDC §F1).
 // Pur (aucune dépendance serveur) : importable partout.
 
-import { roleVoitRubrique, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
+import { roleVoitRubrique, FORFAITS_ACTUELS, type RolePlateforme, type MatriceDroits } from '@tiktrends/core';
 
 export type Role = 'owner' | 'admin' | 'member' | 'client_viewer';
 export type Plan = 'starter' | 'core' | 'plus' | 'business';
@@ -15,7 +15,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   owner: 'Propriétaire', admin: 'Admin', member: 'Membre', client_viewer: 'Client (lecture)',
 };
 export const PLAN_LABEL: Record<Plan, string> = {
-  starter: 'Starter', core: 'Core', plus: 'Plus', business: 'Business',
+  starter: FORFAITS_ACTUELS.starter.libelle, core: FORFAITS_ACTUELS.core.libelle, plus: FORFAITS_ACTUELS.plus.libelle, business: FORFAITS_ACTUELS.business.libelle,
 };
 
 export function roleAtLeast(role: Role, min: Role): boolean {
@@ -43,13 +43,12 @@ export type NavGroup = 'Principal' | 'account';
 export const RAIL_GROUPS: NavGroup[] = ['Principal'];
 export type AccountSection = 'Compte' | 'Espace' | 'Admin';
 
-// Allocation de crédits mensuelle par abonnement.
-// Calibrée pour garder une marge brute saine (~57-66 %) même si le client consomme
-// 100 % de ses crédits, avec une remise volume légère sur les paliers hauts.
-export const PLAN_CREDITS: Record<Plan, number> = { starter: 200, core: 2000, plus: 7000, business: 24000 };
-
-// Tarif mensuel indicatif par abonnement (EUR HT) · paramétrable, sert au calcul du MRR.
-export const PLAN_PRICE: Record<Plan, number> = { starter: 0, core: 99, plus: 299, business: 990 };
+// Allocation de crédits mensuelle et prix mensuel par abonnement · DÉRIVÉS de
+// l'offre du noyau (`packages/core/src/offre`), seule source des prix et des
+// volumes (garde `offre-source-unique.test.ts`).
+const parForfait = <T,>(f: (p: Plan) => T): Record<Plan, T> => ({ starter: f('starter'), core: f('core'), plus: f('plus'), business: f('business') });
+export const PLAN_CREDITS: Record<Plan, number> = parForfait((p) => FORFAITS_ACTUELS[p].creditsMois);
+export const PLAN_PRICE: Record<Plan, number> = parForfait((p) => FORFAITS_ACTUELS[p].prixMensuelEur);
 
 export interface Feature {
   key: string;
