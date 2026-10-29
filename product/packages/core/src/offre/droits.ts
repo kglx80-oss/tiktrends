@@ -62,16 +62,27 @@ export const LIBELLE_SUPPORT: Readonly<Record<NiveauSupport, string>> = {
 
 const pluriel = (n: number, mot: string) => `${n.toLocaleString('fr-FR')} ${mot}${n > 1 ? 's' : ''}`;
 
-/** Les lignes de droits d'une carte de forfait · ce que la page Forfaits affiche. */
-export function lignesDroits(d: DroitsForfait): string[] {
+/** Les LIMITES d'un forfait · ce qui est compté et refusé au serveur au-delà (liste « Limites » de la carte). */
+export function lignesLimites(d: DroitsForfait): string[] {
   return [
     d.marques === null ? 'Marques sans limite' : pluriel(d.marques, 'marque'),
     d.concurrentsParMarque === null ? 'Concurrents suivis sans limite' : `${pluriel(d.concurrentsParMarque, 'concurrent')} suivi${d.concurrentsParMarque > 1 ? 's' : ''} par marque`,
     `Vidéo jusqu’à ${d.videoMaxSecondes} s`,
+  ];
+}
+
+/** Les FONCTIONS qu'ouvrent les droits d'un forfait (clone, contrôle visuel, support). */
+export function lignesFonctionsDroits(d: DroitsForfait): string[] {
+  return [
     d.cloneVideo ? 'Clone de pubs vidéo' : 'Clone de pubs image',
-    'Contrôle visuel activable',
+    'Contrôle visuel activable · au coût réel, en crédits',
     LIBELLE_SUPPORT[d.support],
   ];
+}
+
+/** Les lignes de droits d'un forfait · limites puis fonctions (préavis de bascule). */
+export function lignesDroits(d: DroitsForfait): string[] {
+  return [...lignesLimites(d), ...lignesFonctionsDroits(d)];
 }
 
 /**

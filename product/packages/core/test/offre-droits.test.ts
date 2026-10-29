@@ -46,7 +46,7 @@ describe('offre · droits par forfait', () => {
 
   it('les lignes de la carte disent les droits réels', () => {
     expect(lignesDroits(droitsDuForfait('essentiel'))).toEqual([
-      '1 marque', '1 concurrent suivi par marque', 'Vidéo jusqu’à 15 s', 'Clone de pubs image', 'Contrôle visuel activable', 'Support par e-mail',
+      '1 marque', '1 concurrent suivi par marque', 'Vidéo jusqu’à 15 s', 'Clone de pubs image', 'Contrôle visuel activable · au coût réel, en crédits', 'Support par e-mail',
     ]);
     expect(lignesDroits(droitsDuForfait('agence'))[1]).toBe('20 concurrents suivis par marque');
   });

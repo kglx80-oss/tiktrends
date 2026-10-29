@@ -29,7 +29,7 @@ const texte = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;|&#
 const rendre = async (P: typeof CreditsPage) => texte(renderToStaticMarkup(<FournisseurSpatial value={CTX}>{await P()}</FournisseurSpatial>));
 const CTX: CtxSpatial = { utilisateur: { nom: 'D', initiales: 'D', email: 'demo@exemple.invalid', role: 'Propriétaire' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
 // L'anneau de l'en-tête (coquille) est neutralisé · seul celui de l'écran est lu.
-const forfaits = async () => renderToStaticMarkup(<FournisseurSpatial value={CTX}>{await ForfaitsSpatial()}</FournisseurSpatial>).replace(/<a class="credit"[^]*?<\/a>/, '');
+const forfaits = async () => renderToStaticMarkup(<FournisseurSpatial value={CTX}>{await ForfaitsSpatial({})}</FournisseurSpatial>).replace(/<a class="credit"[^]*?<\/a>/, '');
 
 /*
  * Vague 2 · l'écran V5 `/billing` est retiré · la garde est portée sur l'écran
