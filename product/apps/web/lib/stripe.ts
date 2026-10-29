@@ -21,7 +21,7 @@ export function stripeConfigured(): boolean {
 }
 
 /** Formules payantes reliées à un prix Stripe (via variables d'environnement). */
-const PRICE_ENV: Record<Exclude<Plan, 'starter'>, string> = {
+const PRICE_ENV: Record<'core' | 'plus' | 'business', string> = {
   core: 'STRIPE_PRICE_CORE',
   plus: 'STRIPE_PRICE_PLUS',
   business: 'STRIPE_PRICE_BUSINESS',
@@ -29,7 +29,7 @@ const PRICE_ENV: Record<Exclude<Plan, 'starter'>, string> = {
 
 /** Identifiant de prix Stripe pour une formule (ou null si non configuré). */
 export function priceIdFor(plan: Plan): string | null {
-  if (plan === 'starter') return null;
+  if (plan !== 'core' && plan !== 'plus' && plan !== 'business') return null;
   return process.env[PRICE_ENV[plan]] || null;
 }
 

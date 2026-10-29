@@ -39,7 +39,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { db, schema, eq, and } from '@tiktrends/db';
-import { dureePlanMs, type ContenuVersion, type SondeVideo, type StockageStudio } from '@tiktrends/core';
+import { DROITS_V2, dureePlanMs, type ContenuVersion, type SondeVideo, type StockageStudio } from '@tiktrends/core';
 import { semer } from './studios-semis';
 import { ctxDe, poserSolde, projetTest, banc, jusquAuBout } from './l3-harnais';
 import { creerDevis, approuverEtMettreEnFile } from '../lib/studios/execution/commandes';
@@ -188,5 +188,31 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     // Libéré malgré l'échec · un assemblage suivant passe.
     const ensuite = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire });
     expect(ensuite.ok).toBe(true);
+  });
+
+  it('droits du forfait (29/10) · sous TARIFS_V2, une vidéo plus longue que le forfait est refusée avant tout rendu, le forfait qui la permet nommé ; sans l’interrupteur, rien ne change', async () => {
+    const [v] = await db.select().from(schema.studioProjectVersions).where(eq(schema.studioProjectVersions.id, projet.versionId));
+    const c = v!.content as ContenuVersion;
+    const duree = c.shots.order.reduce((t, sid) => t + Math.round(dureePlanMs(c.shots.byId[sid]!)), 0);
+    expect(duree).toBe(9000);
+    // Le projet du banc dure 9 s · la limite d'Essentiel (15 s) est abaissée à 5 s le temps du test pour éprouver le câblage serveur.
+    const droits = DROITS_V2.essentiel as { videoMaxSecondes: number };
+    const avantMax = droits.videoMaxSecondes;
+    const avant = conserve.size;
+    await db.update(schema.workspaces).set({ plan: 'essentiel' }).where(eq(schema.workspaces.id, ids.wsA));
+    droits.videoMaxSecondes = 5;
+    try {
+      vi.stubEnv('TARIFS_V2', '1');
+      const refus = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire });
+      expect(refus).toMatchObject({ ok: false, code: 'INVALID_SCHEMA', message: 'Ton forfait Essentiel monte les vidéos jusqu’à 5 s, celle-ci en dure 9. Raccourcis le montage, ou passe au forfait Pro (30 s) · change de forfait depuis Réglages · Forfaits.' });
+      expect(conserve.size).toBe(avant);
+      vi.stubEnv('TARIFS_V2', '');
+      const libre = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire });
+      expect(libre.ok, 'sans TARIFS_V2, aucune limite · comportement d’aujourd’hui').toBe(true);
+    } finally {
+      droits.videoMaxSecondes = avantMax;
+      vi.stubEnv('TARIFS_V2', '');
+      await db.update(schema.workspaces).set({ plan: 'core' }).where(eq(schema.workspaces.id, ids.wsA));
+    }
   });
 });

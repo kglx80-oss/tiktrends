@@ -21,6 +21,18 @@ export const DESCRIPTIF_FORMULES: Record<CleFormule, { accroche: string; fonctio
   business: { accroche: 'Volumes et marque blanche', fonctions: ['Tout Plus', 'Marque blanche complète', 'Accès API', 'Accompagnement dédié', 'Volumes sur mesure'], marques: 'Marques illimitées' },
 };
 
+/**
+ * La formule de l'offre ACTUELLE qui sert de repère à un forfait · un forfait V2
+ * se lit comme celle qu'il remplace (mêmes accès), un forfait inconnu comme Starter.
+ */
+export function formuleDeReference(plan: string | null | undefined): CleFormule {
+  if ((ORDRE_FORMULES as readonly string[]).includes(plan ?? '')) return plan as CleFormule;
+  if (plan === 'essentiel') return 'core';
+  if (plan === 'pro') return 'plus';
+  if (plan === 'agence') return 'business';
+  return 'starter';
+}
+
 /** La formule mise en avant (« Populaire » à l'écran V5). */
 export const FORMULE_MISE_EN_AVANT: CleFormule = 'core';
 

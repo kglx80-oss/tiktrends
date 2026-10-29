@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { messagesListeMarques } from '@tiktrends/core';
+import { messagesListeMarques, refusNouvelleMarque } from '@tiktrends/core';
 
 /**
  * Vague 3 · la liste des marques `/brands` dans Spatial · lister, créer, rendre
@@ -31,6 +31,16 @@ async function monter(n: React.ReactNode) {
 }
 
 describe('Spatial · liste des marques', () => {
+  it('droits du forfait (29/10) · la limite atteinte se lit AVANT le clic · plus de bouton de création, le motif et le forfait qui la lève, un lien vers les forfaits', () => {
+    const limite = refusNouvelleMarque('essentiel', 1)!;
+    const html = renderToStaticMarkup(<FournisseurSpatial value={CTX}><ListeMarques {...props({ limite, retours: messagesListeMarques({ limiteMarques: limite }) })} /></FournisseurSpatial>);
+    expect(html).not.toContain('href="/brands/new"');
+    expect(html).toContain('href="/billing"');
+    expect(/<p[^>]*data-limite="marques"[^>]*>([^<]*)<\/p>/.exec(html)?.[1]).toBe('Ton forfait Essentiel inclut 1 marque. Le forfait Pro en ouvre 3 · change de forfait depuis Réglages · Forfaits.');
+    expect(messagesListeMarques({ limiteMarques: limite })['e:limite_marques']).toBe(limite);
+    expect(renderToStaticMarkup(<FournisseurSpatial value={CTX}><ListeMarques {...props()} /></FournisseurSpatial>)).not.toContain('data-limite');
+  });
+
   it('liste les vraies marques, leurs comptages, la marque active marquée · créer mène à /brands/new', () => {
     const html = renderToStaticMarkup(<FournisseurSpatial value={CTX}><ListeMarques {...props()} /></FournisseurSpatial>);
     expect(html).toContain('Tes marques (2)');

@@ -27,13 +27,13 @@ export interface PlatformMetrics {
   rows: WorkspaceRow[];
 }
 
-const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
+const PLANS: Plan[] = ['starter', 'core', 'plus', 'business', 'essentiel', 'pro', 'agence'];
 async function n(q: Promise<{ n: number }[]>): Promise<number> { try { return (await q)[0]?.n ?? 0; } catch { return 0; } }
 
 export async function computePlatformMetrics(prices: Record<Plan, number> = PLAN_PRICE): Promise<PlatformMetrics> {
   const empty: PlatformMetrics = {
     workspaces: 0, paying: 0, usersTotal: 0, brandsTotal: 0, mrr: 0, arr: 0, arpa: 0,
-    byPlan: { starter: 0, core: 0, plus: 0, business: 0 }, new30: 0, active30: 0, atRisk: 0,
+    byPlan: { starter: 0, core: 0, plus: 0, business: 0, essentiel: 0, pro: 0, agence: 0 }, new30: 0, active30: 0, atRisk: 0,
     churnRiskPct: 0, creditsConsumed30: 0, creditsConsumedAll: 0, generationsTotal: 0, ticketsOpen: 0, ticketsTotal: 0, rows: [],
   };
   if (!db) return empty;
@@ -50,7 +50,7 @@ export async function computePlatformMetrics(prices: Record<Plan, number> = PLAN
   const memberMap = Object.fromEntries(memberRows.map((r) => [r.ws, Number(r.n)]));
   const activeSet = new Set(activeRows.map((r) => r.ws));
 
-  const byPlan: Record<Plan, number> = { starter: 0, core: 0, plus: 0, business: 0 };
+  const byPlan: Record<Plan, number> = { starter: 0, core: 0, plus: 0, business: 0, essentiel: 0, pro: 0, agence: 0 };
   let mrr = 0, paying = 0, new30 = 0;
   const rows: WorkspaceRow[] = wsList.map((w) => {
     const plan = (PLANS.includes(w.plan as Plan) ? w.plan : 'starter') as Plan;

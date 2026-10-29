@@ -1,5 +1,7 @@
 'use server';
 
+import { refusListeConcurrents, type CleForfait } from '@tiktrends/core';
+import { forfaitEffectif } from '../../lib/droits-forfait';
 import { redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
@@ -34,12 +36,12 @@ export interface CompetitorReport {
 
 const memKey = (name: string) => `competitor:${name.toLowerCase().slice(0, 120)}`;
 
-async function guardBrand(brandId: string): Promise<{ workspaceId: string; email: string | null } | null> {
+async function guardBrand(brandId: string): Promise<{ workspaceId: string; email: string | null; plan: CleForfait } | null> {
   const s = await getSession();
   if (!s || !db || !roleAtLeast(s.role, 'admin')) return null;
   const [b] = await db.select({ id: schema.brands.id }).from(schema.brands)
     .where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
-  return b ? { workspaceId: s.workspaceId, email: s.user.email } : null;
+  return b ? { workspaceId: s.workspaceId, email: s.user.email, plan: forfaitEffectif(s.plan) } : null;
 }
 
 function aggregate(ads: InspoAd[]): CompetitorAggregates {
@@ -182,7 +184,8 @@ export async function ajouterConcurrents(brandId: string, selection: string[]): 
   const g = await guardBrand(brandId);
   if (!g || !db) return { error: 'Cette marque n’est pas accessible.' };
   if (!Array.isArray(selection) || selection.length > 6 || !selection.length || selection.some((name) => typeof name !== 'string' || !name.trim() || name.length > 120)) return { error: 'Sélection invalide.' };
-  await db.transaction(async (tx) => {
+  // Droits du forfait (29/10, point 6) · concurrents suivis par marque, refusés au serveur, rien n'est écrit.
+  const refus = await db.transaction(async (tx) => {
     const [b] = await tx.select().from(schema.brands).where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1).for('update');
     if (!b) throw new Error('Marque indisponible');
     const names = [...(b.competitors ?? [])];
@@ -191,8 +194,12 @@ export async function ajouterConcurrents(brandId: string, selection: string[]): 
       const key = name.toLocaleLowerCase('fr');
       if (!known.has(key)) { names.push(name); known.add(key); }
     }
+    const r = refusListeConcurrents(g.plan, (b.competitors ?? []).length, names.length);
+    if (r) return r;
     await tx.update(schema.brands).set({ competitors: names }).where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, g.workspaceId)));
+    return null;
   });
+  if (refus) return { error: refus };
   return { ok: true };
 }
 

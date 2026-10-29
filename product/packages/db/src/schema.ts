@@ -53,6 +53,7 @@ export const workspaces = pgTable('workspaces', {
   // solde (`packages/db/src/unite-credits.ts`).
   creditUnit: integer('credit_unit').notNull().$defaultFn(() => 10),
   creditUnitConvertedAt: timestamp('credit_unit_converted_at', { withTimezone: true }),
+  subscriptionPeriodEnd: timestamp('subscription_period_end', { withTimezone: true }), // échéance de l'abonnement Stripe en cours (0062, préavis de bascule)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

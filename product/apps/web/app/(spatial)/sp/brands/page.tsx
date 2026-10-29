@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { initialeNom, ligneMarque, messagesListeMarques, ordreMarques } from '@tiktrends/core';
+import { initialeNom, ligneMarque, messagesListeMarques, ordreMarques, refusNouvelleMarque } from '@tiktrends/core';
+import { forfaitEffectif } from '../../../../lib/droits-forfait';
 import { getSession } from '../../../../lib/auth';
 import { roleAtLeast } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -42,5 +43,7 @@ export default async function ListeMarquesSpatiale() {
     };
   });
 
-  return <ListeMarques marques={ordreMarques(marques, active?.id ?? null)} retours={messagesListeMarques()} choisir={setActiveBrand} supprimer={deleteBrandAction} />;
+  // Droits du forfait (29/10, point 6) · la limite de marques se lit AVANT le clic, avec le forfait qui la lève.
+  const limite = refusNouvelleMarque(forfaitEffectif(s.plan), rows.length);
+  return <ListeMarques marques={ordreMarques(marques, active?.id ?? null)} retours={messagesListeMarques({ limiteMarques: limite })} limite={limite} choisir={setActiveBrand} supprimer={deleteBrandAction} />;
 }

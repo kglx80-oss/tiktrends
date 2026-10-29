@@ -6,6 +6,7 @@ import {
   attendReponse, entreesAdminOuvertes, mrrPlateforme,
   type EspacePlateforme, type TarifsPlateforme, type TicketPlateforme, type StatutTicket, type TypeTicket,
 } from '@tiktrends/core';
+import { fileSupport } from '@tiktrends/core';
 import { getSession, type Session } from '../../../../lib/auth';
 import { roleAtLeast, PLAN_LABEL, type Plan } from '../../../../lib/rbac';
 import { isFounder } from '../../../../lib/founder';
@@ -54,7 +55,7 @@ export async function chargerTickets(limite = 300): Promise<TicketPlateforme[]> 
   const T = schema.tickets, M = schema.ticketMessages, W = schema.workspaces;
   const rows = await db.select({
     id: T.id, ws: T.workspaceId, espace: W.name, auteur: T.authorName, type: T.type, titre: T.title, corps: T.body,
-    statut: T.status, creeLe: T.createdAt, majLe: T.updatedAt,
+    statut: T.status, creeLe: T.createdAt, majLe: T.updatedAt, plan: W.plan,
   }).from(T).leftJoin(W, eq(W.id, T.workspaceId)).orderBy(desc(T.updatedAt)).limit(limite);
   const ids = rows.map((r) => r.id);
   const msgs = ids.length ? await db.select({ t: M.ticketId, auteur: M.authorName, corps: M.body, equipe: M.isStaff, le: M.createdAt })
@@ -65,10 +66,11 @@ export async function chargerTickets(limite = 300): Promise<TicketPlateforme[]> 
     l.push({ auteur: m.auteur ?? 'Client', corps: m.corps, equipe: m.equipe, le: m.le as Date });
     parTicket.set(m.t, l);
   }
-  return rows.map((r) => ({
+  // Support échelonné (29/10, point 6) · dédié, puis prioritaire, puis e-mail ; le plus récent d'abord à rang égal.
+  return fileSupport(rows.map((r) => ({
     id: r.id, espaceId: r.ws, espace: r.espace ?? 'Espace supprimé', auteur: r.auteur, type: r.type as TypeTicket, titre: r.titre, corps: r.corps,
-    statut: r.statut as StatutTicket, creeLe: r.creeLe as Date, majLe: r.majLe as Date, messages: parTicket.get(r.id) ?? [],
-  }));
+    statut: r.statut as StatutTicket, creeLe: r.creeLe as Date, majLe: r.majLe as Date, messages: parTicket.get(r.id) ?? [], plan: r.plan ?? null,
+  })));
 }
 
 /** Tous les espaces, avec leurs agrégats de crédits et de tickets. */

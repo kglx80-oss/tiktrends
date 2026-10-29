@@ -1,5 +1,7 @@
 'use server';
 
+import { plafonnerConcurrents, type CleForfait } from '@tiktrends/core';
+import { forfaitEffectif } from '../../lib/droits-forfait';
 import { redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
@@ -64,7 +66,7 @@ export async function generateFullBrandAction(formData: FormData): Promise<void>
       industryTags: has(b.industryTags) ? b.industryTags : asArr(d.industryTags),
       preferredWords: has(b.preferredWords) ? b.preferredWords : asArr(d.preferredWords),
       avoidWords: has(b.avoidWords) ? b.avoidWords : asArr(d.avoidWords),
-      competitors: has(b.competitors) ? b.competitors : asArr(d.competitors),
+      competitors: has(b.competitors) ? b.competitors : plafonnerConcurrents(g.plan, asArr(d.competitors)), // droits du forfait (29/10, point 6)
     }).where(eq(schema.brands.id, brandId));
 
     // Personas / scénarios : on ne crée que s'il n'y en a pas encore.
@@ -162,13 +164,13 @@ const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim()
 const commas = (v: FormDataEntryValue | null) => norm(v).split(',').map((x) => x.trim()).filter(Boolean);
 
 /** Vérifie que la marque appartient bien au workspace de l'utilisateur admin. */
-async function guardBrand(brandId: string): Promise<{ workspaceId: string; email: string | null } | null> {
+async function guardBrand(brandId: string): Promise<{ workspaceId: string; email: string | null; plan: CleForfait } | null> {
   const s = await getSession();
   if (!s || !db) return null;
   if (!roleAtLeast(s.role, 'admin')) return null;
   const [b] = await db.select({ id: schema.brands.id }).from(schema.brands)
     .where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
-  return b ? { workspaceId: s.workspaceId, email: s.user.email } : null;
+  return b ? { workspaceId: s.workspaceId, email: s.user.email, plan: forfaitEffectif(s.plan) } : null;
 }
 
 /* ---------------- Personas ---------------- */

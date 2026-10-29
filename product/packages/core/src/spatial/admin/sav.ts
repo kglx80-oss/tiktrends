@@ -26,6 +26,8 @@ export interface TicketPlateforme {
   creeLe: Date;
   majLe: Date;
   messages: MessageTicket[];
+  /** Forfait de l'espace · ordonne la file du SAV (support e-mail · prioritaire · dédié, 29/10). */
+  plan?: string | null;
 }
 
 export const ONGLETS_SAV: ReadonlyArray<{ statut: StatutTicket; libelle: string }> = [
