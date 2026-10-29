@@ -52,7 +52,7 @@ describe('N09 · l\'écriture de fraîcheur ne déborde pas d\'un connecteur sur
 });
 
 describe('N09 · les lecteurs Meta lisent la fraîcheur Meta, pas la valeur partagée', () => {
-  // Planche de banc v4 · l'Accueil, Analytics et le Radar passent par LA même lecture
+  // Planche de banc v4 · l'Accueil, Analytics, le Radar et Connexions passent par LA même lecture
   // (`lib/connexion-meta.ts`) · elle date par les colonnes Meta, jamais `insightsSyncedAt`.
   const lecture = readFileSync(join(process.cwd(), 'lib/connexion-meta.ts'), 'utf8');
   it('la lecture partagée date par metaSyncedAt et adsmapSyncedAt, jamais la valeur partagée', () => {
@@ -74,6 +74,12 @@ describe('N09 · les lecteurs Meta lisent la fraîcheur Meta, pas la valeur part
   ])('%s passe par la lecture partagée', (_n, f) => {
     const src = readFileSync(join(process.cwd(), f), 'utf8');
     expect(src).toContain('lireChiffresClesMeta(');
+    expect(src).not.toMatch(/schema\.brands\.(metaSyncedAt|adsmapSyncedAt|insightsSyncedAt)/);
+  });
+  // Connexions n'affiche pas de chiffres · elle lit l'ÉTAT de la connexion par la même lecture.
+  it('Connexions passe par la lecture partagée de la connexion', () => {
+    const src = readFileSync(join(process.cwd(), 'app/(spatial)/sp/connections/page.tsx'), 'utf8');
+    expect(src).toContain('lireConnexionMeta(');
     expect(src).not.toMatch(/schema\.brands\.(metaSyncedAt|adsmapSyncedAt|insightsSyncedAt)/);
   });
 });

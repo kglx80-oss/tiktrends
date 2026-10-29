@@ -8,7 +8,7 @@ import { texteVisible } from './helpers/jargon-ecran';
  *  · « Ce qui scale » et fiche concurrent · plus de « non configuré sur le serveur ».
  */
 vi.mock('next/navigation', () => ({ redirect: () => { throw new Error('redirect'); }, notFound: () => { throw new Error('404'); }, useRouter: () => ({ refresh: () => {}, push: () => {} }), usePathname: () => '/', useSearchParams: () => new URLSearchParams() }));
-vi.mock('../app/actions/brands', () => ({ renameBrandAction: async () => ({}) }));
+vi.mock('../app/actions/brands', () => ({}));
 vi.mock('../app/actions/storage', () => ({ configureBucketAction: async () => ({}), testStorageAction: async () => ({}), embeddedImagesStatusAction: async () => ({}), migrateEmbeddedImagesAction: async () => ({}) }));
 vi.mock('../lib/auth', () => ({ getSession: async () => ({ workspaceId: 'w', role: 'owner', plan: 'business', user: { id: 'u', email: 'client@exemple.invalid' } }) }));
 vi.mock('../lib/access', () => ({ effectiveAccess: () => ({}) }));

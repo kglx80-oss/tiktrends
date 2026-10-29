@@ -3,7 +3,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  validerNomDossier, peutDeplacerDossier, estDroitAsset, type DossierPlat, type DroitAsset,
+  validerNomDossier, estDroitAsset, type DossierPlat, type DroitAsset,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { GUARD } from '../../lib/guard-error';
@@ -18,8 +18,10 @@ import { refusEcritureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/b
  * protège rien. Refus neutre, qui ne dépend jamais de l'objet visé.
  *
  * Portée · `workspaceId` est la frontière DURE : tout filtre et tout write la
- * porte. Un dossier `locked` (système, ex. « Photos produit ») est refusé au
- * renommage et à la suppression. Aucune dépense IA ici.
+ * porte. Un dossier `locked` (système, ex. « Photos produit ») est refusé à
+ * la suppression. Aucune dépense IA ici. Le renommage et le déplacement de
+ * dossier (sans appelant, aucun écran ne les proposait) sont retirés · un
+ * écran qui les voudra les recréera avec leur garde.
  *
  * Les RÈGLES (nom valide, cycle d'arbre, droit valide) vivent au noyau
  * (`bibliotheque-dossiers.ts`), testées à part · jamais réécrites ici.
@@ -109,53 +111,6 @@ export async function creerDossierAction(input: { nom: string; parentId?: string
     workspaceId: s.workspaceId, brandId, parentId: input?.parentId ?? null, name: nomV.nom,
   }).returning({ id: schema.libraryFolders.id });
   return { ok: true, id: row!.id };
-}
-
-/** Renomme un dossier. Refuse un dossier système (verrouillé). */
-export async function renommerDossierAction(input: { id: string; nom: string }): Promise<{ ok?: true; error?: string }> {
-  const g = await gardeEcriture();
-  if ('error' in g) return { error: g.error };
-  const { s } = g;
-  if (!db) return { error: GUARD.session() };
-
-  const nomV = validerNomDossier(input?.nom);
-  if (!nomV.ok) return { error: nomV.raison };
-  const dossier = await lireDossier(s.workspaceId, input?.id);
-  if (!dossier) return { error: 'Dossier introuvable.' };
-  if (dossier.locked) return { error: 'Ce dossier système ne peut pas être renommé.' };
-
-  await db.update(schema.libraryFolders).set({ name: nomV.nom, updatedAt: new Date() })
-    .where(and(eq(schema.libraryFolders.id, dossier.id), eq(schema.libraryFolders.workspaceId, s.workspaceId)));
-  return { ok: true };
-}
-
-/** Déplace un dossier sous un nouveau parent (ou à la racine). Refuse un cycle. */
-export async function deplacerDossierAction(input: { id: string; parentId: string | null }): Promise<{ ok?: true; error?: string }> {
-  const g = await gardeEcriture();
-  if ('error' in g) return { error: g.error };
-  const { s } = g;
-  if (!db) return { error: GUARD.session() };
-
-  const dossier = await lireDossier(s.workspaceId, input?.id);
-  if (!dossier) return { error: 'Dossier introuvable.' };
-  if (dossier.locked) return { error: 'Ce dossier système ne peut pas être déplacé.' };
-  const nouveauParent = input?.parentId ?? null;
-
-  const liste = await dossiersVivants(s.workspaceId);
-  const dep = peutDeplacerDossier(liste, dossier.id, nouveauParent);
-  if (!dep.ok) return { error: dep.raison };
-
-  // Un sous-arbre reste dans une seule marque · la destination doit partager la
-  // marque du dossier (la racine, elle, accepte tout). On ne reclasse pas le
-  // sous-arbre d'une marque à l'autre dans la fondation.
-  if (nouveauParent != null) {
-    const parent = liste.find((d) => d.id === nouveauParent)!;
-    if (parent.brandId !== dossier.brandId) return { error: 'Le dossier de destination appartient à une autre marque.' };
-  }
-
-  await db.update(schema.libraryFolders).set({ parentId: nouveauParent, updatedAt: new Date() })
-    .where(and(eq(schema.libraryFolders.id, dossier.id), eq(schema.libraryFolders.workspaceId, s.workspaceId)));
-  return { ok: true };
 }
 
 /** Met un dossier et son sous-arbre à la CORBEILLE (réversible). Refuse un dossier système. */
