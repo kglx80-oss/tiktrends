@@ -1,6 +1,6 @@
 import type { KpiResultats, NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
-import { Points, Pub, type SousNavResultats } from './communs';
+import { Points, Pub, rangeeVariantes, type SousNavResultats } from './communs';
 
 /**
  * « Résultats · Vue d'ensemble » · `docs/spatial/reference/resultats.html`, balisage
@@ -70,7 +70,7 @@ export function VueEnsemble(p: PropsVueEnsemble) {
           <div className="rvl">
             <div className="rvm"><span className={`pill ${v.statut.classe}`}>{v.statut.libelle}</span><span className="faint">{v.meta}</span></div>
             <h2 id="rvt">{v.titre}</h2>
-            <div className="rvfs">
+            <div className="rvfs" {...rangeeVariantes(v.variantes.length, 64)}>
               {v.variantes.map((x) => (
                 <figure className={`rvf ${x.gagnante ? 'best' : ''}`} key={x.id}>
                   <Pub texte={x.texte} image={x.image} classe={x.gagnante ? 'won' : undefined} />

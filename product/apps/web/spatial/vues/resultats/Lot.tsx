@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { LIBELLE_NIVEAU, type NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
-import { Points, Pub } from './communs';
+import { Points, Pub, rangeeVariantes } from './communs';
 
 /**
  * Fiche d'un lot (« lot1 ») · `docs/spatial/reference/lot1.html`, balisage à
@@ -43,7 +43,7 @@ export function Lot(p: PropsLot) {
         </div>
         <span className={`pill ${p.verdict.niveau === 3 ? 'g' : ''}`} style={{ marginLeft: 'auto' }}><Points n={p.verdict.niveau} /> {LIBELLE_NIVEAU[p.verdict.niveau]}</span>
       </section>
-      <div className="lotgrid">
+      <div className="lotgrid" {...rangeeVariantes(p.variantes.length, 120)}>
         {p.variantes.map((v) => (
           <figure style={{ margin: 0, display: 'grid', gap: 10 }} key={v.id}>
             <Pub texte={v.texte} image={v.image} classe={v.gagnante ? 'won' : undefined} tag={v.tag} />

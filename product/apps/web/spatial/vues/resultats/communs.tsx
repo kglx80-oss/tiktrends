@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import { segmentsHypothese, LIBELLE_NIVEAU, LIBELLE_PRIORITE, type NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Lien, SousNav, Vue } from '../../communs';
 
@@ -18,6 +18,25 @@ export function Pub({ texte, image, classe, tag, r916 }: { texte: ReactNode; ima
       {tag != null && <span className="tag">{tag}</span>}
     </div>
   );
+}
+
+/**
+ * Planche finale · D4 · la maquette range les variantes d'un lot sur une grille
+ * de TROIS colonnes (`.rvfs`, `.lotgrid`) · une 4e variante passait seule à la
+ * ligne, sa barre de coût 350 px plus bas, et le graphique ne se lisait plus
+ * comme une comparaison. Au-delà de trois, les N variantes restent sur UNE
+ * rangée (une colonne chacune, `minPx` au moins) ; quand la largeur manque
+ * (390 px), la rangée défile à l'horizontale plutôt que de casser · la zone
+ * défilante est alors atteignable au clavier et nommée. Jusqu'à trois, rien ne
+ * change · le CSS de la maquette fait le reste.
+ */
+export function rangeeVariantes(n: number, minPx: number): { style?: CSSProperties; tabIndex?: number; role?: 'region'; 'aria-label'?: string } {
+  if (n <= 3) return {};
+  return {
+    // `padding` · une zone défilante rogne ce qui dépasse · l'anneau de la gagnante (`.won`, 2 px hors du cadre) reste entier.
+    style: { gridTemplateColumns: `repeat(${n}, minmax(${minPx}px, 1fr))`, overflowX: 'auto', padding: 2 },
+    tabIndex: 0, role: 'region', 'aria-label': `Les ${n} variantes du lot, côte à côte`,
+  };
 }
 
 /** Les trois points de preuve (`span.dots`) · 3 mesuré, 2 observé, 1 à vérifier. */
