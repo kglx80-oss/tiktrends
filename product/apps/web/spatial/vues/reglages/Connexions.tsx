@@ -20,7 +20,7 @@ export interface CarteConnexionVue {
   nom: string;
   description: string;
   connecte: boolean;
-  /** La ligne d'état d'un outil connecté (« boutique · synchronisé le … »). */
+  /** La ligne d'état (« boutique · synchronisé le … »). Meta la porte dans TOUS ses états · le libellé de `etatConnexionMeta`. */
   resume: string | null;
   /** Meta non connecté · « Étape 1 » de la maquette. */
   etape1: boolean;
@@ -55,14 +55,14 @@ export function Connexions(p: PropsConnexions) {
       <div className="sech" style={{ marginTop: 6 }}><h2>Tes outils{p.marque ? ` · ${p.marque}` : ''}</h2><span className="faint" style={{ fontSize: '12.5px' }}>{n} sur {p.branchables} connecté{n > 1 ? 's' : ''} · accès en lecture seule, révocable à tout moment</span></div>
       <div className="connx">
         {p.cartes.map((c) => (
-          <article className={`tile cx ${c.connecte ? 'on' : ''}`} key={c.cle}>
+          <article className={`tile cx ${c.connecte ? 'on' : ''}`} key={c.cle} data-connexion={c.cle}>
             <div className="cx-h">
               <span className="applogo" style={{ width: 42, height: 42 }}><span style={{ width: 30, height: 30, display: 'block' }} dangerouslySetInnerHTML={{ __html: LOGOS_CONNEXION[c.cle] }} /></span>
               <div className="cx-t"><span className="lbl">{c.groupe}</span><h3>{c.nom}</h3></div>
               {c.connecte ? <span className="pill g"><Ic n="check" />Connecté</span> : c.etape1 ? <span className="pill w">Étape 1</span> : null}
             </div>
             <p className="muted">{c.description}</p>
-            {c.connecte && c.resume && <div className="cx-s"><Ic n="loop" /><span>{c.resume}</span></div>}
+            {c.resume && <div className="cx-s"><Ic n="loop" /><span>{c.resume}</span></div>}
             <BoutonsConnexion cle={c.cle} nom={c.nom} connecte={c.connecte} raison={raison} meta={p.meta} shopify={p.shopify} drive={p.drive} />
           </article>
         ))}
