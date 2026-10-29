@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { completudeFicheJarvis, encartKpiJarvis, extraitConversation, iterationsRecentes, lireQuestionJarvis, type IterationRecente } from '@tiktrends/core';
+import { RELANCE_META, completudeFicheJarvis, encartKpiJarvis, encartKpiJarvisMeta, extraitConversation, iterationsRecentes, lireQuestionJarvis, type IterationRecente } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../lib/jarvis-acces';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -11,12 +11,14 @@ import { COUT_CONVERSATION_JARVIS } from '../../../../lib/veille-jarvis';
 import { chatThreadAction, onboardingThreadAction } from '../../../actions/jarvis-chat';
 import { projetsPourColonneJarvis } from '../../../../lib/studios/jarvis-projets';
 import { ficheMarqueLue } from '../../../../lib/jarvis-fiche';
+import { lireChiffresClesMeta } from '../../../../lib/chiffres-cles-meta';
 import { Jarvis, type ConversationArchive } from '../../../../spatial/vues/jarvis/Jarvis';
 import { RefusJarvis } from '../../../../spatial/vues/jarvis/RefusJarvis';
 
 export const dynamic = 'force-dynamic';
 
 const RESULTATS = FEATURES.find((f) => f.key === 'adsmap')!;
+const ANALYTICS = FEATURES.find((f) => f.key === 'analytics')!;
 
 /**
  * « Jarvis » Spatial · mêmes gardes que `/jarvis` (V5) : session, puis la
@@ -24,8 +26,10 @@ const RESULTATS = FEATURES.find((f) => f.key === 'adsmap')!;
  * conversations viennent de l'action existante (`chatThreadAction`, portée
  * espace + marque + personne) · leur extrait est le dernier message, lu dans la
  * MÊME portée. « Dernières itérations » · les vrais lots de la marque, derrière
- * la feature Résultats (`adsmap`). « Chiffres clés » · état vide honnête
- * (`encartKpiJarvis(null)` · la dépense pub n'est pas agrégée).
+ * la feature Résultats (`adsmap`). « Chiffres clés » · LES chiffres clés Meta
+ * de la marque (`lireChiffresClesMeta` → `chiffresClesMeta`, la même lecture et
+ * la même règle que l'Accueil, Analytics et le Radar · D2), sous le droit
+ * Analytics comme sur l'Accueil · sans marque ou sans ce droit, l'encart vide.
  *
  * Vague 3 · la colonne de contexte (projets Studios de la marque, MÊMES gardes
  * que l'écran « Projets » · complétude réelle de la fiche) et, sans marque, le
@@ -49,7 +53,12 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
     return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={COUT_CONVERSATION_JARVIS} maintenant={maintenant.toISOString()} brouillon={brouillon} accueil={accueil} />;
   }
 
-  const [r, fiche, projets] = await Promise.all([chatThreadAction(null), ficheMarqueLue(brand.id), projetsPourColonneJarvis(brand.id)]);
+  const chiffresOuverts = canAccess(effectiveAccess(s), ANALYTICS);
+  const [r, fiche, projets, lus] = await Promise.all([
+    chatThreadAction(null), ficheMarqueLue(brand.id), projetsPourColonneJarvis(brand.id),
+    chiffresOuverts ? lireChiffresClesMeta(brand.id, s.workspaceId, maintenant).catch(() => null) : Promise.resolve(null),
+  ]);
+  const kpiMarque = lus ? encartKpiJarvisMeta(lus.chiffres, lus.connexion.action ?? RELANCE_META) : kpi;
   const completude = fiche ? completudeFicheJarvis(fiche, brand.id) : null;
   const t = r.thread ?? null;
   const nommees = t?.conversations ?? [];
@@ -80,7 +89,7 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
       conversations={conversations}
       iterations={iterations}
       measuredAds={t?.measuredAds ?? 0}
-      kpi={kpi}
+      kpi={kpiMarque}
       cout={COUT_CONVERSATION_JARVIS}
       maintenant={maintenant.toISOString()}
       brouillon={brouillon}

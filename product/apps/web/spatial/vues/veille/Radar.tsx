@@ -1,4 +1,5 @@
-import { AUCUNE_NOUVEAUTE_SEMAINE, type ligneRadarCreatif } from '@tiktrends/core';
+import { AUCUNE_NOUVEAUTE_SEMAINE, type ChiffresClesMeta, type ligneRadarCreatif } from '@tiktrends/core';
+import { ChiffresCles } from '../accueil/ChiffresCles';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { SousNavVeille, Vignette } from './base';
 import { BoutonSuivi } from './client';
@@ -40,6 +41,8 @@ export interface PropsRadar {
    * contredire (`manqueRadarCreatif`). Absent (pas de marque active), le texte générique.
    */
   connexionMeta?: { libelle: string; manque: { texte: string; action: string } };
+  /** LES chiffres clés Meta (`chiffresClesMeta`) · absents sans le droit Analytics. */
+  chiffres?: ChiffresClesMeta;
 }
 
 function Alertes({ alertes, ouvert }: { alertes: ReadonlyArray<AlerteRadar>; ouvert: boolean }) {
@@ -106,11 +109,12 @@ function Suivi({ marques, ouvert }: { marques: ReadonlyArray<MarqueRadar>; ouver
 export type LigneRadarCreatif = ReturnType<typeof ligneRadarCreatif>;
 
 /** Le Radar créatif · tes créas notées, la recommandation et le lien vers un projet. */
-function RadarCreatif({ c, connexion }: { c: NonNullable<PropsRadar['creatif']> | null; connexion: PropsRadar['connexionMeta'] }) {
+function RadarCreatif({ c, connexion, chiffres }: { c: NonNullable<PropsRadar['creatif']> | null; connexion: PropsRadar['connexionMeta']; chiffres?: ChiffresClesMeta }) {
   const etat = connexion?.libelle ?? 'Meta Ads';
   return (
     <section className="sec" aria-label="Radar créatif" data-section="radar-creatif">
       <div className="sech"><h2>Radar créatif · tes créas notées</h2><span className="faint" style={{ fontSize: '12.5px' }}>{c ? `${etat} · 30 derniers jours${c.maj ? ` · créas relevées le ${c.maj}` : ''}` : connexion?.libelle ?? 'Aucune créa relevée'}</span></div>
+      {chiffres && <div style={{ marginBottom: 12 }}><ChiffresCles c={chiffres} /></div>}
       {!c ? (
         <div className="tile member">
           <p className="muted" style={{ fontSize: '12.5px', flex: 1 }}>Chaque créa est notée Hook, Hold, CTR et Conv (A à D, comparées aux autres créas de ton compte), puis rangée en recommandation · scaler, pousser, itérer, rafraîchir, couper. {connexion?.manque.texte ?? 'Il faut tes vraies créas Meta Ads.'}</p>
@@ -162,7 +166,7 @@ export function Radar(p: PropsRadar) {
               <div className="grid2"><DecouverteCategorie /><GrammaireMarche /></div>
             </section>
           )}
-          {p.creatif !== undefined && <RadarCreatif c={p.creatif} connexion={p.connexionMeta} />}
+          {p.creatif !== undefined && <RadarCreatif c={p.creatif} connexion={p.connexionMeta} chiffres={p.chiffres} />}
         </>
       ) : (
         <>

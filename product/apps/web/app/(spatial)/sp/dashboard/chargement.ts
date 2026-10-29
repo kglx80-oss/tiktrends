@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   CHEMIN_BOUCLE_ACCUEIL, PASTILLES_JARVIS_ACCUEIL,
   aFaireMaintenant, carteConfiguration, cartesQuoiIterer, cheminOuvert, choixRapidesPeriode, completudeFicheMarque,
-  etapesBoucleAccueil, etatConnexionMeta, manqueMeta, fileQuoiDeNeuf, jourParis, ligneAttente, lignesReprendre, lotsAConclure,
+  etapesBoucleAccueil, manqueMeta, fileQuoiDeNeuf, jourParis, ligneAttente, lignesReprendre, lotsAConclure,
   periodeReporting, raccourcisAccueil, salutationAccueil, sourcesJarvisAccueil, sousTitreReporting,
   surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil,
   SUGGESTIONS_ASSISTANT_ACCUEIL, costFor, noteAccesAccueil, prixQuestionAssistant, refusAssistant, resoudreAccueil,
@@ -13,7 +13,7 @@ import {
 import type { Session } from '../../../../lib/auth';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
-import { lireConnexionMeta } from '../../../../lib/connexion-meta';
+import { lireChiffresClesMeta } from '../../../../lib/chiffres-cles-meta';
 import { FEATURES, canAccess, denyReason, ouverturesParRole, roleAtLeast, sectionsCompteOuvertes } from '../../../../lib/rbac';
 import { refusJarvis } from '../../../../lib/jarvis-acces';
 import { onboardingState } from '../../../../lib/onboarding-state';
@@ -111,8 +111,8 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
     }).from(schema.notifications)
       .where(and(eq(schema.notifications.userId, s.user.id), eq(schema.notifications.workspaceId, s.workspaceId)))
       .orderBy(desc(schema.notifications.createdAt)).limit(4)) : Promise.resolve(null),
-    // LA lecture de la connexion Meta · la même que la vue Analytics et le Radar (planche de banc v4).
-    analyticsOuvert ? lire('connexion Meta', () => lireConnexionMeta(marque!.id, s.workspaceId)) : Promise.resolve(null),
+    // LA lecture de la connexion ET des chiffres clés Meta · la même que la vue Analytics, Jarvis et le Radar (D2).
+    analyticsOuvert ? lire('chiffres clés Meta', () => lireChiffresClesMeta(marque!.id, s.workspaceId, maintenant)) : Promise.resolve(null),
   ]);
 
   /* ── Reporting Meta ─────────────────────────────────────────────────── */
@@ -120,11 +120,11 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
   if (analyticsOuvert && metaBrand && marque) {
     // L'état et son libellé viennent de LA règle partagée (`etatConnexionMeta`) · l'Accueil
     // ne dit plus « synchronisé hier » pendant qu'Analytics dit « en attente » (planche v4).
-    const connexion = etatConnexionMeta(metaBrand.entree, maintenant);
+    const { connexion, chiffres } = metaBrand;
     if (connexion.phase === 'a_brancher' || connexion.phase === 'compte_a_choisir') {
       const lienConnexions = ouvert('/connections') && connexion.action ? { libelle: connexion.action, href: '/connections' } : null;
       reporting = {
-        etat: 'connecter', sous: `${marque.nom} · ${connexion.libelle}`,
+        etat: 'connecter', sous: `${marque.nom} · ${connexion.libelle}`, chiffres,
         message: lienConnexions
           ? manqueMeta(connexion, { quoi: 'ta dépense, ton ROAS et tes achats, comparés à la période précédente', absent: '' })
           : `${connexion.libelle} pour cette marque · un administrateur de l’espace s’en occupe dans Connexions.`,
@@ -151,14 +151,14 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
       const synthese = lignes ? syntheseReporting(lignes, periode) : null;
       const jamais = connexion.phase === 'jamais_synchronise';
       reporting = synthese
-        ? { etat: 'mesures', sous, periode, rapides, synthese }
+        ? { etat: 'mesures', sous, chiffres, periode, rapides, synthese }
         : jamais && lignes
           // Jamais synchronisé · le geste est la première synchro (dans Connexions), pas Résultats.
-          ? { etat: 'vide', sous, periode, rapides,
+          ? { etat: 'vide', sous, chiffres, periode, rapides,
             message: manqueMeta(connexion, { quoi: 'ta dépense, ton ROAS et tes achats, comparés à la période précédente', absent: '' }),
             lien: ouvert('/connections') && connexion.action ? { libelle: connexion.action, href: '/connections' } : null }
           : {
-          etat: 'vide', sous, periode, rapides,
+          etat: 'vide', sous, chiffres, periode, rapides,
           message: lignes
             ? 'Aucune journée mesurée sur cette période · les chiffres remontent quand une annonce en test de Résultats est rattachée au compte et synchronisée.'
             : 'Les mesures n’ont pas pu être lues · recharge la page pour réessayer.',
