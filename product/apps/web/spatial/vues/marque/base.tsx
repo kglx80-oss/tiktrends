@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Ic } from '../../communs';
-import { BoutonAppel, BoutonServeur } from './interactifs';
+import { BoutonAppel, BoutonServeur, ImportLogo, type ImportLogoActions } from './interactifs';
 
 /**
  * Les blocs communs aux écrans Marque (maquette : `favCard`, `siteSync`,
@@ -32,6 +32,12 @@ export interface PropsFaviconMarque {
   /** `importBrandDAAction` · `null` sans site ou sans droit (raison dans `raisonRecuperer`). */
   recuperer: ((i: { brandId: string }) => Promise<{ error?: string }>) | null;
   raisonRecuperer: string | null;
+  /** Importer un fichier de logo · la charte actuelle (renvoyée telle quelle) et les deux actions EXISTANTES. */
+  importLogo: {
+    logos: readonly string[]; defaut: string | null; couleurs: readonly string[]; polices: readonly string[];
+    /** `null` sans droit ou sans stockage (raison ci-dessous). */
+    actions: ImportLogoActions | null; raison: string | null;
+  };
 }
 
 export function CarteFavicon(p: PropsFaviconMarque) {
@@ -47,11 +53,8 @@ export function CarteFavicon(p: PropsFaviconMarque) {
         <BoutonAppel className="btn sm" appel={p.recuperer} argument={{ brandId: p.brandId }} succes="Charte du site récupérée · logo, couleurs et polices manquants complétés" raison={p.raisonRecuperer} attente="Récupération…">
           <Ic n="loop" />Récupérer depuis le site
         </BoutonAppel>
-        {/* Aucun téléversement de logo n'existe côté serveur · la case reste
-            visible (mise en page de la maquette) et dit pourquoi elle est fermée. */}
-        <label className="btn sm" aria-disabled="true" title="L’import d’un fichier de logo n’est pas encore disponible · le logo vient du site">
-          <Ic n="down" />Importer<input type="file" accept="image/*" hidden disabled />
-        </label>
+        <ImportLogo brandId={p.brandId} logos={p.importLogo.logos} defaut={p.importLogo.defaut} couleurs={p.importLogo.couleurs} polices={p.importLogo.polices}
+          actions={p.importLogo.actions} raison={p.importLogo.raison} />
       </div>
     </section>
   );

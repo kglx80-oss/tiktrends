@@ -38,7 +38,7 @@ const rendre = (n: React.ReactNode) => renderToStaticMarkup(<FournisseurSpatial 
 const action = async () => {};
 const appel = async () => ({});
 
-const favicon: PropsFaviconMarque = { brandId: 'b1', image: null, initiale: 'A', titre: 't', detail: 'd', recuperer: appel, raisonRecuperer: null };
+const favicon: PropsFaviconMarque = { brandId: 'b1', image: null, initiale: 'A', titre: 't', detail: 'd', recuperer: appel, raisonRecuperer: null, importLogo: { logos: [], defaut: null, couleurs: [], polices: [], actions: null, raison: 'r' } };
 const sync: PropsSyncSite = { brandId: 'b1', site: 'a.fr', relancer: action, raison: null, cout: 5 };
 const nav = sousNavMarque('b1');
 

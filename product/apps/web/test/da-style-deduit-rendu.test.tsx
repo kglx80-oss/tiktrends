@@ -33,7 +33,7 @@ function html(over: { daVisuelle?: typeof da | null } = {}): string {
   const st = styleVisuelMarque(('daVisuelle' in over ? over.daVisuelle : da) as DaVisuelleMarque | null);
   const out = renderToStaticMarkup(
     <Identite
-      sousNav={sousNavMarque('b1')} brandId="b1" favicon={{ brandId: 'b1', image: null, initiale: 'A', titre: 't', detail: 'd', recuperer: null, raisonRecuperer: null }}
+      sousNav={sousNavMarque('b1')} brandId="b1" favicon={{ brandId: 'b1', image: null, initiale: 'A', titre: 't', detail: 'd', recuperer: null, raisonRecuperer: null, importLogo: { logos: [], defaut: null, couleurs: [], polices: [], actions: null, raison: 'r' } }}
       sync={{ brandId: 'b1', site: null, relancer: null, raison: 'r', cout: null }} identite={{ complet: true, lignes: [] }} couleurs={[]} typo={[]} ton={{ complet: true, lignes: [] }} vocabulaire={[]}
       gestion={{
         nom: 'A', champs: [], edition: { action, valeurs: {} },
