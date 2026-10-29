@@ -134,7 +134,7 @@ function CarteSuite({ r, onCree }: { r: IterationRow; onCree: (c: { adId: string
         <div className="foot2" style={{ marginTop: 6 }}>
           <button type="button" className="btn sm pri" onClick={() => setOuvert(true)}><Ic n="plus" />Créer la suite</button>
           {!brouillon && (
-            <button type="button" className="btn sm" disabled={!!occupe} title={`Un appel modèle, sous le plafond de dépense de l’espace · ${COUT_BROUILLON_JARVIS}`} onClick={() => { void ecrire(); }}>
+            <button type="button" className="btn sm" disabled={!!occupe} title={`Un appel modèle · ${COUT_BROUILLON_JARVIS}`} onClick={() => { void ecrire(); }}>
               <Ic n="spark" />{occupe === 'ecrire' ? 'Jarvis écrit…' : `Demander le concept à Jarvis · ${COUT_BROUILLON_JARVIS}`}
             </button>
           )}

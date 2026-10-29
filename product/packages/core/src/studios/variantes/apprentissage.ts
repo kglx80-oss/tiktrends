@@ -1,4 +1,3 @@
-import { libelleCoutTexteEstime } from '../../depense-prudente';
 /**
  * Studios · L4-C · boucle d'apprentissage (cahier 01 §4.8, recette FLOW-09).
  *
@@ -23,6 +22,7 @@ import { libelleCoutTexteEstime } from '../../depense-prudente';
  * Une association avant/après n'est jamais présentée comme une cause certaine.
  */
 
+import { mentionAppelIA } from '../../offre/affichage';
 import { verdictEffectif, type VerdictValue, type FunnelStage, type KillReason, type TestedVariable } from '../../adsmap/types';
 import { proposeIterations } from '../../adsmap/iterate';
 import { LIBELLE_VERDICT } from '../../adsmap/verdict-libelle';
@@ -207,6 +207,7 @@ export function coutMaxRelectureUsd(modele: string): number {
   return Math.max(0.01, Math.ceil(brut * 100) / 100);
 }
 
-export function libelleCoutRelecture(usd: number): string {
-  return `${libelleCoutTexteEstime(usd)} sur le plafond IA, aucun crédit`;
+/** La mention de la relecture AVANT le clic · en crédits (inclus aujourd'hui). `usd` reste lu par le serveur pour le plafond. */
+export function libelleCoutRelecture(_usd: number): string {
+  return mentionAppelIA(null);
 }

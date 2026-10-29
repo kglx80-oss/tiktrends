@@ -51,7 +51,7 @@ export function DecrireCreas() {
       {l?.tranche && <small className="faint">Cette tranche · {l.tranche.cout} · {l.tranche.detail}</small>}
       {msg && <p role={msg.erreur ? 'alert' : 'status'} style={{ fontSize: '12.5px', color: msg.erreur ? 'var(--bad)' : undefined }}>{msg.texte}</p>}
       {details.length > 0 && <ul className="faint" style={{ margin: 0, paddingLeft: 16, fontSize: '11.5px' }}>{details.map((d) => <li key={d}>{d}</li>)}</ul>}
-      <small className="faint">{CREDIT_COSTS.asset_analysis} crédits par créa · par lots de 25, remboursés quand l’agent ne trouve rien à décrire. Le montant en dollars est la dépense réelle chez le fournisseur, imputée sur le plafond global.</small>
+      <small className="faint">{CREDIT_COSTS.asset_analysis} crédits par créa · par lots de 25, remboursés quand l’agent ne trouve rien à décrire.</small>
     </div>
   );
 }

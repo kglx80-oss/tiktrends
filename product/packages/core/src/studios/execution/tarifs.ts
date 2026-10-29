@@ -283,7 +283,7 @@ export function qualifierDevis(lignes: unknown): QualificationTotal {
 }
 
 /** Une ligne telle que l'écran la montre · libellé, montant total, nature, motif. */
-export interface LigneDevisVue { libelle: string; usdMicros: number; natureCout: NatureCout; motifEstimation: string | null }
+export interface LigneDevisVue { libelle: string; usdMicros: number; natureCout: NatureCout; motifEstimation: string | null; /** Crédits de la ligne (unités comprises) · ce que le CLIENT lit. */ credits: number }
 
 /** Les lignes d'un devis stocké, prêtes à afficher (devis antérieurs à R3 compris : « estimation »). */
 export function vueLignesDevis(lignes: unknown): LigneDevisVue[] {
@@ -294,6 +294,7 @@ export function vueLignesDevis(lignes: unknown): LigneDevisVue[] {
     return {
       libelle: libelleLigneDevis({ operation: String(l.operation ?? '?'), profil: (l.profil ?? 'calcul') as ProfilLigne, unites }),
       usdMicros: (Number.isInteger(l.usdMicros) ? l.usdMicros! : 0) * unites,
+      credits: (Number.isInteger(l.credits) ? l.credits! : 0) * unites,
       natureCout: borne ? 'borne' : 'estimation',
       motifEstimation: borne ? null : (l.motifEstimation ?? 'devis antérieur à la qualification des montants'),
     };

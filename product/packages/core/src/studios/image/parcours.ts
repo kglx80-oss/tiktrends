@@ -247,6 +247,8 @@ export function verdictConsigne(e: {
   return { ok: true };
 }
 
+import { formatCredits } from '../../offre/affichage';
+
 /* ─────────────────────────────── Prix ────────────────────────────────────── */
 
 /** Le prix d'une image du studio · barème existant (`CREDIT_COSTS.image`, `FIXED_COSTS.fal_image`), jamais inventé. */
@@ -255,12 +257,13 @@ export function prixImage(): { credits: number; usdMicros: number } {
   return { credits: t.credits ?? 0, usdMicros: t.usdMicros ?? 0 };
 }
 
-export const libelleCredits = (n: number): string => `${n} crédit${n > 1 ? 's' : ''}`;
+export const libelleCredits = (n: number): string => formatCredits(n);
+/** Le coût fournisseur en dollars · ADMIN seulement (un client lit des crédits, décision du 29/10). */
 export const libelleUsd = (micros: number): string => `${(micros / 1_000_000).toFixed(2).replace('.', ',')} $`;
 
-/** Le prix annoncé AVANT le clic · crédits ET dollars. */
+/** Le prix annoncé AVANT le clic · en crédits seulement (le dollar reste au serveur et à l'Admin). */
 export function libellePrix(p: { credits: number; usdMicros: number }): string {
-  return `${libelleCredits(p.credits)} · ${libelleUsd(p.usdMicros)} au plus de coût fournisseur`;
+  return libelleCredits(p.credits);
 }
 
 /* ─────────────────────────── Disponibilité ───────────────────────────────── */

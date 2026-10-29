@@ -148,7 +148,7 @@ export async function relireApprentissage(ctx: ContexteStudio, e: { linkId: unkn
 
   if (!o.adaptateur) return sansAppel('FOURNISSEUR_ABSENT');
   if (typeof e.coutAnnonceUsd !== 'number' || Math.abs(e.coutAnnonceUsd - coutMaxUsd) > 1e-9) {
-    return erreurStudio('VERSION_CONFLICT', { traceId: ctx.traceId, targetIds: [t.linkId], message: `Le coût annoncé a changé (${coutMaxUsd.toFixed(2)} $ au plus) · relis-le, puis relance.` });
+    return erreurStudio('VERSION_CONFLICT', { traceId: ctx.traceId, targetIds: [t.linkId], message: 'Le prix annoncé a changé · relis-le, puis relance.' });
   }
   const notes = typeof e.notes === 'string' ? e.notes.slice(0, 2000) : '';
   // Le contrat exige des DOCUMENTS résolus pour le test, l'hypothèse et la mesure (un ID seul ne suffit pas).

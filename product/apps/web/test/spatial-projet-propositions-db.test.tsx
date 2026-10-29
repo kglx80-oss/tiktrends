@@ -118,7 +118,7 @@ describe('propositions Spatial · rempli (FLOW-04)', () => {
     expect(bouton, 'le bouton « Demander à Jarvis » doit être désactivé').toBeDefined();
     const t = texte(html);
     expect(t).toContain('Indisponible · Jarvis n’est pas encore activé pour les studios');
-    expect(t).toContain('Appel texte payant');
+    expect(t).toContain('Appel IA · inclus · aucun crédit débité'); // dit en crédits (29/10)
     expect(t.toLowerCase()).not.toContain('gratuit');
     expect(t).toContain('Modifier à la main');
   });

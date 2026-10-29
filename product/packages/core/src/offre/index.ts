@@ -4,3 +4,4 @@ export * from './bareme';
 export * from './droits';
 export * from './marges';
 export * from './unite';
+export * from './affichage';

@@ -13,6 +13,7 @@
  *    coût maximal d'un appel texte, jamais annoncé gratuit.
  */
 
+import { mentionAppelIA } from '../../offre/affichage';
 import { calculerPlanImpact, type NatureNoeud, type PlanImpact } from '../impact';
 import { valeurAuChemin } from '../patch';
 import type { ContenuVersion } from '../document';
@@ -162,7 +163,8 @@ export interface DisponibiliteJarvis {
 /** Disponibilité de « Demander à Jarvis » · la première cause bloquante, dite en clair. */
 export function disponibiliteJarvis(e: { releasePubliee: boolean; fournisseurConfigure: boolean; plafondAtteint: boolean; peutProposer: boolean; modele: string }): DisponibiliteJarvis {
   const coutMaxUsd = coutMaximalDemandeJarvis(e.modele);
-  const mentionCout = `Appel texte payant · ${formatUsd(coutMaxUsd)} au plus, imputé au plafond de dépense. Aucun média, aucun crédit, rien d’appliqué sans ton accord.`;
+  // Le client lit des crédits (décision du 29/10) · l'appel ne débite aucun crédit aujourd'hui, il le dit. Le dollar reste au serveur (`coutMaxUsd`, plafond interne).
+  const mentionCout = `${mentionAppelIA(null)}. Aucun média, rien d’appliqué sans ton accord.`;
   const indispo = (motif: MotifIndisponibilite, raison: string): DisponibiliteJarvis => ({ disponible: false, motif, raison, coutMaxUsd, mentionCout });
   if (!e.peutProposer) return indispo('DROIT_PROPOSER', 'Ton rôle permet de lire les propositions, pas d’en demander.');
   if (!e.releasePubliee) return indispo('RELEASE_ACTIVE_ABSENTE', 'Jarvis n’est pas encore activé pour les studios (aucune version de ses consignes n’est publiée) · propose la modification à la main.');

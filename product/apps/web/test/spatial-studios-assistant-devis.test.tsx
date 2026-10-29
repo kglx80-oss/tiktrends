@@ -73,7 +73,7 @@ const devis: DevisImageVue = {
   id: 'q1', inputHash: 'HASH-ABC', credits: 4, usdMicros: 600_000,
   expiresAt: '2026-10-18T10:30:00Z',
   qualification: { nature: 'borne', libelle: 'maximum', raison: null },
-  lignes: [{ libelle: 'Image · publicité', usdMicros: 600_000, natureCout: 'borne', motifEstimation: null }],
+  lignes: [{ libelle: 'Image · publicité', usdMicros: 600_000, credits: 4, natureCout: 'borne', motifEstimation: null }],
 };
 
 const briefVide: BriefCanonique = { objective: 'o', audience: '', hypothesisId: null, testedVariable: '', facts: [], invariants: [], variables: [], references: [], composition: '', styleIntent: '', texts: [], formats: [], exclusions: [] };
@@ -118,7 +118,10 @@ describe('étape CONFIRMATION · le devis serveur AVANT le clic, confirmation tr
     expect(bouton, 'bouton de confirmation absent').not.toBeNull();
     // RÉSULTAT lu dans le HTML : le montant réel et l'échéance sont présents…
     const html = (hote.querySelector('[data-prix="devis"]') as HTMLElement).textContent ?? '';
-    expect(html).toContain('0,60'); // 600 000 micros = 0,60 $
+    // Le client lit des CRÉDITS (décision du 29/10) · jamais le coût fournisseur en dollars.
+    expect(html).toContain('4 crédits');
+    expect(html).not.toContain('0,60');
+    expect(hote.textContent, 'un montant en argent est montré au client').not.toMatch(/\$|€/);
     expect(html).toMatch(/12:30|10:30|11:30/); // échéance (fuseau Europe/Paris)
     expect(hote.querySelector('[data-lignes="devis"] [data-ligne-nature="borne"]'), 'ligne du devis absente').not.toBeNull();
     // …et ils précèdent le bouton dans l'ordre du document (devis AVANT le clic).
@@ -209,7 +212,7 @@ describe('étape FORMAT & DEVIS · demande le VRAI devis, ne fabrique rien', () 
     expect(h.compiler).toHaveLength(0);
     expect((hote.querySelector('[data-bouton="voir-devis"]') as HTMLButtonElement).disabled).toBe(true);
     const cout=hote.querySelector('[data-cout="compilation"]')!; const bouton=hote.querySelector('[data-bouton="compiler-consigne"]')!;
-    expect(cout.textContent).toContain('payante'); expect(cout.compareDocumentPosition(bouton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(cout.textContent).toContain('Appel IA · inclus'); expect(cout.textContent).not.toMatch(/\$|€/); expect(cout.compareDocumentPosition(bouton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await clic(bouton); await flush(); expect(h.compiler).toHaveLength(1); expect(h.retenir).toHaveLength(0); expect(h.devisDemande).toHaveLength(0);
     expect(hote.textContent).toContain(consigne.generationInstruction);
     await clic(hote.querySelector('[data-bouton="retenir-consigne"]')); await flush(); expect(h.retenir).toHaveLength(1);

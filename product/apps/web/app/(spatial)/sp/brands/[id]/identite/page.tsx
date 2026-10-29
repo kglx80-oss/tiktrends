@@ -1,4 +1,4 @@
-import { champsModifiablesMarque, connecteursBranches, costFor, initialeNom, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque, messageServiceInactif } from '@tiktrends/core';
+import { champsModifiablesMarque, connecteursBranches, costFor, formatCredits, initialeNom, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque, messageServiceInactif } from '@tiktrends/core';
 import { deleteBrandAction, updateBrandAction } from '../../../../../actions/brands';
 import { extractBrandVisualDaAction, saveBrandDAAction, saveBrandVisualDaAction } from '../../../../../actions/brand-detail';
 import { ajouterConcurrents, proposerConcurrents } from '../../../../../actions/competitor';
@@ -66,7 +66,7 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
         },
         // Même prix que l'écran V5 (`costFor('brief')`), annoncé sur le bouton.
         sourcing: {
-          prix: c.unlimited ? '0 crédit débité · coût fournisseur sous plafond' : `${costFor('brief')} crédits`,
+          prix: c.unlimited ? 'Illimité · aucun crédit débité' : formatCredits(costFor('brief')),
           proposer: c.aiReady ? proposerConcurrents : null, ajouter: ajouterConcurrents,
           raison: c.aiReady ? null : 'Jarvis n’est pas disponible actuellement',
         },

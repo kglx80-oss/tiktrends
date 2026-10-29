@@ -2,8 +2,8 @@
 
 import { Fragment, useEffect, useId, useState } from 'react';
 import {
-  cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, libelleCoutTexteEstime, raisonAjoutTexte,
-  ECHEC_RESEAU_STUDIO, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, NOTE_BORNE_TEXTE, TONS_ECRITURE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
+  cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, mentionAppelIA, raisonAjoutTexte,
+  ECHEC_RESEAU_STUDIO, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, TONS_ECRITURE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
   type ErreurStudio, type TexteStudio, type TonEcriture, type TypeTexte, type VarianteTexte,
 } from '@tiktrends/core';
 import type { VueTextes } from '../../../lib/studios/textes/textes';
@@ -163,7 +163,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
 
   const ecritureBloquee = appel.bloque || !d.disponible || !vue.peutEcrire || enCours !== null || !vue.brief;
   const raisonAjout = raisonAjoutTexte({ peutEcrire: vue.peutEcrire, briefPresent: !!vue.brief, enCours: enCours !== null, texte: manuel.texte });
-  const coutEcriture = `${libelleCoutTexteEstime(d.coutMaxUsd)} · ${NOTE_BORNE_TEXTE}`;
+  const coutEcriture = mentionAppelIA(null);
   const libelleEcrire = `Écrire ${nombre} ${nombre > 1 ? LIBELLES_TYPE_TEXTE_PLURIEL[type] : LIBELLES_TYPE_TEXTE[type].toLowerCase()}`;
   const tous = [
     ...retenus.map((t) => ({ cle: `r-${t.id}`, libelle: `Retenu · ${libelleType(t.type)} · ${t.texte.slice(0, 40)}`, texte: t.texte })),
@@ -224,7 +224,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
           {!d.disponible && <small className="faint" style={{ fontSize: '11.5px' }} role="note">Indisponible · {d.raison}</small>}
           {arme ? (
             <div className="sugg" data-confirmation="ecrire">
-              <p style={{ fontSize: '12.5px' }}>Appel texte payant · {coutEcriture}, imputé au plafond de dépense. Aucun média, aucun crédit, rien d’enregistré sans « Retenir ».</p>
+              <p style={{ fontSize: '12.5px' }}>{coutEcriture}. Aucun média, rien d’enregistré sans « Retenir ».</p>
               <div className="kc" style={{ marginTop: 8 }}>
                 <button className="btn sm pri" type="button" disabled={ecritureBloquee} onClick={() => void ecrire()}>{enCours === 'ecrire' ? 'Écriture…' : `Confirmer · ${libelleEcrire.toLowerCase()}`}</button>
                 <button className="btn sm" type="button" onClick={() => setArme(false)}>Annuler</button>
@@ -233,7 +233,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
           ) : (
             <div className="kc">
               <button className="btn sm pri" type="button" data-bouton="ecrire" disabled={ecritureBloquee} onClick={() => setArme(true)}><Ic n="spark" />{enCours === 'ecrire' ? 'Écriture…' : libelleEcrire}</button>
-              <small className="faint" style={{ fontSize: '11.5px' }} data-cout="texte">Appel texte payant · {coutEcriture}</small>
+              <small className="faint" style={{ fontSize: '11.5px' }} data-cout="texte">{coutEcriture}</small>
             </div>
           )}
           {questions.length > 0 && <Message ton="info">Il manque une précision · {questions.join(' · ')}</Message>}

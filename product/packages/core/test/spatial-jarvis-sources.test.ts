@@ -59,7 +59,7 @@ describe('Spatial · Jarvis · force du règlement, couverture, accroches', () =
     const l = lectureCouverture({ total: 10, described: 4, manual: 1, withoutAsset: 0, fromWritten: 0, pendingAsset: 5, pendingWritten: 1, nextBatch: 6, nextCostUsd: 0.12, totalCostUsd: 0.12 });
     expect(l.texte).toMatch(/^4 créa\(s\) décrite\(s\) sur 10 · 40 %/);
     expect(l.faible).toBe(true);
-    expect(l.bouton).toBe('Décrire 6 créa(s) · 0,12 $');
+    expect(l.bouton).toBe('Décrire 6 créa(s) · 120 crédits'); // 6 × asset_analysis, le débit réel (29/10)
     expect(lectureCouverture({ total: 3, described: 3, manual: 0, withoutAsset: 0, fromWritten: 0, pendingAsset: 0, pendingWritten: 0, nextBatch: 0, nextCostUsd: 0, totalCostUsd: 0 }))
       .toEqual(expect.objectContaining({ restant: 0, tranche: null, bouton: 'Tout est décrit' }));
   });

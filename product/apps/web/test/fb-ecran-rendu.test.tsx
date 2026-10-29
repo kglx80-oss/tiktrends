@@ -49,7 +49,7 @@ const CONSIGNE: ConsigneVue = {
 };
 const OK: VerdictConsigne = { ok: true };
 /** R3 · un devis d'une image (prix fixe connu) : une ligne, une BORNE · « au plus » reste vrai. */
-const DEVIS_R3 = { qualification: qualifierDevis([{ operation: 'keyframe:s_image', profil: 'image_generation', unites: 1, usdMicros: 80_000, natureCout: 'borne' }]), lignes: [{ libelle: 'Image · keyframe:s_image', usdMicros: 80_000, natureCout: 'borne' as const, motifEstimation: null }] };
+const DEVIS_R3 = { qualification: qualifierDevis([{ operation: 'keyframe:s_image', profil: 'image_generation', unites: 1, usdMicros: 80_000, natureCout: 'borne' }]), lignes: [{ libelle: 'Image · keyframe:s_image', usdMicros: 80_000, credits: 4, natureCout: 'borne' as const, motifEstimation: null }] };
 const job = (o: Partial<JobImageVue> = {}): JobImageVue => ({
   id: 'j1', etat: 'queued', libelleEtat: 'En file', message: 'En file · rien n’est encore envoyé au fournisseur.', raisonEchec: null, annulable: true, terminal: false,
   qualite: 'pending', libelleQualite: 'Aucun média livré pour l’instant', creditsReserves: 4, creditsRendus: null, media: null, creeLe: '2026-10-08T10:05:00Z', ...o,
@@ -83,7 +83,7 @@ describe('états de l’écran · au HTML rendu', () => {
     const d = rendre(vue({}, { ...TOUT, releasePubliee: false, fournisseurImage: false }));
     expect(bouton(d, 'compiler')!.disabled).toBe(true);
     expect(txt(d, '[data-indisponible="compilation"]')).toBe('Indisponible · La compilation de la consigne image n’est pas encore activée : aucune version des consignes n’est publiée. Rien n’est facturé.');
-    expect(txt(d, '[data-cout="compilation"]')).toBe('Appel texte payant · environ 0,14 $ (estimation) · borne exacte réservée avant l’envoi, sous le plafond · préparation uniquement, l’image sera facturée séparément.');
+    expect(txt(d, '[data-cout="compilation"]')).toBe('Appel IA · inclus · aucun crédit débité · préparation uniquement, l’image sera facturée séparément.'); // en crédits (29/10)
     // Sans consigne retenue, ni le devis ni le lancement ne sont proposés (aucun bouton mort).
     expect(bouton(d, 'devis')).toBeNull();
     expect(bouton(d, 'lancer')).toBeNull();
@@ -119,12 +119,12 @@ describe('états de l’écran · au HTML rendu', () => {
 
   it('devis · prix AVANT le clic en crédits et en dollars, puis « Approuver et lancer » séparé et explicite', () => {
     const d0 = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK } }));
-    expect(txt(d0, '[data-prix="annonce"]')).toBe('Une image · 4 crédits · 0,08 $ au plus de coût fournisseur · barème du produit.');
+    expect(txt(d0, '[data-prix="annonce"]')).toBe('Une image · 4 crédits · barème du produit.'); // en crédits seulement (29/10)
     expect(bouton(d0, 'devis')!.disabled).toBe(false);
     expect(d0.textContent).toContain('Le devis ne débite rien · il fige le prix pendant 30 minutes.');
     expect(bouton(d0, 'lancer')).toBeNull();
     const d = rendre(vue({ retenue: { ...CONSIGNE, verdict: OK }, devis: { id: 'q1', inputHash: 'h'.repeat(64), credits: 4, usdMicros: 80_000, expiresAt: '2026-10-08T10:30:00Z', ...DEVIS_R3 } }));
-    expect(txt(d, '[data-prix="devis"]')).toBe('Devis · 4 crédits · 0,08 $ au plus de coût fournisseur · valable jusqu’à 12:30.');
+    expect(txt(d, '[data-prix="devis"]')).toBe('Devis · 4 crédits · Réservés à l’approbation, rendus s’ils ne sont pas consommés · valable jusqu’à 12:30.');  // en crédits (29/10)
     expect(bouton(d, 'lancer')!.textContent).toBe('Générer mon visuel · 4 crédits');
     expect(bouton(d, 'lancer')!.disabled).toBe(false);
     expect(d.textContent).toContain('Débite 4 crédits au second clic · rendus si aucune image n’est livrée.');
@@ -233,7 +233,7 @@ describe('gestes · l’écran lit au montage, sépare les gestes, garde la clé
     m.compiler.mockResolvedValue({ ok: true, statut: 'questions', questions: ['Quel décor ?'], runId: null, projectVersionId: 'v3', preparation: {} });
     await act(async () => { bouton(conteneur, 'compiler')!.click(); });
     expect(m.compiler, 'le premier clic d’un geste payant n’appelle rien').not.toHaveBeenCalled();
-    expect(txt(conteneur, '[data-confirmation="compiler"]')).toContain('environ 0,14 $');
+    expect(txt(conteneur, '[data-confirmation="compiler"]')).toContain('Appel IA · inclus');
     await act(async () => { conteneur.querySelector<HTMLButtonElement>('[data-confirmation="compiler"] .btn.pri')!.click(); });
     expect(m.compiler).toHaveBeenCalledWith({ projectId: 'p1', mode: 'generative_scene' });
     expect(txt(conteneur, '[data-champ="questions"]')).toContain('Quel décor ?');

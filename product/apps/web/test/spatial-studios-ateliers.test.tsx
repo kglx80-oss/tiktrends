@@ -297,10 +297,10 @@ describe('Spatial · Studios · parcours image · le prix avant tout appel payan
   it('« Préparer mon visuel » · le 1er clic n’appelle rien et dit le coût · le 2e compile', async () => {
     a.lireParcoursImage.mockResolvedValue({ ok: true, vue: vueParcours() });
     monter(<ParcoursImage projectId="p1" versionId="v2" initial={vueParcours()} />);
-    expect(hote.querySelector('[data-cout="compilation"]')?.textContent).toContain('0,02 $');
+    expect(hote.querySelector('[data-cout="compilation"]')?.textContent).toContain('Appel IA · inclus');  // en crédits (29/10) · jamais un montant en argent
     await cliquer(hote.querySelector('[data-bouton="compiler"]'));
     expect(a.compilerConsigneImage).not.toHaveBeenCalled();
-    expect(hote.querySelector('[data-confirmation="compiler"]')?.textContent).toContain('Appel texte payant');
+    expect(hote.querySelector('[data-confirmation="compiler"]')?.textContent).toContain('Appel IA');  // en crédits (29/10)
     await cliquer(bouton('Confirmer la préparation'));
     expect(a.compilerConsigneImage).toHaveBeenCalledWith({ projectId: 'p1', mode: 'generative_scene' });
   });
@@ -368,11 +368,11 @@ describe('Spatial · Studios · atelier Textes', () => {
 
   it('« Écrire » · le 1er clic n’appelle rien et dit le coût · le 2e appelle ecrireTextes', async () => {
     monter(<Textes vue={vueTextes()} atelier={ATELIER} />);
-    expect(hote.querySelector('[data-cout="texte"]')?.textContent).toContain('0,02 $');
+    expect(hote.querySelector('[data-cout="texte"]')?.textContent).toContain('Appel IA · inclus');  // en crédits (29/10) · jamais un montant en argent
     await cliquer(hote.querySelector('[data-bouton="ecrire"]'));
     expect(a.ecrireTextes).not.toHaveBeenCalled();
     const conf = hote.querySelector('[data-confirmation="ecrire"]')!;
-    expect(conf.textContent).toContain('imputé au plafond');
+    expect(conf.textContent).toContain('Appel IA · inclus'); expect(conf.textContent).not.toContain('plafond');  // en crédits (29/10)
     await cliquer(conf.querySelector('.btn.pri'));
     expect(a.ecrireTextes).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'p1', baseVersionId: 'v2', type: 'hook', maxCaracteres: 40 }));
   });

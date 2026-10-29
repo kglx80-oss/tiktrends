@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { costFor, initialeNom, lienNouveauProjet, messagesRetourRapport, ONGLETS_RAPPORT_CONCURRENT, ongletRapport, repartitionMedias } from '@tiktrends/core';
+import { costFor, formatCredits, initialeNom, lienNouveauProjet, messagesRetourRapport, ONGLETS_RAPPORT_CONCURRENT, ongletRapport, repartitionMedias } from '@tiktrends/core';
 import { getSession } from '../../../../../../../lib/auth';
 import { roleAtLeast } from '../../../../../../../lib/rbac';
 import { unlimitedCredits } from '../../../../../../../lib/credits';
@@ -42,7 +42,7 @@ export default async function RapportConcurrentSpatial({ params, searchParams }:
   return (
     <RapportConcurrent
       brandId={b.id} marque={b.name} nom={nom} initiale={initialeNom(nom)}
-      prix={unlimitedCredits(s.user.email) ? '0 crédit débité · coût fournisseur sous plafond' : `${costFor('report')} crédits`}
+      prix={unlimitedCredits(s.user.email) ? 'Illimité · aucun crédit débité' : formatCredits(costFor('report'))}
       analyser={analyzeCompetitorAction}
       rapport={report && a ? {
         detail: `Concurrent analysé · ${a.adCount} créa${a.adCount > 1 ? 's' : ''} · mis à jour le ${new Date(report.analyzedAt).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}`,

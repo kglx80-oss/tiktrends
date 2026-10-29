@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import {
-  changementAngleManuel, changementHypotheseRetenue, demandeAnglesDepuisBrief, libelleCoutTexteEstime,
-  NOTE_BORNE_TEXTE, OBJECTIF_MAX,
+  changementAngleManuel, changementHypotheseRetenue, demandeAnglesDepuisBrief, mentionAppelIA,
+  OBJECTIF_MAX,
   type BriefCanonique, type HypotheseTest,
 } from '@tiktrends/core';
 import { preparerCreation, proposerHypotheses } from '../../../../app/actions/studios/sources';
@@ -138,7 +138,7 @@ export function Strategie({ projectId, brief, cycle, onApplied, sources, marqueI
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
             <p className="faint" style={{ fontSize: '11.5px' }} data-cout="hypotheses">
-              {dispo === null ? 'Lecture du coût des suggestions…' : dispo.disponible ? `Appel texte payant · ${libelleCoutTexteEstime(dispo.plafondUsd)} · ${NOTE_BORNE_TEXTE}. Aucun crédit, rien d’appliqué sans ton accord.` : (dispo.raison ?? 'Suggestions indisponibles ici.')}
+              {dispo === null ? 'Lecture du coût des suggestions…' : dispo.disponible ? `${mentionAppelIA(null)}. Rien d’appliqué sans ton accord.` : (dispo.raison ?? 'Suggestions indisponibles ici.')}
             </p>
             {appelHypotheses.bloque && <p className="faint" role="status" style={{ fontSize: '11.5px' }}>{MESSAGE_APPEL_PAYANT}</p>}
             <div className="kc">

@@ -83,7 +83,7 @@ describe('argent · prix avant le clic, ton et langue, rien sans « Retenir »',
     m.ecrireTextes.mockResolvedValue({ ok: true, statut: 'variantes', variantes: [{ id: 'n1', type: 'hook', langue: 'fr', texte: 'Notre accroche', sources: [], longueur: 14, horsVariable: false }], ecartees: [] });
     m.enregistrerTextes.mockResolvedValue({ ok: true, version: { id: 'v2', n: 2 }, textes: [], inchange: false });
     monter(vueTextes());
-    expect(q('[data-cout="texte"]')!.textContent).toContain('$');
+    expect(q('[data-cout="texte"]')!.textContent).toContain('Appel IA'); expect(q('[data-cout="texte"]')!.textContent).not.toContain('$');  // en crédits (29/10) · jamais un montant en argent
     expect(m.ecrireTextes).not.toHaveBeenCalled();
     choisir('Ton', 'Pédagogique');
     choisir('Langue', 'en');

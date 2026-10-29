@@ -12,7 +12,7 @@ import {
   type EtatJob, type StatutQualite, type EpinglageDevis, type EtatReprise,
 } from '@tiktrends/core';
 // R3 · ligne du contrôle visuel et nature des montants (borne / estimation).
-import { avecControleVision, controleVisionActif, exigenceImageDuDevis, qualifierDevis, type QualificationTotal } from '@tiktrends/core';
+import { REFUS_DEPENSE_CLIENT, avecControleVision, controleVisionActif, exigenceImageDuDevis, qualifierDevis, type QualificationTotal } from '@tiktrends/core';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
@@ -323,7 +323,7 @@ export async function approuverEtMettreEnFile(ctx: ContexteStudio, e: EntreeAppr
   const q = devis!;
 
   const refusDollars = o.plafond ? refusPlafondDollars({ ...o.plafond, devisUsdMicros: Number(q.maximumUsdMicros) }) : null;
-  if (refusDollars) return erreurStudio('BUDGET_EXCEEDED', { traceId: ctx.traceId, message: `Le plafond de dépense ne permet pas ce lancement · ${refusDollars}.` });
+  if (refusDollars) return erreurStudio('BUDGET_EXCEEDED', { traceId: ctx.traceId, message: REFUS_DEPENSE_CLIENT }); // le détail (plafond global, en dollars) reste au serveur
 
   try {
     // F-B · paramètres natifs de l'image du studio, relus côté serveur (hors transaction : lecture seule) ;

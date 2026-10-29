@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  capacitesDuRefus, changementFormatManuel, infoEtapeNouveau, controleVisionDevis, formatDejaEcrit, libelleCaseControleVision, libelleCoutTexteEstime,
+  capacitesDuRefus, changementFormatManuel, infoEtapeNouveau, controleVisionDevis, formatDejaEcrit, libelleCaseControleVisuel, mentionAppelIA,
   lireLigneTexte, saisieFormatDepuisBrief, signatureChoixDevis, verdictDevisRecu,
-  ALLOWED_PATHS_BRIEF, MESSAGE_DEVIS_INCONNU, NOTE_BORNE_TEXTE, OPTIONS_FORMAT_ASSISTANT,
+  ALLOWED_PATHS_BRIEF, MESSAGE_DEVIS_INCONNU, OPTIONS_FORMAT_ASSISTANT,
   type BriefCanonique, type ErreurStudio, type FormatDocument, type ModeImage, type SaisieFormat,
 } from '@tiktrends/core';
 import { compilerConsigneImage, demanderDevisImage, lireParcoursImage, retenirConsigneImage } from '../../../../app/actions/studios/image';
@@ -239,7 +239,7 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
             {relectureDisponible ? (
               <label data-champ="relecture" className="kc" style={{ alignItems: 'center', fontSize: 13 }}>
                 <input type="checkbox" checked={saisie.relectureAuto} disabled={occupe} onChange={(e) => setSaisie((s) => ({ ...s, relectureAuto: e.target.checked }))} style={{ width: 18, height: 18 }} />
-                <span>{libelleCaseControleVision(vue!.controleVision.borneParImageUsdMicros)}</span>
+                <span>{libelleCaseControleVisuel(null)}</span>
               </label>
             ) : (
               <p className="muted" data-champ="relecture-indisponible" style={{ fontSize: '12.5px' }}>La relecture automatique n’est pas exécutable sur ce serveur · le devis n’en portera pas la ligne.</p>
@@ -259,7 +259,7 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
                     </div>
                     {!vue.modes.some((m) => m.pret) && <Lien className="btn sm" href={`/studio/projets/${projectId}/produit`}>Choisir le produit et sa photo</Lien>}
                     {!vue.disponibilite.compilation.disponible && <p className="faint" role="status" style={{ fontSize: '11.5px' }}>{vue.disponibilite.compilation.raison}</p>}
-                    <p className="faint" data-cout="compilation" style={{ fontSize: '11.5px' }}>Préparation IA payante · {libelleCoutTexteEstime(vue.coutCompilationUsd)} · {NOTE_BORNE_TEXTE}</p>
+                    <p className="faint" data-cout="compilation" style={{ fontSize: '11.5px' }}>Préparation · {mentionAppelIA(null)}</p>
                     <div className="kc">
                       <button className="btn sm" type="button" data-bouton="compiler-consigne" onClick={() => void preparerConsigne()}
                         disabled={occupe || incertain || !vue.disponibilite.compilation.disponible || !vue.modes.find((m) => m.mode === mode)?.pret}><Ic n="spark" />Préparer la consigne avec Jarvis</button>

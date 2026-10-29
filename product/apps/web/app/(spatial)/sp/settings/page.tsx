@@ -2,10 +2,10 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { DESCRIPTIF_FORMULES, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, prixFormule, servicesEspace, teinteAvatar, THEME_COOKIE, preferenceDepuisCookie } from '@tiktrends/core';
+import { DESCRIPTIF_FORMULES, FUSEAU_ACCUEIL, ORDRE_FORMULES, domaineConcurrent, initialeNom, lienNouveauProjet, panneauStockage, servicesEspace, teinteAvatar, THEME_COOKIE, preferenceDepuisCookie } from '@tiktrends/core';
 import { storageConfigured } from '@tiktrends/integrations';
 import { getSession } from '../../../../lib/auth';
-import { canAccess, FEATURES, PLAN_LABEL, PLAN_PRICE, roleAtLeast, type Plan } from '../../../../lib/rbac';
+import { canAccess, FEATURES, PLAN_CREDITS, PLAN_LABEL, roleAtLeast, type Plan } from '../../../../lib/rbac';
 import { getActiveBrand } from '../../../../lib/brands';
 import { isFounder } from '../../../../lib/founder';
 import { saveWorkspaceNameAction } from '../../../actions/admin';
@@ -49,7 +49,7 @@ export default async function EspaceSpatial() {
       }))}
       inclus={DESCRIPTIF_FORMULES[plan].marques}
       ajouter="/brands/new"
-      formules={ORDRE_FORMULES.map((k) => ({ nom: PLAN_LABEL[k], actuelle: k === plan, valeur: DESCRIPTIF_FORMULES[k].marques, detail: PLAN_PRICE[k] === 0 ? prixFormule(0) : `${prixFormule(PLAN_PRICE[k])} / mois` }))}
+      formules={ORDRE_FORMULES.map((k) => ({ nom: PLAN_LABEL[k], actuelle: k === plan, valeur: DESCRIPTIF_FORMULES[k].marques, detail: `${PLAN_CREDITS[k].toLocaleString('fr-FR')} crédits / mois` }))} /* le prix d'un forfait ne se lit qu'au moment de le choisir (Forfaits, décision du 29/10) */
       preferences={{ langue: locale === 'en' ? 'en' : 'fr', fuseau: FUSEAU_ACCUEIL, devise: 'Euro (€)', nommage }}
       gestion={{
         renommer: saveWorkspaceNameAction,

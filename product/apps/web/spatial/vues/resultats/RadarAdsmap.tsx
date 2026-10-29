@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { COUT_BROUILLON_JARVIS, HYPOTHESE_MIN, libelleMecanique, lienFicheTest } from '@tiktrends/core';
+import { useState } from 'react';
+import { COUT_BROUILLON_JARVIS, HYPOTHESE_MIN, libelleMecanique, lienFicheTest, mentionRadar } from '@tiktrends/core';
 import {
-  conceptFromFindingAction, radarCostPreviewAction, runRadarNowAction, setRadarAction,
+  conceptFromFindingAction, runRadarNowAction, setRadarAction,
   type RadarFindingRow, type RadarView,
 } from '../../../app/actions/adsmap-radar';
 import { draftConceptAction, type DraftView } from '../../../app/actions/adsmap-draft';
@@ -31,14 +31,15 @@ export interface PropsRadarAdsmap {
   erreur: string | null;
 }
 
+/** Dollars · PERSONNEL de la plateforme seulement (bloc `v.spend`, absent pour un client). */
 const usd = (n: number) => `${n.toFixed(2).replace('.', ',')} $`;
 
 export function RadarAdsmap(p: PropsRadarAdsmap) {
   const { occupe, message, geste } = useGeste();
   const v = p.vue;
   const [cap, setCap] = useState(v?.state.cap ?? 3);
-  const [apercu, setApercu] = useState<{ nightly: number; monthly: number } | null>(v ? { nightly: v.state.nightlyCostUsd, monthly: v.state.monthlyCostUsd } : null);
-  useEffect(() => { let vivant = true; void radarCostPreviewAction(cap).then((a) => { if (vivant) setApercu(a); }); return () => { vivant = false; }; }, [cap]);
+  // Le client lit des crédits (décision du 29/10) · le radar ne débite aucun crédit aujourd'hui, il le dit.
+  const prix = mentionRadar(cap, null);
 
   return (
     <Vue>
@@ -59,19 +60,19 @@ export function RadarAdsmap(p: PropsRadarAdsmap) {
                 <input type="number" min={1} max={20} value={cap} onChange={(e) => setCap(Math.max(1, Math.min(20, Number(e.target.value) || 1)))} />
               </label>
             </div>
-            {apercu && <p style={{ fontSize: '13px' }}>Soit <b>{usd(apercu.nightly)}</b> par nuit au plus · <b>{usd(apercu.monthly)}</b> sur 30 nuits pleines.</p>}
+            <p style={{ fontSize: '13px' }} data-prix="radar">{prix.parNuit}.</p>
             <p className="faint" style={{ fontSize: '12px' }}>Chiffre du pire cas · une nuit sans créa ayant franchi de cap ne coûte rien.{v.spend
               ? <> Le plafond global reste au-dessus de tout : {v.spend.summary} Il reste {usd(Math.max(0, v.spend.capUsd - v.spend.spentUsd))} sur la fenêtre de 30 jours, et le radar s’arrête net s’il est atteint.</>
               : ' Si le service est momentanément limité, le radar s’interrompt de lui-même et reprend la nuit suivante.'}</p>
             <div className="foot2" style={{ marginTop: 8 }}>
               <button type="button" className={`btn sm ${v.state.armed || v.state.followed === 0 ? '' : 'pri'}`} disabled={!!occupe || (!v.state.armed && v.state.followed === 0)} onClick={() => {
                 const armer = !v.state.armed;
-                void geste('basculer', () => setRadarAction({ armed: armer, cap }), () => (armer ? `Radar armé · au plus ${usd(apercu?.nightly ?? 0)} par nuit` : 'Radar éteint · plus aucune dépense en arrière-plan'));
-              }}>{v.state.armed ? 'Éteindre le radar' : `Armer le radar · au plus ${usd(apercu?.nightly ?? 0)} par nuit`}</button>
+                void geste('basculer', () => setRadarAction({ armed: armer, cap }), () => (armer ? `Radar armé · ${prix.parNuit.toLowerCase()}` : 'Radar éteint · plus aucune description en arrière-plan'));
+              }}>{v.state.armed ? 'Éteindre le radar' : `Armer le radar${prix.bouton}`}</button>
               {v.state.armed && (
                 <button type="button" className="btn sm" disabled={!!occupe} onClick={() => {
-                  void geste('passer', () => runRadarNowAction(), (r) => `${r.digest ?? 'Passage terminé.'}${r.analyzed ? ` · ${usd(r.spentUsd ?? 0)} dépensés` : ''}`);
-                }}><Ic n="loop" />{occupe === 'passer' ? 'Passage…' : `Passer maintenant · au plus ${usd(apercu?.nightly ?? 0)}`}</button>
+                  void geste('passer', () => runRadarNowAction(), (r) => `${r.digest ?? 'Passage terminé.'}${r.analyzed ? ` · ${r.analyzed} créa${r.analyzed > 1 ? 's' : ''} décrite${r.analyzed > 1 ? 's' : ''}` : ''}`);
+                }}><Ic n="loop" />{occupe === 'passer' ? 'Passage…' : 'Passer maintenant'}</button>
               )}
               <small>{v.state.followed} concurrent{v.state.followed > 1 ? 's' : ''} suivi{v.state.followed > 1 ? 's' : ''}{v.state.followed === 0 ? ' · ajoute des marques depuis la Veille avant d’armer le radar' : ''}</small>
             </div>

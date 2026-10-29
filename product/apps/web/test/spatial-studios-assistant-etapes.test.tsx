@@ -102,7 +102,7 @@ describe('confirmation du lot réel', () => {
     api.approuver.mockResolvedValue({ ok: true, jobs: [{ id: 'j1' }, { id: 'j2' }], deja: false });
     const onLance = await monterLot();
     expect(document.body.textContent).toContain('2 images');
-    expect(document.querySelector('[data-prix="lot"]')!.textContent).toMatch(/0,60/);
+    expect(document.querySelector('[data-prix="lot"]')!.textContent).toMatch(/^\d[\d\s]* crédits?$/);  // en crédits (29/10) · jamais un montant en argent
     await lancer(); expect(api.approuver).not.toHaveBeenCalled();
     await cocher(); await lancer();
     expect(api.approuver).toHaveBeenCalledTimes(1);
