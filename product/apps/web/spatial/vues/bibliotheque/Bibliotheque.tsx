@@ -88,11 +88,12 @@ function fichierEnDataUri(file: File, cote = 1400, qualite = 0.85): Promise<stri
   });
 }
 
-function envoyerVersBucket(url: string, file: File): Promise<void> {
+/** Le `Content-Type` envoyé est celui que le serveur a retenu et SIGNÉ (`decisionDepot`) · un autre type, le bucket refuse. */
+function envoyerVersBucket(url: string, file: File, contentType: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const x = new XMLHttpRequest();
     x.open('PUT', url);
-    x.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    x.setRequestHeader('Content-Type', contentType);
     x.onload = () => (x.status >= 200 && x.status < 300 ? resolve() : reject(new Error('HTTP ' + x.status)));
     x.onerror = () => reject(new Error('Réseau'));
     x.send(file);
@@ -184,8 +185,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
       if (p.stockage) {
         for (const f of files) {
           const pre = await presignAssetUploadAction({ filename: f.name, contentType: f.type || 'application/octet-stream', sizeBytes: f.size });
-          if (pre.error || !pre.uploadUrl || !pre.publicUrl) { echecs.push(pre.error ?? f.name); continue; }
-          try { await envoyerVersBucket(pre.uploadUrl, f); } catch { echecs.push(f.name); continue; }
+          if (pre.error || !pre.uploadUrl || !pre.publicUrl || !pre.contentType) { echecs.push(pre.error ?? f.name); continue; }
+          try { await envoyerVersBucket(pre.uploadUrl, f, pre.contentType); } catch { echecs.push(f.name); continue; }
           const reg = await registerUploadedAssetAction({ name: f.name, url: pre.publicUrl, mimeType: f.type, sizeBytes: f.size, common: commun });
           if (reg.error) echecs.push(reg.error); else ok++;
         }

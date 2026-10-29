@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FORMATS_LOGO, charteAvecLogoImporte, lienAnnonceurVeille, lignesConfigurationMarque, refusFichierLogo, type EtapeConfigurationMarque } from '@tiktrends/core';
+import { FORMATS_LOGO, charteAvecLogoImporte, lienAnnonceurVeille, lignesConfigurationMarque, refusAdresseLogo, refusFichierLogo, type EtapeConfigurationMarque } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
 import { Anneau, Ic, Lien } from '../../communs';
 
@@ -318,7 +318,9 @@ export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices
         )}
       <form style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }} onSubmit={(e) => {
         e.preventDefault();
-        if (!/^https?:\/\/\S+$/i.test(ajout)) { toast('Colle l’adresse complète du logo (https://…)'); return; }
+        // Même règle que le serveur (`saveBrandDAAction`) · dite avant l'envoi.
+        const refus = refusAdresseLogo(ajout);
+        if (refus) { toast(refus); return; }
         if (logos.includes(ajout)) { toast('Ce logo est déjà dans la charte'); return; }
         sauver(defaut || ajout, [...logos, ajout], 'Logo ajouté à la charte');
       }}>
@@ -481,17 +483,20 @@ export function SourcingConcurrents({ brandId, prix, proposer, ajouter, raison }
 
 /* ───────────────────────── Importer un fichier de logo ───────────────────────── */
 
-/** Le dépôt direct dans le bucket de l'espace (adresse présignée) · même envoi que la Bibliothèque. */
-async function deposerDansLeBucket(url: string, f: File): Promise<boolean> {
+/**
+ * Le dépôt direct dans le bucket de l'espace (adresse présignée) · même envoi
+ * que la Bibliothèque, avec le `Content-Type` retenu et SIGNÉ par le serveur.
+ */
+async function deposerDansLeBucket(url: string, f: File, contentType: string): Promise<boolean> {
   try {
-    const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': f.type }, body: f });
+    const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': contentType }, body: f });
     return r.ok;
   } catch { return false; }
 }
 
 export interface ImportLogoActions {
   /** `presignAssetUploadAction` · le dépôt du fichier dans le bucket de l'espace. */
-  preparer: (i: { filename: string; contentType: string; sizeBytes: number }) => Promise<{ uploadUrl?: string; publicUrl?: string; error?: string }>;
+  preparer: (i: { filename: string; contentType: string; sizeBytes: number }) => Promise<{ uploadUrl?: string; publicUrl?: string; contentType?: string; error?: string }>;
   /** `saveBrandDAAction` · la charte, couleurs et polices renvoyées telles quelles. */
   enregistrer: (i: { brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[] }) => Promise<{ ok?: true; error?: string }>;
 }
@@ -516,9 +521,9 @@ export function ImportLogo({ brandId, logos, defaut, couleurs, polices, actions,
     const refus = refusFichierLogo({ type: f.type, taille: f.size });
     if (refus) { toast(refus); return; }
     demarrer(async () => {
-      const pre = await actions!.preparer({ filename: f.name, contentType: f.type, sizeBytes: f.size }).catch(() => ({ error: 'Le téléversement a échoué. Réessaie.' } as { uploadUrl?: string; publicUrl?: string; error?: string }));
-      if (pre.error || !pre.uploadUrl || !pre.publicUrl) { toast(pre.error ?? 'Le téléversement a échoué. Réessaie.'); return; }
-      if (!(await deposerDansLeBucket(pre.uploadUrl, f))) { toast('Le fichier n’a pas pu être envoyé · rien n’a changé dans la charte. Réessaie.'); return; }
+      const pre = await actions!.preparer({ filename: f.name, contentType: f.type, sizeBytes: f.size }).catch(() => ({ error: 'Le téléversement a échoué. Réessaie.' } as { uploadUrl?: string; publicUrl?: string; contentType?: string; error?: string }));
+      if (pre.error || !pre.uploadUrl || !pre.publicUrl || !pre.contentType) { toast(pre.error ?? 'Le téléversement a échoué. Réessaie.'); return; }
+      if (!(await deposerDansLeBucket(pre.uploadUrl, f, pre.contentType))) { toast('Le fichier n’a pas pu être envoyé · rien n’a changé dans la charte. Réessaie.'); return; }
       const charte = charteAvecLogoImporte({ logos, defaut }, pre.publicUrl);
       const r = await actions!.enregistrer({ brandId, ...charte, colors: [...couleurs], fonts: [...polices] }).catch(() => ({ error: 'L’enregistrement a échoué. Réessaie.' }));
       if (r.error) { toast(r.error); return; }

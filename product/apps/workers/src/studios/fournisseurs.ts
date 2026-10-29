@@ -5,11 +5,11 @@ import {
 import {
   decisionFournisseurStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsMediaDuJob,
   estParametresClip, lireParametresClip, requeteFalAnimation,
-  photosDuProduit, empreinteAdresse, idLogoMarque, estEmpreinte, estParametresRetouche, lireParametresRetouche, requeteFalRetouche,
+  photosDuProduit, empreinteAdresse, idLogoMarque, estEmpreinte, estParametresRetouche, lireParametresRetouche, requeteFalRetouche, logoTransmissible,
   type DecisionFournisseur, type DemandeFournisseur, type EmpreinteFichier, type FournisseurStudio, type MediaResolu, type RequeteFal, type StockageStudio,
 } from '@tiktrends/core';
 import {
-  FournisseurFal, BarriereDepenseStudio, storageFromEnv, putObject, presignGetUrl, privateObjectUrl, objectKeyFromUrl,
+  FournisseurFal, BarriereDepenseStudio, storageFromEnv, putObject, presignGetUrl, privateObjectUrl, objectKeyFromUrl, basePubliqueStockage,
   type PortDepense, type PreparationFal, type StorageConfig,
 } from '@tiktrends/integrations';
 import { demarrerBoucleStudio } from './boucle';
@@ -96,7 +96,13 @@ export async function resoudreMedias(
         }
       }
       const l = logos.get(id);
-      out.push(l ? { assetId: id, etat: 'autorise', url: l.url, sha256: l.sha256 } : absent(id));
+      // Une adresse de logo enregistrée avant le contrôle d'écriture (`http:`,
+      // IP, `javascript:`, SVG embarqué) ne part jamais au fournisseur · règle
+      // `logoTransmissible` du noyau, la base n'est pas touchée.
+      const bucket = stockage ? { base: basePubliqueStockage(stockage), espace: job.workspaceId } : null;
+      out.push(!l ? absent(id)
+        : logoTransmissible(l.url, bucket) ? { assetId: id, etat: 'autorise', url: l.url, sha256: l.sha256 }
+        : { assetId: id, etat: 'sans_media', motif: 'adresse de logo non transmissible (ni https public, ni fichier de l’espace)' });
     } else if (id.startsWith('sta_') && UUID.test(id.slice(4))) {
       const S = schema.studioAssets;
       const [m] = await base.select({ storageKey: S.storageKey, sha256: S.sha256, mime: S.mime }).from(S)

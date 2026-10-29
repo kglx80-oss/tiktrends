@@ -30,11 +30,15 @@ async function choisir(input: HTMLInputElement, f: File) {
 }
 const png = () => new File([new Uint8Array(2048)], 'logo.png', { type: 'image/png' });
 
-function faux(depotOk = true) {
-  const appels = { preparer: [] as unknown[], enregistrer: [] as unknown[], put: [] as string[] };
-  vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => { appels.put.push(`${init.method} ${url}`); return { ok: depotOk } as Response; }));
+function faux(depotOk = true, typeSigne = 'image/png') {
+  const appels = { preparer: [] as unknown[], enregistrer: [] as unknown[], put: [] as string[], typesEnvoyes: [] as string[] };
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
+    appels.put.push(`${init.method} ${url}`);
+    appels.typesEnvoyes.push(String((init.headers as Record<string, string>)['Content-Type']));
+    return { ok: depotOk } as Response;
+  }));
   const actions: ImportLogoActions = {
-    preparer: async (i) => { appels.preparer.push(i); return { uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png' }; },
+    preparer: async (i) => { appels.preparer.push(i); return { uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png', contentType: typeSigne }; },
     enregistrer: async (i) => { appels.enregistrer.push(i); return { ok: true }; },
   };
   return { appels, actions };
@@ -46,9 +50,24 @@ describe('Marque · importer un fichier de logo', () => {
     await choisir(monter(actions), png());
     expect(appels.preparer).toEqual([{ filename: 'logo.png', contentType: 'image/png', sizeBytes: 2048 }]);
     expect(appels.put).toEqual(['PUT https://bucket/put?sig']);
+    expect(appels.typesEnvoyes, 'le type SIGNÉ par le serveur part dans le PUT').toEqual(['image/png']);
     expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: 'https://bucket/assets/ws/neuf.png', logos: ['https://a/ancien.png', 'https://bucket/assets/ws/neuf.png'], colors: ['#112233'], fonts: ['Inter'] }]);
     expect(toasts).toEqual(['Logo importé · il devient le logo par défaut de la charte']);
     expect(rafraichis.n).toBe(1);
+  });
+
+  it('le PUT porte le type rendu par le serveur, pas celui du navigateur', async () => {
+    // Contrat · le client suit le type que le serveur a SIGNÉ, même s'il diffère de celui du navigateur.
+    const { appels, actions } = faux(true, 'image/webp');
+    await choisir(monter(actions), png());
+    expect(appels.typesEnvoyes).toEqual(['image/webp']);
+    const sansType = faux(true);
+    sansType.actions.preparer = async () => ({ uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png' });
+    toasts.length = 0;
+    act(() => root?.unmount()); hote?.remove();
+    await choisir(monter(sansType.actions), png());
+    expect(sansType.appels.put, 'sans type signé, rien ne part').toEqual([]);
+    expect(toasts).toEqual(['Le téléversement a échoué. Réessaie.']);
   });
 
   it('svg · refusé avant tout envoi, la raison dite', async () => {

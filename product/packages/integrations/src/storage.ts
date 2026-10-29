@@ -64,13 +64,21 @@ export function newAssetKey(workspaceId: string, filename: string): string {
   return `assets/${workspaceId}/${Date.now()}-${randomUUID().slice(0, 8)}-${safe}`;
 }
 
+/** Un type de contenu signable · `type/sous-type` en minuscules, sans paramètre ni espace. */
+const TYPE_CONTENU_SIGNABLE = /^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,127}$/;
+
 /**
- * URL présignée (SigV4, query-auth) pour un PUT direct. Le client téléverse le fichier
- * en PUT sur `uploadUrl`, puis on enregistre `publicUrl` comme URL de l'asset.
+ * URL présignée (SigV4, query-auth). Pour un PUT direct, le `Content-Type` est
+ * SIGNÉ (`X-Amz-SignedHeaders=content-type;host`) : le bucket refuse un envoi
+ * dont l'en-tête diffère du type retenu par le serveur (`decisionDepot`). Le
+ * client téléverse le fichier en PUT sur `uploadUrl` avec exactement ce type,
+ * puis on enregistre `publicUrl` comme URL de l'asset.
  */
-function presignObjectUrl(cfg: StorageConfig, key: string, method: 'PUT' | 'GET' | 'HEAD', expiresSeconds: number): string {
+function presignObjectUrl(cfg: StorageConfig, key: string, method: 'PUT' | 'GET' | 'HEAD', expiresSeconds: number, contentType?: string): string {
   if (!key || key.startsWith('/') || key.split('/').some(p => !p || p === '.' || p === '..') || /[\\\x00-\x1f\x7f]/.test(key)) throw new Error('Clé objet invalide');
   if (!Number.isInteger(expiresSeconds) || expiresSeconds < 1 || expiresSeconds > 900) throw new Error('Durée du lien invalide');
+  if (method === 'PUT' && (typeof contentType !== 'string' || !TYPE_CONTENU_SIGNABLE.test(contentType))) throw new Error('Type de contenu invalide');
+  if (method !== 'PUT' && contentType !== undefined) throw new Error('Type de contenu réservé au dépôt');
   const host = cfg.endpoint;
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -84,11 +92,12 @@ function presignObjectUrl(cfg: StorageConfig, key: string, method: 'PUT' | 'GET'
     'X-Amz-Credential': credential,
     'X-Amz-Date': amzDate,
     'X-Amz-Expires': String(expiresSeconds),
-    'X-Amz-SignedHeaders': 'host',
+    'X-Amz-SignedHeaders': contentType ? 'content-type;host' : 'host',
   };
   const canonicalQuery = Object.keys(query).sort().map((k) => `${enc(k)}=${enc(query[k]!)}`).join('&');
-  const canonicalHeaders = `host:${host}\n`;
-  const canonicalRequest = [method, canonicalUri, canonicalQuery, canonicalHeaders, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
+  // En-têtes canoniques triés par nom · `content-type` avant `host`.
+  const canonicalHeaders = (contentType ? `content-type:${contentType}\n` : '') + `host:${host}\n`;
+  const canonicalRequest = [method, canonicalUri, canonicalQuery, canonicalHeaders, query['X-Amz-SignedHeaders'], 'UNSIGNED-PAYLOAD'].join('\n');
   const scope = `${dateStamp}/${cfg.region}/s3/aws4_request`;
   const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
 
@@ -102,8 +111,12 @@ function presignObjectUrl(cfg: StorageConfig, key: string, method: 'PUT' | 'GET'
   return uploadUrl;
 }
 
-export function presignPutUrl(cfg: StorageConfig, key: string, expiresSeconds = 900): { uploadUrl: string; publicUrl: string } {
-  return { uploadUrl: presignObjectUrl(cfg, key, 'PUT', expiresSeconds), publicUrl: publicUrlFor(cfg, key) };
+/**
+ * Dépôt direct · `contentType` est obligatoire et signé · le navigateur DOIT
+ * l'envoyer tel quel dans l'en-tête `Content-Type` du PUT.
+ */
+export function presignPutUrl(cfg: StorageConfig, key: string, contentType: string, expiresSeconds = 900): { uploadUrl: string; publicUrl: string } {
+  return { uploadUrl: presignObjectUrl(cfg, key, 'PUT', expiresSeconds, contentType), publicUrl: publicUrlFor(cfg, key) };
 }
 
 /** Accès temporaire, émis uniquement après vérification de la portée par l'appelant. Jamais persisté. */

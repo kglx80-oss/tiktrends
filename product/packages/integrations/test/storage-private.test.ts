@@ -6,7 +6,7 @@ describe('accès privé S3', () => {
   it('signe séparément lecture et écriture sans persister la signature', () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-21T10:00:00Z'));
     const key = 'assets/espace/photo été.png';
-    const put = presignPutUrl(cfg, key, 300);
+    const put = presignPutUrl(cfg, key, 'image/png', 300);
     const get = new URL(presignGetUrl(cfg, key, 300));
     expect(get.searchParams.get('X-Amz-Signature')).not.toBe(new URL(put.uploadUrl).searchParams.get('X-Amz-Signature'));
     expect(get.searchParams.get('X-Amz-Expires')).toBe('300');
