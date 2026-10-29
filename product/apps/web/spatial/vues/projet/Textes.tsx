@@ -2,14 +2,14 @@
 
 import { Fragment, useEffect, useId, useState } from 'react';
 import {
-  cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, mentionAppelIA, raisonAjoutTexte,
+  cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, mentionAppelTexte, raisonAjoutTexte,
   ECHEC_RESEAU_STUDIO, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, TONS_ECRITURE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
   type ErreurStudio, type TexteStudio, type TonEcriture, type TypeTexte, type VarianteTexte,
 } from '@tiktrends/core';
 import type { VueTextes } from '../../../lib/studios/textes/textes';
 import { ecrireTextes, enregistrerTextes, exporterTextes, injecterTexte } from '../../../app/actions/studios/textes';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
-import { useSpatial } from '../../coquille/contexte';
+import { useRegime, useSpatial } from '../../coquille/contexte';
 import { Ic, Lien, Vue } from '../../communs';
 import { EnTeteAtelier } from './Atelier';
 import { Message } from './briques';
@@ -66,6 +66,7 @@ async function copier(t: string): Promise<boolean> {
 
 export function Textes({ vue, atelier }: PropsTextes) {
   const { toast } = useSpatial();
+  const regime = useRegime();
   const appel = useAppelPayant(vue.projet.id, 'textes');
   const [version, setVersion] = useState(vue.version);
   const [retenus, setRetenus] = useState<TexteStudio[]>(vue.textes);
@@ -163,7 +164,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
 
   const ecritureBloquee = appel.bloque || !d.disponible || !vue.peutEcrire || enCours !== null || !vue.brief;
   const raisonAjout = raisonAjoutTexte({ peutEcrire: vue.peutEcrire, briefPresent: !!vue.brief, enCours: enCours !== null, texte: manuel.texte });
-  const coutEcriture = mentionAppelIA(null);
+  const coutEcriture = mentionAppelTexte(regime, d.coutMaxUsd);
   const libelleEcrire = `Écrire ${nombre} ${nombre > 1 ? LIBELLES_TYPE_TEXTE_PLURIEL[type] : LIBELLES_TYPE_TEXTE[type].toLowerCase()}`;
   const tous = [
     ...retenus.map((t) => ({ cle: `r-${t.id}`, libelle: `Retenu · ${libelleType(t.type)} · ${t.texte.slice(0, 40)}`, texte: t.texte })),

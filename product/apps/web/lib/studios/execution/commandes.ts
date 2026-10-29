@@ -18,6 +18,7 @@ import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
 import { estUuid } from '../depot';
 import { debiterCreditsDans } from '../../credits';
+import { regimeEspace } from '../../credits-appels';
 import { epinglerReleaseDuDevis, revocationDe } from './epinglage';
 // F-B · raccord de l'image du studio (`keyframe:s_image`) · sans effet sur les autres opérations.
 import { raccordImageDevis, parametresImageApprobation } from '../image/raccord';
@@ -231,8 +232,9 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // R3 · le contrôle visuel est une LIGNE du devis accepté (jamais un débit
       // ajouté après coup) · ajoutée par défaut, retirée si décochée, absente
       // quand il ne peut pas s'exécuter ici. Les totaux l'incluent.
+      const regimeDevis = await regimeEspace(ctx.workspaceId);
       const v = avecControleVision(l.lignes, {
-        actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne }),
+        actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: regimeDevis !== 'v2' }),
         modele: modeleTexte(),
       });
 

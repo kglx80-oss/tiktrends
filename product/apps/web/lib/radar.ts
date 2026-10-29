@@ -7,9 +7,10 @@ import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, ty
 import {
   selectForAnalysis, radarDigest, messageCollecteVide, findingHeadline, estimateCost,
   normalizeAnalysis, majSurvie,
-  type RadarCandidate, type RadarFinding, type RadarSignal, REFUS_DEPENSE_CLIENT,
+  type RadarCandidate, type RadarFinding, type RadarSignal, REFUS_DEPENSE_CLIENT, creditsAnalyseRadar,
 } from '@tiktrends/core';
 import { guardedAnthropic, SpendBlockedError } from './spend-guard';
+import { regimeEspace, reserverAppel } from './credits-appels';
 import { invalidateJarvisMemory } from './jarvis-memory';
 import { ligneMarketCreative } from './market-rows';
 
@@ -191,17 +192,25 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
   const trouvailles: RadarFinding[] = [];
   let bloque: string | undefined;
   let decrites = 0;
+  // Facturation 100 % crédits (29/10, point 4) · en régime V2 chaque créa décrite
+  // coûte `asset_analysis` (annoncé à l'armement), incluse sinon. Réservée avant
+  // l'appel, rendue si rien n'est décrit ; le passage s'arrête faute de crédits.
+  const prixAnalyse = creditsAnalyseRadar(await regimeEspace(workspaceId));
+  let sansCredits = false;
 
   for (const p of sel.picked) {
     const a = parAd.get(p.candidate.externalId);
     if (!a) continue;
+    const resa = await reserverAppel({ workspaceId, annonce: prixAnalyse, raison: 'Radar · description d’une créa', ref: `radar:${a.id}` });
+    if (!resa) { sansCredits = true; break; }
     try {
       const transcript = ttTranscriptSupported() ? await ttGetTranscript({ apiKey }, a.id) : null;
       const brut = await analyzeAdAsset(client, {
         imageUrl: a.thumbnailUrl || a.mediaUrl || null,
         transcript, copy: a.body || null, format: a.mediaType || null,
       });
-      if (!brut) continue;
+      if (!brut) { await resa.annuler(); continue; }
+      await resa.regler(null);
 
       const n = normalizeAnalysis(brut);
       // Même ligne partagée que le lot on-demand · le radar range DÉSORMAIS aussi
@@ -223,6 +232,7 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
       };
       trouvailles.push({ ...base, headline: findingHeadline(base) });
     } catch (e) {
+      await resa.annuler().catch(() => { /* rendu au mieux */ });
       // Le plafond global arrête le passage proprement · continuer produirait
       // autant d'échecs qu'il reste de créas, pour rien.
       if (e instanceof SpendBlockedError) { bloque = e.message; break; }
@@ -242,10 +252,11 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
     // détail du plafond (dépense de toute la plateforme). Le détail reste dans `blocked`.
     ? `${radarDigest(trouvailles, sel.deferred)} Passage interrompu · ${REFUS_DEPENSE_CLIENT}`
     : radarDigest(trouvailles, sel.deferred);
+  const digestFinal = sansCredits ? `${digest} Passage arrêté · crédits insuffisants pour décrire la créa suivante.` : digest;
 
   return {
     brandId, analyzed: decrites, spentUsd: estimateCost(decrites),
-    deferred: sel.deferred, refreshed: rafraichies, digest, blocked: bloque,
+    deferred: sel.deferred, refreshed: rafraichies, digest: digestFinal, blocked: bloque,
   };
 }
 

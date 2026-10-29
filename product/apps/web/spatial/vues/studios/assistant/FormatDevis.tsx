@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  capacitesDuRefus, changementFormatManuel, infoEtapeNouveau, controleVisionDevis, formatDejaEcrit, libelleCaseControleVisuel, mentionAppelIA,
+  capacitesDuRefus, changementFormatManuel, infoEtapeNouveau, controleVisionDevis, formatDejaEcrit, libelleCaseControleVisuel,
   lireLigneTexte, saisieFormatDepuisBrief, signatureChoixDevis, verdictDevisRecu,
   ALLOWED_PATHS_BRIEF, MESSAGE_DEVIS_INCONNU, OPTIONS_FORMAT_ASSISTANT,
   type BriefCanonique, type ErreurStudio, type FormatDocument, type ModeImage, type SaisieFormat,
 } from '@tiktrends/core';
+import { creditsAppelAnnonceMicros, mentionAppelTexte } from '@tiktrends/core';
+import { useRegime } from '../../../coquille/contexte';
 import { compilerConsigneImage, demanderDevisImage, lireParcoursImage, retenirConsigneImage } from '../../../../app/actions/studios/image';
 import { appliquerProposition, creerPropositionManuelle } from '../../../../app/actions/studios/propositions';
 import { preparerLotFormats } from '../../../../app/actions/studios/lot-formats';
@@ -52,7 +54,9 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
   onLotPret?: (lot: VueLotImages) => void;
   onRetour: () => void;
 }) {
-  const [saisie, setSaisie] = useState<SaisieFormat>(() => saisieFormatDepuisBrief(brief));
+  const regime = useRegime();
+  // Régime V2 · le contrôle visuel se paie en crédits, non mesuré : décoché d'office (29/10).
+  const [saisie, setSaisie] = useState<SaisieFormat>(() => ({ ...saisieFormatDepuisBrief(brief), ...(regime === 'v2' ? { relectureAuto: false } : {}) }));
   const [vue, setVue] = useState<VueParcoursImage | null>(null);
   const [chargement, setChargement] = useState(true);
   const [nonActive, setNonActive] = useState<string | null>(null);
@@ -239,7 +243,7 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
             {relectureDisponible ? (
               <label data-champ="relecture" className="kc" style={{ alignItems: 'center', fontSize: 13 }}>
                 <input type="checkbox" checked={saisie.relectureAuto} disabled={occupe} onChange={(e) => setSaisie((s) => ({ ...s, relectureAuto: e.target.checked }))} style={{ width: 18, height: 18 }} />
-                <span>{libelleCaseControleVisuel(null)}</span>
+                <span>{libelleCaseControleVisuel(creditsAppelAnnonceMicros(regime, vue!.controleVision.borneParImageUsdMicros))}</span>
               </label>
             ) : (
               <p className="muted" data-champ="relecture-indisponible" style={{ fontSize: '12.5px' }}>La relecture automatique n’est pas exécutable sur ce serveur · le devis n’en portera pas la ligne.</p>
@@ -259,7 +263,7 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
                     </div>
                     {!vue.modes.some((m) => m.pret) && <Lien className="btn sm" href={`/studio/projets/${projectId}/produit`}>Choisir le produit et sa photo</Lien>}
                     {!vue.disponibilite.compilation.disponible && <p className="faint" role="status" style={{ fontSize: '11.5px' }}>{vue.disponibilite.compilation.raison}</p>}
-                    <p className="faint" data-cout="compilation" style={{ fontSize: '11.5px' }}>Préparation · {mentionAppelIA(null)}</p>
+                    <p className="faint" data-cout="compilation" style={{ fontSize: '11.5px' }}>Préparation · {mentionAppelTexte(regime, vue.coutCompilationUsd)}</p>
                     <div className="kc">
                       <button className="btn sm" type="button" data-bouton="compiler-consigne" onClick={() => void preparerConsigne()}
                         disabled={occupe || incertain || !vue.disponibilite.compilation.disponible || !vue.modes.find((m) => m.mode === mode)?.pret}><Ic n="spark" />Préparer la consigne avec Jarvis</button>

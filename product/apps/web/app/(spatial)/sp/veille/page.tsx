@@ -12,7 +12,8 @@ import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { cleRecherche, lireRecherche, ecrireRecherche } from '../../../../lib/veille-search-cache';
 import { baseUrlRecette, cleEffective } from '../../../../lib/veille-recette-base';
-import { COUT_CONVERSATION_JARVIS } from '../../../../lib/veille-jarvis';
+import { annonceConversationJarvis } from '@tiktrends/core';
+import { regimeSession } from '../../../../lib/credits-appels';
 import { PubsDuMoment } from '../../../../spatial/vues/veille/PubsDuMoment';
 import { VeilleFermee } from '../../../../spatial/vues/veille/Fermee';
 import { carteVeille } from './cartes';
@@ -195,7 +196,7 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
       cartes={cartes}
       vide={vide}
       pages={pagine ? { precedente: page > 1 ? lienVeille(c, { page: page - 1 }) : null, suivante: page < totalPages ? lienVeille(c, { page: page + 1 }) : null, libelle: `${page} / ${totalPages}` } : null}
-      coutJarvis={COUT_CONVERSATION_JARVIS}
+      coutJarvis={annonceConversationJarvis(regimeSession(s))}
       retour={(() => { const href = lienRetourVeille(sp.rv); return href ? { href, terme: termeRetourVeille(sp.rv) } : null; })()}
       marche={brand && canAccess(access, RESULTATS) ? { marque: brand.name } : null}
     />

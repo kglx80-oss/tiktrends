@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { RELANCE_META, completudeFicheJarvis, encartKpiJarvis, encartKpiJarvisMeta, extraitConversation, iterationsRecentes, lireQuestionJarvis, type IterationRecente } from '@tiktrends/core';
+import { annonceConversationJarvis, RELANCE_META, completudeFicheJarvis, encartKpiJarvis, encartKpiJarvisMeta, extraitConversation, iterationsRecentes, lireQuestionJarvis, type IterationRecente } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../lib/jarvis-acces';
 import { getActiveBrand } from '../../../../lib/brands';
 import { canAccess, FEATURES } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
-import { COUT_CONVERSATION_JARVIS } from '../../../../lib/veille-jarvis';
+import { regimeSession } from '../../../../lib/credits-appels';
 import { chatThreadAction, onboardingThreadAction } from '../../../actions/jarvis-chat';
 import { projetsPourColonneJarvis } from '../../../../lib/studios/jarvis-projets';
 import { ficheMarqueLue } from '../../../../lib/jarvis-fiche';
@@ -50,7 +50,7 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
     // Sans marque, Jarvis ne se mure pas · la vraie conversation d'accueil (lecture seule à l'ouverture).
     const a = await onboardingThreadAction();
     const accueil = a.thread ? { tours: a.thread.turns, amorces: a.thread.starters } : undefined;
-    return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={COUT_CONVERSATION_JARVIS} maintenant={maintenant.toISOString()} brouillon={brouillon} accueil={accueil} />;
+    return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={annonceConversationJarvis(regimeSession(s))} maintenant={maintenant.toISOString()} brouillon={brouillon} accueil={accueil} />;
   }
 
   const chiffresOuverts = canAccess(effectiveAccess(s), ANALYTICS);
@@ -90,7 +90,7 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
       iterations={iterations}
       measuredAds={t?.measuredAds ?? 0}
       kpi={kpiMarque}
-      cout={COUT_CONVERSATION_JARVIS}
+      cout={annonceConversationJarvis(regimeSession(s))}
       maintenant={maintenant.toISOString()}
       brouillon={brouillon}
       annexes={{ projets, completude: completude && { score: completude.score, faits: completude.faits, total: completude.total, ficheHref: completude.ficheHref } }}

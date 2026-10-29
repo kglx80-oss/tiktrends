@@ -247,8 +247,12 @@ export function avecControleVision(
  * sans fournisseur de vision configuré, ou hors du parcours image (seul
  * `controlerMediaPour` déclenche aujourd'hui le contrôle visuel d'une sortie).
  */
-export function controleVisionActif(a: { demande: unknown; fournisseurVision: boolean; devisImage: boolean }): boolean {
-  return a.demande !== false && a.fournisseurVision && a.devisImage;
+export function controleVisionActif(a: { demande: unknown; fournisseurVision: boolean; devisImage: boolean; parDefaut?: boolean }): boolean {
+  // Facturation 100 % crédits (29/10, point 4) · en régime V2 le contrôle visuel
+  // se paie en crédits et son coût réel n'est pas encore mesuré : il n'est plus
+  // coché d'office (`parDefaut: false`), il s'active à la demande.
+  const voulu = a.demande === true || (a.demande !== false && (a.parDefaut ?? true));
+  return voulu && a.fournisseurVision && a.devisImage;
 }
 
 /** La ligne de contrôle visuel APPROUVÉE d'un devis (ou d'un instantané de job) · `null` si absente ou illisible. */

@@ -1,4 +1,5 @@
 import 'server-only';
+import { regimeEspace } from '../../credits-appels';
 import { disponibiliteJarvis, aPermissionEspace, type DisponibiliteJarvis } from '@tiktrends/core';
 import { gardeStudio, type ContexteStudio } from '../garde';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
@@ -37,5 +38,6 @@ export async function disponibiliteJarvisServeur(ctx: ContexteStudio): Promise<D
     plafondAtteint: plafond.blocked,
     peutProposer: aPermissionEspace(ctx.permissions, 'studio.propose'),
     modele: modeleTexte(),
+    regime: await regimeEspace(ctx.workspaceId),
   });
 }

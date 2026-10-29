@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  capacitesDuRefus, detailSansEtat, libelleCaseControleVisuel, libelleCredits, libellePrix, mentionAppelIA, phraseCreditsDevis, MENTION_INCLUS,
+  capacitesDuRefus, detailSansEtat, libelleCaseControleVisuel, libelleCredits, libellePrix, mentionAppelTexte, creditsAppelAnnonceMicros, phraseCreditsDevis, MENTION_INCLUS,
   LIBELLES_PORTEE, LIBELLES_ROLE, VALIDITE_DEVIS_MS,
   type ErreurStudio, type ModeImage, type PorteeReference, type RoleReference,
 } from '@tiktrends/core';
@@ -14,7 +14,7 @@ import {
 import { annulerJob } from '../../../app/actions/studios/execution';
 import { trancherComposants } from '../../../app/actions/studios/produit';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
-import { useSpatial } from '../../coquille/contexte';
+import { useRegime, useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import { Message } from './briques';
 
@@ -56,6 +56,7 @@ function cleDuClic(quoteId: string): string {
 export function ParcoursImage({ projectId, versionId, initial = null }: { projectId: string; versionId: string; initial?: VueParcoursImage | null }) {
   const router = useRouter();
   const { toast } = useSpatial();
+  const regime = useRegime();
   const appel = useAppelPayant(projectId, 'compilation-image');
   const [vue, setVue] = useState<VueParcoursImage | null>(initial);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -66,7 +67,8 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   const [questions, setQuestions] = useState<string[]>([]);
   // Un geste payant armé (premier clic) · le second clic le lance.
   const [arme, setArme] = useState<'compiler' | 'lancer' | null>(null);
-  const [controleVision, setControleVision] = useState(true);
+  // Régime V2 · le contrôle visuel se paie en crédits, non mesuré : décoché d'office (29/10).
+  const [controleVision, setControleVision] = useState(regime !== 'v2');
   const operation = useRef(false);
   const controles = useRef(new Set<string>());
 
@@ -147,7 +149,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   const verdictOk = !!vue.retenue && vue.retenue.verdict.ok;
   const raisonDevis = !vue.retenue ? 'Retiens d’abord une consigne compilée.' : !vue.retenue.verdict.ok ? vue.retenue.verdict.motif : !d.devis.disponible ? d.devis.raison : '';
   const titre = vue.jobs.some((j) => !j.terminal) ? 'Ton visuel est en cours de création' : vue.devis && verdictOk ? 'Générer ton visuel' : propositionDisponible ? 'Valide ta direction créative' : verdictOk ? 'Ton visuel est prêt à être généré' : 'Préparer ton visuel';
-  const coutCompilation = mentionAppelIA(null);
+  const coutCompilation = mentionAppelTexte(regime, vue.coutCompilationUsd);
 
   const compiler = () => agir('compiler', async () => {
     setQuestions([]);
@@ -237,7 +239,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           <p style={{ fontSize: '12.5px' }} data-prix="annonce">Une image · {libellePrix(vue.prix)} · barème du produit.</p>
           {vue.controleVision?.disponible && (
             <button type="button" className="chip" aria-pressed={controleVision} data-case="controle-vision" onClick={() => setControleVision((c) => !c)}>
-              <Ic n={controleVision ? 'check' : 'x'} />{libelleCaseControleVisuel(null)}
+              <Ic n={controleVision ? 'check' : 'x'} />{libelleCaseControleVisuel(creditsAppelAnnonceMicros(regime, vue.controleVision.borneParImageUsdMicros))}
             </button>
           )}
           <div className="kc">

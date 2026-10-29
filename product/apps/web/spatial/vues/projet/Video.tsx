@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MESSAGE_REPONSE_PERDUE_MONTAGE, MODES_PAROLE, RELECTURE_CREATIONS_MS,
   appliquerOperationVideo as appliquerNoyau, classeFormat, decisionConfirmationApercu, dureeLisible, ECHEC_RESEAU_STUDIO, etatEchecStudio, etatPlan, ecritureVideoReconnue, gesteVideoReessayable, formatDuDocument, gestesPlan, idsPlansAlloues,
-  impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCredits, libellePrix, mentionAppelIA,
+  impactVideo, infoOrnementVideo, legendeFormat, libelleAnimationIndisponible, libelleCredits, libellePrix, mentionAppelTexte,
   largeurMinFrise, messageHorsLigneStudio, minuteSeconde, pistesMontage, styleTableDefilante, relectureNecessaire, saisieVierge, sourceLecteur,
   type BilanDurees, type CleGestePlan, type ErreurStudio, type EtatJob, type ImpactVideo, type ModeParole, type OperationVideo, type PlanStudio, type SaisiePlan,
 } from '@tiktrends/core';
@@ -16,7 +16,7 @@ import {
 } from '../../../app/actions/studios/video';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
 import { cleRetour, useFocusApresGeste } from '../../../lib/studios/focus-geste';
-import { useSpatial } from '../../coquille/contexte';
+import { useRegime, useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue, useTelephone } from '../../communs';
 import { Ornement } from '../studios/Ornement';
 import { Message } from './briques';
@@ -89,6 +89,7 @@ export interface PropsVideo {
 export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo) {
   const router = useRouter();
   const { toast } = useSpatial();
+  const regime = useRegime();
   const appelStoryboard = useAppelPayant(v.projet.id, 'storyboard');
   const appelConsigne = useAppelPayant(v.projet.id, 'compilation-video');
   const ordre = v.contenu.shots.order.filter((s) => v.contenu.shots.byId[s] && s !== 's_image');
@@ -123,7 +124,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
     storyboard: appelStoryboard.bloque ? { disponible: false, raison: MESSAGE_APPEL_PAYANT } : v.disponibilite.storyboard,
     consigne: appelConsigne.bloque ? { disponible: false, raison: MESSAGE_APPEL_PAYANT } : v.disponibilite.consigne,
   }), [v.disponibilite, appelStoryboard.bloque, appelConsigne.bloque]);
-  const coutTexte = mentionAppelIA(null);
+  const coutTexte = mentionAppelTexte(regime, v.coutTexteUsd);
 
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: (r: { ok: true }) => string, apres?: () => void) {
     const payant = nom === 'storyboard' ? appelStoryboard : nom.startsWith('compiler:') ? appelConsigne : null;
@@ -170,7 +171,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
     disponibilite: { consigne: disponibilite.consigne, montage: disponibilite.montage, devis: disponibilite.devis, lancement: disponibilite.lancement, animation: disponibilite.animation },
     keyframe: { etat: k.etat, consigneEnAttente: !!k.enAttente, consigneRetenue: k.retenue ? { ok: k.retenue.verdict.ok, motif: k.retenue.verdict.ok ? '' : k.retenue.verdict.motif } : null, devisCredits: k.devis?.credits ?? null },
     clip: { keyframePrete: c.keyframePrete, devisCredits: c.devis?.credits ?? null },
-    prixImageCredits: v.prix.credits, prixClip: { credits: v.prixClip.credits, dureeS: v.prixClip.dureeS }, coutTexte: mentionAppelIA(null),
+    prixImageCredits: v.prix.credits, prixClip: { credits: v.prixClip.credits, dureeS: v.prixClip.dureeS }, coutTexte: mentionAppelTexte(regime, v.coutTexteUsd),
   }) : [];
   const gesteChoisi = gestes.find((g) => g.cle === geste) ?? null;
 

@@ -456,8 +456,9 @@ export function formatDejaEcrit(brief: BriefCanonique | null, format: FormatDocu
  * la laisse (défaut ON, ajoutée quand le contrôle est exécutable ici). On ne
  * force jamais `true` · c'est le serveur qui décide si elle est exécutable.
  */
-export function controleVisionDevis(s: SaisieFormat): false | undefined {
-  return s.relectureAuto ? undefined : false;
+export function controleVisionDevis(s: SaisieFormat): boolean {
+  // Explicite dans les deux sens · le défaut du serveur dépend du régime tarifaire.
+  return s.relectureAuto;
 }
 
 /** L'étape format est « prête » (un devis peut être demandé) quand le format est valide. */

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { COUT_BROUILLON_JARVIS, HYPOTHESE_MIN, libelleMecanique, lienFicheTest, mentionRadar } from '@tiktrends/core';
+import { annonceBrouillonJarvis, creditsAnalyseRadar, HYPOTHESE_MIN, libelleMecanique, lienFicheTest, mentionRadar } from '@tiktrends/core';
 import {
   conceptFromFindingAction, runRadarNowAction, setRadarAction,
   type RadarFindingRow, type RadarView,
@@ -11,6 +11,7 @@ import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useGeste, Retour } from './geste';
 import { Brouillon } from './Brouillon';
 import type { SousNavResultats } from './communs';
+import { useRegime } from '../../coquille/contexte';
 
 /**
  * « Radar des concurrents » · le radar de veille de l'ancienne Adsmap
@@ -35,11 +36,12 @@ export interface PropsRadarAdsmap {
 const usd = (n: number) => `${n.toFixed(2).replace('.', ',')} $`;
 
 export function RadarAdsmap(p: PropsRadarAdsmap) {
+  const regime = useRegime();
   const { occupe, message, geste } = useGeste();
   const v = p.vue;
   const [cap, setCap] = useState(v?.state.cap ?? 3);
   // Le client lit des crédits (décision du 29/10) · le radar ne débite aucun crédit aujourd'hui, il le dit.
-  const prix = mentionRadar(cap, null);
+  const prix = mentionRadar(cap, creditsAnalyseRadar(regime));
 
   return (
     <Vue>
@@ -98,6 +100,7 @@ export function RadarAdsmap(p: PropsRadarAdsmap) {
 }
 
 function Trouvaille({ f }: { f: RadarFindingRow }) {
+  const regime = useRegime();
   const { occupe, message, geste } = useGeste();
   const [brouillon, setBrouillon] = useState<DraftView | null>(null);
   const [hypo, setHypo] = useState('');
@@ -131,14 +134,14 @@ function Trouvaille({ f }: { f: RadarFindingRow }) {
           }}>
             <textarea value={hypo} onChange={(e) => setHypo(e.target.value)} maxLength={600} aria-label="Ce que ce test parie · relis-la, c’est elle qui rendra le résultat lisible" />
             <div className="kc">
-              <button type="button" className="btn sm" disabled={!!occupe} onClick={() => { void ecrire(); }}>{occupe === 'ecrire' ? 'Jarvis écrit…' : `Réécrire · ${COUT_BROUILLON_JARVIS}`}</button>
+              <button type="button" className="btn sm" disabled={!!occupe} onClick={() => { void ecrire(); }}>{occupe === 'ecrire' ? 'Jarvis écrit…' : `Réécrire · ${annonceBrouillonJarvis(regime)}`}</button>
               <button type="submit" className="btn sm pri" disabled={!!occupe || hypo.trim().length < HYPOTHESE_MIN} style={{ marginLeft: 'auto' }}>{occupe === 'poser' ? 'Classement…' : 'Poser sur la carte'}</button>
             </div>
           </form>
         </Brouillon>
       ) : (
         <div className="foot2">
-          <button type="button" className="btn sm" disabled={!!occupe} onClick={() => { void ecrire(); }}><Ic n="spark" />{occupe === 'ecrire' ? 'Jarvis écrit…' : `Demander le concept à Jarvis · ${COUT_BROUILLON_JARVIS}`}</button>
+          <button type="button" className="btn sm" disabled={!!occupe} onClick={() => { void ecrire(); }}><Ic n="spark" />{occupe === 'ecrire' ? 'Jarvis écrit…' : `Demander le concept à Jarvis · ${annonceBrouillonJarvis(regime)}`}</button>
           {mecanique && <small>Il reprendra la mécanique · {libelleMecanique(mecanique)}, jamais les mots.</small>}
         </div>
       )}

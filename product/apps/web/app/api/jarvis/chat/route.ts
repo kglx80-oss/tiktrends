@@ -13,7 +13,8 @@ import { jarvisFullMemory, jarvisStats } from '../../../../lib/jarvis-memory';
 import { consigneAvecConnaissances, consignerUsageConnaissances } from '../../../../lib/jarvis-connaissances';
 import { guardedAnthropic, SpendBlockedError } from '../../../../lib/spend-guard';
 import { personnelPlateforme } from '../../../../lib/personnel-plateforme';
-import { messageRefusDepense } from '@tiktrends/core';
+import { coutActionRegime, messageRefusDepense } from '@tiktrends/core';
+import { regimeSession, refusCreditsAppel, reserverAppel, type ReservationAppel } from '../../../../lib/credits-appels';
 import { resoudreConversationJarvis, consignerRunConversation } from '../../../../lib/studios/prompts/resolveur';
 import { appliquerPolitiqueConversationProjet, assemblerConsigneJarvis } from '../../../../lib/studios/prompts/conversation';
 import type { SourceTrace } from '../../../../lib/studios/prompts/traces';
@@ -93,13 +94,19 @@ export async function POST(req: Request) {
   // création de la première marque (consigne générique, SANS contexte de
   // marque). Pas de mur « Sélectionne une marque ». Fil portée espace + personne.
   if (!brand && body?.veille) return json({ error: 'Choisis une marque avant de cloner.' }, 409);
-  if (!brand) return fluxOnboarding({ workspaceId: s.workspaceId, userId: s.user.id }, client, question, personnel);
+  // Facturation 100 % crédits (29/10, point 4) · un message coûte `jarvis_message`
+  // en régime V2 (annoncé dans la zone de saisie), inclus sinon. Réservé avant
+  // l'appel, ajusté au coût réel à la fin du flux, rendu si rien n'est produit.
+  const annonce = coutActionRegime('jarvis_message', regimeSession(s));
+  const resa = await reserverAppel({ workspaceId: s.workspaceId, email: s.user.email, annonce, raison: 'Jarvis · conversation' });
+  if (!resa) return json({ error: refusCreditsAppel(annonce ?? 0) }, 402);
+  if (!brand) return fluxOnboarding({ workspaceId: s.workspaceId, userId: s.user.id }, client, question, personnel, resa);
 
   let veille: Awaited<ReturnType<typeof preparerVeilleVisuelle>> | null = null;
   if (body?.veille) {
-    if (!brand || body.brandId !== brand.id) return json({ error: 'La marque active a changé. Rouvre la référence pour continuer.' }, 409);
+    if (!brand || body.brandId !== brand.id) { await resa.annuler(); return json({ error: 'La marque active a changé. Rouvre la référence pour continuer.' }, 409); }
     try { veille = await preparerVeilleVisuelle(body.veille, { workspaceId: s.workspaceId, brandId: brand.id }); }
-    catch (e) { return json({ error: (e as Error).message }, 400); }
+    catch (e) { await resa.annuler(); return json({ error: (e as Error).message }, 400); }
   }
 
   const portee = { workspaceId: s.workspaceId, brandId: brand.id, userId: s.user.id };
@@ -247,6 +254,8 @@ export async function POST(req: Request) {
             ...(memoire.trim() ? [{ type: 'memoire' as const, id: brand.id, version: empreinte(memoire)!.slice(0, 16), titre: 'Mémoire mesurée de la marque' }] : []),
             ...(b?.rules?.trim() ? [{ type: 'regles' as const, id: brand.id, version: empreinte(b.rules)!.slice(0, 16), titre: 'Règles maison' }] : []),
           ];
+          // Crédits · ajustés au coût réel du tour (partiel compris), rendus si rien n'a été produit.
+          await (jetons.sortie > 0 || (statut === 'succeeded' && complet.trim()) ? resa.regler(costOfTokens(MODEL, jetons.entree, jetons.sortie)) : resa.annuler()).catch((e) => console.error('[jarvis:chat] crédits', (e as Error).message));
           await consignerRunConversation({
             resolution, portee: { workspaceId: s.workspaceId, brandId: brand.id }, traceId: `jv_${crypto.randomUUID()}`, modele: MODEL,
             system, messages: fil,
@@ -266,6 +275,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (e) {
+    await resa.annuler().catch(() => { /* rendu au mieux · tracé par refundCredits */ });
     if (e instanceof SpendBlockedError) return json({ error: messageRefusDepense(e.message, personnel) }, 429);
     console.error('[jarvis:chat]', (e as Error).message);
     return json({ error: 'Jarvis n’a pas pu répondre. Réessaie.' }, 500);
@@ -290,8 +300,9 @@ async function fluxOnboarding(
   client: NonNullable<ReturnType<typeof guardedAnthropic>>,
   question: string,
   personnel: boolean,
+  resa: ReservationAppel,
 ) {
-  if (!db) return json({ error: messageServiceInactif('jarvis') }, 503);
+  if (!db) { await resa.annuler(); return json({ error: messageServiceInactif('jarvis') }, 503); }
   try {
     const anciens = (await messagesOnboarding(portee)).slice(-40);
     const fil = trimThread([
@@ -326,6 +337,8 @@ async function fluxOnboarding(
           if (complet.trim() && db) {
             await insererMessageOnboarding(portee, 'assistant', complet.slice(0, 12000)).catch(() => { /* la réponse a été lue */ });
           }
+          // Crédits · le coût réel n'est pas suivi ici · l'annonce si une réponse est partie, rendue sinon.
+          await (complet.trim() ? resa.regler(null) : resa.annuler()).catch((e) => console.error('[jarvis:onboarding] crédits', (e as Error).message));
           ctrl.close();
         }
       },
@@ -335,6 +348,7 @@ async function fluxOnboarding(
       headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' },
     });
   } catch (e) {
+    await resa.annuler().catch(() => { /* rendu au mieux */ });
     if (e instanceof SpendBlockedError) return json({ error: messageRefusDepense(e.message, personnel) }, 429);
     console.error('[jarvis:onboarding]', (e as Error).message);
     return json({ error: 'Jarvis n’a pas pu répondre. Réessaie.' }, 500);
