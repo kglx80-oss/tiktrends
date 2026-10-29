@@ -165,6 +165,20 @@ describe('Spatial · Support · le fil d’un ticket', () => {
     expect([...g.querySelectorAll('input[name="status"]')].map((i) => (i as HTMLInputElement).value)).toEqual(['open', 'in_progress', 'resolved']);
   });
 
+  it('G11 (planche finale) · la bulle `.sm` de la maquette n’atteint ni les boutons de statut ni les avatars du fil', async () => {
+    // `.sm{padding:12px 14px;max-width:85%}` (bulle de message) touche `.btn.sm` et `.savav.sm` · mesuré au banc :
+    // « En cours » sur deux lignes (bouton à 85 % de son formulaire), avatars 30 × 30 avec 2 px de contenu.
+    etat.session = ADMIN();
+    const d = await fil(ids.t1);
+    const boutons = [...d.querySelectorAll<HTMLElement>('[data-geste="statut"] button')];
+    expect(boutons.map((b) => b.textContent)).toEqual(['Ouvert', 'En cours', 'Résolu']);
+    expect(boutons.map((b) => b.style.maxWidth), '« En cours » passe sur deux lignes · bouton limité à 85 % de son formulaire').toEqual(['none', 'none', 'none']);
+    expect(boutons.map((b) => b.style.padding), 'la marge du bouton (`.btn.sm`) doit rester celle de la maquette').toEqual(['', '', '']);
+    const avatars = [...d.querySelectorAll<HTMLElement>('.savmsg .savav')];
+    expect(avatars.length).toBe(2);
+    expect(avatars.map((a) => a.style.padding), 'initiales rognées · la marge de la bulle (12 px 14 px) mange l’avatar de 30 px').toEqual(['0px', '0px']);
+  });
+
   it('réponse nommée selon le rôle', async () => {
     const aria = async () => (await fil(ids.t1)).querySelector('[data-geste="repondre"] textarea')?.getAttribute('aria-label');
     expect(await aria()).toBe('Ton message dans le fil');

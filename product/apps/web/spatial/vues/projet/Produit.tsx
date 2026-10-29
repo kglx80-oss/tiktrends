@@ -3,9 +3,9 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ACCEPT_PHOTO_IMPORT, EFFET_ROLE, LIBELLES_MODE_IMAGE, LIBELLES_NATURE_EMPREINTE, LIBELLES_PORTEE, LIBELLES_ROLE, LIBELLES_TRANSFORMATION,
+  ACCEPT_PHOTO_IMPORT, EFFET_ROLE, LIBELLES_MODE_IMAGE, LIBELLES_PORTEE, LIBELLES_ROLE, LIBELLES_TRANSFORMATION,
   PORTEES_REFERENCE, ROLES_REFERENCE, TRANSFORMATIONS_PAR_DEFAUT, TRANSFORMATIONS_PRODUIT,
-  affichageImportPhoto, raisonAssociation, raisonEpinglage, raisonImportPhoto, verdictFichierPhoto,
+  affichageImportPhoto, etatProduitPret, raisonAssociation, raisonEpinglage, raisonImportPhoto, resumeVersionPhoto, verdictFichierPhoto,
   type ErreurStudio, type EtatImportPhoto, type ModeImage, type RecuperationImport, type TransformationProduit,
 } from '@tiktrends/core';
 import type { VueProduit } from '../../../lib/studios/produit/vue';
@@ -38,8 +38,6 @@ export interface PropsProduit {
   vue: VueProduit;
   atelier: ReadonlyArray<{ segment: string; href: string | null }>;
 }
-
-const abrege = (sha: string) => `${sha.slice(0, 12)}…`;
 
 function messageErreur(r: ErreurStudio): string {
   if (r.code === 'VERSION_CONFLICT') return 'Le projet a changé depuis l’ouverture de cette page · rien n’a été écrasé. Recharge pour repartir de la version courante.';
@@ -85,6 +83,7 @@ export function Produit({ vue, atelier }: PropsProduit) {
   const raisonEpingle = raisonEpinglage({ peutModifier: vue.peutModifier, enCours: enCours || importEnCours, produitChoisi: !!produit, photoChoisie: !!photoId });
   const raisonAssocie = raisonAssociation({ peutModifier: vue.peutModifier, briefPresent: vue.briefPresent, enCours, fichier, role, portee });
   const concurrent = vue.fichiers.find((f) => f.assetId === fichier)?.provenance === 'concurrent';
+  const etatPret = etatProduitPret({ epingle: !!e, peutModifier: vue.peutModifier, modes: [vue.preparation.faithful_composite, vue.preparation.generative_scene] });
 
   return (
     <Vue>
@@ -99,17 +98,18 @@ export function Produit({ vue, atelier }: PropsProduit) {
 
       <div className="grid2">
         <section className="tile" data-zone="produit-epingle">
-          <div className="lbl">{e ? 'Ton produit est prêt' : 'Produit du visuel'}</div>
+          <div className="lbl" data-pret={etatPret.pret ? 'oui' : 'non'}>{etatPret.titre}</div>
+          {etatPret.remede && <p className="faint" style={{ fontSize: '11.5px', marginBottom: 8 }} data-remede="produit">{etatPret.remede}</p>}
           {e ? (
             <div className="prow" style={{ alignItems: 'flex-start' }}>
               {e.apercu ? <img src={e.apercu} alt={`${e.nom}, photo ${e.photo.position} épinglée`} /> : <span className="pill w">Photo indisponible</span>}
               <div className="t">
                 <strong style={{ fontSize: 13 }}>{e.nom}</strong>
                 <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Photo {e.photo.position} sur {e.photo.total} · {e.variante.libelle}</small>
-                <small style={{ display: 'block', fontSize: '11.5px' }} data-etat-photo={e.etat}><span className={`pill ${e.etat === 'presente' ? 'g' : 'w'}`}>{e.libelleEtat}</span></small>
+                <small style={{ display: 'block', fontSize: '11.5px' }} data-etat-photo={e.etat}><span className={`pill ${e.etat === 'presente' ? 'g' : 'w'}`} style={{ whiteSpace: 'normal' }}>{e.libelleEtat}</span></small>
                 <small className="faint" style={{ display: 'block', fontSize: '11.5px' }} data-champ="composants">Composants obligatoires · {e.composantsObligatoires.length ? e.composantsObligatoires.join(', ') : 'aucun déclaré · le contrôle visuel de l’identité reste exigé'}</small>
                 <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Permis · {e.transformationsAutorisees.map((t) => LIBELLES_TRANSFORMATION[t].toLowerCase()).join(', ') || 'aucun geste'}.</small>
-                <small className="faint" style={{ display: 'block', fontSize: '11.5px' }} data-champ="empreinte">Version {e.photo.assetVersion} · {LIBELLES_NATURE_EMPREINTE[e.photo.nature]} {abrege(e.photo.sha256)}</small>
+                <small className="faint" style={{ display: 'block', fontSize: '11.5px' }} data-champ="empreinte">{resumeVersionPhoto(e.photo.nature)}</small>
               </div>
             </div>
           ) : (

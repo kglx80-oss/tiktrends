@@ -3,5 +3,5 @@
  * client) et `client` (interactives, contexte de la coquille). Ré-exports
  * NOMMÉS · Next ne connaît les exports d'un module client que par leur nom.
  */
-export { Ic, Vue, Lien, Anneau, SousNav, formatNombre } from './base';
+export { Ic, Vue, Lien, Anneau, SousNav, formatNombre, CREA_ENTIERE, ETIQUETTE_HORS_CREA } from './base';
 export { EnTete, PastilleCredits, useTelephone } from './client';
