@@ -70,6 +70,13 @@ export interface PrimitiveTactile {
   style?: Readonly<Record<string, string>>;
 }
 
+/**
+ * Les champs de saisie de TEXTE · une case à cocher, un bouton radio, un
+ * curseur ou un sélecteur de fichier ne grandissent pas (leur dessin natif se
+ * déformerait) · ils vivent dans un `<label>` qui porte la cible.
+ */
+const CHAMPS_TEXTE = ['input:not([type])', ...['text', 'search', 'email', 'url', 'tel', 'number', 'password', 'date'].map((t) => `input[type=${t}]`)].join(',');
+
 /** Centrer le libellé d'un lien qui grandit (un `<a>` n'est pas centré verticalement par nature). */
 const CENTRER: Readonly<Record<string, string>> = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
 
@@ -87,6 +94,14 @@ export const PRIMITIVES_TACTILES: readonly PrimitiveTactile[] = [
   { selecteur: '.credit', mode: 'agrandir', motif: 'pastille de crédits de l’en-tête · 40 px' },
   { selecteur: '.sw2', mode: 'deborder', largeur: 44, hauteur: 26, rayon: 20, motif: 'interrupteur · piste de 44 × 26' },
   { selecteur: '.tg', mode: 'deborder', largeur: 46, hauteur: 28, rayon: 30, motif: 'interrupteur · piste de 46 × 28' },
+  // Les champs et les contrôles-texte · les 19 cibles sous 24 px de la planche.
+  { selecteur: 'select', mode: 'agrandir', motif: 'liste déroulante (tri, filtre, ton) · 38 à 40 px' },
+  { selecteur: CHAMPS_TEXTE, mode: 'agrandir', motif: 'champ de saisie · 18 à 22 px posé dans une pilule (recherche, question à Jarvis), 36 à 40 sinon' },
+  { selecteur: 'summary', mode: 'agrandir', style: { alignContent: 'center' }, motif: 'résumé dépliable (« Réglages avancés du produit ») · 16 à 18 px' },
+  { selecteur: '.cfgm', mode: 'agrandir', motif: 'lien-bouton « Voir les 9 étapes » de la configuration · 14 px' },
+  { selecteur: '.more', mode: 'agrandir', style: CENTRER, motif: 'lien « Tous les projets » / « Détail » d’un en-tête de section · 21 px' },
+  { selecteur: '.dmore', mode: 'agrandir', motif: 'lien « Toutes les connexions » de la Bibliothèque · 20 px' },
+  { selecteur: '.tnc', mode: 'deborder', largeur: 22, hauteur: 22, rayon: 6, motif: 'flèche « Replier » d’un dossier de l’arbre · 22 × 22, dessin gardé' },
 ];
 
 /** La largeur de bordure transparente qui porte une piste de `hauteur` px à la cible. */

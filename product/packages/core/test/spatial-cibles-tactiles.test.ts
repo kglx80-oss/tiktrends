@@ -56,6 +56,16 @@ describe('Spatial · cibles tactiles (règles)', () => {
     expect(PRIMITIVES_TACTILES.map((p) => p.selecteur)).toEqual(expect.arrayContaining(['.btn', '.chip', '.seg a', '.seg button', '.bell', '.me', '.credit', '.sw2', '.tg']));
   });
 
+  it('les contrôles sous 24 px de la planche sont couverts · champs, liste, résumé, liens-texte, flèche de l’arbre', () => {
+    const sels = PRIMITIVES_TACTILES.map((p) => p.selecteur);
+    expect(sels).toEqual(expect.arrayContaining(['select', 'summary', '.cfgm', '.more', '.dmore', '.tnc']));
+    const champs = sels.find((s) => s.includes('input[type=search]'))!;
+    expect(champs, 'champ de recherche absent').toBeDefined();
+    expect(champs).toContain('input:not([type])');
+    expect(champs, 'une case à cocher ne grandit pas').not.toMatch(/checkbox|radio|range|file/);
+    expect(styleCibleTactile(PRIMITIVES_TACTILES.find((p) => p.selecteur === 'summary')!)).toMatchObject({ minHeight: '44px', alignContent: 'center' });
+  });
+
   it('le filtre interactif · liens, boutons, champs, résumés et rôles ARIA de contrôle', () => {
     for (const s of ['a[href]', 'button', 'select', 'textarea', 'summary', '[role=switch]', '[role=tab]']) expect(SELECTEUR_INTERACTIF.split(',')).toContain(s);
   });
