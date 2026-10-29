@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyPlanAllocation } from '../src/credits';
+import { applyPlanAllocation, allouerPoches, debiterPoches, rembourserPoches, pocheAbonnement, pocheHorsAbonnement, type PochesCredits } from '../src/credits';
 
 /**
  * Ces cas encodent le bug le plus coûteux qu'on ait eu : le renouvellement
@@ -65,5 +65,40 @@ describe('allocation d’abonnement', () => {
     const second = applyPlanAllocation(first.next, CORE, CORE);
     expect(second.next).toBe(first.next);
     expect(second.delta).toBe(0);
+  });
+});
+
+/**
+ * Poches de crédits (audit crédits du 29/10, incohérence 6) · Core 2 000 +
+ * recharge 1 000, 500 dépensés, renouvellement : l'ancienne lecture gardait 500
+ * achetés (solde − dernière allocation), la poche d'abonnement en garde 1 000.
+ * La garde sur base réelle est `apps/web/test/credits-poches-db.test.ts`.
+ */
+describe('poches de crédits · règle pure', () => {
+  const alloue = (solde: number, alloc: number): PochesCredits => ({ solde, abonnementRestant: alloc, derniereAllocation: alloc, horsAbonnementConsommes: 0 });
+
+  it('2 000 + 1 000, moins 500, renouvelé : 1 000 achetés gardés', () => {
+    const apres = debiterPoches(alloue(3000, 2000), 500)!;
+    expect([pocheAbonnement(apres), pocheHorsAbonnement(apres)]).toEqual([1500, 1000]);
+    const r = allouerPoches(apres, 2000);
+    expect(r.purchased).toBe(1000);
+    expect(r.next).toBe(3000);
+  });
+
+  it('débit au-delà de l’abonnement · le surplus seul est pris aux achetés, et rendu en premier', () => {
+    const p = debiterPoches(alloue(3000, 2000), 2300)!;
+    expect([p.solde, pocheAbonnement(p), p.horsAbonnementConsommes]).toEqual([700, 0, 300]);
+    const q = rembourserPoches(p, 400);
+    expect([q.solde, pocheAbonnement(q), pocheHorsAbonnement(q)]).toEqual([1100, 100, 1000]);
+  });
+
+  it('solde insuffisant · null, rien ne bouge', () => {
+    expect(debiterPoches(alloue(100, 100), 101)).toBeNull();
+  });
+
+  it('poche jamais suivie · repli sur min(dernière allocation, solde), la lecture d’avant', () => {
+    const p: PochesCredits = { solde: 2600, abonnementRestant: null, derniereAllocation: 2000, horsAbonnementConsommes: 0 };
+    expect(pocheHorsAbonnement(p)).toBe(600);
+    expect(allouerPoches(p, 2000).next).toBe(2600);
   });
 });

@@ -1,0 +1,21 @@
+-- Poches de crédits · l'allocation mensuelle ne mange plus les crédits achetés ·
+-- migration ADDITIVE.
+--
+-- Le défaut (audit crédits du 29/10, incohérence 6) : `applyPlanAllocation`
+-- comptait comme « achetés » le solde au-dessus de la DERNIÈRE ALLOCATION. La
+-- consommation du mois était donc retirée des recharges payées. Il faut savoir
+-- ce qui RESTE de l'allocation du cycle, d'où deux colonnes :
+--   · `plan_credits_left` · poche d'abonnement restante, débitée en premier ;
+--   · `extra_credits_spent` · crédits pris hors abonnement depuis l'allocation,
+--     rendus en premier par un remboursement.
+--
+-- Fenêtre de migration INVERSE (l'ancien code tourne encore pendant la
+-- migration) · rien ne le casse :
+--   · `plan_credits_left` est NULLABLE · null veut dire « jamais suivi » et la
+--     règle retombe sur min(last_plan_credits, solde), la lecture d'avant ;
+--   · `extra_credits_spent` a un défaut (0) · l'ancien code n'y écrit pas.
+--
+-- Rejouable : « ADD COLUMN IF NOT EXISTS ». Aucune donnée existante n'est lue ni
+-- modifiée (aucun backfill) : les soldes ne bougent pas.
+ALTER TABLE "workspaces" ADD COLUMN IF NOT EXISTS "plan_credits_left" integer;--> statement-breakpoint
+ALTER TABLE "workspaces" ADD COLUMN IF NOT EXISTS "extra_credits_spent" integer DEFAULT 0 NOT NULL;
