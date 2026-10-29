@@ -151,7 +151,8 @@ export function courbeKpi(valeurs: ReadonlyArray<number | null>): string {
   return pts.map((p) => `${(p.i * W / (valeurs.length - 1)).toFixed(1)},${(H - 3 - (p.v - mn) / ((mx - mn) || 1) * (H - 6)).toFixed(1)}`).join(' ');
 }
 
-function variation(c: number | null, p: number | null, sens: -1 | 0 | 1, unite: '%' | 'pts'): { texte: string; ton: TonVariation } {
+/** La variation d'un KPI contre la période précédente · partagée avec les chiffres clés (`chiffresClesMeta`). */
+export function variationKpi(c: number | null, p: number | null, sens: -1 | 0 | 1, unite: '%' | 'pts'): { texte: string; ton: TonVariation } {
   if (c === null || p === null || (unite === '%' && p === 0)) return { texte: 'sans période précédente', ton: 'neutre' };
   const d = unite === 'pts' ? c - p : (c / p - 1) * 100;
   const fleche = d > 0 ? '▲' : d < 0 ? '▼' : '=';
@@ -203,7 +204,7 @@ export function syntheseReporting(lignes: readonly JourneeMesuree[], periode: Pe
     { libelle: 'Taux d’accroche', v: c.hook, pv: p.hook, fmt: (n) => `${dec(n, 1)} %`, sens: 1, unite: 'pts', serie: parJourVal((x) => (x.impressions > 0 && x.vues3s > 0 ? (x.vues3s / x.impressions) * 100 : null)) },
   ];
   const kpis: KpiReporting[] = def.map((k) => {
-    const va = variation(k.v, k.pv, k.sens, k.unite);
+    const va = variationKpi(k.v, k.pv, k.sens, k.unite);
     return { libelle: k.libelle, valeur: k.v === null ? VALEUR_ABSENTE : k.fmt(k.v), variation: va.texte, ton: va.ton, courbe: courbeKpi(k.serie) };
   });
 
@@ -240,12 +241,14 @@ export function graphiqueReporting(cur: readonly JourneeMesuree[], n: number): G
 }
 
 /**
- * Le sous-titre · ce que couvrent les chiffres, et l'état de la connexion Meta
- * dit par LE libellé partagé (`etatConnexionMeta`) · le même mot que la vue
- * Analytics et le Radar.
+ * Le sous-titre · la marque et l'état de la connexion Meta dit par LE libellé
+ * partagé (`etatConnexionMeta`) · le même mot que la vue Analytics et le Radar.
+ * Ce que couvrent les chiffres est dit par la phrase de source des chiffres
+ * clés (`chiffresClesMeta`) et par l'en-tête du détail des annonces suivies ·
+ * le sous-titre ne parle plus pour eux (D2).
  */
 export function sousTitreReporting(p: { marque: string; connexion: string }): string {
-  return [p.marque, p.connexion, 'annonces rattachées à tes tests', 'comparé à la période précédente'].join(' · ');
+  return [p.marque, p.connexion].join(' · ');
 }
 
 /**

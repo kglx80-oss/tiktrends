@@ -383,6 +383,23 @@ describe('Spatial · atelier Vidéo au téléphone (planche v4 · G2 · G3)', ()
     } finally { window.matchMedia = avant; }
   });
 
+  it('G2 (planche finale) · au téléphone, aucune barre flottante posée sur la navigation · « Projet » et « Tester les variantes » restent au-dessus du lecteur', async () => {
+    const avant = window.matchMedia;
+    window.matchMedia = ((q: string) => ({ matches: q === '(max-width: 760px)', media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
+    const orn = document.createElement('div');
+    orn.id = 'orn'; orn.hidden = true; document.body.appendChild(orn);
+    try {
+      monter(<Video vue={vueVideo(3)} marque="M" variantesHref="/studio/projets/p1#variantes" />);
+      await act(async () => { await Promise.resolve(); });
+      expect(orn.hidden, 'la barre flottante s’affiche · posée sur la barre de navigation mobile').toBe(true);
+      expect(orn.childElementCount).toBe(0);
+      const actions = hote.querySelector('[data-actions-apercu="haut"]')!;
+      expect([...actions.querySelectorAll('a:not([download])')].map((x) => [x.textContent, x.getAttribute('href')]), 'un geste de la barre flottante n’a plus d’équivalent à l’écran').toEqual([
+        ['Projet', '/studio/projets/p1'], ['Tester les variantes', '/studio/projets/p1#variantes'],
+      ]);
+    } finally { window.matchMedia = avant; orn.remove(); }
+  });
+
   it('G2 · à l’ordinateur (et au rendu serveur), l’ordre de la maquette · lecteur, puis ses boutons', () => {
     const d = lire(rendre(<Video vue={vueVideo(3)} marque="M" variantesHref="/x" />));
     const colonne = d.querySelector('.vstudio > div')!;

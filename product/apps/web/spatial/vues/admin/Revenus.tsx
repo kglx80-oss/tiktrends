@@ -70,9 +70,9 @@ function FinanceFormules(p: PropsFinanceFormules) {
                 {r.surAlloue && <span className="pill c" style={{ marginLeft: 'auto' }}>Sur-alloué</span>}
               </div>
               <dl className="kv2">
-                {r.lignes.map((x) => <Fragment key={x.k}><dt>{x.k}</dt><dd><b style={x.accent ? { color: 'var(--acc)' } : undefined}>{x.v}</b></dd></Fragment>)}
+                {r.lignes.map((x) => <Fragment key={x.k}><dt>{x.k}</dt><dd><b style={x.accent ? { color: 'var(--clair-acc,var(--acc))' } : undefined}>{x.v}</b></dd></Fragment>)}
               </dl>
-              {r.conseil && <p style={{ margin: '10px 0 0', fontSize: '12px', color: 'var(--acc)' }}>{r.conseil}</p>}
+              {r.conseil && <p style={{ margin: '10px 0 0', fontSize: '12px', color: 'var(--clair-acc,var(--acc))' }}>{r.conseil}</p>}
             </div>
           ))}
         </div>

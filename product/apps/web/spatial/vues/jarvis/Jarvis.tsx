@@ -403,20 +403,21 @@ export function Jarvis(p: PropsJarvis) {
         ))}
       </section>
       <section className="sec">
-        <div className="sech"><h2>{kpi.titre}</h2><span className="faint" style={{ fontSize: '12.5px' }}>{kpi.etat === 'vide' ? `${kpi.periode} · ${kpi.plateforme} · aucune source branchée` : `${kpi.periode} · ${kpi.plateforme}`}</span></div>
+        {/* `entete` · LA phrase de source des chiffres clés (`chiffresClesMeta`), la même que l'Accueil, Analytics et le Radar (D2). */}
+        <div className="sech"><h2>{kpi.titre}</h2><span className="faint" style={{ fontSize: '12.5px' }} {...(kpi.entete ? { 'data-source-meta': '' } : {})}>{kpi.entete ?? (kpi.etat === 'vide' ? `${kpi.periode} · ${kpi.plateforme} · aucune source branchée` : `${kpi.periode} · ${kpi.plateforme}`)}</span></div>
         <div className="grid4">
           {kpi.etat === 'vide'
             ? kpi.cartes.map((k) => (
               <div className="tile kfig" key={k.cle}>
-                <span className="lbl">{k.libelle}</span><span className="v">{VALEUR_ABSENTE}</span>
-                <span className="d" style={{ color: 'var(--fg3)' }}>Aucune source</span>
+                <span className="lbl">{k.libelle}</span><span className="v" data-chiffre-meta={k.cle}>{VALEUR_ABSENTE}</span>
+                <span className="d" style={{ color: 'var(--fg3)' }}>{kpi.entete ? kpi.periode : 'Aucune source'}</span>
                 <Lien className="btn sm" href={kpi.lien} style={{ justifySelf: 'start' }}>{kpi.lienLibelle}</Lien>
               </div>
             ))
             : kpi.kpis.map((k) => (
               <div className="tile kfig" key={k.cle}>
-                <span className="lbl">{k.libelle}</span><span className="v">{k.valeur}</span>
-                <span className="d" style={{ color: 'var(--fg3)' }}>{kpi.periode}</span>
+                <span className="lbl">{k.libelle}</span><span className="v" data-chiffre-meta={k.cle}>{k.valeur}</span>
+                <span className="d" style={{ color: 'var(--fg3)' }}>{k.variation ? `${k.variation} · ${kpi.periode}` : kpi.periode}</span>
                 <button className="btn sm" type="button" onClick={() => preparer(`Pourquoi mon indicateur ${k.libelle} évolue-t-il ainsi ?`)} disabled={!p.marque || enCours} style={{ justifySelf: 'start' }}>Demander pourquoi</button>
               </div>
             ))}

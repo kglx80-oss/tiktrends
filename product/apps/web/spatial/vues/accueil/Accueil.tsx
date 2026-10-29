@@ -1,12 +1,13 @@
 import type { CSSProperties } from 'react';
 import type {
-  AFaireMaintenant, KpiAccueil, CarteConfiguration, CarteQuoiIterer, EtapeBoucleAccueil, LigneReprendre, NouveauteAccueil,
+  AFaireMaintenant, ChiffresClesMeta, KpiAccueil, CarteConfiguration, CarteQuoiIterer, EtapeBoucleAccueil, LigneReprendre, NouveauteAccueil,
   PeriodeReporting, RaccourciAccueil, SyntheseReporting, TonVariation,
 } from '@tiktrends/core';
-import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
+import { CREA_ENTIERE, EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { BarreJarvis, CarteConfigurationAccueil, ChoixPeriode } from './interactifs';
 import { AssistantAccueil } from './assistant';
 import type { OngletAccueil } from './Analytics';
+import { ChiffresCles } from './ChiffresCles';
 
 /**
  * L'Accueil Spatial (« Bonjour … ») · `docs/spatial/reference/accueil.html`,
@@ -18,10 +19,16 @@ import type { OngletAccueil } from './Analytics';
 
 export interface LienSimple { libelle: string; href: string }
 
-export type EtatReporting =
+/**
+ * Le Reporting Meta · `chiffres` · LES chiffres clés (`chiffresClesMeta`, les
+ * mêmes qu'Analytics, Jarvis et le Radar · D2), hors maquette · absents, rien
+ * ne s'affiche (la parité avec la maquette n'en dépend pas). Sous eux, le
+ * détail des annonces suivies sur la période choisie (`mesures` / `vide`).
+ */
+export type EtatReporting = { chiffres?: ChiffresClesMeta } & (
   | { etat: 'mesures'; sous: string; periode: PeriodeReporting; rapides: ReadonlyArray<{ libelle: string; du: string; au: string }>; synthese: SyntheseReporting }
   | { etat: 'vide'; sous: string; periode: PeriodeReporting; rapides: ReadonlyArray<{ libelle: string; du: string; au: string }>; message: string; lien: LienSimple | null }
-  | { etat: 'connecter'; sous: string; message: string; lien: LienSimple | null };
+  | { etat: 'connecter'; sous: string; message: string; lien: LienSimple | null });
 
 export type EtatQuoiIterer =
   | { etat: 'liste'; cartes: CarteQuoiIterer[]; suite: { texte: string; detail: string } | null }
@@ -59,13 +66,13 @@ export interface PropsAccueil {
 function Pub({ url, r916 = false, classe = '', bande = ' ' }: { url: string | null; r916?: boolean; classe?: string; bande?: string }) {
   return (
     <div className={`ad ${r916 ? 'r916' : ''}  ${classe}`}>
-      <div className="ph">{url && <img src={url} alt="" loading="lazy" />}</div>
+      <div className="ph">{url && <img src={url} alt="" loading="lazy" style={CREA_ENTIERE} />}</div>
       <div className="band">{bande}</div>
     </div>
   );
 }
 
-const COULEUR_TON: Readonly<Record<TonVariation, string>> = { neutre: 'var(--fg2)', bon: 'var(--good)', mauvais: '#ffb0bd' };
+const COULEUR_TON: Readonly<Record<TonVariation, string>> = { neutre: 'var(--fg2)', bon: 'var(--good)', mauvais: 'var(--clair-baisse,#ffb0bd)' };
 const petit = (taille: string, plus: CSSProperties = {}): CSSProperties => ({ fontSize: taille, ...plus });
 
 function Reporting({ r }: { r: EtatReporting }) {
@@ -76,7 +83,9 @@ function Reporting({ r }: { r: EtatReporting }) {
         <div><h2>Reporting Meta</h2><p className="faint" style={petit('12.5px')}>{r.sous}</p></div>
         {r.etat !== 'connecter' && <ChoixPeriode periode={r.periode} rapides={r.rapides} />}
       </div>
-      {r.etat !== 'connecter' && <p className="dperl faint">{r.periode.libelle}</p>}
+      {r.chiffres && <div style={{ margin: '4px 0 16px' }}><ChiffresCles c={r.chiffres} /></div>}
+      {/* La période choisie ne règle que le détail des annonces suivies · les chiffres clés ont leur fenêtre, dite dans leur phrase de source. */}
+      {r.etat !== 'connecter' && <p className="dperl faint">{r.chiffres ? `Détail de tes annonces suivies · ${r.periode.libelle}` : r.periode.libelle}</p>}
       {r.etat === 'mesures' ? (
         <>
           <div className="dkpis">

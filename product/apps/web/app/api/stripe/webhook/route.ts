@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { applyPlanAllocation } from '@tiktrends/core';
 import { PLAN_CREDITS, type Plan } from '../../../../lib/rbac';
+import { allouerFormule } from '../../../../lib/credits';
 import { getStripe, planForPrice } from '../../../../lib/stripe';
 import { routeStripeEvent, type StripeIntent } from '../../../../lib/stripe-events';
 
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Applique une formule à un espace : plan + statut, et renouvelle l'allocation SANS
- * effacer les crédits achetés en recharge (cf. applyPlanAllocation).
+ * effacer les crédits achetés en recharge (cf. allouerFormule, règle `allouerPoches`).
  */
 async function applyPlan(workspaceId: string, plan: Plan, opts: { status?: string; subscriptionId?: string | null; refill?: boolean }) {
   if (!db) return;
@@ -22,12 +22,7 @@ async function applyPlan(workspaceId: string, plan: Plan, opts: { status?: strin
   await db.update(schema.workspaces).set(set).where(eq(schema.workspaces.id, workspaceId));
   if (!opts.refill) return;
 
-  const alloc = PLAN_CREDITS[plan] ?? 0;
-  const [w] = await db.select({ c: schema.workspaces.creditsBalance, last: schema.workspaces.lastPlanCredits })
-    .from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-  const { next, delta } = applyPlanAllocation(w?.c ?? 0, w?.last ?? 0, alloc);
-  await db.update(schema.workspaces).set({ creditsBalance: next, lastPlanCredits: alloc }).where(eq(schema.workspaces.id, workspaceId));
-  if (delta !== 0) await db.insert(schema.creditLedger).values({ workspaceId, delta, reason: `Abonnement ${plan} · allocation` });
+  await allouerFormule(workspaceId, PLAN_CREDITS[plan] ?? 0, `Abonnement ${plan} · allocation`);
 }
 
 async function workspaceIdFromCustomer(customerId: string | null): Promise<string | null> {

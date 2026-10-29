@@ -101,7 +101,7 @@ export interface SourceDepenseJarvis {
   /** La période mesurée, déjà formatée (« 14 derniers jours »). */
   periode: string;
   /** Les KPI réellement lus · chaque valeur est déjà formatée par l'appelant. */
-  kpis: ReadonlyArray<{ cle: string; libelle: string; valeur: string }>;
+  kpis: ReadonlyArray<{ cle: string; libelle: string; valeur: string; variation?: string | null }>;
 }
 
 export const LIEN_CONNEXIONS_KPI = '/connections';
@@ -138,8 +138,10 @@ export type EncartKpiJarvis =
       lien: string;
       lienLibelle: string;
       mention: string;
+      /** La phrase de source des chiffres clés (`chiffresClesMeta`) · remplace « aucune source branchée » quand elle est connue. */
+      entete?: string;
     }
-  | { etat: 'source'; titre: string; plateforme: string; periode: string; kpis: SourceDepenseJarvis['kpis'] };
+  | { etat: 'source'; titre: string; plateforme: string; periode: string; kpis: SourceDepenseJarvis['kpis']; entete?: string };
 
 /**
  * L'encart « Chiffres clés » · état VIDE tant qu'aucune source n'est lue, sinon

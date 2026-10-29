@@ -17,15 +17,18 @@ describe('Spatial · Analytics · KPI Meta (calcul de l’ancienne vue)', () => 
     expect(variationMeta(1, 3)).toBe(-66.7);
     expect(variationMeta(5, 0)).toBeNull();
   });
-  it('valeurs, sens de la variation (un CPA qui baisse est bon), répartitions et top créas', () => {
+  it('les autres indicateurs du compte (les chiffres clés viennent de chiffresClesMeta, D2), sens de la variation, répartitions et top créas', () => {
     const m = metriquesMetaAnalytics({ accountName: 'Compte', currency: '€', window: KPI, previous: { ...KPI, spend: 1000, cpa: 25, cpm: 0 },
       topAds: [{ name: 'A', spend: 400, roas: 1.5, cpa: 12 }], breakdowns: { platform: [{ key: 'instagram', spend: 800, roas: 2.4 }, { key: 'facebook', spend: 200, roas: 0 }], ageGender: [] } }, new Date(2026, 9, 20), 'Meta Ads · synchronisé hier');
     expect(m.sous).toBe('Meta Ads · synchronisé hier · 30 j vs 30 j précédents · Compte · KPI du 20 oct.');
-    expect(m.kpis.find((k) => k.libelle === 'Dépense')).toEqual({ libelle: 'Dépense', valeur: '1 200 €'.replace(' ', ' '), variation: '+20 %', ton: 'bon' });
-    expect(m.kpis.find((k) => k.libelle === 'CPA')).toEqual({ libelle: 'CPA', valeur: '20.00 €', variation: '-20 %', ton: 'bon' });
-    expect(m.kpis.find((k) => k.libelle === 'CPM')).toEqual({ libelle: 'CPM', valeur: '10.00 €', variation: null, ton: null });
-    expect(m.repartitions).toEqual([{ titre: 'Par plateforme', lignes: [{ cle: 'instagram', texte: '800 € · 2.4×', part: 1 }, { cle: 'facebook', texte: '200 €', part: 0.25 }] }]);
-    expect(m.topAds).toEqual([{ nom: 'A', roas: '1.5×', roasBon: false, cpa: '12.00 €', depense: '400.00 €' }]);
+    // Dépense, CPA, ROAS et Valeur d'achat ne sont plus ici · un seul endroit les calcule pour les quatre écrans.
+    expect(m.kpis.map((k) => k.libelle)).toEqual(['Panier moyen', 'CPC (tous)', 'CPC (lien)', 'CPM']);
+    expect(m.kpis.find((k) => k.libelle === 'CPC (lien)')).toEqual({ libelle: 'CPC (lien)', valeur: '1,50 €', variation: '+0 %', ton: 'bon' });
+    expect(m.kpis.find((k) => k.libelle === 'CPM')).toEqual({ libelle: 'CPM', valeur: '10,00 €', variation: null, ton: null });
+    const baisse = metriquesMetaAnalytics({ window: KPI, previous: { ...KPI, cpm: 12, cpcAll: 3 } }, null, 'x');
+    expect(baisse.kpis.find((k) => k.libelle === 'CPM')).toEqual({ libelle: 'CPM', valeur: '10,00 €', variation: '-16,7 %', ton: 'bon' });
+    expect(m.repartitions).toEqual([{ titre: 'Par plateforme', lignes: [{ cle: 'instagram', texte: '800 € · 2,4×', part: 1 }, { cle: 'facebook', texte: '200 €', part: 0.25 }] }]);
+    expect(m.topAds).toEqual([{ nom: 'A', roas: '1,5×', roasBon: false, cpa: '12,00 €', depense: '400,00 €' }]);
   });
 });
 

@@ -4,12 +4,12 @@ import { db, schema } from '@tiktrends/db';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import {
   bilanAvanceAccueil, cheminOuvert, diversiteCreative, encartMetaConnexion, etatConnexionMeta, metriquesMetaAnalytics,
-  refusVueAnalytics, resoudreAccueil, type BilanAvanceAccueil, type DiversiteCreative, type EtatConnexionMeta, type ParamsRequete,
+  refusVueAnalytics, resoudreAccueil, type BilanAvanceAccueil, type ChiffresClesMeta, type DiversiteCreative, type EtatConnexionMeta, type ParamsRequete,
 } from '@tiktrends/core';
 import type { Session } from '../../../../lib/auth';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
-import { lireConnexionMeta } from '../../../../lib/connexion-meta';
+import { lireChiffresClesMeta } from '../../../../lib/chiffres-cles-meta';
 import { FEATURES, canAccess, denyReason, ouverturesParRole } from '../../../../lib/rbac';
 import { attributionViewAction, creativeTrendAction } from '../../../actions/adsmap-attribution';
 import type { PropsAnalytics } from '../../../../spatial/vues/accueil/Analytics';
@@ -20,9 +20,10 @@ import type { PropsAnalytics } from '../../../../spatial/vues/accueil/Analytics'
  *
  *  · le droit Analytics de la matrice (`canAccess`) est vérifié AVANT toute
  *    lecture · refusé, rien n'est lu (ni marque, ni KPI, ni générations) ;
- *  · KPI Meta de la marque active (`brands.ads_insights`) et l'état de la
- *    connexion Meta · LA même lecture et LA même règle que l'Accueil et le Radar
- *    (`lireConnexionMeta` → `etatConnexionMeta`) ;
+ *  · les chiffres clés Meta et l'état de la connexion · LA même lecture et LA
+ *    même règle que l'Accueil, Jarvis et le Radar (`lireChiffresClesMeta` →
+ *    `chiffresClesMeta`, D2) ; les autres indicateurs du compte
+ *    (`brands.ads_insights` · panier moyen, CPC, CPM, répartitions, top créas) ;
  *  · diversité créative · 200 dernières générations « ad »/« image » de la
  *    marque, tags des assets de la marque OU communs de l'espace (400) ;
  *  · bilan avancé de Jarvis · sous son propre droit Adsmap, par les actions
@@ -44,12 +45,14 @@ export async function chargerAnalyticsSpatial(s: Session, params: ParamsRequete)
   let insights: MetaAdsInsights | null = null;
   let synchro: Date | null = null;
   let connexion: EtatConnexionMeta = etatConnexionMeta({ jeton: false, compte: false, comptes: 0, kpiLe: null, mesuresLe: null }, new Date());
+  let chiffres: ChiffresClesMeta | null = null;
   let diversite: DiversiteCreative | null = null;
   if (db && brand) {
-    const lue = await lireConnexionMeta(brand.id, s.workspaceId);
+    const lus = await lireChiffresClesMeta(brand.id, s.workspaceId);
+    const lue = lus?.lue ?? null;
     if (lue?.insights?.window) insights = lue.insights;
     synchro = lue ? (lue.entree.kpiLe as Date | null) : null;
-    if (lue) connexion = etatConnexionMeta(lue.entree, new Date());
+    if (lus) { connexion = lus.connexion; chiffres = lus.chiffres; }
 
     const gens = await db.select({ input: schema.generations.input }).from(schema.generations)
       .where(and(eq(schema.generations.brandId, brand.id), inArray(schema.generations.kind, ['ad', 'image'])))
@@ -74,6 +77,7 @@ export async function chargerAnalyticsSpatial(s: Session, params: ParamsRequete)
 
   return {
     onglets: vues, etat: 'ouvert',
+    chiffres: chiffres && { connexion: connexion.libelle, c: chiffres },
     meta: insights ? metriquesMetaAnalytics(insights, synchro, connexion.libelle) : null,
     encart: insights ? null : encartMetaConnexion(connexion),
     diversite,

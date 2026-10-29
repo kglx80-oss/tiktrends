@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { infoEtapeNouveau, libelleCredits } from '@tiktrends/core';
+import { detailSansEtat, infoEtapeNouveau, libelleCredits } from '@tiktrends/core';
 import { lireParcoursImage } from '../../../../app/actions/studios/image';
 import { creerVariante, listerVariantes } from '../../../../app/actions/studios/variantes';
 import type { JobImageVue } from '../../../../lib/studios/image/parcours';
@@ -104,7 +104,7 @@ export function Creations({ projectId, jobIds }: { projectId: string; jobIds: st
             <article className="tile" key={job.id} data-job={job.id} style={{ display: 'grid', gap: 8 }}>
               {job.media
                 ? <div className={`ad ${garde ? 'won' : ''}`} style={{ aspectRatio: job.media.largeur && job.media.hauteur ? `${job.media.largeur} / ${job.media.hauteur}` : undefined }}><div className="ph"><img src={job.media.url} alt={`Création ${i + 1} du projet`} /></div></div>
-                : <p className="muted" role="status" style={{ fontSize: '12.5px' }}><b>{job.libelleEtat}</b> · {job.message}</p>}
+                : <p className="muted" role="status" style={{ fontSize: '12.5px' }}><b>{job.libelleEtat}</b>{detailSansEtat(job.libelleEtat, job.message) && ` · ${detailSansEtat(job.libelleEtat, job.message)}`}</p>}
               <div className="kc" style={{ alignItems: 'center' }}>
                 <strong style={{ fontSize: 13 }}>{format(job) ?? 'Création'} · {i + 1}</strong>
                 <span className={`pill ${CLASSE_ETAT[job.etat] ?? ''}`}>{job.libelleEtat}</span>

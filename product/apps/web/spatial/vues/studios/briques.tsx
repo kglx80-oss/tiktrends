@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { CREA_ENTIERE, ETIQUETTE_HORS_CREA } from '../../communs';
 
 /**
  * Briques LOCALES de la rubrique Studios (sans état, serveur ou client) · elles
@@ -22,9 +23,9 @@ export function Creative({ c }: { c: CreativeSpatiale }) {
   const cls = ['ad', c.format === '916' ? 'r916' : '', c.classe ?? ''].filter(Boolean).join(' ');
   return (
     <div className={cls}>
-      <div className="ph">{c.src && <img src={c.src} alt="" />}</div>
+      <div className="ph">{c.src && <img src={c.src} alt="" style={CREA_ENTIERE} />}</div>
       {c.texte != null && <div className="band">{c.texte}</div>}
-      {c.tag && <span className="tag">{c.tag}</span>}
+      {c.tag && <span className="tag" style={ETIQUETTE_HORS_CREA}>{c.tag}</span>}
     </div>
   );
 }

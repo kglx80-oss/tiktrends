@@ -40,6 +40,12 @@ export const workspaces = pgTable('workspaces', {
   subscriptionStatus: text('subscription_status'),                           // active / trialing / past_due / canceled…
   lastPlanCredits: integer('last_plan_credits').notNull().default(0),        // dernière allocation d'abonnement accordée
                                                                               // (permet de renouveler SANS effacer les crédits achetés)
+  // Poches de crédits (migration 0060, règle `pocheAbonnement` du noyau, miroir SQL
+  // `poches-credits.ts`) · ce qui RESTE de l'allocation du cycle (null = jamais
+  // suivi, on retombe sur min(last_plan_credits, solde)), et ce qui a été pris
+  // hors abonnement depuis l'allocation (rendu en premier par un remboursement).
+  planCreditsLeft: integer('plan_credits_left'),
+  extraCreditsSpent: integer('extra_credits_spent').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

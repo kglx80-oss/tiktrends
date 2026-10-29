@@ -7,7 +7,7 @@ import { ttSearchAds, ttSearchTikTok, ttGetTranscript, ttTranscriptSupported, ty
 import {
   selectForAnalysis, radarDigest, messageCollecteVide, findingHeadline, estimateCost,
   normalizeAnalysis, majSurvie,
-  type RadarCandidate, type RadarFinding, type RadarSignal,
+  type RadarCandidate, type RadarFinding, type RadarSignal, REFUS_DEPENSE_CLIENT,
 } from '@tiktrends/core';
 import { guardedAnthropic, SpendBlockedError } from './spend-guard';
 import { invalidateJarvisMemory } from './jarvis-memory';
@@ -238,7 +238,9 @@ export async function runRadarForBrand(workspaceId: string, brandId: string): Pr
   if (decrites) invalidateJarvisMemory(brandId);
 
   const digest = bloque
-    ? `${radarDigest(trouvailles, sel.deferred)} Passage interrompu · ${bloque}`
+    // Le résumé part à l'écran ET en notification à l'espace client · jamais le
+    // détail du plafond (dépense de toute la plateforme). Le détail reste dans `blocked`.
+    ? `${radarDigest(trouvailles, sel.deferred)} Passage interrompu · ${REFUS_DEPENSE_CLIENT}`
     : radarDigest(trouvailles, sel.deferred);
 
   return {

@@ -57,12 +57,22 @@ const METRIQUES: ReadonlyArray<{ cle: keyof KpiMetaEntree; libelle: string; genr
   { cle: 'cpm', libelle: 'CPM', genre: 'money', hausseBonne: false },
 ];
 
-/** Le format de l'ancienne vue · monnaie entière dès 1 000, 2 décimales sinon. */
+/**
+ * Les quatre chiffres clés (Dépense, CPA, ROAS, Valeur d'achat) ne sont PLUS
+ * rendus ici · ils viennent de LA règle partagée (`chiffresClesMeta`), la même
+ * que l'Accueil, Jarvis et le Radar (D2). Cette vue garde les indicateurs que
+ * seul le compte porte.
+ */
+const CLES_CHIFFRES_CLES: ReadonlySet<keyof KpiMetaEntree> = new Set(['spend', 'cpa', 'roas', 'revenue']);
+
+const virgule = (t: string | number) => String(t).replace('.', ',');
+
+/** Monnaie entière dès 1 000, 2 décimales sinon · virgule décimale, comme les chiffres clés. */
 function formatMeta(n: number, devise: string, genre: Genre): string {
-  if (genre === 'x') return `${n.toFixed(2)}×`;
-  if (genre === 'pct') return `${n.toFixed(2)} %`;
+  if (genre === 'x') return `${virgule(n.toFixed(2))}×`;
+  if (genre === 'pct') return `${virgule(n.toFixed(2))} %`;
   if (genre === 'num') return Math.round(n).toLocaleString('fr-FR');
-  const v = n >= 1000 ? Math.round(n).toLocaleString('fr-FR') : n.toFixed(2);
+  const v = n >= 1000 ? Math.round(n).toLocaleString('fr-FR') : virgule(n.toFixed(2));
   return `${v} ${devise}`;
 }
 
@@ -89,14 +99,14 @@ export function metriquesMetaAnalytics(ins: InsightsMetaEntree, synchro: Date | 
   const devise = ins.currency || '€';
   const date = synchro ? new Date(synchro) : null;
   const synchroTexte = date && !Number.isNaN(date.getTime()) ? ` · KPI du ${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : '';
-  const kpis = METRIQUES.map((m) => {
+  const kpis = METRIQUES.filter((m) => !CLES_CHIFFRES_CLES.has(m.cle)).map((m) => {
     const d = variationMeta(ins.window[m.cle], ins.previous[m.cle]);
     const bon = d == null ? null : (m.hausseBonne ? d >= 0 : d <= 0);
-    return { libelle: m.libelle, valeur: formatMeta(ins.window[m.cle], devise, m.genre), variation: d == null ? null : `${d >= 0 ? '+' : ''}${d} %`, ton: bon == null ? null : bon ? 'bon' as const : 'mauvais' as const };
+    return { libelle: m.libelle, valeur: formatMeta(ins.window[m.cle], devise, m.genre), variation: d == null ? null : `${d >= 0 ? '+' : ''}${virgule(d)} %`, ton: bon == null ? null : bon ? 'bon' as const : 'mauvais' as const };
   });
   const rep = (titre: string, lignes: readonly LigneRepartitionEntree[]) => {
     const max = Math.max(1, ...lignes.map((r) => r.spend));
-    return { titre, lignes: lignes.map((r) => ({ cle: r.key, texte: `${Math.round(r.spend).toLocaleString('fr-FR')} ${devise}${r.roas ? ` · ${r.roas}×` : ''}`, part: partDeMax(r.spend, max) })) };
+    return { titre, lignes: lignes.map((r) => ({ cle: r.key, texte: `${Math.round(r.spend).toLocaleString('fr-FR')} ${devise}${r.roas ? ` · ${virgule(r.roas)}×` : ''}`, part: partDeMax(r.spend, max) })) };
   };
   const b = ins.breakdowns;
   const repartitions = [
@@ -107,7 +117,7 @@ export function metriquesMetaAnalytics(ins: InsightsMetaEntree, synchro: Date | 
     sous: `${connexion} · 30 j vs 30 j précédents${ins.accountName ? ` · ${ins.accountName}` : ''}${synchroTexte}`,
     kpis,
     repartitions,
-    topAds: (ins.topAds ?? []).slice(0, 8).map((a) => ({ nom: a.name, roas: `${a.roas}×`, roasBon: a.roas >= 2, cpa: formatMeta(a.cpa, devise, 'money'), depense: formatMeta(a.spend, devise, 'money') })),
+    topAds: (ins.topAds ?? []).slice(0, 8).map((a) => ({ nom: a.name, roas: `${virgule(a.roas)}×`, roasBon: a.roas >= 2, cpa: formatMeta(a.cpa, devise, 'money'), depense: formatMeta(a.spend, devise, 'money') })),
   };
 }
 

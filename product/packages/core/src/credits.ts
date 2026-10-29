@@ -50,7 +50,7 @@ export function computeRollover(unused: number): number {
 export interface PlanAllocation {
   next: number;       // nouveau solde
   delta: number;      // mouvement à écrire au grand livre (peut être négatif)
-  purchased: number;  // crédits achetés (recharges) conservés
+  purchased: number;  // crédits hors abonnement (recharges, essai, dons) conservés
 }
 
 /**
@@ -61,14 +61,95 @@ export interface PlanAllocation {
  * recharges à chaque renouvellement · un client ayant acheté 5 000 crédits en plus
  * de son offre les perdait le mois suivant.
  *
- * On retire du solde l'allocation précédemment accordée (`lastPlanCredits`) : ce
- * qui dépasse, ce sont les crédits achetés. On y ajoute la nouvelle allocation.
+ * `planRemaining` est ce qui RESTE de la poche d'abonnement du cycle (voir
+ * `pocheAbonnement`), pas l'allocation accordée : ce qui dépasse dans le solde,
+ * ce sont les crédits hors abonnement, conservés tels quels. Le défaut corrigé
+ * (audit crédits du 29/10, incohérence 6) : on passait l'allocation ACCORDÉE,
+ * si bien que la consommation du mois était retirée des crédits achetés.
  *
  * Sert au renouvellement Stripe, au changement de formule et au pilotage interne.
  */
-export function applyPlanAllocation(balance: number, lastPlanCredits: number, alloc: number): PlanAllocation {
+export function applyPlanAllocation(balance: number, planRemaining: number, alloc: number): PlanAllocation {
   const bal = Math.max(0, balance || 0);
-  const purchased = Math.max(0, bal - Math.max(0, lastPlanCredits || 0));
+  const purchased = Math.max(0, bal - Math.max(0, planRemaining || 0));
   const next = purchased + Math.max(0, alloc || 0);
   return { next, delta: next - bal, purchased };
+}
+
+/* ============ Les deux poches d'un solde ============ */
+
+/**
+ * Un solde se lit en deux poches :
+ *  · la poche d'ABONNEMENT · ce qui reste de l'allocation du cycle. Elle expire
+ *    au renouvellement (remplacée par la nouvelle allocation) ;
+ *  · la poche HORS ABONNEMENT · tout le reste : recharges payées, et, comme
+ *    avant cette règle, crédits d'essai et dons du fondateur. Elle n'expire
+ *    jamais et l'allocation n'y touche pas.
+ *
+ * Ordre de débit · la poche d'abonnement d'abord (elle expire), la poche hors
+ * abonnement ensuite. Un remboursement rend dans l'ordre INVERSE : d'abord ce qui
+ * a été pris hors abonnement depuis l'allocation, puis l'abonnement. Rendre tout
+ * à la poche hors abonnement permettrait de changer des crédits d'abonnement en
+ * crédits permanents (réserver puis annuler) ; tout rendre à l'abonnement ferait
+ * expirer des crédits achetés.
+ *
+ * Miroir SQL (atomique, sans lecture préalable) : `packages/db/src/poches-credits.ts`.
+ * Une garde sur base réelle (`apps/web/test/credits-poches-db.test.ts`) compare
+ * la base à ces fonctions, opération par opération.
+ */
+export interface PochesCredits {
+  solde: number;
+  /** Poche d'abonnement restante · null tant qu'elle n'a jamais été suivie (espaces d'avant la migration 0060). */
+  abonnementRestant: number | null;
+  /** Dernière allocation accordée · repli quand `abonnementRestant` est null (sémantique d'avant). */
+  derniereAllocation: number;
+  /** Crédits pris dans la poche hors abonnement depuis la dernière allocation · rendus en premier. */
+  horsAbonnementConsommes: number;
+}
+
+const n0 = (v: number | null | undefined) => Math.max(0, Math.floor(v || 0));
+
+/** Poche d'abonnement effective · jamais plus que le solde. */
+export function pocheAbonnement(p: PochesCredits): number {
+  return Math.min(n0(p.abonnementRestant ?? p.derniereAllocation), n0(p.solde));
+}
+
+/** Poche hors abonnement (recharges, essai, dons) · ce que l'allocation conserve. */
+export function pocheHorsAbonnement(p: PochesCredits): number {
+  return n0(p.solde) - pocheAbonnement(p);
+}
+
+/** Débit · abonnement d'abord, hors abonnement ensuite. null si le solde ne suffit pas (rien ne bouge). */
+export function debiterPoches(p: PochesCredits, cout: number): PochesCredits | null {
+  const c = n0(cout);
+  if (c === 0) return p;
+  if (n0(p.solde) < c) return null;
+  const abo = pocheAbonnement(p);
+  const prisAbo = Math.min(abo, c);
+  return {
+    ...p,
+    solde: n0(p.solde) - c,
+    abonnementRestant: abo - prisAbo,
+    horsAbonnementConsommes: n0(p.horsAbonnementConsommes) + (c - prisAbo),
+  };
+}
+
+/** Remboursement · rend d'abord ce qui a été pris hors abonnement, puis l'abonnement. */
+export function rembourserPoches(p: PochesCredits, montant: number): PochesCredits {
+  const m = n0(montant);
+  if (m === 0) return p;
+  const versHors = Math.min(m, n0(p.horsAbonnementConsommes));
+  return {
+    ...p,
+    solde: n0(p.solde) + m,
+    abonnementRestant: pocheAbonnement(p) + (m - versHors),
+    horsAbonnementConsommes: n0(p.horsAbonnementConsommes) - versHors,
+  };
+}
+
+/** Allocation d'une formule · la poche hors abonnement est conservée, la poche d'abonnement est remplacée. */
+export function allouerPoches(p: PochesCredits, allocation: number): PlanAllocation & { poches: PochesCredits } {
+  const alloc = n0(allocation);
+  const r = applyPlanAllocation(p.solde, pocheAbonnement(p), alloc);
+  return { ...r, poches: { solde: r.next, abonnementRestant: alloc, derniereAllocation: alloc, horsAbonnementConsommes: 0 } };
 }

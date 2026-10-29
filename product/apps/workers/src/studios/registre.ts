@@ -1,4 +1,4 @@
-import { schema, eq, sql } from '@tiktrends/db';
+import { schema, eq, setRemboursementPoches } from '@tiktrends/db';
 import { decisionReglement, refsDuJob, type IssueFinanciere, type SnapshotJob } from '@tiktrends/core';
 import type { JobStudio, TxStudio, EntreeJournal } from './types';
 
@@ -49,7 +49,7 @@ export async function reglerJob(
   }
   if (d.release.credits > 0) {
     await tx.update(schema.workspaces)
-      .set({ creditsBalance: sql`${schema.workspaces.creditsBalance} + ${d.release.credits}` })
+      .set(setRemboursementPoches(d.release.credits)) // rend d'abord ce qui a été pris hors abonnement (règle `rembourserPoches`)
       .where(eq(schema.workspaces.id, job.workspaceId));
     await tx.insert(schema.creditLedger).values({ workspaceId: job.workspaceId, delta: d.release.credits, reason: 'Studio · crédits non consommés rendus', refId: refs.release });
   }

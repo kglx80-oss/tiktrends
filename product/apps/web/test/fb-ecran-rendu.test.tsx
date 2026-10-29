@@ -146,7 +146,8 @@ describe('états de l’écran · au HTML rendu', () => {
     }));
     const etats = [...d.querySelectorAll('[data-etat-job]')].map((x) => [x.getAttribute('data-etat-job'), txt(x, '[data-champ="message"]')]);
     expect(etats.map((e) => e[0])).toEqual(['queued', 'running', 'reconciliation_required', 'failed', 'completed']);
-    expect(etats[0]![1]).toBe('En file · rien n’est encore envoyé au fournisseur.');
+    // La pastille dit « En file » · le message n'est plus préfixé du même état (planche finale, D3).
+    expect(etats[0]![1]).toBe('Rien n’est encore envoyé au fournisseur.');
     expect(txt(d, '[data-job="d"] [data-champ="raison"]')).toBe('Raison · Une référence a disparu ou changé avant l’envoi · rien n’a été envoyé au fournisseur, aucune substitution.');
     expect(d.querySelector('[data-job="d"]')!.textContent).toContain('4 crédits rendus');
     expect(d.querySelectorAll('[data-bouton="annuler"]').length).toBe(2);

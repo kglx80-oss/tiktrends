@@ -25,6 +25,29 @@
  * Pur : ni base, ni réseau, ni horloge.
  */
 
+import { accesTotal, type RolePlateforme } from './equipe-plateforme';
+
+/* ============ Qui voit le plafond ============ */
+
+/**
+ * Le plafond est un garde-fou INTERNE et GLOBAL · ce qu'il dit (« X $ engagés
+ * sur Y $ ») est la dépense IA de toute la plateforme. Seul le personnel de la
+ * plateforme le lit : un fondateur, ou un membre de l'équipe à accès total
+ * (adminplus, admin). Un client, même admin de son espace sur Plus, ne voit ni
+ * montant ni plafond (audit crédits du 29/10, surfaces 22 et 30).
+ */
+export function voitDepensePlateforme(p: { fondateur: boolean; roleEquipe?: RolePlateforme | null }): boolean {
+  return p.fondateur || (!!p.roleEquipe && accesTotal(p.roleEquipe));
+}
+
+/** Ce que lit un client quand le plafond refuse · honnête, sans montant ni plafond. */
+export const REFUS_DEPENSE_CLIENT = 'Le service est momentanément limité, réessaie plus tard. Rien n’a été envoyé et aucun crédit n’a été débité.';
+
+/** Le refus du plafond selon le lecteur · détail chiffré pour le personnel, phrase neutre pour un client. */
+export function messageRefusDepense(raison: string, personnel: boolean): string {
+  return personnel ? raison : REFUS_DEPENSE_CLIENT;
+}
+
 /** Tarifs en dollars par MILLION de jetons. */
 export interface ModelRate { inputPerMTok: number; outputPerMTok: number }
 
