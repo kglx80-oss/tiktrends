@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 
 /**
  * Sécurité · dépôt de fichiers et adresses de logo · les VRAIES actions sur une
  * vraie base (pglite), stockage signé en local (aucun réseau).
  *  - `presignAssetUploadAction` refuse SVG, HTML, type inconnu, fichier vide ou
- *    trop lourd ; accepte un type de la liste et SIGNE son Content-Type ;
+ *    trop lourd ; accepte un type de la liste et SIGNE son Content-Type et la
+ *    taille validée (Content-Length) · rejoué comme le bucket : seule la
+ *    longueur déclarée passe ;
  *    l'extension de la clé vient du type, jamais du nom.
  *  - `saveBrandDAAction` refuse une adresse de logo NOUVELLE hors règle
  *    (`javascript:`, `http:`, IP, identifiants) sans rien écrire ; accepte une
@@ -36,6 +38,20 @@ async function marque() {
   await db.insert(schema.brands).values({ id, workspaceId: ws, name: 'Maison', logoUrl: ANCIEN, logos: [ANCIEN], colors: ['#112233'], fonts: ['Inter'] });
   etat.session = { workspaceId: ws, workspaceName: 'Espace', role: 'admin', plan: 'core', user: { id: user, email: `${user.slice(0, 8)}@exemple.invalid`, name: null } };
   return { ws, id };
+}
+/** Le bucket · recalcule la signature SigV4 (paramètres d'URL) avec les en-têtes REÇUS (secret « s » du banc). */
+const enc = (x: string) => encodeURIComponent(x).replace(/[!*'()]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+const hmac = (k: Buffer | string, v: string) => createHmac('sha256', k).update(v).digest();
+function bucketAccepte(url: string, entetes: Record<string, string>): boolean {
+  const u = new URL(url); const p = Object.fromEntries(u.searchParams.entries());
+  const signes = (p['X-Amz-SignedHeaders'] ?? '').split(';');
+  const recus: Record<string, string> = { host: u.host, ...Object.fromEntries(Object.entries(entetes).map(([k, v]) => [k.toLowerCase(), v.trim()])) };
+  if (signes.some((h) => recus[h] === undefined)) return false;
+  const query = Object.keys(p).filter((k) => k !== 'X-Amz-Signature').sort().map((k) => `${enc(k)}=${enc(p[k]!)}`).join('&');
+  const canon = ['PUT', u.pathname, query, signes.map((h) => `${h}:${recus[h]}`).join('\n') + '\n', signes.join(';'), 'UNSIGNED-PAYLOAD'].join('\n');
+  const [, date, region, service] = (p['X-Amz-Credential'] ?? '').split('/');
+  const aSigner = ['AWS4-HMAC-SHA256', p['X-Amz-Date'], `${date}/${region}/${service}/aws4_request`, createHash('sha256').update(canon).digest('hex')].join('\n');
+  return createHmac('sha256', hmac(hmac(hmac(hmac('AWS4s', date!), region!), service!), 'aws4_request')).update(aSigner).digest('hex') === p['X-Amz-Signature'];
 }
 const lire = async (id: string) => (await db.select().from(schema.brands).where(eq(schema.brands.id, id)))[0]!;
 const charte = (brandId: string, logoUrl: string, logos: string[]) => saveBrandDAAction({ brandId, logoUrl, logos, colors: ['#112233'], fonts: ['Inter'] });
@@ -70,8 +86,20 @@ describe('presignAssetUploadAction · liste blanche, plafonds, type signé', () 
     expect(r.contentType).toBe('image/png');
     expect(r.publicUrl).toMatch(new RegExp(`/assets/${m.ws}/\\d+-[0-9a-f]{8}-page\\.png$`));
     const u = new URL(r.uploadUrl!);
-    expect(u.searchParams.get('X-Amz-SignedHeaders')).toBe('content-type;host');
+    expect(u.searchParams.get('X-Amz-SignedHeaders')).toBe('content-length;content-type;host');
     expect(u.pathname.endsWith('-page.png')).toBe(true);
+  });
+
+  it('la taille validée est imposée PAR LE BUCKET · seul un corps de la longueur déclarée passe', async () => {
+    await marque();
+    const r = await presignAssetUploadAction({ filename: 'clip.mp4', contentType: 'video/mp4', sizeBytes: 12_000 });
+    expect(r.error).toBeUndefined();
+    expect(bucketAccepte(r.uploadUrl!, { 'Content-Type': 'video/mp4', 'Content-Length': '12000' }), 'la taille déclarée').toBe(true);
+    // Déclarer 12 000 octets puis envoyer 5 Go (ou un autre corps) · refusé.
+    for (const autre of ['12001', '11999', '5368709120']) {
+      expect(bucketAccepte(r.uploadUrl!, { 'Content-Type': 'video/mp4', 'Content-Length': autre }), autre).toBe(false);
+    }
+    expect(bucketAccepte(r.uploadUrl!, { 'Content-Type': 'video/mp4', 'Transfer-Encoding': 'chunked' }), 'chunked, sans longueur').toBe(false);
   });
 
   it('PDF et vidéo des appelants existants · acceptés (PDF en type neutre)', async () => {
