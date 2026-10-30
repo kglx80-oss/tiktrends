@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   TAGS_COULEUR, estTagCouleur, tagCouleur, lireFiltreTag, validerTagCouleur, messageTagPose, tagsEnUsage, contrasteEtiquetteTag,
-  donneesDrive, vueDrive, ETAT_DRIVE_INITIAL, type DossierSource, type EtatDrive,
+  donneesDrive, vueDrive, ETAT_DRIVE_INITIAL, type DossierSource, type EtatDrive, type MediaSource,
+  validerSelectionTag, refusSelectionTropLarge, messageTagSelection, noteSelectionTag, selectionATaguer, TAG_SELECTION_MAX,
 } from '../src';
 
 /**
@@ -135,5 +136,89 @@ describe('lisibilité mesurée · l’étiquette d’un tag se lit dans les deux
   it('la mesure distingue · le pire tag sombre est le rouge (7,27, tableau du module)', () => {
     expect(contrasteEtiquetteTag('rouge', 'sombre')).toBeCloseTo(7.27, 2);
     expect(contrasteEtiquetteTag('jaune', 'clair')).toBeCloseTo(8.72, 2);
+  });
+});
+
+/* ───────────────────────── Tag d'une SÉLECTION (barre de sélection) ───────────────────────── */
+
+const uuid = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+
+describe('sélection · ce que l’action accepte · tout ou rien', () => {
+  it('une liste d’UUID et un tag · dédoublonnée (casse comprise), dans l’ordre', () => {
+    expect(validerSelectionTag([uuid(1), uuid(2), uuid(1), uuid(2).toUpperCase()], 'vert')).toEqual({ ok: true, ids: [uuid(1), uuid(2)], tag: 'vert' });
+    expect(validerSelectionTag([uuid(3)], null)).toEqual({ ok: true, ids: [uuid(3)], tag: null });
+  });
+  it('un tag hors catalogue refuse le geste entier, avant la liste', () => {
+    expect(validerSelectionTag([uuid(1)], 'fuchsia')).toEqual({ ok: false, raison: 'Couleur inconnue · choisis un tag de la liste.' });
+    expect(validerSelectionTag('pas une liste', 'fuchsia')).toEqual({ ok: false, raison: 'Couleur inconnue · choisis un tag de la liste.' });
+  });
+  it('une liste illisible · pas un tableau, un élément vide, pas un UUID, pas une chaîne · refus entier, jamais une liste tronquée', () => {
+    for (const ids of [undefined, null, 'x', {}, [uuid(1), ''], [uuid(1), 'x'], [uuid(1), 7], [uuid(1), null], [`${uuid(1)} `], ['00000000-0000-4000-8000-00000000000g']]) {
+      expect(validerSelectionTag(ids, 'vert'), JSON.stringify(ids)).toEqual({ ok: false, raison: 'Sélection illisible · rien n’a été tagué.' });
+    }
+  });
+  it('une liste vide · rien à taguer', () => {
+    expect(validerSelectionTag([], 'vert')).toEqual({ ok: false, raison: 'Aucun dossier sélectionné.' });
+  });
+  it(`borne · ${TAG_SELECTION_MAX} passe, ${TAG_SELECTION_MAX + 1} est refusé en entier · les doublons ne comptent qu’une fois`, () => {
+    const max = Array.from({ length: TAG_SELECTION_MAX }, (_, i) => uuid(i + 1));
+    const r = validerSelectionTag(max, 'bleu');
+    expect(r.ok && r.ids.length).toBe(TAG_SELECTION_MAX);
+    expect(validerSelectionTag([...max, uuid(1), uuid(2)], 'bleu').ok, 'des doublons ne font pas dépasser la borne').toBe(true);
+    expect(validerSelectionTag([...max, uuid(TAG_SELECTION_MAX + 1)], 'bleu')).toEqual({ ok: false, raison: '101 dossiers sélectionnés · 100 au plus par geste, rien n’a été tagué.' });
+    expect(refusSelectionTropLarge(250)).toBe('250 dossiers sélectionnés · 100 au plus par geste, rien n’a été tagué.');
+  });
+});
+
+describe('sélection · les messages dits à l’écran', () => {
+  it('après le geste · combien de dossiers, et que les fichiers ne portent pas de tag', () => {
+    expect(messageTagSelection('vert', 3)).toBe('3 dossiers tagués « Validé »');
+    expect(messageTagSelection('vert', 1)).toBe('1 dossier tagué « Validé »');
+    expect(messageTagSelection('vert', 3, 2)).toBe('3 dossiers tagués « Validé » · les fichiers ne portent pas de tag');
+    expect(messageTagSelection(null, 2)).toBe('Tag retiré de 2 dossiers');
+    expect(messageTagSelection(null, 1, 1)).toBe('Tag retiré de 1 dossier · les fichiers ne portent pas de tag');
+  });
+  it('avant le geste · la ligne du menu', () => {
+    expect(noteSelectionTag(0)).toBe('Seuls les dossiers portent un tag.');
+    expect(noteSelectionTag(1)).toBe('1 fichier sélectionné ne sera pas tagué · les fichiers ne portent pas de tag.');
+    expect(noteSelectionTag(4)).toBe('4 fichiers sélectionnés ne seront pas tagués · les fichiers ne portent pas de tag.');
+  });
+});
+
+describe('sélection · ce que l’écran envoie à l’action', () => {
+  let k = 0;
+  const media = (folderId: string | null, extra: Partial<MediaSource> = {}): MediaSource => ({
+    id: `m${++k}`, name: `f${k}`, kind: 'image', mimeType: 'image/png', source: 'upload', url: `/api/asset?id=m${k}`, thumbUrl: null, sizeBytes: 10, createdAt: T0, folderId, rights: null, ...extra,
+  });
+  const d = donneesDrive({
+    dossiers: [
+      dossier('a', 'Photos produit', { colorTag: 'vert', locked: true }),
+      dossier('b', 'UGC', { colorTag: 'vert' }),
+      dossier('c', 'Packshots', { parentId: 'a' }),
+      dossier('x', 'Jeté', { deletedAt: T0 }),
+      dossier('y', 'Sous jeté', { parentId: 'x' }),
+    ],
+    medias: [media('a'), media(null), media(null, { source: 'studios', studio: { projetId: 'p1', projetTitre: 'Projet', href: '/p' } })],
+  });
+
+  it('seuls les dossiers RÉELS vivants partent · fichiers comptés à part, racines, projets, corbeille et inconnus ignorés', () => {
+    const s = selectionATaguer(d, ['a', 'c', 'm1', 'm2', 'r:assets', 'p:p1', 'x', 'y', 'disparu', 'a']);
+    expect(s.dossiers).toEqual([{ id: 'a', nom: 'Photos produit', tag: 'vert' }, { id: 'c', nom: 'Packshots', tag: null }]);
+    expect(s.fichiers).toBe(2);
+    expect([s.commun, s.retirable, s.refus]).toEqual([null, true, null]);
+  });
+  it('le tag commun est coché, « Retirer » ne se propose que si un dossier en porte un', () => {
+    expect(selectionATaguer(d, ['a', 'b'])).toMatchObject({ commun: 'vert', retirable: true });
+    expect(selectionATaguer(d, ['c'])).toMatchObject({ commun: null, retirable: false });
+  });
+  it('rien à taguer · le geste se ferme avec sa raison', () => {
+    expect(selectionATaguer(d, ['m1', 'x']).refus).toBe('Aucun dossier dans la sélection · seuls les dossiers portent un tag.');
+    expect(selectionATaguer(d, []).refus).toBe('Aucun dossier dans la sélection · seuls les dossiers portent un tag.');
+  });
+  it(`au-delà de ${TAG_SELECTION_MAX} dossiers · fermé AVANT le clic, avec la phrase de l’action`, () => {
+    const beaucoup = donneesDrive({ dossiers: Array.from({ length: TAG_SELECTION_MAX + 1 }, (_, i) => dossier(`d${i}`, `D${i}`)), medias: [] });
+    const ids = beaucoup.dossiers.filter((x) => x.reel).map((x) => x.id);
+    expect(selectionATaguer(beaucoup, ids).refus).toBe(refusSelectionTropLarge(TAG_SELECTION_MAX + 1));
+    expect(selectionATaguer(beaucoup, ids.slice(1)).refus).toBeNull();
   });
 });
