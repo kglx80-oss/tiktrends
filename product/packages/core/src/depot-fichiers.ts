@@ -31,6 +31,11 @@
  *     type mal formé.
  * Le type retenu est le `Content-Type` SIGNÉ dans l'adresse présignée · le
  * navigateur doit envoyer exactement celui-là, sinon le bucket refuse le PUT.
+ * La taille validée (`contentLength`, entier ≥ 1, sous le plafond de sa
+ * famille) est signée de même en `Content-Length` : un corps d'une autre
+ * longueur que celle déclarée est refusé PAR LE BUCKET. Sans cela, le plafond
+ * ne portait que sur la taille DÉCLARÉE (le PUT reste `UNSIGNED-PAYLOAD`) ·
+ * déclarer 10 octets puis envoyer 5 Go passait.
  * L'extension de la clé est FORCÉE par ce type (`photo.html.png` déclaré PNG ⇒
  * `photo-html.png`) · jamais celle du nom fourni.
  *
@@ -103,7 +108,7 @@ export const MESSAGES_REFUS_DEPOT = {
 } as const;
 
 export type DecisionDepot =
-  | { ok: true; contentType: string; extension: string; famille: FamilleDepot; nomFichier: string }
+  | { ok: true; contentType: string; contentLength: number; extension: string; famille: FamilleDepot; nomFichier: string }
   | { ok: false; erreur: string };
 
 /** Extensions reconnues quand le navigateur ne déclare aucun type. */
@@ -157,7 +162,7 @@ export function decisionDepot(f: { nom: string; type: string; taille: number }):
     retenu = { contentType: TYPE_DEPOT_NEUTRE, extension: e.extension, famille: e.kind };
   }
   if (f.taille > PLAFONDS_DEPOT[retenu.famille]) return { ok: false, erreur: LIBELLE_PLAFOND[retenu.famille] };
-  return { ok: true, ...retenu, nomFichier: nomFichierDepot(f.nom, retenu.extension) };
+  return { ok: true, ...retenu, contentLength: f.taille, nomFichier: nomFichierDepot(f.nom, retenu.extension) };
 }
 
 /* ───────────────────────── Adresse d'un logo ───────────────────────── */

@@ -65,12 +65,13 @@ describe('Spatial · Bibliothèque · téléverser vers le bucket', () => {
     vi.mocked(actions.presignAssetUploadAction).mockResolvedValue({ uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/1-img.heic', contentType: 'image/heic' });
     vi.mocked(actions.registerUploadedAssetAction).mockResolvedValue({ ok: true });
     const envois: Array<{ methode: string; url: string; entetes: Record<string, string> }> = [];
+    const corps: unknown[] = [];
     class FauxXhr {
       status = 200; onload: (() => void) | null = null; onerror: (() => void) | null = null;
       private e = { methode: '', url: '', entetes: {} as Record<string, string> };
       open(m: string, u: string) { this.e.methode = m; this.e.url = u; }
       setRequestHeader(k: string, v: string) { this.e.entetes[k] = v; }
-      send() { envois.push(this.e); this.onload?.(); }
+      send(b?: unknown) { envois.push(this.e); corps.push(b); this.onload?.(); }
     }
     vi.stubGlobal('XMLHttpRequest', FauxXhr);
     try {
@@ -81,6 +82,10 @@ describe('Spatial · Bibliothèque · téléverser vers le bucket', () => {
       await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
       expect(actions.presignAssetUploadAction).toHaveBeenCalledWith({ filename: 'IMG_0001.HEIC', contentType: 'application/octet-stream', sizeBytes: 32 });
       expect(envois).toEqual([{ methode: 'PUT', url: 'https://bucket/put?sig', entetes: { 'Content-Type': 'image/heic' } }]);
+      // Le Content-Length est SIGNÉ à la taille déclarée · le corps est le fichier entier,
+      // dont le navigateur tire seul la longueur (aucun en-tête posé à la main).
+      expect(corps).toHaveLength(1);
+      expect(corps[0] instanceof Blob && (corps[0] as Blob).size, 'longueur du corps = sizeBytes déclaré').toBe(32);
       expect(actions.registerUploadedAssetAction).toHaveBeenCalledTimes(1);
     } finally { vi.unstubAllGlobals(); }
   });

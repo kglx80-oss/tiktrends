@@ -486,6 +486,8 @@ export function SourcingConcurrents({ brandId, prix, proposer, ajouter, raison }
 /**
  * Le dépôt direct dans le bucket de l'espace (adresse présignée) · même envoi
  * que la Bibliothèque, avec le `Content-Type` retenu et SIGNÉ par le serveur.
+ * Le `Content-Length` est signé à la taille déclarée (`f.size`) · le corps est
+ * le fichier entier, le navigateur en pose seul la longueur.
  */
 async function deposerDansLeBucket(url: string, f: File, contentType: string): Promise<boolean> {
   try {
