@@ -181,6 +181,7 @@ export * from './parcours-boucle';
 export * from './medias-servis';
 export * from './objet-espace';
 export * from './depot-fichiers';
+export * from './depot-relu';
 export * from './themes';
 export * from './purge-cache';
 
