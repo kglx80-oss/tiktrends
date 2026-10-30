@@ -16,6 +16,12 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * contrainte CHECK en base) · isolation entre espaces · refus d'un rôle ou
  * d'une offre sans écriture, rien d'écrit · page filtrée par `?tag=` · le geste
  * ne se dit plus « bientôt ».
+ *
+ * La SÉLECTION (`definirTagDossiersAction`, barre de sélection) · plusieurs
+ * dossiers posés puis retirés d'un coup ; TOUT OU RIEN · un identifiant d'un
+ * autre espace, en corbeille ou inconnu, ou une liste au-delà de la borne,
+ * refuse le geste entier et l'empreinte de la table ne bouge pas ; même garde
+ * d'écriture (lecteur client, Starter).
  */
 
 const etat = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null }));
@@ -42,9 +48,9 @@ vi.mock('next/navigation', () => ({
 
 import { db, schema, sql } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
-import { analyserMigrationSql, TAGS_COULEUR } from '@tiktrends/core';
+import { analyserMigrationSql, refusSelectionTropLarge, TAG_SELECTION_MAX, TAGS_COULEUR } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
-import { creerDossierAction, definirTagDossierAction, supprimerDossierAction } from '../app/actions/bibliotheque-dossiers';
+import { creerDossierAction, definirTagDossierAction, definirTagDossiersAction, supprimerDossierAction } from '../app/actions/bibliotheque-dossiers';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
 import BibliothequeSpatiale from '../app/(spatial)/sp/assets/page';
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
@@ -206,5 +212,90 @@ describe('la VRAIE page · pastilles, puces, filtre par l’adresse', () => {
     const html = await page({ tag: 'fuchsia' });
     expect(html).not.toContain('bbanner tagb');
     expect(cartes(html).map(([n]) => n)).toEqual(['Photos produit', 'UGC']);
+  });
+});
+
+describe('SÉLECTION · plusieurs dossiers d’un coup, tout ou rien', () => {
+  const S = { a: '', b: '', c: '' };
+  const tags = async (...xs: string[]) => Promise.all(xs.map(tagEnBase));
+
+  beforeAll(async () => {
+    etat.session = session(ids, 'ua');
+    for (const k of ['a', 'b', 'c'] as const) {
+      const r = await creerDossierAction({ nom: `Sélection ${k}` });
+      if (!r.ok) throw new Error(r.error);
+      S[k] = r.id!;
+    }
+  });
+
+  it('poser « Client » sur trois dossiers (un verrouillé compris), puis le retirer · chaque ligne suit', async () => {
+    etat.session = session(ids, 'ua');
+    expect(await definirTagDossiersAction({ ids: [S.a, S.b, D.ugc], tag: 'bleu' })).toEqual({ ok: true, n: 3 });
+    expect(await tags(S.a, S.b, D.ugc, S.c)).toEqual(['bleu', 'bleu', 'bleu', null]);
+    expect(await definirTagDossiersAction({ ids: [S.a, S.b, D.ugc], tag: null })).toEqual({ ok: true, n: 3 });
+    expect(await tags(S.a, S.b, D.ugc)).toEqual([null, null, null]);
+  });
+
+  it('un identifiant répété ne compte qu’une fois', async () => {
+    etat.session = session(ids, 'ua');
+    expect(await definirTagDossiersAction({ ids: [S.c, S.c, S.c.toUpperCase()], tag: 'violet' })).toEqual({ ok: true, n: 1 });
+    expect(await tagEnBase(S.c)).toBe('violet');
+  });
+
+  const REFUS_INTROUVABLE = { error: 'Un dossier de la sélection est introuvable · rien n’a été tagué.' };
+  const CAS: Array<[string, () => string]> = [
+    ['un dossier d’un AUTRE espace', () => D.autre],
+    ['un dossier EN CORBEILLE', () => D.jete],
+    ['un identifiant inconnu', () => '00000000-0000-4000-8000-000000000000'],
+  ];
+  for (const [quoi, intrus] of CAS) {
+    it(`${quoi} dans la sélection · refus TOTAL, rien d’écrit (ni sur les dossiers valides)`, async () => {
+      etat.session = session(ids, 'ua');
+      const avant = await empreinte();
+      expect(await definirTagDossiersAction({ ids: [S.a, intrus(), S.b], tag: 'rouge' })).toEqual(REFUS_INTROUVABLE);
+      expect(await tags(S.a, S.b), 'un dossier valide a été tagué malgré le refus').toEqual([null, null]);
+      expect(await empreinte()).toBe(avant);
+    });
+  }
+
+  it('une couleur hors liste, une liste illisible ou vide · refusées par la règle du noyau, rien d’écrit', async () => {
+    etat.session = session(ids, 'ua');
+    const avant = await empreinte();
+    expect(await definirTagDossiersAction({ ids: [S.a], tag: 'fuchsia' as never })).toEqual({ error: 'Couleur inconnue · choisis un tag de la liste.' });
+    expect(await definirTagDossiersAction({ ids: [S.a, 'x'], tag: 'rouge' })).toEqual({ error: 'Sélection illisible · rien n’a été tagué.' });
+    expect(await definirTagDossiersAction({ ids: 'tout' as never, tag: 'rouge' })).toEqual({ error: 'Sélection illisible · rien n’a été tagué.' });
+    expect(await definirTagDossiersAction({ ids: [], tag: 'rouge' })).toEqual({ error: 'Aucun dossier sélectionné.' });
+    expect(await empreinte()).toBe(avant);
+  });
+
+  const REFUSES: Array<[string, () => SessionTest, 'role' | 'plan']> = [
+    ['lecteur client (client_viewer)', () => session(ids, 'uv'), 'role'],
+    ['membre en Starter', () => session(ids, 'ua', { plan: 'starter' }), 'plan'],
+  ];
+  for (const [qui, faire, raison] of REFUSES) {
+    it(`${qui} · même garde d’écriture, rien d’écrit`, async () => {
+      etat.session = faire();
+      const avant = await empreinte();
+      expect(await definirTagDossiersAction({ ids: [S.a, S.b], tag: 'rouge' })).toEqual({ error: TEXTE_REFUS_BIBLIOTHEQUE[raison] });
+      expect(await empreinte()).toBe(avant);
+    });
+  }
+
+  it(`borne · ${TAG_SELECTION_MAX} vrais dossiers passent, un de plus refuse le geste entier`, async () => {
+    etat.session = session(ids, 'ua');
+    const lignes = await db!.insert(schema.libraryFolders)
+      .values(Array.from({ length: TAG_SELECTION_MAX - 3 }, (_, i) => ({ workspaceId: ids.wsA, name: `Lot ${i}` })))
+      .returning({ id: schema.libraryFolders.id });
+    const cent = [S.a, S.b, S.c, ...lignes.map((l) => l.id)];
+    expect(cent.length).toBe(TAG_SELECTION_MAX);
+    const [extra] = await db!.insert(schema.libraryFolders).values({ workspaceId: ids.wsA, name: 'Cent unième' }).returning({ id: schema.libraryFolders.id });
+
+    const avant = await empreinte();
+    expect(await definirTagDossiersAction({ ids: [...cent, extra!.id], tag: 'gris' })).toEqual({ error: refusSelectionTropLarge(TAG_SELECTION_MAX + 1) });
+    expect(await empreinte(), 'une liste au-delà de la borne a écrit').toBe(avant);
+
+    expect(await definirTagDossiersAction({ ids: cent, tag: 'gris' })).toEqual({ ok: true, n: TAG_SELECTION_MAX });
+    expect(new Set(await tags(...cent))).toEqual(new Set(['gris']));
+    expect(await tagEnBase(extra!.id)).toBeNull();
   });
 });

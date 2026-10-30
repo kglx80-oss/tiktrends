@@ -12,9 +12,11 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/assets', useRouter: () 
 vi.mock('../app/actions/assets', () => ({ uploadImageAssetsAction: vi.fn(), presignAssetUploadAction: vi.fn(), registerUploadedAssetAction: vi.fn(), deleteAssetAction: vi.fn() }));
 const creerDossier = vi.fn(async () => ({ ok: true as const, id: 'n1' }));
 const definirTag = vi.fn(async (_x: { id: string; tag: string | null }) => ({ ok: true as const }));
+const definirTags = vi.fn(async (x: { ids: string[]; tag: string | null }): Promise<{ ok?: true; n?: number; error?: string }> => ({ ok: true as const, n: x.ids.length }));
 vi.mock('../app/actions/bibliotheque-dossiers', () => ({
   creerDossierAction: (...a: unknown[]) => creerDossier(...(a as [])), supprimerDossierAction: vi.fn(), restaurerDossierAction: vi.fn(),
   affecterAssetDossierAction: vi.fn(), definirDroitsAssetAction: vi.fn(), definirTagDossierAction: (x: { id: string; tag: string | null }) => definirTag(x),
+  definirTagDossiersAction: (x: { ids: string[]; tag: string | null }) => definirTags(x),
 }));
 vi.mock('../app/actions/drive', () => ({ syncDriveNowAction: vi.fn() }));
 vi.mock('../app/actions/jarvis-chat', () => ({ chatThreadAction: vi.fn(), clearChatAction: vi.fn() }));
@@ -191,6 +193,102 @@ describe('Spatial · Bibliothèque reproduit la maquette', () => {
     expect(window.location.search).toBe('?ok=1');
     expect(el.querySelector('.bbanner.tagb')).toBeNull();
     root.unmount(); el.remove();
+  });
+
+  /** Monte l'écran dans jsdom · rend l'élément, les toasts reçus et de quoi démonter. */
+  async function monter(extra: Partial<Parameters<typeof Bibliotheque>[0]> = {}) {
+    const toasts: string[] = [];
+    const el = document.createElement('div'); document.body.appendChild(el);
+    const root = createRoot(el);
+    await act(async () => { root.render(<FournisseurSpatial value={{ ...CTX, toast: (m: string) => { toasts.push(m); } }}><Bibliotheque {...propsBiblio()} {...extra} /></FournisseurSpatial>); });
+    const fin = () => { root.unmount(); el.remove(); };
+    return { el, toasts, fin };
+  }
+  const enListe = async (el: HTMLElement) => { await act(async () => { (el.querySelector('button[aria-label="Liste"]') as HTMLButtonElement).click(); }); };
+  /** Les lignes de dossier de la vue LISTE · nom, et l'étiquette de tag rendue (libellé, teinte) ou null. */
+  const lignesListe = (el: HTMLElement) => [...el.querySelectorAll('.dtbl .dtr:not(.h)')]
+    .filter((r) => r.querySelector('.dname .dfold')?.getAttribute('style')?.includes('#94a3b8'))
+    .map((r) => {
+      const t = r.querySelector('.dname .ftag');
+      return [r.querySelector('.dname .nm')?.textContent, t ? [t.textContent, (t as HTMLElement).style.getPropertyValue('--tc')] : null];
+    });
+
+  it('vue LISTE · chaque dossier tagué porte sa pastille et son libellé, à la teinte du tag', async () => {
+    const { el, fin } = await monter();
+    await enListe(el);
+    expect(lignesListe(el)).toEqual([
+      ['Lifestyle & shooting', null], ['Logos & charte', null], ['Musiques & sons', null],
+      ['Photos produit', ['Validé', '#4ade80']], ['UGC', ['À valider', '#fb923c']],
+    ]);
+    // Le balisage de l'étiquette est celui de la carte (`.ftag` · pastille `<i>` + libellé), posé dans le nom de la ligne.
+    expect(el.querySelector('.dtbl')!.innerHTML).toMatch(/<span class="nm">Photos produit<\/span><span class="ftag" style="--tc: #4ade80; margin-top: 0px; flex-shrink: 0;"><i><\/i>Validé<\/span><\/button>/);
+    fin();
+  });
+
+  it('vue LISTE · `?tag=` s’applique comme en grille · seuls les dossiers tagués, le bandeau du filtre', async () => {
+    const { el, fin } = await monter({ filtreTag: 'orange' });
+    await enListe(el);
+    expect(lignesListe(el)).toEqual([['UGC', ['À valider', '#fb923c']]]);
+    expect(el.querySelectorAll('.dtbl .dtr:not(.h)').length, 'aucun fichier ni autre dossier sous le filtre').toBe(1);
+    expect(el.querySelector('.bbanner.tagb b')?.textContent).toBe('Dossiers tagués « À valider »');
+    fin();
+  });
+
+  it('barre de sélection · « Tag de couleur » pose le même tag sur chaque dossier sélectionné, en UN appel à la vraie action, puis le retire', async () => {
+    definirTags.mockClear();
+    const { el, toasts, fin } = await monter();
+    const carte = (nom: string) => [...el.querySelectorAll('div.fcard')].find((c) => c.querySelector('strong')?.textContent === nom)!;
+    await act(async () => { (carte('Lifestyle & shooting').querySelector('button.fsel') as HTMLButtonElement).click(); });
+    await act(async () => { (carte('Photos produit').querySelector('button.fsel') as HTMLButtonElement).click(); });
+    const barre = () => el.querySelector('.dbulk');
+    expect(barre()?.querySelector('strong')?.textContent).toBe('2 sélectionnés');
+    const bouton = () => [...barre()!.querySelectorAll('button')].find((b) => b.textContent === 'Tag de couleur') as HTMLButtonElement;
+    await act(async () => { bouton().click(); });
+    const menu = barre()!.querySelector('.ftpop[aria-label="Tag de couleur de la sélection"]')!;
+    expect(menu.querySelector('.lbl')?.textContent).toBe('Tag de couleur · 2 dossiers');
+    expect([...menu.querySelectorAll('.ftsw button[role="menuitemradio"]')].map((b) => b.textContent)).toEqual(['Urgent', 'À valider', 'En cours', 'Validé', 'Client', 'Inspiration', 'Campagne', 'Archive']);
+    expect(menu.querySelector('.ftsw button[aria-checked="true"]'), 'tags différents · aucun coché').toBeNull();
+    expect(menu.querySelector('.ftrm')?.textContent, 'un dossier porte un tag · « Retirer » se propose').toBe('Retirer le tag');
+    expect(menu.querySelector('small')?.textContent).toBe('Seuls les dossiers portent un tag.');
+    await act(async () => { ([...menu.querySelectorAll('.ftsw button')].find((b) => b.textContent === 'Client') as HTMLButtonElement).click(); });
+    expect(definirTags).toHaveBeenCalledTimes(1);
+    expect(definirTags).toHaveBeenLastCalledWith({ ids: ['d-life', 'd-photos'], tag: 'bleu' });
+    expect(toasts).toContain('2 dossiers tagués « Client »');
+    expect(barre(), 'la sélection se vide après le geste').toBeNull();
+    // Retirer · depuis la vue LISTE (la barre est la même), sur un seul dossier.
+    await enListe(el);
+    const ligne = [...el.querySelectorAll('.dtbl .dtr')].find((r) => r.querySelector('.nm')?.textContent === 'UGC')!;
+    await act(async () => { (ligne.querySelector('button.dchk') as HTMLButtonElement).click(); });
+    await act(async () => { bouton().click(); });
+    expect(barre()!.querySelector('.ftsw button[aria-checked="true"]')?.textContent, 'un seul tag commun · coché').toBe('À valider');
+    await act(async () => { (barre()!.querySelector('.ftpop .ftrm') as HTMLButtonElement).click(); });
+    expect(definirTags).toHaveBeenLastCalledWith({ ids: ['d-ugc'], tag: null });
+    expect(toasts).toContain('Tag retiré de 1 dossier');
+    fin();
+  });
+
+  it('barre de sélection · un refus de l’action est dit, la sélection est gardée', async () => {
+    definirTags.mockClear();
+    definirTags.mockResolvedValueOnce({ error: 'Un dossier de la sélection est introuvable · rien n’a été tagué.' });
+    const { el, toasts, fin } = await monter();
+    const carte = [...el.querySelectorAll('div.fcard')].find((c) => c.querySelector('strong')?.textContent === 'UGC')!;
+    await act(async () => { (carte.querySelector('button.fsel') as HTMLButtonElement).click(); });
+    await act(async () => { ([...el.querySelectorAll('.dbulk button')].find((b) => b.textContent === 'Tag de couleur') as HTMLButtonElement).click(); });
+    await act(async () => { ([...el.querySelectorAll('.dbulk .ftsw button')].find((b) => b.textContent === 'Urgent') as HTMLButtonElement).click(); });
+    expect(toasts).toEqual(['Un dossier de la sélection est introuvable · rien n’a été tagué.']);
+    expect(el.querySelector('.dbulk strong')?.textContent).toBe('1 sélectionné');
+    fin();
+  });
+
+  it('barre de sélection · dans la corbeille, aucun « Tag de couleur » (un dossier jeté ne se tague pas)', async () => {
+    n = 0;
+    const d = donneesDrive({ dossiers: [{ ...dossier('b', 'Jeté'), deletedAt: T0 }], medias: [] });
+    const { el, fin } = await monter({ donnees: d });
+    await act(async () => { ([...el.querySelectorAll('nav.dsec button')].find((b) => b.textContent?.includes('Corbeille')) as HTMLButtonElement).click(); });
+    await act(async () => { (el.querySelector('.fcard button.fsel') as HTMLButtonElement).click(); });
+    expect(el.querySelector('.dbulk strong')?.textContent).toBe('1 sélectionné');
+    expect([...el.querySelectorAll('.dbulk button')].map((b) => b.textContent)).toEqual(['Restaurer', 'Désélectionner']);
+    fin();
   });
 
   it('la corbeille liste les VRAIS dossiers supprimés, et seulement eux', async () => {

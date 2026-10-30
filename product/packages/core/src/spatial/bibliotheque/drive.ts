@@ -1,6 +1,6 @@
 import { droitAutorisePub, estDroitAsset, libelleDroit } from '../../bibliotheque-dossiers';
 import { derniereTentativeDriveEnEchec, type DernierSyncDrive } from '../../connecteurs-catalogue';
-import { estTagCouleur, tagCouleur, tagsEnUsage, type CleTagCouleur, type TagCouleur } from './tags-couleur';
+import { estTagCouleur, refusSelectionTropLarge, tagCouleur, tagsEnUsage, TAG_SELECTION_MAX, type CleTagCouleur, type TagCouleur } from './tags-couleur';
 
 /**
  * Spatial · la Bibliothèque « rangée comme un drive » (maquette `bibliotheque`).
@@ -441,6 +441,43 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
     nouveau, vide, depot: ix.parDossier.get(ID_ASSETS)!.nom, volume,
     filtreTag, tags: tagsEnUsage(d.dossiers.filter((x) => x.reel && ix.vivant(x.id)).map((x) => x.tag), filtreTag?.cle ?? null),
   };
+}
+
+/**
+ * Le geste « Tag de couleur » de la BARRE DE SÉLECTION · ce que la sélection
+ * permet de taguer. Seuls les dossiers RÉELS vivants (ni projet Studios, ni
+ * racine, ni corbeille) portent un tag · ce sont eux, et eux seuls, que l'écran
+ * envoie à l'action. Un fichier de la sélection n'est jamais tagué · il est
+ * compté pour le dire à l'écran. Un identifiant inconnu (disparu depuis) est
+ * ignoré.
+ */
+export interface SelectionTagDrive {
+  dossiers: Array<{ id: string; nom: string; tag: CleTagCouleur | null }>;
+  /** Les fichiers de la sélection · ils ne portent pas de tag. */
+  fichiers: number;
+  /** Le tag porté par TOUS les dossiers (coché dans le menu) · null sinon. */
+  commun: CleTagCouleur | null;
+  /** Au moins un dossier porte un tag · « Retirer le tag » se propose. */
+  retirable: boolean;
+  /** Pourquoi le geste est fermé · null quand il est ouvert. */
+  refus: string | null;
+}
+
+export function selectionATaguer(d: DonneesDrive, selection: Iterable<string>): SelectionTagDrive {
+  const ix = indexer(d);
+  const parFichier = new Set(d.fichiers.map((f) => f.id));
+  const dossiers: SelectionTagDrive['dossiers'] = [];
+  let fichiers = 0;
+  for (const id of new Set(selection)) {
+    const x = ix.parDossier.get(id);
+    if (x?.reel && ix.vivant(id)) dossiers.push({ id, nom: x.nom, tag: x.tag });
+    else if (parFichier.has(id)) fichiers++;
+  }
+  const premier = dossiers[0]?.tag ?? null;
+  const commun = premier && dossiers.every((x) => x.tag === premier) ? premier : null;
+  const refus = !dossiers.length ? 'Aucun dossier dans la sélection · seuls les dossiers portent un tag.'
+    : dossiers.length > TAG_SELECTION_MAX ? refusSelectionTropLarge(dossiers.length) : null;
+  return { dossiers, fichiers, commun, retirable: dossiers.some((x) => x.tag), refus };
 }
 
 /**

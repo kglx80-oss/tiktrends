@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   vueDrive, cheminVers, dossiersRangement, pastilleDroit, formatTaille, libelleJour, ETAT_DRIVE_INITIAL, SECTIONS_DRIVE, DROITS_ASSET,
   LIBELLE_TYPE_FICHIER, FILTRES_TYPE_DRIVE, resumeImportDrive, TYPES_IMPORT_LIEN, type FiltreTypeDrive, lireImportLiens, type TypeImportLien, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
-  TAGS_COULEUR, messageTagPose, type CarteDossierDrive, type CleTagCouleur,
+  TAGS_COULEUR, messageTagPose, messageTagSelection, noteSelectionTag, selectionATaguer, type CarteDossierDrive, type CleTagCouleur,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction } from '../../../app/actions/assets';
-import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction } from '../../../app/actions/bibliotheque-dossiers';
+import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction } from '../../../app/actions/bibliotheque-dossiers';
 import { syncDriveNowAction } from '../../../app/actions/drive';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
@@ -26,7 +26,10 @@ import { DialogueSpatial } from '../marque/interactifs';
  * compressée), supprimer un média (définitif, comme aujourd'hui · confirmé),
  * connecter et synchroniser Google Drive (`drive`), poser ou retirer le tag de
  * couleur d'un dossier (`definirTagDossierAction`, `library_folders.color_tag`)
- * et filtrer par tag (puces de l'arbre, adresse `?tag=`).
+ * ou de toute une sélection de dossiers depuis la barre de sélection
+ * (`definirTagDossiersAction`, tout ou rien · les fichiers n'en portent pas),
+ * et filtrer par tag (puces de l'arbre, adresse `?tag=`) · en grille comme en
+ * liste, où chaque dossier tagué porte son étiquette.
  *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
@@ -71,6 +74,9 @@ export interface GestionBibliotheque {
 }
 
 const style = (s: Record<string, string | number>) => s as CSSProperties;
+
+/** `tagOuvert` vaut ceci quand c'est le menu de la BARRE DE SÉLECTION qui est ouvert (jamais un id de dossier). */
+const MENU_SELECTION = ':selection';
 
 /** Compresse une image navigateur en data URI léger (sans bucket) · même règle que l'écran V5. */
 function fichierEnDataUri(file: File, cote = 1400, qualite = 0.85): Promise<string> {
@@ -149,6 +155,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
 
   const v = vueDrive(p.donnees, etat);
   const rangements = useMemo(() => dossiersRangement(p.donnees), [p.donnees]);
+  const tagSel = useMemo(() => selectionATaguer(p.donnees, selection), [p.donnees, selection]);
   const fichierApercu = apercu ? p.donnees.fichiers.find((f) => f.id === apercu) ?? null : null;
   const dossierDe = (id: string) => p.donnees.dossiers.find((d) => d.id === id);
   const corbeille = etat.section === 'corbeille';
@@ -188,7 +195,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   // Le menu « Tag de couleur » se ferme d'un clic ailleurs ou d'Échap (maquette).
   useEffect(() => {
     if (!tagOuvert) return;
-    const clic = (e: PointerEvent) => { const t = e.target as Element | null; if (!t?.closest?.('.ftpop, .ftb')) setTagOuvert(null); };
+    const clic = (e: PointerEvent) => { const t = e.target as Element | null; if (!t?.closest?.('.ftpop, .ftb, [data-geste="tag-selection"]')) setTagOuvert(null); };
     const touche = (e: KeyboardEvent) => { if (e.key === 'Escape') setTagOuvert(null); };
     document.addEventListener('pointerdown', clic);
     document.addEventListener('keydown', touche);
@@ -324,6 +331,19 @@ export function Bibliotheque(p: PropsBibliotheque) {
     rafraichir();
   }
 
+  /** La barre de sélection · le même tag sur chaque DOSSIER sélectionné, en un geste (tout ou rien côté serveur). */
+  async function poserTagSelection(tag: CleTagCouleur | null) {
+    setTagOuvert(null);
+    if (!ecriture || occupe || tagSel.refus) return;
+    setOccupe(true);
+    const r = await definirTagDossiersAction({ ids: tagSel.dossiers.map((d) => d.id), tag }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(messageTagSelection(tag, r.n ?? tagSel.dossiers.length, tagSel.fichiers));
+    setSelection(new Set());
+    rafraichir();
+  }
+
   async function changerDroit(f: FichierDrive, valeur: string) {
     const r = await definirDroitsAssetAction({ assetId: f.id, droit: valeur ? (valeur as DroitAsset) : null });
     if (r.error) { toast(r.error); return; }
@@ -440,7 +460,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
       {v.dossiers.map((d) => (
         <div className={`dtr ${selection.has(d.id) ? 'sel' : ''}`} key={d.id}>
           {d.selectionnable && ecriture ? <button type="button" className={`dchk ${selection.has(d.id) ? 'on' : ''}`} aria-pressed={selection.has(d.id)} aria-label={`Sélectionner ${d.nom}`} onClick={() => basculerSel(d.id)}>{selection.has(d.id) && <Ic n="check" />}</button> : <span />}
-          <button type="button" className="dname" onClick={() => (corbeille ? undefined : aller(d.id))}><span className="dfold" style={style({ '--fc': '#94a3b8' })}><Ic n="folder" /></span><span className="nm">{d.nom}</span></button>
+          <button type="button" className="dname" onClick={() => (corbeille ? undefined : aller(d.id))}><span className="dfold" style={style({ '--fc': '#94a3b8' })}><Ic n="folder" /></span><span className="nm">{d.nom}</span>{d.tag && <span className="ftag" style={style({ '--tc': d.tag.teinte, marginTop: 0, flexShrink: 0 })}><i />{d.tag.libelle}</span>}</button>
           <span className="downer">Bibliothèque</span>
           <span className="faint" />
           <span className="faint num">{d.compte} élém.</span>
@@ -586,6 +606,22 @@ export function Bibliotheque(p: PropsBibliotheque) {
             <div className="dbulk">
               <strong>{selection.size} sélectionné{selection.size > 1 ? 's' : ''}</strong>
               <button className="btn sm" type="button" onClick={() => void corbeilleOuRestaurer()} disabled={occupe}><Ic n={corbeille ? 'check' : 'x'} />{corbeille ? 'Restaurer' : 'Mettre à la corbeille'}</button>
+              {!corbeille && ecriture && (
+                <span data-geste="tag-selection" style={{ position: 'relative' }}>
+                  <button className="btn sm" type="button" aria-expanded={tagOuvert === MENU_SELECTION} disabled={occupe || !!tagSel.refus} title={tagSel.refus ?? undefined} onClick={() => setTagOuvert((o) => (o === MENU_SELECTION ? null : MENU_SELECTION))}><Ic n="tag" />Tag de couleur</button>
+                  {tagOuvert === MENU_SELECTION && !tagSel.refus && (
+                    <div className="ftpop glass" role="menu" aria-label="Tag de couleur de la sélection" style={{ left: 0, right: 'auto' }}>
+                      <span className="lbl" style={{ margin: '0 2px 4px' }}>Tag de couleur · {tagSel.dossiers.length} dossier{tagSel.dossiers.length > 1 ? 's' : ''}</span>
+                      <div className="ftsw">
+                        {TAGS_COULEUR.map((t) => <button type="button" role="menuitemradio" aria-checked={tagSel.commun === t.cle} key={t.cle} style={style({ '--tc': t.teinte })} disabled={occupe} onClick={() => void poserTagSelection(t.cle)}><i />{t.libelle}</button>)}
+                      </div>
+                      {tagSel.retirable && <button type="button" className="ftrm" disabled={occupe} onClick={() => void poserTagSelection(null)}><Ic n="x" />Retirer le tag</button>}
+                      <small className="faint" style={{ margin: '2px 2px 0' }}>{noteSelectionTag(tagSel.fichiers)}</small>
+                    </div>
+                  )}
+                </span>
+              )}
+              {!corbeille && ecriture && tagSel.refus && tagSel.dossiers.length > 0 && <small className="faint">{tagSel.refus}</small>}
               <button className="btn sm" type="button" style={{ marginLeft: 'auto' }} onClick={() => setSelection(new Set())}>Désélectionner</button>
             </div>
           )}

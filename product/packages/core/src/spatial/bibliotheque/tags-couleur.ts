@@ -68,6 +68,72 @@ export function messageTagPose(tag: CleTagCouleur | null, dossier: string): stri
   return t ? `Tag « ${t.libelle} » ajouté à « ${dossier} »` : 'Tag retiré';
 }
 
+/* ───────────────────────────── Tag d'une SÉLECTION ───────────────────────────── */
+
+/**
+ * Le nombre de dossiers qu'un seul geste « Tag de couleur » de la barre de
+ * sélection peut taguer.
+ *
+ * Pourquoi 100 · la sélection se fait À LA MAIN, une case par carte, dans UNE
+ * vue (un niveau du drive, une recherche ou un filtre par tag) · la maquette en
+ * montre 5 par niveau, le jeu de parité aussi. Aucune base réelle n'est lisible
+ * depuis la session (aucune mesure de prod possible), donc la borne se fixe par
+ * ce qu'elle protège · une requête forgée ne doit pas pouvoir écrire tout un
+ * espace d'un coup ni porter une liste `IN (…)` démesurée. 100 laisse vingt fois
+ * la maquette de marge pour un vrai geste, tient dans ≈ 3,7 Ko d'identifiants,
+ * et reprend l'ordre de grandeur des autres listes bornées du noyau
+ * (`ASSOCIATIONS_MAX` = 100). Au-delà, refus TOTAL, dit à l'écran avant le
+ * clic · rien n'est écrit.
+ */
+export const TAG_SELECTION_MAX = 100;
+
+/** Un identifiant de dossier · `library_folders.id` est un UUID (une autre forme ferait échouer la requête). */
+const ID_DOSSIER = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Ce que l'action de sélection accepte · une liste d'identifiants (des UUID,
+ * dédoublonnés, entre 1 et `TAG_SELECTION_MAX`) et un tag du catalogue
+ * ou `null` (retirer). Tout écart refuse le geste ENTIER, avec la phrase dite à
+ * l'écran · jamais une liste tronquée en silence.
+ */
+export function validerSelectionTag(ids: unknown, tag: unknown): { ok: true; ids: string[]; tag: CleTagCouleur | null } | { ok: false; raison: string } {
+  const v = validerTagCouleur(tag);
+  if (!v.ok) return v;
+  if (!Array.isArray(ids) || ids.some((x) => typeof x !== 'string' || !ID_DOSSIER.test(x))) return { ok: false, raison: 'Sélection illisible · rien n’a été tagué.' };
+  const uniques = [...new Set((ids as string[]).map((x) => x.toLowerCase()))];
+  if (!uniques.length) return { ok: false, raison: 'Aucun dossier sélectionné.' };
+  if (uniques.length > TAG_SELECTION_MAX) return { ok: false, raison: refusSelectionTropLarge(uniques.length) };
+  return { ok: true, ids: uniques, tag: v.tag };
+}
+
+/** La phrase du refus de borne · la même avant le clic (écran) et après (action). */
+export function refusSelectionTropLarge(n: number): string {
+  return `${n} dossiers sélectionnés · ${TAG_SELECTION_MAX} au plus par geste, rien n’a été tagué.`;
+}
+
+/**
+ * Le message dit après le geste sur une sélection · le nombre de dossiers
+ * tagués (ou dont le tag est retiré) et, si la sélection contenait des
+ * fichiers, qu'ils ne portent pas de tag (seul un dossier en porte un).
+ */
+export function messageTagSelection(tag: CleTagCouleur | null, dossiers: number, fichiers = 0): string {
+  const t = tagCouleur(tag);
+  const s = dossiers > 1 ? 's' : '';
+  const tete = t ? `${dossiers} dossier${s} tagué${s} « ${t.libelle} »` : `Tag retiré de ${dossiers} dossier${s}`;
+  return fichiers > 0 ? `${tete} · les fichiers ne portent pas de tag` : tete;
+}
+
+/**
+ * La ligne du menu de la barre de sélection, dite AVANT le clic · seuls les
+ * dossiers reçoivent le tag ; s'il y a des fichiers dans la sélection, combien
+ * resteront sans tag.
+ */
+export function noteSelectionTag(fichiers: number): string {
+  if (fichiers <= 0) return 'Seuls les dossiers portent un tag.';
+  const s = fichiers > 1 ? 's' : '';
+  return `${fichiers} fichier${s} sélectionné${s} ne ${fichiers > 1 ? 'seront' : 'sera'} pas tagué${s} · les fichiers ne portent pas de tag.`;
+}
+
 /**
  * Les tags EN USAGE, dans l'ordre du catalogue, avec leur nombre de dossiers ·
  * les puces de filtre de l'arbre. Un tag sans dossier ne s'affiche pas

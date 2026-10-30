@@ -3,7 +3,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  validerNomDossier, estDroitAsset, validerTagCouleur, type CleTagCouleur, type DossierPlat, type DroitAsset,
+  validerNomDossier, estDroitAsset, validerTagCouleur, validerSelectionTag, type CleTagCouleur, type DossierPlat, type DroitAsset,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { GUARD } from '../../lib/guard-error';
@@ -215,4 +215,46 @@ export async function definirTagDossierAction(input: { id: string; tag: CleTagCo
   await db.update(schema.libraryFolders).set({ colorTag: v.tag, updatedAt: new Date() })
     .where(and(eq(schema.libraryFolders.id, dossier.id), eq(schema.libraryFolders.workspaceId, s.workspaceId)));
   return { ok: true };
+}
+
+/** Levée DANS la transaction pour l'annuler · jamais sortie de ce fichier. */
+class SelectionIncomplete extends Error {}
+
+/**
+ * Pose (ou retire avec `tag: null`) le TAG DE COULEUR de plusieurs dossiers
+ * d'un coup · la barre de sélection de la Bibliothèque. Même garde d'écriture
+ * que le geste unitaire, AVANT toute lecture. La liste est validée au noyau
+ * (`validerSelectionTag` · des UUID, dédoublonnés, au plus `TAG_SELECTION_MAX`)
+ * et le tag aussi.
+ *
+ * TOUT OU RIEN · une seule mise à jour, dans une transaction, bornée à
+ * l'espace de la session et aux dossiers vivants · si elle ne touche pas
+ * EXACTEMENT chaque identifiant demandé (un dossier d'un autre espace, en
+ * corbeille ou inconnu), la transaction est annulée et rien n'est écrit. La
+ * réponse ne dit pas lequel · un identifiant étranger reçoit la même phrase
+ * qu'un inconnu.
+ */
+export async function definirTagDossiersAction(input: { ids: string[]; tag: CleTagCouleur | null }): Promise<{ ok?: true; n?: number; error?: string }> {
+  const g = await gardeEcriture();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+
+  const v = validerSelectionTag(input?.ids, input?.tag);
+  if (!v.ok) return { error: v.raison };
+
+  const F = schema.libraryFolders;
+  try {
+    const n = await db.transaction(async (tx) => {
+      const maj = await tx.update(F).set({ colorTag: v.tag, updatedAt: new Date() })
+        .where(and(eq(F.workspaceId, s.workspaceId), inArray(F.id, v.ids), isNull(F.deletedAt)))
+        .returning({ id: F.id });
+      if (maj.length !== v.ids.length) throw new SelectionIncomplete();
+      return maj.length;
+    });
+    return { ok: true, n };
+  } catch (e) {
+    if (e instanceof SelectionIncomplete) return { error: 'Un dossier de la sélection est introuvable · rien n’a été tagué.' };
+    throw e;
+  }
 }
