@@ -14,6 +14,8 @@ import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
 import { assetAiUrl } from '../../lib/asset-ai-url';
+import { lireDebutObjetEspace } from '@tiktrends/integrations';
+import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT } from '@tiktrends/core';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
@@ -48,13 +50,6 @@ async function gardeLectureBibliotheque(): Promise<{ s: SessionBibliotheque } | 
   const refus = refusLectureBibliotheque(s);
   if (refus) return { error: TEXTE_REFUS_BIBLIOTHEQUE[refus] };
   return { s };
-}
-
-function kindFromMime(mime: string): AssetKind {
-  if (/^image\//.test(mime)) return 'image';
-  if (/^video\//.test(mime)) return 'video';
-  if (/^audio\//.test(mime)) return 'audio';
-  return 'other';
 }
 
 export type AssetKind = 'image' | 'video' | 'audio' | 'other';
@@ -389,12 +384,26 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
   const cfg = storageFromEnv();
   if (!cfg) return { error: messageServiceInactif('stockage') };
   // Une clé `drive-…` est celle de la synchro Drive, jamais un téléversement.
-  if (!cleTeleversable(url, basePubliqueStockage(cfg), s.workspaceId)) return { error: 'Ce fichier n’a pas été téléversé depuis cet espace.' };
+  const cle = cleTeleversable(url, basePubliqueStockage(cfg), s.workspaceId);
+  if (!cle) return { error: MESSAGES_RELECTURE_DEPOT.hors_espace };
+  // Le type et la taille se RELISENT dans l'objet (HEAD + début, liens signés
+  // vers le stockage configuré · l'adresse du client n'est jamais requêtée),
+  // jamais ceux que le navigateur déclare (`decisionDepotRelu`, noyau).
+  const lu = await lireDebutObjetEspace(cfg, url, s.workspaceId, OCTETS_RELUS_DEPOT);
+  if (!lu.ok) return { error: MESSAGES_RELECTURE_DEPOT[lu.raison] };
+  const d = decisionDepotRelu({ nom: cle.split('/').pop()!, typeDeclare: input.mimeType ?? '', octets: lu.octets, taille: lu.taille });
+  if (!d.ok) {
+    // Refusé · l'objet qu'on vient de déposer est retiré du bucket, sauf si une
+    // ligne existante le référence déjà (aucune donnée existante n'est touchée).
+    const [deja] = await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.url, url)).limit(1);
+    if (!deja) { try { await deleteObjectByUrl(cfg, url, s.workspaceId); } catch { /* best-effort */ } }
+    return { error: d.erreur };
+  }
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
   await db.insert(schema.assets).values({
     workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
-    name: (input.name || 'fichier').slice(0, 160), kind: kindFromMime(input.mimeType || ''),
-    source: 'upload', url, mimeType: input.mimeType || null, sizeBytes: input.sizeBytes || null,
+    name: (input.name || 'fichier').slice(0, 160), kind: d.kind,
+    source: 'upload', url, mimeType: d.contentType, sizeBytes: d.taille,
   });
   return { ok: true };
 }

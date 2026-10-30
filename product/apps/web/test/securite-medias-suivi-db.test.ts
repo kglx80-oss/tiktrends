@@ -76,6 +76,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { NextRequest } from 'next/server';
 import { session, semer } from './studios-semis';
+import { bucketQuiSert } from './helpers/bucket-qui-sert';
 import { GET as GET_ASSET } from '../app/api/asset/[id]/route';
 import { GET as GET_DRIVE } from '../app/api/drive-img/[id]/route';
 import { registerUploadedAssetAction, deleteAssetAction } from '../app/actions/assets';
@@ -244,7 +245,11 @@ describe('M4 · objet partagé, clé Drive', () => {
     etat.brand = null;
     const r = await registerUploadedAssetAction({ name: 'vol', url: `${BASE}/assets/${ids.wsB}/drive-abc.png`, mimeType: 'image/png', sizeBytes: 1 });
     expect(r.error ?? 'CLÉ DRIVE ENREGISTRÉE').toBe('Ce fichier n’a pas été téléversé depuis cet espace.');
-    expect(await registerUploadedAssetAction({ name: 'mien', url: `${BASE}/assets/${ids.wsB}/4-gh-mien.png`, mimeType: 'image/png', sizeBytes: 1 })).toEqual({ ok: true });
+    // Témoin · l'objet déposé est relu avant l'écriture · le bucket sert un vrai PNG.
+    vi.stubGlobal('fetch', bucketQuiSert(PNG));
+    try {
+      expect(await registerUploadedAssetAction({ name: 'mien', url: `${BASE}/assets/${ids.wsB}/4-gh-mien.png`, mimeType: 'image/png', sizeBytes: 1 })).toEqual({ ok: true });
+    } finally { vi.unstubAllGlobals(); }
   });
 });
 
