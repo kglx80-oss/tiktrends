@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   vueDrive, cheminVers, dossiersRangement, pastilleDroit, formatTaille, libelleJour, ETAT_DRIVE_INITIAL, SECTIONS_DRIVE, DROITS_ASSET,
@@ -9,6 +9,7 @@ import {
   gestesSelection, fichierSelectionnable, messageGesteFichiers, GESTES_SANS_ACTION, type CleGesteSelection,
   actionsApercuFichier, compteCorbeille, confirmationCorbeille, messageCorbeille, versementApercu,
   menuFichier, destinationsDeplacement, vueUtiliseDans, type CleMenuFichier, type UtilisationsBibliotheque,
+  menuDossier, optionsTagDossier, boutonTagSurCarte, gesteTelechargement, type CleMenuDossier,
   ATTRIBUT_ZONE_TACTILE,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction } from '../../../app/actions/assets';
@@ -20,7 +21,7 @@ import { LogoApp, ICONE_TYPE } from './logos';
 import { useSelecteurDrive } from './selecteur-drive';
 import { DialogueSpatial } from '../marque/interactifs';
 import { FenetreVersement } from './verser-projet';
-import { BoutonTelecharger } from './telecharger-selection';
+import { BoutonTelecharger, useArchive } from './telecharger-selection';
 import { MenuFichier } from './menu-fichier';
 import { UtiliseDans } from './utilise-dans';
 
@@ -63,6 +64,13 @@ import { UtiliseDans } from './utilise-dans';
  * règle de la barre appliquée à ce seul fichier (`menuFichier`). L'aperçu dit
  * dans quels projets Studios le fichier est cité (« Utilisé dans »,
  * `vueUtiliseDans` · lu par la page, lecture seule).
+ *
+ * Le menu « … » d'une carte de DOSSIER (grille, dans ses actions `facts`) et
+ * d'une ligne (liste) · même composant, même clavier · porte à l'unité Ouvrir,
+ * Télécharger (l'archive du dossier, `useArchive`), Mettre à la corbeille ou
+ * Restaurer, et le tag de couleur là où la carte n'a pas son bouton (la liste) ·
+ * décidés au noyau par la règle de la barre appliquée à ce seul dossier
+ * (`menuDossier`). Aucun renommage · aucune action ne le porte.
  *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
@@ -199,7 +207,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const [dialogueLien, setDialogueLien] = useState(false);
   const [versement, setVersement] = useState(false);
   const [versementFichier, setVersementFichier] = useState<string | null>(null);
-  /** Le fichier dont le menu « … » est ouvert · un seul à la fois. */
+  /** Le fichier ou le dossier dont le menu « … » est ouvert · un seul à la fois. */
   const [menuOuvert, setMenuOuvert] = useState<string | null>(null);
   const [lien, setLien] = useState<{ texte: string; nom: string; type: TypeImportLien }>({ texte: '', nom: '', type: 'video' });
   const fichierRef = useRef<HTMLInputElement>(null);
@@ -222,6 +230,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const rafraichir = () => router.refresh();
   const g = p.gestion;
   const selecteur = useSelecteurDrive(toast, rafraichir);
+  const archiver = useArchive();
   const prixImage = (n: number) => (g?.analyse.cout != null ? ` · ${g.analyse.cout * n} crédit${g.analyse.cout * n > 1 ? 's' : ''}` : '');
 
   /** L'adresse suit le filtre par tag (`?tag=`) · un lien copié rouvre l'écran filtré, sans recharger la page. */
@@ -423,6 +432,35 @@ export function Bibliotheque(p: PropsBibliotheque) {
     else if (cle === 'corbeille' || cle === 'restaurer') void corbeilleFichier(f, cle);
   }
 
+  /** Le menu « … » d'un dossier · à la corbeille (confirmé, comme la barre) ou restauré · une seule action. */
+  async function corbeilleDossier(d: CarteDossierDrive, geste: 'corbeille' | 'restaurer') {
+    if (occupe) return;
+    if (geste === 'corbeille' && !window.confirm(confirmationCorbeille(1, 0))) return;
+    setOccupe(true);
+    const r = await (geste === 'corbeille' ? supprimerDossierAction({ id: d.id }) : restaurerDossierAction({ id: d.id })).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    setSelection((x) => { const n = new Set(x); n.delete(d.id); return n; });
+    toast(messageCorbeille(geste, 1, 0));
+    rafraichir();
+  }
+
+  /** Un geste du menu « … » d'un dossier · revérifié au noyau (ouvert) avant l'action existante. */
+  async function agirMenuDossier(d: CarteDossierDrive, variante: 'grille' | 'liste', cle: CleMenuDossier, option?: string | null) {
+    const e = menuDossier(p.donnees, d.id, { section: etat.section, lectureSeule: p.lectureSeule, variante }).find((x) => x.cle === cle);
+    if (!e?.ouvert || occupe) return;
+    if (cle === 'ouvrir') aller(d.id);
+    else if (cle === 'tag') {
+      const o = optionsTagDossier(p.donnees, d.id).find((x) => x.id === (option ?? null));
+      if (o && !o.actuel) await poserTag(d, o.id as CleTagCouleur | null);
+    } else if (cle === 'telecharger') {
+      const g = gesteTelechargement(p.donnees, gestesSelection(p.donnees, [d.id], { section: etat.section, lectureSeule: p.lectureSeule, ia: false }), p.lectureSeule);
+      if (!g.ouvert) return;
+      setOccupe(true);
+      try { await archiver(g); } finally { setOccupe(false); }
+    } else await corbeilleDossier(d, cle);
+  }
+
   async function poserTag(d: CarteDossierDrive, tag: CleTagCouleur | null) {
     setTagOuvert(null);
     if (!ecriture || occupe) return;
@@ -535,6 +573,21 @@ export function Bibliotheque(p: PropsBibliotheque) {
     );
   };
 
+  /** Le menu « … » d'un dossier · ses entrées ne sont calculées que pour le menu ouvert. */
+  const menuDossierDe = (d: CarteDossierDrive, variante: 'grille' | 'liste', placer?: (bouton: ReactNode, panneau: ReactNode) => ReactNode) => {
+    const ouvert = menuOuvert === d.id;
+    return (
+      <MenuFichier<CleMenuDossier>
+        nom={d.nom} variante={variante === 'grille' ? 'dossier' : 'liste'} cible="dossier" occupe={occupe} ouvert={ouvert} placer={placer}
+        entrees={ouvert ? menuDossier(p.donnees, d.id, { section: etat.section, lectureSeule: p.lectureSeule, variante }) : []}
+        destinations={ouvert ? optionsTagDossier(p.donnees, d.id) : []}
+        liste={{ libelle: `Tag de couleur de ${d.nom}`, dejaIci: 'Le dossier porte déjà ce tag.' }}
+        basculer={(o) => setMenuOuvert((m) => (o ? d.id : m === d.id ? null : m))}
+        agir={(cle, option) => void agirMenuDossier(d, variante, cle, option)}
+      />
+    );
+  };
+
   const fsel = (id: string) => { const on = selection.has(id); return <button type="button" className={`fsel ${on ? 'on' : ''}`} aria-pressed={on} aria-label={`Sélectionner ${p.donnees.dossiers.find((d) => d.id === id)?.nom ?? ''}`} onClick={() => basculerSel(id)}>{on && <Ic n="check" />}</button>; };
 
   /** La case d'un FICHIER (maquette `chk(k)`) · carte de la grille et ligne de la liste. */
@@ -552,9 +605,11 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <div className="fgrid2">
             {v.dossiers.map((d) => {
               const sel = selection.has(d.id);
-              const tagueur = d.taggable && ecriture;
+              const tagueur = boutonTagSurCarte(d, p.lectureSeule);
+              // Le menu ouvert passe au-dessus des cartes voisines (comme la carte de fichier).
+              const devant = menuOuvert === d.id ? { zIndex: 7 } : null;
               return (
-                <div className={`fcard ${sel ? 'sel' : ''}`} key={d.id} style={d.tag ? style({ '--tc': d.tag.teinte }) : undefined}>
+                <div className={`fcard ${sel ? 'sel' : ''}`} key={d.id} style={d.tag || devant ? { ...(d.tag ? style({ '--tc': d.tag.teinte }) : {}), ...devant } : undefined}>
                   <button type="button" className="fopen" onClick={() => (corbeille ? d.selectionnable && basculerSel(d.id) : aller(d.id))}>
                     <span className="fic"><Ic n="folder" s={false} /></span>
                     <span className="ftx"><strong>{d.nom}</strong><small>{d.compte} élément{d.compte > 1 ? 's' : ''}{d.sousDossiers ? ` · ${d.sousDossiers} sous-dossier${d.sousDossiers > 1 ? 's' : ''}` : ''}{corbeille ? ' · restaurable' : ''}</small>{d.tag && <span className="ftag"><i />{d.tag.libelle}</span>}</span>
@@ -564,10 +619,17 @@ export function Bibliotheque(p: PropsBibliotheque) {
                         : <i key={i} className="fth fi" style={style({ '--fc': ICONE_TYPE[t.type]!.couleur })}><Ic n={ICONE_TYPE[t.type]!.icone} /></i>))}
                     </span>
                   </button>
-                  <div className="facts">
-                    {d.selectionnable && ecriture && fsel(d.id)}
-                    {tagueur && <button type="button" className={`ftb ${d.tag ? 'has' : ''}`} aria-label="Tag de couleur" aria-expanded={tagOuvert === d.id} disabled={occupe} onClick={() => setTagOuvert((o) => (o === d.id ? null : d.id))}><Ic n="tag" /></button>}
-                  </div>
+                  {/* Le menu « … » · dans les actions de la carte, après la case et le tag (le panneau hors des actions, comme le menu du tag). */}
+                  {menuDossierDe(d, 'grille', (bouton, panneau) => (
+                    <>
+                      <div className="facts">
+                        {d.selectionnable && ecriture && fsel(d.id)}
+                        {tagueur && <button type="button" className={`ftb ${d.tag ? 'has' : ''}`} aria-label="Tag de couleur" aria-expanded={tagOuvert === d.id} disabled={occupe} onClick={() => setTagOuvert((o) => (o === d.id ? null : d.id))}><Ic n="tag" /></button>}
+                        {bouton}
+                      </div>
+                      {panneau}
+                    </>
+                  ))}
                   {tagueur && tagOuvert === d.id && (
                     <div className="ftpop glass" role="menu" aria-label={`Tag de couleur de ${d.nom}`}>
                       <span className="lbl" style={{ margin: '0 2px 4px' }}>Tag de couleur</span>
@@ -619,7 +681,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <span className="downer">Bibliothèque</span>
           <span className="faint" />
           <span className="faint num">{d.compte} élém.</span>
-          <span /><span />
+          <span />
+          {menuDossierDe(d, 'liste')}
         </div>
       ))}
       {v.fichiers.map((f) => (

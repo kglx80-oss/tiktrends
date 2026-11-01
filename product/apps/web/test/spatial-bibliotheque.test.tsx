@@ -98,10 +98,23 @@ function bibliothequeSansFictif(html: string): string {
  */
 const sansPastillesArbre = (html: string) => html.replace(/<i class="tgdot"[^>]*><\/i>/g, '');
 
+/**
+ * Le menu « … » d'une carte de DOSSIER · un AJOUT à la maquette (qui n'en a que
+ * sur les fichiers), décidé pour porter à l'unité les gestes existants d'un
+ * dossier. Il est retiré du RENDU avant la comparaison, et seulement lui · un
+ * bouton par carte (compté), à la fin des actions `facts` · son rendu est gardé
+ * à part (`spatial-bibliotheque-menu-dossier.test.tsx`).
+ */
+const MENU_DOSSIER = /<button type="button" data-menu-dossier=""[^>]*><svg class="i s"><use href="#i-more"><\/use><\/svg><\/button>(?=<\/div>)/g;
+const sansMenuDossier = (html: string) => html.replace(MENU_DOSSIER, '');
+
 describe('Spatial · Bibliothèque reproduit la maquette', () => {
   it('structure identique au fragment (hors contenus sans source, retirés et justifiés)', () => {
     const html = rendre(<Bibliotheque {...propsBiblio()} />);
-    const rendu = squelette(sansPastillesArbre(html));
+    // Un « … » par carte de dossier (les 5 de la maquette), en dernier dans ses actions · rien d'autre n'est retiré.
+    expect([...html.matchAll(MENU_DOSSIER)]).toHaveLength(5);
+    expect(html.match(/data-menu-dossier/g)).toHaveLength(5);
+    const rendu = squelette(sansPastillesArbre(sansMenuDossier(html)));
     const reference = squelette(sansPastillesArbre(bibliothequeSansFictif(fragmentReference('bibliotheque'))));
     expect(rendu).toEqual(reference);
   });
