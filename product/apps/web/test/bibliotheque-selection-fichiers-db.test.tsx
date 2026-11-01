@@ -181,7 +181,7 @@ describe('la VRAIE page · une case sur chaque fichier de la bibliothèque', () 
     etat.session = session(ids, 'ua');
     await affecterAssetsDossierAction({ ids: [A.flacon, A.pot, A.tube], folderId: null });
     const html = await page();
-    const cases = [...html.matchAll(/<div class="dcard [^"]*"><button type="button" class="dchk " aria-pressed="false" aria-label="Sélectionner ([^"]+)"><\/button><button type="button" class="dopen"/g)].map((m) => m[1]).sort();
+    const cases = [...html.matchAll(/<div class="dcard [^"]*"><button type="button" class="dchk " aria-pressed="false" aria-label="Sélectionner ([^"]+)"><span data-zone-tactile="" aria-hidden="true"><\/span><\/button><button type="button" class="dopen"/g)].map((m) => m[1]).sort();
     expect(cases).toEqual(['flacon', 'pot', 'tube']);
     expect(html, 'un fichier d’un autre espace est proposé').not.toContain('secret de B');
   });

@@ -24,6 +24,15 @@
  *    La maquette compte les bordures dans la taille (`*{box-sizing:border-box}`)
  *    · la largeur et la hauteur posées ajoutent donc les deux bordures, sans
  *    quoi la piste serait écrasée d'autant.
+ *  · `zone` · une case à cocher DESSINÉE (bordure visible de 1,5 px, fond voilé)
+ *    · `agrandir` la déformerait, `deborder` remplacerait sa bordure par la
+ *    bordure transparente. La case ne change donc pas · c'est un ENFANT vide
+ *    (`[data-zone-tactile]`, rendu par l'écran, inerte au bureau) que la
+ *    coquille pose en absolu, centré sur la case, à la taille de la cible. Un
+ *    enfant d'un bouton reçoit le doigt pour lui · le clic part de la case.
+ *    Dans une LIGNE répétée (la liste), deux zones voisines se recouvriraient
+ *    si le pas des lignes (hauteur + écart) restait sous la cible · la case
+ *    reçoit alors la marge verticale qui porte la ligne au pas voulu.
  *
  * Les seuils · 44 px (WCAG 2.5.5, niveau AAA ; 44 pt des consignes Apple), le
  * plancher absolu à 24 px (WCAG 2.5.8, niveau AA). Ils valent À L'ÉCRAN · la
@@ -54,7 +63,10 @@ export function cibleSousZoom(zoom = 1): number {
 export const SELECTEUR_INTERACTIF =
   'a[href],button,input:not([type=hidden]),select,textarea,summary,[role=button],[role=tab],[role=link],[role=switch],[role=checkbox],[role=radio],[role=menuitem]';
 
-export type ModeCibleTactile = 'agrandir' | 'deborder';
+export type ModeCibleTactile = 'agrandir' | 'deborder' | 'zone';
+
+/** `zone` · l'attribut de l'enfant vide qui porte la zone tactile (rendu par l'écran dans la case). */
+export const ATTRIBUT_ZONE_TACTILE = 'data-zone-tactile';
 
 export interface PrimitiveTactile {
   /** Sélecteur CSS de la primitive (classes de `spatial.css`). */
@@ -68,6 +80,12 @@ export interface PrimitiveTactile {
   rayon?: number;
   /** `agrandir` · des propriétés en plus (centrer un lien qui n'est pas une boîte flexible). */
   style?: Readonly<Record<string, string>>;
+  /**
+   * `zone` · la case vit dans une ligne répétée · le rembourrage vertical de la
+   * ligne et l'écart entre deux lignes (px, de `spatial.css`). Le pas des
+   * lignes doit atteindre la cible, sinon la zone de la suivante recouvre la sienne.
+   */
+  ligne?: { rembourrage: number; ecart: number };
 }
 
 /**
@@ -116,6 +134,8 @@ export const PRIMITIVES_TACTILES: readonly PrimitiveTactile[] = [
   { selecteur: '.crumb button', mode: 'agrandir', motif: 'fil d’Ariane du drive (Bibliothèque) · 27 px' },
   { selecteur: '.tnb', mode: 'agrandir', motif: 'dossier de l’arbre (Bibliothèque) · 31 px' },
   { selecteur: '.facts button', mode: 'agrandir', motif: 'case de sélection d’un dossier (Bibliothèque) · 28 × 28' },
+  { selecteur: '.dchk', mode: 'zone', hauteur: 26, motif: 'case de sélection d’un fichier, carte de la grille (Bibliothèque) · 26 × 26, bordure dessinée' },
+  { selecteur: '.dtr .dchk', mode: 'zone', hauteur: 22, ligne: { rembourrage: 6, ecart: 4 }, motif: 'case d’un fichier ou d’un dossier, ligne de la liste (Bibliothèque) · 22 × 22 dans une colonne de 30, lignes de 42 espacées de 4 · pas de 43,7 px à l’écran' },
   { selecteur: '.astrip-b', mode: 'agrandir', motif: 'retour à l’outil du bandeau Admin+ · 28 px' },
 ];
 
@@ -131,6 +151,11 @@ export function debordTactile(hauteur: number, cible = CIBLE_TACTILE_PX): number
  */
 export function styleCibleTactile(p: PrimitiveTactile, zoom = 1): Record<string, string> {
   const cible = cibleSousZoom(zoom);
+  if (p.mode === 'zone') {
+    // La case garde son dessin · seule une ligne trop serrée la reçoit, en marge (jamais en taille).
+    const marge = p.ligne ? margeLigneTactile(p.hauteur ?? 0, p.ligne, cible) : 0;
+    return marge > 0 ? { marginTop: `${marge}px`, marginBottom: `${marge}px` } : {};
+  }
   if (p.mode === 'agrandir') {
     return { minHeight: `${cible}px`, minWidth: `${cible}px`, ...(p.style ?? {}) };
   }
@@ -147,4 +172,36 @@ export function styleCibleTactile(p: PrimitiveTactile, zoom = 1): Record<string,
     // Le rayon extérieur porte la bordure · la boîte intérieure garde le rayon de la maquette.
     borderRadius: `${(p.rayon ?? 0) + b}px`,
   };
+}
+
+/**
+ * `zone` · la marge verticale de la case qui porte le PAS d'une ligne répétée
+ * (hauteur de ligne + écart) à la cible · la ligne mesure au moins deux
+ * rembourrages plus la boîte de marge de la case. Zéro si la ligne suffit.
+ */
+export function margeLigneTactile(hauteur: number, ligne: { rembourrage: number; ecart: number }, cible = CIBLE_TACTILE_PX): number {
+  return Math.max(0, (cible - ligne.ecart - 2 * ligne.rembourrage - hauteur) / 2);
+}
+
+/**
+ * `zone` · le style de l'enfant vide · une boîte transparente de la taille de
+ * la cible, centrée sur la case quelle que soit sa taille dessinée. Aucune
+ * couleur, aucun fond · rien ne se voit, seul le doigt la trouve.
+ */
+export function styleZoneTactile(zoom = 1): Record<string, string> {
+  const cible = cibleSousZoom(zoom);
+  return { position: 'absolute', left: '50%', top: '50%', width: `${cible}px`, height: `${cible}px`, marginLeft: `-${cible / 2}px`, marginTop: `-${cible / 2}px` };
+}
+
+/**
+ * `zone` · l'enfant se pose par rapport à la case · une case déjà positionnée
+ * (la carte de la grille la place en absolu) le reste ; une case statique (la
+ * ligne de la liste) devient relative. Ses décalages repassent à `auto` · la
+ * feuille en donne à la case de la grille (`.dchk{…top:12px;left:12px}`) qu'une
+ * case statique ignore mais qu'une case relative appliquerait (mesuré au banc ·
+ * 11,4 px de glissement à l'écran).
+ */
+export function styleHoteZone(positionCalculee: string): Record<string, string> {
+  if (['absolute', 'fixed', 'relative', 'sticky'].includes(positionCalculee)) return {};
+  return { position: 'relative', top: 'auto', right: 'auto', bottom: 'auto', left: 'auto' };
 }
