@@ -14,6 +14,12 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * `GET` avec `Range` (206), `DELETE`. On lit ce qui SORT : la ligne écrite
  * (type, taille, famille), l'objet encore présent ou non dans le bucket, et
  * les requêtes réellement envoyées.
+ *
+ * Empreinte · le faux bucket rend un `ETag` (MD5 du corps, comme S3) et honore
+ * `If-Match` (412). La ligne garde l'ETag relu ; un objet remplacé entre `HEAD`
+ * et `GET`, même de taille identique, n'est pas enregistré ; un remplacement
+ * APRÈS l'enregistrement (même lien de dépôt) se voit à la relecture
+ * (`etatEmpreinte`).
  */
 
 const etat = vi.hoisted(() => ({
@@ -40,10 +46,11 @@ vi.mock('@tiktrends/integrations', async (importOriginal) => ({
   storageFromEnv: () => CFG,
 }));
 
+import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { lireDebutObjetEspace } from '@tiktrends/integrations';
-import { MESSAGES_REFUS_RELU, MESSAGES_REFUS_DEPOT, OCTETS_RELUS_DEPOT } from '@tiktrends/core';
+import { MESSAGES_REFUS_RELU, MESSAGES_REFUS_DEPOT, OCTETS_RELUS_DEPOT, etatEmpreinte } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { registerUploadedAssetAction } from '../app/actions/assets';
 import { mp4StructurePlausible } from '../../../packages/core/test/l3-fixtures-media';
@@ -61,8 +68,15 @@ const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(d
 /* ───────────── Le faux bucket · répond comme S3 sur l'hôte configuré ───────────── */
 
 const bucket = new Map<string, Buffer>();
-const requetes: Array<{ methode: string; hote: string; cle: string; range: string | null }> = [];
+const requetes: Array<{ methode: string; hote: string; cle: string; range: string | null; ifMatch: string | null }> = [];
 let ignorerRange = false;
+/** Stockage sans ETag · ou qui ignore If-Match (sert quand même, avec l'ETag du contenu servi). */
+let sansEtag = false;
+let ignorerIfMatch = false;
+/** Le GET ne répète pas l'ETag · seul If-Match protège alors la lecture. */
+let sansEtagAuGet = false;
+const md5 = (b: Buffer) => createHash('md5').update(b).digest('hex');
+const etagDe = (b: Buffer) => `"${md5(b)}"`;
 let redirigerHead = false;
 /** Contenu servi au GET à la place de celui vu au HEAD (objet remplacé entre les deux). */
 let remplacant: Buffer | null = null;
@@ -85,9 +99,10 @@ async function fauxBucket(entree: string | URL | Request, init?: RequestInit): P
   const u = new URL(String(entree));
   const methode = init?.method ?? 'GET';
   const range = new Headers(init?.headers).get('range');
+  const ifMatch = new Headers(init?.headers).get('if-match');
   const prefixe = `/${CFG.bucket}/`;
   const cle = u.pathname.startsWith(prefixe) ? decodeURIComponent(u.pathname.slice(prefixe.length)) : '';
-  requetes.push({ methode, hote: u.host, cle, range });
+  requetes.push({ methode, hote: u.host, cle, range, ifMatch });
   if (u.host !== CFG.endpoint) return new Response('hôte inconnu', { status: 599 });
   const corps = bucket.get(cle);
   if (methode === 'DELETE') { bucket.delete(cle); return new Response(null, { status: 204 }); }
@@ -98,11 +113,16 @@ async function fauxBucket(entree: string | URL | Request, init?: RequestInit): P
       if (init?.redirect !== 'manual') return fauxBucket(vers, { method: 'HEAD' });
       return new Response(null, { status: 302, headers: { location: vers } });
     }
-    return corps ? new Response(null, { status: 200, headers: { 'content-length': String(corps.length) } }) : new Response(null, { status: 404 });
+    return corps ? new Response(null, { status: 200, headers: { 'content-length': String(corps.length), ...(sansEtag ? {} : { etag: etagDe(corps) }) } }) : new Response(null, { status: 404 });
   }
   if (!corps) return new Response('NoSuchKey', { status: 404 });
   if (remplacant) bucket.set(cle, remplacant);
-  return servirGet(bucket.get(cle)!, range);
+  const servi = bucket.get(cle)!;
+  // Comme S3 · If-Match qui ne correspond plus à l'objet ⇒ 412, rien n'est servi.
+  if (ifMatch !== null && !ignorerIfMatch && !sansEtag && ifMatch !== etagDe(servi)) return new Response('PreconditionFailed', { status: 412 });
+  const r = servirGet(servi, range);
+  if (!sansEtag && !sansEtagAuGet) r.headers.set('etag', etagDe(servi));
+  return r;
 }
 
 function servirGet(corps: Buffer, range: string | null): Response {
@@ -125,7 +145,7 @@ const ligne = async (url: string) => db.select().from(schema.assets).where(eq(sc
 
 beforeAll(async () => { await semer(db, schema, ids); });
 beforeEach(() => {
-  requetes.length = 0; ignorerRange = false; redirigerHead = false; octetsTires = 0; remplacant = null;
+  requetes.length = 0; ignorerRange = false; redirigerHead = false; octetsTires = 0; remplacant = null; sansEtag = false; ignorerIfMatch = false; sansEtagAuGet = false;
   vi.stubGlobal('fetch', fauxBucket);
   etat.session = session(ids, 'ub');
 });
@@ -248,5 +268,53 @@ describe('registerUploadedAssetAction · aucune adresse hors de l’espace n’e
     const url = `${BASE}/assets/${ids.wsB}/1-zz-absent.png`;
     expect(await registerUploadedAssetAction({ name: 'absent.png', url, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: 'Fichier introuvable dans le stockage · relance le téléversement.' });
     expect(await ligne(url)).toEqual([]);
+  });
+});
+
+describe('registerUploadedAssetAction · l’empreinte relue ferme la ré-écriture silencieuse', () => {
+  /** Un PNG de MÊME taille, d'autres octets (fin de fichier modifiée · la signature reste PNG). */
+  const autrePng = () => { const b = Buffer.from(PNG); b[b.length - 5] = b[b.length - 5]! ^ 0xff; return b; };
+
+  it('la ligne garde l’ETag relu, et la lecture du début l’a EXIGÉ (If-Match)', async () => {
+    const { url, cle } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
+    expect((await ligne(url)).map((l) => l.objectEtag)).toEqual([md5(PNG)]);
+    expect(requetes.map((r) => [r.methode, r.cle, r.ifMatch])).toEqual([['HEAD', cle, null], ['GET', cle, etagDe(PNG)]]);
+  });
+
+  it('un objet remplacé entre HEAD et GET par un PNG de MÊME taille ⇒ 412 sur If-Match, « lecture impossible », rien d’écrit', async () => {
+    sansEtagAuGet = true; // la garde ici est If-Match seul, pas l'ETag répété au GET
+    const autre = autrePng();
+    expect(autre.length).toBe(PNG.length);
+    remplacant = autre;
+    const { url } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
+    expect(await ligne(url), 'les octets jugés ne sont pas ceux de l’empreinte gardée').toEqual([]);
+  });
+
+  it('un stockage qui ignore If-Match mais sert un autre ETag ⇒ « lecture impossible », rien d’écrit', async () => {
+    ignorerIfMatch = true;
+    remplacant = autrePng();
+    const { url } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
+    expect(await ligne(url)).toEqual([]);
+  });
+
+  it('un PUT APRÈS l’enregistrement (même lien, même taille, même type) se voit à la relecture · remplacé, et conforme sans lui', async () => {
+    const { url, cle } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
+    const [l] = await ligne(url);
+    const relu = async () => { const r = await lireDebutObjetEspace(CFG, url, ids.wsB, OCTETS_RELUS_DEPOT); return r.ok ? r.empreinte : null; };
+    expect(etatEmpreinte(l!.objectEtag, await relu()), 'objet intact').toBe('conforme');
+    bucket.set(cle, autrePng());
+    expect(etatEmpreinte(l!.objectEtag, await relu()), 'objet ré-écrit par le même lien').toBe('remplace');
+  });
+
+  it('un stockage sans ETag · enregistré avec une empreinte nulle (inconnu), aucun If-Match envoyé, rien de bloqué', async () => {
+    sansEtag = true;
+    const { url } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
+    expect((await ligne(url)).map((l) => l.objectEtag)).toEqual([null]);
+    expect(requetes.map((r) => r.ifMatch)).toEqual([null, null]);
   });
 });

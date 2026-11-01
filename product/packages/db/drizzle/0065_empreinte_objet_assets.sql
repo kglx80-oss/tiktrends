@@ -1,0 +1,15 @@
+-- Bibliothèque · EMPREINTE de l'objet téléversé (migration ADDITIVE).
+--
+-- Le lien de dépôt présigné reste valable un temps après l'enregistrement ·
+-- le même lien peut redéposer d'autres octets (même taille, même type
+-- déclaré) et la ligne `assets` ne correspondrait plus au contenu. À
+-- l'enregistrement, le serveur garde l'ETag fort relu au HEAD (exigé au GET
+-- par If-Match) · une lecture ultérieure compare (`etatEmpreinte`, noyau
+-- packages/core/src/depot-relu.ts) ou exige If-Match, et voit le remplacement.
+--
+-- Une colonne `object_etag` sur `assets` · nullable : les lignes existantes,
+-- les autres sources (lien, Drive, data URI) et un stockage sans ETag restent
+-- à NULL (« inconnu », rien n'est bloqué). Aucune donnée lue ni modifiée,
+-- aucune destruction, aucune colonne NOT NULL. Rejouable : « ADD COLUMN IF NOT
+-- EXISTS ».
+ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "object_etag" text;

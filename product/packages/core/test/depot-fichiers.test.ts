@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FORMATS_LOGO, MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO, PLAFONDS_DEPOT, POIDS_MAX_LOGO, TYPE_DEPOT_NEUTRE,
   decisionDepot, logoTransmissible, nomFichierDepot, refusAdresseLogo, refusCharteLogos,
+  dureeLienDepot, DEBIT_MONTANT_REFERENCE_OCTETS_S, MARGE_LIEN_DEPOT_S, DUREE_LIEN_DEPOT_MIN_S, DUREE_LIEN_DEPOT_MAX_S,
 } from '../src';
 
 /**
@@ -164,6 +165,50 @@ describe('logoTransmissible · lecture pour les fournisseurs', () => {
     expect(logoTransmissible('http://127.0.0.1:3299/tt/assets/ws-a/l.png', { base: 'http://127.0.0.1:3299/tt', espace: 'ws-a' })).toBe(true);
     for (const a of ['http://exemple.fr/l.png', 'https://169.254.169.254/x', 'javascript:alert(1)', 'data:image/svg+xml;base64,PHN2Zz4=', 'https://user@exemple.fr/l.png', '', null, undefined]) {
       expect(logoTransmissible(a), String(a)).toBe(false);
+    }
+  });
+});
+
+describe('dureeLienDepot · la validité du PUT présigné suit la taille validée', () => {
+  const Mio = 1024 * 1024;
+  it('débit de référence · ADSL 1 Mbit/s montant, débit utile calculé (1 440 octets utiles par 32 cellules ATM)', () => {
+    expect(DEBIT_MONTANT_REFERENCE_OCTETS_S).toBe(106_132);
+    expect([MARGE_LIEN_DEPOT_S, DUREE_LIEN_DEPOT_MIN_S, DUREE_LIEN_DEPOT_MAX_S]).toEqual([60, 60, 900]);
+  });
+
+  it('une image de 2 Mo n’obtient plus 15 minutes · 80 s (20 s de transfert lent + 60 s)', () => {
+    expect(dureeLienDepot(2 * Mio)).toBe(80);
+    expect(dureeLienDepot(2_000_000)).toBe(79);
+    expect(dureeLienDepot(2 * Mio)).toBeLessThan(DUREE_LIEN_DEPOT_MAX_S / 10);
+  });
+
+  it('une image au plafond (64 Mio) · 693 s, son transfert ENTIER au débit lent tient dans le lien', () => {
+    const d = dureeLienDepot(PLAFONDS_DEPOT.image);
+    expect(d).toBe(693);
+    expect(d - MARGE_LIEN_DEPOT_S).toBeGreaterThanOrEqual(PLAFONDS_DEPOT.image / DEBIT_MONTANT_REFERENCE_OCTETS_S);
+  });
+
+  it('1 Go (vidéo au plafond) · le maximum, 900 s, jamais moins qu’avant', () => {
+    expect(dureeLienDepot(PLAFONDS_DEPOT.video)).toBe(900);
+    expect(dureeLienDepot(1_000_000_000)).toBe(900);
+  });
+
+  it('bornes · minimum pour 1 octet ou une taille illisible, maximum au-delà de ≈ 89 Mo, croissante entre les deux', () => {
+    expect(dureeLienDepot(1)).toBe(61);
+    for (const n of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, '2048' as unknown as number, undefined as unknown as number]) {
+      expect(dureeLienDepot(n), String(n)).toBe(DUREE_LIEN_DEPOT_MIN_S);
+    }
+    const seuil = (DUREE_LIEN_DEPOT_MAX_S - MARGE_LIEN_DEPOT_S) * DEBIT_MONTANT_REFERENCE_OCTETS_S; // 89 150 880 octets
+    expect(dureeLienDepot(seuil)).toBe(900);
+    expect(dureeLienDepot(seuil - DEBIT_MONTANT_REFERENCE_OCTETS_S)).toBe(899);
+    expect(dureeLienDepot(5 * 1024 * Mio)).toBe(900);
+    let avant = 0;
+    for (let t = 1; t <= PLAFONDS_DEPOT.video; t += 7 * Mio) {
+      const d = dureeLienDepot(t);
+      expect(d).toBeGreaterThanOrEqual(avant);
+      expect(d).toBeGreaterThanOrEqual(DUREE_LIEN_DEPOT_MIN_S);
+      expect(d).toBeLessThanOrEqual(DUREE_LIEN_DEPOT_MAX_S);
+      avant = d;
     }
   });
 });
