@@ -155,3 +155,58 @@ export function decisionDepotRelu(f: { nom: string; typeDeclare: string; octets:
   if (d.contentType === TYPE_DEPOT_NEUTRE && d.famille !== 'document') return accepte(TYPE_DEPOT_NEUTRE, d.famille);
   return { ok: false, erreur: MESSAGES_REFUS_RELU.incoherent };
 }
+
+/* ───────────────────── Empreinte de l'objet enregistré ───────────────────── */
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * Le lien de dépôt reste valable après l'enregistrement (`dureeLienDepot`,
+ * borné mais non nul) · le même lien peut redéposer d'autres octets, de même
+ * taille et de même type déclaré, et la ligne `assets` ne correspond plus au
+ * contenu qu'elle désigne. Un lien présigné ne se révoque pas.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ * À l'enregistrement, le serveur garde l'`ETag` que le stockage rend au `HEAD`
+ * (colonne `assets.object_etag`) · le même `ETag` est EXIGÉ sur la lecture du
+ * début (`If-Match`), donc les octets jugés sont bien ceux de l'objet dont on
+ * garde l'empreinte. Tout PUT ultérieur change l'`ETag` (S3 : MD5 du corps,
+ * ou MD5 des parties suivi de `-N`).
+ *
+ * Une lecture ultérieure détecte un remplacement de deux façons, sans jamais
+ * faire confiance à l'adresse :
+ *  - `HEAD` signé de la clé, puis `etatEmpreinte(ligne.objectEtag, ETag lu)` ·
+ *    `remplace` ⇒ ne pas servir l'objet comme ce que dit la ligne ;
+ *  - ou `GET` signé avec `If-Match: "<objectEtag>"` · le stockage répond 412
+ *    au lieu de servir un autre contenu (c'est ce que fait déjà la relecture
+ *    de l'enregistrement).
+ * Une ligne sans empreinte (antérieure, ou stockage sans `ETag`) rend
+ * `inconnu` · on ne conclut rien, aucune ligne existante n'est bloquée.
+ *
+ * ── Forme acceptée · RFC 9110 §8.8.3 ─────────────────────────────────────────
+ *
+ * `entity-tag = [ "W/" ] DQUOTE *etagc DQUOTE`, `etagc = %x21 / %x23-7E`.
+ * L'empreinte gardée est le contenu ENTRE guillemets, une étiquette faible
+ * (`W/`) est refusée (elle ne garantit pas les octets). Longueurs mesurées des
+ * formes S3 · MD5 hexadécimal 32 caractères, multipart 32 + `-` + au plus
+ * 5 chiffres (10 000 parties) = 38 · plafond 128, de la marge sans laisser
+ * passer un en-tête arbitraire.
+ */
+export const LONGUEUR_MAX_EMPREINTE = 128;
+
+/** L'empreinte forte d'un en-tête `ETag`, sans guillemets · `null` si absente, faible ou mal formée. */
+export function empreinteObjet(etag: string | null | undefined): string | null {
+  if (typeof etag !== 'string') return null;
+  const m = /^"([\x21\x23-\x7e]*)"$/.exec(etag.trim());
+  if (!m || !m[1] || m[1].length > LONGUEUR_MAX_EMPREINTE) return null;
+  return m[1];
+}
+
+export type EtatEmpreinte = 'conforme' | 'remplace' | 'inconnu';
+
+/** L'objet relu est-il celui de la ligne · `inconnu` si l'une des deux empreintes manque. */
+export function etatEmpreinte(enregistree: string | null | undefined, lue: string | null | undefined): EtatEmpreinte {
+  if (!enregistree || !lue) return 'inconnu';
+  return enregistree === lue ? 'conforme' : 'remplace';
+}

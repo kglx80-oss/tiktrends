@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, decisionDepot, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
+import { costFor, decisionDepot, dureeLienDepot, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -404,7 +404,9 @@ export async function presignAssetUploadAction(input: { filename: string; conten
   if (!d.ok) return { error: d.erreur };
   const key = newAssetKey(s.workspaceId, d.nomFichier);
   try {
-    const { uploadUrl, publicUrl } = presignPutUrl(cfg, key, { contentType: d.contentType, contentLength: d.contentLength });
+    // Validité proportionnée à la taille VALIDÉE (`dureeLienDepot`, noyau) · une
+    // image de 2 Mo n'a plus 15 minutes de ré-écriture après son envoi.
+    const { uploadUrl, publicUrl } = presignPutUrl(cfg, key, { contentType: d.contentType, contentLength: d.contentLength }, dureeLienDepot(d.contentLength));
     return { uploadUrl, publicUrl, contentType: d.contentType };
   } catch (e) {
     return { error: logAndTranslate('assets:upload', e, { subject: 'la préparation du téléversement', workspaceId: s.workspaceId }) };
@@ -446,6 +448,9 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
     workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
     name: (input.name || 'fichier').slice(0, 160), kind: d.kind,
     source: 'upload', url, mimeType: d.contentType, sizeBytes: d.taille,
+    // L'ETag relu (et exigé à la lecture du début) · révèle un remplacement
+    // ultérieur par le même lien de dépôt (`etatEmpreinte`, noyau).
+    objectEtag: lu.empreinte,
   });
   return { ok: true };
 }

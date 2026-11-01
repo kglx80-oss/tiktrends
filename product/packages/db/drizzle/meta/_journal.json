@@ -456,6 +456,13 @@
       "when": 1793100000000,
       "tag": "0064_tags_couleur_dossiers",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793200000000,
+      "tag": "0065_empreinte_objet_assets",
+      "breakpoints": true
     }
   ]
 }

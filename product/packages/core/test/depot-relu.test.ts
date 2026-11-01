@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   decisionDepotRelu, lectureDepot, typeMediaReel, OCTETS_RELUS_DEPOT, MESSAGES_REFUS_RELU, MESSAGES_REFUS_DEPOT,
-  TYPE_DEPOT_NEUTRE, PLAFONDS_DEPOT,
+  TYPE_DEPOT_NEUTRE, PLAFONDS_DEPOT, empreinteObjet, etatEmpreinte, LONGUEUR_MAX_EMPREINTE,
 } from '../src';
 import { concat, boite } from './l3-fixtures-media';
 
@@ -112,5 +112,28 @@ describe('OCTETS_RELUS_DEPOT · le plus petit préfixe qui suffit à typeMediaRe
   it('lectureDepot ignore tout ce qui suit N · un SVG caché après 256 octets d’un PNG reste un PNG', () => {
     const o = concat(PNG, new Uint8Array(OCTETS_RELUS_DEPOT), SVG);
     expect(lectureDepot(o)).toBe('image/png');
+  });
+});
+
+describe('empreinteObjet · l’ETag FORT relu, sans guillemets', () => {
+  it('formes S3 · MD5 simple et multipart', () => {
+    expect(empreinteObjet('"9e107d9d372bb6826bd81d3542a419d6"')).toBe('9e107d9d372bb6826bd81d3542a419d6');
+    expect(empreinteObjet(' "9e107d9d372bb6826bd81d3542a419d6-10000" ')).toBe('9e107d9d372bb6826bd81d3542a419d6-10000');
+  });
+  it('absente, faible, sans guillemets, vide, guillemet interne, caractère de contrôle ou trop longue ⇒ null', () => {
+    for (const e of [null, undefined, '', 'W/"abc"', 'abc', '""', '"a"b"', '"a\nb"', '"a b"', `"${'a'.repeat(LONGUEUR_MAX_EMPREINTE + 1)}"`]) {
+      expect(empreinteObjet(e as string | null), String(e)).toBeNull();
+    }
+    expect(empreinteObjet(`"${'a'.repeat(LONGUEUR_MAX_EMPREINTE)}"`)).toBe('a'.repeat(LONGUEUR_MAX_EMPREINTE));
+  });
+});
+
+describe('etatEmpreinte · une lecture ultérieure voit le remplacement', () => {
+  it('même empreinte ⇒ conforme · autre ⇒ remplacé · l’une manque ⇒ inconnu (rien n’est conclu)', () => {
+    expect(etatEmpreinte('abc', 'abc')).toBe('conforme');
+    expect(etatEmpreinte('abc', 'abd')).toBe('remplace');
+    expect(etatEmpreinte(null, 'abc')).toBe('inconnu');
+    expect(etatEmpreinte('abc', null)).toBe('inconnu');
+    expect(etatEmpreinte(undefined, undefined)).toBe('inconnu');
   });
 });

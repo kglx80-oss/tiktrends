@@ -32,4 +32,6 @@ export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/console', section: 'admin' },
   // Vague 4 · « Crédits & marges » (écran V5 `/credits` sans fragment de maquette).
   { chemin: '/credits', section: 'admin' },
+  // Inventaire des fichiers orphelins du stockage · lecture seule.
+  { chemin: '/admin/stockage', section: 'admin' },
 ];

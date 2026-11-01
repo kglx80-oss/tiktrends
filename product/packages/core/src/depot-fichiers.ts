@@ -231,3 +231,84 @@ export function logoTransmissible(adresse: string | null | undefined, bucket?: B
   if (typeof adresse !== 'string' || !adresse) return false;
   return DATA_IMAGE_MATRICIELLE.test(adresse) || objetDuBucket(adresse, bucket) || refusAdresseLogo(adresse) === null;
 }
+
+/* ───────────────────── Durée du lien de dépôt présigné ───────────────────── */
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * Le PUT présigné valait 900 s pour TOUT fichier. Après un enregistrement
+ * accepté (`registerUploadedAssetAction`, objet relu), le même lien pouvait
+ * encore déposer d'autres octets de même taille et de même type déclaré
+ * pendant le reste des 15 minutes · une image de 2 Mo envoyée en 2 s laissait
+ * près de 15 minutes de ré-écriture.
+ *
+ * ── La règle (`dureeLienDepot`) ──────────────────────────────────────────────
+ *
+ *   durée = ⌈ MARGE + taille ÷ DÉBIT ⌉, bornée à [MIN, MAX]
+ *
+ * La taille est celle VALIDÉE par `decisionDepot` (et signée en
+ * `Content-Length`) · jamais une autre.
+ *
+ * ── Le débit de référence · un lien LENT, justifié ───────────────────────────
+ *
+ * | Lien montant                                   | Débit             | Source                                                    |
+ * | ---------------------------------------------- | ----------------- | --------------------------------------------------------- |
+ * | ADSL / ADSL2+ annexe A, voie montante           | ≈ 1 Mbit/s        | UIT-T G.992.1 / G.992.5 · offres françaises « 1 Mbit/s en envoi » |
+ * | 3G HSUPA, crête catégorie 6                     | 5,76 Mbit/s       | 3GPP TS 25.306 (Rel. 6)                                   |
+ * | Mobile, médiane Orange France (mars 2020)       | 8,2 Mbit/s        | Tutela, « France State of Mobile Networks », mars 2020    |
+ * | Mobile, Orange France, toutes technologies      | 10,01 Mbit/s      | Ookla Speedtest Connectivity Report (relayé, non daté)    |
+ *
+ * Référence retenue · la plus LENTE des lignes encore courantes, l'ADSL à
+ * 1 Mbit/s de synchronisation montante, 8 à 10 fois sous les médianes mobiles.
+ * Le débit UTILE s'en déduit par le calcul, pas d'instinct · un paquet IP de
+ * 1 492 octets (MTU PPPoE) porte 1 440 octets de fichier (IP 20, TCP 20,
+ * horodatage TCP 12) et occupe sur la ligne 1 492 + Ethernet 14 + LLC/SNAP 10
+ * (RFC 2684) + PPPoE/PPP 8 + AAL5 8 = 1 532 octets ⇒ ⌈1 532 ÷ 48⌉ = 32 cellules
+ * ATM de 53 octets = 1 696 octets. Débit utile = 125 000 × 1 440 ÷ 1 696 =
+ * 106 132 octets/s.
+ *
+ * ── La marge et les bornes ───────────────────────────────────────────────────
+ *
+ *  - MARGE = 60 s · le client lance le PUT dès la réponse de l'action, sans
+ *    étape intermédiaire (`Bibliotheque.tsx`, `ImportLogo`) ; la marge couvre
+ *    poignée de main TLS, file réseau et dérive d'horloge. C'est la durée que
+ *    le serveur s'accorde déjà pour ses propres lectures signées immédiates
+ *    (`presignHeadUrl(cfg, cle, 60)` dans `storage-relecture.ts`).
+ *  - MIN = 60 s · la marge seule, pour une taille illisible.
+ *  - MAX = 900 s · le plafond du SIGNATAIRE (`presignObjectUrl` refuse toute
+ *    durée au-delà, #852), inchangé ici : un test d'intégrations signe MAX et
+ *    refuse MAX + 1, les deux nombres ne peuvent pas diverger.
+ *
+ * Valeurs mesurées par la règle (garde `depot-fichiers.test.ts`) :
+ *
+ * | Taille            | Transfert à la référence | Durée du lien |
+ * | ----------------- | ------------------------ | ------------- |
+ * | 2 Mio (image)     | 20 s                     | 80 s          |
+ * | 64 Mio (image max)| 632 s                    | 693 s         |
+ * | ≈ 89 Mo           | 840 s                    | 900 s (MAX)   |
+ * | 1 Gio (vidéo max) | 10 117 s                 | 900 s (MAX)   |
+ *
+ * 1 Go à débit lent reste faisable, exactement comme avant (900 s) · le
+ * stockage S3 juge l'expiration à la RÉCEPTION de la requête (authentification
+ * sur les en-têtes, avant le corps), un envoi commencé dans la fenêtre se
+ * termine même si elle se ferme pendant le transfert (comportement documenté
+ * par AWS, « Sharing objects with presigned URLs »). Jusqu'à ≈ 89 Mo, la
+ * fenêtre couvre même le transfert ENTIER au débit de référence, quel que soit
+ * le moment où le stockage juge l'expiration.
+ *
+ * Ce que la durée ne ferme pas · la ré-écriture DANS la fenêtre restante.
+ * L'enregistrement mémorise donc l'empreinte relue (`empreinteObjet`,
+ * `depot-relu.ts`), qui révèle tout remplacement ultérieur.
+ */
+export const DEBIT_MONTANT_REFERENCE_OCTETS_S = Math.floor((125_000 * 1_440) / 1_696);
+export const MARGE_LIEN_DEPOT_S = 60;
+export const DUREE_LIEN_DEPOT_MIN_S = 60;
+export const DUREE_LIEN_DEPOT_MAX_S = 900;
+
+/** Validité, en secondes, du PUT présigné d'un fichier de `taille` octets (validée). */
+export function dureeLienDepot(taille: number): number {
+  if (typeof taille !== 'number' || !Number.isFinite(taille) || taille < 1) return DUREE_LIEN_DEPOT_MIN_S;
+  const brute = Math.ceil(MARGE_LIEN_DEPOT_S + taille / DEBIT_MONTANT_REFERENCE_OCTETS_S);
+  return Math.min(DUREE_LIEN_DEPOT_MAX_S, Math.max(DUREE_LIEN_DEPOT_MIN_S, brute));
+}

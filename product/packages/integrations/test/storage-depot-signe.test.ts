@@ -1,6 +1,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { presignGetUrl, presignPutUrl } from '../src/storage';
+import { DUREE_LIEN_DEPOT_MAX_S, DUREE_LIEN_DEPOT_MIN_S, dureeLienDepot } from '@tiktrends/core';
 
 /**
  * Dépôt direct · le `Content-Type` ET le `Content-Length` sont SIGNÉS dans
@@ -77,5 +78,19 @@ describe('presignPutUrl · Content-Type et Content-Length signés', () => {
     const get = presignGetUrl(cfg, 'assets/ws-a/x.png', 60);
     expect(new URL(get).searchParams.get('X-Amz-SignedHeaders')).toBe('host');
     expect(bucketAccepte(get, 'GET', {})).toBe(true);
+  });
+});
+
+describe('presignPutUrl · la durée de la règle du noyau est celle signée, et le signataire tient ses bornes', () => {
+  it('X-Amz-Expires porte exactement `dureeLienDepot(taille)`, du minimum au maximum', () => {
+    for (const taille of [1, 2 * 1024 * 1024, 64 * 1024 * 1024, 1_073_741_824]) {
+      const { uploadUrl } = presignPutUrl(cfg, 'assets/ws-a/1-x.png', depot('image/png', taille), dureeLienDepot(taille));
+      expect(new URL(uploadUrl).searchParams.get('X-Amz-Expires'), String(taille)).toBe(String(dureeLienDepot(taille)));
+    }
+  });
+  it('le maximum du noyau est le plafond du signataire · MAX signe, MAX + 1 est refusé (les deux ne divergent pas)', () => {
+    expect(() => presignPutUrl(cfg, 'assets/ws-a/x.png', depot('image/png'), DUREE_LIEN_DEPOT_MAX_S)).not.toThrow();
+    expect(() => presignPutUrl(cfg, 'assets/ws-a/x.png', depot('image/png'), DUREE_LIEN_DEPOT_MAX_S + 1)).toThrow('Durée du lien invalide');
+    expect(() => presignPutUrl(cfg, 'assets/ws-a/x.png', depot('image/png'), DUREE_LIEN_DEPOT_MIN_S)).not.toThrow();
   });
 });

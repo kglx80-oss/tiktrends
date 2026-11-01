@@ -184,6 +184,7 @@ export * from './depot-fichiers';
 export * from './depot-relu';
 export * from './themes';
 export * from './purge-cache';
+export * from './stockage-orphelins';
 
 export * from './studios/direction-visuelle';
 export * from './spatial';

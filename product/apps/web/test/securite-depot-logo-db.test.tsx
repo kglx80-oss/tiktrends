@@ -26,7 +26,7 @@ vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO } from '@tiktrends/core';
+import { MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO, dureeLienDepot } from '@tiktrends/core';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 
@@ -100,6 +100,26 @@ describe('presignAssetUploadAction · liste blanche, plafonds, type signé', () 
       expect(bucketAccepte(r.uploadUrl!, { 'Content-Type': 'video/mp4', 'Content-Length': autre }), autre).toBe(false);
     }
     expect(bucketAccepte(r.uploadUrl!, { 'Content-Type': 'video/mp4', 'Transfer-Encoding': 'chunked' }), 'chunked, sans longueur').toBe(false);
+  });
+
+  it('la validité du lien suit la taille validée · X-Amz-Expires = `dureeLienDepot`, 2 Mo ⇒ 80 s, 64 Mo ⇒ 693 s, 1 Go ⇒ 900 s', async () => {
+    await marque();
+    const Mio = 1024 * 1024;
+    const cas: Array<[string, string, number, number]> = [
+      ['photo.png', 'image/png', 2 * Mio, 80],
+      ['grande.png', 'image/png', 64 * Mio, 693],
+      ['clip.mp4', 'video/mp4', 1_073_741_824, 900],
+      ['mini.webp', 'image/webp', 1, 61],
+    ];
+    for (const [filename, contentType, sizeBytes, attendu] of cas) {
+      const r = await presignAssetUploadAction({ filename, contentType, sizeBytes });
+      expect(r.error, filename).toBeUndefined();
+      const u = new URL(r.uploadUrl!);
+      expect(u.searchParams.get('X-Amz-Expires'), filename).toBe(String(dureeLienDepot(sizeBytes)));
+      expect(u.searchParams.get('X-Amz-Expires'), filename).toBe(String(attendu));
+      // Le lien rendu reste celui que le bucket accepte, pour cette longueur.
+      expect(bucketAccepte(r.uploadUrl!, { 'Content-Type': contentType, 'Content-Length': String(sizeBytes) }), filename).toBe(true);
+    }
   });
 
   it('PDF et vidéo des appelants existants · acceptés (PDF en type neutre)', async () => {
