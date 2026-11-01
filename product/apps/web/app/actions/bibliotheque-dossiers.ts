@@ -3,7 +3,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  validerNomDossier, estDroitAsset, validerTagCouleur, validerSelectionTag, type CleTagCouleur, type DossierPlat, type DroitAsset,
+  validerNomDossier, estDroitAsset, validerTagCouleur, validerSelectionTag, validerSelectionFichiers, validerDroitSelection, type CleTagCouleur, type DossierPlat, type DroitAsset,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { GUARD } from '../../lib/guard-error';
@@ -255,6 +255,82 @@ export async function definirTagDossiersAction(input: { ids: string[]; tag: CleT
     return { ok: true, n };
   } catch (e) {
     if (e instanceof SelectionIncomplete) return { error: 'Un dossier de la sélection est introuvable · rien n’a été tagué.' };
+    throw e;
+  }
+}
+
+/** La phrase d'une sélection de FICHIERS dont un identifiant n'est pas de l'espace · la même qu'un inconnu. */
+const FICHIER_INTROUVABLE = 'Un fichier de la sélection est introuvable · rien n’a été modifié.';
+
+/**
+ * Range PLUSIEURS fichiers d'un coup dans un dossier (ou les sort avec
+ * `folderId: null`) · « Déplacer vers… » de la barre de sélection. Même garde
+ * d'écriture que le geste unitaire (`affecterAssetDossierAction`), AVANT toute
+ * lecture ; la liste est validée au noyau (`validerSelectionFichiers` · des
+ * UUID, dédoublonnés, au plus `TAG_SELECTION_MAX`) ; la destination est un
+ * dossier vivant de l'espace.
+ *
+ * TOUT OU RIEN · une seule mise à jour, dans une transaction, bornée à
+ * l'espace de la session (même portée que les gestes unitaires) · si elle ne touche pas
+ * EXACTEMENT chaque identifiant demandé (un fichier d'un autre espace, une
+ * sortie Studios, un identifiant inconnu), la transaction est annulée et rien
+ * n'est écrit. Aucune suppression · seul `folder_id` change.
+ */
+export async function affecterAssetsDossierAction(input: { ids: string[]; folderId: string | null }): Promise<{ ok?: true; n?: number; error?: string }> {
+  const g = await gardeEcriture();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+
+  const v = validerSelectionFichiers(input?.ids);
+  if (!v.ok) return { error: v.raison };
+  const folderId = input?.folderId ?? null;
+  if (folderId != null && !(await lireDossier(s.workspaceId, folderId))) return { error: 'Dossier de destination introuvable.' };
+
+  const A = schema.assets;
+  try {
+    const n = await db.transaction(async (tx) => {
+      const maj = await tx.update(A).set({ folderId })
+        .where(and(eq(A.workspaceId, s.workspaceId), inArray(A.id, v.ids)))
+        .returning({ id: A.id });
+      if (maj.length !== v.ids.length) throw new SelectionIncomplete();
+      return maj.length;
+    });
+    return { ok: true, n };
+  } catch (e) {
+    if (e instanceof SelectionIncomplete) return { error: FICHIER_INTROUVABLE };
+    throw e;
+  }
+}
+
+/**
+ * Définit (ou efface avec `droit: null`) le droit d'usage de PLUSIEURS fichiers
+ * d'un coup · « Droits d'usage » de la barre de sélection. Même garde et même
+ * catalogue que le geste unitaire (`definirDroitsAssetAction`) · le droit est
+ * validé au noyau (`validerDroitSelection`), la base le borne aussi (CHECK).
+ * TOUT OU RIEN, comme `affecterAssetsDossierAction`.
+ */
+export async function definirDroitsAssetsAction(input: { ids: string[]; droit: DroitAsset | null }): Promise<{ ok?: true; n?: number; error?: string }> {
+  const g = await gardeEcriture();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+
+  const v = validerDroitSelection(input?.ids, input?.droit);
+  if (!v.ok) return { error: v.raison };
+
+  const A = schema.assets;
+  try {
+    const n = await db.transaction(async (tx) => {
+      const maj = await tx.update(A).set({ rights: v.droit })
+        .where(and(eq(A.workspaceId, s.workspaceId), inArray(A.id, v.ids)))
+        .returning({ id: A.id });
+      if (maj.length !== v.ids.length) throw new SelectionIncomplete();
+      return maj.length;
+    });
+    return { ok: true, n };
+  } catch (e) {
+    if (e instanceof SelectionIncomplete) return { error: FICHIER_INTROUVABLE };
     throw e;
   }
 }

@@ -35,6 +35,7 @@ import * as actionsDossiers from '../app/actions/bibliotheque-dossiers';
 import {
   creerDossierAction, supprimerDossierAction,
   restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction,
+  affecterAssetsDossierAction, definirDroitsAssetsAction,
 } from '../app/actions/bibliotheque-dossiers';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
 
@@ -69,6 +70,8 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['definirDroitsAssetAction', () => definirDroitsAssetAction({ assetId: A.image, droit: 'photo_marque' })],
   ['definirTagDossierAction', () => definirTagDossierAction({ id: 'x', tag: 'vert' })],
   ['definirTagDossiersAction', () => definirTagDossiersAction({ ids: ['00000000-0000-4000-8000-000000000001'], tag: 'vert' })],
+  ['affecterAssetsDossierAction', () => affecterAssetsDossierAction({ ids: [A.image], folderId: null })],
+  ['definirDroitsAssetsAction', () => definirDroitsAssetsAction({ ids: [A.image], droit: 'photo_marque' })],
 ];
 
 /** [qui, session, raison du refus d'écriture] · tous refusés, rien écrit. */
