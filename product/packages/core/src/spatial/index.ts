@@ -18,6 +18,8 @@ export * from './bibliotheque/import-lien';
 export * from './bibliotheque/tags-couleur';
 export * from './bibliotheque/selection';
 export * from './bibliotheque/versement';
+export * from './bibliotheque/utilise-dans';
+export * from './bibliotheque/menu-fichier';
 export * from './formats';
 export * from './veille';
 export * from './studios';
