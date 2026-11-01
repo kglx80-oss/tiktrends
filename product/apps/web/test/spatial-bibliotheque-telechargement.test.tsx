@@ -40,8 +40,11 @@ const media = (id: string, extra: Partial<MediaSource> = {}): MediaSource => ({
   ia: { utilisable: true, template: false, tags: [] }, ...extra,
 });
 const DONNEES = donneesDrive({
-  dossiers: [dossier('d-ugc', 'UGC')],
-  medias: [media('m1'), media('m2', { sizeBytes: 2048 }), media('m3', { sizeBytes: null }), media('m4', { sizeBytes: PLAFOND_ARCHIVE_OCTETS })],
+  dossiers: [dossier('d-ugc', 'UGC'), { ...dossier('d-ete', 'Été'), parentId: 'd-ugc' }, { ...dossier('d-jete', 'Jeté'), parentId: 'd-ugc', deletedAt: T0 }],
+  medias: [
+    media('m1'), media('m2', { sizeBytes: 2048 }), media('m3', { sizeBytes: null }), media('m4', { sizeBytes: PLAFOND_ARCHIVE_OCTETS }),
+    media('u1', { folderId: 'd-ugc' }), media('u2', { folderId: 'd-ete', sizeBytes: null }), media('u3', { folderId: 'd-jete' }),
+  ],
 });
 const GESTION: GestionBibliotheque = { analyse: { cout: 1, raison: null, sansTags: 0, maxLot: LOT_ANALYSE_IMAGES }, selecteurDrive: false, admin: false, messageDrive: null };
 const DRIVE = connexionDrive({ available: true, needBrand: false, connected: false, folderId: null, folderName: null });
@@ -83,16 +86,16 @@ describe('« Télécharger » · ouvert pour les fichiers, fermé avec sa phrase
     expect(h.querySelector('.dbulk [data-ferme="telecharger"]'), 'plus de bouton fermé en double').toBeNull();
     expect([...h.querySelectorAll('.dbulk button')].filter((x) => x.textContent === 'Télécharger').length).toBe(1);
   });
-  it('dossier seul · fermé, avec sa raison', async () => {
+  it('dossier seul · OUVERT, l’infobulle compte son arborescence vivante et la taille à relire', async () => {
     const h = await monter();
     await clic(caseDossier(h, 'UGC'));
-    expect([bouton(h)!.disabled, bouton(h)!.title]).toEqual([true, RAISONS_ARCHIVE.dossiers]);
+    expect([bouton(h)!.disabled, bouton(h)!.title]).toEqual([false, 'Archive ZIP de 2 dossiers et 2 fichiers · 1 Ko · taille de 1 fichier relue au lancement']);
   });
-  it('taille inconnue · volume au-delà du plafond · fermé AVANT le clic', async () => {
+  it('taille inconnue · OUVERT (relue au lancement) ; volume au-delà du plafond · fermé AVANT le clic', async () => {
     const h = await monter();
     await clic(caseFichier(h, 'm1.jpg'));
     await clic(caseFichier(h, 'm3.jpg'));
-    expect([bouton(h)!.disabled, bouton(h)!.title]).toEqual([true, refusArchiveTailleInconnue(1)]);
+    expect([bouton(h)!.disabled, bouton(h)!.title]).toEqual([false, 'Archive ZIP de 2 fichiers · 1 Ko · taille de 1 fichier relue au lancement']);
     await clic(caseFichier(h, 'm3.jpg'));
     await clic(caseFichier(h, 'm4.jpg'));
     expect([bouton(h)!.disabled, bouton(h)!.title]).toEqual([true, refusArchiveVolume(PLAFOND_ARCHIVE_OCTETS + 1024)]);
@@ -100,19 +103,29 @@ describe('« Télécharger » · ouvert pour les fichiers, fermé avec sa phrase
 });
 
 describe('au clic · vérification, puis le navigateur reçoit l’archive', () => {
-  it('mixte · la vérification part avec les seuls fichiers, puis UN formulaire POST vers la route, identifiants seuls', async () => {
+  it('mixte · la vérification part avec les fichiers ET le dossier, puis UN formulaire POST vers la route, identifiants seuls', async () => {
     const postes = capterFormulaires();
-    const appels = stubVerification({ status: 200, corps: { ok: true, fichiers: 2, octets: 3072, nom: 'bibliotheque-2026-11-01.zip' } });
+    const appels = stubVerification({ status: 200, corps: { ok: true, fichiers: 4, dossiers: 2, octets: 5120, nom: 'bibliotheque-2026-11-01.zip' } });
     const h = await monter();
     await clic(caseDossier(h, 'UGC'));
     await clic(caseFichier(h, 'm1.jpg'));
     await clic(caseFichier(h, 'm2.jpg'));
-    expect(bouton(h)!.title).toBe('Archive ZIP de 2 fichiers · 3 Ko · 1 dossier n’y entre pas');
+    expect(bouton(h)!.title).toBe('Archive ZIP de 2 dossiers et 4 fichiers · 4 Ko · taille de 1 fichier relue au lancement');
     await clic(bouton(h));
-    expect(appels.map((a) => [a.url, a.init.method, a.init.body])).toEqual([['/api/bibliotheque/archive?verifier=1', 'POST', JSON.stringify({ ids: ['m1', 'm2'] })]]);
-    expect(postes).toEqual([{ action: '/api/bibliotheque/archive', method: 'post', champs: [['ids', 'm1'], ['ids', 'm2']], dansLaPage: true, target: '' }]);
+    expect(appels.map((a) => [a.url, a.init.method, a.init.body])).toEqual([['/api/bibliotheque/archive?verifier=1', 'POST', JSON.stringify({ ids: ['m1', 'm2'], dossiers: ['d-ugc'] })]]);
+    expect(postes).toEqual([{ action: '/api/bibliotheque/archive', method: 'post', champs: [['ids', 'm1'], ['ids', 'm2'], ['dossiers', 'd-ugc']], dansLaPage: true, target: '' }]);
     expect(document.querySelector('form[action$="/api/bibliotheque/archive"]'), 'le formulaire ne reste pas dans la page').toBeNull();
-    expect(toasts).toEqual(['Téléchargement lancé · 2 fichiers, 3 Ko']);
+    expect(toasts).toEqual(['Téléchargement lancé · 2 dossiers, 4 fichiers, 5 Ko']);
+  });
+  it('dossier · la route refuse une taille restée illisible · sa phrase est dite, AUCUN formulaire posté', async () => {
+    const postes = capterFormulaires();
+    const appels = stubVerification({ status: 409, corps: { ok: false, raison: refusArchiveTailleInconnue(1) } });
+    const h = await monter();
+    await clic(caseDossier(h, 'UGC'));
+    await clic(bouton(h));
+    expect(appels.map((a) => a.init.body)).toEqual([JSON.stringify({ ids: [], dossiers: ['d-ugc'] })]);
+    expect(postes).toEqual([]);
+    expect(toasts).toEqual([refusArchiveTailleInconnue(1)]);
   });
   it('la route refuse (fichier mis à la corbeille entre-temps) · sa phrase est dite, AUCUN formulaire posté', async () => {
     const postes = capterFormulaires();

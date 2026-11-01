@@ -178,7 +178,7 @@ describe('la liste reçue · des UUID, bornée', () => {
 describe('la décision de la route · tout ou rien', () => {
   it('chaque fichier vivant de l’espace · l’archive suit l’ordre de la demande, noms dédoublonnés, volume sommé', () => {
     const d = decisionArchive([U(2), U(1)], [ligne(1, { nom: 'a.jpg' }), ligne(2, { nom: 'a.jpg', tailleOctets: 5 })], []);
-    expect(d).toEqual({ ok: true, octets: 1005, fichiers: [{ id: U(2), nom: 'a.jpg', tailleOctets: 5 }, { id: U(1), nom: 'a (2).jpg', tailleOctets: 1000 }] });
+    expect(d).toEqual({ ok: true, octets: 1005, repertoires: [], fichiers: [{ id: U(2), nom: 'a.jpg', tailleOctets: 5 }, { id: U(1), nom: 'a (2).jpg', tailleOctets: 1000 }] });
   });
   it('un identifiant absent (autre espace, inconnu) · refus entier', () => {
     expect(decisionArchive([U(1), U(9)], [ligne(1)], [])).toEqual({ ok: false, raison: RAISONS_ARCHIVE.introuvable });
@@ -214,16 +214,16 @@ describe('le geste « Télécharger » de la barre', () => {
   const geste = (ids: string[], ls: string | null = null) => gesteTelechargement(d, gestesSelection(d, ids, { section: 'drive', lectureSeule: null, ia: false }), ls);
 
   it('fichiers seuls · ouvert, l’infobulle dit le contenu et le volume', () => {
-    expect(geste(['m1', 'm2'])).toEqual({ libelle: 'Télécharger', ouvert: true, titre: 'Archive ZIP de 2 fichiers · 4 Ko', ids: ['m1', 'm2'], octets: 4096 });
+    expect(geste(['m1', 'm2'])).toEqual({ libelle: 'Télécharger', ouvert: true, titre: 'Archive ZIP de 2 fichiers · 4 Ko', ids: ['m1', 'm2'], dossiers: [], octets: 4096 });
   });
-  it('dossiers seuls · fermé, avec sa raison', () => {
-    expect(geste(['d1'])).toMatchObject({ ouvert: false, titre: RAISONS_ARCHIVE.dossiers });
+  it('un dossier (vide) · ouvert, il part avec son identifiant', () => {
+    expect(geste(['d1'])).toMatchObject({ ouvert: true, ids: [], dossiers: ['d1'], titre: 'Archive ZIP de 1 dossier et 0 fichier · 0 Ko' });
   });
-  it('sélection mixte · ouvert pour les fichiers seuls, et le dit', () => {
-    expect(geste(['d1', 'm1'])).toMatchObject({ ouvert: true, ids: ['m1'], titre: 'Archive ZIP de 1 fichier · 2 Ko · 1 dossier n’y entre pas' });
+  it('sélection mixte · le dossier ET les fichiers entrent dans l’archive', () => {
+    expect(geste(['d1', 'm1'])).toMatchObject({ ouvert: true, ids: ['m1'], dossiers: ['d1'], titre: 'Archive ZIP de 1 dossier et 1 fichier · 2 Ko' });
   });
-  it('taille inconnue, volume, borne, lecture seule · fermé AVANT le clic, mêmes phrases que la route', () => {
-    expect(geste(['m1', 'm3'])).toMatchObject({ ouvert: false, titre: refusArchiveTailleInconnue(1) });
+  it('taille inconnue · OUVERT, l’infobulle dit qu’elle sera relue ; volume, borne, lecture seule · fermé AVANT le clic, mêmes phrases que la route', () => {
+    expect(geste(['m1', 'm3'])).toMatchObject({ ouvert: true, titre: 'Archive ZIP de 2 fichiers · 2 Ko · taille de 1 fichier relue au lancement' });
     expect(geste(['m1', 'gros'])).toMatchObject({ ouvert: false, titre: refusArchiveVolume(PLAFOND_ARCHIVE_OCTETS - 1 + 2048) });
     expect(geste(['m1'], 'Lecture seule.')).toMatchObject({ ouvert: false, titre: 'Lecture seule.' });
     const beaucoup = donneesDrive({ dossiers: [], medias: Array.from({ length: TAG_SELECTION_MAX + 1 }, (_, i) => media(`n${i}`)) });
