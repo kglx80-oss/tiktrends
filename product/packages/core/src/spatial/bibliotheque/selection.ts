@@ -23,6 +23,9 @@ import { TAG_SELECTION_MAX } from './tags-couleur';
  *  · « Utiliser dans un projet » · les fichiers, versés dans les références
  *    d'un projet Studios (`verserSelectionDansProjet` · règles dans `versement.ts`).
  *
+ * « Télécharger » (les fichiers, en archive ZIP · route `/api/bibliotheque/archive`)
+ * est une LECTURE · son geste est décidé à part (`gesteTelechargement`, `archive.ts`).
+ *
  * Les gestes de la maquette SANS action serveur restent fermés, avec leur
  * raison (`GESTES_SANS_ACTION`) · rien n'est simulé. Ne sont PAS groupés, par
  * décision : la suppression DÉFINITIVE d'un fichier (réservée à un fichier déjà
@@ -48,8 +51,7 @@ export interface GesteSelection {
 }
 
 /** Les gestes de la barre de la maquette qu'aucune action serveur ne porte · fermés, avec leur raison. */
-export const GESTES_SANS_ACTION: ReadonlyArray<{ cle: 'telecharger' | 'partager' | 'favori'; libelle: string; icone: string; raison: string }> = [
-  { cle: 'telecharger', libelle: 'Télécharger', icone: 'down', raison: 'Aucun téléchargement groupé · chaque fichier se télécharge depuis son aperçu.' },
+export const GESTES_SANS_ACTION: ReadonlyArray<{ cle: 'partager' | 'favori'; libelle: string; icone: string; raison: string }> = [
   { cle: 'partager', libelle: 'Partager au client', icone: 'users', raison: 'Le partage au client n’existe pas encore · aucune donnée ne le porte.' },
   { cle: 'favori', libelle: 'Favori', icone: 'bookmark', raison: 'Les favoris n’existent pas encore · aucune donnée ne les porte.' },
 ];
