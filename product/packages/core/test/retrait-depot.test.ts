@@ -65,6 +65,8 @@ describe('CHEMINS_DEPOT_PUIS_ECRITURE · le tableau est fermé', () => {
     for (const c of CHEMINS_DEPOT_PUIS_ECRITURE.filter((x) => x.traitement === 'retrait_si_echec')) {
       expect(readFileSync(join(PRODUCT, c.fichier), 'utf8'), c.fichier).toMatch(/ecrireApresDepot\(/);
     }
-    expect(CHEMINS_DEPOT_PUIS_ECRITURE.filter((x) => x.traitement === 'retrait_si_echec').length).toBe(4);
+    expect(CHEMINS_DEPOT_PUIS_ECRITURE.filter((x) => x.traitement === 'retrait_si_echec').length).toBe(5);
+    // Plus aucun chemin non attribuable · le logo importé est attesté par son jeton de dépôt.
+    expect(CHEMINS_DEPOT_PUIS_ECRITURE.filter((x) => x.traitement === 'non_attribuable')).toEqual([]);
   });
 });

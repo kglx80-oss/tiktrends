@@ -116,7 +116,7 @@ beforeAll(async () => {
   const cleLogo = preLogo.publicUrl!.slice(BASE.length + 1);
   bucket.set(cleLogo, { octets: PNG, le: VIEUX });
   const charte = charteAvecLogoImporte({ logos: [], defaut: null }, preLogo.publicUrl!);
-  expect(await saveBrandDAAction({ brandId: ids.brandB1, ...charte, colors: [], fonts: [] })).toEqual({ ok: true });
+  expect(await saveBrandDAAction({ brandId: ids.brandB1, ...charte, colors: [], fonts: [], jetonDepot: preLogo.jetonDepot })).toEqual({ ok: true });
   referencees.push({ cle: cleLogo, ou: 'brands.logo_url · saveBrandDAAction' });
   vi.unstubAllGlobals();
 

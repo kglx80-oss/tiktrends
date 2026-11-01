@@ -4,13 +4,14 @@ import { and, desc, eq, inArray, or, isNull, isNotNull, sql } from 'drizzle-orm'
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl, ecrireApresDepot } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, decisionDepot, dureeLienDepot, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
+import { costFor, decisionDepot, dureeLienDepot, jetonDepotPour, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { referencesObjetEnBase } from '../../lib/references-objet';
+import { signerJetonDepot } from '../../lib/jeton-depot';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
@@ -470,7 +471,14 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
  * dont il a déclaré la taille (`File.size`), le bucket refuse toute autre
  * longueur.
  */
-export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; contentType?: string; error?: string }> {
+/**
+ * Prépare un dépôt direct · l'adresse de PUT présignée, l'adresse publique, le
+ * type signé, et le jeton de dépôt (`jetonDepot`, signé côté serveur · espace,
+ * clé, expiration courte) qui prouve à la charte (`saveBrandDAAction`) que
+ * l'objet a été déposé par CET espace, et lui permet de le retirer s'il n'est
+ * pas enregistré. La Bibliothèque l'ignore.
+ */
+export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; contentType?: string; jetonDepot?: string; error?: string }> {
   const g = await gardeBibliotheque();
   if ('error' in g) return { error: g.error };
   const { s } = g;
@@ -484,7 +492,8 @@ export async function presignAssetUploadAction(input: { filename: string; conten
     // Validité proportionnée à la taille VALIDÉE (`dureeLienDepot`, noyau) · une
     // image de 2 Mo n'a plus 15 minutes de ré-écriture après son envoi.
     const { uploadUrl, publicUrl } = presignPutUrl(cfg, key, { contentType: d.contentType, contentLength: d.contentLength }, dureeLienDepot(d.contentLength));
-    return { uploadUrl, publicUrl, contentType: d.contentType };
+    const jetonDepot = signerJetonDepot(jetonDepotPour({ espace: s.workspaceId, cle: key, taille: d.contentLength, maintenant: Date.now() }));
+    return { uploadUrl, publicUrl, contentType: d.contentType, jetonDepot };
   } catch (e) {
     return { error: logAndTranslate('assets:upload', e, { subject: 'la préparation du téléversement', workspaceId: s.workspaceId }) };
   }
