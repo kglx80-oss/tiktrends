@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageConfigured } from '@tiktrends/integrations';
 import {
-  connexionDrive, costFor, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, FUSEAU_ACCUEIL, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, lireFiltreTag, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
+  connexionDrive, costFor, lireLienInterne, ouvertureLienInterne, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, FUSEAU_ACCUEIL, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, lireFiltreTag, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
   type DossierSource, type MediaSource,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -44,6 +44,15 @@ export const dynamic = 'force-dynamic';
  *
  * Tags de couleur · chaque dossier porte son `color_tag` ; `?tag=<clé>` ouvre
  * l'écran filtré sur ce tag (clé hors catalogue · aucun filtre, `lireFiltreTag`).
+ *
+ * Lien interne (« Copier le lien ») · `?fichier=<id>` ouvre l'aperçu de ce
+ * fichier, `?dossier=<id>` ce dossier. Lu ICI, après les gardes de la page
+ * (un lecteur client est renvoyé à l'accueil comme sans paramètre), et résolu
+ * dans les seules données lues pour cette session (`ouvertureLienInterne` ·
+ * espace de la session, portée de la marque, hors corbeille) · un fichier d'un
+ * autre espace, d'une marque hors portée, à la corbeille ou inconnu rend la
+ * page exactement comme sans paramètre. Aucun jeton, aucune table · l'adresse
+ * ne donne aucun droit.
  */
 export default async function BibliothequeSpatiale({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -100,9 +109,10 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
   const retourDrive = sp.ok === 'drive' ? 'Google Drive connecté · choisis un dossier à synchroniser.'
     : typeof sp.e === 'string' && sp.e.startsWith('drive') ? messageErreurConnexionDrive(sp.e, etatConnexionDrive(driveState)) : null;
 
+  const donnees = donneesDrive({ dossiers, medias });
   return (
     <Bibliotheque
-      donnees={donneesDrive({ dossiers, medias })}
+      donnees={donnees}
       lectureSeule={refusEcriture ? TEXTE_REFUS_BIBLIOTHEQUE[refusEcriture] : null}
       stockage={storageConfigured()}
       drive={connexionDrive(driveState, FUSEAU_ACCUEIL)}
@@ -110,6 +120,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
       retourDrive={retourDrive}
       filtreTag={lireFiltreTag(sp.tag)}
       utilisations={utilisations}
+      ouverture={ouvertureLienInterne(donnees, lireLienInterne(sp))}
       gestion={{
         // Même prix que l'écran V5 (`costFor('tag_image', 1)` par image), annoncé avant le clic.
         analyse: { cout: unlimitedCredits(s.user.email) ? null : costFor('tag_image', 1), raison: raisonAnalyse, sansTags, maxLot: LOT_ANALYSE_IMAGES },

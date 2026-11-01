@@ -1,4 +1,5 @@
 import { dossiersRangement, type DonneesDrive, type SectionDrive } from './drive';
+import { DETAIL_LIEN_INTERNE, lienInterneFichier } from './lien-interne';
 import { gestesSelection } from './selection';
 import { versementApercu } from './versement';
 
@@ -15,6 +16,9 @@ import { versementApercu } from './versement';
  *  · « Utiliser dans un projet » · la règle de l'aperçu (`versementApercu`), puis
  *    la fenêtre de versement ;
  *  · « Télécharger » · le lien de l'aperçu (le fichier lui-même, adresse gardée) ;
+ *  · « Copier le lien » · le lien INTERNE de l'écran qui rouvre son aperçu
+ *    (`lienInterneFichier`) · seulement s'il le rouvre (fichier de la
+ *    bibliothèque, vivant), ouvert en lecture seule aussi (c'est une lecture) ;
  *  · « Mettre à la corbeille » / « Restaurer » · la règle de la barre (gestes
  *    `corbeille` / `restaurer`) appliquée à ce seul fichier, puis la même action
  *    que l'aperçu (réversible, aucun objet du bucket effacé).
@@ -26,7 +30,7 @@ import { versementApercu } from './versement';
  * DÉFINITIVE, les droits, l'IA et l'analyse restent dans l'aperçu.
  */
 
-export type CleMenuFichier = 'apercu' | 'ouvrir-projet' | 'ranger' | 'projet' | 'telecharger' | 'corbeille' | 'restaurer';
+export type CleMenuFichier = 'apercu' | 'ouvrir-projet' | 'ranger' | 'projet' | 'telecharger' | 'copier-lien' | 'corbeille' | 'restaurer';
 
 /** Une entrée d'un menu « … » de la Bibliothèque (fichier ou dossier) · même forme, même composant. */
 export interface EntreeMenu<C extends string = string> {
@@ -68,6 +72,7 @@ export function menuFichier(d: DonneesDrive, fichierId: string, ctx: { section: 
     ...(unitaire && !corbeille ? geste('ranger', 'folder', { sousMenu: true }) : []),
     ...(versement ? [{ cle: 'projet' as const, libelle: versement.libelle, icone: 'brush', ouvert: versement.ouvert, raison: versement.raison }] : []),
     ouvert('telecharger', 'Télécharger', 'down', { href: f.telecharger ?? f.url }),
+    ...(lienInterneFichier(d, fichierId) ? [ouvert('copier-lien', 'Copier le lien', 'copy', { detail: DETAIL_LIEN_INTERNE })] : []),
     ...(unitaire ? (corbeille ? geste('restaurer', 'check') : geste('corbeille', 'x')) : []),
   ];
 }
