@@ -84,7 +84,7 @@ const aller = async (h: HTMLElement, onglet: RegExp) => clic([...h.querySelector
 describe('une case sur chaque fichier de la bibliothèque, en grille ET en liste', () => {
   it('grille · rendu serveur · la case précède la vignette, comme la maquette (`chk(k)` puis `dopen`)', () => {
     const html = renderToStaticMarkup(<FournisseurSpatial value={CTX}><Bibliotheque {...props()} /></FournisseurSpatial>);
-    const cases = [...html.matchAll(/<div class="dcard [^"]*"><button type="button" class="dchk " aria-pressed="false" aria-label="Sélectionner ([^"]+)"><\/button><button type="button" class="dopen"/g)].map((m) => m[1]);
+    const cases = [...html.matchAll(/<div class="dcard [^"]*"><button type="button" class="dchk " aria-pressed="false" aria-label="Sélectionner ([^"]+)"><span data-zone-tactile="" aria-hidden="true"><\/span><\/button><button type="button" class="dopen"/g)].map((m) => m[1]);
     expect(cases).toEqual(['m1.jpg', 'm2.jpg', 'm3.jpg']);
   });
 

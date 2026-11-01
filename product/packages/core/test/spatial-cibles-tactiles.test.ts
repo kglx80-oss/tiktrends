@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CIBLE_MINIMALE_PX, CIBLE_TACTILE_PX, PRIMITIVES_TACTILES, SELECTEUR_INTERACTIF, ZOOM_VUE_SECTION, cibleSousZoom, debordTactile, styleCibleTactile } from '../src';
+import { ATTRIBUT_ZONE_TACTILE, CIBLE_MINIMALE_PX, CIBLE_TACTILE_PX, PRIMITIVES_TACTILES, SELECTEUR_INTERACTIF, ZOOM_VUE_SECTION, cibleSousZoom, debordTactile, margeLigneTactile, styleCibleTactile, styleHoteZone, styleZoneTactile } from '../src';
 
 describe('Spatial · cibles tactiles (règles)', () => {
   it('les seuils · 44 px (WCAG 2.5.5, Apple), plancher 24 px (WCAG 2.5.8)', () => {
@@ -49,6 +49,7 @@ describe('Spatial · cibles tactiles (règles)', () => {
     for (const p of PRIMITIVES_TACTILES) {
       expect(p.motif.length, p.selecteur).toBeGreaterThan(5);
       if (p.mode === 'deborder') { expect(p.largeur).toBeGreaterThan(0); expect(p.hauteur).toBeGreaterThan(0); expect(p.rayon).toBeGreaterThanOrEqual(0); }
+      if (p.mode === 'zone') expect(p.hauteur, `${p.selecteur} · une case \`zone\` déclare sa hauteur dessinée`).toBeGreaterThan(0);
     }
   });
 
@@ -70,6 +71,45 @@ describe('Spatial · cibles tactiles (règles)', () => {
     expect(PRIMITIVES_TACTILES.map((p) => p.selecteur)).toEqual(expect.arrayContaining([
       '.pacts a', '.pacts button', '.pill', '.xtabs button', '.xfc', '.xi', '.play', '.colls nav button', '.btabs button', '.dsec button', '.crumb button', '.tnb', '.facts button', '.astrip-b',
     ]));
+  });
+
+  it('une case dessinée (`zone`) ne reçoit ni taille, ni bordure, ni fond · seule une ligne trop serrée lui donne une marge verticale', () => {
+    const zones = PRIMITIVES_TACTILES.filter((p) => p.mode === 'zone');
+    expect(zones.map((p) => p.selecteur)).toEqual(['.dchk', '.dtr .dchk']);
+    for (const z of [1, ...Object.values(ZOOM_VUE_SECTION)]) {
+      for (const p of zones) expect(Object.keys(styleCibleTactile(p, z)).filter((k) => !/^margin(Top|Bottom)$/.test(k)), `${p.selecteur} · le dessin changerait`).toEqual([]);
+    }
+    const grille = zones.find((p) => p.selecteur === '.dchk')!;
+    expect(styleCibleTactile(grille, 0.95), 'la carte de la grille n’est pas une ligne').toEqual({});
+    const liste = zones.find((p) => p.selecteur === '.dtr .dchk')!;
+    expect(styleCibleTactile(liste, 0.95), 'Bibliothèque (0,95) · lignes de 42 + 4 · 47 voulus').toEqual({ marginTop: '4.5px', marginBottom: '4.5px' });
+  });
+
+  it('le pas d’une ligne (2 rembourrages + boîte de marge de la case + écart) atteint la cible À L’ÉCRAN sous chaque zoom', () => {
+    const liste = PRIMITIVES_TACTILES.find((p) => p.selecteur === '.dtr .dchk')!;
+    expect(liste.ligne).toEqual({ rembourrage: 6, ecart: 4 });
+    for (const z of [1, ...Object.values(ZOOM_VUE_SECTION)]) {
+      const m = margeLigneTactile(liste.hauteur!, liste.ligne!, cibleSousZoom(z));
+      const pas = 2 * liste.ligne!.rembourrage + liste.hauteur! + 2 * m + liste.ligne!.ecart;
+      expect(pas * z, `zoom ${z} · deux zones voisines se recouvriraient`).toBeGreaterThanOrEqual(CIBLE_TACTILE_PX);
+    }
+    expect(margeLigneTactile(22, { rembourrage: 6, ecart: 4 }, 47)).toBe(4.5);
+    expect(margeLigneTactile(40, { rembourrage: 6, ecart: 4 }, 47), 'une ligne assez haute ne bouge pas').toBe(0);
+  });
+
+  it('la zone · une boîte transparente de la cible, centrée sur la case quelle que soit sa taille ; l’hôte statique devient relatif sans glisser', () => {
+    expect(ATTRIBUT_ZONE_TACTILE).toBe('data-zone-tactile');
+    expect(styleZoneTactile(0.95)).toEqual({ position: 'absolute', left: '50%', top: '50%', width: '47px', height: '47px', marginLeft: '-23.5px', marginTop: '-23.5px' });
+    for (const z of [1, ...Object.values(ZOOM_VUE_SECTION)]) {
+      const s = styleZoneTactile(z);
+      expect(parseFloat(s.width!) * z).toBeGreaterThanOrEqual(CIBLE_TACTILE_PX);
+      expect(-parseFloat(s.marginLeft!) * 2, 'zone décentrée').toBe(parseFloat(s.width!));
+      expect(Object.keys(s).some((k) => /color|background|border|shadow|outline/i.test(k)), 'la zone ne doit rien dessiner').toBe(false);
+    }
+    expect(styleHoteZone('absolute'), 'la case de la grille garde sa place absolue').toEqual({});
+    for (const p of ['relative', 'fixed', 'sticky']) expect(styleHoteZone(p)).toEqual({});
+    expect(styleHoteZone('static')).toEqual({ position: 'relative', top: 'auto', right: 'auto', bottom: 'auto', left: 'auto' });
+    expect(styleHoteZone(''), 'position inconnue · traitée comme statique').toMatchObject({ position: 'relative', left: 'auto' });
   });
 
   it('le filtre interactif · liens, boutons, champs, résumés et rôles ARIA de contrôle', () => {

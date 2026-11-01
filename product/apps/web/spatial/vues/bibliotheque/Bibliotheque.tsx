@@ -8,6 +8,7 @@ import {
   TAGS_COULEUR, messageTagPose, messageTagSelection, noteSelectionTag, selectionATaguer, type CarteDossierDrive, type CleTagCouleur,
   gestesSelection, fichierSelectionnable, messageGesteFichiers, GESTES_SANS_ACTION, type CleGesteSelection,
   actionsApercuFichier, compteCorbeille, confirmationCorbeille, messageCorbeille,
+  ATTRIBUT_ZONE_TACTILE,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction } from '../../../app/actions/assets';
 import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction } from '../../../app/actions/bibliotheque-dossiers';
@@ -99,6 +100,13 @@ const MENU_SELECTION = ':selection';
 /** Valeurs des listes de la barre de sélection · « Assets de la marque · non classé » et « Non classé » (jamais un id). */
 const RACINE_RANGEMENT = ':racine';
 const SANS_DROIT = ':aucun';
+/**
+ * La zone tactile d'une case de sélection (règles · `cibles-tactiles`, mode
+ * `zone`) · un enfant vide, sans style ici donc sans effet au bureau ; au
+ * téléphone la coquille le porte à la taille de la cible, centré sur la case,
+ * sans toucher à son dessin.
+ */
+const ZONE_TACTILE = <span {...{ [ATTRIBUT_ZONE_TACTILE]: '' }} aria-hidden="true" />;
 
 /** Compresse une image navigateur en data URI léger (sans bucket) · même règle que l'écran V5. */
 function fichierEnDataUri(file: File, cote = 1400, qualite = 0.85): Promise<string> {
@@ -476,7 +484,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const fchk = (f: FichierDrive) => {
     if (!ecriture || !fichierSelectionnable(f)) return null;
     const on = selection.has(f.id);
-    return <button type="button" className={`dchk ${on ? 'on' : ''}`} aria-pressed={on} aria-label={`Sélectionner ${f.nom}`} onClick={() => basculerSel(f.id)}>{on && <Ic n="check" />}</button>;
+    return <button type="button" className={`dchk ${on ? 'on' : ''}`} aria-pressed={on} aria-label={`Sélectionner ${f.nom}`} onClick={() => basculerSel(f.id)}>{on && <Ic n="check" />}{ZONE_TACTILE}</button>;
   };
 
   const grille = (
@@ -547,7 +555,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
       <div className="dtr h"><span /><span>Nom</span><span>Origine</span><span>Ajouté</span><span>Taille</span><span>Droits</span><span /></div>
       {v.dossiers.map((d) => (
         <div className={`dtr ${selection.has(d.id) ? 'sel' : ''}`} key={d.id}>
-          {d.selectionnable && ecriture ? <button type="button" className={`dchk ${selection.has(d.id) ? 'on' : ''}`} aria-pressed={selection.has(d.id)} aria-label={`Sélectionner ${d.nom}`} onClick={() => basculerSel(d.id)}>{selection.has(d.id) && <Ic n="check" />}</button> : <span />}
+          {d.selectionnable && ecriture ? <button type="button" className={`dchk ${selection.has(d.id) ? 'on' : ''}`} aria-pressed={selection.has(d.id)} aria-label={`Sélectionner ${d.nom}`} onClick={() => basculerSel(d.id)}>{selection.has(d.id) && <Ic n="check" />}{ZONE_TACTILE}</button> : <span />}
           <button type="button" className="dname" onClick={() => (corbeille ? undefined : aller(d.id))}><span className="dfold" style={style({ '--fc': '#94a3b8' })}><Ic n="folder" /></span><span className="nm">{d.nom}</span>{d.tag && <span className="ftag" style={style({ '--tc': d.tag.teinte, marginTop: 0, flexShrink: 0 })}><i />{d.tag.libelle}</span>}</button>
           <span className="downer">Bibliothèque</span>
           <span className="faint" />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { PRIMITIVES_TACTILES, SELECTEUR_INTERACTIF, ZOOM_VUE_SECTION, styleCibleTactile } from '@tiktrends/core';
+import { ATTRIBUT_ZONE_TACTILE, PRIMITIVES_TACTILES, SELECTEUR_INTERACTIF, ZOOM_VUE_SECTION, styleCibleTactile, styleHoteZone, styleZoneTactile } from '@tiktrends/core';
 
 /**
  * Les cibles tactiles au téléphone (règles · `cibles-tactiles`, noyau).
@@ -13,19 +13,25 @@ import { PRIMITIVES_TACTILES, SELECTEUR_INTERACTIF, ZOOM_VUE_SECTION, styleCible
  * 44 px à l'écran (zoom de la vue compris). Un écran qui donne lui-même une
  * valeur en ligne à la même propriété garde la sienne.
  *
+ * Une case dessinée (mode `zone`) ne change pas · c'est son enfant vide
+ * `[data-zone-tactile]` qui reçoit la taille de la cible, centré sur elle.
+ *
  * Le rendu serveur et le bureau n'en voient rien (`actif` faux) · la parité
  * avec la maquette tient. Quitter le format téléphone (rotation, fenêtre
  * élargie) retire exactement ce qui a été posé.
  */
 
 const TOUTES = PRIMITIVES_TACTILES.map((p) => p.selecteur).join(',');
+const ZONE = `:scope > [${ATTRIBUT_ZONE_TACTILE}]`;
+type Style = Array<readonly [string, string]>;
 const kebab = (k: string) => k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+const declarations = (s: Record<string, string>): Style => Object.entries(s).map(([k, v]) => [kebab(k), v] as const);
 /** Les règles sous un zoom donné · calculées une fois par zoom rencontré. */
-const parZoom = new Map<number, Array<{ selecteur: string; style: Array<readonly [string, string]> }>>();
+const parZoom = new Map<number, Array<{ selecteur: string; style: Style; zone: Style | null }>>();
 function regles(zoom: number) {
   let r = parZoom.get(zoom);
   if (!r) {
-    r = PRIMITIVES_TACTILES.map((p) => ({ selecteur: p.selecteur, style: Object.entries(styleCibleTactile(p, zoom)).map(([k, v]) => [kebab(k), v] as const) }));
+    r = PRIMITIVES_TACTILES.map((p) => ({ selecteur: p.selecteur, style: declarations(styleCibleTactile(p, zoom)), zone: p.mode === 'zone' ? declarations(styleZoneTactile(zoom)) : null }));
     parZoom.set(zoom, r);
   }
   return r;
@@ -36,16 +42,26 @@ const zoomDe = (el: Element) => (el.closest('#win > .view') ? ZOOM_VUE_SECTION[d
 /** Ce que la coquille a posé, par élément · pour le retirer à l'identique. */
 type Poses = WeakMap<Element, string[]>;
 
-function poser(el: Element, poses: Poses) {
-  if (poses.has(el) || !(el instanceof HTMLElement) || !el.matches(SELECTEUR_INTERACTIF)) return;
+/** Pose ce qui manque en ligne sur `cible` et retient ce qui a été posé. */
+function appliquer(cible: HTMLElement, style: Style, poses: Poses) {
   // Les propriétés présentes AVANT · un raccourci (`margin`, `border-width`) se
   // déplie en propriétés longues, ce sont elles qu'on retirera.
-  const avant = new Set(Array.from(el.style));
+  const avant = new Set(Array.from(cible.style));
+  for (const [k, v] of style) if (cible.style.getPropertyValue(k) === '') cible.style.setProperty(k, v);
+  poses.set(cible, [...(poses.get(cible) ?? []), ...Array.from(cible.style).filter((k) => !avant.has(k))]);
+}
+
+function poser(el: Element, poses: Poses) {
+  if (poses.has(el) || !(el instanceof HTMLElement) || !el.matches(SELECTEUR_INTERACTIF)) return;
+  poses.set(el, []);
+  const zone = el.querySelector(ZONE);
   for (const r of regles(zoomDe(el))) {
     if (!el.matches(r.selecteur)) continue;
-    for (const [k, v] of r.style) if (el.style.getPropertyValue(k) === '') el.style.setProperty(k, v);
+    appliquer(el, r.style, poses);
+    if (!r.zone || !(zone instanceof HTMLElement)) continue;
+    appliquer(zone, r.zone, poses);
+    appliquer(el, declarations(styleHoteZone(getComputedStyle(el).position)), poses);
   }
-  poses.set(el, Array.from(el.style).filter((k) => !avant.has(k)));
 }
 
 function parcourir(racine: ParentNode, poses: Poses) {
@@ -55,8 +71,10 @@ function parcourir(racine: ParentNode, poses: Poses) {
 
 function retirer(poses: Poses) {
   document.querySelectorAll(TOUTES).forEach((el) => {
-    const props = poses.get(el);
-    if (props && el instanceof HTMLElement) for (const k of props) el.style.removeProperty(k);
+    for (const c of [el, el.querySelector(ZONE)]) {
+      const props = c && poses.get(c);
+      if (props && c instanceof HTMLElement) for (const k of props) c.style.removeProperty(k);
+    }
   });
 }
 
