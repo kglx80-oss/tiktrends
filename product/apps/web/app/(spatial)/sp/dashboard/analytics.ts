@@ -57,9 +57,9 @@ export async function chargerAnalyticsSpatial(s: Session, params: ParamsRequete)
     const gens = await db.select({ input: schema.generations.input }).from(schema.generations)
       .where(and(eq(schema.generations.brandId, brand.id), inArray(schema.generations.kind, ['ad', 'image'])))
       .orderBy(desc(schema.generations.createdAt)).limit(200);
-    // Scopé à la marque active OU aux assets communs de l'espace · même règle que `listAssets` (#514).
+    // Scopé à la marque active OU aux assets communs de l'espace, corbeille exclue · même règle que `listAssets` (#514).
     const assets = await db.select({ tags: schema.assets.tags }).from(schema.assets)
-      .where(and(eq(schema.assets.workspaceId, s.workspaceId), or(eq(schema.assets.brandId, brand.id), isNull(schema.assets.brandId))))
+      .where(and(eq(schema.assets.workspaceId, s.workspaceId), or(eq(schema.assets.brandId, brand.id), isNull(schema.assets.brandId)), isNull(schema.assets.deletedAt)))
       .limit(400);
     diversite = diversiteCreative(gens.map((g) => (g.input ?? {}) as { template?: unknown; headline?: unknown }), assets.map((a) => a.tags ?? []));
   }

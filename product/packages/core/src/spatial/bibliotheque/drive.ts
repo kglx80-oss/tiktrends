@@ -63,6 +63,13 @@ export interface FichierDrive {
   source: string;
   /** Sortie Studios ou ancienne création · ni droit, ni rangement, ni suppression. */
   lectureSeule: boolean;
+  /**
+   * En corbeille (réversible) · `assets.deleted_at` posé. Seul un fichier de la
+   * bibliothèque y va · il ne se montre alors que dans la section « Corbeille »
+   * (ni dans un dossier, ni dans les récents, ni dans une recherche, ni dans
+   * un compte). Absent = vivant.
+   */
+  supprime?: boolean;
   /** Où mène « Ouvrir » pour une sortie Studios (le projet). */
   projet?: { href: string; titre: string };
   /** Téléchargement d'une ancienne création. */
@@ -86,6 +93,8 @@ export interface DossierSource { id: string; parentId: string | null; name: stri
 export interface MediaSource {
   id: string; name: string; kind: string; mimeType?: string | null; source: string; url: string; thumbUrl: string | null;
   sizeBytes: number | null; createdAt: string; folderId?: string | null; rights?: string | null;
+  /** Corbeille d'un média de la bibliothèque (`assets.deleted_at`) · null ou absent = vivant. Ignoré pour une sortie Studios ou une ancienne création. */
+  deletedAt?: string | null;
   studio?: { projetId: string; projetTitre: string; href: string };
   historique?: { libelle: string; telecharger: string };
   ia?: { utilisable: boolean; template: boolean; tags: readonly string[] };
@@ -134,7 +143,7 @@ export function donneesDrive(src: { dossiers: readonly DossierSource[]; medias: 
     } else if (m.historique) {
       fichiers.push({ ...base, parent: 'r:anciens', droit: null, lectureSeule: true, telecharger: m.historique.telecharger });
     } else {
-      fichiers.push({ ...base, parent: m.folderId && ids.has(m.folderId) ? m.folderId : ID_ASSETS, droit: m.rights ?? null, lectureSeule: false, ...(m.ia ? { ia: m.ia } : {}) });
+      fichiers.push({ ...base, parent: m.folderId && ids.has(m.folderId) ? m.folderId : ID_ASSETS, droit: m.rights ?? null, lectureSeule: false, ...(m.ia ? { ia: m.ia } : {}), ...(m.deletedAt ? { supprime: true } : {}) });
     }
   }
   dossiers.push(...projets.values());
@@ -155,8 +164,9 @@ function indexer(d: DonneesDrive): Index {
   const parDossier = new Map(d.dossiers.map((x) => [x.id, x] as const));
   const enfants = new Map<string, DossierDrive[]>();
   for (const x of d.dossiers) if (x.parent) enfants.set(x.parent, [...(enfants.get(x.parent) ?? []), x]);
+  // Un fichier en corbeille n'est rangé nulle part · ni dossier, ni compte, ni vignette.
   const fichiersDe = new Map<string, FichierDrive[]>();
-  for (const f of d.fichiers) fichiersDe.set(f.parent, [...(fichiersDe.get(f.parent) ?? []), f]);
+  for (const f of d.fichiers) if (!f.supprime) fichiersDe.set(f.parent, [...(fichiersDe.get(f.parent) ?? []), f]);
   const memo = new Map<string, boolean>();
   const vivant = (id: string): boolean => {
     if (memo.has(id)) return memo.get(id)!;
@@ -398,7 +408,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
 
   let dossiers: DossierDrive[] = [];
   let fichiers: FichierDrive[] = [];
-  const fichiersVivants = () => d.fichiers.filter((f) => ix.vivant(f.parent));
+  const fichiersVivants = () => d.fichiers.filter((f) => !f.supprime && ix.vivant(f.parent));
   if (q) {
     dossiers = d.dossiers.filter((x) => !estRacine(x.id) && ix.vivant(x.id) && normaliser(x.nom).includes(q));
     // Le nom, ou un tag posé par l'analyse (la recherche V5 portait sur les deux).
@@ -410,6 +420,8 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   } else if (e.section === 'corbeille') {
     // Seuls les sommets de la corbeille · un sous-dossier parti avec son parent revient avec lui.
     dossiers = d.dossiers.filter((x) => x.reel && x.supprime && !(x.parent && ix.parDossier.get(x.parent)?.supprime));
+    // Les fichiers mis à la corbeille un par un (ou en sélection) · chacun restaurable seul.
+    fichiers = d.fichiers.filter((f) => f.supprime);
   } else if (courant) {
     dossiers = sousDossiersVivants(ix, courant);
     fichiers = ix.fichiersDe.get(courant) ?? [];
@@ -426,7 +438,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   const nouveau = creable ? { dans: cur!.nom, parentId: cur!.id === ID_ASSETS ? null : cur!.id } : null;
 
   const vide = cartes.length || triés.length ? null
-    : e.section === 'corbeille' ? { titre: 'La corbeille est vide', texte: 'Un dossier supprimé reste ici, restaurable, avec son contenu.', icone: 'x' }
+    : e.section === 'corbeille' ? { titre: 'La corbeille est vide', texte: 'Un dossier ou un fichier mis à la corbeille reste ici, restaurable.', icone: 'x' }
       : q ? { titre: 'Aucun fichier trouvé', texte: 'Essaie un autre nom de fichier ou de dossier.', icone: 'down' }
         : filtreTag ? { titre: `Aucun dossier tagué « ${filtreTag.libelle} »`, texte: 'Pose un tag depuis le bouton « Tag de couleur » d’un dossier.', icone: 'tag' }
         : { titre: 'Ce dossier est vide', texte: creable ? 'Glisse des fichiers ici ou utilise « Nouveau ».' : 'Rien n’a encore été livré ici.', icone: 'down' };
