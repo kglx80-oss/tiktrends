@@ -8,6 +8,7 @@ import {
   TAGS_COULEUR, messageTagPose, messageTagSelection, noteSelectionTag, selectionATaguer, type CarteDossierDrive, type CleTagCouleur,
   gestesSelection, fichierSelectionnable, messageGesteFichiers, GESTES_SANS_ACTION, type CleGesteSelection,
   actionsApercuFichier, compteCorbeille, confirmationCorbeille, messageCorbeille, versementApercu,
+  menuFichier, destinationsDeplacement, vueUtiliseDans, type CleMenuFichier, type UtilisationsBibliotheque,
   ATTRIBUT_ZONE_TACTILE,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction } from '../../../app/actions/assets';
@@ -20,6 +21,8 @@ import { useSelecteurDrive } from './selecteur-drive';
 import { DialogueSpatial } from '../marque/interactifs';
 import { FenetreVersement } from './verser-projet';
 import { BoutonTelecharger } from './telecharger-selection';
+import { MenuFichier } from './menu-fichier';
+import { UtiliseDans } from './utilise-dans';
 
 /**
  * « Bibliothèque » · `docs/spatial/reference/bibliotheque.html`, balisage à
@@ -54,6 +57,13 @@ import { BoutonTelecharger } from './telecharger-selection';
  * suppression définitive groupée · un fichier de la corbeille se supprime à
  * l'unité, confirmé, dans l'aperçu (`actionsApercuFichier`, noyau).
  *
+ * Le menu « … » d'une carte de fichier (grille) et d'une ligne (liste) porte,
+ * à l'unité, les gestes existants · aperçu, « Déplacer vers… », « Utiliser dans
+ * un projet », télécharger, corbeille ou restauration · décidés au noyau par la
+ * règle de la barre appliquée à ce seul fichier (`menuFichier`). L'aperçu dit
+ * dans quels projets Studios le fichier est cité (« Utilisé dans »,
+ * `vueUtiliseDans` · lu par la page, lecture seule).
+ *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
  * (aucun quota n'existe · le volume réellement mesuré est affiché), « Exports
@@ -80,6 +90,12 @@ export interface PropsBibliotheque {
    * Drive. Absents, l'écran est celui de la maquette (garde de parité).
    */
   gestion?: GestionBibliotheque;
+  /**
+   * « Utilisé dans » · les projets Studios visibles qui citent chaque fichier
+   * (`lireUtilisationsBibliotheque`). `null` ou absent · la session ne lit pas
+   * les projets, l'aperçu n'en dit rien.
+   */
+  utilisations?: UtilisationsBibliotheque | null;
 }
 
 export interface GestionBibliotheque {
@@ -183,6 +199,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const [dialogueLien, setDialogueLien] = useState(false);
   const [versement, setVersement] = useState(false);
   const [versementFichier, setVersementFichier] = useState<string | null>(null);
+  /** Le fichier dont le menu « … » est ouvert · un seul à la fois. */
+  const [menuOuvert, setMenuOuvert] = useState<string | null>(null);
   const [lien, setLien] = useState<{ texte: string; nom: string; type: TypeImportLien }>({ texte: '', nom: '', type: 'video' });
   const fichierRef = useRef<HTMLInputElement>(null);
   const maintenant = useMemo(() => new Date(p.maintenant), [p.maintenant]);
@@ -378,10 +396,31 @@ export function Bibliotheque(p: PropsBibliotheque) {
     const r = await (geste === 'corbeille' ? mettreAssetsCorbeilleAction({ ids: [f.id] }) : restaurerAssetsAction({ ids: [f.id] })).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
     setOccupe(false);
     if (r.error) { toast(r.error); return; }
-    setApercu(null);
+    setApercu((a) => (a === f.id ? null : a));
     setSelection((x) => { const n = new Set(x); n.delete(f.id); return n; });
     toast(messageCorbeille(geste, 0, 1));
     rafraichir();
+  }
+
+  /** Le menu « … » · « Déplacer vers… » d'un seul fichier, par l'action groupée de la barre (même borne, même refus). */
+  async function deplacerFichier(f: FichierDrive, folderId: string | null) {
+    if (!ecriture || occupe) return;
+    setOccupe(true);
+    const r = await affecterAssetsDossierAction({ ids: [f.id], folderId }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(messageGesteFichiers('ranger', r.n ?? 1, { dossier: rangements.find((x) => x.id === folderId)?.nom ?? v.depot }));
+    rafraichir();
+  }
+
+  /** Un geste du menu « … » · revérifié au noyau (ouvert) avant l'action existante. */
+  function agirMenu(f: FichierDrive, cle: CleMenuFichier, dossier?: string | null) {
+    const e = menuFichier(p.donnees, f.id, { section: etat.section, lectureSeule: p.lectureSeule }).find((x) => x.cle === cle);
+    if (!e?.ouvert) return;
+    if (cle === 'apercu') setApercu(f.id);
+    else if (cle === 'ranger') void deplacerFichier(f, dossier ?? null);
+    else if (cle === 'projet') setVersementFichier(f.id);
+    else if (cle === 'corbeille' || cle === 'restaurer') void corbeilleFichier(f, cle);
   }
 
   async function poserTag(d: CarteDossierDrive, tag: CleTagCouleur | null) {
@@ -482,6 +521,20 @@ export function Bibliotheque(p: PropsBibliotheque) {
     </button>
   );
 
+  /** Le menu « … » d'un fichier · ses entrées ne sont calculées que pour le menu ouvert. */
+  const menuDe = (f: FichierDrive, variante: 'grille' | 'liste') => {
+    const ouvert = menuOuvert === f.id;
+    return (
+      <MenuFichier
+        nom={f.nom} variante={variante} occupe={occupe} ouvert={ouvert}
+        entrees={ouvert ? menuFichier(p.donnees, f.id, { section: etat.section, lectureSeule: p.lectureSeule }) : []}
+        destinations={ouvert ? destinationsDeplacement(p.donnees, f.id) : []}
+        basculer={(o) => setMenuOuvert((m) => (o ? f.id : m === f.id ? null : m))}
+        agir={(cle, dossier) => agirMenu(f, cle, dossier)}
+      />
+    );
+  };
+
   const fsel = (id: string) => { const on = selection.has(id); return <button type="button" className={`fsel ${on ? 'on' : ''}`} aria-pressed={on} aria-label={`Sélectionner ${p.donnees.dossiers.find((d) => d.id === id)?.nom ?? ''}`} onClick={() => basculerSel(id)}>{on && <Ic n="check" />}</button>; };
 
   /** La case d'un FICHIER (maquette `chk(k)`) · carte de la grille et ligne de la liste. */
@@ -541,11 +594,13 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <div className="dsub">Fichiers</div>
           <div className="dfiles">
             {v.fichiers.map((f) => (
-              <div className={`dcard ${selection.has(f.id) ? 'sel' : ''} ${apercu === f.id ? 'cur' : ''}`} key={f.id}>
+              <div className={`dcard ${selection.has(f.id) ? 'sel' : ''} ${apercu === f.id ? 'cur' : ''}`} key={f.id} style={menuOuvert === f.id ? { zIndex: 7 } : undefined}>
                 {fchk(f)}
                 <button type="button" className="dopen" onClick={() => setApercu(apercu === f.id ? null : f.id)} aria-label={`Aperçu de ${f.nom}`}><Vignette f={f} /></button>
                 <div className="dmeta"><IconeFichier f={f} /><span className="nm" title={f.nom}>{f.nom}</span></div>
                 <div className="dsub2"><PastilleFichier f={f} /><span className="faint">{formatTaille(f.tailleOctets)}</span></div>
+                {/* Le menu « … » · en coin (`dstar`, position absolue), APRÈS la case et la vignette (ordre de la maquette `chk(k)` puis `dopen`). */}
+                {menuDe(f, 'grille')}
               </div>
             ))}
           </div>
@@ -575,7 +630,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <span className="faint">{libelleJour(f.creeLe, maintenant)}</span>
           <span className="faint num">{formatTaille(f.tailleOctets)}</span>
           <span><PastilleFichier f={f} /></span>
-          <span />
+          {menuDe(f, 'liste')}
         </div>
       ))}
     </div>
@@ -585,6 +640,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const dossierFichier = fa ? dossierDe(fa.parent) : undefined;
   const gestesFa = fa ? actionsApercuFichier(fa, ecriture) : null;
   const versementFa = fa ? versementApercu(p.donnees, fa.id, p.lectureSeule) : null;
+  const utiliseFa = fa ? vueUtiliseDans(p.utilisations ?? null, fa) : null;
   const fichiersVersement = versementFichier ? [{ id: versementFichier }] : sel.fichiers;
 
   return (
@@ -767,6 +823,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
               <dt>Source</dt><dd>{fa.source}</dd>
               <dt>Dossier</dt><dd>{dossierFichier?.nom ?? v.depot}</dd>
             </dl>
+            {utiliseFa && <UtiliseDans vue={utiliseFa} />}
             <div style={{ display: 'grid', gap: 8 }}>
               {gestesFa?.edition && (
                 <>

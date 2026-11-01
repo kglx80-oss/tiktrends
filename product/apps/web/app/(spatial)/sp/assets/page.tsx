@@ -11,6 +11,7 @@ import { roleAtLeast } from '../../../../lib/rbac';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../../../lib/bibliotheque-acces';
 import { getActiveBrand } from '../../../../lib/brands';
 import { listerSortiesStudiosBibliotheque, sortieCommeAsset } from '../../../../lib/studios/bibliotheque';
+import { lireUtilisationsBibliotheque } from '../../../../lib/studios/bibliotheque-utilisations';
 import { listerCreationsHistoriques, creationCommeAsset } from '../../../../lib/creations-historiques';
 import { listAssets } from '../../../actions/assets';
 import { getDriveState } from '../../../actions/drive';
@@ -37,6 +38,10 @@ export const dynamic = 'force-dynamic';
  * les droits de chaque média, relus dans l'espace de la session. L'état Google
  * Drive n'est lu que pour un administrateur (comme en V5).
  *
+ * « Utilisé dans » · les projets Studios VISIBLES de la session (même lecture
+ * que la page Studios) dont la version courante cite un fichier dans ses
+ * références (`lireUtilisationsBibliotheque`, deux requêtes, bornée).
+ *
  * Tags de couleur · chaque dossier porte son `color_tag` ; `?tag=<clé>` ouvre
  * l'écran filtré sur ce tag (clé hors catalogue · aucun filtre, `lireFiltreTag`).
  */
@@ -47,13 +52,15 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
   const refusEcriture = refusEcritureBibliotheque(s);
   const admin = roleAtLeast(s.role, 'admin');
 
-  const [historique, jetes, studios, anciennes, marque, driveState] = await Promise.all([
+  const [historique, jetes, studios, anciennes, marque, driveState, utilisations] = await Promise.all([
     listAssets(),
     listAssets({ corbeille: true }),
     listerSortiesStudiosBibliotheque(),
     listerCreationsHistoriques(),
     getActiveBrand(s.workspaceId),
     admin ? getDriveState() : Promise.resolve(null),
+    // « Utilisé dans » · les projets Studios que la session voit et qui citent un fichier (lecture seule, bornée · null sans lecture Studios).
+    lireUtilisationsBibliotheque(),
   ]);
   const vivants = fusionnerBibliotheque(fusionnerBibliotheque(historique, studios.map(sortieCommeAsset), LIMITE_BIBLIOTHEQUE), anciennes.map(creationCommeAsset), LIMITE_BIBLIOTHEQUE);
   const items = [...vivants, ...jetes];
@@ -102,6 +109,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
       maintenant={new Date().toISOString()}
       retourDrive={retourDrive}
       filtreTag={lireFiltreTag(sp.tag)}
+      utilisations={utilisations}
       gestion={{
         // Même prix que l'écran V5 (`costFor('tag_image', 1)` par image), annoncé avant le clic.
         analyse: { cout: unlimitedCredits(s.user.email) ? null : costFor('tag_image', 1), raison: raisonAnalyse, sansTags, maxLot: LOT_ANALYSE_IMAGES },
