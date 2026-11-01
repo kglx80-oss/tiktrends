@@ -199,6 +199,11 @@ export const assets = pgTable('assets', {
   externalId: text('external_id'),            // id source (ex : fichier Google Drive) pour dédup
   mimeType: text('mime_type'),
   sizeBytes: integer('size_bytes'),
+  // Empreinte (ETag fort, sans guillemets) de l'objet du bucket RELU à
+  // l'enregistrement d'un téléversement · null = ligne antérieure, autre source
+  // ou stockage sans ETag. Révèle un remplacement ultérieur par le même lien de
+  // dépôt (`etatEmpreinte`, noyau `depot-relu.ts`).
+  objectEtag: text('object_etag'),
   tags: text('tags').array(),                 // tags IA (à venir)
   useForAi: boolean('use_for_ai').notNull().default(true), // l'IA s'en sert par défaut
   // Rangement en dossier de bibliothèque (V5) · null = non classé. FK ON DELETE

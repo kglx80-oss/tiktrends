@@ -16,13 +16,19 @@
  *  - délai borné ; objet vide (`content-length: 0`) ⇒ aucun `GET` ;
  *  - une réponse partielle qui ne commence pas à 0, un objet remplacé entre
  *    `HEAD` et `GET` (`Content-Range` dont le total diffère) ou un début plus
- *    court qu'annoncé ⇒ `illisible`.
+ *    court qu'annoncé ⇒ `illisible` ;
+ *  - empreinte · l'`ETag` fort du `HEAD` (`empreinteObjet`, noyau) est rendu
+ *    (`empreinte`) et EXIGÉ au `GET` (`If-Match`) · un objet remplacé entre les
+ *    deux requêtes, même de taille identique, répond 412, ou porte un autre
+ *    `ETag` ⇒ `illisible`. Les octets jugés sont donc ceux de l'objet dont
+ *    l'appelant garde l'empreinte. Sans `ETag` au `HEAD`, `empreinte: null`
+ *    (rien n'est exigé, rien n'est bloqué).
  */
-import { cleObjetDeLEspace } from '@tiktrends/core';
+import { cleObjetDeLEspace, empreinteObjet } from '@tiktrends/core';
 import { basePubliqueStockage, presignGetUrl, presignHeadUrl, type StorageConfig } from './storage';
 
 export type DebutObjet =
-  | { ok: true; cle: string; taille: number; octets: Uint8Array }
+  | { ok: true; cle: string; taille: number; octets: Uint8Array; empreinte: string | null }
   | { ok: false; raison: 'hors_espace' | 'absent' | 'illisible' };
 
 /** Plafond de la fenêtre relue · bien au-delà du besoin mesuré (256), jamais un fichier entier. */
@@ -68,10 +74,14 @@ export async function lireDebutObjetEspace(cfg: StorageConfig, url: string, work
     if (tete.status !== 200) return { ok: false, raison: 'illisible' };
     const taille = tailleEntete(tete.headers.get('content-length'));
     if (taille === null) return { ok: false, raison: 'illisible' };
-    if (taille === 0) return { ok: true, cle, taille, octets: new Uint8Array(0) };
+    const empreinte = empreinteObjet(tete.headers.get('etag'));
+    if (taille === 0) return { ok: true, cle, taille, octets: new Uint8Array(0), empreinte };
 
-    const res = await fetch(presignGetUrl(cfg, cle, 60), { method: 'GET', headers: { range: `bytes=0-${n - 1}` }, redirect: 'manual', cache: 'no-store', signal: AbortSignal.timeout(delaiMs) });
+    const entetes: Record<string, string> = { range: `bytes=0-${n - 1}` };
+    if (empreinte) entetes['if-match'] = `"${empreinte}"`;
+    const res = await fetch(presignGetUrl(cfg, cle, 60), { method: 'GET', headers: entetes, redirect: 'manual', cache: 'no-store', signal: AbortSignal.timeout(delaiMs) });
     if (res.status === 404) { try { await res.body?.cancel(); } catch { /* rien */ } return { ok: false, raison: 'absent' }; }
+    // 412 · l'objet n'est plus celui vu au HEAD (If-Match) · comme tout autre statut, illisible.
     if (res.status !== 206 && res.status !== 200) { try { await res.body?.cancel(); } catch { /* rien */ } return { ok: false, raison: 'illisible' }; }
     // 206 · la plage doit commencer à 0 et porter la taille vue au HEAD (sinon
     // l'objet a été remplacé entre les deux requêtes, ou la plage est autre).
@@ -79,9 +89,12 @@ export async function lireDebutObjetEspace(cfg: StorageConfig, url: string, work
     if (res.status === 206 && (!plage || Number(plage[1]) !== taille)) { try { await res.body?.cancel(); } catch { /* rien */ } return { ok: false, raison: 'illisible' }; }
     const longueur = tailleEntete(res.headers.get('content-length'));
     if (res.status === 200 && longueur !== null && longueur !== taille) { try { await res.body?.cancel(); } catch { /* rien */ } return { ok: false, raison: 'illisible' }; }
+    // Un stockage qui ignorerait If-Match · l'ETag servi au GET doit rester celui du HEAD.
+    const etagLu = res.headers.get('etag');
+    if (empreinte && etagLu !== null && empreinteObjet(etagLu) !== empreinte) { try { await res.body?.cancel(); } catch { /* rien */ } return { ok: false, raison: 'illisible' }; }
     const octets = await lireBorne(res, n);
     if (octets.length < Math.min(n, taille)) return { ok: false, raison: 'illisible' };
-    return { ok: true, cle, taille, octets };
+    return { ok: true, cle, taille, octets, empreinte };
   } catch {
     return { ok: false, raison: 'illisible' };
   }

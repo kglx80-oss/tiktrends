@@ -50,6 +50,13 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect(parGenre).toEqual({ bloc_protege: 3, fonction: 4, declencheur: 11, creation_table: 21, creation_index: 18 });
   });
 
+  it('0065_empreinte_objet_assets · une colonne nullable ajoutée, rejouable, rien d’autre', () => {
+    const a = analyserMigrationSql(fichier('0065_empreinte_objet_assets'));
+    expect(a.instructions.map((x) => x.genre)).toEqual(['ajout_colonne']);
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -106,9 +113,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle) puis 0064 (tags de couleur des dossiers) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers) puis 0065 (empreinte des objets téléversés) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
