@@ -84,6 +84,7 @@ vi.mock('@tiktrends/integrations', async (importOriginal) => ({
 import { db, schema, sql } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
 import { session, semer } from './studios-semis';
+import { bucketQuiSert } from './helpers/bucket-qui-sert';
 import * as actionsAssets from '../app/actions/assets';
 import {
   listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction,
@@ -252,7 +253,11 @@ describe('Bibliothèque · member en Core · chaque geste marche comme avant', (
     expect(r.uploadUrl).toMatch(/^https:\/\/stockage\.invalid\/put\//);
   });
   it('registerUploadedAssetAction · une ligne en plus (objet rangé chez l’espace, règle A2 de #798)', async () => {
-    expect(await registerUploadedAssetAction({ name: 'f', url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
+    // L'objet déposé est relu (type, taille) avant l'écriture · le bucket sert un vrai PNG.
+    vi.stubGlobal('fetch', bucketQuiSert(Buffer.from(PNG.split(',')[1]!, 'base64')));
+    try {
+      expect(await registerUploadedAssetAction({ name: 'f', url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
+    } finally { vi.unstubAllGlobals(); }
     expect((await ws()).some((a) => a.url === `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`)).toBe(true);
   });
   it('basculerTemplateAction · member refusé (admin seulement), admin Core range le template', async () => {

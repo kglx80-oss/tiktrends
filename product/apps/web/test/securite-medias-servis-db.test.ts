@@ -75,6 +75,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { NextRequest } from 'next/server';
 import { session, semer } from './studios-semis';
+import { bucketQuiSert } from './helpers/bucket-qui-sert';
 import { GET as GET_ASSET } from '../app/api/asset/[id]/route';
 import { GET as GET_BRAND_MEDIA } from '../app/api/brands/[id]/media/route';
 import { GET as GET_DRIVE } from '../app/api/drive-img/[id]/route';
@@ -363,7 +364,9 @@ describe('A2 · un objet d’un autre espace ne s’enregistre pas et ne se supp
     }
     expect((await lignes(ids.wsB)).length).toBe(avant);
     // Témoin : un objet de l'espace s'enregistre toujours.
-    const ok = await registerUploadedAssetAction({ name: 'mien', url: `${BASE}/assets/${ids.wsB}/1-ab-mien.png`, mimeType: 'image/png', sizeBytes: 10 });
+    // L'objet déposé est relu avant l'écriture · le bucket sert un vrai PNG.
+    vi.stubGlobal('fetch', bucketQuiSert(PNG));
+    const ok = await registerUploadedAssetAction({ name: 'mien', url: `${BASE}/assets/${ids.wsB}/1-ab-mien.png`, mimeType: 'image/png', sizeBytes: 10 }).finally(() => vi.unstubAllGlobals());
     expect(ok).toEqual({ ok: true });
   });
 
