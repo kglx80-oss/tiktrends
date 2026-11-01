@@ -314,6 +314,82 @@ export async function putObject(cfg: StorageConfig, key: string, bytes: Buffer, 
   return publicUrlFor(cfg, key);
 }
 
+/* ============ Liste des objets (ListObjectsV2) · LECTURE SEULE ============ */
+
+export interface ObjetListe { cle: string; taille: number; modifieLe: Date | null }
+
+/** Le résultat d'une liste · `complete` faux dès qu'une page manque (borne, erreur, réponse illisible). */
+export interface ListeObjets { objets: ObjetListe[]; complete: boolean; pages: number; erreur?: string }
+
+/** Plafonds de la liste · 1 000 clés par page (maximum S3), 100 pages au plus (100 000 objets). */
+export const LISTE_OBJETS_PAR_PAGE = 1000;
+export const LISTE_OBJETS_PAGES_MAX = 100;
+
+function texteXml(s: string): string {
+  return s.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|amp|lt|gt|quot|apos);/g, (_, e: string) => {
+    if (e === 'amp') return '&';
+    if (e === 'lt') return '<';
+    if (e === 'gt') return '>';
+    if (e === 'quot') return '"';
+    if (e === 'apos') return "'";
+    const n = e.startsWith('#x') ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+    try { return String.fromCodePoint(n); } catch { return ''; }
+  });
+}
+const balise = (xml: string, nom: string): string | null => {
+  const m = new RegExp(`<${nom}>([\\s\\S]*?)</${nom}>`).exec(xml);
+  return m ? texteXml(m[1]!) : null;
+};
+
+/** Une page de réponse ListObjectsV2 · `null` si elle ne ressemble pas à une liste. */
+export function lirePageListeObjets(xml: string): { objets: ObjetListe[]; tronquee: boolean; suite: string | null } | null {
+  if (typeof xml !== 'string' || !/<ListBucketResult[\s>]/.test(xml)) return null;
+  const objets: ObjetListe[] = [];
+  for (const m of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
+    const bloc = m[1]!;
+    const cle = balise(bloc, 'Key');
+    const taille = Number(balise(bloc, 'Size'));
+    const date = balise(bloc, 'LastModified');
+    const d = date ? new Date(date) : null;
+    if (cle === null) continue;
+    objets.push({ cle, taille: Number.isSafeInteger(taille) && taille >= 0 ? taille : -1, modifieLe: d && Number.isFinite(d.getTime()) ? d : null });
+  }
+  const tronquee = (balise(xml, 'IsTruncated') ?? '').trim() === 'true';
+  return { objets, tronquee, suite: balise(xml, 'NextContinuationToken') };
+}
+
+/**
+ * Liste les objets sous `prefixe` (ListObjectsV2 signé, GET seulement),
+ * page après page, bornée à `pagesMax` · jamais d'écriture ni de suppression.
+ * Une erreur, une réponse illisible, un jeton de suite absent ou répété, ou la
+ * borne atteinte rendent `complete: false` avec ce qui a été lu.
+ */
+export async function listerObjets(cfg: StorageConfig, o: { prefixe: string; parPage?: number; pagesMax?: number }): Promise<ListeObjets> {
+  const parPage = Math.max(1, Math.min(o.parPage ?? LISTE_OBJETS_PAR_PAGE, LISTE_OBJETS_PAR_PAGE));
+  const pagesMax = Math.max(1, Math.min(o.pagesMax ?? LISTE_OBJETS_PAGES_MAX, LISTE_OBJETS_PAGES_MAX));
+  const objets: ObjetListe[] = [];
+  const vus = new Set<string>();
+  let suite: string | null = null;
+  let pages = 0;
+  while (pages < pagesMax) {
+    const query: Record<string, string> = { 'list-type': '2', prefix: o.prefixe, 'max-keys': String(parPage) };
+    if (suite) query['continuation-token'] = suite;
+    let r: { status: number; text: string };
+    try { r = await s3SignedFetch(cfg, 'GET', `/${cfg.bucket}`, query, Buffer.alloc(0)); }
+    catch { return { objets, complete: false, pages, erreur: 'réseau' }; }
+    pages++;
+    if (r.status < 200 || r.status >= 300) return { objets, complete: false, pages, erreur: `HTTP ${r.status}` };
+    const page = lirePageListeObjets(r.text);
+    if (!page) return { objets, complete: false, pages, erreur: 'réponse illisible' };
+    objets.push(...page.objets);
+    if (!page.tronquee) return { objets, complete: true, pages };
+    if (!page.suite || vus.has(page.suite)) return { objets, complete: false, pages, erreur: 'suite absente' };
+    vus.add(page.suite);
+    suite = page.suite;
+  }
+  return { objets, complete: false, pages, erreur: 'borne atteinte' };
+}
+
 /** Base publique de lecture des objets · celle que `publicUrlFor` préfixe. */
 export function basePubliqueStockage(cfg: StorageConfig): string {
   return cfg.publicBaseUrl || `https://${cfg.endpoint}/${cfg.bucket}`;
