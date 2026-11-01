@@ -19,6 +19,7 @@ const etat = vi.hoisted(() => ({
   drive: new Map<string, Uint8Array>(),
   requetes: [] as string[],
   externes: [] as string[],
+  plafondReel: null as number | null,
 }));
 vi.hoisted(() => {
   const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
@@ -34,6 +35,10 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
   return { ...actual, db };
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
+vi.mock('../lib/archive-lecture', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/archive-lecture')>();
+  return { ...actual, plafondArchiveReel: () => etat.plafondReel ?? actual.plafondArchiveReel() };
+});
 vi.mock('../lib/drive-token', () => ({ driveRefreshTokenFor: async (ws: string) => (ws === etat.ids.wsA ? 'jeton-rafraichi' : null) }));
 vi.mock('@tiktrends/integrations/src/safe-fetch', () => ({ safeFetch: async (url: string) => { etat.externes.push(url); return null; } }));
 vi.mock('@tiktrends/integrations', async (importOriginal) => {
@@ -250,6 +255,20 @@ describe('une lecture qui échoue PENDANT l’écriture · le flux est coupé, j
     const r = await requete({ ids: [A.png, A.embarqueVide] });
     expect(r.status).toBe(200);
     await expect(r.arrayBuffer()).rejects.toThrow();
+  });
+  it('une size_bytes sous-estimée AU-DELÀ du plafond réel · le flux est coupé, jamais une archive qui le dépasse', async () => {
+    // La décision passe (size_bytes annonce 2 octets) ; le plafond réel passé à `fluxZip` est ramené
+    // sous la taille VRAIE de l'objet · la route doit couper, sinon un `size_bytes` faux contournerait les 2 Gio.
+    await db.update(schema.assets).set({ sizeBytes: 2 }).where(eq(schema.assets.id, A.photoBis!));
+    etat.plafondReel = AUTRE.length - 1;
+    try {
+      const r = await requete({ ids: [A.photoBis] });
+      expect(r.status).toBe(200);
+      await expect(r.arrayBuffer()).rejects.toThrow();
+    } finally {
+      etat.plafondReel = null;
+      await db.update(schema.assets).set({ sizeBytes: AUTRE.length }).where(eq(schema.assets.id, A.photoBis!));
+    }
   });
   it('une size_bytes sous-estimée · l’archive porte les VRAIS octets, leur taille relue dans le flux', async () => {
     // L'objet sert plus que ce que `size_bytes` annonçait (2 octets) · la décision passe, le plafond réel tient.

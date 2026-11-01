@@ -1,8 +1,9 @@
 import * as zlib from 'node:zlib';
+import { morceauxBornes, plafondArchiveReel } from '../../../../lib/archive-lecture';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  decisionArchive, fluxZip, nomArchive, validerIdsArchive, extensionArchive, ENTETES_MEDIA_FERMES, PLAFOND_ARCHIVE_OCTETS, RAISONS_ARCHIVE,
+  decisionArchive, fluxZip, nomArchive, validerIdsArchive, extensionArchive, ENTETES_MEDIA_FERMES, RAISONS_ARCHIVE,
   type EntreeZip,
 } from '@tiktrends/core';
 import { googleAccessToken, objectKeyFromUrl, privateObjectUrl, storageFromEnv } from '@tiktrends/integrations';
@@ -105,20 +106,6 @@ async function lireIds(req: Request): Promise<unknown> {
   return null;
 }
 
-async function* morceaux(flux: ReadableStream<Uint8Array>): AsyncGenerator<Uint8Array> {
-  const lecteur = flux.getReader();
-  let fini = false;
-  try {
-    for (;;) {
-      const { done, value } = await lecteur.read();
-      if (done) { fini = true; return; }
-      if (value?.length) yield value;
-    }
-  } finally {
-    if (!fini) { try { await lecteur.cancel(); } catch { /* flux déjà clos */ } }
-  }
-}
-
 type Lecture = () => Promise<AsyncIterable<Uint8Array> | Iterable<Uint8Array> | null>;
 
 export async function POST(req: Request): Promise<Response> {
@@ -181,7 +168,7 @@ export async function POST(req: Request): Promise<Response> {
       const jeton = jetons.get(cle);
       if (!jeton) return refus(409, RAISONS_ARCHIVE.lecture, json);
       const fileId = l.externalId!;
-      lectures.push(async () => { const r = await fluxFichierDrive(jeton, fileId); return r && morceaux(r); });
+      lectures.push(async () => { const r = await fluxFichierDrive(jeton, fileId); return r && morceauxBornes(r); });
     } else if (isPrivateDriveUrl(adresse)) {
       // Lien Drive sans identifiant · lu sans jeton, Google rendrait une page de connexion.
       return refus(409, RAISONS_ARCHIVE.lecture, json);
@@ -189,7 +176,7 @@ export async function POST(req: Request): Promise<Response> {
       // Objet du bucket · lu seulement s'il est de CET espace (sinon refus, aucune requête).
       if (!privateObjectUrl(cfg, adresse, s.workspaceId)) return refus(409, RAISONS_ARCHIVE.lecture, json);
       const url = adresse;
-      lectures.push(async () => { const r = await fluxObjetEspace(cfg, url, s.workspaceId); return r && morceaux(r); });
+      lectures.push(async () => { const r = await fluxObjetEspace(cfg, url, s.workspaceId); return r && morceauxBornes(r); });
     } else if (/^https?:\/\//i.test(adresse)) {
       const url = adresse;
       lectures.push(async () => { const r = await safeFetch(url, { maxBytes: MAX_OCTETS_EXTERNE, timeoutMs: 20_000 }); return r ? [new Uint8Array(r.body)] : null; });
@@ -215,7 +202,7 @@ export async function POST(req: Request): Promise<Response> {
       yield { nom: f.nom, date: parId.get(f.id)!.createdAt, octets };
     }
   }
-  const zip = fluxZip(entrees(), { plafondOctets: PLAFOND_ARCHIVE_OCTETS, crc: crcNatif ? (b, c) => crcNatif(b, c) : undefined });
+  const zip = fluxZip(entrees(), { plafondOctets: plafondArchiveReel(), crc: crcNatif ? (b, c) => crcNatif(b, c) : undefined });
   const corps = new ReadableStream<Uint8Array>({
     async pull(c) {
       try {
