@@ -21,7 +21,7 @@ vi.mock('../app/actions/bibliotheque-dossiers', () => ({
   definirTagDossierAction: vi.fn(), definirTagDossiersAction: vi.fn(), affecterAssetsDossierAction: vi.fn(), definirDroitsAssetsAction: vi.fn(),
 }));
 vi.mock('../app/actions/drive', () => ({ syncDriveNowAction: vi.fn(), getDrivePickerConfigAction: vi.fn(), setDriveFolderAction: vi.fn(), syncDriveFilesAction: vi.fn() }));
-vi.mock('../app/actions/studios/versement', () => ({ projetsPourVersement: () => f.projets(), verserSelectionDansProjet: (x: { projectId: string; ids: string[]; role: string; scope: string }) => f.verser(x) }));
+vi.mock('../app/actions/studios/versement', () => ({ projetsPourVersement: () => f.projets(), verserSelectionDansProjet: (x: { projectId: string; ids: string[]; role: string; scope: string }) => f.verser(x), creerProjetEtVerser: vi.fn() }));
 
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 import { Bibliotheque, type GestionBibliotheque } from '../spatial/vues/bibliotheque/Bibliotheque';

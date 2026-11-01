@@ -7,7 +7,7 @@ import {
   LIBELLE_TYPE_FICHIER, FILTRES_TYPE_DRIVE, resumeImportDrive, TYPES_IMPORT_LIEN, type FiltreTypeDrive, lireImportLiens, type TypeImportLien, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
   TAGS_COULEUR, messageTagPose, messageTagSelection, noteSelectionTag, selectionATaguer, type CarteDossierDrive, type CleTagCouleur,
   gestesSelection, fichierSelectionnable, messageGesteFichiers, GESTES_SANS_ACTION, type CleGesteSelection,
-  actionsApercuFichier, compteCorbeille, confirmationCorbeille, messageCorbeille,
+  actionsApercuFichier, compteCorbeille, confirmationCorbeille, messageCorbeille, versementApercu,
   ATTRIBUT_ZONE_TACTILE,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction } from '../../../app/actions/assets';
@@ -47,7 +47,9 @@ import { FenetreVersement } from './verser-projet';
  * barre de la maquette sans action serveur (téléchargement groupé, partage,
  * favori) restent fermés avec leur raison. « Utiliser dans un projet » verse
  * les images sélectionnées dans les références d'un projet Studios
- * (`FenetreVersement`, `verserSelectionDansProjet` · tout ou rien). Aucune
+ * (`FenetreVersement`, `verserSelectionDansProjet` · tout ou rien), depuis la
+ * barre ou depuis l'aperçu d'un seul fichier (`versementApercu`, noyau), avec
+ * création d'un projet dans la fenêtre (`creerProjetEtVerser`). Aucune
  * suppression définitive groupée · un fichier de la corbeille se supprime à
  * l'unité, confirmé, dans l'aperçu (`actionsApercuFichier`, noyau).
  *
@@ -179,6 +181,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const [commun, setCommun] = useState(false);
   const [dialogueLien, setDialogueLien] = useState(false);
   const [versement, setVersement] = useState(false);
+  const [versementFichier, setVersementFichier] = useState<string | null>(null);
   const [lien, setLien] = useState<{ texte: string; nom: string; type: TypeImportLien }>({ texte: '', nom: '', type: 'video' });
   const fichierRef = useRef<HTMLInputElement>(null);
   const maintenant = useMemo(() => new Date(p.maintenant), [p.maintenant]);
@@ -580,6 +583,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const fa = fichierApercu;
   const dossierFichier = fa ? dossierDe(fa.parent) : undefined;
   const gestesFa = fa ? actionsApercuFichier(fa, ecriture) : null;
+  const versementFa = fa ? versementApercu(p.donnees, fa.id, p.lectureSeule) : null;
+  const fichiersVersement = versementFichier ? [{ id: versementFichier }] : sel.fichiers;
 
   return (
     <Vue>
@@ -785,6 +790,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                   )}
                 </div>
               )}
+              {versementFa && <button className="btn" type="button" data-geste="projet-fichier" disabled={occupe || !versementFa.ouvert} title={versementFa.raison ?? undefined} onClick={() => setVersementFichier(fa.id)}><Ic n="brush" />{versementFa.libelle}</button>}
               {fa.projet && <Lien className="btn pri" href={fa.projet.href}><Ic n="brush" />Ouvrir le projet</Lien>}
               <a className="btn" href={fa.telecharger ?? fa.url} target="_blank" rel="noopener noreferrer" download><Ic n="down" />Télécharger</a>
               {gestesFa?.corbeille && <button className="btn" type="button" data-geste="corbeille-fichier" disabled={occupe} onClick={() => void corbeilleFichier(fa, 'corbeille')}><Ic n="x" />Mettre à la corbeille</button>}
@@ -794,7 +800,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
           </aside>
         )}
       </div>
-      {ecriture && <FenetreVersement ouvert={versement} fermer={() => setVersement(false)} donnees={p.donnees} fichiers={sel.fichiers} />}
+      {ecriture && <FenetreVersement ouvert={versement || versementFichier !== null} fermer={() => { setVersement(false); setVersementFichier(null); }} donnees={p.donnees} fichiers={fichiersVersement} />}
       {g && (
         <DialogueSpatial titre="Importer par lien" ouvert={dialogueLien} fermer={() => setDialogueLien(false)}>
           <form style={{ display: 'grid', gap: 10 }} onSubmit={(e) => { e.preventDefault(); void importerLiens(); }}>

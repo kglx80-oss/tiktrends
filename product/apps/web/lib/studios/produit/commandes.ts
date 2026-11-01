@@ -100,6 +100,19 @@ export interface ResultatVersementProjet {
 }
 
 /**
+ * Chaque fichier demandé relu dans l'espace de la SESSION (jamais pris du
+ * navigateur), puis la règle pure `refusFichiersVersement` pour la marque du
+ * projet · partagé par le versement et par sa vérification AVANT la création
+ * d'un projet depuis la fenêtre (rien n'est créé pour un lot refusé).
+ */
+export async function refusFichiersVersementPour(ctx: ContexteStudio, ids: readonly string[], brandId: string) {
+  const A = schema.assets;
+  const lignes = await db.select({ id: A.id, name: A.name, kind: A.kind, brandId: A.brandId, rights: A.rights, deletedAt: A.deletedAt })
+    .from(A).where(and(eq(A.workspaceId, ctx.workspaceId), inArray(A.id, [...ids])));
+  return refusFichiersVersement(lignes.map((l) => ({ ...l, supprime: l.deletedAt !== null })), ids, brandId);
+}
+
+/**
  * Bibliothèque · « Utiliser dans un projet » · verse une sélection de fichiers
  * dans les RÉFÉRENCES du projet, par le chemin de `associerReferencePour` :
  * catalogue du projet relu côté serveur (portée espace + marques), règle pure
@@ -117,10 +130,7 @@ export async function verserSelectionBibliothequePour(ctx: ContexteStudio, entre
   const p = await lireProjet(ctx, v.projectId);
   if (!p.ok) return p;
   if (p.projet.status !== 'active') return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'projet', raison: 'Ce projet est archivé · restaure-le avant d’y verser des images.' }] });
-  const A = schema.assets;
-  const lignes = await db.select({ id: A.id, name: A.name, kind: A.kind, brandId: A.brandId, rights: A.rights, deletedAt: A.deletedAt })
-    .from(A).where(and(eq(A.workspaceId, ctx.workspaceId), inArray(A.id, v.ids)));
-  const refus = refusFichiersVersement(lignes.map((l) => ({ ...l, supprime: l.deletedAt !== null })), v.ids, p.projet.brandId);
+  const refus = await refusFichiersVersementPour(ctx, v.ids, p.projet.brandId);
   if (refus.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: refus });
 
   let compte = { ajoutes: 0, dejaPresents: 0 };
