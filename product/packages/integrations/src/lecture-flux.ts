@@ -15,7 +15,7 @@
  *  - délai borné jusqu'aux EN-TÊTES seulement · un gros fichier se lit aussi
  *    longtemps que le client télécharge, sans être coupé au milieu.
  */
-import { privateObjectUrl, type StorageConfig } from './storage';
+import { objectKeyFromUrl, presignHeadUrl, privateObjectUrl, type StorageConfig } from './storage';
 
 const DRIVE = 'https://www.googleapis.com/drive/v3';
 
@@ -47,4 +47,49 @@ export async function fluxObjetEspace(cfg: StorageConfig, url: string, workspace
 export async function fluxFichierDrive(accessToken: string, fileId: string, delaiMs = 15_000): Promise<ReadableStream<Uint8Array> | null> {
   if (!fileId || /[\/\\?#]/.test(fileId)) return null;
   return ouvrir(`${DRIVE}/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`, { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } }, delaiMs);
+}
+
+/* ───────────── La TAILLE d'un fichier sans `size_bytes` · relue avant la décision ───────────── */
+
+/**
+ * La taille d'un objet du bucket de l'espace · `HEAD` signé (même clé, même
+ * hôte, même refus hors espace que `fluxObjetEspace` · aucune requête hors
+ * espace), redirections refusées, `content-length` seul cru. La valeur brute
+ * est rendue · `tailleRelue` (noyau) la juge.
+ */
+export async function enteteTailleObjetEspace(cfg: StorageConfig, url: string, workspaceId: string, delaiMs = 5_000): Promise<string | null> {
+  if (!workspaceId || /[\/\\]/.test(workspaceId)) return null;
+  const cle = objectKeyFromUrl(cfg, url);
+  if (!cle?.startsWith(`assets/${workspaceId}/`)) return null;
+  try {
+    const res = await fetch(presignHeadUrl(cfg, cle, 60), { method: 'HEAD', redirect: 'manual', cache: 'no-store', signal: AbortSignal.timeout(delaiMs) });
+    try { await res.body?.cancel(); } catch { /* aucun corps */ }
+    return res.status === 200 ? res.headers.get('content-length') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Plus que `{"size":"…"}` · un corps de métadonnées plus long n'est pas lu. */
+const META_MAX = 4_096;
+
+/**
+ * La taille d'un fichier Google Drive · métadonnée `size` (champ seul), lue
+ * avec le jeton de l'espace. Un document natif Google (Docs, Sheets) n'en a
+ * pas · `null`. La valeur brute est rendue · `tailleRelue` (noyau) la juge.
+ */
+export async function metaTailleFichierDrive(accessToken: string, fileId: string, delaiMs = 5_000): Promise<unknown> {
+  if (!fileId || /[\/\\?#]/.test(fileId)) return null;
+  try {
+    const res = await fetch(`${DRIVE}/files/${encodeURIComponent(fileId)}?fields=size&supportsAllDrives=true`, {
+      method: 'GET', headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(delaiMs),
+    });
+    if (res.status !== 200) { try { await res.body?.cancel(); } catch { /* rien */ } return null; }
+    const texte = await res.text();
+    if (texte.length > META_MAX) return null;
+    const j = JSON.parse(texte) as { size?: unknown } | null;
+    return j && typeof j === 'object' ? j.size ?? null : null;
+  } catch {
+    return null;
+  }
 }

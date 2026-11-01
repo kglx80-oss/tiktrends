@@ -23,7 +23,7 @@ import { TAG_SELECTION_MAX } from './tags-couleur';
  *  · « Utiliser dans un projet » · les fichiers, versés dans les références
  *    d'un projet Studios (`verserSelectionDansProjet` · règles dans `versement.ts`).
  *
- * « Télécharger » (les fichiers, en archive ZIP · route `/api/bibliotheque/archive`)
+ * « Télécharger » (fichiers et dossiers, en archive ZIP · route `/api/bibliotheque/archive`)
  * est une LECTURE · son geste est décidé à part (`gesteTelechargement`, `archive.ts`).
  *
  * Les gestes de la maquette SANS action serveur restent fermés, avec leur

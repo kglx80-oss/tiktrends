@@ -82,7 +82,12 @@ export class ErreurArchive extends Error {
 }
 
 export interface EntreeZip {
-  /** Nom DANS l'archive · déjà assaini par l'appelant (`nomsArchive`). */
+  /**
+   * Chemin DANS l'archive · déjà assaini par l'appelant (`selectionArchive`),
+   * segments séparés par `/`. Se termine par `/` · un DOSSIER (aucun octet).
+   * L'écrivain refuse de lui-même un chemin absolu, un segment vide, `.` ou
+   * `..`, une barre inverse ou un caractère de contrôle (`cheminZipSur`).
+   */
   nom: string;
   /** Date de modification affichée par le lecteur (heure UTC). */
   date: Date;
@@ -108,6 +113,19 @@ export function dateDos(d: Date): { date: number; heure: number } {
 }
 
 const utf8 = new TextEncoder();
+
+/**
+ * Un chemin qu'aucun lecteur ne peut faire sortir du dossier d'extraction ·
+ * relatif, segments non vides, ni `.` ni `..`, ni `\\` (séparateur Windows),
+ * ni `:` en premier segment (lettre de lecteur), ni caractère de contrôle.
+ * Seconde barrière · `selectionArchive` assainit déjà chaque segment.
+ */
+export function cheminZipSur(chemin: string): boolean {
+  if (!chemin || chemin.startsWith('/') || /[\\\x00-\x1f\x7f]/.test(chemin)) return false;
+  const segments = (chemin.endsWith('/') ? chemin.slice(0, -1) : chemin).split('/');
+  if (segments[0]!.includes(':')) return false;
+  return segments.every((x) => x !== '' && x !== '.' && x !== '..');
+}
 
 /** Champ « Unicode Path » d'Info-ZIP (0x7075) · version 1, CRC du nom de l'en-tête, nom UTF-8. */
 function champUnicode(nom: Uint8Array): Uint8Array {
@@ -148,7 +166,10 @@ function descripteur(crc: number, taille: number): Uint8Array {
   return b;
 }
 
-interface Central { nom: Uint8Array; extra: Uint8Array; dos: { date: number; heure: number }; crc: number; taille: number; position: number }
+interface Central { nom: Uint8Array; extra: Uint8Array; dos: { date: number; heure: number }; crc: number; taille: number; position: number; repertoire: boolean }
+
+/** Attribut MS-DOS « répertoire » · l'Explorateur et l'Utilitaire d'archive créent le dossier, même vide. */
+const ATTRIBUT_REPERTOIRE = 0x10;
 
 function enteteCentral(e: Central): Uint8Array {
   const b = new Uint8Array(46 + e.nom.length + e.extra.length);
@@ -165,7 +186,8 @@ function enteteCentral(e: Central): Uint8Array {
   v.setUint32(24, e.taille, true);
   v.setUint16(28, e.nom.length, true);
   v.setUint16(30, e.extra.length, true);
-  // commentaire, disque, attributs internes et externes · zéro.
+  // commentaire, disque, attributs internes · zéro ; attributs externes · répertoire ou rien.
+  v.setUint32(38, e.repertoire ? ATTRIBUT_REPERTOIRE : 0, true);
   v.setUint32(42, e.position, true);
   b.set(e.nom, 46);
   b.set(e.extra, 46 + e.nom.length);
@@ -197,7 +219,8 @@ export async function* fluxZip(entrees: AsyncIterable<EntreeZip> | Iterable<Entr
   for await (const e of entrees) {
     if (centraux.length >= MAX_ENTREES) throw new ErreurArchive('format', 'Trop de fichiers pour une archive.');
     const nom = utf8.encode(e.nom);
-    if (!nom.length || nom.length > 0xffff - 9) throw new ErreurArchive('nom', 'Nom de fichier invalide dans l’archive.');
+    if (!nom.length || nom.length > 0xffff - 9 || !cheminZipSur(e.nom)) throw new ErreurArchive('nom', 'Nom de fichier invalide dans l’archive.');
+    const repertoire = e.nom.endsWith('/');
     const extra = champUnicode(nom);
     const dos = dateDos(e.date);
     const tete = enteteLocal(nom, extra, dos);
@@ -208,6 +231,7 @@ export async function* fluxZip(entrees: AsyncIterable<EntreeZip> | Iterable<Entr
     let taille = 0;
     for await (const morceau of e.octets) {
       if (!morceau.length) continue;
+      if (repertoire) throw new ErreurArchive('nom', 'Un dossier de l’archive ne porte pas d’octets.');
       taille += morceau.length;
       volume += morceau.length;
       if (volume > plafond) throw new ErreurArchive('volume', 'Le volume de l’archive dépasse son plafond.');
@@ -219,7 +243,7 @@ export async function* fluxZip(entrees: AsyncIterable<EntreeZip> | Iterable<Entr
     const fin = descripteur(crc >>> 0, taille);
     yield fin;
     position += fin.length;
-    centraux.push({ nom, extra, dos, crc: crc >>> 0, taille, position: debut });
+    centraux.push({ nom, extra, dos, crc: crc >>> 0, taille, position: debut, repertoire });
   }
   const debutCentral = position;
   for (const c of centraux) {

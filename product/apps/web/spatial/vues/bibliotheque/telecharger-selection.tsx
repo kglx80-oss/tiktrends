@@ -7,31 +7,36 @@ import { useSpatial } from '../../coquille/contexte';
 
 /**
  * Bibliothèque · « Télécharger » de la barre de sélection · une archive ZIP des
- * fichiers sélectionnés. Ouvert ou fermé, et pourquoi, est décidé au noyau
- * (`gesteTelechargement` · fichiers seuls, borne de sélection, tailles connues,
- * plafond de volume), AVANT le clic.
+ * fichiers et des DOSSIERS sélectionnés (un dossier avec son arborescence).
+ * Ouvert ou fermé, et pourquoi, est décidé au noyau (`gesteTelechargement` ·
+ * bornes de sélection, arborescence, plafonds de nombre et de volume, chemins),
+ * AVANT le clic. Une taille inconnue ne ferme pas le geste · la route la relit
+ * au stockage pendant la vérification, et dit son refus si elle reste illisible.
  *
  * Au clic · la route redit sa décision (`?verifier=1`, JSON) · un refus est dit
  * sans quitter la page. Puis un formulaire POSTÉ par le navigateur lui-même
  * reçoit l'archive en pièce jointe · c'est le navigateur qui la télécharge, en
- * flux, sans la garder en mémoire dans la page. Seuls des identifiants partent.
+ * flux, sans la garder en mémoire dans la page. Seuls des identifiants partent
+ * (`ids` pour les fichiers, `dossiers` pour les dossiers).
  */
 
 export const ROUTE_ARCHIVE = '/api/bibliotheque/archive';
 const INDISPONIBLE = 'Archive indisponible · réessaie dans un instant.';
 
 /** Le navigateur poste les identifiants · la réponse (pièce jointe) devient un téléchargement, la page reste. */
-function lancerArchive(ids: readonly string[]): void {
+function lancerArchive(ids: readonly string[], dossiers: readonly string[]): void {
   const f = document.createElement('form');
   f.method = 'post';
   f.action = ROUTE_ARCHIVE;
   f.hidden = true;
-  for (const id of ids) {
-    const i = document.createElement('input');
-    i.type = 'hidden';
-    i.name = 'ids';
-    i.value = id;
-    f.appendChild(i);
+  for (const [champ, liste] of [['ids', ids], ['dossiers', dossiers]] as const) {
+    for (const id of liste) {
+      const i = document.createElement('input');
+      i.type = 'hidden';
+      i.name = champ;
+      i.value = id;
+      f.appendChild(i);
+    }
   }
   document.body.appendChild(f);
   try { f.submit(); } finally { f.remove(); }
@@ -49,12 +54,12 @@ export function BoutonTelecharger({ donnees, sel, lectureSeule, occupe }: {
     setPrepare(true);
     try {
       const r = await fetch(`${ROUTE_ARCHIVE}?verifier=1`, {
-        method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: g.ids }),
+        method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: g.ids, dossiers: g.dossiers }),
       });
-      const j = (await r.json().catch(() => null)) as { ok?: boolean; raison?: string; fichiers?: number; octets?: number } | null;
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; raison?: string; fichiers?: number; dossiers?: number; octets?: number } | null;
       if (!r.ok || !j?.ok || typeof j.fichiers !== 'number' || typeof j.octets !== 'number') { toast(j?.raison ?? INDISPONIBLE); return; }
-      lancerArchive(g.ids);
-      toast(messageTelechargement(j.fichiers, j.octets));
+      lancerArchive(g.ids, g.dossiers);
+      toast(messageTelechargement(j.fichiers, j.octets, typeof j.dossiers === 'number' ? j.dossiers : 0));
     } catch {
       toast(INDISPONIBLE);
     } finally {
