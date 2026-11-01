@@ -33,6 +33,7 @@ vi.mock('@tiktrends/db', async (importOriginal) => {
 });
 vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }), headers: async () => new Headers() }));
 
 import { randomUUID } from 'node:crypto';
 import { db, schema, eq, and } from '@tiktrends/db';

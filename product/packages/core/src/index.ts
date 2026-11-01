@@ -190,3 +190,4 @@ export * from './stockage-orphelins';
 export * from './studios/direction-visuelle';
 export * from './spatial';
 export * from './offre';
+export * from './retrait-depot';

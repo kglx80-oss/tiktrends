@@ -1,11 +1,13 @@
 import { droitAutorisePub } from '../../bibliotheque-dossiers';
-import type { PorteeReference, ReferenceBrief, RoleReference } from '../../studios/brief';
+import type { BriefCanonique, PorteeReference, ReferenceBrief, RoleReference } from '../../studios/brief';
 import type { ViolationStudio } from '../../studios/document';
 import { idBibliotheque, type FichierCatalogue } from '../../studios/produit/catalogue';
 import type { ReferenceProduitEpinglee } from '../../studios/produit/epinglage';
 import { ajouterAssociation, estPortee, estRole, LIBELLES_ROLE, ROLES_REFERENCE } from '../../studios/produit/references';
+import { construireBriefV5, saisieBriefVide } from '../../studios/ux/assistant-projet';
+import { verifierNouveauProjet, type TypeNouveauProjet } from '../../studios/ux/nouveau-projet';
 import type { DonneesDrive } from './drive';
-import { validerSelectionFichiers } from './selection';
+import { gestesSelection, validerSelectionFichiers } from './selection';
 
 /**
  * Bibliothèque · « UTILISER DANS UN PROJET » · RÈGLES PURES (ni base, ni réseau).
@@ -27,7 +29,13 @@ import { validerSelectionFichiers } from './selection';
  *    un seul refus et RIEN n'est versé (tout ou rien) ;
  *  · les références après versement (`verserReferences`) · les doublons
  *    (même fichier, même rôle) ne sont pas ajoutés une seconde fois ;
- *  · la phrase dite après (`messageVersement`).
+ *  · la phrase dite après (`messageVersement`) ;
+ *  · le geste depuis l'APERÇU d'un seul fichier (`versementApercu`) · la règle
+ *    de la barre de sélection appliquée à ce fichier ;
+ *  · la création d'un projet depuis la fenêtre (`validerCreationVersement`,
+ *    `briefCreationVersement`, `messageCreationVersement`) · même règle de nom
+ *    que « Nouveau projet » (`verifierNouveauProjet`), puis le même versement ;
+ *  · ce qui manque avant de pouvoir verser (`raisonVersement`).
  */
 
 /** Le rôle Produit est réservé aux photos du produit épinglé (`violationsAssociation`) · jamais à une image de la bibliothèque. */
@@ -93,12 +101,51 @@ export type EntreeVersementValide = { ok: true; projectId: string; ids: string[]
 export function validerVersement(e: unknown): EntreeVersementValide | { ok: false; raison: string } {
   const x = (typeof e === 'object' && e !== null ? e : {}) as Record<string, unknown>;
   if (typeof x.projectId !== 'string' || !UUID.test(x.projectId)) return { ok: false, raison: RAISONS_VERSEMENT.projet };
+  const g = validerGeste(x);
+  if (!g.ok) return g;
+  return { ...g, projectId: x.projectId.toLowerCase() };
+}
+
+/** Fichiers, rôle et portée · la part commune au versement dans un projet existant et à la création suivie du versement. */
+function validerGeste(x: Record<string, unknown>): { ok: true; ids: string[]; role: RoleReference; scope: PorteeReference } | { ok: false; raison: string } {
   const v = validerSelectionFichiers(x.ids);
   if (!v.ok) return v;
   if (x.role === 'product') return { ok: false, raison: RAISONS_VERSEMENT.roleProduit };
   if (!estRole(x.role) || !ROLES_VERSEMENT.includes(x.role)) return { ok: false, raison: RAISONS_VERSEMENT.role };
   if (!estPortee(x.scope)) return { ok: false, raison: RAISONS_VERSEMENT.portee };
-  return { ok: true, projectId: x.projectId.toLowerCase(), ids: v.ids, role: x.role, scope: x.scope };
+  return { ok: true, ids: v.ids, role: x.role, scope: x.scope };
+}
+
+export const RAISON_MARQUE_CREATION = 'Choisis la marque du projet.';
+
+export type EntreeCreationVersementValide = { ok: true; brandId: string; titre: string; type: TypeNouveauProjet; ids: string[]; role: RoleReference; scope: PorteeReference };
+
+/**
+ * « Nouveau projet » depuis la fenêtre de versement · ce que l'action accepte
+ * AVANT de créer quoi que ce soit : la marque (UUID · sa PORTÉE est revérifiée
+ * par la création canonique `creerProjet`), le titre et le type par la règle de
+ * « Nouveau projet » (`verifierNouveauProjet`), puis les fichiers, le rôle et la
+ * portée par la règle du versement. Un seul écart et RIEN n'est créé.
+ */
+export function validerCreationVersement(e: unknown): EntreeCreationVersementValide | { ok: false; raison: string } {
+  const x = (typeof e === 'object' && e !== null ? e : {}) as Record<string, unknown>;
+  if (typeof x.brandId !== 'string' || !UUID.test(x.brandId)) return { ok: false, raison: RAISON_MARQUE_CREATION };
+  const n = verifierNouveauProjet({ titre: typeof x.titre === 'string' ? x.titre : '', type: typeof x.type === 'string' ? x.type : '' });
+  if (!n.ok) return { ok: false, raison: n.message };
+  const g = validerGeste(x);
+  if (!g.ok) return g;
+  return { ...g, brandId: x.brandId.toLowerCase(), titre: n.titre, type: n.type };
+}
+
+/**
+ * Le brief écrit à la création depuis la fenêtre · le brief VIDE de l'assistant
+ * (`construireBriefV5` sur une saisie vide, les treize champs canoniques) ·
+ * sans lui, le projet n'aurait pas de brief où ranger ses références et le
+ * versement serait refusé. L'objectif reste à préciser dans le projet (la
+ * complétude le dit), rien n'est inventé.
+ */
+export function briefCreationVersement(): BriefCanonique {
+  return construireBriefV5(saisieBriefVide());
 }
 
 /** Une ligne `assets` relue dans l'espace de la session (jamais prise du navigateur). */
@@ -181,4 +228,75 @@ export function uuidsBibliothequeCites(brief: unknown): string[] {
     if (typeof a === 'string' && a.startsWith('bib_') && UUID.test(a.slice(4))) out.add(a.slice(4).toLowerCase());
   }
   return [...out];
+}
+
+/**
+ * La phrase dite après « Créer le projet et verser » · le projet est créé dans
+ * les deux cas (création voulue par la personne, jamais défaite). Si le
+ * versement a échoué, on le DIT, avec sa raison, et le projet reste choisi
+ * pour réessayer le seul versement.
+ */
+export function messageCreationVersement(
+  titre: string,
+  v: { ok: true; ajoutes: number; dejaPresents: number; role: RoleReference } | { ok: false; raison: string },
+): string {
+  const t = `« ${titre.trim() || 'Projet sans titre'} »`;
+  if (v.ok) return `Projet ${t} créé · ${messageVersement(v.ajoutes, v.dejaPresents, titre, v.role)}`;
+  return `Projet ${t} créé, mais aucune image n’y a été versée · ${v.raison.replace(/[.\s]+$/, '')}. Le projet reste · réessaie le versement ou ouvre-le.`;
+}
+
+export type ModeVersement = 'existant' | 'nouveau';
+
+/**
+ * Ce qui manque avant de pouvoir verser · null = le bouton est ouvert. Dans un
+ * projet existant : un projet ; dans un nouveau projet : la marque (état
+ * « prêt » de « Nouveau projet »), le titre et le type (`verifierNouveauProjet`).
+ * Puis le rôle et la portée, jamais déduits.
+ */
+export function raisonVersement(e: {
+  occupe: boolean; selection: Pick<VersementSelection, 'versables' | 'phrase'>; mode: ModeVersement;
+  projectId: string; creation: { marque: boolean; titre: string; type: string }; role: string; scope: string;
+}): string | null {
+  if (e.occupe) return 'Versement en cours…';
+  if (!e.selection.versables.length) return e.selection.phrase;
+  if (e.mode === 'existant' && !e.projectId) return RAISONS_VERSEMENT.projet;
+  if (e.mode === 'nouveau') {
+    if (!e.creation.marque) return RAISON_MARQUE_CREATION;
+    const n = verifierNouveauProjet({ titre: e.creation.titre, type: e.creation.type });
+    if (!n.ok) return n.message;
+  }
+  if (!e.role) return RAISONS_VERSEMENT.role;
+  if (!e.scope) return RAISONS_VERSEMENT.portee;
+  return null;
+}
+
+export interface GesteVersementApercu {
+  /** Le libellé du geste de la barre · le même mot aux deux endroits. */
+  libelle: string;
+  ouvert: boolean;
+  /** Pourquoi le geste est fermé · la lecture seule, ou la raison d'écart du fichier. */
+  raison: string | null;
+  /** Ce que la fenêtre reçoit · le seul fichier de l'aperçu. */
+  fichiers: Array<{ id: string }>;
+}
+
+/**
+ * « Utiliser dans un projet » depuis l'APERÇU d'un fichier · la règle de la
+ * barre de sélection (`gestesSelection`) appliquée à ce seul fichier : il n'est
+ * PROPOSÉ (non null) que pour un fichier vivant de la bibliothèque · ni en
+ * corbeille (ni sous un dossier en corbeille), ni sortie Studios, ni ancienne
+ * création. En lecture seule, il est FERMÉ avec sa raison ; un fichier qui ne
+ * peut pas devenir une référence (pas une image, droits) le ferme avec la
+ * raison d'écart de `versementSelection`.
+ */
+export function versementApercu(d: DonneesDrive, fichierId: string, lectureSeule: string | null): GesteVersementApercu | null {
+  const s = gestesSelection(d, [fichierId], { section: 'drive', lectureSeule: null, ia: false });
+  const g = s.gestes.find((x) => x.cle === 'projet');
+  if (s.fichiers.length !== 1 || !g?.ouvert) return null;
+  const fichiers = [{ id: s.fichiers[0]!.id }];
+  const libelle = g.libelle;
+  if (lectureSeule !== null) return { libelle, ouvert: false, raison: lectureSeule, fichiers };
+  const v = versementSelection(d, fichiers);
+  if (!v.versables.length) return { libelle, ouvert: false, raison: v.ecartes[0]?.raison ?? v.phrase, fichiers };
+  return { libelle, ouvert: true, raison: null, fichiers };
 }

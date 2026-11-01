@@ -13,6 +13,7 @@ export * from './meta-insights';
 export * from './secrets';
 export * from './google-drive';
 export * from './drive-sync';
+export * from './retrait-depot';
 export * from './meta-daily';
 export * from './studios-fal';
 export * from './rendu-video';

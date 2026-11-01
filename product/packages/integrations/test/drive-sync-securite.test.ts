@@ -34,7 +34,7 @@ const STORAGE = { endpoint: 's3.test', region: 'gra', bucket: 'b', accessKeyId: 
 
 async function synchro(): Promise<{ res: Awaited<ReturnType<typeof syncDriveAssets>>; lignes: DriveAssetInput[] }> {
   const lignes: DriveAssetInput[] = [];
-  const res = await syncDriveAssets({ existingDriveIds: async () => new Set(), insertAsset: async (a) => { lignes.push(a); } },
+  const res = await syncDriveAssets({ existingDriveIds: async () => new Set(), insertAsset: async (a) => { lignes.push(a); }, referencesObjet: async () => 'inconnue' },
     { storage: STORAGE, refreshToken: 'rt', folderId: 'dossier', workspaceId: 'ws1' });
   return { res, lignes };
 }

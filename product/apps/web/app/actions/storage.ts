@@ -2,13 +2,14 @@
 
 import { and, asc, eq, gt, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, putBucketCors, storagePrivateSelfTest, putObject, newAssetKey } from '@tiktrends/integrations';
+import { storageFromEnv, putBucketCors, storagePrivateSelfTest, putObject, newAssetKey, ecrireApresDepot } from '@tiktrends/integrations';
 import { typeMediaReel, typeMediaDebutBase64, DEBUT_BASE64_SIGNATURE } from '@tiktrends/core';
 import { logAndTranslate } from '../../lib/error-log';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { GUARD } from '../../lib/guard-error';
 import { isFounder } from '../../lib/founder';
+import { referencesObjetEnBase } from '../../lib/references-objet';
 
 function appOrigins(): string[] {
   const out = new Set<string>();
@@ -144,11 +145,15 @@ async function candidatsMigration(workspaceId: string, apres: string | null): Pr
  *
  * ── Idempotent et reprenable ─────────────────────────────────────────────────
  *
- * Chaque image est traitée seule : téléversée, puis sa ligne mise à jour. Une
- * coupure au milieu laisse un objet orphelin dans le bucket — quelques
- * kilo-octets — jamais une image perdue. L'ordre inverse (écrire la ligne, puis
- * téléverser) aurait donné exactement le contraire, et c'est l'inverse qu'il
- * faut : mieux vaut un fichier en trop qu'une image qui n'existe plus.
+ * Chaque image est traitée seule : téléversée, puis sa ligne mise à jour. L'ordre
+ * inverse (écrire la ligne, puis téléverser) donnerait une ligne qui pointe un
+ * fichier absent · mieux vaut un fichier en trop qu'une image qui n'existe
+ * plus. Si la ligne n'est pas réécrite (échec, ou ligne disparue entre-temps),
+ * l'objet tout juste déposé est retiré, sauf si une ligne le cite
+ * (`ecrireApresDepot`, règle `decisionRetraitDepot`) · la donnée en base reste
+ * l'image embarquée, l'image repassera au lot suivant. Seule une coupure du
+ * processus entre les deux laisse encore un objet orphelin, compté par
+ * l'inventaire du stockage.
  */
 export async function migrateEmbeddedImagesAction(): Promise<{ migrees?: number; restantes?: number; error?: string }> {
   const s = await getSession();
@@ -188,11 +193,18 @@ export async function migrateEmbeddedImagesAction(): Promise<{ migrees?: number;
 
       try {
         const url = await putObject(cfg, newAssetKey(s.workspaceId, a.name || 'image'), octets, mime);
-        // La ligne n'est réécrite qu'une fois le fichier en place · une coupure
-        // laisse au pire un objet orphelin, jamais une image introuvable.
-        await db.update(schema.assets)
-          .set({ url, source: 'upload', mimeType: mime, sizeBytes: octets.length })
-          .where(eq(schema.assets.id, a.id));
+        // La ligne n'est réécrite qu'une fois le fichier en place · si elle ne
+        // l'est pas (échec, ou ligne disparue), l'objet déposé est retiré.
+        const base = db;
+        await ecrireApresDepot({
+          storage: cfg, workspaceId: s.workspaceId, deposes: [url], references: referencesObjetEnBase,
+          ecrire: async () => {
+            const [ecrite] = await base.update(schema.assets)
+              .set({ url, source: 'upload', mimeType: mime, sizeBytes: octets.length })
+              .where(eq(schema.assets.id, a.id)).returning({ id: schema.assets.id });
+            if (!ecrite) throw new Error('ligne disparue avant sa réécriture');
+          },
+        });
         migrees++;
       } catch {
         // Une image qui résiste ne doit pas arrêter le lot · elle repassera.
