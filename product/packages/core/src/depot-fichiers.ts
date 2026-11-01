@@ -69,8 +69,10 @@
  * chaque saut) quand le serveur lit l'image.
  *
  * Un objet du bucket de CET espace (`assets/<espace>/…` sous la base publique,
- * `cleObjetDeLEspace`) est toujours admis : c'est l'adresse que fabrique
- * l'import d'un fichier de logo, quel que soit l'hôte du stockage configuré.
+ * `cleObjetDeLEspace`) NOUVEAU n'est admis que s'il est ATTESTÉ par le jeton
+ * de dépôt de l'import (`jeton-depot.ts`, `decisionCharteDeposee`) · c'est
+ * l'adresse que fabrique l'import d'un fichier de logo, quel que soit l'hôte du
+ * stockage configuré, et sa provenance est prouvée. Sans jeton, il est refusé.
  *
  * Une adresse DÉJÀ enregistrée n'est pas revalidée à l'écriture
  * (`refusCharteLogos`) · aucune donnée existante n'est réécrite ni bloquée ;
@@ -200,17 +202,26 @@ export interface BucketEspace { base: string; espace: string }
 const objetDuBucket = (a: string, bucket?: BucketEspace | null): boolean =>
   !!bucket && cleObjetDeLEspace(a, bucket.base, bucket.espace) !== null;
 
+/** Un objet du bucket de l'espace, nouveau, que rien n'atteste (aucun jeton de dépôt). */
+export const REFUS_LOGO_NON_ATTESTE = 'Ce fichier de logo n’a pas été importé depuis cet écran · importe-le avec « Importer ».';
+
 /**
  * La charte à enregistrer · chaque adresse NOUVELLE (absente de ce qui est déjà
- * enregistré) doit passer `refusAdresseLogo`. Une adresse déjà en base est
- * renvoyée telle quelle sans blocage (choisir un autre logo par défaut ne doit
- * pas échouer à cause d'une variante ancienne) · elle est écartée à la lecture
- * pour les fournisseurs (`logoTransmissible`).
+ * enregistré) doit passer `refusAdresseLogo`, ou être un objet du bucket de
+ * l'espace ATTESTÉ (`attestees`, adresses dont le jeton de dépôt a été vérifié ·
+ * `decisionCharteDeposee`). Une adresse déjà en base est renvoyée telle quelle
+ * sans blocage (choisir un autre logo par défaut ne doit pas échouer à cause
+ * d'une variante ancienne) · elle est écartée à la lecture pour les
+ * fournisseurs (`logoTransmissible`).
  */
-export function refusCharteLogos(c: { logoUrl: string; logos: readonly string[] }, dejaEnregistrees: ReadonlyArray<string | null | undefined>, bucket?: BucketEspace | null): string | null {
+export function refusCharteLogos(c: { logoUrl: string; logos: readonly string[] }, dejaEnregistrees: ReadonlyArray<string | null | undefined>, bucket?: BucketEspace | null, attestees: readonly string[] = []): string | null {
   const connues = new Set(dejaEnregistrees.filter((x): x is string => typeof x === 'string' && !!x));
   for (const a of [c.logoUrl, ...c.logos]) {
-    if (!a || connues.has(a) || objetDuBucket(a, bucket)) continue;
+    if (!a || connues.has(a)) continue;
+    if (objetDuBucket(a, bucket)) {
+      if (!attestees.includes(a)) return REFUS_LOGO_NON_ATTESTE;
+      continue;
+    }
     const refus = refusAdresseLogo(a);
     if (refus) return refus;
   }

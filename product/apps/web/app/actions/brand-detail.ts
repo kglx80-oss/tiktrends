@@ -9,8 +9,8 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { generateProducts, generateBrandProfile, extractVisualDa } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
-import { falFromEnv, falGenerateImage, storageFromEnv, basePubliqueStockage } from '@tiktrends/integrations';
-import { costFor, imageModelByKey, policeTechnique, refusCharteLogos, type DaVisuelleMarque } from '@tiktrends/core';
+import { falFromEnv, falGenerateImage, storageFromEnv, basePubliqueStockage, ecrireApresDepot, retirerDepotsSansLigne } from '@tiktrends/integrations';
+import { costFor, decisionCharteDeposee, imageModelByKey, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
@@ -18,6 +18,8 @@ import { extractBrandDA } from '../../lib/brand-da';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
+import { lireJetonDepot } from '../../lib/jeton-depot';
+import { referencesObjetEnBase } from '../../lib/references-objet';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -282,9 +284,19 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
 const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 /** Récupère la DA (logo, couleurs, polices) depuis le site et complète les champs vides. */
-/** Enregistre la charte visuelle éditée à la main (logos, logo par défaut, couleurs, polices). */
+/**
+ * Enregistre la charte visuelle éditée à la main (logos, logo par défaut, couleurs, polices).
+ *
+ * `jetonDepot` · celui que `presignAssetUploadAction` a rendu à l'import d'un
+ * fichier de logo. Il est EXIGÉ pour une adresse du bucket NOUVELLE (règle
+ * `decisionCharteDeposee`, noyau `jeton-depot.ts`) : signature, espace, clé et
+ * expiration. Le dépôt qu'il prouve est retiré du bucket si la charte est
+ * refusée, si l'écriture échoue, ou si la charte ne le retient pas · seulement
+ * quand aucune ligne ne le cite (`decisionRetraitDepot`). Les adresses déjà en
+ * base passent sans jeton ; une adresse externe `https:` suit `refusAdresseLogo`.
+ */
 export async function saveBrandDAAction(input: {
-  brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[];
+  brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[]; jetonDepot?: string;
 }): Promise<{ ok?: true; error?: string }> {
   const g = await guardBrand(input.brandId);
   if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
@@ -294,20 +306,35 @@ export async function saveBrandDAAction(input: {
   // Toute adresse de logo NOUVELLE passe la règle du noyau (`https:` public,
   // ni identifiants, ni IP, ni réseau interne) · celles déjà enregistrées sont
   // renvoyées telles quelles (aucune donnée réécrite), un objet du bucket de
-  // l'espace (import d'un fichier de logo) est admis.
+  // l'espace n'est admis que si le jeton de dépôt de l'import l'atteste.
   const [avant] = await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos }).from(schema.brands)
     .where(and(eq(schema.brands.id, input.brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1);
   const cfg = storageFromEnv();
-  const refus = refusCharteLogos({ logoUrl, logos }, [avant?.logoUrl, ...(avant?.logos ?? [])], cfg ? { base: basePubliqueStockage(cfg), espace: g.workspaceId } : null);
-  if (refus) return { error: refus };
-  // Une fonte d'icônes n'est jamais une police de marque · on l'écarte même
-  // saisie à la main (CDC v7 · N09), pas seulement à l'extraction du site.
-  await db.update(schema.brands).set({
-    logoUrl: logoUrl || null,
-    logos,
-    colors: clean(input.colors),
-    fonts: clean(input.fonts).filter((f) => !policeTechnique(f)),
-  }).where(eq(schema.brands.id, input.brandId));
+  const d = decisionCharteDeposee({
+    charte: { logoUrl, logos }, dejaEnregistrees: [avant?.logoUrl, ...(avant?.logos ?? [])],
+    bucket: cfg ? { base: basePubliqueStockage(cfg), espace: g.workspaceId } : null,
+    jeton: lireJetonDepot(input.jetonDepot), maintenant: Date.now(),
+  });
+  const retirer = () => retirerDepotsSansLigne({ storage: cfg, workspaceId: g.workspaceId, deposes: d.aRetirer, references: referencesObjetEnBase });
+  if (!d.ok) { await retirer(); return { error: d.erreur }; }
+  const base = db;
+  // L'écriture qui échoue retire le dépôt attesté, sauf si une ligne le cite
+  // déjà (`ecrireApresDepot`), puis l'erreur remonte comme avant.
+  await ecrireApresDepot({
+    storage: cfg, workspaceId: g.workspaceId, deposes: [...d.deposes, ...d.aRetirer], references: referencesObjetEnBase,
+    ecrire: async () => {
+      // Une fonte d'icônes n'est jamais une police de marque · on l'écarte même
+      // saisie à la main (CDC v7 · N09), pas seulement à l'extraction du site.
+      await base.update(schema.brands).set({
+        logoUrl: logoUrl || null,
+        logos,
+        colors: clean(input.colors),
+        fonts: clean(input.fonts).filter((f) => !policeTechnique(f)),
+      }).where(eq(schema.brands.id, input.brandId));
+    },
+  });
+  // Écrite · un dépôt attesté que la charte ne retient pas n'a plus de raison d'être.
+  if (d.aRetirer.length) await retirer();
   return { ok: true };
 }
 

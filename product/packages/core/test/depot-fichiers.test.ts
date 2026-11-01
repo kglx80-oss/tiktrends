@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FORMATS_LOGO, MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO, PLAFONDS_DEPOT, POIDS_MAX_LOGO, TYPE_DEPOT_NEUTRE,
-  decisionDepot, logoTransmissible, nomFichierDepot, refusAdresseLogo, refusCharteLogos,
+  decisionDepot, logoTransmissible, nomFichierDepot, refusAdresseLogo, refusCharteLogos, REFUS_LOGO_NON_ATTESTE,
   dureeLienDepot, DEBIT_MONTANT_REFERENCE_OCTETS_S, MARGE_LIEN_DEPOT_S, DUREE_LIEN_DEPOT_MIN_S, DUREE_LIEN_DEPOT_MAX_S,
 } from '../src';
 
@@ -151,9 +151,12 @@ describe('refusCharteLogos · seules les adresses nouvelles sont contrôlées', 
     expect(refusCharteLogos({ logoUrl: '', logos: ['https://127.0.0.1/x.png'] }, [ANCIENNE])).toBe(MESSAGES_REFUS_LOGO.hote);
     expect(refusCharteLogos({ logoUrl: '', logos: [] }, [])).toBeNull();
   });
-  it('un objet du bucket de CET espace est admis, celui d’un autre espace non', () => {
+  it('un objet du bucket de CET espace est admis s’il est attesté (jeton de dépôt), refusé sinon ; celui d’un autre espace non', () => {
     const bucket = { base: 'http://127.0.0.1:3299/tt', espace: 'ws-a' };
-    expect(refusCharteLogos({ logoUrl: 'http://127.0.0.1:3299/tt/assets/ws-a/1-logo.png', logos: [] }, [], bucket)).toBeNull();
+    const a = 'http://127.0.0.1:3299/tt/assets/ws-a/1-logo.png';
+    expect(refusCharteLogos({ logoUrl: a, logos: [] }, [], bucket, [a])).toBeNull();
+    expect(refusCharteLogos({ logoUrl: a, logos: [] }, [], bucket)).toBe(REFUS_LOGO_NON_ATTESTE);
+    expect(refusCharteLogos({ logoUrl: a, logos: [a] }, [a], bucket), 'déjà enregistré · sans jeton').toBeNull();
     expect(refusCharteLogos({ logoUrl: 'http://127.0.0.1:3299/tt/assets/ws-b/1-logo.png', logos: [] }, [], bucket)).toBe(MESSAGES_REFUS_LOGO.schema);
   });
 });

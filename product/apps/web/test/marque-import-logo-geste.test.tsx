@@ -39,7 +39,7 @@ function faux(depotOk = true, typeSigne = 'image/png') {
     return { ok: depotOk } as Response;
   }));
   const actions: ImportLogoActions = {
-    preparer: async (i) => { appels.preparer.push(i); return { uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png', contentType: typeSigne }; },
+    preparer: async (i) => { appels.preparer.push(i); return { uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png', contentType: typeSigne, jetonDepot: 'jeton.signe' }; },
     enregistrer: async (i) => { appels.enregistrer.push(i); return { ok: true }; },
   };
   return { appels, actions };
@@ -54,7 +54,7 @@ describe('Marque · importer un fichier de logo', () => {
     expect(appels.typesEnvoyes, 'le type SIGNÉ par le serveur part dans le PUT').toEqual(['image/png']);
     // Le Content-Length est SIGNÉ à la taille déclarée · le corps est le fichier entier, aucune longueur posée à la main.
     expect(appels.longueurs, 'longueur du corps = sizeBytes déclaré').toEqual([2048]);
-    expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: 'https://bucket/assets/ws/neuf.png', logos: ['https://a/ancien.png', 'https://bucket/assets/ws/neuf.png'], colors: ['#112233'], fonts: ['Inter'] }]);
+    expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: 'https://bucket/assets/ws/neuf.png', logos: ['https://a/ancien.png', 'https://bucket/assets/ws/neuf.png'], colors: ['#112233'], fonts: ['Inter'], jetonDepot: 'jeton.signe' }]);
     expect(toasts).toEqual(['Logo importé · il devient le logo par défaut de la charte']);
     expect(rafraichis.n).toBe(1);
   });
@@ -70,6 +70,15 @@ describe('Marque · importer un fichier de logo', () => {
     act(() => root?.unmount()); hote?.remove();
     await choisir(monter(sansType.actions), png());
     expect(sansType.appels.put, 'sans type signé, rien ne part').toEqual([]);
+    expect(toasts).toEqual(['Le téléversement a échoué. Réessaie.']);
+  });
+
+  it('sans jeton de dépôt · rien n’est déposé ni enregistré (la charte le refuserait)', async () => {
+    const { appels, actions } = faux();
+    actions.preparer = async () => ({ uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png', contentType: 'image/png' });
+    await choisir(monter(actions), png());
+    expect(appels.put).toEqual([]);
+    expect(appels.enregistrer).toEqual([]);
     expect(toasts).toEqual(['Le téléversement a échoué. Réessaie.']);
   });
 

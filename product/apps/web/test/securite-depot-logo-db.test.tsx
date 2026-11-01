@@ -26,7 +26,7 @@ vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO, dureeLienDepot } from '@tiktrends/core';
+import { MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO, REFUS_LOGO_NON_ATTESTE, dureeLienDepot } from '@tiktrends/core';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 
@@ -163,13 +163,18 @@ describe('saveBrandDAAction · adresse de logo', () => {
     expect(b.logoUrl).toBe(ANCIEN);
   });
 
-  it('un fichier de logo importé dans le bucket de l’espace est admis, celui d’un autre espace refusé', async () => {
+  it('un fichier de logo importé dans le bucket de l’espace est admis AVEC son jeton de dépôt, refusé sans ; celui d’un autre espace refusé', async () => {
     const m = await marque();
     const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 100 });
-    expect(await charte(m.id, pre.publicUrl!, [ANCIEN, pre.publicUrl!])).toEqual({ ok: true });
+    expect(pre.jetonDepot, 'le présigné rend un jeton signé').toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(await charte(m.id, pre.publicUrl!, [ANCIEN, pre.publicUrl!]), 'adresse du bucket nouvelle sans jeton').toEqual({ error: REFUS_LOGO_NON_ATTESTE });
+    expect((await lire(m.id)).logoUrl).toBe(ANCIEN);
+    expect(await saveBrandDAAction({ brandId: m.id, logoUrl: pre.publicUrl!, logos: [ANCIEN, pre.publicUrl!], colors: ['#112233'], fonts: ['Inter'], jetonDepot: pre.jetonDepot })).toEqual({ ok: true });
     vi.stubEnv('S3_ENDPOINT', '127.0.0.1:9443');
-    const local = `https://127.0.0.1:9443/tt/assets/${m.ws}/1-abcd1234-logo.png`;
-    expect(await charte(m.id, local, [local]), 'objet de l’espace sur un stockage local (banc)').toEqual({ ok: true });
+    const preLocal = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 100 });
+    const local = preLocal.publicUrl!;
+    expect(local.startsWith(`https://127.0.0.1:9443/tt/assets/${m.ws}/`), local).toBe(true);
+    expect(await saveBrandDAAction({ brandId: m.id, logoUrl: local, logos: [local], colors: [], fonts: [], jetonDepot: preLocal.jetonDepot }), 'objet de l’espace sur un stockage local (banc)').toEqual({ ok: true });
     const autre = `https://127.0.0.1:9443/tt/assets/${randomUUID()}/1-abcd1234-logo.png`;
     expect(await charte(m.id, autre, [local, autre])).toEqual({ error: MESSAGES_REFUS_LOGO.port });
   });

@@ -191,3 +191,4 @@ export * from './studios/direction-visuelle';
 export * from './spatial';
 export * from './offre';
 export * from './retrait-depot';
+export * from './jeton-depot';

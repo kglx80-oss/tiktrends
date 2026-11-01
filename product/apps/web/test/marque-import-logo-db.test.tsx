@@ -65,7 +65,8 @@ describe('Marque · import d’un fichier de logo · chemin serveur', () => {
     expect(pre.error).toBeUndefined();
     expect(pre.publicUrl, 'le fichier est rangé chez CET espace').toContain(`assets/${m.ws}/`);
     const charte = charteAvecLogoImporte({ logos: p.logos, defaut: p.defaut }, pre.publicUrl!);
-    expect(await p.actions!.enregistrer({ brandId: m.id, ...charte, colors: [...p.couleurs], fonts: [...p.polices] })).toEqual({ ok: true });
+    expect(pre.jetonDepot, 'le dépôt est attesté par un jeton signé').toBeTruthy();
+    expect(await p.actions!.enregistrer({ brandId: m.id, ...charte, colors: [...p.couleurs], fonts: [...p.polices], jetonDepot: pre.jetonDepot })).toEqual({ ok: true });
     const b = await lire(m.id);
     expect(b.logoUrl).toBe(pre.publicUrl);
     expect(b.logos).toEqual([ANCIEN, pre.publicUrl]);

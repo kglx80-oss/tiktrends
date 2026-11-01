@@ -13,8 +13,9 @@
  * qu'aucune ligne ne le pointe. Personne ne savait combien, ni quel volume.
  * Depuis, chaque chemin « dépôt puis écriture » côté serveur retire son dépôt
  * quand l'écriture échoue (`retrait-depot.ts`, `CHEMINS_DEPOT_PUIS_ECRITURE`) ·
- * restent l'onglet fermé, le logo de charte non enregistré et la coupure du
- * processus entre les deux, que l'inventaire continue de compter.
+ * le logo de charte aussi, depuis que son dépôt est attesté par un jeton
+ * (`jeton-depot.ts`). Restent l'onglet fermé et la coupure du processus entre
+ * les deux, que l'inventaire continue de compter.
  *
  * ── Ce qui est « référencé » · le recensement ────────────────────────────────
  *
