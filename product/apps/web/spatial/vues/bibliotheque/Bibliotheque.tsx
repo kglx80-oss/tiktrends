@@ -6,9 +6,10 @@ import {
   vueDrive, cheminVers, dossiersRangement, pastilleDroit, formatTaille, libelleJour, ETAT_DRIVE_INITIAL, SECTIONS_DRIVE, DROITS_ASSET,
   LIBELLE_TYPE_FICHIER, FILTRES_TYPE_DRIVE, resumeImportDrive, TYPES_IMPORT_LIEN, type FiltreTypeDrive, lireImportLiens, type TypeImportLien, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
   TAGS_COULEUR, messageTagPose, messageTagSelection, noteSelectionTag, selectionATaguer, type CarteDossierDrive, type CleTagCouleur,
+  gestesSelection, fichierSelectionnable, messageGesteFichiers, GESTES_SANS_ACTION, type CleGesteSelection,
 } from '@tiktrends/core';
-import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction } from '../../../app/actions/assets';
-import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction } from '../../../app/actions/bibliotheque-dossiers';
+import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction } from '../../../app/actions/assets';
+import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction } from '../../../app/actions/bibliotheque-dossiers';
 import { syncDriveNowAction } from '../../../app/actions/drive';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
@@ -30,6 +31,16 @@ import { DialogueSpatial } from '../marque/interactifs';
  * (`definirTagDossiersAction`, tout ou rien · les fichiers n'en portent pas),
  * et filtrer par tag (puces de l'arbre, adresse `?tag=`) · en grille comme en
  * liste, où chaque dossier tagué porte son étiquette.
+ *
+ * La SÉLECTION · dossiers ET fichiers, comme la maquette (une case sur chaque
+ * carte et chaque ligne). Les gestes de la barre et la phrase de ceux qui ne
+ * s'appliquent pas sont décidés au noyau (`gestesSelection`) · corbeille et tag
+ * pour les dossiers ; déplacer, droits d'usage et usage par l'IA pour les
+ * fichiers, chacun en UNE action groupée, tout ou rien (`affecterAssetsDossierAction`,
+ * `definirDroitsAssetsAction`, `basculerAssetsIaAction`). Les gestes de la
+ * barre de la maquette sans action serveur (projet, téléchargement groupé,
+ * partage, favori) restent fermés avec leur raison. Aucune suppression
+ * définitive groupée · un fichier se supprime à l'unité, confirmé, dans l'aperçu.
  *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
@@ -77,6 +88,9 @@ const style = (s: Record<string, string | number>) => s as CSSProperties;
 
 /** `tagOuvert` vaut ceci quand c'est le menu de la BARRE DE SÉLECTION qui est ouvert (jamais un id de dossier). */
 const MENU_SELECTION = ':selection';
+/** Valeurs des listes de la barre de sélection · « Assets de la marque · non classé » et « Non classé » (jamais un id). */
+const RACINE_RANGEMENT = ':racine';
+const SANS_DROIT = ':aucun';
 
 /** Compresse une image navigateur en data URI léger (sans bucket) · même règle que l'écran V5. */
 function fichierEnDataUri(file: File, cote = 1400, qualite = 0.85): Promise<string> {
@@ -160,6 +174,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const v = vueDrive(p.donnees, etat);
   const rangements = useMemo(() => dossiersRangement(p.donnees), [p.donnees]);
   const tagSel = useMemo(() => selectionATaguer(p.donnees, selection), [p.donnees, selection]);
+  const sel = useMemo(() => gestesSelection(p.donnees, selection, { section: etat.section, lectureSeule: p.lectureSeule, ia: !!p.gestion }), [p.donnees, selection, etat.section, p.lectureSeule, p.gestion]);
+  const gesteSel = (cle: CleGesteSelection) => sel.gestes.find((x) => x.cle === cle);
   const fichierApercu = apercu ? p.donnees.fichiers.find((f) => f.id === apercu) ?? null : null;
   const dossierDe = (id: string) => p.donnees.dossiers.find((d) => d.id === id);
   const corbeille = etat.section === 'corbeille';
@@ -310,8 +326,9 @@ export function Bibliotheque(p: PropsBibliotheque) {
   }
 
   async function corbeilleOuRestaurer() {
-    const ids = [...selection];
-    if (!ids.length || occupe) return;
+    // Seuls les DOSSIERS de la sélection (noyau) · un fichier ne va jamais à la corbeille.
+    const ids = sel.dossiers.map((d) => d.id);
+    if (!ids.length || occupe || !gesteSel(corbeille ? 'restaurer' : 'corbeille')?.ouvert) return;
     if (!corbeille && !window.confirm(`Mettre ${ids.length} dossier${ids.length > 1 ? 's' : ''} à la corbeille ? Ils restent restaurables, avec leur contenu.`)) return;
     setOccupe(true);
     const res = await Promise.all(ids.map((id) => (corbeille ? restaurerDossierAction({ id }) : supprimerDossierAction({ id }))));
@@ -344,6 +361,33 @@ export function Bibliotheque(p: PropsBibliotheque) {
     setOccupe(false);
     if (r.error) { toast(r.error); return; }
     toast(messageTagSelection(tag, r.n ?? tagSel.dossiers.length, tagSel.fichiers));
+    setSelection(new Set());
+    rafraichir();
+  }
+
+  /** Un geste groupé sur les FICHIERS de la sélection · une seule action, tout ou rien côté serveur. */
+  async function gesteFichiers(cle: 'ranger' | 'droits' | 'ia', valeur?: string) {
+    const ids = sel.fichiers.map((f) => f.id);
+    if (!ecriture || occupe || !ids.length || !gesteSel(cle)?.ouvert) return;
+    setOccupe(true);
+    const echec = { error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string };
+    let r: { ok?: true; n?: number; error?: string };
+    let message: string;
+    if (cle === 'ranger') {
+      const folderId = valeur === RACINE_RANGEMENT ? null : (valeur ?? null);
+      r = await affecterAssetsDossierAction({ ids, folderId }).catch(() => echec);
+      message = messageGesteFichiers('ranger', r.n ?? ids.length, { dossier: rangements.find((x) => x.id === folderId)?.nom ?? v.depot });
+    } else if (cle === 'droits') {
+      const droit = valeur === SANS_DROIT ? null : (valeur as DroitAsset);
+      r = await definirDroitsAssetsAction({ ids, droit }).catch(() => echec);
+      message = messageGesteFichiers('droits', r.n ?? ids.length);
+    } else {
+      r = await basculerAssetsIaAction({ ids, useForAi: sel.iaCible }).catch(() => echec);
+      message = messageGesteFichiers('ia', r.n ?? ids.length, { useForAi: sel.iaCible });
+    }
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(message);
     setSelection(new Set());
     rafraichir();
   }
@@ -396,6 +440,13 @@ export function Bibliotheque(p: PropsBibliotheque) {
 
   const fsel = (id: string) => { const on = selection.has(id); return <button type="button" className={`fsel ${on ? 'on' : ''}`} aria-pressed={on} aria-label={`Sélectionner ${p.donnees.dossiers.find((d) => d.id === id)?.nom ?? ''}`} onClick={() => basculerSel(id)}>{on && <Ic n="check" />}</button>; };
 
+  /** La case d'un FICHIER (maquette `chk(k)`) · carte de la grille et ligne de la liste. */
+  const fchk = (f: FichierDrive) => {
+    if (!ecriture || !fichierSelectionnable(f)) return null;
+    const on = selection.has(f.id);
+    return <button type="button" className={`dchk ${on ? 'on' : ''}`} aria-pressed={on} aria-label={`Sélectionner ${f.nom}`} onClick={() => basculerSel(f.id)}>{on && <Ic n="check" />}</button>;
+  };
+
   const grille = (
     <>
       {(v.dossiers.length > 0 || v.nouveau) && (
@@ -446,7 +497,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <div className="dsub">Fichiers</div>
           <div className="dfiles">
             {v.fichiers.map((f) => (
-              <div className={`dcard ${apercu === f.id ? 'cur' : ''}`} key={f.id}>
+              <div className={`dcard ${selection.has(f.id) ? 'sel' : ''} ${apercu === f.id ? 'cur' : ''}`} key={f.id}>
+                {fchk(f)}
                 <button type="button" className="dopen" onClick={() => setApercu(apercu === f.id ? null : f.id)} aria-label={`Aperçu de ${f.nom}`}><Vignette f={f} /></button>
                 <div className="dmeta"><IconeFichier f={f} /><span className="nm" title={f.nom}>{f.nom}</span></div>
                 <div className="dsub2"><PastilleFichier f={f} /><span className="faint">{formatTaille(f.tailleOctets)}</span></div>
@@ -472,8 +524,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
         </div>
       ))}
       {v.fichiers.map((f) => (
-        <div className={`dtr ${apercu === f.id ? 'cur' : ''}`} key={f.id}>
-          <span />
+        <div className={`dtr ${selection.has(f.id) ? 'sel' : ''} ${apercu === f.id ? 'cur' : ''}`} key={f.id}>
+          {fchk(f) ?? <span />}
           <button type="button" className="dname" onClick={() => setApercu(apercu === f.id ? null : f.id)}><IconeFichier f={f} /><span className="nm">{f.nom}</span></button>
           <span className="downer">{f.source}</span>
           <span className="faint">{libelleJour(f.creeLe, maintenant)}</span>
@@ -609,11 +661,11 @@ export function Bibliotheque(p: PropsBibliotheque) {
           {selection.size > 0 && (
             <div className="dbulk">
               <strong>{selection.size} sélectionné{selection.size > 1 ? 's' : ''}</strong>
-              <button className="btn sm" type="button" onClick={() => void corbeilleOuRestaurer()} disabled={occupe}><Ic n={corbeille ? 'check' : 'x'} />{corbeille ? 'Restaurer' : 'Mettre à la corbeille'}</button>
+              {(() => { const x = gesteSel(corbeille ? 'restaurer' : 'corbeille')!; return <button className="btn sm" type="button" data-geste={x.cle} onClick={() => void corbeilleOuRestaurer()} disabled={occupe || !x.ouvert} title={x.raison ?? undefined}><Ic n={corbeille ? 'check' : 'x'} />{x.libelle}</button>; })()}
               {!corbeille && ecriture && (
                 <span data-geste="tag-selection" style={{ position: 'relative' }}>
-                  <button className="btn sm" type="button" aria-expanded={tagOuvert === MENU_SELECTION} disabled={occupe || !!tagSel.refus} title={tagSel.refus ?? undefined} onClick={() => setTagOuvert((o) => (o === MENU_SELECTION ? null : MENU_SELECTION))}><Ic n="tag" />Tag de couleur</button>
-                  {tagOuvert === MENU_SELECTION && !tagSel.refus && (
+                  <button className="btn sm" type="button" aria-expanded={tagOuvert === MENU_SELECTION} disabled={occupe || !gesteSel('tag')?.ouvert} title={gesteSel('tag')?.raison ?? undefined} onClick={() => setTagOuvert((o) => (o === MENU_SELECTION ? null : MENU_SELECTION))}><Ic n="tag" />Tag de couleur</button>
+                  {tagOuvert === MENU_SELECTION && gesteSel('tag')?.ouvert && (
                     <div className="ftpop glass" role="menu" aria-label="Tag de couleur de la sélection" style={{ left: 0, right: 'auto' }}>
                       <span className="lbl" style={{ margin: '0 2px 4px' }}>Tag de couleur · {tagSel.dossiers.length} dossier{tagSel.dossiers.length > 1 ? 's' : ''}</span>
                       <div className="ftsw">
@@ -625,7 +677,25 @@ export function Bibliotheque(p: PropsBibliotheque) {
                   )}
                 </span>
               )}
-              {!corbeille && ecriture && tagSel.refus && tagSel.dossiers.length > 0 && <small className="faint">{tagSel.refus}</small>}
+              {!corbeille && ecriture && (() => {
+                const ranger = gesteSel('ranger')!, droits = gesteSel('droits')!, ia = gesteSel('ia');
+                return (
+                  <>
+                    <select className="dsort" data-geste="ranger" aria-label="Déplacer les fichiers sélectionnés vers un dossier" value="" disabled={occupe || !ranger.ouvert} title={ranger.raison ?? undefined} onChange={(e) => void gesteFichiers('ranger', e.target.value)}>
+                      <option value="" disabled>{ranger.libelle}</option>
+                      {rangements.map((r) => <option key={r.id ?? 'racine'} value={r.id ?? RACINE_RANGEMENT}>{r.nom}</option>)}
+                    </select>
+                    <select className="dsort" data-geste="droits" aria-label="Droits d’usage des fichiers sélectionnés" value="" disabled={occupe || !droits.ouvert} title={droits.raison ?? undefined} onChange={(e) => void gesteFichiers('droits', e.target.value)}>
+                      <option value="" disabled>{sel.inviteDroits}</option>
+                      <option value={SANS_DROIT}>Non classé</option>
+                      {DROITS_ASSET.map((d) => <option key={d.cle} value={d.cle}>{d.libelle}</option>)}
+                    </select>
+                    {ia && <button className="btn sm" type="button" data-geste="ia" disabled={occupe || !ia.ouvert} title={ia.raison ?? undefined} onClick={() => void gesteFichiers('ia')}><Ic n="spark" />{ia.libelle}</button>}
+                    {GESTES_SANS_ACTION.map((x) => <button className="btn sm" type="button" key={x.cle} data-ferme={x.cle} disabled title={x.raison}><Ic n={x.icone} />{x.libelle}</button>)}
+                  </>
+                );
+              })()}
+              {sel.note && <small className="faint" data-geste="note-selection">{sel.note}</small>}
               <button className="btn sm" type="button" style={{ marginLeft: 'auto' }} onClick={() => setSelection(new Set())}>Désélectionner</button>
             </div>
           )}

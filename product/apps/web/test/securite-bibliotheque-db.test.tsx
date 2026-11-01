@@ -87,7 +87,7 @@ import { session, semer } from './studios-semis';
 import { bucketQuiSert } from './helpers/bucket-qui-sert';
 import * as actionsAssets from '../app/actions/assets';
 import {
-  listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction,
+  listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction, basculerAssetsIaAction,
   tagUntaggedImagesAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction,
   basculerTemplateAction,
 } from '../app/actions/assets';
@@ -132,6 +132,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['uploadImageAssetsAction', () => uploadImageAssetsAction({ items: [{ name: 'neuve', dataUri: PNG }] })],
   ['importAssetAction', () => importAssetAction({ name: 'lien', url: 'https://exemple.invalid/clip.mp4', kind: 'video' })],
   ['toggleAssetAiAction', () => toggleAssetAiAction({ id: A.image, useForAi: false })],
+  ['basculerAssetsIaAction', () => basculerAssetsIaAction({ ids: [A.image], useForAi: false })],
   ['basculerTemplateAction', () => basculerTemplateAction({ id: A.image, on: true })],
   ['tagAssetAction', () => tagAssetAction({ id: A.image })],
   ['tagUntaggedImagesAction', () => tagUntaggedImagesAction()],

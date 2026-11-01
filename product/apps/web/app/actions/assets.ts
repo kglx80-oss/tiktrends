@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, or, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
@@ -15,7 +15,7 @@ import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
 import { assetAiUrl } from '../../lib/asset-ai-url';
 import { lireDebutObjetEspace } from '@tiktrends/integrations';
-import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT } from '@tiktrends/core';
+import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection } from '@tiktrends/core';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
@@ -234,6 +234,45 @@ export async function toggleAssetAiAction(input: { id: string; useForAi: boolean
   if (!db) return { error: GUARD.session() };
   await db.update(schema.assets).set({ useForAi: input.useForAi }).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
   return { ok: true };
+}
+
+/** Levée DANS la transaction pour l'annuler · jamais sortie de ce fichier. */
+class SelectionIncomplete extends Error {}
+
+/**
+ * Active/désactive l'usage par l'IA de PLUSIEURS fichiers d'un coup · « Servir
+ * à l'IA » de la barre de sélection de la Bibliothèque. Même garde que le geste
+ * unitaire (`toggleAssetAiAction`), AVANT toute lecture ; la liste et le
+ * booléen sont validés au noyau (`validerIaSelection` · des UUID, dédoublonnés,
+ * au plus `TAG_SELECTION_MAX`).
+ *
+ * TOUT OU RIEN · une seule mise à jour, dans une transaction, bornée à
+ * l'espace de la session (même portée que les gestes unitaires) · si elle ne touche pas
+ * EXACTEMENT chaque identifiant demandé (un fichier d'un autre espace, une
+ * sortie Studios, un inconnu), la transaction est annulée et rien n'est écrit.
+ * Aucune dépense · seul `use_for_ai` change.
+ */
+export async function basculerAssetsIaAction(input: { ids: string[]; useForAi: boolean }): Promise<{ ok?: true; n?: number; error?: string }> {
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+  const v = validerIaSelection(input?.ids, input?.useForAi);
+  if (!v.ok) return { error: v.raison };
+  const A = schema.assets;
+  try {
+    const n = await db.transaction(async (tx) => {
+      const maj = await tx.update(A).set({ useForAi: v.useForAi })
+        .where(and(eq(A.workspaceId, s.workspaceId), inArray(A.id, v.ids)))
+        .returning({ id: A.id });
+      if (maj.length !== v.ids.length) throw new SelectionIncomplete();
+      return maj.length;
+    });
+    return { ok: true, n };
+  } catch (e) {
+    if (e instanceof SelectionIncomplete) return { error: 'Un fichier de la sélection est introuvable · rien n’a été modifié.' };
+    throw e;
+  }
 }
 
 /**
