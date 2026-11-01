@@ -11,6 +11,7 @@ import {
   menuFichier, destinationsDeplacement, vueUtiliseDans, type CleMenuFichier, type UtilisationsBibliotheque,
   menuDossier, optionsTagDossier, boutonTagSurCarte, gesteTelechargement, type CleMenuDossier,
   destinationsDeplacementDossier, validerNomDossier,
+  lienInterneFichier, lienInterneDossier, rechercheSansLien, MESSAGE_LIEN_COPIE, type OuvertureLienInterne,
   ATTRIBUT_ZONE_TACTILE,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction } from '../../../app/actions/assets';
@@ -75,6 +76,13 @@ import { UtiliseDans } from './utilise-dans';
  * couleur là où la carte n'a pas son bouton (la liste) · décidés au noyau
  * (`menuDossier`, `destinationsDeplacementDossier`).
  *
+ * « Copier le lien » (menu « … » d'un fichier ou d'un dossier) copie le lien
+ * INTERNE de l'écran (`lienInterneFichier`, `lienInterneDossier`) dans le
+ * presse-papiers, et le dit. Ouvert par ce lien, l'écran reçoit de la page ce
+ * que l'adresse ouvre (`ouverture`, résolu côté serveur dans les données de la
+ * session) · l'aperçu du fichier ou le dossier ; quittée la cible, l'adresse
+ * perd ses paramètres (`rechercheSansLien`).
+ *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
  * (aucun quota n'existe · le volume réellement mesuré est affiché), « Exports
@@ -107,6 +115,12 @@ export interface PropsBibliotheque {
    * les projets, l'aperçu n'en dit rien.
    */
   utilisations?: UtilisationsBibliotheque | null;
+  /**
+   * Ce que l'adresse ouvre (« Copier le lien » · `?fichier=`, `?dossier=`),
+   * résolu par la page dans les données de la session (`ouvertureLienInterne`) ·
+   * null ou absent, l'écran s'ouvre comme d'habitude.
+   */
+  ouverture?: OuvertureLienInterne | null;
 }
 
 export interface GestionBibliotheque {
@@ -198,11 +212,14 @@ function PastilleFichier({ f }: { f: FichierDrive }) {
 export function Bibliotheque(p: PropsBibliotheque) {
   const router = useRouter();
   const { toast } = useSpatial();
-  const [etat, setEtat] = useState<EtatDrive>(() => ({ ...ETAT_DRIVE_INITIAL, tag: p.filtreTag ?? null }));
+  const [etat, setEtat] = useState<EtatDrive>(() => ({
+    ...ETAT_DRIVE_INITIAL, tag: p.filtreTag ?? null,
+    ...(p.ouverture ? { chemin: p.ouverture.chemin, ouverts: new Set([...ETAT_DRIVE_INITIAL.ouverts, ...p.ouverture.chemin]) } : {}),
+  }));
   const [tagOuvert, setTagOuvert] = useState<string | null>(null);
   const [affichage, setAffichage] = useState<'grille' | 'liste'>('grille');
   const [selection, setSelection] = useState<Set<string>>(new Set());
-  const [apercu, setApercu] = useState<string | null>(null);
+  const [apercu, setApercu] = useState<string | null>(p.ouverture?.fichier ?? null);
   const [menu, setMenu] = useState(false);
   const [glisse, setGlisse] = useState(false);
   const [occupe, setOccupe] = useState(false);
@@ -218,6 +235,26 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const fichierRef = useRef<HTMLInputElement>(null);
   const maintenant = useMemo(() => new Date(p.maintenant), [p.maintenant]);
   const ecriture = p.lectureSeule === null;
+
+  // Ouvert par un lien interne · la cible quittée (aperçu fermé, autre dossier), l'adresse perd ses paramètres.
+  const cibleLien = useRef(p.ouverture ?? null);
+  useEffect(() => {
+    const c = cibleLien.current;
+    if (!c || (apercu === c.fichier && etat.chemin.join('/') === c.chemin.join('/'))) return;
+    cibleLien.current = null;
+    try {
+      const u = new URL(window.location.href);
+      window.history.replaceState(null, '', `${u.pathname}${rechercheSansLien(u.search)}${u.hash}`);
+    } catch { /* adresse inchangée · l'écran a déjà quitté la cible */ }
+  }, [apercu, etat.chemin]);
+
+  /** « Copier le lien » · l'adresse complète dans le presse-papiers, et le toast qui le dit (ou le refus du navigateur). */
+  async function copierLien(chemin: string, quoi: 'fichier' | 'dossier') {
+    try {
+      await navigator.clipboard.writeText(new URL(chemin, window.location.origin).toString());
+      toast(MESSAGE_LIEN_COPIE[quoi]);
+    } catch { toast(MESSAGE_LIEN_COPIE.echec); }
+  }
 
   // Le retour de la connexion Google · dit une fois, à l'arrivée.
   const retourDit = useRef(false);
@@ -434,6 +471,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
     if (cle === 'apercu') setApercu(f.id);
     else if (cle === 'ranger') void deplacerFichier(f, dossier ?? null);
     else if (cle === 'projet') setVersementFichier(f.id);
+    else if (cle === 'copier-lien') { const l = lienInterneFichier(p.donnees, f.id); if (l) void copierLien(l, 'fichier'); }
     else if (cle === 'corbeille' || cle === 'restaurer') void corbeilleFichier(f, cle);
   }
 
@@ -467,6 +505,9 @@ export function Bibliotheque(p: PropsBibliotheque) {
       if (!g.ouvert) return;
       setOccupe(true);
       try { await archiver(g); } finally { setOccupe(false); }
+    } else if (cle === 'copier-lien') {
+      const l = lienInterneDossier(p.donnees, d.id);
+      if (l) await copierLien(l, 'dossier');
     } else await corbeilleDossier(d, cle);
   }
 

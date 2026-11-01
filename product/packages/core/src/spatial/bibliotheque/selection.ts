@@ -50,9 +50,18 @@ export interface GesteSelection {
   raison: string | null;
 }
 
+/**
+ * « Partager au client » · FERMÉ par décision. Un lecteur client (`client_viewer`)
+ * n'a pas la lecture de la Bibliothèque, et le lien interne (« Copier le lien »)
+ * ne s'ouvre que pour un membre connecté de l'espace · un vrai partage hors de
+ * l'espace demande un lien public signé, son expiration et sa révocation,
+ * à décider par le propriétaire.
+ */
+export const RAISON_PARTAGE_CLIENT = 'Le partage au client demande un lien public signé, avec expiration et révocation · en attente de la décision du propriétaire. « Copier le lien » donne un lien interne, réservé aux membres de l’espace.';
+
 /** Les gestes de la barre de la maquette qu'aucune action serveur ne porte · fermés, avec leur raison. */
 export const GESTES_SANS_ACTION: ReadonlyArray<{ cle: 'partager' | 'favori'; libelle: string; icone: string; raison: string }> = [
-  { cle: 'partager', libelle: 'Partager au client', icone: 'users', raison: 'Le partage au client n’existe pas encore · aucune donnée ne le porte.' },
+  { cle: 'partager', libelle: 'Partager au client', icone: 'users', raison: RAISON_PARTAGE_CLIENT },
   { cle: 'favori', libelle: 'Favori', icone: 'bookmark', raison: 'Les favoris n’existent pas encore · aucune donnée ne les porte.' },
 ];
 

@@ -84,7 +84,7 @@ describe('menu « … » d’une carte de fichier · grille', () => {
     await ouvrir(h, 'face.jpg');
     expect(d.getAttribute('aria-expanded')).toBe('true');
     expect(entrees(h).map((x) => [x.textContent, x.getAttribute('aria-disabled')])).toEqual([
-      ['Aperçu', null], ['Déplacer vers…›', null], ['Utiliser dans un projet', null], ['Télécharger', null], ['Mettre à la corbeille', null],
+      ['Aperçu', null], ['Déplacer vers…›', null], ['Utiliser dans un projet', null], ['Télécharger', null], ['Copier le lien', null], ['Mettre à la corbeille', null],
     ]);
     expect(focusTexte()).toBe('Aperçu');
     const t = entree(h, 'telecharger') as HTMLAnchorElement;
@@ -199,7 +199,7 @@ describe('menu « … » · liste et corbeille', () => {
     // La 7ᵉ colonne de la ligne (34 px dans la feuille de la maquette), à la place de la cellule vide.
     expect([...d.closest('.dtr')!.children].indexOf(d)).toBe(6);
     await ouvrir(h, 'face.jpg');
-    expect(entrees(h).map((x) => x.dataset.menu)).toEqual(['apercu', 'ranger', 'projet', 'telecharger', 'corbeille']);
+    expect(entrees(h).map((x) => x.dataset.menu)).toEqual(['apercu', 'ranger', 'projet', 'telecharger', 'copier-lien', 'corbeille']);
     await clic(entree(h, 'corbeille'));
     expect(f.corbeille).toHaveBeenCalledWith({ ids: [U1] });
   });

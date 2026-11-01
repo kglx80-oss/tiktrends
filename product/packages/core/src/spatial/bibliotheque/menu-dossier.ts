@@ -1,6 +1,7 @@
 import { REFUS_DOSSIER, validerDeplacementDossier, type DossierPlat } from '../../bibliotheque-dossiers';
 import { gesteTelechargement } from './archive';
 import { dossiersRangement, type CarteDossierDrive, type DonneesDrive, type SectionDrive } from './drive';
+import { DETAIL_LIEN_INTERNE, lienInterneDossier } from './lien-interne';
 import type { EntreeMenu, OptionSousMenu } from './menu-fichier';
 import { gestesSelection } from './selection';
 import { TAGS_COULEUR } from './tags-couleur';
@@ -25,6 +26,8 @@ import { TAGS_COULEUR } from './tags-couleur';
  *    de la grille, maquette `ftb`) ; en liste, la ligne n'en a pas ;
  *  · « Télécharger » · la règle de la barre (`gesteTelechargement`) appliquée à
  *    ce seul dossier, puis la route d'archive (`/api/bibliotheque/archive`, champ `dossiers`) ;
+ *  · « Copier le lien » · le lien INTERNE de l'écran qui rouvre ce dossier
+ *    (`lienInterneDossier`) · un dossier réel vivant seulement ;
  *  · « Mettre à la corbeille » / « Restaurer » · la règle de la barre (gestes
  *    `corbeille` / `restaurer`), puis `supprimerDossierAction` / `restaurerDossierAction`.
  *
@@ -32,12 +35,13 @@ import { TAGS_COULEUR } from './tags-couleur';
  * virtuel de « Créations », un dossier verrouillé · système) n'a que « Ouvrir »,
  * « Renommer » et « Déplacer vers… » fermés pour le dossier système (jamais pour
  * un dossier virtuel · ce n'est pas un dossier de la bibliothèque), et le tag là où la barre le pose (un dossier verrouillé se tague · le tag ne
- * détruit rien ; un dossier virtuel jamais). Un geste fermé (lecture seule,
+ * détruit rien ; un dossier virtuel jamais) et son lien s'il est réel (un dossier
+ * verrouillé se lie · le lien ne détruit rien). Un geste fermé (lecture seule,
  * borne, archive refusée) reste dans le menu, fermé, avec la phrase de la barre ·
  * jamais simulé.
  */
 
-export type CleMenuDossier = 'ouvrir' | 'renommer' | 'deplacer' | 'tag' | 'telecharger' | 'corbeille' | 'restaurer';
+export type CleMenuDossier = 'ouvrir' | 'renommer' | 'deplacer' | 'tag' | 'telecharger' | 'copier-lien' | 'corbeille' | 'restaurer';
 export type EntreeMenuDossier = EntreeMenu<CleMenuDossier>;
 
 export interface ContexteMenuDossier {
@@ -94,6 +98,7 @@ export function menuDossier(d: DonneesDrive, dossierId: string, ctx: ContexteMen
       cle: 'telecharger' as const, libelle: archive.libelle, icone: 'down', ouvert: archive.ouvert,
       raison: archive.ouvert ? null : archive.titre, ...(archive.ouvert ? { detail: archive.titre } : {}),
     }] : []),
+    ...(lienInterneDossier(d, dossierId) ? [{ cle: 'copier-lien' as const, libelle: 'Copier le lien', icone: 'copy', ouvert: true, raison: null, detail: DETAIL_LIEN_INTERNE }] : []),
     ...(unitaire ? (corbeille ? geste('restaurer', 'check') : geste('corbeille', 'x')) : []),
   ];
 }
