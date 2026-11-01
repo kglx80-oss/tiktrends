@@ -312,6 +312,10 @@ describe('consigne `shot.image` d’un plan · rangée par plan, attestée, jama
     const avecRef = { ...k, references: [{ assetId: 'pph_1', assetVersion: 'v1', sha256: SHA, role: 'product' }] };
     expect(verdictConsignePlan({ shotId: 's1', rang: 1, consigne: avecRef, attestee: true, entreesCourantes: e, resolutions: new Map() })).toMatchObject({ ok: false, cause: 'reference_retiree', cibles: ['pph_1'] });
     expect(verdictConsignePlan({ shotId: 's1', rang: 1, consigne: avecRef, attestee: true, entreesCourantes: e, resolutions: new Map([['pph_1', { etat: 'present', assetVersion: 'v2', sha256: SHA, transmissible: true }]]) })).toMatchObject({ ok: false, cause: 'reference_modifiee' });
+    // Logo remplacé dans le stockage depuis son import · le motif le dit.
+    const remplace = verdictConsignePlan({ shotId: 's1', rang: 1, consigne: avecRef, attestee: true, entreesCourantes: e, resolutions: new Map([['pph_1', { etat: 'present', assetVersion: 'v1', sha256: SHA, transmissible: false, aReimporter: true }]]) });
+    expect(remplace).toMatchObject({ ok: false, cause: 'non_transmissible', cibles: ['pph_1'] });
+    expect(remplace.ok ? '' : remplace.motif).toMatch(/^Logo à réimporter · pph_1 .*Concerne le plan 1/);
   });
 
   it('devis · images clés des plans raccordées, s_image exclue, une requête par job', () => {

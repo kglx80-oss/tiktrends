@@ -24,7 +24,7 @@
  *    l'appelant garde l'empreinte. Sans `ETag` au `HEAD`, `empreinte: null`
  *    (rien n'est exigé, rien n'est bloqué).
  */
-import { cleObjetDeLEspace, empreinteObjet } from '@tiktrends/core';
+import { cleObjetDeLEspace, empreinteObjet, type VerificationEmpreinte } from '@tiktrends/core';
 import { basePubliqueStockage, presignGetUrl, presignHeadUrl, type StorageConfig } from './storage';
 
 export type DebutObjet =
@@ -95,6 +95,65 @@ export async function lireDebutObjetEspace(cfg: StorageConfig, url: string, work
     const octets = await lireBorne(res, n);
     if (octets.length < Math.min(n, taille)) return { ok: false, raison: 'illisible' };
     return { ok: true, cle, taille, octets, empreinte };
+  } catch {
+    return { ok: false, raison: 'illisible' };
+  }
+}
+
+/* ───────────── Vérifier l'empreinte d'un objet déjà enregistré ───────────── */
+
+/**
+ * L'objet désigné par `url` est-il toujours celui dont on garde l'`empreinte`
+ * (noyau `decisionLogoServi`, `logo-empreinte.ts`) · `HEAD` signé AVEC
+ * `If-Match: "<empreinte>"` · 412 ⇒ `remplace` ; sinon l'ETag rendu est relu
+ * (un stockage qui ignorerait `If-Match` est jugé par l'appelant,
+ * `etatEmpreinte`). Aucun octet n'est lu. Mêmes sûretés que
+ * `lireDebutObjetEspace` · adresse jamais requêtée (seule la CLÉ de l'espace
+ * part vers `cfg.endpoint`), redirections refusées, délai borné.
+ */
+export async function verifierEmpreinteObjetEspace(cfg: StorageConfig, url: string, workspaceId: string, empreinte: string, delaiMs = 5_000): Promise<VerificationEmpreinte> {
+  const cle = cleObjetDeLEspace(url, basePubliqueStockage(cfg), workspaceId);
+  if (!cle) return { ok: false, raison: 'hors_espace' };
+  if (!empreinteObjet(`"${empreinte}"`)) return { ok: false, raison: 'illisible' };
+  try {
+    const tete = await fetch(presignHeadUrl(cfg, cle, 60), { method: 'HEAD', headers: { 'if-match': `"${empreinte}"` }, redirect: 'manual', cache: 'no-store', signal: AbortSignal.timeout(delaiMs) });
+    if (tete.status === 412) return { ok: false, raison: 'remplace' };
+    if (tete.status === 404) return { ok: false, raison: 'absent' };
+    if (tete.status !== 200) return { ok: false, raison: 'illisible' };
+    return { ok: true, empreinte: empreinteObjet(tete.headers.get('etag')) };
+  } catch {
+    return { ok: false, raison: 'illisible' };
+  }
+}
+
+export type ObjetConforme =
+  | { ok: true; octets: Uint8Array; empreinte: string | null }
+  | { ok: false; raison: 'hors_espace' | 'absent' | 'remplace' | 'illisible' | 'trop_lourd' };
+
+/**
+ * Les octets de l'objet désigné par `url`, SEULEMENT s'il est toujours celui
+ * de l'`empreinte` · `GET` signé avec `If-Match` (412 ⇒ `remplace`, aucun
+ * octet servi), lecture coupée au-delà de `max` octets (`trop_lourd`). Sert
+ * l'aperçu d'un logo de marque : les octets rendus sont ceux que le stockage a
+ * confirmés, il n'y a pas de fenêtre entre la vérification et la lecture.
+ */
+export async function lireObjetEspaceConforme(cfg: StorageConfig, url: string, workspaceId: string, empreinte: string, max: number, delaiMs = 10_000): Promise<ObjetConforme> {
+  const cle = cleObjetDeLEspace(url, basePubliqueStockage(cfg), workspaceId);
+  if (!cle) return { ok: false, raison: 'hors_espace' };
+  if (!empreinteObjet(`"${empreinte}"`) || !Number.isSafeInteger(max) || max < 1) return { ok: false, raison: 'illisible' };
+  try {
+    const res = await fetch(presignGetUrl(cfg, cle, 60), { method: 'GET', headers: { 'if-match': `"${empreinte}"` }, redirect: 'manual', cache: 'no-store', signal: AbortSignal.timeout(delaiMs) });
+    const fermer = async () => { try { await res.body?.cancel(); } catch { /* rien */ } };
+    if (res.status === 412) { await fermer(); return { ok: false, raison: 'remplace' }; }
+    if (res.status === 404) { await fermer(); return { ok: false, raison: 'absent' }; }
+    if (res.status !== 200) { await fermer(); return { ok: false, raison: 'illisible' }; }
+    const longueur = tailleEntete(res.headers.get('content-length'));
+    if (longueur !== null && longueur > max) { await fermer(); return { ok: false, raison: 'trop_lourd' }; }
+    const lue = empreinteObjet(res.headers.get('etag'));
+    const octets = await lireBorne(res, max + 1);
+    if (octets.length > max) return { ok: false, raison: 'trop_lourd' };
+    if (longueur !== null && octets.length !== longueur) return { ok: false, raison: 'illisible' };
+    return { ok: true, octets, empreinte: lue };
   } catch {
     return { ok: false, raison: 'illisible' };
   }

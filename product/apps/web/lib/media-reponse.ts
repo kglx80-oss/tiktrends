@@ -1,5 +1,5 @@
-import { servirPlage, decisionMediaServi, ENTETES_MEDIA_FERMES, adresseRedirigeable } from '@tiktrends/core';
-import { storageFromEnv, privateObjectUrl, objectKeyFromUrl } from '@tiktrends/integrations';
+import { servirPlage, decisionMediaServi, decisionLogoServi, ENTETES_MEDIA_FERMES, POIDS_MAX_LOGO, adresseRedirigeable } from '@tiktrends/core';
+import { storageFromEnv, privateObjectUrl, objectKeyFromUrl, lireObjetEspaceConforme } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 
 /**
@@ -61,4 +61,26 @@ export async function servirAdresseDirecte(req: Request, url: string, asset: { i
   const f = await safeFetch(u.toString(), { maxBytes: MAX_OCTETS_PROXY, timeoutMs: 20_000 });
   if (!f) return refusMedia(502);
   return servirMedia(req, f.body, asset, 'private, max-age=3600');
+}
+
+/**
+ * Logo de marque AVEC empreinte (importé, `brands.logo_empreintes_json`) · les
+ * octets ne sortent que si le stockage confirme que l'objet est toujours
+ * celui de l'import (`GET` signé avec `If-Match`, `lireObjetEspaceConforme`),
+ * jugé par le noyau (`decisionLogoServi`) · aucune redirection, donc aucune
+ * fenêtre entre la vérification et la lecture. Remplacé ⇒ 409 « Logo à
+ * réimporter », disparu ⇒ 404, stockage injoignable ⇒ 502 · le message du
+ * noyau en corps. Un logo SANS empreinte ne passe pas ici
+ * (`servirAdresseDirecte`, comme avant).
+ */
+export async function servirLogoVerifie(req: Request, url: string, empreinte: string, asset: { id: string; workspaceId: string }): Promise<Response> {
+  const cfg = storageFromEnv();
+  const lu = cfg ? await lireObjetEspaceConforme(cfg, url, asset.workspaceId, empreinte, POIDS_MAX_LOGO) : null;
+  const d = decisionLogoServi({ empreinte, verification: lu && (lu.ok ? { ok: true, empreinte: lu.empreinte } : { ok: false, raison: lu.raison === 'trop_lourd' ? 'illisible' : lu.raison }) });
+  // Servir n'est possible qu'avec des octets confirmés (empreinte non nulle ⇒ vérification réussie).
+  if (d.servir) return lu?.ok ? servirMedia(req, lu.octets, { id: asset.id }, 'private, no-store') : refusMedia(502);
+  return new Response(d.message, {
+    status: d.cause === 'remplace' ? 409 : d.cause === 'absent' ? 404 : 502,
+    headers: { ...ENTETES_MEDIA_FERMES, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'private, no-store', 'x-logo-etat': d.cause === 'illisible' ? 'non-verifiable' : 'a-reimporter' },
+  });
 }

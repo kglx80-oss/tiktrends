@@ -105,6 +105,11 @@ export const brands = pgTable('brands', {
   url: text('url'),
   logoUrl: text('logo_url'),                        // logo par défaut (celui posé sur les créas)
   logos: text('logos').array(),                     // variantes de logo (clair, foncé, icône…)
+  // Adresse → empreinte (ETag fort relu) de chaque logo IMPORTÉ dans le bucket ·
+  // vérifiée avant de servir ou transmettre le logo (`decisionLogoServi`,
+  // noyau `logo-empreinte.ts`). Nullable, une adresse absente (logo ancien,
+  // externe) est servie comme avant. Voir 0066.
+  logoEmpreintes: jsonb('logo_empreintes_json'),
   shopifyDomain: text('shopify_domain'),
   shopifyToken: text('shopify_token_enc'),          // token Admin API Shopify (chiffré)
   metaToken: text('meta_token_enc'),                // token Meta Marketing API (chiffré)

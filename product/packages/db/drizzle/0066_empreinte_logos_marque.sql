@@ -1,0 +1,17 @@
+-- Charte des marques · EMPREINTE des logos importés (migration ADDITIVE).
+--
+-- Le lien de dépôt présigné reste valable un temps après l'enregistrement de
+-- la charte · il peut redéposer d'autres octets (même type, même longueur) à
+-- l'adresse d'un logo, qui était alors affiché et envoyé aux fournisseurs sans
+-- être relu. À l'import, le serveur garde l'ETag fort relu (exigé au GET par
+-- If-Match) · avant de servir ou de transmettre le logo, il vérifie que
+-- l'objet est toujours celui-là (`decisionLogoServi`, noyau
+-- packages/core/src/logo-empreinte.ts).
+--
+-- `logos` est un text[] (pas un JSON) · une colonne `logo_empreintes_json`
+-- (adresse → empreinte) sur `brands`, nullable : les marques existantes, les
+-- logos anciens et les adresses externes restent à NULL ou absents de la table
+-- (servis comme avant, rien n'est bloqué). Aucune donnée lue ni modifiée,
+-- aucune destruction, aucune colonne NOT NULL. Rejouable : « ADD COLUMN IF NOT
+-- EXISTS ».
+ALTER TABLE "brands" ADD COLUMN IF NOT EXISTS "logo_empreintes_json" jsonb;
