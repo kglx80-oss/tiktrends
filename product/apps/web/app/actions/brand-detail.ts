@@ -9,8 +9,8 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { generateProducts, generateBrandProfile, extractVisualDa } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
-import { falFromEnv, falGenerateImage, storageFromEnv, basePubliqueStockage, ecrireApresDepot, retirerDepotsSansLigne } from '@tiktrends/integrations';
-import { costFor, decisionCharteDeposee, imageModelByKey, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
+import { falFromEnv, falGenerateImage, storageFromEnv, basePubliqueStockage, ecrireApresDepot, lireDebutObjetEspace, retirerDepotsSansLigne } from '@tiktrends/integrations';
+import { costFor, decisionCharteDeposee, decisionLogoDeposeRelu, imageModelByKey, OCTETS_RELUS_DEPOT, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
@@ -290,10 +290,15 @@ const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
  * `jetonDepot` · celui que `presignAssetUploadAction` a rendu à l'import d'un
  * fichier de logo. Il est EXIGÉ pour une adresse du bucket NOUVELLE (règle
  * `decisionCharteDeposee`, noyau `jeton-depot.ts`) : signature, espace, clé et
- * expiration. Le dépôt qu'il prouve est retiré du bucket si la charte est
- * refusée, si l'écriture échoue, ou si la charte ne le retient pas · seulement
- * quand aucune ligne ne le cite (`decisionRetraitDepot`). Les adresses déjà en
- * base passent sans jeton ; une adresse externe `https:` suit `refusAdresseLogo`.
+ * expiration. L'objet attesté est ensuite RELU (taille au `HEAD`, premiers
+ * octets · `lireDebutObjetEspace`, le lecteur de `registerUploadedAssetAction`)
+ * et n'est admis que s'il est une image png, jpeg ou webp d'au plus 4 Mo, du
+ * type et de la taille signés dans le jeton (`decisionLogoDeposeRelu`, noyau).
+ * Le dépôt qu'il prouve est retiré du bucket si la charte est refusée (dont la
+ * relecture), si l'écriture échoue, ou si la charte ne le retient pas ·
+ * seulement quand aucune ligne ne le cite (`decisionRetraitDepot`). Les
+ * adresses déjà en base passent sans jeton ni relecture ; une adresse externe
+ * `https:` suit `refusAdresseLogo`.
  */
 export async function saveBrandDAAction(input: {
   brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[]; jetonDepot?: string;
@@ -310,13 +315,25 @@ export async function saveBrandDAAction(input: {
   const [avant] = await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos }).from(schema.brands)
     .where(and(eq(schema.brands.id, input.brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1);
   const cfg = storageFromEnv();
+  const jeton = lireJetonDepot(input.jetonDepot);
   const d = decisionCharteDeposee({
     charte: { logoUrl, logos }, dejaEnregistrees: [avant?.logoUrl, ...(avant?.logos ?? [])],
     bucket: cfg ? { base: basePubliqueStockage(cfg), espace: g.workspaceId } : null,
-    jeton: lireJetonDepot(input.jetonDepot), maintenant: Date.now(),
+    jeton, maintenant: Date.now(),
   });
-  const retirer = () => retirerDepotsSansLigne({ storage: cfg, workspaceId: g.workspaceId, deposes: d.aRetirer, references: referencesObjetEnBase });
+  const retirer = (deposes: readonly string[] = d.aRetirer) => retirerDepotsSansLigne({ storage: cfg, workspaceId: g.workspaceId, deposes, references: referencesObjetEnBase });
   if (!d.ok) { await retirer(); return { error: d.erreur }; }
+  // L'objet nouveau attesté par le jeton se RELIT avant de devenir logo · un
+  // PDF, une vidéo ou du HTML déposés par le présigné (qui accepte toute la
+  // liste blanche) sont refusés et retirés s'ils ne sont cités nulle part.
+  for (const url of d.deposes) {
+    const lecture = cfg ? await lireDebutObjetEspace(cfg, url, g.workspaceId, OCTETS_RELUS_DEPOT) : ({ ok: false, raison: 'illisible' } as const);
+    const r = decisionLogoDeposeRelu({ jeton, lecture });
+    if (!r.ok) {
+      if (r.retirer) await retirer([url, ...d.aRetirer]);
+      return { error: r.erreur };
+    }
+  }
   const base = db;
   // L'écriture qui échoue retire le dépôt attesté, sauf si une ligne le cite
   // déjà (`ecrireApresDepot`), puis l'erreur remonte comme avant.

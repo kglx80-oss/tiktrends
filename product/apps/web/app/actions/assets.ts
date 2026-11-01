@@ -474,9 +474,10 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
 /**
  * Prépare un dépôt direct · l'adresse de PUT présignée, l'adresse publique, le
  * type signé, et le jeton de dépôt (`jetonDepot`, signé côté serveur · espace,
- * clé, expiration courte) qui prouve à la charte (`saveBrandDAAction`) que
- * l'objet a été déposé par CET espace, et lui permet de le retirer s'il n'est
- * pas enregistré. La Bibliothèque l'ignore.
+ * clé, type et taille signés dans le lien, expiration courte) qui prouve à la
+ * charte (`saveBrandDAAction`) que l'objet a été déposé par CET espace, lui
+ * permet de comparer l'objet relu à ce que le lien autorisait, et de le
+ * retirer s'il n'est pas enregistré. La Bibliothèque l'ignore.
  */
 export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; contentType?: string; jetonDepot?: string; error?: string }> {
   const g = await gardeBibliotheque();
@@ -492,7 +493,7 @@ export async function presignAssetUploadAction(input: { filename: string; conten
     // Validité proportionnée à la taille VALIDÉE (`dureeLienDepot`, noyau) · une
     // image de 2 Mo n'a plus 15 minutes de ré-écriture après son envoi.
     const { uploadUrl, publicUrl } = presignPutUrl(cfg, key, { contentType: d.contentType, contentLength: d.contentLength }, dureeLienDepot(d.contentLength));
-    const jetonDepot = signerJetonDepot(jetonDepotPour({ espace: s.workspaceId, cle: key, taille: d.contentLength, maintenant: Date.now() }));
+    const jetonDepot = signerJetonDepot(jetonDepotPour({ espace: s.workspaceId, cle: key, type: d.contentType, taille: d.contentLength, maintenant: Date.now() }));
     return { uploadUrl, publicUrl, contentType: d.contentType, jetonDepot };
   } catch (e) {
     return { error: logAndTranslate('assets:upload', e, { subject: 'la préparation du téléversement', workspaceId: s.workspaceId }) };
