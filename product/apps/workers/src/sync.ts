@@ -1,4 +1,5 @@
-import { db, schema, eq, and } from '@tiktrends/db';
+import { db, schema, eq, and, lireReferencesObjet } from '@tiktrends/db';
+import { RECENSEMENT_REFERENCES_STOCKAGE, formesRechercheesObjet } from '@tiktrends/core';
 import { decryptSecret, shopifyCommerceSync, metaAdsSync, storageFromEnv, syncDriveAssets } from '@tiktrends/integrations';
 
 /** Synchro des dossiers Google Drive connectés (par MARQUE) vers la bibliothèque d'assets. */
@@ -22,6 +23,8 @@ async function runDriveSync(): Promise<{ drive: number; errors: number }> {
           return new Set(rows.map((r) => r.id).filter((x): x is string => !!x));
         },
         insertAsset: async (a) => { await db!.insert(schema.assets).values({ workspaceId: b.workspaceId, brandId: b.id, uploaderUserId: null, ...a }); },
+        // Une insertion qui échoue retire la copie déposée sans ligne qui la cite.
+        referencesObjet: (cle) => lireReferencesObjet(db!, RECENSEMENT_REFERENCES_STOCKAGE, formesRechercheesObjet(cle)),
       }, { storage, refreshToken: rt, folderId: b.fid, workspaceId: b.workspaceId, maxFiles: 100 });
       await db.update(schema.brands).set({ driveSyncedAt: new Date() }).where(eq(schema.brands.id, b.id));
       drive += res.added;

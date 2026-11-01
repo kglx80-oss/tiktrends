@@ -2,7 +2,7 @@
 
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, driveFileMeta, putObject, storeDriveThumb } from '@tiktrends/integrations';
+import { googleConfigured, drivePickerConfigured, googleAccessToken, storageFromEnv, syncDriveAssets, driveDownload, driveFileMeta, putObject, storeDriveThumb, ecrireApresDepot } from '@tiktrends/integrations';
 import { DRIVE_SELECTEUR_INACTIF, texteMessageClient, entreeSynchroDrive, type DernierSyncDrive } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
@@ -10,6 +10,7 @@ import { refusEcritureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/b
 import { getActiveBrand } from '../../lib/brands';
 import { decryptSecret } from '../../lib/secrets';
 import { logAndTranslate } from '../../lib/error-log';
+import { referencesObjetEnBase } from '../../lib/references-objet';
 
 /** Garde ADMIN+ + marque active : le Drive est branché marque par marque. */
 async function guard() {
@@ -89,6 +90,7 @@ export async function syncDriveNowAction(): Promise<{ ok?: true; added?: number;
         return new Set(rows.map((r) => r.id).filter((x): x is string => !!x));
       },
       insertAsset: async (a) => { await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, ...a }); },
+      referencesObjet: referencesObjetEnBase,
     }, { storage: storageFromEnv(), refreshToken: rt, folderId: b.fid, workspaceId: ws, maxFiles: 200 });
     // Le SUCCÈS met à jour le dernier succès ET la dernière tentative (avec bilan).
     const bilan: DernierSyncDrive = { at: at.toISOString(), ok: true, found: res.found, added: res.added, skipped: res.skipped, errors: res.errors };
@@ -134,6 +136,8 @@ export async function syncDriveFilesAction(files: PickedFile[]): Promise<{ ok?: 
       // client) est ignoré : un `text/html` annoncé ne décide plus de rien.
       // Un fichier qui résiste (métadonnées, téléchargement, dépôt) est compté
       // ignoré · il n'arrête plus le lot ni n'efface ce qui a déjà réussi.
+      // Ce que CE fichier a déposé · seul retiré si l'insertion échoue.
+      const deposes: string[] = [];
       try {
         const meta = await driveFileMeta(token, fileId);
         let retenu = entreeSynchroDrive(meta.mimeType);
@@ -145,11 +149,20 @@ export async function syncDriveFilesAction(files: PickedFile[]): Promise<{ ok?: 
           retenu = entreeSynchroDrive(meta.mimeType, bytes);
           if (!retenu) { skipped++; continue; }
           url = await putObject(storage, `assets/${ws}/drive-${fileId}.${retenu.extension}`, bytes, retenu.depot);
+          deposes.push(url);
         }
         // Vraie vignette (images ET vidéos) · le Picker ne la fournit pas, on la
         // demande à Drive puis on la range chez nous. Remplace l'icône de repli.
         const thumbUrl = await storeDriveThumb({ storage, token, fileId, workspaceId: ws }) ?? undefined;
-        await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, name: (meta.name || f.name || 'Fichier Drive').slice(0, 160), kind: retenu.kind, source: 'drive', url, thumbUrl, externalId: fileId, mimeType: retenu.type, sizeBytes: meta.size ?? null });
+        if (thumbUrl) deposes.push(thumbUrl);
+        const kind = retenu.kind, mimeType = retenu.type;
+        // L'insertion qui échoue retire la copie et la vignette sans ligne qui
+        // les cite (une copie partagée avec une autre marque reste), puis
+        // l'erreur remonte · le fichier est compté ignoré, comme avant.
+        await ecrireApresDepot({
+          storage, workspaceId: ws, deposes, references: referencesObjetEnBase,
+          ecrire: async () => { await db!.insert(schema.assets).values({ workspaceId: ws, brandId, uploaderUserId: g.s.user.id, name: (meta.name || f.name || 'Fichier Drive').slice(0, 160), kind, source: 'drive', url, thumbUrl, externalId: fileId, mimeType, sizeBytes: meta.size ?? null }); },
+        });
         added++;
       } catch {
         skipped++;

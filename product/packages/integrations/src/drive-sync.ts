@@ -5,6 +5,7 @@
  */
 import type { StorageConfig } from './storage';
 import { putObject } from './storage';
+import { ecrireApresDepot, type LecteurReferencesObjet } from './retrait-depot';
 import { entreeSynchroDrive } from '@tiktrends/core';
 import { googleAccessToken, driveListFilesDeep, driveDownload, driveThumbnailLink, driveThumbBytes } from './google-drive';
 
@@ -40,6 +41,12 @@ export async function storeDriveThumb(o: {
 export interface SyncDriveDeps {
   existingDriveIds(): Promise<Set<string>>;
   insertAsset(a: DriveAssetInput): Promise<void>;
+  /**
+   * Lecture des références d'une clé (colonnes recensées) · si `insertAsset`
+   * échoue, la copie et la vignette déposées pour CE fichier sont retirées
+   * seulement si aucune ligne ne les cite (`ecrireApresDepot`).
+   */
+  referencesObjet: LecteurReferencesObjet;
 }
 
 
@@ -58,6 +65,8 @@ export async function syncDriveAssets(deps: SyncDriveDeps, o: {
     if (existing.has(f.id)) { skipped++; continue; }
     let retenu = entreeSynchroDrive(f.mimeType);
     if (!retenu) { skipped++; continue; }
+    // Ce que CE fichier a déposé · rien d'autre n'est jamais retiré.
+    const deposes: string[] = [];
     try {
       let url = f.webViewLink || '';
       // Images : on télécharge et on héberge sur notre bucket (pour <img> + IA).
@@ -67,12 +76,20 @@ export async function syncDriveAssets(deps: SyncDriveDeps, o: {
         retenu = entreeSynchroDrive(f.mimeType, bytes);
         if (!retenu) { skipped++; continue; }
         url = await putObject(o.storage, `assets/${o.workspaceId}/drive-${f.id}.${retenu.extension}`, bytes, retenu.depot);
+        deposes.push(url);
       }
       if (!url) { skipped++; continue; }
       // Vraie vignette (images ET vidéos) · captée maintenant, où la thumbnailLink
       // est fraîche, puis rangée chez nous. C'est ce qui remplace l'icône de repli.
       const thumbUrl = await storeDriveThumb({ storage: o.storage, token, fileId: f.id, workspaceId: o.workspaceId, thumbnailLink: f.thumbnailLink }) ?? undefined;
-      await deps.insertAsset({ name: f.name.slice(0, 160), kind: retenu.kind, source: 'drive', url, externalId: f.id, mimeType: retenu.type, sizeBytes: f.size, thumbUrl });
+      if (thumbUrl) deposes.push(thumbUrl);
+      const kind = retenu.kind, mimeType = retenu.type;
+      // L'insertion qui échoue retire ce qui vient d'être déposé (sans ligne qui
+      // le cite), puis l'erreur remonte · comptée en `errors` comme avant.
+      await ecrireApresDepot({
+        storage: o.storage, workspaceId: o.workspaceId, deposes, references: deps.referencesObjet,
+        ecrire: () => deps.insertAsset({ name: f.name.slice(0, 160), kind, source: 'drive', url, externalId: f.id, mimeType, sizeBytes: f.size, thumbUrl }),
+      });
       added++;
     } catch { errors++; }
   }
