@@ -33,6 +33,8 @@ export const OUTILS_ADMIN = [
   { href: '/console', libelle: 'Console' },
   // Vague 4 · l'ancien écran `/credits` (barème, coût réel, marges, pire cas).
   { href: '/credits', libelle: 'Crédits & marges' },
+  // Inventaire des fichiers déposés qu'aucune donnée ne pointe · lecture seule.
+  { href: '/admin/stockage', libelle: 'Stockage' },
 ] as const;
 
 /** La sous-navigation affichée · la maquette, puis les outils de la plateforme. */
