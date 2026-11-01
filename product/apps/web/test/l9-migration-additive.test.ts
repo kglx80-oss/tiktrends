@@ -57,6 +57,14 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0066_empreinte_logos_marque · une colonne nullable ajoutée sur brands, rejouable, rien d’autre', () => {
+    const a = analyserMigrationSql(fichier('0066_empreinte_logos_marque'));
+    expect(a.instructions.map((x) => x.genre)).toEqual(['ajout_colonne']);
+    expect(a.instructions[0]!.extrait).toMatch(/ALTER TABLE "brands" ADD COLUMN IF NOT EXISTS "logo_empreintes_json" jsonb/);
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -113,9 +121,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers) puis 0065 (empreinte des objets téléversés) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés) puis 0066 (empreinte des logos de marque) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -236,6 +244,25 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     await appliquer(pg, NOUVELLES);
     expect(await empreinteSchema(pg), 'reprise · schéma différent d’une application d’un seul trait').toEqual(schemaPropre);
     expect(await empreinteDonnees(pg, await colonnesDe(pg)), 'reprise · lignes différentes').toEqual(donneesPropres);
+    await pg.close();
+  }, 120_000);
+
+  it('0066 sur une base à 0065 avec des marques · lignes intactes, colonne ajoutée NULL partout, rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 65).map((x) => x.tag));
+    await pg.exec(`INSERT INTO brands (id, workspace_id, name, logo_url, logos) VALUES ('a9000000-0000-4000-8000-0000000000b1', 'a9000000-0000-4000-8000-000000000001', 'Marque L9', 'https://site.exemple.fr/logo.png', ARRAY['https://site.exemple.fr/logo.png'])`);
+    const [marques] = await lignes<{ n: number }>(pg, 'select count(*)::int as n from brands');
+    expect(marques!.n).toBeGreaterThan(1);
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    await appliquer(pg, ['0066_empreinte_logos_marque']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0066').toEqual(avant);
+    expect((await colonnesDe(pg)).get('brands')).toMatch(/,logo_empreintes_json$/);
+    const [n] = await lignes<{ n: number; nn: number }>(pg, 'select count(*)::int as n, count(logo_empreintes_json)::int as nn from brands');
+    expect(n).toEqual({ n: marques!.n, nn: 0 });
+    const schemaUneFois = await empreinteSchema(pg);
+    await appliquer(pg, ['0066_empreinte_logos_marque']);
+    expect(await empreinteSchema(pg), 'rejeu de 0066').toEqual(schemaUneFois);
     await pg.close();
   }, 120_000);
 });

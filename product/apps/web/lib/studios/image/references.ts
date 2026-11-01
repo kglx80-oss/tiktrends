@@ -1,8 +1,8 @@
 import 'server-only';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { schema } from '@tiktrends/db';
-import { photosDuProduit, idLogoMarque, versionDepuisEmpreinte, estEmpreinte, droitAutorisePub, logoTransmissible, type ResolutionReference } from '@tiktrends/core';
-import { storageFromEnv, basePubliqueStockage } from '@tiktrends/integrations';
+import { photosDuProduit, idLogoMarque, versionDepuisEmpreinte, estEmpreinte, droitAutorisePub, logoTransmissible, decisionLogoServi, empreinteDuLogo, type ResolutionReference } from '@tiktrends/core';
+import { storageFromEnv, basePubliqueStockage, verifierEmpreinteObjetEspace } from '@tiktrends/integrations';
 import { hacherImage } from '../produit/catalogue';
 import type { ExecStudio } from '../execution/types';
 
@@ -21,6 +21,10 @@ import type { ExecStudio } from '../execution/types';
  *  · un média studio simulé (`simule/…`) n'est jamais transmissible.
  *
  * Aucune requête sortante : une photo distante est identifiée par son adresse.
+ * Seule exception · un logo IMPORTÉ (empreinte gardée) est vérifié par un
+ * `HEAD` signé vers le stockage de l'application (`If-Match`) · remplacé
+ * depuis l'import, il reste présent mais n'est plus transmissible et le devis
+ * dit « à réimporter » (`decisionLogoServi`) ; disparu, il est absent.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -29,7 +33,7 @@ const ADRESSE_TRANSMISSIBLE = (url: string) => /^data:image\/(png|jpeg|webp);bas
 export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspaceId: string; brandId: string }, ids: readonly string[]): Promise<Map<string, ResolutionReference>> {
   const out = new Map<string, ResolutionReference>();
   let photos: Map<string, { url: string; sha256: string }> | null = null;
-  let logos: Map<string, { url: string; sha256: string }> | null = null;
+  let logos: Map<string, { url: string; sha256: string; empreinte: string | null }> | null = null;
   const present = (sha256: string, url: string | null, transmissible = true): ResolutionReference => ({
     etat: 'present', sha256, assetVersion: versionDepuisEmpreinte(sha256), transmissible: transmissible && url !== null && ADRESSE_TRANSMISSIBLE(url),
   });
@@ -49,12 +53,12 @@ export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspac
     } else if (id.startsWith('logo_')) {
       if (!logos) {
         logos = new Map();
-        const [m] = await ex.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos }).from(schema.brands)
+        const [m] = await ex.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos, logoEmpreintes: schema.brands.logoEmpreintes }).from(schema.brands)
           .where(and(eq(schema.brands.id, portee.brandId), eq(schema.brands.workspaceId, portee.workspaceId))).limit(1);
         for (const url of [m?.logoUrl, ...(m?.logos ?? [])]) {
           if (typeof url !== 'string' || !url) continue;
           const e = hacherImage(url);
-          logos.set(idLogoMarque(portee.brandId, e.sha256), { url, sha256: e.sha256 });
+          logos.set(idLogoMarque(portee.brandId, e.sha256), { url, sha256: e.sha256, empreinte: empreinteDuLogo(m?.logoEmpreintes, url) });
         }
       }
       const l = logos.get(id);
@@ -63,7 +67,14 @@ export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspac
       // (`sans_media`) ; la base n'est pas touchée.
       const cfg = storageFromEnv();
       const bucket = cfg ? { base: basePubliqueStockage(cfg), espace: portee.workspaceId } : null;
-      out.set(id, l ? present(l.sha256, l.url, logoTransmissible(l.url, bucket)) : { etat: 'absent' });
+      if (!l) { out.set(id, { etat: 'absent' }); continue; }
+      // Logo importé · l'objet doit être encore celui de son empreinte.
+      const d = l.empreinte
+        ? decisionLogoServi({ empreinte: l.empreinte, verification: cfg ? await verifierEmpreinteObjetEspace(cfg, l.url, portee.workspaceId, l.empreinte) : null })
+        : { servir: true as const, verifie: false };
+      if (!d.servir && d.cause === 'absent') out.set(id, { etat: 'absent' });
+      else if (!d.servir) out.set(id, { etat: 'present', sha256: l.sha256, assetVersion: versionDepuisEmpreinte(l.sha256), transmissible: false, ...(d.cause === 'remplace' ? { aReimporter: true } : {}) });
+      else out.set(id, present(l.sha256, l.url, logoTransmissible(l.url, bucket)));
     } else if (id.startsWith('sta_') && UUID.test(id.slice(4))) {
       const S = schema.studioAssets;
       const [m] = await ex.select({ storageKey: S.storageKey, sha256: S.sha256, mime: S.mime }).from(S)

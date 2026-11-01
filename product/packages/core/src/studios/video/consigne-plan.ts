@@ -31,7 +31,7 @@ import { parametresImageDuDevis, lireParametresImage, type ParametresImageSnapsh
 import { estLigneDeProduction, type ProfilLigne, type ProfilOperation } from '../execution/tarifs';
 import type { CodeErreurStudio } from '../erreurs';
 import type { ResolutionReference } from '../image/parcours';
-import { PLAN_IMAGE } from '../image/parcours';
+import { PLAN_IMAGE, motifLogosAReimporter } from '../image/parcours';
 import { FORMATS_DOCUMENT, formatDepuisBrief } from '../calques/formats';
 
 export const SCHEMA_CONSIGNE_PLAN = 'consigne_plan/1' as const;
@@ -248,15 +248,18 @@ export function verdictConsignePlan(e: {
   const retirees: string[] = [];
   const modifiees: string[] = [];
   const bloquees: string[] = [];
+  const aReimporter: string[] = [];
   for (const r of c.references) {
     const m = e.resolutions.get(r.assetId);
     if (!m || m.etat === 'absent') retirees.push(r.assetId);
     else if (m.etat === 'sans_media') bloquees.push(r.assetId);
     else if (m.sha256 !== r.sha256 || m.assetVersion !== r.assetVersion) modifiees.push(r.assetId);
+    else if (m.aReimporter) aReimporter.push(r.assetId);
     else if (!m.transmissible) bloquees.push(r.assetId);
   }
   if (retirees.length) return { ok: false, cause: 'reference_retiree', code: 'MISSING_REFERENCE', cibles: retirees, motif: `Référence retirée ou hors de la marque depuis la compilation du ${plan} · ${retirees.join(', ')}. Rien n’est substitué.` };
   if (modifiees.length) return { ok: false, cause: 'reference_modifiee', code: 'MISSING_REFERENCE', cibles: modifiees, motif: `Fichier modifié depuis la compilation du ${plan} · ${modifiees.join(', ')}. Recompile la consigne.` };
+  if (aReimporter.length) return { ok: false, cause: 'non_transmissible', code: 'UNSUPPORTED_CAPABILITY', cibles: aReimporter, motif: `${motifLogosAReimporter(aReimporter)} Concerne le ${plan}, rien n’est substitué.` };
   if (bloquees.length) return { ok: false, cause: 'non_transmissible', code: 'UNSUPPORTED_CAPABILITY', cibles: bloquees, motif: `La consigne du ${plan} lie ${bloquees.join(', ')} : le fournisseur d’images ne reçoit pas ce fichier.` };
   return { ok: true };
 }

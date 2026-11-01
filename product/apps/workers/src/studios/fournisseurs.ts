@@ -6,10 +6,11 @@ import {
   decisionFournisseurStudio, requeteFalImage, lireParametresImage, lireSnapshotJob, operationsDuSnapshot, operationsMediaDuJob,
   estParametresClip, lireParametresClip, requeteFalAnimation,
   photosDuProduit, empreinteAdresse, idLogoMarque, estEmpreinte, estParametresRetouche, lireParametresRetouche, requeteFalRetouche, logoTransmissible,
+  decisionLogoServi, empreinteDuLogo,
   type DecisionFournisseur, type DemandeFournisseur, type EmpreinteFichier, type FournisseurStudio, type MediaResolu, type RequeteFal, type StockageStudio,
 } from '@tiktrends/core';
 import {
-  FournisseurFal, BarriereDepenseStudio, storageFromEnv, putObject, presignGetUrl, privateObjectUrl, objectKeyFromUrl, basePubliqueStockage,
+  FournisseurFal, BarriereDepenseStudio, storageFromEnv, putObject, presignGetUrl, privateObjectUrl, objectKeyFromUrl, basePubliqueStockage, verifierEmpreinteObjetEspace,
   type PortDepense, type PreparationFal, type StorageConfig,
 } from '@tiktrends/integrations';
 import { demarrerBoucleStudio } from './boucle';
@@ -70,7 +71,7 @@ export async function resoudreMedias(
   const out: MediaResolu[] = [];
   const absent = (assetId: string): MediaResolu => ({ assetId, etat: 'absent', motif: 'retirée du catalogue de la marque, hors portée ou non stockée' });
   let photos: Map<string, { url: string; sha256: string }> | null = null;
-  let logos: Map<string, { url: string; sha256: string }> | null = null;
+  let logos: Map<string, { url: string; sha256: string; empreinte: string | null }> | null = null;
 
   for (const id of ids) {
     if (id.startsWith('pph_')) {
@@ -87,12 +88,12 @@ export async function resoudreMedias(
     } else if (id.startsWith('logo_')) {
       if (!logos) {
         logos = new Map();
-        const [m] = await base.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos }).from(schema.brands)
+        const [m] = await base.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos, logoEmpreintes: schema.brands.logoEmpreintes }).from(schema.brands)
           .where(and(eq(schema.brands.id, job.brandId), eq(schema.brands.workspaceId, job.workspaceId))).limit(1);
         for (const url of [m?.logoUrl, ...(m?.logos ?? [])]) {
           if (typeof url !== 'string' || !url) continue;
           const e = hacherImage(url);
-          logos.set(idLogoMarque(job.brandId, e.sha256), { url, sha256: e.sha256 });
+          logos.set(idLogoMarque(job.brandId, e.sha256), { url, sha256: e.sha256, empreinte: empreinteDuLogo(m?.logoEmpreintes, url) });
         }
       }
       const l = logos.get(id);
@@ -100,7 +101,14 @@ export async function resoudreMedias(
       // IP, `javascript:`, SVG embarqué) ne part jamais au fournisseur · règle
       // `logoTransmissible` du noyau, la base n'est pas touchée.
       const bucket = stockage ? { base: basePubliqueStockage(stockage), espace: job.workspaceId } : null;
+      // Un logo IMPORTÉ ne part que si l'objet est encore celui de son empreinte
+      // (`HEAD` signé avec `If-Match`, `decisionLogoServi`) · remplacé depuis
+      // l'import (le lien de dépôt vivait encore), il n'est jamais transmis.
+      const d = l?.empreinte
+        ? decisionLogoServi({ empreinte: l.empreinte, verification: stockage ? await verifierEmpreinteObjetEspace(stockage, l.url, job.workspaceId, l.empreinte) : null })
+        : null;
       out.push(!l ? absent(id)
+        : d && !d.servir ? { assetId: id, etat: d.cause === 'absent' ? 'absent' : 'sans_media', motif: d.message }
         : logoTransmissible(l.url, bucket) ? { assetId: id, etat: 'autorise', url: l.url, sha256: l.sha256 }
         : { assetId: id, etat: 'sans_media', motif: 'adresse de logo non transmissible (ni https public, ni fichier de l’espace)' });
     } else if (id.startsWith('sta_') && UUID.test(id.slice(4))) {

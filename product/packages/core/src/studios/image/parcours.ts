@@ -206,7 +206,12 @@ export function empreinteEntreesDevisImage(e: EntreesDevis, consigne: string): s
 
 /** Une référence relue maintenant dans le catalogue de la marque du projet. */
 export type ResolutionReference =
-  | { etat: 'present'; assetVersion: string; sha256: string; transmissible: boolean }
+  /**
+   * `aReimporter` · logo de la charte dont le fichier a été remplacé dans le
+   * stockage depuis son import (empreinte, `decisionLogoServi`) · jamais
+   * transmissible, le motif le dit.
+   */
+  | { etat: 'present'; assetVersion: string; sha256: string; transmissible: boolean; aReimporter?: boolean }
   | { etat: 'absent' }
   /** Source concurrente ou identifiant hors catalogue · aucun média que le fournisseur puisse recevoir. */
   | { etat: 'sans_media' };
@@ -216,6 +221,11 @@ export type CauseRefusConsigne = 'absente' | 'non_attestee' | 'perimee' | 'refer
 export type VerdictConsigne =
   | { ok: true }
   | { ok: false; cause: CauseRefusConsigne; code: CodeErreurStudio; motif: string; cibles: string[] };
+
+/** Le motif d'un logo de la charte remplacé dans le stockage depuis son import (image et plan vidéo). */
+export function motifLogosAReimporter(ids: readonly string[]): string {
+  return `Logo à réimporter · ${ids.join(', ')} : son fichier a été remplacé dans le stockage depuis l’import, il n’est pas envoyé au fournisseur d’images. Importe-le à nouveau dans la charte de la marque puis recompile.`;
+}
 
 /**
  * Une consigne peut-elle partir ? Même règle au devis et à l'approbation.
@@ -234,15 +244,18 @@ export function verdictConsigne(e: {
   const retirees: string[] = [];
   const modifiees: string[] = [];
   const bloquees: string[] = [];
+  const aReimporter: string[] = [];
   for (const r of c.references) {
     const m = e.resolutions.get(r.assetId);
     if (!m || m.etat === 'absent') retirees.push(r.assetId);
     else if (m.etat === 'sans_media') bloquees.push(r.assetId);
     else if (m.sha256 !== r.sha256 || m.assetVersion !== r.assetVersion) modifiees.push(r.assetId);
+    else if (m.aReimporter) aReimporter.push(r.assetId);
     else if (!m.transmissible) bloquees.push(r.assetId);
   }
   if (retirees.length) return { ok: false, cause: 'reference_retiree', code: 'MISSING_REFERENCE', cibles: retirees, motif: `Référence retirée, remplacée ou hors de la marque depuis la compilation · ${retirees.join(', ')}. Rien n’est substitué : rétablis le fichier ou recompile.` };
   if (modifiees.length) return { ok: false, cause: 'reference_modifiee', code: 'MISSING_REFERENCE', cibles: modifiees, motif: `Fichier modifié depuis la compilation · ${modifiees.join(', ')}. Rien n’est substitué : recompile la consigne.` };
+  if (aReimporter.length) return { ok: false, cause: 'non_transmissible', code: 'UNSUPPORTED_CAPABILITY', cibles: aReimporter, motif: `${motifLogosAReimporter(aReimporter)} Rien n’est substitué.` };
   if (bloquees.length) return { ok: false, cause: 'non_transmissible', code: 'UNSUPPORTED_CAPABILITY', cibles: bloquees, motif: `La consigne lie ${bloquees.join(', ')} (annonce concurrente ou source sans média) : le fournisseur d’images ne reçoit pas ce fichier. Retire cette association (le style passe par le texte de la consigne) puis recompile.` };
   return { ok: true };
 }

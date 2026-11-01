@@ -193,3 +193,4 @@ export * from './offre';
 export * from './retrait-depot';
 export * from './jeton-depot';
 export * from './logo-depose-relu';
+export * from './logo-empreinte';
