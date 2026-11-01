@@ -19,8 +19,11 @@
  * ── La règle ─────────────────────────────────────────────────────────────────
  *
  * Le présigné rend, en plus de l'adresse, un jeton signé par le serveur liant
- * l'ESPACE, la CLÉ d'objet et une EXPIRATION courte (`jetonDepotPour`). La
- * charte (`decisionCharteDeposee`) :
+ * l'ESPACE, la CLÉ d'objet, le TYPE et la TAILLE signés dans le lien de dépôt
+ * (ceux que le bucket impose au PUT) et une EXPIRATION courte
+ * (`jetonDepotPour`). Le type et la taille servent à la relecture de l'objet
+ * avant d'en faire un logo (`decisionLogoDeposeRelu`, `logo-depose-relu.ts`).
+ * La charte (`decisionCharteDeposee`) :
  *  1. accepte une adresse du bucket DÉJÀ enregistrée sans jeton (compat · aucune
  *     donnée existante n'est bloquée ni réécrite) ;
  *  2. accepte une adresse du bucket NOUVELLE seulement si le jeton est
@@ -56,8 +59,16 @@
 import { cleObjetDeLEspace } from './objet-espace';
 import { DEBIT_MONTANT_REFERENCE_OCTETS_S, DUREE_LIEN_DEPOT_MAX_S, MARGE_LIEN_DEPOT_S, REFUS_LOGO_NON_ATTESTE, dureeLienDepot, refusCharteLogos, type BucketEspace } from './depot-fichiers';
 
-/** Le contenu signé d'un jeton de dépôt · version, espace, clé, expiration (ms). */
-export interface JetonDepot { v: 1; espace: string; cle: string; expireLe: number }
+/**
+ * Le contenu signé d'un jeton de dépôt · version, espace, clé, type et taille
+ * signés au présigné (`Content-Type`, `Content-Length` du PUT), expiration (ms).
+ * Version 2 · un jeton de la version 1 (sans type ni taille) ne se lit plus, il
+ * ne valait que quelques minutes · l'import se relance.
+ */
+export interface JetonDepot { v: 2; espace: string; cle: string; type: string; taille: number; expireLe: number }
+
+/** Longueur maximale d'un type signé · un type de la liste blanche en compte moins de 40. */
+const LONGUEUR_MAX_TYPE_JETON = 128;
 
 /** Plafond de validité d'un jeton · la durée maximale du lien plus la marge d'enregistrement. */
 export const DUREE_JETON_DEPOT_MAX_S = DUREE_LIEN_DEPOT_MAX_S + MARGE_LIEN_DEPOT_S;
@@ -69,19 +80,24 @@ export function dureeJetonDepotS(taille: number): number {
   return Math.min(DUREE_JETON_DEPOT_MAX_S, brute);
 }
 
-/** Le jeton à signer pour la clé `cle` que le présigné vient de fabriquer. */
-export function jetonDepotPour(o: { espace: string; cle: string; taille: number; maintenant: number }): JetonDepot {
-  return { v: 1, espace: o.espace, cle: o.cle, expireLe: o.maintenant + dureeJetonDepotS(o.taille) * 1000 };
+/**
+ * Le jeton à signer pour la clé `cle` que le présigné vient de fabriquer ·
+ * `type` et `taille` sont ceux SIGNÉS dans le lien de dépôt (`decisionDepot`).
+ */
+export function jetonDepotPour(o: { espace: string; cle: string; type: string; taille: number; maintenant: number }): JetonDepot {
+  return { v: 2, espace: o.espace, cle: o.cle, type: o.type, taille: o.taille, expireLe: o.maintenant + dureeJetonDepotS(o.taille) * 1000 };
 }
 
 /** Le contenu relu (JSON déjà analysé) a-t-il la forme d'un jeton ? · sinon `null`. */
 export function formeJetonDepot(x: unknown): JetonDepot | null {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
   const j = x as Record<string, unknown>;
-  if (j.v !== 1 || typeof j.espace !== 'string' || !j.espace || typeof j.cle !== 'string' || !j.cle) return null;
+  if (j.v !== 2 || typeof j.espace !== 'string' || !j.espace || typeof j.cle !== 'string' || !j.cle) return null;
+  if (typeof j.type !== 'string' || !j.type || j.type.length > LONGUEUR_MAX_TYPE_JETON) return null;
+  if (typeof j.taille !== 'number' || !Number.isSafeInteger(j.taille) || j.taille < 1) return null;
   if (typeof j.expireLe !== 'number' || !Number.isFinite(j.expireLe)) return null;
-  if (Object.keys(j).length !== 4) return null;
-  return { v: 1, espace: j.espace, cle: j.cle, expireLe: j.expireLe };
+  if (Object.keys(j).length !== 6) return null;
+  return { v: 2, espace: j.espace, cle: j.cle, type: j.type, taille: j.taille, expireLe: j.expireLe };
 }
 
 export type RefusJetonDepot = 'absent' | 'illisible' | 'autre_espace' | 'autre_cle' | 'expire';

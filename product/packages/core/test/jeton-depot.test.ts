@@ -15,7 +15,7 @@ const CLE = `assets/${WS}/1700000000000-abcd1234-logo.png`;
 const NEUF = `${BASE}/${CLE}`;
 const ANCIEN = 'http://ancien-site.fr/logo.png';
 const T0 = 1_800_000_000_000;
-const jeton = (j: Partial<JetonDepot> = {}): JetonDepot => ({ ...jetonDepotPour({ espace: WS, cle: CLE, taille: 12_000, maintenant: T0 }), ...j });
+const jeton = (j: Partial<JetonDepot> = {}): JetonDepot => ({ ...jetonDepotPour({ espace: WS, cle: CLE, type: 'image/png', taille: 12_000, maintenant: T0 }), ...j });
 const decider = (o: { logoUrl: string; logos: string[]; deja?: string[]; jeton?: JetonDepot | null | 'illisible'; maintenant?: number }) =>
   decisionCharteDeposee({ charte: { logoUrl: o.logoUrl, logos: o.logos }, dejaEnregistrees: o.deja ?? [ANCIEN], bucket, jeton: o.jeton === undefined ? jeton() : o.jeton, maintenant: o.maintenant ?? T0 + 1000 });
 
@@ -27,15 +27,22 @@ describe('dureeJetonDepotS · dérivée du lien de dépôt (tableau mesuré du m
     expect(DUREE_JETON_DEPOT_MAX_S).toBe(960);
     expect(dureeJetonDepotS(Number.NaN)).toBe(120);
   });
-  it('jetonDepotPour · espace, clé, expiration en millisecondes', () => {
-    expect(jetonDepotPour({ espace: WS, cle: CLE, taille: 4_000_000, maintenant: T0 })).toEqual({ v: 1, espace: WS, cle: CLE, expireLe: T0 + 196_000 });
+  it('jetonDepotPour · espace, clé, type et taille signés, expiration en millisecondes', () => {
+    expect(jetonDepotPour({ espace: WS, cle: CLE, type: 'image/png', taille: 4_000_000, maintenant: T0 })).toEqual({ v: 2, espace: WS, cle: CLE, type: 'image/png', taille: 4_000_000, expireLe: T0 + 196_000 });
   });
 });
 
 describe('formeJetonDepot · seule la forme exacte passe', () => {
   it('accepte un jeton bien formé, refuse le reste', () => {
     expect(formeJetonDepot(jeton())).toEqual(jeton());
-    for (const x of [null, 'x', [], {}, { ...jeton(), v: 2 }, { ...jeton(), espace: '' }, { ...jeton(), cle: 3 }, { ...jeton(), expireLe: '1' }, { ...jeton(), autre: 1 }]) {
+    // Le jeton de la version 1 (#987) · sans type ni taille.
+    const v1 = { v: 1, espace: WS, cle: CLE, expireLe: jeton().expireLe };
+    for (const x of [
+      null, 'x', [], {}, { ...jeton(), v: 1 }, v1, { ...jeton(), espace: '' }, { ...jeton(), cle: 3 }, { ...jeton(), expireLe: '1' }, { ...jeton(), autre: 1 },
+      // Type et taille signés · obligatoires et bien formés.
+      { ...v1, v: 2 }, { ...jeton(), type: '' }, { ...jeton(), type: 7 }, { ...jeton(), type: 'x'.repeat(129) },
+      { ...jeton(), taille: 0 }, { ...jeton(), taille: 1.5 }, { ...jeton(), taille: '12000' }, { ...jeton(), taille: Number.MAX_SAFE_INTEGER + 1 },
+    ]) {
       expect(formeJetonDepot(x), JSON.stringify(x)).toBeNull();
     }
   });

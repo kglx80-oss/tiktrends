@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 
 /**
@@ -29,6 +29,7 @@ import { db, schema, eq } from '@tiktrends/db';
 import { MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO, REFUS_LOGO_NON_ATTESTE, dureeLienDepot } from '@tiktrends/core';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
+import { bucketQuiSert } from './helpers/bucket-qui-sert';
 
 const ANCIEN = 'http://ancien-site.fr/logo.png';
 async function marque() {
@@ -56,6 +57,7 @@ function bucketAccepte(url: string, entetes: Record<string, string>): boolean {
 const lire = async (id: string) => (await db.select().from(schema.brands).where(eq(schema.brands.id, id)))[0]!;
 const charte = (brandId: string, logoUrl: string, logos: string[]) => saveBrandDAAction({ brandId, logoUrl, logos, colors: ['#112233'], fonts: ['Inter'] });
 
+afterEach(() => { vi.unstubAllGlobals(); });
 beforeEach(() => {
   etat.session = null;
   vi.stubEnv('S3_ENDPOINT', 's3.gra.exemple.invalid'); vi.stubEnv('S3_BUCKET', 'tt'); vi.stubEnv('S3_ACCESS_KEY_ID', 'k'); vi.stubEnv('S3_SECRET_ACCESS_KEY', 's');
@@ -165,6 +167,9 @@ describe('saveBrandDAAction · adresse de logo', () => {
 
   it('un fichier de logo importé dans le bucket de l’espace est admis AVEC son jeton de dépôt, refusé sans ; celui d’un autre espace refusé', async () => {
     const m = await marque();
+    // Le bucket sert un vrai PNG de 100 octets · la charte relit l'objet attesté.
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAIAAAAiZtkUAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGP4H9OFhhjIFQIAy24teZ6V9CwAAAAASUVORK5CYII=', 'base64');
+    vi.stubGlobal('fetch', bucketQuiSert(new Uint8Array(Buffer.concat([png, Buffer.alloc(100 - png.length, 0)]))));
     const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 100 });
     expect(pre.jetonDepot, 'le présigné rend un jeton signé').toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     expect(await charte(m.id, pre.publicUrl!, [ANCIEN, pre.publicUrl!]), 'adresse du bucket nouvelle sans jeton').toEqual({ error: REFUS_LOGO_NON_ATTESTE });

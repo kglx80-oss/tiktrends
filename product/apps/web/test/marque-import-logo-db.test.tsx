@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -6,7 +6,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
  * Marque · importer un FICHIER de logo · le chemin serveur entier sur une
  * vraie base (pglite) avec les VRAIES actions existantes : l'adresse de dépôt
  * de la Bibliothèque (`presignAssetUploadAction`, aucun réseau · signature
- * locale), la charte calculée par le noyau, puis `saveBrandDAAction`. On relit
+ * locale), la charte calculée par le noyau, puis `saveBrandDAAction` (qui relit
+ * l'objet déposé · faux bucket qui sert un vrai PNG). On relit
  * la marque en base, la carte du logo telle que la page la reçoit, et le HTML
  * du bouton · jamais la présence d'un appel.
  */
@@ -32,8 +33,11 @@ import { chargerMarque, propsFavicon, propsImportLogo } from '../app/(spatial)/s
 import { CarteFavicon } from '../spatial/vues/marque/base';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
+import { bucketQuiSert } from './helpers/bucket-qui-sert';
 
 const ANCIEN = 'https://site.exemple.invalid/logo.png';
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAIAAAAiZtkUAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGP4H9OFhhjIFQIAy24teZ6V9CwAAAAASUVORK5CYII=', 'base64');
+const pngDe = (n: number) => new Uint8Array(Buffer.concat([PNG, Buffer.alloc(n - PNG.length, 0)]));
 async function marque(plan: string) {
   const ws = randomUUID(); const id = randomUUID(); const user = randomUUID();
   await db.insert(schema.workspaces).values({ id: ws, name: 'Espace', plan });
@@ -48,6 +52,7 @@ const lire = async (id: string) => (await db.select().from(schema.brands).where(
 const CTX: CtxSpatial = { utilisateur: { nom: 'M', initiales: 'M', email: 'm@x.fr', role: 'Admin' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
 const carte = (p: Parameters<typeof CarteFavicon>[0]) => renderToStaticMarkup(<FournisseurSpatial value={CTX}><CarteFavicon {...p} /></FournisseurSpatial>);
 
+afterEach(() => { vi.unstubAllGlobals(); });
 beforeEach(() => {
   etat.session = null;
   vi.stubEnv('S3_ENDPOINT', 's3.gra.exemple.invalid'); vi.stubEnv('S3_BUCKET', 'tt'); vi.stubEnv('S3_ACCESS_KEY_ID', 'k'); vi.stubEnv('S3_SECRET_ACCESS_KEY', 's');
@@ -66,6 +71,8 @@ describe('Marque · import d’un fichier de logo · chemin serveur', () => {
     expect(pre.publicUrl, 'le fichier est rangé chez CET espace').toContain(`assets/${m.ws}/`);
     const charte = charteAvecLogoImporte({ logos: p.logos, defaut: p.defaut }, pre.publicUrl!);
     expect(pre.jetonDepot, 'le dépôt est attesté par un jeton signé').toBeTruthy();
+    // Le PUT du navigateur · le bucket sert ensuite un vrai PNG de la taille annoncée.
+    vi.stubGlobal('fetch', bucketQuiSert(pngDe(12_000)));
     expect(await p.actions!.enregistrer({ brandId: m.id, ...charte, colors: [...p.couleurs], fonts: [...p.polices], jetonDepot: pre.jetonDepot })).toEqual({ ok: true });
     const b = await lire(m.id);
     expect(b.logoUrl).toBe(pre.publicUrl);

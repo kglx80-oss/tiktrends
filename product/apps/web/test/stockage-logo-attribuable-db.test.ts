@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 
 /**
  * Stockage · le dépôt d'un logo importé est ATTRIBUABLE · vraie base (pglite
- * + migrations du dépôt), FAUX S3 (PUT, DELETE), les VRAIES actions :
+ * + migrations du dépôt), FAUX S3 (HEAD et GET qui servent le PNG déposé, la
+ * relecture du logo · DELETE), les VRAIES actions :
  * `presignAssetUploadAction` (jeton de dépôt signé) puis `saveBrandDAAction`.
  *
  * On lit ce qui SORT · la réponse de l'action, la charte relue en base, le
@@ -39,7 +40,7 @@ vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 const BASE = CFG.publicBaseUrl;
 const ANCIEN = 'https://site.exemple.fr/logo.png';
 
-/* ───────────── Le faux bucket · PUT, DELETE ───────────── */
+/* ───────────── Le faux bucket · HEAD, GET (relecture du logo), DELETE ───────────── */
 
 const bucket = new Map<string, Buffer>();
 const supprimes: string[] = [];
@@ -47,9 +48,15 @@ async function fauxBucket(entree: string | URL | Request, init?: RequestInit): P
   const u = new URL(String(entree));
   if (u.host !== CFG.endpoint) return new Response('hôte inconnu', { status: 599 });
   const cle = decodeURIComponent(u.pathname.slice(`/${CFG.bucket}/`.length));
+  const o = bucket.get(cle);
   if (init?.method === 'DELETE') { supprimes.push(cle); bucket.delete(cle); return new Response(null, { status: 204 }); }
+  if (init?.method === 'HEAD') return o ? new Response(null, { status: 200, headers: { 'content-length': String(o.length) } }) : new Response(null, { status: 404 });
+  if ((init?.method ?? 'GET') === 'GET') return o ? new Response(new Uint8Array(o), { status: 200, headers: { 'content-length': String(o.length) } }) : new Response(null, { status: 404 });
   return new Response(null, { status: 405 });
 }
+/** Un vrai PNG (signature et en-tête) complété jusqu'à `n` octets · la relecture l'admet comme logo. */
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAIAAAAiZtkUAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGP4H9OFhhjIFQIAy24teZ6V9CwAAAAASUVORK5CYII=', 'base64');
+const pngDe = (n: number) => Buffer.concat([PNG, Buffer.alloc(n - PNG.length, 0)]);
 const cleDe = (url: string) => url.slice(BASE.length + 1);
 
 /* ───────────── Deux espaces, deux marques dans le premier ───────────── */
@@ -65,7 +72,7 @@ const lire = async (id: string) => (await db.select({ logoUrl: schema.brands.log
 async function deposer(nom = 'logo.png') {
   const pre = await presignAssetUploadAction({ filename: nom, contentType: 'image/png', sizeBytes: 2048 });
   expect(pre.error).toBeUndefined();
-  bucket.set(cleDe(pre.publicUrl!), Buffer.alloc(2048, 1));
+  bucket.set(cleDe(pre.publicUrl!), pngDe(2048));
   return { url: pre.publicUrl!, jeton: pre.jetonDepot! };
 }
 const importer = (brandId: string, url: string, jetonDepot?: string, avant: { logos: string[]; defaut: string | null } = { logos: [ANCIEN], defaut: ANCIEN }) =>
