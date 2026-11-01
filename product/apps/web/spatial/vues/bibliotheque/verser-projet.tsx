@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  versementSelection, messageVersement, messageCreationVersement, raisonVersement, titreNouveauProjetParDefaut,
+  versementSelection, messageVersement, messageCreationVersement, raisonVersement, titreNouveauProjetParDefaut, intentionCreationVide, intentionRenseignee, phraseBriefCreation,
   ROLES_VERSEMENT, PORTEES_REFERENCE, LIBELLES_ROLE, LIBELLES_PORTEE, EFFET_ROLE, LIBELLES_TYPE_PROJET, TYPES_NOUVEAU_PROJET, KIND_CONCEPT_DEFAUT,
-  type DonneesDrive, type ErreurStudio, type EtatNouveauProjet, type ModeVersement, type PorteeReference, type RoleReference, type TypeNouveauProjet,
+  LIBELLES_OBJECTIF_V5, OBJECTIFS_V5, OBJECTIF_MAX,
+  type DonneesDrive, type ErreurStudio, type EtatNouveauProjet, type IntentionCreation, type ModeVersement, type ObjectifType, type PorteeReference, type RoleReference, type TypeNouveauProjet,
 } from '@tiktrends/core';
 import { creerProjetEtVerser, projetsPourVersement, verserSelectionDansProjet, type ProjetVersement } from '../../../app/actions/studios/versement';
 import { Ic, Lien } from '../../communs';
@@ -25,6 +26,12 @@ import { DialogueSpatial } from '../marque/interactifs';
  * création, le projet reste, l'écran le dit, et il devient le projet choisi
  * pour réessayer le seul versement. Après succès, un lien mène aux références
  * du projet.
+ *
+ * L'intention · les trois premiers champs de l'étape brief de l'assistant
+ * (« Ton intention », objectif, angle), FACULTATIFS, mêmes bornes
+ * (`OBJECTIF_MAX`, `OBJECTIFS_V5`) · relus au noyau (`validerIntentionCreation`
+ * par `raisonVersement`, puis par l'action) et composés en brief par la règle
+ * de l'assistant. Rien n'est suggéré ni généré · aucun appel modèle.
  */
 
 function texteErreur(r: ErreurStudio): string {
@@ -45,6 +52,7 @@ export function FenetreVersement({ ouvert, fermer, donnees, fichiers }: { ouvert
   const [projectId, setProjectId] = useState('');
   const [type, setType] = useState<TypeNouveauProjet>(KIND_CONCEPT_DEFAUT);
   const [titreSaisi, setTitreSaisi] = useState<string | null>(null);
+  const [saisie, setSaisie] = useState<IntentionCreation>(intentionCreationVide);
   const [role, setRole] = useState<RoleReference | ''>('');
   const [scope, setScope] = useState<PorteeReference | ''>('');
   const [occupe, setOccupe] = useState(false);
@@ -72,8 +80,9 @@ export function FenetreVersement({ ouvert, fermer, donnees, fichiers }: { ouvert
   const marque = creation?.etat === 'pret' ? creation.marque : null;
   const modeEffectif: ModeVersement = mode === 'nouveau' && marque ? 'nouveau' : 'existant';
   const titre = titreSaisi ?? (marque ? titreNouveauProjetParDefaut(type, marque.nom) : '');
-  const raison = raisonVersement({ occupe, selection: v, mode: modeEffectif, projectId, creation: { marque: !!marque, titre, type }, role, scope });
+  const raison = raisonVersement({ occupe, selection: v, mode: modeEffectif, projectId, creation: { marque: !!marque, titre, type, saisie }, role, scope });
   const effacer = () => setRetour(null);
+  const majSaisie = (c: Partial<IntentionCreation>) => { setSaisie((s) => ({ ...s, ...c })); effacer(); };
 
   async function verser() {
     if (raison || !role || !scope) return;
@@ -81,12 +90,13 @@ export function FenetreVersement({ ouvert, fermer, donnees, fichiers }: { ouvert
     const ids = v.versables.map((f) => f.id);
     try {
       if (modeEffectif === 'nouveau' && marque) {
-        const r = await creerProjetEtVerser({ brandId: marque.id, titre, type, ids, role, scope });
+        // Rien de saisi · l'appel d'avant, à l'identique (le brief vide de l'assistant).
+        const r = await creerProjetEtVerser({ brandId: marque.id, titre, type, ids, role, scope, ...(intentionRenseignee(saisie) ? { saisie } : {}) });
         if (!r.ok) { setRetour({ etat: 'erreur', texte: texteErreur(r) }); return; }
         // Le projet existe · il rejoint la liste et devient le projet choisi (un nouvel essai ne le recrée pas).
         const cree: ProjetVersement = { id: r.projet.id, titre: r.projet.titre, marque: marque.nom };
         setProjets((p) => (p.etat === 'pret' ? { ...p, liste: [cree, ...p.liste.filter((x) => x.id !== cree.id)] } : p));
-        setProjectId(cree.id); setMode('existant'); setTitreSaisi(null);
+        setProjectId(cree.id); setMode('existant'); setTitreSaisi(null); setSaisie(intentionCreationVide());
         const w = r.versement;
         const texte = messageCreationVersement(r.projet.titre, w.ok ? { ok: true, ajoutes: w.ajoutes, dejaPresents: w.dejaPresents, role } : { ok: false, raison: texteErreur(w) });
         setRetour({ etat: w.ok ? 'succes' : 'partiel', texte, href: w.ok ? w.projet.href : r.projet.href });
@@ -147,7 +157,16 @@ export function FenetreVersement({ ouvert, fermer, donnees, fichiers }: { ouvert
             <select className="dsort" data-versement="type" aria-label="Type de projet" value={type} disabled={occupe} onChange={(e) => { setType(e.target.value as TypeNouveauProjet); effacer(); }}>
               {TYPES_NOUVEAU_PROJET.map((t) => <option key={t} value={t}>{LIBELLES_TYPE_PROJET[t] ?? t}</option>)}
             </select>
-            <small className="faint" data-versement="marque" style={{ fontSize: '11.5px' }}>Projet de la marque {marque!.nom} · son brief reste à préciser dans le projet.</small>
+            <textarea data-versement="intention" aria-label="Ton intention" value={saisie.intention} maxLength={OBJECTIF_MAX} rows={2} disabled={occupe}
+              onChange={(e) => majSaisie({ intention: e.target.value })} placeholder="Ton intention · ce que ce projet doit produire ou vérifier · facultatif" style={{ ...CHAMP, resize: 'vertical' }} />
+            <select className="dsort" data-versement="objectif" aria-label="Objectif" value={saisie.objectifType ?? ''} disabled={occupe}
+              onChange={(e) => majSaisie({ objectifType: (e.target.value || null) as ObjectifType | null })}>
+              <option value="">Objectif · facultatif</option>
+              {OBJECTIFS_V5.map((o) => <option key={o} value={o}>{LIBELLES_OBJECTIF_V5[o]}</option>)}
+            </select>
+            <input data-versement="angle" aria-label="Angle" value={saisie.angle} maxLength={OBJECTIF_MAX} disabled={occupe}
+              onChange={(e) => majSaisie({ angle: e.target.value })} placeholder="Angle · l’idée qui porte la publicité · facultatif" style={CHAMP} />
+            <small className="faint" data-versement="marque" style={{ fontSize: '11.5px' }}>{phraseBriefCreation(marque!.nom, saisie)}</small>
           </div>
         )}
         <select className="dsort" data-versement="role" aria-label="Rôle des images" value={role} disabled={occupe} onChange={(e) => { setRole(e.target.value as RoleReference); effacer(); }}>

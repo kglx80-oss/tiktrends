@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import {
   connexionDrive, donneesDrive, messageCreationVersement, titreNouveauProjetParDefaut, LOT_ANALYSE_IMAGES, RAISONS_ECART_VERSEMENT,
+  LIBELLES_OBJECTIF_V5, OBJECTIF_MAX, OBJECTIFS_V5,
   type DossierSource, type MediaSource,
 } from '@tiktrends/core';
 
@@ -95,6 +96,11 @@ const saisir = async (i: HTMLElement | null, valeur: string) => {
   const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
   await act(async () => { set.call(x, valeur); x.dispatchEvent(new Event('input', { bubbles: true })); });
 };
+const ecrire = async (t: HTMLElement | null, valeur: string) => {
+  const x = t as HTMLTextAreaElement;
+  const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+  await act(async () => { set.call(x, valeur); x.dispatchEvent(new Event('input', { bubbles: true })); });
+};
 const bouton = (h: HTMLElement) => champ(h, 'verser') as HTMLButtonElement;
 
 describe('« Utiliser dans un projet » · depuis l’aperçu d’un seul fichier', () => {
@@ -183,6 +189,47 @@ describe('« Nouveau projet » · dans la fenêtre de versement', () => {
     // Le projet créé est désormais LE projet choisi · un nouveau clic verse, il ne recrée pas.
     expect((champ(h, 'projet') as HTMLSelectElement).value).toBe(NOUVEAU);
     expect([...champ(h, 'projet')!.querySelectorAll('option:not([disabled])')].map((o) => o.textContent)).toEqual(['Rentrée · Marque A1', 'Lunettes · rentrée · Marque A1']);
+  });
+
+  it('l’intention · trois champs FACULTATIFS de l’étape brief, mêmes bornes et mêmes valeurs, et l’appel parti les emporte', async () => {
+    const h = await ouvrirDepuisApercu();
+    await clic(champ(h, 'mode-nouveau'));
+    const intention = champ(h, 'intention') as HTMLTextAreaElement;
+    const objectif = champ(h, 'objectif') as HTMLSelectElement;
+    const angle = champ(h, 'angle') as HTMLInputElement;
+    expect([intention.tagName, intention.maxLength, intention.value, angle.maxLength, angle.value]).toEqual(['TEXTAREA', OBJECTIF_MAX, '', OBJECTIF_MAX, '']);
+    expect([...objectif.options].map((o) => [o.value, o.textContent])).toEqual([['', 'Objectif · facultatif'], ...OBJECTIFS_V5.map((o) => [o, LIBELLES_OBJECTIF_V5[o]])]);
+    await choisir(champ(h, 'role'), 'style'); await choisir(champ(h, 'portee'), 'global');
+    // Facultatifs · vides, le bouton est ouvert.
+    expect(bouton(h).disabled).toBe(false);
+    await ecrire(intention, 'Prouver que la preuve sociale bat la promo');
+    expect(champ(h, 'marque')!.textContent).toBe('Projet de la marque Marque A1 · ton intention ouvre son brief, le reste se précise dans le projet.');
+    await choisir(objectif, 'conversion');
+    await saisir(angle, 'Avis clients en gros plan');
+    await clic(bouton(h));
+    expect(f.creer).toHaveBeenCalledTimes(1);
+    expect(f.creer).toHaveBeenCalledWith({
+      brandId: MARQUE, titre: TITRE_DEFAUT, type: 'ads', ids: [U1], role: 'style', scope: 'global',
+      saisie: { intention: 'Prouver que la preuve sociale bat la promo', objectifType: 'conversion', angle: 'Avis clients en gros plan' },
+    });
+    expect(champ(h, 'succes')).toBeTruthy();
+    // Le projet créé devient le projet choisi · une nouvelle création repart d'une intention vide.
+    await clic(champ(h, 'mode-nouveau'));
+    expect([(champ(h, 'intention') as HTMLTextAreaElement).value, (champ(h, 'objectif') as HTMLSelectElement).value, (champ(h, 'angle') as HTMLInputElement).value]).toEqual(['', '', '']);
+  });
+
+  it('sans intention · l’appel d’avant à l’identique (aucune clé « saisie »), un angle seul part sans intention et la phrase le dit', async () => {
+    const h = await ouvrirDepuisApercu();
+    await clic(champ(h, 'mode-nouveau'));
+    await choisir(champ(h, 'role'), 'style'); await choisir(champ(h, 'portee'), 'global');
+    await saisir(champ(h, 'angle'), '   ');
+    await clic(bouton(h));
+    expect(f.creer.mock.calls[0]![0]).not.toHaveProperty('saisie');
+    await clic(champ(h, 'mode-nouveau'));
+    await saisir(champ(h, 'angle'), 'Avis clients');
+    expect(champ(h, 'marque')!.textContent).toBe('Projet de la marque Marque A1 · sans intention, l’objectif de son brief reste à préciser dans le projet.');
+    await clic(bouton(h));
+    expect(f.creer.mock.calls[1]![0]).toMatchObject({ saisie: { intention: '', objectifType: null, angle: 'Avis clients' } });
   });
 
   it('projet créé mais versement refusé · l’écran le DIT, garde le projet choisi, et le nouvel essai verse sans recréer', async () => {

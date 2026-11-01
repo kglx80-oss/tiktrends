@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   donneesDrive, versementApercu, validerCreationVersement, briefCreationVersement, raisonVersement, messageCreationVersement, validerFormeBrief,
-  versementSelection, RAISONS_ECART_VERSEMENT, RAISONS_VERSEMENT, RAISON_MARQUE_CREATION, CLES_BRIEF, TITRE_NOUVEAU_PROJET_MAX,
+  versementSelection, validerIntentionCreation, intentionCreationVide, intentionRenseignee, phraseBriefCreation, construireBriefV5, saisieBriefVide,
+  RAISONS_ECART_VERSEMENT, RAISONS_VERSEMENT, RAISON_MARQUE_CREATION, RAISONS_INTENTION, CLES_BRIEF, TITRE_NOUVEAU_PROJET_MAX, OBJECTIF_MAX, OBJECTIFS_V5,
   type MediaSource,
 } from '../src';
 
@@ -63,7 +64,7 @@ describe('versementApercu · la règle de la barre, appliquée au fichier de l�
 describe('validerCreationVersement · rien n’est créé pour une entrée refusée', () => {
   const base = { brandId: UUID, titre: '  Rentrée  ', type: 'ads', ids: [F], role: 'style', scope: 'global' };
   it('entrée valide · titre rogné, identifiants en minuscules', () => {
-    expect(validerCreationVersement({ ...base, brandId: UUID.toUpperCase() })).toEqual({ ok: true, brandId: UUID, titre: 'Rentrée', type: 'ads', ids: [F], role: 'style', scope: 'global' });
+    expect(validerCreationVersement({ ...base, brandId: UUID.toUpperCase() })).toEqual({ ok: true, brandId: UUID, titre: 'Rentrée', type: 'ads', ids: [F], role: 'style', scope: 'global', intention: intentionCreationVide() });
   });
   it('la règle de nom de « Nouveau projet » · titre vide, trop long, type inconnu', () => {
     expect(validerCreationVersement({ ...base, titre: '   ' })).toEqual({ ok: false, raison: 'Donne un titre au projet.' });
@@ -79,6 +80,63 @@ describe('validerCreationVersement · rien n’est créé pour une entrée refus
     expect(validerCreationVersement({ ...base, role: '' })).toEqual({ ok: false, raison: RAISONS_VERSEMENT.role });
     expect(validerCreationVersement({ ...base, scope: 'partout' })).toEqual({ ok: false, raison: RAISONS_VERSEMENT.portee });
     expect(validerCreationVersement({ ...base, ids: [] }).ok).toBe(false);
+  });
+});
+
+describe('l’intention dès la création · la règle de l’étape brief de l’assistant, aucune seconde', () => {
+  const base = { brandId: UUID, titre: 'Rentrée', type: 'ads', ids: [F], role: 'style', scope: 'global' };
+  const saisie = { intention: 'Prouver que la preuve sociale bat le prix', objectifType: 'conversion', angle: 'Avis clients en gros plan' };
+
+  it('intention, objectif et angle passent tels quels dans l’entrée relue', () => {
+    expect(validerCreationVersement({ ...base, saisie })).toMatchObject({ ok: true, intention: saisie });
+  });
+
+  it('absente, nulle, ou chaînes vides · l’intention vide (le comportement d’avant)', () => {
+    for (const s of [undefined, null, {}, { intention: '', objectifType: '', angle: '' }, { objectifType: null }]) {
+      expect(validerIntentionCreation(s), JSON.stringify(s)).toEqual({ ok: true, intention: intentionCreationVide() });
+    }
+    expect(intentionRenseignee(intentionCreationVide())).toBe(false);
+    expect(intentionRenseignee({ ...intentionCreationVide(), angle: '  ' })).toBe(false);
+    expect(intentionRenseignee({ ...intentionCreationVide(), objectifType: 'notoriete' })).toBe(true);
+  });
+
+  it('les bornes de l’écran « Nouveau projet » · OBJECTIF_MAX accepté, un caractère de plus refusé · RIEN n’est accepté', () => {
+    expect(validerIntentionCreation({ intention: 'x'.repeat(OBJECTIF_MAX), angle: 'y'.repeat(OBJECTIF_MAX) }).ok).toBe(true);
+    expect(validerCreationVersement({ ...base, saisie: { intention: 'x'.repeat(OBJECTIF_MAX + 1) } })).toEqual({ ok: false, raison: RAISONS_INTENTION.intention });
+    expect(validerCreationVersement({ ...base, saisie: { angle: 'y'.repeat(OBJECTIF_MAX + 1) } })).toEqual({ ok: false, raison: RAISONS_INTENTION.angle });
+    expect(RAISONS_INTENTION.intention).toBe('Intention trop longue · 2000 caractères au plus.');
+  });
+
+  it('les valeurs autorisées de l’objectif · chacune d’OBJECTIFS_V5 passe, toute autre est refusée', () => {
+    for (const o of OBJECTIFS_V5) expect(validerIntentionCreation({ objectifType: o })).toMatchObject({ ok: true, intention: { objectifType: o } });
+    for (const o of ['vente', 'Conversion', 3, true]) expect(validerCreationVersement({ ...base, saisie: { objectifType: o } }), String(o)).toEqual({ ok: false, raison: RAISONS_INTENTION.objectif });
+  });
+
+  it('une forme illisible · refusée, jamais ignorée en silence', () => {
+    for (const s of ['texte', 42, [], { intention: 7 }, { angle: { x: 1 } }]) expect(validerCreationVersement({ ...base, saisie: s }), JSON.stringify(s)).toEqual({ ok: false, raison: RAISONS_INTENTION.forme });
+  });
+
+  it('le brief composé est CELUI de l’assistant pour la même saisie · objectif, objectif typé, angle', () => {
+    const v = validerCreationVersement({ ...base, saisie: { ...saisie, intention: `  ${saisie.intention}  ` } });
+    if (!v.ok) throw new Error(v.raison);
+    const b = briefCreationVersement(v.intention);
+    expect(b).toEqual(construireBriefV5({ ...saisieBriefVide(), intention: saisie.intention, objectifType: 'conversion', angle: saisie.angle }));
+    expect([b.objective, b.objectifType, b.angle]).toEqual([saisie.intention, 'conversion', saisie.angle]);
+    expect(validerFormeBrief(b)).toEqual([]);
+  });
+
+  it('raisonVersement · une intention hors règle ferme le bouton avec sa raison, en nouveau projet seulement', () => {
+    const e = { occupe: false, selection: { versables: [{ id: 'img', nom: 'img.jpg' }], phrase: '' }, mode: 'nouveau' as const, projectId: '', role: 'style', scope: 'global' };
+    const c = { marque: true, titre: 'Rentrée', type: 'ads' };
+    expect(raisonVersement({ ...e, creation: { ...c, saisie } })).toBeNull();
+    expect(raisonVersement({ ...e, creation: { ...c, saisie: { objectifType: 'vente' } } })).toBe(RAISONS_INTENTION.objectif);
+    expect(raisonVersement({ ...e, mode: 'existant', projectId: UUID, creation: { ...c, saisie: { objectifType: 'vente' } } })).toBeNull();
+  });
+
+  it('la phrase sous les champs · ce que le brief emporte et ce qui reste à préciser', () => {
+    expect(phraseBriefCreation('Marque A1', intentionCreationVide())).toBe('Projet de la marque Marque A1 · son brief reste à préciser dans le projet.');
+    expect(phraseBriefCreation('Marque A1', { ...intentionCreationVide(), intention: 'Tester' })).toBe('Projet de la marque Marque A1 · ton intention ouvre son brief, le reste se précise dans le projet.');
+    expect(phraseBriefCreation('Marque A1', { ...intentionCreationVide(), angle: 'Avis' })).toBe('Projet de la marque Marque A1 · sans intention, l’objectif de son brief reste à préciser dans le projet.');
   });
 });
 

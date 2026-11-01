@@ -31,7 +31,12 @@ import { listerProjetsCartes } from './sources';
  *    partagée possible sans les dupliquer. Tout ce qui peut refuser le lot est
  *    vérifié AVANT la création (entrée, fichiers relus pour la marque du
  *    projet) · si le versement échoue ensuite, le projet créé RESTE (création
- *    voulue) et la réponse le dit (`versement` en erreur).
+ *    voulue) et la réponse le dit (`versement` en erreur). L'intention
+ *    facultative (`saisie` · intention, objectif, angle) est relue par la
+ *    règle du noyau (`validerCreationVersement`) puis composée en brief par
+ *    la règle de l'assistant (`briefCreationVersement` → `construireBriefV5`),
+ *    écrit par la MÊME création que l'écran « Nouveau projet » (`creerProjet`
+ *    avec `contenu.brief`, même revalidation, même audit `project.create`).
  *
  * L'espace vient de la session, jamais du navigateur. Aucun appel modèle,
  * aucune dépense.
@@ -71,7 +76,7 @@ export interface ResultatCreationVersement {
   versement: Reponse<ResultatVersementProjet>;
 }
 
-export async function creerProjetEtVerser(entree: { brandId: unknown; titre: unknown; type: unknown; ids: unknown; role: unknown; scope: unknown }): Promise<Reponse<ResultatCreationVersement>> {
+export async function creerProjetEtVerser(entree: { brandId: unknown; titre: unknown; type: unknown; ids: unknown; role: unknown; scope: unknown; saisie?: unknown }): Promise<Reponse<ResultatCreationVersement>> {
   const g = await gardeSources('studio.propose');
   if (!g.ok) return g;
   const coupe = await refusCapacite(g.ctx, ['projets']);
@@ -84,7 +89,8 @@ export async function creerProjetEtVerser(entree: { brandId: unknown; titre: unk
     const refus = await refusFichiersVersementPour(g.ctx, v.ids, v.brandId);
     if (refus.length) return erreurStudio('INVALID_SCHEMA', { traceId: g.ctx.traceId, violations: refus });
   }
-  const contenu: ContenuVersion = { ...contenuVide(), brief: briefCreationVersement() as unknown as ContenuVersion['brief'] };
+  // Le brief de l'assistant composé depuis l'intention relue (vide si rien n'est saisi) · le chemin de l'écran « Nouveau projet ».
+  const contenu: ContenuVersion = { ...contenuVide(), brief: briefCreationVersement(v.intention) as unknown as ContenuVersion['brief'] };
   const cree = await creerProjet({ brandId: v.brandId, kind: v.type, title: v.titre, contenu });
   if (!cree.ok) return cree;
   const versement = await verserSelectionBibliothequePour(g.ctx, { projectId: cree.projet.id, ids: v.ids, role: v.role, scope: v.scope }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() })

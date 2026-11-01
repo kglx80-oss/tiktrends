@@ -12,6 +12,10 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
  *    (`creerProjet` · titre, type, marque, propriétaire, audit `project.create`)
  *    puis la sélection est versée par le même chemin (une seconde version) ;
  *  · rien n'est créé pour un lot refusé (fichier en corbeille, titre vide) ;
+ *  · l'intention saisie dans la fenêtre (intention, objectif, angle) · relue
+ *    dans le brief de la PREMIÈRE version en base ; hors règle (trop longue,
+ *    objectif inconnu, forme illisible) ⇒ rien de créé ; sans intention ⇒ le
+ *    brief vide d'avant ;
  *  · versement refusé APRÈS la création (le fichier part à la corbeille entre
  *    les deux) · le projet reste, la réponse le dit ;
  *  · rôle sans droit Studios ⇒ FORBIDDEN, rien de créé ; marque d'un autre
@@ -61,7 +65,7 @@ vi.mock('../lib/studios/produit/commandes', async (o) => {
 });
 
 import { db, schema, eq, sql } from '@tiktrends/db';
-import { idBibliotheque, type BriefCanonique, type ContenuVersion } from '@tiktrends/core';
+import { briefCreationVersement, idBibliotheque, OBJECTIF_MAX, RAISONS_INTENTION, type BriefCanonique, type ContenuVersion } from '@tiktrends/core';
 import { verserSelectionDansProjet, projetsPourVersement, creerProjetEtVerser } from '../app/actions/studios/versement';
 import { lireProduitProjet } from '../app/actions/studios/produit';
 import { semer, session } from './studios-semis';
@@ -87,7 +91,7 @@ async function media(o: Partial<typeof schema.assets.$inferInsert> & { name: str
   const [a] = await db.insert(schema.assets).values({ workspaceId: ids.wsA, brandId: null, kind: 'image', url: dataUri(100 + Math.floor(Math.random() * 500)), ...o }).returning();
   return a!.id;
 }
-const entree = (o: Partial<Record<'brandId' | 'titre' | 'type' | 'role' | 'scope', unknown>> & { ids?: unknown } = {}) => ({
+const entree = (o: Partial<Record<'brandId' | 'titre' | 'type' | 'role' | 'scope' | 'saisie', unknown>> & { ids?: unknown } = {}) => ({
   brandId: ids.brandA1, titre: 'Rentrée · lunettes', type: 'ads', ids: [m.commune, m.seconde], role: 'style', scope: 'background', ...o,
 });
 /** Rien de créé ni d'écrit · aucun projet, aucune version, aucun audit. */
@@ -171,6 +175,49 @@ describe('créer un projet depuis la fenêtre, puis y verser', () => {
     const { p, v } = await courante(r.projet.id);
     expect([p.title, v.n]).toEqual(['Course', 1]);
     expect(await refs(r.projet.id)).toEqual([]);
+  });
+});
+
+describe('l’intention saisie dès la création', () => {
+  const premiere = async (projectId: string) => {
+    const [v] = await db.select().from(V).where(eq(V.projectId, projectId)).orderBy(V.n).limit(1);
+    return (v!.content as ContenuVersion).brief as unknown as BriefCanonique;
+  };
+  const saisie = { intention: 'Prouver que la preuve sociale bat la promo', objectifType: 'conversion', angle: 'Avis clients en gros plan' };
+
+  it('intention, objectif et angle · relus dans le brief en base (création ET version courante), mêmes écritures et même audit', async () => {
+    const avant = await compter(db);
+    const r = await creerProjetEtVerser(entree({ titre: 'Avec intention', saisie: { ...saisie, intention: `  ${saisie.intention}  ` } }));
+    if (!r.ok) throw new Error(JSON.stringify(r));
+    expect(r.versement).toMatchObject({ ok: true, ajoutes: 2 });
+    expect(delta(avant, await compter(db))).toEqual({ versions: 2, audit: 2 });
+    const b1 = await premiere(r.projet.id);
+    expect([b1.objective, b1.objectifType, b1.angle]).toEqual([saisie.intention, 'conversion', saisie.angle]);
+    // Le versement qui suit garde l'intention · il n'ajoute que les références.
+    const b2 = ((await courante(r.projet.id)).v.content as ContenuVersion).brief as unknown as BriefCanonique;
+    expect([b2.objective, b2.objectifType, b2.angle, b2.references.length]).toEqual([saisie.intention, 'conversion', saisie.angle, 2]);
+    const audits = await db.select({ action: schema.studioAuditEvents.action }).from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.targetId, r.projet.id));
+    expect(audits.map((a) => a.action).sort()).toEqual(['project.create', 'project.version.create']);
+  });
+
+  it('valeurs hors règle · objectif inconnu, intention ou angle trop longs, forme illisible · RIEN n’est créé, la raison est dite', async () => {
+    const cas: Array<[unknown, string]> = [
+      [{ objectifType: 'vente' }, RAISONS_INTENTION.objectif],
+      [{ intention: 'x'.repeat(OBJECTIF_MAX + 1) }, RAISONS_INTENTION.intention],
+      [{ angle: 'y'.repeat(OBJECTIF_MAX + 1) }, RAISONS_INTENTION.angle],
+      ['texte libre', RAISONS_INTENTION.forme],
+    ];
+    for (const [s, raison] of cas) {
+      expect(await rienCree(() => creerProjetEtVerser(entree({ titre: 'Refusé', saisie: s }))), raison).toMatchObject({ ok: false, code: 'INVALID_SCHEMA', violations: [{ raison }] });
+    }
+  });
+
+  it('sans intention · le brief vide d’avant, à l’identique', async () => {
+    const r = await creerProjetEtVerser(entree({ titre: 'Sans intention' }));
+    if (!r.ok) throw new Error(JSON.stringify(r));
+    expect(await premiere(r.projet.id)).toEqual(briefCreationVersement());
+    const b = await premiere(r.projet.id);
+    expect([b.objective, 'objectifType' in b, 'angle' in b]).toEqual(['', false, false]);
   });
 });
 
