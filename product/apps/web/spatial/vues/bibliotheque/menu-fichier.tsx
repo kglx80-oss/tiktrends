@@ -15,11 +15,21 @@ import { Ic, Lien } from '../../communs';
  *
  * Clavier (motif « menu bouton ») · Entrée, Espace ou Flèche bas sur « … »
  * ouvre et place le focus sur la première entrée ; Flèches haut et bas, Début
- * et Fin parcourent (en boucle) ; Flèche droite ou Entrée sur l'entrée à liste
+ * et Fin parcourent (en boucle) ; Flèche droite ou Entrée sur une entrée à liste
  * (« Déplacer vers… », « Tag de couleur ») ouvre ses options, Flèche gauche ou
  * Échap y revient ; Échap ferme et rend le focus à « … » ; Tab ou un clic
- * ailleurs ferme.
+ * ailleurs ferme. Un menu peut porter plusieurs entrées à liste (un dossier ·
+ * « Déplacer vers… » et « Tag de couleur ») · chacune a ses options (`listes`).
+ * Une option fermée (`actuel`, ou une `raison` · destination interdite) reste
+ * proposée, sans effet, avec sa phrase en infobulle.
  */
+
+/** Les options d'une entrée à liste, son nom (lecteur d'écran) et l'infobulle d'une option déjà en place. */
+export interface ListeMenu {
+  options: OptionSousMenu[];
+  libelle: string;
+  dejaIci: string;
+}
 
 export interface PropsMenuFichier<C extends string = CleMenuFichier> {
   nom: string;
@@ -36,6 +46,8 @@ export interface PropsMenuFichier<C extends string = CleMenuFichier> {
   cible?: 'fichier' | 'dossier';
   /** La liste ouverte · son nom (lecteur d'écran) et l'infobulle d'une option déjà en place. */
   liste?: { libelle: string; dejaIci: string };
+  /** Plusieurs entrées à liste · les options de CHACUNE, par clé (remplace `destinations` et `liste`). */
+  listes?: Partial<Record<C, ListeMenu>>;
   /** Où poser le bouton et le panneau · par défaut côte à côte (le bouton, puis le menu). */
   placer?: (declencheur: ReactNode, panneau: ReactNode) => ReactNode;
 }
@@ -43,7 +55,8 @@ export interface PropsMenuFichier<C extends string = CleMenuFichier> {
 const FERME: CSSProperties = { opacity: 0.5, cursor: 'not-allowed' };
 
 export function MenuFichier<C extends string = CleMenuFichier>(p: PropsMenuFichier<C>) {
-  const [vue, setVue] = useState<'principal' | 'destinations'>('principal');
+  /** La vue · le menu (`null`), ou la liste ouverte d'une entrée (sa clé). */
+  const [vue, setVue] = useState<C | null>(null);
   const [focus, setFocus] = useState(false);
   const declencheur = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -56,7 +69,7 @@ export function MenuFichier<C extends string = CleMenuFichier>(p: PropsMenuFichi
   // À chaque ouverture (ou changement de vue) · le focus entre dans le menu.
   useEffect(() => { if (p.ouvert) focaliser(cible.current); }, [p.ouvert, vue]); // eslint-disable-line react-hooks/exhaustive-deps
   // Fermé · on repart de la vue principale.
-  useEffect(() => { if (!p.ouvert) { setVue('principal'); cible.current = 0; } }, [p.ouvert]);
+  useEffect(() => { if (!p.ouvert) { setVue(null); cible.current = 0; } }, [p.ouvert]);
   // Un clic hors du menu et de son bouton le ferme.
   const { ouvert, basculer } = p;
   useEffect(() => {
@@ -71,24 +84,28 @@ export function MenuFichier<C extends string = CleMenuFichier>(p: PropsMenuFichi
   }, [ouvert, basculer]);
 
   const fermer = (rendreFocus: boolean) => { p.basculer(false); if (rendreFocus) declencheur.current?.focus(); };
-  const ouvrirDestinations = () => { cible.current = 0; setVue('destinations'); };
+  const ouvrirDestinations = (cle: C) => { cible.current = 0; setVue(cle); };
   const retour = () => {
-    cible.current = Math.max(0, p.entrees.findIndex((e) => e.sousMenu));
-    setVue('principal');
+    cible.current = Math.max(0, p.entrees.findIndex((e) => e.cle === vue));
+    setVue(null);
   };
-  const aListe = p.entrees.find((x) => x.sousMenu);
-  const liste = p.liste ?? { libelle: `Déplacer ${p.nom} vers`, dejaIci: 'Le fichier est déjà ici.' };
+  /** L'entrée dont la liste est ouverte · aucune dans la vue principale. */
+  const aListe = vue === null ? undefined : p.entrees.find((x) => x.sousMenu && x.cle === vue);
+  const listeDe = (cle: C): ListeMenu => p.listes?.[cle]
+    ?? { options: p.destinations, ...(p.liste ?? { libelle: `Déplacer ${p.nom} vers`, dejaIci: 'Le fichier est déjà ici.' }) };
+  const liste = aListe ? listeDe(aListe.cle) : null;
 
   const surTouche = (e: KeyboardEvent<HTMLDivElement>) => {
     const l = items();
     const i = l.indexOf(document.activeElement as HTMLElement);
     const n = focusMenuSuivant(e.key, i, l.length);
     if (n !== null) { e.preventDefault(); l[n]?.focus(); return; }
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (vue === 'destinations') retour(); else fermer(true); return; }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (aListe) retour(); else fermer(true); return; }
     if (e.key === 'Tab') { p.basculer(false); return; }
-    if (e.key === 'ArrowLeft' && vue === 'destinations') { e.preventDefault(); retour(); return; }
-    if (e.key === 'ArrowRight' && vue === 'principal' && aListe && (document.activeElement as HTMLElement | null)?.dataset.menu === aListe.cle) {
-      if (aListe.ouvert && !p.occupe) { e.preventDefault(); ouvrirDestinations(); }
+    if (e.key === 'ArrowLeft' && aListe) { e.preventDefault(); retour(); return; }
+    if (e.key === 'ArrowRight' && !aListe) {
+      const ici = p.entrees.find((x) => x.sousMenu && x.cle === (document.activeElement as HTMLElement | null)?.dataset.menu);
+      if (ici?.ouvert && !p.occupe) { e.preventDefault(); ouvrirDestinations(ici.cle); }
     }
   };
 
@@ -98,7 +115,7 @@ export function MenuFichier<C extends string = CleMenuFichier>(p: PropsMenuFichi
 
   const activer = (x: EntreeMenu<C>) => {
     if (!x.ouvert || p.occupe) return;
-    if (x.sousMenu) { ouvrirDestinations(); return; }
+    if (x.sousMenu) { ouvrirDestinations(x.cle); return; }
     p.agir(x.cle);
     fermer(true);
   };
@@ -137,17 +154,17 @@ export function MenuFichier<C extends string = CleMenuFichier>(p: PropsMenuFichi
     </button>
   );
   const panneau = p.ouvert && (
-    <div ref={menu} className="dmenu glass" role="menu" aria-label={vue === 'principal' ? `Actions sur ${p.nom}` : liste.libelle} style={position} onKeyDown={surTouche}>
-      {vue === 'principal' || !aListe
+    <div ref={menu} className="dmenu glass" role="menu" aria-label={aListe && liste ? liste.libelle : `Actions sur ${p.nom}`} style={position} onKeyDown={surTouche}>
+      {!aListe || !liste
         ? p.entrees.map(entree)
         : (
           <>
             <button type="button" role="menuitem" tabIndex={-1} data-menu="retour" onClick={retour}><Ic n="back" />{aListe.libelle}</button>
-            {p.destinations.map((d) => {
-              const indisponible = d.actuel || p.occupe;
+            {liste.options.map((d) => {
+              const indisponible = d.actuel || !!d.raison || p.occupe;
               return (
                 <button key={d.id ?? ':racine'} type="button" role="menuitemradio" tabIndex={-1} aria-checked={d.actuel} aria-disabled={indisponible || undefined}
-                  data-destination={d.id ?? ''} title={d.actuel ? liste.dejaIci : undefined} style={indisponible ? FERME : undefined}
+                  data-destination={d.id ?? ''} title={d.actuel ? liste.dejaIci : (d.raison ?? undefined)} style={indisponible ? FERME : undefined}
                   onClick={() => { if (indisponible) return; p.agir(aListe.cle, d.id); fermer(true); }}>
                   {d.teinte
                     ? <i aria-hidden="true" style={{ width: 12, height: 12, borderRadius: '50%', background: d.teinte, flex: 'none', margin: '0 3px' }} />

@@ -45,6 +45,8 @@ export interface DossierDrive {
   creeLe: string;
   /** Tag de couleur (`library_folders.color_tag`) · seul un dossier réel en porte un. */
   tag: CleTagCouleur | null;
+  /** La marque d'un dossier réel (`library_folders.brand_id`, null · commun à l'espace) · un déplacement ne la franchit pas. */
+  marque?: string | null;
 }
 
 export interface FichierDrive {
@@ -89,7 +91,7 @@ export interface DonneesDrive {
 
 /* ───────────────────────────── Construction ───────────────────────────── */
 
-export interface DossierSource { id: string; parentId: string | null; name: string; locked: boolean; deletedAt: string | null; createdAt: string; colorTag?: string | null }
+export interface DossierSource { id: string; parentId: string | null; name: string; locked: boolean; deletedAt: string | null; createdAt: string; colorTag?: string | null; brandId?: string | null }
 export interface MediaSource {
   id: string; name: string; kind: string; mimeType?: string | null; source: string; url: string; thumbUrl: string | null;
   sizeBytes: number | null; createdAt: string; folderId?: string | null; rights?: string | null;
@@ -125,6 +127,7 @@ export function donneesDrive(src: { dossiers: readonly DossierSource[]; medias: 
       reel: true, verrouille: d.locked, supprime: d.deletedAt != null, creeLe: d.createdAt,
       // Une valeur hors catalogue (impossible sous la contrainte CHECK) ne s'affiche pas.
       tag: estTagCouleur(d.colorTag) ? d.colorTag : null,
+      marque: d.brandId ?? null,
     });
   }
   const projets = new Map<string, DossierDrive>();
