@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   DROITS_ASSET, DROITS_PUB_AUTORISES, droitAutorisePub, estDroitAsset, libelleDroit,
   validerNomDossier, LONGUEUR_MAX_NOM_DOSSIER, arbreDossiers, peutDeplacerDossier,
+  estIdDossier, validerRenommageDossier, validerDeplacementDossier, REFUS_DOSSIER,
   type DossierPlat, type NoeudDossier,
 } from '../src/index';
 
@@ -113,5 +114,62 @@ describe('déplacement sans cycle', () => {
   });
   it('vers un autre sous-arbre : permis', () => {
     expect(peutDeplacerDossier(liste, 'b', 'autre')).toEqual({ ok: true });
+  });
+});
+
+describe('renommer · la règle de nom de la création, et le dossier système', () => {
+  it('le nom suit EXACTEMENT `validerNomDossier` (rogné, vide, trop long, caractère de contrôle)', () => {
+    const vivant = { locked: false };
+    for (const nom of ['  Hiver  ', '', '   ', 'x'.repeat(LONGUEUR_MAX_NOM_DOSSIER), 'x'.repeat(LONGUEUR_MAX_NOM_DOSSIER + 1), 'a\nb', 'a\u0007', 42, null]) {
+      expect([nom, validerRenommageDossier(vivant, nom)]).toEqual([nom, validerNomDossier(nom)]);
+    }
+    expect(validerRenommageDossier(vivant, '  Hiver 2026 ')).toEqual({ ok: true, nom: 'Hiver 2026' });
+  });
+  it('un dossier système (verrouillé) ne se renomme pas, même avec un nom valide · un dossier absent est introuvable', () => {
+    expect(validerRenommageDossier({ locked: true }, 'Nouveau')).toEqual({ ok: false, raison: REFUS_DOSSIER.systemeRenommer });
+    expect(validerRenommageDossier(null, 'Nouveau')).toEqual({ ok: false, raison: REFUS_DOSSIER.introuvable });
+    expect(validerRenommageDossier(undefined, 'Nouveau')).toEqual({ ok: false, raison: REFUS_DOSSIER.introuvable });
+  });
+});
+
+describe('déplacer · `validerDeplacementDossier` (système, soi-même, introuvable, cycle, marque)', () => {
+  const liste: DossierPlat[] = [
+    d('a', null), d('b', 'a'), d('c', 'b'), d('autre', null),
+    { ...d('sys', null), locked: true }, { ...d('mx', null), brandId: 'marque-x' }, { ...d('mx1', 'mx'), brandId: 'marque-x' },
+  ];
+  const raison = (id: string, dest: string | null) => { const v = validerDeplacementDossier(liste, id, dest); return v.ok ? 'ok' : v.raison; };
+  it('vers la racine, vers un autre sous-arbre de la même marque · permis', () => {
+    expect([raison('b', null), raison('b', 'autre'), raison('c', 'a'), raison('mx1', null)]).toEqual(['ok', 'ok', 'ok', 'ok']);
+  });
+  it('soi-même, un enfant, un petit-enfant · refusés avec leur phrase', () => {
+    expect(raison('a', 'a')).toBe(REFUS_DOSSIER.soiMeme);
+    expect(raison('a', 'b')).toBe(REFUS_DOSSIER.descendant);
+    expect(raison('a', 'c')).toBe(REFUS_DOSSIER.descendant);
+  });
+  it('une source ou une destination absente de la liste (autre espace, corbeille, inconnue) · introuvable', () => {
+    expect(raison('fantome', 'a')).toBe(REFUS_DOSSIER.introuvable);
+    expect(raison('fantome', null)).toBe(REFUS_DOSSIER.introuvable);
+    expect(raison('a', 'fantome')).toBe(REFUS_DOSSIER.destinationIntrouvable);
+  });
+  it('un dossier système ne se déplace pas (même vers la racine), et ne reçoit pas de sous-dossier', () => {
+    expect(raison('sys', null)).toBe(REFUS_DOSSIER.systemeDeplacer);
+    expect(raison('sys', 'a')).toBe(REFUS_DOSSIER.systemeDeplacer);
+    expect(raison('a', 'sys')).toBe(REFUS_DOSSIER.destinationSysteme);
+  });
+  it('une destination d’une autre marque (ou commune pour un dossier de marque) · refusée', () => {
+    expect(raison('a', 'mx')).toBe(REFUS_DOSSIER.autreMarque);
+    expect(raison('mx1', 'a')).toBe(REFUS_DOSSIER.autreMarque);
+  });
+  it('un cycle déjà présent dans les données ne fait pas boucler la règle', () => {
+    const boucle = [d('x', 'y'), d('y', 'x'), d('z', null)];
+    expect(validerDeplacementDossier(boucle, 'z', 'x')).toEqual({ ok: true });
+    expect(validerDeplacementDossier(boucle, 'x', 'y')).toEqual({ ok: false, raison: REFUS_DOSSIER.descendant });
+  });
+});
+
+describe('estIdDossier · un UUID, jamais un dossier virtuel', () => {
+  it('UUID (toute casse) admis · racine, projet Studios, vide, autre type refusés', () => {
+    expect(['11111111-1111-4111-8111-111111111111', 'AAAAAAAA-1111-4111-8111-111111111111'].map(estIdDossier)).toEqual([true, true]);
+    expect(['r:assets', 'p:1', '', ' 11111111-1111-4111-8111-111111111111', 7, null, undefined].map(estIdDossier)).toEqual([false, false, false, false, false, false, false]);
   });
 });

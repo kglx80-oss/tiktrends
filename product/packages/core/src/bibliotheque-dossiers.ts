@@ -9,7 +9,10 @@
  *      droits passent en publicité » (`droitAutorisePub`) ;
  *   2. la validation du nom de dossier (`validerNomDossier`) ;
  *   3. la projection d'une liste plate en ARBRE (`arbreDossiers`) et la règle de
- *      déplacement sans cycle (`peutDeplacerDossier`).
+ *      déplacement sans cycle (`peutDeplacerDossier`) ;
+ *   4. les règles des GESTES sur un dossier existant · renommer
+ *      (`validerRenommageDossier`) et déplacer (`validerDeplacementDossier`),
+ *      partagées par les actions serveur et par le menu « … » de l'écran.
  */
 
 /* ───────────────────────────── Droits d'usage ──────────────────────────────
@@ -161,5 +164,80 @@ export function peutDeplacerDossier(
   if (idEstAncetreDe(parents, id, nouveauParentId)) {
     return { ok: false, raison: 'On ne peut pas déplacer un dossier dans l’un de ses sous-dossiers.' };
   }
+  return { ok: true };
+}
+
+/* ───────────────────────────── Gestes sur un dossier ─────────────────────── */
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Un identifiant de dossier RÉEL (`library_folders.id`, un UUID) ? Un dossier
+ * virtuel de l'écran (une racine `r:…`, un projet Studios `p:…`) ne l'est
+ * jamais · l'action le refuse comme un inconnu, sans interroger la base (la
+ * colonne `uuid` lèverait sur une valeur illisible).
+ */
+export function estIdDossier(x: unknown): x is string {
+  return typeof x === 'string' && UUID.test(x);
+}
+
+/** Les phrases des gestes · les MÊMES à l'écran (raison d'un geste fermé) et dans le refus du serveur. */
+export const REFUS_DOSSIER = {
+  introuvable: 'Dossier introuvable.',
+  destinationIntrouvable: 'Dossier de destination introuvable.',
+  systemeRenommer: 'Ce dossier système ne peut pas être renommé.',
+  systemeDeplacer: 'Ce dossier système ne peut pas être déplacé.',
+  destinationSysteme: 'Un dossier système ne reçoit pas de sous-dossier.',
+  soiMeme: 'Un dossier ne peut pas être son propre parent.',
+  descendant: 'On ne peut pas déplacer un dossier dans l’un de ses sous-dossiers.',
+  autreMarque: 'Le dossier de destination appartient à une autre marque.',
+} as const;
+
+/**
+ * Renommer un dossier · le dossier (vivant, de l'espace, relu par l'appelant ·
+ * `null` s'il ne l'est pas) et le nom saisi. Un dossier système (verrouillé)
+ * ne se renomme pas ; le nom suit EXACTEMENT la règle de la création
+ * (`validerNomDossier` · rogné, non vide, au plus `LONGUEUR_MAX_NOM_DOSSIER`
+ * caractères, sans caractère de contrôle). La création n'impose pas l'unicité
+ * entre frères · le renommage non plus (deux « Hiver » sous deux marques, ou
+ * côte à côte, restent permis comme à la création).
+ */
+export function validerRenommageDossier(dossier: Pick<DossierPlat, 'locked'> | null | undefined, nom: unknown): ValidationNom {
+  if (!dossier) return { ok: false, raison: REFUS_DOSSIER.introuvable };
+  if (dossier.locked) return { ok: false, raison: REFUS_DOSSIER.systemeRenommer };
+  return validerNomDossier(nom);
+}
+
+/**
+ * Déplacer `id` sous `nouveauParentId` (`null` · à la racine de l'espace) ·
+ * calculé sur la liste des dossiers VIVANTS de l'espace (l'action la relit en
+ * base, dans sa transaction ; l'écran la projette depuis ses données). Dans
+ * l'ordre :
+ *  · le dossier est dans la liste (sinon introuvable · un dossier d'un autre
+ *    espace, en corbeille ou virtuel reçoit la même phrase qu'un inconnu) ;
+ *  · il n'est pas système (verrouillé) ;
+ *  · vers la racine · permis ;
+ *  · la destination n'est pas lui-même, est dans la liste (une destination en
+ *    corbeille ou d'un autre espace est introuvable), n'est pas système ;
+ *  · la destination n'est pas l'un de ses DESCENDANTS (cycle · `peutDeplacerDossier`) ;
+ *  · la destination porte la même marque (un sous-arbre reste dans une seule
+ *    marque, comme à la création · un dossier hérite de la marque de son parent).
+ */
+export function validerDeplacementDossier(
+  dossiers: readonly DossierPlat[],
+  id: string,
+  nouveauParentId: string | null,
+): DeplacementDossier {
+  const source = dossiers.find((d) => d.id === id);
+  if (!source) return { ok: false, raison: REFUS_DOSSIER.introuvable };
+  if (source.locked) return { ok: false, raison: REFUS_DOSSIER.systemeDeplacer };
+  if (nouveauParentId == null) return { ok: true };
+  if (nouveauParentId === id) return { ok: false, raison: REFUS_DOSSIER.soiMeme };
+  const dest = dossiers.find((d) => d.id === nouveauParentId);
+  if (!dest) return { ok: false, raison: REFUS_DOSSIER.destinationIntrouvable };
+  if (dest.locked) return { ok: false, raison: REFUS_DOSSIER.destinationSysteme };
+  const cycle = peutDeplacerDossier(dossiers, id, nouveauParentId);
+  if (!cycle.ok) return { ok: false, raison: REFUS_DOSSIER.descendant };
+  if ((dest.brandId ?? null) !== (source.brandId ?? null)) return { ok: false, raison: REFUS_DOSSIER.autreMarque };
   return { ok: true };
 }

@@ -10,10 +10,11 @@ import {
   actionsApercuFichier, compteCorbeille, confirmationCorbeille, messageCorbeille, versementApercu,
   menuFichier, destinationsDeplacement, vueUtiliseDans, type CleMenuFichier, type UtilisationsBibliotheque,
   menuDossier, optionsTagDossier, boutonTagSurCarte, gesteTelechargement, type CleMenuDossier,
+  destinationsDeplacementDossier, validerNomDossier,
   ATTRIBUT_ZONE_TACTILE,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction } from '../../../app/actions/assets';
-import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction } from '../../../app/actions/bibliotheque-dossiers';
+import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction, renommerDossierAction, deplacerDossierAction } from '../../../app/actions/bibliotheque-dossiers';
 import { syncDriveNowAction } from '../../../app/actions/drive';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
@@ -67,10 +68,12 @@ import { UtiliseDans } from './utilise-dans';
  *
  * Le menu « … » d'une carte de DOSSIER (grille, dans ses actions `facts`) et
  * d'une ligne (liste) · même composant, même clavier · porte à l'unité Ouvrir,
- * Télécharger (l'archive du dossier, `useArchive`), Mettre à la corbeille ou
- * Restaurer, et le tag de couleur là où la carte n'a pas son bouton (la liste) ·
- * décidés au noyau par la règle de la barre appliquée à ce seul dossier
- * (`menuDossier`). Aucun renommage · aucune action ne le porte.
+ * Renommer (petite fenêtre · Entrée valide, Échap annule · `renommerDossierAction`),
+ * Déplacer vers… (la liste de rangement des fichiers, destinations interdites
+ * fermées avec leur raison · `deplacerDossierAction`), Télécharger (l'archive
+ * du dossier, `useArchive`), Mettre à la corbeille ou Restaurer, et le tag de
+ * couleur là où la carte n'a pas son bouton (la liste) · décidés au noyau
+ * (`menuDossier`, `destinationsDeplacementDossier`).
  *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
@@ -209,6 +212,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const [versementFichier, setVersementFichier] = useState<string | null>(null);
   /** Le fichier ou le dossier dont le menu « … » est ouvert · un seul à la fois. */
   const [menuOuvert, setMenuOuvert] = useState<string | null>(null);
+  /** Le dossier en cours de renommage · la saisie et le refus éventuel (règle du noyau ou du serveur). */
+  const [renommage, setRenommage] = useState<{ id: string; nom: string; saisie: string; erreur: string | null } | null>(null);
   const [lien, setLien] = useState<{ texte: string; nom: string; type: TypeImportLien }>({ texte: '', nom: '', type: 'video' });
   const fichierRef = useRef<HTMLInputElement>(null);
   const maintenant = useMemo(() => new Date(p.maintenant), [p.maintenant]);
@@ -450,7 +455,11 @@ export function Bibliotheque(p: PropsBibliotheque) {
     const e = menuDossier(p.donnees, d.id, { section: etat.section, lectureSeule: p.lectureSeule, variante }).find((x) => x.cle === cle);
     if (!e?.ouvert || occupe) return;
     if (cle === 'ouvrir') aller(d.id);
-    else if (cle === 'tag') {
+    else if (cle === 'renommer') setRenommage({ id: d.id, nom: d.nom, saisie: d.nom, erreur: null });
+    else if (cle === 'deplacer') {
+      const o = destinationsDeplacementDossier(p.donnees, d.id).find((x) => x.id === (option ?? null));
+      if (o && !o.actuel && !o.raison) await deplacerDossier(d, o.id, o.nom);
+    } else if (cle === 'tag') {
       const o = optionsTagDossier(p.donnees, d.id).find((x) => x.id === (option ?? null));
       if (o && !o.actuel) await poserTag(d, o.id as CleTagCouleur | null);
     } else if (cle === 'telecharger') {
@@ -459,6 +468,39 @@ export function Bibliotheque(p: PropsBibliotheque) {
       setOccupe(true);
       try { await archiver(g); } finally { setOccupe(false); }
     } else await corbeilleDossier(d, cle);
+  }
+
+  /** « Déplacer vers… » d'un dossier · une seule action (relue et jugée en base, dans sa transaction). */
+  async function deplacerDossier(d: CarteDossierDrive, parentId: string | null, dans: string) {
+    if (!ecriture || occupe) return;
+    setOccupe(true);
+    const r = await deplacerDossierAction({ id: d.id, parentId }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(`« ${d.nom} » déplacé dans « ${dans} »`);
+    rafraichir();
+  }
+
+  /** Ferme la fenêtre de renommage · le focus revient au « … » du dossier. */
+  const fermerRenommage = () => {
+    const nom = renommage?.nom;
+    setRenommage(null);
+    if (nom != null) [...document.querySelectorAll<HTMLElement>('[data-menu-dossier]')].find((b) => b.getAttribute('aria-label') === `Actions sur ${nom}`)?.focus();
+  };
+
+  /** « Renommer » · la règle de nom du noyau d'abord (aucun appel pour un nom refusé), puis l'action · son refus reste dans la fenêtre. */
+  async function renommerDossier() {
+    if (!renommage || !ecriture || occupe) return;
+    const v = validerNomDossier(renommage.saisie);
+    if (!v.ok) { setRenommage({ ...renommage, erreur: v.raison }); return; }
+    if (v.nom === renommage.nom) { fermerRenommage(); return; }
+    setOccupe(true);
+    const r = await renommerDossierAction({ id: renommage.id, nom: v.nom }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; nom?: string; error?: string }));
+    setOccupe(false);
+    if (r.error) { setRenommage((x) => (x ? { ...x, erreur: r.error! } : x)); return; }
+    fermerRenommage();
+    toast(`Dossier renommé en « ${r.nom ?? v.nom} »`);
+    rafraichir();
   }
 
   async function poserTag(d: CarteDossierDrive, tag: CleTagCouleur | null) {
@@ -580,8 +622,11 @@ export function Bibliotheque(p: PropsBibliotheque) {
       <MenuFichier<CleMenuDossier>
         nom={d.nom} variante={variante === 'grille' ? 'dossier' : 'liste'} cible="dossier" occupe={occupe} ouvert={ouvert} placer={placer}
         entrees={ouvert ? menuDossier(p.donnees, d.id, { section: etat.section, lectureSeule: p.lectureSeule, variante }) : []}
-        destinations={ouvert ? optionsTagDossier(p.donnees, d.id) : []}
-        liste={{ libelle: `Tag de couleur de ${d.nom}`, dejaIci: 'Le dossier porte déjà ce tag.' }}
+        destinations={[]}
+        listes={ouvert ? {
+          tag: { options: optionsTagDossier(p.donnees, d.id), libelle: `Tag de couleur de ${d.nom}`, dejaIci: 'Le dossier porte déjà ce tag.' },
+          deplacer: { options: destinationsDeplacementDossier(p.donnees, d.id), libelle: `Déplacer ${d.nom} vers`, dejaIci: 'Le dossier est déjà ici.' },
+        } : undefined}
         basculer={(o) => setMenuOuvert((m) => (o ? d.id : m === d.id ? null : m))}
         agir={(cle, option) => void agirMenuDossier(d, variante, cle, option)}
       />
@@ -922,6 +967,19 @@ export function Bibliotheque(p: PropsBibliotheque) {
           </aside>
         )}
       </div>
+      {ecriture && (
+        <DialogueSpatial titre="Renommer le dossier" ouvert={renommage !== null} fermer={fermerRenommage}>
+          {renommage && (
+            <form style={{ display: 'grid', gap: 10 }} data-renommer-dossier={renommage.id} onSubmit={(e) => { e.preventDefault(); void renommerDossier(); }}>
+              <input value={renommage.saisie} autoFocus aria-label={`Nouveau nom de ${renommage.nom}`} aria-invalid={renommage.erreur ? true : undefined}
+                onFocus={(e) => e.currentTarget.select()} onChange={(e) => { const saisie = e.target.value; setRenommage((x) => (x ? { ...x, saisie, erreur: null } : x)); }}
+                style={{ padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)' }} />
+              {renommage.erreur && <p role="alert" style={{ fontSize: '12.5px', margin: 0, color: 'var(--bad)' }}>{renommage.erreur}</p>}
+              <div className="pbtns"><button className="btn" type="button" onClick={fermerRenommage}>Annuler</button><button className="btn pri" type="submit" disabled={occupe}>Renommer</button></div>
+            </form>
+          )}
+        </DialogueSpatial>
+      )}
       {ecriture && <FenetreVersement ouvert={versement || versementFichier !== null} fermer={() => { setVersement(false); setVersementFichier(null); }} donnees={p.donnees} fichiers={fichiersVersement} />}
       {g && (
         <DialogueSpatial titre="Importer par lien" ouvert={dialogueLien} fermer={() => setDialogueLien(false)}>
