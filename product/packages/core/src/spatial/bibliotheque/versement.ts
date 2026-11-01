@@ -1,10 +1,11 @@
 import { droitAutorisePub } from '../../bibliotheque-dossiers';
-import type { BriefCanonique, PorteeReference, ReferenceBrief, RoleReference } from '../../studios/brief';
+import { OBJECTIFS_V5, validerFormeBrief, type BriefCanonique, type ObjectifType, type PorteeReference, type ReferenceBrief, type RoleReference } from '../../studios/brief';
+import { OBJECTIF_MAX } from '../../studios/anciennes-adresses';
 import type { ViolationStudio } from '../../studios/document';
 import { idBibliotheque, type FichierCatalogue } from '../../studios/produit/catalogue';
 import type { ReferenceProduitEpinglee } from '../../studios/produit/epinglage';
 import { ajouterAssociation, estPortee, estRole, LIBELLES_ROLE, ROLES_REFERENCE } from '../../studios/produit/references';
-import { construireBriefV5, saisieBriefVide } from '../../studios/ux/assistant-projet';
+import { construireBriefV5, saisieBriefVide, type SaisieBriefV5 } from '../../studios/ux/assistant-projet';
 import { verifierNouveauProjet, type TypeNouveauProjet } from '../../studios/ux/nouveau-projet';
 import type { DonneesDrive } from './drive';
 import { gestesSelection, validerSelectionFichiers } from './selection';
@@ -35,6 +36,9 @@ import { gestesSelection, validerSelectionFichiers } from './selection';
  *  · la création d'un projet depuis la fenêtre (`validerCreationVersement`,
  *    `briefCreationVersement`, `messageCreationVersement`) · même règle de nom
  *    que « Nouveau projet » (`verifierNouveauProjet`), puis le même versement ;
+ *  · l'intention saisie dès cette création (`validerIntentionCreation`,
+ *    `phraseBriefCreation`) · trois champs FACULTATIFS de l'étape brief de
+ *    l'assistant, mêmes bornes, même composition (`construireBriefV5`) ;
  *  · ce qui manque avant de pouvoir verser (`raisonVersement`).
  */
 
@@ -118,34 +122,108 @@ function validerGeste(x: Record<string, unknown>): { ok: true; ids: string[]; ro
 
 export const RAISON_MARQUE_CREATION = 'Choisis la marque du projet.';
 
-export type EntreeCreationVersementValide = { ok: true; brandId: string; titre: string; type: TypeNouveauProjet; ids: string[]; role: RoleReference; scope: PorteeReference };
+/**
+ * L'intention saisie dès la création depuis la fenêtre · les TROIS premiers
+ * champs de l'étape brief de l'assistant de création (`SaisieBriefV5`, écran
+ * « Nouveau projet ») qui disent ce que le projet doit prouver : « Ton
+ * intention » (devient `objective`, le seul champ que la complétude du projet
+ * exige), l'objectif typé (`objectifType`, valeurs `OBJECTIFS_V5`) et l'angle
+ * (l'idée testée, première pierre d'une hypothèse). Tous FACULTATIFS · vides,
+ * le brief reste celui d'avant (`briefCreationVersement()`).
+ */
+export type IntentionCreation = Pick<SaisieBriefV5, 'intention' | 'objectifType' | 'angle'>;
+
+export function intentionCreationVide(): IntentionCreation {
+  return { intention: '', objectifType: null, angle: '' };
+}
+
+/** Au moins un champ de l'intention est renseigné · sinon la création reste celle d'avant. */
+export function intentionRenseignee(s: IntentionCreation): boolean {
+  return s.intention.trim().length > 0 || s.objectifType !== null || s.angle.trim().length > 0;
+}
+
+/**
+ * Les bornes · celles des champs de l'étape brief (`OBJECTIF_MAX` · « Ton
+ * intention » et « Angle » de l'écran « Nouveau projet »), les valeurs
+ * autorisées de l'objectif (`OBJECTIFS_V5`). Aucune seconde règle.
+ */
+export const RAISONS_INTENTION = {
+  forme: 'L’intention du projet est illisible · recommence la saisie.',
+  intention: `Intention trop longue · ${OBJECTIF_MAX} caractères au plus.`,
+  objectif: 'Choisis un objectif de la liste · notoriété, considération, conversion ou fidélisation.',
+  angle: `Angle trop long · ${OBJECTIF_MAX} caractères au plus.`,
+  brief: 'Le brief n’a pas la forme attendue · vérifie les champs saisis.',
+} as const;
+
+/**
+ * Ce que la création accepte comme intention · absente (`undefined`/`null`) =
+ * vide ; sinon des textes dans la borne de l'écran et un objectif de la liste
+ * (ou aucun). Une valeur hors règle est REFUSÉE (jamais tronquée ni ignorée en
+ * silence) · rien n'est créé.
+ */
+export function validerIntentionCreation(x: unknown): { ok: true; intention: IntentionCreation } | { ok: false; raison: string } {
+  if (x === undefined || x === null) return { ok: true, intention: intentionCreationVide() };
+  if (typeof x !== 'object' || Array.isArray(x)) return { ok: false, raison: RAISONS_INTENTION.forme };
+  const o = x as Record<string, unknown>;
+  const texte = (v: unknown): string | null => (v === undefined || v === null ? '' : typeof v === 'string' ? v : null);
+  const intention = texte(o.intention);
+  if (intention === null) return { ok: false, raison: RAISONS_INTENTION.forme };
+  if (intention.length > OBJECTIF_MAX) return { ok: false, raison: RAISONS_INTENTION.intention };
+  const angle = texte(o.angle);
+  if (angle === null) return { ok: false, raison: RAISONS_INTENTION.forme };
+  if (angle.length > OBJECTIF_MAX) return { ok: false, raison: RAISONS_INTENTION.angle };
+  const ot = o.objectifType;
+  if (ot !== undefined && ot !== null && ot !== '' && !(OBJECTIFS_V5 as readonly unknown[]).includes(ot)) return { ok: false, raison: RAISONS_INTENTION.objectif };
+  const objectifType = ot === undefined || ot === null || ot === '' ? null : (ot as ObjectifType);
+  return { ok: true, intention: { intention, objectifType, angle } };
+}
+
+export type EntreeCreationVersementValide = {
+  ok: true; brandId: string; titre: string; type: TypeNouveauProjet; ids: string[]; role: RoleReference; scope: PorteeReference;
+  /** L'intention relue · vide quand rien n'est saisi (le brief d'avant). */
+  intention: IntentionCreation;
+};
 
 /**
  * « Nouveau projet » depuis la fenêtre de versement · ce que l'action accepte
  * AVANT de créer quoi que ce soit : la marque (UUID · sa PORTÉE est revérifiée
  * par la création canonique `creerProjet`), le titre et le type par la règle de
- * « Nouveau projet » (`verifierNouveauProjet`), puis les fichiers, le rôle et la
- * portée par la règle du versement. Un seul écart et RIEN n'est créé.
+ * « Nouveau projet » (`verifierNouveauProjet`), l'intention facultative
+ * (`validerIntentionCreation`, puis la forme du brief composé · la vérification
+ * de l'assistant), puis les fichiers, le rôle et la portée par la règle du
+ * versement. Un seul écart et RIEN n'est créé.
  */
 export function validerCreationVersement(e: unknown): EntreeCreationVersementValide | { ok: false; raison: string } {
   const x = (typeof e === 'object' && e !== null ? e : {}) as Record<string, unknown>;
   if (typeof x.brandId !== 'string' || !UUID.test(x.brandId)) return { ok: false, raison: RAISON_MARQUE_CREATION };
   const n = verifierNouveauProjet({ titre: typeof x.titre === 'string' ? x.titre : '', type: typeof x.type === 'string' ? x.type : '' });
   if (!n.ok) return { ok: false, raison: n.message };
+  const i = validerIntentionCreation(x.saisie);
+  if (!i.ok) return i;
+  if (validerFormeBrief(briefCreationVersement(i.intention)).length) return { ok: false, raison: RAISONS_INTENTION.brief };
   const g = validerGeste(x);
   if (!g.ok) return g;
-  return { ...g, brandId: x.brandId.toLowerCase(), titre: n.titre, type: n.type };
+  return { ...g, brandId: x.brandId.toLowerCase(), titre: n.titre, type: n.type, intention: i.intention };
 }
 
 /**
- * Le brief écrit à la création depuis la fenêtre · le brief VIDE de l'assistant
- * (`construireBriefV5` sur une saisie vide, les treize champs canoniques) ·
- * sans lui, le projet n'aurait pas de brief où ranger ses références et le
- * versement serait refusé. L'objectif reste à préciser dans le projet (la
- * complétude le dit), rien n'est inventé.
+ * Le brief écrit à la création depuis la fenêtre · le brief de l'assistant
+ * (`construireBriefV5`, les treize champs canoniques) composé depuis
+ * l'intention saisie, VIDE si rien n'est saisi · sans lui, le projet n'aurait
+ * pas de brief où ranger ses références et le versement serait refusé. Ce qui
+ * n'est pas saisi reste à préciser dans le projet (la complétude le dit), rien
+ * n'est inventé.
  */
-export function briefCreationVersement(): BriefCanonique {
-  return construireBriefV5(saisieBriefVide());
+export function briefCreationVersement(intention: IntentionCreation = intentionCreationVide()): BriefCanonique {
+  return construireBriefV5({ ...saisieBriefVide(), intention: intention.intention, objectifType: intention.objectifType, angle: intention.angle });
+}
+
+/** La phrase sous les champs de création · ce que le brief emporte, et ce qui restera à préciser. */
+export function phraseBriefCreation(marque: string, s: IntentionCreation): string {
+  const tete = `Projet de la marque ${marque}`;
+  if (s.intention.trim()) return `${tete} · ton intention ouvre son brief, le reste se précise dans le projet.`;
+  if (intentionRenseignee(s)) return `${tete} · sans intention, l’objectif de son brief reste à préciser dans le projet.`;
+  return `${tete} · son brief reste à préciser dans le projet.`;
 }
 
 /** Une ligne `assets` relue dans l'espace de la session (jamais prise du navigateur). */
@@ -250,12 +328,13 @@ export type ModeVersement = 'existant' | 'nouveau';
 /**
  * Ce qui manque avant de pouvoir verser · null = le bouton est ouvert. Dans un
  * projet existant : un projet ; dans un nouveau projet : la marque (état
- * « prêt » de « Nouveau projet »), le titre et le type (`verifierNouveauProjet`).
+ * « prêt » de « Nouveau projet »), le titre et le type (`verifierNouveauProjet`),
+ * l'intention facultative dans ses bornes (`validerIntentionCreation`).
  * Puis le rôle et la portée, jamais déduits.
  */
 export function raisonVersement(e: {
   occupe: boolean; selection: Pick<VersementSelection, 'versables' | 'phrase'>; mode: ModeVersement;
-  projectId: string; creation: { marque: boolean; titre: string; type: string }; role: string; scope: string;
+  projectId: string; creation: { marque: boolean; titre: string; type: string; saisie?: unknown }; role: string; scope: string;
 }): string | null {
   if (e.occupe) return 'Versement en cours…';
   if (!e.selection.versables.length) return e.selection.phrase;
@@ -264,6 +343,8 @@ export function raisonVersement(e: {
     if (!e.creation.marque) return RAISON_MARQUE_CREATION;
     const n = verifierNouveauProjet({ titre: e.creation.titre, type: e.creation.type });
     if (!n.ok) return n.message;
+    const i = validerIntentionCreation(e.creation.saisie);
+    if (!i.ok) return i.raison;
   }
   if (!e.role) return RAISONS_VERSEMENT.role;
   if (!e.scope) return RAISONS_VERSEMENT.portee;

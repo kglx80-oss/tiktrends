@@ -474,7 +474,7 @@ function Brief({ marque, titre, onTitre, titreVerrouille, verrouille, saisie, ma
               {personas.length === 0 && <span className="faint" style={{ fontWeight: 400 }}>Aucun persona Adsmap pour cette marque · tu peux en créer depuis la fiche marque.</span>}
             </label>
             <label className="field">Angle
-              <input data-champ="angle" value={saisie.angle} maxLength={2000} placeholder="L’idée qui porte la publicité" onChange={(e) => maj({ angle: e.target.value })} />
+              <input data-champ="angle" value={saisie.angle} maxLength={OBJECTIF_MAX} placeholder="L’idée qui porte la publicité" onChange={(e) => maj({ angle: e.target.value })} />
             </label>
             <label className="field">Concept
               <input data-champ="concept" value={saisie.concept} maxLength={2000} placeholder="La traduction visuelle de l’angle" onChange={(e) => maj({ concept: e.target.value })} />
