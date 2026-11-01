@@ -378,14 +378,15 @@ describe('A2 · un objet d’un autre espace ne s’enregistre pas et ne se supp
     });
     etat.session = session(ids, 'ub');
     for (const url of variantes()) {
-      const [l] = await db.insert(schema.assets).values({ workspaceId: ids.wsB, name: 'ancien', kind: 'image', source: 'upload', url }).returning();
+      // En corbeille · seule une ligne de la corbeille se supprime définitivement.
+      const [l] = await db.insert(schema.assets).values({ workspaceId: ids.wsB, name: 'ancien', kind: 'image', source: 'upload', url, deletedAt: new Date() }).returning();
       expect(await deleteAssetAction({ id: l!.id }), url).toEqual({ ok: true });
       expect(await db.select().from(schema.assets).where(eq(schema.assets.id, l!.id)), url).toEqual([]);
     }
     expect(appels, 'requête envoyée au bucket pour un objet d’un autre espace').toEqual([]);
 
     // Témoin : l'objet de l'espace, lui, est bien supprimé du bucket · une seule requête, sur SA clé.
-    const [mien] = await db.insert(schema.assets).values({ workspaceId: ids.wsB, name: 'mien', kind: 'image', source: 'upload', url: `${BASE}/assets/${ids.wsB}/2-cd-mien.png` }).returning();
+    const [mien] = await db.insert(schema.assets).values({ workspaceId: ids.wsB, name: 'mien', kind: 'image', source: 'upload', url: `${BASE}/assets/${ids.wsB}/2-cd-mien.png`, deletedAt: new Date() }).returning();
     expect(await deleteAssetAction({ id: mien!.id })).toEqual({ ok: true });
     expect(appels).toEqual([{ url: `https://s3.test/bucket/assets/${ids.wsB}/2-cd-mien.png`, method: 'DELETE' }]);
   });

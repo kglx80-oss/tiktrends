@@ -62,29 +62,28 @@ describe('les gestes selon la composition', () => {
     expect(s.note).toBe('Les gestes des fichiers (déplacer, droits et IA) ne s’appliquent pas à un dossier.');
   });
 
-  it('FICHIERS seuls · déplacer, droits, IA ouverts ; « les fichiers ne portent pas de tag », pas de corbeille', () => {
+  it('FICHIERS seuls · corbeille, déplacer, droits, IA ouverts ; « les fichiers ne portent pas de tag »', () => {
     const s = gestesSelection(d, ['m1', 'm2'], DRIVE);
     expect(s.composition).toBe('fichiers');
-    expect(ouverts(s)).toEqual(['ranger', 'droits', 'ia']);
+    expect(ouverts(s)).toEqual(['corbeille', 'ranger', 'droits', 'ia']);
     expect(raison(s, 'tag')).toBe('Les fichiers ne portent pas de tag · seuls les dossiers en portent un.');
-    expect(raison(s, 'corbeille')).toBe('La corbeille ne reçoit que des dossiers · un fichier se supprime depuis son aperçu.');
-    expect(s.note).toBe('Les fichiers ne portent pas de tag et ne vont pas à la corbeille · un fichier se supprime depuis son aperçu.');
+    expect(s.note).toBe('Les fichiers ne portent pas de tag · à la corbeille, ils restent restaurables.');
   });
 
   it('MIXTE · chaque geste ouvert vise sa part, la phrase dit laquelle', () => {
     const s = gestesSelection(d, ['a', 'm1', 'm2'], DRIVE);
     expect(s.composition).toBe('mixte');
     expect(ouverts(s)).toEqual(['corbeille', 'tag', 'ranger', 'droits', 'ia']);
-    expect(s.note).toBe('Sélection mixte · corbeille et tag pour 1 dossier, déplacer, droits et IA pour 2 fichiers.');
+    expect(s.note).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, déplacer, droits et IA pour 2 fichiers.');
   });
 
   it('sans les gestes IA de l’écran · « Servir à l’IA » n’apparaît pas, la phrase ne le cite pas', () => {
     const s = gestesSelection(d, ['a', 'm1'], { ...DRIVE, ia: false });
     expect(s.gestes.map((g) => g.cle)).toEqual(['corbeille', 'tag', 'ranger', 'droits']);
-    expect(s.note).toBe('Sélection mixte · corbeille et tag pour 1 dossier, déplacer et droits pour 1 fichier.');
+    expect(s.note).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, déplacer et droits pour 1 fichier.');
   });
 
-  it('CORBEILLE · seul « Restaurer », sur les dossiers jetés · un fichier n’y est jamais', () => {
+  it('CORBEILLE · seul « Restaurer », sur les dossiers jetés · un fichier VIVANT n’y est jamais', () => {
     const s = gestesSelection(d, ['x', 'm1'], { ...DRIVE, section: 'corbeille' });
     expect(s.gestes.map((g) => [g.cle, g.ouvert])).toEqual([['restaurer', true]]);
     expect(s.dossiers).toEqual([{ id: 'x', nom: 'Jeté' }]);
@@ -115,13 +114,13 @@ describe('les gestes selon la composition', () => {
     expect(gestesSelection(d, ['m1', 'm6'], DRIVE).inviteDroits).toBe('Droits d’usage…');
   });
 
-  it(`au-delà de ${TAG_SELECTION_MAX} fichiers · déplacer, droits, IA fermés AVANT le clic, avec la phrase de l’action`, () => {
+  it(`au-delà de ${TAG_SELECTION_MAX} fichiers · corbeille, déplacer, droits, IA fermés AVANT le clic, avec la phrase de l’action`, () => {
     const beaucoup = donneesDrive({ dossiers: [], medias: Array.from({ length: TAG_SELECTION_MAX + 1 }, () => media(null)) });
     const ids = beaucoup.fichiers.map((f) => f.id);
     const s = gestesSelection(beaucoup, ids, DRIVE);
-    expect(['ranger', 'droits', 'ia'].map((c) => raison(s, c))).toEqual(Array(3).fill(refusSelectionFichiersTropLarge(TAG_SELECTION_MAX + 1)));
+    expect(['corbeille', 'ranger', 'droits', 'ia'].map((c) => raison(s, c))).toEqual(Array(4).fill(refusSelectionFichiersTropLarge(TAG_SELECTION_MAX + 1)));
     expect(s.note).toBe(refusSelectionFichiersTropLarge(TAG_SELECTION_MAX + 1));
-    expect(ouverts(gestesSelection(beaucoup, ids.slice(1), DRIVE))).toEqual(['ranger', 'droits', 'ia']);
+    expect(ouverts(gestesSelection(beaucoup, ids.slice(1), DRIVE))).toEqual(['corbeille', 'ranger', 'droits', 'ia']);
   });
 
   it(`au-delà de ${TAG_SELECTION_MAX} dossiers · le tag fermé, la phrase de la barre le dit`, () => {

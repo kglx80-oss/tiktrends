@@ -232,10 +232,12 @@ describe('M4 · objet partagé, clé Drive', () => {
     });
     etat.session = session(ids, 'ub');
     const url = `${BASE}/assets/${ids.wsB}/3-ef-partage.png`;
-    const un = await poser({ url }, ids.wsB);
+    // La suppression définitive est réservée à la corbeille · les deux lignes y sont mises une à une.
+    const un = await poser({ url, deletedAt: new Date() }, ids.wsB);
     const deux = await poser({ url }, ids.wsB);
     expect(await deleteAssetAction({ id: un })).toEqual({ ok: true });
     expect(appels, 'objet supprimé alors qu’une autre ligne le référence').toEqual([]);
+    await db.update(schema.assets).set({ deletedAt: new Date() }).where(eq(schema.assets.id, deux));
     expect(await deleteAssetAction({ id: deux })).toEqual({ ok: true });
     expect(appels).toEqual([{ url: `https://s3.test/bucket/assets/${ids.wsB}/3-ef-partage.png`, method: 'DELETE' }]);
   });

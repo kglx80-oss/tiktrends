@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, inArray, or, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, isNull, isNotNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
@@ -15,7 +15,7 @@ import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
 import { assetAiUrl } from '../../lib/asset-ai-url';
 import { lireDebutObjetEspace } from '@tiktrends/integrations';
-import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection } from '@tiktrends/core';
+import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection, validerSelectionFichiers, REFUS_SUPPRESSION_HORS_CORBEILLE } from '@tiktrends/core';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
@@ -100,13 +100,17 @@ function toItem(r: {
  * Liste les assets. Par défaut, scope sur la MARQUE active (+ assets communs sans marque) :
  * chaque marque voit sa propre bibliothèque. Sans marque active, renvoie tout l'espace.
  * `brandOnly` force le strict-marque (exclut les communs).
+ *
+ * Corbeille · un fichier mis à la corbeille (`deleted_at` posé) n'est JAMAIS
+ * rendu par défaut ; `corbeille: true` rend au contraire les seuls fichiers de
+ * la corbeille (section « Corbeille » de la Bibliothèque), même portée.
  */
-export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean; limit?: number }): Promise<AssetItem[]> {
+export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean; limit?: number; corbeille?: boolean }): Promise<AssetItem[]> {
   const g = await gardeLectureBibliotheque();
   if ('error' in g) return [];
   const { s } = g;
   if (!db) return [];
-  const conds = [eq(schema.assets.workspaceId, s.workspaceId)];
+  const conds = [eq(schema.assets.workspaceId, s.workspaceId), filter?.corbeille ? isNotNull(schema.assets.deletedAt) : isNull(schema.assets.deletedAt)];
   if (filter?.kind) conds.push(eq(schema.assets.kind, filter.kind));
   const brand = await getActiveBrand(s.workspaceId);
   if (brand) {
@@ -275,6 +279,75 @@ export async function basculerAssetsIaAction(input: { ids: string[]; useForAi: b
   }
 }
 
+/** La phrase d'une sélection de fichiers dont un identifiant n'est pas éligible · la même qu'un inconnu. */
+const SELECTION_INTROUVABLE = 'Un fichier de la sélection est introuvable · rien n’a été modifié.';
+
+/**
+ * Met un ou PLUSIEURS fichiers à la CORBEILLE · « Mettre à la corbeille » de
+ * l'aperçu (un id) et de la barre de sélection. Réversible : seule la colonne
+ * `deleted_at` est posée · la ligne, son dossier, ses droits, son réglage IA
+ * restent, et AUCUN objet du bucket n'est effacé (aucun appel au stockage).
+ *
+ * Même garde d'écriture que le reste de la Bibliothèque, AVANT toute lecture ;
+ * la liste est validée au noyau (`validerSelectionFichiers` · des UUID,
+ * dédoublonnés, au plus `TAG_SELECTION_MAX`). TOUT OU RIEN · une seule mise à
+ * jour, dans une transaction, bornée à l'espace de la session et aux fichiers
+ * VIVANTS · si elle ne touche pas EXACTEMENT chaque identifiant demandé (un
+ * fichier d'un autre espace, déjà en corbeille, une sortie Studios, un
+ * inconnu), la transaction est annulée et rien n'est écrit.
+ */
+export async function mettreAssetsCorbeilleAction(input: { ids: string[] }): Promise<{ ok?: true; n?: number; error?: string }> {
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+  const v = validerSelectionFichiers(input?.ids);
+  if (!v.ok) return { error: v.raison };
+  const A = schema.assets;
+  try {
+    const n = await db.transaction(async (tx) => {
+      const maj = await tx.update(A).set({ deletedAt: new Date() })
+        .where(and(eq(A.workspaceId, s.workspaceId), inArray(A.id, v.ids), isNull(A.deletedAt)))
+        .returning({ id: A.id });
+      if (maj.length !== v.ids.length) throw new SelectionIncomplete();
+      return maj.length;
+    });
+    return { ok: true, n };
+  } catch (e) {
+    if (e instanceof SelectionIncomplete) return { error: SELECTION_INTROUVABLE };
+    throw e;
+  }
+}
+
+/**
+ * Restaure un ou PLUSIEURS fichiers de la corbeille · `deleted_at` remis à
+ * null, rien d'autre (le fichier revient dans son dossier, avec ses droits et
+ * son réglage IA). Même garde, même validation, TOUT OU RIEN, bornée aux
+ * fichiers de l'espace EN corbeille.
+ */
+export async function restaurerAssetsAction(input: { ids: string[] }): Promise<{ ok?: true; n?: number; error?: string }> {
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+  const v = validerSelectionFichiers(input?.ids);
+  if (!v.ok) return { error: v.raison };
+  const A = schema.assets;
+  try {
+    const n = await db.transaction(async (tx) => {
+      const maj = await tx.update(A).set({ deletedAt: null })
+        .where(and(eq(A.workspaceId, s.workspaceId), inArray(A.id, v.ids), isNotNull(A.deletedAt)))
+        .returning({ id: A.id });
+      if (maj.length !== v.ids.length) throw new SelectionIncomplete();
+      return maj.length;
+    });
+    return { ok: true, n };
+  } catch (e) {
+    if (e instanceof SelectionIncomplete) return { error: SELECTION_INTROUVABLE };
+    throw e;
+  }
+}
+
 /**
  * Range (ou retire) un asset dans les templates · les COULISSES · réservé à
  * l'agence (admin+). Le marqueur vit dans les tags (0 migration). Le client voit
@@ -303,8 +376,9 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
   if (!db) return { error: GUARD.session() };
   const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'assets' });
   if (!client) return { error: GUARD.aiOff() };
+  // Un fichier en corbeille n'est pas analysé (aucun crédit, aucune IA) · même réponse qu'un inconnu.
   const [a] = await db.select({ id: schema.assets.id, kind: schema.assets.kind, url: schema.assets.url, tags: schema.assets.tags })
-    .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
+    .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId), isNull(schema.assets.deletedAt))).limit(1);
   if (!a) return { error: 'Asset introuvable.' };
   if (a.kind !== 'image') return { error: 'Le tagging IA ne concerne que les images pour l’instant.' };
 
@@ -355,6 +429,8 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
     .where(and(
       eq(schema.assets.workspaceId, s.workspaceId),
       eq(schema.assets.kind, 'image'),
+      // La corbeille n'est jamais analysée · aucun crédit ne part sur un fichier jeté.
+      isNull(schema.assets.deletedAt),
       sql`(${schema.assets.tags} is null or cardinality(${schema.assets.tags}) = 0)`,
     ))
     .orderBy(desc(schema.assets.createdAt)).limit(20);
@@ -455,15 +531,24 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
   return { ok: true };
 }
 
-/** Supprime un asset (+ l'objet physique sur le bucket si téléversé). */
+/**
+ * Supprime DÉFINITIVEMENT un asset (+ l'objet physique sur le bucket si
+ * téléversé) · réservé à un fichier DÉJÀ dans la corbeille (« Supprimer
+ * définitivement », confirmé dans l'aperçu). Un fichier vivant, d'un autre
+ * espace ou inconnu reçoit le même refus, rien n'est touché. Le reste du
+ * comportement est celui d'avant. Aucune purge automatique n'appelle cette action.
+ */
 export async function deleteAssetAction(input: { id: string }): Promise<{ ok?: true; error?: string }> {
   const g = await gardeBibliotheque();
   if ('error' in g) return { error: g.error };
   const { s } = g;
   if (!db) return { error: GUARD.session() };
+  if (typeof input?.id !== 'string' || !input.id) return { error: REFUS_SUPPRESSION_HORS_CORBEILLE };
+  const enCorbeille = and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId), isNotNull(schema.assets.deletedAt));
   const [row] = await db.select({ url: schema.assets.url, source: schema.assets.source })
-    .from(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId))).limit(1);
-  await db.delete(schema.assets).where(and(eq(schema.assets.id, input.id), eq(schema.assets.workspaceId, s.workspaceId)));
+    .from(schema.assets).where(enCorbeille).limit(1);
+  if (!row) return { error: REFUS_SUPPRESSION_HORS_CORBEILLE };
+  await db.delete(schema.assets).where(enCorbeille);
   // Suppression physique best-effort du fichier stocké sur le bucket ·
   // seulement s'il est rangé chez CET espace (`deleteObjectByUrl` relit la
   // règle `cleObjetDeLEspace` et n'envoie rien sinon). Une ligne ancienne qui
