@@ -7,8 +7,9 @@ import {
   LIBELLE_TYPE_FICHIER, FILTRES_TYPE_DRIVE, resumeImportDrive, TYPES_IMPORT_LIEN, type FiltreTypeDrive, lireImportLiens, type TypeImportLien, type DonneesDrive, type EtatDrive, type ConnexionDriveSpatiale, type FichierDrive, type DroitAsset, type SectionDrive, type TriDrive,
   TAGS_COULEUR, messageTagPose, messageTagSelection, noteSelectionTag, selectionATaguer, type CarteDossierDrive, type CleTagCouleur,
   gestesSelection, fichierSelectionnable, messageGesteFichiers, GESTES_SANS_ACTION, type CleGesteSelection,
+  actionsApercuFichier, compteCorbeille, confirmationCorbeille, messageCorbeille,
 } from '@tiktrends/core';
-import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction } from '../../../app/actions/assets';
+import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction } from '../../../app/actions/assets';
 import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction } from '../../../app/actions/bibliotheque-dossiers';
 import { syncDriveNowAction } from '../../../app/actions/drive';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
@@ -25,7 +26,10 @@ import { FenetreVersement } from './verser-projet';
  * navigation et les gestes, chacun branché sur une action serveur EXISTANTE :
  * créer, mettre à la corbeille, restaurer un dossier (`bibliotheque-dossiers`),
  * ranger un média et fixer ses droits, téléverser (`assets` · bucket ou image
- * compressée), supprimer un média (définitif, comme aujourd'hui · confirmé),
+ * compressée), mettre un média à la corbeille et l'en restaurer
+ * (`mettreAssetsCorbeilleAction`, `restaurerAssetsAction` · réversible, aucun
+ * objet du bucket effacé), le supprimer définitivement une fois dans la
+ * corbeille seulement (`deleteAssetAction`, confirmé),
  * connecter et synchroniser Google Drive (`drive`), poser ou retirer le tag de
  * couleur d'un dossier (`definirTagDossierAction`, `library_folders.color_tag`)
  * ou de toute une sélection de dossiers depuis la barre de sélection
@@ -35,15 +39,16 @@ import { FenetreVersement } from './verser-projet';
  *
  * La SÉLECTION · dossiers ET fichiers, comme la maquette (une case sur chaque
  * carte et chaque ligne). Les gestes de la barre et la phrase de ceux qui ne
- * s'appliquent pas sont décidés au noyau (`gestesSelection`) · corbeille et tag
- * pour les dossiers ; déplacer, droits d'usage et usage par l'IA pour les
+ * s'appliquent pas sont décidés au noyau (`gestesSelection`) · corbeille pour
+ * tous, tag pour les dossiers ; déplacer, droits d'usage et usage par l'IA pour les
  * fichiers, chacun en UNE action groupée, tout ou rien (`affecterAssetsDossierAction`,
  * `definirDroitsAssetsAction`, `basculerAssetsIaAction`). Les gestes de la
  * barre de la maquette sans action serveur (téléchargement groupé, partage,
  * favori) restent fermés avec leur raison. « Utiliser dans un projet » verse
  * les images sélectionnées dans les références d'un projet Studios
- * (`FenetreVersement`, `verserSelectionDansProjet` · tout ou rien). Aucune suppression
- * définitive groupée · un fichier se supprime à l'unité, confirmé, dans l'aperçu.
+ * (`FenetreVersement`, `verserSelectionDansProjet` · tout ou rien). Aucune
+ * suppression définitive groupée · un fichier de la corbeille se supprime à
+ * l'unité, confirmé, dans l'aperçu (`actionsApercuFichier`, noyau).
  *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
@@ -183,7 +188,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const fichierApercu = apercu ? p.donnees.fichiers.find((f) => f.id === apercu) ?? null : null;
   const dossierDe = (id: string) => p.donnees.dossiers.find((d) => d.id === id);
   const corbeille = etat.section === 'corbeille';
-  const nTrash = p.donnees.dossiers.filter((d) => d.reel && d.supprime && !dossierDe(d.parent ?? '')?.supprime).length;
+  const nTrash = compteCorbeille(p.donnees);
   const rafraichir = () => router.refresh();
   const g = p.gestion;
   const selecteur = useSelecteurDrive(toast, rafraichir);
@@ -330,18 +335,40 @@ export function Bibliotheque(p: PropsBibliotheque) {
   }
 
   async function corbeilleOuRestaurer() {
-    // Seuls les DOSSIERS de la sélection (noyau) · un fichier ne va jamais à la corbeille.
-    const ids = sel.dossiers.map((d) => d.id);
-    if (!ids.length || occupe || !gesteSel(corbeille ? 'restaurer' : 'corbeille')?.ouvert) return;
-    if (!corbeille && !window.confirm(`Mettre ${ids.length} dossier${ids.length > 1 ? 's' : ''} à la corbeille ? Ils restent restaurables, avec leur contenu.`)) return;
+    // Les dossiers ET les fichiers de la sélection (noyau) · les fichiers en UNE action, tout ou rien, d'abord.
+    const idsD = sel.dossiers.map((d) => d.id);
+    const idsF = sel.fichiers.map((f) => f.id);
+    if ((!idsD.length && !idsF.length) || occupe || !gesteSel(corbeille ? 'restaurer' : 'corbeille')?.ouvert) return;
+    if (!corbeille && !window.confirm(confirmationCorbeille(idsD.length, idsF.length))) return;
     setOccupe(true);
-    const res = await Promise.all(ids.map((id) => (corbeille ? restaurerDossierAction({ id }) : supprimerDossierAction({ id }))));
+    let nf = 0;
+    if (idsF.length) {
+      const r = await (corbeille ? restaurerAssetsAction({ ids: idsF }) : mettreAssetsCorbeilleAction({ ids: idsF })).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
+      // Refus des fichiers · rien n'a été écrit, les dossiers ne partent pas non plus · la sélection est gardée.
+      if (r.error) { setOccupe(false); toast(r.error); return; }
+      nf = r.n ?? idsF.length;
+    }
+    const res = await Promise.all(idsD.map((id) => (corbeille ? restaurerDossierAction({ id }) : supprimerDossierAction({ id }))));
     setOccupe(false);
     const err = res.find((r) => r.error)?.error;
-    const n = res.filter((r) => r.ok).length;
+    const nd = res.filter((r) => r.ok).length;
     setSelection(new Set());
-    if (n) toast(corbeille ? `${n} dossier${n > 1 ? 's' : ''} restauré${n > 1 ? 's' : ''}` : `${n} dossier${n > 1 ? 's' : ''} placé${n > 1 ? 's' : ''} dans la corbeille`);
+    if (nd || nf) toast(messageCorbeille(corbeille ? 'restaurer' : 'corbeille', nd, nf));
     if (err) toast(err);
+    if (apercu && idsF.includes(apercu)) setApercu(null);
+    rafraichir();
+  }
+
+  /** L'aperçu · un fichier à la corbeille, ou restauré · une seule action, l'aperçu se ferme. */
+  async function corbeilleFichier(f: FichierDrive, geste: 'corbeille' | 'restaurer') {
+    if (occupe) return;
+    setOccupe(true);
+    const r = await (geste === 'corbeille' ? mettreAssetsCorbeilleAction({ ids: [f.id] }) : restaurerAssetsAction({ ids: [f.id] })).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    setApercu(null);
+    setSelection((x) => { const n = new Set(x); n.delete(f.id); return n; });
+    toast(messageCorbeille(geste, 0, 1));
     rafraichir();
   }
 
@@ -411,11 +438,12 @@ export function Bibliotheque(p: PropsBibliotheque) {
   }
 
   async function supprimerFichier(f: FichierDrive) {
-    if (!window.confirm(`Supprimer définitivement « ${f.nom} » ? Il ne pourra pas être restauré et ne servira plus aux Studios.`)) return;
+    if (!window.confirm(`Supprimer définitivement « ${f.nom} » ? Il quittera la corbeille et ne pourra plus être restauré.`)) return;
     const r = await deleteAssetAction({ id: f.id });
     if (r.error) { toast(r.error); return; }
     setApercu(null);
-    toast('Fichier supprimé');
+    setSelection((x) => { const n = new Set(x); n.delete(f.id); return n; });
+    toast('Fichier supprimé définitivement');
     rafraichir();
   }
 
@@ -543,6 +571,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
 
   const fa = fichierApercu;
   const dossierFichier = fa ? dossierDe(fa.parent) : undefined;
+  const gestesFa = fa ? actionsApercuFichier(fa, ecriture) : null;
 
   return (
     <Vue>
@@ -714,7 +743,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
             <div className="sech" style={{ margin: 0 }}><strong style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fa.nom}</strong><button className="btn icon sm" style={{ width: 34, marginLeft: 'auto' }} type="button" onClick={() => setApercu(null)} aria-label="Fermer l’aperçu"><Ic n="x" /></button></div>
             <div className="dbig"><Vignette f={fa} /></div>
             <div className="kc"><PastilleFichier f={fa} />{fa.ia?.template && <span className="pill c" data-badge="template">Template</span>}</div>
-            {fa.droit === 'a_preciser' && <div className="banner" style={{ margin: 0 }}><Ic n="warn" /><span>Droits à préciser : ce fichier ne peut pas encore servir dans une publicité.</span></div>}
+            {gestesFa?.note && <div className="banner" style={{ margin: 0 }} data-geste="note-corbeille"><Ic n="x" /><span>{gestesFa.note}</span></div>}
+            {fa.droit === 'a_preciser' && !fa.supprime && <div className="banner" style={{ margin: 0 }}><Ic n="warn" /><span>Droits à préciser : ce fichier ne peut pas encore servir dans une publicité.</span></div>}
             <dl className="kv2" style={{ gridTemplateColumns: '110px minmax(0,1fr)', margin: 0 }}>
               <dt>Type</dt><dd>{LIBELLE_TYPE_FICHIER[fa.type]}</dd>
               <dt>Taille</dt><dd>{formatTaille(fa.tailleOctets)}</dd>
@@ -723,7 +753,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
               <dt>Dossier</dt><dd>{dossierFichier?.nom ?? v.depot}</dd>
             </dl>
             <div style={{ display: 'grid', gap: 8 }}>
-              {!fa.lectureSeule && ecriture && (
+              {gestesFa?.edition && (
                 <>
                   <span className="lbl" style={{ margin: 0 }}>Droits d’usage</span>
                   <select className="dsort" aria-label="Droits d’usage" value={fa.droit ?? ''} onChange={(e) => void changerDroit(fa, e.target.value)}>
@@ -736,7 +766,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                   </select>
                 </>
               )}
-              {fa.ia && ecriture && g && (
+              {fa.ia && gestesFa?.edition && g && (
                 <div data-geste="ia-fichier" style={{ display: 'grid', gap: 8 }}>
                   <span className="lbl" style={{ margin: 0 }}>Usage par l’IA</span>
                   <label className="npr" style={{ cursor: 'pointer' }}><input type="checkbox" checked={fa.ia.utilisable} disabled={occupe} onChange={() => void basculerIa(fa, 'utilisable')} /><div><strong>Utilisable par l’IA</strong><small>Les Studios peuvent s’en servir pour composer</small></div></label>
@@ -749,7 +779,9 @@ export function Bibliotheque(p: PropsBibliotheque) {
               )}
               {fa.projet && <Lien className="btn pri" href={fa.projet.href}><Ic n="brush" />Ouvrir le projet</Lien>}
               <a className="btn" href={fa.telecharger ?? fa.url} target="_blank" rel="noopener noreferrer" download><Ic n="down" />Télécharger</a>
-              {!fa.lectureSeule && ecriture && <button className="btn" type="button" onClick={() => void supprimerFichier(fa)}><Ic n="x" />Supprimer définitivement</button>}
+              {gestesFa?.corbeille && <button className="btn" type="button" data-geste="corbeille-fichier" disabled={occupe} onClick={() => void corbeilleFichier(fa, 'corbeille')}><Ic n="x" />Mettre à la corbeille</button>}
+              {gestesFa?.restaurer && <button className="btn pri" type="button" data-geste="restaurer-fichier" disabled={occupe} onClick={() => void corbeilleFichier(fa, 'restaurer')}><Ic n="check" />Restaurer</button>}
+              {gestesFa?.supprimerDefinitivement && <button className="btn" type="button" data-geste="supprimer-definitivement" disabled={occupe} onClick={() => void supprimerFichier(fa)}><Ic n="x" />Supprimer définitivement</button>}
             </div>
           </aside>
         )}

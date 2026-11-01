@@ -112,8 +112,9 @@ export async function resoudreMedias(
       else out.push({ assetId: id, etat: 'autorise', url: presignGetUrl(stockage, m.storageKey, 900), sha256: m.sha256 });
     } else if (id.startsWith('bib_') && UUID.test(id.slice(4))) {
       const A = schema.assets;
+      // Un fichier mis à la corbeille entre le devis et l'exécution ne part pas au fournisseur.
       const [b] = await base.select({ url: A.url }).from(A)
-        .where(and(eq(A.id, id.slice(4)), eq(A.workspaceId, job.workspaceId), eq(A.kind, 'image'), or(isNull(A.brandId), eq(A.brandId, job.brandId)))).limit(1);
+        .where(and(eq(A.id, id.slice(4)), eq(A.workspaceId, job.workspaceId), eq(A.kind, 'image'), or(isNull(A.brandId), eq(A.brandId, job.brandId)), isNull(A.deletedAt))).limit(1);
       out.push(b ? { assetId: id, etat: 'autorise', url: b.url, sha256: hacherImage(b.url).sha256 } : absent(id));
     } else {
       out.push({ assetId: id, etat: 'sans_media', motif: 'source sans média transmissible (annonce concurrente ou identifiant inconnu)' });
