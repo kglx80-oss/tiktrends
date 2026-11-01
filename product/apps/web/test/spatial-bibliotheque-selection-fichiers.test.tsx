@@ -10,6 +10,7 @@ const f = vi.hoisted(() => ({
   droits: vi.fn(async (x: { ids: string[]; droit: string | null }): Promise<{ ok?: true; n?: number; error?: string }> => ({ ok: true, n: x.ids.length })),
   ia: vi.fn(async (x: { ids: string[]; useForAi: boolean }): Promise<{ ok?: true; n?: number; error?: string }> => ({ ok: true, n: x.ids.length })),
   corbeille: vi.fn(async (_x: { id: string }) => ({ ok: true as const })),
+  corbeilleFichiers: vi.fn(async (x: { ids: string[] }): Promise<{ ok?: true; n?: number; error?: string }> => ({ ok: true, n: x.ids.length })),
   unitaire: vi.fn(),
   refresh: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock('../app/actions/assets', () => ({
   uploadImageAssetsAction: vi.fn(), presignAssetUploadAction: vi.fn(), registerUploadedAssetAction: vi.fn(), deleteAssetAction: f.unitaire,
   importAssetAction: vi.fn(), toggleAssetAiAction: f.unitaire, basculerTemplateAction: vi.fn(), tagAssetAction: vi.fn(), tagUntaggedImagesAction: vi.fn(),
   basculerAssetsIaAction: (x: { ids: string[]; useForAi: boolean }) => f.ia(x),
+  mettreAssetsCorbeilleAction: (x: { ids: string[] }) => f.corbeilleFichiers(x), restaurerAssetsAction: vi.fn(),
 }));
 vi.mock('../app/actions/bibliotheque-dossiers', () => ({
   creerDossierAction: vi.fn(), supprimerDossierAction: (x: { id: string }) => f.corbeille(x), restaurerDossierAction: vi.fn(),
@@ -116,13 +118,13 @@ describe('une case sur chaque fichier de la bibliothèque, en grille ET en liste
 });
 
 describe('la barre propose les bons gestes selon la sélection', () => {
-  it('FICHIERS seuls · déplacer, droits, IA ouverts ; corbeille et tag fermés avec leur phrase ; gestes sans action fermés', async () => {
+  it('FICHIERS seuls · corbeille, déplacer, droits, IA ouverts ; tag fermé avec sa phrase ; gestes sans action fermés', async () => {
     const h = await monter();
     await clic(caseFichier(h, 'm1.jpg'));
     await clic(caseFichier(h, 'm3.jpg'));
     expect(barre(h)!.querySelector('strong')!.textContent).toBe('2 sélectionnés');
     const corbeille = boutonBarre(h, 'Mettre à la corbeille')!;
-    expect([corbeille.disabled, corbeille.title]).toEqual([true, RAISONS_SELECTION.corbeilleFichiers]);
+    expect([corbeille.disabled, corbeille.title]).toEqual([false, '']);
     const tag = boutonBarre(h, 'Tag de couleur')!;
     expect([tag.disabled, tag.title]).toEqual([true, 'Les fichiers ne portent pas de tag · seuls les dossiers en portent un.']);
     expect([liste(h, 'ranger').disabled, liste(h, 'droits').disabled]).toEqual([false, false]);
@@ -131,7 +133,7 @@ describe('la barre propose les bons gestes selon la sélection', () => {
       const b = barre(h)!.querySelector(`button[data-ferme="${g.cle}"]`) as HTMLButtonElement;
       expect([b.textContent, b.disabled, b.title], g.cle).toEqual([g.libelle, true, g.raison]);
     }
-    expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Les fichiers ne portent pas de tag et ne vont pas à la corbeille · un fichier se supprime depuis son aperçu.');
+    expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Les fichiers ne portent pas de tag · à la corbeille, ils restent restaurables.');
   });
 
   it('DOSSIERS seuls · corbeille et tag ouverts ; déplacer, droits et IA fermés avec leur phrase', async () => {
@@ -153,7 +155,7 @@ describe('la barre propose les bons gestes selon la sélection', () => {
     expect(barre(h)!.querySelector('strong')!.textContent).toBe('2 sélectionnés');
     expect([boutonBarre(h, 'Mettre à la corbeille')!.disabled, boutonBarre(h, 'Tag de couleur')!.disabled, liste(h, 'ranger').disabled, liste(h, 'droits').disabled, boutonBarre(h, 'Servir à l’IA')!.disabled])
       .toEqual([false, false, false, false, false]);
-    expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Sélection mixte · corbeille et tag pour 1 dossier, déplacer, droits et IA pour 1 fichier.');
+    expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, déplacer, droits et IA pour 1 fichier.');
   });
 });
 
@@ -203,7 +205,7 @@ describe('chaque geste part en UNE action groupée, avec les seuls fichiers', ()
     expect(toasts).toEqual(['2 fichiers peuvent servir à l’IA']);
   });
 
-  it('MIXTE · la corbeille ne reçoit que le dossier, le déplacement que le fichier', async () => {
+  it('MIXTE · la corbeille reçoit le dossier ET le fichier (une action groupée pour les fichiers), le déplacement que le fichier', async () => {
     const confirmer = vi.spyOn(window, 'confirm').mockReturnValue(true);
     try {
       const h = await monter();
@@ -214,9 +216,11 @@ describe('chaque geste part en UNE action groupée, avec les seuls fichiers', ()
       await clic(caseDossier(h, 'UGC'));
       await clic(caseFichier(h, 'm2.jpg'));
       await clic(boutonBarre(h, 'Mettre à la corbeille'));
-      expect(confirmer).toHaveBeenCalledWith('Mettre 1 dossier à la corbeille ? Ils restent restaurables, avec leur contenu.');
+      expect(confirmer).toHaveBeenCalledWith('Mettre 1 dossier et 1 fichier à la corbeille ? Tout reste restaurable, les dossiers avec leur contenu.');
       expect(f.corbeille.mock.calls).toEqual([[{ id: 'd-ugc' }]]);
-      expect(f.unitaire, 'un fichier est parti à une action de suppression').not.toHaveBeenCalled();
+      expect(f.corbeilleFichiers.mock.calls).toEqual([[{ ids: ['m2'] }]]);
+      expect(f.unitaire, 'un fichier est parti à une action de suppression définitive').not.toHaveBeenCalled();
+      expect(toasts).toContain('1 dossier et 1 fichier placés dans la corbeille');
     } finally { confirmer.mockRestore(); }
   });
 

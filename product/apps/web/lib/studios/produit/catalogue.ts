@@ -8,7 +8,7 @@ import {
   lireReferencesSources, lireReferenceEpinglee, lireReferenceProduit, validerFormeBrief, objetDansPortee, erreurStudio,
   type BriefCanonique, type ContenuVersion, type EmpreinteFichier, type FichierCatalogue, type ProduitMarque,
   type ReferenceProduitEpinglee, type ReferenceProduitStudio, type SourceReferenceStudio, type ErreurStudio,
-  libelleMediaStudio, titreSource,
+  libelleMediaStudio, titreSource, uuidsBibliothequeCites,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { adresseAssetProxy } from '../../asset-url';
@@ -40,6 +40,8 @@ export type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
 const PRODUITS_MAX = 200;
 const IMAGES_BIBLIOTHEQUE_MAX = 60;
 const MEDIAS_STUDIO_MAX = 60;
+/** Références d'une version (`ASSOCIATIONS_MAX`) + un versement (`TAG_SELECTION_MAX`), avec marge. */
+const IMAGES_CITEES_MAX = 400;
 
 const DATA_URI = /^data:([a-z0-9.+/-]+);base64,/i;
 
@@ -90,7 +92,7 @@ const introuvable = (ctx: ContexteStudio) => erreurStudio('NOT_FOUND', { traceId
 export async function chargerCatalogueProjet(
   ctx: ContexteStudio,
   projectId: unknown,
-  o: { veilleOuverte: boolean; maintenant: Date; versionId?: unknown },
+  o: { veilleOuverte: boolean; maintenant: Date; versionId?: unknown; bibliotheque?: readonly string[] },
 ): Promise<Resultat<{ catalogue: CatalogueProjet }>> {
   const p = await lireProjet(ctx, projectId);
   if (!p.ok) return p;
@@ -133,14 +135,25 @@ export async function chargerCatalogueProjet(
   // `DROITS_PUB_AUTORISES`). `rights` null = non classé → hérité, admis (on ne
   // retire pas l'éligibilité des médias déjà là). « À préciser » est exclu.
   // La corbeille (`deleted_at`) est exclue : un média jeté n'est pas une source.
+  const admis = and(
+    eq(A.workspaceId, ctx.workspaceId), eq(A.kind, 'image'),
+    or(isNull(A.brandId), eq(A.brandId, brandId)),
+    or(isNull(A.rights), inArray(A.rights, DROITS_PUB_AUTORISES as unknown as string[])),
+    isNull(A.deletedAt),
+  );
   const biblio = await db.select({ id: A.id, name: A.name, url: A.url })
-    .from(A).where(and(
-      eq(A.workspaceId, ctx.workspaceId), eq(A.kind, 'image'),
-      or(isNull(A.brandId), eq(A.brandId, brandId)),
-      or(isNull(A.rights), inArray(A.rights, DROITS_PUB_AUTORISES as unknown as string[])),
-      isNull(A.deletedAt),
-    ))
+    .from(A).where(admis)
     .orderBy(desc(A.createdAt)).limit(IMAGES_BIBLIOTHEQUE_MAX);
+  // Au-delà des plus récentes · les images CITÉES par les références de la
+  // version, et celles qu'un versement depuis la Bibliothèque demande, sous la
+  // MÊME règle d'admission · une référence ne sort pas du catalogue parce que
+  // d'autres images ont été ajoutées depuis.
+  const vues = new Set(biblio.map((b) => b.id));
+  const citees = [...new Set([
+    ...uuidsBibliothequeCites((v.version.content as { brief?: unknown } | null)?.brief),
+    ...(o.bibliotheque ?? []).map((x) => x.toLowerCase()),
+  ])].filter((x) => !vues.has(x)).slice(0, IMAGES_CITEES_MAX);
+  if (citees.length) biblio.push(...await db.select({ id: A.id, name: A.name, url: A.url }).from(A).where(and(admis, inArray(A.id, citees))));
   for (const b of biblio) {
     const e = hacherImage(b.url);
     const assetId = idBibliotheque(b.id);

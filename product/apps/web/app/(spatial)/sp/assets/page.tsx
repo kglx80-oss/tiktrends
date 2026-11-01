@@ -28,7 +28,9 @@ export const dynamic = 'force-dynamic';
  * l'écran s'ouvre en lecture seule avec la vraie raison (les actions serveur la
  * revérifient de toute façon).
  *
- * Sources · les médias (`listAssets`), les sorties livrées des projets Studios
+ * Sources · les médias (`listAssets`, corbeille exclue), les fichiers mis à la
+ * corbeille (`listAssets({ corbeille: true })`, montrés dans la seule section
+ * « Corbeille »), les sorties livrées des projets Studios
  * et les créations des anciens studios (lecture seule), fusionnés comme en V5
  * (`fusionnerBibliotheque`) ; les dossiers (`library_folders`, corbeille
  * comprise) dans la portée de la marque active (ou communs), et le rangement et
@@ -45,43 +47,45 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
   const refusEcriture = refusEcritureBibliotheque(s);
   const admin = roleAtLeast(s.role, 'admin');
 
-  const [historique, studios, anciennes, marque, driveState] = await Promise.all([
+  const [historique, jetes, studios, anciennes, marque, driveState] = await Promise.all([
     listAssets(),
+    listAssets({ corbeille: true }),
     listerSortiesStudiosBibliotheque(),
     listerCreationsHistoriques(),
     getActiveBrand(s.workspaceId),
     admin ? getDriveState() : Promise.resolve(null),
   ]);
-  const items = fusionnerBibliotheque(fusionnerBibliotheque(historique, studios.map(sortieCommeAsset), LIMITE_BIBLIOTHEQUE), anciennes.map(creationCommeAsset), LIMITE_BIBLIOTHEQUE);
+  const vivants = fusionnerBibliotheque(fusionnerBibliotheque(historique, studios.map(sortieCommeAsset), LIMITE_BIBLIOTHEQUE), anciennes.map(creationCommeAsset), LIMITE_BIBLIOTHEQUE);
+  const items = [...vivants, ...jetes];
 
-  // Rangement, droits et type réel des médias de la bibliothèque · relus dans l'espace (jamais pris du navigateur).
+  // Rangement, droits, type réel et corbeille des médias de la bibliothèque · relus dans l'espace (jamais pris du navigateur).
   const idsMedias = items.filter((a) => !a.studio && !a.historique).map((a) => a.id);
-  const extras = new Map<string, { folderId: string | null; rights: string | null; mimeType: string | null }>();
+  const extras = new Map<string, { folderId: string | null; rights: string | null; mimeType: string | null; deletedAt: string | null }>();
   let dossiers: DossierSource[] = [];
   if (db) {
     const F = schema.libraryFolders;
     const [lignes, rows] = await Promise.all([
       idsMedias.length
-        ? db.select({ id: schema.assets.id, folderId: schema.assets.folderId, rights: schema.assets.rights, mimeType: schema.assets.mimeType })
+        ? db.select({ id: schema.assets.id, folderId: schema.assets.folderId, rights: schema.assets.rights, mimeType: schema.assets.mimeType, deletedAt: schema.assets.deletedAt })
           .from(schema.assets).where(and(eq(schema.assets.workspaceId, s.workspaceId), inArray(schema.assets.id, idsMedias)))
         : Promise.resolve([]),
       // Même portée que les médias · la marque active et les dossiers communs, sinon tout l'espace.
       db.select({ id: F.id, parentId: F.parentId, name: F.name, locked: F.locked, colorTag: F.colorTag, deletedAt: F.deletedAt, createdAt: F.createdAt }).from(F)
         .where(and(eq(F.workspaceId, s.workspaceId), ...(marque ? [or(eq(F.brandId, marque.id), isNull(F.brandId))!] : []))),
     ]);
-    for (const l of lignes) extras.set(l.id, { folderId: l.folderId, rights: l.rights, mimeType: l.mimeType });
+    for (const l of lignes) extras.set(l.id, { folderId: l.folderId, rights: l.rights, mimeType: l.mimeType, deletedAt: l.deletedAt ? (l.deletedAt as Date).toISOString() : null });
     dossiers = rows.map((d) => ({ ...d, deletedAt: d.deletedAt ? (d.deletedAt as Date).toISOString() : null, createdAt: (d.createdAt as Date).toISOString() }));
   }
 
   const medias: MediaSource[] = items.map((a) => ({
     id: a.id, name: a.name, kind: a.kind, source: a.source, url: a.url, thumbUrl: a.thumbUrl, sizeBytes: a.sizeBytes, createdAt: a.createdAt,
-    mimeType: extras.get(a.id)?.mimeType ?? null, folderId: extras.get(a.id)?.folderId ?? null, rights: extras.get(a.id)?.rights ?? null,
+    mimeType: extras.get(a.id)?.mimeType ?? null, folderId: extras.get(a.id)?.folderId ?? null, rights: extras.get(a.id)?.rights ?? null, deletedAt: extras.get(a.id)?.deletedAt ?? null,
     ...(a.studio ? { studio: { projetId: a.studio.projetId, projetTitre: a.studio.projetTitre, href: a.studio.href } } : {}),
     ...(a.historique ? { historique: a.historique } : {}),
     // Usage par l'IA (geste de l'écran V5) · seulement pour un média de la bibliothèque.
     ...(!a.studio && !a.historique ? { ia: { utilisable: a.useForAi, template: a.isTemplate, tags: a.tags ?? [] } } : {}),
   }));
-  const sansTags = items.filter((a) => !a.studio && !a.historique && a.kind === 'image' && !(a.tags ?? []).length).length;
+  const sansTags = vivants.filter((a) => !a.studio && !a.historique && a.kind === 'image' && !(a.tags ?? []).length).length;
   const raisonAnalyse = refusEcriture ? TEXTE_REFUS_BIBLIOTHEQUE[refusEcriture] : !anthropicConfigured() ? messageServiceInactif('analyse_image') : null;
 
   // Retour de la connexion Google · la copie client existante, accordée à l'état AFFICHÉ.

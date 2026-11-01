@@ -77,10 +77,10 @@ export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspac
       // asset reclassé « À préciser » via `definirDroitsAssetAction` ne repasse
       // plus au modèle. Règle UNIQUE du noyau (`droitAutorisePub`) : un droit qui
       // n'autorise pas la pub rend l'asset ABSENT, comme un média retiré du
-      // catalogue. (Le filtre `isNull(A.deletedAt)` viendra ici avec le câblage
-      // de la corbeille des assets · PR-2, quand la colonne sera exploitée.)
+      // catalogue. Un fichier mis à la CORBEILLE (`deleted_at` posé) est absent
+      // lui aussi · relu à la génération, il ne repasse pas au modèle.
       const [b] = await ex.select({ url: A.url, rights: A.rights }).from(A)
-        .where(and(eq(A.id, id.slice(4)), eq(A.workspaceId, portee.workspaceId), eq(A.kind, 'image'), or(isNull(A.brandId), eq(A.brandId, portee.brandId)))).limit(1);
+        .where(and(eq(A.id, id.slice(4)), eq(A.workspaceId, portee.workspaceId), eq(A.kind, 'image'), or(isNull(A.brandId), eq(A.brandId, portee.brandId)), isNull(A.deletedAt))).limit(1);
       out.set(id, b && droitAutorisePub(b.rights) ? present(hacherImage(b.url).sha256, b.url) : { etat: 'absent' });
     } else {
       // Source concurrente ou identifiant inconnu · aucun média transmissible.

@@ -89,7 +89,7 @@ import * as actionsAssets from '../app/actions/assets';
 import {
   listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction, basculerAssetsIaAction,
   tagUntaggedImagesAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction,
-  basculerTemplateAction,
+  basculerTemplateAction, mettreAssetsCorbeilleAction, restaurerAssetsAction,
 } from '../app/actions/assets';
 import { followBrand, unfollowBrand } from '../app/actions/inspo';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
@@ -139,6 +139,8 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['presignAssetUploadAction', () => presignAssetUploadAction({ filename: 'a.png', contentType: 'image/png', sizeBytes: 10 })],
   ['registerUploadedAssetAction', () => registerUploadedAssetAction({ name: 'f', url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`, mimeType: 'image/png', sizeBytes: 10 })],
   ['deleteAssetAction', () => deleteAssetAction({ id: A.video })],
+  ['mettreAssetsCorbeilleAction', () => mettreAssetsCorbeilleAction({ ids: [A.image] })],
+  ['restaurerAssetsAction', () => restaurerAssetsAction({ ids: [A.image] })],
 ];
 
 /**
@@ -269,7 +271,8 @@ describe('Bibliothèque · member en Core · chaque geste marche comme avant', (
     expect(await basculerTemplateAction({ id: A.image, on: false })).toEqual({ ok: true, isTemplate: false });
     etat.session = session(ids, 'ua');
   });
-  it('deleteAssetAction · l’asset disparaît', async () => {
+  it('deleteAssetAction · l’asset disparaît (une fois dans la corbeille)', async () => {
+    expect(await mettreAssetsCorbeilleAction({ ids: [A.video] })).toEqual({ ok: true, n: 1 });
     expect(await deleteAssetAction({ id: A.video })).toEqual({ ok: true });
     expect((await ws()).some((a) => a.id === A.video)).toBe(false);
   });
