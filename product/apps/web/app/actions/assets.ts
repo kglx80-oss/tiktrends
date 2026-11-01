@@ -2,7 +2,7 @@
 
 import { and, desc, eq, inArray, or, isNull, isNotNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl } from '@tiktrends/integrations';
+import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl, ecrireApresDepot } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
 import { costFor, decisionDepot, dureeLienDepot, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -10,6 +10,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
+import { referencesObjetEnBase } from '../../lib/references-objet';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
@@ -520,13 +521,21 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
     return { error: d.erreur };
   }
   const brand = input.common ? null : await getActiveBrand(s.workspaceId);
-  await db.insert(schema.assets).values({
-    workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
-    name: (input.name || 'fichier').slice(0, 160), kind: d.kind,
-    source: 'upload', url, mimeType: d.contentType, sizeBytes: d.taille,
-    // L'ETag relu (et exigé à la lecture du début) · révèle un remplacement
-    // ultérieur par le même lien de dépôt (`etatEmpreinte`, noyau).
-    objectEtag: lu.empreinte,
+  const base = db;
+  // L'insertion qui échoue retire l'objet déposé, sauf si une ligne le cite
+  // déjà (règle `decisionRetraitDepot`), puis l'erreur remonte comme avant.
+  await ecrireApresDepot({
+    storage: cfg, workspaceId: s.workspaceId, deposes: [url], references: referencesObjetEnBase,
+    ecrire: async () => {
+      await base.insert(schema.assets).values({
+        workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
+        name: (input.name || 'fichier').slice(0, 160), kind: d.kind,
+        source: 'upload', url, mimeType: d.contentType, sizeBytes: d.taille,
+        // L'ETag relu (et exigé à la lecture du début) · révèle un remplacement
+        // ultérieur par le même lien de dépôt (`etatEmpreinte`, noyau).
+        objectEtag: lu.empreinte,
+      });
+    },
   });
   return { ok: true };
 }
