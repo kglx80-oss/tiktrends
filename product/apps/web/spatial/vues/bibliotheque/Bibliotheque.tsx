@@ -19,6 +19,7 @@ import { LogoApp, ICONE_TYPE } from './logos';
 import { useSelecteurDrive } from './selecteur-drive';
 import { DialogueSpatial } from '../marque/interactifs';
 import { FenetreVersement } from './verser-projet';
+import { BoutonTelecharger } from './telecharger-selection';
 
 /**
  * « Bibliothèque » · `docs/spatial/reference/bibliotheque.html`, balisage à
@@ -738,6 +739,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                     </select>
                     {ia && <button className="btn sm" type="button" data-geste="ia" disabled={occupe || !ia.ouvert} title={ia.raison ?? undefined} onClick={() => void gesteFichiers('ia')}><Ic n="spark" />{ia.libelle}</button>}
                     <button className="btn sm" type="button" data-geste="projet" disabled={occupe || !projet.ouvert} title={projet.raison ?? undefined} onClick={() => setVersement(true)}><Ic n="brush" />{projet.libelle}</button>
+                    <BoutonTelecharger donnees={p.donnees} sel={sel} lectureSeule={p.lectureSeule} occupe={occupe} />
                     {GESTES_SANS_ACTION.map((x) => <button className="btn sm" type="button" key={x.cle} data-ferme={x.cle} disabled title={x.raison}><Ic n={x.icone} />{x.libelle}</button>)}
                   </>
                 );

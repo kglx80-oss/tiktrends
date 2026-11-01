@@ -131,7 +131,7 @@ describe('les gestes selon la composition', () => {
   });
 
   it('les gestes de la maquette sans action serveur · fermés, chacun avec sa raison', () => {
-    expect(GESTES_SANS_ACTION.map((g) => g.libelle)).toEqual(['Télécharger', 'Partager au client', 'Favori']);
+    expect(GESTES_SANS_ACTION.map((g) => g.libelle)).toEqual(['Partager au client', 'Favori']);
     for (const g of GESTES_SANS_ACTION) expect(g.raison.length, g.cle).toBeGreaterThan(20);
   });
 });
