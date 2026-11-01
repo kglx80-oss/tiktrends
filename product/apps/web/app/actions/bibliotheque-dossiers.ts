@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   validerNomDossier, estDroitAsset, validerTagCouleur, validerSelectionTag, validerSelectionFichiers, validerDroitSelection, type CleTagCouleur, type DossierPlat, type DroitAsset,
+  estIdDossier, validerRenommageDossier, validerDeplacementDossier, REFUS_DOSSIER,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { GUARD } from '../../lib/guard-error';
@@ -19,11 +20,11 @@ import { refusEcritureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/b
  *
  * Portée · `workspaceId` est la frontière DURE : tout filtre et tout write la
  * porte. Un dossier `locked` (système, ex. « Photos produit ») est refusé à
- * la suppression. Aucune dépense IA ici. Le renommage et le déplacement de
- * dossier (sans appelant, aucun écran ne les proposait) sont retirés · un
- * écran qui les voudra les recréera avec leur garde.
+ * la suppression, au renommage et au déplacement. Aucune dépense IA ici. Le
+ * renommage et le déplacement (menu « … » d'un dossier de la Bibliothèque
+ * Spatiale) ont leur garde et leurs règles au noyau.
  *
- * Les RÈGLES (nom valide, cycle d'arbre, droit valide, tag de couleur du
+ * Les RÈGLES (nom valide, renommage, déplacement sans cycle, droit valide, tag de couleur du
  * catalogue) vivent au noyau (`bibliotheque-dossiers.ts`,
  * `spatial/bibliotheque/tags-couleur.ts`), testées à part · jamais réécrites ici.
  *
@@ -112,6 +113,76 @@ export async function creerDossierAction(input: { nom: string; parentId?: string
     workspaceId: s.workspaceId, brandId, parentId: input?.parentId ?? null, name: nomV.nom,
   }).returning({ id: schema.libraryFolders.id });
   return { ok: true, id: row!.id };
+}
+
+/**
+ * RENOMME un dossier vivant de l'espace (menu « … » · « Renommer »). Même garde
+ * d'écriture, AVANT toute lecture. L'identifiant doit être celui d'un dossier
+ * réel (un dossier virtuel · racine, projet Studios · reçoit la phrase d'un
+ * inconnu, comme un dossier d'un autre espace ou en corbeille). La règle
+ * (`validerRenommageDossier` · dossier système refusé, nom de la création)
+ * vit au noyau. Seuls `name` et `updated_at` changent.
+ */
+export async function renommerDossierAction(input: { id: string; nom: string }): Promise<{ ok?: true; nom?: string; error?: string }> {
+  const g = await gardeEcriture();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+
+  const dossier = estIdDossier(input?.id) ? await lireDossier(s.workspaceId, input.id) : null;
+  const v = validerRenommageDossier(dossier, input?.nom);
+  if (!v.ok) return { error: v.raison };
+
+  const F = schema.libraryFolders;
+  const maj = await db.update(F).set({ name: v.nom, updatedAt: new Date() })
+    .where(and(eq(F.id, dossier!.id), eq(F.workspaceId, s.workspaceId), isNull(F.deletedAt), eq(F.locked, false)))
+    .returning({ id: F.id });
+  if (!maj.length) return { error: REFUS_DOSSIER.introuvable };
+  return { ok: true, nom: v.nom };
+}
+
+/** Levée DANS la transaction du déplacement pour l'annuler · porte la phrase du refus. */
+class DeplacementRefuse extends Error {}
+
+/**
+ * DÉPLACE un dossier vivant de l'espace sous un autre (ou à la racine avec
+ * `parentId: null`) · menu « … » · « Déplacer vers… ». Même garde d'écriture,
+ * AVANT toute lecture. Dans UNE transaction · l'arborescence VIVANTE de
+ * l'espace est relue en base (lignes verrouillées), la règle du noyau
+ * (`validerDeplacementDossier` · système, soi-même, destination introuvable,
+ * en corbeille ou d'un autre espace, descendant · cycle, autre marque) la juge,
+ * puis seul `parent_id` change. Un refus n'écrit rien.
+ */
+export async function deplacerDossierAction(input: { id: string; parentId: string | null }): Promise<{ ok?: true; error?: string }> {
+  const g = await gardeEcriture();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+
+  if (!estIdDossier(input?.id)) return { error: REFUS_DOSSIER.introuvable };
+  const parentId = input?.parentId ?? null;
+  if (parentId !== null && !estIdDossier(parentId)) return { error: REFUS_DOSSIER.destinationIntrouvable };
+
+  const F = schema.libraryFolders;
+  try {
+    await db.transaction(async (tx) => {
+      const vivants: DossierPlat[] = await tx.select({ id: F.id, parentId: F.parentId, name: F.name, brandId: F.brandId, locked: F.locked })
+        .from(F).where(and(eq(F.workspaceId, s.workspaceId), isNull(F.deletedAt))).for('update');
+      // Les identifiants arrivent du navigateur · la casse ne change pas l'UUID.
+      const id = input.id.toLowerCase();
+      const dest = parentId?.toLowerCase() ?? null;
+      const v = validerDeplacementDossier(vivants, id, dest);
+      if (!v.ok) throw new DeplacementRefuse(v.raison);
+      const maj = await tx.update(F).set({ parentId: dest, updatedAt: new Date() })
+        .where(and(eq(F.id, id), eq(F.workspaceId, s.workspaceId), isNull(F.deletedAt)))
+        .returning({ id: F.id });
+      if (maj.length !== 1) throw new DeplacementRefuse(REFUS_DOSSIER.introuvable);
+    });
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof DeplacementRefuse) return { error: e.message };
+    throw e;
+  }
 }
 
 /** Met un dossier et son sous-arbre à la CORBEILLE (réversible). Refuse un dossier système. */

@@ -159,6 +159,13 @@ describe('verdict · une consigne ne part que présente, attestée, à jour, ré
     const r = verdictConsigne({ consigne: cc, attestee: true, entreesCourantes: cc.entrees, resolutions: new Map([[PHOTO, present(SHA_P)], [SOURCE, { etat: 'sans_media' }]]) });
     expect(r).toMatchObject({ ok: false, cause: 'non_transmissible', code: 'UNSUPPORTED_CAPABILITY', cibles: [SOURCE] });
   });
+  it('logo de la charte remplacé dans le stockage depuis son import ⇒ non transmissible, le motif dit « à réimporter »', () => {
+    const r = v({ resolutions: new Map([[PHOTO, present(SHA_P)], [LOGO, { ...(present(SHA_L, false) as Extract<ResolutionReference, { etat: 'present' }>), aReimporter: true }]]) });
+    expect(r).toMatchObject({ ok: false, cause: 'non_transmissible', code: 'UNSUPPORTED_CAPABILITY', cibles: [LOGO] });
+    expect(r.ok ? '' : r.motif).toMatch(/^Logo à réimporter · .*remplacé dans le stockage depuis l’import/);
+    // Un logo simplement non transmissible garde le motif d'avant.
+    expect(v({ resolutions: new Map([[PHOTO, present(SHA_P)], [LOGO, present(SHA_L, false)]]) })).toMatchObject({ ok: false, motif: expect.not.stringContaining('réimporter') });
+  });
 });
 
 describe('écran · disponibilités et mots', () => {

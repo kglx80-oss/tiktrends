@@ -10,7 +10,7 @@ import { roleAtLeast } from '../../lib/rbac';
 import { generateProducts, generateBrandProfile, extractVisualDa } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
 import { falFromEnv, falGenerateImage, storageFromEnv, basePubliqueStockage, ecrireApresDepot, lireDebutObjetEspace, retirerDepotsSansLigne } from '@tiktrends/integrations';
-import { costFor, decisionCharteDeposee, decisionLogoDeposeRelu, imageModelByKey, OCTETS_RELUS_DEPOT, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
+import { costFor, decisionCharteDeposee, decisionLogoDeposeRelu, empreintesLogosCharte, imageModelByKey, OCTETS_RELUS_DEPOT, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
@@ -312,7 +312,7 @@ export async function saveBrandDAAction(input: {
   // ni identifiants, ni IP, ni réseau interne) · celles déjà enregistrées sont
   // renvoyées telles quelles (aucune donnée réécrite), un objet du bucket de
   // l'espace n'est admis que si le jeton de dépôt de l'import l'atteste.
-  const [avant] = await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos }).from(schema.brands)
+  const [avant] = await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos, logoEmpreintes: schema.brands.logoEmpreintes }).from(schema.brands)
     .where(and(eq(schema.brands.id, input.brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1);
   const cfg = storageFromEnv();
   const jeton = lireJetonDepot(input.jetonDepot);
@@ -326,6 +326,10 @@ export async function saveBrandDAAction(input: {
   // L'objet nouveau attesté par le jeton se RELIT avant de devenir logo · un
   // PDF, une vidéo ou du HTML déposés par le présigné (qui accepte toute la
   // liste blanche) sont refusés et retirés s'ils ne sont cités nulle part.
+  // L'empreinte relue (ETag fort du HEAD, exigé par If-Match sur les octets
+  // jugés) est gardée par adresse · servir ou transmettre ce logo vérifiera
+  // que l'objet est toujours celui-là (`decisionLogoServi`, noyau).
+  const relues = new Map<string, string | null>();
   for (const url of d.deposes) {
     const lecture = cfg ? await lireDebutObjetEspace(cfg, url, g.workspaceId, OCTETS_RELUS_DEPOT) : ({ ok: false, raison: 'illisible' } as const);
     const r = decisionLogoDeposeRelu({ jeton, lecture });
@@ -333,7 +337,9 @@ export async function saveBrandDAAction(input: {
       if (r.retirer) await retirer([url, ...d.aRetirer]);
       return { error: r.erreur };
     }
+    relues.set(url, lecture.ok ? lecture.empreinte : null);
   }
+  const logoEmpreintes = empreintesLogosCharte({ avant: avant?.logoEmpreintes, charte: [logoUrl, ...logos], relues });
   const base = db;
   // L'écriture qui échoue retire le dépôt attesté, sauf si une ligne le cite
   // déjà (`ecrireApresDepot`), puis l'erreur remonte comme avant.
@@ -345,6 +351,7 @@ export async function saveBrandDAAction(input: {
       await base.update(schema.brands).set({
         logoUrl: logoUrl || null,
         logos,
+        logoEmpreintes,
         colors: clean(input.colors),
         fonts: clean(input.fonts).filter((f) => !policeTechnique(f)),
       }).where(eq(schema.brands.id, input.brandId));

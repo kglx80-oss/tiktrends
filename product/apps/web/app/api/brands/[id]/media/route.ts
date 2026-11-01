@@ -1,7 +1,8 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../../lib/auth';
-import { refusMedia, servirAdresseDirecte } from '../../../../../lib/media-reponse';
+import { empreinteDuLogo } from '@tiktrends/core';
+import { refusMedia, servirAdresseDirecte, servirLogoVerifie } from '../../../../../lib/media-reponse';
 import { refusLectureBibliotheque } from '../../../../../lib/bibliotheque-acces';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,10 +14,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const { id } = await ctx.params;
   const url = new URL(req.url).searchParams.get('url');
   if (!url || url.length > 8192) return refusMedia();
-  const [brand] = await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos })
+  const [brand] = await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos, logoEmpreintes: schema.brands.logoEmpreintes })
     .from(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
   if (!brand) return refusMedia();
   let autorise = [brand.logoUrl, ...(brand.logos ?? [])].includes(url);
+  // Logo importé · servi seulement si l'objet est toujours celui de son
+  // empreinte (`decisionLogoServi`) ; sans empreinte (ancien), comme avant.
+  const empreinte = autorise ? empreinteDuLogo(brand.logoEmpreintes, url) : null;
+  if (empreinte) return servirLogoVerifie(req, url, empreinte, { id, workspaceId: s.workspaceId });
   if (!autorise) {
     const products = await db.select({ imageUrl: schema.products.imageUrl, imageUrls: schema.products.imageUrls })
       .from(schema.products).where(eq(schema.products.brandId, id));

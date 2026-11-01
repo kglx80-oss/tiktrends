@@ -86,7 +86,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
           .from(schema.assets).where(and(eq(schema.assets.workspaceId, s.workspaceId), inArray(schema.assets.id, idsMedias)))
         : Promise.resolve([]),
       // Même portée que les médias · la marque active et les dossiers communs, sinon tout l'espace.
-      db.select({ id: F.id, parentId: F.parentId, name: F.name, locked: F.locked, colorTag: F.colorTag, deletedAt: F.deletedAt, createdAt: F.createdAt }).from(F)
+      db.select({ id: F.id, parentId: F.parentId, name: F.name, brandId: F.brandId, locked: F.locked, colorTag: F.colorTag, deletedAt: F.deletedAt, createdAt: F.createdAt }).from(F)
         .where(and(eq(F.workspaceId, s.workspaceId), ...(marque ? [or(eq(F.brandId, marque.id), isNull(F.brandId))!] : []))),
     ]);
     for (const l of lignes) extras.set(l.id, { folderId: l.folderId, rights: l.rights, mimeType: l.mimeType, deletedAt: l.deletedAt ? (l.deletedAt as Date).toISOString() : null });

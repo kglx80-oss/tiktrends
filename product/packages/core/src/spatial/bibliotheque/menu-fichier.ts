@@ -43,7 +43,7 @@ export interface EntreeMenu<C extends string = string> {
   raison: string | null;
   /** Un lien plutôt qu'un geste · « Ouvrir le projet », « Télécharger ». */
   href?: string;
-  /** Ouvre une liste dans le menu · « Déplacer vers… » (les dossiers), « Tag de couleur » (les tags). */
+  /** Ouvre une liste dans le menu · « Déplacer vers… » (les dossiers), « Tag de couleur » (les tags) · un menu peut en porter plusieurs. */
   sousMenu?: true;
   /** Ouvert · ce que le geste fera, dit dans l'infobulle (« Archive ZIP de … »). */
   detail?: string;
@@ -87,6 +87,8 @@ export interface OptionSousMenu {
   teinte?: string;
   /** Une icône du jeu partagé, à la place de celle par défaut. */
   icone?: string;
+  /** Proposée mais FERMÉE · pourquoi (une destination interdite d'un dossier · lui-même, un descendant). */
+  raison?: string | null;
 }
 
 export interface DestinationDeplacement extends OptionSousMenu {
