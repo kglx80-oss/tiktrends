@@ -19,7 +19,9 @@ import { TAG_SELECTION_MAX } from './tags-couleur';
  *  · « Tag de couleur » · les dossiers (`definirTagDossiersAction`) ;
  *  · « Déplacer vers… » · les fichiers (`affecterAssetsDossierAction`) ;
  *  · « Droits d'usage » · les fichiers (`definirDroitsAssetsAction`) ;
- *  · « Servir à l'IA » · les fichiers (`basculerAssetsIaAction`).
+ *  · « Servir à l'IA » · les fichiers (`basculerAssetsIaAction`) ;
+ *  · « Utiliser dans un projet » · les fichiers, versés dans les références
+ *    d'un projet Studios (`verserSelectionDansProjet` · règles dans `versement.ts`).
  *
  * Les gestes de la maquette SANS action serveur restent fermés, avec leur
  * raison (`GESTES_SANS_ACTION`) · rien n'est simulé. Ne sont PAS groupés, par
@@ -35,7 +37,7 @@ export function fichierSelectionnable(f: Pick<FichierDrive, 'lectureSeule'>): bo
 }
 
 export type CompositionSelection = 'vide' | 'dossiers' | 'fichiers' | 'mixte';
-export type CleGesteSelection = 'corbeille' | 'restaurer' | 'tag' | 'ranger' | 'droits' | 'ia';
+export type CleGesteSelection = 'corbeille' | 'restaurer' | 'tag' | 'ranger' | 'droits' | 'ia' | 'projet';
 
 export interface GesteSelection {
   cle: CleGesteSelection;
@@ -46,8 +48,7 @@ export interface GesteSelection {
 }
 
 /** Les gestes de la barre de la maquette qu'aucune action serveur ne porte · fermés, avec leur raison. */
-export const GESTES_SANS_ACTION: ReadonlyArray<{ cle: 'projet' | 'telecharger' | 'partager' | 'favori'; libelle: string; icone: string; raison: string }> = [
-  { cle: 'projet', libelle: 'Utiliser dans un projet', icone: 'brush', raison: 'Pas encore branché · aucune action ne verse une sélection dans un projet.' },
+export const GESTES_SANS_ACTION: ReadonlyArray<{ cle: 'telecharger' | 'partager' | 'favori'; libelle: string; icone: string; raison: string }> = [
   { cle: 'telecharger', libelle: 'Télécharger', icone: 'down', raison: 'Aucun téléchargement groupé · chaque fichier se télécharge depuis son aperçu.' },
   { cle: 'partager', libelle: 'Partager au client', icone: 'users', raison: 'Le partage au client n’existe pas encore · aucune donnée ne le porte.' },
   { cle: 'favori', libelle: 'Favori', icone: 'bookmark', raison: 'Les favoris n’existent pas encore · aucune donnée ne les porte.' },
@@ -59,6 +60,7 @@ export const RAISONS_SELECTION = {
   rangerDossiers: 'Un dossier ne se déplace pas · seuls les fichiers se rangent dans un dossier.',
   droitsDossiers: 'Un dossier ne porte pas de droits d’usage · seuls les fichiers en portent.',
   iaDossiers: 'Un dossier n’a pas de réglage IA · seuls les fichiers servent à l’IA.',
+  projetDossiers: 'Un dossier ne se verse pas dans un projet · seules les images deviennent des références.',
   restaurerVide: 'Aucun élément de la corbeille dans la sélection.',
 } as const;
 
@@ -145,6 +147,7 @@ export function gestesSelection(d: DonneesDrive, selection: Iterable<string>, ct
       geste('ranger', 'Déplacer vers…', pourFichiers(RAISONS_SELECTION.rangerDossiers)),
       geste('droits', 'Droits d’usage', pourFichiers(RAISONS_SELECTION.droitsDossiers)),
       ...(ctx.ia ? [geste('ia', fichiers.length && fichiers.every((f) => f.utilisable === true) ? 'Ne plus servir à l’IA' : 'Servir à l’IA', pourFichiers(RAISONS_SELECTION.iaDossiers))] : []),
+      geste('projet', 'Utiliser dans un projet', pourFichiers(RAISONS_SELECTION.projetDossiers)),
     ];
   }
 

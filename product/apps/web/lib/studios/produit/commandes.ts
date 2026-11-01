@@ -1,10 +1,13 @@
 import 'server-only';
+import { and, eq, inArray } from 'drizzle-orm';
+import { db, schema } from '@tiktrends/db';
 import {
   epinglerProduit, changementsEpinglage, ajouterAssociation, retirerAssociation, VARIANTE_UNIQUE, erreurStudio,
-  type ChangementPatch, type ReferenceBrief,
+  validerVersement, refusFichiersVersement, verserReferences, cheminProjetStudio, LIBELLES_ROLE, LIBELLES_PORTEE,
+  type ChangementPatch, type ReferenceBrief, type ResultatVersement,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
-import { enregistrerVersion, estUuid, type VersionStudio } from '../depot';
+import { enregistrerVersion, estUuid, lireProjet, type VersionStudio } from '../depot';
 import { chargerCatalogueProjet, produitDuCatalogue, idsPhotos, type Resultat } from './catalogue';
 
 /**
@@ -57,12 +60,14 @@ export async function epinglerProduitPour(ctx: ContexteStudio, e: EntreeEpinglag
 export interface EntreeAssociation { projectId: unknown; baseVersionId: unknown; assetId: unknown; role: unknown; scope?: unknown }
 
 async function modifierReferences(
-  ctx: ContexteStudio, e: { projectId: unknown; baseVersionId: unknown }, o: Dependances,
-  calcul: (refs: ReferenceBrief[], cat: Parameters<typeof ajouterAssociation>[2], produit: Parameters<typeof ajouterAssociation>[3]) => ReturnType<typeof ajouterAssociation>,
+  ctx: ContexteStudio, e: { projectId: unknown; baseVersionId: unknown }, o: Dependances & { bibliotheque?: readonly string[] },
+  calcul: (refs: ReferenceBrief[], cat: Parameters<typeof ajouterAssociation>[2], produit: Parameters<typeof ajouterAssociation>[3]) => ReturnType<typeof ajouterAssociation> | ResultatVersement,
   raison: string,
+  /** `courante` · le geste vient de la Bibliothèque, qui ne tient pas de version · la base est la version courante relue ici (verrou et 409 inchangés). */
+  base: 'fournie' | 'courante' = 'fournie',
 ): Promise<Resultat<{ version: VersionStudio; inchange: boolean }>> {
   if (!estUuid(e.projectId)) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
-  const c = await chargerCatalogueProjet(ctx, e.projectId, o);
+  const c = await chargerCatalogueProjet(ctx, e.projectId, { veilleOuverte: o.veilleOuverte, maintenant: o.maintenant, bibliotheque: o.bibliotheque });
   if (!c.ok) return c;
   const cat = c.catalogue;
   if (!cat.brief) {
@@ -70,7 +75,7 @@ async function modifierReferences(
   }
   const r = calcul(cat.brief.references, cat.fichiers, cat.epingle);
   if (!r.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: r.violations });
-  return ecrire(ctx, cat.projet.id, e.baseVersionId, [{ op: 'replace', path: '/brief/references', newValue: r.references, reason: raison }], raison);
+  return ecrire(ctx, cat.projet.id, base === 'courante' ? cat.version.id : e.baseVersionId, [{ op: 'replace', path: '/brief/references', newValue: r.references, reason: raison }], raison);
 }
 
 /** Associe un fichier avec un rôle et une portée EXPLICITES · une association de plus. */
@@ -83,3 +88,52 @@ export function retirerReferencePour(ctx: ContexteStudio, e: EntreeAssociation, 
   return modifierReferences(ctx, e, o, (refs, _f, produit) => retirerAssociation(refs, { assetId: e.assetId, role: e.role }, produit), 'Référence retirée');
 }
 
+
+export interface ResultatVersementProjet {
+  projet: { id: string; titre: string; href: string };
+  /** Images versées · nouvelles associations (fichier, rôle). */
+  ajoutes: number;
+  /** Images qui portaient déjà ce rôle dans le projet · non ajoutées une seconde fois. */
+  dejaPresents: number;
+  /** Numéro de la version courante après le geste (inchangée si rien n'a été ajouté). */
+  versionN: number;
+}
+
+/**
+ * Bibliothèque · « Utiliser dans un projet » · verse une sélection de fichiers
+ * dans les RÉFÉRENCES du projet, par le chemin de `associerReferencePour` :
+ * catalogue du projet relu côté serveur (portée espace + marques), règle pure
+ * `ajouterAssociation` pour chaque fichier, UNE nouvelle version auditée.
+ *
+ * Avant toute écriture, chaque fichier est relu dans l'espace de la session
+ * (`refusFichiersVersement` · introuvable, corbeille, pas une image, autre
+ * marque, droits) · un seul refus et RIEN n'est versé. Les doublons (même
+ * fichier, même rôle) ne sont pas ajoutés · s'il n'y a rien de nouveau, aucune
+ * version n'est créée. Aucun appel modèle, aucun média produit, aucune dépense.
+ */
+export async function verserSelectionBibliothequePour(ctx: ContexteStudio, entree: unknown, o: Dependances): Promise<Resultat<ResultatVersementProjet>> {
+  const v = validerVersement(entree);
+  if (!v.ok) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'versement', raison: v.raison }] });
+  const p = await lireProjet(ctx, v.projectId);
+  if (!p.ok) return p;
+  if (p.projet.status !== 'active') return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: [{ chemin: 'projet', raison: 'Ce projet est archivé · restaure-le avant d’y verser des images.' }] });
+  const A = schema.assets;
+  const lignes = await db.select({ id: A.id, name: A.name, kind: A.kind, brandId: A.brandId, rights: A.rights, deletedAt: A.deletedAt })
+    .from(A).where(and(eq(A.workspaceId, ctx.workspaceId), inArray(A.id, v.ids)));
+  const refus = refusFichiersVersement(lignes.map((l) => ({ ...l, supprime: l.deletedAt !== null })), v.ids, p.projet.brandId);
+  if (refus.length) return erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, violations: refus });
+
+  let compte = { ajoutes: 0, dejaPresents: 0 };
+  const raison = `Bibliothèque · sélection de ${v.ids.length} image${v.ids.length > 1 ? 's' : ''} versée dans les références · rôle ${LIBELLES_ROLE[v.role]}, portée ${LIBELLES_PORTEE[v.scope]}`;
+  const r = await modifierReferences(ctx, { projectId: v.projectId, baseVersionId: null }, { ...o, bibliotheque: v.ids }, (refs, fichiers, produit) => {
+    const x = verserReferences(refs, v.ids, v.role, v.scope, fichiers, produit);
+    if (x.ok) compte = { ajoutes: x.ajoutes.length, dejaPresents: x.dejaPresents.length };
+    return x;
+  }, raison, 'courante');
+  if (!r.ok) return r;
+  return {
+    ok: true,
+    projet: { id: p.projet.id, titre: p.projet.title, href: `${cheminProjetStudio(p.projet.id)}/produit` },
+    ajoutes: compte.ajoutes, dejaPresents: compte.dejaPresents, versionN: r.version.n,
+  };
+}

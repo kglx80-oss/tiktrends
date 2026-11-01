@@ -17,6 +17,7 @@ import { useSpatial } from '../../coquille/contexte';
 import { LogoApp, ICONE_TYPE } from './logos';
 import { useSelecteurDrive } from './selecteur-drive';
 import { DialogueSpatial } from '../marque/interactifs';
+import { FenetreVersement } from './verser-projet';
 
 /**
  * « Bibliothèque » · `docs/spatial/reference/bibliotheque.html`, balisage à
@@ -42,10 +43,12 @@ import { DialogueSpatial } from '../marque/interactifs';
  * tous, tag pour les dossiers ; déplacer, droits d'usage et usage par l'IA pour les
  * fichiers, chacun en UNE action groupée, tout ou rien (`affecterAssetsDossierAction`,
  * `definirDroitsAssetsAction`, `basculerAssetsIaAction`). Les gestes de la
- * barre de la maquette sans action serveur (projet, téléchargement groupé,
- * partage, favori) restent fermés avec leur raison. Aucune suppression
- * définitive groupée · un fichier de la corbeille se supprime à l'unité,
- * confirmé, dans l'aperçu (`actionsApercuFichier`, noyau).
+ * barre de la maquette sans action serveur (téléchargement groupé, partage,
+ * favori) restent fermés avec leur raison. « Utiliser dans un projet » verse
+ * les images sélectionnées dans les références d'un projet Studios
+ * (`FenetreVersement`, `verserSelectionDansProjet` · tout ou rien). Aucune
+ * suppression définitive groupée · un fichier de la corbeille se supprime à
+ * l'unité, confirmé, dans l'aperçu (`actionsApercuFichier`, noyau).
  *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
@@ -167,6 +170,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const [occupe, setOccupe] = useState(false);
   const [commun, setCommun] = useState(false);
   const [dialogueLien, setDialogueLien] = useState(false);
+  const [versement, setVersement] = useState(false);
   const [lien, setLien] = useState<{ texte: string; nom: string; type: TypeImportLien }>({ texte: '', nom: '', type: 'video' });
   const fichierRef = useRef<HTMLInputElement>(null);
   const maintenant = useMemo(() => new Date(p.maintenant), [p.maintenant]);
@@ -707,7 +711,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                 </span>
               )}
               {!corbeille && ecriture && (() => {
-                const ranger = gesteSel('ranger')!, droits = gesteSel('droits')!, ia = gesteSel('ia');
+                const ranger = gesteSel('ranger')!, droits = gesteSel('droits')!, ia = gesteSel('ia'), projet = gesteSel('projet')!;
                 return (
                   <>
                     <select className="dsort" data-geste="ranger" aria-label="Déplacer les fichiers sélectionnés vers un dossier" value="" disabled={occupe || !ranger.ouvert} title={ranger.raison ?? undefined} onChange={(e) => void gesteFichiers('ranger', e.target.value)}>
@@ -720,6 +724,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                       {DROITS_ASSET.map((d) => <option key={d.cle} value={d.cle}>{d.libelle}</option>)}
                     </select>
                     {ia && <button className="btn sm" type="button" data-geste="ia" disabled={occupe || !ia.ouvert} title={ia.raison ?? undefined} onClick={() => void gesteFichiers('ia')}><Ic n="spark" />{ia.libelle}</button>}
+                    <button className="btn sm" type="button" data-geste="projet" disabled={occupe || !projet.ouvert} title={projet.raison ?? undefined} onClick={() => setVersement(true)}><Ic n="brush" />{projet.libelle}</button>
                     {GESTES_SANS_ACTION.map((x) => <button className="btn sm" type="button" key={x.cle} data-ferme={x.cle} disabled title={x.raison}><Ic n={x.icone} />{x.libelle}</button>)}
                   </>
                 );
@@ -781,6 +786,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
           </aside>
         )}
       </div>
+      {ecriture && <FenetreVersement ouvert={versement} fermer={() => setVersement(false)} donnees={p.donnees} fichiers={sel.fichiers} />}
       {g && (
         <DialogueSpatial titre="Importer par lien" ouvert={dialogueLien} fermer={() => setDialogueLien(false)}>
           <form style={{ display: 'grid', gap: 10 }} onSubmit={(e) => { e.preventDefault(); void importerLiens(); }}>

@@ -16,6 +16,7 @@ export * from './bibliotheque/jarvis-sources';
 export * from './bibliotheque/import-lien';
 export * from './bibliotheque/tags-couleur';
 export * from './bibliotheque/selection';
+export * from './bibliotheque/versement';
 export * from './formats';
 export * from './veille';
 export * from './studios';
