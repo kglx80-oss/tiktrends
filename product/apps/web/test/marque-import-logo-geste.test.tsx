@@ -31,10 +31,11 @@ async function choisir(input: HTMLInputElement, f: File) {
 const png = () => new File([new Uint8Array(2048)], 'logo.png', { type: 'image/png' });
 
 function faux(depotOk = true, typeSigne = 'image/png') {
-  const appels = { preparer: [] as unknown[], enregistrer: [] as unknown[], put: [] as string[], typesEnvoyes: [] as string[] };
+  const appels = { preparer: [] as unknown[], enregistrer: [] as unknown[], put: [] as string[], typesEnvoyes: [] as string[], longueurs: [] as unknown[] };
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
     appels.put.push(`${init.method} ${url}`);
     appels.typesEnvoyes.push(String((init.headers as Record<string, string>)['Content-Type']));
+    appels.longueurs.push(init.body instanceof Blob ? init.body.size : init.body);
     return { ok: depotOk } as Response;
   }));
   const actions: ImportLogoActions = {
@@ -51,6 +52,8 @@ describe('Marque · importer un fichier de logo', () => {
     expect(appels.preparer).toEqual([{ filename: 'logo.png', contentType: 'image/png', sizeBytes: 2048 }]);
     expect(appels.put).toEqual(['PUT https://bucket/put?sig']);
     expect(appels.typesEnvoyes, 'le type SIGNÉ par le serveur part dans le PUT').toEqual(['image/png']);
+    // Le Content-Length est SIGNÉ à la taille déclarée · le corps est le fichier entier, aucune longueur posée à la main.
+    expect(appels.longueurs, 'longueur du corps = sizeBytes déclaré').toEqual([2048]);
     expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: 'https://bucket/assets/ws/neuf.png', logos: ['https://a/ancien.png', 'https://bucket/assets/ws/neuf.png'], colors: ['#112233'], fonts: ['Inter'] }]);
     expect(toasts).toEqual(['Logo importé · il devient le logo par défaut de la charte']);
     expect(rafraichis.n).toBe(1);

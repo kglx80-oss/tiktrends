@@ -354,7 +354,10 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
  * bucket. Type, taille et extension sont décidés par le noyau
  * (`decisionDepot` · liste blanche, plafond par famille, extension forcée) ;
  * le type retenu est SIGNÉ dans l'adresse · le client doit l'envoyer tel quel
- * (`contentType` rendu) dans l'en-tête du PUT, sinon le bucket refuse.
+ * (`contentType` rendu) dans l'en-tête du PUT, sinon le bucket refuse. La
+ * taille validée est signée en `Content-Length` · le client envoie le fichier
+ * dont il a déclaré la taille (`File.size`), le bucket refuse toute autre
+ * longueur.
  */
 export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; contentType?: string; error?: string }> {
   const g = await gardeBibliotheque();
@@ -367,7 +370,7 @@ export async function presignAssetUploadAction(input: { filename: string; conten
   if (!d.ok) return { error: d.erreur };
   const key = newAssetKey(s.workspaceId, d.nomFichier);
   try {
-    const { uploadUrl, publicUrl } = presignPutUrl(cfg, key, d.contentType);
+    const { uploadUrl, publicUrl } = presignPutUrl(cfg, key, { contentType: d.contentType, contentLength: d.contentLength });
     return { uploadUrl, publicUrl, contentType: d.contentType };
   } catch (e) {
     return { error: logAndTranslate('assets:upload', e, { subject: 'la préparation du téléversement', workspaceId: s.workspaceId }) };

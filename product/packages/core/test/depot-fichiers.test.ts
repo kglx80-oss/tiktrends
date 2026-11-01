@@ -21,6 +21,9 @@ const refuse = (nom: string, type: string, taille = 10) => {
 describe('decisionDepot · la liste blanche des appelants réels', () => {
   it('Bibliothèque et logo · chaque type servi garde son type et impose son extension', () => {
     expect(accepte('photo.png', 'image/png')).toMatchObject({ contentType: 'image/png', extension: 'png', famille: 'image', nomFichier: 'photo.png' });
+    // La taille validée est celle qui sera SIGNÉE en Content-Length · exactement la déclarée.
+    expect(accepte('photo.png', 'image/png', 12_345).contentLength).toBe(12_345);
+    expect(accepte('a.mp4', 'video/mp4', PLAFONDS_DEPOT.video).contentLength).toBe(PLAFONDS_DEPOT.video);
     expect(accepte('photo.jpeg', 'image/jpeg')).toMatchObject({ contentType: 'image/jpeg', nomFichier: 'photo.jpg' });
     expect(accepte('a.webp', 'image/webp').contentType).toBe('image/webp');
     expect(accepte('a.gif', 'image/gif').contentType).toBe('image/gif');
