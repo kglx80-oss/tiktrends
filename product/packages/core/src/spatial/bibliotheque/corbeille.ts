@@ -65,7 +65,7 @@ export function actionsApercuFichier(f: Pick<FichierDrive, 'lectureSeule' | 'sup
 export function confirmationCorbeille(dossiers: number, fichiers: number): string {
   if (dossiers && fichiers) return `Mettre ${pluriel(dossiers, 'dossier')} et ${pluriel(fichiers, 'fichier')} à la corbeille ? Tout reste restaurable, les dossiers avec leur contenu.`;
   if (fichiers) return `Mettre ${pluriel(fichiers, 'fichier')} à la corbeille ? ${fichiers > 1 ? 'Ils restent restaurables.' : 'Il reste restaurable.'}`;
-  return `Mettre ${pluriel(dossiers, 'dossier')} à la corbeille ? Ils restent restaurables, avec leur contenu.`;
+  return `Mettre ${pluriel(dossiers, 'dossier')} à la corbeille ? ${dossiers > 1 ? 'Ils restent restaurables, avec leur contenu.' : 'Il reste restaurable, avec son contenu.'}`;
 }
 
 /** Le message dit après « Mettre à la corbeille » ou « Restaurer » · ce qui a VRAIMENT été écrit. */

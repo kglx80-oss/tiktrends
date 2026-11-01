@@ -28,8 +28,9 @@ import { versementApercu } from './versement';
 
 export type CleMenuFichier = 'apercu' | 'ouvrir-projet' | 'ranger' | 'projet' | 'telecharger' | 'corbeille' | 'restaurer';
 
-export interface EntreeMenuFichier {
-  cle: CleMenuFichier;
+/** Une entrée d'un menu « … » de la Bibliothèque (fichier ou dossier) · même forme, même composant. */
+export interface EntreeMenu<C extends string = string> {
+  cle: C;
   libelle: string;
   /** Une icône du jeu partagé (sprite Spatial). */
   icone: string;
@@ -38,9 +39,13 @@ export interface EntreeMenuFichier {
   raison: string | null;
   /** Un lien plutôt qu'un geste · « Ouvrir le projet », « Télécharger ». */
   href?: string;
-  /** « Déplacer vers… » · ouvre la liste des dossiers dans le menu. */
+  /** Ouvre une liste dans le menu · « Déplacer vers… » (les dossiers), « Tag de couleur » (les tags). */
   sousMenu?: true;
+  /** Ouvert · ce que le geste fera, dit dans l'infobulle (« Archive ZIP de … »). */
+  detail?: string;
 }
+
+export type EntreeMenuFichier = EntreeMenu<CleMenuFichier>;
 
 const ouvert = (cle: CleMenuFichier, libelle: string, icone: string, extra: Partial<EntreeMenuFichier> = {}): EntreeMenuFichier =>
   ({ cle, libelle, icone, ouvert: true, raison: null, ...extra });
@@ -67,12 +72,21 @@ export function menuFichier(d: DonneesDrive, fichierId: string, ctx: { section: 
   ];
 }
 
-export interface DestinationDeplacement {
-  /** Le dossier · `null` pour « Assets de la marque · non classé ». */
+/** Une option de la liste ouverte dans un menu (un dossier de destination, un tag) · même forme pour le composant. */
+export interface OptionSousMenu {
   id: string | null;
   nom: string;
-  /** Le fichier y est déjà · proposé, mais sans effet (fermé). */
+  /** Déjà le cas · proposé, mais sans effet (fermé). */
   actuel: boolean;
+  /** La teinte d'un tag de couleur (pastille de l'option). */
+  teinte?: string;
+  /** Une icône du jeu partagé, à la place de celle par défaut. */
+  icone?: string;
+}
+
+export interface DestinationDeplacement extends OptionSousMenu {
+  /** Le dossier · `null` pour « Assets de la marque · non classé ». */
+  id: string | null;
 }
 
 /** Les dossiers de « Déplacer vers… » · ceux de la barre (`dossiersRangement`), le dossier actuel marqué. */

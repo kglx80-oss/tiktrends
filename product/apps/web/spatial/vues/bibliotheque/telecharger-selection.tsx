@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { gesteTelechargement, messageTelechargement, type DonneesDrive, type SelectionDrive } from '@tiktrends/core';
+import { useCallback, useMemo, useState } from 'react';
+import { gesteTelechargement, messageTelechargement, type DonneesDrive, type GesteTelechargement, type SelectionDrive } from '@tiktrends/core';
 import { Ic } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 
@@ -42,16 +42,15 @@ function lancerArchive(ids: readonly string[], dossiers: readonly string[]): voi
   try { f.submit(); } finally { f.remove(); }
 }
 
-export function BoutonTelecharger({ donnees, sel, lectureSeule, occupe }: {
-  donnees: DonneesDrive; sel: Pick<SelectionDrive, 'composition' | 'dossiers' | 'fichiers'>; lectureSeule: string | null; occupe: boolean;
-}) {
+/**
+ * Le lancement d'une archive · la vérification de la route, puis le formulaire
+ * posté · partagé par la barre de sélection et le menu « … » d'un dossier
+ * (même décision, mêmes phrases). Le geste doit être OUVERT au noyau
+ * (`gesteTelechargement`) · l'appelant le vérifie avant.
+ */
+export function useArchive(): (g: Pick<GesteTelechargement, 'ids' | 'dossiers'>) => Promise<void> {
   const { toast } = useSpatial();
-  const [prepare, setPrepare] = useState(false);
-  const g = useMemo(() => gesteTelechargement(donnees, sel, lectureSeule), [donnees, sel, lectureSeule]);
-
-  const lancer = async () => {
-    if (!g.ouvert || prepare) return;
-    setPrepare(true);
+  return useCallback(async (g) => {
     try {
       const r = await fetch(`${ROUTE_ARCHIVE}?verifier=1`, {
         method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: g.ids, dossiers: g.dossiers }),
@@ -62,9 +61,21 @@ export function BoutonTelecharger({ donnees, sel, lectureSeule, occupe }: {
       toast(messageTelechargement(j.fichiers, j.octets, typeof j.dossiers === 'number' ? j.dossiers : 0));
     } catch {
       toast(INDISPONIBLE);
-    } finally {
-      setPrepare(false);
     }
+  }, [toast]);
+}
+
+export function BoutonTelecharger({ donnees, sel, lectureSeule, occupe }: {
+  donnees: DonneesDrive; sel: Pick<SelectionDrive, 'composition' | 'dossiers' | 'fichiers'>; lectureSeule: string | null; occupe: boolean;
+}) {
+  const archiver = useArchive();
+  const [prepare, setPrepare] = useState(false);
+  const g = useMemo(() => gesteTelechargement(donnees, sel, lectureSeule), [donnees, sel, lectureSeule]);
+
+  const lancer = async () => {
+    if (!g.ouvert || prepare) return;
+    setPrepare(true);
+    try { await archiver(g); } finally { setPrepare(false); }
   };
 
   return (

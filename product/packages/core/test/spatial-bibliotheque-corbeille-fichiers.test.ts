@@ -115,7 +115,8 @@ describe('l’aperçu d’un fichier', () => {
 
 describe('confirmation et messages', () => {
   it('la confirmation dit ce qui part, et que tout reste restaurable', () => {
-    expect(confirmationCorbeille(1, 0)).toBe('Mettre 1 dossier à la corbeille ? Ils restent restaurables, avec leur contenu.');
+    expect(confirmationCorbeille(1, 0)).toBe('Mettre 1 dossier à la corbeille ? Il reste restaurable, avec son contenu.');
+    expect(confirmationCorbeille(2, 0)).toBe('Mettre 2 dossiers à la corbeille ? Ils restent restaurables, avec leur contenu.');
     expect(confirmationCorbeille(0, 1)).toBe('Mettre 1 fichier à la corbeille ? Il reste restaurable.');
     expect(confirmationCorbeille(0, 3)).toBe('Mettre 3 fichiers à la corbeille ? Ils restent restaurables.');
     expect(confirmationCorbeille(2, 1)).toBe('Mettre 2 dossiers et 1 fichier à la corbeille ? Tout reste restaurable, les dossiers avec leur contenu.');
