@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { SignalLogoAReimporter } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 
 /**
@@ -19,7 +20,12 @@ import { EnTete, Ic, Lien, Vue } from '../../communs';
 
 export interface BienvenueProps {
   site: string | null;
-  marque: { nom: string; logoUrl: string | null; resume: string | null; aEmployer: string[]; aEviter: string[] } | null;
+  /**
+   * `logoUrl` · l'adresse d'AFFICHAGE du logo par défaut, `null` quand il n'y
+   * en a pas ou qu'il n'est pas servi ; `signalLogo` · il est à réimporter
+   * (noyau `logoParDefautAffiche`) · l'initiale et le signal à sa place.
+   */
+  marque: { nom: string; logoUrl: string | null; resume: string | null; aEmployer: string[]; aEviter: string[]; initiale?: string; signalLogo?: SignalLogoAReimporter | null } | null;
   /** « Préparer mon premier test » · la vraie destination ouverte à la personne, sinon absent. */
   premierTest: string | null;
   /** Le lien de la fiche marque, pour corriger ce qui y est lu · `null` sans droit. */
@@ -44,8 +50,20 @@ export function Bienvenue({ site, marque, premierTest, fiche }: BienvenueProps) 
           {marque ? (
             <>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                {marque.logoUrl && <img src={marque.logoUrl} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 16 }} />}
-                <div><strong>{marque.nom}</strong><p className="muted" style={{ fontSize: 12.5 }}>{marque.resume || 'Fiche à compléter · description, ton, audience.'}</p></div>
+                {marque.logoUrl
+                  ? <img src={marque.logoUrl} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 16 }} />
+                  : marque.signalLogo && <span className="blogo" style={{ flex: 'none' }}>{marque.initiale ?? marque.nom.slice(0, 1).toUpperCase()}</span>}
+                <div>
+                  <strong>{marque.nom}</strong><p className="muted" style={{ fontSize: 12.5 }}>{marque.resume || 'Fiche à compléter · description, ton, audience.'}</p>
+                  {marque.signalLogo && (
+                    <p style={{ fontSize: 11.5, marginTop: 4 }} data-logo-etat="a_reimporter">
+                      {marque.signalLogo.lien
+                        ? <Lien href={marque.signalLogo.lien} className="pill r" data-lien="identite-marque"><Ic n="warn" />{marque.signalLogo.libelle}</Lien>
+                        : <span className="pill r"><Ic n="warn" />{marque.signalLogo.libelle}</span>}
+                      {' '}<span className="faint">{marque.signalLogo.raison} {marque.signalLogo.aide}</span>
+                    </p>
+                  )}
+                </div>
               </div>
               {(marque.aEmployer.length > 0 || marque.aEviter.length > 0) && (
                 <div className="chips" style={{ margin: 0 }}>

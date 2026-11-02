@@ -2,7 +2,7 @@ import 'server-only';
 import { notFound, redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { RAISON_LOGO_SANS_STOCKAGE, type BilanLogosCharte, costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messageLimiteConcurrents, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
+import { RAISON_LOGO_SANS_STOCKAGE, type BilanLogosCharte, cheminIdentiteMarque, costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messageLimiteConcurrents, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
 import { forfaitEffectif } from '../../../../../lib/droits-forfait';
 import { getSession, type Session } from '../../../../../lib/auth';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../../lib/rbac';
@@ -91,12 +91,14 @@ export function propsSync(c: ContexteMarque): PropsSyncSite {
  * raison, à la place d'une image que la route refuserait ; à réimporter,
  * « Importer » prend sa place dans la charte.
  */
-export function propsFavicon(c: ContexteMarque, logos?: BilanLogosCharte): PropsFaviconMarque {
+export function propsFavicon(c: ContexteMarque, logos?: BilanLogosCharte, o: { lienIdentite?: boolean } = {}): PropsFaviconMarque {
   const alerte = logos?.defaut ?? null;
   if (alerte && c.b.logoUrl) {
     const base = propsFavicon(c);
     return {
       ...base, image: null, alerte,
+      // Hors de la fiche Identité (vue d'ensemble) · le badge y mène.
+      identite: o.lienIdentite ? cheminIdentiteMarque(c.b.id) : null,
       titre: alerte.etat === 'a_reimporter' ? 'Logo par défaut à réimporter' : 'Logo par défaut non vérifiable pour l’instant',
       detail: alerte.raison,
       importLogo: { ...base.importLogo, remplace: alerte.etat === 'a_reimporter' ? c.b.logoUrl : null },

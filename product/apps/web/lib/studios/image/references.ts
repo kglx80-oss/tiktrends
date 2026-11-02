@@ -5,6 +5,7 @@ import { photosDuProduit, idLogoMarque, versionDepuisEmpreinte, estEmpreinte, dr
 import { storageFromEnv, basePubliqueStockage, verifierEmpreinteObjetEspace } from '@tiktrends/integrations';
 import { hacherImage } from '../produit/catalogue';
 import type { ExecStudio } from '../execution/types';
+import type { VerifierLogo } from '../../logos-charte-etat';
 
 /**
  * Studios · F-B · relit, MAINTENANT, les références qu'une consigne lie, dans
@@ -30,7 +31,7 @@ import type { ExecStudio } from '../execution/types';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ADRESSE_TRANSMISSIBLE = (url: string) => /^data:image\/(png|jpeg|webp);base64,/.test(url) || /^https:\/\/[^/@]+\//.test(url);
 
-export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspaceId: string; brandId: string }, ids: readonly string[]): Promise<Map<string, ResolutionReference>> {
+export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspaceId: string; brandId: string }, ids: readonly string[], verifier?: VerifierLogo): Promise<Map<string, ResolutionReference>> {
   const out = new Map<string, ResolutionReference>();
   let photos: Map<string, { url: string; sha256: string }> | null = null;
   let logos: Map<string, { url: string; sha256: string; empreinte: string | null }> | null = null;
@@ -70,7 +71,7 @@ export async function resoudreReferencesImage(ex: ExecStudio, portee: { workspac
       if (!l) { out.set(id, { etat: 'absent' }); continue; }
       // Logo importé · l'objet doit être encore celui de son empreinte.
       const d = l.empreinte
-        ? decisionLogoServi({ empreinte: l.empreinte, verification: cfg ? await verifierEmpreinteObjetEspace(cfg, l.url, portee.workspaceId, l.empreinte) : null })
+        ? decisionLogoServi({ empreinte: l.empreinte, verification: verifier ? await verifier(l.url, l.empreinte) : cfg ? await verifierEmpreinteObjetEspace(cfg, l.url, portee.workspaceId, l.empreinte) : null })
         : { servir: true as const, verifie: false };
       if (!d.servir && d.cause === 'absent') out.set(id, { etat: 'absent' });
       else if (!d.servir) out.set(id, { etat: 'present', sha256: l.sha256, assetVersion: versionDepuisEmpreinte(l.sha256), transmissible: false, ...(d.cause === 'remplace' ? { aReimporter: true } : {}) });

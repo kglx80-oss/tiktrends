@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { etapesParcours, lignesOffreParcours, reponsesParcours, cheminPorte } from '@tiktrends/core';
+import { etapesParcours, initialeNom, lignesOffreParcours, logoParDefautAffiche, reponsesParcours, cheminPorte } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { listBrands, getActiveBrand } from '../../../../lib/brands';
+import { brandMediaPreview } from '../../../../lib/brand-media-url';
+import { etatLogoParDefaut } from '../../../../lib/logos-charte-etat';
 import { roleAtLeast, canAccess, FEATURES, PLAN_CREDITS, PLAN_LABEL, PLAN_PRICE, type Plan } from '../../../../lib/rbac';
 import { stripeConfigured, planPurchasable } from '../../../../lib/stripe';
 import { trialStatus } from '../../../../lib/trial';
@@ -47,6 +49,10 @@ export default async function ParcoursSpatial({ searchParams }: { searchParams?:
     : null;
 
   const admin = roleAtLeast(s.role, 'admin');
+  // Le logo par défaut · même bilan que la fiche Identité (un `HEAD` s'il a une empreinte, aucun sinon).
+  const logo = active?.logoUrl
+    ? logoParDefautAffiche({ bilan: await etatLogoParDefaut({ workspaceId: s.workspaceId, logoUrl: active.logoUrl, logoEmpreintes: active.logoEmpreintes }), brandId: active.id, peutGerer: admin })
+    : null;
   const plan = s.plan as Plan;
   const abonne = !!w?.sub && ['active', 'trialing', 'past_due'].includes(w?.st ?? '');
   const formules = s.role === 'owner' && stripeConfigured() && !abonne && plan === 'starter'
@@ -76,7 +82,8 @@ export default async function ParcoursSpatial({ searchParams }: { searchParams?:
       <Bienvenue
         site={active?.url?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || reponsesParcours(w?.rep).siteUrl || null}
         marque={active ? {
-          nom: active.name, logoUrl: active.logoUrl ?? null,
+          nom: active.name, logoUrl: active.logoUrl && logo?.image ? brandMediaPreview(active.id, active.logoUrl) : null,
+          initiale: initialeNom(active.name), signalLogo: logo?.signal ?? null,
           resume: fiche?.description?.trim() || [fiche?.industry, fiche?.tone].filter(Boolean).join(' · ') || null,
           aEmployer: (fiche?.oui ?? []).slice(0, 3), aEviter: (fiche?.non ?? []).slice(0, 2),
         } : null}

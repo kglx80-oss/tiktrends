@@ -18,6 +18,7 @@ import type { VueLotImages } from '../../../../lib/studios/image/lot-images';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../../lib/studios/appel-payant';
 import { Ic, Lien } from '../../../communs';
 import { Ornement } from '../Ornement';
+import { AnnonceLogos } from '../../projet/LogosAReimporter';
 
 /**
  * Étape FORMAT & DEVIS (porté de la V5 `EtapeFormatDevis`), sur les VRAIES
@@ -255,6 +256,7 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
             <div className="lbl">Consigne de création</div>
             {vue ? (
               <>
+                <AnnonceLogos a={vue.logosAReimporter} />
                 {consigneValidee ? <p className="muted" role="status" style={{ fontSize: '12.5px' }}><Ic n="check" />Consigne validée · prête pour le devis.</p> : (
                   <>
                     <p className="muted" style={{ fontSize: '12.5px' }}>Jarvis prépare les instructions de ton image. Relis-les avant de les valider.</p>

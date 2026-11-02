@@ -13,7 +13,7 @@ import { FournisseurSpatial, type CtxSpatial, type PanneauSpatial } from './cont
 import { BandeauNotification, VueNotifications, useNotifications } from './Notifications';
 import { FeuilleMarques, FeuilleModules, MenuProfil, Palette } from './Surcouches';
 import { TiroirJarvis } from './TiroirJarvis';
-import type { FiltreNotif } from '@tiktrends/core';
+import type { FiltreNotif, LogoParDefautAffiche, SignalLogoAReimporter } from '@tiktrends/core';
 import type { NotifItem } from '../../app/actions/notifications';
 
 /**
@@ -38,7 +38,12 @@ import type { NotifItem } from '../../app/actions/notifications';
 export interface DonneesCoquille {
   entrees: EntreeRail[];
   espace: EntreeRail[];
-  marque: { id: string; nom: string; logoUrl: string | null; imageUrl: string | null } | null;
+  /**
+   * `logoUrl` · l'adresse d'AFFICHAGE du logo par défaut (route média) ;
+   * `logoAVerifier` · il a une empreinte · si l'image ne s'affiche pas, la
+   * coquille demande pourquoi (`etatLogo`), une fois.
+   */
+  marque: { id: string; nom: string; logoUrl: string | null; imageUrl: string | null; logoAVerifier?: boolean } | null;
   marques: Array<{ id: string; nom: string }>;
   peutGererMarques: boolean;
   admin: boolean;
@@ -59,6 +64,8 @@ export interface DonneesCoquille {
   jarvis?: boolean;
   /** Reprise du parcours d'accueil depuis le menu profil · `null` = absent. */
   demarrage?: string | null;
+  /** Le logo de la marque active n'a pas pu s'afficher · son état (`etatLogoMarqueActive`, même bilan que la fiche Identité). */
+  etatLogo?: (e: { brandId: string }) => Promise<LogoParDefautAffiche | null>;
 }
 
 function EntreeLien({ e, actif, onNav }: { e: EntreeRail; actif: boolean; onNav?: () => void }) {
@@ -96,6 +103,28 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   const chargerNotifs = notifs.charger;
   const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
   const declencheur = useRef<HTMLElement | null>(null);
+  // Le logo de la marque active · une image qui ne s'affiche pas cède la place
+  // à l'initiale ; pour un logo importé (empreinte), la raison est demandée UNE
+  // fois par marque · « Logo à réimporter » le dit, avec le chemin vers l'Identité.
+  const [logoKo, setLogoKo] = useState<string | null>(null);
+  const [signalLogo, setSignalLogo] = useState<{ brandId: string; signal: SignalLogoAReimporter } | null>(null);
+  const logoDemande = useRef(new Set<string>());
+  const imgLogo = useRef<HTMLImageElement | null>(null);
+  const marqueId = d.marque?.id ?? null;
+  const logoAffiche = d.marque?.logoUrl ?? null;
+  const logoAVerifier = !!d.marque?.logoAVerifier;
+  const etatLogo = d.etatLogo;
+  const logoEchoue = useCallback(() => {
+    if (!marqueId || !logoAffiche) return;
+    setLogoKo(`${marqueId} ${logoAffiche}`);
+    if (!logoAVerifier || !etatLogo || logoDemande.current.has(marqueId)) return;
+    logoDemande.current.add(marqueId);
+    void etatLogo({ brandId: marqueId }).then((r) => { if (r?.signal) setSignalLogo({ brandId: marqueId, signal: r.signal }); }).catch(() => undefined);
+  }, [marqueId, logoAffiche, logoAVerifier, etatLogo]);
+  // Une image en erreur AVANT l'hydratation n'appelle pas `onError` · relue au montage.
+  useEffect(() => { const i = imgLogo.current; if (i && i.complete && i.naturalWidth === 0) logoEchoue(); }, [logoEchoue]);
+  const montrerLogo = !!logoAffiche && logoKo !== `${marqueId} ${logoAffiche}`;
+  const signal = signalLogo && signalLogo.brandId === marqueId ? signalLogo.signal : null;
 
   // Les chemins ouverts · la palette et « Tous les modules » en dépendent.
   const ouverts = useMemo(() => new Set(d.ouverts ?? [...d.entrees, ...d.espace].map((e) => e.href).filter((h): h is string => !!h)), [d.ouverts, d.entrees, d.espace]);
@@ -113,10 +142,12 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   useEffect(() => { document.body.classList.toggle('rail-open', railOuvert); }, [railOuvert]);
   useEffect(() => { document.body.classList.toggle('jd-open', panneau === 'jarvis'); }, [panneau]);
   // Le fond flou de la maquette · l'image de la marque active, sinon rien.
+  // Un logo qui ne s'affiche pas ne sert pas non plus de fond.
+  const fond = montrerLogo ? d.marque?.imageUrl ?? null : null;
   useEffect(() => {
-    if (d.marque?.imageUrl) document.body.style.setProperty('--img', `url(${JSON.stringify(d.marque.imageUrl)})`);
+    if (fond) document.body.style.setProperty('--img', `url(${JSON.stringify(fond)})`);
     else document.body.style.removeProperty('--img');
-  }, [d.marque?.imageUrl]);
+  }, [fond]);
 
   const toast = useCallback((m: string) => {
     setToastMsg(m);
@@ -231,10 +262,13 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
               bureau, `auto` rend la même largeur (rail fermé · déjà `auto` ;
               rail ouvert · `align-items:stretch`). */}
           <div className="brandrow" style={{ width: 'auto' }}>
-            <button className={d.marque?.logoUrl ? 'logo hasfav' : 'logo'} id="brandsw" type="button" aria-label={`Changer de marque${d.marque ? ` · ${d.marque.nom}` : ''}`} onClick={() => basculer('marques')} aria-expanded={panneau === 'marques'}>
-              {d.marque?.logoUrl ? <img src={d.marque.logoUrl} alt="" width={32} height={32} /> : (d.marque?.nom ?? '?').slice(0, 1).toUpperCase()}
+            <button className={montrerLogo ? 'logo hasfav' : 'logo'} id="brandsw" type="button" aria-label={`Changer de marque${d.marque ? ` · ${d.marque.nom}` : ''}${signal ? ` · ${signal.libelle}` : ''}`}
+              title={signal ? `${signal.libelle} · ${signal.raison}` : undefined} data-logo-etat={signal ? 'a_reimporter' : undefined}
+              onClick={() => basculer('marques')} aria-expanded={panneau === 'marques'} style={signal ? { position: 'relative' } : undefined}>
+              {montrerLogo ? <img ref={imgLogo} src={logoAffiche!} alt="" width={32} height={32} onError={logoEchoue} /> : (d.marque?.nom ?? '?').slice(0, 1).toUpperCase()}
+              {signal && <span className="rbadge" aria-hidden="true">!</span>}
             </button>
-            <span className="lab"><strong>{d.marque?.nom ?? 'Aucune marque'}</strong><small>Changer de marque</small></span>
+            <span className="lab"><strong>{d.marque?.nom ?? 'Aucune marque'}</strong><small>{signal ? signal.libelle : 'Changer de marque'}</small></span>
           </div>
           {d.entrees.map((e) => <EntreeLien key={e.cle} e={e} actif={e.cle === section} onNav={e.bientot ? () => toast(e.bientot!) : undefined} />)}
           <span className="sepr" />
@@ -269,7 +303,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
 
       <div className="sheet glass" id="sheet" tabIndex={-1} hidden={panneau !== 'marques' && panneau !== 'modules'}>
         {panneau === 'marques' && (
-          <FeuilleMarques marques={d.marques} active={d.marque?.id ?? null} ajouter={d.peutGererMarques ? '/brands/new' : null}
+          <FeuilleMarques marques={d.marques} active={d.marque?.id ?? null} ajouter={d.peutGererMarques ? '/brands/new' : null} signalLogo={signal}
             onChoisir={(id) => {
               if (id === d.marque?.id) { fermer(); return; }
               void setActiveBrand(id).then(() => { setPanneau(null); setProjets(null); router.refresh(); }).catch(() => toast('La marque n’a pas pu être changée. Réessaie.'));

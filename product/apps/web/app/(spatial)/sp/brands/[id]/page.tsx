@@ -11,6 +11,7 @@ import { brandMediaPreview } from '../../../../../lib/brand-media-url';
 import { adresseAssetProxy } from '../../../../../lib/asset-url';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../../../../lib/bibliotheque-acces';
 import { etatConfigurationMarque } from '../../../../../lib/spatial/pastilles/marque';
+import { etatLogoParDefaut } from '../../../../../lib/logos-charte-etat';
 import { Marque } from '../../../../../spatial/vues/marque/Marque';
 import { chargerMarque, ficheLue, propsFavicon, propsSync, valeursFiche } from './donnees';
 
@@ -35,7 +36,7 @@ export default async function MarqueSpatiale({ params, searchParams }: { params:
   const c = await chargerMarque(id);
   const { s, b } = c;
   const lectureAssets = !refusLectureBibliotheque(s);
-  const [personas, scenarios, produits, assets, etat] = await Promise.all([
+  const [personas, scenarios, produits, assets, etat, logo] = await Promise.all([
     db!.select().from(schema.personas).where(eq(schema.personas.brandId, b.id)),
     db!.select({ id: schema.scenarios.id }).from(schema.scenarios).where(eq(schema.scenarios.brandId, b.id)),
     db!.select().from(schema.products).where(eq(schema.products.brandId, b.id)),
@@ -45,6 +46,8 @@ export default async function MarqueSpatiale({ params, searchParams }: { params:
         .orderBy(desc(schema.assets.createdAt)).limit(NB_ASSETS)
       : Promise.resolve([] as Array<{ id: string }>),
     etatConfigurationMarque(s.workspaceId, b.id),
+    // Le logo par défaut de la carte · un `HEAD` (If-Match) s'il a une empreinte, aucun sinon · même bilan que la fiche Identité.
+    etatLogoParDefaut(b),
   ]);
   const carte = etat ? carteConfigurationMarque(etat, b.id) : null;
   const produit = produits[0] ?? null;
@@ -57,7 +60,7 @@ export default async function MarqueSpatiale({ params, searchParams }: { params:
   return (
     <Marque
       sousNav={c.sousNav} brandId={b.id} nom={b.name}
-      favicon={propsFavicon(c)}
+      favicon={propsFavicon(c, logo, { lienIdentite: true })}
       configuration={carte && carte.restantes > 0 ? { etapes: carte.etapes, faites: carte.faites, total: carte.total, part: carte.part } : null}
       questionnaire="/onboarding?redo=1"
       sync={propsSync(c)}

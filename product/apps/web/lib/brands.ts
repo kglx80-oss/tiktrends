@@ -5,7 +5,11 @@ import { db, schema } from '@tiktrends/db';
 
 export const BRAND_COOKIE = 'tt_brand';
 
-export interface BrandLite { id: string; name: string; logoUrl?: string | null; url?: string | null; category?: string | null }
+export interface BrandLite {
+  id: string; name: string; logoUrl?: string | null; url?: string | null; category?: string | null;
+  /** Empreintes des logos importés (`brands.logo_empreintes_json`) · lue avec la marque active seulement. */
+  logoEmpreintes?: unknown;
+}
 
 export async function listBrands(workspaceId: string): Promise<BrandLite[]> {
   if (!db) return [];
@@ -21,7 +25,7 @@ export async function getActiveBrand(workspaceId: string): Promise<BrandLite | n
   const c = await cookies();
   const id = c.get(BRAND_COOKIE)?.value;
   if (!id) return null;
-  const [b] = await db.select({ id: schema.brands.id, name: schema.brands.name, logoUrl: schema.brands.logoUrl, url: schema.brands.url, category: schema.brands.category })
+  const [b] = await db.select({ id: schema.brands.id, name: schema.brands.name, logoUrl: schema.brands.logoUrl, url: schema.brands.url, category: schema.brands.category, logoEmpreintes: schema.brands.logoEmpreintes })
     .from(schema.brands).where(and(eq(schema.brands.id, id), eq(schema.brands.workspaceId, workspaceId))).limit(1);
   return b ?? null;
 }
