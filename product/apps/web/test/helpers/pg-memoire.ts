@@ -81,3 +81,29 @@ export async function pgMemoireBrut(): Promise<PGlite> {
 export async function pgMemoire(schema: Record<string, unknown>) {
   return drizzle(await pgMemoireBrut(), { schema });
 }
+
+/**
+ * Base migrée SUR PLACE, jamais rechargée depuis l'image · réservée aux gardes
+ * de TEMPS (`budgetGarde`, `chronometrerAsync`). Leurs budgets
+ * (`packages/core/src/perf/mesures.ts`) ont été mesurés sur une base migrée sur
+ * place ; une base rechargée par `loadDataDir` a une queue de temps CPU plus
+ * lourde, sans rapport avec le produit (Postgres réel en production).
+ *
+ * Mesuré le 2026-11-02, `l8c-budgets-web` · enregistrement · petit, 20 tirages,
+ * p95 du temps CPU, machine partagée (charge ≈ 12), essais alternés :
+ *
+ * | base                                   | p95 CPU (ms), 6 essais        | médiane CPU |
+ * |----------------------------------------|-------------------------------|-------------|
+ * | migrée sur place (avant #1020)          | 29 · 31 · 37 · 30 · 30 · 30   | ≈ 20 ms     |
+ * | rechargée, image lue en mémoire (#1020) | 65 · 43 · 38 · 39 · 53 · 52   | ≈ 22 ms     |
+ * | rechargée, image lue depuis le disque   | 47 · 49 · 41 · 49 · 55 · 44   | ≈ 22 ms     |
+ * | migrée sur place (ce correctif)          | 26 · 29 · 33 · 24 · 30 · 35   | ≈ 18 ms     |
+ *
+ * La médiane bouge peu, la queue monte de ~60 % · la CI GitHub (4 vCPU) a vu
+ * un tirage à 123,7 ms pour un budget de 100 ms (33,06 ms × 3) sur main db9f4f4.
+ * `gardes-temps-base-neuve.test.ts` refuse qu'une garde de temps reprenne
+ * `pgMemoire`.
+ */
+export async function pgMemoireNeuve(schema: Record<string, unknown>) {
+  return drizzle(await baseMigreeNeuve(), { schema });
+}
