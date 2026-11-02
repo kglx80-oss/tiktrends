@@ -118,6 +118,13 @@ const cliquer = async (b: Element | null | undefined) => { expect(b, 'bouton int
 const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); };
 const actif = () => document.activeElement as HTMLElement | null;
 const levier = (cle: string) => q(`[data-vlev="${cle}"]`) as HTMLButtonElement;
+/** La raison d'un levier fermé · écrite sous la grille et reliée par `aria-describedby` (le `title` ne se lit ni au doigt ni au clavier). */
+const raison = (cle: string) => {
+  const b = levier(cle);
+  expect(b.hasAttribute('title'), `la raison du levier « ${cle} » vit dans une infobulle`).toBe(false);
+  const id = b.getAttribute('aria-describedby');
+  return id ? document.getElementById(id)?.textContent ?? '' : '';
+};
 const saisir = async (el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, valeur: string) => {
   await act(async () => {
     if (el instanceof HTMLSelectElement) { el.value = valeur; el.dispatchEvent(new Event('change', { bubbles: true })); return; }
@@ -187,7 +194,7 @@ describe('prix annoncé AVANT le clic', () => {
   it('sans consigne retenue · devis inactif, la raison est dite', () => {
     afficher(vue(), 's2');
     expect(levier('devis').disabled).toBe(true);
-    expect(levier('devis').title).toBe('Retiens d’abord une consigne compilée pour ce plan.');
+    expect(raison('devis')).toContain('Retiens d’abord une consigne compilée pour ce plan.');
   });
 
   it('COST-01 · deux clics « Approuver et lancer » ⇒ même clé d’idempotence', async () => {
@@ -225,7 +232,7 @@ describe('indisponibilités dites, aucun geste actif qui ne mène nulle part', (
     const ANIME = { ...TOUT, decodeurVideo: true, fournisseurVideo: true };
     afficher(vue({ clips: { s2: { etat: 'a_produire', media: null, keyframePrete: false, devis: null } } }, ANIME), 's2');
     expect(levier('devis-clip').disabled).toBe(true);
-    expect(levier('devis-clip').title).toBe('Produis d’abord l’image clé de ce plan : le clip part d’elle.');
+    expect(raison('devis-clip')).toContain('Produis d’abord l’image clé de ce plan : le clip part d’elle.');
     expect(levier('devis-clip').textContent).toContain('10 cr.');
     afficher(vue({ clips: { s1: { etat: 'a_produire', media: null, keyframePrete: true, devis: { id: 'qc', inputHash: 'h'.repeat(64), credits: 20, usdMicros: 600_000, expiresAt: '2026-10-08T10:30:00Z' } } } }, ANIME), 's1');
     await cliquer(q('[data-vsel="s1"]'));
@@ -239,7 +246,7 @@ describe('indisponibilités dites, aucun geste actif qui ne mène nulle part', (
   it('sans release · storyboard et consigne inactifs avec leur raison, chemin manuel ouvert', async () => {
     afficher(vue({}, { ...TOUT, releasePubliee: false }));
     expect(levier('consigne').disabled).toBe(true);
-    expect(levier('consigne').title).toContain('Aucune version des consignes n’est publiée');
+    expect(raison('consigne')).toContain('Aucune version des consignes n’est publiée');
     await ouvrirScript();
     expect(bouton('Proposer un storyboard depuis le brief')?.disabled).toBe(true);
     expect(q('[data-cout="storyboard"]')!.textContent).toContain('Aucune version des consignes n’est publiée');
@@ -249,7 +256,7 @@ describe('indisponibilités dites, aucun geste actif qui ne mène nulle part', (
   it('sans fournisseur d’images · « Lancer l’image clé » inactif avec sa raison', () => {
     afficher(vue({}, { ...TOUT, fournisseurImage: false }), 's3');
     expect(levier('lancer').disabled).toBe(true);
-    expect(levier('lancer').title).toContain('Le fournisseur d’images n’est pas branché');
+    expect(raison('lancer')).toContain('Le fournisseur d’images n’est pas branché');
   });
 
   it('consigne périmée · le motif est dit, le devis reste inactif', () => {
@@ -258,7 +265,7 @@ describe('indisponibilités dites, aucun geste actif qui ne mène nulle part', (
     v.keyframes.s1 = kf({ etat: 'obsolete', retenue: { ...CONSIGNE, verdict: { ok: false, cause: 'perimee', code: 'VERSION_CONFLICT', cibles: ['keyframe:s1'], motif } } as KeyframeVue['retenue'] });
     afficher(v);
     expect(levier('devis').disabled).toBe(true);
-    expect(levier('devis').title).toBe(motif);
+    expect(raison('devis')).toContain(motif);
   });
 
   it('vidéo sans texte · état dit, aucun bouton pour retirer un texte qui n’existe plus', async () => {

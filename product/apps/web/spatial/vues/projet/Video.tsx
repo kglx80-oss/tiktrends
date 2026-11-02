@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   GAIN_MUSIQUE_MAX_DB, GAIN_MUSIQUE_MIN_DB, LIBELLES_MODE_PAROLE, MESSAGE_REPONSE_PERDUE_MONTAGE, MODES_PAROLE, RELECTURE_CREATIONS_MS,
@@ -46,7 +46,13 @@ import { AnnonceLogos } from './LogosAReimporter';
  *  · la fiche du plan choisi · chaque champ dans sa case, son clip animé ;
  *  · le focus suit le geste (aperçu, message), Échap referme l'aperçu ; un
  *    refus dit son MOT (conflit, hors ligne) et le geste suivant
- *    (« Recharger la version courante », « Réessayer » s'il ne coûte rien).
+ *    (« Recharger la version courante », « Réessayer » s'il ne coûte rien) ;
+ *  · passe design (comme l'Export #1024 et l'Éditeur #1027) · le bouton
+ *    pressé GARDE le focus pendant son action serveur (`aria-disabled` +
+ *    `aria-busy`, jamais `disabled`, second clic ignoré) ; un contrôle qui
+ *    disparaît rend le focus à ce qui le remplace ; un contrôle fermé dit
+ *    pourquoi en toutes lettres à côté de lui, jamais dans un `title` ; chaque
+ *    tuile est une région nommée par son titre.
  * Rien n'est lancé sans le geste explicite de la personne.
  */
 
@@ -74,6 +80,28 @@ function cleDuClic(quoteId: string): string {
     return cle;
   } catch { return `vid-${quoteId}`; }
 }
+
+/** Le nom de l'action serveur d'un geste du plan (`agir`) · le bouton qui l'a lancée se reconnaît pendant l'envoi. */
+const actionDuGeste = (cle: CleGestePlan, sid: string) => `${cle === 'consigne' ? 'compiler' : cle}:${sid}`;
+
+/**
+ * Le focus ne tombe jamais sur `<body>` quand son contrôle disparaît (UX-02) ·
+ * au rendu suivant, s'il est PERDU (rien ne l'a repris, ni l'aperçu ni le
+ * message de `useFocusApresGeste`), le premier sélecteur présent et ouvert le
+ * prend. Cousin de `focaliserApres` (Éditeur), qui, lui, focalise toujours.
+ */
+function rattraperFocus(...selecteurs: string[]) {
+  setTimeout(() => {
+    const a = document.activeElement;
+    if (a && a !== document.body && a.isConnected) return;
+    for (const s of selecteurs) {
+      const el = document.querySelector<HTMLElement>(s);
+      if (el && !(el as HTMLButtonElement).disabled) { el.focus(); return; }
+    }
+  }, 0);
+}
+/** L'aspect d'un bouton fermé mais FOCALISABLE (`aria-disabled`) · les valeurs de `.btn[disabled]` de la maquette. */
+const FERME = { opacity: 0.5, cursor: 'default' } as const;
 
 const heure = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 const date = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
@@ -111,6 +139,8 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
   const apercuRef = useRef<HTMLElement>(null);
   const retourRef = useRef<HTMLDivElement>(null);
   const dernierGeste = useRef<(() => void) | null>(null);
+  const idsTitres = useId();
+  const titres = { plans: `${idsTitres}-plans`, produire: `${idsTitres}-produire`, montage: `${idsTitres}-montage`, storyboard: `${idsTitres}-storyboard`, finale: `${idsTitres}-finale`, jobs: `${idsTitres}-jobs`, geste: `${idsTitres}-geste`, mp4: `${idsTitres}-mp4` };
 
   const recharger = useCallback(() => router.refresh(), [router]);
   useEffect(() => {
@@ -154,7 +184,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
   const rechargerVersion = () => { setRetour(null); setApercu(null); recharger(); };
   const confirmer = () => {
     const a = apercu;
-    if (!a) return;
+    if (!a || enCours) return;
     const d = decisionConfirmationApercu(a.version, v.version);
     if (!d.ok) { setRetour({ ton: 'err', texte: d.message, code: 'VERSION_CONFLICT' }); return; }
     void agir('confirmer', () => appliquerOperationVideo({ projectId: v.projet.id, baseVersionId: a.version.id, operation: a.operation }), (r) => {
@@ -175,6 +205,18 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
     prixImageCredits: v.prix.credits, prixClip: { credits: v.prixClip.credits, dureeS: v.prixClip.dureeS }, coutTexte: mentionAppelTexte(regime, v.coutTexteUsd),
   }) : [];
   const gesteChoisi = gestes.find((g) => g.cle === geste) ?? null;
+  // Pendant l'envoi, seul le bouton qui l'a lancé dit « En cours… » ; il reste focalisable.
+  const gestePresse = !!gesteChoisi && !!plan && enCours === actionDuGeste(gesteChoisi.cle, plan);
+  const gesteOuvert = !!gesteChoisi && gesteChoisi.actif && !enCours;
+  // Les leviers fermés disent pourquoi, en toutes lettres SOUS la grille (dans le levier, l'opacité de
+  // `.vlev:disabled` ramène le texte à 2,8:1 en sombre et 2,0:1 en clair) · une raison partagée n'est dite qu'une fois.
+  const raisonsFermees: Array<{ raison: string; cles: CleGestePlan[]; titres: string[] }> = [];
+  for (const g of gestes) {
+    if (g.actif || !g.raison) continue;
+    const r = raisonsFermees.find((x) => x.raison === g.raison);
+    if (r) { r.cles.push(g.cle); r.titres.push(g.titre); } else raisonsFermees.push({ raison: g.raison, cles: [g.cle], titres: [g.titre] });
+  }
+  const idRaison = (cle: CleGestePlan) => { const i = raisonsFermees.findIndex((r) => r.cles.includes(cle)); return i < 0 ? undefined : `${idsTitres}-raison-${i}`; };
 
   const lancerGeste = (cle: CleGestePlan) => {
     if (!plan || !k || !c) return;
@@ -226,21 +268,25 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
   // au-dessus, et masquait le bas de l'écran · ses deux gestes (« Projet », « Tester les variantes ») sont
   // alors DÉJÀ ici, au-dessus du lecteur ; son compte de plans est masqué au téléphone par la maquette. Au
   // téléphone, la barre flottante n'est donc plus montée · « Projet » rejoint les boutons de l'aperçu.
+  // MP4 fermé · la raison est écrite sous les boutons (le `title` ne se lit ni au doigt ni au clavier).
   const actionsApercu = (
-    <div className="kc" data-actions-apercu={telephone ? 'haut' : 'bas'}>
-      {telephone && <Lien className="btn sm" href={`/studio/projets/${v.projet.id}`}><Ic n="back" />Projet</Lien>}
-      {finale
-        ? <a className="btn sm" href={finale.url} download><Ic n="down" />MP4</a>
-        : <button className="btn sm" type="button" disabled title="Aucune vidéo finale assemblée"><Ic n="down" />MP4</button>}
-      <Lien className="btn sm pri" href={variantesHref}><Ic n="flask" />Tester les variantes</Lien>
-    </div>
+    <>
+      <div className="kc" data-actions-apercu={telephone ? 'haut' : 'bas'}>
+        {telephone && <Lien className="btn sm" href={`/studio/projets/${v.projet.id}`}><Ic n="back" />Projet</Lien>}
+        {finale
+          ? <a className="btn sm" href={finale.url} download><Ic n="down" />MP4</a>
+          : <button className="btn sm" type="button" disabled aria-describedby={titres.mp4}><Ic n="down" />MP4</button>}
+        <Lien className="btn sm pri" href={variantesHref}><Ic n="flask" />Tester les variantes</Lien>
+      </div>
+      {!finale && <small className="faint" id={titres.mp4} data-raison-ferme="mp4" style={{ fontSize: '11.5px' }}>MP4 · aucune vidéo finale assemblée{v.videoFinale.possible ? ' · assemble-la plus bas, 0 crédit.' : '.'}</small>}
+    </>
   );
 
   return (
     <Vue>
       <div ref={ecran}>
       <EnTete titre={v.projet.titre || 'Projet vidéo'} sous={`Studios${marque ? ` · ${marque}` : ''} · vidéo ${Math.round(v.dureeTotaleMs / 1000)} s`} />
-      {(appelStoryboard.bloque || appelConsigne.bloque) && <div className="banner" role="status"><span className="orb" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span><span>{MESSAGE_APPEL_PAYANT} <Lien href={`/studio/projets/${v.projet.id}#taches`}>Voir le suivi</Lien></span></div>}
+      {(appelStoryboard.bloque || appelConsigne.bloque) && <div className="banner" role="status"><span className="orb" aria-hidden="true" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span><span>{MESSAGE_APPEL_PAYANT} <Lien href={`/studio/projets/${v.projet.id}#taches`}>Voir le suivi</Lien></span></div>}
       <div className="vstudio">
         <div style={{ display: 'grid', gap: 10 }}>
           {telephone && actionsApercu}
@@ -266,8 +312,8 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
         </div>
 
         <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
-          <section className="tile" style={{ display: 'grid', gap: 10 }}>
-            <div className="sech" style={{ margin: 0 }}><h2>Plans</h2><span className="faint" style={{ fontSize: '12.5px' }}>Le storyboard, dans l’ordre du montage</span></div>
+          <section className="tile" aria-labelledby={titres.plans} style={{ display: 'grid', gap: 10 }}>
+            <div className="sech" style={{ margin: 0 }}><h2 id={titres.plans}>Plans</h2><span className="faint" style={{ fontSize: '12.5px' }}>Le storyboard, dans l’ordre du montage</span></div>
             {ordre.map((sid, i) => {
               const p = v.contenu.shots.byId[sid]!;
               const seg = v.segments.find((s) => s.shotId === sid);
@@ -286,47 +332,55 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
             {ordre.length === 0 && <p className="muted" style={{ fontSize: '12.5px' }}>Aucun plan pour l’instant · propose un storyboard depuis le brief ou écris les plans à la main (« Modifier le script »).</p>}
           </section>
 
-          <section className="tile" style={{ display: 'grid', gap: 12 }}>
-            <div className="sech" style={{ margin: 0 }}><h2>{plan ? `Produire le plan ${rang}` : 'Produire un plan'}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Une étape à la fois · prix annoncé avant le clic</span></div>
+          <section className="tile" aria-labelledby={titres.produire} style={{ display: 'grid', gap: 12 }}>
+            <div className="sech" style={{ margin: 0 }}><h2 id={titres.produire}>{plan ? `Produire le plan ${rang}` : 'Produire un plan'}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Une étape à la fois · prix annoncé avant le clic</span></div>
             {/* Un logo que l'image clé de ce plan utiliserait est à réimporter · dit AVANT « Compiler la consigne », rien n'est fermé. */}
             <AnnonceLogos a={k?.logosAReimporter} />
             {plan && (
               <div className="vlevs">
                 {gestes.map((g) => (
-                  <button key={g.cle} type="button" className="vlev" data-vlev={g.cle} aria-pressed={geste === g.cle} disabled={!g.actif || !!enCours} title={g.raison ?? undefined} onClick={() => setGeste((x) => (x === g.cle ? null : g.cle))}>
+                  <button key={g.cle} type="button" className="vlev" data-vlev={g.cle} aria-pressed={geste === g.cle} disabled={!g.actif || !!enCours} aria-describedby={g.actif ? undefined : idRaison(g.cle)} onClick={() => setGeste((x) => (x === g.cle ? null : g.cle))}>
                     <strong>{g.titre}</strong><small>{g.sous}</small><span className="pill">{g.prix}</span>
                   </button>
                 ))}
               </div>
             )}
+            {plan && raisonsFermees.length > 0 && (
+              <ul data-raisons-fermees="" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 4 }}>
+                {raisonsFermees.map((r, i) => <li key={r.raison} id={`${idsTitres}-raison-${i}`} className="faint" data-raison-ferme={r.cles.join(' ')} style={{ fontSize: '11.5px' }}>{r.titres.join(', ')} · {r.raison}</li>)}
+              </ul>
+            )}
             {gesteChoisi && k && c && (
-              <div className="vopts" data-geste={gesteChoisi.cle}>
-                <span className="lbl" style={{ margin: 0 }}>{gesteChoisi.titre} · plan {rang}</span>
+              <div className="vopts" data-geste={gesteChoisi.cle} role="group" aria-labelledby={titres.geste}>
+                <span className="lbl" id={titres.geste} style={{ margin: 0 }}>{gesteChoisi.titre} · plan {rang}</span>
                 <DetailGeste cle={gesteChoisi.cle} k={k} c={c} vue={v} coutTexte={coutTexte} />
                 <div className="kc">
-                  <button className="btn sm pri" type="button" disabled={!gesteChoisi.actif || !!enCours} onClick={() => lancerGeste(gesteChoisi.cle)}>
-                    {enCours ? 'En cours…' : libelleConfirmation(gesteChoisi.cle, k.devis?.credits ?? null, c.devis?.credits ?? null)}
+                  {/* Jamais `disabled` · pressé, il GARDE le focus pendant l'envoi (sinon le clavier repartirait du haut de la page). */}
+                  <button className="btn sm pri" type="button" data-action="geste" aria-disabled={!gesteOuvert || undefined} aria-busy={gestePresse || undefined}
+                    style={gesteOuvert || gestePresse ? undefined : FERME} onClick={() => { if (gesteOuvert) lancerGeste(gesteChoisi.cle); }}>
+                    {gestePresse ? 'En cours…' : libelleConfirmation(gesteChoisi.cle, k.devis?.credits ?? null, c.devis?.credits ?? null)}
                   </button>
-                  <button className="btn sm" type="button" disabled={!!enCours} onClick={() => setGeste(null)}>Fermer</button>
+                  <button className="btn sm" type="button" disabled={!!enCours} onClick={() => { const cle = gesteChoisi.cle; setGeste(null); rattraperFocus(`[data-vlev="${cle}"]`); }}>Fermer</button>
+                  {!gestePresse && !gesteChoisi.actif && gesteChoisi.raison && <small className="faint" data-raison-ferme="geste" style={{ fontSize: '11.5px', alignSelf: 'center' }}>{gesteChoisi.raison}</small>}
                 </div>
               </div>
             )}
-            {plan && gestes.every((g) => !g.actif) && <small className="faint">{gestes.find((g) => g.raison)?.raison ?? 'Aucun geste disponible pour ce plan.'}</small>}
             {!disponibilite.animation.disponible && <small className="faint">Animation · {libelleAnimationIndisponible(disponibilite.animation)}. Aucun clip n’est proposé ni facturé.</small>}
             {questions.length > 0 && <Message ton="info">Le modèle demande des précisions · {questions.join(' · ')}</Message>}
             {retour && (
               <div ref={retourRef} tabIndex={-1} data-retour={retour.ton === 'ok' ? 'ok' : 'refus'} data-echec={echec ? retour.code : undefined}>
                 <p role={retour.ton === 'ok' ? 'status' : 'alert'} className="muted" style={{ fontSize: '12.5px' }}><span className={`pill ${retour.ton === 'ok' ? 'g' : 'w'}`}>{retour.ton === 'ok' ? 'Fait' : echec?.mot ?? 'Refusé'}</span>{' · '}{retour.texte}</p>
-                {echec?.action === 'recharger' && <button className="btn sm" type="button" data-bouton="recharger" disabled={!!enCours} onClick={rechargerVersion} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
-                {echec?.action === 'reessayer' && retour.reessayable && <button className="btn sm" type="button" data-bouton="reessayer" disabled={!!enCours} onClick={() => dernierGeste.current?.()} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
+                {/* Le message disparaît sous le doigt · le focus va au geste en cours (« Réessayer ») ou au levier du plan (« Recharger »). */}
+                {echec?.action === 'recharger' && <button className="btn sm" type="button" data-bouton="recharger" disabled={!!enCours} onClick={() => { rechargerVersion(); rattraperFocus('[data-vlev][aria-pressed="true"]', '[data-vsel][aria-pressed="true"]', '[data-vedit]'); }} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
+                {echec?.action === 'reessayer' && retour.reessayable && <button className="btn sm" type="button" data-bouton="reessayer" disabled={!!enCours} onClick={() => { dernierGeste.current?.(); rattraperFocus('[aria-busy="true"]', '[data-vsel][aria-pressed="true"]', '[data-vedit]'); }} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
               </div>
             )}
           </section>
         </div>
       </div>
 
-      <section className="tile sec">
-        <div className="sech" style={{ margin: '0 0 10px' }}><h2>Montage · version {v.version.n}</h2>
+      <section className="tile sec" aria-labelledby={titres.montage}>
+        <div className="sech" style={{ margin: '0 0 10px' }}><h2 id={titres.montage}>Montage · version {v.version.n}</h2>
           <button className="btn sm" type="button" data-vedit="1" style={{ marginLeft: 'auto' }} aria-pressed={scriptOuvert} onClick={() => setScriptOuvert((o) => !o)}><Ic n="brush" />{scriptOuvert ? 'Fermer le script' : 'Modifier le script'}</button>
         </div>
         {/* La frise garde une largeur par scène (`largeurMinFrise`) et défile dans son cadre au téléphone · ses pistes
@@ -359,9 +413,11 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
           )}
           {confirmation && !confirmation.ok && <Message ton="err">{confirmation.message}</Message>}
           <div className="kc" style={{ marginTop: 10 }}>
+            {/* Même place, même balise · React garde le nœud, le focus passe de « Recalculer » à « Enregistrer » sans rattrapage. */}
             {confirmation && !confirmation.ok
               ? <button className="btn sm pri" type="button" disabled={!!enCours} onClick={() => prevoir(apercu.operation)}>Recalculer l’aperçu</button>
-              : <button className="btn sm pri" type="button" disabled={!!apercu.refus || !disponibilite.montage.disponible || !!enCours} onClick={confirmer}>{enCours === 'confirmer' ? 'Enregistrement…' : 'Enregistrer ce changement'}</button>}
+              : <button className="btn sm pri" type="button" data-action="enregistrer-changement" disabled={!!apercu.refus || !disponibilite.montage.disponible} aria-disabled={!!enCours || undefined} aria-busy={enCours === 'confirmer' || undefined}
+                  style={!enCours || enCours === 'confirmer' ? undefined : FERME} onClick={confirmer}>{enCours === 'confirmer' ? 'Enregistrement…' : 'Enregistrer ce changement'}</button>}
             <button className="btn sm" type="button" disabled={!!enCours} onClick={() => setApercu(null)}>Ne rien changer</button>
             <span className="faint" style={{ fontSize: '11.5px' }}>{disponibilite.montage.disponible ? 'Nouvelle version du projet · aucun appel, aucun coût, aucun devis.' : disponibilite.montage.raison}</span>
           </div>
@@ -369,15 +425,15 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
       )}
 
       {storyboard && (
-        <section className="tile sec" data-zone="storyboard-propose">
-          <div className="sech" style={{ margin: 0 }}><h2>Storyboard proposé · {storyboard.plans.length} plan{storyboard.plans.length > 1 ? 's' : ''} · {dureeLisible(storyboard.totalMs)}</h2></div>
+        <section className="tile sec" data-zone="storyboard-propose" aria-labelledby={titres.storyboard}>
+          <div className="sech" style={{ margin: 0 }}><h2 id={titres.storyboard}>Storyboard proposé · {storyboard.plans.length} plan{storyboard.plans.length > 1 ? 's' : ''} · {dureeLisible(storyboard.totalMs)}</h2></div>
           {storyboard.avertissements.map((a) => <p key={a} className="faint" style={{ fontSize: '12.5px' }}>{a}</p>)}
           <div className="tl">
             {storyboard.plans.map((pl, i) => <div className="ev" key={pl.shotId}><span className="ico">{i + 1}</span><span>{pl.purpose || 'Plan'} · {pl.subject} · {pl.action}{pl.narration ? ` · « ${pl.narration} »` : ''}</span><span className="faint">{dureeLisible(pl.estimatedDurationMs)}</span></div>)}
           </div>
           <div className="kc" style={{ marginTop: 10 }}>
             <button className="btn sm pri" type="button" disabled={!!enCours || !!apercu} onClick={() => prevoir({ type: 'scenario', plans: storyboard.plans })}>Voir l’impact et retenir</button>
-            <button className="btn sm" type="button" disabled={!!enCours} onClick={() => { setStoryboard(null); setQuestions([]); }}>Écarter</button>
+            <button className="btn sm" type="button" disabled={!!enCours} onClick={() => { setStoryboard(null); setQuestions([]); rattraperFocus('[data-action="proposer-storyboard"]', '[data-vedit]'); }}>Écarter</button>
           </div>
         </section>
       )}
@@ -395,21 +451,22 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
           }, () => 'Réponse reçue · relis les plans, rien n’est encore écrit dans le projet.')} />
       )}
 
-      <section className="tile sec" data-zone="video-finale">
-        <div className="sech" style={{ margin: 0 }}><h2>Vidéo finale</h2><span className="faint" style={{ fontSize: '12.5px' }}>Assemblée sur le serveur · aucun crédit, aucun coût fournisseur</span></div>
+      <section className="tile sec" data-zone="video-finale" aria-labelledby={titres.finale}>
+        <div className="sech" style={{ margin: 0 }}><h2 id={titres.finale}>Vidéo finale</h2><span className="faint" style={{ fontSize: '12.5px' }}>Assemblée sur le serveur · aucun crédit, aucun coût fournisseur</span></div>
         <p className="muted" style={{ fontSize: '12.5px', marginTop: 8 }}>Les clips animés des plans, dans l’ordre du montage, au format {v.format.largeur} × {v.format.hauteur}{v.videoFinale.possible ? ` · ${dureeLisible(v.videoFinale.dureeMs)}` : ''}.</p>
         {v.videoFinale.nonInclus.length > 0 && <p className="faint" style={{ fontSize: '12.5px' }}>Ce qu’elle n’inclut pas · {v.videoFinale.nonInclus.join(' · ')}</p>}
         <div className="kc" style={{ marginTop: 10 }}>
-          <button className="btn sm pri" type="button" disabled={!v.videoFinale.possible || !!enCours} onClick={() => void agir('assembler', () => assemblerVideoFinale({ projectId: v.projet.id }), (r) => {
+          <button className="btn sm pri" type="button" data-action="assembler" disabled={!v.videoFinale.possible} aria-disabled={!!enCours || undefined} aria-busy={enCours === 'assembler' || undefined}
+            style={!enCours || enCours === 'assembler' ? undefined : FERME} onClick={() => { if (enCours) return; void agir('assembler', () => assemblerVideoFinale({ projectId: v.projet.id }), (r) => {
             const x = r as { video?: { dureeMs: number } };
             return `Vidéo finale assemblée${x.video ? ` · ${Math.round(x.video.dureeMs / 100) / 10} s` : ''} · lis-la ou télécharge-la ci-dessus.`;
-          })}>{enCours === 'assembler' ? 'Assemblage…' : finale ? 'Assembler à nouveau · 0 crédit' : 'Assembler la vidéo finale · 0 crédit'}</button>
+          }); }}>{enCours === 'assembler' ? 'Assemblage…' : finale ? 'Assembler à nouveau · 0 crédit' : 'Assembler la vidéo finale · 0 crédit'}</button>
           <span className="faint" style={{ fontSize: '11.5px' }}>{v.videoFinale.possible ? 'Quelques secondes à une minute · tu peux rester sur la page.' : v.videoFinale.raison}</span>
         </div>
       </section>
 
-      <section className="tile sec" data-zone="jobs">
-        <div className="sech" style={{ margin: 0 }}><h2>Générations</h2><span className="faint" style={{ fontSize: '12.5px' }}>Images clés et clips de ce projet · état réel</span></div>
+      <section className="tile sec" data-zone="jobs" aria-labelledby={titres.jobs}>
+        <div className="sech" style={{ margin: 0 }}><h2 id={titres.jobs}>Générations</h2><span className="faint" style={{ fontSize: '12.5px' }}>Images clés et clips de ce projet · état réel</span></div>
         {v.jobs.length === 0 ? <p className="muted" style={{ fontSize: '12.5px', marginTop: 8 }}>Aucune image clé ni aucun clip lancé pour ce projet.</p> : (
           <div className="tl">
             {v.jobs.map((j) => {
@@ -445,6 +502,7 @@ function FichePlan({ rang, p, seg, c }: { rang: number; p: PlanStudio; seg: Donn
   const duree = seg
     ? `${dureeLisible(seg.dureeMs)} · ${seg.estimee ? 'estimée' : 'réelle'} · de ${dureeLisible(seg.debutMs)} à ${dureeLisible(seg.debutMs + seg.dureeMs)}`
     : `${dureeLisible(p.estimatedDurationMs)} · estimée`;
+  const titre = useId();
   const champs: Array<[string, string]> = [
     ['Sujet', p.subject], ['Action', p.action], ['Cadrage', p.framing], ['Caméra', p.camera], ['Lumière', p.lighting], ['Décor', p.environment],
     [`Narration (dite) · ${LIBELLES_MODE_PAROLE[p.speechMode]}`, p.speechMode === 'none' ? 'aucune' : p.narration],
@@ -452,8 +510,8 @@ function FichePlan({ rang, p, seg, c }: { rang: number; p: PlanStudio; seg: Donn
     ['Durée', duree],
   ];
   return (
-    <section className="tile sec" data-zone="plan-choisi" aria-label={`Plan ${rang} · fiche`}>
-      <div className="sech" style={{ margin: 0 }}><h2>Plan {rang} · {p.purpose || 'fiche du plan'}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Le storyboard tel qu’il sera produit</span></div>
+    <section className="tile sec" data-zone="plan-choisi" aria-labelledby={titre}>
+      <div className="sech" style={{ margin: 0 }}><h2 id={titre}>Plan {rang} · {p.purpose || 'fiche du plan'}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Le storyboard tel qu’il sera produit</span></div>
       <dl className="kv2" data-champs-plan={p.shotId}>
         {champs.map(([dt, dd]) => <Fragment key={dt}><dt>{dt}</dt><dd>{dd || 'à préciser'}</dd></Fragment>)}
       </dl>
@@ -508,6 +566,10 @@ function Script({ vue: v, ordre, libre, prevoir, coutTexte, enCours, storyboardD
   const [musique, setMusique] = useState(t?.music?.assetId ?? v.musiques[0]?.assetId ?? '');
   const [gain, setGain] = useState(t?.music?.gainDb ?? -12);
   const ids = idsPlansAlloues(Object.keys(v.contenu.shots.byId), nb);
+  const titre = useId();
+  // Au téléphone, l'en-tête de colonnes (`.vsch`) est masqué par la maquette · chaque champ porte alors son libellé visible.
+  const telephone = useTelephone();
+  const libelleVisible = (t: string) => telephone ? <span className="faint" aria-hidden="true" data-libelle-champ="" style={{ fontSize: '11.5px' }}>{t}</span> : null;
 
   const bouge = (sid: string, delta: number) => {
     const o = [...v.contenu.shots.order];
@@ -518,8 +580,8 @@ function Script({ vue: v, ordre, libre, prevoir, coutTexte, enCours, storyboardD
   };
 
   return (
-    <section className="tile sec" data-zone="script">
-      <div className="sech" style={{ margin: 0 }}><h2>Script</h2><span className="faint" style={{ fontSize: '12.5px' }}>Chaque changement montre son impact avant d’être enregistré · aucun coût</span></div>
+    <section className="tile sec" data-zone="script" aria-labelledby={titre}>
+      <div className="sech" style={{ margin: 0 }}><h2 id={titre}>Script</h2><span className="faint" style={{ fontSize: '12.5px' }}>Chaque changement montre son impact avant d’être enregistré · aucun coût</span></div>
       {ordre.length > 0 && <div className="vsc vsch" style={{ marginTop: 10 }}><span>Temps</span><span>Ce qu’on voit</span><span>Texte à l’écran</span><span>Voix off</span></div>}
       {ordre.map((sid, i) => {
         const p = v.contenu.shots.byId[sid]!;
@@ -531,14 +593,17 @@ function Script({ vue: v, ordre, libre, prevoir, coutTexte, enCours, storyboardD
           <div key={sid}>
             <div className="vsc">
               <span className="vtime"><b>{p.purpose || `Plan ${i + 1}`}</b><small>{minuteSeconde(seg?.debutMs ?? 0)}–{minuteSeconde((seg?.debutMs ?? 0) + (seg?.dureeMs ?? 0))}</small></span>
+              {libelleVisible('Ce qu’on voit')}
               <textarea className="vin" rows={2} value={s.action} aria-label={`Plan ${i + 1} · ce qu’on voit`} onChange={(e) => maj('action', e.target.value)} />
+              {libelleVisible('Texte à l’écran')}
               <textarea className="vin" rows={2} value={s.texte} aria-label={`Plan ${i + 1} · texte à l’écran`} disabled={v.sansTexte} onChange={(e) => maj('texte', e.target.value)} />
+              {libelleVisible('Voix off')}
               <textarea className="vin" rows={2} value={s.narration} aria-label={`Plan ${i + 1} · voix off`} disabled={p.speechMode === 'none'} onChange={(e) => maj('narration', e.target.value)} />
             </div>
             <div className="kc" style={{ marginBottom: 10 }}>
               {change && <button className="btn sm pri" type="button" disabled={!libre} onClick={() => prevoir(s.narration !== p.narration && s.action === p.action && s.texte === p.onScreenText.join(' / ')
                 ? { type: 'narration', shotId: sid, narration: s.narration }
-                : { type: 'plan', shotId: sid, champs: { action: s.action, onScreenText: s.texte.split('/').map((x) => x.trim()).filter(Boolean), ...(p.speechMode !== 'none' ? { narration: s.narration } : {}) } })}>Voir l’impact</button>}
+                : { type: 'plan', shotId: sid, champs: { action: s.action, onScreenText: s.texte.split('/').map((x) => x.trim()).filter(Boolean), ...(p.speechMode !== 'none' ? { narration: s.narration } : {}) } })} aria-label={`Voir l’impact du plan ${i + 1}`}>Voir l’impact</button>}
               <button className="btn sm" type="button" disabled={!libre || i === 0} onClick={() => bouge(sid, -1)} aria-label={`Avancer le plan ${i + 1}`}>Avancer</button>
               <button className="btn sm" type="button" disabled={!libre || i === ordre.length - 1} onClick={() => bouge(sid, 1)} aria-label={`Reculer le plan ${i + 1}`}>Reculer</button>
               <span className="faint" style={{ fontSize: '11.5px' }}>{LIBELLES_MODE_PAROLE[p.speechMode]} · {dureeLisible(seg?.dureeMs ?? p.estimatedDurationMs)}</span>
@@ -557,7 +622,7 @@ function Script({ vue: v, ordre, libre, prevoir, coutTexte, enCours, storyboardD
           </label>
           <label className="field">Gain (dB, de {GAIN_MUSIQUE_MIN_DB} à +{GAIN_MUSIQUE_MAX_DB})<input type="number" min={GAIN_MUSIQUE_MIN_DB} max={GAIN_MUSIQUE_MAX_DB} step={0.5} value={gain} onChange={(e) => setGain(Number(e.target.value))} /></label>
           <div className="kc">
-            <button className="btn sm" type="button" disabled={!libre || !musique} onClick={() => prevoir({ type: 'musique', musique: { assetId: musique, gainDb: gain } })}>Voir l’impact</button>
+            <button className="btn sm" type="button" disabled={!libre || !musique} onClick={() => prevoir({ type: 'musique', musique: { assetId: musique, gainDb: gain } })} aria-label="Voir l’impact de la musique">Voir l’impact</button>
             {t?.music && <button className="btn sm" type="button" disabled={!libre} onClick={() => prevoir({ type: 'musique', musique: null })}>Retirer la musique</button>}
             {!v.sansTexte && <button className="btn sm" type="button" disabled={!libre} onClick={() => prevoir({ type: 'sans_texte' })}>Retirer texte écran et sous-titres</button>}
           </div>
@@ -572,7 +637,9 @@ function Script({ vue: v, ordre, libre, prevoir, coutTexte, enCours, storyboardD
         <label className="field">Parole<select value={mode} onChange={(e) => setMode(e.target.value as ModeParole)}>{MODES_PAROLE.map((m) => <option key={m} value={m}>{LIBELLES_MODE_PAROLE[m]}</option>)}</select></label>
       </div>
       <div className="kc" style={{ marginTop: 10 }}>
-        <button className="btn sm pri" type="button" disabled={!storyboardDispo.disponible || !!enCours} onClick={() => surStoryboard({ nbPlans: nb, dureeCibleMs: Math.round(duree * 1000), speechMode: mode })}><Ic n="spark" />{enCours === 'storyboard' ? 'Rédaction…' : 'Proposer un storyboard depuis le brief'}</button>
+        {/* Le verrou d'appel payant ferme le storyboard PENDANT son propre appel · le bouton pressé reste focalisable (`aria-busy`). */}
+        <button className="btn sm pri" type="button" data-action="proposer-storyboard" disabled={!storyboardDispo.disponible && enCours !== 'storyboard'} aria-disabled={!!enCours || undefined} aria-busy={enCours === 'storyboard' || undefined}
+          style={!enCours || enCours === 'storyboard' ? undefined : FERME} onClick={() => { if (!enCours) surStoryboard({ nbPlans: nb, dureeCibleMs: Math.round(duree * 1000), speechMode: mode }); }}><Ic n="spark" />{enCours === 'storyboard' ? 'Rédaction…' : 'Proposer un storyboard depuis le brief'}</button>
         <span className="faint" style={{ fontSize: '11.5px' }} data-cout="storyboard">{storyboardDispo.disponible ? `${coutTexte} · rien n’est écrit avant que tu retiennes les plans.` : storyboardDispo.raison}</span>
       </div>
       <div className="kc" style={{ marginTop: 8 }}>
@@ -585,7 +652,7 @@ function Script({ vue: v, ordre, libre, prevoir, coutTexte, enCours, storyboardD
             <div key={ids[i]} className="grid3">
               {(['purpose', 'subject', 'action', 'camera', 'narration'] as const).map((champ) => (
                 <label key={champ} className="field">Plan {i + 1} · {({ purpose: 'Fonction', subject: 'Sujet *', action: 'Action *', camera: 'Caméra *', narration: 'Narration' })[champ]}
-                  <input value={s[champ]} onChange={(e) => setManuels((m) => m!.map((x, j) => (j === i ? { ...x, [champ]: e.target.value } : x)))} />
+                  <input value={s[champ]} aria-required={champ === 'subject' || champ === 'action' || champ === 'camera' || undefined} onChange={(e) => setManuels((m) => m!.map((x, j) => (j === i ? { ...x, [champ]: e.target.value } : x)))} />
                 </label>
               ))}
               <label className="field">Plan {i + 1} · Texte écran<input value={s.onScreenText.join(' / ')} onChange={(e) => setManuels((m) => m!.map((x, j) => (j === i ? { ...x, onScreenText: e.target.value.split('/').map((t) => t.trim()).filter(Boolean) } : x)))} /></label>

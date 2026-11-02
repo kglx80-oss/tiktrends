@@ -204,7 +204,7 @@ describe('Spatial · D2 · parité de structure avec la maquette', () => {
     // La maquette montre 3 variantes ET 4 scènes · ici les deux sont des PLANS réels, chaque bloc est comparé
     // avec le nombre de la maquette. Le lecteur lit la vraie vidéo finale (`video`) au lieu d'une image d'exemple.
     const a = rendre(<Video vue={vueVideo(3)} marque="Marque" variantesHref="/studio/projets/p1#variantes" />);
-    const haut = parite(a, 'video', { selecteur: '.vstudio', ignorer: ['.vplayer .ph'] });
+    const haut = parite(sansRaisonsFermees(a), 'video', { selecteur: '.vstudio', ignorer: ['.vplayer .ph'] });
     expect(haut.rendu).toEqual(haut.reference);
     const entete = parite(a, 'video', { selecteur: 'header.top' });
     expect(entete.rendu).toEqual(entete.reference);
@@ -213,6 +213,21 @@ describe('Spatial · D2 · parité de structure avec la maquette', () => {
     expect(sansFriseDefilante(montage.rendu)).toEqual(montage.reference);
   });
 });
+
+/**
+ * Passe design de l'atelier vidéo · seul ajout HORS maquette dans « Produire le plan » · la liste des raisons
+ * des leviers fermés (`ul[data-raisons-fermees]`), écrite juste SOUS la grille des leviers. La maquette n'a aucun
+ * levier fermé ; dans le levier, l'opacité de `.vlev:disabled` (feuille intouchable) ramènerait la raison à
+ * 2,8:1 en sombre et 2,0:1 en clair. On retire cette liste · et seulement elle, une seule, juste après `.vlevs`.
+ */
+function sansRaisonsFermees(html: string): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const listes = t.content.querySelectorAll('ul[data-raisons-fermees]');
+  if (listes.length !== 1 || !listes[0]!.previousElementSibling?.classList.contains('vlevs')) return html;
+  listes[0]!.remove();
+  return t.innerHTML;
+}
 
 /**
  * Planche v4 · G3 · seul ajout HORS maquette dans le montage · la frise défile
@@ -237,6 +252,15 @@ describe('Spatial · D2 · la garde de parité tombe sur un écart', () => {
     expect(squelette(ed.replace('class="tile layers"', 'class="tile"'), { selecteur: '.studio', ignorer: ['#art'] })).not.toEqual(parite(ed, 'editeur', { selecteur: '.studio', ignorer: ['#art'] }).reference);
     const vi4 = rendre(<Video vue={vueVideo(4)} marque="M" variantesHref="/x" />);
     expect(squelette(vi4.replace('class="vtl"', 'class="v"'), { selecteur: 'section.tile.sec' })).not.toEqual(parite(vi4, 'video', { selecteur: 'section.tile.sec' }).reference);
+    // L'écart déclaré (la liste des raisons des leviers fermés) ne couvre rien d'autre · deux listes, ou une liste
+    // ailleurs que sous la grille des leviers, font tomber la parité.
+    const vi3 = rendre(<Video vue={vueVideo(3)} marque="M" variantesHref="/x" />);
+    const haut = (html: string) => squelette(sansRaisonsFermees(html), { selecteur: '.vstudio', ignorer: ['.vplayer .ph'] });
+    const refHaut = parite(vi3, 'video', { selecteur: '.vstudio', ignorer: ['.vplayer .ph'] }).reference;
+    expect(haut(vi3), 'la liste déclarée n’est pas retirée').toEqual(refHaut);
+    const liste = /<ul data-raisons-fermees[^]*?<\/ul>/.exec(vi3)![0];
+    expect(haut(vi3.replace(liste, liste + liste)), 'deux listes passent la parité').not.toEqual(refHaut);
+    expect(haut(vi3.replace(liste, '').replace('<div class="vlevs">', liste + '<div class="vlevs">')), 'une liste hors de sa place passe la parité').not.toEqual(refHaut);
   });
 
   it('un nœud de moins dans un couloir la fait tomber', () => {
