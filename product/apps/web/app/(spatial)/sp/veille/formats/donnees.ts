@@ -2,9 +2,11 @@ import 'server-only';
 import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { InspoAd } from '@tiktrends/integrations';
-import { lireFormatCreatif, styleDuFormat, type AnnonceFormat, type SauvegardePourTendance } from '@tiktrends/core';
+import { imageVignetteMarque, lireFormatCreatif, styleDuFormat, type AnnonceFormat, type SauvegardePourTendance } from '@tiktrends/core';
 import type { Session } from '../../../../../lib/auth';
 import type { BrandLite } from '../../../../../lib/brands';
+import { brandMediaPreview } from '../../../../../lib/brand-media-url';
+import { etatLogoParDefaut } from '../../../../../lib/logos-charte-etat';
 
 /**
  * Les lectures RÉELLES des écrans Formats et Tendances (Spatial) · même
@@ -47,15 +49,28 @@ export async function lireSuivis(s: Session, marque: BrandLite | null): Promise<
   return new Set(fl.map((b) => `${b.platform}:${b.name}`));
 }
 
-/** L'image des miniatures · la première image produit de la marque active, sinon son logo. */
-export async function lireImageMarque(marque: BrandLite | null): Promise<string | null> {
+/**
+ * L'image des miniatures · la première image produit de la marque active,
+ * sinon son logo par défaut s'il est servi (noyau `imageVignetteMarque`, même
+ * décision que les autres écrans) · `null` ⇒ le repli de la miniature.
+ *
+ * Toujours par la route média (`brandMediaPreview`) · le stockage est privé,
+ * l'adresse enregistrée ne s'affiche pas telle quelle. Coût · une photo
+ * produit ⇒ aucune vérification ; sinon un `HEAD` (If-Match) si le logo a une
+ * empreinte, aucun sinon.
+ */
+export async function lireImageMarque(s: Pick<Session, 'workspaceId'>, marque: BrandLite | null): Promise<string | null> {
   if (!marque) return null;
+  let photoProduit: string | null = null;
   if (db) {
     const [p] = await db.select({ imageUrl: schema.products.imageUrl }).from(schema.products)
       .where(and(eq(schema.products.brandId, marque.id), isNotNull(schema.products.imageUrl))).limit(1);
-    if (p?.imageUrl) return p.imageUrl;
+    photoProduit = p?.imageUrl || null;
   }
-  return marque.logoUrl ?? null;
+  const logo = marque.logoUrl || null;
+  const bilanLogo = !photoProduit && logo ? await etatLogoParDefaut({ workspaceId: s.workspaceId, logoUrl: logo, logoEmpreintes: marque.logoEmpreintes ?? null }) : null;
+  const v = imageVignetteMarque({ brandId: marque.id, photoProduit, logo, bilanLogo });
+  return v ? brandMediaPreview(marque.id, v.url) : null;
 }
 
 /** Les sauvegardes, prêtes pour la règle des tendances (noyau). */

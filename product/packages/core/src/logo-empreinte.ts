@@ -304,3 +304,38 @@ export function annonceLogosAReimporter(o: {
   const message = `${plusieurs ? 'Logos à réimporter' : 'Logo à réimporter'} · ${noms} : ${plusieurs ? 'leurs fichiers ont' : 'son fichier a'} été remplacé${plusieurs ? 's' : ''} ou ${plusieurs ? 'ne sont' : 'n’est'} plus dans le stockage depuis l’import. ${plusieurs ? 'Ils ne seront pas envoyés' : 'Il ne sera pas envoyé'} au fournisseur d’images et une consigne qui ${plusieurs ? 'les' : 'le'} lie ne pourra pas être générée · ${o.peutGerer ? `réimporte-${plusieurs ? 'les' : 'le'} dans l’Identité de la marque avant de préparer ton visuel.` : 'un administrateur de l’espace peut le faire dans l’Identité de la marque.'}`;
   return { logos: out, message, lien: o.peutGerer ? cheminIdentiteMarque(o.brandId) : null };
 }
+
+/* ───────────── Veille · Formats · l'image des miniatures ───────────── */
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * Les miniatures de Veille · Formats (`Composition`) montrent l'image de la
+ * marque active · la première photo produit, sinon le logo par défaut. Elles
+ * prenaient l'adresse ENREGISTRÉE · le stockage est privé, l'image était
+ * cassée pour toute photo ou tout logo importé ; et un logo remplacé depuis son
+ * import s'affichait quand même (ou cassé), sans jamais être jugé.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ *  · une photo produit passe d'abord · le logo n'est alors ni lu ni vérifié ;
+ *  · sinon le logo par défaut, jugé par la MÊME décision que les autres écrans
+ *    (`logoParDefautAffiche`, donc `bilanLogosCharte.defaut`) · servi ⇒ son
+ *    image ; à réimporter ou non vérifiable ⇒ AUCUNE image (le repli de la
+ *    miniature, jamais une image que la route refuserait) ;
+ *  · l'adresse rendue est l'adresse CANONIQUE · l'écran la projette par la
+ *    route média (`brandMediaPreview`), qui la juge encore en la servant.
+ */
+export interface ImageVignetteMarque { source: 'produit' | 'logo'; url: string }
+
+export function imageVignetteMarque(o: {
+  brandId: string;
+  photoProduit: string | null | undefined;
+  logo: string | null | undefined;
+  /** Le bilan du logo par défaut (`etatLogoParDefaut`) · absent ⇒ aucun logo à empreinte vérifié (servi comme avant). */
+  bilanLogo: BilanLogosCharte | null | undefined;
+}): ImageVignetteMarque | null {
+  if (o.photoProduit) return { source: 'produit', url: o.photoProduit };
+  if (!o.logo) return null;
+  return logoParDefautAffiche({ bilan: o.bilanLogo, brandId: o.brandId, peutGerer: false }).image ? { source: 'logo', url: o.logo } : null;
+}

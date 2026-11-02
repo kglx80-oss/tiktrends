@@ -36,7 +36,7 @@ export default async function FormatsSpatial({ searchParams }: { searchParams: P
   if (!canAccess(access, Veille)) return <AccesFerme titre="Tous les formats" sousNav={SOUS_NAV_VEILLE} actif="/veille/formats" raison={denyReason(access, Veille) === 'plan' ? 'plan' : 'role'} />;
 
   const marque = await getActiveBrand(s.workspaceId);
-  const [annonces, suivis, image] = await Promise.all([lireSauvegardes(s, marque), lireSuivis(s, marque), lireImageMarque(marque)]);
+  const [annonces, suivis, image] = await Promise.all([lireSauvegardes(s, marque), lireSuivis(s, marque), lireImageMarque(s, marque)]);
   const stats = statsParStyle(annonces);
   const { tendances } = detecterTendances(observationsSauvegardes(sauvegardesPourTendances(annonces), suivis), Date.now());
   const compte = compterFormats(annonces);

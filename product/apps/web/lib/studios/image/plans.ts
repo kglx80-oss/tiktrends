@@ -9,6 +9,7 @@ import {
 import type { ContexteStudio } from '../garde';
 import type { ExecStudio } from '../execution/types';
 import { resoudreReferencesImage } from './references';
+import type { VerifierLogo } from '../../logos-charte-etat';
 
 /**
  * Studios · L6-A · raccord des images clés des PLANS vidéo (`keyframe:<plan>`
@@ -43,14 +44,15 @@ export async function consignePlanAttestee(ex: ExecStudio, p: Portee, shotId: st
 export interface EtatConsignePlan { shotId: string; consigne: ConsignePlanPersistee | null; empreinte: string | null; verdict: VerdictConsignePlan }
 
 /** Ce que le devis et l'approbation exigent pour l'image clé d'un plan, lu dans l'exécuteur de l'appelant. */
-export async function verifierConsignePlan(ex: ExecStudio, p: Portee, contenu: ContenuVersion, shotId: string): Promise<EtatConsignePlan> {
+/** `verifier` · partagé par une lecture (écran vidéo) · un logo à empreinte n'y est vérifié qu'une fois (`verificateurUnique`). */
+export async function verifierConsignePlan(ex: ExecStudio, p: Portee, contenu: ContenuVersion, shotId: string, verifier?: VerifierLogo): Promise<EtatConsignePlan> {
   const consigne = consigneDuPlan(contenu, shotId);
   const rang = contenu.shots.order.indexOf(shotId) + 1;
   const entreesCourantes = entreesConsignePlan(contenu, shotId);
   if (!consigne) return { shotId, consigne: null, empreinte: null, verdict: verdictConsignePlan({ shotId, rang, consigne: null, attestee: false, entreesCourantes, resolutions: new Map() }) };
   const empreinte = empreinteConsignePlan(consigne);
   const attestee = await consignePlanAttestee(ex, p, shotId, empreinte);
-  const resolutions = attestee ? await resoudreReferencesImage(ex, p, consigne.references.map((r) => r.assetId)) : new Map();
+  const resolutions = attestee ? await resoudreReferencesImage(ex, p, consigne.references.map((r) => r.assetId), verifier) : new Map();
   return { shotId, consigne, empreinte, verdict: verdictConsignePlan({ shotId, rang, consigne, attestee, entreesCourantes, resolutions }) };
 }
 
