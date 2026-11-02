@@ -94,7 +94,9 @@ describe('detecterSeparateur · les cas ambigus, tranchés et écrits', () => {
   });
 
   it('un en-tête ambigu est signalé dans le rapport d’import · un en-tête net ne l’est pas', () => {
-    const ambigu = buildImportPlan('Status;Ad Concept,Date de lancement\nPrête;A,01/08/2026\n', { today: AUJOURD_HUI });
+    // Ambigu mais bien découpé à la virgule (3 contre 1, chaque ligne cohérente) · lu, et le choix est dit.
+    const ambigu = buildImportPlan('Status,BATCH #,Ad Concept,Date de lancement;Plateforme\nPrête,1,A,01/08/2026;Meta\n', { today: AUJOURD_HUI });
+    expect(ambigu.refus).toBeNull();
     expect(ambigu.report.warnings.some((w) => w.includes('Séparateur de colonnes ambigu') && w.includes('à la virgule')),
       'le choix du séparateur ambigu n’est pas dit').toBe(true);
     for (const t of [TRUEFORDS, toCsv([], { withComputed: true })]) {

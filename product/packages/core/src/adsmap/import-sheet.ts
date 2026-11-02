@@ -219,6 +219,108 @@ export function findHeaderRow(rows: string[][]): number {
   return 0;
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Colonnes reconnues · refus d'un fichier mal découpé                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * La colonne du tableau que nomme une cellule d'en-tête, au sens STRICT ·
+ * l'intitulé normalisé EST l'intitulé attendu, ou COMMENCE par lui (« Lien du
+ * Brief créa », « Que testez-vous et qu'est-ce qui… »). Jamais quand il le
+ * CONTIENT seulement · c'est la tolérance de `mapColumns`, et c'est elle qui
+ * laissait une ligne entière rabattue dans une cellule « contenir » les 19
+ * intitulés à la fois.
+ */
+function colonneNommee(cellule: string): keyof typeof SHEET_HEADERS | null {
+  const c = normHeader(cellule);
+  if (!c) return null;
+  for (const [cle, intitule] of Object.entries(SHEET_HEADERS)) {
+    const cible = normHeader(intitule);
+    if (c === cible || c.startsWith(cible)) return cle as keyof typeof SHEET_HEADERS;
+  }
+  return null;
+}
+
+/** Ce que l'en-tête laisse reconnaître · cellules non vides, colonnes du tableau retrouvées (distinctes), et la colonne « Ad Concept » à part. */
+export interface LectureColonnes { cellules: number; reconnues: number; concept: boolean }
+
+export function lireColonnes(header: readonly string[]): LectureColonnes {
+  const vues = new Set<keyof typeof SHEET_HEADERS>();
+  let cellules = 0;
+  for (const h of header) {
+    if (h.trim()) cellules++;
+    const k = colonneNommee(h);
+    if (k) vues.add(k);
+  }
+  return { cellules, reconnues: vues.size, concept: vues.has('concept') };
+}
+
+/** Les colonnes du tableau d'origine, au total · `SHEET_HEADERS`. */
+export const COLONNES_ATTENDUES = Object.keys(SHEET_HEADERS).length;
+
+/**
+ * Colonnes du tableau qu'un en-tête doit laisser reconnaître (`lireColonnes`,
+ * au sens strict) pour que l'import le lise · en plus d'« Ad Concept », exigée
+ * à part (sans elle, aucune ligne n'a de concept).
+ *
+ * Mesuré sur les fichiers réels, ligne d'en-tête retenue par `findHeaderRow`
+ * (`packages/core/test/adsmap-import-colonnes.test.ts` refait la mesure) :
+ *
+ * | fichier                                                    | cellules | reconnues | concept |
+ * | ---------------------------------------------------------- | -------- | --------- | ------- |
+ * | export Résultats, 29 colonnes (`toCsv`, `;`)               |       29 |        19 | oui     |
+ * | export Résultats, 19 colonnes du Sheet (`;`)               |       19 |        19 | oui     |
+ * | modèle TrueFords (`,`, en-tête en ligne 2)                 |       19 |        19 | oui     |
+ * | modèle TrueFords réenregistré `;` ou tabulation            |       19 |        19 | oui     |
+ * | en-tête minimal (Status, BATCH #, Ad Concept, date)        |        4 |         4 | oui     |
+ * | export Résultats réenregistré à la barre verticale                       |        1 |         1 | non     |
+ * | modèle TrueFords réenregistré à la barre verticale (ligne des blocs)     |        1 |         0 | non     |
+ * | export Résultats, chaque ligne entourée de guillemets      |        1 |         1 | non     |
+ * | export Textes du studio (`type,langue,texte,sources`)      |        4 |         0 | non     |
+ * | export Meta Ads (en-tête type, en français)                |       12 |         1 | non     |
+ * | export TikTok Ads (en-tête type, en anglais)               |       10 |         2 | non     |
+ *
+ * Un bon fichier réel retrouve les 19 colonnes, un mauvais 2 au plus (« Status »
+ * et « Ad format » d'un export TikTok), et aucun mauvais n'a « Ad Concept » en
+ * colonne à part · le seuil se pose avec de la marge des deux côtés, à 4 · le
+ * double du pire mauvais fichier mesuré, et l'en-tête minimal qu'écrit un
+ * tableur réduit aux colonnes de structure passe encore.
+ */
+export const SEUIL_COLONNES_RECONNUES = 4;
+
+/** Le début d'une cellule d'en-tête, pour la montrer sans tout recopier. */
+const extrait = (v: string, n = 40) => {
+  const t = [...v.replace(/\s+/g, ' ').trim()];   // par point de code · un émoji n'est jamais coupé en deux
+  return t.length > n ? `${t.slice(0, n).join('')}…` : t.join('');
+};
+
+/**
+ * Le refus d'un en-tête que l'import ne sait pas lire, en une phrase · `null`
+ * quand il passe. Refusé avant tout aperçu · un fichier mal découpé montrait
+ * sinon une variante dont le « concept » valait la ligne entière.
+ */
+export function refusColonnes(header: readonly string[]): string | null {
+  const l = lireColonnes(header);
+  if (l.concept && l.reconnues >= SEUIL_COLONNES_RECONNUES) return null;
+  if (l.cellules <= 1) {
+    const premiere = header.find((h) => h.trim()) ?? '';
+    return `Colonnes non reconnues · tout l'en-tête tient dans une seule cellule${premiere ? ` (« ${extrait(premiere)} »)` : ''} : le fichier n'est pas découpé en colonnes. Réenregistre-le en CSV depuis ton tableur (séparé par des virgules, des points-virgules ou des tabulations).`;
+  }
+  const manque = l.concept ? '' : ', et « Ad Concept » n\'y est pas';
+  return `Colonnes non reconnues · ${l.reconnues} colonne(s) du tableau retrouvée(s) sur ${COLONNES_ATTENDUES} dans l'en-tête${manque} (il en faut au moins ${SEUIL_COLONNES_RECONNUES}, dont « Ad Concept »). Vérifie que c'est bien l'export de Résultats ou le tableau historique.`;
+}
+
+/**
+ * Comment le fichier a été lu, en une phrase pour l'aperçu · dite à chaque
+ * import, pas seulement quand l'en-tête est ambigu.
+ */
+export function lectureSeparateur(d: SeparateurDetecte): string {
+  const base = `Fichier lu ${LIBELLE_SEPARATEUR[d.separateur]}`;
+  if (d.raison === 'defaut-aucun') return `${base} · aucun séparateur trouvé dans l'en-tête`;
+  if (d.raison === 'majorite' || d.raison === 'defaut-egalite') return `${base} · choisi par défaut, l'en-tête en mélange plusieurs`;
+  return base;
+}
+
 /** Associe chaque colonne connue à son index, par correspondance tolérante. */
 export function mapColumns(header: string[]): Record<keyof typeof SHEET_HEADERS, number> {
   const n = header.map(normHeader);
@@ -456,6 +558,11 @@ export interface ImportReport {
   datesRejected: number;
   demotedToDraft: number;      // « Prête » / « Test en cours » sans hypothèse
   iterationsUnlinked: number;  // motif d'itération sans parent identifiable
+  /** Colonnes du tableau retrouvées dans l'en-tête (`lireColonnes`, au sens strict). */
+  colonnesReconnues: number;
+  /** Liens de l'application réimportés · remplacés par l'adresse en base de l'ad d'origine, ou écartés (`resoudreLiensApp`). */
+  liensAppResolus: number;
+  liensAppEcartes: number;
   warnings: string[];
 }
 
@@ -466,6 +573,11 @@ export interface ImportPlan {
   batches: PlanBatch[];
   ads: PlanAd[];
   report: ImportReport;
+  /**
+   * Le fichier est refusé avant tout aperçu (`refusColonnes`) · la phrase à
+   * montrer, sinon `null`. Refusé, le plan est vide · rien ne s'écrit.
+   */
+  refus: string | null;
 }
 
 const cle = (title: string, angle: string) => `${title.trim()}||${angle.trim()}`;
@@ -479,13 +591,30 @@ export function buildImportPlan(csvText: string, opts: { today?: Date } = {}): I
   const sep = detecterSeparateur(csvText);
   const rows = parseCsv(csvText, sep.separateur);
   const hIdx = findHeaderRow(rows);
-  const cols = mapColumns(rows[hIdx] ?? []);
+  const entete = rows[hIdx] ?? [];
+  const cols = mapColumns(entete);
   const data = rows.slice(hIdx + 1);
+  // Le séparateur n'entre pas dans le plan · un même tableau réenregistré autrement rend le même plan
+  // (`adsmap-csv-separateur.test.ts`). L'aperçu le dit à part (`lectureSeparateur`).
+  const lecture = { colonnesReconnues: lireColonnes(entete).reconnues, liensAppResolus: 0, liensAppEcartes: 0 };
+  const refus = refusColonnes(entete);
 
   const cell = (r: string[], k: keyof typeof SHEET_HEADERS) => {
     const i = cols[k];
     return i >= 0 && i < r.length ? (r[i] ?? '').trim() : '';
   };
+
+  if (refus) {
+    // Mal découpé ou étranger au tableau · aucune ligne n'est lue, aucun plan n'est proposé.
+    return {
+      desires: [], angles: [], concepts: [], batches: [], ads: [], refus,
+      report: {
+        rowsRead: 0, rowsSkipped: 0, personas: 0, desires: 0, desiresSplit: 0, angles: 0, anglesWithoutMechanism: 0,
+        concepts: 0, conceptsMerged: 0, batches: 0, ads: 0, verdicts: 0, learnings: 0, datesRepaired: 0,
+        datesRejected: 0, demotedToDraft: 0, iterationsUnlinked: 0, ...lecture, warnings: [],
+      },
+    };
+  }
 
   // Passe 1 · valeurs de désir présentes telles quelles, pour savoir ce qui est atomique.
   const brutes = new Set<string>();
@@ -504,7 +633,7 @@ export function buildImportPlan(csvText: string, opts: { today?: Date } = {}): I
     rowsRead: lues, rowsSkipped: ignorees, personas: 1, desires: 0, desiresSplit: 0,
     angles: 0, anglesWithoutMechanism: 0, concepts: 0, conceptsMerged: 0, batches: 0,
     ads: 0, verdicts: 0, learnings: 0, datesRepaired: 0, datesRejected: 0,
-    demotedToDraft: 0, iterationsUnlinked: 0, warnings: [],
+    demotedToDraft: 0, iterationsUnlinked: 0, ...lecture, warnings: [],
   };
 
   // Passe 2 · entités.
@@ -659,5 +788,6 @@ export function buildImportPlan(csvText: string, opts: { today?: Date } = {}): I
     batches: [...batches.values()].sort((a, b) => a.number - b.number),
     ads,
     report,
+    refus: null,
   };
 }
