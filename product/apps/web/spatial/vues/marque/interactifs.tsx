@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FORMATS_LOGO, charteAvecLogoImporte, lienAnnonceurVeille, lignesConfigurationMarque, refusAdresseLogo, refusFichierLogo, type EtapeConfigurationMarque } from '@tiktrends/core';
+import { FORMATS_LOGO, charteAvecLogoImporte, charteAvecLogoReimporte, lienAnnonceurVeille, lignesConfigurationMarque, refusAdresseLogo, refusFichierLogo, type EtapeConfigurationMarque, type EtatLogoCharte } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
 import { Anneau, Ic, Lien } from '../../communs';
 
@@ -268,18 +268,32 @@ export function FormulaireSurcouche({ action, cache, champs, titre, intro, envoy
 
 /* ───────────────────────── Logos de la charte ───────────────────────── */
 
+/** Le badge d'un logo qui n'est pas servi · « À réimporter » (rouge) ou « Indisponible » (stockage injoignable). */
+export function BadgeLogo({ e }: { e: Exclude<EtatLogoCharte, { etat: 'servi' }> }) {
+  const reimporter = e.etat === 'a_reimporter';
+  return (
+    <span className={`pill ${reimporter ? 'r' : 'w'}`} data-logo-etat={e.etat} title={e.raison} style={{ whiteSpace: 'nowrap', flex: 'none' }}>
+      <Ic n="warn" />{reimporter ? 'À réimporter' : 'Indisponible'}
+    </span>
+  );
+}
+
 /**
  * Les logos de la charte (repris de l'éditeur V5 `BrandGuidelines`) · ajouter
  * un logo par son adresse, choisir celui par défaut, en retirer un. Enregistré
  * par `saveBrandDAAction` avec les couleurs et polices ACTUELLES (rien d'autre
  * ne change). L'import d'un FICHIER vit sur la carte du logo (`ImportLogo`).
  */
-export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices, enregistrer }: {
+export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices, enregistrer, etats = {}, reimporter = null }: {
   brandId: string; logos: readonly string[]; defaut: string | null;
   /** L'adresse d'affichage (proxy) de chaque logo connu. */
   apercus: Record<string, string>;
   couleurs: readonly string[]; polices: readonly string[];
   enregistrer: ((i: { brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[] }) => Promise<{ ok?: true; error?: string }>) | null;
+  /** Les logos qui ne sont PAS servis (noyau `bilanLogosCharte`, calculé au rendu serveur) · badge et raison. */
+  etats?: Readonly<Record<string, Exclude<EtatLogoCharte, { etat: 'servi' }>>>;
+  /** « Importer » à la place d'un logo à réimporter · le geste `ImportLogo` existant, mêmes droits. */
+  reimporter?: { actions: ImportLogoActions | null; raison: string | null } | null;
 }) {
   const { toast } = useSpatial();
   const router = useRouter();
@@ -303,17 +317,25 @@ export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices
         ? <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>Aucun logo dans la charte · « Récupérer la charte » le lit sur le site, ou ajoute son adresse.</p>
         : (
           <div className="nprefs">
-            {logos.map((u) => (
-              <div className="npr" key={u}>
-                <span className="applogo" style={{ width: 42, height: 42, overflow: 'hidden' }}>{apercus[u] ? <img src={apercus[u]} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} /> : <Ic n="img" />}</span>
-                <div><strong style={{ overflowWrap: 'anywhere' }}>{u.replace(/^https?:\/\//, '')}</strong><small>{u === defaut ? 'Logo par défaut' : 'Variante'}</small></div>
-                {u === defaut
+            {logos.map((u) => {
+              // Un logo non servi n'a pas d'aperçu (la route refuse) · son badge et sa raison à la place.
+              const e = Object.prototype.hasOwnProperty.call(etats, u) ? etats[u]! : null;
+              return (
+              <div className="npr" key={u} data-logo-etat={e?.etat}>
+                <span className="applogo" style={{ width: 42, height: 42, overflow: 'hidden' }}>{apercus[u] && !e ? <img src={apercus[u]} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} /> : <Ic n={e ? 'warn' : 'img'} />}</span>
+                <div><strong style={{ overflowWrap: 'anywhere' }}>{u.replace(/^https?:\/\//, '')}</strong><small>{u === defaut ? 'Logo par défaut' : 'Variante'}{e ? ` · ${e.raison}` : ''}</small></div>
+                {e && <BadgeLogo e={e} />}
+                {e?.etat === 'a_reimporter'
+                  ? <ImportLogo brandId={brandId} logos={logos} defaut={defaut} couleurs={couleurs} polices={polices} remplace={u}
+                      actions={reimporter?.actions ?? null} raison={reimporter ? reimporter.raison : 'Réservé aux administrateurs de l’espace'} />
+                  : u === defaut
                   ? <span className="pill g"><Ic n="check" />Par défaut</span>
                   : <button className="btn sm" type="button" disabled={!!ferme || encours} title={ferme} onClick={() => sauver(u, [...logos], 'Logo par défaut enregistré')}>Par défaut</button>}
                 <button className="btn sm icon" type="button" aria-label={`Retirer le logo ${u}`} disabled={!!ferme || encours} title={ferme}
                   onClick={() => sauver(u === defaut ? (logos.find((x) => x !== u) ?? '') : (defaut ?? ''), logos.filter((x) => x !== u), 'Logo retiré de la charte')}><Ic n="x" /></button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       <form style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }} onSubmit={(e) => {
@@ -513,9 +535,11 @@ export interface ImportLogoActions {
  * les logos déjà là restent en variantes. La réussite ne se dit qu'après le oui
  * du serveur. Fermé, avec sa raison, sans droit ou sans stockage.
  */
-export function ImportLogo({ brandId, logos, defaut, couleurs, polices, actions, raison }: {
+export function ImportLogo({ brandId, logos, defaut, couleurs, polices, actions, raison, remplace = null }: {
   brandId: string; logos: readonly string[]; defaut: string | null; couleurs: readonly string[]; polices: readonly string[];
   actions: ImportLogoActions | null; raison: string | null;
+  /** Un logo À RÉIMPORTER · le fichier importé prend sa place (et son rôle de défaut), noyau `charteAvecLogoReimporte`. */
+  remplace?: string | null;
 }) {
   const { toast } = useSpatial();
   const router = useRouter();
@@ -530,15 +554,16 @@ export function ImportLogo({ brandId, logos, defaut, couleurs, polices, actions,
       // Sans jeton, la charte refuserait l'adresse · rien n'est déposé.
       if (pre.error || !pre.uploadUrl || !pre.publicUrl || !pre.contentType || !pre.jetonDepot) { toast(pre.error ?? 'Le téléversement a échoué. Réessaie.'); return; }
       if (!(await deposerDansLeBucket(pre.uploadUrl, f, pre.contentType))) { toast('Le fichier n’a pas pu être envoyé · rien n’a changé dans la charte. Réessaie.'); return; }
-      const charte = charteAvecLogoImporte({ logos, defaut }, pre.publicUrl);
+      const charte = remplace ? charteAvecLogoReimporte({ logos, defaut }, remplace, pre.publicUrl) : charteAvecLogoImporte({ logos, defaut }, pre.publicUrl);
       const r = await actions!.enregistrer({ brandId, ...charte, colors: [...couleurs], fonts: [...polices], jetonDepot: pre.jetonDepot }).catch(() => ({ error: 'L’enregistrement a échoué. Réessaie.' }));
       if (r.error) { toast(r.error); return; }
-      toast('Logo importé · il devient le logo par défaut de la charte');
+      toast(remplace ? 'Logo réimporté · il remplace dans la charte le fichier à réimporter' : 'Logo importé · il devient le logo par défaut de la charte');
       router.refresh();
     });
   };
   return (
-    <label className="btn sm" aria-disabled={ferme || undefined} aria-busy={encours || undefined} title={ferme ? raison ?? 'Réservé aux administrateurs de l’espace' : 'Importer un fichier de logo (png, jpg, webp)'}>
+    <label className="btn sm" data-geste={remplace ? 'reimporter-logo' : undefined} aria-disabled={ferme || undefined} aria-busy={encours || undefined}
+      title={ferme ? raison ?? 'Réservé aux administrateurs de l’espace' : remplace ? 'Importer un nouveau fichier à la place de ce logo (png, jpg, webp)' : 'Importer un fichier de logo (png, jpg, webp)'}>
       <Ic n="down" />{encours ? 'Import…' : 'Importer'}<input type="file" accept={FORMATS_LOGO.join(',')} hidden disabled={ferme || encours} onChange={(e) => { choisir(e.target.files?.[0]); e.target.value = ''; }} />
     </label>
   );

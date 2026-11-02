@@ -120,3 +120,84 @@ export function decisionLogoServi(o: { empreinte: string | null | undefined; ver
   if (etatEmpreinte(o.empreinte, v.empreinte) === 'remplace') return refus('remplace');
   return { servir: true, verifie: true };
 }
+
+/* ───────────── La charte vue par la fiche · « à réimporter » au rendu ───────────── */
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * Un logo remplacé n'est plus servi (`/api/brands/[id]/media` → 409) ni
+ * transmis, mais la fiche Identité ne le disait pas · une image cassée, sans
+ * raison ni geste. La fiche juge chaque logo de la charte par la MÊME décision
+ * que le service (`decisionLogoServi`) · ce que la fiche dit est ce que le
+ * service fait.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ *  · seul un logo AVEC empreinte se vérifie (`logosAVerifier`) · un logo sans
+ *    empreinte (ancien, externe) n'entraîne aucune requête et reste « servi » ;
+ *  · remplacé ou disparu ⇒ « à réimporter », avec sa raison · la fiche propose
+ *    « Importer » à sa place ;
+ *  · stockage injoignable (ou vérification qui n'a pas pu partir) ⇒
+ *    « indisponible », JAMAIS « à réimporter » · on ne demande pas de refaire
+ *    un import qu'on n'a pas pu juger ;
+ *  · le logo par défaut qui n'est pas servi est signalé en tête de la carte du
+ *    logo (`bilanLogosCharte.defaut`).
+ */
+
+/** La raison montrée à côté du badge · courte, sans le préfixe « Logo à réimporter » que porte déjà le badge. */
+export const RAISONS_LOGO_CHARTE = {
+  remplace: 'Son fichier a été remplacé dans le stockage depuis l’import · il n’est plus affiché ni envoyé aux générations.',
+  absent: 'Son fichier n’est plus dans le stockage · il n’est plus affiché ni envoyé aux générations.',
+  illisible: 'Stockage injoignable · ce logo n’a pas pu être vérifié, réessaie dans un instant.',
+} as const;
+
+export type EtatLogoCharte =
+  /** Sans empreinte (servi comme avant), ou objet confirmé par son empreinte. */
+  | { etat: 'servi' }
+  | { etat: 'a_reimporter'; cause: 'remplace' | 'absent'; raison: string }
+  | { etat: 'indisponible'; raison: string };
+
+/** L'état d'un logo de la charte · la décision du service, dite pour la fiche. */
+export function etatLogoCharte(o: { empreinte: string | null | undefined; verification?: VerificationEmpreinte | null }): EtatLogoCharte {
+  const d = decisionLogoServi(o);
+  if (d.servir) return { etat: 'servi' };
+  if (d.cause === 'illisible') return { etat: 'indisponible', raison: RAISONS_LOGO_CHARTE.illisible };
+  return { etat: 'a_reimporter', cause: d.cause, raison: RAISONS_LOGO_CHARTE[d.cause] };
+}
+
+/** Les logos de la charte à vérifier au rendu · ceux qui ont une empreinte, chacun une fois. */
+export function logosAVerifier(table: unknown, urls: ReadonlyArray<string | null | undefined>): Array<{ url: string; empreinte: string }> {
+  const t = lireEmpreintesLogos(table);
+  const vus = new Set<string>();
+  const out: Array<{ url: string; empreinte: string }> = [];
+  for (const url of urls) {
+    if (typeof url !== 'string' || !url || vus.has(url)) continue;
+    vus.add(url);
+    if (Object.prototype.hasOwnProperty.call(t, url)) out.push({ url, empreinte: t[url]! });
+  }
+  return out;
+}
+
+export interface BilanLogosCharte {
+  /** Adresse → état · seulement les logos qui ne sont PAS servis (un logo absent de la table est servi). */
+  etats: Record<string, Exclude<EtatLogoCharte, { etat: 'servi' }>>;
+  /** Le logo par défaut, quand il n'est pas servi · signalé en tête de la carte du logo. */
+  defaut: Exclude<EtatLogoCharte, { etat: 'servi' }> | null;
+}
+
+/** Le bilan de la charte · `verifications` = ce que le stockage a répondu pour chaque logo vérifié (absent : rien n'a pu partir). */
+export function bilanLogosCharte(o: {
+  logos: ReadonlyArray<string | null | undefined>;
+  defaut: string | null | undefined;
+  empreintes: unknown;
+  verifications: ReadonlyMap<string, VerificationEmpreinte | null>;
+}): BilanLogosCharte {
+  const etats: BilanLogosCharte['etats'] = {};
+  for (const { url, empreinte } of logosAVerifier(o.empreintes, [o.defaut, ...o.logos])) {
+    const e = etatLogoCharte({ empreinte, verification: o.verifications.get(url) ?? null });
+    if (e.etat !== 'servi') Object.defineProperty(etats, url, { value: e, enumerable: true, writable: true, configurable: true });
+  }
+  const d = o.defaut && Object.prototype.hasOwnProperty.call(etats, o.defaut) ? etats[o.defaut]! : null;
+  return { etats, defaut: d };
+}

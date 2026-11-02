@@ -18,9 +18,11 @@ import { ImportLogo, type ImportLogoActions } from '../spatial/vues/marque/inter
 let root: Root | null = null; let hote: HTMLElement | null = null;
 afterEach(() => { act(() => root?.unmount()); hote?.remove(); root = null; toasts.length = 0; rafraichis.n = 0; vi.unstubAllGlobals(); });
 
-function monter(actions: ImportLogoActions | null, raison: string | null = null) {
+function monter(actions: ImportLogoActions | null, raison: string | null = null, remplace: { logos: string[]; defaut: string; remplace: string } | null = null) {
   hote = document.createElement('div'); document.body.append(hote); root = createRoot(hote);
-  act(() => root!.render(<ImportLogo brandId="b1" logos={['https://a/ancien.png']} defaut="https://a/ancien.png" couleurs={['#112233']} polices={['Inter']} actions={actions} raison={raison} />));
+  act(() => root!.render(remplace
+    ? <ImportLogo brandId="b1" logos={remplace.logos} defaut={remplace.defaut} remplace={remplace.remplace} couleurs={['#112233']} polices={['Inter']} actions={actions} raison={raison} />
+    : <ImportLogo brandId="b1" logos={['https://a/ancien.png']} defaut="https://a/ancien.png" couleurs={['#112233']} polices={['Inter']} actions={actions} raison={raison} />));
   return hote.querySelector('input[type="file"]') as HTMLInputElement;
 }
 async function choisir(input: HTMLInputElement, f: File) {
@@ -57,6 +59,16 @@ describe('Marque · importer un fichier de logo', () => {
     expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: 'https://bucket/assets/ws/neuf.png', logos: ['https://a/ancien.png', 'https://bucket/assets/ws/neuf.png'], colors: ['#112233'], fonts: ['Inter'], jetonDepot: 'jeton.signe' }]);
     expect(toasts).toEqual(['Logo importé · il devient le logo par défaut de la charte']);
     expect(rafraichis.n).toBe(1);
+  });
+
+  it('« Importer » à la place d’un logo À RÉIMPORTER · le fichier neuf prend sa place (et son rôle de défaut), le logo cassé quitte la charte, les autres restent', async () => {
+    const { appels, actions } = faux();
+    const casse = 'https://bucket/assets/ws/casse.png';
+    await choisir(monter(actions, null, { logos: ['https://a/variante.png', casse], defaut: casse, remplace: casse }), png());
+    expect(appels.put).toEqual(['PUT https://bucket/put?sig']);
+    expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: 'https://bucket/assets/ws/neuf.png', logos: ['https://a/variante.png', 'https://bucket/assets/ws/neuf.png'], colors: ['#112233'], fonts: ['Inter'], jetonDepot: 'jeton.signe' }]);
+    expect(toasts).toEqual(['Logo réimporté · il remplace dans la charte le fichier à réimporter']);
+    expect(hote!.querySelector('label')!.getAttribute('data-geste')).toBe('reimporter-logo');
   });
 
   it('le PUT porte le type rendu par le serveur, pas celui du navigateur', async () => {
