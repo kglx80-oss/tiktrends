@@ -11,11 +11,12 @@ import {
   menuFichier, destinationsDeplacement, vueUtiliseDans, type CleMenuFichier, type UtilisationsBibliotheque,
   menuDossier, optionsTagDossier, boutonTagSurCarte, gesteTelechargement, type CleMenuDossier,
   destinationsDeplacementDossier, validerNomDossier,
+  validerNomFichier, baseNomFichier, extensionNomFichier, messageFichierRenomme, destinationsDeplacementSelection, messageDossiersDeplaces,
   lienInterneFichier, lienInterneDossier, rechercheSansLien, MESSAGE_LIEN_COPIE, type OuvertureLienInterne,
   ATTRIBUT_ZONE_TACTILE,
 } from '@tiktrends/core';
-import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction } from '../../../app/actions/assets';
-import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction, renommerDossierAction, deplacerDossierAction } from '../../../app/actions/bibliotheque-dossiers';
+import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction } from '../../../app/actions/assets';
+import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction, renommerDossierAction, deplacerDossierAction, deplacerDossiersAction } from '../../../app/actions/bibliotheque-dossiers';
 import { syncDriveNowAction } from '../../../app/actions/drive';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
@@ -75,6 +76,14 @@ import { UtiliseDans } from './utilise-dans';
  * du dossier, `useArchive`), Mettre à la corbeille ou Restaurer, et le tag de
  * couleur là où la carte n'a pas son bouton (la liste) · décidés au noyau
  * (`menuDossier`, `destinationsDeplacementDossier`).
+ *
+ * Un FICHIER se renomme depuis son aperçu et depuis son menu « … » · la même
+ * fenêtre que le dossier (la base du nom présélectionnée, l'extension connue
+ * conservée · `validerNomFichier`, puis `renommerAssetAction`). « Déplacer
+ * vers… » de la barre déplace aussi une sélection de DOSSIERS, en une action
+ * tout ou rien (`deplacerDossiersAction`), chaque destination jugée par la
+ * règle de l'action (`destinationsDeplacementSelection`) · une sélection mixte
+ * le ferme avec sa raison.
  *
  * « Copier le lien » (menu « … » d'un fichier ou d'un dossier) copie le lien
  * INTERNE de l'écran (`lienInterneFichier`, `lienInterneDossier`) dans le
@@ -229,8 +238,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const [versementFichier, setVersementFichier] = useState<string | null>(null);
   /** Le fichier ou le dossier dont le menu « … » est ouvert · un seul à la fois. */
   const [menuOuvert, setMenuOuvert] = useState<string | null>(null);
-  /** Le dossier en cours de renommage · la saisie et le refus éventuel (règle du noyau ou du serveur). */
-  const [renommage, setRenommage] = useState<{ id: string; nom: string; saisie: string; erreur: string | null } | null>(null);
+  /** Le dossier ou le fichier en cours de renommage · la saisie et le refus éventuel (règle du noyau ou du serveur). */
+  const [renommage, setRenommage] = useState<{ cible: 'dossier' | 'fichier'; id: string; nom: string; saisie: string; erreur: string | null; depuisApercu?: true } | null>(null);
   const [lien, setLien] = useState<{ texte: string; nom: string; type: TypeImportLien }>({ texte: '', nom: '', type: 'video' });
   const fichierRef = useRef<HTMLInputElement>(null);
   const maintenant = useMemo(() => new Date(p.maintenant), [p.maintenant]);
@@ -469,6 +478,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
     const e = menuFichier(p.donnees, f.id, { section: etat.section, lectureSeule: p.lectureSeule }).find((x) => x.cle === cle);
     if (!e?.ouvert) return;
     if (cle === 'apercu') setApercu(f.id);
+    else if (cle === 'renommer') setRenommage({ cible: 'fichier', id: f.id, nom: f.nom, saisie: f.nom, erreur: null });
     else if (cle === 'ranger') void deplacerFichier(f, dossier ?? null);
     else if (cle === 'projet') setVersementFichier(f.id);
     else if (cle === 'copier-lien') { const l = lienInterneFichier(p.donnees, f.id); if (l) void copierLien(l, 'fichier'); }
@@ -493,7 +503,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
     const e = menuDossier(p.donnees, d.id, { section: etat.section, lectureSeule: p.lectureSeule, variante }).find((x) => x.cle === cle);
     if (!e?.ouvert || occupe) return;
     if (cle === 'ouvrir') aller(d.id);
-    else if (cle === 'renommer') setRenommage({ id: d.id, nom: d.nom, saisie: d.nom, erreur: null });
+    else if (cle === 'renommer') setRenommage({ cible: 'dossier', id: d.id, nom: d.nom, saisie: d.nom, erreur: null });
     else if (cle === 'deplacer') {
       const o = destinationsDeplacementDossier(p.donnees, d.id).find((x) => x.id === (option ?? null));
       if (o && !o.actuel && !o.raison) await deplacerDossier(d, o.id, o.nom);
@@ -522,25 +532,49 @@ export function Bibliotheque(p: PropsBibliotheque) {
     rafraichir();
   }
 
-  /** Ferme la fenêtre de renommage · le focus revient au « … » du dossier. */
+  /** Ferme la fenêtre de renommage · le focus revient d'où elle s'est ouverte (le « … » du dossier ou du fichier, ou le bouton de l'aperçu). */
   const fermerRenommage = () => {
-    const nom = renommage?.nom;
+    const x = renommage;
     setRenommage(null);
-    if (nom != null) [...document.querySelectorAll<HTMLElement>('[data-menu-dossier]')].find((b) => b.getAttribute('aria-label') === `Actions sur ${nom}`)?.focus();
+    if (!x) return;
+    const retour = x.depuisApercu ? document.querySelector<HTMLElement>('[data-geste="renommer-fichier"]')
+      : [...document.querySelectorAll<HTMLElement>(`[data-menu-${x.cible}]`)].find((b) => b.getAttribute('aria-label') === `Actions sur ${x.nom}`);
+    retour?.focus();
   };
 
-  /** « Renommer » · la règle de nom du noyau d'abord (aucun appel pour un nom refusé), puis l'action · son refus reste dans la fenêtre. */
-  async function renommerDossier() {
+  /**
+   * « Renommer » · la règle de nom du noyau d'abord (aucun appel pour un nom refusé), puis l'action · son refus reste dans la fenêtre.
+   * Un fichier · seule la base de son nom est présélectionnée (l'extension connue est conservée de toute façon).
+   */
+  async function renommer() {
     if (!renommage || !ecriture || occupe) return;
-    const v = validerNomDossier(renommage.saisie);
+    const fichier = renommage.cible === 'fichier';
+    const v = fichier ? validerNomFichier(renommage.nom, renommage.saisie) : validerNomDossier(renommage.saisie);
     if (!v.ok) { setRenommage({ ...renommage, erreur: v.raison }); return; }
     if (v.nom === renommage.nom) { fermerRenommage(); return; }
     setOccupe(true);
-    const r = await renommerDossierAction({ id: renommage.id, nom: v.nom }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; nom?: string; error?: string }));
+    const appel = fichier ? renommerAssetAction({ id: renommage.id, nom: v.nom }) : renommerDossierAction({ id: renommage.id, nom: v.nom });
+    const r = await appel.catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; nom?: string; error?: string }));
     setOccupe(false);
     if (r.error) { setRenommage((x) => (x ? { ...x, erreur: r.error! } : x)); return; }
     fermerRenommage();
-    toast(`Dossier renommé en « ${r.nom ?? v.nom} »`);
+    toast(fichier ? messageFichierRenomme(r.nom ?? v.nom) : `Dossier renommé en « ${r.nom ?? v.nom} »`);
+    rafraichir();
+  }
+
+  /** La barre · « Déplacer vers… » d'une sélection de DOSSIERS · une seule action, tout ou rien (relue et jugée en base, dans sa transaction). */
+  async function deplacerSelectionDossiers(valeur: string) {
+    const ids = sel.dossiers.map((d) => d.id);
+    if (!ecriture || occupe || !ids.length || sel.composition !== 'dossiers' || !gesteSel('ranger')?.ouvert) return;
+    const parentId = valeur === RACINE_RANGEMENT ? null : valeur;
+    const o = destinationsDeplacementSelection(p.donnees, ids).find((x) => x.id === parentId);
+    if (!o || o.actuel || o.raison) return;
+    setOccupe(true);
+    const r = await deplacerDossiersAction({ ids, parentId }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
+    setOccupe(false);
+    if (r.error) { toast(r.error); return; }
+    toast(messageDossiersDeplaces(r.n ?? ids.length, o.nom));
+    setSelection(new Set());
     rafraichir();
   }
 
@@ -933,10 +967,17 @@ export function Bibliotheque(p: PropsBibliotheque) {
                 const ranger = gesteSel('ranger')!, droits = gesteSel('droits')!, ia = gesteSel('ia'), projet = gesteSel('projet')!;
                 return (
                   <>
-                    <select className="dsort" data-geste="ranger" aria-label="Déplacer les fichiers sélectionnés vers un dossier" value="" disabled={occupe || !ranger.ouvert} title={ranger.raison ?? undefined} onChange={(e) => void gesteFichiers('ranger', e.target.value)}>
-                      <option value="" disabled>{ranger.libelle}</option>
-                      {rangements.map((r) => <option key={r.id ?? 'racine'} value={r.id ?? RACINE_RANGEMENT}>{r.nom}</option>)}
-                    </select>
+                    {sel.composition === 'dossiers' ? (
+                      <select className="dsort" data-geste="ranger" aria-label="Déplacer les dossiers sélectionnés vers un dossier" value="" disabled={occupe || !ranger.ouvert} title={ranger.raison ?? undefined} onChange={(e) => void deplacerSelectionDossiers(e.target.value)}>
+                        <option value="" disabled>{ranger.libelle}</option>
+                        {destinationsDeplacementSelection(p.donnees, sel.dossiers.map((d) => d.id)).map((r) => <option key={r.id ?? 'racine'} value={r.id ?? RACINE_RANGEMENT} disabled={r.actuel || !!r.raison} title={r.actuel ? 'Les dossiers sont déjà ici.' : (r.raison ?? undefined)}>{r.nom}</option>)}
+                      </select>
+                    ) : (
+                      <select className="dsort" data-geste="ranger" aria-label="Déplacer les fichiers sélectionnés vers un dossier" value="" disabled={occupe || !ranger.ouvert} title={ranger.raison ?? undefined} onChange={(e) => void gesteFichiers('ranger', e.target.value)}>
+                        <option value="" disabled>{ranger.libelle}</option>
+                        {rangements.map((r) => <option key={r.id ?? 'racine'} value={r.id ?? RACINE_RANGEMENT}>{r.nom}</option>)}
+                      </select>
+                    )}
                     <select className="dsort" data-geste="droits" aria-label="Droits d’usage des fichiers sélectionnés" value="" disabled={occupe || !droits.ouvert} title={droits.raison ?? undefined} onChange={(e) => void gesteFichiers('droits', e.target.value)}>
                       <option value="" disabled>{sel.inviteDroits}</option>
                       <option value={SANS_DROIT}>Non classé</option>
@@ -998,6 +1039,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                   )}
                 </div>
               )}
+              {gestesFa?.edition && <button className="btn" type="button" data-geste="renommer-fichier" aria-disabled={occupe || undefined} onClick={() => { if (!occupe) setRenommage({ cible: 'fichier', id: fa.id, nom: fa.nom, saisie: fa.nom, erreur: null, depuisApercu: true }); }}><Ic n="text" />Renommer</button>}
               {versementFa && <button className="btn" type="button" data-geste="projet-fichier" disabled={occupe || !versementFa.ouvert} title={versementFa.raison ?? undefined} onClick={() => setVersementFichier(fa.id)}><Ic n="brush" />{versementFa.libelle}</button>}
               {fa.projet && <Lien className="btn pri" href={fa.projet.href}><Ic n="brush" />Ouvrir le projet</Lien>}
               <a className="btn" href={fa.telecharger ?? fa.url} target="_blank" rel="noopener noreferrer" download><Ic n="down" />Télécharger</a>
@@ -1009,12 +1051,14 @@ export function Bibliotheque(p: PropsBibliotheque) {
         )}
       </div>
       {ecriture && (
-        <DialogueSpatial titre="Renommer le dossier" ouvert={renommage !== null} fermer={fermerRenommage}>
+        <DialogueSpatial titre={renommage?.cible === 'fichier' ? 'Renommer le fichier' : 'Renommer le dossier'} ouvert={renommage !== null} fermer={fermerRenommage}>
           {renommage && (
-            <form style={{ display: 'grid', gap: 10 }} data-renommer-dossier={renommage.id} onSubmit={(e) => { e.preventDefault(); void renommerDossier(); }}>
+            <form style={{ display: 'grid', gap: 10 }} {...{ [`data-renommer-${renommage.cible}`]: renommage.id }} onSubmit={(e) => { e.preventDefault(); void renommer(); }}>
               <input value={renommage.saisie} autoFocus aria-label={`Nouveau nom de ${renommage.nom}`} aria-invalid={renommage.erreur ? true : undefined}
-                onFocus={(e) => e.currentTarget.select()} onChange={(e) => { const saisie = e.target.value; setRenommage((x) => (x ? { ...x, saisie, erreur: null } : x)); }}
+                onFocus={(e) => { if (renommage.cible === 'fichier') e.currentTarget.setSelectionRange(0, baseNomFichier(e.currentTarget.value).length); else e.currentTarget.select(); }}
+                onChange={(e) => { const saisie = e.target.value; setRenommage((x) => (x ? { ...x, saisie, erreur: null } : x)); }}
                 style={{ padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)' }} />
+              {renommage.cible === 'fichier' && extensionNomFichier(renommage.nom) && <small className="faint" data-extension-conservee="">L’extension {extensionNomFichier(renommage.nom)} est conservée · le type du fichier ne change pas.</small>}
               {renommage.erreur && <p role="alert" style={{ fontSize: '12.5px', margin: 0, color: 'var(--bad)' }}>{renommage.erreur}</p>}
               <div className="pbtns"><button className="btn" type="button" onClick={fermerRenommage}>Annuler</button><button className="btn pri" type="submit" disabled={occupe}>Renommer</button></div>
             </form>

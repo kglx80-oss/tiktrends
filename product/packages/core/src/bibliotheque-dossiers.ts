@@ -12,8 +12,12 @@
  *      déplacement sans cycle (`peutDeplacerDossier`) ;
  *   4. les règles des GESTES sur un dossier existant · renommer
  *      (`validerRenommageDossier`) et déplacer (`validerDeplacementDossier`),
- *      partagées par les actions serveur et par le menu « … » de l'écran.
+ *      partagées par les actions serveur et par le menu « … » de l'écran ;
+ *   5. le déplacement GROUPÉ de dossiers (`validerDeplacementDossiers`) · la
+ *      barre de sélection, tout ou rien.
  */
+
+import { TAG_SELECTION_MAX } from './spatial/bibliotheque/tags-couleur';
 
 /* ───────────────────────────── Droits d'usage ──────────────────────────────
  *
@@ -67,18 +71,46 @@ export const LONGUEUR_MAX_NOM_DOSSIER = 80;
 
 export type ValidationNom = { ok: true; nom: string } | { ok: false; raison: string };
 
-export function validerNomDossier(nom: unknown): ValidationNom {
-  if (typeof nom !== 'string') return { ok: false, raison: 'Nom de dossier invalide.' };
+/**
+ * La règle COMMUNE d'un nom saisi à l'écran (dossier, fichier) · dans l'ordre :
+ * une chaîne, rognée, non vide, complétée (`completer` · l'extension d'un
+ * fichier ; vide ⇒ refusée comme vide), au plus `max` caractères, sans
+ * caractère `interdit`. Chaque usage porte ses phrases · le dossier garde
+ * exactement celles de la création.
+ */
+export interface ReglesNomSaisi {
+  max: number;
+  invalide: string;
+  vide: string;
+  long: string;
+  interdit: RegExp;
+  interditRaison: string;
+  completer?: (propre: string) => string;
+}
+
+export function validerNomSaisi(nom: unknown, r: ReglesNomSaisi): ValidationNom {
+  if (typeof nom !== 'string') return { ok: false, raison: r.invalide };
   const propre = nom.trim();
-  if (!propre) return { ok: false, raison: 'Donne un nom au dossier.' };
-  if (propre.length > LONGUEUR_MAX_NOM_DOSSIER) {
-    return { ok: false, raison: `Nom trop long (max ${LONGUEUR_MAX_NOM_DOSSIER} caractères).` };
-  }
+  if (!propre) return { ok: false, raison: r.vide };
+  const complet = r.completer ? r.completer(propre) : propre;
+  if (!complet) return { ok: false, raison: r.vide };
+  if (complet.length > r.max) return { ok: false, raison: r.long };
+  if (r.interdit.test(complet)) return { ok: false, raison: r.interditRaison };
+  return { ok: true, nom: complet };
+}
+
+const REGLES_NOM_DOSSIER: ReglesNomSaisi = {
+  max: LONGUEUR_MAX_NOM_DOSSIER,
+  invalide: 'Nom de dossier invalide.',
+  vide: 'Donne un nom au dossier.',
+  long: `Nom trop long (max ${LONGUEUR_MAX_NOM_DOSSIER} caractères).`,
   // Un retour à la ligne ou un caractère de contrôle casserait l'affichage en arbre.
-  if (/[\u0000-\u001f\u007f]/.test(propre)) {
-    return { ok: false, raison: 'Le nom ne peut pas contenir de caractère de contrôle.' };
-  }
-  return { ok: true, nom: propre };
+  interdit: /[\u0000-\u001f\u007f]/,
+  interditRaison: 'Le nom ne peut pas contenir de caractère de contrôle.',
+};
+
+export function validerNomDossier(nom: unknown): ValidationNom {
+  return validerNomSaisi(nom, REGLES_NOM_DOSSIER);
 }
 
 /* ───────────────────────────── Arbre de dossiers ────────────────────────── */
@@ -191,7 +223,18 @@ export const REFUS_DOSSIER = {
   soiMeme: 'Un dossier ne peut pas être son propre parent.',
   descendant: 'On ne peut pas déplacer un dossier dans l’un de ses sous-dossiers.',
   autreMarque: 'Le dossier de destination appartient à une autre marque.',
+  /* Le déplacement GROUPÉ (barre de sélection) · `validerDeplacementDossiers`. */
+  selectionIllisible: 'Sélection illisible · rien n’a été déplacé.',
+  selectionVide: 'Aucun dossier sélectionné.',
+  selectionIntrouvable: 'Un dossier de la sélection est introuvable · rien n’a été déplacé.',
+  destinationSelectionnee: 'La destination fait partie de la sélection · un dossier ne peut pas être son propre parent.',
+  imbriques: 'La sélection contient un dossier et l’un de ses sous-dossiers · déplace-les séparément.',
 } as const;
+
+/** La phrase du refus de borne d'un déplacement groupé · la même avant le clic (écran) et après (action). */
+export function refusDeplacementTropLarge(n: number): string {
+  return `${n} dossiers sélectionnés · ${TAG_SELECTION_MAX} au plus par geste, rien n’a été déplacé.`;
+}
 
 /**
  * Renommer un dossier · le dossier (vivant, de l'espace, relu par l'appelant ·
@@ -240,4 +283,59 @@ export function validerDeplacementDossier(
   if (!cycle.ok) return { ok: false, raison: REFUS_DOSSIER.descendant };
   if ((dest.brandId ?? null) !== (source.brandId ?? null)) return { ok: false, raison: REFUS_DOSSIER.autreMarque };
   return { ok: true };
+}
+
+/**
+ * Déplacer PLUSIEURS dossiers d'un coup sous `nouveauParentId` (`null` · à la
+ * racine) · la barre de sélection. TOUT OU RIEN · la liste entière est
+ * acceptée, ou refusée avec une seule phrase. Calculé sur la liste des dossiers
+ * VIVANTS de l'espace, AVANT le déplacement (l'action la relit en base, dans
+ * sa transaction, lignes verrouillées). Dans l'ordre :
+ *  · des UUID, dédoublonnés (casse ignorée), entre 1 et `TAG_SELECTION_MAX` ;
+ *  · la destination ne fait pas partie de la sélection (elle partirait sous
+ *    elle-même) ;
+ *  · CHAQUE dossier passe la règle unitaire (`validerDeplacementDossier` ·
+ *    introuvable, système, destination introuvable ou système, descendant ·
+ *    cycle, autre marque) · un dossier introuvable ne dit pas lequel (un
+ *    identifiant d'un autre espace reçoit la phrase d'un inconnu), les autres
+ *    refus nomment le dossier ;
+ *  · ENTRE EUX · aucun dossier sélectionné n'est le descendant d'un autre
+ *    dossier sélectionné (il serait arraché à son parent, qui part aussi ·
+ *    l'intention est ambiguë, on refuse plutôt que de deviner).
+ *
+ * Pourquoi cela suffit contre un cycle APRÈS le déplacement · tous partent
+ * sous la MÊME destination D, qui n'est pas sélectionnée. Un cycle exigerait
+ * qu'en remontant de D on croise un dossier déplacé · c'est-à-dire que D soit,
+ * avant le déplacement, un descendant d'un dossier sélectionné · refusé par la
+ * règle unitaire de ce dossier. Le test du noyau le vérifie au résultat, sur
+ * des arbres et des sélections tirés au hasard (arbre final simulé).
+ */
+export function validerDeplacementDossiers(
+  dossiers: readonly DossierPlat[],
+  ids: unknown,
+  nouveauParentId: string | null,
+): { ok: true; ids: string[] } | { ok: false; raison: string } {
+  if (!Array.isArray(ids) || ids.some((x) => !estIdDossier(x))) return { ok: false, raison: REFUS_DOSSIER.selectionIllisible };
+  const uniques = [...new Set((ids as string[]).map((x) => x.toLowerCase()))];
+  if (!uniques.length) return { ok: false, raison: REFUS_DOSSIER.selectionVide };
+  if (uniques.length > TAG_SELECTION_MAX) return { ok: false, raison: refusDeplacementTropLarge(uniques.length) };
+  const dest = nouveauParentId?.toLowerCase() ?? null;
+  if (dest !== null && uniques.includes(dest)) return { ok: false, raison: REFUS_DOSSIER.destinationSelectionnee };
+  const parId = new Map(dossiers.map((d) => [d.id, d] as const));
+  for (const id of uniques) {
+    const v = validerDeplacementDossier(dossiers, id, dest);
+    if (v.ok) continue;
+    if (v.raison === REFUS_DOSSIER.introuvable) return { ok: false, raison: REFUS_DOSSIER.selectionIntrouvable };
+    if (v.raison === REFUS_DOSSIER.destinationIntrouvable || v.raison === REFUS_DOSSIER.destinationSysteme) return v;
+    return { ok: false, raison: `« ${parId.get(id)!.name} » · ${v.raison}` };
+  }
+  const parents = new Map<string, string | null>(dossiers.map((d) => [d.id, d.parentId]));
+  const choisis = new Set(uniques);
+  for (const id of uniques) {
+    // Un ancêtre (strict) sélectionné · la chaîne des parents part de celui du dossier.
+    for (const autre of choisis) {
+      if (autre !== id && idEstAncetreDe(parents, autre, parents.get(id) ?? null)) return { ok: false, raison: REFUS_DOSSIER.imbriques };
+    }
+  }
+  return { ok: true, ids: uniques };
 }
