@@ -15,6 +15,7 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
 import { extractBrandDA } from '../../lib/brand-da';
+import { brandMediaPreview } from '../../lib/brand-media-url';
 import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
@@ -362,7 +363,14 @@ export async function saveBrandDAAction(input: {
   return { ok: true };
 }
 
-export async function importBrandDAAction(input: { brandId: string }): Promise<{ logoUrl?: string | null; colors?: string[]; fonts?: string[]; error?: string }> {
+/**
+ * Complète la charte depuis le site · logo, couleurs et polices MANQUANTS.
+ * Le logo rendu au navigateur est son APERÇU par la route média gardée
+ * (`brandMediaPreview`) · un logo importé vit au stockage privé, son adresse
+ * canonique (celle qu'on enregistre) n'en sort pas (garde
+ * `test/adresses-brutes-api-db.test.tsx`).
+ */
+export async function importBrandDAAction(input: { brandId: string }): Promise<{ apercuLogo?: string | null; colors?: string[]; fonts?: string[]; error?: string }> {
   const g = await guardBrand(input.brandId);
   if (!g || !db) return { error: GUARD.role({ needRole: 'admin' }) };
   const [b] = await db.select({ url: schema.brands.url, shopifyDomain: schema.brands.shopifyDomain, logoUrl: schema.brands.logoUrl, colors: schema.brands.colors, fonts: schema.brands.fonts })
@@ -379,7 +387,7 @@ export async function importBrandDAAction(input: { brandId: string }): Promise<{
   const colors = (b.colors && b.colors.length) ? b.colors : da.colors;
   const fonts = (b.fonts && b.fonts.length) ? b.fonts : da.fonts;
   await db.update(schema.brands).set({ logoUrl, colors, fonts }).where(eq(schema.brands.id, input.brandId));
-  return { logoUrl, colors, fonts };
+  return { apercuLogo: logoUrl ? brandMediaPreview(input.brandId, logoUrl) : null, colors, fonts };
 }
 
 /** Connecte / synchronise la boutique Shopify : importe produits + images + prix depuis le catalogue public. */
