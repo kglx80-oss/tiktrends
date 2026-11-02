@@ -18,9 +18,10 @@ import { envoyerVersBucket } from './envoi-bucket';
  *  2. la CONFIRMATION, avant tout envoi · les projets Studios qui le citent
  *     (« Utilisé dans N projets », la lecture de l'aperçu), ce qui reste,
  *     l'ancienne version gardée ;
- *  3. le dépôt par le présigné existant (`presignAssetUploadAction`, puis
- *     `envoyerVersBucket`), puis `remplacerAssetAction` · son refus reste dans
- *     la fenêtre, le succès est dit, l'écran se relit.
+ *  3. le dépôt par le présigné existant (`presignAssetUploadAction`, usage
+ *     `remplacement`, puis `envoyerVersBucket`), puis `remplacerAssetAction`
+ *     avec le jeton de dépôt opaque (jamais l'adresse de l'objet) · son refus
+ *     reste dans la fenêtre, le succès est dit, l'écran se relit.
  */
 
 const ENVOI_ECHOUE = 'L’envoi de la nouvelle version a échoué · rien n’a été remplacé, réessaie.';
@@ -72,13 +73,13 @@ export function useRemplacement(o: OptionsRemplacement): { demarrer: (f: Fichier
     o.setOccupe(true);
     let erreur: string | null = null;
     try {
-      const pre = await presignAssetUploadAction({ filename: fichier.name, contentType: fichier.type || 'application/octet-stream', sizeBytes: fichier.size })
+      const pre = await presignAssetUploadAction({ filename: fichier.name, contentType: fichier.type || 'application/octet-stream', sizeBytes: fichier.size, usage: 'remplacement' })
         .catch(() => ({ error: ENREGISTREMENT_ECHOUE } as Awaited<ReturnType<typeof presignAssetUploadAction>>));
-      if (pre.error || !pre.uploadUrl || !pre.publicUrl || !pre.contentType) erreur = pre.error ?? ENVOI_ECHOUE;
+      if (pre.error || !pre.uploadUrl || !pre.jetonDepot || !pre.contentType) erreur = pre.error ?? ENVOI_ECHOUE;
       else {
         try { await envoyerVersBucket(pre.uploadUrl, fichier, pre.contentType); } catch { erreur = ENVOI_ECHOUE; }
         if (!erreur) {
-          const r = await remplacerAssetAction({ id: f.id, url: pre.publicUrl, mimeType: fichier.type })
+          const r = await remplacerAssetAction({ id: f.id, jetonDepot: pre.jetonDepot, mimeType: fichier.type })
             .catch(() => ({ error: ENREGISTREMENT_ECHOUE } as { ok?: true; error?: string }));
           if (r.error) erreur = r.error;
         }

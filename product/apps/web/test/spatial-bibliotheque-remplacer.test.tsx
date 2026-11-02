@@ -16,7 +16,7 @@ vi.mock('../app/actions/assets', () => ({
   uploadImageAssetsAction: vi.fn(), registerUploadedAssetAction: vi.fn(), deleteAssetAction: vi.fn(),
   importAssetAction: vi.fn(), toggleAssetAiAction: vi.fn(), basculerTemplateAction: vi.fn(), tagAssetAction: vi.fn(), tagUntaggedImagesAction: vi.fn(), basculerAssetsIaAction: vi.fn(),
   mettreAssetsCorbeilleAction: vi.fn(), restaurerAssetsAction: vi.fn(), renommerAssetAction: vi.fn(),
-  presignAssetUploadAction: async (x: unknown) => { appels.presign.push(x); return { uploadUrl: 'https://s3.test/put/nv', publicUrl: 'https://cdn.test/assets/ws/nv.jpg', contentType: 'image/jpeg' }; },
+  presignAssetUploadAction: async (x: unknown) => { appels.presign.push(x); return { uploadUrl: 'https://s3.test/put/nv', jetonDepot: 'jeton-opaque', contentType: 'image/jpeg' }; },
   remplacerAssetAction: async (x: unknown) => { appels.remplacer.push(x); return appels.reponse; },
 }));
 vi.mock('../app/actions/bibliotheque-dossiers', () => ({
@@ -127,7 +127,9 @@ describe('« Remplacer » · l’aperçu d’un fichier', () => {
     await choisir(h, 'face-v2.jpg', 'image/jpeg');
     await act(async () => { fenetre()!.requestSubmit(); });
     expect(appels.put).toEqual([{ url: 'https://s3.test/put/nv', type: 'image/jpeg' }]);
-    expect(appels.remplacer).toEqual([{ id: U1, url: 'https://cdn.test/assets/ws/nv.jpg', mimeType: 'image/jpeg' }]);
+    // Présigné pour un REMPLACEMENT, puis le jeton opaque · aucune adresse de l'objet ne repart du navigateur.
+    expect(appels.presign).toEqual([{ filename: 'face-v2.jpg', contentType: 'image/jpeg', sizeBytes: 2048, usage: 'remplacement' }]);
+    expect(appels.remplacer).toEqual([{ id: U1, jetonDepot: 'jeton-opaque', mimeType: 'image/jpeg' }]);
     expect([toasts, fenetre()]).toEqual([[messageFichierRemplace('face.jpg')], null]);
   });
 

@@ -1,51 +1,68 @@
 import 'server-only';
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { formeJetonDepot, type JetonDepot } from '@tiktrends/core';
 
 /**
- * Jeton de dépôt · HMAC-SHA256 côté serveur (la règle, pure, vit dans
+ * Jeton de dépôt · SCELLÉ côté serveur (la règle, pure, vit dans
  * `packages/core/src/jeton-depot.ts`).
  *
- * `presignAssetUploadAction` le rend avec l'adresse de dépôt ; la charte
- * (`saveBrandDAAction`) le relit pour prouver que l'adresse du bucket qu'elle
- * reçoit vient d'être déposée par CET espace, et retirer ce dépôt s'il n'est
- * pas enregistré.
+ * `presignAssetUploadAction` le rend avec le seul lien de PUT ; les actions
+ * qui enregistrent le dépôt (`registerUploadedAssetAction`,
+ * `remplacerAssetAction`, `saveBrandDAAction`) le relisent pour retrouver la
+ * CLÉ d'objet · aucune adresse n'est REÇUE du navigateur. Seule l'adresse
+ * signée de PUT sort (elle laisse lire la clé, c'est le lien d'envoi) ; le
+ * jeton lui-même est opaque.
  *
- * Même clé que les sessions (`AUTH_SECRET`), dérivée par un préfixe d'usage
- * (comme `lib/studios/sources/scelle.ts`) · aucune nouvelle variable
- * d'environnement. Absente, une clé aléatoire par processus (même posture que
- * `lib/auth.ts` : jamais de secret en dur) · les sessions ne survivraient pas
- * non plus à un redémarrage, le jeton ne vaut que quelques minutes.
+ * Même mécanisme que #987, généralisé · même clé que les sessions
+ * (`AUTH_SECRET`) dérivée par le même préfixe d'usage, même module, même règle
+ * du noyau. Le jeton signé HMAC de #987 était LISIBLE (JSON en base64url · il
+ * nommait l'espace et la clé interne de l'objet) ; il est désormais SCELLÉ
+ * AES-256-GCM · opaque pour le navigateur, et l'étiquette d'authentification
+ * GCM joue le rôle de la signature (toute altération, ou un jeton fabriqué
+ * sans la clé, est illisible). Absente, une clé aléatoire par processus (même
+ * posture que `lib/auth.ts` : jamais de secret en dur) · les sessions ne
+ * survivraient pas non plus à un redémarrage, le jeton ne vaut que quelques
+ * minutes.
+ *
+ * Format · `base64url(iv 12 o ‖ étiquette 16 o ‖ contenu chiffré)`, données
+ * associées `depot-objet:v3` (un scellé d'un autre usage du secret ne se lit
+ * pas ici).
  */
 
 const REPLI = randomBytes(48).toString('base64url');
-function cle(): string {
+const AAD = Buffer.from('depot-objet:v3', 'utf8');
+/** Longueur maximale d'un jeton reçu · un vrai jeton en compte moins de 500. */
+const LONGUEUR_MAX_JETON = 2000;
+
+function cle(): Buffer {
   const s = process.env.AUTH_SECRET;
-  return `depot-objet:${s && s !== 'change-me' ? s : REPLI}`;
+  return createHash('sha256').update(`depot-objet:${s && s !== 'change-me' ? s : REPLI}`, 'utf8').digest();
 }
 
-const signer = (corps: string) => createHmac('sha256', cle()).update(corps).digest('base64url');
-
-/** Le jeton transmis au client · `<contenu base64url>.<signature>`. */
-export function signerJetonDepot(j: JetonDepot): string {
-  const corps = Buffer.from(JSON.stringify(j), 'utf8').toString('base64url');
-  return `${corps}.${signer(corps)}`;
+/** Le jeton transmis au client · opaque. */
+export function scellerJetonDepot(j: JetonDepot): string {
+  const iv = randomBytes(12);
+  const c = createCipheriv('aes-256-gcm', cle(), iv);
+  c.setAAD(AAD);
+  const chiffre = Buffer.concat([c.update(JSON.stringify(j), 'utf8'), c.final()]);
+  return Buffer.concat([iv, c.getAuthTag(), chiffre]).toString('base64url');
 }
 
 /**
  * Le contenu d'un jeton reçu · `null` quand aucun n'a été transmis,
- * `'illisible'` quand sa signature ou sa forme ne tiennent pas.
+ * `'illisible'` quand son scellé ou sa forme ne tiennent pas.
  */
 export function lireJetonDepot(jeton: unknown): JetonDepot | null | 'illisible' {
   if (jeton === undefined || jeton === null || jeton === '') return null;
-  if (typeof jeton !== 'string' || jeton.length > 2000) return 'illisible';
-  const [corps, sig, reste] = jeton.split('.');
-  if (!corps || !sig || reste !== undefined) return 'illisible';
-  const attendu = Buffer.from(signer(corps));
-  const recu = Buffer.from(sig);
-  if (attendu.length !== recu.length || !timingSafeEqual(attendu, recu)) return 'illisible';
+  if (typeof jeton !== 'string' || jeton.length > LONGUEUR_MAX_JETON || !/^[A-Za-z0-9_-]+$/.test(jeton)) return 'illisible';
+  const brut = Buffer.from(jeton, 'base64url');
+  if (brut.length <= 28) return 'illisible';
   try {
-    return formeJetonDepot(JSON.parse(Buffer.from(corps, 'base64url').toString('utf8'))) ?? 'illisible';
+    const d = createDecipheriv('aes-256-gcm', cle(), brut.subarray(0, 12));
+    d.setAAD(AAD);
+    d.setAuthTag(brut.subarray(12, 28));
+    const clair = Buffer.concat([d.update(brut.subarray(28)), d.final()]).toString('utf8');
+    return formeJetonDepot(JSON.parse(clair)) ?? 'illisible';
   } catch {
     return 'illisible';
   }

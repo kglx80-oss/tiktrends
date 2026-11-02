@@ -14,6 +14,7 @@ const rafraichis = { n: 0 };
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => { rafraichis.n++; }, push() {} }), useSearchParams: () => new URLSearchParams() }));
 vi.mock('../spatial/coquille/contexte', () => ({ useSpatial: () => ({ toast: (t: string) => toasts.push(t) }) }));
 import { ImportLogo, type ImportLogoActions } from '../spatial/vues/marque/interactifs';
+import { LOGO_DEPOSE } from '@tiktrends/core';
 
 let root: Root | null = null; let hote: HTMLElement | null = null;
 afterEach(() => { act(() => root?.unmount()); hote?.remove(); root = null; toasts.length = 0; rafraichis.n = 0; vi.unstubAllGlobals(); });
@@ -41,7 +42,7 @@ function faux(depotOk = true, typeSigne = 'image/png') {
     return { ok: depotOk } as Response;
   }));
   const actions: ImportLogoActions = {
-    preparer: async (i) => { appels.preparer.push(i); return { uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png', contentType: typeSigne, jetonDepot: 'jeton.signe' }; },
+    preparer: async (i) => { appels.preparer.push(i); return { uploadUrl: 'https://bucket/put?sig', contentType: typeSigne, jetonDepot: 'jeton-opaque' }; },
     enregistrer: async (i) => { appels.enregistrer.push(i); return { ok: true }; },
   };
   return { appels, actions };
@@ -51,12 +52,13 @@ describe('Marque · importer un fichier de logo', () => {
   it('png · déposé dans le bucket, puis la charte : le nouveau par défaut, l’ancien gardé, couleurs et polices renvoyées telles quelles', async () => {
     const { appels, actions } = faux();
     await choisir(monter(actions), png());
-    expect(appels.preparer).toEqual([{ filename: 'logo.png', contentType: 'image/png', sizeBytes: 2048 }]);
+    expect(appels.preparer).toEqual([{ filename: 'logo.png', contentType: 'image/png', sizeBytes: 2048, usage: 'logo' }]);
     expect(appels.put).toEqual(['PUT https://bucket/put?sig']);
     expect(appels.typesEnvoyes, 'le type SIGNÉ par le serveur part dans le PUT').toEqual(['image/png']);
     // Le Content-Length est SIGNÉ à la taille déclarée · le corps est le fichier entier, aucune longueur posée à la main.
     expect(appels.longueurs, 'longueur du corps = sizeBytes déclaré').toEqual([2048]);
-    expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: 'https://bucket/assets/ws/neuf.png', logos: ['https://a/ancien.png', 'https://bucket/assets/ws/neuf.png'], colors: ['#112233'], fonts: ['Inter'], jetonDepot: 'jeton.signe' }]);
+    // L'adresse du dépôt n'est pas connue du navigateur · `LOGO_DEPOSE` en tient la place, le jeton opaque la résout au serveur.
+    expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: LOGO_DEPOSE, logos: ['https://a/ancien.png', LOGO_DEPOSE], colors: ['#112233'], fonts: ['Inter'], jetonDepot: 'jeton-opaque' }]);
     expect(toasts).toEqual(['Logo importé · il devient le logo par défaut de la charte']);
     expect(rafraichis.n).toBe(1);
   });
@@ -66,7 +68,7 @@ describe('Marque · importer un fichier de logo', () => {
     const casse = 'https://bucket/assets/ws/casse.png';
     await choisir(monter(actions, null, { logos: ['https://a/variante.png', casse], defaut: casse, remplace: casse }), png());
     expect(appels.put).toEqual(['PUT https://bucket/put?sig']);
-    expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: 'https://bucket/assets/ws/neuf.png', logos: ['https://a/variante.png', 'https://bucket/assets/ws/neuf.png'], colors: ['#112233'], fonts: ['Inter'], jetonDepot: 'jeton.signe' }]);
+    expect(appels.enregistrer).toEqual([{ brandId: 'b1', logoUrl: LOGO_DEPOSE, logos: ['https://a/variante.png', LOGO_DEPOSE], colors: ['#112233'], fonts: ['Inter'], jetonDepot: 'jeton-opaque' }]);
     expect(toasts).toEqual(['Logo réimporté · il remplace dans la charte le fichier à réimporter']);
     expect(hote!.querySelector('label')!.getAttribute('data-geste')).toBe('reimporter-logo');
   });
@@ -77,7 +79,7 @@ describe('Marque · importer un fichier de logo', () => {
     await choisir(monter(actions), png());
     expect(appels.typesEnvoyes).toEqual(['image/webp']);
     const sansType = faux(true);
-    sansType.actions.preparer = async () => ({ uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png' });
+    sansType.actions.preparer = async () => ({ uploadUrl: 'https://bucket/put?sig', jetonDepot: 'jeton-opaque' });
     toasts.length = 0;
     act(() => root?.unmount()); hote?.remove();
     await choisir(monter(sansType.actions), png());
@@ -87,7 +89,7 @@ describe('Marque · importer un fichier de logo', () => {
 
   it('sans jeton de dépôt · rien n’est déposé ni enregistré (la charte le refuserait)', async () => {
     const { appels, actions } = faux();
-    actions.preparer = async () => ({ uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/neuf.png', contentType: 'image/png' });
+    actions.preparer = async () => ({ uploadUrl: 'https://bucket/put?sig', contentType: 'image/png' });
     await choisir(monter(actions), png());
     expect(appels.put).toEqual([]);
     expect(appels.enregistrer).toEqual([]);

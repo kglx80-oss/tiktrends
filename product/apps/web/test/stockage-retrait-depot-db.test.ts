@@ -66,12 +66,13 @@ vi.mock('@tiktrends/integrations', async (importOriginal) => {
 
 import { and, eq } from 'drizzle-orm';
 import { db, schema, sql, lireReferencesObjet } from '@tiktrends/db';
-import { RECENSEMENT_REFERENCES_STOCKAGE, formesRechercheesObjet, type ReferenceRecensee } from '@tiktrends/core';
+import { RECENSEMENT_REFERENCES_STOCKAGE, TEXTES_REFUS_JETON_FICHIER, formesRechercheesObjet, type ReferenceRecensee } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { contenuPour, semerDans } from './helpers/semer-reference';
 import { syncDriveFilesAction, syncDriveNowAction } from '../app/actions/drive';
 import { migrateEmbeddedImagesAction } from '../app/actions/storage';
 import { presignAssetUploadAction, registerUploadedAssetAction } from '../app/actions/assets';
+import { cleDuLienDepot } from './helpers/depot-jeton';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
@@ -260,13 +261,17 @@ describe('Migration des images embarquées (`migrateEmbeddedImagesAction`)', () 
 
 describe('Téléversement direct (`registerUploadedAssetAction`)', () => {
   /** Le vrai lien de dépôt, puis le PUT du navigateur (simulé dans le bucket). */
+  /** Le jeton opaque de chaque dépôt, par son adresse canonique (que le test lit en base). */
+  const jetons = new Map<string, string>();
   async function deposer(nom: string): Promise<string> {
-    const pre = await presignAssetUploadAction({ filename: nom, contentType: 'image/png', sizeBytes: PNG.length });
+    const pre = await presignAssetUploadAction({ filename: nom, contentType: 'image/png', sizeBytes: PNG.length, usage: 'envoi' });
     expect(pre.error).toBeUndefined();
-    bucket.set(pre.publicUrl!.slice(BASE.length + 1), PNG);
-    return pre.publicUrl!;
+    const cle = cleDuLienDepot(pre.uploadUrl!, CFG.bucket);
+    bucket.set(cle, PNG);
+    jetons.set(`${BASE}/${cle}`, pre.jetonDepot!);
+    return `${BASE}/${cle}`;
   }
-  const enregistrer = (u: string) => registerUploadedAssetAction({ name: 'photo.png', url: u, mimeType: 'image/png', sizeBytes: PNG.length });
+  const enregistrer = (u: string) => registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jetons.get(u)!, mimeType: 'image/png', sizeBytes: PNG.length });
   const nb = async (u: string) => (await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.url, u))).length;
 
   it('insertion refusée · l’erreur remonte (rejet) et l’objet déposé est retiré', async () => {
@@ -278,11 +283,23 @@ describe('Téléversement direct (`registerUploadedAssetAction`)', () => {
     expect(await nb(u)).toBe(0);
   });
 
-  it('insertion refusée pour un objet DÉJÀ enregistré · l’erreur remonte, l’objet reste, aucun DELETE', async () => {
+  it('insertion refusée pour un objet DÉJÀ cité ailleurs (logo d’une marque) · l’erreur remonte, l’objet reste, aucun DELETE', async () => {
     const u = await deposer('deja.png');
-    expect(await enregistrer(u)).toEqual({ ok: true });
+    await db.update(schema.brands).set({ logoUrl: u }).where(eq(schema.brands.id, ids.brandA2));
     await refuser(true);
     await expect(enregistrer(u)).rejects.toThrow(/écriture refusée/);
+    expect(bucket.has(u.slice(BASE.length + 1))).toBe(true);
+    expect(supprimes).toEqual([]);
+    expect(await nb(u)).toBe(0);
+    await refuser(false);
+    await db.update(schema.brands).set({ logoUrl: null }).where(eq(schema.brands.id, ids.brandA2));
+  });
+
+  it('jeton rejoué pour un objet DÉJÀ enregistré · refusé « déjà enregistré », l’objet reste, aucun DELETE, une seule ligne', async () => {
+    const u = await deposer('rejoue.png');
+    expect(await enregistrer(u)).toEqual({ ok: true });
+    supprimes.length = 0;
+    expect(await enregistrer(u)).toEqual({ error: TEXTES_REFUS_JETON_FICHIER.deja_employe });
     expect(bucket.has(u.slice(BASE.length + 1))).toBe(true);
     expect(supprimes).toEqual([]);
     expect(await nb(u)).toBe(1);

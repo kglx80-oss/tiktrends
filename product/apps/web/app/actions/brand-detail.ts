@@ -9,8 +9,8 @@ import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { generateProducts, generateBrandProfile, extractVisualDa } from '@tiktrends/ai';
 import { fetchSiteText } from '../../lib/site-text';
-import { falFromEnv, falGenerateImage, storageFromEnv, basePubliqueStockage, ecrireApresDepot, lireDebutObjetEspace, retirerDepotsSansLigne } from '@tiktrends/integrations';
-import { costFor, decisionCharteDeposee, decisionLogoDeposeRelu, empreintesLogosCharte, imageModelByKey, OCTETS_RELUS_DEPOT, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
+import { falFromEnv, falGenerateImage, storageFromEnv, basePubliqueStockage, ecrireApresDepot, lireDebutObjetEspace } from '@tiktrends/integrations';
+import { TEXTES_REFUS_JETON_DEPOT, costFor, decisionCharteDeposee, decisionLogoDeposeRelu, empreintesLogosCharte, imageModelByKey, OCTETS_RELUS_DEPOT, policeTechnique, type DaVisuelleMarque } from '@tiktrends/core';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { resolveProductImage } from '../../lib/product-image';
 import { discoverShopify, normalizeShopDomain } from '../../lib/shopify';
@@ -20,6 +20,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { guardedAnthropic, sousPlafond } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { lireJetonDepot } from '../../lib/jeton-depot';
+import { cleDeDepot, referencesDans, retirerDepotsSousVerrou, verrouDepot } from '../../lib/verrou-depot';
 import { referencesObjetEnBase } from '../../lib/references-objet';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
@@ -167,13 +168,13 @@ const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim()
 const commas = (v: FormDataEntryValue | null) => norm(v).split(',').map((x) => x.trim()).filter(Boolean);
 
 /** Vérifie que la marque appartient bien au workspace de l'utilisateur admin. */
-async function guardBrand(brandId: string): Promise<{ workspaceId: string; email: string | null; plan: CleForfait } | null> {
+async function guardBrand(brandId: string): Promise<{ workspaceId: string; userId: string; email: string | null; plan: CleForfait } | null> {
   const s = await getSession();
   if (!s || !db) return null;
   if (!roleAtLeast(s.role, 'admin')) return null;
   const [b] = await db.select({ id: schema.brands.id }).from(schema.brands)
     .where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
-  return b ? { workspaceId: s.workspaceId, email: s.user.email, plan: forfaitEffectif(s.plan) } : null;
+  return b ? { workspaceId: s.workspaceId, userId: s.user.id, email: s.user.email, plan: forfaitEffectif(s.plan) } : null;
 }
 
 /* ---------------- Personas ---------------- */
@@ -285,13 +286,19 @@ export async function deleteProductAction(formData: FormData): Promise<void> {
 const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 /** Récupère la DA (logo, couleurs, polices) depuis le site et complète les champs vides. */
+/** Levée DANS la transaction de la charte pour l'annuler · le dépôt est déjà cité par une autre ligne. */
+class LogoDejaEmploye extends Error {}
+
 /**
  * Enregistre la charte visuelle éditée à la main (logos, logo par défaut, couleurs, polices).
  *
- * `jetonDepot` · celui que `presignAssetUploadAction` a rendu à l'import d'un
- * fichier de logo. Il est EXIGÉ pour une adresse du bucket NOUVELLE (règle
- * `decisionCharteDeposee`, noyau `jeton-depot.ts`) : signature, espace, clé et
- * expiration. L'objet attesté est ensuite RELU (taille au `HEAD`, premiers
+ * `jetonDepot` · celui que `presignAssetUploadAction` (usage `logo`) a rendu à
+ * l'import d'un fichier de logo. Le navigateur ne connaît pas l'adresse du
+ * dépôt · il met `LOGO_DEPOSE` à sa place dans la charte, et le jeton la
+ * résout. Il est EXIGÉ pour une adresse du bucket NOUVELLE (règle
+ * `decisionCharteDeposee`, noyau `jeton-depot.ts`) : scellé, espace,
+ * utilisateur, usage, clé, expiration, et objet pas encore cité (un jeton ne
+ * sert qu'une fois). L'objet attesté est ensuite RELU (taille au `HEAD`, premiers
  * octets · `lireDebutObjetEspace`, le lecteur de `registerUploadedAssetAction`)
  * et n'est admis que s'il est une image png, jpeg ou webp d'au plus 4 Mo, du
  * type et de la taille signés dans le jeton (`decisionLogoDeposeRelu`, noyau).
@@ -317,12 +324,17 @@ export async function saveBrandDAAction(input: {
     .where(and(eq(schema.brands.id, input.brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1);
   const cfg = storageFromEnv();
   const jeton = lireJetonDepot(input.jetonDepot);
+  // Un jeton ne sert qu'une fois · l'objet qu'il désigne est-il déjà cité par une ligne ?
+  const dejaCite = !!cfg && !!jeton && jeton !== 'illisible' && jeton.espace === g.workspaceId && (await referencesObjetEnBase(jeton.cle)) === 'referencee';
   const d = decisionCharteDeposee({
     charte: { logoUrl, logos }, dejaEnregistrees: [avant?.logoUrl, ...(avant?.logos ?? [])],
     bucket: cfg ? { base: basePubliqueStockage(cfg), espace: g.workspaceId } : null,
-    jeton, maintenant: Date.now(),
+    jeton, utilisateur: g.userId, maintenant: Date.now(), dejaCite,
   });
-  const retirer = (deposes: readonly string[] = d.aRetirer) => retirerDepotsSansLigne({ storage: cfg, workspaceId: g.workspaceId, deposes, references: referencesObjetEnBase });
+  const base = db;
+  // Le retrait d'un dépôt prend le verrou du dépôt (`retirerDepotsSousVerrou`) · il ne lit
+  // jamais « aucune ligne » pendant qu'une autre charte s'apprête à citer l'objet.
+  const retirer = (deposes: readonly string[] = d.aRetirer) => retirerDepotsSousVerrou(base, { storage: cfg, workspaceId: g.workspaceId, deposes });
   if (!d.ok) { await retirer(); return { error: d.erreur }; }
   // L'objet nouveau attesté par le jeton se RELIT avant de devenir logo · un
   // PDF, une vidéo ou du HTML déposés par le présigné (qui accepte toute la
@@ -340,24 +352,41 @@ export async function saveBrandDAAction(input: {
     }
     relues.set(url, lecture.ok ? lecture.empreinte : null);
   }
-  const logoEmpreintes = empreintesLogosCharte({ avant: avant?.logoEmpreintes, charte: [logoUrl, ...logos], relues });
-  const base = db;
+  // La charte RÉSOLUE · `LOGO_DEPOSE` y est devenue l'adresse du dépôt.
+  const charte = d.charte;
+  const logoEmpreintes = empreintesLogosCharte({ avant: avant?.logoEmpreintes, charte: [charte.logoUrl, ...charte.logos], relues });
   // L'écriture qui échoue retire le dépôt attesté, sauf si une ligne le cite
   // déjà (`ecrireApresDepot`), puis l'erreur remonte comme avant.
-  await ecrireApresDepot({
-    storage: cfg, workspaceId: g.workspaceId, deposes: [...d.deposes, ...d.aRetirer], references: referencesObjetEnBase,
-    ecrire: async () => {
-      // Une fonte d'icônes n'est jamais une police de marque · on l'écarte même
-      // saisie à la main (CDC v7 · N09), pas seulement à l'extraction du site.
-      await base.update(schema.brands).set({
-        logoUrl: logoUrl || null,
-        logos,
-        logoEmpreintes,
-        colors: clean(input.colors),
-        fonts: clean(input.fonts).filter((f) => !policeTechnique(f)),
-      }).where(eq(schema.brands.id, input.brandId));
-    },
-  });
+  try {
+    await ecrireApresDepot({
+      storage: cfg, workspaceId: g.workspaceId, deposes: [...d.deposes, ...d.aRetirer], references: referencesObjetEnBase,
+      ecrire: () => base.transaction(async (tx) => {
+        // Un jeton ne sert qu'une fois · deux chartes simultanées (deux marques)
+        // avec le même dépôt sont mises en file sur le verrou du dépôt (même clé
+        // que la Bibliothèque), et la seconde relit la citation de la première.
+        for (const url of d.deposes) {
+          const cle = cfg ? cleDeDepot(cfg, url) : null;
+          if (!cle) continue;
+          await verrouDepot(tx, cle);
+          // Le dépôt est NOUVEAU pour cette marque · toute citation est celle d'une autre ligne.
+          if ((await referencesDans(tx)(cle)) === 'referencee') throw new LogoDejaEmploye(TEXTES_REFUS_JETON_DEPOT.deja_employe);
+        }
+        // Une fonte d'icônes n'est jamais une police de marque · on l'écarte même
+        // saisie à la main (CDC v7 · N09), pas seulement à l'extraction du site.
+        await tx.update(schema.brands).set({
+          logoUrl: charte.logoUrl || null,
+          logos: charte.logos,
+          logoEmpreintes,
+          colors: clean(input.colors),
+          fonts: clean(input.fonts).filter((f) => !policeTechnique(f)),
+        }).where(eq(schema.brands.id, input.brandId));
+      }),
+    });
+  } catch (e) {
+    // `ecrireApresDepot` a tenté le retrait · l'objet cité par l'autre marque est gardé.
+    if (e instanceof LogoDejaEmploye) return { error: e.message };
+    throw e;
+  }
   // Écrite · un dépôt attesté que la charte ne retient pas n'a plus de raison d'être.
   if (d.aRetirer.length) await retirer();
   return { ok: true };

@@ -26,7 +26,7 @@ const PDF = txt('%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n');
 const INCONNU = new Uint8Array(64).fill(7);
 
 const jeton = (type: string, taille: number, j: Partial<JetonDepot> = {}): JetonDepot =>
-  ({ ...jetonDepotPour({ espace: 'ws-a', cle: 'assets/ws-a/1-ab-logo.png', type, taille, maintenant: 0 }), ...j });
+  ({ ...jetonDepotPour({ espace: 'ws-a', utilisateur: 'u-a', usage: 'logo', cle: 'assets/ws-a/1-ab-logo.png', type, taille, maintenant: 0 }), ...j });
 const lu = (octets: Uint8Array, taille = octets.length): LectureLogoDepose => ({ ok: true, octets, taille });
 const decider = (j: JetonDepot | null | 'illisible', l: LectureLogoDepose) => decisionLogoDeposeRelu({ jeton: j, lecture: l });
 
