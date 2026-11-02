@@ -14,8 +14,10 @@
  *
  * ── La règle ─────────────────────────────────────────────────────────────────
  *
- * Le présigné ne rend plus que le lien PUT et un JETON OPAQUE (scellé
- * AES-256-GCM avec `AUTH_SECRET`, côté serveur · ni lisible ni forgeable) qui
+ * Le présigné ne rend plus que le lien PUT signé (seule adresse qui sort ·
+ * elle laisse lire la clé, c'est le lien d'envoi) et un JETON OPAQUE (scellé
+ * AES-256-GCM avec `AUTH_SECRET`, côté serveur · ni lisible ni forgeable) ;
+ * aucune adresse n'est plus REÇUE du navigateur. Le jeton
  * porte l'ESPACE, l'UTILISATEUR, l'USAGE déclaré au présigné (`envoi` de la
  * Bibliothèque, `remplacement` d'un fichier, `logo` de la charte), la CLÉ
  * d'objet, le TYPE et la TAILLE signés dans le lien, et une EXPIRATION courte.
@@ -135,12 +137,21 @@ export function formeJetonDepot(x: unknown): JetonDepot | null {
 
 export type RefusJetonDepot = 'absent' | 'illisible' | 'autre_espace' | 'autre_utilisateur' | 'autre_usage' | 'autre_cle' | 'expire' | 'deja_employe';
 
-/** Les phrases du LOGO (charte) · reprises telles quelles depuis #987. */
+/**
+ * Un dépôt d'un autre espace OU d'une autre personne · une seule phrase
+ * visible (le refus ne renseigne pas sur le propriétaire du dépôt) ; la
+ * raison reste distincte dans `RefusJetonDepot` (journaux, tests).
+ */
+const REFUS_LOGO_PAS_A_TOI = 'Ce fichier de logo n’a pas été importé par toi dans cet espace · importe-le à nouveau.';
+const REFUS_FICHIER_PAS_A_TOI = 'Cet envoi n’a pas été préparé par toi dans cet espace · envoie le fichier à nouveau.';
+
+/** Les phrases du LOGO (charte) · reprises depuis #987. */
 export const TEXTES_REFUS_JETON_DEPOT: Readonly<Record<RefusJetonDepot, string>> = {
   absent: REFUS_LOGO_NON_ATTESTE,
   illisible: 'L’import de ce logo n’a pas pu être vérifié · importe le fichier à nouveau.',
-  autre_espace: 'Ce fichier de logo n’a pas été importé dans ton espace · importe-le à nouveau.',
-  autre_utilisateur: 'Ce fichier de logo a été importé par une autre personne · importe-le toi-même.',
+  // Même phrase pour l'espace et la personne · le refus ne dit pas à qui appartient le dépôt (pas d'oracle).
+  autre_espace: REFUS_LOGO_PAS_A_TOI,
+  autre_utilisateur: REFUS_LOGO_PAS_A_TOI,
   autre_usage: 'Ce fichier n’a pas été envoyé pour devenir un logo · importe-le avec « Importer ».',
   autre_cle: 'Ce fichier de logo ne correspond pas à l’import en cours · importe-le à nouveau.',
   expire: 'L’import de ce logo a expiré · importe le fichier à nouveau.',
@@ -151,8 +162,8 @@ export const TEXTES_REFUS_JETON_DEPOT: Readonly<Record<RefusJetonDepot, string>>
 export const TEXTES_REFUS_JETON_FICHIER: Readonly<Record<RefusJetonDepot, string>> = {
   absent: 'L’envoi de ce fichier n’est pas attesté · envoie-le à nouveau.',
   illisible: 'L’envoi de ce fichier n’a pas pu être vérifié · envoie-le à nouveau.',
-  autre_espace: 'Ce fichier n’a pas été envoyé dans ton espace · envoie-le à nouveau.',
-  autre_utilisateur: 'Ce fichier a été envoyé par une autre personne · envoie-le toi-même.',
+  autre_espace: REFUS_FICHIER_PAS_A_TOI,
+  autre_utilisateur: REFUS_FICHIER_PAS_A_TOI,
   autre_usage: 'Cet envoi a été préparé pour une autre action · recommence l’opération.',
   autre_cle: 'Ce fichier ne correspond pas à l’envoi en cours · envoie-le à nouveau.',
   expire: 'L’envoi de ce fichier a expiré · envoie-le à nouveau.',

@@ -9,7 +9,9 @@ import { formeJetonDepot, type JetonDepot } from '@tiktrends/core';
  * `presignAssetUploadAction` le rend avec le seul lien de PUT ; les actions
  * qui enregistrent le dépôt (`registerUploadedAssetAction`,
  * `remplacerAssetAction`, `saveBrandDAAction`) le relisent pour retrouver la
- * CLÉ d'objet · le navigateur ne reçoit plus d'adresse du stockage.
+ * CLÉ d'objet · aucune adresse n'est REÇUE du navigateur. Seule l'adresse
+ * signée de PUT sort (elle laisse lire la clé, c'est le lien d'envoi) ; le
+ * jeton lui-même est opaque.
  *
  * Même mécanisme que #987, généralisé · même clé que les sessions
  * (`AUTH_SECRET`) dérivée par le même préfixe d'usage, même module, même règle

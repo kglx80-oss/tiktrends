@@ -138,9 +138,11 @@ describe('resoudreJetonDepot · le jeton d’une action de la Bibliothèque, ré
     ];
     for (const [j, refus] of CAS) expect(resoudreJetonDepot(j, cible), refus).toEqual({ ok: false, refus, erreur: TEXTES_REFUS_JETON_FICHIER[refus] });
   });
-  it('chaque phrase est distincte, en français, sans tiret cadratin', () => {
+  it('une phrase par raison, sauf espace et personne réunies (pas d’oracle sur le propriétaire du dépôt) · en français, sans tiret cadratin', () => {
     for (const textes of [TEXTES_REFUS_JETON_FICHIER, TEXTES_REFUS_JETON_DEPOT]) {
-      const v = Object.values(textes);
+      expect(textes.autre_utilisateur, 'autre personne et autre espace disent la même chose').toBe(textes.autre_espace);
+      const { autre_utilisateur: _meme, ...distinctes } = textes;
+      const v = Object.values(distinctes);
       expect(new Set(v).size).toBe(v.length);
       for (const t of v) expect(t).not.toMatch(/—/);
     }

@@ -194,8 +194,9 @@ describe('Jeton refusé · phrase claire, rien d’écrit, rien de relu', () => 
     expect(await registerUploadedAssetAction({ name: 'x.png', jetonDepot: d.jeton, mimeType: 'image/png', sizeBytes: 1 })).toEqual({ ok: true });
   });
 
-  it('d’un autre espace · refusé, l’objet de l’autre espace ni lu ni touché', async () => {
-    etat.session = session(ids, 'ub', { role: 'admin' });
+  it('d’un autre espace (la MÊME personne, membre des deux) · refusé, l’objet de l’autre espace ni lu ni touché', async () => {
+    // Seul l'espace diffère · la personne est la même, la garde ne peut tomber que sur l'espace.
+    etat.session = session(ids, 'ua', { role: 'admin', workspaceId: ids.wsB, workspaceName: 'Espace B' });
     const chezB = await envoyer('envoi');
     etat.session = ua();
     requetes.length = 0;
@@ -288,6 +289,17 @@ describe('Réutilisation · un jeton ne fait entrer son objet qu’une fois', ()
     expect(await remplacerAssetAction({ id: a.id, jetonDepot: d.jeton, mimeType: 'image/png' })).toEqual({ ok: true });
     expect(await remplacerAssetAction({ id: b.id, jetonDepot: d.jeton, mimeType: 'image/png' })).toEqual({ error: REFUS_REMPLACEMENT.dejaEnregistre });
     expect((await db.select().from(schema.assets).where(eq(schema.assets.id, b.id)))[0]!.url).toBe(b.url);
+  });
+
+  it('Logo · deux chartes SIMULTANÉES (deux marques) avec le même jeton ⇒ une seule marque cite l’objet (verrou et relecture dans la transaction)', async () => {
+    const d = await envoyer('logo');
+    const charte = { ...charteAvecLogoImporte({ logos: [ANCIEN], defaut: ANCIEN }, LOGO_DEPOSE), colors: [], fonts: [], jetonDepot: d.jeton };
+    const r = await Promise.all([ids.brandA1, ids.brandA2].map((brandId) => saveBrandDAAction({ brandId, ...charte })));
+    expect(r.filter((x) => x.ok).length, JSON.stringify(r)).toBe(1);
+    expect(r.filter((x) => x.error === TEXTES_REFUS_JETON_DEPOT.deja_employe).length).toBe(1);
+    const citent = [await marque(ids.brandA1), await marque(ids.brandA2)].filter((m) => m.logoUrl === d.url || (m.logos ?? []).includes(d.url));
+    expect(citent.length, 'deux marques citent le même objet').toBe(1);
+    expect(bucket.has(d.cle), 'l’objet cité est gardé').toBe(true);
   });
 
   it('Logo · le même jeton sur une AUTRE marque ⇒ refusé ; renvoyé sur la même marque (déjà là) ⇒ admis sans rien ajouter', async () => {

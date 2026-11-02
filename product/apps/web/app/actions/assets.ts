@@ -12,6 +12,7 @@ import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credi
 import { logAndTranslate } from '../../lib/error-log';
 import { referencesObjetEnBase } from '../../lib/references-objet';
 import { lireJetonDepot, scellerJetonDepot } from '../../lib/jeton-depot';
+import { verrouDepot } from '../../lib/verrou-depot';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { toItem } from '../../lib/asset-item';
@@ -525,13 +526,15 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
  */
 /**
  * Prépare un dépôt direct · l'adresse de PUT présignée, le type signé, et le
- * JETON DE DÉPÔT opaque (`jetonDepot`, scellé côté serveur · espace,
- * utilisateur, usage, clé, type et taille signés dans le lien, expiration
- * courte · `packages/core/src/jeton-depot.ts`). Aucune autre adresse du
- * stockage ne sort · le navigateur renvoie le jeton, jamais une adresse, à
- * l'action déclarée par `usage` (`envoi` · `registerUploadedAssetAction`,
- * `remplacement` · `remplacerAssetAction`, `logo` · `saveBrandDAAction`), qui
- * le résout en clé d'objet puis relit l'objet.
+ * JETON DE DÉPÔT (`jetonDepot`, scellé côté serveur · espace, utilisateur,
+ * usage, clé, type et taille signés dans le lien, expiration courte ·
+ * `packages/core/src/jeton-depot.ts`). Seule l'adresse SIGNÉE de PUT sort
+ * (elle laisse lire la clé de l'objet, c'est le lien d'envoi lui-même) ; le
+ * jeton, lui, ne se lit pas. Aucune adresse n'est REÇUE du navigateur · il
+ * renvoie le jeton à l'action déclarée par `usage` (`envoi` ·
+ * `registerUploadedAssetAction`, `remplacement` · `remplacerAssetAction`,
+ * `logo` · `saveBrandDAAction`), qui le résout en clé d'objet puis relit
+ * l'objet.
  */
 export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number; usage: UsageDepot }): Promise<{ uploadUrl?: string; contentType?: string; jetonDepot?: string; error?: string }> {
   const g = await gardeBibliotheque();
@@ -567,11 +570,6 @@ function adresseDuJeton(jeton: unknown, s: SessionBibliotheque, usage: UsageDepo
   const r = resoudreJetonDepot(lireJetonDepot(jeton), { espace: s.workspaceId, utilisateur: s.user.id, usage, maintenant: Date.now() });
   if (!r.ok) return { error: r.erreur };
   return { url: publicUrlFor(cfg, r.cle) };
-}
-
-/** Un jeton ne fait entrer son objet qu'UNE fois · verrou de transaction sur l'adresse, le temps de vérifier et d'écrire. */
-async function verrouDepot(tx: Pick<NonNullable<typeof db>, 'execute'>, url: string): Promise<void> {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`depot:${url}`}))`);
 }
 
 /** Levée DANS la transaction de l'enregistrement pour l'annuler · porte la phrase du refus. */
@@ -623,7 +621,7 @@ export async function registerUploadedAssetAction(input: { name: string; jetonDe
       storage: cfg, workspaceId: s.workspaceId, deposes: [url], references: referencesObjetEnBase,
       ecrire: () => base.transaction(async (tx) => {
         // Deux envois concurrents du même jeton · le second attend, puis voit la ligne du premier.
-        await verrouDepot(tx, url);
+        await verrouDepot(tx, cle);
         const [deja] = await tx.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.url, url)).limit(1);
         if (deja) throw new DepotDejaEmploye(TEXTES_REFUS_JETON_FICHIER.deja_employe);
         await tx.insert(schema.assets).values({
@@ -702,7 +700,7 @@ export async function remplacerAssetAction(input: { id: string; jetonDepot: stri
       storage: cfg, workspaceId: s.workspaceId, deposes: [url], references,
       ecrire: () => base.transaction(async (tx) => {
         // Un jeton ne sert qu'une fois · deux remplacements concurrents du même dépôt sont mis en file.
-        await verrouDepot(tx, url);
+        await verrouDepot(tx, cle);
         const vivant = and(eq(A.id, id), eq(A.workspaceId, s.workspaceId), isNull(A.deletedAt));
         const [f] = await tx.select({ kind: A.kind, source: A.source, url: A.url }).from(A).where(vivant).for('update');
         const v = decisionRemplacement(f ? { kind: f.kind, source: f.source, url: f.url, contenu: contenuMedia(f.url, objectKeyFromUrl(cfg, f.url) !== null) } : null, { kind: d.kind, url });
