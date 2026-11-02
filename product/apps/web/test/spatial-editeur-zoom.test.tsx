@@ -125,7 +125,8 @@ describe('Spatial · Éditeur · zoom de la zone de travail', () => {
     await monter(props());
     await cliquer($('[data-zoom-action="plus"]'));
     await touche('-');
-    expect((document.querySelector('.wshead .btn.pri') as HTMLButtonElement).disabled).toBe(true);
+    // « Enregistrer » fermé reste focalisable (`aria-disabled`) · cf. studios-editeur-ecran-design.
+    expect(document.querySelector('.wshead .btn.pri')!.getAttribute('aria-disabled')).toBe('true');
     expect(actions.enregistrerDocument).not.toHaveBeenCalled();
   });
 });

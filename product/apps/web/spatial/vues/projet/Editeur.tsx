@@ -89,6 +89,8 @@ function focaliserApres(...selecteurs: string[]) {
   }, 0);
 }
 const selecteurCalque = (id: string) => `[data-layer="${id.replace(/["\\]/g, '\\$&')}"]`;
+/** L'aspect d'un bouton fermé mais FOCALISABLE (`aria-disabled`) · les valeurs de `.btn[disabled]` de la maquette. */
+const FERME = { opacity: 0.5, cursor: 'default' } as const;
 
 /** Téléphone · le seuil de la maquette (`max-width:760px`). Le rendu serveur vaut ordinateur, la lecture suit au montage. */
 const MEDIA_TELEPHONE = '(max-width: 760px)';
@@ -160,6 +162,8 @@ export function Editeur(props: PropsEditeur) {
   const cadre = useRef<HTMLDivElement>(null);
   const telephone = useTelephone();
   const [panneau, setPanneau] = useState<'calques' | 'proprietes' | null>(null);
+  const idsTitres = useId();
+  const titres = { calques: `${idsTitres}-calques`, gestes: `${idsTitres}-gestes`, versions: `${idsTitres}-versions` };
 
   useEffect(() => { chargerPolices(); }, []);
 
@@ -167,6 +171,7 @@ export function Editeur(props: PropsEditeur) {
   const calque = present && selection ? present.layers[selection] ?? null : null;
   const statut = statutEnregistrement({ base: base.document, present, enCours, conflit: conflit !== null, erreur: erreur !== null });
   const modifie = statut.etat === 'modifie' || statut.etat === 'erreur';
+  const enregistrable = modifie && !enCours && conflit === null;
   const annulable = h ? prochainAnnuler(h) : null;
   const retablissable = h ? prochainRetablir(h) : null;
   const pile = present ? calquesParZ(present) : [];
@@ -221,7 +226,8 @@ export function Editeur(props: PropsEditeur) {
     if (!r) { setErreur('Le serveur ne répond pas · vérifie ta connexion puis réessaie. Tes modifications restent à l’écran et sur cet appareil.'); return; }
     if (r.ok) {
       setBase({ id: r.version.id, n: r.version.n, document: doc });
-      if (!h) setH(historiqueInitial(doc));
+      // Création du document · le bloc « Créer » disparaît, le focus passe à la surface qui le remplace.
+      if (!h) { setH(historiqueInitial(doc)); focaliserApres('#art .ad[role="group"]'); }
       effacerSauvegardeLocale(projet.id); setSecours(null);
       toast(r.inchange ? 'Aucun changement à enregistrer' : `Enregistré · version ${r.version.n}`);
       return;
@@ -314,6 +320,8 @@ export function Editeur(props: PropsEditeur) {
     setBase({ id: r.version.id, n: r.version.n, document: r.document });
     setH(r.document ? historiqueInitial(r.document) : null);
     setSelection(null);
+    // Le détail de la version se referme et la liste se relit · le focus revient au bouton de la tuile.
+    focaliserApres('[data-action="versions"]');
     toast(`Version ${r.restauree.n} restaurée · c’est maintenant la version ${r.version.n}.`);
   }
 
@@ -338,13 +346,13 @@ export function Editeur(props: PropsEditeur) {
                 <span className="faint num" id="scount" style={{ fontSize: '11.5px' }}>{longueurTexte(texte)}</span>
                 <label className="field">Taille du texte<input type="range" id="ssize" {...bornesTailleTexte(present, tailleTexte)} value={tailleTexte} disabled={!editable || calque.locked}
                   onChange={(e) => setTaille({ id: calque.id, px: Number(e.target.value) })} onPointerUp={validerTaille} onKeyUp={validerTaille} onBlur={validerTaille} /></label>
-                <div className="field">Couleur du texte<div className="swatches">
+                <div className="field" role="group" aria-label="Couleur du texte">Couleur du texte<div className="swatches">
                   {couleurs.map((c) => <button key={c} type="button" data-sw={c} aria-pressed={calque.color === c} style={{ background: c }} aria-label={`Couleur ${c}`} disabled={!editable || calque.locked} onClick={() => surCalque((d, id) => modifierTexte(d, id, { color: c }))} />)}
                 </div></div>
               </>
             )}
             {calque?.kind === 'shape' && (
-              <div className="field">Couleur de la forme<div className="swatches">
+              <div className="field" role="group" aria-label="Couleur de la forme">Couleur de la forme<div className="swatches">
                 {couleurs.map((c) => <button key={c} type="button" data-sw={c} aria-pressed={calque.fill === c} style={{ background: c }} aria-label={`Couleur ${c}`} disabled={!editable || calque.locked} onClick={() => surCalque((d, id) => modifierRemplissage(d, id, c))} />)}
               </div></div>
             )}
@@ -370,7 +378,10 @@ export function Editeur(props: PropsEditeur) {
               )}
               {props.exporterHref
                 ? <Lien className="btn" href={props.exporterHref}><Ic n="down" />Exporter</Lien>
-                : <button className="btn" type="button" disabled title="L’export n’est pas ouvert pour ton rôle ou ton espace"><Ic n="down" />Exporter</button>}
+                : <>
+                  <button className="btn" type="button" disabled><Ic n="down" />Exporter</button>
+                  <small className="faint" data-raison-ferme="exporter" style={{ fontSize: '11.5px' }}>L’export n’est pas ouvert pour ton rôle ou ton espace.</small>
+                </>}
             </div>
     </>
   );
@@ -383,7 +394,8 @@ export function Editeur(props: PropsEditeur) {
         {telephone && present && (
           <>
             <button className="btn sm" type="button" data-ouvrir-panneau="calques" aria-haspopup="dialog" onClick={() => setPanneau('calques')}><Ic n="grid" />Calques · {pile.length}</button>
-            <button className="btn sm" type="button" data-ouvrir-panneau="proprietes" aria-haspopup="dialog" disabled={!calque} title={calque ? undefined : 'Choisis d’abord un calque'} onClick={() => setPanneau('proprietes')}>{calque ? `Propriétés de « ${calque.name} »` : 'Propriétés'}</button>
+            <button className="btn sm" type="button" data-ouvrir-panneau="proprietes" aria-haspopup="dialog" disabled={!calque} onClick={() => setPanneau('proprietes')}>{calque ? `Propriétés de « ${calque.name} »` : 'Propriétés'}</button>
+            {!calque && <small className="faint" data-raison-ferme="proprietes" style={{ fontSize: '11.5px' }}>Choisis d’abord un calque.</small>}
           </>
         )}
         {editable && present && (
@@ -391,7 +403,9 @@ export function Editeur(props: PropsEditeur) {
             <span className={`pill ${statut.etat === 'enregistre' ? 'c' : statut.etat === 'modifie' ? '' : 'w'}`} role="status" style={{ marginLeft: 'auto' }}>{statut.etat === 'enregistre' && <Ic n="check" />}{statut.libelle}</span>
             <button className="btn sm" type="button" disabled={!annulable} title={annulable ? `Annuler · ${annulable} (Ctrl+Z)` : 'Rien à annuler'} onClick={() => derniers.current.annuler()}>Annuler</button>
             <button className="btn sm" type="button" disabled={!retablissable} title={retablissable ? `Rétablir · ${retablissable} (Ctrl+Maj+Z)` : 'Rien à rétablir'} onClick={() => derniers.current.retablir()}>Rétablir</button>
-            <button className="btn sm pri" type="button" data-action="enregistrer" disabled={!modifie || enCours || conflit !== null} onClick={() => void enregistrer()}><Ic n="check" />{enCours ? 'Enregistrement…' : 'Enregistrer'}</button>
+            {/* Jamais `disabled` · fermé, il GARDE le focus (après un clic, le bouton se ferme sous le doigt et le clavier repartirait du haut de la page). */}
+            <button className="btn sm pri" type="button" data-action="enregistrer" aria-disabled={!enregistrable || undefined} aria-busy={enCours || undefined}
+              style={enregistrable || enCours ? undefined : FERME} onClick={() => void enregistrer()}><Ic n="check" />{enCours ? 'Enregistrement…' : 'Enregistrer'}</button>
           </>
         )}
         {!editable && <span className="pill" style={{ marginLeft: 'auto' }}><Ic n="lock" />Lecture seule</span>}
@@ -399,7 +413,7 @@ export function Editeur(props: PropsEditeur) {
 
       {(erreur || refus || conflit || (secours && editable)) && (
         <div className="banner" role={erreur || conflit ? 'alert' : 'status'}>
-          <span className="orb" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span>
+          <span className="orb" aria-hidden="true" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span>
           <div style={{ display: 'grid', gap: 6, flex: 1 }}>
             {erreur && <span>{erreur}</span>}
             {refus && <span>{refus}</span>}
@@ -429,8 +443,8 @@ export function Editeur(props: PropsEditeur) {
       )}
 
       <div className="studio">
-        {!telephone && <aside className="tile layers" aria-label="Calques">
-          <div className="lbl" style={{ marginBottom: 6 }}>Calques</div>
+        {!telephone && <aside className="tile layers" aria-labelledby={titres.calques}>
+          <div className="lbl" id={titres.calques} style={{ marginBottom: 6 }}>Calques</div>
           {listeCalques}
         </aside>}
 
@@ -473,14 +487,15 @@ export function Editeur(props: PropsEditeur) {
                 {editable && produit && (
                   <button type="button" className="chip" aria-pressed={avecProduit} onClick={() => setAvecProduit((v) => !v)}>Poser la photo produit, centrée, à {Math.round(PART_PRODUIT_INITIALE * 100)} % de la largeur</button>
                 )}
-                {editable && <button className="btn pri" type="button" disabled={enCours} onClick={() => void enregistrer(documentInitial(formatNouveau, { produit: avecProduit ? produit : null }), 'Création du document')}>{enCours ? 'Création…' : `Créer le document ${FORMATS_DOCUMENT[formatNouveau].libelle}`}</button>}
+                {editable && <button className="btn pri" type="button" data-action="creer-document" aria-disabled={enCours || undefined} aria-busy={enCours || undefined}
+                  onClick={() => void enregistrer(documentInitial(formatNouveau, { produit: avecProduit ? produit : null }), 'Création du document')}>{enCours ? 'Création…' : `Créer le document ${FORMATS_DOCUMENT[formatNouveau].libelle}`}</button>}
               </div>
             )}
           </div>
           <p className="faint" style={{ fontSize: '11.5px' }}>{calque?.locked ? 'Calque verrouillé : déverrouille-le pour le modifier.' : present ? `Calque sélectionné encadré · glisse-le ou utilise les flèches (Maj : 10 px).${telephone ? '' : ' Zoom · Ctrl + molette autour du pointeur, Ctrl+ et Ctrl− par paliers, Ctrl+0 ajuste · la molette seule déplace la vue.'}` : `Formats proposés : ${ORDRE_FORMATS.map((f) => FORMATS_DOCUMENT[f].libelle).join(', ')}.`}</p>
         </div>
 
-        {!telephone && <aside className="tile insp">
+        {!telephone && <aside className="tile insp" aria-label="Propriétés du calque">
           {inspecteur}
         </aside>}
       </div>
@@ -498,18 +513,19 @@ export function Editeur(props: PropsEditeur) {
       )}
 
       {present && editable && (
-        <section className="tile sec" aria-label="Gestes du calque">
-          <div className="sech" style={{ margin: 0 }}><h2>Gestes du calque</h2><span className="faint" style={{ fontSize: '12.5px' }}>Chaque geste est annulable · rien n’est généré ni facturé</span></div>
+        <section className="tile sec" aria-labelledby={titres.gestes}>
+          <div className="sech" style={{ margin: 0 }}><h2 id={titres.gestes}>Gestes du calque</h2><span className="faint" style={{ fontSize: '12.5px' }}>Chaque geste est annulable · rien n’est généré ni facturé</span></div>
           <div className="kc" style={{ marginTop: 10 }}>
             <button className="chip" type="button" data-ajouter="texte" onClick={() => operer((d) => ajouterTexte(d))}><Ic n="text" />Ajouter un texte</button>
             <button className="chip" type="button" onClick={() => operer((d) => ajouterForme(d))}><Ic n="spark" />Ajouter une forme</button>
-            <button className="chip" type="button" aria-pressed={mediasOuverts} disabled={medias.length === 0} title={medias.length ? undefined : 'Aucun média du projet à poser'} onClick={() => setMediasOuverts((v) => !v)}><Ic n="img" />Média du projet</button>
+            <button className="chip" type="button" data-ajouter="media" aria-pressed={mediasOuverts} disabled={medias.length === 0} onClick={() => setMediasOuverts((v) => !v)}><Ic n="img" />Média du projet</button>
           </div>
+          {medias.length === 0 && <small className="faint" data-raison-ferme="media" style={{ display: 'block', fontSize: '11.5px', marginTop: 6 }}>Aucun média du projet à poser.</small>}
           {mediasOuverts && (
             <div className="grid3" style={{ marginTop: 12 }}>
               {medias.map((m) => (
                 <button key={m.assetId} type="button" className="prow" style={{ textAlign: 'left', cursor: 'pointer' }}
-                  onClick={() => { operer((d) => ajouterMedia(d, { kind: 'image', assetId: m.assetId, sourceWidth: m.width, sourceHeight: m.height, nom: m.nom })); setMediasOuverts(false); }}>
+                  onClick={() => { operer((d) => ajouterMedia(d, { kind: 'image', assetId: m.assetId, sourceWidth: m.width, sourceHeight: m.height, nom: m.nom })); setMediasOuverts(false); focaliserApres('[data-ajouter="media"]'); }}>
                   {apercus[m.assetId] && <img src={apercus[m.assetId]} alt="" />}
                   <span className="t"><strong style={{ fontSize: '12.5px' }}>{m.nom}</strong><small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{m.width} × {m.height} px</small></span>
                 </button>
@@ -520,9 +536,9 @@ export function Editeur(props: PropsEditeur) {
         </section>
       )}
 
-      <section className="tile sec" aria-label="Versions du projet" data-panneau="versions">
+      <section className="tile sec" aria-labelledby={titres.versions} data-panneau="versions">
         <div className="sech" style={{ margin: 0 }}>
-          <h2>Versions</h2>
+          <h2 id={titres.versions}>Versions</h2>
           <span className="faint" style={{ fontSize: '12.5px' }}>Restaurer une ancienne version en crée une nouvelle · l’historique n’est jamais réécrit</span>
           <button className="btn sm" type="button" data-action="versions" aria-expanded={versionsOuvertes} style={{ marginLeft: 'auto' }} onClick={() => setVersionsOuvertes((o) => !o)}><Ic n="loop" />{versionsOuvertes ? 'Masquer les versions' : 'Voir les versions'}</button>
         </div>
@@ -542,9 +558,11 @@ export function Editeur(props: PropsEditeur) {
  * nouvelle version (base obligatoire, 409 sans rien écraser) · rien n'est effacé.
  * Lecture seule · la liste et l'aperçu restent, la restauration est refusée.
  */
-type EtatLecture<T> = { etat: 'chargement' } | { etat: 'ok'; valeur: T } | { etat: 'erreur'; message: string };
+/** `horsLigne` · le serveur n'a pas répondu (rien n'a été refusé) · la pastille le dit, « Réessayer » relit. */
+type EtatLecture<T> = { etat: 'chargement' } | { etat: 'ok'; valeur: T } | { etat: 'erreur'; message: string; horsLigne: boolean };
 const HORS_LIGNE = 'Le serveur ne répond pas · vérifie ta connexion puis réessaie.';
 const messageServeur = (r: { message: string; traceId?: string }) => (r.traceId ? `${r.message} (identifiant support : ${r.traceId})` : r.message);
+const echecLecture = (r: { message: string; traceId?: string } | null) => ({ etat: 'erreur' as const, message: r ? messageServeur(r) : HORS_LIGNE, horsLigne: !r });
 
 function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit, onRestauree }: {
   projectId: string; base: { id: string; n: number }; editable: boolean; modifie: boolean; enCours: boolean; conflit: boolean;
@@ -554,6 +572,7 @@ function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit
   const [choisie, setChoisie] = useState<string | null>(null);
   const [apercu, setApercu] = useState<EtatLecture<ApercuVersion> | null>(null);
   const [restauration, setRestauration] = useState<{ enCours: boolean; erreur: string | null }>({ enCours: false, erreur: null });
+  const [essai, setEssai] = useState(0);
 
   useEffect(() => {
     let vivant = true;
@@ -562,17 +581,20 @@ function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit
       let r: Awaited<ReturnType<typeof listerVersionsDocument>> | null = null;
       try { r = await listerVersionsDocument(projectId); } catch { r = null; }
       if (!vivant) return;
-      setListe(!r ? { etat: 'erreur', message: HORS_LIGNE } : r.ok ? { etat: 'ok', valeur: r.versions } : { etat: 'erreur', message: messageServeur(r) });
+      setListe(r?.ok ? { etat: 'ok', valeur: r.versions } : echecLecture(r));
     })();
     return () => { vivant = false; };
-  }, [projectId, base.id]);
+  }, [projectId, base.id, essai]);
 
   async function comparer(versionId: string) {
     if (choisie === versionId) { setChoisie(null); setApercu(null); return; }
+    await lireApercu(versionId);
+  }
+  async function lireApercu(versionId: string) {
     setChoisie(versionId); setApercu({ etat: 'chargement' }); setRestauration({ enCours: false, erreur: null });
     let r: Awaited<ReturnType<typeof apercuVersionDocument>> | null = null;
     try { r = await apercuVersionDocument({ projectId, versionId }); } catch { r = null; }
-    setApercu(!r ? { etat: 'erreur', message: HORS_LIGNE } : r.ok ? { etat: 'ok', valeur: r.apercu } : { etat: 'erreur', message: messageServeur(r) });
+    setApercu(r?.ok ? { etat: 'ok', valeur: r.apercu } : echecLecture(r));
   }
 
   async function restaurer(v: VersionListee) {
@@ -589,7 +611,13 @@ function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit
   }
 
   if (liste.etat === 'chargement') return <p className="faint" role="status" style={{ fontSize: '12.5px', marginTop: 10 }}>Lecture des versions…</p>;
-  if (liste.etat === 'erreur') return <div style={{ marginTop: 10 }}><Message ton="err">{liste.message}</Message></div>;
+  if (liste.etat === 'erreur') return (
+    <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+      <Message ton="err" etiquette={liste.horsLigne ? 'Hors ligne' : undefined}>{liste.message}</Message>
+      {/* « Réessayer » disparaît pendant la relecture · le focus revient au bouton de la tuile. */}
+      <div className="kc"><button className="btn sm" type="button" data-action="relire-versions" onClick={() => { setEssai((n) => n + 1); focaliserApres('[data-action="versions"]'); }}>Réessayer</button></div>
+    </div>
+  );
   return (
     <div className="mtable" data-versions="" style={{ marginTop: 12 }}>
       {liste.valeur.map((v) => {
@@ -603,12 +631,18 @@ function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit
               <strong style={{ fontSize: 13 }}>Version {v.n}</strong>
               {v.courante && <span className="pill g" data-courante="">Courante</span>}
               <span className="faint" style={{ fontSize: '11.5px', flex: '1 1 200px' }}>{new Date(v.creeLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} · {v.auteur}{v.raison ? ` · ${v.raison.replace(/^Éditeur de calques · /, '')}` : ''}</span>
-              <button className="btn sm" type="button" data-comparer={v.n} aria-expanded={ouverte} onClick={() => void comparer(v.id)}>{ouverte ? 'Fermer' : v.courante ? 'Aperçu' : 'Aperçu et comparaison'}</button>
+              <button className="btn sm" type="button" data-comparer={v.n} aria-expanded={ouverte} aria-label={`${ouverte ? 'Fermer l’aperçu' : v.courante ? 'Aperçu' : 'Aperçu et comparaison'} de la version ${v.n}`}
+                onClick={() => void comparer(v.id)}>{ouverte ? 'Fermer' : v.courante ? 'Aperçu' : 'Aperçu et comparaison'}</button>
             </div>
             {ouverte && (
               <div data-detail-version={v.n} style={{ display: 'grid', gap: 10 }}>
                 {apercu?.etat === 'chargement' && <p className="faint" role="status" style={{ fontSize: '12.5px' }}>Lecture de la version {v.n}…</p>}
-                {apercu?.etat === 'erreur' && <Message ton="err">{apercu.message}</Message>}
+                {apercu?.etat === 'erreur' && (
+                  <>
+                    <Message ton="err" etiquette={apercu.horsLigne ? 'Hors ligne' : undefined}>{apercu.message}</Message>
+                    <div className="kc"><button className="btn sm" type="button" data-action="relire-apercu" onClick={() => { void lireApercu(v.id); focaliserApres(`[data-comparer="${v.n}"]`); }}>Réessayer</button></div>
+                  </>
+                )}
                 {a && (
                   <>
                     {a.document
@@ -621,9 +655,12 @@ function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit
                           ? <p className="faint" style={{ fontSize: '12.5px' }}>Aucune différence · cette version a le même contenu que la courante.</p>
                           : <ul data-comparaison="" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 4, fontSize: '12.5px' }}>{a.comparaison.phrases.map((x) => <li key={x}>{x}</li>)}{a.comparaison.tronquee && <li>Et d’autres différences.</li>}</ul>}
                         <p className="muted" data-annonce-restauration="" style={{ fontSize: '12.5px' }}>{annonceRestauration(v.n, base.n)}</p>
-                        {!decision.permis && <p className="faint" data-refus-restauration="" style={{ fontSize: '11.5px' }}>{decision.raison}</p>}
+                        {!decision.permis && !restauration.enCours && <p className="faint" data-refus-restauration="" style={{ fontSize: '11.5px' }}>{decision.raison}</p>}
                         {restauration.erreur && <p className="muted" role="alert" style={{ fontSize: '12.5px' }}>{restauration.erreur}</p>}
-                        <div className="kc"><button className="btn sm pri" type="button" data-action="restaurer" disabled={!decision.permis} onClick={() => { if (decision.permis) void restaurer(v); }}>{restauration.enCours ? 'Restauration…' : 'Restaurer cette version'}</button></div>
+                        {/* Pendant la restauration, le bouton pressé reste focalisable (`aria-disabled`, `aria-busy`) · `disabled` rendrait le focus au document. */}
+                        <div className="kc"><button className="btn sm pri" type="button" data-action="restaurer" disabled={!decision.permis && !restauration.enCours}
+                          aria-disabled={restauration.enCours || undefined} aria-busy={restauration.enCours || undefined}
+                          onClick={() => { if (decision.permis) void restaurer(v); }}>{restauration.enCours ? 'Restauration…' : 'Restaurer cette version'}</button></div>
                       </div>
                     )}
                   </>
@@ -704,6 +741,7 @@ function GestesCalque({ calque, operer, retire, ordre }: { calque: CalqueStudio;
   const [geo, setGeo] = useState({ x: calque.x, y: calque.y, width: calque.width, height: calque.height });
   useEffect(() => { setNom(calque.name); setGeo({ x: calque.x, y: calque.y, width: calque.width, height: calque.height }); }, [calque]);
   const id = calque.id;
+  const idGroupes = useId();
   const champ = (cle: keyof typeof geo, libelle: string) => (
     <label className="field" key={cle}>{libelle}
       <input type="number" value={geo[cle]} disabled={calque.locked} onChange={(e) => setGeo((g) => ({ ...g, [cle]: Number(e.target.value) }))}
@@ -720,12 +758,12 @@ function GestesCalque({ calque, operer, retire, ordre }: { calque: CalqueStudio;
         {champ('height', 'Hauteur (px)')}
         <label className="field">Opacité<input type="range" min={0} max={100} value={Math.round(calque.opacity * 100)} disabled={calque.locked} onChange={(e) => operer((d) => transformerCalque(d, id, { opacity: Number(e.target.value) / 100 }))} /></label>
       </div>
-      <div className="kc">
-        <span className="lbl">Aligner</span>
+      <div className="kc" role="group" aria-labelledby={`${idGroupes}-aligner`}>
+        <span className="lbl" id={`${idGroupes}-aligner`}>Aligner</span>
         {ALIGNEMENTS.map(([m, t]) => <button key={m} className="chip" type="button" disabled={calque.locked} onClick={() => operer((d) => alignerCalque(d, id, m))}>{t}</button>)}
       </div>
-      <div className="kc">
-        <span className="lbl">Ordre</span>
+      <div className="kc" role="group" aria-labelledby={`${idGroupes}-ordre`}>
+        <span className="lbl" id={`${idGroupes}-ordre`}>Ordre</span>
         {ORDRES.map(([s, t]) => <button key={s} className="chip" type="button" onClick={() => operer((d) => reordonnerCalque(d, id, s))}>{t}</button>)}
       </div>
       <div className="kc">
