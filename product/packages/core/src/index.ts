@@ -58,6 +58,7 @@ export * from './adsmap/prelaunch';
 export * from './adsmap/iterate';
 export * from './adsmap/suites-vue';
 export * from './adsmap/sous-pages-vue';
+export * from './adsmap/porteuse-synchro';
 export * from './adsmap/essai-resultat';
 export * from './adsmap/bilan-notes';
 export * from './adsmap/bilan-copie';
