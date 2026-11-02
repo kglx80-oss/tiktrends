@@ -26,6 +26,7 @@ import { FenetreVersement } from './verser-projet';
 import { BoutonTelecharger, useArchive } from './telecharger-selection';
 import { MenuFichier } from './menu-fichier';
 import { UtiliseDans } from './utilise-dans';
+import { useGlisserDeposer } from './glisser-deposer';
 
 /**
  * « Bibliothèque » · `docs/spatial/reference/bibliotheque.html`, balisage à
@@ -82,6 +83,12 @@ import { UtiliseDans } from './utilise-dans';
  * que l'adresse ouvre (`ouverture`, résolu côté serveur dans les données de la
  * session) · l'aperçu du fichier ou le dossier ; quittée la cible, l'adresse
  * perd ses paramètres (`rechercheSansLien`).
+ *
+ * Glisser-déposer (souris, `useGlisserDeposer`) · un fichier, la sélection de
+ * fichiers qu'il emporte ou un dossier, sur un dossier de l'arbre, de la grille
+ * ou de la liste · ce qui part et ce qui reçoit est jugé au noyau
+ * (`chargeGlissee`, `verdictDepot` · anti-cycle compris), puis la MÊME action
+ * que « Déplacer vers… », qui reste la voie clavier.
  *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
@@ -273,6 +280,13 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const g = p.gestion;
   const selecteur = useSelecteurDrive(toast, rafraichir);
   const archiver = useArchive();
+  const glisser = useGlisserDeposer({
+    donnees: p.donnees, section: etat.section, lectureSeule: p.lectureSeule, selection, occupe,
+    deposer: (c, destination, nom) => {
+      if (c.type === 'dossier') { void deplacerDossier(c, destination, nom); return; }
+      void deplacerFichiers(c.ids, destination, nom).then((ok) => { if (ok) setSelection((x) => { const n = new Set(x); c.ids.forEach((id) => n.delete(id)); return n; }); });
+    },
+  });
   const prixImage = (n: number) => (g?.analyse.cout != null ? ` · ${g.analyse.cout * n} crédit${g.analyse.cout * n > 1 ? 's' : ''}` : '');
 
   /** L'adresse suit le filtre par tag (`?tag=`) · un lien copié rouvre l'écran filtré, sans recharger la page. */
@@ -453,15 +467,16 @@ export function Bibliotheque(p: PropsBibliotheque) {
     rafraichir();
   }
 
-  /** Le menu « … » · « Déplacer vers… » d'un seul fichier, par l'action groupée de la barre (même borne, même refus). */
-  async function deplacerFichier(f: FichierDrive, folderId: string | null) {
-    if (!ecriture || occupe) return;
+  /** « Déplacer vers… » du menu « … » d'un fichier, ou un dépôt glissé · l'action groupée de la barre (même borne, même refus). */
+  async function deplacerFichiers(ids: string[], folderId: string | null, nom?: string): Promise<boolean> {
+    if (!ecriture || occupe || !ids.length) return false;
     setOccupe(true);
-    const r = await affecterAssetsDossierAction({ ids: [f.id], folderId }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
+    const r = await affecterAssetsDossierAction({ ids, folderId }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
     setOccupe(false);
-    if (r.error) { toast(r.error); return; }
-    toast(messageGesteFichiers('ranger', r.n ?? 1, { dossier: rangements.find((x) => x.id === folderId)?.nom ?? v.depot }));
+    if (r.error) { toast(r.error); return false; }
+    toast(messageGesteFichiers('ranger', r.n ?? ids.length, { dossier: nom ?? rangements.find((x) => x.id === folderId)?.nom ?? v.depot }));
     rafraichir();
+    return true;
   }
 
   /** Un geste du menu « … » · revérifié au noyau (ouvert) avant l'action existante. */
@@ -469,7 +484,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
     const e = menuFichier(p.donnees, f.id, { section: etat.section, lectureSeule: p.lectureSeule }).find((x) => x.cle === cle);
     if (!e?.ouvert) return;
     if (cle === 'apercu') setApercu(f.id);
-    else if (cle === 'ranger') void deplacerFichier(f, dossier ?? null);
+    else if (cle === 'ranger') void deplacerFichiers([f.id], dossier ?? null);
     else if (cle === 'projet') setVersementFichier(f.id);
     else if (cle === 'copier-lien') { const l = lienInterneFichier(p.donnees, f.id); if (l) void copierLien(l, 'fichier'); }
     else if (cle === 'corbeille' || cle === 'restaurer') void corbeilleFichier(f, cle);
@@ -511,8 +526,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
     } else await corbeilleDossier(d, cle);
   }
 
-  /** « Déplacer vers… » d'un dossier · une seule action (relue et jugée en base, dans sa transaction). */
-  async function deplacerDossier(d: CarteDossierDrive, parentId: string | null, dans: string) {
+  /** « Déplacer vers… » d'un dossier (menu ou dépôt glissé) · une seule action (relue et jugée en base, dans sa transaction). */
+  async function deplacerDossier(d: Pick<CarteDossierDrive, 'id' | 'nom'>, parentId: string | null, dans: string) {
     if (!ecriture || occupe) return;
     setOccupe(true);
     const r = await deplacerDossierAction({ id: d.id, parentId }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; error?: string }));
@@ -619,8 +634,9 @@ export function Bibliotheque(p: PropsBibliotheque) {
     rafraichir();
   }
 
-  const surDepot = (e: DragEvent) => { if (!ecriture) return; e.preventDefault(); setGlisse(true); };
-  const deposer = (e: DragEvent) => { if (!ecriture) return; e.preventDefault(); setGlisse(false); void importer([...e.dataTransfer.files]); };
+  // La zone d'import (fichiers de l'ordinateur) · un glisser INTERNE (déplacement) ne l'ouvre pas et n'importe rien.
+  const surDepot = (e: DragEvent) => { if (!ecriture || glisser.enCours()) return; e.preventDefault(); setGlisse(true); };
+  const deposer = (e: DragEvent) => { if (!ecriture || glisser.enCours()) return; e.preventDefault(); setGlisse(false); void importer([...e.dataTransfer.files]); };
 
   const boutonDrive = p.drive.etat === 'connecte'
     ? <span className="pill g"><Ic n="check" />Google Drive connecté</span>
@@ -695,7 +711,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
               // Le menu ouvert passe au-dessus des cartes voisines (comme la carte de fichier).
               const devant = menuOuvert === d.id ? { zIndex: 7 } : null;
               return (
-                <div className={`fcard ${sel ? 'sel' : ''}`} key={d.id} style={d.tag || devant ? { ...(d.tag ? style({ '--tc': d.tag.teinte }) : {}), ...devant } : undefined}>
+                <div className={`fcard ${sel ? 'sel' : ''}`} key={d.id} style={glisser.style(d.id, d.tag || devant ? { ...(d.tag ? style({ '--tc': d.tag.teinte }) : {}), ...devant } : undefined)} {...glisser.source(d.id)} {...glisser.cible(d.id)}>
                   <button type="button" className="fopen" onClick={() => (corbeille ? d.selectionnable && basculerSel(d.id) : aller(d.id))}>
                     <span className="fic"><Ic n="folder" s={false} /></span>
                     <span className="ftx"><strong>{d.nom}</strong><small>{d.compte} élément{d.compte > 1 ? 's' : ''}{d.sousDossiers ? ` · ${d.sousDossiers} sous-dossier${d.sousDossiers > 1 ? 's' : ''}` : ''}{corbeille ? ' · restaurable' : ''}</small>{d.tag && <span className="ftag"><i />{d.tag.libelle}</span>}</span>
@@ -742,7 +758,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
           <div className="dsub">Fichiers</div>
           <div className="dfiles">
             {v.fichiers.map((f) => (
-              <div className={`dcard ${selection.has(f.id) ? 'sel' : ''} ${apercu === f.id ? 'cur' : ''}`} key={f.id} style={menuOuvert === f.id ? { zIndex: 7 } : undefined}>
+              <div className={`dcard ${selection.has(f.id) ? 'sel' : ''} ${apercu === f.id ? 'cur' : ''}`} key={f.id} style={menuOuvert === f.id ? { zIndex: 7 } : undefined} {...glisser.source(f.id)}>
                 {fchk(f)}
                 <button type="button" className="dopen" onClick={() => setApercu(apercu === f.id ? null : f.id)} aria-label={`Aperçu de ${f.nom}`}><Vignette f={f} /></button>
                 <div className="dmeta"><IconeFichier f={f} /><span className="nm" title={f.nom}>{f.nom}</span></div>
@@ -761,7 +777,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
     <div className="dtbl">
       <div className="dtr h"><span /><span>Nom</span><span>Origine</span><span>Ajouté</span><span>Taille</span><span>Droits</span><span /></div>
       {v.dossiers.map((d) => (
-        <div className={`dtr ${selection.has(d.id) ? 'sel' : ''}`} key={d.id}>
+        <div className={`dtr ${selection.has(d.id) ? 'sel' : ''}`} key={d.id} style={glisser.style(d.id)} {...glisser.source(d.id)} {...glisser.cible(d.id)}>
           {d.selectionnable && ecriture ? <button type="button" className={`dchk ${selection.has(d.id) ? 'on' : ''}`} aria-pressed={selection.has(d.id)} aria-label={`Sélectionner ${d.nom}`} onClick={() => basculerSel(d.id)}>{selection.has(d.id) && <Ic n="check" />}{ZONE_TACTILE}</button> : <span />}
           <button type="button" className="dname" onClick={() => (corbeille ? undefined : aller(d.id))}><span className="dfold" style={style({ '--fc': '#94a3b8' })}><Ic n="folder" /></span><span className="nm">{d.nom}</span>{d.tag && <span className="ftag" style={style({ '--tc': d.tag.teinte, marginTop: 0, flexShrink: 0 })}><i />{d.tag.libelle}</span>}</button>
           <span className="downer">Bibliothèque</span>
@@ -772,7 +788,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
         </div>
       ))}
       {v.fichiers.map((f) => (
-        <div className={`dtr ${selection.has(f.id) ? 'sel' : ''} ${apercu === f.id ? 'cur' : ''}`} key={f.id}>
+        <div className={`dtr ${selection.has(f.id) ? 'sel' : ''} ${apercu === f.id ? 'cur' : ''}`} key={f.id} {...glisser.source(f.id)}>
           {fchk(f) ?? <span />}
           <button type="button" className="dname" onClick={() => setApercu(apercu === f.id ? null : f.id)}><IconeFichier f={f} /><span className="nm">{f.nom}</span></button>
           <span className="downer">{f.source}</span>
@@ -871,7 +887,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                   {n.aEnfants
                     ? <button type="button" className={`tnc ${n.ouvert ? 'op' : ''}`} aria-label={`${n.ouvert ? 'Replier' : 'Déplier'} ${n.nom}`} aria-expanded={n.ouvert} onClick={() => basculerNoeud(n.id)}><i className="tchev" /></button>
                     : <span className="tnc" />}
-                  <button type="button" className="tnb" onClick={() => aller(n.id)}>
+                  <button type="button" className="tnb" onClick={() => aller(n.id)} style={glisser.style(n.id)} {...glisser.cible(n.id)}>
                     {n.racine ? <span className="tni"><Ic n={n.icone} /></span> : <span className="tno"><Ic n="folder" /></span>}
                     <span className="tnn">{n.nom}</span>{n.tag && <i className="tgdot" style={{ background: n.tag.teinte }} title={n.tag.libelle} />}<span className="tnk">{n.compte}</span>
                   </button>
