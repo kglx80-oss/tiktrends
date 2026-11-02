@@ -7,3 +7,9 @@ export function brandMediaPreview(brandId: string, url: string): string {
     ? `/api/brands/${encodeURIComponent(brandId)}/media?url=${encodeURIComponent(url)}`
     : url;
 }
+
+/** La clé d'objet du stockage configuré, ou `null` (adresse externe) · pour NOMMER un fichier, jamais pour le montrer. */
+export function cleObjetStockage(url: string): string | null {
+  const cfg = storageFromEnv();
+  return cfg ? objectKeyFromUrl(cfg, url) : null;
+}

@@ -4,6 +4,7 @@ import { aPermissionEspace, etatNouveauProjet, titreNouveauProjetParDefaut, phot
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { assetAiUrl } from '../../../lib/asset-ai-url';
+import { brandMediaPreview } from '../../../lib/brand-media-url';
 import { hacherImage } from '../../../lib/studios/produit/catalogue';
 import { getActiveBrand } from '../../../lib/brands';
 import { gardeStudio } from '../../../lib/studios/garde';
@@ -18,6 +19,9 @@ export async function ouvrirAssistantProjet() {
   const etat = etatNouveauProjet({ peutProposer: aPermissionEspace(g.ctx.permissions, 'studio.propose'), marqueActive: marque });
   const personas = etat.etat === 'pret' ? await personasDeLaMarque(g.ctx, etat.marque.id) : [];
   const lignes = marque ? await db.select({ id: schema.products.id, name: schema.products.name, imageUrl: schema.products.imageUrl, imageUrls: schema.products.imageUrls }).from(schema.products).innerJoin(schema.brands, eq(schema.products.brandId, schema.brands.id)).where(and(eq(schema.products.brandId, marque.id), eq(schema.brands.workspaceId, g.ctx.workspaceId))).limit(200) : [];
-  const produits = lignes.map((p) => ({ id: p.id, nom: p.name, photos: photosDuProduit(p, hacherImage).flatMap((ph) => { const apercu = ph.url ? assetAiUrl(ph.url, g.ctx.workspaceId) : null; return apercu ? [{ assetId: ph.assetId, apercu, position: ph.position ?? 1 }] : []; }) }));
+  // L'aperçu d'une photo passe par la route média de la marque (stable, gardée à chaque lecture) · jamais
+  // l'adresse privée du stockage, ni une adresse SIGNÉE de 5 minutes laissée dans la page (cassée ensuite).
+  // Une photo du stockage hors de l'espace reste écartée (`assetAiUrl` ⇒ null), comme avant.
+  const produits = lignes.map((p) => ({ id: p.id, nom: p.name, photos: photosDuProduit(p, hacherImage).flatMap((ph) => { const apercu = marque && ph.url && assetAiUrl(ph.url, g.ctx.workspaceId) ? brandMediaPreview(marque.id, ph.url) : null; return apercu ? [{ assetId: ph.assetId, apercu, position: ph.position ?? 1 }] : []; }) }));
   return { ok: true as const, props: { etat, initial: { type: 'ads' as const, titre: titreNouveauProjetParDefaut('ads', marque?.name ?? ''), intention: '' }, personas, produits } };
 }

@@ -98,20 +98,33 @@ async function importer(octets = pngDe(2048)) {
 const remplacerDansLeStockage = (url: string) => bucket.set(cleDe(url), pngDe(2048, 0x41));
 
 const CTX: CtxSpatial = { utilisateur: { nom: 'M', initiales: 'M', email: 'm@x.fr', role: 'Admin' }, credits: { solde: 0, dotation: 0, illimite: false }, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
+/** L'ordre des lignes de « Logos de la charte » (défaut d'abord), relu au rendu. */
+let ordre: string[] = [];
 async function page() {
   requetes.length = 0;
   const el = await IdentiteSpatiale({ params: Promise.resolve({ id: A.b }) });
+  const b = await lire();
+  ordre = [...new Set([b.logoUrl, ...(b.logos ?? [])].filter((u): u is string => !!u))];
   return renderToStaticMarkup(<FournisseurSpatial value={CTX}>{el}</FournisseurSpatial>);
 }
 const esc = (t: string) => renderToStaticMarkup(<>{t}</>);
 /** La carte du logo (`favCard`) · du début de `.favc` à la fin de sa section. */
 const carteLogo = (html: string) => html.slice(html.indexOf('class="tile favc"'), html.indexOf('</section>', html.indexOf('class="tile favc"')));
-/** La ligne d'un logo dans « Logos de la charte » (`.npr`) · par son adresse affichée. */
+/**
+ * La ligne d'un logo dans « Logos de la charte » (`.npr`) · par son RANG (la
+ * page ne montre plus l'adresse d'un logo importé, garde `adresses-brutes-pages-db`) ;
+ * son nom montré est vérifié · « Logo importé · … » pour un objet du stockage,
+ * l'adresse sans schéma pour un logo externe.
+ */
 const ligne = (html: string, url: string) => {
-  const i = html.indexOf(`<strong style="overflow-wrap:anywhere">${url.replace(/^https?:\/\//, '')}</strong>`);
-  expect(i, `ligne absente pour ${url}`).toBeGreaterThan(0);
-  const debut = html.lastIndexOf('<div class="npr"', i);
-  return html.slice(debut, html.indexOf('<div class="npr"', i) > 0 ? html.indexOf('<div class="npr"', i) : html.indexOf('</div></div>', i));
+  const i = ordre.indexOf(url);
+  expect(i, `ligne absente pour ${url}`).toBeGreaterThanOrEqual(0);
+  const section = html.slice(html.indexOf('data-geste="logos"'));
+  const l = section.split('<div class="npr"').slice(1)[i] ?? '';
+  const nom = url.startsWith(BASE) ? 'Logo importé · ' : url.replace(/^https?:\/\//, '');
+  expect(l, `ligne ${i} · nom montré`).toContain(`<strong style="overflow-wrap:anywhere">${nom}`);
+  if (url.startsWith(BASE)) expect(l, `ligne ${i} · jamais l’adresse privée`).not.toContain(url.replace(/^https?:\/\//, ''));
+  return `<div class="npr"${l}`;
 };
 const heads = () => requetes.filter((r) => r.methode === 'HEAD');
 

@@ -37,7 +37,7 @@ export default async function FormatSpatial({ params }: { params: Promise<{ form
   if (!canAccess(access, Veille)) return <AccesFerme titre={style.nom} sousNav={SOUS_NAV_VEILLE} actif="/veille/formats" raison={denyReason(access, Veille) === 'plan' ? 'plan' : 'role'} />;
 
   const marque = await getActiveBrand(s.workspaceId);
-  const [annonces, suivis, image] = await Promise.all([lireSauvegardes(s, marque), lireSuivis(s, marque), lireImageMarque(s, marque)]);
+  const [annonces, suivis, vignette] = await Promise.all([lireSauvegardes(s, marque), lireSuivis(s, marque), lireImageMarque(s, marque)]);
   const stats = statsParStyle(annonces)[format];
   const { tendances } = detecterTendances(observationsSauvegardes(sauvegardesPourTendances(annonces), suivis), Date.now());
   const tendance = tendances.find((t) => t.type === 'format' && t.groupe === format) ?? null;
@@ -67,7 +67,9 @@ export default async function FormatSpatial({ params }: { params: Promise<{ form
     <PageFormat
       sousNav={SOUS_NAV_VEILLE}
       cle={format}
-      image={image}
+      image={vignette.image}
+      initiale={vignette.initiale}
+      signalLogo={vignette.signal}
       marque={marque?.name ?? null}
       pastille={pastilleTendanceStyle(tendance)}
       tuiles={tuilesStyle(stats, tests)}

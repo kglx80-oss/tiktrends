@@ -49,7 +49,7 @@ function identite(g: Partial<GestionIdentite> = {}) {
     champs: champsModifiablesMarque(VALEURS),
     edition: { action, valeurs: VALEURS },
     style: { ...styleVisuelMarque({ style: 'éditorial', aEviter: ['stock'] }), analyser: action, cout: 5, raison: null, corriger: action },
-    logos: { logos: ['https://a.fr/logo.png', 'https://a.fr/logo2.png'], defaut: 'https://a.fr/logo.png', apercus: {}, couleurs: ['#111'], polices: [], enregistrer: async () => ({ ok: true }) },
+    logos: { logos: ['https://a.fr/logo.png', 'https://a.fr/logo2.png'], defaut: 'https://a.fr/logo.png', apercus: {}, libelles: { 'https://a.fr/logo.png': 'a.fr/logo.png', 'https://a.fr/logo2.png': 'a.fr/logo2.png' }, couleurs: ['#111'], polices: [], enregistrer: async () => ({ ok: true }) },
     sourcing: { prix: '5 crédits', proposer: async () => ({ names: [] }), ajouter: async () => ({ ok: true }), raison: null },
     connexions: [{ label: 'Meta' }],
     supprimer: action,
@@ -100,7 +100,7 @@ describe('Spatial · Identité · style visuel, logos, concurrents, suppression'
     expect(e.querySelectorAll('.npr')).toHaveLength(2);
     expect(e.querySelector('.pill.g')?.textContent).toBe('Par défaut');
     expect([...e.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
-      'Retirer le logo https://a.fr/logo.png', 'Par défaut', 'Retirer le logo https://a.fr/logo2.png', 'Ajouter',
+      'Retirer le logo a.fr/logo.png', 'Par défaut', 'Retirer le logo a.fr/logo2.png', 'Ajouter',
     ]);
   });
   it('pistes de concurrents · prix sur le bouton, aucun ajout automatique', () => {

@@ -41,6 +41,7 @@
  */
 
 import { empreinteObjet, etatEmpreinte } from './depot-relu';
+import { initialeNom } from './spatial/marque/fiche';
 
 /** Adresse → empreinte (contenu de l'ETag fort, sans guillemets). */
 export type EmpreintesLogos = Readonly<Record<string, string>>;
@@ -335,7 +336,63 @@ export function imageVignetteMarque(o: {
   /** Le bilan du logo par défaut (`etatLogoParDefaut`) · absent ⇒ aucun logo à empreinte vérifié (servi comme avant). */
   bilanLogo: BilanLogosCharte | null | undefined;
 }): ImageVignetteMarque | null {
-  if (o.photoProduit) return { source: 'produit', url: o.photoProduit };
-  if (!o.logo) return null;
-  return logoParDefautAffiche({ bilan: o.bilanLogo, brandId: o.brandId, peutGerer: false }).image ? { source: 'logo', url: o.logo } : null;
+  return vignetteMarqueAffichee({ ...o, nom: '', peutGerer: false }).image;
+}
+
+/**
+ * Ce que montrent les miniatures de Veille · Formats · l'image (même décision
+ * que `imageVignetteMarque`) ; à sa place, quand le logo par défaut n'est PAS
+ * servi (remplacé, disparu, non vérifiable), l'INITIALE de la marque · et
+ * seulement « à réimporter » porte le signal (avec le chemin vers l'Identité
+ * pour qui peut la gérer), comme l'accueil et la coquille
+ * (`logoParDefautAffiche`). Avant, une miniature vide (pixel transparent) ne
+ * disait rien. Ni photo ni logo ⇒ rien (le repli de la miniature, inchangé).
+ */
+export interface VignetteMarqueAffichee {
+  image: ImageVignetteMarque | null;
+  /** L'initiale de la marque, à la place d'un logo non servi · `null` quand une image est montrée ou que la marque n'a pas de logo. */
+  initiale: string | null;
+  signal: SignalLogoAReimporter | null;
+}
+
+export function vignetteMarqueAffichee(o: {
+  brandId: string;
+  /** Le nom de la marque · son initiale remplace un logo non servi. */
+  nom: string;
+  photoProduit: string | null | undefined;
+  logo: string | null | undefined;
+  bilanLogo: BilanLogosCharte | null | undefined;
+  /** Administrateur de l'espace · le signal mène alors à l'Identité. */
+  peutGerer: boolean;
+}): VignetteMarqueAffichee {
+  if (o.photoProduit) return { image: { source: 'produit', url: o.photoProduit }, initiale: null, signal: null };
+  if (!o.logo) return { image: null, initiale: null, signal: null };
+  const a = logoParDefautAffiche({ bilan: o.bilanLogo, brandId: o.brandId, peutGerer: o.peutGerer });
+  if (a.image) return { image: { source: 'logo', url: o.logo }, initiale: null, signal: null };
+  return { image: null, initiale: initialeNom(o.nom), signal: a.signal };
+}
+
+/* ───────────── Identité · le nom montré d'un logo de la charte ───────────── */
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * La liste des logos de la charte (fiche Identité) écrivait l'ADRESSE de
+ * chaque logo, à l'écran et dans le nom du bouton « Retirer le logo … » ·
+ * pour un logo importé, l'adresse privée du stockage
+ * (`…/assets/<espace>/<horodatage>-<hachis>-logo.png`), qui ne s'ouvre pas et
+ * ne dit rien à personne (garde `adresses-brutes-pages-db`).
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ * Un objet du stockage (`cle`, reconnue par le serveur · `objectKeyFromUrl`)
+ * se nomme par son FICHIER, sans le préfixe ajouté au dépôt (`newAssetKey` ·
+ * horodatage puis 8 caractères hexadécimaux) · « Logo importé · logo.png ».
+ * Une adresse externe (le site de la marque) se montre sans son schéma, comme
+ * avant · elle est publique et c'est elle qu'on a saisie.
+ */
+export function libelleLogoCharte(url: string, cle: string | null | undefined): string {
+  if (!cle) return url.replace(/^https?:\/\//i, '');
+  const fichier = (cle.split('/').pop() ?? '').replace(/^\d{10,}-[0-9a-f]{8}-/i, '');
+  return fichier ? `Logo importé · ${fichier}` : 'Logo importé';
 }

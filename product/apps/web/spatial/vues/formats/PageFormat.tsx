@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { NIVEAUX_CONSCIENCE, styleCrea, type CleStyle } from '@tiktrends/core';
+import { NIVEAUX_CONSCIENCE, styleCrea, type CleStyle, type SignalLogoAReimporter } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Composition } from './Composition';
 import { OngletsFormat } from './OngletsFormat';
+import { SignalLogo } from './SignalLogo';
 
 /**
  * La page d'un style · `docs/spatial/reference/f-<clé>.html` (vue `vFormat` de
@@ -31,6 +32,9 @@ export interface PropsPageFormat {
   cle: CleStyle;
   image: string | null;
   marque: string | null;
+  /** L'initiale de la marque à la place d'un logo non servi, et le signal « Logo à réimporter » (noyau `vignetteMarqueAffichee`). */
+  initiale?: string | null;
+  signalLogo?: SignalLogoAReimporter | null;
   pastille: { classe: 'g' | 'w' | ''; texte: string } | null;
   tuiles: ReadonlyArray<readonly [string, string]>;
   /** La préparation d'un projet avec la consigne du format. */
@@ -44,7 +48,7 @@ export interface PropsPageFormat {
 
 export function PageFormat(p: PropsPageFormat) {
   const f = styleCrea(p.cle);
-  const comp = (texte?: string) => <Composition cle={p.cle} image={p.image} marque={p.marque} texte={texte} />;
+  const comp = (texte?: string) => <Composition cle={p.cle} image={p.image} initiale={p.initiale} marque={p.marque} texte={texte} />;
 
   const exemples = p.exemples.length > 0 ? (
     <div className="vfeed">
@@ -97,6 +101,7 @@ export function PageFormat(p: PropsPageFormat) {
         <div className="fhi">
           {f.enVeille.length > 0 && <small className="faint">Dans les bibliothèques publicitaires : {f.enVeille.join(' · ')}</small>}
           <div className="kc"><span className="pill">{f.famille}</span><span className="pill c">Objectif · {f.objectif}</span>{p.pastille && <span className={`pill ${p.pastille.classe}`}>{p.pastille.texte}</span>}</div>
+          <SignalLogo s={p.signalLogo} />
           <div className="grid4">{p.tuiles.map(([a, b]) => <div className="tile kfig" key={a}><span className="lbl">{a}</span><span className="v">{b}</span></div>)}</div>
           <div><div className="lbl" style={{ marginBottom: 8 }}>Quand l’utiliser · niveau de conscience du client</div><div className="awl">{NIVEAUX_CONSCIENCE.map((a, i) => <span key={a} className={f.conscience.includes(i) ? 'on' : ''}>{a}</span>)}</div></div>
           <div className="kc">
