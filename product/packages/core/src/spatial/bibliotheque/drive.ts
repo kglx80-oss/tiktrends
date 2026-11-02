@@ -87,11 +87,62 @@ export interface FichierDrive {
 export interface DonneesDrive {
   dossiers: DossierDrive[];
   fichiers: FichierDrive[];
+  /**
+   * Les comptes EXACTS des médias de la bibliothèque (une requête agrégée,
+   * toute la portée de la session · `comptesDrive`). Présents, ils font foi
+   * pour chaque nombre de l'écran (onglet, arbre, carte, corbeille, volume),
+   * même quand une partie des fichiers n'est pas chargée. Absents · les
+   * nombres comptent les fichiers chargés (données de démonstration, tests).
+   */
+  comptes?: ComptesDrive;
+  /**
+   * Une source en lecture seule BORNÉE qui a atteint sa borne (sorties Studios,
+   * anciennes créations · `LIMITE_BIBLIOTHEQUE` chacune) · l'écran le dit
+   * (onglet « 400+ », phrase sous la liste), jamais une liste coupée en silence.
+   */
+  bornes?: { creations?: boolean; anciens?: boolean };
+}
+
+/** Les comptes d'un ensemble de fichiers, par filtre de type (`tous` compris). */
+export type CompteParType = Record<FiltreTypeDrive, number>;
+
+/**
+ * Les comptes exacts · par dossier (id d'un dossier RÉEL connu, ou la racine
+ * « Assets de la marque » pour un média non classé ou rangé dans un dossier
+ * hors portée · même règle que `donneesDrive`), les fichiers VIVANTS rangés
+ * DIRECTEMENT dedans, et leur volume connu ; la corbeille des fichiers ; le
+ * volume de tous les médias importés.
+ */
+export interface ComptesDrive {
+  vivants: Record<string, CompteParType>;
+  octets: Record<string, number>;
+  /** Fichiers vivants directs dont la taille est inconnue (`size_bytes` nul), par dossier. */
+  sansTaille: Record<string, number>;
+  corbeille: CompteParType;
+  volume: { octets: number; inconnus: number };
+}
+
+/** Une ligne de la requête agrégée · `assets` groupés par dossier, type, format et corbeille. */
+export interface LigneCompteBibliotheque {
+  dossierId: string | null;
+  kind: string;
+  mimeType: string | null;
+  supprime: boolean;
+  n: number;
+  octets: number;
+  sansTaille: number;
 }
 
 /* ───────────────────────────── Construction ───────────────────────────── */
 
 export interface DossierSource { id: string; parentId: string | null; name: string; locked: boolean; deletedAt: string | null; createdAt: string; colorTag?: string | null; brandId?: string | null }
+/** Ce que la page lit pour l'écran · dossiers, médias chargés, et (en production) les comptes exacts et les bornes atteintes. */
+export interface SourcesDrive {
+  dossiers: readonly DossierSource[];
+  medias: readonly MediaSource[];
+  comptes?: readonly LigneCompteBibliotheque[];
+  bornes?: DonneesDrive['bornes'];
+}
 export interface MediaSource {
   id: string; name: string; kind: string; mimeType?: string | null; source: string; url: string; thumbUrl: string | null;
   sizeBytes: number | null; createdAt: string; folderId?: string | null; rights?: string | null;
@@ -118,7 +169,7 @@ export function typeFichier(kind: string, mime?: string | null): TypeFichierDriv
  * un média rangé dans un dossier inconnu aussi. Une sortie Studios rejoint le
  * dossier virtuel de son projet, sous « Créations ».
  */
-export function donneesDrive(src: { dossiers: readonly DossierSource[]; medias: readonly MediaSource[] }): DonneesDrive {
+export function donneesDrive(src: SourcesDrive): DonneesDrive {
   const ids = new Set(src.dossiers.map((d) => d.id));
   const dossiers: DossierDrive[] = RACINES_DRIVE.map((r) => ({ id: r.id, nom: r.nom, parent: null, reel: false, verrouille: true, supprime: false, creeLe: '', tag: null }));
   for (const d of src.dossiers) {
@@ -133,24 +184,67 @@ export function donneesDrive(src: { dossiers: readonly DossierSource[]; medias: 
   const projets = new Map<string, DossierDrive>();
   const fichiers: FichierDrive[] = [];
   for (const m of src.medias) {
-    const base = {
-      id: m.id, nom: m.name, type: typeFichier(m.kind, m.mimeType), tailleOctets: m.sizeBytes, creeLe: m.createdAt,
-      url: m.url, vignette: typeFichier(m.kind, m.mimeType) === 'svg' ? null : (m.thumbUrl ?? (m.kind === 'image' ? m.url : null)), source: LIBELLE_SOURCE[m.source] ?? m.source,
-    };
     if (m.studio) {
       const pid = `p:${m.studio.projetId}`;
       const p = projets.get(pid);
       if (!p) projets.set(pid, { id: pid, nom: m.studio.projetTitre, parent: 'r:creations', reel: false, verrouille: true, supprime: false, creeLe: m.createdAt, tag: null });
       else if (m.createdAt > p.creeLe) p.creeLe = m.createdAt;
-      fichiers.push({ ...base, parent: pid, droit: null, lectureSeule: true, projet: { href: m.studio.href, titre: m.studio.projetTitre } });
-    } else if (m.historique) {
-      fichiers.push({ ...base, parent: 'r:anciens', droit: null, lectureSeule: true, telecharger: m.historique.telecharger });
-    } else {
-      fichiers.push({ ...base, parent: m.folderId && ids.has(m.folderId) ? m.folderId : ID_ASSETS, droit: m.rights ?? null, lectureSeule: false, ...(m.ia ? { ia: m.ia } : {}), ...(m.deletedAt ? { supprime: true } : {}) });
     }
+    fichiers.push(fichierDepuisMedia(m, ids));
   }
   dossiers.push(...projets.values());
-  return { dossiers, fichiers };
+  return {
+    dossiers, fichiers,
+    ...(src.comptes ? { comptes: comptesDrive(src.comptes, ids) } : {}),
+    ...(src.bornes && (src.bornes.creations || src.bornes.anciens) ? { bornes: { ...src.bornes } } : {}),
+  };
+}
+
+/**
+ * Un média, tel que l'écran le range · une sortie Studios dans le dossier
+ * virtuel de son projet, une ancienne création sous « Anciens studios », un
+ * média de la bibliothèque dans son dossier s'il est connu (`dossiers`), sinon
+ * à la racine des assets. Partagé par `donneesDrive` et par les fichiers
+ * chargés ensuite (`ajouterMedias`) · une seule règle.
+ */
+export function fichierDepuisMedia(m: MediaSource, dossiers: ReadonlySet<string>): FichierDrive {
+  const base = {
+    id: m.id, nom: m.name, type: typeFichier(m.kind, m.mimeType), tailleOctets: m.sizeBytes, creeLe: m.createdAt,
+    url: m.url, vignette: typeFichier(m.kind, m.mimeType) === 'svg' ? null : (m.thumbUrl ?? (m.kind === 'image' ? m.url : null)), source: LIBELLE_SOURCE[m.source] ?? m.source,
+  };
+  if (m.studio) return { ...base, parent: `p:${m.studio.projetId}`, droit: null, lectureSeule: true, projet: { href: m.studio.href, titre: m.studio.projetTitre } };
+  if (m.historique) return { ...base, parent: 'r:anciens', droit: null, lectureSeule: true, telecharger: m.historique.telecharger };
+  return { ...base, parent: m.folderId && dossiers.has(m.folderId) ? m.folderId : ID_ASSETS, droit: m.rights ?? null, lectureSeule: false, ...(m.ia ? { ia: m.ia } : {}), ...(m.deletedAt ? { supprime: true } : {}) };
+}
+
+const compteVide = (): CompteParType => ({ tous: 0, image: 0, video: 0, audio: 0, autre: 0 });
+const FILTRES_REELS: ReadonlyArray<Exclude<FiltreTypeDrive, 'tous'>> = ['image', 'video', 'audio', 'autre'];
+
+/**
+ * Les lignes de la requête agrégée, rangées comme l'écran · un dossier hors
+ * des dossiers connus (`dossiers` · ceux que la page a lus dans la portée)
+ * compte à la racine des assets, exactement comme `donneesDrive` y range le
+ * fichier. Une ligne illisible (nombre négatif ou non fini) ne compte pas.
+ */
+export function comptesDrive(lignes: readonly LigneCompteBibliotheque[], dossiers: ReadonlySet<string>): ComptesDrive {
+  const out: ComptesDrive = { vivants: {}, octets: {}, sansTaille: {}, corbeille: compteVide(), volume: { octets: 0, inconnus: 0 } };
+  const entier = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) && x > 0 ? Math.trunc(x) : 0);
+  for (const l of lignes) {
+    const n = entier(l.n), octets = entier(l.octets), sans = Math.min(n, entier(l.sansTaille));
+    if (!n) continue;
+    const t = typeFichier(l.kind, l.mimeType);
+    out.volume.octets += octets;
+    out.volume.inconnus += sans;
+    const cible = l.supprime ? out.corbeille : (out.vivants[l.dossierId && dossiers.has(l.dossierId) ? l.dossierId : ID_ASSETS] ??= compteVide());
+    cible.tous += n;
+    for (const f of FILTRES_REELS) if (passeFiltreType(t, f)) cible[f] += n;
+    if (!l.supprime) {
+      const d = l.dossierId && dossiers.has(l.dossierId) ? l.dossierId : ID_ASSETS;
+      out.octets[d] = (out.octets[d] ?? 0) + octets;
+      out.sansTaille[d] = (out.sansTaille[d] ?? 0) + sans;
+    }
+  }
+  return out;
 }
 
 /* ───────────────────────────── Lecture de l'arbre ───────────────────────────── */
@@ -189,6 +283,45 @@ function indexer(d: DonneesDrive): Index {
 }
 
 const sousDossiersVivants = (ix: Index, id: string) => (ix.enfants.get(id) ?? []).filter((x) => !x.supprime);
+
+/** Les dossiers d'un sous-arbre (lui compris), visités une fois · les sous-dossiers en corbeille seulement sur demande. */
+function dossiersSousArbre(ix: Index, id: string, inclureSupprimes = false): string[] {
+  const out: string[] = [];
+  const pile = [id];
+  const vus = new Set<string>();
+  while (pile.length) {
+    const x = pile.pop()!;
+    if (vus.has(x)) continue;
+    vus.add(x);
+    out.push(x);
+    for (const e of ix.enfants.get(x) ?? []) if (inclureSupprimes || !e.supprime) pile.push(e.id);
+  }
+  return out;
+}
+
+/** Un dossier que les comptes exacts couvrent · la racine des assets et les dossiers réels (les sources bornées se comptent chargées). */
+const couvert = (ix: Index, comptes: ComptesDrive | undefined, id: string) => !!comptes && (id === ID_ASSETS || !!ix.parDossier.get(id)?.reel);
+
+/**
+ * Le nombre de fichiers VIVANTS d'un dossier et de son sous-arbre · exact quand
+ * la page a lu les comptes (`DonneesDrive.comptes`), sinon les fichiers chargés.
+ */
+function compteSousArbre(ix: Index, comptes: ComptesDrive | undefined, id: string, inclureSupprimes = false, type: FiltreTypeDrive = 'tous'): number {
+  let n = 0;
+  for (const x of dossiersSousArbre(ix, id, inclureSupprimes)) {
+    n += couvert(ix, comptes, x) ? (comptes!.vivants[x]?.[type] ?? 0) : (ix.fichiersDe.get(x) ?? []).filter((f) => passeFiltreType(f.type, type)).length;
+  }
+  return n;
+}
+
+/** Le volume connu d'un sous-arbre (fichiers vivants) · même règle que le compte. */
+function tailleSousArbre(ix: Index, comptes: ComptesDrive | undefined, id: string): number {
+  let n = 0;
+  for (const x of dossiersSousArbre(ix, id)) {
+    n += couvert(ix, comptes, x) ? (comptes!.octets[x] ?? 0) : (ix.fichiersDe.get(x) ?? []).reduce((a, f) => a + (f.tailleOctets ?? 0), 0);
+  }
+  return n;
+}
 
 /** Fichiers d'un dossier et de tout son sous-arbre (visités une fois). */
 function fichiersSousArbre(ix: Index, id: string, inclureSupprimes = false): FichierDrive[] {
@@ -306,7 +439,8 @@ export interface CarteDossierDrive {
 }
 
 export interface VueDrive {
-  onglets: Array<{ id: string; nom: string; icone: string; compte: number; actif: boolean }>;
+  /** `plus` · la source de l'onglet est bornée et a atteint sa borne (« 400+ »). */
+  onglets: Array<{ id: string; nom: string; icone: string; compte: number; actif: boolean; plus: boolean }>;
   banniere: boolean;
   arbre: NoeudArbreDrive[];
   fil: Array<{ libelle: string; index: number | null }>;
@@ -325,10 +459,12 @@ export interface VueDrive {
   tags: Array<TagCouleur & { compte: number; actif: boolean }>;
 }
 
-const normaliser = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+/** La recherche · sans accent ni casse, espaces de bord retirés · la même règle à l'écran et dans la requête serveur (`pagination.ts`). */
+export const normaliserRechercheDrive = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const normaliser = normaliserRechercheDrive;
 
-function trierDossiers(ix: Index, ds: DossierDrive[], tri: TriDrive): DossierDrive[] {
-  const taille = (id: string) => fichiersSousArbre(ix, id).reduce((a, f) => a + (f.tailleOctets ?? 0), 0);
+function trierDossiers(ix: Index, ds: DossierDrive[], tri: TriDrive, comptes?: ComptesDrive): DossierDrive[] {
+  const taille = (id: string) => tailleSousArbre(ix, comptes, id);
   const parNom = (a: DossierDrive, b: DossierDrive) => a.nom.localeCompare(b.nom, 'fr') || a.id.localeCompare(b.id);
   const cmp = tri === 'date' ? (a: DossierDrive, b: DossierDrive) => (b.creeLe.localeCompare(a.creeLe) || parNom(a, b))
     : tri === 'taille' ? (a: DossierDrive, b: DossierDrive) => (taille(b.id) - taille(a.id) || parNom(a, b)) : parNom;
@@ -342,10 +478,10 @@ function trierFichiers(fs: FichierDrive[], tri: TriDrive): FichierDrive[] {
   return [...fs].sort(cmp);
 }
 
-function carte(ix: Index, d: DossierDrive, avecSupprimes = false): CarteDossierDrive {
+function carte(ix: Index, d: DossierDrive, avecSupprimes = false, comptes?: ComptesDrive): CarteDossierDrive {
   const tous = fichiersSousArbre(ix, d.id, avecSupprimes);
   return {
-    id: d.id, nom: d.nom, compte: tous.length,
+    id: d.id, nom: d.nom, compte: compteSousArbre(ix, comptes, d.id, avecSupprimes),
     sousDossiers: (ix.enfants.get(d.id) ?? []).filter((x) => avecSupprimes || !x.supprime).length,
     vignettes: tous.slice(0, 3).map((f) => ({ url: f.type === 'image' ? f.vignette : null, type: f.type })),
     selectionnable: d.reel && !d.verrouille,
@@ -385,9 +521,11 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   const filtreTag = e.section === 'drive' && !q ? tagCouleur(e.tag) : null;
   const enDrive = e.section === 'drive' && !q && !filtreTag;
 
+  const c = d.comptes;
   const onglets = RACINES_DRIVE.map((r) => ({
-    id: r.id, nom: r.nom, icone: r.icone, compte: fichiersSousArbre(ix, r.id).length,
+    id: r.id, nom: r.nom, icone: r.icone, compte: compteSousArbre(ix, c, r.id),
     actif: enDrive && chemin[0] === r.id,
+    plus: (r.cle === 'creations' && !!d.bornes?.creations) || (r.cle === 'anciens' && !!d.bornes?.anciens),
   }));
 
   const arbre: NoeudArbreDrive[] = [];
@@ -396,7 +534,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
     const ouvert = e.ouverts.has(x.id);
     arbre.push({
       id: x.id, nom: x.nom, niveau, racine: niveau === 0, icone: RACINES_DRIVE.find((r) => r.id === x.id)?.icone ?? 'folder',
-      aEnfants: enfants.length > 0, ouvert, actif: enDrive && courant === x.id, compte: fichiersSousArbre(ix, x.id).length, separateurAvant: sep,
+      aEnfants: enfants.length > 0, ouvert, actif: enDrive && courant === x.id, compte: compteSousArbre(ix, c, x.id), separateurAvant: sep,
       tag: tagCouleur(x.tag),
     });
     if (ouvert) for (const c of enfants) noeud(c, niveau + 1, false);
@@ -432,7 +570,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
     dossiers = RACINES_DRIVE.map((r) => ix.parDossier.get(r.id)!);
   }
 
-  const cartes = trierDossiers(ix, dossiers, e.tri).map((x) => carte(ix, x, e.section === 'corbeille'));
+  const cartes = trierDossiers(ix, dossiers, e.tri, c).map((x) => carte(ix, x, e.section === 'corbeille', c));
   fichiers = fichiers.filter((f) => passeFiltreType(f.type, e.type));
   const triés = e.section === 'recents' ? fichiers : trierFichiers(fichiers, e.tri);
 
@@ -440,15 +578,17 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   const creable = enDrive && !!cur && (cur.id === ID_ASSETS || cur.reel);
   const nouveau = creable ? { dans: cur!.nom, parentId: cur!.id === ID_ASSETS ? null : cur!.id } : null;
 
-  const vide = cartes.length || triés.length ? null
+  // Un dossier dont aucun fichier n'est encore chargé n'est pas « vide » quand les comptes exacts en connaissent (`suiteListe` dit le reste).
+  const connusIci = enDrive && courant && couvert(ix, c, courant) ? (c!.vivants[courant]?.[e.type ?? 'tous'] ?? 0) : e.section === 'corbeille' && !q && c ? c.corbeille[e.type ?? 'tous'] : 0;
+  const vide = cartes.length || triés.length || connusIci > 0 ? null
     : e.section === 'corbeille' ? { titre: 'La corbeille est vide', texte: 'Un dossier ou un fichier mis à la corbeille reste ici, restaurable.', icone: 'x' }
       : q ? { titre: 'Aucun fichier trouvé', texte: 'Essaie un autre nom de fichier ou de dossier.', icone: 'down' }
         : filtreTag ? { titre: `Aucun dossier tagué « ${filtreTag.libelle} »`, texte: 'Pose un tag depuis le bouton « Tag de couleur » d’un dossier.', icone: 'tag' }
         : { titre: 'Ce dossier est vide', texte: creable ? 'Glisse des fichiers ici ou utilise « Nouveau ».' : 'Rien n’a encore été livré ici.', icone: 'down' };
 
   const tailles = d.fichiers.filter((f) => !f.lectureSeule);
-  const connu = tailles.reduce((a, f) => a + (f.tailleOctets ?? 0), 0);
-  const inconnus = tailles.filter((f) => f.tailleOctets == null).length;
+  const connu = c ? c.volume.octets : tailles.reduce((a, f) => a + (f.tailleOctets ?? 0), 0);
+  const inconnus = c ? c.volume.inconnus : tailles.filter((f) => f.tailleOctets == null).length;
   const volume = `${connu > 0 ? formatTaille(connu) : '0 Ko'} de médias importés${inconnus ? ` · taille inconnue pour ${inconnus}` : ''}`;
 
   return {
@@ -504,7 +644,7 @@ export function dossiersRangement(d: DonneesDrive): Array<{ id: string | null; n
   const ix = indexer(d);
   const out: Array<{ id: string | null; nom: string }> = [{ id: null, nom: `${ix.parDossier.get(ID_ASSETS)!.nom} · non classé` }];
   const parcourir = (id: string, prefixe: string) => {
-    for (const x of trierDossiers(ix, sousDossiersVivants(ix, id), 'nom')) {
+    for (const x of trierDossiers(ix, sousDossiersVivants(ix, id), 'nom', d.comptes)) {
       if (!x.reel) continue;
       const nom = prefixe ? `${prefixe} › ${x.nom}` : x.nom;
       out.push({ id: x.id, nom });

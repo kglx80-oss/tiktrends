@@ -32,7 +32,8 @@ export const REFUS_SUPPRESSION_HORS_CORBEILLE = 'Ce fichier n’est pas dans la 
 export function compteCorbeille(d: DonneesDrive): number {
   const parId = new Map(d.dossiers.map((x) => [x.id, x] as const));
   const dossiers = d.dossiers.filter((x) => x.reel && x.supprime && !(x.parent && parId.get(x.parent)?.supprime)).length;
-  return dossiers + d.fichiers.filter((f) => f.supprime).length;
+  // Les comptes exacts (page) font foi · la corbeille chargée n'en est qu'une partie au-delà de sa première page.
+  return dossiers + (d.comptes ? d.comptes.corbeille.tous : d.fichiers.filter((f) => f.supprime).length);
 }
 
 export interface ActionsApercuFichier {

@@ -26,7 +26,7 @@ import type { AssetItem } from '../../app/actions/assets';
  * de la base est revérifiée par `objetDansPortee` (deux gardes valent mieux
  * qu'une). La clé de stockage ne quitte pas ce module.
  */
-export async function listerSortiesStudiosBibliotheque(limite: number = LIMITE_BIBLIOTHEQUE): Promise<ElementStudioBibliotheque[]> {
+export async function listerSortiesStudiosBibliotheque(limite: number = LIMITE_BIBLIOTHEQUE): Promise<ElementStudioBibliotheque[] & { tronque?: boolean }> {
   if (!db) return [];
   const g = await gardeStudio('studio.read', 'projets');
   if (!g.ok) return [];
@@ -36,6 +36,7 @@ export async function listerSortiesStudiosBibliotheque(limite: number = LIMITE_B
   if (marques.length === 0) return [];
 
   const S = schema.studioAssets;
+  const borne = Math.max(1, Math.min(Math.trunc(limite), LIMITE_BIBLIOTHEQUE));
   const lignes = await db.select({
     id: S.id, workspaceId: S.workspaceId, brandId: S.brandId, projectId: S.projectId,
     origin: S.origin, mime: S.mime, storageState: S.storageState, createdAt: S.createdAt,
@@ -43,7 +44,7 @@ export async function listerSortiesStudiosBibliotheque(limite: number = LIMITE_B
   }).from(S).where(and(
     eq(S.workspaceId, ctx.workspaceId), inArray(S.brandId, marques),
     eq(S.storageState, 'stored'), inArray(S.origin, ORIGINES_SORTIE_STUDIO as Array<'generated' | 'render'>),
-  )).orderBy(desc(S.createdAt)).limit(Math.max(1, Math.min(Math.trunc(limite), LIMITE_BIBLIOTHEQUE)));
+  )).orderBy(desc(S.createdAt)).limit(borne);
 
   const dansPortee = lignes.filter((l) => objetDansPortee(
     { workspaceId: ctx.workspaceId, marquesDuWorkspace: ctx.marquesDuWorkspace, restrictionsMarque: ctx.restrictionsMarque },
@@ -67,7 +68,8 @@ export async function listerSortiesStudiosBibliotheque(limite: number = LIMITE_B
     if (!v.livree) continue;
     out.push(elementStudioBibliotheque({ id: l.id, projectId: l.projectId, origin: l.origin, mime: l.mime, createdAt: l.createdAt }, titres.get(l.projectId)));
   }
-  return out;
+  // La borne atteinte · des sorties plus anciennes peuvent exister, l'écran le dit (`tronque`).
+  return lignes.length >= borne ? Object.assign(out, { tronque: true }) : out;
 }
 
 /** Une sortie livrée, sous la forme d'une ligne de la bibliothèque · lecture seule. */

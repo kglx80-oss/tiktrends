@@ -33,6 +33,8 @@ describe('la vignette Drive est captée à la synchro et ressortie par la liste'
 
   it('la liste des assets sélectionne et expose thumbUrl', () => {
     expect(ASSETS_ACTION).toContain('thumbUrl: schema.assets.thumbUrl');
-    expect(ASSETS_ACTION).toMatch(/thumbUrl: r\.thumbUrl/);
+    // L'exposition vit dans `toItem` (`lib/asset-item.ts`, importé par la liste).
+    expect(ASSETS_ACTION).toContain("import { toItem } from '../../lib/asset-item';");
+    expect(readFileSync(join(ROOT, 'lib/asset-item.ts'), 'utf8')).toMatch(/thumbUrl: r\.thumbUrl/);
   });
 });
