@@ -193,3 +193,88 @@ export function deplieAuSurvol(n: Pick<NoeudArbreDrive, 'id' | 'aEnfants' | 'ouv
   if (!charge || !n.aEnfants || n.ouvert) return false;
   return charge.type === 'fichiers' || !chargeContient(charge, n.id);
 }
+
+/**
+ * Le DÉFILEMENT AUTOMATIQUE pendant un glisser · le pointeur près du bord haut
+ * ou bas de la zone qui défile (la page, ou un conteneur qui défile seul) la
+ * fait défiler vers ce bord, d'autant plus vite qu'il s'en approche. Valeurs
+ * relues dans la source des arbres et listes de référence (2 novembre 2026) :
+ *
+ * | référence                                              | bande          | vitesse au bord                        |
+ * | ------------------------------------------------------ | -------------- | -------------------------------------- |
+ * | VS Code `src/vs/base/browser/ui/list/listView.ts`      | 35 px          | `0.3 * (diff - 35)` px/image · 10,5 px |
+ * |   (`animateDragAndDropScrollTop`)                       |                | soit 630 px/s à 60 images/s            |
+ * | GTK 3 `gtk/gtktreeview.c`                               | 30 px          | l'enfoncement (px) toutes les 150 ms   |
+ * |   (`2 * SCROLL_EDGE_SIZE`, `SCROLL_EDGE_SIZE 15`)       |                | soit 200 px/s                          |
+ * | Qt `qabstractitemview.cpp` (`autoScrollMargin(16)`)     | 16 px          | +1 px par tic de 50 ms (croissante)    |
+ * | Chromium `layout_box.cc` (`kAutoscrollBeltSize = 20`)   | 20 px          | défilement natif, après 0,2 s          |
+ *
+ * Retenu · la loi de VS Code, la même source que le délai de dépliage
+ * (`DELAI_DEPLIAGE_SURVOL_MS`) : la bande la plus large des références (la plus
+ * facile à viser, et plus large que la ceinture native de Chromium, qui ne
+ * prend donc le relais qu'au tout dernier bord), une vitesse PROPORTIONNELLE à
+ * l'enfoncement dans la bande (nulle à son bord intérieur · pas d'à-coup en y
+ * entrant). VS Code compte en px par IMAGE · ici en px par SECONDE (à 60
+ * images/s, sa cadence de référence), pour qu'un écran à 120 Hz ne défile pas
+ * deux fois plus vite. Son plafond (14 px/image) n'est atteint qu'au-delà du
+ * bord · le pointeur est ramené dans la zone, la vitesse maximale est donc
+ * 0,3 × 35 × 60 = 630 px/s.
+ *
+ * Arrêt NET (vitesse nulle) · hors de la bande, à la limite de défilement dans
+ * le sens demandé, ou quand la zone est trop basse pour que ses deux bandes ne
+ * se chevauchent pas (il ne resterait aucun endroit immobile où viser une
+ * cible). La fin du glisser et le silence des `dragover` (`VEILLE_DEFILEMENT_MS`)
+ * arrêtent aussi · c'est l'écran qui les voit.
+ */
+export const BANDE_DEFILEMENT_PX = 35;
+/** px/s par px d'enfoncement dans la bande · 0,3 px/image (VS Code) × 60 images/s. */
+export const GAIN_DEFILEMENT_PX_S = 18;
+/**
+ * Sans nouveau `dragover` pendant ce délai, le défilement s'arrête · 1 000 ms, la veille de VS Code
+ * (`setupDragAndDropScrollTopAnimation` · `disposableTimeout(…, 1000)`). La spécification HTML tire `dragover`
+ * « au moins toutes les 350 ms (± 200 ms) » pendant un glisser, pointeur immobile compris · 1 000 ms laisse
+ * presque deux fois l'écart maximal (550 ms) avant de conclure que le glisser a quitté la page.
+ */
+export const VEILLE_DEFILEMENT_MS = 1000;
+
+/** Une zone qui défile, en coordonnées de la fenêtre · ses bords visibles, sa position et sa position maximale. */
+export interface ZoneDefilement { haut: number; bas: number; defile: number; max: number }
+
+/**
+ * La vitesse du défilement automatique (px/s · négative vers le haut, positive vers le bas, 0 · immobile) pour un
+ * pointeur à la hauteur `y` (fenêtre) au-dessus de la zone `z`.
+ */
+export function vitesseDefilement(y: number, z: ZoneDefilement): number {
+  // Une zone sans course (`max` 0) s'arrête par les limites ci-dessous · les deux sens y sont bloqués.
+  if (!(z.bas - z.haut >= 2 * BANDE_DEFILEMENT_PX)) return 0;
+  const p = Math.min(Math.max(y, z.haut), z.bas);
+  const enHaut = z.haut + BANDE_DEFILEMENT_PX - p;
+  if (enHaut > 0) return z.defile > 0 ? -GAIN_DEFILEMENT_PX_S * enHaut : 0;
+  const enBas = p - (z.bas - BANDE_DEFILEMENT_PX);
+  if (enBas > 0) return z.defile < z.max ? GAIN_DEFILEMENT_PX_S * enBas : 0;
+  return 0;
+}
+
+/** La position de la zone après `dtMs` à la vitesse `vitesse` · jamais au-delà de ses limites (0 et `max`). */
+export function defilementApres(z: Pick<ZoneDefilement, 'defile' | 'max'>, vitesse: number, dtMs: number): number {
+  const p = z.defile + (vitesse * Math.max(0, dtMs)) / 1000;
+  return Math.min(Math.max(p, 0), Math.max(0, z.max));
+}
+
+/**
+ * L'ANNONCE du survol · ce que dit la région polie (`aria-live="polite"`, une seule pour l'écran) pendant un
+ * glisser. Une infobulle ne s'affiche pas pendant un glisser natif · la raison d'un refus serait tue. La règle :
+ *  · une cible qui REFUSE est annoncée par la phrase du verdict (celle du serveur), une fois · tant qu'on la
+ *    survole, l'annonce reste la même (le navigateur tire `dragover` en continu · on ne la répète pas) ;
+ *  · une AUTRE cible qui refuse remplace l'annonce · même si la phrase est identique, c'est une nouvelle annonce
+ *    (`cible` change, l'écran la réinsère) ;
+ *  · une cible qui ACCEPTE, ou la source elle-même (`verdict` null · elle refuse sans le dire), vide l'annonce ·
+ *    rien n'est dit.
+ * Rend `courante` elle-même quand rien ne change (l'écran n'a rien à réécrire).
+ */
+export type AnnonceSurvol = { cible: string; texte: string } | null;
+export function annonceSurvol(courante: AnnonceSurvol, cibleId: string, verdict: VerdictDepot | null): AnnonceSurvol {
+  if (!verdict || verdict.ok) return null;
+  if (courante?.cible === cibleId && courante.texte === verdict.raison) return courante;
+  return { cible: cibleId, texte: verdict.raison };
+}
