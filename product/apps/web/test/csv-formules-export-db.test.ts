@@ -109,8 +109,9 @@ describe('exportAdsCsvAction · aucune cellule ne part évaluable', () => {
   });
 
   it('réimporté (lecture du noyau), le fichier redonne la valeur saisie, sans apostrophe', () => {
-    // L'import lit la virgule · on reprend le fichier tel qu'un tableur le réenregistre (`;` → `,`).
-    const relu = parseCsv(lignes().map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n'));
+    // L'import détecte le point-virgule de l'export · le fichier est relu tel quel
+    // (allers-retours complets : `adsmap-import-aller-retour-db.test.ts`).
+    const relu = parseCsv(csv);
     const i = relu[0]!.indexOf('Apprentissages');
     expect(relu[1]![i], 'l’import garde l’apostrophe de l’export').toBe(PIEGE);
   });

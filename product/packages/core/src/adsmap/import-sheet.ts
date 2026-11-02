@@ -29,7 +29,115 @@ import { retirerNeutralisation } from './sheet';
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Séparateurs reconnus à l'import, dans l'ordre de préférence en cas d'égalité
+ * NON départagée (voir `detecterSeparateur`) · la virgule d'abord, parce que
+ * c'est ce que l'import lisait seul jusqu'ici : un fichier ambigu se lit comme
+ * avant, aucune régression.
+ */
+export const SEPARATEURS_CSV = [',', ';', '\t'] as const;
+export type SeparateurCsv = (typeof SEPARATEURS_CSV)[number];
+
+/** Pourquoi ce séparateur · `defaut-*` = l'en-tête ne permettait pas de trancher. */
+export type RaisonSeparateur = 'seul-present' | 'coherence' | 'majorite' | 'defaut-aucun' | 'defaut-egalite';
+export interface SeparateurDetecte { separateur: SeparateurCsv; raison: RaisonSeparateur }
+
+/** Lignes examinées pour trouver l'en-tête · la même fenêtre que `findHeaderRow`. */
+const FENETRE_ENTETE = 20;
+/** Lignes suivantes consultées pour départager plusieurs séparateurs présents. */
+const FENETRE_COHERENCE = 10;
+
+/** BOM UTF-8 qu'Excel écrit en tête de fichier. */
+const BOM = /^\uFEFF/;
+
+/**
+ * Compte, ligne LOGIQUE par ligne logique, les séparateurs hors guillemets · un
+ * `;` dans `"a;b"` ne compte pas, et un saut de ligne entre guillemets ne coupe
+ * pas la ligne. Même lecture des guillemets que `parseCsv`. S'arrête dès que
+ * `max` lignes ont été lues · le reste du fichier n'est pas parcouru.
+ */
+function compterParLigne(t: string, max: number): Array<{ vide: boolean; n: Record<SeparateurCsv, number> }> {
+  const lignes: Array<{ vide: boolean; n: Record<SeparateurCsv, number> }> = [];
+  const neuve = () => ({ vide: true, n: { ',': 0, ';': 0, '\t': 0 } as Record<SeparateurCsv, number> });
+  let cur = neuve();
+  let quoted = false;
+  for (let i = 0; i < t.length && lignes.length < max; i++) {
+    const c = t[i]!;
+    if (c === '"') { quoted = !quoted; cur.vide = false; continue; }
+    if (quoted) continue;
+    if (c === '\n') { lignes.push(cur); cur = neuve(); continue; }
+    if (c === ',' || c === ';' || c === '\t') { cur.n[c]++; cur.vide = false; } else if (!/\s/.test(c)) cur.vide = false;
+  }
+  if (lignes.length < max) lignes.push(cur);
+  return lignes;
+}
+
+/**
+ * Le séparateur du fichier, lu sur sa ligne d'en-tête.
+ *
+ * Mesuré sur les en-têtes RÉELS (séparateurs hors guillemets, par ligne) :
+ *
+ * | fichier                                        | `;` | `,` | tab |
+ * | ---------------------------------------------- | --- | --- | --- |
+ * | export Résultats, 29 colonnes (`toCsv`)        |  28 |   0 |   0 |
+ * | export Résultats, 19 colonnes du Sheet         |  18 |   0 |   0 |
+ * | modèle TrueFords, ligne 1 (blocs)              |   0 |  18 |   0 |
+ * | modèle TrueFords, ligne 2 (en-tête)            |   0 |  18 |   0 |
+ * | modèle TrueFords, lignes 3 à 22 (données)      |   0 |  18 |   0 |
+ * | export, ligne de données (`-12,5`, `1 234,5`)  |  28 |   2 |   0 |
+ *
+ * Sur un en-tête réel, un seul séparateur est présent : la règle tranche sans
+ * marge à discuter. Les lignes de DONNÉES, elles, ne votent pas au compte · un
+ * export au point-virgule y porte des virgules décimales non entourées.
+ *
+ * La règle, dans l'ordre :
+ *  1. la ligne de référence est la première ligne logique (sur 20) qui porte au
+ *     moins un séparateur hors guillemets · la ligne des blocs du Sheet a la même
+ *     structure que l'en-tête, une ligne de titre sans séparateur est sautée ;
+ *  2. aucun séparateur sur 20 lignes (fichier d'une seule colonne) → virgule,
+ *     comme l'import l'a toujours lu (`defaut-aucun`) ;
+ *  3. un seul séparateur présent dans la référence → lui (`seul-present`) ;
+ *  4. plusieurs (« Prix, TTC;Prix, HT ») → celui qui découpe les lignes suivantes
+ *     (10 au plus) en AUTANT de colonnes que la référence, le plus souvent
+ *     (`coherence`) · c'est ce qui définit un séparateur ;
+ *  5. cohérence à égalité (fichier réduit à l'en-tête) → le plus fréquent dans la
+ *     référence (`majorite`) ;
+ *  6. égalité encore → l'ordre de `SEPARATEURS_CSV`, virgule d'abord
+ *     (`defaut-egalite`) · l'import le signale dans son rapport.
+ */
+export function detecterSeparateur(text: string): SeparateurDetecte {
+  const lignes = compterParLigne(text.replace(BOM, ''), FENETRE_ENTETE + FENETRE_COHERENCE);
+  const iRef = lignes.slice(0, FENETRE_ENTETE).findIndex((l) => SEPARATEURS_CSV.some((s) => l.n[s] > 0));
+  if (iRef === -1) return { separateur: ',', raison: 'defaut-aucun' };
+
+  const ref = lignes[iRef]!.n;
+  const presents = SEPARATEURS_CSV.filter((s) => ref[s] > 0);
+  if (presents.length === 1) return { separateur: presents[0]!, raison: 'seul-present' };
+
+  const suivantes = lignes.slice(iRef + 1).filter((l) => !l.vide).slice(0, FENETRE_COHERENCE);
+  const meilleurs = (score: (s: SeparateurCsv) => number, parmi: readonly SeparateurCsv[]) => {
+    const max = Math.max(...parmi.map(score));
+    return parmi.filter((s) => score(s) === max);
+  };
+  const coherents = meilleurs((s) => suivantes.filter((l) => l.n[s] === ref[s]).length, presents);
+  if (coherents.length === 1) return { separateur: coherents[0]!, raison: 'coherence' };
+  const frequents = meilleurs((s) => ref[s], coherents);
+  if (frequents.length === 1) return { separateur: frequents[0]!, raison: 'majorite' };
+  return { separateur: frequents[0]!, raison: 'defaut-egalite' };
+}
+
+/** Le séparateur en toutes lettres, pour le rapport d'import. */
+export const LIBELLE_SEPARATEUR: Record<SeparateurCsv, string> = {
+  ',': 'à la virgule', ';': 'au point-virgule', '\t': 'à la tabulation',
+};
+
+/**
  * Analyse CSV tolérante (RFC 4180 : guillemets, champs multilignes).
+ *
+ * Le séparateur est détecté sur l'en-tête (`detecterSeparateur`) · l'export
+ * Résultats sort au point-virgule (Excel en français), un tableur le
+ * réenregistre souvent à la virgule, un copier-coller donne des tabulations :
+ * les trois se relisent. Le BOM UTF-8 de tête (Excel) est retiré, et les fins
+ * de ligne `\r\n` ne laissent pas de `\r` dans la dernière cellule.
  *
  * Chaque champ perd l'apostrophe que `csvCell` ajoute devant un début de
  * formule (`retirerNeutralisation`) · un export Adsmap repris tel quel, ou
@@ -37,14 +145,14 @@ import { retirerNeutralisation } from './sheet';
  * saisie (`=…` et non `'=…`). Seule une apostrophe SUIVIE d'un début de formule est
  * retirée : « 'Hook' gagnant » d'un tableur historique reste intact.
  */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, separateur: SeparateurCsv = detecterSeparateur(text).separateur): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
   let quoted = false;
   const fin = () => { row.push(retirerNeutralisation(cell)); cell = ''; };
 
-  const t = text.replace(/^﻿/, '');   // BOM éventuel
+  const t = text.replace(BOM, '');
   for (let i = 0; i < t.length; i++) {
     const c = t[i]!;
     if (quoted) {
@@ -54,7 +162,7 @@ export function parseCsv(text: string): string[][] {
       continue;
     }
     if (c === '"') { quoted = true; continue; }
-    if (c === ',') { fin(); continue; }
+    if (c === separateur) { fin(); continue; }
     if (c === '\r') continue;
     if (c === '\n') { fin(); rows.push(row); row = []; continue; }
     cell += c;
@@ -368,7 +476,8 @@ const cle = (title: string, angle: string) => `${title.trim()}||${angle.trim()}`
  */
 export function buildImportPlan(csvText: string, opts: { today?: Date } = {}): ImportPlan {
   const today = opts.today ?? new Date();
-  const rows = parseCsv(csvText);
+  const sep = detecterSeparateur(csvText);
+  const rows = parseCsv(csvText, sep.separateur);
   const hIdx = findHeaderRow(rows);
   const cols = mapColumns(rows[hIdx] ?? []);
   const data = rows.slice(hIdx + 1);
@@ -516,6 +625,10 @@ export function buildImportPlan(csvText: string, opts: { today?: Date } = {}): I
   report.ads = ads.length;
 
   // Avertissements · ce que l'humain doit regarder après l'import.
+  if (sep.raison === 'majorite' || sep.raison === 'defaut-egalite') {
+    // L'en-tête porte plusieurs séparateurs et aucune ligne ne départage · on a choisi, on le dit.
+    report.warnings.push(`Séparateur de colonnes ambigu dans l'en-tête · fichier lu ${LIBELLE_SEPARATEUR[sep.separateur]}. Si les colonnes ont glissé dans l'aperçu, réenregistre le fichier depuis ton tableur.`);
+  }
   if (report.demotedToDraft > 0) {
     report.warnings.push(`${report.demotedToDraft} ad(s) marquées « Prête » ou « Test en cours » n'ont pas d'hypothèse : elles repassent en brouillon. Écris-la avant de les relancer.`);
   }
