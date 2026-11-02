@@ -1,6 +1,6 @@
-import { dossiersRangement, RACINES_DRIVE, type DonneesDrive, type SectionDrive } from './drive';
+import { dossiersRangement, RACINES_DRIVE, type DonneesDrive, type NoeudArbreDrive, type SectionDrive } from './drive';
 import { destinationsDeplacement } from './menu-fichier';
-import { destinationsDeplacementDossier, menuDossier } from './menu-dossier';
+import { destinationsDeplacementDossier, destinationsDeplacementSelection, menuDossier } from './menu-dossier';
 import { gestesSelection } from './selection';
 
 /**
@@ -17,24 +17,36 @@ import { gestesSelection } from './selection';
  *    corbeille) ; s'il est SÉLECTIONNÉ, toute la sélection de fichiers part
  *    avec lui (même borne, même refus que la barre) ; un dossier part si
  *    « Déplacer vers… » de son menu est ouvert (`menuDossier` · réel, vivant,
- *    pas système, écriture ouverte) ;
+ *    pas système, écriture ouverte) ; s'il est SÉLECTIONNÉ avec d'autres
+ *    dossiers, les DOSSIERS de la sélection partent avec lui (jamais ses
+ *    fichiers · même borne, même refus que « Déplacer vers… » de la barre) ;
  *  · ce qui REÇOIT (`verdictDepot`) · la cible est jugée par la liste du menu ·
  *    pour des fichiers, les destinations de rangement (`dossiersRangement`,
  *    la racine « Assets de la marque » valant « non classé ») ; pour un
  *    dossier, ses destinations jugées par la règle de l'action
  *    (`destinationsDeplacementDossier` → `validerDeplacementDossier` · lui-même,
  *    l'un de ses descendants, un dossier système ou d'une autre marque sont
- *    REFUSÉS, avec la phrase du serveur). Déjà là, la cible refuse aussi · un
- *    dépôt sans effet n'envoie rien.
+ *    REFUSÉS, avec la phrase du serveur) ; pour plusieurs dossiers, la liste
+ *    de la barre (`destinationsDeplacementSelection` →
+ *    `validerDeplacementDossiers` · tout ou rien, la cible ne doit être ni l'un
+ *    d'eux ni le descendant de l'un d'eux · le cycle CROISÉ compris). Déjà là,
+ *    la cible refuse aussi · un dépôt sans effet n'envoie rien.
+ *
+ * Deux règles du survol, hors de la charge :
+ *  · la zone d'IMPORT ne répond qu'à un glisser qui porte des fichiers de
+ *    l'ordinateur (`porteDesFichiers` · le type `Files` du transfert) ;
+ *  · un nœud REPLIÉ de l'arbre survolé pendant un glisser se déplie après
+ *    `DELAI_DEPLIAGE_SURVOL_MS` (`deplieAuSurvol`).
  *
  * Une cible refusée ne reçoit rien · l'écran la montre « interdite » et
  * n'appelle aucune action.
  */
 
-/** Ce qui est glissé · des fichiers (un seul, ou la sélection), ou un dossier. */
+/** Ce qui est glissé · des fichiers (un seul, ou la sélection), un dossier, ou les dossiers de la sélection (au moins deux). */
 export type ChargeGlissee =
   | { type: 'fichiers'; ids: string[] }
-  | { type: 'dossier'; id: string; nom: string };
+  | { type: 'dossier'; id: string; nom: string }
+  | { type: 'dossiers'; ids: string[] };
 
 export interface ContexteGlisser {
   section: SectionDrive;
@@ -52,6 +64,7 @@ export const REFUS_DEPOT = {
   fichierIci: 'Le fichier est déjà ici.',
   fichiersIci: 'Les fichiers sont déjà ici.',
   dossierIci: 'Le dossier est déjà ici.',
+  dossiersIci: 'Les dossiers sont déjà ici.',
 } as const;
 
 const ID_RACINE_ASSETS = RACINES_DRIVE.find((r) => r.cle === 'assets')!.id;
@@ -81,7 +94,14 @@ export function chargeGlissee(d: DonneesDrive, id: string, selection: Iterable<s
   const x = d.dossiers.find((y) => y.id === id);
   if (!x) return null;
   const deplacer = menuDossier(d, id, { ...ctx, variante: 'liste' }).find((e) => e.cle === 'deplacer');
-  return deplacer?.ouvert ? { type: 'dossier', id, nom: x.nom } : null;
+  if (!deplacer?.ouvert) return null;
+  const ids = new Set(selection);
+  if (!ids.has(id)) return { type: 'dossier', id, nom: x.nom };
+  // Seuls les DOSSIERS de la sélection partent (comme le glisser d'un fichier n'emporte que les fichiers) · la barre
+  // les retient (`gestesSelection` · réels, vivants, pas système) et ferme « Déplacer vers… » au-delà de la borne.
+  const groupe = gestesSelection(d, [...ids].filter((y) => d.dossiers.some((z) => z.id === y)), base);
+  if (!groupe.gestes.find((g) => g.cle === 'ranger')?.ouvert) return null;
+  return groupe.dossiers.length > 1 ? { type: 'dossiers', ids: groupe.dossiers.map((y) => y.id) } : { type: 'dossier', id, nom: x.nom };
 }
 
 /** L'élément se glisse-t-il (attribut `draggable`) · la même règle que `chargeGlissee`, sans sélection. */
@@ -92,10 +112,11 @@ export function glissable(d: DonneesDrive, id: string, ctx: ContexteGlisser): bo
 /** Ce que la cible `cibleId` (un dossier de l'arbre, de la grille ou de la liste) fait de la charge glissée. */
 export function verdictDepot(d: DonneesDrive, charge: ChargeGlissee, cibleId: string): VerdictDepot {
   const destination = destinationDe(cibleId);
-  if (charge.type === 'dossier') {
-    const o = destinationsDeplacementDossier(d, charge.id).find((x) => x.id === destination);
+  if (charge.type === 'dossier' || charge.type === 'dossiers') {
+    const liste = charge.type === 'dossier' ? destinationsDeplacementDossier(d, charge.id) : destinationsDeplacementSelection(d, charge.ids);
+    const o = liste.find((x) => x.id === destination);
     if (!o) return { ok: false, raison: REFUS_DEPOT.cible };
-    if (o.actuel) return { ok: false, raison: REFUS_DEPOT.dossierIci };
+    if (o.actuel) return { ok: false, raison: charge.type === 'dossier' ? REFUS_DEPOT.dossierIci : REFUS_DEPOT.dossiersIci };
     if (o.raison) return { ok: false, raison: o.raison };
     return { ok: true, destination, nom: o.nom };
   }
@@ -104,4 +125,40 @@ export function verdictDepot(d: DonneesDrive, charge: ChargeGlissee, cibleId: st
   const tousIci = charge.ids.every((fid) => destinationsDeplacement(d, fid).find((x) => x.id === destination)?.actuel);
   if (tousIci) return { ok: false, raison: charge.ids.length > 1 ? REFUS_DEPOT.fichiersIci : REFUS_DEPOT.fichierIci };
   return { ok: true, destination, nom: r.nom };
+}
+
+/** La charge contient-elle le dossier `id` · la source elle-même n'est pas mise en évidence au survol. */
+export function chargeContient(charge: ChargeGlissee, id: string): boolean {
+  return charge.type === 'dossier' ? charge.id === id : charge.ids.includes(id);
+}
+
+/**
+ * Le glisser porte-t-il des FICHIERS de l'ordinateur · le seul qui ouvre la zone d'import. Les navigateurs annoncent
+ * des fichiers par le type `Files` de `dataTransfer.types` (spécification HTML, « drag data store item list ») · un
+ * texte, un lien, une image glissée d'une autre page ou un glisser interne n'en portent pas · ni état, ni import.
+ * `types` est un tableau figé (navigateurs actuels) ou une `DOMStringList` (anciens) · les deux se lisent par index.
+ */
+export function porteDesFichiers(types: ArrayLike<string> | null | undefined): boolean {
+  return !!types && Array.from(types).includes('Files');
+}
+
+/**
+ * Le délai avant qu'un nœud REPLIÉ de l'arbre, survolé pendant un glisser, ne se déplie · 500 ms, la valeur des
+ * arbres de référence, relue dans leur source :
+ *  · VS Code (`src/vs/base/browser/ui/tree/abstractTree.ts` · `disposableTimeout(…, 500)` du dépliage au survol) ;
+ *  · GTK (`gtk/gtktreeview.c` · `#define AUTO_EXPAND_TIMEOUT 500`) ;
+ *  · jsTree (`src/jstree.dnd.js` · `open_timeout : 500`).
+ * Assez long pour qu'un survol de PASSAGE (la souris traverse l'arbre vers un autre nœud) n'ouvre rien, assez court
+ * pour qu'une pause volontaire ouvre sans attente sensible. Quitter le nœud avant l'échéance l'annule.
+ */
+export const DELAI_DEPLIAGE_SURVOL_MS = 500;
+
+/**
+ * Le nœud `n` de l'arbre se déplie-t-il au survol prolongé de la charge · un nœud qui a des enfants et qui est
+ * replié, pendant un glisser interne. Jamais un dossier qui part · ses descendants refusent tous le dépôt
+ * (anti-cycle), l'ouvrir ne mènerait nulle part.
+ */
+export function deplieAuSurvol(n: Pick<NoeudArbreDrive, 'id' | 'aEnfants' | 'ouvert'>, charge: ChargeGlissee | null): boolean {
+  if (!charge || !n.aEnfants || n.ouvert) return false;
+  return charge.type === 'fichiers' || !chargeContient(charge, n.id);
 }

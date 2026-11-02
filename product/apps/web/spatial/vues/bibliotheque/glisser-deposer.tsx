@@ -1,12 +1,16 @@
 'use client';
 
-import { useRef, useState, type CSSProperties, type DragEvent } from 'react';
-import { chargeGlissee, glissable, verdictDepot, type ChargeGlissee, type DonneesDrive, type SectionDrive } from '@tiktrends/core';
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import {
+  chargeContient, chargeGlissee, deplieAuSurvol, DELAI_DEPLIAGE_SURVOL_MS, glissable, porteDesFichiers, verdictDepot,
+  type ChargeGlissee, type DonneesDrive, type NoeudArbreDrive, type SectionDrive,
+} from '@tiktrends/core';
 import { useTelephone } from '../../communs';
 
 /**
  * Bibliothèque · le glisser-déposer à la SOURIS · un fichier (ou la sélection
- * de fichiers qu'il emporte) ou un dossier, déposé sur un dossier de l'arbre,
+ * de fichiers qu'il emporte) ou un dossier (ou la sélection de dossiers qu'il
+ * emporte), déposé sur un dossier de l'arbre,
  * de la grille ou de la liste. Ce qui part et ce qui reçoit est décidé au noyau
  * (`chargeGlissee`, `verdictDepot`) · ici, les événements et l'état du survol.
  *
@@ -15,6 +19,10 @@ import { useTelephone } from '../../communs';
  * déjà là) ne prend pas le dépôt · curseur interdit (`dropEffect` `none`, aucun
  * `preventDefault`), contour en tirets atténué, et le dépôt n'appelle rien. Au
  * téléphone (seuil de la maquette) et en lecture seule, rien ne se glisse.
+ *
+ * Un nœud replié de l'arbre survolé pendant un glisser se déplie après
+ * `DELAI_DEPLIAGE_SURVOL_MS` (règle et délai au noyau · `deplieAuSurvol`) ;
+ * le quitter avant, déposer ou finir le glisser annule l'échéance.
  */
 
 /** Le type du transfert · posé au départ (Firefox ne lance aucun glisser sans donnée), jamais relu · la charge vit dans l'écran. */
@@ -33,16 +41,27 @@ export interface OptionsGlisserDeposer {
   occupe: boolean;
   /** Le dépôt accepté · la destination (`null` · non classé) et son nom, jugés au noyau. */
   deposer: (charge: ChargeGlissee, destination: string | null, nom: string) => void;
+  /** Déplie le nœud `id` de l'arbre (jamais ne le replie) · appelé à l'échéance du survol prolongé. */
+  deplier?: (id: string) => void;
 }
 
 export function useGlisserDeposer(o: OptionsGlisserDeposer) {
   const telephone = useTelephone();
   const charge = useRef<ChargeGlissee | null>(null);
   const [survol, setSurvol] = useState<{ id: string; ok: boolean } | null>(null);
+  /** L'échéance du dépliage au survol · un seul nœud à la fois. */
+  const depliage = useRef<{ id: string; minuterie: ReturnType<typeof setTimeout> } | null>(null);
   const ctx = { section: o.section, lectureSeule: o.lectureSeule };
   // Au téléphone, rien ne se glisse · en lecture seule non plus, le noyau ne laisse rien partir (`chargeGlissee`).
   const actif = !telephone;
-  const finir = () => { charge.current = null; setSurvol(null); };
+  const annulerDepliage = (id?: string) => {
+    if (!depliage.current || (id !== undefined && depliage.current.id !== id)) return;
+    clearTimeout(depliage.current.minuterie);
+    depliage.current = null;
+  };
+  // Démonté en plein survol · l'échéance ne survit pas à l'écran.
+  useEffect(() => { const d = depliage; return () => { if (d.current) clearTimeout(d.current.minuterie); }; }, []);
+  const finir = () => { charge.current = null; annulerDepliage(); setSurvol(null); };
 
   /** Un élément qui se glisse (carte, ligne) · rien s'il ne part pas (règle du noyau). */
   const source = (id: string) => {
@@ -61,8 +80,11 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
     };
   };
 
-  /** Un dossier qui reçoit (nœud de l'arbre, carte, ligne) · jugé à chaque survol. */
-  const cible = (id: string) => {
+  /**
+   * Un dossier qui reçoit (nœud de l'arbre, carte, ligne) · jugé à chaque survol. Un nœud de l'arbre passe son état
+   * (`noeud`) · replié, il se déplie au survol prolongé.
+   */
+  const cible = (id: string, noeud?: Pick<NoeudArbreDrive, 'id' | 'aEnfants' | 'ouvert'>) => {
     if (!actif) return {};
     return {
       'data-depot': survol?.id === id ? (survol.ok ? 'accepte' : 'refuse') : undefined,
@@ -74,11 +96,18 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
         if (ok) e.preventDefault();
         e.dataTransfer.dropEffect = ok ? 'move' : 'none';
         // La source elle-même n'est pas mise en évidence · elle refuse sans le dire.
-        const montre = c.type === 'dossier' && c.id === id ? null : { id, ok };
+        const montre = chargeContient(c, id) ? null : { id, ok };
         setSurvol((s) => (s?.id === montre?.id && s?.ok === montre?.ok ? s : montre));
+        // Le dépliage au survol · l'échéance part au premier survol du nœud, pas à chacun (le navigateur en tire en continu).
+        if (depliage.current?.id !== id) annulerDepliage();
+        if (noeud && o.deplier && !depliage.current && deplieAuSurvol(noeud, c)) {
+          const deplier = o.deplier;
+          depliage.current = { id, minuterie: setTimeout(() => { depliage.current = null; deplier(id); }, DELAI_DEPLIAGE_SURVOL_MS) };
+        }
       },
       onDragLeave: (e: DragEvent) => {
         if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+        annulerDepliage(id);
         setSurvol((s) => (s?.id === id ? null : s));
       },
       onDrop: (e: DragEvent) => {
@@ -106,5 +135,8 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
   /** Un glisser interne est en cours · la zone d'import (fichiers de l'ordinateur) ne s'en mêle pas. */
   const enCours = () => charge.current !== null;
 
-  return { source, cible, style, enCours };
+  /** La zone d'import répond-elle à ce glisser · des fichiers de l'ordinateur (`Files`), jamais un glisser interne. */
+  const importable = (e: DragEvent) => !enCours() && porteDesFichiers(e.dataTransfer?.types);
+
+  return { source, cible, style, enCours, importable };
 }

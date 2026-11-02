@@ -293,8 +293,10 @@ export function Bibliotheque(p: PropsBibliotheque) {
     donnees: p.donnees, section: etat.section, lectureSeule: p.lectureSeule, selection, occupe,
     deposer: (c, destination, nom) => {
       if (c.type === 'dossier') { void deplacerDossier(c, destination, nom); return; }
-      void deplacerFichiers(c.ids, destination, nom).then((ok) => { if (ok) setSelection((x) => { const n = new Set(x); c.ids.forEach((id) => n.delete(id)); return n; }); });
+      const envoi = c.type === 'dossiers' ? deplacerDossiers(c.ids, destination, nom) : deplacerFichiers(c.ids, destination, nom);
+      void envoi.then((ok) => { if (ok) setSelection((x) => { const n = new Set(x); c.ids.forEach((id) => n.delete(id)); return n; }); });
     },
+    deplier: (id) => setEtat((e) => (e.ouverts.has(id) ? e : { ...e, ouverts: new Set([...e.ouverts, id]) })),
   });
   const prixImage = (n: number) => (g?.analyse.cout != null ? ` · ${g.analyse.cout * n} crédit${g.analyse.cout * n > 1 ? 's' : ''}` : '');
 
@@ -584,13 +586,19 @@ export function Bibliotheque(p: PropsBibliotheque) {
     const parentId = valeur === RACINE_RANGEMENT ? null : valeur;
     const o = destinationsDeplacementSelection(p.donnees, ids).find((x) => x.id === parentId);
     if (!o || o.actuel || o.raison) return;
+    if (await deplacerDossiers(ids, parentId, o.nom)) setSelection(new Set());
+  }
+
+  /** Plusieurs dossiers (barre ou dépôt glissé) · une seule action, tout ou rien (relue et jugée en base, dans sa transaction). */
+  async function deplacerDossiers(ids: string[], parentId: string | null, dans: string): Promise<boolean> {
+    if (!ecriture || occupe) return false;
     setOccupe(true);
     const r = await deplacerDossiersAction({ ids, parentId }).catch(() => ({ error: 'L’enregistrement a échoué.' } as { ok?: true; n?: number; error?: string }));
     setOccupe(false);
-    if (r.error) { toast(r.error); return; }
-    toast(messageDossiersDeplaces(r.n ?? ids.length, o.nom));
-    setSelection(new Set());
+    if (r.error) { toast(r.error); return false; }
+    toast(messageDossiersDeplaces(r.n ?? ids.length, dans));
     rafraichir();
+    return true;
   }
 
   async function poserTag(d: CarteDossierDrive, tag: CleTagCouleur | null) {
@@ -668,9 +676,9 @@ export function Bibliotheque(p: PropsBibliotheque) {
     rafraichir();
   }
 
-  // La zone d'import (fichiers de l'ordinateur) · un glisser INTERNE (déplacement) ne l'ouvre pas et n'importe rien.
-  const surDepot = (e: DragEvent) => { if (!ecriture || glisser.enCours()) return; e.preventDefault(); setGlisse(true); };
-  const deposer = (e: DragEvent) => { if (!ecriture || glisser.enCours()) return; e.preventDefault(); setGlisse(false); void importer([...e.dataTransfer.files]); };
+  // La zone d'import (fichiers de l'ordinateur) · seul un glisser qui porte des FICHIERS l'ouvre · un glisser interne, un texte, un lien n'ouvrent rien et n'importent rien.
+  const surDepot = (e: DragEvent) => { if (!ecriture || !glisser.importable(e)) return; e.preventDefault(); setGlisse(true); };
+  const deposer = (e: DragEvent) => { if (!ecriture || !glisser.importable(e)) return; e.preventDefault(); setGlisse(false); void importer([...e.dataTransfer.files]); };
 
   const boutonDrive = p.drive.etat === 'connecte'
     ? <span className="pill g"><Ic n="check" />Google Drive connecté</span>
@@ -921,7 +929,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                   {n.aEnfants
                     ? <button type="button" className={`tnc ${n.ouvert ? 'op' : ''}`} aria-label={`${n.ouvert ? 'Replier' : 'Déplier'} ${n.nom}`} aria-expanded={n.ouvert} onClick={() => basculerNoeud(n.id)}><i className="tchev" /></button>
                     : <span className="tnc" />}
-                  <button type="button" className="tnb" onClick={() => aller(n.id)} style={glisser.style(n.id)} {...glisser.cible(n.id)}>
+                  <button type="button" className="tnb" onClick={() => aller(n.id)} style={glisser.style(n.id)} {...glisser.cible(n.id, n)}>
                     {n.racine ? <span className="tni"><Ic n={n.icone} /></span> : <span className="tno"><Ic n="folder" /></span>}
                     <span className="tnn">{n.nom}</span>{n.tag && <i className="tgdot" style={{ background: n.tag.teinte }} title={n.tag.libelle} />}<span className="tnk">{n.compte}</span>
                   </button>
