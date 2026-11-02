@@ -1,4 +1,4 @@
-import type { DonneesDrive, FichierDrive } from './drive';
+import { donneesDrive, type DonneesDrive, type DossierSource, type FichierDrive, type MediaSource } from './drive';
 
 /**
  * Bibliothèque · le LIEN INTERNE d'un fichier ou d'un dossier · RÈGLES PURES
@@ -24,6 +24,15 @@ import type { DonneesDrive, FichierDrive } from './drive';
  * dossier RÉEL (`library_folders`) vivant. Le menu ne propose le geste que si
  * le lien rouvre bien sa cible (`lienInterneFichier`, `lienInterneDossier` ·
  * même règle que la lecture).
+ *
+ * Au-delà de ce que l'écran charge · la liste ne rend que les 400 médias les
+ * plus récents (`LIMITE_BIBLIOTHEQUE`). Un lien vers un fichier plus ancien
+ * fait lire CE SEUL fichier (`fichierLienALire` dit lequel, ou aucun quand il
+ * est déjà chargé), par la même lecture que la liste (même garde, même espace,
+ * même portée de marque, hors corbeille). `resoudreLienInterne` ne l'ajoute aux
+ * données de l'écran que si le lien le rouvre alors (dossier parent et ancêtres
+ * hors corbeille, fichier de la bibliothèque) · sinon les données restent
+ * celles d'avant, octet pour octet, et rien ne dit qu'il existe.
  */
 
 /** L'adresse de l'écran (le middleware la réécrit vers l'arbre Spatial, l'adresse du navigateur ne change pas). */
@@ -52,6 +61,11 @@ export interface LienInterneLu {
 /** Une valeur d'adresse · une seule chaîne UUID (minuscule), sinon rien · une valeur répétée n'est pas lue. */
 function lireId(raw: string | readonly string[] | null | undefined): string | null {
   return typeof raw === 'string' && UUID.test(raw) ? raw.toLowerCase() : null;
+}
+
+/** Un identifiant de fichier ou de dossier tel que le lien le porte · un UUID (rendu en minuscules), sinon `null` · rien d'autre n'est jamais lu en base. */
+export function idLienInterne(raw: unknown): string | null {
+  return typeof raw === 'string' ? lireId(raw) : null;
 }
 
 /** Les paramètres de l'adresse (`searchParams` de la page) · le fichier l'emporte sur le dossier. */
@@ -135,4 +149,43 @@ export function rechercheSansLien(search: string): string {
   q.delete(PARAM_LIEN_DOSSIER);
   const s = q.toString();
   return s ? `?${s}` : '';
+}
+
+/**
+ * Le fichier du lien à lire EN PLUS de la liste · l'identifiant quand
+ * l'adresse vise un fichier absent des médias déjà chargés, sinon `null`
+ * (aucune lecture · lien de dossier, aucun lien, fichier déjà là, y compris
+ * à la corbeille chargée).
+ */
+export function fichierLienALire(lu: LienInterneLu, charges: readonly { id: string }[]): string | null {
+  if (!lu.fichier) return null;
+  return charges.some((m) => m.id.toLowerCase() === lu.fichier) ? null : lu.fichier;
+}
+
+export interface LienInterneResolu {
+  /** Les données de l'écran · avec la cible lue à part seulement si le lien la rouvre. */
+  donnees: DonneesDrive;
+  ouverture: OuvertureLienInterne | null;
+}
+
+/**
+ * Les données de l'écran et ce que l'adresse ouvre. `cible` · le fichier lu à
+ * part (`fichierLienALire`), ou `null`. Il n'entre dans les données que si
+ * le fichier de l'adresse est absent des médias chargés (jamais en double) et
+ * que le lien le rouvre une fois la cible ajoutée (c'est bien lui · de la
+ * bibliothèque, hors corbeille, dossier vivant) · sinon les données et
+ * l'ouverture sont exactement celles sans cible.
+ */
+export function resoudreLienInterne(
+  src: { dossiers: readonly DossierSource[]; medias: readonly MediaSource[] },
+  cible: MediaSource | null,
+  lu: LienInterneLu,
+): LienInterneResolu {
+  if (cible && lu.fichier && !src.medias.some((m) => m.id.toLowerCase() === lu.fichier)) {
+    const avec = donneesDrive({ dossiers: src.dossiers, medias: [...src.medias, cible] });
+    const ouverture = ouvertureLienInterne(avec, lu);
+    if (ouverture) return { donnees: avec, ouverture };
+  }
+  const donnees = donneesDrive(src);
+  return { donnees, ouverture: ouvertureLienInterne(donnees, lu) };
 }

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { connexionDrive, donneesDrive, ouvertureLienInterne, lireLienInterne, LOT_ANALYSE_IMAGES, MESSAGE_LIEN_COPIE, type DossierSource, type MediaSource } from '@tiktrends/core';
+import { connexionDrive, donneesDrive, ouvertureLienInterne, lireLienInterne, DETAIL_LIEN_INTERNE, LOT_ANALYSE_IMAGES, MESSAGE_LIEN_COPIE, type DonneesDrive, type DossierSource, type MediaSource } from '@tiktrends/core';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/assets', useRouter: () => ({ push: () => {}, refresh: () => {} }), useSearchParams: () => new URLSearchParams() }));
 vi.mock('../app/actions/assets', () => ({
@@ -52,10 +52,10 @@ const DONNEES = donneesDrive({ dossiers: [dossier(PHOTOS, 'Photos produit')], me
 const GESTION: GestionBibliotheque = { analyse: { cout: 1, raison: null, sansTags: 0, maxLot: LOT_ANALYSE_IMAGES }, selecteurDrive: false, admin: false, messageDrive: null };
 const DRIVE = connexionDrive({ available: true, needBrand: false, connected: false, folderId: null, folderName: null });
 
-const monter = async (extra: { lectureSeule?: string | null; ouverture?: ReturnType<typeof ouvertureLienInterne> } = {}) => {
+const monter = async (extra: { lectureSeule?: string | null; ouverture?: ReturnType<typeof ouvertureLienInterne>; donnees?: DonneesDrive } = {}) => {
   el = document.createElement('div'); document.body.appendChild(el); root = createRoot(el);
   await act(async () => {
-    root!.render(<FournisseurSpatial value={CTX}><Bibliotheque donnees={DONNEES} lectureSeule={extra.lectureSeule ?? null} stockage drive={DRIVE} maintenant={T0} gestion={GESTION} ouverture={extra.ouverture ?? null} /></FournisseurSpatial>);
+    root!.render(<FournisseurSpatial value={CTX}><Bibliotheque donnees={extra.donnees ?? DONNEES} lectureSeule={extra.lectureSeule ?? null} stockage drive={DRIVE} maintenant={T0} gestion={GESTION} ouverture={extra.ouverture ?? null} /></FournisseurSpatial>);
   });
   return el;
 };
@@ -114,5 +114,55 @@ describe('ouvert par le lien · l’aperçu s’ouvre, l’adresse se nettoie en
     await clic(h.querySelector('button[aria-label="Fermer l’aperçu"]'));
     expect(titreApercu(h)).toBeNull();
     expect(window.location.search).toBe('?tag=vert');
+  });
+});
+
+describe('« Copier le lien » dans l’APERÇU · même règle que le menu, même toast', () => {
+  const U3 = '33333333-3333-4333-8333-333333333333', U4 = '55555555-5555-4555-8555-555555555555';
+  const AVEC = donneesDrive({
+    dossiers: [dossier(PHOTOS, 'Photos produit')],
+    medias: [
+      media(U1, 'face.jpg'), media(U3, 'jete.jpg', { deletedAt: T0 }),
+      media(U4, 'sortie.png', { source: 'studios', studio: { projetId: 'p1', projetTitre: 'Projet 1', href: '/studio/projets/p1' } }),
+    ],
+  });
+  /** L'aperçu de ce fichier, ouvert à l'arrivée (l'écran lit `ouverture.fichier` · la règle du bouton reste celle du noyau). */
+  const ouvrir = (id: string, lectureSeule: string | null = null) => monter({ donnees: AVEC, lectureSeule, ouverture: { fichier: id, chemin: ['r:assets'] } });
+  const bouton = (h: HTMLElement) => h.querySelector('aside.dprev[aria-label="Aperçu"] [data-geste="copier-lien-fichier"]') as HTMLElement | null;
+
+  it('un fichier de la bibliothèque · le bouton dit « Copier le lien » (infobulle « interne ») · le presse-papiers reçoit `<origine>/assets?fichier=<id>`, une fois · toast du fichier · l’aperçu reste ouvert', async () => {
+    const h = await ouvrir(U1);
+    expect(titreApercu(h)).toBe('face.jpg');
+    const b = bouton(h);
+    expect([b?.textContent, b?.getAttribute('title')]).toEqual(['Copier le lien', DETAIL_LIEN_INTERNE]);
+    await clic(b);
+    expect(ecrire).toHaveBeenCalledTimes(1);
+    expect(ecrire).toHaveBeenCalledWith(`${window.location.origin}/assets?fichier=${U1}`);
+    expect(toasts).toEqual([MESSAGE_LIEN_COPIE.fichier]);
+    expect(titreApercu(h)).toBe('face.jpg');
+  });
+
+  it('lecture seule · le bouton reste (c’est une lecture) et copie', async () => {
+    const h = await ouvrir(U1, 'Ton rôle est en lecture seule.');
+    await clic(bouton(h));
+    expect(ecrire).toHaveBeenCalledWith(`${window.location.origin}/assets?fichier=${U1}`);
+    expect(toasts).toEqual([MESSAGE_LIEN_COPIE.fichier]);
+  });
+
+  it('presse-papiers refusé · le toast dit l’échec, jamais « copié »', async () => {
+    ecrire.mockImplementation(async () => { throw new Error('NotAllowedError'); });
+    const h = await ouvrir(U1);
+    await clic(bouton(h));
+    expect(toasts).toEqual([MESSAGE_LIEN_COPIE.echec]);
+  });
+
+  it('ni pour un fichier à la corbeille, ni pour une sortie Studios (le lien ne les rouvrirait pas)', async () => {
+    for (const [id, nom] of [[U3, 'jete.jpg'], [U4, 'sortie.png']] as const) {
+      const h = await ouvrir(id);
+      expect(titreApercu(h), nom).toBe(nom);
+      expect(bouton(h), `${nom} · bouton proposé`).toBeNull();
+      expect([...h.querySelectorAll('aside.dprev button')].some((x) => x.textContent === 'Copier le lien'), nom).toBe(false);
+      act(() => { root?.unmount(); }); el?.remove(); root = null; el = null;
+    }
   });
 });

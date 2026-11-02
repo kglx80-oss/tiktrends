@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  donneesDrive, lienInterneDossier, lienInterneFichier, lireLienInterne, menuDossier, menuFichier, ouvertureLienInterne, rechercheSansLien,
+  donneesDrive, fichierLienALire, idLienInterne, lienInterneDossier, lienInterneFichier, lireLienInterne, menuDossier, menuFichier, ouvertureLienInterne, rechercheSansLien, resoudreLienInterne,
   GESTES_SANS_ACTION, RAISON_PARTAGE_CLIENT, type DossierSource, type MediaSource,
 } from '../src';
 
@@ -128,5 +128,62 @@ describe('« Partager au client » reste fermé · la raison dit la décision at
     const g = GESTES_SANS_ACTION.find((x) => x.cle === 'partager')!;
     expect(g.raison).toBe(RAISON_PARTAGE_CLIENT);
     for (const mot of ['lien public signé', 'expiration', 'révocation', 'propriétaire', 'interne']) expect(g.raison, mot).toContain(mot);
+  });
+});
+
+describe('au-delà des fichiers chargés · le fichier du lien lu SEUL, ajouté seulement s’il se rouvre', () => {
+  const SRC = {
+    dossiers: [dossier(PHOTOS), dossier(FACES, { parentId: PHOTOS }), dossier(JETE, { deletedAt: T0 }), dossier('dddddddd-dddd-4ddd-8ddd-dddddddddddd', { parentId: JETE })],
+    medias: [media(FA, { folderId: PHOTOS }), media(FJ, { folderId: PHOTOS, deletedAt: T0 })],
+  };
+  const SOUS_JETE = SRC.dossiers[3]!.id;
+  const ANCIEN = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const lu = (id: string) => lireLienInterne({ fichier: id });
+  const base = donneesDrive(SRC);
+
+  it('identifiant · un UUID en minuscules, sinon rien (aucune lecture en base)', () => {
+    expect(idLienInterne(ANCIEN.toUpperCase())).toBe(ANCIEN);
+    for (const v of [undefined, null, 42, '', 'abc', `${ANCIEN}'`, [ANCIEN]]) expect(idLienInterne(v), String(v)).toBeNull();
+  });
+
+  it('quoi lire · seulement un fichier ABSENT des chargés (vivants ou corbeille) · jamais pour un dossier ni sans lien', () => {
+    expect(fichierLienALire(lu(ANCIEN), SRC.medias)).toBe(ANCIEN);
+    expect(fichierLienALire(lu(FA), SRC.medias), 'déjà chargé · aucune lecture').toBeNull();
+    // Identifiant à LETTRES · un identifiant tout en chiffres ne change pas de casse (la garde ne verrait rien).
+    expect(fichierLienALire(lu(ANCIEN), [{ id: ANCIEN.toUpperCase() }]), 'casse ignorée').toBeNull();
+    expect(fichierLienALire(lu(FJ), SRC.medias), 'à la corbeille chargée · aucune lecture').toBeNull();
+    expect(fichierLienALire(lireLienInterne({ dossier: PHOTOS }), SRC.medias)).toBeNull();
+    expect(fichierLienALire(lireLienInterne({}), SRC.medias)).toBeNull();
+  });
+
+  it('la cible lue, rangée dans un dossier vivant · ajoutée aux données, son aperçu s’ouvre dans son dossier', () => {
+    const r = resoudreLienInterne(SRC, media(ANCIEN, { folderId: FACES, createdAt: '2020-01-01T00:00:00.000Z' }), lu(ANCIEN));
+    expect(r.ouverture).toEqual({ fichier: ANCIEN, chemin: ['r:assets', PHOTOS, FACES] });
+    expect(r.donnees.fichiers.map((f) => f.id)).toEqual([...base.fichiers.map((f) => f.id), ANCIEN]);
+    expect(r.donnees.dossiers).toEqual(base.dossiers);
+  });
+
+  const refus: Array<[string, MediaSource | null, string]> = [
+    ['rien lu (autre espace, marque hors portée, corbeille, inconnu)', null, ANCIEN],
+    ['dossier parent à la corbeille', media(ANCIEN, { folderId: JETE }), ANCIEN],
+    ['un ancêtre à la corbeille', media(ANCIEN, { folderId: SOUS_JETE }), ANCIEN],
+    ['la cible elle-même à la corbeille', media(ANCIEN, { deletedAt: T0 }), ANCIEN],
+    ['une sortie Studios', media(ANCIEN, { source: 'studios', studio: { projetId: 'p9', projetTitre: 'P9', href: '/studio/projets/p9' } }), ANCIEN],
+    ['un autre fichier que celui de l’adresse', media(U(0)), ANCIEN],
+    ['un fichier déjà chargé (jamais en double)', media(FA, { folderId: FACES }), FA],
+  ];
+  for (const [quoi, cible, id] of refus) {
+    it(`${quoi} · données et ouverture EXACTEMENT celles sans cible`, () => {
+      const r = resoudreLienInterne(SRC, cible, lu(id));
+      const sans = resoudreLienInterne(SRC, null, lu(id));
+      expect(r).toEqual(sans);
+      expect(r.donnees).toEqual(base);
+      expect(r.donnees.fichiers.filter((f) => f.id === id).length).toBe(id === FA ? 1 : 0);
+    });
+  }
+
+  it('sans cible · même résultat que la règle d’avant (`ouvertureLienInterne` sur les seules données chargées)', () => {
+    expect(resoudreLienInterne(SRC, null, lu(FA))).toEqual({ donnees: base, ouverture: ouvertureLienInterne(base, lu(FA)) });
+    expect(resoudreLienInterne(SRC, null, lireLienInterne({ dossier: FACES })).ouverture).toEqual({ fichier: null, chemin: ['r:assets', PHOTOS, FACES] });
   });
 });
