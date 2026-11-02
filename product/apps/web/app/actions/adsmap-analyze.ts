@@ -14,6 +14,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credits';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { guardedAnthropic } from '../../lib/spend-guard';
+import { assetAiUrl } from '../../lib/asset-ai-url';
 import { GUARD } from '../../lib/guard-error';
 
 /**
@@ -236,15 +237,19 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
         // On tente l'asset quand il est ouvrable, et on retombe sur le brief
         // écrit s'il ne l'est pas · un lien mort ne doit pas coûter une
         // dimension entière de la mémoire.
-        let source: AnalysisSource = s.imageUrl ? 'asset' : 'written';
+        // Un asset rangé au stockage PRIVÉ part SIGNÉ (court, signé à l'appel)
+        // · son adresse brute est illisible pour le modèle et nomme la clé
+        // interne chez un tiers ; un objet d'un autre espace ne part pas.
+        const image = s.imageUrl ? assetAiUrl(s.imageUrl, g.s.workspaceId) : null;
+        let source: AnalysisSource = image ? 'asset' : 'written';
         let brut = await analyzeAdAsset(client, {
-          imageUrl: s.imageUrl, transcript: s.transcript,
-          copy: s.imageUrl ? s.copy : (s.dossier ?? s.copy),
+          imageUrl: image, transcript: s.transcript,
+          copy: image ? s.copy : (s.dossier ?? s.copy),
           knownDurationS: s.durationS, format: s.format,
         }).catch(async (e) => {
           // L'adresse paraissait bonne et ne l'était pas · le repli existe
           // précisément pour ces cas-là, et il vaut mieux qu'un échec.
-          if (!s.imageUrl || !s.dossier) throw e;
+          if (!image || !s.dossier) throw e;
           console.warn('[adsmap:analyze] asset injoignable, repli sur le brief', s.adId);
           source = 'written';
           return analyzeAdAsset(client, {
