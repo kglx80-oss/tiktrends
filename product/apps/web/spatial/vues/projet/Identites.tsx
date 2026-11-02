@@ -13,6 +13,7 @@ import { cleRetour, useFocusApresGeste } from '../../../lib/studios/focus-geste'
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Vue } from '../../communs';
 import { EnTeteAtelier } from './Atelier';
+import { AnnonceLogos } from './LogosAReimporter';
 
 /**
  * Atelier « Identités et voix » d'un projet (`/studio/projets/[id]/identites`),
@@ -24,7 +25,10 @@ import { EnTeteAtelier } from './Atelier';
  *  · fiches · attributs immuables (élément + couleur du lexique), version,
  *    plans liés ; enregistrer crée une version (conflit dit, rien d'écrasé) ;
  *  · voix · modes de parole par plan, synthèse et parole synchronisée dites
- *    indisponibles quand elles le sont, durées LUES dans les prises existantes.
+ *    indisponibles quand elles le sont, durées LUES dans les prises existantes ;
+ *  · un logo de la charte que l'image clé d'un plan utiliserait, à réimporter,
+ *    est dit sur ce plan (même annonce que l'écran vidéo) · avant d'aller le
+ *    produire, sans rien fermer.
  * Aucun geste de cet écran ne coûte · aucun appel modèle, aucun devis.
  */
 
@@ -267,6 +271,7 @@ export function Identites({ vue, voixActive, atelier }: PropsIdentites) {
                       : `Aucune prise · durée prévue ${formatSecondes(p.estimeMs)}, à confirmer par une prise réelle.`}
                   {t && t.depassementMs > 0 ? ` Le plan passe à ${formatSecondes(t.retenuMs)}.` : ''}
                 </small>
+                {p.logosAReimporter && <div style={{ marginTop: 6 }}><AnnonceLogos a={p.logosAReimporter} /></div>}
               </div>
               <select aria-label={`Mode de parole du plan ${p.rang}`} value={p.mode} disabled={!peutVoix}
                 onChange={(e) => { const mode = e.target.value; void geste(`mode-${p.shotId}`, () => choisirModeParole({ projectId: vue.projet.id, baseVersionId: base, shotIds: [p.shotId], mode }), `Mode du plan ${p.rang} enregistré`); }}>

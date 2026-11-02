@@ -5,7 +5,7 @@ import { erreurStudio, inspecterMedia, type DocumentStudio, type ErreurStudio } 
 import type { schema } from '@tiktrends/db';
 import type { ContexteStudio } from '../garde';
 import { lireAsset } from '../depot';
-import { estFichierCatalogue, lireFichierCatalogue } from './catalogue-medias';
+import { estFichierCatalogue, lireFichierCatalogue, type LecteurCatalogue } from './catalogue-medias';
 
 /**
  * Studios · L5-A · lecture sûre des médias studio (`studio_assets`).
@@ -104,21 +104,26 @@ const MANQUANT = 'Un média du document est introuvable ou n’appartient pas à
 /**
  * Médias d'un document, pour un rendu : chacun lu dans la portée ET dans la
  * marque du projet. Un seul manquant ⇒ `MISSING_REFERENCE` (sans dire lequel
- * appartient à qui), jamais un rendu troué.
+ * appartient à qui), jamais un rendu troué. Un logo de la charte refusé par
+ * son EMPREINTE (remplacé, disparu, non vérifiable · `lireFichierCatalogue`)
+ * le dit avec la phrase du service (`MESSAGES_LOGO_SERVI`) · il est de la
+ * marque du projet, la nommer n'apprend rien à personne.
+ * `catalogue` · le lecteur de l'opération (export · un logo vérifié une fois).
  */
 export async function chargerMediasDocument(
   ctx: ContexteStudio,
   projet: { id: string; brandId: string },
   doc: DocumentStudio,
   lecteur: LecteurMedias = lecteurMedias(),
+  catalogue: LecteurCatalogue = (id) => lireFichierCatalogue(ctx, projet.id, id),
 ): Promise<{ ok: true; medias: Map<string, Uint8Array> } | ErreurStudio> {
   const ids = [...new Set(Object.values(doc.layers).filter((l) => l.visible && (l.kind === 'image' || l.kind === 'logo')).map((l) => (l as { assetId: string }).assetId))].sort();
   const medias = new Map<string, Uint8Array>();
   for (const id of ids) {
     if (estFichierCatalogue(id)) {
       // Photo ou logo du catalogue épinglé par L5-C · lu dans la marque DU projet par construction.
-      const f = await lireFichierCatalogue(ctx, projet.id, id);
-      if (!f.ok) return erreurStudio('MISSING_REFERENCE', { traceId: ctx.traceId, message: MANQUANT });
+      const f = await catalogue(id);
+      if (!f.ok) return erreurStudio('MISSING_REFERENCE', { traceId: ctx.traceId, message: f.logo ? f.logo.message : MANQUANT });
       medias.set(id, f.octets);
       continue;
     }

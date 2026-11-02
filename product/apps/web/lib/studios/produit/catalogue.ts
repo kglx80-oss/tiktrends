@@ -91,6 +91,12 @@ export interface CatalogueProjet {
   produits: ProduitAvecPhotos[];
   /** Tout ce qui peut être associé, par identifiant · la seule table de résolution. */
   fichiers: Map<string, FichierCatalogue & { url: string | null }>;
+  /**
+   * La table « adresse → empreinte » des logos de la charte
+   * (`brands.logo_empreintes_json`, brute) · un logo importé n'est relu que
+   * s'il est toujours l'objet de son empreinte (`lireFichierCatalogue`).
+   */
+  empreintesLogos: unknown;
   /** Sources ENCORE lisibles · les seules associables. */
   sources: SourceReferenceStudio[];
   /** Toutes les sources du projet, tombstones compris · citées par les faits du brief. */
@@ -119,7 +125,7 @@ export async function chargerCatalogueProjet(
   if (!objetDansPortee({ workspaceId: ctx.workspaceId, marquesDuWorkspace: ctx.marquesDuWorkspace, restrictionsMarque: ctx.restrictionsMarque }, { workspaceId: projet.workspaceId, brandId: projet.brandId })) return introuvable(ctx);
 
   const brandId = projet.brandId;
-  const [marque] = await db.select({ nom: schema.brands.name, logoUrl: schema.brands.logoUrl, logos: schema.brands.logos })
+  const [marque] = await db.select({ nom: schema.brands.name, logoUrl: schema.brands.logoUrl, logos: schema.brands.logos, logoEmpreintes: schema.brands.logoEmpreintes })
     .from(schema.brands).where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, ctx.workspaceId))).limit(1);
   if (!marque) return introuvable(ctx);
 
@@ -206,7 +212,7 @@ export async function chargerCatalogueProjet(
     catalogue: {
       projet, version: v.version, contenu, marque: marque.nom, brief, briefIllisible: illisible,
       epingle, instantane: epingle ? null : lireReferenceProduit(contenu.productRef),
-      produits, fichiers, sources, sourcesProjet: refs,
+      produits, fichiers, sources, sourcesProjet: refs, empreintesLogos: marque.logoEmpreintes,
     },
   };
 }

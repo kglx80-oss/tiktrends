@@ -23,6 +23,7 @@ import {
 import { empreinteContenu } from '../version';
 import { POLICES_EMBARQUEES } from '../rendu/polices';
 import { PIXELS_MAX_RENDU } from '../rendu/plan';
+import type { DecisionLogoServi } from '../../logo-empreinte';
 
 export type CauseExport =
   | 'version_non_validee'
@@ -36,7 +37,11 @@ export type CauseExport =
   | 'media_illisible'
   | 'media_dimensions'
   /** R4 · média retiré depuis l'export · l'export conservé n'est plus servi. */
-  | 'media_revoque';
+  | 'media_revoque'
+  /** Logo de la charte à empreinte, remplacé ou disparu depuis son import · jamais embarqué (`etatMediaLogoRefuse`). */
+  | 'logo_a_reimporter'
+  /** Logo de la charte à empreinte que le stockage n'a pas pu confirmer · rien n'est embarqué. */
+  | 'logo_non_verifiable';
 
 export interface CibleExport {
   type: 'version' | 'document' | 'calque';
@@ -59,7 +64,41 @@ export interface ViolationExport {
 export type EtatMediaExport =
   | { etat: 'ok'; largeur: number; hauteur: number }
   | { etat: 'absent' }
-  | { etat: 'illisible' };
+  | { etat: 'illisible' }
+  /** Logo à empreinte · remplacé ou disparu depuis l'import (`decisionLogoServi`). */
+  | { etat: 'logo_a_reimporter'; cause: 'remplace' | 'absent' }
+  /** Logo à empreinte · le stockage n'a pas pu le confirmer (injoignable). */
+  | { etat: 'logo_non_verifiable' };
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * Un logo de la charte (`logo_…`) posé dans le document était relu par une
+ * simple lecture de son adresse, sans son empreinte · remplacé dans le
+ * stockage depuis l'import (lien de dépôt encore valable), ses NOUVEAUX
+ * octets étaient embarqués dans le fichier exporté, alors que la route média
+ * le refuse (409) et que les générations ne le reçoivent plus.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ * L'export juge le logo par la MÊME décision que le service
+ * (`decisionLogoServi`) · un logo SANS empreinte est relu comme avant ;
+ * remplacé ou disparu ⇒ « à réimporter », non vérifiable ⇒ « non
+ * vérifiable » · dans les deux cas le logo n'est PAS embarqué, et le
+ * préflight refuse l'export en nommant le calque (jamais un fichier troué,
+ * jamais un logo de substitution). `null` · le logo est servi.
+ */
+export function etatMediaLogoRefuse(d: DecisionLogoServi): EtatMediaExport | null {
+  if (d.servir) return null;
+  return d.cause === 'illisible' ? { etat: 'logo_non_verifiable' } : { etat: 'logo_a_reimporter', cause: d.cause };
+}
+
+/** Pourquoi un logo n'est pas embarqué · la suite de la désignation du calque. */
+export const RAISONS_LOGO_EXPORT = {
+  remplace: 'Logo à réimporter · son fichier a été remplacé dans le stockage depuis l’import. Il n’est pas embarqué dans l’export · un administrateur de l’espace peut le réimporter dans l’Identité de la marque, puis la version s’exporte à nouveau.',
+  absent: 'Logo à réimporter · son fichier n’est plus dans le stockage. Il n’est pas embarqué dans l’export · un administrateur de l’espace peut le réimporter dans l’Identité de la marque, puis la version s’exporte à nouveau.',
+  non_verifiable: 'Logo non vérifiable pour l’instant (stockage injoignable) · il n’est pas embarqué, réessaie dans un instant.',
+} as const;
 
 export interface DisponiblesExport {
   /** Familles que le serveur sait dessiner MAINTENANT (fichier présent, empreinte juste). */
@@ -146,6 +185,10 @@ export function preflightExport(doc: DocumentStudio, disponibles: DisponiblesExp
         v.push({ cible, cause: 'media_absent', message: `${designation(l)} · média introuvable ou hors de la marque du projet.` });
       } else if (m.etat === 'illisible') {
         v.push({ cible, cause: 'media_illisible', message: `${designation(l)} · média illisible (fichier incomplet ou d’un type non pris en charge).` });
+      } else if (m.etat === 'logo_a_reimporter') {
+        v.push({ cible, cause: 'logo_a_reimporter', message: `${designation(l)} · ${RAISONS_LOGO_EXPORT[m.cause]}` });
+      } else if (m.etat === 'logo_non_verifiable') {
+        v.push({ cible, cause: 'logo_non_verifiable', message: `${designation(l)} · ${RAISONS_LOGO_EXPORT.non_verifiable}` });
       } else if (!(m.largeur >= 1) || !(m.hauteur >= 1)) {
         v.push({ cible, cause: 'dimensions_nulles', message: `${designation(l)} · média sans dimensions.` });
       } else if (l.kind === 'image' && (m.largeur !== l.sourceWidth || m.hauteur !== l.sourceHeight)) {
@@ -182,7 +225,7 @@ export function preflightVersion(v: { content: unknown; contentHash: string }, d
 /** Code d'erreur commun d'un préflight refusé · décidé par la PREMIÈRE cause. */
 export function codeRefusPreflight(violations: readonly ViolationExport[]): 'MISSING_REFERENCE' | 'UNSUPPORTED_CAPABILITY' | 'INVARIANT_CONFLICT' {
   const c = violations[0]?.cause;
-  if (c === 'media_absent' || c === 'media_illisible' || c === 'media_dimensions' || c === 'police_absente' || c === 'media_revoque') return 'MISSING_REFERENCE';
+  if (c === 'media_absent' || c === 'media_illisible' || c === 'media_dimensions' || c === 'police_absente' || c === 'media_revoque' || c === 'logo_a_reimporter' || c === 'logo_non_verifiable') return 'MISSING_REFERENCE';
   if (c === 'police_televersee' || c === 'document_trop_grand' || c === 'document_absent') return 'UNSUPPORTED_CAPABILITY';
   return 'INVARIANT_CONFLICT';
 }

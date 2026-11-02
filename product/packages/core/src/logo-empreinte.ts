@@ -94,6 +94,20 @@ export type VerificationEmpreinte =
   /** `remplace` · le stockage a répondu 412 à `If-Match` (l'objet n'est plus celui de l'empreinte). */
   | { ok: false; raison: 'hors_espace' | 'absent' | 'remplace' | 'illisible' };
 
+/**
+ * Une LECTURE conditionnelle (`GET` signé avec `If-Match`,
+ * `lireObjetEspaceConforme`) vue comme une vérification · `null` quand rien
+ * n'a pu partir (stockage non configuré) ; un objet trop lourd pour un logo
+ * n'a pas pu être jugé (`illisible`), jamais « remplacé ».
+ */
+export function verificationDeLecture(
+  lu: { ok: true; empreinte: string | null } | { ok: false; raison: string } | null | undefined,
+): VerificationEmpreinte | null {
+  if (!lu) return null;
+  if (lu.ok) return { ok: true, empreinte: lu.empreinte };
+  return { ok: false, raison: lu.raison === 'remplace' || lu.raison === 'absent' || lu.raison === 'hors_espace' ? lu.raison : 'illisible' };
+}
+
 export const MESSAGES_LOGO_SERVI = {
   remplace: 'Logo à réimporter · son fichier a été remplacé dans le stockage depuis l’import. Il n’est plus affiché ni envoyé aux générations · importe-le à nouveau dans la charte de la marque.',
   absent: 'Logo à réimporter · son fichier n’est plus dans le stockage.',

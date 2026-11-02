@@ -10,6 +10,7 @@ import {
   verifierExport, attenduExport, nomFichierExport, estFormatExport, lireTraceExport, empreinteCourte, cleExport,
   POLICES_EMBARQUEES, CONTRAT_FORMAT, JPEG_EXPORT, ACTION_AUDIT_EXPORT, EMPREINTE_VALIDE,
   cleArchiveExport, droitsArchiveExport, ressourcesRevoquees, decisionTelechargement, ORIGINE_ARCHIVE_EXPORT,
+  etatMediaLogoRefuse, cheminIdentiteMarque,
   type ErreurStudio, type DisponiblesExport, type EtatMediaExport, type FormatExport, type MesureExport,
   type ViolationExport, type TraceExport, type DocumentStudio, type StockageStudio, type ArchiveRelue, type DroitMediaExport,
 } from '@tiktrends/core';
@@ -17,7 +18,8 @@ import type { ContexteStudio } from '../garde';
 import { lireProjet, lireVersion, lireAsset, estUuid, type ProjetStudio, type VersionStudio } from '../depot';
 import { ajouterAudit } from '../audit';
 import { lireMediaDansPortee, chargerMediasDocument, lecteurMedias, lecteurStockage, type LecteurMedias } from '../rendu/medias';
-import { estFichierCatalogue, lireFichierCatalogue } from '../rendu/catalogue-medias';
+import { estFichierCatalogue, lecteurCatalogueUnique, type LecteurCatalogue } from '../rendu/catalogue-medias';
+import { roleAtLeast } from '../../rbac';
 import { rendreDocument, type ImageRvba } from '../rendu/compositeur';
 import { policeRendu } from '../rendu/polices';
 
@@ -33,6 +35,9 @@ import { policeRendu } from '../rendu/polices';
  *  4. préflight CIBLÉ (`preflightVersion`, noyau) sur ce qui est disponible
  *     MAINTENANT : polices chargeables, chaque média relu, décodé, mesuré ·
  *     une ressource révoquée depuis l'aperçu est refusée, avec sa cible ;
+ *     un logo de la charte IMPORTÉ (empreinte) n'est relu que si le stockage
+ *     confirme qu'il est toujours l'objet de son import (`If-Match`) ·
+ *     remplacé, il n'est pas embarqué et l'export est refusé « à réimporter » ;
  *  5. rendu par `rendreDocument`, avec les médias chargés par
  *     `chargerMediasDocument` · EXACTEMENT le chemin de l'aperçu ;
  *  6. encodage, puis DÉCODAGE RÉEL des octets produits (`sharp`, tous les
@@ -73,6 +78,12 @@ export interface DependancesExport {
   encoder?: (rendu: { png: Buffer; pixels: ImageRvba }, format: FormatExport) => Promise<Uint8Array>;
   /** R4 · stockage où conserver le fichier · défaut `stockageExport()` ; `null` : ne rien conserver. */
   stockage?: StockageStudio | null;
+  /**
+   * Lecteur du catalogue de l'OPÉRATION (`lecteurCatalogueUnique`) · défaut :
+   * un neuf par opération. Un logo à empreinte n'est lu et vérifié qu'une fois
+   * entre le préflight et le rendu (et, au téléchargement, les droits).
+   */
+  catalogue?: LecteurCatalogue;
 }
 
 /* ───────────────────────── R4 · stockage des exports ──────────────────────── */
@@ -143,12 +154,14 @@ async function decoderDimensions(octets: Uint8Array): Promise<{ largeur: number;
 
 /**
  * État d'UN média, relu maintenant dans la portée ET la marque du projet (la
- * même règle que `chargerMediasDocument`) · absent, illisible ou mesuré.
+ * même règle que `chargerMediasDocument`) · absent, illisible ou mesuré. Un
+ * logo de la charte refusé par son EMPREINTE est dit tel quel
+ * (`etatMediaLogoRefuse` · à réimporter, non vérifiable), jamais « absent ».
  */
-async function etatMedia(ctx: ContexteStudio, projet: ProjetStudio, id: string, lecteur: LecteurMedias): Promise<EtatMediaExport> {
+async function etatMedia(ctx: ContexteStudio, projet: ProjetStudio, id: string, lecteur: LecteurMedias, catalogue: LecteurCatalogue): Promise<EtatMediaExport> {
   if (estFichierCatalogue(id)) {
-    const f = await lireFichierCatalogue(ctx, projet.id, id);
-    if (!f.ok) return { etat: 'absent' };
+    const f = await catalogue(id);
+    if (!f.ok) return (f.logo && etatMediaLogoRefuse(f.logo)) || { etat: 'absent' };
     const d = await decoderDimensions(f.octets);
     return d ? { etat: 'ok', ...d } : { etat: 'illisible' };
   }
@@ -163,8 +176,9 @@ async function etatMedia(ctx: ContexteStudio, projet: ProjetStudio, id: string, 
 
 export async function disponiblesExport(ctx: ContexteStudio, projet: ProjetStudio, doc: DocumentStudio, deps: DependancesExport = {}): Promise<DisponiblesExport> {
   const lecteur = deps.lecteur ?? lecteurMedias();
+  const catalogue = deps.catalogue ?? lecteurCatalogueUnique(ctx, projet.id);
   const medias: Record<string, EtatMediaExport> = {};
-  for (const id of mediasAVerifier(doc)) medias[id] = await etatMedia(ctx, projet, id, lecteur);
+  for (const id of mediasAVerifier(doc)) medias[id] = await etatMedia(ctx, projet, id, lecteur, catalogue);
   return { polices: (deps.polices ?? policesChargeables)(), medias };
 }
 
@@ -227,13 +241,15 @@ export async function fabriquerExport(
   const exportable = versionExportable(version);
   if (!exportable.ok) return refusPreflight(ctx, [projet.id, version.id], exportable.violations);
   const lecteur = deps.lecteur ?? lecteurMedias();
-  const dispo = await disponiblesExport(ctx, projet, exportable.document, { ...deps, lecteur });
+  // Un lecteur du catalogue pour toute l'opération · préflight et rendu partagent la lecture (et la vérification) d'un logo.
+  const catalogue = deps.catalogue ?? lecteurCatalogueUnique(ctx, projet.id);
+  const dispo = await disponiblesExport(ctx, projet, exportable.document, { ...deps, lecteur, catalogue });
   const pf = preflightVersion(version, dispo);
   if (!pf.ok) return refusPreflight(ctx, [projet.id, version.id], pf.violations);
   const doc = pf.document;
 
   // Même chemin que l'aperçu (`rendreApercu`) : médias chargés par la règle du rendu, puis le compositeur.
-  const m = await chargerMediasDocument(ctx, projet, doc, lecteur);
+  const m = await chargerMediasDocument(ctx, projet, doc, lecteur, catalogue);
   if (!m.ok) return m;
   const r = await rendreDocument(doc, m.medias);
   if (!r.ok) {
@@ -445,12 +461,18 @@ async function tracesAuditees(ctx: ContexteStudio, projet: ProjetStudio, limite:
  * Droits de chaque média de la version, relus MAINTENANT (lignes seulement,
  * pas le contenu) · autorisé = dans la portée, de la marque du projet, stocké ;
  * photo ou logo du catalogue encore servi. Tout le reste est révoqué.
+ *
+ * Un logo à empreinte REMPLACÉ depuis l'export reste « autorisé » (comme avant
+ * la vérification, quand ses nouveaux octets se lisaient) · l'archive porte
+ * les octets vérifiés à l'export ; un re-rendu, lui, le refuse au préflight
+ * (« à réimporter »). Disparu ou non vérifiable · révoqué, comme avant.
  */
-async function droitsMedias(ctx: ContexteStudio, projet: ProjetStudio, doc: DocumentStudio): Promise<Record<string, DroitMediaExport>> {
+async function droitsMedias(ctx: ContexteStudio, projet: ProjetStudio, doc: DocumentStudio, catalogue: LecteurCatalogue): Promise<Record<string, DroitMediaExport>> {
   const out: Record<string, DroitMediaExport> = {};
   for (const id of mediasAVerifier(doc)) {
     if (estFichierCatalogue(id)) {
-      out[id] = (await lireFichierCatalogue(ctx, projet.id, id)).ok ? 'autorise' : 'revoque';
+      const f = await catalogue(id);
+      out[id] = f.ok || f.logo?.cause === 'remplace' ? 'autorise' : 'revoque';
       continue;
     }
     const a = estUuid(id) ? await lireAsset(ctx, id) : null;
@@ -516,7 +538,8 @@ export async function telechargerExportPour(
   // Droits relus d'abord · un média révoqué bloque, archive ou pas.
   const exportable = versionExportable(v.version);
   if (!exportable.ok) return refusPreflight(ctx, ids, exportable.violations);
-  const revoquees = ressourcesRevoquees(exportable.document, await droitsMedias(ctx, p.projet, exportable.document));
+  const catalogue = deps.catalogue ?? lecteurCatalogueUnique(ctx, p.projet.id);
+  const revoquees = ressourcesRevoquees(exportable.document, await droitsMedias(ctx, p.projet, exportable.document, catalogue));
   const lecteur = deps.lecteur ?? lecteurMedias();
   const archive = t.assetId ? await relireArchive(ctx, t.assetId, lecteur) : undefined;
   const d = decisionTelechargement({ trace: t, revoquees, archive });
@@ -532,7 +555,7 @@ export async function telechargerExportPour(
   }
   if (t.assetId) console.warn(`[studios] ${ctx.traceId} export conservé non servi · ${d.servir === 'rendu' ? d.raison : 'octets absents'} · repli sur le re-rendu`);
   // Repli L7-A · re-rendu, servi SEULEMENT s'il redonne l'empreinte exacte de l'export.
-  return fabriquerExport(ctx, { projectId: p.projet.id, versionId: v.version.id, format, empreinteAttendue: empreinte }, { ...deps, lecteur });
+  return fabriquerExport(ctx, { projectId: p.projet.id, versionId: v.version.id, format, empreinteAttendue: empreinte }, { ...deps, lecteur, catalogue });
 }
 
 /* ─────────────────────────────── Écran ───────────────────────────────────── */
@@ -545,6 +568,8 @@ export interface VueExport {
   preflight: { ok: true; medias: number; polices: number } | { ok: false; violations: ViolationExport[] };
   historique: ExportRealise[];
   peutExporter: boolean;
+  /** La fiche Identité de la marque · pour qui peut y réimporter un logo (admin), sinon `null` (le message dit qui peut). */
+  identiteMarque?: string | null;
 }
 
 /** L'écran d'export · LECTURE (préflight compris) : rien n'est écrit à la visite. */
@@ -579,6 +604,7 @@ export async function lireVueExportPour(ctx: ContexteStudio, e: { projectId: unk
       preflight,
       historique: await historiqueExports(ctx, projet),
       peutExporter: aPermissionEspace(ctx.permissions, 'studio.export'),
+      identiteMarque: roleAtLeast(ctx.roleEspace, 'admin') ? cheminIdentiteMarque(projet.brandId) : null,
     },
   };
 }
