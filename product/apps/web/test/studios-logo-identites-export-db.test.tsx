@@ -271,13 +271,13 @@ describe('Export · un calque logo de la charte', () => {
     expect(!ap.ok && [ap.code, ap.message]).toEqual(['MISSING_REFERENCE', MESSAGES_LOGO_SERVI.remplace]);
   });
 
-  it('REMPLACÉ, admin · la page mène à l’Identité de la marque', async () => {
+  it('REMPLACÉ, admin · la page mène à l’Identité de la marque, cible de 44 px (le lien de l’éditeur)', async () => {
     await charte({ empreinte: true });
     const { projectId } = await projetExport();
     remplacer();
     qui('admin');
     const html = await ecranExport(projectId);
-    expect(html.slice(html.indexOf('data-cause="logo_a_reimporter"'))).toMatch(new RegExp(`<a data-lien="identite-marque" [^>]*href="${IDENTITE}"[^>]*>Ouvrir l’Identité de la marque</a>`));
+    expect(html.slice(html.indexOf('data-cause="logo_a_reimporter"')), 'le lien n’est pas la cible de 44 px').toMatch(new RegExp(`<a data-lien="identite-marque" class="btn sm" style="[^"]*min-height:44px[^"]*" href="${IDENTITE}">Ouvrir l’Identité de la marque</a>`));
   });
 
   it('intact · « Tout est prêt », le fichier embarque les octets VÉRIFIÉS ; une seule lecture If-Match pour préflight et rendu ; remplacé ensuite, le re-rendu est refusé avec la phrase', async () => {

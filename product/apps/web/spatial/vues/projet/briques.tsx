@@ -67,13 +67,27 @@ export function Sech({ titre, aide, style, enfants }: { titre: ReactNode; aide?:
  * Un retour de geste dans une tuile · la pastille de la maquette porte le ton
  * (`pill g` fait, `pill w` refusé), le texte dit le reste. Aucune couleur
  * réécrite · le CSS de la maquette fait tout.
+ *
+ * `etiquette` · le mot de la pastille quand le message dit un ÉTAT et non le
+ * retour d'un geste (« Prêt », « Bloqué » · rien n'a été fait ni refusé).
+ * `annonce={false}` · le message vit dans une région déjà annoncée (un
+ * `role="alert"` parent) · pas de seconde région imbriquée, lue deux fois.
  */
-export function Message({ ton, children }: { ton: 'ok' | 'err' | 'info'; children: ReactNode }) {
+export function Message({ ton, etiquette, annonce = true, children }: { ton: 'ok' | 'err' | 'info'; etiquette?: string; annonce?: boolean; children: ReactNode }) {
   return (
-    <p role={ton === 'err' ? 'alert' : 'status'} className="muted" style={{ fontSize: '12.5px' }}>
-      {ton !== 'info' && <span className={`pill ${ton === 'ok' ? 'g' : 'w'}`}>{ton === 'ok' ? 'Fait' : 'Refusé'}</span>} {children}
+    <p role={annonce ? (ton === 'err' ? 'alert' : 'status') : undefined} className="muted" style={{ fontSize: '12.5px' }}>
+      {ton !== 'info' && <span className={`pill ${ton === 'ok' ? 'g' : 'w'}`}>{etiquette ?? (ton === 'ok' ? 'Fait' : 'Refusé')}</span>} {children}
     </p>
   );
+}
+
+/**
+ * Le chemin vers l'Identité de la marque (réimporter un logo de la charte) ·
+ * posé pour un admin seulement, cible tactile de 44 px · le même lien dans
+ * l'éditeur et à l'export.
+ */
+export function LienIdentite({ href }: { href: string }) {
+  return <Lien href={href} data-lien="identite-marque" className="btn sm" style={{ justifySelf: 'start', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>Ouvrir l’Identité de la marque</Lien>;
 }
 
 export { Ic };

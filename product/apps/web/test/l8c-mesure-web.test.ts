@@ -20,8 +20,9 @@ vi.hoisted(() => {
 });
 vi.mock('@tiktrends/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/db')>();
-  const { pgMemoire } = await import('./helpers/pg-memoire');
-  const db = await pgMemoire(actual.schema as unknown as Record<string, unknown>);
+  // Garde de TEMPS · base migrée sur place, comme les mesures de référence (voir `pgMemoireNeuve`).
+  const { pgMemoireNeuve } = await import('./helpers/pg-memoire');
+  const db = await pgMemoireNeuve(actual.schema as unknown as Record<string, unknown>);
   return { ...actual, db };
 });
 
