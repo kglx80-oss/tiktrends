@@ -189,6 +189,23 @@ export function estimateAnalysisCost(withAsset: number, written: number): number
   return Math.ceil((withAsset * 0.02 + written * COST_WRITTEN_USD) * 100) / 100;
 }
 
+/**
+ * Une ad dont la créa LIÉE (`ads.creative_id`) n'est pas lue par la jointure
+ * bornée à la marque · sa créa appartient à une AUTRE marque. Elle est écartée
+ * AVANT l'appel au modèle : rien d'elle ne part, rien ne s'écrit (ni sur l'ad,
+ * ni sur une créa), aucun crédit n'est réservé. Réparer ce lien est une
+ * décision humaine, pas un effet de bord de l'analyse. Une ad SANS créa liée
+ * n'est pas concernée · elle reçoit une créa de sa marque, comme toujours.
+ */
+export function creaLieeEtrangere(lienCrea: string | null | undefined, creaDeLaMarque: string | null | undefined): boolean {
+  return !!lienCrea && !creaDeLaMarque;
+}
+
+/** Ce que l'écran dit des ads écartées pour créa étrangère · compté, ou rien. */
+export function phraseCreasEtrangeres(n: number): string | null {
+  return n > 0 ? `${n} ad(s) écartée(s) · leur créa liée appartient à une autre marque · à réparer avant analyse` : null;
+}
+
 /** Ce qu'on affiche pour dire d'où vient une description. */
 export const SOURCE_LABEL: Record<AnalysisSource | 'manual', string> = {
   asset: 'lue sur la créa',

@@ -63,6 +63,12 @@ describe('Spatial · Jarvis · force du règlement, couverture, accroches', () =
     expect(lectureCouverture({ total: 3, described: 3, manual: 0, withoutAsset: 0, fromWritten: 0, pendingAsset: 0, pendingWritten: 0, nextBatch: 0, nextCostUsd: 0, totalCostUsd: 0 }))
       .toEqual(expect.objectContaining({ restant: 0, tranche: null, bouton: 'Tout est décrit' }));
   });
+  it('dit les ads écartées pour créa d’une autre marque, sans les compter dans la tranche', () => {
+    const l = lectureCouverture({ total: 5, described: 2, manual: 0, withoutAsset: 0, fromWritten: 0, pendingAsset: 0, pendingWritten: 1, nextBatch: 1, nextCostUsd: 0.02, totalCostUsd: 0.02, foreignCrea: 2 });
+    expect(l.texte).toContain('2 ad(s) écartée(s) · leur créa liée appartient à une autre marque · à réparer avant analyse');
+    expect(l.bouton).toBe('Décrire 1 créa(s) · 20 crédits');
+    expect(lectureCouverture({ total: 1, described: 1, manual: 0, withoutAsset: 0, fromWritten: 0, pendingAsset: 0, pendingWritten: 0, nextBatch: 0, nextCostUsd: 0, totalCostUsd: 0, foreignCrea: 0 }).texte).not.toContain('autre marque');
+  });
   it('le poids d’une accroche inconnue retombe sur « jamais tranchée »', () => {
     expect(poidsAccroche('proven')).toEqual({ libelle: 'a gagné ici', ton: 'g' });
     expect(poidsAccroche('???')).toEqual({ libelle: 'jamais tranchée', ton: '' });

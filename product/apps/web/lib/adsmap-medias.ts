@@ -12,7 +12,7 @@ import { cleObjetStockage } from './brand-media-url';
  * (session, garde Adsmap, marque active, objet de l'espace, 302 signée
  * éphémère) · jamais par son adresse brute. Ce qui part au MODÈLE (l'analyse
  * « Décrire les créas », la mémoire de Jarvis) lit la créa par la MÊME jointure
- * bornée · recensé par `analyse-crea-marque-db.test.ts`.
+ * bornée · recensé par `analyse-crea-marque-db.test.tsx`.
  */
 
 export const estObjetStockage = (url: string): boolean => cleObjetStockage(url) !== null;

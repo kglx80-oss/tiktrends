@@ -3,6 +3,7 @@ import { costFor } from '../../credits';
 import { formatCredits } from '../../offre/affichage';
 import { extraireCitations, citationsComptees } from '../../connaissances';
 import type { StatRow } from '../../adsmap/brand-stats';
+import { phraseCreasEtrangeres } from '../../adsmap/written-source';
 
 /**
  * Spatial · les gestes de Jarvis qui n'ont pas de fragment de maquette (vague 3) ·
@@ -136,6 +137,8 @@ export const MOTEURS_JARVIS: ReadonlyArray<{ tag: string; nom: string; role: str
 export interface CouvertureDescription {
   total: number; described: number; manual: number; withoutAsset: number; fromWritten: number;
   pendingAsset: number; pendingWritten: number; nextBatch: number; nextCostUsd: number; totalCostUsd: number;
+  /** Ads dont la créa liée est d'une AUTRE marque · hors tranche et hors coût, à réparer avant analyse. */
+  foreignCrea?: number;
 }
 
 /**
@@ -151,6 +154,8 @@ export function lectureCouverture(c: CouvertureDescription) {
   if (c.manual > 0) morceaux.push(`dont ${c.manual} corrigée(s) à la main, que l’agent ne touche pas`);
   if (c.fromWritten > 0) morceaux.push(`dont ${c.fromWritten} déduite(s) du brief, à confiance plafonnée`);
   if (c.withoutAsset > 0) morceaux.push(`${c.withoutAsset} sans visuel ni texte, indescriptibles en l’état`);
+  const etrangeres = phraseCreasEtrangeres(c.foreignCrea ?? 0);
+  if (etrangeres) morceaux.push(etrangeres);
   const faible = part !== null && part < 50 && c.described > 0;
   return {
     restant, part, faible,

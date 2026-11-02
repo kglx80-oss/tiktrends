@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   usableImageUrl, isSharePage, writtenDossier, sourceTag, sourceOf,
-  WRITTEN_CONFIDENCE_CAP, SOURCE_LABEL,
+  WRITTEN_CONFIDENCE_CAP, SOURCE_LABEL, creaLieeEtrangere, phraseCreasEtrangeres,
 } from '../src/adsmap/written-source';
 
 describe('on ne donne au modèle qu’une adresse qu’il peut ouvrir', () => {
@@ -124,5 +124,20 @@ describe('la provenance ne se perd pas', () => {
     expect(SOURCE_LABEL.asset).toContain('créa');
     expect(SOURCE_LABEL.written).toContain('brief');
     expect(SOURCE_LABEL.manual).toContain('main');
+  });
+});
+
+describe('une ad liée à la créa d’une AUTRE marque est écartée, pas réparée en douce', () => {
+  it('écarte une ad dont la créa liée n’est pas lue par la jointure bornée à la marque', () => {
+    expect(creaLieeEtrangere('crea-b', null)).toBe(true);
+  });
+  it('n’écarte ni une ad SANS créa (elle reçoit la sienne), ni une ad dont la créa est de la marque', () => {
+    expect(creaLieeEtrangere(null, null)).toBe(false);
+    expect(creaLieeEtrangere(undefined, undefined)).toBe(false);
+    expect(creaLieeEtrangere('crea-a', 'crea-a')).toBe(false);
+  });
+  it('le dit, compté · ou se tait quand il n’y en a pas', () => {
+    expect(phraseCreasEtrangeres(2)).toBe('2 ad(s) écartée(s) · leur créa liée appartient à une autre marque · à réparer avant analyse');
+    expect(phraseCreasEtrangeres(0)).toBeNull();
   });
 });
