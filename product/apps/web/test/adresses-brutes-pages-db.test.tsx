@@ -63,6 +63,7 @@ import { db, schema, eq } from '@tiktrends/db';
 import { semer } from './studios-semis';
 import { projetTest } from './l3-harnais';
 import { avecSpatial } from './spatial/fournisseur';
+import { AD_DRIVE, interditsCreasEtrangeres, objetsAdsmap, semerAdsmapMedias, type SemisAdsmap } from './helpers/semis-adsmap-medias';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -79,15 +80,13 @@ const LOGO = objet('1700000000000-abcd1234-logo.png');
 const PHOTO = objet('1700000000001-ef567890-produit.png');
 const FICHIER = objet('1700000000002-0a1b2c3d-rush.png');
 const VIGNETTE = objet('drive-1AbC-thumb.jpg');
-/** Adsmap · le « Lien de l'Ad », la miniature de sa créa et le « Lien du Brief créa », rangés au stockage de l'espace. */
-const MEDIA_AD = objet('1700000000003-1a2b3c4d-gagnante.png');
-const VIGNETTE_CREA = objet('1700000000004-2b3c4d5e-vignette.jpg');
-const BRIEF = objet('1700000000005-3c4d5e6f-brief.png');
-/** Deux créas d'une AUTRE marque collées sur des ads de la marque active · une miniature au stockage, une miniature de régie. */
-const MINI_ETRANGERE = objet('1700000000006-4d5e6f70-autre-marque.jpg');
-const MINI_ETRANGERE_EXTERNE = 'https://cdn.autre-marque.test/mini.jpg';
-/** La plus petite variante du lot (identifiant fixé) n'a qu'une page de partage · la vignette du lot doit passer à la suivante. */
-const AD_DRIVE = '00000000-0000-4000-8000-000000000001';
+/**
+ * Adsmap (semis partagé avec la garde des points d'entrée, `helpers/semis-adsmap-medias`) · le « Lien de l'Ad », la miniature
+ * de sa créa et le « Lien du Brief créa » de la gagnante, rangés au stockage de l'espace ; les miniatures des créas d'une AUTRE
+ * marque (ads du lot, seconde gagnante proposée par Itérer et l'Accueil).
+ */
+const ADSMAP = objetsAdsmap(objet);
+const { lien: MEDIA_AD, vignetteCrea: VIGNETTE_CREA, brief: BRIEF } = ADSMAP;
 /** Une variante de logo EXTERNE (le site de la marque) · publique, son adresse se montre. */
 const EXTERNE = 'https://site.exemple.fr/logo.png';
 const cleDe = (u: string) => u.slice(BASE.length + 1);
@@ -158,7 +157,7 @@ const EXEMPTIONS_DONNEES: ReadonlyArray<{ ecran: string; chemin: string; raison:
   { ecran: '/brands/[id]/identite', chemin: '<Identite>.gestion.logos.defaut', raison: 'identifiant du logo par défaut, renvoyé à l’enregistrement' },
 ];
 
-const s = { projet: '', sortie: '', fichier: '', lot: '', ticket: '', ad: '', adEtrangere: '', adEtrangereExterne: '' };
+const s = { projet: '', sortie: '', fichier: '', lot: '', ticket: '', ad: '', adsmap: null as unknown as SemisAdsmap };
 /** Les routes gardées de l'ad semée · sa miniature (créa), son « Lien de l'Ad », son brief. */
 const vignetteAd = () => esc(`/api/adsmap/${s.ad}/apercu?media=vignette`);
 
@@ -230,13 +229,32 @@ function fuitesDonnees(el: unknown): string[] {
   return [...out];
 }
 
+/** Les écrans qui montrent le lot ou les gagnantes · aucun ne doit lire la créa d'une autre marque. */
+const ECRANS_CREAS = ['/adsmap', '/adsmap/lots', '/adsmap/lots/[id]', '/dashboard', '/studio/iterer', '/studio/projets'];
+
+/** Les objets (à toute profondeur des props de l'élément rendu) qui vérifient `pred`. */
+function trouver<T>(el: unknown, pred: (o: Record<string, unknown>) => boolean): T[] {
+  const out: T[] = [];
+  const vus = new Set<unknown>();
+  const parcourir = (v: unknown) => {
+    if (!v || typeof v !== 'object' || vus.has(v)) return;
+    vus.add(v);
+    const e = v as { $$typeof?: unknown; props?: unknown };
+    if (e.$$typeof && e.props) return parcourir(e.props);
+    if (!Array.isArray(v) && pred(v as Record<string, unknown>)) out.push(v as T);
+    for (const x of Object.values(v)) parcourir(x);
+  };
+  parcourir(el);
+  return out;
+}
+
 beforeAll(async () => {
   vi.stubEnv('FOUNDER_EMAILS', 'ua@studios.test');
   vi.stubGlobal('fetch', fauxBucket);
   await semer(db, schema, ids);
   await db.update(schema.workspaces).set({ plan: 'business', onboardedAt: new Date() }).where(eq(schema.workspaces.id, ids.wsA));
   await db.update(schema.workspaceMembers).set({ role: 'owner' }).where(eq(schema.workspaceMembers.userId, ids.ua));
-  for (const u of [LOGO, PHOTO, FICHIER, VIGNETTE, MEDIA_AD, VIGNETTE_CREA, BRIEF, MINI_ETRANGERE]) octets.set(cleDe(u), Buffer.from(`\x89PNG ${u}`));
+  for (const u of [LOGO, PHOTO, FICHIER, VIGNETTE, ...Object.values(ADSMAP)]) octets.set(cleDe(u), Buffer.from(`\x89PNG ${u}`));
   // Logo IMPORTÉ (objet du stockage, à empreinte · `saveBrandDAAction`) en défaut, et une variante externe.
   await db.update(schema.brands).set({ logoUrl: LOGO, logos: [LOGO, EXTERNE], logoEmpreintes: { [LOGO]: createHash('md5').update(octets.get(cleDe(LOGO))!).digest('hex') } }).where(eq(schema.brands.id, ids.brandA1));
   // Photo produit dans le stockage.
@@ -257,24 +275,11 @@ beforeAll(async () => {
   s.lot = l!.id;
   const [t] = await db.insert(schema.tickets).values({ workspaceId: ids.wsA, userId: ids.ua, title: 'Une question', body: 'Bonjour' }).returning({ id: schema.tickets.id });
   s.ticket = t!.id;
-  // Une GAGNANTE Adsmap arbitrée, rangée dans le lot · son « Lien de l'Ad », la miniature de sa créa et son brief sont des objets du
-  // stockage de l'espace. Les écrans Résultats, l'Accueil, Itérer et Projets la montrent · jamais par l'adresse brute.
-  const [pe] = await db.insert(schema.personas).values({ brandId: ids.brandA1, name: 'Persona' }).returning();
-  const [de] = await db.insert(schema.desires).values({ workspaceId: ids.wsA, personaId: pe!.id, label: 'Désir' }).returning();
-  const [an] = await db.insert(schema.angles).values({ workspaceId: ids.wsA, desireId: de!.id, label: 'Angle', mechanism: 'demo' }).returning();
-  const [co] = await db.insert(schema.concepts).values({ workspaceId: ids.wsA, angleId: an!.id, title: 'Concept' }).returning();
-  const [cr] = await db.insert(schema.creatives).values({ brandId: ids.brandA1, fingerprintHash: 'adsmap:brutes', type: 'image', thumbUrl: VIGNETTE_CREA }).returning({ id: schema.creatives.id });
-  const [ad] = await db.insert(schema.ads).values({ workspaceId: ids.wsA, conceptId: co!.id, batchId: s.lot, creativeId: cr!.id, variantCode: 'V1', status: 'done', hypothesis: 'Si on montre la preuve d’abord, alors on convertit mieux.', testedVariable: 'proof', assetUrl: MEDIA_AD, briefUrl: BRIEF }).returning({ id: schema.ads.id });
-  s.ad = ad!.id;
-  await db.insert(schema.verdicts).values({ adId: s.ad, workspaceId: ids.wsA, computed: 'winner', validated: 'winner', status: 'validated', comparable: true, metricsAgg: { roas: 2.4, spend: 120, purchases: 6 } });
-  await db.insert(schema.learnings).values({ workspaceId: ids.wsA, brandId: ids.brandA1, adId: s.ad, scope: 'ad', statement: 'Une preuve en ouverture convertit mieux.', status: 'validated' });
-  // Dans le même lot · deux ads de la marque active portant la créa d'une AUTRE marque (jamais lue · ni sa miniature, ni la route
-  // qui la nommerait), et la plus petite variante, qui n'a qu'un lien Drive (pas une image · la vignette du lot passe à la suivante).
-  const creaEtrangere = async (thumbUrl: string) => (await db.insert(schema.creatives).values({ brandId: ids.brandA2, fingerprintHash: `etrangere:${thumbUrl}`, type: 'image', thumbUrl }).returning({ id: schema.creatives.id }))[0]!.id;
-  const [e1] = await db.insert(schema.ads).values({ workspaceId: ids.wsA, conceptId: co!.id, batchId: s.lot, creativeId: await creaEtrangere(MINI_ETRANGERE), variantCode: 'V2' }).returning({ id: schema.ads.id });
-  const [e2] = await db.insert(schema.ads).values({ workspaceId: ids.wsA, conceptId: co!.id, batchId: s.lot, creativeId: await creaEtrangere(MINI_ETRANGERE_EXTERNE), variantCode: 'V3' }).returning({ id: schema.ads.id });
-  s.adEtrangere = e1!.id; s.adEtrangereExterne = e2!.id;
-  await db.insert(schema.ads).values({ id: AD_DRIVE, workspaceId: ids.wsA, conceptId: co!.id, batchId: s.lot, variantCode: 'V0', assetUrl: 'https://drive.google.com/file/d/1AbC/view' });
+  // Adsmap · la GAGNANTE rangée au lot (lien, créa, brief au stockage), les ads du lot portant la créa d'une AUTRE marque, la
+  // variante qui n'a qu'un lien Drive, et une seconde gagnante, hors lot, portant la créa d'une autre marque · les écrans
+  // Résultats, l'Accueil, Itérer et Projets la montrent · jamais par l'adresse brute, jamais la créa étrangère.
+  s.adsmap = await semerAdsmapMedias(db, schema, { workspaceId: ids.wsA, brandId: ids.brandA1, autreMarqueId: ids.brandA2, lotId: s.lot, objets: ADSMAP });
+  s.ad = s.adsmap.ad;
   // Propriétaire fondateur, équipe plateforme · TOUS les écrans s'ouvrent (admin compris).
   h.session = { user: { id: ids.ua, email: 'ua@studios.test', name: 'Kevin' }, workspaceId: ids.wsA, workspaceName: 'Espace A', role: 'owner', plan: 'business', equipe: { role: 'adminplus', matrice: {}, plateformeAdmissible: true } as SessionTest['equipe'] };
   h.cookie = ids.brandA1;
@@ -374,17 +379,38 @@ describe('Adsmap · les médias d’une ad rangés au stockage (lien, vignette d
     expect(lot?.thumbUrl, 'la vignette du lot').toBe(`/api/adsmap/${s.ad}/apercu?media=vignette`);
   });
 
-  it('une créa d’une AUTRE marque collée sur une ad · ni sa miniature brute ni la route gardée de l’ad ne sortent, sur aucun écran qui montre le lot ; la variante est bien rendue, sans image', async () => {
-    for (const chemin of ['/adsmap', '/adsmap/lots', '/adsmap/lots/[id]', '/dashboard']) {
+  it('une créa d’une AUTRE marque collée sur une ad · ni sa miniature brute ni la route gardée de l’ad ne sortent, sur aucun écran qui montre le lot ou les gagnantes ; la variante est bien rendue, sans image', async () => {
+    const interdits = interditsCreasEtrangeres(s.adsmap, ADSMAP, cleDe);
+    for (const chemin of ECRANS_CREAS) {
       const { el, html } = await rendre(ecran(chemin));
-      for (const interdit of [`/api/adsmap/${s.adEtrangere}/apercu`, `/api/adsmap/${s.adEtrangereExterne}/apercu`, 'cdn.autre-marque.test', cleDe(MINI_ETRANGERE)]) {
+      for (const interdit of interdits) {
         expect(html, `${chemin} · la créa d’une autre marque est montrée (${interdit})`).not.toContain(interdit);
         expect(JSON.stringify(fuitesDonnees(el)) + JSON.stringify((el as ReactElement).props ?? {}), `${chemin} · la créa d’une autre marque est remise à la vue (${interdit})`).not.toContain(interdit);
       }
     }
     const lot = (await rendre(ecran('/adsmap/lots/[id]'))).el as ReactElement<{ variantes?: Array<{ id: string; image: string | null }> }>;
     const vues = new Map((lot.props.variantes ?? []).map((v) => [v.id, v.image]));
-    expect([vues.get(s.adEtrangere), vues.get(s.adEtrangereExterne), vues.get(AD_DRIVE)], 'les variantes sont rendues, sans image').toEqual([null, null, null]);
+    expect([vues.get(s.adsmap.adEtrangere), vues.get(s.adsmap.adEtrangereExterne), vues.get(AD_DRIVE)], 'les variantes sont rendues, sans image').toEqual([null, null, null]);
     expect(vues.get(s.ad), 'la gagnante garde sa vignette').toBe(`/api/adsmap/${s.ad}/apercu?media=vignette`);
+  });
+
+  it('une GAGNANTE portant la créa d’une autre marque · Itérer, l’Accueil et Projets la proposent (leur requête l’a lue), sans image', async () => {
+    const ge = s.adsmap.gagnanteEtrangere;
+    // Itérer · sa propre requête (ROAS lu sur la même ligne que la créa), la vignette vide.
+    const iterer = (await rendre(ecran('/studio/iterer'))).el as ReactElement<{ choix: Array<{ adId: string; vignette: string | null; chiffres: Array<{ libelle: string }> }> }>;
+    const choix = iterer.props.choix.find((c) => c.adId === ge);
+    expect(choix, '/studio/iterer · la gagnante à la créa étrangère n’est pas proposée · la garde ne lirait pas sa créa').toBeTruthy();
+    expect(choix!.chiffres.map((c) => c.libelle), '/studio/iterer · le contexte de la gagnante (même ligne que la créa) n’est pas lu').toContain('ROAS');
+    expect(choix!.vignette, '/studio/iterer · la créa d’une autre marque donne sa vignette').toBeNull();
+    expect(iterer.props.choix.find((c) => c.adId === s.ad)?.vignette, '/studio/iterer · la gagnante de la marque garde sa vignette').toBe(`/api/adsmap/${s.ad}/apercu?media=vignette`);
+    // L'Accueil et Projets · les prochaines itérations (`chargerProchainesIterations`), la mesure lue sur la même ligne que la créa.
+    const accueil = trouver<{ vignette: string | null; preuve: { niveau: number } }>((await rendre(ecran('/dashboard'))).el, (o) => o.adId === ge && 'vignette' in o && 'preuve' in o);
+    expect(accueil.length, '/dashboard · la gagnante à la créa étrangère n’est pas proposée · la garde ne lirait pas sa créa').toBe(1);
+    expect(accueil[0]!.preuve.niveau, '/dashboard · le contexte de la gagnante (mesure lue sur la même ligne que la créa) n’est pas lu').toBe(3);
+    expect(accueil[0]!.vignette, '/dashboard · la créa d’une autre marque donne sa vignette').toBeNull();
+    const projets = trouver<{ flux: unknown[]; mesure: unknown }>((await rendre(ecran('/studio/projets'))).el, (o) => o.id === ge && 'flux' in o && 'mesure' in o);
+    expect(projets.length, '/studio/projets · la gagnante à la créa étrangère n’est pas proposée · la garde ne lirait pas sa créa').toBe(1);
+    expect(projets[0]!.mesure, '/studio/projets · le contexte de la gagnante (mesure lue sur la même ligne que la créa) n’est pas lu').not.toBeNull();
+    expect(projets[0]!.flux, '/studio/projets · la créa d’une autre marque donne sa vignette').toEqual([]);
   });
 });
