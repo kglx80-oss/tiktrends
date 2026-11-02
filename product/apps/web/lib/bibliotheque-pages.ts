@@ -33,7 +33,7 @@ const portee = (p: PorteeBibliotheque): SQL[] => [eq(A.workspaceId, p.workspaceI
 const colonnes = () => ({
   id: A.id, name: A.name, kind: A.kind, source: A.source, brandId: A.brandId,
   useForAi: A.useForAi, sizeBytes: A.sizeBytes, tags: A.tags, createdAt: A.createdAt,
-  externalId: A.externalId, thumbUrl: A.thumbUrl, folderId: A.folderId, rights: A.rights, mimeType: A.mimeType, deletedAt: A.deletedAt,
+  externalId: A.externalId, thumbUrl: A.thumbUrl, objectEtag: A.objectEtag, folderId: A.folderId, rights: A.rights, mimeType: A.mimeType, deletedAt: A.deletedAt,
   embarquee: sql<boolean>`${A.url} like 'data:%'`,
   url: sql<string>`case when ${A.url} like 'data:%' then '' else ${A.url} end`,
   t: sql<string>`to_char(${A.createdAt} at time zone 'UTC', ${FORMAT_CURSEUR_SQL})`,
@@ -41,7 +41,7 @@ const colonnes = () => ({
 
 interface Ligne {
   id: string; name: string; kind: string; source: string; brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[] | null; createdAt: Date;
-  externalId: string | null; thumbUrl: string | null; folderId: string | null; rights: string | null; mimeType: string | null; deletedAt: Date | null; embarquee: boolean; url: string; t: string;
+  externalId: string | null; thumbUrl: string | null; objectEtag: string | null; folderId: string | null; rights: string | null; mimeType: string | null; deletedAt: Date | null; embarquee: boolean; url: string; t: string;
 }
 
 /** Une ligne, telle que l'écran la range (`MediaSource`). */
@@ -51,6 +51,8 @@ function enMedia(r: Ligne): MediaSource & { curseur: CurseurBibliotheque } {
     id: a.id, name: a.name, kind: a.kind, source: a.source, url: a.url, thumbUrl: a.thumbUrl, sizeBytes: a.sizeBytes, createdAt: a.createdAt,
     mimeType: r.mimeType, folderId: r.folderId, rights: r.rights, deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
     ia: { utilisable: a.useForAi, template: a.isTemplate, tags: a.tags },
+    // « Remplacer » · où vit le contenu, relu par `toItem` (jamais l'adresse) · le même champ que la page d'avant.
+    ...(a.contenu ? { contenu: a.contenu } : {}),
     curseur: { t: r.t, id: r.id },
   };
 }

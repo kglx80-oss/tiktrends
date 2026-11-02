@@ -1,6 +1,7 @@
 import { droitAutorisePub, estDroitAsset, libelleDroit } from '../../bibliotheque-dossiers';
 import { derniereTentativeDriveEnEchec, type DernierSyncDrive } from '../../connecteurs-catalogue';
 import { estTagCouleur, refusSelectionTropLarge, tagCouleur, tagsEnUsage, TAG_SELECTION_MAX, type CleTagCouleur, type TagCouleur } from './tags-couleur';
+import { remplacementSource, type ContenuMedia, type RemplacementSource } from './remplacer';
 
 /**
  * Spatial · la Bibliothèque « rangée comme un drive » (maquette `bibliotheque`).
@@ -82,6 +83,12 @@ export interface FichierDrive {
    * pour une sortie Studios ou une ancienne création (lecture seule).
    */
   ia?: { utilisable: boolean; template: boolean; tags: readonly string[] };
+  /**
+   * « Remplacer » (`remplacer.ts`) · la famille du média et ce que sa source
+   * permet, relus côté serveur. Absent pour une sortie Studios, une ancienne
+   * création, ou une donnée sans contenu connu · le geste n'est pas proposé.
+   */
+  remplacement?: RemplacementSource;
 }
 
 export interface DonneesDrive {
@@ -151,6 +158,8 @@ export interface MediaSource {
   studio?: { projetId: string; projetTitre: string; href: string };
   historique?: { libelle: string; telecharger: string };
   ia?: { utilisable: boolean; template: boolean; tags: readonly string[] };
+  /** Où vit le contenu (`contenuMedia`, relu côté serveur) · absent = inconnu, « Remplacer » n'est pas proposé. */
+  contenu?: ContenuMedia;
 }
 
 const LIBELLE_SOURCE: Record<string, string> = { upload: 'Téléversé', url: 'Lien', drive: 'Google Drive', studios: 'Studios', historique: 'Ancien studio' };
@@ -169,6 +178,11 @@ export function typeFichier(kind: string, mime?: string | null): TypeFichierDriv
  * un média rangé dans un dossier inconnu aussi. Une sortie Studios rejoint le
  * dossier virtuel de son projet, sous « Créations ».
  */
+const remplacable = (m: MediaSource): { remplacement?: RemplacementSource } => {
+  const r = remplacementSource(m);
+  return r ? { remplacement: r } : {};
+};
+
 export function donneesDrive(src: SourcesDrive): DonneesDrive {
   const ids = new Set(src.dossiers.map((d) => d.id));
   const dossiers: DossierDrive[] = RACINES_DRIVE.map((r) => ({ id: r.id, nom: r.nom, parent: null, reel: false, verrouille: true, supprime: false, creeLe: '', tag: null }));
@@ -214,7 +228,7 @@ export function fichierDepuisMedia(m: MediaSource, dossiers: ReadonlySet<string>
   };
   if (m.studio) return { ...base, parent: `p:${m.studio.projetId}`, droit: null, lectureSeule: true, projet: { href: m.studio.href, titre: m.studio.projetTitre } };
   if (m.historique) return { ...base, parent: 'r:anciens', droit: null, lectureSeule: true, telecharger: m.historique.telecharger };
-  return { ...base, parent: m.folderId && dossiers.has(m.folderId) ? m.folderId : ID_ASSETS, droit: m.rights ?? null, lectureSeule: false, ...(m.ia ? { ia: m.ia } : {}), ...(m.deletedAt ? { supprime: true } : {}) };
+  return { ...base, parent: m.folderId && dossiers.has(m.folderId) ? m.folderId : ID_ASSETS, droit: m.rights ?? null, lectureSeule: false, ...(m.ia ? { ia: m.ia } : {}), ...(m.deletedAt ? { supprime: true } : {}), ...remplacable(m) };
 }
 
 const compteVide = (): CompteParType => ({ tous: 0, image: 0, video: 0, audio: 0, autre: 0 });
