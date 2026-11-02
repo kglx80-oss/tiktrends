@@ -3,8 +3,9 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { toCsv, COL_HYPOTHESIS } from '../src/adsmap/sheet';
 import {
-  buildImportPlan, detecterSeparateur, findHeaderRow, lectureSeparateur, lireColonnes, parseCsv, refusColonnes,
-  SEUIL_COLONNES_RECONNUES, type ImportPlan,
+  buildImportPlan, COLONNES_OBLIGATOIRES, detecterSeparateur, enteteDuFichier, findHeaderRow, guideColonnes, INTITULES_MONTRES,
+  lectureSeparateur, lireColonnes, LONGUEUR_INTITULE, mentionColonnesAbsentes, modeleImport, parseCsv, refusColonnes,
+  SEUIL_COLONNES_RECONNUES, SHEET_HEADERS, type ImportPlan,
 } from '../src/adsmap/import-sheet';
 import { idsLiensApp, lireLienApp, resoudreLienApp, resoudreLiensApp } from '../src/adsmap/liens-app-import';
 import { exporterTextes } from '../src/studios/textes/textes';
@@ -210,5 +211,123 @@ describe('liens de l’application · reconnus à l’origine exacte, jamais ail
     expect(r.report.warnings[1]).toMatch(/^1 lien\(s\) de l'application écarté\(s\) · /);
     const sans: ImportPlan = buildImportPlan(EXPORT_29, { today: AUJOURD_HUI });
     expect(resoudreLiensApp(sans, APP, SOURCES), 'un plan sans lien de l’application a changé').toBe(sans);
+  });
+});
+
+/**
+ * Un refus qui dit QUOI corriger · les intitulés lus (coupés, au plus
+ * `INTITULES_MONTRES`), les colonnes attendues absentes (obligatoires d'abord,
+ * puis l'ordre du tableau) ; sur un aperçu accepté, les colonnes absentes, dont
+ * rien ne sera importé. Les deux seuils sont REMESURÉS ici sur `MESURE`.
+ */
+describe('guide des colonnes · ce qu’il faut corriger', () => {
+  const ATTENDUES = Object.values(SHEET_HEADERS);
+  const longueur = (h: string) => [...h.replace(/\s+/g, ' ').trim()].length;
+  /** Le tableau de `INTITULES_MONTRES` / `LONGUEUR_INTITULE` · [fichier, intitulés lus, plus long, puis le suivant]. */
+  const MESURE_GUIDE: Array<[string, number, number, number | null]> = [
+    ['export Résultats, 29 colonnes', 29, 117, 18],
+    ['export Résultats, 19 colonnes', 19, 117, 18],
+    ['modèle TrueFords', 19, 117, 18],
+    ['modèle TrueFords réenregistré ;', 19, 117, 18],
+    ['modèle TrueFords réenregistré tabulation', 19, 117, 18],
+    ['en-tête minimal', 4, 17, 10],
+    ['export Résultats réenregistré à la barre verticale', 1, 439, null],
+    ['modèle TrueFords réenregistré à la barre verticale', 1, 74, null],
+    ['export Résultats, lignes entre guillemets', 1, 439, null],
+    ['export Textes du studio', 4, 7, 6],
+    ['export Meta Ads (en-tête type)', 12, 31, 25],
+    ['export TikTok Ads (en-tête type)', 10, 13, 13],
+  ];
+
+  it.each(MESURE_GUIDE)('%s · la mesure du module, refaite', (nom, lus, plusLong, suivant) => {
+    const texte = MESURE.find((m) => m[0] === nom)![1];
+    const h = enteteDuFichier(texte).filter((x) => x.trim()).map(longueur).sort((a, b) => b - a);
+    expect([h.length, h[0], h[1] ?? null], `la mesure de « ${nom} » ne correspond plus au tableau de INTITULES_MONTRES`).toEqual([lus, plusLong, suivant]);
+  });
+
+  it('les seuils tiennent la mesure · tout refus réel montré en entier, aucun vrai intitulé coupé', () => {
+    const refuses = MESURE.filter((m) => !m[5]);
+    for (const [nom, texte] of refuses) {
+      const g = guideColonnes(enteteDuFichier(texte));
+      expect(g.lusMasques, `« ${nom} », refusé, n’est pas montré en entier`).toBe(0);
+    }
+    // Un intitulé réel · hors cellule qui porte une ligne entière (en-tête d'une seule cellule) et hors phrase d'hypothèse.
+    const reels = MESURE.flatMap(([, texte]) => {
+      const h = enteteDuFichier(texte).filter((x) => x.trim());
+      return h.length > 1 ? h.filter((x) => !x.startsWith('Que testez-vous')) : [];
+    });
+    expect(Math.max(...reels.map(longueur)), 'un intitulé réel dépasse LONGUEUR_INTITULE · il serait coupé').toBeLessThanOrEqual(LONGUEUR_INTITULE);
+    expect(Math.max(...refuses.map(([, t]) => enteteDuFichier(t).filter((x) => x.trim()).length)), 'INTITULES_MONTRES n’a plus de marge sur le plus large refus mesuré').toBeLessThan(INTITULES_MONTRES);
+  });
+
+  it('refus Meta · les 12 intitulés lus, dans l’ordre, puis « Ad Concept » obligatoire, puis le reste dans l’ordre du tableau', () => {
+    const g = guideColonnes(enteteDuFichier(META_FR));
+    expect(g.lus, 'les intitulés montrés ne sont pas ceux lus, dans l’ordre').toEqual(META_FR.split('\n')[0]!.split(','));
+    expect(g.lusMasques).toBe(0);
+    expect(g.obligatoiresAbsentes, 'la colonne obligatoire absente n’est pas dite').toEqual(['Ad Concept']);
+    // « Résultats » est lue (strict) · elle n'est pas absente.
+    expect(g.optionnellesAbsentes, 'les colonnes absentes ne suivent pas l’ordre du tableau').toEqual(ATTENDUES.filter((a) => a !== 'Ad Concept' && a !== 'Résultats'));
+  });
+
+  it('refus TikTok · « Status » et « Ad format » lues, elles ne sont pas dites absentes', () => {
+    const g = guideColonnes(enteteDuFichier(TIKTOK_EN));
+    expect(g.obligatoiresAbsentes).toEqual(['Ad Concept']);
+    expect(g.optionnellesAbsentes).not.toContain('Status');
+    expect(g.optionnellesAbsentes).not.toContain('Ad Format');
+    expect(g.optionnellesAbsentes).toHaveLength(16);
+  });
+
+  it('tout dans une cellule · l’intitulé unique est coupé proprement, avec « … »', () => {
+    const g = guideColonnes(enteteDuFichier(entreGuillemets(EXPORT_29)));
+    expect(g.lus).toHaveLength(1);
+    expect(g.lus[0], 'la ligne entière n’est pas coupée à LONGUEUR_INTITULE').toBe(`${[...'Status;BATCH #;Autheur;Ad Concept;📎 Désire;📎 Angle(s);Motif d\'Iteration'].slice(0, LONGUEUR_INTITULE).join('')}…`);
+    expect(g.obligatoiresAbsentes).toEqual(['Ad Concept']);
+  });
+
+  it('un en-tête refusé plus large que INTITULES_MONTRES · coupé au nombre, le reste compté', () => {
+    const large = Array.from({ length: 29 }, (_, i) => `Colonne ${i + 1}`);
+    const g = guideColonnes(large);
+    expect(g.lus, 'plus de INTITULES_MONTRES intitulés montrés').toEqual(large.slice(0, INTITULES_MONTRES));
+    expect(g.lusMasques, 'les intitulés non montrés ne sont pas comptés').toBe(29 - INTITULES_MONTRES);
+    expect(g.obligatoiresAbsentes).toEqual(COLONNES_OBLIGATOIRES.map((k) => SHEET_HEADERS[k]));
+    expect(g.optionnellesAbsentes).toHaveLength(ATTENDUES.length - 1);
+  });
+
+  it('un intitulé saisi est rendu tel quel · formule, signe, arobase, balise, apostrophe', () => {
+    const csv = '"=HYPERLINK(""https://x.test"",""clic"")",+cmd,-2+3,@SOMME(A1),<b>gras</b>,\'=1+1\n1,2,3,4,5,6\n';
+    const g = guideColonnes(enteteDuFichier(csv));
+    expect(refusColonnes(enteteDuFichier(csv))).not.toBeNull();
+    // L'apostrophe de neutralisation d'un export est retirée par la lecture (`retirerNeutralisation`) · la valeur saisie revient.
+    expect(g.lus, 'un intitulé a été réinterprété ou réécrit').toEqual(['=HYPERLINK("https://x.test","clic")', '+cmd', '-2+3', '@SOMME(A1)', '<b>gras</b>', '=1+1']);
+  });
+
+  it('accepté · les colonnes absentes, dans l’ordre du tableau, dites sans bloquer', () => {
+    const plan = buildImportPlan(MINIMAL, { today: AUJOURD_HUI });
+    expect(plan.refus).toBeNull();
+    const g = guideColonnes(enteteDuFichier(MINIMAL));
+    expect(g.obligatoiresAbsentes).toEqual([]);
+    expect(g.optionnellesAbsentes, 'les colonnes absentes d’un en-tête minimal ne sont pas toutes dites, dans l’ordre').toEqual(ATTENDUES.filter((a) => !['Status', 'BATCH #', 'Ad Concept', 'Date de lancement'].includes(a)));
+    const m = mentionColonnesAbsentes(g);
+    expect(m, 'la mention des colonnes absentes manque').toBe(`15 colonnes du tableau absentes du fichier · rien n'en sera importé : ${g.optionnellesAbsentes.map((a) => `« ${a} »`).join(', ')}.`);
+    expect(m).not.toContain('—');
+  });
+
+  it('accepté · une colonne trouvée par la lecture tolérante sera importée, elle n’est pas dite absente', () => {
+    const t = 'Status,BATCH #,Ad Concept,Date de lancement,Ma Plateforme\nTerminé,1,A,01/08/2026,TikTok\n';
+    expect(buildImportPlan(t, { today: AUJOURD_HUI }).ads[0]!.platform, 'la colonne tolérante n’est pas lue · le test ne prouve rien').toBe('tiktok');
+    expect(guideColonnes(enteteDuFichier(t)).optionnellesAbsentes, '« Ma Plateforme » est importée, elle est dite absente').not.toContain('Plateforme');
+  });
+
+  it('accepté complet · aucune mention', () => {
+    for (const t of [EXPORT_29, EXPORT_19, TRUEFORDS]) expect(mentionColonnesAbsentes(guideColonnes(enteteDuFichier(t)))).toBeNull();
+  });
+
+  it('le modèle d’import · l’en-tête exact de l’export, lu en entier, sans ligne', () => {
+    const m = modeleImport();
+    expect(parseCsv(m), 'le modèle n’est pas l’en-tête des 19 colonnes du Sheet').toEqual([[...parseCsv(EXPORT_19)[0]!]]);
+    expect(lireColonnes(enteteDuFichier(m)), 'le modèle n’est pas lu en entier par l’import').toEqual({ cellules: 19, reconnues: 19, concept: true });
+    expect(guideColonnes(enteteDuFichier(m)).optionnellesAbsentes).toEqual([]);
+    const rempli = `${m}Terminé;1;W;Concept A;;;;;;;;;;;;;;01/08/2026;Meta\r\n`;
+    expect(buildImportPlan(rempli, { today: AUJOURD_HUI }).report.rowsRead, 'le modèle rempli d’une ligne ne s’importe pas').toBe(1);
   });
 });

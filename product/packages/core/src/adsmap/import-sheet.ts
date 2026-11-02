@@ -22,7 +22,7 @@
  */
 
 import type { AdStatus, AdType, TestedVariable } from './types';
-import { retirerNeutralisation } from './sheet';
+import { retirerNeutralisation, toCsv } from './sheet';
 
 /* -------------------------------------------------------------------------- */
 /*  Lecture du CSV                                                            */
@@ -319,6 +319,123 @@ export function lectureSeparateur(d: SeparateurDetecte): string {
   if (d.raison === 'defaut-aucun') return `${base} · aucun séparateur trouvé dans l'en-tête`;
   if (d.raison === 'majorite' || d.raison === 'defaut-egalite') return `${base} · choisi par défaut, l'en-tête en mélange plusieurs`;
   return base;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Ce qu'il faut corriger · intitulés lus, colonnes absentes                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Intitulés lus montrés au plus, et longueur au-delà de laquelle un intitulé
+ * est coupé (par point de code, `extrait`), quand l'écran dit ce qu'il a lu.
+ *
+ * Mesuré sur les fichiers réels du tableau de `SEUIL_COLONNES_RECONNUES`
+ * (`packages/core/test/adsmap-import-colonnes.test.ts` refait la mesure) :
+ *
+ * | fichier                                                       | intitulés lus | plus long, en points de code |
+ * | ------------------------------------------------------------- | ------------- | ---------------------------- |
+ * | export Résultats, 29 colonnes · accepté                       |            29 | 117 (hypothèse), puis 18     |
+ * | export Résultats, 19 colonnes · accepté                       |            19 | 117 (hypothèse), puis 18     |
+ * | modèle TrueFords, et réenregistré `;` ou tabulation · accepté |            19 | 117 (hypothèse), puis 18     |
+ * | en-tête minimal · accepté                                     |             4 | 17                           |
+ * | export Résultats réenregistré à la barre verticale · refusé   |             1 | 439 (ligne entière)          |
+ * | modèle TrueFords réenregistré à la barre verticale · refusé   |             1 | 74 (ligne des blocs entière) |
+ * | export Résultats, lignes entre guillemets · refusé            |             1 | 439 (ligne entière)          |
+ * | export Textes du studio · refusé                              |             4 | 7                            |
+ * | export Meta Ads (en-tête type) · refusé                       |            12 | 31                           |
+ * | export TikTok Ads (en-tête type) · refusé                     |            10 | 13                           |
+ *
+ * Le plus long en-tête refusé compte 12 intitulés · `INTITULES_MONTRES = 15`
+ * les montre tous, avec de la marge, et un en-tête plus large (un export de
+ * 29 colonnes renommé) dit « et k autres » au lieu d'un mur. Hors des cellules
+ * qui portent une ligne entière (fichier mal découpé) et de la phrase
+ * d'hypothèse du tableau, aucun intitulé réel ne dépasse 31 caractères ·
+ * `LONGUEUR_INTITULE = 40` les garde entiers et ne coupe que ces deux cas.
+ */
+export const INTITULES_MONTRES = 15;
+export const LONGUEUR_INTITULE = 40;
+
+/**
+ * Les colonnes sans lesquelles l'import refuse le fichier · « Ad Concept »,
+ * exigée à part par `refusColonnes` (sans elle, aucune ligne n'a de concept).
+ * Toutes les autres sont optionnelles une à une · il en faut seulement assez
+ * (`SEUIL_COLONNES_RECONNUES`).
+ */
+export const COLONNES_OBLIGATOIRES: ReadonlyArray<keyof typeof SHEET_HEADERS> = ['concept'];
+
+/**
+ * Ce que l'écran d'import montre pour qu'on sache QUOI corriger.
+ *
+ * Les intitulés sont du texte saisi par l'utilisateur · rendus tels quels (un
+ * `=SOMME(…)` reste `=SOMME(…)`), seulement coupés. L'écran les affiche comme
+ * texte, jamais comme balisage.
+ */
+export interface GuideColonnes {
+  /** Intitulés non vides de l'en-tête, dans l'ordre de lecture, coupés à `LONGUEUR_INTITULE` · au plus `INTITULES_MONTRES`. */
+  lus: string[];
+  /** Intitulés lus au-delà de `INTITULES_MONTRES`, non montrés. */
+  lusMasques: number;
+  /** Colonnes obligatoires absentes, sous l'intitulé à écrire (`SHEET_HEADERS`). */
+  obligatoiresAbsentes: string[];
+  /** Les autres colonnes du tableau absentes, dans l'ordre du tableau (celui du modèle). */
+  optionnellesAbsentes: string[];
+}
+
+/**
+ * La ligne d'en-tête du fichier, telle que l'import la retient · même lecture
+ * que `buildImportPlan` (séparateur détecté, `findHeaderRow`).
+ */
+export function enteteDuFichier(csvText: string): string[] {
+  const rows = parseCsv(csvText, detecterSeparateur(csvText).separateur);
+  return rows[findHeaderRow(rows)] ?? [];
+}
+
+/**
+ * Le guide d'un en-tête.
+ *
+ * Une colonne est « absente » au sens de ce que l'import fera d'elle · pour un
+ * fichier REFUSÉ, au sens strict de `refusColonnes` (ce qui l'a fait refuser) ;
+ * pour un fichier ACCEPTÉ, au sens de `mapColumns`, qui choisit ce qui sera
+ * réellement lu · une colonne trouvée par la correspondance tolérante sera
+ * importée, la dire « non importée » serait faux.
+ *
+ * Ordre · obligatoires d'abord, puis l'ordre du tableau (`SHEET_HEADERS`), le
+ * même que celui du modèle à télécharger.
+ */
+export function guideColonnes(header: readonly string[]): GuideColonnes {
+  const nonVides = header.filter((h) => h.trim());
+  const refuse = refusColonnes(header) !== null;
+  const strictes = new Set(header.map(colonneNommee).filter((k): k is keyof typeof SHEET_HEADERS => k !== null));
+  const lues = mapColumns([...header]);
+  const absente = (k: keyof typeof SHEET_HEADERS) => (refuse ? !strictes.has(k) : lues[k] === -1);
+  const cles = Object.keys(SHEET_HEADERS) as Array<keyof typeof SHEET_HEADERS>;
+  return {
+    lus: nonVides.slice(0, INTITULES_MONTRES).map((h) => extrait(h, LONGUEUR_INTITULE)),
+    lusMasques: Math.max(0, nonVides.length - INTITULES_MONTRES),
+    obligatoiresAbsentes: COLONNES_OBLIGATOIRES.filter(absente).map((k) => SHEET_HEADERS[k]),
+    optionnellesAbsentes: cles.filter((k) => !COLONNES_OBLIGATOIRES.includes(k) && absente(k)).map((k) => SHEET_HEADERS[k]),
+  };
+}
+
+/**
+ * Sur un aperçu ACCEPTÉ · les colonnes du tableau absentes, dont rien ne sera
+ * importé, en une phrase · `null` quand il n'en manque aucune. Ne bloque rien.
+ */
+export function mentionColonnesAbsentes(g: GuideColonnes): string | null {
+  const absentes = [...g.obligatoiresAbsentes, ...g.optionnellesAbsentes];
+  if (!absentes.length) return null;
+  const n = absentes.length;
+  return `${n} colonne${n > 1 ? 's' : ''} du tableau absente${n > 1 ? 's' : ''} du fichier · rien n'en sera importé : ${absentes.map((a) => `« ${a} »`).join(', ')}.`;
+}
+
+/**
+ * Le modèle d'import · l'en-tête exact de l'export Résultats (`toCsv`, les 19
+ * colonnes du Sheet, au point-virgule, BOM compris), sans aucune ligne. C'est
+ * le format que l'import lit en entier (19 colonnes reconnues sur 19) · aucun
+ * format nouveau n'est inventé.
+ */
+export function modeleImport(): string {
+  return toCsv([], {});
 }
 
 /** Associe chaque colonne connue à son index, par correspondance tolérante. */
