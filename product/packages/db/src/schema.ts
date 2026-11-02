@@ -223,7 +223,13 @@ export const assets = pgTable('assets', {
   // s'en sert déjà). La suppression d'asset reste définitive pour l'instant.
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ wsIdx: index('assets_ws_idx').on(t.workspaceId), brandIdx: index('assets_brand_idx').on(t.brandId), folderIdx: index('assets_folder_idx').on(t.folderId) }));
+}, (t) => ({
+  wsIdx: index('assets_ws_idx').on(t.workspaceId), brandIdx: index('assets_brand_idx').on(t.brandId), folderIdx: index('assets_folder_idx').on(t.folderId),
+  // La lecture paginée de la Bibliothèque (fenêtre, « Charger plus », relecture
+  // en profondeur) · même ordre que la requête (`lib/bibliotheque-pages.ts`) ·
+  // migration 0067, mesures dans `pagination.ts` du noyau.
+  wsCreeIdx: index('assets_ws_created_id_idx').on(t.workspaceId, t.createdAt.desc(), t.id.desc()),
+}));
 
 /**
  * Dossiers de la Bibliothèque (V5 · L01, L04, L05, L19-L21) · arborescence par

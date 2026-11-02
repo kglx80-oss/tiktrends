@@ -74,6 +74,39 @@ export const PAGE_BIBLIOTHEQUE = 200;
 /** Une recherche plus longue n'est pas lue · aucun nom de fichier utile n'en a besoin. */
 export const RECHERCHE_MAX_CARACTERES = 100;
 
+/**
+ * La PROFONDEUR relue après un geste · au plus ce nombre de fichiers, toutes
+ * listes chargées confondues (la plus récemment chargée d'abord).
+ *
+ * Le défaut réparé · après un geste (renommer, déplacer, corbeille…), la page
+ * se relit et ses nouvelles données remplaçaient les pages lues · la liste
+ * revenait à la fenêtre de départ, le fichier ancien qu'on venait de toucher
+ * disparaissait de l'écran, et trier des fichiers anciens exigeait de
+ * recliquer « Charger plus » après chaque geste. Désormais chaque liste
+ * chargée se relit, en UNE requête, jusqu'au même nombre de fichiers.
+ *
+ * Mesuré le 02/11/2026 · pglite (migrations du dépôt), la vraie lecture
+ * `lirePageBibliotheque` de la racine depuis son début, deux espaces de
+ * 20 000 médias chacun, médiane de 5 passes, avec et sans l'index de la
+ * migration 0067 · plus le rendu de l'écran (tableau de `PAGE_BIBLIOTHEQUE`,
+ * ≈ 0,22 ms par carte, ≈ 40 ms de fond) :
+ *
+ * | Profondeur relue         | 200   | 400    | 1 000  | 2 000  | 3 000    |
+ * | ------------------------ | ----- | ------ | ------ | ------ | -------- |
+ * | Lecture · sans index     | 25 ms | 22 ms  | 41 ms  | 63 ms  | 89 ms    |
+ * | Lecture · index 0067     | 5 ms  | 7,5 ms | 20 ms  | 34 ms  | 67 ms    |
+ * | Données envoyées         | 70 Ko | 141 Ko | 353 Ko | 708 Ko | 1 062 Ko |
+ * | Rendu de l'écran         | 81 ms | 114 ms | 248 ms | 424 ms | 723 ms   |
+ *
+ * La lecture reste sous 70 ms à toute profondeur · ce sont les données
+ * envoyées et le rendu qui décident. 2 000 · dix « Charger plus » au-delà
+ * d'une page, rendu ≈ 420 ms, données ≈ 0,7 Mo · à 3 000 le rendu passe
+ * 700 ms et les données le mégaoctet, pour un parcours que peu de tris
+ * atteignent. Une liste plus profonde se relit jusqu'à la borne · « Charger
+ * plus » reprend de là, sans trou.
+ */
+export const PROFONDEUR_MAX_BIBLIOTHEQUE = 2000;
+
 /* ───────────────────────────── Le curseur ───────────────────────────── */
 
 /**
@@ -116,6 +149,8 @@ export interface DemandePageBibliotheque {
   filtre: FiltreTypeDrive;
   /** `null` · depuis le plus récent. */
   curseur: CurseurBibliotheque | null;
+  /** Combien de fichiers lire · absent, une page (`PAGE_BIBLIOTHEQUE`) · la relecture après un geste demande la profondeur atteinte (au plus `PROFONDEUR_MAX_BIBLIOTHEQUE`). */
+  limite?: number;
 }
 
 /** Ce qu'une page renvoie · des médias de la bibliothèque, le curseur suivant (`null` · fin) et, pour une recherche lue depuis le début, son total exact. */
@@ -146,6 +181,8 @@ export function lireDemandePage(raw: unknown): { ok: true; demande: DemandePageB
   if (typeof filtre !== 'string' || !FILTRES.has(filtre)) return { ok: false, raison: REFUS_PAGE.illisible };
   const curseur = r.curseur == null ? null : lireCurseur(r.curseur);
   if (r.curseur != null && !curseur) return { ok: false, raison: REFUS_PAGE.illisible };
+  const limite = r.limite;
+  if (limite !== undefined && (typeof limite !== 'number' || !Number.isInteger(limite) || limite < 1 || limite > PROFONDEUR_MAX_BIBLIOTHEQUE)) return { ok: false, raison: REFUS_PAGE.illisible };
   const p = r.portee as Record<string, unknown> | null | undefined;
   let portee: PorteePageBibliotheque;
   if (p?.type === 'corbeille') portee = { type: 'corbeille' };
@@ -157,8 +194,11 @@ export function lireDemandePage(raw: unknown): { ok: true; demande: DemandePageB
     if (q.length > RECHERCHE_MAX_CARACTERES) return { ok: false, raison: REFUS_PAGE.recherche };
     portee = { type: 'recherche', q };
   } else return { ok: false, raison: REFUS_PAGE.illisible };
-  return { ok: true, demande: { portee, filtre: filtre as FiltreTypeDrive, curseur } };
+  return { ok: true, demande: { portee, filtre: filtre as FiltreTypeDrive, curseur, ...(limite !== undefined ? { limite } : {}) } };
 }
+
+/** Combien de fichiers une demande relue lit · une page, ou la profondeur demandée. */
+export const limiteDemande = (d: Pick<DemandePageBibliotheque, 'limite'>): number => d.limite ?? PAGE_BIBLIOTHEQUE;
 
 /** La clé d'une liste · un dossier, la corbeille ou une recherche, avec son filtre de type. */
 export function clePage(portee: PorteePageBibliotheque, filtre: FiltreTypeDrive = 'tous'): string {
@@ -274,6 +314,65 @@ export function reprise(pages: EtatPagesBibliotheque, portee: PorteePageBiblioth
   const tous = pages.frontieres[clePage(portee, 'tous')];
   if (tous) return tous;
   return (portee.type === 'corbeille' ? pages.fenetres.corbeille : pages.fenetres.vivants) ?? 'fin';
+}
+
+/* ───────────────────────────── Après un geste · la même profondeur ───────────────────────────── */
+
+/** Une liste où « Charger plus » (ou la recherche) a lu · et jusqu'où (le nombre de ses fichiers chargés). */
+export interface ListeChargee {
+  cle: string;
+  portee: PorteePageBibliotheque;
+  filtre: FiltreTypeDrive;
+  profondeur: number;
+}
+
+/** La liste `l` vient d'être lue · elle passe en tête (la plus récente), une seule fois par clé. */
+export function noterListeChargee(listes: readonly ListeChargee[], l: ListeChargee): ListeChargee[] {
+  return [l, ...listes.filter((x) => x.cle !== l.cle)];
+}
+
+/** La profondeur d'une liste après une page reçue · ce qu'elle affichait, plus ce qui arrive. */
+export const profondeurApresPage = (affiches: number, recus: number): number => Math.max(0, affiches) + Math.max(0, recus);
+
+/**
+ * Ce qu'il faut relire quand la page s'est relue après un geste · chaque
+ * liste chargée, depuis son DÉBUT (une requête, un ordre stable · ni doublon
+ * ni trou, quel que soit ce que le geste a déplacé), jusqu'à sa profondeur ·
+ * la plus récemment chargée d'abord, toutes listes confondues dans la borne
+ * (`PROFONDEUR_MAX_BIBLIOTHEQUE`). Une liste au-delà de la borne n'est pas
+ * relue · elle repart de la fenêtre, comme avant.
+ */
+export function relecturesApresGeste(listes: readonly ListeChargee[], borne: number = PROFONDEUR_MAX_BIBLIOTHEQUE): Array<{ cle: string; demande: DemandePageBibliotheque }> {
+  const out: Array<{ cle: string; demande: DemandePageBibliotheque }> = [];
+  let reste = Math.min(borne, PROFONDEUR_MAX_BIBLIOTHEQUE);
+  const vues = new Set<string>();
+  for (const l of listes) {
+    if (vues.has(l.cle) || !Number.isFinite(l.profondeur) || l.profondeur < 1) continue;
+    if (reste < 1) break;
+    vues.add(l.cle);
+    const limite = Math.min(Math.floor(l.profondeur), reste);
+    reste -= limite;
+    out.push({ cle: l.cle, demande: { portee: l.portee, filtre: l.filtre, curseur: null, limite } });
+  }
+  return out;
+}
+
+/**
+ * L'état des pages une fois les listes relues · la fenêtre NEUVE de la page,
+ * puis, pour chaque liste relue, sa frontière (où « Charger plus » reprend) et
+ * son total de recherche, et sa nouvelle profondeur (ce qui a été lu).
+ */
+export function pagesApresRelecture(
+  fenetres: FenetresBibliotheque,
+  relues: ReadonlyArray<{ cle: string; demande: DemandePageBibliotheque; page: Pick<PageBibliotheque, 'medias' | 'suivant' | 'total'> }>,
+): { pages: EtatPagesBibliotheque; listes: ListeChargee[] } {
+  let pages = pagesInitiales(fenetres);
+  const listes: ListeChargee[] = [];
+  for (const r of relues) {
+    pages = appliquerPage(pages, r.cle, r.page);
+    listes.push({ cle: r.cle, portee: r.demande.portee, filtre: r.demande.filtre, profondeur: r.page.medias.length });
+  }
+  return { pages, listes };
 }
 
 /* ───────────────────────────── Ce que dit l'écran ───────────────────────────── */

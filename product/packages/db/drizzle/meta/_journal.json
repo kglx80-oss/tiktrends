@@ -470,6 +470,13 @@
       "when": 1793300000000,
       "tag": "0066_empreinte_logos_marque",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793400000000,
+      "tag": "0067_index_pagination_assets",
+      "breakpoints": true
     }
   ]
 }
