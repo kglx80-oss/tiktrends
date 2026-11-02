@@ -2,7 +2,7 @@ import 'server-only';
 import { notFound, redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { RAISON_LOGO_SANS_STOCKAGE, costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messageLimiteConcurrents, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
+import { RAISON_LOGO_SANS_STOCKAGE, type BilanLogosCharte, costFor, domaineConcurrent, initialeNom, lienNouveauProjet, messageLimiteConcurrents, messagesRetourMarque, type FicheMarqueLue, messageServiceInactif } from '@tiktrends/core';
 import { forfaitEffectif } from '../../../../../lib/droits-forfait';
 import { getSession, type Session } from '../../../../../lib/auth';
 import { canAccess, FEATURES, roleAtLeast } from '../../../../../lib/rbac';
@@ -85,7 +85,23 @@ export function propsSync(c: ContexteMarque): PropsSyncSite {
   return { brandId: c.b.id, site: c.domaine, relancer: raison ? null : generateFullBrandAction, raison, cout: c.unlimited ? null : costFor('brief') };
 }
 
-export function propsFavicon(c: ContexteMarque): PropsFaviconMarque {
+/**
+ * La carte du logo · `logos` (fiche Identité, `etatLogosCharte` au rendu) · le
+ * logo par défaut qui n'est pas servi est signalé en tête de la carte avec sa
+ * raison, à la place d'une image que la route refuserait ; à réimporter,
+ * « Importer » prend sa place dans la charte.
+ */
+export function propsFavicon(c: ContexteMarque, logos?: BilanLogosCharte): PropsFaviconMarque {
+  const alerte = logos?.defaut ?? null;
+  if (alerte && c.b.logoUrl) {
+    const base = propsFavicon(c);
+    return {
+      ...base, image: null, alerte,
+      titre: alerte.etat === 'a_reimporter' ? 'Logo par défaut à réimporter' : 'Logo par défaut non vérifiable pour l’instant',
+      detail: alerte.raison,
+      importLogo: { ...base.importLogo, remplace: alerte.etat === 'a_reimporter' ? c.b.logoUrl : null },
+    };
+  }
   const logo = c.b.logoUrl ? brandMediaPreview(c.b.id, c.b.logoUrl) : null;
   const favicon = c.domaine ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(c.domaine)}&sz=64` : null;
   return {
