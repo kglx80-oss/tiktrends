@@ -19,7 +19,7 @@ import { useZoomEditeur } from '../../../lib/studios/editeur/use-zoom-editeur';
 import { effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale } from '../../../lib/studios/editeur/sauvegarde-locale';
 import { useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
-import { Message } from './briques';
+import { LienIdentite, Message } from './briques';
 
 /**
  * L'éditeur d'image · `docs/spatial/reference/editeur.html`, balisage à
@@ -676,11 +676,6 @@ function SignalCalque({ signal, nom }: { signal: SignalLogoCalque; nom: string }
       <strong>{signal.libelle}</strong><span style={{ color: 'var(--fg2)' }}>{nom}</span>
     </div>
   );
-}
-
-/** Le chemin vers l'Identité de la marque · posé pour un admin seulement, cible tactile de 44 px. */
-function LienIdentite({ href }: { href: string }) {
-  return <Lien href={href} data-lien="identite-marque" className="btn sm" style={{ justifySelf: 'start', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>Ouvrir l’Identité de la marque</Lien>;
 }
 
 function RepliCalque({ nom }: { nom: string }) {

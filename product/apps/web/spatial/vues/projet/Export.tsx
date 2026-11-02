@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CONTRAT_FORMAT, libelleConservation, tailleLisible, type FormatExport, type ViolationExport } from '@tiktrends/core';
 import { exporterVersion } from '../../../app/actions/studios/export';
@@ -8,7 +8,7 @@ import type { ExportRealise, VueExport } from '../../../lib/studios/export/expor
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien, Vue } from '../../communs';
 import { EnTeteAtelier } from './Atelier';
-import { Message } from './briques';
+import { LienIdentite, Message } from './briques';
 
 /**
  * Atelier « Export » d'un projet (`/studio/projets/[id]/export`), porté du
@@ -34,6 +34,11 @@ const date = (iso: string | null) => {
   try { return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }); } catch { return ''; }
 };
 const resume = (e: ExportRealise) => `${CONTRAT_FORMAT[e.format].libelle} · ${e.largeur} × ${e.hauteur} · ${tailleLisible(e.octets)}`;
+/** Le nom d'un « Télécharger » de l'historique · plusieurs lignes portent le même mot, le lecteur d'écran doit les distinguer. */
+const nomTelechargement = (e: ExportRealise) => {
+  const le = date(e.le);
+  return `Télécharger la version ${e.versionN} en ${CONTRAT_FORMAT[e.format].libelle}${le ? `, exportée le ${le}` : ''}`;
+};
 
 /** `identite` · la fiche Identité de la marque, pour qui peut y réimporter un logo (le message dit qui peut, sinon). */
 function Violations({ violations, identite }: { violations: ViolationExport[]; identite: string | null }) {
@@ -43,7 +48,7 @@ function Violations({ violations, identite }: { violations: ViolationExport[]; i
         <div className="ev" key={`${i}-${v.cause}-${v.cible.calqueId ?? v.cible.type}`} data-cause={v.cause} data-cible={v.cible.calqueId ?? v.cible.type}>
           <span className="ico"><Ic n="warn" /></span>
           <span>{v.message}{(v.cible.assetId || v.cible.famille) && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.cible.famille ? `Police ${v.cible.famille}` : `Média ${v.cible.assetId}`}</small>}
-            {v.cause === 'logo_a_reimporter' && identite && <Lien href={identite} data-lien="identite-marque" style={{ display: 'inline-block', marginTop: 4, fontSize: '12px' }}>Ouvrir l’Identité de la marque</Lien>}</span>
+            {v.cause === 'logo_a_reimporter' && identite && <span style={{ display: 'block', marginTop: 6 }}><LienIdentite href={identite} /></span>}</span>
         </div>
       ))}
     </div>
@@ -57,6 +62,25 @@ export function Export({ vue, atelier }: PropsExport) {
   const [fait, setFait] = useState<ExportRealise | null>(null);
   const [erreur, setErreur] = useState<{ message: string; traceId: string; violations: ViolationExport[] } | null>(null);
   const pret = vue.preflight.ok && vue.peutExporter;
+  const id = useId();
+  const titres = { controle: `${id}-controle`, fichier: `${id}-fichier`, version: `${id}-version`, historique: `${id}-historique` };
+
+  /**
+   * Un bouton d'export · pendant l'export, celui qu'on a pressé reste
+   * FOCALISABLE (`aria-disabled`, `aria-busy`, le clic est ignoré) · un bouton
+   * `disabled` sous le focus le rend au document et le clavier repart du haut
+   * de la page. L'autre format est fermé (`disabled`) comme avant.
+   */
+  const bouton = (format: FormatExport) => ({
+    'data-format': format,
+    disabled: !pret || (encours !== null && encours !== format),
+    'aria-disabled': encours === format || undefined,
+    'aria-busy': encours === format || undefined,
+    onClick: () => { if (encours === null) void exporter(format); },
+  });
+
+  /** Le chemin de sortie d'un refus · les points à corriger vivent dans le document de la version. */
+  const corriger = <Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/image`} data-sortie="editeur"><Ic n="brush" />Corriger dans l’éditeur</Lien>;
 
   async function exporter(format: FormatExport) {
     setEncours(format); setErreur(null); setFait(null);
@@ -81,27 +105,30 @@ export function Export({ vue, atelier }: PropsExport) {
         actif={`/studio/projets/${vue.projet.id}/export`} aide="Fichier vérifié, dérivé de la version, sans génération." />
       <div className="grid2">
         <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
-          <section className="tile" data-preflight={vue.preflight.ok ? 'ok' : 'refus'} style={{ display: 'grid', gap: 8 }}>
-            <div className="lbl" style={{ margin: 0 }}>Contrôle avant export</div>
+          <section className="tile" data-preflight={vue.preflight.ok ? 'ok' : 'refus'} aria-labelledby={titres.controle} style={{ display: 'grid', gap: 8 }}>
+            <div className="lbl" id={titres.controle} style={{ margin: 0 }}>Contrôle avant export</div>
             {vue.document && <small className="faint" style={{ fontSize: '11.5px' }}>Version {vue.version.n} · document {vue.document.largeur} × {vue.document.hauteur} · {vue.document.calques} calque{vue.document.calques > 1 ? 's' : ''}</small>}
             {vue.preflight.ok ? (
-              <Message ton="ok">Tout est prêt · {vue.preflight.medias} média{vue.preflight.medias > 1 ? 's' : ''} relu{vue.preflight.medias > 1 ? 's' : ''} et décodé{vue.preflight.medias > 1 ? 's' : ''}, {vue.preflight.polices} police{vue.preflight.polices > 1 ? 's' : ''} embarquée{vue.preflight.polices > 1 ? 's' : ''}.</Message>
+              <Message ton="ok" etiquette="Prêt">Tout est prêt · {vue.preflight.medias} média{vue.preflight.medias > 1 ? 's' : ''} relu{vue.preflight.medias > 1 ? 's' : ''} et décodé{vue.preflight.medias > 1 ? 's' : ''}, {vue.preflight.polices} police{vue.preflight.polices > 1 ? 's' : ''} embarquée{vue.preflight.polices > 1 ? 's' : ''}.</Message>
             ) : (
               <>
-                <Message ton="err">Export impossible pour l’instant · {vue.preflight.violations.length} point{vue.preflight.violations.length > 1 ? 's' : ''} à corriger. Aucun fichier ne sera produit tant qu’il en reste.</Message>
+                <Message ton="err" etiquette="Bloqué">Export impossible pour l’instant · {vue.preflight.violations.length} point{vue.preflight.violations.length > 1 ? 's' : ''} à corriger. Aucun fichier ne sera produit tant qu’il en reste.</Message>
                 <Violations violations={vue.preflight.violations} identite={vue.identiteMarque ?? null} />
-                <div className="kc"><Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/image`}><Ic n="brush" />Corriger dans l’éditeur</Lien></div>
+                <div className="kc">{corriger}</div>
               </>
             )}
           </section>
 
-          <section className="tile" style={{ display: 'grid', gap: 8 }}>
-            <div className="lbl" style={{ margin: 0 }}>Fichier</div>
+          <section className="tile" aria-labelledby={titres.fichier} style={{ display: 'grid', gap: 8 }}>
+            <div className="lbl" id={titres.fichier} style={{ margin: 0 }}>Fichier</div>
             {vue.peutExporter ? (
-              <div className="kc">
-                <button className="btn sm pri" type="button" data-format="png" disabled={!pret || encours !== null} onClick={() => void exporter('png')}><Ic n="down" />{encours === 'png' ? 'Export PNG en cours…' : 'Exporter en PNG'}</button>
-                <button className="btn sm" type="button" data-format="jpeg" disabled={!pret || encours !== null} onClick={() => void exporter('jpeg')}><Ic n="down" />{encours === 'jpeg' ? 'Export JPEG en cours…' : 'Exporter en JPEG'}</button>
-              </div>
+              <>
+                <div className="kc">
+                  <button className="btn sm pri" type="button" {...bouton('png')}><Ic n="down" />{encours === 'png' ? 'Export PNG en cours…' : 'Exporter en PNG'}</button>
+                  <button className="btn sm" type="button" {...bouton('jpeg')}><Ic n="down" />{encours === 'jpeg' ? 'Export JPEG en cours…' : 'Exporter en JPEG'}</button>
+                </div>
+                {!vue.preflight.ok && <small className="faint" data-raison-ferme="" style={{ fontSize: '11.5px' }}>Les deux formats s’ouvrent dès que le contrôle avant export ne signale plus aucun point.</small>}
+              </>
             ) : <small className="faint" style={{ fontSize: '11.5px' }}>Ton rôle permet de consulter ce contrôle, pas d’exporter · demande un rôle Membre.</small>}
             <small className="faint" style={{ fontSize: '11.5px' }}>Gratuit · calcul local, aucune génération. Le fichier est dérivé de la version {vue.version.n} · il ne la modifie pas, et le projet reste éditable. PNG sans perte, identique à l’aperçu ; JPEG aplati sur fond blanc.</small>
             {fait && (
@@ -113,16 +140,16 @@ export function Export({ vue, atelier }: PropsExport) {
             )}
             {erreur && (
               <div role="alert" style={{ display: 'grid', gap: 6 }}>
-                <Message ton="err">{erreur.message}{erreur.traceId ? ` · identifiant support ${erreur.traceId}` : ''}</Message>
-                {erreur.violations.length > 0 && <Violations violations={erreur.violations} identite={vue.identiteMarque ?? null} />}
+                <Message ton="err" annonce={false}>{erreur.message}{erreur.traceId ? ` · identifiant support ${erreur.traceId}` : ''}</Message>
+                {erreur.violations.length > 0 && <><Violations violations={erreur.violations} identite={vue.identiteMarque ?? null} /><div className="kc">{corriger}</div></>}
               </div>
             )}
           </section>
         </div>
 
         <div style={{ display: 'grid', gap: 16, minWidth: 0, alignContent: 'start' }}>
-          <section className="tile">
-            <div className="lbl">Version à exporter</div>
+          <section className="tile" aria-labelledby={titres.version}>
+            <div className="lbl" id={titres.version}>Version à exporter</div>
             <div className="tl">
               {vue.versions.map((v) => (
                 <div className="ev" key={v.id} data-version-n={v.n}>
@@ -130,13 +157,13 @@ export function Export({ vue, atelier }: PropsExport) {
                   <span>Version {v.n}{v.courante ? <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>courante</small> : null}</span>
                   {v.id === vue.version.id
                     ? <span className="pill c" aria-current="page">Choisie</span>
-                    : <Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/export${v.courante ? '' : `?version=${v.id}`}`}>Choisir</Lien>}
+                    : <Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/export${v.courante ? '' : `?version=${v.id}`}`} aria-label={`Choisir la version ${v.n}`}>Choisir</Lien>}
                 </div>
               ))}
             </div>
           </section>
-          <section className="tile">
-            <div className="lbl">Exports de ce projet</div>
+          <section className="tile" aria-labelledby={titres.historique}>
+            <div className="lbl" id={titres.historique}>Exports de ce projet</div>
             {vue.historique.length === 0 ? <p className="muted" style={{ fontSize: '12.5px' }}>Aucun export pour l’instant.</p> : (
               <div className="tl">
                 {vue.historique.map((e) => (
@@ -146,7 +173,7 @@ export function Export({ vue, atelier }: PropsExport) {
                       <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{date(e.le)}{e.le ? ' · ' : ''}empreinte {e.empreinteCourte}</small>
                       <small className="faint" style={{ display: 'block', fontSize: '11.5px' }} data-conserve={e.conserve === true ? 'oui' : 'non'}>{libelleConservation(e.conserve === true)}</small>
                     </span>
-                    <a className="btn sm" href={e.url} download={e.nomFichier}>Télécharger</a>
+                    <a className="btn sm" href={e.url} download={e.nomFichier} aria-label={nomTelechargement(e)}>Télécharger</a>
                   </div>
                 ))}
               </div>
