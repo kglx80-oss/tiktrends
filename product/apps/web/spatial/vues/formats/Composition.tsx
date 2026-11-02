@@ -28,8 +28,14 @@ const ACCROCHE: Record<CleStyle, string> = {
 
 export interface PropsComposition {
   cle: CleStyle;
-  /** L'image de la marque active · `null` → pixel transparent. */
+  /** L'image de la marque active · `null` → l'initiale si elle est donnée, sinon pixel transparent. */
   image: string | null;
+  /**
+   * L'initiale de la marque, à la place de son image quand le logo par défaut
+   * n'est pas servi (remplacé, disparu · noyau `vignetteMarqueAffichee`) ·
+   * jamais une miniature vide qui ne dit rien.
+   */
+  initiale?: string | null;
   /** Le nom de la marque active · `null` → « Ta marque ». */
   marque: string | null;
   /** Remplace l'emplacement d'accroche. */
@@ -38,11 +44,13 @@ export interface PropsComposition {
 
 interface Img { pos?: string; scale?: number; filter?: string }
 
-export function Composition({ cle, image, marque, texte }: PropsComposition) {
+export function Composition({ cle, image, marque, texte, initiale }: PropsComposition) {
   const src = image || IMAGE_VIDE;
+  const lettre = !image && initiale ? initiale : null;
   const nom = marque?.trim() || 'Ta marque';
   const bas = nom.toLowerCase();
   const img = (x: Img = {}) => {
+    if (lettre) return <span aria-hidden="true" data-initiale style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: '30cqw', fontWeight: 700, lineHeight: 1, opacity: 0.55 }}>{lettre}</span>;
     const st: CSSProperties = {};
     if (x.pos) st.objectPosition = x.pos;
     if (x.scale) st.transform = `scale(${x.scale})`;

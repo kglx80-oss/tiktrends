@@ -15,7 +15,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
  *  - photo produit · l'adresse de la route, servie par la route ; le logo n'est
  *    pas vérifié (aucune requête) ;
  *  - logo intact · l'adresse de la route, un seul HEAD (If-Match) ;
- *  - logo REMPLACÉ · aucune image du logo (repli de la miniature), un HEAD ;
+ *  - logo REMPLACÉ · aucune image du logo · l'INITIALE de la marque dans chaque
+ *    miniature et le signal « Logo à réimporter » (lien vers l'Identité pour un
+ *    administrateur), un HEAD ;
  *  - logo sans empreinte · l'adresse de la route, AUCUNE requête.
  */
 const etat = vi.hoisted(() => ({ session: null as null | Record<string, unknown>, cookie: null as string | null }));
@@ -42,7 +44,7 @@ import { db, schema, eq } from '@tiktrends/db';
 import FormatsSpatial from '../app/(spatial)/sp/veille/formats/page';
 import FormatSpatial from '../app/(spatial)/sp/veille/formats/[format]/page';
 import { GET as routeMedia } from '../app/api/brands/[id]/media/route';
-import { IMAGE_VIDE } from '../spatial/vues/formats/Composition';
+import { AIDE_LOGO_SANS_GESTION, RAISONS_LOGO_CHARTE } from '@tiktrends/core';
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -102,6 +104,9 @@ async function pageStyle(cle = 'avap') {
 /** Les `src` des images des miniatures (et leurs `<link rel="preload">` hissés par React). */
 const sources = (html: string) => [...html.matchAll(/<img src="([^"]*)"/g)].map((m) => m[1]!);
 const prechargees = (html: string) => [...html.matchAll(/<link rel="preload"[^>]* href="([^"]*)"/g)].map((m) => m[1]!);
+/** Les initiales posées à la place de l'image, et le signal « Logo à réimporter ». */
+const initiales = (html: string) => [...html.matchAll(/<span aria-hidden="true" data-initiale="true"[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]!);
+const signal = (html: string) => { const i = html.indexOf('data-signal-logo'); return i < 0 ? null : html.slice(i, html.indexOf('</span></span>', i)); };
 const servir = (url: string) => routeMedia(new Request(`http://localhost${url.replace(/&amp;/g, '&')}`), { params: Promise.resolve({ id: A.b }) });
 
 beforeAll(async () => {
@@ -147,15 +152,40 @@ describe('Veille · Tous les formats · l’image des miniatures', () => {
     expect((await servir(sources(html)[0]!)).status).toBe(200);
   });
 
-  it('logo REMPLACÉ · aucune image du logo (le repli de la miniature), ni adresse privée ni route qui refuserait ; un HEAD', async () => {
+  it('logo REMPLACÉ · ni image du logo ni miniature vide · l’INITIALE de la marque et le signal « Logo à réimporter » (sans lien pour un membre) ; un HEAD', async () => {
     await charte({ empreinte: true });
     remplacer();
     const html = await tousLesFormats();
-    expect(new Set(sources(html))).toEqual(new Set([IMAGE_VIDE]));
+    expect(sources(html), 'aucune image dans les miniatures (ni le logo refusé, ni le pixel vide)').toEqual([]);
+    expect(initiales(html).length, 'l’initiale remplace l’image dans chaque miniature').toBeGreaterThan(20);
+    expect(new Set(initiales(html))).toEqual(new Set(['M']));
+    const sg = signal(html);
+    expect(sg, 'le signal « Logo à réimporter » est dit').not.toBeNull();
+    expect(sg).toContain('Logo à réimporter');
+    expect(sg).toContain(esc(RAISONS_LOGO_CHARTE.remplace));
+    expect(sg).toContain(esc(AIDE_LOGO_SANS_GESTION));
+    expect(sg, 'un membre n’a pas de lien vers l’Identité').not.toContain('<a ');
+    expect(sg).not.toContain('/identite');
     expect(html).not.toContain(esc(apercu(LOGO)));
     expect(html).not.toContain(LOGO);
     expect(heads().map((x) => x.cle)).toEqual([cleDe(LOGO)]);
     expect((await servir(apercu(LOGO))).status, 'la route l’aurait refusé').toBe(409);
+  });
+
+  it('logo REMPLACÉ, administrateur · le signal mène à l’Identité de la marque', async () => {
+    await charte({ empreinte: true });
+    remplacer();
+    etat.session = { ...etat.session!, role: 'admin' };
+    const sg = signal(await tousLesFormats());
+    expect(sg).toContain(`href="/brands/${A.b}/identite"`);
+    expect(sg).toContain('Réimporte-le dans l’Identité de la marque.');
+  });
+
+  it('logo intact · l’image, ni initiale ni signal', async () => {
+    await charte({ empreinte: true });
+    const html = await tousLesFormats();
+    expect(initiales(html)).toEqual([]);
+    expect(signal(html)).toBeNull();
   });
 
   it('logo SANS empreinte (ancien du bucket) · l’adresse de la route, AUCUNE requête au stockage', async () => {
@@ -168,12 +198,14 @@ describe('Veille · Tous les formats · l’image des miniatures', () => {
 });
 
 describe('Veille · la page d’un style · même image', () => {
-  it('logo REMPLACÉ · le repli, aucune image du logo ; photo produit · la route média', async () => {
+  it('logo REMPLACÉ · l’initiale et le signal, aucune image du logo ; photo produit · la route média', async () => {
     await charte({ empreinte: true });
     remplacer();
     const html = await pageStyle();
-    expect(sources(html).length).toBeGreaterThan(0);
-    expect(new Set(sources(html))).toEqual(new Set([IMAGE_VIDE]));
+    expect(sources(html), 'aucune image du logo ni pixel vide').toEqual([]);
+    expect(initiales(html).length).toBeGreaterThan(0);
+    expect(new Set(initiales(html))).toEqual(new Set(['M']));
+    expect(signal(html)).toContain('Logo à réimporter');
     expect(html).not.toContain(LOGO);
     expect(heads().map((x) => x.cle)).toEqual([cleDe(LOGO)]);
     await photoProduit();

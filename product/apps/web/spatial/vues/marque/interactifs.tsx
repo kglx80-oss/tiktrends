@@ -284,10 +284,12 @@ export function BadgeLogo({ e }: { e: Exclude<EtatLogoCharte, { etat: 'servi' }>
  * par `saveBrandDAAction` avec les couleurs et polices ACTUELLES (rien d'autre
  * ne change). L'import d'un FICHIER vit sur la carte du logo (`ImportLogo`).
  */
-export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices, enregistrer, etats = {}, reimporter = null }: {
+export function LogosCharte({ brandId, logos, defaut, apercus, libelles, couleurs, polices, enregistrer, etats = {}, reimporter = null }: {
   brandId: string; logos: readonly string[]; defaut: string | null;
   /** L'adresse d'affichage (proxy) de chaque logo connu. */
   apercus: Record<string, string>;
+  /** Le nom montré de chaque logo (noyau `libelleLogoCharte`) · un logo importé par son fichier, jamais son adresse privée. */
+  libelles: Readonly<Record<string, string>>;
   couleurs: readonly string[]; polices: readonly string[];
   enregistrer: ((i: { brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[] }) => Promise<{ ok?: true; error?: string }>) | null;
   /** Les logos qui ne sont PAS servis (noyau `bilanLogosCharte`, calculé au rendu serveur) · badge et raison. */
@@ -320,10 +322,11 @@ export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices
             {logos.map((u) => {
               // Un logo non servi n'a pas d'aperçu (la route refuse) · son badge et sa raison à la place.
               const e = Object.prototype.hasOwnProperty.call(etats, u) ? etats[u]! : null;
+              const nom = Object.prototype.hasOwnProperty.call(libelles, u) ? libelles[u]! : 'Logo';
               return (
               <div className="npr" key={u} data-logo-etat={e?.etat}>
                 <span className="applogo" style={{ width: 42, height: 42, overflow: 'hidden' }}>{apercus[u] && !e ? <img src={apercus[u]} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} /> : <Ic n={e ? 'warn' : 'img'} />}</span>
-                <div><strong style={{ overflowWrap: 'anywhere' }}>{u.replace(/^https?:\/\//, '')}</strong><small>{u === defaut ? 'Logo par défaut' : 'Variante'}{e ? ` · ${e.raison}` : ''}</small></div>
+                <div><strong style={{ overflowWrap: 'anywhere' }}>{nom}</strong><small>{u === defaut ? 'Logo par défaut' : 'Variante'}{e ? ` · ${e.raison}` : ''}</small></div>
                 {e && <BadgeLogo e={e} />}
                 {e?.etat === 'a_reimporter'
                   ? <ImportLogo brandId={brandId} logos={logos} defaut={defaut} couleurs={couleurs} polices={polices} remplace={u}
@@ -331,7 +334,7 @@ export function LogosCharte({ brandId, logos, defaut, apercus, couleurs, polices
                   : u === defaut
                   ? <span className="pill g"><Ic n="check" />Par défaut</span>
                   : <button className="btn sm" type="button" disabled={!!ferme || encours} title={ferme} onClick={() => sauver(u, [...logos], 'Logo par défaut enregistré')}>Par défaut</button>}
-                <button className="btn sm icon" type="button" aria-label={`Retirer le logo ${u}`} disabled={!!ferme || encours} title={ferme}
+                <button className="btn sm icon" type="button" aria-label={`Retirer le logo ${nom}`} disabled={!!ferme || encours} title={ferme}
                   onClick={() => sauver(u === defaut ? (logos.find((x) => x !== u) ?? '') : (defaut ?? ''), logos.filter((x) => x !== u), 'Logo retiré de la charte')}><Ic n="x" /></button>
               </div>
               );

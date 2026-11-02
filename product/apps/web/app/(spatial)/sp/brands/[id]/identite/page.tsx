@@ -1,8 +1,8 @@
-import { champsModifiablesMarque, connecteursBranches, costFor, formatCredits, initialeNom, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque, messageServiceInactif } from '@tiktrends/core';
+import { champsModifiablesMarque, connecteursBranches, costFor, formatCredits, initialeNom, libelleLogoCharte, listePropre, morceauxTexte, policeTechnique, styleVisuelMarque, type DaVisuelleMarque, messageServiceInactif } from '@tiktrends/core';
 import { deleteBrandAction, updateBrandAction } from '../../../../../actions/brands';
 import { extractBrandVisualDaAction, saveBrandDAAction, saveBrandVisualDaAction } from '../../../../../actions/brand-detail';
 import { ajouterConcurrents, proposerConcurrents } from '../../../../../actions/competitor';
-import { brandMediaPreview } from '../../../../../../lib/brand-media-url';
+import { brandMediaPreview, cleObjetStockage } from '../../../../../../lib/brand-media-url';
 import { Identite } from '../../../../../../spatial/vues/marque/Identite';
 import type { LigneKv } from '../../../../../../spatial/vues/marque/base';
 import { etatLogosCharte } from '../../../../../../lib/logos-charte-etat';
@@ -68,6 +68,8 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
         },
         logos: {
           logos, defaut: b.logoUrl ?? null, apercus: Object.fromEntries(logos.map((u) => [u, brandMediaPreview(b.id, u)])),
+          // Le nom montré · un logo importé par son fichier, jamais son adresse privée (noyau `libelleLogoCharte`).
+          libelles: Object.fromEntries(logos.map((u) => [u, libelleLogoCharte(u, cleObjetStockage(u))])),
           couleurs: b.colors ?? [], polices: b.fonts ?? [], enregistrer: saveBrandDAAction,
           etats: bilan.etats, reimporter: { actions: importLogo.actions, raison: importLogo.raison },
         },

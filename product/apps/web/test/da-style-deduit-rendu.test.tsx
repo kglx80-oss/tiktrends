@@ -38,7 +38,7 @@ function html(over: { daVisuelle?: typeof da | null } = {}): string {
       gestion={{
         nom: 'A', champs: [], edition: { action, valeurs: {} },
         style: { lignes: st.lignes, champs: st.champs, analyser: action, cout: 5, raison: null, corriger: action },
-        logos: { logos: [], defaut: null, apercus: {}, couleurs: [], polices: [], enregistrer: null },
+        logos: { logos: [], defaut: null, apercus: {}, libelles: {}, couleurs: [], polices: [], enregistrer: null },
         sourcing: { prix: '5 crédits', proposer: null, ajouter: null, raison: 'r' }, connexions: [], supprimer: null, retours: {},
       }}
     />,

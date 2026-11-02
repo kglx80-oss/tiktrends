@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   FAMILLES_STYLES, NIVEAUX_CONSCIENCE, STYLES_CREA, TRIS_STYLES, chiffresStyle, consigneStyle, ecartTendance, filtrerFamille,
   lienNouveauProjet, pastilleStyle, styleCorrespond, styleCrea, trierStyles, visiblesRecherche,
-  type CarteStyle, type CleStyle, type FamilleStyle, type StatsStyle, type TriStyles,
+  type CarteStyle, type CleStyle, type FamilleStyle, type SignalLogoAReimporter, type StatsStyle, type TriStyles,
 } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Composition } from './Composition';
+import { SignalLogo } from './SignalLogo';
 
 /**
  * « Tous les formats » · `docs/spatial/reference/formats.html`, balisage à
@@ -27,6 +28,9 @@ export interface PropsTousLesFormats {
   /** Image et nom de la marque active · les miniatures en sont faites. */
   image: string | null;
   marque: string | null;
+  /** L'initiale de la marque à la place d'un logo non servi, et le signal « Logo à réimporter » (noyau `vignetteMarqueAffichee`). */
+  initiale?: string | null;
+  signalLogo?: SignalLogoAReimporter | null;
   /** La ligne sous le compteur · le périmètre réel des chiffres. */
   perimetre: string;
   /** Vague 4 · les files de classement (Sauvegardes filtrées) · absentes quand elles sont vides. */
@@ -77,7 +81,7 @@ export function TousLesFormats(p: PropsTousLesFormats) {
               const ch = chiffresStyle(c.stats);
               return (
                 <Lien key={c.style.cle} href={`/veille/formats/${c.style.cle}`} className="ftrr">
-                  <span className="ftm"><Composition cle={c.style.cle} image={p.image} marque={p.marque} /></span>
+                  <span className="ftm"><Composition cle={c.style.cle} image={p.image} initiale={p.initiale} marque={p.marque} /></span>
                   <span style={{ minWidth: 0 }}><strong>{c.style.nom}</strong><small className="faint">{ch.pubs.b}{ch.pubs.texte} · {ch.longue.b}{ch.longue.texte}</small></span>
                   <span className="pill g">{ecartTendance(c.hausse!)}</span>
                 </Lien>
@@ -103,6 +107,7 @@ export function TousLesFormats(p: PropsTousLesFormats) {
         <span id="fcount"><b>{visibles}</b> style{visibles > 1 ? 's' : ''}</span>
         {famille !== 'tous' && <button type="button" className="chip" onClick={() => setFamille('tous')}>{famille}<Ic n="x" /></button>}
         <span className="faint">{p.perimetre}</span>
+        <SignalLogo s={p.signalLogo} />
         {p.files?.map((f) => <Lien key={f.href} className="chip" href={f.href} data-file-classement>{f.libelle}<Ic n="arrow" /></Lien>)}
       </div>
       <div className="fgrid2">
@@ -112,7 +117,7 @@ export function TousLesFormats(p: PropsTousLesFormats) {
           const ch = chiffresStyle(c.stats);
           return (
             <article key={s.cle} className={`fcard2 ${on ? 'on' : ''}`} hidden={!styleCorrespond(s, q) || undefined}>
-              <Lien className="fv" href={`/veille/formats/${s.cle}`} aria-label={`Ouvrir ${s.nom}`}><Composition cle={s.cle} image={p.image} marque={p.marque} /></Lien>
+              <Lien className="fv" href={`/veille/formats/${s.cle}`} aria-label={`Ouvrir ${s.nom}`}><Composition cle={s.cle} image={p.image} initiale={p.initiale} marque={p.marque} /></Lien>
               {badge && <span className={`fbadge ${badge.classe}`}>{badge.texte}</span>}
               <div className="fh"><strong>{s.nom}</strong><span className="pill">{s.famille}</span></div>
               <small className="fen">{s.enVeille.join(' · ')}</small>
@@ -130,7 +135,7 @@ export function TousLesFormats(p: PropsTousLesFormats) {
       <div className="dempty fnone" hidden={visibles > 0 || undefined}><span className="ico"><Ic n="search" s={false} /></span><h3>Aucun style ne correspond</h3><p className="muted">Essaie « avis », « comparaison » ou un nom anglais des bibliothèques publicitaires, comme « Big Logo ».</p></div>
       {sel && (
         <div className="ftray glass">
-          <span className="ftv"><Composition cle={sel.cle} image={p.image} marque={p.marque} texte=" " /></span>
+          <span className="ftv"><Composition cle={sel.cle} image={p.image} initiale={p.initiale} marque={p.marque} texte=" " /></span>
           <div className="fti"><small className="lbl">Ton choix</small><strong>{sel.nom}</strong><small className="faint">Le studio prépare un projet avec la consigne de ce format · rien n’est généré avant ta validation.</small></div>
           <div className="kc">
             <Lien className="btn pri" href={lienNouveauProjet({ type: 'ads', angle: consigneStyle(sel.cle) })}><Ic n="loop" />Créer avec ce style</Lien>
