@@ -10,7 +10,7 @@ import { getActiveBrand } from '../../../../../lib/brands';
 import { effectiveAccess } from '../../../../../lib/access';
 import { FEATURES, denyReason } from '../../../../../lib/rbac';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
-import { vignetteAd } from '../../../../../lib/adsmap-medias';
+import { jointureCreaDeLaMarque, vignetteAd } from '../../../../../lib/adsmap-medias';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
 import { iterationPlanAction, type IterationRow } from '../../../../actions/adsmap-iterate';
 import { Iterer } from '../../../../../spatial/vues/studios/Iterer';
@@ -57,12 +57,12 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
 
   const ids = [...new Set(rows.map((r) => r.adId))].slice(0, MAX_CHOIX_ITERATION);
   const contexte = new Map<string, ContexteAdSpatial>();
-  if (ids.length && db) {
+  if (ids.length && db && active) {
     try {
       const lignes = await db.select({ adId: schema.ads.id, metricsAgg: schema.verdicts.metricsAgg, lien: schema.ads.assetUrl, miniature: schema.creatives.thumbUrl, fichier: schema.creatives.storageUrl })
         .from(schema.ads)
         .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
-        .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
+        .leftJoin(schema.creatives, jointureCreaDeLaMarque(active.id))
         .where(and(eq(schema.ads.workspaceId, s.workspaceId), inArray(schema.ads.id, ids)));
       for (const l of lignes) {
         const roas = (l.metricsAgg as { roas?: unknown } | null)?.roas;

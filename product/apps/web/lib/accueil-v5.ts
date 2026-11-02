@@ -10,7 +10,7 @@ import { effectiveAccess } from './access';
 import { canAccess, denyReason, FEATURES, roleAtLeast } from './rbac';
 import { iterationPlanAction, type IterationRow } from '../app/actions/adsmap-iterate';
 import { LIMITE_CARTES_DEFAUT } from './studios/sources/projet';
-import { vignetteAd } from './adsmap-medias';
+import { jointureCreaDeLaMarque, vignetteAd } from './adsmap-medias';
 
 /**
  * UX V5 · l'Accueil · LECTURE SEULE des sources réelles.
@@ -75,7 +75,8 @@ export async function chargerProchainesIterations(
   }
   const prouves = rows ? gagnantsProuves(rows) : [];
   const contexte = new Map<string, ContexteGagnante>();
-  if (prouves.length && db) {
+  const marqueId = p.marque?.id;
+  if (prouves.length && db && marqueId) {
     const ids = prouves.slice(0, 2).map((r) => r.adId);
     const lus = await lire('contexte des gagnantes', async () => {
       const lignes = await db!.select({
@@ -87,7 +88,7 @@ export async function chargerProchainesIterations(
       }).from(schema.ads)
         .innerJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
         .leftJoin(schema.batches, and(eq(schema.batches.id, schema.ads.batchId), eq(schema.batches.workspaceId, s.workspaceId)))
-        .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
+        .leftJoin(schema.creatives, jointureCreaDeLaMarque(marqueId))
         .where(and(eq(schema.ads.workspaceId, s.workspaceId), inArray(schema.ads.id, ids)));
       const appris = await db!.selectDistinct({ adId: schema.learnings.adId }).from(schema.learnings)
         .where(and(

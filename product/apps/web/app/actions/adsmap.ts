@@ -11,7 +11,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { runAdsMapSyncForBrand } from '../../lib/adsmap-sync';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { cleObjetStockage } from '../../lib/brand-media-url';
-import { adVignetteDuLot, vignettesDesAds } from '../../lib/adsmap-medias';
+import { adsVignettesDuLot, jointureCreaDeLaMarque, vignetteDuLot, vignettesDesAds } from '../../lib/adsmap-medias';
 import { appUrl } from '../../lib/mailer';
 
 /**
@@ -246,22 +246,22 @@ export async function listBatchesAction(): Promise<Array<{ id: string; number: n
     id: schema.batches.id, number: schema.batches.number, status: schema.batches.status,
     goal: schema.batches.goal, launchedAt: schema.batches.launchedAt, ads: sql<number>`count(${schema.ads.id})`,
     // La vignette de la carte (V5) · le média RÉEL d'une variante du lot (créa
-    // persistée, sa miniature d'abord, sinon l'asset de l'ad), la variante
-    // choisie de façon déterministe · aucune image fabriquée. Un objet du
-    // stockage privé passe par la route gardée de l'ad (`vignettesDesAds`) ·
-    // jamais son adresse brute. Un lot sans aucun média rend `null`.
-    vignetteAd: adVignetteDuLot,
+    // de la marque, sa miniature d'abord, sinon l'asset de l'ad), la première
+    // candidate qui en a une selon la règle du noyau (`vignetteDuLot`) · aucune
+    // image fabriquée. Un objet du stockage privé passe par la route gardée de
+    // l'ad (`vignettesDesAds`) · jamais son adresse brute. Sans média · `null`.
+    candidates: adsVignettesDuLot,
   })
     .from(schema.batches)
     .leftJoin(schema.ads, eq(schema.ads.batchId, schema.batches.id))
-    .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
+    .leftJoin(schema.creatives, jointureCreaDeLaMarque(g.brand.id))
     .where(eq(schema.batches.brandId, g.brand.id))
     .groupBy(schema.batches.id)
     .orderBy(desc(schema.batches.number));
   // `launchedAt` distingue un lot importé (analysé, jamais lancé) d'un lot suivi ·
   // il alimente la nature du lot côté écran (CDC v8 · R04).
-  const vignettes = await vignettesDesAds(g.s.workspaceId, rows.map((r) => r.vignetteAd));
-  return rows.map(({ vignetteAd, ...r }) => ({ ...r, launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null, ads: Number(r.ads), thumbUrl: vignetteAd ? vignettes.get(vignetteAd) ?? null : null }));
+  const vignettes = await vignettesDesAds(g.s.workspaceId, g.brand.id, rows.flatMap((r) => r.candidates ?? []));
+  return rows.map(({ candidates, ...r }) => ({ ...r, launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null, ads: Number(r.ads), thumbUrl: vignetteDuLot(candidates, vignettes) }));
 }
 
 export interface SyncResult {

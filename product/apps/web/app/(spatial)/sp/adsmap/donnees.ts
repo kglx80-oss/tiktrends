@@ -10,7 +10,7 @@ import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { effectiveAccess } from '../../../../lib/access';
 import { canAccess, denyReason, FEATURES, roleAtLeast } from '../../../../lib/rbac';
-import { vignetteAd } from '../../../../lib/adsmap-medias';
+import { jointureCreaDeLaMarque, vignetteAd } from '../../../../lib/adsmap-medias';
 
 /**
  * Spatial · Résultats · lectures serveur partagées par les écrans de la rubrique.
@@ -92,7 +92,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
       .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
       .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
-      .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
+      .leftJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
       .where(and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId)))
       .orderBy(asc(schema.ads.variantCode))
       .limit(2000),

@@ -4,6 +4,7 @@ import { mediaAdDemande, sourceMediaAd } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { adsmapGuard } from '../../../../../lib/adsmap-guard';
 import { adsDeLaMarque } from '../../../../../lib/adsmap-marque';
+import { jointureCreaDeLaMarque } from '../../../../../lib/adsmap-medias';
 import { cleObjetStockage } from '../../../../../lib/brand-media-url';
 import { refusMedia, servirAdresseDirecte } from '../../../../../lib/media-reponse';
 
@@ -47,7 +48,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   if (!(await adsDeLaMarque(g.s.workspaceId, g.brand.id, [id])).has(id)) return refusMedia(404);
   const [ad] = await db.select({ lien: schema.ads.assetUrl, brief: schema.ads.briefUrl, miniature: schema.creatives.thumbUrl, fichier: schema.creatives.storageUrl })
     .from(schema.ads)
-    .leftJoin(schema.creatives, and(eq(schema.creatives.id, schema.ads.creativeId), eq(schema.creatives.brandId, g.brand.id)))
+    .leftJoin(schema.creatives, jointureCreaDeLaMarque(g.brand.id))
     .where(and(eq(schema.ads.id, id), eq(schema.ads.workspaceId, g.s.workspaceId))).limit(1);
   const source = ad ? sourceMediaAd(media, ad) : null;
   if (!source || cleObjetStockage(source) === null) return refusMedia(404);
