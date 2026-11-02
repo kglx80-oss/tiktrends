@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   toCsv, COL_HYPOTHESIS, SHEET_STATUS, SHEET_VERDICT, SHEET_STAGE, SHEET_VARIABLE, SHEET_FORMAT, SHEET_AD_TYPE,
-  sheetDate, sheetNumber, lienAdAffiche, routeApercuAdAdsmap, type SheetRow,
+  sheetDate, sheetNumber, lienAdAffiche, routeApercuAdAdsmap, phraseCreasEtrangeres, type SheetRow,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -305,7 +305,8 @@ export async function syncAdsMapAction(): Promise<SyncResult> {
       `${r.verdicts} verdict(s) recalculé(s)`,
     ].filter(Boolean);
     const reste = r.adsUnmatched ? ` · ${r.adsUnmatched} ad(s) non rattachée(s).` : '';
-    return { ok: true, unmatched: r.adsUnmatched, summary: parts.join(' · ') + '.' + reste };
+    const etrangeres = phraseCreasEtrangeres(r.adsCreaEtrangere);
+    return { ok: true, unmatched: r.adsUnmatched, summary: parts.join(' · ') + '.' + reste + (etrangeres ? ` ${etrangeres}` : '') };
   } catch (e) {
     if ((e as Error).message === 'meta_not_connected') {
       return { error: 'Le compte publicitaire Meta n’est pas connecté pour cette marque · va dans Connexions.' };

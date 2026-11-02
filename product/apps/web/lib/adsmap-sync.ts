@@ -3,11 +3,12 @@ import { db, schema, eq, and, inArray, sql } from '@tiktrends/db';
 import { decryptSecret, metaDailySync, metaAdsetsSync, type MetaDailyRow, type MetaAdsetInfo } from '@tiktrends/integrations';
 import {
   rollupDaily, evaluationWindow, brandMediansFrom, rankByCpa, matchByName, matchByBatchVariant,
-  checkProtocol, summarizeProtocol, computeVerdict, deriveMetrics, DEFAULT_VERDICT_CONFIG,
+  checkProtocol, summarizeProtocol, computeVerdict, deriveMetrics, DEFAULT_VERDICT_CONFIG, porteuseSynchro,
   type DailyRow, type VerdictConfig, type ProtocolAd, type ProtocolRules, type AdMetrics,
 } from '@tiktrends/core';
 import { refreshDecisions } from './decisions';
 import { daterJalons } from './jarvis-memory';
+import { jointureCreaDeLaMarque } from './adsmap-medias';
 
 /**
  * ADSMAP · mesure quotidienne de la carte.
@@ -32,6 +33,11 @@ import { daterJalons } from './jarvis-memory';
  *    interface qui les présente comme mesurés · personne ne les contesterait.
  *  - **on n'écrase jamais un verdict humain.** `validated` appartient à
  *    l'équipe ; le job ne touche qu'à `computed`.
+ *  - **on n'écrit les mesures d'une marque que sur SES créas.** Une ad liée à
+ *    la créa d'une autre marque (`porteuseSynchro` → `etrangere`) garde son
+ *    rattachement et son verdict, mais rien n'est écrit sur la créa étrangère
+ *    et le lien n'est pas réécrit · la réparation se décide ailleurs. Le compte
+ *    rendu les compte (`adsCreaEtrangere`).
  *
  * Best-effort par marque : une marque en échec n'arrête pas les suivantes.
  */
@@ -48,6 +54,8 @@ export interface AdsMapSyncReport {
   brands: number;
   adsMatched: number;
   adsUnmatched: number;
+  /** Ads rattachées dont la créa liée est d'une AUTRE marque · mesures non écrites sur cette créa, lien intact. */
+  adsCreaEtrangere: number;
   daysIngested: number;
   batchesChecked: number;
   verdicts: number;
@@ -65,6 +73,8 @@ interface CarteAd {
   batchId: string | null;
   batchNumber: number | null;
   creativeId: string | null;
+  /** La créa liée lue par la jointure BORNÉE à la marque · `null` si elle est d'une autre marque. */
+  creaDeLaMarque: string | null;
   variantCode: string;
   format: string;
   generatedName: string | null;
@@ -114,7 +124,10 @@ const CREATIVE_TYPE: Record<string, 'video' | 'image' | 'carousel'> = {
  * c'est la même table `creatives` que le reste du produit.
  */
 async function ensureCreative(ad: CarteAd, brandId: string): Promise<string | null> {
-  if (ad.creativeId) return ad.creativeId;
+  const porteuse = porteuseSynchro(ad.creativeId, ad.creaDeLaMarque);
+  if (porteuse.cas === 'propre') return porteuse.creativeId;
+  // Créa d'une autre marque · on n'y écrit rien, et on ne réécrit pas le lien.
+  if (porteuse.cas === 'etrangere') return null;
   const [c] = await db.insert(schema.creatives).values({
     brandId,
     fingerprintHash: `adsmap:${ad.id}`,
@@ -196,6 +209,7 @@ async function syncBrand(
   const rows = await db.select({
     id: schema.ads.id, workspaceId: schema.ads.workspaceId, conceptId: schema.ads.conceptId,
     batchId: schema.ads.batchId, batchNumber: schema.batches.number, creativeId: schema.ads.creativeId,
+    creaDeLaMarque: schema.creatives.id,
     variantCode: schema.ads.variantCode, format: schema.ads.format, generatedName: schema.ads.generatedName,
     externalIds: schema.ads.externalIds, launchedAt: schema.ads.launchedAt, status: schema.ads.status,
   })
@@ -205,6 +219,7 @@ async function syncBrand(
     .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
     .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
     .leftJoin(schema.batches, eq(schema.ads.batchId, schema.batches.id))
+    .leftJoin(schema.creatives, jointureCreaDeLaMarque(brand.id))
     .where(and(eq(schema.personas.brandId, brand.id), inArray(schema.ads.status, ['live', 'paused'])));
 
   const carte = rows as CarteAd[];
@@ -249,8 +264,15 @@ async function syncBrand(
   }
   if (!rattachees.length) return;
 
-  // 4 · Ingestion.
+  // 4 · Ingestion · sur une créa DE LA MARQUE seulement. Une ad liée à la créa
+  // d'une autre marque est écartée ici et ici seulement : son rattachement, ses
+  // repères et son verdict (qui ne lisent que les journées Meta) suivent leur cours.
   for (const r of rattachees) {
+    if (porteuseSynchro(r.ad.creativeId, r.ad.creaDeLaMarque).cas === 'etrangere') {
+      report.adsCreaEtrangere++;
+      console.warn('[adsmap] créa étrangère', JSON.stringify({ brandId: brand.id, adId: r.ad.id, creativeId: r.ad.creativeId }));
+      continue;
+    }
     const creativeId = await ensureCreative(r.ad, brand.id);
     if (!creativeId) continue;
     report.daysIngested += await ingest(creativeId, r.externalAdId, r.rows, r.adset);
@@ -389,7 +411,7 @@ async function syncBrand(
 /* -------------------------------------------------------------------------- */
 
 const vide = (): AdsMapSyncReport =>
-  ({ brands: 0, adsMatched: 0, adsUnmatched: 0, daysIngested: 0, batchesChecked: 0, verdicts: 0, errors: 0 });
+  ({ brands: 0, adsMatched: 0, adsUnmatched: 0, adsCreaEtrangere: 0, daysIngested: 0, batchesChecked: 0, verdicts: 0, errors: 0 });
 
 /**
  * Mesure la carte d'une seule marque · c'est ce que déclenche le bouton
@@ -438,6 +460,7 @@ export async function runAdsMapSync(): Promise<AdsMapSyncReport> {
 
   console.log(
     `[adsmap] done · marques=${report.brands} rattachées=${report.adsMatched} non rattachées=${report.adsUnmatched} ` +
+    `créa étrangère=${report.adsCreaEtrangere} ` +
     `jours=${report.daysIngested} lots=${report.batchesChecked} verdicts=${report.verdicts} erreurs=${report.errors}`,
   );
   return report;
