@@ -49,6 +49,13 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * dépôt, que le navigateur renvoyait comme identifiant · il ne rend plus que
  * le lien de PUT signé (`uploadUrl`, seule exemption) et un jeton de dépôt
  * opaque (`lib/jeton-depot.ts`).
+ *
+ * Fuite trouvée et corrigée · `listerDepartsAssistant` n'était appelé qu'avec
+ * « veille », sur une base sans sauvegarde · l'aperçu des GAGNANTES partait
+ * signé (`assetAiUrl`, 300 s) et la table Adsmap rendait le « Lien de l'Ad »
+ * brut. Chaque départ du noyau est désormais appelé (`variante`), sur une
+ * gagnante et une sauvegarde semées ; le lien passe par la route gardée de
+ * l'ad (`/api/adsmap/[id]/apercu`).
  */
 
 const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null, cookie: null as string | null }));
@@ -84,6 +91,7 @@ import { composerBrief, contenuVide, empreinteAdresse, empreinteContenu, idLogoM
 import { HYPOTHESE, sourceConcurrente, T0 } from './l5c-outils';
 import { jetonScelle } from './helpers/depot-jeton';
 import type { UsageDepot } from '@tiktrends/core';
+import { ORIGINES_DEPART_ASSISTANT, type OrigineDepartAssistant } from '@tiktrends/core';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -110,6 +118,9 @@ const FICHIER = objet('1700000000002-0a1b2c3d-rush.png');
 const VIGNETTE = objet('drive-1AbC-thumb.jpg');
 const JETABLE = objet('1700000000003-0f0f0f0f-jetable.png');
 const SCENE = objet('1700000000006-33333333-scene.png');
+/** Le média d'une gagnante Adsmap (« Lien de l'Ad » rangé au stockage) et la vignette d'une sauvegarde Veille · les aperçus des départs de l'assistant. */
+const GAGNANTE = objet('1700000000007-44444444-gagnante.png');
+const SAUVEE = objet('1700000000008-55555555-sauvee.png');
 const EXTERNE = 'https://site.exemple.fr/logo.png';
 /** Le site de la marque · hôte LITTÉRAL (aucune résolution DNS, `safeFetch`), servi par le faux réseau. */
 const SITE = 'https://93.184.216.34';
@@ -158,7 +169,7 @@ const cheminRoute = (f: string) => f.slice('../app'.length).replace(/\/route\.ts
 
 const s = {
   projet: '', version: '', sortie: '', job: '', fichier: '', jetable: '', lot: '', ticket: '', persona: '', desire: '', angle: '', concept: '', ad: '',
-  produit: '', produitJetable: '', dossier: '', projetJetable: '', scenario: '', generation: '', pub: '', projetImage: '', versionImage: '',
+  produit: '', produitJetable: '', dossier: '', projetJetable: '', scenario: '', generation: '', pub: '', projetImage: '', versionImage: '', sauvegarde: '',
 };
 const fd = (o: Record<string, string | string[]>) => {
   const f = new FormData();
@@ -174,15 +185,24 @@ const fd = (o: Record<string, string | string[]>) => {
  * recensement · on ne l'ajoute pas sans dire comment l'appeler.
  */
 type Phase = 'lecture' | 'appel' | 'destruction';
-type Appel = { phase: Phase; args: () => unknown[] };
-const L = (args: () => unknown[] = () => []): Appel => ({ phase: 'lecture', args });
-const A = (args: () => unknown[] = () => []): Appel => ({ phase: 'appel', args });
-const D = (args: () => unknown[] = () => []): Appel => ({ phase: 'destruction', args });
+/** `variante` · un même point d'entrée appelé sous plusieurs formes (un argument qui change la FORME du résultat) · le point se nomme alors `fichier#action(variante)`. */
+type Appel = { phase: Phase; args: () => unknown[]; variante?: string };
+const L = (args: () => unknown[] = () => [], variante?: string): Appel => ({ phase: 'lecture', args, variante });
+const A = (args: () => unknown[] = () => [], variante?: string): Appel => ({ phase: 'appel', args, variante });
+const D = (args: () => unknown[] = () => [], variante?: string): Appel => ({ phase: 'destruction', args, variante });
 const P = () => [{ projectId: s.projet }];
 const PI = () => [{ projectId: s.projetImage }];
 const PV = () => [{ projectId: s.projet, baseVersionId: s.version }];
 
-const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel>>>> = {
+/**
+ * Les départs de l'assistant · CHAQUE départ de la liste du noyau, pas un seul
+ * (« veille » seul laissait l'aperçu des gagnantes hors garde). Un départ
+ * ajouté au noyau est appelé d'office ; son objet semé se déclare ici (le type
+ * l'exige).
+ */
+const ID_DEPART: Readonly<Record<OrigineDepartAssistant, () => string>> = { veille: () => s.sauvegarde, iteration: () => s.ad };
+
+const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly Appel[]>>>> = {
   'app/actions/admin.ts': {
     saveProfileAction: A(() => [null, fd({ name: 'Kevin' })]),
     changePasswordAction: A(() => [fd({ current: 'x', next: 'y' })]),
@@ -325,7 +345,10 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel>>>> = {
     lireCanvasProjet: L(PI), enregistrerDispositionCanvas: A(() => [{ projectId: s.projet, disposition: {}, rev: 0 }]), reinitialiserDispositionCanvas: A(() => [{ projectId: s.projet, rev: 0 }]),
   },
   'app/actions/studios/concept.ts': { demarrerConcept: A() },
-  'app/actions/studios/departs-assistant.ts': { listerDepartsAssistant: L(() => ['veille']), lireDepartAssistant: A(() => ['veille', randomUUID()]) },
+  'app/actions/studios/departs-assistant.ts': {
+    listerDepartsAssistant: ORIGINES_DEPART_ASSISTANT.map((o) => L(() => [o], o)),
+    lireDepartAssistant: ORIGINES_DEPART_ASSISTANT.map((o) => A(() => [o, ID_DEPART[o]()], o)),
+  },
   'app/actions/studios/execution.ts': {
     estimerImpact: A(P), creerDevis: A(P), approuverEtMettreEnFile: A(() => [{ quoteId: randomUUID(), inputHash: 'x', creditsAnnonces: 0, idempotencyKey: randomUUID() }]),
     annulerJob: A(() => [{ jobId: randomUUID() }]), etatJob: L(() => [{ jobId: s.job }]), accepterMedia: A(() => [{ jobId: s.job }]), rejeterMedia: A(() => [{ jobId: randomUUID() }]),
@@ -430,6 +453,7 @@ const cron = (chemin: string) => R(() => ({ url: chemin, init: { headers: { auth
 const ROUTES: Readonly<Record<string, AppelRoute>> = {
   'GET /analytics': R(() => ({ url: '/analytics?vue=attribution' })),
   'GET /api/ad/[id]': RL(() => ({ url: `/api/ad/${s.pub}`, params: { id: s.pub } })),
+  'GET /api/adsmap/[id]/apercu': RL(() => ({ url: `/api/adsmap/${s.ad}/apercu`, params: { id: s.ad } })),
   'GET /api/asset/[id]': RL(() => ({ url: `/api/asset/${s.fichier}`, params: { id: s.fichier } })),
   'POST /api/bibliotheque/archive': RL(() => ({ url: '/api/bibliotheque/archive', init: { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: [s.fichier], dossiers: [] }) } })),
   'GET /api/brands/[id]/media': RL(() => ({ url: `/api/brands/${ids.brandA1}/media?url=${encodeURIComponent(PHOTO)}`, params: { id: ids.brandA1 } })),
@@ -570,7 +594,14 @@ beforeAll(async () => {
   const [de] = await db.insert(schema.desires).values({ workspaceId: ids.wsA, personaId: pe!.id, label: 'Désir' }).returning();
   const [an] = await db.insert(schema.angles).values({ workspaceId: ids.wsA, desireId: de!.id, label: 'Angle', mechanism: 'demo' }).returning();
   const [co] = await db.insert(schema.concepts).values({ workspaceId: ids.wsA, angleId: an!.id, title: 'Concept' }).returning();
-  const [ad] = await db.insert(schema.ads).values({ workspaceId: ids.wsA, conceptId: co!.id, variantCode: 'V1' }).returning();
+  // Une GAGNANTE arbitrée (verdict validé, comparable, apprentissage) dont le média vit au stockage · le départ « itération » de l'assistant la montre.
+  const [ad] = await db.insert(schema.ads).values({ workspaceId: ids.wsA, conceptId: co!.id, variantCode: 'V1', assetUrl: GAGNANTE }).returning();
+  octets.set(cleDe(GAGNANTE), Buffer.from(`\x89PNG objet ${createHash('md5').update(GAGNANTE).digest('hex')}`));
+  await db.insert(schema.verdicts).values({ adId: ad!.id, workspaceId: ids.wsA, computed: 'winner', validated: 'winner', status: 'validated', comparable: true });
+  await db.insert(schema.learnings).values({ workspaceId: ids.wsA, brandId: ids.brandA1, adId: ad!.id, scope: 'ad', statement: 'Une preuve en ouverture convertit mieux.', status: 'validated' });
+  // Une sauvegarde Veille dont la vignette est un objet du stockage · le départ « veille » de l'assistant la liste.
+  const [sv] = await db.insert(schema.savedAds).values({ workspaceId: ids.wsA, userId: ids.ua, brandId: ids.brandA1, platform: 'meta', externalId: 'sauvee-1', snapshot: { id: 'sauvee-1', platform: 'meta', mediaType: 'image', advertiserName: 'Concurrent observé', body: 'Une annonce observée', thumbnailUrl: SAUVEE } }).returning({ id: schema.savedAds.id });
+  s.sauvegarde = sv!.id;
   Object.assign(s, { persona: pe!.id, desire: de!.id, angle: an!.id, concept: co!.id, ad: ad!.id });
   const [sc] = await db.insert(schema.scenarios).values({ brandId: ids.brandA1, title: 'Scène' }).returning({ id: schema.scenarios.id });
   s.scenario = sc!.id;
@@ -616,9 +647,11 @@ async function chargerPoints(): Promise<{ points: Point[]; actions: string[]; ro
       if (typeof v !== 'function') continue;
       const cle = `${fichier}#${nom}`;
       actions.push(cle);
-      const a = ACTIONS[fichier]?.[nom];
-      if (!a) continue;
-      points.push({ cle, phase: a.phase, appeler: async () => ({ sortie: await appeler(async () => (v as Fn)(...a.args())), recu: null }) });
+      const appels = ACTIONS[fichier]?.[nom];
+      if (!appels) continue;
+      for (const a of [appels].flat()) {
+        points.push({ cle: a.variante ? `${cle}(${a.variante})` : cle, phase: a.phase, appeler: async () => ({ sortie: await appeler(async () => (v as Fn)(...a.args())), recu: null }) });
+      }
     }
   }
   for (const [f, charger] of Object.entries(ROUTES_FS)) {
@@ -669,6 +702,10 @@ const temoins = (): Readonly<Record<string, readonly string[]>> => ({
   'app/actions/assets.ts#pageBibliothequeAction': [`"url":"/api/asset/${s.fichier}?v=2&e=abc"`, `"thumbUrl":"/api/asset/${s.fichier}?v=2&thumb=1"`],
   'app/actions/brand-detail.ts#importBrandDAAction': [`/api/brands/${ids.brandA1}/media?url=${encodeURIComponent(LOGO)}`],
   'app/actions/studios/assistant.ts#ouvrirAssistantProjet': [`/api/brands/${ids.brandA1}/media?url=${encodeURIComponent(PHOTO)}`],
+  // Les départs de l'assistant · la gagnante par la route gardée de l'ad, la sauvegarde listée sans aperçu signé.
+  'app/actions/studios/departs-assistant.ts#listerDepartsAssistant(iteration)': [`"apercu":"/api/adsmap/${s.ad}/apercu"`],
+  'app/actions/studios/departs-assistant.ts#listerDepartsAssistant(veille)': [`"titre":"Concurrent observé","detail":"Une annonce observée","apercu":null`],
+  'app/actions/adsmap.ts#listAdsAction': [`"assetUrl":"/api/adsmap/${s.ad}/apercu"`],
   'app/actions/studios/produit.ts#lireProduitProjet': [
     `/studio/projets/${s.projetImage}/produit/fichier/${photoProduit()}`, `/studio/projets/${s.projetImage}/produit/fichier/${idLogoMarque(ids.brandA1, empreinteAdresse(LOGO).sha256)}`, `/api/asset/${s.fichier}`,
   ],
@@ -678,6 +715,7 @@ const temoins = (): Readonly<Record<string, readonly string[]>> => ({
   'GET /studio/projets/[id]/produit/fichier/[assetId]': ['302 ', signee(PHOTO)],
   'GET /api/studios/media/[id]': ['200 ', '"content-type":"image/png"'],
   'GET /api/ad/[id]': ['200 ', '"content-type":"image/png"'],
+  'GET /api/adsmap/[id]/apercu': ['302 ', signee(GAGNANTE)],
   'POST /api/bibliotheque/archive': ['200 ', 'Rush.png'],
 });
 
@@ -709,9 +747,15 @@ describe('Routes et actions · aucune adresse brute du stockage privé ne part a
     expect.soft(declarees.filter((c) => !actions.includes(c)), 'entrée morte dans `ACTIONS` (l’action n’existe plus)').toEqual([]);
     expect.soft(routes.filter((c) => !(c in ROUTES)), 'point d’entrée NON RECENSÉ · dis comment l’appeler dans `ROUTES`').toEqual([]);
     expect.soft(Object.keys(ROUTES).filter((c) => !routes.includes(c)), 'entrée morte dans `ROUTES` (la route n’existe plus)').toEqual([]);
-    const tous = [...actions, ...routes];
+    const tous = [...actions, ...routes, ...POINTS.map((p) => p.cle)];
     expect.soft(EXEMPTIONS.filter((x) => !tous.includes(x.point)).map((x) => x.point), 'exemption d’un point d’entrée inconnu').toEqual([]);
     expect.soft(Object.keys(temoins()).filter((c) => !tous.includes(c)), 'témoin d’un point d’entrée inconnu').toEqual([]);
+  });
+
+  it('chaque départ de l’assistant (liste du noyau) est appelé · aucun aperçu hors garde', () => {
+    const cles = new Set(POINTS.map((p) => p.cle));
+    const manquants = ORIGINES_DEPART_ASSISTANT.filter((o) => !cles.has(`app/actions/studios/departs-assistant.ts#listerDepartsAssistant(${o})`));
+    expect(manquants, 'départ de l’assistant NON EXERCÉ · `listerDepartsAssistant` doit être appelé avec chaque départ du noyau').toEqual([]);
   });
 
   it.each(POINTS.map((p) => [p.cle, p] as const))('%s · rien de brut dans ce qui sort', async (cle, p) => {

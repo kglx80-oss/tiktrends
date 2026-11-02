@@ -10,4 +10,5 @@ export * from './hypotheses';
 export * from './produit';
 export * from './import';
 export * from './concurrence';
+export * from './departs-assistant';
 export * from '../brief';
