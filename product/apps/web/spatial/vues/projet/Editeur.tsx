@@ -7,8 +7,8 @@ import {
   classeFormat, definirVerrou, definirVisibilite, deplacementVersDocument, documentInitial, dupliquerCalque, enregistrerEtape, formatDuDocument,
   historiqueInitial, iconeCalque, libelleZoom, longueurTexte, raccourciZoom, MARGE_ZONE_EDITEUR, memeValeur, modifierRemplissage, modifierTexte, noteCalques, nuancier, patchDocument,
   policeEditeur, prochainAnnuler, prochainRetablir, reappliquerModifications, renommerCalque, reordonnerCalque, retablirEtape,
-  statutEnregistrement, supprimerCalque, titreInspecteur, transformerCalque, annonceRestauration, decisionRestauration,
-  type CalqueStudio, type ContenuVersion, type DocumentStudio, type FormatDocument, type FormatPropose, type HistoriqueCalques,
+  statutEnregistrement, supprimerCalque, titreInspecteur, transformerCalque, annonceRestauration, decisionRestauration, rappelLogosExport,
+  type AnnonceLogosEditeur, type CalqueStudio, type SignalLogoCalque, type ContenuVersion, type DocumentStudio, type FormatDocument, type FormatPropose, type HistoriqueCalques,
   type ModeAlignement, type ProduitInitial, type ResultatOperation, type SensOrdre,
 } from '@tiktrends/core';
 import { createPortal } from 'react-dom';
@@ -52,6 +52,12 @@ export interface PropsEditeur {
   couleursMarque: string[];
   exporterHref: string | null;
   variantesHref: string;
+  /**
+   * Les calques qui posent un logo de la charte remplacé, disparu ou non
+   * vérifiable · jugés au rendu serveur (`annonceLogosDesCalques`), dits sur le
+   * calque et près de l'export. Absent · aucun logo à signaler.
+   */
+  logos?: AnnonceLogosEditeur | null;
   /** Recette · calque choisi au premier rendu. */
   selectionInitiale?: string | null;
 }
@@ -166,6 +172,11 @@ export function Editeur(props: PropsEditeur) {
   const pile = present ? calquesParZ(present) : [];
   const format = present ? formatDuDocument(present) : null;
   const couleurs = useMemo(() => nuancier(props.couleursMarque, present, 4), [props.couleursMarque, present]);
+  // Logos de la charte refusés · le signal par logo vient du serveur, le rappel d'export est relu sur le document COURANT.
+  const signaux = props.logos?.logos ?? {};
+  const signalDe = (c: CalqueStudio | null): SignalLogoCalque | null => (c && (c.kind === 'image' || c.kind === 'logo') && Object.prototype.hasOwnProperty.call(signaux, c.assetId) ? signaux[c.assetId]! : null);
+  const rappelLogos = props.logos ? rappelLogosExport(pile, signaux) : null;
+  const signalCalque = signalDe(calque);
   // Zoom de la zone de travail · état d'AFFICHAGE seulement, jamais dans le document ni l'historique.
   const zoom = useZoomEditeur(present ? { width: present.width, height: present.height } : null);
   // Un panneau ouvert sur un calque disparu (suppression, restauration) se referme.
@@ -340,9 +351,23 @@ export function Editeur(props: PropsEditeur) {
             {(calque?.kind === 'image' || calque?.kind === 'logo') && (
               <p className="muted" style={{ fontSize: 13 }}>{calque.id === 'produit' ? 'Photo produit issue du projet · référencée, jamais copiée ni régénérée.' : `${calque.kind === 'logo' ? 'Logo' : 'Média'} du projet · ${calque.width} × ${calque.height} px dans le document, référencé, jamais copié.`}</p>
             )}
+            {calque && signalCalque && (
+              <div role="status" data-logo-signal={signalCalque.etat} data-calque-signal={calque.id} style={{ display: 'grid', gap: 6, padding: '10px 12px', borderRadius: 14, border: '1px solid var(--edge2)' }}>
+                <span className={`pill ${signalCalque.etat === 'a-reimporter' ? 'w' : ''}`} style={{ justifySelf: 'start' }}><Ic n="warn" />{signalCalque.libelle}</span>
+                <span className="muted" style={{ fontSize: 13 }}>{signalCalque.raison}</span>
+                {signalCalque.aide && <span className="faint" style={{ fontSize: '12.5px' }}>{signalCalque.aide}</span>}
+                {signalCalque.lien && <LienIdentite href={signalCalque.lien} />}
+              </div>
+            )}
             {!calque && <p className="muted" style={{ fontSize: 13 }}>{present ? 'Choisis un calque dans la liste ou sur l’aperçu pour le modifier.' : 'Crée d’abord le document.'}</p>}
             <div style={{ borderTop: '1px solid var(--edge2)', paddingTop: 14, display: 'grid', gap: 8 }}>
               <Lien className="btn pri" href={props.variantesHref}><Ic n="loop" />Tester des variantes</Lien>
+              {rappelLogos && (
+                <div role="status" data-rappel-export={rappelLogos.etat} data-calques={rappelLogos.calques.join(' ')} style={{ display: 'grid', gap: 6, fontSize: '12.5px' }}>
+                  <span style={{ color: rappelLogos.etat === 'a-reimporter' ? 'var(--warn)' : 'var(--fg2)' }}>{rappelLogos.message}</span>
+                  {rappelLogos.lien && <LienIdentite href={rappelLogos.lien} />}
+                </div>
+              )}
               {props.exporterHref
                 ? <Lien className="btn" href={props.exporterHref}><Ic n="down" />Exporter</Lien>
                 : <button className="btn" type="button" disabled title="L’export n’est pas ouvert pour ton rôle ou ton espace"><Ic n="down" />Exporter</button>}
@@ -430,7 +455,7 @@ export function Editeur(props: PropsEditeur) {
                     return (
                       <div key={c.id} data-calque={c.id} onPointerDown={(e) => debut(e, c)}
                         style={{ position: 'absolute', left: pct(g ? g.x0 + g.dx : c.x, present.width), top: pct(g ? g.y0 + g.dy : c.y, present.height), width: pct(c.width, present.width), height: pct(c.height, present.height), transform: c.rotationDeg ? `rotate(${c.rotationDeg}deg)` : undefined, opacity: c.opacity, zIndex: rang + 1, cursor: editable && !c.locked ? 'grab' : 'default', userSelect: 'none' }}>
-                        <ContenuCalque c={c} doc={present} apercu={c.kind === 'image' || c.kind === 'logo' ? apercus[c.assetId] ?? null : null} />
+                        <ContenuCalque c={c} doc={present} apercu={c.kind === 'image' || c.kind === 'logo' ? apercus[c.assetId] ?? null : null} signal={signalDe(c)} />
                         {selection === c.id && <i className="sel" style={{ borderRadius: 0 }} />}
                       </div>
                     );
@@ -628,7 +653,7 @@ function Miniature({ doc, apercus }: { doc: DocumentStudio; apercus: Record<stri
   );
 }
 
-function ContenuCalque({ c, doc, apercu }: { c: CalqueStudio; doc: DocumentStudio; apercu: string | null }) {
+function ContenuCalque({ c, doc, apercu, signal = null }: { c: CalqueStudio; doc: DocumentStudio; apercu: string | null; signal?: SignalLogoCalque | null }) {
   if (c.kind === 'text') {
     const p = policeEditeur(c.fontId);
     return (
@@ -636,8 +661,26 @@ function ContenuCalque({ c, doc, apercu }: { c: CalqueStudio; doc: DocumentStudi
     );
   }
   if (c.kind === 'shape') return <div aria-hidden style={{ width: '100%', height: '100%', background: c.fill, borderRadius: c.shape === 'ellipse' ? '50%' : 0 }} />;
+  // Un logo que la route refuserait (à réimporter, non vérifiable) · le signal, jamais une image cassée ni un repli muet.
+  if (signal) return <SignalCalque signal={signal} nom={c.name} />;
   if (apercu) return <ImageCalque src={apercu} nom={c.name} />;
   return <RepliCalque nom={c.name} />;
+}
+
+/** Le calque d'un logo de la charte non servi · ce qu'il est et pourquoi, à la place de l'image. */
+function SignalCalque({ signal, nom }: { signal: SignalLogoCalque; nom: string }) {
+  const ton = signal.etat === 'a-reimporter' ? 'var(--warn)' : 'var(--fg3)';
+  return (
+    <div data-logo-calque={signal.etat} role="img" aria-label={`Calque « ${nom} » · ${signal.libelle}. ${signal.raison}`} title={signal.raison}
+      style={{ width: '100%', height: '100%', display: 'grid', placeContent: 'center', gap: '0.3em', textAlign: 'center', fontSize: 'max(10px, 2.4cqw)', border: `1px dashed ${ton}`, color: ton, overflow: 'hidden' }}>
+      <strong>{signal.libelle}</strong><span style={{ color: 'var(--fg2)' }}>{nom}</span>
+    </div>
+  );
+}
+
+/** Le chemin vers l'Identité de la marque · posé pour un admin seulement, cible tactile de 44 px. */
+function LienIdentite({ href }: { href: string }) {
+  return <Lien href={href} data-lien="identite-marque" className="btn sm" style={{ justifySelf: 'start', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>Ouvrir l’Identité de la marque</Lien>;
 }
 
 function RepliCalque({ nom }: { nom: string }) {
