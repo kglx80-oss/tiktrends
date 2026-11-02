@@ -7,6 +7,7 @@ import { roleAtLeast } from '../../../../../../../lib/rbac';
 import { gardeStudio } from '../../../../../../../lib/studios/garde';
 import { lireEditeurPour } from '../../../../../../../lib/studios/editeur/lecture';
 import { urlsApercu } from '../../../../../../../lib/studios/editeur/apercus';
+import { annonceLogosDesCalques } from '../../../../../../../lib/studios/editeur/logos-calques';
 import { liensAtelierProjet } from '../../../../../../../lib/navigation';
 import { etatInterrupteurs } from '../../../../../../../lib/studios/interrupteurs';
 import { Editeur } from '../../../../../../../spatial/vues/projet/Editeur';
@@ -20,6 +21,10 @@ export const dynamic = 'force-dynamic';
  * Mêmes gardes que la page V5 · `studio.read` + capacité « editeur », portée
  * marque ; l'enregistrement passe par `enregistrerDocument` (`studio.propose`),
  * sans ce droit l'écran est en lecture seule. Aucune génération.
+ *
+ * Un calque qui pose un logo de la charte remplacé depuis son import (ou que le
+ * stockage n'a pas pu confirmer) le dit au rendu serveur, sur le calque et près
+ * de l'export (`annonceLogosDesCalques`) · une `<img>` ne lirait pas la cause.
  */
 export default async function EditeurSpatial({ params }: { params: Promise<{ id: string }> }) {
   const s = await getSession();
@@ -40,6 +45,8 @@ export default async function EditeurSpatial({ params }: { params: Promise<{ id:
     .where(and(eq(schema.studioProjects.id, d.projet.id), eq(schema.studioProjects.workspaceId, s.workspaceId))).limit(1) : [];
   const [b] = db && p ? await db.select({ colors: schema.brands.colors }).from(schema.brands)
     .where(and(eq(schema.brands.id, p.brandId), eq(schema.brands.workspaceId, s.workspaceId))).limit(1) : [];
+  // Les calques logo · jugés par leur empreinte (0 requête sans logo de la charte à empreinte, 1 HEAD par logo distinct sinon).
+  const logos = g.ok && p ? await annonceLogosDesCalques(g.ctx, { workspaceId: g.ctx.workspaceId, brandId: p.brandId }, d.document) : null;
   const atelier = liensAtelierProjet(d.projet.id, (await etatInterrupteurs(s.workspaceId)).actif);
   const exporter = roleAtLeast(s.role, 'member') ? atelier.find((a) => a.segment === 'export')?.href ?? null : null;
 
@@ -48,6 +55,7 @@ export default async function EditeurSpatial({ params }: { params: Promise<{ id:
       projet={d.projet} version={d.version} contenu={d.contenu} document={d.document} formatPropose={d.formatPropose}
       produit={d.produit} medias={d.medias} apercus={urlsApercu(ids, d.projet.id)} peutEnregistrer={d.peutEnregistrer}
       couleursMarque={b?.colors ?? []} exporterHref={exporter} variantesHref={`/studio/projets/${d.projet.id}#variantes`}
+      logos={logos}
     />
   );
 }
