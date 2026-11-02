@@ -1,4 +1,4 @@
-import { estDroitAsset, libelleDroit, type DroitAsset } from '../../bibliotheque-dossiers';
+import { estDroitAsset, libelleDroit, refusDeplacementTropLarge, type DroitAsset } from '../../bibliotheque-dossiers';
 import { selectionATaguer, type DonneesDrive, type FichierDrive, type SectionDrive } from './drive';
 import { TAG_SELECTION_MAX } from './tags-couleur';
 
@@ -17,7 +17,10 @@ import { TAG_SELECTION_MAX } from './tags-couleur';
  *    `restaurerDossierAction`) et les fichiers (`mettreAssetsCorbeilleAction`,
  *    `restaurerAssetsAction` · tout ou rien, réversible, aucun objet du bucket effacé) ;
  *  · « Tag de couleur » · les dossiers (`definirTagDossiersAction`) ;
- *  · « Déplacer vers… » · les fichiers (`affecterAssetsDossierAction`) ;
+ *  · « Déplacer vers… » · les fichiers (`affecterAssetsDossierAction`) OU les
+ *    dossiers (`deplacerDossiersAction` · anti-cycle pour chacun et entre eux,
+ *    `validerDeplacementDossiers`), jamais les deux d'un coup (sélection mixte
+ *    fermée · deux actions ne feraient pas un tout ou rien) ;
  *  · « Droits d'usage » · les fichiers (`definirDroitsAssetsAction`) ;
  *  · « Servir à l'IA » · les fichiers (`basculerAssetsIaAction`) ;
  *  · « Utiliser dans un projet » · les fichiers, versés dans les références
@@ -68,7 +71,8 @@ export const GESTES_SANS_ACTION: ReadonlyArray<{ cle: 'partager' | 'favori'; lib
 export const RAISONS_SELECTION = {
   corbeilleVide: 'Rien à mettre à la corbeille dans la sélection.',
   tagFichiers: 'Les fichiers ne portent pas de tag · seuls les dossiers en portent un.',
-  rangerDossiers: 'Un dossier ne se déplace pas · seuls les fichiers se rangent dans un dossier.',
+  rangerMixte: 'Sélection mixte · dossiers et fichiers se déplacent séparément.',
+  rangerVide: 'Rien à déplacer dans la sélection.',
   droitsDossiers: 'Un dossier ne porte pas de droits d’usage · seuls les fichiers en portent.',
   iaDossiers: 'Un dossier n’a pas de réglage IA · seuls les fichiers servent à l’IA.',
   projetDossiers: 'Un dossier ne se verse pas dans un projet · seules les images deviennent des références.',
@@ -155,7 +159,9 @@ export function gestesSelection(d: DonneesDrive, selection: Iterable<string>, ct
     gestes = [
       geste('corbeille', 'Mettre à la corbeille', nf ? bornes : nd ? null : RAISONS_SELECTION.corbeilleVide),
       geste('tag', 'Tag de couleur', composition === 'fichiers' ? RAISONS_SELECTION.tagFichiers : tag.refus),
-      geste('ranger', 'Déplacer vers…', pourFichiers(RAISONS_SELECTION.rangerDossiers)),
+      geste('ranger', 'Déplacer vers…', composition === 'fichiers' ? bornes
+        : composition === 'dossiers' ? (nd > TAG_SELECTION_MAX ? refusDeplacementTropLarge(nd) : null)
+          : composition === 'mixte' ? RAISONS_SELECTION.rangerMixte : RAISONS_SELECTION.rangerVide),
       geste('droits', 'Droits d’usage', pourFichiers(RAISONS_SELECTION.droitsDossiers)),
       ...(ctx.ia ? [geste('ia', fichiers.length && fichiers.every((f) => f.utilisable === true) ? 'Ne plus servir à l’IA' : 'Servir à l’IA', pourFichiers(RAISONS_SELECTION.iaDossiers))] : []),
       geste('projet', 'Utiliser dans un projet', pourFichiers(RAISONS_SELECTION.projetDossiers)),
@@ -169,12 +175,13 @@ export function gestesSelection(d: DonneesDrive, selection: Iterable<string>, ct
   const inviteDroits = droitCommun === undefined ? 'Droits d’usage…'
     : `Droits d’usage · ${droitCommun && estDroitAsset(droitCommun) ? libelleDroit(droitCommun) : 'non classés'}`;
 
-  const gestesFichiers = ctx.ia ? 'déplacer, droits et IA' : 'déplacer et droits';
+  // Déplacer vaut pour les dossiers ET les fichiers (séparément) · la phrase ne nomme que les gestes des seuls fichiers.
+  const gestesFichiers = ctx.ia ? 'droits et IA' : 'droits';
   const note = ls ? ls
     : bornes ? bornes
       : borneTag ? borneTag
       : corbeille || composition === 'vide' ? null
-        : composition === 'mixte' ? `Sélection mixte · corbeille pour tous, tag pour ${pluriel(nd, 'dossier')}, ${gestesFichiers} pour ${pluriel(nf, 'fichier')}.`
+        : composition === 'mixte' ? `Sélection mixte · corbeille pour tous, tag pour ${pluriel(nd, 'dossier')}, ${gestesFichiers} pour ${pluriel(nf, 'fichier')} · dossiers et fichiers se déplacent séparément.`
           : composition === 'fichiers' ? 'Les fichiers ne portent pas de tag · à la corbeille, ils restent restaurables.'
             : `Les gestes des fichiers (${gestesFichiers}) ne s’appliquent pas à un dossier.`;
 

@@ -53,13 +53,18 @@ describe('ce qui se sélectionne', () => {
 });
 
 describe('les gestes selon la composition', () => {
-  it('DOSSIERS seuls · corbeille et tag ouverts ; déplacer, droits, IA fermés avec leur phrase', () => {
+  it('DOSSIERS seuls · corbeille, tag et déplacer ouverts ; droits, IA fermés avec leur phrase', () => {
     const s = gestesSelection(d, ['a'], DRIVE);
     expect(s.composition).toBe('dossiers');
     expect(s.gestes.map((g) => g.libelle)).toEqual(['Mettre à la corbeille', 'Tag de couleur', 'Déplacer vers…', 'Droits d’usage', 'Servir à l’IA', 'Utiliser dans un projet']);
-    expect(ouverts(s)).toEqual(['corbeille', 'tag']);
-    expect([raison(s, 'ranger'), raison(s, 'droits'), raison(s, 'ia'), raison(s, 'projet')]).toEqual([RAISONS_SELECTION.rangerDossiers, RAISONS_SELECTION.droitsDossiers, RAISONS_SELECTION.iaDossiers, RAISONS_SELECTION.projetDossiers]);
-    expect(s.note).toBe('Les gestes des fichiers (déplacer, droits et IA) ne s’appliquent pas à un dossier.');
+    expect(ouverts(s)).toEqual(['corbeille', 'tag', 'ranger']);
+    expect([raison(s, 'droits'), raison(s, 'ia'), raison(s, 'projet')]).toEqual([RAISONS_SELECTION.droitsDossiers, RAISONS_SELECTION.iaDossiers, RAISONS_SELECTION.projetDossiers]);
+    expect(s.note).toBe('Les gestes des fichiers (droits et IA) ne s’appliquent pas à un dossier.');
+  });
+
+  it('rien de déplaçable (un dossier système seul) · « Déplacer vers… » fermé, avec sa phrase', () => {
+    const s = gestesSelection(d, ['sys'], DRIVE);
+    expect([s.composition, raison(s, 'ranger')]).toEqual(['vide', RAISONS_SELECTION.rangerVide]);
   });
 
   it('FICHIERS seuls · corbeille, déplacer, droits, IA ouverts ; « les fichiers ne portent pas de tag »', () => {
@@ -73,14 +78,16 @@ describe('les gestes selon la composition', () => {
   it('MIXTE · chaque geste ouvert vise sa part, la phrase dit laquelle', () => {
     const s = gestesSelection(d, ['a', 'm1', 'm2'], DRIVE);
     expect(s.composition).toBe('mixte');
-    expect(ouverts(s)).toEqual(['corbeille', 'tag', 'ranger', 'droits', 'ia', 'projet']);
-    expect(s.note).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, déplacer, droits et IA pour 2 fichiers.');
+    expect(ouverts(s)).toEqual(['corbeille', 'tag', 'droits', 'ia', 'projet']);
+    // Déplacer · fermé pour une sélection mixte (deux actions ne feraient pas un tout ou rien).
+    expect(raison(s, 'ranger')).toBe(RAISONS_SELECTION.rangerMixte);
+    expect(s.note).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, droits et IA pour 2 fichiers · dossiers et fichiers se déplacent séparément.');
   });
 
   it('sans les gestes IA de l’écran · « Servir à l’IA » n’apparaît pas, la phrase ne le cite pas', () => {
     const s = gestesSelection(d, ['a', 'm1'], { ...DRIVE, ia: false });
     expect(s.gestes.map((g) => g.cle)).toEqual(['corbeille', 'tag', 'ranger', 'droits', 'projet']);
-    expect(s.note).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, déplacer et droits pour 1 fichier.');
+    expect(s.note).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, droits pour 1 fichier · dossiers et fichiers se déplacent séparément.');
   });
 
   it('CORBEILLE · seul « Restaurer », sur les dossiers jetés · un fichier VIVANT n’y est jamais', () => {

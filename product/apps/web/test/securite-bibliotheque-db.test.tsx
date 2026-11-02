@@ -89,7 +89,7 @@ import * as actionsAssets from '../app/actions/assets';
 import {
   listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction, basculerAssetsIaAction,
   tagUntaggedImagesAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction,
-  basculerTemplateAction, mettreAssetsCorbeilleAction, restaurerAssetsAction,
+  basculerTemplateAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction,
 } from '../app/actions/assets';
 import { followBrand, unfollowBrand } from '../app/actions/inspo';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
@@ -141,6 +141,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['deleteAssetAction', () => deleteAssetAction({ id: A.video })],
   ['mettreAssetsCorbeilleAction', () => mettreAssetsCorbeilleAction({ ids: [A.image] })],
   ['restaurerAssetsAction', () => restaurerAssetsAction({ ids: [A.image] })],
+  ['renommerAssetAction', () => renommerAssetAction({ id: A.image, nom: 'Renommé' })],
 ];
 
 /**
