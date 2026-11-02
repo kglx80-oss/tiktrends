@@ -37,6 +37,7 @@ export * from './connecteurs-catalogue';
 export * from './adsmap/calibration-score';
 export * from './adsmap/sheet';
 export * from './adsmap/import-sheet';
+export * from './adsmap/liens-app-import';
 export * from './adsmap/protocol';
 export * from './adsmap/brand-stats';
 export * from './adsmap/rollup';

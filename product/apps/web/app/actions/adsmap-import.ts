@@ -2,9 +2,10 @@
 
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { buildImportPlan, VALEUR_ABSENTE, type ImportPlan, type ImportReport } from '@tiktrends/core';
+import { buildImportPlan, detecterSeparateur, lectureSeparateur, VALEUR_ABSENTE, type ImportPlan, type ImportReport } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
+import { resoudreLiensDuPlan } from '../../lib/adsmap-import-liens';
 
 /**
  * ADSMAP · import du Google Sheet historique (§13).
@@ -24,6 +25,8 @@ const guard = () => adsmapGuard({ minRole: 'admin' });
 
 export interface PreviewResult {
   report?: ImportReport;
+  /** Comment le fichier a été lu (« Fichier lu au point-virgule ») · dit à chaque aperçu (`lectureSeparateur`). */
+  lecture?: string;
   /** Aperçu des premières lignes, pour vérifier d'un coup d'œil que rien n'a glissé. */
   sample?: Array<{ concept: string; angle: string; desire: string; variant: string; status: string; verdict: string | null; date: string | null }>;
   error?: string;
@@ -37,13 +40,18 @@ export async function previewImportAction(csvText: string): Promise<PreviewResul
   if (csvText.length > MAX_CSV_BYTES) return { error: 'Fichier trop volumineux (4 Mo maximum).' };
 
   try {
-    const plan = buildImportPlan(csvText);
-    if (plan.report.rowsRead === 0) {
+    const lu = buildImportPlan(csvText);
+    // Mal découpé ou étranger au tableau · refusé avant tout aperçu, avec la phrase du noyau.
+    if (lu.refus) return { error: lu.refus };
+    if (lu.report.rowsRead === 0) {
       return { error: 'Aucune ligne exploitable trouvée. Vérifie que le fichier contient bien les colonnes « Status » et « Ad Concept ».' };
     }
+    // Les liens de l'application (export repris) · résolus ou écartés, dits dans le rapport AVANT d'écrire.
+    const plan = await resoudreLiensDuPlan(lu, g.s.workspaceId, g.brand.id);
     const byKey = new Map(plan.concepts.map((c) => [c.key, c]));
     return {
       report: plan.report,
+      lecture: lectureSeparateur(detecterSeparateur(csvText)),
       sample: plan.ads.slice(0, 12).map((a) => {
         const c = byKey.get(a.conceptKey);
         const angle = plan.angles.find((x) => x.label === c?.angleLabel);
@@ -73,16 +81,19 @@ export async function applyImportAction(csvText: string): Promise<ApplyResult> {
   if (!csvText?.trim()) return { error: 'Le fichier est vide.' };
   if (csvText.length > MAX_CSV_BYTES) return { error: 'Fichier trop volumineux (4 Mo maximum).' };
 
+  const ws = g.s.workspaceId;
+  const brandId = g.brand.id;
+
   let plan: ImportPlan;
   try {
     plan = buildImportPlan(csvText);
+    if (plan.refus) return { error: plan.refus };
+    // Un lien de l'application ne s'écrit jamais tel quel · l'adresse de l'ad d'origine (même marque, même espace), ou rien.
+    plan = await resoudreLiensDuPlan(plan, ws, brandId);
   } catch (e) {
-    return { error: logAndTranslate('adsmap:import-parse', e, { subject: 'la lecture du fichier', workspaceId: g.s.workspaceId }) };
+    return { error: logAndTranslate('adsmap:import-parse', e, { subject: 'la lecture du fichier', workspaceId: ws }) };
   }
   if (!plan.ads.length) return { error: 'Aucune ligne exploitable dans ce fichier.' };
-
-  const ws = g.s.workspaceId;
-  const brandId = g.brand.id;
 
   try {
     // 1 · Persona d'attente · le fichier n'a pas de colonne avatar.

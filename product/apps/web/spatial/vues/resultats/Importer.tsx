@@ -149,7 +149,7 @@ export function Importer(p: PropsImporter) {
       {rep && !fait && (
         <section className="tile sec" aria-label="Ce qui sera créé">
           <h2>Ce qui sera créé · rien n’est encore écrit</h2>
-          <p className="muted" style={{ fontSize: '12.5px' }}>{rep.rowsRead} lignes lues · {rep.ads} variantes, {rep.concepts} concepts, {rep.angles} angles, {rep.desires} désirs, {rep.batches} lots, {rep.verdicts} verdicts, {rep.learnings} apprentissages.{rep.rowsRead === rep.ads ? ` Aucune ligne perdue · ${rep.conceptsMerged} ligne(s) regroupée(s) en variantes d’un même concept.` : ''}</p>
+          <p className="muted" style={{ fontSize: '12.5px' }}>{apercu?.lecture ? `${apercu.lecture} · ` : ''}{rep.rowsRead} lignes lues · {rep.ads} variantes, {rep.concepts} concepts, {rep.angles} angles, {rep.desires} désirs, {rep.batches} lots, {rep.verdicts} verdicts, {rep.learnings} apprentissages.{rep.rowsRead === rep.ads ? ` Aucune ligne perdue · ${rep.conceptsMerged} ligne(s) regroupée(s) en variantes d’un même concept.` : ''}</p>
           {rep.warnings.length > 0 && (
             <ul className="check2">
               {rep.warnings.map((w, i) => <li key={i}><span className="cb"><Ic n="warn" /></span><span>{w}</span><span /></li>)}
