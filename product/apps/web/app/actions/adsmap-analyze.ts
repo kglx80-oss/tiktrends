@@ -6,7 +6,7 @@ import { analyzeAdAsset } from '@tiktrends/ai';
 import {
   normalizeAnalysis, summarizeAnalysis, costFor,
   usableImageUrl, isSharePage, writtenDossier, sourceTag, sourceOf, estimateAnalysisCost,
-  WRITTEN_CONFIDENCE_CAP, creaLieeEtrangere, phraseCreasEtrangeres,
+  WRITTEN_CONFIDENCE_CAP, creaLieeEtrangere, phraseAnalyseCreasEtrangeres,
   type AssetAnalysis, type AnalysisSource,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
@@ -233,7 +233,7 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
       skipped.push({ adId: s.adId, reason: 'Sa créa liée appartient à une autre marque · rien n’est envoyé ni écrit, à réparer avant analyse.' });
     }
     sujets = sujets.filter((s) => !s.creaEtrangere);
-    const phraseEtrangeres = phraseCreasEtrangeres(etrangeres.length);
+    const phraseEtrangeres = phraseAnalyseCreasEtrangeres(etrangeres.length);
 
     // Sans image NI matière écrite, un modèle remplit quand même le formulaire ·
     // et ces valeurs entreraient dans les statistiques comme si elles avaient

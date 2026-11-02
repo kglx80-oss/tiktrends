@@ -202,7 +202,7 @@ export function creaLieeEtrangere(lienCrea: string | null | undefined, creaDeLaM
 }
 
 /** Ce que l'écran dit des ads écartées pour créa étrangère · compté, ou rien. */
-export function phraseCreasEtrangeres(n: number): string | null {
+export function phraseAnalyseCreasEtrangeres(n: number): string | null {
   return n > 0 ? `${n} ad(s) écartée(s) · leur créa liée appartient à une autre marque · à réparer avant analyse` : null;
 }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   usableImageUrl, isSharePage, writtenDossier, sourceTag, sourceOf,
-  WRITTEN_CONFIDENCE_CAP, SOURCE_LABEL, creaLieeEtrangere, phraseCreasEtrangeres,
+  WRITTEN_CONFIDENCE_CAP, SOURCE_LABEL, creaLieeEtrangere, phraseAnalyseCreasEtrangeres,
 } from '../src/adsmap/written-source';
 
 describe('on ne donne au modèle qu’une adresse qu’il peut ouvrir', () => {
@@ -137,7 +137,7 @@ describe('une ad liée à la créa d’une AUTRE marque est écartée, pas répa
     expect(creaLieeEtrangere('crea-a', 'crea-a')).toBe(false);
   });
   it('le dit, compté · ou se tait quand il n’y en a pas', () => {
-    expect(phraseCreasEtrangeres(2)).toBe('2 ad(s) écartée(s) · leur créa liée appartient à une autre marque · à réparer avant analyse');
-    expect(phraseCreasEtrangeres(0)).toBeNull();
+    expect(phraseAnalyseCreasEtrangeres(2)).toBe('2 ad(s) écartée(s) · leur créa liée appartient à une autre marque · à réparer avant analyse');
+    expect(phraseAnalyseCreasEtrangeres(0)).toBeNull();
   });
 });

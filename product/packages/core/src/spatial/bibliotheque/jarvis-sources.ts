@@ -3,7 +3,7 @@ import { costFor } from '../../credits';
 import { formatCredits } from '../../offre/affichage';
 import { extraireCitations, citationsComptees } from '../../connaissances';
 import type { StatRow } from '../../adsmap/brand-stats';
-import { phraseCreasEtrangeres } from '../../adsmap/written-source';
+import { phraseAnalyseCreasEtrangeres } from '../../adsmap/written-source';
 
 /**
  * Spatial · les gestes de Jarvis qui n'ont pas de fragment de maquette (vague 3) ·
@@ -154,7 +154,7 @@ export function lectureCouverture(c: CouvertureDescription) {
   if (c.manual > 0) morceaux.push(`dont ${c.manual} corrigée(s) à la main, que l’agent ne touche pas`);
   if (c.fromWritten > 0) morceaux.push(`dont ${c.fromWritten} déduite(s) du brief, à confiance plafonnée`);
   if (c.withoutAsset > 0) morceaux.push(`${c.withoutAsset} sans visuel ni texte, indescriptibles en l’état`);
-  const etrangeres = phraseCreasEtrangeres(c.foreignCrea ?? 0);
+  const etrangeres = phraseAnalyseCreasEtrangeres(c.foreignCrea ?? 0);
   if (etrangeres) morceaux.push(etrangeres);
   const faible = part !== null && part < 50 && c.described > 0;
   return {
