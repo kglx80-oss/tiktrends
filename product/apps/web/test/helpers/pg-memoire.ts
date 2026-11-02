@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -9,9 +9,34 @@ import { join } from 'node:path';
  * le RÉSULTAT. Ce harnais applique les migrations réelles et rend un client
  * drizzle · on peut alors semer deux marques / deux utilisateurs et vérifier
  * l'isolation pour de vrai (« vérifier un RÉSULTAT », doctrine maison).
+ *
+ * ── Un semis par exécution, plus un par fichier ─────────────────────────────
+ *
+ * Monter une base neuve coûte un `initdb` complet puis toutes les migrations ·
+ * mesuré le 2026-11-02 sur 4 vCPU : `new PGlite()` prêt en 2,2 s (charge 0,7)
+ * à 2,2-3,3 s (machine chargée, 4 essais), migrations 0,5 s, contre 0,4 s pour
+ * recharger le répertoire de données d'une base déjà migrée. ~195 fichiers de
+ * test web montent leur base · ~2,3 s épargnées chacun, ~450 s de travail sur
+ * les 2 298 s cumulées de la suite web en CI (run 41439776206 : collect 1 459 s).
+ * `turbo run test --force` local, avant → après (machine partagée, charge
+ * 10-14, un essai chacun · bruité, la CI fait foi) : temps CPU total
+ * 2 670 s → 1 905 s ; collect web cumulé rapporté à celui du noyau (même
+ * exécution, neutralise la charge) 15,0 → 7,8.
+ *
+ * `semis-global.ts` (globalSetup vitest) migre donc UNE base au démarrage de
+ * l'exécution, en dépose l'image (`dumpDataDir`) dans un dossier temporaire et
+ * en publie le chemin dans `VAR_INSTANTANE`. Chaque fichier recharge cette image
+ * (`loadDataDir`) · le répertoire de données d'une base migrée par le même code
+ * (`baseMigreeNeuve`), au lieu de le refaire dans chaque fichier. L'image est refaite à CHAQUE
+ * exécution, jamais reprise d'une précédente : une migration ajoutée ou modifiée
+ * est toujours vue. `pg-memoire-instantane.test.ts` prouve l'équivalence (même
+ * schéma, mêmes données) et que l'image est bien servie aux fichiers.
+ *
+ * Hors vitest (variable absente), on retombe sur le chemin complet.
  */
-export async function pgMemoire(schema: Record<string, unknown>) {
-  const pg = new PGlite();
+export const VAR_INSTANTANE = 'TT_PG_MEMOIRE_INSTANTANE';
+
+async function migrer(pg: PGlite): Promise<void> {
   const dir = join(process.cwd(), '../../packages/db/drizzle');
   const journal = JSON.parse(readFileSync(join(dir, 'meta/_journal.json'), 'utf8')) as { entries: Array<{ tag: string }> };
   for (const e of journal.entries) {
@@ -25,5 +50,34 @@ export async function pgMemoire(schema: Record<string, unknown>) {
       .replace(/vector\(\d+\)/gi, 'text');
     await pg.exec(sql);
   }
-  return drizzle(pg, { schema });
+}
+
+/** Base neuve, `initdb` puis toutes les migrations du dépôt · le chemin complet. */
+export async function baseMigreeNeuve(): Promise<PGlite> {
+  const pg = new PGlite();
+  await migrer(pg);
+  return pg;
+}
+
+/** Image du répertoire de données d'une base neuve et migrée (tar non compressé). */
+export async function imageBaseMigree(): Promise<Uint8Array> {
+  const pg = await baseMigreeNeuve();
+  const tar = await pg.dumpDataDir('none');
+  await pg.close();
+  return new Uint8Array(await tar.arrayBuffer());
+}
+
+/** La base migrée · rechargée depuis l'image du semis global quand elle existe. */
+export async function pgMemoireBrut(): Promise<PGlite> {
+  const chemin = process.env[VAR_INSTANTANE];
+  if (chemin && existsSync(chemin)) {
+    const pg = new PGlite({ loadDataDir: new Blob([readFileSync(chemin)]) });
+    await pg.waitReady;
+    return pg;
+  }
+  return baseMigreeNeuve();
+}
+
+export async function pgMemoire(schema: Record<string, unknown>) {
+  return drizzle(await pgMemoireBrut(), { schema });
 }
