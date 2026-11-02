@@ -10,6 +10,10 @@ export default defineConfig({
     // octobre (l2-jarvis-route). Limites explicites, mesurées avec marge.
     testTimeout: 30_000,
     hookTimeout: 60_000,
+    // Une base pglite migrée UNE fois par exécution, rechargée par chaque
+    // fichier · mesure et preuve d'équivalence dans `test/helpers/pg-memoire.ts`
+    // et `test/pg-memoire-instantane.test.ts`.
+    globalSetup: ['./test/helpers/semis-global.ts'],
     // F1 · interrupteurs Studios (cahier §14) : les nouveautés incomplètes sont
     // COUPÉES par défaut. Les suites existantes éprouvent ces capacités telles
     // qu'elles fonctionnent une fois allumées : on les généralise ici, comme le
