@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { connexionDrive, donneesDrive, type DonneesDrive, type DossierSource, type MediaSource } from '@tiktrends/core';
+import { connexionDrive, donneesDrive, REFUS_DOSSIER, type DonneesDrive, type DossierSource, type MediaSource } from '@tiktrends/core';
 
 const f = vi.hoisted(() => ({
   affecter: vi.fn(async (x: { ids: string[]; folderId: string | null }): Promise<unknown> => ({ ok: true, n: x.ids.length })),
@@ -172,7 +172,8 @@ describe('glisser-déposer · dossiers', () => {
     const { vu } = await glisserSur(carteDossier(h, 'Photos produit'), noeud(h, 'Faces'));
     expect(vu).toEqual({ pris: false, effet: 'none', etat: 'refuse', contour: '2px dashed var(--bad)' });
     expect(f.deplacer).not.toHaveBeenCalled();
-    expect(toasts).toEqual([]);
+    // Lâchée sur la cible refusée · la raison du serveur dite par le toast, UNE fois (dépôt puis fin du glisser).
+    expect(toasts).toEqual([REFUS_DOSSIER.descendant]);
   });
 
   it('un dossier système et le dossier lui-même refusent · aucun appel ; la source n’est pas mise en évidence', async () => {

@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  annonceSurvol, chargeContient, chargeGlissee, defilementApres, deplieAuSurvol, DELAI_DEPLIAGE_SURVOL_MS, elementsGlissables, porteDesFichiers,
-  verdictDepot, vitesseDefilement, VEILLE_DEFILEMENT_MS,
+  annonceSurvol, chargeAbandonnee, chargeContient, chargeGlissee, chargeOrpheline, defilementApres, deplieAuSurvol, DELAI_DEPLIAGE_SURVOL_MS,
+  elementsGlissables, GARDE_CHARGE_MS, porteDesFichiers, refusAuLacher, verdictDepot, vitesseDefilement, VEILLE_DEFILEMENT_MS,
   type AnnonceSurvol, type ChargeGlissee, type DonneesDrive, type NoeudArbreDrive, type SectionDrive, type ZoneDefilement,
 } from '@tiktrends/core';
 import { useTelephone } from '../../communs';
@@ -40,6 +40,21 @@ import { useTelephone } from '../../communs';
  * montage · le rendu serveur n'en porte pas, parité avec la maquette) reçoit la
  * phrase du verdict quand la cible survolée change et refuse (`annonceSurvol`).
  * Rien sur une cible qui accepte, ni sur la source elle-même.
+ *
+ * Lâchée sur une cible qui refuse, la charge fait dire la raison par le toast
+ * de l'écran (`refuser`), UNE fois (règle au noyau · `refusAuLacher`) · le
+ * navigateur ne tire pas `drop` sur une cible qui n'a pas accepté le survol ·
+ * c'est la fin du glisser (`dragend`) qui le dit, quand le dernier `dragover`
+ * était sur cette cible (chaque `dragover` de la fenêtre, en capture, efface
+ * d'abord le refus retenu · une cible refusée le repose).
+ *
+ * La charge se DÉSARME de façon robuste · par `dragend` écouté sur la fenêtre
+ * en capture (la même écoute que le défilement) ; par le dépôt sur une cible
+ * qui accepte (seul `drop` que le navigateur tire pendant un glisser interne ·
+ * aucune autre zone n'accepte le survol) ; à la relecture des données si elle
+ * est orpheline (`chargeOrpheline`) ; et, si la source a quitté le document
+ * (son `dragend` n'arrivera plus), après `GARDE_CHARGE_MS` sans `dragover`
+ * (`chargeAbandonnee`). La zone d'import répond de nouveau.
  */
 
 /** Le type du transfert · posé au départ (Firefox ne lance aucun glisser sans donnée), jamais relu · la charge vit dans l'écran. */
@@ -91,6 +106,8 @@ export interface OptionsGlisserDeposer {
   deposer: (charge: ChargeGlissee, destination: string | null, nom: string) => void;
   /** Déplie le nœud `id` de l'arbre (jamais ne le replie) · appelé à l'échéance du survol prolongé. */
   deplier?: (id: string) => void;
+  /** Dit la raison d'un dépôt refusé (le toast de l'écran) · appelé une fois par lâcher sur une cible refusée. */
+  refuser?: (raison: string) => void;
 }
 
 export function useGlisserDeposer(o: OptionsGlisserDeposer) {
@@ -109,6 +126,15 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
   const defilement = useRef<{ zone: Element; y: number; position: number; image: number | null; avant: number | null; veille: ReturnType<typeof setTimeout> } | null>(null);
   /** L'échéance du dépliage au survol · un seul nœud à la fois. */
   const depliage = useRef<{ id: string; minuterie: ReturnType<typeof setTimeout> } | null>(null);
+  /** L'élément source du glisser · retiré du document, son `dragend` n'arrivera plus (`chargeAbandonnee`). */
+  const sourceEl = useRef<Element | null>(null);
+  /** La cible refusée sous le pointeur au dernier `dragover` · ce que dit le toast si l'on lâche (`refusAuLacher`). */
+  const refusSous = useRef<AnnonceSurvol>(null);
+  /** La garde de la charge · relancée à chaque `dragover`. */
+  const garde = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Le toast de l'écran, relu par les écoutes de la fenêtre (posées une fois). */
+  const refuser = useRef(o.refuser);
+  useEffect(() => { refuser.current = o.refuser; });
   const ctx = { section: o.section, lectureSeule: o.lectureSeule };
   // Au téléphone, rien ne se glisse · en lecture seule non plus, le noyau ne laisse rien partir (`chargeGlissee`).
   const actif = !telephone;
@@ -126,10 +152,33 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
     clearTimeout(d.veille);
     defilement.current = null;
   };
-  // Démonté en plein survol · l'échéance et le défilement ne survivent pas à l'écran.
-  useEffect(() => { const d = depliage; return () => { if (d.current) clearTimeout(d.current.minuterie); arreterDefilement(); }; }, []);
-  // Le défilement s'arrête par les écoutes de la fenêtre (dépôt, fin du glisser · en capture, aucune cible ne les arrête).
-  const finir = () => { charge.current = null; annulerDepliage(); setSurvol(null); setAnnonce(null); };
+  const leverGarde = () => {
+    if (garde.current) clearTimeout(garde.current);
+    garde.current = null;
+  };
+  // Démonté en plein survol · l'échéance, la garde et le défilement ne survivent pas à l'écran.
+  useEffect(() => { const d = depliage; return () => { if (d.current) clearTimeout(d.current.minuterie); leverGarde(); arreterDefilement(); }; }, []);
+  // La charge désarmée · survol, annonce, dépliage, garde et défilement. Rien n'est envoyé.
+  const finir = () => {
+    charge.current = null; sourceEl.current = null; refusSous.current = null;
+    leverGarde(); annulerDepliage(); arreterDefilement(); setSurvol(null); setAnnonce(null);
+  };
+  /** La garde · à l'échéance, la charge est abandonnée si sa source a quitté le document (règle au noyau), sinon relancée. */
+  const armerGarde = () => {
+    leverGarde();
+    garde.current = setTimeout(() => {
+      garde.current = null;
+      if (!charge.current) return;
+      if (chargeAbandonnee({ silenceMs: GARDE_CHARGE_MS, sourceDansDocument: !!sourceEl.current?.isConnected })) finir();
+      else armerGarde();
+    }, GARDE_CHARGE_MS);
+  };
+  // La relecture des données · une charge dont un élément n'existe plus est désarmée.
+  useEffect(() => {
+    if (charge.current && chargeOrpheline(o.donnees, charge.current)) finir();
+    // `finir` ne lit que des références et des setters stables.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [o.donnees]);
 
   /** Une image du défilement · la vitesse relue au noyau (bande, limites) à la position du moment, nulle · arrêt net. */
   const image = (t: number) => {
@@ -154,6 +203,9 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
     if (!actif) return;
     const survoler = (e: globalThis.DragEvent) => {
       if (!charge.current) return;
+      // En capture, avant la cible · le refus retenu est effacé, une cible refusée le repose ; la garde repart.
+      refusSous.current = null;
+      armerGarde();
       const zone = zoneSousPointeur(e.target, e.clientY);
       if (!zone) { arreterDefilement(); return; }
       let d = defilement.current;
@@ -171,15 +223,24 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
     };
     // Sortie de la fenêtre (`dragleave` sans élément d'arrivée), dépôt, fin du glisser · arrêt net.
     const quitter = (e: globalThis.DragEvent) => { if (e.relatedTarget === null) arreterDefilement(); };
+    // Fin du glisser, en capture (aucune cible ne l'arrête) · la charge désarmée, et le refus dit s'il y a lieu.
+    const terminer = (e: globalThis.DragEvent) => {
+      arreterDefilement();
+      if (!charge.current) return;
+      const dt = e.dataTransfer as (DataTransfer & { mozUserCancelled?: boolean }) | null;
+      const raison = refusAuLacher(refusSous.current, { effet: dt?.dropEffect, annule: dt?.mozUserCancelled });
+      finir();
+      if (raison) refuser.current?.(raison);
+    };
     window.addEventListener('dragover', survoler, true);
     window.addEventListener('dragleave', quitter, true);
     window.addEventListener('drop', arreterDefilement, true);
-    window.addEventListener('dragend', arreterDefilement, true);
+    window.addEventListener('dragend', terminer, true);
     return () => {
       window.removeEventListener('dragover', survoler, true);
       window.removeEventListener('dragleave', quitter, true);
       window.removeEventListener('drop', arreterDefilement, true);
-      window.removeEventListener('dragend', arreterDefilement, true);
+      window.removeEventListener('dragend', terminer, true);
     };
     // `image` et `arreterDefilement` ne lisent que des références · l'écoute vit autant que l'écran.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,10 +256,13 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
         if (!c) { e.preventDefault(); return; }
         e.stopPropagation();
         charge.current = c;
+        sourceEl.current = e.currentTarget;
+        refusSous.current = null;
+        armerGarde();
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData(TYPE_GLISSER_BIBLIOTHEQUE, c.type === 'dossier' ? c.id : c.ids.join(','));
       },
-      onDragEnd: finir,
+      // La fin du glisser est écoutée sur la fenêtre, en capture (`terminer`) · une seule voie, le refus dit une fois.
     };
   };
 
@@ -224,6 +288,8 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
         setSurvol((s) => (s?.id === montre?.id && s?.ok === montre?.ok ? s : montre));
         // La raison d'un refus, dite une fois par cible (règle au noyau · rendre l'annonce courante n'écrit rien).
         setAnnonce((a) => annonceSurvol(a, id, source ? null : verdict));
+        // Le refus retenu pour le lâcher · effacé par la fenêtre à chaque `dragover`, reposé ici si cette cible refuse.
+        refusSous.current = annonceSurvol(null, id, source ? null : verdict);
         // Le dépliage au survol · l'échéance part au premier survol du nœud, pas à chacun (le navigateur en tire en continu).
         if (depliage.current?.id !== id) annulerDepliage();
         if (noeud && o.deplier && !depliage.current && deplieAuSurvol(noeud, c)) {
@@ -241,9 +307,11 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
         const c = charge.current;
         if (!c) return;
         e.preventDefault(); e.stopPropagation();
-        finir();
-        // Revérifié au dépôt · une cible refusée n'appelle rien.
+        // Revérifié au dépôt · une cible refusée n'appelle rien, et dit pourquoi (si le navigateur tire `drop` sur elle).
         const v = verdictDepot(o.donnees, c, id);
+        const raison = refusAuLacher(annonceSurvol(null, id, chargeContient(c, id) ? null : v), { effet: null });
+        finir();
+        if (raison) o.refuser?.(raison);
         if (!v.ok || o.occupe) return;
         o.deposer(c, v.destination, v.nom);
       },

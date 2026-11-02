@@ -308,6 +308,7 @@ export function Bibliotheque(entree: PropsBibliotheque) {
       void envoi.then((ok) => { if (ok) setSelection((x) => { const n = new Set(x); c.ids.forEach((id) => n.delete(id)); return n; }); });
     },
     deplier: (id) => setEtat((e) => (e.ouverts.has(id) ? e : { ...e, ouverts: new Set([...e.ouverts, id]) })),
+    refuser: toast,
   });
   const prixImage = (n: number) => (g?.analyse.cout != null ? ` · ${g.analyse.cout * n} crédit${g.analyse.cout * n > 1 ? 's' : ''}` : '');
 
