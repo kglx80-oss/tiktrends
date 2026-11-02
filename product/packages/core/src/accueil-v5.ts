@@ -29,7 +29,7 @@
  */
 
 import { estGagnanteValidee, LIBELLE_VERDICT } from './adsmap/verdict-libelle';
-import { usableImageUrl } from './adsmap/written-source';
+import { imageAffichable } from './studios/sources/departs-assistant';
 import { verdictEffectif, type VerdictValue } from './adsmap/types';
 import { lienIterationStudio } from './studios/anciennes-adresses';
 import { CHEMIN_IMPORT_RESULTATS, CHEMIN_SUITES } from './parcours-boucle';
@@ -181,10 +181,11 @@ export interface ContexteGagnante {
   /** Un apprentissage VALIDÉ et non réfuté est rattaché à l'ad (`adsmap_learnings`). */
   apprentissageValide: boolean;
   /**
-   * La vignette média RÉELLE de la gagnante · `adsmap_ads.asset_url` ou la
-   * miniature de sa créative (`creatives.thumb_url`), telle que lue. Jamais une
-   * image inventée · `prochainesIterationsAccueil` la valide par `usableImageUrl`
-   * (une page de partage ou un lien non affichable devient `null`).
+   * La vignette média RÉELLE de la gagnante, déjà projetée pour l'écran
+   * (`vignetteAdAffichee` · un objet du stockage privé passe par la route gardée
+   * de l'ad, jamais par son adresse brute). Jamais une image inventée ·
+   * `prochainesIterationsAccueil` la valide par `imageAffichable` (une page de
+   * partage ou un lien non affichable devient `null`).
    */
   vignette?: string | null;
 }
@@ -293,7 +294,7 @@ export function prochainesIterationsAccueil<T extends LigneIterationAccueil>(
     return {
       adId: r.adId,
       titre: r.label,
-      vignette: usableImageUrl(c?.vignette ?? null),
+      vignette: imageAffichable(c?.vignette),
       verdict: LIBELLE_VERDICT[eff].court,
       lot: libelleLot(c?.lot ?? null),
       apprentissageValide: !!c?.apprentissageValide,

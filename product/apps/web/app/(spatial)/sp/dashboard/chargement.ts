@@ -19,6 +19,7 @@ import { refusJarvis } from '../../../../lib/jarvis-acces';
 import { onboardingState } from '../../../../lib/onboarding-state';
 import { chargerTeteAccueilProjets } from '../../../../lib/accueil-projets';
 import { chargerAccueilV5 } from '../../../../lib/accueil-v5';
+import { adVignetteDuLot, vignettesDesAds } from '../../../../lib/adsmap-medias';
 import { compterBoucle } from '../../../../lib/boucle-resultats';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { unlimitedCredits } from '../../../../lib/credits';
@@ -92,16 +93,18 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
       const rows = await db!.select({
         id: B.id, numero: B.number, statut: B.status, but: B.goal, lanceLe: B.launchedAt, finPrevue: B.plannedEndAt,
         variantes: sql<number>`count(${schema.ads.id})`,
-        vignette: sql<string | null>`max(coalesce(${schema.creatives.thumbUrl}, ${schema.creatives.storageUrl}, ${schema.ads.assetUrl}))`,
+        // Une variante du lot qui porte un média · sa vignette passe par la route gardée de l'ad (jamais l'adresse brute du stockage).
+        vignetteAd: adVignetteDuLot,
       }).from(B)
         .leftJoin(schema.ads, eq(schema.ads.batchId, B.id))
         .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
         .where(and(eq(B.brandId, marque!.id), eq(B.workspaceId, s.workspaceId)))
         .groupBy(B.id).orderBy(desc(B.number)).limit(200);
+      const vignettes = await vignettesDesAds(s.workspaceId, rows.map((r) => r.vignetteAd));
       return rows.map((r): LotAccueil => ({
         id: r.id, numero: r.numero, statut: r.statut, but: r.but, variantes: Number(r.variantes),
         lanceLe: r.lanceLe ? (r.lanceLe as Date).toISOString() : null, finPrevue: r.finPrevue ? (r.finPrevue as Date).toISOString() : null,
-        vignette: r.vignette && /^https?:\/\//.test(r.vignette) ? r.vignette : r.vignette?.startsWith('/') ? r.vignette : null,
+        vignette: r.vignetteAd ? vignettes.get(r.vignetteAd) ?? null : null,
       }));
     }) : Promise.resolve(null),
     // Les dernières notifications de la personne, dans cet espace (même portée que la cloche de l'Accueil V5).

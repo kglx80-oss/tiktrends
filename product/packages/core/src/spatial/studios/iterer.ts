@@ -1,5 +1,5 @@
 import { estGagnanteValidee } from '../../adsmap/verdict-libelle';
-import { usableImageUrl } from '../../adsmap/written-source';
+import { imageAffichable } from '../../studios/sources/departs-assistant';
 import type { VerdictValue } from '../../adsmap/types';
 import { lienIterationStudio } from '../../studios/anciennes-adresses';
 import type { ClassePastilleSpatiale } from './liste';
@@ -32,7 +32,7 @@ export interface LignePlanSpatial {
   spend: number | null;
 }
 
-/** Ce qu'on sait en plus d'une pub du plan · son ROAS mesuré et sa vignette RÉELLE. */
+/** Ce qu'on sait en plus d'une pub du plan · son ROAS mesuré et sa vignette RÉELLE, déjà projetée pour l'écran (`vignetteAdAffichee`). */
 export interface ContexteAdSpatial { roas: number | null; vignette: string | null }
 
 export interface ChoixIterationSpatial {
@@ -87,7 +87,7 @@ export function choixIterationSpatial(
       pastilles,
       chiffres,
       raison: selectionnable ? r.rationale : gagnante ? RAISON_ROLE_ITERATION : RAISON_NON_GAGNANTE,
-      vignette: usableImageUrl(c?.vignette ?? null),
+      vignette: imageAffichable(c?.vignette),
       selectionnable,
       change: { variable: r.variableLabel, garde: r.freezeLabels.length ? liste(r.freezeLabels) : null },
       lien: selectionnable ? lienIterationStudio(r.adId) : null,
