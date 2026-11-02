@@ -1,0 +1,42 @@
+-- Bibliothèque · INDEX de la lecture paginée des médias (migration ADDITIVE).
+--
+-- La page `/assets` lit sa fenêtre (les 400 médias les plus récents de
+-- l'espace), « Charger plus » une page de 200 par curseur et, après un geste,
+-- la même profondeur relue d'un coup · toujours « where workspace_id = …
+-- order by created_at desc, id desc limit n » (`lib/bibliotheque-pages.ts`).
+-- Sans cet index, Postgres lit TOUTES les lignes vivantes de l'espace et les
+-- trie à chaque lecture (seul `assets_ws_idx` sur `workspace_id` existe) ·
+-- avec lui, il descend l'index dans l'ordre et s'arrête à la n-ième ligne,
+-- curseur `(created_at, id) < (…)` compris dans la condition d'index.
+--
+-- Mesuré le 02/11/2026 · pglite (migrations du dépôt), deux espaces de N
+-- médias chacun (60 % à la racine, le reste dans 8 dossiers), vraies lectures
+-- (`lireFenetre`, `lirePageBibliotheque`), médiane de 7 passes :
+--
+-- | Médias par espace (×2)         | 5 000   | 20 000  | 100 000  |
+-- | ------------------------------ | ------- | ------- | -------- |
+-- | Fenêtre de 400 · sans index    | 19,0 ms | 42,1 ms | 159,3 ms |
+-- | Fenêtre de 400 · avec index    | 9,2 ms  | 10,5 ms | 9,3 ms   |
+-- | Page de 200 (curseur) · sans   | 11,4 ms | 24,6 ms | 112,6 ms |
+-- | Page de 200 (curseur) · avec   | 5,6 ms  | 8,0 ms  | 8,6 ms   |
+-- | Construction de l'index        | 10,5 ms | 55,7 ms | 255,1 ms |
+--
+-- Plan (EXPLAIN) · sans · « Sort · Sort Key: created_at DESC, id DESC » sur
+-- toutes les lignes de l'espace ; avec · « Index Scan using
+-- assets_ws_created_id_idx », « Index Cond: workspace_id = … AND
+-- ROW(created_at, id) < ROW(…) », sans tri. Garde · le test
+-- `bibliotheque-profondeur-db` relit le plan sur base réelle.
+--
+-- Pas CONCURRENTLY · le migrateur drizzle (`drizzle-kit migrate`) passe toutes
+-- les migrations en attente dans UNE transaction, et CREATE INDEX
+-- CONCURRENTLY y est refusé par Postgres. Verrou attendu · SHARE sur
+-- `assets` le temps de bâtir l'index · les lectures continuent, les écritures
+-- (dépôt, renommage, corbeille) attendent. Mesuré ci-dessus · 255 ms pour
+-- 200 000 lignes sur pglite (WASM, plus lent qu'un Postgres natif), à peu
+-- près proportionnel au nombre de lignes · `select count(*) from assets` en
+-- donne l'ordre avant le déploiement (≈ 1,3 ms par millier de lignes
+-- mesuré ici). Accepté comme pour `assets_folder_idx` (0058).
+--
+-- Aucune donnée lue ni modifiée, aucune destruction. Rejouable : « CREATE
+-- INDEX IF NOT EXISTS ».
+CREATE INDEX IF NOT EXISTS "assets_ws_created_id_idx" ON "assets" USING btree ("workspace_id", "created_at" DESC, "id" DESC);

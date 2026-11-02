@@ -65,6 +65,17 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0067_index_pagination_assets · un index créé (IF NOT EXISTS) sur assets, rejouable, rien d’autre', () => {
+    const a = analyserMigrationSql(fichier('0067_index_pagination_assets'));
+    expect(a.instructions.map((x) => x.genre)).toEqual(['creation_index']);
+    // L'instruction entière, commentaires retirés (l'extrait de l'analyse est tronqué).
+    const [instr] = decouperInstructionsSql(fichier('0067_index_pagination_assets')).map((x) => x.replace(/^--.*$/gm, '').replace(/\s+/g, ' ').trim());
+    // La forme exacte exclut CONCURRENTLY · le migrateur drizzle passe les migrations dans une transaction, où Postgres le refuse.
+    expect(instr).toMatch(/^CREATE INDEX IF NOT EXISTS "assets_ws_created_id_idx" ON "assets" USING btree \("workspace_id", "created_at" DESC, "id" DESC\);?$/);
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -121,9 +132,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés) puis 0066 (empreinte des logos de marque) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque) puis 0067 (index de la lecture paginée des médias) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -263,6 +274,24 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     const schemaUneFois = await empreinteSchema(pg);
     await appliquer(pg, ['0066_empreinte_logos_marque']);
     expect(await empreinteSchema(pg), 'rejeu de 0066').toEqual(schemaUneFois);
+    await pg.close();
+  }, 120_000);
+
+  it('0067 sur une base à 0066 avec des médias · lignes intactes, un seul objet ajouté (l’index), rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 66).map((x) => x.tag));
+    const [medias] = await lignes<{ n: number }>(pg, 'select count(*)::int as n from assets');
+    expect(medias!.n).toBeGreaterThan(0);
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    const schemaAvant = await empreinteSchema(pg);
+    await appliquer(pg, ['0067_index_pagination_assets']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0067').toEqual(avant);
+    const schemaUneFois = await empreinteSchema(pg);
+    expect(schemaUneFois.filter((l) => !schemaAvant.includes(l))).toEqual(['idx CREATE INDEX assets_ws_created_id_idx ON public.assets USING btree (workspace_id, created_at DESC, id DESC)']);
+    expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0067').toEqual([]);
+    await appliquer(pg, ['0067_index_pagination_assets']);
+    expect(await empreinteSchema(pg), 'rejeu de 0067').toEqual(schemaUneFois);
     await pg.close();
   }, 120_000);
 });

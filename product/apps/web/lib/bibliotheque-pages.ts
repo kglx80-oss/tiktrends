@@ -2,7 +2,7 @@ import 'server-only';
 import { and, desc, eq, isNotNull, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  curseurSuivant, dossiersEteints, FORMAT_CURSEUR_SQL, motifRecherche, PAGE_BIBLIOTHEQUE, TAG_TEMPLATE, TRANSLITTERATION_SQL,
+  curseurSuivant, dossiersEteints, FORMAT_CURSEUR_SQL, limiteDemande, motifRecherche, TAG_TEMPLATE, TRANSLITTERATION_SQL,
   type CurseurBibliotheque, type DemandePageBibliotheque, type FiltreTypeDrive, type LigneCompteBibliotheque, type MediaSource, type PageBibliotheque,
 } from '@tiktrends/core';
 import { toItem } from './asset-item';
@@ -120,6 +120,10 @@ export async function lireComptes(p: PorteeBibliotheque): Promise<Array<LigneCom
  * ou d'une recherche (nom ou tag visible, sans accent ni casse, hors dossiers
  * éteints) · filtre de type, curseur stable. Une recherche lue depuis son
  * début renvoie aussi son total exact. Un dossier hors portée ne rend rien.
+ *
+ * `limite` · après un geste, la liste se relit depuis son début jusqu'à la
+ * profondeur atteinte, en une requête (ordre `created_at desc, id desc` ·
+ * l'index `assets_ws_created_id_idx`, migration 0067, la sert dans l'ordre).
  */
 export async function lirePageBibliotheque(p: PorteeBibliotheque, d: DemandePageBibliotheque): Promise<PageBibliotheque> {
   if (!db) return { medias: [], suivant: null };
@@ -142,12 +146,14 @@ export async function lirePageBibliotheque(p: PorteeBibliotheque, d: DemandePage
         or exists (select 1 from unnest(${A.tags}) as tag where tag <> ${TAG_TEMPLATE} and translate(lower(tag), ${de}, ${vers}) like ${motif}))`);
     }
   }
+  // Une page (200), ou la profondeur relue après un geste · bornée au noyau (`lireDemandePage`).
+  const limite = limiteDemande(d);
   const [rows, total] = await Promise.all([
-    db.select(colonnes()).from(A).where(and(...conds, ...apres(d.curseur))).orderBy(...ordre()).limit(PAGE_BIBLIOTHEQUE),
+    db.select(colonnes()).from(A).where(and(...conds, ...apres(d.curseur))).orderBy(...ordre()).limit(limite),
     d.portee.type === 'recherche' && !d.curseur
       ? db.select({ n: sql<number>`count(*)::int` }).from(A).where(and(...conds)).then((r) => Number(r[0]?.n ?? 0))
       : Promise.resolve(undefined),
   ]);
   const lus = (rows as Ligne[]).map(enMedia);
-  return { medias: lus.map(sansCurseur), suivant: curseurSuivant(lus, PAGE_BIBLIOTHEQUE), ...(total !== undefined ? { total } : {}) };
+  return { medias: lus.map(sansCurseur), suivant: curseurSuivant(lus, limite), ...(total !== undefined ? { total } : {}) };
 }
