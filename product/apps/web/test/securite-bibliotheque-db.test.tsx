@@ -89,7 +89,7 @@ import * as actionsAssets from '../app/actions/assets';
 import {
   listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction, basculerAssetsIaAction,
   tagUntaggedImagesAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction,
-  basculerTemplateAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction,
+  basculerTemplateAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction, remplacerAssetAction,
 } from '../app/actions/assets';
 import { followBrand, unfollowBrand } from '../app/actions/inspo';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
@@ -142,6 +142,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['mettreAssetsCorbeilleAction', () => mettreAssetsCorbeilleAction({ ids: [A.image] })],
   ['restaurerAssetsAction', () => restaurerAssetsAction({ ids: [A.image] })],
   ['renommerAssetAction', () => renommerAssetAction({ id: A.image, nom: 'Renommé' })],
+  ['remplacerAssetAction', () => remplacerAssetAction({ id: A.image, url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-g.png`, mimeType: 'image/png' })],
 ];
 
 /**
@@ -263,6 +264,15 @@ describe('Bibliothèque · member en Core · chaque geste marche comme avant', (
       expect(await registerUploadedAssetAction({ name: 'f', url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
     } finally { vi.unstubAllGlobals(); }
     expect((await ws()).some((a) => a.url === `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`)).toBe(true);
+  });
+  it('remplacerAssetAction · la MÊME ligne pointe la nouvelle version (objet relu)', async () => {
+    const [f] = (await ws()).filter((a) => a.url === `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`);
+    const n = (await ws()).length;
+    vi.stubGlobal('fetch', bucketQuiSert(Buffer.from(PNG.split(',')[1]!, 'base64')));
+    try {
+      expect(await remplacerAssetAction({ id: f!.id, url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-g.png`, mimeType: 'image/png' })).toEqual({ ok: true });
+    } finally { vi.unstubAllGlobals(); }
+    expect([(await ws()).find((a) => a.id === f!.id)!.url, (await ws()).length]).toEqual([`https://stockage.invalid/assets/${ids.wsA}/1-ab-g.png`, n]);
   });
   it('basculerTemplateAction · member refusé (admin seulement), admin Core range le template', async () => {
     expect(await basculerTemplateAction({ id: A.image, on: true })).toEqual({ error: 'Seule l’agence (admin) gère les templates.' });

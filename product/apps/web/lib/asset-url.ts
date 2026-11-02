@@ -51,6 +51,13 @@ export interface AssetAddress {
   externalId?: string | null;
   /** Bucket privé identifié côté serveur ; URL stable du proxy. */
   privateStorage?: boolean;
+  /**
+   * L'empreinte de l'objet du stockage (`assets.object_etag`) · versionne
+   * l'adresse du proxy (`&e=`, ignoré par la route). Un fichier REMPLACÉ
+   * (`remplacerAssetAction`) change d'objet, donc d'adresse · une image déjà
+   * affichée sous l'ancienne adresse n'est pas reprise du cache du navigateur.
+   */
+  version?: string | null;
 }
 
 /**
@@ -79,6 +86,15 @@ export function adresseAssetProxy(id: string): string {
   return `/api/asset/${id}?v=${VERSION_CACHE_MEDIAS}`;
 }
 
+/** La version portée par l'adresse · 16 caractères sûrs de l'empreinte, ou rien. */
+export function versionAdresse(v: string | null | undefined): string | null {
+  if (typeof v !== 'string') return null;
+  const x = v.replace(/[^A-Za-z0-9]/g, '').slice(0, 16);
+  return x || null;
+}
+
 export function servedAssetUrl(a: AssetAddress): string {
-  return assetServing(a) === 'direct' && !a.privateStorage ? a.url : adresseAssetProxy(a.id);
+  if (assetServing(a) === 'direct' && !a.privateStorage) return a.url;
+  const e = a.privateStorage && !a.embedded ? versionAdresse(a.version) : null;
+  return e ? `${adresseAssetProxy(a.id)}&e=${e}` : adresseAssetProxy(a.id);
 }

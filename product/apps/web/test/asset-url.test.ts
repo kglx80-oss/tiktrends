@@ -85,3 +85,20 @@ describe('ce qui compte comme lien Drive privé', () => {
     expect(isPrivateDriveUrl('https://cdn.example/photo.jpg')).toBe(false);
   });
 });
+
+describe('« Remplacer » · l’adresse du proxy suit l’objet du stockage', () => {
+  /**
+   * Un fichier remplacé garde son identifiant · sans version, l'adresse du
+   * proxy restait la même et une image déjà affichée était reprise du cache
+   * du navigateur. L'empreinte de l'objet (`object_etag`) la versionne.
+   */
+  const prive = (version: string | null) => servedAssetUrl(asset({ privateStorage: true, url: 'https://s3/b/assets/w/1-a.png', version }));
+  it('deux objets ⇒ deux adresses, toujours vers le proxy', () => {
+    expect([prive('0123456789abcdef0123456789abcdef'), prive('fedcba9876543210fedcba9876543210')]).toEqual(['/api/asset/a1?v=2&e=0123456789abcdef', '/api/asset/a1?v=2&e=fedcba9876543210']);
+  });
+  it('sans empreinte (ligne antérieure) ⇒ l’adresse d’avant ; caractères non sûrs retirés ; jamais pour un contenu embarqué', () => {
+    expect(prive(null)).toBe('/api/asset/a1?v=2');
+    expect(prive('ab"&<x>-1')).toBe('/api/asset/a1?v=2&e=abx1');
+    expect(servedAssetUrl(asset({ embedded: true, url: '', privateStorage: true, version: 'abc' }))).toBe('/api/asset/a1?v=2');
+  });
+});

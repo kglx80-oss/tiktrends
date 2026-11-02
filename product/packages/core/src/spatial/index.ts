@@ -23,6 +23,7 @@ export * from './bibliotheque/menu-fichier';
 export * from './bibliotheque/menu-dossier';
 export * from './bibliotheque/lien-interne';
 export * from './bibliotheque/nom-fichier';
+export * from './bibliotheque/remplacer';
 export * from './bibliotheque/glisser-deposer';
 export * from './formats';
 export * from './veille';

@@ -115,6 +115,8 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
     ...(a.historique ? { historique: a.historique } : {}),
     // Usage par l'IA (geste de l'écran V5) · seulement pour un média de la bibliothèque.
     ...(!a.studio && !a.historique ? { ia: { utilisable: a.useForAi, template: a.isTemplate, tags: a.tags ?? [] } } : {}),
+    // « Remplacer » · où vit le contenu, relu par `listAssets` (jamais l'adresse) · un média de la bibliothèque seulement.
+    ...(!a.studio && !a.historique && a.contenu ? { contenu: a.contenu } : {}),
   });
   const medias = charges.map(enMedia);
   const sansTags = vivants.filter((a) => !a.studio && !a.historique && a.kind === 'image' && !(a.tags ?? []).length).length;

@@ -2,7 +2,7 @@
 
 import { and, desc, eq, inArray, or, isNull, isNotNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl, ecrireApresDepot } from '@tiktrends/integrations';
+import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl, ecrireApresDepot, retirerDepotsSansLigne } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
 import { costFor, decisionDepot, dureeLienDepot, jetonDepotPour, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, idLienInterne, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
@@ -17,7 +17,7 @@ import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
 import { assetAiUrl } from '../../lib/asset-ai-url';
 import { lireDebutObjetEspace } from '@tiktrends/integrations';
-import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection, validerSelectionFichiers, REFUS_SUPPRESSION_HORS_CORBEILLE, validerRenommageFichier, REFUS_FICHIER } from '@tiktrends/core';
+import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection, validerSelectionFichiers, REFUS_SUPPRESSION_HORS_CORBEILLE, validerRenommageFichier, REFUS_FICHIER, contenuMedia, decisionRemplacement, REFUS_REMPLACEMENT, type ContenuMedia } from '@tiktrends/core';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
@@ -70,6 +70,8 @@ export interface AssetItem {
   /** Création d'un ANCIEN studio (retiré le 10/10) · lecture seule : ouvrir,
       télécharger, rien d'autre. Absent pour toute autre ligne. */
   historique?: { libelle: string; telecharger: string };
+  /** Où vit le contenu (`contenuMedia`, noyau · stockage de l'application, base, ailleurs) · relu ici, jamais l'adresse elle-même. */
+  contenu?: ContenuMedia;
 }
 
 const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
@@ -78,7 +80,7 @@ const FORMATS_TELEVERSES: ReadonlySet<string> = new Set(['image/png', 'image/jpe
 
 function toItem(r: {
   id: string; name: string; kind: string; source: string; url: string; embarquee: boolean;
-  externalId: string | null; thumbUrl: string | null;
+  externalId: string | null; thumbUrl: string | null; objectEtag?: string | null;
   brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[] | null; createdAt: Date;
 }): AssetItem {
   const cfg = storageFromEnv();
@@ -87,7 +89,10 @@ function toItem(r: {
     id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source,
     // La règle vit dans `lib/asset-url` · elle s'y teste, ce qu'un fichier
     // `'use server'` interdit (tout export y devient un point d'entrée réseau).
-    url: servedAssetUrl({ id: r.id, kind: r.kind, source: r.source, url: r.url, embedded: r.embarquee, externalId: r.externalId, privateStorage: prive(r.url) }),
+    // L'empreinte de l'objet versionne l'adresse du proxy · un fichier
+    // remplacé (`remplacerAssetAction`) change d'adresse, l'image affichée suit.
+    url: servedAssetUrl({ id: r.id, kind: r.kind, source: r.source, url: r.url, embedded: r.embarquee, externalId: r.externalId, privateStorage: prive(r.url), version: r.objectEtag ?? null }),
+    contenu: contenuMedia(r.embarquee ? 'data:' : r.url, !r.embarquee && prive(r.url)),
     // Vignette privée : même contrôle de session via le proxy, sans signature persistée.
     thumbUrl: r.thumbUrl ? (prive(r.thumbUrl) ? `${adresseAssetProxy(r.id)}&thumb=1` : r.thumbUrl) : null,
     brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes,
@@ -137,7 +142,7 @@ export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolea
     source: schema.assets.source, brandId: schema.assets.brandId,
     useForAi: schema.assets.useForAi, sizeBytes: schema.assets.sizeBytes,
     tags: schema.assets.tags, createdAt: schema.assets.createdAt,
-    externalId: schema.assets.externalId, thumbUrl: schema.assets.thumbUrl,
+    externalId: schema.assets.externalId, thumbUrl: schema.assets.thumbUrl, objectEtag: schema.assets.objectEtag,
     embarquee: sql<boolean>`${schema.assets.url} like 'data:%'`,
     url: sql<string>`case when ${schema.assets.url} like 'data:%' then '' else ${schema.assets.url} end`,
   })
@@ -600,6 +605,81 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
     },
   });
   return { ok: true };
+}
+
+/** Levée DANS la transaction du remplacement pour l'annuler · porte la phrase du refus. */
+class RemplacementRefuse extends Error {}
+
+/**
+ * REMPLACE un fichier de la bibliothèque par une nouvelle version, SOUS LE
+ * MÊME IDENTIFIANT · « Remplacer » de l'aperçu et du menu « … » (V5 L35). Les
+ * projets Studios qui citent `bib_<id>` relisent la ligne à chaque lecture
+ * (catalogue, devis, génération) · ils liront la nouvelle adresse.
+ *
+ * Le navigateur a déposé la nouvelle version par `presignAssetUploadAction`
+ * (type, taille et durée signés), sous une NOUVELLE clé. Ici, dans l'ordre :
+ *  1. la garde d'écriture de la Bibliothèque, AVANT toute lecture ;
+ *  2. l'objet déposé est rangé chez CET espace (`cleTeleversable`), puis
+ *     RELU (HEAD + début, `If-Match` · `lireDebutObjetEspace`) et jugé comme
+ *     un téléversement (`decisionDepotRelu` · type réel, taille relue) ;
+ *  3. dans UNE transaction, la ligne est relue VERROUILLÉE dans l'espace,
+ *     vivante (hors corbeille · une sortie Studios ou une ancienne création
+ *     n'est pas dans `assets`), et jugée au noyau (`decisionRemplacement` ·
+ *     un téléversement du stockage, même famille relue, autre objet) ; aucune
+ *     autre ligne ne doit déjà citer le dépôt ;
+ *  4. seules `url`, `mime_type`, `size_bytes`, `object_etag` changent, et
+ *     `thumb_url` est vidée (une vignette décrivait l'ancien objet) · le nom,
+ *     le dossier, les droits, le réglage IA, les tags et la date restent.
+ * Tout refus après le dépôt, et tout échec d'écriture, RETIRE le nouvel objet
+ * (`retirerDepotsSansLigne`, `ecrireApresDepot` · sauf si une ligne le cite).
+ * L'ANCIEN objet n'est jamais effacé · plus cité par la ligne, il devient
+ * candidat de l'inventaire des orphelins seulement si plus rien ne le cite.
+ * Aucune dépense.
+ */
+export async function remplacerAssetAction(input: { id: string; url: string; mimeType: string }): Promise<{ ok?: true; error?: string }> {
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+  const cfg = storageFromEnv();
+  if (!cfg) return { error: REFUS_REMPLACEMENT.stockage };
+  const url = typeof input?.url === 'string' ? input.url.trim() : '';
+  if (!/^https?:\/\//i.test(url)) return { error: 'URL invalide.' };
+  const cle = cleTeleversable(url, basePubliqueStockage(cfg), s.workspaceId);
+  if (!cle) return { error: MESSAGES_RELECTURE_DEPOT.hors_espace };
+  const references = referencesObjetEnBase;
+  const retirer = async () => { try { await retirerDepotsSansLigne({ storage: cfg, workspaceId: s.workspaceId, deposes: [url], references }); } catch { /* au mieux · compté par l'inventaire */ } };
+  if (typeof input?.id !== 'string' || !ID_MEDIA.test(input.id)) { await retirer(); return { error: REFUS_REMPLACEMENT.introuvable }; }
+  const id = input.id.toLowerCase();
+  // Le type et la taille se RELISENT dans l'objet déposé, jamais ceux que le navigateur déclare.
+  const lu = await lireDebutObjetEspace(cfg, url, s.workspaceId, OCTETS_RELUS_DEPOT);
+  if (!lu.ok) return { error: MESSAGES_RELECTURE_DEPOT[lu.raison] };
+  const d = decisionDepotRelu({ nom: cle.split('/').pop()!, typeDeclare: typeof input?.mimeType === 'string' ? input.mimeType : '', octets: lu.octets, taille: lu.taille });
+  if (!d.ok) { await retirer(); return { error: d.erreur }; }
+  const A = schema.assets;
+  const base = db;
+  try {
+    await ecrireApresDepot({
+      storage: cfg, workspaceId: s.workspaceId, deposes: [url], references,
+      ecrire: () => base.transaction(async (tx) => {
+        const vivant = and(eq(A.id, id), eq(A.workspaceId, s.workspaceId), isNull(A.deletedAt));
+        const [f] = await tx.select({ kind: A.kind, source: A.source, url: A.url }).from(A).where(vivant).for('update');
+        const v = decisionRemplacement(f ? { kind: f.kind, source: f.source, url: f.url, contenu: contenuMedia(f.url, objectKeyFromUrl(cfg, f.url) !== null) } : null, { kind: d.kind, url });
+        if (!v.ok) throw new RemplacementRefuse(v.raison);
+        const [deja] = await tx.select({ id: A.id }).from(A).where(eq(A.url, url)).limit(1);
+        if (deja) throw new RemplacementRefuse(REFUS_REMPLACEMENT.dejaEnregistre);
+        const maj = await tx.update(A)
+          .set({ url, mimeType: d.contentType, sizeBytes: d.taille, objectEtag: lu.empreinte, thumbUrl: null })
+          .where(vivant).returning({ id: A.id });
+        if (maj.length !== 1) throw new RemplacementRefuse(REFUS_REMPLACEMENT.introuvable);
+      }),
+    });
+    return { ok: true };
+  } catch (e) {
+    // `ecrireApresDepot` a déjà retiré le nouvel objet (sauf s'il est cité) · la phrase du refus remonte.
+    if (e instanceof RemplacementRefuse) return { error: e.message };
+    throw e;
+  }
 }
 
 /**
