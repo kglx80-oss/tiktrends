@@ -56,6 +56,17 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * brut. Chaque départ du noyau est désormais appelé (`variante`), sur une
  * gagnante et une sauvegarde semées ; le lien passe par la route gardée de
  * l'ad (`/api/adsmap/[id]/apercu`).
+ *
+ * Les lots et les créas · le semis Adsmap est celui de la garde des pages
+ * (`helpers/semis-adsmap-medias`) · la gagnante est RANGÉE dans un lot, sa créa
+ * (miniature au stockage) et son brief sont des objets de l'espace ; le lot
+ * porte aussi des ads de la marque collées sur la créa d'une AUTRE marque
+ * (miniature au stockage, de régie) et une variante qui n'a qu'un lien Drive ;
+ * une seconde gagnante porte la créa d'une autre marque. Les actions que le
+ * navigateur appelle (lots, détail d'ad, verdicts, plan d'itération, table,
+ * vignette du lot) lisent donc une ad en lot · leurs témoins le vérifient · et
+ * AUCUN point d'entrée ne nomme la créa étrangère (miniature, clé, ni la route
+ * gardée de l'ad qui la servirait) · la route gardée, elle, la refuse (404).
  */
 
 const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null, cookie: null as string | null }));
@@ -92,6 +103,7 @@ import { HYPOTHESE, sourceConcurrente, T0 } from './l5c-outils';
 import { jetonScelle } from './helpers/depot-jeton';
 import type { UsageDepot } from '@tiktrends/core';
 import { ORIGINES_DEPART_ASSISTANT, type OrigineDepartAssistant } from '@tiktrends/core';
+import { interditsCreasEtrangeres, objetsAdsmap, semerAdsmapMedias, type SemisAdsmap } from './helpers/semis-adsmap-medias';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -118,8 +130,13 @@ const FICHIER = objet('1700000000002-0a1b2c3d-rush.png');
 const VIGNETTE = objet('drive-1AbC-thumb.jpg');
 const JETABLE = objet('1700000000003-0f0f0f0f-jetable.png');
 const SCENE = objet('1700000000006-33333333-scene.png');
-/** Le média d'une gagnante Adsmap (« Lien de l'Ad » rangé au stockage) et la vignette d'une sauvegarde Veille · les aperçus des départs de l'assistant. */
-const GAGNANTE = objet('1700000000007-44444444-gagnante.png');
+/**
+ * Adsmap (semis partagé avec la garde des pages) · le « Lien de l'Ad » de la gagnante (l'aperçu du départ « itération »), la
+ * miniature de sa créa et son brief, rangés au stockage ; les miniatures des créas d'une AUTRE marque.
+ */
+const ADSMAP = objetsAdsmap(objet);
+const { lien: GAGNANTE, vignetteCrea: VIGNETTE_CREA, brief: BRIEF } = ADSMAP;
+/** La vignette d'une sauvegarde Veille · l'aperçu du départ « veille » de l'assistant. */
 const SAUVEE = objet('1700000000008-55555555-sauvee.png');
 const EXTERNE = 'https://site.exemple.fr/logo.png';
 /** Le site de la marque · hôte LITTÉRAL (aucune résolution DNS, `safeFetch`), servi par le faux réseau. */
@@ -170,6 +187,7 @@ const cheminRoute = (f: string) => f.slice('../app'.length).replace(/\/route\.ts
 const s = {
   projet: '', version: '', sortie: '', job: '', fichier: '', jetable: '', lot: '', ticket: '', persona: '', desire: '', angle: '', concept: '', ad: '',
   produit: '', produitJetable: '', dossier: '', projetJetable: '', scenario: '', generation: '', pub: '', projetImage: '', versionImage: '', sauvegarde: '',
+  adsmap: null as unknown as SemisAdsmap,
 };
 const fd = (o: Record<string, string | string[]>) => {
   const f = new FormData();
@@ -589,20 +607,15 @@ beforeAll(async () => {
   s.lot = l!.id;
   const [t] = await db.insert(schema.tickets).values({ workspaceId: ids.wsA, userId: ids.ua, title: 'Une question', body: 'Bonjour' }).returning({ id: schema.tickets.id });
   s.ticket = t!.id;
-  // Une chaîne Adsmap complète · persona → désir → angle → concept → pub.
-  const [pe] = await db.insert(schema.personas).values({ brandId: ids.brandA1, name: 'Persona' }).returning();
-  const [de] = await db.insert(schema.desires).values({ workspaceId: ids.wsA, personaId: pe!.id, label: 'Désir' }).returning();
-  const [an] = await db.insert(schema.angles).values({ workspaceId: ids.wsA, desireId: de!.id, label: 'Angle', mechanism: 'demo' }).returning();
-  const [co] = await db.insert(schema.concepts).values({ workspaceId: ids.wsA, angleId: an!.id, title: 'Concept' }).returning();
-  // Une GAGNANTE arbitrée (verdict validé, comparable, apprentissage) dont le média vit au stockage · le départ « itération » de l'assistant la montre.
-  const [ad] = await db.insert(schema.ads).values({ workspaceId: ids.wsA, conceptId: co!.id, variantCode: 'V1', assetUrl: GAGNANTE }).returning();
-  octets.set(cleDe(GAGNANTE), Buffer.from(`\x89PNG objet ${createHash('md5').update(GAGNANTE).digest('hex')}`));
-  await db.insert(schema.verdicts).values({ adId: ad!.id, workspaceId: ids.wsA, computed: 'winner', validated: 'winner', status: 'validated', comparable: true });
-  await db.insert(schema.learnings).values({ workspaceId: ids.wsA, brandId: ids.brandA1, adId: ad!.id, scope: 'ad', statement: 'Une preuve en ouverture convertit mieux.', status: 'validated' });
+  // Adsmap · la chaîne persona → désir → angle → concept, la GAGNANTE arbitrée rangée au lot (lien, créa, brief au stockage ·
+  // le départ « itération » de l'assistant la montre), les ads du lot portant la créa d'une AUTRE marque, la variante Drive, et
+  // une seconde gagnante hors lot portant la créa d'une autre marque.
+  s.adsmap = await semerAdsmapMedias(db, schema, { workspaceId: ids.wsA, brandId: ids.brandA1, autreMarqueId: ids.brandA2, lotId: s.lot, objets: ADSMAP });
+  for (const u of Object.values(ADSMAP)) octets.set(cleDe(u), Buffer.from(`\x89PNG objet ${createHash('md5').update(u).digest('hex')}`));
   // Une sauvegarde Veille dont la vignette est un objet du stockage · le départ « veille » de l'assistant la liste.
   const [sv] = await db.insert(schema.savedAds).values({ workspaceId: ids.wsA, userId: ids.ua, brandId: ids.brandA1, platform: 'meta', externalId: 'sauvee-1', snapshot: { id: 'sauvee-1', platform: 'meta', mediaType: 'image', advertiserName: 'Concurrent observé', body: 'Une annonce observée', thumbnailUrl: SAUVEE } }).returning({ id: schema.savedAds.id });
   s.sauvegarde = sv!.id;
-  Object.assign(s, { persona: pe!.id, desire: de!.id, angle: an!.id, concept: co!.id, ad: ad!.id });
+  Object.assign(s, { persona: s.adsmap.persona, desire: s.adsmap.desire, angle: s.adsmap.angle, concept: s.adsmap.concept, ad: s.adsmap.ad });
   const [sc] = await db.insert(schema.scenarios).values({ brandId: ids.brandA1, title: 'Scène' }).returning({ id: schema.scenarios.id });
   s.scenario = sc!.id;
   const [g] = await db.insert(schema.generations).values({ brandId: ids.brandA1, kind: 'copy', status: 'completed', output: { hooks: ['Un texte'] } }).returning({ id: schema.generations.id });
@@ -705,7 +718,12 @@ const temoins = (): Readonly<Record<string, readonly string[]>> => ({
   // Les départs de l'assistant · la gagnante par la route gardée de l'ad, la sauvegarde listée sans aperçu signé.
   'app/actions/studios/departs-assistant.ts#listerDepartsAssistant(iteration)': [`"apercu":"/api/adsmap/${s.ad}/apercu"`],
   'app/actions/studios/departs-assistant.ts#listerDepartsAssistant(veille)': [`"titre":"Concurrent observé","detail":"Une annonce observée","apercu":null`],
-  'app/actions/adsmap.ts#listAdsAction': [`"assetUrl":"/api/adsmap/${s.ad}/apercu"`],
+  'app/actions/adsmap.ts#listAdsAction': [`"briefUrl":"/api/adsmap/${s.ad}/apercu?media=brief"`, `"assetUrl":"/api/adsmap/${s.ad}/apercu"`, `"id":"${s.adsmap.adEtrangere}"`],
+  // Les lots · la vignette du lot est la route gardée de la gagnante (la variante Drive et la créa étrangère, avant elle, passent).
+  'app/actions/adsmap.ts#listBatchesAction': [`"id":"${s.lot}"`, `"ads":4,"thumbUrl":"/api/adsmap/${s.ad}/apercu?media=vignette"`],
+  'app/actions/adsmap-batch.ts#batchDetailAction': [`"id":"${s.ad}"`, `"id":"${s.adsmap.adEtrangere}"`, `"id":"${s.adsmap.adEtrangereExterne}"`],
+  'app/actions/adsmap-verdict.ts#adDetailAction': [`"id":"${s.ad}"`, '"batchNumber":1', '"verdictStatus":"validated"'],
+  'app/actions/adsmap-iterate.ts#iterationPlanAction': [`"adId":"${s.ad}"`, `"adId":"${s.adsmap.gagnanteEtrangere}"`],
   'app/actions/studios/produit.ts#lireProduitProjet': [
     `/studio/projets/${s.projetImage}/produit/fichier/${photoProduit()}`, `/studio/projets/${s.projetImage}/produit/fichier/${idLogoMarque(ids.brandA1, empreinteAdresse(LOGO).sha256)}`, `/api/asset/${s.fichier}`,
   ],
@@ -758,6 +776,24 @@ describe('Routes et actions · aucune adresse brute du stockage privé ne part a
     expect(manquants, 'départ de l’assistant NON EXERCÉ · `listerDepartsAssistant` doit être appelé avec chaque départ du noyau').toEqual([]);
   });
 
+  it('la route gardée de l’ad · sert la vignette (créa) et le brief de la gagnante rangée au lot, refuse la créa d’une autre marque (404, sans indice) · avant tout appel qui écrit ou détruit', async () => {
+    const { GET } = await import('../app/api/adsmap/[id]/apercu/route');
+    const servi = async (id: string, media: string) => {
+      const r = await GET(new Request(`http://localhost/api/adsmap/${id}/apercu?media=${media}`), { params: Promise.resolve({ id }) });
+      return { statut: r.status, cible: r.headers.get('location') ?? '', corps: await r.text() };
+    };
+    for (const [media, o] of [['vignette', VIGNETTE_CREA], ['brief', BRIEF]] as const) {
+      const r = await servi(s.ad, media);
+      expect(r.statut, `?media=${media} · la route sert le média de la gagnante`).toBe(302);
+      expect(signeeCourte(r.cible, [cleDe(o)]), `?media=${media} · la redirection vise l’objet attendu, signée, éphémère · ${r.cible}`).toBe(true);
+    }
+    for (const id of [s.adsmap.adEtrangere, s.adsmap.adEtrangereExterne, s.adsmap.gagnanteEtrangere]) {
+      const r = await servi(id, 'vignette');
+      expect(r.statut, `${id} · la route sert la créa d’une AUTRE marque collée sur l’ad`).toBe(404);
+      expect(`${r.cible} ${r.corps}`, `${id} · la réponse nomme la créa d’une autre marque`).not.toMatch(/autre-marque/);
+    }
+  });
+
   it.each(POINTS.map((p) => [p.cle, p] as const))('%s · rien de brut dans ce qui sort', async (cle, p) => {
     const r = await p.appeler();
     sorties.set(cle, r);
@@ -770,6 +806,8 @@ describe('Routes et actions · aucune adresse brute du stockage privé ne part a
     expect(fuites.map((f) => `${f.chemin} · …${f.extrait}…`), `${cle} · adresse BRUTE du stockage privé remise au navigateur · passe par la route gardée`).toEqual([]);
     const vu = r.recu ? `${r.recu.statut} ${JSON.stringify(r.recu.entetes)} ${r.recu.corps}` : JSON.stringify(r.sortie.valeur ?? null);
     for (const t of temoins()[cle] ?? []) expect(vu, `${cle} · témoin absent · l’objet semé n’est pas rendu par sa route gardée (${t})`).toContain(t);
+    const lu = `${vu} ${r.sortie.erreur ?? ''}`;
+    for (const x of interditsCreasEtrangeres(s.adsmap, ADSMAP, cleDe)) expect(lu, `${cle} · la créa d’une AUTRE marque part au navigateur (${x}) · la jointure ad → créa doit être bornée à la marque (\`jointureCreaDeLaMarque\`)`).not.toContain(x);
   });
 
   it('chaque exemption sert encore (une exemption morte est retirée)', () => {
