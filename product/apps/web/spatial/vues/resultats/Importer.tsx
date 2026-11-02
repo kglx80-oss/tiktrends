@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LIBELLE_VERDICT, libelleStatutTest, type Remontee, type VerdictValue } from '@tiktrends/core';
+import {
+  LIBELLE_VERDICT, libelleStatutTest, mentionColonnesAbsentes, modeleImport,
+  type GuideColonnes, type Remontee, type VerdictValue,
+} from '@tiktrends/core';
 import { syncAdsMapAction } from '../../../app/actions/adsmap';
 import { applyImportAction, previewImportAction, type PreviewResult } from '../../../app/actions/adsmap-import';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
@@ -20,12 +23,36 @@ import type { SousNavResultats } from './communs';
  *  · le dépôt · le tableau historique (CSV de Google Sheets) · analysé d'abord
  *    (`previewImportAction`, rien n'est écrit), importé ensuite seulement
  *    (`applyImportAction`, admin) ;
+ *  · un refus dit QUOI corriger · les intitulés lus dans l'en-tête et les
+ *    colonnes attendues absentes (`guideColonnes`, noyau), rendus comme texte,
+ *    et « Télécharger le modèle » (`modeleImport` · l'en-tête de l'export) ;
+ *  · un aperçu accepté dit les colonnes absentes, dont rien ne sera importé ;
  *  · les remontées · la dernière mesure Meta et les lots repris du tableau.
  */
 
 const COULEUR = { meta: '#0467df', tableau: '#34a853' } as const;
 const COLONNES_APERCU = 'minmax(0,1.3fr) minmax(0,1.3fr) 110px minmax(0,1fr) auto';
 const LETTRE = { meta: 'M', tableau: 'S' } as const;
+/** Un intitulé lu ou attendu · saisi par l'utilisateur, rendu comme TEXTE (jamais en balisage), retour à la ligne permis. */
+const PASTILLE = { whiteSpace: 'normal', maxWidth: '100%', overflowWrap: 'anywhere' } as const;
+
+function telechargerModele() {
+  // Le contenu vient du noyau (`modeleImport` → `toCsv`) · l'écran ne l'écrit pas.
+  const lien = document.createElement('a');
+  lien.href = URL.createObjectURL(new Blob([modeleImport()], { type: 'text/csv;charset=utf-8' }));
+  lien.download = 'modele-import-resultats.csv';
+  lien.click();
+  URL.revokeObjectURL(lien.href);
+}
+
+/** Des intitulés en pastilles, chacun entre guillemets français. */
+function Intitules({ liste, ton }: { liste: readonly string[]; ton?: 'r' }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+      {liste.map((h, i) => <span key={i} className={ton ? `pill ${ton}` : 'pill'} style={PASTILLE}>« {h} »</span>)}
+    </div>
+  );
+}
 
 export interface PropsImporter {
   sousNav: SousNavResultats;
@@ -52,6 +79,7 @@ export function Importer(p: PropsImporter) {
   const [apercu, setApercu] = useState<PreviewResult | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [guide, setGuide] = useState<GuideColonnes | null>(null);
   const [fait, setFait] = useState(false);
 
   async function mesurer() {
@@ -64,13 +92,13 @@ export function Importer(p: PropsImporter) {
 
   async function lire(f: File | null) {
     if (!f) return;
-    setErreur(null); setApercu(null); setFait(false);
+    setErreur(null); setGuide(null); setApercu(null); setFait(false);
     const texte = await f.text();
     setCsv({ nom: f.name, texte });
     setOccupe(true);
     const r = await previewImportAction(texte);
     setOccupe(false);
-    if (r.error) { setErreur(r.error); return; }
+    if (r.error) { setErreur(r.error); setGuide(r.guide ?? null); return; }
     setApercu(r);
   }
 
@@ -86,6 +114,7 @@ export function Importer(p: PropsImporter) {
   }
 
   const rep = apercu?.report;
+  const absentes = apercu?.guide ? mentionColonnesAbsentes(apercu.guide) : null;
   return (
     <Vue>
       <EnTete titre="Importer des résultats" sous="Les mesures remontent dans tes lots : c’est ce qui permet de conclure, puis d’itérer" />
@@ -146,10 +175,33 @@ export function Importer(p: PropsImporter) {
           </div>
         </div>
       </section>
+      {erreur && guide && !apercu && (
+        <section className="tile sec" aria-label="Ce qu’il faut corriger">
+          <h2>Ce qu’il faut corriger · rien n’est lu au-delà de l’en-tête</h2>
+          <div className="lbl" style={{ marginTop: 10 }}>Intitulés lus dans l’en-tête</div>
+          {guide.lus.length > 0
+            ? <Intitules liste={guide.lus} />
+            : <p className="faint" style={{ fontSize: '12.5px' }}>Aucun intitulé · la ligne d’en-tête est vide.</p>}
+          {guide.lusMasques > 0 && <p className="faint" style={{ fontSize: '11.5px', marginTop: 6 }}>et {guide.lusMasques} autre{guide.lusMasques > 1 ? 's' : ''}, non affiché{guide.lusMasques > 1 ? 's' : ''}</p>}
+          {guide.obligatoiresAbsentes.length > 0 && <>
+            <div className="lbl" style={{ marginTop: 12 }}>Colonne{guide.obligatoiresAbsentes.length > 1 ? 's' : ''} obligatoire{guide.obligatoiresAbsentes.length > 1 ? 's' : ''} absente{guide.obligatoiresAbsentes.length > 1 ? 's' : ''}</div>
+            <Intitules liste={guide.obligatoiresAbsentes} ton="r" />
+          </>}
+          {guide.optionnellesAbsentes.length > 0 && <>
+            <div className="lbl" style={{ marginTop: 12 }}>Autres colonnes du tableau absentes</div>
+            <Intitules liste={guide.optionnellesAbsentes} />
+          </>}
+          <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Chaque intitulé doit être dans sa propre colonne, en première ligne utile du fichier. Le modèle reprend l’en-tête exact de l’export Résultats.</p>
+          <div className="foot2" style={{ marginTop: 10 }}>
+            <button className="btn sm" type="button" style={{ minHeight: 44 }} onClick={telechargerModele}><Ic n="down" s={false} />Télécharger le modèle</button>
+          </div>
+        </section>
+      )}
       {rep && !fait && (
         <section className="tile sec" aria-label="Ce qui sera créé">
           <h2>Ce qui sera créé · rien n’est encore écrit</h2>
           <p className="muted" style={{ fontSize: '12.5px' }}>{apercu?.lecture ? `${apercu.lecture} · ` : ''}{rep.rowsRead} lignes lues · {rep.ads} variantes, {rep.concepts} concepts, {rep.angles} angles, {rep.desires} désirs, {rep.batches} lots, {rep.verdicts} verdicts, {rep.learnings} apprentissages.{rep.rowsRead === rep.ads ? ` Aucune ligne perdue · ${rep.conceptsMerged} ligne(s) regroupée(s) en variantes d’un même concept.` : ''}</p>
+          {absentes && <p className="muted" role="note" style={{ fontSize: '12.5px', marginTop: 6 }}>{absentes} L’import n’est pas bloqué.</p>}
           {rep.warnings.length > 0 && (
             <ul className="check2">
               {rep.warnings.map((w, i) => <li key={i}><span className="cb"><Ic n="warn" /></span><span>{w}</span><span /></li>)}
