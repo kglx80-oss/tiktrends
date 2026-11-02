@@ -10,6 +10,7 @@ import { effectiveAccess } from './access';
 import { canAccess, denyReason, FEATURES, roleAtLeast } from './rbac';
 import { iterationPlanAction, type IterationRow } from '../app/actions/adsmap-iterate';
 import { LIMITE_CARTES_DEFAUT } from './studios/sources/projet';
+import { jointureCreaDeLaMarque, vignetteAd } from './adsmap-medias';
 
 /**
  * UX V5 · l'Accueil · LECTURE SEULE des sources réelles.
@@ -74,19 +75,20 @@ export async function chargerProchainesIterations(
   }
   const prouves = rows ? gagnantsProuves(rows) : [];
   const contexte = new Map<string, ContexteGagnante>();
-  if (prouves.length && db) {
+  const marqueId = p.marque?.id;
+  if (prouves.length && db && marqueId) {
     const ids = prouves.slice(0, 2).map((r) => r.adId);
     const lus = await lire('contexte des gagnantes', async () => {
       const lignes = await db!.select({
         adId: schema.ads.id, plateforme: schema.ads.platform, metricsAgg: schema.verdicts.metricsAgg,
         lotNumero: schema.batches.number, lotStatut: schema.batches.status,
-        // La vignette média RÉELLE de la gagnante · l'asset de l'ad, sinon la
-        // miniature de sa créative. Aucune nouvelle source · colonnes existantes.
-        assetUrl: schema.ads.assetUrl, thumbUrl: schema.creatives.thumbUrl,
+        // La vignette média RÉELLE de la gagnante · la miniature de sa créative,
+        // son fichier, sinon l'asset de l'ad. Aucune nouvelle source · colonnes existantes.
+        lien: schema.ads.assetUrl, miniature: schema.creatives.thumbUrl, fichier: schema.creatives.storageUrl,
       }).from(schema.ads)
         .innerJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
         .leftJoin(schema.batches, and(eq(schema.batches.id, schema.ads.batchId), eq(schema.batches.workspaceId, s.workspaceId)))
-        .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
+        .leftJoin(schema.creatives, jointureCreaDeLaMarque(marqueId))
         .where(and(eq(schema.ads.workspaceId, s.workspaceId), inArray(schema.ads.id, ids)));
       const appris = await db!.selectDistinct({ adId: schema.learnings.adId }).from(schema.learnings)
         .where(and(
@@ -100,7 +102,8 @@ export async function chargerProchainesIterations(
         metricsAgg: l.metricsAgg, plateforme: l.plateforme,
         lot: l.lotNumero != null && l.lotStatut ? { numero: l.lotNumero, statut: l.lotStatut } : null,
         apprentissageValide: lus!.appris.has(l.adId),
-        vignette: l.thumbUrl ?? l.assetUrl,
+        // Un objet du stockage privé passe par la route gardée de l'ad · jamais son adresse brute.
+        vignette: vignetteAd(l.adId, l),
       });
     }
   }

@@ -10,6 +10,7 @@ import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
 import { effectiveAccess } from '../../../../lib/access';
 import { canAccess, denyReason, FEATURES, roleAtLeast } from '../../../../lib/rbac';
+import { jointureCreaDeLaMarque, vignetteAd } from '../../../../lib/adsmap-medias';
 
 /**
  * Spatial · Résultats · lectures serveur partagées par les écrans de la rubrique.
@@ -43,7 +44,6 @@ export async function gardeResultats(reserve?: 'lots' | 'import'): Promise<Garde
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-const url = (...c: Array<string | null | undefined>) => c.find((x) => !!x && /^https?:\/\//i.test(x)) ?? null;
 
 export interface AdLue extends FaitsAdSpatial {
   lotId: string | null;
@@ -92,7 +92,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
       .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
       .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
-      .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
+      .leftJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
       .where(and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId)))
       .orderBy(asc(schema.ads.variantCode))
       .limit(2000),
@@ -117,7 +117,8 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       variable: r.ad.testedVariable,
       plateforme: r.ad.platform,
       texte: r.callout?.trim() || r.concept || null,
-      image: url(r.thumb, r.storage, r.ad.assetUrl),
+      // Un objet du stockage privé passe par la route gardée de l'ad · jamais son adresse brute (image cassée, clé nommée).
+      image: vignetteAd(r.ad.id, { miniature: r.thumb, fichier: r.storage, lien: r.ad.assetUrl }),
       manques: manquesAvantTest({ adType: r.ad.adType, hypothesis: r.ad.hypothesis, testedVariable: r.ad.testedVariable, offerId: r.ad.offerId, landingPageId: r.ad.landingPageId }),
       concept: r.concept,
       nomGenere: r.ad.generatedName,

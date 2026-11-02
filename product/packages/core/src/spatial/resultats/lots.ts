@@ -55,7 +55,7 @@ export interface FaitsAdSpatial {
   plateforme: string;
   /** Le texte porté par la créa (accroche du concept, sinon son titre). */
   texte: string | null;
-  /** Le média réel de la variante (URL http·s), ou `null` · jamais une image fabriquée. */
+  /** Le média réel de la variante (route gardée de l'ad pour un objet du stockage, sinon URL http·s), ou `null` · jamais une image fabriquée. */
   image: string | null;
   /** Ce qui manque pour partir en test (`manquesAvantTest`) · vide = complète. */
   manques: string[];

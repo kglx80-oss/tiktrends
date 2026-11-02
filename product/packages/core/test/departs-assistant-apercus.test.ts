@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { apercuSauvegardeVeille, lienAdAffiche, ORIGINES_DEPART_ASSISTANT, routeApercuAdAdsmap } from '../src';
+import {
+  apercuSauvegardeVeille, imageAffichable, lienAdAffiche, mediaAdDemande, ORIGINES_DEPART_ASSISTANT, routeApercuAdAdsmap, sourceMediaAd, vignetteAdAffichee, vignetteSourceAd,
+} from '../src';
 
 /** Les aperçus des départs de l'assistant · une projection d'affichage, jamais une adresse signée ni brute du stockage. */
 describe('départs de l’assistant · ce que le navigateur reçoit', () => {
@@ -32,5 +34,49 @@ describe('départs de l’assistant · ce que le navigateur reçoit', () => {
     expect(apercuSauvegardeVeille('https://scontent.cdn.exemple/v.jpg', false)).toBe('https://scontent.cdn.exemple/v.jpg');
     expect(apercuSauvegardeVeille('https://stockage.exemple/tt/assets/ws/1700-ab-v.png', true)).toBeNull();
     expect(apercuSauvegardeVeille(null, false)).toBeNull();
+  });
+
+  const STOCKAGE = 'https://stockage.exemple/tt/assets/ws/';
+  const estObjet = (u: string) => u.startsWith(STOCKAGE);
+
+  it('la route d’un média · `lien` sans paramètre (adresse #1015 inchangée), `vignette` et `brief` nommés · tout autre paramètre refusé', () => {
+    expect(routeApercuAdAdsmap(AD, 'lien')).toBe(`/api/adsmap/${AD}/apercu`);
+    expect(routeApercuAdAdsmap(AD, 'vignette')).toBe(`/api/adsmap/${AD}/apercu?media=vignette`);
+    expect(routeApercuAdAdsmap(AD, 'brief')).toBe(`/api/adsmap/${AD}/apercu?media=brief`);
+    expect([null, 'lien', 'vignette', 'brief', 'autre', ''].map(mediaAdDemande)).toEqual(['lien', 'lien', 'vignette', 'brief', null, null]);
+  });
+
+  it('la vignette d’une ad · miniature de la créa, puis son fichier, puis le lien de l’ad · jamais une page de partage ni un libellé', () => {
+    expect(vignetteSourceAd({ miniature: `${STOCKAGE}mini.jpg`, fichier: `${STOCKAGE}f.png`, lien: `${STOCKAGE}ad.png` })).toBe(`${STOCKAGE}mini.jpg`);
+    expect(vignetteSourceAd({ miniature: null, fichier: `${STOCKAGE}f.png`, lien: `${STOCKAGE}ad.png` })).toBe(`${STOCKAGE}f.png`);
+    expect(vignetteSourceAd({ miniature: 'https://drive.google.com/file/d/x/view', lien: `${STOCKAGE}ad.png` })).toBe(`${STOCKAGE}ad.png`);
+    expect(vignetteSourceAd({ lien: 'Dossier Drive « Juin »' })).toBeNull();
+    expect(sourceMediaAd('vignette', { miniature: `${STOCKAGE}mini.jpg`, lien: `${STOCKAGE}ad.png` }), 'la route sert la même vignette que l’écran').toBe(`${STOCKAGE}mini.jpg`);
+    expect(sourceMediaAd('lien', { miniature: `${STOCKAGE}mini.jpg`, lien: ` ${STOCKAGE}ad.png ` })).toBe(`${STOCKAGE}ad.png`);
+    expect(sourceMediaAd('brief', { lien: `${STOCKAGE}ad.png`, brief: `${STOCKAGE}brief.png` })).toBe(`${STOCKAGE}brief.png`);
+    expect(sourceMediaAd('brief', { lien: `${STOCKAGE}ad.png`, brief: '  ' })).toBeNull();
+  });
+
+  it('la vignette affichée · un objet du stockage passe par la route gardée (`?media=vignette`), une image de régie telle quelle, rien d’ouvrable · null', () => {
+    const vue = vignetteAdAffichee(AD, { miniature: `${STOCKAGE}mini.jpg`, lien: 'https://cdn.regie.exemple/ad.jpg' }, estObjet);
+    expect(vue).toBe(`/api/adsmap/${AD}/apercu?media=vignette`);
+    expect(vue).not.toContain('assets/');
+    expect(vignetteAdAffichee(AD, { miniature: 'https://cdn.regie.exemple/mini.jpg', lien: `${STOCKAGE}ad.png` }, estObjet)).toBe('https://cdn.regie.exemple/mini.jpg');
+    expect(vignetteAdAffichee(AD, { lien: 'https://drive.google.com/file/d/x/view' }, estObjet)).toBeNull();
+  });
+
+  it('le brief affiché · objet du stockage par la route gardée (`?media=brief`), lien externe tel quel', () => {
+    expect(lienAdAffiche(AD, `${STOCKAGE}brief.png`, true, 'brief')).toBe(`/api/adsmap/${AD}/apercu?media=brief`);
+    expect(lienAdAffiche(AD, 'https://docs.google.com/document/d/b', false, 'brief')).toBe('https://docs.google.com/document/d/b');
+  });
+
+  it('une image affichable · la route de l’application passe telle quelle, jamais une adresse protocole-relative ; sinon une adresse ouvrable', () => {
+    expect(imageAffichable(`/api/adsmap/${AD}/apercu?media=vignette`)).toBe(`/api/adsmap/${AD}/apercu?media=vignette`);
+    expect(imageAffichable('//hote.exemple/x.png')).toBeNull();
+    expect(imageAffichable('/\\hote.exemple/x.png')).toBeNull();
+    expect(imageAffichable('https://cdn.regie.exemple/v.jpg')).toBe('https://cdn.regie.exemple/v.jpg');
+    expect(imageAffichable('https://drive.google.com/file/d/x/view')).toBeNull();
+    expect(imageAffichable('Dossier')).toBeNull();
+    expect(imageAffichable(null)).toBeNull();
   });
 });

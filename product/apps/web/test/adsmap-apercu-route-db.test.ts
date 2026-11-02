@@ -42,19 +42,24 @@ vi.setConfig({ testTimeout: 60_000, hookTimeout: 120_000 });
 
 const ids = etat.ids;
 const objet = (ws: string, n: string) => `${CFG.publicBaseUrl}/assets/${ws}/${n}`;
-const ad = { a1: '', a2: '', b1: '', externe: '', autreEspace: '', sansLien: '' };
+const ad = { a1: '', a2: '', b1: '', externe: '', autreEspace: '', sansLien: '', creaStockage: '', creaExterne: '', creaAutreMarque: '' };
 
-async function adDe(workspaceId: string, brandId: string, assetUrl: string | null): Promise<string> {
+async function adDe(workspaceId: string, brandId: string, assetUrl: string | null, plus: { briefUrl?: string; creativeId?: string } = {}): Promise<string> {
   const [pe] = await db!.insert(schema.personas).values({ brandId, name: 'Persona' }).returning();
   const [de] = await db!.insert(schema.desires).values({ workspaceId, personaId: pe!.id, label: 'Désir' }).returning();
   const [an] = await db!.insert(schema.angles).values({ workspaceId, desireId: de!.id, label: 'Angle', mechanism: 'demo' }).returning();
   const [co] = await db!.insert(schema.concepts).values({ workspaceId, angleId: an!.id, title: 'Concept' }).returning();
-  const [x] = await db!.insert(schema.ads).values({ workspaceId, conceptId: co!.id, variantCode: 'V1', assetUrl }).returning();
+  const [x] = await db!.insert(schema.ads).values({ workspaceId, conceptId: co!.id, variantCode: 'V1', assetUrl, ...plus }).returning();
   return x!.id;
 }
 
-async function lire(id: string): Promise<{ statut: number; location: string | null; entetes: Headers }> {
-  const r = await GET(new Request(`http://localhost${routeApercuAdAdsmap(id)}`), { params: Promise.resolve({ id }) });
+async function creaDe(brandId: string, thumbUrl: string): Promise<string> {
+  const [c] = await db!.insert(schema.creatives).values({ brandId, fingerprintHash: `crea:${thumbUrl}`, type: 'image', thumbUrl }).returning({ id: schema.creatives.id });
+  return c!.id;
+}
+
+async function lire(id: string, adresse = routeApercuAdAdsmap(id)): Promise<{ statut: number; location: string | null; entetes: Headers }> {
+  const r = await GET(new Request(`http://localhost${adresse}`), { params: Promise.resolve({ id }) });
   return { statut: r.status, location: r.headers.get('location'), entetes: r.headers };
 }
 
@@ -68,6 +73,16 @@ beforeAll(async () => {
   ad.externe = await adDe(ids.wsA, ids.brandA1, 'https://drive.google.com/file/d/abc/view');
   ad.autreEspace = await adDe(ids.wsA, ids.brandA1, objet(ids.wsB, '1700000000010-77777777-intrus.png'));
   ad.sansLien = await adDe(ids.wsA, ids.brandA1, null);
+  // La vignette (miniature de la créa) et le brief, rangés au stockage de l'espace.
+  ad.creaStockage = await adDe(ids.wsA, ids.brandA1, objet(ids.wsA, '1700000000011-88888888-ad.png'), {
+    briefUrl: objet(ids.wsA, '1700000000012-99999999-brief.png'), creativeId: await creaDe(ids.brandA1, objet(ids.wsA, '1700000000013-aaaaaaaa-mini.jpg')),
+  });
+  // Une miniature de régie (externe) · l'écran l'affiche telle quelle, la route ne la relaie pas ; un brief externe, pareil.
+  ad.creaExterne = await adDe(ids.wsA, ids.brandA1, objet(ids.wsA, '1700000000014-bbbbbbbb-ad.png'), {
+    briefUrl: 'https://docs.google.com/document/d/brief', creativeId: await creaDe(ids.brandA1, 'https://scontent.cdn.exemple/mini.jpg'),
+  });
+  // Une créa d'une AUTRE marque collée sur une ad de la marque active · sa miniature n'est jamais signée.
+  ad.creaAutreMarque = await adDe(ids.wsA, ids.brandA1, null, { creativeId: await creaDe(ids.brandA2, objet(ids.wsA, '1700000000015-cccccccc-autre-marque.jpg')) });
 });
 
 describe('GET /api/adsmap/[id]/apercu · le média d’une ad, par sa route gardée', () => {
@@ -131,5 +146,49 @@ describe('GET /api/adsmap/[id]/apercu · le média d’une ad, par sa route gard
     etat.session = proprietaire(); etat.brand = { id: ids.brandA1, name: 'Marque A1' };
     expect((await lire(ad.sansLien)).statut).toBe(404);
     expect((await lire('pas-un-uuid')).statut).toBe(404);
+  });
+
+  it('?media=vignette · la miniature de la créa (objet de l’espace) · 302 signée éphémère vers CET objet', async () => {
+    etat.session = proprietaire(); etat.brand = { id: ids.brandA1, name: 'Marque A1' };
+    const r = await lire(ad.creaStockage, routeApercuAdAdsmap(ad.creaStockage, 'vignette'));
+    expect(r.statut, 'la vignette de l’ad doit être servie').toBe(302);
+    const cible = new URL(r.location ?? 'http://x');
+    expect(cible.pathname, 'la redirection vise la miniature de la créa, pas le lien de l’ad').toBe(`/${CFG.bucket}/assets/${ids.wsA}/1700000000013-aaaaaaaa-mini.jpg`);
+    expect(Number(cible.searchParams.get('X-Amz-Expires')), 'signature éphémère (≤ 300 s)').toBeLessThanOrEqual(300);
+    expect(r.entetes.get('cache-control')).toContain('no-store');
+  });
+
+  it('?media=brief · le « Lien du Brief créa » (objet de l’espace) · 302 vers le brief', async () => {
+    etat.session = proprietaire(); etat.brand = { id: ids.brandA1, name: 'Marque A1' };
+    const r = await lire(ad.creaStockage, routeApercuAdAdsmap(ad.creaStockage, 'brief'));
+    expect(r.statut).toBe(302);
+    expect(new URL(r.location ?? 'http://x').pathname, 'la redirection vise le brief').toBe(`/${CFG.bucket}/assets/${ids.wsA}/1700000000012-99999999-brief.png`);
+  });
+
+  it('miniature ou brief EXTERNES · 404, rien n’est téléchargé (l’écran les montre tels quels)', async () => {
+    etat.session = proprietaire(); etat.brand = { id: ids.brandA1, name: 'Marque A1' };
+    etat.appelsDistants.length = 0;
+    for (const m of ['vignette', 'brief'] as const) {
+      const r = await lire(ad.creaExterne, routeApercuAdAdsmap(ad.creaExterne, m));
+      expect(r.statut, `${m} externe · jamais relayé`).toBe(404);
+      expect(r.location).toBeNull();
+    }
+    expect(etat.appelsDistants).toEqual([]);
+  });
+
+  it('la créa d’une AUTRE marque collée sur l’ad · sa miniature n’est jamais signée (404)', async () => {
+    etat.session = proprietaire(); etat.brand = { id: ids.brandA1, name: 'Marque A1' };
+    const r = await lire(ad.creaAutreMarque, routeApercuAdAdsmap(ad.creaAutreMarque, 'vignette'));
+    expect(r.statut).toBe(404);
+    expect(r.location).toBeNull();
+  });
+
+  it('un média inconnu, ou sans session · 404 / 401 neutres', async () => {
+    etat.session = proprietaire(); etat.brand = { id: ids.brandA1, name: 'Marque A1' };
+    expect((await lire(ad.creaStockage, `/api/adsmap/${ad.creaStockage}/apercu?media=autre`)).statut).toBe(404);
+    etat.session = null;
+    const r = await lire(ad.creaStockage, routeApercuAdAdsmap(ad.creaStockage, 'vignette'));
+    expect(r.statut).toBe(401);
+    expect(r.location).toBeNull();
   });
 });

@@ -11,6 +11,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { runAdsMapSyncForBrand } from '../../lib/adsmap-sync';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { cleObjetStockage } from '../../lib/brand-media-url';
+import { adsVignettesDuLot, jointureCreaDeLaMarque, vignetteDuLot, vignettesDesAds } from '../../lib/adsmap-medias';
 import { appUrl } from '../../lib/mailer';
 
 /**
@@ -154,7 +155,7 @@ export async function listAdsAction(filters: AdFilters = {}): Promise<{ rows?: A
         hypothesis: r.ad.hypothesis,
         format: r.ad.format,
         adType: r.ad.adType,
-        briefUrl: r.ad.briefUrl,
+        briefUrl: lienAdAffiche(r.ad.id, r.ad.briefUrl, !!r.ad.briefUrl && cleObjetStockage(r.ad.briefUrl) !== null, 'brief'),
         assetUrl: lienAdAffiche(r.ad.id, r.ad.assetUrl, !!r.ad.assetUrl && cleObjetStockage(r.ad.assetUrl) !== null),
         variantCode: r.ad.variantCode,
         testedVariable: r.ad.testedVariable,
@@ -207,7 +208,7 @@ export async function exportAdsCsvAction(filters: AdFilters = {}, withComputed =
     [COL_HYPOTHESIS]: r.hypothesis ?? '',
     'Ad Format': SHEET_FORMAT[r.format] ?? r.format,
     'Ad Type': SHEET_AD_TYPE[r.adType] ?? r.adType,
-    'Lien du Brief créa': r.briefUrl ?? '',
+    'Lien du Brief créa': r.briefUrl === routeApercuAdAdsmap(r.id, 'brief') ? `${appUrl()}${r.briefUrl}` : (r.briefUrl ?? ''),
     // Le fichier sort de l'application · la route gardée y est écrite en adresse absolue (session exigée à l'ouverture).
     "Lien de l'Ad": r.assetUrl === routeApercuAdAdsmap(r.id) ? `${appUrl()}${r.assetUrl}` : (r.assetUrl ?? ''),
     'Résultats': r.verdict ? (SHEET_VERDICT[r.verdict] ?? r.verdict) : '',
@@ -244,22 +245,23 @@ export async function listBatchesAction(): Promise<Array<{ id: string; number: n
   const rows = await db!.select({
     id: schema.batches.id, number: schema.batches.number, status: schema.batches.status,
     goal: schema.batches.goal, launchedAt: schema.batches.launchedAt, ads: sql<number>`count(${schema.ads.id})`,
-    // La vignette de la carte (V5) · le média RÉEL d'une variante du lot, tel
-    // qu'il est en base (créa persistée, sa miniature d'abord, sinon l'asset de
-    // l'ad). `max` en choisit un de façon déterministe · aucune image fabriquée.
-    // La jointure sur la créa est 1→1 (créa.id = ad.creativeId) · elle ne
-    // multiplie pas le `count(ads)`. Un lot sans aucun média rend `null`.
-    thumbUrl: sql<string | null>`max(coalesce(${schema.creatives.thumbUrl}, ${schema.creatives.storageUrl}, ${schema.ads.assetUrl}))`,
+    // La vignette de la carte (V5) · le média RÉEL d'une variante du lot (créa
+    // de la marque, sa miniature d'abord, sinon l'asset de l'ad), la première
+    // candidate qui en a une selon la règle du noyau (`vignetteDuLot`) · aucune
+    // image fabriquée. Un objet du stockage privé passe par la route gardée de
+    // l'ad (`vignettesDesAds`) · jamais son adresse brute. Sans média · `null`.
+    candidates: adsVignettesDuLot,
   })
     .from(schema.batches)
     .leftJoin(schema.ads, eq(schema.ads.batchId, schema.batches.id))
-    .leftJoin(schema.creatives, eq(schema.creatives.id, schema.ads.creativeId))
+    .leftJoin(schema.creatives, jointureCreaDeLaMarque(g.brand.id))
     .where(eq(schema.batches.brandId, g.brand.id))
     .groupBy(schema.batches.id)
     .orderBy(desc(schema.batches.number));
   // `launchedAt` distingue un lot importé (analysé, jamais lancé) d'un lot suivi ·
   // il alimente la nature du lot côté écran (CDC v8 · R04).
-  return rows.map((r) => ({ ...r, launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null, ads: Number(r.ads), thumbUrl: r.thumbUrl ?? null }));
+  const vignettes = await vignettesDesAds(g.s.workspaceId, g.brand.id, rows.flatMap((r) => r.candidates ?? []));
+  return rows.map(({ candidates, ...r }) => ({ ...r, launchedAt: r.launchedAt ? (r.launchedAt as Date).toISOString() : null, ads: Number(r.ads), thumbUrl: vignetteDuLot(candidates, vignettes) }));
 }
 
 export interface SyncResult {
