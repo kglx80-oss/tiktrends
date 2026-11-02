@@ -15,6 +15,7 @@ import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credi
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { assetAiUrl } from '../../lib/asset-ai-url';
+import { jointureCreaDeLaMarque } from '../../lib/adsmap-medias';
 import { GUARD } from '../../lib/guard-error';
 
 /**
@@ -37,6 +38,13 @@ import { GUARD } from '../../lib/guard-error';
  *    pas ne doit pas effacer ce qu'on savait.
  *  - **on rembourse quand l'analyse ne produit rien.** Un appel sans matière
  *    n'est pas un service rendu.
+ *
+ * Et une quatrième, qui borne ce qui PART au modèle : la créa d'une ad n'est
+ * lue que si elle appartient à la marque (`jointureCreaDeLaMarque`, la même que
+ * les écrans et la route gardée). Une créa d'une autre marque collée sur l'ad
+ * (import, ancienne synchro) n'envoie ni sa transcription, ni son OCR, ni sa
+ * durée, et n'est jamais réécrite · l'ad est décrite comme si elle n'avait pas
+ * de créa.
  */
 
 const ACTION = 'asset_analysis' as const;
@@ -61,7 +69,7 @@ interface Sujet {
 }
 
 /** Écrit l'analyse sans jamais effacer ce qu'on savait déjà. */
-async function persist(creativeId: string, a: AssetAnalysis, modele: string, source: AnalysisSource): Promise<void> {
+async function persist(creativeId: string, brandId: string, a: AssetAnalysis, modele: string, source: AnalysisSource): Promise<void> {
   // `?? undefined` et non `?? null` : dans Drizzle, `undefined` laisse la colonne
   // intacte là où `null` l'efface. La nuance décide si un modèle hésitant détruit
   // une donnée acquise.
@@ -86,12 +94,15 @@ async function persist(creativeId: string, a: AssetAnalysis, modele: string, sou
     // se dit sûr de lui.
     analysisConfidence: source === 'written' ? Math.min(a.confidence, WRITTEN_CONFIDENCE_CAP) : a.confidence,
     analyzedAt: new Date(),
-  }).where(eq(schema.creatives.id, creativeId));
+  // Bornée à la marque · une analyse de la marque A ne s'écrit jamais sur une créa de B.
+  }).where(and(eq(schema.creatives.id, creativeId), eq(schema.creatives.brandId, brandId)));
 }
 
 /**
  * Garantit la créa porteuse · même raison qu'à la synchro : `creatives` est la
- * table des assets, et une ad de la carte peut ne pas encore en avoir.
+ * table des assets, et une ad de la carte peut ne pas encore en avoir. Une ad
+ * dont la créa est d'une AUTRE marque n'en a pas pour nous (`creativeId` lu par
+ * la jointure bornée) · elle reçoit la sienne, la créa étrangère reste intacte.
  */
 async function ensureCreative(sujet: Sujet, brandId: string): Promise<string | null> {
   if (sujet.creativeId) return sujet.creativeId;
@@ -109,7 +120,8 @@ async function load(workspaceId: string, brandId: string, adIds?: string[]): Pro
   if (adIds?.length) conds.push(inArray(schema.ads.id, adIds));
 
   const rows = await db!.select({
-    adId: schema.ads.id, creativeId: schema.ads.creativeId, assetUrl: schema.ads.assetUrl,
+    // La créa LUE (jointure bornée), pas le lien brut de l'ad · `null` quand elle est d'une autre marque.
+    adId: schema.ads.id, creativeId: schema.creatives.id, assetUrl: schema.ads.assetUrl,
     format: schema.ads.format, hypothesis: schema.ads.hypothesis,
     transcript: schema.creatives.transcript, ocrText: schema.creatives.ocrText,
     durationS: schema.creatives.durationS, analysisModel: schema.creatives.analysisModel,
@@ -123,7 +135,7 @@ async function load(workspaceId: string, brandId: string, adIds?: string[]): Pro
     .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
     .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
     .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
-    .leftJoin(schema.creatives, eq(schema.ads.creativeId, schema.creatives.id))
+    .leftJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
     .where(and(...conds))
     .limit(MAX_LOT * 4);
 
@@ -279,7 +291,7 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
           skipped.push({ adId: s.adId, reason: 'Impossible de rattacher l’analyse à un asset.' });
           continue;
         }
-        await persist(creativeId, normalizeAnalysis(brut), process.env.ANTHROPIC_GEN_MODEL || 'claude-sonnet-5', source);
+        await persist(creativeId, g.brand.id, normalizeAnalysis(brut), process.env.ANTHROPIC_GEN_MODEL || 'claude-sonnet-5', source);
         analyzed++;
         if (source === 'written') depuisTexte++;
       } catch (e) {
@@ -347,7 +359,7 @@ export async function analysisCoverageAction(): Promise<{ coverage?: AnalysisCov
       .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
       .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
       .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
-      .leftJoin(schema.creatives, eq(schema.ads.creativeId, schema.creatives.id))
+      .leftJoin(schema.creatives, jointureCreaDeLaMarque(g.brand.id))
       .where(and(eq(schema.ads.workspaceId, g.s.workspaceId), eq(schema.personas.brandId, g.brand.id)));
 
     // Ce qui reste à faire, réparti par ce qu'on pourra RÉELLEMENT lire · un

@@ -3,6 +3,7 @@ import { recordMilestones } from './milestones';
 import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { MARKET_COLS, toMarketAd } from './market-rows';
+import { jointureCreaDeLaMarque } from './adsmap-medias';
 import {
   buildJarvisMemory, computeBrandStats, globalHitRate, prelaunchScore, summarizePrelaunch,
   computeMarketStats, contrastMarketVsBrand, buildMarketMemory,
@@ -120,7 +121,8 @@ async function loadSourceAds(brandId: string, workspaceId: string): Promise<{ ad
     .leftJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
     .leftJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
     .leftJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
-    .leftJoin(schema.creatives, eq(schema.ads.creativeId, schema.creatives.id))
+    // Bornée à la marque · la créa d'une autre marque collée sur l'ad ne nourrit pas ses statistiques.
+    .leftJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
     .innerJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
     .where(and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId)))
     .limit(600);
@@ -318,7 +320,8 @@ export async function jarvisHooks(brandId: string, workspaceId: string): Promise
       validated: schema.verdicts.validated,
     })
       .from(schema.ads)
-      .innerJoin(schema.creatives, eq(schema.ads.creativeId, schema.creatives.id))
+      // Bornée à la marque · l'accroche d'une créa étrangère ne part pas dans le prompt de Jarvis.
+      .innerJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
       .leftJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
       .leftJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
       .leftJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
