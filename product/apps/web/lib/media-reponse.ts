@@ -1,4 +1,4 @@
-import { servirPlage, decisionMediaServi, decisionLogoServi, ENTETES_MEDIA_FERMES, POIDS_MAX_LOGO, adresseRedirigeable } from '@tiktrends/core';
+import { servirPlage, decisionMediaServi, decisionLogoServi, refusLogoHttp, ENTETES_MEDIA_FERMES, POIDS_MAX_LOGO, adresseRedirigeable, type DecisionLogoServi } from '@tiktrends/core';
 import { storageFromEnv, privateObjectUrl, objectKeyFromUrl, lireObjetEspaceConforme } from '@tiktrends/integrations';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 
@@ -79,8 +79,18 @@ export async function servirLogoVerifie(req: Request, url: string, empreinte: st
   const d = decisionLogoServi({ empreinte, verification: lu && (lu.ok ? { ok: true, empreinte: lu.empreinte } : { ok: false, raison: lu.raison === 'trop_lourd' ? 'illisible' : lu.raison }) });
   // Servir n'est possible qu'avec des octets confirmés (empreinte non nulle ⇒ vérification réussie).
   if (d.servir) return lu?.ok ? servirMedia(req, lu.octets, { id: asset.id }, 'private, no-store') : refusMedia(502);
-  return new Response(d.message, {
-    status: d.cause === 'remplace' ? 409 : d.cause === 'absent' ? 404 : 502,
-    headers: { ...ENTETES_MEDIA_FERMES, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'private, no-store', 'x-logo-etat': d.cause === 'illisible' ? 'non-verifiable' : 'a-reimporter' },
+  return reponseLogoRefuse(d);
+}
+
+/**
+ * Le refus d'un logo à empreinte (`decisionLogoServi`) · statut, état et
+ * message décidés par le noyau (`refusLogoHttp`) · le MÊME pour la route média
+ * de la marque et l'aperçu du catalogue Studios. Ni adresse ni octet.
+ */
+export function reponseLogoRefuse(d: Extract<DecisionLogoServi, { servir: false }>): Response {
+  const r = refusLogoHttp(d);
+  return new Response(r.message, {
+    status: r.statut,
+    headers: { ...ENTETES_MEDIA_FERMES, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'private, no-store', 'x-logo-etat': r.etat },
   });
 }

@@ -94,6 +94,32 @@ describe('éditer · le texte reste du texte, chaque geste se voit, annuler et r
     for (const l of ['Enregistrer', 'Annuler', 'Rétablir']) expect(bouton(l).disabled, l).toBe(true);
   });
 
+  it('un aperçu REFUSÉ par la route (logo de la charte à réimporter · 409) · le cadre nommé du calque, jamais une image cassée', () => {
+    const src = '/studio/projets/p1/produit/fichier/logo_0123456789abcdef01234567';
+    monter(PROPS({ apercus: { a_logo: src } }));
+    const img = q<HTMLImageElement>('[data-calque="l_logo"] img');
+    expect(img?.getAttribute('src'), 'servi · l’image du logo').toBe(src);
+    act(() => { img.dispatchEvent(new Event('error')); });
+    expect(q('[data-calque="l_logo"] img'), 'refusé · plus d’image cassée').toBeNull();
+    expect(texte('[data-calque="l_logo"]')).toBe('Logo · aperçu indisponible');
+    expect(texte('[data-calque="l_titre"]'), 'le reste du document reste lisible').toBe('Peau nette en 7 jours');
+  });
+
+  it('refus survenu AVANT l’hydratation (image déjà en échec au montage) · le même cadre nommé', () => {
+    const proto = window.HTMLImageElement.prototype;
+    const avant = { complete: Object.getOwnPropertyDescriptor(proto, 'complete')!, naturalWidth: Object.getOwnPropertyDescriptor(proto, 'naturalWidth')! };
+    Object.defineProperty(proto, 'complete', { configurable: true, get: () => true });
+    Object.defineProperty(proto, 'naturalWidth', { configurable: true, get: () => 0 });
+    try {
+      monter(PROPS({ apercus: { a_logo: '/studio/projets/p1/produit/fichier/logo_0123456789abcdef01234567' } }));
+      expect(q('[data-calque="l_logo"] img')).toBeNull();
+      expect(texte('[data-calque="l_logo"]')).toBe('Logo · aperçu indisponible');
+    } finally {
+      Object.defineProperty(proto, 'complete', avant.complete);
+      Object.defineProperty(proto, 'naturalWidth', avant.naturalWidth);
+    }
+  });
+
   it('changer le texte et déplacer le titre · l’aperçu suit, le calque reste un texte, aucune génération', async () => {
     monter(PROPS());
     await choisirTitre();

@@ -636,8 +636,26 @@ function ContenuCalque({ c, doc, apercu }: { c: CalqueStudio; doc: DocumentStudi
     );
   }
   if (c.kind === 'shape') return <div aria-hidden style={{ width: '100%', height: '100%', background: c.fill, borderRadius: c.shape === 'ellipse' ? '50%' : 0 }} />;
-  if (apercu) return <img src={apercu} alt={c.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }} />;
-  return <div style={{ width: '100%', height: '100%', display: 'grid', placeContent: 'center', textAlign: 'center', fontSize: 'max(10px, 2.4cqw)' }}>{c.name} · aperçu indisponible</div>;
+  if (apercu) return <ImageCalque src={apercu} nom={c.name} />;
+  return <RepliCalque nom={c.name} />;
+}
+
+function RepliCalque({ nom }: { nom: string }) {
+  return <div data-calque-repli="" style={{ width: '100%', height: '100%', display: 'grid', placeContent: 'center', textAlign: 'center', fontSize: 'max(10px, 2.4cqw)' }}>{nom} · aperçu indisponible</div>;
+}
+
+/**
+ * L'image d'un calque · une adresse que la route REFUSE (logo de la charte
+ * remplacé depuis son import · 409, disparu · 404, stockage injoignable · 502)
+ * laisse le cadre nommé du calque, jamais une image cassée. L'erreur peut
+ * survenir avant l'hydratation (image rendue côté serveur) · relue au montage.
+ */
+export function ImageCalque({ src, nom }: { src: string; nom: string }) {
+  const [cassee, setCassee] = useState<string | null>(null);
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => { const i = ref.current; if (i && i.complete && i.naturalWidth === 0) setCassee(src); }, [src]);
+  if (cassee === src) return <RepliCalque nom={nom} />;
+  return <img ref={ref} src={src} alt={nom} draggable={false} onError={() => setCassee(src)} style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }} />;
 }
 
 const ALIGNEMENTS: ReadonlyArray<[ModeAlignement, string]> = [['gauche', 'Gauche'], ['centre-horizontal', 'Centre'], ['droite', 'Droite'], ['haut', 'Haut'], ['centre-vertical', 'Milieu'], ['bas', 'Bas']];
