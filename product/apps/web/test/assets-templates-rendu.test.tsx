@@ -24,7 +24,10 @@ const fn = (name: string) => {
 
 describe('Templates dans la bibliothèque · coulisses vues du client', () => {
   it('le statut template est dérivé côté serveur · le marqueur ne sort pas', () => {
-    const toItem = src.slice(src.indexOf('function toItem'), src.indexOf('function toItem') + 1600);
+    // `toItem` vit dans `lib/asset-item.ts` (partagé par `listAssets` et les pages de la Bibliothèque) · `assets.ts` l'importe.
+    expect(src).toContain("import { toItem } from '../../lib/asset-item';");
+    const item = readFileSync(join(process.cwd(), 'lib/asset-item.ts'), 'utf8');
+    const toItem = item.slice(item.indexOf('function toItem'), item.indexOf('function toItem') + 1600);
     expect(toItem, 'le marqueur n’est pas retiré des tags renvoyés').toContain('tags: tagsVisibles(r.tags)');
     expect(toItem, 'le statut n’est pas dérivé en booléen').toContain('isTemplate: estTemplateAsset(r.tags)');
   });

@@ -17,11 +17,12 @@ import type { AssetItem } from '../app/actions/assets';
  * écriture, aucun appel fournisseur ; la sélection vit dans le noyau
  * (`elementCreationHistorique`).
  */
-export async function listerCreationsHistoriques(limite: number = LIMITE_BIBLIOTHEQUE): Promise<ElementCreationHistorique[]> {
+export async function listerCreationsHistoriques(limite: number = LIMITE_BIBLIOTHEQUE): Promise<ElementCreationHistorique[] & { tronque?: boolean }> {
   const s = await getSession();
   if (!s || !db || !roleAtLeast(s.role, 'member')) return [];
   const active = await getActiveBrand(s.workspaceId);
   const G = schema.generations;
+  const borne = Math.max(1, Math.min(Math.trunc(limite), LIMITE_BIBLIOTHEQUE));
   const B = schema.brands;
   const lignes = await db.select({ id: G.id, kind: G.kind, status: G.status, assetUrls: G.assetUrls, createdAt: G.createdAt })
     .from(G).innerJoin(B, eq(G.brandId, B.id))
@@ -32,8 +33,10 @@ export async function listerCreationsHistoriques(limite: number = LIMITE_BIBLIOT
       inArray(G.kind, SORTES_CREATION_HISTORIQUE as unknown as Array<'ad' | 'image' | 'video' | 'script' | 'copy'>),
     ))
     .orderBy(desc(G.createdAt))
-    .limit(Math.max(1, Math.min(Math.trunc(limite), LIMITE_BIBLIOTHEQUE)));
-  return lignes.map(elementCreationHistorique).filter((e): e is ElementCreationHistorique => e !== null);
+    .limit(borne);
+  const out = lignes.map(elementCreationHistorique).filter((e): e is ElementCreationHistorique => e !== null);
+  // La borne atteinte · des créations plus anciennes peuvent exister, l'écran le dit (`tronque`).
+  return lignes.length >= borne ? Object.assign(out, { tronque: true }) : out;
 }
 
 /** Une création historique, sous la forme d'une ligne de la bibliothèque · lecture seule. */

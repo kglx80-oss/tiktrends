@@ -14,10 +14,11 @@ import { referencesObjetEnBase } from '../../lib/references-objet';
 import { signerJetonDepot } from '../../lib/jeton-depot';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
-import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
+import { toItem } from '../../lib/asset-item';
+import { lirePageBibliotheque } from '../../lib/bibliotheque-pages';
 import { assetAiUrl } from '../../lib/asset-ai-url';
 import { lireDebutObjetEspace } from '@tiktrends/integrations';
-import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection, validerSelectionFichiers, REFUS_SUPPRESSION_HORS_CORBEILLE, validerRenommageFichier, REFUS_FICHIER, contenuMedia, decisionRemplacement, REFUS_REMPLACEMENT, type ContenuMedia } from '@tiktrends/core';
+import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection, validerSelectionFichiers, REFUS_SUPPRESSION_HORS_CORBEILLE, validerRenommageFichier, REFUS_FICHIER, contenuMedia, decisionRemplacement, REFUS_REMPLACEMENT, type ContenuMedia, lireDemandePage, type PageBibliotheque } from '@tiktrends/core';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
@@ -78,31 +79,6 @@ const MAX_IMG_BYTES = 6_000_000; // garde-fou data URI (~6 Mo)
 /** Téléversement sans bucket (data URI) · formats relus dans les octets. */
 const FORMATS_TELEVERSES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
-function toItem(r: {
-  id: string; name: string; kind: string; source: string; url: string; embarquee: boolean;
-  externalId: string | null; thumbUrl: string | null; objectEtag?: string | null;
-  brandId: string | null; useForAi: boolean; sizeBytes: number | null; tags: string[] | null; createdAt: Date;
-}): AssetItem {
-  const cfg = storageFromEnv();
-  const prive = (url: string) => !!cfg && objectKeyFromUrl(cfg, url) !== null;
-  return {
-    id: r.id, name: r.name, kind: r.kind as AssetKind, source: r.source,
-    // La règle vit dans `lib/asset-url` · elle s'y teste, ce qu'un fichier
-    // `'use server'` interdit (tout export y devient un point d'entrée réseau).
-    // L'empreinte de l'objet versionne l'adresse du proxy · un fichier
-    // remplacé (`remplacerAssetAction`) change d'adresse, l'image affichée suit.
-    url: servedAssetUrl({ id: r.id, kind: r.kind, source: r.source, url: r.url, embedded: r.embarquee, externalId: r.externalId, privateStorage: prive(r.url), version: r.objectEtag ?? null }),
-    contenu: contenuMedia(r.embarquee ? 'data:' : r.url, !r.embarquee && prive(r.url)),
-    // Vignette privée : même contrôle de session via le proxy, sans signature persistée.
-    thumbUrl: r.thumbUrl ? (prive(r.thumbUrl) ? `${adresseAssetProxy(r.id)}&thumb=1` : r.thumbUrl) : null,
-    brandId: r.brandId, useForAi: r.useForAi, sizeBytes: r.sizeBytes,
-    // Le marqueur de template ne sort pas en tant que tag · le statut passe par
-    // le booléen dérivé, la plomberie interne ne traverse pas le réseau.
-    tags: tagsVisibles(r.tags), isTemplate: estTemplateAsset(r.tags),
-    createdAt: r.createdAt.toISOString(),
-  };
-}
-
 /**
  * Liste les assets. Par défaut, scope sur la MARQUE active (+ assets communs sans marque) :
  * chaque marque voit sa propre bibliothèque. Sans marque active, renvoie tout l'espace.
@@ -113,8 +89,9 @@ function toItem(r: {
  * la corbeille (section « Corbeille » de la Bibliothèque), même portée.
  *
  * `id` · CE SEUL fichier, par la même lecture (même garde, même espace, même
- * portée, corbeille à part) · le lien interne d'un fichier au-delà des 400
- * chargés (page `/assets`). Un identifiant qui n'est pas un UUID ne lit rien.
+ * portée, corbeille à part). La page `/assets` lit désormais ses médias par
+ * `lib/bibliotheque-pages` (fenêtre, comptes, pages, lecture ciblée · même
+ * portée). Un identifiant qui n'est pas un UUID ne lit rien.
  */
 export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean; limit?: number; corbeille?: boolean; id?: string }): Promise<AssetItem[]> {
   const g = await gardeLectureBibliotheque();
@@ -147,10 +124,28 @@ export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolea
     url: sql<string>`case when ${schema.assets.url} like 'data:%' then '' else ${schema.assets.url} end`,
   })
     .from(schema.assets).where(and(...conds))
-    .orderBy(desc(schema.assets.createdAt))
+    // À date égale, l'identifiant départage · le même ordre que le curseur des pages (`lirePageBibliotheque`).
+    .orderBy(desc(schema.assets.createdAt), desc(schema.assets.id))
     .limit(cible ? 1 : Math.max(1, Math.min(filter?.limit ?? 400, 400)));
 
   return rows.map(toItem);
+}
+
+/**
+ * Une PAGE de la Bibliothèque au-delà de ce que l'écran a chargé · « Charger
+ * plus » d'un dossier ou de la corbeille, et la recherche sur TOUS les
+ * fichiers de l'espace. LECTURE · la garde de lecture d'abord (plancher de
+ * rôle, comme `listAssets`), puis la demande relue au noyau
+ * (`lireDemandePage` · rien d'autre n'atteint la requête), puis la portée de
+ * la session (espace, marque active et communs).
+ */
+export async function pageBibliothequeAction(demande: unknown): Promise<PageBibliotheque | { error: string }> {
+  const g = await gardeLectureBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const v = lireDemandePage(demande);
+  if (!v.ok) return { error: v.raison };
+  const marque = await getActiveBrand(g.s.workspaceId);
+  return lirePageBibliotheque({ workspaceId: g.s.workspaceId, marque: marque?.id ?? null }, v.demande);
 }
 
 /** Téléverse des images (data URI) dans la bibliothèque. */

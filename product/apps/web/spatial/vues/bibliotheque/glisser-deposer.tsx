@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import {
-  chargeContient, chargeGlissee, deplieAuSurvol, DELAI_DEPLIAGE_SURVOL_MS, glissable, porteDesFichiers, verdictDepot,
+  chargeContient, chargeGlissee, deplieAuSurvol, DELAI_DEPLIAGE_SURVOL_MS, elementsGlissables, porteDesFichiers, verdictDepot,
   type ChargeGlissee, type DonneesDrive, type NoeudArbreDrive, type SectionDrive,
 } from '@tiktrends/core';
 import { useTelephone } from '../../communs';
@@ -54,6 +54,8 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
   const ctx = { section: o.section, lectureSeule: o.lectureSeule };
   // Au téléphone, rien ne se glisse · en lecture seule non plus, le noyau ne laisse rien partir (`chargeGlissee`).
   const actif = !telephone;
+  // Ce qui se glisse, calculé une fois par données (et non carte par carte · rendu linéaire, `elementsGlissables`).
+  const glissables = useMemo(() => elementsGlissables(o.donnees, { section: o.section, lectureSeule: o.lectureSeule }), [o.donnees, o.section, o.lectureSeule]);
   const annulerDepliage = (id?: string) => {
     if (!depliage.current || (id !== undefined && depliage.current.id !== id)) return;
     clearTimeout(depliage.current.minuterie);
@@ -65,7 +67,7 @@ export function useGlisserDeposer(o: OptionsGlisserDeposer) {
 
   /** Un élément qui se glisse (carte, ligne) · rien s'il ne part pas (règle du noyau). */
   const source = (id: string) => {
-    if (!actif || !glissable(o.donnees, id, ctx)) return {};
+    if (!actif || !glissables.has(id)) return {};
     return {
       draggable: true,
       onDragStart: (e: DragEvent) => {

@@ -151,6 +151,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
  */
 const EXEMPTIONS: Readonly<Record<string, string>> = {
   listAssets: 'lecture seule · règle d’avant (rôle Membre, sans offre), éprouvée par « Lecture »',
+  pageBibliothequeAction: 'lecture seule · même garde que listAssets (rôle Membre, sans offre), refus éprouvé par `bibliotheque-pagination-db`',
 };
 
 /** Équipe plateforme à accès total, mais `client_viewer` dans l'espace · le plancher de rôle d'ESPACE tient. */

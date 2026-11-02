@@ -1,4 +1,4 @@
-import { donneesDrive, type DonneesDrive, type DossierSource, type FichierDrive, type MediaSource } from './drive';
+import { donneesDrive, type DonneesDrive, type FichierDrive, type MediaSource, type SourcesDrive } from './drive';
 
 /**
  * Bibliothèque · le LIEN INTERNE d'un fichier ou d'un dossier · RÈGLES PURES
@@ -25,8 +25,9 @@ import { donneesDrive, type DonneesDrive, type DossierSource, type FichierDrive,
  * le lien rouvre bien sa cible (`lienInterneFichier`, `lienInterneDossier` ·
  * même règle que la lecture).
  *
- * Au-delà de ce que l'écran charge · la liste ne rend que les 400 médias les
- * plus récents (`LIMITE_BIBLIOTHEQUE`). Un lien vers un fichier plus ancien
+ * Au-delà de ce que l'écran charge · la page ne charge d'emblée que les 400
+ * médias les plus récents (`FENETRE_BIBLIOTHEQUE`, la suite vient par
+ * « Charger plus » · `pagination.ts`). Un lien vers un fichier plus ancien
  * fait lire CE SEUL fichier (`fichierLienALire` dit lequel, ou aucun quand il
  * est déjà chargé), par la même lecture que la liste (même garde, même espace,
  * même portée de marque, hors corbeille). `resoudreLienInterne` ne l'ajoute aux
@@ -177,12 +178,12 @@ export interface LienInterneResolu {
  * l'ouverture sont exactement celles sans cible.
  */
 export function resoudreLienInterne(
-  src: { dossiers: readonly DossierSource[]; medias: readonly MediaSource[] },
+  src: SourcesDrive,
   cible: MediaSource | null,
   lu: LienInterneLu,
 ): LienInterneResolu {
   if (cible && lu.fichier && !src.medias.some((m) => m.id.toLowerCase() === lu.fichier)) {
-    const avec = donneesDrive({ dossiers: src.dossiers, medias: [...src.medias, cible] });
+    const avec = donneesDrive({ ...src, medias: [...src.medias, cible] });
     const ouverture = ouvertureLienInterne(avec, lu);
     if (ouverture) return { donnees: avec, ouverture };
   }

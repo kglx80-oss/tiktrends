@@ -25,6 +25,7 @@ export * from './bibliotheque/lien-interne';
 export * from './bibliotheque/nom-fichier';
 export * from './bibliotheque/remplacer';
 export * from './bibliotheque/glisser-deposer';
+export * from './bibliotheque/pagination';
 export * from './formats';
 export * from './veille';
 export * from './studios';

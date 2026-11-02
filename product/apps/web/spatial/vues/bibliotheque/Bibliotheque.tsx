@@ -14,6 +14,7 @@ import {
   validerNomFichier, baseNomFichier, extensionNomFichier, messageFichierRenomme, destinationsDeplacementSelection, messageDossiersDeplaces,
   lienInterneFichier, lienInterneDossier, rechercheSansLien, MESSAGE_LIEN_COPIE, DETAIL_LIEN_INTERNE, type OuvertureLienInterne,
   ATTRIBUT_ZONE_TACTILE, remplacementFichier,
+  suiteListe, videListe, noteSelectionPartielle,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction } from '../../../app/actions/assets';
 import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction, renommerDossierAction, deplacerDossierAction, deplacerDossiersAction } from '../../../app/actions/bibliotheque-dossiers';
@@ -28,6 +29,7 @@ import { BoutonTelecharger, useArchive } from './telecharger-selection';
 import { MenuFichier } from './menu-fichier';
 import { UtiliseDans } from './utilise-dans';
 import { useGlisserDeposer } from './glisser-deposer';
+import { ChargerPlus, usePagesBibliotheque, useRechercheServeur, type PaginationBibliotheque } from './charger-plus';
 import { useRemplacement } from './remplacer-fichier';
 import { envoyerVersBucket } from './envoi-bucket';
 
@@ -103,6 +105,13 @@ import { envoyerVersBucket } from './envoi-bucket';
  * (`chargeGlissee`, `verdictDepot` · anti-cycle compris), puis la MÊME action
  * que « Déplacer vers… », qui reste la voie clavier.
  *
+ * Au-delà de la fenêtre chargée par la page · chaque nombre vient des comptes
+ * exacts, une liste partielle dit ce qu'elle montre sur combien et se complète
+ * par « Charger plus », la recherche part sur tout l'espace (`charger-plus.tsx`,
+ * règles `suiteListe` au noyau). Les pages lues rejoignent les données de
+ * l'écran · sélection, menus, glisser et lien interne portent sur les fichiers
+ * AFFICHÉS, et la barre le dit tant que la liste est partielle.
+ *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
  * (aucun quota n'existe · le volume réellement mesuré est affiché), « Exports
@@ -141,6 +150,12 @@ export interface PropsBibliotheque {
    * null ou absent, l'écran s'ouvre comme d'habitude.
    */
   ouverture?: OuvertureLienInterne | null;
+  /**
+   * La fenêtre chargée par la page (curseur de son dernier fichier, vivants et
+   * corbeille) · présente, « Charger plus » et la recherche sur tout l'espace
+   * s'ouvrent (`charger-plus.tsx`). Absente · les données sont tout l'écran.
+   */
+  pagination?: PaginationBibliotheque | null;
 }
 
 export interface GestionBibliotheque {
@@ -213,7 +228,10 @@ function PastilleFichier({ f }: { f: FichierDrive }) {
   return <span className={`pill ${p.classe}`}>{p.libelle}</span>;
 }
 
-export function Bibliotheque(p: PropsBibliotheque) {
+export function Bibliotheque(entree: PropsBibliotheque) {
+  // Les pages lues après la fenêtre (« Charger plus », recherche) rejoignent les données · tout l'écran travaille sur elles.
+  const pagesBib = usePagesBibliotheque(entree.donnees, entree.pagination);
+  const p = { ...entree, donnees: pagesBib.donnees };
   const router = useRouter();
   const { toast } = useSpatial();
   const [etat, setEtat] = useState<EtatDrive>(() => ({
@@ -265,6 +283,10 @@ export function Bibliotheque(p: PropsBibliotheque) {
   useEffect(() => { if (p.retourDrive && !retourDit.current) { retourDit.current = true; toast(p.retourDrive); } }, [p.retourDrive, toast]);
 
   const v = vueDrive(p.donnees, etat);
+  // La liste partielle le dit · ce qui est affiché sur combien, et la page suivante (noyau).
+  const suite = suiteListe(p.donnees, etat, v, pagesBib.pages);
+  useRechercheServeur(pagesBib, suite);
+  const vide = videListe(v.vide, suite);
   const rangements = useMemo(() => dossiersRangement(p.donnees), [p.donnees]);
   const tagSel = useMemo(() => selectionATaguer(p.donnees, selection), [p.donnees, selection]);
   const sel = useMemo(() => gestesSelection(p.donnees, selection, { section: etat.section, lectureSeule: p.lectureSeule, ia: !!p.gestion }), [p.donnees, selection, etat.section, p.lectureSeule, p.gestion]);
@@ -848,7 +870,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
       <EnTete titre="Bibliothèque" sous="Assets de la marque, créations et exports, rangés comme dans un drive" />
       <nav className="btabs" aria-label="Espaces">
         {v.onglets.map((o) => (
-          <button type="button" className={o.actif ? 'on' : ''} key={o.id} onClick={() => aller(o.id)}><Ic n={o.icone} /><span>{o.nom}</span><b>{o.compte}</b></button>
+          <button type="button" className={o.actif ? 'on' : ''} key={o.id} onClick={() => aller(o.id)}><Ic n={o.icone} /><span>{o.nom}</span><b>{o.compte}{o.plus ? '+' : ''}</b></button>
         ))}
       </nav>
       <div className="bpre">
@@ -1008,11 +1030,13 @@ export function Bibliotheque(p: PropsBibliotheque) {
                 );
               })()}
               {sel.note && <small className="faint" data-geste="note-selection">{sel.note}</small>}
+              {(() => { const n = noteSelectionPartielle(suite, sel.fichiers.length); return n && <small className="faint" data-geste="note-selection-partielle">{n}</small>; })()}
               <button className="btn sm" type="button" style={{ marginLeft: 'auto' }} onClick={() => setSelection(new Set())}>Désélectionner</button>
             </div>
           )}
-          {v.vide && <div className="dempty"><span className="ico"><Ic n={v.vide.icone} s={false} /></span><h3>{v.vide.titre}</h3><p className="muted">{v.vide.texte}</p></div>}
+          {vide && <div className="dempty"><span className="ico"><Ic n={vide.icone} s={false} /></span><h3>{vide.titre}</h3><p className="muted">{vide.texte}</p></div>}
           {affichage === 'grille' ? grille : liste}
+          <ChargerPlus suite={suite} api={pagesBib} />
           <input type="file" id="dfile" ref={fichierRef} multiple accept={p.stockage ? 'image/*,video/*,audio/*,application/pdf' : 'image/*'} hidden onChange={(e) => { const l = [...(e.target.files ?? [])]; e.target.value = ''; void importer(l); }} />
           <div className="ddrop" id="ddrop" hidden={!glisse} onDragLeave={() => setGlisse(false)}><Ic n="down" s={false} /><strong>Dépose pour importer dans « {v.depot} »</strong></div>
         </section>

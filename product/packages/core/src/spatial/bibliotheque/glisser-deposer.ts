@@ -1,7 +1,7 @@
 import { dossiersRangement, RACINES_DRIVE, type DonneesDrive, type NoeudArbreDrive, type SectionDrive } from './drive';
 import { destinationsDeplacement } from './menu-fichier';
 import { destinationsDeplacementDossier, destinationsDeplacementSelection, menuDossier } from './menu-dossier';
-import { gestesSelection } from './selection';
+import { fichierSelectionnable, gestesSelection } from './selection';
 
 /**
  * Bibliothèque · le GLISSER-DÉPOSER (souris) d'un fichier, d'une sélection de
@@ -107,6 +107,37 @@ export function chargeGlissee(d: DonneesDrive, id: string, selection: Iterable<s
 /** L'élément se glisse-t-il (attribut `draggable`) · la même règle que `chargeGlissee`, sans sélection. */
 export function glissable(d: DonneesDrive, id: string, ctx: ContexteGlisser): boolean {
   return chargeGlissee(d, id, [], ctx) !== null;
+}
+
+/**
+ * Tous les éléments qui se glissent, calculés UNE fois pour l'écran · la même
+ * règle que `glissable`. `glissable` relu carte par carte reparcourt toute la
+ * liste à chaque carte · un rendu QUADRATIQUE, mesuré à 80 s pour 3 000 cartes
+ * (tableau de `pagination.ts`). Ici · un fichier se glisse quand
+ * « Déplacer vers… » lui est ouvert à lui seul (`gestesSelection` ·
+ * sélectionnable, vivant, dans un dossier vivant, hors corbeille, écriture
+ * ouverte) · un dossier par `glissable` (ils sont peu nombreux). L'égalité avec
+ * `glissable` est gardée par un test sur des données mêlées.
+ */
+export function elementsGlissables(d: DonneesDrive, ctx: ContexteGlisser): Set<string> {
+  const out = new Set<string>();
+  if (!ctx.lectureSeule && ctx.section !== 'corbeille') {
+    const par = new Map(d.dossiers.map((x) => [x.id, x] as const));
+    const memo = new Map<string, boolean>();
+    const vivant = (id: string): boolean => {
+      const m = memo.get(id);
+      if (m !== undefined) return m;
+      const vus = new Set<string>();
+      let cur = par.get(id);
+      let ok = !!cur;
+      while (cur && !vus.has(cur.id)) { if (cur.supprime) { ok = false; break; } vus.add(cur.id); cur = cur.parent ? par.get(cur.parent) : undefined; }
+      memo.set(id, ok);
+      return ok;
+    };
+    for (const f of d.fichiers) if (fichierSelectionnable(f) && !f.supprime && vivant(f.parent)) out.add(f.id);
+  }
+  for (const x of d.dossiers) if (glissable(d, x.id, ctx)) out.add(x.id);
+  return out;
 }
 
 /** Ce que la cible `cibleId` (un dossier de l'arbre, de la grille ou de la liste) fait de la charge glissée. */

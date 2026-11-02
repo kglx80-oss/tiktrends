@@ -562,15 +562,36 @@ export function gesteTelechargement(d: DonneesDrive, sel: Pick<SelectionDrive, '
   const lignes: LigneArchive[] = d.fichiers.filter((f) => !f.lectureSeule).map((f) => ({
     id: f.id, nom: f.nom, tailleOctets: f.tailleOctets, supprime: !!f.supprime, dossierId: f.parent !== ID_RACINE_ASSETS && reels.has(f.parent) ? f.parent : null,
   }));
-  const s = selectionArchive({ fichiers: ids, dossiers: demandesDossiers }, lignes, dossiers);
+  // Les comptes EXACTS de la page (fichiers non chargés compris) · l'arborescence d'un dossier compte tous ses fichiers vivants, pas les seuls chargés.
+  const exact = d.comptes && demandesDossiers.length ? exactArborescence(d, demandesDossiers, dossiers) : null;
+  const s = selectionArchive({ fichiers: ids, dossiers: demandesDossiers }, lignes, dossiers, exact ? { fichiersDansDossiers: exact.n } : {});
   if (!s.ok) return ferme(s.raison);
-  const aRelire = s.fichiers.filter((f) => f.tailleOctets === null).length;
+  // Hors des dossiers demandés · les fichiers demandés seuls (toujours chargés, ils sont sélectionnés).
+  const seuls = exact ? s.fichiers.filter((f) => !exact.charges.has(cleId(f.id))) : s.fichiers;
+  const nFichiers = exact ? seuls.length + Math.max(exact.n, s.fichiers.length - seuls.length) : s.fichiers.length;
+  const aRelire = seuls.filter((f) => f.tailleOctets === null).length + (exact ? exact.sansTaille : 0);
   if (aRelire > RELECTURES_TAILLE_MAX) return ferme(refusArchiveTropARelire(aRelire));
-  const octets = s.fichiers.reduce((a, f) => a + (f.tailleOctets ?? 0), 0);
+  const octets = seuls.reduce((a, f) => a + (f.tailleOctets ?? 0), 0) + (exact ? exact.octets : 0);
   if (octets > PLAFOND_ARCHIVE_OCTETS) return ferme(refusArchiveVolume(octets));
-  const contenu = s.repertoires.length ? `${pluriel(s.repertoires.length, 'dossier')} et ${pluriel(s.fichiers.length, 'fichier')}` : pluriel(s.fichiers.length, 'fichier');
+  const contenu = s.repertoires.length ? `${pluriel(s.repertoires.length, 'dossier')} et ${pluriel(nFichiers, 'fichier')}` : pluriel(nFichiers, 'fichier');
   const relue = aRelire ? ` · taille de ${pluriel(aRelire, 'fichier')} relue au lancement` : '';
   return { libelle: 'Télécharger', ouvert: true, titre: `Archive ZIP de ${contenu} · ${volume(octets)}${relue}`, ids, dossiers: demandesDossiers, octets };
+}
+
+/**
+ * L'arborescence des dossiers demandés, comptée sur les comptes exacts de la
+ * page · nombre de fichiers vivants, volume connu, tailles inconnues, et les
+ * fichiers CHARGÉS qui en font partie (à ne pas compter deux fois).
+ */
+function exactArborescence(d: DonneesDrive, demandes: readonly string[], dossiers: readonly DossierArchive[]): { n: number; octets: number; sansTaille: number; charges: Set<string> } | null {
+  const c = d.comptes;
+  const arbre = arborescenceArchive(demandes, dossiers);
+  if (!c || !arbre.ok) return null;
+  const inclus = new Set(arbre.dossiers);
+  let n = 0, octets = 0, sansTaille = 0;
+  for (const id of inclus) { n += c.vivants[id]?.tous ?? 0; octets += c.octets[id] ?? 0; sansTaille += c.sansTaille[id] ?? 0; }
+  const charges = new Set(d.fichiers.filter((f) => !f.supprime && !f.lectureSeule && inclus.has(cleId(f.parent))).map((f) => cleId(f.id)));
+  return { n, octets, sansTaille, charges };
 }
 
 /** Le message dit quand le navigateur prend le relais. */
