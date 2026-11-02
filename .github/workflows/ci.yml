@@ -29,7 +29,11 @@ jobs:
   verify:
     name: Typecheck · tests · build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Délai mesuré, pas posé d'instinct. Durée du job sur les 11 dernières CI
+    # réussies de main (2026-11-01/02) : 631 à 1151 s, médiane 1050 s ; la
+    # 12e (72e9fa4) a été coupée à 1217 s avec toutes ses étapes vertes. Le
+    # runner varie du simple au double : 35 min laissent ~1,8x le maximum mesuré.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
