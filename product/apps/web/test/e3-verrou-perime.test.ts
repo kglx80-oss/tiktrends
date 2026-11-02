@@ -32,9 +32,11 @@ describe('verrou périmé · repris seulement quand son processus n’existe plu
     const d = dossier();
     const mort = spawnSync(process.execPath, ['-e', 'process.exit(0)']).pid!;
     poser(d, { pid: mort });
-    const t0 = Date.now();
-    const v = await prendreVerrou(d, { attenteMaxMs: 2_000 });
-    expect(Date.now() - t0).toBeLessThan(1_500);
+    // « Aussitôt » · AUCUNE attente permise (0 ms) · un verrou qui ne serait repris qu'après
+    // un tour d'attente lève « verrouillé ». Remplace une mesure d'horloge réelle (< 1,5 s sur
+    // 2 s d'attente) qu'une forte charge pouvait faire tomber, et qui laissait passer une
+    // reprise après quelques tours.
+    const v = await prendreVerrou(d, { attenteMaxMs: 0 });
     expect(JSON.parse(readFileSync(join(d, FICHIER_VERROU), 'utf8')).jeton).toBe(v.jeton);
     v.relacher();
     expect(readdirSync(d), 'verrou ou marqueur laissé derrière').toEqual([]);
