@@ -17,7 +17,7 @@ import { GUARD } from '../../lib/guard-error';
 import { servedAssetUrl, adresseAssetProxy } from '../../lib/asset-url';
 import { assetAiUrl } from '../../lib/asset-ai-url';
 import { lireDebutObjetEspace } from '@tiktrends/integrations';
-import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection, validerSelectionFichiers, REFUS_SUPPRESSION_HORS_CORBEILLE } from '@tiktrends/core';
+import { decisionDepotRelu, OCTETS_RELUS_DEPOT, MESSAGES_RELECTURE_DEPOT, validerIaSelection, validerSelectionFichiers, REFUS_SUPPRESSION_HORS_CORBEILLE, validerRenommageFichier, REFUS_FICHIER } from '@tiktrends/core';
 import { safeFetch } from '@tiktrends/integrations/src/safe-fetch';
 import { decideImportedImage, octetsDataUri } from '../../lib/import-image';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../lib/bibliotheque-acces';
@@ -346,6 +346,51 @@ export async function restaurerAssetsAction(input: { ids: string[] }): Promise<{
     return { ok: true, n };
   } catch (e) {
     if (e instanceof SelectionIncomplete) return { error: SELECTION_INTROUVABLE };
+    throw e;
+  }
+}
+
+/** Un identifiant de média · `assets.id` est un UUID (une autre forme ferait échouer la requête). */
+const ID_MEDIA = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Levée DANS la transaction du renommage pour l'annuler · porte la phrase du refus. */
+class RenommageRefuse extends Error {}
+
+/**
+ * RENOMME un fichier de la bibliothèque (`assets.name`) · l'aperçu et le menu
+ * « … » d'un fichier. Même garde d'écriture que le reste de la Bibliothèque,
+ * AVANT toute lecture. Dans UNE transaction · le fichier est relu (ligne
+ * verrouillée) dans l'espace de la session, VIVANT (hors corbeille) · un
+ * fichier d'un autre espace, en corbeille, une sortie Studios ou une ancienne
+ * création (absentes de `assets`), un identifiant illisible reçoivent la même
+ * phrase qu'un inconnu. La règle du nom (`validerRenommageFichier` · rogné,
+ * non vide, extension connue conservée, 160 caractères au plus, sans caractère
+ * de contrôle ni invisible) vit au noyau (`nom-fichier.ts`). Seul `name`
+ * change · ni l'objet du bucket, ni le type, ni le dossier.
+ */
+export async function renommerAssetAction(input: { id: string; nom: string }): Promise<{ ok?: true; nom?: string; error?: string }> {
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+  if (typeof input?.id !== 'string' || !ID_MEDIA.test(input.id)) return { error: REFUS_FICHIER.introuvable };
+  const id = input.id.toLowerCase();
+  const A = schema.assets;
+  try {
+    const nom = await db.transaction(async (tx) => {
+      const [f] = await tx.select({ name: A.name }).from(A)
+        .where(and(eq(A.id, id), eq(A.workspaceId, s.workspaceId), isNull(A.deletedAt))).for('update');
+      const v = validerRenommageFichier(f ?? null, input?.nom);
+      if (!v.ok) throw new RenommageRefuse(v.raison);
+      const maj = await tx.update(A).set({ name: v.nom })
+        .where(and(eq(A.id, id), eq(A.workspaceId, s.workspaceId), isNull(A.deletedAt)))
+        .returning({ id: A.id });
+      if (maj.length !== 1) throw new RenommageRefuse(REFUS_FICHIER.introuvable);
+      return v.nom;
+    });
+    return { ok: true, nom };
+  } catch (e) {
+    if (e instanceof RenommageRefuse) return { error: e.message };
     throw e;
   }
 }

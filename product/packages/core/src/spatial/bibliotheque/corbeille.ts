@@ -36,7 +36,7 @@ export function compteCorbeille(d: DonneesDrive): number {
 }
 
 export interface ActionsApercuFichier {
-  /** Droits, rangement, usage par l'IA · un fichier vivant de la bibliothèque, écriture ouverte. */
+  /** Renommer, droits, rangement, usage par l'IA · un fichier vivant de la bibliothèque, écriture ouverte. */
   edition: boolean;
   /** « Mettre à la corbeille » · un fichier vivant de la bibliothèque. */
   corbeille: boolean;

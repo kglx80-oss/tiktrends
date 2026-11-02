@@ -4,7 +4,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   validerNomDossier, estDroitAsset, validerTagCouleur, validerSelectionTag, validerSelectionFichiers, validerDroitSelection, type CleTagCouleur, type DossierPlat, type DroitAsset,
-  estIdDossier, validerRenommageDossier, validerDeplacementDossier, REFUS_DOSSIER,
+  estIdDossier, validerRenommageDossier, validerDeplacementDossier, validerDeplacementDossiers, REFUS_DOSSIER,
 } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { GUARD } from '../../lib/guard-error';
@@ -179,6 +179,50 @@ export async function deplacerDossierAction(input: { id: string; parentId: strin
       if (maj.length !== 1) throw new DeplacementRefuse(REFUS_DOSSIER.introuvable);
     });
     return { ok: true };
+  } catch (e) {
+    if (e instanceof DeplacementRefuse) return { error: e.message };
+    throw e;
+  }
+}
+
+/**
+ * DÉPLACE PLUSIEURS dossiers vivants de l'espace sous un même dossier (ou à la
+ * racine avec `parentId: null`) · « Déplacer vers… » de la barre de sélection.
+ * Même garde d'écriture, AVANT toute lecture. Dans UNE transaction ·
+ * l'arborescence VIVANTE de l'espace est relue en base (lignes verrouillées),
+ * la règle du noyau (`validerDeplacementDossiers` · des UUID, dédoublonnés, au
+ * plus `TAG_SELECTION_MAX` ; la destination hors de la sélection ; la règle
+ * unitaire pour CHACUN · système, introuvable, descendant · cycle, autre
+ * marque ; ENTRE EUX · aucun dossier sélectionné dans un autre) la juge sur
+ * l'arbre AVANT le déplacement, puis UNE mise à jour pose `parent_id`.
+ *
+ * TOUT OU RIEN · un refus de la règle, ou une mise à jour qui ne touche pas
+ * EXACTEMENT chaque dossier demandé, annule la transaction · rien n'est écrit.
+ */
+export async function deplacerDossiersAction(input: { ids: string[]; parentId: string | null }): Promise<{ ok?: true; n?: number; error?: string }> {
+  const g = await gardeEcriture();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+
+  const parentId = input?.parentId ?? null;
+  if (parentId !== null && !estIdDossier(parentId)) return { error: REFUS_DOSSIER.destinationIntrouvable };
+
+  const F = schema.libraryFolders;
+  try {
+    const n = await db.transaction(async (tx) => {
+      const vivants: DossierPlat[] = await tx.select({ id: F.id, parentId: F.parentId, name: F.name, brandId: F.brandId, locked: F.locked })
+        .from(F).where(and(eq(F.workspaceId, s.workspaceId), isNull(F.deletedAt))).for('update');
+      const dest = parentId?.toLowerCase() ?? null;
+      const v = validerDeplacementDossiers(vivants, input?.ids, dest);
+      if (!v.ok) throw new DeplacementRefuse(v.raison);
+      const maj = await tx.update(F).set({ parentId: dest, updatedAt: new Date() })
+        .where(and(eq(F.workspaceId, s.workspaceId), inArray(F.id, v.ids), isNull(F.deletedAt), eq(F.locked, false)))
+        .returning({ id: F.id });
+      if (maj.length !== v.ids.length) throw new DeplacementRefuse(REFUS_DOSSIER.selectionIntrouvable);
+      return maj.length;
+    });
+    return { ok: true, n };
   } catch (e) {
     if (e instanceof DeplacementRefuse) return { error: e.message };
     throw e;

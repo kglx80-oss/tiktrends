@@ -5,7 +5,8 @@ import { ajouterConcurrents, proposerConcurrents } from '../../../../../actions/
 import { brandMediaPreview } from '../../../../../../lib/brand-media-url';
 import { Identite } from '../../../../../../spatial/vues/marque/Identite';
 import type { LigneKv } from '../../../../../../spatial/vues/marque/base';
-import { chargerMarque, propsFavicon, propsSync, valeursFiche } from '../donnees';
+import { etatLogosCharte } from '../../../../../../lib/logos-charte-etat';
+import { chargerMarque, propsFavicon, propsImportLogo, propsSync, valeursFiche } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,10 +31,14 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
   const style = styleVisuelMarque(b.brandKit as DaVisuelleMarque | null);
   const raisonStyle = !c.aiReady ? messageServiceInactif('ia_profil') : null;
   const logos = [...new Set([b.logoUrl, ...(b.logos ?? [])].filter((u): u is string => !!u))];
+  // Chaque logo à empreinte vérifié au stockage (HEAD + If-Match, borné) · même décision que la route média.
+  const bilan = await etatLogosCharte(b);
+  const importLogo = propsImportLogo(c);
+  const defautKo = bilan.defaut;
 
   return (
     <Identite
-      sousNav={c.sousNav} brandId={b.id} favicon={propsFavicon(c)} sync={propsSync(c)}
+      sousNav={c.sousNav} brandId={b.id} favicon={propsFavicon(c, bilan)} sync={propsSync(c)}
       identite={{
         complet: !!(c.domaine && secteur.length && tags.length && langues.length && b.logoUrl),
         lignes: [
@@ -42,7 +47,8 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
           options('Secteur', secteur, 'Non renseigné'),
           options('Tags', tags, 'Aucun tag'),
           options('Langues', langues, 'Non renseignées'),
-          { dt: 'Logo', dd: { type: 'logo', image: b.logoUrl ? brandMediaPreview(b.id, b.logoUrl) : null, initiale: initialeNom(b.name), legende: b.logoUrl ? 'Logo enregistré dans la charte' : 'Aucun logo · l’initiale le remplace' } },
+          { dt: 'Logo', dd: { type: 'logo', image: b.logoUrl && !defautKo ? brandMediaPreview(b.id, b.logoUrl) : null, initiale: initialeNom(b.name),
+            legende: defautKo ? `${defautKo.etat === 'a_reimporter' ? 'À réimporter' : 'Indisponible'} · ${defautKo.raison}` : b.logoUrl ? 'Logo enregistré dans la charte' : 'Aucun logo · l’initiale le remplace' } },
         ],
       }}
       couleurs={listePropre(b.colors, 8).map((code) => ({ code }))}
@@ -63,6 +69,7 @@ export default async function IdentiteSpatiale({ params }: { params: Promise<{ i
         logos: {
           logos, defaut: b.logoUrl ?? null, apercus: Object.fromEntries(logos.map((u) => [u, brandMediaPreview(b.id, u)])),
           couleurs: b.colors ?? [], polices: b.fonts ?? [], enregistrer: saveBrandDAAction,
+          etats: bilan.etats, reimporter: { actions: importLogo.actions, raison: importLogo.raison },
         },
         // Même prix que l'écran V5 (`costFor('brief')`), annoncé sur le bouton.
         sourcing: {

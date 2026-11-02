@@ -11,6 +11,10 @@ import { versementApercu } from './versement';
  * inventé, aucun geste sans action :
  *  · « Aperçu » · ouvre l'aperçu du fichier ;
  *  · « Ouvrir le projet » · une sortie Studios, vers son projet (le lien de l'aperçu) ;
+ *  · « Renommer » · un fichier de la bibliothèque, vivant, hors corbeille (le
+ *    fichier que la barre retient) · la fenêtre de renommage, puis
+ *    `renommerAssetAction` (règle `validerNomFichier`, `nom-fichier.ts`) · fermé
+ *    en lecture seule, avec sa raison ;
  *  · « Déplacer vers… » · la règle de la barre (`gestesSelection`, geste `ranger`)
  *    appliquée à ce seul fichier, puis l'action groupée `affecterAssetsDossierAction` ;
  *  · « Utiliser dans un projet » · la règle de l'aperçu (`versementApercu`), puis
@@ -30,7 +34,7 @@ import { versementApercu } from './versement';
  * DÉFINITIVE, les droits, l'IA et l'analyse restent dans l'aperçu.
  */
 
-export type CleMenuFichier = 'apercu' | 'ouvrir-projet' | 'ranger' | 'projet' | 'telecharger' | 'copier-lien' | 'corbeille' | 'restaurer';
+export type CleMenuFichier = 'apercu' | 'ouvrir-projet' | 'renommer' | 'ranger' | 'projet' | 'telecharger' | 'copier-lien' | 'corbeille' | 'restaurer';
 
 /** Une entrée d'un menu « … » de la Bibliothèque (fichier ou dossier) · même forme, même composant. */
 export interface EntreeMenu<C extends string = string> {
@@ -69,6 +73,7 @@ export function menuFichier(d: DonneesDrive, fichierId: string, ctx: { section: 
   return [
     ouvert('apercu', 'Aperçu', 'eye'),
     ...(f.projet ? [ouvert('ouvrir-projet', 'Ouvrir le projet', 'brush', { href: f.projet.href })] : []),
+    ...(unitaire && !corbeille ? [{ cle: 'renommer' as const, libelle: 'Renommer', icone: 'text', ouvert: ctx.lectureSeule === null, raison: ctx.lectureSeule }] : []),
     ...(unitaire && !corbeille ? geste('ranger', 'folder', { sousMenu: true }) : []),
     ...(versement ? [{ cle: 'projet' as const, libelle: versement.libelle, icone: 'brush', ouvert: versement.ouvert, raison: versement.raison }] : []),
     ouvert('telecharger', 'Télécharger', 'down', { href: f.telecharger ?? f.url }),

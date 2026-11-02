@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
+import type { EtatLogoCharte } from '@tiktrends/core';
 import { Ic } from '../../communs';
-import { BoutonAppel, BoutonServeur, ImportLogo, type ImportLogoActions } from './interactifs';
+import { BadgeLogo, BoutonAppel, BoutonServeur, ImportLogo, type ImportLogoActions } from './interactifs';
 
 /**
  * Les blocs communs aux écrans Marque (maquette : `favCard`, `siteSync`,
@@ -37,8 +38,16 @@ export interface PropsFaviconMarque {
     logos: readonly string[]; defaut: string | null; couleurs: readonly string[]; polices: readonly string[];
     /** `null` sans droit ou sans stockage (raison ci-dessous). */
     actions: ImportLogoActions | null; raison: string | null;
+    /** Le logo par défaut à réimporter · l'import prend sa place (`charteAvecLogoReimporte`). */
+    remplace?: string | null;
   };
+  /**
+   * Le logo par défaut n'est pas servi (noyau `bilanLogosCharte`) · signalé en
+   * tête de la carte, avec sa raison, à la place d'une image cassée.
+   */
+  alerte?: Exclude<EtatLogoCharte, { etat: 'servi' }> | null;
 }
+
 
 export function CarteFavicon(p: PropsFaviconMarque) {
   return (
@@ -46,6 +55,7 @@ export function CarteFavicon(p: PropsFaviconMarque) {
       <div className="favv">{p.image ? <img src={p.image} alt="" /> : <span className="blogo">{p.initiale}</span>}</div>
       <div className="favt">
         <span className="lbl" style={{ margin: 0 }}>Favicon de la marque</span>
+        {p.alerte && <span style={{ justifySelf: 'start' }}><BadgeLogo e={p.alerte} /></span>}
         <strong>{p.titre}</strong>
         <small className="faint">{p.detail}</small>
       </div>
@@ -54,7 +64,7 @@ export function CarteFavicon(p: PropsFaviconMarque) {
           <Ic n="loop" />Récupérer depuis le site
         </BoutonAppel>
         <ImportLogo brandId={p.brandId} logos={p.importLogo.logos} defaut={p.importLogo.defaut} couleurs={p.importLogo.couleurs} polices={p.importLogo.polices}
-          actions={p.importLogo.actions} raison={p.importLogo.raison} />
+          actions={p.importLogo.actions} raison={p.importLogo.raison} remplace={p.importLogo.remplace ?? null} />
       </div>
     </section>
   );

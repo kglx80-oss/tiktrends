@@ -40,6 +40,7 @@ describe('menuFichier · les gestes existants, à l’unité', () => {
     const e = menuFichier(d, 'img', DRIVE);
     expect(resume(e)).toEqual([
       ['apercu', 'Aperçu', true, null],
+      ['renommer', 'Renommer', true, null],
       ['ranger', 'Déplacer vers…', true, null],
       ['projet', 'Utiliser dans un projet', true, null],
       ['telecharger', 'Télécharger', true, null],
@@ -65,6 +66,7 @@ describe('menuFichier · les gestes existants, à l’unité', () => {
     const e = menuFichier(d, 'img', { section: 'drive', lectureSeule: 'Ton rôle est en lecture seule.' });
     expect(resume(e)).toEqual([
       ['apercu', 'Aperçu', true, null],
+      ['renommer', 'Renommer', false, 'Ton rôle est en lecture seule.'],
       ['ranger', 'Déplacer vers…', false, 'Ton rôle est en lecture seule.'],
       ['projet', 'Utiliser dans un projet', false, 'Ton rôle est en lecture seule.'],
       ['telecharger', 'Télécharger', true, null],

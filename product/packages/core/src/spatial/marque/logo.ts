@@ -37,3 +37,16 @@ export function charteAvecLogoImporte(c: { logos: readonly string[]; defaut: str
 
 /** Sans stockage de fichiers, le dépôt est impossible · les deux autres chemins existants restent. */
 export const RAISON_LOGO_SANS_STOCKAGE = 'Le dépôt de fichiers n’est pas activé pour ton espace · récupère le logo depuis le site, ou colle son adresse dans Identité.';
+
+/**
+ * La charte après un import À LA PLACE d'un logo à réimporter (`ancien`) · le
+ * fichier importé prend sa place dans la liste et, si `ancien` était le logo
+ * par défaut, ce rôle · les autres logos ne bougent pas. `ancien` absent de la
+ * charte · même résultat qu'un import ordinaire (`charteAvecLogoImporte`).
+ */
+export function charteAvecLogoReimporte(c: { logos: readonly string[]; defaut: string | null }, ancien: string, url: string): { logoUrl: string; logos: string[] } {
+  if (!ancien || (c.defaut !== ancien && !c.logos.includes(ancien))) return charteAvecLogoImporte(c, url);
+  const logos = [...new Set(c.logos.filter((u) => !!u).map((u) => (u === ancien ? url : u)))];
+  if (!logos.includes(url)) logos.push(url);
+  return { logoUrl: !c.defaut || c.defaut === ancien ? url : c.defaut, logos };
+}

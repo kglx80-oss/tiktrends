@@ -136,26 +136,27 @@ describe('la barre propose les bons gestes selon la sélection', () => {
     expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Les fichiers ne portent pas de tag · à la corbeille, ils restent restaurables.');
   });
 
-  it('DOSSIERS seuls · corbeille et tag ouverts ; déplacer, droits et IA fermés avec leur phrase', async () => {
+  it('DOSSIERS seuls · corbeille, tag et déplacer ouverts ; droits et IA fermés avec leur phrase', async () => {
     const h = await monter();
     await clic(caseDossier(h, 'UGC'));
     expect(boutonBarre(h, 'Mettre à la corbeille')!.disabled).toBe(false);
     expect(boutonBarre(h, 'Tag de couleur')!.disabled).toBe(false);
-    expect([liste(h, 'ranger').disabled, liste(h, 'ranger').title]).toEqual([true, RAISONS_SELECTION.rangerDossiers]);
+    expect([liste(h, 'ranger').disabled, liste(h, 'ranger').getAttribute('aria-label')]).toEqual([false, 'Déplacer les dossiers sélectionnés vers un dossier']);
     expect([liste(h, 'droits').disabled, liste(h, 'droits').title]).toEqual([true, RAISONS_SELECTION.droitsDossiers]);
     const ia = barre(h)!.querySelector('button[data-geste="ia"]') as HTMLButtonElement;
     expect([ia.disabled, ia.title]).toEqual([true, RAISONS_SELECTION.iaDossiers]);
-    expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Les gestes des fichiers (déplacer, droits et IA) ne s’appliquent pas à un dossier.');
+    expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Les gestes des fichiers (droits et IA) ne s’appliquent pas à un dossier.');
   });
 
-  it('MIXTE · tout s’ouvre, la phrase dit qui reçoit quoi', async () => {
+  it('MIXTE · tout s’ouvre sauf déplacer (fermé avec sa phrase), la phrase dit qui reçoit quoi', async () => {
     const h = await monter();
     await clic(caseDossier(h, 'UGC'));
     await clic(caseFichier(h, 'm2.jpg'));
     expect(barre(h)!.querySelector('strong')!.textContent).toBe('2 sélectionnés');
     expect([boutonBarre(h, 'Mettre à la corbeille')!.disabled, boutonBarre(h, 'Tag de couleur')!.disabled, liste(h, 'ranger').disabled, liste(h, 'droits').disabled, boutonBarre(h, 'Servir à l’IA')!.disabled])
-      .toEqual([false, false, false, false, false]);
-    expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, déplacer, droits et IA pour 1 fichier.');
+      .toEqual([false, false, true, false, false]);
+    expect(liste(h, 'ranger').title).toBe(RAISONS_SELECTION.rangerMixte);
+    expect(barre(h)!.querySelector('[data-geste="note-selection"]')!.textContent).toBe('Sélection mixte · corbeille pour tous, tag pour 1 dossier, droits et IA pour 1 fichier · dossiers et fichiers se déplacent séparément.');
   });
 });
 
@@ -205,15 +206,15 @@ describe('chaque geste part en UNE action groupée, avec les seuls fichiers', ()
     expect(toasts).toEqual(['2 fichiers peuvent servir à l’IA']);
   });
 
-  it('MIXTE · la corbeille reçoit le dossier ET le fichier (une action groupée pour les fichiers), le déplacement que le fichier', async () => {
+  it('MIXTE · la corbeille reçoit le dossier ET le fichier (une action groupée pour les fichiers) · aucun déplacement mixte', async () => {
     const confirmer = vi.spyOn(window, 'confirm').mockReturnValue(true);
     try {
       const h = await monter();
       await clic(caseDossier(h, 'UGC'));
       await clic(caseFichier(h, 'm1.jpg'));
       await choisir(liste(h, 'ranger'), 'd-photos');
-      expect(f.ranger).toHaveBeenCalledWith({ ids: ['m1'], folderId: 'd-photos' });
-      await clic(caseDossier(h, 'UGC'));
+      expect(f.ranger, 'un déplacement mixte est parti').not.toHaveBeenCalled();
+      await clic(caseFichier(h, 'm1.jpg'));
       await clic(caseFichier(h, 'm2.jpg'));
       await clic(boutonBarre(h, 'Mettre à la corbeille'));
       expect(confirmer).toHaveBeenCalledWith('Mettre 1 dossier et 1 fichier à la corbeille ? Tout reste restaurable, les dossiers avec leur contenu.');

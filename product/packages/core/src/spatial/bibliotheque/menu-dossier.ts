@@ -1,4 +1,4 @@
-import { REFUS_DOSSIER, validerDeplacementDossier, type DossierPlat } from '../../bibliotheque-dossiers';
+import { REFUS_DOSSIER, validerDeplacementDossier, validerDeplacementDossiers, type DossierPlat } from '../../bibliotheque-dossiers';
 import { gesteTelechargement } from './archive';
 import { dossiersRangement, type CarteDossierDrive, type DonneesDrive, type SectionDrive } from './drive';
 import { DETAIL_LIEN_INTERNE, lienInterneDossier } from './lien-interne';
@@ -148,4 +148,29 @@ export function destinationsDeplacementDossier(d: DonneesDrive, dossierId: strin
     const v = actuel ? null : validerDeplacementDossier(plats, dossierId, r.id);
     return { id: r.id, nom: r.nom, actuel, raison: v && !v.ok ? v.raison : null };
   });
+}
+
+/**
+ * Les destinations de « Déplacer vers… » de la BARRE DE SÉLECTION pour des
+ * DOSSIERS · la même liste (`dossiersRangement`), chaque destination jugée par
+ * la règle de l'action groupée (`validerDeplacementDossiers` · chacun, et entre
+ * eux) · refusée, elle reste proposée, fermée, avec la phrase du serveur. La
+ * destination où TOUS les dossiers sont déjà est marquée (déjà ici). `[]` sans
+ * dossier à déplacer.
+ */
+export function destinationsDeplacementSelection(d: DonneesDrive, ids: readonly string[]): DestinationDossier[] {
+  if (!ids.length) return [];
+  const plats = dossiersPlats(d);
+  const parents = new Set(ids.map((id) => plats.find((y) => y.id === id)?.parentId ?? null));
+  const ici = parents.size === 1 ? [...parents][0]! : undefined;
+  return dossiersRangement(d).map((r) => {
+    const actuel = r.id === ici;
+    const v = actuel ? null : validerDeplacementDossiers(plats, ids, r.id);
+    return { id: r.id, nom: r.nom, actuel, raison: v && !v.ok ? v.raison : null };
+  });
+}
+
+/** Le message dit après un déplacement groupé de dossiers · ce qui a VRAIMENT été écrit. */
+export function messageDossiersDeplaces(n: number, dans: string): string {
+  return `${n} dossier${n > 1 ? 's' : ''} déplacé${n > 1 ? 's' : ''} dans « ${dans} »`;
 }
