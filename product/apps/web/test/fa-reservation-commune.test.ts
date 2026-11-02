@@ -86,9 +86,17 @@ describe('Anthropic · le maximum est réservé AVANT l’appel', () => {
     const porte = new Promise<void>((r) => { liberer = r; });
     faux.create = async () => { await porte; return REPONSE(1, 5000); };
     const c = client('r2:trois');
-    const issues = Promise.allSettled([c.messages.create(APPEL), c.messages.create(APPEL), c.messages.create(APPEL)]);
-    // Les trois sont lancés ; on laisse les réservations se faire avant d'ouvrir la porte.
-    await new Promise((r) => setTimeout(r, 200));
+    let tranches = 0;
+    const issues = Promise.allSettled([c.messages.create(APPEL), c.messages.create(APPEL), c.messages.create(APPEL)].map((p) => p.finally(() => { tranches += 1; })));
+    // Les trois sont lancés, porte fermée · on attend que CHACUN soit tranché (parti chez le
+    // fournisseur, ou refusé), jamais une durée · une pause fixe de 200 ms pariait que les
+    // réservations en base seraient faites à temps (40 à 79 ms mesurés sous une charge de 15) ;
+    // lu trop tôt, le compte tombe à 0 appel en vol.
+    // Bon plafond ⇒ 2 partis + 1 refusé ; plafond qui ne réserve pas avant l'appel ⇒ 3 partis.
+    for (let i = 0; faux.appels + tranches < 3; i++) {
+      if (i > 2_000) throw new Error(`les trois appels ne sont pas tranchés · ${faux.appels} parti(s), ${tranches} refusé(s)`);
+      await new Promise((r) => setTimeout(r, 5));
+    }
     const appelsEnVol = faux.appels;
     liberer();
     const r = await issues;
