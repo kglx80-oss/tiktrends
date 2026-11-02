@@ -20,6 +20,7 @@ import { useRegime, useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue, useTelephone } from '../../communs';
 import { Ornement } from '../studios/Ornement';
 import { Message } from './briques';
+import { AnnonceLogos } from './LogosAReimporter';
 
 /**
  * Le studio vidéo d'un projet · `docs/spatial/reference/video.html`, balisage
@@ -287,6 +288,8 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
 
           <section className="tile" style={{ display: 'grid', gap: 12 }}>
             <div className="sech" style={{ margin: 0 }}><h2>{plan ? `Produire le plan ${rang}` : 'Produire un plan'}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Une étape à la fois · prix annoncé avant le clic</span></div>
+            {/* Un logo que l'image clé de ce plan utiliserait est à réimporter · dit AVANT « Compiler la consigne », rien n'est fermé. */}
+            <AnnonceLogos a={k?.logosAReimporter} />
             {plan && (
               <div className="vlevs">
                 {gestes.map((g) => (

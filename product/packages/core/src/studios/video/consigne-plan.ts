@@ -141,6 +141,30 @@ export function preparerShotImage(c: ContenuVersion, shotId: string, versionId: 
   };
 }
 
+/**
+ * Les références que l'image clé d'un plan UTILISERAIT · ce que la
+ * compilation lui transmettrait (`preparerShotImage`), et ce que lient ses
+ * consignes déjà compilées (retenue, en attente) · chacune une fois.
+ *
+ * C'est sur cet ensemble que l'écran annonce un logo à réimporter AVANT le clic
+ * payant (« Compiler la consigne »), comme l'atelier image
+ * (`annonceLogosAReimporter`) · le même ensemble que le verdict relit au devis
+ * (`verdictConsignePlan`). Les références du BRIEF n'y entrent pas · aucune
+ * n'est transmise aux images clés des plans (seule la photo épinglée du
+ * produit l'est), un logo lié au brief ne concerne donc pas la vidéo.
+ */
+export function referencesUtiliseesParPlan(
+  c: ContenuVersion, shotId: string,
+  consignes: ReadonlyArray<Pick<ConsignePlanPersistee, 'references'> | null | undefined>,
+): string[] {
+  if (shotId === PLAN_IMAGE || !Object.prototype.hasOwnProperty.call(c.shots.byId, shotId)) return [];
+  const out = new Set<string>();
+  const prep = preparerShotImage(c, shotId, 'lecture');
+  if (prep.ok) for (const r of prep.references) out.add(r.assetId);
+  for (const k of consignes) for (const r of k?.references ?? []) out.add(r.assetId);
+  return [...out];
+}
+
 /* ─────────────────────────── Consigne persistable ────────────────────────── */
 
 export type ConstructionConsignePlan = { ok: true; consigne: ConsignePlanPersistee; empreinte: string } | { ok: false; violations: string[] };

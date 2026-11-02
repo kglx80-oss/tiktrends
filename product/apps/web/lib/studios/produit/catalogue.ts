@@ -58,6 +58,20 @@ export function hacherImage(url: string): EmpreinteFichier {
   return empreinteAdresse(url);
 }
 
+/**
+ * Les logos de la charte tels que le catalogue les nomme · identifiant
+ * (`idLogoMarque`), adresse, « Logo principal » puis « Logo · variante n »,
+ * dans l'ordre (défaut d'abord), chaque adresse une fois. Le catalogue d'un
+ * projet et l'annonce des logos à réimporter de la vidéo lisent CETTE liste.
+ */
+export function logosDuCatalogue(brandId: string, m: { logoUrl: string | null; logos: readonly string[] | null }): Array<{ assetId: string; url: string; libelle: string } & EmpreinteFichier> {
+  const urls = [...new Set([m.logoUrl, ...(m.logos ?? [])].filter((u): u is string => typeof u === 'string' && u.length > 0))];
+  return urls.map((url, i) => {
+    const e = hacherImage(url);
+    return { assetId: idLogoMarque(brandId, e.sha256), url, libelle: i === 0 ? 'Logo principal' : `Logo · variante ${i}`, ...e };
+  });
+}
+
 export interface ProduitAvecPhotos {
   produit: ProduitMarque;
   photos: Array<FichierCatalogue & { url: string }>;
@@ -122,12 +136,9 @@ export async function chargerCatalogueProjet(
     return { produit, photos };
   });
 
-  const logos = [marque.logoUrl, ...(marque.logos ?? [])].filter((u): u is string => typeof u === 'string' && u.length > 0);
-  [...new Set(logos)].forEach((url, i) => {
-    const e = hacherImage(url);
-    const assetId = idLogoMarque(brandId, e.sha256);
-    if (!fichiers.has(assetId)) fichiers.set(assetId, { assetId, assetVersion: versionDepuisEmpreinte(e.sha256), sha256: e.sha256, nature: e.nature, provenance: 'logo', libelle: i === 0 ? 'Logo principal' : `Logo · variante ${i}`, productId: null, position: null, annonceur: null, apercu: true, url });
-  });
+  for (const l of logosDuCatalogue(brandId, marque)) {
+    if (!fichiers.has(l.assetId)) fichiers.set(l.assetId, { assetId: l.assetId, assetVersion: versionDepuisEmpreinte(l.sha256), sha256: l.sha256, nature: l.nature, provenance: 'logo', libelle: l.libelle, productId: null, position: null, annonceur: null, apercu: true, url: l.url });
+  }
 
   const A = schema.assets;
   // Droits d'usage (V5) · seuls les médias AUTORISÉS en publicité entrent au

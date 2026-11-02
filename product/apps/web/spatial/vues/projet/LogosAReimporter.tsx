@@ -3,7 +3,8 @@ import { Ic, Lien } from '../../communs';
 
 /**
  * Un logo de la charte lié au visuel est à réimporter · dit AVANT la
- * préparation payante (parcours image, étape Format & devis de l'assistant),
+ * préparation payante (parcours image, étape Format & devis de l'assistant,
+ * « Produire le plan » de la vidéo),
  * avec le chemin vers l'Identité de la marque. N'empêche aucun geste · le
  * devis relit la consigne et refuse ce qu'il ne pourrait pas envoyer.
  */
