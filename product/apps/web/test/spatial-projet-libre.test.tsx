@@ -218,7 +218,8 @@ describe('Spatial · fiche projet · disposition libre', () => {
   it('lecture refusée · le contrôle reste visible, inactif, avec sa raison ; `?disposition=libre` garde les couloirs', () => {
     const html = renderToStaticMarkup(<FournisseurSpatial value={CTX}><Projet {...props({ dispositionInitiale: 'libre', libre: { ok: false, raison: 'La disposition libre n’est pas activée pour cet espace.' } })} /></FournisseurSpatial>);
     expect(html).toContain('class="lanes"');
-    expect(html).toMatch(/data-disposition-libre="" aria-pressed="false" disabled=""/);
+    // Fermé mais focalisable (`aria-disabled`, atténué par la feuille), relié à sa raison écrite dessous.
+    expect(html).toMatch(/data-disposition-libre="" aria-pressed="false" aria-disabled="true" aria-describedby="[^"]+"/);
     expect(html).toMatch(/<p [^>]*data-libre-raison=""[^>]*>La disposition libre n’est pas activée pour cet espace\.<\/p>/);
   });
 
@@ -242,7 +243,7 @@ describe('Spatial · fiche projet · « Ouvrir l’image » (galerie de la fiche
       { assetId: 'a2', libelle: 'Lot 1 · 2', apercu: null, detail: '', choisir: false, raison: null, varianteId: null },
     ] }] } })} /></FournisseurSpatial>);
     expect(html.match(/data-ouvrir-image/g)).toHaveLength(1);
-    expect(html).toMatch(/<a class="btn sm" href="\/api\/studios\/media\/a1" target="_blank" rel="noopener noreferrer" data-ouvrir-image="">/);
+    expect(html).toMatch(/<a class="btn sm" href="\/api\/studios\/media\/a1" target="_blank" rel="noopener noreferrer" data-ouvrir-image=""[^>]*>/);
   });
 });
 

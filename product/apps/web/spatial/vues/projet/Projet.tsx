@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { VIDE_COULOIR, rechercheDisposition, repliPossible, replierPerdants, type CibleJarvisNoeud, type ModeDispositionProjet } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Noeud } from './briques';
@@ -67,6 +67,8 @@ export function Projet(p: PropsProjet) {
   }, []);
 
   const repli = useMemo(() => repliPossible(p.couloirs), [p.couloirs]);
+  const id = useId();
+  const raisons = { generer: `${id}-generer`, replier: `${id}-replier`, libre: `${id}-libre` };
   const couloirs = useMemo(() => replierPerdants(p.couloirs, replie && repli.possible), [p.couloirs, replie, repli.possible]);
 
   return (
@@ -87,22 +89,28 @@ export function Projet(p: PropsProjet) {
         <div className="ws">
           <div className="board">
             <div className="btool">
-              <button className="chip" type="button" disabled={!p.generer.href} title={p.generer.raison ?? 'Ouvre la préparation · le devis est montré avant tout lancement'}
+              {/* Une puce fermée reste FOCALISABLE (`aria-disabled`, atténuée par la feuille, clic ignoré) et dit pourquoi
+                  en toutes lettres sous la barre (`aria-describedby`) · le `title` ne se lit ni au doigt ni au clavier. */}
+              <button className="chip" type="button" data-puce="generer" aria-disabled={!p.generer.href || undefined} aria-describedby={!p.generer.href && p.generer.raison ? raisons.generer : undefined}
+                title={p.generer.href ? 'Ouvre la préparation · le devis est montré avant tout lancement' : undefined}
                 onClick={() => { if (p.generer.href) naviguer(p.generer.href); }}>
                 <Ic n="spark" />{p.generer.libelle}
               </button>
               {disposition === 'couloirs' && (
-                <button className="chip" type="button" data-fold="" aria-pressed={replie && repli.possible} disabled={!repli.possible} title={repli.raison ?? 'Masque les créations battues par une mesure'}
-                  onClick={() => setReplie((r) => !r)}>Replier les perdants</button>
+                <button className="chip" type="button" data-fold="" aria-pressed={replie && repli.possible} aria-disabled={!repli.possible || undefined} aria-describedby={!repli.possible && repli.raison ? raisons.replier : undefined}
+                  title={repli.possible ? 'Masque les créations battues par une mesure' : undefined}
+                  onClick={() => { if (repli.possible) setReplie((r) => !r); }}>Replier les perdants</button>
               )}
               {p.libre && (
-                <button className="chip" type="button" data-disposition-libre="" aria-pressed={disposition === 'libre'} disabled={!libreOk}
-                  title={p.libre.ok ? 'Déplace les cartes du canvas · ta disposition est enregistrée pour toi seul' : p.libre.raison}
-                  onClick={basculerDisposition}><Ic n="grid" />Disposition libre</button>
+                <button className="chip" type="button" data-disposition-libre="" aria-pressed={disposition === 'libre'} aria-disabled={!libreOk || undefined} aria-describedby={libreOk ? undefined : raisons.libre}
+                  title={p.libre.ok ? 'Déplace les cartes du canvas · ta disposition est enregistrée pour toi seul' : undefined}
+                  onClick={() => { if (libreOk) basculerDisposition(); }}><Ic n="grid" />Disposition libre</button>
               )}
               {disposition === 'couloirs' && <span className="faint" style={{ marginLeft: 'auto', fontSize: '11.5px' }}>{p.aideCanvas}</span>}
             </div>
-            {p.libre && !p.libre.ok && <p className="faint" data-libre-raison="" style={{ fontSize: '11.5px', margin: '0 0 10px' }}>{p.libre.raison}</p>}
+            {!p.generer.href && p.generer.raison && <p className="faint" id={raisons.generer} data-raison-ferme="generer" style={{ fontSize: '11.5px', margin: '0 0 10px' }}>{p.generer.raison}</p>}
+            {disposition === 'couloirs' && !repli.possible && repli.raison && <p className="faint" id={raisons.replier} data-raison-ferme="replier" style={{ fontSize: '11.5px', margin: '0 0 10px' }}>{repli.raison}</p>}
+            {p.libre && !p.libre.ok && <p className="faint" id={raisons.libre} data-libre-raison="" style={{ fontSize: '11.5px', margin: '0 0 10px' }}>{p.libre.raison}</p>}
             {disposition === 'libre' && libreOk ? <CanvasLibre c={libreOk} cibler={cibler} /> : (
             <div className="lanes">
               {couloirs.map((c) => (
@@ -110,7 +118,8 @@ export function Projet(p: PropsProjet) {
                   <span className="lh">{c.titre}</span>
                   {c.noeuds.map((n) => (
                     <Noeud key={n.id} n={n} geste={n.cible && (
-                      <button className="pill c" type="button" data-cibler-jarvis={n.cible.cible} style={{ justifySelf: 'start' }}
+                      // Un « Cibler Jarvis » par nœud · le nom dit LEQUEL (il commence par le mot affiché).
+                      <button className="pill c" type="button" data-cibler-jarvis={n.cible.cible} style={{ justifySelf: 'start' }} aria-label={`Cibler Jarvis · ${n.titre ?? n.etiquette}`}
                         title="Choisit cette cible dans les propositions · rien n’est envoyé" onClick={() => cibler(n.cible!)}><Ic n="spark" />Cibler Jarvis</button>
                     )} />
                   ))}

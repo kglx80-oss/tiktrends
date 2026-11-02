@@ -95,8 +95,8 @@ describe('export du brief · hors ligne, les boutons reviennent et le message le
       veilleHref={null} fiche={null} manques={[]} versions={[]} atelier={[]} exportBrief={{ autorise: true, possible: true }} propositions={{ initial: LISTE, versionCourante: { id: 'v1', n: 1 } }} />));
     await act(async () => bouton('Exporter le brief').click());
     await flush();
-    // La pastille « Refusé » de la maquette précède le message.
-    expect(q('[role="alert"]')!.textContent).toBe(`Refusé Hors ligne · ${messageHorsLigneStudio('export')}`);
+    // Sans réponse, rien n’a été refusé · la pastille « Hors ligne » précède le message.
+    expect(q('[role="alert"]')!.textContent).toBe(`Hors ligne ${messageHorsLigneStudio('export')}`);
     expect(bouton('Exporter le brief').disabled, 'les boutons restent figés').toBe(false);
   });
 });

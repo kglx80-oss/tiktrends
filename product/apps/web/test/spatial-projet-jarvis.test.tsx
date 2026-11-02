@@ -55,21 +55,23 @@ beforeEach(() => { a.proposerPatch.mockClear(); nav.push.mockClear(); hote = doc
 afterEach(() => { act(() => root.unmount()); hote.remove(); vi.unstubAllGlobals(); });
 const monter = async (p: PropsJarvisProjet) => { await act(async () => { root.render(avecSpatial(<PanneauJarvis {...p} ouvrirBrief={() => {}} />)); }); };
 const puce = (t: string) => [...hote.querySelectorAll<HTMLButtonElement>('button.chip')].find((b) => b.textContent === t);
+/** Une puce fermée reste focalisable · `aria-disabled`, jamais `disabled` (sa raison est écrite dessous). */
+const fermee = (b: HTMLButtonElement | undefined) => [b!.disabled, b!.getAttribute('aria-disabled') === 'true'];
 const bouton = (t: string) => [...hote.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.endsWith(t));
 const cliquer = async (b: HTMLElement | undefined) => { expect(b, 'bouton introuvable').toBeTruthy(); await act(async () => { b!.click(); }); };
 
 describe('A · visibilité et activité des actions typées', () => {
   it('ads · directions et accroches ACTIVES, scénario absent, préparer inactif avec sa raison', async () => {
     await monter(props());
-    expect(puce('Proposer des directions visuelles')!.disabled).toBe(false);
-    expect(puce('Proposer 3 accroches')!.disabled).toBe(false);
+    expect(fermee(puce('Proposer des directions visuelles'))).toEqual([false, false]);
+    expect(fermee(puce('Proposer 3 accroches'))).toEqual([false, false]);
     expect(puce('Écrire le scénario')).toBeUndefined();
-    expect(puce('Préparer la création')!.disabled).toBe(true);
+    expect(fermee(puce('Préparer la création'))).toEqual([false, true]);
     expect(hote.innerHTML).not.toContain('—');
   });
   it('vidéo · le scénario est montré et actif', async () => {
     await monter(props({ kind: 'video' }));
-    expect(puce('Écrire le scénario')!.disabled).toBe(false);
+    expect(fermee(puce('Écrire le scénario'))).toEqual([false, false]);
   });
   it('image et génération active · « Préparer la création » mène au produit, sans appel ni coût', async () => {
     await monter(props({ kind: 'image', generationImageActive: true }));
@@ -83,8 +85,8 @@ describe('A · visibilité et activité des actions typées', () => {
 describe('B · gating honnête', () => {
   it('sans brief · directions et accroches grisées, la raison parle du brief', async () => {
     await monter(props({ briefPret: false }));
-    expect(puce('Proposer des directions visuelles')!.disabled).toBe(true);
-    expect(puce('Proposer 3 accroches')!.disabled).toBe(true);
+    expect(fermee(puce('Proposer des directions visuelles'))).toEqual([false, true]);
+    expect(fermee(puce('Proposer 3 accroches'))).toEqual([false, true]);
     expect(hote.textContent).toMatch(/brief/i);
   });
 });
