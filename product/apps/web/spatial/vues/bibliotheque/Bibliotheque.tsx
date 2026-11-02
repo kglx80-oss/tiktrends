@@ -12,7 +12,7 @@ import {
   menuDossier, optionsTagDossier, boutonTagSurCarte, gesteTelechargement, type CleMenuDossier,
   destinationsDeplacementDossier, validerNomDossier,
   validerNomFichier, baseNomFichier, extensionNomFichier, messageFichierRenomme, destinationsDeplacementSelection, messageDossiersDeplaces,
-  lienInterneFichier, lienInterneDossier, rechercheSansLien, MESSAGE_LIEN_COPIE, type OuvertureLienInterne,
+  lienInterneFichier, lienInterneDossier, rechercheSansLien, MESSAGE_LIEN_COPIE, DETAIL_LIEN_INTERNE, type OuvertureLienInterne,
   ATTRIBUT_ZONE_TACTILE,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction } from '../../../app/actions/assets';
@@ -840,6 +840,8 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const gestesFa = fa ? actionsApercuFichier(fa, ecriture) : null;
   const versementFa = fa ? versementApercu(p.donnees, fa.id, p.lectureSeule) : null;
   const utiliseFa = fa ? vueUtiliseDans(p.utilisations ?? null, fa) : null;
+  // « Copier le lien » de l'aperçu · même règle que le menu « … » (le lien seulement s'il rouvre ce fichier).
+  const lienFa = fa ? lienInterneFichier(p.donnees, fa.id) : null;
   const fichiersVersement = versementFichier ? [{ id: versementFichier }] : sel.fichiers;
 
   return (
@@ -1059,6 +1061,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
               {versementFa && <button className="btn" type="button" data-geste="projet-fichier" disabled={occupe || !versementFa.ouvert} title={versementFa.raison ?? undefined} onClick={() => setVersementFichier(fa.id)}><Ic n="brush" />{versementFa.libelle}</button>}
               {fa.projet && <Lien className="btn pri" href={fa.projet.href}><Ic n="brush" />Ouvrir le projet</Lien>}
               <a className="btn" href={fa.telecharger ?? fa.url} target="_blank" rel="noopener noreferrer" download><Ic n="down" />Télécharger</a>
+              {lienFa && <button className="btn" type="button" data-geste="copier-lien-fichier" title={DETAIL_LIEN_INTERNE} onClick={() => void copierLien(lienFa, 'fichier')}><Ic n="copy" />Copier le lien</button>}
               {gestesFa?.corbeille && <button className="btn" type="button" data-geste="corbeille-fichier" disabled={occupe} onClick={() => void corbeilleFichier(fa, 'corbeille')}><Ic n="x" />Mettre à la corbeille</button>}
               {gestesFa?.restaurer && <button className="btn pri" type="button" data-geste="restaurer-fichier" disabled={occupe} onClick={() => void corbeilleFichier(fa, 'restaurer')}><Ic n="check" />Restaurer</button>}
               {gestesFa?.supprimerDefinitivement && <button className="btn" type="button" data-geste="supprimer-definitivement" disabled={occupe} onClick={() => void supprimerFichier(fa)}><Ic n="x" />Supprimer définitivement</button>}

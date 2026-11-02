@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { storageConfigured } from '@tiktrends/integrations';
 import {
-  connexionDrive, costFor, lireLienInterne, ouvertureLienInterne, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, FUSEAU_ACCUEIL, donneesDrive, etatConnexionDrive, fusionnerBibliotheque, lireFiltreTag, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
+  connexionDrive, costFor, lireLienInterne, fichierLienALire, resoudreLienInterne, DRIVE_CONNEXION_INACTIVE, DRIVE_SELECTEUR_INACTIF, FUSEAU_ACCUEIL, etatConnexionDrive, fusionnerBibliotheque, lireFiltreTag, messageErreurConnexionDrive, messageServiceInactif, LIMITE_BIBLIOTHEQUE, LOT_ANALYSE_IMAGES,
   type DossierSource, type MediaSource,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -53,6 +53,14 @@ export const dynamic = 'force-dynamic';
  * autre espace, d'une marque hors portée, à la corbeille ou inconnu rend la
  * page exactement comme sans paramètre. Aucun jeton, aucune table · l'adresse
  * ne donne aucun droit.
+ *
+ * Au-delà des 400 médias chargés · `?fichier=<id>` d'un fichier absent de la
+ * liste fait lire CE SEUL fichier (`fichierLienALire`, puis
+ * `listAssets({ id })` · même garde, même espace, même portée, hors corbeille ;
+ * son rangement relu avec les autres, dans la même requête). Il n'entre dans
+ * les données de l'écran que si le lien le rouvre (`resoudreLienInterne` ·
+ * dossier parent et ancêtres hors corbeille) · sinon la page est rendue
+ * exactement comme sans paramètre.
  */
 export default async function BibliothequeSpatiale({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -72,7 +80,14 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
     lireUtilisationsBibliotheque(),
   ]);
   const vivants = fusionnerBibliotheque(fusionnerBibliotheque(historique, studios.map(sortieCommeAsset), LIMITE_BIBLIOTHEQUE), anciennes.map(creationCommeAsset), LIMITE_BIBLIOTHEQUE);
-  const items = [...vivants, ...jetes];
+  const charges = [...vivants, ...jetes];
+
+  // Lien interne vers un fichier au-delà de ce que l'écran charge · lu SEUL, par la même lecture que la liste (aucune lecture sinon).
+  const sp = (await searchParams) ?? {};
+  const lu = lireLienInterne(sp);
+  const aLire = fichierLienALire(lu, charges);
+  const cible = aLire ? ((await listAssets({ id: aLire }))[0] ?? null) : null;
+  const items = cible ? [...charges, cible] : charges;
 
   // Rangement, droits, type réel et corbeille des médias de la bibliothèque · relus dans l'espace (jamais pris du navigateur).
   const idsMedias = items.filter((a) => !a.studio && !a.historique).map((a) => a.id);
@@ -93,23 +108,23 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
     dossiers = rows.map((d) => ({ ...d, deletedAt: d.deletedAt ? (d.deletedAt as Date).toISOString() : null, createdAt: (d.createdAt as Date).toISOString() }));
   }
 
-  const medias: MediaSource[] = items.map((a) => ({
+  const enMedia = (a: (typeof items)[number]): MediaSource => ({
     id: a.id, name: a.name, kind: a.kind, source: a.source, url: a.url, thumbUrl: a.thumbUrl, sizeBytes: a.sizeBytes, createdAt: a.createdAt,
     mimeType: extras.get(a.id)?.mimeType ?? null, folderId: extras.get(a.id)?.folderId ?? null, rights: extras.get(a.id)?.rights ?? null, deletedAt: extras.get(a.id)?.deletedAt ?? null,
     ...(a.studio ? { studio: { projetId: a.studio.projetId, projetTitre: a.studio.projetTitre, href: a.studio.href } } : {}),
     ...(a.historique ? { historique: a.historique } : {}),
     // Usage par l'IA (geste de l'écran V5) · seulement pour un média de la bibliothèque.
     ...(!a.studio && !a.historique ? { ia: { utilisable: a.useForAi, template: a.isTemplate, tags: a.tags ?? [] } } : {}),
-  }));
+  });
+  const medias = charges.map(enMedia);
   const sansTags = vivants.filter((a) => !a.studio && !a.historique && a.kind === 'image' && !(a.tags ?? []).length).length;
   const raisonAnalyse = refusEcriture ? TEXTE_REFUS_BIBLIOTHEQUE[refusEcriture] : !anthropicConfigured() ? messageServiceInactif('analyse_image') : null;
 
   // Retour de la connexion Google · la copie client existante, accordée à l'état AFFICHÉ.
-  const sp = (await searchParams) ?? {};
   const retourDrive = sp.ok === 'drive' ? 'Google Drive connecté · choisis un dossier à synchroniser.'
     : typeof sp.e === 'string' && sp.e.startsWith('drive') ? messageErreurConnexionDrive(sp.e, etatConnexionDrive(driveState)) : null;
 
-  const donnees = donneesDrive({ dossiers, medias });
+  const { donnees, ouverture } = resoudreLienInterne({ dossiers, medias }, cible ? enMedia(cible) : null, lu);
   return (
     <Bibliotheque
       donnees={donnees}
@@ -120,7 +135,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
       retourDrive={retourDrive}
       filtreTag={lireFiltreTag(sp.tag)}
       utilisations={utilisations}
-      ouverture={ouvertureLienInterne(donnees, lireLienInterne(sp))}
+      ouverture={ouverture}
       gestion={{
         // Même prix que l'écran V5 (`costFor('tag_image', 1)` par image), annoncé avant le clic.
         analyse: { cout: unlimitedCredits(s.user.email) ? null : costFor('tag_image', 1), raison: raisonAnalyse, sansTags, maxLot: LOT_ANALYSE_IMAGES },

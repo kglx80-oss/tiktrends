@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, or, isNull, isNotNull, sql } from 'drizzle-orm'
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl, ecrireApresDepot } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, decisionDepot, dureeLienDepot, jetonDepotPour, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, type OrigineStudioBibliotheque } from '@tiktrends/core';
+import { costFor, decisionDepot, dureeLienDepot, jetonDepotPour, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, idLienInterne, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -106,13 +106,20 @@ function toItem(r: {
  * Corbeille · un fichier mis à la corbeille (`deleted_at` posé) n'est JAMAIS
  * rendu par défaut ; `corbeille: true` rend au contraire les seuls fichiers de
  * la corbeille (section « Corbeille » de la Bibliothèque), même portée.
+ *
+ * `id` · CE SEUL fichier, par la même lecture (même garde, même espace, même
+ * portée, corbeille à part) · le lien interne d'un fichier au-delà des 400
+ * chargés (page `/assets`). Un identifiant qui n'est pas un UUID ne lit rien.
  */
-export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean; limit?: number; corbeille?: boolean }): Promise<AssetItem[]> {
+export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolean; limit?: number; corbeille?: boolean; id?: string }): Promise<AssetItem[]> {
   const g = await gardeLectureBibliotheque();
   if ('error' in g) return [];
   const { s } = g;
   if (!db) return [];
+  const cible = filter?.id === undefined ? null : idLienInterne(filter.id);
+  if (filter?.id !== undefined && !cible) return [];
   const conds = [eq(schema.assets.workspaceId, s.workspaceId), filter?.corbeille ? isNotNull(schema.assets.deletedAt) : isNull(schema.assets.deletedAt)];
+  if (cible) conds.push(eq(schema.assets.id, cible));
   if (filter?.kind) conds.push(eq(schema.assets.kind, filter.kind));
   const brand = await getActiveBrand(s.workspaceId);
   if (brand) {
@@ -136,7 +143,7 @@ export async function listAssets(filter?: { kind?: AssetKind; brandOnly?: boolea
   })
     .from(schema.assets).where(and(...conds))
     .orderBy(desc(schema.assets.createdAt))
-    .limit(Math.max(1, Math.min(filter?.limit ?? 400, 400)));
+    .limit(cible ? 1 : Math.max(1, Math.min(filter?.limit ?? 400, 400)));
 
   return rows.map(toItem);
 }
