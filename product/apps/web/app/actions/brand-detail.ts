@@ -167,13 +167,13 @@ const norm = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim()
 const commas = (v: FormDataEntryValue | null) => norm(v).split(',').map((x) => x.trim()).filter(Boolean);
 
 /** Vérifie que la marque appartient bien au workspace de l'utilisateur admin. */
-async function guardBrand(brandId: string): Promise<{ workspaceId: string; email: string | null; plan: CleForfait } | null> {
+async function guardBrand(brandId: string): Promise<{ workspaceId: string; userId: string; email: string | null; plan: CleForfait } | null> {
   const s = await getSession();
   if (!s || !db) return null;
   if (!roleAtLeast(s.role, 'admin')) return null;
   const [b] = await db.select({ id: schema.brands.id }).from(schema.brands)
     .where(and(eq(schema.brands.id, brandId), eq(schema.brands.workspaceId, s.workspaceId))).limit(1);
-  return b ? { workspaceId: s.workspaceId, email: s.user.email, plan: forfaitEffectif(s.plan) } : null;
+  return b ? { workspaceId: s.workspaceId, userId: s.user.id, email: s.user.email, plan: forfaitEffectif(s.plan) } : null;
 }
 
 /* ---------------- Personas ---------------- */
@@ -288,10 +288,13 @@ const normName = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLow
 /**
  * Enregistre la charte visuelle éditée à la main (logos, logo par défaut, couleurs, polices).
  *
- * `jetonDepot` · celui que `presignAssetUploadAction` a rendu à l'import d'un
- * fichier de logo. Il est EXIGÉ pour une adresse du bucket NOUVELLE (règle
- * `decisionCharteDeposee`, noyau `jeton-depot.ts`) : signature, espace, clé et
- * expiration. L'objet attesté est ensuite RELU (taille au `HEAD`, premiers
+ * `jetonDepot` · celui que `presignAssetUploadAction` (usage `logo`) a rendu à
+ * l'import d'un fichier de logo. Le navigateur ne connaît pas l'adresse du
+ * dépôt · il met `LOGO_DEPOSE` à sa place dans la charte, et le jeton la
+ * résout. Il est EXIGÉ pour une adresse du bucket NOUVELLE (règle
+ * `decisionCharteDeposee`, noyau `jeton-depot.ts`) : scellé, espace,
+ * utilisateur, usage, clé, expiration, et objet pas encore cité (un jeton ne
+ * sert qu'une fois). L'objet attesté est ensuite RELU (taille au `HEAD`, premiers
  * octets · `lireDebutObjetEspace`, le lecteur de `registerUploadedAssetAction`)
  * et n'est admis que s'il est une image png, jpeg ou webp d'au plus 4 Mo, du
  * type et de la taille signés dans le jeton (`decisionLogoDeposeRelu`, noyau).
@@ -317,10 +320,12 @@ export async function saveBrandDAAction(input: {
     .where(and(eq(schema.brands.id, input.brandId), eq(schema.brands.workspaceId, g.workspaceId))).limit(1);
   const cfg = storageFromEnv();
   const jeton = lireJetonDepot(input.jetonDepot);
+  // Un jeton ne sert qu'une fois · l'objet qu'il désigne est-il déjà cité par une ligne ?
+  const dejaCite = !!cfg && !!jeton && jeton !== 'illisible' && jeton.espace === g.workspaceId && (await referencesObjetEnBase(jeton.cle)) === 'referencee';
   const d = decisionCharteDeposee({
     charte: { logoUrl, logos }, dejaEnregistrees: [avant?.logoUrl, ...(avant?.logos ?? [])],
     bucket: cfg ? { base: basePubliqueStockage(cfg), espace: g.workspaceId } : null,
-    jeton, maintenant: Date.now(),
+    jeton, utilisateur: g.userId, maintenant: Date.now(), dejaCite,
   });
   const retirer = (deposes: readonly string[] = d.aRetirer) => retirerDepotsSansLigne({ storage: cfg, workspaceId: g.workspaceId, deposes, references: referencesObjetEnBase });
   if (!d.ok) { await retirer(); return { error: d.erreur }; }
@@ -340,7 +345,9 @@ export async function saveBrandDAAction(input: {
     }
     relues.set(url, lecture.ok ? lecture.empreinte : null);
   }
-  const logoEmpreintes = empreintesLogosCharte({ avant: avant?.logoEmpreintes, charte: [logoUrl, ...logos], relues });
+  // La charte RÉSOLUE · `LOGO_DEPOSE` y est devenue l'adresse du dépôt.
+  const charte = d.charte;
+  const logoEmpreintes = empreintesLogosCharte({ avant: avant?.logoEmpreintes, charte: [charte.logoUrl, ...charte.logos], relues });
   const base = db;
   // L'écriture qui échoue retire le dépôt attesté, sauf si une ligne le cite
   // déjà (`ecrireApresDepot`), puis l'erreur remonte comme avant.
@@ -350,8 +357,8 @@ export async function saveBrandDAAction(input: {
       // Une fonte d'icônes n'est jamais une police de marque · on l'écarte même
       // saisie à la main (CDC v7 · N09), pas seulement à l'extraction du site.
       await base.update(schema.brands).set({
-        logoUrl: logoUrl || null,
-        logos,
+        logoUrl: charte.logoUrl || null,
+        logos: charte.logos,
         logoEmpreintes,
         colors: clean(input.colors),
         fonts: clean(input.fonts).filter((f) => !policeTechnique(f)),

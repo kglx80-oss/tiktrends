@@ -2,16 +2,16 @@
 
 import { and, desc, eq, inArray, or, isNull, isNotNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl, ecrireApresDepot, retirerDepotsSansLigne } from '@tiktrends/integrations';
+import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl, publicUrlFor, ecrireApresDepot, retirerDepotsSansLigne } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, decisionDepot, dureeLienDepot, jetonDepotPour, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, idLienInterne, type OrigineStudioBibliotheque } from '@tiktrends/core';
+import { costFor, decisionDepot, dureeLienDepot, jetonDepotPour, lireUsageDepot, resoudreJetonDepot, REFUS_USAGE_DEPOT, TEXTES_REFUS_JETON_FICHIER, type UsageDepot, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, idLienInterne, type OrigineStudioBibliotheque } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
 import { unlimitedCredits, reserveCredits, refundCredits } from '../../lib/credits';
 import { logAndTranslate } from '../../lib/error-log';
 import { referencesObjetEnBase } from '../../lib/references-objet';
-import { signerJetonDepot } from '../../lib/jeton-depot';
+import { lireJetonDepot, scellerJetonDepot } from '../../lib/jeton-depot';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { GUARD } from '../../lib/guard-error';
 import { toItem } from '../../lib/asset-item';
@@ -524,17 +524,21 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
  * longueur.
  */
 /**
- * Prépare un dépôt direct · l'adresse de PUT présignée, l'adresse publique, le
- * type signé, et le jeton de dépôt (`jetonDepot`, signé côté serveur · espace,
- * clé, type et taille signés dans le lien, expiration courte) qui prouve à la
- * charte (`saveBrandDAAction`) que l'objet a été déposé par CET espace, lui
- * permet de comparer l'objet relu à ce que le lien autorisait, et de le
- * retirer s'il n'est pas enregistré. La Bibliothèque l'ignore.
+ * Prépare un dépôt direct · l'adresse de PUT présignée, le type signé, et le
+ * JETON DE DÉPÔT opaque (`jetonDepot`, scellé côté serveur · espace,
+ * utilisateur, usage, clé, type et taille signés dans le lien, expiration
+ * courte · `packages/core/src/jeton-depot.ts`). Aucune autre adresse du
+ * stockage ne sort · le navigateur renvoie le jeton, jamais une adresse, à
+ * l'action déclarée par `usage` (`envoi` · `registerUploadedAssetAction`,
+ * `remplacement` · `remplacerAssetAction`, `logo` · `saveBrandDAAction`), qui
+ * le résout en clé d'objet puis relit l'objet.
  */
-export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number }): Promise<{ uploadUrl?: string; publicUrl?: string; contentType?: string; jetonDepot?: string; error?: string }> {
+export async function presignAssetUploadAction(input: { filename: string; contentType: string; sizeBytes: number; usage: UsageDepot }): Promise<{ uploadUrl?: string; contentType?: string; jetonDepot?: string; error?: string }> {
   const g = await gardeBibliotheque();
   if ('error' in g) return { error: g.error };
   const { s } = g;
+  const usage = lireUsageDepot(input?.usage);
+  if (!usage) return { error: REFUS_USAGE_DEPOT };
   const cfg = storageFromEnv();
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
   if (!cfg) return { error: messageServiceInactif('stockage') };
@@ -544,33 +548,61 @@ export async function presignAssetUploadAction(input: { filename: string; conten
   try {
     // Validité proportionnée à la taille VALIDÉE (`dureeLienDepot`, noyau) · une
     // image de 2 Mo n'a plus 15 minutes de ré-écriture après son envoi.
-    const { uploadUrl, publicUrl } = presignPutUrl(cfg, key, { contentType: d.contentType, contentLength: d.contentLength }, dureeLienDepot(d.contentLength));
-    const jetonDepot = signerJetonDepot(jetonDepotPour({ espace: s.workspaceId, cle: key, type: d.contentType, taille: d.contentLength, maintenant: Date.now() }));
-    return { uploadUrl, publicUrl, contentType: d.contentType, jetonDepot };
+    const { uploadUrl } = presignPutUrl(cfg, key, { contentType: d.contentType, contentLength: d.contentLength }, dureeLienDepot(d.contentLength));
+    const jetonDepot = scellerJetonDepot(jetonDepotPour({ espace: s.workspaceId, utilisateur: s.user.id, usage, cle: key, type: d.contentType, taille: d.contentLength, maintenant: Date.now() }));
+    return { uploadUrl, contentType: d.contentType, jetonDepot };
   } catch (e) {
     return { error: logAndTranslate('assets:upload', e, { subject: 'la préparation du téléversement', workspaceId: s.workspaceId }) };
   }
 }
 
-/** Enregistre un fichier déjà téléversé sur le bucket comme asset. */
-export async function registerUploadedAssetAction(input: { name: string; url: string; mimeType: string; sizeBytes: number; common?: boolean }): Promise<{ ok?: true; error?: string }> {
+/**
+ * Le jeton de dépôt reçu, résolu en ADRESSE canonique de l'objet (celle
+ * qu'enregistre la ligne) · refusé avec sa phrase s'il est absent, altéré,
+ * d'un autre espace, d'un autre utilisateur, pour un autre usage ou expiré
+ * (`resoudreJetonDepot`, noyau). Les vérifications d'avant s'appliquent
+ * ensuite à l'adresse résolue (appartenance, relecture, ETag).
+ */
+function adresseDuJeton(jeton: unknown, s: SessionBibliotheque, usage: UsageDepot, cfg: NonNullable<ReturnType<typeof storageFromEnv>>): { url: string } | { error: string } {
+  const r = resoudreJetonDepot(lireJetonDepot(jeton), { espace: s.workspaceId, utilisateur: s.user.id, usage, maintenant: Date.now() });
+  if (!r.ok) return { error: r.erreur };
+  return { url: publicUrlFor(cfg, r.cle) };
+}
+
+/** Un jeton ne fait entrer son objet qu'UNE fois · verrou de transaction sur l'adresse, le temps de vérifier et d'écrire. */
+async function verrouDepot(tx: Pick<NonNullable<typeof db>, 'execute'>, url: string): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`depot:${url}`}))`);
+}
+
+/** Levée DANS la transaction de l'enregistrement pour l'annuler · porte la phrase du refus. */
+class DepotDejaEmploye extends Error {}
+
+/**
+ * Enregistre un fichier déjà téléversé sur le bucket comme asset · le dépôt
+ * est désigné par son JETON (`presignAssetUploadAction`, usage `envoi`),
+ * jamais par une adresse venue du navigateur.
+ */
+export async function registerUploadedAssetAction(input: { name: string; jetonDepot: string; mimeType: string; sizeBytes: number; common?: boolean }): Promise<{ ok?: true; error?: string }> {
   const g = await gardeBibliotheque();
   if ('error' in g) return { error: g.error };
   const { s } = g;
   if (!db) return { error: GUARD.session() };
-  const url = (input.url || '').trim();
-  if (!/^https?:\/\//i.test(url)) return { error: 'URL invalide.' };
-  // Un téléversement ne s'enregistre que s'il est rangé chez CET espace
-  // (`assets/<espace>/…` sous la base publique du bucket). Avant, n'importe
-  // quelle URL passait · celle d'un objet d'un autre espace, que la
-  // suppression de l'asset effaçait ensuite du bucket.
   const cfg = storageFromEnv();
   if (!cfg) return { error: messageServiceInactif('stockage') };
+  const resolu = adresseDuJeton(input?.jetonDepot, s, 'envoi', cfg);
+  if ('error' in resolu) return { error: resolu.error };
+  const { url } = resolu;
+  // Un téléversement ne s'enregistre que s'il est rangé chez CET espace
+  // (`assets/<espace>/…` sous la base publique du bucket) · relu sur
+  // l'adresse résolue, comme avant sur l'adresse reçue.
   // Une clé `drive-…` est celle de la synchro Drive, jamais un téléversement.
   const cle = cleTeleversable(url, basePubliqueStockage(cfg), s.workspaceId);
   if (!cle) return { error: MESSAGES_RELECTURE_DEPOT.hors_espace };
+  // Rejoué · l'objet est déjà cité par une ligne, rien n'est relu ni retiré.
+  const [dejaVu] = await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.url, url)).limit(1);
+  if (dejaVu) return { error: TEXTES_REFUS_JETON_FICHIER.deja_employe };
   // Le type et la taille se RELISENT dans l'objet (HEAD + début, liens signés
-  // vers le stockage configuré · l'adresse du client n'est jamais requêtée),
+  // vers le stockage configuré · l'adresse n'est jamais requêtée telle quelle),
   // jamais ceux que le navigateur déclare (`decisionDepotRelu`, noyau).
   const lu = await lireDebutObjetEspace(cfg, url, s.workspaceId, OCTETS_RELUS_DEPOT);
   if (!lu.ok) return { error: MESSAGES_RELECTURE_DEPOT[lu.raison] };
@@ -586,19 +618,28 @@ export async function registerUploadedAssetAction(input: { name: string; url: st
   const base = db;
   // L'insertion qui échoue retire l'objet déposé, sauf si une ligne le cite
   // déjà (règle `decisionRetraitDepot`), puis l'erreur remonte comme avant.
-  await ecrireApresDepot({
-    storage: cfg, workspaceId: s.workspaceId, deposes: [url], references: referencesObjetEnBase,
-    ecrire: async () => {
-      await base.insert(schema.assets).values({
-        workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
-        name: (input.name || 'fichier').slice(0, 160), kind: d.kind,
-        source: 'upload', url, mimeType: d.contentType, sizeBytes: d.taille,
-        // L'ETag relu (et exigé à la lecture du début) · révèle un remplacement
-        // ultérieur par le même lien de dépôt (`etatEmpreinte`, noyau).
-        objectEtag: lu.empreinte,
-      });
-    },
-  });
+  try {
+    await ecrireApresDepot({
+      storage: cfg, workspaceId: s.workspaceId, deposes: [url], references: referencesObjetEnBase,
+      ecrire: () => base.transaction(async (tx) => {
+        // Deux envois concurrents du même jeton · le second attend, puis voit la ligne du premier.
+        await verrouDepot(tx, url);
+        const [deja] = await tx.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.url, url)).limit(1);
+        if (deja) throw new DepotDejaEmploye(TEXTES_REFUS_JETON_FICHIER.deja_employe);
+        await tx.insert(schema.assets).values({
+          workspaceId: s.workspaceId, brandId: brand?.id ?? null, uploaderUserId: s.user.id,
+          name: (input.name || 'fichier').slice(0, 160), kind: d.kind,
+          source: 'upload', url, mimeType: d.contentType, sizeBytes: d.taille,
+          // L'ETag relu (et exigé à la lecture du début) · révèle un remplacement
+          // ultérieur par le même lien de dépôt (`etatEmpreinte`, noyau).
+          objectEtag: lu.empreinte,
+        });
+      }),
+    });
+  } catch (e) {
+    if (e instanceof DepotDejaEmploye) return { error: e.message };
+    throw e;
+  }
   return { ok: true };
 }
 
@@ -612,9 +653,11 @@ class RemplacementRefuse extends Error {}
  * (catalogue, devis, génération) · ils liront la nouvelle adresse.
  *
  * Le navigateur a déposé la nouvelle version par `presignAssetUploadAction`
- * (type, taille et durée signés), sous une NOUVELLE clé. Ici, dans l'ordre :
+ * (usage `remplacement` · type, taille et durée signés), sous une NOUVELLE
+ * clé, et ne renvoie que le JETON de ce dépôt. Ici, dans l'ordre :
  *  1. la garde d'écriture de la Bibliothèque, AVANT toute lecture ;
- *  2. l'objet déposé est rangé chez CET espace (`cleTeleversable`), puis
+ *  2. le jeton est résolu en adresse (espace, utilisateur, usage, expiration ·
+ *     `resoudreJetonDepot`) ; l'objet est rangé chez CET espace (`cleTeleversable`), puis
  *     RELU (HEAD + début, `If-Match` · `lireDebutObjetEspace`) et jugé comme
  *     un téléversement (`decisionDepotRelu` · type réel, taille relue) ;
  *  3. dans UNE transaction, la ligne est relue VERROUILLÉE dans l'espace,
@@ -631,15 +674,16 @@ class RemplacementRefuse extends Error {}
  * candidat de l'inventaire des orphelins seulement si plus rien ne le cite.
  * Aucune dépense.
  */
-export async function remplacerAssetAction(input: { id: string; url: string; mimeType: string }): Promise<{ ok?: true; error?: string }> {
+export async function remplacerAssetAction(input: { id: string; jetonDepot: string; mimeType: string }): Promise<{ ok?: true; error?: string }> {
   const g = await gardeBibliotheque();
   if ('error' in g) return { error: g.error };
   const { s } = g;
   if (!db) return { error: GUARD.session() };
   const cfg = storageFromEnv();
   if (!cfg) return { error: REFUS_REMPLACEMENT.stockage };
-  const url = typeof input?.url === 'string' ? input.url.trim() : '';
-  if (!/^https?:\/\//i.test(url)) return { error: 'URL invalide.' };
+  const resolu = adresseDuJeton(input?.jetonDepot, s, 'remplacement', cfg);
+  if ('error' in resolu) return { error: resolu.error };
+  const { url } = resolu;
   const cle = cleTeleversable(url, basePubliqueStockage(cfg), s.workspaceId);
   if (!cle) return { error: MESSAGES_RELECTURE_DEPOT.hors_espace };
   const references = referencesObjetEnBase;
@@ -657,6 +701,8 @@ export async function remplacerAssetAction(input: { id: string; url: string; mim
     await ecrireApresDepot({
       storage: cfg, workspaceId: s.workspaceId, deposes: [url], references,
       ecrire: () => base.transaction(async (tx) => {
+        // Un jeton ne sert qu'une fois · deux remplacements concurrents du même dépôt sont mis en file.
+        await verrouDepot(tx, url);
         const vivant = and(eq(A.id, id), eq(A.workspaceId, s.workspaceId), isNull(A.deletedAt));
         const [f] = await tx.select({ kind: A.kind, source: A.source, url: A.url }).from(A).where(vivant).for('update');
         const v = decisionRemplacement(f ? { kind: f.kind, source: f.source, url: f.url, contenu: contenuMedia(f.url, objectKeyFromUrl(cfg, f.url) !== null) } : null, { kind: d.kind, url });

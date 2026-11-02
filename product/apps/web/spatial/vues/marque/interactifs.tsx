@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useTransition, type CSSProperties, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FORMATS_LOGO, charteAvecLogoImporte, charteAvecLogoReimporte, lienAnnonceurVeille, lignesConfigurationMarque, refusAdresseLogo, refusFichierLogo, type EtapeConfigurationMarque, type EtatLogoCharte } from '@tiktrends/core';
+import { FORMATS_LOGO, LOGO_DEPOSE, charteAvecLogoImporte, charteAvecLogoReimporte, lienAnnonceurVeille, lignesConfigurationMarque, refusAdresseLogo, refusFichierLogo, type EtapeConfigurationMarque, type EtatLogoCharte } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
 import { Anneau, Ic, Lien } from '../../communs';
 
@@ -521,11 +521,11 @@ async function deposerDansLeBucket(url: string, f: File, contentType: string): P
   } catch { return false; }
 }
 
-type ReponsePreparerLogo = { uploadUrl?: string; publicUrl?: string; contentType?: string; jetonDepot?: string; error?: string };
+type ReponsePreparerLogo = { uploadUrl?: string; contentType?: string; jetonDepot?: string; error?: string };
 
 export interface ImportLogoActions {
-  /** `presignAssetUploadAction` · le dépôt du fichier dans le bucket de l'espace, et son jeton de dépôt signé. */
-  preparer: (i: { filename: string; contentType: string; sizeBytes: number }) => Promise<ReponsePreparerLogo>;
+  /** `presignAssetUploadAction` · le dépôt du fichier dans le bucket de l'espace, et son jeton de dépôt opaque (jamais l'adresse de l'objet). */
+  preparer: (i: { filename: string; contentType: string; sizeBytes: number; usage: 'logo' }) => Promise<ReponsePreparerLogo>;
   /** `saveBrandDAAction` · la charte, couleurs et polices renvoyées telles quelles, avec le jeton du dépôt. */
   enregistrer: (i: { brandId: string; logoUrl: string; logos: string[]; colors: string[]; fonts: string[]; jetonDepot?: string }) => Promise<{ ok?: true; error?: string }>;
 }
@@ -534,7 +534,7 @@ export interface ImportLogoActions {
  * « Importer » de la carte du logo (`favCard`) · le fichier choisi est déposé
  * dans le bucket de l'espace (`presignAssetUploadAction`), puis devient le logo
  * par défaut de la charte (`saveBrandDAAction`, règle `charteAvecLogoImporte`,
- * avec le jeton de dépôt signé qui atteste l'objet · `decisionCharteDeposee`) ·
+ * avec `LOGO_DEPOSE` à la place de l'adresse et le jeton de dépôt scellé qui atteste l'objet · `decisionCharteDeposee`) ·
  * les logos déjà là restent en variantes. La réussite ne se dit qu'après le oui
  * du serveur. Fermé, avec sa raison, sans droit ou sans stockage.
  */
@@ -553,11 +553,12 @@ export function ImportLogo({ brandId, logos, defaut, couleurs, polices, actions,
     const refus = refusFichierLogo({ type: f.type, taille: f.size });
     if (refus) { toast(refus); return; }
     demarrer(async () => {
-      const pre = await actions!.preparer({ filename: f.name, contentType: f.type, sizeBytes: f.size }).catch((): ReponsePreparerLogo => ({ error: 'Le téléversement a échoué. Réessaie.' }));
-      // Sans jeton, la charte refuserait l'adresse · rien n'est déposé.
-      if (pre.error || !pre.uploadUrl || !pre.publicUrl || !pre.contentType || !pre.jetonDepot) { toast(pre.error ?? 'Le téléversement a échoué. Réessaie.'); return; }
+      const pre = await actions!.preparer({ filename: f.name, contentType: f.type, sizeBytes: f.size, usage: 'logo' }).catch((): ReponsePreparerLogo => ({ error: 'Le téléversement a échoué. Réessaie.' }));
+      // Sans jeton, la charte refuserait le logo · rien n'est déposé.
+      if (pre.error || !pre.uploadUrl || !pre.contentType || !pre.jetonDepot) { toast(pre.error ?? 'Le téléversement a échoué. Réessaie.'); return; }
       if (!(await deposerDansLeBucket(pre.uploadUrl, f, pre.contentType))) { toast('Le fichier n’a pas pu être envoyé · rien n’a changé dans la charte. Réessaie.'); return; }
-      const charte = remplace ? charteAvecLogoReimporte({ logos, defaut }, remplace, pre.publicUrl) : charteAvecLogoImporte({ logos, defaut }, pre.publicUrl);
+      // L'adresse du dépôt n'est jamais connue ici · `LOGO_DEPOSE` en tient la place, le serveur la résout par le jeton.
+      const charte = remplace ? charteAvecLogoReimporte({ logos, defaut }, remplace, LOGO_DEPOSE) : charteAvecLogoImporte({ logos, defaut }, LOGO_DEPOSE);
       const r = await actions!.enregistrer({ brandId, ...charte, colors: [...couleurs], fonts: [...polices], jetonDepot: pre.jetonDepot }).catch(() => ({ error: 'L’enregistrement a échoué. Réessaie.' }));
       if (r.error) { toast(r.error); return; }
       toast(remplace ? 'Logo réimporté · il remplace dans la charte le fichier à réimporter' : 'Logo importé · il devient le logo par défaut de la charte');

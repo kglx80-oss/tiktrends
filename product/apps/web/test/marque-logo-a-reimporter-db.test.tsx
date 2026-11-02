@@ -37,7 +37,8 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, s
 vi.mock('@tiktrends/integrations', async (importOriginal) => ({ ...(await importOriginal<typeof import('@tiktrends/integrations')>()), storageFromEnv: () => CFG, storageConfigured: () => true }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { RAISONS_LOGO_CHARTE, charteAvecLogoImporte, charteAvecLogoReimporte } from '@tiktrends/core';
+import { RAISONS_LOGO_CHARTE, LOGO_DEPOSE, charteAvecLogoImporte, charteAvecLogoReimporte } from '@tiktrends/core';
+import { cleDuLienDepot } from './helpers/depot-jeton';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 import IdentiteSpatiale from '../app/(spatial)/sp/brands/[id]/identite/page';
@@ -83,16 +84,18 @@ const cleDe = (url: string) => url.slice(BASE.length + 1);
 const A = { ws: randomUUID(), b: randomUUID(), user: randomUUID() };
 const lire = async () => (await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos, logoEmpreintes: schema.brands.logoEmpreintes }).from(schema.brands).where(eq(schema.brands.id, A.b)))[0]!;
 async function deposer(octets: Buffer) {
-  const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: octets.length });
+  const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: octets.length, usage: 'logo' });
   expect(pre.error).toBeUndefined();
-  bucket.set(cleDe(pre.publicUrl!), octets);
-  return { url: pre.publicUrl!, jeton: pre.jetonDepot! };
+  // Le navigateur dépose au lien de PUT · il ne reçoit aucune autre adresse.
+  const cle = cleDuLienDepot(pre.uploadUrl!, CFG.bucket);
+  bucket.set(cle, octets);
+  return { url: `${BASE}/${cle}`, jeton: pre.jetonDepot! };
 }
 /** Le geste « Importer » de la carte du logo · le fichier devient le défaut, l'ancien reste en variante. */
 async function importer(octets = pngDe(2048)) {
   const d = await deposer(octets);
   const b = await lire();
-  expect(await saveBrandDAAction({ brandId: A.b, ...charteAvecLogoImporte({ logos: b.logos ?? [], defaut: b.logoUrl }, d.url), colors: ['#112233'], fonts: ['Inter'], jetonDepot: d.jeton })).toEqual({ ok: true });
+  expect(await saveBrandDAAction({ brandId: A.b, ...charteAvecLogoImporte({ logos: b.logos ?? [], defaut: b.logoUrl }, LOGO_DEPOSE), colors: ['#112233'], fonts: ['Inter'], jetonDepot: d.jeton })).toEqual({ ok: true });
   return d.url;
 }
 const remplacerDansLeStockage = (url: string) => bucket.set(cleDe(url), pngDe(2048, 0x41));
@@ -200,7 +203,7 @@ describe('Identité · logo REMPLACÉ dans le stockage depuis l’import', () =>
     remplacerDansLeStockage(url);
     const neuf = await deposer(pngDe(3000));
     const b = await lire();
-    expect(await saveBrandDAAction({ brandId: A.b, ...charteAvecLogoReimporte({ logos: b.logos ?? [], defaut: b.logoUrl }, url, neuf.url), colors: ['#112233'], fonts: ['Inter'], jetonDepot: neuf.jeton })).toEqual({ ok: true });
+    expect(await saveBrandDAAction({ brandId: A.b, ...charteAvecLogoReimporte({ logos: b.logos ?? [], defaut: b.logoUrl }, url, LOGO_DEPOSE), colors: ['#112233'], fonts: ['Inter'], jetonDepot: neuf.jeton })).toEqual({ ok: true });
     const apres = await lire();
     expect(apres.logoUrl).toBe(neuf.url);
     expect(apres.logos).toEqual([ANCIEN, neuf.url]);

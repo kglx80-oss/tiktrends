@@ -26,10 +26,11 @@ vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Error(`
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO, REFUS_LOGO_NON_ATTESTE, dureeLienDepot } from '@tiktrends/core';
+import { LOGO_DEPOSE, MESSAGES_REFUS_DEPOT, MESSAGES_REFUS_LOGO, REFUS_LOGO_NON_ATTESTE, dureeLienDepot } from '@tiktrends/core';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 import { bucketQuiSert } from './helpers/bucket-qui-sert';
+import { cleDuLienDepot } from './helpers/depot-jeton';
 
 const ANCIEN = 'http://ancien-site.fr/logo.png';
 async function marque() {
@@ -77,16 +78,16 @@ describe('presignAssetUploadAction · liste blanche, plafonds, type signé', () 
       ['a.mp4', 'video/mp4', 1_073_741_825, 'Vidéo trop lourde (1 Go au plus).'],
     ];
     for (const [filename, contentType, sizeBytes, erreur] of cas) {
-      expect(await presignAssetUploadAction({ filename, contentType, sizeBytes }), `${filename} ${contentType}`).toEqual({ error: erreur });
+      expect(await presignAssetUploadAction({ filename, contentType, sizeBytes, usage: 'envoi' }), `${filename} ${contentType}`).toEqual({ error: erreur });
     }
   });
 
   it('accepte un PNG · rangé chez CET espace, extension forcée par le type, Content-Type signé et rendu', async () => {
     const m = await marque();
-    const r = await presignAssetUploadAction({ filename: 'page.html', contentType: 'IMAGE/PNG; charset=utf-8', sizeBytes: 12_000 });
+    const r = await presignAssetUploadAction({ filename: 'page.html', contentType: 'IMAGE/PNG; charset=utf-8', sizeBytes: 12_000, usage: 'envoi' });
     expect(r.error).toBeUndefined();
     expect(r.contentType).toBe('image/png');
-    expect(r.publicUrl).toMatch(new RegExp(`/assets/${m.ws}/\\d+-[0-9a-f]{8}-page\\.png$`));
+    expect(cleDuLienDepot(r.uploadUrl!, 'tt')).toMatch(new RegExp(`^assets/${m.ws}/\\d+-[0-9a-f]{8}-page\\.png$`));
     const u = new URL(r.uploadUrl!);
     expect(u.searchParams.get('X-Amz-SignedHeaders')).toBe('content-length;content-type;host');
     expect(u.pathname.endsWith('-page.png')).toBe(true);
@@ -94,7 +95,7 @@ describe('presignAssetUploadAction · liste blanche, plafonds, type signé', () 
 
   it('la taille validée est imposée PAR LE BUCKET · seul un corps de la longueur déclarée passe', async () => {
     await marque();
-    const r = await presignAssetUploadAction({ filename: 'clip.mp4', contentType: 'video/mp4', sizeBytes: 12_000 });
+    const r = await presignAssetUploadAction({ filename: 'clip.mp4', contentType: 'video/mp4', sizeBytes: 12_000, usage: 'envoi' });
     expect(r.error).toBeUndefined();
     expect(bucketAccepte(r.uploadUrl!, { 'Content-Type': 'video/mp4', 'Content-Length': '12000' }), 'la taille déclarée').toBe(true);
     // Déclarer 12 000 octets puis envoyer 5 Go (ou un autre corps) · refusé.
@@ -114,7 +115,7 @@ describe('presignAssetUploadAction · liste blanche, plafonds, type signé', () 
       ['mini.webp', 'image/webp', 1, 61],
     ];
     for (const [filename, contentType, sizeBytes, attendu] of cas) {
-      const r = await presignAssetUploadAction({ filename, contentType, sizeBytes });
+      const r = await presignAssetUploadAction({ filename, contentType, sizeBytes, usage: 'envoi' });
       expect(r.error, filename).toBeUndefined();
       const u = new URL(r.uploadUrl!);
       expect(u.searchParams.get('X-Amz-Expires'), filename).toBe(String(dureeLienDepot(sizeBytes)));
@@ -126,8 +127,8 @@ describe('presignAssetUploadAction · liste blanche, plafonds, type signé', () 
 
   it('PDF et vidéo des appelants existants · acceptés (PDF en type neutre)', async () => {
     await marque();
-    expect(await presignAssetUploadAction({ filename: 'devis.pdf', contentType: 'application/pdf', sizeBytes: 10 })).toMatchObject({ contentType: 'application/octet-stream' });
-    expect(await presignAssetUploadAction({ filename: 'a.mp4', contentType: 'video/mp4', sizeBytes: 10 })).toMatchObject({ contentType: 'video/mp4' });
+    expect(await presignAssetUploadAction({ filename: 'devis.pdf', contentType: 'application/pdf', sizeBytes: 10, usage: 'envoi' })).toMatchObject({ contentType: 'application/octet-stream' });
+    expect(await presignAssetUploadAction({ filename: 'a.mp4', contentType: 'video/mp4', sizeBytes: 10, usage: 'envoi' })).toMatchObject({ contentType: 'video/mp4' });
   });
 });
 
@@ -170,14 +171,17 @@ describe('saveBrandDAAction · adresse de logo', () => {
     // Le bucket sert un vrai PNG de 100 octets · la charte relit l'objet attesté.
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAIAAAAiZtkUAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGP4H9OFhhjIFQIAy24teZ6V9CwAAAAASUVORK5CYII=', 'base64');
     vi.stubGlobal('fetch', bucketQuiSert(new Uint8Array(Buffer.concat([png, Buffer.alloc(100 - png.length, 0)]))));
-    const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 100 });
-    expect(pre.jetonDepot, 'le présigné rend un jeton signé').toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
-    expect(await charte(m.id, pre.publicUrl!, [ANCIEN, pre.publicUrl!]), 'adresse du bucket nouvelle sans jeton').toEqual({ error: REFUS_LOGO_NON_ATTESTE });
+    const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 100, usage: 'logo' });
+    expect(pre.jetonDepot, 'le présigné rend un jeton scellé, opaque (base64url, sans point)').toMatch(/^[A-Za-z0-9_-]{40,}$/);
+    const depose = `https://s3.gra.exemple.invalid/tt/${cleDuLienDepot(pre.uploadUrl!, 'tt')}`;
+    expect(await charte(m.id, depose, [ANCIEN, depose]), 'adresse du bucket nouvelle sans jeton').toEqual({ error: REFUS_LOGO_NON_ATTESTE });
+    expect(await charte(m.id, LOGO_DEPOSE, [ANCIEN, LOGO_DEPOSE]), 'référence du dépôt sans jeton').toEqual({ error: REFUS_LOGO_NON_ATTESTE });
     expect((await lire(m.id)).logoUrl).toBe(ANCIEN);
-    expect(await saveBrandDAAction({ brandId: m.id, logoUrl: pre.publicUrl!, logos: [ANCIEN, pre.publicUrl!], colors: ['#112233'], fonts: ['Inter'], jetonDepot: pre.jetonDepot })).toEqual({ ok: true });
+    expect(await saveBrandDAAction({ brandId: m.id, logoUrl: LOGO_DEPOSE, logos: [ANCIEN, LOGO_DEPOSE], colors: ['#112233'], fonts: ['Inter'], jetonDepot: pre.jetonDepot })).toEqual({ ok: true });
+    expect((await lire(m.id)).logoUrl, 'la référence est résolue par le jeton, jamais écrite').toBe(depose);
     vi.stubEnv('S3_ENDPOINT', '127.0.0.1:9443');
-    const preLocal = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 100 });
-    const local = preLocal.publicUrl!;
+    const preLocal = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 100, usage: 'logo' });
+    const local = `https://127.0.0.1:9443/tt/${cleDuLienDepot(preLocal.uploadUrl!, 'tt')}`;
     expect(local.startsWith(`https://127.0.0.1:9443/tt/assets/${m.ws}/`), local).toBe(true);
     expect(await saveBrandDAAction({ brandId: m.id, logoUrl: local, logos: [local], colors: [], fonts: [], jetonDepot: preLocal.jetonDepot }), 'objet de l’espace sur un stockage local (banc)').toEqual({ ok: true });
     const autre = `https://127.0.0.1:9443/tt/assets/${randomUUID()}/1-abcd1234-logo.png`;

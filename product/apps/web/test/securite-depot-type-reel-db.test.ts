@@ -50,10 +50,11 @@ import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { lireDebutObjetEspace } from '@tiktrends/integrations';
-import { MESSAGES_REFUS_RELU, MESSAGES_REFUS_DEPOT, OCTETS_RELUS_DEPOT, etatEmpreinte } from '@tiktrends/core';
+import { MESSAGES_REFUS_RELU, MESSAGES_REFUS_DEPOT, OCTETS_RELUS_DEPOT, TEXTES_REFUS_JETON_FICHIER, etatEmpreinte } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { registerUploadedAssetAction } from '../app/actions/assets';
 import { mp4StructurePlausible } from '../../../packages/core/test/l3-fixtures-media';
+import { jetonAltere, jetonScelle } from './helpers/depot-jeton';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -135,11 +136,15 @@ function servirGet(corps: Buffer, range: string | null): Response {
 /* ──────────────────────────────── Outils ──────────────────────────────── */
 
 let n = 0;
-/** Dépose des octets chez l'espace `ws` · rend l'adresse publique, comme `presignAssetUploadAction`. */
-function deposer(ws: string, nom: string, octets: Buffer): { url: string; cle: string } {
+/**
+ * Dépose des octets chez l'espace `ws` · rend l'adresse canonique (pour lire
+ * la ligne) et le JETON scellé du dépôt, comme `presignAssetUploadAction` le
+ * rendrait à l'utilisateur de la session (usage `envoi`).
+ */
+function deposer(ws: string, nom: string, octets: Buffer): { url: string; cle: string; jeton: string } {
   const cle = `assets/${ws}/${1_700_000_000_000 + ++n}-ab${n}-${nom}`;
   bucket.set(cle, octets);
-  return { url: `${BASE}/${cle}`, cle };
+  return { url: `${BASE}/${cle}`, cle, jeton: jetonScelle({ espace: etat.session!.workspaceId, utilisateur: etat.session!.user.id, usage: 'envoi', cle }) };
 }
 const ligne = async (url: string) => db.select().from(schema.assets).where(eq(schema.assets.url, url));
 
@@ -155,8 +160,8 @@ afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('registerUploadedAssetAction · le type enregistré est le type RELU', () => {
   it('un PNG déclaré PNG ⇒ enregistré image/png, taille RELUE (pas celle annoncée), début lu par Range signé', async () => {
-    const { url, cle } = deposer(ids.wsB, 'photo.png', PNG);
-    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: 999_999 })).toEqual({ ok: true });
+    const { url, cle, jeton } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: 999_999 })).toEqual({ ok: true });
     const [l] = await ligne(url);
     expect({ type: l?.mimeType, kind: l?.kind, taille: l?.sizeBytes, espace: l?.workspaceId }).toEqual({ type: 'image/png', kind: 'image', taille: PNG.length, espace: ids.wsB });
     expect(requetes.map((r) => [r.methode, r.hote, r.cle, r.range])).toEqual([
@@ -167,22 +172,22 @@ describe('registerUploadedAssetAction · le type enregistré est le type RELU', 
   });
 
   it('un JPEG déclaré PNG ⇒ enregistré image/jpeg, jamais le type déclaré', async () => {
-    const { url } = deposer(ids.wsB, 'photo.png', JPEG);
-    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
+    const { url, jeton } = deposer(ids.wsB, 'photo.png', JPEG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
     expect((await ligne(url)).map((l) => l.mimeType)).toEqual(['image/jpeg']);
   });
 
   it('un MP4 déclaré video/mp4 ⇒ enregistré video/mp4, famille vidéo', async () => {
-    const { url } = deposer(ids.wsB, 'clip.mp4', MP4);
-    expect(await registerUploadedAssetAction({ name: 'clip.mp4', url, mimeType: 'video/mp4', sizeBytes: 10 })).toEqual({ ok: true });
+    const { url, jeton } = deposer(ids.wsB, 'clip.mp4', MP4);
+    expect(await registerUploadedAssetAction({ name: 'clip.mp4', jetonDepot: jeton, mimeType: 'video/mp4', sizeBytes: 10 })).toEqual({ ok: true });
     expect((await ligne(url)).map((l) => [l.mimeType, l.kind])).toEqual([['video/mp4', 'video']]);
   });
 
   it('Range ignoré par le serveur (200, fichier de 8 Mio) ⇒ lecture bornée, le flux est coupé', async () => {
     ignorerRange = true;
     const gros = Buffer.concat([PNG, Buffer.alloc(8 * 1024 * 1024)]);
-    const { url } = deposer(ids.wsB, 'gros.png', gros);
-    expect(await registerUploadedAssetAction({ name: 'gros.png', url, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
+    const { url, jeton } = deposer(ids.wsB, 'gros.png', gros);
+    expect(await registerUploadedAssetAction({ name: 'gros.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
     expect((await ligne(url)).map((l) => [l.mimeType, l.sizeBytes])).toEqual([['image/png', gros.length]]);
     expect(octetsTires, 'le fichier entier a été tiré alors que Range était ignoré').toBeLessThanOrEqual(2 * 65_536);
   });
@@ -197,44 +202,59 @@ describe('registerUploadedAssetAction · refus, et l’objet déposé est retir�
   ];
   for (const [quoi, nom, octets, type, erreur] of CAS) {
     it(`${quoi} ⇒ refusé, aucune ligne, objet supprimé du bucket`, async () => {
-      const { url, cle } = deposer(ids.wsB, nom, octets);
-      expect(await registerUploadedAssetAction({ name: nom, url, mimeType: type, sizeBytes: 10 })).toEqual({ error: erreur });
+      const { url, cle, jeton } = deposer(ids.wsB, nom, octets);
+      expect(await registerUploadedAssetAction({ name: nom, jetonDepot: jeton, mimeType: type, sizeBytes: 10 })).toEqual({ error: erreur });
       expect(await ligne(url), `${quoi} · une ligne a été écrite`).toEqual([]);
       expect(bucket.has(cle), `${quoi} · l’objet refusé est resté dans le bucket`).toBe(false);
       expect(requetes.filter((r) => r.methode === 'DELETE').map((r) => r.cle)).toEqual([cle]);
     });
   }
 
-  it('un objet refusé qu’une ligne EXISTANTE référence déjà n’est pas supprimé, la ligne n’est pas touchée', async () => {
-    const { url, cle } = deposer(ids.wsB, 'ancien.png', HTML);
+  it('un dépôt qu’une ligne EXISTANTE cite déjà (jeton rejoué) · refusé « déjà enregistré », ni lu ni supprimé, la ligne n’est pas touchée', async () => {
+    const { url, cle, jeton } = deposer(ids.wsB, 'ancien.png', HTML);
     const [ancienne] = await db.insert(schema.assets).values({ workspaceId: ids.wsB, name: 'ancien', kind: 'image', source: 'upload', url, mimeType: 'image/png' }).returning();
-    expect(await registerUploadedAssetAction({ name: 'ancien.png', url, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: MESSAGES_REFUS_RELU.balisage });
+    expect(await registerUploadedAssetAction({ name: 'ancien.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: TEXTES_REFUS_JETON_FICHIER.deja_employe });
+    expect(requetes).toEqual([]);
     expect(bucket.has(cle)).toBe(true);
     expect(await ligne(url)).toEqual([ancienne]);
   });
 });
 
 describe('registerUploadedAssetAction · aucune adresse hors de l’espace n’est lue', () => {
-  it('une adresse hors du bucket de l’espace ⇒ refusée, AUCUNE requête', async () => {
-    for (const url of [
-      'https://evil.test/assets/x.png',
-      'http://169.254.169.254/latest/meta-data/',
-      `https://cdn.exemple.test/bucket-voisin/assets/${ids.wsB}/1-ab-x.png`,
-      `${BASE}@evil.test/assets/${ids.wsB}/1-ab-x.png`,
-      `${BASE}/assets/${ids.wsB}/%2e%2e/${ids.wsA}/1-ab-x.png`,
-      `https://${CFG.endpoint}/${CFG.bucket}/assets/${ids.wsB}/1-ab-x.png`,
-    ]) {
-      expect(await registerUploadedAssetAction({ name: 'x.png', url, mimeType: 'image/png', sizeBytes: 10 }), url).toEqual({ error: 'Ce fichier n’a pas été téléversé depuis cet espace.' });
+  it('un jeton qui ne désigne pas un dépôt de l’espace ⇒ refusé avec sa phrase, AUCUNE requête', async () => {
+    const ub = { espace: ids.wsB, utilisateur: ids.ub, usage: 'envoi' as const };
+    const CAS: Array<[string, unknown, string]> = [
+      // Une ADRESSE à la place du jeton (l'ancien identifiant) · illisible, jamais requêtée.
+      ['adresse brute', `${BASE}/assets/${ids.wsB}/1-ab-x.png`, TEXTES_REFUS_JETON_FICHIER.illisible],
+      ['adresse interne', 'http://169.254.169.254/latest/meta-data/', TEXTES_REFUS_JETON_FICHIER.illisible],
+      ['texte quelconque', 'abc', TEXTES_REFUS_JETON_FICHIER.illisible],
+      ['jeton altéré', jetonAltere(jetonScelle({ ...ub, cle: `assets/${ids.wsB}/1-ab-x.png` })), TEXTES_REFUS_JETON_FICHIER.illisible],
+      ['clé d’un autre espace', jetonScelle({ ...ub, cle: `assets/${ids.wsA}/1-ab-x.png` }), TEXTES_REFUS_JETON_FICHIER.autre_espace],
+      ['remontée hors de l’espace', jetonScelle({ ...ub, cle: `assets/${ids.wsB}/../${ids.wsA}/1-ab-x.png` }), TEXTES_REFUS_JETON_FICHIER.autre_espace],
+      ['jeton absent', undefined, TEXTES_REFUS_JETON_FICHIER.absent],
+      ['jeton non textuel', { cle: `assets/${ids.wsB}/1-ab-x.png` }, TEXTES_REFUS_JETON_FICHIER.illisible],
+    ];
+    for (const [quoi, jetonDepot, erreur] of CAS) {
+      expect(await registerUploadedAssetAction({ name: 'x.png', jetonDepot: jetonDepot as string, mimeType: 'image/png', sizeBytes: 10 }), quoi).toEqual({ error: erreur });
     }
-    expect(requetes, 'une adresse hors espace a été requêtée').toEqual([]);
+    expect(requetes, 'un jeton refusé a été requêté').toEqual([]);
   });
 
-  it('un fichier d’un AUTRE espace ⇒ refusé, ni lu ni supprimé, aucune ligne', async () => {
-    const { url, cle } = deposer(ids.wsA, 'html.png', HTML);
-    expect(await registerUploadedAssetAction({ name: 'html.png', url, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: 'Ce fichier n’a pas été téléversé depuis cet espace.' });
+  it('une clé Drive scellée (jamais un téléversement) ⇒ refusée hors espace, AUCUNE requête · la vérification d’avant s’applique à l’adresse résolue', async () => {
+    const cle = `assets/${ids.wsB}/drive-1AbC.png`;
+    bucket.set(cle, PNG);
+    expect(await registerUploadedAssetAction({ name: 'x.png', jetonDepot: jetonScelle({ espace: ids.wsB, utilisateur: ids.ub, usage: 'envoi', cle }), mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: 'Ce fichier n’a pas été téléversé depuis cet espace.' });
+    expect(requetes).toEqual([]);
+  });
+
+  it('un fichier d’un AUTRE espace (jeton émis pour lui) ⇒ refusé, ni lu ni supprimé, aucune ligne', async () => {
+    const cle = `assets/${ids.wsA}/${1_700_000_000_000 + ++n}-ab${n}-html.png`;
+    bucket.set(cle, HTML);
+    const jeton = jetonScelle({ espace: ids.wsA, utilisateur: ids.ua, usage: 'envoi', cle });
+    expect(await registerUploadedAssetAction({ name: 'html.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: TEXTES_REFUS_JETON_FICHIER.autre_espace });
     expect(requetes).toEqual([]);
     expect(bucket.has(cle)).toBe(true);
-    expect(await ligne(url)).toEqual([]);
+    expect(await ligne(`${BASE}/${cle}`)).toEqual([]);
   });
 
   it('le lecteur seul refuse aussi · objet d’un autre espace ou hors bucket ⇒ `hors_espace`, aucune requête', async () => {
@@ -248,8 +268,8 @@ describe('registerUploadedAssetAction · aucune adresse hors de l’espace n’e
 
   it('une redirection du stockage n’est pas suivie ⇒ refus « lecture impossible », rien d’écrit, rien de supprimé', async () => {
     redirigerHead = true;
-    const { url, cle } = deposer(ids.wsB, 'photo.png', PNG);
-    const r = await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: 10 });
+    const { url, cle, jeton } = deposer(ids.wsB, 'photo.png', PNG);
+    const r = await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: 10 });
     expect(r).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
     expect(requetes.map((q) => [q.methode, q.hote])).toEqual([['HEAD', CFG.endpoint]]);
     expect(bucket.has(cle)).toBe(true);
@@ -258,15 +278,16 @@ describe('registerUploadedAssetAction · aucune adresse hors de l’espace n’e
 
   it('un objet remplacé entre HEAD et GET (taille de la plage ≠ taille vue) ⇒ « lecture impossible », rien d’écrit', async () => {
     remplacant = Buffer.concat([HTML, Buffer.alloc(4096)]);
-    const { url, cle } = deposer(ids.wsB, 'photo.png', PNG);
-    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
+    const { url, cle, jeton } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
     expect(await ligne(url)).toEqual([]);
     expect(bucket.has(cle)).toBe(true);
   });
 
   it('un objet absent du bucket ⇒ refus clair, rien d’écrit', async () => {
     const url = `${BASE}/assets/${ids.wsB}/1-zz-absent.png`;
-    expect(await registerUploadedAssetAction({ name: 'absent.png', url, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: 'Fichier introuvable dans le stockage · relance le téléversement.' });
+    const jeton = jetonScelle({ espace: ids.wsB, utilisateur: ids.ub, usage: 'envoi', cle: `assets/${ids.wsB}/1-zz-absent.png` });
+    expect(await registerUploadedAssetAction({ name: 'absent.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ error: 'Fichier introuvable dans le stockage · relance le téléversement.' });
     expect(await ligne(url)).toEqual([]);
   });
 });
@@ -276,8 +297,8 @@ describe('registerUploadedAssetAction · l’empreinte relue ferme la ré-écrit
   const autrePng = () => { const b = Buffer.from(PNG); b[b.length - 5] = b[b.length - 5]! ^ 0xff; return b; };
 
   it('la ligne garde l’ETag relu, et la lecture du début l’a EXIGÉ (If-Match)', async () => {
-    const { url, cle } = deposer(ids.wsB, 'photo.png', PNG);
-    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
+    const { url, cle, jeton } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
     expect((await ligne(url)).map((l) => l.objectEtag)).toEqual([md5(PNG)]);
     expect(requetes.map((r) => [r.methode, r.cle, r.ifMatch])).toEqual([['HEAD', cle, null], ['GET', cle, etagDe(PNG)]]);
   });
@@ -287,22 +308,22 @@ describe('registerUploadedAssetAction · l’empreinte relue ferme la ré-écrit
     const autre = autrePng();
     expect(autre.length).toBe(PNG.length);
     remplacant = autre;
-    const { url } = deposer(ids.wsB, 'photo.png', PNG);
-    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
+    const { url, jeton } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
     expect(await ligne(url), 'les octets jugés ne sont pas ceux de l’empreinte gardée').toEqual([]);
   });
 
   it('un stockage qui ignore If-Match mais sert un autre ETag ⇒ « lecture impossible », rien d’écrit', async () => {
     ignorerIfMatch = true;
     remplacant = autrePng();
-    const { url } = deposer(ids.wsB, 'photo.png', PNG);
-    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
+    const { url, jeton } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ error: 'Lecture du fichier impossible pour l’instant · réessaie dans un instant.' });
     expect(await ligne(url)).toEqual([]);
   });
 
   it('un PUT APRÈS l’enregistrement (même lien, même taille, même type) se voit à la relecture · remplacé, et conforme sans lui', async () => {
-    const { url, cle } = deposer(ids.wsB, 'photo.png', PNG);
-    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
+    const { url, cle, jeton } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
     const [l] = await ligne(url);
     const relu = async () => { const r = await lireDebutObjetEspace(CFG, url, ids.wsB, OCTETS_RELUS_DEPOT); return r.ok ? r.empreinte : null; };
     expect(etatEmpreinte(l!.objectEtag, await relu()), 'objet intact').toBe('conforme');
@@ -312,8 +333,8 @@ describe('registerUploadedAssetAction · l’empreinte relue ferme la ré-écrit
 
   it('un stockage sans ETag · enregistré avec une empreinte nulle (inconnu), aucun If-Match envoyé, rien de bloqué', async () => {
     sansEtag = true;
-    const { url } = deposer(ids.wsB, 'photo.png', PNG);
-    expect(await registerUploadedAssetAction({ name: 'photo.png', url, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
+    const { url, jeton } = deposer(ids.wsB, 'photo.png', PNG);
+    expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: jeton, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
     expect((await ligne(url)).map((l) => l.objectEtag)).toEqual([null]);
     expect(requetes.map((r) => r.ifMatch)).toEqual([null, null]);
   });

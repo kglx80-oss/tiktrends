@@ -38,7 +38,8 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, s
 vi.mock('@tiktrends/integrations', async (importOriginal) => ({ ...(await importOriginal<typeof import('@tiktrends/integrations')>()), storageFromEnv: () => CFG }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { MESSAGES_LOGO_SERVI, charteAvecLogoImporte, idLogoMarque } from '@tiktrends/core';
+import { MESSAGES_LOGO_SERVI, LOGO_DEPOSE, charteAvecLogoImporte, idLogoMarque } from '@tiktrends/core';
+import { cleDuLienDepot } from './helpers/depot-jeton';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 import { GET as GET_BRAND_MEDIA } from '../app/api/brands/[id]/media/route';
@@ -86,13 +87,15 @@ const cleDe = (url: string) => url.slice(BASE.length + 1);
 const A = { ws: randomUUID(), b: randomUUID(), user: randomUUID() };
 const lire = async () => (await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos, logoEmpreintes: schema.brands.logoEmpreintes }).from(schema.brands).where(eq(schema.brands.id, A.b)))[0]!;
 async function deposer(octets: Buffer) {
-  const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: octets.length });
+  const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: octets.length, usage: 'logo' });
   expect(pre.error).toBeUndefined();
-  bucket.set(cleDe(pre.publicUrl!), octets);
-  return { url: pre.publicUrl!, jeton: pre.jetonDepot! };
+  // Le navigateur dépose au lien de PUT · il ne reçoit aucune autre adresse.
+  const cle = cleDuLienDepot(pre.uploadUrl!, CFG.bucket);
+  bucket.set(cle, octets);
+  return { url: `${BASE}/${cle}`, jeton: pre.jetonDepot! };
 }
 const importer = (d: { url: string; jeton: string }) =>
-  saveBrandDAAction({ brandId: A.b, ...charteAvecLogoImporte({ logos: [ANCIEN], defaut: ANCIEN }, d.url), colors: ['#112233'], fonts: ['Inter'], jetonDepot: d.jeton });
+  saveBrandDAAction({ brandId: A.b, ...charteAvecLogoImporte({ logos: [ANCIEN], defaut: ANCIEN }, LOGO_DEPOSE), colors: ['#112233'], fonts: ['Inter'], jetonDepot: d.jeton });
 const apercu = (url: string) => GET_BRAND_MEDIA(new Request(`http://local/api/brands/${A.b}/media?url=${encodeURIComponent(url)}`), { params: Promise.resolve({ id: A.b }) });
 const devis = async (url: string) => (await resoudreReferencesImage(db as never, { workspaceId: A.ws, brandId: A.b }, [idLogoMarque(A.b, hacherImage(url).sha256)])).get(idLogoMarque(A.b, hacherImage(url).sha256));
 

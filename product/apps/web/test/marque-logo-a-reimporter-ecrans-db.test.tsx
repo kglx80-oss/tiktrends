@@ -41,7 +41,8 @@ vi.mock('../app/actions/drive', () => ({ getDriveState: async () => ({ available
 vi.mock('@tiktrends/integrations', async (importOriginal) => ({ ...(await importOriginal<typeof import('@tiktrends/integrations')>()), storageFromEnv: () => CFG, storageConfigured: () => true }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { RAISONS_LOGO_CHARTE, AIDE_LOGO_SANS_GESTION, charteAvecLogoImporte } from '@tiktrends/core';
+import { RAISONS_LOGO_CHARTE, AIDE_LOGO_SANS_GESTION, LOGO_DEPOSE, charteAvecLogoImporte } from '@tiktrends/core';
+import { cleDuLienDepot } from './helpers/depot-jeton';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 import { etatLogoMarqueActive } from '../app/actions/logo-marque';
@@ -90,12 +91,13 @@ const IDENTITE = `/brands/${A.b}/identite`;
 const lire = async () => (await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos }).from(schema.brands).where(eq(schema.brands.id, A.b)))[0]!;
 /** Le geste « Importer » de la carte du logo · mêmes actions (dépôt signé puis charte). */
 async function importer(octets = pngDe(2048)) {
-  const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: octets.length });
+  const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: octets.length, usage: 'logo' });
   expect(pre.error).toBeUndefined();
-  bucket.set(cleDe(pre.publicUrl!), octets);
+  const cle = cleDuLienDepot(pre.uploadUrl!, CFG.bucket);
+  bucket.set(cle, octets);
   const b = await lire();
-  expect(await saveBrandDAAction({ brandId: A.b, ...charteAvecLogoImporte({ logos: b.logos ?? [], defaut: b.logoUrl }, pre.publicUrl!), colors: ['#112233'], fonts: ['Inter'], jetonDepot: pre.jetonDepot! })).toEqual({ ok: true });
-  return pre.publicUrl!;
+  expect(await saveBrandDAAction({ brandId: A.b, ...charteAvecLogoImporte({ logos: b.logos ?? [], defaut: b.logoUrl }, LOGO_DEPOSE), colors: ['#112233'], fonts: ['Inter'], jetonDepot: pre.jetonDepot! })).toEqual({ ok: true });
+  return `${BASE}/${cle}`;
 }
 const remplacerDansLeStockage = (url: string) => bucket.set(cleDe(url), pngDe(2048, 0x41));
 const apercu = (url: string) => `/api/brands/${A.b}/media?url=${encodeURIComponent(url)}`;

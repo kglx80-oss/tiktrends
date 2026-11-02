@@ -372,10 +372,11 @@ export function Bibliotheque(entree: PropsBibliotheque) {
     try {
       if (p.stockage) {
         for (const f of files) {
-          const pre = await presignAssetUploadAction({ filename: f.name, contentType: f.type || 'application/octet-stream', sizeBytes: f.size });
-          if (pre.error || !pre.uploadUrl || !pre.publicUrl || !pre.contentType) { echecs.push(pre.error ?? f.name); continue; }
+          // Le serveur ne rend que le lien d'envoi et un jeton opaque · jamais l'adresse de l'objet.
+          const pre = await presignAssetUploadAction({ filename: f.name, contentType: f.type || 'application/octet-stream', sizeBytes: f.size, usage: 'envoi' });
+          if (pre.error || !pre.uploadUrl || !pre.jetonDepot || !pre.contentType) { echecs.push(pre.error ?? f.name); continue; }
           try { await envoyerVersBucket(pre.uploadUrl, f, pre.contentType); } catch { echecs.push(f.name); continue; }
-          const reg = await registerUploadedAssetAction({ name: f.name, url: pre.publicUrl, mimeType: f.type, sizeBytes: f.size, common: commun });
+          const reg = await registerUploadedAssetAction({ name: f.name, jetonDepot: pre.jetonDepot, mimeType: f.type, sizeBytes: f.size, common: commun });
           if (reg.error) echecs.push(reg.error); else ok++;
         }
       } else {

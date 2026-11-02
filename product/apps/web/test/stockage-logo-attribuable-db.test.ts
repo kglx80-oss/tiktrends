@@ -31,8 +31,9 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, s
 vi.mock('@tiktrends/integrations', async (importOriginal) => ({ ...(await importOriginal<typeof import('@tiktrends/integrations')>()), storageFromEnv: () => CFG }));
 
 import { db, schema, eq, sql } from '@tiktrends/db';
-import { MESSAGES_REFUS_LOGO, REFUS_LOGO_NON_ATTESTE, TEXTES_REFUS_JETON_DEPOT, charteAvecLogoImporte } from '@tiktrends/core';
+import { LOGO_DEPOSE, MESSAGES_REFUS_LOGO, REFUS_LOGO_NON_ATTESTE, TEXTES_REFUS_JETON_DEPOT, charteAvecLogoImporte } from '@tiktrends/core';
 import { presignAssetUploadAction } from '../app/actions/assets';
+import { cleDuLienDepot, jetonAltere } from './helpers/depot-jeton';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -70,10 +71,12 @@ const lire = async (id: string) => (await db.select({ logoUrl: schema.brands.log
 
 /** Le VRAI présigné, puis le PUT du navigateur (simulé dans le bucket). */
 async function deposer(nom = 'logo.png') {
-  const pre = await presignAssetUploadAction({ filename: nom, contentType: 'image/png', sizeBytes: 2048 });
+  const pre = await presignAssetUploadAction({ filename: nom, contentType: 'image/png', sizeBytes: 2048, usage: 'logo' });
   expect(pre.error).toBeUndefined();
-  bucket.set(cleDe(pre.publicUrl!), pngDe(2048));
-  return { url: pre.publicUrl!, jeton: pre.jetonDepot! };
+  // Le navigateur dépose au lien de PUT · il ne connaît pas d'autre adresse.
+  const cle = cleDuLienDepot(pre.uploadUrl!, CFG.bucket);
+  bucket.set(cle, pngDe(2048));
+  return { url: `${BASE}/${cle}`, jeton: pre.jetonDepot! };
 }
 const importer = (brandId: string, url: string, jetonDepot?: string, avant: { logos: string[]; defaut: string | null } = { logos: [ANCIEN], defaut: ANCIEN }) =>
   saveBrandDAAction({ brandId, ...charteAvecLogoImporte(avant, url), colors: ['#112233'], fonts: ['Inter'], jetonDepot });
@@ -107,7 +110,8 @@ afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 describe('Logo importé · attesté par son jeton de dépôt', () => {
   it('avec son jeton · enregistré par défaut, l’ancien gardé, l’objet reste, aucun DELETE', async () => {
     const d = await deposer();
-    expect(await importer(A.b1, d.url, d.jeton)).toEqual({ ok: true });
+    // Le geste réel · la charte nomme `LOGO_DEPOSE`, le serveur la résout par le jeton.
+    expect(await importer(A.b1, LOGO_DEPOSE, d.jeton)).toEqual({ ok: true });
     expect(await lire(A.b1)).toEqual({ logoUrl: d.url, logos: [ANCIEN, d.url] });
     expect(bucket.has(cleDe(d.url))).toBe(true);
     expect(supprimes).toEqual([]);
@@ -151,10 +155,10 @@ describe('Logo importé · attesté par son jeton de dépôt', () => {
     expect(bucket.has(cleDe(presentee.url))).toBe(true);
   });
 
-  it('jeton FALSIFIÉ (signature réécrite) · refusé, rien retiré', async () => {
+  it('jeton FALSIFIÉ (scellé altéré) · refusé, rien retiré', async () => {
     const d = await deposer();
-    const [corps] = d.jeton.split('.');
-    expect(await importer(A.b1, d.url, `${corps}.${'A'.repeat(43)}`)).toEqual({ error: TEXTES_REFUS_JETON_DEPOT.illisible });
+    expect(await importer(A.b1, LOGO_DEPOSE, jetonAltere(d.jeton))).toEqual({ error: TEXTES_REFUS_JETON_DEPOT.illisible });
+    expect(await importer(A.b1, d.url, jetonAltere(d.jeton))).toEqual({ error: TEXTES_REFUS_JETON_DEPOT.illisible });
     expect(await lire(A.b1)).toEqual({ logoUrl: ANCIEN, logos: [ANCIEN] });
     expect(supprimes).toEqual([]);
   });
@@ -180,12 +184,14 @@ describe('Enregistrement refusé ou en échec · le dépôt attesté est retiré
     expect(bucket.has(cleDe(d.url))).toBe(false);
   });
 
-  it('objet CITÉ par une autre marque · la charte refusée ne le retire pas', async () => {
+  it('objet CITÉ par une autre marque · le jeton rejoué est refusé (déjà employé), l’objet n’est pas retiré', async () => {
     const d = await deposer();
-    expect(await importer(A.b2, d.url, d.jeton)).toEqual({ ok: true });
-    // Le même jeton rejoué sur A1, avec une charte invalide · l'objet est celui de A2.
+    expect(await importer(A.b2, LOGO_DEPOSE, d.jeton)).toEqual({ ok: true });
+    // Le même jeton rejoué sur A1 · l'objet est celui de A2, un jeton ne sert qu'une fois.
+    expect(await importer(A.b1, LOGO_DEPOSE, d.jeton)).toEqual({ error: TEXTES_REFUS_JETON_DEPOT.deja_employe });
     const r = await saveBrandDAAction({ brandId: A.b1, logoUrl: d.url, logos: [d.url, 'http://x.fr/l.png'], colors: [], fonts: [], jetonDepot: d.jeton });
-    expect(r).toEqual({ error: MESSAGES_REFUS_LOGO.schema });
+    expect(r).toEqual({ error: TEXTES_REFUS_JETON_DEPOT.deja_employe });
+    expect((await lire(A.b1)).logoUrl).toBe(ANCIEN);
     expect(supprimes).toEqual([]);
     expect(bucket.has(cleDe(d.url))).toBe(true);
     expect((await lire(A.b2)).logoUrl).toBe(d.url);

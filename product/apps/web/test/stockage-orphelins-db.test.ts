@@ -45,6 +45,8 @@ import { presignAssetUploadAction, registerUploadedAssetAction } from '../app/ac
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 import { chargerInventaireStockage, lireColonne, lireReferencesStockage } from '../lib/stockage-inventaire';
 import { contenuPour as contenuPourBase, semerDans as semerDansBase } from './helpers/semer-reference';
+import { cleDuLienDepot } from './helpers/depot-jeton';
+import { LOGO_DEPOSE } from '@tiktrends/core';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
@@ -104,18 +106,18 @@ beforeAll(async () => {
   etat.session = session(ids, 'ub', { role: 'admin' });
 
   // 1 · Bibliothèque · le VRAI dépôt direct, puis l'enregistrement relu.
-  const pre = await presignAssetUploadAction({ filename: 'photo.png', contentType: 'image/png', sizeBytes: PNG.length });
+  const pre = await presignAssetUploadAction({ filename: 'photo.png', contentType: 'image/png', sizeBytes: PNG.length, usage: 'envoi' });
   expect(pre.error).toBeUndefined();
-  const cleBiblio = pre.publicUrl!.slice(BASE.length + 1);
+  const cleBiblio = cleDuLienDepot(pre.uploadUrl!, CFG.bucket);
   bucket.set(cleBiblio, { octets: PNG, le: VIEUX });
-  expect(await registerUploadedAssetAction({ name: 'photo.png', url: pre.publicUrl!, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
+  expect(await registerUploadedAssetAction({ name: 'photo.png', jetonDepot: pre.jetonDepot!, mimeType: 'image/png', sizeBytes: PNG.length })).toEqual({ ok: true });
   referencees.push({ cle: cleBiblio, ou: 'assets.url · registerUploadedAssetAction' });
 
   // 2 · Logo de charte importé · dépôt de la Bibliothèque SANS ligne `assets`, puis la charte.
-  const preLogo = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: PNG.length });
-  const cleLogo = preLogo.publicUrl!.slice(BASE.length + 1);
+  const preLogo = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: PNG.length, usage: 'logo' });
+  const cleLogo = cleDuLienDepot(preLogo.uploadUrl!, CFG.bucket);
   bucket.set(cleLogo, { octets: PNG, le: VIEUX });
-  const charte = charteAvecLogoImporte({ logos: [], defaut: null }, preLogo.publicUrl!);
+  const charte = charteAvecLogoImporte({ logos: [], defaut: null }, LOGO_DEPOSE);
   expect(await saveBrandDAAction({ brandId: ids.brandB1, ...charte, colors: [], fonts: [], jetonDepot: preLogo.jetonDepot })).toEqual({ ok: true });
   referencees.push({ cle: cleLogo, ou: 'brands.logo_url · saveBrandDAAction' });
   vi.unstubAllGlobals();

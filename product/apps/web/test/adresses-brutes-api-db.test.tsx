@@ -44,7 +44,11 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  *
  * Fuite trouvée et corrigée · `importBrandDAAction` (« Récupérer la charte du
  * site ») renvoyait `logoUrl`, l'adresse canonique d'un logo importé · il
- * renvoie désormais son aperçu par la route média (`apercuLogo`).
+ * renvoie désormais son aperçu par la route média (`apercuLogo`). Puis
+ * `presignAssetUploadAction` rendait `publicUrl`, l'adresse canonique du
+ * dépôt, que le navigateur renvoyait comme identifiant · il ne rend plus que
+ * le lien de PUT signé (`uploadUrl`, seule exemption) et un jeton de dépôt
+ * opaque (`lib/jeton-depot.ts`).
  */
 
 const h = vi.hoisted(() => ({ ids: null as unknown as IdsStudios, session: null as SessionTest | null, cookie: null as string | null }));
@@ -78,6 +82,8 @@ import { projetTest } from './l3-harnais';
 import sharp from 'sharp';
 import { composerBrief, contenuVide, empreinteAdresse, empreinteContenu, idLogoMarque, idPhotoProduit, referenceProduit, SCHEMA_VERSION_CONTENU, type ContenuVersion, type DocumentStudio } from '@tiktrends/core';
 import { HYPOTHESE, sourceConcurrente, T0 } from './l5c-outils';
+import { jetonScelle } from './helpers/depot-jeton';
+import type { UsageDepot } from '@tiktrends/core';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
@@ -109,6 +115,12 @@ const EXTERNE = 'https://site.exemple.fr/logo.png';
 const SITE = 'https://93.184.216.34';
 const HTML_SITE = '<html><head><meta name="theme-color" content="#123456"><style>body{color:#123456;font-family:"Poppins",sans-serif}</style></head><body>Boutique</body></html>';
 const cleDe = (u: string) => u.slice(BASE.length + 1);
+/**
+ * Le jeton de dépôt OPAQUE que le présigné rend pour `objet(n)` · seul
+ * identifiant d'un dépôt qui repart du navigateur (l'adresse canonique,
+ * `publicUrl`, n'en sort plus · exemption retirée).
+ */
+const jetonDe = (usage: UsageDepot, n: string) => jetonScelle({ espace: ids.wsA, utilisateur: h.session?.user.id ?? ids.ua, usage, cle: cleDe(objet(n)) });
 
 /* ───────────── Le faux bucket · sert les objets semés, ETag = MD5, If-Match honoré ───────────── */
 
@@ -227,9 +239,9 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel>>>> = {
     basculerTemplateAction: A(() => [{ id: s.fichier, on: false }]),
     tagAssetAction: A(() => [{ id: s.fichier }]),
     tagUntaggedImagesAction: A(),
-    presignAssetUploadAction: A(() => [{ filename: 'nouveau.png', contentType: 'image/png', sizeBytes: 1000 }]),
-    registerUploadedAssetAction: A(() => [{ name: 'nouveau.png', url: objet('1700000000004-11111111-nouveau.png'), mimeType: 'image/png', sizeBytes: 1000 }]),
-    remplacerAssetAction: A(() => [{ id: s.fichier, url: objet('1700000000005-22222222-remplace.png'), mimeType: 'image/png' }]),
+    presignAssetUploadAction: A(() => [{ filename: 'nouveau.png', contentType: 'image/png', sizeBytes: 1000, usage: 'envoi' }]),
+    registerUploadedAssetAction: A(() => [{ name: 'nouveau.png', jetonDepot: jetonDe('envoi', '1700000000004-11111111-nouveau.png'), mimeType: 'image/png', sizeBytes: 1000 }]),
+    remplacerAssetAction: A(() => [{ id: s.fichier, jetonDepot: jetonDe('remplacement', '1700000000005-22222222-remplace.png'), mimeType: 'image/png' }]),
     deleteAssetAction: D(() => [{ id: s.jetable }]),
     restaurerAssetsAction: D(() => [{ ids: [s.jetable] }]),
   },
@@ -647,10 +659,6 @@ const EXEMPTIONS: ReadonlyArray<{ point: string; chemin: string; raison: string 
   {
     point: 'app/actions/assets.ts#presignAssetUploadAction', chemin: '.uploadUrl',
     raison: 'adresse SIGNÉE d’envoi (PUT, ≤ 900 s, une clé neuve de l’espace) · le navigateur y dépose le fichier directement, c’est son seul usage (jamais affichée)',
-  },
-  {
-    point: 'app/actions/assets.ts#presignAssetUploadAction', chemin: '.publicUrl',
-    raison: 'identifiant canonique du dépôt · renvoyé tel quel à `registerUploadedAssetAction`, `remplacerAssetAction` (Bibliothèque) et `saveBrandDAAction` (logo importé), qui le relisent dans l’espace et contre le jeton de dépôt ; jamais affiché (les écrans passent par les routes gardées)',
   },
 ];
 

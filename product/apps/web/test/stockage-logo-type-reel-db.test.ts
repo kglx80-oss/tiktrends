@@ -33,7 +33,8 @@ vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, s
 vi.mock('@tiktrends/integrations', async (importOriginal) => ({ ...(await importOriginal<typeof import('@tiktrends/integrations')>()), storageFromEnv: () => CFG }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { MESSAGES_REFUS_LOGO_RELU, MESSAGES_RELECTURE_DEPOT, charteAvecLogoImporte } from '@tiktrends/core';
+import { MESSAGES_REFUS_LOGO_RELU, MESSAGES_RELECTURE_DEPOT, LOGO_DEPOSE, TEXTES_REFUS_JETON_DEPOT, charteAvecLogoImporte } from '@tiktrends/core';
+import { cleDuLienDepot } from './helpers/depot-jeton';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 
@@ -88,13 +89,15 @@ const lire = async (id: string) => (await db.select({ logoUrl: schema.brands.log
  * longueur, il range les octets envoyés quels qu'ils soient.
  */
 async function deposer(annonce: { nom: string; type: string }, octets: Buffer) {
-  const pre = await presignAssetUploadAction({ filename: annonce.nom, contentType: annonce.type, sizeBytes: octets.length });
+  const pre = await presignAssetUploadAction({ filename: annonce.nom, contentType: annonce.type, sizeBytes: octets.length, usage: 'logo' });
   expect(pre.error).toBeUndefined();
-  bucket.set(cleDe(pre.publicUrl!), octets);
-  return { url: pre.publicUrl!, jeton: pre.jetonDepot! };
+  // Le navigateur dépose au lien de PUT · il ne reçoit aucune autre adresse.
+  const cle = cleDuLienDepot(pre.uploadUrl!, CFG.bucket);
+  bucket.set(cle, octets);
+  return { url: `${BASE}/${cle}`, jeton: pre.jetonDepot! };
 }
 const importer = (brandId: string, d: { url: string; jeton: string }) =>
-  saveBrandDAAction({ brandId, ...charteAvecLogoImporte({ logos: [ANCIEN], defaut: ANCIEN }, d.url), colors: ['#112233'], fonts: ['Inter'], jetonDepot: d.jeton });
+  saveBrandDAAction({ brandId, ...charteAvecLogoImporte({ logos: [ANCIEN], defaut: ANCIEN }, LOGO_DEPOSE), colors: ['#112233'], fonts: ['Inter'], jetonDepot: d.jeton });
 const INTACTE = { logoUrl: ANCIEN, logos: [ANCIEN] };
 
 beforeAll(async () => {
@@ -181,20 +184,21 @@ describe('Logo importé · l’objet relu face au type et à la taille signés d
   });
 
   it('objet jamais envoyé (PUT absent) · refusé, rien retiré (l’import peut se relancer)', async () => {
-    const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 2048 });
-    expect(await importer(A.b1, { url: pre.publicUrl!, jeton: pre.jetonDepot! })).toEqual({ error: MESSAGES_RELECTURE_DEPOT.absent });
+    const pre = await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 2048, usage: 'logo' });
+    expect(await importer(A.b1, { url: `${BASE}/${cleDuLienDepot(pre.uploadUrl!, CFG.bucket)}`, jeton: pre.jetonDepot! })).toEqual({ error: MESSAGES_RELECTURE_DEPOT.absent });
     expect(await lire(A.b1)).toEqual(INTACTE);
     expect(supprimes()).toEqual([]);
   });
 
-  it('objet CITÉ par une autre marque puis remplacé par un PDF · refusé, jamais retiré', async () => {
+  it('objet CITÉ par une autre marque puis remplacé par un PDF · le jeton rejoué est refusé (déjà employé) avant toute relecture, jamais retiré', async () => {
     const octets = pngDe(2048);
     const d = await deposer({ nom: 'logo.png', type: 'image/png' }, octets);
     expect(await importer(A.b2, d)).toEqual({ ok: true });
     // Le lien de dépôt vit encore · même type d'en-tête, même longueur, autres octets.
     bucket.set(cleDe(d.url), Buffer.concat([PDF, Buffer.alloc(octets.length - PDF.length, 0x20)]));
     requetes.length = 0;
-    expect(await importer(A.b1, d)).toEqual({ error: MESSAGES_REFUS_LOGO_RELU.contenu });
+    expect(await importer(A.b1, d)).toEqual({ error: TEXTES_REFUS_JETON_DEPOT.deja_employe });
+    expect(requetes, 'un jeton déjà employé ne fait rien relire').toEqual([]);
     expect(await lire(A.b1)).toEqual(INTACTE);
     expect(supprimes()).toEqual([]);
     expect(bucket.has(cleDe(d.url))).toBe(true);

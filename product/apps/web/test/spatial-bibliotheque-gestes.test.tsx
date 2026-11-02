@@ -62,7 +62,7 @@ const saisir = async (champ: HTMLInputElement | HTMLTextAreaElement, v: string) 
 describe('Spatial · Bibliothèque · téléverser vers le bucket', () => {
   it('le PUT porte le Content-Type SIGNÉ rendu par le serveur, pas le type (vide) du navigateur', async () => {
     const actions = await import('../app/actions/assets');
-    vi.mocked(actions.presignAssetUploadAction).mockResolvedValue({ uploadUrl: 'https://bucket/put?sig', publicUrl: 'https://bucket/assets/ws/1-img.heic', contentType: 'image/heic' });
+    vi.mocked(actions.presignAssetUploadAction).mockResolvedValue({ uploadUrl: 'https://bucket/put?sig', jetonDepot: 'jeton-opaque', contentType: 'image/heic' });
     vi.mocked(actions.registerUploadedAssetAction).mockResolvedValue({ ok: true });
     const envois: Array<{ methode: string; url: string; entetes: Record<string, string> }> = [];
     const corps: unknown[] = [];
@@ -80,13 +80,15 @@ describe('Spatial · Bibliothèque · téléverser vers le bucket', () => {
       Object.defineProperty(champ, 'files', { value: [new File([new Uint8Array(32)], 'IMG_0001.HEIC', { type: '' })], configurable: true });
       await act(async () => { champ.dispatchEvent(new Event('change', { bubbles: true })); });
       await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-      expect(actions.presignAssetUploadAction).toHaveBeenCalledWith({ filename: 'IMG_0001.HEIC', contentType: 'application/octet-stream', sizeBytes: 32 });
+      expect(actions.presignAssetUploadAction).toHaveBeenCalledWith({ filename: 'IMG_0001.HEIC', contentType: 'application/octet-stream', sizeBytes: 32, usage: 'envoi' });
       expect(envois).toEqual([{ methode: 'PUT', url: 'https://bucket/put?sig', entetes: { 'Content-Type': 'image/heic' } }]);
       // Le Content-Length est SIGNÉ à la taille déclarée · le corps est le fichier entier,
       // dont le navigateur tire seul la longueur (aucun en-tête posé à la main).
       expect(corps).toHaveLength(1);
       expect(corps[0] instanceof Blob && (corps[0] as Blob).size, 'longueur du corps = sizeBytes déclaré').toBe(32);
       expect(actions.registerUploadedAssetAction).toHaveBeenCalledTimes(1);
+      // Le dépôt s'enregistre par son jeton opaque · aucune adresse ne repart du navigateur.
+      expect(actions.registerUploadedAssetAction).toHaveBeenCalledWith({ name: 'IMG_0001.HEIC', jetonDepot: 'jeton-opaque', mimeType: '', sizeBytes: 32, common: false });
     } finally { vi.unstubAllGlobals(); }
   });
 });

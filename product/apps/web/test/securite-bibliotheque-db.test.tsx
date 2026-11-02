@@ -85,6 +85,8 @@ import { db, schema, sql } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
 import { session, semer } from './studios-semis';
 import { bucketQuiSert } from './helpers/bucket-qui-sert';
+import { jetonScelle } from './helpers/depot-jeton';
+import type { UsageDepot } from '@tiktrends/core';
 import * as actionsAssets from '../app/actions/assets';
 import {
   listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction, basculerAssetsIaAction,
@@ -127,6 +129,9 @@ beforeAll(async () => {
   ]);
 });
 
+/** Le jeton de dépôt que le présigné rendrait à l'utilisateur de la session, pour `assets/<espace A>/1-ab-<nom>.png`. */
+const jetonA = (usage: UsageDepot, nom: string) => jetonScelle({ espace: ids.wsA, utilisateur: etat.session?.user.id ?? ids.ua, usage, cle: `assets/${ids.wsA}/1-ab-${nom}.png` });
+
 /** Chaque action, appelée telle que l'écran l'appelle. Le nom sert au message d'échec. */
 const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['uploadImageAssetsAction', () => uploadImageAssetsAction({ items: [{ name: 'neuve', dataUri: PNG }] })],
@@ -136,13 +141,13 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['basculerTemplateAction', () => basculerTemplateAction({ id: A.image, on: true })],
   ['tagAssetAction', () => tagAssetAction({ id: A.image })],
   ['tagUntaggedImagesAction', () => tagUntaggedImagesAction()],
-  ['presignAssetUploadAction', () => presignAssetUploadAction({ filename: 'a.png', contentType: 'image/png', sizeBytes: 10 })],
-  ['registerUploadedAssetAction', () => registerUploadedAssetAction({ name: 'f', url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`, mimeType: 'image/png', sizeBytes: 10 })],
+  ['presignAssetUploadAction', () => presignAssetUploadAction({ filename: 'a.png', contentType: 'image/png', sizeBytes: 10, usage: 'envoi' })],
+  ['registerUploadedAssetAction', () => registerUploadedAssetAction({ name: 'f', jetonDepot: jetonA('envoi', 'f'), mimeType: 'image/png', sizeBytes: 10 })],
   ['deleteAssetAction', () => deleteAssetAction({ id: A.video })],
   ['mettreAssetsCorbeilleAction', () => mettreAssetsCorbeilleAction({ ids: [A.image] })],
   ['restaurerAssetsAction', () => restaurerAssetsAction({ ids: [A.image] })],
   ['renommerAssetAction', () => renommerAssetAction({ id: A.image, nom: 'Renommé' })],
-  ['remplacerAssetAction', () => remplacerAssetAction({ id: A.image, url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-g.png`, mimeType: 'image/png' })],
+  ['remplacerAssetAction', () => remplacerAssetAction({ id: A.image, jetonDepot: jetonA('remplacement', 'g'), mimeType: 'image/png' })],
 ];
 
 /**
@@ -254,7 +259,7 @@ describe('Bibliothèque · member en Core · chaque geste marche comme avant', (
     expect(r.tagged).toBeGreaterThanOrEqual(1);
   });
   it('presignAssetUploadAction · rend une URL', async () => {
-    const r = await presignAssetUploadAction({ filename: 'a.png', contentType: 'image/png', sizeBytes: 10 });
+    const r = await presignAssetUploadAction({ filename: 'a.png', contentType: 'image/png', sizeBytes: 10, usage: 'envoi' });
     expect(r.error).toBeUndefined();
     expect(r.uploadUrl).toMatch(/^https:\/\/stockage\.invalid\/put\//);
   });
@@ -262,7 +267,7 @@ describe('Bibliothèque · member en Core · chaque geste marche comme avant', (
     // L'objet déposé est relu (type, taille) avant l'écriture · le bucket sert un vrai PNG.
     vi.stubGlobal('fetch', bucketQuiSert(Buffer.from(PNG.split(',')[1]!, 'base64')));
     try {
-      expect(await registerUploadedAssetAction({ name: 'f', url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`, mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
+      expect(await registerUploadedAssetAction({ name: 'f', jetonDepot: jetonA('envoi', 'f'), mimeType: 'image/png', sizeBytes: 10 })).toEqual({ ok: true });
     } finally { vi.unstubAllGlobals(); }
     expect((await ws()).some((a) => a.url === `https://stockage.invalid/assets/${ids.wsA}/1-ab-f.png`)).toBe(true);
   });
@@ -271,7 +276,7 @@ describe('Bibliothèque · member en Core · chaque geste marche comme avant', (
     const n = (await ws()).length;
     vi.stubGlobal('fetch', bucketQuiSert(Buffer.from(PNG.split(',')[1]!, 'base64')));
     try {
-      expect(await remplacerAssetAction({ id: f!.id, url: `https://stockage.invalid/assets/${ids.wsA}/1-ab-g.png`, mimeType: 'image/png' })).toEqual({ ok: true });
+      expect(await remplacerAssetAction({ id: f!.id, jetonDepot: jetonA('remplacement', 'g'), mimeType: 'image/png' })).toEqual({ ok: true });
     } finally { vi.unstubAllGlobals(); }
     expect([(await ws()).find((a) => a.id === f!.id)!.url, (await ws()).length]).toEqual([`https://stockage.invalid/assets/${ids.wsA}/1-ab-g.png`, n]);
   });
