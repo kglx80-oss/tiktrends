@@ -39,7 +39,12 @@ import { fichierSelectionnable, gestesSelection } from './selection';
  *    `DELAI_DEPLIAGE_SURVOL_MS` (`deplieAuSurvol`).
  *
  * Une cible refusée ne reçoit rien · l'écran la montre « interdite » et
- * n'appelle aucune action.
+ * n'appelle aucune action ; lâchée dessus, la charge fait dire la raison par
+ * le toast de l'écran, une fois (`refusAuLacher`).
+ *
+ * La charge se désarme même sans `dragend` (source retirée du document en plein
+ * glisser) · à la relecture des données si elle est orpheline
+ * (`chargeOrpheline`), ou après la garde sans `dragover` (`chargeAbandonnee`).
  */
 
 /** Ce qui est glissé · des fichiers (un seul, ou la sélection), un dossier, ou les dossiers de la sélection (au moins deux). */
@@ -277,4 +282,53 @@ export function annonceSurvol(courante: AnnonceSurvol, cibleId: string, verdict:
   if (!verdict || verdict.ok) return null;
   if (courante?.cible === cibleId && courante.texte === verdict.raison) return courante;
   return { cible: cibleId, texte: verdict.raison };
+}
+
+/**
+ * Le REFUS dit au lâcher · un utilisateur VOYANT qui lâche la charge sur une cible refusée n'en saurait rien (seule la
+ * région polie le dit, pendant le survol) · l'écran le dit alors par son toast, avec la phrase du verdict (celle du
+ * serveur), UNE fois. `sous` est la cible refusée sous le pointeur au moment du lâcher (`annonceSurvol` du dernier
+ * `dragover` · `null` si ce dernier survol était une cible qui accepte, la source, ou un élément qui n'est pas une
+ * cible). Rien n'est dit :
+ *  · rien de refusé sous le pointeur (lâché dans le vide · rien n'était promis) ;
+ *  · un dépôt a eu lieu (`effet` du transfert autre que `none` · ailleurs, une autre application l'a pris) ;
+ *  · le glisser est ANNULÉ par l'utilisateur (Échap) quand le navigateur le dit (`mozUserCancelled`, Firefox · les
+ *    autres ne distinguent pas Échap d'un lâcher refusé, `dropEffect` vaut `none` dans les deux cas).
+ */
+export function refusAuLacher(sous: AnnonceSurvol, fin: { effet?: string | null; annule?: boolean | null }): string | null {
+  if (!sous || fin.annule) return null;
+  if (fin.effet && fin.effet !== 'none') return null;
+  return sous.texte;
+}
+
+/**
+ * La GARDE de la charge · sans `dragend`, la charge resterait armée (et la zone d'import fermée) jusqu'au prochain
+ * glisser. `dragend` est tiré sur l'élément SOURCE · retiré du document en plein glisser (la liste se relit, la carte
+ * est remplacée), il ne remonte plus jusqu'à la fenêtre et n'arrive jamais. La garde tombe après
+ * `GARDE_CHARGE_MS` sans `dragover` · la même valeur et la même raison que la veille du défilement
+ * (`VEILLE_DEFILEMENT_MS`) : la spécification HTML tire `dragover` « au moins toutes les 350 ms (± 200 ms) » tant que
+ * le pointeur est dans la page, immobile compris · 1 000 ms laisse presque deux fois l'écart maximal (550 ms).
+ */
+export const GARDE_CHARGE_MS = VEILLE_DEFILEMENT_MS;
+
+/**
+ * La charge est-elle ABANDONNÉE · seulement si sa source a quitté le document (`dragend` ne viendra plus) ET que les
+ * `dragover` se sont tus depuis la garde. Une source encore là désarme par son `dragend` · le silence seul veut alors
+ * dire que le pointeur est sorti de la fenêtre, et le glisser doit survivre à son retour.
+ */
+export function chargeAbandonnee(e: { silenceMs: number; sourceDansDocument: boolean }): boolean {
+  return !e.sourceDansDocument && e.silenceMs >= GARDE_CHARGE_MS;
+}
+
+/**
+ * La charge est-elle ORPHELINE à la relecture des données · l'un de ses éléments est absent de la liste relue, ou
+ * passé à la corbeille (un autre onglet, un geste concurrent). Elle ne porte plus ce que l'utilisateur a pris · elle
+ * est désarmée, rien n'est envoyé.
+ */
+export function chargeOrpheline(d: DonneesDrive, charge: ChargeGlissee): boolean {
+  const ids = charge.type === 'dossier' ? [charge.id] : charge.ids;
+  const vivants = charge.type === 'fichiers'
+    ? new Set(d.fichiers.filter((f) => !f.supprime).map((f) => f.id))
+    : new Set(d.dossiers.filter((x) => !x.supprime).map((x) => x.id));
+  return ids.some((id) => !vivants.has(id));
 }

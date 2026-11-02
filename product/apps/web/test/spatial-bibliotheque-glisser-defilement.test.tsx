@@ -228,9 +228,12 @@ describe('défilement automatique · arrêt net', () => {
     await evenement(carteDossier(h, 'UGC'), 'dragover', dt, { clientY: 0 });
     await avancer(500);
     expect(position()).toBe(0);
-    // Plus d'image demandée ni de veille · la boucle est fermée, pas seulement bloquée à 0.
-    expect(vi.getTimerCount()).toBe(0);
+    // Plus d'image demandée ni de veille · la boucle est fermée, pas seulement bloquée à 0. Seule reste la garde de
+    // la charge (`GARDE_CHARGE_MS` · une minuterie, relancée à chaque `dragover`), levée à la fin du glisser.
+    expect(vi.getTimerCount()).toBe(1);
     await evenement(carteDossier(h, 'UGC'), 'dragover', dt, { clientY: 0 });
+    expect(vi.getTimerCount()).toBe(1);
+    await evenement(carteDossier(h, 'Archives'), 'dragend', dt);
     expect(vi.getTimerCount()).toBe(0);
   });
 });

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { connexionDrive, donneesDrive, DELAI_DEPLIAGE_SURVOL_MS, type DossierSource } from '@tiktrends/core';
+import { connexionDrive, donneesDrive, DELAI_DEPLIAGE_SURVOL_MS, REFUS_DOSSIER, type DossierSource } from '@tiktrends/core';
 
 const f = vi.hoisted(() => ({
   deplacer: vi.fn(async (_x: { id: string; parentId: string | null }): Promise<unknown> => ({ ok: true })),
@@ -166,7 +166,8 @@ describe('dossiers sélectionnés · le glisser emporte la sélection', () => {
     await clic(h.querySelector('button[aria-label="Sélectionner UGC"]'));
     const vu = await glisserSur(carteDossier(h, 'Photos produit'), noeud(h, 'Hiver'));
     expect(vu).toEqual({ pris: false, effet: 'none', etat: 'refuse' });
-    expect([f.deplacerGroupe.mock.calls.length, f.deplacer.mock.calls.length, toasts]).toEqual([0, 0, []]);
+    // Aucun appel · la raison (celle du serveur, le dossier fautif nommé) dite par le toast, UNE fois.
+    expect([f.deplacerGroupe.mock.calls.length, f.deplacer.mock.calls.length, toasts]).toEqual([0, 0, [`« UGC » · ${REFUS_DOSSIER.descendant}`]]);
     // Témoin · le même dossier glissé SEUL (non sélectionné) sur Hiver est accepté · c'est bien l'autre dossier qui refuse.
     await clic([...h.querySelectorAll('.dbulk button')].find((b) => b.textContent === 'Désélectionner'));
     const seul = await glisserSur(carteDossier(h, 'Photos produit'), noeud(h, 'Hiver'));
