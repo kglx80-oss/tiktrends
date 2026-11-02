@@ -91,7 +91,9 @@ describe('éditer · le texte reste du texte, chaque geste se voit, annuler et r
     expect(q('#art .ad').querySelectorAll('img')).toHaveLength(0);
     expect(texte('[data-calque="l_fond"]')).toBe('Fond · aperçu indisponible');
     expect(statut()).toBe('Enregistré');
-    for (const l of ['Enregistrer', 'Annuler', 'Rétablir']) expect(bouton(l).disabled, l).toBe(true);
+    for (const l of ['Annuler', 'Rétablir']) expect(bouton(l).disabled, l).toBe(true);
+    // « Enregistrer » se ferme sans quitter l'ordre de tabulation (`aria-disabled`) · cf. studios-editeur-ecran-design.
+    expect(bouton('Enregistrer').getAttribute('aria-disabled'), 'Enregistrer').toBe('true');
   });
 
   it('un aperçu REFUSÉ par la route (logo de la charte à réimporter · 409) · le cadre nommé du calque, jamais une image cassée', () => {
