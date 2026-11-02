@@ -3,17 +3,19 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { entreesRail, entreesRailEspace, initialesAvatar, ENTETE_CHEMIN, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
+import { empreinteDuLogo, entreesRail, entreesRailEspace, initialesAvatar, ENTETE_CHEMIN, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
 import { getSession } from '../auth';
 import { effectiveAccess } from '../access';
 import { isFounder } from '../founder';
 import { regimeSession } from '../credits-appels';
 import { unlimitedCredits } from '../credits';
-import { listBrands, getActiveBrand } from '../brands';
+import { listBrands, getActiveBrand, type BrandLite } from '../brands';
+import { brandMediaPreview } from '../brand-media-url';
 import { unreadCount } from '../notifications';
 import { RAIL_COOKIE, railCollapsedFromCookie } from '../rail-preference';
 import { railNav, sectionsCompteOuvertes, roleAtLeast, planAtLeast, ROLE_LABEL, PLAN_LABEL, PLAN_CREDITS, type Plan } from '../rbac';
 import { logoutAction } from '../../app/actions/auth';
+import { etatLogoMarqueActive } from '../../app/actions/logo-marque';
 import type { DonneesCoquille } from '../../spatial/coquille/Coquille';
 import { pastilleResultats } from './pastilles/resultats';
 import { pastilleMarque } from './pastilles/marque';
@@ -66,6 +68,22 @@ export async function poserPastilles(
 }
 
 /**
+ * Le logo de la marque active dans la coquille · servi par la route média
+ * (`brandMediaPreview`, comme la fiche · le stockage est privé, l'adresse
+ * enregistrée ne s'affiche pas telle quelle) ; `logoAVerifier` quand il a une
+ * empreinte. La coquille est rendue sur CHAQUE page · elle ne vérifie rien
+ * elle-même : la route média juge déjà le logo en le servant (`servirLogoVerifie`)
+ * et refuse un logo remplacé. C'est quand l'image n'a pas pu s'afficher que le
+ * client demande la raison, une fois (`etatLogoMarqueActive`), et montre
+ * l'initiale avec « Logo à réimporter ».
+ */
+export function logoCoquille(active: BrandLite): { logoUrl: string | null; imageUrl: string | null; logoAVerifier: boolean } {
+  const url = active.logoUrl || null;
+  const affiche = url ? brandMediaPreview(active.id, url) : null;
+  return { logoUrl: affiche, imageUrl: affiche, logoAVerifier: !!url && empreinteDuLogo(active.logoEmpreintes, url) !== null };
+}
+
+/**
  * Les données RÉELLES de la coquille Spatial · mêmes gardes et mêmes sources
  * que l'ancienne coquille V5 (`app/(app)/layout.tsx`, retirée) : session obligatoire, onboarding
  * d'abord pour un propriétaire neuf, accès effectif (rôle + formule), marques
@@ -102,7 +120,7 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
     espace: await poserPastilles(entreesRailEspace({ ouverts, marque }), { ouverts, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
     // Le fond flou de la maquette (`--img`) · l'image de la marque active. À
     // défaut d'un visuel produit dédié, son logo · sans marque, aucun fond.
-    marque: active ? { id: active.id, nom: active.name, logoUrl: active.logoUrl ?? null, imageUrl: active.logoUrl ?? null } : null,
+    marque: active ? { id: active.id, nom: active.name, ...logoCoquille(active) } : null,
     marques: marques.map((m) => ({ id: m.id, nom: m.name })),
     peutGererMarques: roleAtLeast(s.role, 'admin'),
     admin: isFounder(s.user.email) && roleAtLeast(s.role, 'admin'),
@@ -113,6 +131,8 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
     credits: { solde: w?.c ?? 0, dotation: PLAN_CREDITS[plan] ?? 0, illimite: unlimitedCredits(s.user.email), regime: regimeSession(s) },
     nonLues: Number(nonLues) || 0,
     deconnexion: logoutAction,
+    // Le logo de la marque active n'a pas pu s'afficher · sa raison, demandée par le client (jamais au rendu).
+    etatLogo: etatLogoMarqueActive,
     // La palette ⌘K et « Tous les modules » · les mêmes chemins ouverts que le rail.
     ouverts: [...ouverts].sort(),
     // Le tiroir Jarvis · la feature `jarvis` (rôle + formule), comme l'entrée du rail.

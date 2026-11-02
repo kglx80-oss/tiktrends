@@ -26,6 +26,9 @@ import type { ResolveurMediasTache } from '../prompts/resolveur';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
 import { environnementPrompts } from '../prompts/environnement';
 import { spendStatus } from '../../spend-guard';
+import { annonceLogosAReimporter, type AnnonceLogosAReimporter, type LogoDuProjet } from '@tiktrends/core';
+import { etatLogosCharte, verificateurUnique, type VerifierLogo } from '../../logos-charte-etat';
+import { roleAtLeast } from '../../rbac';
 
 /**
  * Studios · F-B · le parcours image vu de l'écran, et ses gestes.
@@ -117,6 +120,12 @@ export interface VueParcoursImage {
   controleVision: { disponible: boolean; borneParImageUsdMicros: number };
   composantsObligatoires: string[];
   peutRelire: boolean;
+  /**
+   * Un logo de la charte lié au brief ou à une consigne du projet, à
+   * réimporter · annoncé AVANT la préparation payante (noyau
+   * `annonceLogosAReimporter`). Absent ou `null` · rien à annoncer.
+   */
+  logosAReimporter?: AnnonceLogosAReimporter | null;
 }
 
 function vueConsigne(c: ConsigneImagePersistee, noms: ReadonlyMap<string, { libelle: string }>): ConsigneVue {
@@ -154,9 +163,16 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
     disponibilite.compilation = { disponible: false, raison: messagePreparationCompilation(preparations[0]!) };
   }
 
-  const etat = await verifierConsigne(db, portee, contenu);
+  // Un logo à empreinte n'est vérifié qu'une fois pour toute la lecture · consigne retenue et annonce partagent le `HEAD`.
+  const verifier = verificateurUnique(projet.workspaceId);
+  const etat = await verifierConsigne(db, portee, contenu, verifier);
   const compilee = await derniereConsigneCompilee(db, portee, cat.version.id);
   const enAttente = compilee && compilee.empreinte !== etat.empreinte ? vueConsigne(compilee.consigne, cat.fichiers) : null;
+  const logosAReimporter = await logosAReimporterDuProjet(ctx, projet, cat, [
+    ...(cat.brief?.references ?? []).map((r) => r.assetId),
+    ...(compilee?.consigne.references ?? []).map((r) => r.assetId),
+    ...(etat.consigne?.references ?? []).map((r) => r.assetId),
+  ], verifier);
 
   // Devis image encore valide de la version courante, pas encore approuvé.
   const Q = schema.studioQuotes;
@@ -207,8 +223,32 @@ export async function lireParcoursImagePour(ctx: ContexteStudio, projectId: unkn
       // R3 · la case « contrôle visuel » n'existe que si la vision peut s'exécuter ici.
       controleVision: { disponible: o.fournisseurTexte, borneParImageUsdMicros: borneControleVisionParImageMicros(modeleTexte()) },
       peutRelire: aPermissionEspace(ctx.permissions, 'studio.propose'),
+      logosAReimporter,
     },
   };
+}
+
+/**
+ * Les logos de la charte que ce visuel UTILISERAIT (liés au brief ou à une
+ * consigne), à réimporter · aucun logo lié ⇒ aucune lecture ; un logo lié
+ * sans empreinte ⇒ aucune requête ; sinon un `HEAD` par logo (le même que la
+ * relecture de la consigne retenue, `verifier`), aux bornes de la fiche
+ * (`VERIFICATION_LOGOS_RENDU`).
+ */
+async function logosAReimporterDuProjet(
+  ctx: ContexteStudio, projet: { workspaceId: string; brandId: string },
+  cat: { fichiers: ReadonlyMap<string, { provenance: string; libelle: string; url: string | null }> }, utilises: readonly string[], verifier: VerifierLogo,
+): Promise<AnnonceLogosAReimporter | null> {
+  const logos: LogoDuProjet[] = [];
+  for (const id of new Set(utilises)) {
+    const f = cat.fichiers.get(id);
+    if (f?.provenance === 'logo' && f.url) logos.push({ assetId: id, url: f.url, libelle: f.libelle });
+  }
+  if (!logos.length) return null;
+  const [m] = await db.select({ logoEmpreintes: schema.brands.logoEmpreintes }).from(schema.brands)
+    .where(and(eq(schema.brands.id, projet.brandId), eq(schema.brands.workspaceId, projet.workspaceId))).limit(1);
+  const bilan = await etatLogosCharte({ workspaceId: projet.workspaceId, logoUrl: null, logos: logos.map((l) => l.url), logoEmpreintes: m?.logoEmpreintes ?? null }, undefined, verifier);
+  return annonceLogosAReimporter({ utilises: logos.map((l) => l.assetId), logos, bilan, brandId: projet.brandId, peutGerer: roleAtLeast(ctx.roleEspace, 'admin') });
 }
 
 /** Devis de l'image du studio · lecture de la consigne d'abord (message clair), puis le devis L3. */

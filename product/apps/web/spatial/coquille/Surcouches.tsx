@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { ATTRIBUT_PREFERENCE_THEME, COULEUR_BARRE_SPATIALE, PREFERENCES_THEME, filtrerPalette, selectionVoisine, typeEntreePalette, type EntreePalette, type GroupePalette, type PreferenceTheme } from '@tiktrends/core';
+import { ATTRIBUT_PREFERENCE_THEME, COULEUR_BARRE_SPATIALE, PREFERENCES_THEME, filtrerPalette, selectionVoisine, typeEntreePalette, type EntreePalette, type GroupePalette, type PreferenceTheme, type SignalLogoAReimporter } from '@tiktrends/core';
 import { appliquerTheme, preferenceCourante } from '../../lib/theme-preference';
 import { Ic, Lien } from '../communs/base';
 
@@ -191,16 +191,21 @@ function GroupeRendu({ g, sel, index, ouvrir, actif }: { g: GroupePalette; sel: 
 
 /* ───────────── Feuilles (#sheet) ───────────── */
 
-export function FeuilleMarques({ marques, active, ajouter, onChoisir }: {
+export function FeuilleMarques({ marques, active, ajouter, onChoisir, signalLogo = null }: {
   marques: Array<{ id: string; nom: string }>;
   active: string | null;
   /** « Ajouter une marque » · page réelle, pour qui peut créer une marque. */
   ajouter: string | null;
   onChoisir: (id: string) => void;
+  /** Le logo de la marque active est à réimporter · le chemin vers l'Identité (admin), sinon qui peut le faire. */
+  signalLogo?: SignalLogoAReimporter | null;
 }) {
   return (
     <>
       <strong>Changer de marque</strong>
+      {signalLogo && (signalLogo.lien
+        ? <Lien href={signalLogo.lien} data-logo-etat="a_reimporter" data-lien="identite-marque"><Ic n="warn" /><span>{signalLogo.libelle} · {signalLogo.raison} {signalLogo.aide}</span></Lien>
+        : <p className="faint" data-logo-etat="a_reimporter" style={{ fontSize: '12.5px', padding: '0 14px' }}><Ic n="warn" />{signalLogo.libelle} · {signalLogo.raison} {signalLogo.aide}</p>)}
       {marques.map((m) => (
         <a key={m.id} href="/dashboard" aria-current={m.id === active ? 'true' : undefined} onClick={(ev) => { ev.preventDefault(); onChoisir(m.id); }}>
           <Ic n={m.id === active ? 'check' : 'tag'} />{m.nom}

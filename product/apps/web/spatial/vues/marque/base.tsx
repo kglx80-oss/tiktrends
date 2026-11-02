@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { EtatLogoCharte } from '@tiktrends/core';
-import { Ic } from '../../communs';
+import { Ic, Lien } from '../../communs';
 import { BadgeLogo, BoutonAppel, BoutonServeur, ImportLogo, type ImportLogoActions } from './interactifs';
 
 /**
@@ -46,6 +46,8 @@ export interface PropsFaviconMarque {
    * tête de la carte, avec sa raison, à la place d'une image cassée.
    */
   alerte?: Exclude<EtatLogoCharte, { etat: 'servi' }> | null;
+  /** La fiche Identité, quand la carte est montrée ailleurs (vue d'ensemble) · le badge y mène. */
+  identite?: string | null;
 }
 
 
@@ -55,7 +57,9 @@ export function CarteFavicon(p: PropsFaviconMarque) {
       <div className="favv">{p.image ? <img src={p.image} alt="" /> : <span className="blogo">{p.initiale}</span>}</div>
       <div className="favt">
         <span className="lbl" style={{ margin: 0 }}>Favicon de la marque</span>
-        {p.alerte && <span style={{ justifySelf: 'start' }}><BadgeLogo e={p.alerte} /></span>}
+        {p.alerte && (p.identite
+          ? <Lien href={p.identite} data-lien="identite-marque" style={{ justifySelf: 'start' }} title="Ouvrir l’Identité de la marque"><BadgeLogo e={p.alerte} /></Lien>
+          : <span style={{ justifySelf: 'start' }}><BadgeLogo e={p.alerte} /></span>)}
         <strong>{p.titre}</strong>
         <small className="faint">{p.detail}</small>
       </div>

@@ -17,6 +17,7 @@ import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '.
 import { useRegime, useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import { Message } from './briques';
+import { AnnonceLogos } from './LogosAReimporter';
 
 /**
  * Le parcours image d'un projet (atelier « Produit »), porté du parcours V5
@@ -178,6 +179,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
       <div className="sech" style={{ margin: 0 }}><h2>{titre}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Jarvis prépare, tu vérifies le prix avant de lancer, puis le produit sur l’image</span></div>
       {appel.bloque && <div className="banner" role="status" style={{ margin: 0 }}><span className="orb" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span><span>{MESSAGE_APPEL_PAYANT} <Lien href={`/studio/projets/${projectId}#taches`}>Voir le suivi</Lien></span></div>}
       {retour && <div data-retour={retour.ton === 'ok' ? 'ok' : 'refus'}><Message ton={retour.ton}>{retour.texte}</Message></div>}
+      <AnnonceLogos a={vue.logosAReimporter} />
       <small className="faint" style={{ fontSize: '11.5px' }}>Format {vue.format.largeur} × {vue.format.hauteur} · {vue.format.libelle}{vue.format.depuisBrief ? ' · lu dans le brief' : ' · défaut, le brief ne précise pas de format'}.</small>
 
       {!(propositionDisponible || verdictOk) && (

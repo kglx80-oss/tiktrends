@@ -201,3 +201,106 @@ export function bilanLogosCharte(o: {
   const d = o.defaut && Object.prototype.hasOwnProperty.call(etats, o.defaut) ? etats[o.defaut]! : null;
   return { etats, defaut: d };
 }
+
+/* ───────────── Ailleurs que la fiche · le logo par défaut et les usages Studios ───────────── */
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * Seule la fiche Identité disait « à réimporter ». Ailleurs, le logo par
+ * défaut d'une marque s'affichait en image cassée (vue d'ensemble de la
+ * marque, bouton de marque de la coquille, accueil), et les Studios ne le
+ * découvraient qu'au REFUS du devis, après la préparation payante de la
+ * consigne (`motifLogosAReimporter`).
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ *  · un écran qui montre le logo par défaut le juge par le MÊME bilan que la
+ *    fiche (`bilanLogosCharte.defaut`) · servi ⇒ l'image ; sinon l'initiale,
+ *    jamais une image que la route refuserait ;
+ *  · seul « à réimporter » porte un signal (`logoParDefautAffiche.signal`) ·
+ *    « indisponible » montre l'initiale sans rien demander (on ne fait pas
+ *    refaire un import qu'on n'a pas pu juger) ;
+ *  · le signal mène à la fiche Identité pour qui peut la gérer (admin) ; les
+ *    autres lisent qui peut le faire, sans lien vers un écran qui les
+ *    renverrait ;
+ *  · Studios · un logo à réimporter n'est annoncé que s'il SERAIT UTILISÉ (lié
+ *    au brief ou à une consigne du projet) · les autres logos de la charte ne
+ *    concernent pas ce visuel et rien n'est bloqué.
+ */
+
+/** La fiche Identité d'une marque · là où se réimporte un logo. */
+export function cheminIdentiteMarque(brandId: string): string {
+  return `/brands/${encodeURIComponent(brandId)}/identite`;
+}
+
+export const AIDE_LOGO_SANS_GESTION = 'Un administrateur de l’espace peut le réimporter dans l’Identité de la marque.';
+
+export interface SignalLogoAReimporter {
+  libelle: 'Logo à réimporter';
+  raison: string;
+  /** La fiche Identité · `null` pour qui ne peut pas la gérer (voir `aide`). */
+  lien: string | null;
+  aide: string;
+}
+
+export interface LogoParDefautAffiche {
+  /** Montrer l'image du logo par défaut · faux ⇒ l'initiale. */
+  image: boolean;
+  /** Seulement « à réimporter » · « indisponible » ne signale rien. */
+  signal: SignalLogoAReimporter | null;
+}
+
+/** Ce qu'un écran montre du logo par défaut · `bilan` absent (rien de vérifié, logo sans empreinte) ⇒ l'image, sans signal. */
+export function logoParDefautAffiche(o: { bilan: BilanLogosCharte | null | undefined; brandId: string; peutGerer: boolean }): LogoParDefautAffiche {
+  const d = o.bilan?.defaut ?? null;
+  if (!d) return { image: true, signal: null };
+  if (d.etat !== 'a_reimporter') return { image: false, signal: null };
+  return {
+    image: false,
+    signal: {
+      libelle: 'Logo à réimporter', raison: d.raison,
+      lien: o.peutGerer ? cheminIdentiteMarque(o.brandId) : null,
+      aide: o.peutGerer ? 'Réimporte-le dans l’Identité de la marque.' : AIDE_LOGO_SANS_GESTION,
+    },
+  };
+}
+
+/** Un logo de la charte lié au projet, avec son nom dans le catalogue (« Logo principal », « Logo · variante 1 »). */
+export interface LogoDuProjet { assetId: string; url: string; libelle: string }
+
+export interface AnnonceLogosAReimporter {
+  logos: Array<{ assetId: string; libelle: string }>;
+  message: string;
+  /** La fiche Identité · `null` pour qui ne peut pas la gérer (le message dit qui peut). */
+  lien: string | null;
+}
+
+/**
+ * Les logos à réimporter que le visuel UTILISERAIT · `utilises` = les
+ * identifiants liés (brief, consignes), `logos` = ceux de la charte, `bilan`
+ * = leur état (`bilanLogosCharte`). `null` quand aucun logo utilisé n'est à
+ * réimporter (« indisponible » compris · le devis le relira).
+ */
+export function annonceLogosAReimporter(o: {
+  utilises: ReadonlyArray<string>;
+  logos: ReadonlyArray<LogoDuProjet>;
+  bilan: BilanLogosCharte;
+  brandId: string;
+  peutGerer: boolean;
+}): AnnonceLogosAReimporter | null {
+  const voulus = new Set(o.utilises);
+  const vus = new Set<string>();
+  const out: Array<{ assetId: string; libelle: string }> = [];
+  for (const l of o.logos) {
+    if (!voulus.has(l.assetId) || vus.has(l.assetId)) continue;
+    vus.add(l.assetId);
+    const e = Object.prototype.hasOwnProperty.call(o.bilan.etats, l.url) ? o.bilan.etats[l.url]! : null;
+    if (e?.etat === 'a_reimporter') out.push({ assetId: l.assetId, libelle: l.libelle });
+  }
+  if (!out.length) return null;
+  const noms = out.map((l) => `« ${l.libelle} »`).join(', ');
+  const plusieurs = out.length > 1;
+  const message = `${plusieurs ? 'Logos à réimporter' : 'Logo à réimporter'} · ${noms} : ${plusieurs ? 'leurs fichiers ont' : 'son fichier a'} été remplacé${plusieurs ? 's' : ''} ou ${plusieurs ? 'ne sont' : 'n’est'} plus dans le stockage depuis l’import. ${plusieurs ? 'Ils ne seront pas envoyés' : 'Il ne sera pas envoyé'} au fournisseur d’images et une consigne qui ${plusieurs ? 'les' : 'le'} lie ne pourra pas être générée · ${o.peutGerer ? `réimporte-${plusieurs ? 'les' : 'le'} dans l’Identité de la marque avant de préparer ton visuel.` : 'un administrateur de l’espace peut le faire dans l’Identité de la marque.'}`;
+  return { logos: out, message, lien: o.peutGerer ? cheminIdentiteMarque(o.brandId) : null };
+}

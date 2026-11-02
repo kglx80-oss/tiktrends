@@ -9,6 +9,7 @@ import {
 import type { ExecStudio } from '../execution/types';
 import { MESSAGE_MODE_FIDELE_INDISPONIBLE } from '../produit/compilation';
 import { resoudreReferencesImage } from './references';
+import type { VerifierLogo } from '../../logos-charte-etat';
 
 /**
  * Studios · F-B · vérifier une consigne image persistée (lecture seule).
@@ -65,14 +66,14 @@ export interface EtatConsigne {
 }
 
 /** Ce que le devis et l'approbation exigent, lu dans l'exécuteur de l'appelant. */
-export async function verifierConsigne(ex: ExecStudio, p: Portee, contenu: ContenuVersion): Promise<EtatConsigne> {
+export async function verifierConsigne(ex: ExecStudio, p: Portee, contenu: ContenuVersion, verifier?: VerifierLogo): Promise<EtatConsigne> {
   const consigne = consigneDuContenu(contenu);
   const entreesCourantes = empreinteEntreesCompilation(contenu);
   if (!consigne) return { consigne: null, empreinte: null, verdict: verdictConsigne({ consigne: null, attestee: false, entreesCourantes, resolutions: new Map() }) };
   const empreinte = empreinteConsigne(consigne);
   if (consigne.mode === 'faithful_composite') return { consigne, empreinte, verdict: { ok: false, cause: 'non_transmissible', code: 'UNSUPPORTED_CAPABILITY', motif: MESSAGE_MODE_FIDELE_INDISPONIBLE, cibles: [] } };
   const attestee = await consigneAttestee(ex, p, empreinte);
-  const resolutions = attestee ? await resoudreReferencesImage(ex, p, consigne.references.map((r) => r.assetId)) : new Map();
+  const resolutions = attestee ? await resoudreReferencesImage(ex, p, consigne.references.map((r) => r.assetId), verifier) : new Map();
   return { consigne, empreinte, verdict: verdictConsigne({ consigne, attestee, entreesCourantes, resolutions }) };
 }
 
