@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { execFile, spawnSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { inspecterMedia, etatFichierMedia, verdictDecodage, capaciteVideo, type EnteteMedia } from '@tiktrends/core';
 import { decoderVideoFfmpeg, fpsRationnel, secondesVersTicks } from '../src/studios/decodeur-video';
 import { sonderVideo, encodeursPresents } from '../src/studios/sonde-video';
@@ -22,13 +24,21 @@ import { mp4Recette88, mp4StructurePlausible } from '../../../packages/core/test
 const FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
 const H264 = FFMPEG && /\blibx264\b/.test(spawnSync('ffmpeg', ['-hide_banner', '-encoders'], { encoding: 'utf8' }).stdout ?? '');
 
+const executer = promisify(execFile);
 let dossier = '';
-/** Génère une vraie vidéo MP4 par ffmpeg (arguments en tableau, aucun shell). */
-function generer(nom: string, args: string[]): Uint8Array {
+/**
+ * Génère une vraie vidéo MP4 par ffmpeg (arguments en tableau, aucun shell).
+ * Processus ASYNCHRONE : les trois vidéos se fabriquent en parallèle au
+ * `beforeAll`, sans bloquer la boucle d'événements du fichier.
+ */
+async function generer(nom: string, args: string[]): Promise<Uint8Array> {
   const sortie = join(dossier, nom);
-  const r = spawnSync('ffmpeg', ['-nostdin', '-v', 'error', '-y', ...args, '-c:v', H264 ? 'libx264' : 'mpeg4', '-pix_fmt', 'yuv420p', '-f', 'mp4', sortie], { encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`ffmpeg n’a pas généré ${nom} · ${r.stderr}`);
-  return new Uint8Array(readFileSync(sortie));
+  try {
+    await executer('ffmpeg', ['-nostdin', '-v', 'error', '-y', ...args, '-c:v', H264 ? 'libx264' : 'mpeg4', '-pix_fmt', 'yuv420p', '-f', 'mp4', sortie], { encoding: 'utf8' });
+  } catch (e) {
+    throw new Error(`ffmpeg n’a pas généré ${nom} · ${(e as { stderr?: string }).stderr ?? String(e)}`);
+  }
+  return new Uint8Array(await readFile(sortie));
 }
 
 /**
@@ -57,18 +67,20 @@ let TESTSRC = new Uint8Array();
 let MOTIF = new Uint8Array();
 let SATURE = new Uint8Array();
 
-beforeAll(() => {
+beforeAll(async () => {
   if (!FFMPEG) return;
-  dossier = mkdtempSync(join(tmpdir(), 'l7b-test-'));
-  TESTSRC = generer('testsrc.mp4', ['-f', 'lavfi', '-i', 'testsrc=size=64x48:rate=24:duration=1']);
-  // Une couleur unie par image, qui dépend de son rang : début, milieu, fin se reconnaissent aux pixels.
-  MOTIF = generer('motif.mp4', [
-    '-f', 'lavfi', '-i', "color=c=black:s=64x48:r=24:d=1,format=rgb24,geq=r='N*10':g='255-N*10':b='128'",
-    '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=1',
-    ...(H264 ? ['-crf', '10'] : ['-q:v', '2']), '-c:a', 'aac', '-shortest',
+  dossier = await mkdtemp(join(tmpdir(), 'l7b-test-'));
+  [TESTSRC, MOTIF, SATURE] = await Promise.all([
+    generer('testsrc.mp4', ['-f', 'lavfi', '-i', 'testsrc=size=64x48:rate=24:duration=1']),
+    // Une couleur unie par image, qui dépend de son rang : début, milieu, fin se reconnaissent aux pixels.
+    generer('motif.mp4', [
+      '-f', 'lavfi', '-i', "color=c=black:s=64x48:r=24:d=1,format=rgb24,geq=r='N*10':g='255-N*10':b='128'",
+      '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=1',
+      ...(H264 ? ['-crf', '10'] : ['-q:v', '2']), '-c:a', 'aac', '-shortest',
+    ]),
+    generer('sature.mp4', ['-f', 'lavfi', '-i', 'color=c=gray:s=64x48:r=24:d=1', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=1,volume=8', '-c:a', 'aac', '-shortest']),
   ]);
-  SATURE = generer('sature.mp4', ['-f', 'lavfi', '-i', 'color=c=gray:s=64x48:r=24:d=1', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=1,volume=8', '-c:a', 'aac', '-shortest']);
-  return () => rmSync(dossier, { recursive: true, force: true });
+  return () => rm(dossier, { recursive: true, force: true });
 });
 
 const tempsRestants = () => readdirSync(tmpdir()).filter((f) => f.startsWith('tt-video-'));
@@ -131,8 +143,8 @@ describe.skipIf(!FFMPEG)('(c) structure parfaite, charge utile abîmée ⇒ seul
     expect(entete, 'précondition : structure plausible pour le filtre pur').toMatchObject({ mime: 'video/mp4', largeur: 64, hauteur: 48 });
     // ffprobe seul (en-têtes) ne voit rien.
     const f = join(dossier, 'abime.mp4');
-    writeFileSync(f, abime);
-    const p = spawnSync('ffprobe', ['-v', 'error', '-of', 'json', '-show_streams', f], { encoding: 'utf8' });
+    await writeFile(f, abime);
+    const p = await executer('ffprobe', ['-v', 'error', '-of', 'json', '-show_streams', f], { encoding: 'utf8' }).then((x) => ({ status: 0, ...x }), (e: { code?: number; stdout?: string; stderr?: string }) => ({ status: e.code ?? 1, stdout: e.stdout ?? '', stderr: e.stderr ?? '' }));
     expect([p.status, p.stderr.trim()], 'précondition : ffprobe accepte le fichier abîmé').toEqual([0, '']);
     expect(JSON.parse(p.stdout).streams[0]).toMatchObject({ codec_type: 'video', width: 64, height: 48, nb_frames: '24' });
 
