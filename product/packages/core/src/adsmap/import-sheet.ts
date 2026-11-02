@@ -22,17 +22,27 @@
  */
 
 import type { AdStatus, AdType, TestedVariable } from './types';
+import { retirerNeutralisation } from './sheet';
 
 /* -------------------------------------------------------------------------- */
 /*  Lecture du CSV                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Analyse CSV tolérante (RFC 4180 : guillemets, champs multilignes). */
+/**
+ * Analyse CSV tolérante (RFC 4180 : guillemets, champs multilignes).
+ *
+ * Chaque champ perd l'apostrophe que `csvCell` ajoute devant un début de
+ * formule (`retirerNeutralisation`) · un export Adsmap repris tel quel, ou
+ * réenregistré par un tableur qui a gardé l'apostrophe, redonne la valeur
+ * saisie (`=…` et non `'=…`). Seule une apostrophe SUIVIE d'un début de formule est
+ * retirée : « 'Hook' gagnant » d'un tableur historique reste intact.
+ */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
   let quoted = false;
+  const fin = () => { row.push(retirerNeutralisation(cell)); cell = ''; };
 
   const t = text.replace(/^﻿/, '');   // BOM éventuel
   for (let i = 0; i < t.length; i++) {
@@ -44,12 +54,12 @@ export function parseCsv(text: string): string[][] {
       continue;
     }
     if (c === '"') { quoted = true; continue; }
-    if (c === ',') { row.push(cell); cell = ''; continue; }
+    if (c === ',') { fin(); continue; }
     if (c === '\r') continue;
-    if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; continue; }
+    if (c === '\n') { fin(); rows.push(row); row = []; continue; }
     cell += c;
   }
-  if (cell || row.length) { row.push(cell); rows.push(row); }
+  if (cell || row.length) { fin(); rows.push(row); }
   return rows;
 }
 
