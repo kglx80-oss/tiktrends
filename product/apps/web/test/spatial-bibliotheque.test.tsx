@@ -127,7 +127,7 @@ describe('Spatial · Bibliothèque reproduit la maquette', () => {
     const ref = fragmentReference('bibliotheque');
     expect(ref).toContain('<span class="tnn">Photos produit</span><i class="tgdot" style="background:#4ade80" title="Validé"></i>');
     expect(ref).toContain('<span class="tnn">UGC</span><i class="tgdot" style="background:#fb923c" title="À valider"></i>');
-    expect(html).toMatch(/<div class="fcard " style="--tc:#4ade80"><button type="button" class="fopen"><span class="fic">[\s\S]*?<strong>Photos produit<\/strong><small>[^<]*<\/small><span class="ftag"><i><\/i>Validé<\/span>/);
+    expect(html).toMatch(/<div class="fcard " style="--tc:#4ade80"(?: draggable="true")?><button type="button" class="fopen"><span class="fic">[\s\S]*?<strong>Photos produit<\/strong><small>[^<]*<\/small><span class="ftag"><i><\/i>Validé<\/span>/);
     const puces = [...html.matchAll(/<button type="button" class="tgchip ?[^"]*" style="--tc:([^"]+)"[^>]*><i><\/i>([^<]*)<span>(\d+)<\/span><\/button>/g)].map((m) => [m[2], m[1], m[3]]);
     expect(puces).toEqual([['À valider', '#fb923c', '1'], ['Validé', '#4ade80', '1']]);
     expect(html).toMatch(/<button type="button" class="ftb has" aria-label="Tag de couleur" aria-expanded="false">/);
