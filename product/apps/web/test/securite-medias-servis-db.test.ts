@@ -81,6 +81,8 @@ import { GET as GET_BRAND_MEDIA } from '../app/api/brands/[id]/media/route';
 import { GET as GET_DRIVE } from '../app/api/drive-img/[id]/route';
 import { importAssetAction, uploadImageAssetsAction, registerUploadedAssetAction, deleteAssetAction, listAssets } from '../app/actions/assets';
 import { syncDriveFilesAction } from '../app/actions/drive';
+import { jetonScelle } from './helpers/depot-jeton';
+import { TEXTES_REFUS_JETON_FICHIER } from '@tiktrends/core';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -358,15 +360,21 @@ describe('A2 · un objet d’un autre espace ne s’enregistre pas et ne se supp
     etat.session = session(ids, 'ub');
     etat.brand = null;
     const avant = (await lignes(ids.wsB)).length;
+    // Le dépôt se désigne par son JETON · une variante d'adresse n'est plus un identifiant lisible,
+    // et un jeton scellé qui désignerait sa clé est refusé (hors de l'espace).
     for (const url of variantes()) {
-      const r = await registerUploadedAssetAction({ name: 'vol', url, mimeType: 'image/png', sizeBytes: 10 });
-      expect(r.error, url).toBe('Ce fichier n’a pas été téléversé depuis cet espace.');
+      const r = await registerUploadedAssetAction({ name: 'vol', jetonDepot: url, mimeType: 'image/png', sizeBytes: 10 });
+      expect(r.error, url).toBe(TEXTES_REFUS_JETON_FICHIER.illisible);
+      const cle = url.startsWith(`${BASE}/`) ? url.slice(BASE.length + 1) : null;
+      if (!cle) continue;
+      const scelle = await registerUploadedAssetAction({ name: 'vol', jetonDepot: jetonScelle({ espace: ids.wsB, utilisateur: ids.ub, usage: 'envoi', cle }), mimeType: 'image/png', sizeBytes: 10 });
+      expect([TEXTES_REFUS_JETON_FICHIER.autre_espace, 'Ce fichier n’a pas été téléversé depuis cet espace.'], `${url} · ${scelle.error}`).toContain(scelle.error);
     }
     expect((await lignes(ids.wsB)).length).toBe(avant);
     // Témoin : un objet de l'espace s'enregistre toujours.
     // L'objet déposé est relu avant l'écriture · le bucket sert un vrai PNG.
     vi.stubGlobal('fetch', bucketQuiSert(PNG));
-    const ok = await registerUploadedAssetAction({ name: 'mien', url: `${BASE}/assets/${ids.wsB}/1-ab-mien.png`, mimeType: 'image/png', sizeBytes: 10 }).finally(() => vi.unstubAllGlobals());
+    const ok = await registerUploadedAssetAction({ name: 'mien', jetonDepot: jetonScelle({ espace: ids.wsB, utilisateur: ids.ub, usage: 'envoi', cle: `assets/${ids.wsB}/1-ab-mien.png` }), mimeType: 'image/png', sizeBytes: 10 }).finally(() => vi.unstubAllGlobals());
     expect(ok).toEqual({ ok: true });
   });
 

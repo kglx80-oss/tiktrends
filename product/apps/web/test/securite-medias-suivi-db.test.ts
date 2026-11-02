@@ -83,6 +83,7 @@ import { registerUploadedAssetAction, deleteAssetAction } from '../app/actions/a
 import { setDriveFolderAction, syncDriveFilesAction } from '../app/actions/drive';
 import { migrateEmbeddedImagesAction, embeddedImagesStatusAction } from '../app/actions/storage';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
+import { jetonScelle } from './helpers/depot-jeton';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -245,12 +246,12 @@ describe('M4 · objet partagé, clé Drive', () => {
   it('une clé `drive-…` de l’espace ne s’enregistre pas comme téléversement', async () => {
     etat.session = session(ids, 'ub');
     etat.brand = null;
-    const r = await registerUploadedAssetAction({ name: 'vol', url: `${BASE}/assets/${ids.wsB}/drive-abc.png`, mimeType: 'image/png', sizeBytes: 1 });
+    const r = await registerUploadedAssetAction({ name: 'vol', jetonDepot: jetonScelle({ espace: ids.wsB, utilisateur: ids.ub, usage: 'envoi', cle: `assets/${ids.wsB}/drive-abc.png` }), mimeType: 'image/png', sizeBytes: 1 });
     expect(r.error ?? 'CLÉ DRIVE ENREGISTRÉE').toBe('Ce fichier n’a pas été téléversé depuis cet espace.');
     // Témoin · l'objet déposé est relu avant l'écriture · le bucket sert un vrai PNG.
     vi.stubGlobal('fetch', bucketQuiSert(PNG));
     try {
-      expect(await registerUploadedAssetAction({ name: 'mien', url: `${BASE}/assets/${ids.wsB}/4-gh-mien.png`, mimeType: 'image/png', sizeBytes: 1 })).toEqual({ ok: true });
+      expect(await registerUploadedAssetAction({ name: 'mien', jetonDepot: jetonScelle({ espace: ids.wsB, utilisateur: ids.ub, usage: 'envoi', cle: `assets/${ids.wsB}/4-gh-mien.png` }), mimeType: 'image/png', sizeBytes: 1 })).toEqual({ ok: true });
     } finally { vi.unstubAllGlobals(); }
   });
 });

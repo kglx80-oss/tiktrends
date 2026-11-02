@@ -36,7 +36,7 @@ const propre = (t: string | undefined) => {
 describe('Recette #106b · refus « service absent » rendus au client', () => {
   it('Assets · téléversement direct sans stockage', async () => {
     const { presignAssetUploadAction } = await import('../app/actions/assets');
-    const r = await presignAssetUploadAction({ filename: 'a.mp4', contentType: 'video/mp4', sizeBytes: 10 });
+    const r = await presignAssetUploadAction({ filename: 'a.mp4', contentType: 'video/mp4', sizeBytes: 10, usage: 'envoi' });
     propre(r.error); expect(r.error).toBe(messageServiceInactif('stockage'));
   });
   it('Jarvis · apprendre des marques suivies sans recherche publicitaire', async () => {

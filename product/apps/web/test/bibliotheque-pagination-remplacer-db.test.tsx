@@ -57,6 +57,7 @@ import { session, semer } from './studios-semis';
 import BibliothequeSpatiale from '../app/(spatial)/sp/assets/page';
 import { listAssets, pageBibliothequeAction, remplacerAssetAction } from '../app/actions/assets';
 import { lireFenetre } from '../lib/bibliotheque-pages';
+import { jetonScelle } from './helpers/depot-jeton';
 
 const ids = etat.ids;
 const BASE = CFG.publicBaseUrl;
@@ -92,7 +93,8 @@ const T = (minutesAvant: number) => new Date(Date.parse('2026-10-30T12:00:00.000
 const deposer = (nom: string, octets: Buffer) => {
   const cle = `assets/${ids.wsA}/1700000000000-pg-${nom}`;
   bucket.set(cle, octets);
-  return { url: `${BASE}/${cle}`, cle };
+  // Le jeton opaque que le présigné rendrait pour ce dépôt (usage `remplacement`).
+  return { url: `${BASE}/${cle}`, cle, jeton: jetonScelle({ espace: ids.wsA, utilisateur: ids.ua, usage: 'remplacement', cle }) };
 };
 const ANCIEN = 'photo-0449.png';
 let ancien = '';
@@ -163,7 +165,7 @@ describe('« Remplacer » un fichier chargé par « Charger plus »', () => {
     const octetsAvant = avant.donnees.comptes!.octets['r:assets']!;
     const urlAvant = (await toutes(avant.pagination.vivants)).find((m) => m.id === ancien)!.url;
     const neuf = deposer('photo-0449-v2.jpg', JPEG);
-    expect(await remplacerAssetAction({ id: ancien, url: neuf.url, mimeType: 'image/jpeg' })).toEqual({ ok: true });
+    expect(await remplacerAssetAction({ id: ancien, jetonDepot: neuf.jeton, mimeType: 'image/jpeg' })).toEqual({ ok: true });
 
     const apres = await pageRendue();
     const v = vueDrive(apres.donnees, ETAT_DRIVE_INITIAL);

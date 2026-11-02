@@ -42,13 +42,14 @@ vi.mock('@tiktrends/integrations', async (importOriginal) => ({
 import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, schema, sql } from '@tiktrends/db';
-import { MESSAGES_REFUS_RELU, REFUS_REMPLACEMENT, refusFamilleRemplacement, verdictConsigne, type ConsigneImagePersistee } from '@tiktrends/core';
+import { MESSAGES_REFUS_RELU, REFUS_REMPLACEMENT, TEXTES_REFUS_JETON_FICHIER, refusFamilleRemplacement, verdictConsigne, type ConsigneImagePersistee, type UsageDepot } from '@tiktrends/core';
 import { session, semer } from './studios-semis';
 import { registerUploadedAssetAction, remplacerAssetAction, listAssets } from '../app/actions/assets';
 import { referencesObjetEnBase } from '../lib/references-objet';
 import { resoudreReferencesImage } from '../lib/studios/image/references';
 import { hacherImage } from '../lib/studios/produit/catalogue';
 import { mp4StructurePlausible } from '../../../packages/core/test/l3-fixtures-media';
+import { jetonScelle } from './helpers/depot-jeton';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -88,19 +89,23 @@ async function fauxBucket(entree: string | URL | Request, init?: RequestInit): P
 /* ──────────────────────────────── Outils ──────────────────────────────── */
 
 let n = 0;
-/** Dépose des octets chez l'espace `ws` · l'adresse publique, comme `presignAssetUploadAction`. */
-function deposer(ws: string, nom: string, octets: Buffer): { url: string; cle: string } {
+/**
+ * Dépose des octets chez l'espace `ws` · l'adresse canonique (pour lire la
+ * ligne) et le JETON scellé du dépôt, celui que `presignAssetUploadAction`
+ * rendrait à un membre de cet espace pour `usage` (remplacement par défaut).
+ */
+function deposer(ws: string, nom: string, octets: Buffer, usage: UsageDepot = 'remplacement'): { url: string; cle: string; jeton: string } {
   const cle = `assets/${ws}/${1_700_000_000_000 + ++n}-rp${n}-${nom}`;
   bucket.set(cle, octets);
-  return { url: `${BASE}/${cle}`, cle };
+  return { url: `${BASE}/${cle}`, cle, jeton: jetonScelle({ espace: ws, utilisateur: ws === ids.wsB ? ids.ub : ids.ua, usage, cle }) };
 }
 const ligneId = async (id: string) => (await db.select().from(schema.assets).where(eq(schema.assets.id, id)))[0]!;
 const nAssets = async () => (await db.select({ id: schema.assets.id }).from(schema.assets)).length;
 
 /** Un fichier téléversé par le VRAI chemin de la Bibliothèque, puis rangé et réglé comme un fichier vivant. */
 async function televerse(nom: string, octets: Buffer, type: string): Promise<{ id: string; url: string; cle: string }> {
-  const { url, cle } = deposer(ids.wsB, nom, octets);
-  expect(await registerUploadedAssetAction({ name: nom, url, mimeType: type, sizeBytes: octets.length })).toEqual({ ok: true });
+  const { url, cle, jeton } = deposer(ids.wsB, nom, octets, 'envoi');
+  expect(await registerUploadedAssetAction({ name: nom, jetonDepot: jeton, mimeType: type, sizeBytes: octets.length })).toEqual({ ok: true });
   const [l] = await db.select().from(schema.assets).where(eq(schema.assets.url, url));
   await db.update(schema.assets).set({ rights: 'photo_marque', useForAi: false, tags: ['flacon'], thumbUrl: `${BASE}/assets/${ids.wsB}/vignette-${n}.jpg` }).where(eq(schema.assets.id, l!.id));
   return { id: l!.id, url, cle };
@@ -138,7 +143,7 @@ describe('remplacerAssetAction · la MÊME ligne porte la nouvelle version', () 
     const total = await nAssets();
     const neuf = deposer(ids.wsB, 'face-v2.jpg', JPEG);
     // Le type DÉCLARÉ est faux · seul le type relu compte.
-    expect(await remplacerAssetAction({ id: f.id, url: neuf.url, mimeType: 'image/png' })).toEqual({ ok: true });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: neuf.jeton, mimeType: 'image/png' })).toEqual({ ok: true });
     const apres = await ligneId(f.id);
     expect({ url: apres.url, type: apres.mimeType, taille: apres.sizeBytes, empreinte: apres.objectEtag, vignette: apres.thumbUrl, kind: apres.kind })
       .toEqual({ url: neuf.url, type: 'image/jpeg', taille: JPEG.length, empreinte: md5(JPEG), vignette: null, kind: 'image' });
@@ -154,7 +159,7 @@ describe('remplacerAssetAction · la MÊME ligne porte la nouvelle version', () 
     const lire = async () => (await listAssets({ id: f.id }))[0]!;
     const avant = await lire();
     const neuf = deposer(ids.wsB, 'dos-v2.jpg', JPEG);
-    expect(await remplacerAssetAction({ id: f.id, url: neuf.url, mimeType: 'image/jpeg' })).toEqual({ ok: true });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: neuf.jeton, mimeType: 'image/jpeg' })).toEqual({ ok: true });
     const apres = await lire();
     expect([avant.url.startsWith(`/api/asset/${f.id}?`), apres.url.startsWith(`/api/asset/${f.id}?`), apres.url !== avant.url, apres.contenu]).toEqual([true, true, true, 'stockage']);
   });
@@ -162,7 +167,7 @@ describe('remplacerAssetAction · la MÊME ligne porte la nouvelle version', () 
   it('une vidéo remplacée par une vidéo · acceptée', async () => {
     const f = await televerse('rush.mp4', MP4, 'video/mp4');
     const neuf = deposer(ids.wsB, 'rush-v2.mp4', Buffer.from(mp4StructurePlausible({ largeur: 512, hauteur: 288, echantillons: [100], donnees: 300 })));
-    expect(await remplacerAssetAction({ id: f.id, url: neuf.url, mimeType: 'video/mp4' })).toEqual({ ok: true });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: neuf.jeton, mimeType: 'video/mp4' })).toEqual({ ok: true });
     expect((await ligneId(f.id)).url).toBe(neuf.url);
   });
 });
@@ -172,7 +177,7 @@ describe('remplacerAssetAction · refus, la ligne intacte, le NOUVEL objet retir
     const f = await televerse('photo.png', PNG, 'image/png');
     const avant = await ligneId(f.id);
     const neuf = deposer(ids.wsB, 'clip.mp4', MP4);
-    expect(await remplacerAssetAction({ id: f.id, url: neuf.url, mimeType: 'video/mp4' })).toEqual({ error: refusFamilleRemplacement('image', 'video') });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: neuf.jeton, mimeType: 'video/mp4' })).toEqual({ error: refusFamilleRemplacement('image', 'video') });
     expect(await ligneId(f.id)).toEqual(avant);
     expect([bucket.has(neuf.cle), bucket.has(f.cle), supprimes]).toEqual([false, true, [neuf.cle]]);
   });
@@ -181,7 +186,7 @@ describe('remplacerAssetAction · refus, la ligne intacte, le NOUVEL objet retir
     const f = await televerse('logo.png', PNG, 'image/png');
     const avant = await ligneId(f.id);
     const neuf = deposer(ids.wsB, 'logo-v2.png', HTML);
-    expect(await remplacerAssetAction({ id: f.id, url: neuf.url, mimeType: 'image/png' })).toEqual({ error: MESSAGES_REFUS_RELU.balisage });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: neuf.jeton, mimeType: 'image/png' })).toEqual({ error: MESSAGES_REFUS_RELU.balisage });
     expect(await ligneId(f.id)).toEqual(avant);
     expect([bucket.has(neuf.cle), bucket.has(f.cle)]).toEqual([false, true]);
   });
@@ -189,7 +194,7 @@ describe('remplacerAssetAction · refus, la ligne intacte, le NOUVEL objet retir
   it('un fichier d’un AUTRE espace · « introuvable », sa ligne intacte, le dépôt retiré', async () => {
     const [autre] = await db.insert(schema.assets).values({ workspaceId: ids.wsA, name: 'secret', kind: 'image', source: 'upload', url: `${BASE}/assets/${ids.wsA}/1-zz-secret.png`, mimeType: 'image/png' }).returning();
     const neuf = deposer(ids.wsB, 'vol.png', PNG);
-    expect(await remplacerAssetAction({ id: autre!.id, url: neuf.url, mimeType: 'image/png' })).toEqual({ error: REFUS_REMPLACEMENT.introuvable });
+    expect(await remplacerAssetAction({ id: autre!.id, jetonDepot: neuf.jeton, mimeType: 'image/png' })).toEqual({ error: REFUS_REMPLACEMENT.introuvable });
     expect(await ligneId(autre!.id)).toEqual(autre);
     expect(bucket.has(neuf.cle)).toBe(false);
   });
@@ -199,7 +204,7 @@ describe('remplacerAssetAction · refus, la ligne intacte, le NOUVEL objet retir
     await db.update(schema.assets).set({ deletedAt: new Date() }).where(eq(schema.assets.id, f.id));
     const avant = await ligneId(f.id);
     const neuf = deposer(ids.wsB, 'jete-v2.png', PNG);
-    expect(await remplacerAssetAction({ id: f.id, url: neuf.url, mimeType: 'image/png' })).toEqual({ error: REFUS_REMPLACEMENT.introuvable });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: neuf.jeton, mimeType: 'image/png' })).toEqual({ error: REFUS_REMPLACEMENT.introuvable });
     expect(await ligneId(f.id)).toEqual(avant);
     expect([bucket.has(neuf.cle), bucket.has(f.cle)]).toEqual([false, true]);
   });
@@ -209,7 +214,7 @@ describe('remplacerAssetAction · refus, la ligne intacte, le NOUVEL objet retir
     const [enBase] = await db.insert(schema.assets).values({ workspaceId: ids.wsB, name: 'base', kind: 'image', source: 'upload', url: `data:image/png;base64,${PNG.toString('base64')}`, mimeType: 'image/png' }).returning();
     for (const [l, phrase] of [[drive!, REFUS_REMPLACEMENT.drive], [enBase!, REFUS_REMPLACEMENT.base]] as const) {
       const neuf = deposer(ids.wsB, 'nv.png', PNG);
-      expect(await remplacerAssetAction({ id: l.id, url: neuf.url, mimeType: 'image/png' })).toEqual({ error: phrase });
+      expect(await remplacerAssetAction({ id: l.id, jetonDepot: neuf.jeton, mimeType: 'image/png' })).toEqual({ error: phrase });
       expect(await ligneId(l.id)).toEqual(l);
       expect(bucket.has(neuf.cle)).toBe(false);
     }
@@ -219,7 +224,9 @@ describe('remplacerAssetAction · refus, la ligne intacte, le NOUVEL objet retir
     const a = await televerse('a.png', PNG, 'image/png');
     const b = await televerse('b.png', PNG, 'image/png');
     const avant = await ligneId(a.id);
-    expect(await remplacerAssetAction({ id: a.id, url: b.url, mimeType: 'image/png' })).toEqual({ error: REFUS_REMPLACEMENT.dejaEnregistre });
+    // Un jeton de REMPLACEMENT qui désignerait l'objet de b (déjà cité par sa ligne).
+    const jetonB = jetonScelle({ espace: ids.wsB, utilisateur: ids.ub, usage: 'remplacement', cle: b.cle });
+    expect(await remplacerAssetAction({ id: a.id, jetonDepot: jetonB, mimeType: 'image/png' })).toEqual({ error: REFUS_REMPLACEMENT.dejaEnregistre });
     expect(await ligneId(a.id)).toEqual(avant);
     expect([bucket.has(a.cle), bucket.has(b.cle), supprimes]).toEqual([true, true, []]);
   });
@@ -227,7 +234,10 @@ describe('remplacerAssetAction · refus, la ligne intacte, le NOUVEL objet retir
   it('un dépôt hors de l’espace · refusé, rien n’est lu ni effacé', async () => {
     const f = await televerse('c.png', PNG, 'image/png');
     const ailleurs = deposer(ids.wsA, 'x.png', PNG);
-    expect(await remplacerAssetAction({ id: f.id, url: ailleurs.url, mimeType: 'image/png' })).toEqual({ error: 'Ce fichier n’a pas été téléversé depuis cet espace.' });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: ailleurs.jeton, mimeType: 'image/png' })).toEqual({ error: TEXTES_REFUS_JETON_FICHIER.autre_espace });
+    // Le jeton d'envoi de la Bibliothèque ne remplace rien · un autre usage.
+    const envoi = deposer(ids.wsB, 'y.png', PNG, 'envoi');
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: envoi.jeton, mimeType: 'image/png' })).toEqual({ error: TEXTES_REFUS_JETON_FICHIER.autre_usage });
     expect([bucket.has(ailleurs.cle), supprimes]).toEqual([true, []]);
   });
 
@@ -236,12 +246,12 @@ describe('remplacerAssetAction · refus, la ligne intacte, le NOUVEL objet retir
     const avant = await ligneId(f.id);
     const neuf = deposer(ids.wsB, 'd-v2.jpg', JPEG);
     await refuser('on');
-    await expect(remplacerAssetAction({ id: f.id, url: neuf.url, mimeType: 'image/jpeg' })).rejects.toThrow(/écriture refusée/);
+    await expect(remplacerAssetAction({ id: f.id, jetonDepot: neuf.jeton, mimeType: 'image/jpeg' })).rejects.toThrow(/écriture refusée/);
     await refuser('off');
     expect([await ligneId(f.id), bucket.has(neuf.cle), bucket.has(f.cle)]).toEqual([avant, false, true]);
     const neuf2 = deposer(ids.wsB, 'd-v3.jpg', JPEG);
     await refuser('silence');
-    expect(await remplacerAssetAction({ id: f.id, url: neuf2.url, mimeType: 'image/jpeg' })).toEqual({ error: REFUS_REMPLACEMENT.introuvable });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: neuf2.jeton, mimeType: 'image/jpeg' })).toEqual({ error: REFUS_REMPLACEMENT.introuvable });
     await refuser('off');
     expect([await ligneId(f.id), bucket.has(neuf2.cle)]).toEqual([avant, false]);
   });
@@ -255,7 +265,7 @@ describe('Studios · la référence `bib_<id>` relit la NOUVELLE version', () =>
     const avant = (await resoudreReferencesImage(db as never, portee, [ref])).get(ref)!;
     expect(avant).toMatchObject({ etat: 'present', sha256: hacherImage(f.url).sha256 });
     const neuf = deposer(ids.wsB, 'produit-v2.jpg', JPEG);
-    expect(await remplacerAssetAction({ id: f.id, url: neuf.url, mimeType: 'image/jpeg' })).toEqual({ ok: true });
+    expect(await remplacerAssetAction({ id: f.id, jetonDepot: neuf.jeton, mimeType: 'image/jpeg' })).toEqual({ ok: true });
     const apres = (await resoudreReferencesImage(db as never, portee, [ref])).get(ref)!;
     expect(apres).toMatchObject({ etat: 'present', sha256: hacherImage(neuf.url).sha256 });
     expect(apres.etat === 'present' && avant.etat === 'present' && apres.sha256 !== avant.sha256).toBe(true);

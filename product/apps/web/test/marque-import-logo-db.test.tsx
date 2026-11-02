@@ -26,7 +26,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { RAISON_LOGO_SANS_STOCKAGE, charteAvecLogoImporte } from '@tiktrends/core';
+import { LOGO_DEPOSE, RAISON_LOGO_SANS_STOCKAGE, charteAvecLogoImporte } from '@tiktrends/core';
 import { presignAssetUploadAction } from '../app/actions/assets';
 import { saveBrandDAAction } from '../app/actions/brand-detail';
 import { chargerMarque, propsFavicon, propsImportLogo } from '../app/(spatial)/sp/brands/[id]/donnees';
@@ -34,6 +34,7 @@ import { CarteFavicon } from '../spatial/vues/marque/base';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 import { bucketQuiSert } from './helpers/bucket-qui-sert';
+import { cleDuLienDepot } from './helpers/depot-jeton';
 
 const ANCIEN = 'https://site.exemple.invalid/logo.png';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAIAAAAiZtkUAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGP4H9OFhhjIFQIAy24teZ6V9CwAAAAASUVORK5CYII=', 'base64');
@@ -66,23 +67,27 @@ describe('Marque · import d’un fichier de logo · chemin serveur', () => {
     const p = propsImportLogo(await chargerMarque(m.id));
     expect(p.raison).toBeNull();
     expect(p.actions).not.toBeNull();
-    const pre = await p.actions!.preparer({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 12_000 });
+    const pre = await p.actions!.preparer({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 12_000, usage: 'logo' });
     expect(pre.error).toBeUndefined();
-    expect(pre.publicUrl, 'le fichier est rangé chez CET espace').toContain(`assets/${m.ws}/`);
-    const charte = charteAvecLogoImporte({ logos: p.logos, defaut: p.defaut }, pre.publicUrl!);
-    expect(pre.jetonDepot, 'le dépôt est attesté par un jeton signé').toBeTruthy();
+    expect(Object.keys(pre).sort(), 'le présigné ne rend que le lien d’envoi, le type signé et le jeton').toEqual(['contentType', 'jetonDepot', 'uploadUrl']);
+    const cle = cleDuLienDepot(pre.uploadUrl!, 'tt');
+    expect(cle, 'le fichier est rangé chez CET espace').toMatch(new RegExp(`^assets/${m.ws}/`));
+    const depose = `https://s3.gra.exemple.invalid/tt/${cle}`;
+    // Le geste réel · l'adresse du dépôt n'est pas connue du navigateur, `LOGO_DEPOSE` en tient la place.
+    const charte = charteAvecLogoImporte({ logos: p.logos, defaut: p.defaut }, LOGO_DEPOSE);
+    expect(pre.jetonDepot, 'le dépôt est attesté par un jeton scellé').toBeTruthy();
     // Le PUT du navigateur · le bucket sert ensuite un vrai PNG de la taille annoncée.
     vi.stubGlobal('fetch', bucketQuiSert(pngDe(12_000)));
     expect(await p.actions!.enregistrer({ brandId: m.id, ...charte, colors: [...p.couleurs], fonts: [...p.polices], jetonDepot: pre.jetonDepot })).toEqual({ ok: true });
     const b = await lire(m.id);
-    expect(b.logoUrl).toBe(pre.publicUrl);
-    expect(b.logos).toEqual([ANCIEN, pre.publicUrl]);
+    expect(b.logoUrl, 'le serveur a résolu `LOGO_DEPOSE` par le jeton').toBe(depose);
+    expect(b.logos).toEqual([ANCIEN, depose]);
     expect(b.colors).toEqual(['#112233']);
     expect(b.fonts).toEqual(['Inter']);
     // La carte relue · le logo importé est affiché (par la route média de la marque, droits relus).
     const f = propsFavicon(await chargerMarque(m.id));
     expect(f.titre).toBe('Logo enregistré dans la charte');
-    expect(f.image).toBe(`/api/brands/${m.id}/media?url=${encodeURIComponent(pre.publicUrl!)}`);
+    expect(f.image).toBe(`/api/brands/${m.id}/media?url=${encodeURIComponent(depose)}`);
     expect(carte(f)).not.toContain('pas encore disponible');
   });
 
@@ -102,7 +107,7 @@ describe('Marque · import d’un fichier de logo · chemin serveur', () => {
     const p = propsImportLogo(await chargerMarque(m.id));
     expect(p.actions).toBeNull();
     expect(p.raison).toBe(TEXTE_REFUS_BIBLIOTHEQUE.plan);
-    expect((await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 1 })).error).toBe(TEXTE_REFUS_BIBLIOTHEQUE.plan);
+    expect((await presignAssetUploadAction({ filename: 'logo.png', contentType: 'image/png', sizeBytes: 1, usage: 'logo' })).error).toBe(TEXTE_REFUS_BIBLIOTHEQUE.plan);
     const html = carte(propsFavicon(await chargerMarque(m.id)));
     expect(html).toMatch(/<label class="btn sm" aria-disabled="true" title="[^"]*offre Core/);
     expect(html).toMatch(/<input type="file"[^>]*disabled=""/);
