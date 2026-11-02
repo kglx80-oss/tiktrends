@@ -71,7 +71,10 @@ export function chargeGlissee(d: DonneesDrive, id: string, selection: Iterable<s
     if (seul.fichiers.length !== 1 || !seul.gestes.find((g) => g.cle === 'ranger')?.ouvert) return null;
     const ids = new Set(selection);
     if (!ids.has(id)) return { type: 'fichiers', ids: [id] };
-    const groupe = gestesSelection(d, ids, base);
+    // Seuls les FICHIERS de la sélection partent · une sélection mixte ferme
+    // « Déplacer vers… » de la barre (dossiers et fichiers ne se déplacent pas
+    // par la même action), mais le glisser d'un fichier n'emporte que les fichiers.
+    const groupe = gestesSelection(d, [...ids].filter((x) => d.fichiers.some((f) => f.id === x)), base);
     if (!groupe.gestes.find((g) => g.cle === 'ranger')?.ouvert) return null;
     return { type: 'fichiers', ids: groupe.fichiers.map((f) => f.id) };
   }
