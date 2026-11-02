@@ -35,13 +35,15 @@ const date = (iso: string | null) => {
 };
 const resume = (e: ExportRealise) => `${CONTRAT_FORMAT[e.format].libelle} · ${e.largeur} × ${e.hauteur} · ${tailleLisible(e.octets)}`;
 
-function Violations({ violations }: { violations: ViolationExport[] }) {
+/** `identite` · la fiche Identité de la marque, pour qui peut y réimporter un logo (le message dit qui peut, sinon). */
+function Violations({ violations, identite }: { violations: ViolationExport[]; identite: string | null }) {
   return (
     <div className="tl">
       {violations.map((v, i) => (
         <div className="ev" key={`${i}-${v.cause}-${v.cible.calqueId ?? v.cible.type}`} data-cause={v.cause} data-cible={v.cible.calqueId ?? v.cible.type}>
           <span className="ico"><Ic n="warn" /></span>
-          <span>{v.message}{(v.cible.assetId || v.cible.famille) && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.cible.famille ? `Police ${v.cible.famille}` : `Média ${v.cible.assetId}`}</small>}</span>
+          <span>{v.message}{(v.cible.assetId || v.cible.famille) && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.cible.famille ? `Police ${v.cible.famille}` : `Média ${v.cible.assetId}`}</small>}
+            {v.cause === 'logo_a_reimporter' && identite && <Lien href={identite} data-lien="identite-marque" style={{ display: 'inline-block', marginTop: 4, fontSize: '12px' }}>Ouvrir l’Identité de la marque</Lien>}</span>
         </div>
       ))}
     </div>
@@ -87,7 +89,7 @@ export function Export({ vue, atelier }: PropsExport) {
             ) : (
               <>
                 <Message ton="err">Export impossible pour l’instant · {vue.preflight.violations.length} point{vue.preflight.violations.length > 1 ? 's' : ''} à corriger. Aucun fichier ne sera produit tant qu’il en reste.</Message>
-                <Violations violations={vue.preflight.violations} />
+                <Violations violations={vue.preflight.violations} identite={vue.identiteMarque ?? null} />
                 <div className="kc"><Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/image`}><Ic n="brush" />Corriger dans l’éditeur</Lien></div>
               </>
             )}
@@ -112,7 +114,7 @@ export function Export({ vue, atelier }: PropsExport) {
             {erreur && (
               <div role="alert" style={{ display: 'grid', gap: 6 }}>
                 <Message ton="err">{erreur.message}{erreur.traceId ? ` · identifiant support ${erreur.traceId}` : ''}</Message>
-                {erreur.violations.length > 0 && <Violations violations={erreur.violations} />}
+                {erreur.violations.length > 0 && <Violations violations={erreur.violations} identite={vue.identiteMarque ?? null} />}
               </div>
             )}
           </section>

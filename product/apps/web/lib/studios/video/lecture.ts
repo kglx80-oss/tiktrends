@@ -6,7 +6,7 @@ import {
   prixImage, raisonEchec, libelleQualiteImage, planDeKeyframe, planDeClip, formatVideo, LIBELLES_ETAT_IMAGE, GRILLE_STUDIO, DUREE_CLIP_S, planRenduFinal, ORIGINE_ARCHIVE_EXPORT,
   type ContenuVersion, type DisponibiliteVideo, type EtatJob, type LigneDevis, type StatutQualite, type VerdictConsignePlan,
   type ConsignePlanPersistee, type ErreurStudio, erreurStudio,
-  annonceLogosAReimporter, referencesUtiliseesParPlan, type AnnonceLogosAReimporter, type LogoDuProjet,
+  referencesUtiliseesParPlan, type AnnonceLogosAReimporter,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { lireProjet, lireVersion, estUuid } from '../depot';
@@ -16,9 +16,8 @@ import { verifierConsignePlan } from '../image/plans';
 import { consignesCompileesSur } from './consigne';
 import { lireCapaciteVideo } from '../execution/capacite-video';
 import type { ExecStudio } from '../execution/types';
-import { etatLogosCharte, verificateurUnique, type VerifierLogo } from '../../logos-charte-etat';
-import { logosDuCatalogue } from '../produit/catalogue';
-import { roleAtLeast } from '../../rbac';
+import { verificateurUnique } from '../../logos-charte-etat';
+import { logosAReimporterDesPlans } from './logos-plans';
 
 /**
  * Studios · L6-A · l'écran vidéo, LECTURE PURE (aucune écriture) :
@@ -150,40 +149,6 @@ const estDevisKeyframe = (lignes: unknown): string | null => {
   const plans = (lignes as LigneDevis[]).map((l) => planDeKeyframe(String(l?.operation ?? ''))).filter((x): x is string => !!x);
   return plans.length === 1 ? plans[0]! : null;
 };
-
-/**
- * Les logos de la charte que l'image clé de chaque plan utiliserait, à
- * réimporter · aucun logo lié ⇒ aucune lecture ; un logo lié sans empreinte ⇒
- * aucune requête ; sinon un `HEAD` par logo (le même que la relecture des
- * consignes, `verifier`), aux bornes de la fiche (`VERIFICATION_LOGOS_RENDU`).
- * Rien n'est bloqué · le devis relit la consigne et refuse ce qu'il ne pourrait
- * pas envoyer (`verdictConsignePlan`).
- */
-async function logosAReimporterDesPlans(
-  ctx: ContexteStudio, projet: { workspaceId: string; brandId: string }, utilises: ReadonlyMap<string, readonly string[]>, verifier: VerifierLogo,
-): Promise<Map<string, AnnonceLogosAReimporter>> {
-  const out = new Map<string, AnnonceLogosAReimporter>();
-  const lies = new Set([...utilises.values()].flat().filter((id) => id.startsWith('logo_')));
-  if (!lies.size) return out;
-  const [m] = await db.select({ logoUrl: schema.brands.logoUrl, logos: schema.brands.logos, logoEmpreintes: schema.brands.logoEmpreintes }).from(schema.brands)
-    .where(and(eq(schema.brands.id, projet.brandId), eq(schema.brands.workspaceId, projet.workspaceId))).limit(1);
-  if (!m) return out;
-  const vus = new Set<string>();
-  const logos: LogoDuProjet[] = [];
-  for (const l of logosDuCatalogue(projet.brandId, m)) {
-    if (!lies.has(l.assetId) || vus.has(l.assetId)) continue;
-    vus.add(l.assetId);
-    logos.push({ assetId: l.assetId, url: l.url, libelle: l.libelle });
-  }
-  if (!logos.length) return out;
-  const bilan = await etatLogosCharte({ workspaceId: projet.workspaceId, logoUrl: null, logos: logos.map((l) => l.url), logoEmpreintes: m.logoEmpreintes }, undefined, verifier);
-  const peutGerer = roleAtLeast(ctx.roleEspace, 'admin');
-  for (const [sid, ids] of utilises) {
-    const a = annonceLogosAReimporter({ utilises: ids, logos, bilan, brandId: projet.brandId, peutGerer });
-    if (a) out.set(sid, a);
-  }
-  return out;
-}
 
 export async function lireVideoPour(ctx: ContexteStudio, projectId: unknown, o: DependancesLectureVideo): Promise<Resultat<{ vue: VueVideo }>> {
   const p = await lireProjet(ctx, projectId);

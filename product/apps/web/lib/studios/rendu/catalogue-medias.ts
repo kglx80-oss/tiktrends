@@ -1,6 +1,6 @@
 import 'server-only';
-import { storageFromEnv, privateObjectUrl } from '@tiktrends/integrations';
-import { inspecterMedia, erreurStudio, type ErreurStudio } from '@tiktrends/core';
+import { storageFromEnv, privateObjectUrl, lireObjetEspaceConforme } from '@tiktrends/integrations';
+import { inspecterMedia, erreurStudio, decisionLogoServi, verificationDeLecture, POIDS_MAX_LOGO, type DecisionLogoServi, type ErreurStudio } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { fichierAServirPour } from '../produit/vue';
 import { octetsDataUri } from '../produit/catalogue';
@@ -33,7 +33,39 @@ export function urlApercuCatalogue(projectId: string, id: string): string {
 
 export type FichierCatalogueLu = { ok: true; octets: Uint8Array; mime: string; largeur: number; hauteur: number };
 
-export async function lireFichierCatalogue(ctx: ContexteStudio, projectId: string, id: string): Promise<FichierCatalogueLu | ErreurStudio> {
+/** Refus de lecture · `logo` quand c'est l'EMPREINTE d'un logo de la charte qui refuse (`decisionLogoServi`). */
+export type RefusCatalogue = ErreurStudio & { logo?: Extract<DecisionLogoServi, { servir: false }> };
+
+/** Lecteur d'une opération · un fichier du catalogue n'y est lu (donc vérifié) qu'une fois. */
+export type LecteurCatalogue = (id: string) => Promise<FichierCatalogueLu | RefusCatalogue>;
+
+/**
+ * Un lecteur qui ne lit chaque fichier qu'UNE fois pendant une opération
+ * (export · préflight puis rendu ; téléchargement · droits puis re-rendu) ·
+ * un logo à empreinte n'y est vérifié qu'une fois, et les octets rendus sont
+ * ceux que le préflight a jugés.
+ */
+export function lecteurCatalogueUnique(ctx: ContexteStudio, projectId: string): LecteurCatalogue {
+  const vus = new Map<string, Promise<FichierCatalogueLu | RefusCatalogue>>();
+  return (id) => {
+    let p = vus.get(id);
+    if (!p) { p = lireFichierCatalogue(ctx, projectId, id); vus.set(id, p); }
+    return p;
+  };
+}
+
+/**
+ * ── Logo de la charte AVEC empreinte (importé) ───────────────────────────────
+ *
+ * Ses octets ne sont lus que si le stockage confirme que l'objet est toujours
+ * celui de l'import · `GET` signé avec `If-Match` (`lireObjetEspaceConforme`,
+ * même lecture que la route média de la marque), jugé par le noyau
+ * (`decisionLogoServi`). Une seule requête, aucune fenêtre entre la
+ * vérification et la lecture · remplacé, disparu ou non vérifiable ⇒ refus
+ * (`logo`), rien n'est lu ni rendu. Un logo SANS empreinte (ancien, externe)
+ * et une photo produit sont lus comme avant.
+ */
+export async function lireFichierCatalogue(ctx: ContexteStudio, projectId: string, id: string): Promise<FichierCatalogueLu | RefusCatalogue> {
   const introuvable = () => erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   if (!estFichierCatalogue(id)) return introuvable();
   const f = await fichierAServirPour(ctx, projectId, id, { veilleOuverte: false, maintenant: new Date() });
@@ -41,7 +73,14 @@ export async function lireFichierCatalogue(ctx: ContexteStudio, projectId: strin
   const d = octetsDataUri(f.url);
   let octets: Uint8Array;
   if (d) octets = new Uint8Array(d.octets);
-  else {
+  else if (f.empreinte) {
+    const cfg = storageFromEnv();
+    const lu = cfg ? await lireObjetEspaceConforme(cfg, f.url, ctx.workspaceId, f.empreinte, POIDS_MAX_LOGO, 15_000) : null;
+    const decision = decisionLogoServi({ empreinte: f.empreinte, verification: verificationDeLecture(lu) });
+    if (!decision.servir) return { ...introuvable(), logo: decision };
+    if (!lu?.ok) return introuvable();
+    octets = lu.octets;
+  } else {
     const cfg = storageFromEnv();
     const url = cfg && privateObjectUrl(cfg, f.url, ctx.workspaceId);
     if (!url) return introuvable();

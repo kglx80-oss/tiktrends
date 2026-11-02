@@ -5,18 +5,22 @@ import {
   lireIdentites, detecterContradictions, construireFiche, changementFiche, changementsLiaison, changementsResolution, libelleAttribut,
   erreurStudio, aPermissionEspace, estIdentiteStructuree, cheminFiche, LIBELLES_CATEGORIE, LISTE_FORMES_COULEUR,
   type ContenuVersion, type ErreurStudio, type IdentiteLue, type Contradiction, type ModeParole, type CategorieAttribut, type VueIdentite,
+  type AnnonceLogosAReimporter,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
 import { enregistrerVersion, lireProjet, lireVersion, type VersionStudio } from '../depot';
 import { lireVueVoix, versionDeBase, type VueVoix } from '../voix/voix';
 import type { LecteurMedias } from '../rendu/medias';
+import { annoncesLogosDesPlans } from '../video/logos-plans';
 
 /**
  * Identités de personnages d'un projet (cahier 01 §4.5, §4.6 · recette VIDEO-02).
  *
  *  · lire · la page « Identités » : fiches, plans, liaisons, contradictions
  *    avec leurs deux résolutions, voix (capacités, modes, prises mesurées).
- *    La visite n'écrit rien et n'appelle aucun modèle.
+ *    La visite n'écrit rien et n'appelle aucun modèle. Un logo de la charte
+ *    que l'image clé d'un plan utiliserait, remplacé depuis son import, est
+ *    annoncé sur ce plan (un `HEAD` par logo lié à empreinte, aucun sinon).
  *  · enregistrer une fiche, lier une fiche à des plans, résoudre une
  *    contradiction · `studio.propose`, nouvelle version par la commande L1
  *    (base obligatoire, 409 avec différences, audit). Les chemins autorisés
@@ -38,6 +42,12 @@ export interface PlanVue {
   mode: ModeParole;
   estimeMs: number;
   identites: string[];
+  /**
+   * Un logo de la charte que l'image clé de ce plan utiliserait, à réimporter
+   * (`annoncesLogosDesPlans` · même ensemble et même annonce que l'écran
+   * vidéo) · dit ici, avant d'aller produire le plan. `null` · rien.
+   */
+  logosAReimporter: AnnonceLogosAReimporter | null;
 }
 
 export interface IdentiteVue {
@@ -79,6 +89,7 @@ export async function lireVueIdentitesPour(ctx: ContexteStudio, projectId: unkno
   const c = v.version.content as ContenuVersion;
   const [m] = await db.select({ nom: schema.brands.name }).from(schema.brands).where(and(eq(schema.brands.id, p.projet.brandId), eq(schema.brands.workspaceId, ctx.workspaceId))).limit(1);
   const identites = lireIdentites(c);
+  const logos = await annoncesLogosDesPlans(ctx, p.projet, c, v.version.id);
   return {
     ok: true,
     vue: {
@@ -87,7 +98,7 @@ export async function lireVueIdentitesPour(ctx: ContexteStudio, projectId: unkno
       identites: identites.map(vueIdentite),
       plans: c.shots.order.filter((s) => c.shots.byId[s]).map((s, i) => {
         const x = c.shots.byId[s]!;
-        return { shotId: s, rang: i + 1, sujet: x.subject, action: x.action, narration: x.narration, mode: x.speechMode, estimeMs: x.estimatedDurationMs, identites: identites.filter((k) => x.referenceIds.includes(k.identityId)).map((k) => k.identityId) };
+        return { shotId: s, rang: i + 1, sujet: x.subject, action: x.action, narration: x.narration, mode: x.speechMode, estimeMs: x.estimatedDurationMs, identites: identites.filter((k) => x.referenceIds.includes(k.identityId)).map((k) => k.identityId), logosAReimporter: logos.get(s) ?? null };
       }),
       contradictions: detecterContradictions(c),
       voix: await lireVueVoix(ctx, p.projet, c, o.lecteur),

@@ -1,6 +1,6 @@
 import 'server-only';
 import {
-  controlerAvantCompilation, etatPhotoEpinglee, erreurStudio, aPermissionEspace, LIBELLES_ETAT_PHOTO, LIBELLES_PROVENANCE, LIBELLES_ROLE, LIBELLES_PORTEE,
+  controlerAvantCompilation, etatPhotoEpinglee, empreinteDuLogo, erreurStudio, aPermissionEspace, LIBELLES_ETAT_PHOTO, LIBELLES_PROVENANCE, LIBELLES_ROLE, LIBELLES_PORTEE,
   type EtatPhotoEpinglee, type FichierCatalogue, type PreparationCompilation, type ReferenceProduitEpinglee,
   type RoleReference, type PorteeReference, type ProvenanceFichier, type NatureEmpreinte, type ErreurStudio,
 } from '@tiktrends/core';
@@ -114,11 +114,15 @@ export async function lireVueProduitPour(ctx: ContexteStudio, projectId: unknown
   return { ok: true, vue: construireVueProduit(c.catalogue, aPermissionEspace(ctx.permissions, 'studio.propose')) };
 }
 
-/** Le fichier servi par la route d'aperçu · photo produit ou logo de la marque du projet. */
-export async function fichierAServirPour(ctx: ContexteStudio, projectId: unknown, assetId: unknown, o: { veilleOuverte: boolean; maintenant: Date }): Promise<{ ok: true; url: string } | ErreurStudio> {
+/**
+ * Le fichier servi par la route d'aperçu · photo produit ou logo de la marque
+ * du projet. `empreinte` · celle gardée à l'import d'un LOGO de la charte
+ * (`empreinteDuLogo`), `null` pour une photo ou un logo sans empreinte.
+ */
+export async function fichierAServirPour(ctx: ContexteStudio, projectId: unknown, assetId: unknown, o: { veilleOuverte: boolean; maintenant: Date }): Promise<{ ok: true; url: string; empreinte: string | null } | ErreurStudio> {
   const c = await chargerCatalogueProjet(ctx, projectId, o);
   if (!c.ok) return c;
   const f = typeof assetId === 'string' ? c.catalogue.fichiers.get(assetId) : undefined;
   if (!f || !f.url || (f.provenance !== 'produit' && f.provenance !== 'logo')) return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
-  return { ok: true, url: f.url };
+  return { ok: true, url: f.url, empreinte: f.provenance === 'logo' ? empreinteDuLogo(c.catalogue.empreintesLogos, f.url) : null };
 }
