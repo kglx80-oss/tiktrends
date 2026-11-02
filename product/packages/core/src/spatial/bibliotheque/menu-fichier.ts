@@ -2,6 +2,7 @@ import { dossiersRangement, type DonneesDrive, type SectionDrive } from './drive
 import { DETAIL_LIEN_INTERNE, lienInterneFichier } from './lien-interne';
 import { gestesSelection } from './selection';
 import { versementApercu } from './versement';
+import { remplacementFichier } from './remplacer';
 
 /**
  * Bibliothèque · le MENU « … » d'une carte de fichier (grille et liste) ·
@@ -15,6 +16,10 @@ import { versementApercu } from './versement';
  *    fichier que la barre retient) · la fenêtre de renommage, puis
  *    `renommerAssetAction` (règle `validerNomFichier`, `nom-fichier.ts`) · fermé
  *    en lecture seule, avec sa raison ;
+ *  · « Remplacer » · un fichier de la bibliothèque, vivant, hors corbeille,
+ *    dont le geste existe (`remplacementFichier`, `remplacer.ts`) · la même
+ *    confirmation que l'aperçu, puis `remplacerAssetAction` · fermé avec sa
+ *    raison (lecture seule, stockage inactif, Drive, base, lien) ;
  *  · « Déplacer vers… » · la règle de la barre (`gestesSelection`, geste `ranger`)
  *    appliquée à ce seul fichier, puis l'action groupée `affecterAssetsDossierAction` ;
  *  · « Utiliser dans un projet » · la règle de l'aperçu (`versementApercu`), puis
@@ -34,7 +39,7 @@ import { versementApercu } from './versement';
  * DÉFINITIVE, les droits, l'IA et l'analyse restent dans l'aperçu.
  */
 
-export type CleMenuFichier = 'apercu' | 'ouvrir-projet' | 'renommer' | 'ranger' | 'projet' | 'telecharger' | 'copier-lien' | 'corbeille' | 'restaurer';
+export type CleMenuFichier = 'apercu' | 'ouvrir-projet' | 'renommer' | 'remplacer' | 'ranger' | 'projet' | 'telecharger' | 'copier-lien' | 'corbeille' | 'restaurer';
 
 /** Une entrée d'un menu « … » de la Bibliothèque (fichier ou dossier) · même forme, même composant. */
 export interface EntreeMenu<C extends string = string> {
@@ -59,7 +64,7 @@ const ouvert = (cle: CleMenuFichier, libelle: string, icone: string, extra: Part
   ({ cle, libelle, icone, ouvert: true, raison: null, ...extra });
 
 /** Le menu « … » d'un fichier · `[]` pour un fichier inconnu (disparu depuis). */
-export function menuFichier(d: DonneesDrive, fichierId: string, ctx: { section: SectionDrive; lectureSeule: string | null }): EntreeMenuFichier[] {
+export function menuFichier(d: DonneesDrive, fichierId: string, ctx: { section: SectionDrive; lectureSeule: string | null; stockage?: boolean }): EntreeMenuFichier[] {
   const f = d.fichiers.find((x) => x.id === fichierId);
   if (!f) return [];
   const s = gestesSelection(d, [fichierId], { section: ctx.section, lectureSeule: ctx.lectureSeule, ia: false });
@@ -70,10 +75,12 @@ export function menuFichier(d: DonneesDrive, fichierId: string, ctx: { section: 
   };
   const corbeille = ctx.section === 'corbeille';
   const versement = unitaire && !corbeille ? versementApercu(d, fichierId, ctx.lectureSeule) : null;
+  const remplacer = unitaire && !corbeille ? remplacementFichier(f, { lectureSeule: ctx.lectureSeule, stockage: !!ctx.stockage }) : null;
   return [
     ouvert('apercu', 'Aperçu', 'eye'),
     ...(f.projet ? [ouvert('ouvrir-projet', 'Ouvrir le projet', 'brush', { href: f.projet.href })] : []),
     ...(unitaire && !corbeille ? [{ cle: 'renommer' as const, libelle: 'Renommer', icone: 'text', ouvert: ctx.lectureSeule === null, raison: ctx.lectureSeule }] : []),
+    ...(remplacer ? [{ cle: 'remplacer' as const, libelle: remplacer.libelle, icone: 'loop', ouvert: remplacer.ouvert, raison: remplacer.raison }] : []),
     ...(unitaire && !corbeille ? geste('ranger', 'folder', { sousMenu: true }) : []),
     ...(versement ? [{ cle: 'projet' as const, libelle: versement.libelle, icone: 'brush', ouvert: versement.ouvert, raison: versement.raison }] : []),
     ouvert('telecharger', 'Télécharger', 'down', { href: f.telecharger ?? f.url }),

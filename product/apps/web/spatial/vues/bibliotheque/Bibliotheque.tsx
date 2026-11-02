@@ -13,7 +13,7 @@ import {
   destinationsDeplacementDossier, validerNomDossier,
   validerNomFichier, baseNomFichier, extensionNomFichier, messageFichierRenomme, destinationsDeplacementSelection, messageDossiersDeplaces,
   lienInterneFichier, lienInterneDossier, rechercheSansLien, MESSAGE_LIEN_COPIE, DETAIL_LIEN_INTERNE, type OuvertureLienInterne,
-  ATTRIBUT_ZONE_TACTILE,
+  ATTRIBUT_ZONE_TACTILE, remplacementFichier,
 } from '@tiktrends/core';
 import { uploadImageAssetsAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction, importAssetAction, toggleAssetAiAction, basculerTemplateAction, tagAssetAction, tagUntaggedImagesAction, basculerAssetsIaAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction } from '../../../app/actions/assets';
 import { creerDossierAction, supprimerDossierAction, restaurerDossierAction, affecterAssetDossierAction, definirDroitsAssetAction, definirTagDossierAction, definirTagDossiersAction, affecterAssetsDossierAction, definirDroitsAssetsAction, renommerDossierAction, deplacerDossierAction, deplacerDossiersAction } from '../../../app/actions/bibliotheque-dossiers';
@@ -28,6 +28,8 @@ import { BoutonTelecharger, useArchive } from './telecharger-selection';
 import { MenuFichier } from './menu-fichier';
 import { UtiliseDans } from './utilise-dans';
 import { useGlisserDeposer } from './glisser-deposer';
+import { useRemplacement } from './remplacer-fichier';
+import { envoyerVersBucket } from './envoi-bucket';
 
 /**
  * « Bibliothèque » · `docs/spatial/reference/bibliotheque.html`, balisage à
@@ -80,7 +82,9 @@ import { useGlisserDeposer } from './glisser-deposer';
  *
  * Un FICHIER se renomme depuis son aperçu et depuis son menu « … » · la même
  * fenêtre que le dossier (la base du nom présélectionnée, l'extension connue
- * conservée · `validerNomFichier`, puis `renommerAssetAction`). « Déplacer
+ * conservée · `validerNomFichier`, puis `renommerAssetAction`), et se REMPLACE
+ * par une nouvelle version sous le même identifiant (`useRemplacement`,
+ * `remplacer-fichier.tsx` · confirmé, « Utilisé dans N projets »). « Déplacer
  * vers… » de la barre déplace aussi une sélection de DOSSIERS, en une action
  * tout ou rien (`deplacerDossiersAction`), chaque destination jugée par la
  * règle de l'action (`destinationsDeplacementSelection`) · une sélection mixte
@@ -190,22 +194,6 @@ function fichierEnDataUri(file: File, cote = 1400, qualite = 0.85): Promise<stri
   });
 }
 
-/**
- * Le `Content-Type` envoyé est celui que le serveur a retenu et SIGNÉ (`decisionDepot`) · un autre type, le bucket refuse.
- * Le `Content-Length` est signé lui aussi, à la taille déclarée (`file.size`) · on envoie le fichier ENTIER, dont le
- * navigateur pose seul la longueur (en-tête interdit au script) ; un autre corps, le bucket refuse.
- */
-function envoyerVersBucket(url: string, file: File, contentType: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const x = new XMLHttpRequest();
-    x.open('PUT', url);
-    x.setRequestHeader('Content-Type', contentType);
-    x.onload = () => (x.status >= 200 && x.status < 300 ? resolve() : reject(new Error('HTTP ' + x.status)));
-    x.onerror = () => reject(new Error('Réseau'));
-    x.send(file);
-  });
-}
-
 function Vignette({ f }: { f: FichierDrive }) {
   if (f.vignette && (f.type === 'image' || f.type === 'video')) {
     return <div className="dth img"><img src={f.vignette} alt="" style={{ objectPosition: '50% 50%' }} /></div>;
@@ -289,6 +277,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const g = p.gestion;
   const selecteur = useSelecteurDrive(toast, rafraichir);
   const archiver = useArchive();
+  const remplacement = useRemplacement({ lectureSeule: p.lectureSeule, stockage: p.stockage, utilisations: p.utilisations, occupe, setOccupe, toast, rafraichir });
   const glisser = useGlisserDeposer({
     donnees: p.donnees, section: etat.section, lectureSeule: p.lectureSeule, selection, occupe,
     deposer: (c, destination, nom) => {
@@ -492,10 +481,11 @@ export function Bibliotheque(p: PropsBibliotheque) {
 
   /** Un geste du menu « … » · revérifié au noyau (ouvert) avant l'action existante. */
   function agirMenu(f: FichierDrive, cle: CleMenuFichier, dossier?: string | null) {
-    const e = menuFichier(p.donnees, f.id, { section: etat.section, lectureSeule: p.lectureSeule }).find((x) => x.cle === cle);
+    const e = menuFichier(p.donnees, f.id, { section: etat.section, lectureSeule: p.lectureSeule, stockage: p.stockage }).find((x) => x.cle === cle);
     if (!e?.ouvert) return;
     if (cle === 'apercu') setApercu(f.id);
     else if (cle === 'renommer') setRenommage({ cible: 'fichier', id: f.id, nom: f.nom, saisie: f.nom, erreur: null });
+    else if (cle === 'remplacer') remplacement.demarrer(f);
     else if (cle === 'ranger') void deplacerFichiers([f.id], dossier ?? null);
     else if (cle === 'projet') setVersementFichier(f.id);
     else if (cle === 'copier-lien') { const l = lienInterneFichier(p.donnees, f.id); if (l) void copierLien(l, 'fichier'); }
@@ -706,7 +696,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
     return (
       <MenuFichier
         nom={f.nom} variante={variante} occupe={occupe} ouvert={ouvert}
-        entrees={ouvert ? menuFichier(p.donnees, f.id, { section: etat.section, lectureSeule: p.lectureSeule }) : []}
+        entrees={ouvert ? menuFichier(p.donnees, f.id, { section: etat.section, lectureSeule: p.lectureSeule, stockage: p.stockage }) : []}
         destinations={ouvert ? destinationsDeplacement(p.donnees, f.id) : []}
         basculer={(o) => setMenuOuvert((m) => (o ? f.id : m === f.id ? null : m))}
         agir={(cle, dossier) => agirMenu(f, cle, dossier)}
@@ -850,6 +840,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
   const utiliseFa = fa ? vueUtiliseDans(p.utilisations ?? null, fa) : null;
   // « Copier le lien » de l'aperçu · même règle que le menu « … » (le lien seulement s'il rouvre ce fichier).
   const lienFa = fa ? lienInterneFichier(p.donnees, fa.id) : null;
+  const remplacerFa = fa ? remplacementFichier(fa, { lectureSeule: p.lectureSeule, stockage: p.stockage }) : null;
   const fichiersVersement = versementFichier ? [{ id: versementFichier }] : sel.fichiers;
 
   return (
@@ -1066,6 +1057,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
                 </div>
               )}
               {gestesFa?.edition && <button className="btn" type="button" data-geste="renommer-fichier" aria-disabled={occupe || undefined} onClick={() => { if (!occupe) setRenommage({ cible: 'fichier', id: fa.id, nom: fa.nom, saisie: fa.nom, erreur: null, depuisApercu: true }); }}><Ic n="text" />Renommer</button>}
+              {gestesFa?.edition && remplacerFa && <button className="btn" type="button" data-geste="remplacer-fichier" disabled={occupe || !remplacerFa.ouvert} title={remplacerFa.raison ?? undefined} onClick={() => remplacement.demarrer(fa)}><Ic n="loop" />{remplacerFa.libelle}</button>}
               {versementFa && <button className="btn" type="button" data-geste="projet-fichier" disabled={occupe || !versementFa.ouvert} title={versementFa.raison ?? undefined} onClick={() => setVersementFichier(fa.id)}><Ic n="brush" />{versementFa.libelle}</button>}
               {fa.projet && <Lien className="btn pri" href={fa.projet.href}><Ic n="brush" />Ouvrir le projet</Lien>}
               <a className="btn" href={fa.telecharger ?? fa.url} target="_blank" rel="noopener noreferrer" download><Ic n="down" />Télécharger</a>
@@ -1092,6 +1084,7 @@ export function Bibliotheque(p: PropsBibliotheque) {
           )}
         </DialogueSpatial>
       )}
+      {ecriture && remplacement.rendu}
       {ecriture && <FenetreVersement ouvert={versement || versementFichier !== null} fermer={() => { setVersement(false); setVersementFichier(null); }} donnees={p.donnees} fichiers={fichiersVersement} />}
       {g && (
         <DialogueSpatial titre="Importer par lien" ouvert={dialogueLien} fermer={() => setDialogueLien(false)}>
