@@ -12,6 +12,7 @@ import type { ErreurProposition, ListePropositions, PropositionPresentee, Repons
 import { useSpatial } from '../../coquille/contexte';
 import { Ic } from '../../communs';
 import { Message } from './briques';
+import { pendantAction } from './focus';
 
 /**
  * Les propositions du projet (tuile de l'onglet Brief) · les QUATRE gestes
@@ -32,7 +33,7 @@ import { Message } from './briques';
  * jamais affichée (FLOW-03).
  */
 
-type Retour = { ton: 'ok' | 'err'; texte: string; conflit?: { differences: ReturnType<typeof differencesConflit>; traceId: string } } | null;
+type Retour = { ton: 'ok' | 'err'; texte: string; horsLigne?: boolean; conflit?: { differences: ReturnType<typeof differencesConflit>; traceId: string } } | null;
 
 const erreur = (e: ErreurProposition) => `${e.message}${e.traceId ? ` · identifiant support ${e.traceId}` : ''}`;
 
@@ -84,7 +85,7 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
   useEffect(() => { if (retour) zoneRetour.current?.focus({ preventScroll: true }); }, [retour]);
 
   const recharger = useCallback(async () => {
-    try { setListe(await listerPropositions({ projectId })); } catch { setRetour({ ton: 'err', texte: 'Le serveur ne répond pas · vérifie ta connexion puis réessaie.' }); }
+    try { setListe(await listerPropositions({ projectId })); } catch { setRetour({ ton: 'err', texte: 'Le serveur ne répond pas · vérifie ta connexion puis réessaie.', horsLigne: true }); }
   }, [projectId]);
 
   async function geste<T extends { ok: boolean }>(cle: string, appel: () => Promise<T>, succes: (r: T) => string, apres?: () => void) {
@@ -104,7 +105,7 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
       apres?.();
       await recharger();
     } catch {
-      setRetour({ ton: 'err', texte: 'Le serveur ne répond pas · vérifie ta connexion puis réessaie. Ta saisie est conservée.' });
+      setRetour({ ton: 'err', texte: 'Le serveur ne répond pas · vérifie ta connexion puis réessaie. Ta saisie est conservée.', horsLigne: true });
     } finally {
       setEnCours(null);
     }
@@ -112,7 +113,7 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
 
   if (!versionCourante) return <p className="muted" style={{ fontSize: '12.5px' }}>Les propositions apparaîtront dès que le projet aura une première version.</p>;
   const reessayer = <button className="btn sm" type="button" data-reessayer="" onClick={() => { setRetour(null); void recharger(); }}>Réessayer</button>;
-  if (!liste) return <div style={{ display: 'grid', gap: 8 }}><p className="muted" style={{ fontSize: '12.5px' }}>Les propositions n’ont pas pu être lues.</p>{retour && <Message ton={retour.ton}>{retour.texte}</Message>}<div className="kc">{reessayer}</div></div>;
+  if (!liste) return <div style={{ display: 'grid', gap: 8 }}><p className="muted" style={{ fontSize: '12.5px' }}>Les propositions n’ont pas pu être lues.</p>{retour && <Message ton={retour.ton} etiquette={retour.horsLigne ? 'Hors ligne' : undefined}>{retour.texte}</Message>}<div className="kc">{reessayer}</div></div>;
   if (!liste.ok) return <div style={{ display: 'grid', gap: 8 }}><Message ton="err">{erreur(liste)}</Message>{liste.code !== 'NOT_FOUND' && liste.code !== 'FORBIDDEN' && <div className="kc">{reessayer}</div>}</div>;
 
   const ouvertes = liste.propositions.filter((x) => x.etat === 'proposed').length;
@@ -159,7 +160,9 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
               <label className="field">Ta demande<textarea ref={champDemande} className="ta" data-champ="demande-jarvis" value={demande} maxLength={4000} rows={3} onChange={(e) => setDemande(e.target.value)} placeholder="Ex. Corrige seulement le texte à l’écran, plus court" /></label>
               <p className="faint" style={{ fontSize: '11.5px' }} data-cout>{liste.jarvis.mentionCout}</p>
               {!liste.jarvis.disponible && <p className="faint" style={{ fontSize: '11.5px' }}>Indisponible · {liste.jarvis.raison}</p>}
-              <div className="kc"><button className="btn pri sm" type="button" disabled={jarvisBloque} onClick={() => void demanderJarvis()}><Ic n="spark" />{enCours === 'demande' ? 'Jarvis prépare…' : 'Demander à Jarvis'}</button></div>
+              {/* Pendant la demande, le bouton pressé garde le focus (`aria-disabled`, `aria-busy`) et ignore un second clic. */}
+              <div className="kc"><button className="btn pri sm" type="button" data-geste="demander-jarvis" {...pendantAction({ presse: enCours === 'demande', occupe: !!enCours, ferme: jarvisBloque })}
+                onClick={() => { if (!jarvisBloque) void demanderJarvis(); }}><Ic n="spark" />{enCours === 'demande' ? 'Jarvis prépare…' : 'Demander à Jarvis'}</button></div>
             </>
           ) : champs.length === 0 ? (
             <p className="faint" style={{ fontSize: '11.5px' }}>Cette cible n’a pas de champ texte modifiable à la main · choisis une autre cible.</p>
@@ -175,7 +178,8 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
               </label>
               <label className="field">Pourquoi (facultatif)<input value={explication} maxLength={500} onChange={(e) => setExplication(e.target.value)} /></label>
               <p className="faint" style={{ fontSize: '11.5px' }}>Aucun appel à Jarvis, aucun coût · la modification devient une proposition à appliquer.</p>
-              <div className="kc"><button className="btn pri sm" type="button" disabled={mainBloque} onClick={() => void proposerMain()}>{enCours === 'demande' ? 'Enregistrement…' : premierBrief ? 'Préparer mon brief' : 'Proposer cette modification'}</button></div>
+              <div className="kc"><button className="btn pri sm" type="button" data-geste="proposer-main" {...pendantAction({ presse: enCours === 'demande', occupe: !!enCours, ferme: mainBloque })}
+                onClick={() => { if (!mainBloque) void proposerMain(); }}>{enCours === 'demande' ? 'Enregistrement…' : premierBrief ? 'Préparer mon brief' : 'Proposer cette modification'}</button></div>
             </>
           )}
         </div>
@@ -184,7 +188,8 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
       {annonce && <Message ton="info">{annonce}</Message>}
       {retour && (
         <div ref={zoneRetour} tabIndex={-1} data-retour={retour.ton === 'ok' ? 'succes' : 'refus'} style={{ outline: 'none' }}>
-          <Message ton={retour.ton}>{retour.texte}</Message>
+          {/* Sans réponse du serveur, rien n'a été refusé · la pastille dit « Hors ligne ». */}
+          <Message ton={retour.ton} etiquette={retour.horsLigne ? 'Hors ligne' : undefined}>{retour.texte}</Message>
           {retour.conflit && (
             <div style={{ display: 'grid', gap: 6 }} data-conflit="">
               {retour.conflit.differences.lignes.length > 0 && <span className="lbl">Ce qui a changé depuis la base · {retour.conflit.differences.lignes.length + retour.conflit.differences.reste}</span>}
@@ -203,7 +208,7 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
         ? <p className="faint" style={{ fontSize: '12.5px' }}>{liste.peutProposer ? 'Aucune proposition pour l’instant · demande-en une à Jarvis ou modifie un champ à la main.' : 'Aucune proposition pour l’instant.'}</p>
         : (
           <div className="mtable">
-            {triees.map((x) => (
+            {triees.map((x, i) => (
               <div key={x.id} className="tile" style={{ display: 'grid', gap: 8 }} data-proposition={x.id} data-etat={x.etat}>
                 <div className="kc" style={{ alignItems: 'center' }}>
                   <span className={`pill ${x.etat === 'proposed' ? 'c' : x.etat === 'approved' ? 'g' : ''}`}>{x.libelleEtat}</span>
@@ -239,8 +244,13 @@ export function Propositions({ projectId, initial, versionCourante, cibleDemande
                 {x.sources.length > 0 && <p className="faint" style={{ fontSize: '11.5px' }}>Sources citées · {x.sources.join(', ')}</p>}
                 {x.etat === 'proposed' && liste.peutProposer && (
                   <div className="kc">
-                    <button className="btn pri sm" type="button" disabled={!!enCours} onClick={() => void appliquer(x)}><Ic n="check" />{enCours === `appliquer:${x.id}` ? 'Application…' : 'Appliquer'}</button>
-                    <button className="btn sm" type="button" disabled={!!enCours} onClick={() => void rejeter(x)}><Ic n="x" />{enCours === `rejeter:${x.id}` ? 'Rejet…' : 'Rejeter'}</button>
+                    {/* Un « Appliquer » / « Rejeter » par proposition · le nom dit LAQUELLE (rang dans la liste, cible) ; le bouton pressé garde le focus. */}
+                    <button className="btn pri sm" type="button" data-geste="appliquer" {...pendantAction({ presse: enCours === `appliquer:${x.id}`, occupe: !!enCours })}
+                      aria-label={`${enCours === `appliquer:${x.id}` ? 'Application…' : 'Appliquer'} · proposition ${i + 1}, ${x.libelleCible}`}
+                      onClick={() => { if (!enCours) void appliquer(x); }}><Ic n="check" />{enCours === `appliquer:${x.id}` ? 'Application…' : 'Appliquer'}</button>
+                    <button className="btn sm" type="button" data-geste="rejeter" {...pendantAction({ presse: enCours === `rejeter:${x.id}`, occupe: !!enCours })}
+                      aria-label={`${enCours === `rejeter:${x.id}` ? 'Rejet…' : 'Rejeter'} · proposition ${i + 1}, ${x.libelleCible}`}
+                      onClick={() => { if (!enCours) void rejeter(x); }}><Ic n="x" />{enCours === `rejeter:${x.id}` ? 'Rejet…' : 'Rejeter'}</button>
                   </div>
                 )}
                 {x.etat === 'proposed' && !liste.peutProposer && <p className="faint" style={{ fontSize: '11.5px' }} data-raison-lecteur="">{RAISON_LECTEUR_PROPOSITIONS}</p>}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CIBLE_CONCEPT, demandeProposition, texteTourJarvis, verrouAction, visibleWhileStreaming, sansTiretCadratin, type ConceptActionKey } from '@tiktrends/core';
 import { chatThreadAction } from '../../../app/actions/jarvis-chat';
@@ -8,6 +8,7 @@ import { proposerPatch } from '../../../app/actions/studios/propositions';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic } from '../../communs';
 import { Ad, Message } from './briques';
+import { FERME, focaliserApres } from './focus';
 import { useNaviguer } from './naviguer';
 import type { ActionConceptSpatiale, PropsJarvisProjet } from './types';
 
@@ -39,12 +40,15 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
   const [tours, setTours] = useState(p.fil?.tours ?? []);
   const [conversationId, setConversationId] = useState(p.fil?.conversationId ?? null);
   const [erreur, setErreur] = useState<string | null>(p.erreurFil);
-  const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string } | null>(null);
+  const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string; horsLigne?: boolean } | null>(null);
+  // Une erreur du fil sans réponse du serveur · rien n'a été refusé, la pastille dit « Hors ligne ».
+  const [filHorsLigne, setFilHorsLigne] = useState(false);
   const [saisie, setSaisie] = useState('');
   const [partiel, setPartiel] = useState('');
   const [enCours, setEnCours] = useState<string | null>(null);
   const verrou = useRef(verrouAction());
   const fil = useRef<HTMLDivElement>(null);
+  const id = useId();
 
   useEffect(() => { fil.current?.scrollTo?.({ top: fil.current.scrollHeight }); }, [tours.length, partiel, ouvert]);
 
@@ -60,7 +64,7 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
   async function envoyer() {
     const q = saisie.trim();
     if (!q || enCours || !verrou.current.tenter()) return;
-    setSaisie(''); setEnCours('message'); setPartiel(''); setErreur(null);
+    setSaisie(''); setEnCours('message'); setPartiel(''); setErreur(null); setFilHorsLigne(false);
     setTours((t) => [...t, { id: `local-${Date.now()}`, role: 'user', texte: q }]);
     try {
       const res = await fetch('/api/jarvis/chat', {
@@ -84,7 +88,7 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
       setPartiel('');
       await relireFil();
     } catch {
-      setErreur('La connexion s’est interrompue. Ton message est enregistré, réessaie.');
+      setErreur('La connexion s’est interrompue. Ton message est enregistré, réessaie.'); setFilHorsLigne(true);
     } finally {
       setEnCours(null);
       verrou.current.relacher();
@@ -105,14 +109,16 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
         recues += 1;
       }
       if (recues > 0) {
+        // La confirmation disparaît avec le bouton pressé · le focus revient à la puce qui l'avait ouverte.
         setConfirmation(null);
+        focaliserApres(`[data-puce="${a.cle}"]`);
         const t = recues === 1 ? 'Proposition reçue · relis-la dans l’onglet Brief. Rien n’est appliqué sans ton geste.' : `${recues} propositions reçues · départage-les dans l’onglet Brief. Rien n’est appliqué sans ton geste.`;
         setRetour({ ton: 'ok', texte: t });
         toast(t);
         router.refresh();
       }
     } catch {
-      setRetour({ ton: 'err', texte: 'La réponse a été interrompue · le résultat de la demande est inconnu. Recharge la page avant toute nouvelle demande.' });
+      setRetour({ ton: 'err', texte: 'La réponse a été interrompue · le résultat de la demande est inconnu. Recharge la page avant toute nouvelle demande.', horsLigne: true });
     } finally {
       setEnCours(null);
     }
@@ -125,10 +131,20 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
     setConfirmation((c) => (c?.cle === a.cle ? null : a));
   };
 
+  /** Une puce fermée · pour sa raison (état, préparation sans adresse), ou parce qu'une demande part. */
+  const fermee = (a: ActionConceptSpatiale) => a.etat !== 'actif' || (a.genre === 'preparation' && !p.preparerHref);
+  // Les raisons des puces inactives, dites en clair (une par raison), chacune reliée à ses puces (`aria-describedby`).
+  const raisons = [...new Set(p.actions.filter((a) => a.etat !== 'actif' && a.raison).map((a) => a.raison!))];
+  const idRaison = (r: string | null) => (r && raisons.includes(r) ? `${id}-raison-${raisons.indexOf(r)}` : undefined);
+  const idFil = `${id}-fil-ferme`;
+  const envoiFerme = !!enCours || !saisie.trim();
+  const annuler = (cle: string) => { setConfirmation(null); focaliserApres(`[data-puce="${cle}"]`); };
+
   return (
     <aside className="tile jpanel" aria-label="Jarvis dans ce projet">
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <span className="orb" style={{ width: 34, height: 34, fontSize: '12.5px' }}>J</span>
+        {/* L'orbe est un décor · le nom « Jarvis » est écrit juste à côté. */}
+        <span className="orb" aria-hidden="true" style={{ width: 34, height: 34, fontSize: '12.5px' }}>J</span>
         <div><strong>Jarvis</strong><p className="faint" style={{ fontSize: '11.5px' }}>{p.sousTitre}</p></div>
       </div>
       <p style={{ fontSize: 13 }}>{p.message}</p>
@@ -137,22 +153,30 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
           <span className="lbl">Proposition · à valider</span>
           {p.suggestion.apercu && <Ad src={p.suggestion.apercu.src} bandeau={p.suggestion.apercu.bandeau} />}
           <p style={{ fontSize: '12.5px' }}>{p.suggestion.texte}</p>
-          <button className="btn pri sm" type="button" onClick={() => { p.ouvrirBrief(); requestAnimationFrame(() => document.getElementById('propositions')?.scrollIntoView?.({ block: 'start' })); }}>
+          {/* L'onglet change et ce panneau disparaît · le focus passe à la tuile des propositions, jamais au document. */}
+          <button className="btn pri sm" type="button" onClick={() => {
+            p.ouvrirBrief();
+            setTimeout(() => { const t = document.getElementById('propositions'); t?.scrollIntoView?.({ block: 'start' }); t?.focus({ preventScroll: true }); }, 0);
+          }}>
             <Ic n="loop" />Relire et décider
           </button>
         </div>
       )}
+      {/* Une puce fermée reste FOCALISABLE (`aria-disabled`, atténuée par la feuille, clic ignoré) · sa raison est écrite dessous. */}
       <div className="kc">
-        <button type="button" className="chip" aria-pressed={ouvert} disabled={!p.conversationOuverte} title={p.conversationOuverte ? p.mentionConversation : (p.erreurFil ?? undefined)}
-          onClick={() => { setConfirmation(null); setOuvert((o) => !o); }}>Écrire à Jarvis</button>
+        <button type="button" className="chip" data-puce="ecrire" aria-pressed={ouvert} aria-disabled={!p.conversationOuverte || undefined}
+          aria-describedby={!p.conversationOuverte && p.erreurFil ? idFil : undefined} title={p.conversationOuverte ? p.mentionConversation : undefined}
+          onClick={() => { if (!p.conversationOuverte) return; setConfirmation(null); setOuvert((o) => !o); }}>Écrire à Jarvis</button>
         {p.actions.map((a) => (
-          <button key={a.cle} type="button" className="chip" aria-pressed={confirmation?.cle === a.cle} disabled={a.etat !== 'actif' || (a.genre === 'preparation' && !p.preparerHref) || !!enCours}
-            title={a.raison ?? a.effet} onClick={() => surPuce(a)}>{enCours === a.cle ? 'Jarvis prépare…' : a.libelle}</button>
+          <button key={a.cle} type="button" className="chip" data-puce={a.cle} aria-pressed={confirmation?.cle === a.cle}
+            aria-disabled={fermee(a) || !!enCours || undefined} aria-busy={enCours === a.cle || undefined}
+            aria-describedby={a.etat !== 'actif' ? idRaison(a.raison) : undefined} title={fermee(a) ? undefined : a.effet}
+            onClick={() => { if (!fermee(a) && !enCours) surPuce(a); }}>{enCours === a.cle ? 'Jarvis prépare…' : a.libelle}</button>
         ))}
       </div>
 
-      {/* Les raisons des puces inactives, dites en clair (une par raison). */}
-      {[...new Set(p.actions.filter((a) => a.etat !== 'actif' && a.raison).map((a) => a.raison!))].map((r) => <p key={r} className="faint" style={{ fontSize: '11.5px' }}>{r}</p>)}
+      {!p.conversationOuverte && p.erreurFil && <p className="faint" id={idFil} data-raison-ferme="ecrire" style={{ fontSize: '11.5px' }}>{p.erreurFil}</p>}
+      {raisons.map((r) => <p key={r} id={idRaison(r)} className="faint" style={{ fontSize: '11.5px' }}>{r}</p>)}
 
       {confirmation && (
         <div className="sugg" data-confirmation={confirmation.cle}>
@@ -160,12 +184,14 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
           <p style={{ fontSize: '12.5px' }}>{confirmation.effet}</p>
           {p.mentionCout && <p className="faint" style={{ fontSize: '11.5px' }} data-cout>{p.mentionCout}{confirmation.cible && confirmation.cible.nombre > 1 ? ` · ${confirmation.cible.nombre} appels` : ''}</p>}
           <div className="kc">
-            <button className="btn pri sm" type="button" disabled={!!enCours} onClick={() => void lancer(confirmation)}><Ic n="spark" />{enCours ? 'Jarvis prépare…' : 'Lancer la demande'}</button>
-            <button className="btn sm" type="button" disabled={!!enCours} onClick={() => setConfirmation(null)}>Annuler</button>
+            {/* Pendant la demande, « Lancer » garde le focus (`aria-disabled`, `aria-busy`) et ignore un second clic. */}
+            <button className="btn pri sm" type="button" data-geste="lancer-demande" aria-disabled={!!enCours || undefined} aria-busy={!!enCours || undefined}
+              onClick={() => { if (!enCours) void lancer(confirmation); }}><Ic n="spark" />{enCours ? 'Jarvis prépare…' : 'Lancer la demande'}</button>
+            <button className="btn sm" type="button" disabled={!!enCours} onClick={() => annuler(confirmation.cle)}>Annuler</button>
           </div>
         </div>
       )}
-      {retour && <Message ton={retour.ton}>{retour.texte}</Message>}
+      {retour && <Message ton={retour.ton} etiquette={retour.horsLigne ? 'Hors ligne' : undefined}>{retour.texte}</Message>}
 
       {ouvert && (
         <div style={{ display: 'grid', gap: 10 }} data-fil="projet">
@@ -175,11 +201,14 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
             {partiel && <div className="msg"><div className="bub" style={{ fontSize: 13 }}>{sansTiretCadratin(visibleWhileStreaming(partiel))}</div></div>}
             {enCours === 'message' && !partiel && <p className="faint" style={{ fontSize: '12.5px' }}>Jarvis relit ta marque…</p>}
           </div>
-          {erreur && <Message ton="err">{erreur}</Message>}
-          <textarea className="ta" value={saisie} rows={2} disabled={enCours === 'message'} aria-label="Écrire à Jarvis sur ce projet" placeholder={`Continue le concept pour ${p.marque || 'ta marque'}…`}
+          {erreur && <Message ton="err" etiquette={filHorsLigne ? 'Hors ligne' : undefined}>{erreur}</Message>}
+          {/* Pendant l'envoi, le champ passe en lecture seule (pas `disabled`) · Entrée ne fait pas tomber le focus au document. */}
+          <textarea className="ta" value={saisie} rows={2} readOnly={enCours === 'message'} aria-busy={enCours === 'message' || undefined} aria-label="Écrire à Jarvis sur ce projet" placeholder={`Continue le concept pour ${p.marque || 'ta marque'}…`}
             onChange={(e) => setSaisie(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void envoyer(); } }} />
           <div className="kc">
-            <button className="btn pri sm" type="button" disabled={!!enCours || !saisie.trim()} onClick={() => void envoyer()}><Ic n="arrow" />Envoyer</button>
+            {/* « Envoyer » vidé par l'envoi reste focalisable (`aria-disabled`) · `envoyer` ignore un clic sans texte ou pendant l'envoi. */}
+            <button className="btn pri sm" type="button" data-geste="envoyer" aria-disabled={envoiFerme || undefined} aria-busy={enCours === 'message' || undefined}
+              style={envoiFerme && enCours !== 'message' ? FERME : undefined} onClick={() => void envoyer()}><Ic n="arrow" />{enCours === 'message' ? 'Envoi…' : 'Envoyer'}</button>
           </div>
           <p className="faint" style={{ fontSize: '11.5px' }} data-cout-message>{p.mentionConversation}</p>
         </div>

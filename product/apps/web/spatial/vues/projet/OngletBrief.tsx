@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { messageHorsLigneStudio } from '@tiktrends/core';
 import { exporterBrief } from '../../../app/actions/studios/sources';
 import { Anneau, Ic, Lien } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 import { Message } from './briques';
+import { pendantAction } from './focus';
 import { Propositions } from './Propositions';
 import type { PropsBriefProjet } from './types';
 
@@ -18,11 +19,14 @@ import type { PropsBriefProjet } from './types';
  * Rien n'est écrit à la visite.
  */
 export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: string; libelle: string; jeton: number } | null }) {
+  // Chaque tuile est une région nommée par son titre (`aria-labelledby`) · un lecteur d'écran la trouve dans la liste des régions.
+  const id = useId();
+  const t = (cle: string) => `${id}-${cle}`;
   return (
     <>
       <div className="grid3">
-        <section className="tile">
-          <div className="lbl">{p.titreBrief}</div>
+        <section className="tile" aria-labelledby={t('brief')}>
+          <div className="lbl" id={t('brief')}>{p.titreBrief}</div>
           {p.etatBrief === 'ok' ? (
             <dl className="kv2">
               {p.champs.map((c) => (
@@ -39,8 +43,8 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
           )}
         </section>
 
-        <section className="tile">
-          <div className="lbl">Références</div>
+        <section className="tile" aria-labelledby={t('references')}>
+          <div className="lbl" id={t('references')}>Références</div>
           <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
             {p.references.map((r) => (
               <div className="prow" key={r.id} data-source={r.id} data-statut={r.provenance?.statut}>
@@ -54,7 +58,7 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
                     </details>
                   )}
                 </div>
-                {r.href && <Lien className="btn sm" href={r.href}>{r.libelleLien}</Lien>}
+                {r.href && <Lien className="btn sm" href={r.href} aria-label={`${r.libelleLien} · ${r.titre}`}>{r.libelleLien}</Lien>}
               </div>
             ))}
             {p.produit && (
@@ -70,8 +74,8 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
           </div>
         </section>
 
-        <section className="tile">
-          <div className="lbl">Fiche marque</div>
+        <section className="tile" aria-labelledby={t('fiche')}>
+          <div className="lbl" id={t('fiche')}>Fiche marque</div>
           {p.fiche ? (
             <>
               <div className="bhead" style={{ marginTop: 10 }}>
@@ -85,8 +89,8 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
       </div>
 
       {p.produit && (p.produit.faits.length > 0 || p.produit.manques.length > 0) && (
-        <section className="tile sec">
-          <div className="lbl">Produit · {p.produit.nom}</div>
+        <section className="tile sec" aria-labelledby={t('produit')}>
+          <div className="lbl" id={t('produit')}>Produit · {p.produit.nom}</div>
           <div className="tl">
             {p.produit.faits.map((f) => <div className="ev" key={f}><span className="ico"><Ic n="tag" /></span><span>{f}</span><span /></div>)}
             {p.produit.manques.map((m) => <div className="ev" key={m}><span className="ico"><Ic n="warn" /></span><span>{m}</span><span className="pill w">manquant</span></div>)}
@@ -96,8 +100,8 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
       )}
 
       <div className="grid2 sec">
-        <section className="tile">
-          <div className="lbl">Ce qui manque</div>
+        <section className="tile" aria-labelledby={t('manques')}>
+          <div className="lbl" id={t('manques')}>Ce qui manque</div>
           {p.manques.length === 0 ? <p className="muted" style={{ fontSize: '12.5px', marginTop: 10 }}>Rien · le brief est complet.</p> : (
             <div className="tl">
               {p.manques.map((m) => <div className="ev" key={m.cle} data-manque={m.cle}><span className="ico"><Ic n={m.bloquant ? 'warn' : 'bulb'} /></span><span>{m.libelle}</span><span className={`pill ${m.bloquant ? 'w' : ''}`}>{m.bloquant ? 'à faire' : 'conseillé'}</span></div>)}
@@ -105,41 +109,42 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
           )}
         </section>
 
-        <section className="tile">
-          <div className="lbl">Ateliers du projet</div>
+        <section className="tile" aria-labelledby={t('ateliers')}>
+          <div className="lbl" id={t('ateliers')}>Ateliers du projet</div>
           <div className="tl">
             {p.atelier.map((a) => (
               <div className="ev" key={a.segment} data-atelier={a.segment}>
                 <span className="ico"><Ic n={ICONE_ATELIER[a.segment] ?? 'grid'} /></span>
                 <span>{a.libelle}{a.mention ? <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{a.mention}</small> : null}</span>
-                {a.href ? <Lien className="btn sm" href={a.href}>Ouvrir</Lien> : <span className="pill">Non activé</span>}
+                {a.href ? <Lien className="btn sm" href={a.href} aria-label={`Ouvrir l’atelier ${a.libelle}`}>Ouvrir</Lien> : <span className="pill">Non activé</span>}
               </div>
             ))}
           </div>
         </section>
       </div>
 
-      <section className="tile sec" id="propositions">
-        <div className="lbl">Propositions</div>
+      {/* Focalisable par programme · « Relire et décider » (panneau Jarvis) y pose le focus en changeant d'onglet. */}
+      <section className="tile sec" id="propositions" tabIndex={-1} aria-labelledby={t('propositions')}>
+        <div className="lbl" id={t('propositions')}>Propositions</div>
         <Propositions projectId={p.projectId} initial={p.propositions.initial} versionCourante={p.propositions.versionCourante} cibleDemandee={p.cibleJarvis ?? null} />
       </section>
 
       <div className="grid2 sec">
-        <section className="tile">
-          <div className="lbl">Historique des versions</div>
+        <section className="tile" aria-labelledby={t('versions')}>
+          <div className="lbl" id={t('versions')}>Historique des versions</div>
           <div className="tl">
             {p.versions.map((v) => (
               <div className="ev" key={v.id} data-version-n={v.n}>
                 <span className="ico"><Ic n={v.courante ? 'check' : 'loop'} /></span>
                 <span>Version {v.n} · {v.date}{v.raison ? <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{v.raison}</small> : null}</span>
-                {v.vue ? <span className="pill c">{v.courante ? 'Courante · ouverte' : 'Ouverte'}</span> : <Lien className="btn sm" href={v.href}>{v.courante ? 'Courante' : 'Consulter'}</Lien>}
+                {v.vue ? <span className="pill c">{v.courante ? 'Courante · ouverte' : 'Ouverte'}</span> : <Lien className="btn sm" href={v.href} aria-label={v.courante ? `Courante · ouvrir la version ${v.n}` : `Consulter la version ${v.n}`}>{v.courante ? 'Courante' : 'Consulter'}</Lien>}
               </div>
             ))}
           </div>
         </section>
 
-        <section className="tile">
-          <div className="lbl">Produire ailleurs</div>
+        <section className="tile" aria-labelledby={t('ailleurs')}>
+          <div className="lbl" id={t('ailleurs')}>Produire ailleurs</div>
           <ExporterBrief projectId={p.projectId} versionId={p.versionId} {...p.exportBrief} />
         </section>
       </div>
@@ -152,16 +157,16 @@ const ICONE_ATELIER: Record<string, string> = { image: 'brush', produit: 'tag', 
 /** Le brief exporté (Markdown, JSON, copie) · lecture pure côté serveur, aucun crédit (même action que la V5). */
 function ExporterBrief({ projectId, versionId, autorise, possible }: { projectId: string; versionId: string; autorise: boolean; possible: boolean }) {
   const { toast } = useSpatial();
-  const [etat, setEtat] = useState<{ ton: 'ok' | 'err'; texte: string } | null>(null);
-  const [enCours, setEnCours] = useState(false);
+  const [etat, setEtat] = useState<{ ton: 'ok' | 'err'; texte: string; horsLigne?: boolean } | null>(null);
+  const [enCours, setEnCours] = useState<'markdown' | 'copie' | 'json' | null>(null);
 
   async function exporter(format: 'markdown' | 'json', copier = false) {
-    setEnCours(true); setEtat(null);
+    setEnCours(copier ? 'copie' : format); setEtat(null);
     let r: Awaited<ReturnType<typeof exporterBrief>>;
     try { r = await exporterBrief({ projectId, versionId, format }); } catch {
-      setEnCours(false); setEtat({ ton: 'err', texte: `Hors ligne · ${messageHorsLigneStudio('export')}` }); return;
+      setEnCours(null); setEtat({ ton: 'err', texte: messageHorsLigneStudio('export'), horsLigne: true }); return;
     }
-    setEnCours(false);
+    setEnCours(null);
     if (!r.ok) { setEtat({ ton: 'err', texte: `${r.message} · identifiant support : ${r.traceId}` }); return; }
     if (copier) {
       try { await navigator.clipboard.writeText(r.contenu); toast('Brief copié · colle-le dans l’outil de ton choix.'); setEtat({ ton: 'ok', texte: 'Brief copié.' }); }
@@ -180,13 +185,18 @@ function ExporterBrief({ projectId, versionId, autorise, possible }: { projectId
   if (!autorise) return <p className="muted" style={{ fontSize: '12.5px', marginTop: 10 }}>Ton rôle ne permet pas d’exporter · demande un rôle Membre.</p>;
   return (
     <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+      {/* Pendant la lecture, le bouton pressé garde le focus (`aria-disabled`, `aria-busy`) et ignore un second clic ; les deux autres sont fermés. */}
       <div className="kc">
-        <button className="btn sm pri" type="button" disabled={enCours} onClick={() => void exporter('markdown')}><Ic n="down" />Exporter le brief</button>
-        <button className="btn sm" type="button" disabled={enCours} onClick={() => void exporter('markdown', true)}><Ic n="copy" />Copier</button>
-        <button className="btn sm" type="button" disabled={enCours} onClick={() => void exporter('json')}>JSON</button>
+        <button className="btn sm pri" type="button" data-export-brief="markdown" {...pendantAction({ presse: enCours === 'markdown', occupe: enCours !== null })}
+          onClick={() => { if (!enCours) void exporter('markdown'); }}><Ic n="down" />{enCours === 'markdown' ? 'Export…' : 'Exporter le brief'}</button>
+        <button className="btn sm" type="button" data-export-brief="copie" {...pendantAction({ presse: enCours === 'copie', occupe: enCours !== null })}
+          onClick={() => { if (!enCours) void exporter('markdown', true); }}><Ic n="copy" />{enCours === 'copie' ? 'Copie…' : 'Copier le brief'}</button>
+        <button className="btn sm" type="button" data-export-brief="json" {...pendantAction({ presse: enCours === 'json', occupe: enCours !== null })}
+          onClick={() => { if (!enCours) void exporter('json'); }}>{enCours === 'json' ? 'Export…' : 'Exporter en JSON'}</button>
       </div>
       <p className="faint" style={{ fontSize: '11.5px' }}>Gratuit · aucune génération. Le fichier suffit pour produire avec un autre outil.</p>
-      {etat && <Message ton={etat.ton}>{etat.texte}</Message>}
+      {/* Sans réponse du serveur, rien n'a été refusé · la pastille dit « Hors ligne ». */}
+      {etat && <Message ton={etat.ton} etiquette={etat.horsLigne ? 'Hors ligne' : undefined}>{etat.texte}</Message>}
     </div>
   );
 }
