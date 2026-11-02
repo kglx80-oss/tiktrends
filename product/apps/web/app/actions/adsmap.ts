@@ -4,12 +4,14 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   toCsv, COL_HYPOTHESIS, SHEET_STATUS, SHEET_VERDICT, SHEET_STAGE, SHEET_VARIABLE, SHEET_FORMAT, SHEET_AD_TYPE,
-  sheetDate, sheetNumber, type SheetRow,
+  sheetDate, sheetNumber, lienAdAffiche, routeApercuAdAdsmap, type SheetRow,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { runAdsMapSyncForBrand } from '../../lib/adsmap-sync';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
+import { cleObjetStockage } from '../../lib/brand-media-url';
+import { appUrl } from '../../lib/mailer';
 
 /**
  * ADSMAP · lecture du graphe pour la vue Table et l'export.
@@ -35,6 +37,11 @@ export interface AdRow {
   format: string;
   adType: string;
   briefUrl: string | null;
+  /**
+   * « Lien de l'Ad » · projection d'AFFICHAGE (`lienAdAffiche`) · un objet du
+   * stockage privé y est remplacé par sa route gardée, jamais son adresse
+   * brute ni une signature ; un lien externe reste tel qu'il a été saisi.
+   */
   assetUrl: string | null;
   variantCode: string;
   testedVariable: string | null;
@@ -148,7 +155,7 @@ export async function listAdsAction(filters: AdFilters = {}): Promise<{ rows?: A
         format: r.ad.format,
         adType: r.ad.adType,
         briefUrl: r.ad.briefUrl,
-        assetUrl: r.ad.assetUrl,
+        assetUrl: lienAdAffiche(r.ad.id, r.ad.assetUrl, !!r.ad.assetUrl && cleObjetStockage(r.ad.assetUrl) !== null),
         variantCode: r.ad.variantCode,
         testedVariable: r.ad.testedVariable,
         platform: r.ad.platform,
@@ -201,7 +208,8 @@ export async function exportAdsCsvAction(filters: AdFilters = {}, withComputed =
     'Ad Format': SHEET_FORMAT[r.format] ?? r.format,
     'Ad Type': SHEET_AD_TYPE[r.adType] ?? r.adType,
     'Lien du Brief créa': r.briefUrl ?? '',
-    "Lien de l'Ad": r.assetUrl ?? '',
+    // Le fichier sort de l'application · la route gardée y est écrite en adresse absolue (session exigée à l'ouverture).
+    "Lien de l'Ad": r.assetUrl === routeApercuAdAdsmap(r.id) ? `${appUrl()}${r.assetUrl}` : (r.assetUrl ?? ''),
     'Résultats': r.verdict ? (SHEET_VERDICT[r.verdict] ?? r.verdict) : '',
     'Apprentissages': r.learnings.join(' · '),
     'Ad Variable': r.testedVariable ? (SHEET_VARIABLE[r.testedVariable] ?? r.testedVariable) : '',

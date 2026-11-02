@@ -2,17 +2,18 @@
 
 import { and, desc, eq, isNull, or } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { annonceObservee, briefDepuisTest, objectifDepuisIteration, estGagnanteValidee, type VerdictValue } from '@tiktrends/core';
+import { annonceObservee, apercuSauvegardeVeille, briefDepuisTest, objectifDepuisIteration, estGagnanteValidee, type OrigineDepartAssistant, type VerdictValue } from '@tiktrends/core';
 import { gardeSources } from '../../../lib/studios/sources/acces';
 import { refusCapacite } from '../../../lib/studios/interrupteurs';
 import { getActiveBrand } from '../../../lib/brands';
 import { adsDeLaMarque } from '../../../lib/adsmap-marque';
-import { assetAiUrl } from '../../../lib/asset-ai-url';
+import { cleObjetStockage } from '../../../lib/brand-media-url';
 import { listAdsAction } from '../adsmap';
 import { adDetailAction } from '../adsmap-verdict';
 import { chargerSources } from '../../../lib/studios/sources/sources';
 
-export type OrigineDepartAssistant = 'veille' | 'iteration';
+/** La liste des départs fait foi (`ORIGINES_DEPART_ASSISTANT`, noyau) · le type en dérive. */
+export type { OrigineDepartAssistant };
 export interface ChoixDepartAssistant { id: string; titre: string; detail: string; apercu: string | null }
 export interface DepartAssistant {
   origine: OrigineDepartAssistant;
@@ -25,7 +26,15 @@ export interface DepartAssistant {
   testId: string | null;
 }
 
-/** Lecture seulement. Aucune proposition, création de projet ou dépense à l'ouverture. */
+/**
+ * Lecture seulement. Aucune proposition, création de projet ou dépense à l'ouverture.
+ *
+ * L'aperçu part au NAVIGATEUR · jamais une adresse signée (`assetAiUrl` est
+ * réservé à ce qui part au modèle) : elle expire en 300 s sous les yeux du
+ * panneau resté ouvert et nomme la clé interne. Une gagnante montre son média
+ * par la route gardée de l'ad (`lienAdAffiche`, déjà appliqué par
+ * `listAdsAction`) ; une sauvegarde Veille, sa vignette de régie.
+ */
 export async function listerDepartsAssistant(origine: OrigineDepartAssistant): Promise<{ ok: true; choix: ChoixDepartAssistant[] } | { ok: false; message: string; code?: string }> {
   const g = await gardeSources('studio.read');
   if (!g.ok) return g;
@@ -37,7 +46,7 @@ export async function listerDepartsAssistant(origine: OrigineDepartAssistant): P
     // Cette lecture refait sa propre garde Adsmap et la portée marque active.
     const r = await listAdsAction({ comparableOnly: true });
     if (r.error) return { ok: false, message: r.error };
-    return { ok: true, choix: (r.rows ?? []).filter((r) => r.verdictStatus === 'validated' && estGagnanteValidee(r.verdict as VerdictValue, r.comparable === true) && r.learnings.length > 0).slice(0, 100).map((r) => ({ id: r.id, titre: `${r.concept} · ${r.variantCode}`, detail: r.learnings.join(' · ') || 'Test gagnant arbitré · apprentissages à relire', apercu: r.assetUrl ? assetAiUrl(r.assetUrl, g.ctx.workspaceId) : null })) };
+    return { ok: true, choix: (r.rows ?? []).filter((r) => r.verdictStatus === 'validated' && estGagnanteValidee(r.verdict as VerdictValue, r.comparable === true) && r.learnings.length > 0).slice(0, 100).map((r) => ({ id: r.id, titre: `${r.concept} · ${r.variantCode}`, detail: r.learnings.join(' · ') || 'Test gagnant arbitré · apprentissages à relire', apercu: r.assetUrl })) };
   }
   if (origine !== 'veille') return { ok: false, message: 'Point de départ inconnu.' };
   if (!g.veilleOuverte) return { ok: false, message: 'La Veille est indisponible.' };
@@ -48,7 +57,7 @@ export async function listerDepartsAssistant(origine: OrigineDepartAssistant): P
     if (!annonce) return [];
     const brut = l.snapshot as Record<string, unknown>;
     const url = typeof brut.thumbnailUrl === 'string' ? brut.thumbnailUrl : annonce.mediaType === 'image' && typeof brut.mediaUrl === 'string' ? brut.mediaUrl : null;
-    return [{ id: l.id, titre: annonce.advertiserName || 'Annonce sauvegardée', detail: annonce.body.slice(0, 280), apercu: url ? assetAiUrl(url, g.ctx.workspaceId) : null }];
+    return [{ id: l.id, titre: annonce.advertiserName || 'Annonce sauvegardée', detail: annonce.body.slice(0, 280), apercu: apercuSauvegardeVeille(url, !!url && cleObjetStockage(url) !== null) }];
   }) };
 }
 
