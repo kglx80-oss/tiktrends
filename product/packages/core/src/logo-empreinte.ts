@@ -309,13 +309,15 @@ export function logoParDefautAffiche(o: { bilan: BilanLogosCharte | null | undef
   const d = o.bilan?.defaut ?? null;
   if (!d) return { image: true, signal: null };
   if (d.etat !== 'a_reimporter') return { image: false, signal: null };
+  return { image: false, signal: signalLogoAReimporter(d.raison, o.brandId, o.peutGerer) };
+}
+
+/** Le signal « Logo à réimporter » · le lien vers l'Identité pour qui peut la gérer, sinon qui peut le faire. */
+function signalLogoAReimporter(raison: string, brandId: string, peutGerer: boolean): SignalLogoAReimporter {
   return {
-    image: false,
-    signal: {
-      libelle: 'Logo à réimporter', raison: d.raison,
-      lien: o.peutGerer ? cheminIdentiteMarque(o.brandId) : null,
-      aide: o.peutGerer ? 'Réimporte-le dans l’Identité de la marque.' : AIDE_LOGO_SANS_GESTION,
-    },
+    libelle: 'Logo à réimporter', raison,
+    lien: peutGerer ? cheminIdentiteMarque(brandId) : null,
+    aide: peutGerer ? 'Réimporte-le dans l’Identité de la marque.' : AIDE_LOGO_SANS_GESTION,
   };
 }
 
@@ -356,6 +358,115 @@ export function annonceLogosAReimporter(o: {
   const plusieurs = out.length > 1;
   const message = `${plusieurs ? 'Logos à réimporter' : 'Logo à réimporter'} · ${noms} : ${plusieurs ? 'leurs fichiers ont' : 'son fichier a'} été remplacé${plusieurs ? 's' : ''} ou ${plusieurs ? 'ne sont' : 'n’est'} plus dans le stockage depuis l’import. ${plusieurs ? 'Ils ne seront pas envoyés' : 'Il ne sera pas envoyé'} au fournisseur d’images et une consigne qui ${plusieurs ? 'les' : 'le'} lie ne pourra pas être générée · ${o.peutGerer ? `réimporte-${plusieurs ? 'les' : 'le'} dans l’Identité de la marque avant de préparer ton visuel.` : 'un administrateur de l’espace peut le faire dans l’Identité de la marque.'}`;
   return { logos: out, message, lien: o.peutGerer ? cheminIdentiteMarque(o.brandId) : null };
+}
+
+/* ───────────── Éditeur d'image · les calques logo ───────────── */
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * L'éditeur d'image des Studios montrait un calque logo dont le fichier a été
+ * remplacé dans le stockage depuis l'import par un repli neutre « Logo ·
+ * aperçu indisponible » (#1011) · une `<img>` ne lit pas la cause du refus
+ * (409, `x-logo-etat`). L'export le refusait avec une phrase (#1009), l'atelier
+ * Identités et l'écran vidéo disaient « Logo à réimporter » · l'éditeur ne
+ * disait pas pourquoi, ni où le réimporter.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ *  · seuls les calques image ou logo qui posent un logo de la charte
+ *    (`logo_…`, `idLogoMarque`) sont concernés ; leur état vient du MÊME bilan
+ *    que les autres écrans (`bilanLogosCharte`, jugé au rendu serveur) ;
+ *  · « à réimporter » = ce que retient `annonceLogosAReimporter` pour les
+ *    logos des calques (aucune règle à part) · le signal de la fiche
+ *    (`signalLogoAReimporter` · raison, lien vers l'Identité pour un admin,
+ *    sinon qui peut le faire) ;
+ *  · stockage injoignable (ou vérification qui n'a pas pu partir) ⇒ « Logo
+ *    non vérifiable », JAMAIS « à réimporter », sans lien · comme
+ *    `refusLogoHttp` (on ne fait pas refaire un import qu'on n'a pas pu juger) ;
+ *  · ni l'un ni l'autre ne montre d'image (la route la refuserait) · le
+ *    calque porte le signal à sa place ;
+ *  · près du bouton d'export · un rappel, pour les seuls calques VISIBLES (ceux
+ *    que le préflight relit, `mediasAVerifier`) · à réimporter d'abord (l'export
+ *    sera refusé), sinon non vérifiable (l'export le revérifiera).
+ */
+export type SignalLogoCalque =
+  | (SignalLogoAReimporter & { etat: 'a-reimporter' })
+  | { etat: 'non-verifiable'; libelle: 'Logo non vérifiable'; raison: string; lien: null; aide: null };
+
+export interface RappelLogosExport {
+  etat: 'a-reimporter' | 'non-verifiable';
+  /** Les calques visibles concernés, par identifiant. */
+  calques: string[];
+  message: string;
+  /** La fiche Identité · seulement « à réimporter », pour qui peut la gérer. */
+  lien: string | null;
+}
+
+export interface AnnonceLogosEditeur {
+  /** Identifiant du logo (`logo_…`) → signal · seulement les logos des calques qui ne sont PAS servis. */
+  logos: Record<string, SignalLogoCalque>;
+  rappelExport: RappelLogosExport | null;
+}
+
+/** Un calque du document, vu par cette règle (`CalqueStudio` en est un). */
+export interface CalqueLu { id: string; name: string; kind: string; visible: boolean; assetId?: string }
+
+/** Les logos de la charte posés par des calques · les identifiants `logo_…` d'un calque image ou logo, chacun une fois. */
+export function logosPosesParCalques(calques: ReadonlyArray<CalqueLu>): string[] {
+  const out = new Set<string>();
+  for (const c of calques) if ((c.kind === 'logo' || c.kind === 'image') && typeof c.assetId === 'string' && c.assetId.startsWith('logo_')) out.add(c.assetId);
+  return [...out];
+}
+
+/** Ce que l'éditeur dit des calques logo · `null` quand tous leurs logos sont servis (ou qu'aucun n'est posé). */
+export function annonceLogosEditeur(o: {
+  calques: ReadonlyArray<CalqueLu>;
+  logos: ReadonlyArray<LogoDuProjet>;
+  bilan: BilanLogosCharte;
+  brandId: string;
+  peutGerer: boolean;
+}): AnnonceLogosEditeur | null {
+  const poses = logosPosesParCalques(o.calques);
+  const aReimporter = new Set(annonceLogosAReimporter({ utilises: poses, logos: o.logos, bilan: o.bilan, brandId: o.brandId, peutGerer: o.peutGerer })?.logos.map((l) => l.assetId) ?? []);
+  const voulus = new Set(poses);
+  const logos: Record<string, SignalLogoCalque> = {};
+  const poser = (id: string, s: SignalLogoCalque) => Object.defineProperty(logos, id, { value: s, enumerable: true, writable: true, configurable: true });
+  for (const l of o.logos) {
+    if (!voulus.has(l.assetId) || Object.prototype.hasOwnProperty.call(logos, l.assetId)) continue;
+    const e = Object.prototype.hasOwnProperty.call(o.bilan.etats, l.url) ? o.bilan.etats[l.url]! : null;
+    if (e?.etat === 'a_reimporter' && aReimporter.has(l.assetId)) poser(l.assetId, { ...signalLogoAReimporter(e.raison, o.brandId, o.peutGerer), etat: 'a-reimporter' });
+    else if (e?.etat === 'indisponible') poser(l.assetId, { etat: 'non-verifiable', libelle: 'Logo non vérifiable', raison: e.raison, lien: null, aide: null });
+  }
+  if (!Object.keys(logos).length) return null;
+  return { logos, rappelExport: rappelLogosExport(o.calques, logos) };
+}
+
+/**
+ * Le rappel près du bouton d'export · relu par l'éditeur sur le document
+ * COURANT (un calque masqué ou retiré n'est plus compté) à partir des signaux
+ * jugés au rendu serveur. Le lien vers l'Identité est celui des signaux (posé
+ * pour un admin seulement).
+ */
+export function rappelLogosExport(calques: ReadonlyArray<CalqueLu>, logos: Readonly<Record<string, SignalLogoCalque>>): RappelLogosExport | null {
+  const signal = (c: CalqueLu) => (c.visible && typeof c.assetId === 'string' && Object.prototype.hasOwnProperty.call(logos, c.assetId) ? logos[c.assetId]! : null);
+  const noms = (cs: ReadonlyArray<CalqueLu>) => cs.map((c) => `« ${c.name || c.id} »`).join(', ');
+  const ar = calques.filter((c) => signal(c)?.etat === 'a-reimporter');
+  if (ar.length) {
+    const n = ar.length > 1;
+    const lien = ar.map((c) => signal(c)!.lien).find((l): l is string => typeof l === 'string') ?? null;
+    return {
+      etat: 'a-reimporter', calques: ar.map((c) => c.id), lien,
+      message: `${n ? 'Logos à réimporter' : 'Logo à réimporter'} · l’export refusera ${n ? `les calques ${noms(ar)} tant que leurs logos ne sont pas réimportés` : `le calque ${noms(ar)} tant que son logo n’est pas réimporté`}.${lien ? '' : ` Un administrateur de l’espace peut ${n ? 'les' : 'le'} réimporter dans l’Identité de la marque.`}`,
+    };
+  }
+  const nv = calques.filter((c) => signal(c)?.etat === 'non-verifiable');
+  if (!nv.length) return null;
+  const n = nv.length > 1;
+  return {
+    etat: 'non-verifiable', calques: nv.map((c) => c.id), lien: null,
+    message: `${n ? 'Logos non vérifiables' : 'Logo non vérifiable'} pour l’instant (stockage injoignable) · ${n ? `les calques ${noms(nv)} ne sont pas affichés, l’export les revérifiera` : `le calque ${noms(nv)} n’est pas affiché, l’export le revérifiera`} · réessaie dans un instant.`,
+  };
 }
 
 /* ───────────── Veille · Formats · l'image des miniatures ───────────── */
