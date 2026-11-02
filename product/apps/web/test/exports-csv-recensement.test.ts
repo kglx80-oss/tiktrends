@@ -40,7 +40,7 @@ const RECENSES: Record<string, { role: Role; pourquoi: string }> = {
   'apps/web/lib/studios/textes/textes.ts': { role: 'transit', pourquoi: 'choisit le format de l’export Textes, n’écrit aucune cellule' },
   'apps/web/spatial/vues/projet/Textes.tsx': { role: 'transit', pourquoi: 'bouton de téléchargement de l’export Textes (contenu produit par le noyau)' },
   'apps/web/spatial/vues/resultats/Tests.tsx': { role: 'transit', pourquoi: 'télécharge le CSV rendu par exportAdsCsvAction' },
-  'apps/web/spatial/vues/resultats/Importer.tsx': { role: 'lecture', pourquoi: 'sélection du CSV historique à importer' },
+  'apps/web/spatial/vues/resultats/Importer.tsx': { role: 'transit', pourquoi: 'sélection du CSV historique à importer, et « Télécharger le modèle » (contenu produit par le noyau · modeleImport, via toCsv)' },
   'apps/web/scripts/importer-pack-prompts.ts': { role: 'lecture', pourquoi: 'lit 04-RECETTE.csv du pack de prompts (script d’exploitation)' },
   'packages/core/src/prompts/pack.ts': { role: 'lecture', pourquoi: 'commentaire nommant 04-RECETTE.csv' },
 };

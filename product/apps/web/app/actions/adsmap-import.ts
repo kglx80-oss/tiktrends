@@ -2,7 +2,10 @@
 
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { buildImportPlan, detecterSeparateur, lectureSeparateur, VALEUR_ABSENTE, type ImportPlan, type ImportReport } from '@tiktrends/core';
+import {
+  buildImportPlan, detecterSeparateur, enteteDuFichier, guideColonnes, lectureSeparateur, VALEUR_ABSENTE,
+  type GuideColonnes, type ImportPlan, type ImportReport,
+} from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
 import { resoudreLiensDuPlan } from '../../lib/adsmap-import-liens';
@@ -29,6 +32,12 @@ export interface PreviewResult {
   lecture?: string;
   /** Aperçu des premières lignes, pour vérifier d'un coup d'œil que rien n'a glissé. */
   sample?: Array<{ concept: string; angle: string; desire: string; variant: string; status: string; verdict: string | null; date: string | null }>;
+  /**
+   * Ce qu'il faut corriger (`guideColonnes`) · sur un refus, les intitulés lus
+   * et les colonnes attendues absentes ; sur un aperçu accepté, les colonnes du
+   * tableau absentes, dont rien ne sera importé.
+   */
+  guide?: GuideColonnes;
   error?: string;
 }
 
@@ -41,8 +50,10 @@ export async function previewImportAction(csvText: string): Promise<PreviewResul
 
   try {
     const lu = buildImportPlan(csvText);
-    // Mal découpé ou étranger au tableau · refusé avant tout aperçu, avec la phrase du noyau.
-    if (lu.refus) return { error: lu.refus };
+    // Hors du plan · un même tableau réenregistré autrement rend le même plan, pas le même en-tête.
+    const guide = guideColonnes(enteteDuFichier(csvText));
+    // Mal découpé ou étranger au tableau · refusé avant tout aperçu, avec la phrase du noyau et ce qu'il faut corriger.
+    if (lu.refus) return { error: lu.refus, guide };
     if (lu.report.rowsRead === 0) {
       return { error: 'Aucune ligne exploitable trouvée. Vérifie que le fichier contient bien les colonnes « Status » et « Ad Concept ».' };
     }
@@ -52,6 +63,7 @@ export async function previewImportAction(csvText: string): Promise<PreviewResul
     return {
       report: plan.report,
       lecture: lectureSeparateur(detecterSeparateur(csvText)),
+      guide,
       sample: plan.ads.slice(0, 12).map((a) => {
         const c = byKey.get(a.conceptKey);
         const angle = plan.angles.find((x) => x.label === c?.angleLabel);

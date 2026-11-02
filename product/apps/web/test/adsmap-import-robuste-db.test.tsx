@@ -15,7 +15,10 @@ import { createRoot } from 'react-dom/client';
  *    même espace), ou rien (autre marque, autre espace), et une autre origine
  *    n'est jamais résolue ;
  *  · un fichier mal découpé est refusé avant l'aperçu, rien n'est écrit ;
- *  · l'écran dit comment le fichier a été lu.
+ *  · l'écran dit comment le fichier a été lu ;
+ *  · un refus dit QUOI corriger · intitulés lus et colonnes attendues absentes
+ *    à l'écran, rendus comme texte, « Télécharger le modèle » qui télécharge
+ *    l'en-tête de l'export ; un aperçu accepté dit les colonnes absentes.
  */
 
 const etat = vi.hoisted(() => {
@@ -42,7 +45,7 @@ vi.mock('../lib/adsmap-guard', () => ({
 vi.mock('next/navigation', () => ({ usePathname: () => '/adsmap/import', useRouter: () => ({ refresh: () => {}, push: () => {} }) }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { sousNavResultats } from '@tiktrends/core';
+import { modeleImport, sousNavResultats } from '@tiktrends/core';
 import { exportAdsCsvAction } from '../app/actions/adsmap';
 import { applyImportAction, previewImportAction } from '../app/actions/adsmap-import';
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
@@ -155,8 +158,8 @@ const CTX: CtxSpatial = {
 };
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-/** Monte l'écran, dépose le fichier, rend le texte affiché. */
-async function deposer(texte: string): Promise<{ texte: string; boutons: string[] }> {
+/** Monte l'écran, dépose le fichier, rend le texte affiché · `puis` agit sur l'écran avant démontage. */
+async function deposer(texte: string, puis?: (hote: HTMLElement) => Promise<void>): Promise<{ texte: string; html: string; boutons: string[] }> {
   const hote = document.createElement('div');
   document.body.appendChild(hote);
   const root = createRoot(hote);
@@ -166,7 +169,8 @@ async function deposer(texte: string): Promise<{ texte: string; boutons: string[
     Object.defineProperty(ev, 'dataTransfer', { value: { files: [new File([texte], 'tableau.csv', { type: 'text/csv' })] } });
     hote.querySelector('.drop')!.dispatchEvent(ev);
   });
-  const out = { texte: hote.textContent ?? '', boutons: [...hote.querySelectorAll('button')].map((b) => b.textContent ?? '') };
+  const out = { texte: hote.textContent ?? '', html: hote.innerHTML, boutons: [...hote.querySelectorAll('button')].map((b) => b.textContent ?? '') };
+  if (puis) await puis(hote);
   act(() => root.unmount());
   hote.remove();
   return out;
@@ -190,5 +194,87 @@ describe('écran Importer · rendu avec les vraies actions', () => {
     expect(r.texte, 'l’écran ne dit pas pourquoi le fichier est refusé').toContain('Colonnes non reconnues · tout l\'en-tête tient dans une seule cellule');
     expect(r.texte, 'un aperçu a été montré pour un fichier refusé').not.toContain('Ce qui sera créé');
     expect(r.boutons.some((b) => /^Importer \d+ variantes$/.test(b)), 'le bouton d’import est proposé').toBe(false);
+  });
+});
+
+/** Un export Meta Ads (en-tête type) · étranger au tableau, refusé. */
+const META = 'Début des rapports,Fin des rapports,Nom de la campagne,Nom de l’ensemble de publicités,Nom de la publicité,Diffusion de la publicité,Résultats,Indicateur de résultat,Couverture,Impressions,Coût par résultat,Montant dépensé (EUR)\n2026-10-01,2026-10-07,C,E,P,active,12,achats,1000,2000,3,36\n';
+const corriger = (html: string) => {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  return d.querySelector('section[aria-label="Ce qu’il faut corriger"]');
+};
+
+describe('écran Importer · un refus dit quoi corriger', () => {
+  it('export Meta · intitulés lus, « Ad Concept » obligatoire absente, autres colonnes absentes, modèle, pas de bouton d’import', async () => {
+    sous(ids.wsA, ids.brandA1);
+    let modele = '';
+    let attributs: { minHeight: string; type: string } | null = null;
+    const r = await deposer(META, async (hote) => {
+      const bouton = [...hote.querySelectorAll('button')].find((b) => b.textContent === 'Télécharger le modèle');
+      if (!bouton) return;   // dit plus bas, après la zone elle-même
+      attributs = { minHeight: bouton!.style.minHeight, type: bouton!.type };
+      const blobs: Blob[] = [];
+      // jsdom n'a pas d'URL d'objet · posées le temps du clic, retirées ensuite.
+      const u = URL as unknown as Record<string, unknown>;
+      u.createObjectURL = (b: Blob) => { blobs.push(b); return 'blob:modele'; };
+      u.revokeObjectURL = () => {};
+      const telecharges: string[] = [];
+      const clic = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { telecharges.push(this.download); });
+      try {
+        act(() => { bouton!.click(); });
+      } finally {
+        clic.mockRestore(); delete u.createObjectURL; delete u.revokeObjectURL;
+      }
+      expect(telecharges, 'le modèle n’est pas téléchargé').toEqual(['modele-import-resultats.csv']);
+      // Les octets tels quels · `text()` avalerait le BOM qu'Excel attend.
+      modele = blobs[0] ? new TextDecoder('utf-8', { ignoreBOM: true }).decode(await blobs[0].arrayBuffer()) : '';
+    });
+    const zone = corriger(r.html);
+    expect(zone, 'aucune zone « Ce qu’il faut corriger » sur un refus').not.toBeNull();
+    const texte = zone!.textContent ?? '';
+    expect(r.texte, 'la phrase de refus n’est plus là').toContain('Colonnes non reconnues · 1 colonne(s) du tableau retrouvée(s) sur 19');
+    for (const lu of ['« Début des rapports »', '« Nom de l’ensemble de publicités »', '« Montant dépensé (EUR) »']) {
+      expect(texte, `l’intitulé lu ${lu} n’est pas à l’écran`).toContain(lu);
+    }
+    expect(texte, 'la colonne obligatoire absente n’est pas dite').toContain('Colonne obligatoire absente« Ad Concept »');
+    expect(texte, 'les autres colonnes absentes ne sont pas dites').toContain('Autres colonnes du tableau absentes« Status »« BATCH # »« Autheur »');
+    expect(texte, '« Résultats » est lue, elle est dite absente').not.toMatch(/absentes.*« Résultats »/);
+    expect(r.boutons.some((b) => /^Importer \d+ variantes$/.test(b)), 'le bouton d’import est proposé sur un refus').toBe(false);
+    expect(r.texte, 'un aperçu a été montré pour un fichier refusé').not.toContain('Ce qui sera créé');
+    expect(attributs, 'pas de bouton « Télécharger le modèle » sur un refus').not.toBeNull();
+    expect(attributs, 'le bouton du modèle n’offre pas une cible de 44 px').toEqual({ minHeight: '44px', type: 'button' });
+    expect(modele, 'le fichier téléchargé n’est pas le modèle du noyau').toBe(modeleImport());
+    expect(modele.startsWith('\uFEFFStatus;BATCH #;Autheur;Ad Concept;'), 'le modèle n’est pas l’en-tête de l’export, BOM compris').toBe(true);
+  });
+
+  it('un intitulé saisi s’affiche comme texte · formule, signe, arobase et balise restent tels quels', async () => {
+    sous(ids.wsA, ids.brandA1);
+    const csv = '"=HYPERLINK(""https://x.test"",""clic"")",+cmd,-2+3,@SOMME(A1),<b>gras</b><img src=x onerror=alert(1)>\n1,2,3,4,5\n';
+    const r = await deposer(csv);
+    const zone = corriger(r.html);
+    expect(zone, 'aucune zone « Ce qu’il faut corriger » sur un refus').not.toBeNull();
+    expect(zone!.querySelector('b, img'), 'un intitulé a été interprété comme balisage').toBeNull();
+    const texte = zone!.textContent ?? '';
+    for (const lu of ['« =HYPERLINK("https://x.test","clic") »', '« +cmd »', '« -2+3 »', '« @SOMME(A1) »', '« <b>gras</b><img src=x onerror=alert(1)> »']) {
+      expect(texte, `l’intitulé ${lu} n’est pas montré tel quel`).toContain(lu);
+    }
+    expect(r.html, 'la balise n’est pas échappée').toContain('&lt;b&gt;gras&lt;/b&gt;');
+  });
+
+  it('accepté avec des colonnes absentes · la mention à l’écran, l’import reste proposé', async () => {
+    sous(ids.wsA, ids.brandA1);
+    const r = await deposer('Status,BATCH #,Ad Concept,Date de lancement\nTerminé,7,Concept guide,01/08/2026\n');
+    expect(r.texte, 'l’aperçu accepté ne dit pas les colonnes absentes').toContain('15 colonnes du tableau absentes du fichier · rien n\'en sera importé : « Autheur », « Désire », « Angle(s) »');
+    expect(r.texte).toContain('« Plateforme ». L’import n’est pas bloqué.');
+    expect(r.boutons.some((b) => /^Importer 1 variantes$/.test(b)), 'l’import est bloqué par des colonnes optionnelles absentes').toBe(true);
+    expect(corriger(r.html), 'la zone de refus est montrée sur un aperçu accepté').toBeNull();
+  });
+
+  it('accepté complet (l’export) · aucune mention de colonnes absentes', async () => {
+    sous(ids.wsA, ids.brandA1);
+    const r = await deposer(csv);
+    expect(r.texte).toContain('Ce qui sera créé');
+    expect(r.texte, 'une colonne est dite absente d’un export complet').not.toContain('absente');
   });
 });
