@@ -10,8 +10,9 @@ import { cleObjetStockage } from './brand-media-url';
  * colonnes lues, LA jointure ad → créa et le juge « objet du stockage »
  * (`cleObjetStockage`). Un objet privé passe par `/api/adsmap/[id]/apercu`
  * (session, garde Adsmap, marque active, objet de l'espace, 302 signée
- * éphémère) · jamais par son adresse brute. Ce qui part au MODÈLE ne passe pas
- * ici (`adsmap-analyze.ts`, gardé à part).
+ * éphémère) · jamais par son adresse brute. Ce qui part au MODÈLE (l'analyse
+ * « Décrire les créas », la mémoire de Jarvis) lit la créa par la MÊME jointure
+ * bornée · recensé par `analyse-crea-marque-db.test.tsx`.
  */
 
 export const estObjetStockage = (url: string): boolean => cleObjetStockage(url) !== null;
@@ -20,9 +21,10 @@ export const estObjetStockage = (url: string): boolean => cleObjetStockage(url) 
  * LA jointure ad → créa · la créa de l'ad (`creatives.id = ads.creative_id`),
  * et seulement si elle appartient à la marque lue. Une créa d'une autre marque
  * collée sur l'ad n'est jamais lue · ni sa miniature brute, ni la route gardée
- * qui la nommerait. Les écrans ET la route `/api/adsmap/[id]/apercu` la
- * partagent · l'image montrée est celle que la route sert. 1→1 · elle ne
- * multiplie pas un `count(ads)`.
+ * qui la nommerait, ni sa transcription, son OCR ou son accroche envoyées au
+ * modèle. Les écrans, la route `/api/adsmap/[id]/apercu`, l'analyse et la
+ * mémoire de Jarvis la partagent · c'est la SEULE jointure ad → créa du code
+ * serveur (recensée par motif). 1→1 · elle ne multiplie pas un `count(ads)`.
  */
 export function jointureCreaDeLaMarque(brandId: string) {
   return and(eq(schema.creatives.id, schema.ads.creativeId), eq(schema.creatives.brandId, brandId));

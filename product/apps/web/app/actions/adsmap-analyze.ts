@@ -1,12 +1,12 @@
 'use server';
 
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { analyzeAdAsset } from '@tiktrends/ai';
 import {
   normalizeAnalysis, summarizeAnalysis, costFor,
   usableImageUrl, isSharePage, writtenDossier, sourceTag, sourceOf, estimateAnalysisCost,
-  WRITTEN_CONFIDENCE_CAP,
+  WRITTEN_CONFIDENCE_CAP, creaLieeEtrangere, phraseAnalyseCreasEtrangeres,
   type AssetAnalysis, type AnalysisSource,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
@@ -15,6 +15,7 @@ import { reserveCredits, refundCredits, unlimitedCredits } from '../../lib/credi
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { guardedAnthropic } from '../../lib/spend-guard';
 import { assetAiUrl } from '../../lib/asset-ai-url';
+import { jointureCreaDeLaMarque } from '../../lib/adsmap-medias';
 import { GUARD } from '../../lib/guard-error';
 
 /**
@@ -37,6 +38,14 @@ import { GUARD } from '../../lib/guard-error';
  *    pas ne doit pas effacer ce qu'on savait.
  *  - **on rembourse quand l'analyse ne produit rien.** Un appel sans matière
  *    n'est pas un service rendu.
+ *
+ * Et une quatrième, qui borne ce qui PART au modèle : la créa d'une ad n'est
+ * lue que si elle appartient à la marque (`jointureCreaDeLaMarque`, la même que
+ * les écrans et la route gardée). Une ad dont la créa liée est d'une AUTRE
+ * marque (import, ancienne synchro) est ÉCARTÉE avant l'appel
+ * (`creaLieeEtrangere`) · rien d'elle ne part au modèle, rien ne s'écrit (ni
+ * son lien, ni une créa), aucun crédit n'est réservé, et le résultat le dit,
+ * compté. Réparer ce lien est une décision humaine.
  */
 
 const ACTION = 'asset_analysis' as const;
@@ -46,6 +55,8 @@ const MAX_LOT = 25;
 interface Sujet {
   adId: string;
   creativeId: string | null;
+  /** L'ad est liée à une créa d'une AUTRE marque · écartée avant l'appel, jamais réécrite. */
+  creaEtrangere: boolean;
   /** Lien tel qu'il est en base · peut mener à une page, pas à un fichier. */
   assetUrl: string | null;
   /** Le même, seulement s'il peut réellement être ouvert comme une image. */
@@ -61,7 +72,7 @@ interface Sujet {
 }
 
 /** Écrit l'analyse sans jamais effacer ce qu'on savait déjà. */
-async function persist(creativeId: string, a: AssetAnalysis, modele: string, source: AnalysisSource): Promise<void> {
+async function persist(creativeId: string, brandId: string, a: AssetAnalysis, modele: string, source: AnalysisSource): Promise<void> {
   // `?? undefined` et non `?? null` : dans Drizzle, `undefined` laisse la colonne
   // intacte là où `null` l'efface. La nuance décide si un modèle hésitant détruit
   // une donnée acquise.
@@ -86,22 +97,34 @@ async function persist(creativeId: string, a: AssetAnalysis, modele: string, sou
     // se dit sûr de lui.
     analysisConfidence: source === 'written' ? Math.min(a.confidence, WRITTEN_CONFIDENCE_CAP) : a.confidence,
     analyzedAt: new Date(),
-  }).where(eq(schema.creatives.id, creativeId));
+  // Bornée à la marque · une analyse de la marque A ne s'écrit jamais sur une créa de B.
+  }).where(and(eq(schema.creatives.id, creativeId), eq(schema.creatives.brandId, brandId)));
 }
 
 /**
  * Garantit la créa porteuse · même raison qu'à la synchro : `creatives` est la
- * table des assets, et une ad de la carte peut ne pas encore en avoir.
+ * table des assets, et une ad de la carte peut ne pas encore en avoir. Seule
+ * une ad SANS créa liée en reçoit une · le lien n'est posé que s'il est vide
+ * (`creative_id is null`), sinon rien n'est créé (transaction annulée) · une
+ * ad liée à la créa d'une autre marque n'arrive pas ici, et ne serait de toute
+ * façon jamais ré-pointée.
  */
 async function ensureCreative(sujet: Sujet, brandId: string): Promise<string | null> {
   if (sujet.creativeId) return sujet.creativeId;
+  if (sujet.creaEtrangere) return null;
   const type = sujet.format.startsWith('video') ? 'video' : sujet.format === 'image_carousel' ? 'carousel' : 'image';
-  const [c] = await db!.insert(schema.creatives).values({
-    brandId, fingerprintHash: `adsmap:${sujet.adId}`, type,
-  }).returning({ id: schema.creatives.id });
-  if (!c) return null;
-  await db!.update(schema.ads).set({ creativeId: c.id }).where(eq(schema.ads.id, sujet.adId));
-  return c.id;
+  return db!.transaction(async (tx) => {
+    const [c] = await tx.insert(schema.creatives).values({
+      brandId, fingerprintHash: `adsmap:${sujet.adId}`, type,
+    }).returning({ id: schema.creatives.id });
+    if (!c) return null;
+    const lie = await tx.update(schema.ads).set({ creativeId: c.id })
+      .where(and(eq(schema.ads.id, sujet.adId), isNull(schema.ads.creativeId)))
+      .returning({ id: schema.ads.id });
+    // Un lien est apparu entre-temps · on ne l'écrase pas, et la créa ne naît pas.
+    if (!lie.length) tx.rollback();
+    return c.id;
+  }).catch(() => null);
 }
 
 async function load(workspaceId: string, brandId: string, adIds?: string[]): Promise<Sujet[]> {
@@ -109,7 +132,8 @@ async function load(workspaceId: string, brandId: string, adIds?: string[]): Pro
   if (adIds?.length) conds.push(inArray(schema.ads.id, adIds));
 
   const rows = await db!.select({
-    adId: schema.ads.id, creativeId: schema.ads.creativeId, assetUrl: schema.ads.assetUrl,
+    // La créa LUE (jointure bornée) · `null` quand elle est d'une autre marque ; le lien brut dit seulement qu'il y en a une.
+    adId: schema.ads.id, creativeId: schema.creatives.id, lienCrea: schema.ads.creativeId, assetUrl: schema.ads.assetUrl,
     format: schema.ads.format, hypothesis: schema.ads.hypothesis,
     transcript: schema.creatives.transcript, ocrText: schema.creatives.ocrText,
     durationS: schema.creatives.durationS, analysisModel: schema.creatives.analysisModel,
@@ -123,7 +147,7 @@ async function load(workspaceId: string, brandId: string, adIds?: string[]): Pro
     .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
     .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
     .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
-    .leftJoin(schema.creatives, eq(schema.ads.creativeId, schema.creatives.id))
+    .leftJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
     .where(and(...conds))
     .limit(MAX_LOT * 4);
 
@@ -146,7 +170,7 @@ async function load(workspaceId: string, brandId: string, adIds?: string[]): Pro
   }
 
   return rows.map((r) => ({
-    adId: r.adId, creativeId: r.creativeId, assetUrl: r.assetUrl,
+    adId: r.adId, creativeId: r.creativeId, creaEtrangere: creaLieeEtrangere(r.lienCrea, r.creativeId), assetUrl: r.assetUrl,
     imageUrl: usableImageUrl(r.assetUrl),
     format: r.format,
     transcript: [r.transcript, r.ocrText].filter(Boolean).join('\n') || null,
@@ -165,6 +189,8 @@ export interface AnalyzeResult {
   analyzed?: number;
   /** Décrites à partir du brief seul · confiance plafonnée, et on le dit. */
   fromWritten?: number;
+  /** Ads écartées parce que leur créa liée est d'une AUTRE marque · rien n'est parti, rien n'est écrit. */
+  foreignCrea?: number;
   /** Ads laissées de côté, avec la raison · on ne fait pas semblant d'avoir tout traité. */
   skipped?: Array<{ adId: string; reason: string }>;
   summary?: string;
@@ -200,6 +226,15 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
       adId: s.adId, reason: 'Description corrigée à la main · l’agent ne la remplace pas.',
     }));
 
+    // Une créa liée d'une AUTRE marque · écartée AVANT tout appel et toute
+    // réservation : rien d'elle ne part, rien ne s'écrit, rien n'est débité.
+    const etrangeres = sujets.filter((s) => s.creaEtrangere);
+    for (const s of etrangeres) {
+      skipped.push({ adId: s.adId, reason: 'Sa créa liée appartient à une autre marque · rien n’est envoyé ni écrit, à réparer avant analyse.' });
+    }
+    sujets = sujets.filter((s) => !s.creaEtrangere);
+    const phraseEtrangeres = phraseAnalyseCreasEtrangeres(etrangeres.length);
+
     // Sans image NI matière écrite, un modèle remplit quand même le formulaire ·
     // et ces valeurs entreraient dans les statistiques comme si elles avaient
     // été observées.
@@ -216,10 +251,10 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
 
     if (!sujets.length) {
       return {
-        analyzed: 0, skipped,
-        summary: skipped.length
+        analyzed: 0, skipped, foreignCrea: etrangeres.length,
+        summary: (skipped.length
           ? `Rien à analyser · ${skipped.length} ad(s) écartée(s), le détail est ci-dessous.`
-          : 'Toutes les ads de cette marque sont déjà décrites.',
+          : 'Toutes les ads de cette marque sont déjà décrites.') + (phraseEtrangeres ? ` ${phraseEtrangeres}.` : ''),
       };
     }
 
@@ -279,7 +314,7 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
           skipped.push({ adId: s.adId, reason: 'Impossible de rattacher l’analyse à un asset.' });
           continue;
         }
-        await persist(creativeId, normalizeAnalysis(brut), process.env.ANTHROPIC_GEN_MODEL || 'claude-sonnet-5', source);
+        await persist(creativeId, g.brand.id, normalizeAnalysis(brut), process.env.ANTHROPIC_GEN_MODEL || 'claude-sonnet-5', source);
         analyzed++;
         if (source === 'written') depuisTexte++;
       } catch (e) {
@@ -299,8 +334,8 @@ export async function analyzeAssetsAction(adIds?: string[]): Promise<AnalyzeResu
     if (depuisTexte) parts.push(`dont ${depuisTexte} depuis le brief écrit, faute d’asset ouvrable`);
     if (skipped.length) parts.push(`${skipped.length} écartée(s)`);
     return {
-      analyzed, skipped, fromWritten: depuisTexte,
-      summary: parts.join(' · ') + '.' + (analyzed ? ' La mémoire de Jarvis s’enrichit d’autant.' : ''),
+      analyzed, skipped, fromWritten: depuisTexte, foreignCrea: etrangeres.length,
+      summary: parts.join(' · ') + '.' + (analyzed ? ' La mémoire de Jarvis s’enrichit d’autant.' : '') + (phraseEtrangeres ? ` ${phraseEtrangeres}.` : ''),
     };
   } catch (e) {
     return { error: logAndTranslate('adsmap:analyze', e, { subject: 'l’analyse des assets', workspaceId: g.s.workspaceId }) };
@@ -322,6 +357,8 @@ export interface AnalysisCoverage {
   nextCostUsd: number;
   /** Ce que coûterait la totalité · le chiffre qu'on veut voir avant de s'engager. */
   totalCostUsd: number;
+  /** Ads dont la créa liée est d'une AUTRE marque · hors tranche et hors coût (l'action les écarte). */
+  foreignCrea: number;
 }
 
 /**
@@ -336,6 +373,7 @@ export async function analysisCoverageAction(): Promise<{ coverage?: AnalysisCov
   try {
     const rows = await db!.select({
       adId: schema.ads.id, assetUrl: schema.ads.assetUrl,
+      lienCrea: schema.ads.creativeId, creaId: schema.creatives.id,
       model: schema.creatives.analysisModel, transcript: schema.creatives.transcript,
       hypothesis: schema.ads.hypothesis, conceptTitle: schema.concepts.title,
       callout: schema.concepts.callout, valueBlock: schema.concepts.valueBlock,
@@ -347,13 +385,16 @@ export async function analysisCoverageAction(): Promise<{ coverage?: AnalysisCov
       .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
       .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
       .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
-      .leftJoin(schema.creatives, eq(schema.ads.creativeId, schema.creatives.id))
+      .leftJoin(schema.creatives, jointureCreaDeLaMarque(g.brand.id))
       .where(and(eq(schema.ads.workspaceId, g.s.workspaceId), eq(schema.personas.brandId, g.brand.id)));
 
     // Ce qui reste à faire, réparti par ce qu'on pourra RÉELLEMENT lire · un
     // décompte qui promettrait de décrire des liens Drive annoncerait un travail
     // qui n'aura pas lieu.
-    const restantes = rows.filter((r) => !r.model);
+    // Une ad liée à la créa d'une autre marque sera écartée par l'action · elle
+    // n'entre ni dans la tranche ni dans le coût annoncé.
+    const etrangere = (r: typeof rows[number]) => creaLieeEtrangere(r.lienCrea, r.creaId);
+    const restantes = rows.filter((r) => !r.model && !etrangere(r));
     const dossierDe = (r: typeof rows[number]) => writtenDossier({
       conceptTitle: r.conceptTitle, hypothesis: r.hypothesis, callout: r.callout,
       valueBlock: r.valueBlock, mechanism: r.mechanism, testedVariable: r.testedVariable,
@@ -372,13 +413,14 @@ export async function analysisCoverageAction(): Promise<{ coverage?: AnalysisCov
         total: rows.length,
         described: rows.filter((r) => !!r.model).length,
         manual: rows.filter((r) => r.model === 'manuel').length,
-        withoutAsset: rows.filter((r) => !r.assetUrl && !r.transcript).length,
+        withoutAsset: rows.filter((r) => !etrangere(r) && !r.assetUrl && !r.transcript).length,
         fromWritten: rows.filter((r) => sourceOf(r.model) === 'written').length,
         pendingAsset: parAsset.length,
         pendingWritten: parTexte.length,
         nextBatch: tranche.length,
         nextCostUsd: estimateAnalysisCost(trancheAsset, tranche.length - trancheAsset),
         totalCostUsd: estimateAnalysisCost(parAsset.length, parTexte.length),
+        foreignCrea: rows.filter(etrangere).length,
       },
     };
   } catch (e) {
