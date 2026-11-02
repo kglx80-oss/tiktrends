@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MESSAGES_LOGO_SERVI, decisionLogoServi, empreinteDuLogo, empreintesLogosCharte, lireEmpreintesLogos } from '../src';
+import { MESSAGES_LOGO_SERVI, decisionLogoServi, empreinteDuLogo, empreintesLogosCharte, lireEmpreintesLogos, refusLogoHttp } from '../src';
 
 /**
  * L'empreinte d'un logo importé · on lit la TABLE rendue (ce qui sera écrit
@@ -70,5 +70,23 @@ describe('decisionLogoServi · servir ou transmettre un logo', () => {
   });
   it('messages d’écran · sans tiret cadratin', () => {
     for (const m of Object.values(MESSAGES_LOGO_SERVI)) expect(m).not.toContain('—');
+  });
+});
+
+describe('refusLogoHttp · le refus d’une route, le même pour la route média et l’aperçu du catalogue', () => {
+  const refus = (verification: Parameters<typeof decisionLogoServi>[0]['verification']) => {
+    const d = decisionLogoServi({ empreinte: MD5, verification });
+    if (d.servir) throw new Error('servi');
+    return refusLogoHttp(d);
+  };
+  it('remplacé · 409 « à réimporter » ; disparu · 404 « à réimporter » ; le message du noyau en corps', () => {
+    expect(refus({ ok: false, raison: 'remplace' })).toEqual({ statut: 409, etat: 'a-reimporter', message: MESSAGES_LOGO_SERVI.remplace });
+    expect(refus({ ok: true, empreinte: MULTI })).toEqual({ statut: 409, etat: 'a-reimporter', message: MESSAGES_LOGO_SERVI.remplace });
+    expect(refus({ ok: false, raison: 'absent' })).toEqual({ statut: 404, etat: 'a-reimporter', message: MESSAGES_LOGO_SERVI.absent });
+  });
+  it('non vérifiable · 502 « non vérifiable », jamais « à réimporter »', () => {
+    for (const v of [{ ok: false, raison: 'illisible' } as const, { ok: false, raison: 'hors_espace' } as const, null]) {
+      expect(refus(v), JSON.stringify(v)).toEqual({ statut: 502, etat: 'non-verifiable', message: MESSAGES_LOGO_SERVI.illisible });
+    }
   });
 });

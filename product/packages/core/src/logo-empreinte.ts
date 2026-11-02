@@ -136,6 +136,44 @@ export function decisionLogoServi(o: { empreinte: string | null | undefined; ver
   return { servir: true, verifie: true };
 }
 
+/* ───────────── Le refus dit par une route · le même partout ───────────── */
+
+/**
+ * ── Le défaut ────────────────────────────────────────────────────────────────
+ *
+ * La route d'aperçu du catalogue Studios
+ * (`/studio/projets/[id]/produit/fichier/[assetId]`, vignettes de l'éditeur et
+ * de l'atelier Produit) redirigeait vers l'objet du stockage SANS juger
+ * l'empreinte d'un logo de la charte · un logo remplacé depuis son import
+ * s'affichait avec ses nouveaux octets, alors que l'export
+ * (`lecteurCatalogueUnique`) et la route média de la marque le refusaient.
+ *
+ * ── La règle ─────────────────────────────────────────────────────────────────
+ *
+ * Toute route qui refuse un logo (`decisionLogoServi`) le dit de la MÊME
+ * façon, qu'elle serve des octets (`/api/brands/[id]/media`) ou une
+ * redirection signée (aperçu du catalogue) · jamais d'adresse, jamais d'octet :
+ *  · remplacé ⇒ 409, « à réimporter » ;
+ *  · disparu ⇒ 404, « à réimporter » ;
+ *  · non vérifiable (stockage injoignable, non configuré) ⇒ 502, « non
+ *    vérifiable », JAMAIS « à réimporter » (on ne fait pas refaire un import
+ *    qu'on n'a pas pu juger) ;
+ * le message du noyau (`MESSAGES_LOGO_SERVI`) en corps, l'état en en-tête
+ * (`x-logo-etat`).
+ */
+export const STATUTS_REFUS_LOGO = { remplace: 409, absent: 404, illisible: 502 } as const;
+
+export interface RefusLogoHttp {
+  statut: (typeof STATUTS_REFUS_LOGO)[keyof typeof STATUTS_REFUS_LOGO];
+  /** Valeur de l'en-tête `x-logo-etat`. */
+  etat: 'a-reimporter' | 'non-verifiable';
+  message: string;
+}
+
+export function refusLogoHttp(d: Extract<DecisionLogoServi, { servir: false }>): RefusLogoHttp {
+  return { statut: STATUTS_REFUS_LOGO[d.cause], etat: d.cause === 'illisible' ? 'non-verifiable' : 'a-reimporter', message: d.message };
+}
+
 /* ───────────── La charte vue par la fiche · « à réimporter » au rendu ───────────── */
 
 /**
