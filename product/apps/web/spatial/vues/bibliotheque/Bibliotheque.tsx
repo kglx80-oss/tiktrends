@@ -1109,6 +1109,7 @@ export function Bibliotheque(entree: PropsBibliotheque) {
         </DialogueSpatial>
       )}
       {ecriture && remplacement.rendu}
+      {glisser.annonce}
       {ecriture && <FenetreVersement ouvert={versement || versementFichier !== null} fermer={() => { setVersement(false); setVersementFichier(null); }} donnees={p.donnees} fichiers={fichiersVersement} />}
       {g && (
         <DialogueSpatial titre="Importer par lien" ouvert={dialogueLien} fermer={() => setDialogueLien(false)}>
