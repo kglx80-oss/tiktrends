@@ -31,6 +31,7 @@ import { jsonCanonique, sha256Hex } from '../version';
 import { HEADLINE_FLOOR } from '../../copy-budget';
 import { costOfTokens } from '../../spend-guard';
 import { JETONS_ENTREE_MAX_PROPOSITION, JETONS_SORTIE_MAX_PROPOSITION } from '../bornes-taches';
+import { csvCell } from '../../adsmap/sheet';
 
 /* ─────────────────────────────── Types ───────────────────────────────────── */
 
@@ -390,7 +391,8 @@ function nomFichierTextes(titre: string, n: number, ext: string): string {
   return `textes-${base}-v${n}.${ext}`;
 }
 
-const champCsv = (x: string) => `"${x.replace(/"/g, '""')}"`;
+/** Toujours entouré, séparateur virgule · neutralisation des formules par `csvCell` (un texte « =… » ou « - … » ne s'évalue pas). */
+const champCsv = (x: string) => csvCell(x, { separateur: ',', toujoursEntourer: true });
 
 /** Export SANS média · lecture pure, aucun appel, aucun débit (FLOW-10). */
 export function exporterTextes(textes: readonly TexteStudio[], meta: MetaExportTextes, format: FormatExportTextes): { nomFichier: string; typeMime: string; contenu: string } {
