@@ -49,12 +49,26 @@ import { publierSondeVideo } from '../../workers/src/studios/sonde-video';
 import { DecodeurSharp } from '../../workers/src/studios/decodeur';
 import { decoderVideoFfmpeg } from '../../workers/src/studios/decodeur-video';
 import type { BaseStudio } from '../lib/studios/execution/types';
+import type { EntreeAssemblage, ResultatAssemblage } from '@tiktrends/integrations';
 
 const ids = etat.ids;
 const base = db as unknown as BaseStudio;
 const FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
 const LECTURE = { maintenant: new Date(), releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true, coutTexteUsd: 0.14 };
 const BRANCHE = { FAL_KEY: 'cle-fal-reelle-de-test', STUDIO_FOURNISSEUR_REEL: 'autorise', S3_ENDPOINT: 'e', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'x', S3_SECRET_ACCESS_KEY: 'y' };
+/**
+ * Le SEUL cas qui encode réellement (deux plans animés + rendu 1080×1920 de 9 s + deux relectures
+ * ffmpeg) a sa limite propre, mesurée (02/11, 4 vCPU, 20 passages par colonne, journal de la PR) :
+ *
+ *   | mesure                               | charge 12-36 (autres suites) | + 8 boucles CPU (charge 15-45) |
+ *   | animer un plan (cas 1)               | 0,8-3,5 s                    | 2,9-11,7 s                     |
+ *   | rendu réel (appel à l'assembleur)    | 2,9-7,6 s                    | 10-37 s                        |
+ *   | ce cas entier                        | 5,9-10,5 s                   | 15-57 s (pire : 57,5 s)        |
+ *
+ * 120 s laissent un facteur 2 sur la pire mesure (le produit accorde 180 s au même assemblage ·
+ * `DELAI_ASSEMBLAGE_MS`). Les 30 s de la configuration visent des cas sans encodage.
+ */
+const DELAI_RENDU_REEL_MS = 120_000;
 const sonde = (): SondeVideo => ({
   version: 1, sondeLe: new Date().toISOString(), workerId: 'worker-test', ffmpeg: 'ffmpeg version 6.1.1',
   decodage: { ok: true, raison: 'échantillon décodé en entier', dureeMs: 480 }, encodeurs: { libx264: true, aac: true },
@@ -71,6 +85,22 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
   const conserve = new Map<string, Uint8Array>();
   const memoire: StockageStudio = { async deposer(cle, o) { conserve.set(cle, o); }, async relire(cle) { return conserve.get(cle) ?? null; } };
   const lecteur = { lire: async (m: { storageKey: string }) => w.stockage.relire(m.storageKey) };
+  /**
+   * Le rendu RÉEL (ffmpeg, 1080×1920, 9 s, libx264) est produit et relu UNE fois, au cas « tous les clips ».
+   * Les cas suivants vérifient le verrou et les droits du forfait, pas l'encodage : ils REJOUENT ce
+   * fichier réel par un assembleur injecté qui note chaque entrée reçue. Avant, chacun relançait le
+   * même encodage complet, et c'était tout leur temps (table de `DELAI_RENDU_REEL_MS`) : avec 8
+   * boucles CPU en plus, 9 passages sur 10 tombaient à 30 s. Le cas « droits du forfait » ne rendait
+   * rien de refusé : tout son temps était le rendu de sa seconde moitié (« sans l'interrupteur, rien
+   * ne change »). Un rendu orphelin d'un cas tombé gardait le verrou et faisait tomber le suivant.
+   */
+  let renduReel: ResultatAssemblage | null = null;
+  const rejoues: EntreeAssemblage[] = [];
+  const rejoue = async (e: EntreeAssemblage): Promise<ResultatAssemblage> => {
+    rejoues.push(e);
+    if (!renduReel) throw new Error('le rendu réel du cas « tous les clips » manque · ce cas a échoué avant');
+    return renduReel;
+  };
 
   async function lancer(operation: string): Promise<string> {
     const d = await creerDevis(ctxDe(ids, 'ua'), { projectId: projet.projectId, operations: [operation], variante: true }, base, new Date());
@@ -144,6 +174,7 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     expect(a).toMatchObject({ origin: 'render', mime: 'video/mp4', durationMs: r.video.dureeMs, width: 1080, height: 1920, storageState: 'stored', projectId: projet.projectId });
     expect(conserve.get(a!.storageKey)?.length).toBe(a!.bytes);
     expect(a!.rights).toMatchObject({ videoFinale: { versionId: projet.versionId, musique: musiqueId } });
+    renduReel = { ok: true, octets: conserve.get(a!.storageKey)!, mesure: { largeur: a!.width!, hauteur: a!.height!, dureeMs: a!.durationMs! } };
     expect((a!.rights as { videoFinale: { clips: string[] } }).videoFinale.clips).toHaveLength(c.shots.order.length);
     // Le fichier conservé est relu ici aussi : H.264 + AAC, et la piste n'est PAS silencieuse (la musique y est).
     const f = join(dossier, 'final.mp4');
@@ -157,7 +188,7 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     expect(au).toHaveLength(1);
     const l = await lireVideoPour(ctxDe(ids, 'ua'), projet.projectId, LECTURE);
     expect(l.ok && l.vue.videoFinale).toMatchObject({ possible: true, derniere: { assetId: r.video.assetId, dureeMs: r.video.dureeMs } });
-  });
+  }, DELAI_RENDU_REEL_MS);
 
   it('un clip devenu illisible ⇒ refus nommé, rien n’est conservé ; un lecteur client ou un autre espace ⇒ refus', async () => {
     const avant = conserve.size;
@@ -185,9 +216,11 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     liberer();
     expect(await premier).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
     expect(conserve.size).toBe(avant);
-    // Libéré malgré l'échec · un assemblage suivant passe.
-    const ensuite = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire });
-    expect(ensuite.ok).toBe(true);
+    // Libéré malgré l'échec · un assemblage suivant atteint l'assembleur (rendu réel rejoué) et passe.
+    const appels = rejoues.length;
+    const ensuite = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
+    expect(ensuite.ok, !ensuite.ok ? `${ensuite.code} ${ensuite.message}` : '').toBe(true);
+    expect(rejoues.length - appels).toBe(1);
   });
 
   it('droits du forfait (29/10) · sous TARIFS_V2, une vidéo plus longue que le forfait est refusée avant tout rendu, le forfait qui la permet nommé ; sans l’interrupteur, rien ne change', async () => {
@@ -203,12 +236,16 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     droits.videoMaxSecondes = 5;
     try {
       vi.stubEnv('TARIFS_V2', '1');
-      const refus = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire });
+      const appels = rejoues.length;
+      const refus = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
       expect(refus).toMatchObject({ ok: false, code: 'INVALID_SCHEMA', message: 'Ton forfait Essentiel monte les vidéos jusqu’à 5 s, celle-ci en dure 9. Raccourcis le montage, ou passe au forfait Pro (30 s) · change de forfait depuis Réglages · Forfaits.' });
       expect(conserve.size).toBe(avant);
+      expect(rejoues.length, 'refusée AVANT tout rendu · l’assembleur n’a pas été appelé').toBe(appels);
       vi.stubEnv('TARIFS_V2', '');
-      const libre = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire });
+      const libre = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
       expect(libre.ok, 'sans TARIFS_V2, aucune limite · comportement d’aujourd’hui').toBe(true);
+      // Le montage entier (3 plans, 9 s) est parti au rendu, sans coupe.
+      expect(rejoues.slice(appels).map((e) => e.segments.reduce((t, x) => t + x.dureeMs, 0))).toEqual([9000]);
     } finally {
       droits.videoMaxSecondes = avantMax;
       vi.stubEnv('TARIFS_V2', '');
