@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { segmentsHypothese, type NoeudSpatial } from '@tiktrends/core';
+import { TEXTES_HORS_LIGNE, segmentsHypothese, type NoeudSpatial } from '@tiktrends/core';
 import { Ic, Lien } from '../../communs';
 
 /**
@@ -72,11 +72,15 @@ export function Sech({ titre, aide, style, enfants }: { titre: ReactNode; aide?:
  * retour d'un geste (« Prêt », « Bloqué » · rien n'a été fait ni refusé).
  * `annonce={false}` · le message vit dans une région déjà annoncée (un
  * `role="alert"` parent) · pas de seconde région imbriquée, lue deux fois.
+ * `horsLigne` · la variante « Hors ligne » · le serveur n'a pas répondu, rien
+ * n'a été refusé · la pastille le dit (`TEXTES_HORS_LIGNE.pastille`), le seul
+ * endroit de la rubrique qui l'écrit.
  */
-export function Message({ ton, etiquette, annonce = true, children }: { ton: 'ok' | 'err' | 'info'; etiquette?: string; annonce?: boolean; children: ReactNode }) {
+export function Message({ ton, etiquette, horsLigne = false, annonce = true, children }: { ton: 'ok' | 'err' | 'info'; etiquette?: string; horsLigne?: boolean; annonce?: boolean; children: ReactNode }) {
+  const mot = horsLigne ? TEXTES_HORS_LIGNE.pastille : etiquette;
   return (
     <p role={annonce ? (ton === 'err' ? 'alert' : 'status') : undefined} className="muted" style={{ fontSize: '12.5px' }}>
-      {ton !== 'info' && <span className={`pill ${ton === 'ok' ? 'g' : 'w'}`}>{etiquette ?? (ton === 'ok' ? 'Fait' : 'Refusé')}</span>} {children}
+      {ton !== 'info' && <span className={`pill ${ton === 'ok' ? 'g' : 'w'}`}>{mot ?? (ton === 'ok' ? 'Fait' : 'Refusé')}</span>} {children}
     </p>
   );
 }

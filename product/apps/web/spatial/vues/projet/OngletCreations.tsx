@@ -8,7 +8,7 @@ import { rattacherVarianteAuTest, relireApprentissage } from '../../../app/actio
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import { Ad, Message } from './briques';
-import { pendantAction } from './focus';
+import { boutonAction } from './action-serveur';
 import { FormulaireRattachement, LotEssai, type Saisie } from './Rattachement';
 import { useHorsLigne } from './hors-ligne';
 import type { LotSpatial, PropsCreationsProjet, SortieSpatiale, VarianteSpatiale } from './types';
@@ -117,10 +117,9 @@ export function OngletCreations(p: PropsCreationsProjet) {
                   {sortie.apercu && <a className="btn sm" href={sortie.apercu} target="_blank" rel="noopener noreferrer" data-ouvrir-image="" aria-label={`Ouvrir ${sortie.libelle} · nouvel onglet`}><Ic n="eye" />Ouvrir</a>}
                   {p.editeurHref && <Lien className="btn sm" href={p.editeurHref}><Ic n="brush" />Éditer</Lien>}
                   {sortie.choisir && (
-                    <button className="btn sm" type="button" data-geste="retenir" {...pendantAction({ presse: enCours === `choisir:${sortie.assetId}`, occupe: !!enCours, ferme: horsLigne })}
+                    <button className="btn sm" type="button" data-geste="retenir" {...boutonAction({ presse: enCours === `choisir:${sortie.assetId}`, occupe: !!enCours, ferme: horsLigne, surClic: () => void geste(`choisir:${sortie.assetId}`, () => creerVariante({ assetId: sortie.assetId }), `${sortie.libelle} est maintenant une variante.`) })}
                       aria-label={`${enCours === `choisir:${sortie.assetId}` ? 'Enregistrement…' : 'Retenir'} · ${sortie.libelle}`}
-                      title={horsLigne ? TEXTES_HORS_LIGNE.bouton : 'Retenir cette sortie comme variante · aucun coût'}
-                      onClick={() => { if (!enCours) void geste(`choisir:${sortie.assetId}`, () => creerVariante({ assetId: sortie.assetId }), `${sortie.libelle} est maintenant une variante.`); }}>
+                      title={horsLigne ? TEXTES_HORS_LIGNE.bouton : 'Retenir cette sortie comme variante · aucun coût'}>
                       <Ic n="check" />{enCours === `choisir:${sortie.assetId}` ? 'Enregistrement…' : 'Retenir'}
                     </button>
                   )}
@@ -133,7 +132,7 @@ export function OngletCreations(p: PropsCreationsProjet) {
         </>
       )}
       {/* Sans réponse du serveur, rien n'a été refusé · la pastille dit « Hors ligne ». */}
-      {retour && <div className="sec"><Message ton={retour.ton} etiquette={retour.horsLigne ? 'Hors ligne' : undefined}>{retour.texte}</Message></div>}
+      {retour && <div className="sec"><Message ton={retour.ton} horsLigne={retour.horsLigne}>{retour.texte}</Message></div>}
 
       <section className="tile sec" id="variantes" aria-labelledby={t('variantes')}>
         <div className="sech" style={{ margin: 0 }}><h2 id={t('variantes')}>Variantes et tests</h2><span className="faint" style={{ fontSize: '12.5px' }}>Une variante = une sortie retenue, prête à être testée</span>
@@ -227,14 +226,12 @@ function CarteVariante({ v, enCours, horsLigne, relecture, ouverte, surIterer, s
         {/* Les gestes de chaque variante · le nom dit LAQUELLE (il commence par le mot affiché) ; le bouton pressé garde le focus pendant l'action. */}
         {v.test && <Lien className="btn sm" href={v.test.href} aria-label={`Adsmap · test de ${v.libelle}`}><Ic n="chart" />Adsmap</Lien>}
         {surRattacher && <button className="btn sm" type="button" data-geste="rattacher" aria-label={`Rattacher au test · ${v.libelle}`} aria-expanded={!!formulaire} disabled={horsLigne && !formulaire} title={horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined} onClick={surRattacher}><Ic n="flask" />Rattacher au test</button>}
-        {v.gestes.iterer && <button className="btn sm" type="button" data-geste="iterer" {...pendantAction({ presse: enCours === `iterer:${v.id}`, occupe: !!enCours, ferme: horsLigne })}
-          aria-label={`${enCours === `iterer:${v.id}` ? 'Itération…' : 'Itérer'} · ${v.libelle}`} title={horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined}
-          onClick={() => { if (!enCours) surIterer(); }}><Ic n="loop" />{enCours === `iterer:${v.id}` ? 'Itération…' : 'Itérer'}</button>}
+        {v.gestes.iterer && <button className="btn sm" type="button" data-geste="iterer" {...boutonAction({ presse: enCours === `iterer:${v.id}`, occupe: !!enCours, ferme: horsLigne, surClic: surIterer })}
+          aria-label={`${enCours === `iterer:${v.id}` ? 'Itération…' : 'Itérer'} · ${v.libelle}`} title={horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined}><Ic n="loop" />{enCours === `iterer:${v.id}` ? 'Itération…' : 'Itérer'}</button>}
         {v.gestes.relire && v.lienTest && relecture.coutMaxUsd !== null && (ouverte
-          ? <button className="btn sm pri" type="button" data-geste="confirmer-relecture" {...pendantAction({ presse: enCours === `relire:${v.id}`, occupe: !!enCours, ferme: horsLigne || !relecture.disponible })}
-            aria-label={`${enCours === `relire:${v.id}` ? 'Relecture…' : 'Confirmer la relecture'} · ${v.libelle}`}
-            onClick={() => { if (!enCours) surRelire(); }}>{enCours === `relire:${v.id}` ? 'Relecture…' : 'Confirmer la relecture'}</button>
-          : <button className="btn sm" type="button" disabled={!!enCours || horsLigne} aria-label={`Relire · ${v.libelle}`} title={horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined} onClick={surOuvrirRelecture}><Ic n="bulb" />Relire</button>)}
+          ? <button className="btn sm pri" type="button" data-geste="confirmer-relecture" {...boutonAction({ presse: enCours === `relire:${v.id}`, occupe: !!enCours, ferme: horsLigne || !relecture.disponible, surClic: surRelire })}
+            aria-label={`${enCours === `relire:${v.id}` ? 'Relecture…' : 'Confirmer la relecture'} · ${v.libelle}`}>{enCours === `relire:${v.id}` ? 'Relecture…' : 'Confirmer la relecture'}</button>
+          : <button className="btn sm" type="button" {...boutonAction({ occupe: !!enCours, ferme: horsLigne })} aria-label={`Relire · ${v.libelle}`} title={horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined} onClick={surOuvrirRelecture}><Ic n="bulb" />Relire</button>)}
       </div>
       {formulaire}
     </div>
