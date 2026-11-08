@@ -2,6 +2,7 @@ import { MAX_ESSAIS_MEME_VARIABLE, STAGE_LABEL, STRUCTURAL, VARIABLE_LABEL, VARI
 import type { FunnelStage, TestedVariable, VerdictValue } from '../../adsmap/types';
 import { estGagnanteValidee } from '../../adsmap/verdict-libelle';
 import { lienNouveauProjet } from '../../studios/anciennes-adresses';
+import { composerHypothese } from '../resultats/hypotheses-libres';
 import type { NoeudSpatial } from '../projet/noeuds';
 import { RAISON_NON_GAGNANTE } from './iterer';
 
@@ -48,7 +49,7 @@ export const EXEMPLE_VALEUR_VARIABLE: Readonly<Record<TestedVariable, string>> =
   angle: '', desire: '', none_control: '',
 };
 
-export type MotifFermetureVariable = 'non_gagnante' | 'temoin' | 'structurelle' | 'usee' | 'gelee';
+export type MotifFermetureVariable = 'non_gagnante' | 'temoin' | 'structurelle' | 'usee' | 'gelee' | 'imposee';
 
 export const RAISON_TEMOIN = 'Le témoin ne change rien · une itération change exactement une variable.';
 export const RAISON_UNE_SEULE = 'Une itération ne change qu’une variable à la fois · choisis-en une seule.';
@@ -78,12 +79,18 @@ export interface PropositionPlanVariable {
 /** La gagnante dont on part, telle que le plan la lit. */
 export interface ParentIteration {
   adId: string;
-  verdict: VerdictValue;
+  /** `null` · une pub d'inspiration (Veille), qui n'a pas de verdict dans la marque. */
+  verdict: VerdictValue | null;
   comparable: boolean;
   /** Dans l’ordre du plan · la première fait foi pour le conseil. */
   propositions: readonly PropositionPlanVariable[];
   /** Les variables déjà changées par la lignée, de la plus récente à l’origine. */
   lignee: readonly TestedVariable[];
+  /**
+   * Une pub de la Veille prise comme source d'INSPIRATION (VB F26) · pas une
+   * gagnante de la marque · voir `variablesInspiration`.
+   */
+  inspiration?: true;
 }
 
 export interface OptionVariable {
@@ -117,7 +124,10 @@ const etapeDe = (v: TestedVariable): string | null => {
 
 /** Les variables admises pour une gagnante, et pourquoi chacune des autres ne l’est pas. */
 export function variablesIteration(p: ParentIteration): ChoixVariablesIteration {
-  const gagnante = estGagnanteValidee(p.verdict, p.comparable) && p.propositions.some((x) => x.edgeLegal);
+  // Une pub d'inspiration n'a pas de verdict dans la marque · elle n'a rien à
+  // prouver, puisqu'on n'en DÉCLINE pas une gagnante (aucune filiation) · on en
+  // reprend la structure en remplaçant une variable.
+  const gagnante = p.inspiration === true || (estGagnanteValidee(p.verdict, p.comparable) && p.propositions.some((x) => x.edgeLegal));
   const usage = (v: TestedVariable) => p.lignee.filter((x) => x === v).length;
   const proposee = new Set(p.propositions.map((x) => x.variable));
   const conseil = p.propositions[0]?.variable ?? null;
@@ -127,7 +137,8 @@ export function variablesIteration(p: ParentIteration): ChoixVariablesIteration 
     const ferme = (motif: MotifFermetureVariable, raison: string): OptionVariable => ({ ...base, admise: false, conseillee: false, raison, motif });
     if (!gagnante) return ferme('non_gagnante', RAISON_NON_GAGNANTE);
     if (v === 'none_control') return ferme('temoin', RAISON_TEMOIN);
-    if (STRUCTURAL.includes(v)) return ferme('structurelle', raisonStructurelle(v));
+    if (STRUCTURAL.includes(v)) return ferme('structurelle', p.inspiration ? raisonStructurelleInspiration(v) : raisonStructurelle(v));
+    if (p.inspiration && v === 'landing') return ferme('imposee', RAISON_DESTINATION_INSPIRATION);
     const n = usage(v);
     if (n >= MAX_ESSAIS_MEME_VARIABLE) return ferme('usee', raisonUsee(v, n));
     if (!proposee.has(v) && p.propositions.length > 0 && p.propositions.every((x) => x.freeze.includes(v))) return ferme('gelee', raisonGelee(v));
@@ -322,4 +333,108 @@ export function noteDemandeIteration(choix: ReadonlyArray<{ adId: string; select
   const c = choix.find((x) => x.adId === demande.toLowerCase());
   if (c?.selectionnable) return null;
   return `La pub demandée ne peut pas être itérée ici · ${c ? c.raison : RAISON_HORS_PLAN}`;
+}
+
+/* ───────────── Une pub de la Veille comme source d’inspiration (VB F26) ───────────── */
+
+/**
+ * Itérer « à partir » d’une pub de la Veille · je GARDE sa structure, je
+ * REMPLACE une seule variable. La règle est la MÊME (`variablesIteration`) ·
+ * ce qui change pour une pub concurrente, qui n’a pas de verdict dans la marque :
+ *
+ *  · rien n’est fermé faute de verdict · on n’en décline pas une gagnante (pas
+ *    d’arête de filiation), on en reprend la structure ;
+ *  · ni lignée ni plan · « usée » et « gelée » ne s’appliquent pas, aucune
+ *    variable n’est « conseillée » · le défaut est la première admise dans
+ *    l’ordre du tunnel (l’accroche) ;
+ *  · le témoin reste fermé (rien ne change), angle et désir restent fermés
+ *    (en changer ne garde plus rien de la pub) ;
+ *  · la page de destination est fermée · elle sera de toute façon celle de la
+ *    marque, c’est un prérequis du test, pas la variable qu’on remplace.
+ *
+ * Le serveur rejoue cette règle (`creerIterationChoisieAction`, source Veille).
+ */
+export const RAISON_DESTINATION_INSPIRATION = 'La page de destination sera de toute façon la tienne · elle se pose avant le test, ce n’est pas la variable qu’on remplace.';
+export const raisonStructurelleInspiration = (v: TestedVariable) => `Remplacer ${VARIABLE_LABEL[v]} ne garderait plus rien de cette pub · on garde sa structure et on remplace une seule variable.`;
+export const RAISON_DEUX_SOURCES = 'Une itération part d’une seule source · une pub de ta marque ou une pub de la Veille, pas les deux.';
+export const RAISON_VEILLE_ILLISIBLE = 'Pub de la Veille illisible · rouvre-la depuis la Veille puis réessaie.';
+export const RAISON_VEILLE_NON_GARDEE = 'Garde d’abord la pub dans tes sauvegardes · l’itération en garde la source.';
+export const RAISON_VEILLE_AUTRE_MARQUE = 'Cette pub est sauvegardée pour une autre marque de l’espace · ouvre cette marque pour itérer à partir d’elle.';
+
+/** Les plateformes de la Veille (mêmes que la sauvegarde et le pont Adsmap). */
+const PLATEFORMES_VEILLE = new Set(['meta', 'tiktok', 'google']);
+const ID_EXTERNE_MAX = 300;
+
+export interface RefInspiration { platform: 'meta' | 'tiktok' | 'google'; externalId: string }
+
+/** La pub de la Veille désignée (écran, appel serveur) · plateforme connue, identifiant borné. */
+export function lireInspiration(x: unknown): { ok: true; ref: RefInspiration } | { ok: false; raison: string } {
+  const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : null;
+  const platform = typeof o?.platform === 'string' ? o.platform : '';
+  const externalId = typeof o?.externalId === 'string' ? o.externalId.trim() : '';
+  if (!PLATEFORMES_VEILLE.has(platform) || !externalId || externalId.length > ID_EXTERNE_MAX) return { ok: false, raison: RAISON_VEILLE_ILLISIBLE };
+  return { ok: true, ref: { platform: platform as RefInspiration['platform'], externalId } };
+}
+
+/** La source telle que la règle la lit · sans verdict, sans plan, sans lignée. */
+export function parentInspiration(cle: string): ParentIteration {
+  return { adId: cle, verdict: null, comparable: false, propositions: [], lignee: [], inspiration: true };
+}
+
+/** Les variables admises quand on part d’une pub de la Veille (la même règle, adaptée · voir plus haut). */
+export function variablesInspiration(cle: string): ChoixVariablesIteration {
+  return variablesIteration(parentInspiration(cle));
+}
+
+/** « Je garde · … / Je remplace · … » · ce que la pub garde et la SEULE variable remplacée (admises seulement). */
+export function gardeRemplace(c: ChoixVariablesIteration, variable: TestedVariable | null): { garde: string[]; remplace: string | null } {
+  const o = variable ? c.options.find((x) => x.variable === variable && x.admise) : undefined;
+  return {
+    garde: c.options.filter((x) => x.admise && x.variable !== o?.variable).map((x) => x.libelle),
+    remplace: o?.libelle ?? null,
+  };
+}
+
+/**
+ * L’hypothèse proposée pour une pub de la Veille · seulement ce que le geste
+ * dit (on reprend CETTE pub, on remplace CETTE variable) · ni résultat attendu
+ * ni raison inventés, la pub concurrente n’a rien prouvé dans la marque.
+ */
+export function hypotheseInspirationParDefaut(e: { annonceur: string | null | undefined; variable: TestedVariable; valeur: string }): string {
+  const a = (e.annonceur ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const v = e.valeur.replace(/\s+/g, ' ').trim();
+  // Une valeur déjà entre guillemets (« Essaie-le 30 jours ») n'en reçoit pas une deuxième paire.
+  const cite = /^[«"“].*[»"”]$/u.test(v) ? v : `« ${v} »`;
+  return composerHypothese({ si: `on reprend la pub de ${a || 'cet annonceur'} en remplaçant seulement ${VARIABLE_LABEL[e.variable]}${v ? ` par ${cite}` : ''}` });
+}
+
+export const PARAM_VEILLE_PLATEFORME = 'veille';
+export const PARAM_VEILLE_PUB = 'pub';
+
+/** L’adresse de l’écran Itérer, une pub de la Veille en source. */
+export function lienIterationVeille(r: { platform: string; externalId: string }): string {
+  const l = lireInspiration(r);
+  if (!l.ok) return '/studio/iterer';
+  const p = new URLSearchParams({ [PARAM_VEILLE_PLATEFORME]: l.ref.platform, [PARAM_VEILLE_PUB]: l.ref.externalId });
+  return `/studio/iterer?${p.toString()}`;
+}
+
+/** La pub de la Veille demandée par l’adresse · `null` sans demande ou si elle est illisible. */
+export function lireInspirationDemandee(sp: Record<string, string | string[] | undefined>): RefInspiration | null {
+  const un = (k: string) => { const v = sp[k]; return (Array.isArray(v) ? v[0] : v) ?? ''; };
+  if (!un(PARAM_VEILLE_PLATEFORME) && !un(PARAM_VEILLE_PUB)) return null;
+  const l = lireInspiration({ platform: un(PARAM_VEILLE_PLATEFORME), externalId: un(PARAM_VEILLE_PUB) });
+  return l.ok ? l.ref : null;
+}
+
+/**
+ * La préparation du projet après création · la reprise RÉELLE d’une pub de la
+ * Veille (mode clone de la préparation · `ref` = la sauvegarde, la structure est
+ * gardée), avec la variable remplacée en consigne.
+ */
+export function lienPreparationInspiration(e: { savedAdId: string; source: { cle: string; nom: string } | null; video: boolean; code: string; variable: TestedVariable; valeur: string }): string {
+  return lienNouveauProjet({
+    type: e.video ? 'video' : 'ads', ref: e.savedAdId, src: e.source?.cle ?? null, srcnom: e.source?.nom ?? null,
+    angle: `Itération ${e.code} · je garde la structure de la pub, je remplace ${VARIABLE_LABEL[e.variable]} : ${e.valeur}`,
+  });
 }

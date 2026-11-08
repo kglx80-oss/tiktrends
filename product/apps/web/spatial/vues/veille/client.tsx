@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, useTransition, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, adresseVueVeille, departDepuisVeille, estAncreCarteVeille, lienVeille, pucesVeille, verrouAction, videoLisible, vueActiveVeille, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille, type VueVeilleEnregistree } from '@tiktrends/core';
@@ -8,10 +8,10 @@ import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
 import { creerHypotheseAction } from '../../../app/actions/adsmap-hypotheses';
 import { FormulaireHypothese } from '../resultats/hypothese-client';
-import { FERME } from '../projet/focus';
+import { FERME, pendantAction } from '../projet/focus';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
-import type { CarteVeilleDonnees } from './types';
+import type { CarteVeilleDonnees, DetailVeille as DonneesDetailVeille } from './types';
 import { ImageApercu } from './apercu-client';
 import { PanneauVues } from './vues-client';
 
@@ -217,6 +217,7 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
                     return creerHypotheseAction({ source: { type: 'veille', platform: c.ad.platform, externalId: c.ad.id }, saisie });
                   }} />
               )}
+              {d.iterationVeille && <IterationVeille ad={c.ad} g={d.iterationVeille} />}
             </div>
           )}
           <div className="kc">
@@ -228,6 +229,45 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
           <small className="faint">Source : bibliothèques publicitaires publiques · portée relevée, dépense estimée. Jarvis · {coutJarvis}</small>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * « Itérer à partir de cette pub » (VB F26) · garde la pub (`saveAd`, l'action
+ * existante · une pub déjà gardée n'est pas réécrite) puis ouvre l'écran Itérer
+ * avec elle en source · on y choisit la SEULE variable remplacée. Rien n'est
+ * créé ici · l'ad naît au clic « Créer » de l'écran Itérer, gardé côté serveur.
+ * Pendant l'appel, le bouton garde le focus (`aria-disabled` + `aria-busy`) ·
+ * fermé, il dit pourquoi à côté.
+ */
+function IterationVeille({ ad, g }: { ad: InspoAd; g: NonNullable<DonneesDetailVeille['iterationVeille']> }) {
+  const router = useRouter();
+  const id = useId();
+  const [occupe, setOccupe] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const ouvert = g.acces.ouvert;
+  const lancer = async () => {
+    if (!ouvert || occupe) return;
+    setOccupe(true); setErreur(null);
+    try {
+      const r = await saveAd({ platform: ad.platform, externalId: ad.id, snapshot: ad });
+      if (!r.ok) { setErreur(r.error ?? 'Sauvegarde refusée.'); return; }
+      router.push(g.href);
+    } catch {
+      setErreur('Échec · vérifie ta connexion puis réessaie.');
+    } finally { setOccupe(false); }
+  };
+  const a = pendantAction({ presse: occupe, occupe });
+  return (
+    <div className="xmlinks" style={{ marginTop: 6 }}>
+      <button type="button" className="xml" data-geste="iterer-veille" {...a} aria-disabled={a['aria-disabled'] ?? (!ouvert || undefined)}
+        aria-describedby={`${id}-sous`} style={{ textAlign: 'left', minHeight: 44, width: '100%', font: 'inherit', cursor: 'pointer', ...(ouvert && !occupe ? {} : FERME) }}
+        onClick={() => void lancer()}>
+        <span className="xmlic site"><Ic n="loop" /></span>
+        <span><strong>{occupe ? 'Ouverture…' : 'Itérer à partir de cette pub'}</strong><small id={`${id}-sous`}>{ouvert ? 'Je garde sa structure, je remplace une seule variable · rien n’est écrit sur la pub' : g.acces.raison}</small></span>
+      </button>
+      {erreur && <small role="alert" style={{ fontSize: '11.5px', color: 'var(--bad)' }}>{erreur}</small>}
     </div>
   );
 }

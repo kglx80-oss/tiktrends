@@ -2,8 +2,9 @@ import { redirect } from 'next/navigation';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  aPermissionEspace, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireIterationDemandee, lireVariableDemandee, refusStudiosSpatial,
-  variablesDuPlan, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, type ChoixVariablesIteration, type ContexteAdSpatial,
+  aPermissionEspace, apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
+  refusStudiosSpatial, variablesDuPlan, variablesInspiration, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE,
+  type ChoixVariablesIteration, type ContexteAdSpatial,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
@@ -13,7 +14,7 @@ import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { jointureCreaDeLaMarque, vignetteAd } from '../../../../../lib/adsmap-medias';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
 import { iterationPlanAction, type IterationRow } from '../../../../actions/adsmap-iterate';
-import { Iterer } from '../../../../../spatial/vues/studios/Iterer';
+import { Iterer, type InspirationIterer } from '../../../../../spatial/vues/studios/Iterer';
 import { RefusStudios } from '../../../../../spatial/vues/studios/Refus';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,11 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * `creerIterationChoisieAction` (gardes rejouées, gratuit). Le geste suivant
  * mène à la reprise réelle du brief (`lienIterationStudio`) · rien n'est
  * généré ni débité ici, le devis vient du serveur dans le projet.
+ *
+ * `?veille=<plateforme>&pub=<id>` (VB F26) · une pub de la Veille en SOURCE
+ * d'inspiration · lue dans les sauvegardes de l'espace (marque active ou sans
+ * marque, comme le pont Adsmap), jamais écrite. Les variables admises sont la
+ * même règle, adaptée à une source sans verdict (`variablesInspiration`).
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -51,6 +57,26 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   const refus = denyReason(effectiveAccess(s), FEATURE_ADSMAP);
   // Créer le projet de l'itération · la même permission que `creerProjet`, pour la marque active dans la portée.
   const peutIterer = aPermissionEspace(g.ctx.permissions, 'studio.propose') && !!active && g.ctx.marques.includes(active.id);
+
+  const veille = lireInspirationDemandee(sp);
+  if (veille) {
+    const sous = active ? `Itération · ${active.name}` : 'Itération';
+    const vide = videIterationSpatial({ refus, marque: !!active, erreur: null, lignes: 1, resume: '' });
+    if (vide || !active || !db) return <Iterer sous={sous} resume="" choix={[]} initial={null} vide={vide ?? { titre: 'Lecture impossible', texte: 'La base ne répond pas · réessaie.', lien: null }} />;
+    const [sauvee] = await db.select({ brandId: schema.savedAds.brandId, snapshot: schema.savedAds.snapshot }).from(schema.savedAds)
+      .where(and(eq(schema.savedAds.workspaceId, s.workspaceId), eq(schema.savedAds.platform, veille.platform), eq(schema.savedAds.externalId, veille.externalId))).limit(1);
+    const refusVeille = !sauvee ? RAISON_VEILLE_NON_GARDEE : sauvee.brandId && sauvee.brandId !== active.id ? RAISON_VEILLE_AUTRE_MARQUE : null;
+    if (refusVeille || !sauvee) return <Iterer sous={sous} resume="" choix={[]} initial={null} vide={{ titre: 'Pub de la Veille indisponible', texte: refusVeille ?? RAISON_VEILLE_NON_GARDEE, lien: { href: '/veille', libelle: 'Revenir à la Veille' } }} />;
+    const snap = (sauvee.snapshot ?? {}) as { advertiserName?: string; body?: string; thumbnailUrl?: string | null; mediaUrl?: string | null; mediaType?: string };
+    const inspiration: InspirationIterer = {
+      ...veille,
+      annonceur: snap.advertiserName?.trim() || 'Annonceur',
+      texte: snap.body?.replace(/\s+/g, ' ').trim().slice(0, 240) || null,
+      vignette: apercuImage({ isVideo: (snap.mediaType ?? '').toLowerCase().includes('vid'), thumbnailUrl: snap.thumbnailUrl, mediaUrl: snap.mediaUrl }),
+      variables: variablesInspiration(`${veille.platform}:${veille.externalId}`),
+    };
+    return <Iterer sous={sous} resume="" choix={[]} initial={null} vide={null} inspiration={inspiration} variableDemandee={variableDemandee} />;
+  }
 
   let rows: IterationRow[] = [];
   let resume = '';

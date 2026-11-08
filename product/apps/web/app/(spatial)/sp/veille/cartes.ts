@@ -3,7 +3,7 @@ import type { InspoAd } from '@tiktrends/integrations';
 import {
   ancreCarteVeille, apercuImage, bibliothequePub, classeCroissance, croissance7j, depenseEstimeeVeille, estActiveVeille,
   estTendanceVeille, etiquetteStyleVeille, euroCourt, joursCourts, libelleBibliotheque, libelleCroissance, lectureVeille,
-  lienAnnonceurVeille, nombreCourt, pastilleMarque, signauxVeille, siteMarque, type AccesHypothese,
+  lienAnnonceurVeille, lienIterationVeille, nombreCourt, pastilleMarque, signauxVeille, siteMarque, type AccesHypothese,
 } from '@tiktrends/core';
 import { ACTIONS_JARVIS_VEILLE, lienJarvisVeille } from '../../../../lib/veille-jarvis';
 import { studioDepuisVeille } from '../../../../lib/veille-link';
@@ -79,7 +79,7 @@ export function carteVeille(ad: InspoAd, o: { cpm: number; sauvee: boolean; suiv
         sous: SOUS_JARVIS[action],
       })),
       texte: ad.body?.trim() || null,
-      ...(o.hypothese ? { hypothese: o.hypothese } : {}),
+      ...(o.hypothese ? { hypothese: o.hypothese, iterationVeille: { acces: o.hypothese, href: lienIterationVeille({ platform: ad.platform, externalId: ad.id }) } } : {}),
     },
   };
 }
