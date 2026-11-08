@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FILTRES_ETAT_APPRENTISSAGE, LIBELLE_NIVEAU, dansFiltreEtatApprentissage,
-  type EtatApprentissage, type FiltreEtatApprentissage, type NiveauPreuve, type TiroirApprentissage,
+  type DepartHypothese, type EtatApprentissage, type FiltreEtatApprentissage, type NiveauPreuve, type TiroirApprentissage,
 } from '@tiktrends/core';
 import { apprentissageVersReglesAction, rejeterApprentissageAction } from '../../../app/actions/adsmap-apprentissage';
+import { creerHypotheseAction } from '../../../app/actions/adsmap-hypotheses';
+import { BoutonHypothese } from './hypothese-client';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 import { FERME, pendantAction } from '../projet/focus';
@@ -24,6 +26,13 @@ import { Points, Pub, type SousNavResultats } from './communs';
  * retester » est CALCULÉ par `etatApprentissage`), le tiroir « D'où ça vient ·
  * Limites · Vaut pour » (`tiroirApprentissage`), et deux gestes explicites ·
  * passer l'apprentissage dans les règles de la marque, le rejeter ou le rétablir.
+ *
+ * RJ A04 · « En tirer une hypothèse », sur la carte et dans le tiroir · le
+ * formulaire d'hypothèse libre, prérempli par la règle du noyau
+ * (`departDepuisApprentissage` · l'énoncé dans le « parce que », la variable de
+ * la variante reprise) · `creerHypotheseAction` la range dans « À formuler »
+ * avec la provenance « Apprentissage ». Un apprentissage rejeté sert à se
+ * retester · sa phrase de départ le dit (voir la règle).
  */
 
 export interface CarteApprentissage {
@@ -47,6 +56,8 @@ export interface CarteApprentissage {
     regles: string | null;
     /** `true` · rejeté (on propose de le rétablir) · `null` · rien à rejeter (pas validé). */
     rejete: boolean | null;
+    /** « En tirer une hypothèse » · le départ du formulaire (noyau) et sa ligne · absent, le geste n'est pas rendu. */
+    hypothese?: { depart: DepartHypothese; note: string };
   };
 }
 
@@ -115,7 +126,7 @@ export function Apprentissages(p: PropsApprentissages) {
               </span>
             </div>
             {c.gestes && <Gestes g={c.gestes} />}
-            {c.tiroir && <Tiroir t={c.tiroir} />}
+            {c.tiroir && <Tiroir t={c.tiroir} hypothese={c.gestes?.hypothese ? <EnTirerHypothese g={c.gestes} ou="tiroir" /> : null} />}
           </article>
         ))}
         {liste.length === 0 && <p className="faint">{p.cartes.length ? 'Aucun apprentissage pour ce filtre.' : 'Aucun apprentissage pour cette marque · il s’écrit en concluant un lot.'}</p>}
@@ -124,7 +135,24 @@ export function Apprentissages(p: PropsApprentissages) {
   );
 }
 
-function Tiroir({ t }: { t: TiroirApprentissage }) {
+/**
+ * « En tirer une hypothèse » · ouvre le formulaire d'hypothèse (surcouche, focus
+ * rendu au bouton) · le serveur relit l'apprentissage dans la marque active et
+ * refuse sinon (`creerHypotheseAction`, `adsmapGuard` membre).
+ */
+function EnTirerHypothese({ g, ou }: { g: NonNullable<CarteApprentissage['gestes']>; ou: 'carte' | 'tiroir' }) {
+  const h = g.hypothese!;
+  return (
+    <span data-geste={`hypothese-${ou}`} style={{ display: 'contents' }}>
+      <BoutonHypothese className="btn sm" style={{ minHeight: 44 }} titre="En tirer une hypothèse" depart={h.depart} note={h.note}
+        envoyer={(saisie) => creerHypotheseAction({ source: { type: 'apprentissage', learningId: g.learningId }, saisie })}>
+        <Ic n="bulb" />En tirer une hypothèse
+      </BoutonHypothese>
+    </span>
+  );
+}
+
+function Tiroir({ t, hypothese }: { t: TiroirApprentissage; hypothese?: ReactNode }) {
   const bloc = (titre: string, lignes: readonly string[]) => (
     <div style={{ display: 'grid', gap: 4 }}>
       <strong style={{ fontSize: '12.5px' }}>{titre}</strong>
@@ -138,6 +166,7 @@ function Tiroir({ t }: { t: TiroirApprentissage }) {
         {bloc('D’où ça vient', t.origine)}
         {bloc('Limites', t.limites)}
         {bloc('Vaut pour', [t.vautPour])}
+        {hypothese && <div className="kc" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{hypothese}</div>}
       </div>
     </details>
   );
@@ -182,6 +211,7 @@ function Gestes({ g }: { g: NonNullable<CarteApprentissage['gestes']> }) {
             <Ic n={g.rejete ? 'loop' : 'x'} />{g.rejete ? 'Rétablir' : 'Rejeter'}
           </button>
         )}
+        {g.hypothese && <EnTirerHypothese g={g} ou="carte" />}
       </div>
       {g.regles && <small className="faint" id={idRaison} style={{ fontSize: '11.5px' }}>{g.regles}</small>}
       {message && <small className="faint" role={message.erreur ? 'alert' : 'status'} style={{ fontSize: '11.5px' }}>{message.texte}</small>}

@@ -253,10 +253,34 @@ export function departDepuisAccroche(accroche: string | null | undefined): Depar
   return { parties: { ...PARTIES_VIDES, si: a ? `l’accroche reprend ses mots « ${a} »` : '' }, variable: 'hook' };
 }
 
-/** Un apprentissage est une RAISON · il nourrit le « parce que », le reste s'écrit. */
-export function departDepuisApprentissage(enonce: string | null | undefined): DepartHypothese {
-  return { parties: { ...PARTIES_VIDES, parceQue: court(enonce, LONGUEUR_PARTIE_MAX) }, variable: null };
+/**
+ * Un apprentissage est une RAISON · il nourrit le « parce que », le reste
+ * s'écrit. La variable reprise est celle que portait la variante qui l'a écrit
+ * (`tested_variable`), si c'est une variable d'hypothèse · le témoin n'en est pas une.
+ *
+ * ── Un apprentissage REJETÉ peut-il servir ? Oui, à le retester. ──────────────
+ *
+ * Les règles existantes le disent déjà · un rejeté est « À retester »
+ * (`etatApprentissage`) et son geste mène aux hypothèses (`actionApprentissage`,
+ * « Tester ») · ce qu'il ne peut plus être, c'est une règle de la marque
+ * (`refusVersRegles`), parce qu'une règle s'applique comme un acquis. Pour la
+ * même raison, son énoncé n'entre pas tel quel dans le « parce que » (« ce
+ * qu'on sait déjà ») · la phrase dit le FAIT · ce constat a été rejeté et reste
+ * à retester.
+ */
+export function departDepuisApprentissage(enonce: string | null | undefined, o: { variable?: unknown; rejete?: boolean } = {}): DepartHypothese {
+  const variable = estVariableHypothese(o.variable) ? o.variable : null;
+  if (o.rejete) {
+    const e = court(enonce, LONGUEUR_PARTIE_MAX - 60).replace(/[\s.,;:!?…]+$/u, '');
+    return { parties: { ...PARTIES_VIDES, parceQue: e ? `le constat « ${e} » a été rejeté et reste à retester` : '' }, variable };
+  }
+  return { parties: { ...PARTIES_VIDES, parceQue: court(enonce, LONGUEUR_PARTIE_MAX) }, variable };
 }
+
+/** La ligne sous le titre du formulaire « En tirer une hypothèse ». */
+export const NOTE_DEPART_APPRENTISSAGE = 'Source · cet apprentissage. Il nourrit le « parce que » · le reste s’écrit, l’hypothèse entre dans « À formuler ».';
+export const NOTE_DEPART_APPRENTISSAGE_REJETE = 'Source · cet apprentissage, rejeté · il n’est plus une raison acquise, l’hypothèse sert à le retester. Elle entre dans « À formuler ».';
+export const noteDepartApprentissage = (o: { rejete?: boolean }) => (o.rejete ? NOTE_DEPART_APPRENTISSAGE_REJETE : NOTE_DEPART_APPRENTISSAGE);
 
 /* ───────────────────────── sur la carte ───────────────────────── */
 
