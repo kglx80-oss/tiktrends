@@ -76,6 +76,15 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0068_estimation_hypotheses · trois colonnes nullables bornées (1 à 3) sur adsmap_ads, rejouables, rien d’autre', () => {
+    const a = analyserMigrationSql(fichier('0068_estimation_hypotheses'));
+    expect(a.instructions.map((x) => x.genre)).toEqual(['ajout_colonne', 'ajout_colonne', 'ajout_colonne']);
+    const instr = decouperInstructionsSql(fichier('0068_estimation_hypotheses')).map((x) => x.replace(/^--.*$/gm, '').replace(/\s+/g, ' ').trim());
+    expect(instr).toEqual(['ice_impact', 'ice_confidence', 'ice_effort'].map((c) => `ALTER TABLE "adsmap_ads" ADD COLUMN IF NOT EXISTS "${c}" smallint CHECK ("${c}" BETWEEN 1 AND 3)`));
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -132,9 +141,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque) puis 0067 (index de la lecture paginée des médias) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) puis 0068 (estimation des hypothèses) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -274,6 +283,28 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     const schemaUneFois = await empreinteSchema(pg);
     await appliquer(pg, ['0066_empreinte_logos_marque']);
     expect(await empreinteSchema(pg), 'rejeu de 0066').toEqual(schemaUneFois);
+    await pg.close();
+  }, 120_000);
+
+  it('0068 sur une base à 0067 avec des ads · lignes intactes, trois colonnes NULL partout, bornes posées, rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 67).map((x) => x.tag));
+    const [ads] = await lignes<{ n: number }>(pg, 'select count(*)::int as n from adsmap_ads');
+    expect(ads!.n).toBeGreaterThan(0);
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    const schemaAvant = await empreinteSchema(pg);
+    await appliquer(pg, ['0068_estimation_hypotheses']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0068').toEqual(avant);
+    expect((await colonnesDe(pg)).get('adsmap_ads')).toMatch(/,ice_impact,ice_confidence,ice_effort$/);
+    const [n] = await lignes<{ n: number; nn: number }>(pg, 'select count(*)::int as n, count(coalesce(ice_impact, ice_confidence, ice_effort))::int as nn from adsmap_ads');
+    expect(n).toEqual({ n: ads!.n, nn: 0 });
+    const schemaUneFois = await empreinteSchema(pg);
+    expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0068').toEqual([]);
+    // La borne tient en base · une note hors échelle est refusée par Postgres.
+    await expect(pg.exec(`UPDATE adsmap_ads SET ice_effort = 4 WHERE id = md5('ad1')::uuid`)).rejects.toThrow(/check constraint/i);
+    await appliquer(pg, ['0068_estimation_hypotheses']);
+    expect(await empreinteSchema(pg), 'rejeu de 0068').toEqual(schemaUneFois);
     await pg.close();
   }, 120_000);
 

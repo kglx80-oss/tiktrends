@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, adresseVueVeille, estAncreCarteVeille, lienVeille, pucesVeille, verrouAction, videoLisible, vueActiveVeille, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille, type VueVeilleEnregistree } from '@tiktrends/core';
+import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, adresseVueVeille, departDepuisVeille, estAncreCarteVeille, lienVeille, pucesVeille, verrouAction, videoLisible, vueActiveVeille, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille, type VueVeilleEnregistree } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
+import { creerHypotheseAction } from '../../../app/actions/adsmap-hypotheses';
+import { FormulaireHypothese } from '../resultats/hypothese-client';
+import { FERME } from '../projet/focus';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import type { CarteVeilleDonnees } from './types';
@@ -153,6 +156,9 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
   const d = c.detail;
   // Vague 4 · la vidéo se lit en place (comme l'ancienne carte) · une image reste une image.
   const video = videoLisible(c.ad);
+  const [hypothese, setHypothese] = useState(false);
+  const boutonHypothese = useRef<HTMLButtonElement>(null);
+  const fermerHypothese = () => { setHypothese(false); setTimeout(() => boutonHypothese.current?.focus(), 0); };
   return (
     <div className="xmod" role="dialog" aria-modal="true" aria-label={`Pub ${c.marque.nom}`} onClick={(e) => { if (e.target === e.currentTarget) fermer(); }}>
       <div className="xmbox glass">
@@ -191,6 +197,28 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
               </span>
             </div>
           </div>
+          {d.hypothese && (
+            <div className="xms" data-geste="hypothese">
+              <span className="lbl">Sans Jarvis · une hypothèse à toi, rangée dans Résultats</span>
+              <div className="xmlinks">
+                <button ref={boutonHypothese} type="button" className="xml" style={{ textAlign: 'left', minHeight: 44, width: '100%', font: 'inherit', cursor: 'pointer', ...(d.hypothese.ouvert ? {} : FERME) }}
+                  aria-expanded={d.hypothese.ouvert ? hypothese : undefined} aria-disabled={!d.hypothese.ouvert || undefined} title={d.hypothese.raison ?? undefined}
+                  onClick={() => { if (d.hypothese?.ouvert) setHypothese((o) => !o); }}>
+                  <span className="xmlic site"><Ic n="bulb" /></span>
+                  <span><strong>Ajouter aux hypothèses</strong><small>{d.hypothese.ouvert ? 'Rangée dans « À formuler » · la pub est gardée comme source' : d.hypothese.raison}</small></span>
+                </button>
+              </div>
+              {hypothese && d.hypothese.ouvert && (
+                <FormulaireHypothese depart={departDepuisVeille({ annonceur: c.ad.advertiserName })} fermer={fermerHypothese}
+                  note={`Source · la pub de ${c.marque.nom}. Elle est gardée dans tes sauvegardes de la marque active.`}
+                  envoyer={async (saisie) => {
+                    const r = await saveAd({ platform: c.ad.platform, externalId: c.ad.id, snapshot: c.ad });
+                    if (!r.ok) return { error: r.error ?? 'Sauvegarde refusée.' };
+                    return creerHypotheseAction({ source: { type: 'veille', platform: c.ad.platform, externalId: c.ad.id }, saisie });
+                  }} />
+              )}
+            </div>
+          )}
           <div className="kc">
             <Lien className="btn pri" href={c.iterer}><Ic n="loop" />Itérer depuis cette créa</Lien>
             <BoutonSauvegarde ad={c.ad} initial={c.sauvee} classe="btn" libelles={['Sauvegarder', 'Sauvegardée']} />
