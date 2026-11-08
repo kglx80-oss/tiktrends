@@ -1,9 +1,9 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
-import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese,
+  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese, sommeRetenues,
   type EstimationHypothese, type OrigineHypotheseLibre, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -11,6 +11,7 @@ import { getActiveBrand } from '../../../../lib/brands';
 import { effectiveAccess } from '../../../../lib/access';
 import { canAccess, denyReason, FEATURES, roleAtLeast } from '../../../../lib/rbac';
 import { jointureCreaDeLaMarque, vignetteAd } from '../../../../lib/adsmap-medias';
+import { lireJourneesRetenues } from '../../../../lib/adsmap-mesures';
 
 /**
  * Spatial · Résultats · lectures serveur partagées par les écrans de la rubrique.
@@ -174,23 +175,21 @@ export async function chargerConnexion(brandId: string): Promise<{ metaConnecte:
   return { metaConnecte: !!b?.compte && !!b?.jeton, mesureLe: b?.le ? (b.le as Date).toISOString() : null };
 }
 
-/** La somme des journées mesurées des annonces de la marque sur [depuis, jusqua[ (`metrics_daily`). */
-export async function chargerMesures(brandId: string, depuis: Date, jusqua: Date): Promise<AgregatMesures> {
-  const vide: AgregatMesures = { depense: 0, impressions: 0, vues3s: 0, achats: 0, ventes: 0 };
-  if (!db) return vide;
+/**
+ * La somme des journées RETENUES des annonces de la marque, pour chaque période
+ * `[depuis, jusqua[` · la connexion Meta d'abord, l'export ensuite
+ * (`lireJourneesRetenues`, la lecture partagée avec les verdicts et l'Accueil).
+ * Une seule lecture couvre toutes les périodes (la période et la précédente).
+ */
+export async function chargerMesures(brandId: string, periodes: ReadonlyArray<readonly [Date, Date]>): Promise<AgregatMesures[]> {
+  const vide = (): AgregatMesures => ({ depense: 0, impressions: 0, vues3s: 0, achats: 0, ventes: 0, importees: 0 });
+  if (!db || !periodes.length) return periodes.map(vide);
   const jour = (d: Date) => d.toISOString().slice(0, 10);
-  const [r] = await db.select({
-    depense: sql<number>`coalesce(sum(${schema.metricsDaily.spend}), 0)`,
-    impressions: sql<number>`coalesce(sum(${schema.metricsDaily.impressions}), 0)`,
-    vues3s: sql<number>`coalesce(sum(${schema.metricsDaily.v3s}), 0)`,
-    achats: sql<number>`coalesce(sum(${schema.metricsDaily.conv}), 0)`,
-    ventes: sql<number>`coalesce(sum(${schema.metricsDaily.revenue}), 0)`,
-  })
-    .from(schema.metricsDaily)
-    .innerJoin(schema.adInstances, eq(schema.metricsDaily.adInstanceId, schema.adInstances.id))
-    .innerJoin(schema.creatives, eq(schema.adInstances.creativeId, schema.creatives.id))
-    .where(and(eq(schema.creatives.brandId, brandId), gte(schema.metricsDaily.date, jour(depuis)), lt(schema.metricsDaily.date, jour(jusqua))));
-  return r ? { depense: Number(r.depense), impressions: Number(r.impressions), vues3s: Number(r.vues3s), achats: Number(r.achats), ventes: Number(r.ventes) } : vide;
+  const veille = (d: Date) => jour(new Date(d.getTime() - 86_400_000));
+  const du = periodes.reduce((m, [a]) => (jour(a) < m ? jour(a) : m), jour(periodes[0]![0]));
+  const au = periodes.reduce((m, [, b]) => (veille(b) > m ? veille(b) : m), veille(periodes[0]![1]));
+  const lu = await lireJourneesRetenues(brandId, { du, au });
+  return periodes.map(([a, b]) => sommeRetenues(lu.entrees, jour(a), veille(b)));
 }
 
 export interface ApprentissageLu {

@@ -4,10 +4,12 @@
  *
  * ── D'où viennent les chiffres ───────────────────────────────────────────────
  *
- * Des journées RÉELLES de `metrics_daily` (synchro Adsmap · `adsmap-sync`),
- * plateforme Meta, des créas de la marque active. Ce sont les annonces
- * rattachées aux tests de Résultats, pas le compte publicitaire entier · le
- * sous-titre le dit. Rien n'est extrapolé · une journée sans ligne vaut zéro
+ * Des journées RÉELLES et RETENUES (`lireJourneesRetenues` → `journeesReporting`) ·
+ * celles de la connexion (`metrics_daily`, synchro Adsmap, plateforme Meta,
+ * créas de la marque active) et, les jours que la connexion n'a pas, celles
+ * d'un export Ads Manager importé (`adsmap_mesures_csv`) · la ligne de détail
+ * le dit (`mentionImportees`). Ce sont les annonces rattachées aux tests de
+ * Résultats, pas le compte publicitaire entier · le sous-titre le dit. Rien n'est extrapolé · une journée sans ligne vaut zéro
  * dépense, un ratio sans dénominateur vaut « n.c. », une variation sans
  * période précédente ne s'invente pas.
  *

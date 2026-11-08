@@ -9,8 +9,11 @@
  * `rollupDaily`, `checkProtocol`, `rankByCpa`, `computeVerdict`) · sinon un
  * lot mesuré par fichier et un lot mesuré par la connexion ne se
  * compareraient plus. Ce module est la version PURE de cet enchaînement, pour
- * des journées qui ne viennent pas toutes de Meta · la synchro, elle, reste
- * inchangée.
+ * des journées qui ne viennent pas toutes de Meta · c'est AUSSI celle de la
+ * synchro · `syncBrand` et l'import passent tous deux par
+ * `recalculerVerdicts` (`apps/web/lib/adsmap-mesures.ts`), sur les journées
+ * RETENUES (`retenirJournees`, `mesures-retenues.ts`) · il n'y a plus qu'une
+ * logique de verdict.
  *
  * Une entrée est une journée (`debut = fin`) ou une période exportée d'un bloc ·
  * une période qui touche la fenêtre d'évaluation compte ENTIÈRE (elle ne se

@@ -335,13 +335,10 @@ const JOINTURE_CREAS = /(?:left|inner|right|full)Join\(\s*schema\.creatives\s*,(
  * plus fait de l'exemption une exemption morte).
  */
 const AUTRES_JOINTURES: Readonly<Record<string, { n: number; raison: string; preuve: RegExp }>> = {
-  'apps/web/app/(spatial)/sp/adsmap/donnees.ts': {
-    n: 1, raison: 'mesures d’une INSTANCE de régie → sa créa, filtrées par la marque de la créa (`creatives.brand_id`)',
-    preuve: /innerJoin\(schema\.creatives, eq\(schema\.adInstances\.creativeId, schema\.creatives\.id\)\)\s*\.where\(and\(eq\(schema\.creatives\.brandId, brandId\)/,
-  },
   'apps/web/lib/adsmap-mesures.ts': {
-    n: 1, raison: 'journées de la connexion Meta (`metrics_daily`) d’une INSTANCE de régie → sa créa, filtrées par la marque de la créa (`creatives.brand_id`) · import des mesures (lot 4)',
-    preuve: /innerJoin\(schema\.creatives, eq\(schema\.adInstances\.creativeId, schema\.creatives\.id\)\)\s*\.where\(and\(eq\(schema\.creatives\.brandId, brandId\)/,
+    n: 3, raison: 'journées de la connexion Meta (`metrics_daily`) d’une INSTANCE de régie → sa créa, filtrées par la marque de la créa (`creatives.brand_id`) · LA lecture des journées retenues (`lignesMeta` par annonce pour les verdicts de la synchro et de l’import, `sommesMetaParJour` pour les indicateurs de Résultats et le Reporting de l’Accueil, `joursMetaDes` pour les jours qui écartent une entrée d’export · l’ancienne jointure de `chargerMesures` y est passée)',
+    // Les TROIS requêtes portent la borne · une preuve par requête (une seule qui la perdrait ferait tomber la garde).
+    preuve: /(?:innerJoin\(schema\.creatives, eq\(schema\.adInstances\.creativeId, schema\.creatives\.id\)\)\s*\.where\(and\(eq\(schema\.creatives\.brandId, brandId\)[\s\S]*){3}/,
   },
 };
 
