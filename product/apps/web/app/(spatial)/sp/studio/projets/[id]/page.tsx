@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { modeDisposition, segmentReserveProjets } from '@tiktrends/core';
+import { lienJarvisContexte, modeDisposition, segmentReserveProjets } from '@tiktrends/core';
 import { getSession } from '../../../../../../lib/auth';
 import { Projet } from '../../../../../../spatial/vues/projet/Projet';
 import { EtatProjet } from '../../../../../../spatial/vues/projet/EtatProjet';
@@ -24,5 +24,7 @@ export default async function ProjetSpatial({ params, searchParams }: { params: 
   if (segmentReserveProjets(id)) return <EtatProjet projectId={id} raison={{ type: 'introuvable', message: 'Ce projet n’existe pas ou n’est pas accessible.' }} />;
   const r = await chargerProjet(s, id, sp.version);
   if (!r.ok) return <EtatProjet raison={r.raison} projectId={id} />;
-  return <Projet {...r.props} dispositionInitiale={modeDisposition(sp.disposition)} />;
+  // « Demander à Jarvis » (lot 5) · posé seulement quand la conversation du projet est ouverte à la personne.
+  const jarvis = r.props.jarvis.conversationOuverte ? lienJarvisContexte('projet', r.props.projet.id) : null;
+  return <Projet {...r.props} dispositionInitiale={modeDisposition(sp.disposition)} demanderJarvis={jarvis ? { href: jarvis } : null} />;
 }

@@ -1,7 +1,7 @@
 import { preparerVeilleVisuelle } from '../../../../lib/jarvis/veille-visuelle';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, contexteSelonPuces, consigneOnboardingJarvis, type ChatMessage, messageServiceInactif } from '@tiktrends/core';
+import { trimThread, personnalisationAccueil, actionsPromptBlock, costOfTokens, sha256Hex, contexteSelonPuces, consigneOnboardingJarvis, type ChatMessage, messageServiceInactif, lireContexteCorps, REFUS_CONTEXTE_JARVIS, type ContexteJarvisResolu } from '@tiktrends/core';
 import { messagesDeConversation, conversationAppartient, conversationDuProjet, creerConversation, toucherConversation } from '../../../../lib/jarvis/conversations';
 import { messagesOnboarding, insererMessageOnboarding } from '../../../../lib/jarvis/onboarding';
 import { getSession } from '../../../../lib/auth';
@@ -19,6 +19,7 @@ import { resoudreConversationJarvis, consignerRunConversation } from '../../../.
 import { appliquerPolitiqueConversationProjet, assemblerConsigneJarvis } from '../../../../lib/studios/prompts/conversation';
 import type { SourceTrace } from '../../../../lib/studios/prompts/traces';
 import { blocProjetsJarvis, blocConceptJarvis } from '../../../../lib/studios/jarvis-projets';
+import { resoudreContexteJarvis } from '../../../../lib/jarvis-contexte';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -75,9 +76,24 @@ export async function POST(req: Request) {
 
   const brand = await getActiveBrand(s.workspaceId);
 
-  const body = (await req.json().catch(() => null)) as { message?: string; conversationId?: string | null; projectId?: string | null; sources?: string[]; veille?: unknown; brandId?: string } | null;
+  const body = (await req.json().catch(() => null)) as { message?: string; conversationId?: string | null; projectId?: string | null; sources?: string[]; veille?: unknown; brandId?: string; contexte?: unknown } | null;
   const question = (body?.message ?? '').trim();
   if (!question) return json({ error: 'Message vide.' }, 400);
+
+  // Lot 5 V5 · « Demander à Jarvis » depuis un lot, une hypothèse, une page de
+  // Résultats ou un projet · le contexte joint (type + identifiant) est RELU
+  // ici dans la portée de la session (marque active, droits), AVANT de
+  // construire le client du modèle et toute réservation de crédits · inconnu,
+  // d'une autre marque, sans droit, sans marque ou mêlé à une référence de
+  // Veille : refusé par UNE phrase neutre, rien ne part, rien n'est écrit. Le
+  // message garde son prix.
+  let contexte: ContexteJarvisResolu | null = null;
+  if (body?.contexte !== undefined && body?.contexte !== null) {
+    contexte = brand && !body.veille && (!body.brandId || body.brandId === brand.id)
+      ? await resoudreContexteJarvis(s, brand, lireContexteCorps(body.contexte))
+      : null;
+    if (!contexte) return json({ error: REFUS_CONTEXTE_JARVIS }, 404);
+  }
 
   const client = guardedAnthropic({ workspaceId: s.workspaceId, action: 'jarvis-chat' });
   // Copie client · aucun nom de clé ni de « serveur » (recette #106b).
@@ -123,7 +139,9 @@ export async function POST(req: Request) {
   // résolue, on réutilise celle du concept (portée + `project_id`) ou on en crée
   // une. Le lien marque↔concept reste porté par la ligne de conversation, lue
   // côté serveur par `conversationDuProjet` (pas de clé navigateur).
-  const projectId = typeof body?.projectId === 'string' ? body.projectId : null;
+  // Un projet JOINT depuis `/jarvis` (lot 5) suit ce même chemin · son identifiant
+  // vient de la relecture ci-dessus, jamais du corps tel quel.
+  const projectId = contexte?.type === 'projet' ? contexte.id : typeof body?.projectId === 'string' ? body.projectId : null;
   if (projectId && !conversationId) {
     const existantes = await conversationDuProjet(portee, projectId).catch(() => []);
     conversationId = existantes[0]?.id ?? (await creerConversation(portee, { projectId }));
@@ -188,6 +206,9 @@ export async function POST(req: Request) {
       // Présent uniquement quand la conversation est liée à un concept · ailleurs
       // la chaîne est vide et l'assemblage ne l'ajoute pas (consigne inchangée).
       blocConcept: concept,
+      // Le contexte joint (lot, hypothèse, page de Résultats) · borné au noyau
+      // (`resumerContexteJarvis`) · vide sans contexte, la consigne reste celle d'avant.
+      blocContexte: contexte && contexte.type !== 'projet' ? contexte.bloc : '',
     };
     const { system: systemBase, inclus } = await consigneAvecConnaissances(assemblerConsigneJarvis(resolution.politique, donnees), { workspaceId: s.workspaceId, brandId: brand.id });
 
@@ -259,7 +280,7 @@ export async function POST(req: Request) {
           await consignerRunConversation({
             resolution, portee: { workspaceId: s.workspaceId, brandId: brand.id }, traceId: `jv_${crypto.randomUUID()}`, modele: MODEL,
             system, messages: fil,
-            contexte: { ...(veille ? { veille: { consigne: sha256Hex(veille.consigne), image: veille.image ? sha256Hex(veille.image.source.data) : null } } : {}), marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref), ...(projets ? { projets: empreinte(projets) } : {}), ...(projectId ? { projet: projectId } : {}), ...(concept ? { concept: empreinte(concept) } : {}) },
+            contexte: { ...(veille ? { veille: { consigne: sha256Hex(veille.consigne), image: veille.image ? sha256Hex(veille.image.source.data) : null } } : {}), marque: brand.id, identite: empreinte(donnees.identity), memoire: empreinte(memoire), regles: empreinte(b?.rules), mesurees: donnees.measuredAds, niveau, canAdsmap: voitMemoire, connaissances: inclus.map((i) => i.ref), ...(projets ? { projets: empreinte(projets) } : {}), ...(projectId ? { projet: projectId } : {}), ...(concept ? { concept: empreinte(concept) } : {}), ...(contexte ? { contexteJoint: { type: contexte.type, id: contexte.id, ...(donnees.blocContexte ? { bloc: empreinte(donnees.blocContexte) } : {}) } } : {}) },
             sources, reponse: complet, statut, latenceMs: Date.now() - debut, jetons, coutUsd: costOfTokens(MODEL, jetons.entree, jetons.sortie),
           }).catch((e) => console.error('[jarvis:chat] trace', (e as Error).message));
           ctrl.close();
