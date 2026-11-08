@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterAll } from 'vitest';
+import { describe, it, expect, vi, afterAll, beforeAll } from 'vitest';
 
 /**
  * R6 · le REGISTRE du budget d'essai (`scripts/recette/registre.ts`) lit les
@@ -33,13 +33,35 @@ import { sousVerrou } from '../scripts/recette/verrou';
 
 const dossiers: string[] = [];
 afterAll(() => { for (const d of dossiers) rmSync(d, { recursive: true, force: true }); });
+
+/**
+ * Horloge FIGÉE au jour du scénario (2026-10-09). Les lignes de dépense sont datées
+ * de ce jour ; `lireBaseDepuis` compte la fenêtre glissante de 30 jours depuis
+ * `Date.now()`. Sur l'horloge réelle, le test a rougi dès le 2026-11-08, sans
+ * qu'aucun code ne change (« expected 0 to be … » sur la fenêtre). Seule `Date`
+ * est simulée : aucun minuteur, la base pglite et le système de fichiers tournent
+ * normalement. `r6-date-figee` (ci-dessous) prouve que le scénario ne dépend
+ * plus du jour où la suite tourne.
+ */
+const JOUR_DU_SCENARIO = new Date('2026-10-09T12:00:00Z');
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'], now: JOUR_DU_SCENARIO }); });
+afterAll(() => { vi.useRealTimers(); });
 const auteur = randomUUID();
 const base = () => db as unknown as BaseDepense;
+/**
+ * Le scénario est daté RELATIVEMENT à l'horloge réelle : `lireBaseDepuis`
+ * somme la fenêtre glissante de 30 jours à partir de `Date.now()`. Des dates
+ * figées sortent de la fenêtre avec le temps et la somme tombe à 0 (le test a
+ * échoué ainsi le 2026-11-08). Origine trois heures avant le lancement : tout
+ * le scénario (un peu plus de deux heures) reste dans le passé et dans la fenêtre.
+ */
+const ORIGINE_MS = Date.now() - 3 * 3_600_000;
+const t = (secondes: number) => new Date(ORIGINE_MS + secondes * 1_000);
 
 async function registre(): Promise<string> {
   const d = mkdtempSync(join(tmpdir(), 'r6-registre-'));
   dossiers.push(d);
-  await sousVerrou(d, (v) => ecrireRegistre(d, registreVierge(new Date('2026-10-09T09:00:00Z')), v));
+  await sousVerrou(d, (v) => ecrireRegistre(d, registreVierge(t(0)), v));
   return d;
 }
 async function ligne(o: { provider: string; usd: number; cause?: string; tokens?: number; le: Date }): Promise<string> {
@@ -60,11 +82,11 @@ describe('R6 · registre d’essai et réconciliations', () => {
   it('la lecture de la base porte le facturé ; la ligne réconciliée est comptée au facturé, le restant suit', async () => {
     await db!.insert(schema.users).values({ id: auteur, email: `fondateur-${auteur}@r6.exemple.test` });
     const d = await registre();
-    const le = new Date('2026-10-09T09:30:00Z');
+    const le = t(1800);
     const image = await ligne({ provider: 'fal', usd: 0.08, le });
     const vision = await ligne({ provider: 'anthropic', usd: 0.147024, cause: 'coupure', le: new Date(le.getTime() + 1_000) });
 
-    const avant = await lireEtatEssai(d, new Date('2026-10-09T10:00:00Z'), () => lireBaseDepuis(db!));
+    const avant = await lireEtatEssai(d, t(3600), () => lireBaseDepuis(db!));
     if (!avant.ok) throw new Error(avant.raison);
     expect([avant.bilan.regleMicros, avant.bilan.incertainMicros]).toEqual([80_000, 147_024]);
 
@@ -73,7 +95,7 @@ describe('R6 · registre d’essai et réconciliations', () => {
     expect(lu.lignes.map((l) => [l.id === image, l.factureMicros])).toEqual([[true, null], [false, 90_000]]);
     expect(lu.depenseFenetreUsd, 'la somme de la fenêtre ne retient pas le facturé, comme le plafond commun').toBeCloseTo(0.17, 9);
 
-    const apres = await lireEtatEssai(d, new Date('2026-10-09T10:01:00Z'), async () => lu);
+    const apres = await lireEtatEssai(d, t(3660), async () => lu);
     if (!apres.ok) throw new Error(apres.raison);
     expect([apres.bilan.regleMicros, apres.bilan.incertainMicros], 'la ligne réconciliée reste comptée au maximum dans le budget d’essai').toEqual([170_000, 0]);
     expect(apres.bilan.restantMicros - avant.bilan.restantMicros).toBe(57_024);
@@ -87,30 +109,30 @@ describe('R6 · registre d’essai et réconciliations', () => {
     const d = await registre();
     const total = (x: { anterieuresMicros: number; regleMicros: number; incertainMicros: number }) => x.anterieuresMicros + x.regleMicros + x.incertainMicros;
     // Les lignes du cas précédent restent en base (réconciliations en ajout seul) : on compte à partir d'elles.
-    const depart = await lireEtatEssai(d, new Date('2026-10-09T10:59:00Z'), () => lireBaseDepuis(db!));
+    const depart = await lireEtatEssai(d, t(7140), () => lireBaseDepuis(db!));
     if (!depart.ok) throw new Error(depart.raison);
     const fond = total(depart.bilan);
-    const t0 = new Date('2026-10-09T11:00:00Z');
+    const t0 = t(7200);
     const g = await engagerEssai(d, { commande: 'recette:pas1', reservationMicros: 1_000_000, lu: await lireBaseDepuis(db!), maintenant: t0 });
     if (!g.ok) throw new Error(g.raison);
-    const a = await ligne({ provider: 'anthropic', usd: 0.3, cause: 'coupure', le: new Date('2026-10-09T11:00:01Z') });
-    const b = await ligne({ provider: 'anthropic', usd: 0.2, cause: 'service', le: new Date('2026-10-09T11:00:02Z') });
-    const c = await cloreEssai(d, g.engagement.id, { etat: 'incertain', cause: 'commande interrompue' }, { lecteur: () => lireBaseDepuis(db!), maintenant: new Date('2026-10-09T11:01:00Z') });
+    const a = await ligne({ provider: 'anthropic', usd: 0.3, cause: 'coupure', le: t(7201) });
+    const b = await ligne({ provider: 'anthropic', usd: 0.2, cause: 'service', le: t(7202) });
+    const c = await cloreEssai(d, g.engagement.id, { etat: 'incertain', cause: 'commande interrompue' }, { lecteur: () => lireBaseDepuis(db!), maintenant: t(7260) });
     if (!c.ok) throw new Error(c.raison);
     expect(c.engagement.etat).toBe('incertain');
     expect(total(c.bilan) - fond).toBe(1_000_000);
 
     await reconcilier(a, 100_000);
-    const partiel = await lireEtatEssai(d, new Date('2026-10-09T11:02:00Z'), () => lireBaseDepuis(db!));
+    const partiel = await lireEtatEssai(d, t(7320), () => lireBaseDepuis(db!));
     if (!partiel.ok) throw new Error(partiel.raison);
     expect(total(partiel.bilan) - fond, 'un engagement incertain PARTIELLEMENT réconcilié est descendu sous son maximum').toBe(1_000_000);
     // Réservation qui ne tient que si l'engagement compte le facturé (0,15 $) et non son maximum (1 $).
     const juste = 15_000_000 - fond - 150_000;
-    const refus = await engagerEssai(d, { commande: 'recette:bench', reservationMicros: juste, lu: await lireBaseDepuis(db!), maintenant: new Date('2026-10-09T11:02:30Z') });
+    const refus = await engagerEssai(d, { commande: 'recette:bench', reservationMicros: juste, lu: await lireBaseDepuis(db!), maintenant: t(7350) });
     expect(refus.ok, 'le maximum d’un engagement non entièrement réconcilié n’est plus compté').toBe(false);
 
     await reconcilier(b, 50_000);
-    const fini = await lireEtatEssai(d, new Date('2026-10-09T11:03:00Z'), () => lireBaseDepuis(db!));
+    const fini = await lireEtatEssai(d, t(7380), () => lireBaseDepuis(db!));
     if (!fini.ok) throw new Error(fini.raison);
     expect(total(fini.bilan) - fond, 'l’engagement incertain entièrement réconcilié reste compté au maximum').toBe(150_000);
     expect(fini.bilan.incertainMicros).toBe(0);
@@ -118,7 +140,7 @@ describe('R6 · registre d’essai et réconciliations', () => {
     expect(texteBilan(fini.registre, fini.bilan)).toContain('lignes toutes réconciliées, compté au facturé');
 
     // La décision suit : la réservation que le maximum refusait passe une fois la facture saisie.
-    const r = await engagerEssai(d, { commande: 'recette:bench', reservationMicros: juste, lu: await lireBaseDepuis(db!), maintenant: new Date('2026-10-09T11:04:00Z') });
+    const r = await engagerEssai(d, { commande: 'recette:bench', reservationMicros: juste, lu: await lireBaseDepuis(db!), maintenant: t(7440) });
     expect(r.ok, r.ok ? '' : r.raison).toBe(true);
   });
 });

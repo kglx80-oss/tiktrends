@@ -6,6 +6,7 @@ import { FILTRES_LOTS, dansFiltreLots, lienLotSpatial, type FiltreLots, type Pre
 import { createBatchAction } from '../../../app/actions/adsmap-batch';
 import { Anneau, EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
+import { Ornement } from '../studios/Ornement';
 import { Hypothese, Pub, type SousNavResultats } from './communs';
 
 /**
@@ -13,7 +14,9 @@ import { Hypothese, Pub, type SousNavResultats } from './communs';
  * Les lots RÉELS de la marque (`adsmap_batches`), leur état lu par la règle du
  * noyau (`etatLotSpatial`), filtrables comme dans la maquette. « Nouveau lot »
  * ouvre un vrai lot (`createBatchAction`, admin) puis mène à sa fiche, où il se
- * compose · rien n'est simulé.
+ * compose · rien n'est simulé. Le bouton de boucle (barre flottante) compte les
+ * gagnantes prouvées du plan d'itération réel (`boucleIterationLots`) et mène à
+ * l'écran Itérer · fermé, il dit pourquoi.
  */
 
 export interface LigneLot extends Pick<PresentationLot, 'id' | 'etat' | 'titre' | 'hypothese' | 'categorie' | 'statut' | 'anneau' | 'action'> {
@@ -28,6 +31,8 @@ export interface PropsLots {
   lots: readonly LigneLot[];
   peutCreer: boolean;
   note: string;
+  /** « Itérer · N itérations conseillées » · `boucleIterationLots` · absent, la barre n'est pas posée. */
+  boucle?: { libelle: string; href: string; raison: null } | { libelle: string; href: null; raison: string };
 }
 
 export function Lots(p: PropsLots) {
@@ -93,6 +98,14 @@ export function Lots(p: PropsLots) {
         {liste.length === 0 && <p className="faint">{p.lots.length ? 'Aucun lot dans ce filtre.' : 'Aucun lot pour cette marque · ouvre le premier pour composer un test.'}</p>}
       </div>
       <p className="faint" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.note}</p>
+      {p.boucle && !p.boucle.href && <p className="faint" id="lots-boucle-raison" data-raison-ferme="boucle" style={{ fontSize: '11.5px', marginTop: 6 }}>{p.boucle.raison}</p>}
+      {p.boucle && (
+        <Ornement>
+          {p.boucle.href
+            ? <Lien className="btn pri" href={p.boucle.href} data-boucle=""><Ic n="loop" />{p.boucle.libelle}</Lien>
+            : <button className="btn" type="button" data-boucle="ferme" aria-disabled aria-describedby="lots-boucle-raison" style={{ opacity: 0.5, cursor: 'default' }}><Ic n="loop" />{p.boucle.libelle}</button>}
+        </Ornement>
+      )}
     </Vue>
   );
 }

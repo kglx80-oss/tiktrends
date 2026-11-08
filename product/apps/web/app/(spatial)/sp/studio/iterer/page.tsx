@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  aPermissionEspace, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireIterationDemandee, refusStudiosSpatial,
-  videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, type ContexteAdSpatial,
+  aPermissionEspace, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireIterationDemandee, lireVariableDemandee, refusStudiosSpatial,
+  variablesDuPlan, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, type ChoixVariablesIteration, type ContexteAdSpatial,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
@@ -28,13 +28,19 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * verdicts ARBITRÉS seulement) pour la liste. Le contexte d'une pub (ROAS
  * mesuré, vignette réelle) est relu dans l'espace, colonnes existantes.
  * `?iter=<adId>` présélectionne la pub (même paramètre que la reprise
- * d'itération Adsmap). Le geste mène à la reprise réelle du brief
- * (`lienIterationStudio`) · LECTURE SEULE, rien n'est généré ni débité ici.
+ * d'itération Adsmap), `?variable=<variable>` la variable (prompt conseillé).
+ * L'étape « Ce qu'on change » lit les variables admises de chaque gagnante
+ * (`variablesDuPlan`, noyau) · créer l'itération passe par
+ * `creerIterationChoisieAction` (gardes rejouées, gratuit). Le geste suivant
+ * mène à la reprise réelle du brief (`lienIterationStudio`) · rien n'est
+ * généré ni débité ici, le devis vient du serveur dans le projet.
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
   if (!s) redirect('/login');
-  const demande = lireIterationDemandee(await searchParams);
+  const sp = await searchParams;
+  const demande = lireIterationDemandee(sp);
+  const variableDemandee = lireVariableDemandee(sp);
 
   const g = await gardeSources('studio.read');
   if (!g.ok) redirect(CHEMIN_PROJETS);
@@ -76,12 +82,18 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   }
 
   const choix = choixIterationSpatial(rows, (id) => contexte.get(id), { peutIterer });
+  // Les variables admises · seulement pour les pubs sélectionnables (une piste fermée garde sa raison, rien à choisir).
+  const tous = variablesDuPlan(rows);
+  const variables: Record<string, ChoixVariablesIteration> = Object.fromEntries(choix.filter((c) => c.selectionnable && tous[c.adId]).map((c) => [c.adId, tous[c.adId]!]));
   return (
     <Iterer
       sous={active ? `Itération · ${active.name}` : 'Itération'}
       resume={resume}
       choix={choix}
       initial={choixInitialIteration(choix, demande)}
+      demande={demande}
+      variables={variables}
+      variableDemandee={variableDemandee}
       vide={videIterationSpatial({ refus, marque: !!active, erreur, lignes: choix.length, resume })}
     />
   );
