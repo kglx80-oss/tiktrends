@@ -15,6 +15,8 @@ export interface PropsRegles {
   raison: string | null;
   jarvis: string | null;
   sources: Parameters<typeof ReglesMarque>[0]['sources'];
+  /** Énoncés d'apprentissages passés dans les règles · absents, aucune origine n'est dite. */
+  issues?: readonly string[];
 }
 
 export function Regles(p: PropsRegles) {
@@ -22,7 +24,7 @@ export function Regles(p: PropsRegles) {
     <Vue>
       <EnTete titre="Règles" sous="Ce que Jarvis ne doit jamais faire, et ce qu’il sait" />
       <SousNav items={p.sousNav} actif={`/brands/${p.brandId}/regles`} />
-      <ReglesMarque texte={p.texte} enregistrer={p.enregistrer} raison={p.raison} jarvis={p.jarvis} sources={p.sources} />
+      <ReglesMarque texte={p.texte} enregistrer={p.enregistrer} raison={p.raison} jarvis={p.jarvis} sources={p.sources} issues={p.issues} />
     </Vue>
   );
 }

@@ -188,6 +188,10 @@ export async function chargerMesures(brandId: string, depuis: Date, jusqua: Date
 
 export interface ApprentissageLu {
   id: string; adId: string | null; enonce: string; statut: string; refute: boolean; source: string | null; creeLe: string;
+  /** `scope`, `confidence` · le « Vaut pour » et la confiance déclarée du tiroir. */
+  portee: string; confiance: number;
+  /** `evidence.regle.le` · quand il est passé dans les règles de la marque · `null` sinon. */
+  versRegles: string | null;
 }
 
 /** Les apprentissages de la marque, les plus récents d'abord. */
@@ -196,6 +200,7 @@ export async function chargerApprentissages(workspaceId: string, brandId: string
   const rows = await db.select({
     id: schema.learnings.id, adId: schema.learnings.adId, statement: schema.learnings.statement, status: schema.learnings.status,
     refuted: schema.learnings.refuted, evidence: schema.learnings.evidence, createdAt: schema.learnings.createdAt,
+    scope: schema.learnings.scope, confidence: schema.learnings.confidence,
   }).from(schema.learnings)
     .where(and(eq(schema.learnings.workspaceId, workspaceId), eq(schema.learnings.brandId, brandId)))
     .orderBy(desc(schema.learnings.createdAt))
@@ -204,6 +209,8 @@ export async function chargerApprentissages(workspaceId: string, brandId: string
     id: r.id, adId: r.adId, enonce: r.statement, statut: r.status, refute: r.refuted,
     source: typeof (r.evidence as { source?: unknown } | null)?.source === 'string' ? (r.evidence as { source: string }).source : null,
     creeLe: (r.createdAt as Date).toISOString(),
+    portee: r.scope, confiance: r.confidence,
+    versRegles: typeof (r.evidence as { regle?: { le?: unknown } } | null)?.regle?.le === 'string' ? (r.evidence as { regle: { le: string } }).regle.le : null,
   }));
 }
 

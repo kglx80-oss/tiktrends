@@ -195,6 +195,12 @@ export interface FaitsApprentissage {
   source: string | null;
   creeLe: string;
   ad: (FaitsAdSpatial & { lot: { id: string; numero: number } | null }) | null;
+  /** `scope` · ce à quoi l'apprentissage s'applique (« Vaut pour ») · absent = non lu. */
+  portee?: string | null;
+  /** `confidence` · 1 à 5, déclarée à l'arbitrage · absent = non lu. */
+  confiance?: number | null;
+  /** Date (ISO) à laquelle il est passé dans les règles de la marque (`evidence.regle.le`) · `null` sinon. */
+  versRegles?: string | null;
 }
 
 const EVALUABLES: ReadonlySet<VerdictValue> = new Set<VerdictValue>(['winner', 'baby_winner', 'loser']);
@@ -214,9 +220,19 @@ export function niveauPreuveApprentissage(f: FaitsApprentissage): NiveauPreuve {
 }
 
 export type EtatApprentissage = 'valide' | 'retester' | 'valider';
+/** Les verdicts qui n'ont rien tranché au protocole · l'apprentissage écrit dessus reste à retester. */
+const A_RETESTER: ReadonlySet<VerdictValue> = new Set<VerdictValue>(['inconclusive', 'insufficient_delivery', 'relative_winner']);
+/**
+ * « À retester » se CALCULE · un apprentissage rejeté, ou validé sur un verdict
+ * qui n'a rien tranché au protocole (non concluant, sous-diffusé, prometteuse
+ * relative · un gagnant hors protocole est rétrogradé en relatif). Sans verdict
+ * derrière, il n'y a rien à retester · c'est le niveau « À vérifier » qui le dit.
+ */
 export function etatApprentissage(f: FaitsApprentissage): EtatApprentissage {
   if (f.refute) return 'retester';
-  return f.statut === 'validated' ? 'valide' : 'valider';
+  if (f.statut !== 'validated') return 'valider';
+  const v = verdictAffiche(f.ad?.verdict ?? null);
+  return v && A_RETESTER.has(v) ? 'retester' : 'valide';
 }
 
 const ICONE_VARIABLE: Record<string, string> = {

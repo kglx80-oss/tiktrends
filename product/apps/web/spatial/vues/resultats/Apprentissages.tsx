@@ -1,8 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { LIBELLE_NIVEAU, type EtatApprentissage, type NiveauPreuve } from '@tiktrends/core';
+import { useRouter } from 'next/navigation';
+import {
+  FILTRES_ETAT_APPRENTISSAGE, LIBELLE_NIVEAU, dansFiltreEtatApprentissage,
+  type EtatApprentissage, type FiltreEtatApprentissage, type NiveauPreuve, type TiroirApprentissage,
+} from '@tiktrends/core';
+import { apprentissageVersReglesAction, rejeterApprentissageAction } from '../../../app/actions/adsmap-apprentissage';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
+import { useSpatial } from '../../coquille/contexte';
+import { FERME, pendantAction } from '../projet/focus';
 import { Points, Pub, type SousNavResultats } from './communs';
 
 /**
@@ -11,6 +18,12 @@ import { Points, Pub, type SousNavResultats } from './communs';
  * niveau de preuve lu par la règle du noyau (`niveauPreuveApprentissage`), et ·
  * « À valider » · les lots prêts à conclure, dont l'apprentissage reste à écrire
  * (la validation passe par la fiche du lot, `validateVerdictAction`).
+ *
+ * En plus de la maquette, et seulement quand la page les passe (la parité de
+ * structure reste celle du fragment) · les filtres d'état de la V5 (« À
+ * retester » est CALCULÉ par `etatApprentissage`), le tiroir « D'où ça vient ·
+ * Limites · Vaut pour » (`tiroirApprentissage`), et deux gestes explicites ·
+ * passer l'apprentissage dans les règles de la marque, le rejeter ou le rétablir.
  */
 
 export interface CarteApprentissage {
@@ -21,14 +34,27 @@ export interface CarteApprentissage {
   titre: string;
   preuve: ReadonlyArray<{ texte: string; image: string | null; libelle: string; part: number; gagne: boolean }> | null;
   pied: string;
-  /** Réemplois du constat dans des briefs · aucune source n'existe aujourd'hui, toujours `null`. */
+  /** Où le constat est réemployé · seule source aujourd'hui, son passage dans les règles de la marque · `null` sinon. */
   usage: string | null;
-  action: { libelle: string; href: string };
+  /** `boucle` · l'icône d'itération · absente, celle d'un apprentissage validé. */
+  action: { libelle: string; href: string; boucle?: boolean };
+  /** Le tiroir « D'où ça vient · Limites · Vaut pour » · absent, rien n'est ajouté. */
+  tiroir?: TiroirApprentissage;
+  /** Les gestes sur un apprentissage écrit · absents (lot à valider, lecture), rien n'est ajouté. */
+  gestes?: {
+    learningId: string;
+    /** Pourquoi « Ajouter aux règles » est fermé (déjà fait, à valider, droits) · `null` = ouvert. */
+    regles: string | null;
+    /** `true` · rejeté (on propose de le rétablir) · `null` · rien à rejeter (pas validé). */
+    rejete: boolean | null;
+  };
 }
 
 export interface PropsApprentissages {
   sousNav: SousNavResultats;
   cartes: readonly CarteApprentissage[];
+  /** Les filtres d'état de la V5 · absents, seule la maquette (niveau de preuve) est rendue. */
+  filtresEtat?: boolean;
 }
 
 const LEGENDE: ReadonlyArray<[NiveauPreuve, string, string]> = [
@@ -40,7 +66,8 @@ const FILTRES: ReadonlyArray<['tous' | NiveauPreuve, string]> = [['tous', 'Tous'
 
 export function Apprentissages(p: PropsApprentissages) {
   const [filtre, setFiltre] = useState<'tous' | NiveauPreuve>('tous');
-  const liste = p.cartes.filter((c) => filtre === 'tous' || c.niveau === filtre);
+  const [etat, setEtat] = useState<FiltreEtatApprentissage>('tous');
+  const liste = p.cartes.filter((c) => (filtre === 'tous' || c.niveau === filtre) && dansFiltreEtatApprentissage(c.etat, etat));
   return (
     <Vue>
       <EnTete titre="Apprentissages" sous="Ce que tes tests ont montré, avec le niveau de preuve et ses limites" />
@@ -53,6 +80,14 @@ export function Apprentissages(p: PropsApprentissages) {
       <div className="seg" role="group" aria-label="Filtrer par niveau de preuve">
         {FILTRES.map(([k, t]) => <button type="button" key={k} aria-pressed={filtre === k} onClick={() => setFiltre(k)}>{t}</button>)}
       </div>
+      {p.filtresEtat && (
+        <div className="seg" role="group" aria-label="Filtrer par état" style={{ marginLeft: 8 }}>
+          {FILTRES_ETAT_APPRENTISSAGE.map((f) => {
+            const n = f.cle === 'tous' ? p.cartes.length : p.cartes.filter((c) => c.etat === f.cle).length;
+            return <button type="button" key={f.cle} aria-pressed={etat === f.cle} onClick={() => setEtat(f.cle)}>{f.libelle} · {n}</button>;
+          })}
+        </div>
+      )}
       <div className="lgrid">
         {liste.map((c) => (
           <article className="tile lcard" key={c.id}>
@@ -76,13 +111,80 @@ export function Apprentissages(p: PropsApprentissages) {
               <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 {c.etat === 'valider'
                   ? <Lien className="btn sm pri" href={c.action.href}>{c.action.libelle}</Lien>
-                  : <Lien className="btn sm" href={c.action.href}>{c.etat === 'valide' && <Ic n="loop" />}{c.action.libelle}</Lien>}
+                  : <Lien className="btn sm" href={c.action.href}>{(c.action.boucle ?? c.etat === 'valide') && <Ic n="loop" />}{c.action.libelle}</Lien>}
               </span>
             </div>
+            {c.gestes && <Gestes g={c.gestes} />}
+            {c.tiroir && <Tiroir t={c.tiroir} />}
           </article>
         ))}
-        {liste.length === 0 && <p className="faint">{p.cartes.length ? 'Aucun apprentissage à ce niveau de preuve.' : 'Aucun apprentissage pour cette marque · il s’écrit en concluant un lot.'}</p>}
+        {liste.length === 0 && <p className="faint">{p.cartes.length ? 'Aucun apprentissage pour ce filtre.' : 'Aucun apprentissage pour cette marque · il s’écrit en concluant un lot.'}</p>}
       </div>
     </Vue>
+  );
+}
+
+function Tiroir({ t }: { t: TiroirApprentissage }) {
+  const bloc = (titre: string, lignes: readonly string[]) => (
+    <div style={{ display: 'grid', gap: 4 }}>
+      <strong style={{ fontSize: '12.5px' }}>{titre}</strong>
+      {lignes.map((l) => <span className="faint" key={l} style={{ fontSize: '12px' }}>{l}</span>)}
+    </div>
+  );
+  return (
+    <details style={{ marginTop: 10 }}>
+      <summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center', fontSize: '12.5px' }}>D’où ça vient · Limites · Vaut pour</summary>
+      <div style={{ display: 'grid', gap: 10, paddingTop: 6 }}>
+        {bloc('D’où ça vient', t.origine)}
+        {bloc('Limites', t.limites)}
+        {bloc('Vaut pour', [t.vautPour])}
+      </div>
+    </details>
+  );
+}
+
+/**
+ * « Ajouter aux règles de la marque » et « Rejeter » · chacun appelle l'action
+ * serveur, qui garde (rôle, Jarvis, marque) · aucun succès sans retour positif.
+ * Le bouton pressé garde le focus pendant l'action.
+ */
+function Gestes({ g }: { g: NonNullable<CarteApprentissage['gestes']> }) {
+  const router = useRouter();
+  const { toast } = useSpatial();
+  const [occupe, setOccupe] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ texte: string; erreur: boolean } | null>(null);
+  const lancer = async (cle: string, f: () => Promise<{ error?: string }>, reussi: string) => {
+    if (occupe) return;
+    setOccupe(cle); setMessage(null);
+    try {
+      const r = await f();
+      if (r.error) { setMessage({ texte: r.error, erreur: true }); return; }
+      setMessage({ texte: reussi, erreur: false }); toast(reussi); router.refresh();
+    } catch {
+      setMessage({ texte: 'L’action a échoué · réessaie.', erreur: true });
+    } finally { setOccupe(null); }
+  };
+  const attrs = (cle: string, ferme = false) => {
+    const a = pendantAction({ presse: occupe === cle, occupe: !!occupe, ferme });
+    return { ...a, style: a['aria-disabled'] ? { ...FERME, minHeight: 44 } : { minHeight: 44 } };
+  };
+  const idRaison = `regles-ferme-${g.learningId}`;
+  return (
+    <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+      <div className="kc" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <button className="btn sm" type="button" {...attrs('regles', !!g.regles)} disabled={!!g.regles || attrs('regles').disabled} aria-describedby={g.regles ? idRaison : undefined}
+          onClick={() => { if (!g.regles) void lancer('regles', () => apprentissageVersReglesAction({ learningId: g.learningId }), 'Ajouté aux règles de la marque · Jarvis l’applique dès la prochaine génération'); }}>
+          <Ic n="plus" />{occupe === 'regles' ? 'Ajout…' : 'Ajouter aux règles de la marque'}
+        </button>
+        {g.rejete !== null && (
+          <button className="btn sm" type="button" {...attrs('rejet')}
+            onClick={() => void lancer('rejet', () => rejeterApprentissageAction({ learningId: g.learningId, refute: !g.rejete }), g.rejete ? 'Apprentissage rétabli · Jarvis le relit de nouveau' : 'Apprentissage rejeté · Jarvis ne le relit plus')}>
+            <Ic n={g.rejete ? 'loop' : 'x'} />{g.rejete ? 'Rétablir' : 'Rejeter'}
+          </button>
+        )}
+      </div>
+      {g.regles && <small className="faint" id={idRaison} style={{ fontSize: '11.5px' }}>{g.regles}</small>}
+      {message && <small className="faint" role={message.erreur ? 'alert' : 'status'} style={{ fontSize: '11.5px' }}>{message.texte}</small>}
+    </div>
   );
 }

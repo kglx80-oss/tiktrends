@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LIBELLE_NIVEAU, type NiveauPreuve } from '@tiktrends/core';
+import { LIBELLE_NIVEAU, MIN_REFERENCE_CONCLUSION, MIN_VARIANTES_CONCLUSION, type LectureConclusion, type NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Points, Pub, rangeeVariantes } from './communs';
 
@@ -8,7 +8,12 @@ import { Points, Pub, rangeeVariantes } from './communs';
  * l'identique. Le verdict est celui du MOTEUR, variante par variante (cible CPA
  * de la marque, volume minimum, intervalle) · la fiche ne fabrique aucun écart
  * « B +6 pts » qui n'existe pas en base. Les gestes réels (composer, préparer,
- * lancer, arbitrer) arrivent par `actions`, sous la fiche.
+ * lancer, arbitrer, dupliquer) arrivent par `actions`, sous la fiche.
+ *
+ * Au-dessus des verdicts du moteur · la CONCLUSION du lot entier (règle du
+ * noyau `conclusionLot` · confirmée, infirmée, non concluante, contre la
+ * référence des autres lots de la marque). Absente des props, rien n'est
+ * ajouté à la maquette.
  */
 
 export interface PropsLot {
@@ -24,12 +29,38 @@ export interface PropsLot {
   reserves?: readonly string[];
   /** La fiche de chaque variante (verdict, apprentissage, suite) · absente, rien n'est ajouté à la maquette. */
   fiches?: ReadonlyArray<{ href: string; libelle: string; detail: string }>;
+  /** La conclusion du lot entier (`conclusionLot`) · absente, rien n'est ajouté. */
+  conclusion?: LectureConclusion;
+}
+
+const TON_CONCLUSION: Record<LectureConclusion['conclusion'], { pill: string; couleur: string; icone: string }> = {
+  confirmee: { pill: 'g', couleur: 'var(--good)', icone: 'check' },
+  infirmee: { pill: 'r', couleur: 'var(--bad)', icone: 'x' },
+  non_concluante: { pill: '', couleur: 'var(--fg2)', icone: 'chart' },
+  en_attente: { pill: '', couleur: 'var(--fg3)', icone: 'cal' },
+};
+
+function ConclusionDuLot({ c }: { c: LectureConclusion }) {
+  const t = TON_CONCLUSION[c.conclusion];
+  return (
+    <section className="tile" aria-label="Conclusion du lot" data-conclusion={c.conclusion} style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+      <span className="ico" style={{ color: t.couleur }}><Ic n={t.icone} /></span>
+      <div style={{ display: 'grid', gap: 4, flex: 1, minWidth: 220 }}>
+        <div className="lbl">Conclusion du lot, contre la référence de la marque</div>
+        <h2 style={{ margin: 0, color: t.couleur }}>{c.titre}</h2>
+        <p className="muted" style={{ fontSize: '12.5px' }}>{c.phrase}</p>
+        <p className="faint" style={{ fontSize: '11.5px' }}>Règle · au moins {MIN_VARIANTES_CONCLUSION} variantes tranchées au protocole et {MIN_REFERENCE_CONCLUSION} verdicts dans les autres lots · l’intervalle du lot doit exclure celui de la marque. Le moteur juge chaque variante juste en dessous.</p>
+      </div>
+      <span className={`pill ${t.pill}`.trim()}>{c.titre}</span>
+    </section>
+  );
 }
 
 export function Lot(p: PropsLot) {
   return (
     <Vue>
       <EnTete titre={p.titre} sous={p.sous} />
+      {p.conclusion && <ConclusionDuLot c={p.conclusion} />}
       <section className="tile verdict">
         <div className="ico" style={p.verdict.gagnant
           ? { width: 56, height: 56, borderRadius: 18, background: '#7ef0b01f', color: 'var(--good)' }

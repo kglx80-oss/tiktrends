@@ -230,12 +230,16 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
     analyzeAssetsAction: A(() => [[s.ad]]),
     analysisCoverageAction: L(),
   },
+  'app/actions/adsmap-apprentissage.ts': {
+    apprentissageVersReglesAction: A(() => [{ learningId: randomUUID() }]), rejeterApprentissageAction: A(() => [{ learningId: randomUUID(), refute: true }]),
+  },
   'app/actions/adsmap-attribution.ts': {
     attributionViewAction: L(), creativeTrendAction: L(() => [30]), essaisViewAction: L(), bilanNotesAction: L(), calibrationScoreAction: L(), bilanCopieAction: L(),
   },
   'app/actions/adsmap-batch.ts': {
     batchDetailAction: L(() => [s.lot]), candidatesAction: L(), createBatchAction: A(() => ['Tester un angle']),
     setBatchAdAction: A(() => [{ batchId: s.lot, adId: s.ad, inBatch: true }]), prepareBatchAction: A(() => [s.lot]), launchBatchAction: A(() => [s.lot]),
+    duplicateBatchAction: A(() => [s.lot]),
   },
   'app/actions/adsmap-bridge.ts': {
     trackSavedAdAction: A(() => [{ platform: 'meta', externalId: 'ext-1' }]), conceptBriefAction: L(() => [s.concept]),

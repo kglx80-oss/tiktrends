@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation';
 import {
   attendArbitrage, barresCpa, coachLot, controlesLot, lotArbitrable, plateformesLot, presentationLot, syntheseLot, verdictAffiche,
-  LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest,
+  LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest, conclusionLot, referenceConclusion,
 } from '@tiktrends/core';
 import { batchDetailAction } from '../../../../../actions/adsmap-batch';
 import { Lot } from '../../../../../../spatial/vues/resultats/Lot';
-import { ActionsLot, type PropsActionsLot } from '../../../../../../spatial/vues/resultats/ActionsLot';
+import { ActionsLot, DupliquerLot, type PropsActionsLot } from '../../../../../../spatial/vues/resultats/ActionsLot';
 import { RefusResultats } from '../../../../../../spatial/vues/resultats/communs';
 import { chargerLots, gardeResultats } from '../../donnees';
 
@@ -15,7 +15,11 @@ export const dynamic = 'force-dynamic';
  * Fiche d'un lot · nouvelle adresse (l'Adsmap V5 ouvrait le lot dans la liste,
  * `?lot=`). Lisible par tout membre qui ouvre Adsmap (comme `batchDetailAction`) ·
  * composer, préparer et lancer restent réservés aux admins (actions gardées),
- * arbitrer est ouvert aux membres (comme `validateVerdictAction`).
+ * arbitrer est ouvert aux membres (comme `validateVerdictAction`), dupliquer
+ * reste aux admins (comme `createBatchAction`).
+ *
+ * La conclusion du lot entier (`conclusionLot`) se lit contre les AUTRES lots
+ * de la marque, déjà chargés ici · aucune lecture de plus.
  */
 export default async function LotSpatial({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -29,6 +33,7 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
   const pres = presentationLot(l, d.ctx);
   const syn = syntheseLot(l, d.config.targetCpa);
   const barres = barresCpa(l.ads);
+  const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
 
   let actions: PropsActionsLot | null = null;
   if (g.admin && (pres.etat === 'composition' || pres.etat === 'pret')) {
@@ -67,7 +72,11 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
       })}
       controles={controlesLot(l, pres, d.config.minImpressions)}
       coach={coachLot(pres, syn, l.ads.length)}
-      actions={actions ? <ActionsLot {...actions} /> : null}
+      conclusion={conclusion}
+      actions={<>
+        {actions && <ActionsLot {...actions} />}
+        <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
+      </>}
       reserves={[LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}
       fiches={l.ads.map((a) => {
         const v = verdictAffiche(a.verdict);

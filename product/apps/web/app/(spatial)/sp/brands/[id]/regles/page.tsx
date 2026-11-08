@@ -1,4 +1,4 @@
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { manquantesLibelle, sourcesJarvisMarque } from '@tiktrends/core';
 import { saveJarvisRulesAction } from '../../../../../actions/jarvis';
@@ -13,10 +13,13 @@ export default async function ReglesSpatiale({ params }: { params: Promise<{ id:
   const c = await chargerMarque(id);
   const { s, b } = c;
   const n = (r: Array<{ n: number }>) => Number(r[0]?.n ?? 0);
-  const [produits, personas, assets] = await Promise.all([
+  const [produits, personas, assets, issues] = await Promise.all([
     db!.select({ n: count() }).from(schema.products).where(eq(schema.products.brandId, b.id)),
     db!.select({ n: count() }).from(schema.personas).where(eq(schema.personas.brandId, b.id)),
     db!.select({ n: count() }).from(schema.assets).where(and(eq(schema.assets.workspaceId, s.workspaceId), eq(schema.assets.brandId, b.id), isNull(schema.assets.deletedAt))),
+    // Les apprentissages passés dans les règles (`evidence.regle`, posé par `apprentissageVersReglesAction`) · la règle dit d'où elle vient.
+    db!.select({ enonce: schema.learnings.statement }).from(schema.learnings)
+      .where(and(eq(schema.learnings.workspaceId, s.workspaceId), eq(schema.learnings.brandId, b.id), sql`(${schema.learnings.evidence} -> 'regle') is not null`)),
   ]);
   const sources = sourcesJarvisMarque({ site: c.domaine, produits: n(produits), personas: n(personas), assets: n(assets), shopify: !!b.shopifyToken, meta: !!b.metaToken });
   // L'action écrit les règles de la marque ACTIVE · on ne l'offre que sur elle,
@@ -29,6 +32,7 @@ export default async function ReglesSpatiale({ params }: { params: Promise<{ id:
       sousNav={c.sousNav} brandId={b.id} texte={b.creativeRules ?? ''}
       enregistrer={raison ? null : saveJarvisRulesAction} raison={raison} jarvis={c.jarvis}
       sources={{ lignes: sources, manquantes: manquantesLibelle(sources) }}
+      issues={issues.map((x) => x.enonce)}
     />
   );
 }

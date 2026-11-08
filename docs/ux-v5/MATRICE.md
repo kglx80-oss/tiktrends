@@ -47,11 +47,13 @@ Recalé sur main 18c45d9, 2026-11-08 · sortie de `node docs/ux-v5/compter-statu
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Coquille et Accueil | 102 | 0 | 16 | 13 | 9 | 12 | 152 |
+| Coquille et Accueil | 103 | 0 | 15 | 13 | 9 | 12 | 152 |
 | Veille, Bibliothèque, Marques | 98 | 0 | 64 | 30 | 18 | 3 | 213 |
 | Projets et canvas | 97 | 0 | 40 | 13 | 4 | 6 | 160 |
-| Résultats, Jarvis, ADMIN+ | 59 | 0 | 44 | 16 | 20 | 1 | 140 |
-| **Total** | **356** | **0** | **164** | **72** | **51** | **22** | **665** |
+| Résultats, Jarvis, ADMIN+ | 66 | 0 | 38 | 15 | 20 | 1 | 140 |
+| **Total** | **364** | **0** | **157** | **71** | **51** | **22** | **665** |
+
+Mis à jour par le lot 3 (conclure un lot entier) · 8 lignes passent en « raccordé » (RJ L06, L09, A01, A03, A05, A06, A08 · CA G09) · RJ L03 reste « partiel » (aucune règle écrite pour « Lancer quand même ») et RJ A04 « à créer » (attend l'action d'hypothèse libre du lot 1).
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
@@ -122,6 +124,7 @@ La conclusion se fait variante par variante. Le lot ajoute la conclusion du lot 
 - **Services à réutiliser** : `validateVerdictAction` (`W/app/actions/adsmap-verdict.ts:228`), `createBatchAction` et `setBatchAdAction` (`W/app/actions/adsmap-batch.ts:257`, `:277`), `saveJarvisRulesAction` (`W/app/actions/jarvis.ts:29`), `indicateursGagnante` (`C/spatial/accueil/accueil.ts:371`).
 - **Migration** : non. « À retester » (A01) se calcule ou se tait.
 - **Règle au noyau** : la conclusion d'un lot à partir des verdicts, avec effectif minimum et intervalle qui doit exclure la référence (doctrine « comparer à la référence »). Le silence reste une conclusion valable. « Lancer quand même » (L03) ne se code qu'avec sa règle écrite.
+- **Livré** : `conclusionLot` (`C/spatial/resultats/conclusion-lot.ts` · 4 variantes tranchées, 4 verdicts de référence, Wilson 0,9, l'intervalle du lot doit exclure celui des autres lots · seuils mesurés, tableau dans le module), « Dupliquer le lot » (`duplicateBatchAction`), écart au reste du lot sur l'Accueil (`ecartAuLot`), « Ajouter aux règles de la marque » (`apprentissageVersReglesAction` → `saveJarvisRulesAction`), filtres d'état, « Rejeter », tiroir de l'apprentissage. Restent L03 (pas de règle écrite) et A04 (lot 1).
 
 ### 4 · Mesures · import CSV et remontée Meta planifiée · L
 
