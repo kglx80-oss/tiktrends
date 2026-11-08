@@ -70,7 +70,11 @@ export interface PropsBriefProjet {
   propositions: { initial: ReponseProposition<ListePropositions> | null; versionCourante: { id: string; n: number } | null };
 }
 
-export interface SortieSpatiale { assetId: string; libelle: string; apercu: string | null; detail: string; choisir: boolean; raison: string | null; varianteId: string | null }
+export interface SortieSpatiale {
+  assetId: string; libelle: string; apercu: string | null; detail: string; choisir: boolean; raison: string | null; varianteId: string | null;
+  /** Le format RÉEL du fichier livré (`formatCreation` · « 4:5 », « 3:4 »…) · filtre local de la grille. Absent · inconnu. */
+  format?: string | null;
+}
 
 export interface LotSpatial {
   jobId: string;

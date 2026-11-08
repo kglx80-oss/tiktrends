@@ -29,6 +29,8 @@ export interface OutilsScale {
   requetes: readonly string[];
   /** Vague 4 · l'analyse d'UNE marque (domaine tapé) · son inventaire complet est dans les pubs du moment. */
   marque?: { terme: string; href: string } | null;
+  /** Lot 7 · le prix d'un message Jarvis, dit dans le détail d'une ligne. */
+  coutJarvis?: string;
 }
 
 export function CeQuiScale({ sous, lignes, pastilleRadar, vide, outils }: { sous: string; lignes: ReadonlyArray<LigneScale>; pastilleRadar: string | null; vide: { titre: string; texte: string; action: { href: string; libelle: string } | null } | null; outils?: OutilsScale }) {
@@ -61,7 +63,7 @@ export function CeQuiScale({ sous, lignes, pastilleRadar, vide, outils }: { sous
         </div>
       )}
       {outils && outils.lignes.length > 0 ? (
-        <ScaleInteractif lignes={outils.lignes} initial={outils.initial} annonceurs={outils.annonceurs} angles={outils.angles} />
+        <ScaleInteractif lignes={outils.lignes} initial={outils.initial} annonceurs={outils.annonceurs} angles={outils.angles} coutJarvis={outils.coutJarvis} />
       ) : lignes.length > 0 ? (
         <div className="scaleL">
           {lignes.map((l) => (

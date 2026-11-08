@@ -385,7 +385,11 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
     estimerImpact: A(P), creerDevis: A(P), approuverEtMettreEnFile: A(() => [{ quoteId: randomUUID(), inputHash: 'x', creditsAnnonces: 0, idempotencyKey: randomUUID() }]),
     annulerJob: A(() => [{ jobId: randomUUID() }]), etatJob: L(() => [{ jobId: s.job }]), accepterMedia: A(() => [{ jobId: s.job }]), rejeterMedia: A(() => [{ jobId: randomUUID() }]),
   },
-  'app/actions/studios/export.ts': { lireExportProjet: L(PI), exporterVersion: A(() => [{ projectId: s.projet, format: 'json' }]) },
+  'app/actions/studios/export.ts': {
+    lireExportProjet: L(PI), exporterVersion: A(() => [{ projectId: s.projet, format: 'json' }]),
+    // Lot 8 · la relecture humaine (cinq points) · rend la relecture validée (qui, quand), aucune adresse.
+    validerRelectureExport: A(() => [{ projectId: s.projetImage, points: ['produit', 'textes', 'promesses', 'marque', 'diffusion'] }]),
+  },
   'app/actions/studios/identites.ts': {
     lireIdentitesProjet: L(P), enregistrerIdentite: A(() => [{ ...PV()[0], nom: 'Léa', attributs: {} }]), lierIdentite: A(() => [{ ...PV()[0], identityId: randomUUID(), shotIds: [] }]),
     resoudreContradiction: A(() => [{ ...PV()[0], contradictionId: 'x', choix: 'x' }]), choisirModeParole: A(() => [{ ...PV()[0], shotIds: [], mode: 'voix_off' }]),
@@ -414,6 +418,8 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/studios/projets.ts': {
     listerProjets: L(() => [{}]), inspecterProjet: L(() => [s.projetImage]), creerProjet: A(() => [{ brandId: ids.brandA1, kind: 'image', title: 'Projet neuf' }]),
     enregistrerDocument: A(() => [{ ...PV()[0], changes: [] }]), enregistrerDisposition: A(() => [{ projectId: s.projet, positions: {}, rowVersion: 1 }]),
+    // Lot 8 · renommer (projet inconnu · refus neutre, aucun titre semé touché) et dupliquer pour de vrai (la copie et sa version 1 sont lues).
+    renommerProjet: A(() => [{ projectId: randomUUID(), titre: 'Projet renommé' }]), dupliquerProjet: A(PI),
   },
   'app/actions/studios/prompts.ts': {
     importerPackAction: A(), validerImportsAction: A(), enregistrerBrouillonAction: A(() => [{ baseId: randomUUID(), champs: {}, motif: 'test' }]), validerVersionAction: A(() => [{ id: randomUUID() }]),

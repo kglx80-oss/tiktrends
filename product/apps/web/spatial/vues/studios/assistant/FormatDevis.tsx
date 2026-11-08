@@ -7,8 +7,8 @@ import {
   ALLOWED_PATHS_BRIEF, MESSAGE_DEVIS_INCONNU, OPTIONS_FORMAT_ASSISTANT,
   type BriefCanonique, type ErreurStudio, type FormatDocument, type ModeImage, type SaisieFormat,
 } from '@tiktrends/core';
-import { creditsAppelAnnonceMicros, mentionAppelTexte } from '@tiktrends/core';
-import { useRegime } from '../../../coquille/contexte';
+import { creditsAppelAnnonceMicros, jaugeBudgetDevis, mentionAppelTexte, reductionsDevis } from '@tiktrends/core';
+import { useRegime, useSpatial } from '../../../coquille/contexte';
 import { compilerConsigneImage, demanderDevisImage, lireParcoursImage, retenirConsigneImage } from '../../../../app/actions/studios/image';
 import { appliquerProposition, creerPropositionManuelle } from '../../../../app/actions/studios/propositions';
 import { preparerLotFormats } from '../../../../app/actions/studios/lot-formats';
@@ -16,7 +16,7 @@ import { preparerLotImages } from '../../../../app/actions/studios/lot-images';
 import type { DevisImageVue, VueParcoursImage } from '../../../../lib/studios/image/parcours';
 import type { VueLotImages } from '../../../../lib/studios/image/lot-images';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../../lib/studios/appel-payant';
-import { Ic, Lien } from '../../../communs';
+import { Anneau, Ic, Lien } from '../../../communs';
 import { Ornement } from '../Ornement';
 import { AnnonceLogos } from '../../projet/LogosAReimporter';
 
@@ -34,7 +34,10 @@ import { AnnonceLogos } from '../../projet/LogosAReimporter';
  *    est gratuit ;
  *  · « Voir le devis serveur » · devis IMMUABLE, aucune dépense · une réponse
  *    qui ne correspond plus aux choix affichés est rejetée (jamais « le
- *    dernier devis du projet »). Le débit vient à l'étape suivante.
+ *    dernier devis du projet »). Le débit vient à l'étape suivante ;
+ *  · lot 8 · la jauge du solde (lue, jamais calculée ni débitée) et, après un
+ *    refus de budget du serveur, « Réduire les variantes » / « Garder un seul
+ *    format » (le choix à l'écran change, rien n'est envoyé).
  */
 
 const erreur = (r: ErreurStudio) => (r.violations?.length ? r.violations.map((v) => v.raison).join(' · ') : r.message);
@@ -56,6 +59,8 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
   onRetour: () => void;
 }) {
   const regime = useRegime();
+  const { credits } = useSpatial();
+  const [refusBudget, setRefusBudget] = useState(false);
   // Régime V2 · le contrôle visuel se paie en crédits, non mesuré : décoché d'office (29/10).
   const [saisie, setSaisie] = useState<SaisieFormat>(() => ({ ...saisieFormatDepuisBrief(brief), ...(regime === 'v2' ? { relectureAuto: false } : {}) }));
   const [vue, setVue] = useState<VueParcoursImage | null>(null);
@@ -142,7 +147,7 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
     const contexteDemande = contexteRef.current;
     const saisieDemande: SaisieFormat = { ...saisie, relectureAuto: relecture };
     const signatureDemande = signatureChoixDevis(saisieDemande);
-    setOccupe(true); setRetour(null);
+    setOccupe(true); setRetour(null); setRefusBudget(false);
     try {
       if (!(await ecrireFormatSiBesoin())) return;
       if ((nombreDemande > 1 || formatsDemandes.length > 1) && onLotPret) {
@@ -150,12 +155,12 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
           ? await preparerLotFormats({ projectId, formats: formatsDemandes, nombreParFormat: nombreDemande, controleVision: controleVisionDevis(saisieDemande) })
           : await preparerLotImages({ projectId, nombre: nombreDemande, controleVision: controleVisionDevis(saisieDemande) });
         if (seq !== seqRef.current) return;
-        if (!r.ok) { setRetour(erreur(r)); return; }
+        if (!r.ok) { setRetour(erreur(r)); setRefusBudget(r.code === 'BUDGET_EXCEEDED'); return; }
         if (nombreRef.current !== nombreDemande || JSON.stringify(formatsRef.current) !== JSON.stringify(formatsDemandes) || contexteRef.current !== contexteDemande || signatureAfficheeRef.current !== signatureDemande) { setRetour(MESSAGE_DEVIS_INCONNU); return; }
         onLotPret(r.lot); return;
       }
       const d = await demanderDevisImage({ projectId, controleVision: controleVisionDevis(saisieDemande) });
-      if (!d.ok) { setRetour(erreur(d)); return; }
+      if (!d.ok) { setRetour(erreur(d)); setRefusBudget(d.code === 'BUDGET_EXCEEDED'); return; }
       // Le devis vient d'être écrit · on relit et on le CORRÈLE à CETTE demande.
       const devisCreeId = d.devis?.id ?? null;
       const r = await lireParcoursImage({ projectId });
@@ -175,6 +180,13 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
   }
 
   const total = nombre * (onLotPret ? formats.length : 1);
+  const jauge = jaugeBudgetDevis(credits);
+  const reductions = reductionsDevis({ refusBudget, nombre: onLotPret ? nombre : 1, formats: onLotPret ? formats.length : 1 });
+  const reduire = (cle: (typeof reductions)[number]['cle']) => {
+    if (cle === 'un_visuel') setNombre(1);
+    else setFormats([saisie.format]);
+    setRefusBudget(false); setRetour(null);
+  };
   const consigneValidee = !!vue?.retenue?.verdict.ok && formatDejaEcrit(brief, saisie.format);
   const apercuTexte = brief.texts[0] ? lireLigneTexte(brief.texts[0]).texte : null;
 
@@ -301,10 +313,22 @@ export function FormatDevis({ projectId, version, brief, onBriefChange, onDevisP
               <p className="muted" style={{ fontSize: '12.5px' }}>{onLotPret && formats.length > 1 ? `${nombre} visuel${nombre > 1 ? 's' : ''} × ${formats.length} formats · ` : ''}le prix exact s’affiche avec le devis serveur, après validation de la consigne.</p>
               <p className="faint" style={{ fontSize: '11.5px' }}>La préparation IA ci-dessus est une dépense distincte, annoncée avant son lancement. Le devis ne débite rien · tu confirmes le montant à l’étape suivante.</p>
             </div>
+            <div className="kc" data-jauge-budget={jauge.part} style={{ alignItems: 'center', flexWrap: 'nowrap', minWidth: 0 }}>
+              <Anneau part={jauge.part} taille={40} />
+              <span className="faint" style={{ fontSize: '11.5px', minWidth: 0 }}>{jauge.phrase}</span>
+            </div>
           </section>
         </>
       )}
       {retour && <div className="banner" role="alert" data-etat="erreur"><Ic n="x" /><span>{retour}</span></div>}
+      {reductions.length > 0 && (
+        <div className="kc" data-reductions-budget="" style={{ alignItems: 'center' }}>
+          {reductions.map((r) => (
+            <button key={r.cle} className="btn sm" type="button" data-reduction={r.cle} style={{ minHeight: 44 }} title={r.effet} disabled={occupe} onClick={() => reduire(r.cle)}>{r.libelle} · {r.effet}</button>
+          ))}
+          <span className="faint" style={{ fontSize: '11.5px' }}>Le choix à l’écran change · rien n’est envoyé avant « Voir le devis serveur ».</span>
+        </div>
+      )}
       <Ornement>
         <button className="btn icon" type="button" aria-label="Retour à la direction" data-bouton="retour-direction" disabled={occupe} onClick={onRetour}><Ic n="back" s={false} /></button>
         <span className="info">{nonActive ? 'Génération non activée · rien n’est lancé' : infoEtapeNouveau('format')}</span>

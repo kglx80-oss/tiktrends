@@ -4,7 +4,7 @@ import { and, count, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
-  couloirsDepuisProjet, dateCourteUtc, detailTache, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, mentionAppelTexte, pastilleEnregistrement, relectureNecessaire,
+  couloirsDepuisProjet, dateCourteUtc, detailTache, formatCreation, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, mentionAppelTexte, pastilleEnregistrement, relectureNecessaire,
   noeudsIterationProjet, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
@@ -155,7 +155,10 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
     const lu = donnees!.lots.find((x) => x.jobId === l.jobId)!;
     return {
       jobId: l.jobId, titre: l.titre, version: bv.titre, note: bv.note, etat: etatGeneration(lu.etat as EtatJob), qualite: l.qualite, message: l.message,
-      sorties: l.sorties.map((x) => ({ assetId: x.assetId, libelle: `${l.titre} · ${x.libelle}`, apercu: apercus[x.assetId] ?? null, detail: x.dimensions, choisir: x.choisir, raison: x.raison, varianteId: x.varianteId })),
+      sorties: l.sorties.map((x) => {
+        const brute = lu.sorties.find((y) => y.assetId === x.assetId);
+        return { assetId: x.assetId, libelle: `${l.titre} · ${x.libelle}`, apercu: apercus[x.assetId] ?? null, detail: x.dimensions, choisir: x.choisir, raison: x.raison, varianteId: x.varianteId, format: formatCreation(brute?.largeur, brute?.hauteur) };
+      }),
     };
   }));
   const varSpatiales: VarianteSpatiale[] = (vue?.variantes ?? []).map((v) => {

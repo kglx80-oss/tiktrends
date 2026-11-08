@@ -3,8 +3,10 @@ import { ttSearchAds, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrat
 import { and, eq } from 'drizzle-orm';
 import {
   ANGLE_LABEL, accrocheDe, anglesPresentsScale, apercuImage, bibliothequePub, capPerBrand, classerParDuree, classifyAngle, joursCourts, libelleBibliotheque,
-  lireOutilsScale, requetesOutilsScale, statsOutilsScale, veilleSeedDefaut, veillePersistable,
+  lireOutilsScale, requetesOutilsScale, statsOutilsScale, veilleSeedDefaut, veillePersistable, lireCpmVeille, annonceConversationJarvis,
 } from '@tiktrends/core';
+import { carteVeille } from '../cartes';
+import { regimeSession } from '../../../../../lib/credits-appels';
 import { db, schema } from '@tiktrends/db';
 import { getSession } from '../../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, PLAN_LABEL } from '../../../../../lib/rbac';
@@ -123,6 +125,8 @@ export default async function ScaleSpatial({ searchParams }: { searchParams: Pro
       ad, sauvee: gardees.has(`${ad.platform}:${ad.id}`), suivie: suivies.has(`${ad.platform}:${ad.advertiserName ?? ''}`),
       site: site ? { href: site, libelle: ad.landingDomain ? `Ouvrir ${ad.landingDomain.replace(/^www\./, '')}` : 'Ouvrir le site' } : null,
       biblio: biblio ? { href: biblio.url, libelle: libelleBibliotheque(biblio)! } : null,
+      // Lot 7 (VB SC05) · le même détail que « Pubs du moment » (sans le geste d'hypothèse, réservé à la page de la Veille).
+      carte: carteVeille(ad, { cpm: lireCpmVeille(undefined), contexte: '', sauvee: gardees.has(`${ad.platform}:${ad.id}`), suivie: suivies.has(`${ad.platform}:${ad.advertiserName ?? ''}`) }),
     };
   });
   const annonceurs = [...new Set(outilsLignes.map((l) => l.o.annonceur).filter(Boolean))];
@@ -159,6 +163,7 @@ export default async function ScaleSpatial({ searchParams }: { searchParams: Pro
     annonceurs, angles,
     requetes: requetesOutilsScale(sample ? '' : q, country),
     marque: mono && !sample && !error ? { terme, href: `/veille?${new URLSearchParams({ q: terme })}` } : null,
+    coutJarvis: annonceConversationJarvis(regimeSession(s)),
   };
 
   return <CeQuiScale sous={sous} lignes={lignes} pastilleRadar={radar} vide={vide} outils={outils} />;

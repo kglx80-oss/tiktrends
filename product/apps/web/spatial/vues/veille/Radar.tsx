@@ -3,7 +3,7 @@ import { ChiffresCles } from '../accueil/ChiffresCles';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { SousNavVeille, Vignette } from './base';
 import { BoutonSuivi } from './client';
-import { BriefMarque, DecouverteCategorie, GestesNouveautes, GrammaireMarche } from './radar-client';
+import { BriefMarque, DecouverteCategorie, GestesNouveautes, GrammaireMarche, SuivreMarqueLibre } from './radar-client';
 
 /**
  * « Radar » · `docs/spatial/reference/radar.html`. Le suivi des marques que
@@ -71,6 +71,7 @@ function Suivi({ marques, ouvert }: { marques: ReadonlyArray<MarqueRadar>; ouver
   return (
     <>
       <div className="sech"><h2>Marques suivies</h2><Lien className="btn sm" href="/veille/concurrents" style={{ marginLeft: 'auto' }} tabIndex={ouvert ? undefined : -1}><Ic n="plus" />Suivre une marque</Lien></div>
+      {ouvert && <SuivreMarqueLibre />}
       <div className="grid3">
         {marques.map((m) => (
           <div className="tile" style={{ display: 'grid', gap: '12px' }} key={m.cle}>

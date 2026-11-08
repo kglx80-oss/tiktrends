@@ -65,6 +65,8 @@ export interface PropsNouveauProjet {
   /** Personas Adsmap de la marque active · lecture, portée. Vide = « Aucun persona » seul. */
   personas: ReferenceAdsmap[];
   produits: ProduitAssistant[];
+  /** Lot 8 · les couleurs de la fiche de la marque active (pastilles de l'étape Style) · absent ou vide, la vue le dit. */
+  paletteMarque?: readonly string[];
   /** Ce que le lien reprend (relu au serveur) · le départ, les références, ce qui n'est pas repris. */
   contexte: { depart: DepartAssistant | null; references: DepartAssistant[]; notes: string[]; repris: string[]; retourVeille: { href: string } | null };
 }
@@ -338,7 +340,7 @@ export function NouveauProjet(p: PropsNouveauProjet) {
 
         {(etape === 'strategie' || etape === 'direction') && projet && brief && (
           <PostCreation key={`${projet.id}:${etape}`} etape={etape} projet={projet} brief={brief} marqueId={marque.id} sources={sources}
-            apercuProduitUrl={apercuProduitUrl} onProjetChange={() => void relireProjet()} onRelire={() => relireProjet().then(Boolean)} enregistrementRef={directionEnregistrement} />
+            apercuProduitUrl={apercuProduitUrl} paletteMarque={p.paletteMarque} onProjetChange={() => void relireProjet()} onRelire={() => relireProjet().then(Boolean)} enregistrementRef={directionEnregistrement} />
         )}
 
         {etape === 'format' && projet && (type === 'video' || type === 'text') && (
@@ -400,14 +402,14 @@ export function NouveauProjet(p: PropsNouveauProjet) {
 
 /* ───────────────────── Post-création · le cycle de propositions ───────────────────── */
 
-function PostCreation({ etape, projet, brief, marqueId, sources, apercuProduitUrl, onProjetChange, onRelire, enregistrementRef }: {
-  etape: 'strategie' | 'direction'; projet: ProjetCourant; brief: BriefCanonique; marqueId: string; sources: unknown[];
+function PostCreation({ etape, projet, brief, marqueId, sources, apercuProduitUrl, onProjetChange, onRelire, enregistrementRef, paletteMarque }: {
+  etape: 'strategie' | 'direction'; projet: ProjetCourant; brief: BriefCanonique; marqueId: string; sources: unknown[]; paletteMarque?: readonly string[];
   apercuProduitUrl?: string; onProjetChange: () => void; onRelire: () => Promise<boolean>; enregistrementRef: React.Ref<EnregistrementDirection>;
 }) {
   const cycle = usePropositionsBrief(projet.id, projet.versionCourante);
   return etape === 'strategie'
     ? <Strategie projectId={projet.id} brief={brief} cycle={cycle} onApplied={onProjetChange} sources={sources} marqueId={marqueId} />
-    : <Direction onRelire={onRelire} enregistrementRef={enregistrementRef} projectId={projet.id} baseVersionId={projet.versionCourante.id} brief={brief} cycle={cycle} onApplied={onProjetChange} apercuProduitUrl={apercuProduitUrl} />;
+    : <Direction paletteMarque={paletteMarque} onRelire={onRelire} enregistrementRef={enregistrementRef} projectId={projet.id} baseVersionId={projet.versionCourante.id} brief={brief} cycle={cycle} onApplied={onProjetChange} apercuProduitUrl={apercuProduitUrl} />;
 }
 
 /* ─────────────────────────────── Étape brief ─────────────────────────────── */

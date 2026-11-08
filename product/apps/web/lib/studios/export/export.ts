@@ -10,8 +10,8 @@ import {
   verifierExport, attenduExport, nomFichierExport, estFormatExport, lireTraceExport, empreinteCourte, cleExport,
   POLICES_EMBARQUEES, CONTRAT_FORMAT, JPEG_EXPORT, ACTION_AUDIT_EXPORT, EMPREINTE_VALIDE,
   cleArchiveExport, droitsArchiveExport, ressourcesRevoquees, decisionTelechargement, ORIGINE_ARCHIVE_EXPORT,
-  etatMediaLogoRefuse, cheminIdentiteMarque,
-  type ErreurStudio, type DisponiblesExport, type EtatMediaExport, type FormatExport, type MesureExport,
+  etatMediaLogoRefuse, cheminIdentiteMarque, MESSAGE_RELECTURE_REQUISE,
+  type ErreurStudio, type RelectureExport, type DisponiblesExport, type EtatMediaExport, type FormatExport, type MesureExport,
   type ViolationExport, type TraceExport, type DocumentStudio, type StockageStudio, type ArchiveRelue, type DroitMediaExport,
 } from '@tiktrends/core';
 import type { ContexteStudio } from '../garde';
@@ -22,6 +22,7 @@ import { estFichierCatalogue, lecteurCatalogueUnique, type LecteurCatalogue } fr
 import { roleAtLeast } from '../../rbac';
 import { rendreDocument, type ImageRvba } from '../rendu/compositeur';
 import { policeRendu } from '../rendu/polices';
+import { relectureDeVersion } from './relecture';
 
 /**
  * Studios · L7-A · export image d'une version (EXPORT-01, 02, 04, 05).
@@ -46,6 +47,10 @@ import { policeRendu } from '../rendu/polices';
  *     du noyau (`verifierExport`). Un fichier non conforme n'est jamais livré.
  *
  * ── Ce qui est écrit ─────────────────────────────────────────────────────────
+ *
+ * Lot 8 · après le préflight, la commande exige la RELECTURE HUMAINE validée
+ * de la version (`relecture.ts`, audit `project.export.review`) · sans elle,
+ * refus `QUALITY_REVIEW_REQUIRED`, aucun fichier déposé, aucune trace.
  *
  * Seule la commande explicite `exporterVersionPour` écrit :
  *  · R4 · le fichier VÉRIFIÉ est déposé dans le stockage des médias studio
@@ -390,6 +395,10 @@ export async function exporterVersionPour(
   const f = await fabriquerExport(ctx, { projectId: e.projectId, versionId: e.versionId, format: e.format }, deps);
   if (!f.ok) return f;
   const x = f.fichier;
+  // Lot 8 · le contrôle HUMAIN s'ajoute au préflight (qui vient de passer) · sans relecture validée de CETTE version, rien n'est écrit.
+  if (!(await relectureDeVersion(ctx, x.projet, x.version))) {
+    return erreurStudio('QUALITY_REVIEW_REQUIRED', { traceId: ctx.traceId, targetIds: [x.projet.id, x.version.id], message: MESSAGE_RELECTURE_REQUISE });
+  }
   const trace: TraceExport = {
     projectId: x.projet.id, versionId: x.version.id, versionN: x.version.n, format: x.format, sha256: x.sha256,
     mime: x.mime, largeur: x.largeur, hauteur: x.hauteur, octets: x.octets.length, nomFichier: x.nomFichier,
@@ -570,6 +579,8 @@ export interface VueExport {
   peutExporter: boolean;
   /** La fiche Identité de la marque · pour qui peut y réimporter un logo (admin), sinon `null` (le message dit qui peut). */
   identiteMarque?: string | null;
+  /** Lot 8 · la relecture humaine validée de CETTE version (qui, quand) · `null` · à faire, l'export reste fermé. */
+  relecture: RelectureExport | null;
 }
 
 /** L'écran d'export · LECTURE (préflight compris) : rien n'est écrit à la visite. */
@@ -605,6 +616,7 @@ export async function lireVueExportPour(ctx: ContexteStudio, e: { projectId: unk
       historique: await historiqueExports(ctx, projet),
       peutExporter: aPermissionEspace(ctx.permissions, 'studio.export'),
       identiteMarque: roleAtLeast(ctx.roleEspace, 'admin') ? cheminIdentiteMarque(projet.brandId) : null,
+      relecture: await relectureDeVersion(ctx, projet, version),
     },
   };
 }

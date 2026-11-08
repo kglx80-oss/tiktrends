@@ -1,7 +1,9 @@
 'use server';
 
 import { gardeStudio } from '../../../lib/studios/garde';
+import type { RelectureExport } from '@tiktrends/core';
 import { exporterVersionPour, lireVueExportPour, type ExportRealise, type RefusExport, type Resultat, type VueExport } from '../../../lib/studios/export/export';
+import { validerRelecturePour } from '../../../lib/studios/export/relecture';
 
 /**
  * Studios · L7-A · export image d'une version.
@@ -26,4 +28,16 @@ export async function exporterVersion(entree: { projectId: unknown; versionId?: 
   const g = await gardeStudio('studio.export', 'export');
   if (!g.ok) return g;
   return exporterVersionPour(g.ctx, { projectId: entree?.projectId, versionId: entree?.versionId, format: entree?.format });
+}
+
+/**
+ * Lot 8 · valide la relecture HUMAINE d'une version (les cinq points du
+ * contrôle) · `studio.export`, la même garde que l'export (aucune permission
+ * nouvelle). Une écriture · l'audit `project.export.review` (qui, quand).
+ * Gratuit, aucune génération.
+ */
+export async function validerRelectureExport(entree: { projectId: unknown; versionId?: unknown; points: unknown }): Promise<Resultat<{ relecture: RelectureExport }>> {
+  const g = await gardeStudio('studio.export', 'export');
+  if (!g.ok) return g;
+  return validerRelecturePour(g.ctx, { projectId: entree?.projectId, versionId: entree?.versionId, points: entree?.points });
 }

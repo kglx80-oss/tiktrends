@@ -6,3 +6,5 @@ export * from './scale-outils';
 export * from './marche';
 export * from './radar-creatif';
 export * from './vues';
+export * from './filtres-locaux';
+export * from './suivi-libre';

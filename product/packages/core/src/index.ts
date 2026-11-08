@@ -147,6 +147,7 @@ export * from './studios/suppression-marque';
 export * from './studios/propositions';
 export * from './studios/sources';
 export * from './studios/liste-projets';
+export * from './studios/copie-projet';
 export * from './studios/references-adsmap';
 export * from './studios/bornes-taches';
 export * from './studios/variantes';

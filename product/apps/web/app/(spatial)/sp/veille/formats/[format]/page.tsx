@@ -61,6 +61,7 @@ export default async function FormatSpatial({ params }: { params: Promise<{ form
     longue: (a.daysRunning ?? 0) >= JOURS_LONGUE_DIFFUSION,
     diffusion: ligneDiffusion(a.ad.status, a.daysRunning),
     iterer: studioDepuisVeille(a.ad, { ref: a.id }),
+    filtre: { plateforme: a.ad.platform, pays: a.ad.mainCountry ?? null, jours: a.daysRunning ?? null, suivie: suivis.has(`${a.ad.platform}:${a.ad.advertiserName ?? ''}`) },
   }));
 
   return (

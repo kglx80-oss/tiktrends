@@ -1,6 +1,8 @@
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { SousNavVeille, EtatVide } from './base';
-import { BarreVeille, CarteVeille, DefileAncre, type PropsBarreVeille } from './client';
+import type { AffichageVeille, FiltresLocaux } from '@tiktrends/core';
+import { BarreVeille, DefileAncre, type PropsBarreVeille } from './client';
+import { ResultatsVeille } from './liste-client';
 import type { CarteVeilleDonnees } from './types';
 import { MemoireMarche } from './marche-client';
 
@@ -29,6 +31,12 @@ export interface PropsPubsDuMoment {
   retour?: { href: string; terme: string | null } | null;
   /** Vague 3 · la mémoire marché (offre Résultats, marque active) · absente sinon. */
   marche?: { marque: string } | null;
+  /**
+   * Lot 7 · les filtres LOCAUX lus dans l'adresse, la préférence grille / liste
+   * de l'appareil, et la clé de la page lue (une autre page de la source
+   * remonte la liste · ses filtres locaux repartent de l'adresse).
+   */
+  local?: { initial: FiltresLocaux; affichage: AffichageVeille; cle: string };
 }
 
 export function PubsDuMoment(p: PropsPubsDuMoment) {
@@ -62,7 +70,7 @@ export function PubsDuMoment(p: PropsPubsDuMoment) {
       </div>
       <BarreVeille {...p.barre} />
       {p.cartes.length > 0
-        ? <><div className="xgrid">{p.cartes.map((c) => <CarteVeille key={c.cle} c={c} coutJarvis={p.coutJarvis} />)}</div><DefileAncre /></>
+        ? <><ResultatsVeille key={p.local?.cle} cartes={p.cartes} coutJarvis={p.coutJarvis} initial={p.local?.initial} affichage={p.local?.affichage} /><DefileAncre /></>
         : p.vide && <EtatVide titre={p.vide.titre} texte={p.vide.texte} action={p.vide.action} />}
       {p.pages && (
         <div className="kc" style={{ justifyContent: 'center', marginTop: 18 }}>

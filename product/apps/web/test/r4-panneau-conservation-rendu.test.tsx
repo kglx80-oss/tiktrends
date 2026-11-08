@@ -25,6 +25,7 @@ const realise = (o: Partial<ExportRealise> = {}): ExportRealise => ({
 const vue = (historique: ExportRealise[]): VueExport => ({
   projet: { id: 'p1', title: 'Sérum', marque: 'Éclat' }, version: { id: 'v2', n: 2, courante: true }, versions: [{ id: 'v2', n: 2, courante: true }],
   document: { largeur: 1080, hauteur: 1080, calques: 3 }, preflight: { ok: true, medias: 1, polices: 1 }, historique, peutExporter: true,
+  relecture: { par: 'Kevin', le: '2026-10-08T09:00:00.000Z', versionN: 2 },
 });
 
 let racine: HTMLDivElement; let root: Root;

@@ -22,7 +22,7 @@ describe('Spatial · Studios · liste · archivés, recherche, gestes de carte',
     expect(cartesFiltreesSpatial(actifs, archives, { cle: 'production', recherche: '' }).map((x) => x.title)).toEqual(['Rentrée']);
   });
   it('les gestes de carte · Itérer mène aux variantes, Archiver/Restaurer selon le statut et le droit, jamais Dupliquer ni Supprimer', () => {
-    expect(gestesCarteSpatiale({ id: 'p1', archive: false }, true)).toEqual([{ cle: 'iterer', href: '/studio/projets/p1#variantes' }, { cle: 'archiver' }]);
+    expect(gestesCarteSpatiale({ id: 'p1', archive: false }, true)).toEqual([{ cle: 'iterer', href: '/studio/projets/p1#variantes' }, { cle: 'renommer' }, { cle: 'dupliquer' }, { cle: 'archiver' }]);
     expect(gestesCarteSpatiale({ id: 'p1', archive: true }, true)).toEqual([{ cle: 'restaurer' }]);
     expect(gestesCarteSpatiale({ id: 'p1', archive: false }, false)).toEqual([{ cle: 'iterer', href: '/studio/projets/p1#variantes' }]);
   });

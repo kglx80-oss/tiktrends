@@ -155,6 +155,21 @@ function propsPage(cle: CleStyle) {
   };
 }
 
+/**
+ * Lot 7 V5 (VB FO07) · seul ajout HORS maquette sur la page d'un style · la
+ * barre des filtres locaux des exemples (`section[data-filtres-locaux]`),
+ * posée juste AVANT le mur d'exemples. Retirée du rendu avant la comparaison,
+ * à condition d'être là une fois, à cette place · le mur reste comparé.
+ */
+function sansFiltresLocaux(html: string): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const barres = t.content.querySelectorAll('section[data-filtres-locaux]');
+  if (barres.length !== 1 || !barres[0]!.nextElementSibling?.classList.contains('vfeed')) return html;
+  barres[0]!.remove();
+  return t.innerHTML;
+}
+
 describe('Spatial C2 · la page d’un style · UNE vue pour les 28 fragments f-<clé>', () => {
   const reference = (cle: string) => fragmentReference(`f-${cle}`).replace(/<button type="button" data-ftab="mod"[\s\S]*?<\/button>/, '');
   const page = (cle: CleStyle, o: Partial<React.ComponentProps<typeof PageFormat>> = {}) => {
@@ -174,7 +189,9 @@ describe('Spatial C2 · la page d’un style · UNE vue pour les 28 fragments f-
   // telle quelle, seules les miniatures d'exemples sont ignorées.
   for (const cle of CLES_STYLES) {
     it(`f-${cle} reproduit la maquette`, () => {
-      expect(squelette(page(cle), O_PAGE)).toEqual(squelette(reference(cle), O_PAGE));
+      const html = page(cle);
+      expect(html.split('data-filtres-locaux').length - 1, 'la barre des filtres locaux (lot 7) n’est pas rendue une fois').toBe(1);
+      expect(squelette(sansFiltresLocaux(html), O_PAGE)).toEqual(squelette(reference(cle), O_PAGE));
     });
   }
 
@@ -185,9 +202,10 @@ describe('Spatial C2 · la page d’un style · UNE vue pour les 28 fragments f-
     const original = page('chat');
     expect(original.includes(seule('chat'))).toBe(true);
     const autre = original.replace(seule('chat'), seule('notes'));
-    expect(squelette(autre, O_PAGE)).not.toEqual(ref);
-    expect(squelette(page('chat', { exemples: propsPage('chat').exemples.slice(1) }), O_PAGE)).not.toEqual(ref);
-    expect(squelette(page('chat', { tuiles: [['a', '1'], ['b', '2'], ['c', '3']] }), O_PAGE)).not.toEqual(ref);
+    expect(squelette(sansFiltresLocaux(original), O_PAGE)).toEqual(ref);
+    expect(squelette(sansFiltresLocaux(autre), O_PAGE)).not.toEqual(ref);
+    expect(squelette(sansFiltresLocaux(page('chat', { exemples: propsPage('chat').exemples.slice(1) })), O_PAGE)).not.toEqual(ref);
+    expect(squelette(sansFiltresLocaux(page('chat', { tuiles: [['a', '1'], ['b', '2'], ['c', '3']] })), O_PAGE)).not.toEqual(ref);
   });
 
   it('sans exemple · l’état vide dit pourquoi, sans geste « meilleur exemple »', () => {

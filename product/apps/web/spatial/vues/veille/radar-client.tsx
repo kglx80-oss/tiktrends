@@ -3,7 +3,9 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { InspoAd } from '@tiktrends/integrations';
-import { apercuImage, consigneAngleMarche, formatDominant, lienNouveauProjet, type BriefConcurrent } from '@tiktrends/core';
+import { LONGUEUR_MAX_SUIVI, PLATEFORMES_SUIVI, apercuImage, consigneAngleMarche, formatDominant, lienNouveauProjet, saisieSuiviMarque, type BriefConcurrent } from '@tiktrends/core';
+import { followBrand } from '../../../app/actions/inspo';
+import { boutonAction } from '../projet/action-serveur';
 import { briefMarqueAction } from '../../../app/actions/brief-marque';
 import { markTrackerSeenAction, scanTrackerAction } from '../../../app/actions/tracker';
 import { decouverteMarcheAction } from '../../../app/actions/decouverte';
@@ -161,5 +163,52 @@ export function GrammaireMarche() {
         <small className="faint">{stat.n > 0 ? `Rien ne se détache encore nettement dans ta catégorie (${stat.n} pub(s) analysée(s)) · il faut un motif majoritaire pour conclure.` : 'Ta catégorie n’a pas encore été décrite · lance un lot d’analyse des concurrents pour la remplir.'}</small>
       )}
     </div>
+  );
+}
+
+/**
+ * Lot 7 V5 (VB RD01) · « Suivre une marque » en saisie libre · le nom (ou le
+ * domaine) et la plateforme, puis le MÊME suivi qu'un « Suivre » sur une pub
+ * (`followBrand`, même garde). La règle de saisie est au noyau
+ * (`saisieSuiviMarque`) · pendant l'appel le bouton garde le focus
+ * (`boutonAction`, brique partagée) · le succès ne se dit qu'au oui du serveur.
+ */
+export function SuivreMarqueLibre() {
+  const router = useRouter();
+  const { toast } = useSpatial();
+  const [nom, setNom] = useState('');
+  const [plateforme, setPlateforme] = useState('meta');
+  const [occupe, setOccupe] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const envoyer = async () => {
+    if (occupe) return;
+    const s = saisieSuiviMarque(nom, plateforme);
+    if (!s.ok) { setErreur(s.raison); return; }
+    setOccupe(true); setErreur(null);
+    try {
+      const r = await followBrand({ platform: s.plateforme, name: s.nom, domain: s.domaine ?? undefined });
+      if (!r.ok) { setErreur(r.error ?? 'Suivi refusé.'); return; }
+      toast(`${s.nom} ajouté au Radar`);
+      setNom('');
+      router.refresh();
+    } catch { setErreur('Échec · vérifie ta connexion puis réessaie.'); }
+    finally { setOccupe(false); }
+  };
+  const attributs = boutonAction({ presse: occupe, occupe });
+  return (
+    <form className="tile" data-suivre-libre aria-label="Suivre une marque" style={{ display: 'grid', gap: 8, marginBottom: 14 }}
+      onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'end' }}>
+        <label className="field" style={{ flex: '1 1 220px', minWidth: 0 }}>Marque ou domaine
+          <input value={nom} maxLength={LONGUEUR_MAX_SUIVI} onChange={(e) => setNom(e.target.value)} placeholder="Ex. Typology, ou typology.com" aria-invalid={erreur ? true : undefined} />
+        </label>
+        <label className="field" style={{ flex: '0 1 160px' }}>Plateforme
+          <select value={plateforme} onChange={(e) => setPlateforme(e.target.value)}>{PLATEFORMES_SUIVI.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+        </label>
+        <button type="submit" className="btn pri" {...attributs} style={{ ...attributs.style, minHeight: 44 }}><Ic n="plus" />{occupe ? 'Ajout…' : 'Suivre'}</button>
+      </div>
+      <small className="faint" style={{ fontSize: '11.5px' }}>Ses nouvelles pubs sont relevées avec celles des autres marques suivies, comme un « Suivre » posé depuis une pub · pas encore d’alerte réglable par marque.</small>
+      {erreur && <small role="alert" style={{ fontSize: '11.5px', color: 'var(--bad)' }}>{erreur}</small>}
+    </form>
   );
 }

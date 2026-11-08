@@ -46,6 +46,8 @@ const vue = (o: Partial<VueExport> = {}): VueExport => ({
   preflight: { ok: true, medias: 3, polices: 2 },
   historique: [],
   peutExporter: true,
+  // Lot 8 · la version est relue (contrôle humain validé) · le préflight seul décide ici.
+  relecture: { par: 'Kevin', le: '2026-10-08T09:00:00.000Z', versionN: 2 },
   ...o,
 });
 

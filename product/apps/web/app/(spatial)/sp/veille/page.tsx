@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
 import {
   analyserRechercheVeille, contexteVeille, lienRetourVeille, termeRetourVeille, filtrerEchantillonVeille, lienVeille, lireCriteresVeille, lireCpmVeille, NICHE_DEFAUT,
   perimetreVeille, pucesVeille, suggestionsVeille, veilleSeedDefaut, videRechercheVeille, accesHypothese, type PerimetreVeille, type TriVeille,
+  AFFICHAGE_VEILLE_COOKIE, affichageDepuisCookie, lireFiltresLocaux,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, PLAN_LABEL } from '../../../../lib/rbac';
@@ -21,6 +23,11 @@ import { carteVeille } from './cartes';
 import { pastilleRadar } from './acces';
 
 export const dynamic = 'force-dynamic';
+
+/** La préférence grille / liste de l'appareil · hors requête (rendu de test), la grille par défaut. */
+async function lireCookieAffichage(): Promise<string | undefined> {
+  try { return (await cookies()).get(AFFICHAGE_VEILLE_COOKIE)?.value; } catch { return undefined; }
+}
 
 const Veille = FEATURES.find((f) => f.key === 'inspo')!;
 const LIMIT = 24;
@@ -207,6 +214,11 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
       coutJarvis={annonceConversationJarvis(regimeSession(s))}
       retour={(() => { const href = lienRetourVeille(sp.rv); return href ? { href, terme: termeRetourVeille(sp.rv) } : null; })()}
       marche={brand && canAccess(access, RESULTATS) ? { marque: brand.name } : null}
+      local={{
+        initial: lireFiltresLocaux(sp),
+        affichage: affichageDepuisCookie(await lireCookieAffichage()),
+        cle: lienVeille(c, { page: c.page }),
+      }}
     />
   );
 }

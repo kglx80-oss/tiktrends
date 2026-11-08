@@ -1,12 +1,13 @@
 'use server';
 
-import { erreurStudio, type ErreurStudio } from '@tiktrends/core';
+import { erreurStudio, type BilanCopieProjet, type ErreurStudio } from '@tiktrends/core';
 import { gardeStudio } from '../../../lib/studios/garde';
 import {
   listerProjets as listerDepot, lireProjet, lireVersion, lireDisposition, creerProjet as creerDepot,
   enregistrerVersion, enregistrerDisposition as enregistrerDispositionDepot,
   type ProjetStudio, type VersionStudio, type DispositionStudio,
 } from '../../../lib/studios/depot';
+import { dupliquerProjetPour, renommerProjetPour } from '../../../lib/studios/copie-projet';
 
 /**
  * Commandes « projet » des studios (plan 06 §3 · inspectProject, saveDocument).
@@ -67,4 +68,26 @@ export async function enregistrerDisposition(entree: { projectId: unknown; posit
   const g = await gardeStudio('studio.propose', 'projets');
   if (!g.ok) return g;
   return enregistrerDispositionDepot(g.ctx, { projectId: entree?.projectId, positions: entree?.positions, viewport: entree?.viewport, rowVersion: entree?.rowVersion });
+}
+
+/**
+ * Lot 8 · renomme un projet · `studio.propose`, la permission qui édite déjà
+ * le projet (`enregistrerDocument`). Le titre seul change, avec son audit.
+ */
+export async function renommerProjet(entree: { projectId: unknown; titre: unknown }): Promise<Reponse<{ projet: ProjetStudio }>> {
+  const g = await gardeStudio('studio.propose', 'projets');
+  if (!g.ok) return g;
+  return renommerProjetPour(g.ctx, { projectId: entree?.projectId, titre: entree?.titre });
+}
+
+/**
+ * Lot 8 · duplique un projet · `studio.propose` (la garde de `creerProjet`).
+ * Nouveau projet de la MÊME marque, « Copie de … », dont la version 1 reprend
+ * la structure de la version courante · ni générations, ni exports, ni tests,
+ * ni mesures, ni verdicts.
+ */
+export async function dupliquerProjet(entree: { projectId: unknown }): Promise<Reponse<{ projet: ProjetStudio; version: VersionStudio; source: { id: string; versionId: string }; bilan: BilanCopieProjet }>> {
+  const g = await gardeStudio('studio.propose', 'projets');
+  if (!g.ok) return g;
+  return dupliquerProjetPour(g.ctx, { projectId: entree?.projectId });
 }

@@ -53,6 +53,7 @@ export function carteVeille(ad: InspoAd, o: { cpm: number; sauvee: boolean; suiv
     jours: joursCourts(ad.daysRunning),
     signaux: signauxVeille(ad),
     pays: ad.mainCountry ?? null,
+    plateforme: PLATEFORME[ad.platform] ?? null,
     portee: ad.reach != null ? nombreCourt(ad.reach) : null,
     depense: depense != null ? euroCourt(depense) : null,
     croissance: pct != null ? { texte: libelleCroissance(pct), classe: classeCroissance(pct) } : null,
