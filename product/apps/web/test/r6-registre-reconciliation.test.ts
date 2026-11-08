@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterAll } from 'vitest';
+import { describe, it, expect, vi, afterAll, beforeAll } from 'vitest';
 
 /**
  * R6 · le REGISTRE du budget d'essai (`scripts/recette/registre.ts`) lit les
@@ -33,6 +33,19 @@ import { sousVerrou } from '../scripts/recette/verrou';
 
 const dossiers: string[] = [];
 afterAll(() => { for (const d of dossiers) rmSync(d, { recursive: true, force: true }); });
+
+/**
+ * Horloge FIGÉE au jour du scénario (2026-10-09). Les lignes de dépense sont datées
+ * de ce jour ; `lireBaseDepuis` compte la fenêtre glissante de 30 jours depuis
+ * `Date.now()`. Sur l'horloge réelle, le test a rougi dès le 2026-11-08, sans
+ * qu'aucun code ne change (« expected 0 to be … » sur la fenêtre). Seule `Date`
+ * est simulée : aucun minuteur, la base pglite et le système de fichiers tournent
+ * normalement. `r6-date-figee` (ci-dessous) prouve que le scénario ne dépend
+ * plus du jour où la suite tourne.
+ */
+const JOUR_DU_SCENARIO = new Date('2026-10-09T12:00:00Z');
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'], now: JOUR_DU_SCENARIO }); });
+afterAll(() => { vi.useRealTimers(); });
 const auteur = randomUUID();
 const base = () => db as unknown as BaseDepense;
 
