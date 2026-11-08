@@ -45,6 +45,7 @@ const RECENSES: Record<string, { role: Role; pourquoi: string }> = {
   'apps/web/app/actions/adsmap-mesures.ts': { role: 'lecture', pourquoi: 'import des mesures d’un export Ads Manager · lit le fichier (parseCsv, neutralisation retirée), n’en produit aucun · journal source « csv »' },
   'apps/web/lib/adsmap-mesures.ts': { role: 'lecture', pourquoi: 'écrit les mesures lues d’un export en base, et le journal des remontées (source « csv ») · aucun fichier produit' },
   'packages/core/src/adsmap/remontee-planifiee.ts': { role: 'lecture', pourquoi: 'journal des remontées · la source « csv » d’un import d’export, en mots · aucun fichier produit' },
+  'packages/core/src/adsmap/mesures-retenues.ts': { role: 'lecture', pourquoi: 'journées retenues · la source « csv » (entrée d’un export importé) face à « meta », en règle pure · aucun fichier produit' },
   'packages/core/src/spatial/resultats/ecrans.ts': { role: 'lecture', pourquoi: 'liste « Dernières remontées » · source « csv » d’un import d’export · aucun fichier produit' },
   'packages/core/src/prompts/pack.ts': { role: 'lecture', pourquoi: 'commentaire nommant 04-RECETTE.csv' },
 };

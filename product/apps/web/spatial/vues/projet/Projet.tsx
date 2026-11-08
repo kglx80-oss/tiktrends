@@ -85,6 +85,7 @@ export function Projet(p: PropsProjet) {
         </div>
         {p.retourVeille && <Lien className="btn sm" href={p.retourVeille.href} data-retour-veille=""><Ic n="back" />Revenir à la recherche de Veille{p.retourVeille.terme ? ` · « ${p.retourVeille.terme} »` : ''}</Lien>}
         <span className={`pill ${p.pastille.classe}`} style={{ marginLeft: 'auto' }}><Ic n={p.pastille.icone} />{p.pastille.libelle}</span>
+        {p.demanderJarvis && <Lien className="btn sm" href={p.demanderJarvis.href} data-demander-jarvis="projet" title="Ouvre Jarvis en plein écran avec ce projet joint · la question est préparée, l’envoi reste à toi"><Ic n="spark" />Demander à Jarvis</Lien>}
         {p.exporterHref && <Lien className="btn sm" href={p.exporterHref}><Ic n="down" />Exporter</Lien>}
       </div>
 

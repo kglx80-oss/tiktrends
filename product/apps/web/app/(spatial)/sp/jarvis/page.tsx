@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { annonceConversationJarvis, RELANCE_META, completudeFicheJarvis, encartKpiJarvis, encartKpiJarvisMeta, extraitConversation, iterationsRecentes, lireQuestionJarvis, type IterationRecente } from '@tiktrends/core';
+import { annonceConversationJarvis, RELANCE_META, completudeFicheJarvis, encartKpiJarvis, encartKpiJarvisMeta, extraitConversation, iterationsRecentes, lireQuestionJarvis, lireContexteAdresse, REFUS_CONTEXTE_JARVIS, type IterationRecente } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { refusJarvis, TEXTE_REFUS_JARVIS } from '../../../../lib/jarvis-acces';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -12,7 +12,8 @@ import { chatThreadAction, onboardingThreadAction } from '../../../actions/jarvi
 import { projetsPourColonneJarvis } from '../../../../lib/studios/jarvis-projets';
 import { ficheMarqueLue } from '../../../../lib/jarvis-fiche';
 import { lireChiffresClesMeta } from '../../../../lib/chiffres-cles-meta';
-import { Jarvis, type ConversationArchive } from '../../../../spatial/vues/jarvis/Jarvis';
+import { resoudreContexteJarvis } from '../../../../lib/jarvis-contexte';
+import { Jarvis, type ContexteJoint, type ConversationArchive } from '../../../../spatial/vues/jarvis/Jarvis';
 import { RefusJarvis } from '../../../../spatial/vues/jarvis/RefusJarvis';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,14 @@ const ANALYTICS = FEATURES.find((f) => f.key === 'analytics')!;
  * Vague 3 · la colonne de contexte (projets Studios de la marque, MÊMES gardes
  * que l'écran « Projets » · complétude réelle de la fiche) et, sans marque, le
  * fil d'accueil réel (`onboardingThreadAction`, portée espace + personne).
+ *
+ * Lot 5 · `?contexte=lot|hypothese|resultats|projet&id=…` · « Demander à Jarvis »
+ * depuis un lot, une hypothèse, une page de Résultats ou un projet. L'identifiant
+ * est RELU dans la portée (`resoudreContexteJarvis`, marque active et droits) ·
+ * refusé, l'écran le dit (`REFUS_CONTEXTE_JARVIS`) et rien n'est joint. Accepté,
+ * le contexte s'affiche tel qu'il partira et la question est PRÉPARÉE dans le
+ * champ · aucun envoi, aucun appel IA, aucune écriture à l'ouverture. Un projet
+ * rouvre son fil lié (plein écran du panneau du projet).
  */
 export default async function JarvisSpatial({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -41,8 +50,11 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
   const refus = refusJarvis(s);
   if (refus) return <RefusJarvis raison={TEXTE_REFUS_JARVIS[refus]} plan={refus === 'plan'} proprietaire={s.role === 'owner'} />;
 
+  const params = (await searchParams) ?? {};
   // `?q=` · la question saisie dans la barre Jarvis de l'Accueil · un brouillon, aucun envoi ni appel IA à l'ouverture.
-  const brouillon = lireQuestionJarvis(((await searchParams) ?? {}).q);
+  const question = lireQuestionJarvis(params.q);
+  const demande = lireContexteAdresse(params);
+  const demandeMalFormee = !demande && (params.contexte !== undefined || params.id !== undefined);
   const maintenant = new Date();
   const kpi = encartKpiJarvis(null);
   const brand = await getActiveBrand(s.workspaceId);
@@ -50,14 +62,26 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
     // Sans marque, Jarvis ne se mure pas · la vraie conversation d'accueil (lecture seule à l'ouverture).
     const a = await onboardingThreadAction();
     const accueil = a.thread ? { tours: a.thread.turns, amorces: a.thread.starters } : undefined;
-    return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={annonceConversationJarvis(regimeSession(s))} maintenant={maintenant.toISOString()} brouillon={brouillon} accueil={accueil} />;
+    return <Jarvis marque={null} conversations={[]} iterations={null} measuredAds={0} kpi={kpi} cout={annonceConversationJarvis(regimeSession(s))} maintenant={maintenant.toISOString()} brouillon={question} accueil={accueil} refusContexte={demande || demandeMalFormee ? REFUS_CONTEXTE_JARVIS : null} />;
   }
 
   const chiffresOuverts = canAccess(effectiveAccess(s), ANALYTICS);
-  const [r, fiche, projets, lus] = await Promise.all([
+  const [r, fiche, projets, lus, resolu] = await Promise.all([
     chatThreadAction(null), ficheMarqueLue(brand.id), projetsPourColonneJarvis(brand.id),
     chiffresOuverts ? lireChiffresClesMeta(brand.id, s.workspaceId, maintenant).catch(() => null) : Promise.resolve(null),
+    resoudreContexteJarvis(s, brand, demande, maintenant),
   ]);
+  let contexte: ContexteJoint | null = null;
+  if (resolu) {
+    // Un projet rouvre SON fil (la conversation liée, lecture seule) · sans fil lié, le premier envoi le crée.
+    const filProjet = resolu.type === 'projet' ? (await chatThreadAction({ projectId: resolu.id })).thread ?? null : null;
+    contexte = {
+      type: resolu.type, id: resolu.id, libelle: resolu.libelle, lignes: resolu.lignes, questions: resolu.questions,
+      ...(filProjet?.conversationId ? { fil: { conversationId: filProjet.conversationId, tours: filProjet.turns } } : {}),
+    };
+  }
+  // La question de l'adresse (`q`) l'emporte · sinon celle que le contexte prépare. Jamais envoyée seule.
+  const brouillon = question || resolu?.question || '';
   const kpiMarque = lus ? encartKpiJarvisMeta(lus.chiffres, lus.connexion.action ?? RELANCE_META) : kpi;
   const completude = fiche ? completudeFicheJarvis(fiche, brand.id) : null;
   const t = r.thread ?? null;
@@ -94,6 +118,8 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
       maintenant={maintenant.toISOString()}
       brouillon={brouillon}
       annexes={{ projets, completude: completude && { score: completude.score, faits: completude.faits, total: completude.total, ficheHref: completude.ficheHref } }}
+      contexte={contexte}
+      refusContexte={(demande && !resolu) || demandeMalFormee ? REFUS_CONTEXTE_JARVIS : null}
     />
   );
 }

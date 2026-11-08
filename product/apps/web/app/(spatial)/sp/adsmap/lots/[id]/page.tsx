@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import {
   attendArbitrage, barresCpa, coachLot, controlesLot, lotArbitrable, plateformesLot, presentationLot, syntheseLot, verdictAffiche,
-  LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest, conclusionLot, referenceConclusion,
+  LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest, conclusionLot, referenceConclusion, lienJarvisContexte,
 } from '@tiktrends/core';
 import { batchDetailAction } from '../../../../../actions/adsmap-batch';
 import { Lot } from '../../../../../../spatial/vues/resultats/Lot';
@@ -73,6 +73,7 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
       controles={controlesLot(l, pres, d.config.minImpressions)}
       coach={coachLot(pres, syn, l.ads.length)}
       conclusion={conclusion}
+      jarvis={(() => { const href = g.jarvis ? lienJarvisContexte('lot', l.id) : null; return href ? { href } : null; })()}
       actions={<>
         {actions && <ActionsLot {...actions} />}
         <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />

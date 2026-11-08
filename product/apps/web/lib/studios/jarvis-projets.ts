@@ -128,22 +128,35 @@ export async function blocProjetsJarvis(brandId: string, maintenant: Date = new 
  * (page /jarvis sans projet · comportement inchangé).
  */
 export async function blocConceptJarvis(brandId: string, projectId: string, maintenant: Date = new Date()): Promise<string> {
-  if (!db) return '';
+  return (await conceptPourJarvis(brandId, projectId, maintenant))?.bloc ?? '';
+}
+
+/** Le concept lu pour Jarvis · `null` sur un refus (droit, portée, autre marque) ou une panne. */
+export interface ConceptLuPourJarvis { id: string; brandId: string; titre: string; etape: string; bloc: string }
+
+/**
+ * La MÊME lecture que `blocConceptJarvis` (mêmes gardes, mêmes barrières), qui
+ * rend aussi le titre et l'étape · « Demander à Jarvis » depuis l'en-tête d'un
+ * projet (lot 5 V5) relit ainsi le projet de l'adresse avant de le joindre, et
+ * montre le bloc qui partira. `null` · rien n'est joint.
+ */
+export async function conceptPourJarvis(brandId: string, projectId: string, maintenant: Date = new Date()): Promise<ConceptLuPourJarvis | null> {
+  if (!db) return null;
   try {
     const g = await gardeSources('studio.read');
-    if (!g.ok) return '';
+    if (!g.ok) return null;
     const { ctx, veilleOuverte } = g;
-    if (!ctx.marques.includes(brandId)) return '';
+    if (!ctx.marques.includes(brandId)) return null;
     const capacites = await etatInterrupteurs(ctx.workspaceId);
-    if (!capacites.actif('projets')) return '';
+    if (!capacites.actif('projets')) return null;
 
     // Lecture du projet dans la portée (barrière de portée + brief + étape).
     const { lireProjetDetailPour } = await import('./sources/projet');
     const d = await lireProjetDetailPour(ctx, projectId, { veilleOuverte, maintenant });
-    if (!d.ok) return '';
+    if (!d.ok) return null;
     const { detail } = d;
     // Seconde barrière : le concept doit être celui de la marque ACTIVE.
-    if (detail.projet.brandId !== brandId) return '';
+    if (detail.projet.brandId !== brandId) return null;
 
     const PR = schema.studioProposals;
     const A = schema.studioAssets;
@@ -165,7 +178,7 @@ export async function blocConceptJarvis(brandId: string, projectId: string, main
       .filter((p) => etatEffectif({ state: p.state as EtatProposition, expiresAt: p.expiresAt }, maintenant) === 'proposed')
       .length;
 
-    return resumerConceptPourJarvis({
+    const bloc = resumerConceptPourJarvis({
       titre: detail.projet.title,
       libelleEtape: detail.completude.libelleEtape,
       brief: detail.brief,
@@ -174,7 +187,8 @@ export async function blocConceptJarvis(brandId: string, projectId: string, main
       medias: Number(medias[0]?.n ?? 0),
       jobs: Number(jobs[0]?.n ?? 0),
     });
+    return { id: detail.projet.id, brandId: detail.projet.brandId, titre: detail.projet.title, etape: detail.completude.libelleEtape, bloc };
   } catch {
-    return '';
+    return null;
   }
 }

@@ -41,16 +41,18 @@ vi.mock('@tiktrends/integrations', async (importOriginal) => {
   };
 });
 // Le moteur de verdict rend un verdict concluant, dans l'ordre des ads · c'est
-// la synchro qui l'écrit, et elle seule.
+// la synchro qui l'écrit, et elle seule. Depuis que la synchro passe par LA
+// logique de l'import (`recalculerVerdicts` → `verdictsDesMesures`), c'est cette
+// brique qu'on fixe · le vrai enchaînement tourne, seul le verdict rendu est imposé.
 vi.mock('@tiktrends/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tiktrends/core')>();
   let n = 0;
   return {
     ...actual,
-    computeVerdict: (input: Parameters<typeof actual.computeVerdict>[0]) => ({
-      ...actual.computeVerdict(input),
-      computed: h.verdicts[n++ % h.verdicts.length], comparable: true,
-    }),
+    verdictsDesMesures: (...a: Parameters<typeof actual.verdictsDesMesures>) => {
+      const r = actual.verdictsDesMesures(...a);
+      return { ...r, verdicts: r.verdicts.map((v) => ({ ...v, res: { ...v.res, computed: h.verdicts[n++ % h.verdicts.length] as typeof v.res.computed, comparable: true } })) };
+    },
   };
 });
 
