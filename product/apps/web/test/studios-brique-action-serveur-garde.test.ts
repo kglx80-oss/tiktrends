@@ -23,12 +23,11 @@ import { join } from 'node:path';
  *  · `import-focus` · la rubrique importe l'ancien `./focus` (réexport gardé
  *    pour les écrans hors rubrique) au lieu de la brique.
  *
- * EXCEPTIONS · un compte par fichier et par motif, avec sa raison · un
- * fichier ne peut ni dépasser son compte (copie réintroduite), ni passer
- * dessous sans que la table soit mise à jour (elle dit toujours la vérité).
- * Les cinq ateliers listés n'ont pas eu leur passe design · y remplacer
- * `disabled` par la brique CHANGE leur comportement (le bouton pressé
- * garderait le focus) · c'est la passe suivante, pas celle-ci.
+ * EXCEPTIONS · AUCUNE. Les quatre derniers ateliers (parcours image,
+ * Textes, Produit, rattachement Adsmap) sont passés sur la brique avec leur
+ * passe design · la table est vide et le reste · une exception ajoutée fait
+ * tomber le cas « la table est vide », avec le nom du fichier. Un bouton qui
+ * ne peut pas passer par la brique se discute en PR, pas dans cette table.
  */
 const RUBRIQUE = join(__dirname, '..', 'spatial', 'vues', 'projet');
 
@@ -39,13 +38,7 @@ const BRIQUE: Record<string, Motif[]> = {
 
 type Motif = 'disabled-pendant-action' | 'aria-busy-brut' | 'FERME-local' | 'focus-local' | 'hors-ligne-local' | 'import-focus';
 
-const PASSE_SUIVANTE = 'atelier sans passe design · y poser la brique change le focus du bouton pressé (comportement visible) · passe suivante';
-const EXCEPTIONS: Record<string, Partial<Record<Motif, [number, string]>>> = {
-  'ParcoursImage.tsx': { 'disabled-pendant-action': [7, PASSE_SUIVANTE] },
-  'Textes.tsx': { 'disabled-pendant-action': [5, PASSE_SUIVANTE] },
-  'Produit.tsx': { 'disabled-pendant-action': [1, PASSE_SUIVANTE], 'aria-busy-brut': [2, PASSE_SUIVANTE] },
-  'Rattachement.tsx': { 'disabled-pendant-action': [1, PASSE_SUIVANTE], 'aria-busy-brut': [2, PASSE_SUIVANTE] },
-};
+const EXCEPTIONS: Record<string, Partial<Record<Motif, [number, string]>>> = {};
 
 const PHRASE: Record<Motif, string> = {
   'disabled-pendant-action': '`disabled` écrit à la main pendant une action serveur · le bouton pressé perdrait le focus · passe par `boutonAction` (`./action-serveur`)',
@@ -151,6 +144,18 @@ describe('rubrique projet · une seule brique « bouton d’action serveur »', 
     expect(brique['FERME-local'].length, 'action-serveur.ts doit définir FERME').toBeGreaterThan(0);
     expect(brique['focus-local'].length, 'action-serveur.ts doit définir replacerFocus').toBeGreaterThan(0);
     expect(sansCommentaires(readFileSync(join(RUBRIQUE, 'briques.tsx'), 'utf8')), 'briques.tsx doit porter la variante « Hors ligne » de Message').toMatch(/horsLigne \? TEXTES_HORS_LIGNE\.pastille/);
+  });
+
+  it('la table des exceptions est VIDE · aucun fichier de la rubrique n’a le droit d’écrire un bouton d’action hors brique', () => {
+    const ouvertes = Object.entries(EXCEPTIONS).flatMap(([f, motifs]) => Object.entries(motifs).map(([motif, [n]]) => `${f} · ${motif} · ${n}`));
+    expect(ouvertes, 'exception rouverte · passe le bouton par `boutonAction` (`./action-serveur`) au lieu d’agrandir la table').toEqual([]);
+  });
+
+  it('les quatre ateliers passés sur la brique y passent bien par la brique (la garde regarde des fichiers vivants)', () => {
+    for (const f of ['ParcoursImage.tsx', 'Textes.tsx', 'Produit.tsx', 'Rattachement.tsx']) {
+      const s = sansCommentaires(readFileSync(join(RUBRIQUE, f), 'utf8'));
+      expect((s.match(/\.\.\.boutonAction\(/g) ?? []).length, `${f} n’étale plus la brique sur ses boutons`).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it('chaque exception nomme un fichier présent et dit pourquoi', () => {

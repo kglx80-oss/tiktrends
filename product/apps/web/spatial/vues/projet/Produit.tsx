@@ -1,11 +1,11 @@
 'use client';
 
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ACCEPT_PHOTO_IMPORT, EFFET_ROLE, LIBELLES_MODE_IMAGE, LIBELLES_PORTEE, LIBELLES_ROLE, LIBELLES_TRANSFORMATION,
   PORTEES_REFERENCE, ROLES_REFERENCE, TRANSFORMATIONS_PAR_DEFAUT, TRANSFORMATIONS_PRODUIT,
-  affichageImportPhoto, etatProduitPret, raisonAssociation, raisonEpinglage, raisonImportPhoto, resumeVersionPhoto, verdictFichierPhoto,
+  affichageImportPhoto, etatProduitPret, raisonAssociation, raisonEpinglage, raisonFermeture, raisonImportPhoto, resumeVersionPhoto, verdictFichierPhoto,
   type ErreurStudio, type EtatImportPhoto, type ModeImage, type RecuperationImport, type TransformationProduit,
 } from '@tiktrends/core';
 import type { VueProduit } from '../../../lib/studios/produit/vue';
@@ -13,8 +13,10 @@ import { associerReference, epinglerProduit, importerPhotoProduit, retirerRefere
 import { compresserPhoto } from '../../../lib/studios/produit/compression-photo';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Vue } from '../../communs';
+import { boutonAction, replacerFocus } from './action-serveur';
 import { EnTeteAtelier } from './Atelier';
-import { Message } from './briques';
+import { CIBLE, Message, RaisonFermee } from './briques';
+import { useHorsLigne } from './hors-ligne';
 import { ParcoursImage } from './ParcoursImage';
 
 /**
@@ -32,7 +34,13 @@ import { ParcoursImage } from './ParcoursImage';
  *    transfert d'une annonce concurrente). Ne lance rien.
  * Rien n'est écrit sans un clic explicite · aucun de ces gestes ne coûte, sauf
  * le parcours image, qui annonce son prix avant.
+ *
+ * Chaque bouton qui part au serveur passe par la brique `boutonAction` ·
+ * le bouton pressé garde le focus et dit qu'il travaille, un bouton fermé dit
+ * pourquoi à côté de lui, hors ligne rien ne part (`useHorsLigne`), et un rôle
+ * retiré rend le focus à la référence suivante (`replacerFocus`), jamais à `<body>`.
  */
+const TITRE_REFERENCES = '[data-titre="references"]';
 
 export interface PropsProduit {
   vue: VueProduit;
@@ -58,9 +66,10 @@ export function Produit({ vue, atelier }: PropsProduit) {
   const [fichier, setFichier] = useState('');
   const [role, setRole] = useState('');
   const [portee, setPortee] = useState('');
-  const [enCours, setEnCours] = useState(false);
+  const [enCours, setEnCours] = useState<string | null>(null);
   const [importEnCours, setImportEnCours] = useState(false);
-  const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string; recharger?: boolean } | null>(null);
+  const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string; recharger?: boolean; horsLigne?: boolean } | null>(null);
+  const horsLigne = useHorsLigne();
 
   const groupes = useMemo(() => {
     const m = new Map<string, VueProduit['fichiers']>();
@@ -68,20 +77,45 @@ export function Produit({ vue, atelier }: PropsProduit) {
     return [...m.entries()];
   }, [vue.fichiers]);
 
-  async function agir(succes: string, f: () => Promise<{ ok: true } | ErreurStudio>) {
-    setEnCours(true); setRetour(null);
+  async function agir(nom: string, succes: string, f: () => Promise<{ ok: true } | ErreurStudio>): Promise<boolean> {
+    if (horsLigne) return false;
+    setEnCours(nom); setRetour(null);
     try {
       const r = await f();
-      if (r.ok) { setRetour({ ton: 'ok', texte: succes }); toast(succes); router.refresh(); }
-      else setRetour({ ton: 'err', texte: messageErreur(r), recharger: r.code === 'VERSION_CONFLICT' });
+      if (r.ok) { setRetour({ ton: 'ok', texte: succes }); toast(succes); router.refresh(); return true; }
+      setRetour({ ton: 'err', texte: messageErreur(r), recharger: r.code === 'VERSION_CONFLICT' });
+      return false;
     } catch {
-      setRetour({ ton: 'err', texte: 'La connexion a été interrompue · l’enregistrement a peut-être abouti. Recharge la page pour vérifier avant de recommencer.', recharger: true });
-    } finally { setEnCours(false); }
+      setRetour({ ton: 'err', texte: 'La connexion a été interrompue · l’enregistrement a peut-être abouti. Recharge la page pour vérifier avant de recommencer.', recharger: true, horsLigne: true });
+      return false;
+    } finally { setEnCours(null); }
   }
+  /**
+   * Un rôle retiré disparaît de la liste quand la vue RELUE arrive
+   * (`router.refresh()`, plus tard que la réponse de l'action) · le focus va
+   * alors au « Retirer » suivant, sinon au précédent, sinon au titre de la tuile.
+   */
+  const retraitEnAttente = useRef<{ cle: string; cibles: string[] } | null>(null);
+  function focusApresRetrait(cle: string) {
+    const retirables = vue.associations.filter((a) => !a.epinglee);
+    const i = retirables.findIndex((a) => `${a.assetId}|${a.role}` === cle);
+    const reste = retirables.filter((_, k) => k !== i);
+    const voisin = reste[Math.min(Math.max(i, 0), reste.length - 1)];
+    retraitEnAttente.current = { cle, cibles: [...(voisin ? [`[data-association="${voisin.assetId}|${voisin.role}"] [data-geste="retirer"]`] : []), TITRE_REFERENCES] };
+  }
+  useEffect(() => {
+    const r = retraitEnAttente.current;
+    if (!r || vue.associations.some((a) => `${a.assetId}|${a.role}` === r.cle)) return;
+    retraitEnAttente.current = null;
+    replacerFocus('si-perdu', ...r.cibles);
+  }, [vue.associations]);
 
   const listeComposants = composants.split(',').map((c) => c.trim()).filter(Boolean);
-  const raisonEpingle = raisonEpinglage({ peutModifier: vue.peutModifier, enCours: enCours || importEnCours, produitChoisi: !!produit, photoChoisie: !!photoId });
-  const raisonAssocie = raisonAssociation({ peutModifier: vue.peutModifier, briefPresent: vue.briefPresent, enCours, fichier, role, portee });
+  // Les raisons écrites à côté des boutons fermés · l'action en cours n'en est pas une (le bouton pressé le dit lui-même).
+  const occupe = enCours !== null || importEnCours;
+  const raisonEpingle = raisonFermeture(horsLigne, raisonEpinglage({ peutModifier: vue.peutModifier, enCours: false, produitChoisi: !!produit, photoChoisie: !!photoId }));
+  const raisonAssocie = raisonFermeture(horsLigne, raisonAssociation({ peutModifier: vue.peutModifier, briefPresent: vue.briefPresent, enCours: false, fichier, role, portee }));
+  const raisonRetirer = raisonFermeture(horsLigne);
   const concurrent = vue.fichiers.find((f) => f.assetId === fichier)?.provenance === 'concurrent';
   const etatPret = etatProduitPret({ epingle: !!e, peutModifier: vue.peutModifier, modes: [vue.preparation.faithful_composite, vue.preparation.generative_scene] });
 
@@ -91,8 +125,8 @@ export function Produit({ vue, atelier }: PropsProduit) {
         actif={`/studio/projets/${vue.projet.id}/produit`} aide="La photo produit sert de référence au visuel · rien n’est généré sans ton geste, le prix est montré avant." />
       {retour && (
         <div className="sec">
-          <Message ton={retour.ton}>{retour.texte}</Message>
-          {retour.recharger && <button className="btn sm" type="button" onClick={() => router.refresh()} style={{ marginTop: 8 }}>Recharger la version courante</button>}
+          <Message ton={retour.ton} horsLigne={retour.horsLigne}>{retour.texte}</Message>
+          {retour.recharger && <button className="btn sm" type="button" onClick={() => router.refresh()} style={{ ...CIBLE, marginTop: 8 }}>Recharger la version courante</button>}
         </div>
       )}
 
@@ -189,17 +223,19 @@ export function Produit({ vue, atelier }: PropsProduit) {
               </div>
             </details>
             {vue.peutModifier ? (
-              <div className="kc">
-                <button className="btn sm pri" type="button" data-geste="epingler" disabled={raisonEpingle !== null} aria-busy={enCours} aria-describedby={`${id}-epingle-raison`}
-                  onClick={() => void agir('Photo enregistrée · tu peux maintenant préparer ton visuel.', () => epinglerProduit({ projectId: vue.projet.id, baseVersionId: vue.version.id, productId: produitId, photoId, composants: listeComposants, transformations: transfos }))}>
-                  <Ic n="check" />{enCours ? 'Enregistrement…' : 'Utiliser cette photo et continuer'}
+              <div className="kc" style={{ alignItems: 'center' }}>
+                <button className="btn sm pri" type="button" data-geste="epingler" style={CIBLE} aria-describedby={`${id}-epingle-raison`}
+                  {...boutonAction({ presse: enCours === 'epingler', occupe, ferme: raisonEpingle !== null, surClic: () => void agir('epingler', 'Photo enregistrée · tu peux maintenant préparer ton visuel.', () => epinglerProduit({ projectId: vue.projet.id, baseVersionId: vue.version.id, productId: produitId, photoId, composants: listeComposants, transformations: transfos })) })}>
+                  <Ic n="check" />{enCours === 'epingler' ? 'Enregistrement…' : 'Utiliser cette photo et continuer'}
                 </button>
-                <small className="faint" style={{ fontSize: '11.5px' }} data-raison="epinglage" id={`${id}-epingle-raison`}>{raisonEpingle ?? 'Gratuit · aucune génération à cette étape.'}</small>
+                {raisonEpingle
+                  ? <RaisonFermee id={`${id}-epingle-raison`} cle="epingler" data-raison="epinglage">{raisonEpingle}</RaisonFermee>
+                  : <small className="faint" style={{ fontSize: '11.5px' }} data-raison="epinglage" id={`${id}-epingle-raison`}>Gratuit · aucune génération à cette étape.</small>}
               </div>
             ) : <small className="faint" style={{ fontSize: '11.5px' }}>Ton rôle permet de consulter, pas d’épingler.</small>}
             {vue.peutModifier && (
               <ImportPhoto projectId={vue.projet.id} versionId={vue.version.id} produit={produit ? { id: produit.id, nom: produit.nom } : null}
-                composants={listeComposants} transformations={transfos} occupe={enCours} onOccupe={setImportEnCours} onReussi={(photo) => { setPhotoId(photo); setRetour(null); }} />
+                composants={listeComposants} transformations={transfos} occupe={enCours !== null} onOccupe={setImportEnCours} onReussi={(photo) => { setPhotoId(photo); setRetour(null); }} />
             )}
           </>
         )}
@@ -208,20 +244,23 @@ export function Produit({ vue, atelier }: PropsProduit) {
       {e && <ParcoursImage projectId={vue.projet.id} versionId={vue.version.id} />}
 
       <section className="tile sec" data-zone="references" style={{ display: 'grid', gap: 12 }}>
-        <div className="sech" style={{ margin: 0 }}><h2>Références et rôles</h2><span className="faint" style={{ fontSize: '12.5px' }}>Chaque fichier porte un rôle que tu choisis · aucun n’est deviné</span></div>
+        <div className="sech" style={{ margin: 0 }}><h2 data-titre="references" tabIndex={-1}>Références et rôles</h2><span className="faint" style={{ fontSize: '12.5px' }}>Chaque fichier porte un rôle que tu choisis · aucun n’est deviné</span></div>
         {!vue.briefPresent && <Message ton="info">Ce projet n’a pas de brief · les références s’y rangent. Crée le projet depuis une source ou un brief.</Message>}
-        {vue.associations.length === 0 ? <p className="muted" style={{ fontSize: '12.5px' }} data-etat="sans-reference">Aucune référence associée.</p> : (
+        {vue.associations.length === 0 ? <p className="muted" style={{ fontSize: '12.5px' }} data-etat="sans-reference">Aucune référence associée{vue.peutModifier && vue.briefPresent ? ' · choisis un fichier, son rôle et sa portée juste en dessous.' : '.'}</p> : (
           <div style={{ display: 'grid', gap: 8 }}>
+            {raisonRetirer && vue.peutModifier && <RaisonFermee id={`${id}-retirer`} cle="retirer">{raisonRetirer}</RaisonFermee>}
             {vue.associations.map((a) => (
-              <div className="prow" key={`${a.assetId}|${a.role}`} data-association={`${a.assetId}|${a.role}`}>
+              <div className="prow" key={`${a.assetId}|${a.role}`} data-association={`${a.assetId}|${a.role}`} style={{ flexWrap: 'wrap' }}>
                 <div className="t">
                   <strong style={{ fontSize: '12.5px' }}>{a.libelle}</strong>
                   <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{a.provenance === 'concurrent' ? 'Annonce concurrente · ' : ''}Portée · {a.libellePortee}{a.requiredComponents.length ? ` · composants : ${a.requiredComponents.join(', ')}` : ''}</small>
                 </div>
                 <span className={`pill ${a.provenance === 'concurrent' ? 'w' : 'c'}`}>{a.libelleRole}</span>
                 {a.epinglee ? <span className="faint" style={{ fontSize: '11.5px' }}>Photo épinglée</span> : vue.peutModifier && (
-                  <button className="btn sm" type="button" disabled={enCours} aria-label={`Retirer le rôle ${a.libelleRole} de ${a.libelle}`}
-                    onClick={() => void agir('Rôle retiré · nouvelle version du projet.', () => retirerReference({ projectId: vue.projet.id, baseVersionId: vue.version.id, assetId: a.assetId, role: a.role }))}>Retirer</button>
+                  <button className="btn sm" type="button" data-geste="retirer" style={CIBLE} aria-label={`${enCours === `retirer:${a.assetId}|${a.role}` ? 'Retrait…' : 'Retirer'} le rôle ${a.libelleRole} de ${a.libelle}`} aria-describedby={raisonRetirer ? `${id}-retirer` : undefined}
+                    {...boutonAction({ presse: enCours === `retirer:${a.assetId}|${a.role}`, occupe, ferme: !!raisonRetirer, surClic: async () => {
+                      if (await agir(`retirer:${a.assetId}|${a.role}`, 'Rôle retiré · nouvelle version du projet.', () => retirerReference({ projectId: vue.projet.id, baseVersionId: vue.version.id, assetId: a.assetId, role: a.role }))) focusApresRetrait(`${a.assetId}|${a.role}`);
+                    } })}>{enCours === `retirer:${a.assetId}|${a.role}` ? 'Retrait…' : 'Retirer'}</button>
                 )}
               </div>
             ))}
@@ -252,10 +291,10 @@ export function Produit({ vue, atelier }: PropsProduit) {
             </div>
             {role && <small className="faint" style={{ fontSize: '11.5px' }} data-effet-role={role}>{LIBELLES_ROLE[role as keyof typeof LIBELLES_ROLE]} · {EFFET_ROLE[role as keyof typeof EFFET_ROLE]}</small>}
             {concurrent && <Message ton="info">Annonce concurrente · seulement Style ou Composition, sur le décor ou l’image entière. Ni son sujet, ni son produit, ni son logo ne passent.</Message>}
-            <div className="kc">
-              <button className="btn sm pri" type="button" data-geste="associer" disabled={raisonAssocie !== null} aria-describedby={raisonAssocie ? `${id}-associer-raison` : undefined}
-                onClick={() => void agir('Référence associée · nouvelle version du projet.', () => associerReference({ projectId: vue.projet.id, baseVersionId: vue.version.id, assetId: fichier, role, scope: portee }))}>Associer</button>
-              {raisonAssocie && <small className="faint" style={{ fontSize: '11.5px' }} data-raison="association" id={`${id}-associer-raison`}>{raisonAssocie}</small>}
+            <div className="kc" style={{ alignItems: 'center' }}>
+              <button className="btn sm pri" type="button" data-geste="associer" style={CIBLE} aria-describedby={raisonAssocie ? `${id}-associer-raison` : undefined}
+                {...boutonAction({ presse: enCours === 'associer', occupe, ferme: raisonAssocie !== null, surClic: () => void agir('associer', 'Référence associée · nouvelle version du projet.', () => associerReference({ projectId: vue.projet.id, baseVersionId: vue.version.id, assetId: fichier, role, scope: portee })) })}>{enCours === 'associer' ? 'Association…' : 'Associer ce fichier'}</button>
+              {raisonAssocie && <RaisonFermee id={`${id}-associer-raison`} cle="associer" data-raison="association">{raisonAssocie}</RaisonFermee>}
             </div>
           </div>
         )}
@@ -284,12 +323,16 @@ export function ImportPhoto({ projectId, versionId, produit, composants, transfo
   const champ = useRef<HTMLInputElement>(null);
   const prete = useRef<{ dataUri: string; nom: string } | null>(null);
   const [etat, setEtat] = useState<EtatImportPhoto>({ etape: 'repos' });
+  const horsLigne = useHorsLigne();
+  const id = useId();
   const enCours = etat.etape === 'preparation' || etat.etape === 'envoi';
-  const raison = raisonImportPhoto({ peutModifier: true, produitChoisi: !!produit, enCours: enCours || occupe });
+  // Fermé pour une raison qui n'est pas l'action en cours (écrite à côté) · `bloque` dit en plus si un import tourne déjà.
+  const raison = raisonFermeture(horsLigne, raisonImportPhoto({ peutModifier: true, produitChoisi: !!produit, enCours: false }));
+  const bloque = !!raison || enCours || occupe;
   const affichage = affichageImportPhoto(etat);
 
   async function envoyer(dataUri: string, nom: string) {
-    if (!produit) return;
+    if (!produit || horsLigne) return;
     setEtat({ etape: 'envoi', fichier: nom }); onOccupe(true);
     try {
       const r = await importerPhotoProduit({ projectId, baseVersionId: versionId, productId: produit.id, dataUri, composants, transformations });
@@ -303,7 +346,7 @@ export function ImportPhoto({ projectId, versionId, produit, composants, transfo
   }
 
   async function traiter(f: File | undefined) {
-    if (!f || raison) return;
+    if (!f || bloque) return;
     const v = verdictFichierPhoto({ type: f.type, taille: f.size });
     if (!v.ok) { prete.current = null; setEtat({ etape: 'echec', motif: v.motif, fichier: f.name }); return; }
     setEtat({ etape: 'preparation', fichier: f.name }); onOccupe(true);
@@ -316,27 +359,32 @@ export function ImportPhoto({ projectId, versionId, produit, composants, transfo
 
   function recuperer(g: RecuperationImport) {
     if (g === 'choisir') { champ.current?.click(); return; }
-    if (g === 'reessayer') { if (prete.current) void envoyer(prete.current.dataUri, prete.current.nom); else champ.current?.click(); return; }
+    // Le bloc des gestes de récupération disparaît · le focus rejoint « Choisir une photo », jamais `<body>`.
+    if (g === 'reessayer') { if (prete.current) { void envoyer(prete.current.dataUri, prete.current.nom); replacerFocus('si-perdu', '[data-zone="import-photo"] [data-geste="importer"]'); } else champ.current?.click(); return; }
     setEtat({ etape: 'repos' }); router.refresh();
+    replacerFocus('si-perdu', '[data-zone="import-photo"] [data-geste="importer"]');
   }
 
   return (
     <div className="tile dash" data-zone="import-photo" data-etape={etat.etape} style={{ display: 'grid', gap: 8, textAlign: 'left' }}
-      onDragOver={(ev) => { if (!raison) ev.preventDefault(); }} onDrop={(ev) => { ev.preventDefault(); void traiter(ev.dataTransfer.files?.[0]); }}>
+      onDragOver={(ev) => { if (!bloque) ev.preventDefault(); }} onDrop={(ev) => { ev.preventDefault(); void traiter(ev.dataTransfer.files?.[0]); }}>
       <strong style={{ fontSize: 13 }}><Ic n="img" />Importer une photo depuis l’ordinateur</strong>
       <small className="faint" style={{ fontSize: '11.5px' }}>JPG, PNG ou WebP, compressée dans ton navigateur. Elle rejoint le catalogue {produit ? `de « ${produit.nom} »` : 'du produit'} et devient la photo épinglée · nouvelle version, aucun appel, aucun coût. Tu peux aussi la glisser ici.</small>
       <input ref={champ} type="file" accept={ACCEPT_PHOTO_IMPORT} tabIndex={-1} aria-hidden="true" style={{ display: 'none' }}
         onChange={(ev) => { const f = ev.target.files?.[0]; ev.currentTarget.value = ''; void traiter(f); }} />
-      <div className="kc">
-        <button className="btn sm" type="button" data-geste="importer" disabled={!!raison} aria-busy={enCours} onClick={() => champ.current?.click()}>{enCours ? 'Import…' : 'Choisir une photo et l’épingler'}</button>
-        {raison && <small className="faint" style={{ fontSize: '11.5px' }} data-raison="import">{raison}</small>}
+      <div className="kc" style={{ alignItems: 'center' }}>
+        <button className="btn sm" type="button" data-geste="importer" style={CIBLE} aria-describedby={raison ? `${id}-import` : undefined}
+          {...boutonAction({ presse: enCours, occupe: enCours || occupe, ferme: !!raison, surClic: () => champ.current?.click() })}>{enCours ? 'Import…' : 'Choisir une photo et l’épingler'}</button>
+        {raison && <RaisonFermee id={`${id}-import`} cle="importer" data-raison="import">{raison}</RaisonFermee>}
       </div>
       {affichage && (
         <div role={affichage.role} data-import={etat.etape} data-motif={etat.motif} style={{ display: 'grid', gap: 6 }}>
           <p className="muted" style={{ fontSize: '12.5px' }}><b>{affichage.titre}</b> · {affichage.texte}</p>
           {affichage.recuperations.length > 0 && (
-            <div className="kc">{affichage.recuperations.map((g) => <button key={g} className="btn sm" type="button" onClick={() => recuperer(g)} data-recuperation={g}>{LIBELLES_RECUPERATION[g]}</button>)}</div>
+            <div className="kc">{affichage.recuperations.map((g) => <button key={g} className="btn sm" type="button" style={CIBLE} data-recuperation={g} aria-describedby={g === 'reessayer' && horsLigne ? `${id}-import-reessayer` : undefined}
+              {...boutonAction({ occupe: enCours || occupe, ferme: g === 'reessayer' && horsLigne, surClic: () => recuperer(g) })}>{LIBELLES_RECUPERATION[g]}</button>)}</div>
           )}
+          {affichage.recuperations.includes('reessayer') && horsLigne && <RaisonFermee id={`${id}-import-reessayer`} cle="reessayer">{raisonFermeture(true)}</RaisonFermee>}
         </div>
       )}
     </div>

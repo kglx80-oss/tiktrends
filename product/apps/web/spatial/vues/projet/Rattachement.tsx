@@ -1,12 +1,14 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useId, useRef, useState, useTransition } from 'react';
 import {
-  AIDE_ESSAI, ESSAI_LABEL, TEXTES_HORS_LIGNE, ESSAI_VARIABLES, LIBELLE_METRIQUE, LIBELLE_PROTOCOLE, METRIQUES_TEST, PROTOCOLES_TEST, libelleVariable, variablesRattachement,
+  AIDE_ESSAI, ESSAI_LABEL, TEXTES_HORS_LIGNE, ESSAI_VARIABLES, LIBELLE_METRIQUE, LIBELLE_PROTOCOLE, METRIQUES_TEST, PROTOCOLES_TEST, libelleVariable, raisonFermeture, variablesRattachement,
   type ErreurStudio, type EssaiVariable, type LigneEssai, type PlanLotEssai, type ValeursRattachement,
 } from '@tiktrends/core';
 import { preparerLotEssai } from '../../../app/actions/studios/tests';
 import { Ic, Lien } from '../../communs';
+import { boutonAction, replacerFocus } from './action-serveur';
+import { CIBLE, Message, RaisonFermee } from './briques';
 import type { AdsmapRattachement } from './types';
 
 /**
@@ -23,6 +25,12 @@ import type { AdsmapRattachement } from './types';
  *    variable. Le serveur (`preparerLotEssai`, règle `planLotEssai`) décide si
  *    le lot mérite le nom d'essai · aucune génération, aucun coût, aucune
  *    écriture. « Rattacher avec ce plan » ouvre le formulaire prérempli.
+ *
+ * Les deux envois passent par la brique `boutonAction` · le bouton
+ * pressé garde le focus et dit qu'il travaille, fermé il dit pourquoi à côté
+ * de lui, un échec réseau est un `<Message horsLigne>`, et le formulaire qui
+ * se ferme (envoyé ou « Fermer ») rend le focus à « Rattacher au test » de la
+ * variante (`replacerFocus`), jamais à `<body>`.
  */
 
 export type Saisie = NonNullable<LigneEssai['saisie']>;
@@ -41,6 +49,10 @@ export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent,
   const [erreur, setErreur] = useState<ErreurStudio | null>(null);
   const [reseau, setReseau] = useState(false);
   const [enCours, demarrer] = useTransition();
+  const id = useId();
+  /** Le bouton qui a ouvert le formulaire · il reprend le focus quand le formulaire se ferme. */
+  const rendreFocus = () => replacerFocus('si-perdu', `[data-variante="${idVariante}"] [data-geste="rattacher"]`);
+  const raisonEnvoi = raisonFermeture(horsLigne);
   const fautes = new Map((erreur?.violations ?? []).map((x) => [x.chemin, x.raison]));
   const maj = (k: keyof ValeursRattachement) => (e: { target: { value: string } }) => setV((x) => ({ ...x, [k]: e.target.value }));
   const faute = (k: string) => (fautes.has(k) ? <small className="faint" role="alert" data-faute={k} style={{ fontSize: '11.5px', fontWeight: 500 }}>{fautes.get(k)}</small> : null);
@@ -54,6 +66,7 @@ export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent,
         const r = await envoyer(v);
         setReseau(false);
         setErreur(r.ok ? null : r);
+        if (r.ok) rendreFocus();
       } catch {
         setReseau(true);
       }
@@ -64,8 +77,8 @@ export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent,
     <form className="sugg" onSubmit={soumettre} data-formulaire-test={idVariante} style={{ display: 'grid', gap: 10, flex: '1 1 100%', marginTop: 8 }}>
       <strong style={{ fontSize: 13 }}>Rattacher cette variante à un test Adsmap</strong>
       {(erreur || reseau) && (
-        <div className="banner" role="alert" style={{ margin: 0 }}>
-          <Ic n="x" /><span>{reseau ? 'Le serveur ne répond pas · rien n’est confirmé, réessaie quand la connexion est rétablie' : `${erreur!.message}${erreur!.traceId ? ` · identifiant support ${erreur!.traceId}` : ''}`} · tes saisies sont conservées.</span>
+        <div data-refus-rattachement={reseau ? 'reseau' : 'serveur'}>
+          <Message ton="err" horsLigne={reseau}>{reseau ? 'Le serveur ne répond pas · rien n’est confirmé, réessaie quand la connexion est rétablie' : `${erreur!.message}${erreur!.traceId ? ` · identifiant support ${erreur!.traceId}` : ''}`} · tes saisies sont conservées.</Message>
         </div>
       )}
       <label className="field">Hypothèse
@@ -128,10 +141,11 @@ export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent,
         )}
       </div>
       <small className="faint" style={{ fontSize: '11.5px' }}>Aucun coût · la fiche entre dans Adsmap en brouillon, l’offre et la page se confirment avant le lancement.</small>
-      <div className="kc">
-        {horsLigne && <span role="status" className="faint" style={{ fontSize: '11.5px' }}>{TEXTES_HORS_LIGNE.formulaire}</span>}
-        <button className="btn sm pri" type="submit" disabled={enCours || horsLigne} aria-busy={enCours}><Ic n="flask" />{enCours ? 'Rattachement…' : 'Rattacher au test'}</button>
-        <button className="btn sm" type="button" onClick={fermer}>Fermer</button>
+      <div className="kc" style={{ alignItems: 'center' }}>
+        <button className="btn sm pri" type="submit" data-geste="envoyer-rattachement" style={CIBLE} aria-describedby={raisonEnvoi ? `${id}-envoi` : undefined}
+          {...boutonAction({ presse: enCours, occupe: enCours, ferme: !!raisonEnvoi })}><Ic n="flask" />{enCours ? 'Rattachement…' : 'Rattacher au test'}</button>
+        <button className="btn sm" type="button" style={CIBLE} {...boutonAction({ occupe: enCours })} onClick={() => { fermer(); rendreFocus(); }}>Fermer le formulaire</button>
+        {raisonEnvoi && <span role="status"><RaisonFermee id={`${id}-envoi`} cle="rattacher">{TEXTES_HORS_LIGNE.formulaire}</RaisonFermee></span>}
       </div>
     </form>
   );
@@ -149,10 +163,17 @@ export function LotEssai({ projectId, variantes, ouvrirRattachement, horsLigne =
   const [plan, setPlan] = useState<PlanLotEssai | null>(null);
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
   const [enCours, demarrer] = useTransition();
+  const [reseau, setReseau] = useState(false);
+  const id = useId();
   // Un plan ne vaut que pour les paramètres qui l'ont produit · changer la sélection l'efface, une réponse tardive est ignorée.
   const revision = useRef(0);
-  const invalider = () => { revision.current += 1; setPlan(null); setErreur(null); };
-  const pret = variable !== null && selection.length >= 2 && !enCours && !horsLigne;
+  const invalider = () => { revision.current += 1; setPlan(null); setErreur(null); setReseau(false); };
+  // La raison écrite à côté de « Préparer » · hors ligne d'abord, puis ce qui manque au lot.
+  const manque = variable === null || selection.length < 2
+    ? `${variable === null ? 'Choisis ce qui varie' : 'Choisis au moins deux variantes'}${variable === null && selection.length < 2 ? ' et au moins deux variantes' : ''}.`
+    : null;
+  const raisonPreparer = raisonFermeture(horsLigne, manque);
+  const pret = !raisonPreparer && !enCours;
 
   if (variantes.length < 2) {
     return (
@@ -174,6 +195,7 @@ export function LotEssai({ projectId, variantes, ouvrirRattachement, horsLigne =
         if (r.ok) setPlan(r.plan); else setErreur({ message: r.message, traceId: r.traceId });
       } catch {
         if (demande !== revision.current) return;
+        setReseau(true);
         setErreur({ message: 'Le plan n’a pas pu être récupéré · tes choix sont conservés. Réessaie quand la connexion est rétablie.' });
       }
     });
@@ -203,11 +225,12 @@ export function LotEssai({ projectId, variantes, ouvrirRattachement, horsLigne =
           ))}
         </div>
       </div>
-      <div className="kc">
-        <button className="btn sm pri" type="button" disabled={!pret} aria-busy={enCours} onClick={preparer}><Ic n="flask" />{enCours ? 'Préparation…' : 'Préparer le lot d’essai'}</button>
-        {(variable === null || selection.length < 2) && <small className="faint" style={{ fontSize: '11.5px' }}>{variable === null ? 'Choisis ce qui varie' : 'Choisis au moins deux variantes'}{variable === null && selection.length < 2 ? ' et au moins deux variantes' : ''}.</small>}
+      <div className="kc" style={{ alignItems: 'center' }}>
+        <button className="btn sm pri" type="button" data-geste="preparer-lot" style={CIBLE} aria-describedby={raisonPreparer ? `${id}-preparer` : undefined}
+          {...boutonAction({ presse: enCours, occupe: enCours, ferme: !!raisonPreparer, surClic: preparer })}><Ic n="flask" />{enCours ? 'Préparation…' : 'Préparer le lot d’essai'}</button>
+        {raisonPreparer && <RaisonFermee id={`${id}-preparer`} cle="preparer-lot">{raisonPreparer}</RaisonFermee>}
       </div>
-      {erreur && <div className="banner" role="alert" style={{ margin: 0 }}><Ic n="x" /><span>{erreur.message}{erreur.traceId ? ` · identifiant support ${erreur.traceId}` : ''}</span></div>}
+      {erreur && <div data-refus-essai={reseau ? 'reseau' : 'serveur'}><Message ton="err" horsLigne={reseau}>{erreur.message}{erreur.traceId ? ` · identifiant support ${erreur.traceId}` : ''}</Message></div>}
       {plan && <PlanEssai plan={plan} ouvrirRattachement={ouvrirRattachement} horsLigne={horsLigne} />}
     </section>
   );
@@ -215,6 +238,7 @@ export function LotEssai({ projectId, variantes, ouvrirRattachement, horsLigne =
 
 function PlanEssai({ plan, ouvrirRattachement, horsLigne }: { plan: PlanLotEssai; ouvrirRattachement: (variantId: string, saisie: Saisie) => void; horsLigne: boolean }) {
   const ok = plan.constat.ok;
+  const idPlan = useId();
   return (
     <div className="sugg" role="status" data-plan-essai={ok ? 'essai' : 'refus'} style={{ display: 'grid', gap: 8 }}>
       <div className="rights"><strong style={{ fontSize: 13 }}>{plan.titre}</strong><span className={`pill ${ok ? 'g' : 'w'}`}>{ok ? 'Essai réel' : 'Pas un essai'}</span></div>
@@ -231,11 +255,13 @@ function PlanEssai({ plan, ouvrirRattachement, horsLigne }: { plan: PlanLotEssai
         <div className="prow" key={l.variantId} data-ligne-essai={l.etat} style={{ flexWrap: 'wrap' }}>
           <div className="t"><strong style={{ fontSize: '12.5px' }}>{l.libelle} · {l.valeur}</strong><small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{l.etatTexte}</small></div>
           <div className="kc">
-            {l.saisie && <button className="btn sm" type="button" disabled={horsLigne} title={horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined} onClick={() => ouvrirRattachement(l.variantId, l.saisie!)}>Rattacher avec ce plan</button>}
+            {l.saisie && <button className="btn sm" type="button" style={CIBLE} data-geste="rattacher-plan" aria-describedby={horsLigne ? `${idPlan}-hors-ligne` : undefined}
+              {...boutonAction({ ferme: horsLigne, surClic: () => { ouvrirRattachement(l.variantId, l.saisie!); replacerFocus('toujours', `[data-formulaire-test="${l.variantId}"] textarea`); } })}>Rattacher avec ce plan</button>}
             {l.adsmapHref && <Lien className="btn sm" href={l.adsmapHref}><Ic n="chart" />Résultats</Lien>}
           </div>
         </div>
       ))}
+      {horsLigne && plan.lignes.some((l) => l.saisie) && <RaisonFermee id={`${idPlan}-hors-ligne`} cle="rattacher-plan">{raisonFermeture(true)}</RaisonFermee>}
       <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 2, fontSize: '12.5px' }}>{plan.suite.map((s) => <li key={s}>{s}</li>)}</ol>
       {plan.lienLots && <small className="faint" style={{ fontSize: '11.5px' }}><Lien href={plan.lienLots}>Ouvrir les lots de test</Lien> · réservé aux administrateurs de l’espace.</small>}
     </div>

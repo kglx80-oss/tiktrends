@@ -96,7 +96,7 @@ describe('/studio/projets/[id]/produit', () => {
     const role = d.querySelector('select[required]') as HTMLSelectElement;
     expect(role.querySelector('option')?.textContent).toBe('Choisir un rôle');
     expect(role.value).toBe('');
-    const associer = [...d.querySelectorAll('button')].find((b) => b.textContent === 'Associer')!;
+    const associer = [...d.querySelectorAll('button')].find((b) => b.textContent === 'Associer ce fichier')!;
     expect(associer.hasAttribute('disabled')).toBe(true);
     expect([...d.querySelectorAll('[data-mode]')].map((m) => m.getAttribute('data-pret'))).toEqual(['non', 'non']);
     expect(d.querySelector('[data-mode="faithful_composite"]')?.textContent).toContain('épingle le produit et UNE photo précise avant de compiler');
@@ -178,7 +178,7 @@ describe('/studio/projets/[id]/textes', () => {
     const bouton = [...ia.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Écrire 3'))!;
     expect(bouton.textContent).toBe('Écrire 3 hooks');
     expect(bouton.hasAttribute('disabled')).toBe(true);
-    expect(ia.querySelector('[role="note"]')?.textContent).toContain('L’écriture par l’IA n’est pas encore activée');
+    expect(ia.querySelector('[data-raison-ferme="ecrire"]')?.textContent).toContain('L’écriture par l’IA n’est pas encore activée');
     expect(ia.querySelector('[data-cout="texte"]')?.textContent).toContain('Appel IA · inclus · aucun crédit débité'); // en crédits (29/10)
     expect(d.textContent?.toLowerCase()).not.toContain('gratuit');
     expect(d.querySelector('[data-zone="ecrire-main"] textarea')).not.toBeNull();
