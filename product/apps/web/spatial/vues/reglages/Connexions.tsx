@@ -24,6 +24,12 @@ export interface CarteConnexionVue {
   resume: string | null;
   /** Meta non connecté · « Étape 1 » de la maquette. */
   etape1: boolean;
+  /**
+   * Meta connecté · la remontée planifiée (`etatRemontee`, noyau) · la ligne de
+   * la carte et la dernière erreur. Absente hors Meta, ou Meta non connecté (la
+   * carte est alors celle de la maquette).
+   */
+  remontee?: { phase: string; libelle: string; erreur: string | null };
 }
 
 export interface PropsConnexions {
@@ -63,6 +69,8 @@ export function Connexions(p: PropsConnexions) {
             </div>
             <p className="muted">{c.description}</p>
             {c.resume && <div className="cx-s"><Ic n="loop" /><span>{c.resume}</span></div>}
+            {c.connecte && c.remontee && <div className="cx-s" data-remontee={c.remontee.phase}><Ic n="loop" /><span>{c.remontee.libelle}</span></div>}
+            {c.connecte && c.remontee?.erreur && <p className="faint" role="status" data-remontee-erreur style={{ fontSize: '12.5px', margin: 0, color: 'var(--bad)' }}>Dernière remontée en échec · {c.remontee.erreur}</p>}
             <BoutonsConnexion cle={c.cle} nom={c.nom} connecte={c.connecte} raison={raison} meta={p.meta} shopify={p.shopify} drive={p.drive} />
           </article>
         ))}

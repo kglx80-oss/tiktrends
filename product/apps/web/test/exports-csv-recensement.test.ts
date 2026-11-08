@@ -40,8 +40,12 @@ const RECENSES: Record<string, { role: Role; pourquoi: string }> = {
   'apps/web/lib/studios/textes/textes.ts': { role: 'transit', pourquoi: 'choisit le format de l’export Textes, n’écrit aucune cellule' },
   'apps/web/spatial/vues/projet/Textes.tsx': { role: 'transit', pourquoi: 'bouton de téléchargement de l’export Textes (contenu produit par le noyau)' },
   'apps/web/spatial/vues/resultats/Tests.tsx': { role: 'transit', pourquoi: 'télécharge le CSV rendu par exportAdsCsvAction' },
-  'apps/web/spatial/vues/resultats/Importer.tsx': { role: 'transit', pourquoi: 'sélection du CSV historique à importer, et « Télécharger le modèle » (contenu produit par le noyau · modeleImport, via toCsv)' },
+  'apps/web/spatial/vues/resultats/Importer.tsx': { role: 'transit', pourquoi: 'sélection du CSV à importer (tableau historique ou export Meta), et « Télécharger le modèle » (contenu produit par le noyau · modeleImport, via toCsv)' },
   'apps/web/scripts/importer-pack-prompts.ts': { role: 'lecture', pourquoi: 'lit 04-RECETTE.csv du pack de prompts (script d’exploitation)' },
+  'apps/web/app/actions/adsmap-mesures.ts': { role: 'lecture', pourquoi: 'import des mesures d’un export Ads Manager · lit le fichier (parseCsv, neutralisation retirée), n’en produit aucun · journal source « csv »' },
+  'apps/web/lib/adsmap-mesures.ts': { role: 'lecture', pourquoi: 'écrit les mesures lues d’un export en base, et le journal des remontées (source « csv ») · aucun fichier produit' },
+  'packages/core/src/adsmap/remontee-planifiee.ts': { role: 'lecture', pourquoi: 'journal des remontées · la source « csv » d’un import d’export, en mots · aucun fichier produit' },
+  'packages/core/src/spatial/resultats/ecrans.ts': { role: 'lecture', pourquoi: 'liste « Dernières remontées » · source « csv » d’un import d’export · aucun fichier produit' },
   'packages/core/src/prompts/pack.ts': { role: 'lecture', pourquoi: 'commentaire nommant 04-RECETTE.csv' },
 };
 

@@ -2,6 +2,7 @@ import { estLotImporte, quandCourt, remontees, sousNavResultats } from '@tiktren
 import { Importer } from '../../../../../spatial/vues/resultats/Importer';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
 import { chargerConnexion, chargerLots, gardeResultats } from '../donnees';
+import { lireRemontees } from '../../../../../lib/adsmap-mesures';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,11 @@ export default async function ImportSpatial() {
   if (!g.ok) return <RefusResultats titre="Importer des résultats" raison={g.raison} />;
 
   const maintenant = new Date();
-  const [d, c] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id, maintenant), chargerConnexion(g.marque.id)]);
+  const [d, c, journal] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id, maintenant), chargerConnexion(g.marque.id), lireRemontees(g.marque.id)]);
   const mesurees = [...d.lots.flatMap((l) => l.ads), ...d.horsLot].filter((a) => a.verdict?.calcule).length;
   const liste = remontees({
     mesureLe: c.mesureLe,
+    journal,
     variantesMesurees: mesurees,
     lotsImportes: d.lots.filter((l) => estLotImporte({ status: l.statut, launchedAt: l.lanceLe })).map((l) => ({ numero: l.numero, variantes: l.ads.length, le: l.creeLe })),
   });

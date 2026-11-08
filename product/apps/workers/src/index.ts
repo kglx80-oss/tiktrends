@@ -5,6 +5,7 @@ import { startIngestWorker } from './ingest';
 import { runDailySync } from './sync';
 import { triggerAdsMapSync, triggerAllocations, triggerBascule, triggerRadar, triggerTracker, triggerVideosHistoriques } from './adsmap';
 import { fixtures } from '@tiktrends/integrations';
+import { MOTIF_REMONTEE_ADSMAP } from '@tiktrends/core';
 import { db, convertirUnite } from '@tiktrends/db';
 
 /** Worker « cron » : traite les tâches planifiées (ex : synchro data quotidienne). */
@@ -50,8 +51,10 @@ async function main() {
 
   // Mesure ADSMAP · 7h, APRÈS la synchro des sources. L'ordre n'est pas cosmétique :
   // l'assistant de réglage des seuils lit `adsInsights`, que la synchro de 6h écrit.
+  // Le motif vit au noyau (`MOTIF_REMONTEE_ADSMAP`) · Connexions en déduit la prochaine remontée,
+  // elle ne peut pas dériver de celle qui tourne. Même valeur qu'avant (« 0 7 * * * ») · même planning BullMQ.
   await queues.cron.add('adsmap-sync', {}, {
-    repeat: { pattern: '0 7 * * *' },
+    repeat: { pattern: MOTIF_REMONTEE_ADSMAP },
     jobId: 'adsmap-sync',
     removeOnComplete: 20, removeOnFail: 20,
   });
