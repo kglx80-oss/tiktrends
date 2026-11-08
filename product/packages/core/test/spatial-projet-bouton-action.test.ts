@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { etatBoutonAction, focusAReplacer, premiereCibleFocus, type EntreeBoutonAction } from '../src';
+import { TEXTES_HORS_LIGNE, etatBoutonAction, focusAReplacer, premiereCibleFocus, raisonFermeture, type EntreeBoutonAction } from '../src';
 
 /**
  * La règle unique du bouton d'action serveur · chaque écran qui la recopiait
@@ -119,5 +119,19 @@ describe('replacement du focus · deux modes voulus', () => {
     expect(premiereCibleFocus([{ present: false, disabled: false }, { present: true, disabled: true }, { present: true, disabled: false }])).toBe(2);
     expect(premiereCibleFocus([{ present: true, disabled: true }])).toBe(-1);
     expect(premiereCibleFocus([])).toBe(-1);
+  });
+});
+
+describe('raisonFermeture · la phrase écrite à côté d’un bouton fermé', () => {
+  it('hors ligne passe avant toute autre raison (le geste ne partirait pas)', () => {
+    expect(raisonFermeture(true, 'Choisis un fichier.')).toBe(TEXTES_HORS_LIGNE.bouton);
+    expect(raisonFermeture(true)).toBe(TEXTES_HORS_LIGNE.bouton);
+  });
+  it('en ligne · la première raison donnée, dans l’ordre de l’écran ; les vides sont sautés', () => {
+    expect(raisonFermeture(false, null, false, '', 'Choisis un rôle.', 'Choisis une portée.')).toBe('Choisis un rôle.');
+  });
+  it('rien ne ferme le bouton · aucune phrase', () => {
+    expect(raisonFermeture(false)).toBeNull();
+    expect(raisonFermeture(false, null, undefined, false)).toBeNull();
   });
 });

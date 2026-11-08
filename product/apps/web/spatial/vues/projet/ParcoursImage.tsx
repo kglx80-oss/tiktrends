@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  capacitesDuRefus, detailSansEtat, libelleCaseControleVisuel, libelleCredits, libellePrix, mentionAppelTexte, creditsAppelAnnonceMicros, phraseCreditsDevis, MENTION_INCLUS,
+  capacitesDuRefus, detailSansEtat, raisonFermeture, libelleCaseControleVisuel, libelleCredits, libellePrix, mentionAppelTexte, creditsAppelAnnonceMicros, phraseCreditsDevis, MENTION_INCLUS,
   LIBELLES_PORTEE, LIBELLES_ROLE, VALIDITE_DEVIS_MS,
   type ErreurStudio, type ModeImage, type PorteeReference, type RoleReference,
 } from '@tiktrends/core';
@@ -16,7 +16,9 @@ import { trancherComposants } from '../../../app/actions/studios/produit';
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
 import { useRegime, useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
-import { Message } from './briques';
+import { boutonAction, replacerFocus } from './action-serveur';
+import { CIBLE, Message, RaisonFermee } from './briques';
+import { useHorsLigne } from './hors-ligne';
 import { AnnonceLogos } from './LogosAReimporter';
 
 /**
@@ -34,6 +36,12 @@ import { AnnonceLogos } from './LogosAReimporter';
  *  4. les visuels · état réel relu toutes les 4 s tant qu'un job travaille,
  *     annulation, relecture des composants obligatoires.
  * Rien n'est lancé à l'ouverture · la page ne fait que lire.
+ *
+ * Chaque bouton qui part au serveur passe par la brique `boutonAction` ·
+ * le bouton pressé garde le focus et dit qu'il travaille (`aria-busy`), un
+ * bouton fermé dit pourquoi à côté de lui (`raisonFermeture`), hors ligne rien
+ * ne part, et quand le bouton disparaît (confirmation, consigne retenue, job
+ * annulé), le focus rejoint la suite logique (`replacerFocus`), jamais `<body>`.
  */
 
 const RELECTURE_MS = 4_000;
@@ -42,6 +50,17 @@ const date = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: '2-di
 const messageErreur = (r: ErreurStudio) => `${r.violations?.length ? r.violations.map((v) => v.raison).join(' · ') : r.message}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}`;
 const CLASSE_ETAT: Record<string, string> = { completed: 'g', failed: 'w', reconciliation_required: 'w', cancel_requested: 'w', cancelled: '' };
 const CLASSE_QUALITE: Record<string, string> = { passed: 'g', rejected: 'w', requires_review: 'w', pending: '' };
+/** Le titre de la tuile · cible de repli du focus (`tabIndex={-1}`), jamais `<body>`. */
+const TITRE = '[data-titre="parcours-image"]';
+/** Où va le focus quand le bouton pressé a disparu · la suite logique de chaque geste, puis le titre. */
+function apres(nom: string): string[] {
+  if (nom === 'compiler') return ['[data-bouton="retenir"]', '[data-bouton="compiler"]', TITRE];
+  if (nom === 'retenir') return ['[data-bouton="lancer"]', '[data-bouton="devis"]', '[data-bouton="retenir"]', TITRE];
+  if (nom === 'devis') return ['[data-bouton="lancer"]', '[data-bouton="devis"]', TITRE];
+  if (nom === 'lancer') return ['[data-bouton="annuler"]', '[data-bouton="lancer"]', TITRE];
+  const job = nom.split(':')[1];
+  return job ? [`[data-job="${job}"] [data-bouton="annuler"]`, `[data-job="${job}"] [data-bouton="relire"]`, TITRE] : [TITRE];
+}
 
 function cleDuClic(quoteId: string): string {
   const k = `tt-studio-image-cle-${quoteId}`;
@@ -60,11 +79,14 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   const regime = useRegime();
   const appel = useAppelPayant(projectId, 'compilation-image');
   const [vue, setVue] = useState<VueParcoursImage | null>(initial);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [erreur, setErreur] = useState<{ texte: string; horsLigne: boolean } | null>(null);
+  const [rechargement, setRechargement] = useState(false);
+  const horsLigne = useHorsLigne();
+  const id = useId();
   const [nonActive, setNonActive] = useState<string | null>(null);
   const [mode, setMode] = useState<ModeImage | ''>('');
   const [enCours, setEnCours] = useState<string | null>(null);
-  const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string } | null>(null);
+  const [retour, setRetour] = useState<{ ton: 'ok' | 'err'; texte: string; horsLigne?: boolean } | null>(null);
   const [questions, setQuestions] = useState<string[]>([]);
   // Un geste payant armé (premier clic) · le second clic le lance.
   const [arme, setArme] = useState<'compiler' | 'lancer' | null>(null);
@@ -78,8 +100,8 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
       const r = await lireParcoursImage({ projectId });
       if (r.ok) { setVue(r.vue); setErreur(null); setNonActive(null); }
       else if (capacitesDuRefus(r).length) setNonActive(r.message);
-      else setErreur(messageErreur(r));
-    } catch { setErreur('Le serveur n’a pas répondu · recharge la page.'); }
+      else setErreur({ texte: messageErreur(r), horsLigne: false });
+    } catch { setErreur({ texte: 'Le serveur n’a pas répondu · recharge la page.', horsLigne: true }); }
   }, [projectId]);
 
   useEffect(() => { if (!initial) void charger(); }, [charger, versionId, initial]);
@@ -107,20 +129,27 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   }, [vue, charger]);
 
   async function agir(nom: string, f: () => Promise<{ ok: true } | ErreurStudio>, succes: string) {
-    if (operation.current) return;
+    if (operation.current || horsLigne) return;
     const tentative = nom === 'compiler' ? appel.commencer() : null;
     if (nom === 'compiler' && !tentative) return;
-    operation.current = true; setEnCours(nom); setRetour(null); setArme(null);
+    operation.current = true; setEnCours(nom); setRetour(null);
+    // Le second clic d'un geste payant fait disparaître la confirmation · le bouton du geste, pressé, reprend le focus.
+    if (arme) { setArme(null); replacerFocus('si-perdu', `[data-bouton="${arme}"]`); }
     try {
       const r = await f();
       if (tentative) appel.terminer(tentative, resultatPayantIncertain(r));
       if (r.ok) { setRetour({ ton: 'ok', texte: succes }); toast(succes); } else setRetour({ ton: 'err', texte: messageErreur(r) });
     } catch {
       if (tentative) appel.terminer(tentative, true);
-      setRetour({ ton: 'err', texte: tentative ? MESSAGE_APPEL_PAYANT : 'Le serveur n’a pas répondu · rien n’a été confirmé. Recharge avant de réessayer.' });
+      setRetour({ ton: 'err', texte: tentative ? MESSAGE_APPEL_PAYANT : 'Le serveur n’a pas répondu · rien n’a été confirmé. Recharge avant de réessayer.', horsLigne: true });
     } finally {
       setEnCours(null); await charger(); operation.current = false;
+      replacerFocus('si-perdu', ...apres(nom));
     }
+  }
+  async function actualiser() {
+    setRechargement(true);
+    try { await charger(); } finally { setRechargement(false); replacerFocus('si-perdu', TITRE, '[data-bouton="actualiser"]'); }
   }
 
   if (nonActive) {
@@ -135,20 +164,29 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   if (!vue || erreur) {
     return (
       <section className="tile sec" data-zone="parcours-image" aria-busy={!erreur}>
-        {erreur ? <Message ton="err">{erreur}</Message> : <p className="muted" style={{ fontSize: '12.5px' }}>Chargement de l’état de l’image…</p>}
+        {erreur ? <Message ton="err" horsLigne={erreur.horsLigne}>{erreur.texte}</Message> : <p className="muted" style={{ fontSize: '12.5px' }}>Chargement de l’état de l’image…</p>}
         <p className="faint" style={{ fontSize: '11.5px', marginTop: 6 }}>Rien n’est lancé à l’ouverture de la page.</p>
-        {erreur && <button className="btn sm" type="button" onClick={() => void charger()} style={{ marginTop: 8 }}>Actualiser l’état du visuel</button>}
+        {erreur && (
+          <div className="kc" style={{ marginTop: 8, alignItems: 'center' }}>
+            <button className="btn sm" type="button" data-bouton="actualiser" style={CIBLE} aria-describedby={horsLigne ? `${id}-actualiser` : undefined}
+              {...boutonAction({ presse: rechargement, occupe: rechargement, ferme: horsLigne, surClic: () => void actualiser() })}>{rechargement ? 'Actualisation…' : 'Actualiser l’état du visuel'}</button>
+            {horsLigne && <RaisonFermee id={`${id}-actualiser`} cle="actualiser">{raisonFermeture(true)}</RaisonFermee>}
+          </div>
+        )}
       </section>
     );
   }
 
   const d = appel.bloque ? { ...vue.disponibilite, compilation: { disponible: false, raison: MESSAGE_APPEL_PAYANT } } : vue.disponibilite;
   const modeChoisi = vue.modes.find((m) => m.mode === mode);
-  const compilable = d.compilation.disponible && !!modeChoisi?.pret && !enCours;
+  // Les raisons écrites à côté des boutons fermés · l'action en cours n'en est pas une (le bouton pressé le dit lui-même).
+  const raisonCompiler = raisonFermeture(horsLigne, !d.compilation.disponible && `Indisponible · ${d.compilation.raison}`, !modeChoisi?.pret && 'Indisponible · choisis une méthode de création disponible.');
+  const raisonRetenir = raisonFermeture(horsLigne, !d.retenir.disponible && d.retenir.raison);
+  const raisonLancer = raisonFermeture(horsLigne, !d.lancement.disponible && d.lancement.raison);
   const ancienneFidele = vue.enAttente?.mode === 'faithful_composite';
   const propositionDisponible = !!vue.enAttente && !ancienneFidele;
   const verdictOk = !!vue.retenue && vue.retenue.verdict.ok;
-  const raisonDevis = !vue.retenue ? 'Retiens d’abord une consigne compilée.' : !vue.retenue.verdict.ok ? vue.retenue.verdict.motif : !d.devis.disponible ? d.devis.raison : '';
+  const raisonDevis = horsLigne ? raisonFermeture(true) : !vue.retenue ? 'Retiens d’abord une consigne compilée.' : !vue.retenue.verdict.ok ? vue.retenue.verdict.motif : !d.devis.disponible ? d.devis.raison : '';
   const titre = vue.jobs.some((j) => !j.terminal) ? 'Ton visuel est en cours de création' : vue.devis && verdictOk ? 'Générer ton visuel' : propositionDisponible ? 'Valide ta direction créative' : verdictOk ? 'Ton visuel est prêt à être généré' : 'Préparer ton visuel';
   const coutCompilation = mentionAppelTexte(regime, vue.coutCompilationUsd);
 
@@ -176,9 +214,9 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
 
   return (
     <section className="tile sec" data-zone="parcours-image" style={{ display: 'grid', gap: 12 }}>
-      <div className="sech" style={{ margin: 0 }}><h2>{titre}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Jarvis prépare, tu vérifies le prix avant de lancer, puis le produit sur l’image</span></div>
+      <div className="sech" style={{ margin: 0 }}><h2 data-titre="parcours-image" tabIndex={-1}>{titre}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Jarvis prépare, tu vérifies le prix avant de lancer, puis le produit sur l’image</span></div>
       {appel.bloque && <div className="banner" role="status" style={{ margin: 0 }}><span className="orb" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span><span>{MESSAGE_APPEL_PAYANT} <Lien href={`/studio/projets/${projectId}#taches`}>Voir le suivi</Lien></span></div>}
-      {retour && <div data-retour={retour.ton === 'ok' ? 'ok' : 'refus'}><Message ton={retour.ton}>{retour.texte}</Message></div>}
+      {retour && <div data-retour={retour.ton === 'ok' ? 'ok' : 'refus'}><Message ton={retour.ton} horsLigne={retour.horsLigne}>{retour.texte}</Message></div>}
       <AnnonceLogos a={vue.logosAReimporter} />
       <small className="faint" style={{ fontSize: '11.5px' }}>Format {vue.format.largeur} × {vue.format.hauteur} · {vue.format.libelle}{vue.format.depuisBrief ? ' · lu dans le brief' : ' · défaut, le brief ne précise pas de format'}.</small>
 
@@ -186,7 +224,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
         <div style={{ display: 'grid', gap: 10 }} data-etape="consigne">
           <div className="kc" role="group" aria-label="Méthode de création">
             {vue.modes.map((m) => (
-              <button key={m.mode} type="button" className="chip" aria-pressed={m.mode === mode} data-mode={m.mode} disabled={!m.pret || !!enCours} onClick={() => setMode(m.mode)}>
+              <button key={m.mode} type="button" className="chip" aria-pressed={m.mode === mode} data-mode={m.mode} {...boutonAction({ occupe: !!enCours, ferme: !m.pret, surClic: () => setMode(m.mode) })}>
                 {m.mode === 'faithful_composite' ? 'Conserver la photo du produit, créer le décor' : 'Créer une mise en scène à partir de la photo'}{m.pret ? '' : ' · indisponible'}
               </button>
             ))}
@@ -194,18 +232,20 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
           {arme === 'compiler' ? (
             <div className="sugg" data-confirmation="compiler">
               <p style={{ fontSize: '12.5px' }}>{coutCompilation} · préparation uniquement, l’image sera facturée séparément.</p>
-              <div className="kc" style={{ marginTop: 8 }}>
-                <button className="btn sm pri" type="button" disabled={!compilable} onClick={() => void compiler()}>{enCours === 'compiler' ? 'Jarvis prépare…' : 'Confirmer la préparation'}</button>
-                <button className="btn sm" type="button" onClick={() => setArme(null)}>Annuler</button>
+              <div className="kc" style={{ marginTop: 8, alignItems: 'center' }}>
+                <button className="btn sm pri" type="button" data-bouton="confirmer-compiler" style={CIBLE} aria-describedby={raisonCompiler ? `${id}-compiler` : undefined}
+                  {...boutonAction({ occupe: !!enCours, ferme: !!raisonCompiler, surClic: () => void compiler() })}>Confirmer la préparation</button>
+                <button className="btn sm" type="button" style={CIBLE} onClick={() => { setArme(null); replacerFocus('toujours', '[data-bouton="compiler"]'); }}>Annuler</button>
               </div>
             </div>
           ) : (
-            <div className="kc">
-              <button className="btn sm pri" type="button" data-bouton="compiler" disabled={!compilable} onClick={() => setArme('compiler')}><Ic n="spark" />{enCours === 'compiler' ? 'Jarvis prépare…' : 'Préparer mon visuel avec Jarvis'}</button>
+            <div className="kc" style={{ alignItems: 'center' }}>
+              <button className="btn sm pri" type="button" data-bouton="compiler" style={CIBLE} aria-describedby={raisonCompiler ? `${id}-compiler` : undefined}
+                {...boutonAction({ presse: enCours === 'compiler', occupe: !!enCours, ferme: !!raisonCompiler, surClic: () => { setArme('compiler'); replacerFocus('toujours', '[data-bouton="confirmer-compiler"]'); } })}><Ic n="spark" />{enCours === 'compiler' ? 'Jarvis prépare…' : 'Préparer mon visuel avec Jarvis'}</button>
               <small className="faint" style={{ fontSize: '11.5px' }} data-cout="compilation">{coutCompilation} · préparation uniquement, l’image sera facturée séparément.</small>
             </div>
           )}
-          {!d.compilation.disponible && <small className="faint" style={{ fontSize: '11.5px' }} data-indisponible="compilation">Indisponible · {d.compilation.raison}</small>}
+          {raisonCompiler && <RaisonFermee id={`${id}-compiler`} cle="compiler" data-indisponible={d.compilation.disponible ? undefined : 'compilation'}>{raisonCompiler}</RaisonFermee>}
           {questions.length > 0 && (
             <div className="sugg" data-champ="questions">
               <p style={{ fontSize: '12.5px' }}>La consigne n’est pas compilée · il manque des informations.</p>
@@ -221,9 +261,10 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
         <div className="sugg" data-consigne="en-attente">
           <div className="rights"><strong style={{ fontSize: 13 }}>La direction proposée pour ton image</strong><span className="pill c">À valider</span></div>
           <DetailsConsigne c={vue.enAttente} />
-          <div className="kc" style={{ marginTop: 8 }}>
-            <button className="btn sm pri" type="button" data-bouton="retenir" disabled={!d.retenir.disponible || !!enCours} onClick={() => void retenir(vue.enAttente!.runId)}>{enCours === 'retenir' ? 'Enregistrement…' : 'Valider et voir le prix'}</button>
-            <small className="faint" style={{ fontSize: '11.5px' }}>{d.retenir.disponible ? 'Validation gratuite · aucune génération.' : d.retenir.raison}</small>
+          <div className="kc" style={{ marginTop: 8, alignItems: 'center' }}>
+            <button className="btn sm pri" type="button" data-bouton="retenir" style={CIBLE} aria-describedby={raisonRetenir ? `${id}-retenir` : undefined}
+              {...boutonAction({ presse: enCours === 'retenir', occupe: !!enCours, ferme: !!raisonRetenir, surClic: () => void retenir(vue.enAttente!.runId) })}>{enCours === 'retenir' ? 'Enregistrement…' : 'Valider et voir le prix'}</button>
+            {raisonRetenir ? <RaisonFermee id={`${id}-retenir`} cle="retenir">{raisonRetenir}</RaisonFermee> : <small className="faint" style={{ fontSize: '11.5px' }}>Validation gratuite · aucune génération.</small>}
           </div>
         </div>
       )}
@@ -244,11 +285,12 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
               <Ic n={controleVision ? 'check' : 'x'} />{libelleCaseControleVisuel(creditsAppelAnnonceMicros(regime, vue.controleVision.borneParImageUsdMicros))}
             </button>
           )}
-          <div className="kc">
-            <button className="btn sm" type="button" data-bouton="devis" disabled={!d.devis.disponible || !!enCours} onClick={() => void agir('devis', () => demanderDevisImage({ projectId, controleVision: !!vue.controleVision?.disponible && controleVision }), 'Devis prêt · relis le prix avant d’approuver.')}>
-              {enCours === 'devis' ? 'Devis…' : vue.devis ? 'Actualiser le prix' : 'Voir le prix de la génération'}
+          <div className="kc" style={{ alignItems: 'center' }}>
+            <button className="btn sm" type="button" data-bouton="devis" style={CIBLE} aria-describedby={raisonDevis ? `${id}-devis` : undefined}
+              {...boutonAction({ presse: enCours === 'devis', occupe: !!enCours, ferme: !d.devis.disponible || horsLigne, surClic: () => void agir('devis', () => demanderDevisImage({ projectId, controleVision: !!vue.controleVision?.disponible && controleVision }), 'Devis prêt · relis le prix avant d’approuver.') })}>
+              {enCours === 'devis' ? 'Calcul du prix…' : vue.devis ? 'Actualiser le prix' : 'Voir le prix de la génération'}
             </button>
-            <small className="faint" style={{ fontSize: '11.5px' }}>{raisonDevis || `Le devis ne débite rien · il fige le prix pendant ${Math.round(VALIDITE_DEVIS_MS / 60_000)} minutes.`}</small>
+            {raisonDevis ? <RaisonFermee id={`${id}-devis`} cle="devis">{raisonDevis}</RaisonFermee> : <small className="faint" style={{ fontSize: '11.5px' }}>{`Le devis ne débite rien · il fige le prix pendant ${Math.round(VALIDITE_DEVIS_MS / 60_000)} minutes.`}</small>}
           </div>
           {vue.devis && (
             <div className="sugg" data-devis={vue.devis.id}>
@@ -258,14 +300,16 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
                   {vue.devis.lignes.map((l, i) => <li key={i} data-ligne-nature={l.natureCout}>{l.libelle} · {l.credits > 0 ? libelleCredits(l.credits) : MENTION_INCLUS}</li>)}
                 </ul>
               )}
-              <div className="kc" style={{ marginTop: 8 }}>
+              <div className="kc" style={{ marginTop: 8, alignItems: 'center' }}>
                 {arme === 'lancer'
                   ? <>
-                    <button className="btn sm pri" type="button" data-confirmation="lancer" disabled={!d.lancement.disponible || !!enCours} onClick={lancer}>{enCours === 'lancer' ? 'Lancement…' : `Confirmer · débiter ${libelleCredits(vue.devis.credits)}`}</button>
-                    <button className="btn sm" type="button" onClick={() => setArme(null)}>Annuler</button>
+                    <button className="btn sm pri" type="button" data-confirmation="lancer" style={CIBLE} aria-describedby={raisonLancer ? `${id}-lancer` : undefined}
+                      {...boutonAction({ occupe: !!enCours, ferme: !!raisonLancer, surClic: lancer })}>{`Confirmer · débiter ${libelleCredits(vue.devis.credits)}`}</button>
+                    <button className="btn sm" type="button" style={CIBLE} onClick={() => { setArme(null); replacerFocus('toujours', '[data-bouton="lancer"]'); }}>Annuler</button>
                   </>
-                  : <button className="btn sm pri" type="button" data-bouton="lancer" disabled={!d.lancement.disponible || !!enCours} onClick={() => setArme('lancer')}><Ic n="spark" />Générer mon visuel · {libelleCredits(vue.devis.credits)}</button>}
-                <small className="faint" style={{ fontSize: '11.5px' }}>{d.lancement.disponible ? `Débite ${libelleCredits(vue.devis.credits)} au second clic · rendus si aucune image n’est livrée.` : d.lancement.raison}</small>
+                  : <button className="btn sm pri" type="button" data-bouton="lancer" style={CIBLE} aria-describedby={raisonLancer ? `${id}-lancer` : undefined}
+                    {...boutonAction({ presse: enCours === 'lancer', occupe: !!enCours, ferme: !!raisonLancer, surClic: () => { setArme('lancer'); replacerFocus('toujours', '[data-confirmation="lancer"]'); } })}><Ic n="spark" />{enCours === 'lancer' ? 'Lancement…' : `Générer mon visuel · ${libelleCredits(vue.devis.credits)}`}</button>}
+                {raisonLancer ? <RaisonFermee id={`${id}-lancer`} cle="lancer">{raisonLancer}</RaisonFermee> : <small className="faint" style={{ fontSize: '11.5px' }}>{`Débite ${libelleCredits(vue.devis.credits)} au second clic · rendus si aucune image n’est livrée.`}</small>}
               </div>
             </div>
           )}
@@ -277,9 +321,9 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
       {vue.jobs.length > 0 && (
         <div style={{ display: 'grid', gap: 10 }} data-etape="generation">
           <div className="lbl" style={{ margin: 0 }}>Tes visuels</div>
-          {vue.jobs.map((j) => <CarteJob key={j.id} j={j} vue={vue} enCours={enCours} devisPossible={d.devis.disponible}
+          {vue.jobs.map((j) => <CarteJob key={j.id} j={j} vue={vue} enCours={enCours} horsLigne={horsLigne} devisPossible={d.devis.disponible}
             surAnnuler={() => void agir(`annuler:${j.id}`, () => annulerJob({ jobId: j.id }), 'Annulation demandée.')}
-            surRelire={(constats) => void agir('relire', () => trancherComposants({ jobId: j.id, constats }), 'Relecture enregistrée.')} />)}
+            surRelire={(constats) => void agir(`relire:${j.id}`, () => trancherComposants({ jobId: j.id, constats }), 'Relecture enregistrée.')} />)}
         </div>
       )}
     </section>
@@ -302,12 +346,15 @@ function DetailsConsigne({ c }: { c: ConsigneVue }) {
   );
 }
 
-function CarteJob({ j, vue, enCours, devisPossible, surAnnuler, surRelire }: {
-  j: JobImageVue; vue: VueParcoursImage; enCours: string | null; devisPossible: boolean;
+function CarteJob({ j, vue, enCours, horsLigne, devisPossible, surAnnuler, surRelire }: {
+  j: JobImageVue; vue: VueParcoursImage; enCours: string | null; horsLigne: boolean; devisPossible: boolean;
   surAnnuler: () => void; surRelire: (constats: Array<{ composant: string; present: boolean | null }>) => void;
 }) {
   const [choix, setChoix] = useState<Record<string, boolean>>({});
+  const id = useId();
   const complet = vue.composantsObligatoires.every((c) => typeof choix[c] === 'boolean');
+  const raisonRelire = raisonFermeture(horsLigne, !complet && 'Choisis « Présent » ou « Absent » pour chaque composant.');
+  const raisonAnnuler = raisonFermeture(horsLigne);
   return (
     <div className="prow" data-job={j.id} data-etat-job={j.etat} style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
       {j.media && <img src={j.media.url} alt={`Image générée${j.media.largeur && j.media.hauteur ? `, ${j.media.largeur} × ${j.media.hauteur}` : ''}`} loading="lazy" />}
@@ -327,14 +374,20 @@ function CarteJob({ j, vue, enCours, devisPossible, surAnnuler, surRelire }: {
                 {([true, false] as const).map((v) => <button key={String(v)} type="button" className="chip" aria-pressed={choix[c] === v} onClick={() => setChoix((p) => ({ ...p, [c]: v }))}>{v ? 'Présent' : 'Absent'}</button>)}
               </div>
             ))}
-            <div className="kc"><button className="btn sm" type="button" data-bouton="relire" disabled={!complet || !!enCours} onClick={() => surRelire(vue.composantsObligatoires.map((c) => ({ composant: c, present: choix[c] ?? null })))}>Enregistrer la relecture</button></div>
+            <div className="kc" style={{ alignItems: 'center' }}>
+              <button className="btn sm" type="button" data-bouton="relire" style={CIBLE} aria-describedby={raisonRelire ? `${id}-relire` : undefined}
+                {...boutonAction({ presse: enCours === `relire:${j.id}`, occupe: !!enCours, ferme: !!raisonRelire, surClic: () => surRelire(vue.composantsObligatoires.map((c) => ({ composant: c, present: choix[c] ?? null }))) })}>{enCours === `relire:${j.id}` ? 'Enregistrement…' : 'Enregistrer la relecture'}</button>
+              {raisonRelire && <RaisonFermee id={`${id}-relire`} cle="relire">{raisonRelire}</RaisonFermee>}
+            </div>
           </div>
         )}
       </div>
-      <div className="kc">
-        {j.media && <a className="btn sm" href={j.media.url} download>Télécharger mon visuel</a>}
-        {j.media && <Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/image`}>Modifier dans l’éditeur</Lien>}
-        {j.annulable && devisPossible && <button className="btn sm" type="button" data-bouton="annuler" disabled={!!enCours} title="Si l’envoi est déjà parti, le fournisseur peut facturer · le coût réel est réconcilié" onClick={surAnnuler}>{enCours === `annuler:${j.id}` ? 'Annulation…' : 'Annuler'}</button>}
+      <div className="kc" style={{ alignItems: 'center' }}>
+        {j.media && <a className="btn sm" href={j.media.url} download style={CIBLE}>Télécharger mon visuel</a>}
+        {j.media && <Lien className="btn sm" href={`/studio/projets/${vue.projet.id}/image`} style={CIBLE}>Modifier dans l’éditeur</Lien>}
+        {j.annulable && devisPossible && <button className="btn sm" type="button" data-bouton="annuler" style={CIBLE} title="Si l’envoi est déjà parti, le fournisseur peut facturer · le coût réel est réconcilié" aria-describedby={raisonAnnuler ? `${id}-annuler` : undefined}
+          {...boutonAction({ presse: enCours === `annuler:${j.id}`, occupe: !!enCours, ferme: !!raisonAnnuler, surClic: surAnnuler })}>{enCours === `annuler:${j.id}` ? 'Annulation…' : 'Annuler la génération'}</button>}
+        {j.annulable && devisPossible && raisonAnnuler && <RaisonFermee id={`${id}-annuler`} cle="annuler">{raisonAnnuler}</RaisonFermee>}
       </div>
     </div>
   );
