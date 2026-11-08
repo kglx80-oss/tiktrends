@@ -43,15 +43,15 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26) et lot 4 (mesures) · sortie de `node docs/ux-v5/compter-statuts.mjs`
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures) et lot 7 (Veille · filtres locaux, vue liste, navigation du détail) · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Coquille et Accueil | 105 | 0 | 14 | 12 | 9 | 12 | 152 |
-| Veille, Bibliothèque, Marques | 99 | 0 | 64 | 29 | 18 | 3 | 213 |
+| Veille, Bibliothèque, Marques | 105 | 0 | 63 | 24 | 18 | 3 | 213 |
 | Projets et canvas | 98 | 0 | 39 | 13 | 4 | 6 | 160 |
 | Résultats, Jarvis, ADMIN+ | 73 | 0 | 33 | 13 | 20 | 1 | 140 |
-| **Total** | **375** | **0** | **150** | **67** | **51** | **22** | **665** |
+| **Total** | **381** | **0** | **149** | **62** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
@@ -162,6 +162,7 @@ Le signet sauvegarde d'un coup, une sauvegarde n'a qu'une collection, la note ex
 - **Services à réutiliser** : `C/spatial/veille/recherche.ts` (filtres), `W/app/(spatial)/sp/veille/cartes.ts` (CTA, plateforme déjà lus), `followBrand` (`W/app/actions/inspo.ts:159`).
 - **Migration** : non.
 - **Garde-fou** : un filtre local ne s'affiche que s'il filtre vraiment la page lue, et le dit (la source pagine) · règle R14 de l'inventaire. Export Word ou PDF du texte en local · Google Docs exclu (Drive étendu, à Kevin).
+- **Livré** : la règle au noyau (`C/spatial/veille/filtres-locaux.ts` · `filtrerLocal`, `controlesLocaux` qui ferme avec sa raison un filtre qui ne sépare rien, `voisinsDetail`, `toucheNavigationDetail`, adresse `lireFiltresLocaux` / `ecrireFiltresLocaux` sans aucune clé envoyée à la source), « Appel à l'action » et « Masquer déjà sauvegardées » sur les pubs chargées de « Pubs du moment » (V19, V21) avec compteur, puces, « Réinitialiser » et adresse, bascule « Grille / Liste » gardée sur l'appareil (cookie `tt_veille_affichage`, lu au rendu serveur) et vue liste en tableau défilant dans son cadre (V26, V28, largeur mesurée), plateforme sur la carte (C02), « Précédente » / « Suivante » dans le détail, à l'écran et aux flèches, dans la liste filtrée, arrêt aux bornes avec la raison, focus rendu à la pub d'origine (F16), le même détail depuis une ligne de « Ce qui scale » (SC05), filtres locaux des exemples d'un style (FO07), « Suivre une marque » en saisie libre sur le Radar (RD01, `C/spatial/veille/suivi-libre.ts` → `followBrand`). Gardes `W/test/lot7-veille-filtres-liste.test.tsx` (vraies vues rendues) et `packages/core/test/veille-filtres-locaux.test.ts`, 14 mutations tombées. **Reste** : C10, C12 (pas d'actions sur la carte de la maquette Spatial), F22 (Word et PDF demandent un générateur, lot séparé), F28 (réponses de `/jarvis/veille`), l'alerte par marque de RD01 (colonne sur `followed_brands`) · aucune migration ni dépense.
 
 ### 8 · Studios · créations filtrables, contrôle humain, projets renommés et dupliqués · M
 

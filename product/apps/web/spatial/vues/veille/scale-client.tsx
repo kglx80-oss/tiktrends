@@ -9,7 +9,9 @@ import {
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import { Vignette } from './base';
-import { BoutonSauvegarde, BoutonSuivi } from './client';
+import { BoutonSauvegarde, BoutonSuivi, DetailVeille, Portail } from './client';
+import { ATTR_OUVRIR_DETAIL, useDetailListe } from './filtres-locaux-client';
+import type { CarteVeilleDonnees } from './types';
 
 /**
  * « Ce qui scale » interactif (vague 3) · les outils de l'ancien swipe file sur
@@ -25,13 +27,17 @@ export interface LigneScaleOutil {
   ad: InspoAd; sauvee: boolean; suivie: boolean;
   site: { href: string; libelle: string } | null;
   biblio: { href: string; libelle: string } | null;
+  /** Lot 7 (VB SC05) · le détail de la pub, le même que dans « Pubs du moment » · absent, la ligne ne s'ouvre pas. */
+  carte?: CarteVeilleDonnees;
 }
 
 const SEGMENTS: ReadonlyArray<[TypeOutilScale, string]> = [['all', 'Tout'], ['static', 'Statiques'], ['video', 'Vidéos']];
 
-export function ScaleInteractif({ lignes, initial, annonceurs, angles }: {
+export function ScaleInteractif({ lignes, initial, annonceurs, angles, coutJarvis = '' }: {
   lignes: ReadonlyArray<LigneScaleOutil>; initial: FiltresOutilScale;
   annonceurs: readonly string[]; angles: ReadonlyArray<{ cle: string; libelle: string }>;
+  /** Le prix d'un message Jarvis, dit dans le détail AVANT tout envoi (`annonceConversationJarvis`). */
+  coutJarvis?: string;
 }) {
   const [f, setF] = useState<FiltresOutilScale>(initial);
   const premier = useRef(true);
@@ -49,6 +55,10 @@ export function ScaleInteractif({ lignes, initial, annonceurs, angles }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const visibles = useMemo(() => filtrerOutilsScale(lignes, f), [lignes, f]);
+  // Précédente / suivante parcourt la liste FILTRÉE, dans l'ordre affiché.
+  const cles = useMemo(() => visibles.filter((l) => l.carte).map((l) => l.cle), [visibles]);
+  const detail = useDetailListe(cles);
+  const ouverte = detail.ouverte ? lignes.find((l) => l.cle === detail.ouverte)?.carte ?? null : null;
   const criteres = criteresOutilsScale(f);
   const maj = (p: Partial<FiltresOutilScale>) => setF((x) => ({ ...x, ...p }));
   const champ = useRef<HTMLInputElement>(null);
@@ -89,10 +99,18 @@ export function ScaleInteractif({ lignes, initial, annonceurs, angles }: {
             <div className="srow" key={l.cle} data-ligne={l.cle}>
               <span className="faint num">{f.tri === 'duration' ? l.rang : i + 1}</span>
               <Vignette image={l.image} />
-              <div style={{ minWidth: 0 }}>
-                <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.accroche}</strong>
-                <span className="faint" style={{ fontSize: '11.5px' }}>{l.detail}</span>
-              </div>
+              {l.carte ? (
+                <button type="button" {...{ [ATTR_OUVRIR_DETAIL]: l.cle }} aria-label={`Voir le détail · ${l.accroche}`} onClick={() => detail.ouvrir(l.cle)}
+                  style={{ minWidth: 0, minHeight: 44, textAlign: 'left', background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer' }}>
+                  <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.accroche}</strong>
+                  <span className="faint" style={{ fontSize: '11.5px' }}>{l.detail}</span>
+                </button>
+              ) : (
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.accroche}</strong>
+                  <span className="faint" style={{ fontSize: '11.5px' }}>{l.detail}</span>
+                </div>
+              )}
               {/* `.dbar` est redéfinie plus loin dans la feuille (barre du Drive · flex,
                   marge basse) · la jauge de durée y tombait à 0 px. Elle reprend la place
                   libre (`flex:1`), sans toucher à `display` (masquée sous 1100 px). */}
@@ -118,6 +136,7 @@ export function ScaleInteractif({ lignes, initial, annonceurs, angles }: {
           <button type="button" className="btn sm" onClick={tout}>Réinitialiser les critères</button>
         </div></div>
       )}
+      {ouverte && detail.nav && <Portail><DetailVeille c={ouverte} coutJarvis={coutJarvis} fermer={detail.fermer} nav={detail.nav} /></Portail>}
     </>
   );
 }

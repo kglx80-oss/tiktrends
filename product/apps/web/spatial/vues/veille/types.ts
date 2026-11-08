@@ -15,6 +15,8 @@ export interface CarteVeilleDonnees {
   jours: string;
   signaux: ReadonlyArray<{ icone: 'eye' | 'copy'; texte: string; titre: string }>;
   pays: string | null;
+  /** Lot 7 (VB C02) · la plateforme de la source, dite sur la carte à côté du pays · absente, la carte ne la montre pas. */
+  plateforme?: string | null;
   portee: string | null;
   depense: string | null;
   croissance: { texte: string; classe: '' | 'up' | 'down' } | null;
