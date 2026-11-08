@@ -337,7 +337,7 @@ export async function recalculerVerdicts(
       protocolCheck: {
         ...p.check, summary: p.resume, checkedAt: maintenant.toISOString(),
         source: sourceDesEntrees(membres.flatMap((a) => lu.parAd.get(a.id) ?? [])),
-        cboMeta: membres.filter((a) => protocoles.get(a.id)?.source === 'meta' && protocoles.get(a.id)!.protocole.cbo).map((a) => a.id),
+        cboMeta: membres.filter((a) => protocoles.get(a.id)?.source === 'meta' && protocoles.get(a.id)!.protocole.cbo).map((a) => a.id).sort(), // trié · ensemble stable, quel que soit l'ordre de lecture des ads
       },
     }).where(and(eq(schema.batches.id, p.lotId), eq(schema.batches.brandId, brand.id)));
   }
