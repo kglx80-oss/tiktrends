@@ -26,7 +26,7 @@ export interface LienSimple { libelle: string; href: string }
  * détail des annonces suivies sur la période choisie (`mesures` / `vide`).
  */
 export type EtatReporting = { chiffres?: ChiffresClesMeta } & (
-  | { etat: 'mesures'; sous: string; periode: PeriodeReporting; rapides: ReadonlyArray<{ libelle: string; du: string; au: string }>; synthese: SyntheseReporting }
+  | { etat: 'mesures'; sous: string; periode: PeriodeReporting; rapides: ReadonlyArray<{ libelle: string; du: string; au: string }>; synthese: SyntheseReporting; /** `mentionImportees` · un export compte dans la période · absent, rien n'est ajouté. */ importees?: string | null }
   | { etat: 'vide'; sous: string; periode: PeriodeReporting; rapides: ReadonlyArray<{ libelle: string; du: string; au: string }>; message: string; lien: LienSimple | null }
   | { etat: 'connecter'; sous: string; message: string; lien: LienSimple | null });
 
@@ -85,7 +85,7 @@ function Reporting({ r }: { r: EtatReporting }) {
       </div>
       {r.chiffres && <div style={{ margin: '4px 0 16px' }}><ChiffresCles c={r.chiffres} /></div>}
       {/* La période choisie ne règle que le détail des annonces suivies · les chiffres clés ont leur fenêtre, dite dans leur phrase de source. */}
-      {r.etat !== 'connecter' && <p className="dperl faint">{r.chiffres ? `Détail de tes annonces suivies · ${r.periode.libelle}` : r.periode.libelle}</p>}
+      {r.etat !== 'connecter' && <p className="dperl faint" data-detail-reporting>{[r.chiffres ? `Détail de tes annonces suivies · ${r.periode.libelle}` : r.periode.libelle, r.etat === 'mesures' ? r.importees : null].filter(Boolean).join(' · ')}</p>}
       {r.etat === 'mesures' ? (
         <>
           <div className="dkpis">

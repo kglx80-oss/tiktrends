@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CHEMIN_BOUCLE_ACCUEIL, PASTILLES_JARVIS_ACCUEIL,
@@ -8,13 +8,14 @@ import {
   periodeReporting, raccourcisAccueil, salutationAccueil, sourcesJarvisAccueil, sousTitreReporting,
   surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil,
   SUGGESTIONS_ASSISTANT_ACCUEIL, costFor, noteAccesAccueil, prixQuestionAssistant, refusAssistant, resoudreAccueil,
-  DEFAULT_VERDICT_CONFIG, ecartAuLot,
+  DEFAULT_VERDICT_CONFIG, ecartAuLot, importeesDans, journeesReporting, mentionImportees,
   type JourneeMesuree, type LotAccueil, type SignalIteration, type VerdictConfig,
 } from '@tiktrends/core';
 import type { Session } from '../../../../lib/auth';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
 import { lireChiffresClesMeta } from '../../../../lib/chiffres-cles-meta';
+import { lireJourneesRetenues } from '../../../../lib/adsmap-mesures';
 import { FEATURES, canAccess, denyReason, ouverturesParRole, roleAtLeast, sectionsCompteOuvertes } from '../../../../lib/rbac';
 import { refusJarvis } from '../../../../lib/jarvis-acces';
 import { onboardingState } from '../../../../lib/onboarding-state';
@@ -136,26 +137,16 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
       };
     } else {
       const periode = periodeReporting({ periode: params.periode, du: params.du, au: params.au, aujourdhui: jourParis(maintenant) });
-      const M = schema.metricsDaily, I = schema.adInstances, C = schema.creatives;
-      const lignes = await lire('journées Meta', async () => (await db!.select({
-        date: M.date,
-        depense: sql<number>`coalesce(sum(${M.spend}), 0)`, impressions: sql<number>`coalesce(sum(${M.impressions}), 0)`,
-        clics: sql<number>`coalesce(sum(${M.clicks}), 0)`, achats: sql<number>`coalesce(sum(${M.conv}), 0)`,
-        revenu: sql<number>`coalesce(sum(${M.revenue}), 0)`, vues3s: sql<number>`coalesce(sum(${M.v3s}), 0)`,
-      }).from(M)
-        .innerJoin(I, eq(I.id, M.adInstanceId))
-        .innerJoin(C, eq(C.id, I.creativeId))
-        .where(and(eq(C.brandId, marque.id), eq(I.platform, 'meta'), gte(M.date, periode.precDebut), lte(M.date, periode.fin)))
-        .groupBy(M.date)).map((r): JourneeMesuree => ({
-        date: String(r.date), depense: Number(r.depense), impressions: Number(r.impressions), clics: Number(r.clics),
-        achats: Number(r.achats), revenu: Number(r.revenu), vues3s: Number(r.vues3s),
-      })));
+      // LA lecture des journées RETENUES (connexion Meta d'abord, export ensuite) · la même que les verdicts et Résultats.
+      const lu = await lire('journées mesurées', () => lireJourneesRetenues(marque.id, { du: periode.precDebut, au: periode.fin }));
+      const lignes: JourneeMesuree[] | null = lu ? journeesReporting(lu.entrees, periode.precDebut, periode.fin) : null;
+      const importees = lu ? importeesDans(lu.entrees, periode.debut, periode.fin) : 0;
       const sous = sousTitreReporting({ marque: marque.nom, connexion: connexion.libelle });
       const rapides = choixRapidesPeriode(jourParis(maintenant));
       const synthese = lignes ? syntheseReporting(lignes, periode) : null;
       const jamais = connexion.phase === 'jamais_synchronise';
       reporting = synthese
-        ? { etat: 'mesures', sous, chiffres, periode, rapides, synthese }
+        ? { etat: 'mesures', sous, chiffres, periode, rapides, synthese, importees: mentionImportees(importees) }
         : jamais && lignes
           // Jamais synchronisé · le geste est la première synchro (dans Connexions), pas Résultats.
           ? { etat: 'vide', sous, chiffres, periode, rapides,

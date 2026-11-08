@@ -39,6 +39,7 @@ export * from './adsmap/sheet';
 export * from './adsmap/import-sheet';
 export * from './adsmap/mesures-csv';
 export * from './adsmap/mesures-verdicts';
+export * from './adsmap/mesures-retenues';
 export * from './adsmap/remontee-planifiee';
 export * from './adsmap/liens-app-import';
 export * from './adsmap/protocol';

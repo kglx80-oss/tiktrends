@@ -44,8 +44,23 @@ export function sousNavResultats(o: { admin: boolean }): Array<{ href: string; l
 
 /* ───────────────────────── indicateurs de la vue d'ensemble ───────────────────────── */
 
-/** Les journées mesurées d'une période, sommées (`metrics_daily` des annonces rattachées à la marque). */
-export interface AgregatMesures { depense: number; impressions: number; vues3s: number; achats: number; ventes: number }
+/**
+ * Les journées RETENUES d'une période, sommées (`sommeRetenues` · la connexion
+ * Meta d'abord, l'export Ads Manager ensuite). `importees` · combien d'entrées
+ * viennent d'un export (absent · aucune).
+ */
+export interface AgregatMesures { depense: number; impressions: number; vues3s: number; achats: number; ventes: number; importees?: number }
+
+/**
+ * Le sous-titre des indicateurs de la vue d'ensemble · la période, la source.
+ * Un export Ads Manager qui compte dans la période se dit · sans connexion Meta,
+ * les chiffres viennent alors du fichier seul, pas de « rien ».
+ */
+export function sousKpisResultats(o: { jours: number; metaConnecte: boolean; importees: number }): string {
+  const base = `${o.jours} derniers jours`;
+  if (o.metaConnecte) return o.importees > 0 ? `${base} · Meta et export Ads Manager` : `${base} · Meta`;
+  return o.importees > 0 ? `${base} · export Ads Manager · aucun compte Meta connecté` : `${base} · aucun compte Meta connecté`;
+}
 
 export interface KpiResultats { libelle: string; valeur: string; delta: string; classe: '' | 'up'; note: string }
 
@@ -89,7 +104,7 @@ export function kpisResultats(cur: AgregatMesures, prec: AgregatMesures | null):
     {
       libelle: 'Dépense', valeur: `${fr(Math.round(cur.depense))} €`,
       delta: dp === null ? '' : signe(dp, `${fr(Math.abs(dp) * 100, 1)} %`), classe: '',
-      note: 'Annonces rattachées à Adsmap · Meta',
+      note: cur.importees ? 'Annonces rattachées à Adsmap · Meta et export Ads Manager' : 'Annonces rattachées à Adsmap · Meta',
     },
   ];
 }
