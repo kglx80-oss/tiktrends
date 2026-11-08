@@ -19,6 +19,7 @@ import { useZoomEditeur } from '../../../lib/studios/editeur/use-zoom-editeur';
 import { effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale } from '../../../lib/studios/editeur/sauvegarde-locale';
 import { useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
+import { boutonAction, replacerFocus } from './action-serveur';
 import { LienIdentite, Message } from './briques';
 
 /**
@@ -76,21 +77,7 @@ function chargerPolices() {
 }
 const pct = (v: number, t: number) => `${(v / t) * 100}%`;
 
-/**
- * Le focus ne tombe jamais sur `<body>` quand son élément disparaît (UX-02,
- * porté de l'éditeur V5) · au rendu suivant, le premier sélecteur présent le prend.
- */
-function focaliserApres(...selecteurs: string[]) {
-  setTimeout(() => {
-    for (const s of selecteurs) {
-      const el = document.querySelector<HTMLElement>(s);
-      if (el && !(el as HTMLButtonElement).disabled) { el.focus(); return; }
-    }
-  }, 0);
-}
 const selecteurCalque = (id: string) => `[data-layer="${id.replace(/["\\]/g, '\\$&')}"]`;
-/** L'aspect d'un bouton fermé mais FOCALISABLE (`aria-disabled`) · les valeurs de `.btn[disabled]` de la maquette. */
-const FERME = { opacity: 0.5, cursor: 'default' } as const;
 
 /** Téléphone · le seuil de la maquette (`max-width:760px`). Le rendu serveur vaut ordinateur, la lecture suit au montage. */
 const MEDIA_TELEPHONE = '(max-width: 760px)';
@@ -227,7 +214,7 @@ export function Editeur(props: PropsEditeur) {
     if (r.ok) {
       setBase({ id: r.version.id, n: r.version.n, document: doc });
       // Création du document · le bloc « Créer » disparaît, le focus passe à la surface qui le remplace.
-      if (!h) { setH(historiqueInitial(doc)); focaliserApres('#art .ad[role="group"]'); }
+      if (!h) { setH(historiqueInitial(doc)); replacerFocus('toujours', '#art .ad[role="group"]'); }
       effacerSauvegardeLocale(projet.id); setSecours(null);
       toast(r.inchange ? 'Aucun changement à enregistrer' : `Enregistré · version ${r.version.n}`);
       return;
@@ -252,7 +239,7 @@ export function Editeur(props: PropsEditeur) {
     if (reappliquer && conflit.reappliquable) setH(conflit.document ? enregistrerEtape(historiqueInitial(conflit.document), conflit.reappliquable, 'Réappliquer mes modifications') : historiqueInitial(conflit.reappliquable));
     else setH(conflit.document ? historiqueInitial(conflit.document) : null);
     setConflit(null); setSelection(null);
-    focaliserApres('[data-action="enregistrer"]', '[data-action="versions"]');
+    replacerFocus('toujours', '[data-action="enregistrer"]', '[data-action="versions"]');
     toast(reappliquer ? `Version ${v.n} rechargée · tes modifications sont réappliquées, enregistre pour les garder` : `Version ${v.n} rechargée`);
   };
 
@@ -321,7 +308,7 @@ export function Editeur(props: PropsEditeur) {
     setH(r.document ? historiqueInitial(r.document) : null);
     setSelection(null);
     // Le détail de la version se referme et la liste se relit · le focus revient au bouton de la tuile.
-    focaliserApres('[data-action="versions"]');
+    replacerFocus('toujours', '[data-action="versions"]');
     toast(`Version ${r.restauree.n} restaurée · c’est maintenant la version ${r.version.n}.`);
   }
 
@@ -404,8 +391,8 @@ export function Editeur(props: PropsEditeur) {
             <button className="btn sm" type="button" disabled={!annulable} title={annulable ? `Annuler · ${annulable} (Ctrl+Z)` : 'Rien à annuler'} onClick={() => derniers.current.annuler()}>Annuler</button>
             <button className="btn sm" type="button" disabled={!retablissable} title={retablissable ? `Rétablir · ${retablissable} (Ctrl+Maj+Z)` : 'Rien à rétablir'} onClick={() => derniers.current.retablir()}>Rétablir</button>
             {/* Jamais `disabled` · fermé, il GARDE le focus (après un clic, le bouton se ferme sous le doigt et le clavier repartirait du haut de la page). */}
-            <button className="btn sm pri" type="button" data-action="enregistrer" aria-disabled={!enregistrable || undefined} aria-busy={enCours || undefined}
-              style={enregistrable || enCours ? undefined : FERME} onClick={() => void enregistrer()}><Ic n="check" />{enCours ? 'Enregistrement…' : 'Enregistrer'}</button>
+            <button className="btn sm pri" type="button" data-action="enregistrer"
+              {...boutonAction({ presse: enCours, ferme: !enregistrable, focalisable: 'tout', surClic: () => void enregistrer() })}><Ic n="check" />{enCours ? 'Enregistrement…' : 'Enregistrer'}</button>
           </>
         )}
         {!editable && <span className="pill" style={{ marginLeft: 'auto' }}><Ic n="lock" />Lecture seule</span>}
@@ -487,8 +474,8 @@ export function Editeur(props: PropsEditeur) {
                 {editable && produit && (
                   <button type="button" className="chip" aria-pressed={avecProduit} onClick={() => setAvecProduit((v) => !v)}>Poser la photo produit, centrée, à {Math.round(PART_PRODUIT_INITIALE * 100)} % de la largeur</button>
                 )}
-                {editable && <button className="btn pri" type="button" data-action="creer-document" aria-disabled={enCours || undefined} aria-busy={enCours || undefined}
-                  onClick={() => void enregistrer(documentInitial(formatNouveau, { produit: avecProduit ? produit : null }), 'Création du document')}>{enCours ? 'Création…' : `Créer le document ${FORMATS_DOCUMENT[formatNouveau].libelle}`}</button>}
+                {editable && <button className="btn pri" type="button" data-action="creer-document"
+                  {...boutonAction({ presse: enCours, surClic: () => void enregistrer(documentInitial(formatNouveau, { produit: avecProduit ? produit : null }), 'Création du document') })}>{enCours ? 'Création…' : `Créer le document ${FORMATS_DOCUMENT[formatNouveau].libelle}`}</button>}
               </div>
             )}
           </div>
@@ -508,7 +495,7 @@ export function Editeur(props: PropsEditeur) {
       {telephone && panneau === 'proprietes' && calque && (
         <PanneauPleinEcran titre={`Propriétés de « ${calque.name} »`} nom="proprietes" onFermer={() => setPanneau(null)}>
           <div className="insp">{inspecteur}</div>
-          {editable && <GestesCalque calque={calque} operer={operer} retire={(suivant) => { setSelection(suivant); setPanneau(null); focaliserApres('[data-ouvrir-panneau="calques"]'); }} ordre={pile.map((c) => c.id).reverse()} />}
+          {editable && <GestesCalque calque={calque} operer={operer} retire={(suivant) => { setSelection(suivant); setPanneau(null); replacerFocus('toujours', '[data-ouvrir-panneau="calques"]'); }} ordre={pile.map((c) => c.id).reverse()} />}
         </PanneauPleinEcran>
       )}
 
@@ -525,14 +512,14 @@ export function Editeur(props: PropsEditeur) {
             <div className="grid3" style={{ marginTop: 12 }}>
               {medias.map((m) => (
                 <button key={m.assetId} type="button" className="prow" style={{ textAlign: 'left', cursor: 'pointer' }}
-                  onClick={() => { operer((d) => ajouterMedia(d, { kind: 'image', assetId: m.assetId, sourceWidth: m.width, sourceHeight: m.height, nom: m.nom })); setMediasOuverts(false); focaliserApres('[data-ajouter="media"]'); }}>
+                  onClick={() => { operer((d) => ajouterMedia(d, { kind: 'image', assetId: m.assetId, sourceWidth: m.width, sourceHeight: m.height, nom: m.nom })); setMediasOuverts(false); replacerFocus('toujours', '[data-ajouter="media"]'); }}>
                   {apercus[m.assetId] && <img src={apercus[m.assetId]} alt="" />}
                   <span className="t"><strong style={{ fontSize: '12.5px' }}>{m.nom}</strong><small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{m.width} × {m.height} px</small></span>
                 </button>
               ))}
             </div>
           )}
-          {calque && <GestesCalque calque={calque} operer={operer} retire={(suivant) => { setSelection(suivant); focaliserApres(...(suivant ? [selecteurCalque(suivant)] : []), '[data-ajouter="texte"]', '[data-action="versions"]'); }} ordre={pile.map((c) => c.id).reverse()} />}
+          {calque && <GestesCalque calque={calque} operer={operer} retire={(suivant) => { setSelection(suivant); replacerFocus('toujours', ...(suivant ? [selecteurCalque(suivant)] : []), '[data-ajouter="texte"]', '[data-action="versions"]'); }} ordre={pile.map((c) => c.id).reverse()} />}
         </section>
       )}
 
@@ -613,9 +600,9 @@ function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit
   if (liste.etat === 'chargement') return <p className="faint" role="status" style={{ fontSize: '12.5px', marginTop: 10 }}>Lecture des versions…</p>;
   if (liste.etat === 'erreur') return (
     <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-      <Message ton="err" etiquette={liste.horsLigne ? 'Hors ligne' : undefined}>{liste.message}</Message>
+      <Message ton="err" horsLigne={liste.horsLigne}>{liste.message}</Message>
       {/* « Réessayer » disparaît pendant la relecture · le focus revient au bouton de la tuile. */}
-      <div className="kc"><button className="btn sm" type="button" data-action="relire-versions" onClick={() => { setEssai((n) => n + 1); focaliserApres('[data-action="versions"]'); }}>Réessayer</button></div>
+      <div className="kc"><button className="btn sm" type="button" data-action="relire-versions" onClick={() => { setEssai((n) => n + 1); replacerFocus('toujours', '[data-action="versions"]'); }}>Réessayer</button></div>
     </div>
   );
   return (
@@ -639,8 +626,8 @@ function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit
                 {apercu?.etat === 'chargement' && <p className="faint" role="status" style={{ fontSize: '12.5px' }}>Lecture de la version {v.n}…</p>}
                 {apercu?.etat === 'erreur' && (
                   <>
-                    <Message ton="err" etiquette={apercu.horsLigne ? 'Hors ligne' : undefined}>{apercu.message}</Message>
-                    <div className="kc"><button className="btn sm" type="button" data-action="relire-apercu" onClick={() => { void lireApercu(v.id); focaliserApres(`[data-comparer="${v.n}"]`); }}>Réessayer</button></div>
+                    <Message ton="err" horsLigne={apercu.horsLigne}>{apercu.message}</Message>
+                    <div className="kc"><button className="btn sm" type="button" data-action="relire-apercu" onClick={() => { void lireApercu(v.id); replacerFocus('toujours', `[data-comparer="${v.n}"]`); }}>Réessayer</button></div>
                   </>
                 )}
                 {a && (
@@ -658,9 +645,8 @@ function VersionsDocument({ projectId, base, editable, modifie, enCours, conflit
                         {!decision.permis && !restauration.enCours && <p className="faint" data-refus-restauration="" style={{ fontSize: '11.5px' }}>{decision.raison}</p>}
                         {restauration.erreur && <p className="muted" role="alert" style={{ fontSize: '12.5px' }}>{restauration.erreur}</p>}
                         {/* Pendant la restauration, le bouton pressé reste focalisable (`aria-disabled`, `aria-busy`) · `disabled` rendrait le focus au document. */}
-                        <div className="kc"><button className="btn sm pri" type="button" data-action="restaurer" disabled={!decision.permis && !restauration.enCours}
-                          aria-disabled={restauration.enCours || undefined} aria-busy={restauration.enCours || undefined}
-                          onClick={() => { if (decision.permis) void restaurer(v); }}>{restauration.enCours ? 'Restauration…' : 'Restaurer cette version'}</button></div>
+                        <div className="kc"><button className="btn sm pri" type="button" data-action="restaurer"
+                          {...boutonAction({ presse: restauration.enCours, ferme: !decision.permis, surClic: () => void restaurer(v) })}>{restauration.enCours ? 'Restauration…' : 'Restaurer cette version'}</button></div>
                       </div>
                     )}
                   </>

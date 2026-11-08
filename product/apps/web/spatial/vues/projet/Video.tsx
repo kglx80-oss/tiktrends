@@ -19,6 +19,7 @@ import { cleRetour, useFocusApresGeste } from '../../../lib/studios/focus-geste'
 import { useRegime, useSpatial } from '../../coquille/contexte';
 import { EnTete, Ic, Lien, Vue, useTelephone } from '../../communs';
 import { Ornement } from '../studios/Ornement';
+import { boutonAction, replacerFocus } from './action-serveur';
 import { Message } from './briques';
 import { AnnonceLogos } from './LogosAReimporter';
 
@@ -86,22 +87,10 @@ const actionDuGeste = (cle: CleGestePlan, sid: string) => `${cle === 'consigne' 
 
 /**
  * Le focus ne tombe jamais sur `<body>` quand son contrôle disparaît (UX-02) ·
- * au rendu suivant, s'il est PERDU (rien ne l'a repris, ni l'aperçu ni le
- * message de `useFocusApresGeste`), le premier sélecteur présent et ouvert le
- * prend. Cousin de `focaliserApres` (Éditeur), qui, lui, focalise toujours.
+ * ici en mode `si-perdu` (brique `replacerFocus`) · s'il est PERDU (rien ne
+ * l'a repris, ni l'aperçu ni le message de `useFocusApresGeste`), le premier
+ * sélecteur présent et ouvert le prend. L'Éditeur, lui, focalise toujours.
  */
-function rattraperFocus(...selecteurs: string[]) {
-  setTimeout(() => {
-    const a = document.activeElement;
-    if (a && a !== document.body && a.isConnected) return;
-    for (const s of selecteurs) {
-      const el = document.querySelector<HTMLElement>(s);
-      if (el && !(el as HTMLButtonElement).disabled) { el.focus(); return; }
-    }
-  }, 0);
-}
-/** L'aspect d'un bouton fermé mais FOCALISABLE (`aria-disabled`) · les valeurs de `.btn[disabled]` de la maquette. */
-const FERME = { opacity: 0.5, cursor: 'default' } as const;
 
 const heure = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 const date = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
@@ -207,7 +196,6 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
   const gesteChoisi = gestes.find((g) => g.cle === geste) ?? null;
   // Pendant l'envoi, seul le bouton qui l'a lancé dit « En cours… » ; il reste focalisable.
   const gestePresse = !!gesteChoisi && !!plan && enCours === actionDuGeste(gesteChoisi.cle, plan);
-  const gesteOuvert = !!gesteChoisi && gesteChoisi.actif && !enCours;
   // Les leviers fermés disent pourquoi, en toutes lettres SOUS la grille (dans le levier, l'opacité de
   // `.vlev:disabled` ramène le texte à 2,8:1 en sombre et 2,0:1 en clair) · une raison partagée n'est dite qu'une fois.
   const raisonsFermees: Array<{ raison: string; cles: CleGestePlan[]; titres: string[] }> = [];
@@ -339,7 +327,7 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
             {plan && (
               <div className="vlevs">
                 {gestes.map((g) => (
-                  <button key={g.cle} type="button" className="vlev" data-vlev={g.cle} aria-pressed={geste === g.cle} disabled={!g.actif || !!enCours} aria-describedby={g.actif ? undefined : idRaison(g.cle)} onClick={() => setGeste((x) => (x === g.cle ? null : g.cle))}>
+                  <button key={g.cle} type="button" className="vlev" data-vlev={g.cle} aria-pressed={geste === g.cle} {...boutonAction({ occupe: !!enCours, ferme: !g.actif })} aria-describedby={g.actif ? undefined : idRaison(g.cle)} onClick={() => setGeste((x) => (x === g.cle ? null : g.cle))}>
                     <strong>{g.titre}</strong><small>{g.sous}</small><span className="pill">{g.prix}</span>
                   </button>
                 ))}
@@ -356,11 +344,11 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
                 <DetailGeste cle={gesteChoisi.cle} k={k} c={c} vue={v} coutTexte={coutTexte} />
                 <div className="kc">
                   {/* Jamais `disabled` · pressé, il GARDE le focus pendant l'envoi (sinon le clavier repartirait du haut de la page). */}
-                  <button className="btn sm pri" type="button" data-action="geste" aria-disabled={!gesteOuvert || undefined} aria-busy={gestePresse || undefined}
-                    style={gesteOuvert || gestePresse ? undefined : FERME} onClick={() => { if (gesteOuvert) lancerGeste(gesteChoisi.cle); }}>
+                  <button className="btn sm pri" type="button" data-action="geste"
+                    {...boutonAction({ presse: gestePresse, occupe: !!enCours, ferme: !gesteChoisi.actif, focalisable: 'tout', surClic: () => lancerGeste(gesteChoisi.cle) })}>
                     {gestePresse ? 'En cours…' : libelleConfirmation(gesteChoisi.cle, k.devis?.credits ?? null, c.devis?.credits ?? null)}
                   </button>
-                  <button className="btn sm" type="button" disabled={!!enCours} onClick={() => { const cle = gesteChoisi.cle; setGeste(null); rattraperFocus(`[data-vlev="${cle}"]`); }}>Fermer</button>
+                  <button className="btn sm" type="button" {...boutonAction({ occupe: !!enCours })} onClick={() => { const cle = gesteChoisi.cle; setGeste(null); replacerFocus('si-perdu', `[data-vlev="${cle}"]`); }}>Fermer</button>
                   {!gestePresse && !gesteChoisi.actif && gesteChoisi.raison && <small className="faint" data-raison-ferme="geste" style={{ fontSize: '11.5px', alignSelf: 'center' }}>{gesteChoisi.raison}</small>}
                 </div>
               </div>
@@ -371,8 +359,8 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
               <div ref={retourRef} tabIndex={-1} data-retour={retour.ton === 'ok' ? 'ok' : 'refus'} data-echec={echec ? retour.code : undefined}>
                 <p role={retour.ton === 'ok' ? 'status' : 'alert'} className="muted" style={{ fontSize: '12.5px' }}><span className={`pill ${retour.ton === 'ok' ? 'g' : 'w'}`}>{retour.ton === 'ok' ? 'Fait' : echec?.mot ?? 'Refusé'}</span>{' · '}{retour.texte}</p>
                 {/* Le message disparaît sous le doigt · le focus va au geste en cours (« Réessayer ») ou au levier du plan (« Recharger »). */}
-                {echec?.action === 'recharger' && <button className="btn sm" type="button" data-bouton="recharger" disabled={!!enCours} onClick={() => { rechargerVersion(); rattraperFocus('[data-vlev][aria-pressed="true"]', '[data-vsel][aria-pressed="true"]', '[data-vedit]'); }} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
-                {echec?.action === 'reessayer' && retour.reessayable && <button className="btn sm" type="button" data-bouton="reessayer" disabled={!!enCours} onClick={() => { dernierGeste.current?.(); rattraperFocus('[aria-busy="true"]', '[data-vsel][aria-pressed="true"]', '[data-vedit]'); }} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
+                {echec?.action === 'recharger' && <button className="btn sm" type="button" data-bouton="recharger" {...boutonAction({ occupe: !!enCours })} onClick={() => { rechargerVersion(); replacerFocus('si-perdu', '[data-vlev][aria-pressed="true"]', '[data-vsel][aria-pressed="true"]', '[data-vedit]'); }} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
+                {echec?.action === 'reessayer' && retour.reessayable && <button className="btn sm" type="button" data-bouton="reessayer" {...boutonAction({ occupe: !!enCours })} onClick={() => { dernierGeste.current?.(); replacerFocus('si-perdu', '[aria-busy="true"]', '[data-vsel][aria-pressed="true"]', '[data-vedit]'); }} style={{ marginTop: 8 }}>{echec.libelleAction}</button>}
               </div>
             )}
           </section>
@@ -415,10 +403,10 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
           <div className="kc" style={{ marginTop: 10 }}>
             {/* Même place, même balise · React garde le nœud, le focus passe de « Recalculer » à « Enregistrer » sans rattrapage. */}
             {confirmation && !confirmation.ok
-              ? <button className="btn sm pri" type="button" disabled={!!enCours} onClick={() => prevoir(apercu.operation)}>Recalculer l’aperçu</button>
-              : <button className="btn sm pri" type="button" data-action="enregistrer-changement" disabled={!!apercu.refus || !disponibilite.montage.disponible} aria-disabled={!!enCours || undefined} aria-busy={enCours === 'confirmer' || undefined}
-                  style={!enCours || enCours === 'confirmer' ? undefined : FERME} onClick={confirmer}>{enCours === 'confirmer' ? 'Enregistrement…' : 'Enregistrer ce changement'}</button>}
-            <button className="btn sm" type="button" disabled={!!enCours} onClick={() => setApercu(null)}>Ne rien changer</button>
+              ? <button className="btn sm pri" type="button" {...boutonAction({ occupe: !!enCours })} onClick={() => prevoir(apercu.operation)}>Recalculer l’aperçu</button>
+              : <button className="btn sm pri" type="button" data-action="enregistrer-changement"
+                  {...boutonAction({ presse: enCours === 'confirmer', occupe: !!enCours, ferme: !!apercu.refus || !disponibilite.montage.disponible, focalisable: 'occupe', surClic: confirmer })}>{enCours === 'confirmer' ? 'Enregistrement…' : 'Enregistrer ce changement'}</button>}
+            <button className="btn sm" type="button" {...boutonAction({ occupe: !!enCours })} onClick={() => setApercu(null)}>Ne rien changer</button>
             <span className="faint" style={{ fontSize: '11.5px' }}>{disponibilite.montage.disponible ? 'Nouvelle version du projet · aucun appel, aucun coût, aucun devis.' : disponibilite.montage.raison}</span>
           </div>
         </section>
@@ -432,8 +420,8 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
             {storyboard.plans.map((pl, i) => <div className="ev" key={pl.shotId}><span className="ico">{i + 1}</span><span>{pl.purpose || 'Plan'} · {pl.subject} · {pl.action}{pl.narration ? ` · « ${pl.narration} »` : ''}</span><span className="faint">{dureeLisible(pl.estimatedDurationMs)}</span></div>)}
           </div>
           <div className="kc" style={{ marginTop: 10 }}>
-            <button className="btn sm pri" type="button" disabled={!!enCours || !!apercu} onClick={() => prevoir({ type: 'scenario', plans: storyboard.plans })}>Voir l’impact et retenir</button>
-            <button className="btn sm" type="button" disabled={!!enCours} onClick={() => { setStoryboard(null); setQuestions([]); rattraperFocus('[data-action="proposer-storyboard"]', '[data-vedit]'); }}>Écarter</button>
+            <button className="btn sm pri" type="button" {...boutonAction({ occupe: !!enCours, ferme: !!apercu })} onClick={() => prevoir({ type: 'scenario', plans: storyboard.plans })}>Voir l’impact et retenir</button>
+            <button className="btn sm" type="button" {...boutonAction({ occupe: !!enCours })} onClick={() => { setStoryboard(null); setQuestions([]); replacerFocus('si-perdu', '[data-action="proposer-storyboard"]', '[data-vedit]'); }}>Écarter</button>
           </div>
         </section>
       )}
@@ -456,11 +444,11 @@ export function Video({ vue: v, marque, variantesHref, planInitial }: PropsVideo
         <p className="muted" style={{ fontSize: '12.5px', marginTop: 8 }}>Les clips animés des plans, dans l’ordre du montage, au format {v.format.largeur} × {v.format.hauteur}{v.videoFinale.possible ? ` · ${dureeLisible(v.videoFinale.dureeMs)}` : ''}.</p>
         {v.videoFinale.nonInclus.length > 0 && <p className="faint" style={{ fontSize: '12.5px' }}>Ce qu’elle n’inclut pas · {v.videoFinale.nonInclus.join(' · ')}</p>}
         <div className="kc" style={{ marginTop: 10 }}>
-          <button className="btn sm pri" type="button" data-action="assembler" disabled={!v.videoFinale.possible} aria-disabled={!!enCours || undefined} aria-busy={enCours === 'assembler' || undefined}
-            style={!enCours || enCours === 'assembler' ? undefined : FERME} onClick={() => { if (enCours) return; void agir('assembler', () => assemblerVideoFinale({ projectId: v.projet.id }), (r) => {
-            const x = r as { video?: { dureeMs: number } };
-            return `Vidéo finale assemblée${x.video ? ` · ${Math.round(x.video.dureeMs / 100) / 10} s` : ''} · lis-la ou télécharge-la ci-dessus.`;
-          }); }}>{enCours === 'assembler' ? 'Assemblage…' : finale ? 'Assembler à nouveau · 0 crédit' : 'Assembler la vidéo finale · 0 crédit'}</button>
+          <button className="btn sm pri" type="button" data-action="assembler"
+            {...boutonAction({ presse: enCours === 'assembler', occupe: !!enCours, ferme: !v.videoFinale.possible, focalisable: 'occupe', surClic: () => void agir('assembler', () => assemblerVideoFinale({ projectId: v.projet.id }), (r) => {
+              const x = r as { video?: { dureeMs: number } };
+              return `Vidéo finale assemblée${x.video ? ` · ${Math.round(x.video.dureeMs / 100) / 10} s` : ''} · lis-la ou télécharge-la ci-dessus.`;
+            }) })}>{enCours === 'assembler' ? 'Assemblage…' : finale ? 'Assembler à nouveau · 0 crédit' : 'Assembler la vidéo finale · 0 crédit'}</button>
           <span className="faint" style={{ fontSize: '11.5px' }}>{v.videoFinale.possible ? 'Quelques secondes à une minute · tu peux rester sur la page.' : v.videoFinale.raison}</span>
         </div>
       </section>
@@ -638,8 +626,8 @@ function Script({ vue: v, ordre, libre, prevoir, coutTexte, enCours, storyboardD
       </div>
       <div className="kc" style={{ marginTop: 10 }}>
         {/* Le verrou d'appel payant ferme le storyboard PENDANT son propre appel · le bouton pressé reste focalisable (`aria-busy`). */}
-        <button className="btn sm pri" type="button" data-action="proposer-storyboard" disabled={!storyboardDispo.disponible && enCours !== 'storyboard'} aria-disabled={!!enCours || undefined} aria-busy={enCours === 'storyboard' || undefined}
-          style={!enCours || enCours === 'storyboard' ? undefined : FERME} onClick={() => { if (!enCours) surStoryboard({ nbPlans: nb, dureeCibleMs: Math.round(duree * 1000), speechMode: mode }); }}><Ic n="spark" />{enCours === 'storyboard' ? 'Rédaction…' : 'Proposer un storyboard depuis le brief'}</button>
+        <button className="btn sm pri" type="button" data-action="proposer-storyboard"
+          {...boutonAction({ presse: enCours === 'storyboard', occupe: !!enCours, ferme: !storyboardDispo.disponible, focalisable: 'occupe', surClic: () => surStoryboard({ nbPlans: nb, dureeCibleMs: Math.round(duree * 1000), speechMode: mode }) })}><Ic n="spark" />{enCours === 'storyboard' ? 'Rédaction…' : 'Proposer un storyboard depuis le brief'}</button>
         <span className="faint" style={{ fontSize: '11.5px' }} data-cout="storyboard">{storyboardDispo.disponible ? `${coutTexte} · rien n’est écrit avant que tu retiennes les plans.` : storyboardDispo.raison}</span>
       </div>
       <div className="kc" style={{ marginTop: 8 }}>

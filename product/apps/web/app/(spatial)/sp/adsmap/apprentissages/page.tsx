@@ -1,7 +1,7 @@
 import {
   attendArbitrage, etatApprentissage, iconeApprentissage, lienLotSpatial, niveauPreuveApprentissage, piedApprentissage,
   preuveApprentissage, sousNavResultats, syntheseLot, etatLotSpatial, actionApprentissage, tiroirApprentissage, refusVersRegles,
-  conclusionLot, referenceConclusion, regleDejaPresente, type FaitsApprentissage, type LectureConclusion,
+  conclusionLot, referenceConclusion, regleDejaPresente, departDepuisApprentissage, noteDepartApprentissage, type FaitsApprentissage, type LectureConclusion,
 } from '@tiktrends/core';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
@@ -18,7 +18,10 @@ export const dynamic = 'force-dynamic';
  * « Ajouter aux règles de la marque » s'ouvre aux mêmes personnes que l'écriture
  * des règles (`saveJarvisRulesAction` · admin et Jarvis ouvert) · « Rejeter »
  * aux mêmes que la validation d'un verdict (membre Adsmap). Fermé, chaque geste
- * dit pourquoi.
+ * dit pourquoi. « En tirer une hypothèse » (RJ A04) · la garde de
+ * `creerHypotheseAction` (membre Adsmap, marque active), la même que celle de
+ * cette page · il est offert sur chaque apprentissage écrit, rejeté compris
+ * (il sert alors à le retester · `departDepuisApprentissage`).
  */
 export default async function ApprentissagesSpatial() {
   const g = await gardeResultats();
@@ -68,6 +71,10 @@ export default async function ApprentissagesSpatial() {
         learningId: a.id,
         regles: refusVersRegles(f, dansLesRegles) ?? fermeRegles,
         rejete: a.statut === 'validated' ? a.refute : null,
+        hypothese: {
+          depart: departDepuisApprentissage(a.enonce, { variable: lien?.ad.variable, rejete: a.refute }),
+          note: noteDepartApprentissage({ rejete: a.refute }),
+        },
       },
     };
   });

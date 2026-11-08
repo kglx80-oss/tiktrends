@@ -6,7 +6,7 @@ import { exporterBrief } from '../../../app/actions/studios/sources';
 import { Anneau, Ic, Lien } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 import { Message } from './briques';
-import { pendantAction } from './focus';
+import { boutonAction } from './action-serveur';
 import { Propositions } from './Propositions';
 import type { PropsBriefProjet } from './types';
 
@@ -187,16 +187,16 @@ function ExporterBrief({ projectId, versionId, autorise, possible }: { projectId
     <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
       {/* Pendant la lecture, le bouton pressé garde le focus (`aria-disabled`, `aria-busy`) et ignore un second clic ; les deux autres sont fermés. */}
       <div className="kc">
-        <button className="btn sm pri" type="button" data-export-brief="markdown" {...pendantAction({ presse: enCours === 'markdown', occupe: enCours !== null })}
-          onClick={() => { if (!enCours) void exporter('markdown'); }}><Ic n="down" />{enCours === 'markdown' ? 'Export…' : 'Exporter le brief'}</button>
-        <button className="btn sm" type="button" data-export-brief="copie" {...pendantAction({ presse: enCours === 'copie', occupe: enCours !== null })}
-          onClick={() => { if (!enCours) void exporter('markdown', true); }}><Ic n="copy" />{enCours === 'copie' ? 'Copie…' : 'Copier le brief'}</button>
-        <button className="btn sm" type="button" data-export-brief="json" {...pendantAction({ presse: enCours === 'json', occupe: enCours !== null })}
-          onClick={() => { if (!enCours) void exporter('json'); }}>{enCours === 'json' ? 'Export…' : 'Exporter en JSON'}</button>
+        <button className="btn sm pri" type="button" data-export-brief="markdown"
+          {...boutonAction({ presse: enCours === 'markdown', occupe: enCours !== null, surClic: () => void exporter('markdown') })}><Ic n="down" />{enCours === 'markdown' ? 'Export…' : 'Exporter le brief'}</button>
+        <button className="btn sm" type="button" data-export-brief="copie"
+          {...boutonAction({ presse: enCours === 'copie', occupe: enCours !== null, surClic: () => void exporter('markdown', true) })}><Ic n="copy" />{enCours === 'copie' ? 'Copie…' : 'Copier le brief'}</button>
+        <button className="btn sm" type="button" data-export-brief="json"
+          {...boutonAction({ presse: enCours === 'json', occupe: enCours !== null, surClic: () => void exporter('json') })}>{enCours === 'json' ? 'Export…' : 'Exporter en JSON'}</button>
       </div>
       <p className="faint" style={{ fontSize: '11.5px' }}>Gratuit · aucune génération. Le fichier suffit pour produire avec un autre outil.</p>
       {/* Sans réponse du serveur, rien n'a été refusé · la pastille dit « Hors ligne ». */}
-      {etat && <Message ton={etat.ton} etiquette={etat.horsLigne ? 'Hors ligne' : undefined}>{etat.texte}</Message>}
+      {etat && <Message ton={etat.ton} horsLigne={etat.horsLigne}>{etat.texte}</Message>}
     </div>
   );
 }

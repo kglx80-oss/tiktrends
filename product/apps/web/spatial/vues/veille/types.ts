@@ -50,4 +50,10 @@ export interface DetailVeille {
    * fermé avec sa raison (`accesHypothese`). Absent, le geste n'est pas rendu.
    */
   hypothese?: AccesHypothese;
+  /**
+   * « Itérer à partir de cette pub » (VB F26) · l'écran Itérer, cette pub en
+   * source d'inspiration (`lienIterationVeille`) · même porte que la garde
+   * serveur (`adsmap`, marque active). Absent, le geste n'est pas rendu.
+   */
+  iterationVeille?: { acces: AccesHypothese; href: string };
 }

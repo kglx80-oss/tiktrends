@@ -43,15 +43,15 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot) et lot 4 (mesures · import d'export Meta et remontée planifiée · RJ R01, L05, I04, I06 · CA K12, K13, K14) · sortie de `node docs/ux-v5/compter-statuts.mjs`
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26) et lot 4 (mesures) · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Coquille et Accueil | 105 | 0 | 14 | 12 | 9 | 12 | 152 |
 | Veille, Bibliothèque, Marques | 99 | 0 | 64 | 29 | 18 | 3 | 213 |
 | Projets et canvas | 98 | 0 | 39 | 13 | 4 | 6 | 160 |
-| Résultats, Jarvis, ADMIN+ | 72 | 0 | 33 | 14 | 20 | 1 | 140 |
-| **Total** | **374** | **0** | **150** | **68** | **51** | **22** | **665** |
+| Résultats, Jarvis, ADMIN+ | 73 | 0 | 33 | 13 | 20 | 1 | 140 |
+| **Total** | **375** | **0** | **150** | **67** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 

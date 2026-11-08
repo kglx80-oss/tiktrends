@@ -8,6 +8,7 @@ import type { ExportRealise, VueExport } from '../../../lib/studios/export/expor
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien, Vue } from '../../communs';
 import { EnTeteAtelier } from './Atelier';
+import { boutonAction } from './action-serveur';
 import { LienIdentite, Message } from './briques';
 
 /**
@@ -66,17 +67,13 @@ export function Export({ vue, atelier }: PropsExport) {
   const titres = { controle: `${id}-controle`, fichier: `${id}-fichier`, version: `${id}-version`, historique: `${id}-historique` };
 
   /**
-   * Un bouton d'export · pendant l'export, celui qu'on a pressé reste
-   * FOCALISABLE (`aria-disabled`, `aria-busy`, le clic est ignoré) · un bouton
-   * `disabled` sous le focus le rend au document et le clavier repart du haut
-   * de la page. L'autre format est fermé (`disabled`) comme avant.
+   * Un bouton d'export (brique `boutonAction`) · pendant l'export, celui qu'on
+   * a pressé reste FOCALISABLE, son second clic est ignoré · l'autre format est
+   * fermé (`disabled`) comme avant.
    */
   const bouton = (format: FormatExport) => ({
     'data-format': format,
-    disabled: !pret || (encours !== null && encours !== format),
-    'aria-disabled': encours === format || undefined,
-    'aria-busy': encours === format || undefined,
-    onClick: () => { if (encours === null) void exporter(format); },
+    ...boutonAction({ presse: encours === format, occupe: encours !== null, ferme: !pret, surClic: () => void exporter(format) }),
   });
 
   /** Le chemin de sortie d'un refus · les points à corriger vivent dans le document de la version. */
