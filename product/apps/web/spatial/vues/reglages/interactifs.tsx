@@ -50,6 +50,21 @@ export interface ActionsConnexionMeta {
   choisirCompte: (id: string) => Promise<{ ok?: true; accountName?: string; error?: string }>;
   comptes: ReadonlyArray<{ id: string; name: string }>;
   compte: string | null;
+  /**
+   * La remontée planifiée (lot 4 V5) · « Rattacher aux lots » (comptes du
+   * noyau `bilanRattachement`) et « Remontée » (chaque nuit, active ou
+   * suspendue, `reglerRemonteeNocturneAction`). Absente, le dialogue est celui
+   * d'avant.
+   */
+  remontee?: {
+    rattachement: string;
+    libelle: string;
+    erreur: string | null;
+    active: boolean;
+    /** Le réglage est fermé · sa raison, écrite à côté. */
+    raisonFermee: string | null;
+    regler: (active: boolean) => Promise<{ ok?: true; error?: string }>;
+  };
 }
 
 export interface ActionsConnexionShopify {
@@ -139,6 +154,7 @@ function FormMeta({ meta, appeler }: { meta: ActionsConnexionMeta; appeler: Appe
 
 function GererMeta({ meta, appeler }: { meta: ActionsConnexionMeta; appeler: Appeler }) {
   return (
+    <>
     <div className="nprefs">
       {meta.comptes.length === 0 && <div className="npr"><div><strong>{meta.compte ?? 'Compte publicitaire'}</strong><small>Compte Meta Ads de la marque</small></div></div>}
       {meta.comptes.map((c) => (
@@ -149,6 +165,46 @@ function GererMeta({ meta, appeler }: { meta: ActionsConnexionMeta; appeler: App
             : <button className="btn sm" type="button" onClick={() => appeler(() => meta.choisirCompte(c.id), (r) => `Compte choisi${r.accountName ? ` · ${r.accountName}` : ''}`)}>Utiliser</button>}
         </div>
       ))}
+    </div>
+    {meta.remontee && <RemonteeMeta r={meta.remontee} />}
+    </>
+  );
+}
+
+/**
+ * « Rattacher aux lots » et « Remontée » · l'état lu (dernière remontée,
+ * prochaine, erreur) et le seul réglage qui existe · chaque nuit, ou suspendue.
+ * Le bouton garde le focus pendant l'action (`aria-disabled`, `aria-busy`) ;
+ * fermé, sa raison est écrite à côté.
+ */
+function RemonteeMeta({ r }: { r: NonNullable<ActionsConnexionMeta['remontee']> }) {
+  const { toast } = useSpatial();
+  const router = useRouter();
+  const [encours, demarrer] = useTransition();
+  const basculer = () => {
+    if (encours || r.raisonFermee) return;
+    demarrer(async () => {
+      const res = await r.regler(!r.active).catch(() => ({ error: 'L’action a échoué. Réessaie.' }));
+      if (res.error) { toast(res.error); return; }
+      toast(r.active ? 'Remontée nocturne suspendue · « Mesurer maintenant » reste possible' : 'Remontée nocturne réactivée');
+      router.refresh();
+    });
+  };
+  return (
+    <div className="nprefs" data-geste="remontee-meta" style={{ marginTop: 12 }}>
+      <div className="npr"><div><strong>Rattacher aux lots</strong><small>{r.rattachement}</small></div></div>
+      <div className="npr">
+        <div>
+          <strong>Remontée chaque nuit</strong>
+          <small>{r.libelle}</small>
+          {r.erreur && <small role="status" style={{ color: 'var(--bad)' }}>Dernière remontée en échec · {r.erreur}</small>}
+          {r.raisonFermee && <small data-raison-fermee>{r.raisonFermee}</small>}
+        </div>
+        <button className="tg" type="button" role="switch" aria-checked={r.active} aria-label="Remontée nocturne des mesures Meta"
+          style={{ minWidth: 44, minHeight: 44 }}
+          disabled={!!r.raisonFermee} aria-disabled={encours || undefined} aria-busy={encours || undefined}
+          title={r.raisonFermee ?? undefined} onClick={basculer}><i /></button>
+      </div>
     </div>
   );
 }

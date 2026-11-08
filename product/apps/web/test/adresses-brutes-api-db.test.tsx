@@ -257,6 +257,11 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
     completerHypotheseAction: A(() => [{ adId: s.ad, saisie: { si: 'on montre le produit', alors: 'le clic monte' } }]),
   },
   'app/actions/adsmap-import.ts': { previewImportAction: A(() => ['nom;angle\nPub 1;Preuve']), applyImportAction: A(() => ['nom;angle\nPub 1;Preuve']) },
+  'app/actions/adsmap-mesures.ts': {
+    previewMesuresAction: A(() => ['Nom de la publicité;Jour;Montant dépensé (EUR);Impressions\nPub 1;2026-10-01;10;1000']),
+    applyMesuresAction: A(() => ['Nom de la publicité;Jour;Montant dépensé (EUR);Impressions\nPub 1;2026-10-01;10;1000', []]),
+    reglerRemonteeNocturneAction: A(() => [true]),
+  },
   'app/actions/adsmap-iterate.ts': { iterationPlanAction: L(), createIterationAction: A(() => [{ parentAdId: s.ad, hypothesis: 'Une accroche plus directe convertit mieux', changedVariable: 'hook' }]) },
   'app/actions/adsmap-iterer-variable.ts': { creerIterationChoisieAction: A(() => [{ parentAdId: s.ad, variable: 'format', valeur: 'Vidéo face caméra 9:16', hypothese: 'Si on change seulement le format, alors elle fera au moins aussi bien.' }]) },
   'app/actions/adsmap-propose.ts': {

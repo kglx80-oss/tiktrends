@@ -159,6 +159,9 @@ export const brands = pgTable('brands', {
   namingPattern: text('naming_pattern'),               // {brand}_B{batch}_{concept}_{variant}_{variable}
   portfolioOptIn: boolean('portfolio_opt_in').notNull().default(false),
   adsmapSyncedAt: timestamp('adsmap_synced_at', { withTimezone: true }), // dernière mesure de la carte
+  // Remontée nocturne des mesures Meta SUSPENDUE pour cette marque depuis ce moment · NULL = active (0069).
+  // La tâche planifiée saute la marque · « Mesurer maintenant » reste possible.
+  adsmapRemonteeSuspendueLe: timestamp('adsmap_remontee_suspendue_le', { withTimezone: true }),
   // Radar de veille · ÉTEINT par défaut. C'est la seule fonction qui dépense en
   // arrière-plan : elle s'arme marque par marque, jamais par réglage global.
   radarArmed: boolean('radar_armed').notNull().default(false),
@@ -1145,6 +1148,72 @@ export const ads = pgTable('adsmap_ads', {
   batchIdx: index('adsmap_ads_batch_idx').on(t.batchId),
   statusIdx: index('adsmap_ads_status_idx').on(t.workspaceId, t.status),
 }));
+
+/**
+ * Mesures IMPORTÉES d'un export Ads Manager (CSV) · 0069. À CÔTÉ de
+ * `metrics_daily`, qui dépend des instances synchronisées (`ad_instances`) et
+ * que la synchro Meta écrit seule · rien n'y est changé.
+ *
+ * Une ligne = une ad, une période (`date_debut = date_fin` pour une journée).
+ * La clé primaire (ad, début, fin) rend l'import IDEMPOTENT · réimporter le même
+ * fichier réécrit les mêmes lignes. Les champs optionnels restent NULL quand
+ * l'export ne les porte pas (un zéro ferait croire à une mesure nulle). La
+ * priorité face à la connexion Meta (la journée Meta l'emporte) se décide au
+ * noyau (`retenirMesures`, `packages/core/src/adsmap/mesures-csv.ts`), jamais ici.
+ */
+export const mesuresCsv = pgTable('adsmap_mesures_csv', {
+  adId: uuid('ad_id').notNull().references(() => ads.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  dateDebut: date('date_debut').notNull(),
+  dateFin: date('date_fin').notNull(),
+  spend: doublePrecision('spend').notNull(),
+  impressions: integer('impressions').notNull(),
+  linkClicks: integer('link_clicks').notNull().default(0),
+  purchases: integer('purchases').notNull().default(0),
+  reach: integer('reach'),
+  clicks: integer('clicks'),
+  purchaseValue: doublePrecision('purchase_value'),
+  video3s: integer('video_3s'),
+  thruplays: integer('thruplays'),
+  videoP50: integer('video_p50'),
+  addToCart: integer('add_to_cart'),
+  landingViews: integer('landing_views'),
+  // Ce que la ligne disait de l'annonce et du protocole · relu pour le contrôle du lot.
+  metaAdId: text('meta_ad_id'),
+  nomAnnonce: text('nom_annonce'),
+  campagne: text('campagne'),
+  campagneId: text('campagne_id'),
+  ensemble: text('ensemble'),
+  ensembleId: text('ensemble_id'),
+  budgetJour: doublePrecision('budget_jour'),
+  cbo: boolean('cbo').notNull().default(false),
+  fichier: text('fichier'),
+  importePar: uuid('importe_par').references(() => users.id, { onDelete: 'set null' }),
+  importeLe: timestamp('importe_le', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.adId, t.dateDebut, t.dateFin] }),
+  brandIdx: index('adsmap_mesures_csv_brand_idx').on(t.brandId),
+}));
+
+/**
+ * Journal des REMONTÉES de mesures · 0069. Une ligne par passage (connexion
+ * Meta, la nuit ou au bouton · import d'un fichier), réussi ou non. L'échec est
+ * un CODE (`motifEchecRemontee`, noyau), jamais le message brut · il peut
+ * porter un compte ou une adresse. C'est ce que Connexions montre (dernière
+ * remontée, prochaine, erreur) et ce que liste « Dernières remontées ».
+ */
+export const remontees = pgTable('adsmap_remontees', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  source: text('source').notNull(),            // meta | csv
+  declencheur: text('declencheur').notNull(),  // nuit | bouton | import
+  le: timestamp('le', { withTimezone: true }).notNull().defaultNow(),
+  ok: boolean('ok').notNull(),
+  motif: text('motif'),                        // MotifEchecRemontee · NULL = réussie
+  resume: jsonb('resume_json'),                // { variantes, journees, verdicts, lots, fichier }
+}, (t) => ({ brandIdx: index('adsmap_remontees_brand_idx').on(t.brandId, t.le) }));
 
 /** Filiation : une itération pointe toujours vers son parent (invariant §2.4). */
 export const iterationEdges = pgTable('adsmap_iteration_edges', {

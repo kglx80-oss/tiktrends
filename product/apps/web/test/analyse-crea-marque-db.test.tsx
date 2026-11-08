@@ -339,6 +339,10 @@ const AUTRES_JOINTURES: Readonly<Record<string, { n: number; raison: string; pre
     n: 1, raison: 'mesures d’une INSTANCE de régie → sa créa, filtrées par la marque de la créa (`creatives.brand_id`)',
     preuve: /innerJoin\(schema\.creatives, eq\(schema\.adInstances\.creativeId, schema\.creatives\.id\)\)\s*\.where\(and\(eq\(schema\.creatives\.brandId, brandId\)/,
   },
+  'apps/web/lib/adsmap-mesures.ts': {
+    n: 1, raison: 'journées de la connexion Meta (`metrics_daily`) d’une INSTANCE de régie → sa créa, filtrées par la marque de la créa (`creatives.brand_id`) · import des mesures (lot 4)',
+    preuve: /innerJoin\(schema\.creatives, eq\(schema\.adInstances\.creativeId, schema\.creatives\.id\)\)\s*\.where\(and\(eq\(schema\.creatives\.brandId, brandId\)/,
+  },
 };
 
 function recenser(): { adVersCrea: string[]; autres: Map<string, number> } {

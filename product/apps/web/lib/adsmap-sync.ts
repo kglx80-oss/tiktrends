@@ -9,6 +9,7 @@ import {
 import { refreshDecisions } from './decisions';
 import { daterJalons } from './jarvis-memory';
 import { jointureCreaDeLaMarque } from './adsmap-medias';
+import { journaliserRemontee } from './adsmap-mesures';
 
 /**
  * ADSMAP · mesure quotidienne de la carte.
@@ -429,12 +430,27 @@ export async function runAdsMapSyncForBrand(brandId: string): Promise<AdsMapSync
   if (!b) return report;
 
   const token = decryptSecret(b.token);
-  if (!b.account || !token) throw new Error('meta_not_connected');
+  if (!b.account || !token) {
+    await journaliserRemontee({ workspaceId: b.workspaceId, brandId: b.id, source: 'meta', declencheur: 'bouton', ok: false, erreur: 'meta_not_connected' });
+    throw new Error('meta_not_connected');
+  }
 
   report.brands = 1;
-  await syncBrand({ id: b.id, name: b.name, workspaceId: b.workspaceId, account: b.account, token }, report);
+  // Le journal des remontées (Connexions · dernière remontée, erreur) · il n'arrête jamais la mesure.
+  try {
+    await syncBrand({ id: b.id, name: b.name, workspaceId: b.workspaceId, account: b.account, token }, report);
+  } catch (e) {
+    await journaliserRemontee({ workspaceId: b.workspaceId, brandId: b.id, source: 'meta', declencheur: 'bouton', ok: false, erreur: e });
+    throw e;
+  }
+  await journaliserRemontee({ workspaceId: b.workspaceId, brandId: b.id, source: 'meta', declencheur: 'bouton', ok: true, resume: resumeRemontee(report) });
   return report;
 }
+
+/** Le compte rendu d'un passage, en nombres seulement · ce que le journal garde. */
+const resumeRemontee = (r: AdsMapSyncReport) => ({ variantes: r.adsMatched, journees: r.daysIngested, verdicts: r.verdicts, lots: r.batchesChecked });
+const ecart = (apres: AdsMapSyncReport, avant: AdsMapSyncReport): AdsMapSyncReport =>
+  Object.fromEntries(Object.keys(apres).map((k) => [k, apres[k as keyof AdsMapSyncReport] - avant[k as keyof AdsMapSyncReport]])) as unknown as AdsMapSyncReport;
 
 /** Mesure la carte de toutes les marques dont le compte publicitaire est connecté. */
 export async function runAdsMapSync(): Promise<AdsMapSyncReport> {
@@ -443,18 +459,23 @@ export async function runAdsMapSync(): Promise<AdsMapSyncReport> {
 
   const brands = await db.select({
     id: schema.brands.id, name: schema.brands.name, workspaceId: schema.brands.workspaceId,
-    account: schema.brands.metaAdAccountId, token: schema.brands.metaToken,
+    account: schema.brands.metaAdAccountId, token: schema.brands.metaToken, suspendue: schema.brands.adsmapRemonteeSuspendueLe,
   }).from(schema.brands);
 
   for (const b of brands) {
     const token = decryptSecret(b.token);
     if (!b.account || !token) continue;
+    // Remontée nocturne suspendue pour cette marque (réglage de Connexions) · « Mesurer maintenant » reste possible.
+    if (b.suspendue) continue;
     report.brands++;
+    const avant = { ...report };
     try {
       await syncBrand({ id: b.id, name: b.name, workspaceId: b.workspaceId, account: b.account, token }, report);
+      await journaliserRemontee({ workspaceId: b.workspaceId, brandId: b.id, source: 'meta', declencheur: 'nuit', ok: true, resume: resumeRemontee(ecart(report, avant)) });
     } catch (e) {
       report.errors++;
       console.error('[adsmap] sync', b.id, (e as Error).message);
+      await journaliserRemontee({ workspaceId: b.workspaceId, brandId: b.id, source: 'meta', declencheur: 'nuit', ok: false, erreur: e });
     }
   }
 

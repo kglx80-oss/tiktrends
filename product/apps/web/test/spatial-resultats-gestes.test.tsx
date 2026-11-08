@@ -345,6 +345,8 @@ describe('Spatial · Résultats · importer · chaque écart est listé avant qu
     a.importer.mockClear();
     const { hote, fin } = monter(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={[]} />);
     const fichier = new File(['concept;angle\nTrois erreurs;Preuve'], 'historique.csv', { type: 'text/csv' });
+    // L'écran s'ouvre sur l'export Meta (lot 4 V5, comme la maquette) · le tableau historique se choisit.
+    await act(async () => bouton(hote, /^Tableau$/)!.click());
     await act(async () => {
       const ev = new Event('drop', { bubbles: true, cancelable: true }) as Event & { dataTransfer: { files: File[] } };
       Object.defineProperty(ev, 'dataTransfer', { value: { files: [fichier] } });

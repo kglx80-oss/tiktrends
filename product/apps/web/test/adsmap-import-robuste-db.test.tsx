@@ -164,6 +164,8 @@ async function deposer(texte: string, puis?: (hote: HTMLElement) => Promise<void
   document.body.appendChild(hote);
   const root = createRoot(hote);
   act(() => root.render(<FournisseurSpatial value={CTX}><Importer sousNav={sousNavResultats({ admin: true })} meta={{ connecte: false, mesure: null }} remontees={[]} /></FournisseurSpatial>));
+  // L'écran s'ouvre sur l'export Meta (lot 4 V5, comme la maquette) · ce fichier éprouve le TABLEAU, choisi d'abord.
+  act(() => { [...hote.querySelectorAll('button')].find((b) => b.textContent === 'Tableau')!.click(); });
   await act(async () => {
     const ev = new Event('drop', { bubbles: true, cancelable: true }) as Event & { dataTransfer: { files: File[] } };
     Object.defineProperty(ev, 'dataTransfer', { value: { files: [new File([texte], 'tableau.csv', { type: 'text/csv' })] } });

@@ -8,6 +8,7 @@ import {
 } from '@tiktrends/core';
 import { syncAdsMapAction } from '../../../app/actions/adsmap';
 import { applyImportAction, previewImportAction, type PreviewResult } from '../../../app/actions/adsmap-import';
+import { applyMesuresAction, previewMesuresAction, type ApercuMesures, type ResultatEcritureMesures } from '../../../app/actions/adsmap-mesures';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 import type { SousNavResultats } from './communs';
@@ -27,12 +28,23 @@ import type { SousNavResultats } from './communs';
  *    colonnes attendues absentes (`guideColonnes`, noyau), rendus comme texte,
  *    et « Télécharger le modèle » (`modeleImport` · l'en-tête de l'export) ;
  *  · un aperçu accepté dit les colonnes absentes, dont rien ne sera importé ;
- *  · les remontées · la dernière mesure Meta et les lots repris du tableau.
+ *  · l'export Meta Ads (CSV, Ads Manager) · les MESURES (lot 4 V5) · analysé
+ *    d'abord (`previewMesuresAction` · rattachées, à confirmer, ambiguës, non
+ *    rattachées, chacune avec sa raison), écrit ensuite seulement
+ *    (`applyMesuresAction` · idempotent, verdicts des lots recalculés) · une
+ *    proposition approchée n'est écrite que cochée ;
+ *  · les remontées · le journal (connexion Meta, imports d'export) et les lots
+ *    repris du tableau.
  */
 
-const COULEUR = { meta: '#0467df', tableau: '#34a853' } as const;
+const COULEUR = { meta: '#0467df', csv: '#0467df', tableau: '#34a853' } as const;
 const COLONNES_APERCU = 'minmax(0,1.3fr) minmax(0,1.3fr) 110px minmax(0,1fr) auto';
-const LETTRE = { meta: 'M', tableau: 'S' } as const;
+const LETTRE = { meta: 'M', csv: 'M', tableau: 'S' } as const;
+const COLONNES_MESURES = 'minmax(0,1.4fr) minmax(0,1fr) 128px minmax(0,1.6fr)';
+type Mode = 'meta' | 'tableau';
+const jourCourt = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const periode = (p: { debut: string; fin: string }) => (p.debut === p.fin ? jourCourt(p.debut) : `${jourCourt(p.debut)} → ${jourCourt(p.fin)}`);
+const pl = (n: number, un: string, plusieurs: string) => `${n} ${n > 1 ? plusieurs : un}`;
 /** Un intitulé lu ou attendu · saisi par l'utilisateur, rendu comme TEXTE (jamais en balisage), retour à la ligne permis. */
 const PASTILLE = { whiteSpace: 'normal', maxWidth: '100%', overflowWrap: 'anywhere' } as const;
 
@@ -81,6 +93,11 @@ export function Importer(p: PropsImporter) {
   const [erreur, setErreur] = useState<string | null>(null);
   const [guide, setGuide] = useState<GuideColonnes | null>(null);
   const [fait, setFait] = useState(false);
+  const [mode, setMode] = useState<Mode>('meta');
+  const [mesures, setMesures] = useState<ApercuMesures | null>(null);
+  const [guideMesures, setGuideMesures] = useState<{ lus: string[]; manquantes: string[] } | null>(null);
+  const [confirmees, setConfirmees] = useState<ReadonlySet<string>>(new Set());
+  const [ecrit, setEcrit] = useState<ResultatEcritureMesures['ecrit'] | null>(null);
 
   async function mesurer() {
     if (mesure.occupe) return;
@@ -90,16 +107,41 @@ export function Importer(p: PropsImporter) {
     if (!r.error) router.refresh();
   }
 
+  function choisirMode(m: Mode) {
+    if (occupe || m === mode) return;
+    setMode(m); setCsv(null); setErreur(null); setGuide(null); setApercu(null); setFait(false);
+    setMesures(null); setGuideMesures(null); setConfirmees(new Set()); setEcrit(null);
+  }
+
   async function lire(f: File | null) {
     if (!f) return;
     setErreur(null); setGuide(null); setApercu(null); setFait(false);
+    setMesures(null); setGuideMesures(null); setConfirmees(new Set()); setEcrit(null);
     const texte = await f.text();
     setCsv({ nom: f.name, texte });
     setOccupe(true);
+    if (mode === 'meta') {
+      const m = await previewMesuresAction(texte);
+      setOccupe(false);
+      if (m.error || !m.apercu) { setErreur(m.error ?? 'Lecture impossible.'); setGuideMesures(m.guide ?? null); return; }
+      setMesures(m.apercu);
+      return;
+    }
     const r = await previewImportAction(texte);
     setOccupe(false);
     if (r.error) { setErreur(r.error); setGuide(r.guide ?? null); return; }
     setApercu(r);
+  }
+
+  async function ecrireMesures() {
+    if (occupe || !csv || !mesures) return;
+    setOccupe(true); setErreur(null);
+    const r = await applyMesuresAction(csv.texte, [...confirmees], csv.nom);
+    setOccupe(false);
+    if (r.error || !r.ecrit) { setErreur(r.error ?? 'Écriture impossible.'); return; }
+    setEcrit(r.ecrit);
+    toast(`Mesures écrites · ${pl(r.ecrit.ads, 'variante', 'variantes')} · ${pl(r.ecrit.verdicts, 'verdict recalculé', 'verdicts recalculés')}`);
+    router.refresh();
   }
 
   async function importer() {
@@ -115,6 +157,16 @@ export function Importer(p: PropsImporter) {
 
   const rep = apercu?.report;
   const absentes = apercu?.guide ? mentionColonnesAbsentes(apercu.guide) : null;
+  const t = mesures?.totaux;
+  const aEcrire = t ? t.rattachees + mesures!.annonces.filter((a) => a.etat === 'a_confirmer' && confirmees.has(a.cle)).length : 0;
+  const texteZone = occupe ? (ecrit === null && mesures ? 'Écriture…' : 'Lecture…')
+    : erreur ?? (mode === 'meta'
+      ? (ecrit ? `Mesures écrites · ${pl(ecrit.ads, 'variante', 'variantes')} · rien n’est doublé à un nouvel import du même fichier.`
+        : t ? `${pl(mesures!.lignesLues, 'ligne lue', 'lignes lues')} · ${pl(t.annonces, 'annonce', 'annonces')} · ${t.rattachees} rattachée${t.rattachees > 1 ? 's' : ''}, ${t.aConfirmer} à confirmer, ${t.ambigues} ambiguë${t.ambigues > 1 ? 's' : ''}, ${t.nonRattachees} non rattachée${t.nonRattachees > 1 ? 's' : ''}. Rien n’est écrit avant de confirmer.`
+          : 'Export CSV d’Ads Manager, en français ou en anglais · lignes rattachées aux variantes par leur identifiant Meta ou leur nom régie · rien n’est écrit avant de confirmer')
+      : fait ? 'Import terminé · les lots repris apparaissent dans la liste.'
+        : rep ? `${rep.rowsRead} lignes lues · ${rep.concepts} concepts, ${rep.ads} variantes, ${rep.batches} lots, ${rep.verdicts} verdicts · ${rep.warnings.length} écart${rep.warnings.length > 1 ? 's' : ''} signalé${rep.warnings.length > 1 ? 's' : ''}. Rien n’est écrit avant de confirmer.`
+          : 'Export CSV de Google Sheets · chaque écart est listé avant que quoi que ce soit ne soit écrit');
   return (
     <Vue>
       <EnTete titre="Importer des résultats" sous="Les mesures remontent dans tes lots : c’est ce qui permet de conclure, puis d’itérer" />
@@ -140,27 +192,32 @@ export function Importer(p: PropsImporter) {
       </div>
       {mesure.texte && <p className="faint" role="status" style={{ fontSize: '12.5px', marginTop: 8 }}>{mesure.texte}</p>}
       <section className="sec grid2">
-        <div className="drop" role="button" tabIndex={0} aria-label="Choisir le tableau historique (CSV)"
+        <div className="drop" role="button" tabIndex={0} aria-label={mode === 'meta' ? 'Choisir un export Meta Ads (CSV)' : 'Choisir le tableau historique (CSV)'}
           onClick={() => { void choisirFichier().then(lire); }}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void choisirFichier().then(lire); } }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); void lire(e.dataTransfer.files?.[0] ?? null); }}>
           <Ic n="down" s={false} />
-          <strong>{csv ? csv.nom : 'Déposer le tableau historique (CSV)'}</strong>
-          <span className="faint" style={{ fontSize: '12.5px' }}>
-            {occupe ? 'Lecture…'
-              : erreur ?? (fait ? 'Import terminé · les lots repris apparaissent dans la liste.'
-                : rep ? `${rep.rowsRead} lignes lues · ${rep.concepts} concepts, ${rep.ads} variantes, ${rep.batches} lots, ${rep.verdicts} verdicts · ${rep.warnings.length} écart${rep.warnings.length > 1 ? 's' : ''} signalé${rep.warnings.length > 1 ? 's' : ''}. Rien n’est écrit avant de confirmer.`
-                  : 'Export CSV de Google Sheets · chaque écart est listé avant que quoi que ce soit ne soit écrit')}
-          </span>
-          <div className="seg" style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
-            <button type="button" aria-pressed="true">Tableau</button>
-            <button type="button" disabled title="La mesure Meta passe par la connexion, pas par un export">Export Meta</button>
-            <button type="button" disabled title="Aucun connecteur TikTok pour l’instant">Export TikTok</button>
+          <strong>{csv ? csv.nom : mode === 'meta' ? 'Déposer un export Meta Ads (CSV)' : 'Déposer le tableau historique (CSV)'}</strong>
+          <span className="faint" role="status" style={{ fontSize: '12.5px' }}>{texteZone}</span>
+          <div className="seg" style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <button type="button" aria-pressed={mode === 'meta'} onClick={() => choisirMode('meta')}>Export Meta</button>
+            <button type="button" aria-pressed={mode === 'tableau'} onClick={() => choisirMode('tableau')}>Tableau</button>
+            <button type="button" disabled title="Aucun connecteur TikTok pour l’instant">Export TikTok · bientôt</button>
           </div>
-          {rep && !fait && (
+          {mode === 'tableau' && rep && !fait && (
             <button className="btn sm pri" type="button" disabled={occupe} onClick={(e) => { e.stopPropagation(); void importer(); }}>Importer {rep.ads} variantes</button>
           )}
+          {mode === 'meta' && mesures && !ecrit && (
+            <button className="btn sm pri" type="button" data-geste="ecrire-mesures" style={{ minHeight: 44 }}
+              disabled={!occupe && aEcrire === 0} aria-disabled={occupe || undefined} aria-busy={occupe || undefined}
+              title={aEcrire === 0 ? 'Aucune annonce rattachée · rien à écrire' : undefined}
+              onClick={(e) => { e.stopPropagation(); if (!occupe) void ecrireMesures(); }}
+              onKeyDown={(e) => e.stopPropagation()}>
+              {occupe ? 'Écriture…' : `Écrire les mesures de ${pl(aEcrire, 'annonce', 'annonces')}`}
+            </button>
+          )}
+          {mode === 'meta' && mesures && !ecrit && aEcrire === 0 && <span className="faint" style={{ fontSize: '11.5px' }}>Aucune annonce rattachée · rien à écrire. Coche une proposition à confirmer, ou corrige le nom régie des ads.</span>}
         </div>
         <div className="tile">
           <div className="lbl">Dernières remontées</div>
@@ -175,7 +232,67 @@ export function Importer(p: PropsImporter) {
           </div>
         </div>
       </section>
-      {erreur && guide && !apercu && (
+      {mode === 'meta' && erreur && guideMesures && (
+        <section className="tile sec" aria-label="Ce qu’il faut corriger">
+          <h2>Ce qu’il faut corriger · rien n’est lu au-delà de l’en-tête</h2>
+          <div className="lbl" style={{ marginTop: 10 }}>Intitulés lus dans l’en-tête</div>
+          {guideMesures.lus.length > 0
+            ? <Intitules liste={guideMesures.lus} />
+            : <p className="faint" style={{ fontSize: '12.5px' }}>Aucun intitulé · la ligne d’en-tête est vide.</p>}
+          {guideMesures.manquantes.length > 0 && <>
+            <div className="lbl" style={{ marginTop: 12 }}>Colonne{guideMesures.manquantes.length > 1 ? 's' : ''} obligatoire{guideMesures.manquantes.length > 1 ? 's' : ''} absente{guideMesures.manquantes.length > 1 ? 's' : ''}</div>
+            <Intitules liste={guideMesures.manquantes} ton="r" />
+          </>}
+          <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Dans Ads Manager, onglet Publicités · Exporter › Exporter les données du tableau (CSV). Garde le nom de la publicité, la période, le montant dépensé, les impressions et les achats.</p>
+        </section>
+      )}
+      {mode === 'meta' && mesures && !ecrit && t && (
+        <section className="tile sec" aria-label="Ce qui sera écrit">
+          <h2>Ce qui sera écrit · rien n’est encore écrit</h2>
+          <p className="muted" style={{ fontSize: '12.5px' }}>{mesures.lecture} · {pl(mesures.reconnues.length, 'mesure reconnue', 'mesures reconnues')} · {pl(t.ads, 'variante recevra', 'variantes recevront')} des mesures · {pl(t.nouvelles, 'journée nouvelle', 'journées nouvelles')}, {pl(t.identiques, 'déjà importée à l’identique', 'déjà importées à l’identique')}, {pl(t.misesAJour, 'remplacée', 'remplacées')} par ce fichier.</p>
+          {mesures.reconnues.length > 0 && <Intitules liste={mesures.reconnues} />}
+          <p className="muted" role="note" data-regle="priorite-mesures" style={{ fontSize: '12.5px', marginTop: 10 }}>{mesures.priorite}</p>
+          {mesures.notes.length > 0 && (
+            <ul className="check2">
+              {mesures.notes.map((n, i) => <li key={i}><span className="cb"><Ic n="warn" /></span><span>{n}</span><span /></li>)}
+            </ul>
+          )}
+          <div className="mtable" style={{ marginTop: 12 }} data-tableau="annonces">
+            <div className="mrow h" style={{ gridTemplateColumns: COLONNES_MESURES }}><span>Annonce du fichier</span><span>Variante</span><span>État</span><span>Pourquoi</span></div>
+            {mesures.annonces.map((a) => (
+              <div className="mrow" key={a.cle} data-etat={a.etat} style={{ gridTemplateColumns: COLONNES_MESURES }}>
+                <span style={PASTILLE}>{a.nom ?? a.idMeta ?? 'annonce sans nom'}<small className="faint" style={{ display: 'block' }}>{periode(a.periode)} · {pl(a.lignes, 'ligne', 'lignes')}</small></span>
+                <span className="muted" style={PASTILLE}>{a.cible ? `${a.cible.lot !== null ? `Lot #${a.cible.lot} · ` : 'Hors lot · '}${a.cible.variante}` : 'Aucune'}</span>
+                <span className={`pill ${a.etat === 'rattachee' ? 'g' : a.etat === 'a_confirmer' ? 'w' : a.etat === 'ambigue' ? 'r' : ''}`} style={{ alignSelf: 'start' }}>{a.libelle}</span>
+                <span className="muted" style={PASTILLE}>
+                  {a.raison}{a.bilan ? ` · ${pl(a.bilan.nouvelles, 'journée nouvelle', 'journées nouvelles')}${a.bilan.identiques ? `, ${a.bilan.identiques} identique${a.bilan.identiques > 1 ? 's' : ''}` : ''}${a.bilan.misesAJour ? `, ${a.bilan.misesAJour} remplacée${a.bilan.misesAJour > 1 ? 's' : ''}` : ''}` : ''}
+                  {a.etat === 'a_confirmer' && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, cursor: 'pointer' }}>
+                      <input type="checkbox" data-confirmer={a.cle} checked={confirmees.has(a.cle)} disabled={occupe}
+                        onChange={(e) => { const n = new Set(confirmees); if (e.target.checked) n.add(a.cle); else n.delete(a.cle); setConfirmees(n); }} />
+                      Confirmer ce rattachement
+                    </label>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+          {mesures.ecartees.length > 0 && (
+            <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Lignes écartées · {mesures.ecartees.map((e) => `ligne ${e.ligne} (${e.raison})`).join(', ')}{mesures.ecarteesMasquees ? `, et ${mesures.ecarteesMasquees} autre${mesures.ecarteesMasquees > 1 ? 's' : ''}` : ''}.</p>
+          )}
+          <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Seules les ads de cette marque peuvent recevoir ces mesures. Une annonce ambiguë ou non rattachée n’est jamais écrite · colle son identifiant Meta sur l’ad, ou corrige son nom régie, puis réimporte.</p>
+        </section>
+      )}
+      {mode === 'meta' && ecrit && (
+        <section className="tile sec" role="status" aria-label="Mesures écrites">
+          <p style={{ fontSize: '13px' }}><b>Mesures écrites.</b> {pl(ecrit.ads, 'variante', 'variantes')} · {pl(ecrit.nouvelles, 'journée nouvelle', 'journées nouvelles')}, {pl(ecrit.identiques, 'déjà là à l’identique', 'déjà là à l’identique')} (rien n’est doublé), {pl(ecrit.misesAJour, 'remplacée', 'remplacées')} · {pl(ecrit.verdicts, 'verdict recalculé', 'verdicts recalculés')}.{ecrit.meta ? ` ${pl(ecrit.meta, 'journée était', 'journées étaient')} déjà mesurée${ecrit.meta > 1 ? 's' : ''} par la connexion Meta · la connexion l’emporte.` : ''}</p>
+          <div className="foot2" style={{ marginTop: 10 }}>
+            {ecrit.lots.map((l) => <Lien key={l.id} className="btn sm pri" href={`/adsmap/lots/${encodeURIComponent(l.id)}`}>Ouvrir le lot #{l.numero}</Lien>)}
+            <Lien className="btn sm" href="/adsmap/lots">Tous les lots</Lien>
+          </div>
+        </section>
+      )}
+      {mode === 'tableau' && erreur && guide && !apercu && (
         <section className="tile sec" aria-label="Ce qu’il faut corriger">
           <h2>Ce qu’il faut corriger · rien n’est lu au-delà de l’en-tête</h2>
           <div className="lbl" style={{ marginTop: 10 }}>Intitulés lus dans l’en-tête</div>
@@ -197,7 +314,7 @@ export function Importer(p: PropsImporter) {
           </div>
         </section>
       )}
-      {rep && !fait && (
+      {mode === 'tableau' && rep && !fait && (
         <section className="tile sec" aria-label="Ce qui sera créé">
           <h2>Ce qui sera créé · rien n’est encore écrit</h2>
           <p className="muted" style={{ fontSize: '12.5px' }}>{apercu?.lecture ? `${apercu.lecture} · ` : ''}{rep.rowsRead} lignes lues · {rep.ads} variantes, {rep.concepts} concepts, {rep.angles} angles, {rep.desires} désirs, {rep.batches} lots, {rep.verdicts} verdicts, {rep.learnings} apprentissages.{rep.rowsRead === rep.ads ? ` Aucune ligne perdue · ${rep.conceptsMerged} ligne(s) regroupée(s) en variantes d’un même concept.` : ''}</p>
@@ -221,7 +338,7 @@ export function Importer(p: PropsImporter) {
           <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Personas, désirs, angles et concepts arrivent « proposés » · à trier avant de compter. Les verdicts du tableau sont repris tels quels, marqués NON comparables (le protocole d’alors est inconnu).</p>
         </section>
       )}
-      {fait && rep && (
+      {mode === 'tableau' && fait && rep && (
         <section className="tile sec" role="status">
           <p style={{ fontSize: '13px' }}><b>Import terminé.</b> {rep.ads} ad(s), {rep.concepts} concept(s) et {rep.batches} lot(s) créés.{rep.demotedToDraft > 0 ? ` ${rep.demotedToDraft} ad(s) attendent leur hypothèse avant de pouvoir repartir en test.` : ''}</p>
           <div className="foot2" style={{ marginTop: 10 }}>

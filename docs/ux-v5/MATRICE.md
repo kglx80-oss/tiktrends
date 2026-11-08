@@ -43,15 +43,15 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot) et les boucles (RJ A04 · hypothèse tirée d'un apprentissage · VB F26 · itérer à partir d'une pub de la Veille) · sortie de `node docs/ux-v5/compter-statuts.mjs`
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26) et lot 4 (mesures) · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Coquille et Accueil | 104 | 0 | 14 | 13 | 9 | 12 | 152 |
+| Coquille et Accueil | 105 | 0 | 14 | 12 | 9 | 12 | 152 |
 | Veille, Bibliothèque, Marques | 99 | 0 | 64 | 29 | 18 | 3 | 213 |
 | Projets et canvas | 98 | 0 | 39 | 13 | 4 | 6 | 160 |
-| Résultats, Jarvis, ADMIN+ | 71 | 0 | 35 | 13 | 20 | 1 | 140 |
-| **Total** | **372** | **0** | **152** | **68** | **51** | **22** | **665** |
+| Résultats, Jarvis, ADMIN+ | 73 | 0 | 33 | 13 | 20 | 1 | 140 |
+| **Total** | **375** | **0** | **150** | **67** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
@@ -82,7 +82,7 @@ Classement par impact sur le cap produit (« créer des créatives winneuses… 
 | 1 | Hypothèses libres, reliées aux apprentissages et à la Veille | M | non (oui, additive, pour la priorité) | 0 $ |
 | 2 | Itérer en choisissant la variable | M | non | 0 $ |
 | 3 | Conclure un lot entier et réutiliser l'apprentissage | M | non | 0 $ |
-| 4 | Mesures · import CSV et remontée Meta planifiée | L | probable (additive) | 0 $ |
+| 4 | Mesures · import CSV et remontée Meta planifiée | L | oui (additive, 0069) | 0 $ |
 | 5 | Jarvis en contexte (lot, hypothèse, page, projet) | M | non | 0 $ (message existant) |
 | 6 | Veille · tags, notes et pop-up « Sauvegarder » | L | oui (additive) | 0 $ |
 | 7 | Veille · filtres locaux, vue liste, navigation du détail | M | non | 0 $ |
@@ -134,6 +134,7 @@ L'import reprend le tableau historique, pas des mesures. Sans connexion Meta, au
 - **Services à réutiliser** : `previewImportAction` / `applyImportAction` (`W/app/actions/adsmap-import.ts:45`, `:90`), `guideColonnes` (`C/adsmap/import-sheet.ts:405`), `syncAdsMapAction` (`W/app/actions/adsmap.ts:284`), `apps/workers` (synchro).
 - **Migration** : probable, additive · `metrics_daily` dépend des instances synchronisées (`ad_instances`) ; une source « CSV » se pose à côté, sans rien changer à la synchro.
 - **Dépense** : aucune · ni IA, ni nouveau connecteur (Meta existe ; TikTok et Google restent à Kevin).
+- **Livré** : l'import des mesures d'un export Ads Manager (`previewMesuresAction` / `applyMesuresAction`, `W/app/actions/adsmap-mesures.ts`) · intitulés français et anglais construits d'après la documentation publique (aucun export réel relu · à vérifier sur un vrai fichier), rattachement par identifiant Meta épinglé puis nom régie, propositions approchées à confirmer (seuil `MIN_JETONS_APPROCHE` mesuré), ambiguës jamais écrites, marque bornée (`C/adsmap/mesures-csv.ts`) · table `adsmap_mesures_csv` à côté de `metrics_daily` (0069, clé ad · début · fin, réimport sans doublon) · priorité · la journée de la connexion Meta l'emporte (`retenirMesures`, dite à l'écran) · verdicts des lots recalculés par les mêmes briques que la synchro (`verdictsDesMesures`, `C/adsmap/mesures-verdicts.ts`) · remontée planifiée · la tâche du worker existante (`adsmap-sync`, motif partagé `MOTIF_REMONTEE_ADSMAP`), journal `adsmap_remontees`, état sur la carte Meta de Connexions (dernière, prochaine, erreur en mots) et réglage actif ou suspendu. **Reste** : un assistant de connexion en étapes (CA K12), une fréquence libre et une alerte de lot (CA K14), les exports TikTok et Google (RJ I04, à Kevin).
 
 ### 5 · Jarvis en contexte (lot, hypothèse, page, projet) · M
 

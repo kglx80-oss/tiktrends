@@ -1,5 +1,6 @@
 import type { VerdictValue } from '../../adsmap/types';
 import { median } from '../../adsmap/stats';
+import { texteRemontee, type RemonteeJournal } from '../../adsmap/remontee-planifiee';
 import { libelleTauxFraction, tauxReussite } from '../../adsmap/verdict-libelle';
 import { listeManques } from '../../adsmap/reprise-adsmap';
 import {
@@ -390,16 +391,20 @@ export function quandCourt(iso: string, maintenant: Date): string {
   return new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-export interface Remontee { source: 'meta' | 'tableau'; texte: string; le: string }
+export interface Remontee { source: 'meta' | 'tableau' | 'csv'; texte: string; le: string }
 
 /**
- * Les dernières remontées de mesures · la dernière synchro Meta (date réelle de
- * la marque) et chaque lot repris du tableau, les plus récentes d'abord. Aucun
- * journal n'existe en base au-delà de ces deux faits · on n'en invente pas.
+ * Les dernières remontées de mesures, les plus récentes d'abord · le journal
+ * des remontées (`adsmap_remontees`, 0069 · connexion Meta la nuit ou au
+ * bouton, import d'un export), chaque lot repris du tableau, et, tant que le
+ * journal ne porte aucune remontée Meta (passages d'avant 0069), la dernière
+ * synchro Meta lue sur la marque. Rien d'autre · on n'en invente pas.
  */
-export function remontees(e: { mesureLe: string | null; variantesMesurees: number; lotsImportes: ReadonlyArray<{ numero: number; variantes: number; le: string }> }, max = 4): Remontee[] {
+export function remontees(e: { mesureLe: string | null; variantesMesurees: number; lotsImportes: ReadonlyArray<{ numero: number; variantes: number; le: string }>; journal?: readonly RemonteeJournal[] }, max = 4): Remontee[] {
   const out: Remontee[] = [];
-  if (e.mesureLe) out.push({ source: 'meta', le: e.mesureLe, texte: `Mesure Meta · ${e.variantesMesurees} variante${e.variantesMesurees > 1 ? 's' : ''} avec un verdict calculé` });
+  const journal = e.journal ?? [];
+  for (const j of journal) out.push({ source: j.source, le: j.le, texte: texteRemontee(j) });
+  if (e.mesureLe && !journal.some((j) => j.source === 'meta')) out.push({ source: 'meta', le: e.mesureLe, texte: `Mesure Meta · ${e.variantesMesurees} variante${e.variantesMesurees > 1 ? 's' : ''} avec un verdict calculé` });
   for (const l of e.lotsImportes) out.push({ source: 'tableau', le: l.le, texte: `Tableau · Lot #${l.numero} · ${l.variantes} variante${l.variantes > 1 ? 's' : ''}` });
   return out.sort((a, b) => Date.parse(b.le) - Date.parse(a.le)).slice(0, max);
 }
