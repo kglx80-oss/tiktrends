@@ -54,6 +54,8 @@ export interface IterationRow extends IterationTask {
   parentComparable: boolean;
   /** L'étape du tunnel où le parent a lâché, en clair · null s'il n'a pas lâché. */
   parentEtapeLachee: string | null;
+  /** Les variables déjà changées par la lignée du parent · la règle des variables admises (`variablesIteration`) les lit. */
+  lineageChanged?: TestedVariable[];
 }
 
 export interface IterationPlanView {
@@ -120,7 +122,7 @@ export async function iterationPlanAction(): Promise<{ view?: IterationPlanView;
     const dejaItere = new Set(arcs.map((a) => a.parentAdId));
 
     const entrees: IterationInput[] = [];
-    const contexte = new Map<string, { conceptTitle: string; verdict: VerdictValue; comparable: boolean; failedStage: FunnelStage | null }>();
+    const contexte = new Map<string, { conceptTitle: string; verdict: VerdictValue; comparable: boolean; failedStage: FunnelStage | null; changed: TestedVariable[] }>();
 
     for (const r of utiles) {
       const verdict = r.validated as VerdictValue;
@@ -143,7 +145,7 @@ export async function iterationPlanAction(): Promise<{ view?: IterationPlanView;
         lineageChanged: changed,
         spend: typeof agg.spend === 'number' ? agg.spend : null,
       });
-      contexte.set(r.adId, { conceptTitle: r.conceptTitle, verdict, comparable: !!r.comparable, failedStage: (r.failedStage ?? null) as FunnelStage | null });
+      contexte.set(r.adId, { conceptTitle: r.conceptTitle, verdict, comparable: !!r.comparable, failedStage: (r.failedStage ?? null) as FunnelStage | null, changed });
     }
 
     const plan = iterationPlan(entrees).slice(0, 30);
@@ -160,6 +162,7 @@ export async function iterationPlanAction(): Promise<{ view?: IterationPlanView;
         parentVerdict: c.verdict,
         parentComparable: c.comparable,
         parentEtapeLachee: c.failedStage ? STAGE_LABEL[c.failedStage] : null,
+        lineageChanged: c.changed,
       };
     });
 
@@ -208,6 +211,8 @@ export interface CreateIterationInput {
   stageTargeted?: FunnelStage | null;
   /** Ce que l'itération parie · obligatoire, sinon son résultat n'apprendra rien. */
   hypothesis: string;
+  /** La nouvelle valeur de la variable changée (`variable_value`) · facultative. */
+  variableValue?: string | null;
 }
 
 /**
@@ -274,6 +279,7 @@ export async function createIterationAction(
       adType: enIteration ? 'iteration' : 'new',
       hypothesis: hypothese,
       testedVariable: input.changedVariable,
+      variableValue: input.variableValue?.trim().slice(0, 300) || null,
       // On hérite de l'offre et de la page SAUF si c'est justement ce qu'on change.
       offerId: input.changedVariable === 'offer' ? null : parent.offerId,
       landingPageId: input.changedVariable === 'landing' ? null : parent.landingPageId,

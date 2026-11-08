@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useId, useMemo, useState, type ReactNode } from 'react';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 import { TuileVide } from './briques';
@@ -13,6 +13,9 @@ import { TuileVide } from './briques';
  * (voir la page) : l'écran montre alors l'état vide qui le dit, sans catégorie
  * ni contexte inventés. « Copier » écrit vraiment dans le presse-papiers ;
  * « Utiliser » ouvre la préparation d'un projet avec le texte en objectif.
+ * « Lancer comme itération » (prompt qui vise une variable, `iterationDepuisPrompt`)
+ * ouvre l'écran Itérer, variable présélectionnée · rien n'est créé ni généré au
+ * clic. Un prompt sans variable garde le geste fermé, raison écrite à côté.
  */
 
 export interface PromptSpatial {
@@ -26,6 +29,8 @@ export interface PromptSpatial {
   requis: string;
   appui: string;
   utiliser: string;
+  /** « Lancer comme itération » · `iterationDepuisPrompt` · absent, le geste n'est pas offert. */
+  iteration?: { href: string; raison: null } | { href: null; raison: string };
 }
 
 export interface PropsPrompts {
@@ -41,6 +46,7 @@ export function Prompts(p: PropsPrompts) {
   const { toast } = useSpatial();
   const [cat, setCat] = useState(p.categories[0]?.cle ?? '');
   const liste = useMemo(() => p.prompts.filter((x) => !cat || x.categorie === cat), [p.prompts, cat]);
+  const id = useId();
 
   async function copier(x: PromptSpatial) {
     try {
@@ -77,7 +83,12 @@ export function Prompts(p: PropsPrompts) {
               <div className="kc">
                 <Lien className="btn sm pri" href={x.utiliser}>Utiliser</Lien>
                 <button className="btn sm" type="button" onClick={() => void copier(x)}><Ic n="copy" />Copier</button>
+                {x.iteration?.href && <Lien className="btn sm" href={x.iteration.href} data-lancer-iteration=""><Ic n="loop" />Lancer comme itération</Lien>}
+                {x.iteration && !x.iteration.href && (
+                  <button className="btn sm" type="button" aria-disabled data-lancer-iteration="ferme" aria-describedby={`${id}-${x.id}-iter`} style={{ opacity: 0.5, cursor: 'default' }}><Ic n="loop" />Lancer comme itération</button>
+                )}
               </div>
+              {x.iteration && !x.iteration.href && <p className="faint" id={`${id}-${x.id}-iter`} data-raison-ferme="iteration" style={{ fontSize: '11.5px' }}>{x.iteration.raison}</p>}
             </article>
           ))}
         </div>

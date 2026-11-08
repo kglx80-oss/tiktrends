@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
   couloirsDepuisProjet, dateCourteUtc, detailTache, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, mentionAppelTexte, pastilleEnregistrement, relectureNecessaire,
-  resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
+  noeudsIterationProjet, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
 import type { Session } from '../../../../../../lib/auth';
@@ -127,7 +127,12 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
     }, ficheNoeud);
   // « Cibler Jarvis » · seulement sur la version courante, et seulement si le rôle peut demander une proposition.
   const listeLue = propositions?.ok ? propositions : null;
-  const couloirs = ciblerCouloirs(couloirsLus, {
+  // Couloir « Itération » · chaque variante testée GAGNANTE (verdict arbitré, comparable) ouvre l'écran Itérer, pub présélectionnée, où l'on choisit la variable.
+  const iterer = noeudsIterationProjet((vue?.variantes ?? []).map((v) => {
+    const t = donnees!.variantes.find((x) => x.id === v.id)?.test ?? null;
+    return { id: v.id, libelle: v.libelle, test: t ? { adsmapAdId: t.adsmapAdId, verdict: t.verdict ? { validated: t.verdict.validated, comparable: t.verdict.comparable } : null } : null };
+  }), { adsmap: !!donnees?.adsmap.acces });
+  const couloirs = ciblerCouloirs(couloirsLus.map((c) => (c.cle === 'iteration' ? { ...c, noeuds: [...c.noeuds, ...iterer.noeuds] } : c)), {
     versionCourante: ancienne ? null : d.version.id,
     cibles: listeLue?.peutProposer ? listeLue.cibles.map((c) => ({ cible: c.cible, libelle: c.libelle })) : [],
   });
@@ -185,6 +190,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         liens: { produit: lien('produit'), video: lien('video'), textes: lien('textes') },
       }),
       couloirs,
+      iterationVide: iterer.vide,
       retourVeille: retourVeilleProjet(d.sources),
       libre: canvas?.ok
         ? { ok: true, canvas: { projectId: canvas.canvas.projectId, version: canvas.canvas.version, modele: canvas.canvas.modele, apercus: canvas.canvas.apercus, disposition: canvas.canvas.disposition, rev: canvas.canvas.rev } }
