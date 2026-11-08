@@ -33,6 +33,8 @@ export interface CarteVeilleDonnees {
   iterer: string;
   sauvee: boolean;
   suivie: boolean;
+  /** Lot 6 (VB C09, F15, V20) · les tags posés à la main sur la sauvegarde de cette pub ici · absent = aucun. */
+  tags?: ReadonlyArray<{ cle: string; nom: string }>;
   detail: DetailVeille;
 }
 

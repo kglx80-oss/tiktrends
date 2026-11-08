@@ -107,8 +107,8 @@ export function BasculeAffichage({ affichage, changer }: { affichage: AffichageV
 }
 
 /** L'état visible des filtres · une puce retirable par filtre posé, et « Réinitialiser ». */
-export function EtatFiltresLocaux({ f, changer, compte }: { f: FiltresLocaux; changer: (f: FiltresLocaux) => void; compte: string }) {
-  const puces = pucesLocales(f);
+export function EtatFiltresLocaux({ f, changer, compte, nomsTags }: { f: FiltresLocaux; changer: (f: FiltresLocaux) => void; compte: string; nomsTags?: ReadonlyMap<string, string> }) {
+  const puces = pucesLocales(f, nomsTags);
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
       {puces.map((p) => (

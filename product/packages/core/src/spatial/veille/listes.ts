@@ -1,5 +1,6 @@
 import { PROVEN_DAYS } from '../../adsmap/market-stats';
 import { FORMAT_INCERTAIN, FORMAT_NON_CLASSE, TRIS_FORMATS, dateCourteFormat, estFormatCreatif, libellePlateforme, type TriFormats } from '../../formats-creatifs';
+import { TAG_TOUS, collectionsDeSauvegarde, porteTag } from './tags-veille';
 
 /**
  * Spatial · Veille · les listes des écrans Sauvegardes, Ce qui scale, Radar et
@@ -18,21 +19,24 @@ export const COLLECTION_NON_CLASSEES = 'none';
  * sauvegardes (`saved_ads.folder`) · « Toutes », chaque dossier par ordre
  * alphabétique, puis « Non classées » (sans dossier).
  */
-export function collectionsSauvegardes(items: ReadonlyArray<{ folder: string | null }>): Array<{ cle: string; libelle: string; n: number }> {
+export function collectionsSauvegardes(items: ReadonlyArray<{ folder: string | null; collections?: readonly string[] | null }>): Array<{ cle: string; libelle: string; n: number }> {
   const parDossier = new Map<string, number>();
   let sans = 0;
   for (const i of items) {
-    const f = i.folder?.trim();
-    if (f) parDossier.set(f, (parDossier.get(f) ?? 0) + 1); else sans++;
+    // Lot 6 · une sauvegarde peut porter PLUSIEURS collections (0070) · elle compte dans chacune.
+    const cs = collectionsDeSauvegarde(i.folder, i.collections);
+    for (const f of cs) parDossier.set(f, (parDossier.get(f) ?? 0) + 1);
+    if (!cs.length) sans++;
   }
   const dossiers = [...parDossier.entries()].sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([f, n]) => ({ cle: `f:${f}`, libelle: f, n }));
   return [{ cle: COLLECTION_TOUTES, libelle: 'Toutes les sauvegardes', n: items.length }, ...dossiers, { cle: COLLECTION_NON_CLASSEES, libelle: 'Non classées', n: sans }];
 }
 
-export function dansCollection(folder: string | null, cle: string): boolean {
+export function dansCollection(folder: string | null, cle: string, collections?: readonly string[] | null): boolean {
   if (cle === COLLECTION_TOUTES) return true;
-  if (cle === COLLECTION_NON_CLASSEES) return !folder?.trim();
-  return cle.startsWith('f:') && folder?.trim() === cle.slice(2);
+  const cs = collectionsDeSauvegarde(folder, collections);
+  if (cle === COLLECTION_NON_CLASSEES) return cs.length === 0;
+  return cle.startsWith('f:') && cs.includes(cle.slice(2));
 }
 
 /** La collection demandée par l'adresse · inconnue → toutes. */
@@ -206,7 +210,11 @@ export function ilYa(iso: string | Date, maintenant: Date): string {
 /* ───────────── Sauvegardes · filtres portés de l'écran Formats (vague 3) ───────────── */
 
 export const FORMAT_TOUS = 'tous' as const;
-export interface FiltresSauvegardes { texte: string; format: string; media: 'tous' | 'video' | 'image'; plateforme: string; tri: TriFormats }
+export interface FiltresSauvegardes {
+  texte: string; format: string; media: 'tous' | 'video' | 'image'; plateforme: string; tri: TriFormats;
+  /** Lot 6 · la clé d'un tag de Veille (`cleTag`) · absent ou `TAG_TOUS` = tous. */
+  tag?: string;
+}
 export const FILTRES_SAUVEGARDES: FiltresSauvegardes = { texte: '', format: FORMAT_TOUS, media: 'tous', plateforme: 'tous', tri: 'recent' };
 
 /**
@@ -216,10 +224,11 @@ export const FILTRES_SAUVEGARDES: FiltresSauvegardes = { texte: '', format: FORM
  * Aucun filtre = tout. L'appelant passe `format: 'incertain'` pour une
  * sauvegarde incertaine (`formatFiltrable`).
  */
-export function filtrerSauvegardes<T extends { platform: string; video: boolean; texte: string; annonceur: string; format: string | null }>(items: readonly T[], f: FiltresSauvegardes): T[] {
+export function filtrerSauvegardes<T extends { platform: string; video: boolean; texte: string; annonceur: string; format: string | null; tags?: ReadonlyArray<{ cle: string }> | null }>(items: readonly T[], f: FiltresSauvegardes): T[] {
   const q = f.texte.trim().toLowerCase();
   return items.filter((i) =>
     (!q || `${i.texte} ${i.annonceur}`.toLowerCase().includes(q))
+    && porteTag(i.tags, f.tag ?? TAG_TOUS)
     && (f.format === FORMAT_TOUS || (f.format === 'non_classe' ? !i.format : i.format === f.format))
     && (f.media === 'tous' || (f.media === 'video') === i.video)
     && (f.plateforme === 'tous' || i.platform === f.plateforme));

@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { InspoAd } from '@tiktrends/integrations';
-import { PROVEN_DAYS, apercuImage, collectionsSauvegardes, estActiveVeille, etiquetteStyleVeille, explicationPontAdsmap, lienNouveauProjet, lireCollectionSauvegardes, lireFiltresSauvegardes, lireFormatCreatif, pastilleMarque, raisonPontAdsmap, tourneLongtemps } from '@tiktrends/core';
+import { PROVEN_DAYS, apercuImage, collectionsDeSauvegarde, collectionsSauvegardes, lireTagSauvegardes, tagsPresents, estActiveVeille, etiquetteStyleVeille, explicationPontAdsmap, lienNouveauProjet, lireCollectionSauvegardes, lireFiltresSauvegardes, lireFormatCreatif, pastilleMarque, raisonPontAdsmap, tourneLongtemps } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, roleAtLeast } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
@@ -11,6 +11,7 @@ import { studioDepuisVeille } from '../../../../lib/veille-link';
 import { Sauvegardes } from '../../../../spatial/vues/veille/Sauvegardes';
 import type { SauvegardeDonnees } from '../../../../spatial/vues/veille/sauvegardes-client';
 import { pastilleRadar } from '../veille/acces';
+import { lireMetaSauvegardes } from '../../../../lib/veille-tags';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,8 @@ export default async function SauvegardesSpatiales({ searchParams }: { searchPar
       .orderBy(desc(schema.savedAds.createdAt))
     : [];
 
+  // Lot 6 · les tags et les collections (0070) de CES sauvegardes · la note est sur la ligne.
+  const meta = await lireMetaSauvegardes(s.workspaceId, lignes.map((r) => r.id));
   const items: SauvegardeDonnees[] = lignes.map((r) => {
     const ad = r.snapshot as InspoAd;
     const nom = ad.advertiserName?.trim() || 'Annonceur';
@@ -66,6 +69,9 @@ export default async function SauvegardesSpatiales({ searchParams }: { searchPar
       classeeLe: lireFormatCreatif(r.snapshot).date,
       auteur: null as string | null,
       jours: typeof ad.daysRunning === 'number' ? ad.daysRunning : null,
+      tags: meta.get(r.id)?.tags ?? [],
+      note: r.note ?? null,
+      collections: collectionsDeSauvegarde(r.folder, meta.get(r.id)?.collections),
     };
   });
 
@@ -90,9 +96,11 @@ export default async function SauvegardesSpatiales({ searchParams }: { searchPar
   const raisonTest = brand && canAccess(acces, Resultats) ? null
     : explicationPontAdsmap(raisonPontAdsmap(denyReason(acces, Resultats), !!brand), 'Préparer un test dans Résultats');
 
+  // « Voir » d'un tag (`/tags`) · `?tag=<clé>`, validé contre les tags RÉELS de ces sauvegardes.
+  const tag = lireTagSauvegardes(sp, tagsPresents(items));
   return (
     <Sauvegardes items={items} pastilleRadar={pastilleRadar(acces)} creerProjet={lienNouveauProjet({ type: 'ads' })}
-      gestes={{ formatFerme, test: raisonTest ? { ouvert: false, raison: raisonTest } : { ouvert: true } }} filtresInitiaux={lireFiltresSauvegardes(sp)}
+      gestes={{ formatFerme, test: raisonTest ? { ouvert: false, raison: raisonTest } : { ouvert: true } }} filtresInitiaux={{ ...lireFiltresSauvegardes(sp), tag: tag.cle }} tagIgnore={tag.ignore}
       collection={lireCollectionSauvegardes(sp, collectionsSauvegardes(items))} />
   );
 }

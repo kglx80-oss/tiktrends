@@ -109,7 +109,9 @@ describe('Spatial · Ce qui scale · les outils du swipe file', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: ecrire }, configurable: true });
     await monter(<CeQuiScale sous="s" lignes={[]} pastilleRadar={null} vide={null} outils={outils()} />);
     await cliquer(document.querySelector('[data-ligne="meta:b"] button[aria-pressed="false"]'));
-    expect(actions.saveAd).toHaveBeenCalledWith({ platform: 'meta', externalId: 'b', snapshot: LIGNES[1]!.ad });
+    // Lot 6 · « Sauvegarder » ouvre la pop-up · son bouton écrit, avec tags, note et collections (vides ici).
+    await cliquer(document.querySelector('[data-envoyer-sauvegarde]'));
+    expect(actions.saveAd).toHaveBeenCalledWith({ platform: 'meta', externalId: 'b', snapshot: LIGNES[1]!.ad, tags: [], note: null, collections: [] });
     await cliquer(document.querySelector('[aria-label="Requêtes à copier"] button'));
     expect(ecrire).toHaveBeenCalledWith(requetesOutilsScale('skincare', 'FR')[0]);
   });

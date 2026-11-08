@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, adresseVueVeille, departDepuisVeille, estAncreCarteVeille, lienVeille, pucesVeille, toucheNavigationDetail, verrouAction, videoLisible, vueActiveVeille, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille, type VueVeilleEnregistree } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
-import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
+import { saveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
 import { creerHypotheseAction } from '../../../app/actions/adsmap-hypotheses';
 import { FormulaireHypothese } from '../resultats/hypothese-client';
 import { FERME, pendantAction } from '../projet/focus';
@@ -16,6 +16,7 @@ import { ImageApercu } from './apercu-client';
 import { ATTR_OUVRIR_DETAIL, rendreFocusPub } from './focus-pub';
 import type { NavigationDetail } from './filtres-locaux-client';
 import { PanneauVues } from './vues-client';
+import { PopupSauvegarde, type ApercuSauvegarde, type EtatSauvegarde } from './sauvegarde-client';
 
 /**
  * Les briques INTERACTIVES de la Veille Spatial. Chaque geste appelle une
@@ -46,28 +47,61 @@ function useBascule(initial: boolean, faire: (vers: boolean) => Promise<{ ok: bo
   return { etat, attente, basculer };
 }
 
-const sauver = (ad: InspoAd) => (vers: boolean) => (vers ? saveAd({ platform: ad.platform, externalId: ad.id, snapshot: ad }) : unsaveAd({ platform: ad.platform, externalId: ad.id }));
-const direSauvegarde = (vers: boolean) => (vers ? 'Pub gardée dans tes sauvegardes' : 'Retirée des sauvegardes');
+/**
+ * Lot 6 V5 (VB S01) · le signet n'écrit plus d'un coup · il ouvre la pop-up
+ * « Sauvegarder » (collections, tags, note, puis UNE action). Gardée, la même
+ * pop-up dit « Mettre à jour » et offre « Retirer des sauvegardes ». L'état
+ * affiché (plein ou vide, tags) suit le oui du serveur, jamais le clic.
+ */
+function usePopupSauvegarde(initial: boolean, changer?: (e: EtatSauvegarde) => void) {
+  const [etat, setEtat] = useState(initial);
+  useEffect(() => { setEtat(initial); }, [initial]);
+  const [ouvert, setOuvert] = useState(false);
+  const apres = (e: EtatSauvegarde) => { setEtat(e.sauvee); changer?.(e); };
+  return { etat, ouvert, ouvrir: () => setOuvert(true), fermer: () => setOuvert(false), apres };
+}
+
+interface PropsSauvegarde { ad: InspoAd; initial: boolean; apercu?: ApercuSauvegarde; changer?: (e: EtatSauvegarde) => void }
 
 /** Le marque-page de la carte (`button.xi`). */
-export function IconeSauvegarde({ ad, initial }: { ad: InspoAd; initial: boolean }) {
-  const b = useBascule(initial, sauver(ad), direSauvegarde);
+export function IconeSauvegarde({ ad, initial, apercu, changer }: PropsSauvegarde) {
+  const b = usePopupSauvegarde(initial, changer);
   return (
-    <button type="button" className="xi" aria-pressed={b.etat} disabled={b.attente} aria-label={b.etat ? 'Retirer des sauvegardes' : 'Sauvegarder'} onClick={b.basculer}>
-      <Ic n="bookmark" />
-    </button>
+    <>
+      <button type="button" className="xi" aria-pressed={b.etat} aria-haspopup="dialog" aria-expanded={b.ouvert} aria-label={b.etat ? 'Modifier la sauvegarde' : 'Sauvegarder'} onClick={b.ouvrir}>
+        <Ic n="bookmark" />
+      </button>
+      {b.ouvert && <PopupSauvegarde ad={ad} apercu={apercu} sauvee={b.etat} fermer={b.fermer} apres={b.apres} />}
+    </>
   );
 }
 
-/** Le bouton « Sauvegarder / Gardée » (`button.btn`) · Sauvegardes, détail d'une pub. */
-export function BoutonSauvegarde({ ad, initial, classe = 'btn sm', libelles = ['Sauvegarder', 'Gardée'] }: { ad: InspoAd; initial: boolean; classe?: string; libelles?: [string, string] }) {
-  const b = useBascule(initial, sauver(ad), direSauvegarde);
+/** Le bouton « Sauvegarder / Gardée » (`button.btn`) · Ce qui scale, détail d'une pub. */
+export function BoutonSauvegarde({ ad, initial, apercu, changer, classe = 'btn sm', libelles = ['Sauvegarder', 'Gardée'] }: PropsSauvegarde & { classe?: string; libelles?: [string, string] }) {
+  const b = usePopupSauvegarde(initial, changer);
   return (
-    <button className={classe} type="button" aria-pressed={b.etat} disabled={b.attente} onClick={b.basculer}>
-      <Ic n="bookmark" />{b.etat ? libelles[1] : libelles[0]}
-    </button>
+    <>
+      <button className={classe} type="button" aria-pressed={b.etat} aria-haspopup="dialog" aria-expanded={b.ouvert} onClick={b.ouvrir}>
+        <Ic n="bookmark" />{b.etat ? libelles[1] : libelles[0]}
+      </button>
+      {b.ouvert && <PopupSauvegarde ad={ad} apercu={apercu} sauvee={b.etat} fermer={b.fermer} apres={b.apres} />}
+    </>
   );
 }
+
+/** Les tags posés sur la sauvegarde d'une pub (VB C09) · rendus seulement quand il y en a (écart de maquette déclaré). */
+export function TagsCarte({ tags }: { tags?: ReadonlyArray<{ cle: string; nom: string }> }) {
+  if (!tags?.length) return null;
+  return (
+    <div data-tags-carte="" aria-label="Tags" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 14px 8px' }}>
+      {tags.map((t) => <span key={t.cle} className="pill" title={t.nom} style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}><Ic n="tag" />{t.nom}</span>)}
+    </div>
+  );
+}
+
+/** Ce que la carte d'une pub reprend d'une pop-up validée · sauvegardée ou non, et ses tags. */
+export type MajCarte = (cle: string, e: EtatSauvegarde) => void;
+const apercuCarte = (c: CarteVeilleDonnees): ApercuSauvegarde => ({ image: c.image, marque: c.marque, texte: c.texte });
 
 /** Suivre un annonceur (`followBrand` · la liste de Radar et des Sauvegardes). */
 export function BoutonSuivi({ plateforme, nom, ad, initial, classe = 'btn sm' }: { plateforme: string; nom: string; ad?: InspoAd; initial: boolean; classe?: string }) {
@@ -121,8 +155,12 @@ export function Portail({ children }: { children: ReactNode }) {
  * Avec `ouvrir`, le détail est tenu par la liste (précédente / suivante dans
  * la liste filtrée, lot 7) · sans, la carte l'ouvre seule, comme avant.
  */
-export function CarteVeille({ c, coutJarvis, ouvrir }: { c: CarteVeilleDonnees; coutJarvis: string; ouvrir?: () => void }) {
+export function CarteVeille({ c: donnees, coutJarvis, ouvrir, maj }: { c: CarteVeilleDonnees; coutJarvis: string; ouvrir?: () => void; maj?: MajCarte }) {
   const [ouvert, setOuvert] = useState(false);
+  // Lot 6 · ce que la pop-up a fait accepter au serveur · la carte (et son détail) le montrent sans recharger.
+  const [local, setLocal] = useState<EtatSauvegarde | null>(null);
+  const c: CarteVeilleDonnees = local ? { ...donnees, sauvee: local.sauvee, tags: local.tags } : donnees;
+  const changer = (e: EtatSauvegarde) => { setLocal(e); maj?.(donnees.cle, e); };
   const fermer = useCallback(() => { setOuvert(false); rendreFocusPub(c.cle); }, [c.cle]);
   const lieu = [c.pays, c.plateforme].filter(Boolean).join(' · ');
   return (
@@ -133,7 +171,7 @@ export function CarteVeille({ c, coutJarvis, ouvrir }: { c: CarteVeilleDonnees; 
           <strong>{c.marque.nom}</strong>
           <small><i className={c.active ? 'live' : 'off'} />{c.jours}{c.signaux.map((s) => <span key={s.titre} title={s.titre}><Ic n={s.icone} />{s.texte}</span>)}</small>
         </div>
-        <IconeSauvegarde ad={c.ad} initial={c.sauvee} />
+        <IconeSauvegarde ad={c.ad} initial={c.sauvee} apercu={apercuCarte(c)} changer={changer} />
       </div>
       <div className="xm">
         {lieu && <span className="xc">{lieu}</span>}
@@ -142,13 +180,14 @@ export function CarteVeille({ c, coutJarvis, ouvrir }: { c: CarteVeilleDonnees; 
         {c.croissance && <span className={c.croissance.classe} title="Croissance de la portée sur 7 jours">{c.croissance.texte}</span>}
       </div>
       <p className="xp">{c.texte}</p>
+      <TagsCarte tags={c.tags} />
       <button type="button" className="xv" {...{ [ATTR_OUVRIR_DETAIL]: c.cle }} aria-label={`Voir le détail de la pub ${c.marque.nom}`} onClick={() => (ouvrir ? ouvrir() : setOuvert(true))}>
         <div className={`comp ${c.ratio}`.trim()}><ImageApercu src={c.image} /></div>
         {c.tendance && <span className="xt hot"><Ic n="chart" />Tendance</span>}<span className="xt st">{c.style}</span>
       </button>
       <div className="xf"><div><small>{c.domaine}</small><strong>{c.titre}</strong></div>{c.cta && <span className="xcta">{c.cta}</span>}</div>
       <div className="xact2"><Lien className="btn sm pri" href={c.iterer}><Ic n="loop" />Itérer depuis cette créa</Lien></div>
-      {!ouvrir && ouvert && <Portail><DetailVeille c={c} coutJarvis={coutJarvis} fermer={fermer} /></Portail>}
+      {!ouvrir && ouvert && <Portail><DetailVeille c={c} coutJarvis={coutJarvis} fermer={fermer} maj={(_, e) => changer(e)} /></Portail>}
     </article>
   );
 }
@@ -159,7 +198,7 @@ export function CarteVeille({ c, coutJarvis, ouvrir }: { c: CarteVeilleDonnees; 
  * saisie ni sur le lecteur vidéo · `toucheNavigationDetail`) · aux bornes, le
  * bouton reste focalisable, fermé, et la raison est écrite à côté.
  */
-export function DetailVeille({ c, coutJarvis, fermer, nav }: { c: CarteVeilleDonnees; coutJarvis: string; fermer: () => void; nav?: NavigationDetail }) {
+export function DetailVeille({ c, coutJarvis, fermer, nav, maj }: { c: CarteVeilleDonnees; coutJarvis: string; fermer: () => void; nav?: NavigationDetail; maj?: MajCarte }) {
   const croix = useRef<HTMLButtonElement>(null);
   // Le focus va à la croix à l'OUVERTURE seulement · passer à la voisine le laisse où il est (bouton ou clavier).
   useEffect(() => { croix.current?.focus(); }, []);
@@ -208,6 +247,7 @@ export function DetailVeille({ c, coutJarvis, fermer, nav }: { c: CarteVeilleDon
               ))}
             </div>
           )}
+          <TagsDetail key={c.cle} c={c} maj={maj} />
           {d.kpis.length > 0 && <div className="xmk">{d.kpis.map(([k, v]) => <div key={k}><small>{k}</small><b>{v}</b></div>)}</div>}
           <p className="xmw"><Ic n="bulb" /><span>{d.lecture}</span></p>
           <div className="xms">
@@ -251,13 +291,34 @@ export function DetailVeille({ c, coutJarvis, fermer, nav }: { c: CarteVeilleDon
           )}
           <div className="kc">
             <Lien className="btn pri" href={c.iterer}><Ic n="loop" />Itérer depuis cette créa</Lien>
-            <BoutonSauvegarde ad={c.ad} initial={c.sauvee} classe="btn" libelles={['Sauvegarder', 'Sauvegardée']} />
+            <BoutonSauvegarde key={c.cle} ad={c.ad} initial={c.sauvee} apercu={apercuCarte(c)} changer={(e) => maj?.(c.cle, e)} classe="btn" libelles={['Sauvegarder', 'Sauvegardée']} />
             {c.ad.advertiserName && <BoutonSuivi plateforme={c.ad.platform} nom={c.ad.advertiserName} ad={c.ad} initial={c.suivie} classe="btn" />}
             {d.annonceur && <Lien className="btn ghost" href={d.annonceur}>Toutes les pubs {c.marque.nom}</Lien>}
           </div>
           <small className="faint">Source : bibliothèques publicitaires publiques · portée relevée, dépense estimée. Jarvis · {coutJarvis}</small>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Les tags de la pub dans son détail (VB F15) · ceux de SA sauvegarde, et
+ * « + Ajouter » qui ouvre la pop-up « Sauvegarder » (tags, note, collections).
+ * Une pub pas encore gardée le dit · ajouter un tag la garde.
+ */
+function TagsDetail({ c, maj }: { c: CarteVeilleDonnees; maj?: MajCarte }) {
+  const [ouvert, setOuvert] = useState(false);
+  const tags = c.tags ?? [];
+  return (
+    <div className="xms" data-tags-detail="">
+      <span className="lbl">Tags</span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        {tags.map((t) => <span key={t.cle} className="pill"><Ic n="tag" />{t.nom}</span>)}
+        {tags.length === 0 && <small className="faint">{c.sauvee ? 'Aucun tag sur cette sauvegarde' : 'Pas encore gardée · ajouter un tag la sauvegarde'}</small>}
+        <button type="button" className="btn sm" aria-haspopup="dialog" aria-expanded={ouvert} style={{ minHeight: 44 }} onClick={() => setOuvert(true)}><Ic n="plus" />Ajouter</button>
+      </div>
+      {ouvert && <PopupSauvegarde ad={c.ad} apercu={apercuCarte(c)} sauvee={c.sauvee} fermer={() => setOuvert(false)} apres={(e) => maj?.(c.cle, e)} />}
     </div>
   );
 }

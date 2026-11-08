@@ -14,6 +14,9 @@ const actions = vi.hoisted(() => ({
   saveAd: vi.fn(async () => ({ ok: true })), unsaveAd: vi.fn(async () => ({ ok: true })),
   followBrand: vi.fn(async () => ({ ok: true })), unfollowBrand: vi.fn(async () => ({ ok: true })),
   setSavedAdFolder: vi.fn(async () => ({ ok: true })),
+  // Lot 6 · la pop-up « Sauvegarder » lit d'abord ce qui est gardé ici, puis UNE action écrit.
+  lireSauvegardeVeille: vi.fn(async (_i: unknown): Promise<unknown> => ({ ok: true, sauvee: false, sauvegarde: { tags: [], note: null, collections: [] }, vocabulaire: [], collections: [] })),
+  majSauvegarde: vi.fn(async (_i: unknown): Promise<unknown> => ({ ok: true })),
 }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/veille', useRouter: () => ({ push: nav.push, refresh: () => {} }) }));
 vi.mock('../app/actions/inspo', () => actions);
@@ -44,48 +47,63 @@ const bouton = (texte: string, dans: ParentNode = document) => [...dans.querySel
 
 const AD: InspoAd = { id: 'a1', platform: 'meta', status: 'active', daysRunning: 34, body: 'Le texte réel de la pub', advertiserName: 'Annonceur' };
 
-describe('Spatial · Veille · sauvegarder', () => {
-  it('le marque-page appelle saveAd avec l’instantané, puis le dit', async () => {
+describe('Spatial · Veille · sauvegarder (lot 6 · la pop-up s’ouvre au signet)', () => {
+  const popup = () => document.querySelector('[data-popup-sauvegarde] [role="dialog"]');
+  const envoyer = () => document.querySelector('[data-envoyer-sauvegarde]') as HTMLButtonElement | null;
+
+  it('le marque-page ouvre la pop-up · « Sauvegarder » appelle saveAd avec l’instantané (tags, note, collections), puis le dit', async () => {
     await monter(<IconeSauvegarde ad={AD} initial={false} />);
     const b = racine.querySelector('button.xi')!;
     await cliquer(b);
-    expect(actions.saveAd).toHaveBeenCalledWith({ platform: 'meta', externalId: 'a1', snapshot: AD });
+    expect(actions.saveAd, 'le signet sauvegarde encore d’un coup').not.toHaveBeenCalled();
+    expect(popup(), 'la pop-up « Sauvegarder » ne s’ouvre pas').not.toBeNull();
+    await cliquer(envoyer());
+    expect(actions.saveAd).toHaveBeenCalledWith({ platform: 'meta', externalId: 'a1', snapshot: AD, tags: [], note: null, collections: [] });
     expect(b.getAttribute('aria-pressed')).toBe('true');
     expect(toasts).toEqual(['Pub gardée dans tes sauvegardes']);
+    expect(popup(), 'la pop-up reste ouverte après le oui').toBeNull();
   });
 
-  it('un refus du serveur remet le marque-page vide et dit pourquoi · jamais « gardée »', async () => {
+  it('un refus du serveur laisse le marque-page vide et le dit DANS la pop-up · jamais « gardée »', async () => {
     actions.saveAd.mockResolvedValueOnce({ ok: false, error: 'Annonce déjà sauvegardée pour une autre marque' } as never);
     await monter(<IconeSauvegarde ad={AD} initial={false} />);
     const b = racine.querySelector('button.xi')!;
     await cliquer(b);
+    await cliquer(envoyer());
     expect(b.getAttribute('aria-pressed')).toBe('false');
-    expect(toasts).toEqual(['Annonce déjà sauvegardée pour une autre marque']);
+    expect(document.querySelector('[data-popup-sauvegarde] [role="alert"]')?.textContent).toBe('Annonce déjà sauvegardée pour une autre marque');
+    expect(toasts).toEqual([]);
   });
-  it('vague 4 (ex InspoButtons V5) · double clic pendant l’action · une seule requête, le bouton se désactive', async () => {
+  it('vague 4 (ex InspoButtons V5) · double clic pendant l’action · une seule requête', async () => {
     let finir: (v: unknown) => void = () => {};
     actions.saveAd.mockImplementationOnce(() => new Promise((r) => { finir = r; }) as never);
     await monter(<IconeSauvegarde ad={AD} initial={false} />);
     const b = racine.querySelector('button.xi') as HTMLButtonElement;
-    await act(async () => { b.click(); b.click(); });
-    expect(b.disabled, 'le bouton reste actif pendant l’action').toBe(true);
+    await cliquer(b);
+    const e = envoyer()!;
+    await act(async () => { e.click(); e.click(); });
+    expect(e.getAttribute('aria-busy'), 'le bouton ne dit pas qu’il travaille').toBe('true');
     await act(async () => { finir({ ok: true }); });
     expect(actions.saveAd).toHaveBeenCalledTimes(1);
     expect(b.getAttribute('aria-pressed')).toBe('true');
   });
-  it('vague 4 (ex lot 19C, ★ V5) · panne réseau · le marque-page revient vide, l’échec est dit · retirer, idem', async () => {
+  it('vague 4 (ex lot 19C, ★ V5) · panne réseau · le marque-page reste vide, l’échec est dit · retirer, idem', async () => {
     actions.saveAd.mockRejectedValueOnce(new Error('réseau') as never);
     await monter(<IconeSauvegarde ad={AD} initial={false} />);
     const b = racine.querySelector('button.xi')!;
     await cliquer(b);
+    await cliquer(envoyer());
     expect(b.getAttribute('aria-pressed')).toBe('false');
-    expect(toasts.at(-1)).toMatch(/^Échec/);
+    expect(document.querySelector('[data-popup-sauvegarde] [role="alert"]')?.textContent).toMatch(/^Échec/);
+    await cliquer(bouton('Annuler'));
+    actions.lireSauvegardeVeille.mockResolvedValueOnce({ ok: true, sauvee: true, sauvegarde: { tags: [], note: null, collections: [] }, vocabulaire: [], collections: [] });
     actions.unsaveAd.mockResolvedValueOnce({ ok: false, error: 'Ton rôle ne permet pas de retirer.' } as never);
     await monter(<IconeSauvegarde key="a2" ad={{ ...AD, id: 'a2' }} initial />);
     const plein = racine.querySelector('button.xi')!;
     await cliquer(plein);
+    await cliquer(bouton('Retirer des sauvegardes', document.querySelector('[data-popup-sauvegarde]')!));
     expect(plein.getAttribute('aria-pressed'), 'un refus de retrait vide le marque-page').toBe('true');
-    expect(toasts.at(-1)).toBe('Ton rôle ne permet pas de retirer.');
+    expect(document.querySelector('[data-popup-sauvegarde] [role="alert"]')?.textContent).toBe('Ton rôle ne permet pas de retirer.');
   });
 });
 

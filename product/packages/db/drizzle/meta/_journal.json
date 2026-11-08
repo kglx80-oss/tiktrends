@@ -491,6 +491,13 @@
       "when": 1793600000000,
       "tag": "0069_mesures_csv_remontees",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1793700000000,
+      "tag": "0070_veille_tags_notes",
+      "breakpoints": true
     }
   ]
 }

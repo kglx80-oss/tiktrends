@@ -8,3 +8,4 @@ export * from './radar-creatif';
 export * from './vues';
 export * from './filtres-locaux';
 export * from './suivi-libre';
+export * from './tags-veille';

@@ -95,6 +95,22 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0070_veille_tags_notes · trois tables neuves, leurs index (dont deux uniques partiels), contraintes protégées · aucun DROP, aucun RENAME, aucune table existante modifiée', () => {
+    const brut = fichier('0070_veille_tags_notes');
+    const a = analyserMigrationSql(brut);
+    const parGenre = a.instructions.reduce<Record<string, number>>((acc, x) => ({ ...acc, [x.genre]: (acc[x.genre] ?? 0) + 1 }), {});
+    expect(parGenre).toEqual({ creation_table: 3, bloc_protege: 9, creation_index: 5 });
+    const sansCommentaires = brut.replace(/^--.*$/gm, '');
+    expect(sansCommentaires, '0070 contient un DROP').not.toMatch(/\bDROP\b/i);
+    expect(sansCommentaires, '0070 contient un RENAME').not.toMatch(/\bRENAME\b/i);
+    // Aucun ALTER sur une table existante · seulement des contraintes sur les trois tables neuves.
+    const alter = [...sansCommentaires.matchAll(/ALTER TABLE "([a-z_]+)"/g)].map((m) => m[1]);
+    expect([...new Set(alter)].sort(), 'une table existante est modifiée par 0070').toEqual(['saved_ad_collections', 'veille_tags', 'veille_tags_sauvegardes']);
+    expect(sansCommentaires).toContain('CREATE INDEX IF NOT EXISTS "veille_tags_sauvegardes_tag_idx" ON "veille_tags_sauvegardes" USING btree ("tag_id")');
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -151,9 +167,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses) puis 0069 (mesures importées et journal des remontées) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) puis 0070 (tags et collections de la Veille) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -339,6 +355,35 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0069').toEqual([]);
     await appliquer(pg, ['0069_mesures_csv_remontees']);
     expect(await empreinteSchema(pg), 'rejeu de 0069').toEqual(schemaUneFois);
+    await pg.close();
+  }, 120_000);
+
+  it('0070 sur une base à 0069 avec des sauvegardes notées et rangées · lignes intactes, tables neuves vides, unicité par vocabulaire, rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 69).map((x) => x.tag));
+    await pg.exec(`INSERT INTO saved_ads (id, workspace_id, brand_id, platform, external_id, snapshot_json, note, folder, created_at)
+      SELECT md5('sv' || i)::uuid, 'a9000000-0000-4000-8000-000000000001', md5('b1')::uuid, 'meta', 'ext-' || i, '{}'::jsonb, 'note ' || i, 'Hooks', '2026-08-01T00:00:00Z' FROM generate_series(1, 12) i`);
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    const schemaAvant = await empreinteSchema(pg);
+    await appliquer(pg, ['0070_veille_tags_notes']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0070 (note, dossier…)').toEqual(avant);
+    for (const t of ['veille_tags', 'veille_tags_sauvegardes', 'saved_ad_collections']) {
+      const [r] = await lignes<{ n: number }>(pg, `select count(*)::int as n from "${t}"`);
+      expect(r!.n, `backfill dans ${t}`).toBe(0);
+    }
+    const schemaUneFois = await empreinteSchema(pg);
+    expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0070').toEqual([]);
+    expect(schemaUneFois.filter((l) => !schemaAvant.includes(l) && l.startsWith('col ') && !/^col (veille_tags|veille_tags_sauvegardes|saved_ad_collections)\./.test(l)), 'colonne ajoutée à une table existante').toEqual([]);
+    // L'unicité tient dans un vocabulaire (même marque), pas d'une marque à l'autre, et un NULL de marque a la sienne.
+    await pg.exec(`INSERT INTO veille_tags (workspace_id, brand_id, name, name_key) VALUES ('a9000000-0000-4000-8000-000000000001', md5('b1')::uuid, 'Hook UGC', 'hook ugc')`);
+    await expect(pg.exec(`INSERT INTO veille_tags (workspace_id, brand_id, name, name_key) VALUES ('a9000000-0000-4000-8000-000000000001', md5('b1')::uuid, 'hook ugc', 'hook ugc')`)).rejects.toThrow(/unique/i);
+    await pg.exec(`INSERT INTO veille_tags (workspace_id, brand_id, name, name_key) VALUES ('a9000000-0000-4000-8000-000000000001', md5('b2')::uuid, 'Hook UGC', 'hook ugc')`);
+    await pg.exec(`INSERT INTO veille_tags (workspace_id, brand_id, name, name_key) VALUES ('a9000000-0000-4000-8000-000000000001', NULL, 'Hook UGC', 'hook ugc')`);
+    await expect(pg.exec(`INSERT INTO veille_tags (workspace_id, brand_id, name, name_key) VALUES ('a9000000-0000-4000-8000-000000000001', NULL, 'HOOK UGC', 'hook ugc')`)).rejects.toThrow(/unique/i);
+    await pg.exec(`DELETE FROM veille_tags`);
+    await appliquer(pg, ['0070_veille_tags_notes']);
+    expect(await empreinteSchema(pg), 'rejeu de 0070').toEqual(schemaUneFois);
     await pg.close();
   }, 120_000);
 

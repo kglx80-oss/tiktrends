@@ -43,15 +43,15 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures), lot 7 (Veille · filtres locaux, vue liste, navigation du détail) et lot 8 (Studios) · sortie de `node docs/ux-v5/compter-statuts.mjs`
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures), lot 7 (Veille · filtres locaux, vue liste, navigation du détail), lot 8 (Studios) et lot 6 (Veille · tags, notes et pop-up « Sauvegarder ») · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Coquille et Accueil | 106 | 0 | 13 | 12 | 9 | 12 | 152 |
-| Veille, Bibliothèque, Marques | 105 | 0 | 63 | 24 | 18 | 3 | 213 |
+| Veille, Bibliothèque, Marques | 118 | 0 | 61 | 13 | 18 | 3 | 213 |
 | Projets et canvas | 105 | 0 | 36 | 9 | 4 | 6 | 160 |
 | Résultats, Jarvis, ADMIN+ | 73 | 0 | 33 | 13 | 20 | 1 | 140 |
-| **Total** | **389** | **0** | **145** | **58** | **51** | **22** | **665** |
+| **Total** | **402** | **0** | **143** | **47** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
@@ -84,7 +84,7 @@ Classement par impact sur le cap produit (« créer des créatives winneuses… 
 | 3 | Conclure un lot entier et réutiliser l'apprentissage | M | non | 0 $ |
 | 4 | Mesures · import CSV et remontée Meta planifiée | L | oui (additive, 0069) | 0 $ |
 | 5 | Jarvis en contexte (lot, hypothèse, page, projet) | M | non | 0 $ (message existant) |
-| 6 | Veille · tags, notes et pop-up « Sauvegarder » | L | oui (additive) | 0 $ |
+| 6 | Veille · tags, notes et pop-up « Sauvegarder » | L | oui (additive, 0070) | 0 $ |
 | 7 | Veille · filtres locaux, vue liste, navigation du détail | M | non | 0 $ |
 | 8 | Studios · créations filtrables, contrôle humain, projets renommés et dupliqués | M | non | 0 $ |
 | 9 | Marque · personas éditables et reliés aux tests | M | oui (additive) | 0 $ |
@@ -154,6 +154,7 @@ Le signet sauvegarde d'un coup, une sauvegarde n'a qu'une collection, la note ex
 - **Vues** : `veille/client.tsx` (`IconeSauvegarde`), `veille/sauvegardes-client.tsx`, `reglages/Tagging.tsx`.
 - **Services à réutiliser** : `setSavedAdFolder` (`W/app/actions/inspo.ts:131`), `saved_ads.note` (déjà en base), `provenanceSauvegarde`, les règles de tags de couleur de la Bibliothèque (`C/spatial/bibliotheque/tags-couleur.ts`) comme modèle.
 - **Migration** : oui, additive · table des tags et liaison aux sauvegardes, liaison sauvegarde ↔ collections pour en porter plusieurs. La note n'en demande pas.
+- **Livré** : la pop-up « Sauvegarder » au signet de la carte, de la liste, du détail et de « Ce qui scale » (S01, S02 · `PopupSauvegarde`, W/spatial/vues/veille/sauvegarde-client.tsx) · plusieurs collections cochées (S03 · `saved_ad_collections`, le dossier reste écrit = la première), tags (S06), note (S07 · `saved_ads.note`), mention de ce qui est gardé (S08, partiel · la source ne donne pas les dates de diffusion), « Annuler » · « Sauvegarder » · « Mettre à jour » · « Retirer des sauvegardes » en UNE action (S10 · `saveAd` enrichi, `majSauvegarde` · tout est validé au noyau AVANT d'écrire) · focus piégé, Échap ferme et rend le focus au signet. Tags sur la carte (C09) et dans le détail avec « + Ajouter » (F15), filtre « Tags » dans la barre des filtres LOCAUX du lot 7 (V20 · `controlesLocaux().tags`, adresse `?tag=<clé>`), tags et note sur les cartes des Sauvegardes, tag retiré d'un geste (la sauvegarde, sa note et ses collections restent), filtre « Tags » des Sauvegardes. `/tags` · le vocabulaire de la marque active, compté (TG01 à TG04 · ajouter, Voir → `/saved?tag=`, renommer). Règles au noyau (`C/spatial/veille/tags-veille.ts` · `cleTag` · casse, espaces, accents · 40 signes par tag, 10 par sauvegarde, note de 1 000 signes, 10 collections). Un tag inutilisé reste (ni suppression ni archive). Migration **0070** (`veille_tags`, `veille_tags_sauvegardes`, `saved_ad_collections` · générée par drizzle-kit, additive, gardée par W/test/l9-migration-additive.test.ts). Mêmes gardes que la sauvegarde existante, aucune permission nouvelle. Garde · `W/test/lot6-veille-tags-db.test.tsx` (vraies actions, vraies pages montées), `product/packages/core/test/lot6-veille-tags.test.ts`, écart de parité déclaré (`W/test/spatial-veille.test.tsx`), 20 mutations tombées. **Reste** : SV01 (sélection multiple vers Studios), SV04 (collection vide gardée sans créa), SV06 (grille / liste des Sauvegardes), SV08 (pied de page), S08 (dates de diffusion, absentes de la source).
 
 ### 7 · Veille · filtres locaux, vue liste, navigation du détail · M
 
