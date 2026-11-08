@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { departDepuisAccroche, type SaisieHypotheseLibre } from '@tiktrends/core';
+import type { ResultatHypothese, SourceHypothese } from '../../../app/actions/adsmap-hypotheses';
 import { Ic, Lien } from '../../communs';
+import { BoutonHypothese } from '../resultats/hypothese-client';
 import { FormulaireSurcouche, SupprimerConfirme } from './interactifs';
 
 /**
@@ -25,6 +28,12 @@ export interface PersonaVue {
 
 type ActionFormulaire = (fd: FormData) => Promise<void>;
 
+/** « Tester cette accroche » (lot 1 V5) · `creerHypotheseAction`, ou `null` avec la raison (`accesHypothese`). */
+export interface HypothesePersona {
+  creer: ((i: { source: SourceHypothese; saisie: SaisieHypotheseLibre }) => Promise<ResultatHypothese>) | null;
+  raison: string | null;
+}
+
 const boite = (contenu: ReactNode) => (
   <div style={{ display: 'grid', gap: 8, alignContent: 'start', padding: '14px 16px', borderRadius: 18, background: '#ffffff0a', border: '1px solid var(--edge2)' }}>{contenu}</div>
 );
@@ -32,11 +41,13 @@ const titreBoite = (t: string, couleur = 'var(--fg2)') => <div className="lbl" s
 const ligne = (t: string, i: number) => <span key={i} style={{ fontSize: 13 }}>{t}</span>;
 const manque = (t: string) => <span className="faint" style={{ fontSize: 13 }}>{t}</span>;
 
-export function ChoixPersona({ brandId, personas, scenarios, jarvis, creerPub, ajouterPersona, ajouterScenario, retirerPersona }: {
+export function ChoixPersona({ brandId, personas, scenarios, jarvis, creerPub, ajouterPersona, ajouterScenario, retirerPersona, hypothese }: {
   brandId: string; personas: readonly PersonaVue[]; scenarios: ReadonlyArray<{ titre: string; contexte: string | null }>;
   jarvis: string | null; creerPub: string | null; ajouterPersona: ActionFormulaire | null; ajouterScenario: ActionFormulaire | null;
   /** Retirer le persona affiché · `deletePersonaAction` (geste de la fiche V5). Absent, le bouton n'est pas rendu. */
   retirerPersona?: ActionFormulaire | null;
+  /** Tester une accroche du persona affiché · absent, le bouton n'est pas rendu. */
+  hypothese?: HypothesePersona;
 }) {
   const [k, setK] = useState(0);
   const P = personas[Math.min(k, personas.length - 1)];
@@ -94,7 +105,16 @@ export function ChoixPersona({ brandId, personas, scenarios, jarvis, creerPub, a
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,190px),1fr))', gap: 12 }}>
             {boite(<>{titreBoite('Ses mots, tirés des avis')}{P.citations.length
               ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{P.citations.map((c, i) => <span className="pill" key={i}>« {c} »</span>)}</div>
-              : manque('Aucun extrait d’avis rattaché')}</>)}
+              : manque('Aucun extrait d’avis rattaché')}
+              {hypothese && (
+                <BoutonHypothese key={P.id} className="btn sm" style={{ justifySelf: 'start' }} titre={`Tester une accroche · ${prenom(P.nom)}`}
+                  envoyer={hypothese.creer ? (saisie, accroche) => hypothese.creer!({ source: { type: 'persona', personaId: P.id, accroche }, saisie }) : null}
+                  raison={hypothese.raison} depart={departDepuisAccroche(P.citations[0])}
+                  choix={P.citations.length ? { libelle: 'Accroche à tester', options: P.citations.map((c) => ({ valeur: c, libelle: `« ${c} »`, depart: departDepuisAccroche(c) })) } : undefined}
+                  note={P.citations.length ? 'Ses mots deviennent l’accroche à tester · l’hypothèse se range dans Résultats, « À formuler ».' : 'Aucun extrait d’avis · écris l’accroche à tester toi-même.'}>
+                  <Ic n="bulb" />Tester une accroche
+                </BoutonHypothese>
+              )}</>)}
             {boite(<>{titreBoite('Scénarios d’usage')}{scenarios.length
               ? scenarios.map((s, i) => <span key={i} style={{ fontSize: 13, display: 'flex', gap: 8, alignItems: 'baseline' }}><b style={{ minWidth: 52 }}>{s.titre}</b><span className="faint">{s.contexte ?? ''}</span></span>)
               : manque('Aucun scénario')}

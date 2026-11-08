@@ -1,4 +1,5 @@
 import type { InspoAd } from '@tiktrends/integrations';
+import type { AccesHypothese } from '@tiktrends/core';
 
 /**
  * Ce qu'une carte d'annonce de la Veille reçoit · tout est calculé par la page
@@ -44,4 +45,9 @@ export interface DetailVeille {
   jarvis: ReadonlyArray<{ href: string; titre: string; sous: string }>;
   /** Le texte publicitaire exportable en TXT · `null` sans texte. */
   texte: string | null;
+  /**
+   * « Ajouter aux hypothèses » (lot 1 V5, `creerHypotheseAction`) · ouvert ou
+   * fermé avec sa raison (`accesHypothese`). Absent, le geste n'est pas rendu.
+   */
+  hypothese?: AccesHypothese;
 }

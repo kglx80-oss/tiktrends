@@ -248,6 +248,10 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/adsmap-decisions.ts': { refreshDecisionsAction: A(), listDecisionsAction: L(), resolveDecisionAction: A(() => [randomUUID(), 'done']) },
   'app/actions/adsmap-draft.ts': { draftConceptAction: A(() => [{ origin: 'blank', intent: 'Montrer le produit en usage' }]) },
   'app/actions/adsmap-graph.ts': { graphAction: L() },
+  'app/actions/adsmap-hypotheses.ts': {
+    creerHypotheseAction: A(() => [{ source: { type: 'libre' }, saisie: { si: 'on montre le produit dès la première seconde' } }]),
+    completerHypotheseAction: A(() => [{ adId: s.ad, saisie: { si: 'on montre le produit', alors: 'le clic monte' } }]),
+  },
   'app/actions/adsmap-import.ts': { previewImportAction: A(() => ['nom;angle\nPub 1;Preuve']), applyImportAction: A(() => ['nom;angle\nPub 1;Preuve']) },
   'app/actions/adsmap-iterate.ts': { iterationPlanAction: L(), createIterationAction: A(() => [{ parentAdId: s.ad, hypothesis: 'Une accroche plus directe convertit mieux', changedVariable: 'hook' }]) },
   'app/actions/adsmap-propose.ts': {

@@ -6,6 +6,10 @@ import {
   categorieVariable, verdictAffiche, lienLotSpatial, barresCpa,
   type EtatLotSpatial, type FaitsAdSpatial, type FaitsVerdictSpatial, type NiveauPreuve,
 } from './lots';
+import {
+  lireHypothese, ligneHypotheseLibre, prioriteEstimee, PARTIES_VIDES, ESTIMATION_VIDE,
+  type EstimationHypothese, type OrigineHypotheseLibre, type PartiesHypothese,
+} from './hypotheses-libres';
 
 /**
  * Spatial · Résultats · les règles des écrans (vue d'ensemble, hypothèses,
@@ -103,6 +107,19 @@ export interface FaitsHypotheseAd {
   lot: { id: string; numero: number; etat: EtatLotSpatial; jour: number | null } | null;
   /** Bande du pré-score du concept (`prelaunchScore.band`) · `null` s'il n'a pas été calculé. */
   bande: 'low' | 'med' | 'high' | null;
+  /** Hypothèse LIBRE (lot 1) · d'où elle vient (`source_ref_json.hypotheseLibre`) · absent pour une ad ordinaire. */
+  origine?: OrigineHypotheseLibre | null;
+  /** L'estimation d'équipe (impact, confiance, effort · `ice_*`) · absente tant qu'elle n'a pas été donnée. */
+  estimation?: EstimationHypothese | null;
+}
+
+/** De quoi rouvrir le formulaire d'une hypothèse libre encore en brouillon (« Compléter la phrase »). */
+export interface EditionHypothese {
+  adId: string;
+  parties: PartiesHypothese;
+  variable: string | null;
+  estimation: EstimationHypothese;
+  libelle: 'Compléter la phrase' | 'Modifier';
 }
 
 /** Une suite proposée par le moteur d'itération (`iterationPlanAction`). */
@@ -118,6 +135,8 @@ export interface CarteHypothese {
   meta: string;
   action: { libelle: string; href: string } | null;
   conclusion: { libelle: string; classe: '' | 'g'; icone: 'check' | 'x' | 'q' } | null;
+  /** Hypothèse libre en brouillon · l'écran pose un bouton qui rouvre sa phrase à la place d'un lien. */
+  edition?: EditionHypothese | null;
 }
 
 export const LIBELLE_PRIORITE = ['à évaluer', 'faible', 'moyenne', 'forte'] as const;
@@ -153,7 +172,9 @@ export function cartesHypotheses(ads: readonly FaitsHypotheseAd[], suites: reado
   }
   for (const x of ads) {
     const a = x.ad;
-    const base = { cle: a.id, categorie: categorieVariable(a.variable), priorite: (x.bande ? BANDE[x.bande] : 0) as CarteHypothese['priorite'] };
+    // L'estimation d'équipe, quand elle est complète, prime sur le pré-score du concept.
+    const priorite = (prioriteEstimee(x.estimation) ?? (x.bande ? BANDE[x.bande] : 0)) as CarteHypothese['priorite'];
+    const base = { cle: a.id, categorie: categorieVariable(a.variable), priorite };
     const meta = `Coût par achat · ${x.concept}`;
     const texte = a.hypothese?.trim() || `${x.concept} · ${a.variante} · hypothèse à écrire`;
     if (a.verdict?.statut === 'validated') {
@@ -166,6 +187,19 @@ export function cartesHypotheses(ads: readonly FaitsHypotheseAd[], suites: reado
         ...base, colonne: 'prete', texte, meta,
         action: x.lot ? { libelle: `Lot #${x.lot.numero} · ${x.lot.etat === 'pret' ? 'prêt' : 'en préparation'}`, href: lienLotSpatial(x.lot.id) } : { libelle: 'Ranger dans un lot', href: '/adsmap/lots' },
         conclusion: null,
+      });
+    } else if (x.origine) {
+      // Hypothèse libre · sa phrase se reprend ici tant qu'elle est en brouillon
+      // (`completerHypotheseAction`) · l'offre et la page restent hors outil.
+      const parties = lireHypothese(a.hypothese);
+      const { meta: ligne, complete } = ligneHypotheseLibre({ texte: a.hypothese, variable: a.variable, manques: a.manques, origine: x.origine });
+      out.push({
+        ...base, colonne: 'formuler', texte, action: null, conclusion: null, meta: ligne,
+        edition: a.statut === 'draft' ? {
+          adId: a.id, parties: parties ?? PARTIES_VIDES, variable: a.variable,
+          estimation: x.estimation ?? ESTIMATION_VIDE,
+          libelle: complete ? 'Modifier' : 'Compléter la phrase',
+        } : null,
       });
     } else {
       // Ces champs ne se saisissent sur une ad existante par aucun écran

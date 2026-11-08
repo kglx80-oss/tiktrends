@@ -43,15 +43,15 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08 · sortie de `node docs/ux-v5/compter-statuts.mjs` :
+Recalé sur main 18c45d9, 2026-11-08, puis lot 1 (hypothèses libres · RJ H01, H04, H05, H07 · VB F25, P13) · sortie de `node docs/ux-v5/compter-statuts.mjs` :
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Coquille et Accueil | 102 | 0 | 16 | 13 | 9 | 12 | 152 |
-| Veille, Bibliothèque, Marques | 98 | 0 | 64 | 30 | 18 | 3 | 213 |
+| Veille, Bibliothèque, Marques | 99 | 0 | 64 | 29 | 18 | 3 | 213 |
 | Projets et canvas | 97 | 0 | 40 | 13 | 4 | 6 | 160 |
-| Résultats, Jarvis, ADMIN+ | 59 | 0 | 44 | 16 | 20 | 1 | 140 |
-| **Total** | **356** | **0** | **164** | **72** | **51** | **22** | **665** |
+| Résultats, Jarvis, ADMIN+ | 62 | 0 | 42 | 15 | 20 | 1 | 140 |
+| **Total** | **360** | **0** | **162** | **70** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
