@@ -17,6 +17,13 @@ import { lireConnexionMeta, type ConnexionMetaLue } from './connexion-meta';
  * compte stocké), les journées des annonces suivies sur 30 + 30 jours. La
  * décision (quelle source, quelle fenêtre, quels chiffres) est celle du noyau
  * · `chiffresClesMeta`. Aucun écran ne relit sa propre source pour ces chiffres.
+ *
+ * Elle reste sur les journées de la CONNEXION (`metrics_daily`), pas sur les
+ * journées retenues (`lireJourneesRetenues`, export compris) · ce sont les
+ * chiffres clés de la connexion Meta (compte relevé d'abord, sinon annonces
+ * suivies), lus par quatre écrans dont trois hors de l'Accueil (Analytics,
+ * Jarvis, Radar), et le Radar note des annonces par leurs vues à 75 % qu'un
+ * export ne porte pas. Y faire entrer l'export est une décision à part.
  */
 export interface ChiffresMetaLus {
   lue: ConnexionMetaLue;

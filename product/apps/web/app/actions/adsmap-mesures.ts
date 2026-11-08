@@ -11,7 +11,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { refreshDecisions } from '../../lib/decisions';
 import { daterJalons, invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import {
-  adsDeLaMarque, entreesCsv, existantesParCle, joursDe, journaliserRemontee, mesuresMeta, recalculerVerdicts, type AdDeLaMarque,
+  adsDeLaMarque, existantesParCle, journaliserRemontee, lireJourneesRetenues, recalculerVerdicts, type AdDeLaMarque,
 } from '../../lib/adsmap-mesures';
 
 /**
@@ -99,8 +99,9 @@ async function preparer(csvText: string, ws: string, brandId: string, confirmees
     return { error: `Aucune ligne de mesure lisible · ${lecture.ecartees.length} ligne(s) écartée(s) (${[...new Set(lecture.ecartees.map((e) => LIBELLE_LIGNE_ECARTEE[e.motif]))].join(', ') || 'fichier vide'}).` };
   }
   const ads = await adsDeLaMarque(ws, brandId);
-  const [csv, meta] = await Promise.all([entreesCsv(brandId, ads.map((a) => a.id)), mesuresMeta(brandId, ads)]);
-  const plan = planImportMesures(lecture, ads, { existantes: existantesParCle(csv), joursMeta: joursDe(meta), confirmees });
+  // LA lecture des mesures (connexion puis export) · ce qui est déjà en base et les jours que la connexion garde.
+  const lu = await lireJourneesRetenues(brandId, { ads });
+  const plan = planImportMesures(lecture, ads, { existantes: existantesParCle(lu.csv), joursMeta: lu.joursMeta, confirmees });
   return { lecture, plan, ads };
 }
 
