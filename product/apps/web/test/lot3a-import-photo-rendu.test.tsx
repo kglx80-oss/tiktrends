@@ -99,14 +99,16 @@ describe('le geste existe, il est nommé et borné', () => {
 });
 
 describe('états · en cours, réussi', () => {
-  it('en cours · statut annoncé, bouton « Import… » inactif, épinglage bloqué ; réussi · statut, rafraîchissement, données envoyées', async () => {
+  it('en cours · statut annoncé, bouton « Import… » occupé (focalisable, `aria-busy`), épinglage bloqué ; réussi · statut, rafraîchissement, données envoyées', async () => {
     const d = differe<typeof OK>();
     m.importer.mockReturnValue(d.p);
     monter(vueProduit());
     await deposer(fichier('flacon.jpg', 'image/jpeg'));
     expect(statut()).toContain('Import en cours');
     expect(statut()).toContain('« flacon.jpg »');
-    expect(bouton('Import…')?.disabled).toBe(true);
+    // Brique d'action serveur · le bouton pressé reste focalisable et dit qu'il travaille, un second clic ne part pas.
+    const presse = bouton('Import…')!;
+    expect([presse.disabled, presse.getAttribute('aria-disabled'), presse.getAttribute('aria-busy')]).toEqual([false, 'true', 'true']);
     expect(bouton('Utiliser cette photo et continuer')?.disabled).toBe(true);
     expect(m.importer).toHaveBeenCalledTimes(1);
     expect(m.importer.mock.calls[0]![0]).toMatchObject({ projectId: 'p1', baseVersionId: 'v1', productId: 'pr1', dataUri: DATA });

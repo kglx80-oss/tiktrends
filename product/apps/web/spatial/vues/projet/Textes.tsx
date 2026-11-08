@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useId, useState } from 'react';
 import {
-  cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, mentionAppelTexte, raisonAjoutTexte,
+  cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, mentionAppelTexte, raisonAjoutTexte, raisonFermeture,
   ECHEC_RESEAU_STUDIO, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, TONS_ECRITURE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
   type ErreurStudio, type TexteStudio, type TonEcriture, type TypeTexte, type VarianteTexte,
 } from '@tiktrends/core';
@@ -11,8 +11,10 @@ import { ecrireTextes, enregistrerTextes, exporterTextes, injecterTexte } from '
 import { MESSAGE_APPEL_PAYANT, resultatPayantIncertain, useAppelPayant } from '../../../lib/studios/appel-payant';
 import { useRegime, useSpatial } from '../../coquille/contexte';
 import { Ic, Lien, Vue } from '../../communs';
+import { boutonAction, replacerFocus } from './action-serveur';
 import { EnTeteAtelier } from './Atelier';
-import { Message } from './briques';
+import { CIBLE, Message, RaisonFermee } from './briques';
+import { useHorsLigne } from './hors-ligne';
 
 /**
  * Atelier « Textes » d'un projet (`/studio/projets/[id]/textes`), porté de
@@ -30,7 +32,15 @@ import { Message } from './briques';
  * Chaque enregistrement crée une version (conflit dit, rien d'écrasé) · un
  * brouillon survit au rechargement après conflit. Le texte venu du modèle est
  * rendu comme TEXTE, jamais comme HTML.
+ *
+ * Chaque bouton qui part au serveur passe par la brique `boutonAction` ·
+ * le bouton pressé garde le focus et dit qu'il travaille, un bouton fermé dit
+ * pourquoi à côté de lui, hors ligne rien ne part (`useHorsLigne`), et quand
+ * la ligne disparaît (texte retenu, retiré, modification enregistrée) le focus
+ * rejoint la suite logique (`replacerFocus`), jamais `<body>`.
  */
+const TITRE_RETENUS = '[data-titre="retenus"]';
+const ROLE_LECTURE = 'Ton rôle permet de lire et d’exporter, pas d’écrire.';
 
 export interface PropsTextes {
   vue: VueTextes;
@@ -78,6 +88,8 @@ export function Textes({ vue, atelier }: PropsTextes) {
   const [langue, setLangue] = useState('fr');
   const idTitreManuel = useId();
   const idRaisonAjout = useId();
+  const id = useId();
+  const horsLigne = useHorsLigne();
   const limite = vue.limites.find((l) => l.type === type)!;
   const [nombre, setNombre] = useState(VARIANTES_DEFAUT);
   const [max, setMax] = useState<Record<string, number>>({});
@@ -105,8 +117,9 @@ export function Textes({ vue, atelier }: PropsTextes) {
   const dire = (t: 'ok' | 'err', texte: string, o: { conflit?: boolean; lien?: boolean; code?: string } = {}) => { setRetour({ ton: t, texte, ...o }); if (t === 'ok') toast(texte); };
   const echec = retour?.ton === 'err' && retour.code ? etatEchecStudio(retour.code) : null;
 
-  async function sauver(liste: Edition[], ok: string): Promise<boolean> {
-    setEnCours('sauver'); setRetour(null);
+  async function sauver(nom: string, liste: Edition[], ok: string): Promise<boolean> {
+    if (horsLigne) return false;
+    setEnCours(nom); setRetour(null);
     try {
       const r = await enregistrerTextes({ projectId: vue.projet.id, baseVersionId: version.id, textes: liste });
       if (!r.ok) { dire('err', messageErreur(r), { conflit: r.code === 'VERSION_CONFLICT', code: r.code }); return false; }
@@ -119,9 +132,12 @@ export function Textes({ vue, atelier }: PropsTextes) {
   }
 
   async function ecrire() {
+    if (horsLigne) return;
     const tentative = appel.commencer();
     if (!tentative) return;
     setArme(false); setEnCours('ecrire'); setRetour(null); setQuestions([]);
+    // La confirmation disparaît · « Écrire », pressé, reprend le focus.
+    replacerFocus('si-perdu', '[data-bouton="ecrire"]');
     try {
       const r = await ecrireTextes({ projectId: vue.projet.id, baseVersionId: version.id, type, nombre, maxCaracteres: maxType, langue, ton });
       appel.terminer(tentative, resultatPayantIncertain(r));
@@ -129,10 +145,11 @@ export function Textes({ vue, atelier }: PropsTextes) {
       if (r.statut === 'questions') { setQuestions(r.questions); return; }
       setProposees(r.variantes); setEcartees(r.ecartees);
     } catch { appel.terminer(tentative, true); dire('err', MESSAGE_APPEL_PAYANT, { code: ECHEC_RESEAU_STUDIO }); }
-    finally { setEnCours(null); }
+    finally { setEnCours(null); replacerFocus('si-perdu', '[data-bouton="ecrire"]', '[data-variante="1"] [data-geste="retenir"]', TITRE_RETENUS); }
   }
 
   async function exporter(format: 'markdown' | 'csv' | 'json') {
+    if (horsLigne) return;
     setEnCours(`export-${format}`); setRetour(null);
     try {
       const r = await exporterTextes({ projectId: vue.projet.id, versionId: version.id, format });
@@ -148,7 +165,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
 
   async function injecter(t: TexteStudio) {
     const layerId = calque[t.id] ?? vue.calques[0]?.id;
-    if (!layerId) return;
+    if (!layerId || horsLigne) return;
     setEnCours(`injecter-${t.id}`); setRetour(null);
     try {
       const r = await injecterTexte({ projectId: vue.projet.id, baseVersionId: version.id, layerId, texte: t.texte });
@@ -162,8 +179,20 @@ export function Textes({ vue, atelier }: PropsTextes) {
     finally { setEnCours(null); }
   }
 
-  const ecritureBloquee = appel.bloque || !d.disponible || !vue.peutEcrire || enCours !== null || !vue.brief;
-  const raisonAjout = raisonAjoutTexte({ peutEcrire: vue.peutEcrire, briefPresent: !!vue.brief, enCours: enCours !== null, texte: manuel.texte });
+  // Les raisons écrites à côté des boutons fermés · l'action en cours n'en est pas une (le bouton pressé le dit lui-même).
+  // L'état de l'appel payant n'est lu qu'au navigateur (`initializing` au rendu serveur) · la cause durable passe d'abord.
+  const raisonEcrire = raisonFermeture(horsLigne, !d.disponible && `Indisponible · ${d.raison}`, !vue.peutEcrire && ROLE_LECTURE, !vue.brief && 'Ce projet n’a pas de brief · les textes s’écrivent à partir du brief.',
+    appel.bloque && (appel.etat === 'initializing' ? 'Vérification de l’appel précédent…' : 'Bloqué tant que l’appel précédent n’est pas confirmé · consulte le suivi du projet.'));
+  const raisonAjout = raisonFermeture(horsLigne, raisonAjoutTexte({ peutEcrire: vue.peutEcrire, briefPresent: !!vue.brief, enCours: false, texte: manuel.texte }));
+  const raisonEcrireRetenu = raisonFermeture(horsLigne, !vue.peutEcrire && ROLE_LECTURE);
+  const occupe = enCours !== null;
+  const raisonModification = (valeur: string) => raisonFermeture(horsLigne, !valeur.trim() && 'Écris un texte pour pouvoir l’enregistrer.');
+  /** La ligne d'un texte retenu disparaît · le focus va au texte suivant, sinon au précédent, sinon au titre de la liste. */
+  const focusApresRetrait = (i: number) => {
+    const reste = retenus.filter((_, k) => k !== i);
+    const voisin = reste[Math.min(i, reste.length - 1)];
+    replacerFocus('si-perdu', ...(voisin ? [`[data-texte-id="${voisin.id}"] [data-geste="retirer"]`, `[data-texte-id="${voisin.id}"] [data-geste="copier"]`] : []), TITRE_RETENUS);
+  };
   const coutEcriture = mentionAppelTexte(regime, d.coutMaxUsd);
   const libelleEcrire = `Écrire ${nombre} ${nombre > 1 ? LIBELLES_TYPE_TEXTE_PLURIEL[type] : LIBELLES_TYPE_TEXTE[type].toLowerCase()}`;
   const tous = [
@@ -177,11 +206,10 @@ export function Textes({ vue, atelier }: PropsTextes) {
         actif={`/studio/projets/${vue.projet.id}/textes`} aide="Hooks, corps, CTA et scripts sur les mêmes faits et la même hypothèse que les studios." />
       {retour && (
         <div className="sec">
-          <p role={retour.ton === 'ok' ? 'status' : 'alert'} className="muted" style={{ fontSize: '12.5px' }}>
-            <span className={`pill ${retour.ton === 'ok' ? 'g' : 'w'}`}>{retour.ton === 'ok' ? 'Fait' : echec?.mot ?? 'Refusé'}</span>{' · '}{retour.texte}
-            {retour.lien && <> <Lien href={`/studio/projets/${vue.projet.id}#propositions`}>Ouvrir le projet</Lien></>}
-          </p>
-          {retour.conflit && <button className="btn sm" type="button" onClick={recharger} style={{ marginTop: 8 }}>Recharger la version courante</button>}
+          <Message ton={retour.ton} horsLigne={retour.code === ECHEC_RESEAU_STUDIO} etiquette={retour.ton === 'err' ? echec?.mot : undefined}>
+            · {retour.texte}{retour.lien && <> <Lien href={`/studio/projets/${vue.projet.id}#propositions`}>Ouvrir le projet</Lien></>}
+          </Message>
+          {retour.conflit && <button className="btn sm" type="button" onClick={recharger} style={{ ...CIBLE, marginTop: 8 }}>Recharger la version courante</button>}
         </div>
       )}
 
@@ -222,21 +250,23 @@ export function Textes({ vue, atelier }: PropsTextes) {
             </label>
           </div>
           <small className="faint" style={{ fontSize: '11.5px' }}>{limite.mesuree ? `${limite.max} · palier mesuré où la police de l’accroche atteint son plancher.` : `${limite.max} · borne du contrat, aucune limite mesurée pour ce type · resserre-la si besoin.`}</small>
-          {!d.disponible && <small className="faint" style={{ fontSize: '11.5px' }} role="note">Indisponible · {d.raison}</small>}
           {arme ? (
             <div className="sugg" data-confirmation="ecrire">
               <p style={{ fontSize: '12.5px' }}>{coutEcriture}. Aucun média, rien d’enregistré sans « Retenir ».</p>
-              <div className="kc" style={{ marginTop: 8 }}>
-                <button className="btn sm pri" type="button" disabled={ecritureBloquee} onClick={() => void ecrire()}>{enCours === 'ecrire' ? 'Écriture…' : `Confirmer · ${libelleEcrire.toLowerCase()}`}</button>
-                <button className="btn sm" type="button" onClick={() => setArme(false)}>Annuler</button>
+              <div className="kc" style={{ marginTop: 8, alignItems: 'center' }}>
+                <button className="btn sm pri" type="button" data-bouton="confirmer-ecrire" style={CIBLE} aria-describedby={raisonEcrire ? `${id}-ecrire` : undefined}
+                  {...boutonAction({ occupe, ferme: !!raisonEcrire, surClic: () => void ecrire() })}>{`Confirmer · ${libelleEcrire.toLowerCase()}`}</button>
+                <button className="btn sm" type="button" style={CIBLE} onClick={() => { setArme(false); replacerFocus('toujours', '[data-bouton="ecrire"]'); }}>Annuler</button>
               </div>
             </div>
           ) : (
-            <div className="kc">
-              <button className="btn sm pri" type="button" data-bouton="ecrire" disabled={ecritureBloquee} onClick={() => setArme(true)}><Ic n="spark" />{enCours === 'ecrire' ? 'Écriture…' : libelleEcrire}</button>
+            <div className="kc" style={{ alignItems: 'center' }}>
+              <button className="btn sm pri" type="button" data-bouton="ecrire" style={CIBLE} aria-describedby={raisonEcrire ? `${id}-ecrire` : undefined}
+                {...boutonAction({ presse: enCours === 'ecrire', occupe, ferme: !!raisonEcrire, surClic: () => { setArme(true); replacerFocus('toujours', '[data-bouton="confirmer-ecrire"]'); } })}><Ic n="spark" />{enCours === 'ecrire' ? 'Écriture…' : libelleEcrire}</button>
               <small className="faint" style={{ fontSize: '11.5px' }} data-cout="texte">{coutEcriture}</small>
             </div>
           )}
+          {raisonEcrire && <RaisonFermee id={`${id}-ecrire`} cle="ecrire">{raisonEcrire}</RaisonFermee>}
           {questions.length > 0 && <Message ton="info">Il manque une précision · {questions.join(' · ')}</Message>}
         </section>
       </div>
@@ -244,17 +274,24 @@ export function Textes({ vue, atelier }: PropsTextes) {
       {(proposees.length > 0 || ecartees.length > 0) && (
         <section className="tile sec" style={{ display: 'grid', gap: 8 }} aria-label="Variantes proposées">
           <div className="sech" style={{ margin: 0 }}><h2>Proposés par l’IA</h2><span className="faint" style={{ fontSize: '12.5px' }}>Rien n’entre dans le projet sans « Retenir »</span></div>
+          {raisonEcrireRetenu && <RaisonFermee id={`${id}-proposees`} cle="retenir">{raisonEcrireRetenu}</RaisonFermee>}
           {proposees.map((v, i) => (
-            <div className="prow" key={v.id} data-variante={i + 1} style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div className="prow" key={v.id} data-variante={i + 1} data-variante-id={v.id} style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <div className="t">
                 <strong style={{ fontSize: '12.5px' }}><span className="pill c">{LIBELLES_TYPE_TEXTE[v.type]} {i + 1}</span> <span className="faint">{v.longueur} / {maxType} caractères</span></strong>
                 <p style={{ fontSize: 13, whiteSpace: 'pre-wrap', marginTop: 4 }}>{v.texte}</p>
                 {v.sources.length > 0 && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Allégations fondées sur · {v.sources.map((s) => `${s} (${libelleFait(s)})`).join(' · ')}</small>}
                 {v.horsVariable && <small style={{ display: 'block', fontSize: '11.5px' }}><span className="pill w">Hors variable</span> Change « {v.variable} » et non la variable du test · le test ne l’isolerait pas.</small>}
               </div>
-              <div className="kc">
-                <button className="btn sm pri" type="button" disabled={enCours !== null || !vue.peutEcrire} onClick={async () => { if (await sauver([...retenus, v], 'Texte retenu')) setProposees((p) => p.filter((x) => x.id !== v.id)); }}><Ic n="check" />Retenir</button>
-                <button className="btn sm" type="button" onClick={async () => { const ok = await copier(v.texte); dire(ok ? 'ok' : 'err', ok ? 'Texte copié.' : 'Le navigateur a refusé la copie.'); }}><Ic n="copy" />Copier</button>
+              <div className="kc" style={{ alignItems: 'center' }}>
+                <button className="btn sm pri" type="button" data-geste="retenir" style={CIBLE} aria-label={`${enCours === `retenir-${v.id}` ? 'Enregistrement…' : 'Retenir'} · ${LIBELLES_TYPE_TEXTE[v.type]} ${i + 1}`} aria-describedby={raisonEcrireRetenu ? `${id}-proposees` : undefined}
+                  {...boutonAction({ presse: enCours === `retenir-${v.id}`, occupe, ferme: !!raisonEcrireRetenu, surClic: async () => {
+                    if (!(await sauver(`retenir-${v.id}`, [...retenus, v], 'Texte retenu'))) return;
+                    const suivante = proposees.filter((x) => x.id !== v.id)[Math.min(i, proposees.length - 2)];
+                    setProposees((p) => p.filter((x) => x.id !== v.id));
+                    replacerFocus('si-perdu', ...(suivante ? [`[data-variante-id="${suivante.id}"] [data-geste="retenir"]`] : []), TITRE_RETENUS);
+                  } })}><Ic n="check" />{enCours === `retenir-${v.id}` ? 'Enregistrement…' : 'Retenir'}</button>
+                <button className="btn sm" type="button" style={CIBLE} aria-label={`Copier · ${LIBELLES_TYPE_TEXTE[v.type]} ${i + 1}`} onClick={async () => { const ok = await copier(v.texte); dire(ok ? 'ok' : 'err', ok ? 'Texte copié.' : 'Le navigateur a refusé la copie.'); }}><Ic n="copy" />Copier</button>
               </div>
             </div>
           ))}
@@ -289,56 +326,73 @@ export function Textes({ vue, atelier }: PropsTextes) {
                   </div>
                 </div>
               )}
-              <div className="kc">
-                <button className="btn sm pri" type="button" data-geste="ajouter" disabled={raisonAjout !== null} aria-describedby={raisonAjout ? idRaisonAjout : undefined}
-                  onClick={async () => { if (await sauver([...retenus, manuel], 'Texte ajouté')) setManuel({ type: manuel.type, langue: 'fr', texte: '', sources: [] }); }}>Ajouter aux textes retenus</button>
-                {raisonAjout && <small className="faint" style={{ fontSize: '11.5px' }} data-raison="ajout" id={idRaisonAjout}>{raisonAjout}</small>}
+              <div className="kc" style={{ alignItems: 'center' }}>
+                <button className="btn sm pri" type="button" data-geste="ajouter" style={CIBLE} aria-describedby={raisonAjout ? idRaisonAjout : undefined}
+                  {...boutonAction({ presse: enCours === 'ajouter', occupe, ferme: raisonAjout !== null, surClic: async () => {
+                    if (!(await sauver('ajouter', [...retenus, manuel], 'Texte ajouté'))) return;
+                    setManuel({ type: manuel.type, langue: 'fr', texte: '', sources: [] });
+                    // Le champ vidé ferme « Ajouter » · le focus revient au champ, prêt pour le texte suivant.
+                    replacerFocus('toujours', '[data-zone="ecrire-main"] textarea');
+                  } })}>{enCours === 'ajouter' ? 'Ajout…' : 'Ajouter aux textes retenus'}</button>
+                {raisonAjout && <RaisonFermee id={idRaisonAjout} cle="ajouter" data-raison="ajout">{raisonAjout}</RaisonFermee>}
               </div>
             </>
-          ) : <small className="faint" style={{ fontSize: '11.5px' }}>Ton rôle permet de lire et d’exporter, pas d’écrire.</small>}
+          ) : <small className="faint" style={{ fontSize: '11.5px' }}>{ROLE_LECTURE}</small>}
         </section>
 
-        <section className="tile" data-zone="export" style={{ display: 'grid', gap: 10 }}>
+        <section className="tile" data-zone="export" style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <div className="lbl" style={{ margin: 0 }}>Copier et exporter</div>
           <small className="faint" style={{ fontSize: '11.5px' }}>Pour produire ailleurs · aucune génération, aucun crédit, aucun média.</small>
-          <div className="kc">
-            <button className="btn sm" type="button" disabled={retenus.length === 0} onClick={async () => { const ok = await copier(retenus.map((t) => `${libelleType(t.type)} · ${t.texte}`).join('\n\n')); dire(ok ? 'ok' : 'err', ok ? 'Tous les textes retenus sont copiés.' : 'Le navigateur a refusé la copie.'); }}><Ic n="copy" />Copier tous les textes</button>
+          <div className="kc" style={{ alignItems: 'center' }}>
+            <button className="btn sm" type="button" data-geste="copier-tout" style={CIBLE} disabled={retenus.length === 0} aria-describedby={retenus.length === 0 ? `${id}-copier-tout` : undefined} onClick={async () => { const ok = await copier(retenus.map((t) => `${libelleType(t.type)} · ${t.texte}`).join('\n\n')); dire(ok ? 'ok' : 'err', ok ? 'Tous les textes retenus sont copiés.' : 'Le navigateur a refusé la copie.'); }}><Ic n="copy" />Copier tous les textes</button>
             {vue.peutExporter && (['markdown', 'csv', 'json'] as const).map((f) => (
-              <button key={f} className="btn sm" type="button" data-export={f} disabled={enCours !== null} onClick={() => void exporter(f)}><Ic n="down" />{f === 'markdown' ? 'Exporter en Markdown' : f === 'csv' ? 'Exporter en CSV' : 'Exporter en JSON'}</button>
+              <button key={f} className="btn sm" type="button" data-export={f} style={CIBLE} aria-describedby={horsLigne ? `${id}-export` : undefined}
+                {...boutonAction({ presse: enCours === `export-${f}`, occupe, ferme: horsLigne, surClic: () => void exporter(f) })}><Ic n="down" />{enCours === `export-${f}` ? 'Export en cours…' : f === 'markdown' ? 'Exporter en Markdown' : f === 'csv' ? 'Exporter en CSV' : 'Exporter en JSON'}</button>
             ))}
           </div>
+          {retenus.length === 0 && <RaisonFermee id={`${id}-copier-tout`} cle="copier-tout">Aucun texte retenu à copier · retiens-en un d’abord.</RaisonFermee>}
+          {horsLigne && vue.peutExporter && <RaisonFermee id={`${id}-export`} cle="export">{raisonFermeture(true)}</RaisonFermee>}
         </section>
       </div>
 
       <section className="tile sec" data-zone="retenus" style={{ display: 'grid', gap: 8 }}>
-        <div className="sech" style={{ margin: 0 }}><h2>Textes retenus · {retenus.length}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Rangés dans le brief du projet · les studios les lisent au même endroit</span></div>
-        {retenus.length === 0 ? <p className="muted" style={{ fontSize: '12.5px' }} data-etat="sans-texte">Aucun texte retenu.</p> : retenus.map((t) => (
-          <div className="prow" key={t.id} data-texte={t.type} style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div className="sech" style={{ margin: 0 }}><h2 data-titre="retenus" tabIndex={-1}>Textes retenus · {retenus.length}</h2><span className="faint" style={{ fontSize: '12.5px' }}>Rangés dans le brief du projet · les studios les lisent au même endroit</span></div>
+        {raisonEcrireRetenu && vue.peutEcrire && retenus.length > 0 && <RaisonFermee id={`${id}-retenus`} cle="retenus">{raisonEcrireRetenu}</RaisonFermee>}
+        {retenus.length === 0 ? <p className="muted" style={{ fontSize: '12.5px' }} data-etat="sans-texte">Aucun texte retenu · {vue.peutEcrire ? 'écris-en un à la main ou retiens une variante proposée par l’IA.' : 'une personne qui peut écrire dans le projet les ajoute ici.'}</p> : retenus.map((t, i) => (
+          <div className="prow" key={t.id} data-texte={t.type} data-texte-id={t.id} style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div className="t">
               <strong style={{ fontSize: '12.5px' }}><span className="pill g">{libelleType(t.type)}</span>{t.langue ? <span className="faint"> {t.langue}</span> : null}</strong>
               {edition?.id === t.id ? (
                 <div style={{ display: 'grid', gap: 6, marginTop: 6 }}>
                   <textarea className="ta" rows={3} value={edition.valeur} aria-label="Modifier le texte" onChange={(e) => setEdition({ id: t.id, valeur: e.target.value })} />
-                  <div className="kc">
-                    <button className="btn sm pri" type="button" disabled={enCours !== null || !edition.valeur.trim()} onClick={async () => { if (await sauver(retenus.map((x) => (x.id === t.id ? { ...x, texte: edition.valeur } : x)), 'Texte modifié')) setEdition(null); }}>Enregistrer</button>
-                    <button className="btn sm" type="button" onClick={() => setEdition(null)}>Annuler</button>
+                  <div className="kc" style={{ alignItems: 'center' }}>
+                    <button className="btn sm pri" type="button" data-geste="enregistrer-modification" style={CIBLE} aria-describedby={raisonModification(edition.valeur) ? `${id}-modifier-${t.id}` : undefined}
+                      {...boutonAction({ presse: enCours === `modifier-${t.id}`, occupe, ferme: !!raisonModification(edition.valeur), surClic: async () => {
+                        if (!(await sauver(`modifier-${t.id}`, retenus.map((x) => (x.id === t.id ? { ...x, texte: edition.valeur } : x)), 'Texte modifié'))) return;
+                        setEdition(null);
+                        replacerFocus('toujours', `[data-texte-id="${t.id}"] [data-geste="modifier"]`, TITRE_RETENUS);
+                      } })}>{enCours === `modifier-${t.id}` ? 'Enregistrement…' : 'Enregistrer la modification'}</button>
+                    <button className="btn sm" type="button" style={CIBLE} onClick={() => { setEdition(null); replacerFocus('toujours', `[data-texte-id="${t.id}"] [data-geste="modifier"]`); }}>Annuler</button>
+                    {raisonModification(edition.valeur) && <RaisonFermee id={`${id}-modifier-${t.id}`} cle="modifier">{raisonModification(edition.valeur)}</RaisonFermee>}
                   </div>
                 </div>
               ) : <p style={{ fontSize: 13, whiteSpace: 'pre-wrap', marginTop: 4 }}>{t.texte}</p>}
               {t.sources.length > 0 && <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Sources · {t.sources.map((s) => `${s} (${libelleFait(s)})`).join(' · ')}</small>}
               {vue.peutEcrire && (vue.calques.length ? (
-                <div className="kc" style={{ marginTop: 6 }}>
+                <div className="kc" style={{ marginTop: 6, alignItems: 'center' }}>
                   <select className="dsort" style={{ maxWidth: '100%' }} aria-label="Calque texte" value={calque[t.id] ?? vue.calques[0]!.id} onChange={(e) => setCalque((c) => ({ ...c, [t.id]: e.target.value }))}>
                     {vue.calques.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
                   </select>
-                  <button className="btn sm" type="button" disabled={enCours !== null} onClick={() => void injecter(t)}>Proposer dans ce calque</button>
+                  <button className="btn sm" type="button" data-geste="proposer" style={CIBLE} aria-describedby={horsLigne ? `${id}-retenus` : undefined}
+                    {...boutonAction({ presse: enCours === `injecter-${t.id}`, occupe, ferme: horsLigne, surClic: () => void injecter(t) })}>{enCours === `injecter-${t.id}` ? 'Proposition…' : 'Proposer dans ce calque'}</button>
                 </div>
               ) : <small className="faint" style={{ display: 'block', fontSize: '11.5px' }} data-etat="sans-calque">Aucun calque texte dans la mise en page de ce projet · l’injection viendra avec l’éditeur.</small>)}
             </div>
-            <div className="kc">
-              <button className="btn sm" type="button" onClick={async () => { const ok = await copier(t.texte); dire(ok ? 'ok' : 'err', ok ? 'Texte copié.' : 'Le navigateur a refusé la copie.'); }}><Ic n="copy" />Copier</button>
-              {vue.peutEcrire && edition?.id !== t.id && <button className="btn sm" type="button" onClick={() => setEdition({ id: t.id, valeur: t.texte })}><Ic n="brush" />Modifier</button>}
-              {vue.peutEcrire && <button className="btn sm" type="button" disabled={enCours !== null} onClick={() => void sauver(retenus.filter((x) => x.id !== t.id), 'Texte retiré')}><Ic n="x" />Retirer</button>}
+            <div className="kc" style={{ alignItems: 'center' }}>
+              <button className="btn sm" type="button" data-geste="copier" style={CIBLE} aria-label={`Copier · ${libelleType(t.type)} · ${t.texte.slice(0, 40)}`} onClick={async () => { const ok = await copier(t.texte); dire(ok ? 'ok' : 'err', ok ? 'Texte copié.' : 'Le navigateur a refusé la copie.'); }}><Ic n="copy" />Copier</button>
+              {vue.peutEcrire && edition?.id !== t.id && <button className="btn sm" type="button" data-geste="modifier" style={CIBLE} aria-label={`Modifier · ${libelleType(t.type)} · ${t.texte.slice(0, 40)}`} onClick={() => { setEdition({ id: t.id, valeur: t.texte }); replacerFocus('toujours', `[data-texte-id="${t.id}"] textarea`); }}><Ic n="brush" />Modifier</button>}
+              {vue.peutEcrire && <button className="btn sm" type="button" data-geste="retirer" style={CIBLE} aria-label={`${enCours === `retirer-${t.id}` ? 'Retrait…' : 'Retirer'} · ${libelleType(t.type)} · ${t.texte.slice(0, 40)}`} aria-describedby={horsLigne ? `${id}-retenus` : undefined}
+                {...boutonAction({ presse: enCours === `retirer-${t.id}`, occupe, ferme: horsLigne, surClic: async () => { if (await sauver(`retirer-${t.id}`, retenus.filter((x) => x.id !== t.id), 'Texte retiré')) focusApresRetrait(i); } })}><Ic n="x" />{enCours === `retirer-${t.id}` ? 'Retrait…' : 'Retirer'}</button>}
             </div>
           </div>
         ))}

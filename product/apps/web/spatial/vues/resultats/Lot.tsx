@@ -31,6 +31,12 @@ export interface PropsLot {
   fiches?: ReadonlyArray<{ href: string; libelle: string; detail: string }>;
   /** La conclusion du lot entier (`conclusionLot`) · absente, rien n'est ajouté. */
   conclusion?: LectureConclusion;
+  /**
+   * « Demander à Jarvis » sur CE lot (lot 5 V5 · `lienJarvisContexte('lot', id)`) ·
+   * ouvre Jarvis, le lot joint, la question préparée, rien d'envoyé. Absent (pas
+   * d'accès Jarvis), rien n'est ajouté à la maquette.
+   */
+  jarvis?: { href: string } | null;
 }
 
 const TON_CONCLUSION: Record<LectureConclusion['conclusion'], { pill: string; couleur: string; icone: string }> = {
@@ -90,6 +96,7 @@ export function Lot(p: PropsLot) {
       <section className="tile" style={{ marginTop: 16, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="orb">J</span>
         <p style={{ flex: 1, minWidth: 200 }}>{p.coach.avant} <b>{p.coach.fort}</b> {p.coach.apres}</p>
+        {p.jarvis && <Lien className="btn sm" href={p.jarvis.href} data-demander-jarvis="lot" title="Ouvre Jarvis avec ce lot joint · la question est préparée, l’envoi reste à toi"><Ic n="spark" />Demander à Jarvis</Lien>}
       </section>
       {p.reserves?.map((r) => <p className="faint" key={r} style={{ fontSize: '12.5px', marginTop: 10 }}>{r}</p>)}
       {p.fiches && p.fiches.length > 0 && (

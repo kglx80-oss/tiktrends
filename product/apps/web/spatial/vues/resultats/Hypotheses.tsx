@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { COLONNES_HYPOTHESES, PARTIES_VIDES, categoriesHypotheses, type CarteHypothese, type SaisieHypotheseLibre, type TestedVariable } from '@tiktrends/core';
+import { COLONNES_HYPOTHESES, PARTIES_VIDES, categoriesHypotheses, lienJarvisCarteHypothese, lienJarvisContexte, type CarteHypothese, type SaisieHypotheseLibre, type TestedVariable } from '@tiktrends/core';
 import type { ResultatHypothese, SourceHypothese } from '../../../app/actions/adsmap-hypotheses';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Hypothese, Priorite, type SousNavResultats } from './communs';
@@ -15,7 +15,12 @@ import { BoutonHypothese } from './hypothese-client';
  * LIBRES (lot 1 V5) · « Nouvelle hypothèse » en écrit une à partir de rien
  * (`creerHypotheseAction`), et une hypothèse libre en brouillon se reprend sur
  * sa carte (« Compléter la phrase », `completerHypotheseAction`).
+ *
+ * Lot 5 · « Suggérer avec Jarvis » joint la page (`resultats:hypotheses`) et
+ * prépare la question de la maquette (« Quelle variante tester ensuite ? ») ·
+ * « Demander à Jarvis » sur une carte joint SON hypothèse. Rien n'est envoyé.
  */
+const LIEN_JARVIS_PAGE = lienJarvisContexte('resultats', 'hypotheses', 'Quelle variante tester ensuite ?') ?? '/jarvis';
 
 export interface PropsHypotheses {
   sousNav: SousNavResultats;
@@ -27,6 +32,19 @@ export interface PropsHypotheses {
   creer?: ((i: { source: SourceHypothese; saisie: SaisieHypotheseLibre }) => Promise<ResultatHypothese>) | null;
   /** Reprendre la phrase d'une hypothèse libre en brouillon. */
   completer?: ((i: { adId: string; saisie: SaisieHypotheseLibre }) => Promise<ResultatHypothese>) | null;
+  /** « Demander à Jarvis » sur chaque carte (lot 5 V5) · absent, la carte reste celle de la maquette. */
+  jarvisCartes?: boolean;
+}
+
+/** Le geste par carte · son nom dit QUELLE hypothèse (il commence par le mot affiché). */
+function DemanderJarvis({ carte }: { carte: CarteHypothese }) {
+  const href = lienJarvisCarteHypothese(carte);
+  if (!href) return null;
+  const extrait = carte.texte.length > 60 ? `${carte.texte.slice(0, 59)}…` : carte.texte;
+  return (
+    <Lien className="btn sm" href={href} style={{ justifySelf: 'start' }} data-demander-jarvis="hypothese" aria-label={`Demander à Jarvis · ${extrait}`}
+      title="Ouvre Jarvis avec cette hypothèse jointe · la question est préparée, l’envoi reste à toi"><Ic n="spark" />Demander à Jarvis</Lien>
+  );
 }
 
 export function Hypotheses(p: PropsHypotheses) {
@@ -41,7 +59,7 @@ export function Hypotheses(p: PropsHypotheses) {
         <div className="pcats" style={{ margin: 0 }}>
           {cats.map((c) => <button type="button" className="chip" key={c.cle} aria-pressed={cat === c.cle} onClick={() => setCat(c.cle)}>{c.libelle} · {c.n}</button>)}
         </div>
-        {p.jarvis && <Lien className="btn sm" href="/jarvis" style={{ marginLeft: 'auto' }}><Ic n="spark" />Suggérer avec Jarvis</Lien>}
+        {p.jarvis && <Lien className="btn sm" href={LIEN_JARVIS_PAGE} style={{ marginLeft: 'auto' }} data-demander-jarvis="resultats"><Ic n="spark" />Suggérer avec Jarvis</Lien>}
         {p.creer
           ? (
             <BoutonHypothese className="btn sm pri" style={p.jarvis ? undefined : { marginLeft: 'auto' }} titre="Nouvelle hypothèse"
@@ -75,6 +93,7 @@ export function Hypotheses(p: PropsHypotheses) {
                         </BoutonHypothese>
                       )
                       : h.action && <Lien className="btn sm" href={h.action.href} style={{ justifySelf: 'start' }}>{h.action.libelle}</Lien>}
+                  {p.jarvis && p.jarvisCartes && <DemanderJarvis carte={h} />}
                 </div>
               ))}
               {items.length === 0 && <p className="faint" style={{ fontSize: '12.5px' }}>–</p>}

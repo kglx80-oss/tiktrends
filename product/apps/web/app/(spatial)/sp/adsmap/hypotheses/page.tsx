@@ -29,6 +29,7 @@ export default async function HypothesesSpatial() {
       sousNav={sousNavResultats({ admin: g.admin })}
       cartes={cartesHypotheses(ads, suites)}
       jarvis={g.jarvis}
+      jarvisCartes
       note={`La priorité vient de ton estimation (impact, confiance, effort) quand tu l’as donnée, sinon du pré-score du concept, lu sur tes tests passés, ou du rang de la suite dans le plan d’itération · une ${RESERVE_ESTIMATION}, pas une mesure.`}
       creer={creerHypotheseAction}
       completer={completerHypotheseAction}

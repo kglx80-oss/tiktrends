@@ -43,15 +43,15 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures), lot 7 (Veille · filtres locaux, vue liste, navigation du détail), lot 8 (Studios), les mesures d'export comptées partout (une seule logique de verdict) et lot 6 (Veille · tags, notes et pop-up « Sauvegarder ») · sortie de `node docs/ux-v5/compter-statuts.mjs`
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures), lot 7 (Veille · filtres locaux, vue liste, navigation du détail), lot 8 (Studios) et les mesures d'export comptées partout (une seule logique de verdict), lot 5 (Jarvis en contexte) et lot 6 (Veille · tags, notes et pop-up « Sauvegarder ») · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Coquille et Accueil | 106 | 0 | 13 | 12 | 9 | 12 | 152 |
 | Veille, Bibliothèque, Marques | 118 | 0 | 61 | 13 | 18 | 3 | 213 |
-| Projets et canvas | 105 | 0 | 36 | 9 | 4 | 6 | 160 |
-| Résultats, Jarvis, ADMIN+ | 73 | 0 | 33 | 13 | 20 | 1 | 140 |
-| **Total** | **402** | **0** | **143** | **47** | **51** | **22** | **665** |
+| Projets et canvas | 106 | 0 | 35 | 9 | 4 | 6 | 160 |
+| Résultats, Jarvis, ADMIN+ | 74 | 0 | 32 | 13 | 20 | 1 | 140 |
+| **Total** | **404** | **0** | **141** | **47** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
@@ -146,6 +146,7 @@ Les liens « Suggérer avec Jarvis » ouvrent `/jarvis` sans contexte. Le lot tr
 - **Services à réutiliser** : la route `/api/jarvis/chat` (barrière de dépense, coût annoncé avant l'envoi), le passage de source de `jarvis/JarvisVeille.tsx`, `contexteSelonPuces` (puce « Fiche marque »), `draftConceptAction`.
 - **Migration** : non.
 - **Dépense** : 0 $ à la livraison · chaque envoi reste le message Jarvis existant, au prix déjà affiché. Exclus : les suggestions « Sur cette page » (CA J03, à Kevin) et la pièce jointe au modèle (RJ J02, voir « Hors lots »).
+- **Livré** : « Demander à Jarvis » sur la fiche d’un lot, sur chaque carte d’hypothèse, « Suggérer avec Jarvis » de la page Hypothèses (question de la maquette) et dans l’en-tête d’un projet · chacun ouvre `/jarvis?contexte=<type>&id=<id>` (`lienJarvisContexte`), l’écran et la route EXISTANTS. L’identifiant n’est jamais cru · relu à l’ouverture ET à l’envoi dans la portée de la session (`resoudreContexteJarvis`, `W/lib/jarvis-contexte.ts` · `chargerLots` sous la fonction `adsmap` pour lot, hypothèse et page, `conceptPourJarvis` sous les gardes de l’écran Projets pour un projet), une autre marque, un autre espace, un inconnu ou un mal formé rendent la même phrase (`REFUS_CONTEXTE_JARVIS`) · la route refuse avant de construire le client du modèle. Ce qui part est une règle du noyau (`resumerContexteJarvis`, `C/spatial/jarvis/contexte.ts` · lignes entières, sans adresse, marqueur, séparateur ni tiret cadratin, revérifie la marque), affiché avant l’envoi (« Ce que Jarvis recevra »), retirable · un projet réutilise son bloc concept et rouvre son fil lié (plein écran du panneau). La question est préparée dans le champ, ses variantes en puces, rien ne part sans le clic. **Coût** · 0 $ ajouté au barème, l’annonce d’un message est inchangée · le bloc ajoute au plus ≈ 610 jetons estimés (0,0018 $, 0,0068 $ à la borne stricte des octets), borné à 2 200 caractères pour que la consigne la plus lourde réaliste reste sous l’entrée que suppose le coût de référence (tableau mesuré dans le module, refait par `W/test/lot5-jarvis-contexte-cout.test.ts`). Gardes · `product/packages/core/test/lot5-jarvis-contexte.test.ts`, `W/test/lot5-jarvis-contexte-db.test.tsx` (vraies pages rendues et montées · rien d’envoyé, aucune écriture, refus sans fuite, prix inchangé), `W/test/lot5-jarvis-contexte-route-db.test.ts` (route réelle, faux fournisseur · consigne reçue). **Reste** : la vue d’ensemble `/adsmap` (RJ R03 · sa page était dans #1046, la règle sait déjà joindre `resultats:ensemble`), le tiroir de la coquille (RJ G03), « Conformité marque » (G04), « Créer l’itération » et « Conclure le lot » depuis une réponse (G07, PC E35), la multi-sélection du canvas (PC E29), « Prochaine itération » dans le panneau du projet (PC E38), « Garder » (J12) · aucune migration ni dépense.
 
 ### 6 · Veille · tags, notes et pop-up « Sauvegarder » · L
 

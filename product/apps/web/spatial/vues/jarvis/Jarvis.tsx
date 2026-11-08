@@ -5,7 +5,7 @@ import {
   amorcesCategorie, CATEGORIES_JARVIS, CATEGORIE_JARVIS_DEFAUT, AUTOMATISATIONS_JARVIS, AUTOMATISATION_A_VENIR, VALEUR_ABSENTE,
   filtrerConversations, quandConversation, extraitConversation, reponseLisible, visibleWhileStreaming, sansTiretCadratin, libelleJour,
   conceptPropose, citationsReponse, titreValide, ACTION_PREMIERE_MARQUE, TITRE_ONBOARDING_JARVIS, SOUS_TITRE_ONBOARDING_JARVIS, ENTREES_ONBOARDING_JARVIS,
-  type CategorieJarvis, type EncartKpiJarvis, type IterationRecente, type ConceptPropose,
+  type CategorieJarvis, type EncartKpiJarvis, type IterationRecente, type ConceptPropose, type TypeContexteJarvis,
 } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, onboardingThreadAction, clearOnboardingAction, type ChatTurn } from '../../../app/actions/jarvis-chat';
 import { creerConversationAction, renommerConversationAction } from '../../../app/actions/jarvis-conversations';
@@ -32,6 +32,13 @@ import { useSpatial } from '../../coquille/contexte';
  * réel envoyé à la route), la colonne de contexte (projets, fiche, sources) et,
  * SANS marque, la vraie conversation d'accueil (`onboardingThreadAction`).
  *
+ * Lot 5 · le CONTEXTE JOINT (« Demander à Jarvis » depuis un lot, une
+ * hypothèse, une page de Résultats ou un projet) · relu par le serveur à
+ * l'ouverture, affiché tel qu'il partira (« Ce que Jarvis recevra »), envoyé
+ * comme `{ type, id }` (la route le RELIT, elle ne croit pas l'écran), retirable
+ * d'un geste. La question est PRÉPARÉE dans le champ, ses variantes en puces ·
+ * rien ne part sans le clic « Envoyer », au prix annoncé d'un message.
+ *
  * Absents ou désactivés, faute de service réel · la suppression d'une
  * conversation (aucune action n'efface la ligne · « Effacer le fil » efface ses
  * messages, dans la conversation ouverte), le pilote automatique, le rapport, la
@@ -45,6 +52,18 @@ export interface ConversationArchive { id: string | null; titre: string; extrait
 export interface AnnexesJarvis {
   projets: ReadonlyArray<{ id: string; titre: string; href: string }>;
   completude: { score: number; faits: number; total: number; ficheHref: string } | null;
+}
+
+/** Le contexte joint, relu par le serveur · un projet porte aussi son fil lié, s'il existe. */
+export interface ContexteJoint {
+  type: TypeContexteJarvis;
+  id: string;
+  libelle: string;
+  /** Ce que Jarvis recevra, ligne à ligne (`resumerContexteJarvis`). */
+  lignes: string[];
+  /** D'autres questions · chacune prépare le champ, aucune n'envoie. */
+  questions: string[];
+  fil?: { conversationId: string; tours: ChatTurn[] };
 }
 
 /** Sans marque · le fil d'accueil réel (portée espace + personne) et ses amorces. */
@@ -68,6 +87,10 @@ export interface PropsJarvis {
   annexes?: AnnexesJarvis;
   /** Sans marque · la conversation d'accueil. Absente : le champ reste fermé. */
   accueil?: AccueilJarvis;
+  /** Le contexte joint (lot 5) · absent, l'écran est celui d'avant. */
+  contexte?: ContexteJoint | null;
+  /** Un contexte demandé mais refusé (autre marque, inconnu, sans droit) · la phrase neutre, rien n'est joint. */
+  refusContexte?: string | null;
 }
 
 const heure = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
@@ -78,10 +101,11 @@ export function Jarvis(p: PropsJarvis) {
   const [conversations, setConversations] = useState(p.conversations);
   const [recherche, setRecherche] = useState('');
   // `ouverte` · null = rien d'ouvert (accueil) · { id: null } = le fil principal.
-  const [ouverte, setOuverte] = useState<{ id: string | null } | null>(null);
+  const [ouverte, setOuverte] = useState<{ id: string | null } | null>(p.contexte?.fil ? { id: p.contexte.fil.conversationId } : null);
+  const [joint, setJoint] = useState<ContexteJoint | null>(p.contexte ?? null);
   const sansMarque = !p.marque;
   const parler = !!p.marque || !!p.accueil;
-  const [tours, setTours] = useState<ChatTurn[]>(p.accueil?.tours ?? []);
+  const [tours, setTours] = useState<ChatTurn[]>(p.contexte?.fil?.tours ?? p.accueil?.tours ?? []);
   const [sources, setSources] = useState<Record<string, { titre: string; enService: boolean }>>({});
   const [fiche, setFiche] = useState(true);
   const [saisie, setSaisie] = useState(p.brouillon ?? '');
@@ -123,6 +147,16 @@ export function Jarvis(p: PropsJarvis) {
       return principal ? [...nommees, principal] : nommees;
     });
     return true;
+  }
+
+  /** Le fil LIÉ à un projet joint · relu après le premier envoi (la route l'a créé), la liste des archives reste celle de la marque. */
+  async function chargerProjet(projectId: string) {
+    const r = await chatThreadAction({ projectId });
+    if (r.error || !r.thread) { setErreur(r.error ?? 'Jarvis n’a pas pu ouvrir la conversation du projet.'); return; }
+    setTours(r.thread.turns);
+    setSources(r.thread.sources ?? {});
+    setMeasuredAds(r.thread.measuredAds);
+    setOuverte({ id: r.thread.conversationId });
   }
 
   async function ouvrir(id: string | null) {
@@ -179,9 +213,11 @@ export function Jarvis(p: PropsJarvis) {
     if (!p.marque) { if (p.accueil) await envoyerAccueil(q); return; }
     setEnCours(true); setErreur(null); setPartiel(''); setSaisie('');
     let cible = ouverte?.id ?? null;
+    // Un projet joint · sans fil ouvert, la route rattache le message au fil LIÉ au projet (ou le crée).
+    const projet = joint?.type === 'projet' ? joint.id : null;
     try {
       // Rien d'ouvert · la question ouvre une NOUVELLE conversation nommée (jamais le fil principal).
-      if (!ouverte) {
+      if (!ouverte && !projet) {
         const r = await creerConversationAction(p.marque.id);
         if (r.error || !r.id) { setErreur(r.error ?? 'Impossible d’ouvrir la conversation.'); setSaisie(q); return; }
         cible = r.id;
@@ -191,7 +227,8 @@ export function Jarvis(p: PropsJarvis) {
       const res = await fetch('/api/jarvis/chat', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         // La puce « Fiche marque » pilote le contexte RÉEL (`contexteSelonPuces`, côté route).
-        body: JSON.stringify({ message: q, conversationId: cible, brandId: p.marque.id, sources: fiche ? ['fiche'] : [] }),
+        // Le contexte joint part comme `{ type, id }` · la route le relit dans la portée, jamais son texte d'écran.
+        body: JSON.stringify({ message: q, conversationId: cible, brandId: p.marque.id, sources: fiche ? ['fiche'] : [], ...(joint ? { contexte: { type: joint.type, id: joint.id } } : {}) }),
       });
       if (!res.ok || !res.body) {
         const j = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -199,7 +236,8 @@ export function Jarvis(p: PropsJarvis) {
         return;
       }
       await lireFlux(res);
-      await charger(cible);
+      if (projet && !cible) await chargerProjet(projet);
+      else await charger(cible);
     } catch {
       setErreur('La connexion s’est interrompue. Vérifie la conversation avant de réessayer.');
     } finally {
@@ -371,6 +409,8 @@ export function Jarvis(p: PropsJarvis) {
           </div>
           <form className="jcomp" id="jform" autoComplete="off" onSubmit={(e: FormEvent) => { e.preventDefault(); void envoyer(saisie); }}>
             {erreur && <p className="faint" role="alert" style={{ margin: '0 0 8px', fontSize: '12.5px' }}>{erreur}</p>}
+            {p.refusContexte && !joint && <p className="faint" role="status" data-refus-contexte="" style={{ margin: '0 0 8px', fontSize: '12.5px' }}>{p.refusContexte}</p>}
+            {joint && <Joint c={joint} cout={p.cout} preparer={preparer} retirer={() => { setJoint(null); champ.current?.focus(); }} />}
             <div className="jin">
               <input id="jin" ref={champ} value={saisie} onChange={(e) => setSaisie(e.target.value)} maxLength={4000} disabled={!parler || enCours}
                 placeholder={parler ? 'Écrire à Jarvis…' : 'Crée d’abord une marque'} aria-label="Ta question à Jarvis" />
@@ -424,6 +464,37 @@ export function Jarvis(p: PropsJarvis) {
         </div>
       </section>
     </Vue>
+  );
+}
+
+/**
+ * Le contexte joint, au-dessus du champ · ce qu'il est, ce que Jarvis recevra
+ * (lignes du noyau), les questions qu'il prépare et le prix, INCHANGÉ (celui
+ * d'un message). « Retirer » le détache · le prochain envoi part sans lui.
+ */
+function Joint({ c, cout, preparer, retirer }: { c: ContexteJoint; cout: string; preparer: (q: string) => void; retirer: () => void }) {
+  return (
+    <div className="sugg" data-contexte-joint={c.type} style={{ marginBottom: 8 }}>
+      <span className="lbl">Contexte joint · relu par le serveur à l’envoi</span>
+      <div className="kc" style={{ alignItems: 'center' }}>
+        <strong style={{ fontSize: 13, flex: 1, minWidth: 0 }} data-libelle-contexte="">{c.libelle}</strong>
+        <button type="button" className="btn sm" onClick={retirer} title="Le prochain message partira sans ce contexte">
+          <Ic n="x" />Retirer le contexte
+        </button>
+      </div>
+      <details>
+        <summary className="faint" style={{ fontSize: '12px', cursor: 'pointer' }}>Ce que Jarvis recevra · {c.lignes.length} ligne{c.lignes.length > 1 ? 's' : ''}</summary>
+        <ul data-lignes-contexte="" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: '12px', display: 'grid', gap: 2 }}>
+          {c.lignes.map((l, i) => <li key={i}>{l}</li>)}
+        </ul>
+      </details>
+      {c.questions.length > 0 && (
+        <div className="cats">
+          {c.questions.map((q) => <button key={q} type="button" className="chip" onClick={() => preparer(q)} title="Prépare la question · l’envoi reste à toi">{q}</button>)}
+        </div>
+      )}
+      <small className="faint" style={{ display: 'block', fontSize: 11 }} data-cout-contexte="">Le contexte part avec ton message, au prix d’un message · {cout}</small>
+    </div>
   );
 }
 

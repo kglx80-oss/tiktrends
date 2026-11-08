@@ -102,7 +102,7 @@ describe('UX-03 · produit · la prochaine action est dite', () => {
     expect(fichier!.value).toBe('');
     choisir(role!, 'style');
     choisir(portee!, 'background');
-    const associer = bouton('Associer');
+    const associer = bouton('Associer ce fichier');
     expect(associer.disabled, '« Associer » muet quand seul le fichier manque · le bouton est même actif').toBe(true);
     expect(document.getElementById(associer.getAttribute('aria-describedby') ?? '')?.textContent, '« Associer » muet quand seul le fichier manque').toBe('Choisis un fichier.');
     expect(LIBELLES_ROLE.style).toBeTruthy();

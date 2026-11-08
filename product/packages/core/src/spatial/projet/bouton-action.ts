@@ -27,6 +27,8 @@
  *    doigt après un clic et doit GARDER le focus.
  */
 
+import { TEXTES_HORS_LIGNE } from './hors-ligne';
+
 export type FocalisableBoutonAction = 'aucun' | 'occupe' | 'tout';
 
 export interface EntreeBoutonAction {
@@ -89,4 +91,22 @@ export function focusAReplacer(mode: ModeReplacementFocus, actif: { estCorps: bo
 /** Le premier candidat présent et OUVERT (`disabled` ne prend pas le focus) · son rang, ou -1. */
 export function premiereCibleFocus(candidats: ReadonlyArray<{ present: boolean; disabled: boolean }>): number {
   return candidats.findIndex((c) => c.present && !c.disabled);
+}
+
+/**
+ * La raison ÉCRITE à côté d'un bouton d'action serveur fermé (ateliers
+ * Produit, parcours image, Textes, rattachement · passe « ateliers sur la brique ») · une seule
+ * phrase, la plus utile d'abord :
+ *  · hors ligne · le geste ne partirait pas, quelle que soit la saisie
+ *    (`TEXTES_HORS_LIGNE.bouton`) ;
+ *  · sinon la première raison de l'écran, dans l'ordre où il les donne
+ *    (rôle, capacité, saisie manquante…) ;
+ *  · `null` · rien ne ferme le bouton, rien n'est écrit.
+ * L'action EN COURS n'est jamais une raison ici · le bouton pressé dit qu'il
+ * travaille par son libellé et `aria-busy`, les autres sont `occupe`.
+ */
+export function raisonFermeture(horsLigne: boolean, ...raisons: ReadonlyArray<string | null | undefined | false>): string | null {
+  if (horsLigne) return TEXTES_HORS_LIGNE.bouton;
+  for (const r of raisons) if (r) return r;
+  return null;
 }

@@ -86,6 +86,21 @@ export function Message({ ton, etiquette, horsLigne = false, annonce = true, chi
 }
 
 /**
+ * La cible tactile des boutons d'action des ateliers (passe « ateliers sur la brique ») · 44 px de
+ * haut, au bureau comme au téléphone (`.btn.sm` de la maquette en fait 34).
+ */
+export const CIBLE = { minHeight: 44 } as const;
+
+/**
+ * La raison ÉCRITE à côté d'un bouton d'action serveur fermé (règle
+ * `raisonFermeture`) · le bouton la cite par `aria-describedby={id}`. Jamais
+ * dans un `title` · un bouton `disabled` ne l'afficherait pas.
+ */
+export function RaisonFermee({ id, cle, children, ...autres }: { id: string; cle: string; children: ReactNode } & { [k: `data-${string}`]: string | undefined }) {
+  return <small className="faint" style={{ fontSize: '11.5px' }} data-raison-ferme={cle} id={id} {...autres}>{children}</small>;
+}
+
+/**
  * Le chemin vers l'Identité de la marque (réimporter un logo de la charte) ·
  * posé pour un admin seulement, cible tactile de 44 px · le même lien dans
  * l'éditeur et à l'export.
