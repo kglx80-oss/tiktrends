@@ -16,6 +16,7 @@ import { adsDeLaMarque } from '../../../../../../lib/adsmap-marque';
 import { adDetailAction } from '../../../../../actions/adsmap-verdict';
 import { ouvrirAssistantProjet } from '../../../../../actions/studios/assistant';
 import type { DepartAssistant } from '../../../../../actions/studios/departs-assistant';
+import { couleursDeLaMarque } from '../../../../../../lib/studios/palette-marque';
 import { NouveauProjet } from '../../../../../../spatial/vues/studios/NouveauProjet';
 import { RefusStudios } from '../../../../../../spatial/vues/studios/Refus';
 
@@ -85,6 +86,8 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
   const ouverture = etat.etat === 'pret' ? await ouvrirAssistantProjet() : null;
   const personas = ouverture?.ok ? ouverture.props.personas : [];
   const produits = ouverture?.ok ? ouverture.props.produits : [];
+  // Lot 8 · les pastilles de la palette (étape Style) · la fiche de la marque active, dans la portée.
+  const palette = etat.etat === 'pret' ? await couleursDeLaMarque(s.workspaceId, etat.marque.id).catch(() => []) : [];
   const marques = (await listBrands(s.workspaceId)).filter((b) => g.ctx.marques.includes(b.id)).map((b) => ({ id: b.id, nom: b.name, active: b.id === active?.id }));
 
   // Le départ repris · l'annonce relue devient une référence (attachée au projet à sa création), le test gagnant devient le départ.
@@ -110,6 +113,7 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
       titresParDefaut={titresParDefaut}
       personas={personas}
       produits={produits}
+      paletteMarque={palette}
       contexte={{
         depart, references: reference ? [reference] : [], repris,
         notes: notesContexte(c, { refJointe: !!annonce, iteration }),

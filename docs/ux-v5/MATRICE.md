@@ -43,15 +43,15 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures) et lot 7 (Veille · filtres locaux, vue liste, navigation du détail) · sortie de `node docs/ux-v5/compter-statuts.mjs`
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures), lot 7 (Veille · filtres locaux, vue liste, navigation du détail) et lot 8 (Studios) · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Coquille et Accueil | 105 | 0 | 14 | 12 | 9 | 12 | 152 |
+| Coquille et Accueil | 106 | 0 | 13 | 12 | 9 | 12 | 152 |
 | Veille, Bibliothèque, Marques | 105 | 0 | 63 | 24 | 18 | 3 | 213 |
-| Projets et canvas | 98 | 0 | 39 | 13 | 4 | 6 | 160 |
+| Projets et canvas | 105 | 0 | 36 | 9 | 4 | 6 | 160 |
 | Résultats, Jarvis, ADMIN+ | 73 | 0 | 33 | 13 | 20 | 1 | 140 |
-| **Total** | **381** | **0** | **149** | **62** | **51** | **22** | **665** |
+| **Total** | **389** | **0** | **145** | **58** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
@@ -171,6 +171,7 @@ Le signet sauvegarde d'un coup, une sauvegarde n'a qu'une collection, la note ex
 - **Services à réutiliser** : `exporterVersion` et son contrôle avant export, `preparerLotFormats` / `preparerLotImages`, `creerProjet` et `enregistrerDocument` (`W/app/actions/studios/projets.ts:47`, `:58`) pour dupliquer, la palette de la marque.
 - **Migration** : non (renommer touche `studio_projects.title`). « En revue » (S06) demanderait une valeur de statut · à laisser hors du lot ou en migration additive séparée.
 - **Garde-fou** : la jauge de budget (B23) lit le solde, elle ne touche ni prix ni crédits.
+- **Livré** : filtres locaux des créations (format RÉEL du fichier, état, retenue, version · `C/spatial/projet/filtres-creations.ts`), relecture humaine avant export (cinq points, `validerRelectureExport`, qui et quand dans `studio_audit_events` · action `project.export.review`, **aucune migration** · le serveur refuse l'export sans elle, `QUALITY_REVIEW_REQUIRED`, après le préflight inchangé · `C/studios/export/relecture.ts`), « Renommer » et « Dupliquer » sur la carte (`renommerProjet`, `dupliquerProjet` · « Copie de … », même marque, structure seule · `C/studios/copie-projet.ts`), jauge du solde et réductions après un refus de budget (`C/spatial/studios/budget-devis.ts`), pastilles de la palette de la marque (`C/spatial/studios/palette-direction.ts`). Garde · `W/test/lot8-studios-db.test.tsx`, `product/packages/core/test/lot8-studios.test.ts`. **Reste** : CA S06 (« En revue », statut à créer), CA S08 (vue Activité transverse), CA G26 (carte de l'Accueil, autre vague), PC B6 (cadre de plateforme), PC B19 (variation à l'étape Format), PC C12 (continuer un lot interrompu en un geste).
 
 ### 9 · Marque · personas éditables et reliés aux tests · M
 

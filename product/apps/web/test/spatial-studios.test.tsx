@@ -119,7 +119,7 @@ describe('Spatial · Studios · parité de structure avec la maquette', () => {
     expect(p.rendu).toEqual(p.reference);
   });
 
-  it('les filtres sont les étapes RÉELLES puis « Archivés », avec leurs compteurs · les gestes de carte sont « Itérer » et « Archiver »', () => {
+  it('les filtres sont les étapes RÉELLES puis « Archivés », avec leurs compteurs · les gestes de carte sont « Itérer », « Renommer », « Dupliquer » et « Archiver »', () => {
     const t = document.createElement('template');
     t.innerHTML = rendre(<Studios {...propsStudios({ archives: [] })} />);
     const filtres = [...t.content.querySelectorAll('.toolbar > .seg > button')].map((b) => [b.textContent, b.getAttribute('aria-pressed')]);
@@ -127,10 +127,11 @@ describe('Spatial · Studios · parité de structure avec la maquette', () => {
     const pacts = [...t.content.querySelectorAll('.pacts')];
     expect(pacts).toHaveLength(6);
     for (const a of pacts) {
-      // L'ordre de la maquette (Itérer, Dupliquer, Archiver, Supprimer), sans les deux gestes qui n'ont pas de service.
-      expect(squelette(a.outerHTML)).toEqual(['div.pacts', '  a', '    svg.i.s @i-loop', '  button', '    svg.i.s @i-folder']);
+      // L'ordre de la maquette (Itérer, Dupliquer, Archiver, Supprimer), « Renommer » (lot 8) avant « Dupliquer », sans « Supprimer » qui n'a pas de service.
+      expect(squelette(a.outerHTML)).toEqual(['div.pacts', '  a', '    svg.i.s @i-loop', '  button', '    svg.i.s @i-text', '  button', '    svg.i.s @i-copy', '  button', '    svg.i.s @i-folder']);
       expect(a.querySelector('a')!.getAttribute('aria-label')).toMatch(/^Itérer sur /);
-      expect(a.querySelector('button')!.getAttribute('aria-label')).toMatch(/^Archiver /);
+      expect([...a.querySelectorAll('button')].map((b) => b.getAttribute('title'))).toEqual(['Renommer', 'Dupliquer', 'Archiver']);
+      expect(a.querySelector('button[title="Archiver"]')!.getAttribute('aria-label')).toMatch(/^Archiver /);
     }
     // Sans droit d'archiver, seul « Itérer » (lecture) reste · les archivés non relus ne proposent pas de filtre.
     t.innerHTML = rendre(<Studios {...propsStudios({ peutArchiver: false })} />);

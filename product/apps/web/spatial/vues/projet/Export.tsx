@@ -1,14 +1,17 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CONTRAT_FORMAT, libelleConservation, tailleLisible, type FormatExport, type ViolationExport } from '@tiktrends/core';
-import { exporterVersion } from '../../../app/actions/studios/export';
+import {
+  CONTRAT_FORMAT, POINTS_RELECTURE_EXPORT, etatExportHumain, etatValidationRelecture, libelleConservation, phraseRelectureExport, tailleLisible,
+  type FormatExport, type RelectureExport, type ViolationExport,
+} from '@tiktrends/core';
+import { exporterVersion, validerRelectureExport } from '../../../app/actions/studios/export';
 import type { ExportRealise, VueExport } from '../../../lib/studios/export/export';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien, Vue } from '../../communs';
 import { EnTeteAtelier } from './Atelier';
-import { boutonAction } from './action-serveur';
+import { boutonAction, replacerFocus } from './action-serveur';
 import { LienIdentite, Message } from './briques';
 
 /**
@@ -17,8 +20,12 @@ import { LienIdentite, Message } from './briques';
  *
  *  · contrôle avant export (préflight) calculé par le serveur à la visite,
  *    sans rien écrire · chaque point bloquant nomme sa cible ;
- *  · PNG / JPEG · n'exporte que si tout est prêt, le serveur refait le contrôle
- *    au clic ; le fichier livré est décodé et mesuré (format, dimensions,
+ *  · relecture humaine (lot 8 · PC F6, F7) · cinq points cochés par une
+ *    personne, validés par `validerRelectureExport` (qui, quand, dans le
+ *    journal d'audit) · elle vaut pour CETTE version ;
+ *  · PNG / JPEG · n'exporte que si le préflight passe ET que la version est
+ *    relue (`etatExportHumain`), le serveur refait les deux contrôles au
+ *    clic ; le fichier livré est décodé et mesuré (format, dimensions,
  *    poids, empreinte) ;
  *  · version à exporter, historique des exports · conservé ou refait à la
  *    demande, en toutes lettres.
@@ -62,9 +69,36 @@ export function Export({ vue, atelier }: PropsExport) {
   const [encours, setEncours] = useState<FormatExport | null>(null);
   const [fait, setFait] = useState<ExportRealise | null>(null);
   const [erreur, setErreur] = useState<{ message: string; traceId: string; violations: ViolationExport[] } | null>(null);
-  const pret = vue.preflight.ok && vue.peutExporter;
+  // La relecture de CETTE version · validée ici, elle s'affiche tout de suite (la page se relit ensuite).
+  const [relecture, setRelecture] = useState<RelectureExport | null>(vue.relecture ?? null);
+  useEffect(() => { setRelecture(vue.relecture ?? null); }, [vue.relecture, vue.version.id]);
+  const [coches, setCoches] = useState<string[]>([]);
+  useEffect(() => { setCoches([]); }, [vue.version.id]);
+  const [validation, setValidation] = useState<'attente' | null>(null);
+  const [erreurRelecture, setErreurRelecture] = useState<{ message: string; horsLigne: boolean } | null>(null);
+  const ouverture = etatExportHumain({ peutExporter: vue.peutExporter, preflightOk: vue.preflight.ok, relue: !!relecture });
+  const pret = ouverture.ouvert;
+  const validable = etatValidationRelecture(coches);
   const id = useId();
-  const titres = { controle: `${id}-controle`, fichier: `${id}-fichier`, version: `${id}-version`, historique: `${id}-historique` };
+  const titres = { controle: `${id}-controle`, humain: `${id}-humain`, fichier: `${id}-fichier`, version: `${id}-version`, historique: `${id}-historique` };
+
+  async function validerRelecture() {
+    setValidation('attente'); setErreurRelecture(null);
+    try {
+      const r = await validerRelectureExport({ projectId: vue.projet.id, versionId: vue.version.id, points: coches });
+      if (!r.ok) {
+        setErreurRelecture({ message: `${r.violations?.length ? r.violations.map((v) => v.raison).join(' · ') : r.message}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}`, horsLigne: false });
+        return;
+      }
+      setRelecture(r.relecture);
+      toast(phraseRelectureExport(r.relecture));
+      // Le bouton disparaît · le focus passe au premier export ouvert, sinon à la phrase qui dit qui a relu.
+      replacerFocus('toujours', '[data-format="png"]', '[data-relecture="faite"]');
+      router.refresh();
+    } catch {
+      setErreurRelecture({ message: 'Le serveur n’a pas répondu · la relecture n’est pas confirmée. Vérifie ta connexion puis réessaie.', horsLigne: true });
+    } finally { setValidation(null); }
+  }
 
   /**
    * Un bouton d'export (brique `boutonAction`) · pendant l'export, celui qu'on
@@ -116,6 +150,42 @@ export function Export({ vue, atelier }: PropsExport) {
             )}
           </section>
 
+          <section className="tile" data-relecture-humaine={relecture ? 'faite' : 'a-faire'} aria-labelledby={titres.humain} style={{ display: 'grid', gap: 8 }}>
+            <div className="lbl" id={titres.humain} style={{ margin: 0 }}>Relecture humaine</div>
+            {relecture ? (
+              <>
+                <p className="muted" role="status" tabIndex={-1} data-relecture="faite" style={{ fontSize: '12.5px' }}><span className="pill g">Relue</span> {phraseRelectureExport(relecture)}</p>
+                <small className="faint" style={{ fontSize: '11.5px' }}>Les cinq points ont été vérifiés par une personne. Une nouvelle version demandera une nouvelle relecture.</small>
+              </>
+            ) : (
+              <>
+                <small className="faint" style={{ fontSize: '11.5px' }}>Avant tout export, une personne relit la création et coche chaque point · le contrôle technique ci-dessus ne voit pas ce que tu vois.</small>
+                <div role="group" aria-label="Points de la relecture humaine" style={{ display: 'grid', gap: 2 }}>
+                  {POINTS_RELECTURE_EXPORT.map((pt) => (
+                    <label key={pt.cle} data-point={pt.cle} className="kc" style={{ alignItems: 'center', minHeight: 44, fontSize: '12.5px', cursor: vue.peutExporter ? 'pointer' : 'default' }}>
+                      <input type="checkbox" checked={coches.includes(pt.cle)} disabled={!vue.peutExporter}
+                        onChange={(e) => { const c = e.target.checked; setCoches((l) => (c ? [...l.filter((x) => x !== pt.cle), pt.cle] : l.filter((x) => x !== pt.cle))); }}
+                        style={{ width: 18, height: 18 }} />
+                      <span>{pt.libelle}</span>
+                    </label>
+                  ))}
+                </div>
+                {vue.peutExporter ? (
+                  <>
+                    <div className="kc">
+                      <button className="btn sm pri" type="button" data-geste="valider-relecture" style={{ minHeight: 44 }}
+                        {...boutonAction({ presse: validation === 'attente', occupe: validation !== null || encours !== null, ferme: !validable.ouvert, surClic: () => void validerRelecture() })}>
+                        <Ic n="check" />{validation === 'attente' ? 'Validation…' : 'Valider la relecture'}
+                      </button>
+                    </div>
+                    {!validable.ouvert && <small className="faint" data-raison-ferme="relecture" style={{ fontSize: '11.5px' }}>{validable.raison}</small>}
+                  </>
+                ) : <small className="faint" style={{ fontSize: '11.5px' }}>Ton rôle permet de consulter ce contrôle, pas de valider la relecture · demande un rôle Membre.</small>}
+                {erreurRelecture && <Message ton="err" horsLigne={erreurRelecture.horsLigne}>{erreurRelecture.message}</Message>}
+              </>
+            )}
+          </section>
+
           <section className="tile" aria-labelledby={titres.fichier} style={{ display: 'grid', gap: 8 }}>
             <div className="lbl" id={titres.fichier} style={{ margin: 0 }}>Fichier</div>
             {vue.peutExporter ? (
@@ -124,7 +194,7 @@ export function Export({ vue, atelier }: PropsExport) {
                   <button className="btn sm pri" type="button" {...bouton('png')}><Ic n="down" />{encours === 'png' ? 'Export PNG en cours…' : 'Exporter en PNG'}</button>
                   <button className="btn sm" type="button" {...bouton('jpeg')}><Ic n="down" />{encours === 'jpeg' ? 'Export JPEG en cours…' : 'Exporter en JPEG'}</button>
                 </div>
-                {!vue.preflight.ok && <small className="faint" data-raison-ferme="" style={{ fontSize: '11.5px' }}>Les deux formats s’ouvrent dès que le contrôle avant export ne signale plus aucun point.</small>}
+                {ouverture.raison && <small className="faint" data-raison-ferme="" style={{ fontSize: '11.5px' }}>{ouverture.raison}</small>}
               </>
             ) : <small className="faint" style={{ fontSize: '11.5px' }}>Ton rôle permet de consulter ce contrôle, pas d’exporter · demande un rôle Membre.</small>}
             <small className="faint" style={{ fontSize: '11.5px' }}>Gratuit · calcul local, aucune génération. Le fichier est dérivé de la version {vue.version.n} · il ne la modifie pas, et le projet reste éditable. PNG sans perte, identique à l’aperçu ; JPEG aplati sur fond blanc.</small>

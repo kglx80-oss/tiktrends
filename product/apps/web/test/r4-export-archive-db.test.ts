@@ -46,6 +46,7 @@ import { injecterLecteurMedias } from '../lib/studios/rendu/medias';
 import { exporterVersion, lireExportProjet } from '../app/actions/studios/export';
 import { fabriquerExport, injecterStockageExport } from '../lib/studios/export/export';
 import { GET } from '../app/api/studios/export/[versionId]/route';
+import { relire } from './relecture-export-outils';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -99,6 +100,8 @@ async function projet(titre: string): Promise<{ projectId: string; versionId: st
     content: contenu, contentHash: empreinteContenu(contenu), authorId: ids.ua, reason: 'test',
   }).returning();
   await db.update(schema.studioProjects).set({ currentVersionId: v!.id, rowVersion: 1 }).where(eq(schema.studioProjects.id, p!.id));
+  // Lot 8 · la version est relue par une personne (contrôle humain) · ce fichier éprouve l'archive qui suit.
+  await relire(ctxDe(ids, 'ua'), p!.id, v!.id);
   return { projectId: p!.id, versionId: v!.id };
 }
 

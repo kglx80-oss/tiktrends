@@ -123,12 +123,14 @@ describe('Spatial · Studios · la liste porte la recherche, les archivés et l�
     expect(hote.querySelector('[data-pf="archive"]')).toBeNull();
   });
 
-  it('une carte porte « Itérer » (variantes du projet) et « Archiver » · ni « Dupliquer » ni « Supprimer »', () => {
+  it('une carte porte « Itérer » (variantes du projet), « Renommer », « Dupliquer » et « Archiver » · jamais « Supprimer »', () => {
     monter(<GrilleProjets projets={[carte('p1', 'Actif')]} archives={[]} nouveau={null} peutArchiver vide={null} />);
     const pacts = hote.querySelector('.pacts')!;
     expect(pacts.querySelector('a[title="Itérer"]')?.getAttribute('href')).toBe('/studio/projets/p1#variantes');
+    expect(pacts.querySelector('[title="Renommer"]')).toBeTruthy();
+    expect(pacts.querySelector('[title="Dupliquer"]')).toBeTruthy();
     expect(pacts.querySelector('[title="Archiver"]')).toBeTruthy();
-    expect(pacts.querySelector('[title="Dupliquer"], [title="Supprimer"]')).toBeNull();
+    expect(pacts.querySelector('[title="Supprimer"]')).toBeNull();
   });
 });
 
@@ -404,6 +406,7 @@ describe('Spatial · Studios · atelier Export', () => {
   const base: VueExport = {
     projet: { id: 'p1', title: 'Rentrée', marque: 'Neutre' }, version: { id: 'v2', n: 2, courante: true }, versions: [{ id: 'v2', n: 2, courante: true }],
     document: { largeur: 1080, hauteur: 1350, calques: 3 }, preflight: { ok: true, medias: 1, polices: 1 }, historique: [], peutExporter: true,
+    relecture: { par: 'Kevin', le: '2026-10-08T09:00:00.000Z', versionN: 2 },
   };
   it('préflight en refus · aucun export possible, chaque point nommé', () => {
     monter(<Export vue={{ ...base, preflight: { ok: false, violations: [{ cause: 'media_absent', message: 'Le fond est introuvable.', cible: { type: 'calque', calqueId: 'fond' } } as never] } }} atelier={ATELIER} />);
