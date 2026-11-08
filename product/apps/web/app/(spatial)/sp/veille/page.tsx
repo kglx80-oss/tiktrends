@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import { ttSearchAds, ttSearchTikTok, ttSearchGoogle, SAMPLE_INSPO_ADS, type InspoAd } from '@tiktrends/integrations';
 import {
   analyserRechercheVeille, contexteVeille, lienRetourVeille, termeRetourVeille, filtrerEchantillonVeille, lienVeille, lireCriteresVeille, lireCpmVeille, NICHE_DEFAUT,
-  perimetreVeille, pucesVeille, suggestionsVeille, veilleSeedDefaut, videRechercheVeille, type PerimetreVeille, type TriVeille,
+  perimetreVeille, pucesVeille, suggestionsVeille, veilleSeedDefaut, videRechercheVeille, accesHypothese, type PerimetreVeille, type TriVeille,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, PLAN_LABEL } from '../../../../lib/rbac';
@@ -152,8 +152,13 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
   }
 
   const contexte = contexteVeille(sp);
+  // « Ajouter aux hypothèses » · même porte que la garde serveur (`adsmap`, marque active).
+  const hypothese = accesHypothese({
+    adsmap: canAccess(access, RESULTATS) ? 'ok' : denyReason(access, RESULTATS) === 'plan' ? 'plan' : 'role',
+    marqueActive: !!brand,
+  });
   const cartes = ads.map((ad) => carteVeille(ad, {
-    cpm, contexte,
+    cpm, contexte, hypothese,
     sauvee: savedSet.has(ad.platform + ':' + ad.id),
     suivie: followSet.has(ad.platform + ':' + (ad.advertiserName || '')),
   }));

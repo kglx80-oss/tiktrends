@@ -252,8 +252,13 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/adsmap-decisions.ts': { refreshDecisionsAction: A(), listDecisionsAction: L(), resolveDecisionAction: A(() => [randomUUID(), 'done']) },
   'app/actions/adsmap-draft.ts': { draftConceptAction: A(() => [{ origin: 'blank', intent: 'Montrer le produit en usage' }]) },
   'app/actions/adsmap-graph.ts': { graphAction: L() },
+  'app/actions/adsmap-hypotheses.ts': {
+    creerHypotheseAction: A(() => [{ source: { type: 'libre' }, saisie: { si: 'on montre le produit dès la première seconde' } }]),
+    completerHypotheseAction: A(() => [{ adId: s.ad, saisie: { si: 'on montre le produit', alors: 'le clic monte' } }]),
+  },
   'app/actions/adsmap-import.ts': { previewImportAction: A(() => ['nom;angle\nPub 1;Preuve']), applyImportAction: A(() => ['nom;angle\nPub 1;Preuve']) },
   'app/actions/adsmap-iterate.ts': { iterationPlanAction: L(), createIterationAction: A(() => [{ parentAdId: s.ad, hypothesis: 'Une accroche plus directe convertit mieux', changedVariable: 'hook' }]) },
+  'app/actions/adsmap-iterer-variable.ts': { creerIterationChoisieAction: A(() => [{ parentAdId: s.ad, variable: 'format', valeur: 'Vidéo face caméra 9:16', hypothese: 'Si on change seulement le format, alors elle fera au moins aussi bien.' }]) },
   'app/actions/adsmap-propose.ts': {
     proposePersonasAction: A(() => [1]), proposeDesiresAction: A(() => [s.persona, 1]), proposeAnglesAction: A(() => [s.desire, 1]), proposeConceptsAction: A(() => [s.angle, 1]),
   },

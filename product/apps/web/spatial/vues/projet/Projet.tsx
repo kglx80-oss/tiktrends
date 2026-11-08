@@ -32,6 +32,9 @@ import type { OngletProjet, PropsProjet } from './types';
  *
  * Changer d'onglet n'écrit rien. Aucune génération n'est lancée d'ici · le
  * geste « Générer… » ouvre la préparation, où le devis est montré avant tout.
+ * Le couloir « Itération » porte, pour chaque variante testée gagnante, le
+ * geste « Itérer · choisir la variable » (écran Itérer, pub présélectionnée) ·
+ * vide, il dit pourquoi (`iterationVide`).
  */
 
 const ONGLETS: ReadonlyArray<{ cle: OngletProjet; libelle: string }> = [
@@ -123,7 +126,7 @@ export function Projet(p: PropsProjet) {
                         title="Choisit cette cible dans les propositions · rien n’est envoyé" onClick={() => cibler(n.cible!)}><Ic n="spark" />Cibler Jarvis</button>
                     )} />
                   ))}
-                  {c.noeuds.length === 0 && <span className="faint" style={{ fontSize: '11.5px' }}>{VIDE_COULOIR[c.cle]}</span>}
+                  {c.noeuds.length === 0 && <span className="faint" style={{ fontSize: '11.5px' }} data-vide-couloir={c.cle}>{c.cle === 'iteration' && p.iterationVide ? p.iterationVide : VIDE_COULOIR[c.cle]}</span>}
                 </div>
               ))}
             </div>

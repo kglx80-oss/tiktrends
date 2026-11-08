@@ -2,7 +2,7 @@ import { EnTete, SousNav, Vue } from '../../communs';
 import type { ActionFormulaire } from './base';
 import { AnnonceRetour, BoutonAppel, SupprimerConfirme } from './interactifs';
 import { Ic } from '../../communs';
-import { ChoixPersona, type PersonaVue } from './personas-client';
+import { ChoixPersona, type HypothesePersona, type PersonaVue } from './personas-client';
 
 /**
  * « Personas » · `docs/spatial/reference/clients.html` (maquette : `vClients`).
@@ -31,6 +31,8 @@ export interface PropsPersonas {
    * annoncé). Absents, l'écran est celui de la maquette.
    */
   gestion?: GestionPersonas;
+  /** « Tester une accroche » (lot 1 V5) · absent, le bouton n'est pas rendu (écran de la maquette). */
+  hypothese?: HypothesePersona;
 }
 
 export interface GestionPersonas {
@@ -71,7 +73,7 @@ export function Personas(p: PropsPersonas) {
     <Vue>
       <EnTete titre="Personas" sous={`Les personnes à qui ${p.nom} parle · Jarvis écrit pour elles`} />
       <SousNav items={p.sousNav} actif={`/brands/${p.brandId}/personas`} />
-      <ChoixPersona brandId={p.brandId} personas={p.personas} scenarios={p.scenarios} jarvis={p.jarvis} creerPub={p.creerPub} ajouterPersona={p.ajouterPersona} ajouterScenario={p.ajouterScenario} {...(p.gestion ? { retirerPersona: p.gestion.retirerPersona } : {})} />
+      <ChoixPersona brandId={p.brandId} personas={p.personas} scenarios={p.scenarios} jarvis={p.jarvis} creerPub={p.creerPub} ajouterPersona={p.ajouterPersona} ajouterScenario={p.ajouterScenario} {...(p.gestion ? { retirerPersona: p.gestion.retirerPersona } : {})} {...(p.hypothese ? { hypothese: p.hypothese } : {})} />
       {p.gestion && <TuileScenarios brandId={p.brandId} g={p.gestion} />}
       <AnnonceRetour messages={p.retours} />
     </Vue>

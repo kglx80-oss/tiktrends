@@ -145,6 +145,8 @@ export interface PropsProjet {
   exporterHref: string | null;
   generer: { href: string | null; libelle: string; raison: string | null };
   couloirs: CouloirSpatial[];
+  /** Ce que dit le couloir « Itération » vide quand il a une raison (aucune gagnante arbitrée, Résultats fermé) · `noeudsIterationProjet`. */
+  iterationVide?: string | null;
   aideCanvas: string;
   jarvis: PropsJarvisProjet;
   brief: PropsBriefProjet;

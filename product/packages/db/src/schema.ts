@@ -1,7 +1,7 @@
 import {
   pgTable, pgEnum, uuid, text, integer, doublePrecision, boolean,
   timestamp, jsonb, date, primaryKey, unique, vector, index,
-  bigint, bigserial, foreignKey,
+  bigint, bigserial, foreignKey, smallint,
 } from 'drizzle-orm/pg-core';
 
 /* ============================ ENUMS ============================ */
@@ -1134,6 +1134,10 @@ export const ads = pgTable('adsmap_ads', {
   launchedAt: timestamp('launched_at', { withTimezone: true }),
   status: adStatusEnum('status').notNull().default('draft'),
   legacyFlags: text('legacy_flags').array(),              // ex : legacy_missing_hypothesis (import §13)
+  // Estimation d'équipe de la priorité d'une hypothèse (1 à 3 chacune, 0068) · NULL = non estimée.
+  iceImpact: smallint('ice_impact'),
+  iceConfidence: smallint('ice_confidence'),
+  iceEffort: smallint('ice_effort'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({

@@ -43,17 +43,20 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08 · sortie de `node docs/ux-v5/compter-statuts.mjs` :
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable · CA G16, RJ IT02, PC E27) et lot 1 (hypothèses libres · RJ H01, H04, H05, H07 · VB F25, P13) · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Coquille et Accueil | 103 | 0 | 15 | 13 | 9 | 12 | 152 |
-| Veille, Bibliothèque, Marques | 98 | 0 | 64 | 30 | 18 | 3 | 213 |
-| Projets et canvas | 97 | 0 | 40 | 13 | 4 | 6 | 160 |
-| Résultats, Jarvis, ADMIN+ | 66 | 0 | 38 | 15 | 20 | 1 | 140 |
-| **Total** | **364** | **0** | **157** | **71** | **51** | **22** | **665** |
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres) et lot 3 (conclure un lot) · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
-Mis à jour par le lot 3 (conclure un lot entier) · 8 lignes passent en « raccordé » (RJ L06, L09, A01, A03, A05, A06, A08 · CA G09) · RJ L03 reste « partiel » (aucune règle écrite pour « Lancer quand même ») et RJ A04 « à créer » (attend l'action d'hypothèse libre du lot 1).
+| Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Coquille et Accueil | 104 | 0 | 14 | 13 | 9 | 12 | 152 |
+| Veille, Bibliothèque, Marques | 99 | 0 | 64 | 29 | 18 | 3 | 213 |
+| Projets et canvas | 98 | 0 | 39 | 13 | 4 | 6 | 160 |
+| Résultats, Jarvis, ADMIN+ | 70 | 0 | 35 | 14 | 20 | 1 | 140 |
+| **Total** | **371** | **0** | **152** | **69** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
@@ -114,6 +117,7 @@ Aujourd'hui une hypothèse n'existe que portée par une ad, et « Nouvelle hypot
 - **Vues** : `studios/Iterer.tsx`, `studios/Prompts.tsx`, `projet/Projet.tsx` (couloir Itération), `resultats/Hypotheses.tsx` et `Lots.tsx` (bouton de boucle).
 - **Services à réutiliser** : `iterationPlanAction` (`W/app/actions/adsmap-iterate.ts:70`), `createIterationAction` (mode, variable, valeur, hypothèse), `choixIterationSpatial` (`C/spatial/studios/iterer.ts`), la préparation du projet et son devis serveur (inchangés).
 - **Migration** : non.
+- **Livré** : la règle des variables admises (`C/spatial/studios/iterer-variable.ts`, rejouée au serveur par `creerIterationChoisieAction`), l'étape « Ce qu'on change » de l'écran Itérer, « Lancer comme itération » des prompts, le nœud « À décliner » du couloir Itération, le bouton de boucle de Lots. **Reste** : VB F26 (depuis une pub de la Veille), la boucle sur Hypothèses (lot 1) et sur Apprentissages (lot 3).
 
 ### 3 · Conclure un lot entier et réutiliser l'apprentissage · M
 

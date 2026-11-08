@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial,
-  type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
+  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese,
+  type EstimationHypothese, type OrigineHypotheseLibre, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -50,6 +50,10 @@ export interface AdLue extends FaitsAdSpatial {
   concept: string;
   nomGenere: string | null;
   bande: 'low' | 'med' | 'high' | null;
+  /** Hypothèse libre · sa provenance (`source_ref_json.hypotheseLibre`) · `null` pour une ad ordinaire. */
+  origine: OrigineHypotheseLibre | null;
+  /** L'estimation d'équipe (`ice_*`, 0068) · notes `null` tant qu'elles ne sont pas données. */
+  estimation: EstimationHypothese;
 }
 
 export interface LotLu extends FaitsLotSpatial {
@@ -78,6 +82,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
         hypothesis: schema.ads.hypothesis, testedVariable: schema.ads.testedVariable, platform: schema.ads.platform,
         adType: schema.ads.adType, offerId: schema.ads.offerId, landingPageId: schema.ads.landingPageId,
         assetUrl: schema.ads.assetUrl, generatedName: schema.ads.generatedName,
+        sourceRef: schema.ads.sourceRef, iceImpact: schema.ads.iceImpact, iceConfidence: schema.ads.iceConfidence, iceEffort: schema.ads.iceEffort,
       },
       concept: schema.concepts.title, callout: schema.concepts.callout, prelaunch: schema.concepts.prelaunchScore,
       thumb: schema.creatives.thumbUrl, storage: schema.creatives.storageUrl,
@@ -123,6 +128,8 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       concept: r.concept,
       nomGenere: r.ad.generatedName,
       bande: bande === 'low' || bande === 'med' || bande === 'high' ? bande : null,
+      origine: lireOrigineHypothese(r.ad.sourceRef),
+      estimation: { impact: r.ad.iceImpact, confiance: r.ad.iceConfidence, effort: r.ad.iceEffort },
       verdict: r.v?.adId ? {
         calcule: (r.v.computed ?? null) as VerdictValue | null,
         retenu: (r.v.validated ?? null) as VerdictValue | null,
