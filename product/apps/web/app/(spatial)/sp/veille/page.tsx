@@ -17,6 +17,8 @@ import { baseUrlRecette, cleEffective } from '../../../../lib/veille-recette-bas
 import { annonceConversationJarvis } from '@tiktrends/core';
 import { regimeSession } from '../../../../lib/credits-appels';
 import { lireVuesVeille } from '../../../../lib/veille-vues';
+import { lireMetaSauvegardes } from '../../../../lib/veille-tags';
+import type { TagVeille } from '@tiktrends/core';
 import { PubsDuMoment } from '../../../../spatial/vues/veille/PubsDuMoment';
 import { VeilleFermee } from '../../../../spatial/vues/veille/Fermee';
 import { carteVeille } from './cartes';
@@ -96,16 +98,19 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
 
   // Sauvegardes et suivis de la marque active · cochent les cartes.
   let savedSet = new Set<string>();
+  // Lot 6 · les sauvegardes de CE périmètre (espace, marque active) · leurs tags sont lus pour les pubs affichées.
+  let sauvegardes: Array<{ id: string; cle: string }> = [];
   let followSet = new Set<string>();
   let suivis: Array<{ id: string; platform: string; name: string }> = [];
   if (db) {
     const savedWhere = brand ? and(eq(schema.savedAds.workspaceId, s.workspaceId), eq(schema.savedAds.brandId, brand.id)) : eq(schema.savedAds.workspaceId, s.workspaceId);
     const followWhere = brand ? and(eq(schema.followedBrands.workspaceId, s.workspaceId), eq(schema.followedBrands.brandId, brand.id)) : eq(schema.followedBrands.workspaceId, s.workspaceId);
     const [sv, fl] = await Promise.all([
-      db.select({ p: schema.savedAds.platform, e: schema.savedAds.externalId }).from(schema.savedAds).where(savedWhere),
+      db.select({ id: schema.savedAds.id, p: schema.savedAds.platform, e: schema.savedAds.externalId }).from(schema.savedAds).where(savedWhere),
       db.select({ id: schema.followedBrands.id, platform: schema.followedBrands.platform, name: schema.followedBrands.name }).from(schema.followedBrands).where(followWhere).orderBy(desc(schema.followedBrands.createdAt)),
     ]);
     savedSet = new Set(sv.map((r) => r.p + ':' + r.e));
+    sauvegardes = sv.map((r) => ({ id: r.id, cle: r.p + ':' + r.e }));
     followSet = new Set(fl.map((r) => r.platform + ':' + r.name));
     suivis = fl;
   }
@@ -164,10 +169,17 @@ export default async function VeilleSpatiale({ searchParams }: { searchParams: P
     adsmap: canAccess(access, RESULTATS) ? 'ok' : denyReason(access, RESULTATS) === 'plan' ? 'plan' : 'role',
     marqueActive: !!brand,
   });
-  const cartes = ads.map((ad) => carteVeille(ad, {
-    cpm, contexte, hypothese,
-    sauvee: savedSet.has(ad.platform + ':' + ad.id),
-    suivie: followSet.has(ad.platform + ':' + (ad.advertiserName || '')),
+  const affichees = new Set(ads.map((ad) => ad.platform + ':' + ad.id));
+  const lues = sauvegardes.filter((x) => affichees.has(x.cle));
+  const meta = await lireMetaSauvegardes(s.workspaceId, lues.map((x) => x.id));
+  const tagsPar = new Map<string, TagVeille[]>(lues.map((x) => [x.cle, meta.get(x.id)?.tags ?? []]));
+  const cartes = ads.map((ad) => ({
+    ...carteVeille(ad, {
+      cpm, contexte, hypothese,
+      sauvee: savedSet.has(ad.platform + ':' + ad.id),
+      suivie: followSet.has(ad.platform + ':' + (ad.advertiserName || '')),
+    }),
+    tags: tagsPar.get(ad.platform + ':' + ad.id) ?? [],
   }));
   const annonceurs = new Set(ads.map((a) => a.advertiserName).filter(Boolean)).size;
   const totalPages = Math.min(Math.ceil(total / LIMIT) || 1, 417);

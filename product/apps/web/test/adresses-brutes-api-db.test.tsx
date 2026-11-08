@@ -351,6 +351,9 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/inspo.ts': {
     saveAd: A(() => [{ platform: 'meta', externalId: 'ext-1', snapshot: { id: 'ext-1', platform: 'meta' } }]), classerFormatSauvegarde: A(() => [{ platform: 'meta', externalId: 'ext-1', format: 'avap' }]),
     setSavedAdFolder: A(() => [{ platform: 'meta', externalId: 'ext-1', folder: null }]), unsaveAd: A(() => [{ platform: 'meta', externalId: 'ext-1' }]),
+    // Lot 6 V5 · tags, note et collections d'une sauvegarde, vocabulaire de `/tags` · aucune adresse ne sort (des libellés).
+    majSauvegarde: A(() => [{ platform: 'meta', externalId: 'ext-1', tags: ['Hook UGC'], note: 'Note' }]), lireSauvegardeVeille: A(() => [{ platform: 'meta', externalId: 'ext-1' }]),
+    creerTagVeille: A(() => [{ nom: 'Hook UGC' }]), renommerTagVeille: A(() => [{ id: '00000000-0000-4000-8000-000000000000', nom: 'Hook' }]),
     followBrand: A(() => [{ platform: 'meta', name: 'Concurrent' }]), unfollowBrand: A(() => [{ platform: 'meta', name: 'Concurrent' }]),
   },
   'app/actions/invites.ts': { createInviteAction: A(() => [fd({ email: 'invite@studios.test', role: 'member' })]), revokeInviteAction: A(() => [fd({ id: randomUUID() })]), acceptInviteAction: A(() => [fd({ token: 'x' })]) },

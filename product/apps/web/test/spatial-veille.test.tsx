@@ -109,6 +109,32 @@ describe('Spatial · Veille · parité de structure avec la maquette', () => {
     expect(p.rendu).toEqual(p.reference);
   });
 
+  /**
+   * Lot 6 V5 · écart DÉCLARÉ · la rangée des tags d'une carte (`[data-tags-carte]`,
+   * VB C09) n'existe que sur une pub dont la sauvegarde porte des tags, juste
+   * APRÈS son texte (`p.xp`). Elle est retirée avant la comparaison à ces
+   * conditions exactes (une par carte taguée, à cette place) · ailleurs, ou en
+   * trop, elle fait tomber la parité.
+   */
+  function sansTagsCartes(html: string, attendues: number): string {
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const rangs = [...t.content.querySelectorAll('[data-tags-carte]')];
+    if (rangs.length !== attendues || !rangs.every((r) => r.previousElementSibling?.matches('p.xp'))) return html;
+    rangs.forEach((r) => r.remove());
+    return t.innerHTML;
+  }
+
+  it('lot 6 · des cartes taguées gardent la parité · seule la rangée de tags, après le texte, s’ajoute', () => {
+    const { cartes, suggestions } = propsVeille();
+    const taguees = cartes.map((c, i) => (i % 3 === 0 ? { ...c, tags: [{ cle: 'hook ugc', nom: 'Hook UGC' }] } : c));
+    const n = taguees.filter((c) => c.tags?.length).length;
+    const html = rendre(<PubsDuMoment sous="" pastilleRadar={SOUS_NAV_TEST} recherche={{ phrase: '', compris: null, suggestions }} barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 24, annonceurs: 12, suite: '' }, vues: [] }} cartes={taguees} vide={null} pages={null} coutJarvis="" />);
+    expect(html.split('data-tags-carte').length - 1, 'une carte taguée ne montre pas ses tags').toBe(n);
+    const p = parite(sansTagsCartes(sansFiltresLocaux(html), n), 'veille', { ignorer: IGNORER_VEILLE });
+    expect(p.rendu).toEqual(p.reference);
+  });
+
   it('la garde voit un écart · une carte sans tendance là où la maquette en montre une la fait tomber', () => {
     const { cartes, suggestions } = propsVeille();
     const i = cartes.findIndex((c) => c.tendance);
@@ -146,6 +172,28 @@ describe('Spatial · Veille · parité des autres écrans', () => {
     expect(items).toHaveLength(4);
     const html = rendre(<Sauvegardes items={items} pastilleRadar={SOUS_NAV_TEST} creerProjet="/studio/projets/nouveau" />);
     const p = parite(html, 'sauvegardes', { ignorer: IGNORER_AD });
+    expect(p.rendu).toEqual(p.reference);
+  });
+
+  it('lot 6 · des sauvegardes taguées et notées gardent la parité · seules la rangée de tags et la note s’ajoutent, après les pastilles', () => {
+    const doc = refDoc('sauvegardes');
+    const vitems = [...doc.querySelectorAll('article.vitem')];
+    const items: SauvegardeDonnees[] = vitems.map((v, i) => ({
+      id: `s${i}`, platform: 'meta', externalId: `e${i}`, ad: { ...AD, id: `e${i}` }, folder: ['Dossier A', 'Dossier A', 'Dossier B', 'Dossier C'][i] ?? null,
+      marque: { nom: 'Annonceur', initiale: 'A', fond: '#ffb3c7' }, source: 'FR · Meta', image: 'https://x/i.jpg',
+      longue: v.querySelector('.scale') ? '21 j +' : null, video: !!v.querySelector('.play'), meta: ['Active · 34 j', 'Image · Meta'],
+      pastilles: [...v.querySelectorAll('.row .pill')].map((p, k) => ({ libelle: `P${k}`, classe: p.classList.contains('g') ? 'g' as const : '' as const })),
+      cloner: '/studio/projets/nouveau', tags: i === 0 ? [{ cle: 'hook ugc', nom: 'Hook UGC' }] : [], note: i === 1 ? 'Une note' : null,
+    }));
+    const html = rendre(<Sauvegardes items={items} pastilleRadar={SOUS_NAV_TEST} creerProjet="/studio/projets/nouveau" />);
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const ajouts = [...t.content.querySelectorAll('[data-tags-sauvegarde], [data-note-sauvegarde]')];
+    expect(ajouts.map((x) => x.hasAttribute('data-tags-sauvegarde') ? 'tags' : 'note'), 'tags ou note absents, ou en trop').toEqual(['tags', 'note']);
+    // À leur place · juste après la rangée des pastilles (ou la rangée de tags).
+    expect(ajouts.every((x) => x.previousElementSibling?.matches('.row') ?? false), 'tags ou note hors de leur place déclarée').toBe(true);
+    ajouts.forEach((x) => x.remove());
+    const p = parite(t.innerHTML, 'sauvegardes', { ignorer: IGNORER_AD });
     expect(p.rendu).toEqual(p.reference);
   });
 

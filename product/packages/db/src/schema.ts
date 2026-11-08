@@ -1,8 +1,9 @@
 import {
   pgTable, pgEnum, uuid, text, integer, doublePrecision, boolean,
   timestamp, jsonb, date, primaryKey, unique, vector, index,
-  bigint, bigserial, foreignKey, smallint,
+  bigint, bigserial, foreignKey, smallint, uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 /* ============================ ENUMS ============================ */
 export const platformEnum = pgEnum('platform', ['tiktok', 'meta']);
@@ -808,6 +809,62 @@ export const savedAds = pgTable('saved_ads', {
   folder: text('folder'),                          // board/dossier de rangement (null = non classé)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ uniq: unique().on(t.workspaceId, t.platform, t.externalId) }));
+
+/**
+ * Lot 6 V5 · les TAGS de Veille (0070, additive) · un vocabulaire posé à la
+ * main, par espace ET par marque (`brand_id` = la marque des sauvegardes qu'il
+ * tague · NULL = les sauvegardes faites sans marque active). `name_key` est la
+ * clé de comparaison (`cleTag`, noyau · casse, espaces et accents fusionnés) ·
+ * unique dans son vocabulaire. Un tag sans sauvegarde reste (ni suppression ni
+ * archive). Les règles (longueur, doublons) vivent au noyau (`tags-veille`).
+ */
+export const veilleTags = pgTable('veille_tags', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  nameKey: text('name_key').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  // Deux index partiels · un NULL ne heurte jamais un autre NULL dans un index unique.
+  marqueUniq: uniqueIndex('veille_tags_marque_cle_uniq').on(t.workspaceId, t.brandId, t.nameKey).where(sql`${t.brandId} IS NOT NULL`),
+  espaceUniq: uniqueIndex('veille_tags_espace_cle_uniq').on(t.workspaceId, t.nameKey).where(sql`${t.brandId} IS NULL`),
+}));
+
+/**
+ * Lot 6 V5 · le lien sauvegarde ↔ tag (0070). Retirer un tag d'une sauvegarde
+ * ne supprime que CETTE ligne · ni la sauvegarde, ni sa note. `workspace_id`
+ * est recopié pour borner chaque lecture à l'espace. L'index sur `tag_id` sert
+ * les lectures filtrées (« Voir » de `/tags`, le compte par tag).
+ */
+export const veilleTagsSauvegardes = pgTable('veille_tags_sauvegardes', {
+  savedAdId: uuid('saved_ad_id').notNull().references(() => savedAds.id, { onDelete: 'cascade' }),
+  tagId: uuid('tag_id').notNull().references(() => veilleTags.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  addedBy: uuid('added_by').references(() => users.id, { onDelete: 'set null' }),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.savedAdId, t.tagId] }),
+  tagIdx: index('veille_tags_sauvegardes_tag_idx').on(t.tagId),
+  espaceIdx: index('veille_tags_sauvegardes_espace_idx').on(t.workspaceId),
+}));
+
+/**
+ * Lot 6 V5 · PLUSIEURS collections par sauvegarde (0070, VB S03). Une ligne
+ * par collection cochée · `saved_ads.folder` reste écrit (= la première
+ * collection) pour les écrans qui ne lisent que lui. Une sauvegarde d'avant
+ * le lot n'a aucune ligne ici · son dossier fait foi (`collectionsDeSauvegarde`).
+ */
+export const savedAdCollections = pgTable('saved_ad_collections', {
+  savedAdId: uuid('saved_ad_id').notNull().references(() => savedAds.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.savedAdId, t.name] }),
+  espaceIdx: index('saved_ad_collections_espace_idx').on(t.workspaceId, t.name),
+}));
 
 export const followedBrands = pgTable('followed_brands', {
   id: uuid('id').primaryKey().defaultRandom(),

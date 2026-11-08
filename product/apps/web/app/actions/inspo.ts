@@ -2,13 +2,20 @@
 
 import { and, eq, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { enregistrementFormat, mediaAnnonce, sansFormatCreatif, validerChoixFormat, type FormatCreatifId } from '@tiktrends/core';
+import {
+  enregistrementFormat, mediaAnnonce, sansFormatCreatif, validerChoixFormat, validerCollections, validerNote, validerRenommage, validerTag, validerTags,
+  type FormatCreatifId, type TagVeille,
+} from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { getActiveBrand } from '../../lib/brands';
 import { FEATURES, denyReason } from '../../lib/rbac';
 import { effectiveAccess } from '../../lib/access';
 import { gardeVeille } from '../../lib/veille-garde';
 import type { InspoAd } from '@tiktrends/integrations';
+import {
+  ecrireMetaSauvegarde, lireCollectionsDisponibles, lireVocabulaire, oublierCollectionsMultiples, porteeTag, relireMeta,
+  type MetaRelue, type MetaValidee,
+} from '../../lib/veille-tags';
 
 /* Appels directs (depuis des boutons client via useTransition) · pas de redirection,
    donc pas de rechargement de page ni de nouvelle recherche Trendtrack. */
@@ -17,10 +24,31 @@ import type { InspoAd } from '@tiktrends/integrations';
 // partagée avec les vues enregistrées · même contrôle que la page `/veille`.
 const Veille = FEATURES.find((f) => f.key === 'inspo')!;
 
-export async function saveAd(input: { platform: string; externalId: string; snapshot: InspoAd }): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Lot 6 V5 · ce que la pop-up « Sauvegarder » ajoute à la sauvegarde · tags,
+ * note, collections. Un champ ABSENT n'est pas touché (une pub gardée d'un clic
+ * ailleurs garde sa note et ses tags) · présent, il est validé au noyau
+ * (`tags-veille`) AVANT toute écriture, et un refus n'écrit rien.
+ */
+export interface MetaSaisie { tags?: unknown; note?: unknown; collections?: unknown }
+
+function validerMeta(input: MetaSaisie): { ok: true; meta: MetaValidee } | { ok: false; error: string } {
+  const meta: MetaValidee = {};
+  if (input.tags !== undefined) { const v = validerTags(input.tags); if (!v.ok) return { ok: false, error: v.raison }; meta.tags = v.tags; }
+  if (input.note !== undefined) { const v = validerNote(input.note); if (!v.ok) return { ok: false, error: v.raison }; meta.note = v.note; }
+  if (input.collections !== undefined) { const v = validerCollections(input.collections); if (!v.ok) return { ok: false, error: v.raison }; meta.collections = v.collections; }
+  return { ok: true, meta };
+}
+const metaDemandee = (m: MetaValidee) => m.tags !== undefined || m.note !== undefined || m.collections !== undefined;
+
+export type ResultatSauvegarde = { ok: boolean; error?: string; sauvegarde?: MetaRelue };
+
+export async function saveAd(input: { platform: string; externalId: string; snapshot: InspoAd } & MetaSaisie): Promise<ResultatSauvegarde> {
   const g = await gardeVeille();
   if ('error' in g) return { ok: false, error: g.error };
   const { s } = g;
+  const m = validerMeta(input);
+  if (!m.ok) return { ok: false, error: m.error };
   const brand = await getActiveBrand(s.workspaceId);
   // Un classement ne voyage jamais avec la sauvegarde · il s'écrit par
   // `classerFormatSauvegarde` (validé, daté, signé), pas depuis le client.
@@ -42,7 +70,19 @@ export async function saveAd(input: { platform: string; externalId: string; snap
       return { ok: false, error: 'Annonce déjà sauvegardée pour une autre marque de l’espace · elle n’apparaît pas dans les sauvegardes de cette marque.' };
     }
   }
-  return { ok: true };
+  if (!metaDemandee(m.meta)) return { ok: true };
+  // Nouvelle ou déjà gardée ICI · la même ligne reçoit tags, note et collections (« Sauvegarder » ou « Mettre à jour »).
+  const [ligne] = ecrite.length
+    ? [{ id: ecrite[0]!.id, brandId: brand?.id ?? null }]
+    : await db!.select({ id: schema.savedAds.id, brandId: schema.savedAds.brandId }).from(schema.savedAds).where(and(
+      eq(schema.savedAds.workspaceId, s.workspaceId),
+      eq(schema.savedAds.platform, input.platform),
+      eq(schema.savedAds.externalId, input.externalId),
+      ...(brand ? [eq(schema.savedAds.brandId, brand.id)] : []),
+    )).limit(1);
+  if (!ligne) return { ok: false, error: 'Annonce introuvable dans tes sauvegardes · recharge la page.' };
+  const sauvegarde = await ecrireMetaSauvegarde({ savedAdId: ligne.id, workspaceId: s.workspaceId, brandId: ligne.brandId, userId: s.user.id }, m.meta);
+  return { ok: true, sauvegarde };
 }
 
 export type ResultatFormat = { ok: true; format: FormatCreatifId | null; date: string | null } | { ok: false; error: string };
@@ -133,7 +173,98 @@ export async function setSavedAdFolder(input: { platform: string; externalId: st
   if (!g.ok) return { ok: false, error: g.error };
   const folder = input.folder?.trim().slice(0, 60) || null;
   const maj = await db!.update(schema.savedAds).set({ folder }).where(g.ici).returning({ id: schema.savedAds.id });
+  // Lot 6 · ranger dans UN dossier · ses éventuelles collections multiples (0070) cèdent la place à ce dossier.
+  await oublierCollectionsMultiples(g.s.workspaceId, maj.map((x) => x.id));
   return maj.length ? { ok: true } : { ok: false, error: g.introuvable };
+}
+
+/**
+ * Lot 6 V5 · « Mettre à jour » une sauvegarde EXISTANTE · tags, note,
+ * collections (un champ absent n'est pas touché · retirer un tag n'efface ni
+ * la sauvegarde ni la note). Même garde que ranger et retirer
+ * (`gardeEcritureSauvegarde` · rôle de la Veille, espace et marque active).
+ */
+export async function majSauvegarde(input: { platform: string; externalId: string } & MetaSaisie): Promise<ResultatSauvegarde> {
+  const g = await gardeEcritureSauvegarde(input);
+  if (!g.ok) return { ok: false, error: g.error };
+  const m = validerMeta(input);
+  if (!m.ok) return { ok: false, error: m.error };
+  const [ligne] = await db!.select({ id: schema.savedAds.id, brandId: schema.savedAds.brandId }).from(schema.savedAds).where(g.ici).limit(1);
+  if (!ligne) return { ok: false, error: g.introuvable };
+  if (!metaDemandee(m.meta)) return { ok: true, sauvegarde: await relireMeta(g.s.workspaceId, ligne.id) };
+  const sauvegarde = await ecrireMetaSauvegarde({ savedAdId: ligne.id, workspaceId: g.s.workspaceId, brandId: ligne.brandId, userId: g.s.user.id }, m.meta);
+  return { ok: true, sauvegarde };
+}
+
+export type LectureSauvegarde =
+  | { ok: true; sauvee: boolean; sauvegarde: MetaRelue; vocabulaire: TagVeille[]; collections: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Lot 6 V5 · ce que la pop-up « Sauvegarder » lit à l'ouverture · la
+ * sauvegarde de CETTE pub ici (ou rien), le vocabulaire de tags de sa marque
+ * et les collections en usage. Lecture seule, même garde que les écritures
+ * sur une sauvegarde · une pub d'une autre marque ou d'un autre espace n'est
+ * jamais lue (« pas encore gardée », sans rien de l'autre marque).
+ */
+export async function lireSauvegardeVeille(input: { platform: string; externalId: string }): Promise<LectureSauvegarde> {
+  const g = await gardeEcritureSauvegarde(input);
+  if (!g.ok) return { ok: false, error: g.error };
+  const [ligne] = await db!.select({ id: schema.savedAds.id, brandId: schema.savedAds.brandId }).from(schema.savedAds).where(g.ici).limit(1);
+  const brandId = ligne ? ligne.brandId : g.marque?.id ?? null;
+  const [vocabulaire, collections, sauvegarde] = await Promise.all([
+    lireVocabulaire(g.s.workspaceId, brandId),
+    lireCollectionsDisponibles(g.s.workspaceId, brandId),
+    ligne ? relireMeta(g.s.workspaceId, ligne.id) : Promise.resolve<MetaRelue>({ tags: [], note: null, collections: [] }),
+  ]);
+  return { ok: true, sauvee: !!ligne, sauvegarde, vocabulaire: vocabulaire.map(({ cle, nom }) => ({ cle, nom })), collections };
+}
+
+/* ───────────────────────── /tags · le vocabulaire (TG01, TG04) ───────────────────────── */
+
+export type ResultatTag = { ok: true; tag: { id: string } & TagVeille } | { ok: false; error: string };
+
+/** Le vocabulaire de la marque active (ou des sauvegardes sans marque) · même garde que les écritures sur une sauvegarde. */
+async function gardeTags() {
+  const g = await gardeEcritureSauvegarde({ platform: '', externalId: '' });
+  if (!g.ok) return g;
+  return { ...g, brandId: g.marque?.id ?? null };
+}
+
+/** « + Ajouter un tag » (TG01) · un tag vide de toute sauvegarde, dans le vocabulaire de la marque active. */
+export async function creerTagVeille(input: { nom: unknown }): Promise<ResultatTag> {
+  const g = await gardeTags();
+  if (!g.ok) return { ok: false, error: g.error };
+  const v = validerTag(input?.nom);
+  if (!v.ok) return { ok: false, error: v.raison };
+  const [deja] = await db!.select({ nom: schema.veilleTags.name }).from(schema.veilleTags)
+    .where(and(porteeTag(g.s.workspaceId, g.brandId), eq(schema.veilleTags.nameKey, v.tag.cle))).limit(1);
+  if (deja) return { ok: false, error: `Le tag « ${deja.nom} » existe déjà.` };
+  const [cree] = await db!.insert(schema.veilleTags)
+    .values({ workspaceId: g.s.workspaceId, brandId: g.brandId, name: v.tag.nom, nameKey: v.tag.cle, createdBy: g.s.user.id })
+    .onConflictDoNothing().returning({ id: schema.veilleTags.id });
+  if (!cree) return { ok: false, error: `Le tag « ${v.tag.nom} » existe déjà.` };
+  return { ok: true, tag: { id: cree.id, ...v.tag } };
+}
+
+/** « Renommer » (TG04) · le libellé ET la clé · refusé si un autre tag du vocabulaire porte déjà cette clé. */
+export async function renommerTagVeille(input: { id: unknown; nom: unknown }): Promise<ResultatTag> {
+  const g = await gardeTags();
+  if (!g.ok) return { ok: false, error: g.error };
+  const id = typeof input?.id === 'string' && /^[0-9a-f-]{36}$/i.test(input.id) ? input.id : '';
+  if (!id) return { ok: false, error: 'Tag introuvable · recharge la page.' };
+  const voc = await lireVocabulaire(g.s.workspaceId, g.brandId);
+  if (!voc.some((t) => t.id === id)) return { ok: false, error: 'Tag introuvable pour cette marque · recharge la page.' };
+  const v = validerRenommage(id, input?.nom, voc);
+  if (!v.ok) return { ok: false, error: v.raison };
+  try {
+    const maj = await db!.update(schema.veilleTags).set({ name: v.tag.nom, nameKey: v.tag.cle })
+      .where(and(eq(schema.veilleTags.id, id), porteeTag(g.s.workspaceId, g.brandId))).returning({ id: schema.veilleTags.id });
+    if (!maj.length) return { ok: false, error: 'Tag introuvable pour cette marque · recharge la page.' };
+  } catch {
+    return { ok: false, error: 'Un tag de ce nom existe déjà · choisis un autre nom.' };
+  }
+  return { ok: true, tag: { id, ...v.tag } };
 }
 
 export async function unsaveAd(input: { platform: string; externalId: string }): Promise<ResultatEcriture> {

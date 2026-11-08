@@ -14,6 +14,8 @@
  * distincte, langue. Aucun de ces filtres n'est proposé.
  */
 
+import { LONGUEUR_MAX_TAG, cleTag } from './tags-veille';
+
 /** Ce qu'un filtre local regarde d'une pub déjà lue · un champ absent ne correspond qu'à « tous ». */
 export interface PubLocale {
   cta?: string | null;
@@ -22,6 +24,8 @@ export interface PubLocale {
   pays?: string | null;
   jours?: number | null;
   suivie?: boolean;
+  /** Lot 6 · les tags posés à la main sur la sauvegarde de cette pub (`tags-veille`) · absente ou non sauvegardée = aucun. */
+  tags?: ReadonlyArray<{ cle: string; nom: string }> | null;
 }
 
 export interface FiltresLocaux {
@@ -33,10 +37,12 @@ export interface FiltresLocaux {
   /** Diffusion minimale en jours (`PALIERS_DIFFUSION`). */
   diffusionMin: number | null;
   suiviesSeulement: boolean;
+  /** Lot 6 (VB V20) · la CLÉ d'un tag de Veille (`cleTag`) · absent ou `null` = tous. */
+  tag?: string | null;
 }
 
 export const FILTRES_LOCAUX_VIDES: Readonly<FiltresLocaux> = Object.freeze({
-  cta: null, masquerSauvees: false, plateforme: null, pays: null, diffusionMin: null, suiviesSeulement: false,
+  cta: null, masquerSauvees: false, plateforme: null, pays: null, diffusionMin: null, suiviesSeulement: false, tag: null,
 });
 
 /** La valeur du filtre « sans appel à l'action » · jamais un libellé réel (la source écrit en capitales ou en mots). */
@@ -56,6 +62,7 @@ export function passeFiltresLocaux(p: PubLocale, f: FiltresLocaux): boolean {
   if (f.pays !== null && (p.pays ?? '').toUpperCase() !== f.pays) return false;
   if (f.diffusionMin !== null && !((p.jours ?? -1) >= f.diffusionMin)) return false;
   if (f.suiviesSeulement && !p.suivie) return false;
+  if (f.tag != null && !(p.tags ?? []).some((t) => t.cle === f.tag)) return false;
   return true;
 }
 
@@ -73,6 +80,8 @@ export interface ControlesLocaux {
   pays: ControleLocal;
   diffusion: ControleLocal;
   suivies: ControleLocal;
+  /** Lot 6 (VB V20) · les tags des pubs chargées · une pub peut en porter plusieurs. */
+  tags: ControleLocal;
 }
 
 function groupes(lues: readonly PubLocale[], cle: (p: PubLocale) => string | null): Map<string, number> {
@@ -132,11 +141,37 @@ export function controlesLocaux(lues: readonly PubLocale[]): ControlesLocaux {
       : suivies === total
         ? { ouvert: false, raison: 'Toutes ces pubs viennent de marques suivies', options: [] }
         : { ouvert: true, raison: null, options: [{ valeur: '1', libelle: 'Marques suivies seulement', n: suivies }] },
+    tags: controleTags(lues),
   };
 }
 
-/** Les filtres posés, une puce par filtre (retirable) · l'état visible de la barre. */
-export function pucesLocales(f: FiltresLocaux): Array<{ cle: keyof FiltresLocaux; libelle: string }> {
+/**
+ * Le filtre « Tags » (VB V20) · une option par tag présent sur les pubs
+ * chargées, avec son effectif. Il ne s'ouvre que si UN tag au moins sépare la
+ * liste (porté par certaines pubs, pas par toutes) · sinon fermé, raison écrite.
+ */
+function controleTags(lues: readonly PubLocale[]): ControleLocal {
+  const m = new Map<string, OptionLocale>();
+  for (const p of lues) {
+    const vus = new Set<string>();
+    for (const t of p.tags ?? []) {
+      if (vus.has(t.cle)) continue;
+      vus.add(t.cle);
+      const o = m.get(t.cle);
+      if (o) o.n++; else m.set(t.cle, { valeur: t.cle, libelle: t.nom, n: 1 });
+    }
+  }
+  const options = [...m.values()].sort((a, b) => b.n - a.n || a.libelle.localeCompare(b.libelle, 'fr'));
+  if (options.length === 0) return { ouvert: false, raison: 'Aucune de ces pubs ne porte de tag · pose-les en sauvegardant', options: [] };
+  if (!options.some((o) => o.n < lues.length)) return { ouvert: false, raison: 'Toutes ces pubs portent les mêmes tags', options };
+  return { ouvert: true, raison: null, options };
+}
+
+/**
+ * Les filtres posés, une puce par filtre (retirable) · l'état visible de la barre.
+ * `nomsTags` donne le libellé d'un tag depuis sa clé · absent, la clé est dite.
+ */
+export function pucesLocales(f: FiltresLocaux, nomsTags?: ReadonlyMap<string, string>): Array<{ cle: keyof FiltresLocaux; libelle: string }> {
   const out: Array<{ cle: keyof FiltresLocaux; libelle: string }> = [];
   if (f.cta !== null) out.push({ cle: 'cta', libelle: f.cta === SANS_CTA ? 'Sans appel à l’action' : `Appel à l’action · ${f.cta}` });
   if (f.masquerSauvees) out.push({ cle: 'masquerSauvees', libelle: 'Sans les pubs déjà sauvegardées' });
@@ -144,6 +179,7 @@ export function pucesLocales(f: FiltresLocaux): Array<{ cle: keyof FiltresLocaux
   if (f.pays !== null) out.push({ cle: 'pays', libelle: `Pays · ${f.pays}` });
   if (f.diffusionMin !== null) out.push({ cle: 'diffusionMin', libelle: `Diffusées ${f.diffusionMin} j et plus` });
   if (f.suiviesSeulement) out.push({ cle: 'suiviesSeulement', libelle: 'Marques suivies seulement' });
+  if (f.tag != null) out.push({ cle: 'tag', libelle: `Tag · ${nomsTags?.get(f.tag) ?? f.tag}` });
   return out;
 }
 
@@ -161,7 +197,7 @@ export function compteLocal(visibles: number, chargees: number, actifs: number):
 /* ───────────────────────── l'adresse ───────────────────────── */
 
 /** Les clés d'adresse des filtres locaux · aucune ne recoupe un critère envoyé à la source (`lienVeille`). */
-export const CLES_ADRESSE_LOCALES = ['cta', 'masquer', 'plateforme', 'pays', 'diffusion', 'suivies'] as const;
+export const CLES_ADRESSE_LOCALES = ['cta', 'masquer', 'plateforme', 'pays', 'diffusion', 'suivies', 'tag'] as const;
 
 /** Les filtres locaux lus dans l'adresse · une valeur inconnue est ignorée. */
 export function lireFiltresLocaux(sp: Record<string, string | string[] | undefined>): FiltresLocaux {
@@ -173,6 +209,8 @@ export function lireFiltresLocaux(sp: Record<string, string | string[] | undefin
   const pa = v('pays')?.toUpperCase(); if (pa && /^[A-Z]{2}$/.test(pa)) f.pays = pa;
   const di = Number(v('diffusion')); if ((PALIERS_DIFFUSION as readonly number[]).includes(di)) f.diffusionMin = di;
   if (v('suivies') === '1') f.suiviesSeulement = true;
+  // La clé telle que `cleTag` l'écrit (minuscules, sans accents) · une autre forme est ignorée, jamais devinée.
+  const tg = v('tag'); if (tg && [...tg].length <= LONGUEUR_MAX_TAG && tg === cleTag(tg)) f.tag = tg;
   return f;
 }
 
@@ -186,6 +224,7 @@ export function ecrireFiltresLocaux(search: string, f: FiltresLocaux): string {
   if (f.pays !== null) p.set('pays', f.pays);
   if (f.diffusionMin !== null) p.set('diffusion', String(f.diffusionMin));
   if (f.suiviesSeulement) p.set('suivies', '1');
+  if (f.tag != null) p.set('tag', f.tag);
   const qs = p.toString();
   return qs ? `?${qs}` : '';
 }

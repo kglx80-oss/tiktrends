@@ -4,9 +4,11 @@ import { useEffect, useId, useMemo, useRef, useState, useTransition } from 'reac
 import {
   COLLECTION_TOUTES, FILTRES_SAUVEGARDES, FORMAT_INCERTAIN, FORMAT_NON_CLASSE, FORMAT_TOUS, TRIS_FORMATS, collectionsSauvegardes, ecrireCollectionSauvegardes, filtrerSauvegardes, MESSAGE_COLLECTION_IGNOREE, lireCollectionSauvegardes, formatFiltrable, provenanceSauvegarde, trierSauvegardes,
   type FiltresSauvegardes, type TriFormats, dansCollection, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, verrouAction, videoLisible,
+  MESSAGE_TAG_IGNORE, TAG_TOUS, tagsPresents, type TagVeille,
 } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
-import { classerFormatSauvegarde, setSavedAdFolder, unsaveAd } from '../../../app/actions/inspo';
+import { classerFormatSauvegarde, majSauvegarde, setSavedAdFolder, unsaveAd } from '../../../app/actions/inspo';
+import { PopupSauvegarde, type EtatSauvegarde } from './sauvegarde-client';
 import { trackSavedAdAction } from '../../../app/actions/adsmap-bridge';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
@@ -65,9 +67,13 @@ export interface SauvegardeDonnees {
   /** Le nom du membre de l'espace qui a classé · lu côté serveur, jamais l'e-mail. */
   auteur?: string | null;
   jours?: number | null;
+  /** Lot 6 · les tags posés à la main, la note, et TOUTES les collections (0070 · le dossier en tête). */
+  tags?: ReadonlyArray<TagVeille>;
+  note?: string | null;
+  collections?: readonly string[];
 }
 
-export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = COLLECTION_TOUTES, collectionIgnoree = false, gestes, filtresInitiaux = FILTRES_SAUVEGARDES }: { items: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; initiale?: string; collectionIgnoree?: boolean; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes }) {
+export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = COLLECTION_TOUTES, collectionIgnoree = false, gestes, filtresInitiaux = FILTRES_SAUVEGARDES, tagIgnore = false }: { items: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; initiale?: string; collectionIgnoree?: boolean; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes; tagIgnore?: boolean }) {
   const [items, setItems] = useState(depart);
   const [filtres, setFiltres] = useState<FiltresSauvegardes>(filtresInitiaux);
   const fx = (p: Partial<FiltresSauvegardes>) => setFiltres((x) => ({ ...x, ...p }));
@@ -99,8 +105,10 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
     // Au montage seulement · ensuite l'état fait foi et l'adresse le suit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const dansVue = items.filter((i) => dansCollection(i.folder, actif));
-  const filtrables = dansVue.map((i) => ({ i, platform: i.platform, video: i.video, texte: i.ad.body ?? '', annonceur: i.marque.nom, format: formatFiltrable(i.format) }));
+  const dansVue = items.filter((i) => dansCollection(i.folder, actif, i.collections));
+  const filtrables = dansVue.map((i) => ({ i, platform: i.platform, video: i.video, texte: i.ad.body ?? '', annonceur: i.marque.nom, format: formatFiltrable(i.format), tags: i.tags ?? [] }));
+  const tagsDispo = tagsPresents(items);
+  const tagActif = filtres.tag ?? TAG_TOUS;
   const visibles = (gestes ? trierSauvegardes(filtrerSauvegardes(filtrables, filtres).map((x) => x.i), filtres.tri) : dansVue);
   const incertaines = items.some((i) => i.format?.etat === FORMAT_INCERTAIN) || filtres.format === FORMAT_INCERTAIN;
   const formatsPresents = [...new Set(items.map((i) => i.format?.id).filter((x): x is string => !!x))].filter(estFormatCreatif);
@@ -137,19 +145,24 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
               {plateformes.length > 1 && <label className="field">Plateforme<select value={filtres.plateforme} onChange={(e) => fx({ plateforme: e.target.value })} aria-label="Filtrer par plateforme">
                 <option value="tous">Toutes</option>{plateformes.map((x) => <option key={x} value={x}>{x === 'meta' ? 'Meta' : x === 'tiktok' ? 'TikTok' : x === 'google' ? 'Google' : x}</option>)}
               </select></label>}
+              {(tagsDispo.length > 0 || tagActif !== TAG_TOUS) && <label className="field">Tags<select value={tagActif} onChange={(e) => fx({ tag: e.target.value })} aria-label="Filtrer par tag" data-filtre-tag-sauvegardes>
+                <option value={TAG_TOUS}>Tous les tags</option>{tagsDispo.map((t) => <option key={t.cle} value={t.cle}>{`${t.nom} · ${t.n}`}</option>)}
+              </select></label>}
               <label className="field">Tri<select value={filtres.tri} onChange={(e) => fx({ tri: e.target.value as TriFormats })} aria-label="Trier les sauvegardes">
                 {TRIS_FORMATS.map((t) => <option key={t.id} value={t.id}>{t.libelle}</option>)}
               </select></label>
             </div>
           )}
           {ignoree && <small className="faint" role="status" data-collection-ignoree="1" style={{ flex: '1 1 100%', fontSize: '12.5px' }}>{MESSAGE_COLLECTION_IGNOREE}</small>}
+          {tagIgnore && <small className="faint" role="status" data-tag-ignore="1" style={{ flex: '1 1 100%', fontSize: '12.5px' }}>{MESSAGE_TAG_IGNORE}</small>}
           <span className="faint" style={{ fontSize: '12.5px' }}>{visibles.length} créa{visibles.length > 1 ? 's' : ''}{actif === `f:${enCreation}` && visibles.length === 0 ? ` · range une créa dans « ${enCreation} » depuis son bouton « Gardée »` : ''}</span>
           <Lien className="btn pri sm" href={creerProjet} style={{ marginLeft: 'auto' }}>Créer un projet Studios</Lien>
         </div>
         <div className="vfeed" style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
           {visibles.map((i) => (
             <CarteSauvegarde key={i.id} i={i} dossiers={dossiers} gestes={gestes}
-              range={(folder) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, folder } : x)))}
+              range={(folder) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, folder, collections: folder ? [folder] : [] } : x)))}
+              maj={(e) => setItems((l) => l.map((x) => (x.id !== i.id ? x : !e.sauvee ? x : { ...x, tags: e.tags, ...(e.note !== undefined ? { note: e.note } : {}), ...(e.collections ? { collections: e.collections, folder: e.collections[0] ?? null } : {}) })))}
               retire={() => setItems((l) => l.filter((x) => x.id !== i.id))}
               classe={(id, date) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, format: { id, versionAncienne: false, etat: id ? 'classe' : FORMAT_NON_CLASSE }, classeeLe: id ? date : null, auteur: null } : x)))} />
           ))}
@@ -159,8 +172,9 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
   );
 }
 
-function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: SauvegardeDonnees; dossiers: string[]; range: (f: string | null) => void; retire: () => void; gestes?: GestesSauvegarde; classe: (id: string | null, date: string | null) => void }) {
+function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe, maj }: { i: SauvegardeDonnees; dossiers: string[]; range: (f: string | null) => void; retire: () => void; gestes?: GestesSauvegarde; classe: (id: string | null, date: string | null) => void; maj: (e: EtatSauvegarde) => void }) {
   const [menu, setMenu] = useState(false);
+  const [popup, setPopup] = useState(false);
   const [attente, demarrer] = useTransition();
   const verrou = useRef(verrouAction());
   const { toast } = useSpatial();
@@ -194,6 +208,8 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: Sa
       </div>
       <div className="vmeta"><span>{i.meta[0]}</span><span>{i.meta[1]}</span></div>
       <div className="row">{i.pastilles.map((p) => <span key={p.libelle} className={`pill ${p.classe}`.trim()}>{p.libelle}</span>)}</div>
+      {(i.tags?.length ?? 0) > 0 && <TagsSauvegarde i={i} maj={maj} retirable={!!gestes} />}
+      {i.note && <p data-note-sauvegarde="" className="faint" style={{ margin: 0, fontSize: 12.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><Ic n="text" /> {i.note}</p>}
       {gestes && i.sauvegardeLe !== undefined && <small className="faint" data-provenance style={{ fontSize: 11, overflowWrap: 'anywhere' }}>{provenanceSauvegarde({ platform: i.platform, sauvegardeLe: i.sauvegardeLe, classeeLe: i.classeeLe ?? null, auteur: i.auteur ?? null })}</small>}
       <div className="acts">
         <button ref={gardee} className="btn sm" type="button" aria-pressed="true" aria-expanded={menu} aria-haspopup="menu" disabled={attente} onClick={() => setMenu(!menu)}><Ic n="bookmark" />Gardée</button>
@@ -207,10 +223,43 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe }: { i: Sa
             <button key={d} type="button" className="fopt" role="menuitem" onClick={() => agir(() => setSavedAdFolder({ ...cible, folder: d }), () => range(d), `Rangée dans « ${d} »`)}><span>Ranger dans « {d} »</span></button>
           ))}
           {i.folder && <button type="button" className="fopt" role="menuitem" onClick={() => agir(() => setSavedAdFolder({ ...cible, folder: null }), () => range(null), 'Sortie de la collection')}><span>Sortir de « {i.folder} »</span><small>Elle reste dans « Non classées »</small></button>}
+          <button type="button" className="fopt" role="menuitem" onClick={() => { setMenu(false); setPopup(true); }}><span>Modifier collections, tags et note</span><small>Plusieurs collections, des tags, une note</small></button>
           <button type="button" className="fopt" role="menuitem" onClick={() => agir(() => unsaveAd(cible), retire, 'Retirée des sauvegardes')}><span>Retirer des sauvegardes</span></button>
         </div>
       )}
+      {popup && <PopupSauvegarde ad={i.ad} apercu={{ image: i.image, marque: i.marque, texte: i.ad.body?.trim() || null }} sauvee fermer={() => setPopup(false)}
+        apres={(e) => (e.sauvee ? maj(e) : retire())} />}
     </article>
+  );
+}
+
+/**
+ * Les tags d'une sauvegarde (lot 6) · chacun se retire d'un geste
+ * (`majSauvegarde` avec les autres tags · ni la sauvegarde, ni sa note, ni
+ * ses collections ne bougent). La pastille ne part qu'au oui du serveur.
+ */
+function TagsSauvegarde({ i, maj, retirable }: { i: SauvegardeDonnees; maj: (e: EtatSauvegarde) => void; retirable: boolean }) {
+  const { toast } = useSpatial();
+  const [attente, setAttente] = useState<string | null>(null);
+  const verrou = useRef(verrouAction());
+  const tags = i.tags ?? [];
+  const retirer = async (cle: string, nom: string) => {
+    if (!verrou.current.tenter()) return;
+    setAttente(cle);
+    try {
+      const r = await majSauvegarde({ platform: i.platform, externalId: i.externalId, tags: tags.filter((t) => t.cle !== cle).map((t) => t.nom) });
+      if (!r.ok) { toast(r.error ?? 'Retrait refusé.'); return; }
+      maj({ sauvee: true, tags: r.sauvegarde?.tags ?? tags.filter((t) => t.cle !== cle) });
+      toast(`Tag « ${nom} » retiré · la sauvegarde et sa note restent`);
+    } catch { toast('Échec · vérifie ta connexion puis réessaie.'); }
+    finally { verrou.current.relacher(); setAttente(null); }
+  };
+  return (
+    <div className="row" data-tags-sauvegarde="" style={{ flexWrap: 'wrap', gap: 6 }}>
+      {tags.map((t) => (retirable
+        ? <button key={t.cle} type="button" className="chip on" style={{ minHeight: 44 }} aria-label={`Retirer le tag « ${t.nom} »`} aria-busy={attente === t.cle || undefined} onClick={() => void retirer(t.cle, t.nom)}><Ic n="tag" />{t.nom}<Ic n="x" /></button>
+        : <span key={t.cle} className="pill"><Ic n="tag" />{t.nom}</span>))}
+    </div>
   );
 }
 
