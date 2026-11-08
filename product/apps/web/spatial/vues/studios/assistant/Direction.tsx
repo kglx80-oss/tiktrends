@@ -2,7 +2,7 @@
 
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import {
-  changementStyleManuel, demandeDirectionDepuisBrief, ligneTexte, lireLigneTexte,
+  changementStyleManuel, demandeDirectionDepuisBrief, ligneTexte, lireLigneTexte, palettePastilles,
   ALLOWED_PATHS_BRIEF, OBJECTIF_MAX,
   type BriefCanonique, type ChangementPatch,
 } from '@tiktrends/core';
@@ -25,8 +25,10 @@ import { PropositionsBrief, RetourCycle } from './PropositionsBrief';
 
 export interface EnregistrementDirection { enregistrer: () => Promise<boolean>; peutFermer: () => boolean }
 
-export function Direction({ brief, cycle, onApplied, apercuProduitUrl, enregistrementRef, projectId, baseVersionId, onRelire }: {
+export function Direction({ brief, cycle, onApplied, apercuProduitUrl, enregistrementRef, projectId, baseVersionId, onRelire, paletteMarque }: {
   onRelire?: () => Promise<boolean>;
+  /** Lot 8 · couleurs de la fiche de la marque · absent, les pastilles ne sont pas montrées. */
+  paletteMarque?: readonly string[];
   enregistrementRef?: Ref<EnregistrementDirection>;
   projectId?: string;
   baseVersionId?: string;
@@ -189,6 +191,19 @@ export function Direction({ brief, cycle, onApplied, apercuProduitUrl, enregistr
               {apercuProduitUrl
                 ? <div className="ad" style={{ maxWidth: 260 }}><div className="ph"><img src={apercuProduitUrl} alt="Photo produit sélectionnée · aperçu, pas une image générée" /></div>{lignes[0] && <div className="band">{lignes[0].texte}</div>}</div>
                 : <p className="faint" style={{ fontSize: '12.5px' }}>Aucun visuel généré pour cette direction.</p>}
+              {paletteMarque && (() => {
+                const pal = palettePastilles(paletteMarque);
+                return (
+                  <div data-palette={pal.pastilles.length} style={{ display: 'grid', gap: 6 }}>
+                    {pal.pastilles.length > 0 && (
+                      <div className="kc" role="list" aria-label="Palette de la marque">
+                        {pal.pastilles.map((c) => <span key={c} role="listitem" title={c} aria-label={`Couleur ${c}`} data-pastille={c} style={{ width: 28, height: 28, borderRadius: 8, background: c, border: '1px solid var(--edge2)' }} />)}
+                      </div>
+                    )}
+                    <small className="faint" style={{ fontSize: '11.5px' }}>{pal.phrase}</small>
+                  </div>
+                );
+              })()}
               <div className="kc">
                 <span className="pill" data-resume="Angle" style={{ whiteSpace: 'normal' }}>{brief.angle || 'Angle à définir'}</span>
                 <span className="pill" data-resume="Concept" style={{ whiteSpace: 'normal' }}>{brief.concept || 'Concept à définir'}</span>

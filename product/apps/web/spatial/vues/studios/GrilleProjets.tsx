@@ -1,10 +1,14 @@
 'use client';
 
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { cartesFiltreesSpatial, filtresProjetsSpatial, gestesCarteSpatiale, type CleFiltreSpatial, type EtapeProjet } from '@tiktrends/core';
+import { useRouter } from 'next/navigation';
+import { TITRE_PROJET_MAX, cartesFiltreesSpatial, filtresProjetsSpatial, gestesCarteSpatiale, titreProjetValide, type CleFiltreSpatial, type EtapeProjet } from '@tiktrends/core';
 import { supprimerProjet, restaurerProjet } from '../../../app/actions/studios/archivage';
+import { dupliquerProjet, renommerProjet } from '../../../app/actions/studios/projets';
 import { Ic, Lien } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
+import { boutonAction, replacerFocus } from '../projet/action-serveur';
+import { Message } from '../projet/briques';
 import { Creative, TuileVide, type CreativeSpatiale } from './briques';
 
 /**
@@ -16,8 +20,12 @@ import { Creative, TuileVide, type CreativeSpatiale } from './briques';
  * Les gestes de la carte (`.pacts`, `gestesCarteSpatiale`) · « Itérer » ouvre
  * les variantes du projet (l'itération réelle part d'une variante, `iterer`),
  * « Archiver » (`supprimerProjet` · statut `archived`, versions et médias
- * conservés) et « Restaurer » (`restaurerProjet`). « Dupliquer » et
- * « Supprimer définitivement » n'ont pas de service · ils ne sont pas rendus.
+ * conservés) et « Restaurer » (`restaurerProjet`). Lot 8 · « Renommer »
+ * (`renommerProjet`, le titre seul) ouvre un champ sous la carte, et
+ * « Dupliquer » (`dupliquerProjet`) crée « Copie de … » dans la même marque,
+ * sans générations ni exports · la brique `boutonAction` garde le focus du
+ * bouton pressé. « Supprimer définitivement » n'a pas de service · il n'est
+ * pas rendu.
  */
 
 export interface ProjetSpatial {
@@ -45,6 +53,45 @@ export function GrilleProjets({ projets, archives: archivesInitiales = null, nou
   vide: { titre: string; texte: ReactNode } | null;
 }) {
   const { toast } = useSpatial();
+  const router = useRouter();
+  // Lot 8 · renommer (titre saisi, erreur dite sous le champ) et dupliquer (la copie créée, à ouvrir).
+  const [renomme, setRenomme] = useState<Record<string, string>>({});
+  const [edition, setEdition] = useState<{ id: string; titre: string; erreur: { message: string; horsLigne: boolean } | null } | null>(null);
+  const [enCours, setEnCours] = useState<string | null>(null);
+  const [copie, setCopie] = useState<{ id: string; title: string; source: string } | null>(null);
+  const titre = (p: ProjetSpatial) => renomme[p.id] ?? p.title;
+
+  async function renommer(p: ProjetSpatial) {
+    if (enCours || !edition || edition.id !== p.id) return;
+    const t = titreProjetValide(edition.titre);
+    if (!t.ok) { setEdition({ ...edition, erreur: { message: t.raison, horsLigne: false } }); return; }
+    setEnCours(`renommer:${p.id}`);
+    try {
+      const r = await renommerProjet({ projectId: p.id, titre: t.titre });
+      if (!r.ok) { setEdition((e) => e && { ...e, erreur: { message: `${r.violations?.length ? r.violations.map((v) => v.raison).join(' · ') : r.message}${r.traceId ? ` · identifiant support ${r.traceId}` : ''}`, horsLigne: false } }); return; }
+      setRenomme((m) => ({ ...m, [p.id]: r.projet.title }));
+      setEdition(null);
+      toast(`Projet renommé · « ${r.projet.title} »`);
+      replacerFocus('toujours', `button[data-geste="renommer"][data-pour="${p.id}"]`);
+      router.refresh();
+    } catch {
+      setEdition((e) => e && { ...e, erreur: { message: 'Le serveur n’a pas répondu · le nom n’est pas confirmé. Vérifie ta connexion puis réessaie.', horsLigne: true } });
+    } finally { setEnCours(null); }
+  }
+
+  async function dupliquer(p: ProjetSpatial) {
+    if (enCours) return;
+    setEnCours(`dupliquer:${p.id}`);
+    try {
+      const r = await dupliquerProjet({ projectId: p.id });
+      if (!r.ok) { toast(r.message); return; }
+      setCopie({ id: r.projet.id, title: r.projet.title, source: titre(p) });
+      toast(`« ${r.projet.title} » créé · la structure seule, sans générations ni exports`);
+      router.refresh();
+    } catch {
+      toast('Duplication non confirmée · recharge la page pour vérifier la liste des projets.');
+    } finally { setEnCours(null); }
+  }
   // Archivés pendant la visite (bandeau « Annuler ») · restaurés pendant la visite (retirés du filtre « Archivés »).
   const [archivesSession, setArchivesSession] = useState<ProjetSpatial[]>([]);
   const [restaures, setRestaures] = useState<ProjetSpatial[]>([]);
@@ -98,12 +145,36 @@ export function GrilleProjets({ projets, archives: archivesInitiales = null, nou
         )}
       </div>
       {note}
+      {copie && (
+        <div className="banner" role="status" data-copie={copie.id}>
+          <Ic n="copy" /><span>« {copie.title} » créé à partir de « {copie.source} » · brief, document et réglages repris, sans générations, exports, tests ni mesures.</span>
+          <Lien className="btn sm" href={`/studio/projets/${copie.id}`} style={{ marginLeft: 'auto', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>Ouvrir la copie</Lien>
+        </div>
+      )}
       {bandeaux.map((a) => (
         <div className="banner" key={a.id} role="status">
           <Ic n="folder" /><span>« {a.title} » archivé · retiré de la liste, rien n’est perdu.</span>
           <button className="btn sm" type="button" disabled={occupe === a.id} onClick={() => void geste(a, 'restaurer')} style={{ marginLeft: 'auto' }}>Annuler</button>
         </div>
       ))}
+      {(() => {
+        const p = edition ? [...visibles, ...(archives ?? [])].find((x) => x.id === edition.id) : undefined;
+        if (!edition || !p) return null;
+        return (
+          <form className="tile" data-renommer={p.id} aria-label={`Renommer ${titre(p)}`} style={{ display: 'grid', gap: 8, marginBottom: 12 }} onSubmit={(e) => { e.preventDefault(); void renommer(p); }}>
+            <label className="field">Nouveau nom de « {titre(p)} »
+              <input value={edition.titre} maxLength={TITRE_PROJET_MAX} autoFocus aria-describedby={edition.erreur ? `renommer-erreur-${p.id}` : undefined}
+                onChange={(e) => setEdition({ ...edition, titre: e.target.value, erreur: null })} onKeyDown={(e) => { if (e.key === 'Escape') setEdition(null); }} />
+            </label>
+            <div className="kc">
+              <button className="btn sm pri" type="submit" style={{ minHeight: 44 }} {...boutonAction({ presse: enCours === `renommer:${p.id}`, occupe: !!enCours })}>{enCours === `renommer:${p.id}` ? 'Enregistrement…' : 'Enregistrer le nom'}</button>
+              <button className="btn sm" type="button" style={{ minHeight: 44 }} {...boutonAction({ occupe: !!enCours, surClic: () => setEdition(null) })}>Annuler</button>
+            </div>
+            <small className="faint" style={{ fontSize: '11.5px' }}>Le nom seul change · versions, créations et exports restent tels quels. Gratuit.</small>
+            {edition.erreur && <div id={`renommer-erreur-${p.id}`}><Message ton="err" horsLigne={edition.erreur.horsLigne}>{edition.erreur.message}</Message></div>}
+          </form>
+        );
+      })()}
       {enArchives
         ? affiches.length === 0 && <TuileVide titre={recherche.trim() ? 'Aucun projet archivé trouvé' : 'Aucun projet archivé'} texte="Un projet archivé garde ses versions et ses créations · il se restaure d’ici." />
         : visibles.length === 0 && vide && <TuileVide titre={vide.titre} texte={vide.texte} />}
@@ -122,17 +193,23 @@ export function GrilleProjets({ projets, archives: archivesInitiales = null, nou
                     {p.version && <span className="pill ver">{p.version}</span>}
                   </div>
                   <div className="meta"><span>{p.libelleType}</span><span className={`pill ${enArchives ? '' : p.pastille.classe}`.trim()}>{enArchives ? 'Archivé' : p.pastille.libelle}</span></div>
-                  <h3 title={p.title}>{p.title}</h3>
+                  <h3 title={titre(p)}>{titre(p)}</h3>
                   <div className="steps4">{p.segments.map((s, i) => <i key={i} className={s} />)}</div>
                   <div className="stp"><span>{p.libelleStp}</span><span>{p.reprise}</span></div>
                 </Lien>
                 {gestes.length > 0 && (
                   <div className="pacts">
                     {gestes.map((g) => g.cle === 'iterer'
-                      ? <Lien key="iterer" href={g.href} title="Itérer" aria-label={`Itérer sur ${p.title}`}><Ic n="loop" /></Lien>
-                      : g.cle === 'archiver'
-                        ? <button key="archiver" type="button" title="Archiver" aria-label={`Archiver ${p.title}`} disabled={occupe === p.id} onClick={() => void geste(p, 'archiver')}><Ic n="folder" /></button>
-                        : <button key="restaurer" type="button" title="Restaurer" aria-label={`Restaurer ${p.title}`} disabled={occupe === p.id} onClick={() => void geste(p, 'restaurer')}><Ic n="back" /></button>)}
+                      ? <Lien key="iterer" href={g.href} title="Itérer" aria-label={`Itérer sur ${titre(p)}`}><Ic n="loop" /></Lien>
+                      : g.cle === 'renommer'
+                        ? <button key="renommer" type="button" title="Renommer" aria-label={`Renommer ${titre(p)}`} aria-expanded={edition?.id === p.id} data-geste="renommer" data-pour={p.id}
+                          {...boutonAction({ occupe: !!enCours, surClic: () => setEdition((e) => (e?.id === p.id ? null : { id: p.id, titre: titre(p), erreur: null })) })}><Ic n="text" /></button>
+                        : g.cle === 'dupliquer'
+                          ? <button key="dupliquer" type="button" title="Dupliquer" aria-label={`${enCours === `dupliquer:${p.id}` ? 'Duplication…' : 'Dupliquer'} ${titre(p)}`} data-geste="dupliquer" data-pour={p.id}
+                            {...boutonAction({ presse: enCours === `dupliquer:${p.id}`, occupe: !!enCours, surClic: () => void dupliquer(p) })}><Ic n="copy" /></button>
+                          : g.cle === 'archiver'
+                            ? <button key="archiver" type="button" title="Archiver" aria-label={`Archiver ${titre(p)}`} disabled={occupe === p.id} onClick={() => void geste(p, 'archiver')}><Ic n="folder" /></button>
+                            : <button key="restaurer" type="button" title="Restaurer" aria-label={`Restaurer ${titre(p)}`} disabled={occupe === p.id} onClick={() => void geste(p, 'restaurer')}><Ic n="back" /></button>)}
                   </div>
                 )}
               </div>

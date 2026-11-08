@@ -41,7 +41,7 @@ const LOGO: ViolationExport = { cible: { type: 'calque', calqueId: 'logo', nom: 
 const vue = (o: Partial<VueExport> = {}): VueExport => ({
   projet: { id: 'p1', title: 'Sérum', marque: 'Éclat' }, version: { id: 'v2', n: 2, courante: true },
   versions: [{ id: 'v2', n: 2, courante: true }, { id: 'v1', n: 1, courante: false }],
-  document: { largeur: 1080, hauteur: 1080, calques: 3 }, preflight: { ok: true, medias: 1, polices: 1 }, historique: [], peutExporter: true, ...o,
+  document: { largeur: 1080, hauteur: 1080, calques: 3 }, preflight: { ok: true, medias: 1, polices: 1 }, historique: [], peutExporter: true, relecture: { par: 'Kevin', le: '2026-10-08T09:00:00.000Z', versionN: 2 }, ...o,
 });
 
 let racine: HTMLDivElement; let root: Root;
@@ -92,7 +92,7 @@ describe('Export · structure et noms accessibles', () => {
       const id = s.getAttribute('aria-labelledby');
       return id ? document.getElementById(id)?.textContent ?? `(id ${id} introuvable)` : '(sans nom)';
     });
-    expect(noms, 'une tuile n’est pas nommée par son titre').toEqual(['Contrôle avant export', 'Fichier', 'Version à exporter', 'Exports de ce projet']);
+    expect(noms, 'une tuile n’est pas nommée par son titre').toEqual(['Contrôle avant export', 'Relecture humaine', 'Fichier', 'Version à exporter', 'Exports de ce projet']);
   });
 
   it('les « Télécharger » de l’historique et les « Choisir » des versions ont chacun un nom distinct, qui commence par le mot affiché', async () => {

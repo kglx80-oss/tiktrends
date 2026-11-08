@@ -42,6 +42,7 @@ describe.skipIf(!ACTIF)('Semis de recette visuelle R4', () => {
     const { chargerCatalogueProjet } = await import('../lib/studios/produit/catalogue');
     const { enregistrerVersion } = await import('../lib/studios/depot');
     const { exporterVersionPour, injecterStockageExport } = await import('../lib/studios/export/export');
+    const { relire } = await import('./relecture-export-outils');
     const R = DOSSIER || '/nonexistent';
     const fichier = (cle: string) => join(R, cle);
     injecterStockageExport({
@@ -93,10 +94,13 @@ describe.skipIf(!ACTIF)('Semis de recette visuelle R4', () => {
 
     const v1 = await enregistrerVersion(ctx(), { projectId: tmp.projectId, baseVersionId: tmp.versionId, changes: [{ op: 'replace', path: '/document', newValue: doc('Peau nette en 7 jours'), reason: 'composition' }], allowedPaths: ['/document'], raison: 'Composition 4:5' });
     if (!v1.ok) throw new Error(JSON.stringify(v1));
+    // Lot 8 · chaque version exportée est d'abord relue par une personne (contrôle humain).
+    await relire(ctx(), tmp.projectId, v1.version.id);
     const e1 = await exporterVersionPour(ctx(), { projectId: tmp.projectId, format: 'png' });
     if (!e1.ok) throw new Error(JSON.stringify(e1));
     const v2 = await enregistrerVersion(ctx(), { projectId: tmp.projectId, baseVersionId: v1.version.id, changes: [{ op: 'replace', path: '/document/layers/titre/text', newValue: 'Fini les boutons au réveil', reason: 'accroche' }], allowedPaths: ['/document'], raison: 'Accroche douleur' });
     if (!v2.ok) throw new Error(JSON.stringify(v2));
+    await relire(ctx(), tmp.projectId, v2.version.id);
     const e2 = await exporterVersionPour(ctx(), { projectId: tmp.projectId, format: 'jpeg' }, { stockage: null });
     if (!e2.ok) throw new Error(JSON.stringify(e2));
 

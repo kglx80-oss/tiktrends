@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { RELECTURE_CREATIONS_MS, TEXTES_HORS_LIGNE, bandeauTachesInterrompues, valeursRattachement, type ValeursRattachement } from '@tiktrends/core';
+import {
+  FILTRES_CREATIONS_VIDES, RELECTURE_CREATIONS_MS, TEXTES_HORS_LIGNE, axesFiltresCreations, bandeauTachesInterrompues, basculerFiltreCreations, etatCreationFiltre,
+  filtrerCreations, resumeFiltresCreations, valeursRattachement, type CreationFiltrable, type FiltresCreations, type ValeursRattachement,
+} from '@tiktrends/core';
 import { creerVariante, iterer } from '../../../app/actions/studios/variantes';
 import { rattacherVarianteAuTest, relireApprentissage } from '../../../app/actions/studios/tests';
 import { useSpatial } from '../../coquille/contexte';
@@ -20,6 +23,10 @@ import type { LotSpatial, PropsCreationsProjet, SortieSpatiale, VarianteSpatiale
  * tuiles Spatial, ce que la fiche V5 portait ici : variantes et tests
  * (choisir, itérer, relire l'apprentissage, rattacher à un test Adsmap,
  * préparer un lot d'essai), tâches de génération.
+ *
+ * Filtres LOCAUX de la grille (lot 8 · PC C15) · format réel, état, retenue,
+ * version · seulement les axes qui séparent vraiment quelque chose, règle du
+ * noyau (`filtrerCreations`, `axesFiltresCreations`), état dit et réinitialisable. Rien n'est relu.
  *
  * Tant qu'un lot travaille, la page se relit toutes les 4 s (lecture seule).
  * Hors ligne (panneau V5), les gestes sont suspendus AVANT l'envoi et l'écran
@@ -78,13 +85,20 @@ export function OngletCreations(p: PropsCreationsProjet) {
     }
   }
 
-  const figures = p.lots.flatMap((l): Array<{ cle: string; lot: LotSpatial; sortie: SortieSpatiale | null }> => (l.sorties.length
-    ? l.sorties.map((s) => ({ cle: s.assetId, lot: l, sortie: s }))
-    : [{ cle: l.jobId, lot: l, sortie: null }]));
+  const toutes = useMemo(() => p.lots.flatMap((l): Array<CreationFiltrable & { cle: string; lot: LotSpatial; sortie: SortieSpatiale | null }> => {
+    const commun = { lot: l, etat: etatCreationFiltre(l.etat), version: l.version };
+    return l.sorties.length
+      ? l.sorties.map((s) => ({ ...commun, cle: s.assetId, sortie: s, format: s.format ?? null, retenue: s.varianteId ? 'retenue' as const : 'non_retenue' as const }))
+      : [{ ...commun, cle: l.jobId, sortie: null, format: null, retenue: null }];
+  }), [p.lots]);
+  const [filtres, setFiltres] = useState<FiltresCreations>(FILTRES_CREATIONS_VIDES);
+  const axes = useMemo(() => axesFiltresCreations(toutes), [toutes]);
+  const figures = useMemo(() => filtrerCreations(toutes, filtres), [toutes, filtres]);
+  const resume = resumeFiltresCreations(toutes.length, figures.length, filtres);
 
   return (
     <>
-      {figures.length === 0 ? (
+      {toutes.length === 0 ? (
         <section className="tile" aria-labelledby={t('creations')}>
           <div className="lbl" id={t('creations')}>Créations</div>
           <p className="muted" style={{ fontSize: '12.5px', marginTop: 10 }}>{p.messageVide}</p>
@@ -99,6 +113,26 @@ export function OngletCreations(p: PropsCreationsProjet) {
         {[...new Map(p.lots.filter((l) => l.note).map((l) => [l.version, l.note!])).entries()].map(([version, note]) => (
           <p key={version} className="faint" data-branche={version} style={{ fontSize: '11.5px', margin: '0 0 8px' }}>{version} · {note}</p>
         ))}
+        {axes.length > 0 && (
+          <div className="toolbar" data-filtres-creations="" role="group" aria-label="Filtrer les créations" style={{ flexWrap: 'wrap' }}>
+            {axes.map((a) => (
+              <div key={a.axe} className="seg" role="group" aria-label={`Filtrer par ${a.libelle.toLowerCase()}`} data-axe={a.axe}>
+                <button type="button" aria-pressed={filtres[a.axe] === null} style={{ minHeight: 44 }} onClick={() => setFiltres((f) => basculerFiltreCreations(f, a.axe, null))}>{a.axe === 'format' ? 'Tous formats' : a.axe === 'etat' ? 'Tous états' : a.axe === 'retenue' ? 'Toutes' : 'Toutes versions'}</button>
+                {a.options.map((o) => (
+                  <button key={o.valeur} type="button" data-valeur={o.valeur} aria-pressed={filtres[a.axe] === o.valeur} style={{ minHeight: 44 }}
+                    onClick={() => setFiltres((f) => basculerFiltreCreations(f, a.axe, o.valeur))}>{o.libelle} · {o.n}</button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        {resume.actif && (
+          <div className="kc" data-resume-filtres="" style={{ alignItems: 'center', margin: '0 0 10px' }}>
+            <span className="faint" role="status" style={{ fontSize: '12.5px' }}>{resume.phrase}</span>
+            <button className="btn sm" type="button" data-geste="reinitialiser-filtres" style={{ minHeight: 44 }} onClick={() => setFiltres(FILTRES_CREATIONS_VIDES)}><Ic n="x" />Réinitialiser les filtres</button>
+          </div>
+        )}
+        {resume.vide && <p className="muted" data-filtres-vide="" style={{ fontSize: '12.5px', margin: '0 0 10px' }}>{resume.vide}</p>}
         <div className="lib2">
           {figures.map(({ cle, lot, sortie }) => (
             <figure key={cle} data-lot={lot.jobId} data-etat={lot.etat.libelle}>

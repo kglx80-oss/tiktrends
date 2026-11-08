@@ -60,6 +60,7 @@ import { retenirConsignePlanPour } from '../lib/studios/video/consigne';
 import { exporterVersion } from '../app/actions/studios/export';
 import { rendreApercu } from '../app/actions/studios/rendu';
 import { GET as telecharger } from '../app/api/studios/export/[versionId]/route';
+import { relire } from './relecture-export-outils';
 import PageIdentites from '../app/(spatial)/sp/studio/projets/[id]/identites/page';
 import PageExport from '../app/(spatial)/sp/studio/projets/[id]/export/page';
 import { semer, session } from './studios-semis';
@@ -169,6 +170,8 @@ async function projetExport(): Promise<{ projectId: string; versionId: string }>
     content: contenu, contentHash: empreinteContenu(contenu), authorId: ids.ua, reason: 'test',
   }).returning();
   await db.update(schema.studioProjects).set({ currentVersionId: v!.id, rowVersion: 1 }).where(eq(schema.studioProjects.id, p!.id));
+  // Lot 8 · la version est relue par une personne (contrôle humain) · ce fichier éprouve le logo à l'export.
+  await relire(contexteDepuisSession(session(ids, 'ua'), [ids.brandA1, ids.brandA2], [], 'st_logo4_relu'), p!.id, v!.id);
   return { projectId: p!.id, versionId: v!.id };
 }
 const exportsAudites = async () => (await db.select().from(schema.studioAuditEvents).where(eq(schema.studioAuditEvents.action, 'project.export'))).length;

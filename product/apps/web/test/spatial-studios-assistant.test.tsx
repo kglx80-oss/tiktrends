@@ -438,6 +438,55 @@ describe('Spatial · Nouveau projet · format et devis', () => {
   });
 });
 
+describe('Spatial · Nouveau projet · lot 8 · jauge du solde, réductions après refus, palette de la marque', () => {
+  const monterFormat = async (b: BriefCanonique, vue: VueParcoursImage | null) => {
+    h.vue = vue;
+    await monter(<FormatDevis projectId="p1" version={{ id: 'v1', n: 1 }} brief={b} onBriefChange={async () => {}} onDevisPret={vi.fn()} onLotPret={vi.fn()} onRetour={vi.fn()} />);
+    await attendre();
+  };
+
+  it('la jauge LIT le solde de la coquille · aucun prix calculé, aucune action appelée', async () => {
+    await monterFormat(brief(), vueParcours());
+    const j = $('[data-jauge-budget]')!;
+    expect(j.getAttribute('data-jauge-budget')).toBe('62');
+    expect(j.textContent).toBe('Ton solde · 1 240 crédits sur 2 000 · le devis serveur le compare au montant exact, rien n’est débité ici.');
+    expect(lots.preparerLotFormats).not.toHaveBeenCalled();
+    expect(image.demanderDevisImage).not.toHaveBeenCalled();
+  });
+
+  it('refus de budget du serveur · « Réduire les variantes » et « Garder un seul format » changent le choix, sans rien envoyer', async () => {
+    lots.preparerLotFormats.mockResolvedValueOnce({ ok: false, code: 'BUDGET_EXCEEDED', message: 'Le plafond de dépense est atteint.' } as never);
+    await monterFormat(brief({ formats: ['4:5'] }), vueParcours({ retenue: { verdict: { ok: true } } as never }));
+    expect($('[data-reductions-budget]')).toBeNull();
+    await cliquer($('[data-format="9:16"]'));
+    await cliquer($('[data-nombre="1"]'));
+    await cliquer($('[data-bouton="voir-devis"]'));
+    expect($('[role="alert"]')!.textContent).toContain('Le plafond de dépense est atteint.');
+    expect([...document.querySelectorAll('[data-reduction]')].map((b) => b.textContent)).toEqual(['Réduire les variantes · 1 visuel par format au lieu de 2', 'Garder un seul format · le format source seul au lieu de 2']);
+    const appels = lots.preparerLotFormats.mock.calls.length;
+    await cliquer($('[data-reduction="un_format"]'));
+    expect($('[data-format="9:16"]')!.getAttribute('aria-pressed')).toBe('false');
+    expect($('[data-champ="sorties"]')!.textContent).toBe('2 images');
+    expect($('[data-reductions-budget]')).toBeNull();
+    expect(lots.preparerLotFormats.mock.calls.length).toBe(appels);
+  });
+
+  it('l’étape Style montre les pastilles de la fiche de la marque, au plus quatre, valides', async () => {
+    h.vue = vueParcours();
+    await jusquaStrategie({ paletteMarque: ['#C4E6EF', '#f4b6c8', 'pas une couleur', '#123456', '#abcdef', '#000000'] });
+    await cliquer($('[data-bouton="vers-direction"]'));
+    expect([...document.querySelectorAll('[data-pastille]')].map((x) => x.getAttribute('data-pastille'))).toEqual(['#c4e6ef', '#f4b6c8', '#123456', '#abcdef']);
+  });
+
+  it('une fiche sans couleur · l’étape Style le dit, aucune pastille inventée', async () => {
+    h.vue = vueParcours();
+    await jusquaStrategie({ paletteMarque: [] });
+    await cliquer($('[data-bouton="vers-direction"]'));
+    expect($('[data-palette="0"]')!.textContent).toContain('La fiche de la marque n’a aucune couleur');
+    expect(document.querySelectorAll('[data-pastille]')).toHaveLength(0);
+  });
+});
+
 describe('Spatial · Nouveau projet · confirmation d’une image', () => {
   const monterConfirmation = async () => {
     const cb = { lance: vi.fn(), modifier: vi.fn() };

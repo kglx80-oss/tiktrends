@@ -91,15 +91,22 @@ export function cartesFiltreesSpatial<T extends ProjetFiltrable>(actives: readon
 
 /**
  * Les gestes de la carte (`.pacts`) qui ont un service réel, dans l'ordre de
- * la maquette (Itérer, Dupliquer, Archiver, Supprimer). « Itérer » ouvre les
+ * la maquette (Itérer, Dupliquer, Archiver, Supprimer), « Renommer » (lot 8,
+ * menu de la carte V5) posé avant « Dupliquer ». « Itérer » ouvre les
  * variantes du projet (l'itération part d'une variante mesurée, `iterer`) ;
- * « Archiver » / « Restaurer » (`supprimerProjet` · statut `archived`,
- * réversible). « Dupliquer » et « Supprimer définitivement » n'ont pas de
- * service · ils ne sont pas rendus (aucune suppression de donnée sans mandat).
+ * « Renommer » (`renommerProjet` · le titre seul) et « Dupliquer »
+ * (`dupliquerProjet` · la structure, jamais les générations) demandent le
+ * droit d'éditer, comme « Archiver » / « Restaurer » (`supprimerProjet` ·
+ * statut `archived`, réversible). Un projet archivé se restaure d'abord.
+ * « Supprimer définitivement » n'a pas de service · il n'est pas rendu
+ * (aucune suppression de donnée sans mandat).
  */
-export function gestesCarteSpatiale(c: { id: string; archive: boolean }, peutModifier: boolean): Array<{ cle: 'iterer'; href: string } | { cle: 'archiver' | 'restaurer' }> {
-  const g: Array<{ cle: 'iterer'; href: string } | { cle: 'archiver' | 'restaurer' }> = [];
+export type GesteCarteSpatiale = { cle: 'iterer'; href: string } | { cle: 'renommer' | 'dupliquer' | 'archiver' | 'restaurer' };
+
+export function gestesCarteSpatiale(c: { id: string; archive: boolean }, peutModifier: boolean): GesteCarteSpatiale[] {
+  const g: GesteCarteSpatiale[] = [];
   if (!c.archive) g.push({ cle: 'iterer', href: `/studio/projets/${encodeURIComponent(c.id)}#variantes` });
+  if (peutModifier && !c.archive) g.push({ cle: 'renommer' }, { cle: 'dupliquer' });
   if (peutModifier) g.push({ cle: c.archive ? 'restaurer' : 'archiver' });
   return g;
 }

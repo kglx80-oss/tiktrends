@@ -49,6 +49,7 @@ import { rendreApercu } from '../app/actions/studios/rendu';
 import { exporterVersion, lireExportProjet } from '../app/actions/studios/export';
 import { exporterVersionPour, type ExportRealise } from '../lib/studios/export/export';
 import { GET } from '../app/api/studios/export/[versionId]/route';
+import { relire } from './relecture-export-outils';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -91,6 +92,8 @@ async function projet(doc: DocumentStudio | null, brand = ids.brandA1, titre = '
     content: contenu, contentHash: empreinteContenu(contenu), authorId: ids.ua, reason: 'test',
   }).returning();
   await db.update(schema.studioProjects).set({ currentVersionId: v!.id, rowVersion: 1 }).where(eq(schema.studioProjects.id, p!.id));
+  // Lot 8 · la version 1 est relue par une personne (contrôle humain) · ce fichier éprouve le chemin d'export qui suit.
+  await relire(ctxDe(ids, brand === ids.brandB1 ? 'ub' : 'ua'), p!.id, v!.id);
   return { projectId: p!.id, versionId: v!.id };
 }
 
@@ -240,6 +243,7 @@ describe('EXPORT-05 · historique · V1 reste accessible après V2', () => {
       changes: [{ op: 'replace', path: '/document/layers/titre/text', newValue: 'Nouvelle accroche', reason: 'V2' }], allowedPaths: ['/document'], raison: 'V2',
     });
     if (!s.ok) throw new Error(JSON.stringify(s));
+    await relire(ctxDe(ids, 'ua'), p.projectId, s.version.id);
     const e2 = await exporterVersion({ projectId: p.projectId, format: 'png' });
     if (!e2.ok) throw new Error(JSON.stringify(e2));
     expect(e2.export.versionId).toBe(s.version.id);
