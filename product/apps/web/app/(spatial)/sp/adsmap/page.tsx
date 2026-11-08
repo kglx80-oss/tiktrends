@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import {
   outilsResultats, redirectionTestProfond, redirectionVueAdsmap,
-  accrocheResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
+  accrocheResultats, sousKpisResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
   phraseLot, plateformesLot, lienLotSpatial, LIBELLE_NIVEAU, presentationLot, sousNavResultats, suiteLot, syntheseLot, volumeMinimumLot, etatLotSpatial,
 } from '@tiktrends/core';
 import { VueEnsemble, type AutreLot, type LotVedette } from '../../../../spatial/vues/resultats/VueEnsemble';
@@ -26,13 +26,13 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
   const fin = new Date(Date.UTC(maintenant.getUTCFullYear(), maintenant.getUTCMonth(), maintenant.getUTCDate()) + JOUR);
   const debut = new Date(fin.getTime() - PERIODE_JOURS * JOUR);
   const avant = new Date(debut.getTime() - PERIODE_JOURS * JOUR);
-  const [d, connexion, cur, prec, appris] = await Promise.all([
+  const [d, connexion, mesures, appris] = await Promise.all([
     chargerLots(g.s.workspaceId, g.marque.id, maintenant),
     chargerConnexion(g.marque.id),
-    chargerMesures(g.marque.id, debut, fin),
-    chargerMesures(g.marque.id, avant, debut),
+    chargerMesures(g.marque.id, [[debut, fin], [avant, debut]]),
     chargerApprentissages(g.s.workspaceId, g.marque.id),
   ]);
+  const cur = mesures[0]!, prec = mesures[1]!;
   const vides = (a: typeof prec) => a.impressions === 0 && a.depense === 0;
 
   const lus = d.lots.map((l) => ({ l, etat: etatLotSpatial(l, d.ctx), pres: presentationLot(l, d.ctx), syn: syntheseLot(l, d.config.targetCpa), aDesVerdicts: l.ads.some((a) => a.verdict) }));
@@ -80,7 +80,7 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
   return (
     <VueEnsemble
       sousNav={sousNavResultats({ admin: g.admin })}
-      sous={connexion.metaConnecte ? `${PERIODE_JOURS} derniers jours · Meta` : `${PERIODE_JOURS} derniers jours · aucun compte Meta connecté`}
+      sous={sousKpisResultats({ jours: PERIODE_JOURS, metaConnecte: connexion.metaConnecte, importees: cur.importees ?? 0 })}
       accroche={accrocheResultats(iv >= 0 ? { numero: lus[iv]!.l.numero, synthese: lus[iv]!.syn, aConclure: lus[iv]!.etat === 'a_conclure' } : null, enAttente)}
       kpis={kpisResultats(cur, vides(prec) ? null : prec)}
       vedette={vedette}

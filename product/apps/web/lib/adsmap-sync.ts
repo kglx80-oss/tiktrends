@@ -1,15 +1,11 @@
 import 'server-only';
 import { db, schema, eq, and, inArray, sql } from '@tiktrends/db';
 import { decryptSecret, metaDailySync, metaAdsetsSync, type MetaDailyRow, type MetaAdsetInfo } from '@tiktrends/integrations';
-import {
-  rollupDaily, evaluationWindow, brandMediansFrom, rankByCpa, matchByName, matchByBatchVariant,
-  checkProtocol, summarizeProtocol, computeVerdict, deriveMetrics, DEFAULT_VERDICT_CONFIG, porteuseSynchro,
-  type DailyRow, type VerdictConfig, type ProtocolAd, type ProtocolRules, type AdMetrics,
-} from '@tiktrends/core';
+import { matchByName, matchByBatchVariant, porteuseSynchro, type EntreeMesure, type ProtocoleAd } from '@tiktrends/core';
 import { refreshDecisions } from './decisions';
 import { daterJalons } from './jarvis-memory';
 import { jointureCreaDeLaMarque } from './adsmap-medias';
-import { journaliserRemontee } from './adsmap-mesures';
+import { adsDeLaMarque, journaliserRemontee, recalculerVerdicts } from './adsmap-mesures';
 
 /**
  * ADSMAP · mesure quotidienne de la carte.
@@ -45,11 +41,6 @@ import { journaliserRemontee } from './adsmap-mesures';
 
 /** Au-delà, on ne redemande pas l'historique : les lots anciens sont clos. */
 const MAX_LOOKBACK_DAYS = 120;
-/** Repères de marque · fenêtre du §6.4. */
-const MEDIAN_WINDOW_DAYS = 90;
-
-const ymd = (d: Date): string => d.toISOString().slice(0, 10);
-const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 
 export interface AdsMapSyncReport {
   brands: number;
@@ -194,11 +185,13 @@ async function ingest(
 
 interface Rattachee { ad: CarteAd; externalAdId: string; rows: MetaDailyRow[]; adset: MetaAdsetInfo | undefined }
 
-/** Journées Meta ramenées au format attendu par l'agrégation pure. */
-const toDaily = (r: MetaDailyRow): DailyRow => ({
-  date: r.date, spend: r.spend, impressions: r.impressions, linkClicks: r.linkClicks,
-  purchases: r.purchases, purchaseValue: r.purchaseValue,
-  video3s: r.video3s || undefined, thruplays: r.thruplays || undefined, videoP50: r.videoP50 || undefined,
+/** Une journée lue chez Meta, au format des journées retenues · les mêmes champs que `metrics_daily` relu. */
+const enEntree = (r: MetaDailyRow): EntreeMesure => ({
+  debut: r.date, fin: r.date,
+  mesures: {
+    spend: r.spend, impressions: r.impressions, reach: r.reach, clicks: r.clicks, linkClicks: r.linkClicks,
+    purchases: r.purchases, purchaseValue: r.purchaseValue, video3s: r.video3s, thruplays: r.thruplays, videoP50: r.videoP50,
+  },
 });
 
 async function syncBrand(
@@ -267,126 +260,37 @@ async function syncBrand(
 
   // 4 · Ingestion · sur une créa DE LA MARQUE seulement. Une ad liée à la créa
   // d'une autre marque est écartée ici et ici seulement : son rattachement, ses
-  // repères et son verdict (qui ne lisent que les journées Meta) suivent leur cours.
+  // repères et son verdict suivent leur cours (ses journées lues comptent pour
+  // elle, sans être écrites nulle part).
+  const nonEcrites = new Map<string, EntreeMesure[]>();
   for (const r of rattachees) {
     if (porteuseSynchro(r.ad.creativeId, r.ad.creaDeLaMarque).cas === 'etrangere') {
       report.adsCreaEtrangere++;
       console.warn('[adsmap] créa étrangère', JSON.stringify({ brandId: brand.id, adId: r.ad.id, creativeId: r.ad.creativeId }));
+      nonEcrites.set(r.ad.id, r.rows.map(enEntree));
       continue;
     }
     const creativeId = await ensureCreative(r.ad, brand.id);
-    if (!creativeId) continue;
+    if (!creativeId) { nonEcrites.set(r.ad.id, r.rows.map(enEntree)); continue; }
     report.daysIngested += await ingest(creativeId, r.externalAdId, r.rows, r.adset);
   }
 
-  // 5 · Réglages de la marque · sans eux, le moteur tournerait sur des seuils
-  // génériques et produirait des verdicts que l'équipe ne reconnaîtrait pas.
-  const [[vc], [tp]] = await Promise.all([
-    db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brand.id)).limit(1),
-    db.select().from(schema.testProtocols).where(eq(schema.testProtocols.brandId, brand.id)).limit(1),
-  ]);
-  const cfg: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
-  const regles: ProtocolRules = {
-    structure: tp?.structure ?? 'abo_one_adset_per_ad',
-    campaignNamePattern: tp?.campaignNamePattern ?? '[ADSMAP] TEST {brand} B{batch}',
-    budgetVarianceTolerance: tp?.budgetVarianceTolerance ?? 0.2,
-    minSpendShare: cfg.minSpendShare,
-  };
-
-  // 6 · Repères de marque · sur 90 jours, toutes ads rattachées confondues.
-  const debutMedianes = ymd(new Date(aujourdhui.getTime() - MEDIAN_WINDOW_DAYS * 86_400_000));
-  const medianes = brandMediansFrom(
-    rattachees.map((r) => rollupDaily(r.rows.map(toDaily), { since: debutMedianes }).metrics),
-  );
-
-  // 7 · Agrégat de chaque ad sur SA fenêtre d'évaluation · une ad lancée hier et
-  // une ad lancée il y a un mois ne se comparent pas sur la même durée.
-  const agreges = new Map<string, { metrics: AdMetrics; days: number }>();
-  for (const r of rattachees) {
-    const depart = r.ad.launchedAt ? ymd(r.ad.launchedAt) : rollupDaily(r.rows.map(toDaily)).firstDate;
-    const fenetre = depart ? evaluationWindow(depart, cfg.evaluationWindowDays) : undefined;
-    const roll = rollupDaily(r.rows.map(toDaily), fenetre);
-    agreges.set(r.ad.id, {
-      metrics: roll.metrics,
-      days: depart ? Math.min(cfg.evaluationWindowDays, daysBetween(depart, ymd(aujourdhui)) + 1) : roll.days,
-    });
-  }
-
-  // 8 · Protocole, lot par lot · il décide de ce que le verdict a le droit de dire.
-  const lots = new Map<string, Rattachee[]>();
-  for (const r of rattachees) if (r.ad.batchId) lots.set(r.ad.batchId, [...(lots.get(r.ad.batchId) ?? []), r]);
-
-  const comparableParAd = new Map<string, boolean>();
-  const partParAd = new Map<string, number>();
-  const rangParAd = new Map<string, number>();
-
-  for (const [batchId, membres] of lots) {
-    const numero = membres[0]!.ad.batchNumber ?? 0;
-    const protoAds: ProtocolAd[] = membres.map((r) => ({
-      adId: r.ad.id,
-      adName: r.rows[0]!.adName,
-      adsetId: r.rows[0]!.adsetId,
-      campaignId: r.rows[0]!.campaignId,
-      campaignName: r.rows[0]!.campaignName,
-      adsetDailyBudget: r.adset?.dailyBudget ?? null,
-      spend: agreges.get(r.ad.id)?.metrics.spend ?? 0,
-      campaignBudgetOptimization: r.adset?.campaignBudgetOptimization ?? false,
-    }));
-    const check = checkProtocol(protoAds, regles, { brandName: brand.name, batchNumber: numero });
-
-    await db.update(schema.batches).set({
-      protocolCheck: { ...check, summary: summarizeProtocol(check), checkedAt: aujourdhui.toISOString() },
-    }).where(eq(schema.batches.id, batchId));
-    report.batchesChecked++;
-
-    // Le rang sert au gagnant RELATIF : hors protocole, « meilleure du lot » est
-    // la seule chose qu'on puisse encore affirmer.
-    const rangs = rankByCpa(membres.map((r) => ({
-      adId: r.ad.id, cpa: deriveMetrics(agreges.get(r.ad.id)!.metrics, cfg.ciLevelOneSided).cpa,
-    })));
-    for (const r of membres) {
-      comparableParAd.set(r.ad.id, check.compliant && !check.underDelivered.includes(r.ad.id));
-      partParAd.set(r.ad.id, check.spendShare[r.ad.id] ?? 0);
-      rangParAd.set(r.ad.id, rangs[r.ad.id] ?? 0);
-    }
-  }
-
-  // 9 · Verdicts.
-  for (const r of rattachees) {
-    const agg = agreges.get(r.ad.id);
-    if (!agg) continue;
-    const res = computeVerdict({
-      metrics: agg.metrics, config: cfg, brandMedians: medianes,
-      // Une ad hors lot n'a pas de protocole à respecter, mais elle n'a pas non
-      // plus de témoin : on ne peut pas la déclarer comparable.
-      comparable: comparableParAd.get(r.ad.id) ?? false,
-      spendShare: partParAd.get(r.ad.id),
-      batchRank: rangParAd.get(r.ad.id),
-      daysElapsed: agg.days,
-    });
-
-    await db.insert(schema.verdicts).values({
-      adId: r.ad.id, workspaceId: r.ad.workspaceId,
-      computed: res.computed, comparable: res.comparable,
-      failedStage: res.failedStage, killFlag: res.killFlag,
-      metricsAgg: {
-        ...res.derived, spend: agg.metrics.spend, impressions: agg.metrics.impressions,
-        purchases: agg.metrics.purchases, daysElapsed: agg.days, daysRemaining: res.daysRemaining,
-        reason: res.reason, syncedAt: aujourdhui.toISOString(),
-      },
-      computedAt: aujourdhui,
-    }).onConflictDoUpdate({
-      target: schema.verdicts.adId,
-      set: {
-        computed: sql`excluded.computed`, comparable: sql`excluded.comparable`,
-        failedStage: sql`excluded.failed_stage`, killFlag: sql`excluded.kill_flag`,
-        metricsAgg: sql`excluded.metrics_agg_json`, computedAt: sql`excluded.computed_at`,
-        // `validated`, `status` et `override_reason` restent intacts : ce sont
-        // des décisions humaines, et un job nocturne ne défait pas un arbitrage.
-      },
-    });
-    report.verdicts++;
-  }
+  // 5 · Protocole et verdicts · LA logique de l'import (`recalculerVerdicts`),
+  // sur les journées RETENUES de la marque · les journées Meta qu'on vient
+  // d'écrire, relues, ET les entrées d'export des jours que la connexion n'a
+  // pas. Une ad mesurée par fichier puis synchronisée garde ses journées
+  // d'export · le verdict est le même quel que soit le chemin. Le protocole
+  // frais (ensemble, budget, CBO) vient de Meta · le protocole se contrôle AVANT
+  // le verdict (§6.2), dans `verdictsDesMesures`.
+  const protocoleFrais = new Map<string, ProtocoleAd>(rattachees.map((r) => [r.ad.id, {
+    nomAnnonce: r.rows[0]!.adName, campagne: r.rows[0]!.campaignName, campagneId: r.rows[0]!.campaignId,
+    ensemble: r.rows[0]!.adsetName, ensembleId: r.rows[0]!.adsetId,
+    budgetJour: r.adset?.dailyBudget ?? null, cbo: r.adset?.campaignBudgetOptimization ?? false,
+  }]));
+  const ads = await adsDeLaMarque(brand.workspaceId, brand.id);
+  const v = await recalculerVerdicts(brand, ads, new Set(rattachees.map((r) => r.ad.id)), { maintenant: aujourdhui, protocoleFrais, metaNonEcrites: nonEcrites });
+  report.batchesChecked += v.lots;
+  report.verdicts += v.verdicts;
 
   await db.update(schema.brands).set({ adsmapSyncedAt: aujourdhui }).where(eq(schema.brands.id, brand.id));
 
