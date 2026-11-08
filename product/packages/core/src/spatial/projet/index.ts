@@ -8,3 +8,4 @@ export * from './provenance';
 export * from './propositions';
 export * from './taches';
 export * from './hors-ligne';
+export * from './bouton-action';
