@@ -166,6 +166,12 @@ export interface PropsProjet {
   retourVeille?: { href: string; terme: string | null } | null;
   /** Le mode lu dans l'adresse (`?disposition=libre`) · les couloirs par défaut. */
   dispositionInitiale?: ModeDispositionProjet;
+  /**
+   * « Demander à Jarvis » (lot 5 V5) · Jarvis en plein écran, CE projet joint
+   * (son fil lié, son bloc concept), la question préparée, rien d'envoyé.
+   * Absent (pas d'accès à la conversation), l'en-tête reste celui de la maquette.
+   */
+  demanderJarvis?: { href: string } | null;
 }
 
 /** Le canvas métier d'une version et la disposition PERSONNELLE de la session (`lireCanvasProjet`). */
