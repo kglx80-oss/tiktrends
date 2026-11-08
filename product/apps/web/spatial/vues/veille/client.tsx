@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, useTransition, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, useTransition, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, adresseVueVeille, departDepuisVeille, estAncreCarteVeille, lienVeille, pucesVeille, verrouAction, videoLisible, vueActiveVeille, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille, type VueVeilleEnregistree } from '@tiktrends/core';
+import { CPM_VEILLE, FILTRES_VEILLE, TRIS_VEILLE, adresseVueVeille, departDepuisVeille, estAncreCarteVeille, lienVeille, pucesVeille, toucheNavigationDetail, verrouAction, videoLisible, vueActiveVeille, type CriteresVeille, type PlateformeVeille, type TriVeille, type VueVeille, type VueVeilleEnregistree } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { saveAd, unsaveAd, followBrand, unfollowBrand } from '../../../app/actions/inspo';
 import { creerHypotheseAction } from '../../../app/actions/adsmap-hypotheses';
@@ -13,6 +13,8 @@ import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import type { CarteVeilleDonnees, DetailVeille as DonneesDetailVeille } from './types';
 import { ImageApercu } from './apercu-client';
+import { ATTR_OUVRIR_DETAIL, rendreFocusPub } from './focus-pub';
+import type { NavigationDetail } from './filtres-locaux-client';
 import { PanneauVues } from './vues-client';
 
 /**
@@ -108,15 +110,21 @@ const LOGO_META = (
   <svg viewBox="0 0 36 24" aria-hidden="true"><path fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.5C4.5 9.5 7.3 5 10.6 5c4.3 0 7.6 8.6 10.6 12.4 1.9 2.4 3.5 3.1 5 3.1 2.9 0 5.3-2.9 5.3-7.6C31.5 8.3 29.3 5 26.2 5c-3.9 0-7.2 6.8-9.2 9.8S12.6 21 10.2 21c-3.4 0-5.7-2-5.7-5.5z" /></svg>
 );
 
-function Portail({ children }: { children: ReactNode }) {
+export function Portail({ children }: { children: ReactNode }) {
   const [monte, setMonte] = useState(false);
   useEffect(() => setMonte(true), []);
   return monte ? createPortal(children, document.body) : null;
 }
 
-/** La carte d'une annonce (`article.xa`) · balisage de `xCard`, valeurs réelles. */
-export function CarteVeille({ c, coutJarvis }: { c: CarteVeilleDonnees; coutJarvis: string }) {
+/**
+ * La carte d'une annonce (`article.xa`) · balisage de `xCard`, valeurs réelles.
+ * Avec `ouvrir`, le détail est tenu par la liste (précédente / suivante dans
+ * la liste filtrée, lot 7) · sans, la carte l'ouvre seule, comme avant.
+ */
+export function CarteVeille({ c, coutJarvis, ouvrir }: { c: CarteVeilleDonnees; coutJarvis: string; ouvrir?: () => void }) {
   const [ouvert, setOuvert] = useState(false);
+  const fermer = useCallback(() => { setOuvert(false); rendreFocusPub(c.cle); }, [c.cle]);
+  const lieu = [c.pays, c.plateforme].filter(Boolean).join(' · ');
   return (
     <article className="xa" id={c.ancre ?? undefined}>
       <div className="xh">
@@ -128,41 +136,62 @@ export function CarteVeille({ c, coutJarvis }: { c: CarteVeilleDonnees; coutJarv
         <IconeSauvegarde ad={c.ad} initial={c.sauvee} />
       </div>
       <div className="xm">
-        {c.pays && <span className="xc">{c.pays}</span>}
+        {lieu && <span className="xc">{lieu}</span>}
         {c.portee && <span title="Portée"><Ic n="users" />{c.portee}</span>}
         {c.depense && <span title="Dépense estimée · borne basse, au CPM choisi">≈ {c.depense}</span>}
         {c.croissance && <span className={c.croissance.classe} title="Croissance de la portée sur 7 jours">{c.croissance.texte}</span>}
       </div>
       <p className="xp">{c.texte}</p>
-      <button type="button" className="xv" aria-label={`Voir le détail de la pub ${c.marque.nom}`} onClick={() => setOuvert(true)}>
+      <button type="button" className="xv" {...{ [ATTR_OUVRIR_DETAIL]: c.cle }} aria-label={`Voir le détail de la pub ${c.marque.nom}`} onClick={() => (ouvrir ? ouvrir() : setOuvert(true))}>
         <div className={`comp ${c.ratio}`.trim()}><ImageApercu src={c.image} /></div>
         {c.tendance && <span className="xt hot"><Ic n="chart" />Tendance</span>}<span className="xt st">{c.style}</span>
       </button>
       <div className="xf"><div><small>{c.domaine}</small><strong>{c.titre}</strong></div>{c.cta && <span className="xcta">{c.cta}</span>}</div>
       <div className="xact2"><Lien className="btn sm pri" href={c.iterer}><Ic n="loop" />Itérer depuis cette créa</Lien></div>
-      {ouvert && <Portail><DetailVeille c={c} coutJarvis={coutJarvis} fermer={() => setOuvert(false)} /></Portail>}
+      {!ouvrir && ouvert && <Portail><DetailVeille c={c} coutJarvis={coutJarvis} fermer={fermer} /></Portail>}
     </article>
   );
 }
 
-function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJarvis: string; fermer: () => void }) {
+/**
+ * Le détail d'une pub (`.xmod`). Avec `nav` · « Précédente », « Suivante » à
+ * l'écran (cibles de 44 px) et au clavier (← →, jamais dans un champ de
+ * saisie ni sur le lecteur vidéo · `toucheNavigationDetail`) · aux bornes, le
+ * bouton reste focalisable, fermé, et la raison est écrite à côté.
+ */
+export function DetailVeille({ c, coutJarvis, fermer, nav }: { c: CarteVeilleDonnees; coutJarvis: string; fermer: () => void; nav?: NavigationDetail }) {
   const croix = useRef<HTMLButtonElement>(null);
+  // Le focus va à la croix à l'OUVERTURE seulement · passer à la voisine le laisse où il est (bouton ou clavier).
+  useEffect(() => { croix.current?.focus(); }, []);
+  const appels = useRef({ fermer, nav });
+  appels.current = { fermer, nav };
   useEffect(() => {
-    croix.current?.focus();
-    const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') fermer(); };
-    document.addEventListener('keydown', echap);
-    return () => document.removeEventListener('keydown', echap);
-  }, [fermer]);
+    const touche = (e: KeyboardEvent) => {
+      const { fermer: f, nav: n } = appels.current;
+      if (e.key === 'Escape') { f(); return; }
+      if (!n) return;
+      const sens = toucheNavigationDetail({ key: e.key, altKey: e.altKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey, shiftKey: e.shiftKey, cible: e.target as HTMLElement | null });
+      const vers = sens === 'precedente' ? n.voisins.precedente : sens === 'suivante' ? n.voisins.suivante : null;
+      if (!sens) return;
+      e.preventDefault();
+      if (vers) n.aller(vers);
+    };
+    document.addEventListener('keydown', touche);
+    return () => document.removeEventListener('keydown', touche);
+  }, []);
   const d = c.detail;
   // Vague 4 · la vidéo se lit en place (comme l'ancienne carte) · une image reste une image.
   const video = videoLisible(c.ad);
   const [hypothese, setHypothese] = useState(false);
+  // Une autre pub dans le même détail · le formulaire d'hypothèse de la précédente se referme.
+  useEffect(() => { setHypothese(false); }, [c.cle]);
   const boutonHypothese = useRef<HTMLButtonElement>(null);
   const fermerHypothese = () => { setHypothese(false); setTimeout(() => boutonHypothese.current?.focus(), 0); };
   return (
     <div className="xmod" role="dialog" aria-modal="true" aria-label={`Pub ${c.marque.nom}`} onClick={(e) => { if (e.target === e.currentTarget) fermer(); }}>
       <div className="xmbox glass">
         <button ref={croix} type="button" className="xmx" aria-label="Fermer" onClick={fermer}><Ic n="x" s={false} /></button>
+        {nav && <BarreNavigationDetail nav={nav} />}
         <div className="xmv"><div className={`comp ${c.ratio}`.trim()}>{video
           ? <video src={video} poster={c.image ?? undefined} controls playsInline preload="none" aria-label={`Vidéo de la pub ${c.marque.nom}`} style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
           : <ImageApercu src={c.image} alt={`Aperçu de la pub ${c.marque.nom}`} lazy={false} />}</div></div>
@@ -217,7 +246,7 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
                     return creerHypotheseAction({ source: { type: 'veille', platform: c.ad.platform, externalId: c.ad.id }, saisie });
                   }} />
               )}
-              {d.iterationVeille && <IterationVeille ad={c.ad} g={d.iterationVeille} />}
+              {d.iterationVeille && <IterationVeille key={c.cle} ad={c.ad} g={d.iterationVeille} />}
             </div>
           )}
           <div className="kc">
@@ -229,6 +258,30 @@ function DetailVeille({ c, coutJarvis, fermer }: { c: CarteVeilleDonnees; coutJa
           <small className="faint">Source : bibliothèques publicitaires publiques · portée relevée, dépense estimée. Jarvis · {coutJarvis}</small>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BarreNavigationDetail({ nav }: { nav: NavigationDetail }) {
+  const v = nav.voisins;
+  const id = useId();
+  const raisons = [...new Set([v.libelle, v.raisonPrecedente, v.raisonSuivante].filter((x): x is string => !!x))].join(' · ');
+  const bouton = (sens: 'precedente' | 'suivante') => {
+    const vers = sens === 'precedente' ? v.precedente : v.suivante;
+    return (
+      <button type="button" className="btn" data-nav-detail={sens} aria-disabled={!vers || undefined} aria-describedby={`${id}-raison`}
+        aria-keyshortcuts={sens === 'precedente' ? 'ArrowLeft' : 'ArrowRight'}
+        style={{ minHeight: 44, minWidth: 44, ...(vers ? {} : FERME) }} onClick={() => { if (vers) nav.aller(vers); }}>
+        {sens === 'precedente' ? <><Ic n="back" />Précédente</> : <>Suivante<Ic n="arrow" /></>}
+      </button>
+    );
+  };
+  return (
+    <div data-barre-nav-detail role="group" aria-label="Parcourir la liste" style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '0 56px 10px 0' }}>
+      {bouton('precedente')}
+      {bouton('suivante')}
+      {/* Les deux boutons d'abord, côte à côte · au téléphone, la position et la raison passent dessous. */}
+      <small id={`${id}-raison`} role="status" className="faint" style={{ flex: '1 1 170px', fontSize: '12.5px' }}>{raisons}</small>
     </div>
   );
 }
