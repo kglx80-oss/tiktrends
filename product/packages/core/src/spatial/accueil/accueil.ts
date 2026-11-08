@@ -387,11 +387,17 @@ export function indicateursGagnante(metricsAgg: unknown): IndicateurIteration[] 
  * suite filiée), une ligne chacune. La maquette y mêle des diagnostics
  * (fatigue, « à couper ») qu'aucune source ne calcule aujourd'hui · ils ne
  * sont pas inventés. Aucun « Recommandé » n'est posé · rien ne le décide.
+ *
+ * `ecart` · l'écart de la gagnante au RESTE de son lot (`ecartAuLot`, règle de
+ * la conclusion · volume minimum, intervalles disjoints) · la maquette écrit
+ * « +6 pts vs contrôle » · absent quand la règle se tait.
  */
-export function cartesQuoiIterer(cartes: readonly CarteIterationAccueil[], agregats: (adId: string) => unknown): CarteQuoiIterer[] {
+export function cartesQuoiIterer(cartes: readonly CarteIterationAccueil[], agregats: (adId: string) => unknown, ecart?: (adId: string) => SignalIteration | null): CarteQuoiIterer[] {
   return cartes.map((c, i) => {
     const signaux: SignalIteration[] = [];
     if (c.mesure) signaux.push({ texte: `${c.mesure.valeur} · ${c.mesure.libelle}`, classe: 'g' });
+    const e = ecart?.(c.adId);
+    if (e) signaux.push(e);
     if (c.lot !== 'Hors lot') signaux.push({ texte: c.lot, classe: 'c' });
     if (c.apprentissageValide) signaux.push({ texte: 'Apprentissage validé', classe: 'g' });
     const niveau: 1 | 2 | 3 = c.mesure && c.apprentissageValide ? 3 : c.mesure ? 2 : 1;

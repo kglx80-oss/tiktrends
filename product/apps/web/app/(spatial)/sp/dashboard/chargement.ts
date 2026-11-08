@@ -8,7 +8,8 @@ import {
   periodeReporting, raccourcisAccueil, salutationAccueil, sourcesJarvisAccueil, sousTitreReporting,
   surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil,
   SUGGESTIONS_ASSISTANT_ACCUEIL, costFor, noteAccesAccueil, prixQuestionAssistant, refusAssistant, resoudreAccueil,
-  type JourneeMesuree, type LotAccueil,
+  DEFAULT_VERDICT_CONFIG, ecartAuLot,
+  type JourneeMesuree, type LotAccueil, type SignalIteration, type VerdictConfig,
 } from '@tiktrends/core';
 import type { Session } from '../../../../lib/auth';
 import { effectiveAccess } from '../../../../lib/access';
@@ -178,9 +179,30 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
     const agregats = ids.length && db ? await lire('agrégats des gagnantes', () => db!.select({ adId: schema.verdicts.adId, agg: schema.verdicts.metricsAgg })
       .from(schema.verdicts).where(and(eq(schema.verdicts.workspaceId, s.workspaceId), inArray(schema.verdicts.adId, ids)))) : null;
     const parAd = new Map((agregats ?? []).map((a) => [a.adId, a.agg]));
+    // G09 · l'écart de chaque gagnante au RESTE de son lot (même protocole, même fenêtre) · même
+    // volume minimum que le moteur de la marque · la règle (`ecartAuLot`) se tait sous ce volume.
+    const ecarts = new Map<string, SignalIteration | null>();
+    if (ids.length && db && marque) {
+      const lus = await lire('écart au reste du lot', async () => {
+        const [cfg] = await db!.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, marque.id)).limit(1);
+        const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((cfg?.config as Partial<VerdictConfig>) ?? {}) };
+        const gagnantes = await db!.select({ id: schema.ads.id, lot: schema.ads.batchId, numero: schema.batches.number }).from(schema.ads)
+          .innerJoin(schema.batches, and(eq(schema.batches.id, schema.ads.batchId), eq(schema.batches.brandId, marque.id)))
+          .where(and(eq(schema.ads.workspaceId, s.workspaceId), inArray(schema.ads.id, ids)));
+        const lots = [...new Set(gagnantes.map((x) => x.lot).filter((x): x is string => !!x))];
+        const voisins = lots.length ? await db!.select({ id: schema.ads.id, lot: schema.ads.batchId, agg: schema.verdicts.metricsAgg }).from(schema.ads)
+          .innerJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+          .where(and(eq(schema.ads.workspaceId, s.workspaceId), inArray(schema.ads.batchId, lots))) : [];
+        return { config, gagnantes, voisins };
+      });
+      for (const x of lus?.gagnantes ?? []) {
+        const autres = (lus?.voisins ?? []).filter((v) => v.lot === x.lot && v.id !== x.id).map((v) => v.agg);
+        ecarts.set(x.id, ecartAuLot(parAd.get(x.id), autres, { numeroLot: x.numero, minImpressions: lus!.config.minImpressions }));
+      }
+    }
     const reste = it.total - it.cartes.length;
     iterer = {
-      etat: 'liste', cartes: cartesQuoiIterer(it.cartes, (id) => parAd.get(id)),
+      etat: 'liste', cartes: cartesQuoiIterer(it.cartes, (id) => parAd.get(id), (id) => ecarts.get(id) ?? null),
       suite: reste > 0 ? { texte: `${reste} autre${reste > 1 ? 's' : ''} gagnante${reste > 1 ? 's' : ''} à itérer`, detail: 'la liste complète vit dans Résultats, onglet Suites' } : null,
     };
   } else if (it.etat === 'vide') {

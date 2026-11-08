@@ -12,13 +12,15 @@ import { Ic, Lien } from '../../communs';
  * `saveJarvisRulesAction`. Une règle n'apparaît ajoutée ou retirée qu'une fois
  * l'enregistrement revenu sans erreur.
  */
-export function ReglesMarque({ texte, enregistrer, raison, jarvis, sources }: {
+export function ReglesMarque({ texte, enregistrer, raison, jarvis, sources, issues }: {
   texte: string;
   enregistrer: ((i: { creativeRules: string }) => Promise<{ ok?: true; error?: string }>) | null;
   /** Pourquoi l'écriture est fermée (autre marque active, rôle, formule). */
   raison: string | null;
   jarvis: string | null;
   sources: { lignes: ReadonlyArray<{ libelle: string; branchee: boolean }>; manquantes: string | null };
+  /** Les énoncés d'apprentissages passés dans les règles (Résultats · Apprentissages) · la règle qui en vient le dit. */
+  issues?: readonly string[];
 }) {
   const { toast } = useSpatial();
   const router = useRouter();
@@ -28,6 +30,8 @@ export function ReglesMarque({ texte, enregistrer, raison, jarvis, sources }: {
   const champ = useRef<HTMLInputElement>(null);
   const T = TYPES_REGLE_MARQUE.find((x) => x.type === type)!;
   const groupes = reglesParType(lireReglesMarque(actuel));
+  const norme = (x: string) => x.replace(/\s+/g, ' ').trim().toLocaleLowerCase('fr-FR');
+  const depuisApprentissage = new Set((issues ?? []).map(norme));
 
   const ecrire = (suivant: string, message: string) => {
     if (!enregistrer) return;
@@ -82,6 +86,7 @@ export function ReglesMarque({ texte, enregistrer, raison, jarvis, sources }: {
                   {R.map((r) => (
                     <span key={r.ligne} className={`pill ${x.classe}`.trim()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'normal' }}>
                       {r.texte}
+                      {depuisApprentissage.has(norme(r.texte)) && <span className="faint" data-origine="apprentissage" style={{ fontSize: '11px' }}>· d’un apprentissage</span>}
                       <button type="button" aria-label="Retirer cette règle" disabled={!enregistrer || encours} title={!enregistrer ? raison ?? undefined : undefined}
                         onClick={() => ecrire(retirerRegleMarque(actuel, r.ligne), `Règle retirée · ${r.texte}`)}
                         style={{ all: 'unset', cursor: 'pointer', display: 'grid', placeItems: 'center', opacity: 0.7 } as React.CSSProperties}><Ic n="x" /></button>

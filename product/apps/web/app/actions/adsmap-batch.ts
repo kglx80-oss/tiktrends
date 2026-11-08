@@ -5,6 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   buildUniqueNames, checkAdReady, formatViolations, resolveCampaignName,
   DEFAULT_VERDICT_CONFIG, type VerdictConfig, type AdShape, manquesAvantTest, VALEUR_ABSENTE,
+  structureVariante, butLotDuplique,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
 import { logAndTranslate } from '../../lib/error-log';
@@ -270,6 +271,68 @@ export async function createBatchAction(goal: string): Promise<{ id?: string; nu
     return { id: row.id, number: numero };
   } catch (e) {
     return { error: logAndTranslate('adsmap:batch-create', e, { subject: 'la création du lot', workspaceId: g.s.workspaceId }) };
+  }
+}
+
+/**
+ * Duplique un lot · la STRUCTURE seule (`structureVariante`, noyau) · un lot
+ * neuf, numéroté à la suite comme `createBatchAction`, et une copie en
+ * brouillon de chaque variante (concept, créa, hypothèse, variable, offre,
+ * page, et la filiation d'une itération). Jamais une mesure · ni nom régie, ni
+ * identifiant Meta, ni lancement, ni verdict, ni apprentissage · la copie se
+ * prépare et se lance comme un lot neuf.
+ *
+ * Mêmes gardes que la création d'un lot (admin, marque active) · le lot source
+ * doit appartenir à la marque active, sinon il « n'existe pas ».
+ */
+export async function duplicateBatchAction(batchId: string): Promise<{ id?: string; number?: number; variantes?: number; error?: string }> {
+  const g = await adsmapGuard({ minRole: 'admin' });
+  if ('error' in g) return { error: g.error };
+  try {
+    const [b] = await db!.select({ id: schema.batches.id, number: schema.batches.number, goal: schema.batches.goal }).from(schema.batches)
+      .where(and(eq(schema.batches.id, batchId), eq(schema.batches.brandId, g.brand.id), eq(schema.batches.workspaceId, g.s.workspaceId))).limit(1);
+    if (!b) return { error: GUARD.notFound('ce lot') };
+    const sources = await db!.select().from(schema.ads)
+      .where(and(eq(schema.ads.batchId, b.id), eq(schema.ads.workspaceId, g.s.workspaceId)))
+      .orderBy(asc(schema.ads.variantCode));
+    const parents = sources.length
+      ? await db!.select().from(schema.iterationEdges).where(inArray(schema.iterationEdges.childAdId, sources.map((a) => a.id)))
+      : [];
+    const parentDe = new Map(parents.map((e) => [e.childAdId, e]));
+
+    // Le lot et ses copies tombent ensemble ou pas du tout · un lot dupliqué à
+    // moitié se lirait comme une composition volontaire.
+    const r = await db!.transaction(async (tx) => {
+      const [dernier] = await tx.select({ n: sql<number>`coalesce(max(${schema.batches.number}), 0)` })
+        .from(schema.batches).where(eq(schema.batches.brandId, g.brand.id));
+      const numero = Number(dernier?.n ?? 0) + 1;
+      const [lot] = await tx.insert(schema.batches).values({
+        workspaceId: g.s.workspaceId, brandId: g.brand.id, number: numero,
+        authorId: g.s.user.id, goal: butLotDuplique(b.number, b.goal), status: 'planned',
+      }).returning({ id: schema.batches.id });
+      if (!lot) throw new Error('Création impossible.');
+      for (const a of sources) {
+        const s = structureVariante(a);
+        const [copie] = await tx.insert(schema.ads).values({
+          ...s, workspaceId: g.s.workspaceId, batchId: lot.id,
+          format: s.format as typeof schema.ads.$inferInsert.format,
+          adType: s.adType as typeof schema.ads.$inferInsert.adType,
+          testedVariable: s.testedVariable as typeof schema.ads.$inferInsert.testedVariable,
+          platform: s.platform as typeof schema.ads.$inferInsert.platform,
+        }).returning({ id: schema.ads.id });
+        const e = parentDe.get(a.id);
+        if (copie && e) {
+          await tx.insert(schema.iterationEdges).values({
+            workspaceId: g.s.workspaceId, childAdId: copie.id, parentAdId: e.parentAdId, mode: e.mode,
+            changedVariable: e.changedVariable, stageTargeted: e.stageTargeted, rationale: e.rationale,
+          });
+        }
+      }
+      return { id: lot.id, number: numero };
+    });
+    return { ...r, variantes: sources.length };
+  } catch (e) {
+    return { error: logAndTranslate('adsmap:batch-duplicate', e, { subject: 'la duplication du lot', workspaceId: g.s.workspaceId }) };
   }
 }
 

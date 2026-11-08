@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CHEMIN_NOUVEAU_PROJET, budgetPrevuLot, lienFicheTest, type VerdictValue } from '@tiktrends/core';
-import { launchBatchAction, prepareBatchAction, setBatchAdAction } from '../../../app/actions/adsmap-batch';
+import { CHEMIN_NOUVEAU_PROJET, budgetPrevuLot, lienFicheTest, lienLotSpatial, type VerdictValue } from '@tiktrends/core';
+import { duplicateBatchAction, launchBatchAction, prepareBatchAction, setBatchAdAction } from '../../../app/actions/adsmap-batch';
 import { validateVerdictAction, type ValidateInput } from '../../../app/actions/adsmap-verdict';
 import { Ic, Lien } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
+import { FERME, pendantAction } from '../projet/focus';
 
 /**
  * Les gestes RÉELS sur un lot, sous sa fiche · chacun appelle l'action serveur
@@ -17,7 +18,11 @@ import { useSpatial } from '../../coquille/contexte';
  *  · préparer · `prepareBatchAction` (noms régie, passage en « prêt » si complet) ;
  *  · lancer · `launchBatchAction` (date la fenêtre d'évaluation) ;
  *  · conclure · `validateVerdictAction`, variante par variante · un verdict ne se
- *    valide qu'avec un apprentissage écrit (invariant §2.4, vérifié par l'action).
+ *    valide qu'avec un apprentissage écrit (invariant §2.4, vérifié par l'action) ;
+ *  · dupliquer · `duplicateBatchAction` (admin · la structure, jamais les mesures).
+ *
+ * Pendant une action, le bouton pressé garde le focus (`aria-disabled`,
+ * `aria-busy` · `projet/focus`) · un contrôle fermé dit pourquoi, à côté.
  */
 
 export interface VarianteComposee {
@@ -46,7 +51,7 @@ function useGeste() {
   const { toast } = useSpatial();
   const [occupe, setOccupe] = useState<string | null>(null);
   const [message, setMessage] = useState<{ texte: string; erreur: boolean } | null>(null);
-  async function geste<T extends { error?: string }>(cle: string, f: () => Promise<T>, reussi: (r: T) => string) {
+  async function geste<T extends { error?: string }>(cle: string, f: () => Promise<T>, reussi: (r: T) => string, apres?: (r: T) => void) {
     if (occupe) return;
     setOccupe(cle); setMessage(null);
     try {
@@ -55,16 +60,23 @@ function useGeste() {
       const t = reussi(r);
       setMessage({ texte: t, erreur: false });
       toast(t);
-      router.refresh();
+      if (apres) apres(r); else router.refresh();
+    } catch {
+      setMessage({ texte: 'L’action a échoué · réessaie.', erreur: true });
     } finally {
       setOccupe(null);
     }
   }
-  return { occupe, message, geste };
+  /** Les attributs d'un bouton du geste `cle` · focalisable pendant SON action, fermé pendant une autre. */
+  const bouton = (cle: string, ferme = false) => {
+    const a = pendantAction({ presse: occupe === cle, occupe: !!occupe, ferme });
+    return { ...a, style: a['aria-disabled'] ? { ...FERME, minHeight: 44 } : { minHeight: 44 } };
+  };
+  return { occupe, message, geste, bouton, router };
 }
 
 function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
-  const { occupe, message, geste } = useGeste();
+  const { occupe, message, geste, bouton } = useGeste();
   const noms = p.variantes.map((v) => v.nom).filter((x): x is string => !!x);
   const { toast } = useSpatial();
   return (
@@ -81,7 +93,7 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
             </span>
             <span style={{ display: 'flex', gap: 6 }}>
               <Lien className="btn sm" href={lienFicheTest(v.id)}>Fiche</Lien>
-              <button className="btn sm" type="button" disabled={!!occupe} onClick={() => geste(`retirer-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: false }), () => `${v.variante} retirée du lot`)}>Retirer</button>
+              <button className="btn sm" type="button" {...bouton(`retirer-${v.id}`)} onClick={() => geste(`retirer-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: false }), () => `${v.variante} retirée du lot`)}>Retirer</button>
             </span>
           </div>
         ))}
@@ -93,7 +105,7 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
           <div className="ev" key={v.id}>
             <span className="ico"><Ic n="plus" /></span>
             <span><strong>{v.variante}</strong> · {v.concept}{v.manques.length > 0 && <><br /><span className="faint" style={{ fontSize: '11.5px' }}>Il manque {v.manques.join(', ')}</span></>}</span>
-            <button className="btn sm" type="button" disabled={!!occupe} onClick={() => geste(`ajouter-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: true }), () => `${v.variante} ajoutée au lot`)}>Ajouter</button>
+            <button className="btn sm" type="button" {...bouton(`ajouter-${v.id}`)} onClick={() => geste(`ajouter-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: true }), () => `${v.variante} ajoutée au lot`)}>Ajouter</button>
           </div>
         ))}
         {p.vivier.length === 0 && <div className="ev"><span className="ico"><Ic n="plus" /></span><span className="faint">Aucune variante libre · crée une itération depuis une gagnante, ou prépare une créa dans un projet Studios.</span><Lien className="btn sm" href={CHEMIN_NOUVEAU_PROJET}>Préparer un projet</Lien></div>}
@@ -112,26 +124,29 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
         </>
       )}
       <div className="foot2" style={{ marginTop: 14 }}>
-        <button className="btn pri sm" type="button" disabled={!!occupe || p.variantes.length === 0} onClick={() => geste('preparer', () => prepareBatchAction(p.lotId), (r) =>
+        <button className="btn pri sm" type="button" {...bouton('preparer', p.variantes.length === 0)} onClick={() => geste('preparer', () => prepareBatchAction(p.lotId), (r) =>
           r.skipped?.length ? `${r.named ?? 0} nom(s) générés · ${r.skipped.length} variante(s) à compléter (${r.skipped.map((s) => s.variantCode).join(', ')})` : `${r.named ?? 0} nom(s) générés · ${r.ready ?? 0} variante(s) prêtes`)}>
           {occupe === 'preparer' ? 'Préparation…' : 'Préparer le lot'}
         </button>
         {noms.length > 0 && (
           <button className="btn sm" type="button" onClick={() => { navigator.clipboard?.writeText(noms.join('\n')).then(() => toast('Noms copiés'), () => toast('Copie impossible ici · sélectionne les noms')); }}><Ic n="copy" />Copier les noms</button>
         )}
-        {p.pret && (
-          <button className="btn sm" type="button" disabled={!!occupe} onClick={() => geste('lancer', () => launchBatchAction(p.lotId), () => 'Lot marqué lancé · la fenêtre d’évaluation démarre')}>
+        {p.pret ? (
+          <button className="btn sm" type="button" {...bouton('lancer')} onClick={() => geste('lancer', () => launchBatchAction(p.lotId), () => 'Lot marqué lancé · la fenêtre d’évaluation démarre')}>
             {occupe === 'lancer' ? 'Lancement…' : 'Marquer le lot lancé'}
           </button>
+        ) : p.variantes.length > 0 && (
+          <button className="btn sm" type="button" disabled aria-describedby={`lancer-ferme-${p.lotId}`} style={{ minHeight: 44 }}>Marquer le lot lancé</button>
         )}
-        <small>{message ? message.texte : p.pret ? 'Lance les annonces dans Meta avec ces noms, puis marque le lot lancé · rien n’est créé dans Meta depuis l’outil.' : 'Préparer génère les noms attendus côté régie et passe en « prêt » ce qui est complet.'}</small>
+        {!p.pret && p.variantes.length > 0 && <small id={`lancer-ferme-${p.lotId}`}>Pas de « lancer quand même » · un lot à moitié prêt donne des dépenses inégales, donc des verdicts incomparables (règle du protocole). Prépare le lot · il dit ce qui manque à chaque variante.</small>}
+        <small role={message?.erreur ? 'alert' : undefined}>{message ? message.texte : p.pret ? 'Lance les annonces dans Meta avec ces noms, puis marque le lot lancé · rien n’est créé dans Meta depuis l’outil.' : 'Préparer génère les noms attendus côté régie et passe en « prêt » ce qui est complet.'}</small>
       </div>
     </section>
   );
 }
 
 function Arbitrage(p: Extract<PropsActionsLot, { mode: 'arbitrage' }>) {
-  const { occupe, message, geste } = useGeste();
+  const { occupe, message, geste, bouton } = useGeste();
   const [enonces, setEnonces] = useState<Record<string, string>>({});
   const [portees, setPortees] = useState<Record<string, ValidateInput['learning']['scope']>>({});
   return (
@@ -151,12 +166,36 @@ function Arbitrage(p: Extract<PropsActionsLot, { mode: 'arbitrage' }>) {
               {PORTEES.map(([cle, libelle]) => (
                 <button type="button" className="chip" key={cle} aria-pressed={(portees[v.id] ?? 'ad') === cle} onClick={() => setPortees((x) => ({ ...x, [v.id]: cle }))}>{libelle}</button>
               ))}
-              <button className="btn sm pri" type="submit" disabled={!!occupe} style={{ marginLeft: 'auto' }}>{occupe === `valider-${v.id}` ? 'Validation…' : 'Valider le verdict'}</button>
+              <button className="btn sm pri" type="submit" {...bouton(`valider-${v.id}`)} style={{ ...bouton(`valider-${v.id}`).style, marginLeft: 'auto' }}>{occupe === `valider-${v.id}` ? 'Validation…' : 'Valider le verdict'}</button>
             </div>
           </form>
         ))}
       </div>
       {message && <p className="faint" role={message.erreur ? 'alert' : 'status'} style={{ fontSize: '12.5px', marginTop: 10 }}>{message.texte}</p>}
+    </section>
+  );
+}
+
+/**
+ * « Dupliquer » · un lot neuf, en préparation, avec une copie en brouillon de
+ * chaque variante · jamais ses mesures ni ses verdicts (`duplicateBatchAction`).
+ * Réservé aux admins (comme la création d'un lot) · fermé, il dit pourquoi.
+ */
+export function DupliquerLot({ lotId, numero, variantes, raison }: { lotId: string; numero: number; variantes: number; raison: string | null }) {
+  const { message, geste, bouton, router } = useGeste();
+  const cle = 'dupliquer';
+  const attrs = bouton(cle, !!raison);
+  return (
+    <section className="tile sec" aria-label="Dupliquer le lot">
+      <h2>Dupliquer le lot</h2>
+      <p className="muted" style={{ fontSize: '12.5px', marginTop: 4 }}>Un lot neuf, en préparation, avec {variantes > 1 ? `les ${variantes} variantes` : variantes === 1 ? 'la variante' : 'les variantes'} du lot #{numero} en brouillon · même concept, même hypothèse, même variable. Aucune mesure ni aucun verdict ne suit · la copie se prépare et se lance comme un lot neuf.</p>
+      <div className="foot2" style={{ marginTop: 12 }}>
+        <button className="btn sm" type="button" {...attrs} disabled={!!raison || attrs.disabled} aria-describedby={raison ? `dupliquer-ferme-${lotId}` : undefined}
+          onClick={() => { if (raison) return; void geste(cle, () => duplicateBatchAction(lotId), (r) => `Lot #${r.number} créé · ${r.variantes ?? 0} variante${(r.variantes ?? 0) > 1 ? 's' : ''} en brouillon`, (r) => { if (r.id) router.push(lienLotSpatial(r.id)); }); }}>
+          <Ic n="copy" />Dupliquer le lot
+        </button>
+        {raison ? <small id={`dupliquer-ferme-${lotId}`}>{raison}</small> : message && <small role={message.erreur ? 'alert' : 'status'}>{message.texte}</small>}
+      </div>
     </section>
   );
 }
