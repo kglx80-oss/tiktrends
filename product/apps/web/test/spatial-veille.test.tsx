@@ -77,6 +77,22 @@ describe('Spatial · Veille · parité de structure avec la maquette', () => {
     return { cartes, suggestions };
   }
 
+  /**
+   * Lot 7 V5 · seul ajout HORS maquette sur « Pubs du moment » · la barre des
+   * filtres LOCAUX et de la bascule grille / liste (`section[data-filtres-locaux]`),
+   * posée juste AVANT la grille. Elle est retirée du rendu avant la comparaison,
+   * à condition d'être là une fois, à cette place · tout autre écart fait
+   * tomber la parité (la grille et ses 24 cartes restent comparées).
+   */
+  function sansFiltresLocaux(html: string): string {
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const barres = t.content.querySelectorAll('section[data-filtres-locaux]');
+    if (barres.length !== 1 || !barres[0]!.nextElementSibling?.classList.contains('xgrid')) return html;
+    barres[0]!.remove();
+    return t.innerHTML;
+  }
+
   it('« Pubs du moment » reproduit la maquette', () => {
     const { cartes, suggestions } = propsVeille();
     expect(cartes).toHaveLength(24);
@@ -88,7 +104,8 @@ describe('Spatial · Veille · parité de structure avec la maquette', () => {
         cartes={cartes} vide={null} pages={null} coutJarvis="Aucun crédit"
       />,
     );
-    const p = parite(html, 'veille', { ignorer: IGNORER_VEILLE });
+    expect(html.split('data-filtres-locaux').length - 1, 'la barre des filtres locaux (lot 7) n’est pas rendue une fois').toBe(1);
+    const p = parite(sansFiltresLocaux(html), 'veille', { ignorer: IGNORER_VEILLE });
     expect(p.rendu).toEqual(p.reference);
   });
 
@@ -97,7 +114,7 @@ describe('Spatial · Veille · parité de structure avec la maquette', () => {
     const i = cartes.findIndex((c) => c.tendance);
     cartes[i] = { ...cartes[i]!, tendance: false };
     const html = rendre(<PubsDuMoment sous="" pastilleRadar={SOUS_NAV_TEST} recherche={{ phrase: '', compris: null, suggestions }} barre={{ criteres: {}, plateforme: 'meta', vue: 'tout', tri: 'newest', cpm: 9, stat: { pubs: 24, annonceurs: 12, suite: '' }, vues: [] }} cartes={cartes} vide={null} pages={null} coutJarvis="" />);
-    const p = parite(html, 'veille', { ignorer: IGNORER_VEILLE });
+    const p = parite(sansFiltresLocaux(html), 'veille', { ignorer: IGNORER_VEILLE });
     expect(p.rendu).not.toEqual(p.reference);
     expect(squelette(fragmentReference('veille'), { ignorer: IGNORER_VEILLE }).length).toBeGreaterThan(500);
   });

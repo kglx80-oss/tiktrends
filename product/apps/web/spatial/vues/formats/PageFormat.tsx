@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { NIVEAUX_CONSCIENCE, styleCrea, type CleStyle, type SignalLogoAReimporter } from '@tiktrends/core';
+import { NIVEAUX_CONSCIENCE, styleCrea, type CleStyle, type PubLocale, type SignalLogoAReimporter } from '@tiktrends/core';
+import { ExemplesFormat } from './exemples-client';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Composition } from './Composition';
 import { OngletsFormat } from './OngletsFormat';
@@ -25,6 +26,8 @@ export interface ExempleFormat {
   diffusion: string;
   /** La préparation d'un projet à partir de cette annonce (mode clone). */
   iterer: string;
+  /** Lot 7 (VB FO07) · ce que les filtres locaux regardent (plateforme, pays, jours, marque suivie) · absent, ces filtres restent fermés. */
+  filtre?: PubLocale;
 }
 
 export interface PropsPageFormat {
@@ -51,19 +54,7 @@ export function PageFormat(p: PropsPageFormat) {
   const comp = (texte?: string) => <Composition cle={p.cle} image={p.image} initiale={p.initiale} marque={p.marque} texte={texte} />;
 
   const exemples = p.exemples.length > 0 ? (
-    <div className="vfeed">
-      {p.exemples.map((e) => (
-        <article className="vitem" key={e.id}>
-          <div className="who"><span className="av" style={{ background: e.annonceur.couleur }}>{e.annonceur.initiale}</span>{e.annonceur.nom}<span className="faint">{e.pays ?? ''}</span></div>
-          <div style={{ position: 'relative' }}><div className="comp">{e.vignette ? <img src={e.vignette} alt={`Annonce de ${e.annonceur.nom}`} /> : null}</div>{e.longue && <span className="scale">30 j +</span>}</div>
-          <div className="vmeta"><span>{e.diffusion}</span></div>
-          <div className="acts">
-            <Lien className="btn sm" href="/saved"><Ic n="bookmark" />Dans tes sauvegardes</Lien>
-            <Lien className="btn sm" href={e.iterer}><Ic n="loop" />Itérer dans ce style</Lien>
-          </div>
-        </article>
-      ))}
-    </div>
+    <ExemplesFormat exemples={p.exemples} />
   ) : p.formatClassement ? (
     <div className="dempty"><span className="ico"><Ic n="search" s={false} /></span><h3>Aucune sauvegarde classée « {p.formatClassement} »</h3>
       <p className="muted">Les exemples de ce style sont tes sauvegardes rangées dans ce format · classe-les une à une dans Sauvegardes, rien n’est deviné.</p>
