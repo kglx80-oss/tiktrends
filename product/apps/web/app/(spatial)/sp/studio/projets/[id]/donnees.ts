@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
   couloirsDepuisProjet, dateCourteUtc, detailTache, formatCreation, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, mentionAppelTexte, pastilleEnregistrement, relectureNecessaire,
-  noeudsIterationProjet, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
+  iterationProjetDepuisVariantes, noeudsIterationProjet, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
 import type { Session } from '../../../../../../lib/auth';
@@ -216,6 +216,8 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         versionCourante: courante ? { id: courante.id, n: courante.n } : null,
         preparerHref: lien('produit'),
         conversationOuverte: !fil.error,
+        // Lot 5 ter · les gagnantes du projet (liste fermée, déjà lue dans la portée) · le geste « Créer l'itération » sous une réponse les lit.
+        iteration: donnees ? iterationProjetDepuisVariantes(donnees) : null,
       },
       brief: {
         projectId: pid, versionId: d.version.id, versionN: d.version.n, ancienne,

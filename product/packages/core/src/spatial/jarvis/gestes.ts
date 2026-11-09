@@ -42,22 +42,34 @@ const uuid = (v: unknown): string | null => (typeof v === 'string' && UUID.test(
 const premiere = (v: string | readonly string[] | null | undefined) => (Array.isArray(v) ? v[0] : v) as string | undefined;
 type Params = Readonly<Record<string, string | readonly string[] | undefined>>;
 
-/** Les contextes qui portent des gestes · un lot, une hypothèse. Une page de Résultats ou un projet n'en portent pas. */
+/** Les contextes qui portent des gestes sur `/jarvis` · un lot, une hypothèse. Une page de Résultats ou un projet n'en portent pas. */
 export const TYPES_GESTES_JARVIS: readonly TypeContexteJarvis[] = ['lot', 'hypothese'];
+/**
+ * Les contextes d'où Itérer peut s'ouvrir depuis une réponse · ceux de `/jarvis`,
+ * plus un PROJET Studios (son panneau Jarvis, PC E35 · sa réponse est relue
+ * dans le fil LIÉ au projet, ses variantes dans la portée du projet).
+ */
+export const TYPES_ITERATION_JARVIS: readonly TypeContexteJarvis[] = [...TYPES_GESTES_JARVIS, 'projet'];
+/** `?autre=1` · « Autre variable » (G07) · Itérer coche la variable SUIVANTE admise, pas celle de la réponse. */
+export const PARAM_AUTRE_VARIABLE = 'autre';
+export const VALEUR_AUTRE_VARIABLE = '1';
 
 export type DemandeGesteIteration =
   | { etat: 'absente' }
   | { etat: 'refus' }
-  | { etat: 'ok'; reponse: string; contexte: DemandeContexteJarvis };
+  | { etat: 'ok'; reponse: string; contexte: DemandeContexteJarvis; autre?: true };
 
-/** L'adresse de l'écran Itérer ouvert depuis une réponse · `?reponse=<uuid>&contexte=lot|hypothese&id=<uuid>`. */
+/** L'adresse de l'écran Itérer ouvert depuis une réponse · `?reponse=<uuid>&contexte=lot|hypothese|projet&id=<uuid>[&autre=1]`. */
 export function lireGesteIteration(sp: Params): DemandeGesteIteration {
   const r = premiere(sp[PARAM_REPONSE_JARVIS]);
   if (r === undefined) return { etat: 'absente' };
   const reponse = uuid(r);
   const contexte = demandeContexteJarvis(premiere(sp.contexte), premiere(sp.id));
-  if (!reponse || !contexte || !TYPES_GESTES_JARVIS.includes(contexte.type)) return { etat: 'refus' };
-  return { etat: 'ok', reponse, contexte };
+  if (!reponse || !contexte || !TYPES_ITERATION_JARVIS.includes(contexte.type)) return { etat: 'refus' };
+  const a = premiere(sp[PARAM_AUTRE_VARIABLE]);
+  // Une valeur forgée pour `autre` ne devine rien · l'adresse entière est refusée.
+  if (a !== undefined && a !== VALEUR_AUTRE_VARIABLE) return { etat: 'refus' };
+  return { etat: 'ok', reponse, contexte, ...(a === VALEUR_AUTRE_VARIABLE ? { autre: true as const } : {}) };
 }
 
 /** L'adresse de la fiche d'un lot ouverte depuis une réponse · `?conclure=jarvis&reponse=<uuid>`. */
@@ -67,11 +79,13 @@ export function lireGesteConclusion(sp: Params): { etat: 'absente' } | { etat: '
   return reponse ? { etat: 'ok', reponse } : { etat: 'refus' };
 }
 
-export function lienIterationJarvis(contexte: DemandeContexteJarvis, reponse: string): string | null {
+export function lienIterationJarvis(contexte: DemandeContexteJarvis, reponse: string, o: { autre?: boolean } = {}): string | null {
   const r = uuid(reponse);
   const c = demandeContexteJarvis(contexte.type, contexte.id);
-  if (!r || !c || !TYPES_GESTES_JARVIS.includes(c.type)) return null;
-  return `/studio/iterer?${new URLSearchParams({ [PARAM_REPONSE_JARVIS]: r, contexte: c.type, id: c.id }).toString()}`;
+  if (!r || !c || !TYPES_ITERATION_JARVIS.includes(c.type)) return null;
+  const q = new URLSearchParams({ [PARAM_REPONSE_JARVIS]: r, contexte: c.type, id: c.id });
+  if (o.autre) q.set(PARAM_AUTRE_VARIABLE, VALEUR_AUTRE_VARIABLE);
+  return `/studio/iterer?${q.toString()}`;
 }
 
 export function lienConclusionJarvis(lotId: string, reponse: string): string | null {
@@ -138,12 +152,20 @@ export function lienGesteJarvis(g: GesteJarvis, reponse: string): string | null 
 /* ───────────────────────── lecture de la réponse ───────────────────────── */
 
 /**
+ * Les participes passés des verbes de conseil (« n'a rien changé », « la V1 a
+ * testé ») · une ANALYSE au passé, jamais un conseil · marqués AVANT que
+ * l'accent tombe (« changé » et « change » s'écriraient pareil). Mesuré · le
+ * banc (`MESURE_EXTRACTION_JARVIS`) avait un pré-choix faux sur ce seul motif.
+ */
+const PARTICIPES_CONSEIL = /(?<![\p{L}])(test|chang|modifi|remplac|itér|déclin|essay|vari|jou|mis)(é|ée|és|ées)(?![\p{L}])/giu;
+
+/**
  * Le texte tel que les règles le lisent · minuscules, sans accent, apostrophes
  * droites, sans adresse ni marqueur (`nettoyerContexteJarvis`) · « variante 2 »
  * s'écrit « v2 » (le code d'une variante).
  */
 function normaliser(t: string): string {
-  return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’`ʼ]/g, '\'')
+  return t.replace(PARTICIPES_CONSEIL, '$1$2pp').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’`ʼ]/g, '\'')
     .replace(/\bvariante\s+(\d{1,3})\b/g, 'v$1');
 }
 
@@ -168,15 +190,20 @@ function phrases(t: string): string[] {
  */
 export const VOCABULAIRE_VARIABLES: Readonly<Record<TestedVariable, readonly string[]>> = {
   hook: ['accroche', 'accroches', 'hook', 'hooks', 'premieres secondes', 'premiere phrase'],
-  opening_visual: ['visuel d\'ouverture', 'visuels d\'ouverture', 'premiere image', 'plan d\'ouverture', 'image d\'ouverture'],
+  // + « vignette » (banc · « teste une vignette différente » restait sans variable).
+  opening_visual: ['visuel d\'ouverture', 'visuels d\'ouverture', 'premiere image', 'plan d\'ouverture', 'image d\'ouverture', 'vignette', 'vignettes'],
   format: ['format', 'formats', 'carrousel', 'carrousels'],
   body: ['corps de la pub', 'corps de la video', 'corps du message', 'corps de l\'annonce', 'deroule'],
-  length: ['duree', 'durees', 'longueur', 'plus courte', 'plus court', 'plus longue', 'plus long'],
+  // + « raccourcir » (banc · « raccourcir la vidéo et changer la musique » passait pour un conseil de son seul).
+  length: ['duree', 'durees', 'longueur', 'plus courte', 'plus court', 'plus longue', 'plus long', 'raccourcir', 'raccourcis', 'rallonger'],
   audio: ['le son', 'du son', 'bande son', 'musique', 'voix off', 'audio'],
-  avatar_on_screen: ['personne a l\'ecran', 'personnes a l\'ecran', 'avatar', 'avatars'],
+  // + des noms de PERSONNE précis (banc · « une cliente à l'écran », « une créatrice UGC » restaient sans variable) · jamais « à l'écran » seul (un texte affiché).
+  avatar_on_screen: ['personne a l\'ecran', 'personnes a l\'ecran', 'avatar', 'avatars', 'cliente a l\'ecran', 'client a l\'ecran', 'creatrice ugc', 'createur ugc', 'creatrices ugc', 'createurs ugc', 'influenceuse', 'influenceur'],
   proof: ['preuve', 'preuves', 'temoignage', 'temoignages', 'avis clients'],
-  cta: ['appel a l\'action', 'appels a l\'action', 'cta', 'call to action'],
-  offer: ['l\'offre', 'une offre', 'nouvelle offre', 'ton offre', 'cette offre', 'autre offre', 'promotion', 'remise', 'reduction'],
+  // + « bouton » (banc · « change le bouton » restait sans variable).
+  cta: ['appel a l\'action', 'appels a l\'action', 'cta', 'call to action', 'bouton', 'boutons'],
+  // + « code promo », « prix barré », « prix réduit » (banc · trois conseils d'offre restaient sans variable) · jamais « prix » seul.
+  offer: ['l\'offre', 'une offre', 'nouvelle offre', 'ton offre', 'cette offre', 'autre offre', 'promotion', 'remise', 'reduction', 'code promo', 'codes promo', 'prix barre', 'prix reduit'],
   landing: ['page de destination', 'pages de destination', 'landing', 'page produit'],
   angle: ['angle', 'angles'],
   desire: ['desir', 'desirs'],
@@ -185,7 +212,11 @@ export const VOCABULAIRE_VARIABLES: Readonly<Record<TestedVariable, readonly str
 
 const ech = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const motif = (termes: readonly string[]) => new RegExp(`(?<![a-z0-9])(?:${termes.map(ech).join('|')})(?![a-z0-9])`, 'g');
-const MOTIFS_VARIABLES = (Object.keys(VOCABULAIRE_VARIABLES) as TestedVariable[]).map((v) => [v, motif(VOCABULAIRE_VARIABLES[v])] as const);
+type MotifsVariables = ReadonlyArray<readonly [TestedVariable, RegExp]>;
+/** Les motifs d'un vocabulaire · celui du module par défaut, un autre pour le banc de mesure (`mesurerExtractionJarvis`). */
+export const motifsVocabulaire = (vocabulaire: Readonly<Record<TestedVariable, readonly string[]>>): MotifsVariables =>
+  (Object.keys(vocabulaire) as TestedVariable[]).filter((v) => vocabulaire[v].length).map((v) => [v, motif(vocabulaire[v])] as const);
+const MOTIFS_VARIABLES = motifsVocabulaire(VOCABULAIRE_VARIABLES);
 
 /** Une phrase de CONSEIL · elle propose un geste (tester, changer, itérer…) · une mention ailleurs n'est qu'une analyse. */
 const CONSEIL = /(?<![a-z])(teste[rsz]?|testons|change[rsz]?|changeons|modifie[rsz]?|remplace[rsz]?|itere[rsz]?|iteration|decline[rsz]?|essaie[rsz]?|essaye[rsz]?|varie[rsz]?|joue[rsz]? sur|mise[rsz]? sur|je (?:te )?(?:conseille|recommande|propose)|recommandation|prochain test|prochaine variante)(?![a-z])/;
@@ -194,14 +225,19 @@ const NEGATION = /(?<![a-z])(ne|n'|pas|jamais|sans|garde[rsz]?|conserve[rsz]?|la
 /** Les bornes d'une proposition dans une phrase. */
 const PROPOSITION = /[,;:·]|(?<![a-z])(?:mais|et|puis|alors)(?![a-z])/g;
 
+/** Une phrase de la réponse conseille-t-elle un geste (tester, changer, itérer…) ? */
+export function reponseConseille(texte: string): boolean {
+  return phrases(normaliser(propre(texte))).some((p) => CONSEIL.test(p));
+}
+
 /** Les variables mentionnées POSITIVEMENT dans les phrases de conseil · une mention niée ne compte pas. */
-function variablesConseillees(texte: string): TestedVariable[] {
+export function variablesConseillees(texte: string, motifs: MotifsVariables = MOTIFS_VARIABLES): TestedVariable[] {
   const vues = new Set<TestedVariable>();
   for (const p of phrases(normaliser(propre(texte)))) {
     if (!CONSEIL.test(p)) continue;
     for (const prop of p.split(PROPOSITION)) {
       if (!prop) continue;
-      for (const [v, re] of MOTIFS_VARIABLES) {
+      for (const [v, re] of motifs) {
         re.lastIndex = 0;
         for (let m = re.exec(prop); m; m = re.exec(prop)) {
           if (!NEGATION.test(prop.slice(0, m.index))) { vues.add(v); break; }
@@ -211,6 +247,93 @@ function variablesConseillees(texte: string): TestedVariable[] {
   }
   return [...vues];
 }
+
+/* ───────────────────────── le banc de mesure de l'extraction ───────────────────────── */
+
+export interface LigneMesureExtraction {
+  genre: string;
+  n: number;
+  /** Aucune variable extraite (zéro ou plusieurs) · rien n'est présélectionné. */
+  rienDeSur: number;
+  /** La variable extraite est celle qu'une personne lit (ou rien, quand rien n'est conseillé). */
+  juste: number;
+  /** Une variable extraite, mais pas la bonne · le défaut qui coûte (un pré-choix faux). */
+  fausse: number;
+}
+
+/**
+ * Le banc · fait passer l'extraction (`variablesConseillees`, une seule
+ * variable sinon rien) sur un corpus de réponses-types étiquetées, par genre.
+ * Pur · le corpus vit dans les fixtures de test, le tableau mesuré ci-dessous.
+ */
+export function mesurerExtractionJarvis(
+  corpus: ReadonlyArray<{ texte: string; attendu: TestedVariable | null; genre: string }>,
+  vocabulaire: Readonly<Record<TestedVariable, readonly string[]>> = VOCABULAIRE_VARIABLES,
+): { lignes: LigneMesureExtraction[]; total: LigneMesureExtraction } {
+  const motifs = motifsVocabulaire(vocabulaire);
+  const par = new Map<string, LigneMesureExtraction>();
+  const total: LigneMesureExtraction = { genre: 'total', n: 0, rienDeSur: 0, juste: 0, fausse: 0 };
+  for (const r of corpus) {
+    const vues = variablesConseillees(r.texte, motifs);
+    const v = vues.length === 1 ? vues[0]! : null;
+    const l = par.get(r.genre) ?? { genre: r.genre, n: 0, rienDeSur: 0, juste: 0, fausse: 0 };
+    for (const x of [l, total]) {
+      x.n += 1;
+      if (v === null) x.rienDeSur += 1;
+      if (v === r.attendu) x.juste += 1;
+      else if (v !== null) x.fausse += 1;
+    }
+    par.set(r.genre, l);
+  }
+  return { lignes: [...par.values()], total };
+}
+
+/**
+ * La MESURE, refaite par `test/lot5t-jarvis-suite.test.ts` sur les deux corpus de
+ * `test/fixtures/jarvis-reponses.ts` (sans modèle) · n réponses, « rien de sûr »
+ * (aucune variable extraite), justes, FAUSSES (un pré-choix faux, le défaut qui coûte).
+ *
+ * | Corpus                       | n  | règle      | rien de sûr  | justes | fausses |
+ * | ---------------------------- | -- | ---------- | ------------ | ------ | ------- |
+ * | réglage · tout               | 64 | #1052      | 29 (45 %)    | 52     | 2       |
+ * | réglage · tout               | 64 | actuelle   | 24 (38 %)    | 61     | 0       |
+ * | réglage · UNE variable dite  | 43 | #1052      | 10 (23 %)    | 33     | 0       |
+ * | réglage · UNE variable dite  | 43 | actuelle   | 3 (7 %)      | 40     | 0       |
+ * | réglage · aucune / plusieurs | 21 | #1052      | 19           | 19     | 2       |
+ * | réglage · aucune / plusieurs | 21 | actuelle   | 21           | 21     | 0       |
+ * | contrôle · tout              | 24 | #1052      | 10 (42 %)    | 18     | 2       |
+ * | contrôle · tout              | 24 | actuelle   | 9 (38 %)     | 23     | 0       |
+ * | contrôle · UNE variable dite | 16 | #1052      | 4 (25 %)     | 12     | 0       |
+ * | contrôle · UNE variable dite | 16 | actuelle   | 1 (6 %)      | 15     | 0       |
+ *
+ * Lecture · le « rien de sûr » GLOBAL reste haut (38 %) et c'est voulu · il
+ * compte les silences JUSTES (analyse sans conseil, plusieurs variables · une
+ * itération n'en change qu'une). Ce qui a bougé · les conseils d'UNE variable
+ * manqués (23 % → 7 %, 25 % → 6 % sur le contrôle, qui n'a pas servi au réglage)
+ * et les pré-choix FAUX (2 → 0 sur chaque corpus · tous venaient d'un participe
+ * passé lu comme un conseil, « n'a rien changé », « a été testé »). Restent
+ * manqués, en silence et jamais faux · un qualificatif pris pour une durée
+ * (« une démonstration plus courte »), un nom de variable dans une relative
+ * (« qui reprend l'accroche »), « ajoute » (verbe aussi descriptif, laissé hors
+ * des conseils). « #1052 » · la règle et le vocabulaire de `main` à 121e6553.
+ */
+export const MESURE_EXTRACTION_JARVIS: Readonly<Record<'reglage' | 'controle', Readonly<Record<string, Readonly<{ n: number; rienDeSur: number; juste: number; fausse: number }>>>>> = {
+  reglage: {
+    une: { n: 34, rienDeSur: 3, juste: 31, fausse: 0 },
+    niee: { n: 6, rienDeSur: 0, juste: 6, fausse: 0 },
+    structurelle: { n: 3, rienDeSur: 0, juste: 3, fausse: 0 },
+    analyse: { n: 12, rienDeSur: 12, juste: 12, fausse: 0 },
+    plusieurs: { n: 9, rienDeSur: 9, juste: 9, fausse: 0 },
+    total: { n: 64, rienDeSur: 24, juste: 61, fausse: 0 },
+  },
+  controle: {
+    une: { n: 14, rienDeSur: 1, juste: 13, fausse: 0 },
+    niee: { n: 2, rienDeSur: 0, juste: 2, fausse: 0 },
+    analyse: { n: 5, rienDeSur: 5, juste: 5, fausse: 0 },
+    plusieurs: { n: 3, rienDeSur: 3, juste: 3, fausse: 0 },
+    total: { n: 24, rienDeSur: 9, juste: 23, fausse: 0 },
+  },
+};
 
 export type MotifVariableReponse = 'sure' | 'aucune' | 'ambigue' | 'fermee';
 export interface VariableReponse { variable: TestedVariable | null; motif: MotifVariableReponse; note: string }
@@ -230,24 +353,39 @@ export function variableDepuisReponse(texte: string, choix: ChoixVariablesIterat
   return { variable: v, motif: 'sure', note: `Variable proposée par Jarvis · ${LIBELLE_CHOIX_VARIABLE[v]}.` };
 }
 
-/** Les codes de variante d'une liste fermée que le texte nomme · un code porté par deux pubs n'en désigne aucune. */
-function codesNommes(texte: string, variantes: ReadonlyArray<{ adId: string; variante: string }>): string[] {
-  const parCode = new Map<string, string[]>();
+/**
+ * Les pubs d'une liste fermée que le texte nomme, par leur code (ou un autre
+ * nom FERMÉ · le libellé d'une variante de projet) · un nom porté par deux pubs
+ * n'en désigne aucune · une pub nommée deux fois (code et libellé) compte une fois.
+ */
+function codesNommes(texte: string, variantes: ReadonlyArray<{ adId: string; variante: string; alias?: readonly string[] }>): string[] {
+  const parCode = new Map<string, Set<string>>();
   for (const v of variantes) {
-    const c = normaliser(v.variante.trim());
-    if (!c) continue;
-    parCode.set(c, [...(parCode.get(c) ?? []), v.adId]);
+    for (const nom of [v.variante, ...(v.alias ?? [])]) {
+      const c = normaliser(nom.trim());
+      if (!c) continue;
+      parCode.set(c, (parCode.get(c) ?? new Set()).add(v.adId));
+    }
   }
   const t = normaliser(propre(texte));
-  const ids: string[] = [];
+  const ids = new Set<string>();
   for (const [c, adIds] of parCode) {
-    if (adIds.length !== 1) continue;
-    if (new RegExp(`(?<![a-z0-9-])${ech(c)}(?![a-z0-9-])`).test(t)) ids.push(adIds[0]!);
+    if (adIds.size !== 1) continue;
+    if (new RegExp(`(?<![a-z0-9-])${ech(c)}(?![a-z0-9-])`).test(t)) ids.add([...adIds][0]!);
   }
-  return ids;
+  return [...ids];
 }
 
-export interface CandidatIteration { adId: string; variante: string; variables: ChoixVariablesIteration }
+export interface CandidatIteration {
+  adId: string;
+  /** Le code de la variante (« V1 ») · ou, pour un projet, le libellé de la variante (« Image 1 du lot 2 »). */
+  variante: string;
+  variables: ChoixVariablesIteration;
+  /** D'autres noms FERMÉS de la même pub (aucun texte du modèle). */
+  alias?: readonly string[];
+  /** Ce qui a déjà été testé sur cette pub · sa variable testée et celles que sa lignée a changées (`ordreVariablesSuivantes`). */
+  dejaTestees?: readonly TestedVariable[];
+}
 export interface PreparationIterationJarvis {
   adId: string | null;
   variable: TestedVariable | null;
@@ -264,32 +402,73 @@ const FIN_ITERATION = 'Rien n’est créé sans ton clic sur « Créer l’itér
  * prise d'office · plusieurs, il faut que la réponse en nomme exactement une
  * (dans un conseil d'abord, sinon dans tout le texte).
  */
-export function iterationDepuisReponse(texte: string, candidats: readonly CandidatIteration[]): PreparationIterationJarvis {
-  if (candidats.length === 0) {
-    return { adId: null, variable: null, note: `Préparé depuis Jarvis · aucune pub de ce contexte n’est dans le plan d’itération de la marque · rien n’est présélectionné. ${FIN_ITERATION}` };
+/** La borne d'un nom de pub dans une phrase de l'écran · un code (« V1 ») ou le libellé d'une variante de projet. */
+const BORNE_NOM_PUB = 40;
+export const nomPubJarvis = (c: { variante: string }) => nettoyerContexteJarvis(c.variante, BORNE_NOM_PUB);
+
+/** Les options de la désignation de la pub de départ. */
+export interface OptionsPubJarvis {
+  /**
+   * La seule gagnante n'est prise d'office que si la réponse CONSEILLE un geste
+   * (un projet · son fil parle aussi du brief, d'une direction, d'un texte ·
+   * une réponse qui n'en dit rien ne désigne aucune variante). Défaut · d'office
+   * (un lot ou une hypothèse joints sont déjà le sujet de la question).
+   */
+  seuleSiConseil?: boolean;
+  /**
+   * Les noms des AUTRES variantes du contexte (perdantes, hors du plan) · liste
+   * FERMÉE lue au serveur · une réponse qui en nomme une seule parle d'elle, pas
+   * de la gagnante · aucun pré-choix (jamais la gagnante prise d'office à sa place).
+   */
+  exclus?: readonly string[];
+}
+const EXCLU = 'exclu:';
+
+export interface PubReponse {
+  candidat: CandidatIteration | null;
+  motif: 'seule' | 'nommee' | 'aucune' | 'plusieurs' | 'vide' | 'sans_conseil' | 'autre';
+  /** La phrase de l'écran, sans la fin. */
+  phrase: string;
+}
+
+/**
+ * La pub de départ qu'une réponse désigne, dans la liste FERMÉE des
+ * candidates · la seule (d'office, ou si la réponse conseille un geste), sinon
+ * celle que la réponse nomme SEULE (dans un conseil d'abord, sinon dans tout le texte).
+ */
+export function pubDepuisReponse(texte: string, candidats: readonly CandidatIteration[], o: OptionsPubJarvis = {}): PubReponse {
+  if (candidats.length === 0) return { candidat: null, motif: 'vide', phrase: 'aucune pub de ce contexte n’est dans le plan d’itération de la marque · rien n’est présélectionné' };
+  // Les AUTRES variantes du contexte (perdantes, hors plan) sont nommables aussi · nommée seule, l'une d'elles ne désigne aucune gagnante.
+  const exclus = (o.exclus ?? []).map((variante, i) => ({ adId: `${EXCLU}${i}`, variante }));
+  const liste = [...candidats, ...exclus];
+  const conseils = phrases(propre(texte)).filter((p) => CONSEIL.test(normaliser(p))).join(' ');
+  const dansConseil = codesNommes(conseils, liste);
+  const nommes = dansConseil.length === 1 ? dansConseil : codesNommes(texte, liste);
+  const fin = 'rien n’est présélectionné, choisis la pub puis la variable';
+  if (nommes.length === 1 && nommes[0]!.startsWith(EXCLU)) {
+    const autre = nettoyerContexteJarvis(exclus[Number(nommes[0]!.slice(EXCLU.length))]!.variante, BORNE_NOM_PUB);
+    return { candidat: null, motif: 'autre', phrase: `Jarvis parle de ${autre}, qui n’est pas une gagnante arbitrée de ce contexte · ${fin}` };
   }
-  let c: CandidatIteration | null = null;
-  let pub: string;
+  const liste2 = candidats.map(nomPubJarvis).join(', ');
+  if (nommes.length > 1) return { candidat: null, motif: 'plusieurs', phrase: `Jarvis nomme plusieurs pubs de départ (${liste2}) · ${fin}` };
   if (candidats.length === 1) {
-    c = candidats[0]!;
-    pub = `pub de départ · ${nettoyerContexteJarvis(c.variante, 12)}, la seule gagnante du contexte`;
-  } else {
-    const conseils = phrases(propre(texte)).filter((p) => CONSEIL.test(normaliser(p))).join(' ');
-    const dansConseil = codesNommes(conseils, candidats);
-    const nommes = dansConseil.length === 1 ? dansConseil : codesNommes(texte, candidats);
-    if (nommes.length === 1) {
-      c = candidats.find((x) => x.adId === nommes[0])!;
-      pub = `pub de départ · ${nettoyerContexteJarvis(c.variante, 12)}, nommée par Jarvis`;
-    } else {
-      const liste = candidats.map((x) => nettoyerContexteJarvis(x.variante, 12)).join(', ');
-      pub = nommes.length > 1
-        ? `Jarvis nomme plusieurs pubs de départ (${liste}) · rien n’est présélectionné, choisis la pub puis la variable`
-        : `Jarvis ne nomme aucune des pubs de départ (${liste}) · rien n’est présélectionné, choisis la pub puis la variable`;
-      return { adId: null, variable: null, note: `Préparé depuis Jarvis · ${pub}. ${FIN_ITERATION}` };
-    }
+    const c = candidats[0]!;
+    if (!o.seuleSiConseil || conseils) return { candidat: c, motif: 'seule', phrase: `pub de départ · ${nomPubJarvis(c)}, la seule gagnante du contexte` };
+    if (nommes.length === 1) return { candidat: c, motif: 'nommee', phrase: `pub de départ · ${nomPubJarvis(c)}, nommée par Jarvis` };
+    return { candidat: null, motif: 'sans_conseil', phrase: `Jarvis ne conseille aucune itération de ${nomPubJarvis(c)} · ${fin}` };
   }
-  const v = variableDepuisReponse(texte, c.variables);
-  return { adId: c.adId, variable: v.variable, note: `Préparé depuis Jarvis · ${pub} · ${v.note} ${FIN_ITERATION}` };
+  if (nommes.length === 1) {
+    const c = candidats.find((x) => x.adId === nommes[0])!;
+    return { candidat: c, motif: 'nommee', phrase: `pub de départ · ${nomPubJarvis(c)}, nommée par Jarvis` };
+  }
+  return { candidat: null, motif: 'aucune', phrase: `Jarvis ne nomme aucune des pubs de départ (${liste2}) · ${fin}` };
+}
+
+export function iterationDepuisReponse(texte: string, candidats: readonly CandidatIteration[], o: OptionsPubJarvis = {}): PreparationIterationJarvis {
+  const p = pubDepuisReponse(texte, candidats, o);
+  if (!p.candidat) return { adId: null, variable: null, note: `Préparé depuis Jarvis · ${p.phrase}. ${FIN_ITERATION}` };
+  const v = variableDepuisReponse(texte, p.candidat.variables);
+  return { adId: p.candidat.adId, variable: v.variable, note: `Préparé depuis Jarvis · ${p.phrase} · ${v.note} ${FIN_ITERATION}` };
 }
 
 /* ───────────────────────── l'apprentissage, pour conclure ───────────────────────── */

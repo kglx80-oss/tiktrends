@@ -49,6 +49,11 @@ const ANALYTICS = FEATURES.find((f) => f.key === 'analytics')!;
  * « Créer l'itération » et « Conclure le lot » (`gestesPourContexte`, relus
  * dans la marque) · chacun OUVRE l'écran existant, pré-rempli à partir de CETTE
  * réponse relue par le serveur · rien n'est créé ni conclu sans le clic là-bas.
+ *
+ * Lot 5 ter · sous la même réponse, « Autre variable » (la variable SUIVANTE
+ * admise, lien vers Itérer `&autre=1`) et « Pourquoi ? » (une question sur la
+ * pub de départ, PRÉPARÉE dans le champ) · règle du noyau sur la liste fermée
+ * des candidates du plan · aucun envoi, aucune écriture, aucun modèle.
  */
 export default async function JarvisSpatial({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -86,7 +91,8 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
     contexte = {
       type: resolu.type, id: resolu.id, libelle: resolu.libelle, lignes: resolu.lignes, questions: resolu.questions,
       ...(filProjet?.conversationId ? { fil: { conversationId: filProjet.conversationId, tours: filProjet.turns } } : {}),
-      ...(gestes ? { gestes } : {}),
+      // Lot 5 ter · « Autre variable » et « Pourquoi ? » lisent la liste FERMÉE des candidates (plan de la marque) sous chaque réponse.
+      ...(gestes ? { gestes: { iterer: gestes.iterer, conclure: gestes.conclure }, suite: { candidats: gestes.candidats, exclus: gestes.exclus } } : {}),
     };
   }
   // La question de l'adresse (`q`) l'emporte · sinon celle que le contexte prépare. Jamais envoyée seule.

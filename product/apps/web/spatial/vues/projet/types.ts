@@ -1,4 +1,4 @@
-import type { ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest } from '@tiktrends/core';
+import type { IterationProjetJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -41,6 +41,13 @@ export interface PropsJarvisProjet {
   preparerHref: string | null;
   /** La conversation est fermée (accès Jarvis absent) · les puces restent visibles, inactives. */
   conversationOuverte: boolean;
+  /**
+   * Lot 5 ter (PC E35, E38) · les variantes GAGNANTES du projet (verdict arbitré,
+   * comparable) et les noms des autres, listes FERMÉES lues dans la portée · « Créer l'itération » n'apparaît
+   * sous une réponse que si elle en désigne une sûrement (`gesteIterationProjet`).
+   * Absent ou vide · aucun geste.
+   */
+  iteration?: IterationProjetJarvis | null;
 }
 
 export interface ChampBrief { libelle: string; valeurs: string[]; options: boolean }
