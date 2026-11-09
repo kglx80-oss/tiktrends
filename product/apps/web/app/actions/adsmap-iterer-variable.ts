@@ -6,6 +6,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   lienPreparationInspiration, lienPreparationIteration, lireInspiration, lireValeurVariable, lireVariableChoisie, parentDepuisPlan, parentInspiration,
   refOrigineHypothese, refSourceVeille, variablesIteration, verifierChoixVariable,
+  lireDemandeProvenanceJarvis, provenanceJarvisAdmise, refProvenanceJarvis, type ProvenanceJarvis,
   RAISON_AUTRE_MARQUE, RAISON_DEUX_SOURCES, RAISON_HORS_PLAN, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE, type TestedVariable,
 } from '@tiktrends/core';
 import { adsmapGuard, type AdsMapGuardOk } from '../../lib/adsmap-guard';
@@ -15,6 +16,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { trackSavedAdAction } from './adsmap-bridge';
 import { createIterationAction, iterationPlanAction } from './adsmap-iterate';
+import { lireCandidatsProjet, lireContexteGestes, lireReponseJarvis } from '../../lib/jarvis-gestes';
 
 /**
  * Créer l’itération d’une gagnante en CHOISISSANT la variable (écran Itérer,
@@ -42,18 +44,32 @@ import { createIterationAction, iterationPlanAction } from './adsmap-iterate';
  * de la Veille). La règle des variables est la même (`variablesIteration`,
  * source sans verdict · `parentInspiration`). Pas d'arête de filiation · il n'y
  * a pas de parent dans la marque. Mêmes gardes, aucune nouvelle permission.
+ *
+ * ── Depuis un geste de Jarvis · la provenance « Jarvis » ─────────────────────
+ *
+ * `jarvis: { reponseId, contexte }` (écran Itérer ouvert depuis « Créer
+ * l'itération » sous une réponse) · JAMAIS cru · la réponse est relue dans la
+ * portée de la session (`lireReponseJarvis` · espace, marque active, personne,
+ * fil du projet pour un projet), le contexte dans la marque (`lireContexteGestes`
+ * pour un lot ou une hypothèse, `lireCandidatsProjet` pour un projet), et la pub
+ * de départ doit en faire partie (`provenanceJarvisAdmise`, noyau). Alors
+ * seulement la provenance est fusionnée dans `source_ref_json` de l'ad créée ·
+ * sinon l'itération naît ordinaire, sans rien dire de ce que l'adresse
+ * prétendait. Lecture seule, aucun modèle, aucune permission nouvelle.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ReponseIterationChoisie =
-  | { ok: true; adId: string; code: string; variable: TestedVariable; valeur: string; preparer: string }
+  | { ok: true; adId: string; code: string; variable: TestedVariable; valeur: string; preparer: string; provenance?: 'jarvis' | null }
   | { ok: false; error: string };
 
 export async function creerIterationChoisieAction(entree: {
   parentAdId?: unknown; variable: unknown; valeur: unknown; hypothese: unknown;
   /** Une pub de la Veille en source, à la place de `parentAdId` (VB F26). */
   inspiration?: unknown;
+  /** Le geste de Jarvis d'où vient l'itération · relu avant d'être posé (`provenanceJarvis`). */
+  jarvis?: unknown;
 }): Promise<ReponseIterationChoisie> {
   const g = await adsmapGuard({ minRole: 'member' });
   if ('error' in g) return { ok: false, error: g.error };
@@ -77,6 +93,8 @@ export async function creerIterationChoisieAction(entree: {
   if (!parent) return { ok: false, error: RAISON_HORS_PLAN };
   const choix = verifierChoixVariable(variablesIteration(parent), parent, v.variable);
   if (!choix.ok) return { ok: false, error: choix.raison };
+  // Relue AVANT la création · une provenance refusée ne bloque rien, elle n'est simplement pas posée.
+  const provenance = entree.jarvis === undefined ? null : await provenanceJarvis(g, entree.jarvis, parentAdId);
 
   const r = await createIterationAction({
     parentAdId, mode: choix.mode, changedVariable: v.variable, stageTargeted: choix.etape,
@@ -84,9 +102,46 @@ export async function creerIterationChoisieAction(entree: {
   });
   if (r.error || !r.adId) return { ok: false, error: r.error ?? 'La création n’a rien renvoyé.' };
 
-  const [enfant] = await db!.select({ code: schema.ads.variantCode }).from(schema.ads).where(eq(schema.ads.id, r.adId)).limit(1);
+  const [enfant] = await db!.select({ code: schema.ads.variantCode, sourceRef: schema.ads.sourceRef }).from(schema.ads).where(eq(schema.ads.id, r.adId)).limit(1);
   const code = enfant?.code ?? 'nouvelle';
-  return { ok: true, adId: r.adId, code, variable: v.variable, valeur: valeur.valeur, preparer: lienPreparationIteration({ parentAdId, code, variable: v.variable, valeur: valeur.valeur }) };
+  let pose: 'jarvis' | null = null;
+  if (provenance && enfant) {
+    try {
+      // Fusionnée dans le JSON de source existant · rien d'autre n'est réécrit (aucune colonne, aucune migration).
+      const avant = enfant.sourceRef && typeof enfant.sourceRef === 'object' ? enfant.sourceRef as Record<string, unknown> : {};
+      await db!.update(schema.ads).set({ sourceRef: { ...avant, ...refProvenanceJarvis(provenance) } })
+        .where(and(eq(schema.ads.id, r.adId), eq(schema.ads.workspaceId, g.s.workspaceId)));
+      pose = 'jarvis';
+      revalidatePath('/adsmap/hypotheses');
+    } catch (e) {
+      // L'itération existe · seule la provenance manque, le bilan la comptera comme une itération ordinaire.
+      console.warn('[adsmap] provenance Jarvis non posée', e instanceof Error ? e.message : e);
+    }
+  }
+  return { ok: true, adId: r.adId, code, variable: v.variable, valeur: valeur.valeur, preparer: lienPreparationIteration({ parentAdId, code, variable: v.variable, valeur: valeur.valeur }), provenance: pose };
+}
+
+/**
+ * La provenance Jarvis demandée, RELUE · la réponse dans la portée, le contexte
+ * dans la marque active, la pub de départ dans ce contexte · `null` sinon
+ * (adresse forgée, réponse d'une autre marque ou d'une autre personne, contexte
+ * d'ailleurs, pub hors du contexte) · aucune écriture, aucun modèle.
+ */
+async function provenanceJarvis(g: AdsMapGuardOk, brut: unknown, parentAdId: string): Promise<ProvenanceJarvis | null> {
+  const demande = lireDemandeProvenanceJarvis(brut);
+  if (!demande) return null;
+  try {
+    const projet = demande.contexte.type === 'projet';
+    const [texte, ads] = await Promise.all([
+      lireReponseJarvis(g.s, g.brand.id, demande.reponseId, projet ? { projectId: demande.contexte.id } : {}),
+      projet
+        ? lireCandidatsProjet(g.s, g.brand.id, demande.contexte.id).then((l) => l && l.candidats.map((c) => c.adId))
+        : lireContexteGestes(g.s, g.brand.id, demande.contexte).then((c) => c && c.ads.map((a) => a.id)),
+    ]);
+    return provenanceJarvisAdmise(demande, { reponseLue: texte !== null, parentAdId, adsDuContexte: ads });
+  } catch {
+    return null;
+  }
 }
 
 /** Le geste existant de `createIterationAction` · une hypothèse qui ne dit rien n'apprend rien. */
