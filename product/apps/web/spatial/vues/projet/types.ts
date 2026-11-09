@@ -1,4 +1,4 @@
-import type { IterationProjetJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest } from '@tiktrends/core';
+import type { IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -48,6 +48,13 @@ export interface PropsJarvisProjet {
    * Absent ou vide · aucun geste.
    */
   iteration?: IterationProjetJarvis | null;
+  /**
+   * Lot 5 quater (RJ G07) · les variantes du projet, liste FERMÉE lue dans la
+   * portée · « Tester » et « Corriger le texte » n'apparaissent sous une
+   * réponse que si elle en désigne une sûrement (`gestesEssaiTexteJarvis`).
+   * Absent ou vide · aucun de ces gestes.
+   */
+  essai?: VarianteEssaiJarvis[] | null;
 }
 
 export interface ChampBrief { libelle: string; valeurs: string[]; options: boolean }
@@ -148,6 +155,13 @@ export interface PropsCreationsProjet {
   adsmap: AdsmapRattachement | null;
   /** Un travail est en cours · la page se relit d'elle-même. */
   relire: boolean;
+  /**
+   * Lot 5 quater · « Tester » depuis une réponse de Jarvis · relue au serveur ·
+   * le formulaire de rattachement de la variante ouvert (ou le lot d'essai, elle
+   * présélectionnée), la note dit ce qui est pré-rempli · rien n'est envoyé
+   * sans le clic. Absent · l'écran d'avant.
+   */
+  jarvis?: PreparationTesterJarvis | null;
 }
 
 export interface PropsProjet {

@@ -3,9 +3,10 @@
 import { Fragment, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CIBLE_CONCEPT, EFFET_GESTE_PROJET, demandeProposition, gesteIterationProjet, texteTourJarvis, verrouAction, visibleWhileStreaming, sansTiretCadratin,
-  type CandidatProjetJarvis, type ConceptActionKey,
+  CIBLE_CONCEPT, EFFET_GESTE_PROJET, demandeProposition, gesteIterationProjet, gestesEssaiTexteJarvis, texteTourJarvis, verrouAction, visibleWhileStreaming, sansTiretCadratin,
+  type CandidatProjetJarvis, type ConceptActionKey, type VarianteEssaiJarvis,
 } from '@tiktrends/core';
+import { GestesEssaiTexte } from '../jarvis/GestesEssaiTexte';
 import { chatThreadAction } from '../../../app/actions/jarvis-chat';
 import { proposerPatch } from '../../../app/actions/studios/propositions';
 import { useSpatial } from '../../coquille/contexte';
@@ -149,7 +150,7 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
   const annuler = (cle: string) => { setConfirmation(null); replacerFocus('toujours', `[data-puce="${cle}"]`); };
   // La dernière réponse de Jarvis du fil · le geste « Créer l'itération » ne vaut que pour elle.
   const derniere = [...tours].reverse().find((t) => t.role === 'assistant') ?? null;
-  const geste = derniere ? <GesteIterationProjet tour={derniere} projectId={p.projectId} candidats={p.iteration?.candidats ?? []} autres={p.iteration?.autres ?? []} /> : null;
+  const geste = derniere ? <GesteIterationProjet tour={derniere} projectId={p.projectId} candidats={p.iteration?.candidats ?? []} autres={p.iteration?.autres ?? []} essai={p.essai ?? []} /> : null;
 
   return (
     <aside className="tile jpanel" aria-label="Jarvis dans ce projet">
@@ -238,15 +239,23 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
  * quand la réponse désigne sûrement une variante gagnante (règle du noyau) ·
  * sinon rien (le panneau reste celui de la maquette). Un lien, aucun appel.
  */
-function GesteIterationProjet({ tour, projectId, candidats, autres }: { tour: { id: string; texte: string }; projectId: string; candidats: CandidatProjetJarvis[]; autres: string[] }) {
+function GesteIterationProjet({ tour, projectId, candidats, autres, essai }: { tour: { id: string; texte: string }; projectId: string; candidats: CandidatProjetJarvis[]; autres: string[]; essai: VarianteEssaiJarvis[] }) {
   const g = candidats.length ? gesteIterationProjet({ texte: tour.texte, reponse: tour.id, projectId, candidats, autres }) : null;
-  if (!g) return null;
+  // Lot 5 quater · « Tester » et « Corriger le texte » · sur les variantes du projet (liste fermée), même règle que sur `/jarvis`.
+  const contexte = { type: 'projet' as const, id: projectId };
+  const e = essai.length ? gestesEssaiTexteJarvis({ texte: tour.texte, reponse: tour.id, contexte, variantes: essai }) : null;
+  if (!g && !e?.tester && !e?.corriger) return null;
   return (
     <div data-gestes-projet="" style={{ display: 'grid', gap: 6 }}>
-      <Lien className="btn sm" href={g.href} data-geste-jarvis="iterer" data-variante={g.varianteId} title={EFFET_GESTE_PROJET} style={{ minHeight: 44, justifySelf: 'start' }}>
-        <Ic n="loop" />{g.libelle}
-      </Lien>
-      <small className="faint" style={{ fontSize: '11.5px' }}>Depuis {g.variante} · {EFFET_GESTE_PROJET}</small>
+      {g && (
+        <>
+          <Lien className="btn sm" href={g.href} data-geste-jarvis="iterer" data-variante={g.varianteId} title={EFFET_GESTE_PROJET} style={{ minHeight: 44, justifySelf: 'start' }}>
+            <Ic n="loop" />{g.libelle}
+          </Lien>
+          <small className="faint" style={{ fontSize: '11.5px' }}>Depuis {g.variante} · {EFFET_GESTE_PROJET}</small>
+        </>
+      )}
+      {e && <GestesEssaiTexte texte={tour.texte} reponse={tour.id} contexte={contexte} variantes={essai} exclus={[]} taille={11.5} />}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useState } from 'react';
 import {
   cleBrouillonTextes, comparerTextes, etatEchecStudio, libelleVariable, mentionAppelTexte, raisonAjoutTexte, raisonFermeture,
   ECHEC_RESEAU_STUDIO, LIBELLES_TYPE_TEXTE, LIBELLES_TYPE_TEXTE_PLURIEL, TONS_ECRITURE, TYPES_TEXTE, VARIANTES_DEFAUT, VARIANTES_MAX,
-  type ErreurStudio, type TexteStudio, type TonEcriture, type TypeTexte, type VarianteTexte,
+  type ErreurStudio, type PreparationCorrigerJarvis, type TexteStudio, type TonEcriture, type TypeTexte, type VarianteTexte,
 } from '@tiktrends/core';
 import type { VueTextes } from '../../../lib/studios/textes/textes';
 import { ecrireTextes, enregistrerTextes, exporterTextes, injecterTexte } from '../../../app/actions/studios/textes';
@@ -45,6 +45,13 @@ const ROLE_LECTURE = 'Ton rôle permet de lire et d’exporter, pas d’écrire.
 export interface PropsTextes {
   vue: VueTextes;
   atelier: ReadonlyArray<{ segment: string; href: string | null }>;
+  /**
+   * Lot 5 quater · « Corriger le texte » depuis Jarvis, relu au serveur · la
+   * consigne affichée, le texte cité dans le champ « Écrire à la main », le type
+   * choisi · rien n'est enregistré sans « Ajouter », rien n'est écrit par l'IA
+   * sans son clic et sa confirmation (prix annoncé). Absent · l'écran d'avant.
+   */
+  jarvis?: PreparationCorrigerJarvis | null;
 }
 
 type Edition = Pick<TexteStudio, 'type' | 'langue' | 'texte' | 'sources'>;
@@ -74,7 +81,7 @@ async function copier(t: string): Promise<boolean> {
   try { await navigator.clipboard.writeText(t); return true; } catch { return false; }
 }
 
-export function Textes({ vue, atelier }: PropsTextes) {
+export function Textes({ vue, atelier, jarvis = null }: PropsTextes) {
   const { toast } = useSpatial();
   const regime = useRegime();
   const appel = useAppelPayant(vue.projet.id, 'textes');
@@ -83,7 +90,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
   const [proposees, setProposees] = useState<VarianteTexte[]>([]);
   const [ecartees, setEcartees] = useState<Array<{ id: string; raison: string }>>([]);
   const [questions, setQuestions] = useState<string[]>([]);
-  const [type, setType] = useState<TypeTexte>('hook');
+  const [type, setType] = useState<TypeTexte>(jarvis?.type ?? 'hook');
   const [ton, setTon] = useState<TonEcriture>(TONS_ECRITURE[0]);
   const [langue, setLangue] = useState('fr');
   const idTitreManuel = useId();
@@ -94,7 +101,7 @@ export function Textes({ vue, atelier }: PropsTextes) {
   const [nombre, setNombre] = useState(VARIANTES_DEFAUT);
   const [max, setMax] = useState<Record<string, number>>({});
   const maxType = max[type] ?? limite.max;
-  const [manuel, setManuel] = useState<Edition>({ type: 'hook', langue: 'fr', texte: '', sources: [] });
+  const [manuel, setManuel] = useState<Edition>({ type: jarvis?.type ?? 'hook', langue: 'fr', texte: jarvis?.proposition ?? '', sources: [] });
   const [edition, setEdition] = useState<{ id: string; valeur: string } | null>(null);
   const [calque, setCalque] = useState<Record<string, string>>({});
   const [enCours, setEnCours] = useState<string | null>(null);
@@ -308,6 +315,12 @@ export function Textes({ vue, atelier }: PropsTextes) {
         <section className="tile" data-zone="ecrire-main" id="ecrire-main" aria-labelledby={idTitreManuel} style={{ display: 'grid', gap: 10 }}>
           <div className="lbl" id={idTitreManuel} style={{ margin: 0 }}>Écrire à la main</div>
           <small className="faint" style={{ fontSize: '11.5px' }}>Aucun appel, aucun coût · les mêmes règles : une allégation cite un fait du brief.</small>
+          {jarvis && (
+            <div className="sugg" role="status" data-note-jarvis="" style={{ display: 'grid', gap: 6 }}>
+              <p style={{ fontSize: '12.5px' }}>{jarvis.note}</p>
+              {jarvis.consigne && <p style={{ fontSize: '12.5px' }} data-consigne-jarvis=""><strong>Consigne de Jarvis</strong> · {jarvis.consigne}</p>}
+            </div>
+          )}
           {vue.peutEcrire ? (
             <>
               <div className="kc" role="group" aria-label="Type du texte écrit à la main">

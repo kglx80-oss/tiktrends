@@ -43,7 +43,9 @@ export function OngletCreations(p: PropsCreationsProjet) {
   const t = (cle: string) => `${id}-${cle}`;
   const [relireOuverte, setRelireOuverte] = useState<string | null>(null);
   // Le formulaire « Rattacher au test » ouvert, et la saisie d'un plan d'essai qui le préremplit.
-  const [rattacher, setRattacher] = useState<string | null>(null);
+  // Lot 5 quater · « Tester » depuis Jarvis · le rattachement de la variante désignée s'ouvre déjà (rien n'est envoyé sans « Rattacher »).
+  const jarvis = p.jarvis ?? null;
+  const [rattacher, setRattacher] = useState<string | null>(jarvis?.mode === 'rattacher' ? jarvis.varianteId : null);
   const [prefill, setPrefill] = useState<Record<string, Saisie>>({});
   const aujourdHui = new Date().toISOString().slice(0, 10);
 
@@ -173,6 +175,7 @@ export function OngletCreations(p: PropsCreationsProjet) {
           {horsLigne && <span className="pill w" data-hors-ligne="">{TEXTES_HORS_LIGNE.pastille}</span>}
         </div>
         {horsLigne && <p role="status" className="faint" style={{ fontSize: '11.5px', marginTop: 6 }}>{TEXTES_HORS_LIGNE.panneau}</p>}
+        {jarvis && <p role="status" data-note-jarvis="" style={{ fontSize: '12.5px', marginTop: 8 }}>{jarvis.note}</p>}
         {p.peutProposer && p.adsmap && !p.adsmap.acces && p.variantes.some((v) => !v.test) && (
           <p className="faint" style={{ fontSize: '11.5px', marginTop: 6 }}>Le rattachement à un test passe par Adsmap, disponible à partir de l’offre Plus.</p>
         )}
@@ -186,7 +189,8 @@ export function OngletCreations(p: PropsCreationsProjet) {
                 formulaire={rattacher === v.id && p.adsmap ? (
                   <FormulaireRattachement key={`${v.id}:${prefill[v.id] ? 'essai' : 'libre'}`} idVariante={v.id} adsmap={p.adsmap} aUnParent={v.rattachement.aUnParent}
                     initial={valeursRattachement({
-                      hypothese: prefill[v.id]?.hypothese ?? v.rattachement.hypothese, variable: prefill[v.id]?.variable ?? v.rattachement.variable,
+                      hypothese: prefill[v.id]?.hypothese ?? v.rattachement.hypothese,
+                      variable: prefill[v.id]?.variable ?? (jarvis?.mode === 'rattacher' && jarvis.varianteId === v.id && jarvis.variable ? jarvis.variable : v.rattachement.variable),
                       valeurVariable: prefill[v.id]?.valeurVariable ?? null, protocole: p.adsmap.protocoleMarque, aujourdHui,
                     })}
                     envoyer={(x) => envoyerTest(v.id, x)} fermer={() => setRattacher(null)} horsLigne={horsLigne} />
@@ -204,7 +208,8 @@ export function OngletCreations(p: PropsCreationsProjet) {
       </section>
 
       {p.peutProposer && !p.erreurVariantes && p.lots.length > 0 && (
-        <LotEssai horsLigne={horsLigne} projectId={p.projectId} variantes={p.variantes.map((v) => ({ id: v.id, libelle: v.libelle, version: v.version }))} ouvrirRattachement={ouvrirAvecPlan} />
+        <LotEssai horsLigne={horsLigne} projectId={p.projectId} variantes={p.variantes.map((v) => ({ id: v.id, libelle: v.libelle, version: v.version }))} ouvrirRattachement={ouvrirAvecPlan}
+          initial={jarvis?.mode === 'essai' && jarvis.varianteId ? { selection: [jarvis.varianteId], variable: jarvis.essaiVariable } : undefined} />
       )}
 
       <section className="tile sec" id="taches" aria-labelledby={t('taches')}>

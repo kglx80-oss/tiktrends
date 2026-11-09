@@ -1,14 +1,16 @@
 import 'server-only';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  iterationProjetDepuisVariantes, dejaTesteesSurPub, etatLotSpatial, gestesContexteJarvis, parentDepuisPlan, reponseLisible, variablesDuPlan,
+  iterationProjetDepuisVariantes, dejaTesteesSurPub, etatLotSpatial, gestesContexteJarvis, parentDepuisPlan, reponseLisible, variablesDuPlan, variantesEssaiProjet,
   type CandidatIteration, type CandidatProjetJarvis, type ChoixVariablesIteration, type DemandeContexteJarvis, type GesteJarvis, type TestedVariable,
+  type VarianteEssaiJarvis,
 } from '@tiktrends/core';
 import type { Session } from './auth';
 import { effectiveAccess } from './access';
 import { canAccess, FEATURES } from './rbac';
 import { gardeStudio } from './studios/garde';
+import { getActiveBrand } from './brands';
 import { listerVariantes } from './studios/variantes/variantes';
 import { chargerLots, type AdLue, type LotLu } from '../app/(spatial)/sp/adsmap/donnees';
 import { iterationPlanAction } from '../app/actions/adsmap-iterate';
@@ -165,4 +167,69 @@ export async function gestesPourContexte(s: SessionLue, brandId: string, demande
   const plan = g.iterer.cible ? await lirePlanIteration() : null;
   const candidats = plan ? candidatsDuPlan(c.ads, plan) : [];
   return { ...g, candidats, exclus: exclusDuContexte(c.ads, candidats) };
+}
+
+/* ───────────────────────── lot 5 quater · « Tester » et « Corriger le texte » ───────────────────────── */
+
+/**
+ * La liste FERMÉE des variantes Studio d'un contexte, relue dans la portée ·
+ *  · un PROJET · ses variantes (garde studio, marque visible ET active,
+ *    `listerVariantes`), nommées par leur libellé d'écran ;
+ *  · un LOT ou une HYPOTHÈSE · ses pubs (relues dans la marque active,
+ *    `lireContexteGestes`) qui viennent d'une variante Studio (`studio_test_links`
+ *    de l'espace ET de la marque), nommées par leur code · les autres pubs du
+ *    contexte sont des `exclus` (nommée seule, l'une d'elles ne désigne rien).
+ * `null` hors portée (autre marque, autre espace, sans droit, inconnu) · aucune écriture.
+ */
+export async function lireVariantesEssai(s: SessionLue, brandId: string, demande: DemandeContexteJarvis, maintenant: Date = new Date()): Promise<{ variantes: VarianteEssaiJarvis[]; exclus: string[] } | null> {
+  if (!db || !UUID.test(demande.id)) return null;
+  try {
+    if (demande.type === 'projet') {
+      const g = await gardeStudio('studio.read');
+      if (!g.ok || g.ctx.workspaceId !== s.workspaceId || !g.ctx.marques.includes(brandId)) return null;
+      const P = schema.studioProjects;
+      const [p] = await db.select({ id: P.id }).from(P).where(and(eq(P.id, demande.id), eq(P.workspaceId, s.workspaceId), eq(P.brandId, brandId))).limit(1);
+      if (!p) return null;
+      const r = await listerVariantes(g.ctx, { projectId: p.id }, { adsmapAcces: canAccess(effectiveAccess(s), ADSMAP), relecture: { disponible: false, raison: null, coutMaxUsd: null } });
+      return r.ok ? { variantes: variantesEssaiProjet(p.id, r.donnees), exclus: [] } : null;
+    }
+    const c = await lireContexteGestes(s, brandId, demande, maintenant);
+    if (!c) return null;
+    const g = await gardeStudio('studio.read');
+    const ids = c.ads.map((a) => a.id);
+    const studio = g.ok && g.ctx.workspaceId === s.workspaceId && g.ctx.marques.includes(brandId);
+    const L = schema.studioTestLinks;
+    const V = schema.studioVariants;
+    const liens = studio && ids.length
+      ? await db.select({ adId: L.adsmapAdId, varianteId: L.variantId, projectId: V.projectId }).from(L)
+        .innerJoin(V, and(eq(V.id, L.variantId), eq(V.workspaceId, L.workspaceId), eq(V.brandId, L.brandId)))
+        .where(and(eq(L.workspaceId, s.workspaceId), eq(L.brandId, brandId), inArray(L.adsmapAdId, ids)))
+      : [];
+    const parAd = new Map(liens.map((l) => [l.adId.toLowerCase(), l]));
+    const essai = g.ok && g.ctx.permissions.espace.has('studio.propose');
+    const variantes: VarianteEssaiJarvis[] = c.ads.flatMap((a) => {
+      const l = parAd.get(a.id.toLowerCase());
+      return l ? [{ varianteId: l.varianteId.toLowerCase(), projectId: l.projectId.toLowerCase(), nom: a.variante, enTest: true, rattachable: false, essai }] : [];
+    });
+    return { variantes, exclus: c.ads.filter((a) => !parAd.has(a.id.toLowerCase())).map((a) => a.variante) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * L'écran d'arrivée de « Tester » ou « Corriger le texte » · la réponse relue
+ * dans la portée (espace, marque ACTIVE, personne · et le fil LIÉ au projet
+ * quand le contexte est un projet), la liste fermée des variantes du contexte
+ * relue de même · `null` · la phrase de refus (`REFUS_GESTE_JARVIS`), rien de
+ * pré-rempli. Aucune écriture, aucun modèle.
+ */
+export async function lireGesteEssaiPourProjet(s: SessionLue, geste: { reponse: string; contexte: DemandeContexteJarvis }): Promise<{ texte: string; variantes: VarianteEssaiJarvis[]; exclus: string[] } | null> {
+  const active = await getActiveBrand(s.workspaceId).catch(() => null);
+  if (!active) return null;
+  const [texte, l] = await Promise.all([
+    lireReponseJarvis(s, active.id, geste.reponse, geste.contexte.type === 'projet' ? { projectId: geste.contexte.id } : {}),
+    lireVariantesEssai(s, active.id, geste.contexte),
+  ]);
+  return texte && l ? { texte, ...l } : null;
 }

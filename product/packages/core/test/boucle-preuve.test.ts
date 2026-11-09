@@ -109,11 +109,13 @@ describe('la provenance rappelée · le lien vers la source quand elle en a une'
     expect(provenanceCarte({ type: 'veille', annonceur: 'Nike', savedAdId: null })).toEqual({ libelle: 'Veille · Nike', href: null, lien: null });
     expect(provenanceCarte({ type: 'libre' }).libelle).toBe('Idée d’équipe');
   });
-  it('la provenance d’un test · l’hypothèse libre d’abord, sinon une itération, sinon rien', () => {
-    expect(provenanceDuTest({ origine: TAG, typeAd: 'iteration' })).toBe('tag');
+  it('la provenance d’un test · l’hypothèse libre d’abord, sinon un geste de Jarvis relu, sinon une itération, sinon rien', () => {
+    const J = { reponseId: 'a0a00000-0000-4000-8000-000000000001', contexte: { type: 'lot' as const, id: 'a0a00000-0000-4000-8000-000000000002' } };
+    expect(provenanceDuTest({ origine: TAG, typeAd: 'iteration', jarvis: J })).toBe('tag');
+    expect(provenanceDuTest({ origine: null, typeAd: 'iteration', jarvis: J })).toBe('jarvis');
     expect(provenanceDuTest({ origine: null, typeAd: 'iteration' })).toBe('iteration');
     expect(provenanceDuTest({ origine: null, typeAd: 'ideation' })).toBeNull();
-    expect(PROVENANCES_TEST.map((p) => p.cle)).toEqual(['tag', 'veille', 'apprentissage', 'persona', 'libre', 'iteration']);
+    expect(PROVENANCES_TEST.map((p) => p.cle)).toEqual(['tag', 'veille', 'apprentissage', 'persona', 'libre', 'jarvis', 'iteration']);
   });
 });
 

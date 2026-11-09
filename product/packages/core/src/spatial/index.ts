@@ -37,3 +37,5 @@ export * from './chiffres-cles-meta';
 export * from './jarvis/contexte';
 export * from './jarvis/gestes';
 export * from './jarvis/suite';
+export * from './jarvis/essai-texte';
+export * from './jarvis/mesure';

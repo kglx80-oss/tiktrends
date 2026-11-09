@@ -130,3 +130,37 @@ export const CORPUS_CONTROLE_JARVIS: readonly ReponseType[] = [
   { genre: 'plusieurs', attendu: null, texte: 'Je te propose deux itérations : changer la musique, puis changer le format.' },
   { genre: 'plusieurs', attendu: null, texte: 'Remplace la fondatrice par une créatrice UGC et ajoute un code promo.' },
 ];
+
+/**
+ * Corpus « ajoute » (lot 5 quater) · le verbe que #1054 laissait hors des
+ * conseils parce qu'il est AUSSI descriptif. Écrit pour éprouver la règle de
+ * l'impératif en tête de proposition (`ajouteEnTete`) · la moitié des entrées
+ * sont des pièges DESCRIPTIFS (sujet devant le verbe, verbe coordonné après
+ * « et » ou une virgule d'énumération, participe, « ajoute à cela ») qui
+ * doivent rester sans variable · un seul pré-choix faux fait tomber la règle.
+ * Même biais que le corpus de réglage (écrit par qui règle) · d'où l'écran de
+ * mesure sur les vraies réponses.
+ */
+export const CORPUS_AJOUTE_JARVIS: readonly ReponseType[] = [
+  /* ── impératif en tête · un conseil ── */
+  { genre: 'une', attendu: 'proof', texte: 'La V1 gagne. Ajoute un témoignage client à la fin, filmé face caméra.' },
+  { genre: 'une', attendu: 'offer', texte: 'Prochain test : ajoute une remise de 10 % sur le premier achat.' },
+  { genre: 'une', attendu: 'cta', texte: 'Pour la V3, ajoute un appel à l’action plus concret.' },
+  { genre: 'une', attendu: 'proof', texte: 'Ensuite, ajoute une preuve chiffrée dès l’ouverture.' },
+  { genre: 'une', attendu: 'audio', texte: 'Ce qui manque :\n- Ajoute une voix off qui explique le geste.' },
+  { genre: 'une', attendu: 'avatar_on_screen', texte: 'Ajoutez une cliente à l’écran, ta cible répond aux visages.' },
+  { genre: 'une', attendu: 'offer', texte: 'Si tu veux aller plus loin, ajoute un code promo de bienvenue.' },
+  { genre: 'une', attendu: 'proof', texte: 'La V2 décroche tôt. Ajouter une preuve sociale en ouverture, c’est le prochain test.' },
+  /* ── descriptif · aucun conseil ── */
+  { genre: 'analyse', attendu: null, texte: 'La V2 ajoute un témoignage et gagne nettement.' },
+  { genre: 'analyse', attendu: null, texte: 'La V1 garde l’accroche, ajoute une preuve et gagne.' },
+  { genre: 'analyse', attendu: null, texte: 'Elle ajoute une remise de 10 %, c’est ce qui la fait gagner.' },
+  { genre: 'analyse', attendu: null, texte: 'Ajouté en fin de vidéo, le témoignage ne sert à rien.' },
+  { genre: 'analyse', attendu: null, texte: 'Ajoute à cela que la V3 a un meilleur appel à l’action.' },
+  { genre: 'analyse', attendu: null, texte: 'La V1, qui ajoute une voix off, retient mieux.' },
+  { genre: 'analyse', attendu: null, texte: 'Le format carrousel ajoute deux secondes de rétention.' },
+  { genre: 'analyse', attendu: null, texte: 'Ta gagnante garde l’offre et ajoute un avis client.' },
+  { genre: 'analyse', attendu: null, texte: 'La V2 a ajouté une musique tendance sans effet sur la rétention.' },
+  /* ── plusieurs ── */
+  { genre: 'plusieurs', attendu: null, texte: 'Ajoute une preuve et une remise de bienvenue.' },
+];
