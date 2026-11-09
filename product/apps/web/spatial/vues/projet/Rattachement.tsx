@@ -151,15 +151,17 @@ export function FormulaireRattachement({ idVariante, initial, adsmap, aUnParent,
   );
 }
 
-export function LotEssai({ projectId, variantes, ouvrirRattachement, horsLigne = false }: {
+export function LotEssai({ projectId, variantes, ouvrirRattachement, horsLigne = false, initial }: {
   projectId: string;
+  /** Lot 5 quater · « Tester » depuis Jarvis · la variante désignée présélectionnée (et l'accroche si Jarvis la désigne) · rien n'est préparé sans le clic. */
+  initial?: { selection: readonly string[]; variable: EssaiVariable | null };
   /** Hors ligne · la préparation et le rattachement depuis un plan sont suspendus. */
   horsLigne?: boolean;
   variantes: ReadonlyArray<{ id: string; libelle: string; version: string }>;
   ouvrirRattachement: (variantId: string, saisie: Saisie) => void;
 }) {
-  const [variable, setVariable] = useState<EssaiVariable | null>(null);
-  const [selection, setSelection] = useState<string[]>([]);
+  const [variable, setVariable] = useState<EssaiVariable | null>(initial?.variable ?? null);
+  const [selection, setSelection] = useState<string[]>(() => (initial?.selection ?? []).filter((x) => variantes.some((v) => v.id === x)));
   const [plan, setPlan] = useState<PlanLotEssai | null>(null);
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
   const [enCours, demarrer] = useTransition();

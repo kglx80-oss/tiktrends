@@ -13,7 +13,7 @@ import { projetsPourColonneJarvis } from '../../../../lib/studios/jarvis-projets
 import { ficheMarqueLue } from '../../../../lib/jarvis-fiche';
 import { lireChiffresClesMeta } from '../../../../lib/chiffres-cles-meta';
 import { resoudreContexteJarvis } from '../../../../lib/jarvis-contexte';
-import { gestesPourContexte } from '../../../../lib/jarvis-gestes';
+import { gestesPourContexte, lireVariantesEssai } from '../../../../lib/jarvis-gestes';
 import { Jarvis, type ContexteJoint, type ConversationArchive } from '../../../../spatial/vues/jarvis/Jarvis';
 import { RefusJarvis } from '../../../../spatial/vues/jarvis/RefusJarvis';
 
@@ -54,6 +54,11 @@ const ANALYTICS = FEATURES.find((f) => f.key === 'analytics')!;
  * admise, lien vers Itérer `&autre=1`) et « Pourquoi ? » (une question sur la
  * pub de départ, PRÉPARÉE dans le champ) · règle du noyau sur la liste fermée
  * des candidates du plan · aucun envoi, aucune écriture, aucun modèle.
+ *
+ * Lot 5 quater · « Tester » et « Corriger le texte » sous la même réponse ·
+ * la liste fermée des variantes Studio du lot ou de l'hypothèse
+ * (`lireVariantesEssai`) · des liens vers la fiche du projet (rattachement, lot
+ * d'essai) et son atelier Textes, qui relisent tout · rien n'est appliqué.
  */
 export default async function JarvisSpatial({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -87,12 +92,17 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
     // Un projet rouvre SON fil (la conversation liée, lecture seule) · sans fil lié, le premier envoi le crée.
     const filProjet = resolu.type === 'projet' ? (await chatThreadAction({ projectId: resolu.id })).thread ?? null : null;
     // Lot 5 bis · un lot ou une hypothèse portent les gestes « Créer l'itération » et « Conclure le lot » (relus dans la marque, rien n'est appliqué).
-    const gestes = resolu.type === 'lot' || resolu.type === 'hypothese' ? await gestesPourContexte(s, brand.id, { type: resolu.type, id: resolu.id }, maintenant) : null;
+    const lotOuHypothese = resolu.type === 'lot' || resolu.type === 'hypothese';
+    const [gestes, essai] = lotOuHypothese
+      ? await Promise.all([gestesPourContexte(s, brand.id, { type: resolu.type, id: resolu.id }, maintenant), lireVariantesEssai(s, brand.id, { type: resolu.type, id: resolu.id }, maintenant)])
+      : [null, null];
     contexte = {
       type: resolu.type, id: resolu.id, libelle: resolu.libelle, lignes: resolu.lignes, questions: resolu.questions,
       ...(filProjet?.conversationId ? { fil: { conversationId: filProjet.conversationId, tours: filProjet.turns } } : {}),
       // Lot 5 ter · « Autre variable » et « Pourquoi ? » lisent la liste FERMÉE des candidates (plan de la marque) sous chaque réponse.
       ...(gestes ? { gestes: { iterer: gestes.iterer, conclure: gestes.conclure }, suite: { candidats: gestes.candidats, exclus: gestes.exclus } } : {}),
+      // Lot 5 quater · « Tester » et « Corriger le texte » lisent la liste FERMÉE des variantes Studio du contexte sous la réponse.
+      ...(gestes && essai ? { essai } : {}),
     };
   }
   // La question de l'adresse (`q`) l'emporte · sinon celle que le contexte prépare. Jamais envoyée seule.

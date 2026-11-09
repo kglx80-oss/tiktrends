@@ -35,6 +35,8 @@ export const OUTILS_ADMIN = [
   { href: '/credits', libelle: 'Crédits & marges' },
   // Inventaire des fichiers déposés qu'aucune donnée ne pointe · lecture seule.
   { href: '/admin/stockage', libelle: 'Stockage' },
+  // Lot 5 quater · la règle de Jarvis rejouée sur les réponses stockées de l'espace · lecture seule, aucun modèle.
+  { href: '/admin/jarvis-mesure', libelle: 'Mesure Jarvis' },
 ] as const;
 
 /** La sous-navigation affichée · la maquette, puis les outils de la plateforme. */

@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
   couloirsDepuisProjet, dateCourteUtc, detailTache, formatCreation, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, mentionAppelTexte, pastilleEnregistrement, relectureNecessaire,
-  iterationProjetDepuisVariantes, noeudsIterationProjet, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
+  iterationProjetDepuisVariantes, variantesEssaiProjet, noeudsIterationProjet, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
 import type { Session } from '../../../../../../lib/auth';
@@ -218,6 +218,8 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         conversationOuverte: !fil.error,
         // Lot 5 ter · les gagnantes du projet (liste fermée, déjà lue dans la portée) · le geste « Créer l'itération » sous une réponse les lit.
         iteration: donnees ? iterationProjetDepuisVariantes(donnees) : null,
+        // Lot 5 quater · toutes les variantes du projet (liste fermée, déjà lue) · « Tester » et « Corriger le texte » sous une réponse les lisent.
+        essai: donnees ? variantesEssaiProjet(pid, donnees) : null,
       },
       brief: {
         projectId: pid, versionId: d.version.id, versionN: d.version.n, ancienne,
