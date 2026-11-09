@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   appliquerPatch, validerContenuVersion, validerFormeBrief, empreinteContenu, differencesDetaillees, contenuVide,
   objetDansPortee, erreurStudio, estIdStable, SCHEMA_VERSION_CONTENU, CLES_CONTENU,
-  refsAdsmapCitees, violationsReferencesAdsmapBrief,
+  refsAdsmapCitees, violationsReferencesAdsmapBrief, offreDuBrief, RAISON_REF_HORS_PORTEE,
   type ContenuVersion, type ErreurStudio, type BriefCanonique,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
@@ -159,10 +159,19 @@ export async function violationsPorteeAdsmap(
 ): Promise<Array<{ chemin: string; raison: string }>> {
   if (typeof brief !== 'object' || brief === null) return [];
   const b = brief as BriefCanonique;
+  // Lot 9 bis · le fait d'offre (`offre.<id>`) cite une offre de la MARQUE du projet (active ou archivée · un brief
+  // d'avant l'archivage reste valide), sinon le même refus indistinct que les `*Ref`.
+  const offre = offreDuBrief(b);
+  const vOffre: Array<{ chemin: string; raison: string }> = [];
+  if (offre) {
+    const [o] = await base.select({ id: schema.offers.id }).from(schema.offers)
+      .where(and(eq(schema.offers.id, offre.id), eq(schema.offers.brandId, brandId), eq(schema.offers.workspaceId, ctx.workspaceId))).limit(1);
+    if (!o) vOffre.push({ chemin: `${chemin}/facts`, raison: RAISON_REF_HORS_PORTEE });
+  }
   const refs = refsAdsmapCitees(b);
-  if (refs.length === 0) return [];
+  if (refs.length === 0) return vOffre;
   const sr = await scopeEtResolveurAdsmap(ctx.workspaceId, brandId, refs, base);
-  return sr ? violationsReferencesAdsmapBrief(b, sr.scope, sr.resolveur, chemin) : [];
+  return [...vOffre, ...(sr ? violationsReferencesAdsmapBrief(b, sr.scope, sr.resolveur, chemin) : [])];
 }
 
 export async function creerProjet(ctx: ContexteStudio, e: EntreeCreation): Promise<Resultat<{ projet: ProjetStudio; version: VersionStudio }>> {

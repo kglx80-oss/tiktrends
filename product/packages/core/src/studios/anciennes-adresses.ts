@@ -52,10 +52,18 @@ export const OBJECTIF_MAX = 2000;
  */
 export const PARAM_PERSONA = 'persona';
 
+/**
+ * L'offre présélectionnée (lot 9 bis V5 · VB M07) · l'identifiant d'une ligne
+ * `adsmap_offers`. Comme le persona, une PROPOSITION · la page la relit dans
+ * les offres ACTIVES de la marque active (portée), sinon elle est ignorée et
+ * c'est dit.
+ */
+export const PARAM_OFFRE = 'offre';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Les paramètres que la préparation lit · un test vérifie que la page les lit tous. */
-export const PARAMS_NOUVEAU_PROJET = ['type', 'angle', 'produit', 'ref', PARAM_ITERATION, 'src', 'srcnom', PARAM_DEPUIS, PARAM_RETOUR_VEILLE, PARAM_PERSONA] as const;
+export const PARAMS_NOUVEAU_PROJET = ['type', 'angle', 'produit', 'ref', PARAM_ITERATION, 'src', 'srcnom', PARAM_DEPUIS, PARAM_RETOUR_VEILLE, PARAM_PERSONA, PARAM_OFFRE] as const;
 
 export interface ContexteLien {
   type?: TypeNouveauProjet | null;
@@ -80,6 +88,8 @@ export interface ContexteLien {
   retourVeille?: string | null;
   /** Persona à présélectionner dans « Pour qui ? » · identifiant `personas` (relu en portée). */
   persona?: string | null;
+  /** Offre à présélectionner dans « Quelle offre ? » · identifiant `adsmap_offers` (relu en portée). */
+  offre?: string | null;
 }
 
 type Params = Record<string, string | string[] | undefined | null>;
@@ -105,6 +115,7 @@ export function lienNouveauProjet(c: ContexteLien = {}): string {
   for (const r of refsValides([c.ref, ...(c.refs ?? [])])) p.append('ref', r);
   if (c.iter && UUID.test(c.iter)) p.set(PARAM_ITERATION, c.iter.toLowerCase());
   if (c.persona && UUID.test(c.persona)) p.set(PARAM_PERSONA, c.persona.toLowerCase());
+  if (c.offre && UUID.test(c.offre)) p.set(PARAM_OFFRE, c.offre.toLowerCase());
   const src = net(c.src, SOURCE_CLE_MAX);
   if (src && sourceVeilleDepuisRef(src)) {
     p.set('src', src);
@@ -173,6 +184,8 @@ export interface ContexteNouveauProjet {
   retourVeille: string | null;
   /** Le persona demandé (identifiant bien formé) · à relire dans la portée avant de le présélectionner. */
   persona: string | null;
+  /** L'offre demandée (identifiant bien formé) · à relire dans la portée avant de la présélectionner. */
+  offre: string | null;
   /** L'adresse portait-elle un contexte (autre que le type) ? */
   aContexte: boolean;
 }
@@ -211,6 +224,8 @@ export function lireContexteNouveauProjet(sp: Params = {}): ContexteNouveauProje
   const retourVeille = premier(sp.depuis) === DEPUIS_VEILLE ? rvPropre(premier(sp[PARAM_RETOUR_VEILLE])) || null : null;
   const personaBrut = premier(sp[PARAM_PERSONA]).trim();
   const persona = UUID.test(personaBrut) ? personaBrut.toLowerCase() : null;
+  const offreBrut = premier(sp[PARAM_OFFRE]).trim();
+  const offre = UUID.test(offreBrut) ? offreBrut.toLowerCase() : null;
   const objectif = [angle, produit ? `Produit : ${produit}` : ''].filter(Boolean).join('\n').slice(0, OBJECTIF_MAX);
   return {
     type: estType(t) ? t : 'ads',
@@ -221,7 +236,8 @@ export function lireContexteNouveauProjet(sp: Params = {}): ContexteNouveauProje
     sourceVeille: source ? { cle: srcCle, nom: source.annonceur } : null,
     retourVeille,
     persona,
-    aContexte: !!(objectif || ref || iter || source || retourVeille || persona),
+    offre,
+    aContexte: !!(objectif || ref || iter || source || retourVeille || persona || offre),
   };
 }
 
@@ -243,7 +259,7 @@ export type EtatRepriseIteration = { etat: 'reprise' } | { etat: 'non_eligible';
  * Ce qui n'a PAS pu être repris, en clair · jamais une perte silencieuse.
  * `refJointe` : l'annonce sauvegardée a été relue dans la portée et sera jointe.
  */
-export function notesContexte(c: ContexteNouveauProjet, o: { refJointe: boolean; iteration: EtatRepriseIteration; personaRetenu?: boolean }): string[] {
+export function notesContexte(c: ContexteNouveauProjet, o: { refJointe: boolean; iteration: EtatRepriseIteration; personaRetenu?: boolean; offreRetenue?: boolean }): string[] {
   const n: string[] = [];
   if (c.ref && !o.refJointe) n.push('L’annonce sauvegardée de ce lien n’est plus accessible (supprimée, d’une autre marque ou hors de tes droits) · le projet partira de l’objectif seul.');
   if (c.sourceVeille && !c.ref) {
@@ -252,6 +268,7 @@ export function notesContexte(c: ContexteNouveauProjet, o: { refJointe: boolean;
   }
   if (o.iteration?.etat === 'non_eligible') n.push(`Le test Adsmap n’a pas été repris · ${o.iteration.motif}`);
   if (c.persona && o.personaRetenu === false) n.push('Le persona de ce lien n’est pas proposé pour la marque active (retiré, écarté ou d’une autre marque) · choisis-le dans « Pour qui ? ».');
+  if (c.offre && o.offreRetenue === false) n.push('L’offre de ce lien n’est pas proposée pour la marque active (archivée ou d’une autre marque) · choisis-la dans « Quelle offre ? ».');
   if (o.iteration?.etat === 'refuse') n.push('Le test Adsmap de ce lien n’est pas lisible ici (supprimé, d’une autre marque ou accès Adsmap requis) · le projet partira de l’objectif seul.');
   return n;
 }

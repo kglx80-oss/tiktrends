@@ -154,6 +154,37 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
     expect(p.rendu).toEqual(p.reference);
   });
 
+  /**
+   * Lot 9 bis V5 · écart DÉCLARÉ · « Quelle offre » (`OffresLot`, une section)
+   * n'existe que si la page lit les offres, juste APRÈS « Pour qui » (en dernier
+   * enfant de la vue, sans actions) · ailleurs, deux fois, ou absente quand
+   * elle est passée, la parité tombe.
+   */
+  it('lot 9 bis · la fiche d’un lot avec « Pour qui » et « Quelle offre » garde la parité · seules les deux sections, en dernier et dans cet ordre, s’ajoutent', () => {
+    const html = rendre(
+      <Lot sous="Lot #1 · Meta · 14 jours" titre="Affirmation ou question ?"
+        verdict={{ gagnant: true, titre: 'v2 · Gagnante', phrase: 'CPA sous la cible.', niveau: 3 }}
+        variantes={['v1', 'v2', 'v3'].map((v, i) => ({ id: v, texte: 'x', image: IMG, tag: `${v} · perdante`, gagnante: i === 1, barre: { libelle: '21 €', part: 70 } }))}
+        controles={[{ icone: 'cal', titre: '14 jours sur 14', detail: 'd' }, { icone: 'chart', titre: '18 000 impressions', detail: 'd' }, { icone: 'lock', titre: 'Règle respectée', detail: 'd' }]}
+        coach={{ avant: 'Le moteur retient :', fort: 'v2 · Gagnante', apres: '.' }}
+        personas={{ variantes: [{ id: 'v1', variante: 'v1', libelle: 'Léa · d’après le brief du projet', desaccord: false, personaId: 'p1' }], groupes: [{ id: 'p1', nom: 'Léa', lecture: 'effectif', phrase: 'p' }], parle: false, phrase: 'silence', regle: 'r' }}
+        offres={{ variantes: [{ id: 'v1', variante: 'v1', libelle: 'Duo · d’après le brief du projet', desaccord: false, offreId: 'o1' }], groupes: [{ id: 'o1', nom: 'Duo', lecture: 'effectif', phrase: 'p' }], parle: false, phrase: 'silence', regle: 'r' }}
+      />,
+    );
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const o = [...t.content.querySelectorAll('[aria-label="Quelle offre · les offres du lot"]')];
+    const p = [...t.content.querySelectorAll('[aria-label="Pour qui · les personas du lot"]')];
+    expect(o, 'la section « Quelle offre » n’est pas rendue une fois').toHaveLength(1);
+    expect(p).toHaveLength(1);
+    expect(o[0]!.parentElement!.lastElementChild, '« Quelle offre » doit être le dernier enfant de la vue').toBe(o[0]);
+    expect(o[0]!.previousElementSibling, '« Quelle offre » suit « Pour qui »').toBe(p[0]);
+    o[0]!.remove();
+    p[0]!.remove();
+    const r = parite(t.innerHTML, 'lot1', { ...VUE, correctifs: CORRECTIFS_CREAS.filter((c) => c.selecteur === '.ad .tag') });
+    expect(r.rendu).toEqual(r.reference);
+  });
+
   it('« Protocole » reproduit la maquette', () => {
     const html = rendre(
       <Protocole sousNav={NAV} peutModifier

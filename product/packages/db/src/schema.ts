@@ -1110,9 +1110,33 @@ export const offers = pgTable('adsmap_offers', {
   discount: text('discount'),
   guarantee: text('guarantee'),
   bundle: boolean('bundle').notNull().default(false),
+  // `false` = ARCHIVÉE (lot 9 bis V5 · rien ne se supprime) · plus proposée au brief ni au rattachement d'un test, toujours lue sur les lots.
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // Lot 9 bis V5 (0072) · le TYPE de l'offre (remise, bundle, garantie, livraison… · liste et libellés au noyau,
+  // `TYPES_OFFRE`) et ses CONDITIONS en clair · NULL pour les offres d'avant.
+  kind: text('kind'),
+  conditions: text('conditions'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
 }, (t) => ({ brandIdx: index('adsmap_offers_brand_idx').on(t.brandId) }));
+
+/**
+ * Allégation de la marque (lot 9 bis V5 · VB PR04, 0072) · ce qu'elle affirme,
+ * sa PREUVE ou sa source, et son statut · `a_prouver` (défaut) ou `prouvee` ·
+ * la règle (une allégation prouvée cite sa preuve) vit au noyau
+ * (`validerAllegation`). `archived_at` · archivée, rien ne se supprime.
+ */
+export const brandClaims = pgTable('brand_claims', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  brandId: uuid('brand_id').notNull().references(() => brands.id, { onDelete: 'cascade' }),
+  text: text('text').notNull(),
+  proof: text('proof'),
+  status: text('status').notNull().default('a_prouver'),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ brandIdx: index('brand_claims_brand_idx').on(t.brandId) }));
 
 /**
  * Page de destination. `cvr30d` est saisi à la main en v1 : l'Admin API Shopify

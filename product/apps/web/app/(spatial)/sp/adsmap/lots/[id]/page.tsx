@@ -3,9 +3,11 @@ import {
   attendArbitrage, barresCpa, coachLot, controlesLot, lotArbitrable, plateformesLot, presentationLot, syntheseLot, verdictAffiche,
   LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest, conclusionLot, referenceConclusion, lienJarvisContexte,
   entreesLecturePersonas, lecturePersonas, libelleAttribution, regleLecturePersonas,
+  entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS,
 } from '@tiktrends/core';
 import { personasEtTests } from '../../../../../../lib/personas-tests';
+import { offresEtTests } from '../../../../../../lib/offres-tests';
 import { lireReponseJarvis } from '../../../../../../lib/jarvis-gestes';
 import { batchDetailAction } from '../../../../../actions/adsmap-batch';
 import { Lot } from '../../../../../../spatial/vues/resultats/Lot';
@@ -36,13 +38,17 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const g = await gardeResultats();
   if (!g.ok) return <RefusResultats titre="Lot de test" raison={g.raison} />;
 
-  const [d, pt] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id), personasEtTests(g.s.workspaceId, g.marque.id)]);
+  const [d, pt, ot] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id), personasEtTests(g.s.workspaceId, g.marque.id), offresEtTests(g.s.workspaceId, g.marque.id)]);
   const l = d.lots.find((x) => x.id === id);
   if (!l) notFound();
   // Lot 9 · le persona de chaque variante (carte ou brief, jamais fusionnés) et la lecture par persona de TOUTE la marque.
   const attribution = (adId: string) => pt.parAd.get(adId) ?? null;
   const lecture = lecturePersonas(entreesLecturePersonas(d.lots, (adId) => attribution(adId)?.persona ?? null), pt.personas);
   const duLot = new Set(l.ads.map((a) => attribution(a.id)?.persona?.id).filter((x): x is string => !!x));
+  // Lot 9 bis · l'offre de chaque variante (test ou brief, jamais fusionnés) et la lecture par offre de TOUTE la marque (même règle).
+  const offreDe = (adId: string) => ot.parAd.get(adId) ?? null;
+  const lectureO = lectureOffres(entreesLectureOffres(d.lots, (adId) => offreDe(adId)?.offre ?? null), ot.offres);
+  const offresDuLot = new Set(l.ads.map((a) => offreDe(a.id)?.offre?.id).filter((x): x is string => !!x));
 
   const pres = presentationLot(l, d.ctx);
   const syn = syntheseLot(l, d.config.targetCpa);
@@ -102,6 +108,14 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
         }),
         groupes: lecture.groupes.filter((x) => duLot.has(x.persona.id)).map((x) => ({ id: x.persona.id, nom: x.persona.nom, lecture: x.lecture, phrase: x.phrase })),
         parle: lecture.parle, phrase: lecture.phrase, regle: regleLecturePersonas(),
+      }}
+      offres={{
+        variantes: l.ads.map((a) => {
+          const at = offreDe(a.id);
+          return { id: a.id, variante: a.variante, offreId: at?.offre?.id ?? null, desaccord: !!at?.desaccord, libelle: at ? libelleAttributionOffre(at) : SANS_OFFRE_TEST };
+        }),
+        groupes: lectureO.groupes.filter((x) => offresDuLot.has(x.ref.id)).map((x) => ({ id: x.ref.id, nom: x.ref.nom, lecture: x.lecture, phrase: x.phrase })),
+        parle: lectureO.parle, phrase: lectureO.phrase, regle: regleLectureOffres(),
       }}
       jarvis={(() => { const href = g.jarvis ? lienJarvisContexte('lot', l.id) : null; return href ? { href } : null; })()}
       actions={<>

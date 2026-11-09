@@ -68,6 +68,16 @@ import type { FaitsLotSpatial } from './lots';
  * pas l'erreur à ce niveau · il est posé au plancher du lot, 4 verdicts
  * tranchés (le même pour la référence). Puissance faible (15 %) · attendu,
  * la lecture se tait le plus souvent et le dit.
+ *
+ * ── Une règle, plusieurs regroupements (lot 9 bis · par offre) ──────────────
+ *
+ * La mesure ci-dessus ne dépend QUE du nombre de groupes qui parlent et de
+ * leurs effectifs · K groupes de verdicts contre le reste de la marque. Elle
+ * vaut telle quelle pour n'importe quel regroupement des mêmes variantes (par
+ * persona, par offre). `lectureParGroupe` est CETTE règle, mêmes seuils, mêmes
+ * niveaux · seuls les mots changent (`VocabulaireLecture`). `lecturePersonas`
+ * en est la lecture par persona, sa sortie inchangée · `lectureOffres`
+ * (`lecture-offres.ts`) la lecture par offre. Aucune copie des seuils.
  */
 
 /** Verdicts tranchés sous lesquels un persona n'a pas le droit de parler · plancher du lot, mesuré. */
@@ -171,35 +181,87 @@ export function niveauLecturePersonas(eligibles: number): number | null {
 }
 
 /**
- * La lecture par persona des verdicts de la marque · chaque nombre de chaque
- * phrase est un compte de verdicts ou une borne d'intervalle, rien d'autre.
- * L'ordre des groupes est celui des `personas` passés (rang de la marque).
+ * Les mots d'une lecture par groupe · le genre et le nombre suivent le groupe
+ * (« un persona », « une offre »). `court` · le nom tel qu'il se lit dans la
+ * phrase d'ensemble (le prénom d'un persona, l'intitulé d'une offre).
  */
-export function lecturePersonas(entrees: readonly EntreeLecturePersona[], personas: readonly PersonaRef[]): LecturePersonas {
+export interface VocabulaireLecture {
+  /** « un persona » · « une offre ». */
+  un: string;
+  /** « du persona » · « de l’offre ». */
+  du: string;
+  /** « Aucun persona » · « Aucune offre ». */
+  aucun: string;
+  /** « personas » · « offres ». */
+  pluriel: string;
+  /** « personas lus » · « offres lues ». */
+  plurielLus: string;
+  /** « par persona » · « par offre ». */
+  par: string;
+  court: (nom: string) => string;
+}
+
+export const VOCABULAIRE_PERSONA: VocabulaireLecture = {
+  un: 'un persona', du: 'du persona', aucun: 'Aucun persona', pluriel: 'personas', plurielLus: 'personas lus', par: 'par persona', court: prenom,
+};
+
+/** Un groupe de la lecture · `ref` · le persona, l'offre… */
+export interface GroupeLecture {
+  ref: PersonaRef;
+  lecture: LecturePersona;
+  k: number;
+  n: number;
+  intervalle: Interval | null;
+  reference: (Compte & { intervalle: Interval }) | null;
+  phrase: string;
+}
+
+export interface LectureGroupes {
+  parle: boolean;
+  niveau: number | null;
+  eligibles: number;
+  tranchees: number;
+  /** Variantes tranchées sans groupe (ou à trancher). */
+  sansGroupe: number;
+  groupes: GroupeLecture[];
+  phrase: string;
+}
+
+export interface EntreeLectureGroupe {
+  groupe: PersonaRef | null;
+  issue: 'gagne' | 'perd' | null;
+}
+
+/**
+ * LA règle · les verdicts de la marque lus par groupe (persona, offre…) · chaque
+ * nombre de chaque phrase est un compte de verdicts ou une borne d'intervalle,
+ * rien d'autre. L'ordre des groupes est celui des `groupes` passés.
+ */
+export function lectureParGroupe(entrees: readonly EntreeLectureGroupe[], groupesConnus: readonly PersonaRef[], v: VocabulaireLecture): LectureGroupes {
   const tranchees = entrees.filter((e) => e.issue);
   const total: Compte = { k: tranchees.filter((e) => e.issue === 'gagne').length, n: tranchees.length };
-  const sansPersona = tranchees.filter((e) => !e.persona).length;
+  const sansGroupe = tranchees.filter((e) => !e.groupe).length;
   const compte = new Map<string, Compte>();
   for (const e of tranchees) {
-    if (!e.persona) continue;
-    const c = compte.get(e.persona.id) ?? { k: 0, n: 0 };
+    if (!e.groupe) continue;
+    const c = compte.get(e.groupe.id) ?? { k: 0, n: 0 };
     c.n++;
     if (e.issue === 'gagne') c.k++;
-    compte.set(e.persona.id, c);
+    compte.set(e.groupe.id, c);
   }
-  // Un persona qui n'a aucun test dans `personas` passés (supprimé) n'est pas lu · ses verdicts restent dans la référence.
-  const lus = personas.filter((p) => compte.has(p.id));
+  // Un groupe qui n'a aucun test dans `groupesConnus` (supprimé) n'est pas lu · ses verdicts restent dans la référence.
+  const lus = groupesConnus.filter((p) => compte.has(p.id));
   const droit = (c: Compte) => c.n >= MIN_VERDICTS_PERSONA && total.n - c.n >= MIN_REFERENCE_PERSONA;
   const eligibles = lus.filter((p) => droit(compte.get(p.id)!)).length;
   const niveau = eligibles ? niveauLecturePersonas(eligibles) : null;
 
-  const groupes: GroupePersona[] = lus.map((p) => {
+  const groupes: GroupeLecture[] = lus.map((p) => {
     const c = compte.get(p.id)!;
     const ref: Compte = { k: total.k - c.k, n: total.n - c.n };
-    const base = { persona: p, k: c.k, n: c.n };
+    const base = { ref: p, k: c.k, n: c.n };
     if (c.n < MIN_VERDICTS_PERSONA) {
       return { ...base, lecture: 'effectif' as const, intervalle: null, reference: null,
-        phrase: `${pl(c.n, 'variante tranchée', 'variantes tranchées')} · il en faut ${MIN_VERDICTS_PERSONA} pour qu’un persona ait le droit de parler.` };
+        phrase: `${pl(c.n, 'variante tranchée', 'variantes tranchées')} · il en faut ${MIN_VERDICTS_PERSONA} pour qu’${v.un} ait le droit de parler.` };
     }
     if (ref.n < MIN_REFERENCE_PERSONA) {
       return { ...base, lecture: 'reference' as const, intervalle: null, reference: null,
@@ -207,7 +269,7 @@ export function lecturePersonas(entrees: readonly EntreeLecturePersona[], person
     }
     if (niveau === null) {
       return { ...base, lecture: 'trop_de_personas' as const, intervalle: null, reference: null,
-        phrase: `${eligibles} personas ont assez de verdicts · au-delà de ${MAX_PERSONAS_LECTURE}, la règle n’est pas mesurée et se tait.` };
+        phrase: `${eligibles} ${v.pluriel} ont assez de verdicts · au-delà de ${MAX_PERSONAS_LECTURE}, la règle n’est pas mesurée et se tait.` };
     }
     const ip = wilsonInterval(c.k, c.n, niveau);
     const ir = wilsonInterval(ref.k, ref.n, niveau);
@@ -221,15 +283,28 @@ export function lecturePersonas(entrees: readonly EntreeLecturePersona[], person
 
   const parle = groupes.some((g) => g.lecture === 'au_dessus' || g.lecture === 'en_dessous');
   let phrase: string;
-  if (!total.n) phrase = 'Aucune variante tranchée au protocole · rien à lire par persona pour l’instant.';
-  else if (!eligibles) phrase = `Aucun persona n’a encore ${MIN_VERDICTS_PERSONA} variantes tranchées · la lecture par persona se tait, faute d’effectif.`;
-  else if (niveau === null) phrase = `${eligibles} personas ont assez de verdicts · au-delà de ${MAX_PERSONAS_LECTURE}, la règle n’est pas mesurée · elle se tait.`;
-  else if (!parle) phrase = 'Aucun persona ne se détache du reste de la marque · le silence est la conclusion la plus fréquente, il ne dit pas que les personas se valent.';
+  if (!total.n) phrase = `Aucune variante tranchée au protocole · rien à lire ${v.par} pour l’instant.`;
+  else if (!eligibles) phrase = `${v.aucun} n’a encore ${MIN_VERDICTS_PERSONA} variantes tranchées · la lecture ${v.par} se tait, faute d’effectif.`;
+  else if (niveau === null) phrase = `${eligibles} ${v.pluriel} ont assez de verdicts · au-delà de ${MAX_PERSONAS_LECTURE}, la règle n’est pas mesurée · elle se tait.`;
+  else if (!parle) phrase = `${v.aucun} ne se détache du reste de la marque · le silence est la conclusion la plus fréquente, il ne dit pas que les ${v.pluriel} se valent.`;
   else {
-    const d = groupes.filter((g) => g.lecture === 'au_dessus' || g.lecture === 'en_dessous').map((g) => `${prenom(g.persona.nom)} ${g.lecture === 'au_dessus' ? 'au-dessus' : 'en dessous'}`);
+    const d = groupes.filter((g) => g.lecture === 'au_dessus' || g.lecture === 'en_dessous').map((g) => `${v.court(g.ref.nom)} ${g.lecture === 'au_dessus' ? 'au-dessus' : 'en dessous'}`);
     phrase = `${d.join(' · ')} du reste de la marque, intervalles disjoints au niveau ${String(niveau).replace('.', ',')}.`;
   }
-  return { parle, niveau, eligibles, tranchees: total.n, sansPersona, groupes, phrase };
+  return { parle, niveau, eligibles, tranchees: total.n, sansGroupe, groupes, phrase };
+}
+
+/**
+ * La lecture par persona des verdicts de la marque · `lectureParGroupe` avec
+ * les mots du persona, sortie inchangée (`persona`, `sansPersona`).
+ * L'ordre des groupes est celui des `personas` passés (rang de la marque).
+ */
+export function lecturePersonas(entrees: readonly EntreeLecturePersona[], personas: readonly PersonaRef[]): LecturePersonas {
+  const l = lectureParGroupe(entrees.map((e) => ({ groupe: e.persona, issue: e.issue })), personas, VOCABULAIRE_PERSONA);
+  return {
+    parle: l.parle, niveau: l.niveau, eligibles: l.eligibles, tranchees: l.tranchees, sansPersona: l.sansGroupe,
+    groupes: l.groupes.map(({ ref, ...g }) => ({ persona: ref, ...g })), phrase: l.phrase,
+  };
 }
 
 /**
@@ -238,8 +313,13 @@ export function lecturePersonas(entrees: readonly EntreeLecturePersona[], person
  * persona (`attribution(adId)`) et son issue (`issueVariante`).
  */
 export function entreesLecturePersonas(lots: readonly FaitsLotSpatial[], attribution: (adId: string) => PersonaRef | null): EntreeLecturePersona[] {
+  return entreesLectureGroupes(lots, attribution).map((e) => ({ persona: e.groupe, issue: e.issue }));
+}
+
+/** Les entrées de `lectureParGroupe` · les variantes des lots SUIVIS, chacune avec son groupe et son issue. */
+export function entreesLectureGroupes(lots: readonly FaitsLotSpatial[], attribution: (adId: string) => PersonaRef | null): EntreeLectureGroupe[] {
   return lots.filter((l) => !estLotImporte({ status: l.statut, launchedAt: l.lanceLe }))
-    .flatMap((l) => l.ads.map((a) => ({ persona: attribution(a.id), issue: issueVariante(a) })));
+    .flatMap((l) => l.ads.map((a) => ({ groupe: attribution(a.id), issue: issueVariante(a) })));
 }
 
 /** Combien de tests ciblent ce persona, et dans combien de lots (« N tests · N lots » de la fiche). */
@@ -255,7 +335,12 @@ export function bilanTestsPersona(lots: readonly FaitsLotSpatial[], attribution:
 
 /** La règle, dite à l'écran sous la lecture · les seuils du module, jamais recopiés. */
 export function regleLecturePersonas(): string {
-  return `Règle · au moins ${MIN_VERDICTS_PERSONA} variantes tranchées au protocole pour un persona et ${MIN_REFERENCE_PERSONA} dans le reste de la marque · l’intervalle du persona doit exclure celui du reste (niveau ${String(NIVEAU_LECTURE_PERSONA).replace('.', ',')}, ${String(NIVEAU_LECTURE_PERSONA_NOMBREUX).replace('.', ',')} au-delà de ${PERSONAS_NIVEAU_DE_BASE} personas lus, silence au-delà de ${MAX_PERSONAS_LECTURE}).`;
+  return regleLecture(VOCABULAIRE_PERSONA);
+}
+
+/** La règle d'une lecture par groupe, dite avec ses mots · les seuils du module, jamais recopiés. */
+export function regleLecture(v: VocabulaireLecture): string {
+  return `Règle · au moins ${MIN_VERDICTS_PERSONA} variantes tranchées au protocole pour ${v.un} et ${MIN_REFERENCE_PERSONA} dans le reste de la marque · l’intervalle ${v.du} doit exclure celui du reste (niveau ${String(NIVEAU_LECTURE_PERSONA).replace('.', ',')}, ${String(NIVEAU_LECTURE_PERSONA_NOMBREUX).replace('.', ',')} au-delà de ${PERSONAS_NIVEAU_DE_BASE} ${v.plurielLus}, silence au-delà de ${MAX_PERSONAS_LECTURE}).`;
 }
 
 /**

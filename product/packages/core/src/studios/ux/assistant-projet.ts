@@ -39,6 +39,7 @@ import { FORMATS_DOCUMENT, ORDRE_FORMATS, estFormatDocument, formatDepuisBrief, 
 import type { ChangementPatch } from '../patch';
 import type { HypotheseTest } from '../sources/hypotheses';
 import type { ReferenceAdsmap } from '../references-adsmap';
+import { faitsAvecOffre, offreDuBrief, type OffreBrief } from '../../spatial/marque/offres';
 import { TYPES_NOUVEAU_PROJET, verifierNouveauProjet, type TypeNouveauProjet } from './nouveau-projet';
 
 /* ─────────────────────────────── Étapes ──────────────────────────────────── */
@@ -175,10 +176,16 @@ export interface SaisieBriefV5 {
   concept: string;
   /** « Contraintes et mentions obligatoires » · une par ligne, rangées en invariants. */
   contraintes: string;
+  /**
+   * Lot 9 bis · « Quelle offre ? » · l'offre de la marque choisie, son texte
+   * figé au choix · entre dans le brief comme FAIT DÉCLARÉ (`faitOffre`), aucun
+   * champ nouveau. Absent ou `null` · aucune offre (facultatif).
+   */
+  offre?: OffreBrief | null;
 }
 
 export function saisieBriefVide(): SaisieBriefV5 {
-  return { intention: '', audience: '', objectifType: null, plateformes: [], persona: null, angle: '', concept: '', contraintes: '' };
+  return { intention: '', audience: '', objectifType: null, plateformes: [], persona: null, angle: '', concept: '', contraintes: '', offre: null };
 }
 
 /**
@@ -190,7 +197,7 @@ export function saisieDepuisBrief(brief: BriefCanonique): SaisieBriefV5 {
   return {
     intention: brief.objective, audience: brief.audience, contraintes: brief.invariants.join('\n'),
     objectifType: brief.objectifType ?? null, plateformes: brief.plateformes ?? [], persona: brief.personaRef ?? null,
-    angle: brief.angle ?? '', concept: brief.concept ?? '',
+    angle: brief.angle ?? '', concept: brief.concept ?? '', offre: offreDuBrief(brief),
   };
 }
 
@@ -232,7 +239,29 @@ export function construireBriefV5(s: SaisieBriefV5): BriefCanonique {
   if (angle) b.angle = angle;
   const concept = borne(s.concept);
   if (concept) b.concept = concept;
+  if (s.offre) b.facts = faitsAvecOffre(b.facts, s.offre);
   return b;
+}
+
+/**
+ * Le brief SUIVANT quand le formulaire de l'assistant est renvoyé sur un projet
+ * déjà créé · seuls les champs du formulaire (`CHAMPS_FORMULAIRE_BRIEF`) sont
+ * réécrits, et, dans les faits, SEUL le fait d'offre (lot 9 bis) · hypothèse,
+ * faits du produit et des sources, références, style, composition et textes
+ * gardent leur version. `change` · faux quand rien ne bouge (aucune version).
+ */
+export function briefApresFormulaire(courant: BriefCanonique, formulaire: BriefCanonique): { brief: BriefCanonique; change: boolean } {
+  const ancien = construireBriefV5(saisieDepuisBrief(courant));
+  const modifie = CHAMPS_FORMULAIRE_BRIEF.filter((cle) => JSON.stringify(ancien[cle]) !== JSON.stringify(formulaire[cle]));
+  const suivant = { ...courant } as BriefCanonique;
+  for (const cle of modifie) {
+    if (formulaire[cle] === undefined) delete (suivant as unknown as Record<string, unknown>)[cle];
+    else (suivant as unknown as Record<string, unknown>)[cle] = formulaire[cle];
+  }
+  const avant = offreDuBrief(courant), apres = offreDuBrief(formulaire);
+  const offreChange = JSON.stringify(avant) !== JSON.stringify(apres);
+  if (offreChange) suivant.facts = faitsAvecOffre(courant.facts, apres);
+  return { brief: suivant, change: modifie.length > 0 || offreChange };
 }
 
 /** La forme du brief composé · liste vide = prêt à écrire. Le serveur revérifie. */

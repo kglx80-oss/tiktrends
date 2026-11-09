@@ -3,6 +3,7 @@ import { LIBELLE_NIVEAU, MIN_REFERENCE_CONCLUSION, MIN_VARIANTES_CONCLUSION, typ
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Points, Pub, rangeeVariantes } from './communs';
 import { PersonasLot, type PropsPersonasLot } from './PersonasLot';
+import { OffresLot, type PropsOffresLot } from './OffresLot';
 
 /**
  * Fiche d'un lot (« lot1 ») · `docs/spatial/reference/lot1.html`, balisage à
@@ -40,6 +41,8 @@ export interface PropsLot {
   jarvis?: { href: string } | null;
   /** Lot 9 V5 · « Pour qui » · le persona de chaque variante et la lecture par persona (`PersonasLot`) · absent, rien n'est ajouté. */
   personas?: PropsPersonasLot;
+  /** Lot 9 bis V5 · « Quelle offre » · l'offre de chaque variante et la lecture par offre (`OffresLot`) · absent, rien n'est ajouté. */
+  offres?: PropsOffresLot;
 }
 
 const TON_CONCLUSION: Record<LectureConclusion['conclusion'], { pill: string; couleur: string; icone: string }> = {
@@ -113,6 +116,7 @@ export function Lot(p: PropsLot) {
         </section>
       )}
       {p.personas && <PersonasLot p={p.personas} />}
+      {p.offres && <OffresLot p={p.offres} />}
       {p.actions}
     </Vue>
   );
