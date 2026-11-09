@@ -93,10 +93,10 @@ export function BasculeLocale({ libelle, controle, actif, changer }: { libelle: 
 }
 
 /** La bascule Grille / Liste · le choix reste sur l'appareil (cookie d'ergonomie, comme le rail et le thème). */
-export function BasculeAffichage({ affichage, changer }: { affichage: AffichageVeille; changer: (a: AffichageVeille) => void }) {
+export function BasculeAffichage({ affichage, changer, cookie }: { affichage: AffichageVeille; changer: (a: AffichageVeille) => void; cookie?: Parameters<typeof affichageCookieString>[1] }) {
   const choisir = (a: AffichageVeille) => {
     changer(a);
-    try { document.cookie = affichageCookieString(a); } catch { /* cookie refusé · le choix vaut pour cette page */ }
+    try { document.cookie = affichageCookieString(a, cookie); } catch { /* cookie refusé · le choix vaut pour cette page */ }
   };
   return (
     <span role="group" aria-label="Affichage" style={{ display: 'inline-flex', gap: 6 }} data-bascule-affichage>

@@ -29,6 +29,7 @@ import { lienRetourVeille, PARAM_RETOUR_VEILLE, DEPUIS_VEILLE } from '../retour-
 import { PARAM_DEPUIS } from '../adsmap/passage-studio';
 import { sourceVeilleDepuisRef } from '../veille-liens';
 import { lireIterationDemandee, PARAM_ITERATION, type BriefDepuisTest } from '../brief-iteration';
+import { SOURCES_MAX } from './sources/reference';
 
 export const CHEMIN_PROJETS = '/studio/projets';
 export const CHEMIN_NOUVEAU_PROJET = '/studio/projets/nouveau';
@@ -64,6 +65,12 @@ export interface ContexteLien {
   produit?: string | null;
   /** Identifiant d'une annonce SAUVEGARDÉE · jointe comme source du projet. */
   ref?: string | null;
+  /**
+   * Lot 6 bis (SV01) · PLUSIEURS annonces sauvegardées (sélection des
+   * Sauvegardes) · écrites comme `ref` répétés après `ref`, sans doublon, au
+   * plus `SOURCES_MAX` (les références qu'un projet accepte).
+   */
+  refs?: readonly string[] | null;
   /** Identifiant d'un test Adsmap · son brief d'itération est relu côté serveur. */
   iter?: string | null;
   /** Annonce de la Veille par sa clé `plateforme:id` et son annonceur (provenance seule). */
@@ -95,7 +102,7 @@ export function lienNouveauProjet(c: ContexteLien = {}): string {
   if (angle) p.set('angle', angle);
   const produit = net(c.produit, PRODUIT_MAX);
   if (produit) p.set('produit', produit);
-  if (c.ref && UUID.test(c.ref)) p.set('ref', c.ref.toLowerCase());
+  for (const r of refsValides([c.ref, ...(c.refs ?? [])])) p.append('ref', r);
   if (c.iter && UUID.test(c.iter)) p.set(PARAM_ITERATION, c.iter.toLowerCase());
   if (c.persona && UUID.test(c.persona)) p.set(PARAM_PERSONA, c.persona.toLowerCase());
   const src = net(c.src, SOURCE_CLE_MAX);
@@ -168,6 +175,27 @@ export interface ContexteNouveauProjet {
   persona: string | null;
   /** L'adresse portait-elle un contexte (autre que le type) ? */
   aContexte: boolean;
+}
+
+/** Les identifiants de sauvegarde valides, en minuscules, sans doublon, au plus `SOURCES_MAX`. */
+function refsValides(v: ReadonlyArray<string | null | undefined>): string[] {
+  const out: string[] = [];
+  for (const brut of v) {
+    const r = (brut ?? '').trim().toLowerCase();
+    if (UUID.test(r) && !out.includes(r)) out.push(r);
+    if (out.length >= SOURCES_MAX) break;
+  }
+  return out;
+}
+
+/**
+ * Lot 6 bis (SV01) · TOUTES les annonces sauvegardées de l'adresse (`ref`
+ * répété) · une valeur forgée est ignorée, au plus `SOURCES_MAX`. `ref` de
+ * `lireContexteNouveauProjet` reste la première (une seule = le cas d'avant).
+ */
+export function lireRefsNouveauProjet(sp: Params = {}): string[] {
+  const v = sp.ref;
+  return refsValides(Array.isArray(v) ? v : [v ?? null]);
 }
 
 /** Ce que la préparation relit de son adresse · chaque valeur bornée, une valeur forgée ignorée. */

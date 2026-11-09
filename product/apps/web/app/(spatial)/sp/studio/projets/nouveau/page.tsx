@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import {
-  aPermissionEspace, briefDepuisTest, capacitesDuRefus, etatNouveauProjet, lienRetourVeille, lireContexteNouveauProjet,
-  notesContexte, objectifDepuisIteration, refusStudiosSpatial, titreNouveauProjetParDefaut,
+  aPermissionEspace, briefDepuisTest, capacitesDuRefus, etatNouveauProjet, lienRetourVeille, lireContexteNouveauProjet, lireRefsNouveauProjet,
+  notesContexte, objectifDepuisIteration, refusStudiosSpatial, titreNouveauProjetParDefaut, REFUS_SELECTION_PROJET,
   CHEMIN_PROJETS, OBJECTIF_MAX, TYPES_NOUVEAU_PROJET,
   type EtatRepriseIteration, type TypeNouveauProjet,
 } from '@tiktrends/core';
@@ -18,6 +18,7 @@ import { ouvrirAssistantProjet } from '../../../../../actions/studios/assistant'
 import type { DepartAssistant } from '../../../../../actions/studios/departs-assistant';
 import { couleursDeLaMarque } from '../../../../../../lib/studios/palette-marque';
 import { NouveauProjet } from '../../../../../../spatial/vues/studios/NouveauProjet';
+import { relireSelectionProjet } from '../../../../../../lib/sauvegardes-projet';
 import { RefusStudios } from '../../../../../../spatial/vues/studios/Refus';
 
 export const dynamic = 'force-dynamic';
@@ -52,7 +53,10 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
   const etat = etatNouveauProjet({ peutProposer, marqueActive: active && g.ctx.marques.includes(active.id) ? { id: active.id, name: active.name } : null });
 
   let annonce: { annonceur: string } | null = null;
-  if (c.ref) {
+  // Lot 6 bis (SV01) · plusieurs `ref` (sélection des Sauvegardes) · relues ENSEMBLE dans la marque active, ou aucune.
+  const refs = lireRefsNouveauProjet(await searchParams);
+  const selection = refs.length > 1 ? await relireSelectionProjet({ ...g.ctx, marques: active && g.ctx.marques.includes(active.id) ? [active.id] : [] }, refs, { veilleOuverte: g.veilleOuverte }) : null;
+  if (c.ref && !selection) {
     const r = await chargerSources({ ...g.ctx, marques: active && g.ctx.marques.includes(active.id) ? [active.id] : [] }, [{ type: 'sauvegarde', id: c.ref }], { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
     if (r.ok && r.sources[0]) annonce = { annonceur: r.sources[0].annonceur || 'une annonce sauvegardée' };
   }
@@ -78,9 +82,9 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
   }
 
   const marqueNom = etat.etat === 'pret' ? etat.marque.nom : '';
-  const objectif = [depuisTest && c.iter ? `Test source Adsmap : ${c.iter}` : '', depuisTest?.objectif ?? '', c.objectif].filter(Boolean).join('\n').slice(0, OBJECTIF_MAX);
+  const objectif = [depuisTest && c.iter ? `Test source Adsmap : ${c.iter}` : '', depuisTest?.objectif ?? '', selection?.ok ? selection.brief : '', c.objectif].filter(Boolean).join('\n').slice(0, OBJECTIF_MAX);
   const titresParDefaut = Object.fromEntries(TYPES_NOUVEAU_PROJET.map((t) => [t, titreNouveauProjetParDefaut(t, marqueNom || 'ta marque')])) as Record<TypeNouveauProjet, string>;
-  const titre = depuisTest?.titre ?? (annonce ? `D’après ${annonce.annonceur}` : titresParDefaut[c.type]);
+  const titre = depuisTest?.titre ?? (selection?.ok ? selection.titre : annonce ? `D’après ${annonce.annonceur}` : titresParDefaut[c.type]);
 
   // Personas Adsmap et produits (avec leurs photos) de la marque active · la lecture de l'assistant, aucune écriture.
   const ouverture = etat.etat === 'pret' ? await ouvrirAssistantProjet() : null;
@@ -93,7 +97,7 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
   const marques = (await listBrands(s.workspaceId)).filter((b) => g.ctx.marques.includes(b.id)).map((b) => ({ id: b.id, nom: b.name, active: b.id === active?.id }));
 
   // Le départ repris · l'annonce relue devient une référence (attachée au projet à sa création), le test gagnant devient le départ.
-  const reference: DepartAssistant | null = annonce && c.ref
+  const reference: DepartAssistant | null = selection?.ok ? selection.references[0]! : annonce && c.ref
     ? { origine: 'veille', id: c.ref, titre: `D’après ${annonce.annonceur}`, intention: '', sources: [{ type: 'sauvegarde', id: c.ref }], testId: null }
     : null;
   const depart: DepartAssistant | null = depuisTest && c.iter
@@ -101,6 +105,7 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
     : reference;
   const repris = [
     annonce ? `Source jointe au projet à sa création · l’annonce sauvegardée de ${annonce.annonceur}.` : '',
+    selection?.ok ? `${selection.references.length} sources jointes au projet à sa création · les annonces sauvegardées de ${[...new Set(selection.annonceurs)].join(', ')} · leurs tags et notes sont proposés dans ton intention, à relire (rien n’est généré).` : '',
     iteration?.etat === 'reprise' ? 'Le brief du test Adsmap gagnant est repris dans l’intention · relis-le avant de continuer.' : '',
   ].filter(Boolean);
 
@@ -117,8 +122,8 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
       produits={produits}
       paletteMarque={palette}
       contexte={{
-        depart, references: reference ? [reference] : [], repris,
-        notes: notesContexte(c, { refJointe: !!annonce, iteration, personaRetenu: !!personaInitial }),
+        depart, references: selection?.ok ? selection.references : reference ? [reference] : [], repris,
+        notes: selection ? [...(selection.ok ? [] : [REFUS_SELECTION_PROJET]), ...notesContexte({ ...c, ref: null }, { refJointe: false, iteration, personaRetenu: !!personaInitial })] : notesContexte(c, { refJointe: !!annonce, iteration, personaRetenu: !!personaInitial }),
         retourVeille: c.retourVeille ? { href: lienRetourVeille(c.retourVeille) ?? '/veille' } : null,
       }}
     />

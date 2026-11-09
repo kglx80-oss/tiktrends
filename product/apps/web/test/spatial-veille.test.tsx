@@ -156,7 +156,51 @@ import { Concurrents } from '../spatial/vues/veille/Concurrents';
 // texte inventé) · l'écran réel y met l'image de l'annonce, sans texte ajouté.
 const IGNORER_AD = ['.ad'];
 
+/**
+ * Lot 6 bis V5 · écarts DÉCLARÉS des Sauvegardes · la bascule Grille / Liste
+ * (SV06, `[data-bascule-affichage]`) UNE fois, dans la barre, juste après le
+ * compteur et juste avant « Créer un projet » · la case « Sélectionner »
+ * (SV01, `[data-selection-sauvegarde]`) UNE par carte, en DERNIER des gestes
+ * (`.acts`). Retirées à ces conditions exactes · ailleurs, en trop ou en moins,
+ * elles restent et font tomber la parité.
+ */
+function sansAjoutsSauvegardes(html: string, cartes: number): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const bascules = [...t.content.querySelectorAll('[data-bascule-affichage]')];
+  const cases = [...t.content.querySelectorAll('[data-selection-sauvegarde]')];
+  const basculeEnPlace = bascules.length === 1 && bascules[0]!.parentElement?.classList.contains('toolbar')
+    && bascules[0]!.previousElementSibling?.matches('span.faint') && bascules[0]!.nextElementSibling?.matches('a.btn.pri');
+  const casesEnPlace = cases.length === cartes && cases.every((c) => c.parentElement?.classList.contains('acts') && c.nextElementSibling === null);
+  if (!basculeEnPlace || !casesEnPlace) return html;
+  [...bascules, ...cases].forEach((x) => x.remove());
+  return t.innerHTML;
+}
+
 describe('Spatial · Veille · parité des autres écrans', () => {
+  it('lot 6 bis · la garde voit un écart · une case de sélection hors des gestes, ou la bascule hors de la barre, font tomber la parité', () => {
+    const doc = refDoc('sauvegardes');
+    const n = doc.querySelectorAll('article.vitem').length;
+    const items: SauvegardeDonnees[] = Array.from({ length: n }, (_, i) => ({
+      id: `s${i}`, platform: 'meta', externalId: `e${i}`, ad: { ...AD, id: `e${i}` }, folder: null,
+      marque: { nom: 'Annonceur', initiale: 'A', fond: '#ffb3c7' }, source: 'FR · Meta', image: 'https://x/i.jpg',
+      longue: null, video: false, meta: ['Active · 34 j', 'Image · Meta'], pastilles: [], cloner: '/studio/projets/nouveau',
+    }));
+    const html = rendre(<Sauvegardes items={items} pastilleRadar={SOUS_NAV_TEST} creerProjet="/studio/projets/nouveau" />);
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    expect(t.content.querySelectorAll('[data-selection-sauvegarde]').length, 'une case de sélection par carte').toBe(n);
+    // La case déplacée avant « Gardée » · plus en dernier · la garde ne la retire pas.
+    const acts = t.content.querySelector('article.vitem .acts')!;
+    acts.prepend(acts.querySelector('[data-selection-sauvegarde]')!);
+    expect(sansAjoutsSauvegardes(t.innerHTML, n)).toBe(t.innerHTML);
+    // La bascule hors de la barre · idem.
+    const t2 = document.createElement('template');
+    t2.innerHTML = html;
+    t2.content.querySelector('.vfeed')!.before(t2.content.querySelector('[data-bascule-affichage]')!);
+    expect(sansAjoutsSauvegardes(t2.innerHTML, n)).toBe(t2.innerHTML);
+  });
+
   it('« Sauvegardes » reproduit la maquette (collections = dossiers réels)', () => {
     const doc = refDoc('sauvegardes');
     const vitems = [...doc.querySelectorAll('article.vitem')];
@@ -171,7 +215,7 @@ describe('Spatial · Veille · parité des autres écrans', () => {
     }));
     expect(items).toHaveLength(4);
     const html = rendre(<Sauvegardes items={items} pastilleRadar={SOUS_NAV_TEST} creerProjet="/studio/projets/nouveau" />);
-    const p = parite(html, 'sauvegardes', { ignorer: IGNORER_AD });
+    const p = parite(sansAjoutsSauvegardes(html, items.length), 'sauvegardes', { ignorer: IGNORER_AD });
     expect(p.rendu).toEqual(p.reference);
   });
 
@@ -187,7 +231,7 @@ describe('Spatial · Veille · parité des autres écrans', () => {
     }));
     const html = rendre(<Sauvegardes items={items} pastilleRadar={SOUS_NAV_TEST} creerProjet="/studio/projets/nouveau" />);
     const t = document.createElement('template');
-    t.innerHTML = html;
+    t.innerHTML = sansAjoutsSauvegardes(html, items.length);
     const ajouts = [...t.content.querySelectorAll('[data-tags-sauvegarde], [data-note-sauvegarde]')];
     expect(ajouts.map((x) => x.hasAttribute('data-tags-sauvegarde') ? 'tags' : 'note'), 'tags ou note absents, ou en trop').toEqual(['tags', 'note']);
     // À leur place · juste après la rangée des pastilles (ou la rangée de tags).
