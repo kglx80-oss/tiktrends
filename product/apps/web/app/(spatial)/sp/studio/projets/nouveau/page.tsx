@@ -91,6 +91,10 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
   const personas = ouverture?.ok ? ouverture.props.personas : [];
   // Lot 9 · le persona du lien (« Créer une pub » d'une fiche persona) n'est présélectionné que s'il est proposé ici (marque active, portée).
   const personaInitial = c.persona ? personas.find((x) => x.id === c.persona) ?? null : null;
+  // Lot 9 bis · l'offre du lien (« Créer une pub » d'une offre de la fiche) · seulement une offre ACTIVE de la marque active.
+  const offres = ouverture?.ok ? ouverture.props.offres : [];
+  const allegations = ouverture?.ok ? ouverture.props.allegations : [];
+  const offreInitiale = c.offre ? offres.find((x) => x.brief.id === c.offre)?.brief ?? null : null;
   const produits = ouverture?.ok ? ouverture.props.produits : [];
   // Lot 8 · les pastilles de la palette (étape Style) · la fiche de la marque active, dans la portée.
   const palette = etat.etat === 'pret' ? await couleursDeLaMarque(s.workspaceId, etat.marque.id).catch(() => []) : [];
@@ -116,14 +120,16 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
       marques={marques}
       ajouterMarque={roleAtLeast(s.role, 'admin') ? '/brands/new' : null}
       // Un lien porteur de contexte (test, annonce, objectif) ouvre directement le brief, où le repris est dit.
-      initial={{ type: c.type, titre, intention: objectif, etape: c.aContexte ? 'brief' : 'start', persona: personaInitial }}
+      initial={{ type: c.type, titre, intention: objectif, etape: c.aContexte ? 'brief' : 'start', persona: personaInitial, offre: offreInitiale }}
       titresParDefaut={titresParDefaut}
       personas={personas}
+      offres={offres}
+      allegations={allegations}
       produits={produits}
       paletteMarque={palette}
       contexte={{
         depart, references: selection?.ok ? selection.references : reference ? [reference] : [], repris,
-        notes: selection ? [...(selection.ok ? [] : [REFUS_SELECTION_PROJET]), ...notesContexte({ ...c, ref: null }, { refJointe: false, iteration, personaRetenu: !!personaInitial })] : notesContexte(c, { refJointe: !!annonce, iteration, personaRetenu: !!personaInitial }),
+        notes: selection ? [...(selection.ok ? [] : [REFUS_SELECTION_PROJET]), ...notesContexte({ ...c, ref: null }, { refJointe: false, iteration, personaRetenu: !!personaInitial, offreRetenue: !!offreInitiale })] : notesContexte(c, { refJointe: !!annonce, iteration, personaRetenu: !!personaInitial, offreRetenue: !!offreInitiale }),
         retourVeille: c.retourVeille ? { href: lienRetourVeille(c.retourVeille) ?? '/veille' } : null,
       }}
     />

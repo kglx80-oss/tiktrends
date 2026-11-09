@@ -7,3 +7,4 @@ export * from './conclusion-lot';
 export * from './apprentissage-suite';
 export * from './lecture-personas';
 export * from './boucle-preuve';
+export * from './lecture-offres';

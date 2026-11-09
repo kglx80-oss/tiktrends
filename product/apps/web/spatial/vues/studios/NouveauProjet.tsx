@@ -3,12 +3,12 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  cheminPorte, construireBriefV5, contenuVide, enTeteEtapeNouveau, etapeDisponible, etapeProjetPrecedente, etapeRequiertProjet,
+  briefApresFormulaire, cheminPorte, contenuVide, enTeteEtapeNouveau, etapeDisponible, etapeProjetPrecedente, etapeRequiertProjet,
   etapesNouveauSpatial, etatRailProjet, infoEtapeNouveau, messageHorsLigneStudio, numeroEtapeNouveau, saisieDepuisBrief,
-  saisieBriefVide, verifierCreationAssistant,
-  ALLOWED_PATHS_BRIEF, CHAMPS_FORMULAIRE_BRIEF, CHEMIN_PROJETS, ETAPES_NOUVEAU_SPATIAL, DEPARTS_SPATIAL, JARVIS_NOUVEAU, LIBELLES_OBJECTIF_V5, LIBELLES_PLATEFORME_V5,
+  saisieBriefVide, verifierCreationAssistant, LIBELLES_STATUT_ALLEGATION, statutAllegation,
+  ALLOWED_PATHS_BRIEF, CHEMIN_PROJETS, ETAPES_NOUVEAU_SPATIAL, DEPARTS_SPATIAL, JARVIS_NOUVEAU, LIBELLES_OBJECTIF_V5, LIBELLES_PLATEFORME_V5,
   LIVRABLES_SPATIAL, OBJECTIFS_V5, OBJECTIF_MAX, PLATEFORMES_V5, TITRE_NOUVEAU_PROJET_MAX,
-  type BriefCanonique, type ContenuVersion, type EtapeAssistant, type EtatNouveauProjet, type PlateformeV5, type ReferenceAdsmap,
+  type BriefCanonique, type ContenuVersion, type EtapeAssistant, type EtatNouveauProjet, type OffreBrief, type PlateformeV5, type ReferenceAdsmap,
   type SaisieBriefV5, type TypeNouveauProjet,
 } from '@tiktrends/core';
 import { creerProjet } from '../../../app/actions/studios/projets';
@@ -54,17 +54,24 @@ import { Creations } from './assistant/Creations';
 
 export interface ProduitAssistant { id: string; nom: string; photos: Array<{ assetId: string; apercu: string | null; position: number }> }
 
+export interface OffreAssistant { id: string; intitule: string; detail: string; brief: OffreBrief }
+export interface AllegationAssistant { id: string; texte: string; statut: string; signal: string | null }
+
 export interface PropsNouveauProjet {
   sous: string;
   etat: EtatNouveauProjet;
   marques: ReadonlyArray<{ id: string; nom: string; active: boolean }>;
   ajouterMarque: string | null;
   /** `persona` (lot 9) · le persona du lien, déjà relu dans `personas` · présélectionné dans « Pour qui ? », modifiable. */
-  initial: { type: TypeNouveauProjet; titre: string; intention: string; etape: 'start' | 'brief'; persona?: ReferenceAdsmap | null };
+  initial: { type: TypeNouveauProjet; titre: string; intention: string; etape: 'start' | 'brief'; persona?: ReferenceAdsmap | null; offre?: OffreBrief | null };
   /** Le titre proposé par type · remplace le titre tant que la personne ne l'a pas modifié. */
   titresParDefaut: Readonly<Record<TypeNouveauProjet, string>>;
   /** Personas Adsmap de la marque active · lecture, portée. Vide = « Aucun persona » seul. */
   personas: ReferenceAdsmap[];
+  /** Lot 9 bis · les offres ACTIVES de la marque active (« Quelle offre ? ») · lecture, portée · absent ou vide, la vue le dit. */
+  offres?: readonly OffreAssistant[];
+  /** Lot 9 bis · les allégations de la marque active · une allégation « à prouver » porte son signal. */
+  allegations?: readonly AllegationAssistant[];
   produits: ProduitAssistant[];
   /** Lot 8 · les couleurs de la fiche de la marque active (pastilles de l'étape Style) · absent ou vide, la vue le dit. */
   paletteMarque?: readonly string[];
@@ -81,7 +88,7 @@ export function NouveauProjet(p: PropsNouveauProjet) {
   const [type, setType] = useState<TypeNouveauProjet>(p.initial.type);
   const [titre, setTitre] = useState(p.initial.titre);
   const titreTouche = useRef(p.initial.titre !== p.titresParDefaut[p.initial.type]);
-  const [saisie, setSaisie] = useState<SaisieBriefV5>({ ...saisieBriefVide(), intention: p.initial.intention, persona: p.initial.persona ?? null });
+  const [saisie, setSaisie] = useState<SaisieBriefV5>({ ...saisieBriefVide(), intention: p.initial.intention, persona: p.initial.persona ?? null, offre: p.initial.offre ?? null });
   const [encours, setEncours] = useState(false);
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
   const [incertain, setIncertain] = useState(false);
@@ -177,15 +184,9 @@ export function NouveauProjet(p: PropsNouveauProjet) {
         setBrief(v.brief);
       }
       if (projet && brief) {
-        // Seuls les champs du formulaire sont réécrits · références, style, composition, hypothèse et textes gardent leur version.
-        const ancien = construireBriefV5(saisieDepuisBrief(brief));
-        const modifie = CHAMPS_FORMULAIRE_BRIEF.filter((cle) => JSON.stringify(ancien[cle]) !== JSON.stringify(v.brief[cle]));
-        if (modifie.length) {
-          const suivant = { ...brief };
-          for (const cle of modifie) {
-            if (v.brief[cle] === undefined) delete (suivant as unknown as Record<string, unknown>)[cle];
-            else (suivant as unknown as Record<string, unknown>)[cle] = v.brief[cle];
-          }
+        // Seuls les champs du formulaire (et le fait d'offre) sont réécrits · références, style, composition, hypothèse et textes gardent leur version.
+        const { brief: suivant, change } = briefApresFormulaire(brief, v.brief);
+        if (change) {
           const { creerPropositionManuelle, appliquerProposition } = await import('../../../app/actions/studios/propositions');
           const proposition = await creerPropositionManuelle({ projectId: courant.id, baseVersionId: courant.versionCourante.id, cible: 'brief', changes: [{ op: 'replace', path: '/brief', newValue: suivant, reason: 'Modification du brief dans l’assistant' }], explication: 'Champs du brief relus et confirmés dans l’assistant', allowedPaths: ALLOWED_PATHS_BRIEF });
           if (!proposition.ok) { setErreur({ message: proposition.message, traceId: proposition.traceId }); setEncours(false); return; }
@@ -331,7 +332,7 @@ export function NouveauProjet(p: PropsNouveauProjet) {
         {etape === 'brief' && (
           <Brief
             marque={marque.nom} titre={titre} onTitre={(t) => { titreTouche.current = true; setTitre(t); }} titreVerrouille={!!projet} verrouille={incertain}
-            saisie={saisie} maj={maj} personas={p.personas}
+            saisie={saisie} maj={maj} personas={p.personas} offres={p.offres ?? []} allegations={p.allegations ?? []}
             notes={[...p.contexte.repris, ...p.contexte.notes]} retourVeille={p.contexte.retourVeille}
             produit={<ProduitBrief produits={catalogue} produitEpingle={!!photoEpinglee} productId={productId} photoId={photoId} occupe={encours || incertain}
               onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} onImporter={() => void creer('photo')} />}
@@ -415,9 +416,10 @@ function PostCreation({ etape, projet, brief, marqueId, sources, apercuProduitUr
 
 /* ─────────────────────────────── Étape brief ─────────────────────────────── */
 
-function Brief({ marque, titre, onTitre, titreVerrouille, verrouille, saisie, maj, personas, notes, retourVeille, produit, references }: {
+function Brief({ marque, titre, onTitre, titreVerrouille, verrouille, saisie, maj, personas, offres, allegations, notes, retourVeille, produit, references }: {
   marque: string; titre: string; onTitre: (v: string) => void; titreVerrouille: boolean; verrouille: boolean;
   saisie: SaisieBriefV5; maj: (c: Partial<SaisieBriefV5>) => void; personas: ReferenceAdsmap[];
+  offres: readonly OffreAssistant[]; allegations: readonly AllegationAssistant[];
   notes: readonly string[]; retourVeille: { href: string } | null; produit: ReactNode; references: ReactNode;
 }) {
   const basculerPlateforme = (pf: PlateformeV5) => {
@@ -484,10 +486,52 @@ function Brief({ marque, titre, onTitre, titreVerrouille, verrouille, saisie, ma
             </label>
           </div>
         </section>
+        <OffreEtAllegations saisie={saisie} maj={maj} offres={offres} allegations={allegations} />
       </fieldset>
       {produit}
       {references}
     </div>
+  );
+}
+
+/**
+ * Lot 9 bis V5 · « Quelle offre ? » (une offre ACTIVE de la marque, ou aucune ·
+ * facultatif) et les allégations de la marque, relues ici · une allégation
+ * « à prouver » porte son signal écrit, jamais présentée comme acquise. L'offre
+ * choisie entre dans le brief comme fait déclaré (`construireBriefV5`).
+ */
+function OffreEtAllegations({ saisie, maj, offres, allegations }: {
+  saisie: SaisieBriefV5; maj: (c: Partial<SaisieBriefV5>) => void; offres: readonly OffreAssistant[]; allegations: readonly AllegationAssistant[];
+}) {
+  // Une offre présélectionnée qui n'est plus proposée reste lisible jusqu'au prochain choix · jamais retirée en silence.
+  const choisie = saisie.offre ?? null;
+  const horsListe = choisie && !offres.some((o) => o.brief.id === choisie.id) ? choisie : null;
+  return (
+    <section data-champ="offre-allegations">
+      <h2 style={{ marginBottom: 10 }}>Offre et allégations <span className="faint" style={{ fontSize: '12.5px', fontWeight: 500 }}>· facultatif</span></h2>
+      <div style={{ display: 'grid', gap: 12 }}>
+        <label className="field">Quelle offre ? · offre de la marque
+          <select data-champ="offre" value={choisie?.id ?? ''} onChange={(e) => maj({ offre: offres.find((o) => o.brief.id === e.target.value)?.brief ?? null })}>
+            <option value="">Aucune offre</option>
+            {horsListe && <option value={horsListe.id}>{horsListe.texte}</option>}
+            {offres.map((o) => <option key={o.id} value={o.brief.id}>{o.intitule} · {o.detail}</option>)}
+          </select>
+          {offres.length === 0 && <span className="faint" style={{ fontWeight: 400 }}>Aucune offre active pour cette marque · tu peux en créer depuis la fiche Offre de la marque.</span>}
+          {choisie && <span className="faint" data-offre-brief="" style={{ fontWeight: 400 }}>Entre dans le brief comme un fait déclaré · « {choisie.texte} »</span>}
+        </label>
+        <div data-allegations-assistant="" style={{ display: 'grid', gap: 6 }}>
+          <div className="lbl" style={{ margin: 0 }}>Ce que la marque affirme</div>
+          {allegations.map((a) => (
+            <div key={a.id} data-allegation={a.id} data-statut={statutAllegation(a.statut)} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'baseline', fontSize: '12.5px' }}>
+              <span className={`pill ${statutAllegation(a.statut) === 'prouvee' ? 'g' : 'w'}`}>{LIBELLES_STATUT_ALLEGATION[statutAllegation(a.statut)]}</span>
+              <span>{a.texte}</span>
+              {a.signal && <small className="faint" data-signal-allegation="" style={{ fontSize: '11.5px' }}>{a.signal}</small>}
+            </div>
+          ))}
+          {allegations.length === 0 && <p className="faint" style={{ fontSize: '12.5px', margin: 0 }}>Aucune allégation enregistrée pour cette marque · la fiche Offre les recueille, avec leur preuve.</p>}
+        </div>
+      </div>
+    </section>
   );
 }
 

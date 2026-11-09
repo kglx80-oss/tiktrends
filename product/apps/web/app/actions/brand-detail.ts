@@ -24,6 +24,7 @@ import { cleDeDepot, referencesDans, retirerDepotsSousVerrou, verrouDepot } from
 import { referencesObjetEnBase } from '../../lib/references-objet';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { REFUS_PERSONA_INTROUVABLE, rangsApres, rangsAEcrire, validerPersona, type ChampPersona } from '@tiktrends/core';
+import { REFUS_ALLEGATION_INTROUVABLE, REFUS_OFFRE_INTROUVABLE, validerAllegation, validerOffre, type ChampAllegation, type ChampOffre } from '@tiktrends/core';
 import { revalidatePath } from 'next/cache';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
@@ -248,6 +249,107 @@ export async function deletePersonaAction(formData: FormData): Promise<void> {
   const id = norm(formData.get('id'));
   if (id) await db.delete(schema.personas).where(and(eq(schema.personas.id, id), eq(schema.personas.brandId, brandId)));
   redirect(`/brands/${brandId}?tab=audience`);
+}
+
+/* ---------------- Offres et allégations (lot 9 bis V5 · VB M07, PR04) ---------------- */
+
+const UUID_FICHE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type ResultatFiche<C extends string> = { ok: true; id: string } | { error: string; erreurs?: Array<{ champ: C; raison: string }> };
+
+/**
+ * La garde commune des gestes Offre · MÊMES gardes que les personas et les
+ * produits de la fiche (`guardBrand` · admin, marque de l'espace) · aucune
+ * permission nouvelle. Un identifiant mal formé, une marque d'ailleurs · la
+ * phrase « introuvable » de l'objet, rien de plus.
+ */
+async function gardeFicheOffre(brandId: unknown, id: unknown, introuvable: string): Promise<{ ok: true; brandId: string; id: string | null; workspaceId: string } | { ok: false; error: string }> {
+  const b = typeof brandId === 'string' ? brandId : '';
+  const i = id == null || id === '' ? null : typeof id === 'string' ? id : '';
+  if (!UUID_FICHE.test(b) || (i !== null && !UUID_FICHE.test(i))) return { ok: false, error: introuvable };
+  const s = await getSession();
+  if (!s || !roleAtLeast(s.role, 'admin')) return { ok: false, error: GUARD.role({ needRole: 'admin' }) };
+  const g = await guardBrand(b);
+  if (!g || !db) return { ok: false, error: introuvable };
+  return { ok: true, brandId: b, id: i, workspaceId: g.workspaceId };
+}
+
+/**
+ * Créer (sans `id`) ou modifier (avec `id`) une offre de la marque · intitulé,
+ * type, conditions, validés au noyau AVANT d'écrire (`validerOffre`). Une offre
+ * d'une autre marque ou d'un autre espace est « introuvable ». Ni suppression,
+ * ni champ historique touché (prix, remise, garantie, bundle restent).
+ */
+export async function enregistrerOffreAction(input: { brandId: string; id?: string | null; saisie: unknown }): Promise<ResultatFiche<ChampOffre>> {
+  const g = await gardeFicheOffre(input?.brandId, input?.id, REFUS_OFFRE_INTROUVABLE);
+  if (!g.ok) return { error: g.error };
+  const v = validerOffre(input.saisie);
+  if (!v.ok) return { error: v.erreurs.map((e) => e.raison).join(' '), erreurs: v.erreurs };
+  const o = v.offre;
+  const O = schema.offers;
+  try {
+    if (!g.id) {
+      const [n] = await db!.insert(O).values({ workspaceId: g.workspaceId, brandId: g.brandId, label: o.intitule, kind: o.type, conditions: o.conditions, updatedAt: new Date() }).returning({ id: O.id });
+      revalidatePath(`/brands/${g.brandId}/offre`);
+      return { ok: true, id: n!.id };
+    }
+    const [m] = await db!.update(O).set({ label: o.intitule, kind: o.type, conditions: o.conditions, updatedAt: new Date() })
+      .where(and(eq(O.id, g.id), eq(O.brandId, g.brandId), eq(O.workspaceId, g.workspaceId))).returning({ id: O.id });
+    if (!m) return { error: REFUS_OFFRE_INTROUVABLE };
+  } catch (e) {
+    return { error: logAndTranslate('brand:offre', e, { subject: 'l’enregistrement de l’offre', workspaceId: g.workspaceId }) };
+  }
+  revalidatePath(`/brands/${g.brandId}/offre`);
+  return { ok: true, id: g.id };
+}
+
+/** Archiver (`archive: true`) ou réactiver une offre · `active` · rien ne se supprime, les tests qui l'ont diffusée la gardent. */
+export async function archiverOffreAction(input: { brandId: string; id: string; archive: boolean }): Promise<ResultatFiche<ChampOffre>> {
+  const g = await gardeFicheOffre(input?.brandId, input?.id, REFUS_OFFRE_INTROUVABLE);
+  if (!g.ok) return { error: g.error };
+  if (!g.id || typeof input.archive !== 'boolean') return { error: REFUS_OFFRE_INTROUVABLE };
+  const O = schema.offers;
+  const [m] = await db!.update(O).set({ active: !input.archive, updatedAt: new Date() })
+    .where(and(eq(O.id, g.id), eq(O.brandId, g.brandId), eq(O.workspaceId, g.workspaceId))).returning({ id: O.id });
+  if (!m) return { error: REFUS_OFFRE_INTROUVABLE };
+  revalidatePath(`/brands/${g.brandId}/offre`);
+  return { ok: true, id: g.id };
+}
+
+/** Créer ou modifier une allégation · texte, preuve ou source, statut (`validerAllegation` · une allégation prouvée cite sa preuve). */
+export async function enregistrerAllegationAction(input: { brandId: string; id?: string | null; saisie: unknown }): Promise<ResultatFiche<ChampAllegation>> {
+  const g = await gardeFicheOffre(input?.brandId, input?.id, REFUS_ALLEGATION_INTROUVABLE);
+  if (!g.ok) return { error: g.error };
+  const v = validerAllegation(input.saisie);
+  if (!v.ok) return { error: v.erreurs.map((e) => e.raison).join(' '), erreurs: v.erreurs };
+  const a = v.allegation;
+  const C = schema.brandClaims;
+  try {
+    if (!g.id) {
+      const [n] = await db!.insert(C).values({ workspaceId: g.workspaceId, brandId: g.brandId, text: a.texte, proof: a.preuve, status: a.statut }).returning({ id: C.id });
+      revalidatePath(`/brands/${g.brandId}/offre`);
+      return { ok: true, id: n!.id };
+    }
+    const [m] = await db!.update(C).set({ text: a.texte, proof: a.preuve, status: a.statut, updatedAt: new Date() })
+      .where(and(eq(C.id, g.id), eq(C.brandId, g.brandId), eq(C.workspaceId, g.workspaceId))).returning({ id: C.id });
+    if (!m) return { error: REFUS_ALLEGATION_INTROUVABLE };
+  } catch (e) {
+    return { error: logAndTranslate('brand:allegation', e, { subject: 'l’enregistrement de l’allégation', workspaceId: g.workspaceId }) };
+  }
+  revalidatePath(`/brands/${g.brandId}/offre`);
+  return { ok: true, id: g.id };
+}
+
+/** Archiver ou rétablir une allégation · `archived_at` · rien ne se supprime. */
+export async function archiverAllegationAction(input: { brandId: string; id: string; archive: boolean }): Promise<ResultatFiche<ChampAllegation>> {
+  const g = await gardeFicheOffre(input?.brandId, input?.id, REFUS_ALLEGATION_INTROUVABLE);
+  if (!g.ok) return { error: g.error };
+  if (!g.id || typeof input.archive !== 'boolean') return { error: REFUS_ALLEGATION_INTROUVABLE };
+  const C = schema.brandClaims;
+  const [m] = await db!.update(C).set({ archivedAt: input.archive ? new Date() : null, updatedAt: new Date() })
+    .where(and(eq(C.id, g.id), eq(C.brandId, g.brandId), eq(C.workspaceId, g.workspaceId))).returning({ id: C.id });
+  if (!m) return { error: REFUS_ALLEGATION_INTROUVABLE };
+  revalidatePath(`/brands/${g.brandId}/offre`);
+  return { ok: true, id: g.id };
 }
 
 /* ---------------- Scénarios ---------------- */

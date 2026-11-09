@@ -110,6 +110,60 @@ describe('Spatial · Marque · parité de structure avec la maquette', () => {
     expect(p.rendu).toEqual(p.reference);
   });
 
+  /**
+   * Lot 9 bis V5 · écart DÉCLARÉ · « Offres & conditions » est lue en base · la
+   * tuile reprend la grille de la maquette (une `.prow` par offre, puis une par
+   * condition essentielle manquante) et la tuile elle-même est comparée, avec
+   * ses enfants. Les ajouts (`[data-offres]`) n'existent qu'à trois places ·
+   * les gestes d'une offre DANS son `.t`, « Nouvelle offre » juste après la
+   * grille, et la tuile « Allégations » en dernier enfant de la grille de la
+   * fiche, juste après celle des offres. Ailleurs, en double, ou absents quand
+   * ils sont passés, la parité tombe.
+   */
+  function sansOffres(html: string): string {
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const tuile = t.content.querySelector('section[aria-label="Offres de la marque"]');
+    const gestes = [...t.content.querySelectorAll('[data-offres="gestes"]')];
+    const nouvelle = [...t.content.querySelectorAll('[data-offres="nouvelle"]')];
+    const allegations = [...t.content.querySelectorAll('[data-offres="allegations"]')];
+    const autres = [...t.content.querySelectorAll('[data-offres]')].filter((e) => !['gestes', 'nouvelle', 'allegations'].includes(e.getAttribute('data-offres')!));
+    if (!tuile || autres.length || nouvelle.length !== 1 || allegations.length !== 1 || !gestes.length) return html;
+    if (!gestes.every((g) => g.parentElement!.matches('.prow > .t') && tuile.contains(g) && !g.nextElementSibling)) return html;
+    if (nouvelle[0]!.parentElement !== tuile || !nouvelle[0]!.previousElementSibling?.matches('.grid3')) return html;
+    const a = allegations[0]!;
+    if (!a.parentElement!.matches('.grid2') || a.parentElement!.lastElementChild !== a || a.previousElementSibling !== tuile) return html;
+    [...gestes, ...nouvelle, ...allegations].forEach((e) => e.remove());
+    return t.innerHTML;
+  }
+
+  it('lot 9 bis · « Offres & conditions » lue en base (offres, condition manquante) et « Allégations » gardent la parité · la tuile est comparée, seuls les ajouts déclarés, à leur place', () => {
+    const geste = { enregistrer: async () => ({ ok: true as const, id: 'x' }), archiver: async () => ({ ok: true as const, id: 'x' }), raison: null };
+    const offre = (i: number, active: boolean) => ({ id: `o${i}`, intitule: `Offre ${i}`, detail: 'Remise · −20 %', active, editable: { id: `o${i}`, intitule: `Offre ${i}`, type: 'remise', conditions: '−20 %' }, creerPub: { href: active ? '/studio/projets/nouveau?type=ads&offre=x' : null, raison: active ? null : 'r' } });
+    const html = rendre(
+      <Offre
+        sousNav={nav} brandId="b1" sync={sync}
+        produits={[1, 2, 3].map((i) => ({ id: `p${i}`, nom: 'p', image: 'https://x/p.png', detail: 'd', complet: i === 1 }))}
+        aCompleter="2 fiches à compléter"
+        detail={{ nom: 'p', lignes: [
+          { dt: 'Prix', dd: { type: 'texte', texte: '1 €' } },
+          { dt: 'Tranche', dd: { type: 'options', options: [{ texte: 'a', on: false }, { texte: 'b', on: true }, { texte: 'c', on: false }] } },
+          { dt: 'Peut', dd: { type: 'pastilles', classe: 'g', pastilles: ['a', 'b', 'c'] } },
+          { dt: 'Jamais', dd: { type: 'pastilles', classe: 'r', pastilles: ['a', 'b'] } },
+        ] }}
+        ajouter={action} shopify={null} retours={{}}
+        offres={{ liste: [offre(1, false), offre(2, true)], manque: 'Garantie manquante', manquantes: [{ type: 'garantie', libelle: 'Garantie' }], gestes: geste }}
+        allegations={{ liste: [{ id: 'a1', texte: 'Hydrate 24 h', preuve: null, statut: 'a_prouver', libelleStatut: 'À prouver', signal: 's', archivee: false, editable: { id: 'a1', texte: 'Hydrate 24 h', preuve: null, statut: 'a_prouver' } }], gestes: geste }}
+      />,
+    );
+    expect(html.split('data-offres="gestes"').length - 1, 'les gestes d’une offre manquent').toBe(2);
+    const nettoye = sansOffres(html);
+    expect(nettoye, 'un ajout du lot 9 bis manque, est en trop ou hors de sa place').not.toBe(html);
+    // `.prow` · leurs enfants (photo produit, gestes) restent ignorés comme avant · la tuile des offres, elle, est comparée.
+    const p = parite(nettoye, 'offre', { ignorer: ['.prow'] });
+    expect(p.rendu).toEqual(p.reference);
+  });
+
   it('« Personas » reproduit la maquette', () => {
     const P = (i: number) => ({ id: `p${i}`, initiale: 'A', teinte: '#111', nom: `A${i}, 30 ans`, statut: { libelle: 'Validé', classe: 'g' as const }, description: 'd',
       desirs: ['a', 'b', 'c'], freins: ['a', 'b', 'c'], objections: ['a', 'b', 'c'], citations: ['a', 'b', 'c', 'd'], sources: 4 });

@@ -1,7 +1,13 @@
-import { eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { costFor, listePropre, morceauxTexte, prixEuros, resumeProduits, statutFicheProduit, messageServiceInactif } from '@tiktrends/core';
-import { addProductAction, deleteProductAction, importProductsAction, syncShopifyProductsAction } from '../../../../../actions/brand-detail';
+import {
+  costFor, listePropre, morceauxTexte, prixEuros, resumeProduits, statutFicheProduit, messageServiceInactif,
+  detailOffre, lienNouveauProjet, LIBELLES_STATUT_ALLEGATION, LIBELLES_TYPE_OFFRE, manquesOffres, ordonnerOffres, pastilleManquesOffres, signalAllegation, statutAllegation,
+} from '@tiktrends/core';
+import {
+  addProductAction, deleteProductAction, importProductsAction, syncShopifyProductsAction,
+  archiverAllegationAction, archiverOffreAction, enregistrerAllegationAction, enregistrerOffreAction,
+} from '../../../../../actions/brand-detail';
 import { brandMediaPreview } from '../../../../../../lib/brand-media-url';
 import { Offre } from '../../../../../../spatial/vues/marque/Offre';
 import type { LigneKv } from '../../../../../../spatial/vues/marque/base';
@@ -20,6 +26,14 @@ export default async function OffreSpatiale({ params }: { params: Promise<{ id: 
   const c = await chargerMarque(id);
   const { b } = c;
   const produits = await db!.select().from(schema.products).where(eq(schema.products.brandId, b.id));
+  // Lot 9 bis · les offres et les allégations de CETTE marque (de l'espace de la session · `chargerMarque`), archivées comprises.
+  const O = schema.offers, C = schema.brandClaims;
+  const [lignesOffres, lignesAllegations] = await Promise.all([
+    db!.select().from(O).where(and(eq(O.brandId, b.id), eq(O.workspaceId, c.s.workspaceId))).orderBy(asc(O.createdAt)),
+    db!.select().from(C).where(and(eq(C.brandId, b.id), eq(C.workspaceId, c.s.workspaceId))).orderBy(asc(C.createdAt)),
+  ]);
+  const offres = ordonnerOffres(lignesOffres.map((o) => ({ id: o.id, intitule: o.label, type: o.kind, conditions: o.conditions, active: o.active })));
+  const allegations = [...lignesAllegations.filter((a) => !a.archivedAt), ...lignesAllegations.filter((a) => a.archivedAt)];
   const lus = produits.map((x) => ({ nom: x.name, prix: x.price, image: !!x.imageUrl, description: x.description }));
   const premier = produits[0] ?? null;
   const interdits = listePropre(b.avoidWords, 8);
@@ -47,6 +61,28 @@ export default async function OffreSpatiale({ params }: { params: Promise<{ id: 
         retirer: deleteProductAction,
         importer: importer(c),
         boutique: { domaine: b.shopifyDomain ?? null, synchroniser: syncShopifyProductsAction },
+      }}
+      offres={{
+        liste: offres.map((o) => ({
+          id: o.id, intitule: o.intitule, detail: detailOffre(o), active: o.active,
+          editable: { id: o.id, intitule: o.intitule, type: o.type, conditions: o.conditions },
+          creerPub: !o.active
+            ? { href: null, raison: 'Une offre archivée ne se choisit plus au brief · réactive-la d’abord' }
+            : c.creerPub ? { href: lienNouveauProjet({ type: 'ads', offre: o.id }), raison: null } : { href: null, raison: 'Les Studios ne sont pas ouverts à ton rôle ou à ta formule' },
+        })),
+        manque: pastilleManquesOffres(manquesOffres(offres)),
+        manquantes: manquesOffres(offres).map((t) => ({ type: t, libelle: LIBELLES_TYPE_OFFRE[t] })),
+        gestes: { enregistrer: enregistrerOffreAction, archiver: archiverOffreAction, raison: null },
+      }}
+      allegations={{
+        liste: allegations.map((a) => {
+          const statut = statutAllegation(a.status);
+          return {
+            id: a.id, texte: a.text, preuve: a.proof, statut, libelleStatut: LIBELLES_STATUT_ALLEGATION[statut], signal: signalAllegation(statut),
+            archivee: !!a.archivedAt, editable: { id: a.id, texte: a.text, preuve: a.proof, statut },
+          };
+        }),
+        gestes: { enregistrer: enregistrerAllegationAction, archiver: archiverAllegationAction, raison: null },
       }}
     />
   );

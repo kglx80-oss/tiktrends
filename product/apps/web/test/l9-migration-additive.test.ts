@@ -132,6 +132,30 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0072_offres_allegations · une table neuve (et sa contrainte de statut), trois colonnes nullables sur adsmap_offers, deux clés étrangères protégées, un index, rejouables · aucun DROP, aucun RENAME, aucun ALTER destructif', () => {
+    const brut = fichier('0072_offres_allegations');
+    const a = analyserMigrationSql(brut);
+    expect(a.instructions.map((x) => x.genre)).toEqual(['creation_table', 'ajout_colonne', 'ajout_colonne', 'ajout_colonne', 'bloc_protege', 'bloc_protege', 'creation_index']);
+    const sansCommentaires = brut.replace(/^--.*$/gm, '');
+    expect(sansCommentaires, '0072 contient un DROP').not.toMatch(/\bDROP\b/i);
+    expect(sansCommentaires, '0072 contient un RENAME').not.toMatch(/\bRENAME\b/i);
+    expect(sansCommentaires, '0072 change le type, le défaut ou la nullité d’une colonne existante').not.toMatch(/ALTER COLUMN|SET NOT NULL|SET DEFAULT|\bTYPE\b/i);
+    // Les seuls NOT NULL sont dans la table NEUVE · aucun ajout de colonne sur adsmap_offers ne l'est.
+    for (const ajout of sansCommentaires.match(/ALTER TABLE "adsmap_offers" ADD COLUMN[^;]*/g) ?? []) expect(ajout, 'colonne NOT NULL ou avec défaut ajoutée à adsmap_offers').not.toMatch(/NOT NULL|DEFAULT/i);
+    const alter = [...sansCommentaires.matchAll(/(?:ALTER TABLE|ON) "([a-z_]+)"/g)].map((m) => m[1]);
+    expect([...new Set(alter)].sort(), 'une autre table que brand_claims et adsmap_offers est touchée par 0072').toEqual(['adsmap_offers', 'brand_claims']);
+    const instr = decouperInstructionsSql(brut).map((x) => x.replace(/^--.*$/gm, '').replace(/\s+/g, ' ').trim().replace(/;$/, ''));
+    expect(instr.slice(1, 4)).toEqual([
+      'ALTER TABLE "adsmap_offers" ADD COLUMN IF NOT EXISTS "kind" text',
+      'ALTER TABLE "adsmap_offers" ADD COLUMN IF NOT EXISTS "conditions" text',
+      'ALTER TABLE "adsmap_offers" ADD COLUMN IF NOT EXISTS "updated_at" timestamp with time zone',
+    ]);
+    expect(instr[0]).toMatch(/^CREATE TABLE IF NOT EXISTS "brand_claims" \(.*CONSTRAINT "brand_claims_status_ck" CHECK \("status" IN \('a_prouver', 'prouvee'\)\) \)$/);
+    expect(instr[6]).toBe('CREATE INDEX IF NOT EXISTS "brand_claims_brand_idx" ON "brand_claims" USING btree ("brand_id")');
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -188,9 +212,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille) puis 0071 (rang et segment des personas) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille), 0071 (rang et segment des personas) puis 0072 (offres et allégations) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment', '0072_offres_allegations']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -432,6 +456,41 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     await appliquer(pg, ['0071_personas_rang_segment']);
     expect(await empreinteSchema(pg), 'rejeu de 0071').toEqual(schemaUneFois);
     expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0071 · lignes modifiées').toEqual(avant);
+    await pg.close();
+  }, 120_000);
+
+  it('0072 sur une base à 0071 avec des offres existantes (et les ads qui les citent) · lignes intactes, trois colonnes NULL partout, table neuve vide, statut borné, rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 71).map((x) => x.tag));
+    await pg.exec(`INSERT INTO adsmap_offers (id, workspace_id, brand_id, label, price, discount, guarantee, bundle, active, created_at)
+      SELECT md5('of' || i)::uuid, 'a9000000-0000-4000-8000-000000000001', md5('b' || (1 + i % 3))::uuid, 'Offre ' || i, 10 + i, '-' || i || ' %', CASE WHEN i % 2 = 0 THEN '30 jours' END, i % 3 = 0, i % 4 <> 0, '2026-08-01T00:00:00Z' FROM generate_series(1, 8) i;
+      UPDATE adsmap_ads SET offer_id = md5('of' || (1 + (substr(variant_code, 2)::int % 8)))::uuid WHERE variant_code ~ '^V[0-9]+$';`);
+    const [offres] = await lignes<{ n: number; citees: number }>(pg, 'select (select count(*)::int from adsmap_offers) as n, (select count(*)::int from adsmap_ads where offer_id is not null) as citees');
+    expect(offres).toEqual({ n: 8, citees: 30 });
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    const schemaAvant = await empreinteSchema(pg);
+    await appliquer(pg, ['0072_offres_allegations']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0072 (offres, ads qui les citent…)').toEqual(avant);
+    expect((await colonnesDe(pg)).get('adsmap_offers')).toMatch(/,kind,conditions,updated_at$/);
+    const [n] = await lignes<{ n: number; nn: number }>(pg, 'select count(*)::int as n, count(coalesce(kind, conditions, updated_at::text))::int as nn from adsmap_offers');
+    expect(n, 'une offre existante a reçu un type, des conditions ou une date au passage de 0072').toEqual({ n: 8, nn: 0 });
+    const [vide] = await lignes<{ n: number }>(pg, 'select count(*)::int as n from brand_claims');
+    expect(vide!.n, 'backfill dans brand_claims').toBe(0);
+    const schemaUneFois = await empreinteSchema(pg);
+    expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0072').toEqual([]);
+    expect(schemaUneFois.filter((l) => !schemaAvant.includes(l) && l.startsWith('col ') && !/^col brand_claims\./.test(l)).sort(), 'colonne ajoutée à une table existante hors des trois nullables d’adsmap_offers').toEqual([
+      'col adsmap_offers.conditions text', 'col adsmap_offers.kind text', 'col adsmap_offers.updated_at timestamp with time zone',
+    ]);
+    // Le statut est borné en base · une valeur hors des deux est refusée par Postgres.
+    await expect(pg.exec(`INSERT INTO brand_claims (workspace_id, brand_id, text, status) VALUES ('a9000000-0000-4000-8000-000000000001', md5('b1')::uuid, 'x', 'certifiee')`)).rejects.toThrow(/check constraint/i);
+    await pg.exec(`INSERT INTO brand_claims (workspace_id, brand_id, text) VALUES ('a9000000-0000-4000-8000-000000000001', md5('b1')::uuid, 'Hydrate 24 h')`);
+    const [defaut] = await lignes<{ status: string }>(pg, 'select status from brand_claims');
+    expect(defaut!.status).toBe('a_prouver');
+    await pg.exec('DELETE FROM brand_claims');
+    await appliquer(pg, ['0072_offres_allegations']);
+    expect(await empreinteSchema(pg), 'rejeu de 0072').toEqual(schemaUneFois);
+    expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0072 · lignes modifiées').toEqual(avant);
     await pg.close();
   }, 120_000);
 
