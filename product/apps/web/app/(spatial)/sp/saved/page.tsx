@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import type { InspoAd } from '@tiktrends/integrations';
-import { PROVEN_DAYS, apercuImage, collectionsDeSauvegarde, collectionsSauvegardes, lireTagSauvegardes, tagsPresents, estActiveVeille, etiquetteStyleVeille, explicationPontAdsmap, lienNouveauProjet, lireCollectionSauvegardes, lireFiltresSauvegardes, lireFormatCreatif, pastilleMarque, raisonPontAdsmap, tourneLongtemps } from '@tiktrends/core';
+import { AFFICHAGE_SAUVEGARDES_COOKIE, accesHypothese, affichageDepuisCookie, PROVEN_DAYS, apercuImage, collectionsDeSauvegarde, collectionsSauvegardes, lireTagSauvegardes, tagsPresents, estActiveVeille, etiquetteStyleVeille, explicationPontAdsmap, lienNouveauProjet, lireCollectionSauvegardes, lireFiltresSauvegardes, lireFormatCreatif, pastilleMarque, raisonPontAdsmap, tourneLongtemps } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason, roleAtLeast } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
@@ -16,6 +17,11 @@ import { lireMetaSauvegardes } from '../../../../lib/veille-tags';
 export const dynamic = 'force-dynamic';
 
 const PLATEFORME: Record<string, string> = { meta: 'Meta', tiktok: 'TikTok', google: 'Google' };
+
+/** Lot 6 bis (SV06) · la préférence grille / liste des Sauvegardes, lue au rendu serveur (aucun saut d'affichage). */
+async function lireCookieAffichage(): Promise<string | undefined> {
+  try { return (await cookies()).get(AFFICHAGE_SAUVEGARDES_COOKIE)?.value; } catch { return undefined; }
+}
 
 /**
  * « Sauvegardes » (Spatial) · mêmes gardes et même périmètre que la page V5
@@ -48,6 +54,12 @@ export default async function SauvegardesSpatiales({ searchParams }: { searchPar
 
   // Lot 6 · les tags et les collections (0070) de CES sauvegardes · la note est sur la ligne.
   const meta = await lireMetaSauvegardes(s.workspaceId, lignes.map((r) => r.id));
+  // Lot 6 bis · le NOM de la marque de chaque sauvegarde (marques de CET espace) · la sélection vers un projet en dépend.
+  const idsMarques = [...new Set(lignes.map((r) => r.brandId).filter((x): x is string => !!x))];
+  const nomsMarques = new Map(db && idsMarques.length
+    ? (await db.select({ id: schema.brands.id, name: schema.brands.name }).from(schema.brands)
+      .where(and(eq(schema.brands.workspaceId, s.workspaceId), inArray(schema.brands.id, idsMarques)))).map((b) => [b.id, b.name] as const)
+    : []);
   const items: SauvegardeDonnees[] = lignes.map((r) => {
     const ad = r.snapshot as InspoAd;
     const nom = ad.advertiserName?.trim() || 'Annonceur';
@@ -72,6 +84,7 @@ export default async function SauvegardesSpatiales({ searchParams }: { searchPar
       tags: meta.get(r.id)?.tags ?? [],
       note: r.note ?? null,
       collections: collectionsDeSauvegarde(r.folder, meta.get(r.id)?.collections),
+      pourMarque: { id: r.brandId ?? null, nom: r.brandId ? nomsMarques.get(r.brandId) ?? null : null },
     };
   });
 
@@ -98,9 +111,12 @@ export default async function SauvegardesSpatiales({ searchParams }: { searchPar
 
   // « Voir » d'un tag (`/tags`) · `?tag=<clé>`, validé contre les tags RÉELS de ces sauvegardes.
   const tag = lireTagSauvegardes(sp, tagsPresents(items));
+  // Lot 6 bis · « Formuler une hypothèse » d'un tag récurrent · la MÊME porte que la garde serveur (`adsmap`, marque active).
+  const hypothese = accesHypothese({ adsmap: canAccess(acces, Resultats) ? 'ok' : denyReason(acces, Resultats) === 'plan' ? 'plan' : 'role', marqueActive: !!brand });
   return (
     <Sauvegardes items={items} pastilleRadar={pastilleRadar(acces)} creerProjet={lienNouveauProjet({ type: 'ads' })}
       gestes={{ formatFerme, test: raisonTest ? { ouvert: false, raison: raisonTest } : { ouvert: true } }} filtresInitiaux={{ ...lireFiltresSauvegardes(sp), tag: tag.cle }} tagIgnore={tag.ignore}
-      collection={lireCollectionSauvegardes(sp, collectionsSauvegardes(items))} />
+      collection={lireCollectionSauvegardes(sp, collectionsSauvegardes(items))}
+      contexte={{ marqueActive: brand ? { id: brand.id, nom: brand.name } : null, hypothese }} affichage={affichageDepuisCookie(await lireCookieAffichage())} />
   );
 }

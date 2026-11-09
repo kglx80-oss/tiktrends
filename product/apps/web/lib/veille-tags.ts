@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, count, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import { collectionsDeSauvegarde, ecritureCollections, rattacherTags, trierTags, type TagVeille } from '@tiktrends/core';
 
@@ -147,3 +147,33 @@ export async function oublierCollectionsMultiples(workspaceId: string, savedAdId
 
 /** Les tags d'un vocabulaire · `porteeTag` pour les actions de `/tags`. */
 export const porteeTag = portee;
+
+/** Au plus 2 000 liens lus pour les propositions d'hypothèse · bien au-delà de ce qu'une marque tague à la main. */
+const LIENS_PROPOSITIONS_MAX = 2000;
+
+/**
+ * Lot 6 bis · les sauvegardes de CHAQUE tag du vocabulaire d'une marque (ou
+ * d'un seul, par sa clé) · ce que la règle `propositionHypotheseTag` regarde ·
+ * l'identifiant de la sauvegarde et son annonceur, les plus récentes d'abord.
+ * Bornée à l'espace ET à la marque (tag et sauvegarde) · rien d'une autre
+ * marque n'entre dans le compte.
+ */
+export async function lireSauvegardesDesTags(workspaceId: string, brandId: string | null, cle?: string): Promise<Map<string, { tag: TagVeille; sauvegardes: Array<{ id: string; annonceur: string | null }> }>> {
+  const out = new Map<string, { tag: TagVeille; sauvegardes: Array<{ id: string; annonceur: string | null }> }>();
+  if (!db) return out;
+  const T = schema.veilleTags; const L = schema.veilleTagsSauvegardes; const S = schema.savedAds;
+  const l = await db.select({ cle: T.nameKey, nom: T.name, id: S.id, snapshot: S.snapshot })
+    .from(L)
+    .innerJoin(T, and(eq(T.id, L.tagId), eq(T.workspaceId, workspaceId)))
+    .innerJoin(S, and(eq(S.id, L.savedAdId), eq(S.workspaceId, workspaceId), brandId ? eq(S.brandId, brandId) : isNull(S.brandId)))
+    .where(and(eq(L.workspaceId, workspaceId), portee(workspaceId, brandId), ...(cle !== undefined ? [eq(T.nameKey, cle)] : [])))
+    .orderBy(desc(S.createdAt), asc(S.id))
+    .limit(LIENS_PROPOSITIONS_MAX);
+  for (const r of l) {
+    let x = out.get(r.cle);
+    if (!x) { x = { tag: { cle: r.cle, nom: r.nom }, sauvegardes: [] }; out.set(r.cle, x); }
+    const a = (r.snapshot as { advertiserName?: unknown } | null)?.advertiserName;
+    x.sauvegardes.push({ id: r.id, annonceur: typeof a === 'string' ? a : null });
+  }
+  return out;
+}

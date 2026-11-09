@@ -9,3 +9,5 @@ export * from './vues';
 export * from './filtres-locaux';
 export * from './suivi-libre';
 export * from './tags-veille';
+export * from './hypothese-tag';
+export * from './selection-projet';

@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
-import { ETAT_TAGGING, sortieTagging } from '@tiktrends/core';
+import { ETAT_TAGGING, accesHypothese, propositionHypotheseTag, sortieTagging, type PropositionHypotheseTag } from '@tiktrends/core';
 import { db } from '@tiktrends/db';
 import { getSession } from '../../../../lib/auth';
 import { FEATURES, canAccess, denyReason } from '../../../../lib/rbac';
 import { effectiveAccess } from '../../../../lib/access';
 import { getActiveBrand } from '../../../../lib/brands';
-import { lireVocabulaireCompte } from '../../../../lib/veille-tags';
+import { lireSauvegardesDesTags, lireVocabulaireCompte } from '../../../../lib/veille-tags';
 import { Tagging } from '../../../../spatial/vues/reglages/Tagging';
 
 export const dynamic = 'force-dynamic';
@@ -23,16 +23,27 @@ export const dynamic = 'force-dynamic';
 export default async function TaggingSpatial() {
   const s = await getSession();
   if (!s) redirect('/login');
-  const resultats = canAccess({ role: s.role, plan: s.plan, equipe: s.equipe ?? undefined }, FEATURES.find((f) => f.key === 'adsmap')!);
+  const Resultats = FEATURES.find((f) => f.key === 'adsmap')!;
+  const resultats = canAccess({ role: s.role, plan: s.plan, equipe: s.equipe ?? undefined }, Resultats);
   const Veille = FEATURES.find((f) => f.key === 'inspo')!;
   const roleVeille = denyReason(effectiveAccess(s), Veille) !== 'role';
   let tags = null;
   if (roleVeille && db) {
     const brand = await getActiveBrand(s.workspaceId);
+    // Lot 6 bis · « Formuler une hypothèse » sur un tag RÉCURRENT (règle du noyau, seuil mesuré) · la porte
+    // est celle de la garde serveur (`adsmap`, marque active) · fermée, sa raison est écrite à l'écran.
+    const parTag = await lireSauvegardesDesTags(s.workspaceId, brand?.id ?? null);
+    const propositions: Record<string, PropositionHypotheseTag> = {};
+    for (const [cle, x] of parTag) { const p = propositionHypotheseTag(x.tag, x.sauvegardes); if (p) propositions[cle] = p; }
+    const acces = effectiveAccess(s);
     tags = {
       tags: await lireVocabulaireCompte(s.workspaceId, brand?.id ?? null),
       portee: brand ? `Marque ${brand.name}` : 'Espace, sans marque active',
       ecriture: { ouvert: true as const },
+      hypothese: {
+        acces: accesHypothese({ adsmap: canAccess(acces, Resultats) ? 'ok' : denyReason(acces, Resultats) === 'plan' ? 'plan' : 'role', marqueActive: !!brand }),
+        propositions,
+      },
     };
   }
   return <Tagging etat={ETAT_TAGGING} sortie={sortieTagging({ resultats })} tags={tags} />;
