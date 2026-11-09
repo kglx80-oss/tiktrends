@@ -3,7 +3,9 @@ import { db, schema } from '@tiktrends/db';
 import {
   accesHypothese, accesTestsPersona, bilanTestsPersona, citationsPersona, entreesLecturePersonas, imageModelByKey, initialeNom, lecturePersonas, listePropre,
   ordonnerPersonas, regleLecturePersonas, statutPersona, teinteAvatar, testsDuPersona, type LecturePersonas,
+  choixIterationSpatial, gestesLectureGroupe, lotsDuGroupe, noteGestesSilenceFiche, NOTE_GESTES_FICHE_PERSONA,
 } from '@tiktrends/core';
+import { iterationPlanAction } from '../../../../../actions/adsmap-iterate';
 import { falConfigured } from '@tiktrends/integrations';
 import { creerHypotheseAction } from '../../../../../actions/adsmap-hypotheses';
 import { effectiveAccess } from '../../../../../../lib/access';
@@ -39,12 +41,34 @@ export default async function PersonasSpatiale({ params }: { params: Promise<{ i
 
   // Lot 9 · « Dans les tests » · les verdicts de la marque lus par persona (`lecturePersonas`), mêmes portes qu'Adsmap et la marque active.
   const portes = accesTestsPersona({ adsmap: canAccess(acces, RESULTATS) ? 'ok' : denyReason(acces, RESULTATS) === 'plan' ? 'plan' : 'role', marqueActive: c.estActive });
-  let lus: { d: DonneesLots; lecture: LecturePersonas; persona: (adId: string) => { id: string; nom: string } | null } | null = null;
+  let lus: { d: DonneesLots; lecture: LecturePersonas; persona: (adId: string) => { id: string; nom: string } | null; planIds: ReadonlySet<string> } | null = null;
   if (!portes.lecture) {
     const [d, pt] = await Promise.all([chargerLots(c.s.workspaceId, b.id), personasEtTests(c.s.workspaceId, b.id)]);
     const persona = (adId: string) => pt.parAd.get(adId)?.persona ?? null;
-    lus = { d, persona, lecture: lecturePersonas(entreesLecturePersonas(d.lots, persona), pt.personas) };
+    const lecture = lecturePersonas(entreesLecturePersonas(d.lots, persona), pt.personas);
+    // VB P06 · le plan d'itération n'est lu que si un persona SE DÉTACHE · les pubs retenues sont celles que
+    // l'écran Itérer proposera, sélectionnables (`choixIterationSpatial`, la même règle que la fiche d'un lot).
+    const detache = lecture.groupes.some((x) => x.lecture === 'au_dessus' || x.lecture === 'en_dessous');
+    const planIds = detache
+      ? new Set(choixIterationSpatial((await iterationPlanAction()).view?.rows ?? [], () => undefined, { peutIterer: true }).filter((x) => x.selectionnable).map((x) => x.adId))
+      : new Set<string>();
+    lus = { d, persona, lecture, planIds };
   }
+  /** « Dans les tests » d'un persona · son compte, sa lecture, ses lots, et ses gestes s'il se détache (rien n'est écrit ici). */
+  const dansLesTests = (personaId: string) => {
+    if (!lus) return { ferme: true as const, raison: portes.lecture! };
+    const t = testsDuPersona(lus.lecture, personaId);
+    const g = lus.lecture.groupes.find((x) => x.persona.id === personaId);
+    const tests = lus.d.lots.flatMap((l) => l.ads).filter((a) => lus!.persona(a.id)?.id === personaId).map((a) => a.id);
+    const gestes = g ? gestesLectureGroupe({ ref: g.persona, lecture: g.lecture, k: g.k, n: g.n, reference: g.reference },
+      { groupe: 'persona', note: NOTE_GESTES_FICHE_PERSONA, prioritaires: [], testsDeLaMarque: tests, planIds: lus.planIds }) : null;
+    return {
+      ferme: false as const, ...bilanTestsPersona(lus.d.lots, lus.persona, personaId), ...t, regle: regleLecturePersonas(),
+      lotsDeTest: lotsDuGroupe(lus.d.lots, lus.persona, personaId),
+      gestes, silence: !gestes && t.lecture !== 'aucun' ? noteGestesSilenceFiche('Ce persona') : null,
+      raisonHypothese: hypothese.ouvert ? null : hypothese.raison,
+    };
+  };
 
   return (
     <Personas
@@ -55,9 +79,7 @@ export default async function PersonasSpatiale({ params }: { params: Promise<{ i
         citations: citationsPersona(x.sources), sources: Array.isArray(x.sources) ? x.sources.length : 0,
         rang: x.rank, segment: x.segment, aValider: x.status === 'proposed',
         editable: { id: x.id, nom: x.name, description: x.description, segment: x.segment, rang: x.rank, desirs: x.desires ?? [], freins: x.pains ?? [], objections: x.objections ?? [] },
-        tests: lus
-          ? { ferme: false as const, ...bilanTestsPersona(lus.d.lots, lus.persona, x.id), ...testsDuPersona(lus.lecture, x.id), regle: regleLecturePersonas() }
-          : { ferme: true as const, raison: portes.lecture! },
+        tests: dansLesTests(x.id),
       }))}
       edition={{
         modifier: { action: updatePersonaAction, raison: null },

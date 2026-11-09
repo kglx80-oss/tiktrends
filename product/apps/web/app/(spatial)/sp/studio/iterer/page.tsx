@@ -5,7 +5,7 @@ import {
   aPermissionEspace, apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
   refusStudiosSpatial, variablesDuPlan, variablesInspiration, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE,
   iterationDepuisReponse, lireGesteIteration, preparationAutreVariable, OPTIONS_PUB_PROJET, REFUS_GESTE_JARVIS,
-  type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis,
+  type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis, type ProvenanceJarvis,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
@@ -56,6 +56,11 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * projet dans la portée studio ET la marque active (`lireCandidatsProjet`) ·
  * `&autre=1` (« Autre variable », RJ G07) · la variable SUIVANTE admise est
  * cochée à la place de celle de la réponse (`preparationAutreVariable`).
+ *
+ * Provenance « Jarvis » (bilan par provenance) · seulement quand la réponse ET
+ * le contexte ont été relus ici, l'écran transmet leurs identifiants à
+ * « Créer l'itération » · l'action les RELIT dans la portée avant de poser la
+ * provenance (`provenanceJarvisAdmise`) · l'adresse seule ne pose rien.
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -131,6 +136,7 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
 
   // Depuis une réponse de Jarvis · relue dans la portée, bornée aux gagnantes du contexte présentes dans le plan.
   let jarvis: PreparationIterationJarvis | null = null;
+  let provenance: ProvenanceJarvis | null = null;
   if (geste.etat === 'refus') jarvis = { adId: null, variable: null, note: REFUS_GESTE_JARVIS };
   else if (geste.etat === 'ok') {
     const projet = geste.contexte.type === 'projet';
@@ -147,6 +153,7 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
     jarvis = texte && ads
       ? (geste.autre ? preparationAutreVariable(texte, candidats, o) : iterationDepuisReponse(texte, candidats, o))
       : { adId: null, variable: null, note: REFUS_GESTE_JARVIS };
+    if (texte && ads) provenance = { reponseId: geste.reponse, contexte: { type: geste.contexte.type as ProvenanceJarvis['contexte']['type'], id: geste.contexte.id } };
   }
   return (
     <Iterer
@@ -157,7 +164,7 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
       demande={jarvis ? null : demande}
       variables={variables}
       variableDemandee={jarvis ? jarvis.variable : variableDemandee}
-      jarvis={jarvis ? { note: jarvis.note, adId: jarvis.adId, variable: jarvis.variable } : null}
+      jarvis={jarvis ? { note: jarvis.note, adId: jarvis.adId, variable: jarvis.variable, provenance } : null}
       vide={videIterationSpatial({ refus, marque: !!active, erreur, lignes: choix.length, resume })}
     />
   );

@@ -7,6 +7,7 @@ import { Ic, Lien } from '../../communs';
 import { BoutonHypothese } from '../resultats/hypothese-client';
 import { FormulaireSurcouche, SupprimerConfirme } from './interactifs';
 import { ModifierPersona, ValiderPersona, type ModifierPersonaAction, type PersonaEditable, type ValiderPersonaAction } from './persona-edition-client';
+import { DansLesTests, type DansLesTestsVue } from './dans-les-tests';
 
 /**
  * Le choix du persona affiché (`[data-pers]` de la maquette) et sa fiche ·
@@ -37,10 +38,13 @@ export interface PersonaVue {
   tests?: TestsPersonaVue;
 }
 
-/** La case « Dans les tests » · lue par la page (`lecturePersonas`), jamais calculée ici. */
+/**
+ * La case « Dans les tests » · lue par la page (`lecturePersonas`), jamais calculée ici ·
+ * ses lots (liens), et les gestes P06 quand le persona se détache (absents, rien n'est ajouté).
+ */
 export type TestsPersonaVue =
   | { ferme: true; raison: string }
-  | { ferme: false; tests: number; lots: number; lecture: LecturePersona | 'aucun'; phrase: string; regle: string };
+  | ({ ferme: false; tests: number; lots: number; lecture: LecturePersona | 'aucun'; phrase: string; regle: string } & Partial<Omit<DansLesTestsVue, 'tests' | 'lots' | 'lecture' | 'phrase' | 'regle'>>);
 
 /** Lot 9 · les gestes de modification · absents, aucun bouton n'est ajouté (écran de la maquette). */
 export interface EditionPersonas {
@@ -64,18 +68,12 @@ const titreBoite = (t: string, couleur = 'var(--fg2)') => <div className="lbl" s
 const ligne = (t: string, i: number) => <span key={i} style={{ fontSize: 13 }}>{t}</span>;
 const manque = (t: string) => <span className="faint" style={{ fontSize: 13 }}>{t}</span>;
 
-const TON_LECTURE: Record<LecturePersona | 'aucun', string> = {
-  au_dessus: 'var(--good)', en_dessous: 'var(--bad)', dans_le_bruit: 'var(--fg2)', effectif: 'var(--fg3)', reference: 'var(--fg3)', trop_de_personas: 'var(--fg3)', aucun: 'var(--fg3)',
-};
-
 function CaseTests({ t }: { t: TestsPersonaVue }) {
   if (t.ferme) return <>{titreBoite('Dans les tests')}{manque(t.raison)}</>;
   return (
     <>
       {titreBoite('Dans les tests')}
-      <span style={{ fontSize: 13 }} data-tests-persona={t.tests}>{t.tests === 0 ? 'Aucun test ne cible ce persona' : `${t.tests} test${t.tests > 1 ? 's' : ''} · ${t.lots} lot${t.lots > 1 ? 's' : ''}`}</span>
-      <span data-lecture-persona={t.lecture} style={{ fontSize: 13, color: TON_LECTURE[t.lecture] }}>{t.phrase}</span>
-      <small className="faint" style={{ fontSize: 11 }}>{t.regle}</small>
+      <DansLesTests groupe="persona" t={{ lotsDeTest: [], gestes: null, silence: null, raisonHypothese: null, ...t }} />
     </>
   );
 }

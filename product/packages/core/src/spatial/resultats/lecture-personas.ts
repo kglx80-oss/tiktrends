@@ -2,7 +2,7 @@ import { wilsonInterval, type Interval } from '../../adsmap/stats';
 import { NOM_PERSONA_PROVISOIRE } from '../marque/personas-edition';
 import { estLotImporte } from '../../adsmap/lot-nature';
 import { issueVariante, type Compte } from './conclusion-lot';
-import type { FaitsLotSpatial } from './lots';
+import { lienLotSpatial, type FaitsLotSpatial } from './lots';
 
 /**
  * Résultats · QUEL PERSONA fait gagner une créative (lot 9 V5 · VB P06).
@@ -359,4 +359,29 @@ export function accesTestsPersona(o: { adsmap: 'ok' | 'plan' | 'role'; marqueAct
 export function testsDuPersona(l: LecturePersonas, personaId: string): { lecture: LecturePersona | 'aucun'; phrase: string } {
   const g = l.groupes.find((x) => x.persona.id === personaId);
   return g ? { lecture: g.lecture, phrase: g.phrase } : { lecture: 'aucun', phrase: 'Aucune variante tranchée au protocole ne cible ce persona · rien à lire.' };
+}
+
+/* ───────────────────────── « Dans les tests » d'une fiche (persona, offre) ───────────────────────── */
+
+/** Un lot qui cible un groupe (persona, offre) · le lien vers sa fiche, et combien de ses tests le ciblent. */
+export interface LotDuGroupe { id: string; numero: number; href: string; tests: number; libelle: string }
+
+/**
+ * Les « Lots de test » d'une fiche · chaque lot de la marque dont au moins un
+ * test cible ce groupe, dans l'ordre des lots passés (le plus récent d'abord,
+ * `chargerLots`) · le même compte que `bilanTestsPersona` (« N tests · N lots »).
+ */
+export function lotsDuGroupe(lots: readonly FaitsLotSpatial[], attribution: (adId: string) => PersonaRef | null, groupeId: string): LotDuGroupe[] {
+  return lots.flatMap((l) => {
+    const tests = l.ads.filter((a) => attribution(a.id)?.id === groupeId).length;
+    if (!tests) return [];
+    const but = l.but?.replace(/\s+/g, ' ').trim();
+    return [{ id: l.id, numero: l.numero, href: lienLotSpatial(l.id), tests, libelle: `Lot #${l.numero}${but ? ` · ${but}` : ''} · ${pl(tests, 'test', 'tests')}` }];
+  });
+}
+
+/** La case « Dans les tests » d'un groupe · son groupe dans la lecture, ou le silence dit en clair (« ce persona », « cette offre »). */
+export function testsDuGroupe(l: LectureGroupes, groupeId: string, ce: string): { lecture: LecturePersona | 'aucun'; phrase: string; groupe: GroupeLecture | null } {
+  const g = l.groupes.find((x) => x.ref.id === groupeId) ?? null;
+  return g ? { lecture: g.lecture, phrase: g.phrase, groupe: g } : { lecture: 'aucun', phrase: `Aucune variante tranchée au protocole ne cible ${ce} · rien à lire.`, groupe: null };
 }

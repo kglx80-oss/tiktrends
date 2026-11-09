@@ -1,7 +1,7 @@
 'use client';
 
 import { useId } from 'react';
-import type { GestesPersona } from '@tiktrends/core';
+import { versGestesLecture, type GestesLecture, type GestesPersona } from '@tiktrends/core';
 import { creerHypotheseAction } from '../../../app/actions/adsmap-hypotheses';
 import { Ic, Lien } from '../../communs';
 import { BoutonHypothese } from './hypothese-client';
@@ -19,27 +19,43 @@ import { boutonAction } from '../projet/action-serveur';
  *    pré-rempli (le persona cité, ses verdicts dans le « parce que ») · rien
  *    n'est écrit avant « Ranger dans « À formuler » » · le serveur relit le
  *    persona dans la marque active (`creerHypotheseAction`, source `persona`).
+ *
+ * « Dans les tests » (fiche persona, fiche offre) · les MÊMES gestes, pour un
+ * persona ou une offre qui se détache (`gestesLectureGroupe`, noyau) · une
+ * offre crée une hypothèse « à la main » (elle n'a pas de provenance à elle).
  */
 export function GestesPersona({ g }: { g: GestesPersona }) {
+  return <GestesGroupe g={versGestesLecture(g)} />;
+}
+
+/** Les attributs du DOM · ceux du lot 9 pour un persona (inchangés), les mêmes, nommés pour une offre. */
+const ATTRS = {
+  persona: { bloc: 'data-gestes-persona', geste: 'data-geste-persona-lot' },
+  offre: { bloc: 'data-gestes-offre', geste: 'data-geste-offre' },
+} as const;
+
+export function GestesGroupe({ g, raisonHypothese = null }: { g: GestesLecture; raisonHypothese?: string | null }) {
   const id = useId();
-  const prenom = g.nom.split(',')[0]!.trim();
+  const a = ATTRS[g.groupe];
   // Fermé mais FOCALISABLE · la raison est écrite à côté et lue par le lecteur d'écran.
   const ferme = boutonAction({ ferme: true, focalisable: 'tout' });
+  const source = g.hypothese.source;
   return (
-    <div data-gestes-persona={g.personaId} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
+    <div {...{ [a.bloc]: g.id }} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
       {g.iterer.href
-        ? <Lien className="btn sm" href={g.iterer.href} data-geste-persona-lot="iterer" style={{ minHeight: 44 }}><Ic n="loop" />Itérer sur ce persona</Lien>
+        ? <Lien className="btn sm" href={g.iterer.href} {...{ [a.geste]: 'iterer' }} style={{ minHeight: 44 }}><Ic n="loop" />{g.libelles.iterer}</Lien>
         : (
           <>
-            <button type="button" className="btn sm" data-geste-persona-lot="iterer" aria-describedby={`${id}-iterer`} {...ferme} style={{ ...ferme.style, minHeight: 44 }}><Ic n="loop" />Itérer sur ce persona</button>
+            <button type="button" className="btn sm" {...{ [a.geste]: 'iterer' }} aria-describedby={`${id}-iterer`} {...ferme} style={{ ...ferme.style, minHeight: 44 }}><Ic n="loop" />{g.libelles.iterer}</button>
             <small className="faint" id={`${id}-iterer`} style={{ fontSize: '11.5px' }}>{g.iterer.raison}</small>
           </>
         )}
-      <span data-geste-persona-lot="hypothese" style={{ display: 'contents' }}>
-        <BoutonHypothese className="btn sm" style={{ minHeight: 44 }} titre={`Créer une hypothèse · ${prenom}`} depart={g.hypothese.depart} note={g.hypothese.note}
-          envoyer={(saisie) => creerHypotheseAction({ source: { type: 'persona', personaId: g.personaId }, saisie })}>
-          <Ic n="bulb" />Créer une hypothèse
+      <span {...{ [a.geste]: 'hypothese' }} style={{ display: 'contents' }}>
+        <BoutonHypothese className="btn sm" style={{ minHeight: 44 }} titre={g.libelles.titre} depart={g.hypothese.depart} note={g.hypothese.note} raison={raisonHypothese}
+          envoyer={raisonHypothese ? null : (saisie) => creerHypotheseAction({ source, saisie })}>
+          <Ic n="bulb" />{g.libelles.hypothese}
         </BoutonHypothese>
+        {raisonHypothese && <small className="faint" style={{ fontSize: '11.5px' }}>{raisonHypothese}</small>}
       </span>
     </div>
   );
