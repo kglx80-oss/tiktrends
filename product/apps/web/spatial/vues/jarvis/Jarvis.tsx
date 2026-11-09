@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   amorcesCategorie, CATEGORIES_JARVIS, CATEGORIE_JARVIS_DEFAUT, AUTOMATISATIONS_JARVIS, AUTOMATISATION_A_VENIR, VALEUR_ABSENTE,
   filtrerConversations, quandConversation, extraitConversation, reponseLisible, visibleWhileStreaming, sansTiretCadratin, libelleJour,
   conceptPropose, citationsReponse, titreValide, ACTION_PREMIERE_MARQUE, TITRE_ONBOARDING_JARVIS, SOUS_TITRE_ONBOARDING_JARVIS, ENTREES_ONBOARDING_JARVIS,
-  type CategorieJarvis, type EncartKpiJarvis, type IterationRecente, type ConceptPropose, type TypeContexteJarvis,
+  lienGesteJarvis, EFFET_GESTES_JARVIS,
+  type CategorieJarvis, type EncartKpiJarvis, type IterationRecente, type ConceptPropose, type TypeContexteJarvis, type GesteJarvis,
 } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, onboardingThreadAction, clearOnboardingAction, type ChatTurn } from '../../../app/actions/jarvis-chat';
 import { creerConversationAction, renommerConversationAction } from '../../../app/actions/jarvis-conversations';
@@ -13,6 +14,7 @@ import { draftConceptAction, type DraftView } from '../../../app/actions/adsmap-
 import { Brouillon } from '../resultats/Brouillon';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
+import { boutonAction, FERME } from '../projet/action-serveur';
 
 /**
  * « Jarvis » · `docs/spatial/reference/jarvis.html`, balisage à l'identique.
@@ -39,6 +41,13 @@ import { useSpatial } from '../../coquille/contexte';
  * d'un geste. La question est PRÉPARÉE dans le champ, ses variantes en puces ·
  * rien ne part sans le clic « Envoyer », au prix annoncé d'un message.
  *
+ * Lot 5 bis · un lot ou une hypothèse joints portent, sous la DERNIÈRE réponse
+ * de Jarvis, « Créer l'itération » et « Conclure le lot » (`gestesContexteJarvis`,
+ * relus par le serveur) · chacun est un LIEN vers l'écran existant (Itérer, la
+ * conclusion du lot), avec l'identifiant de CETTE réponse · l'écran d'arrivée la
+ * relit et pré-remplit ce qui est sûr · rien n'est créé ni conclu sans le clic
+ * là-bas. Fermé, un geste dit pourquoi, à côté.
+ *
  * Absents ou désactivés, faute de service réel · la suppression d'une
  * conversation (aucune action n'efface la ligne · « Effacer le fil » efface ses
  * messages, dans la conversation ouverte), le pilote automatique, le rapport, la
@@ -64,6 +73,8 @@ export interface ContexteJoint {
   /** D'autres questions · chacune prépare le champ, aucune n'envoie. */
   questions: string[];
   fil?: { conversationId: string; tours: ChatTurn[] };
+  /** Lot 5 bis · les gestes d'un lot ou d'une hypothèse joints · absents ailleurs (page de Résultats, projet). */
+  gestes?: { iterer: GesteJarvis; conclure: GesteJarvis };
 }
 
 /** Sans marque · le fil d'accueil réel (portée espace + personne) et ses amorces. */
@@ -286,6 +297,8 @@ export function Jarvis(p: PropsJarvis) {
   }
 
   let jourPrec = '';
+  // Les gestes vont sous la DERNIÈRE réponse de Jarvis, tant qu'un lot ou une hypothèse restent joints.
+  const derniere = joint?.gestes ? tours.reduce((n, t, i) => (t.role === 'assistant' ? i : n), -1) : -1;
   const messages = tours.map((t, i) => {
     const jour = libelleJour(t.at, maintenant);
     const sep = jour !== jourPrec ? <div className="jday" key={`j-${t.id}`}><span>{jour}</span></div> : null;
@@ -309,6 +322,7 @@ export function Jarvis(p: PropsJarvis) {
             {p.marque && <Lien className="jact" href="/studio/projets/nouveau"><Ic n="brush" />Créer un projet</Lien>}
           </div>
           {concept && <Concept c={concept} />}
+          {i === derniere && joint?.gestes && <GestesReponse g={joint.gestes} reponse={t.id} />}
         </div></div>
       </Fragment>
     );
@@ -494,6 +508,36 @@ function Joint({ c, cout, preparer, retirer }: { c: ContexteJoint; cout: string;
         </div>
       )}
       <small className="faint" style={{ display: 'block', fontSize: 11 }} data-cout-contexte="">Le contexte part avec ton message, au prix d’un message · {cout}</small>
+    </div>
+  );
+}
+
+/**
+ * Lot 5 bis · « Créer l'itération » et « Conclure le lot » sous une réponse ·
+ * des LIENS vers les écrans existants (rien n'est écrit ici, aucun appel) ·
+ * fermés, la raison est écrite à côté. Une réponse encore sans identifiant
+ * (en cours d'écriture) n'en porte pas.
+ */
+function GestesReponse({ g, reponse }: { g: { iterer: GesteJarvis; conclure: GesteJarvis }; reponse: string }) {
+  const id = useId();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reponse)) return null;
+  const gestes = [g.iterer, g.conclure].map((x) => ({ x, href: lienGesteJarvis(x, reponse) }));
+  return (
+    <div data-gestes-jarvis="" style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+      <div className="jm-a" style={{ flexWrap: 'wrap' }}>
+        {gestes.map(({ x, href }) => (href ? (
+          <Lien key={x.cle} className="btn sm" href={href} data-geste-jarvis={x.cle} title={EFFET_GESTES_JARVIS} style={{ minHeight: 44 }}>
+            <Ic n={x.cle === 'iterer' ? 'loop' : 'check'} />{x.libelle}
+          </Lien>
+        ) : (
+          <button key={x.cle} type="button" className="btn sm" data-geste-jarvis={x.cle} aria-describedby={`${id}-${x.cle}`}
+            {...boutonAction({ ferme: true, focalisable: 'tout' })} style={{ ...FERME, minHeight: 44 }}>
+            <Ic n={x.cle === 'iterer' ? 'loop' : 'check'} />{x.libelle}
+          </button>
+        )))}
+      </div>
+      {gestes.filter(({ href }) => !href).map(({ x }) => x.raison && <small key={x.cle} id={`${id}-${x.cle}`} className="faint" data-raison-geste={x.cle} style={{ fontSize: 11 }}>{x.libelle} · {x.raison}</small>)}
+      <small className="faint" style={{ fontSize: 11 }}>{EFFET_GESTES_JARVIS}</small>
     </div>
   );
 }

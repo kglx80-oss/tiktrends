@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CHEMIN_NOUVEAU_PROJET, budgetPrevuLot, lienFicheTest, lienLotSpatial, type VerdictValue } from '@tiktrends/core';
+import { ANCRE_CONCLURE_LOT, CHEMIN_NOUVEAU_PROJET, budgetPrevuLot, lienFicheTest, lienLotSpatial, type VerdictValue } from '@tiktrends/core';
 import { duplicateBatchAction, launchBatchAction, prepareBatchAction, setBatchAdAction } from '../../../app/actions/adsmap-batch';
 import { validateVerdictAction, type ValidateInput } from '../../../app/actions/adsmap-verdict';
 import { Ic, Lien } from '../../communs';
@@ -35,7 +35,15 @@ export interface BriefLot { campagne: string; structure: string; budgetJour: num
 
 export type PropsActionsLot =
   | { mode: 'composition'; lotId: string; pret: boolean; variantes: VarianteComposee[]; vivier: VarianteComposee[]; brief: BriefLot | null }
-  | { mode: 'arbitrage'; lotId: string; aArbitrer: VarianteAArbitrer[] };
+  | {
+    mode: 'arbitrage'; lotId: string; aArbitrer: VarianteAArbitrer[];
+    /**
+     * Lot 5 bis · ouvert depuis une réponse de Jarvis (« Conclure le lot ») ·
+     * l'apprentissage pré-rempli par variante (modifiable) et la phrase qui dit
+     * ce qui l'est · rien n'est validé sans le clic « Valider le verdict ».
+     */
+    jarvis?: { textes: Readonly<Record<string, string>>; note: string };
+  };
 
 const PORTEES: ReadonlyArray<[ValidateInput['learning']['scope'], string]> = [
   ['ad', 'Cette variante'], ['concept', 'Le concept'], ['angle', 'L’angle'], ['desire', 'Le désir'],
@@ -147,12 +155,13 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
 
 function Arbitrage(p: Extract<PropsActionsLot, { mode: 'arbitrage' }>) {
   const { occupe, message, geste, bouton } = useGeste();
-  const [enonces, setEnonces] = useState<Record<string, string>>({});
+  const [enonces, setEnonces] = useState<Record<string, string>>(() => ({ ...(p.jarvis?.textes ?? {}) }));
   const [portees, setPortees] = useState<Record<string, ValidateInput['learning']['scope']>>({});
   return (
-    <section className="tile sec" aria-label="Conclure le lot">
+    <section className="tile sec" id={ANCRE_CONCLURE_LOT} aria-label="Conclure le lot">
       <h2>Conclure le lot</h2>
       <p className="muted" style={{ fontSize: '12.5px', marginTop: 4 }}>Un verdict ne se valide qu’avec ce qu’il t’apprend · une phrase complète, réutilisable sur la prochaine créa.</p>
+      {p.jarvis && <p className="faint" role="status" data-note-jarvis="" style={{ fontSize: '12.5px', marginTop: 6 }}>{p.jarvis.note}</p>}
       <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
         {p.aArbitrer.map((v) => (
           <form className="blform" key={v.id} onSubmit={(e) => {
@@ -161,7 +170,7 @@ function Arbitrage(p: Extract<PropsActionsLot, { mode: 'arbitrage' }>) {
           }}>
             <strong>{v.variante} · {v.verdict}</strong>
             {v.raison && <span className="faint" style={{ fontSize: '12px' }}>{v.raison}</span>}
-            <textarea value={enonces[v.id] ?? ''} onChange={(e) => setEnonces((x) => ({ ...x, [v.id]: e.target.value }))} maxLength={600} placeholder="Ce que cette variante t’apprend…" aria-label={`Apprentissage de ${v.variante}`} />
+            <textarea data-apprentissage={v.id} value={enonces[v.id] ?? ''} onChange={(e) => setEnonces((x) => ({ ...x, [v.id]: e.target.value }))} maxLength={600} placeholder="Ce que cette variante t’apprend…" aria-label={`Apprentissage de ${v.variante}`} />
             <div className="kc">
               {PORTEES.map(([cle, libelle]) => (
                 <button type="button" className="chip" key={cle} aria-pressed={(portees[v.id] ?? 'ad') === cle} onClick={() => setPortees((x) => ({ ...x, [v.id]: cle }))}>{libelle}</button>

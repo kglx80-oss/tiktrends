@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { brouillonAvecSuggestion, sousTitreTiroirJarvis, suggestionsTiroirJarvis, texteFluxJarvis, texteTourJarvis, verrouAction } from '@tiktrends/core';
+import { brouillonAvecSuggestion, contexteTiroirJarvis, lienPleinEcranTiroir, sousTitreTiroirJarvis, suggestionsTiroirJarvis, texteFluxJarvis, texteTourJarvis, verrouAction, type DemandeContexteJarvis } from '@tiktrends/core';
 import { chatThreadAction, type ChatThread } from '../../app/actions/jarvis-chat';
+import { contexteJarvisAction } from '../../app/actions/jarvis-contexte';
 import { annonceConversationJarvis, type RegimeTarifaire } from '@tiktrends/core';
 import { useRegime } from './contexte';
 import { Ic, Lien } from '../communs/base';
@@ -24,6 +25,14 @@ import { Ic, Lien } from '../communs/base';
  * repliée, qui mène au VRAI assistant de création (`/studio/projets/nouveau`,
  * où le prix est annoncé avant de lancer). Les gestes proposés par Jarvis
  * (boutons d'action d'une réponse) restent sur l'écran Jarvis plein écran.
+ *
+ * Lot 5 bis (RJ G03) · la PAGE affichée · un lot, une hypothèse (fiche d'un
+ * test) ou une page de Résultats sont joints au tiroir par la même règle que
+ * `/jarvis?contexte=…` (`contexteTiroirJarvis`, noyau), relus par le serveur
+ * (`contexteJarvisAction` → `resoudreContexteJarvis`) AVANT d'être montrés,
+ * puis RELUS par la route à chaque envoi. La puce dit ce qui est joint, « Retirer »
+ * le détache · le lien plein écran porte le même contexte. Un projet n'est pas
+ * joint au tiroir (son panneau a son fil lié) · seul le plein écran le porte.
  */
 
 export interface TourTiroir { id: string; moi: boolean; texte: string }
@@ -49,6 +58,11 @@ export interface VueTiroirJarvisProps {
   fil?: React.Ref<HTMLDivElement>;
   /** Régime tarifaire de l'espace · le prix d'un message dit AVANT l'envoi. Absent = `actuel` (inclus). */
   regime?: RegimeTarifaire;
+  /** La page jointe, relue par le serveur (lot 5 bis) · absente, le tiroir est celui de la maquette. */
+  joint?: { type: string; libelle: string } | null;
+  onRetirer?: () => void;
+  /** Le lien « Plein écran » · absent, `/jarvis`. */
+  pleinEcran?: string;
 }
 
 const CREER: CSSProperties = { all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 18, background: 'linear-gradient(135deg,color-mix(in srgb,var(--acc) 26%,transparent),transparent 75%),#ffffff0a', border: '1px solid color-mix(in srgb,var(--acc) 45%,transparent)' };
@@ -62,7 +76,7 @@ export function VueTiroirJarvis(p: VueTiroirJarvisProps) {
       <header className="jdh">
         <span className="orb">J</span>
         <div style={{ flex: 1, minWidth: 0, display: 'grid' }}><strong>Jarvis</strong><small>{p.sousTitre}</small></div>
-        <Lien className="btn sm icon" href="/jarvis" aria-label="Ouvrir Jarvis en plein écran" title="Plein écran"><Ic n="arrow" /></Lien>
+        <Lien className="btn sm icon" href={p.pleinEcran ?? '/jarvis'} aria-label="Ouvrir Jarvis en plein écran" title="Plein écran"><Ic n="arrow" /></Lien>
         <button className="btn sm icon" type="button" data-jdx="1" aria-label="Fermer" onClick={p.onFermer}><Ic n="x" /></button>
       </header>
       <div className="jdb" id="jdb" ref={p.fil}>
@@ -86,6 +100,12 @@ export function VueTiroirJarvis(p: VueTiroirJarvisProps) {
         )}
       </div>
       <form className="jdf" id="jdform" autoComplete="off" onSubmit={(e) => { e.preventDefault(); p.onEnvoyer(); }}>
+        {p.joint && (
+          <div data-contexte-page={p.joint.type} style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '0 4px 8px', fontSize: 12 }}>
+            <span className="faint" style={{ flex: 1, minWidth: 0 }}>Page jointe · <strong data-libelle-page="">{p.joint.libelle}</strong> · relue par le serveur à l’envoi</span>
+            <button type="button" className="btn sm" onClick={p.onRetirer} disabled={p.enCours} title="Le prochain message partira sans cette page" style={{ minHeight: 44 }}><Ic n="x" />Retirer</button>
+          </div>
+        )}
         <div className="jin">
           <input id="jdin" ref={p.champ} placeholder="Une question pour Jarvis…" aria-label="Question à Jarvis" maxLength={4000}
             value={p.saisie} disabled={p.enCours} onChange={(e) => p.onSaisie(e.target.value)} />
@@ -104,8 +124,10 @@ const cleConversation = (brandId: string) => `tt_jarvis_conv_${brandId}`;
  * bascule `hidden` · le fil est lu à la PREMIÈRE ouverture (jamais avant),
  * puis gardé jusqu'au rechargement.
  */
-export function TiroirJarvis({ ouvert, marque, creer, brouillon, onFermer, onNaviguer, toast }: {
+export function TiroirJarvis({ ouvert, marque, creer, brouillon, onFermer, onNaviguer, toast, chemin = '/' }: {
   ouvert: boolean;
+  /** La page affichée (lot 5 bis) · son contexte est joint s'il est relu dans la portée. */
+  chemin?: string;
   marque: { id: string; nom: string } | null;
   creer: string | null;
   /** Préremplissage demandé par une vue (`ouvrirJarvis(brouillon)`) · jamais envoyé seul. */
@@ -122,6 +144,9 @@ export function TiroirJarvis({ ouvert, marque, creer, brouillon, onFermer, onNav
   const [saisie, setSaisie] = useState('');
   const [partiel, setPartiel] = useState<string | null>(null);
   const verrou = useRef(verrouAction());
+  // La page jointe · relue par le serveur, retirable · retirée, elle le reste tant qu'on ne change pas de page.
+  const [joint, setJoint] = useState<(DemandeContexteJarvis & { libelle: string }) | null>(null);
+  const [retire, setRetire] = useState<string | null>(null);
   const champ = useRef<HTMLInputElement>(null);
   const fil = useRef<HTMLDivElement>(null);
 
@@ -146,6 +171,16 @@ export function TiroirJarvis({ ouvert, marque, creer, brouillon, onFermer, onNav
   }, [ouvert, charge, charger, marque]);
 
   useEffect(() => { if (ouvert) setTimeout(() => champ.current?.focus(), 50); }, [ouvert]);
+  const marqueId = marque?.id ?? null;
+  useEffect(() => { setRetire((r) => (r && r !== chemin ? null : r)); }, [chemin]);
+  useEffect(() => {
+    const d = marqueId ? contexteTiroirJarvis(chemin) : null;
+    if (!ouvert || !d || retire === chemin) { setJoint(null); return; }
+    let vivant = true;
+    void contexteJarvisAction(d.type, d.id).then((r) => { if (vivant) setJoint(r); }, () => { if (vivant) setJoint(null); });
+    return () => { vivant = false; };
+    // La marque compte par son identifiant · la coquille repasse un objet neuf à chaque rendu.
+  }, [ouvert, chemin, marqueId, retire]);
   useEffect(() => { if (brouillon) setSaisie((s) => brouillonAvecSuggestion(s, brouillon.texte)); }, [brouillon]);
   useEffect(() => { const f = fil.current; if (f) f.scrollTop = f.scrollHeight; }, [thread?.turns.length, partiel, ouvert]);
 
@@ -158,7 +193,8 @@ export function TiroirJarvis({ ouvert, marque, creer, brouillon, onFermer, onNav
     try {
       const res = await fetch('/api/jarvis/chat', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: q, conversationId, brandId: marque.id, sources: ['fiche'] }),
+        // La page jointe part comme `{ type, id }` · la route la relit dans la portée, jamais son texte d'écran.
+        body: JSON.stringify({ message: q, conversationId, brandId: marque.id, sources: ['fiche'], ...(joint ? { contexte: { type: joint.type, id: joint.id } } : {}) }),
       });
       if (!res.ok || !res.body) {
         const j = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -210,6 +246,9 @@ export function TiroirJarvis({ ouvert, marque, creer, brouillon, onFermer, onNav
           onFermer={onFermer}
           champ={champ}
           fil={fil}
+          joint={joint}
+          onRetirer={() => { setRetire(chemin); setJoint(null); champ.current?.focus(); }}
+          pleinEcran={lienPleinEcranTiroir(chemin, joint)}
         />
       )}
     </aside>

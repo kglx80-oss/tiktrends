@@ -4,7 +4,8 @@ import { db, schema } from '@tiktrends/db';
 import {
   aPermissionEspace, apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
   refusStudiosSpatial, variablesDuPlan, variablesInspiration, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE,
-  type ChoixVariablesIteration, type ContexteAdSpatial,
+  iterationDepuisReponse, lireGesteIteration, REFUS_GESTE_JARVIS,
+  type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
@@ -13,6 +14,7 @@ import { FEATURES, denyReason } from '../../../../../lib/rbac';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { jointureCreaDeLaMarque, vignetteAd } from '../../../../../lib/adsmap-medias';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
+import { lireContexteGestes, lireReponseJarvis } from '../../../../../lib/jarvis-gestes';
 import { iterationPlanAction, type IterationRow } from '../../../../actions/adsmap-iterate';
 import { Iterer, type InspirationIterer } from '../../../../../spatial/vues/studios/Iterer';
 import { RefusStudios } from '../../../../../spatial/vues/studios/Refus';
@@ -40,6 +42,14 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * d'inspiration · lue dans les sauvegardes de l'espace (marque active ou sans
  * marque, comme le pont Adsmap), jamais écrite. Les variables admises sont la
  * même règle, adaptée à une source sans verdict (`variablesInspiration`).
+ *
+ * `?reponse=<uuid>&contexte=lot|hypothese&id=<uuid>` (lot 5 bis · « Créer
+ * l'itération » sous une réponse de Jarvis) · la réponse est RELUE dans la
+ * portée (espace, marque active, personne), le contexte dans la marque · la
+ * pub de départ est prise parmi les gagnantes du contexte QUI SONT dans le plan
+ * de la marque, la variable parmi SES variables admises (`iterationDepuisReponse`,
+ * noyau). Rien de sûr · aucun pré-choix, et l'écran le dit. Rien n'est créé
+ * sans le clic « Créer l'itération ».
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -47,6 +57,7 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   const sp = await searchParams;
   const demande = lireIterationDemandee(sp);
   const variableDemandee = lireVariableDemandee(sp);
+  const geste = lireGesteIteration(sp);
 
   const g = await gardeSources('studio.read');
   if (!g.ok) redirect(CHEMIN_PROJETS);
@@ -111,15 +122,26 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   // Les variables admises · seulement pour les pubs sélectionnables (une piste fermée garde sa raison, rien à choisir).
   const tous = variablesDuPlan(rows);
   const variables: Record<string, ChoixVariablesIteration> = Object.fromEntries(choix.filter((c) => c.selectionnable && tous[c.adId]).map((c) => [c.adId, tous[c.adId]!]));
+
+  // Depuis une réponse de Jarvis · relue dans la portée, bornée aux gagnantes du contexte présentes dans le plan.
+  let jarvis: PreparationIterationJarvis | null = null;
+  if (geste.etat === 'refus') jarvis = { adId: null, variable: null, note: REFUS_GESTE_JARVIS };
+  else if (geste.etat === 'ok') {
+    const [texte, ctx] = active ? await Promise.all([lireReponseJarvis(s, active.id, geste.reponse), lireContexteGestes(s, active.id, geste.contexte)]) : [null, null];
+    jarvis = texte && ctx
+      ? iterationDepuisReponse(texte, ctx.ads.filter((a) => variables[a.id]).map((a) => ({ adId: a.id, variante: a.variante, variables: variables[a.id]! })))
+      : { adId: null, variable: null, note: REFUS_GESTE_JARVIS };
+  }
   return (
     <Iterer
       sous={active ? `Itération · ${active.name}` : 'Itération'}
       resume={resume}
       choix={choix}
-      initial={choixInitialIteration(choix, demande)}
-      demande={demande}
+      initial={jarvis ? jarvis.adId : choixInitialIteration(choix, demande)}
+      demande={jarvis ? null : demande}
       variables={variables}
-      variableDemandee={variableDemandee}
+      variableDemandee={jarvis ? jarvis.variable : variableDemandee}
+      jarvis={jarvis ? { note: jarvis.note, adId: jarvis.adId, variable: jarvis.variable } : null}
       vide={videIterationSpatial({ refus, marque: !!active, erreur, lignes: choix.length, resume })}
     />
   );

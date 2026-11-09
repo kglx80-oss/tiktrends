@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { DEFAULT_VERDICT_CONFIG, kpisResultats, sousNavResultats, type CarteHypothese, type EtatLotSpatial } from '@tiktrends/core';
+import { DEFAULT_VERDICT_CONFIG, analyseJarvisEnsemble, kpisResultats, sousNavResultats, type CarteHypothese, type EtatLotSpatial } from '@tiktrends/core';
 import { parite, squelette, fragmentReference, type CorrectifParite } from './spatial/parite';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/adsmap', useRouter: () => ({ push: () => {}, refresh: () => {} }) }));
@@ -16,7 +16,7 @@ vi.mock('../app/actions/adsmap', () => ({ syncAdsMapAction: async () => ({}) }))
 vi.mock('../app/actions/adsmap-import', () => ({ previewImportAction: async () => ({}), applyImportAction: async () => ({}) }));
 
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
-import { VueEnsemble } from '../spatial/vues/resultats/VueEnsemble';
+import { VueEnsemble, type PropsVueEnsemble } from '../spatial/vues/resultats/VueEnsemble';
 import { Lots } from '../spatial/vues/resultats/Lots';
 import { Lot } from '../spatial/vues/resultats/Lot';
 import { Protocole } from '../spatial/vues/resultats/Protocole';
@@ -53,7 +53,7 @@ const CORRECTIFS_CREAS: CorrectifParite[] = [
 ];
 
 describe('Spatial · Résultats · parité de structure avec la maquette', () => {
-  it('« Vue d’ensemble » reproduit la maquette', () => {
+  const ensemble = (jarvis?: PropsVueEnsemble['jarvis']) => {
     const k = kpisResultats({ depense: 10416, impressions: 54300, vues3s: 13032, achats: 1327, ventes: 18957 }, { depense: 8857, impressions: 50000, vues3s: 10500, achats: 1150, ventes: 16400 });
     const html = rendre(
       <VueEnsemble
@@ -72,10 +72,33 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
           { id: 'c', alerte: false, statut: { libelle: 'Prêt à lancer', classe: '' }, titre: 'Lot #3', pubs: [{ texte: 'P', image: IMG }, { texte: 'A', image: IMG }], progression: null, texte: 't', action: { libelle: 'Lancer', href: '/adsmap/lots/l3' } },
         ]}
         commencer={{ libelle: 'Préparer un lot', href: '/adsmap/lots' }}
+        jarvis={jarvis}
       />,
     );
-    const p = parite(html, 'resultats', { ...VUE, correctifs: CORRECTIFS_CREAS.filter((c) => c.selecteur === '.rvwin') });
+    return html;
+  };
+  const pariteEnsemble = (html: string) => parite(html, 'resultats', { ...VUE, correctifs: CORRECTIFS_CREAS.filter((c) => c.selecteur === '.rvwin') });
+
+  it('« Vue d’ensemble » reproduit la maquette', () => {
+    const p = pariteEnsemble(ensemble());
     expect(p.rendu).toEqual(p.reference);
+  });
+
+  /**
+   * Lot 5 bis (RJ R03) · « Analyser avec Jarvis » et ses puces · l'UNIQUE écart
+   * à la maquette, une tuile `[data-analyser-jarvis]` posée sous les chiffres ·
+   * retirée, le rendu est la maquette à l'identique. Elle doit exister (un
+   * retrait sans effet échoue), et rien d'autre ne bouge.
+   */
+  it('« Vue d’ensemble » · « Analyser avec Jarvis » est le seul écart, étroitement déclaré', () => {
+    const t = document.createElement('template');
+    t.innerHTML = ensemble(analyseJarvisEnsemble({ gagnante: 'v2', numero: 1 }));
+    const tuiles = t.content.querySelectorAll('[data-analyser-jarvis]');
+    expect(tuiles.length, 'la tuile « Analyser avec Jarvis » est rendue').toBe(1);
+    expect([...tuiles[0]!.querySelectorAll('[data-puce-jarvis]')].map((x) => x.textContent)).toEqual(['Pourquoi la v2 fait mieux ?', 'Quelle variante tester ensuite ?', 'Résumé pour le client', 'Ce qui manque pour conclure']);
+    tuiles[0]!.remove();
+    const p = pariteEnsemble(t.innerHTML);
+    expect(p.rendu, 'sans la tuile, la maquette à l’identique').toEqual(p.reference);
   });
 
   it('« Lots de test » reproduit la maquette', () => {

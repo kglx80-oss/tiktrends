@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 import {
   attendArbitrage, barresCpa, coachLot, controlesLot, lotArbitrable, plateformesLot, presentationLot, syntheseLot, verdictAffiche,
   LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest, conclusionLot, referenceConclusion, lienJarvisContexte,
+  apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS,
 } from '@tiktrends/core';
+import { lireReponseJarvis } from '../../../../../../lib/jarvis-gestes';
 import { batchDetailAction } from '../../../../../actions/adsmap-batch';
 import { Lot } from '../../../../../../spatial/vues/resultats/Lot';
 import { ActionsLot, DupliquerLot, type PropsActionsLot } from '../../../../../../spatial/vues/resultats/ActionsLot';
@@ -20,9 +22,15 @@ export const dynamic = 'force-dynamic';
  *
  * La conclusion du lot entier (`conclusionLot`) se lit contre les AUTRES lots
  * de la marque, déjà chargés ici · aucune lecture de plus.
+ *
+ * `?conclure=jarvis&reponse=<uuid>` (lot 5 bis · « Conclure le lot » sous une
+ * réponse de Jarvis) · la réponse est RELUE dans la portée (espace, marque
+ * active, personne) · l'apprentissage de chaque variante à arbitrer est
+ * pré-rempli par ce que la réponse dit d'ELLE seule (`apprentissagesDepuisReponse`,
+ * noyau), modifiable · rien n'est validé sans le clic « Valider le verdict ».
  */
-export default async function LotSpatial({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function LotSpatial({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  const [{ id }, sp] = await Promise.all([params, searchParams ?? Promise.resolve({} as Record<string, string | string[] | undefined>)]);
   const g = await gardeResultats();
   if (!g.ok) return <RefusResultats titre="Lot de test" raison={g.raison} />;
 
@@ -52,12 +60,20 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
       brief: b ? { campagne: b.campaignName, structure: b.structure, budgetJour: b.dailyBudgetPerAd, jours: b.durationDays, audience: b.audienceRule, total: b.totalBudget, conclusivite: b.conclusiveness } : null,
     };
   } else if (lotArbitrable(pres.etat)) {
+    const aArbitrer = l.ads.filter(attendArbitrage);
+    // Depuis une réponse de Jarvis · relue dans la portée, pré-remplit sans rien valider.
+    const geste = lireGesteConclusion(sp);
+    const texte = geste.etat === 'ok' ? await lireReponseJarvis(g.s, g.marque.id, geste.reponse) : null;
+    const jarvis = geste.etat === 'absente' ? null
+      : texte ? apprentissagesDepuisReponse(texte, aArbitrer.map((a) => ({ adId: a.id, variante: a.variante })))
+        : { textes: {}, note: REFUS_GESTE_JARVIS };
     actions = {
       mode: 'arbitrage', lotId: l.id,
-      aArbitrer: l.ads.filter(attendArbitrage).map((a) => ({
+      aArbitrer: aArbitrer.map((a) => ({
         id: a.id, variante: a.variante, calcule: a.verdict!.calcule!,
         verdict: LIBELLE_VERDICT[verdictAffiche(a.verdict) ?? a.verdict!.calcule!].court, raison: a.verdict!.raison,
       })),
+      ...(jarvis ? { jarvis } : {}),
     };
   }
 

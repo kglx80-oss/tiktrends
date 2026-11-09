@@ -13,6 +13,7 @@ import { projetsPourColonneJarvis } from '../../../../lib/studios/jarvis-projets
 import { ficheMarqueLue } from '../../../../lib/jarvis-fiche';
 import { lireChiffresClesMeta } from '../../../../lib/chiffres-cles-meta';
 import { resoudreContexteJarvis } from '../../../../lib/jarvis-contexte';
+import { gestesPourContexte } from '../../../../lib/jarvis-gestes';
 import { Jarvis, type ContexteJoint, type ConversationArchive } from '../../../../spatial/vues/jarvis/Jarvis';
 import { RefusJarvis } from '../../../../spatial/vues/jarvis/RefusJarvis';
 
@@ -43,6 +44,11 @@ const ANALYTICS = FEATURES.find((f) => f.key === 'analytics')!;
  * le contexte s'affiche tel qu'il partira et la question est PRÉPARÉE dans le
  * champ · aucun envoi, aucun appel IA, aucune écriture à l'ouverture. Un projet
  * rouvre son fil lié (plein écran du panneau du projet).
+ *
+ * Lot 5 bis · un lot ou une hypothèse joints portent, sous la dernière réponse,
+ * « Créer l'itération » et « Conclure le lot » (`gestesPourContexte`, relus
+ * dans la marque) · chacun OUVRE l'écran existant, pré-rempli à partir de CETTE
+ * réponse relue par le serveur · rien n'est créé ni conclu sans le clic là-bas.
  */
 export default async function JarvisSpatial({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -75,9 +81,12 @@ export default async function JarvisSpatial({ searchParams }: { searchParams?: P
   if (resolu) {
     // Un projet rouvre SON fil (la conversation liée, lecture seule) · sans fil lié, le premier envoi le crée.
     const filProjet = resolu.type === 'projet' ? (await chatThreadAction({ projectId: resolu.id })).thread ?? null : null;
+    // Lot 5 bis · un lot ou une hypothèse portent les gestes « Créer l'itération » et « Conclure le lot » (relus dans la marque, rien n'est appliqué).
+    const gestes = resolu.type === 'lot' || resolu.type === 'hypothese' ? await gestesPourContexte(s, brand.id, { type: resolu.type, id: resolu.id }, maintenant) : null;
     contexte = {
       type: resolu.type, id: resolu.id, libelle: resolu.libelle, lignes: resolu.lignes, questions: resolu.questions,
       ...(filProjet?.conversationId ? { fil: { conversationId: filProjet.conversationId, tours: filProjet.turns } } : {}),
+      ...(gestes ? { gestes } : {}),
     };
   }
   // La question de l'adresse (`q`) l'emporte · sinon celle que le contexte prépare. Jamais envoyée seule.

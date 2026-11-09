@@ -334,7 +334,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
 
       {jarvis && (
         <TiroirJarvis ouvert={panneau === 'jarvis'} marque={d.marque ? { id: d.marque.id, nom: d.marque.nom } : null} creer={creer}
-          brouillon={brouillon} onFermer={fermer} onNaviguer={naviguer} toast={toast} />
+          brouillon={brouillon} onFermer={fermer} onNaviguer={naviguer} toast={toast} chemin={chemin} />
       )}
 
       {palette && <Palette groupes={groupes} onNaviguer={naviguer} onFermer={fermer} onTheme={toast} />}

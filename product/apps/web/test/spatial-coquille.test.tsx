@@ -177,6 +177,17 @@ describe('Spatial · surcouches · parité avec la maquette', () => {
     egal(retirer(tiroir({ tours: [{ id: '1', moi: true, texte: 'q' }, { id: '2', moi: false, texte: 'r' }] }), SANS_COUT), ref('_jarvis-fil'));
   });
 
+  /**
+   * Lot 5 bis (RJ G03) · la page jointe au tiroir · l'UNIQUE écart, la puce
+   * `[data-contexte-page]` dans le formulaire (un retrait sans effet échoue) ·
+   * le lien plein écran garde sa forme, seule son adresse porte le contexte.
+   */
+  it('Jarvis · page jointe · la puce de la page est le seul écart, étroitement déclaré', () => {
+    const rendu = tiroir({ joint: { type: 'lot', libelle: 'Lot #3 · Affirmation ou question ?' }, onRetirer: rien, pleinEcran: '/jarvis?contexte=lot&id=x' });
+    expect(rendu).toContain('href="/jarvis?contexte=lot&amp;id=x"');
+    egal(retirer(rendu, [...SANS_COUT, '[data-contexte-page]']), ref('_jarvis'));
+  });
+
   it('Jarvis · pendant la réponse (points d’attente)', () => {
     egal(retirer(tiroir({ tours: [{ id: '1', moi: true, texte: 'q' }, { id: '2', moi: false, texte: 'r' }, { id: '3', moi: true, texte: 'x' }], partiel: '' }), SANS_COUT), ref('_jarvis-attente'));
   });

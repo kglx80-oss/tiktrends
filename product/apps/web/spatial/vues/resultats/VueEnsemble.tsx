@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { KpiResultats, NiveauPreuve } from '@tiktrends/core';
+import type { AnalyseJarvisEnsemble, KpiResultats, NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Points, Pub, rangeeVariantes, type SousNavResultats } from './communs';
 
@@ -52,6 +52,13 @@ export interface PropsVueEnsemble {
    * balisage de la maquette.
    */
   outils?: ReadonlyArray<{ href: string; libelle: string; icone: string }>;
+  /**
+   * « Analyser avec Jarvis » (RJ R03, lot 5 bis) · ouvre Jarvis avec la page
+   * jointe (`resultats:ensemble`), et les puces de la maquette, chacune PRÉPARE
+   * sa question · rien n'est envoyé. Absent (pas d'accès Jarvis) · rien n'est
+   * ajouté au balisage de la maquette.
+   */
+  jarvis?: AnalyseJarvisEnsemble | null;
 }
 
 /**
@@ -74,6 +81,16 @@ export function VueEnsemble(p: PropsVueEnsemble) {
           <div className="tile kpi" key={k.libelle}><div className="lbl">{k.libelle}</div><div className="v">{k.valeur} <span className={`d ${k.classe}`}>{k.delta}</span></div><small>{k.note}</small></div>
         ))}
       </div>
+      {p.jarvis && (
+        <section className="tile" data-analyser-jarvis="" aria-label="Analyser avec Jarvis" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+          <span className="orb">J</span>
+          <Lien className="btn sm" href={p.jarvis.href} data-demander-jarvis="resultats" title="Ouvre Jarvis avec la vue d’ensemble jointe · la question est préparée, l’envoi reste à toi" style={{ minHeight: 44 }}><Ic n="spark" />Analyser avec Jarvis</Lien>
+          <div className="cats" style={{ flex: 1, minWidth: 220 }}>
+            {p.jarvis.puces.map((x) => <Lien key={x.libelle} className="chip" href={x.href} data-puce-jarvis="" title="Prépare la question dans Jarvis · l’envoi reste à toi" style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>{x.libelle}</Lien>)}
+          </div>
+          <small className="faint" style={{ fontSize: 11, flexBasis: '100%' }}>Rien n’est envoyé · la question part au clic « Envoyer », au prix d’un message, annoncé dans Jarvis.</small>
+        </section>
+      )}
       {v ? (
         <section className="tile rvv" aria-labelledby="rvt">
           <div className="rvl">
