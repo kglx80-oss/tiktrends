@@ -596,7 +596,7 @@ const chevauche = (a: { debut: string; fin: string }, b: { debut: string; fin: s
  *
  * Aucun jour n'est jamais compté deux fois.
  */
-export function retenirMesures<E extends EntreeMesure>(joursMeta: ReadonlySet<string>, entrees: readonly E[]): { retenues: E[]; ecartees: Array<{ entree: E; motif: MotifMesureEcartee }> } {
+export function retenirMesures<E extends { debut: string; fin: string }>(joursMeta: ReadonlySet<string>, entrees: readonly E[]): { retenues: E[]; ecartees: Array<{ entree: E; motif: MotifMesureEcartee }> } {
   const ecartees: Array<{ entree: E; motif: MotifMesureEcartee }> = [];
   const restantes: E[] = [];
   const meta = [...joursMeta];

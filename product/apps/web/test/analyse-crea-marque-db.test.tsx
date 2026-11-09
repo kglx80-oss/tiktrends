@@ -336,7 +336,7 @@ const JOINTURE_CREAS = /(?:left|inner|right|full)Join\(\s*schema\.creatives\s*,(
  */
 const AUTRES_JOINTURES: Readonly<Record<string, { n: number; raison: string; preuve: RegExp }>> = {
   'apps/web/lib/adsmap-mesures.ts': {
-    n: 3, raison: 'journées de la connexion Meta (`metrics_daily`) d’une INSTANCE de régie → sa créa, filtrées par la marque de la créa (`creatives.brand_id`) · LA lecture des journées retenues (`lignesMeta` par annonce pour les verdicts de la synchro et de l’import, `sommesMetaParJour` pour les indicateurs de Résultats et le Reporting de l’Accueil, `joursMetaDes` pour les jours qui écartent une entrée d’export · l’ancienne jointure de `chargerMesures` y est passée)',
+    n: 3, raison: 'journées de la connexion Meta (`metrics_daily`) d’une INSTANCE de régie → sa créa, filtrées par la marque de la créa (`creatives.brand_id`) · LA lecture des journées retenues (`lignesMeta` par annonce pour les verdicts de la synchro et de l’import, `sommesMetaParJour` pour les indicateurs de Résultats et le Reporting de l’Accueil (les instances de la marque en semi-jointure, depuis 0073), `joursMetaDes` pour les jours qui écartent une entrée d’export, à la lecture comme à l’écriture de la marque « retenue » (`marquerRetenues`) · l’ancienne jointure de `chargerMesures` y est passée)',
     // Les TROIS requêtes portent la borne · une preuve par requête (une seule qui la perdrait ferait tomber la garde).
     preuve: /(?:innerJoin\(schema\.creatives, eq\(schema\.adInstances\.creativeId, schema\.creatives\.id\)\)\s*\.where\(and\(eq\(schema\.creatives\.brandId, brandId\)[\s\S]*){3}/,
   },

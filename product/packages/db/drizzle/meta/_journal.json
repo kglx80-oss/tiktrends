@@ -512,6 +512,13 @@
       "when": 1793900000000,
       "tag": "0072_offres_allegations",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794000000000,
+      "tag": "0073_mesures_retenues_cbo",
+      "breakpoints": true
     }
   ]
 }

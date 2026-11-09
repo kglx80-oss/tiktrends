@@ -5,7 +5,7 @@ import { matchByName, matchByBatchVariant, porteuseSynchro, type EntreeMesure, t
 import { refreshDecisions } from './decisions';
 import { daterJalons } from './jarvis-memory';
 import { jointureCreaDeLaMarque } from './adsmap-medias';
-import { adsDeLaMarque, journaliserRemontee, recalculerVerdicts } from './adsmap-mesures';
+import { adsDeLaMarque, invaliderRetenues, journaliserRemontee, recalculerVerdicts } from './adsmap-mesures';
 
 /**
  * ADSMAP · mesure quotidienne de la carte.
@@ -142,6 +142,8 @@ async function ingest(
     externalAdsetId: tete?.adsetId ?? null,
     externalCampaignId: tete?.campaignId ?? null,
     adsetDailyBudget: adset?.dailyBudget ?? null,
+    // 0073 · le CBO lu chez Meta, gardé sur l'instance · relu par l'import et le recalcul (`cboRetenu`).
+    campaignBudgetOptimization: adset ? adset.campaignBudgetOptimization : null,
     status: adset?.status ?? null,
   }).onConflictDoUpdate({
     target: [schema.adInstances.platform, schema.adInstances.externalAdId],
@@ -152,6 +154,8 @@ async function ingest(
       externalAdsetId: tete?.adsetId ?? null,
       externalCampaignId: tete?.campaignId ?? null,
       adsetDailyBudget: adset?.dailyBudget ?? null,
+      // Ensemble non remonté ce passage (lecture des ensembles en échec) · le CBO déjà lu reste, il ne redevient pas inconnu.
+      campaignBudgetOptimization: sql`coalesce(excluded.campaign_budget_optimization, ${schema.adInstances.campaignBudgetOptimization})`,
       status: adset?.status ?? null,
     },
   }).returning({ id: schema.adInstances.id });
@@ -250,6 +254,8 @@ async function syncBrand(
     // On épingle l'identifiant dès le premier rattachement réussi : les passages
     // suivants n'auront plus à deviner, même si l'équipe renomme l'annonce.
     if (r.source !== 'pinned') {
+      // L'identifiant change les jours Meta de l'ad · sa marque « retenue » s'efface d'abord (recalculée à l'étape 5).
+      await invaliderRetenues(brand.id, [ad.id]);
       await db.update(schema.ads).set({
         externalIds: { ad_id: r.adId, adset_id: rs[0]!.adsetId ?? undefined, campaign_id: rs[0]!.campaignId ?? undefined },
       }).where(eq(schema.ads.id, ad.id));
@@ -262,6 +268,9 @@ async function syncBrand(
   // d'une autre marque est écartée ici et ici seulement : son rattachement, ses
   // repères et son verdict suivent leur cours (ses journées lues comptent pour
   // elle, sans être écrites nulle part).
+  // Les journées qui arrivent peuvent couvrir une entrée d'export · la marque « retenue » de ces ads
+  // s'efface AVANT d'écrire · une coupure avant le recalcul (étape 5) laisse une lecture juste (relue entrée par entrée).
+  await invaliderRetenues(brand.id, rattachees.map((r) => r.ad.id));
   const nonEcrites = new Map<string, EntreeMesure[]>();
   for (const r of rattachees) {
     if (porteuseSynchro(r.ad.creativeId, r.ad.creaDeLaMarque).cas === 'etrangere') {
