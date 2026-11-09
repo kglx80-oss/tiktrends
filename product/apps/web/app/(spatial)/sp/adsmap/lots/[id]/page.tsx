@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 import {
   attendArbitrage, barresCpa, coachLot, controlesLot, lotArbitrable, plateformesLot, presentationLot, syntheseLot, verdictAffiche,
   LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest, conclusionLot, referenceConclusion, lienJarvisContexte,
+  entreesLecturePersonas, lecturePersonas, libelleAttribution, regleLecturePersonas,
 } from '@tiktrends/core';
+import { personasEtTests } from '../../../../../../lib/personas-tests';
 import { batchDetailAction } from '../../../../../actions/adsmap-batch';
 import { Lot } from '../../../../../../spatial/vues/resultats/Lot';
 import { ActionsLot, DupliquerLot, type PropsActionsLot } from '../../../../../../spatial/vues/resultats/ActionsLot';
@@ -26,9 +28,13 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
   const g = await gardeResultats();
   if (!g.ok) return <RefusResultats titre="Lot de test" raison={g.raison} />;
 
-  const d = await chargerLots(g.s.workspaceId, g.marque.id);
+  const [d, pt] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id), personasEtTests(g.s.workspaceId, g.marque.id)]);
   const l = d.lots.find((x) => x.id === id);
   if (!l) notFound();
+  // Lot 9 · le persona de chaque variante (carte ou brief, jamais fusionnés) et la lecture par persona de TOUTE la marque.
+  const attribution = (adId: string) => pt.parAd.get(adId) ?? null;
+  const lecture = lecturePersonas(entreesLecturePersonas(d.lots, (adId) => attribution(adId)?.persona ?? null), pt.personas);
+  const duLot = new Set(l.ads.map((a) => attribution(a.id)?.persona?.id).filter((x): x is string => !!x));
 
   const pres = presentationLot(l, d.ctx);
   const syn = syntheseLot(l, d.config.targetCpa);
@@ -73,6 +79,14 @@ export default async function LotSpatial({ params }: { params: Promise<{ id: str
       controles={controlesLot(l, pres, d.config.minImpressions)}
       coach={coachLot(pres, syn, l.ads.length)}
       conclusion={conclusion}
+      personas={{
+        variantes: l.ads.map((a) => {
+          const at = attribution(a.id);
+          return { id: a.id, variante: a.variante, personaId: at?.persona?.id ?? null, desaccord: !!at?.desaccord, libelle: at ? libelleAttribution(at) : 'Aucun persona · ni la carte ni le brief n’en nomment un' };
+        }),
+        groupes: lecture.groupes.filter((x) => duLot.has(x.persona.id)).map((x) => ({ id: x.persona.id, nom: x.persona.nom, lecture: x.lecture, phrase: x.phrase })),
+        parle: lecture.parle, phrase: lecture.phrase, regle: regleLecturePersonas(),
+      }}
       jarvis={(() => { const href = g.jarvis ? lienJarvisContexte('lot', l.id) : null; return href ? { href } : null; })()}
       actions={<>
         {actions && <ActionsLot {...actions} />}

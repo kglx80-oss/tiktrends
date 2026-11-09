@@ -85,6 +85,8 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
   // Personas Adsmap et produits (avec leurs photos) de la marque active · la lecture de l'assistant, aucune écriture.
   const ouverture = etat.etat === 'pret' ? await ouvrirAssistantProjet() : null;
   const personas = ouverture?.ok ? ouverture.props.personas : [];
+  // Lot 9 · le persona du lien (« Créer une pub » d'une fiche persona) n'est présélectionné que s'il est proposé ici (marque active, portée).
+  const personaInitial = c.persona ? personas.find((x) => x.id === c.persona) ?? null : null;
   const produits = ouverture?.ok ? ouverture.props.produits : [];
   // Lot 8 · les pastilles de la palette (étape Style) · la fiche de la marque active, dans la portée.
   const palette = etat.etat === 'pret' ? await couleursDeLaMarque(s.workspaceId, etat.marque.id).catch(() => []) : [];
@@ -109,14 +111,14 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
       marques={marques}
       ajouterMarque={roleAtLeast(s.role, 'admin') ? '/brands/new' : null}
       // Un lien porteur de contexte (test, annonce, objectif) ouvre directement le brief, où le repris est dit.
-      initial={{ type: c.type, titre, intention: objectif, etape: c.aContexte ? 'brief' : 'start' }}
+      initial={{ type: c.type, titre, intention: objectif, etape: c.aContexte ? 'brief' : 'start', persona: personaInitial }}
       titresParDefaut={titresParDefaut}
       personas={personas}
       produits={produits}
       paletteMarque={palette}
       contexte={{
         depart, references: reference ? [reference] : [], repris,
-        notes: notesContexte(c, { refJointe: !!annonce, iteration }),
+        notes: notesContexte(c, { refJointe: !!annonce, iteration, personaRetenu: !!personaInitial }),
         retourVeille: c.retourVeille ? { href: lienRetourVeille(c.retourVeille) ?? '/veille' } : null,
       }}
     />

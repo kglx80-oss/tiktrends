@@ -2,7 +2,7 @@ import { EnTete, SousNav, Vue } from '../../communs';
 import type { ActionFormulaire } from './base';
 import { AnnonceRetour, BoutonAppel, SupprimerConfirme } from './interactifs';
 import { Ic } from '../../communs';
-import { ChoixPersona, type HypothesePersona, type PersonaVue } from './personas-client';
+import { ChoixPersona, type EditionPersonas, type HypothesePersona, type PersonaVue } from './personas-client';
 
 /**
  * « Personas » · `docs/spatial/reference/clients.html` (maquette : `vClients`).
@@ -11,7 +11,7 @@ import { ChoixPersona, type HypothesePersona, type PersonaVue } from './personas
  * pas affiché · la case dit ce qui manque.
  */
 
-export type { PersonaVue } from './personas-client';
+export type { EditionPersonas, PersonaVue, TestsPersonaVue } from './personas-client';
 
 export interface PropsPersonas {
   sousNav: ReadonlyArray<{ href: string; libelle: string }>;
@@ -33,6 +33,8 @@ export interface PropsPersonas {
   gestion?: GestionPersonas;
   /** « Tester une accroche » (lot 1 V5) · absent, le bouton n'est pas rendu (écran de la maquette). */
   hypothese?: HypothesePersona;
+  /** Lot 9 V5 · « Modifier » et « Valider ce persona » · absents, l'écran est celui de la maquette. */
+  edition?: EditionPersonas;
 }
 
 export interface GestionPersonas {
@@ -73,7 +75,7 @@ export function Personas(p: PropsPersonas) {
     <Vue>
       <EnTete titre="Personas" sous={`Les personnes à qui ${p.nom} parle · Jarvis écrit pour elles`} />
       <SousNav items={p.sousNav} actif={`/brands/${p.brandId}/personas`} />
-      <ChoixPersona brandId={p.brandId} personas={p.personas} scenarios={p.scenarios} jarvis={p.jarvis} creerPub={p.creerPub} ajouterPersona={p.ajouterPersona} ajouterScenario={p.ajouterScenario} {...(p.gestion ? { retirerPersona: p.gestion.retirerPersona } : {})} {...(p.hypothese ? { hypothese: p.hypothese } : {})} />
+      <ChoixPersona brandId={p.brandId} personas={p.personas} scenarios={p.scenarios} jarvis={p.jarvis} creerPub={p.creerPub} ajouterPersona={p.ajouterPersona} ajouterScenario={p.ajouterScenario} {...(p.gestion ? { retirerPersona: p.gestion.retirerPersona } : {})} {...(p.hypothese ? { hypothese: p.hypothese } : {})} {...(p.edition ? { edition: p.edition } : {})} />
       {p.gestion && <TuileScenarios brandId={p.brandId} g={p.gestion} />}
       <AnnonceRetour messages={p.retours} />
     </Vue>

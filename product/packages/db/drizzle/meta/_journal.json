@@ -498,6 +498,13 @@
       "when": 1793700000000,
       "tag": "0070_veille_tags_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1793800000000,
+      "tag": "0071_personas_rang_segment",
+      "breakpoints": true
     }
   ]
 }
