@@ -242,6 +242,48 @@ function sansFriseDefilante(rendu: string[]): string[] {
   return rendu.map((l) => l.replace('div.vtl[style:grid-template-columns,overflow-x]', 'div.vtl').replace(/^(\s*div(\.vticks)?)\[style:min-width\]$/, '$1'));
 }
 
+/**
+ * Lot 5 ter (PC E35) · seul ajout HORS maquette dans le panneau Jarvis ·
+ * « Créer l'itération » (`[data-gestes-projet]`) sous la dernière réponse,
+ * quand elle désigne sûrement une variante gagnante. La maquette n'a pas ce
+ * geste · on le retire · et seulement lui, un seul, juste après le message.
+ */
+function sansGesteProjet(html: string): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const g = t.content.querySelectorAll('aside.jpanel [data-gestes-projet]');
+  const avant = g[0]?.previousElementSibling;
+  if (g.length !== 1 || avant?.tagName !== 'P' || avant.parentElement?.tagName !== 'ASIDE') return html;
+  g[0]!.remove();
+  return t.innerHTML;
+}
+const REP_E35 = '55555555-5555-4555-8555-555555555555';
+const AD_E35 = '22222222-2222-4222-8222-222222222222';
+const avecGesteProjet = (): PropsProjet => {
+  const base = propsProjet();
+  return propsProjet({ jarvis: {
+    ...base.jarvis, projectId: '66666666-6666-4666-8666-666666666666', message: 'Décline l’image 1 du lot 1 en testant un autre format.',
+    fil: { conversationId: 'c1', tours: [{ id: REP_E35, role: 'assistant', texte: 'Décline l’image 1 du lot 1 en testant un autre format.' }] },
+    iteration: { candidats: [{ adId: AD_E35, varianteId: 'va', libelle: 'Image 1 du lot 1' }], autres: ['Image 2 du lot 1'] },
+  } });
+};
+
+describe('Spatial · D2 · lot 5 ter · le geste du panneau Jarvis est le seul écart, étroitement déclaré', () => {
+  it('avec le geste · la parité tient une fois LUI SEUL retiré', () => {
+    const html = rendre(<Projet {...avecGesteProjet()} />);
+    expect(html).toContain('data-gestes-projet');
+    const p = parite(sansGesteProjet(html), 'projet', { ignorer: IGNORER_PROJET });
+    expect(p.rendu).toEqual(p.reference);
+  });
+  it('l’écart déclaré ne couvre rien d’autre · deux gestes, ou un geste ailleurs, font tomber la parité', () => {
+    const html = rendre(<Projet {...avecGesteProjet()} />);
+    const ref = parite(html, 'projet', { ignorer: IGNORER_PROJET }).reference;
+    const bloc = /<div data-gestes-projet[^]*?<\/small><\/div>/.exec(html)![0];
+    expect(squelette(sansGesteProjet(html.replace(bloc, bloc + bloc)), { ignorer: IGNORER_PROJET }), 'deux gestes').not.toEqual(ref);
+    expect(squelette(sansGesteProjet(html.replace(bloc, '').replace('<div class="kc">', `${bloc}<div class="kc">`)), { ignorer: IGNORER_PROJET }), 'un geste hors de sa place').not.toEqual(ref);
+  });
+});
+
 /* ───────────────────────────── 2 · La garde voit un écart ───────────────────────────── */
 
 describe('Spatial · D2 · la garde de parité tombe sur un écart', () => {

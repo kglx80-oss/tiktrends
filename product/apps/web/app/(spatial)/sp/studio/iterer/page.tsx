@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   aPermissionEspace, apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
   refusStudiosSpatial, variablesDuPlan, variablesInspiration, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE,
-  iterationDepuisReponse, lireGesteIteration, REFUS_GESTE_JARVIS,
+  iterationDepuisReponse, lireGesteIteration, preparationAutreVariable, OPTIONS_PUB_PROJET, REFUS_GESTE_JARVIS,
   type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
@@ -14,7 +14,7 @@ import { FEATURES, denyReason } from '../../../../../lib/rbac';
 import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { jointureCreaDeLaMarque, vignetteAd } from '../../../../../lib/adsmap-medias';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
-import { lireContexteGestes, lireReponseJarvis } from '../../../../../lib/jarvis-gestes';
+import { candidatsDuPlan, exclusDuContexte, lireCandidatsProjet, lireContexteGestes, lireReponseJarvis, planDepuisLignes } from '../../../../../lib/jarvis-gestes';
 import { iterationPlanAction, type IterationRow } from '../../../../actions/adsmap-iterate';
 import { Iterer, type InspirationIterer } from '../../../../../spatial/vues/studios/Iterer';
 import { RefusStudios } from '../../../../../spatial/vues/studios/Refus';
@@ -50,6 +50,12 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * de la marque, la variable parmi SES variables admises (`iterationDepuisReponse`,
  * noyau). Rien de sûr · aucun pré-choix, et l'écran le dit. Rien n'est créé
  * sans le clic « Créer l'itération ».
+ *
+ * Lot 5 ter · `contexte=projet&id=<projet>` (panneau Jarvis d'un projet, PC E35) ·
+ * la réponse est relue dans le fil LIÉ à CE projet, les variantes gagnantes du
+ * projet dans la portée studio ET la marque active (`lireCandidatsProjet`) ·
+ * `&autre=1` (« Autre variable », RJ G07) · la variable SUIVANTE admise est
+ * cochée à la place de celle de la réponse (`preparationAutreVariable`).
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -127,9 +133,19 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   let jarvis: PreparationIterationJarvis | null = null;
   if (geste.etat === 'refus') jarvis = { adId: null, variable: null, note: REFUS_GESTE_JARVIS };
   else if (geste.etat === 'ok') {
-    const [texte, ctx] = active ? await Promise.all([lireReponseJarvis(s, active.id, geste.reponse), lireContexteGestes(s, active.id, geste.contexte)]) : [null, null];
-    jarvis = texte && ctx
-      ? iterationDepuisReponse(texte, ctx.ads.filter((a) => variables[a.id]).map((a) => ({ adId: a.id, variante: a.variante, variables: variables[a.id]! })))
+    const projet = geste.contexte.type === 'projet';
+    const [texte, ads] = active ? await Promise.all([
+      lireReponseJarvis(s, active.id, geste.reponse, projet ? { projectId: geste.contexte.id } : {}),
+      projet
+        ? lireCandidatsProjet(s, active.id, geste.contexte.id).then((l) => l && { ads: l.candidats.map((c) => ({ id: c.adId, variante: c.libelle, variable: c.variable })), autres: l.autres })
+        : lireContexteGestes(s, active.id, geste.contexte).then((c) => c && { ads: c.ads, autres: null }),
+    ]) : [null, null];
+    const candidats = ads ? candidatsDuPlan(ads.ads, { variables, lignees: planDepuisLignes(rows).lignees }) : [];
+    // Les autres variantes du contexte (perdantes, hors plan) · nommée seule, l'une d'elles ne désigne aucune gagnante.
+    const exclus = ads ? [...(ads.autres ?? []), ...exclusDuContexte(ads.ads, candidats)] : [];
+    const o = projet ? { ...OPTIONS_PUB_PROJET, exclus } : { exclus };
+    jarvis = texte && ads
+      ? (geste.autre ? preparationAutreVariable(texte, candidats, o) : iterationDepuisReponse(texte, candidats, o))
       : { adId: null, variable: null, note: REFUS_GESTE_JARVIS };
   }
   return (
