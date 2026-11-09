@@ -11,6 +11,8 @@ import {
   lireHypothese, ligneHypotheseLibre, prioriteEstimee, PARTIES_VIDES, ESTIMATION_VIDE,
   type EstimationHypothese, type OrigineHypotheseLibre, type PartiesHypothese,
 } from './hypotheses-libres';
+import type { LectureConclusion } from './conclusion-lot';
+import { provenanceCarte, resultatHypothese, type ProvenanceCarte, type ResultatHypotheseCarte } from './boucle-preuve';
 
 /**
  * Spatial · Résultats · les règles des écrans (vue d'ensemble, hypothèses,
@@ -120,7 +122,8 @@ export const COLONNES_HYPOTHESES: ReadonlyArray<{ cle: ColonneHypothese; titre: 
 export interface FaitsHypotheseAd {
   ad: FaitsAdSpatial;
   concept: string;
-  lot: { id: string; numero: number; etat: EtatLotSpatial; jour: number | null } | null;
+  /** `conclusion` · la conclusion du lot entier (`conclusionLot`) · absente, la carte ne dit aucun résultat. */
+  lot: { id: string; numero: number; etat: EtatLotSpatial; jour: number | null; conclusion?: LectureConclusion | null } | null;
   /** Bande du pré-score du concept (`prelaunchScore.band`) · `null` s'il n'a pas été calculé. */
   bande: 'low' | 'med' | 'high' | null;
   /** Hypothèse LIBRE (lot 1) · d'où elle vient (`source_ref_json.hypotheseLibre`) · absent pour une ad ordinaire. */
@@ -150,9 +153,13 @@ export interface CarteHypothese {
   texte: string;
   meta: string;
   action: { libelle: string; href: string } | null;
-  conclusion: { libelle: string; classe: '' | 'g'; icone: 'check' | 'x' | 'q' } | null;
+  conclusion: { libelle: string; classe: '' | 'g' | 'r'; icone: 'check' | 'x' | 'q' } | null;
   /** Hypothèse libre en brouillon · l'écran pose un bouton qui rouvre sa phrase à la place d'un lien. */
   edition?: EditionHypothese | null;
+  /** Le résultat du lot conclu qui la teste (`resultatHypothese`) · absent tant qu'il n'est pas conclu. */
+  resultat?: ResultatHypotheseCarte | null;
+  /** D'où vient l'hypothèse, rappelé hors de « À formuler » (où la ligne le dit déjà) · absent pour une ad ordinaire. */
+  provenance?: ProvenanceCarte | null;
 }
 
 export const LIBELLE_PRIORITE = ['à évaluer', 'faible', 'moyenne', 'forte'] as const;
@@ -176,7 +183,7 @@ const BANDE: Record<string, 1 | 2 | 3> = { low: 1, med: 2, high: 3 };
  * d'un test arbitré). La priorité vient du pré-score du concept ou du rang de la
  * suite · jamais d'une saisie qui n'existe pas.
  */
-export function cartesHypotheses(ads: readonly FaitsHypotheseAd[], suites: readonly FaitsSuite[]): CarteHypothese[] {
+export function cartesHypotheses(ads: readonly FaitsHypotheseAd[], suites: readonly FaitsSuite[], o: { marqueId?: string | null } = {}): CarteHypothese[] {
   const out: CarteHypothese[] = [];
   for (const s of suites) {
     out.push({
@@ -193,16 +200,21 @@ export function cartesHypotheses(ads: readonly FaitsHypotheseAd[], suites: reado
     const base = { cle: a.id, categorie: categorieVariable(a.variable), priorite };
     const meta = `Coût par achat · ${x.concept}`;
     const texte = a.hypothese?.trim() || `${x.concept} · ${a.variante} · hypothèse à écrire`;
-    if (a.verdict?.statut === 'validated') {
-      out.push({ ...base, colonne: 'conclue', texte, meta, action: null, conclusion: conclusionHypothese(a.verdict) });
+    const provenance = x.origine ? provenanceCarte(x.origine, { marqueId: o.marqueId }) : undefined;
+    // Le lot qui la teste est conclu · son résultat (confirmée, infirmée, sans conclusion) est CELUI du lot, calculé.
+    const resultat = resultatHypothese(x.lot, x.lot?.conclusion);
+    if (resultat) {
+      out.push({ ...base, colonne: 'conclue', texte, meta, action: null, conclusion: { libelle: resultat.libelle, classe: resultat.classe, icone: resultat.icone }, resultat, provenance });
+    } else if (a.verdict?.statut === 'validated') {
+      out.push({ ...base, colonne: 'conclue', texte, meta, action: null, conclusion: conclusionHypothese(a.verdict), provenance });
     } else if (a.statut === 'live' || a.statut === 'paused' || (x.lot && LANCE.has(x.lot.etat))) {
       const quand = x.lot?.jour ? `J${x.lot.jour}` : x.lot?.etat === 'a_importer' ? 'à importer' : x.lot?.etat === 'a_conclure' ? 'à conclure' : 'en test';
-      out.push({ ...base, colonne: 'test', texte, meta, action: x.lot ? { libelle: `Lot #${x.lot.numero} · ${quand}`, href: lienLotSpatial(x.lot.id) } : null, conclusion: null });
+      out.push({ ...base, colonne: 'test', texte, meta, action: x.lot ? { libelle: `Lot #${x.lot.numero} · ${quand}`, href: lienLotSpatial(x.lot.id) } : null, conclusion: null, provenance });
     } else if (a.manques.length === 0) {
       out.push({
         ...base, colonne: 'prete', texte, meta,
         action: x.lot ? { libelle: `Lot #${x.lot.numero} · ${x.lot.etat === 'pret' ? 'prêt' : 'en préparation'}`, href: lienLotSpatial(x.lot.id) } : { libelle: 'Ranger dans un lot', href: '/adsmap/lots' },
-        conclusion: null,
+        conclusion: null, provenance,
       });
     } else if (x.origine) {
       // Hypothèse libre · sa phrase se reprend ici tant qu'elle est en brouillon
