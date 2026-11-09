@@ -156,6 +156,28 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0073_mesures_retenues_cbo · deux colonnes nullables (adsmap_mesures_csv, ad_instances), deux index partiels, rejouables · aucun DROP, aucun RENAME, aucun ALTER destructif, aucune autre table touchée', () => {
+    const brut = fichier('0073_mesures_retenues_cbo');
+    const a = analyserMigrationSql(brut);
+    expect(a.instructions.map((x) => x.genre)).toEqual(['ajout_colonne', 'ajout_colonne', 'creation_index', 'creation_index']);
+    const sansCommentaires = brut.replace(/^--.*$/gm, '');
+    expect(sansCommentaires, '0073 contient un DROP').not.toMatch(/\bDROP\b/i);
+    expect(sansCommentaires, '0073 contient un RENAME').not.toMatch(/\bRENAME\b/i);
+    expect(sansCommentaires, '0073 change le type, le défaut ou la nullité d’une colonne existante').not.toMatch(/ALTER COLUMN|SET NOT NULL|SET DEFAULT|\bTYPE\b/i);
+    expect(sansCommentaires, '0073 pose une colonne NOT NULL ou avec défaut').not.toMatch(/NOT NULL|DEFAULT/i);
+    const alter = [...sansCommentaires.matchAll(/(?:ALTER TABLE|ON) "([a-z_]+)"/g)].map((m) => m[1]);
+    expect([...new Set(alter)].sort(), 'une autre table que ad_instances et adsmap_mesures_csv est touchée par 0073').toEqual(['ad_instances', 'adsmap_mesures_csv']);
+    const instr = decouperInstructionsSql(brut).map((x) => x.replace(/^--.*$/gm, '').replace(/\s+/g, ' ').trim().replace(/;$/, ''));
+    expect(instr).toEqual([
+      'ALTER TABLE "ad_instances" ADD COLUMN IF NOT EXISTS "campaign_budget_optimization" boolean',
+      'ALTER TABLE "adsmap_mesures_csv" ADD COLUMN IF NOT EXISTS "retenue" boolean',
+      'CREATE INDEX IF NOT EXISTS "adsmap_mesures_csv_retenue_idx" ON "adsmap_mesures_csv" USING btree ("brand_id","date_debut") WHERE "adsmap_mesures_csv"."retenue" = true',
+      'CREATE INDEX IF NOT EXISTS "adsmap_mesures_csv_a_marquer_idx" ON "adsmap_mesures_csv" USING btree ("brand_id","ad_id") WHERE "adsmap_mesures_csv"."retenue" is null',
+    ]);
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -212,9 +234,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille), 0071 (rang et segment des personas) puis 0072 (offres et allégations) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille), 0071 (rang et segment des personas), 0072 (offres et allégations) puis 0073 (marque « retenue » des mesures, CBO des instances) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment', '0072_offres_allegations']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment', '0072_offres_allegations', '0073_mesures_retenues_cbo']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -491,6 +513,45 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     await appliquer(pg, ['0072_offres_allegations']);
     expect(await empreinteSchema(pg), 'rejeu de 0072').toEqual(schemaUneFois);
     expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0072 · lignes modifiées').toEqual(avant);
+    await pg.close();
+  }, 120_000);
+
+  it('0073 sur une base à 0072 avec des mesures importées, des lots contrôlés (relais cboMeta) et des instances Meta · lignes intactes, deux colonnes NULL partout, deux index partiels, rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 72).map((x) => x.tag));
+    await pg.exec(`
+      INSERT INTO adsmap_batches (id, workspace_id, brand_id, number, status, protocol_check_json, created_at)
+        SELECT md5('lot' || i)::uuid, 'a9000000-0000-4000-8000-000000000001', md5('b1')::uuid, i, 'testing',
+          jsonb_build_object('compliant', i % 2 = 0, 'violations', '[]'::jsonb, 'cboMeta', jsonb_build_array(md5('ad' || i)::uuid::text)), '2026-08-01T00:00:00Z' FROM generate_series(1, 4) i;
+      INSERT INTO adsmap_mesures_csv (ad_id, workspace_id, brand_id, date_debut, date_fin, spend, impressions, link_clicks, purchases, cbo, importe_le)
+        SELECT md5('ad' || (1 + i % 30))::uuid, 'a9000000-0000-4000-8000-000000000001', md5('b1')::uuid, date '2026-10-01' + i, date '2026-10-01' + i + (i % 3), 10.25 * i, 100 * i, i, i % 4, i % 5 = 0, '2026-10-20T00:00:00Z' FROM generate_series(1, 60) i;
+      INSERT INTO creatives (id, brand_id, fingerprint_hash, type) SELECT md5('cr' || i)::uuid, md5('b1')::uuid, 'f' || i, 'image' FROM generate_series(1, 6) i;
+      INSERT INTO ad_instances (id, creative_id, external_ad_id, platform, adset_daily_budget, created_at) SELECT md5('in' || i)::uuid, md5('cr' || i)::uuid, '1202' || i, 'meta', 20 + i, '2026-08-01T00:00:00Z' FROM generate_series(1, 6) i;
+      INSERT INTO metrics_daily (ad_instance_id, date, spend, impressions) SELECT md5('in' || (1 + i % 6))::uuid, date '2026-10-01' + (i / 6), 3.5 * i, 10 * i FROM generate_series(0, 59) i;`);
+    const [n0] = await lignes<{ m: number; l: number; i: number }>(pg, 'select (select count(*)::int from adsmap_mesures_csv) as m, (select count(*)::int from adsmap_batches) as l, (select count(*)::int from ad_instances) as i');
+    expect(n0).toEqual({ m: 60, l: 4, i: 6 });
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    const schemaAvant = await empreinteSchema(pg);
+    await appliquer(pg, ['0073_mesures_retenues_cbo']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0073 (mesures, lots et leur relais, instances, journées)').toEqual(avant);
+    expect((await colonnesDe(pg)).get('adsmap_mesures_csv')).toMatch(/,retenue$/);
+    expect((await colonnesDe(pg)).get('ad_instances')).toMatch(/,campaign_budget_optimization$/);
+    const [n] = await lignes<{ m: number; marquees: number; i: number; cbo: number }>(pg, 'select (select count(*)::int from adsmap_mesures_csv) as m, (select count(retenue)::int from adsmap_mesures_csv) as marquees, (select count(*)::int from ad_instances) as i, (select count(campaign_budget_optimization)::int from ad_instances) as cbo');
+    expect(n, 'une mesure existante a reçu une marque, ou une instance un CBO, au passage de 0073 (backfill)').toEqual({ m: 60, marquees: 0, i: 6, cbo: 0 });
+    const schemaUneFois = await empreinteSchema(pg);
+    expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0073').toEqual([]);
+    const ajoutes = schemaUneFois.filter((l) => !schemaAvant.includes(l));
+    expect(ajoutes.map((l) => l.replace(/^(idx) .*"?(adsmap_mesures_csv_(?:retenue|a_marquer)_idx)"? .* WHERE (.*)$/, '$1 $2 $3')).sort(), 'objet ajouté par 0073 hors des deux colonnes nullables et des deux index partiels').toEqual([
+      'col ad_instances.campaign_budget_optimization boolean', 'col adsmap_mesures_csv.retenue boolean',
+      'idx adsmap_mesures_csv_a_marquer_idx (retenue IS NULL)', 'idx adsmap_mesures_csv_retenue_idx (retenue = true)',
+    ]);
+    // Le relais des lots déjà contrôlés est intact · le contrôle du lot le relira tant que l'instance ne porte pas son CBO.
+    const relais = await lignes<{ r: string }>(pg, `select protocol_check_json->'cboMeta'->>0 as r from adsmap_batches order by number`);
+    expect(relais.map((x) => x.r)).toEqual([1, 2, 3, 4].map(() => expect.stringMatching(/^[0-9a-f-]{36}$/) as unknown as string));
+    await appliquer(pg, ['0073_mesures_retenues_cbo']);
+    expect(await empreinteSchema(pg), 'rejeu de 0073').toEqual(schemaUneFois);
+    expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0073 · lignes modifiées').toEqual(avant);
     await pg.close();
   }, 120_000);
 

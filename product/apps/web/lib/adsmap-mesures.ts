@@ -1,9 +1,10 @@
 import 'server-only';
-import { gte, lte, type AnyColumn } from 'drizzle-orm';
+import { gte, lte, notInArray, type AnyColumn } from 'drizzle-orm';
 import { db, schema, eq, and, inArray, sql } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, motifEchecRemontee, verdictsDesMesures, cleEntreeMesure, retenirJournees, protocoleRetenu, adAMesurer, sourceDesEntrees,
-  type AdAMesurer, type CandidatMesure, type DeclencheurRemontee, type EntreeCsvRetenable, type EntreeMesure, type JourneeMetaLue,
+  marquesRetenues, cboRetenu,
+  type AdAMesurer, type CandidatMesure, type DeclencheurRemontee, type EntreeCsvRetenable, type EntreeMesure, type EntreeRetenue, type JourneeMetaLue,
   type JourneesRetenues, type MesuresLigne, type ProtocolRules, type ProtocoleAd, type RemonteeJournal, type SourceRemontee, type VerdictConfig,
 } from '@tiktrends/core';
 
@@ -50,18 +51,28 @@ export async function adsDeLaMarque(workspaceId: string, brandId: string): Promi
 /** Une entrée d'export lue en base. */
 export type EntreeCsvLue = EntreeCsvRetenable;
 
-/** La portée d'une lecture · des ads nommées (verdicts, aperçu d'import), ou une fenêtre de la marque (indicateurs, Reporting). */
+/**
+ * La portée d'une lecture · des ads nommées (verdicts, aperçu d'import), ou une
+ * fenêtre de la marque (indicateurs, Reporting). `entreeParEntree` · la fenêtre
+ * relue entièrement par la règle, sans les marques écrites · c'est le repli
+ * des entrées non marquées, forcé pour toutes · la preuve d'égalité et le banc
+ * le comparent à la lecture marquée.
+ */
 export type PorteeLecture =
   | { ads: ReadonlyArray<{ id: string; idMeta: string | null }>; metaEnPlus?: ReadonlyMap<string, readonly EntreeMesure[]> }
-  | { du: string; au: string };
+  | { du: string; au: string; entreeParEntree?: boolean };
 
 export interface LectureRetenues extends JourneesRetenues {
   /** Toutes les entrées d'export lues (retenues ou non), par ad, protocole compris · l'aperçu d'import dit « identique » ou « remplacée » · lue pour des ads nommées seulement (vide pour une fenêtre). */
   csv: Map<string, EntreeCsvLue[]>;
   /** Les jours mesurés par la connexion, par ad · ce que `retenirMesures` laisse à Meta. */
   joursMeta: Map<string, Set<string>>;
-  /** Le protocole de l'instance synchronisée, par ad (`cbo` n'y est pas · voir `recalculerVerdicts`). */
+  /** Le protocole de l'instance synchronisée, par ad (`cbo` y vaut `false` · le CBO lu est dans `cboInstance`). */
   protocoleMeta: Map<string, ProtocoleAd>;
+  /** Le CBO écrit sur l'instance par la synchro (0073), par ad · `null` · pas encore lu (instance d'avant) · voir `cboRetenu`. */
+  cboInstance: Map<string, boolean | null>;
+  /** Fenêtre · entrées d'export relues une à une faute de marque (ads à relire) · 0 en régime. */
+  relues: number;
   /** Requêtes lancées · mesurées par le test de coût (aucune ne dépend du nombre d'ads ni de jours). */
   requetes: number;
 }
@@ -82,7 +93,7 @@ async function lignesMeta(brandId: string, ext: readonly string[]) {
   const M = schema.metricsDaily, I = schema.adInstances;
   return db.select({
     ext: I.externalAdId, campagne: I.campaignName, ensemble: I.adsetName,
-    ensembleId: I.externalAdsetId, campagneId: I.externalCampaignId, budget: I.adsetDailyBudget,
+    ensembleId: I.externalAdsetId, campagneId: I.externalCampaignId, budget: I.adsetDailyBudget, cbo: I.campaignBudgetOptimization,
     date: M.date, spend: M.spend, impressions: M.impressions, reach: M.reach, clicks: M.clicks,
     linkClicks: M.linkClicks, conv: M.conv, revenue: M.revenue, v3s: M.v3s, thruplays: M.thruplays, p50: M.p50,
   })
@@ -92,32 +103,49 @@ async function lignesMeta(brandId: string, ext: readonly string[]) {
     .where(and(eq(schema.creatives.brandId, brandId), eq(I.platform, 'meta'), inArray(I.externalAdId, [...ext])));
 }
 
-/** Les journées de la marque sur `[du, au]`, sommées par jour (toutes annonces suivies confondues) · pour les indicateurs. */
+/**
+ * Les journées de la marque sur `[du, au]`, sommées par jour (toutes annonces
+ * suivies confondues) · pour les indicateurs. Les instances de la marque en
+ * semi-jointure (`in (…)`) · une journée a une instance et une créa, les lignes
+ * sommées sont les mêmes qu'avec deux jointures, sans porter leurs colonnes ·
+ * et seulement les colonnes qu'une fenêtre lit (`sommeRetenues`,
+ * `journeesReporting` · dépense, impressions, clics, clics sur un lien, achats,
+ * ventes, vues 3 s · couverture, ThruPlays et 50 % ne sont pas sommés).
+ * Mesuré sur le semis de `lireJourneesRetenues`, 180 jours, requête seule ·
+ * deux jointures, 10 sommes 16,4 ms · semi-jointure 11,3 – 12,5 ms.
+ */
 async function sommesMetaParJour(brandId: string, du: string, au: string) {
   if (!db) return [];
   const M = schema.metricsDaily, I = schema.adInstances;
   const s = (c: AnyColumn) => sql<number>`coalesce(sum(${c}), 0)`;
-  return db.select({
-    date: M.date, spend: s(M.spend), impressions: s(M.impressions), reach: s(M.reach), clicks: s(M.clicks), linkClicks: s(M.linkClicks),
-    conv: s(M.conv), revenue: s(M.revenue), v3s: s(M.v3s), thruplays: s(M.thruplays), p50: s(M.p50),
-  })
-    .from(schema.metricsDaily)
-    .innerJoin(schema.adInstances, eq(schema.metricsDaily.adInstanceId, schema.adInstances.id))
+  const instances = db.select({ id: I.id }).from(I)
     .innerJoin(schema.creatives, eq(schema.adInstances.creativeId, schema.creatives.id))
-    .where(and(eq(schema.creatives.brandId, brandId), eq(I.platform, 'meta'), gte(M.date, du), lte(M.date, au)))
+    .where(and(eq(schema.creatives.brandId, brandId), eq(I.platform, 'meta')));
+  return db.select({
+    date: M.date, spend: s(M.spend), impressions: s(M.impressions), clicks: s(M.clicks), linkClicks: s(M.linkClicks),
+    conv: s(M.conv), revenue: s(M.revenue), v3s: s(M.v3s),
+  })
+    .from(M)
+    .where(and(inArray(M.adInstanceId, instances), gte(M.date, du), lte(M.date, au)))
     .groupBy(M.date);
 }
 
-/** Les JOURS (sans mesures) que la connexion a mesurés pour ces annonces, sur `[du, au]` · ils écartent une entrée d'export. */
-async function joursMetaDes(brandId: string, ext: readonly string[], du: string, au: string) {
-  if (!db || !ext.length) return [];
+/**
+ * Les JOURS (sans mesures) que la connexion a mesurés pour ces annonces, sur
+ * `[du, au]` (sans borne · tous) · ils écartent une entrée d'export. `ex` · le
+ * client (une transaction, pour la marque écrite).
+ */
+async function joursMetaDes(brandId: string, ext: readonly string[], du: string | null, au: string | null, ex: Executeur | null = db) {
+  if (!ex || !ext.length) return [];
   const M = schema.metricsDaily, I = schema.adInstances;
-  return db.selectDistinct({ ext: I.externalAdId, date: M.date })
+  return ex.selectDistinct({ ext: I.externalAdId, date: M.date })
     .from(schema.metricsDaily)
     .innerJoin(schema.adInstances, eq(schema.metricsDaily.adInstanceId, schema.adInstances.id))
     .innerJoin(schema.creatives, eq(schema.adInstances.creativeId, schema.creatives.id))
-    .where(and(eq(schema.creatives.brandId, brandId), eq(I.platform, 'meta'), inArray(I.externalAdId, [...ext]), gte(M.date, du), lte(M.date, au)));
+    .where(and(eq(schema.creatives.brandId, brandId), eq(I.platform, 'meta'), inArray(I.externalAdId, [...ext]),
+      du ? gte(M.date, du) : undefined, au ? lte(M.date, au) : undefined));
 }
+type Executeur = Pick<NonNullable<typeof db>, 'select' | 'selectDistinct' | 'update' | 'execute'>;
 type LigneMeta = Awaited<ReturnType<typeof lignesMeta>>[number];
 const mesuresDeLaLigne = (r: Pick<LigneMeta, 'spend' | 'impressions' | 'reach' | 'clicks' | 'linkClicks' | 'conv' | 'revenue' | 'v3s' | 'thruplays' | 'p50'>): MesuresLigne => ({
   spend: zero(r.spend), impressions: zero(r.impressions), reach: zero(r.reach), clicks: zero(r.clicks), linkClicks: zero(r.linkClicks),
@@ -137,11 +165,16 @@ async function lignesCsv(brandId: string, adIds: readonly string[]) {
  * d'une ad, jamais sur une tranche), bornées à la marque, avec l'identifiant
  * Meta épinglé de l'ad. Seulement les colonnes d'une somme · lire les 30
  * colonnes double le temps de lecture (mesure dans `lireJourneesRetenues`).
+ * `aRelire` · seulement les ads dont une entrée attend sa marque (le repli) ·
+ * sans lui, toutes (`entreeParEntree`).
  */
-async function lignesCsvFenetre(brandId: string, du: string, au: string) {
+async function lignesCsvFenetre(brandId: string, du: string, au: string, aRelire: boolean) {
   if (!db) return [];
   const C = schema.mesuresCsv;
-  const touchees = db.selectDistinct({ id: C.adId }).from(C).where(and(eq(C.brandId, brandId), gte(C.dateDebut, du), lte(C.dateDebut, au)));
+  const touchees = db.selectDistinct({ id: C.adId }).from(C).where(and(
+    eq(C.brandId, brandId), gte(C.dateDebut, du), lte(C.dateDebut, au),
+    aRelire ? inArray(C.adId, adsARelire(brandId)) : undefined,
+  ));
   return db.select({
     adId: C.adId, debut: C.dateDebut, fin: C.dateFin, ext: schema.ads.externalIds,
     spend: C.spend, impressions: C.impressions, linkClicks: C.linkClicks, purchases: C.purchases,
@@ -149,6 +182,30 @@ async function lignesCsvFenetre(brandId: string, du: string, au: string) {
   }).from(C)
     .leftJoin(schema.ads, eq(schema.ads.id, C.adId))
     .where(and(eq(C.brandId, brandId), inArray(C.adId, touchees)));
+}
+
+/** Les ads de la marque dont une entrée d'export attend sa marque (NULL) · vide en régime (index partiel `adsmap_mesures_csv_a_marquer_idx`). */
+function adsARelire(brandId: string) {
+  const C = schema.mesuresCsv;
+  return db!.selectDistinct({ id: C.adId }).from(C).where(and(eq(C.brandId, brandId), sql`${C.retenue} is null`));
+}
+
+/**
+ * Pour une fenêtre · les entrées d'export RETENUES (marque écrite), sommées
+ * par premier jour en SQL, hors des ads qui ont une entrée à relire (elles
+ * passent par `lignesCsvFenetre`, entrée par entrée) · une ligne par jour,
+ * avec le nombre d'entrées qu'elle additionne.
+ */
+async function sommesCsvRetenuesParJour(brandId: string, du: string, au: string) {
+  if (!db) return [];
+  const C = schema.mesuresCsv;
+  const s = (c: AnyColumn) => sql<number>`coalesce(sum(${c}), 0)`;
+  return db.select({
+    date: C.dateDebut, spend: s(C.spend), impressions: s(C.impressions), linkClicks: s(C.linkClicks), purchases: s(C.purchases),
+    clicks: s(C.clicks), purchaseValue: s(C.purchaseValue), video3s: s(C.video3s), nombre: sql<number>`count(*)`,
+  }).from(C)
+    .where(and(eq(C.brandId, brandId), sql`${C.retenue} = true`, gte(C.dateDebut, du), lte(C.dateDebut, au), notInArray(C.adId, adsARelire(brandId))))
+    .groupBy(C.dateDebut);
 }
 
 function entreeCsv(r: typeof schema.mesuresCsv.$inferSelect): EntreeCsvLue {
@@ -173,44 +230,65 @@ function entreeCsv(r: typeof schema.mesuresCsv.$inferSelect): EntreeCsvLue {
  * Reporting de l'Accueil. Bornée à la marque · journées Meta sur une créa de la
  * marque, entrées d'export de la marque.
  *
- * Coût · 2 requêtes pour des ads nommées, 2 ou 3 pour une fenêtre (la 3ᵉ lit
- * les jours Meta des ads qui ont un export, qui écartent une entrée d'export
- * sans compter) · jamais une par ad ni par jour (pas de N+1). Les journées
- * Meta d'une fenêtre sont sommées PAR JOUR en SQL · seules les entrées
- * d'export se lisent une à une (la priorité se décide au noyau).
+ * Des ads nommées (verdicts, aperçu) · 2 requêtes, entrées d'export lues une à
+ * une, la priorité décidée au noyau.
+ *
+ * Une fenêtre (indicateurs, Reporting) · 3 requêtes en parallèle · les
+ * journées Meta sommées PAR JOUR en SQL, les entrées d'export RETENUES (la
+ * marque écrite, `marquerRetenues`) sommées par premier jour en SQL, et les
+ * entrées des ads qui ont une entrée SANS marque (lignes d'avant 0073, ou
+ * invalidées par une écriture en attente de son recalcul), relues entrée par
+ * entrée par la même règle (une 4ᵉ requête lit alors leurs jours Meta) · le
+ * repli est vide en régime. Une ligne de somme CSV n'a pas d'ad (`adId` nul,
+ * `nombre` · combien d'entrées elle additionne) · `parAd` ne porte, pour une
+ * fenêtre, que les ads relues une à une, et `ecartees` que leurs écartées.
+ * Jamais une requête par ad ni par jour (pas de N+1).
  *
  * MESURÉ (pglite, base statistiquement analysée comme en production · semis ·
  * 300 ads, 18 000 journées Meta sur 60 jours, 6 000 entrées d'export par jour
- * sur un tiers des ads dont la moitié des jours couverts par Meta · le plus
- * gros semis des tests de mesures existants compte 11 ads (lot 4) · celui-ci
- * monte au plafond de lecture des chiffres clés, 20 000 lignes · médiane de
- * 15 passages · banc dans la PR) :
+ * sur un tiers des ads dont la moitié des jours couverts par Meta · médiane de
+ * 15 passages, 3 de chauffe, même semis, même machine · 3 exécutions, la
+ * fourchette est celle des 3 médianes) :
  *
- *   lecture                                  avant      après
- *   Résultats · période + précédente (14 j)  9,9 ms     10,7 ms   (1 lecture au lieu de 2 sommes)
- *   Accueil · Reporting 14 j + précédents    8,6 ms     14,9 ms
- *   Accueil · Reporting 90 j + précédents    11,6 ms    126,8 ms  (les 6 000 entrées d'export lues une à une)
+ *   lecture                                  #1046 (entrée par entrée)   marquée (0073)
+ *   Résultats · période + précédente (14 j)  11,5 – 11,9 ms             9,3 – 12,4 ms
+ *   Accueil · Reporting 14 j + précédents    11,1 – 11,7 ms             9,9 – 12,3 ms
+ *   Accueil · Reporting 90 j + précédents    134,5 – 160,0 ms           19,4 ms (19,35 · 19,43 · 19,44)
+ *   dont · somme Meta seule, 180 jours       16,4 ms (deux jointures)    11,3 – 12,5 ms (semi-jointure)
+ *   dont · somme d'export marquée, 180 jours ·                          3,0 – 4,4 ms
+ *   écriture de la marque, 6 000 entrées     ·                          0,80 – 0,92 s la première fois · 86 – 105 ms ensuite (rien ne change)
  *
- * Sans statistiques (base neuve, jamais analysée), le planificateur prend
- * l'index unique (plateforme, annonce) pour le filtre `platform = 'meta'` et
- * TOUTES les lectures filtrées par plateforme passent à ~230 ms, avant comme
- * après (l'ancien Reporting de l'Accueil aussi) · c'est l'état d'une base de
- * test, pas de la production (autovacuum analyse).
+ * (charge machine 1 à 4,5 · sous une charge de 14, la lecture de 90 jours
+ * marquée a mesuré 18,5 – 27,6 ms.) Le plancher de la lecture de 90 jours est
+ * la somme des 18 000 journées Meta (≈ 12 ms), que la marque ne touche pas ·
+ * l'objectif de ≈ 15 ms n'est pas atteint sur pglite, il demanderait d'agréger
+ * aussi `metrics_daily` à l'écriture. L'écriture de la marque ne se paie qu'au
+ * recalcul (import, synchro), jamais à l'affichage.
+ *
+ * (#1046 avait mesuré 9,9 · 8,6 · 11,6 → 126,8 ms sur une autre exécution du
+ * même semis.) Sans statistiques (base neuve, jamais analysée), le
+ * planificateur prend l'index unique (plateforme, annonce) pour le filtre
+ * `platform = 'meta'` et toutes les lectures filtrées par plateforme passent à
+ * ~230 ms · c'est l'état d'une base de test, pas de la production (autovacuum
+ * analyse).
  *
  * `metaEnPlus` · des journées que la connexion a lues mais pas écrites (une ad
  * liée à la créa d'une autre marque, `porteuseSynchro`) · elles comptent comme
- * Meta pour cette ad.
+ * Meta pour cette ad (verdicts seulement · une fenêtre ne lit que ce qui est
+ * écrit, comme la marque).
  */
 export async function lireJourneesRetenues(brandId: string, portee: PorteeLecture): Promise<LectureRetenues> {
-  const vide: LectureRetenues = { entrees: [], parAd: new Map(), ecartees: 0, csv: new Map(), joursMeta: new Map(), protocoleMeta: new Map(), requetes: 0 };
+  const vide: LectureRetenues = { entrees: [], parAd: new Map(), ecartees: 0, csv: new Map(), joursMeta: new Map(), protocoleMeta: new Map(), cboInstance: new Map(), relues: 0, requetes: 0 };
   if (!db) return vide;
   const parExt = new Map<string, string>();
   const enPlus = new Map<string, Set<string>>();
   const journees: JourneeMetaLue[] = [];
   const protocoleMeta = new Map<string, ProtocoleAd>();
-  let requetes = 0;
+  const cboInstance = new Map<string, boolean | null>();
+  let requetes = 0, relues = 0;
   const csv = new Map<string, EntreeCsvLue[]>();
   const fenetre = new Map<string, EntreeMesure[]>();
+  const sommesCsv: EntreeRetenue[] = [];
 
   if ('ads' in portee) {
     for (const a of portee.ads) if (a.idMeta) parExt.set(a.idMeta, a.id);
@@ -222,25 +300,43 @@ export async function lireJourneesRetenues(brandId: string, portee: PorteeLectur
       const adId = parExt.get(r.ext) ?? null;
       if (adId && remplacees.has(adId)) continue;
       journees.push({ adId, debut: r.date, fin: r.date, mesures: mesuresDeLaLigne(r) });
-      if (adId && !protocoleMeta.has(adId)) protocoleMeta.set(adId, { nomAnnonce: null, campagne: r.campagne, campagneId: r.campagneId, ensemble: r.ensemble, ensembleId: r.ensembleId, budgetJour: r.budget, cbo: false });
+      if (adId && !protocoleMeta.has(adId)) {
+        protocoleMeta.set(adId, { nomAnnonce: null, campagne: r.campagne, campagneId: r.campagneId, ensemble: r.ensemble, ensembleId: r.ensembleId, budgetJour: r.budget, cbo: false });
+        cboInstance.set(adId, r.cbo ?? null);
+      }
     }
     for (const [adId, es] of portee.metaEnPlus ?? []) for (const e of es) journees.push({ adId, debut: e.debut, fin: e.fin, mesures: e.mesures });
   } else {
-    const [sommes, c] = await Promise.all([sommesMetaParJour(brandId, portee.du, portee.au), lignesCsvFenetre(brandId, portee.du, portee.au)]);
-    requetes += 2;
+    const aRelire = !portee.entreeParEntree;
+    const [sommes, retenuesCsv, c] = await Promise.all([
+      sommesMetaParJour(brandId, portee.du, portee.au),
+      aRelire ? sommesCsvRetenuesParJour(brandId, portee.du, portee.au) : Promise.resolve([]),
+      lignesCsvFenetre(brandId, portee.du, portee.au, aRelire),
+    ]);
+    requetes += aRelire ? 3 : 2;
     // La connexion compte toujours · la marque, jour par jour (une somme n'a pas besoin de retrouver l'ad).
     for (const r of sommes) {
       const d = String(r.date);
-      journees.push({ adId: null, debut: d, fin: d, mesures: mesuresDeLaLigne({
-        spend: Number(r.spend), impressions: Number(r.impressions), reach: Number(r.reach), clicks: Number(r.clicks), linkClicks: Number(r.linkClicks),
-        conv: Number(r.conv), revenue: Number(r.revenue), v3s: Number(r.v3s), thruplays: Number(r.thruplays), p50: Number(r.p50),
-      }) });
+      journees.push({ adId: null, debut: d, fin: d, mesures: {
+        spend: Number(r.spend), impressions: Number(r.impressions), clicks: Number(r.clicks), linkClicks: Number(r.linkClicks),
+        purchases: Number(r.conv), purchaseValue: Number(r.revenue), video3s: Number(r.v3s),
+      } });
     }
-    // Les jours Meta des ads qui ont un export (dans la fenêtre ou hors d'elle) · ils écartent une entrée d'export sans compter.
+    // Les entrées d'export retenues, marque écrite · une ligne par premier jour.
+    for (const r of retenuesCsv) {
+      const d = String(r.date);
+      sommesCsv.push({ adId: null, debut: d, fin: d, source: 'csv', nombre: Number(r.nombre), mesures: {
+        spend: Number(r.spend), impressions: Number(r.impressions), linkClicks: Number(r.linkClicks), purchases: Number(r.purchases),
+        clicks: Number(r.clicks), purchaseValue: Number(r.purchaseValue), video3s: Number(r.video3s),
+      } });
+    }
+    // Le repli · les ads à relire, entrée par entrée · avec les jours Meta de ces ads (dans la fenêtre ou hors d'elle), qui écartent une entrée d'export sans compter.
+    const adsDeExt = new Map<string, string[]>();
     let du = '', au = '';
     for (const r of c) {
+      relues++;
       const ext = (r.ext as { ad_id?: string } | null)?.ad_id;
-      if (ext) parExt.set(ext, r.adId);
+      if (ext && !fenetre.has(r.adId)) adsDeExt.set(ext, [...(adsDeExt.get(ext) ?? []), r.adId]);
       if (!du || r.debut < du) du = r.debut;
       if (r.fin > au) au = r.fin;
       const mesures: MesuresLigne = { spend: r.spend, impressions: r.impressions, linkClicks: r.linkClicks, purchases: r.purchases, clicks: opt(r.clicks), purchaseValue: opt(r.purchaseValue), video3s: opt(r.video3s) };
@@ -248,19 +344,86 @@ export async function lireJourneesRetenues(brandId: string, portee: PorteeLectur
       if (!l) fenetre.set(r.adId, (l = []));
       l.push({ debut: r.debut, fin: r.fin, mesures });
     }
-    if (parExt.size) {
+    if (adsDeExt.size) {
       requetes++;
-      for (const r of await joursMetaDes(brandId, [...parExt.keys()], du, au)) {
-        const adId = parExt.get(r.ext);
-        if (adId) enPlus.set(adId, (enPlus.get(adId) ?? new Set()).add(String(r.date)));
+      for (const r of await joursMetaDes(brandId, [...adsDeExt.keys()], du, au)) {
+        for (const adId of adsDeExt.get(r.ext) ?? []) enPlus.set(adId, (enPlus.get(adId) ?? new Set()).add(String(r.date)));
       }
     }
   }
 
   const retenues = retenirJournees(journees, 'ads' in portee ? csv : fenetre, enPlus);
+  if (sommesCsv.length) {
+    retenues.entrees.push(...sommesCsv);
+    retenues.entrees.sort((a, b) => (a.debut < b.debut ? -1 : a.debut > b.debut ? 1 : 0));
+  }
   const joursMeta = new Map<string, Set<string>>([...enPlus].map(([k, v]) => [k, new Set(v)]));
   for (const j of journees) if (j.adId) joursMeta.set(j.adId, (joursMeta.get(j.adId) ?? new Set()).add(j.debut));
-  return { ...retenues, csv, joursMeta, protocoleMeta, requetes };
+  return { ...retenues, csv, joursMeta, protocoleMeta, cboInstance, relues, requetes };
+}
+
+/* ───────────────────────── la marque « retenue », écrite ───────────────────────── */
+
+/**
+ * Efface la marque des entrées d'export de ces ads · à faire DANS l'écriture
+ * qui peut la changer (une entrée importée, une journée Meta, un identifiant
+ * épinglé), AVANT son recalcul (`marquerRetenues`) · si le recalcul n'a pas
+ * lieu (erreur, coupure), la lecture relit ces ads entrée par entrée et reste
+ * juste · une marque présente n'est jamais périmée.
+ */
+export async function invaliderRetenues(brandId: string, adIds: readonly string[], ex: Executeur | null = db): Promise<void> {
+  if (!ex || !adIds.length) return;
+  const C = schema.mesuresCsv;
+  await ex.update(C).set({ retenue: null }).where(and(eq(C.brandId, brandId), inArray(C.adId, [...adIds]), sql`${C.retenue} is not null`));
+}
+
+/**
+ * Écrit la marque « retenue » de TOUTES les entrées d'export de la marque ·
+ * la décision de `retenirJournees` (`marquesRetenues`, noyau), sur ce qu'une
+ * fenêtre lit · chaque ad, toutes ses entrées, tous les jours que la
+ * connexion a ÉCRITS pour son identifiant épinglé (créas de la marque). Seules
+ * les marques qui changent sont réécrites · rejouer ne fait rien. Appelée par
+ * le recalcul (`recalculerVerdicts` · import ET synchro), et elle seule écrit
+ * `true` ou `false` · toute la marque, donc aussi les lignes d'avant 0073 et
+ * celles qu'une écriture a invalidées.
+ *
+ * Sérialisée par marque (verrou de transaction) · deux recalculs simultanés ne
+ * croisent pas leur lecture et leur écriture, et chaque écriture de mesures
+ * est suivie de son propre recalcul · le dernier voit tout ce qui précède.
+ */
+export async function marquerRetenues(brandId: string): Promise<{ entrees: number; changees: number }> {
+  if (!db) return { entrees: 0, changees: 0 };
+  const C = schema.mesuresCsv;
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`adsmap-mesures-retenues:${brandId}`}))`);
+    const lignes = await tx.select({ adId: C.adId, debut: C.dateDebut, fin: C.dateFin, retenue: C.retenue, ext: schema.ads.externalIds })
+      .from(C).leftJoin(schema.ads, eq(schema.ads.id, C.adId)).where(eq(C.brandId, brandId));
+    if (!lignes.length) return { entrees: 0, changees: 0 };
+    const parAd = new Map<string, typeof lignes>();
+    const adsDeExt = new Map<string, Set<string>>();
+    for (const l of lignes) {
+      let es = parAd.get(l.adId);
+      if (!es) parAd.set(l.adId, (es = []));
+      es.push(l);
+      const ext = (l.ext as { ad_id?: string } | null)?.ad_id;
+      if (ext) adsDeExt.set(ext, (adsDeExt.get(ext) ?? new Set()).add(l.adId));
+    }
+    const joursMeta = new Map<string, Set<string>>();
+    for (const r of await joursMetaDes(brandId, [...adsDeExt.keys()], null, null, tx)) {
+      for (const adId of adsDeExt.get(r.ext) ?? []) joursMeta.set(adId, (joursMeta.get(adId) ?? new Set()).add(String(r.date)));
+    }
+    const marques = marquesRetenues(parAd, joursMeta);
+    const aEcrire: Record<'oui' | 'non', typeof lignes> = { oui: [], non: [] };
+    for (const [l, m] of marques) if (l.retenue !== m) aEcrire[m ? 'oui' : 'non'].push(l);
+    for (const [cle, ls] of Object.entries(aEcrire) as Array<['oui' | 'non', typeof lignes]>) {
+      for (let i = 0; i < ls.length; i += 500) {
+        const cles = sql.join(ls.slice(i, i + 500).map((l) => sql`(${l.adId}::uuid, ${l.debut}::date, ${l.fin}::date)`), sql`, `);
+        await tx.update(C).set({ retenue: cle === 'oui' })
+          .where(and(eq(C.brandId, brandId), sql`(${C.adId}, ${C.dateDebut}, ${C.dateFin}) in (${cles})`));
+      }
+    }
+    return { entrees: lignes.length, changees: aEcrire.oui.length + aEcrire.non.length };
+  });
 }
 
 /** Les entrées CSV déjà en base, indexées par clé d'écriture · pour dire « identique » ou « remplacée ». */
@@ -270,7 +433,16 @@ export function existantesParCle(csv: ReadonlyMap<string, readonly EntreeCsvLue[
   return out;
 }
 
-/** Le CBO tel que la connexion l'a lu au dernier passage, par lot · gardé dans `protocol_check_json.cboMeta` (`ad_instances` ne le porte pas). */
+/**
+ * Le RELAIS du CBO · tel que la connexion l'a lu au dernier passage, par lot,
+ * dans `protocol_check_json.cboMeta` · le seul endroit où il vivait avant 0073.
+ * Le CBO est désormais écrit sur l'instance (`ad_instances.campaign_budget_optimization`)
+ * et lu d'abord là (`cboRetenu`) · le relais n'est plus lu que pour une
+ * instance d'avant 0073 (NULL), et toujours écrit pour que le repli reste
+ * vrai. Il se retire (lecture ET écriture, une PR) quand plus aucune instance
+ * Meta n'a son CBO NULL (`select count(*) from ad_instances where platform =
+ * 'meta' and campaign_budget_optimization is null` → 0 sur le VPS).
+ */
 const cboDuLot = (pc: unknown): Set<string> => {
   const v = (pc as { cboMeta?: unknown } | null)?.cboMeta;
   return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
@@ -296,6 +468,9 @@ export async function recalculerVerdicts(
 ): Promise<{ verdicts: number; lots: number }> {
   if (!db) return { verdicts: 0, lots: 0 };
   const maintenant = o.maintenant ?? new Date();
+  // La marque « retenue » d'abord · elle ne décide pas du verdict (lu entrée par entrée ci-dessous), elle accélère les fenêtres.
+  // Best-effort · un échec laisse les marques invalidées (NULL), et la lecture d'une fenêtre relit ces ads entrée par entrée.
+  try { await marquerRetenues(brand.id); } catch (e) { console.error('[adsmap] marque retenue', brand.id, (e as Error).message); }
   const lotsTouches = new Set(ads.filter((a) => touchees.has(a.id) && a.lotId).map((a) => a.lotId!));
   const concernees = ads.filter((a) => touchees.has(a.id) || (a.lotId && lotsTouches.has(a.lotId)));
 
@@ -321,7 +496,8 @@ export async function recalculerVerdicts(
     let p = protocoles.get(a.id);
     if (!p) {
       const stocke = lu.protocoleMeta.get(a.id);
-      const meta = o.protocoleFrais?.get(a.id) ?? (stocke ? { ...stocke, cbo: !!a.lotId && !!cboConnu.get(a.lotId)?.has(a.id) } : undefined);
+      const relais = !!a.lotId && !!cboConnu.get(a.lotId)?.has(a.id);
+      const meta = o.protocoleFrais?.get(a.id) ?? (stocke ? { ...stocke, cbo: cboRetenu(lu.cboInstance.get(a.id), relais) } : undefined);
       p = protocoleRetenu(meta, lu.csv.get(a.id));
       protocoles.set(a.id, p);
     }
@@ -337,7 +513,8 @@ export async function recalculerVerdicts(
       protocolCheck: {
         ...p.check, summary: p.resume, checkedAt: maintenant.toISOString(),
         source: sourceDesEntrees(membres.flatMap((a) => lu.parAd.get(a.id) ?? [])),
-        cboMeta: membres.filter((a) => protocoles.get(a.id)?.source === 'meta' && protocoles.get(a.id)!.protocole.cbo).map((a) => a.id).sort(), // trié · ensemble stable, quel que soit l'ordre de lecture des ads
+        // Le RELAIS (voir `cboDuLot`) · toujours écrit tant qu'une instance d'avant 0073 peut en dépendre · trié, ensemble stable quel que soit l'ordre de lecture des ads.
+        cboMeta: membres.filter((a) => protocoles.get(a.id)?.source === 'meta' && protocoles.get(a.id)!.protocole.cbo).map((a) => a.id).sort(),
       },
     }).where(and(eq(schema.batches.id, p.lotId), eq(schema.batches.brandId, brand.id)));
   }

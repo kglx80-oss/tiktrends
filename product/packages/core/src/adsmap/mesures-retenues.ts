@@ -27,6 +27,19 @@
  * qui se suivent (la période et la précédente) la comptent une fois, jamais
  * deux. L'import conseille l'export « par jour » pour cette raison.
  *
+ * ── La marque « retenue », écrite (0073) ─────────────────────────────────────
+ *
+ * Décider la priorité entrée par entrée à chaque lecture coûte cher sur une
+ * longue fenêtre (90 jours · 6 000 entrées d'export relues une à une). La même
+ * décision est donc ÉCRITE sur chaque entrée (`adsmap_mesures_csv.retenue`),
+ * à chaque écriture qui peut la changer (import, synchro, recalcul) ·
+ * `marquesRetenues` rejoue `retenirMesures`, ad par ad, exactement comme
+ * `retenirJournees` (`deciderParAd`, partagé) · la règle reste ici, unique, la
+ * marque n'en est qu'une conséquence écrite. Une fenêtre se lit alors en
+ * sommes SQL des entrées marquées · une entrée sans marque (`NULL` · ligne
+ * d'avant 0073, ou invalidée par une écriture pas encore suivie de son
+ * recalcul) fait relire son ad entrée par entrée, par cette même règle.
+ *
  * Pur · ni base, ni réseau, ni horloge.
  */
 
@@ -41,8 +54,13 @@ export interface JourneeMetaLue extends EntreeMesure { adId: string | null }
 /** Une entrée d'export déjà en base · son protocole et sa date d'import (la plus récente donne le protocole). */
 export interface EntreeCsvRetenable extends EntreeMesure { protocole: ProtocoleLigne; nomAnnonce: string | null; importeLe: string }
 
-/** Une entrée qui COMPTE · d'où elle vient, et l'ad qu'elle mesure (`null` · journée d'une annonce suivie sans ad connue). */
-export interface EntreeRetenue extends EntreeMesure { adId: string | null; source: SourceMesure }
+/**
+ * Une entrée qui COMPTE · d'où elle vient, et l'ad qu'elle mesure (`null` ·
+ * journée d'une annonce suivie sans ad connue, ou somme d'un jour). `nombre` ·
+ * combien d'entrées d'export cette ligne additionne (une somme SQL d'un jour,
+ * lecture marquée) · 1 quand il est absent.
+ */
+export interface EntreeRetenue extends EntreeMesure { adId: string | null; source: SourceMesure; nombre?: number }
 
 export interface JourneesRetenues {
   /** Toutes les entrées qui comptent, triées par date. */
@@ -74,11 +92,10 @@ export function retenirJournees(
 
   const entrees: EntreeRetenue[] = meta.map((j) => ({ debut: j.debut, fin: j.fin, mesures: j.mesures, adId: j.adId, source: 'meta' }));
   let ecartees = 0;
-  for (const [adId, es] of csv) {
-    const r = retenirMesures(joursMeta.get(adId) ?? new Set<string>(), es);
-    ecartees += r.ecartees.length;
-    for (const e of r.retenues) entrees.push({ debut: e.debut, fin: e.fin, mesures: e.mesures, adId, source: 'csv' });
-  }
+  deciderParAd(csv, joursMeta, (adId, retenues, n) => {
+    ecartees += n;
+    for (const e of retenues) entrees.push({ debut: e.debut, fin: e.fin, mesures: e.mesures, adId, source: 'csv' });
+  });
   entrees.sort(parDate);
   const parAd = new Map<string, EntreeRetenue[]>();
   for (const e of entrees) {
@@ -88,6 +105,43 @@ export function retenirJournees(
     l.push(e);
   }
   return { entrees, parAd, ecartees };
+}
+
+/**
+ * LA décision par ad · `retenirMesures` sur TOUTES les entrées d'export de l'ad
+ * et TOUS ses jours Meta · partagée par la lecture (`retenirJournees`) et par
+ * la marque écrite (`marquesRetenues`) · un seul endroit où la priorité se
+ * décide, donc une seule façon de se tromper.
+ */
+function deciderParAd<E extends { debut: string; fin: string }>(
+  csv: ReadonlyMap<string, readonly E[]>,
+  joursMeta: ReadonlyMap<string, ReadonlySet<string>>,
+  f: (adId: string, retenues: readonly E[], ecartees: number) => void,
+): void {
+  for (const [adId, es] of csv) {
+    const r = retenirMesures(joursMeta.get(adId) ?? new Set<string>(), es);
+    f(adId, r.retenues, r.ecartees.length);
+  }
+}
+
+/**
+ * La marque « retenue » de chaque entrée d'export · `true` si elle compte,
+ * `false` si la connexion ou une entrée plus courte l'écarte · la décision de
+ * `retenirJournees` (`deciderParAd`), écrite par entrée.
+ *
+ * `csv` · par ad, TOUTES ses entrées (la priorité se décide sur l'ensemble,
+ * jamais sur une tranche) · `joursMeta` · par ad, TOUS les jours que la
+ * connexion a écrits pour elle. Rend une marque pour chaque entrée reçue,
+ * indexée par l'entrée elle-même (même objet).
+ */
+export function marquesRetenues<E extends { debut: string; fin: string }>(
+  csv: ReadonlyMap<string, readonly E[]>,
+  joursMeta: ReadonlyMap<string, ReadonlySet<string>>,
+): Map<E, boolean> {
+  const out = new Map<E, boolean>();
+  for (const es of csv.values()) for (const e of es) out.set(e, false);
+  deciderParAd(csv, joursMeta, (_adId, retenues) => { for (const e of retenues) out.set(e, true); });
+  return out;
 }
 
 /* ───────────────────────── protocole ───────────────────────── */
@@ -105,6 +159,14 @@ export function protocoleRetenu(meta: ProtocoleAd | null | undefined, csv: reado
   const dernier = [...csv].sort((x, y) => (x.importeLe < y.importeLe ? 1 : x.importeLe > y.importeLe ? -1 : 0))[0];
   return dernier ? { protocole: { ...dernier.protocole, nomAnnonce: dernier.nomAnnonce }, source: 'csv' } : { protocole: PROTOCOLE_INCONNU, source: null };
 }
+
+/**
+ * Le CBO d'une ad synchronisée · celui que la synchro a écrit sur son instance
+ * (`ad_instances.campaign_budget_optimization`, 0073) quand elle l'a lu ·
+ * sinon (instance d'avant 0073, ou ensemble non lu) le RELAIS du contrôle du
+ * lot (`protocol_check_json.cboMeta`, écrit avant que l'instance le porte).
+ */
+export const cboRetenu = (instance: boolean | null | undefined, relais: boolean): boolean => instance ?? relais;
 
 /** Une ad à mesurer, telle que la décrivent ses lectures · la forme que `verdictsDesMesures` attend. */
 export function adAMesurer(
@@ -136,7 +198,7 @@ export function sommeRetenues(entrees: readonly EntreeRetenue[], du: string, au:
     const m: MesuresLigne = e.mesures;
     t.depense += n(m.spend); t.impressions += n(m.impressions); t.vues3s += n(m.video3s);
     t.achats += n(m.purchases); t.ventes += n(m.purchaseValue);
-    if (e.source === 'csv') t.importees++;
+    if (e.source === 'csv') t.importees += e.nombre ?? 1;
   }
   return t;
 }
@@ -150,7 +212,8 @@ export function journeesReporting(entrees: readonly EntreeRetenue[], du: string,
 }
 
 /** Combien d'entrées d'export sur `[du, au]` · l'écran dit que des mesures viennent d'un fichier. */
-export const importeesDans = (entrees: readonly EntreeRetenue[], du: string, au: string) => entrees.filter((e) => e.source === 'csv' && dansFenetre(e, du, au)).length;
+export const importeesDans = (entrees: readonly EntreeRetenue[], du: string, au: string) =>
+  entrees.reduce((t, e) => (e.source === 'csv' && dansFenetre(e, du, au) ? t + (e.nombre ?? 1) : t), 0);
 
 /** La mention d'un écran de mesures quand un export y compte · `null` sinon (rien n'est ajouté). */
 export function mentionImportees(n: number): string | null {

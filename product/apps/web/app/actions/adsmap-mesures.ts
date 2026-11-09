@@ -11,7 +11,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { refreshDecisions } from '../../lib/decisions';
 import { daterJalons, invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import {
-  adsDeLaMarque, existantesParCle, journaliserRemontee, lireJourneesRetenues, recalculerVerdicts, type AdDeLaMarque,
+  adsDeLaMarque, existantesParCle, invaliderRetenues, journaliserRemontee, lireJourneesRetenues, recalculerVerdicts, type AdDeLaMarque,
 } from '../../lib/adsmap-mesures';
 
 /**
@@ -189,6 +189,9 @@ export async function applyMesuresAction(csvText: string, confirmees: readonly s
           },
         });
       }
+      // Les entrées écrites changent la priorité de leurs ads (chevauchements, réimport) · leur marque « retenue »
+      // s'efface dans la MÊME transaction · `recalculerVerdicts` la réécrit, et sans lui la lecture relit ces ads une à une.
+      await invaliderRetenues(brandId, [...new Set(lignes.map((l) => l.adId))], tx);
       // L'identifiant lu est épinglé sur l'ad qui n'en avait pas · la synchro ne devinera plus, même si l'annonce est renommée.
       for (const e of p.plan.epingles) {
         await tx.update(schema.ads)

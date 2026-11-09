@@ -341,6 +341,11 @@ export const adInstances = pgTable('ad_instances', {
   externalAdsetId: text('external_adset_id'),
   externalCampaignId: text('external_campaign_id'),
   adsetDailyBudget: doublePrecision('adset_daily_budget'),
+  // 0073 · le CBO (budget piloté par la campagne) que la synchro a lu chez Meta ·
+  // NULL tant qu'elle ne l'a pas lu (instances d'avant 0073, ensemble non remonté) ·
+  // le contrôle du lot se rabat alors sur le relais `protocol_check_json.cboMeta`
+  // (`cboRetenu`, noyau). Écrit par la synchro, lu par l'import et le recalcul.
+  campaignBudgetOptimization: boolean('campaign_budget_optimization'),
   platform: platformEnum('platform').notNull().default('meta'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
@@ -1276,9 +1281,19 @@ export const mesuresCsv = pgTable('adsmap_mesures_csv', {
   fichier: text('fichier'),
   importePar: uuid('importe_par').references(() => users.id, { onDelete: 'set null' }),
   importeLe: timestamp('importe_le', { withTimezone: true }).notNull().defaultNow(),
+  // 0073 · la décision de priorité ÉCRITE · `true` l'entrée compte, `false` la
+  // connexion (ou une entrée plus courte) l'écarte, NULL pas encore décidée
+  // (ligne d'avant 0073, ou invalidée par une écriture en attente de son
+  // recalcul · la lecture relit alors son ad entrée par entrée). Conséquence de
+  // `retenirMesures` (noyau, `marquesRetenues`), jamais saisie.
+  retenue: boolean('retenue'),
 }, (t) => ({
   pk: primaryKey({ columns: [t.adId, t.dateDebut, t.dateFin] }),
   brandIdx: index('adsmap_mesures_csv_brand_idx').on(t.brandId),
+  // La somme d'une fenêtre · les entrées retenues de la marque, par premier jour.
+  retenueIdx: index('adsmap_mesures_csv_retenue_idx').on(t.brandId, t.dateDebut).where(sql`${t.retenue} = true`),
+  // Les ads dont une entrée attend sa marque · vide en régime, la lecture le consulte à chaque fenêtre.
+  aMarquerIdx: index('adsmap_mesures_csv_a_marquer_idx').on(t.brandId, t.adId).where(sql`${t.retenue} is null`),
 }));
 
 /**

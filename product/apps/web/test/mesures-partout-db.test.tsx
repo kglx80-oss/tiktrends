@@ -21,7 +21,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
  *  · x3 · export seulement.
  * Lot 1 · 4 perdantes mesurées par export (la référence de la conclusion).
  * Lot 3 · 2 variantes Meta en CBO · le CBO lu par la synchro doit tenir quand
- * l'import recalcule (il n'est pas stocké sur l'instance).
+ * l'import recalcule (gardé sur l'instance depuis 0073, le relais du lot en repli · voir mesures-rapides-db).
  * Une autre marque a des mesures (Meta et export) dans la fenêtre · rien d'elle
  * ne doit compter. Aucun modèle, aucune dépense.
  */
