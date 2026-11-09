@@ -5,8 +5,8 @@ import {
   amorcesCategorie, CATEGORIES_JARVIS, CATEGORIE_JARVIS_DEFAUT, AUTOMATISATIONS_JARVIS, AUTOMATISATION_A_VENIR, VALEUR_ABSENTE,
   filtrerConversations, quandConversation, extraitConversation, reponseLisible, visibleWhileStreaming, sansTiretCadratin, libelleJour,
   conceptPropose, citationsReponse, titreValide, ACTION_PREMIERE_MARQUE, TITRE_ONBOARDING_JARVIS, SOUS_TITRE_ONBOARDING_JARVIS, ENTREES_ONBOARDING_JARVIS,
-  lienGesteJarvis, EFFET_GESTES_JARVIS,
-  type CategorieJarvis, type EncartKpiJarvis, type IterationRecente, type ConceptPropose, type TypeContexteJarvis, type GesteJarvis,
+  lienGesteJarvis, suiteReponseJarvis, EFFET_GESTES_JARVIS, EFFET_POURQUOI, LIBELLE_AUTRE_VARIABLE, LIBELLE_POURQUOI,
+  type CategorieJarvis, type EncartKpiJarvis, type IterationRecente, type ConceptPropose, type TypeContexteJarvis, type GesteJarvis, type CandidatIteration,
 } from '@tiktrends/core';
 import { chatThreadAction, clearChatAction, onboardingThreadAction, clearOnboardingAction, type ChatTurn } from '../../../app/actions/jarvis-chat';
 import { creerConversationAction, renommerConversationAction } from '../../../app/actions/jarvis-conversations';
@@ -75,6 +75,12 @@ export interface ContexteJoint {
   fil?: { conversationId: string; tours: ChatTurn[] };
   /** Lot 5 bis · les gestes d'un lot ou d'une hypothèse joints · absents ailleurs (page de Résultats, projet). */
   gestes?: { iterer: GesteJarvis; conclure: GesteJarvis };
+  /**
+   * Lot 5 ter · « Autre variable » et « Pourquoi ? » · la liste FERMÉE des pubs
+   * du contexte dans le plan (variables admises, ce qui a été testé) · la règle
+   * du noyau (`suiteReponseJarvis`) la lit sous la réponse · vide, rien n'est proposé.
+   */
+  suite?: { candidats: CandidatIteration[]; exclus?: string[] };
 }
 
 /** Sans marque · le fil d'accueil réel (portée espace + personne) et ses amorces. */
@@ -322,7 +328,7 @@ export function Jarvis(p: PropsJarvis) {
             {p.marque && <Lien className="jact" href="/studio/projets/nouveau"><Ic n="brush" />Créer un projet</Lien>}
           </div>
           {concept && <Concept c={concept} />}
-          {i === derniere && joint?.gestes && <GestesReponse g={joint.gestes} reponse={t.id} />}
+          {i === derniere && joint?.gestes && <GestesReponse g={joint.gestes} reponse={t.id} texte={r.texte} contexte={joint} candidats={joint.suite?.candidats ?? []} exclus={joint.suite?.exclus ?? []} preparer={preparer} />}
         </div></div>
       </Fragment>
     );
@@ -518,10 +524,17 @@ function Joint({ c, cout, preparer, retirer }: { c: ContexteJoint; cout: string;
  * fermés, la raison est écrite à côté. Une réponse encore sans identifiant
  * (en cours d'écriture) n'en porte pas.
  */
-function GestesReponse({ g, reponse }: { g: { iterer: GesteJarvis; conclure: GesteJarvis }; reponse: string }) {
+function GestesReponse({ g, reponse, texte, contexte, candidats, exclus, preparer }: {
+  g: { iterer: GesteJarvis; conclure: GesteJarvis }; reponse: string; texte: string;
+  contexte: { type: TypeContexteJarvis; id: string }; candidats: CandidatIteration[]; exclus: string[]; preparer: (q: string) => void;
+}) {
   const id = useId();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reponse)) return null;
   const gestes = [g.iterer, g.conclure].map((x) => ({ x, href: lienGesteJarvis(x, reponse) }));
+  // Lot 5 ter · la suite · seulement quand « Créer l'itération » est ouvert (une gagnante dans le contexte) et la liste fermée lue.
+  const suite = g.iterer.cible && candidats.length ? suiteReponseJarvis({ texte, reponse, contexte: { type: contexte.type, id: contexte.id }, candidats, exclus }) : null;
+  const autre = suite?.autre ?? null;
+  const pourquoi = suite?.pourquoi ?? null;
   return (
     <div data-gestes-jarvis="" style={{ display: 'grid', gap: 6, marginTop: 8 }}>
       <div className="jm-a" style={{ flexWrap: 'wrap' }}>
@@ -538,6 +551,31 @@ function GestesReponse({ g, reponse }: { g: { iterer: GesteJarvis; conclure: Ges
       </div>
       {gestes.filter(({ href }) => !href).map(({ x }) => x.raison && <small key={x.cle} id={`${id}-${x.cle}`} className="faint" data-raison-geste={x.cle} style={{ fontSize: 11 }}>{x.libelle} · {x.raison}</small>)}
       <small className="faint" style={{ fontSize: 11 }}>{EFFET_GESTES_JARVIS}</small>
+      {suite && (
+        <div data-suite-jarvis="" style={{ display: 'grid', gap: 6 }}>
+          <div className="jm-a" style={{ flexWrap: 'wrap' }}>
+            {autre && 'href' in autre && (
+              <Lien className="btn sm" href={autre.href} data-geste-jarvis="autre" data-variable-suivante={autre.variable} title={EFFET_GESTES_JARVIS} style={{ minHeight: 44 }}>
+                <Ic n="loop" />{autre.libelle}
+              </Lien>
+            )}
+            {pourquoi && ('question' in pourquoi ? (
+              <button type="button" className="btn sm" data-geste-jarvis="pourquoi" title={EFFET_POURQUOI} style={{ minHeight: 44 }} onClick={() => preparer(pourquoi.question)}>
+                <Ic n="spark" />{LIBELLE_POURQUOI}
+              </button>
+            ) : (
+              <button type="button" className="btn sm" data-geste-jarvis="pourquoi" aria-describedby={`${id}-pourquoi`}
+                {...boutonAction({ ferme: true, focalisable: 'tout' })} style={{ ...FERME, minHeight: 44 }}>
+                <Ic n="spark" />{LIBELLE_POURQUOI}
+              </button>
+            ))}
+          </div>
+          {/* « Autre variable » sans suite · le geste est ABSENT, la phrase dit pourquoi. */}
+          {autre && 'raison' in autre && <small className="faint" data-raison-geste="autre" style={{ fontSize: 11 }}>{LIBELLE_AUTRE_VARIABLE} · {autre.raison}</small>}
+          {pourquoi && 'raison' in pourquoi && <small id={`${id}-pourquoi`} className="faint" data-raison-geste="pourquoi" style={{ fontSize: 11 }}>{LIBELLE_POURQUOI} · {pourquoi.raison}</small>}
+          {pourquoi && 'question' in pourquoi && <small className="faint" style={{ fontSize: 11 }}>{LIBELLE_POURQUOI} · {EFFET_POURQUOI}</small>}
+        </div>
+      )}
     </div>
   );
 }

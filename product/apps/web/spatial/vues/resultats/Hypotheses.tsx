@@ -6,6 +6,7 @@ import type { ResultatHypothese, SourceHypothese } from '../../../app/actions/ad
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Hypothese, Priorite, type SousNavResultats } from './communs';
 import { BoutonHypothese } from './hypothese-client';
+import { BilanProvenances, type PropsBilanProvenances } from './BilanProvenances';
 
 /**
  * « Hypothèses » · `docs/spatial/reference/hypotheses.html`, balisage à l'identique.
@@ -34,6 +35,32 @@ export interface PropsHypotheses {
   completer?: ((i: { adId: string; saisie: SaisieHypotheseLibre }) => Promise<ResultatHypothese>) | null;
   /** « Demander à Jarvis » sur chaque carte (lot 5 V5) · absent, la carte reste celle de la maquette. */
   jarvisCartes?: boolean;
+  /** Boucler la preuve · « D'où viennent les hypothèses qui gagnent » (`bilanProvenances`) · absent, rien n'est ajouté à la maquette. */
+  bilan?: PropsBilanProvenances | null;
+}
+
+/**
+ * Boucler la preuve · le résultat du lot conclu qui la teste (chiffre clé, lien
+ * vers le lot) et sa provenance (lien vers la source) · deux lignes sous la
+ * ligne de la carte, absentes quand la carte n'en porte pas.
+ */
+function ResultatEtProvenance({ h }: { h: CarteHypothese }) {
+  return (
+    <>
+      {h.resultat && (
+        <span data-resultat-hypothese={h.resultat.statut} style={{ display: 'grid', gap: 4, fontSize: '11.5px' }}>
+          <span className="muted">Lot #{h.resultat.lot.numero} · {h.resultat.libelle} · {h.resultat.chiffre}</span>
+          <Lien className="btn sm" href={h.resultat.lot.href} style={{ justifySelf: 'start', minHeight: 44 }}>Voir le lot #{h.resultat.lot.numero}</Lien>
+        </span>
+      )}
+      {h.provenance && (
+        <span data-provenance-hypothese="" style={{ display: 'grid', gap: 4, fontSize: '11.5px' }}>
+          <span className="faint">Provenance · {h.provenance.libelle}</span>
+          {h.provenance.href && h.provenance.lien && <Lien className="btn sm" href={h.provenance.href} style={{ justifySelf: 'start', minHeight: 44 }}>{h.provenance.lien}</Lien>}
+        </span>
+      )}
+    </>
+  );
 }
 
 /** Le geste par carte · son nom dit QUELLE hypothèse (il commence par le mot affiché). */
@@ -81,6 +108,7 @@ export function Hypotheses(p: PropsHypotheses) {
                   <div className="kc"><span className="pill c">{h.categorie}</span><Priorite n={h.priorite} /></div>
                   <p><Hypothese texte={h.texte} /></p>
                   <span className="faint" style={{ fontSize: '11.5px' }}>{h.meta}</span>
+                  {(h.resultat || h.provenance) && <ResultatEtProvenance h={h} />}
                   {h.conclusion
                     ? <span className={`pill ${h.conclusion.classe}`} style={{ justifySelf: 'start' }}><Ic n={h.conclusion.icone} />{h.conclusion.libelle}</span>
                     : h.edition && p.completer
@@ -101,6 +129,7 @@ export function Hypotheses(p: PropsHypotheses) {
           );
         })}
       </div>
+      {p.bilan && <BilanProvenances p={p.bilan} />}
       <p className="faint" style={{ fontSize: '11.5px', marginTop: 8 }}>{p.note}</p>
     </Vue>
   );

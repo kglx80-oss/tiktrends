@@ -152,10 +152,11 @@ describe('gestes d’un contexte · ouverts, ou fermés avec leur raison', () =>
 });
 
 describe('adresses · rien du modèle n’y entre, tout est relu', () => {
-  it('Itérer · réponse et contexte en UUID, lot ou hypothèse seulement', () => {
+  it('Itérer · réponse et contexte en UUID, lot, hypothèse ou projet (lot 5 ter · panneau d’un projet) seulement', () => {
     expect(lireGesteIteration({})).toEqual({ etat: 'absente' });
     expect(lireGesteIteration({ reponse: REP, contexte: 'lot', id: LOT })).toEqual({ etat: 'ok', reponse: REP, contexte: { type: 'lot', id: LOT } });
-    for (const sp of [{ reponse: 'x', contexte: 'lot', id: LOT }, { reponse: REP, contexte: 'resultats', id: 'ensemble' }, { reponse: REP, contexte: 'projet', id: LOT }, { reponse: REP }, { reponse: REP, contexte: 'lot', id: "' or 1=1" }]) {
+    expect(lireGesteIteration({ reponse: REP, contexte: 'projet', id: LOT })).toEqual({ etat: 'ok', reponse: REP, contexte: { type: 'projet', id: LOT } });
+    for (const sp of [{ reponse: 'x', contexte: 'lot', id: LOT }, { reponse: REP, contexte: 'resultats', id: 'ensemble' }, { reponse: REP }, { reponse: REP, contexte: 'lot', id: "' or 1=1" }]) {
       expect(lireGesteIteration(sp), JSON.stringify(sp)).toEqual({ etat: 'refus' });
     }
     expect(lienIterationJarvis({ type: 'resultats', id: 'ensemble' }, REP)).toBeNull();

@@ -1,12 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CIBLE_CONCEPT, demandeProposition, texteTourJarvis, verrouAction, visibleWhileStreaming, sansTiretCadratin, type ConceptActionKey } from '@tiktrends/core';
+import {
+  CIBLE_CONCEPT, EFFET_GESTE_PROJET, demandeProposition, gesteIterationProjet, texteTourJarvis, verrouAction, visibleWhileStreaming, sansTiretCadratin,
+  type CandidatProjetJarvis, type ConceptActionKey,
+} from '@tiktrends/core';
 import { chatThreadAction } from '../../../app/actions/jarvis-chat';
 import { proposerPatch } from '../../../app/actions/studios/propositions';
 import { useSpatial } from '../../coquille/contexte';
-import { Ic } from '../../communs';
+import { Ic, Lien } from '../../communs';
 import { Ad, Message } from './briques';
 import { boutonAction, replacerFocus } from './action-serveur';
 import { useNaviguer } from './naviguer';
@@ -27,6 +30,12 @@ import type { ActionConceptSpatiale, PropsJarvisProjet } from './types';
  * L'envoi d'un message passe par la MÊME route que Jarvis (`/api/jarvis/chat`,
  * barrière de dépense) avec `projectId` · il ne tombe jamais dans le fil
  * principal de la marque.
+ *
+ * Lot 5 ter (PC E35, E38) · sous la DERNIÈRE réponse, « Créer l'itération »
+ * n'apparaît que si elle désigne SÛREMENT une variante gagnante du projet
+ * (`gesteIterationProjet`, liste fermée `iteration.candidats`) · c'est un LIEN
+ * vers l'écran Itérer existant, qui relit la réponse dans le fil de CE projet ·
+ * rien n'est créé sans le clic là-bas. Les puces (patch, devis) sont inchangées.
  */
 
 type Confirmation = ActionConceptSpatiale | null;
@@ -138,6 +147,9 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
   const idRaison = (r: string | null) => (r && raisons.includes(r) ? `${id}-raison-${raisons.indexOf(r)}` : undefined);
   const idFil = `${id}-fil-ferme`;
   const annuler = (cle: string) => { setConfirmation(null); replacerFocus('toujours', `[data-puce="${cle}"]`); };
+  // La dernière réponse de Jarvis du fil · le geste « Créer l'itération » ne vaut que pour elle.
+  const derniere = [...tours].reverse().find((t) => t.role === 'assistant') ?? null;
+  const geste = derniere ? <GesteIterationProjet tour={derniere} projectId={p.projectId} candidats={p.iteration?.candidats ?? []} autres={p.iteration?.autres ?? []} /> : null;
 
   return (
     <aside className="tile jpanel" aria-label="Jarvis dans ce projet">
@@ -147,6 +159,7 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
         <div><strong>Jarvis</strong><p className="faint" style={{ fontSize: '11.5px' }}>{p.sousTitre}</p></div>
       </div>
       <p style={{ fontSize: 13 }}>{p.message}</p>
+      {!ouvert && geste}
       {p.suggestion && (
         <div className="sugg">
           <span className="lbl">Proposition · à valider</span>
@@ -195,7 +208,12 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
         <div style={{ display: 'grid', gap: 10 }} data-fil="projet">
           <div ref={fil} style={{ display: 'grid', gap: 10, maxHeight: '46vh', overflowY: 'auto' }}>
             {tours.length === 0 && !partiel && <p className="faint" style={{ fontSize: '12.5px' }}>Décris ce que tu veux créer pour {p.marque || 'ta marque'} · Jarvis t’aide à cadrer le concept, chaque proposition reste à valider.</p>}
-            {tours.map((t) => <div key={t.id} className={`msg ${t.role === 'user' ? 'me' : ''}`}><div className="bub" style={{ fontSize: 13 }}>{t.texte}</div></div>)}
+            {tours.map((t) => (
+              <Fragment key={t.id}>
+                <div className={`msg ${t.role === 'user' ? 'me' : ''}`}><div className="bub" style={{ fontSize: 13 }}>{t.texte}</div></div>
+                {t === derniere && !partiel && geste}
+              </Fragment>
+            ))}
             {partiel && <div className="msg"><div className="bub" style={{ fontSize: 13 }}>{sansTiretCadratin(visibleWhileStreaming(partiel))}</div></div>}
             {enCours === 'message' && !partiel && <p className="faint" style={{ fontSize: '12.5px' }}>Jarvis relit ta marque…</p>}
           </div>
@@ -212,5 +230,23 @@ export function PanneauJarvis(p: PropsJarvisProjet & { ouvrirBrief: () => void }
         </div>
       )}
     </aside>
+  );
+}
+
+/**
+ * « Créer l'itération » sous la dernière réponse du projet · PRÉSENT seulement
+ * quand la réponse désigne sûrement une variante gagnante (règle du noyau) ·
+ * sinon rien (le panneau reste celui de la maquette). Un lien, aucun appel.
+ */
+function GesteIterationProjet({ tour, projectId, candidats, autres }: { tour: { id: string; texte: string }; projectId: string; candidats: CandidatProjetJarvis[]; autres: string[] }) {
+  const g = candidats.length ? gesteIterationProjet({ texte: tour.texte, reponse: tour.id, projectId, candidats, autres }) : null;
+  if (!g) return null;
+  return (
+    <div data-gestes-projet="" style={{ display: 'grid', gap: 6 }}>
+      <Lien className="btn sm" href={g.href} data-geste-jarvis="iterer" data-variante={g.varianteId} title={EFFET_GESTE_PROJET} style={{ minHeight: 44, justifySelf: 'start' }}>
+        <Ic n="loop" />{g.libelle}
+      </Lien>
+      <small className="faint" style={{ fontSize: '11.5px' }}>Depuis {g.variante} · {EFFET_GESTE_PROJET}</small>
+    </div>
   );
 }

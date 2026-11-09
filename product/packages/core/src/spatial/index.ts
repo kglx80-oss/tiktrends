@@ -36,3 +36,4 @@ export * from './connexion-meta';
 export * from './chiffres-cles-meta';
 export * from './jarvis/contexte';
 export * from './jarvis/gestes';
+export * from './jarvis/suite';

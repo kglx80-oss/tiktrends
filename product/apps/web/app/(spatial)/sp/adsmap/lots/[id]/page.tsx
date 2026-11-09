@@ -4,8 +4,9 @@ import {
   LIBELLE_VERDICT, LIBELLE_NATURE_LOT, natureLot, lienFicheTest, libelleStatutTest, conclusionLot, referenceConclusion, lienJarvisContexte,
   entreesLecturePersonas, lecturePersonas, libelleAttribution, regleLecturePersonas,
   entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
-  apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS,
+  apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
 } from '@tiktrends/core';
+import { iterationPlanAction } from '../../../../../actions/adsmap-iterate';
 import { personasEtTests } from '../../../../../../lib/personas-tests';
 import { offresEtTests } from '../../../../../../lib/offres-tests';
 import { lireReponseJarvis } from '../../../../../../lib/jarvis-gestes';
@@ -45,6 +46,16 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const attribution = (adId: string) => pt.parAd.get(adId) ?? null;
   const lecture = lecturePersonas(entreesLecturePersonas(d.lots, (adId) => attribution(adId)?.persona ?? null), pt.personas);
   const duLot = new Set(l.ads.map((a) => attribution(a.id)?.persona?.id).filter((x): x is string => !!x));
+  // VB P06 · les gestes d'un persona du lot qui SE DÉTACHE · le plan d'itération n'est lu que dans ce cas · les pubs
+  // retenues sont celles que l'écran Itérer proposera, sélectionnables (`choixIterationSpatial`, la même règle).
+  const detaches = lecture.groupes.filter((x) => duLot.has(x.persona.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
+  const planIds = detaches.length
+    ? new Set(choixIterationSpatial((await iterationPlanAction()).view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
+    : new Set<string>();
+  const testsDe = (ads: readonly { id: string }[], personaId: string) => ads.filter((a) => attribution(a.id)?.persona?.id === personaId).map((a) => a.id);
+  const gestes = (x: (typeof lecture.groupes)[number]) => gestesPersonaLot(x, {
+    numeroLot: l.numero, testsDuLot: testsDe(l.ads, x.persona.id), testsDeLaMarque: testsDe(d.lots.flatMap((y) => y.ads), x.persona.id), planIds,
+  });
   // Lot 9 bis · l'offre de chaque variante (test ou brief, jamais fusionnés) et la lecture par offre de TOUTE la marque (même règle).
   const offreDe = (adId: string) => ot.parAd.get(adId) ?? null;
   const lectureO = lectureOffres(entreesLectureOffres(d.lots, (adId) => offreDe(adId)?.offre ?? null), ot.offres);
@@ -106,8 +117,8 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
           const at = attribution(a.id);
           return { id: a.id, variante: a.variante, personaId: at?.persona?.id ?? null, desaccord: !!at?.desaccord, libelle: at ? libelleAttribution(at) : 'Aucun persona · ni la carte ni le brief n’en nomment un' };
         }),
-        groupes: lecture.groupes.filter((x) => duLot.has(x.persona.id)).map((x) => ({ id: x.persona.id, nom: x.persona.nom, lecture: x.lecture, phrase: x.phrase })),
-        parle: lecture.parle, phrase: lecture.phrase, regle: regleLecturePersonas(),
+        groupes: lecture.groupes.filter((x) => duLot.has(x.persona.id)).map((x) => ({ id: x.persona.id, nom: x.persona.nom, lecture: x.lecture, phrase: x.phrase, gestes: gestes(x) })),
+        parle: lecture.parle, phrase: lecture.phrase, regle: regleLecturePersonas(), gestesLus: true,
       }}
       offres={{
         variantes: l.ads.map((a) => {
