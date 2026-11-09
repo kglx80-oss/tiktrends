@@ -358,6 +358,7 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   },
   'app/actions/invites.ts': { createInviteAction: A(() => [fd({ email: 'invite@studios.test', role: 'member' })]), revokeInviteAction: A(() => [fd({ id: randomUUID() })]), acceptInviteAction: A(() => [fd({ token: 'x' })]) },
   'app/actions/jarvis-chat.ts': { chatThreadAction: L(() => [null]), onboardingThreadAction: L(), clearOnboardingAction: A(), clearChatAction: A(() => [null]) },
+  'app/actions/jarvis-contexte.ts': { contexteJarvisAction: L(() => ['resultats', 'ensemble']) },
   'app/actions/jarvis-conversations.ts': { creerConversationAction: A(() => [ids.brandA1]), renommerConversationAction: A(() => [ids.brandA1, randomUUID(), 'Titre']) },
   'app/actions/jarvis-veille-studio.ts': { creerStudioDepuisJarvis: A(() => [{ params: {}, brandId: ids.brandA1, objectif: 'Tester', kind: 'image', cleClic: randomUUID() }]) },
   'app/actions/jarvis.ts': {

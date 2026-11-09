@@ -58,6 +58,13 @@ export interface PropsIterer {
   demande?: string | null;
   /** Une pub de la Veille en source (`?veille=&pub=`) · absente, l'écran part du plan d'itération. */
   inspiration?: InspirationIterer | null;
+  /**
+   * Lot 5 bis · ouvert depuis une réponse de Jarvis · ce que le serveur a pu
+   * présélectionner (pub, variable admise), et la phrase qui le dit · `null`
+   * rien de sûr. Une variable n'est cochée que sur CETTE pub · aucune sinon
+   * (jamais le défaut du plan à la place d'un pré-choix absent).
+   */
+  jarvis?: { note: string; adId: string | null; variable: TestedVariable | null } | null;
 }
 
 type Etape = 'pub' | 'variable' | 'creee';
@@ -92,7 +99,11 @@ export function Iterer(p: PropsIterer) {
 
   function continuer() {
     if (!source || !vars || vars.ferme) return;
-    const i = variableInitiale(vars, p.variableDemandee ?? null);
+    const j = p.jarvis ?? null;
+    const i = j
+      // Depuis Jarvis · sa variable, sur SA pub, rejouée par la règle de l'écran · aucun pré-choix sinon.
+      ? (() => { const r = j.variable && c?.adId === j.adId ? variableInitiale(vars, j.variable) : null; return { variable: r && !r.note ? r.variable : null, note: c?.adId === j.adId ? j.note : null }; })()
+      : variableInitiale(vars, p.variableDemandee ?? null);
     setVariable(i.variable); setNote(i.note); setValeur(''); setHypothese(null); setErreur(null);
     setEtape('variable');
     focaliserApres('[data-itvar][aria-checked="true"]', '[data-itvar]');
@@ -145,7 +156,7 @@ export function Iterer(p: PropsIterer) {
           action={p.vide.lien ? <Lien className="btn sm" href={p.vide.lien.href} style={{ marginTop: 12 }}>{p.vide.lien.libelle}</Lien> : undefined} />
       ) : (
         <>
-          <div className="ithead"><h2>Quelle pub veux-tu améliorer ?</h2><p className="muted">{p.resume}</p>{noteDemande && <p className="faint" role="status" data-note-demande="">{noteDemande}</p>}</div>
+          <div className="ithead"><h2>Quelle pub veux-tu améliorer ?</h2><p className="muted">{p.resume}</p>{noteDemande && <p className="faint" role="status" data-note-demande="">{noteDemande}</p>}{p.jarvis && <p className="faint" role="status" data-note-jarvis="">{p.jarvis.note}</p>}</div>
           <div className="itads">
             {p.choix.map((x) => (
               <button key={x.adId} type="button" className={`itad ${x.adId === choisi ? 'on' : ''}`.trim()} data-itad={x.adId} aria-pressed={x.adId === choisi}

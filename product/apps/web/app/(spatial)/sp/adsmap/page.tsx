@@ -3,6 +3,7 @@ import {
   outilsResultats, redirectionTestProfond, redirectionVueAdsmap,
   accrocheResultats, sousKpisResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
   phraseLot, plateformesLot, lienLotSpatial, LIBELLE_NIVEAU, presentationLot, sousNavResultats, suiteLot, syntheseLot, volumeMinimumLot, etatLotSpatial,
+  analyseJarvisEnsemble,
 } from '@tiktrends/core';
 import { VueEnsemble, type AutreLot, type LotVedette } from '../../../../spatial/vues/resultats/VueEnsemble';
 import { RefusResultats } from '../../../../spatial/vues/resultats/communs';
@@ -77,6 +78,10 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
     action: pres.action.href === '/adsmap/import' && !g.admin ? { libelle: 'Voir le lot', href: lienLotSpatial(l.id) } : pres.action,
   }));
 
+  // R03 · « Analyser avec Jarvis » · la vue d'ensemble jointe, « Pourquoi la V… » sur la gagnante RÉELLE du lot vedette seulement.
+  const v = iv >= 0 ? lus[iv]! : null;
+  const jarvis = g.jarvis ? analyseJarvisEnsemble(v ? { gagnante: v.l.ads.find((a) => a.id === v.syn.gagnante)?.variante ?? null, numero: v.l.numero } : null) : null;
+
   return (
     <VueEnsemble
       sousNav={sousNavResultats({ admin: g.admin })}
@@ -87,6 +92,7 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
       autres={cartes}
       commencer={g.admin ? { libelle: 'Préparer un lot', href: '/adsmap/lots' } : { libelle: 'Voir les hypothèses', href: '/adsmap/hypotheses' }}
       outils={outilsResultats({ admin: g.admin })}
+      jarvis={jarvis}
     />
   );
 }
