@@ -156,8 +156,10 @@ export function lienGesteJarvis(g: GesteJarvis, reponse: string): string | null 
  * testé ») · une ANALYSE au passé, jamais un conseil · marqués AVANT que
  * l'accent tombe (« changé » et « change » s'écriraient pareil). Mesuré · le
  * banc (`MESURE_EXTRACTION_JARVIS`) avait un pré-choix faux sur ce seul motif.
+ * + « ajouté » (lot 5 quater) · « Ajouté en fin de vidéo, le témoignage… » n'est
+ * pas l'impératif « Ajoute » en tête de phrase.
  */
-const PARTICIPES_CONSEIL = /(?<![\p{L}])(test|chang|modifi|remplac|itér|déclin|essay|vari|jou|mis)(é|ée|és|ées)(?![\p{L}])/giu;
+const PARTICIPES_CONSEIL = /(?<![\p{L}])(test|chang|modifi|remplac|itér|déclin|essay|vari|jou|mis|ajout)(é|ée|és|ées)(?![\p{L}])/giu;
 
 /**
  * Le texte tel que les règles le lisent · minuscules, sans accent, apostrophes
@@ -225,16 +227,55 @@ const NEGATION = /(?<![a-z])(ne|n'|pas|jamais|sans|garde[rsz]?|conserve[rsz]?|la
 /** Les bornes d'une proposition dans une phrase. */
 const PROPOSITION = /[,;:·]|(?<![a-z])(?:mais|et|puis|alors)(?![a-z])/g;
 
+/**
+ * « ajoute » (lot 5 quater) · le verbe est AUSSI descriptif (« la V2 ajoute un
+ * témoignage » · indicatif, même forme que l'impératif) · il n'est un conseil
+ * qu'en TÊTE de proposition, là où un impératif se place et un sujet manque :
+ *  · le début de la phrase (après une puce, un numéro, un adverbe de liaison) ;
+ *  · après « : », « ; » ou « · » (« Prochain test : ajoute une preuve ») ;
+ *  · après une virgule qui ferme une INTRODUCTION sans verbe (« Pour la V3,
+ *    ajoute… », « Ensuite, ajoute… ») · jamais après une virgule quelconque
+ *    (« La V2 garde l'accroche, ajoute une preuve et gagne » · sujet partagé),
+ *    ni après « et », « puis », « mais » (le sujet de la première proposition vaut pour la seconde).
+ * « ajoute à cela » (= de plus) n'est pas un conseil. Mesuré · `MESURE_AJOUTE_JARVIS`.
+ */
+/** Un verbe (motif normalisé) en TÊTE de proposition · le début d'une phrase, après « : ; · », ou après une virgule qui ferme une introduction sans verbe. */
+const teteDe = (verbe: string) => new RegExp(`^(?:(?:[-*•]|\\d{1,2}[.)])\\s*)?(?:(?:ensuite|enfin|donc|aussi|alors|maintenant|d'abord|surtout|simplement|plutot|egalement)\\s+)?(?:${verbe})(?![a-z])`);
+/**
+ * Ce qui peut précéder l'impératif avant une virgule · une introduction sans
+ * verbe (« pour la V3 », « ensuite »), une condition (« si… »), ou un AUTRE
+ * impératif qui garde (« garde l'accroche, réécris le CTA », « ne change pas
+ * l'offre, ajoute une preuve ») · jamais un sujet (« la V1 garde…, ajoute… »).
+ */
+const INTRODUCTION = /^(?:(?:[-*•]|\d{1,2}[.)])\s*)?(?:pour|sur|dans|avec|si|ensuite|enfin|maintenant|alors|donc|d'abord|cette fois|la prochaine fois|au prochain|a la prochaine|en plus|de plus|ici|au passage|pour la suite|apres|garde[rz]?|conserve[rz]?|laisse[rz]?|evite[rz]?|ne|n')(?![a-z])/;
+export function verbeEnTete(p: string, tete: RegExp): boolean {
+  for (const seg of p.split(/[:;·]/)) {
+    const morceaux = seg.split(',').map((x) => x.trim());
+    if (tete.test(morceaux[0] ?? '')) return true;
+    for (let i = 1; i < morceaux.length; i += 1) {
+      if (tete.test(morceaux[i]!) && morceaux.slice(0, i).every((m, k) => (k === 0 ? INTRODUCTION.test(m) : !/\s/.test(m) || INTRODUCTION.test(m)))) return true;
+    }
+  }
+  return false;
+}
+/** « ajoute », « ajoutez », « ajouter », « ajoutons » · jamais « ajoute à cela » (= de plus). */
+const TETE_AJOUTE = teteDe('ajoute[rz]?(?!\\s+a\\s+(?:cela|ca)(?![a-z]))|ajoutons');
+export const ajouteEnTete = (p: string) => verbeEnTete(p, TETE_AJOUTE);
+/** Un motif de verbe (source normalisée) placé en tête de proposition · pour les règles voisines (« corrige », « lance un test »). */
+export const motifEnTete = teteDe;
+/** Une phrase (normalisée) de CONSEIL · un verbe de conseil, ou « ajoute » en tête de proposition. */
+const estConseil = (p: string) => CONSEIL.test(p) || ajouteEnTete(p);
+
 /** Une phrase de la réponse conseille-t-elle un geste (tester, changer, itérer…) ? */
 export function reponseConseille(texte: string): boolean {
-  return phrases(normaliser(propre(texte))).some((p) => CONSEIL.test(p));
+  return phrases(normaliser(propre(texte))).some(estConseil);
 }
 
 /** Les variables mentionnées POSITIVEMENT dans les phrases de conseil · une mention niée ne compte pas. */
 export function variablesConseillees(texte: string, motifs: MotifsVariables = MOTIFS_VARIABLES): TestedVariable[] {
   const vues = new Set<TestedVariable>();
   for (const p of phrases(normaliser(propre(texte)))) {
-    if (!CONSEIL.test(p)) continue;
+    if (!estConseil(p)) continue;
     for (const prop of p.split(PROPOSITION)) {
       if (!prop) continue;
       for (const [v, re] of motifs) {
@@ -246,6 +287,55 @@ export function variablesConseillees(texte: string, motifs: MotifsVariables = MO
     }
   }
   return [...vues];
+}
+
+/**
+ * La lecture d'une réponse, pour les règles voisines (lot 5 quater · « Tester »,
+ * « Corriger le texte », la mesure) · chaque phrase telle qu'écrite (nettoyée ·
+ * ni adresse ni marqueur) et telle que les règles la lisent (normalisée), si
+ * elle est un conseil, ses propositions, et « une mention niée » · les MÊMES
+ * fonctions que l'extraction de variable, jamais une copie.
+ */
+export interface PhraseJarvis { brute: string; lue: string; conseil: boolean; propositions: string[] }
+export function phrasesJarvis(texte: string): PhraseJarvis[] {
+  return phrases(propre(texte)).map((brute) => {
+    const lue = normaliser(brute);
+    return { brute, lue, conseil: estConseil(lue), propositions: lue.split(PROPOSITION).filter(Boolean) };
+  });
+}
+/** Une mention à la position `i` d'une proposition (lue) est-elle NIÉE (« garde », « ne », « plutôt que »…) ? */
+export const mentionNiee = (proposition: string, i: number) => NEGATION.test(proposition.slice(0, i));
+/** Le texte tel que les règles le lisent (normalisé) · pour lire un nom FERMÉ dans une phrase. */
+export const texteLuJarvis = (t: string) => normaliser(t);
+
+/**
+ * Ce que la règle LIT d'une réponse, sans liste fermée de contexte (lot 5 quater ·
+ * l'écran de mesure rejoue la règle sur les réponses stockées, qui ne gardent
+ * pas leur contexte) · y a-t-il un conseil, les variables mentionnées
+ * positivement (`variablesConseillees`, la même boucle), celles mentionnées
+ * mais toutes NIÉES, et les codes de variante (« V2 ») que la réponse nomme ·
+ * dans les conseils s'il y en a exactement un, sinon dans tout le texte (la
+ * même préférence que `pubDepuisReponse`).
+ */
+export interface AnalyseReponseJarvis { conseil: boolean; positives: TestedVariable[]; niees: TestedVariable[]; codes: string[] }
+const CODE_VARIANTE = /(?<![a-z0-9-])v\d{1,3}(?![a-z0-9-])/g;
+export function analyseReponseJarvis(texte: string): AnalyseReponseJarvis {
+  const toutes = phrases(normaliser(propre(texte)));
+  const conseils = toutes.filter(estConseil);
+  const positives = new Set<TestedVariable>(variablesConseillees(texte));
+  const niees = new Set<TestedVariable>();
+  for (const p of conseils) {
+    for (const prop of p.split(PROPOSITION)) {
+      if (!prop) continue;
+      for (const [v, re] of MOTIFS_VARIABLES) {
+        re.lastIndex = 0;
+        if (re.test(prop) && !positives.has(v)) niees.add(v);
+      }
+    }
+  }
+  const codesDe = (l: readonly string[]) => [...new Set(l.flatMap((p) => p.match(CODE_VARIANTE) ?? []))];
+  const dansConseil = codesDe(conseils);
+  return { conseil: conseils.length > 0, positives: [...positives], niees: [...niees], codes: dansConseil.length === 1 ? dansConseil : codesDe(toutes) };
 }
 
 /* ───────────────────────── le banc de mesure de l'extraction ───────────────────────── */
@@ -296,15 +386,19 @@ export function mesurerExtractionJarvis(
  * | Corpus                       | n  | règle      | rien de sûr  | justes | fausses |
  * | ---------------------------- | -- | ---------- | ------------ | ------ | ------- |
  * | réglage · tout               | 64 | #1052      | 29 (45 %)    | 52     | 2       |
- * | réglage · tout               | 64 | actuelle   | 24 (38 %)    | 61     | 0       |
+ * | réglage · tout               | 64 | #1054      | 24 (38 %)    | 61     | 0       |
+ * | réglage · tout               | 64 | actuelle   | 23 (36 %)    | 62     | 0       |
  * | réglage · UNE variable dite  | 43 | #1052      | 10 (23 %)    | 33     | 0       |
- * | réglage · UNE variable dite  | 43 | actuelle   | 3 (7 %)      | 40     | 0       |
+ * | réglage · UNE variable dite  | 43 | #1054      | 3 (7 %)      | 40     | 0       |
+ * | réglage · UNE variable dite  | 43 | actuelle   | 2 (5 %)      | 41     | 0       |
  * | réglage · aucune / plusieurs | 21 | #1052      | 19           | 19     | 2       |
  * | réglage · aucune / plusieurs | 21 | actuelle   | 21           | 21     | 0       |
  * | contrôle · tout              | 24 | #1052      | 10 (42 %)    | 18     | 2       |
  * | contrôle · tout              | 24 | actuelle   | 9 (38 %)     | 23     | 0       |
  * | contrôle · UNE variable dite | 16 | #1052      | 4 (25 %)     | 12     | 0       |
  * | contrôle · UNE variable dite | 16 | actuelle   | 1 (6 %)      | 15     | 0       |
+ * | « ajoute » · tout            | 18 | #1054      | 18           | 10     | 0       |
+ * | « ajoute » · tout            | 18 | actuelle   | 10           | 18     | 0       |
  *
  * Lecture · le « rien de sûr » GLOBAL reste haut (38 %) et c'est voulu · il
  * compte les silences JUSTES (analyse sans conseil, plusieurs variables · une
@@ -314,17 +408,26 @@ export function mesurerExtractionJarvis(
  * passé lu comme un conseil, « n'a rien changé », « a été testé »). Restent
  * manqués, en silence et jamais faux · un qualificatif pris pour une durée
  * (« une démonstration plus courte »), un nom de variable dans une relative
- * (« qui reprend l'accroche »), « ajoute » (verbe aussi descriptif, laissé hors
- * des conseils). « #1052 » · la règle et le vocabulaire de `main` à 121e6553.
+ * (« qui reprend l'accroche »). « #1052 » · la règle et le vocabulaire de `main`
+ * à 121e6553 · « #1054 » · ceux de `main` à 3d12f5c2.
+ *
+ * Lot 5 quater · « ajoute » est lu comme un conseil en TÊTE de proposition
+ * seulement (`ajouteEnTete`) · le conseil d'une variable manqué au réglage
+ * (« Ajoute une preuve : … ») est repris, le contrôle ne bouge pas (aucune
+ * entrée « ajoute » seule), et le corpus « ajoute » (18 entrées, dont 9 pièges
+ * descriptifs) passe de 10 à 18 justes · pré-choix FAUX 0 sur les trois
+ * corpus. La règle de tête est ce qui tient · « ajoute » lu PARTOUT (mesuré)
+ * donnerait 12 justes et 6 pré-choix FAUX sur le corpus « ajoute » (les
+ * pièges descriptifs), d'où son exclusion par #1054.
  */
 export const MESURE_EXTRACTION_JARVIS: Readonly<Record<'reglage' | 'controle', Readonly<Record<string, Readonly<{ n: number; rienDeSur: number; juste: number; fausse: number }>>>>> = {
   reglage: {
-    une: { n: 34, rienDeSur: 3, juste: 31, fausse: 0 },
+    une: { n: 34, rienDeSur: 2, juste: 32, fausse: 0 },
     niee: { n: 6, rienDeSur: 0, juste: 6, fausse: 0 },
     structurelle: { n: 3, rienDeSur: 0, juste: 3, fausse: 0 },
     analyse: { n: 12, rienDeSur: 12, juste: 12, fausse: 0 },
     plusieurs: { n: 9, rienDeSur: 9, juste: 9, fausse: 0 },
-    total: { n: 64, rienDeSur: 24, juste: 61, fausse: 0 },
+    total: { n: 64, rienDeSur: 23, juste: 62, fausse: 0 },
   },
   controle: {
     une: { n: 14, rienDeSur: 1, juste: 13, fausse: 0 },
@@ -333,6 +436,14 @@ export const MESURE_EXTRACTION_JARVIS: Readonly<Record<'reglage' | 'controle', R
     plusieurs: { n: 3, rienDeSur: 3, juste: 3, fausse: 0 },
     total: { n: 24, rienDeSur: 9, juste: 23, fausse: 0 },
   },
+};
+
+/** Le corpus « ajoute » (`CORPUS_AJOUTE_JARVIS`), refait par `test/lot5q-jarvis-mesure.test.ts` · la règle de l'impératif en tête. */
+export const MESURE_AJOUTE_JARVIS: Readonly<Record<string, Readonly<{ n: number; rienDeSur: number; juste: number; fausse: number }>>> = {
+  une: { n: 8, rienDeSur: 0, juste: 8, fausse: 0 },
+  analyse: { n: 9, rienDeSur: 9, juste: 9, fausse: 0 },
+  plusieurs: { n: 1, rienDeSur: 1, juste: 1, fausse: 0 },
+  total: { n: 18, rienDeSur: 10, juste: 18, fausse: 0 },
 };
 
 export type MotifVariableReponse = 'sure' | 'aucune' | 'ambigue' | 'fermee';
@@ -441,7 +552,7 @@ export function pubDepuisReponse(texte: string, candidats: readonly CandidatIter
   // Les AUTRES variantes du contexte (perdantes, hors plan) sont nommables aussi · nommée seule, l'une d'elles ne désigne aucune gagnante.
   const exclus = (o.exclus ?? []).map((variante, i) => ({ adId: `${EXCLU}${i}`, variante }));
   const liste = [...candidats, ...exclus];
-  const conseils = phrases(propre(texte)).filter((p) => CONSEIL.test(normaliser(p))).join(' ');
+  const conseils = phrases(propre(texte)).filter((p) => estConseil(normaliser(p))).join(' ');
   const dansConseil = codesNommes(conseils, liste);
   const nommes = dansConseil.length === 1 ? dansConseil : codesNommes(texte, liste);
   const fin = 'rien n’est présélectionné, choisis la pub puis la variable';

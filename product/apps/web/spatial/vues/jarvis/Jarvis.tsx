@@ -7,7 +7,9 @@ import {
   conceptPropose, citationsReponse, titreValide, ACTION_PREMIERE_MARQUE, TITRE_ONBOARDING_JARVIS, SOUS_TITRE_ONBOARDING_JARVIS, ENTREES_ONBOARDING_JARVIS,
   lienGesteJarvis, suiteReponseJarvis, EFFET_GESTES_JARVIS, EFFET_POURQUOI, LIBELLE_AUTRE_VARIABLE, LIBELLE_POURQUOI,
   type CategorieJarvis, type EncartKpiJarvis, type IterationRecente, type ConceptPropose, type TypeContexteJarvis, type GesteJarvis, type CandidatIteration,
+  type VarianteEssaiJarvis,
 } from '@tiktrends/core';
+import { GestesEssaiTexte } from './GestesEssaiTexte';
 import { chatThreadAction, clearChatAction, onboardingThreadAction, clearOnboardingAction, type ChatTurn } from '../../../app/actions/jarvis-chat';
 import { creerConversationAction, renommerConversationAction } from '../../../app/actions/jarvis-conversations';
 import { draftConceptAction, type DraftView } from '../../../app/actions/adsmap-draft';
@@ -81,6 +83,12 @@ export interface ContexteJoint {
    * du noyau (`suiteReponseJarvis`) la lit sous la réponse · vide, rien n'est proposé.
    */
   suite?: { candidats: CandidatIteration[]; exclus?: string[] };
+  /**
+   * Lot 5 quater · « Tester » et « Corriger le texte » · les variantes Studio
+   * du contexte (liste FERMÉE relue au serveur) et les codes des autres pubs ·
+   * la règle du noyau (`gestesEssaiTexteJarvis`) la lit sous la réponse.
+   */
+  essai?: { variantes: VarianteEssaiJarvis[]; exclus: string[] };
 }
 
 /** Sans marque · le fil d'accueil réel (portée espace + personne) et ses amorces. */
@@ -328,7 +336,7 @@ export function Jarvis(p: PropsJarvis) {
             {p.marque && <Lien className="jact" href="/studio/projets/nouveau"><Ic n="brush" />Créer un projet</Lien>}
           </div>
           {concept && <Concept c={concept} />}
-          {i === derniere && joint?.gestes && <GestesReponse g={joint.gestes} reponse={t.id} texte={r.texte} contexte={joint} candidats={joint.suite?.candidats ?? []} exclus={joint.suite?.exclus ?? []} preparer={preparer} />}
+          {i === derniere && joint?.gestes && <GestesReponse g={joint.gestes} reponse={t.id} texte={r.texte} contexte={joint} candidats={joint.suite?.candidats ?? []} exclus={joint.suite?.exclus ?? []} preparer={preparer} essai={joint.essai ?? null} />}
         </div></div>
       </Fragment>
     );
@@ -524,9 +532,10 @@ function Joint({ c, cout, preparer, retirer }: { c: ContexteJoint; cout: string;
  * fermés, la raison est écrite à côté. Une réponse encore sans identifiant
  * (en cours d'écriture) n'en porte pas.
  */
-function GestesReponse({ g, reponse, texte, contexte, candidats, exclus, preparer }: {
+function GestesReponse({ g, reponse, texte, contexte, candidats, exclus, preparer, essai }: {
   g: { iterer: GesteJarvis; conclure: GesteJarvis }; reponse: string; texte: string;
   contexte: { type: TypeContexteJarvis; id: string }; candidats: CandidatIteration[]; exclus: string[]; preparer: (q: string) => void;
+  essai: { variantes: VarianteEssaiJarvis[]; exclus: string[] } | null;
 }) {
   const id = useId();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reponse)) return null;
@@ -576,6 +585,7 @@ function GestesReponse({ g, reponse, texte, contexte, candidats, exclus, prepare
           {pourquoi && 'question' in pourquoi && <small className="faint" style={{ fontSize: 11 }}>{LIBELLE_POURQUOI} · {EFFET_POURQUOI}</small>}
         </div>
       )}
+      {essai && <GestesEssaiTexte texte={texte} reponse={reponse} contexte={{ type: contexte.type, id: contexte.id }} variantes={essai.variantes} exclus={essai.exclus} taille={11} />}
     </div>
   );
 }
