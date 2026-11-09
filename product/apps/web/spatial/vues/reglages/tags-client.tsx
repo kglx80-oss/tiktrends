@@ -2,11 +2,12 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent as ToucheReact } from 'react';
 import { createPortal } from 'react-dom';
-import { LONGUEUR_MAX_TAG, lienSauvegardesTag, trierTags, validerTag, verrouAction, type TagVeille } from '@tiktrends/core';
+import { LONGUEUR_MAX_TAG, lienSauvegardesTag, trierTags, validerTag, verrouAction, type AccesHypothese, type PropositionHypotheseTag, type TagVeille } from '@tiktrends/core';
 import { creerTagVeille, renommerTagVeille } from '../../../app/actions/inspo';
 import { FERME } from '../projet/focus';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
+import { FormulerHypotheseTag } from '../veille/hypothese-tag-client';
 
 /**
  * Lot 6 V5 · `/tags` · le vocabulaire des tags de Veille de la marque active
@@ -24,6 +25,11 @@ export interface DonneesTags {
   portee: string;
   /** Ouvert, ou fermé avec la raison réelle (rôle) · la même garde que l'action. */
   ecriture: { ouvert: true } | { ouvert: false; raison: string };
+  /**
+   * Lot 6 bis · « Formuler une hypothèse » · une proposition par tag RÉCURRENT
+   * (clé → proposition du noyau · absente sous le seuil) et la porte réelle.
+   */
+  hypothese?: { acces: AccesHypothese; propositions: Readonly<Record<string, PropositionHypotheseTag>> };
 }
 
 const CIBLE: CSSProperties = { minHeight: 44 };
@@ -70,6 +76,7 @@ export function TagsVeille({ donnees }: { donnees: DonneesTags }) {
                   : <span className="btn sm" aria-disabled="true" title="Aucune sauvegarde ne porte ce tag" style={{ ...CIBLE, ...FERME }}>Voir</span>}
                 <button type="button" className="btn sm" style={{ ...CIBLE, ...(ouvert ? {} : FERME) }} aria-disabled={!ouvert || undefined} aria-haspopup="dialog"
                   aria-label={`Renommer le tag « ${t.nom} »`} title={raison ?? undefined} onClick={() => { if (ouvert) setPopup({ mode: 'renommer', tag: t }); }}>Renommer</button>
+                {donnees.hypothese?.propositions[t.cle] && <FormulerHypotheseTag proposition={donnees.hypothese.propositions[t.cle]!} acces={donnees.hypothese.acces} style={{ justifyContent: 'flex-end' }} />}
               </span>
             </div>
           ))}

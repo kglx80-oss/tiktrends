@@ -238,8 +238,14 @@ export const AFFICHAGE_VEILLE_COOKIE = 'tt_veille_affichage';
 export function affichageDepuisCookie(brut: string | null | undefined): AffichageVeille {
   return brut === 'liste' ? 'liste' : 'grille';
 }
-export function affichageCookieString(a: AffichageVeille): string {
-  return `${AFFICHAGE_VEILLE_COOKIE}=${a}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+/**
+ * Lot 6 bis (SV06) · la même préférence, propre aux Sauvegardes · deux écrans,
+ * deux usages (parcourir la source, relire ce qu'on garde) · basculer l'un ne
+ * renverse pas l'autre. Même règle de lecture (`affichageDepuisCookie`).
+ */
+export const AFFICHAGE_SAUVEGARDES_COOKIE = 'tt_sauvegardes_affichage';
+export function affichageCookieString(a: AffichageVeille, nom: typeof AFFICHAGE_VEILLE_COOKIE | typeof AFFICHAGE_SAUVEGARDES_COOKIE = AFFICHAGE_VEILLE_COOKIE): string {
+  return `${nom}=${a}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
 }
 
 /**
@@ -267,6 +273,38 @@ export const LARGEUR_MIN_LISTE_VEILLE = 880;
 
 /** Les colonnes de la vue liste · ce que la source donne, rien d'autre (ni variantes, ni date de vue). */
 export const COLONNES_LISTE_VEILLE = ['Créative', 'Plateforme', 'Format', 'Diffusion', 'Appel à l’action', 'Texte de l’annonce', ''] as const;
+
+/**
+ * Lot 6 bis (SV06) · les colonnes de la vue liste des SAUVEGARDES · la case de
+ * sélection (SV01) d'abord, puis ce que la sauvegarde porte (ses tags à la
+ * place de l'appel à l'action, que la carte des Sauvegardes ne montre pas).
+ */
+export const COLONNES_LISTE_SAUVEGARDES = ['', 'Créative', 'Plateforme', 'Format', 'Diffusion', 'Tags', 'Texte de l’annonce', ''] as const;
+/** L'en-tête de la colonne des cases · dit au lecteur d'écran, pas écrit (« Sélection » est rogné dans 48 px · mesuré). */
+export const ENTETE_SELECTION_SAUVEGARDES = 'Sélection';
+/** Les colonnes du tableau (case de 48 px · la cible de 44 px tient dedans). */
+export const GRILLE_LISTE_SAUVEGARDES = '48px minmax(140px,1.3fr) .7fr .7fr .9fr minmax(100px,1fr) minmax(140px,1.8fr) 104px';
+
+/**
+ * La largeur minimale du tableau des Sauvegardes · même banc que la Veille
+ * (Chrome sans tête, fenêtre de 500 px, feuille Spatial, zoom 0,9 de la
+ * Veille, six lignes · nom long « Maison Berthe & Fils Cosmétiques », trois
+ * tags, durées de 3 à 365 j, carrousel, image, vidéo, TikTok et Meta), le
+ * 09/11. Cellules rognées hors nom, tags et texte (« … » à dessein) :
+ *
+ * | colonnes                          | 820 | 840 | 860 | 880 | 900 | 940 |
+ * | --------------------------------- | --- | --- | --- | --- | --- | --- |
+ * | case 64 px, Cloner 112 px         |  4  |  ·  |  2  |  2  |  1  |  0  |
+ * | case 48 px, Cloner 104 px (retenu) |  2  |  0  |  0  |  0  |  0  |  0  |
+ *
+ * Avec 64 px, il fallait 940 · au-delà des ≈ 926 px utiles d'un écran de 1280
+ * (le tableau aurait défilé sur ordinateur). Avec 48 px, 840 suffit · retenu
+ * 880, 40 px de marge, la largeur de la vue liste de la Veille. La page ne
+ * défile jamais en largeur (mesuré · `scrollWidth` = 500 à 500 px). La case
+ * garde sa cible de 44 px (40 rendus sous le zoom 0,9 de la rubrique, comme
+ * toutes les cibles de la Veille).
+ */
+export const LARGEUR_MIN_LISTE_SAUVEGARDES = 880;
 
 /** Une ligne de la vue liste · lue sur l'annonce elle-même (plateforme, média, jours, statut). */
 export function ligneListeVeille(ad: { platform: string; mediaType?: string | null; daysRunning?: number | null; status?: string | null }): { plateforme: string; format: string; diffusion: string } {

@@ -280,7 +280,11 @@ export const personas = pgTable('personas', {
   objections: text('objections').array(),              // ADSMAP
   sources: jsonb('sources_json'),                      // ADSMAP · avis, veille, entretien
   status: text('status').notNull().default('validated'), // proposed | validated | rejected | archived
-});
+  // Lot 9 V5 (0071) · rang dans la marque (1, 2, 3… sans trou, NULL = sans rang ·
+  // règle `rangsApres` du noyau) et segment en clair · NULL pour les personas d'avant.
+  rank: integer('rank'),
+  segment: text('segment'),
+}, (t) => ({ brandRankIdx: index('personas_brand_rank_idx').on(t.brandId, t.rank) }));
 
 /* ======================= AD ACCOUNTS / DATA ======================= */
 export const adAccounts = pgTable('ad_accounts', {

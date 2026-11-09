@@ -126,6 +126,50 @@ describe('Spatial · Marque · parité de structure avec la maquette', () => {
     expect(p.rendu).toEqual(p.reference);
   });
 
+  /**
+   * Lot 9 V5 · écart DÉCLARÉ · rang et segment d'un persona, « Modifier » et
+   * « Valider ce persona » (`[data-lot9]`) n'existent que si la base les porte
+   * (rang, segment) ou si les gestes sont branchés, et seulement à ces places ·
+   * le rang dans la puce juste après la pastille, les pastilles rang et segment
+   * dans la ligne du nom, les deux gestes dans la rangée de « Créer une pub ».
+   * Ailleurs, ou en trop, ils font tomber la parité.
+   */
+  function sansLot9(html: string, attendus: number): string {
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const ajouts = [...t.content.querySelectorAll('[data-lot9]')];
+    const aSaPlace = (e: Element) => {
+      const parent = e.parentElement!;
+      if (e.matches('b[data-lot9="rang"]')) return parent.matches('[aria-label="Persona"] > button') && !!e.previousElementSibling?.matches('span.av');
+      if (e.matches('span.pill[data-lot9="rang"], span.pill[data-lot9="segment"]')) return !!parent.firstElementChild?.matches('h2');
+      if (e.matches('span[data-lot9="modifier"], span[data-lot9="valider"]')) return !!parent.firstElementChild?.matches('.btn.pri') && (parent.firstElementChild!.textContent ?? '').includes('Créer une pub');
+      return false;
+    };
+    if (ajouts.length !== attendus || !ajouts.every(aSaPlace)) return html;
+    ajouts.forEach((e) => e.remove());
+    return t.innerHTML;
+  }
+
+  it('lot 9 · des personas classés et segmentés, « Modifier » et « Valider » branchés, gardent la parité · seuls ces ajouts, à leur place', () => {
+    const P = (i: number) => ({ id: `p${i}`, initiale: 'A', teinte: '#111', nom: `A${i}, 30 ans`, statut: { libelle: 'Validé', classe: 'g' as const }, description: 'd',
+      desirs: ['a', 'b', 'c'], freins: ['a', 'b', 'c'], objections: ['a', 'b', 'c'], citations: ['a', 'b', 'c', 'd'], sources: 4,
+      // `aValider` force « Valider ce persona » · la pastille de statut garde la classe de la maquette.
+      rang: i, segment: 'Jeunes parents', aValider: true,
+      editable: { id: `p${i}`, nom: `A${i}`, description: 'd', segment: 'Jeunes parents', rang: i, desirs: ['a'], freins: ['b'], objections: ['c'] } });
+    const html = rendre(
+      <Personas
+        sousNav={nav} brandId="b1" nom="A" personas={[P(1), P(2), P(3)]}
+        scenarios={[{ titre: 'a', contexte: 'b' }, { titre: 'c', contexte: 'd' }]}
+        jarvis="/jarvis" creerPub="/studio/projets/nouveau?type=ads" ajouterPersona={action} ajouterScenario={null} retours={{}}
+        edition={{ modifier: { action: async () => ({ ok: true as const }), raison: null }, valider: { action: async () => ({ ok: true as const }), raison: null } }}
+      />,
+    );
+    // Trois rangs dans les puces, rang et segment du persona affiché, ses deux gestes.
+    expect(html.split('data-lot9=').length - 1, 'un ajout du lot 9 manque ou est en trop').toBe(7);
+    const p = parite(sansLot9(html, 7), 'clients', { ignorer: ['section.tile > div:nth-of-type(3) > div:nth-child(3)'] });
+    expect(p.rendu).toEqual(p.reference);
+  });
+
   it('« Règles » reproduit la maquette', () => {
     let t = '';
     for (const [type, r] of [['ban', 'a'], ['ban', 'b'], ['ban', 'c'], ['ban', 'd'], ['must', 'e'], ['pref', 'f'], ['pref', 'g']] as const) t = ajouterRegleMarque(t, type, r)!;

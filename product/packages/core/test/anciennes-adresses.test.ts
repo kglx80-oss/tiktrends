@@ -6,6 +6,7 @@ import {
 
 const REF = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const ITER = 'ada00000-0000-4000-8000-000000000002';
+const PERSONA = 'b0b00000-0000-4000-8000-000000000009';
 const lire = (href: string) => {
   const u = new URL(href, 'https://x.test');
   return { chemin: u.pathname, p: Object.fromEntries(u.searchParams) };
@@ -61,17 +62,17 @@ describe('anciennes adresses · une destination utile, jamais une boucle ni un 4
 describe('préparation · ce qu’elle relit de son adresse', () => {
   it('chaque paramètre produit est relu (aller-retour)', () => {
     const rv = contexteVeille({ q: 'serum' });
-    const href = lienNouveauProjet({ type: 'video', angle: 'Hook', produit: 'Sérum', ref: REF, iter: ITER, src: 'tiktok:9', srcnom: 'Glow', retourVeille: rv });
+    const href = lienNouveauProjet({ type: 'video', angle: 'Hook', produit: 'Sérum', ref: REF, iter: ITER, src: 'tiktok:9', srcnom: 'Glow', retourVeille: rv, persona: PERSONA });
     const p = lire(href).p;
     expect(Object.keys(p).sort()).toEqual([...PARAMS_NOUVEAU_PROJET].sort());
     expect(lireContexteNouveauProjet(p)).toEqual({
       type: 'video', typeDonne: true, objectif: 'Hook\nProduit : Sérum', ref: REF, iter: ITER,
-      sourceVeille: { cle: 'tiktok:9', nom: 'Glow' }, retourVeille: rv, aContexte: true,
+      sourceVeille: { cle: 'tiktok:9', nom: 'Glow' }, retourVeille: rv, persona: PERSONA, aContexte: true,
     });
   });
 
   it('sans rien · type pub par défaut, aucun contexte', () => {
-    expect(lireContexteNouveauProjet({})).toEqual({ type: 'ads', typeDonne: false, objectif: '', ref: null, iter: null, sourceVeille: null, retourVeille: null, aContexte: false });
+    expect(lireContexteNouveauProjet({})).toEqual({ type: 'ads', typeDonne: false, objectif: '', ref: null, iter: null, sourceVeille: null, retourVeille: null, persona: null, aContexte: false });
   });
 
   it('ce qui n’est pas repris est DIT · annonce Veille non jointe, sauvegarde inaccessible, test non éligible ou illisible', () => {

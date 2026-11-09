@@ -29,6 +29,7 @@ import { lienRetourVeille, PARAM_RETOUR_VEILLE, DEPUIS_VEILLE } from '../retour-
 import { PARAM_DEPUIS } from '../adsmap/passage-studio';
 import { sourceVeilleDepuisRef } from '../veille-liens';
 import { lireIterationDemandee, PARAM_ITERATION, type BriefDepuisTest } from '../brief-iteration';
+import { SOURCES_MAX } from './sources/reference';
 
 export const CHEMIN_PROJETS = '/studio/projets';
 export const CHEMIN_NOUVEAU_PROJET = '/studio/projets/nouveau';
@@ -44,10 +45,17 @@ export const SOURCE_NOM_MAX = 120;
 /** L'objectif d'un projet (borne serveur de `creerProjetDepuisSources`). */
 export const OBJECTIF_MAX = 2000;
 
+/**
+ * Le persona présélectionné (lot 9 V5 · VB P09) · l'identifiant d'une ligne
+ * `personas`. Il n'est qu'une PROPOSITION · la page le relit dans les personas
+ * de la marque active (portée), sinon il est ignoré et c'est dit.
+ */
+export const PARAM_PERSONA = 'persona';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Les paramètres que la préparation lit · un test vérifie que la page les lit tous. */
-export const PARAMS_NOUVEAU_PROJET = ['type', 'angle', 'produit', 'ref', PARAM_ITERATION, 'src', 'srcnom', PARAM_DEPUIS, PARAM_RETOUR_VEILLE] as const;
+export const PARAMS_NOUVEAU_PROJET = ['type', 'angle', 'produit', 'ref', PARAM_ITERATION, 'src', 'srcnom', PARAM_DEPUIS, PARAM_RETOUR_VEILLE, PARAM_PERSONA] as const;
 
 export interface ContexteLien {
   type?: TypeNouveauProjet | null;
@@ -57,6 +65,12 @@ export interface ContexteLien {
   produit?: string | null;
   /** Identifiant d'une annonce SAUVEGARDÉE · jointe comme source du projet. */
   ref?: string | null;
+  /**
+   * Lot 6 bis (SV01) · PLUSIEURS annonces sauvegardées (sélection des
+   * Sauvegardes) · écrites comme `ref` répétés après `ref`, sans doublon, au
+   * plus `SOURCES_MAX` (les références qu'un projet accepte).
+   */
+  refs?: readonly string[] | null;
   /** Identifiant d'un test Adsmap · son brief d'itération est relu côté serveur. */
   iter?: string | null;
   /** Annonce de la Veille par sa clé `plateforme:id` et son annonceur (provenance seule). */
@@ -64,6 +78,8 @@ export interface ContexteLien {
   srcnom?: string | null;
   /** Contexte de recherche de la Veille (`rv`) · permet d'y revenir. */
   retourVeille?: string | null;
+  /** Persona à présélectionner dans « Pour qui ? » · identifiant `personas` (relu en portée). */
+  persona?: string | null;
 }
 
 type Params = Record<string, string | string[] | undefined | null>;
@@ -86,8 +102,9 @@ export function lienNouveauProjet(c: ContexteLien = {}): string {
   if (angle) p.set('angle', angle);
   const produit = net(c.produit, PRODUIT_MAX);
   if (produit) p.set('produit', produit);
-  if (c.ref && UUID.test(c.ref)) p.set('ref', c.ref.toLowerCase());
+  for (const r of refsValides([c.ref, ...(c.refs ?? [])])) p.append('ref', r);
   if (c.iter && UUID.test(c.iter)) p.set(PARAM_ITERATION, c.iter.toLowerCase());
+  if (c.persona && UUID.test(c.persona)) p.set(PARAM_PERSONA, c.persona.toLowerCase());
   const src = net(c.src, SOURCE_CLE_MAX);
   if (src && sourceVeilleDepuisRef(src)) {
     p.set('src', src);
@@ -154,8 +171,31 @@ export interface ContexteNouveauProjet {
   sourceVeille: { cle: string; nom: string } | null;
   /** Valeur `rv` NETTOYÉE (le lien de retour se calcule avec `lienRetourVeille`). */
   retourVeille: string | null;
+  /** Le persona demandé (identifiant bien formé) · à relire dans la portée avant de le présélectionner. */
+  persona: string | null;
   /** L'adresse portait-elle un contexte (autre que le type) ? */
   aContexte: boolean;
+}
+
+/** Les identifiants de sauvegarde valides, en minuscules, sans doublon, au plus `SOURCES_MAX`. */
+function refsValides(v: ReadonlyArray<string | null | undefined>): string[] {
+  const out: string[] = [];
+  for (const brut of v) {
+    const r = (brut ?? '').trim().toLowerCase();
+    if (UUID.test(r) && !out.includes(r)) out.push(r);
+    if (out.length >= SOURCES_MAX) break;
+  }
+  return out;
+}
+
+/**
+ * Lot 6 bis (SV01) · TOUTES les annonces sauvegardées de l'adresse (`ref`
+ * répété) · une valeur forgée est ignorée, au plus `SOURCES_MAX`. `ref` de
+ * `lireContexteNouveauProjet` reste la première (une seule = le cas d'avant).
+ */
+export function lireRefsNouveauProjet(sp: Params = {}): string[] {
+  const v = sp.ref;
+  return refsValides(Array.isArray(v) ? v : [v ?? null]);
 }
 
 /** Ce que la préparation relit de son adresse · chaque valeur bornée, une valeur forgée ignorée. */
@@ -169,6 +209,8 @@ export function lireContexteNouveauProjet(sp: Params = {}): ContexteNouveauProje
   const srcCle = net(premier(sp.src), SOURCE_CLE_MAX);
   const source = srcCle ? sourceVeilleDepuisRef(srcCle, net(premier(sp.srcnom), SOURCE_NOM_MAX)) : null;
   const retourVeille = premier(sp.depuis) === DEPUIS_VEILLE ? rvPropre(premier(sp[PARAM_RETOUR_VEILLE])) || null : null;
+  const personaBrut = premier(sp[PARAM_PERSONA]).trim();
+  const persona = UUID.test(personaBrut) ? personaBrut.toLowerCase() : null;
   const objectif = [angle, produit ? `Produit : ${produit}` : ''].filter(Boolean).join('\n').slice(0, OBJECTIF_MAX);
   return {
     type: estType(t) ? t : 'ads',
@@ -178,7 +220,8 @@ export function lireContexteNouveauProjet(sp: Params = {}): ContexteNouveauProje
     iter,
     sourceVeille: source ? { cle: srcCle, nom: source.annonceur } : null,
     retourVeille,
-    aContexte: !!(objectif || ref || iter || source || retourVeille),
+    persona,
+    aContexte: !!(objectif || ref || iter || source || retourVeille || persona),
   };
 }
 
@@ -200,7 +243,7 @@ export type EtatRepriseIteration = { etat: 'reprise' } | { etat: 'non_eligible';
  * Ce qui n'a PAS pu être repris, en clair · jamais une perte silencieuse.
  * `refJointe` : l'annonce sauvegardée a été relue dans la portée et sera jointe.
  */
-export function notesContexte(c: ContexteNouveauProjet, o: { refJointe: boolean; iteration: EtatRepriseIteration }): string[] {
+export function notesContexte(c: ContexteNouveauProjet, o: { refJointe: boolean; iteration: EtatRepriseIteration; personaRetenu?: boolean }): string[] {
   const n: string[] = [];
   if (c.ref && !o.refJointe) n.push('L’annonce sauvegardée de ce lien n’est plus accessible (supprimée, d’une autre marque ou hors de tes droits) · le projet partira de l’objectif seul.');
   if (c.sourceVeille && !c.ref) {
@@ -208,6 +251,7 @@ export function notesContexte(c: ContexteNouveauProjet, o: { refJointe: boolean;
     n.push(`L’annonce${nom} vue dans la Veille n’est pas jointe · le lien ne transporte que sa référence. Pour l’attacher comme source, rouvre-la dans la Veille et choisis « Préparer une création ».`);
   }
   if (o.iteration?.etat === 'non_eligible') n.push(`Le test Adsmap n’a pas été repris · ${o.iteration.motif}`);
+  if (c.persona && o.personaRetenu === false) n.push('Le persona de ce lien n’est pas proposé pour la marque active (retiré, écarté ou d’une autre marque) · choisis-le dans « Pour qui ? ».');
   if (o.iteration?.etat === 'refuse') n.push('Le test Adsmap de ce lien n’est pas lisible ici (supprimé, d’une autre marque ou accès Adsmap requis) · le projet partira de l’objectif seul.');
   return n;
 }

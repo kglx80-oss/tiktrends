@@ -111,6 +111,27 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0071_personas_rang_segment · deux colonnes nullables sur personas et un index, rejouables · aucun DROP, aucun RENAME, aucun ALTER destructif, aucune autre table touchée', () => {
+    const brut = fichier('0071_personas_rang_segment');
+    const a = analyserMigrationSql(brut);
+    expect(a.instructions.map((x) => x.genre)).toEqual(['ajout_colonne', 'ajout_colonne', 'creation_index']);
+    const sansCommentaires = brut.replace(/^--.*$/gm, '');
+    expect(sansCommentaires, '0071 contient un DROP').not.toMatch(/\bDROP\b/i);
+    expect(sansCommentaires, '0071 contient un RENAME').not.toMatch(/\bRENAME\b/i);
+    expect(sansCommentaires, '0071 change le type, le défaut ou la nullité d’une colonne existante').not.toMatch(/ALTER COLUMN|SET NOT NULL|SET DEFAULT|\bTYPE\b/i);
+    expect(sansCommentaires, '0071 pose une colonne NOT NULL').not.toMatch(/NOT NULL/i);
+    const alter = [...sansCommentaires.matchAll(/(?:ALTER TABLE|ON) "([a-z_]+)"/g)].map((m) => m[1]);
+    expect([...new Set(alter)], 'une autre table que personas est touchée par 0071').toEqual(['personas']);
+    const instr = decouperInstructionsSql(brut).map((x) => x.replace(/^--.*$/gm, '').replace(/\s+/g, ' ').trim());
+    expect(instr.map((x) => x.replace(/;$/, ''))).toEqual([
+      'ALTER TABLE "personas" ADD COLUMN IF NOT EXISTS "rank" integer',
+      'ALTER TABLE "personas" ADD COLUMN IF NOT EXISTS "segment" text',
+      'CREATE INDEX IF NOT EXISTS "personas_brand_rank_idx" ON "personas" USING btree ("brand_id","rank")',
+    ]);
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -167,9 +188,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) puis 0070 (tags et collections de la Veille) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille) puis 0071 (rang et segment des personas) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -384,6 +405,33 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     await pg.exec(`DELETE FROM veille_tags`);
     await appliquer(pg, ['0070_veille_tags_notes']);
     expect(await empreinteSchema(pg), 'rejeu de 0070').toEqual(schemaUneFois);
+    await pg.close();
+  }, 120_000);
+
+  it('0071 sur une base à 0070 avec des personas existants (et leur graphe) · lignes intactes, deux colonnes NULL partout, un index, rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 70).map((x) => x.tag));
+    await pg.exec(`INSERT INTO personas (id, brand_id, name, description, pains, desires, objections, status)
+      SELECT md5('pl9' || i)::uuid, md5('b' || (1 + i % 3))::uuid, 'Persona ' || i, 'Qui ' || i, ARRAY['frein ' || i], ARRAY['désir ' || i], ARRAY['objection ' || i], CASE WHEN i % 2 = 0 THEN 'proposed' ELSE 'validated' END FROM generate_series(1, 9) i`);
+    const [personas] = await lignes<{ n: number }>(pg, 'select count(*)::int as n from personas');
+    expect(personas!.n).toBe(10);
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    const schemaAvant = await empreinteSchema(pg);
+    await appliquer(pg, ['0071_personas_rang_segment']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0071 (nom, désirs, statut…)').toEqual(avant);
+    expect((await colonnesDe(pg)).get('personas')).toMatch(/,rank,segment$/);
+    const [n] = await lignes<{ n: number; rang: number; seg: number }>(pg, 'select count(*)::int as n, count(rank)::int as rang, count(segment)::int as seg from personas');
+    expect(n, 'un persona existant a reçu un rang ou un segment au passage de 0071').toEqual({ n: 10, rang: 0, seg: 0 });
+    const schemaUneFois = await empreinteSchema(pg);
+    expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0071').toEqual([]);
+    const ajoutes = schemaUneFois.filter((l) => !schemaAvant.includes(l));
+    expect(ajoutes.map((l) => l.replace(/^(idx) .*"?(personas_brand_rank_idx)"? .*$/, '$1 $2')).sort(), 'objet ajouté par 0071 hors des deux colonnes nullables et de l’index').toEqual([
+      'col personas.rank integer', 'col personas.segment text', 'idx personas_brand_rank_idx',
+    ]);
+    await appliquer(pg, ['0071_personas_rang_segment']);
+    expect(await empreinteSchema(pg), 'rejeu de 0071').toEqual(schemaUneFois);
+    expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0071 · lignes modifiées').toEqual(avant);
     await pg.close();
   }, 120_000);
 

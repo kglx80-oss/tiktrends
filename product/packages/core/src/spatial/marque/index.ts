@@ -4,3 +4,4 @@ export * from './regles';
 export * from './profil';
 export * from './liste';
 export * from './logo';
+export * from './personas-edition';

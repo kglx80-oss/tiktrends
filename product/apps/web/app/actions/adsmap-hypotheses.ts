@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db, schema } from '@tiktrends/db';
 import {
-  inferMechanism, refOrigineHypothese, validerSaisieHypothese,
+  inferMechanism, refOrigineHypothese, validerSaisieHypothese, cleTag, propositionHypotheseTag, REFUS_TAG_NON_RECURRENT, LONGUEUR_MAX_TAG,
   type OrigineHypotheseLibre, type SaisieHypotheseLibre,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
@@ -12,6 +12,7 @@ import { ensureGraphPath, nextVariant } from '../../lib/adsmap-path';
 import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { trackSavedAdAction } from './adsmap-bridge';
+import { lireSauvegardesDesTags } from '../../lib/veille-tags';
 
 /**
  * Hypothèses LIBRES (lot 1 V5) · écrire une hypothèse sans passer par un test
@@ -50,7 +51,9 @@ export type SourceHypothese =
   | { type: 'libre' }
   | { type: 'veille'; platform: string; externalId: string }
   | { type: 'persona'; personaId: string; accroche?: string | null }
-  | { type: 'apprentissage'; learningId: string };
+  | { type: 'apprentissage'; learningId: string }
+  /** Lot 6 bis · un tag de Veille RÉCURRENT de la marque active (sa clé) · ses sauvegardes deviennent les preuves citées. */
+  | { type: 'tag'; cle: string };
 
 export interface ResultatHypothese { ok?: true; adId?: string; error?: string }
 
@@ -140,6 +143,15 @@ export async function creerHypotheseAction(input: { source: SourceHypothese; sai
       callout = accroche;
       const path = await ensureGraphPath({ workspaceId: ws, brandId, personaId: p.id, desireLabel: DESIR_HYPOTHESES, angleLabel: ANGLE_HYPOTHESES, mechanism: inferMechanism(v.texte, '').mechanism });
       angleId = path?.angleId ?? null;
+    } else if (src.type === 'tag') {
+      // Le tag est relu dans le vocabulaire de la marque ACTIVE, ses sauvegardes dans la même marque ·
+      // la règle de proposition est REJOUÉE ici (même seuil que l'écran) · une clé d'une autre marque,
+      // inconnue ou sous le seuil rend la même phrase, sans rien dire de ce qui existe ailleurs.
+      const cle = typeof src.cle === 'string' && [...src.cle].length <= LONGUEUR_MAX_TAG * 2 ? cleTag(src.cle) : '';
+      const lu = cle ? (await lireSauvegardesDesTags(ws, brandId, cle)).get(cle) : undefined;
+      const p = lu ? propositionHypotheseTag(lu.tag, lu.sauvegardes) : null;
+      if (!p) return pas(REFUS_TAG_NON_RECURRENT);
+      origine = { type: 'tag', tag: p.tag.nom, cle: p.tag.cle, savedAdIds: p.preuves.map((x) => x.id), total: p.total };
     } else if (src.type === 'apprentissage') {
       if (!estId(src.learningId)) return pas('Apprentissage introuvable dans la marque active.');
       const [l] = await db!.select({ id: schema.learnings.id, enonce: schema.learnings.statement, angleId: schema.learnings.angleId }).from(schema.learnings)

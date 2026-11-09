@@ -315,7 +315,7 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/brand-detail.ts': {
     generateFullBrandAction: A(() => [fd({ brandId: ids.brandA1 })]), extractBrandVisualDaAction: A(() => [fd({ brandId: ids.brandA1 })]),
     saveBrandVisualDaAction: A(() => [fd({ brandId: ids.brandA1 })]), addPersonaAction: A(() => [fd({ brandId: ids.brandA1, name: 'Persona' })]),
-    deletePersonaAction: D(() => [fd({ brandId: ids.brandA1, id: randomUUID() })]), addScenarioAction: A(() => [fd({ brandId: ids.brandA1, title: 'Scène' })]),
+    deletePersonaAction: D(() => [fd({ brandId: ids.brandA1, id: randomUUID() })]), updatePersonaAction: A(() => [{ brandId: ids.brandA1, id: randomUUID(), saisie: { nom: 'Persona modifié' } }]), addScenarioAction: A(() => [fd({ brandId: ids.brandA1, title: 'Scène' })]),
     deleteScenarioAction: D(() => [fd({ brandId: ids.brandA1, id: s.scenario })]), generateScenarioImageAction: A(() => [{ brandId: ids.brandA1, scenarioId: s.scenario }]),
     addProductAction: A(() => [fd({ brandId: ids.brandA1, name: 'Produit' })]), deleteProductAction: D(() => [fd({ brandId: ids.brandA1, id: s.produitJetable })]),
     saveBrandDAAction: A(() => [{ brandId: ids.brandA1, logoUrl: LOGO, logos: [LOGO, EXTERNE], colors: ['#111111'], fonts: [] }]),

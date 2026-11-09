@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { LIBELLE_NIVEAU, MIN_REFERENCE_CONCLUSION, MIN_VARIANTES_CONCLUSION, type LectureConclusion, type NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Points, Pub, rangeeVariantes } from './communs';
+import { PersonasLot, type PropsPersonasLot } from './PersonasLot';
 
 /**
  * Fiche d'un lot (« lot1 ») · `docs/spatial/reference/lot1.html`, balisage à
@@ -37,6 +38,8 @@ export interface PropsLot {
    * d'accès Jarvis), rien n'est ajouté à la maquette.
    */
   jarvis?: { href: string } | null;
+  /** Lot 9 V5 · « Pour qui » · le persona de chaque variante et la lecture par persona (`PersonasLot`) · absent, rien n'est ajouté. */
+  personas?: PropsPersonasLot;
 }
 
 const TON_CONCLUSION: Record<LectureConclusion['conclusion'], { pill: string; couleur: string; icone: string }> = {
@@ -109,6 +112,7 @@ export function Lot(p: PropsLot) {
           </div>
         </section>
       )}
+      {p.personas && <PersonasLot p={p.personas} />}
       {p.actions}
     </Vue>
   );

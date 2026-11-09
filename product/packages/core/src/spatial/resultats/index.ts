@@ -5,3 +5,4 @@ export * from './libelles';
 export * from './hypotheses-libres';
 export * from './conclusion-lot';
 export * from './apprentissage-suite';
+export * from './lecture-personas';
