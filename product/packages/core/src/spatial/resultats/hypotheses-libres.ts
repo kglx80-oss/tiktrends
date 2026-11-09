@@ -201,7 +201,9 @@ export type OrigineHypotheseLibre =
   | { type: 'libre' }
   | { type: 'veille'; annonceur: string; savedAdId: string | null }
   | { type: 'persona'; persona: string; personaId: string | null; accroche: string | null }
-  | { type: 'apprentissage'; enonce: string; learningId: string | null };
+  | { type: 'apprentissage'; enonce: string; learningId: string | null }
+  /** Lot 6 bis · un tag de Veille récurrent · ses sauvegardes sont les preuves citées (`total` · toutes, `savedAdIds` · au plus 50). */
+  | { type: 'tag'; tag: string; cle: string; savedAdIds: string[]; total: number };
 
 export const CLE_ORIGINE_HYPOTHESE = 'hypotheseLibre';
 
@@ -223,6 +225,11 @@ export function lireOrigineHypothese(sourceRef: unknown): OrigineHypotheseLibre 
   if (x.type === 'veille') return { type: 'veille', annonceur: court(x.annonceur, 80) || 'Annonceur', savedAdId: idOuNul(x.savedAdId) };
   if (x.type === 'persona') return { type: 'persona', persona: court(x.persona, 80) || 'Persona', personaId: idOuNul(x.personaId), accroche: court(x.accroche, LONGUEUR_PARTIE_MAX) || null };
   if (x.type === 'apprentissage') return { type: 'apprentissage', enonce: court(x.enonce, 200) || 'Apprentissage', learningId: idOuNul(x.learningId) };
+  if (x.type === 'tag') {
+    const ids = Array.isArray(x.savedAdIds) ? x.savedAdIds.map(idOuNul).filter((i): i is string => !!i).slice(0, 50) : [];
+    const total = typeof x.total === 'number' && Number.isInteger(x.total) && x.total >= ids.length ? x.total : ids.length;
+    return { type: 'tag', tag: court(x.tag, 40) || 'Tag', cle: court(x.cle, 40), savedAdIds: ids, total };
+  }
   return null;
 }
 
@@ -230,6 +237,7 @@ export function lireOrigineHypothese(sourceRef: unknown): OrigineHypotheseLibre 
 export function libelleOrigine(o: OrigineHypotheseLibre): string {
   if (o.type === 'veille') return `Veille · ${o.annonceur}`;
   if (o.type === 'persona') return `Persona · ${o.persona.split(',')[0]!.trim()}`;
+  if (o.type === 'tag') return `Veille · tag « ${o.tag} » · ${o.total} sauvegarde${o.total > 1 ? 's' : ''}`;
   if (o.type === 'apprentissage') return `Apprentissage · ${o.enonce.length > 60 ? `${o.enonce.slice(0, 59).trim()}…` : o.enonce}`;
   return 'Idée d’équipe';
 }

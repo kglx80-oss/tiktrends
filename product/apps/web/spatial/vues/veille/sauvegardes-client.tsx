@@ -5,6 +5,8 @@ import {
   COLLECTION_TOUTES, FILTRES_SAUVEGARDES, FORMAT_INCERTAIN, FORMAT_NON_CLASSE, FORMAT_TOUS, TRIS_FORMATS, collectionsSauvegardes, ecrireCollectionSauvegardes, filtrerSauvegardes, MESSAGE_COLLECTION_IGNOREE, lireCollectionSauvegardes, formatFiltrable, provenanceSauvegarde, trierSauvegardes,
   type FiltresSauvegardes, type TriFormats, dansCollection, estFormatCreatif, formatCreatif, formatsPourMedia, mediaAnnonce, verrouAction, videoLisible,
   MESSAGE_TAG_IGNORE, TAG_TOUS, tagsPresents, type TagVeille,
+  AFFICHAGE_SAUVEGARDES_COOKIE, COLONNES_LISTE_SAUVEGARDES, ENTETE_SELECTION_SAUVEGARDES, GRILLE_LISTE_SAUVEGARDES, LARGEUR_MIN_LISTE_SAUVEGARDES, ligneListeVeille, porteTag, propositionHypotheseTag, styleTableDefilante, verdictSelectionProjet,
+  type AccesHypothese, type AffichageVeille,
 } from '@tiktrends/core';
 import type { InspoAd } from '@tiktrends/integrations';
 import { classerFormatSauvegarde, majSauvegarde, setSavedAdFolder, unsaveAd } from '../../../app/actions/inspo';
@@ -13,6 +15,9 @@ import { trackSavedAdAction } from '../../../app/actions/adsmap-bridge';
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import { Vignette } from './base';
+import { BasculeAffichage } from './filtres-locaux-client';
+import { FormulerHypotheseTag } from './hypothese-tag-client';
+import { FERME } from '../projet/focus';
 
 /**
  * Les collections des Sauvegardes (`div.colls` de la maquette) · une
@@ -71,10 +76,27 @@ export interface SauvegardeDonnees {
   tags?: ReadonlyArray<TagVeille>;
   note?: string | null;
   collections?: readonly string[];
+  /** Lot 6 bis · la marque pour laquelle la créa est gardée (`saved_ads.brand_id`, son nom) · `null` = l'espace. */
+  pourMarque?: { id: string | null; nom: string | null };
 }
 
-export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = COLLECTION_TOUTES, collectionIgnoree = false, gestes, filtresInitiaux = FILTRES_SAUVEGARDES, tagIgnore = false }: { items: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; initiale?: string; collectionIgnoree?: boolean; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes; tagIgnore?: boolean }) {
+/**
+ * Lot 6 bis · ce que la page passe aux gestes nouveaux · la marque active (la
+ * sélection vers un projet en dépend) et la porte des hypothèses (même calcul
+ * que la garde serveur). Absent, ni la proposition d'hypothèse ni la marque
+ * active ne sont connues · la sélection reste possible, le verdict la juge.
+ */
+export interface ContexteSauvegardes {
+  marqueActive: { id: string; nom: string } | null;
+  hypothese: AccesHypothese | null;
+}
+
+export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = COLLECTION_TOUTES, collectionIgnoree = false, gestes, filtresInitiaux = FILTRES_SAUVEGARDES, tagIgnore = false, contexte, affichage: affichageInitial = 'grille' }: { items: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; initiale?: string; collectionIgnoree?: boolean; gestes?: GestesSauvegarde; filtresInitiaux?: FiltresSauvegardes; tagIgnore?: boolean; contexte?: ContexteSauvegardes; affichage?: AffichageVeille }) {
   const [items, setItems] = useState(depart);
+  // Lot 6 bis · SV06 (grille / liste, préférence de l'appareil lue au rendu serveur) et SV01 (sélection vers un projet).
+  const [affichage, setAffichage] = useState<AffichageVeille>(affichageInitial);
+  const [selection, setSelection] = useState<readonly string[]>([]);
+  const basculer = (id: string) => setSelection((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
   const [filtres, setFiltres] = useState<FiltresSauvegardes>(filtresInitiaux);
   const fx = (p: Partial<FiltresSauvegardes>) => setFiltres((x) => ({ ...x, ...p }));
   const [actif, setActif] = useState(initiale);
@@ -114,6 +136,14 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
   const formatsPresents = [...new Set(items.map((i) => i.format?.id).filter((x): x is string => !!x))].filter(estFormatCreatif);
   const plateformes = [...new Set(items.map((i) => i.platform))];
   const dossiers = collections.filter((c) => c.cle.startsWith('f:')).map((c) => c.libelle);
+  // La sélection suit les sauvegardes qui RESTENT (une créa retirée en sort) · dans l'ordre où on les a cochées.
+  const choisies = selection.map((id) => items.find((i) => i.id === id)).filter((i): i is SauvegardeDonnees => !!i);
+  // Le tag filtré revient-il assez dans la marque (règle du noyau, seuil mesuré) ? Sous le seuil · rien.
+  const tagFiltre = tagActif !== TAG_TOUS ? tagsDispo.find((t) => t.cle === tagActif) ?? null : null;
+  const proposition = tagFiltre && contexte?.hypothese
+    ? propositionHypotheseTag(tagFiltre, items.filter((i) => porteTag(i.tags, tagFiltre.cle)).map((i) => ({ id: i.id, annonceur: i.marque.nom })))
+    : null;
+  const retirer = (id: string) => { setItems((l) => l.filter((x) => x.id !== id)); setSelection((l) => l.filter((x) => x !== id)); };
   return (
     <div className="colls">
       <nav className="tile" aria-label="Collections">
@@ -155,24 +185,35 @@ export function CollectionsSauvegardes({ items: depart, creerProjet, initiale = 
           )}
           {ignoree && <small className="faint" role="status" data-collection-ignoree="1" style={{ flex: '1 1 100%', fontSize: '12.5px' }}>{MESSAGE_COLLECTION_IGNOREE}</small>}
           {tagIgnore && <small className="faint" role="status" data-tag-ignore="1" style={{ flex: '1 1 100%', fontSize: '12.5px' }}>{MESSAGE_TAG_IGNORE}</small>}
+          {proposition && contexte?.hypothese && (
+            <div className="row" data-proposition-tag={proposition.tag.cle} style={{ flex: '1 1 100%', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <small className="faint" style={{ fontSize: '12.5px' }}>{`« ${proposition.tag.nom} » revient sur ${proposition.total} sauvegardes de la marque, chez ${proposition.annonceurs} annonceurs`}</small>
+              <FormulerHypotheseTag proposition={proposition} acces={contexte.hypothese} />
+            </div>
+          )}
           <span className="faint" style={{ fontSize: '12.5px' }}>{visibles.length} créa{visibles.length > 1 ? 's' : ''}{actif === `f:${enCreation}` && visibles.length === 0 ? ` · range une créa dans « ${enCreation} » depuis son bouton « Gardée »` : ''}</span>
-          <Lien className="btn pri sm" href={creerProjet} style={{ marginLeft: 'auto' }}>Créer un projet Studios</Lien>
+          <BasculeAffichage affichage={affichage} changer={setAffichage} cookie={AFFICHAGE_SAUVEGARDES_COOKIE} />
+          <CreerProjetSelection choisies={choisies} creerProjet={creerProjet} marqueActive={contexte?.marqueActive ?? null} vider={() => setSelection([])} />
         </div>
-        <div className="vfeed" style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
-          {visibles.map((i) => (
-            <CarteSauvegarde key={i.id} i={i} dossiers={dossiers} gestes={gestes}
-              range={(folder) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, folder, collections: folder ? [folder] : [] } : x)))}
-              maj={(e) => setItems((l) => l.map((x) => (x.id !== i.id ? x : !e.sauvee ? x : { ...x, tags: e.tags, ...(e.note !== undefined ? { note: e.note } : {}), ...(e.collections ? { collections: e.collections, folder: e.collections[0] ?? null } : {}) })))}
-              retire={() => setItems((l) => l.filter((x) => x.id !== i.id))}
-              classe={(id, date) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, format: { id, versionAncienne: false, etat: id ? 'classe' : FORMAT_NON_CLASSE }, classeeLe: id ? date : null, auteur: null } : x)))} />
-          ))}
-        </div>
+        {affichage === 'liste'
+          ? <ListeSauvegardes items={visibles} selection={selection} basculer={basculer} />
+          : (
+            <div className="vfeed" style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))' }}>
+              {visibles.map((i) => (
+                <CarteSauvegarde key={i.id} i={i} dossiers={dossiers} gestes={gestes} choisie={selection.includes(i.id)} basculer={() => basculer(i.id)}
+                  range={(folder) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, folder, collections: folder ? [folder] : [] } : x)))}
+                  maj={(e) => setItems((l) => l.map((x) => (x.id !== i.id ? x : !e.sauvee ? x : { ...x, tags: e.tags, ...(e.note !== undefined ? { note: e.note } : {}), ...(e.collections ? { collections: e.collections, folder: e.collections[0] ?? null } : {}) })))}
+                  retire={() => retirer(i.id)}
+                  classe={(id, date) => setItems((l) => l.map((x) => (x.id === i.id ? { ...x, format: { id, versionAncienne: false, etat: id ? 'classe' : FORMAT_NON_CLASSE }, classeeLe: id ? date : null, auteur: null } : x)))} />
+              ))}
+            </div>
+          )}
       </div>
     </div>
   );
 }
 
-function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe, maj }: { i: SauvegardeDonnees; dossiers: string[]; range: (f: string | null) => void; retire: () => void; gestes?: GestesSauvegarde; classe: (id: string | null, date: string | null) => void; maj: (e: EtatSauvegarde) => void }) {
+function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe, maj, choisie, basculer }: { i: SauvegardeDonnees; dossiers: string[]; range: (f: string | null) => void; retire: () => void; gestes?: GestesSauvegarde; classe: (id: string | null, date: string | null) => void; maj: (e: EtatSauvegarde) => void; choisie: boolean; basculer: () => void }) {
   const [menu, setMenu] = useState(false);
   const [popup, setPopup] = useState(false);
   const [attente, demarrer] = useTransition();
@@ -214,6 +255,7 @@ function CarteSauvegarde({ i, dossiers, range, retire, gestes, classe, maj }: { 
       <div className="acts">
         <button ref={gardee} className="btn sm" type="button" aria-pressed="true" aria-expanded={menu} aria-haspopup="menu" disabled={attente} onClick={() => setMenu(!menu)}><Ic n="bookmark" />Gardée</button>
         <Lien className="btn sm" href={i.cloner}><Ic n="copy" />Cloner</Lien>
+        <CaseSelection i={i} choisie={choisie} basculer={basculer} />
       </div>
       {gestes && <ChoixFormat i={i} ferme={gestes.formatFerme} classe={classe} />}
       {gestes && (gestes.test.ouvert ? <PreparerTest platform={i.platform} externalId={i.externalId} /> : <p data-pont-refus className="faint" style={{ fontSize: 11, margin: 0 }}>{gestes.test.raison}</p>)}
@@ -338,6 +380,86 @@ function PreparerTest({ platform, externalId }: { platform: string; externalId: 
       <small className="faint" role="status" style={{ fontSize: 11 }}>
         {typeof etat === 'object' ? etat.erreur : etat === 'ok' ? <><Lien href="/adsmap">Ouvrir Résultats</Lien> · hypothèse et variable à compléter avant le test.</> : 'Un brouillon dans Résultats · rien n’est lancé, aucune dépense.'}
       </small>
+    </div>
+  );
+}
+
+/**
+ * Lot 6 bis (SV01) · la case « Sélectionner » d'une sauvegarde · ne fait que
+ * cocher (aucune écriture) · la sélection vit dans la page, jusqu'au lien.
+ */
+function CaseSelection({ i, choisie, basculer }: { i: SauvegardeDonnees; choisie: boolean; basculer: () => void }) {
+  return (
+    <label className="btn sm" data-selection-sauvegarde={i.id} style={{ minHeight: 44, cursor: 'pointer' }}>
+      <input type="checkbox" checked={choisie} onChange={basculer} aria-label={`Sélectionner la créa de ${i.marque.nom} pour un projet`} style={{ width: 18, height: 18, margin: 0 }} />
+      Sélectionner
+    </label>
+  );
+}
+
+/**
+ * Lot 6 bis (SV01) · « Créer un projet avec la sélection » · rien de coché ·
+ * le lien d'avant (un projet vide) ; une sélection admise · l'assistant
+ * Nouveau projet EXISTANT avec ces sauvegardes en références
+ * (`verdictSelectionProjet`, noyau) ; refusée (plusieurs marques, une autre
+ * marque que l'active, trop de créas) · fermé, la raison écrite à côté.
+ */
+function CreerProjetSelection({ choisies, creerProjet, marqueActive, vider }: { choisies: ReadonlyArray<SauvegardeDonnees>; creerProjet: string; marqueActive: { id: string; nom: string } | null; vider: () => void }) {
+  const id = useId();
+  if (choisies.length === 0) return <Lien className="btn pri sm" href={creerProjet} style={{ marginLeft: 'auto' }}>Créer un projet Studios</Lien>;
+  const v = verdictSelectionProjet(choisies.map((i) => ({ id: i.id, marqueId: i.pourMarque?.id ?? null, marqueNom: i.pourMarque?.nom ?? null, video: i.video })), { marqueActive });
+  const libelle = `Créer un projet avec la sélection (${choisies.length})`;
+  return (
+    <>
+      <button type="button" className="btn sm" data-vider-selection="" style={{ minHeight: 44, marginLeft: 'auto' }} onClick={vider}>Tout désélectionner</button>
+      {v.ok
+        ? <Lien className="btn pri sm" href={v.lien} data-creer-selection="ok" style={{ minHeight: 44 }}>{libelle}</Lien>
+        : <button type="button" className="btn pri sm" data-creer-selection="refus" aria-disabled="true" aria-describedby={`${id}-r`} style={{ minHeight: 44, ...FERME }}>{libelle}</button>}
+      {!v.ok && <small id={`${id}-r`} role="status" className="faint" data-raison-selection="" style={{ flex: '1 1 100%', fontSize: '12.5px' }}>{v.raison}</small>}
+    </>
+  );
+}
+
+const COLONNES_LISTE = GRILLE_LISTE_SAUVEGARDES;
+
+/**
+ * Lot 6 bis (SV06) · la vue liste des Sauvegardes · MÊMES sauvegardes, MÊME
+ * ordre que la grille (la liste filtrée et triée lui est passée telle quelle),
+ * lignes lues par la règle de la vue liste de la Veille (`ligneListeVeille`) ·
+ * le tableau défile dans son cadre au téléphone (`styleTableDefilante`). La
+ * case de sélection y vit aussi · les gestes de la carte (ranger, classer,
+ * préparer un test) restent sur la grille.
+ */
+export function ListeSauvegardes({ items, selection, basculer }: { items: ReadonlyArray<SauvegardeDonnees>; selection: readonly string[]; basculer: (id: string) => void }) {
+  return (
+    <div className="tile" data-vue-liste-sauvegardes="">
+      <div className="atable" data-table="sauvegardes-liste" style={styleTableDefilante(LARGEUR_MIN_LISTE_SAUVEGARDES)} role="table" aria-label="Sauvegardes">
+        <div className="atr ath" role="row" style={{ gridTemplateColumns: COLONNES_LISTE }}>{COLONNES_LISTE_SAUVEGARDES.map((t, k) => <span key={k} role="columnheader" aria-label={k === 0 ? ENTETE_SELECTION_SAUVEGARDES : undefined}>{t}</span>)}</div>
+        {items.map((i) => {
+          const l = ligneListeVeille(i.ad);
+          return (
+            <div className="atr" role="row" key={i.id} data-ligne-sauvegarde={i.id} style={{ gridTemplateColumns: COLONNES_LISTE }}>
+              <span role="cell" style={{ display: 'flex', alignItems: 'center' }}>
+                <label style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={selection.includes(i.id)} onChange={() => basculer(i.id)} aria-label={`Sélectionner la créa de ${i.marque.nom} pour un projet`} style={{ width: 18, height: 18, margin: 0 }} />
+                </label>
+              </span>
+              <span role="cell" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <span style={{ width: 40, flex: '0 0 40px' }}><Vignette image={i.image} /></span>
+                <b style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.marque.nom}</b>
+              </span>
+              <span role="cell">{l.plateforme}</span>
+              <span role="cell">{l.format}</span>
+              <span role="cell">{l.diffusion}</span>
+              <span role="cell" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={(i.tags ?? []).map((t) => t.nom).join(', ') || undefined}>{(i.tags ?? []).length ? (i.tags ?? []).map((t) => t.nom).join(', ') : <span className="faint">Aucun</span>}</span>
+              <span role="cell" title={i.ad.body?.trim() || undefined} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{i.ad.body?.trim() || <span className="faint">Texte non fourni</span>}</span>
+              <span role="cell" style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                <Lien className="btn sm" href={i.cloner} style={{ minHeight: 44 }} aria-label={`Cloner la créa de ${i.marque.nom}`}><Ic n="copy" />Cloner</Lien>
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
