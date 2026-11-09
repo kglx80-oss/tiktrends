@@ -59,7 +59,8 @@ export interface PropsNouveauProjet {
   etat: EtatNouveauProjet;
   marques: ReadonlyArray<{ id: string; nom: string; active: boolean }>;
   ajouterMarque: string | null;
-  initial: { type: TypeNouveauProjet; titre: string; intention: string; etape: 'start' | 'brief' };
+  /** `persona` (lot 9) · le persona du lien, déjà relu dans `personas` · présélectionné dans « Pour qui ? », modifiable. */
+  initial: { type: TypeNouveauProjet; titre: string; intention: string; etape: 'start' | 'brief'; persona?: ReferenceAdsmap | null };
   /** Le titre proposé par type · remplace le titre tant que la personne ne l'a pas modifié. */
   titresParDefaut: Readonly<Record<TypeNouveauProjet, string>>;
   /** Personas Adsmap de la marque active · lecture, portée. Vide = « Aucun persona » seul. */
@@ -80,7 +81,7 @@ export function NouveauProjet(p: PropsNouveauProjet) {
   const [type, setType] = useState<TypeNouveauProjet>(p.initial.type);
   const [titre, setTitre] = useState(p.initial.titre);
   const titreTouche = useRef(p.initial.titre !== p.titresParDefaut[p.initial.type]);
-  const [saisie, setSaisie] = useState<SaisieBriefV5>({ ...saisieBriefVide(), intention: p.initial.intention });
+  const [saisie, setSaisie] = useState<SaisieBriefV5>({ ...saisieBriefVide(), intention: p.initial.intention, persona: p.initial.persona ?? null });
   const [encours, setEncours] = useState(false);
   const [erreur, setErreur] = useState<{ message: string; traceId?: string } | null>(null);
   const [incertain, setIncertain] = useState(false);

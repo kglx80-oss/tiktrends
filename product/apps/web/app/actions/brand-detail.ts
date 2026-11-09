@@ -22,6 +22,9 @@ import { GUARD } from '../../lib/guard-error';
 import { lireJetonDepot } from '../../lib/jeton-depot';
 import { cleDeDepot, referencesDans, retirerDepotsSousVerrou, verrouDepot } from '../../lib/verrou-depot';
 import { referencesObjetEnBase } from '../../lib/references-objet';
+import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
+import { REFUS_PERSONA_INTROUVABLE, rangsApres, rangsAEcrire, validerPersona, type ChampPersona } from '@tiktrends/core';
+import { revalidatePath } from 'next/cache';
 
 const has = (a?: unknown[] | null) => Array.isArray(a) && a.length > 0;
 // Coercition robuste en tableau de chaînes (l'IA peut renvoyer une chaîne au lieu d'un tableau).
@@ -190,6 +193,53 @@ export async function addPersonaAction(formData: FormData): Promise<void> {
     });
   }
   redirect(`/brands/${brandId}?tab=audience&ok=persona`);
+}
+/**
+ * Modifier un persona (lot 9 V5 · VB P05, P11, P12) · nom, description, segment,
+ * désirs, freins, objections et RANG. Mêmes gardes que l'ajout et le retrait
+ * (`guardBrand` · admin, marque de l'espace) · aucune permission nouvelle. La
+ * saisie est validée au noyau AVANT d'écrire (`validerPersona`) · un refus ne
+ * touche à rien. Le rang décale les autres personas de la marque, dans la même
+ * transaction (`rangsAEcrire` · 1, 2, 3… sans trou). Un persona d'une autre
+ * marque (ou d'un autre espace) est « introuvable », sans rien dire de plus.
+ * Ni suppression, ni fusion · les objections et sources non saisies restent.
+ */
+export async function updatePersonaAction(input: { brandId: string; id: string; saisie: unknown }): Promise<{ ok: true } | { error: string; erreurs?: Array<{ champ: ChampPersona; raison: string }> }> {
+  const brandId = typeof input?.brandId === 'string' ? input.brandId : '';
+  const id = typeof input?.id === 'string' ? input.id : '';
+  const UUIDP = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUIDP.test(brandId) || !UUIDP.test(id)) return { error: REFUS_PERSONA_INTROUVABLE };
+  const s = await getSession();
+  if (!s || !roleAtLeast(s.role, 'admin')) return { error: GUARD.role({ needRole: 'admin' }) };
+  // Admin, mais la marque n'est pas de son espace · la même phrase qu'un persona inconnu.
+  const g = await guardBrand(brandId);
+  if (!g || !db) return { error: REFUS_PERSONA_INTROUVABLE };
+  const v = validerPersona(input.saisie);
+  if (!v.ok) return { error: v.erreurs.map((e) => e.raison).join(' '), erreurs: v.erreurs };
+  const p = v.persona;
+  const base = db;
+  try {
+    const trouve = await base.transaction(async (tx) => {
+      // Verrou des personas de la marque · deux changements de rang simultanés passent l'un après l'autre.
+      const tous = await tx.select({ id: schema.personas.id, rang: schema.personas.rank }).from(schema.personas)
+        .where(eq(schema.personas.brandId, brandId)).for('update');
+      if (!tous.some((x) => x.id === id)) return false;
+      const autres = rangsAEcrire(tous, id, p.rang);
+      const rangFinal = rangsApres(tous, id, p.rang).find((x) => x.id === id)!.rang;
+      await tx.update(schema.personas).set({
+        name: p.nom, description: p.description, segment: p.segment, rank: rangFinal,
+        desires: p.desirs, pains: p.freins, objections: p.objections,
+      }).where(and(eq(schema.personas.id, id), eq(schema.personas.brandId, brandId)));
+      for (const a of autres) await tx.update(schema.personas).set({ rank: a.rang }).where(and(eq(schema.personas.id, a.id), eq(schema.personas.brandId, brandId)));
+      return true;
+    });
+    if (!trouve) return { error: REFUS_PERSONA_INTROUVABLE };
+  } catch (e) {
+    return { error: logAndTranslate('brand:persona-edit', e, { subject: 'la modification du persona', workspaceId: g.workspaceId }) };
+  }
+  invalidateJarvisMemory(brandId);
+  revalidatePath(`/brands/${brandId}/personas`);
+  return { ok: true };
 }
 export async function deletePersonaAction(formData: FormData): Promise<void> {
   const brandId = norm(formData.get('brandId'));

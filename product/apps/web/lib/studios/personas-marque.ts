@@ -1,7 +1,7 @@
 import 'server-only';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import type { ReferenceAdsmap } from '@tiktrends/core';
+import { ordonnerPersonas, type ReferenceAdsmap } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
 
 /**
@@ -17,20 +17,22 @@ import type { ContexteStudio } from './garde';
  *
  * Aucune écriture. Les personas rejetés/archivés sont exclus · un persona
  * proposé ou validé peut être cité (le brief ne gate pas sur la validation).
+ *
+ * Lot 9 V5 · l'ordre est celui de la marque (`ordonnerPersonas` · rang, puis
+ * nom), le même que la fiche Personas.
  */
 export async function personasDeLaMarque(ctx: ContexteStudio, brandId: string): Promise<ReferenceAdsmap[]> {
   if (!db || !ctx.marques.includes(brandId)) return [];
   const rows = await db
-    .select({ id: schema.personas.id, name: schema.personas.name, status: schema.personas.status })
+    .select({ id: schema.personas.id, name: schema.personas.name, status: schema.personas.status, rank: schema.personas.rank })
     .from(schema.personas)
     .innerJoin(schema.brands, eq(schema.personas.brandId, schema.brands.id))
     .where(and(
       eq(schema.personas.brandId, brandId),
       inArray(schema.personas.brandId, ctx.marques),
       eq(schema.brands.workspaceId, ctx.workspaceId),
-    ))
-    .orderBy(asc(schema.personas.name));
-  return rows
+    ));
+  return ordonnerPersonas(rows.map((r) => ({ ...r, rang: r.rank, nom: r.name })))
     .filter((r) => r.status !== 'rejected' && r.status !== 'archived')
     .map((r) => ({ id: r.id, label: r.name }));
 }

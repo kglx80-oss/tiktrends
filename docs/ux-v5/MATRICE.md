@@ -43,15 +43,15 @@ Cette page dit, pour chaque vue de la V5, ce qui existe réellement, ce qui manq
 
 ## Comptage
 
-Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures), lot 7 (Veille · filtres locaux, vue liste, navigation du détail), lot 8 (Studios) et les mesures d'export comptées partout (une seule logique de verdict), lot 5 (Jarvis en contexte), lot 6 (Veille · tags, notes et pop-up « Sauvegarder ») et lot 6 bis (sélection des Sauvegardes vers un projet, grille / liste, hypothèse depuis un tag récurrent) · sortie de `node docs/ux-v5/compter-statuts.mjs`
+Recalé sur main 18c45d9, 2026-11-08, puis lot 2 (itérer en choisissant la variable), lot 1 (hypothèses libres), lot 3 (conclure un lot), les boucles d'hypothèse (A04, F26), lot 4 (mesures), lot 7 (Veille · filtres locaux, vue liste, navigation du détail), lot 8 (Studios) et les mesures d'export comptées partout (une seule logique de verdict), lot 5 (Jarvis en contexte), lot 6 (Veille · tags, notes et pop-up « Sauvegarder ») et lot 6 bis (sélection des Sauvegardes vers un projet, grille / liste, hypothèse depuis un tag récurrent) et lot 9 (personas éditables et reliés aux tests) · sortie de `node docs/ux-v5/compter-statuts.mjs`
 
 | Zone | raccordé | raccordé PR | partiel | à créer | décision Kevin | caduc | lignes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Coquille et Accueil | 106 | 0 | 13 | 12 | 9 | 12 | 152 |
-| Veille, Bibliothèque, Marques | 120 | 0 | 60 | 12 | 18 | 3 | 213 |
+| Veille, Bibliothèque, Marques | 123 | 0 | 58 | 11 | 18 | 3 | 213 |
 | Projets et canvas | 106 | 0 | 35 | 9 | 4 | 6 | 160 |
 | Résultats, Jarvis, ADMIN+ | 74 | 0 | 32 | 13 | 20 | 1 | 140 |
-| **Total** | **406** | **0** | **140** | **46** | **51** | **22** | **665** |
+| **Total** | **409** | **0** | **138** | **45** | **51** | **22** | **665** |
 
 Avant le recalage, le même script sur les inventaires d'origine donnait 192 · 21 · 243 · 157 · 51 · 1 (665 lignes). L'ancien tableau, compté à la main, disait 184 · 22 · 243 · 164 · 51 (664) · l'écart vient surtout de la Veille (41 « raccordé » réels contre 33 écrits).
 
@@ -87,7 +87,7 @@ Classement par impact sur le cap produit (« créer des créatives winneuses… 
 | 6 | Veille · tags, notes et pop-up « Sauvegarder » | L | oui (additive, 0070) | 0 $ |
 | 7 | Veille · filtres locaux, vue liste, navigation du détail | M | non | 0 $ |
 | 8 | Studios · créations filtrables, contrôle humain, projets renommés et dupliqués | M | non | 0 $ |
-| 9 | Marque · personas éditables et reliés aux tests | M | oui (additive) | 0 $ |
+| 9 | Marque · personas éditables et reliés aux tests | M | oui (additive, 0071) | 0 $ |
 | 10 | Projet · activité, journal et commentaires | M | oui (additive, commentaires) | 0 $ |
 | 11 | Canvas de lignée · groupes de lot, légende, notes, mini-carte | M | oui (additive, notes) | 0 $ |
 | 12 | Bibliothèque · aperçu complet, tags à la main, références au brief | M | oui (additive, optionnelle) | 0 $ |
@@ -184,6 +184,8 @@ Le signet sauvegarde d'un coup, une sauvegarde n'a qu'une collection, la note ex
 - **Services à réutiliser** : `addPersonaAction` / `deletePersonaAction` (`W/app/actions/brand-detail.ts:181`, `:194`), la chaîne désirs, angles, annonces (`W/app/actions/adsmap-attribution.ts:60`), `lienNouveauProjet` (persona présélectionné), `completudeFicheMarque`.
 - **Migration** : oui, additive · rang et segment du persona, table des offres et allégations (M07, PR04), lien concurrents de la fiche ↔ marques suivies (K03, K04).
 - **Point d'attention** : les personas de la marque (`personas`) et les personas Adsmap du brief ne sont pas la même table · le lot doit dire lequel il relie, sans fusion silencieuse.
+- **Constat du lot** : sur `main`, c'est la MÊME table · `personas` est le modèle « Avatar » d'Adsmap (décision D2, commentaire du schéma), et le brief n'en garde qu'une référence `{id, label}` (`brief.personaRef`, relue en portée par `personasDeLaMarque`). Ce qui diffère, ce sont deux LIENS d'un test à un persona · la carte (ad → concept → angle → désir → persona · une créa rattachée depuis les Studios pend du provisoire « À qualifier ») et le brief de la version de projet dont la variante est issue. Le lot les LIT tous les deux, sans rien recopier ni fusionner (`personaDuTest` · d'accord ou un seul · ce persona ; en désaccord · aucun, et l'écran dit « Persona à trancher · la carte dit…, le brief… »). Rien n'est écrit sur l'ad · changer la carte ou le brief d'une nouvelle version change le lien, rien n'est à défaire.
+- **Livré** : « Modifier » un persona (nom, qui c'est, segment, rang, désirs, freins, objections · `updatePersonaAction`, W/app/actions/brand-detail.ts · mêmes gardes que l'ajout et le retrait, `guardBrand`, aucune permission nouvelle · saisie validée au noyau `validerPersona`, rien de tronqué en silence, nom du provisoire réservé · fenêtre `ModifierPersona`, W/spatial/vues/marque/persona-edition-client.tsx, brique `boutonAction`) · rang et segment (migration **0071**, `personas.rank` et `personas.segment`, NULL pour les personas d'avant, index `personas_brand_rank_idx` · générée par drizzle-kit, additive, gardée par W/test/l9-migration-additive.test.ts) · rang 1, 2, 3… sans trou, les autres se décalent dans la même transaction (`rangsApres`, C/spatial/marque/personas-edition.ts) · un seul ordre partout (`ordonnerPersonas` · fiche, « Pour qui ? » du brief) · « Valider ce persona » depuis la fiche (P08 · `validateNodeAction` existant) · « Créer une pub » ouvre Nouveau projet avec ce persona présélectionné (P09 · `lienNouveauProjet({ persona })`, relu dans la portée, sinon ignoré et dit) · « Pour qui » sur la fiche d'un lot (`PersonasLot`, composant voisin de `Lot.tsx`) et « Dans les tests » sur la fiche persona (P06) · lecture par persona (`lecturePersonas`, C/spatial/resultats/lecture-personas.ts · lots suivis, variantes tranchées au protocole, chaque persona contre le RESTE de la marque, 4 verdicts au moins de chaque côté, intervalles de Wilson disjoints · niveau 0,95 jusqu'à 4 personas lus, 0,975 de 5 à 6, silence au-delà · seuils mesurés en loi binomiale exacte, tableau dans le module · le niveau du lot, 0,90, laisserait 30,6 % d'erreur de famille à 4 personas) · le silence s'affiche comme une conclusion. Gardes · W/test/lot9-personas-db.test.tsx (vraies actions, vraies pages rendues et montées · modifier relu partout, rang, persona du projet lu sur le lot, lecture muette puis présente, refus sans fuite), product/packages/core/test/lot9-personas.test.ts (règles et erreur exacte recalculée), écarts de maquette déclarés et gardés (W/test/spatial-marque.test.tsx, W/test/spatial-resultats.test.tsx). **Reste** : VB M07 et PR04 (offres et allégations · une table, puis le branchement à la génération), K03 et K04 (lier les concurrents de la fiche aux marques suivies du Radar · une colonne ou une table de lien), M02 (pourcentage de complétude dans la liste), « Angle inexploité » (P05), les gestes « Itérer » et « Créer une hypothèse » du tableau (P06), les blocs démographie, canaux, verbatims (P11), le persona sur la fiche d'un test (`/adsmap/tests/[id]`) · hors de ce lot pour tenir dans une PR M, aucune décision Kevin.
 
 ### 10 · Projet · activité, journal et commentaires · M
 

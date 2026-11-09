@@ -105,6 +105,32 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
     expect(p.rendu).toEqual(p.reference);
   });
 
+  /**
+   * Lot 9 V5 · écart DÉCLARÉ · « Pour qui » (`PersonasLot`, une section) n'existe
+   * que si la page lit les personas, et seulement en DERNIER enfant de la vue
+   * (après les contrôles et le coach, sans actions) · ailleurs, deux fois, ou
+   * absente quand elle est passée, la parité tombe.
+   */
+  it('lot 9 · la fiche d’un lot avec « Pour qui » garde la parité · seule la section, en dernier, s’ajoute', () => {
+    const html = rendre(
+      <Lot sous="Lot #1 · Meta · 14 jours" titre="Affirmation ou question ?"
+        verdict={{ gagnant: true, titre: 'v2 · Gagnante', phrase: 'CPA sous la cible.', niveau: 3 }}
+        variantes={['v1', 'v2', 'v3'].map((v, i) => ({ id: v, texte: 'x', image: IMG, tag: `${v} · perdante`, gagnante: i === 1, barre: { libelle: '21 €', part: 70 } }))}
+        controles={[{ icone: 'cal', titre: '14 jours sur 14', detail: 'd' }, { icone: 'chart', titre: '18 000 impressions', detail: 'd' }, { icone: 'lock', titre: 'Règle respectée', detail: 'd' }]}
+        coach={{ avant: 'Le moteur retient :', fort: 'v2 · Gagnante', apres: '.' }}
+        personas={{ variantes: [{ id: 'v1', variante: 'v1', libelle: 'Léa · d’après le brief du projet', desaccord: false, personaId: 'p1' }], groupes: [{ id: 'p1', nom: 'Léa', lecture: 'effectif', phrase: 'p' }], parle: false, phrase: 'silence', regle: 'r' }}
+      />,
+    );
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const s = [...t.content.querySelectorAll('[aria-label="Pour qui · les personas du lot"]')];
+    expect(s, 'la section « Pour qui » n’est pas rendue une fois').toHaveLength(1);
+    expect(s[0]!.parentElement!.lastElementChild, '« Pour qui » doit être le dernier enfant de la vue').toBe(s[0]);
+    s[0]!.remove();
+    const p = parite(t.innerHTML, 'lot1', { ...VUE, correctifs: CORRECTIFS_CREAS.filter((c) => c.selecteur === '.ad .tag') });
+    expect(p.rendu).toEqual(p.reference);
+  });
+
   it('« Protocole » reproduit la maquette', () => {
     const html = rendre(
       <Protocole sousNav={NAV} peutModifier
