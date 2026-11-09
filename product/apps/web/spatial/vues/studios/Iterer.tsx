@@ -4,7 +4,7 @@ import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   cheminPorte, gardeRemplace, hypotheseInspirationParDefaut, hypotheseParDefaut, noteDemandeIteration, variableInitiale, APRES_CREATION_ITERATION, ETAPES_ITERATION_SPATIALE, EXEMPLE_VALEUR_VARIABLE,
-  LIBELLE_CHOIX_VARIABLE, VARIABLE_LABEL, VALEUR_MAX, type ChoixIterationSpatial, type ChoixVariablesIteration, type OptionVariable, type TestedVariable,
+  LIBELLE_CHOIX_VARIABLE, VARIABLE_LABEL, VALEUR_MAX, type ChoixIterationSpatial, type ChoixVariablesIteration, type OptionVariable, type ProvenanceJarvis, type TestedVariable,
 } from '@tiktrends/core';
 import { creerIterationChoisieAction, type ReponseIterationChoisie } from '../../../app/actions/adsmap-iterer-variable';
 import { EnTete, Lien, Vue } from '../../communs';
@@ -63,8 +63,10 @@ export interface PropsIterer {
    * présélectionner (pub, variable admise), et la phrase qui le dit · `null`
    * rien de sûr. Une variable n'est cochée que sur CETTE pub · aucune sinon
    * (jamais le défaut du plan à la place d'un pré-choix absent).
+   * `provenance` · la réponse et le contexte RELUS par la page · transmis à
+   * « Créer l'itération », qui les relit encore avant de poser la provenance.
    */
-  jarvis?: { note: string; adId: string | null; variable: TestedVariable | null } | null;
+  jarvis?: { note: string; adId: string | null; variable: TestedVariable | null; provenance?: ProvenanceJarvis | null } | null;
 }
 
 type Etape = 'pub' | 'variable' | 'creee';
@@ -117,7 +119,7 @@ export function Iterer(p: PropsIterer) {
     setOccupe(true); setErreur(null);
     const r = await creerIterationChoisieAction(insp
       ? { inspiration: { platform: insp.platform, externalId: insp.externalId }, variable, valeur, hypothese: hyp }
-      : { parentAdId: c!.adId, variable, valeur, hypothese: hyp })
+      : { parentAdId: c!.adId, variable, valeur, hypothese: hyp, ...(p.jarvis?.provenance ? { jarvis: p.jarvis.provenance } : {}) })
       .catch((): ReponseIterationChoisie => ({ ok: false, error: 'La création a échoué · réessaie.' }));
     setOccupe(false);
     if (!r.ok) { setErreur(r.error); return; }

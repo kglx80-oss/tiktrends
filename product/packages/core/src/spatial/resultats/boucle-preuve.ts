@@ -24,7 +24,12 @@ import { lienLotSpatial, type EtatLotSpatial, type FaitsLotSpatial } from './lot
  *     est la conclusion par défaut ;
  *  3. les GESTES depuis la lecture par persona (VB P06) · quand un persona se
  *     détache, « Itérer sur ce persona » et « Créer une hypothèse » ouvrent les
- *     écrans EXISTANTS pré-remplis · rien n'est écrit sans le clic.
+ *     écrans EXISTANTS pré-remplis · rien n'est écrit sans le clic · la même
+ *     règle pour une offre (`gestesLectureGroupe`), sur la fiche persona et la
+ *     fiche offre (« Dans les tests »).
+ *
+ * Et la provenance « Jarvis » d'un test créé depuis un geste de Jarvis
+ * (`provenanceJarvisAdmise`), lue à part dans le bilan.
  */
 
 /* ───────────────────────── 1 · le résultat d'une hypothèse ───────────────────────── */
@@ -101,30 +106,88 @@ export function provenanceCarte(o: OrigineHypotheseLibre, opts: { marqueId?: str
 
 /**
  * D'où vient un test · la provenance de l'hypothèse libre gardée sur l'ad
- * (`source_ref_json.hypotheseLibre`), sinon une ITÉRATION d'une gagnante
- * (`ad_type = iteration` · moteur, écran Itérer, geste de Jarvis), sinon rien ·
- * un test sans provenance lue reste dans la référence, il ne forme pas de groupe.
- *
- * Jarvis ne garde pas de provenance propre sur l'ad · ses itérations comptent
- * avec les autres itérations, et l'écran le dit (`NOTE_JARVIS_PROVENANCE`).
+ * (`source_ref_json.hypotheseLibre`), sinon un GESTE DE JARVIS (la provenance
+ * Jarvis gardée sur l'ad, `source_ref_json.jarvis`, posée par le serveur
+ * seulement après avoir relu la réponse dans la portée · `provenanceJarvisAdmise`),
+ * sinon une ITÉRATION d'une gagnante (`ad_type = iteration` · moteur, écran
+ * Itérer), sinon rien · un test sans provenance lue reste dans la référence, il
+ * ne forme pas de groupe.
  */
-export type ProvenanceTest = 'tag' | 'veille' | 'apprentissage' | 'persona' | 'libre' | 'iteration';
+export type ProvenanceTest = 'tag' | 'veille' | 'apprentissage' | 'persona' | 'libre' | 'jarvis' | 'iteration';
 
-/** L'ordre et les mots du bilan · six provenances, autant que la règle mesurée en admet (`MAX_PERSONAS_LECTURE`). */
+/**
+ * L'ordre et les mots du bilan · sept provenances. La règle mesurée en lit au
+ * plus six à la fois (`MAX_PERSONAS_LECTURE`) · si les sept ont assez de
+ * verdicts pour parler, le bilan se tait et le dit (non mesuré au-delà).
+ */
 export const PROVENANCES_TEST: ReadonlyArray<{ cle: ProvenanceTest; libelle: string }> = [
   { cle: 'tag', libelle: 'Tag de Veille récurrent' },
   { cle: 'veille', libelle: 'Pub de la Veille' },
   { cle: 'apprentissage', libelle: 'Apprentissage' },
   { cle: 'persona', libelle: 'Persona' },
   { cle: 'libre', libelle: 'À la main' },
+  { cle: 'jarvis', libelle: 'Geste de Jarvis' },
   { cle: 'iteration', libelle: 'Itération d’une gagnante' },
 ];
 
-export const NOTE_JARVIS_PROVENANCE = 'Jarvis ne garde pas encore de provenance à lui · les itérations qu’il fait créer comptent dans « Itération d’une gagnante ».';
+export const NOTE_JARVIS_PROVENANCE = 'Une itération créée depuis une réponse de Jarvis compte dans « Geste de Jarvis » · seulement quand la réponse a été relue dans ta marque au moment de la créer · les autres comptent dans « Itération d’une gagnante ».';
 
-export function provenanceDuTest(t: { origine: OrigineHypotheseLibre | null | undefined; typeAd?: string | null }): ProvenanceTest | null {
+export function provenanceDuTest(t: { origine: OrigineHypotheseLibre | null | undefined; typeAd?: string | null; jarvis?: ProvenanceJarvis | null }): ProvenanceTest | null {
   if (t.origine) return t.origine.type;
+  if (t.jarvis) return 'jarvis';
   return t.typeAd === 'iteration' ? 'iteration' : null;
+}
+
+/* ───────────────────────── la provenance « Jarvis » ───────────────────────── */
+
+/**
+ * Un test créé depuis un geste de Jarvis (« Créer l'itération » sous une
+ * réponse, lot 5 bis et 5 ter) · la réponse et le contexte de ce geste. Gardée
+ * dans le JSON de source de l'ad (`source_ref_json.jarvis`, aucune colonne) ·
+ * jamais crue depuis l'adresse · le serveur ne la pose qu'après avoir relu la
+ * réponse dans la portée de la session ET retrouvé la pub de départ dans le
+ * contexte relu (`provenanceJarvisAdmise`).
+ */
+export interface ProvenanceJarvis { reponseId: string; contexte: { type: 'lot' | 'hypothese' | 'projet'; id: string } }
+
+export const CLE_PROVENANCE_JARVIS = 'jarvis';
+
+const UUID_PROVENANCE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TYPES_CONTEXTE_JARVIS: ReadonlySet<string> = new Set(['lot', 'hypothese', 'projet']);
+
+/** Ce que l'écran envoie (ou ce que le JSON garde), relu · `null` dès qu'un champ est mal formé · rien n'est deviné. */
+export function lireDemandeProvenanceJarvis(x: unknown): ProvenanceJarvis | null {
+  if (!x || typeof x !== 'object') return null;
+  const o = x as Record<string, unknown>;
+  const c = o.contexte as Record<string, unknown> | null | undefined;
+  if (typeof o.reponseId !== 'string' || !UUID_PROVENANCE.test(o.reponseId) || !c || typeof c !== 'object') return null;
+  if (typeof c.type !== 'string' || !TYPES_CONTEXTE_JARVIS.has(c.type) || typeof c.id !== 'string' || !UUID_PROVENANCE.test(c.id)) return null;
+  return { reponseId: o.reponseId.toLowerCase(), contexte: { type: c.type as ProvenanceJarvis['contexte']['type'], id: c.id.toLowerCase() } };
+}
+
+/** La valeur à fusionner dans `source_ref_json` de l'ad créée. */
+export function refProvenanceJarvis(p: ProvenanceJarvis): Record<string, unknown> {
+  return { [CLE_PROVENANCE_JARVIS]: { reponseId: p.reponseId, contexte: { type: p.contexte.type, id: p.contexte.id } } };
+}
+
+/** Relit la provenance Jarvis d'une ad · `null` sans elle (ou JSON abîmé). */
+export function lireProvenanceJarvis(sourceRef: unknown): ProvenanceJarvis | null {
+  if (!sourceRef || typeof sourceRef !== 'object') return null;
+  return lireDemandeProvenanceJarvis((sourceRef as Record<string, unknown>)[CLE_PROVENANCE_JARVIS]);
+}
+
+/**
+ * La provenance Jarvis est-elle posée sur l'itération créée ? Seulement si la
+ * réponse a été RELUE dans la portée (espace, marque active, personne · le fil
+ * du projet pour un projet) et si la pub de départ est l'une des pubs du
+ * contexte RELU dans la marque (lot, hypothèse, gagnantes du projet). Sinon
+ * `null` · l'itération naît comme une itération ordinaire, sans rien dire de
+ * ce que l'adresse prétendait.
+ */
+export function provenanceJarvisAdmise(demande: ProvenanceJarvis | null, lu: { reponseLue: boolean; parentAdId: string; adsDuContexte: readonly string[] | null }): ProvenanceJarvis | null {
+  if (!demande || !lu.reponseLue || !lu.adsDuContexte) return null;
+  const parent = lu.parentAdId.toLowerCase();
+  return lu.adsDuContexte.some((id) => id.toLowerCase() === parent) ? demande : null;
 }
 
 const REF_PROVENANCE = new Map<ProvenanceTest, PersonaRef>(PROVENANCES_TEST.map((p) => [p.cle, { id: p.cle, nom: p.libelle }]));
@@ -234,7 +297,8 @@ export function bilanProvenances(entrees: readonly EntreeLecturePersona[]): Bila
   const general = { k: entrees.filter((e) => e.issue === 'gagne').length, n: l.tranchees };
   const eligibles = l.groupes.filter((g) => g.lecture !== 'effectif' && g.lecture !== 'reference');
   const reste = general.n - eligibles.reduce((s, g) => s + g.n, 0);
-  const niveau = eligibles.length && eligibles.length <= MAX_PERSONAS_LECTURE ? niveauBilanProvenances(reste) : null;
+  const tropDeProvenances = eligibles.length > MAX_PERSONAS_LECTURE;
+  const niveau = eligibles.length && !tropDeProvenances ? niveauBilanProvenances(reste) : null;
 
   const groupes: GroupeProvenance[] = l.groupes.map((g) => {
     const cle = g.persona.id as ProvenanceTest;
@@ -246,7 +310,7 @@ export function bilanProvenances(entrees: readonly EntreeLecturePersona[]): Bila
       return { ...base, lecture: 'reference', intervalle: null, reference: null, phrase: `Le reste de la marque n’a que ${pl(general.n - g.n, 'variante tranchée', 'variantes tranchées')} · il en faut ${MIN_REFERENCE_PERSONA} pour servir de référence.` };
     }
     if (niveau === null) {
-      return { ...base, lecture: 'non_mesure', intervalle: null, reference: null, phrase: `${pl(g.k, 'gagnante', 'gagnantes')} sur ${pl(g.n, 'variante tranchée', 'variantes tranchées')} · à ce volume, la règle n’est pas mesurée et se tait.` };
+      return { ...base, lecture: 'non_mesure', intervalle: null, reference: null, phrase: `${pl(g.k, 'gagnante', 'gagnantes')} sur ${pl(g.n, 'variante tranchée', 'variantes tranchées')} · ${tropDeProvenances ? `plus de ${MAX_PERSONAS_LECTURE} provenances parlent` : 'à ce volume'}, la règle n’est pas mesurée et se tait.` };
     }
     const ref = { k: general.k - g.k, n: general.n - g.n };
     const ip = wilsonInterval(g.k, g.n, niveau);
@@ -264,6 +328,7 @@ export function bilanProvenances(entrees: readonly EntreeLecturePersona[]): Bila
   let phrase: string;
   if (!general.n) phrase = 'Aucune variante tranchée au protocole · rien à lire par provenance pour l’instant.';
   else if (!eligibles.length) phrase = `Aucune provenance n’a encore ${MIN_VERDICTS_PERSONA} variantes tranchées · le bilan se tait, faute d’effectif.`;
+  else if (tropDeProvenances) phrase = `${eligibles.length} provenances ont assez de verdicts · au-delà de ${MAX_PERSONAS_LECTURE}, la règle n’est pas mesurée · le bilan se tait.`;
   else if (niveau === null) phrase = `${pl(reste, 'variante tranchée', 'variantes tranchées')} hors des provenances lues · au-delà de ${RESTE_MAX_BILAN}, la règle n’est pas mesurée · le bilan se tait.`;
   else if (!parle) phrase = 'Aucune provenance ne se détache du reste de la marque · le silence est la conclusion par défaut, il ne dit pas que les provenances se valent.';
   else {
@@ -304,6 +369,85 @@ export interface GestesPersona {
   hypothese: { depart: DepartHypothese; note: string };
 }
 
+/* ── généralisé · persona ou offre (fiche persona, fiche offre, fiche d'un lot) ── */
+
+export type GroupeGestes = 'persona' | 'offre';
+
+/**
+ * D'où part l'hypothèse du geste · un persona est une provenance (relu dans la
+ * marque active par `creerHypotheseAction`) · une offre n'en a pas à elle,
+ * l'hypothèse est « à la main », la note le dit.
+ */
+export type SourceGesteHypothese = { type: 'persona'; personaId: string } | { type: 'libre' };
+
+export interface GestesLecture {
+  groupe: GroupeGestes;
+  id: string;
+  nom: string;
+  libelles: { iterer: string; hypothese: string; titre: string };
+  iterer: GesteIterer;
+  hypothese: { depart: DepartHypothese; note: string; source: SourceGesteHypothese };
+}
+
+export const RAISON_ITERER_OFFRE_SANS_GAGNANTE = 'Aucune gagnante arbitrée de cette offre dans le plan d’itération · Itérer part d’une pub gagnante.';
+export const NOTE_GESTES_FICHE_PERSONA = 'Source · la lecture par persona de la marque. Le « parce que » cite ses verdicts · le reste s’écrit, l’hypothèse entre dans « À formuler ».';
+export const NOTE_GESTES_FICHE_OFFRE = 'Source · la lecture par offre de la marque. Le « parce que » cite ses verdicts · le reste s’écrit, l’hypothèse entre dans « À formuler », provenance « À la main » (une offre n’a pas de provenance à elle).';
+export const noteGestesSilenceFiche = (ce: string) => `${ce} ne se détache pas du reste de la marque · ni itération ni hypothèse à proposer depuis cette lecture.`;
+
+/**
+ * Le départ du formulaire d'hypothèse existant, depuis une offre qui se
+ * détache · l'offre citée, ses verdicts contre le reste · la variable testée
+ * est l'offre (c'est elle que la lecture sépare) · le résultat attendu reste à écrire.
+ */
+export function departDepuisLectureOffre(g: { nom: string; lecture: 'au_dessus' | 'en_dessous'; k: number; n: number; reference: { k: number; n: number } }): DepartHypothese {
+  const o = g.nom.replace(/\s+/g, ' ').trim();
+  const chiffres = `${g.k} sur ${g.n} contre ${g.reference.k} sur ${g.reference.n}`;
+  return g.lecture === 'au_dessus'
+    ? { parties: { ...PARTIES_VIDES, si: `on met l’offre « ${o} » dans nos prochaines créas`, parceQue: `ses variantes gagnent nettement plus souvent que le reste de la marque (${chiffres})` }, variable: 'offer' }
+    : { parties: { ...PARTIES_VIDES, si: `on remplace l’offre « ${o} » dans nos prochaines créas`, parceQue: `ses variantes gagnent nettement moins souvent que le reste de la marque (${chiffres})` }, variable: 'offer' };
+}
+
+/**
+ * Les gestes d'un groupe de la lecture (persona, offre) · SEULEMENT s'il se
+ * détache (au-dessus ou en dessous, intervalles disjoints · `lectureParGroupe`)
+ * · `null` sinon, et l'écran dit pourquoi.
+ *
+ * « Itérer » part d'une gagnante ARBITRÉE de ce groupe QUI EST dans le plan
+ * d'itération de la marque (`planIds` · le plan ne porte que des gagnantes
+ * arbitrées) · les tests `prioritaires` d'abord (ceux du lot affiché), sinon le
+ * premier de la marque (ordre passé) · aucun, le geste est fermé avec sa raison.
+ */
+export function gestesLectureGroupe(
+  g: { ref: PersonaRef; lecture: LecturePersona; k: number; n: number; reference: { k: number; n: number } | null },
+  o: { groupe: GroupeGestes; note: string; prioritaires: readonly string[]; testsDeLaMarque: readonly string[]; planIds: ReadonlySet<string> },
+): GestesLecture | null {
+  if ((g.lecture !== 'au_dessus' && g.lecture !== 'en_dessous') || !g.reference) return null;
+  const adId = [...o.prioritaires, ...o.testsDeLaMarque].find((id) => o.planIds.has(id)) ?? null;
+  const persona = o.groupe === 'persona';
+  const court = persona ? prenom(g.ref.nom) : g.ref.nom.replace(/\s+/g, ' ').trim();
+  const faits = { nom: g.ref.nom, lecture: g.lecture, k: g.k, n: g.n, reference: g.reference };
+  return {
+    groupe: o.groupe, id: g.ref.id, nom: g.ref.nom,
+    libelles: { iterer: persona ? 'Itérer sur ce persona' : 'Itérer sur cette offre', hypothese: 'Créer une hypothèse', titre: `Créer une hypothèse · ${court}` },
+    iterer: adId ? { href: lienIterationVariable({ adId }), adId, raison: null } : { href: null, adId: null, raison: persona ? RAISON_ITERER_SANS_GAGNANTE : RAISON_ITERER_OFFRE_SANS_GAGNANTE },
+    hypothese: {
+      depart: persona ? departDepuisLecturePersona(faits) : departDepuisLectureOffre(faits),
+      note: o.note,
+      source: persona ? { type: 'persona', personaId: g.ref.id } : { type: 'libre' },
+    },
+  };
+}
+
+/** Les gestes d'un persona, sous la forme généralisée · ce que `GestesPersona` (client) rend. */
+export function versGestesLecture(g: GestesPersona): GestesLecture {
+  const court = prenom(g.nom);
+  return {
+    groupe: 'persona', id: g.personaId, nom: g.nom,
+    libelles: { iterer: 'Itérer sur ce persona', hypothese: 'Créer une hypothèse', titre: `Créer une hypothèse · ${court}` },
+    iterer: g.iterer, hypothese: { ...g.hypothese, source: { type: 'persona', personaId: g.personaId } },
+  };
+}
+
 /**
  * Les gestes d'un persona du lot · SEULEMENT s'il se détache (au-dessus ou en
  * dessous, intervalles disjoints · `lecturePersonas`) · `null` sinon, et
@@ -318,12 +462,8 @@ export function gestesPersonaLot(
   g: { persona: PersonaRef; lecture: LecturePersona; k: number; n: number; reference: { k: number; n: number } | null },
   o: { numeroLot: number; testsDuLot: readonly string[]; testsDeLaMarque: readonly string[]; planIds: ReadonlySet<string> },
 ): GestesPersona | null {
-  if ((g.lecture !== 'au_dessus' && g.lecture !== 'en_dessous') || !g.reference) return null;
   // Le plan d'itération ne porte que des gagnantes arbitrées · un test du persona qui y figure en est une.
-  const adId = [...o.testsDuLot, ...o.testsDeLaMarque].find((id) => o.planIds.has(id)) ?? null;
-  return {
-    personaId: g.persona.id, nom: g.persona.nom,
-    iterer: adId ? { href: lienIterationVariable({ adId }), adId, raison: null } : { href: null, adId: null, raison: RAISON_ITERER_SANS_GAGNANTE },
-    hypothese: { depart: departDepuisLecturePersona({ nom: g.persona.nom, lecture: g.lecture, k: g.k, n: g.n, reference: g.reference }), note: noteDepartLecturePersona(o.numeroLot) },
-  };
+  const l = gestesLectureGroupe({ ref: g.persona, lecture: g.lecture, k: g.k, n: g.n, reference: g.reference },
+    { groupe: 'persona', note: noteDepartLecturePersona(o.numeroLot), prioritaires: o.testsDuLot, testsDeLaMarque: o.testsDeLaMarque, planIds: o.planIds });
+  return l ? { personaId: l.id, nom: l.nom, iterer: l.iterer, hypothese: { depart: l.hypothese.depart, note: l.hypothese.note } } : null;
 }

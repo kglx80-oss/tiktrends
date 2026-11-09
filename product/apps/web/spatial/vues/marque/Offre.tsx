@@ -2,6 +2,7 @@ import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { ListeKv, SyncSite, type ActionFormulaire, type LigneKv, type PropsSyncSite } from './base';
 import { AnnonceRetour, BoutonAppel, BoutonServeur, BoutiqueShopify, FormulaireSurcouche, SupprimerConfirme } from './interactifs';
 import { ArchiverFiche, FicheAllegation, FicheOffre, type AllegationEditable, type ArchiverFicheAction, type EnregistrerFicheAction, type OffreEditable } from './offres-client';
+import { DansLesTests, type DansLesTestsVue } from './dans-les-tests';
 
 /**
  * « Offre » · `docs/spatial/reference/offre.html` (maquette : `vOffre`).
@@ -16,12 +17,20 @@ import { ArchiverFiche, FicheAllegation, FicheOffre, type AllegationEditable, ty
  * offre, « Nouvelle offre » sous la grille, et la tuile des allégations en
  * dernier. Absentes (`offres` non passé), la tuile dit qu'aucune offre n'est
  * lue, comme avant.
+ *
+ * « Dans les tests » d'une offre (`[data-offres="tests"]`, lecture par offre ·
+ * `lectureOffres`) · dans le `.t` de l'offre, juste avant ses gestes · son
+ * compte, sa lecture contre le reste de la marque, ses « Lots de test » et, si
+ * elle se détache, « Itérer sur cette offre » et « Créer une hypothèse ». La
+ * règle se dit une fois, sous la grille. Écart déclaré et gardé, lui aussi.
  */
 
 export interface OffreVue {
   id: string; intitule: string; detail: string; active: boolean; editable: OffreEditable;
   /** « Créer une pub » avec cette offre présélectionnée · fermé (sans Studios, offre archivée), la raison s'écrit à côté. */
   creerPub: { href: string | null; raison: string | null };
+  /** « Dans les tests » · lu par la page (`lectureOffres`), ou fermé avec sa raison · absent, rien n'est ajouté. */
+  tests?: { ferme: true; raison: string } | ({ ferme: false } & DansLesTestsVue);
 }
 export interface AllegationVue {
   id: string; texte: string; preuve: string | null; statut: 'a_prouver' | 'prouvee'; libelleStatut: string;
@@ -65,6 +74,8 @@ export interface PropsOffre {
     /** Les conditions essentielles qu'aucune offre active ne couvre · une carte « Manquante » chacune, comme la maquette. */
     manquantes: ReadonlyArray<{ type: string; libelle: string }>;
     gestes: GestesFiche;
+    /** La règle de la lecture par offre, dite une fois sous la grille · absente, rien n'est ajouté. */
+    regle?: string | null;
   };
   /** Lot 9 bis · les allégations de la marque et leurs gestes. */
   allegations?: { liste: readonly AllegationVue[]; gestes: GestesFiche };
@@ -134,7 +145,7 @@ export function Offre(p: PropsOffre) {
 }
 
 /** « Offres & conditions » · la tuile de la maquette (grille de `.prow`), lue en base. */
-function Offres({ brandId, liste, manque, manquantes, gestes }: { brandId: string; liste: readonly OffreVue[]; manque: string | null; manquantes: ReadonlyArray<{ type: string; libelle: string }>; gestes: GestesFiche }) {
+function Offres({ brandId, liste, manque, manquantes, gestes, regle = null }: { brandId: string; liste: readonly OffreVue[]; manque: string | null; manquantes: ReadonlyArray<{ type: string; libelle: string }>; gestes: GestesFiche; regle?: string | null }) {
   return (
     <section className="tile" style={{ gridColumn: '1/-1' }} aria-label="Offres de la marque">
       <div className="sech" style={{ margin: '0 0 10px' }}><h2>Offres &amp; conditions</h2>{manque && <span className="pill w" style={{ marginLeft: 'auto' }}>{manque}</span>}</div>
@@ -145,6 +156,12 @@ function Offres({ brandId, liste, manque, manquantes, gestes }: { brandId: strin
             <div className="t">
               <strong style={{ fontSize: 13 }}>{o.intitule}</strong>
               <small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>{o.detail}</small>
+              {o.tests && (
+                <div data-offres="tests" data-tests-de-offre={o.id} style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+                  <span className="lbl" style={{ margin: 0 }}>Dans les tests</span>
+                  {o.tests.ferme ? <small className="faint" style={{ fontSize: '11.5px' }}>{o.tests.raison}</small> : <DansLesTests groupe="offre" t={o.tests} />}
+                </div>
+              )}
               <span data-offres="gestes" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                 <FicheOffre brandId={brandId} offre={o.editable} enregistrer={gestes.enregistrer} raison={gestes.raison} />
                 <ArchiverFiche brandId={brandId} id={o.id} archive={o.active} libelle={o.active ? 'Archiver' : 'Réactiver'} geste={o.active ? 'archiver' : 'reactiver'} archiver={gestes.archiver} raison={gestes.raison} />
@@ -166,7 +183,7 @@ function Offres({ brandId, liste, manque, manquantes, gestes }: { brandId: strin
       </div>
       {liste.length === 0 && <p data-offres="vide" className="faint" style={{ fontSize: '12.5px', margin: 0 }}>Aucune offre enregistrée · une remise, un bundle, une garantie ou la livraison se choisissent ensuite au brief d’un projet.</p>}
       <div data-offres="nouvelle" style={{ marginTop: 10 }}><FicheOffre brandId={brandId} offre={null} enregistrer={gestes.enregistrer} raison={gestes.raison} /></div>
-      <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Seules les offres actives se choisissent au brief · une offre archivée reste lue sur les lots qui l’ont diffusée.</p>
+      <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Seules les offres actives se choisissent au brief · une offre archivée reste lue sur les lots qui l’ont diffusée.{regle ? ` ${regle}` : ''}</p>
     </section>
   );
 }

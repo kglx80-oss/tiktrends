@@ -119,21 +119,27 @@ describe('Spatial · Marque · parité de structure avec la maquette', () => {
    * grille, et la tuile « Allégations » en dernier enfant de la grille de la
    * fiche, juste après celle des offres. Ailleurs, en double, ou absents quand
    * ils sont passés, la parité tombe.
+   *
+   * « Dans les tests » d'une offre (`[data-offres="tests"]`) · seulement dans
+   * le `.t` d'une offre, JUSTE AVANT ses gestes, une fois par offre au plus ·
+   * `tests` · combien la page en a passé (0 · aucun n'est admis).
    */
-  function sansOffres(html: string): string {
+  function sansOffres(html: string, tests = 0): string {
     const t = document.createElement('template');
     t.innerHTML = html;
     const tuile = t.content.querySelector('section[aria-label="Offres de la marque"]');
     const gestes = [...t.content.querySelectorAll('[data-offres="gestes"]')];
     const nouvelle = [...t.content.querySelectorAll('[data-offres="nouvelle"]')];
     const allegations = [...t.content.querySelectorAll('[data-offres="allegations"]')];
-    const autres = [...t.content.querySelectorAll('[data-offres]')].filter((e) => !['gestes', 'nouvelle', 'allegations'].includes(e.getAttribute('data-offres')!));
-    if (!tuile || autres.length || nouvelle.length !== 1 || allegations.length !== 1 || !gestes.length) return html;
+    const dansLesTests = [...t.content.querySelectorAll('[data-offres="tests"]')];
+    const autres = [...t.content.querySelectorAll('[data-offres]')].filter((e) => !['gestes', 'nouvelle', 'allegations', 'tests'].includes(e.getAttribute('data-offres')!));
+    if (!tuile || autres.length || nouvelle.length !== 1 || allegations.length !== 1 || !gestes.length || dansLesTests.length !== tests) return html;
     if (!gestes.every((g) => g.parentElement!.matches('.prow > .t') && tuile.contains(g) && !g.nextElementSibling)) return html;
+    if (!dansLesTests.every((d) => d.parentElement!.matches('.prow > .t') && d.nextElementSibling?.matches('[data-offres="gestes"]') && tuile.contains(d))) return html;
     if (nouvelle[0]!.parentElement !== tuile || !nouvelle[0]!.previousElementSibling?.matches('.grid3')) return html;
     const a = allegations[0]!;
     if (!a.parentElement!.matches('.grid2') || a.parentElement!.lastElementChild !== a || a.previousElementSibling !== tuile) return html;
-    [...gestes, ...nouvelle, ...allegations].forEach((e) => e.remove());
+    [...dansLesTests, ...gestes, ...nouvelle, ...allegations].forEach((e) => e.remove());
     return t.innerHTML;
   }
 
@@ -161,6 +167,70 @@ describe('Spatial · Marque · parité de structure avec la maquette', () => {
     expect(nettoye, 'un ajout du lot 9 bis manque, est en trop ou hors de sa place').not.toBe(html);
     // `.prow` · leurs enfants (photo produit, gestes) restent ignorés comme avant · la tuile des offres, elle, est comparée.
     const p = parite(nettoye, 'offre', { ignorer: ['.prow'] });
+    expect(p.rendu).toEqual(p.reference);
+  });
+
+  it('« Dans les tests » d’une offre (lots, lecture, gestes) et la règle sous la grille gardent la parité · seulement dans le `.t`, juste avant ses gestes', () => {
+    const geste = { enregistrer: async () => ({ ok: true as const, id: 'x' }), archiver: async () => ({ ok: true as const, id: 'x' }), raison: null };
+    const gestesOffre = {
+      groupe: 'offre' as const, id: 'o2', nom: 'Offre 2', libelles: { iterer: 'Itérer sur cette offre', hypothese: 'Créer une hypothèse', titre: 'Créer une hypothèse · Offre 2' },
+      iterer: { href: null, adId: null, raison: 'r' }, hypothese: { depart: { parties: { si: 'a', alors: '', parceQue: 'b' }, variable: 'offer' as const }, note: 'n', source: { type: 'libre' as const } },
+    };
+    const offre = (i: number, tests: Parameters<typeof Offre>[0]['offres'] extends infer O ? O extends { liste: readonly (infer L)[] } ? L extends { tests?: infer T } ? T : never : never : never) => ({
+      id: `o${i}`, intitule: `Offre ${i}`, detail: 'Remise · −20 %', active: true, editable: { id: `o${i}`, intitule: `Offre ${i}`, type: 'remise', conditions: '−20 %' }, creerPub: { href: '/studio/projets/nouveau?type=ads&offre=x', raison: null }, tests,
+    });
+    const html = rendre(
+      <Offre
+        sousNav={nav} brandId="b1" sync={sync}
+        produits={[1, 2, 3].map((i) => ({ id: `p${i}`, nom: 'p', image: 'https://x/p.png', detail: 'd', complet: i === 1 }))}
+        aCompleter="2 fiches à compléter"
+        detail={{ nom: 'p', lignes: [
+          { dt: 'Prix', dd: { type: 'texte', texte: '1 €' } },
+          { dt: 'Tranche', dd: { type: 'options', options: [{ texte: 'a', on: false }, { texte: 'b', on: true }, { texte: 'c', on: false }] } },
+          { dt: 'Peut', dd: { type: 'pastilles', classe: 'g', pastilles: ['a', 'b', 'c'] } },
+          { dt: 'Jamais', dd: { type: 'pastilles', classe: 'r', pastilles: ['a', 'b'] } },
+        ] }}
+        ajouter={action} shopify={null} retours={{}}
+        offres={{
+          liste: [
+            offre(1, { ferme: false, tests: 2, lots: 1, lecture: 'effectif', phrase: 'p', regle: null, lotsDeTest: [{ id: 'l1', href: '/adsmap/lots/l1', libelle: 'Lot #1' }], gestes: null, silence: 's', raisonHypothese: null }),
+            offre(2, { ferme: false, tests: 6, lots: 1, lecture: 'au_dessus', phrase: 'p', regle: null, lotsDeTest: [{ id: 'l2', href: '/adsmap/lots/l2', libelle: 'Lot #2' }], gestes: gestesOffre, silence: null, raisonHypothese: null }),
+          ],
+          manque: 'Garantie manquante', manquantes: [{ type: 'garantie', libelle: 'Garantie' }], gestes: geste, regle: 'Sur toute la marque · r',
+        }}
+        allegations={{ liste: [], gestes: geste }}
+      />,
+    );
+    expect(html, 'les lots de test ne sont pas rendus').toContain('data-lot-de-test="l2"');
+    expect(html, 'les gestes de l’offre qui se détache ne sont pas rendus').toContain('data-gestes-offre="o2"');
+    expect(sansOffres(html), 'un « Dans les tests » non déclaré passerait').toBe(html);
+    const nettoye = sansOffres(html, 2);
+    expect(nettoye, '« Dans les tests » manque, est en trop ou hors de sa place').not.toBe(html);
+    const p = parite(nettoye, 'offre', { ignorer: ['.prow'] });
+    expect(p.rendu).toEqual(p.reference);
+  });
+
+  it('« Dans les tests » d’un persona (lots, gestes) reste dans la case déclarée de la maquette', () => {
+    const P = (i: number) => ({ id: `p${i}`, initiale: 'A', teinte: '#111', nom: `A${i}, 30 ans`, statut: { libelle: 'Validé', classe: 'g' as const }, description: 'd',
+      desirs: ['a', 'b', 'c'], freins: ['a', 'b', 'c'], objections: ['a', 'b', 'c'], citations: ['a', 'b', 'c', 'd'], sources: 4,
+      tests: { ferme: false as const, tests: 6, lots: 1, lecture: 'au_dessus' as const, phrase: 'p', regle: 'r', lotsDeTest: [{ id: 'l1', href: '/adsmap/lots/l1', libelle: 'Lot #1' }],
+        gestes: { groupe: 'persona' as const, id: `p${i}`, nom: `A${i}`, libelles: { iterer: 'Itérer sur ce persona', hypothese: 'Créer une hypothèse', titre: 't' },
+          iterer: { href: '/studio/iterer?iter=x', adId: 'x', raison: null }, hypothese: { depart: { parties: { si: 'a', alors: '', parceQue: 'b' }, variable: null }, note: 'n', source: { type: 'persona' as const, personaId: `p${i}` } } },
+        silence: null, raisonHypothese: null } });
+    const html = rendre(
+      <Personas
+        sousNav={nav} brandId="b1" nom="A" personas={[P(1), P(2), P(3)]}
+        scenarios={[{ titre: 'a', contexte: 'b' }, { titre: 'c', contexte: 'd' }]}
+        jarvis="/jarvis" creerPub="/studio/projets/nouveau?type=ads" ajouterPersona={action} ajouterScenario={null} retours={{}}
+      />,
+    );
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const caseTests = t.content.querySelector('section.tile > div:nth-of-type(3) > div:nth-child(3)');
+    expect(caseTests?.querySelector('[data-gestes-persona="p1"]'), 'les gestes ne sont pas dans la case « Dans les tests »').toBeTruthy();
+    expect(caseTests?.querySelector('[data-lot-de-test="l1"]'), 'les lots ne sont pas dans la case « Dans les tests »').toBeTruthy();
+    expect(t.content.querySelectorAll('[data-gestes-persona], [data-lot-de-test]').length, 'un ajout hors de la case déclarée').toBe(2);
+    const p = parite(html, 'clients', { ignorer: ['section.tile > div:nth-of-type(3) > div:nth-child(3)'] });
     expect(p.rendu).toEqual(p.reference);
   });
 

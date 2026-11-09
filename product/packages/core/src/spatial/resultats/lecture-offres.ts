@@ -1,6 +1,6 @@
 import type { FaitsLotSpatial } from './lots';
 import {
-  entreesLectureGroupes, lectureParGroupe, regleLecture,
+  bilanTestsPersona, entreesLectureGroupes, lectureParGroupe, regleLecture, testsDuGroupe,
   type LectureGroupes, type PersonaRef, type VocabulaireLecture,
 } from './lecture-personas';
 
@@ -89,4 +89,28 @@ export function entreesLectureOffres(lots: readonly FaitsLotSpatial[], attributi
 /** La règle, dite à l'écran sous la lecture par offre · les seuils du module des personas, jamais recopiés. */
 export function regleLectureOffres(): string {
   return regleLecture(VOCABULAIRE_OFFRE);
+}
+
+/* ───────────────────────── « Dans les tests » de la fiche Offre ───────────────────────── */
+
+/** Combien de tests diffusent cette offre, et dans combien de lots · le compte de la fiche persona, par offre. */
+export function bilanTestsOffre(lots: readonly FaitsLotSpatial[], attribution: (adId: string) => PersonaRef | null, offreId: string): { tests: number; lots: number } {
+  return bilanTestsPersona(lots, attribution, offreId);
+}
+
+/** La case « Dans les tests » d'une offre · son groupe dans la lecture par offre, ou le silence dit en clair. */
+export function testsDeLOffre(l: LectureGroupes, offreId: string) {
+  return testsDuGroupe(l, offreId, 'cette offre');
+}
+
+/**
+ * La fiche Offre lit-elle ses tests par offre ? Les portes d'Adsmap (formule,
+ * rôle) et la marque ACTIVE, comme la fiche persona (`accesTestsPersona`) · les
+ * lectures sont bornées à elle. Fermé, la raison s'écrit.
+ */
+export function accesTestsOffre(o: { adsmap: 'ok' | 'plan' | 'role'; marqueActive: boolean }): string | null {
+  if (o.adsmap === 'plan') return 'Les tests par offre vivent dans Résultats, ouvert à partir de la formule Plus';
+  if (o.adsmap === 'role') return 'Résultats n’est pas ouvert à ton rôle';
+  if (!o.marqueActive) return 'Les tests se lisent dans la marque active · ouvre d’abord cette marque';
+  return null;
 }

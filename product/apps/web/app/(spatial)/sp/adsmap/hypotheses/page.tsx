@@ -37,7 +37,7 @@ export default async function HypothesesSpatial() {
     adId: r.adId, libelle: r.label, variable: r.changedVariable, etape: r.stageLabel, raison: r.rationale, priorite: r.priority,
   }));
   const parAd = new Map<string, AdLue>(d.lots.flatMap((l) => l.ads.map((a) => [a.id, a] as const)));
-  const bilan = bilanProvenances(entreesBilanProvenances(d.lots, (adId) => { const a = parAd.get(adId); return a ? provenanceDuTest({ origine: a.origine, typeAd: a.typeAd }) : null; }));
+  const bilan = bilanProvenances(entreesBilanProvenances(d.lots, (adId) => { const a = parAd.get(adId); return a ? provenanceDuTest({ origine: a.origine, typeAd: a.typeAd, jarvis: a.jarvis }) : null; }));
 
   return (
     <Hypotheses
