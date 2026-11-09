@@ -1,5 +1,6 @@
-import type { LecturePersona } from '@tiktrends/core';
+import { NOTE_GESTES_SILENCE, type GestesPersona as Gestes, type LecturePersona } from '@tiktrends/core';
 import { Ic } from '../../communs';
+import { GestesPersona } from './gestes-persona-client';
 
 /**
  * Lot 9 V5 · « Pour qui » dans la fiche d'un lot (VB P06) · le persona de
@@ -13,11 +14,17 @@ import { Ic } from '../../communs';
 
 export interface PropsPersonasLot {
   variantes: ReadonlyArray<{ id: string; variante: string; libelle: string; desaccord: boolean; personaId: string | null }>;
-  /** Les personas de CE lot, lus sur toute la marque · dans l'ordre de la marque. */
-  groupes: ReadonlyArray<{ id: string; nom: string; lecture: LecturePersona; phrase: string }>;
+  /**
+   * Les personas de CE lot, lus sur toute la marque · dans l'ordre de la marque ·
+   * `gestes` · « Itérer sur ce persona » et « Créer une hypothèse » (VB P06,
+   * `gestesPersonaLot`) · seulement pour un persona qui se détache.
+   */
+  groupes: ReadonlyArray<{ id: string; nom: string; lecture: LecturePersona; phrase: string; gestes?: Gestes | null }>;
   parle: boolean;
   phrase: string;
   regle: string;
+  /** Vrai quand la page a calculé les gestes P06 · le silence (aucun persona du lot ne se détache) se dit alors. */
+  gestesLus?: boolean;
 }
 
 const TON: Record<LecturePersona, { pill: string; libelle: string }> = {
@@ -46,8 +53,10 @@ export function PersonasLot({ p }: { p: PropsPersonasLot }) {
           <strong style={{ fontSize: 13 }}>{g.nom.split(',')[0]!.trim()}</strong>
           <span className={`pill ${TON[g.lecture].pill}`.trim()}>{TON[g.lecture].libelle}</span>
           <span className="muted" style={{ fontSize: '12.5px', flex: '1 1 260px' }}>{g.phrase}</span>
+          {g.gestes && <GestesPersona g={g.gestes} />}
         </div>
       ))}
+      {p.gestesLus && !p.groupes.some((g) => g.gestes) && <p className="faint" data-gestes-persona-silence="" style={{ fontSize: '12.5px', marginTop: 10 }}>{NOTE_GESTES_SILENCE}</p>}
       <p data-phrase-personas="" style={{ fontSize: 13, marginTop: 12 }}>Sur toute la marque · {p.phrase}</p>
       <p className="faint" style={{ fontSize: '11.5px', marginTop: 6 }}>{p.regle}</p>
     </section>

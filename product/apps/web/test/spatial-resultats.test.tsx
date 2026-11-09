@@ -211,6 +211,53 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
     expect(p.rendu).toEqual(p.reference);
   });
 
+  /**
+   * Boucler la preuve · écarts DÉCLARÉS de « Hypothèses » · sur une carte, le
+   * résultat du lot conclu (`[data-resultat-hypothese]`) et la provenance
+   * (`[data-provenance-hypothese]`), chacun UNE fois et JUSTE après la ligne de
+   * la carte · sous le tableau, « D’où viennent les hypothèses qui gagnent »
+   * (une section, juste après `.board4`). Retirés, le rendu est la maquette à
+   * l’identique · ailleurs, en double, ou absents quand ils sont passés, la
+   * garde tombe.
+   */
+  it('boucler la preuve · « Hypothèses » avec résultat, provenance et bilan garde la parité · seuls ces trois ajouts, à leur place', () => {
+    const c = (cle: string, colonne: CarteHypothese['colonne'], categorie: string, priorite: CarteHypothese['priorite'], texte: string, conclue = false): CarteHypothese => ({
+      cle, colonne, categorie, priorite, texte, meta: 'm',
+      action: conclue ? null : { libelle: 'Voir', href: '/adsmap/lots' },
+      conclusion: conclue ? { libelle: 'Confirmée', classe: 'g', icone: 'check' } : null,
+    });
+    const provenance = { libelle: 'Veille · tag « Hook UGC » · 3 sauvegardes', href: '/saved?tag=hook%20ugc', lien: 'Voir les sauvegardes du tag « Hook UGC »' };
+    const html = rendre(
+      <Hypotheses sousNav={NAV} jarvis note="n"
+        bilan={{ parle: false, niveau: 0.975, general: { k: 1, n: 10 }, reste: 6, groupes: [{ cle: 'tag', libelle: 'Tag de Veille récurrent', lecture: 'dans_le_bruit', k: 1, n: 4, intervalle: null, reference: null, phrase: 'p' }], phrase: 'silence', regle: 'r', provenances: ['Tag'], noteJarvis: 'j' }}
+        cartes={[
+          c('1', 'formuler', 'Offre', 0, 'Si le prix barré apparaît dans l’image, alors… ?'),
+          c('2', 'formuler', 'Accroche', 2, 'Si l’accroche reprend la question gagnante, alors le taux se maintient, parce que cela prolonge A1.'),
+          c('3', 'prete', 'Visuel', 3, 'Si on montre une vidéo UGC, alors le taux de clic augmente, parce que les avis le disent.'),
+          { ...c('4', 'test', 'Format', 2, 'Si on passe au 9:16, alors le coût baisse, parce que le 9:16 occupe l’écran.'), provenance },
+          c('5', 'test', 'Texte', 1, 'Si on tutoie, alors le clic tient, parce que les concurrents tutoient.'),
+          { ...c('6', 'conclue', 'Accroche', 3, 'Si l’accroche s’ouvre sur une question, alors on regarde plus, parce que 3 concurrents le font.', true), provenance,
+            resultat: { statut: 'confirmee', libelle: 'Confirmée', classe: 'g', icone: 'check', chiffre: '4 gagnantes sur 4', lot: { numero: 3, href: '/adsmap/lots/l3' } } },
+        ]} />,
+    );
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const res = [...t.content.querySelectorAll('[data-resultat-hypothese]')];
+    const pro = [...t.content.querySelectorAll('[data-provenance-hypothese]')];
+    const bilan = [...t.content.querySelectorAll('[aria-label="D’où viennent les hypothèses qui gagnent"]')];
+    expect([res.length, pro.length, bilan.length], 'un résultat, deux provenances, un bilan').toEqual([1, 2, 1]);
+    for (const el of [...res, ...pro]) {
+      expect(el.parentElement!.classList.contains('hcard'), 'ajout hors d’une carte').toBe(true);
+      // Juste après la ligne de la carte (le résultat puis la provenance).
+      const avant = el.previousElementSibling!;
+      expect(avant.matches('span.faint') || avant.hasAttribute('data-resultat-hypothese'), 'ajout déplacé dans la carte').toBe(true);
+    }
+    expect(bilan[0]!.previousElementSibling!.classList.contains('board4'), 'le bilan doit suivre le tableau').toBe(true);
+    for (const el of [...res, ...pro, ...bilan]) el.remove();
+    const p = parite(t.innerHTML, 'hypotheses', VUE);
+    expect(p.rendu).toEqual(p.reference);
+  });
+
   it('« Boucle d’itération » reproduit la maquette', () => {
     const k = { libelle: 'k', valeur: '7', note: 'n' };
     const html = rendre(

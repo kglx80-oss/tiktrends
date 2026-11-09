@@ -55,6 +55,8 @@ export interface AdLue extends FaitsAdSpatial {
   origine: OrigineHypotheseLibre | null;
   /** L'estimation d'équipe (`ice_*`, 0068) · notes `null` tant qu'elles ne sont pas données. */
   estimation: EstimationHypothese;
+  /** `ad_type` · `iteration` dit une itération d'une gagnante (bilan par provenance, `provenanceDuTest`). */
+  typeAd: string;
 }
 
 export interface LotLu extends FaitsLotSpatial {
@@ -131,6 +133,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       bande: bande === 'low' || bande === 'med' || bande === 'high' ? bande : null,
       origine: lireOrigineHypothese(r.ad.sourceRef),
       estimation: { impact: r.ad.iceImpact, confiance: r.ad.iceConfidence, effort: r.ad.iceEffort },
+      typeAd: r.ad.adType,
       verdict: r.v?.adId ? {
         calcule: (r.v.computed ?? null) as VerdictValue | null,
         retenu: (r.v.validated ?? null) as VerdictValue | null,
