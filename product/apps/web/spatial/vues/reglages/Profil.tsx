@@ -4,6 +4,7 @@ import { SectionApparence } from './Apparence';
 import { AnnonceRetour } from '../marque/interactifs';
 import { IdentiteProfil, type EnregistrerProfil, type IdentiteInitiale } from './profil-client';
 import { BoutonAideRaccourcis, ChoixRaccourcis } from '../../coquille/Raccourcis';
+import { ChoixMenuCompact } from './menu-compact';
 
 /**
  * « Mon profil » · vague 4 · l'écran V5 `/profile` n'a pas de fragment de
@@ -27,6 +28,8 @@ export interface PropsProfil {
   theme?: PreferenceTheme;
   /** La préférence « Raccourcis à une touche » (cookie `tt_raccourcis`) · présente, la ligne « Raccourcis clavier » s'affiche (lot 13). */
   raccourcis?: boolean;
+  /** Lot 13 bis (CA P14) · le rail est-il replié (cookie `tt_rail`, lu au rendu serveur) · présent, la case « Menu compact » s'affiche. */
+  menuCompact?: boolean;
 }
 
 export function Profil(p: PropsProfil) {
@@ -55,6 +58,7 @@ export function Profil(p: PropsProfil) {
           <dl className="kv2">
             <dt>Langue</dt><dd><span className="opt2 on">Français</span><span className="faint" style={{ fontSize: 12 }}>D’autres langues arrivent prochainement.</span></dd>
           </dl>
+          {p.menuCompact !== undefined && <div data-geste="menu-compact" style={{ marginTop: 14 }}><ChoixMenuCompact initiale={p.menuCompact} /></div>}
           {p.raccourcis !== undefined && (
             <div data-geste="raccourcis" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
               <ChoixRaccourcis initiale={p.raccourcis} />

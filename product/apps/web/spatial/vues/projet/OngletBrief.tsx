@@ -1,10 +1,11 @@
 'use client';
 
 import { Fragment, useId, useState } from 'react';
-import { messageHorsLigneStudio } from '@tiktrends/core';
+import { PORTEES_AIDE_PROJET, messageHorsLigneStudio } from '@tiktrends/core';
 import { exporterBrief } from '../../../app/actions/studios/sources';
 import { Anneau, Ic, Lien } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
+import { BoutonAideRaccourcis } from '../../coquille/Raccourcis';
 import { Message } from './briques';
 import { boutonAction } from './action-serveur';
 import { Propositions } from './Propositions';
@@ -119,6 +120,12 @@ export function OngletBrief(p: PropsBriefProjet & { cibleJarvis?: { cible: strin
                 {a.href ? <Lien className="btn sm" href={a.href} aria-label={`Ouvrir l’atelier ${a.libelle}`}>Ouvrir</Lien> : <span className="pill">Non activé</span>}
               </div>
             ))}
+            {/* Lot 13 bis (PC D16) · l'entrée « Raccourcis » des anciennes Options du projet · l'aide FILTRÉE sur l'éditeur, le canvas, les fenêtres et les mentions. */}
+            <div className="ev" data-options-raccourcis="">
+              <span className="ico"><Ic n="q" /></span>
+              <span>Raccourcis clavier du projet<small className="faint" style={{ display: 'block', fontSize: '11.5px' }}>Éditeur de créa, canvas, fenêtres et panneaux, mentions</small></span>
+              <BoutonAideRaccourcis libelle="Raccourcis" portees={PORTEES_AIDE_PROJET} />
+            </div>
           </div>
         </section>
       </div>

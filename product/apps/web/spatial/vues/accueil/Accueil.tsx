@@ -8,6 +8,7 @@ import { BarreJarvis, CarteConfigurationAccueil, ChoixPeriode } from './interact
 import { AssistantAccueil } from './assistant';
 import type { OngletAccueil } from './Analytics';
 import { ChiffresCles } from './ChiffresCles';
+import { BoutonAideRaccourcis } from '../../coquille/Raccourcis';
 
 /**
  * L'Accueil Spatial (« Bonjour … ») · `docs/spatial/reference/accueil.html`,
@@ -60,6 +61,12 @@ export interface PropsAccueil {
   kpi?: readonly KpiAccueil[];
   /** L'assistant · quand Jarvis est fermé mais que l'action `askAssistant` admet le rôle. */
   assistant?: { pret: boolean; prix: string; suggestions: readonly string[] } | null;
+  /**
+   * Lot 13 bis (CA G29) · « Astuce · ? » sous les raccourcis (`astuceRaccourcisAccueil`,
+   * la touche lue dans la table, coupée par `tt_raccourcis`) · seul écart déclaré
+   * de la parité (`[data-astuce-raccourcis]`, juste après `nav.qrow`).
+   */
+  astuce?: { avant: string; touche: string | null; apres: string } | null;
 }
 
 /** Une vignette de publicité (`div.ad` de la maquette) · le média réel, ou un cadre vide. */
@@ -224,6 +231,14 @@ export function Accueil(p: PropsAccueil) {
             </Lien>
           ))}
         </nav>
+      )}
+      {p.astuce && (
+        <div data-astuce-raccourcis="" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+          <p className="faint" style={petit('12.5px', { margin: 0 })}>
+            {p.astuce.avant}{p.astuce.touche && <> <kbd style={{ display: 'inline-block', minWidth: 22, padding: '1px 7px', borderRadius: 7, border: '1px solid var(--edge)', font: 'inherit', textAlign: 'center' }}>{p.astuce.touche}</kbd> {p.astuce.apres}</>}
+          </p>
+          <BoutonAideRaccourcis libelle="Voir les raccourcis" />
+        </div>
       )}
       {p.attente && <p className="lead2" style={{ marginTop: 18 }}>{p.attente}</p>}
       {p.kpi && p.kpi.length > 0 && (

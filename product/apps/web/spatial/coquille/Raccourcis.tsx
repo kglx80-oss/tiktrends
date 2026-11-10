@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ClavierReact } from 'react';
-import { annoncePreferenceRaccourcis, groupesAideRaccourcis, raccourcisActifs, raccourcisCookieString } from '@tiktrends/core';
+import { annoncePreferenceRaccourcis, groupesAideRaccourcis, libelleAideFiltree, raccourcisActifs, raccourcisCookieString, type PorteeRaccourci } from '@tiktrends/core';
 import { Ic } from '../communs/base';
 import { useSpatial } from './contexte';
 
@@ -20,7 +20,9 @@ import { useSpatial } from './contexte';
  *    (WCAG 2.1.4) · cookie d'ergonomie `tt_raccourcis`, relu à CHAQUE frappe
  *    par la coquille (et par le « / » de Ce qui scale) · le changement vaut
  *    tout de suite, sans rechargement. Dans l'aide et dans « Mon profil ».
- *  · `BoutonAideRaccourcis` · ouvre l'aide depuis une vue (Support, Mon profil).
+ *  · `BoutonAideRaccourcis` · ouvre l'aide depuis une vue (Support, Mon profil,
+ *    l'Accueil) · `portees` (lot 13 bis, « Raccourcis » d'un projet) · l'aide
+ *    FILTRÉE sur ces portées, avec « Tous les raccourcis » pour l'aide entière.
  */
 
 /** L'évènement qui fait suivre un changement de préférence aux autres interrupteurs à l'écran. */
@@ -70,11 +72,11 @@ export function ChoixRaccourcis({ initiale }: { initiale?: boolean } = {}) {
 }
 
 /** Ouvre l'aide depuis une vue · la coquille garde le bouton pour lui rendre le focus. */
-export function BoutonAideRaccourcis({ libelle = 'Raccourcis clavier' }: { libelle?: string }) {
-  const { basculer, panneau } = useSpatial();
+export function BoutonAideRaccourcis({ libelle = 'Raccourcis clavier', portees }: { libelle?: string; portees?: readonly PorteeRaccourci[] }) {
+  const { basculer, panneau, ouvrirRaccourcis } = useSpatial();
   return (
-    <button className="btn sm" type="button" data-ouvrir-raccourcis="" aria-haspopup="dialog" aria-expanded={panneau === 'raccourcis'}
-      onClick={() => basculer('raccourcis')} style={{ minHeight: 44 }}>
+    <button className="btn sm" type="button" data-ouvrir-raccourcis={portees ? portees.join(' ') : ''} aria-haspopup="dialog" aria-expanded={panneau === 'raccourcis'}
+      onClick={() => (ouvrirRaccourcis ? ouvrirRaccourcis(portees) : basculer('raccourcis'))} style={{ minHeight: 44 }}>
       <Ic n="q" />{libelle}
     </button>
   );
@@ -82,9 +84,15 @@ export function BoutonAideRaccourcis({ libelle = 'Raccourcis clavier' }: { libel
 
 const FOCALISABLES = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
-export function AideRaccourcis({ onFermer, mac = false }: { onFermer: () => void; mac?: boolean }) {
+export function AideRaccourcis({ onFermer, mac = false, portees = null, onTout }: {
+  onFermer: () => void; mac?: boolean;
+  /** Lot 13 bis · seulement ces portées (« Raccourcis » d'un projet) · `null` · la table entière. */
+  portees?: readonly PorteeRaccourci[] | null;
+  /** Revenir à l'aide entière · le focus reste dans la fenêtre. */
+  onTout?: () => void;
+}) {
   const boite = useRef<HTMLDivElement>(null);
-  const groupes = useMemo(() => groupesAideRaccourcis(undefined, mac), [mac]);
+  const groupes = useMemo(() => groupesAideRaccourcis(undefined, mac, portees), [mac, portees]);
   // Le focus entre dans la fenêtre à l'ouverture (titre annoncé par `aria-labelledby`).
   useEffect(() => { boite.current?.focus(); }, []);
   // Tab et Maj Tab tournent dans la fenêtre · le reste de la coquille est `inert`, ceci couvre les navigateurs sans `inert`.
@@ -108,6 +116,15 @@ export function AideRaccourcis({ onFermer, mac = false }: { onFermer: () => void
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
           Jamais pendant que tu écris dans un champ, ni sur un lecteur vidéo. « G » puis une lettre · tape les deux touches l’une après l’autre.
         </p>
+        {portees && (
+          <div data-aide-filtree={portees.join(' ')} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <p className="faint" style={{ fontSize: 12.5, margin: 0, flex: '1 1 260px' }}>{libelleAideFiltree(portees)}</p>
+            {onTout && (
+              <button className="btn sm" type="button" data-aide-tout="" style={{ minHeight: 44 }}
+                onClick={() => { boite.current?.focus(); onTout(); }}>Tous les raccourcis</button>
+            )}
+          </div>
+        )}
         <ChoixRaccourcis />
         {groupes.map((g) => (
           <section key={g.portee} data-portee={g.portee} aria-labelledby={`raccourcis-${g.portee}`} style={{ display: 'grid', gap: 6 }}>

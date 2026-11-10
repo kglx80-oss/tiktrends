@@ -158,7 +158,8 @@ function Arbitrage(p: Extract<PropsActionsLot, { mode: 'arbitrage' }>) {
   const [enonces, setEnonces] = useState<Record<string, string>>(() => ({ ...(p.jarvis?.textes ?? {}) }));
   const [portees, setPortees] = useState<Record<string, ValidateInput['learning']['scope']>>({});
   return (
-    <section className="tile sec" id={ANCRE_CONCLURE_LOT} aria-label="Conclure le lot">
+    // Focalisable par programme · la touche C de la fiche (lot 13 bis) y pose le focus.
+    <section className="tile sec" id={ANCRE_CONCLURE_LOT} aria-label="Conclure le lot" tabIndex={-1}>
       <h2>Conclure le lot</h2>
       <p className="muted" style={{ fontSize: '12.5px', marginTop: 4 }}>Un verdict ne se valide qu’avec ce qu’il t’apprend · une phrase complète, réutilisable sur la prochaine créa.</p>
       {p.jarvis && <p className="faint" role="status" data-note-jarvis="" style={{ fontSize: '12.5px', marginTop: 6 }}>{p.jarvis.note}</p>}
