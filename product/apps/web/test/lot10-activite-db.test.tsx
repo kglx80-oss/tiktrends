@@ -267,7 +267,14 @@ describe('lot 10 · commenter une version et une création · modifier le sien, 
     expect(k).toMatchObject({ targetType: 'version', versionId: scene.eV2, assetId: null, authorId: ids.ua, body: 'Le titre déborde à droite\n\nà reprendre', resolvedAt: null, history: [] });
     // Le journal le dit (relu du serveur).
     await activite(scene.e);
-    expect(phrases()[0]).toEqual(['Commentaire sur la version 2', null]);
+    // Le semis date deux faits « à venir » (version 3 sans audit à +1 s, événement inconnu à +2 s) ·
+    // sur une machine rapide le commentaire est écrit avant ces instants · seuls ces deux-là peuvent
+    // le précéder, tout le reste du journal (écrit au semis) vient après lui.
+    const ordre = phrases().map((p) => p[0]);
+    const i = ordre.indexOf('Commentaire sur la version 2');
+    expect(phrases()[i], 'le commentaire n’est pas dans le journal').toEqual(['Commentaire sur la version 2', null]);
+    expect(ordre.slice(0, i).every((x) => x === PHRASE_EVENEMENT_INCONNU || x === 'Version 3 enregistrée'), 'un fait plus ancien que le commentaire passe devant lui').toBe(true);
+    expect(i, 'le commentaire n’est pas avant les faits du semis').toBeLessThan(ordre.indexOf('Projet renommé'));
   });
 
   it('commenter une création (sortie livrée) · `<script>` reste du texte · relu dans la fiche rendue du serveur', async () => {
