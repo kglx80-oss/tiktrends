@@ -58,6 +58,12 @@ export interface NoeudLignee {
   destination: string | null;
   /** Pastille « Gagnant » pour un résultat gagnant, sinon `null`. */
   badge: string | null;
+  /**
+   * Résultat seulement (lot 11 V5) · le lot de test Adsmap de la fiche
+   * (`adsmap_ads.batch_id`, relu dans l'espace et la marque du lien) · il fait
+   * le GROUPE « Lot de test n° … » du canvas. Absent · hors lot, ou lecture d'avant.
+   */
+  lotTest?: { id: string; numero: number; statut: string } | null;
 }
 
 export interface LienLignee {
@@ -133,6 +139,12 @@ const idCreation = (variantId: string) => `creation:${variantId}`;
 const idResultat = (variantId: string) => `resultat:${variantId}`;
 const idApprentissage = (variantId: string) => `apprentissage:${variantId}`;
 
+/**
+ * L'écran EXISTANT d'un nœud porté par le brief (brief, hypothèse, direction) ·
+ * l'onglet « Brief & références » de SA version (l'ancre ouvre l'onglet).
+ */
+const ecranBrief = (projetId: string, versionId: string) => `/studio/projets/${projetId}?version=${versionId}#brief`;
+
 const GAGNANTS: ReadonlySet<VerdictValue> = new Set<VerdictValue>(['winner', 'baby_winner']);
 
 /** Verdict effectif d'un résultat, s'il y en a un (validé sinon calculé). */
@@ -196,7 +208,7 @@ export function projeterLignee(e: EntreeLignee): ModeleLignee {
         : `Version ${v.n} · pas encore de brief rédigé.`;
     pose({
       id: idBrief(v.id), type: 'brief', titre: `Brief · version ${v.n}`,
-      resume: resumeBrief, destination: `/studio/projets/${projet.id}?version=${v.id}`, badge: null,
+      resume: resumeBrief, destination: ecranBrief(projet.id, v.id), badge: null,
     }, [v.n, 0, 0, 2]);
 
     if (b && (b.hypothese || b.hypotheseId)) {
@@ -204,14 +216,14 @@ export function projeterLignee(e: EntreeLignee): ModeleLignee {
       pose({
         id: idHypothese(v.id), type: 'hypothese', titre: `Hypothèse · version ${v.n}`,
         resume: court(`${b.hypothese ?? 'Hypothèse citée au brief.'}${variable}`, 140),
-        destination: `/studio/projets/${projet.id}?version=${v.id}`, badge: null,
+        destination: ecranBrief(projet.id, v.id), badge: null,
       }, [v.n, 0, 0, 3]);
       relie(idBrief(v.id), idHypothese(v.id), 'contexte', 'Hypothèse');
     }
     if (b && b.direction) {
       pose({
         id: idDirection(v.id), type: 'direction', titre: `Direction · version ${v.n}`,
-        resume: court(b.direction, 140), destination: `/studio/projets/${projet.id}?version=${v.id}`, badge: null,
+        resume: court(b.direction, 140), destination: ecranBrief(projet.id, v.id), badge: null,
       }, [v.n, 0, 0, 4]);
       relie(idBrief(v.id), idDirection(v.id), 'contexte', 'Direction');
     }
@@ -249,7 +261,7 @@ export function projeterLignee(e: EntreeLignee): ModeleLignee {
     pose({
       id: idGroupe(lot.jobId), type: 'groupe', titre: `Lot ${lot.lot} · version ${nV}`,
       resume: `${vars.length} création${vars.length > 1 ? 's' : ''} retenue${vars.length > 1 ? 's' : ''} de ce lot.`,
-      destination: null, badge: null,
+      destination: `/studio/projets/${projet.id}#creations`, badge: null,
     }, [nV, lot.lot, 0, 5]);
     // Le lot découle du brief de SA version (la production part du brief).
     if (ajoute.has(idBrief(lot.versionId))) relie(idBrief(lot.versionId), idGroupe(lot.jobId), 'visuel', 'Visuel');
@@ -262,7 +274,7 @@ export function projeterLignee(e: EntreeLignee): ModeleLignee {
     pose({
       id: idCreation(v.id), type: 'creation', titre: `Création · ${libelle}`,
       resume: v.hypothese ? court(`Hypothèse : ${v.hypothese}`, 120) : 'Média retenu comme variante.',
-      destination: `/studio/projets/${projet.id}`, badge: null,
+      destination: `/studio/projets/${projet.id}#variantes`, badge: null,
     }, [nV, v.lot, v.position, 6]);
     // Rattachée à son lot si le lot est dans la lignée, sinon directement au brief de sa version.
     if (ajoute.has(idGroupe(v.jobId))) relie(idGroupe(v.jobId), idCreation(v.id), 'visuel', 'Création');
@@ -276,6 +288,7 @@ export function projeterLignee(e: EntreeLignee): ModeleLignee {
         resume: verdict ? `Verdict Adsmap · ${LIBELLE_VERDICT[verdict].court.toLowerCase()}.` : 'Test rattaché · pas encore de verdict mesuré.',
         destination: `/adsmap?ad=${encodeURIComponent(v.test.adsmapAdId)}&depuis=studio`,
         badge: gagnant ? 'Gagnant' : null,
+        lotTest: v.test.lot?.id ? { id: v.test.lot.id, numero: v.test.lot.numero, statut: v.test.lot.statut } : null,
       }, [nV, v.lot, v.position, 7]);
       relie(idCreation(v.id), idResultat(v.id), 'mesure', 'Mesure');
 
@@ -283,7 +296,7 @@ export function projeterLignee(e: EntreeLignee): ModeleLignee {
         const phrase = v.relecture?.apprentissage?.trim() || v.lecture?.phrase || 'Apprentissage tiré de ce test.';
         pose({
           id: idApprentissage(v.id), type: 'apprentissage', titre: `Apprentissage · ${libelle}`,
-          resume: court(phrase, 160), destination: null, badge: null,
+          resume: court(phrase, 160), destination: `/studio/projets/${projet.id}#variantes`, badge: null,
         }, [nV, v.lot, v.position, 8]);
         relie(idResultat(v.id), idApprentissage(v.id), 'mesure', 'Apprentissage');
       }

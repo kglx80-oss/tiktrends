@@ -185,7 +185,7 @@ export async function liensEtVerdicts(ex: ExecStudio, ctx: ContexteStudio, varia
     adStatus: schema.ads.status, hypothesis: schema.ads.hypothesis, testedVariable: schema.ads.testedVariable, variableValue: schema.ads.variableValue,
     computed: schema.verdicts.computed, validated: schema.verdicts.validated, comparable: schema.verdicts.comparable,
     failedStage: schema.verdicts.failedStage, killFlag: schema.verdicts.killFlag, computedAt: schema.verdicts.computedAt,
-    lotNumero: schema.batches.number, lotStatut: schema.batches.status,
+    lotId: schema.batches.id, lotNumero: schema.batches.number, lotStatut: schema.batches.status,
     workspaceId: TL.workspaceId, brandId: TL.brandId,
   }).from(TL)
     .innerJoin(schema.ads, and(eq(schema.ads.id, TL.adsmapAdId), eq(schema.ads.workspaceId, ctx.workspaceId)))
@@ -278,7 +278,7 @@ export async function listerVariantes(ctx: ContexteStudio, e: { projectId: unkno
         objectif: entree?.objectif ?? null, protocole: (entree?.protocole ?? null) as ProtocoleTest | null,
         periode: entree?.periode ?? null, metrique: entree?.metrique ?? null,
         isolation: entree?.isolation ?? null, verdict: verdictLu(l),
-        lot: l.lotNumero !== null && l.lotStatut !== null ? { numero: l.lotNumero, statut: l.lotStatut } : null,
+        lot: l.lotId !== null && l.lotNumero !== null && l.lotStatut !== null ? { id: l.lotId, numero: l.lotNumero, statut: l.lotStatut } : null,
       };
     }
     const parentLien = v.parentVariantId ? lienOuvertOuDernier.get(v.parentVariantId) : undefined;

@@ -53,8 +53,12 @@ export interface TestLu {
   metrique: MetriqueTest | null;
   isolation: { statut: StatutIsolation; champs: string[] } | null;
   verdict: VerdictLu | null;
-  /** Lot de test Adsmap de la fiche (`adsmap_batches`) · `null` si la fiche n'est dans aucun lot. */
-  lot?: { numero: number; statut: string } | null;
+  /**
+   * Lot de test Adsmap de la fiche (`adsmap_batches`) · `null` si la fiche n'est dans aucun lot.
+   * `id` (lot 11 V5) · l'identifiant du lot, lu dans la même jointure · la lignée en fait un GROUPE
+   * et ouvre la fiche du lot · absent pour les lectures d'avant.
+   */
+  lot?: { id?: string; numero: number; statut: string } | null;
 }
 
 export interface RelectureApprentissage {

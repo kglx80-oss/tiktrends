@@ -1,4 +1,5 @@
 export * from './noeuds';
+export * from './lignee-canvas';
 export * from './projet';
 export * from './video';
 export * from './editeur';

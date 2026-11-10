@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useState } from 'react';
-import { VIDE_COULOIR, rechercheDisposition, repliPossible, replierPerdants, type CibleJarvisNoeud, type ModeDispositionProjet } from '@tiktrends/core';
+import { VIDE_COULOIR, elementsCouloir, rechercheDisposition, repliPossible, replierPerdants, type CibleJarvisNoeud, type ModeDispositionProjet, type NoeudSpatial } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Noeud } from './briques';
 import { useNaviguer } from './naviguer';
@@ -73,6 +73,13 @@ export function Projet(p: PropsProjet) {
   const id = useId();
   const raisons = { generer: `${id}-generer`, replier: `${id}-replier`, libre: `${id}-libre` };
   const couloirs = useMemo(() => replierPerdants(p.couloirs, replie && repli.possible), [p.couloirs, replie, repli.possible]);
+  const noeud = (n: NoeudSpatial) => (
+    <Noeud key={n.id} n={n} geste={n.cible && (
+      // Un « Cibler Jarvis » par nœud · le nom dit LEQUEL (il commence par le mot affiché).
+      <button className="pill c" type="button" data-cibler-jarvis={n.cible.cible} style={{ justifySelf: 'start' }} aria-label={`Cibler Jarvis · ${n.titre ?? n.etiquette}`}
+        title="Choisit cette cible dans les propositions · rien n’est envoyé" onClick={() => cibler(n.cible!)}><Ic n="spark" />Cibler Jarvis</button>
+    )} />
+  );
 
   return (
     <Vue>
@@ -120,13 +127,21 @@ export function Projet(p: PropsProjet) {
               {couloirs.map((c) => (
                 <div className="lane" key={c.cle}>
                   <span className="lh">{c.titre}</span>
-                  {c.noeuds.map((n) => (
-                    <Noeud key={n.id} n={n} geste={n.cible && (
-                      // Un « Cibler Jarvis » par nœud · le nom dit LEQUEL (il commence par le mot affiché).
-                      <button className="pill c" type="button" data-cibler-jarvis={n.cible.cible} style={{ justifySelf: 'start' }} aria-label={`Cibler Jarvis · ${n.titre ?? n.etiquette}`}
-                        title="Choisit cette cible dans les propositions · rien n’est envoyé" onClick={() => cibler(n.cible!)}><Ic n="spark" />Cibler Jarvis</button>
-                    )} />
-                  ))}
+                  {/* Lot 11 · un groupe de lot (calculé, jamais saisi) est un CADRE autour de ses membres · hors maquette, seul écart du couloir. */}
+                  {elementsCouloir(c).map((e) => (e.type === 'noeud' ? noeud(e.noeud) : (
+                    <div key={e.groupe.id} data-groupe-lot={e.groupe.id} data-nature={e.groupe.nature} role="group" aria-label={`${e.groupe.titre} · ${e.noeuds.length} nœud${e.noeuds.length > 1 ? 's' : ''}`}
+                      style={{ display: 'grid', gap: '10px', padding: '8px', borderRadius: '22px', border: '1px dashed var(--edge)', background: 'var(--glass2)' }}>
+                      {e.groupe.nature === 'test' && (
+                        <div data-groupe-entete="" style={{ display: 'grid', gap: '4px', padding: '2px 4px', fontSize: '11.5px', color: 'var(--fg2)' }}>
+                          <span style={{ font: '700 10px/1 var(--sf)', letterSpacing: '.1em', color: 'var(--fg3)' }}>{e.groupe.etiquette}</span>
+                          <strong style={{ font: '600 13px/1.25 var(--sfd)', color: 'var(--fg)' }}>{e.groupe.titre}</strong>
+                          {e.groupe.texte}
+                          {e.groupe.lien && <Lien className="pill c" style={{ justifySelf: 'start' }} href={e.groupe.lien.href}>{e.groupe.lien.libelle}</Lien>}
+                        </div>
+                      )}
+                      {e.noeuds.map(noeud)}
+                    </div>
+                  )))}
                   {c.noeuds.length === 0 && <span className="faint" style={{ fontSize: '11.5px' }} data-vide-couloir={c.cle}>{c.cle === 'iteration' && p.iterationVide ? p.iterationVide : VIDE_COULOIR[c.cle]}</span>}
                 </div>
               ))}
