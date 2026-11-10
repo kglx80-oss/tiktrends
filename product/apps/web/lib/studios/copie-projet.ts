@@ -3,6 +3,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   aPermissionEspace, contenuCopieProjet, objetDansPortee, erreurStudio, mediasCitesCopie, raisonCopieProjet, titreCopieProjet, titreProjetValide,
+  lireCopieDe, ACTION_COPIE_DE, CLE_COPIE_DE,
   type BilanCopieProjet, type ContenuVersion, type ErreurStudio, type OrigineMediaCopie,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
@@ -23,7 +24,10 @@ import { creerProjet, estUuid, lireProjet, lireVersion, type ProjetStudio, type 
  *    par `creerProjet` (le chemin de création, ses contrôles et son audit),
  *    dont la version 1 reprend la STRUCTURE de la version courante
  *    (`contenuCopieProjet`) · aucune ligne de génération, d'export, de
- *    variante, de test, de mesure ni de verdict n'est copiée.
+ *    variante, de test, de mesure ni de verdict n'est copiée · l'audit de la
+ *    création porte `copieDe` (projet et version sources · `detailsCopieDe`),
+ *    le seul lien entre les deux projets, relu par `liensDeCopie` (journal du
+ *    projet source, lignée des deux projets).
  */
 
 type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
@@ -79,7 +83,59 @@ export async function dupliquerProjetPour(ctx: ContexteStudio, e: { projectId: u
   const c = await creerProjet(ctx, {
     brandId: p.projet.brandId, kind: p.projet.kind, title: titreCopieProjet(p.projet.title), contenu,
     raison: raisonCopieProjet({ titre: p.projet.title, versionN: v.version.n }, bilan),
+    copieDe: { projectId: p.projet.id, versionId: v.version.id },
   });
   if (!c.ok) return c;
   return { ok: true, projet: c.projet, version: c.version, source: { id: p.projet.id, versionId: v.version.id }, bilan };
+}
+
+/* ─────────────────────── le lien de copie, relu ─────────────────────── */
+
+export interface CopieLue { id: string; titre: string; versionId: string; evenementId: string; le: Date; acteurId: string | null }
+export interface LiensDeCopie {
+  /** Le projet dont celui-ci est la copie · `null` sans lien enregistré (duplication passée) ou hors portée. */
+  source: { id: string; titre: string; versionId: string } | null;
+  /** Les copies de ce projet · leur création porte `copieDe` vers lui · `titre` `null` quand la copie n'est plus lisible. */
+  copies: Array<Omit<CopieLue, 'titre'> & { titre: string | null }>;
+}
+
+/** Au plus ce nombre de copies relues · la lecture reste bornée. */
+export const COPIES_MAX_LUES = 200;
+
+/**
+ * Les liens de copie d'un projet DÉJÀ relu dans la portée · LECTURE seule ·
+ * l'audit de la création de chaque copie (`project.create` · `copieDe` vers ce
+ * projet), et celui de la création de ce projet (sa source) · chaque projet
+ * cité est relu dans la portée (espace, marques visibles, restrictions) · un
+ * projet hors portée ne se dit pas (ni titre, ni lien). Une duplication passée
+ * (sans `copieDe`) n'apparaît nulle part · rien n'est deviné.
+ */
+export async function liensDeCopie(ctx: ContexteStudio, projet: { id: string; brandId: string }): Promise<LiensDeCopie> {
+  if (ctx.marques.length === 0 || !ctx.marques.includes(projet.brandId)) return { source: null, copies: [] };
+  const E = schema.studioAuditEvents;
+  const P = schema.studioProjects;
+  const portee = { workspaceId: ctx.workspaceId, marquesDuWorkspace: ctx.marquesDuWorkspace, restrictionsMarque: ctx.restrictionsMarque };
+  const base = and(eq(E.action, ACTION_COPIE_DE), eq(E.targetType, 'studio_project'), eq(E.workspaceId, ctx.workspaceId), eq(E.brandId, projet.brandId));
+  const [cree, copies] = await Promise.all([
+    db.select({ details: E.details }).from(E).where(and(base, eq(E.targetId, projet.id))).limit(1),
+    db.select({ id: E.id, cible: E.targetId, details: E.details, le: E.occurredAt, acteur: E.actorId }).from(E)
+      .where(and(base, sql`${E.details} -> ${CLE_COPIE_DE} ->> 'projectId' = ${projet.id}`)).orderBy(E.occurredAt).limit(COPIES_MAX_LUES),
+  ]);
+  const lien = lireCopieDe(cree[0]?.details);
+  const ids = [...new Set([...(lien ? [lien.projectId] : []), ...copies.map((c) => c.cible)])].filter(estUuid);
+  const lus = ids.length
+    ? (await db.select({ id: P.id, titre: P.title, workspaceId: P.workspaceId, brandId: P.brandId }).from(P)
+      .where(and(inArray(P.id, ids), eq(P.workspaceId, ctx.workspaceId), inArray(P.brandId, ctx.marques)))).filter((x) => objetDansPortee(portee, x))
+    : [];
+  const titre = new Map(lus.map((x) => [x.id, x.titre]));
+  const src = lien && lien.projectId !== projet.id && titre.has(lien.projectId) ? { id: lien.projectId, titre: titre.get(lien.projectId)!, versionId: lien.versionId } : null;
+  return {
+    source: src,
+    copies: copies.flatMap((c) => {
+      const l = lireCopieDe(c.details);
+      // Le lien relu doit désigner CE projet · la requête le filtre, la lecture défensive le confirme.
+      if (!l || l.projectId !== projet.id || c.cible === projet.id) return [];
+      return [{ id: c.cible, titre: titre.get(c.cible) ?? null, versionId: l.versionId, evenementId: c.id, le: c.le, acteurId: c.acteur }];
+    }),
+  };
 }

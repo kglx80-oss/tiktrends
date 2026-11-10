@@ -180,6 +180,8 @@ describe('lot 10 · le journal d’un projet · qui a fait quoi, lu, dans l’or
     expect(phrases()).toEqual([
       [PHRASE_EVENEMENT_INCONNU, null],
       ['Version 3 enregistrée', 'Reprise sans audit'],
+      // La duplication est dite sur le projet SOURCE (`copieDe` dans l'audit de la création de la copie).
+      ['Dupliqué en « Copie de Crème · rentrée »', 'Depuis la version 2 · la copie reprend la structure, sans générations, exports, tests ni mesures'],
       ['Projet renommé', '« Crème » devient « Crème · rentrée »'],
       ['Version 2 exportée', 'PNG · 1080 × 1080 · creme-v2-png.png'],
       ['Relecture humaine validée · version 2', '5 points relus avant export'],
@@ -188,14 +190,15 @@ describe('lot 10 · le journal d’un projet · qui a fait quoi, lu, dans l’or
     ]);
     // Qui, quand, quelle version · « Toi » pour la session, le membre par son adresse.
     const qui0 = [...hote.querySelectorAll('[data-entrees-journal] [data-qui]')].map((q) => q.textContent!.replace(/^\d\d\/\d\d\/\d{4} · \d\d:\d\d · /, ''));
-    expect(qui0).toEqual(['Toi', 'ur@studios.test · version 3', 'Toi · version 2', 'Toi · version 2', 'Toi · version 2', 'Toi · version 2', 'Toi · version 1']);
+    expect(qui0).toEqual(['Toi', 'ur@studios.test · version 3', 'Toi · version 2', 'Toi · version 2', 'Toi · version 2', 'Toi · version 2', 'Toi · version 2', 'Toi · version 1']);
     // Rien du code, de la raison ni des détails de l'événement inconnu.
     expect(hote.innerHTML).not.toMatch(/zz\.interne|raison interne|sk_live_l10/);
     // « Voir le livrable » d'un export mène à l'export de CETTE version · « Examiner » à la version.
     const liens = [...hote.querySelectorAll('[data-entrees-journal] a')].map((a) => [a.textContent, a.getAttribute('href')]);
     expect(liens).toContainEqual(['Voir le livrable', `/studio/projets/${scene.e}/export?version=${scene.eV2}`]);
     expect(liens).toContainEqual(['Examiner la version 3', `/studio/projets/${scene.e}?version=${scene.eV3}`]);
-    expect(hote.querySelector('[data-resume-journal]')?.textContent).toBe('7 événements');
+    expect(liens).toContainEqual(['Ouvrir la copie', `/studio/projets/${scene.copie}`]);
+    expect(hote.querySelector('[data-resume-journal]')?.textContent).toBe('8 événements');
   });
 
   it('la copie d’une duplication dit d’où elle vient · rien de produit n’y figure', async () => {
@@ -206,12 +209,12 @@ describe('lot 10 · le journal d’un projet · qui a fait quoi, lu, dans l’or
   it('filtrer par type relit le serveur · seuls les exports · « Tout » revient', async () => {
     await activite(scene.e);
     const filtres = [...hote.querySelectorAll('[data-filtres-journal] button')].map((b) => b.textContent);
-    expect(filtres).toEqual(['Tout · 7', 'Versions · 2', 'Exports · 1', 'Relectures · 1', 'Projet · 2', 'Autres · 1']);
+    expect(filtres).toEqual(['Tout · 8', 'Versions · 2', 'Exports · 1', 'Relectures · 1', 'Projet · 3', 'Autres · 1']);
     await cliquer(hote.querySelector('[data-filtres-journal] button[data-type="exports"]'));
     expect(phrases().map((p) => p[0])).toEqual(['Version 2 exportée']);
     expect(hote.querySelector('[data-filtres-journal] button[data-type="exports"]')?.getAttribute('aria-pressed')).toBe('true');
     await cliquer(hote.querySelector('[data-filtres-journal] button[data-type=""]'));
-    expect(phrases()).toHaveLength(7);
+    expect(phrases()).toHaveLength(8);
   });
 
   it('un projet à lots réels · devis, lancement, fin de génération · « Voir le journal » depuis les tâches', async () => {
