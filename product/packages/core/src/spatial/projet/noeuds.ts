@@ -30,6 +30,8 @@ export const COULOIR_DU_TYPE: Readonly<Record<TypeNoeudLignee, CleCouloir>> = {
   groupe: 'creations', creation: 'creations',
   resultat: 'mesure', apprentissage: 'mesure',
   iteration: 'iteration',
+  // Les projets frères (`copieDe`) · la source cadre le projet, la copie en découle.
+  projet_source: 'contexte', copie: 'iteration',
 };
 
 /** L'étiquette en capitales de la maquette (`span.k`) · le MOT porte le type. */
@@ -39,6 +41,7 @@ export const ETIQUETTE_NOEUD: Readonly<Record<TypeNoeudLignee | 'produit', strin
   groupe: 'LOT', creation: 'CRÉATION',
   resultat: 'RÉSULTAT', apprentissage: 'APPRENTISSAGE',
   iteration: 'ITÉRATION', produit: 'ASSET',
+  projet_source: 'PROJET SOURCE', copie: 'COPIE',
 };
 
 export type ClassePastille = '' | 'c' | 'g' | 'w';
@@ -166,6 +169,12 @@ function noeudDeLignee(n: NoeudLignee, c: ContexteNoeuds, gagne: Set<string>, pe
       return vide({
         ...base, classe: vue ? 'sel' : '', titre: n.titre, texte: n.resume,
         lien: n.destination && !vue ? { href: n.destination, libelle: 'Ouvrir cette version', forme: 'pastille' } : null,
+      });
+    case 'projet_source':
+    case 'copie':
+      return vide({
+        ...base, titre: sansPrefixe(n.titre, n.type === 'copie' ? 'Copie · ' : 'Projet source · '), texte: n.resume,
+        lien: n.destination ? { href: n.destination, libelle: n.type === 'copie' ? 'Ouvrir la copie' : 'Ouvrir le projet source', forme: 'pastille' } : null,
       });
     default:
       return vide({ ...base, titre: n.titre, texte: n.resume });

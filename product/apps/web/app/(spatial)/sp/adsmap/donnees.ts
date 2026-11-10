@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese, lireProvenanceJarvis, sommeRetenues,
-  type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
+  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, sommeRetenues,
+  type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -59,6 +59,8 @@ export interface AdLue extends FaitsAdSpatial {
   typeAd: string;
   /** Provenance « Jarvis » (`source_ref_json.jarvis`, posée par le serveur après relecture) · `null` sans elle. */
   jarvis?: ProvenanceJarvis | null;
+  /** Provenance « Commentaire » (`source_ref_json.commentaire`, posée par le serveur après relecture) · `null` sans elle. */
+  commentaire?: ProvenanceCommentaire | null;
 }
 
 export interface LotLu extends FaitsLotSpatial {
@@ -137,6 +139,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       estimation: { impact: r.ad.iceImpact, confiance: r.ad.iceConfidence, effort: r.ad.iceEffort },
       typeAd: r.ad.adType,
       jarvis: lireProvenanceJarvis(r.ad.sourceRef),
+      commentaire: lireProvenanceCommentaire(r.ad.sourceRef),
       verdict: r.v?.adId ? {
         calcule: (r.v.computed ?? null) as VerdictValue | null,
         retenu: (r.v.validated ?? null) as VerdictValue | null,
