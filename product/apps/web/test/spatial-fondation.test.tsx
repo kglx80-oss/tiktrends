@@ -153,7 +153,17 @@ describe('Spatial · parité de structure avec la maquette', () => {
       peutGererMarques: true, admin: true, passer: { titre: 'Passer à Plus', sous: '7 000 crédits / mois' }, railOuvert: true,
       utilisateur: CTX.utilisateur, espaceNom: 'GLX', credits: CTX.credits, nonLues: 4, deconnexion: async () => {},
     };
-    const html = renderToStaticMarkup(<Coquille donnees={d}><div className="view" /></Coquille>);
+    const servi = renderToStaticMarkup(<Coquille donnees={d}><div className="view" /></Coquille>);
+    // Écart DÉCLARÉ, hors maquette (lot 13 · CA H07) · le bouton « Raccourcis clavier » du
+    // rail, UN seul, même primitive que « Réduire le menu » (`.railtg`), juste avant
+    // `#morebtn`. Retiré du rendu avant la comparaison · rien d'autre ne s'écarte.
+    const t = document.createElement('template');
+    t.innerHTML = servi;
+    const aide = [...t.content.querySelectorAll('nav.rail > button#raccourcis-aide.railtg')];
+    expect(aide.length, 'le bouton « Raccourcis clavier » du rail a disparu · retire cet écart').toBe(1);
+    expect(aide[0]!.nextElementSibling?.id, 'le bouton « Raccourcis clavier » a quitté sa place (avant « Plus de modules »)').toBe('morebtn');
+    aide[0]!.remove();
+    const html = t.innerHTML;
     const p = parite(html, '_coquille', {
       selecteur: 'nav.rail', ignorer: ['.brandrow .logo'],
       correctifs: [{ selecteur: '.brandrow', style: ['width'], motif: 'barre mobile · la rangée de marque vide (width:100%) écrasait les onglets à 20 px' }],
