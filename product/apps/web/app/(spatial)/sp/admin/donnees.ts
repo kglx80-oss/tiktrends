@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation';
 import { and, asc, count, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  attendReponse, entreesAdminOuvertes, mrrPlateforme,
-  type EspacePlateforme, type TarifsPlateforme, type TicketPlateforme, type StatutTicket, type TypeTicket,
+  attendReponse, entreesAdminOuvertes, ligneRentabiliteTour, mrrPlateforme, nomEquipePlateforme, rentabiliteForfaits,
+  type EspacePlateforme, type GraviteIncident, type IncidentLu, type LigneRentabiliteTour, type NoteIncident,
+  type TarifsPlateforme, type TicketPlateforme, type StatutTicket, type TypeTicket,
 } from '@tiktrends/core';
 import { fileSupport } from '@tiktrends/core';
 import { getSession, type Session } from '../../../../lib/auth';
@@ -33,11 +34,22 @@ const PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
  * toute lecture.
  */
 export async function porteAdmin(): Promise<Session> {
+  const p = await porteAdminGeste();
+  if (!p.ok) redirect(p.vers);
+  return p.session;
+}
+
+/**
+ * La MÊME règle que `porteAdmin`, sans redirection · pour les GESTES du Tour de
+ * contrôle (exports, incidents · `app/actions/tour-controle.ts`), qui refusent
+ * par un message sans rien lire ni écrire. Une seule règle, deux sorties.
+ */
+export async function porteAdminGeste(): Promise<{ ok: true; session: Session } | { ok: false; vers: '/login' | '/dashboard' }> {
   const s = await getSession();
-  if (!s) redirect('/login');
-  if (!roleAtLeast(s.role, 'admin')) redirect('/dashboard');
-  if (!isFounder(s.user.email)) redirect('/dashboard');
-  return s;
+  if (!s) return { ok: false, vers: '/login' };
+  if (!roleAtLeast(s.role, 'admin')) return { ok: false, vers: '/dashboard' };
+  if (!isFounder(s.user.email)) return { ok: false, vers: '/dashboard' };
+  return { ok: true, session: s };
 }
 
 /** Les tarifs effectifs · formules du code, surcharges en base (`plan_config`). */
@@ -199,4 +211,37 @@ export async function chargerDeclarations(limite: number): Promise<Array<{
     id: r.id, nom: r.nom, forfait: r.forfait, onboarding: r.onboarding,
     creeLe: r.creeLe as Date, onboardeLe: date(r.onboardeLe), proprietaire: parEspace.get(r.id) ?? null,
   }));
+}
+
+/**
+ * « Rentabilité par abonnement » (Revenus & MRR) · les lignes de la table · la
+ * page ET l'export (`exporterTourAction`) passent par ici.
+ */
+export function lignesRentabilite(espaces: readonly EspacePlateforme[], tarifs: TarifsPlateforme): LigneRentabiliteTour[] {
+  return rentabiliteForfaits(mrrPlateforme(espaces, tarifs).parForfait).map(ligneRentabiliteTour);
+}
+
+/** Les incidents lus au plus · les plus récents d'abord. Au-delà, l'écran le dit. */
+export const LIMITE_INCIDENTS_DECLARES = 500;
+
+/**
+ * Les incidents DÉCLARÉS (`platform_incidents`, 0075), les plus récents
+ * d'abord, et le nom affichable de chaque membre de l'équipe cité (ouverture,
+ * clôture, notes) · jamais son adresse (`nomEquipePlateforme`). Portée
+ * plateforme · à n'appeler qu'APRÈS `porteAdmin` ou `porteAdminGeste`.
+ */
+export async function chargerIncidentsDeclares(): Promise<{ incidents: IncidentLu[]; nom: (id: string | null) => string; limite: number }> {
+  const sansNom = (_id: string | null) => nomEquipePlateforme(null);
+  if (!db) return { incidents: [], nom: sansNom, limite: LIMITE_INCIDENTS_DECLARES };
+  const I = schema.platformIncidents;
+  const rows = await db.select().from(I).orderBy(desc(I.createdAt), desc(I.id)).limit(LIMITE_INCIDENTS_DECLARES);
+  const incidents: IncidentLu[] = rows.map((r) => ({
+    id: r.id, titre: r.title, gravite: r.severity as GraviteIncident, cause: r.cause, constat: r.description,
+    statut: r.status, notes: Array.isArray(r.notes) ? (r.notes as NoteIncident[]) : [],
+    ouvertLe: r.createdAt as Date, ouvertPar: r.openedBy, closLe: date(r.closedAt), closPar: r.closedBy, resolution: r.resolution,
+  }));
+  const ids = [...new Set(incidents.flatMap((i) => [i.ouvertPar, i.closPar, ...i.notes.map((n) => n.auteur)]).filter((x): x is string => !!x))];
+  const noms = new Map<string, string>();
+  if (ids.length) for (const u of await db.select({ id: schema.users.id, nom: schema.users.name }).from(schema.users).where(inArray(schema.users.id, ids))) noms.set(u.id, nomEquipePlateforme(u.nom));
+  return { incidents, nom: (id) => (id ? noms.get(id) ?? nomEquipePlateforme(null) : nomEquipePlateforme(null)), limite: LIMITE_INCIDENTS_DECLARES };
 }

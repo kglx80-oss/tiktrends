@@ -48,6 +48,8 @@ const RECENSES: Record<string, { role: Role; pourquoi: string }> = {
   'packages/core/src/adsmap/mesures-retenues.ts': { role: 'lecture', pourquoi: 'journées retenues · la source « csv » (entrée d’un export importé) face à « meta », en règle pure · aucun fichier produit' },
   'packages/core/src/spatial/resultats/ecrans.ts': { role: 'lecture', pourquoi: 'liste « Dernières remontées » · source « csv » d’un import d’export · aucun fichier produit' },
   'packages/core/src/prompts/pack.ts': { role: 'lecture', pourquoi: 'commentaire nommant 04-RECETTE.csv' },
+  'packages/core/src/spatial/admin/tour-controle.ts': { role: 'production', pourquoi: 'tableauCsv · Tour de contrôle (lot 14) · Comptes, Rentabilité, Incidents, via csvCell après celluleSansFuite (secrets et adresses masqués)' },
+  'apps/web/spatial/vues/admin/client.tsx': { role: 'transit', pourquoi: 'BoutonExportTour · télécharge le CSV rendu par exporterTourAction (contenu produit par le noyau · tableauCsv)' },
 };
 
 function fichiers(dossier: string): string[] {

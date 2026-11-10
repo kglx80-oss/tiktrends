@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { LARGEUR_MIN_TABLE_TELEPHONE, styleTableDefilante, traceMrr } from '@tiktrends/core';
-import { Ic } from '../../communs';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LARGEUR_MIN_TABLE_TELEPHONE, LONGUEUR_MAX_RECHERCHE, adresseListeTour, styleTableDefilante, traceMrr, type LigneCompteTour } from '@tiktrends/core';
+import { Ic, Lien } from '../../communs';
+import { useSpatial } from '../../coquille/contexte';
+import { exporterTourAction } from '../../../app/actions/tour-controle';
+import { FERME, boutonAction } from '../projet/action-serveur';
 import { Vide } from './base';
 
 /**
@@ -59,33 +63,96 @@ export function ComptesARisqueListe({ filtres, comptes }: { filtres: ReadonlyArr
   );
 }
 
-export interface LigneCompte {
-  id: string;
-  nom: string;
-  cles: readonly string[];
-  forfait: { libelle: string; classe: '' | 'c' };
-  mrr: string;
-  credits: { part: number; texte: string; over: boolean };
-  sante: { libelle: string; classe: 'g' | 'w' | 'r' };
-  profil: string;
-  inscrit: string;
-}
+export type LigneCompte = LigneCompteTour;
 
-/** « Comptes » · recherche par nom et puces de filtre, sur la liste lue en base. */
-export function ComptesListe({ filtres, comptes, colonnes }: { filtres: ReadonlyArray<{ cle: string; libelle: string }>; comptes: readonly LigneCompte[]; colonnes: string }) {
-  const [f, setF] = useState('tous');
-  const [q, setQ] = useState('');
-  const n = q.trim().toLowerCase();
-  const vus = comptes.filter((c) => (f === 'tous' || c.cles.includes(f)) && (!n || c.nom.toLowerCase().includes(n)));
+/** L'état du bouton d'export · calculé au noyau (`etatExportTour`). */
+export interface EtatExport { ferme: boolean; raison: string | null; titre: string }
+
+/**
+ * « Exporter (CSV) » · le fichier de CE QUE L'ÉCRAN AFFICHE, produit au serveur
+ * (`exporterTourAction`, porte `porteAdminGeste`, cellules par `csvCell`) puis
+ * téléchargé. Fermé sans ligne, avec sa raison écrite à côté.
+ */
+export function BoutonExportTour({ entree, etat, unite }: { entree: Parameters<typeof exporterTourAction>[0]; etat: EtatExport; unite: { un: string; plusieurs: string } }) {
+  const { toast } = useSpatial();
+  const [presse, setPresse] = useState(false);
+  const lancer = async () => {
+    setPresse(true);
+    try {
+      const r = await exporterTourAction(entree);
+      if (!r.ok) { toast(r.message); return; }
+      if (typeof URL.createObjectURL === 'function') {
+        const lien = document.createElement('a');
+        lien.href = URL.createObjectURL(new Blob([r.csv], { type: 'text/csv;charset=utf-8' }));
+        lien.download = r.nom;
+        lien.click();
+        URL.revokeObjectURL(lien.href);
+      }
+      toast(`Export prêt · ${r.lignes.toLocaleString('fr-FR')} ${r.lignes > 1 ? unite.plusieurs : unite.un}`);
+    } catch {
+      toast('Export impossible · le serveur n’a pas répondu, réessaie dans un instant');
+    } finally {
+      setPresse(false);
+    }
+  };
   return (
     <>
-      <div className="sech"><h2>Comptes</h2><label className="jsearch" style={{ marginLeft: 'auto', minWidth: 220 }}><Ic n="search" /><input id="auq" type="search" placeholder="Rechercher un compte" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" /></label></div>
-      <Puces filtres={filtres} actif={f} choisir={setF} attr="data-auf" />
+      <button className="btn sm" type="button" data-export={entree.ecran} title={etat.titre} {...boutonAction({ presse, ferme: etat.ferme, focalisable: 'tout', surClic: () => { void lancer(); } })}>
+        <Ic n="down" />{presse ? 'Export…' : 'Exporter (CSV)'}
+      </button>
+      {etat.ferme && etat.raison && <small className="faint" data-raison-export="">{etat.raison}</small>}
+    </>
+  );
+}
+
+/** Délai de frappe avant de relire la liste au serveur · une requête par pause, pas une par lettre. */
+const PAUSE_RECHERCHE_MS = 350;
+
+export interface PropsListeComptes {
+  /** Les segments calculés (`segmentsComptes`), libellé avec effectif. */
+  segments: ReadonlyArray<{ cle: string; libelle: string }>;
+  segment: string;
+  q: string;
+  /** Les lignes de la PAGE rendue (le filtre est appliqué au serveur). */
+  comptes: readonly LigneCompte[];
+  /** Espaces inscrits, tous filtres confondus · pour dire pourquoi la liste est vide. */
+  inscrits: number;
+  pagination: { texte: string; precedente: string | null; suivante: string | null } | null;
+  export: EtatExport;
+}
+
+/**
+ * « Comptes » · segments calculés et recherche (casse et accents ignorés),
+ * relus AU SERVEUR (adresse `?segment=&q=&page=`) · la page rend la page
+ * demandée, l'export reprend tout le filtre.
+ */
+export function ComptesListe({ liste, colonnes, chemin = '/admin/signups' }: { liste: PropsListeComptes; colonnes: string; chemin?: string }) {
+  const router = useRouter();
+  const [q, setQ] = useState(liste.q);
+  const derniere = useRef(liste.q);
+  useEffect(() => {
+    if (q.trim() === derniere.current.trim()) return;
+    const t = setTimeout(() => { derniere.current = q; router.replace(adresseListeTour(chemin, { q, segment: liste.segment })); }, PAUSE_RECHERCHE_MS);
+    return () => clearTimeout(t);
+  }, [q, liste.segment, chemin, router]);
+  const vus = liste.comptes;
+  return (
+    <>
+      <div className="sech">
+        <h2>Comptes</h2>
+        <label className="jsearch" style={{ marginLeft: 'auto', minWidth: 220 }}><Ic n="search" /><input id="auq" type="search" placeholder="Rechercher un compte" aria-label="Rechercher un compte (nom, formule, profil)" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" maxLength={LONGUEUR_MAX_RECHERCHE} /></label>
+        <BoutonExportTour entree={{ ecran: 'comptes', q: liste.q, segment: liste.segment }} etat={liste.export} unite={{ un: 'compte', plusieurs: 'comptes' }} />
+      </div>
+      <div className="kc" style={{ marginBottom: 12 }}>
+        {liste.segments.map((f) => (
+          <button key={f.cle} type="button" className="chip" data-auf={f.cle} aria-pressed={liste.segment === f.cle} onClick={() => router.push(adresseListeTour(chemin, { q: liste.q, segment: f.cle }))}>{f.libelle}</button>
+        ))}
+      </div>
       <div className="atable" data-table="comptes" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.comptes)}>
         <div className="atr ath" style={{ gridTemplateColumns: colonnes }}><span>Compte</span><span>Forfait</span><span>MRR</span><span>Crédits utilisés</span><span>Santé</span><span>Profil</span><span>Inscrit le</span><span /></div>
         <div id="accrows">
           {vus.map((c) => (
-            <div className="atr" key={c.id} style={{ gridTemplateColumns: colonnes }}>
+            <div className="atr" key={c.id} style={{ gridTemplateColumns: colonnes }} data-compte={c.id}>
               <span><b>{c.nom}</b></span><span><span className={`pill ${c.forfait.classe}`}>{c.forfait.libelle}</span></span><span>{c.mrr}</span>
               <span><i className={c.credits.over ? 'amar over' : 'amar'}><b style={{ width: `${Math.max(0, Math.min(100, c.credits.part))}%` }} /></i>{c.credits.texte}</span>
               <span><span className={`pill ${c.sante.classe}`}>{c.sante.libelle}</span></span><span className="faint">{c.profil}</span><span className="faint">{c.inscrit}</span>
@@ -93,9 +160,16 @@ export function ComptesListe({ filtres, comptes, colonnes }: { filtres: Readonly
               <span className="aacts" />
             </div>
           ))}
-          {vus.length === 0 && <Vide>{comptes.length ? 'Aucun compte ne correspond.' : 'Aucun espace inscrit.'}</Vide>}
+          {vus.length === 0 && <Vide>{liste.inscrits ? 'Aucun compte ne correspond à ce filtre.' : 'Aucun espace inscrit.'}</Vide>}
         </div>
       </div>
+      {liste.pagination && (
+        <nav className="kc" aria-label="Pages de la liste des comptes" data-pagination="comptes" style={{ marginTop: 10, alignItems: 'center' }}>
+          {liste.pagination.precedente ? <Lien className="btn sm" href={liste.pagination.precedente}><Ic n="back" />Précédente</Lien> : <span className="btn sm" aria-disabled="true" style={FERME}><Ic n="back" />Précédente</span>}
+          <small className="faint">{liste.pagination.texte}</small>
+          {liste.pagination.suivante ? <Lien className="btn sm" href={liste.pagination.suivante}>Suivante<Ic n="arrow" /></Lien> : <span className="btn sm" aria-disabled="true" style={FERME}>Suivante<Ic n="arrow" /></span>}
+        </nav>
+      )}
     </>
   );
 }

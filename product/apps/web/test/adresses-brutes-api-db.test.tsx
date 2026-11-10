@@ -378,6 +378,13 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/reconciliation-depense.ts': { reconcilierDepenseAction: A(() => [{}, fd({})]) },
   'app/actions/storage.ts': { configureBucketAction: A(), testStorageAction: A(), embeddedImagesStatusAction: L(), migrateEmbeddedImagesAction: A() },
   'app/actions/stripe-diagnostic.ts': { runStripeDiagnosticAction: A(), verifierOffreV2Action: A() },
+  // Lot 14 · Tour de contrôle · exports et incidents déclarés (porte `porteAdminGeste`, plateforme).
+  'app/actions/tour-controle.ts': {
+    exporterTourAction: L(() => [{ ecran: 'comptes' }]),
+    ouvrirIncidentAction: A(() => [{ titre: 'Incident', gravite: 'mineure', cause: '', constat: 'Constat' }]),
+    annoterIncidentAction: A(() => [{ id: randomUUID(), texte: 'Note' }]),
+    cloreIncidentAction: A(() => [{ id: randomUUID(), resolution: 'Résolu' }]),
+  },
   'app/actions/stripe.ts': { createCheckoutAction: A(() => [fd({ plan: 'business' })]), createPortalAction: A(), createTopupCheckoutAction: A(() => [fd({ pack: 'x' })]) },
   // Lot 10 · journal (lecture seule) et commentaires · texte seul, aucune adresse · une création inconnue est refusée (introuvable), rien d'écrit.
   'app/actions/studios/activite.ts': {

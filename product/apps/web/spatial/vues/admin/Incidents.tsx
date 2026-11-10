@@ -1,11 +1,17 @@
 import { Lien, Vue } from '../../communs';
 import { Barre, Kpis, Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
+import { IncidentsDeclares, type PropsIncidentsDeclares } from './incidents-client';
 
 /**
  * « Incidents » · le journal des échecs techniques (`error_log`, ancien
  * `/admin/incidents`). PRÉSENTATIONNEL · lecture seule. D'abord les causes
  * (réseau ? quota ? clé ?) et les zones touchées, le détail ligne à ligne
  * ensuite · pour voir un fournisseur dérailler AVANT qu'un client le signale.
+ *
+ * Lot 14 (RJ IN01, IN02) · au-dessus du journal, les incidents DÉCLARÉS par
+ * l'équipe (`platform_incidents`) · états calculés (Ouverts, En cours, Clos,
+ * Tous), déclarer (au besoin depuis une cause du journal), annoter, clore,
+ * exporter · jamais de suppression.
  */
 export const PERIODES_INCIDENTS = [1, 7, 30] as const;
 
@@ -17,6 +23,10 @@ export interface PropsIncidents {
   zones: ReadonlyArray<{ zone: string; n: number }>;
   lignes: ReadonlyArray<{ id: string; zone: string; cause: string; espace: string | null; quand: string; detail: string }>;
   limite: number;
+  /** Les incidents déclarés et le formulaire de déclaration (lot 14). */
+  declares: PropsIncidentsDeclares;
+  /** Incidents non clos · l'indicateur de tête. */
+  nonClos: number;
 }
 
 export function Incidents(p: PropsIncidents) {
@@ -33,7 +43,9 @@ export function Incidents(p: PropsIncidents) {
         { lbl: `Échecs · ${p.jours} j`, v: p.total.toLocaleString('fr-FR'), c: p.total ? 'w' : 'up', d: p.total ? 'à examiner' : 'aucun' },
         { lbl: 'Causes distinctes', v: String(p.causes.length) },
         { lbl: 'Zones touchées', v: String(p.zones.length) },
+        { lbl: 'Incidents non clos', v: String(p.nonClos), c: p.nonClos ? 'w' : 'up', d: p.nonClos ? 'déclarés, à suivre' : 'aucun en cours' },
       ]} />
+      <IncidentsDeclares {...p.declares} />
       {p.total === 0 ? (
         <section className="tile sec" data-etat="vide"><b>Aucun incident sur {p.jours} jour{p.jours > 1 ? 's' : ''}.</b><p className="muted" style={{ margin: '6px 0 0', fontSize: '12.5px' }}>Toutes les générations ont abouti, ou le journal vient d’être mis en service.</p></section>
       ) : (
@@ -43,9 +55,10 @@ export function Incidents(p: PropsIncidents) {
               <div className="sech"><h2>Par cause</h2><span className="faint" style={{ fontSize: '12.5px' }}>{p.total} échec{p.total > 1 ? 's' : ''}</span></div>
               <div className="atable">
                 {p.causes.map((c) => (
-                  <div className="atr" key={c.cle} data-cause={c.cle} style={{ gridTemplateColumns: '1.2fr 1.4fr .5fr .9fr' }}>
+                  <div className="atr" key={c.cle} data-cause={c.cle} style={{ gridTemplateColumns: '1.2fr 1.4fr .5fr .9fr auto' }}>
                     <span><b>{c.libelle}</b>{c.conseil && <small className="faint" style={{ display: 'block', whiteSpace: 'normal' }}>{c.conseil}</small>}</span>
                     <span><Barre part={c.part} /></span><span><b>{c.n}</b></span><span className="faint">{c.dernier}</span>
+                    <span><Lien className="btn sm" href={`/admin/incidents?j=${p.jours}&cause=${encodeURIComponent(c.cle)}#declarer`} aria-label={`Déclarer un incident · ${c.libelle}`}>Déclarer</Lien></span>
                   </div>
                 ))}
               </div>

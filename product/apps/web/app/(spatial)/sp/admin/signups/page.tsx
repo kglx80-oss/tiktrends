@@ -1,27 +1,31 @@
 import {
-  CLASSE_RISQUE, LIMITE_DECLARATIONS, VALEUR_ABSENTE, dateDeclaration, declarationOnboarding, adminDateCourte, adminVariation, adminEuros, adminNombre, adminPluriel, adminPourcent, comptesARisque, estEnEssai, estPayant,
-  filtresComptes, inscriptions, libelleRisque, mrrARisque, mrrEspace, niveauRisque, parcoursInscription, partCreditsUtilises, signauxRisque,
+  LIMITE_DECLARATIONS, VALEUR_ABSENTE, adresseListeTour, dateDeclaration, declarationOnboarding, adminVariation, adminEuros, adminNombre, adminPluriel, adminPourcent,
+  comptesARisque, etatExportTour, inscriptions, libellePuceSegment, lirePageTour, mrrARisque, parcoursInscription, tableComptesTour, textePage,
 } from '@tiktrends/core';
 import { Comptes } from '../../../../../spatial/vues/admin/Comptes';
 import { bandeau, chargerDeclarations, chargerEspaces, chargerTarifs, porteAdmin, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
-const LIMITE = 200;
+const UNITE = { un: 'compte', plusieurs: 'comptes' } as const;
+const CHEMIN = '/admin/signups';
 
 /**
  * « Inscriptions & comptes » · `/admin/signups`, écran EXCLUSIF (l'ancienne page
  * est retirée, ses déclarations d'onboarding vivent ici) · fondateur ET admin
  * de l'espace, la même porte que l'ancienne page.
  */
-export default async function ComptesSpatial() {
+export default async function ComptesSpatial({ searchParams }: { searchParams?: Promise<{ q?: string; segment?: string; page?: string }> }) {
   await porteAdmin();
+  const sp = (await searchParams) ?? {};
   const maintenant = new Date();
   const tarifs = await chargerTarifs();
   const [espaces, declarations] = await Promise.all([chargerEspaces(maintenant), chargerDeclarations(LIMITE_DECLARATIONS)]);
   const ins = inscriptions(espaces, tarifs, maintenant);
   const risque = comptesARisque(espaces, tarifs, maintenant);
   const variation = adminVariation(ins.variationPct, 'aucune le mois d’avant');
+  const table = tableComptesTour(espaces, tarifs, maintenant, { q: sp.q, segment: sp.segment, page: lirePageTour(sp.page) });
+  const definition = table.segments.find((x) => x.cle === table.segment)?.definition ?? '';
 
   return (
     <Comptes
@@ -34,23 +38,17 @@ export default async function ComptesSpatial() {
       ]}
       alerte={risque.length ? { comptes: `${adminPluriel(risque.length, 'compte')} à surveiller`, mrr: `${adminEuros(mrrARisque(risque))} de MRR` } : null}
       parcours={parcoursInscription(espaces, tarifs, maintenant).map((e) => ({ libelle: e.libelle, n: adminNombre(e.n), hauteur: e.hauteur, part: e.partPrecedente == null ? null : adminPourcent(e.partPrecedente, 0) }))}
-      filtres={filtresComptes(tarifs, 'risque')}
-      comptes={espaces.slice(0, LIMITE).map((e) => {
-        const payant = estPayant(e, tarifs), essai = !payant && estEnEssai(e, maintenant);
-        const part = partCreditsUtilises(e, tarifs);
-        const n = signauxRisque(e, maintenant).length;
-        const enRisque = (payant || essai) && n > 0;
-        return {
-          id: e.id, nom: e.nom,
-          cles: [e.forfait, ...(essai ? ['essai'] : []), ...(enRisque ? ['risque'] : [])],
-          forfait: essai ? { libelle: 'Essai', classe: 'c' as const } : { libelle: tarifs.libelles[e.forfait] ?? e.forfait, classe: '' as const },
-          mrr: payant ? adminEuros(mrrEspace(e, tarifs)) : VALEUR_ABSENTE,
-          credits: { part: part ?? 0, texte: part == null ? VALEUR_ABSENTE : `${part} %`, over: (part ?? 0) > 100 },
-          sante: { libelle: libelleRisque(n), classe: (CLASSE_RISQUE[niveauRisque(e, maintenant)] || 'g') as 'g' | 'w' | 'r' },
-          profil: e.profil ?? VALEUR_ABSENTE,
-          inscrit: adminDateCourte(e.creeLe),
-        };
-      })}
+      liste={{
+        segments: table.segments.map((x) => ({ cle: x.cle, libelle: libellePuceSegment(x) })),
+        segment: table.segment, q: table.q,
+        comptes: table.page.lignes, inscrits: espaces.length,
+        pagination: table.page.pages > 1 ? {
+          texte: `${textePage(table.page, UNITE)} · page ${table.page.page} sur ${table.page.pages}`,
+          precedente: table.page.page > 1 ? adresseListeTour(CHEMIN, { q: table.q, segment: table.segment, page: table.page.page - 1 }) : null,
+          suivante: table.page.page < table.page.pages ? adresseListeTour(CHEMIN, { q: table.q, segment: table.segment, page: table.page.page + 1 }) : null,
+        } : null,
+        export: etatExportTour(table.filtrees.length, UNITE),
+      }}
       declarations={{
         sous: `Chaque nouveau compte et son profil déclaré à l’onboarding · ${adminPluriel(declarations.length, 'espace')}${declarations.length >= LIMITE_DECLARATIONS ? ' (les plus récents)' : ''}`,
         lignes: declarations.map((d) => ({
@@ -58,7 +56,7 @@ export default async function ComptesSpatial() {
           forfait: tarifs.libelles[d.forfait] ?? d.forfait, inscrit: dateDeclaration(d.creeLe), onboarde: d.onboardeLe ? dateDeclaration(d.onboardeLe) : null,
         })),
       }}
-      note={`${espaces.length > LIMITE ? `Les ${LIMITE} derniers espaces inscrits sur ${adminNombre(espaces.length)}` : adminPluriel(espaces.length, 'espace')} · crédits utilisés = consommation sur 30 jours ÷ dotation de la formule.`}
+      note={`${definition} ${adminPluriel(table.filtrees.length, 'compte')} dans ce filtre${table.q ? ` pour « ${table.q} »` : ''}, sur ${adminPluriel(espaces.length, 'espace inscrit', 'espaces inscrits')} · crédits utilisés = consommation sur 30 jours ÷ dotation de la formule · l’export reprend tout le filtre, toutes pages, colonnes de la table.`}
     />
   );
 }

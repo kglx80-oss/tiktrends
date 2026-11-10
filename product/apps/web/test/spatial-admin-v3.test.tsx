@@ -35,6 +35,7 @@ vi.mock('../app/actions/platform', () => ({ updatePlanConfigAction: a.config }))
 vi.mock('../app/actions/beta', () => ({ grantTestPackAction: a.pack, revokeTrialAction: a.revoke }));
 vi.mock('../app/actions/stripe-diagnostic', () => ({ runStripeDiagnosticAction: a.diagnostic }));
 vi.mock('../app/actions/support', () => ({ replyTicketAction: async () => {}, setTicketStatusAction: async () => {} }));
+vi.mock('../app/actions/tour-controle', () => ({ exporterTourAction: async () => ({ ok: false, message: '' }), ouvrirIncidentAction: async () => ({ ok: false, message: '' }), annoterIncidentAction: async () => ({ ok: false, message: '' }), cloreIncidentAction: async () => ({ ok: false, message: '' }) }));
 vi.mock('../app/actions/studios/prompts', () => ({
   importerPackAction: a.importer, validerImportsAction: async () => ({ ok: true }), validerVersionAction: async () => ({ ok: true }),
   evaluerReleaseAction: a.evaluer, retirerReleaseAction: async () => ({ ok: true }), creerReleaseAction: async () => ({ ok: true }),
@@ -393,7 +394,8 @@ describe('Spatial · Admin · vague 3 · Connaissances, Interrupteurs, Console, 
   });
 
   it('Incidents · la période choisie est marquée · sans échec, l’état vide le dit', () => {
-    const d = doc(rendre(<Incidents bandeau={B} jours={30} total={0} limite={80} causes={[]} zones={[]} lignes={[]} />));
+    const declares = { colonnes: [], segments: [], segment: 'ouverts', definition: '', lignes: [], total: 0, limite: null, export: { ferme: true, raison: 'Rien à exporter · aucun incident dans ce filtre.', titre: '' }, causes: [], causeProposee: null };
+    const d = doc(rendre(<Incidents bandeau={B} jours={30} total={0} limite={80} causes={[]} zones={[]} lignes={[]} declares={declares} nonClos={0} />));
     expect([...d.querySelectorAll('nav[aria-label="Période"] a')].map((x) => [x.getAttribute('href'), x.getAttribute('aria-current')])).toEqual([['/admin/incidents?j=1', null], ['/admin/incidents?j=7', null], ['/admin/incidents?j=30', 'page']]);
     expect(d.querySelector('[data-etat="vide"]')!.textContent).toContain('Aucun incident sur 30 jours.');
   });

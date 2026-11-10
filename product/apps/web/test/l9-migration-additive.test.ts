@@ -196,6 +196,26 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0075_incidents_plateforme · une table neuve (cinq contraintes · titre, gravité, textes, notes, clôture), deux clés étrangères protégées partant d’elle, un index, une fonction et deux déclencheurs qui refusent la suppression, rejouables · aucun DROP, aucun RENAME, aucune table existante modifiée', () => {
+    const brut = fichier('0075_incidents_plateforme');
+    const a = analyserMigrationSql(brut);
+    expect(a.instructions.map((x) => x.genre)).toEqual(['creation_table', 'bloc_protege', 'bloc_protege', 'creation_index', 'fonction', 'declencheur', 'declencheur']);
+    const sansCommentaires = brut.replace(/^--.*$/gm, '');
+    expect(sansCommentaires, '0075 contient un DROP').not.toMatch(/\bDROP\b/i);
+    expect(sansCommentaires, '0075 contient un RENAME').not.toMatch(/\bRENAME\b/i);
+    expect(sansCommentaires, '0075 change une colonne existante').not.toMatch(/ALTER COLUMN|SET NOT NULL|SET DEFAULT|ADD COLUMN/i);
+    // Seule la table NEUVE est modifiée (ses clés étrangères, ses déclencheurs) · « users » n'est que lue par REFERENCES.
+    const touchees = [...sansCommentaires.matchAll(/(?:ALTER TABLE|\bON) "([a-z_]+)"/g)].map((m) => m[1]);
+    expect([...new Set(touchees)], 'une autre table que platform_incidents est modifiée par 0075').toEqual(['platform_incidents']);
+    const instr = decouperInstructionsSql(brut).map((x) => x.replace(/^--.*$/gm, '').replace(/\s+/g, ' ').trim().replace(/;$/, ''));
+    expect(instr[0]).toMatch(/CONSTRAINT "platform_incidents_cloture_ck" CHECK \(\("status" = 'ouvert' AND "closed_at" IS NULL AND "resolution" IS NULL\) OR \("status" = 'clos' AND "closed_at" IS NOT NULL AND "resolution" IS NOT NULL\)\) \)$/);
+    expect(instr[3]).toBe('CREATE INDEX IF NOT EXISTS "platform_incidents_statut_idx" ON "platform_incidents" USING btree ("status","created_at")');
+    expect(instr[5]).toBe('CREATE OR REPLACE TRIGGER "platform_incidents_sans_suppression" BEFORE DELETE ON "platform_incidents" FOR EACH ROW EXECUTE FUNCTION "platform_incident_jamais_supprime"()');
+    expect(instr[6]).toBe('CREATE OR REPLACE TRIGGER "platform_incidents_sans_vidage" BEFORE TRUNCATE ON "platform_incidents" FOR EACH STATEMENT EXECUTE FUNCTION "platform_incident_jamais_supprime"()');
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -252,9 +272,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille), 0071 (rang et segment des personas), 0072 (offres et allégations), 0073 (marque « retenue » des mesures, CBO des instances) puis 0074 (commentaires des projets) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille), 0071 (rang et segment des personas), 0072 (offres et allégations), 0073 (marque « retenue » des mesures, CBO des instances) 0074 (commentaires des projets) puis 0075 (incidents déclarés) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment', '0072_offres_allegations', '0073_mesures_retenues_cbo', '0074_commentaires_projet']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment', '0072_offres_allegations', '0073_mesures_retenues_cbo', '0074_commentaires_projet', '0075_incidents_plateforme']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -616,6 +636,56 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     await appliquer(pg, ['0074_commentaires_projet']);
     expect(await empreinteSchema(pg), 'rejeu de 0074').toEqual(schemaUneFois);
     expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0074 · lignes modifiées').toEqual(avant);
+    await pg.close();
+  }, 120_000);
+
+  it('0075 sur une base à 0074 avec des espaces, des membres, des échecs journalisés et des commentaires · lignes intactes, table neuve vide, bornes posées, suppression refusée, rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 74).map((x) => x.tag));
+    const u = 'a9000000-0000-4000-8000-000000000011';
+    await pg.exec(`
+      INSERT INTO error_log (id, scope, family, detail, workspace_id, created_at)
+        SELECT md5('el' || i)::uuid, 'studio:image', 'quota', 'Quota dépassé ' || i, 'a9000000-0000-4000-8000-000000000001', '2026-08-01T00:00:00Z' FROM generate_series(1, 12) i;
+      INSERT INTO users (id, email, created_at) VALUES ('a9000000-0000-4000-8000-000000000012', 'second@l9.exemple.test', '2026-08-01T00:00:00Z');`);
+    const [n0] = await lignes<{ e: number; u: number; w: number }>(pg, 'select (select count(*)::int from error_log) as e, (select count(*)::int from users) as u, (select count(*)::int from workspaces) as w');
+    expect(n0).toEqual({ e: 12, u: 2, w: 1 });
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    const schemaAvant = await empreinteSchema(pg);
+    await appliquer(pg, ['0075_incidents_plateforme']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0075 (espaces, membres, journal des échecs…)').toEqual(avant);
+    const [vide] = await lignes<{ n: number }>(pg, 'select count(*)::int as n from platform_incidents');
+    expect(vide!.n, 'backfill dans platform_incidents').toBe(0);
+    const schemaUneFois = await empreinteSchema(pg);
+    expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0075').toEqual([]);
+    expect(schemaUneFois.filter((l) => !schemaAvant.includes(l) && l.startsWith('col ') && !/^col platform_incidents\./.test(l)), 'colonne ajoutée à une table existante par 0075').toEqual([]);
+    const ins = (cols: string) => pg.exec(`INSERT INTO platform_incidents (title, severity, description, status, closed_at, resolution, notes, opened_by) VALUES (${cols})`);
+    // Le refus attendu, ou le nom de la borne qui a laissé passer · lisible dans l'échec.
+    const refuse = async (p: Promise<unknown>, nom: string, motif: RegExp = /check constraint/i) => {
+      const e = await p.then(() => null, (x: Error) => x);
+      expect(e?.message ?? `${nom} · accepté par la base`, nom).toMatch(motif);
+    };
+    await refuse(ins(`'', 'majeure', 'x', 'ouvert', null, null, '[]', '${u}'`), 'titre vide');
+    await refuse(ins(`repeat('a', 141), 'majeure', 'x', 'ouvert', null, null, '[]', '${u}'`), 'titre trop long');
+    await refuse(ins(`'T', 'grave', 'x', 'ouvert', null, null, '[]', '${u}'`), 'gravité inconnue');
+    await refuse(ins(`'T', 'majeure', repeat('a', 2001), 'ouvert', null, null, '[]', '${u}'`), 'constat trop long');
+    await refuse(ins(`'T', 'majeure', 'x', 'ouvert', null, null, '{}', '${u}'`), 'notes hors tableau');
+    await refuse(ins(`'T', 'majeure', 'x', 'clos', now(), null, '[]', '${u}'`), 'clos sans résolution');
+    await refuse(ins(`'T', 'majeure', 'x', 'ouvert', now(), 'r', '[]', '${u}'`), 'ouvert avec une clôture');
+    await refuse(ins(`'T', 'majeure', 'x', 'en_cours', null, null, '[]', '${u}'`), 'statut inconnu');
+    await ins(`'Quota fal épuisé', 'critique', 'Les images échouent', 'ouvert', null, null, '[]', '${u}'`);
+    await ins(`'Lenteur Anthropic', 'mineure', 'Réponses lentes', 'clos', now(), 'Transitoire', '[{"texte":"vu","auteur":null,"le":"2026-08-01T00:00:00Z"}]', '${u}'`);
+    // Jamais supprimé · ni ligne à ligne, ni par vidage · l'auteur supprimé laisse l'incident (SET NULL).
+    await refuse(pg.exec('DELETE FROM platform_incidents'), 'suppression', /INCIDENT_JAMAIS_SUPPRIME · DELETE refusé sur platform_incidents/);
+    await refuse(pg.exec('TRUNCATE platform_incidents'), 'vidage', /INCIDENT_JAMAIS_SUPPRIME · TRUNCATE refusé sur platform_incidents/);
+    await pg.exec(`UPDATE platform_incidents SET status = 'clos', closed_at = now(), resolution = 'Recharge faite' WHERE title = 'Quota fal épuisé'`);
+    const [deux] = await lignes<{ n: number; clos: number }>(pg, `select count(*)::int as n, count(*) filter (where status = 'clos')::int as clos from platform_incidents`);
+    expect(deux).toEqual({ n: 2, clos: 2 });
+    await appliquer(pg, ['0075_incidents_plateforme']);
+    expect(await empreinteSchema(pg), 'rejeu de 0075').toEqual(schemaUneFois);
+    expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0075 · lignes modifiées').toEqual(avant);
+    const [apres] = await lignes<{ n: number }>(pg, 'select count(*)::int as n from platform_incidents');
+    expect(apres!.n, 'rejeu de 0075 · incidents perdus ou doublés').toBe(2);
     await pg.close();
   }, 120_000);
 
