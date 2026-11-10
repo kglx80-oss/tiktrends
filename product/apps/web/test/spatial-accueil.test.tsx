@@ -248,6 +248,24 @@ describe('Spatial · Accueil · la carte de configuration se déplie sur les ét
   });
 });
 
+describe('Accueil · les indicateurs ne touchent pas « À faire maintenant »', () => {
+  // Constat du propriétaire (capture) · les bordures des tuiles et de la barre se chevauchaient · mesuré dans
+  // Chromium sur la feuille de la maquette · bas des tuiles = haut de la barre (166 px = 166 px), aucun écart.
+  const KPI = [
+    { cle: 'projets', libelle: 'Projets actifs', valeur: '3', detail: 'dans les marques de ta portée', periode: 'à ce jour', source: 's', href: '/studio/projets' },
+    { cle: 'sauvegardees', libelle: 'Créatives sauvegardées', valeur: '0', detail: 'aucune collection', periode: 'au total', source: 's', href: '/saved' },
+  ] as unknown as NonNullable<PropsAccueil['kpi']>;
+  it('la section des indicateurs déclare un écart sous elle, juste avant la barre', () => {
+    const t = document.createElement('template');
+    t.innerHTML = rendre(<Accueil {...PROPS} kpi={KPI} />);
+    const sec = t.content.querySelector<HTMLElement>('section[data-section="kpi"]');
+    expect(sec, 'la section des indicateurs n’est pas rendue').toBeTruthy();
+    expect(sec!.nextElementSibling?.classList.contains('nowbar'), 'la barre « À faire maintenant » ne suit plus les indicateurs · revoir ce test').toBe(true);
+    const ecart = Number.parseFloat(sec!.style.marginBottom || '0');
+    expect(ecart, 'aucun écart entre les tuiles et la barre · leurs bordures se touchent').toBeGreaterThanOrEqual(12);
+  });
+});
+
 /**
  * Lot 13 bis (CA G29) · « Astuce · ? » · seul ajout HORS maquette de l'Accueil,
  * étroitement déclaré · UN bloc `[data-astuce-raccourcis]`, juste après la

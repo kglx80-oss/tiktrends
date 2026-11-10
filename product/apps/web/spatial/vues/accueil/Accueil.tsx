@@ -242,7 +242,10 @@ export function Accueil(p: PropsAccueil) {
       )}
       {p.attente && <p className="lead2" style={{ marginTop: 18 }}>{p.attente}</p>}
       {p.kpi && p.kpi.length > 0 && (
-        <section className="sec" data-section="kpi" aria-label="Indicateurs de l’Accueil">
+        // `marginBottom` · la maquette ne pose jamais ces indicateurs juste au-dessus de « À faire maintenant »
+        // (`.nowbar` n'a qu'une marge basse) · sans elle, le bas des tuiles et le haut de la barre se
+        // touchaient au pixel près et leurs bordures se confondaient. 18 px · la marge basse de `.nowbar`.
+        <section className="sec" data-section="kpi" aria-label="Indicateurs de l’Accueil" style={{ marginBottom: 18 }}>
           <div className="dkpis">
             {p.kpi.map((k) => (
               <Lien className="tile dk" href={k.href} key={k.cle} data-kpi={k.cle} title={`Source : ${k.source}`}>
