@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
+import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, messageRaccourciIndisponible, raccourciDeLaFrappe, raccourcisActifs, type EntreeRail, type PrefixeRaccourci, type Raccourci, type SectionSpatiale } from '@tiktrends/core';
 import { railCookieString } from '../../lib/rail-preference';
 import { setActiveBrand } from '../../app/actions/brands';
 import { listerProjets } from '../../app/actions/studios/projets';
@@ -12,6 +12,7 @@ import { useCiblesTactiles } from './CiblesTactiles';
 import { FournisseurSpatial, type CtxSpatial, type PanneauSpatial } from './contexte';
 import { BandeauNotification, VueNotifications, useNotifications } from './Notifications';
 import { FeuilleMarques, FeuilleModules, MenuProfil, Palette } from './Surcouches';
+import { AideRaccourcis } from './Raccourcis';
 import { TiroirJarvis } from './TiroirJarvis';
 import type { FiltreNotif, LogoParDefautAffiche, SignalLogoAReimporter } from '@tiktrends/core';
 import type { NotifItem } from '../../app/actions/notifications';
@@ -33,6 +34,13 @@ import type { NotifItem } from '../../app/actions/notifications';
  * Surcouches · une seule ouverte à la fois (`panneau`), Échap ferme et rend le
  * focus au bouton qui l'a ouverte, un clic hors du panneau Notifications ou
  * Profil le ferme, un changement d'écran ferme tout.
+ *
+ * Raccourcis clavier (lot 13) · UNE table au noyau (`RACCOURCIS`) · l'écouteur
+ * ci-dessous lui demande ce que veut chaque frappe (`raccourciDeLaFrappe` ·
+ * jamais dans une saisie, un lecteur, sous une fenêtre modale, avec un
+ * modificateur imprévu, ni coupé par la préférence `tt_raccourcis`, relue à
+ * chaque frappe), la fenêtre d'aide (« ? », bouton du rail) liste la même
+ * table. Une destination suit les droits · l'entrée du rail, ou le chemin ouvert.
  */
 
 export interface DonneesCoquille {
@@ -66,6 +74,17 @@ export interface DonneesCoquille {
   demarrage?: string | null;
   /** Le logo de la marque active n'a pas pu s'afficher · son état (`etatLogoMarqueActive`, même bilan que la fiche Identité). */
   etatLogo?: (e: { brandId: string }) => Promise<LogoParDefautAffiche | null>;
+}
+
+/** `document.cookie` · vide s'il est indisponible (préférences bloquées). */
+function lireCookies(): string {
+  try { return document.cookie; } catch { return ''; }
+}
+
+/** macOS (et iPadOS) · l'aide écrit ⌘ au lieu de Ctrl. */
+function estMac(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
 }
 
 function EntreeLien({ e, actif, onNav }: { e: EntreeRail; actif: boolean; onNav?: () => void }) {
@@ -103,6 +122,8 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   const chargerNotifs = notifs.charger;
   const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
   const declencheur = useRef<HTMLElement | null>(null);
+  // La première touche d'une séquence (« g » puis une lettre), en attente.
+  const prefixe = useRef<PrefixeRaccourci | null>(null);
   // Le logo de la marque active · une image qui ne s'affiche pas cède la place
   // à l'initiale ; pour un logo importé (empreinte), la raison est demandée UNE
   // fois par marque · « Logo à réimporter » le dit, avec le chemin vers l'Identité.
@@ -198,15 +219,35 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [palette, projets, d.marque]);
 
-  // ⌘K / Ctrl+K ouvre la palette · Échap ferme ce qui est ouvert.
+  // Échap ferme ce qui est ouvert · le reste passe par la table des raccourcis
+  // (Ctrl K ou ⌘ K, « ? », J, [, N, I, « g » puis une lettre).
+  const agir = useRef<(r: Raccourci) => void>(() => {});
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); ouvrirPalette(); }
-      else if (e.key === 'Escape' && (palette || panneau)) { e.preventDefault(); fermer(); }
+      if (e.key === 'Escape' && (palette || panneau)) { e.preventDefault(); prefixe.current = null; fermer(); return; }
+      const t = e.target instanceof Element ? e.target : null;
+      const r = raccourciDeLaFrappe(
+        { key: e.key, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, shiftKey: e.shiftKey, repetee: e.repeat, dejaTraitee: e.defaultPrevented },
+        {
+          actifs: raccourcisActifs(lireCookies()),
+          modaleOuverte: !!document.querySelector('[aria-modal="true"]'),
+          cible: t ? {
+            tagName: t.tagName,
+            editable: (t as HTMLElement).isContentEditable === true || !!t.closest('[contenteditable]:not([contenteditable="false"])'),
+            role: t.getAttribute('role'),
+            dansLecteur: !!t.closest('video, audio'),
+          } : null,
+          prefixe: prefixe.current,
+          maintenant: Date.now(),
+        },
+      );
+      prefixe.current = r.prefixe;
+      if (r.empecher) e.preventDefault();
+      if (r.raccourci) agir.current(r.raccourci);
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
-  }, [ouvrirPalette, fermer, palette, panneau]);
+  }, [fermer, palette, panneau]);
   // Un clic hors du panneau Notifications ou Profil le ferme (maquette).
   useEffect(() => {
     if (panneau !== 'notifs' && panneau !== 'profil') return;
@@ -243,6 +284,26 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
     const ouvert = !railOuvert;
     setRailOuvert(ouvert);
     document.cookie = railCookieString(!ouvert);
+    return ouvert;
+  };
+
+  /** Ouvre l'aide des raccourcis · le focus reviendra à ce qui l'avait. */
+  const ouvrirAide = () => { if (panneau !== 'raccourcis') basculer('raccourcis'); };
+
+  // Ce que fait chaque entrée de la coquille · relu à chaque frappe (état courant).
+  agir.current = (r: Raccourci) => {
+    const a = r.action;
+    if (!a) return;
+    if (a.type === 'palette') ouvrirPalette();
+    else if (a.type === 'aide') ouvrirAide();
+    else if (a.type === 'jarvis') { if (jarvis) ouvrirJarvis(); else toast(messageRaccourciIndisponible(r)); }
+    else if (a.type === 'rail') toast(basculerRail() ? 'Menu déployé' : 'Menu réduit');
+    else if (a.type === 'aller') {
+      const e = [...d.entrees, ...d.espace].find((x) => x.cle === a.section && x.href);
+      if (e?.href) naviguer(e.href); else toast(messageRaccourciIndisponible(r));
+    } else if (a.type === 'ouvrir') {
+      if (ouvert(a.requis) && cheminPorte(a.href)) naviguer(a.href); else toast(messageRaccourciIndisponible(r));
+    }
   };
 
   const ouvrirNotif = (n: NotifItem) => { notifs.marquer(n); setPanneau(null); notifs.fermerBandeau(); };
@@ -254,7 +315,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
           qui ne résout pas (hauteur de `html` indéfinie) · sur une page plus
           courte que l'écran en mobile, le `body` opaque s'arrêtait sous le
           contenu et le fond flou apparaissait en bande grise dessous. */}
-      <div className="app" style={{ minHeight: '100vh' }}>
+      <div className="app" style={{ minHeight: '100vh' }} inert={panneau === 'raccourcis' || undefined}>
         <nav className="rail glass" aria-label="Navigation principale">
           {/* `width:auto` · la maquette donne `width:100%` à la rangée de marque ;
               en barre mobile (≤ 760 px) ses deux enfants sont masqués, mais elle
@@ -286,6 +347,11 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
           )}
           <button className="railtg" id="railtg" type="button" aria-label={railOuvert ? 'Réduire le menu' : 'Déployer le menu'} aria-expanded={railOuvert} onClick={basculerRail}>
             <Ic n="side" /><span className="lab"><strong>Réduire le menu</strong></span>
+          </button>
+          {/* Lot 13 · l'aide des raccourcis, hors maquette · même primitive que
+              « Réduire le menu » (`.railtg`, masquée au téléphone par la feuille). */}
+          <button className="railtg" id="raccourcis-aide" type="button" aria-label="Raccourcis clavier" title="Raccourcis clavier" aria-haspopup="dialog" aria-expanded={panneau === 'raccourcis'} onClick={ouvrirAide}>
+            <Ic n="q" /><span className="lab"><strong>Raccourcis clavier</strong></span>
           </button>
           <button className="morebtn" id="morebtn" type="button" aria-label="Plus de modules" onClick={() => basculer('modules')} aria-expanded={panneau === 'modules'}
             style={{ width: 48, height: 48, borderRadius: '50%', border: 0, background: 'none', color: 'var(--fg2)', placeContent: 'center', cursor: 'pointer' }}>
@@ -338,6 +404,8 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
       )}
 
       {palette && <Palette groupes={groupes} onNaviguer={naviguer} onFermer={fermer} onTheme={toast} />}
+
+      {panneau === 'raccourcis' && <AideRaccourcis onFermer={fermer} mac={estMac()} />}
 
       <div className={toastMsg ? 'toast on' : 'toast'} id="toast" role="status" aria-live="polite">{toastMsg}</div>
       <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: SPRITE_SYMBOLES }} />

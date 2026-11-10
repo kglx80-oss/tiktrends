@@ -180,9 +180,10 @@ export const STYLE_LIEN_LIGNEE: Readonly<Record<CategorieLien, { couleur: string
   visuel: { couleur: 'var(--chg)', tirets: '7 4', trait: 'tirets', sens: 'du brief à ses lots, et du lot à ses créations' },
   mesure: { couleur: 'var(--good)', tirets: '2 4', trait: 'pointillés', sens: 'de la création à son résultat mesuré, puis à son apprentissage' },
   iteration: { couleur: 'var(--warn)', tirets: '10 4 2 4', trait: 'tirets et points', sens: 'de la version parente à la version itérée qui en vient' },
+  copie: { couleur: 'var(--info)', tirets: '14 6', trait: 'tirets longs', sens: 'entre un projet et sa copie (« Dupliquer ») · seulement quand le lien est enregistré' },
 };
 
-const ORDRE_CATEGORIES: readonly CategorieLien[] = ['contexte', 'visuel', 'mesure', 'iteration'];
+const ORDRE_CATEGORIES: readonly CategorieLien[] = ['contexte', 'visuel', 'mesure', 'iteration', 'copie'];
 
 export interface EntreeLegende { categorie: CategorieLien; libelle: string; nombre: number; trait: string; sens: string; couleur: string; tirets: string | null }
 
@@ -311,6 +312,7 @@ export const LIBELLE_ECRAN_NOEUD: Readonly<Record<TypeNoeudLignee, string>> = {
   marque: 'Ouvrir la fiche marque', reference: 'Voir la source', brief: 'Ouvrir le brief', hypothese: 'Ouvrir l’hypothèse au brief',
   direction: 'Ouvrir la direction au brief', groupe: 'Voir le lot dans Créations', creation: 'Voir la variante',
   resultat: 'Ouvrir le test dans Adsmap', apprentissage: 'Voir l’apprentissage de la variante', iteration: 'Ouvrir cette version',
+  projet_source: 'Ouvrir le projet source', copie: 'Ouvrir la copie',
 };
 
 /** Pourquoi un nœud n'ouvre aucun écran · dit en clair, jamais un lien mort. */
@@ -382,7 +384,7 @@ export function rechercheGraphe(recherche: string, graphe: GrapheLibre): string 
   return s ? `?${s}` : '';
 }
 
-const ID_LIGNEE = /^(marque$|(reference|brief|hypothese|direction|groupe|creation|resultat|apprentissage|iteration):.)/;
+const ID_LIGNEE = /^(marque$|(reference|brief|hypothese|direction|groupe|creation|resultat|apprentissage|iteration|projet-source|projet-copie):.)/;
 
 /** Un identifiant de carte de LIGNÉE · jamais un identifiant du canvas de production (`deriverCanvas`). */
 export const estIdLignee = (id: string): boolean => ID_LIGNEE.test(id);

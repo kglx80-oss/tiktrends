@@ -5,13 +5,17 @@ import { db, schema } from '@tiktrends/db';
 import {
   LECTURE_MAX_JOURNAL, aPermissionEspace, droitsCommentaire, erreurStudio, extraitCommentaire, historiqueApresModification, journalProjet,
   libelleAuteurVersion, lireHistoriqueCommentaire, objetDansPortee, quandJournal, validerTexteCommentaire, vueVariantes, cibleCommentaire,
-  type ErreurStudio, type FaitJournal, type JournalProjet,
+  gesteIterationCommentaire,
+  type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
 import { estUuid, lireProjet, lireVersion, type ProjetStudio } from './depot';
 import { listerVariantes } from './variantes/variantes';
 import type { CibleCommentable, CommentairesProjet, PropsActiviteProjet } from '../../spatial/vues/projet/types';
 import { createNotification } from '../notifications';
+import { getActiveBrand } from '../brands';
+import { accesAdsmap } from './variantes/acces';
+import { liensDeCopie } from './copie-projet';
 
 /**
  * Studios · lot 10 V5 · l'ACTIVITÉ d'un projet · journal et commentaires
@@ -32,6 +36,12 @@ import { createNotification } from '../notifications';
  *  · notification · le mécanisme existant (`createNotification`) prévient le
  *    propriétaire du projet d'un commentaire d'une autre personne, s'il voit
  *    encore la marque · best-effort, il ne bloque jamais l'écriture.
+ *  · « Itérer depuis ce commentaire » · sur une création dont la variante a une
+ *    pub testée · la règle du noyau (`gesteIterationCommentaire`) · Résultats
+ *    ouvert à la session (`accesAdsmap`), projet dans la marque active · le
+ *    lien ouvre l'écran Itérer, qui relit tout (`lireCommentairePourIterer`) ;
+ *  · duplication · le journal du projet SOURCE relit les copies dont la
+ *    création porte `copieDe` vers lui (`liensDeCopie`) · « Dupliqué en « … » ».
  *
  * Gratuit · aucun appel IA, aucune génération, aucune dépense.
  */
@@ -61,6 +71,8 @@ interface Contexte {
   versions: Array<{ id: string; n: number; reason: string; authorId: string | null; createdAt: Date }>;
   /** Les créations du projet (sorties livrées des lots), avec leur libellé d'écran · lues par `listerVariantes`. */
   creations: Map<string, string>;
+  /** Le test de la variante de chaque création (média) qui en a un · la pub dont « Itérer depuis ce commentaire » part. */
+  tests: Map<string, NonNullable<CommentairePourGeste['test']>>;
 }
 
 async function contexte(ctx: ContexteStudio, projectId: unknown): Promise<Resultat<Contexte>> {
@@ -70,11 +82,15 @@ async function contexte(ctx: ContexteStudio, projectId: unknown): Promise<Result
   const versions = await db.select({ id: V.id, n: V.n, reason: V.reason, authorId: V.authorId, createdAt: V.createdAt }).from(V)
     .where(and(eq(V.projectId, p.projet.id), duProjet(V, ctx, p.projet))).orderBy(desc(V.n)).limit(LECTURE_MAX_JOURNAL);
   const creations = new Map<string, string>();
+  const tests = new Map<string, NonNullable<CommentairePourGeste['test']>>();
   const lu = await listerVariantes(ctx, { projectId: p.projet.id }, { adsmapAcces: false, relecture: { disponible: false, raison: null, coutMaxUsd: null } }).catch(() => null);
   if (lu?.ok) {
     for (const bv of vueVariantes(lu.donnees).versions) for (const l of bv.lots) for (const s of l.sorties) creations.set(s.assetId, `${l.titre} · ${s.libelle}`);
+    for (const v of lu.donnees.variantes) {
+      if (v.test) tests.set(v.assetId, { adsmapAdId: v.test.adsmapAdId, verdict: v.test.verdict ? { validated: v.test.verdict.validated, comparable: v.test.verdict.comparable } : null });
+    }
   }
-  return { ok: true, projet: p.projet, versions, creations };
+  return { ok: true, projet: p.projet, versions, creations, tests };
 }
 
 /* ─────────────────────────────── journal ─────────────────────────────── */
@@ -146,6 +162,15 @@ export async function lireJournalPour(ctx: ContexteStudio, e: { projectId: unkno
     faits.push({ source: 'commentaire', id: `${k.id}:ecrit`, le: k.createdAt.toISOString(), acteur: nom(k.authorId), geste: 'ecrit', cible: sur });
     if (k.resolvedAt) faits.push({ source: 'commentaire', id: `${k.id}:resolu`, le: k.resolvedAt.toISOString(), acteur: nom(k.resolvedBy), geste: 'resolu', cible: sur });
   }
+  // Les copies de ce projet (`copieDe` dans l'audit de leur création) · « Dupliqué en « … » » · une duplication passée ne se dit pas ici.
+  const copies = (await liensDeCopie(ctx, projet).catch(() => ({ source: null, copies: [] }))).copies;
+  const nomCopie = await noms(ctx, copies.map((x) => x.acteurId));
+  for (const x of copies) {
+    faits.push({
+      source: 'duplication', id: x.evenementId, le: x.le.toISOString(), acteur: nomCopie(x.acteurId),
+      copie: x.titre !== null ? { id: x.id, titre: x.titre } : null, versionN: versionN.get(x.versionId) ?? null,
+    });
+  }
   const tronque = [evenements.length, c.versions.length, jobs.length, commentaires.length].some((n) => n >= LECTURE_MAX_JOURNAL);
   return { ok: true, journal: journalProjet(faits, { projectId: pid, type: e.type, page: e.page }), tronque };
 }
@@ -169,6 +194,12 @@ async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<Commen
   const nom = await noms(ctx, lignes.flatMap((l) => [l.authorId, l.resolvedBy]));
   const peutProposer = aPermissionEspace(ctx.permissions, 'studio.propose');
   const n = new Map(c.versions.map((v) => [v.id, v.n]));
+  // « Itérer depuis ce commentaire » · lu seulement s'il y a une création testée commentée · Résultats et marque active relus.
+  const testees = lignes.some((l) => l.targetType === 'creation' && l.assetId && c.tests.has(l.assetId));
+  const [resultats, active] = testees
+    ? await Promise.all([accesAdsmap().catch(() => false), getActiveBrand(ctx.workspaceId).catch(() => null)])
+    : [false, null];
+  const marqueActive = !!active && active.id === c.projet.brandId;
   return {
     peutCommenter: peutProposer,
     cibles: ciblesDe(c),
@@ -185,6 +216,10 @@ async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<Commen
         modifie: l.editedAt ? `Modifié le ${quandJournal(l.editedAt.toISOString())}${modifications > 1 ? ` · ${modifications} fois` : ''}` : null,
         resolu: l.resolvedAt ? { par: nom(l.resolvedBy) ?? 'Un ancien membre de l’espace', quand: quandJournal(l.resolvedAt.toISOString()) } : null,
         gestes: droitsCommentaire({ auteurId: l.authorId, resolu: !!l.resolvedAt, modifications }, { userId: ctx.userId, peutProposer }),
+        iterer: gesteIterationCommentaire({
+          id: l.id, projetId: c.projet.id, cible: l.targetType === 'version' ? 'version' : 'creation',
+          test: l.targetType === 'creation' && l.assetId ? c.tests.get(l.assetId) ?? null : null,
+        }, { resultats, marqueActive }),
         rowVersion: l.rowVersion,
       };
     }),

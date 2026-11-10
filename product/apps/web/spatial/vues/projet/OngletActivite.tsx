@@ -25,6 +25,9 @@ import type { CommentairesProjet, PropsActiviteProjet, VueCommentaire } from './
  *  · « Commentaires » · sur une version ou une création · écrire, modifier le
  *    sien, résoudre / rouvrir · jamais de suppression (un commentaire résolu
  *    reste lu sous « Résolus »). Le texte est rendu comme du TEXTE.
+ *    Sur une création testée, ouvert ou résolu · « Itérer depuis ce
+ *    commentaire » (`gesteIterationCommentaire`, noyau) · un LIEN vers l'écran
+ *    Itérer existant, qui relit tout · fermé, sa raison écrite à côté.
  *
  * Chaque bouton d'action serveur passe par la brique (`boutonAction`) · un
  * bouton fermé dit pourquoi à côté (`RaisonFermee`). Gratuit.
@@ -246,6 +249,18 @@ function Commentaire({ c, enCours, horsLigne, edition, ouvrirEdition, changerEdi
         ) : <span data-texte-commentaire="" style={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12.5px', marginTop: 2 }}>{c.texte}</span>}
         {c.modifie && <small className="faint" data-modifie="" style={{ display: 'block', fontSize: '11.5px' }}>{c.modifie}</small>}
         {c.resolu && <small className="faint" data-resolu-par="" style={{ display: 'block', fontSize: '11.5px' }}>Résolu par {c.resolu.par} · {c.resolu.quand}</small>}
+        {edition === null && c.iterer && (
+          <span className="kc" data-iterer-commentaire={c.iterer.href ? 'ouvert' : 'ferme'} style={{ marginTop: 6, alignItems: 'center' }}>
+            {c.iterer.href
+              ? <Lien className="btn sm" href={c.iterer.href} data-geste="iterer-commentaire" style={CIBLE} aria-label={`${c.iterer.libelle} · ${c.auteur}, ${c.quand}`}><Ic n="loop" />{c.iterer.libelle}</Lien>
+              : (
+                <>
+                  <button className="btn sm" type="button" data-geste="iterer-commentaire" aria-describedby={`${id}-iterer`} {...actionCible({ occupe: false, ferme: true, focalisable: 'tout' })}><Ic n="loop" />{c.iterer.libelle}</button>
+                  <RaisonFermee id={`${id}-iterer`} cle="iterer-commentaire">{c.iterer.raison}</RaisonFermee>
+                </>
+              )}
+          </span>
+        )}
         {edition === null && (c.gestes.modifier.ok || c.gestes.resoudre.ok || c.gestes.rouvrir.ok) && (
           <span className="kc" style={{ marginTop: 6 }}>
             {c.gestes.modifier.ok && <button className="btn sm" type="button" data-geste="modifier-commentaire" aria-label={`Modifier · ton commentaire du ${c.quand}`}

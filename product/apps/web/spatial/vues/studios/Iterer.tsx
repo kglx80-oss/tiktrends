@@ -4,7 +4,8 @@ import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   cheminPorte, gardeRemplace, hypotheseInspirationParDefaut, hypotheseParDefaut, noteDemandeIteration, variableInitiale, APRES_CREATION_ITERATION, ETAPES_ITERATION_SPATIALE, EXEMPLE_VALEUR_VARIABLE,
-  LIBELLE_CHOIX_VARIABLE, VARIABLE_LABEL, VALEUR_MAX, type ChoixIterationSpatial, type ChoixVariablesIteration, type OptionVariable, type ProvenanceJarvis, type TestedVariable,
+  LIBELLE_CHOIX_VARIABLE, VARIABLE_LABEL, VALEUR_MAX, LONGUEUR_MAX_HYPOTHESE_ITERATION,
+  type ChoixIterationSpatial, type ChoixVariablesIteration, type OptionVariable, type ProvenanceCommentaire, type ProvenanceJarvis, type TestedVariable,
 } from '@tiktrends/core';
 import { creerIterationChoisieAction, type ReponseIterationChoisie } from '../../../app/actions/adsmap-iterer-variable';
 import { EnTete, Lien, Vue } from '../../communs';
@@ -67,6 +68,16 @@ export interface PropsIterer {
    * « Créer l'itération », qui les relit encore avant de poser la provenance.
    */
   jarvis?: { note: string; adId: string | null; variable: TestedVariable | null; provenance?: ProvenanceJarvis | null } | null;
+  /**
+   * Ouvert depuis « Itérer depuis ce commentaire » · le commentaire RELU par la
+   * page · sa pub (celle de la création commentée), son texte proposé comme
+   * hypothèse, la variable seulement si le texte la désigne sûrement, et la
+   * phrase qui le dit · `adId` `null` · refusé, rien de présélectionné. Comme
+   * pour Jarvis · une variable n'est cochée que sur CETTE pub, jamais le défaut
+   * du plan à la place · `provenance` est transmise à « Créer l'itération »,
+   * qui relit encore le commentaire avant de la poser.
+   */
+  commentaire?: { note: string; adId: string | null; variable: TestedVariable | null; hypothese: string | null; provenance: ProvenanceCommentaire | null } | null;
 }
 
 type Etape = 'pub' | 'variable' | 'creee';
@@ -102,11 +113,16 @@ export function Iterer(p: PropsIterer) {
   function continuer() {
     if (!source || !vars || vars.ferme) return;
     const j = p.jarvis ?? null;
+    const k = p.commentaire ?? null;
+    const surCommentaire = !!k?.adId && c?.adId === k.adId;
     const i = j
       // Depuis Jarvis · sa variable, sur SA pub, rejouée par la règle de l'écran · aucun pré-choix sinon.
       ? (() => { const r = j.variable && c?.adId === j.adId ? variableInitiale(vars, j.variable) : null; return { variable: r && !r.note ? r.variable : null, note: c?.adId === j.adId ? j.note : null }; })()
-      : variableInitiale(vars, p.variableDemandee ?? null);
-    setVariable(i.variable); setNote(i.note); setValeur(''); setHypothese(null); setErreur(null);
+      : k
+        // Depuis un commentaire · la même règle · sa variable sûre, sur SA pub · aucun pré-choix sinon.
+        ? (() => { const r = k.variable && surCommentaire ? variableInitiale(vars, k.variable) : null; return { variable: r && !r.note ? r.variable : null, note: surCommentaire ? k.note : null }; })()
+        : variableInitiale(vars, p.variableDemandee ?? null);
+    setVariable(i.variable); setNote(i.note); setValeur(''); setHypothese(surCommentaire && k?.hypothese ? k.hypothese : null); setErreur(null);
     setEtape('variable');
     focaliserApres('[data-itvar][aria-checked="true"]', '[data-itvar]');
   }
@@ -119,7 +135,10 @@ export function Iterer(p: PropsIterer) {
     setOccupe(true); setErreur(null);
     const r = await creerIterationChoisieAction(insp
       ? { inspiration: { platform: insp.platform, externalId: insp.externalId }, variable, valeur, hypothese: hyp }
-      : { parentAdId: c!.adId, variable, valeur, hypothese: hyp, ...(p.jarvis?.provenance ? { jarvis: p.jarvis.provenance } : {}) })
+      : {
+        parentAdId: c!.adId, variable, valeur, hypothese: hyp, ...(p.jarvis?.provenance ? { jarvis: p.jarvis.provenance } : {}),
+        ...(p.commentaire?.provenance && p.commentaire.adId === c!.adId ? { commentaire: p.commentaire.provenance } : {}),
+      })
       .catch((): ReponseIterationChoisie => ({ ok: false, error: 'La création a échoué · réessaie.' }));
     setOccupe(false);
     if (!r.ok) { setErreur(r.error); return; }
@@ -158,7 +177,7 @@ export function Iterer(p: PropsIterer) {
           action={p.vide.lien ? <Lien className="btn sm" href={p.vide.lien.href} style={{ marginTop: 12 }}>{p.vide.lien.libelle}</Lien> : undefined} />
       ) : (
         <>
-          <div className="ithead"><h2>Quelle pub veux-tu améliorer ?</h2><p className="muted">{p.resume}</p>{noteDemande && <p className="faint" role="status" data-note-demande="">{noteDemande}</p>}{p.jarvis && <p className="faint" role="status" data-note-jarvis="">{p.jarvis.note}</p>}</div>
+          <div className="ithead"><h2>Quelle pub veux-tu améliorer ?</h2><p className="muted">{p.resume}</p>{noteDemande && <p className="faint" role="status" data-note-demande="">{noteDemande}</p>}{p.jarvis && <p className="faint" role="status" data-note-jarvis="">{p.jarvis.note}</p>}{p.commentaire && <p className="faint" role="status" data-note-commentaire="">{p.commentaire.note}</p>}</div>
           <div className="itads">
             {p.choix.map((x) => (
               <button key={x.adId} type="button" className={`itad ${x.adId === choisi ? 'on' : ''}`.trim()} data-itad={x.adId} aria-pressed={x.adId === choisi}
@@ -209,7 +228,7 @@ export function Iterer(p: PropsIterer) {
               </label>
               <div className="blform">
                 <label htmlFor={`${id}-hyp`} style={{ fontSize: '11.5px', fontWeight: 600 }}>Hypothèse · ce que l’itération parie</label>
-                <textarea id={`${id}-hyp`} data-champ="hypothese" value={hyp} maxLength={900} onChange={(e) => setHypothese(e.target.value)} />
+                <textarea id={`${id}-hyp`} data-champ="hypothese" value={hyp} maxLength={LONGUEUR_MAX_HYPOTHESE_ITERATION} onChange={(e) => setHypothese(e.target.value)} />
               </div>
               {erreur && <p className="faint" role="alert" data-erreur="">{erreur}</p>}
               <p className="faint" style={{ fontSize: '11.5px' }}>Créer l’itération est gratuit · elle naît en brouillon dans Résultats{insp ? ', dans ta marque active, avec la pub de la Veille comme source' : ''}, avec cette variable, sa valeur et ton hypothèse. Le devis de génération vient ensuite, calculé par le serveur dans le projet.</p>

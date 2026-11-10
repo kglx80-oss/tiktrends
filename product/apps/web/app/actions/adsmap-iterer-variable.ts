@@ -7,6 +7,7 @@ import {
   lienPreparationInspiration, lienPreparationIteration, lireInspiration, lireValeurVariable, lireVariableChoisie, parentDepuisPlan, parentInspiration,
   refOrigineHypothese, refSourceVeille, variablesIteration, verifierChoixVariable,
   lireDemandeProvenanceJarvis, provenanceJarvisAdmise, refProvenanceJarvis, type ProvenanceJarvis,
+  lireDemandeProvenanceCommentaire, provenanceCommentaireAdmise, refProvenanceCommentaire, type ProvenanceCommentaire,
   RAISON_AUTRE_MARQUE, RAISON_DEUX_SOURCES, RAISON_HORS_PLAN, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE, type TestedVariable,
 } from '@tiktrends/core';
 import { adsmapGuard, type AdsMapGuardOk } from '../../lib/adsmap-guard';
@@ -17,6 +18,7 @@ import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { trackSavedAdAction } from './adsmap-bridge';
 import { createIterationAction, iterationPlanAction } from './adsmap-iterate';
 import { lireCandidatsProjet, lireContexteGestes, lireReponseJarvis } from '../../lib/jarvis-gestes';
+import { lireCommentairePourIterer } from '../../lib/studios/commentaire-iterer';
 
 /**
  * Créer l’itération d’une gagnante en CHOISISSANT la variable (écran Itérer,
@@ -56,12 +58,23 @@ import { lireCandidatsProjet, lireContexteGestes, lireReponseJarvis } from '../.
  * seulement la provenance est fusionnée dans `source_ref_json` de l'ad créée ·
  * sinon l'itération naît ordinaire, sans rien dire de ce que l'adresse
  * prétendait. Lecture seule, aucun modèle, aucune permission nouvelle.
+ *
+ * ── Depuis un commentaire · la provenance « Commentaire » ─────────────────────
+ *
+ * `commentaire: { commentaireId, projetId }` (écran Itérer ouvert depuis
+ * « Itérer depuis ce commentaire ») · JAMAIS cru · le commentaire est relu dans
+ * la portée (`lireCommentairePourIterer` · Résultats, espace, marque active,
+ * projet de la demande, création du projet avec une pub testée) et cette pub
+ * doit être la pub de départ (`provenanceCommentaireAdmise`, noyau). Alors
+ * seulement `source_ref_json.commentaire` est fusionné (identifiants seuls,
+ * jamais le texte) · sinon l'itération naît ordinaire. Le bilan par provenance
+ * lit un geste de Jarvis d'abord, puis un commentaire (`provenanceDuTest`).
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ReponseIterationChoisie =
-  | { ok: true; adId: string; code: string; variable: TestedVariable; valeur: string; preparer: string; provenance?: 'jarvis' | null }
+  | { ok: true; adId: string; code: string; variable: TestedVariable; valeur: string; preparer: string; provenance?: 'jarvis' | 'commentaire' | null }
   | { ok: false; error: string };
 
 export async function creerIterationChoisieAction(entree: {
@@ -70,6 +83,8 @@ export async function creerIterationChoisieAction(entree: {
   inspiration?: unknown;
   /** Le geste de Jarvis d'où vient l'itération · relu avant d'être posé (`provenanceJarvis`). */
   jarvis?: unknown;
+  /** Le commentaire d'où vient l'itération · relu avant d'être posé (`provenanceCommentaire`). */
+  commentaire?: unknown;
 }): Promise<ReponseIterationChoisie> {
   const g = await adsmapGuard({ minRole: 'member' });
   if ('error' in g) return { ok: false, error: g.error };
@@ -95,6 +110,7 @@ export async function creerIterationChoisieAction(entree: {
   if (!choix.ok) return { ok: false, error: choix.raison };
   // Relue AVANT la création · une provenance refusée ne bloque rien, elle n'est simplement pas posée.
   const provenance = entree.jarvis === undefined ? null : await provenanceJarvis(g, entree.jarvis, parentAdId);
+  const deCommentaire = entree.commentaire === undefined ? null : await provenanceCommentaire(g, entree.commentaire, parentAdId);
 
   const r = await createIterationAction({
     parentAdId, mode: choix.mode, changedVariable: v.variable, stageTargeted: choix.etape,
@@ -104,18 +120,18 @@ export async function creerIterationChoisieAction(entree: {
 
   const [enfant] = await db!.select({ code: schema.ads.variantCode, sourceRef: schema.ads.sourceRef }).from(schema.ads).where(eq(schema.ads.id, r.adId)).limit(1);
   const code = enfant?.code ?? 'nouvelle';
-  let pose: 'jarvis' | null = null;
-  if (provenance && enfant) {
+  let pose: 'jarvis' | 'commentaire' | null = null;
+  if ((provenance || deCommentaire) && enfant) {
     try {
       // Fusionnée dans le JSON de source existant · rien d'autre n'est réécrit (aucune colonne, aucune migration).
       const avant = enfant.sourceRef && typeof enfant.sourceRef === 'object' ? enfant.sourceRef as Record<string, unknown> : {};
-      await db!.update(schema.ads).set({ sourceRef: { ...avant, ...refProvenanceJarvis(provenance) } })
+      await db!.update(schema.ads).set({ sourceRef: { ...avant, ...(provenance ? refProvenanceJarvis(provenance) : {}), ...(deCommentaire ? refProvenanceCommentaire(deCommentaire) : {}) } })
         .where(and(eq(schema.ads.id, r.adId), eq(schema.ads.workspaceId, g.s.workspaceId)));
-      pose = 'jarvis';
+      pose = provenance ? 'jarvis' : 'commentaire';
       revalidatePath('/adsmap/hypotheses');
     } catch (e) {
       // L'itération existe · seule la provenance manque, le bilan la comptera comme une itération ordinaire.
-      console.warn('[adsmap] provenance Jarvis non posée', e instanceof Error ? e.message : e);
+      console.warn('[adsmap] provenance non posée', e instanceof Error ? e.message : e);
     }
   }
   return { ok: true, adId: r.adId, code, variable: v.variable, valeur: valeur.valeur, preparer: lienPreparationIteration({ parentAdId, code, variable: v.variable, valeur: valeur.valeur }), provenance: pose };
@@ -139,6 +155,23 @@ async function provenanceJarvis(g: AdsMapGuardOk, brut: unknown, parentAdId: str
         : lireContexteGestes(g.s, g.brand.id, demande.contexte).then((c) => c && c.ads.map((a) => a.id)),
     ]);
     return provenanceJarvisAdmise(demande, { reponseLue: texte !== null, parentAdId, adsDuContexte: ads });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * La provenance « Commentaire » demandée, RELUE · le commentaire dans la portée
+ * (espace, marque active, projet de la demande, création testée), sa pub de
+ * test égale à la pub de départ · `null` sinon (adresse forgée, autre projet,
+ * autre marque, version, pub d'une autre création) · aucune écriture, aucun modèle.
+ */
+async function provenanceCommentaire(g: AdsMapGuardOk, brut: unknown, parentAdId: string): Promise<ProvenanceCommentaire | null> {
+  const demande = lireDemandeProvenanceCommentaire(brut);
+  if (!demande) return null;
+  try {
+    const lu = await lireCommentairePourIterer(g.s, g.brand.id, demande);
+    return provenanceCommentaireAdmise(demande, { adDuCommentaire: lu?.adsmapAdId ?? null, parentAdId });
   } catch {
     return null;
   }

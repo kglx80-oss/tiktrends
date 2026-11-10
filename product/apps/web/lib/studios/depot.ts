@@ -5,8 +5,8 @@ import { db, schema } from '@tiktrends/db';
 import {
   appliquerPatch, validerContenuVersion, validerFormeBrief, empreinteContenu, differencesDetaillees, contenuVide,
   objetDansPortee, erreurStudio, estIdStable, SCHEMA_VERSION_CONTENU, CLES_CONTENU,
-  refsAdsmapCitees, violationsReferencesAdsmapBrief, offreDuBrief, RAISON_REF_HORS_PORTEE,
-  type ContenuVersion, type ErreurStudio, type BriefCanonique,
+  refsAdsmapCitees, violationsReferencesAdsmapBrief, offreDuBrief, RAISON_REF_HORS_PORTEE, detailsCopieDe,
+  type ContenuVersion, type ErreurStudio, type BriefCanonique, type CopieDe,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
 import { ajouterAudit } from './audit';
@@ -143,6 +143,12 @@ export interface EntreeCreation {
   title: unknown;
   contenu?: unknown;
   raison?: unknown;
+  /**
+   * Le projet et la version SOURCES d'une copie (`dupliquerProjetPour`) · écrits
+   * dans l'audit de la création (`detailsCopieDe`) · jamais lus du client (les
+   * actions choisissent leurs champs une à une).
+   */
+  copieDe?: CopieDe;
 }
 
 /**
@@ -215,6 +221,7 @@ export async function creerProjet(ctx: ContexteStudio, e: EntreeCreation): Promi
       await ajouterAudit(tx, ctx, {
         action: 'project.create', brandId, targetType: 'studio_project', targetId: projet!.id,
         versionBefore: null, versionAfter: version!.id, reason: 'création',
+        ...(e.copieDe ? { details: detailsCopieDe(e.copieDe) } : {}),
       });
       return { ok: true as const, projet: maj!, version: version! };
     });

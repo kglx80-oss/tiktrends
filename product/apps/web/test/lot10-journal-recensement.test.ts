@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { ACTIONS_JOURNAL_CONNUES, ETATS_JOB, etapeTechniqueJournal } from '@tiktrends/core';
+import { ACTIONS_JOURNAL_CONNUES, ETATS_JOB, LIENS_AUDIT_ENTRE_PROJETS, etapeTechniqueJournal } from '@tiktrends/core';
 
 /**
  * Lot 10 · garde de RECENSEMENT du journal d'un projet · chaque action que le
@@ -16,6 +16,13 @@ import { ACTIONS_JOURNAL_CONNUES, ETATS_JOB, etapeTechniqueJournal } from '@tikt
  * nom et son fichier · sans lui, elle s'afficherait « Action enregistrée sur ce
  * projet » (neutre, jamais brute) sans que personne ne l'ait décidé. Une phrase
  * dont l'action n'est plus écrite nulle part tombe aussi (phrase morte).
+ *
+ * Les LIENS ENTRE PROJETS écrits dans les détails de l'audit
+ * (`LIENS_AUDIT_ENTRE_PROJETS` · `copieDe`, la duplication) · chacun est écrit
+ * par un fichier qui écrit l'audit (son écrivain du noyau) ET relu par le
+ * journal du projet qu'il désigne (son lecteur du noyau, dans le module de
+ * l'activité) · un lien écrit que personne ne relit (le projet source muet),
+ * ou un lien recensé que plus rien n'écrit, fait tomber ce test avec son nom.
  */
 
 const PRODUIT = join(__dirname, '..', '..', '..');
@@ -70,6 +77,25 @@ const classe = (a: string): 'connue' | 'technique' | 'hors projet' | null => {
   return null;
 };
 
+/** L'écrivain et le lecteur du noyau de chaque lien entre projets. */
+const LIENS: Record<string, { ecrit: RegExp; lu: RegExp }> = {
+  copieDe: { ecrit: /\bdetailsCopieDe\(/, lu: /\bliensDeCopie\(/ },
+};
+
+function liensEntreProjets(): Array<{ cle: string; ecritPar: string[]; luPar: string[] }> {
+  const tous = RACINES.flatMap((r) => fichiers(join(PRODUIT, r)));
+  return LIENS_AUDIT_ENTRE_PROJETS.map(({ cle }) => {
+    const l = LIENS[cle];
+    if (!l) return { cle, ecritPar: [], luPar: [] };
+    const sources = tous.map((f) => ({ f: relative(PRODUIT, f), s: readFileSync(f, 'utf8') }));
+    return {
+      cle,
+      ecritPar: sources.filter((x) => /ajouterAudit\(/.test(x.s) && l.ecrit.test(x.s)).map((x) => x.f),
+      luPar: sources.filter((x) => /lireJournalPour/.test(x.s) && l.lu.test(x.s)).map((x) => x.f),
+    };
+  });
+}
+
 describe('lot 10 · le journal classe chaque action écrite dans l’audit des studios', () => {
   const ecrites = actionsEcrites();
 
@@ -86,6 +112,13 @@ describe('lot 10 · le journal classe chaque action écrite dans l’audit des s
 
   it('aucune phrase morte · chaque action connue est encore écrite quelque part', () => {
     expect(ACTIONS_JOURNAL_CONNUES.filter((a) => !ecrites.has(a))).toEqual([]);
+  });
+
+  it('chaque lien entre projets écrit dans l’audit est relu par le journal du projet qu’il désigne', () => {
+    const liens = liensEntreProjets();
+    expect(liens.map((l) => l.cle), 'les liens recensés (noyau)').toEqual(Object.keys(LIENS));
+    expect(liens.filter((l) => l.ecritPar.length === 0).map((l) => `${l.cle} · recensé mais écrit nulle part dans l’audit`)).toEqual([]);
+    expect(liens.filter((l) => l.luPar.length === 0).map((l) => `${l.cle} · écrit dans l’audit mais relu par aucun journal · le projet désigné reste muet`)).toEqual([]);
   });
 
   it('chaque action hors projet de la table est encore écrite (table à jour)', () => {

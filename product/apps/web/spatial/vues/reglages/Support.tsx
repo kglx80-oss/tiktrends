@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { AnnonceRetour } from '../marque/interactifs';
+import { BoutonAideRaccourcis } from '../../coquille/Raccourcis';
 
 /**
  * « Support » de l'espace · vague 4 · les écrans V5 `/support` et
@@ -30,6 +31,8 @@ export function Support(p: PropsSupport) {
     <Vue>
       <EnTete titre="Support" sous={p.admin ? 'Tous les tickets de ton espace · réponds, change le statut, garde le fil' : 'Signale un bug, propose une idée, pose une question'} />
       <p className="muted" data-geste="portee" style={{ fontSize: 13, margin: '0 0 16px', maxWidth: 760 }}>{p.portee}</p>
+      {/* Lot 13 · CA X03 · la liste des raccourcis (la même fenêtre que « ? » et le bouton du rail). */}
+      <div data-geste="raccourcis" style={{ margin: '0 0 16px' }}><BoutonAideRaccourcis /></div>
       <div className="grid2">
         <section className="tile" data-geste="nouveau-ticket" style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
           <h2 style={{ margin: 0 }}>Nouveau message</h2>
