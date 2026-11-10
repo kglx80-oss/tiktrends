@@ -4,7 +4,7 @@ import { Ic } from '../../communs';
 /**
  * Boucler la preuve · « D'où viennent les hypothèses qui gagnent » (page
  * Hypothèses) · chaque provenance (tag de Veille, pub de la Veille,
- * apprentissage, persona, à la main, itération) contre le RESTE de la marque,
+ * apprentissage, persona, offre, à la main, Jarvis, itération) contre le RESTE de la marque,
  * effectif minimum, intervalles disjoints au niveau mesuré (`bilanProvenances`,
  * noyau). Le silence s'affiche comme une conclusion. PRÉSENTATIONNEL · tout est
  * calculé par la page. Absent des props d'`Hypotheses`, rien n'est ajouté à la
@@ -15,6 +15,8 @@ export type PropsBilanProvenances = Bilan & {
   /** Les provenances lues, dans l'ordre du noyau · dites même quand aucune n'a de verdict. */
   provenances: readonly string[];
   noteJarvis: string;
+  /** Ce qui range une hypothèse dans « Offre » · dit sous le bilan. */
+  noteOffre?: string;
 };
 
 const TON: Record<LectureProvenance, { pill: string; libelle: string }> = {
@@ -46,6 +48,7 @@ export function BilanProvenances({ p }: { p: PropsBilanProvenances }) {
       <p data-phrase-provenances="" style={{ fontSize: 13, marginTop: 12 }}>{p.phrase}</p>
       <p className="faint" style={{ fontSize: '11.5px', marginTop: 6 }}>{p.regle}</p>
       <p className="faint" style={{ fontSize: '11.5px', marginTop: 4 }}>{p.noteJarvis}</p>
+      {p.noteOffre && <p className="faint" data-note-offre="" style={{ fontSize: '11.5px', marginTop: 4 }}>{p.noteOffre}</p>}
     </section>
   );
 }

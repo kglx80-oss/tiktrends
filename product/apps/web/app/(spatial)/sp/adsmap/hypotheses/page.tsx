@@ -1,6 +1,6 @@
 import {
   bilanProvenances, cartesHypotheses, conclusionLot, entreesBilanProvenances, presentationLot, provenanceDuTest, referenceConclusion, sousNavResultats,
-  NOTE_JARVIS_PROVENANCE, PROVENANCES_TEST, RESERVE_ESTIMATION, type FaitsHypotheseAd,
+  NOTE_JARVIS_PROVENANCE, NOTE_OFFRE_PROVENANCE, PROVENANCES_TEST, RESERVE_ESTIMATION, type FaitsHypotheseAd,
 } from '@tiktrends/core';
 import { iterationPlanAction } from '../../../../actions/adsmap-iterate';
 import { completerHypotheseAction, creerHypotheseAction } from '../../../../actions/adsmap-hypotheses';
@@ -48,7 +48,7 @@ export default async function HypothesesSpatial() {
       note={`La priorité vient de ton estimation (impact, confiance, effort) quand tu l’as donnée, sinon du pré-score du concept, lu sur tes tests passés, ou du rang de la suite dans le plan d’itération · une ${RESERVE_ESTIMATION}, pas une mesure.`}
       creer={creerHypotheseAction}
       completer={completerHypotheseAction}
-      bilan={{ ...bilan, provenances: PROVENANCES_TEST.map((p) => p.libelle), noteJarvis: NOTE_JARVIS_PROVENANCE }}
+      bilan={{ ...bilan, provenances: PROVENANCES_TEST.map((p) => p.libelle), noteJarvis: NOTE_JARVIS_PROVENANCE, noteOffre: NOTE_OFFRE_PROVENANCE }}
     />
   );
 }

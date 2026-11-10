@@ -115,7 +115,7 @@ describe('la provenance rappelée · le lien vers la source quand elle en a une'
     expect(provenanceDuTest({ origine: null, typeAd: 'iteration', jarvis: J })).toBe('jarvis');
     expect(provenanceDuTest({ origine: null, typeAd: 'iteration' })).toBe('iteration');
     expect(provenanceDuTest({ origine: null, typeAd: 'ideation' })).toBeNull();
-    expect(PROVENANCES_TEST.map((p) => p.cle)).toEqual(['tag', 'veille', 'apprentissage', 'persona', 'libre', 'jarvis', 'iteration']);
+    expect(PROVENANCES_TEST.map((p) => p.cle)).toEqual(['tag', 'veille', 'apprentissage', 'persona', 'offre', 'libre', 'jarvis', 'iteration']);
   });
 });
 
@@ -169,7 +169,7 @@ describe('le bilan par provenance · le silence par défaut, la parole avec ses 
   });
 
   it('la règle dite à l’écran porte les seuils des modules', () => {
-    expect(regleBilanProvenances()).toBe(`Règle · une hypothèse gagne quand sa variante est tranchée gagnante au protocole · au moins ${MIN_VERDICTS_PERSONA} variantes tranchées pour une provenance et ${MIN_REFERENCE_PERSONA} dans le reste de la marque · l’intervalle de la provenance doit exclure celui du reste (niveau 0,975, 0,99 au-delà de 80 variantes hors provenances, silence au-delà de 160).`);
+    expect(regleBilanProvenances()).toBe(`Règle · une hypothèse gagne quand sa variante est tranchée gagnante au protocole · au moins ${MIN_VERDICTS_PERSONA} variantes tranchées pour une provenance et ${MIN_REFERENCE_PERSONA} dans le reste de la marque · l’intervalle de la provenance doit exclure celui du reste (niveau 0,975, 0,99 au-delà de 80 variantes hors provenances, silence au-delà de 160) · 8 provenances, 6 lues au plus à la fois, silence au-delà.`);
   });
 });
 

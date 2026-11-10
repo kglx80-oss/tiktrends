@@ -168,7 +168,7 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
         controles={[{ icone: 'cal', titre: '14 jours sur 14', detail: 'd' }, { icone: 'chart', titre: '18 000 impressions', detail: 'd' }, { icone: 'lock', titre: 'Règle respectée', detail: 'd' }]}
         coach={{ avant: 'Le moteur retient :', fort: 'v2 · Gagnante', apres: '.' }}
         personas={{ variantes: [{ id: 'v1', variante: 'v1', libelle: 'Léa · d’après le brief du projet', desaccord: false, personaId: 'p1' }], groupes: [{ id: 'p1', nom: 'Léa', lecture: 'effectif', phrase: 'p' }], parle: false, phrase: 'silence', regle: 'r' }}
-        offres={{ variantes: [{ id: 'v1', variante: 'v1', libelle: 'Duo · d’après le brief du projet', desaccord: false, offreId: 'o1' }], groupes: [{ id: 'o1', nom: 'Duo', lecture: 'effectif', phrase: 'p' }], parle: false, phrase: 'silence', regle: 'r' }}
+        offres={{ variantes: [{ id: 'v1', variante: 'v1', libelle: 'Duo · d’après le brief du projet', desaccord: false, offreId: 'o1' }], groupes: [{ id: 'o1', nom: 'Duo', lecture: 'effectif', phrase: 'p' }], parle: false, phrase: 'silence', regle: 'r', gestesLus: true }}
       />,
     );
     const t = document.createElement('template');
@@ -179,6 +179,8 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
     expect(p).toHaveLength(1);
     expect(o[0]!.parentElement!.lastElementChild, '« Quelle offre » doit être le dernier enfant de la vue').toBe(o[0]);
     expect(o[0]!.previousElementSibling, '« Quelle offre » suit « Pour qui »').toBe(p[0]);
+    // Les gestes de l'offre et leur silence vivent DANS la section déclarée, jamais à côté.
+    expect(o[0]!.querySelector('[data-gestes-offre-silence]'), 'le silence des gestes de l’offre hors de la section').not.toBeNull();
     o[0]!.remove();
     p[0]!.remove();
     const r = parite(t.innerHTML, 'lot1', { ...VUE, correctifs: CORRECTIFS_CREAS.filter((c) => c.selecteur === '.ad .tag') });
