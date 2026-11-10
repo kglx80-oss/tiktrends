@@ -2017,3 +2017,39 @@ export const studioAuditEvents = pgTable('studio_audit_events', {
   porteeIdx: index('studio_audit_events_portee_idx').on(t.workspaceId, t.brandId, t.occurredAt),
   cibleIdx: index('studio_audit_events_cible_idx').on(t.targetType, t.targetId),
 }));
+
+/**
+ * Commentaires d'un projet (lot 10 V5 · PC D15) · sur une VERSION du projet ou
+ * sur une CRÉATION (sortie livrée, `studio_assets`) · JAMAIS supprimés : un
+ * commentaire se RÉSOUT (et se rouvre), son texte modifié garde l'ancien dans
+ * `history` (bornée au noyau, `MODIFICATIONS_MAX_COMMENTAIRE`). Les règles
+ * (longueur, contenu vide, qui modifie, qui résout) vivent au noyau
+ * (`C/studios/activite/commentaires.ts`). Portée : la version appartient au
+ * projet (clé composée), la création à la marque et à l'espace du projet (clé
+ * composée) · son projet est relu par le serveur. Cible exclusive et longueur
+ * bornée par deux contraintes posées dans 0074 (`studio_comments_cible_ck`,
+ * `studio_comments_longueur_ck`).
+ */
+export const studioComments = pgTable('studio_comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  targetType: text('target_type', { enum: ['version', 'creation'] }).notNull(),
+  versionId: uuid('version_id'),
+  assetId: uuid('asset_id'),
+  authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+  body: text('body').notNull(),
+  history: jsonb('history').notNull().default([]),
+  editedAt: timestamp('edited_at', { withTimezone: true }),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: uuid('resolved_by').references(() => users.id, { onDelete: 'set null' }),
+  rowVersion: integer('row_version').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_comments_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  version: foreignKey({ name: 'studio_comments_version_fk', columns: [t.versionId, t.projectId], foreignColumns: [studioProjectVersions.id, studioProjectVersions.projectId] }).onDelete('restrict'),
+  creation: foreignKey({ name: 'studio_comments_creation_fk', columns: [t.assetId, t.workspaceId, t.brandId], foreignColumns: [studioAssets.id, studioAssets.workspaceId, studioAssets.brandId] }).onDelete('restrict'),
+  projetIdx: index('studio_comments_projet_idx').on(t.workspaceId, t.brandId, t.projectId, t.createdAt),
+}));

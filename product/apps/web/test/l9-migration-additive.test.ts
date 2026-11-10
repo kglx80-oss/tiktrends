@@ -178,6 +178,24 @@ describe('lecture du SQL · 0054 et 0055 sont additives et rejouables', () => {
     expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
   });
 
+  it('0074_commentaires_projet · une table neuve (trois contraintes · cible exclusive, longueur, historique), cinq clés étrangères protégées partant d’elle, un index, rejouables · aucun DROP, aucun RENAME, aucune table existante modifiée', () => {
+    const brut = fichier('0074_commentaires_projet');
+    const a = analyserMigrationSql(brut);
+    expect(a.instructions.map((x) => x.genre)).toEqual(['creation_table', 'bloc_protege', 'bloc_protege', 'bloc_protege', 'bloc_protege', 'bloc_protege', 'creation_index']);
+    const sansCommentaires = brut.replace(/^--.*$/gm, '');
+    expect(sansCommentaires, '0074 contient un DROP').not.toMatch(/\bDROP\b/i);
+    expect(sansCommentaires, '0074 contient un RENAME').not.toMatch(/\bRENAME\b/i);
+    expect(sansCommentaires, '0074 change le type, le défaut ou la nullité d’une colonne existante').not.toMatch(/ALTER COLUMN|SET NOT NULL|SET DEFAULT|\bTYPE\b|ADD COLUMN/i);
+    // Seule la table NEUVE est modifiée (ses clés étrangères) · les tables citées par REFERENCES ne sont que lues.
+    const alter = [...sansCommentaires.matchAll(/(?:ALTER TABLE|ON) "([a-z_]+)"/g)].map((m) => m[1]);
+    expect([...new Set(alter)], 'une autre table que studio_comments est modifiée par 0074').toEqual(['studio_comments']);
+    const instr = decouperInstructionsSql(brut).map((x) => x.replace(/^--.*$/gm, '').replace(/\s+/g, ' ').trim().replace(/;$/, ''));
+    expect(instr[0]).toMatch(/^CREATE TABLE IF NOT EXISTS "studio_comments" \(.*CONSTRAINT "studio_comments_cible_ck" CHECK \(\("target_type" = 'version' AND "version_id" IS NOT NULL AND "asset_id" IS NULL\) OR \("target_type" = 'creation' AND "asset_id" IS NOT NULL AND "version_id" IS NULL\)\), CONSTRAINT "studio_comments_longueur_ck" CHECK \(char_length\("body"\) BETWEEN 1 AND 2000\), CONSTRAINT "studio_comments_historique_ck" CHECK \(jsonb_typeof\("history"\) = 'array'\) \)$/);
+    expect(instr[6]).toBe('CREATE INDEX IF NOT EXISTS "studio_comments_projet_idx" ON "studio_comments" USING btree ("workspace_id","brand_id","project_id","created_at")');
+    expect(a.additive && a.rejouable).toBe(true);
+    expect([...a.ecritures, ...a.destructives, ...a.inconnues, ...a.nonRejouables]).toEqual([]);
+  });
+
   it('référence · la même règle VOIT les backfills historiques (0045, 0053) et la destruction de 0035', () => {
     expect(analyserMigrationSql(fichier('0045_backfill_ad_source_ref')).ecritures.length).toBeGreaterThan(0);
     expect(analyserMigrationSql(fichier('0053_modern_quasar')).ecritures.length).toBeGreaterThan(0);
@@ -234,9 +252,9 @@ describe('journal · le migrateur drizzle n’ignore aucune migration', () => {
     expect(migrationsEnAttente(e, 300)).toEqual([]);
     expect(migrationsMasquees(e, [100, 300]).map((x) => x.tag)).toEqual(['0002_c']);
   });
-  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille), 0071 (rang et segment des personas), 0072 (offres et allégations) puis 0073 (marque « retenue » des mesures, CBO des instances) sont en attente, rien de masqué', () => {
+  it('sur la production de main (0000→0053 appliquées), exactement 0054, 0055, 0056 (R5), 0057 (conversations Jarvis), 0058 (dossiers), 0059 (lien concept), 0060 (poches de crédits), 0061 (unité de crédit ÷ 10), 0062 (échéance d’abonnement), 0063 (facturation annuelle), 0064 (tags de couleur des dossiers), 0065 (empreinte des objets téléversés), 0066 (empreinte des logos de marque), 0067 (index de la lecture paginée des médias) 0068 (estimation des hypothèses), 0069 (mesures importées et journal des remontées) 0070 (tags et collections de la Veille), 0071 (rang et segment des personas), 0072 (offres et allégations), 0073 (marque « retenue » des mesures, CBO des instances) puis 0074 (commentaires des projets) sont en attente, rien de masqué', () => {
     const main = journal.entries.filter((x) => x.idx <= 53).map((x) => x.when);
-    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment', '0072_offres_allegations', '0073_mesures_retenues_cbo']);
+    expect(migrationsEnAttente(journal.entries, Math.max(...main)).map((x) => x.tag)).toEqual([...NOUVELLES, '0056_ai_spend_reconciliations', '0057_jarvis_conversations', '0058_library_folders', '0059_concept_lien_conversation', '0060_poches_credits', '0061_unite_credits', '0062_echeance_abonnement', '0063_facturation_annuelle', '0064_tags_couleur_dossiers', '0065_empreinte_objet_assets', '0066_empreinte_logos_marque', '0067_index_pagination_assets', '0068_estimation_hypotheses', '0069_mesures_csv_remontees', '0070_veille_tags_notes', '0071_personas_rang_segment', '0072_offres_allegations', '0073_mesures_retenues_cbo', '0074_commentaires_projet']);
     expect(migrationsMasquees(journal.entries, main)).toEqual([]);
   });
 });
@@ -552,6 +570,52 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     await appliquer(pg, ['0073_mesures_retenues_cbo']);
     expect(await empreinteSchema(pg), 'rejeu de 0073').toEqual(schemaUneFois);
     expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0073 · lignes modifiées').toEqual(avant);
+    await pg.close();
+  }, 120_000);
+
+  it('0074 sur une base à 0073 avec des projets existants (versions, médias, journal d’audit) · lignes intactes, table neuve vide, cible et longueur bornées en base, rejeu sans effet', async () => {
+    const pg = await baseJusqua0053();
+    await appliquer(pg, journal.entries.filter((x) => x.idx > 53 && x.idx <= 73).map((x) => x.tag));
+    const ws = 'a9000000-0000-4000-8000-000000000001';
+    const u = 'a9000000-0000-4000-8000-000000000011';
+    await pg.exec(`
+      INSERT INTO studio_projects (id, workspace_id, brand_id, kind, title, owner_id, created_at, updated_at)
+        SELECT md5('pj' || i)::uuid, '${ws}', md5('b1')::uuid, 'image', 'Projet ' || i, '${u}', '2026-08-01T00:00:00Z', '2026-08-01T00:00:00Z' FROM generate_series(1, 3) i;
+      INSERT INTO studio_project_versions (id, project_id, workspace_id, brand_id, n, schema_version, content, content_hash, author_id, reason, created_at)
+        SELECT md5('pv' || i || '-' || n)::uuid, md5('pj' || i)::uuid, '${ws}', md5('b1')::uuid, n, 1, '{}'::jsonb, md5('h' || i || n) || md5('x' || i || n), '${u}', 'version ' || n, '2026-08-01T00:00:00Z' FROM generate_series(1, 3) i, generate_series(1, 2) n;
+      UPDATE studio_projects SET current_version_id = md5('pv' || substr(title, 8) || '-2')::uuid;
+      INSERT INTO studio_assets (id, workspace_id, brand_id, project_id, storage_key, mime, bytes, sha256, origin, storage_state, created_at)
+        SELECT md5('sa' || i)::uuid, '${ws}', md5('b1')::uuid, md5('pj' || (1 + i % 3))::uuid, 'k/' || i, 'image/png', 10, encode(sha256(('s' || i)::bytea), 'hex'), 'generated', 'stored', '2026-08-01T00:00:00Z' FROM generate_series(1, 6) i;
+      INSERT INTO studio_audit_events (occurred_at, actor_id, effective_role, workspace_id, brand_id, action, target_type, target_id, reason, trace_id)
+        SELECT '2026-08-01T00:00:00Z', '${u}', 'espace:owner', '${ws}', md5('b1')::uuid, 'project.rename', 'studio_project', md5('pj' || i)::uuid::text, 'Projet renommé', 'st_' || i FROM generate_series(1, 3) i;`);
+    const [n0] = await lignes<{ p: number; v: number; a: number; e: number }>(pg, 'select (select count(*)::int from studio_projects) as p, (select count(*)::int from studio_project_versions) as v, (select count(*)::int from studio_assets) as a, (select count(*)::int from studio_audit_events) as e');
+    expect(n0).toEqual({ p: 3, v: 6, a: 6, e: 3 });
+    const avantCols = await colonnesDe(pg);
+    const avant = await empreinteDonnees(pg, avantCols);
+    const schemaAvant = await empreinteSchema(pg);
+    await appliquer(pg, ['0074_commentaires_projet']);
+    expect(await empreinteDonnees(pg, avantCols), 'lignes existantes modifiées par 0074 (projets, versions, médias, journal…)').toEqual(avant);
+    const [vide] = await lignes<{ n: number }>(pg, 'select count(*)::int as n from studio_comments');
+    expect(vide!.n, 'backfill dans studio_comments').toBe(0);
+    const schemaUneFois = await empreinteSchema(pg);
+    expect(schemaAvant.filter((l) => !schemaUneFois.includes(l)), 'objet retiré par 0074').toEqual([]);
+    expect(schemaUneFois.filter((l) => !schemaAvant.includes(l) && l.startsWith('col ') && !/^col studio_comments\./.test(l)), 'colonne ajoutée à une table existante par 0074').toEqual([]);
+    // Bornes posées par Postgres · une version d'un AUTRE projet, deux cibles, aucune cible, un texte vide ou trop long sont refusés.
+    const ins = (cols: string) => pg.exec(`INSERT INTO studio_comments (workspace_id, brand_id, project_id, target_type, version_id, asset_id, author_id, body) VALUES (${cols})`);
+    await expect(ins(`'${ws}', md5('b1')::uuid, md5('pj1')::uuid, 'version', md5('pv2-1')::uuid, null, '${u}', 'x'`), 'version d’un autre projet').rejects.toThrow(/foreign key/i);
+    await expect(ins(`'${ws}', md5('b1')::uuid, md5('pj1')::uuid, 'version', md5('pv1-1')::uuid, md5('sa3')::uuid, '${u}', 'x'`), 'deux cibles').rejects.toThrow(/check constraint/i);
+    await expect(ins(`'${ws}', md5('b1')::uuid, md5('pj1')::uuid, 'creation', null, null, '${u}', 'x'`), 'aucune cible').rejects.toThrow(/check constraint/i);
+    await expect(ins(`'${ws}', md5('b1')::uuid, md5('pj1')::uuid, 'version', md5('pv1-1')::uuid, null, '${u}', ''`), 'texte vide').rejects.toThrow(/check constraint/i);
+    await expect(ins(`'${ws}', md5('b1')::uuid, md5('pj1')::uuid, 'version', md5('pv1-1')::uuid, null, '${u}', repeat('a', 2001)`), 'texte trop long').rejects.toThrow(/check constraint/i);
+    await expect(ins(`'${ws}', md5('b2')::uuid, md5('pj1')::uuid, 'version', md5('pv1-1')::uuid, null, '${u}', 'x'`), 'autre marque que celle du projet').rejects.toThrow(/foreign key/i);
+    await ins(`'${ws}', md5('b1')::uuid, md5('pj1')::uuid, 'version', md5('pv1-1')::uuid, null, '${u}', 'Le titre est trop long'`);
+    await ins(`'${ws}', md5('b1')::uuid, md5('pj1')::uuid, 'creation', null, md5('sa3')::uuid, '${u}', 'Produit flou'`);
+    const [deux] = await lignes<{ n: number; h: string }>(pg, `select count(*)::int as n, string_agg(distinct history::text, ',') as h from studio_comments`);
+    expect(deux).toEqual({ n: 2, h: '[]' });
+    await pg.exec('DELETE FROM studio_comments');
+    await appliquer(pg, ['0074_commentaires_projet']);
+    expect(await empreinteSchema(pg), 'rejeu de 0074').toEqual(schemaUneFois);
+    expect(await empreinteDonnees(pg, avantCols), 'rejeu de 0074 · lignes modifiées').toEqual(avant);
     await pg.close();
   }, 120_000);
 

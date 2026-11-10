@@ -17,6 +17,7 @@ import { liensAtelierProjet } from '../../../../../../lib/navigation';
 import { listerVariantes } from '../../../../../../lib/studios/variantes/variantes';
 import { accesAdsmap, etatRelecture } from '../../../../../../lib/studios/variantes/acces';
 import { listerTachesProjet } from '../../../../../../lib/studios/execution/commandes';
+import { activiteDuProjet } from '../../../../../../lib/studios/activite';
 import { urlsApercu } from '../../../../../../lib/studios/editeur/apercus';
 import { lireProjetDetail } from '../../../../../actions/studios/sources';
 import { lireLigneeProjet } from '../../../../../actions/studios/lignee';
@@ -101,6 +102,8 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
     // Canvas libre · la version VUE (une ancienne version garde son graphe), la disposition de CETTE personne.
     lireCanvasProjet({ projectId: pid, versionId: d.version.id }).catch(() => null),
   ]);
+  // Lot 10 · l'onglet « Activité » · journal (lecture seule) et commentaires, sous la même garde que la fiche.
+  const activite = g.ok ? await activiteDuProjet(g.ctx, pid) : null;
 
   const donnees = variantes?.ok ? variantes.donnees : null;
   const vue = donnees ? vueVariantes(donnees) : null;
@@ -262,7 +265,9 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         peutProposer: !!donnees?.droits.proposer,
         adsmap: donnees ? donnees.adsmap : null,
         relire: relectureNecessaire((donnees?.lots ?? []).map((l) => l.etat as EtatJob)),
+        journal: !!activite,
       },
+      activite,
     },
   };
 }

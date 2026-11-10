@@ -513,3 +513,52 @@ describe('Spatial · D2 · « Cibler Jarvis » depuis un nœud des couloirs', ()
     expect(hote.querySelector('[data-cibler-jarvis]')).toBeNull();
   });
 });
+
+/* ───────────────────────────── Lot 10 · l'onglet « Activité » ───────────────────────────── */
+
+/**
+ * Lot 10 (PC D13, D15) · seul ajout HORS maquette dans l'en-tête de la fiche ·
+ * le quatrième onglet « Activité » (`button[data-ptab="activite"]`), offert
+ * quand la page a lu l'activité. La maquette n'a que trois onglets · on le
+ * retire · et seulement lui, un seul, DERNIER bouton du `.seg` de l'en-tête.
+ */
+function sansOngletActivite(html: string): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const b = t.content.querySelectorAll('button[data-ptab="activite"]');
+  if (b.length !== 1 || b[0]!.parentElement?.matches('.wshead > .seg') !== true || b[0]!.nextElementSibling !== null) return html;
+  b[0]!.remove();
+  return t.innerHTML;
+}
+const ACTIVITE: NonNullable<PropsProjet['activite']> = {
+  projectId: 'p1',
+  journal: { ok: true, tronque: false, journal: { entrees: [], type: null, page: 1, pages: 1, total: 0, tous: 0, filtres: [] } },
+  commentaires: { ok: true, liste: { commentaires: [], cibles: [{ cle: 'version:v3', type: 'version', id: 'v3', libelle: 'Version 3 · courante' }], peutCommenter: true } },
+};
+
+describe('Spatial · D2 · lot 10 · l’onglet « Activité » est le seul écart, étroitement déclaré', () => {
+  it('avec l’onglet · la parité tient une fois LUI SEUL retiré · sans activité lue, aucun onglet', () => {
+    const html = rendre(<Projet {...propsProjet({ activite: ACTIVITE })} />);
+    expect(html).toContain('data-ptab="activite"');
+    const p = parite(sansOngletActivite(html), 'projet', { ignorer: IGNORER_PROJET });
+    expect(p.rendu).toEqual(p.reference);
+    expect(rendre(<Projet {...propsProjet()} />)).not.toContain('data-ptab="activite"');
+  });
+  it('l’écart déclaré ne couvre rien d’autre · deux onglets, ou un onglet hors du sélecteur, font tomber la parité', () => {
+    const html = rendre(<Projet {...propsProjet({ activite: ACTIVITE })} />);
+    const ref = parite(html, 'projet', { ignorer: IGNORER_PROJET }).reference;
+    const bouton = /<button type="button" data-ptab="activite"[^>]*>Activité<\/button>/.exec(html)![0];
+    expect(squelette(sansOngletActivite(html.replace(bouton, bouton + bouton)), { ignorer: IGNORER_PROJET }), 'deux onglets').not.toEqual(ref);
+    expect(squelette(sansOngletActivite(html.replace(bouton, '').replace('<div class="btool">', `<div class="btool">${bouton}`)), { ignorer: IGNORER_PROJET }), 'un onglet hors de sa place').not.toEqual(ref);
+  });
+  it('l’onglet ouvre le journal et les commentaires · rien d’autre ne change de place', async () => {
+    const hote = document.createElement('div'); document.body.appendChild(hote);
+    const r = createRoot(hote);
+    await act(async () => { r.render(<FournisseurSpatial value={CTX}><Projet {...propsProjet({ activite: ACTIVITE })} /></FournisseurSpatial>); });
+    await act(async () => { (hote.querySelector('button[data-ptab="activite"]') as HTMLButtonElement).click(); });
+    expect(hote.querySelector('[data-journal-projet] [data-resume-journal]')?.textContent).toBe('Aucun événement sur ce projet pour l’instant.');
+    expect(hote.querySelector('[data-commentaires-projet] [data-commentaires-vide]')?.textContent).toBe('Aucun commentaire sur ce projet.');
+    expect(hote.querySelector('.lanes')).toBeNull();
+    act(() => r.unmount()); hote.remove();
+  });
+});

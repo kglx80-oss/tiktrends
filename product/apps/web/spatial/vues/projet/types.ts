@@ -1,4 +1,4 @@
-import type { IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest } from '@tiktrends/core';
+import type { DroitsCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -7,7 +7,7 @@ import type { ListePropositions, ReponseProposition } from '../../../lib/studios
  * seuls · aucun code ici (importable des deux côtés).
  */
 
-export type OngletProjet = 'brief' | 'canvas' | 'crea';
+export type OngletProjet = 'brief' | 'canvas' | 'crea' | 'activite';
 
 export interface ActionConceptSpatiale {
   cle: string;
@@ -162,6 +162,8 @@ export interface PropsCreationsProjet {
    * sans le clic. Absent · l'écran d'avant.
    */
   jarvis?: PreparationTesterJarvis | null;
+  /** Lot 10 · « Voir le journal » des tâches · l'onglet Activité existe (`#activite`). */
+  journal?: boolean;
 }
 
 export interface PropsProjet {
@@ -193,6 +195,11 @@ export interface PropsProjet {
    * Absent (pas d'accès à la conversation), l'en-tête reste celui de la maquette.
    */
   demanderJarvis?: { href: string } | null;
+  /**
+   * Lot 10 · l'onglet « Activité » (journal et commentaires du projet) ·
+   * absent, l'onglet n'est pas offert (la fiche reste celle de la maquette).
+   */
+  activite?: PropsActiviteProjet | null;
 }
 
 /** Le canvas métier d'une version et la disposition PERSONNELLE de la session (`lireCanvasProjet`). */
@@ -203,4 +210,33 @@ export interface CanevasLibre {
   apercus: Record<string, string>;
   disposition: DispositionCanvas;
   rev: number;
+}
+
+/* ───────────────────────────── Lot 10 · activité et commentaires ───────────────────────────── */
+
+/** Ce qu'on peut commenter · une version du projet, ou une création (sortie livrée d'un lot). */
+export interface CibleCommentable { cle: string; type: 'version' | 'creation'; id: string; libelle: string }
+
+export interface VueCommentaire {
+  id: string;
+  cible: { type: 'version' | 'creation'; id: string; libelle: string };
+  auteur: string;
+  quand: string;
+  /** Le texte tel qu'écrit · rendu comme du TEXTE (jamais du HTML), retours à la ligne gardés. */
+  texte: string;
+  /** « Modifié le 08/11/2026 · 14:32 · 2 fois » · `null` jamais modifié. */
+  modifie: string | null;
+  resolu: { par: string; quand: string } | null;
+  /** Règle du noyau (`droitsCommentaire`) · rejouée par le serveur au clic. */
+  gestes: DroitsCommentaire;
+  rowVersion: number;
+}
+
+export interface CommentairesProjet { commentaires: VueCommentaire[]; cibles: CibleCommentable[]; peutCommenter: boolean }
+
+/** L'onglet « Activité » · journal (lecture seule) et commentaires, lus par la page serveur. */
+export interface PropsActiviteProjet {
+  projectId: string;
+  journal: { ok: true; journal: JournalProjet; tronque: boolean } | { ok: false; message: string };
+  commentaires: { ok: true; liste: CommentairesProjet } | { ok: false; message: string };
 }

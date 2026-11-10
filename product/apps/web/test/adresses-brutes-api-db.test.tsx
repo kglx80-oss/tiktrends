@@ -378,6 +378,12 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/storage.ts': { configureBucketAction: A(), testStorageAction: A(), embeddedImagesStatusAction: L(), migrateEmbeddedImagesAction: A() },
   'app/actions/stripe-diagnostic.ts': { runStripeDiagnosticAction: A(), verifierOffreV2Action: A() },
   'app/actions/stripe.ts': { createCheckoutAction: A(() => [fd({ plan: 'business' })]), createPortalAction: A(), createTopupCheckoutAction: A(() => [fd({ pack: 'x' })]) },
+  // Lot 10 · journal (lecture seule) et commentaires · texte seul, aucune adresse · une création inconnue est refusée (introuvable), rien d'écrit.
+  'app/actions/studios/activite.ts': {
+    lireActiviteProjet: L(PI), listerCommentairesProjet: L(PI),
+    commenterProjet: A(() => [{ projectId: s.projetImage, cible: 'version', cibleId: randomUUID(), texte: 'Commentaire de recensement' }]),
+    modifierCommentaire: A(() => [{ commentId: randomUUID(), rowVersion: 0, texte: 'x' }]), resoudreCommentaire: A(() => [{ commentId: randomUUID(), rowVersion: 0, resolu: true }]),
+  },
   'app/actions/studios/archivage.ts': { supprimerProjet: D(() => [{ projectId: s.projetJetable }]), restaurerProjet: D(() => [{ projectId: s.projetJetable }]) },
   'app/actions/studios/assistant.ts': { ouvrirAssistantProjet: L() },
   'app/actions/studios/canvas.ts': {
