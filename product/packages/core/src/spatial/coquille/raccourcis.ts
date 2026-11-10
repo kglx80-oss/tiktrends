@@ -42,7 +42,9 @@ import type { SectionSpatiale } from '../types';
 
 export type PorteeRaccourci =
   | 'partout' | 'aller' | 'fenetres' | 'recherche' | 'menus'
-  | 'veille-detail' | 'bibliotheque-apercu' | 'ce-qui-scale' | 'editeur' | 'canvas' | 'mentions';
+  | 'veille-detail' | 'bibliotheque-apercu' | 'ce-qui-scale' | 'editeur' | 'canvas' | 'mentions'
+  /* Lot 13 bis · Résultats, les raccourcis d'itération. */
+  | 'fiche-lot';
 
 export interface DefPortee {
   cle: PorteeRaccourci;
@@ -64,6 +66,8 @@ export const PORTEES_RACCOURCIS: readonly DefPortee[] = [
   { cle: 'editeur', libelle: 'Éditeur de créa', globale: false },
   { cle: 'canvas', libelle: 'Canvas du projet', globale: false },
   { cle: 'mentions', libelle: 'Mentions dans un commentaire', globale: false },
+  /* Lot 13 bis · Résultats, les raccourcis d'itération. */
+  { cle: 'fiche-lot', libelle: 'Fiche d’un lot (Résultats)', globale: false },
 ];
 
 /* ───────────── Actions de la coquille ───────────── */
@@ -164,6 +168,22 @@ export const RACCOURCIS: readonly Raccourci[] = [
   },
   /* Les mentions d'un commentaire (fiche projet, onglet Activité) · liste ouverte par « @ » · Entrée choisit (touche de composant), Échap ferme (« fermer »). */
   { id: 'mention-choisir', touches: [['ArrowDown'], ['ArrowUp']], libelle: 'Choisir le membre suivant ou précédent', portee: 'mentions', action: null, sources: ['vues/projet/ChampMentions.tsx'], surFocus: true },
+  /*
+   * Lot 13 bis · Résultats · itérer au clavier sur la fiche d'un lot. Une
+   * NAVIGATION seulement (l'ancre de la conclusion, l'écran Itérer EXISTANT
+   * pré-rempli) · aucune écriture, aucun clic simulé. Fermées quand le geste
+   * l'est (`gestesClavierLot`, la raison dite dans le toast), coupées par
+   * `tt_raccourcis` (lettres seules · WCAG 2.1.4), lues par `raccourciFicheLot`.
+   * Les touches, choisies avec la garde des conflits ·
+   *  · C · « Conclure », libre partout ;
+   *  · T · « iTérer » · I est pris par « Importer des résultats », global, qui
+   *    recouvre toutes les portées (la garde le refuse) ; R est la seconde
+   *    touche de « G puis R » (une vue entend la frappe AVANT la coquille, elle
+   *    volerait la séquence) ; Maj I est un modificateur que la coquille tient
+   *    pour imprévu, et le verrouillage majuscule le ramène à I.
+   */
+  { id: 'lot-conclure', touches: [['c']], libelle: 'Aller à « Conclure le lot »', portee: 'fiche-lot', action: null, sources: ['vues/resultats/RaccourcisLot.tsx'] },
+  { id: 'lot-iterer', touches: [['t']], libelle: 'Itérer depuis la gagnante du lot (écran Itérer, pré-rempli)', portee: 'fiche-lot', action: null, sources: ['vues/resultats/RaccourcisLot.tsx'] },
 ];
 
 /**
@@ -176,7 +196,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
  * échoue s'il change · une touche nouvelle doit entrer ici ET dans `RACCOURCIS`
  * (ou être une touche de composant, `TOUCHES_DE_COMPOSANT`).
  *
- * Ce qu'il a trouvé (24 fichiers) ·
+ * Ce qu'il a trouvé (24 fichiers, 25 avec le lot 13 bis) ·
  *
  * | fichier | touches |
  * | --- | --- |
@@ -196,6 +216,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
  * | vues/reglages/interactifs.tsx | Entrée Espace |
  * | vues/reglages/tags-client.tsx | Échap Tab |
  * | vues/resultats/Importer.tsx | Entrée Espace |
+ * | vues/resultats/RaccourcisLot.tsx | C T par `raccourciFicheLot` (lot 13 bis) |
  * | vues/resultats/Suites.tsx | Échap |
  * | vues/studios/GrilleProjets.tsx | Échap |
  * | vues/studios/NouveauConcept.tsx | Entrée |
@@ -230,6 +251,8 @@ export const TOUCHES_RECENSEES: Readonly<Record<string, readonly string[]>> = {
   'vues/reglages/interactifs.tsx': [' ', 'Enter'],
   'vues/reglages/tags-client.tsx': ['Escape', 'Tab'],
   'vues/resultats/Importer.tsx': [' ', 'Enter'],
+  /* Lot 13 bis · C et T par `raccourciFicheLot`. */
+  'vues/resultats/RaccourcisLot.tsx': ['c', 't'],
   'vues/resultats/Suites.tsx': ['Escape'],
   'vues/studios/GrilleProjets.tsx': ['Escape'],
   'vues/studios/NouveauConcept.tsx': ['Enter'],
@@ -250,6 +273,8 @@ export const REGLES_CLAVIER: Readonly<Record<string, readonly string[]>> = {
   toucheNavigationDetail: ['ArrowLeft', 'ArrowRight'],
   raccourciZoom: ['+', '-', '0', '=', '_'],
   focusMenuSuivant: ['ArrowDown', 'ArrowUp', 'End', 'Home'],
+  /* Lot 13 bis. */
+  raccourciFicheLot: ['c', 't'],
 };
 
 /**
@@ -398,6 +423,43 @@ export function raccourciDeLaFrappe(f: FrappeClavier, c: ContexteFrappe, table: 
   return RIEN;
 }
 
+/* ───────────── Lot 13 bis · les raccourcis d'une VUE ───────────── */
+
+/** Le contexte d'une frappe lue par une vue · sans séquence (une vue n'a que des touches seules). */
+export type ContexteFrappeVue = Pick<ContexteFrappe, 'actifs' | 'modaleOuverte' | 'cible'>;
+
+/**
+ * Ce qu'une frappe demande à une VUE · une entrée de SA portée (`action`
+ * nulle), touche seule. Les mêmes refus que la coquille · jamais dans une
+ * saisie ou un lecteur, jamais sous une fenêtre modale ni coupée par la
+ * préférence pour une touche simple (sauf `surFocus`), jamais avec un
+ * modificateur imprévu, jamais une frappe déjà prise ou répétée.
+ */
+export function raccourciDeVue(f: FrappeClavier, c: ContexteFrappeVue, portee: PorteeRaccourci, table: readonly Raccourci[] = RACCOURCIS): Raccourci | null {
+  if (f.dejaTraitee || f.repetee) return null;
+  const accord = accordDeLaFrappe(f);
+  if (!accord || cibleDeSaisie(c.cible)) return null;
+  for (const r of table) {
+    if (r.portee !== portee || r.action) continue;
+    for (const s of r.touches) {
+      if (s.length !== 1 || s[0] !== accord) continue;
+      if (accordUneTouche(accord) && !r.surFocus && (!c.actifs || c.modaleOuverte)) return null;
+      return r;
+    }
+  }
+  return null;
+}
+
+/** La fiche d'un lot (Résultats) · C et T (`REGLES_CLAVIER`, rejouée par la garde). */
+export function raccourciFicheLot(f: FrappeClavier, c: ContexteFrappeVue): Raccourci | null {
+  return raccourciDeVue(f, c, 'fiche-lot');
+}
+
+/** Le message d'un raccourci de vue dont le geste est fermé · son libellé, puis la raison du geste. */
+export function messageRaccourciFerme(r: Raccourci, raison: string): string {
+  return `${r.libelle} · ${raison}`;
+}
+
 /* ───────────── Conflits ───────────── */
 
 /** Deux portées se recouvrent · la même, ou l'une est globale. */
@@ -412,7 +474,9 @@ export interface ConflitRaccourci { a: string; b: string; touches: string; raiso
 /**
  * Les conflits de la table · mêmes touches dans des portées qui se recouvrent,
  * ou une touche seule qui est aussi le début d'une séquence (la séquence ne
- * pourrait jamais partir). Vide = aucune collision.
+ * pourrait jamais partir), ou (lot 13 bis) une touche seule d'une vue qui est
+ * la fin d'une séquence de la coquille (la vue l'entendrait la première).
+ * Vide = aucune collision.
  */
 export function conflitsRaccourcis(table: readonly Raccourci[] = RACCOURCIS): ConflitRaccourci[] {
   const out: ConflitRaccourci[] = [];
@@ -430,6 +494,10 @@ export function conflitsRaccourcis(table: readonly Raccourci[] = RACCOURCIS): Co
         if (cle(sa) === cle(sb)) out.push({ a: a.id, b: b.id, touches: cle(sa), raison: `mêmes touches, portées « ${a.portee} » et « ${b.portee} »` });
         else if (sa.length === 1 && sb.length > 1 && sb[0] === sa[0]) out.push({ a: a.id, b: b.id, touches: cle(sa), raison: 'touche seule qui commence une séquence' });
         else if (sb.length === 1 && sa.length > 1 && sa[0] === sb[0]) out.push({ a: b.id, b: a.id, touches: cle(sb), raison: 'touche seule qui commence une séquence' });
+        // Lot 13 bis · une vue entend la frappe AVANT la coquille (écouteur de la page, puis `window`) ·
+        // sa touche seule ne peut pas être la suite d'une séquence de la coquille, elle la volerait.
+        else if (sa.length === 1 && !a.action && b.action && sb.length > 1 && sb[sb.length - 1] === sa[0]) out.push({ a: a.id, b: b.id, touches: cle(sa), raison: 'touche de vue qui termine une séquence de la coquille' });
+        else if (sb.length === 1 && !b.action && a.action && sa.length > 1 && sa[sa.length - 1] === sb[0]) out.push({ a: b.id, b: a.id, touches: cle(sb), raison: 'touche de vue qui termine une séquence de la coquille' });
       }
     }
   });
@@ -493,13 +561,44 @@ export interface LigneAideRaccourci {
 }
 export interface GroupeAideRaccourcis { portee: PorteeRaccourci; libelle: string; lignes: LigneAideRaccourci[] }
 
-/** La fenêtre d'aide · TOUTE la table, groupée par portée, dans l'ordre des portées puis de la table. */
-export function groupesAideRaccourcis(table: readonly Raccourci[] = RACCOURCIS, mac = false): GroupeAideRaccourcis[] {
-  return PORTEES_RACCOURCIS.map((p) => ({
+/**
+ * La fenêtre d'aide · TOUTE la table, groupée par portée, dans l'ordre des
+ * portées puis de la table · `portees` (lot 13 bis) · seulement ces portées,
+ * toujours dans l'ordre de l'aide (jamais dans celui demandé).
+ */
+export function groupesAideRaccourcis(table: readonly Raccourci[] = RACCOURCIS, mac = false, portees?: readonly PorteeRaccourci[] | null): GroupeAideRaccourcis[] {
+  return PORTEES_RACCOURCIS.filter((p) => !portees || portees.includes(p.cle)).map((p) => ({
     portee: p.cle,
     libelle: p.libelle,
     lignes: table.filter((r) => r.portee === p.cle).map((r) => ({ id: r.id, libelle: r.libelle, sequences: r.touches.map((s) => s.map((a) => touchesAffichees(a, mac))) })),
   })).filter((g) => g.lignes.length > 0);
+}
+
+/**
+ * Lot 13 bis (PC D16) · l'entrée « Raccourcis » d'un projet · l'aide filtrée
+ * sur ce qui sert DANS un projet · les fenêtres et panneaux, l'éditeur de
+ * créa, le canvas, et la liste des mentions d'un commentaire (onglet Activité).
+ * Ce qui marche partout reste dans l'aide complète, à un clic.
+ */
+export const PORTEES_AIDE_PROJET: readonly PorteeRaccourci[] = ['fenetres', 'editeur', 'canvas', 'mentions'];
+
+/** La phrase d'une aide filtrée · les portées montrées, dans l'ordre de l'aide. */
+export function libelleAideFiltree(portees: readonly PorteeRaccourci[]): string {
+  const noms = PORTEES_RACCOURCIS.filter((p) => portees.includes(p.cle)).map((p) => p.libelle.charAt(0).toLowerCase() + p.libelle.slice(1));
+  return `Raccourcis du projet · ${noms.join(' · ')}. Ceux de toute l’application sont dans l’aide complète.`;
+}
+
+/**
+ * Lot 13 bis (CA G29) · l'astuce de l'Accueil · la touche d'aide lue dans la
+ * TABLE (jamais écrite à la main) · coupés (`tt_raccourcis`), la touche ne
+ * ferait rien · l'astuce le dit et renvoie au bouton, qui ouvre l'aide (et
+ * l'interrupteur qui les rallume).
+ */
+export function astuceRaccourcisAccueil(actifs: boolean, table: readonly Raccourci[] = RACCOURCIS): { avant: string; touche: string | null; apres: string } {
+  const aide = table.find((r) => r.action?.type === 'aide');
+  const touche = aide?.touches[0]?.length === 1 ? touchesAffichees(aide.touches[0][0]!).join(' ') : null;
+  if (actifs && touche) return { avant: 'Astuce · tape', touche, apres: 'hors d’un champ pour voir tous les raccourcis clavier.' };
+  return { avant: 'Astuce · les raccourcis à une touche sont coupés sur ce navigateur · l’aide les liste et les rallume.', touche: null, apres: '' };
 }
 
 /** Le message quand l'action n'est pas ouverte à la personne (droits inchangés · rien n'est ouvert de plus). */

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { getSession } from '../../../../lib/auth';
-import { lireVueAccueil } from '@tiktrends/core';
+import { RACCOURCIS_COOKIE, astuceRaccourcisAccueil, lireVueAccueil, raccourcisActifsDepuisCookie } from '@tiktrends/core';
 import { Accueil } from '../../../../spatial/vues/accueil/Accueil';
 import { Analytics } from '../../../../spatial/vues/accueil/Analytics';
 import { chargerAccueilSpatial } from './chargement';
@@ -20,5 +21,7 @@ export default async function AccueilSpatial({ searchParams }: { searchParams: P
   if (!s) redirect('/login');
   const params = await searchParams;
   if (lireVueAccueil(params) === 'analytics') return <Analytics {...await chargerAnalyticsSpatial(s, params)} />;
-  return <Accueil {...await chargerAccueilSpatial(s, params)} />;
+  // Lot 13 bis (CA G29) · l'astuce « ? » dit l'état réel de la préférence (cookie lu au rendu serveur).
+  const astuce = astuceRaccourcisAccueil(raccourcisActifsDepuisCookie((await cookies()).get(RACCOURCIS_COOKIE)?.value));
+  return <Accueil {...await chargerAccueilSpatial(s, params)} astuce={astuce} />;
 }

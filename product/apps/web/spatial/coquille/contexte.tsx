@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import type { RegimeTarifaire } from '@tiktrends/core';
+import type { PorteeRaccourci, RegimeTarifaire } from '@tiktrends/core';
 
 /**
  * Le contexte de la coquille Spatial · ce que les vues lisent pour leur
@@ -27,6 +27,17 @@ export interface CtxSpatial {
    * (l'envoi reste un clic, coût annoncé). Absent hors coquille.
    */
   ouvrirJarvis?: (brouillon?: string) => void;
+  /**
+   * Lot 13 bis (PC D16) · ouvre l'aide des raccourcis, FILTRÉE sur ces portées
+   * (absentes · l'aide entière) · le focus reviendra au bouton. Absent hors coquille.
+   */
+  ouvrirRaccourcis?: (portees?: readonly PorteeRaccourci[]) => void;
+  /**
+   * Lot 13 bis (CA P14) · le rail de la coquille · `ouvert` est l'état AFFICHÉ
+   * (lu au rendu serveur dans le cookie `tt_rail`), `basculer` le change comme
+   * « [ » et le bouton du rail (cookie compris) et rend le nouvel état. Absent hors coquille.
+   */
+  rail?: { ouvert: boolean; basculer: () => boolean };
 }
 
 const DEFAUT: CtxSpatial = {

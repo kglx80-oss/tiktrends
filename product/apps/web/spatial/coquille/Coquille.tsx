@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, messageRaccourciIndisponible, raccourciDeLaFrappe, raccourcisActifs, type EntreeRail, type PrefixeRaccourci, type Raccourci, type SectionSpatiale } from '@tiktrends/core';
+import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, messageRaccourciIndisponible, raccourciDeLaFrappe, raccourcisActifs, type EntreeRail, type PorteeRaccourci, type PrefixeRaccourci, type Raccourci, type SectionSpatiale } from '@tiktrends/core';
 import { railCookieString } from '../../lib/rail-preference';
 import { setActiveBrand } from '../../app/actions/brands';
 import { listerProjets } from '../../app/actions/studios/projets';
@@ -124,6 +124,8 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   const declencheur = useRef<HTMLElement | null>(null);
   // La première touche d'une séquence (« g » puis une lettre), en attente.
   const prefixe = useRef<PrefixeRaccourci | null>(null);
+  // Lot 13 bis · l'aide filtrée (« Raccourcis » d'un projet) · `null` · l'aide entière.
+  const [filtreAide, setFiltreAide] = useState<readonly PorteeRaccourci[] | null>(null);
   // Le logo de la marque active · une image qui ne s'affiche pas cède la place
   // à l'initiale ; pour un logo importé (empreinte), la raison est demandée UNE
   // fois par marque · « Logo à réimporter » le dit, avec le chemin vers l'Identité.
@@ -269,9 +271,23 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   // Un changement d'écran referme les surcouches.
   useEffect(() => { setPanneau(null); setPalette(false); }, [chemin]);
 
+  const basculerRail = useCallback(() => {
+    const ouvert = !railOuvert;
+    setRailOuvert(ouvert);
+    document.cookie = railCookieString(!ouvert);
+    return ouvert;
+  }, [railOuvert]);
+
+  // Lot 13 bis · l'aide, entière ou filtrée · chaque ouverture pose SON filtre (« ? » et le rail · aucun).
+  const ouvrirRaccourcis = useCallback((portees?: readonly PorteeRaccourci[]) => {
+    setFiltreAide(portees && portees.length ? portees : null);
+    if (panneau !== 'raccourcis') basculer('raccourcis');
+  }, [panneau, basculer]);
+
   const ctx = useMemo<CtxSpatial>(() => ({
     utilisateur: d.utilisateur, credits: d.credits, nonLues: notifs.nonLues, ouvrirPalette, basculer, toast, panneau, ouvrirJarvis,
-  }), [d.utilisateur, d.credits, notifs.nonLues, ouvrirPalette, basculer, toast, panneau, ouvrirJarvis]);
+    ouvrirRaccourcis, rail: { ouvert: railOuvert, basculer: basculerRail },
+  }), [d.utilisateur, d.credits, notifs.nonLues, ouvrirPalette, basculer, toast, panneau, ouvrirJarvis, ouvrirRaccourcis, railOuvert, basculerRail]);
 
   const naviguer = (href: string) => {
     setPalette(false); setPanneau(null);
@@ -280,15 +296,8 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
 
   const groupes = useMemo(() => groupesPalette({ ouverts, marque: d.marque, projets: projets ?? [] }), [ouverts, d.marque, projets]);
 
-  const basculerRail = () => {
-    const ouvert = !railOuvert;
-    setRailOuvert(ouvert);
-    document.cookie = railCookieString(!ouvert);
-    return ouvert;
-  };
-
-  /** Ouvre l'aide des raccourcis · le focus reviendra à ce qui l'avait. */
-  const ouvrirAide = () => { if (panneau !== 'raccourcis') basculer('raccourcis'); };
+  /** Ouvre l'aide des raccourcis, entière · le focus reviendra à ce qui l'avait. */
+  const ouvrirAide = () => ouvrirRaccourcis();
 
   // Ce que fait chaque entrée de la coquille · relu à chaque frappe (état courant).
   agir.current = (r: Raccourci) => {
@@ -405,7 +414,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
 
       {palette && <Palette groupes={groupes} onNaviguer={naviguer} onFermer={fermer} onTheme={toast} />}
 
-      {panneau === 'raccourcis' && <AideRaccourcis onFermer={fermer} mac={estMac()} />}
+      {panneau === 'raccourcis' && <AideRaccourcis onFermer={fermer} mac={estMac()} portees={filtreAide} onTout={() => setFiltreAide(null)} />}
 
       <div className={toastMsg ? 'toast on' : 'toast'} id="toast" role="status" aria-live="polite">{toastMsg}</div>
       <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: SPRITE_SYMBOLES }} />
