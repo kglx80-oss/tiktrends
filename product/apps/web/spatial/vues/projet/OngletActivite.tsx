@@ -2,8 +2,8 @@
 
 import { useId, useMemo, useState } from 'react';
 import {
-  LECTURE_MAX_JOURNAL, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_COMMENTAIRE, TEXTES_HORS_LIGNE, etatPublicationCommentaire, filtrerCommentaires, resumeJournal,
-  type FiltreCommentaires, type JournalProjet, type TypeJournal,
+  LECTURE_MAX_JOURNAL, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_COMMENTAIRE, TEXTES_HORS_LIGNE, departEditionCommentaire, etatPublicationCommentaire, filtrerCommentaires, resumeJournal,
+  type FiltreCommentaires, type JournalProjet, type MembreMentionnable, type ResultatCommentaire, type TypeJournal,
 } from '@tiktrends/core';
 import { commenterProjet, lireActiviteProjet, modifierCommentaire, resoudreCommentaire } from '../../../app/actions/studios/activite';
 import { useSpatial } from '../../coquille/contexte';
@@ -11,6 +11,7 @@ import { Ic, Lien } from '../../communs';
 import { CIBLE, Message, RaisonFermee } from './briques';
 import { boutonAction, replacerFocus, type OptionsBoutonAction } from './action-serveur';
 import { useHorsLigne } from './hors-ligne';
+import { ChampMentions } from './ChampMentions';
 import type { CommentairesProjet, PropsActiviteProjet, VueCommentaire } from './types';
 
 /**
@@ -28,6 +29,11 @@ import type { CommentairesProjet, PropsActiviteProjet, VueCommentaire } from './
  *    Sur une création testée, ouvert ou résolu · « Itérer depuis ce
  *    commentaire » (`gesteIterationCommentaire`, noyau) · un LIEN vers l'écran
  *    Itérer existant, qui relit tout · fermé, sa raison écrite à côté.
+ *    Le RÉSULTAT des itérations nées du commentaire, calculé par le serveur à
+ *    chaque lecture (`resultatsCommentaire`) · « en test » avant la conclusion
+ *    de leur lot. Les MENTIONS · « @ » ouvre la liste des membres qui voient le
+ *    projet (`ChampMentions`, clavier ↑ ↓ Entrée Échap) · affichées sous le nom
+ *    courant, en texte.
  *
  * Chaque bouton d'action serveur passe par la brique (`boutonAction`) · un
  * bouton fermé dit pourquoi à côté (`RaisonFermee`). Gratuit.
@@ -139,8 +145,10 @@ function Commentaires({ projectId, initial }: { projectId: string; initial: Prop
   const [enCours, setEnCours] = useState<string | null>(null);
   const [cible, setCible] = useState<string>(initial.ok ? initial.liste.cibles[0]?.cle ?? '' : '');
   const [texte, setTexte] = useState('');
+  const [choisies, setChoisies] = useState<string[]>([]);
   const [filtre, setFiltre] = useState<FiltreCommentaires>('ouverts');
-  const [edition, setEdition] = useState<{ id: string; texte: string } | null>(null);
+  const [edition, setEdition] = useState<{ id: string; texte: string; mentions: string[] } | null>(null);
+  const mentionnables = liste?.mentionnables ?? [];
 
   const choisie = liste?.cibles.find((c) => c.cle === cible) ?? null;
   const publier = etatPublicationCommentaire(texte, { peutProposer: !!liste?.peutCommenter, cibleChoisie: !!choisie });
@@ -154,7 +162,7 @@ function Commentaires({ projectId, initial }: { projectId: string; initial: Prop
     try {
       const r = await f();
       if (!r.ok) { setRetour({ ton: 'err', texte: dire(r) }); return; }
-      setListe({ commentaires: r.commentaires ?? [], cibles: r.cibles ?? liste?.cibles ?? [], peutCommenter: r.peutCommenter ?? false });
+      setListe({ commentaires: r.commentaires ?? [], cibles: r.cibles ?? liste?.cibles ?? [], peutCommenter: r.peutCommenter ?? false, mentionnables: r.mentionnables ?? [] });
       setRetour({ ton: 'ok', texte: succes }); toast(succes);
       apres?.();
     } catch {
@@ -173,16 +181,16 @@ function Commentaires({ projectId, initial }: { projectId: string; initial: Prop
           onSubmit={(ev) => {
             ev.preventDefault();
             if (!publier.ok || !choisie) return;
-            void geste('publier', () => commenterProjet({ projectId, cible: choisie.type, cibleId: choisie.id, texte }), `Commentaire publié sur ${choisie.libelle}.`, () => setTexte(''));
+            void geste('publier', () => commenterProjet({ projectId, cible: choisie.type, cibleId: choisie.id, texte, mentions: choisies }), `Commentaire publié sur ${choisie.libelle}.`, () => { setTexte(''); setChoisies([]); });
           }}>
           <label className="field">Sur
             <select value={cible} data-champ="cible-commentaire" style={CIBLE} onChange={(ev) => setCible(ev.target.value)}>
               {liste.cibles.map((c) => <option key={c.cle} value={c.cle}>{c.libelle}</option>)}
             </select>
           </label>
-          <label className="field">Commentaire
-            <textarea className="ta" data-champ="texte-commentaire" rows={3} maxLength={LONGUEUR_MAX_COMMENTAIRE} value={texte} onChange={(ev) => setTexte(ev.target.value)} placeholder="Ex. le produit est flou sur la création 2, à reprendre avant export" />
-          </label>
+          <ChampMentions libelle="Commentaire" champ="texte-commentaire" valeur={texte} surChange={setTexte} mentionnables={mentionnables}
+            surChoix={(m) => setChoisies((l) => (l.includes(m) ? l : [...l, m]))} maxLength={LONGUEUR_MAX_COMMENTAIRE}
+            placeholder="Ex. le produit est flou sur la création 2, à reprendre avant export" />
           <div className="kc" style={{ alignItems: 'center' }}>
             <button className="btn sm pri" type="submit" data-geste="publier-commentaire" aria-describedby={!publier.ok ? `${id}-publier` : undefined}
               title={horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined}
@@ -208,9 +216,12 @@ function Commentaires({ projectId, initial }: { projectId: string; initial: Prop
           : (
             <div className="tl" data-liste-commentaires="">
               {vus.map((c) => (
-                <Commentaire key={c.id} c={c} enCours={enCours} horsLigne={horsLigne} edition={edition?.id === c.id ? edition.texte : null}
-                  ouvrirEdition={() => setEdition({ id: c.id, texte: c.texte })} changerEdition={(t) => setEdition({ id: c.id, texte: t })} fermerEdition={() => setEdition(null)}
-                  enregistrer={(t) => void geste(`modifier:${c.id}`, () => modifierCommentaire({ commentId: c.id, rowVersion: c.rowVersion, texte: t }), 'Commentaire modifié · l’ancien texte est gardé.', () => {
+                <Commentaire key={c.id} c={c} enCours={enCours} horsLigne={horsLigne} edition={edition?.id === c.id ? edition.texte : null} mentionnables={mentionnables}
+                  ouvrirEdition={() => setEdition({ id: c.id, ...departEditionCommentaire(c.segments) })}
+                  changerEdition={(t) => setEdition((e) => (e && e.id === c.id ? { ...e, texte: t } : e))}
+                  choisirMention={(m) => setEdition((e) => (e && e.id === c.id && !e.mentions.includes(m) ? { ...e, mentions: [...e.mentions, m] } : e))}
+                  fermerEdition={() => setEdition(null)}
+                  enregistrer={(t) => void geste(`modifier:${c.id}`, () => modifierCommentaire({ commentId: c.id, rowVersion: c.rowVersion, texte: t, mentions: edition?.id === c.id ? edition.mentions : [] }), 'Commentaire modifié · l’ancien texte est gardé.', () => {
                     setEdition(null); replacerFocus('toujours', `[data-commentaire="${c.id}"] [data-geste="modifier-commentaire"]`, '[data-champ="texte-commentaire"]');
                   })}
                   resoudre={(resolu) => void geste(`${resolu ? 'resoudre' : 'rouvrir'}:${c.id}`, () => resoudreCommentaire({ commentId: c.id, rowVersion: c.rowVersion, resolu }),
@@ -223,9 +234,9 @@ function Commentaires({ projectId, initial }: { projectId: string; initial: Prop
   );
 }
 
-function Commentaire({ c, enCours, horsLigne, edition, ouvrirEdition, changerEdition, fermerEdition, enregistrer, resoudre }: {
-  c: VueCommentaire; enCours: string | null; horsLigne: boolean; edition: string | null;
-  ouvrirEdition: () => void; changerEdition: (t: string) => void; fermerEdition: () => void; enregistrer: (t: string) => void; resoudre: (resolu: boolean) => void;
+function Commentaire({ c, enCours, horsLigne, edition, mentionnables, ouvrirEdition, changerEdition, choisirMention, fermerEdition, enregistrer, resoudre }: {
+  c: VueCommentaire; enCours: string | null; horsLigne: boolean; edition: string | null; mentionnables: readonly MembreMentionnable[];
+  ouvrirEdition: () => void; changerEdition: (t: string) => void; choisirMention: (id: string) => void; fermerEdition: () => void; enregistrer: (t: string) => void; resoudre: (resolu: boolean) => void;
 }) {
   const id = useId();
   const etat = edition !== null ? etatPublicationCommentaire(edition, { peutProposer: c.gestes.modifier.ok, cibleChoisie: true }) : null;
@@ -236,9 +247,8 @@ function Commentaire({ c, enCours, horsLigne, edition, ouvrirEdition, changerEdi
         <small className="faint" data-entete-commentaire="" style={{ display: 'block', fontSize: '11.5px' }}>{c.auteur} · {c.quand} · sur {c.cible.libelle}</small>
         {edition !== null ? (
           <span style={{ display: 'grid', gap: 6, marginTop: 4 }}>
-            <label className="field">Modifier ton commentaire
-              <textarea className="ta" data-champ="edition-commentaire" rows={3} maxLength={LONGUEUR_MAX_COMMENTAIRE} value={edition} onChange={(ev) => changerEdition(ev.target.value)} />
-            </label>
+            <ChampMentions libelle="Modifier ton commentaire" champ="edition-commentaire" valeur={edition} surChange={changerEdition} surChoix={choisirMention}
+              mentionnables={mentionnables} maxLength={LONGUEUR_MAX_COMMENTAIRE} />
             <span className="kc" style={{ alignItems: 'center' }}>
               <button className="btn sm pri" type="button" data-geste="enregistrer-commentaire" aria-describedby={etat && !etat.ok ? `${id}-enr` : undefined}
                 {...actionCible({ presse: enCours === `modifier:${c.id}`, occupe: !!enCours, ferme: !etat?.ok || horsLigne, focalisable: 'tout', surClic: () => enregistrer(edition) })}>{enCours === `modifier:${c.id}` ? 'Enregistrement…' : 'Enregistrer'}</button>
@@ -246,7 +256,14 @@ function Commentaire({ c, enCours, horsLigne, edition, ouvrirEdition, changerEdi
               {etat && !etat.ok && etat.raison && <RaisonFermee id={`${id}-enr`} cle="enregistrer-commentaire">{etat.raison}</RaisonFermee>}
             </span>
           </span>
-        ) : <span data-texte-commentaire="" style={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12.5px', marginTop: 2 }}>{c.texte}</span>}
+        ) : (
+          <span data-texte-commentaire="" style={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12.5px', marginTop: 2 }}>
+            {c.segments.map((s, i) => (s.type === 'texte'
+              ? <span key={i}>{s.texte}</span>
+              : <b key={i} data-mention={s.ancien ? 'ancien' : s.id} style={{ fontWeight: 600 }}>{s.nom}</b>))}
+          </span>
+        )}
+        {edition === null && c.resultats.length > 0 && <ResultatsCommentaire resultats={c.resultats} />}
         {c.modifie && <small className="faint" data-modifie="" style={{ display: 'block', fontSize: '11.5px' }}>{c.modifie}</small>}
         {c.resolu && <small className="faint" data-resolu-par="" style={{ display: 'block', fontSize: '11.5px' }}>Résolu par {c.resolu.par} · {c.resolu.quand}</small>}
         {edition === null && c.iterer && (
@@ -274,5 +291,35 @@ function Commentaire({ c, enCours, horsLigne, edition, ouvrirEdition, changerEdi
       </span>
       <span className={`pill ${c.resolu ? 'g' : 'c'}`}>{c.resolu ? 'Résolu' : 'Ouvert'}</span>
     </div>
+  );
+}
+
+/**
+ * Le résultat des itérations nées du commentaire · calculé par le serveur
+ * (`resultatsCommentaire`) · conclue · le statut, le chiffre clé et le lien vers
+ * le lot (fermé avec sa raison hors de la marque active) · sinon « en test ».
+ */
+function ResultatsCommentaire({ resultats }: { resultats: readonly ResultatCommentaire[] }) {
+  const id = useId();
+  return (
+    <span data-resultats-commentaire="" style={{ display: 'grid', gap: 6, marginTop: 6 }}>
+      {resultats.map((r, i) => (r.etat === 'conclue' ? (
+        <span key={r.adId} data-resultat-commentaire={r.statut} style={{ display: 'grid', gap: 4, fontSize: '11.5px' }}>
+          <span><span className={`pill ${r.classe}`.trim()}><Ic n={r.icone} />{r.libelle}</span> <span className="muted" data-chiffre-resultat="">{r.variante} · lot #{r.lot.numero} · {r.chiffre}</span></span>
+          {r.lot.href
+            ? <Lien className="btn sm" href={r.lot.href} data-lien-lot="" style={{ ...CIBLE, justifySelf: 'start' }} aria-label={`Voir le lot #${r.lot.numero} · ${r.libelle}, ${r.variante}`}>Voir le lot #{r.lot.numero}</Lien>
+            : (
+              <span className="kc" style={{ alignItems: 'center' }}>
+                <button className="btn sm" type="button" data-lien-lot="" aria-describedby={`${id}-lot-${i}`} {...actionCible({ occupe: false, ferme: true, focalisable: 'tout' })}>Voir le lot #{r.lot.numero}</button>
+                <RaisonFermee id={`${id}-lot-${i}`} cle="lot-resultat-commentaire">{r.lot.raison}</RaisonFermee>
+              </span>
+            )}
+        </span>
+      ) : (
+        <span key={r.adId} data-resultat-commentaire="en_test" className="muted" style={{ fontSize: '11.5px' }}>
+          <span className="pill c">{r.libelle}</span> {r.variante} · {r.phrase}
+        </span>
+      )))}
+    </span>
   );
 }

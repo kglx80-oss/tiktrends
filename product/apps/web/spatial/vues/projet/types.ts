@@ -1,4 +1,4 @@
-import type { DroitsCommentaire, GesteIterationCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
+import type { DroitsCommentaire, GesteIterationCommentaire, MembreMentionnable, ResultatCommentaire, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -241,6 +241,12 @@ export interface VueCommentaire {
   quand: string;
   /** Le texte tel qu'écrit · rendu comme du TEXTE (jamais du HTML), retours à la ligne gardés. */
   texte: string;
+  /**
+   * Le texte découpé pour l'écran (`segmentsCommentaire`) · chaque mention sous
+   * le nom COURANT du membre, « @un ancien membre » s'il ne voit plus le projet ·
+   * des segments de texte, jamais du HTML.
+   */
+  segments: SegmentCommentaire[];
   /** « Modifié le 08/11/2026 · 14:32 · 2 fois » · `null` jamais modifié. */
   modifie: string | null;
   resolu: { par: string; quand: string } | null;
@@ -252,10 +258,22 @@ export interface VueCommentaire {
    * sinon · un lien vers l'écran Itérer, qui relit tout, jamais une écriture.
    */
   iterer: GesteIterationCommentaire | null;
+  /**
+   * Le résultat des itérations nées de ce commentaire (`resultatsCommentaire`) ·
+   * calculé à chaque lecture depuis la conclusion de leur lot · « en test » tant
+   * qu'il n'est pas conclu · vide sans itération ou Résultats fermé.
+   */
+  resultats: ResultatCommentaire[];
   rowVersion: number;
 }
 
-export interface CommentairesProjet { commentaires: VueCommentaire[]; cibles: CibleCommentable[]; peutCommenter: boolean }
+export interface CommentairesProjet {
+  commentaires: VueCommentaire[];
+  cibles: CibleCommentable[];
+  peutCommenter: boolean;
+  /** Les membres que la session peut mentionner (`membresMentionnables`) · vide si elle ne peut pas commenter. */
+  mentionnables: MembreMentionnable[];
+}
 
 /** L'onglet « Activité » · journal (lecture seule) et commentaires, lus par la page serveur. */
 export interface PropsActiviteProjet {
