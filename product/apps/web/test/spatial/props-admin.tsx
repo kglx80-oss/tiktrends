@@ -72,6 +72,7 @@ export const propsRevenus = (): React.ComponentProps<typeof Revenus> => ({
   cotes: [{ lbl: 'ARPU', v: '1', d: 'a', c: 'up' }, { lbl: 'NRR', v: '1', d: 'a', c: 'up' }, { lbl: 'LTV', v: '1', s: 's' }, { lbl: 'CAC', v: '1', d: 'a', c: 'up' }],
   repartition: { legende: 'l', formules: ['Core', 'Plus', 'Business'].map((l, i) => ({ libelle: l, mrr: i + 1, mrrTexte: '1 €', part: '1 %' })), note: 'n' },
   rentabilite: ['Core', 'Plus', 'Business'].map((l) => ({ libelle: l, prix: '1', abonnes: '1', mrr: '1', coutIa: '1', frais: '1', marge: 70, margeTexte: '70 %', churn: 'x', ltv: 'x' })),
+  exportRentabilite: { ferme: false, raison: null, titre: 't' },
 });
 /** Mouvements du MRR et cohortes · sans historique, contenu fictif dans la maquette. */
 export const VIDES_REVENUS = ['.wfall', '.coh'];
@@ -93,12 +94,15 @@ export const propsComptes = (): React.ComponentProps<typeof Comptes> => ({
   kpis: [{ lbl: 'A', v: '1', d: 'a', c: 'up' }, { lbl: 'B', v: '1', d: 'a' }, { lbl: 'C', v: '1', d: 'a', c: 'up' }, { lbl: 'D', v: '1', d: 'a', c: 'dn' }],
   alerte: { comptes: 'x', mrr: 'y' },
   parcours: ['Visiteurs', 'Inscrits', 'Onboarding', '1er projet', 'Payants'].map((l, i) => ({ libelle: l, n: '1', hauteur: 50, part: i ? '1 %' : null })),
-  filtres: ['tous', 'core', 'plus', 'business', 'essai', 'risque'].map((c) => ({ cle: c, libelle: c })),
-  comptes: Array.from({ length: 8 }, (_, i) => ({
-    id: `c${i}`, nom: `C${i}`, cles: ['core'], forfait: { libelle: 'Core', classe: i === 7 ? 'c' as const : '' as const }, mrr: '1',
-    credits: { part: 50, texte: '50 %', over: i === 3 }, sante: { libelle: 's', classe: i === 6 ? 'r' as const : i === 4 || i === 5 || i === 7 ? 'w' as const : 'g' as const },
-    profil: 'p', inscrit: 'i',
-  })),
+  liste: {
+    segments: ['tous', 'core', 'plus', 'business', 'essai', 'risque'].map((c) => ({ cle: c, libelle: c })),
+    segment: 'tous', q: '', inscrits: 8, pagination: null, export: { ferme: false, raison: null, titre: 't' },
+    comptes: Array.from({ length: 8 }, (_, i) => ({
+      id: `c${i}`, nom: `C${i}`, cles: ['core'], forfait: { libelle: 'Core', classe: i === 7 ? 'c' as const : '' as const }, mrr: '1',
+      credits: { part: 50, texte: '50 %', over: i === 3 }, sante: { libelle: 's', classe: i === 6 ? 'r' as const : i === 4 || i === 5 || i === 7 ? 'w' as const : 'g' as const },
+      profil: 'p', inscrit: 'i',
+    })),
+  },
   note: 'n',
 });
 /** « Se connecter en tant que » et « offrir des crédits » · gestes absents (aucune action réelle). */

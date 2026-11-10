@@ -48,7 +48,7 @@ beforeAll(async () => {
 });
 afterEach(() => { etat.session = null; });
 
-const rendre = async () => renderToStaticMarkup((await (await import('../app/(spatial)/sp/admin/signups/page')).default()) as React.ReactElement);
+const rendre = async () => renderToStaticMarkup((await (await import('../app/(spatial)/sp/admin/signups/page')).default({})) as React.ReactElement);
 /** La ligne d'un espace dans la section des déclarations. */
 const ligne = (html: string, id: string) => {
   const sec = /<section[^>]*data-section="declarations"[^>]*>([\s\S]*?)<\/section>/.exec(html)?.[1] ?? '';

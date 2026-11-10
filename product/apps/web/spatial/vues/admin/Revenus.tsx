@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { LARGEUR_MIN_TABLE_TELEPHONE, styleTableDefilante } from '@tiktrends/core';
 import { Ic, Vue } from '../../communs';
 import { Barre, Kpi, Kpis, TeteAdmin, Vide, type BandeauAdmin, type KpiAdmin } from './base';
-import { RevenusHero } from './client';
+import { BoutonExportTour, RevenusHero, type EtatExport } from './client';
 
 /** Les colonnes de la table · portées par CHAQUE ligne, comme toutes les tables `.atable` de la maquette (la règle `.atable .atr{grid-template-columns:inherit}` hérite sinon d'un conteneur qui n'en a pas : une cellule par ligne). */
 const COLONNES_RENTABILITE = '1.3fr .8fr 1fr 1.2fr 1fr 1.4fr .8fr 1fr';
@@ -88,6 +88,8 @@ export interface PropsRevenus {
   cotes: readonly KpiAdmin[];
   repartition: { legende: string; formules: ReadonlyArray<{ libelle: string; mrr: number; mrrTexte: string; part: string }>; note: string | null };
   rentabilite: ReadonlyArray<{ libelle: string; prix: string; abonnes: string; mrr: string; coutIa: string; frais: string; marge: number; margeTexte: string; churn: string; ltv: string }>;
+  /** Lot 14 · « Exporter (CSV) » de la table de rentabilité (F01) · seul écart à la maquette, déclaré et gardé. */
+  exportRentabilite: EtatExport;
   /** Hors maquette · les indicateurs de l'ancienne page Finance · absent, rien ne s'affiche. */
   financeFormules?: PropsFinanceFormules;
 }
@@ -113,7 +115,7 @@ export function Revenus(p: PropsRevenus) {
         </section>
       </div>
       <section className="tile sec">
-        <div className="sech"><h2>Rentabilité par abonnement</h2><span className="faint" style={{ fontSize: '12.5px' }}>Marge = prix − coût IA si toute l’allocation est consommée − frais de paiement</span></div>
+        <div className="sech"><h2>Rentabilité par abonnement</h2><span className="faint" style={{ fontSize: '12.5px' }}>Marge = prix − coût IA si toute l’allocation est consommée − frais de paiement</span><BoutonExportTour entree={{ ecran: 'rentabilite' }} etat={p.exportRentabilite} unite={{ un: 'forfait', plusieurs: 'forfaits' }} /></div>
         <div className="atable" data-table="rentabilite" style={styleTableDefilante(LARGEUR_MIN_TABLE_TELEPHONE.rentabiliteRevenus)}>
           <div className="atr ath" style={{ gridTemplateColumns: COLONNES_RENTABILITE }}><span>Forfait</span><span>Abonnés</span><span>MRR</span><span>Coût IA / abonné</span><span>Frais paiement</span><span>Marge</span><span>Churn</span><span>LTV</span></div>
           {p.rentabilite.map((r) => (

@@ -13,10 +13,12 @@ const actions = vi.hoisted(() => ({
   matrice: vi.fn(async (_fd: FormData) => {}),
   diagnostic: vi.fn(async () => ({ mode: 'test', checks: [{ label: 'a', level: 'ok', detail: '' }, { label: 'b', level: 'fail', detail: '' }] })),
 }));
-vi.mock('next/navigation', () => ({ usePathname: () => '/admin', useRouter: () => ({ push: () => {}, refresh: () => {} }), redirect: () => { throw new Error('redirect'); } }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/admin', useRouter: () => ({ push: nav.push, replace: nav.replace, refresh: () => {} }), redirect: () => { throw new Error('redirect'); } }));
 vi.mock('../app/actions/support', () => ({ replyTicketAction: actions.reply, setTicketStatusAction: actions.statut }));
 vi.mock('../app/actions/equipe', () => ({ enregistrerStaffAction: async () => {}, retirerStaffAction: async () => {}, enregistrerMatriceAction: actions.matrice }));
 vi.mock('../app/actions/stripe-diagnostic', () => ({ runStripeDiagnosticAction: actions.diagnostic }));
+const nav = vi.hoisted(() => ({ push: vi.fn((_u: string) => {}), replace: vi.fn((_u: string) => {}) }));
+vi.mock('../app/actions/tour-controle', () => ({ exporterTourAction: vi.fn(async () => ({ ok: true, csv: 'x', nom: 'x.csv', lignes: 2 })), ouvrirIncidentAction: vi.fn(), annoterIncidentAction: vi.fn(), cloreIncidentAction: vi.fn() }));
 
 import { FournisseurSpatial, type CtxSpatial } from '../spatial/coquille/contexte';
 import { TourDeControle } from '../spatial/vues/admin/TourDeControle';
@@ -32,6 +34,7 @@ import { Paiements } from '../spatial/vues/admin/Paiements';
 import { Droits } from '../spatial/vues/admin/Droits';
 import { Prompts } from '../spatial/vues/admin/Prompts';
 import { ComptesARisqueListe, ComptesListe, RevenusHero } from '../spatial/vues/admin/client';
+import { BibliothequePrompts } from '../spatial/vues/admin/prompts-client';
 import { PosteSav } from '../spatial/vues/admin/sav-client';
 import { MatriceDroitsSpatiale } from '../spatial/vues/admin/droits-client';
 import { VerifierStripe } from '../spatial/vues/admin/paiements-client';
@@ -77,6 +80,34 @@ const pariteAdmin: typeof parite = (html, route, o) => {
   return { rendu: sansAjoutsVague3(p.rendu), reference: p.reference };
 };
 
+/**
+ * Lot 14 · les SEULS ajouts à la maquette, déclarés ici et retirés du rendu
+ * avant la comparaison · seulement s'ils sont exactement là où on les attend,
+ * et la garde exige qu'ils y soient (un ajout déplacé, doublé ou absent fait
+ * tomber la parité) :
+ *  · « Exporter (CSV) » (`a|button.btn.sm` + son icône) en fin de l'en-tête
+ *    `.sech` de « Comptes » (Inscriptions) et de « Rentabilité par abonnement »
+ *    (Revenus) ;
+ *  · « Rechercher une consigne… » (`label.jsearch`, icône et champ) entre le
+ *    titre et « Créer dans le registre » (Bibliothèque IA).
+ */
+const EXPORT_LOT14 = ['a|button.btn.sm', '  svg.i.s @i-down'];
+const RECHERCHE_LOT14 = ['label.jsearch[style:min-width]', '  svg.i.s @i-search', '  input'];
+function sansAjoutLot14(rendu: string[], bloc: readonly string[], apres: RegExp): { rendu: string[]; retires: number } {
+  let retires = 0;
+  const out = [...rendu];
+  for (let i = 0; i < out.length; i++) {
+    const indent = out[i]!.length - out[i]!.trimStart().length;
+    const pad = ' '.repeat(indent);
+    // Le bloc suit un FRÈRE précis · la ligne d'avant, au même retrait (un enfant de ce frère ne compte pas).
+    const precedent = out.slice(0, i).reverse().find((l) => l.length - l.trimStart().length <= indent) ?? '';
+    if (out[i]!.trim() !== bloc[0] || precedent.length - precedent.trimStart().length !== indent || !apres.test(precedent.trim())) continue;
+    if (!bloc.every((l, k) => out[i + k] === pad + l)) continue;
+    out.splice(i, bloc.length); retires++;
+  }
+  return { rendu: out, retires };
+}
+
 describe('Spatial · Tour de contrôle · parité de structure avec la maquette', () => {
   it('« Tour de contrôle » reproduit la maquette', () => {
     const p = pariteAdmin(rendre(<TourDeControle {...propsTourDeControle()} />), 'admin');
@@ -88,9 +119,11 @@ describe('Spatial · Tour de contrôle · parité de structure avec la maquette'
     expect(p.rendu).toEqual(p.reference);
   });
 
-  it('« Revenus & MRR » reproduit la maquette (mouvements et cohortes ignorés)', () => {
+  it('« Revenus & MRR » reproduit la maquette (mouvements et cohortes ignorés), « Exporter (CSV) » de la rentabilité en seul ajout', () => {
     const p = pariteAdmin(rendre(<Revenus {...propsRevenus()} />), 'a-revenus', { ignorer: VIDES_REVENUS });
-    expect(p.rendu).toEqual(p.reference);
+    const sans = sansAjoutLot14(p.rendu, EXPORT_LOT14, /^span\.faint\[style:font-size\]$/);
+    expect(sans.retires, 'l’export de la rentabilité n’est pas à sa place (fin de l’en-tête de la table)').toBe(1);
+    expect(sans.rendu).toEqual(p.reference);
   });
 
   it('« Forfaits & offres » reproduit la maquette (création et codes promo ignorés)', () => {
@@ -98,9 +131,11 @@ describe('Spatial · Tour de contrôle · parité de structure avec la maquette'
     expect(p.rendu).toEqual(p.reference);
   });
 
-  it('« Inscriptions & comptes » reproduit la maquette (gestes par compte ignorés)', () => {
+  it('« Inscriptions & comptes » reproduit la maquette (gestes par compte ignorés), « Exporter (CSV) » des comptes en seul ajout', () => {
     const p = pariteAdmin(rendre(<Comptes {...propsComptes()} />), 'a-comptes', { ignorer: VIDES_COMPTES });
-    expect(p.rendu).toEqual(p.reference);
+    const sans = sansAjoutLot14(p.rendu, EXPORT_LOT14, /^label\.jsearch\[style:margin-left,min-width\]$/);
+    expect(sans.retires, 'l’export des comptes n’est pas à sa place (après la recherche, dans l’en-tête)').toBe(1);
+    expect(sans.rendu).toEqual(p.reference);
   });
 
   it('« Tickets SAV » reproduit la maquette (gestes simulés ignorés, message et carte client gardés)', () => {
@@ -145,9 +180,11 @@ describe('Spatial · Tour de contrôle · parité de structure avec la maquette'
     expect(p.rendu).toEqual(p.reference);
   });
 
-  it('« Bibliothèque IA » reproduit la maquette', () => {
+  it('« Bibliothèque IA » reproduit la maquette, « Rechercher une consigne… » en seul ajout', () => {
     const p = pariteAdmin(rendre(<Prompts {...propsPrompts()} />), 'a-prompts');
-    expect(p.rendu).toEqual(p.reference);
+    const sans = sansAjoutLot14(p.rendu, RECHERCHE_LOT14, /^h2$/);
+    expect(sans.retires, 'la recherche des consignes n’est pas à sa place (entre le titre et « Créer »)').toBe(1);
+    expect(sans.rendu).toEqual(p.reference);
   });
 });
 
@@ -180,16 +217,59 @@ describe('Spatial · Tour de contrôle · comportements', () => {
     expect(h.textContent).toContain('Aucun compte dans ce filtre.');
   });
 
-  it('Comptes · la recherche filtre par nom, sans casse', async () => {
+  it('Comptes · la recherche et les segments sont relus AU SERVEUR (adresse), après une pause de frappe', async () => {
+    vi.useFakeTimers();
+    try {
+      const p = propsComptes();
+      const h = await monter(<ComptesListe liste={{ ...p.liste, segment: 'essai' }} colonnes="1fr" />);
+      const champ = h.querySelector('#auq') as HTMLInputElement;
+      await act(async () => {
+        const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+        set.call(champ, 'Éclat beauté'); champ.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      expect(nav.replace, 'une requête par lettre').not.toHaveBeenCalled();
+      await act(async () => { vi.advanceTimersByTime(400); });
+      expect(nav.replace.mock.calls.map((c) => c[0])).toEqual(['/admin/signups?q=%C3%89clat+beaut%C3%A9&segment=essai']);
+      await cliquer(h.querySelector('[data-auf="risque"]'));
+      expect(nav.push.mock.calls.map((c) => c[0])).toEqual(['/admin/signups?segment=risque']);
+      expect(h.querySelector('[data-auf="essai"]')!.getAttribute('aria-pressed')).toBe('true');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('Comptes · l’export fermé dit pourquoi, à côté du bouton, et ne part pas', async () => {
     const p = propsComptes();
-    const h = await monter(<ComptesListe filtres={p.filtres} comptes={p.comptes} colonnes="1fr" />);
-    const champ = h.querySelector('#auq') as HTMLInputElement;
-    await act(async () => {
-      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-      set.call(champ, 'c3'); champ.dispatchEvent(new Event('input', { bubbles: true }));
+    const { exporterTourAction } = await import('../app/actions/tour-controle');
+    const h = await monter(<ComptesListe liste={{ ...p.liste, comptes: [], export: { ferme: true, raison: 'Rien à exporter · aucun compte dans ce filtre.', titre: 'Rien à exporter' } }} colonnes="1fr" />);
+    const b = h.querySelector('[data-export="comptes"]') as HTMLButtonElement;
+    expect(b.getAttribute('aria-disabled')).toBe('true');
+    expect(h.querySelector('[data-raison-export]')!.textContent).toBe('Rien à exporter · aucun compte dans ce filtre.');
+    await cliquer(b);
+    expect(exporterTourAction).not.toHaveBeenCalled();
+    expect(h.textContent).toContain('Aucun compte ne correspond à ce filtre.');
+  });
+
+  it('Bibliothèque IA · « Rechercher une consigne… » ignore casse et accents, les compteurs des onglets suivent', async () => {
+    const entree = (id: string, titre: string) => ({ id, titre, version: 'v1', utilisations: '1', production: { part: 0, texte: 't', absente: true }, maj: 'm', editer: '/x' });
+    const familles = [
+      { cle: 'styles', libelle: 'Styles', colonne: 'Style', entrees: [entree('recette:eclat', 'Éclat doré'), entree('recette:mini', 'Minimal')] },
+      { cle: 'regles', libelle: 'Règles', colonne: 'Règle', entrees: [entree('regle:ton', 'Ton de la marque')] },
+    ];
+    const h = await monter(<BibliothequePrompts familles={familles} pipeline={[]} legende="l" kpis={null} titreListe="Bibliothèque" />);
+    const champ = h.querySelector('#pq') as HTMLInputElement;
+    const saisir = async (v: string) => act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, v);
+      champ.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    expect(h.querySelectorAll('#accrows > .atr')).toHaveLength(1);
-    expect(h.querySelector('#accrows b')!.textContent).toBe('C3');
+    const titres = () => [...h.querySelectorAll('.atable > .atr:not(.ath) > span:first-child > b')].map((b) => b.textContent);
+    const compteurs = () => [...h.querySelectorAll('[data-aitab] .nct')].map((i) => i.textContent);
+    await saisir('ECLAT');
+    expect(titres()).toEqual(['Éclat doré']);
+    expect(compteurs()).toEqual(['1', '0']);
+    await saisir('marque');
+    expect(titres()).toEqual([]);
+    expect(h.textContent).toContain('Aucune entrée de cette famille ne correspond à « marque ».');
+    await cliquer(h.querySelector('[data-aitab="regles"]'));
+    expect(titres()).toEqual(['Ton de la marque']);
   });
 
   it('SAV · un ticket d’un autre espace ne se traite pas d’ici · la réponse est désactivée et dit pourquoi', async () => {

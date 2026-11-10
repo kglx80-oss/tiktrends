@@ -1,10 +1,10 @@
 import {
-  VALEUR_ABSENTE, MARGE_BRUTE_CIBLE, adminEuros, corporateTaxRate, creditMarkup, eurosFinance, financeParFormule, adminMois, adminMoisLong, adminNombre, adminPluriel, adminPourcent, estPayant, ltvMoyenne,
-  margeBrutePonderee, mrrPlateforme, noteRepartitionMrr, partsMrr, rentabiliteForfaits, tauxChurn30,
+  VALEUR_ABSENTE, MARGE_BRUTE_CIBLE, adminEuros, corporateTaxRate, creditMarkup, eurosFinance, financeParFormule, adminMois, adminMoisLong, adminPluriel, adminPourcent, estPayant, ltvMoyenne,
+  etatExportTour, margeBrutePonderee, mrrPlateforme, noteRepartitionMrr, partsMrr, rentabiliteForfaits, tauxChurn30,
 } from '@tiktrends/core';
 import { PLAN_CREDITS, PLAN_LABEL, PLAN_PRICE } from '../../../../../lib/rbac';
 import { Revenus, type PropsFinanceFormules } from '../../../../../spatial/vues/admin/Revenus';
-import { bandeau, chargerEspaces, chargerResiliations, chargerTarifs, porteAdmin, resiliationsSur30j, navAdmin } from '../donnees';
+import { bandeau, chargerEspaces, chargerResiliations, chargerTarifs, lignesRentabilite, porteAdmin, resiliationsSur30j, navAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +64,8 @@ export default async function RevenusSpatial() {
   const churn = tauxChurn30(resiliationsSur30j(resiliations, maintenant), m.payants);
   const ltv = ltvMoyenne(m.arpu, marge, churn);
   const parts = partsMrr(m.parForfait);
+  // La table et son export · la MÊME fonction (`lignesRentabilite`), l'export ne reconstruit rien.
+  const lignes = lignesRentabilite(espaces, tarifs);
   // Comptes payants qui ont consommé plus que leur dotation sur 30 jours, par formule.
   const depassements: Record<string, number> = {};
   for (const e of espaces) if (estPayant(e, tarifs) && e.conso30 > (tarifs.credits[e.forfait] ?? 0)) depassements[e.forfait] = (depassements[e.forfait] ?? 0) + 1;
@@ -88,11 +90,8 @@ export default async function RevenusSpatial() {
         formules: parts.map((f) => ({ libelle: f.libelle, mrr: f.mrr, mrrTexte: adminEuros(f.mrr), part: adminPourcent(f.part) })),
         note: noteRepartitionMrr(parts, depassements),
       }}
-      rentabilite={rentab.map((r) => ({
-        libelle: r.libelle, prix: adminEuros(r.prix), abonnes: adminNombre(r.abonnes), mrr: adminEuros(r.mrr),
-        coutIa: adminEuros(r.coutIaPireCas, 2), frais: adminEuros(r.fraisPaiement, 2), marge: r.margePct, margeTexte: adminPourcent(r.margePct),
-        churn: VALEUR_ABSENTE, ltv: VALEUR_ABSENTE,
-      }))}
+      rentabilite={lignes}
+      exportRentabilite={etatExportTour(lignes.length, { un: 'forfait', plusieurs: 'forfaits' })}
       financeFormules={financeFormules(espaces.map((e) => e.forfait))}
     />
   );

@@ -9,3 +9,5 @@ export * from './outils';
 export * from './declarations';
 export * from './credits-marges';
 export * from './sous-nav';
+export * from './tour-controle';
+export * from './incidents-declares';

@@ -2053,3 +2053,31 @@ export const studioComments = pgTable('studio_comments', {
   creation: foreignKey({ name: 'studio_comments_creation_fk', columns: [t.assetId, t.workspaceId, t.brandId], foreignColumns: [studioAssets.id, studioAssets.workspaceId, studioAssets.brandId] }).onDelete('restrict'),
   projetIdx: index('studio_comments_projet_idx').on(t.workspaceId, t.brandId, t.projectId, t.createdAt),
 }));
+
+/* ============================ TOUR DE CONTRÔLE · INCIDENTS (lot 14 V5) ============================ */
+/**
+ * Les incidents DÉCLARÉS par l'équipe plateforme (RJ IN01, IN02) · un titre,
+ * une gravité, la cause du journal des échecs qu'il regroupe (facultative), le
+ * constat, des notes datées (`notes`, tableau jsonb · texte, auteur par son
+ * identifiant, date), puis la clôture et sa résolution. Portée PLATEFORME ·
+ * aucun espace client n'y lit ni n'y écrit (porte `porteAdmin`). Ouvrir,
+ * annoter, clore · JAMAIS supprimé (déclencheur `platform_incidents_sans_suppression`,
+ * migration 0075). Règles au noyau (`incidents-declares.ts`).
+ */
+export const platformIncidents = pgTable('platform_incidents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  severity: text('severity', { enum: ['mineure', 'majeure', 'critique'] }).notNull().default('majeure'),
+  cause: text('cause'),
+  description: text('description').notNull(),
+  status: text('status', { enum: ['ouvert', 'clos'] }).notNull().default('ouvert'),
+  notes: jsonb('notes').notNull().default([]),
+  openedBy: uuid('opened_by').references(() => users.id, { onDelete: 'set null' }),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  closedBy: uuid('closed_by').references(() => users.id, { onDelete: 'set null' }),
+  resolution: text('resolution'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  statutIdx: index('platform_incidents_statut_idx').on(t.status, t.createdAt),
+}));

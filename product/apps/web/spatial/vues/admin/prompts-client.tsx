@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useState } from 'react';
+import { LONGUEUR_MAX_RECHERCHE, correspondRecherche } from '@tiktrends/core';
 import { Ic, Lien } from '../../communs';
 
 /**
@@ -22,12 +23,15 @@ export function BibliothequePrompts({ familles, pipeline, legende, kpis, titreLi
   titreListe: string;
 }) {
   const [f, setF] = useState(familles[0]?.cle ?? '');
-  const fam = familles.find((x) => x.cle === f) ?? familles[0];
+  const [q, setQ] = useState('');
+  const vues = familles.map((x) => ({ ...x, entrees: x.entrees.filter((e) => correspondRecherche([e.titre, e.id], q)) }));
+  const fam = vues.find((x) => x.cle === f) ?? vues[0];
+  const total = familles.find((x) => x.cle === fam?.cle)?.entrees.length ?? 0;
   return (
     <>
       <div className="aitabs">
         <div className="seg" role="group" aria-label="Bibliothèque IA">
-          {familles.map((x) => <button key={x.cle} type="button" data-aitab={x.cle} aria-pressed={x.cle === fam?.cle} onClick={() => setF(x.cle)}>{x.libelle}<i className="nct">{x.entrees.length}</i></button>)}
+          {vues.map((x) => <button key={x.cle} type="button" data-aitab={x.cle} aria-pressed={x.cle === fam?.cle} onClick={() => setF(x.cle)}>{x.libelle}<i className="nct">{x.entrees.length}</i></button>)}
         </div>
         <div className="aipipe" aria-label="Ordre d’assemblage">
           {pipeline.map((e, i) => (
@@ -41,7 +45,11 @@ export function BibliothequePrompts({ familles, pipeline, legende, kpis, titreLi
       </div>
       {kpis}
       <section className="tile sec">
-        <div className="sech"><h2>{titreListe}</h2><Lien className="btn sm pri" href="/admin/prompts/registre" style={{ marginLeft: 'auto' }}><Ic n="plus" />Créer dans le registre</Lien></div>
+        <div className="sech">
+          <h2>{titreListe}</h2>
+          <label className="jsearch" style={{ minWidth: 220 }}><Ic n="search" /><input id="pq" type="search" placeholder="Rechercher une consigne…" aria-label="Rechercher une consigne (titre ou clé)" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" maxLength={LONGUEUR_MAX_RECHERCHE} /></label>
+          <Lien className="btn sm pri" href="/admin/prompts/registre" style={{ marginLeft: 'auto' }}><Ic n="plus" />Créer dans le registre</Lien>
+        </div>
         <div className="atable">
           <div className="atr ath" style={{ gridTemplateColumns: COL }}><span>{fam?.colonne ?? 'Entrée'}</span><span>Version</span><span>Utilisations · 30 j</span><span>En production</span><span>Mise à jour</span><span /></div>
           {fam?.entrees.map((e) => (
@@ -52,7 +60,7 @@ export function BibliothequePrompts({ familles, pipeline, legende, kpis, titreLi
               <span><Lien className="btn sm" href={e.editer}>Éditer</Lien></span>
             </div>
           ))}
-          {fam && fam.entrees.length === 0 && <p className="faint" style={{ fontSize: '12.5px', margin: '6px 0 0' }}>Aucune entrée dans cette famille du registre.</p>}
+          {fam && fam.entrees.length === 0 && <p className="faint" style={{ fontSize: '12.5px', margin: '6px 0 0' }}>{total ? `Aucune entrée de cette famille ne correspond à « ${q.trim()} ».` : 'Aucune entrée dans cette famille du registre.'}</p>}
         </div>
       </section>
     </>

@@ -1,7 +1,7 @@
 import { LARGEUR_MIN_TABLE_TELEPHONE, VALEUR_ABSENTE, styleTableDefilante, type DeclarationAffichee } from '@tiktrends/core';
 import { Ic, Lien, Vue } from '../../communs';
 import { Kpis, TeteAdmin, Vide, type BandeauAdmin, type KpiAdmin } from './base';
-import { ComptesListe, type LigneCompte } from './client';
+import { ComptesListe, type PropsListeComptes } from './client';
 
 /**
  * « Inscriptions & comptes » · `docs/spatial/reference/a-comptes.html`. PRÉSENTATIONNEL.
@@ -11,6 +11,11 @@ import { ComptesListe, type LigneCompte } from './client';
  * des espaces. Sans source · les visiteurs du site (aucune mesure d'audience),
  * la source d'acquisition (le profil déclaré à l'onboarding la remplace),
  * « se connecter en tant que » et les crédits offerts à un autre espace.
+ *
+ * Lot 14 · les puces sont des SEGMENTS calculés (`segmentsComptes`), la
+ * recherche ignore casse et accents, les deux sont relus au serveur avec la
+ * page (50 lignes) · « Exporter (CSV) » reprend tout le filtre, colonnes de la
+ * table · seul écart à la maquette, déclaré et gardé (`spatial-admin.test.tsx`).
  *
  * Hors maquette (vague 2 · portée de l'ancienne page `/admin/signups`) · le
  * profil DÉCLARÉ à l'onboarding de chaque espace récent : propriétaire,
@@ -36,8 +41,9 @@ export interface PropsComptes {
   kpis: readonly KpiAdmin[];
   alerte: { comptes: string; mrr: string } | null;
   parcours: ReadonlyArray<{ libelle: string; n: string; hauteur: number; part: string | null }>;
-  filtres: ReadonlyArray<{ cle: string; libelle: string }>;
-  comptes: readonly LigneCompte[];
+  /** La liste · segments calculés, recherche et page relues au serveur, export (lot 14). */
+  liste: PropsListeComptes;
+  /** Sous la liste · la définition du segment choisi, puis la portée des colonnes. */
   note: string;
   /** Les déclarations d'onboarding · absent, la section ne s'affiche pas. */
   declarations?: { sous: string; lignes: readonly LigneDeclaration[] };
@@ -90,7 +96,7 @@ export function Comptes(p: PropsComptes) {
         </div>
       </section>
       <section className="tile sec">
-        <ComptesListe filtres={p.filtres} comptes={p.comptes} colonnes={COLONNES_COMPTES} />
+        <ComptesListe liste={p.liste} colonnes={COLONNES_COMPTES} />
         <p className="faint" style={{ fontSize: '11.5px', margin: '10px 0 0' }}>{p.note}</p>
       </section>
       {p.declarations && <Declarations {...p.declarations} />}
