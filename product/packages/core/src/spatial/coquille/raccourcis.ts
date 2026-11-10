@@ -42,7 +42,7 @@ import type { SectionSpatiale } from '../types';
 
 export type PorteeRaccourci =
   | 'partout' | 'aller' | 'fenetres' | 'recherche' | 'menus'
-  | 'veille-detail' | 'bibliotheque-apercu' | 'ce-qui-scale' | 'editeur' | 'canvas';
+  | 'veille-detail' | 'bibliotheque-apercu' | 'ce-qui-scale' | 'editeur' | 'canvas' | 'mentions';
 
 export interface DefPortee {
   cle: PorteeRaccourci;
@@ -63,6 +63,7 @@ export const PORTEES_RACCOURCIS: readonly DefPortee[] = [
   { cle: 'ce-qui-scale', libelle: 'Ce qui scale (Veille)', globale: false },
   { cle: 'editeur', libelle: 'Éditeur de créa', globale: false },
   { cle: 'canvas', libelle: 'Canvas du projet', globale: false },
+  { cle: 'mentions', libelle: 'Mentions dans un commentaire', globale: false },
 ];
 
 /* ───────────── Actions de la coquille ───────────── */
@@ -129,7 +130,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
     id: 'fermer', touches: [['Escape']], libelle: 'Fermer la fenêtre, le panneau ou le menu ouvert', portee: 'fenetres', action: null,
     sources: [
       'coquille/Coquille.tsx', 'vues/bibliotheque/Bibliotheque.tsx', 'vues/bibliotheque/apercu-complet.tsx', 'vues/bibliotheque/menu-fichier.tsx',
-      'vues/formats/TousLesFormats.tsx', 'vues/marque/interactifs.tsx', 'vues/projet/Editeur.tsx', 'vues/projet/Video.tsx',
+      'vues/formats/TousLesFormats.tsx', 'vues/marque/interactifs.tsx', 'vues/projet/ChampMentions.tsx', 'vues/projet/Editeur.tsx', 'vues/projet/Video.tsx',
       'vues/reglages/tags-client.tsx', 'vues/resultats/Suites.tsx', 'vues/studios/GrilleProjets.tsx', 'vues/studios/assistant/Panneaux.tsx',
       'vues/veille/client.tsx', 'vues/veille/sauvegarde-client.tsx', 'vues/veille/sauvegardes-client.tsx',
     ],
@@ -161,6 +162,8 @@ export const RACCOURCIS: readonly Raccourci[] = [
     id: 'canvas-deplacer', touches: [['ArrowLeft'], ['ArrowRight'], ['ArrowUp'], ['ArrowDown']], libelle: 'Déplacer la carte choisie (avec Maj · grand pas)',
     portee: 'canvas', action: null, sources: ['vues/projet/CanvasLibre.tsx'], surFocus: true,
   },
+  /* Les mentions d'un commentaire (fiche projet, onglet Activité) · liste ouverte par « @ » · Entrée choisit (touche de composant), Échap ferme (« fermer »). */
+  { id: 'mention-choisir', touches: [['ArrowDown'], ['ArrowUp']], libelle: 'Choisir le membre suivant ou précédent', portee: 'mentions', action: null, sources: ['vues/projet/ChampMentions.tsx'], surFocus: true },
 ];
 
 /**
@@ -186,6 +189,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
  * | vues/formats/TousLesFormats.tsx | Échap |
  * | vues/marque/interactifs.tsx | Échap |
  * | vues/projet/CanvasLibre.tsx | + = - 0 ← → ↑ ↓ |
+ * | vues/projet/ChampMentions.tsx | ↑ ↓ Entrée Échap (liste des mentions · ajouté par le lot des mentions) |
  * | vues/projet/Editeur.tsx | Échap Tab ← → ↑ ↓, Ctrl s z y (+ Ctrl + = - _ 0 par `raccourciZoom`) |
  * | vues/projet/PanneauJarvis.tsx | Entrée |
  * | vues/projet/Video.tsx | Échap |
@@ -219,6 +223,7 @@ export const TOUCHES_RECENSEES: Readonly<Record<string, readonly string[]>> = {
   'vues/formats/TousLesFormats.tsx': ['Escape'],
   'vues/marque/interactifs.tsx': ['Escape'],
   'vues/projet/CanvasLibre.tsx': ['+', '-', '0', '=', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp'],
+  'vues/projet/ChampMentions.tsx': ['ArrowDown', 'ArrowUp', 'Enter', 'Escape'],
   'vues/projet/Editeur.tsx': ['+', '-', '0', '=', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Escape', 'Tab', '_', 's', 'y', 'z'],
   'vues/projet/PanneauJarvis.tsx': ['Enter'],
   'vues/projet/Video.tsx': ['Escape'],

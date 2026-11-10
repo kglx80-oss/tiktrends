@@ -15,6 +15,10 @@ import type { CommentairesProjet } from '../../../spatial/vues/projet/types';
  * (la permission qui édite le projet) · aucune permission nouvelle. Entrées
  * `unknown` · une action serveur est appelable directement.
  *
+ * Mentions · `mentions` (identifiants choisis dans la liste) · relues au
+ * serveur contre les membres qui voient le projet · un identifiant d'ailleurs
+ * est ignoré, aucune mention ne donne un accès.
+ *
  * Gratuit · aucun appel IA, aucune génération.
  */
 
@@ -35,17 +39,17 @@ export async function listerCommentairesProjet(entree: { projectId: unknown }): 
 }
 
 /** Commente une version ou une création du projet. */
-export async function commenterProjet(entree: { projectId: unknown; cible: unknown; cibleId: unknown; texte: unknown }): Promise<Reponse<CommentairesProjet>> {
+export async function commenterProjet(entree: { projectId: unknown; cible: unknown; cibleId: unknown; texte: unknown; mentions?: unknown }): Promise<Reponse<CommentairesProjet>> {
   const g = await gardeStudio('studio.propose', 'projets');
   if (!g.ok) return g;
-  return commenterPour(g.ctx, { projectId: entree?.projectId, cible: entree?.cible, cibleId: entree?.cibleId, texte: entree?.texte });
+  return commenterPour(g.ctx, { projectId: entree?.projectId, cible: entree?.cible, cibleId: entree?.cibleId, texte: entree?.texte, mentions: entree?.mentions });
 }
 
 /** Modifie SON commentaire, encore ouvert · l'ancien texte est gardé. */
-export async function modifierCommentaire(entree: { commentId: unknown; rowVersion: unknown; texte: unknown }): Promise<Reponse<CommentairesProjet>> {
+export async function modifierCommentaire(entree: { commentId: unknown; rowVersion: unknown; texte: unknown; mentions?: unknown }): Promise<Reponse<CommentairesProjet>> {
   const g = await gardeStudio('studio.propose', 'projets');
   if (!g.ok) return g;
-  return modifierCommentairePour(g.ctx, { commentId: entree?.commentId, rowVersion: entree?.rowVersion, texte: entree?.texte });
+  return modifierCommentairePour(g.ctx, { commentId: entree?.commentId, rowVersion: entree?.rowVersion, texte: entree?.texte, mentions: entree?.mentions });
 }
 
 /** Résout (`resolu: true`) ou rouvre (`false`) un commentaire · jamais de suppression. */

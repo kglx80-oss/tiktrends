@@ -589,7 +589,7 @@ function sansOngletActivite(html: string): string {
 const ACTIVITE: NonNullable<PropsProjet['activite']> = {
   projectId: 'p1',
   journal: { ok: true, tronque: false, journal: { entrees: [], type: null, page: 1, pages: 1, total: 0, tous: 0, filtres: [] } },
-  commentaires: { ok: true, liste: { commentaires: [], cibles: [{ cle: 'version:v3', type: 'version', id: 'v3', libelle: 'Version 3 · courante' }], peutCommenter: true } },
+  commentaires: { ok: true, liste: { commentaires: [], cibles: [{ cle: 'version:v3', type: 'version', id: 'v3', libelle: 'Version 3 · courante' }], peutCommenter: true, mentionnables: [] } },
 };
 
 describe('Spatial · D2 · lot 10 · l’onglet « Activité » est le seul écart, étroitement déclaré', () => {
