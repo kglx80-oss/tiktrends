@@ -45,9 +45,14 @@ describe('Templates dans la bibliothèque · coulisses vues du client', () => {
     const f = fn('tagAssetAction');
     // Assainit la sortie du modèle (jamais poser) ET préserve le statut existant
     // (jamais retirer) · sinon un non-admin bascule un template via le tagging.
-    expect(f, 'le tagging IA n’assainit/préserve pas le marqueur')
-      .toContain('avecTemplate(tagsVisibles(tags), estTemplateAsset(a.tags))');
-    expect(f, 'le tagging IA ne relit pas le statut template de l’asset').toContain('tags: schema.assets.tags');
+    // Lot 12 · l'écriture passe par `ecrireTagsAnalyse` · la colonne relue VERROUILLÉE au moment d'écrire, puis
+    // `fusionTagsAnalyse` (noyau · garde le marqueur et les tags posés à la main, prouvé par `lot12-bibliotheque.test.ts`).
+    expect(f, 'le tagging IA n’assainit pas la sortie du modèle').toContain('const propres = tagsVisibles(tags);');
+    expect(f, 'le tagging IA n’écrit pas par la fusion qui préserve le marqueur').toContain('await ecrireTagsAnalyse(a.id, propres);');
+    const i = src.indexOf('async function ecrireTagsAnalyse');
+    const e = src.slice(i, i + 900);
+    expect(e, 'le statut template n’est pas relu verrouillé à l’écriture').toContain("select({ tags: A.tags }).from(A).where(eq(A.id, id)).for('update')");
+    expect(e, 'la colonne n’est pas écrite par la fusion du noyau').toContain('fusionTagsAnalyse(l?.tags ?? null, ia)');
   });
 
   it('le tagging IA en lot assainit aussi la sortie du modèle', () => {

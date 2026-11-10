@@ -2,7 +2,7 @@ import 'server-only';
 import { and, desc, eq, isNotNull, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  curseurSuivant, dossiersEteints, FORMAT_CURSEUR_SQL, limiteDemande, motifRecherche, TAG_TEMPLATE, TRANSLITTERATION_SQL,
+  curseurSuivant, dossiersEteints, FORMAT_CURSEUR_SQL, limiteDemande, lireTagsFichier, motifRecherche, PREFIXE_TAG_MAIN, TAG_TEMPLATE, TRANSLITTERATION_SQL,
   type CurseurBibliotheque, type DemandePageBibliotheque, type FiltreTypeDrive, type LigneCompteBibliotheque, type MediaSource, type PageBibliotheque,
 } from '@tiktrends/core';
 import { toItem } from './asset-item';
@@ -50,7 +50,8 @@ function enMedia(r: Ligne): MediaSource & { curseur: CurseurBibliotheque } {
   return {
     id: a.id, name: a.name, kind: a.kind, source: a.source, url: a.url, thumbUrl: a.thumbUrl, sizeBytes: a.sizeBytes, createdAt: a.createdAt,
     mimeType: r.mimeType, folderId: r.folderId, rights: r.rights, deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
-    ia: { utilisable: a.useForAi, template: a.isTemplate, tags: a.tags },
+    // Lot 12 · les tags rangés par origine · l'analyse d'un côté, la main de l'autre (même colonne, préfixe réservé).
+    ia: (() => { const t = lireTagsFichier(r.tags); return { utilisable: a.useForAi, template: a.isTemplate, tags: t.ia, main: t.main.map((x) => x.nom) }; })(),
     // « Remplacer » · où vit le contenu, relu par `toItem` (jamais l'adresse) · le même champ que la page d'avant.
     ...(a.contenu ? { contenu: a.contenu } : {}),
     curseur: { t: r.t, id: r.id },
@@ -143,7 +144,7 @@ export async function lirePageBibliotheque(p: PorteeBibliotheque, d: DemandePage
       const { de, vers } = TRANSLITTERATION_SQL;
       const motif = motifRecherche(d.portee.q);
       conds.push(sql`(translate(lower(${A.name}), ${de}, ${vers}) like ${motif}
-        or exists (select 1 from unnest(${A.tags}) as tag where tag <> ${TAG_TEMPLATE} and translate(lower(tag), ${de}, ${vers}) like ${motif}))`);
+        or exists (select 1 from unnest(${A.tags}) as tag where tag <> ${TAG_TEMPLATE} and translate(lower(case when starts_with(tag, ${PREFIXE_TAG_MAIN}) then substr(tag, ${PREFIXE_TAG_MAIN.length + 1}) else tag end), ${de}, ${vers}) like ${motif}))`);
     }
   }
   // Une page (200), ou la profondeur relue après un geste · bornée au noyau (`lireDemandePage`).

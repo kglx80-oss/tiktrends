@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, or, isNull, isNotNull, sql } from 'drizzle-orm'
 import { db, schema } from '@tiktrends/db';
 import { storageFromEnv, presignPutUrl, newAssetKey, deleteObjectByUrl, basePubliqueStockage, objectKeyFromUrl, publicUrlFor, ecrireApresDepot, retirerDepotsSansLigne } from '@tiktrends/integrations';
 import { describeAssetImage } from '@tiktrends/ai';
-import { costFor, decisionDepot, dureeLienDepot, jetonDepotPour, lireUsageDepot, resoudreJetonDepot, REFUS_USAGE_DEPOT, TEXTES_REFUS_JETON_FICHIER, type UsageDepot, avecTemplate, estTemplateAsset, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, idLienInterne, type OrigineStudioBibliotheque } from '@tiktrends/core';
+import { costFor, decisionDepot, dureeLienDepot, jetonDepotPour, lireUsageDepot, resoudreJetonDepot, REFUS_USAGE_DEPOT, TEXTES_REFUS_JETON_FICHIER, type UsageDepot, avecTemplate, tagsVisibles, messageServiceInactif, typeMediaReel, cleTeleversable, idLienInterne, type OrigineStudioBibliotheque, ecritureTagsMain, fusionTagsAnalyse, lireTagsFichier } from '@tiktrends/core';
 import { getSession } from '../../lib/auth';
 import { roleAtLeast } from '../../lib/rbac';
 import { getActiveBrand } from '../../lib/brands';
@@ -423,6 +423,58 @@ export async function basculerTemplateAction(input: { id: string; on: boolean })
   return { ok: true, isTemplate: input.on };
 }
 
+/**
+ * L'écriture d'une analyse · les tags IA rendus remplacent ceux d'avant, le
+ * marqueur template et les tags posés à la main sont gardés, relus dans la
+ * MÊME transaction (ligne verrouillée). Interne, non exportée.
+ */
+async function ecrireTagsAnalyse(id: string, ia: readonly string[]): Promise<void> {
+  if (!db) return;
+  const A = schema.assets;
+  await db.transaction(async (tx) => {
+    const [l] = await tx.select({ tags: A.tags }).from(A).where(eq(A.id, id)).for('update');
+    await tx.update(A).set({ tags: fusionTagsAnalyse(l?.tags ?? null, ia) }).where(eq(A.id, id));
+  });
+}
+
+/**
+ * Lot 12 V5 (VB L31) · les TAGS POSÉS À LA MAIN d'un fichier de la
+ * bibliothèque · la liste demandée REMPLACE ceux posés à la main (ajouter ou
+ * retirer un tag = renvoyer la liste · `ia`, facultatif, les tags IA GARDÉS ·
+ * un tag IA absent de cette liste est retiré, aucun n'est ajouté). Même garde d'écriture que le reste de la
+ * Bibliothèque, AVANT toute lecture · puis, dans UNE transaction, le fichier
+ * relu verrouillé dans l'espace de la session, VIVANT · un fichier d'un autre
+ * espace, à la corbeille, une sortie Studios ou une ancienne création
+ * (absentes de `assets`), un identifiant illisible reçoivent la même phrase
+ * qu'un inconnu. Les règles (vocabulaire de la Veille, bornes, doublons, tags
+ * IA et marqueur template intacts) vivent au noyau (`ecritureTagsMain`).
+ * Aucun appel modèle, aucun crédit · ce n'est pas `tagAssetAction`.
+ */
+export async function definirTagsMainAssetAction(input: { id: string; tags: string[]; ia?: string[] }): Promise<{ ok?: true; main?: string[]; ia?: string[]; error?: string }> {
+  const g = await gardeBibliotheque();
+  if ('error' in g) return { error: g.error };
+  const { s } = g;
+  if (!db) return { error: GUARD.session() };
+  if (typeof input?.id !== 'string' || !ID_MEDIA.test(input.id)) return { error: REFUS_FICHIER.introuvable };
+  const id = input.id.toLowerCase();
+  const A = schema.assets;
+  try {
+    const main = await db.transaction(async (tx) => {
+      const [f] = await tx.select({ tags: A.tags }).from(A)
+        .where(and(eq(A.id, id), eq(A.workspaceId, s.workspaceId), isNull(A.deletedAt))).for('update');
+      if (!f) throw new RenommageRefuse(REFUS_FICHIER.introuvable);
+      const v = ecritureTagsMain(f.tags, input?.tags, input?.ia);
+      if (!v.ok) throw new RenommageRefuse(v.raison);
+      await tx.update(A).set({ tags: v.tags }).where(and(eq(A.id, id), eq(A.workspaceId, s.workspaceId), isNull(A.deletedAt)));
+      return lireTagsFichier(v.tags);
+    });
+    return { ok: true, main: main.main.map((t) => t.nom), ia: main.ia };
+  } catch (e) {
+    if (e instanceof RenommageRefuse) return { error: e.message };
+    throw e;
+  }
+}
+
 /** Tague une image par l'IA (vision) · débite 1 crédit (tag_image). Rend les tags. */
 export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true; tags?: string[]; error?: string }> {
   const g = await gardeBibliotheque();
@@ -458,12 +510,14 @@ export async function tagAssetAction(input: { id: string }): Promise<{ ok?: true
     return { error: "Aucun tag n'a pu être déduit." };
   }
 
-  // Le tagging IA réécrit TOUS les tags · il doit assainir la sortie du modèle
-  // (jamais poser le marqueur de template · réservé aux coulisses) ET préserver
-  // le statut template existant (jamais le retirer par un chemin non gardé).
-  const finaux = avecTemplate(tagsVisibles(tags), estTemplateAsset(a.tags));
-  await db.update(schema.assets).set({ tags: finaux }).where(eq(schema.assets.id, a.id));
-  return { ok: true, tags: tagsVisibles(tags) };
+  // Le tagging IA réécrit les tags IA · il doit assainir la sortie du modèle
+  // (jamais poser le marqueur de template · réservé aux coulisses · ni se faire
+  // passer pour un tag posé à la main) ET préserver le statut template et les
+  // tags posés à la main (lot 12) · relus VERROUILLÉS au moment d'écrire, un
+  // tag posé pendant l'analyse n'est pas perdu (`fusionTagsAnalyse`, noyau).
+  const propres = tagsVisibles(tags);
+  await ecrireTagsAnalyse(a.id, propres);
+  return { ok: true, tags: propres };
 }
 
 /** Tague en lot les images non taguées (max 20 par appel), débit par image. */
@@ -501,10 +555,11 @@ export async function tagUntaggedImagesAction(): Promise<{ ok?: true; tagged?: n
     try {
       const { tags } = await describeAssetImage(client, imageUrl);
       // Assainir la sortie du modèle · elle ne doit jamais poser le marqueur de
-      // template (réservé admin). Ces images n'en ont pas (filtre « sans tags »).
+      // template (réservé admin) ni un tag « posé à la main ». Relue verrouillée
+      // à l'écriture · un tag posé à la main pendant l'analyse reste (lot 12).
       const propres = tagsVisibles(tags);
       if (propres.length) {
-        await db.update(schema.assets).set({ tags: propres }).where(eq(schema.assets.id, a.id));
+        await ecrireTagsAnalyse(a.id, propres);
         tagged++;
         ok = true;
       }

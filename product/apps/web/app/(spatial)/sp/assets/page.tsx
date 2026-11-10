@@ -5,7 +5,9 @@ import {
   type DossierSource, type MediaSource,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
-import { roleAtLeast } from '../../../../lib/rbac';
+import { canAccess, FEATURES, roleAtLeast } from '../../../../lib/rbac';
+import { effectiveAccess } from '../../../../lib/access';
+import { lireVocabulaire } from '../../../../lib/veille-tags';
 import { refusEcritureBibliotheque, refusLectureBibliotheque, TEXTE_REFUS_BIBLIOTHEQUE } from '../../../../lib/bibliotheque-acces';
 import { getActiveBrand } from '../../../../lib/brands';
 import { listerSortiesStudiosBibliotheque, sortieCommeAsset } from '../../../../lib/studios/bibliotheque';
@@ -18,6 +20,8 @@ import { unlimitedCredits } from '../../../../lib/credits';
 import { Bibliotheque } from '../../../../spatial/vues/bibliotheque/Bibliotheque';
 
 export const dynamic = 'force-dynamic';
+
+const FEATURE_VEILLE = FEATURES.find((f) => f.key === 'inspo')!;
 
 /**
  * « Bibliothèque » Spatial · mêmes gardes et mêmes sources que `/assets` (V5).
@@ -73,7 +77,9 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
   // La portée de la session · l'espace et la marque active (ses médias et les communs), la même que `listAssets`.
   const marque = await getActiveBrand(s.workspaceId);
   const portee = { workspaceId: s.workspaceId, marque: marque?.id ?? null };
-  const [vivants, jetes, comptes, lignesDossiers, studios, anciennes, driveState, utilisations] = await Promise.all([
+  // Lot 12 · le vocabulaire de tags de la Veille (marque active) PROPOSÉ à la saisie d'un tag de fichier · lu seulement pour qui a la Veille, lecture seule.
+  const veilleOuverte = canAccess(effectiveAccess(s), FEATURE_VEILLE);
+  const [vivants, jetes, comptes, lignesDossiers, studios, anciennes, driveState, utilisations, vocabulaire] = await Promise.all([
     // La fenêtre (les plus récents, vivants puis corbeille) et les comptes EXACTS de toute la portée · la suite vient par « Charger plus ».
     lireFenetre(portee, { corbeille: false, limite: FENETRE_BIBLIOTHEQUE }),
     lireFenetre(portee, { corbeille: true, limite: FENETRE_BIBLIOTHEQUE }),
@@ -84,6 +90,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
     admin ? getDriveState() : Promise.resolve(null),
     // « Utilisé dans » · les projets Studios que la session voit et qui citent un fichier (lecture seule, bornée · null sans lecture Studios).
     lireUtilisationsBibliotheque(),
+    veilleOuverte && marque ? lireVocabulaire(s.workspaceId, marque.id).catch(() => []) : Promise.resolve([]),
   ]);
   // Les sources en lecture seule gardent chacune leur borne · elles ne poussent plus les médias hors de la fenêtre.
   const lecture = [...studios.map(sortieCommeAsset), ...anciennes.map(creationCommeAsset)].map((a): MediaSource => ({
@@ -127,6 +134,7 @@ export default async function BibliothequeSpatiale({ searchParams }: { searchPar
         analyse: { cout: unlimitedCredits(s.user.email) ? null : costFor('tag_image', 1), raison: raisonAnalyse, sansTags, maxLot: LOT_ANALYSE_IMAGES },
         selecteurDrive: !!driveState?.pickerReady,
         admin,
+        vocabulaireTags: vocabulaire.map((t) => t.nom),
         messageDrive: driveState && !driveState.available ? DRIVE_CONNEXION_INACTIVE : driveState?.connected && !driveState.pickerReady ? DRIVE_SELECTEUR_INACTIF : null,
       }}
     />

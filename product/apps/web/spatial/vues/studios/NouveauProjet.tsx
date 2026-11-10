@@ -8,11 +8,13 @@ import {
   saisieBriefVide, verifierCreationAssistant, LIBELLES_STATUT_ALLEGATION, statutAllegation,
   ALLOWED_PATHS_BRIEF, CHEMIN_PROJETS, ETAPES_NOUVEAU_SPATIAL, DEPARTS_SPATIAL, JARVIS_NOUVEAU, LIBELLES_OBJECTIF_V5, LIBELLES_PLATEFORME_V5,
   LIVRABLES_SPATIAL, OBJECTIFS_V5, OBJECTIF_MAX, PLATEFORMES_V5, TITRE_NOUVEAU_PROJET_MAX,
+  EFFET_ROLE, LIBELLES_PORTEE, LIBELLES_ROLE, PORTEES_REFERENCE, ROLES_VERSEMENT, raisonMediasBrief, type PorteeReference, type RoleReference,
   type BriefCanonique, type ContenuVersion, type EtapeAssistant, type EtatNouveauProjet, type OffreBrief, type PlateformeV5, type ReferenceAdsmap,
   type SaisieBriefV5, type TypeNouveauProjet,
 } from '@tiktrends/core';
 import { creerProjet } from '../../../app/actions/studios/projets';
 import { ajouterSourcesAuProjet, lireProjetDetail } from '../../../app/actions/studios/sources';
+import { verserSelectionDansProjet } from '../../../app/actions/studios/versement';
 import { lireDepartAssistant, type DepartAssistant, type OrigineDepartAssistant } from '../../../app/actions/studios/departs-assistant';
 import { setActiveBrand } from '../../../app/actions/brands';
 import type { DevisImageVue } from '../../../lib/studios/image/parcours';
@@ -76,7 +78,11 @@ export interface PropsNouveauProjet {
   /** Lot 8 · les couleurs de la fiche de la marque active (pastilles de l'étape Style) · absent ou vide, la vue le dit. */
   paletteMarque?: readonly string[];
   /** Ce que le lien reprend (relu au serveur) · le départ, les références, ce qui n'est pas repris. */
-  contexte: { depart: DepartAssistant | null; references: DepartAssistant[]; notes: string[]; repris: string[]; retourVeille: { href: string } | null };
+  contexte: {
+    depart: DepartAssistant | null; references: DepartAssistant[]; notes: string[]; repris: string[]; retourVeille: { href: string } | null;
+    /** Lot 12 · médias de la Bibliothèque relus en portée (« Ajouter au brief ») · versés à « Continuer », rôle et portée choisis. */
+    medias?: ReadonlyArray<{ id: string; nom: string }>;
+  };
 }
 
 interface ProjetCourant { id: string; versionCourante: { id: string; n: number } }
@@ -98,6 +104,11 @@ export function NouveauProjet(p: PropsNouveauProjet) {
   const [depart, setDepart] = useState<DepartAssistant | null>(p.contexte.depart);
   const [references, setReferences] = useState<DepartAssistant[]>(p.contexte.references);
   const [sourcesAffectees, setSourcesAffectees] = useState<string[]>([]);
+  // Lot 12 · les références de la Bibliothèque · proposées par l'adresse, retirables avant la création, versées une fois.
+  const [medias, setMedias] = useState<ReadonlyArray<{ id: string; nom: string }>>(p.contexte.medias ?? []);
+  const [roleMedias, setRoleMedias] = useState<RoleReference | ''>('');
+  const [porteeMedias, setPorteeMedias] = useState<PorteeReference | ''>('');
+  const [mediasVerses, setMediasVerses] = useState(false);
   const [photoEpinglee, setPhotoEpinglee] = useState('');
   const [productId, setProductId] = useState('');
   const [photoId, setPhotoId] = useState('');
@@ -167,6 +178,9 @@ export function NouveauProjet(p: PropsNouveauProjet) {
     const v = verifierCreationAssistant({ type, titre, saisie });
     if (!v.ok) { setErreur({ message: v.message }); return; }
     if (destination !== 'photo' && productId && !photoId) { setErreur({ message: 'Choisis une photo du produit avant de continuer.' }); return; }
+    // Lot 12 · le rôle et la portée des références de la Bibliothèque, choisis AVANT toute création (rien n'est créé pour un manque).
+    const manque = mediasVerses ? null : raisonMediasBrief(medias.length, roleMedias, porteeMedias);
+    if (manque) { setErreur({ message: manque }); return; }
     setEncours(true); setErreur(null);
     const contenu: ContenuVersion = { ...contenuVide(), brief: v.brief as unknown as ContenuVersion['brief'] };
     try {
@@ -212,6 +226,18 @@ export function NouveauProjet(p: PropsNouveauProjet) {
         const affecte = await ajouterSourcesAuProjet({ projectId: courant.id, sources: nouvelles.flatMap((r) => r.sources) });
         if (!affecte.ok) { setErreur({ message: affecte.message }); setEncours(false); return; }
         setSourcesAffectees((avant) => [...avant, ...nouvelles.map((r) => r.id)]);
+      }
+      if (medias.length && !mediasVerses && roleMedias && porteeMedias) {
+        // Le chemin de « Utiliser dans un projet » · garde, catalogue de la marque du projet, une nouvelle version auditée.
+        const verse = await verserSelectionDansProjet({ projectId: courant.id, ids: medias.map((m) => m.id), role: roleMedias, scope: porteeMedias });
+        if (!verse.ok) { setErreur({ message: verse.violations?.length ? [...new Set(verse.violations.map((x) => x.raison))].join(' · ') : verse.message }); setEncours(false); return; }
+        setMediasVerses(true);
+        const relu = await lireProjetDetail({ projectId: courant.id });
+        if (relu.ok) {
+          courant = { id: courant.id, versionCourante: { id: relu.detail.version.id, n: relu.detail.version.n } };
+          setProjet(courant);
+          if (relu.detail.brief && !relu.detail.briefIllisible) setBrief(relu.detail.brief);
+        }
       }
       setEncours(false);
       if (destination === 'photo') setPhotoOuverte(true);
@@ -336,7 +362,8 @@ export function NouveauProjet(p: PropsNouveauProjet) {
             notes={[...p.contexte.repris, ...p.contexte.notes]} retourVeille={p.contexte.retourVeille}
             produit={<ProduitBrief produits={catalogue} produitEpingle={!!photoEpinglee} productId={productId} photoId={photoId} occupe={encours || incertain}
               onProduit={(id) => { setProductId(id); setPhotoId(''); }} onPhoto={setPhotoId} onImporter={() => void creer('photo')} />}
-            references={<References references={references} onAjouter={() => setPanneau('veille')} />}
+            references={<References references={references} onAjouter={() => setPanneau('veille')}
+              bibliotheque={medias.length ? { medias, role: roleMedias, portee: porteeMedias, verses: mediasVerses, occupe: encours || incertain, setRole: setRoleMedias, setPortee: setPorteeMedias, retirer: (id) => setMedias((m) => m.filter((x) => x.id !== id)) } : null} />}
           />
         )}
 
@@ -571,13 +598,47 @@ function ProduitBrief({ produits, produitEpingle, productId, photoId, onProduit,
   );
 }
 
-function References({ references, onAjouter }: { references: DepartAssistant[]; onAjouter: () => void }) {
+interface ReferencesBibliotheque {
+  medias: ReadonlyArray<{ id: string; nom: string }>;
+  role: RoleReference | ''; portee: PorteeReference | ''; verses: boolean; occupe: boolean;
+  setRole: (r: RoleReference | '') => void; setPortee: (p: PorteeReference | '') => void; retirer: (id: string) => void;
+}
+
+function References({ references, onAjouter, bibliotheque }: { references: DepartAssistant[]; onAjouter: () => void; bibliotheque?: ReferencesBibliotheque | null }) {
+  const b = bibliotheque;
   return (
     <section className="tile" aria-label="Références" style={{ display: 'grid', gap: 10 }}>
       <div className="lbl">Références</div>
       {references.length
         ? <div className="kc">{references.map((r) => <span key={r.id} className="pill c" data-reference={r.id}>{r.titre}</span>)}</div>
-        : <p className="faint" style={{ fontSize: '12.5px' }}>Aucune référence sélectionnée.</p>}
+        : !b && <p className="faint" style={{ fontSize: '12.5px' }}>Aucune référence sélectionnée.</p>}
+      {b && (
+        <div data-references-bibliotheque="" style={{ display: 'grid', gap: 8 }}>
+          <small className="faint">De la Bibliothèque{b.verses ? ' · jointes au projet' : ' · jointes à la création du projet'}</small>
+          <div className="kc">
+            {b.medias.map((m) => (
+              <span key={m.id} className="pill c" data-media-brief={m.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {m.nom}
+                {!b.verses && <button type="button" aria-label={`Retirer ${m.nom} des références`} disabled={b.occupe} onClick={() => b.retirer(m.id)}
+                  style={{ minHeight: 44, minWidth: 44, background: 'none', border: 0, color: 'inherit', display: 'inline-grid', placeItems: 'center', cursor: 'pointer' }}><Ic n="x" /></button>}
+              </span>
+            ))}
+          </div>
+          {!b.verses && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select data-champ="role-media" aria-label="Rôle des références de la Bibliothèque" value={b.role} disabled={b.occupe} style={{ minHeight: 44 }} onChange={(e) => b.setRole(e.target.value as RoleReference | '')}>
+                <option value="" disabled>Rôle…</option>
+                {ROLES_VERSEMENT.map((r) => <option key={r} value={r}>{LIBELLES_ROLE[r]}</option>)}
+              </select>
+              <select data-champ="portee-media" aria-label="Portée des références de la Bibliothèque" value={b.portee} disabled={b.occupe} style={{ minHeight: 44 }} onChange={(e) => b.setPortee(e.target.value as PorteeReference | '')}>
+                <option value="" disabled>Portée…</option>
+                {PORTEES_REFERENCE.map((x) => <option key={x} value={x}>{LIBELLES_PORTEE[x]}</option>)}
+              </select>
+            </div>
+          )}
+          {b.role && <small className="faint">{EFFET_ROLE[b.role]}</small>}
+        </div>
+      )}
       <div className="kc"><button className="btn sm" type="button" data-bouton="references-veille" disabled={references.length >= 10} onClick={onAjouter}><Ic n="plus" />Depuis la Veille</button></div>
     </section>
   );

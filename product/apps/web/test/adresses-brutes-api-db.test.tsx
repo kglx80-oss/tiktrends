@@ -288,6 +288,7 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
     basculerAssetsIaAction: A(() => [{ ids: [s.fichier], useForAi: true }]),
     mettreAssetsCorbeilleAction: D(() => [{ ids: [s.jetable] }]),
     renommerAssetAction: A(() => [{ id: s.fichier, nom: 'Rush' }]),
+    definirTagsMainAssetAction: A(() => [{ id: s.fichier, tags: ['Hook UGC'] }]),
     basculerTemplateAction: A(() => [{ id: s.fichier, on: false }]),
     tagAssetAction: A(() => [{ id: s.fichier }]),
     tagUntaggedImagesAction: A(),
