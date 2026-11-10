@@ -8,6 +8,7 @@ import {
 import type { ContexteStudio } from '../garde';
 import { listerVariantes } from '../variantes/variantes';
 import { etatSources } from '../sources/sources';
+import { liensDeCopie } from '../copie-projet';
 
 /**
  * Projection de LIGNÉE d'un projet (V5, lecture seule) · le serveur LIT, le
@@ -19,7 +20,10 @@ import { etatSources } from '../sources/sources';
  *    verdicts et apprentissages ;
  *  · le brief de chaque version est lu dans `content->'brief'` (hypothèse,
  *    variable, intention de style, objectif) ;
- *  · `sourceRefs` donne les références Veille, présentées comme ailleurs.
+ *  · `sourceRefs` donne les références Veille, présentées comme ailleurs ;
+ *  · `liensDeCopie` donne les projets FRÈRES · la source de ce projet et ses
+ *    copies, quand l'audit de leur création porte `copieDe` · relus dans la
+ *    portée · une duplication passée ne relie rien.
  *
  * Les seules vraies données nouvelles de la lignée V5 (note, fiche marque) ne
  * sont pas lues ici : elles demandent une migration (lot ultérieur).
@@ -91,8 +95,14 @@ export async function lireLigneeProjetPour(
     lien: s.lienSource,
   }));
 
+  // Projets frères · un lien n'est posé que s'il est écrit (`copieDe`) et que l'autre projet est lisible ici.
+  const liens = await liensDeCopie(ctx, { id: projet.id, brandId: projet.brandId }).catch(() => ({ source: null, copies: [] }));
   const entree: EntreeLignee = {
     projet: { id: projet.id, titre: projet.title, marque: marque?.nom ?? '' },
+    freres: {
+      source: liens.source,
+      copies: liens.copies.flatMap((c) => (c.titre !== null ? [{ id: c.id, titre: c.titre, versionId: c.versionId }] : [])),
+    },
     sources,
     briefs,
     donnees,

@@ -12,7 +12,10 @@
  *    répète pas ;
  *  · les tâches (`studio_jobs`) · la FIN d'une génération (terminée, en échec,
  *    annulée) que le worker écrit sans audit ;
- *  · les commentaires du projet (écrit, résolu).
+ *  · les commentaires du projet (écrit, résolu) ;
+ *  · les DUPLICATIONS du projet · l'audit de la création de chaque copie qui
+ *    porte `copieDe` vers ce projet (`FaitDuplication`, `duplication.ts`) ·
+ *    « Dupliqué en « … » », avec le lien vers la copie.
  *
  * Chaque fait devient UNE phrase en français (`entreeJournal`). Un événement
  * d'audit inconnu se dit de façon NEUTRE (« Action enregistrée sur ce projet »)
@@ -26,6 +29,7 @@
 import { etatReprise, libelleOperationJob } from '../execution/reprise';
 import type { EtatJob } from '../machines';
 import { ETATS_JOB } from '../machines';
+import { lireCopieDe, NOTE_COPIE_SANS_LIEN, phraseDuplication, type FaitDuplication } from './duplication';
 
 export type TypeJournal = 'versions' | 'exports' | 'relectures' | 'projet' | 'tests' | 'devis' | 'generations' | 'jarvis' | 'commentaires' | 'autre';
 
@@ -90,7 +94,7 @@ export interface FaitCommentaire {
   cible: { type: 'version'; versionId: string; versionN: number } | { type: 'creation'; libelle: string };
 }
 
-export type FaitJournal = FaitAudit | FaitVersion | FaitTache | FaitCommentaire;
+export type FaitJournal = FaitAudit | FaitVersion | FaitTache | FaitCommentaire | FaitDuplication;
 
 export interface EntreeJournal {
   id: string;
@@ -139,10 +143,11 @@ function raisonLisible(r: string | null): string | null {
 }
 
 const PHRASES_AUDIT: Readonly<Record<string, (f: FaitAudit, d: Record<string, unknown>) => Phrase>> = {
-  'project.create': (f) => {
+  'project.create': (f, d) => {
     const r = texte(f.raisonVersion, 300);
+    // Une copie d'avant le lien (`copieDe`) · le projet source ne la dit pas, et la copie le précise · rien n'est deviné.
     return r && r.startsWith('Copie de «')
-      ? { type: 'projet', phrase: 'Projet créé par duplication', detail: r, lien: 'version' }
+      ? { type: 'projet', phrase: 'Projet créé par duplication', detail: lireCopieDe(d) ? r : `${r} · ${NOTE_COPIE_SANS_LIEN}`, lien: 'version' }
       : { type: 'projet', phrase: 'Projet créé', detail: null, lien: 'version' };
   },
   'project.create_from_sources': (_f, d) => {
@@ -279,6 +284,10 @@ export function entreeJournal(f: FaitJournal, o: { projectId: string }): EntreeJ
           : etat?.ton === 'echec' ? 'Génération en échec'
             : etat?.interrompu ? 'Génération interrompue · coût en rapprochement' : 'Génération arrêtée';
     return { ...commun, type: 'generations', phrase, detail: op, versionN: null, lien: f.fini && etat?.ton === 'termine' ? lienDe('creations', o.projectId, null, null) : null };
+  }
+  if (f.source === 'duplication') {
+    const p = phraseDuplication(f);
+    return { ...commun, type: 'projet', phrase: p.phrase, detail: p.detail, versionN: f.versionN, lien: p.lien };
   }
   const sur = f.cible.type === 'version' ? `la version ${f.cible.versionN}` : 'une création';
   return {

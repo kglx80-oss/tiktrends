@@ -5,7 +5,8 @@ import {
   aPermissionEspace, apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
   refusStudiosSpatial, variablesDuPlan, variablesInspiration, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE,
   iterationDepuisReponse, lireGesteIteration, preparationAutreVariable, OPTIONS_PUB_PROJET, REFUS_GESTE_JARVIS,
-  type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis, type ProvenanceJarvis,
+  departDepuisCommentaire, lireGesteCommentaire, REFUS_GESTE_COMMENTAIRE,
+  type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis, type ProvenanceJarvis, type ProvenanceCommentaire,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
@@ -15,6 +16,7 @@ import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { jointureCreaDeLaMarque, vignetteAd } from '../../../../../lib/adsmap-medias';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
 import { candidatsDuPlan, exclusDuContexte, lireCandidatsProjet, lireContexteGestes, lireReponseJarvis, planDepuisLignes } from '../../../../../lib/jarvis-gestes';
+import { lireCommentairePourIterer } from '../../../../../lib/studios/commentaire-iterer';
 import { iterationPlanAction, type IterationRow } from '../../../../actions/adsmap-iterate';
 import { Iterer, type InspirationIterer } from '../../../../../spatial/vues/studios/Iterer';
 import { RefusStudios } from '../../../../../spatial/vues/studios/Refus';
@@ -61,6 +63,16 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * le contexte ont été relus ici, l'écran transmet leurs identifiants à
  * « Créer l'itération » · l'action les RELIT dans la portée avant de poser la
  * provenance (`provenanceJarvisAdmise`) · l'adresse seule ne pose rien.
+ *
+ * `?commentaire=<uuid>&projet=<uuid>` (« Itérer depuis ce commentaire », onglet
+ * Activité d'un projet) · le commentaire est RELU dans la portée (Résultats
+ * ouvert, espace, marque active, projet de l'adresse, création du projet avec
+ * une pub testée · `lireCommentairePourIterer`) · la pub de cette création est
+ * présélectionnée, son texte proposé comme hypothèse (modifiable), la variable
+ * pré-cochée seulement si le texte la désigne SÛREMENT parmi les variables
+ * admises de la pub (`departDepuisCommentaire`, règle bornée de Jarvis). Refusé
+ * · la même phrase, aucun pré-choix. Rien n'est créé sans le clic · la
+ * provenance « Commentaire » est relue encore par l'action avant d'être posée.
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -69,6 +81,8 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   const demande = lireIterationDemandee(sp);
   const variableDemandee = lireVariableDemandee(sp);
   const geste = lireGesteIteration(sp);
+  // Une seule source de pré-choix · un geste de Jarvis l'emporte, le commentaire n'est alors pas lu.
+  const gesteCommentaire = geste.etat === 'absente' ? lireGesteCommentaire(sp) : { etat: 'absente' as const };
 
   const g = await gardeSources('studio.read');
   if (!g.ok) redirect(CHEMIN_PROJETS);
@@ -155,16 +169,31 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
       : { adId: null, variable: null, note: REFUS_GESTE_JARVIS };
     if (texte && ads) provenance = { reponseId: geste.reponse, contexte: { type: geste.contexte.type as ProvenanceJarvis['contexte']['type'], id: geste.contexte.id } };
   }
+
+  // Depuis un commentaire · relu dans la portée · sa pub présélectionnée, son texte en hypothèse.
+  let commentaire: { note: string; adId: string | null; variable: ReturnType<typeof departDepuisCommentaire>['variable']; hypothese: string | null; provenance: ProvenanceCommentaire | null } | null = null;
+  if (gesteCommentaire.etat === 'refus') commentaire = { note: REFUS_GESTE_COMMENTAIRE, adId: null, variable: null, hypothese: null, provenance: null };
+  else if (gesteCommentaire.etat === 'ok') {
+    const lu = active ? await lireCommentairePourIterer(s, active.id, gesteCommentaire) : null;
+    if (!lu) commentaire = { note: REFUS_GESTE_COMMENTAIRE, adId: null, variable: null, hypothese: null, provenance: null };
+    else {
+      const d = departDepuisCommentaire(lu.texte, lu.adsmapAdId, variables[lu.adsmapAdId] ?? null);
+      commentaire = { note: d.note, adId: d.adId, variable: d.variable, hypothese: d.hypothese, provenance: { commentaireId: lu.commentaireId, projetId: lu.projetId } };
+    }
+  }
+  const demandee = commentaire?.adId ?? demande;
   return (
     <Iterer
       sous={active ? `Itération · ${active.name}` : 'Itération'}
       resume={resume}
       choix={choix}
-      initial={jarvis ? jarvis.adId : choixInitialIteration(choix, demande)}
-      demande={jarvis ? null : demande}
+      // Depuis Jarvis ou un commentaire · SA pub, ou rien (refus) · jamais la première du plan à la place.
+      initial={jarvis ? jarvis.adId : commentaire ? commentaire.adId : choixInitialIteration(choix, demandee)}
+      demande={jarvis ? null : demandee}
       variables={variables}
-      variableDemandee={jarvis ? jarvis.variable : variableDemandee}
+      variableDemandee={jarvis ? jarvis.variable : commentaire ? commentaire.variable : variableDemandee}
       jarvis={jarvis ? { note: jarvis.note, adId: jarvis.adId, variable: jarvis.variable, provenance } : null}
+      commentaire={commentaire}
       vide={videIterationSpatial({ refus, marque: !!active, erreur, lignes: choix.length, resume })}
     />
   );

@@ -32,7 +32,10 @@ import { lienLotSpatial, type EtatLotSpatial, type FaitsLotSpatial } from './lot
  * (`provenanceJarvisAdmise`), lue à part dans le bilan · et la provenance
  * « Offre » d'une hypothèse créée depuis une offre qui se détache
  * (`provenanceOffreAdmise`), posée seulement après relecture de l'offre dans la
- * marque active.
+ * marque active · et la provenance « Commentaire » d'une itération créée depuis
+ * un commentaire posé sur une création testée (`provenanceCommentaireAdmise`),
+ * posée seulement après relecture du commentaire dans la portée (espace, marque
+ * active, projet) et quand la pub de départ est celle de la création commentée.
  */
 
 /* ───────────────────────── 1 · le résultat d'une hypothèse ───────────────────────── */
@@ -115,18 +118,19 @@ export function provenanceCarte(o: OrigineHypotheseLibre, opts: { marqueId?: str
  * seulement après avoir relu la réponse dans la portée · `provenanceJarvisAdmise`),
  * sinon une ITÉRATION d'une gagnante (`ad_type = iteration` · moteur, écran
  * Itérer), sinon rien · un test sans provenance lue reste dans la référence, il
- * ne forme pas de groupe.
+ * ne forme pas de groupe. Entre Jarvis et l'itération ordinaire · un COMMENTAIRE
+ * relu (`source_ref_json.commentaire`, `provenanceCommentaireAdmise`).
  */
-export type ProvenanceTest = 'tag' | 'veille' | 'apprentissage' | 'persona' | 'offre' | 'libre' | 'jarvis' | 'iteration';
+export type ProvenanceTest = 'tag' | 'veille' | 'apprentissage' | 'persona' | 'offre' | 'libre' | 'jarvis' | 'commentaire' | 'iteration';
 
 /**
- * L'ordre et les mots du bilan · huit provenances. La règle mesurée en lit au
- * plus six à la fois (`MAX_PERSONAS_LECTURE`) · si sept ou huit ont assez de
- * verdicts pour parler, le bilan se tait et le dit (non mesuré au-delà). Une
+ * L'ordre et les mots du bilan · neuf provenances. La règle mesurée en lit au
+ * plus six à la fois (`MAX_PERSONAS_LECTURE`) · si sept, huit ou neuf ont assez
+ * de verdicts pour parler, le bilan se tait et le dit (non mesuré au-delà). Une
  * provenance sous l'effectif ne parle pas · ses verdicts restent dans le reste
  * de la marque, exactement comme un test sans provenance (le U de la mesure) ·
- * passer de sept à huit provenances ne change donc ni K (au plus six) ni la
- * borne de U · aucun seuil à remesurer (voir le tableau plus bas).
+ * passer de huit à neuf provenances (« Commentaire ») ne change donc ni K (au
+ * plus six) ni la borne de U · aucun seuil à remesurer (voir le tableau plus bas).
  */
 export const PROVENANCES_TEST: ReadonlyArray<{ cle: ProvenanceTest; libelle: string }> = [
   { cle: 'tag', libelle: 'Tag de Veille récurrent' },
@@ -136,15 +140,18 @@ export const PROVENANCES_TEST: ReadonlyArray<{ cle: ProvenanceTest; libelle: str
   { cle: 'offre', libelle: 'Offre' },
   { cle: 'libre', libelle: 'À la main' },
   { cle: 'jarvis', libelle: 'Geste de Jarvis' },
+  { cle: 'commentaire', libelle: 'Commentaire' },
   { cle: 'iteration', libelle: 'Itération d’une gagnante' },
 ];
 
 export const NOTE_JARVIS_PROVENANCE = 'Une itération créée depuis une réponse de Jarvis compte dans « Geste de Jarvis » · seulement quand la réponse a été relue dans ta marque au moment de la créer · les autres comptent dans « Itération d’une gagnante ».';
+export const NOTE_COMMENTAIRE_PROVENANCE = 'Une itération créée depuis un commentaire compte dans « Commentaire » · seulement quand le commentaire a été relu dans ta marque, sur une création du projet testée par la pub de départ, au moment de la créer · sinon elle compte dans « Itération d’une gagnante ».';
 export const NOTE_OFFRE_PROVENANCE = 'Une hypothèse créée depuis une offre qui se détache compte dans « Offre » · seulement quand l’offre a été relue dans ta marque au moment de la créer · sinon elle compte « À la main ».';
 
-export function provenanceDuTest(t: { origine: OrigineHypotheseLibre | null | undefined; typeAd?: string | null; jarvis?: ProvenanceJarvis | null }): ProvenanceTest | null {
+export function provenanceDuTest(t: { origine: OrigineHypotheseLibre | null | undefined; typeAd?: string | null; jarvis?: ProvenanceJarvis | null; commentaire?: ProvenanceCommentaire | null }): ProvenanceTest | null {
   if (t.origine) return t.origine.type;
   if (t.jarvis) return 'jarvis';
+  if (t.commentaire) return 'commentaire';
   return t.typeAd === 'iteration' ? 'iteration' : null;
 }
 
@@ -198,6 +205,55 @@ export function provenanceJarvisAdmise(demande: ProvenanceJarvis | null, lu: { r
   if (!demande || !lu.reponseLue || !lu.adsDuContexte) return null;
   const parent = lu.parentAdId.toLowerCase();
   return lu.adsDuContexte.some((id) => id.toLowerCase() === parent) ? demande : null;
+}
+
+/* ───────────────────────── la provenance « Commentaire » ───────────────────────── */
+
+/**
+ * Une itération créée depuis « Itérer depuis ce commentaire » (onglet Activité
+ * d'un projet) · le commentaire et son projet. Gardée dans le JSON de source de
+ * l'ad (`source_ref_json.commentaire`, aucune colonne, aucune migration) ·
+ * jamais crue depuis l'adresse · le serveur ne la pose qu'après avoir RELU le
+ * commentaire dans la portée (espace, marque active, projet de la portée
+ * Studios, création du projet) ET retrouvé, sur la création commentée, le
+ * lien de test vers la pub de départ (`provenanceCommentaireAdmise`). Le texte
+ * du commentaire n'est jamais recopié ici · l'identifiant suffit.
+ */
+export interface ProvenanceCommentaire { commentaireId: string; projetId: string }
+
+export const CLE_PROVENANCE_COMMENTAIRE = 'commentaire';
+
+/** Ce que l'écran envoie (ou ce que le JSON garde), relu · `null` dès qu'un champ est mal formé · rien n'est deviné. */
+export function lireDemandeProvenanceCommentaire(x: unknown): ProvenanceCommentaire | null {
+  if (!x || typeof x !== 'object') return null;
+  const o = x as Record<string, unknown>;
+  if (typeof o.commentaireId !== 'string' || !UUID_PROVENANCE.test(o.commentaireId)) return null;
+  if (typeof o.projetId !== 'string' || !UUID_PROVENANCE.test(o.projetId)) return null;
+  return { commentaireId: o.commentaireId.toLowerCase(), projetId: o.projetId.toLowerCase() };
+}
+
+/** La valeur à fusionner dans `source_ref_json` de l'ad créée. */
+export function refProvenanceCommentaire(p: ProvenanceCommentaire): Record<string, unknown> {
+  return { [CLE_PROVENANCE_COMMENTAIRE]: { commentaireId: p.commentaireId, projetId: p.projetId } };
+}
+
+/** Relit la provenance « Commentaire » d'une ad · `null` sans elle (ou JSON abîmé). */
+export function lireProvenanceCommentaire(sourceRef: unknown): ProvenanceCommentaire | null {
+  if (!sourceRef || typeof sourceRef !== 'object') return null;
+  return lireDemandeProvenanceCommentaire((sourceRef as Record<string, unknown>)[CLE_PROVENANCE_COMMENTAIRE]);
+}
+
+/**
+ * La provenance « Commentaire » est-elle posée sur l'itération créée ?
+ * Seulement si le commentaire a été RELU dans la portée (`adDuCommentaire` ·
+ * la pub de test de la création commentée, `null` hors portée, autre projet,
+ * autre marque, commentaire sur une version, création non testée) et si la pub
+ * de départ est CETTE pub. Sinon `null` · l'itération naît ordinaire, sans
+ * rien dire de ce que l'adresse prétendait.
+ */
+export function provenanceCommentaireAdmise(demande: ProvenanceCommentaire | null, lu: { adDuCommentaire: string | null; parentAdId: string }): ProvenanceCommentaire | null {
+  if (!demande || !lu.adDuCommentaire) return null;
+  return lu.adDuCommentaire.toLowerCase() === lu.parentAdId.toLowerCase() ? demande : null;
 }
 
 /* ───────────────────────── la provenance « Offre » ───────────────────────── */
@@ -274,7 +330,7 @@ export function entreesBilanProvenances(lots: readonly FaitsLotSpatial[], proven
  * détache ET que ses intervalles restent disjoints au niveau mesuré ici.
  * Puissance faible (≈ 11 %) · attendu, le bilan se tait le plus souvent et le dit.
  *
- * ── Huit provenances (« Offre », « Dans les tests » · la suite) ─────────────
+ * ── Huit puis neuf provenances (« Offre », « Dans les tests », « Commentaire ») ─
  *
  * La mesure porte sur K provenances QUI ONT LE DROIT DE PARLER (au plus six) et
  * sur U verdicts hors d'elles. Une provenance sous l'effectif n'est pas lue ·

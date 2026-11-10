@@ -16,7 +16,11 @@
  *  · `studio_test_links` + verdict Adsmap → le résultat et le gagnant ;
  *  · `relireApprentissage` / `lireApprentissage` → l'apprentissage ;
  *  · `sourceRefs` → les références Veille ;
- *  · `brief.hypothesisId` / `styleIntent` → l'hypothèse et la direction.
+ *  · `brief.hypothesisId` / `styleIntent` → l'hypothèse et la direction ;
+ *  · `copieDe` (détails de l'audit de la création d'une copie, `dupliquerProjet`)
+ *    → les PROJETS FRÈRES · le projet source d'une copie, les copies d'un projet
+ *    (nœuds « Projet source » et « Copie », catégorie de lien « Copie »). Une
+ *    duplication passée, sans `copieDe`, ne relie rien · aucun lien deviné.
  *
  * Aucune donnée fabriquée. Les seules vraies données NOUVELLES de la lignée V5
  * (note libre, fiche marque détaillée) ne sont pas projetées ici : elles
@@ -43,10 +47,11 @@ import type { ModeleCanvas, CarteCanvas, NatureCarteCanvas } from './modele';
 
 export type TypeNoeudLignee =
   | 'marque' | 'reference' | 'brief' | 'hypothese' | 'direction'
-  | 'groupe' | 'creation' | 'resultat' | 'apprentissage' | 'iteration';
+  | 'groupe' | 'creation' | 'resultat' | 'apprentissage' | 'iteration'
+  | 'projet_source' | 'copie';
 
-/** Catégorie d'un lien · DÉDUITE de la relation, jamais saisie (cf. inventaire §1). */
-export type CategorieLien = 'contexte' | 'visuel' | 'mesure' | 'iteration';
+/** Catégorie d'un lien · DÉDUITE de la relation, jamais saisie (cf. inventaire §1) · `copie` · entre deux projets frères (`copieDe`). */
+export type CategorieLien = 'contexte' | 'visuel' | 'mesure' | 'iteration' | 'copie';
 
 export interface NoeudLignee {
   id: string;
@@ -107,8 +112,16 @@ export interface BriefLignee {
   direction: string | null;
 }
 
+/**
+ * Un projet FRÈRE, relu dans la portée · le lien n'existe que s'il est écrit
+ * dans l'audit (`copieDe`) · `versionId` · la version SOURCE copiée.
+ */
+export interface FrereLignee { id: string; titre: string; versionId: string }
+
 export interface EntreeLignee {
   projet: { id: string; titre: string; marque: string };
+  /** Le projet dont celui-ci est une copie, et ses copies · absent ou vide, rien n'est relié. */
+  freres?: { source: FrereLignee | null; copies: readonly FrereLignee[] };
   /** Références Veille du projet (`sourceRefs`), déjà présentées par le serveur. */
   sources: SourceLignee[];
   /** Trace du brief par version (`versionId` → brief lu). */
@@ -138,6 +151,8 @@ const idGroupe = (jobId: string) => `groupe:${jobId}`;
 const idCreation = (variantId: string) => `creation:${variantId}`;
 const idResultat = (variantId: string) => `resultat:${variantId}`;
 const idApprentissage = (variantId: string) => `apprentissage:${variantId}`;
+const idProjetSource = (projetId: string) => `projet-source:${projetId}`;
+const idCopie = (projetId: string) => `projet-copie:${projetId}`;
 
 /**
  * L'écran EXISTANT d'un nœud porté par le brief (brief, hypothèse, direction) ·
@@ -303,6 +318,29 @@ export function projeterLignee(e: EntreeLignee): ModeleLignee {
     }
   }
 
+  // ── Projets frères (`copieDe`) · la source avant le brief racine, chaque copie après le brief de la version copiée.
+  const freres = e.freres ?? { source: null, copies: [] };
+  if (racine && freres.source && freres.source.id !== projet.id) {
+    const s = freres.source;
+    pose({
+      id: idProjetSource(s.id), type: 'projet_source', titre: court(`Projet source · ${s.titre}`, 60),
+      resume: 'Ce projet en est une copie · la structure de sa version courante, sans générations, exports, tests ni mesures.',
+      destination: `/studio/projets/${s.id}`, badge: null,
+    }, [-1, 1, 0, 1]);
+    relie(idProjetSource(s.id), idBrief(racine.id), 'copie', 'Copie');
+  }
+  [...freres.copies].filter((c) => c.id !== projet.id).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).forEach((c, i) => {
+    const depuis = ajoute.has(idBrief(c.versionId)) ? c.versionId : racine?.id ?? null;
+    if (!depuis) return;
+    const n = nDe.get(depuis);
+    pose({
+      id: idCopie(c.id), type: 'copie', titre: court(`Copie · ${c.titre}`, 60),
+      resume: `Dupliqué depuis la version ${n ?? '?'} de ce projet · la copie reprend la structure, sans générations, exports, tests ni mesures.`,
+      destination: `/studio/projets/${c.id}`, badge: null,
+    }, [n ?? 0, 99, i, 9]);
+    relie(idBrief(depuis), idCopie(c.id), 'copie', 'Copie');
+  });
+
   // ── Mise en couches (plus long chemin) · chaque lien va vers la droite ─────
   const colonne = couches(noeuds, liens);
   const nbCol = noeuds.reduce((m, n) => Math.max(m, colonne.get(n.id)! + 1), 0);
@@ -381,6 +419,8 @@ export const LIBELLES_TYPE_LIGNEE: Readonly<Record<TypeNoeudLignee, string>> = {
   resultat: 'Résultat',
   apprentissage: 'Apprentissage',
   iteration: 'Itération',
+  projet_source: 'Projet source',
+  copie: 'Copie',
 };
 
 /** Libellés des catégories de lien. */
@@ -389,6 +429,7 @@ export const LIBELLES_CATEGORIE_LIGNEE: Readonly<Record<CategorieLien, string>> 
   visuel: 'Visuel',
   mesure: 'Mesure',
   iteration: 'Itération',
+  copie: 'Copie',
 };
 
 /**
@@ -400,6 +441,7 @@ export const NATURE_LIGNEE: Readonly<Record<TypeNoeudLignee, NatureCarteCanvas>>
   marque: 'entree', reference: 'entree', brief: 'entree', hypothese: 'entree', direction: 'entree',
   groupe: 'generation', creation: 'generation',
   resultat: 'calcul', apprentissage: 'calcul', iteration: 'calcul',
+  projet_source: 'entree', copie: 'calcul',
 };
 
 /**

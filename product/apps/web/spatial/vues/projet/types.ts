@@ -1,4 +1,4 @@
-import type { DroitsCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
+import type { DroitsCommentaire, GesteIterationCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -246,6 +246,12 @@ export interface VueCommentaire {
   resolu: { par: string; quand: string } | null;
   /** Règle du noyau (`droitsCommentaire`) · rejouée par le serveur au clic. */
   gestes: DroitsCommentaire;
+  /**
+   * « Itérer depuis ce commentaire » (`gesteIterationCommentaire`) · `null` sans
+   * pub testée dont partir (version, création non testée) · fermé avec sa raison
+   * sinon · un lien vers l'écran Itérer, qui relit tout, jamais une écriture.
+   */
+  iterer: GesteIterationCommentaire | null;
   rowVersion: number;
 }
 

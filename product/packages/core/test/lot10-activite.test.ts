@@ -49,8 +49,12 @@ describe('journal · une phrase française par événement, jamais le code brut'
     const phrase = (f: FaitAudit) => { const e = entreeJournal(f, { projectId: P }); return [e.type, e.phrase, e.detail, e.lien?.libelle ?? null]; };
     expect(phrase(audit('project.rename', { details: { avant: 'Crème', apres: 'Crème · été' } }))).toEqual(['projet', 'Projet renommé', '« Crème » devient « Crème · été »', null]);
     expect(phrase(audit('project.rename', { details: { avant: 3 } }))).toEqual(['projet', 'Projet renommé', null, null]);
-    expect(phrase(audit('project.create', { versionN: 1, versionApresId: 'v1', raisonVersion: 'Copie de « Sérum » (version 2) · structure seule' })))
+    // Une copie AVEC le lien (`copieDe`) · la raison seule · une copie d'avant le lien le dit, rien n'est deviné.
+    const copieDe = { copieDe: { projectId: 'a0a00000-0000-4000-8000-0000000000a1', versionId: 'a0a00000-0000-4000-8000-0000000000a2' } };
+    expect(phrase(audit('project.create', { versionN: 1, versionApresId: 'v1', raisonVersion: 'Copie de « Sérum » (version 2) · structure seule', details: copieDe })))
       .toEqual(['projet', 'Projet créé par duplication', 'Copie de « Sérum » (version 2) · structure seule', 'Examiner la version 1']);
+    expect(phrase(audit('project.create', { versionN: 1, versionApresId: 'v1', raisonVersion: 'Copie de « Sérum » (version 2) · structure seule' })))
+      .toEqual(['projet', 'Projet créé par duplication', 'Copie de « Sérum » (version 2) · structure seule · copie faite avant que le lien soit enregistré · le projet source ne la mentionne pas', 'Examiner la version 1']);
     expect(phrase(audit('project.create', { versionN: 1, versionApresId: 'v1', raisonVersion: 'création' }))).toEqual(['projet', 'Projet créé', null, 'Examiner la version 1']);
     expect(phrase(audit('project.version.create', { versionN: 2, versionApresId: 'v2', raisonVersion: 'Composition' }))).toEqual(['versions', 'Version 2 enregistrée', 'Composition', 'Examiner la version 2']);
     expect(phrase(audit('project.version.create', { versionN: 3, versionApresId: 'v3', raisonVersion: 'application de la proposition 5f2c1b7e-1111-4111-8111-111111111111', details: { proposalId: 'x' } })))
