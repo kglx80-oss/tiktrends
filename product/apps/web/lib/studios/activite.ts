@@ -5,10 +5,12 @@ import { db, schema } from '@tiktrends/db';
 import {
   LECTURE_MAX_JOURNAL, aPermissionEspace, droitsCommentaire, erreurStudio, extraitCommentaire, historiqueApresModification, journalProjet,
   libelleAuteurVersion, lireHistoriqueCommentaire, objetDansPortee, quandJournal, validerTexteCommentaire, vueVariantes, cibleCommentaire,
-  gesteIterationCommentaire,
-  type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste,
+  gesteIterationCommentaire, analyserMentions, aPrevenirMentions, conclusionLot, historiqueAvecMentions, iterationsDuCommentaire, lireMentions, membresMentionnables,
+  nomAffichageMention, presentationLot, prevenusApres, proprietairePrevenuSansMention, referenceConclusion, resultatsCommentaire, segmentsCommentaire,
+  type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste, type IterationDuCommentaire, type LectureConclusion, type MembreBrut,
+  type MembreMentionnable, type MentionStockee,
 } from '@tiktrends/core';
-import type { ContexteStudio } from './garde';
+import { FEATURE_STUDIO, type ContexteStudio } from './garde';
 import { estUuid, lireProjet, lireVersion, type ProjetStudio } from './depot';
 import { listerVariantes } from './variantes/variantes';
 import type { CibleCommentable, CommentairesProjet, PropsActiviteProjet } from '../../spatial/vues/projet/types';
@@ -16,6 +18,9 @@ import { createNotification } from '../notifications';
 import { getActiveBrand } from '../brands';
 import { accesAdsmap } from './variantes/acces';
 import { liensDeCopie } from './copie-projet';
+import { effectiveAccess } from '../access';
+import { canAccess, type Plan, type Role } from '../rbac';
+import { chargerLots } from '../../app/(spatial)/sp/adsmap/donnees';
 
 /**
  * Studios · lot 10 V5 · l'ACTIVITÉ d'un projet · journal et commentaires
@@ -35,7 +40,19 @@ import { liensDeCopie } from './copie-projet';
  *    création d'ailleurs sont introuvables.
  *  · notification · le mécanisme existant (`createNotification`) prévient le
  *    propriétaire du projet d'un commentaire d'une autre personne, s'il voit
- *    encore la marque · best-effort, il ne bloque jamais l'écriture.
+ *    encore la marque · best-effort, il ne bloque jamais l'écriture ;
+ *  · mentions · « @Nom » d'un membre qui VOIT le projet (règles au noyau,
+ *    `C/studios/activite/mentions.ts`) · la liste proposée et l'analyse
+ *    relisent les membres de l'espace, leur rôle, la formule et leurs
+ *    restrictions de marque (`membresDeLEspace`) · gardées par IDENTIFIANT
+ *    dans le JSON existant du commentaire (`history`, aucune migration) ·
+ *    affichées sous le nom courant (« un ancien membre » sinon) · chaque
+ *    mentionné prévenu une fois par commentaire (`prevenus`), jamais l'auteur ·
+ *    aucune mention ne donne un accès ;
+ *  · résultat · une itération née du commentaire (provenance
+ *    `source_ref_json.commentaire`) dit son résultat une fois son lot conclu ·
+ *    CALCULÉ à chaque lecture (`resultatsCommentaire`, la conclusion du lot de
+ *    `chargerLots`), jamais écrit · Résultats fermé, rien.
  *  · « Itérer depuis ce commentaire » · sur une création dont la variante a une
  *    pub testée · la règle du noyau (`gesteIterationCommentaire`) · Résultats
  *    ouvert à la session (`accesAdsmap`), projet dans la marque active · le
@@ -187,6 +204,69 @@ function ciblesDe(c: Contexte): CibleCommentable[] {
   ];
 }
 
+/** Au plus 500 membres lus par espace · la liste des mentions et les noms affichés. */
+export const MEMBRES_MAX_LUS = 500;
+
+/**
+ * Les membres de l'espace du projet, tels que la règle des mentions les lit ·
+ * rôle, formule de l'espace (`canAccess` sur la fonction Studios, la garde),
+ * restrictions de marque, nom, adresse, masque · LECTURE seule.
+ */
+async function membresDeLEspace(p: ProjetStudio): Promise<MembreBrut[]> {
+  const M = schema.workspaceMembers; const U = schema.users; const R = schema.studioMemberBrandScopes; const W = schema.workspaces;
+  const [lignes, restrictions, [w]] = await Promise.all([
+    db.select({ id: M.userId, role: M.role, nom: U.name, email: U.email, masque: U.hidePersonalInfo }).from(M).innerJoin(U, eq(U.id, M.userId))
+      .where(eq(M.workspaceId, p.workspaceId)).limit(MEMBRES_MAX_LUS),
+    db.select({ userId: R.userId, brandId: R.brandId }).from(R).where(eq(R.workspaceId, p.workspaceId)),
+    db.select({ plan: W.plan }).from(W).where(eq(W.id, p.workspaceId)).limit(1),
+  ]);
+  const plan = ((w?.plan as Plan | undefined) || 'starter') as Plan;
+  return lignes.map((l) => ({
+    id: l.id, nom: l.nom, email: l.email, masque: !!l.masque, roleEspace: l.role,
+    studioOuvert: canAccess(effectiveAccess({ role: l.role as Role, plan, user: { email: l.email } }), FEATURE_STUDIO),
+    restrictionsMarque: restrictions.filter((r) => r.userId === l.id).map((r) => r.brandId),
+  }));
+}
+
+/** Qui peut être mentionné par la session dans ce projet · la règle du noyau sur les membres relus. */
+const mentionnablesDe = (ctx: ContexteStudio, p: ProjetStudio, membres: readonly MembreBrut[]): MembreMentionnable[] =>
+  membresMentionnables(membres, { projet: p, marquesDuWorkspace: ctx.marquesDuWorkspace, auteurId: ctx.userId });
+
+/**
+ * Les itérations nées des commentaires lus · la provenance relue sur les ads de
+ * l'espace, puis chaque ad retrouvée dans les lots de la MARQUE du projet
+ * (`chargerLots` · une ad d'ailleurs n'y est pas) avec la conclusion de son lot
+ * (`conclusionLot`, contre les autres lots de la marque) · rien n'est écrit.
+ */
+async function iterationsDesCommentaires(ctx: ContexteStudio, p: ProjetStudio, ids: readonly string[]): Promise<Map<string, IterationDuCommentaire[]>> {
+  const out = new Map<string, IterationDuCommentaire[]>();
+  if (!ids.length) return out;
+  const A = schema.ads;
+  const nees = await db.select({ id: A.id }).from(A)
+    .where(and(eq(A.workspaceId, ctx.workspaceId), inArray(sql<string>`${A.sourceRef}->'commentaire'->>'commentaireId'`, [...ids]))).limit(500);
+  if (!nees.length) return out;
+  const d = await chargerLots(ctx.workspaceId, p.brandId);
+  const conclusions = new Map<string, { etat: ReturnType<typeof presentationLot>['etat']; conclusion: LectureConclusion }>();
+  const lue = (l: (typeof d.lots)[number]) => {
+    let x = conclusions.get(l.id);
+    if (!x) { const etat = presentationLot(l, d.ctx).etat; x = { etat, conclusion: conclusionLot(l, etat, referenceConclusion(d.lots, l.id)) }; conclusions.set(l.id, x); }
+    return x;
+  };
+  const ads = [
+    ...d.lots.flatMap((l) => l.ads.map((a) => ({ a, l }))),
+    ...d.horsLot.map((a) => ({ a, l: null })),
+  ].map((x) => ({ ...x, commentaire: x.a.commentaire ?? null }));
+  for (const id of ids) {
+    const liste = iterationsDuCommentaire(ads, { commentaireId: id, projetId: p.id }).map((x): IterationDuCommentaire => {
+      if (!x.l) return { adId: x.a.id, variante: x.a.variante, lot: null, conclusion: null };
+      const c = lue(x.l);
+      return { adId: x.a.id, variante: x.a.variante, lot: { id: x.l.id, numero: x.l.numero, etat: c.etat }, conclusion: c.conclusion };
+    });
+    if (liste.length) out.set(id, liste);
+  }
+  return out;
+}
+
 async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<CommentairesProjet> {
   const C = schema.studioComments;
   const lignes = (await db.select().from(C).where(and(eq(C.projectId, c.projet.id), duProjet(C, ctx, c.projet))).orderBy(desc(C.createdAt), desc(C.id)).limit(COMMENTAIRES_MAX_LUS))
@@ -194,15 +274,22 @@ async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<Commen
   const nom = await noms(ctx, lignes.flatMap((l) => [l.authorId, l.resolvedBy]));
   const peutProposer = aPermissionEspace(ctx.permissions, 'studio.propose');
   const n = new Map(c.versions.map((v) => [v.id, v.n]));
-  // « Itérer depuis ce commentaire » · lu seulement s'il y a une création testée commentée · Résultats et marque active relus.
+  const [membres, iterations] = await Promise.all([
+    membresDeLEspace(c.projet).catch(() => [] as MembreBrut[]),
+    iterationsDesCommentaires(ctx, c.projet, lignes.map((l) => l.id)).catch(() => new Map<string, IterationDuCommentaire[]>()),
+  ]);
+  const parMembre = new Map(membres.map((m) => [m.id.toLowerCase(), m]));
+  const nomMentionne = (id: string) => nomAffichageMention(parMembre.get(id), c.projet, ctx.marquesDuWorkspace);
+  // « Itérer depuis ce commentaire » et le résultat d'une itération · Résultats et marque active relus seulement s'il y a de quoi.
   const testees = lignes.some((l) => l.targetType === 'creation' && l.assetId && c.tests.has(l.assetId));
-  const [resultats, active] = testees
+  const [resultats, active] = testees || iterations.size
     ? await Promise.all([accesAdsmap().catch(() => false), getActiveBrand(ctx.workspaceId).catch(() => null)])
     : [false, null];
   const marqueActive = !!active && active.id === c.projet.brandId;
   return {
     peutCommenter: peutProposer,
     cibles: ciblesDe(c),
+    mentionnables: peutProposer ? mentionnablesDe(ctx, c.projet, membres) : [],
     commentaires: lignes.map((l) => {
       const modifications = lireHistoriqueCommentaire(l.history).length;
       return {
@@ -213,6 +300,7 @@ async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<Commen
         auteur: nom(l.authorId) ?? 'Un ancien membre de l’espace',
         quand: quandJournal(l.createdAt.toISOString()),
         texte: l.body,
+        segments: segmentsCommentaire(l.body, lireMentions(l.history, l.body).mentions, nomMentionne),
         modifie: l.editedAt ? `Modifié le ${quandJournal(l.editedAt.toISOString())}${modifications > 1 ? ` · ${modifications} fois` : ''}` : null,
         resolu: l.resolvedAt ? { par: nom(l.resolvedBy) ?? 'Un ancien membre de l’espace', quand: quandJournal(l.resolvedAt.toISOString()) } : null,
         gestes: droitsCommentaire({ auteurId: l.authorId, resolu: !!l.resolvedAt, modifications }, { userId: ctx.userId, peutProposer }),
@@ -220,6 +308,7 @@ async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<Commen
           id: l.id, projetId: c.projet.id, cible: l.targetType === 'version' ? 'version' : 'creation',
           test: l.targetType === 'creation' && l.assetId ? c.tests.get(l.assetId) ?? null : null,
         }, { resultats, marqueActive }),
+        resultats: resultatsCommentaire(iterations.get(l.id) ?? [], { resultats, marqueActive }),
         rowVersion: l.rowVersion,
       };
     }),
@@ -235,24 +324,57 @@ export async function listerCommentairesPour(ctx: ContexteStudio, e: { projectId
 
 const invalide = (ctx: ContexteStudio, raison: string, chemin = 'texte') => erreurStudio('INVALID_SCHEMA', { traceId: ctx.traceId, message: raison, violations: [{ chemin, raison }] });
 
-/** Prévient le propriétaire du projet · seulement s'il est encore membre de l'espace et voit la marque · best-effort. */
-async function prevenirProprietaire(ctx: ContexteStudio, p: ProjetStudio, texte: string): Promise<void> {
-  if (!p.ownerId || p.ownerId === ctx.userId) return;
+/** Le propriétaire voit-il encore le projet (membre de l'espace, marque dans sa portée) ? */
+async function proprietaireVoit(ctx: ContexteStudio, p: ProjetStudio): Promise<boolean> {
+  if (!p.ownerId) return false;
+  const M = schema.workspaceMembers;
+  const [membre] = await db.select({ userId: M.userId }).from(M).where(and(eq(M.workspaceId, p.workspaceId), eq(M.userId, p.ownerId))).limit(1);
+  if (!membre) return false;
+  const R = schema.studioMemberBrandScopes;
+  const restrictions = (await db.select({ brandId: R.brandId }).from(R).where(and(eq(R.workspaceId, p.workspaceId), eq(R.userId, p.ownerId)))).map((r) => r.brandId);
+  return objetDansPortee({ workspaceId: p.workspaceId, marquesDuWorkspace: ctx.marquesDuWorkspace, restrictionsMarque: restrictions }, p);
+}
+
+/**
+ * Prévient le propriétaire du projet d'un NOUVEAU commentaire · seulement s'il
+ * est encore membre de l'espace et voit la marque, et s'il n'y est pas
+ * mentionné (la mention le prévient déjà) · best-effort.
+ */
+async function prevenirProprietaire(ctx: ContexteStudio, p: ProjetStudio, texte: string, mentionnesPrevenus: readonly string[]): Promise<void> {
+  if (!proprietairePrevenuSansMention(p.ownerId, ctx.userId, mentionnesPrevenus)) return;
   try {
-    const M = schema.workspaceMembers;
-    const [membre] = await db.select({ userId: M.userId }).from(M).where(and(eq(M.workspaceId, p.workspaceId), eq(M.userId, p.ownerId))).limit(1);
-    if (!membre) return;
-    const R = schema.studioMemberBrandScopes;
-    const restrictions = (await db.select({ brandId: R.brandId }).from(R).where(and(eq(R.workspaceId, p.workspaceId), eq(R.userId, p.ownerId)))).map((r) => r.brandId);
-    if (!objetDansPortee({ workspaceId: p.workspaceId, marquesDuWorkspace: ctx.marquesDuWorkspace, restrictionsMarque: restrictions }, p)) return;
+    if (!(await proprietaireVoit(ctx, p))) return;
     await createNotification({
-      workspaceId: p.workspaceId, userId: p.ownerId, type: 'studio_comment',
+      workspaceId: p.workspaceId, userId: p.ownerId!, type: 'studio_comment',
       title: `Nouveau commentaire · ${p.title}`, body: extraitCommentaire(texte), href: `/studio/projets/${p.id}#activite`,
     });
   } catch { /* la notification ne bloque jamais le commentaire */ }
 }
 
-export async function commenterPour(ctx: ContexteStudio, e: { projectId: unknown; cible: unknown; cibleId: unknown; texte: unknown }): Promise<Resultat<CommentairesProjet>> {
+/**
+ * Prévient chaque personne mentionnée (la liste `aPrevenirMentions` · une fois
+ * par commentaire, jamais l'auteur, toutes déjà relues mentionnables) · le
+ * mécanisme existant, best-effort.
+ */
+async function prevenirMentionnes(p: ProjetStudio, texte: string, ids: readonly string[]): Promise<void> {
+  for (const userId of ids) {
+    try {
+      await createNotification({
+        workspaceId: p.workspaceId, userId, type: 'studio_comment_mention',
+        title: `On te mentionne dans un commentaire · ${p.title}`, body: extraitCommentaire(texte), href: `/studio/projets/${p.id}#activite`,
+      });
+    } catch { /* la notification ne bloque jamais le commentaire */ }
+  }
+}
+
+/** Les mentions d'un texte normalisé, relues contre les membres qui voient le projet · `[]` si la lecture échoue (le texte reste du texte). */
+async function mentionsDuTexte(ctx: ContexteStudio, p: ProjetStudio, texte: string, demande: unknown): Promise<MentionStockee[]> {
+  if (!Array.isArray(demande) || demande.length === 0) return [];
+  const membres = await membresDeLEspace(p).catch(() => [] as MembreBrut[]);
+  return analyserMentions(texte, demande, mentionnablesDe(ctx, p, membres));
+}
+
+export async function commenterPour(ctx: ContexteStudio, e: { projectId: unknown; cible: unknown; cibleId: unknown; texte: unknown; mentions?: unknown }): Promise<Resultat<CommentairesProjet>> {
   if (!aPermissionEspace(ctx.permissions, 'studio.propose')) return erreurStudio('FORBIDDEN', { traceId: ctx.traceId });
   const c = await contexte(ctx, e.projectId);
   if (!c.ok) return c;
@@ -266,21 +388,24 @@ export async function commenterPour(ctx: ContexteStudio, e: { projectId: unknown
   } else if (!c.creations.has(e.cibleId)) {
     return erreurStudio('NOT_FOUND', { traceId: ctx.traceId });
   }
+  const mentions = await mentionsDuTexte(ctx, c.projet, t.texte, e.mentions);
+  const prevenus = aPrevenirMentions(mentions, [], ctx.userId);
   try {
     await db.insert(schema.studioComments).values({
       workspaceId: ctx.workspaceId, brandId: c.projet.brandId, projectId: c.projet.id, targetType: genre,
       versionId: genre === 'version' ? e.cibleId : null, assetId: genre === 'creation' ? e.cibleId : null,
-      authorId: ctx.userId, body: t.texte,
+      authorId: ctx.userId, body: t.texte, history: historiqueAvecMentions([], { mentions, prevenus }),
     });
   } catch (err) {
     console.error(`[studios] ${ctx.traceId} commentaire`, err instanceof Error ? err.message : err);
     return erreurStudio('PERSISTENCE_FAILED', { traceId: ctx.traceId, message: 'Le commentaire n’a pas pu être enregistré · réessaie dans un instant.' });
   }
-  await prevenirProprietaire(ctx, c.projet, t.texte);
+  await prevenirMentionnes(c.projet, t.texte, prevenus);
+  await prevenirProprietaire(ctx, c.projet, t.texte, prevenus);
   return { ok: true, ...(await vueCommentaires(ctx, c)) };
 }
 
-type Geste = { genre: 'modifier'; texte: unknown } | { genre: 'resoudre' } | { genre: 'rouvrir' };
+type Geste = { genre: 'modifier'; texte: unknown; mentions?: unknown } | { genre: 'resoudre' } | { genre: 'rouvrir' };
 
 async function changerCommentaire(ctx: ContexteStudio, e: { commentId: unknown; rowVersion: unknown }, g: Geste): Promise<Resultat<CommentairesProjet>> {
   if (!aPermissionEspace(ctx.permissions, 'studio.propose')) return erreurStudio('FORBIDDEN', { traceId: ctx.traceId });
@@ -293,6 +418,9 @@ async function changerCommentaire(ctx: ContexteStudio, e: { commentId: unknown; 
   if (!c.ok) return c;
   const texte = g.genre === 'modifier' ? validerTexteCommentaire(g.texte) : null;
   if (texte && !texte.ok) return invalide(ctx, texte.raison);
+  // Les mentions du nouveau texte, relues AVANT la transaction (membres de l'espace) · les nouvelles seules préviennent, après l'écriture.
+  const mentions = g.genre === 'modifier' && texte?.ok ? await mentionsDuTexte(ctx, c.projet, texte.texte, g.mentions) : [];
+  let aPrevenir: string[] = [];
   try {
     const refus = await db.transaction(async (tx): Promise<ErreurStudio | null> => {
       const [l] = await tx.select().from(C).where(and(eq(C.id, e.commentId as string), eq(C.projectId, c.projet.id), duProjet(C, ctx, c.projet))).limit(1).for('update');
@@ -308,7 +436,10 @@ async function changerCommentaire(ctx: ContexteStudio, e: { commentId: unknown; 
       const commun = { rowVersion: sql`${C.rowVersion} + 1`, updatedAt: maintenant };
       if (g.genre === 'modifier') {
         if (texte!.ok && texte!.texte === l.body) return null;
-        await tx.update(C).set({ ...commun, body: (texte as { texte: string }).texte, history: historiqueApresModification(l.history, l.body, maintenant.toISOString()), editedAt: maintenant }).where(eq(C.id, l.id));
+        const avant = lireMentions(l.history, l.body);
+        aPrevenir = aPrevenirMentions(mentions, avant.prevenus, ctx.userId);
+        const history = historiqueAvecMentions(historiqueApresModification(l.history, l.body, maintenant.toISOString()), { mentions, prevenus: prevenusApres(avant.prevenus, aPrevenir) });
+        await tx.update(C).set({ ...commun, body: (texte as { texte: string }).texte, history, editedAt: maintenant }).where(eq(C.id, l.id));
       } else if (g.genre === 'resoudre') {
         await tx.update(C).set({ ...commun, resolvedAt: maintenant, resolvedBy: ctx.userId }).where(eq(C.id, l.id));
       } else {
@@ -321,11 +452,12 @@ async function changerCommentaire(ctx: ContexteStudio, e: { commentId: unknown; 
     console.error(`[studios] ${ctx.traceId} commentaire (${g.genre})`, err instanceof Error ? err.message : err);
     return erreurStudio('PERSISTENCE_FAILED', { traceId: ctx.traceId, message: 'Le commentaire n’a pas pu être mis à jour · réessaie dans un instant.' });
   }
+  if (aPrevenir.length && texte?.ok) await prevenirMentionnes(c.projet, texte.texte, aPrevenir);
   return { ok: true, ...(await vueCommentaires(ctx, c)) };
 }
 
-export const modifierCommentairePour = (ctx: ContexteStudio, e: { commentId: unknown; rowVersion: unknown; texte: unknown }) =>
-  changerCommentaire(ctx, e, { genre: 'modifier', texte: e.texte });
+export const modifierCommentairePour = (ctx: ContexteStudio, e: { commentId: unknown; rowVersion: unknown; texte: unknown; mentions?: unknown }) =>
+  changerCommentaire(ctx, e, { genre: 'modifier', texte: e.texte, mentions: e.mentions });
 
 /** `resolu: true` résout, `false` rouvre · toute autre valeur est refusée (rien n'est deviné). */
 export async function resoudreCommentairePour(ctx: ContexteStudio, e: { commentId: unknown; rowVersion: unknown; resolu: unknown }): Promise<Resultat<CommentairesProjet>> {
@@ -343,6 +475,6 @@ export async function activiteDuProjet(ctx: ContexteStudio, projectId: string): 
   return {
     projectId,
     journal: j.ok ? { ok: true, journal: j.journal, tronque: j.tronque } : { ok: false, message: dire(j) },
-    commentaires: c.ok ? { ok: true, liste: { commentaires: c.commentaires, cibles: c.cibles, peutCommenter: c.peutCommenter } } : { ok: false, message: dire(c) },
+    commentaires: c.ok ? { ok: true, liste: { commentaires: c.commentaires, cibles: c.cibles, peutCommenter: c.peutCommenter, mentionnables: c.mentionnables } } : { ok: false, message: dire(c) },
   };
 }
