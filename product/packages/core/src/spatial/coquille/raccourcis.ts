@@ -42,7 +42,7 @@ import type { SectionSpatiale } from '../types';
 
 export type PorteeRaccourci =
   | 'partout' | 'aller' | 'fenetres' | 'recherche' | 'menus'
-  | 'veille-detail' | 'ce-qui-scale' | 'editeur' | 'canvas';
+  | 'veille-detail' | 'bibliotheque-apercu' | 'ce-qui-scale' | 'editeur' | 'canvas';
 
 export interface DefPortee {
   cle: PorteeRaccourci;
@@ -59,6 +59,7 @@ export const PORTEES_RACCOURCIS: readonly DefPortee[] = [
   { cle: 'recherche', libelle: 'Dans la recherche', globale: false },
   { cle: 'menus', libelle: 'Menu d’un fichier (Bibliothèque)', globale: false },
   { cle: 'veille-detail', libelle: 'Détail d’une pub (Veille)', globale: false },
+  { cle: 'bibliotheque-apercu', libelle: 'Aperçu complet d’un fichier (Bibliothèque)', globale: false },
   { cle: 'ce-qui-scale', libelle: 'Ce qui scale (Veille)', globale: false },
   { cle: 'editeur', libelle: 'Éditeur de créa', globale: false },
   { cle: 'canvas', libelle: 'Canvas du projet', globale: false },
@@ -127,7 +128,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
   {
     id: 'fermer', touches: [['Escape']], libelle: 'Fermer la fenêtre, le panneau ou le menu ouvert', portee: 'fenetres', action: null,
     sources: [
-      'coquille/Coquille.tsx', 'vues/bibliotheque/Bibliotheque.tsx', 'vues/bibliotheque/menu-fichier.tsx',
+      'coquille/Coquille.tsx', 'vues/bibliotheque/Bibliotheque.tsx', 'vues/bibliotheque/apercu-complet.tsx', 'vues/bibliotheque/menu-fichier.tsx',
       'vues/formats/TousLesFormats.tsx', 'vues/marque/interactifs.tsx', 'vues/projet/Editeur.tsx', 'vues/projet/Video.tsx',
       'vues/reglages/tags-client.tsx', 'vues/resultats/Suites.tsx', 'vues/studios/GrilleProjets.tsx', 'vues/studios/assistant/Panneaux.tsx',
       'vues/veille/client.tsx', 'vues/veille/sauvegarde-client.tsx', 'vues/veille/sauvegardes-client.tsx',
@@ -139,6 +140,8 @@ export const RACCOURCIS: readonly Raccourci[] = [
   { id: 'menu-retour', touches: [['ArrowLeft']], libelle: 'Revenir au menu', portee: 'menus', action: null, sources: ['vues/bibliotheque/menu-fichier.tsx'] },
   { id: 'veille-precedente', touches: [['ArrowLeft']], libelle: 'Pub précédente', portee: 'veille-detail', action: null, sources: ['vues/veille/client.tsx'] },
   { id: 'veille-suivante', touches: [['ArrowRight']], libelle: 'Pub suivante', portee: 'veille-detail', action: null, sources: ['vues/veille/client.tsx'] },
+  { id: 'apercu-precedent', touches: [['ArrowLeft']], libelle: 'Fichier précédent', portee: 'bibliotheque-apercu', action: null, sources: ['vues/bibliotheque/apercu-complet.tsx'] },
+  { id: 'apercu-suivant', touches: [['ArrowRight']], libelle: 'Fichier suivant', portee: 'bibliotheque-apercu', action: null, sources: ['vues/bibliotheque/apercu-complet.tsx'] },
   { id: 'scale-recherche', touches: [['/']], libelle: 'Aller au champ de recherche de la liste', portee: 'ce-qui-scale', action: null, sources: ['vues/veille/scale-client.tsx'] },
   { id: 'editeur-annuler', touches: [['mod+z']], libelle: 'Annuler', portee: 'editeur', action: null, sources: ['vues/projet/Editeur.tsx'] },
   { id: 'editeur-retablir', touches: [['mod+maj+z'], ['mod+y']], libelle: 'Rétablir', portee: 'editeur', action: null, sources: ['vues/projet/Editeur.tsx'] },
@@ -194,6 +197,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
  * | vues/studios/NouveauConcept.tsx | Entrée |
  * | vues/studios/NouveauProjet.tsx | Entrée Espace |
  * | vues/studios/assistant/Panneaux.tsx | Échap Tab |
+ * | vues/bibliotheque/apercu-complet.tsx | Échap ← → (lot 12 · même règle `toucheNavigationDetail` que la Veille) |
  * | vues/veille/client.tsx | Échap (+ ← → par `toucheNavigationDetail`) |
  * | vues/veille/sauvegarde-client.tsx | Échap Tab Entrée |
  * | vues/veille/sauvegardes-client.tsx | Échap |
@@ -209,6 +213,7 @@ export const TOUCHES_RECENSEES: Readonly<Record<string, readonly string[]>> = {
   'coquille/Raccourcis.tsx': ['Tab'],
   'coquille/Surcouches.tsx': ['ArrowDown', 'ArrowUp', 'Enter'],
   'vues/bibliotheque/Bibliotheque.tsx': ['Escape'],
+  'vues/bibliotheque/apercu-complet.tsx': ['ArrowLeft', 'ArrowRight', 'Escape'],
   'vues/bibliotheque/menu-fichier.tsx': ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Escape', 'Home', 'Tab'],
   'vues/coquille/ParcoursAccueil.tsx': ['Enter'],
   'vues/formats/TousLesFormats.tsx': ['Escape'],

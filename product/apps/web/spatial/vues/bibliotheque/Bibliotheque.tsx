@@ -32,6 +32,7 @@ import { useGlisserDeposer } from './glisser-deposer';
 import { ChargerPlus, usePagesBibliotheque, useRechercheServeur, type PaginationBibliotheque } from './charger-plus';
 import { useRemplacement } from './remplacer-fichier';
 import { envoyerVersBucket } from './envoi-bucket';
+import { ApercuComplet, TagsMainFichier } from './apercu-complet';
 
 /**
  * « Bibliothèque » · `docs/spatial/reference/bibliotheque.html`, balisage à
@@ -112,6 +113,15 @@ import { envoyerVersBucket } from './envoi-bucket';
  * l'écran · sélection, menus, glisser et lien interne portent sur les fichiers
  * AFFICHÉS, et la barre le dit tant que la liste est partielle.
  *
+ * Lot 12 · l'APERÇU COMPLET (« Aperçu complet » du panneau · `ApercuComplet`,
+ * `apercu-complet.tsx`) · grand format sur fond et zoom choisis, métadonnées
+ * (dimensions lues à l'affichage), « Précédent » / « Suivant » et flèches dans
+ * la liste AFFICHÉE (règle de la Veille), focus rendu au bouton d'ouverture ·
+ * « Ajouter au brief » d'un projet existant ou par l'assistant (`?media=`) ·
+ * les TAGS POSÉS À LA MAIN (`TagsMainFichier`, `definirTagsMainAssetAction` ·
+ * vocabulaire de la Veille proposé, aucun crédit) et le filtre « Tags » de la
+ * barre (`VueDrive.tagsFichiers`, noyau).
+ *
  * Absents faute de source réelle · Favoris et « Partagés avec le client »
  * (aucune donnée), Dropbox (aucun connecteur · rendu désactivé), le quota
  * (aucun quota n'existe · le volume réellement mesuré est affiché), « Exports
@@ -165,6 +175,8 @@ export interface GestionBibliotheque {
   selecteurDrive: boolean;
   /** Administrateur de l'espace · seul à ranger un fichier en template (coulisses, garde serveur identique). */
   admin: boolean;
+  /** Lot 12 · le vocabulaire de tags de la Veille de la marque active, PROPOSÉ à la saisie d'un tag de fichier (vide sans Veille). */
+  vocabulaireTags?: readonly string[];
   /**
    * Google Drive pas activé (ou son sélecteur) pour l'espace · ce qui manque,
    * qui agit, le repli par lien et le ticket interne (copie client, recette #106).
@@ -242,6 +254,8 @@ export function Bibliotheque(entree: PropsBibliotheque) {
   const [affichage, setAffichage] = useState<'grille' | 'liste'>('grille');
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [apercu, setApercu] = useState<string | null>(p.ouverture?.fichier ?? null);
+  /** Lot 12 · l'aperçu COMPLET du fichier de l'aperçu est ouvert. */
+  const [complet, setComplet] = useState(false);
   const [menu, setMenu] = useState(false);
   const [glisse, setGlisse] = useState(false);
   const [occupe, setOccupe] = useState(false);
@@ -292,6 +306,13 @@ export function Bibliotheque(entree: PropsBibliotheque) {
   const sel = useMemo(() => gestesSelection(p.donnees, selection, { section: etat.section, lectureSeule: p.lectureSeule, ia: !!p.gestion }), [p.donnees, selection, etat.section, p.lectureSeule, p.gestion]);
   const gesteSel = (cle: CleGesteSelection) => sel.gestes.find((x) => x.cle === cle);
   const fichierApercu = apercu ? p.donnees.fichiers.find((f) => f.id === apercu) ?? null : null;
+  // L'aperçu fermé (ou son fichier disparu) · l'aperçu complet se ferme avec lui.
+  useEffect(() => { if (!fichierApercu && complet) setComplet(false); }, [fichierApercu, complet]);
+  /** Ferme l'aperçu complet · le focus revient au bouton qui l'a ouvert (le panneau suit le fichier courant). */
+  const fermerComplet = () => {
+    setComplet(false);
+    setTimeout(() => document.querySelector<HTMLElement>('[data-ouvrir-apercu-complet=""]')?.focus(), 0);
+  };
   const dossierDe = (id: string) => p.donnees.dossiers.find((d) => d.id === id);
   const corbeille = etat.section === 'corbeille';
   const nTrash = compteCorbeille(p.donnees);
@@ -323,12 +344,12 @@ export function Bibliotheque(entree: PropsBibliotheque) {
   const aller = (id: string) => {
     const chemin = cheminVers(p.donnees, id);
     if (etat.tag) ecrireTagAdresse(null);
-    setEtat((e) => ({ ...e, section: 'drive', recherche: '', tag: null, chemin, ouverts: new Set([...e.ouverts, ...chemin]) }));
+    setEtat((e) => ({ ...e, section: 'drive', recherche: '', tag: null, tagFichier: null, chemin, ouverts: new Set([...e.ouverts, ...chemin]) }));
     setSelection(new Set()); setApercu(null);
   };
   const section = (s: SectionDrive) => {
     if (etat.tag) ecrireTagAdresse(null);
-    setEtat((e) => ({ ...e, section: s, recherche: '', tag: null, chemin: s === 'drive' ? [] : e.chemin }));
+    setEtat((e) => ({ ...e, section: s, recherche: '', tag: null, tagFichier: null, chemin: s === 'drive' ? [] : e.chemin }));
     setSelection(new Set()); setApercu(null);
   };
   /** Une puce de l'arbre · filtre sur ce tag, ou retire le filtre si c'est déjà lui (maquette). */
@@ -984,6 +1005,21 @@ export function Bibliotheque(entree: PropsBibliotheque) {
                 {FILTRES_TYPE_DRIVE.map((t) => <option key={t.cle} value={t.cle}>{t.libelle}</option>)}
               </select>
             )}
+            {g && (() => {
+              // Lot 12 · « Tags » · les tags des fichiers affichés (à la main ou par l'analyse) · fermé, la raison est écrite à côté.
+              const t = v.tagsFichiers;
+              const ferme = !t.ouvert && t.actif === null;
+              return (
+                <span data-filtre-tags="" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <select className="dsort" aria-label="Tags" value={t.actif ?? ''} disabled={ferme} aria-describedby={ferme ? 'dtags-raison' : undefined}
+                    onChange={(e) => { const tagFichier = e.target.value || null; setEtat((x) => ({ ...x, tagFichier })); }}>
+                    <option value="">Tous les tags</option>
+                    {t.options.map((o) => <option key={o.valeur} value={o.valeur}>{`${o.libelle} · ${o.n}`}</option>)}
+                  </select>
+                  {ferme && t.raison && <small className="faint" id="dtags-raison" data-raison-tags="">{t.raison}</small>}
+                </span>
+              );
+            })()}
           </div>
           {selection.size > 0 && (
             <div className="dbulk">
@@ -1049,6 +1085,7 @@ export function Bibliotheque(entree: PropsBibliotheque) {
             <div className="kc"><PastilleFichier f={fa} />{fa.ia?.template && <span className="pill c" data-badge="template">Template</span>}</div>
             {gestesFa?.note && <div className="banner" style={{ margin: 0 }} data-geste="note-corbeille"><Ic n="x" /><span>{gestesFa.note}</span></div>}
             {fa.droit === 'a_preciser' && !fa.supprime && <div className="banner" style={{ margin: 0 }}><Ic n="warn" /><span>Droits à préciser : ce fichier ne peut pas encore servir dans une publicité.</span></div>}
+            <button className="btn" type="button" data-ouvrir-apercu-complet="" aria-haspopup="dialog" style={{ minHeight: 44 }} onClick={() => setComplet(true)}><Ic n="eye" />Aperçu complet</button>
             <dl className="kv2" style={{ gridTemplateColumns: '110px minmax(0,1fr)', margin: 0 }}>
               <dt>Type</dt><dd>{LIBELLE_TYPE_FICHIER[fa.type]}</dd>
               <dt>Taille</dt><dd>{formatTaille(fa.tailleOctets)}</dd>
@@ -1076,7 +1113,7 @@ export function Bibliotheque(entree: PropsBibliotheque) {
                   <span className="lbl" style={{ margin: 0 }}>Usage par l’IA</span>
                   <label className="npr" style={{ cursor: 'pointer' }}><input type="checkbox" checked={fa.ia.utilisable} disabled={occupe} onChange={() => void basculerIa(fa, 'utilisable')} /><div><strong>Utilisable par l’IA</strong><small>Les Studios peuvent s’en servir pour composer</small></div></label>
                   {g.admin && <label className="npr" style={{ cursor: 'pointer' }}><input type="checkbox" checked={fa.ia.template} disabled={occupe} onChange={() => void basculerIa(fa, 'template')} /><div><strong>Template</strong><small>Visible du client comme modèle</small></div></label>}
-                  {fa.ia.tags.length > 0 && <div className="chips" style={{ marginTop: 0 }}>{fa.ia.tags.map((t) => <span className="pill" key={t}>{t}</span>)}</div>}
+                  <TagsMainFichier f={fa} vocabulaire={g.vocabulaireTags ?? []} ecriture rafraichir={rafraichir} toast={toast} />
                   {fa.type === 'image' && (
                     <button className="btn" type="button" onClick={() => void analyserUne(fa)} disabled={!!g.analyse.raison || occupe} title={g.analyse.raison ?? undefined}><Ic n="spark" />{fa.ia.tags.length ? 'Analyser à nouveau' : 'Analyser l’image'}{prixImage(1)}</button>
                   )}
@@ -1109,6 +1146,14 @@ export function Bibliotheque(entree: PropsBibliotheque) {
             </form>
           )}
         </DialogueSpatial>
+      )}
+      {complet && fa && (
+        <ApercuComplet
+          f={fa} affiches={v.fichiers} donnees={p.donnees} lectureSeule={p.lectureSeule} dossier={dossierFichier?.nom ?? v.depot}
+          aller={(id) => setApercu(id)} fermer={fermerComplet}
+          versDansProjet={() => { const id = fa.id; fermerComplet(); setVersementFichier(id); }}
+          tags={fa.ia && g ? <TagsMainFichier f={fa} vocabulaire={g.vocabulaireTags ?? []} ecriture={!!gestesFa?.edition} rafraichir={rafraichir} toast={toast} /> : null}
+        />
       )}
       {ecriture && remplacement.rendu}
       {glisser.annonce}

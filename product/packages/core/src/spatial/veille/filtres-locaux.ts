@@ -330,14 +330,26 @@ export interface VoisinsDetail {
 }
 
 /**
+ * Les MOTS de la navigation · ce qu'on parcourt et ses bornes. La Veille
+ * parcourt des pubs (défaut, phrases d'origine) · la Bibliothèque des fichiers
+ * (lot 12 · `MOTS_VOISINS_FICHIER`) · la règle est la même, seuls les mots changent.
+ */
+export interface MotsVoisins { absent: string; seul: string; premier: string; dernier: string; position: (k: number, n: number) => string }
+export const MOTS_VOISINS_PUB: MotsVoisins = {
+  absent: 'Cette pub n’est plus dans la liste filtrée',
+  seul: 'Seule pub de la liste', premier: 'Première pub de la liste', dernier: 'Dernière pub de la liste',
+  position: (k, n) => `Pub ${k} sur ${n}`,
+};
+
+/**
  * Les voisines d'une pub dans la liste COURANTE (filtrée, dans l'ordre
  * affiché) · on s'arrête aux bornes, sans boucler, et on dit pourquoi.
  */
-export function voisinsDetail(cles: readonly string[], cle: string): VoisinsDetail {
+export function voisinsDetail(cles: readonly string[], cle: string, mots: MotsVoisins = MOTS_VOISINS_PUB): VoisinsDetail {
   const i = cles.indexOf(cle);
   const total = cles.length;
   if (i < 0) {
-    const r = 'Cette pub n’est plus dans la liste filtrée';
+    const r = mots.absent;
     return { position: 0, total, precedente: null, suivante: null, raisonPrecedente: r, raisonSuivante: r, libelle: r };
   }
   const seule = total === 1;
@@ -345,9 +357,9 @@ export function voisinsDetail(cles: readonly string[], cle: string): VoisinsDeta
     position: i + 1, total,
     precedente: i > 0 ? cles[i - 1]! : null,
     suivante: i < total - 1 ? cles[i + 1]! : null,
-    raisonPrecedente: i > 0 ? null : seule ? 'Seule pub de la liste' : 'Première pub de la liste',
-    raisonSuivante: i < total - 1 ? null : seule ? 'Seule pub de la liste' : 'Dernière pub de la liste',
-    libelle: `Pub ${i + 1} sur ${total}`,
+    raisonPrecedente: i > 0 ? null : seule ? mots.seul : mots.premier,
+    raisonSuivante: i < total - 1 ? null : seule ? mots.seul : mots.dernier,
+    libelle: mots.position(i + 1, total),
   };
 }
 

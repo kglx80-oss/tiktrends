@@ -26,6 +26,8 @@ export * from './bibliotheque/nom-fichier';
 export * from './bibliotheque/remplacer';
 export * from './bibliotheque/glisser-deposer';
 export * from './bibliotheque/pagination';
+export * from './bibliotheque/tags-fichier';
+export * from './bibliotheque/apercu-complet';
 export * from './formats';
 export * from './veille';
 export * from './studios';

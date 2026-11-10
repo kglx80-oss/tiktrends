@@ -91,7 +91,7 @@ import * as actionsAssets from '../app/actions/assets';
 import {
   listAssets, uploadImageAssetsAction, importAssetAction, toggleAssetAiAction, tagAssetAction, basculerAssetsIaAction,
   tagUntaggedImagesAction, presignAssetUploadAction, registerUploadedAssetAction, deleteAssetAction,
-  basculerTemplateAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction, remplacerAssetAction,
+  basculerTemplateAction, mettreAssetsCorbeilleAction, restaurerAssetsAction, renommerAssetAction, remplacerAssetAction, definirTagsMainAssetAction,
 } from '../app/actions/assets';
 import { followBrand, unfollowBrand } from '../app/actions/inspo';
 import { TEXTE_REFUS_BIBLIOTHEQUE } from '../lib/bibliotheque-acces';
@@ -147,6 +147,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ['mettreAssetsCorbeilleAction', () => mettreAssetsCorbeilleAction({ ids: [A.image] })],
   ['restaurerAssetsAction', () => restaurerAssetsAction({ ids: [A.image] })],
   ['renommerAssetAction', () => renommerAssetAction({ id: A.image, nom: 'Renommé' })],
+  ['definirTagsMainAssetAction', () => definirTagsMainAssetAction({ id: A.image, tags: ['Hook UGC'] })],
   ['remplacerAssetAction', () => remplacerAssetAction({ id: A.image, jetonDepot: jetonA('remplacement', 'g'), mimeType: 'image/png' })],
 ];
 

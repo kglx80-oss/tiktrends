@@ -40,9 +40,33 @@ export function avecTemplate(tags: readonly string[] | null | undefined, on: boo
   return on ? [...base, TAG_TEMPLATE] : base;
 }
 
-/** N'expose au client que les tags visibles · le marqueur reste une plomberie. */
+/**
+ * Lot 12 V5 · un tag posé À LA MAIN dans la Bibliothèque vit dans la même
+ * colonne `tags`, préfixé de ce marqueur réservé (double souligné, comme le
+ * template · 0 migration). Le préfixe distingue la main de l'analyse · une
+ * nouvelle analyse remplace les tags IA et GARDE ceux-ci
+ * (`spatial/bibliotheque/tags-fichier.ts`). Les écrans ne voient que le libellé.
+ */
+export const PREFIXE_TAG_MAIN = '__main__:';
+
+/** Le libellé affiché d'un tag stocké · un tag posé à la main perd son préfixe. */
+export function libelleTagStocke(t: string): string {
+  return t.startsWith(PREFIXE_TAG_MAIN) ? t.slice(PREFIXE_TAG_MAIN.length) : t;
+}
+
+/**
+ * N'expose au client que les tags visibles · le marqueur reste une plomberie ·
+ * un tag posé à la main se montre par son libellé, une seule fois (un tag IA de
+ * même libellé exact ne le double pas).
+ */
 export function tagsVisibles(tags?: readonly string[] | null): string[] {
-  return (tags ?? []).filter((t) => t !== TAG_TEMPLATE);
+  const out: string[] = [];
+  for (const t of tags ?? []) {
+    if (t === TAG_TEMPLATE) continue;
+    const l = libelleTagStocke(t);
+    if (l && !out.includes(l)) out.push(l);
+  }
+  return out;
 }
 
 /**

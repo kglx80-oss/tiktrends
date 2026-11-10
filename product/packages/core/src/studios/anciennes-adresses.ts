@@ -60,10 +60,23 @@ export const PARAM_PERSONA = 'persona';
  */
 export const PARAM_OFFRE = 'offre';
 
+/**
+ * Lot 12 V5 (PC A21, « Ajouter au brief » de la Bibliothèque) · un MÉDIA de la
+ * Bibliothèque (`assets.id`) proposé comme RÉFÉRENCE du brief. Distinct de
+ * `ref` (une annonce SAUVEGARDÉE, jointe comme SOURCE) · les deux n'ont ni la
+ * même table, ni le même droit, ni la même place dans le projet. Une
+ * PROPOSITION · la page relit chaque fichier dans l'espace et pour la marque
+ * active (`refusFichiersVersement`), le rôle et la portée sont choisis dans
+ * l'assistant, et rien n'est versé avant « Continuer ».
+ */
+export const PARAM_MEDIA = 'media';
+/** Au plus autant de médias que de sources · une adresse ne porte pas une sélection entière. */
+export const MEDIAS_MAX = SOURCES_MAX;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Les paramètres que la préparation lit · un test vérifie que la page les lit tous. */
-export const PARAMS_NOUVEAU_PROJET = ['type', 'angle', 'produit', 'ref', PARAM_ITERATION, 'src', 'srcnom', PARAM_DEPUIS, PARAM_RETOUR_VEILLE, PARAM_PERSONA, PARAM_OFFRE] as const;
+export const PARAMS_NOUVEAU_PROJET = ['type', 'angle', 'produit', 'ref', PARAM_ITERATION, 'src', 'srcnom', PARAM_DEPUIS, PARAM_RETOUR_VEILLE, PARAM_PERSONA, PARAM_OFFRE, PARAM_MEDIA] as const;
 
 export interface ContexteLien {
   type?: TypeNouveauProjet | null;
@@ -90,6 +103,8 @@ export interface ContexteLien {
   persona?: string | null;
   /** Offre à présélectionner dans « Quelle offre ? » · identifiant `adsmap_offers` (relu en portée). */
   offre?: string | null;
+  /** Lot 12 · médias de la Bibliothèque proposés comme références du brief · `media` répété (relus en portée). */
+  medias?: readonly string[] | null;
 }
 
 type Params = Record<string, string | string[] | undefined | null>;
@@ -116,6 +131,7 @@ export function lienNouveauProjet(c: ContexteLien = {}): string {
   if (c.iter && UUID.test(c.iter)) p.set(PARAM_ITERATION, c.iter.toLowerCase());
   if (c.persona && UUID.test(c.persona)) p.set(PARAM_PERSONA, c.persona.toLowerCase());
   if (c.offre && UUID.test(c.offre)) p.set(PARAM_OFFRE, c.offre.toLowerCase());
+  for (const m of refsValides(c.medias ?? [], MEDIAS_MAX)) p.append(PARAM_MEDIA, m);
   const src = net(c.src, SOURCE_CLE_MAX);
   if (src && sourceVeilleDepuisRef(src)) {
     p.set('src', src);
@@ -186,17 +202,19 @@ export interface ContexteNouveauProjet {
   persona: string | null;
   /** L'offre demandée (identifiant bien formé) · à relire dans la portée avant de la présélectionner. */
   offre: string | null;
+  /** Lot 12 · les médias de la Bibliothèque demandés (identifiants bien formés) · à relire en portée avant de les proposer. */
+  medias: string[];
   /** L'adresse portait-elle un contexte (autre que le type) ? */
   aContexte: boolean;
 }
 
 /** Les identifiants de sauvegarde valides, en minuscules, sans doublon, au plus `SOURCES_MAX`. */
-function refsValides(v: ReadonlyArray<string | null | undefined>): string[] {
+function refsValides(v: ReadonlyArray<string | null | undefined>, max: number = SOURCES_MAX): string[] {
   const out: string[] = [];
   for (const brut of v) {
     const r = (brut ?? '').trim().toLowerCase();
     if (UUID.test(r) && !out.includes(r)) out.push(r);
-    if (out.length >= SOURCES_MAX) break;
+    if (out.length >= max) break;
   }
   return out;
 }
@@ -209,6 +227,15 @@ function refsValides(v: ReadonlyArray<string | null | undefined>): string[] {
 export function lireRefsNouveauProjet(sp: Params = {}): string[] {
   const v = sp.ref;
   return refsValides(Array.isArray(v) ? v : [v ?? null]);
+}
+
+/**
+ * Lot 12 · les médias de la Bibliothèque de l'adresse (`media` répété) · une
+ * valeur forgée est ignorée, sans doublon, au plus `MEDIAS_MAX`.
+ */
+export function lireMediasNouveauProjet(sp: Params = {}): string[] {
+  const v = sp[PARAM_MEDIA];
+  return refsValides(Array.isArray(v) ? v : [v ?? null], MEDIAS_MAX);
 }
 
 /** Ce que la préparation relit de son adresse · chaque valeur bornée, une valeur forgée ignorée. */
@@ -227,6 +254,7 @@ export function lireContexteNouveauProjet(sp: Params = {}): ContexteNouveauProje
   const offreBrut = premier(sp[PARAM_OFFRE]).trim();
   const offre = UUID.test(offreBrut) ? offreBrut.toLowerCase() : null;
   const objectif = [angle, produit ? `Produit : ${produit}` : ''].filter(Boolean).join('\n').slice(0, OBJECTIF_MAX);
+  const medias = lireMediasNouveauProjet(sp);
   return {
     type: estType(t) ? t : 'ads',
     typeDonne: estType(t),
@@ -237,7 +265,8 @@ export function lireContexteNouveauProjet(sp: Params = {}): ContexteNouveauProje
     retourVeille,
     persona,
     offre,
-    aContexte: !!(objectif || ref || iter || source || retourVeille || persona || offre),
+    medias,
+    aContexte: !!(objectif || ref || iter || source || retourVeille || persona || offre || medias.length),
   };
 }
 
@@ -259,8 +288,11 @@ export type EtatRepriseIteration = { etat: 'reprise' } | { etat: 'non_eligible';
  * Ce qui n'a PAS pu être repris, en clair · jamais une perte silencieuse.
  * `refJointe` : l'annonce sauvegardée a été relue dans la portée et sera jointe.
  */
-export function notesContexte(c: ContexteNouveauProjet, o: { refJointe: boolean; iteration: EtatRepriseIteration; personaRetenu?: boolean; offreRetenue?: boolean }): string[] {
+export function notesContexte(c: ContexteNouveauProjet, o: { refJointe: boolean; iteration: EtatRepriseIteration; personaRetenu?: boolean; offreRetenue?: boolean; mediasRetenus?: number }): string[] {
   const n: string[] = [];
+  // Lot 12 · un média écarté n'est jamais nommé (il peut être d'une autre marque) · seulement compté.
+  const ecartes = o.mediasRetenus === undefined ? 0 : Math.max(0, (c.medias?.length ?? 0) - o.mediasRetenus);
+  if (ecartes) n.push(`${ecartes > 1 ? `${ecartes} fichiers` : 'Un fichier'} de la Bibliothèque de ce lien ${ecartes > 1 ? 'ne sont pas repris' : 'n’est pas repris'} (à la corbeille, d’une autre marque, pas une image ou des droits qui n’autorisent pas la publicité) · rien n’est joint à sa place.`);
   if (c.ref && !o.refJointe) n.push('L’annonce sauvegardée de ce lien n’est plus accessible (supprimée, d’une autre marque ou hors de tes droits) · le projet partira de l’objectif seul.');
   if (c.sourceVeille && !c.ref) {
     const nom = c.sourceVeille.nom ? ` de ${c.sourceVeille.nom}` : '';

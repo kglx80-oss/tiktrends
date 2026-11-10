@@ -72,7 +72,7 @@ export function validerTag(brut: unknown): Valide<{ tag: TagVeille }> {
  * La liste de tags d'une sauvegarde · chaque entrée validée, les doublons
  * (même clé) fusionnés en gardant la PREMIÈRE écriture, plafond tenu.
  */
-export function validerTags(bruts: unknown): Valide<{ tags: TagVeille[] }> {
+export function validerTags(bruts: unknown, quoi: 'sauvegarde' | 'fichier' = 'sauvegarde'): Valide<{ tags: TagVeille[] }> {
   if (!Array.isArray(bruts)) return { ok: false, raison: 'Liste de tags illisible · recharge la page.' };
   const vus = new Map<string, TagVeille>();
   for (const b of bruts) {
@@ -80,7 +80,7 @@ export function validerTags(bruts: unknown): Valide<{ tags: TagVeille[] }> {
     if (!v.ok) return v;
     if (!vus.has(v.tag.cle)) vus.set(v.tag.cle, v.tag);
   }
-  if (vus.size > TAGS_MAX_PAR_SAUVEGARDE) return { ok: false, raison: `${TAGS_MAX_PAR_SAUVEGARDE} tags au plus par sauvegarde · retire-en ${vus.size - TAGS_MAX_PAR_SAUVEGARDE}.` };
+  if (vus.size > TAGS_MAX_PAR_SAUVEGARDE) return { ok: false, raison: `${TAGS_MAX_PAR_SAUVEGARDE} tags au plus par ${quoi} · retire-en ${vus.size - TAGS_MAX_PAR_SAUVEGARDE}.` };
   return { ok: true, tags: [...vus.values()] };
 }
 

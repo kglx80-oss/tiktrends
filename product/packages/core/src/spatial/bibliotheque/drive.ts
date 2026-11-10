@@ -2,6 +2,9 @@ import { droitAutorisePub, estDroitAsset, libelleDroit } from '../../bibliothequ
 import { derniereTentativeDriveEnEchec, type DernierSyncDrive } from '../../connecteurs-catalogue';
 import { estTagCouleur, refusSelectionTropLarge, tagCouleur, tagsEnUsage, TAG_SELECTION_MAX, type CleTagCouleur, type TagCouleur } from './tags-couleur';
 import { remplacementSource, type ContenuMedia, type RemplacementSource } from './remplacer';
+import { cleTag } from '../veille/tags-veille';
+import type { ControleLocal } from '../veille/filtres-locaux';
+import { controleTagsFichiers, passeTagFichier, type TagsFichier } from './tags-fichier';
 
 /**
  * Spatial · la Bibliothèque « rangée comme un drive » (maquette `bibliotheque`).
@@ -79,10 +82,11 @@ export interface FichierDrive {
   telecharger?: string;
   /**
    * L'usage par l'IA d'un média de la bibliothèque (repris de l'écran V5) ·
-   * utilisable par l'IA, rangé en template, tags posés par l'analyse. Absent
-   * pour une sortie Studios ou une ancienne création (lecture seule).
+   * utilisable par l'IA, rangé en template, tags posés par l'analyse (`tags`)
+   * et, lot 12, tags posés À LA MAIN (`main`, libellés · `tags-fichier.ts`).
+   * Absent pour une sortie Studios ou une ancienne création (lecture seule).
    */
-  ia?: { utilisable: boolean; template: boolean; tags: readonly string[] };
+  ia?: { utilisable: boolean; template: boolean; tags: readonly string[]; main?: readonly string[] };
   /**
    * « Remplacer » (`remplacer.ts`) · la famille du média et ce que sa source
    * permet, relus côté serveur. Absent pour une sortie Studios, une ancienne
@@ -157,7 +161,7 @@ export interface MediaSource {
   deletedAt?: string | null;
   studio?: { projetId: string; projetTitre: string; href: string };
   historique?: { libelle: string; telecharger: string };
-  ia?: { utilisable: boolean; template: boolean; tags: readonly string[] };
+  ia?: { utilisable: boolean; template: boolean; tags: readonly string[]; main?: readonly string[] };
   /** Où vit le contenu (`contenuMedia`, relu côté serveur) · absent = inconnu, « Remplacer » n'est pas proposé. */
   contenu?: ContenuMedia;
 }
@@ -415,6 +419,18 @@ export interface EtatDrive {
    * confondues. Sans effet hors de « Mon drive » ou pendant une recherche.
    */
   tag?: CleTagCouleur | null;
+  /**
+   * Lot 12 · le filtre « Tags » de la barre · la CLÉ d'un tag de FICHIER
+   * (`cleTag`, posé à la main ou par l'analyse) · seuls les fichiers qui le
+   * portent restent affichés, dans la vue courante. Absent ou null = aucun filtre.
+   */
+  tagFichier?: string | null;
+}
+
+/** Les tags d'un fichier, rangés par origine · ce que lit le filtre « Tags » (lot 12). */
+export function tagsFichierDrive(f: Pick<FichierDrive, 'ia'>): TagsFichier {
+  const main = (f.ia?.main ?? []).map((nom) => ({ cle: cleTag(nom), nom })).filter((t) => t.cle);
+  return { main, ia: [...(f.ia?.tags ?? [])] };
 }
 
 /** Le filtre par type de l'écran V5 (images, vidéos, audio, autres). */
@@ -471,6 +487,12 @@ export interface VueDrive {
   filtreTag: TagCouleur | null;
   /** Les puces de filtre · les tags en usage sur les dossiers vivants, avec leur nombre. */
   tags: Array<TagCouleur & { compte: number; actif: boolean }>;
+  /**
+   * Lot 12 · le menu « Tags » de la barre · les tags des fichiers de la vue
+   * AVANT ce filtre (après type et recherche), fermé avec sa raison quand il
+   * ne sépare rien · et le tag appliqué (`null` sans filtre ou s'il a disparu).
+   */
+  tagsFichiers: ControleLocal & { actif: string | null };
 }
 
 /** La recherche · sans accent ni casse, espaces de bord retirés · la même règle à l'écran et dans la requête serveur (`pagination.ts`). */
@@ -567,7 +589,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
   if (q) {
     dossiers = d.dossiers.filter((x) => !estRacine(x.id) && ix.vivant(x.id) && normaliser(x.nom).includes(q));
     // Le nom, ou un tag posé par l'analyse (la recherche V5 portait sur les deux).
-    fichiers = fichiersVivants().filter((f) => normaliser(f.nom).includes(q) || (f.ia?.tags ?? []).some((t) => normaliser(t).includes(q)));
+    fichiers = fichiersVivants().filter((f) => normaliser(f.nom).includes(q) || [...(f.ia?.tags ?? []), ...(f.ia?.main ?? [])].some((t) => normaliser(t).includes(q)));
   } else if (filtreTag) {
     dossiers = d.dossiers.filter((x) => x.reel && x.tag === filtreTag.cle && ix.vivant(x.id));
   } else if (e.section === 'recents') {
@@ -586,6 +608,10 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
 
   const cartes = trierDossiers(ix, dossiers, e.tri, c).map((x) => carte(ix, x, e.section === 'corbeille', c));
   fichiers = fichiers.filter((f) => passeFiltreType(f.type, e.type));
+  // Lot 12 · « Tags » · calculé sur la vue avant lui, puis appliqué · un tag qui n'est plus porté ici n'efface pas la vue.
+  const controleTags = controleTagsFichiers(fichiers.map((f) => ({ tags: tagsFichierDrive(f) })));
+  const tagActif = e.tagFichier && controleTags.options.some((o) => o.valeur === e.tagFichier) ? e.tagFichier : null;
+  if (tagActif) fichiers = fichiers.filter((f) => passeTagFichier(tagsFichierDrive(f), tagActif));
   const triés = e.section === 'recents' ? fichiers : trierFichiers(fichiers, e.tri);
 
   const cur = courant ? ix.parDossier.get(courant)! : null;
@@ -609,6 +635,7 @@ export function vueDrive(d: DonneesDrive, e: EtatDrive): VueDrive {
     onglets, banniere: enDrive && courant === ID_ASSETS, arbre, fil, dossiers: cartes, fichiers: triés,
     nouveau, vide, depot: ix.parDossier.get(ID_ASSETS)!.nom, volume,
     filtreTag, tags: tagsEnUsage(d.dossiers.filter((x) => x.reel && ix.vivant(x.id)).map((x) => x.tag), filtreTag?.cle ?? null),
+    tagsFichiers: { ...controleTags, actif: tagActif },
   };
 }
 

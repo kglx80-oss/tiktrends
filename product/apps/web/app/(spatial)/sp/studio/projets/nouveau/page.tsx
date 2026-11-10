@@ -20,6 +20,7 @@ import { couleursDeLaMarque } from '../../../../../../lib/studios/palette-marque
 import { NouveauProjet } from '../../../../../../spatial/vues/studios/NouveauProjet';
 import { relireSelectionProjet } from '../../../../../../lib/sauvegardes-projet';
 import { RefusStudios } from '../../../../../../spatial/vues/studios/Refus';
+import { relireMediasBrief } from '../../../../../../lib/studios/medias-brief';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,10 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  *  · le test Adsmap (`iter`, reprise d'itération) n'est repris qu'avec l'accès
  *    Adsmap, dans la marque active, et s'il est une gagnante arbitrée avec un
  *    apprentissage (`briefDepuisTest`) · son brief devient l'objectif ;
+ *  · les médias de la Bibliothèque (`media`, lot 12 · « Ajouter au brief »)
+ *    sont relus dans l'espace et pour la marque active (`relireMediasBrief`) ·
+ *    seuls les retenus sont proposés comme références, versés à « Continuer »
+ *    avec le rôle et la portée choisis (`verserSelectionDansProjet`) ;
  *  · ce qui n'est pas repris est DIT (`notesContexte`).
  * L'assistant RÉEL s'y déroule (brief structuré, stratégie, style, format et
  * devis) · LECTURE SEULE à l'ouverture, rien n'est créé avant « Continuer
@@ -81,6 +86,9 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
     }
   }
 
+  // Lot 12 · « Ajouter au brief » de la Bibliothèque · relus en portée, marque active, sans droit de proposer rien n'est relu.
+  const medias = etat.etat === 'pret' && c.medias.length ? await relireMediasBrief(s.workspaceId, c.medias, etat.marque.id) : [];
+
   const marqueNom = etat.etat === 'pret' ? etat.marque.nom : '';
   const objectif = [depuisTest && c.iter ? `Test source Adsmap : ${c.iter}` : '', depuisTest?.objectif ?? '', selection?.ok ? selection.brief : '', c.objectif].filter(Boolean).join('\n').slice(0, OBJECTIF_MAX);
   const titresParDefaut = Object.fromEntries(TYPES_NOUVEAU_PROJET.map((t) => [t, titreNouveauProjetParDefaut(t, marqueNom || 'ta marque')])) as Record<TypeNouveauProjet, string>;
@@ -109,6 +117,7 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
     : reference;
   const repris = [
     annonce ? `Source jointe au projet à sa création · l’annonce sauvegardée de ${annonce.annonceur}.` : '',
+    medias.length ? `${medias.length > 1 ? `${medias.length} fichiers` : 'Un fichier'} de la Bibliothèque ${medias.length > 1 ? 'deviendront des références' : 'deviendra une référence'} du projet à sa création · choisis le rôle et la portée dans « Références ».` : '',
     selection?.ok ? `${selection.references.length} sources jointes au projet à sa création · les annonces sauvegardées de ${[...new Set(selection.annonceurs)].join(', ')} · leurs tags et notes sont proposés dans ton intention, à relire (rien n’est généré).` : '',
     iteration?.etat === 'reprise' ? 'Le brief du test Adsmap gagnant est repris dans l’intention · relis-le avant de continuer.' : '',
   ].filter(Boolean);
@@ -128,8 +137,8 @@ export default async function NouveauProjetSpatial({ searchParams }: { searchPar
       produits={produits}
       paletteMarque={palette}
       contexte={{
-        depart, references: selection?.ok ? selection.references : reference ? [reference] : [], repris,
-        notes: selection ? [...(selection.ok ? [] : [REFUS_SELECTION_PROJET]), ...notesContexte({ ...c, ref: null }, { refJointe: false, iteration, personaRetenu: !!personaInitial, offreRetenue: !!offreInitiale })] : notesContexte(c, { refJointe: !!annonce, iteration, personaRetenu: !!personaInitial, offreRetenue: !!offreInitiale }),
+        depart, references: selection?.ok ? selection.references : reference ? [reference] : [], repris, medias,
+        notes: selection ? [...(selection.ok ? [] : [REFUS_SELECTION_PROJET]), ...notesContexte({ ...c, ref: null }, { refJointe: false, iteration, personaRetenu: !!personaInitial, offreRetenue: !!offreInitiale, mediasRetenus: medias.length })] : notesContexte(c, { refJointe: !!annonce, iteration, personaRetenu: !!personaInitial, offreRetenue: !!offreInitiale, mediasRetenus: medias.length }),
         retourVeille: c.retourVeille ? { href: lienRetourVeille(c.retourVeille) ?? '/veille' } : null,
       }}
     />

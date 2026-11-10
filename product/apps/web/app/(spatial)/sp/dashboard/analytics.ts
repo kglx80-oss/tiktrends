@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import type { MetaAdsInsights } from '@tiktrends/integrations';
 import {
   bilanAvanceAccueil, cheminOuvert, diversiteCreative, encartMetaConnexion, etatConnexionMeta, metriquesMetaAnalytics,
-  refusVueAnalytics, resoudreAccueil, type BilanAvanceAccueil, type ChiffresClesMeta, type DiversiteCreative, type EtatConnexionMeta, type ParamsRequete,
+  refusVueAnalytics, resoudreAccueil, tagsVisibles, type BilanAvanceAccueil, type ChiffresClesMeta, type DiversiteCreative, type EtatConnexionMeta, type ParamsRequete,
 } from '@tiktrends/core';
 import type { Session } from '../../../../lib/auth';
 import { effectiveAccess } from '../../../../lib/access';
@@ -61,7 +61,8 @@ export async function chargerAnalyticsSpatial(s: Session, params: ParamsRequete)
     const assets = await db.select({ tags: schema.assets.tags }).from(schema.assets)
       .where(and(eq(schema.assets.workspaceId, s.workspaceId), or(eq(schema.assets.brandId, brand.id), isNull(schema.assets.brandId)), isNull(schema.assets.deletedAt)))
       .limit(400);
-    diversite = diversiteCreative(gens.map((g) => (g.input ?? {}) as { template?: unknown; headline?: unknown }), assets.map((a) => a.tags ?? []));
+    // Les tags tels que l'écran les montre · sans le marqueur template, un tag posé à la main par son libellé (lot 12).
+    diversite = diversiteCreative(gens.map((g) => (g.input ?? {}) as { template?: unknown; headline?: unknown }), assets.map((a) => tagsVisibles(a.tags)));
   }
 
   let bilan: BilanAvanceAccueil | null = null;
