@@ -9,7 +9,8 @@ import type { RegimeTarifaire } from '@tiktrends/core';
  * Fourni par `Coquille` · en test, une vue se rend sous `FournisseurSpatial`
  * avec des valeurs explicites.
  */
-export type PanneauSpatial = 'profil' | 'notifs' | 'marques' | 'modules' | 'jarvis' | null;
+/** `raccourcis` · la fenêtre d'aide des raccourcis clavier (lot 13). */
+export type PanneauSpatial = 'profil' | 'notifs' | 'marques' | 'modules' | 'jarvis' | 'raccourcis' | null;
 
 export interface CtxSpatial {
   utilisateur: { nom: string; initiales: string; email: string; role: string };

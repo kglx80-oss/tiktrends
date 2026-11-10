@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InspoAd } from '@tiktrends/integrations';
 import {
-  TRIS_OUTIL_SCALE, criteresOutilsScale, ecrireOutilsScale, filtrerOutilsScale, lireOutilsScale, videoLisible,
+  TRIS_OUTIL_SCALE, criteresOutilsScale, ecrireOutilsScale, filtrerOutilsScale, lireOutilsScale, raccourcisActifs, videoLisible,
   type DonneesOutilScale, type FiltresOutilScale, type TriOutilScale, type TypeOutilScale,
 } from '@tiktrends/core';
 import { useSpatial } from '../../coquille/contexte';
@@ -29,6 +29,11 @@ export interface LigneScaleOutil {
   biblio: { href: string; libelle: string } | null;
   /** Lot 7 (VB SC05) · le détail de la pub, le même que dans « Pubs du moment » · absent, la ligne ne s'ouvre pas. */
   carte?: CarteVeilleDonnees;
+}
+
+/** `document.cookie` · vide s'il est indisponible. */
+function lireCookies(): string {
+  try { return document.cookie; } catch { return ''; }
 }
 
 const SEGMENTS: ReadonlyArray<[TypeOutilScale, string]> = [['all', 'Tout'], ['static', 'Statiques'], ['video', 'Vidéos']];
@@ -64,11 +69,13 @@ export function ScaleInteractif({ lignes, initial, annonceurs, angles, coutJarvi
   const champ = useRef<HTMLInputElement>(null);
   // Réinitialiser vide les critères PUIS rend le focus au champ (le bouton disparaît avec eux).
   const tout = () => { setF((x) => ({ ...x, type: 'all', annonceur: 'all', angle: 'all', texte: '' })); champ.current?.focus(); };
-  // « / » met le focus sur la recherche · jamais quand un champ a déjà le focus (on ne vole pas la frappe).
+  // « / » met le focus sur la recherche · jamais quand un champ a déjà le focus (on ne vole pas la frappe),
+  // ni quand les raccourcis à une touche sont coupés (lot 13, WCAG 2.1.4 · cookie `tt_raccourcis`, relu à chaque frappe).
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
       const c = e.target as HTMLElement | null;
       if (c && (['INPUT', 'TEXTAREA', 'SELECT'].includes(c.tagName) || c.isContentEditable)) return;
+      if (!raccourcisActifs(lireCookies())) return;
       if (e.key === '/') { e.preventDefault(); champ.current?.focus(); }
     };
     window.addEventListener('keydown', surTouche);

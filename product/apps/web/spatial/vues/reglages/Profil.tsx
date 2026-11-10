@@ -3,6 +3,7 @@ import { EnTete, Lien, Vue } from '../../communs';
 import { SectionApparence } from './Apparence';
 import { AnnonceRetour } from '../marque/interactifs';
 import { IdentiteProfil, type EnregistrerProfil, type IdentiteInitiale } from './profil-client';
+import { BoutonAideRaccourcis, ChoixRaccourcis } from '../../coquille/Raccourcis';
 
 /**
  * « Mon profil » · vague 4 · l'écran V5 `/profile` n'a pas de fragment de
@@ -24,6 +25,8 @@ export interface PropsProfil {
   retours: Record<string, string>;
   /** La préférence de thème (cookie `tt_theme`) · présente, la section « Apparence » s'affiche. */
   theme?: PreferenceTheme;
+  /** La préférence « Raccourcis à une touche » (cookie `tt_raccourcis`) · présente, la ligne « Raccourcis clavier » s'affiche (lot 13). */
+  raccourcis?: boolean;
 }
 
 export function Profil(p: PropsProfil) {
@@ -52,6 +55,12 @@ export function Profil(p: PropsProfil) {
           <dl className="kv2">
             <dt>Langue</dt><dd><span className="opt2 on">Français</span><span className="faint" style={{ fontSize: 12 }}>D’autres langues arrivent prochainement.</span></dd>
           </dl>
+          {p.raccourcis !== undefined && (
+            <div data-geste="raccourcis" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+              <ChoixRaccourcis initiale={p.raccourcis} />
+              <div><BoutonAideRaccourcis libelle="Voir les raccourcis clavier" /></div>
+            </div>
+          )}
         </section>
         {p.theme && <SectionApparence theme={p.theme} />}
         <section className="tile" data-geste="acces">
