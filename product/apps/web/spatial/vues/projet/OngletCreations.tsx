@@ -213,7 +213,10 @@ export function OngletCreations(p: PropsCreationsProjet) {
       )}
 
       <section className="tile sec" id="taches" aria-labelledby={t('taches')}>
-        <div className="sech" style={{ margin: 0 }}><h2 id={t('taches')}>Tâches</h2><span className="faint" style={{ fontSize: '12.5px' }}>Les générations de ce projet et leur état réel · rien n’est relancé d’ici</span></div>
+        <div className="sech" style={{ margin: 0 }}><h2 id={t('taches')}>Tâches</h2><span className="faint" style={{ fontSize: '12.5px' }}>Les générations de ce projet et leur état réel · rien n’est relancé d’ici</span>
+          {/* Lot 10 (PC F14) · le journal du projet, onglet Activité · qui a lancé, ce qui a fini, ce qui a été exporté. */}
+          {p.journal && <a className="btn sm" href="#activite" data-voir-journal="" style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', marginLeft: 'auto' }}><Ic n="text" />Voir le journal</a>}
+        </div>
         {(() => { const b = bandeauTachesInterrompues((p.taches ?? []).filter((t) => t.interrompue).length); return b && <div className="banner" role="alert" data-bandeau="interrompues" style={{ margin: '10px 0 0' }}><Ic n="warn" /><span>{b}</span></div>; })()}
         {p.erreurTaches ? <Message ton="err">{p.erreurTaches}</Message> : !p.taches || p.taches.length === 0 ? (
           <p className="muted" style={{ fontSize: '12.5px', marginTop: 10 }}>Aucune tâche lancée pour ce projet.</p>

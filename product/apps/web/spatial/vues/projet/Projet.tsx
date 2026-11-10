@@ -9,6 +9,7 @@ import { PanneauJarvis } from './PanneauJarvis';
 import { CanvasLibre } from './CanvasLibre';
 import { OngletBrief } from './OngletBrief';
 import { OngletCreations } from './OngletCreations';
+import { OngletActivite } from './OngletActivite';
 import type { OngletProjet, PropsProjet } from './types';
 
 /**
@@ -43,7 +44,10 @@ const ONGLETS: ReadonlyArray<{ cle: OngletProjet; libelle: string }> = [
   { cle: 'crea', libelle: 'Créations' },
 ];
 
-const ANCRES: Record<string, OngletProjet> = { '#brief': 'brief', '#propositions': 'brief', '#canvas': 'canvas', '#creations': 'crea', '#variantes': 'crea', '#taches': 'crea' };
+const ANCRES: Record<string, OngletProjet> = { '#brief': 'brief', '#propositions': 'brief', '#canvas': 'canvas', '#creations': 'crea', '#variantes': 'crea', '#taches': 'crea', '#activite': 'activite', '#journal': 'activite', '#commentaires': 'activite' };
+
+/** Lot 10 · quatrième onglet, HORS maquette · offert seulement quand la page a lu l'activité (`p.activite`). */
+const ONGLET_ACTIVITE = { cle: 'activite' as const, libelle: 'Activité' };
 
 export function Projet(p: PropsProjet) {
   const [onglet, setOnglet] = useState<OngletProjet>(p.ongletInitial ?? 'canvas');
@@ -61,13 +65,14 @@ export function Projet(p: PropsProjet) {
     try { window.history.replaceState(window.history.state, '', `${window.location.pathname}${rechercheDisposition(window.location.search, mode)}${window.location.hash}`); } catch { /* navigateur sans historique */ }
   };
 
-  // Une ancre (lien de tâche, retour de l'atelier) ouvre l'onglet qui la porte.
+  // Une ancre (lien de tâche, retour de l'atelier, « Voir le journal ») ouvre l'onglet qui la porte.
+  const aActivite = !!p.activite;
   useEffect(() => {
-    const lire = () => { const o = ANCRES[window.location.hash]; if (o) setOnglet(o); };
+    const lire = () => { const o = ANCRES[window.location.hash]; if (o && (o !== 'activite' || aActivite)) setOnglet(o); };
     lire();
     window.addEventListener('hashchange', lire);
     return () => window.removeEventListener('hashchange', lire);
-  }, []);
+  }, [aActivite]);
 
   const repli = useMemo(() => repliPossible(p.couloirs), [p.couloirs]);
   const id = useId();
@@ -86,7 +91,7 @@ export function Projet(p: PropsProjet) {
       <EnTete titre={p.projet.titre} sous={p.projet.sousTitre} />
       <div className="wshead">
         <div className="seg" role="group" aria-label="Vue du projet">
-          {ONGLETS.map((o) => (
+          {(p.activite ? [...ONGLETS, ONGLET_ACTIVITE] : ONGLETS).map((o) => (
             <button key={o.cle} type="button" data-ptab={o.cle} aria-pressed={onglet === o.cle} onClick={() => setOnglet(o.cle)}>{o.libelle}</button>
           ))}
         </div>
@@ -154,6 +159,7 @@ export function Projet(p: PropsProjet) {
 
       {onglet === 'brief' && <OngletBrief {...p.brief} cibleJarvis={cibleJarvis} />}
       {onglet === 'crea' && <OngletCreations {...p.creations} />}
+      {onglet === 'activite' && p.activite && <OngletActivite {...p.activite} />}
     </Vue>
   );
 }
