@@ -121,7 +121,9 @@ export interface FaitsGestesJarvis {
   lot: { id: string; etat: EtatLotSpatial; ads: readonly FaitsAdSpatial[] } | null;
 }
 
-const gagnante = (a: FaitsAdSpatial) => !!a.verdict && a.verdict.statut === 'validated' && estGagnanteValidee(a.verdict.retenu, a.verdict.comparable);
+/** Une gagnante ARBITRÉE (verdict validé, gagnant, comparable) · la règle des gestes « Créer l'itération » et des raccourcis d'un lot (lot 13 bis). */
+export const gagnanteArbitree = (a: FaitsAdSpatial) => !!a.verdict && a.verdict.statut === 'validated' && estGagnanteValidee(a.verdict.retenu, a.verdict.comparable);
+const gagnante = gagnanteArbitree;
 
 /** Les deux gestes d'un contexte lot ou hypothèse · `null` pour un autre contexte (aucun geste). */
 export function gestesContexteJarvis(f: FaitsGestesJarvis): { iterer: GesteJarvis; conclure: GesteJarvis } | null {

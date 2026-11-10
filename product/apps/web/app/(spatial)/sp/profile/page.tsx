@@ -5,6 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import { MOT_DE_PASSE_MIN, RACCOURCIS_COOKIE, liensAccesProfil, messagesRetourProfil, raccourcisActifsDepuisCookie, THEME_COOKIE, preferenceDepuisCookie } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { PLAN_LABEL, ROLE_LABEL, roleAtLeast } from '../../../../lib/rbac';
+import { RAIL_COOKIE, railCollapsedFromCookie } from '../../../../lib/rail-preference';
 import { isFounder } from '../../../../lib/founder';
 import { changePasswordAction, saveProfileAction } from '../../../actions/admin';
 import { Profil } from '../../../../spatial/vues/reglages/Profil';
@@ -37,6 +38,7 @@ export default async function ProfilSpatial() {
       retours={messagesRetourProfil()}
       theme={preferenceDepuisCookie((await cookies()).get(THEME_COOKIE)?.value)}
       raccourcis={raccourcisActifsDepuisCookie((await cookies()).get(RACCOURCIS_COOKIE)?.value)}
+      menuCompact={railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value)}
     />
   );
 }

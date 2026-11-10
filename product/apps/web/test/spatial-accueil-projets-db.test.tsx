@@ -57,6 +57,8 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
+// Lot 13 bis · la page lit la préférence `tt_raccourcis` (astuce « ? ») · aucun cookie ici, raccourcis actifs.
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, getAll: () => [], has: () => false }), headers: async () => new Headers() }));
 vi.mock('../app/actions/assistant', () => ({ askAssistant: async () => ({}) }));
 // La panne de lecture · l'action RÉELLE, sauf quand le test la fait tomber.
 vi.mock('../app/actions/studios/sources', async (importOriginal) => {

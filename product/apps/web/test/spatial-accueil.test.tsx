@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  PASTILLES_JARVIS_ACCUEIL, raccourcisAccueil, periodeReporting, syntheseReporting, choixRapidesPeriode,
+  PASTILLES_JARVIS_ACCUEIL, raccourcisAccueil, astuceRaccourcisAccueil, periodeReporting, syntheseReporting, choixRapidesPeriode,
   type CarteConfiguration, type CarteQuoiIterer, type EtapeBoucleAccueil, type JourneeMesuree,
 } from '@tiktrends/core';
 import { parite, squelette, fragmentReference, type CorrectifParite } from './spatial/parite';
@@ -245,5 +245,67 @@ describe('Spatial · Accueil · la carte de configuration se déplie sur les ét
     expect(hote.querySelector('.cfgm')?.textContent).toBe('Masquer les étapes terminées');
     await act(async () => racine.unmount());
     hote.remove();
+  });
+});
+
+describe('Accueil · les indicateurs ne touchent pas « À faire maintenant »', () => {
+  // Constat du propriétaire (capture) · les bordures des tuiles et de la barre se chevauchaient · mesuré dans
+  // Chromium sur la feuille de la maquette · bas des tuiles = haut de la barre (166 px = 166 px), aucun écart.
+  const KPI = [
+    { cle: 'projets', libelle: 'Projets actifs', valeur: '3', detail: 'dans les marques de ta portée', periode: 'à ce jour', source: 's', href: '/studio/projets' },
+    { cle: 'sauvegardees', libelle: 'Créatives sauvegardées', valeur: '0', detail: 'aucune collection', periode: 'au total', source: 's', href: '/saved' },
+  ] as unknown as NonNullable<PropsAccueil['kpi']>;
+  it('la section des indicateurs déclare un écart sous elle, juste avant la barre', () => {
+    const t = document.createElement('template');
+    t.innerHTML = rendre(<Accueil {...PROPS} kpi={KPI} />);
+    const sec = t.content.querySelector<HTMLElement>('section[data-section="kpi"]');
+    expect(sec, 'la section des indicateurs n’est pas rendue').toBeTruthy();
+    expect(sec!.nextElementSibling?.classList.contains('nowbar'), 'la barre « À faire maintenant » ne suit plus les indicateurs · revoir ce test').toBe(true);
+    const ecart = Number.parseFloat(sec!.style.marginBottom || '0');
+    expect(ecart, 'aucun écart entre les tuiles et la barre · leurs bordures se touchent').toBeGreaterThanOrEqual(12);
+  });
+});
+
+/**
+ * Lot 13 bis (CA G29) · « Astuce · ? » · seul ajout HORS maquette de l'Accueil,
+ * étroitement déclaré · UN bloc `[data-astuce-raccourcis]`, juste après la
+ * rangée des raccourcis (`nav.qrow`) · on le retire, et seulement lui, avant
+ * la parité · deux astuces, ou une astuce ailleurs, la font tomber.
+ */
+function sansAstuce(html: string): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const a = t.content.querySelectorAll('[data-astuce-raccourcis]');
+  const avant = a[0]?.previousElementSibling;
+  if (a.length !== 1 || avant?.tagName !== 'NAV' || !avant.classList.contains('qrow')) return html;
+  a[0]!.remove();
+  return t.innerHTML;
+}
+
+describe('Spatial · Accueil · lot 13 bis · l’astuce « ? » est le seul écart, étroitement déclaré', () => {
+  it('avec l’astuce · la parité tient une fois ELLE SEULE retirée · la touche vient de la table', () => {
+    const html = rendre(<Accueil {...PROPS} astuce={astuceRaccourcisAccueil(true)} />);
+    expect(html).toContain('data-astuce-raccourcis');
+    expect(html).toMatch(/Astuce · tape <kbd[^>]*>\?<\/kbd> hors d’un champ/);
+    const p = parite(sansAstuce(html), 'accueil', { ignorer: IGNORER, correctifs: CORRECTIFS_ACCUEIL });
+    expect(p.rendu).toEqual(p.reference);
+  });
+  it('l’écart déclaré ne couvre rien d’autre · deux astuces, ou une astuce hors de sa place, font tomber la parité', () => {
+    const html = rendre(<Accueil {...PROPS} astuce={astuceRaccourcisAccueil(true)} />);
+    const ref = parite(html, 'accueil', { ignorer: IGNORER, correctifs: CORRECTIFS_ACCUEIL }).reference;
+    const bloc = /<div data-astuce-raccourcis[^]*?<\/button><\/div>/.exec(html)![0];
+    const sq = (x: string) => squelette(sansAstuce(x), { ignorer: IGNORER });
+    expect(sq(html.replace(bloc, bloc + bloc)), 'deux astuces').not.toEqual(ref);
+    expect(html.indexOf('class="tile nowbar"'), 'préalable · la barre « À faire maintenant »').toBeGreaterThan(0);
+    expect(sq(html.replace(bloc, '').replace(/<a([^>]*)class="tile nowbar"/, `${bloc}<a$1class="tile nowbar"`)), 'une astuce hors de sa place').not.toEqual(ref);
+  });
+  it('raccourcis coupés (tt_raccourcis) · aucune touche promise, le bouton de l’aide reste · sans astuce, rien n’est ajouté', () => {
+    const coupe = rendre(<Accueil {...PROPS} astuce={astuceRaccourcisAccueil(false)} />);
+    const bloc = (html: string) => { const t = document.createElement('template'); t.innerHTML = html; return t.content.querySelector('[data-astuce-raccourcis]')!; };
+    expect(bloc(coupe).textContent).toContain('les raccourcis à une touche sont coupés');
+    expect(bloc(coupe).querySelector('kbd'), 'une touche coupée est promise').toBeNull();
+    expect(bloc(coupe).querySelector('button[data-ouvrir-raccourcis]')?.textContent).toBe('Voir les raccourcis');
+    expect(bloc(rendre(<Accueil {...PROPS} astuce={astuceRaccourcisAccueil(true)} />)).querySelector('kbd')?.textContent).toBe('?');
+    expect(rendre(<Accueil {...PROPS} />)).not.toContain('data-astuce-raccourcis');
   });
 });

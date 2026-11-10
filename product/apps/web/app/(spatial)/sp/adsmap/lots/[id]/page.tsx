@@ -5,7 +5,7 @@ import {
   entreesLecturePersonas, lecturePersonas, libelleAttribution, regleLecturePersonas,
   entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
-  accesHypothese, gestesLectureGroupe, noteDepartLectureOffre,
+  accesHypothese, gestesLectureGroupe, noteDepartLectureOffre, gagnanteArbitree, gestesClavierLot,
 } from '@tiktrends/core';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { iterationPlanAction } from '../../../../../actions/adsmap-iterate';
@@ -16,6 +16,7 @@ import { batchDetailAction } from '../../../../../actions/adsmap-batch';
 import { Lot } from '../../../../../../spatial/vues/resultats/Lot';
 import { ActionsLot, DupliquerLot, type PropsActionsLot } from '../../../../../../spatial/vues/resultats/ActionsLot';
 import { RefusResultats } from '../../../../../../spatial/vues/resultats/communs';
+import { RaccourcisLot } from '../../../../../../spatial/vues/resultats/RaccourcisLot';
 import { chargerLots, gardeResultats } from '../../donnees';
 
 export const dynamic = 'force-dynamic';
@@ -56,7 +57,8 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   // retenues sont celles que l'écran Itérer proposera, sélectionnables (`choixIterationSpatial`, la même règle).
   const detaches = lecture.groupes.filter((x) => duLot.has(x.persona.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
   const offresDetachees = lectureO.groupes.some((x) => offresDuLot.has(x.ref.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
-  const planIds = detaches.length || offresDetachees
+  // Lot 13 bis · la touche T (Itérer depuis la gagnante) lit le même plan, dès que le lot a une gagnante arbitrée.
+  const planIds = detaches.length || offresDetachees || l.ads.some(gagnanteArbitree)
     ? new Set(choixIterationSpatial((await iterationPlanAction()).view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
     : new Set<string>();
   const testsDe = (ads: readonly { id: string }[], personaId: string) => ads.filter((a) => attribution(a.id)?.persona?.id === personaId).map((a) => a.id);
@@ -75,6 +77,8 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const syn = syntheseLot(l, d.config.targetCpa);
   const barres = barresCpa(l.ads);
   const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
+  // Lot 13 bis · ce que C et T ouvrent (une navigation) · fermé, la raison du geste.
+  const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds });
 
   let actions: PropsActionsLot | null = null;
   if (g.admin && (pres.etat === 'composition' || pres.etat === 'pret')) {
@@ -141,6 +145,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
       }}
       jarvis={(() => { const href = g.jarvis ? lienJarvisContexte('lot', l.id) : null; return href ? { href } : null; })()}
       actions={<>
+        <RaccourcisLot conclure={clavier.conclure} iterer={clavier.iterer} />
         {actions && <ActionsLot {...actions} />}
         <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
       </>}
