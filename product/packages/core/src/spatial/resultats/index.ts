@@ -8,3 +8,4 @@ export * from './apprentissage-suite';
 export * from './lecture-personas';
 export * from './boucle-preuve';
 export * from './lecture-offres';
+export * from './cible-test';

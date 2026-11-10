@@ -304,13 +304,13 @@ describe('fiche offre · « Dans les tests » · chaque offre, ses lots, sa lect
     expect(f.querySelector<HTMLTextAreaElement>('textarea[name="parceQue"]')!.value).toBe('ses variantes gagnent nettement plus souvent que le reste de la marque (6 sur 6 contre 2 sur 12)');
     expect(f.querySelector<HTMLTextAreaElement>('textarea[name="alors"]')!.value, 'un résultat attendu inventé').toBe('');
     expect(f.querySelector<HTMLSelectElement>('select[name="variable"]')!.value).toBe('offer');
-    expect(f.textContent).toContain('provenance « À la main »');
+    expect(f.textContent).toContain('provenance « Offre »');
     expect(await traces(), 'ouvrir le formulaire a écrit').toEqual(avant);
     await saisir(f.querySelector('textarea[name="alors"]'), 'le taux de conversion monte');
     await ranger(f, avant.ads);
     expect((await traces()).ads - avant.ads, 'l’hypothèse n’est pas créée').toBe(1);
     const [neuve] = await db.select().from(schema.ads).where(and(eq(schema.ads.workspaceId, ids.wsA), eq(schema.ads.status, 'draft'))).orderBy(desc(schema.ads.createdAt)).limit(1);
-    expect([lireOrigineHypothese(neuve!.sourceRef)?.type, neuve!.testedVariable], 'l’hypothèse née de l’offre n’est pas « à la main », variable offre').toEqual(['libre', 'offer']);
+    expect([lireOrigineHypothese(neuve!.sourceRef), neuve!.testedVariable], 'l’hypothèse née de l’offre n’a pas la provenance « Offre », variable offre').toEqual([{ type: 'offre', offre: 'Remise de bienvenue', offreId: O.remise }, 'offer']);
     expect(neuve!.hypothesis).toMatch(/^Si on met l’offre « Remise de bienvenue » dans nos prochaines créas, alors le taux de conversion monte/);
   });
 });

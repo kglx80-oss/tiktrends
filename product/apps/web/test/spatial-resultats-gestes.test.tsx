@@ -429,6 +429,25 @@ describe('Spatial · Résultats · comportements repris de l’ancienne Adsmap',
       resultat={{ type: 'vide', texte: 'x', prochaine: null }} />)).not.toContain('Retour aux Studios');
   });
 
+  /**
+   * La fiche d'un test n'a pas d'écran dans la maquette · écart DÉCLARÉ et gardé ·
+   * « Pour qui · quelle offre » (`CibleTest`) est UNE section, posée juste après
+   * « Hypothèse et apprentissages » et avant les gestes de la fiche · absente des
+   * props, rien n'est ajouté.
+   */
+  it('« Pour qui · quelle offre » · une section, juste après « Hypothèse et apprentissages », seulement si la page la passe', () => {
+    const cote = (groupe: 'persona' | 'offre') => ({ groupe, id: null, libelle: 'l', desaccord: true, lecture: null, phrase: 'p', gestes: null, silence: null, regle: 'r' });
+    const props = { titre: 't', sous: 's', provenance: null, retour: null, hypothese: null, arbitre: null, apprentissages: [], filiation: { parent: null, enfants: [] }, resultat: { type: 'vide' as const, texte: 'x', prochaine: null } };
+    const t = document.createElement('template');
+    t.innerHTML = rendre(<FicheTest {...props} cible={{ persona: cote('persona'), offre: cote('offre'), raisonHypothese: null }} actions={<div data-actions-fiche="" />} />);
+    const s = [...t.content.querySelectorAll('[aria-label="Pour qui · quelle offre · ce test"]')];
+    expect(s, 'la section n’est pas rendue une fois').toHaveLength(1);
+    expect(s[0]!.previousElementSibling?.getAttribute('aria-label'), 'la section doit suivre « Hypothèse et apprentissages »').toBe('Hypothèse et apprentissages');
+    expect(s[0]!.nextElementSibling?.hasAttribute('data-actions-fiche'), 'les gestes de la fiche suivent la section').toBe(true);
+    expect([...s[0]!.querySelectorAll('[data-a-trancher]')].map((x) => x.getAttribute('data-cible-test'))).toEqual(['persona', 'offre']);
+    expect(rendre(<FicheTest {...props} />), 'la section est ajoutée sans que la page la passe').not.toContain('Pour qui · quelle offre');
+  });
+
   it('table · un test sans verdict s’ouvre, il ne s’« arbitre » pas', () => {
     const html = rendre(<Tests sousNav={NAV} sous="s" lots={[]} filtres={{}} lignes={[ligne({ verdict: null, verdictStatus: null })]} erreur={null} reperes={reperesTests([])} admin />);
     expect(html).toMatch(/>Ouvrir<\/a>/);
