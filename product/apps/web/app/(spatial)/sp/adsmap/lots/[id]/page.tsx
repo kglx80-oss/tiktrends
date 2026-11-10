@@ -5,7 +5,9 @@ import {
   entreesLecturePersonas, lecturePersonas, libelleAttribution, regleLecturePersonas,
   entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
+  accesHypothese, gestesLectureGroupe, noteDepartLectureOffre,
 } from '@tiktrends/core';
+import { roleAtLeast } from '../../../../../../lib/rbac';
 import { iterationPlanAction } from '../../../../../actions/adsmap-iterate';
 import { personasEtTests } from '../../../../../../lib/personas-tests';
 import { offresEtTests } from '../../../../../../lib/offres-tests';
@@ -46,20 +48,28 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const attribution = (adId: string) => pt.parAd.get(adId) ?? null;
   const lecture = lecturePersonas(entreesLecturePersonas(d.lots, (adId) => attribution(adId)?.persona ?? null), pt.personas);
   const duLot = new Set(l.ads.map((a) => attribution(a.id)?.persona?.id).filter((x): x is string => !!x));
-  // VB P06 · les gestes d'un persona du lot qui SE DÉTACHE · le plan d'itération n'est lu que dans ce cas · les pubs
+  // Lot 9 bis · l'offre de chaque variante (test ou brief, jamais fusionnés) et la lecture par offre de TOUTE la marque (même règle).
+  const offreDe = (adId: string) => ot.parAd.get(adId) ?? null;
+  const lectureO = lectureOffres(entreesLectureOffres(d.lots, (adId) => offreDe(adId)?.offre ?? null), ot.offres);
+  const offresDuLot = new Set(l.ads.map((a) => offreDe(a.id)?.offre?.id).filter((x): x is string => !!x));
+  // VB P06 · les gestes d'un persona OU d'une offre du lot qui SE DÉTACHE · le plan d'itération n'est lu que dans ce cas · les pubs
   // retenues sont celles que l'écran Itérer proposera, sélectionnables (`choixIterationSpatial`, la même règle).
   const detaches = lecture.groupes.filter((x) => duLot.has(x.persona.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
-  const planIds = detaches.length
+  const offresDetachees = lectureO.groupes.some((x) => offresDuLot.has(x.ref.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
+  const planIds = detaches.length || offresDetachees
     ? new Set(choixIterationSpatial((await iterationPlanAction()).view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
     : new Set<string>();
   const testsDe = (ads: readonly { id: string }[], personaId: string) => ads.filter((a) => attribution(a.id)?.persona?.id === personaId).map((a) => a.id);
   const gestes = (x: (typeof lecture.groupes)[number]) => gestesPersonaLot(x, {
     numeroLot: l.numero, testsDuLot: testsDe(l.ads, x.persona.id), testsDeLaMarque: testsDe(d.lots.flatMap((y) => y.ads), x.persona.id), planIds,
   });
-  // Lot 9 bis · l'offre de chaque variante (test ou brief, jamais fusionnés) et la lecture par offre de TOUTE la marque (même règle).
-  const offreDe = (adId: string) => ot.parAd.get(adId) ?? null;
-  const lectureO = lectureOffres(entreesLectureOffres(d.lots, (adId) => offreDe(adId)?.offre ?? null), ot.offres);
-  const offresDuLot = new Set(l.ads.map((a) => offreDe(a.id)?.offre?.id).filter((x): x is string => !!x));
+  // Les gestes d'une offre du lot qui se détache · la règle et la brique des personas (`gestesLectureGroupe`) · source « offre »,
+  // relue par le serveur dans la marque active · rien n'est écrit sans le clic.
+  const testsDeLOffre = (ads: readonly { id: string }[], offreId: string) => ads.filter((a) => offreDe(a.id)?.offre?.id === offreId).map((a) => a.id);
+  const gestesOffre = (x: (typeof lectureO.groupes)[number]) => gestesLectureGroupe({ ref: x.ref, lecture: x.lecture, k: x.k, n: x.n, reference: x.reference }, {
+    groupe: 'offre', note: noteDepartLectureOffre(l.numero), prioritaires: testsDeLOffre(l.ads, x.ref.id), testsDeLaMarque: testsDeLOffre(d.lots.flatMap((y) => y.ads), x.ref.id), planIds,
+  });
+  const hypothese = accesHypothese({ adsmap: roleAtLeast(g.s.role, 'member') ? 'ok' : 'role', marqueActive: true });
 
   const pres = presentationLot(l, d.ctx);
   const syn = syntheseLot(l, d.config.targetCpa);
@@ -125,8 +135,9 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
           const at = offreDe(a.id);
           return { id: a.id, variante: a.variante, offreId: at?.offre?.id ?? null, desaccord: !!at?.desaccord, libelle: at ? libelleAttributionOffre(at) : SANS_OFFRE_TEST };
         }),
-        groupes: lectureO.groupes.filter((x) => offresDuLot.has(x.ref.id)).map((x) => ({ id: x.ref.id, nom: x.ref.nom, lecture: x.lecture, phrase: x.phrase })),
-        parle: lectureO.parle, phrase: lectureO.phrase, regle: regleLectureOffres(),
+        groupes: lectureO.groupes.filter((x) => offresDuLot.has(x.ref.id)).map((x) => ({ id: x.ref.id, nom: x.ref.nom, lecture: x.lecture, phrase: x.phrase, gestes: gestesOffre(x) })),
+        parle: lectureO.parle, phrase: lectureO.phrase, regle: regleLectureOffres(), gestesLus: true,
+        raisonHypothese: hypothese.ouvert ? null : hypothese.raison,
       }}
       jarvis={(() => { const href = g.jarvis ? lienJarvisContexte('lot', l.id) : null; return href ? { href } : null; })()}
       actions={<>
