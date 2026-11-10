@@ -93,6 +93,10 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   // Régime V2 · le contrôle visuel se paie en crédits, non mesuré : décoché d'office (29/10).
   const [controleVision, setControleVision] = useState(regime !== 'v2');
   const operation = useRef(false);
+  // Le focus à replacer quand la vue relue sera RENDUE · le `setTimeout(0)` seul peut passer avant ce
+  // rendu (ordonnanceur de React) · il voit alors le bouton pressé encore là, puis le rendu le retire et
+  // le focus tombe sur `<body>`. L'effet ci-dessous rejoue le replacement après chaque rendu de la vue.
+  const focusApresVue = useRef<string[] | null>(null);
   const controles = useRef(new Set<string>());
 
   const charger = useCallback(async () => {
@@ -105,6 +109,12 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
   }, [projectId]);
 
   useEffect(() => { if (!initial) void charger(); }, [charger, versionId, initial]);
+  useEffect(() => {
+    const cibles = focusApresVue.current;
+    if (!cibles) return;
+    focusApresVue.current = null;
+    replacerFocus('si-perdu', ...cibles);
+  }, [vue]);
   useEffect(() => {
     if (vue && !mode) {
       const voulu = vue.enAttente?.mode ?? vue.retenue?.mode ?? 'generative_scene';
@@ -144,6 +154,7 @@ export function ParcoursImage({ projectId, versionId, initial = null }: { projec
       setRetour({ ton: 'err', texte: tentative ? MESSAGE_APPEL_PAYANT : 'Le serveur n’a pas répondu · rien n’a été confirmé. Recharge avant de réessayer.', horsLigne: true });
     } finally {
       setEnCours(null); await charger(); operation.current = false;
+      focusApresVue.current = apres(nom);
       replacerFocus('si-perdu', ...apres(nom));
     }
   }
