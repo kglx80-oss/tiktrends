@@ -71,7 +71,23 @@ export interface NoeudSpatial {
 
 export interface CibleJarvisNoeud { cible: string; libelle: string }
 
-export interface CouloirSpatial { cle: CleCouloir; titre: string; noeuds: NoeudSpatial[] }
+/**
+ * Un GROUPE de lot dans un couloir (lot 11 V5) · calculé par `grouperCouloirs`
+ * (`lignee-canvas.ts`), jamais saisi · `membres` sont des nœuds DU couloir.
+ * Un lot de production a pour premier membre son nœud « Lot » ; un lot de test
+ * n'a pas de nœud · son cadre porte l'en-tête (titre, statut, conclusion, lien).
+ */
+export interface GroupeCouloir {
+  id: string;
+  nature: 'production' | 'test';
+  etiquette: string;
+  titre: string;
+  texte: string;
+  lien: { href: string; libelle: string } | null;
+  membres: string[];
+}
+
+export interface CouloirSpatial { cle: CleCouloir; titre: string; noeuds: NoeudSpatial[]; groupes?: GroupeCouloir[] }
 
 const vide = (n: Partial<NoeudSpatial> & Pick<NoeudSpatial, 'id' | 'etiquette'>): NoeudSpatial => ({
   classe: '', apercu: null, titre: null, texte: null, phrase: null, barres: [], pied: null, pastille: null, lien: null, perdant: false, ...n,

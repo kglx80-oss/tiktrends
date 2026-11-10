@@ -1,4 +1,4 @@
-import type { IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest } from '@tiktrends/core';
+import type { IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, GrapheLibre, GroupeLignee, ModeDispositionProjet, ModeleCanvas, ModeleLignee, ProtocoleTest } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -203,4 +203,21 @@ export interface CanevasLibre {
   apercus: Record<string, string>;
   disposition: DispositionCanvas;
   rev: number;
+  /**
+   * Lot 11 V5 · la LIGNÉE du projet, second graphe du canvas libre (`?graphe=lignee`) ·
+   * mêmes positions personnelles (identifiants disjoints, `estIdLignee`). Absente
+   * (lignée illisible ou réduite à la marque) · le choix « Lignée » est fermé et dit pourquoi.
+   */
+  lignee?: LigneeLibre | null;
+  /** Le graphe lu dans l'adresse · la production par défaut. */
+  grapheInitial?: GrapheLibre;
+}
+
+/** La lignée prête pour le canvas libre · projection du noyau, groupes calculés, aperçus réels, écrans existants. */
+export interface LigneeLibre {
+  modele: ModeleLignee;
+  groupes: GroupeLignee[];
+  apercus: Record<string, string>;
+  /** L'écran d'un nœud quand le serveur le connaît mieux que la projection (fiche marque · admin seulement). */
+  destinations: Record<string, string | null>;
 }
