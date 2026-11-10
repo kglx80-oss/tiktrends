@@ -29,7 +29,10 @@ import { lienLotSpatial, type EtatLotSpatial, type FaitsLotSpatial } from './lot
  *     fiche offre (« Dans les tests »).
  *
  * Et la provenance « Jarvis » d'un test créé depuis un geste de Jarvis
- * (`provenanceJarvisAdmise`), lue à part dans le bilan.
+ * (`provenanceJarvisAdmise`), lue à part dans le bilan · et la provenance
+ * « Offre » d'une hypothèse créée depuis une offre qui se détache
+ * (`provenanceOffreAdmise`), posée seulement après relecture de l'offre dans la
+ * marque active.
  */
 
 /* ───────────────────────── 1 · le résultat d'une hypothèse ───────────────────────── */
@@ -99,6 +102,7 @@ export function provenanceCarte(o: OrigineHypotheseLibre, opts: { marqueId?: str
   if (o.type === 'tag' && o.cle) return { libelle, href: lienSauvegardesTag(o.cle), lien: `Voir les sauvegardes du tag « ${o.tag} »` };
   if (o.type === 'apprentissage') return { libelle, href: '/adsmap/apprentissages', lien: 'Voir les apprentissages' };
   if (o.type === 'persona' && opts.marqueId && /^[0-9a-f-]{36}$/i.test(opts.marqueId)) return { libelle, href: `/brands/${opts.marqueId}/personas`, lien: 'Voir les personas' };
+  if (o.type === 'offre' && opts.marqueId && /^[0-9a-f-]{36}$/i.test(opts.marqueId)) return { libelle, href: `/brands/${opts.marqueId}/offre`, lien: 'Voir les offres' };
   return { libelle, href: null, lien: null };
 }
 
@@ -113,24 +117,30 @@ export function provenanceCarte(o: OrigineHypotheseLibre, opts: { marqueId?: str
  * Itérer), sinon rien · un test sans provenance lue reste dans la référence, il
  * ne forme pas de groupe.
  */
-export type ProvenanceTest = 'tag' | 'veille' | 'apprentissage' | 'persona' | 'libre' | 'jarvis' | 'iteration';
+export type ProvenanceTest = 'tag' | 'veille' | 'apprentissage' | 'persona' | 'offre' | 'libre' | 'jarvis' | 'iteration';
 
 /**
- * L'ordre et les mots du bilan · sept provenances. La règle mesurée en lit au
- * plus six à la fois (`MAX_PERSONAS_LECTURE`) · si les sept ont assez de
- * verdicts pour parler, le bilan se tait et le dit (non mesuré au-delà).
+ * L'ordre et les mots du bilan · huit provenances. La règle mesurée en lit au
+ * plus six à la fois (`MAX_PERSONAS_LECTURE`) · si sept ou huit ont assez de
+ * verdicts pour parler, le bilan se tait et le dit (non mesuré au-delà). Une
+ * provenance sous l'effectif ne parle pas · ses verdicts restent dans le reste
+ * de la marque, exactement comme un test sans provenance (le U de la mesure) ·
+ * passer de sept à huit provenances ne change donc ni K (au plus six) ni la
+ * borne de U · aucun seuil à remesurer (voir le tableau plus bas).
  */
 export const PROVENANCES_TEST: ReadonlyArray<{ cle: ProvenanceTest; libelle: string }> = [
   { cle: 'tag', libelle: 'Tag de Veille récurrent' },
   { cle: 'veille', libelle: 'Pub de la Veille' },
   { cle: 'apprentissage', libelle: 'Apprentissage' },
   { cle: 'persona', libelle: 'Persona' },
+  { cle: 'offre', libelle: 'Offre' },
   { cle: 'libre', libelle: 'À la main' },
   { cle: 'jarvis', libelle: 'Geste de Jarvis' },
   { cle: 'iteration', libelle: 'Itération d’une gagnante' },
 ];
 
 export const NOTE_JARVIS_PROVENANCE = 'Une itération créée depuis une réponse de Jarvis compte dans « Geste de Jarvis » · seulement quand la réponse a été relue dans ta marque au moment de la créer · les autres comptent dans « Itération d’une gagnante ».';
+export const NOTE_OFFRE_PROVENANCE = 'Une hypothèse créée depuis une offre qui se détache compte dans « Offre » · seulement quand l’offre a été relue dans ta marque au moment de la créer · sinon elle compte « À la main ».';
 
 export function provenanceDuTest(t: { origine: OrigineHypotheseLibre | null | undefined; typeAd?: string | null; jarvis?: ProvenanceJarvis | null }): ProvenanceTest | null {
   if (t.origine) return t.origine.type;
@@ -190,6 +200,32 @@ export function provenanceJarvisAdmise(demande: ProvenanceJarvis | null, lu: { r
   return lu.adsDuContexte.some((id) => id.toLowerCase() === parent) ? demande : null;
 }
 
+/* ───────────────────────── la provenance « Offre » ───────────────────────── */
+
+const UUID_OFFRE = UUID_PROVENANCE;
+
+/**
+ * Ce que l'écran envoie pour une hypothèse née d'une offre, relu · l'identifiant
+ * seul (jamais l'intitulé, relu en base) · `null` dès qu'il est mal formé.
+ */
+export function lireDemandeProvenanceOffre(x: unknown): string | null {
+  if (!x || typeof x !== 'object') return null;
+  const id = (x as Record<string, unknown>).offreId;
+  return typeof id === 'string' && UUID_OFFRE.test(id) ? id.toLowerCase() : null;
+}
+
+/**
+ * La provenance d'une hypothèse née d'une offre · « Offre » SEULEMENT si l'offre
+ * demandée a été RELUE dans la marque active (espace ET marque, archivée
+ * comprise · elle a été diffusée) et que c'est bien elle · sinon l'hypothèse naît
+ * « À la main », sans rien dire de ce que l'adresse prétendait (une offre d'une
+ * autre marque n'existe pas ici).
+ */
+export function provenanceOffreAdmise(demande: string | null, lue: { id: string; intitule: string } | null): OrigineHypotheseLibre {
+  if (!demande || !lue || lue.id.toLowerCase() !== demande.toLowerCase()) return { type: 'libre' };
+  return { type: 'offre', offre: lue.intitule.replace(/\s+/g, ' ').trim().slice(0, 80) || 'Offre', offreId: lue.id };
+}
+
 const REF_PROVENANCE = new Map<ProvenanceTest, PersonaRef>(PROVENANCES_TEST.map((p) => [p.cle, { id: p.cle, nom: p.libelle }]));
 
 /** Les entrées du bilan · les variantes des lots SUIVIS (la même lecture que celle des personas), chacune avec sa provenance. */
@@ -237,6 +273,19 @@ export function entreesBilanProvenances(lots: readonly FaitsLotSpatial[], proven
  * `lecturePersonas` · une provenance ne parle que si `lecturePersonas` la
  * détache ET que ses intervalles restent disjoints au niveau mesuré ici.
  * Puissance faible (≈ 11 %) · attendu, le bilan se tait le plus souvent et le dit.
+ *
+ * ── Huit provenances (« Offre », « Dans les tests » · la suite) ─────────────
+ *
+ * La mesure porte sur K provenances QUI ONT LE DROIT DE PARLER (au plus six) et
+ * sur U verdicts hors d'elles. Une provenance sous l'effectif n'est pas lue ·
+ * ses verdicts sont dans le reste de la marque, au même titre qu'un test sans
+ * provenance (sous l'hypothèse nulle, tous au même taux) · ils comptent dans U,
+ * borné ici à 160. Ajouter une provenance au catalogue ne change donc ni K ni
+ * la borne de U · aucune nouvelle mesure n'est nécessaire, aucun seuil ne
+ * change · au-delà de six provenances qui parlent, le bilan se tait et le dit.
+ * Le test du noyau le vérifie · un bilan à huit provenances dont deux sous
+ * l'effectif rend exactement les mêmes intervalles qu'un bilan où ces deux-là
+ * n'auraient aucune provenance.
  */
 export const NIVEAU_BILAN_PROVENANCE = NIVEAU_LECTURE_PERSONA_NOMBREUX;
 /** Le niveau quand le reste hors provenances est gros · mesuré. */
@@ -281,7 +330,7 @@ export interface BilanProvenances {
 
 /** La règle, dite à l'écran sous le bilan · les seuils des modules, jamais recopiés. */
 export function regleBilanProvenances(): string {
-  return `Règle · une hypothèse gagne quand sa variante est tranchée gagnante au protocole · au moins ${MIN_VERDICTS_PERSONA} variantes tranchées pour une provenance et ${MIN_REFERENCE_PERSONA} dans le reste de la marque · l’intervalle de la provenance doit exclure celui du reste (niveau ${niveauFr(NIVEAU_BILAN_PROVENANCE)}, ${niveauFr(NIVEAU_BILAN_PROVENANCE_VOLUME)} au-delà de ${RESTE_MAX_NIVEAU_BILAN} variantes hors provenances, silence au-delà de ${RESTE_MAX_BILAN}).`;
+  return `Règle · une hypothèse gagne quand sa variante est tranchée gagnante au protocole · au moins ${MIN_VERDICTS_PERSONA} variantes tranchées pour une provenance et ${MIN_REFERENCE_PERSONA} dans le reste de la marque · l’intervalle de la provenance doit exclure celui du reste (niveau ${niveauFr(NIVEAU_BILAN_PROVENANCE)}, ${niveauFr(NIVEAU_BILAN_PROVENANCE_VOLUME)} au-delà de ${RESTE_MAX_NIVEAU_BILAN} variantes hors provenances, silence au-delà de ${RESTE_MAX_BILAN}) · ${PROVENANCES_TEST.length} provenances, ${MAX_PERSONAS_LECTURE} lues au plus à la fois, silence au-delà.`;
 }
 
 /**
@@ -374,11 +423,11 @@ export interface GestesPersona {
 export type GroupeGestes = 'persona' | 'offre';
 
 /**
- * D'où part l'hypothèse du geste · un persona est une provenance (relu dans la
- * marque active par `creerHypotheseAction`) · une offre n'en a pas à elle,
- * l'hypothèse est « à la main », la note le dit.
+ * D'où part l'hypothèse du geste · un persona et une offre sont des provenances,
+ * relues dans la marque active par `creerHypotheseAction` (un persona d'ailleurs
+ * est refusé · une offre d'ailleurs ne pose aucune provenance, `provenanceOffreAdmise`).
  */
-export type SourceGesteHypothese = { type: 'persona'; personaId: string } | { type: 'libre' };
+export type SourceGesteHypothese = { type: 'persona'; personaId: string } | { type: 'offre'; offreId: string } | { type: 'libre' };
 
 export interface GestesLecture {
   groupe: GroupeGestes;
@@ -391,7 +440,9 @@ export interface GestesLecture {
 
 export const RAISON_ITERER_OFFRE_SANS_GAGNANTE = 'Aucune gagnante arbitrée de cette offre dans le plan d’itération · Itérer part d’une pub gagnante.';
 export const NOTE_GESTES_FICHE_PERSONA = 'Source · la lecture par persona de la marque. Le « parce que » cite ses verdicts · le reste s’écrit, l’hypothèse entre dans « À formuler ».';
-export const NOTE_GESTES_FICHE_OFFRE = 'Source · la lecture par offre de la marque. Le « parce que » cite ses verdicts · le reste s’écrit, l’hypothèse entre dans « À formuler », provenance « À la main » (une offre n’a pas de provenance à elle).';
+export const NOTE_GESTES_FICHE_OFFRE = 'Source · la lecture par offre de la marque. Le « parce que » cite ses verdicts · le reste s’écrit, l’hypothèse entre dans « À formuler », provenance « Offre ».';
+export const noteDepartLectureOffre = (numero: number) => `Source · la lecture par offre du lot #${numero}. Le « parce que » cite ses verdicts · le reste s’écrit, l’hypothèse entre dans « À formuler », provenance « Offre ».`;
+export const NOTE_GESTES_OFFRE_SILENCE = 'Aucune offre de ce lot ne se détache · ni itération ni hypothèse à proposer depuis cette lecture.';
 export const noteGestesSilenceFiche = (ce: string) => `${ce} ne se détache pas du reste de la marque · ni itération ni hypothèse à proposer depuis cette lecture.`;
 
 /**
@@ -433,7 +484,7 @@ export function gestesLectureGroupe(
     hypothese: {
       depart: persona ? departDepuisLecturePersona(faits) : departDepuisLectureOffre(faits),
       note: o.note,
-      source: persona ? { type: 'persona', personaId: g.ref.id } : { type: 'libre' },
+      source: persona ? { type: 'persona', personaId: g.ref.id } : { type: 'offre', offreId: g.ref.id },
     },
   };
 }

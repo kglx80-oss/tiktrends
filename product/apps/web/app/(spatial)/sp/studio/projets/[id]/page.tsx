@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { REFUS_GESTE_JARVIS, lienJarvisContexte, lireGesteEssaiJarvis, modeDisposition, preparationTesterJarvis, segmentReserveProjets, variablesRattachement, type PreparationTesterJarvis } from '@tiktrends/core';
+import { REFUS_GESTE_JARVIS, lienJarvisContexte, lireGesteEssaiJarvis, modeDisposition, modeGraphe, preparationTesterJarvis, segmentReserveProjets, variablesRattachement, type PreparationTesterJarvis } from '@tiktrends/core';
 import { lireGesteEssaiPourProjet } from '../../../../../../lib/jarvis-gestes';
 import { getSession } from '../../../../../../lib/auth';
 import { Projet } from '../../../../../../spatial/vues/projet/Projet';
@@ -13,7 +13,8 @@ export const dynamic = 'force-dynamic';
  * Mêmes gardes que la page V5 · session, garde studio (rôle, formule,
  * capacité « projets »), portée marque. `?version=<id>` ouvre une version
  * antérieure en lecture seule. `?disposition=libre` ouvre le canvas en
- * disposition libre (les couloirs restent le défaut). Hors portée ou inconnu ·
+ * disposition libre (les couloirs restent le défaut) · `&graphe=lignee` y montre
+ * la lignée du projet au lieu du graphe de production (lot 11). Hors portée ou inconnu ·
  * la même page neutre.
  *
  * Lot 5 quater (RJ G07) · `?geste=tester&reponse=<uuid>&contexte=…&id=…` ·
@@ -48,8 +49,10 @@ export default async function ProjetSpatial({ params, searchParams }: { params: 
     // La variante pré-remplie est une de CELLES que cette page a lues · sinon rien (aucune autre source ne choisit pour elle).
     tester = p.varianteId && !variantes.some((x) => x.id === p.varianteId) ? refus : p;
   }
+  // Lot 11 · le graphe du canvas libre lu dans l'adresse (production par défaut) · rien n'est écrit.
+  const libre = r.props.libre?.ok ? { ok: true as const, canvas: { ...r.props.libre.canvas, grapheInitial: modeGraphe(sp.graphe) } } : r.props.libre;
   return (
-    <Projet {...r.props} dispositionInitiale={modeDisposition(typeof sp.disposition === 'string' ? sp.disposition : undefined)} demanderJarvis={jarvis ? { href: jarvis } : null}
+    <Projet {...r.props} libre={libre} dispositionInitiale={modeDisposition(typeof sp.disposition === 'string' ? sp.disposition : undefined)} demanderJarvis={jarvis ? { href: jarvis } : null}
       {...(tester ? { ongletInitial: 'crea' as const, creations: { ...r.props.creations, jarvis: tester } } : {})} />
   );
 }

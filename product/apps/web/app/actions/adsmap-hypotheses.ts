@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { db, schema } from '@tiktrends/db';
 import {
   inferMechanism, refOrigineHypothese, validerSaisieHypothese, cleTag, propositionHypotheseTag, REFUS_TAG_NON_RECURRENT, LONGUEUR_MAX_TAG,
+  lireDemandeProvenanceOffre, provenanceOffreAdmise,
   type OrigineHypotheseLibre, type SaisieHypotheseLibre,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
@@ -53,9 +54,16 @@ export type SourceHypothese =
   | { type: 'persona'; personaId: string; accroche?: string | null }
   | { type: 'apprentissage'; learningId: string }
   /** Lot 6 bis · un tag de Veille RÉCURRENT de la marque active (sa clé) · ses sauvegardes deviennent les preuves citées. */
-  | { type: 'tag'; cle: string };
+  | { type: 'tag'; cle: string }
+  /**
+   * Une offre qui se détache (« Itérer sur cette offre » / « Créer une hypothèse ») ·
+   * l'offre est RELUE dans la marque active (espace ET marque) · retrouvée, la
+   * provenance « Offre » est posée · sinon l'hypothèse naît « À la main », sans
+   * rien dire de ce que l'adresse prétendait (`provenanceOffreAdmise`, noyau).
+   */
+  | { type: 'offre'; offreId: string };
 
-export interface ResultatHypothese { ok?: true; adId?: string; error?: string }
+export interface ResultatHypothese { ok?: true; adId?: string; error?: string; /** La provenance posée · ce que le serveur a relu, jamais ce que l'écran demandait. */ provenance?: OrigineHypotheseLibre['type'] }
 
 /** Le chemin de rangement par défaut · provisoire, « proposé », que l'humain corrige (comme `ensureGraphPath`). */
 const DESIR_HYPOTHESES = 'À qualifier (hypothèses)';
@@ -133,6 +141,15 @@ export async function creerHypotheseAction(input: { source: SourceHypothese; sai
 
     if (!src || src.type === 'libre') {
       origine = { type: 'libre' };
+    } else if (src.type === 'offre') {
+      // L'offre est relue dans la marque ACTIVE (espace ET marque, archivée comprise · elle a été diffusée) ·
+      // une offre d'ailleurs, inconnue ou mal formée ne pose AUCUNE provenance · l'hypothèse naît « À la main ».
+      const demande = lireDemandeProvenanceOffre(src);
+      const [o] = demande
+        ? await db!.select({ id: schema.offers.id, intitule: schema.offers.label }).from(schema.offers)
+          .where(and(eq(schema.offers.id, demande), eq(schema.offers.brandId, brandId), eq(schema.offers.workspaceId, ws))).limit(1)
+        : [];
+      origine = provenanceOffreAdmise(demande, o ?? null);
     } else if (src.type === 'persona') {
       if (!estId(src.personaId)) return pas('Persona introuvable dans la marque active.');
       const [p] = await db!.select({ id: schema.personas.id, nom: schema.personas.name }).from(schema.personas)
@@ -186,7 +203,7 @@ export async function creerHypotheseAction(input: { source: SourceHypothese; sai
       ...champs, sourceRef: refOrigineHypothese(origine),
     }).returning({ id: schema.ads.id });
     if (!ad) return pas('La création n’a rien renvoyé.');
-    return fin(brandId, ad.id);
+    return { ...fin(brandId, ad.id), provenance: origine.type };
   } catch (e) {
     return pas(logAndTranslate('adsmap:hypothese-create', e, { subject: 'la création de l’hypothèse', workspaceId: g.s.workspaceId }));
   }

@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
   couloirsDepuisProjet, dateCourteUtc, detailTache, formatCreation, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, mentionAppelTexte, pastilleEnregistrement, relectureNecessaire,
-  iterationProjetDepuisVariantes, variantesEssaiProjet, noeudsIterationProjet, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
+  iterationProjetDepuisVariantes, variantesEssaiProjet, noeudsIterationProjet, groupesLignee, grouperCouloirs, conclusionLot, presentationLot, referenceConclusion, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
 import type { Session } from '../../../../../../lib/auth';
@@ -24,6 +24,7 @@ import { lireLigneeProjet } from '../../../../../actions/studios/lignee';
 import { lireCanvasProjet } from '../../../../../actions/studios/canvas';
 import { listerPropositions } from '../../../../../actions/studios/propositions';
 import { chatThreadAction } from '../../../../../actions/jarvis-chat';
+import { chargerLots, gardeResultats } from '../../../adsmap/donnees';
 import type { RaisonEtat } from '../../../../../../spatial/vues/projet/EtatProjet';
 import type { LotSpatial, PropsProjet, TacheSpatiale, VarianteSpatiale } from '../../../../../../spatial/vues/projet/types';
 
@@ -78,6 +79,28 @@ async function lireFiche(workspaceId: string, brandId: string) {
   return { nom: b.nom, score: c.score, ...resumeFicheMarque(b.nom, { score: c.score, ton: b.tone, couleurs: Number(b.colors), manques: c.manques }) };
 }
 
+/**
+ * Lot 11 V5 · les lots de TEST de la lignée (Adsmap) · leur conclusion (`conclusionLot`,
+ * contre les autres lots de la marque, la règle et les seuils de la fiche du lot) et le
+ * droit d'ouvrir leur fiche. Lus sous la garde des Résultats, pour la marque ACTIVE
+ * seulement quand c'est celle du projet · sinon le cadre ne dit que le statut, sans lien.
+ * Lecture seule, rien n'est écrit.
+ */
+async function lotsDeTest(brandId: string, lotIds: readonly string[]): Promise<{ ouverts: boolean; conclusions: Record<string, { titre: string; phrase: string }> }> {
+  if (lotIds.length === 0) return { ouverts: false, conclusions: {} };
+  const g = await gardeResultats();
+  if (!g.ok || g.marque.id !== brandId) return { ouverts: false, conclusions: {} };
+  const d = await chargerLots(g.s.workspaceId, brandId);
+  const conclusions: Record<string, { titre: string; phrase: string }> = {};
+  for (const id of lotIds) {
+    const l = d.lots.find((x) => x.id === id);
+    if (!l) continue;
+    const c = conclusionLot(l, presentationLot(l, d.ctx).etat, referenceConclusion(d.lots, l.id));
+    conclusions[id] = { titre: c.titre, phrase: c.phrase };
+  }
+  return { ouverts: true, conclusions };
+}
+
 export async function chargerProjet(s: Session, id: string, versionDemandee?: string): Promise<{ ok: true; props: PropsProjet } | { ok: false; raison: RaisonEtat }> {
   const r = await lireProjetDetail({ projectId: id, ...(versionDemandee ? { versionId: versionDemandee } : {}) });
   if (!r.ok) return { ok: false, raison: raisonDuRefus(r, s, 'Les projets du Studio') };
@@ -114,13 +137,15 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
 
   // ── Canvas · la lignée réelle, sinon ce que la fiche porte ───────────────
   const hypotheseVue = d.hypothese ? { enonce: d.hypothese.statement, mesure: d.hypothese.metric || null } : null;
-  const couloirsLus = lignee?.ok && lignee.lignee.lignee.noeuds.length > 1
-    ? couloirsDepuisLignee(lignee.lignee.lignee, {
-      versionVue: d.version.id,
-      apercusCreations: Object.fromEntries((donnees?.variantes ?? []).flatMap((v) => (apercus[v.assetId] ? [[`creation:${v.id}`, apercus[v.assetId]!]] : []))),
-      apercusReferences: Object.fromEntries(d.sources.flatMap((x) => (x.apercu ? [[`reference:${x.sourceId}`, x.apercu]] : []))),
-      fiche: ficheNoeud, hypotheseVue,
-    })
+  const ligneeLue = lignee?.ok && lignee.lignee.lignee.noeuds.length > 1 ? lignee.lignee.lignee : null;
+  const apercusCreations = Object.fromEntries((donnees?.variantes ?? []).flatMap((v) => (apercus[v.assetId] ? [[`creation:${v.id}`, apercus[v.assetId]!]] : []))) as Record<string, string>;
+  const apercusReferences = Object.fromEntries(d.sources.flatMap((x) => (x.apercu ? [[`reference:${x.sourceId}`, x.apercu]] : []))) as Record<string, string>;
+  // Lot 11 · groupes de lot CALCULÉS (production · nœud « Lot » et ses créations ; test · résultats d'un même lot Adsmap).
+  const lotsTest = ligneeLue ? [...new Set(ligneeLue.noeuds.flatMap((n) => (n.lotTest ? [n.lotTest.id] : [])))] : [];
+  const tests = await lotsDeTest(d.projet.brandId, lotsTest).catch(() => ({ ouverts: false, conclusions: {} }));
+  const groupes = ligneeLue ? groupesLignee(ligneeLue, { conclusions: tests.conclusions, resultatsOuverts: tests.ouverts }) : [];
+  const couloirsLus = ligneeLue
+    ? grouperCouloirs(couloirsDepuisLignee(ligneeLue, { versionVue: d.version.id, apercusCreations, apercusReferences, fiche: ficheNoeud, hypotheseVue }), groupes)
     : couloirsDepuisProjet({
       versionId: d.version.id, versionN: d.version.n, marque: d.projet.marque,
       objectif: d.brief?.objective || null, hypothese: hypotheseVue, direction: d.brief?.styleIntent || null,
@@ -199,7 +224,11 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
       iterationVide: iterer.vide,
       retourVeille: retourVeilleProjet(d.sources),
       libre: canvas?.ok
-        ? { ok: true, canvas: { projectId: canvas.canvas.projectId, version: canvas.canvas.version, modele: canvas.canvas.modele, apercus: canvas.canvas.apercus, disposition: canvas.canvas.disposition, rev: canvas.canvas.rev } }
+        ? { ok: true, canvas: {
+          projectId: canvas.canvas.projectId, version: canvas.canvas.version, modele: canvas.canvas.modele, apercus: canvas.canvas.apercus, disposition: canvas.canvas.disposition, rev: canvas.canvas.rev,
+          // Lot 11 · la lignée, second graphe · mêmes positions personnelles, écrans existants (fiche marque · admin seulement).
+          lignee: ligneeLue ? { modele: ligneeLue, groupes, apercus: { ...apercusCreations, ...apercusReferences }, destinations: { marque: ficheHref } } : null,
+        } }
         : { ok: false, raison: canvas ? raisonCanevasIndisponible(canvas) : 'La disposition libre n’a pas pu être lue · recharge la page pour réessayer.' },
       aideCanvas: lignee?.ok ? `${nbNoeuds} nœud${nbNoeuds > 1 ? 's' : ''} · la lignée réelle du projet` : 'Ce que la fiche du projet porte · la lignée complète n’est pas disponible',
       jarvis: {

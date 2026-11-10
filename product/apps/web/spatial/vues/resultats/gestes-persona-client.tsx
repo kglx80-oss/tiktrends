@@ -20,9 +20,11 @@ import { boutonAction } from '../projet/action-serveur';
  *    n'est écrit avant « Ranger dans « À formuler » » · le serveur relit le
  *    persona dans la marque active (`creerHypotheseAction`, source `persona`).
  *
- * « Dans les tests » (fiche persona, fiche offre) · les MÊMES gestes, pour un
- * persona ou une offre qui se détache (`gestesLectureGroupe`, noyau) · une
- * offre crée une hypothèse « à la main » (elle n'a pas de provenance à elle).
+ * « Dans les tests » (fiche persona, fiche offre), « Quelle offre » d'un lot et
+ * la fiche d'un test · les MÊMES gestes, pour un persona ou une offre qui se
+ * détache (`gestesLectureGroupe`, noyau) · une offre crée une hypothèse de
+ * provenance « Offre », posée par le serveur seulement après avoir relu l'offre
+ * dans la marque active (`creerHypotheseAction`, source `offre`).
  */
 export function GestesPersona({ g }: { g: GestesPersona }) {
   return <GestesGroupe g={versGestesLecture(g)} />;

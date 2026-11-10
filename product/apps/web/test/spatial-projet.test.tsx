@@ -215,6 +215,62 @@ describe('Spatial · D2 · parité de structure avec la maquette', () => {
 });
 
 /**
+ * Lot 11 V5 (PC E12) · seul ajout HORS maquette dans les couloirs · le CADRE
+ * d'un groupe de lot (`[data-groupe-lot]`, calculé par `grouperCouloirs`),
+ * enfant direct d'un `.lane`, autour de nœuds `.node` · un lot de test porte en
+ * tête un seul `[data-groupe-entete]`. On retire l'en-tête et on remplace le
+ * cadre par ses nœuds · et SEULEMENT si chaque cadre n'a pas d'autre enfant ·
+ * sinon le HTML est rendu tel quel et la parité tombe.
+ */
+function sansCadresLot(html: string, attendus: number): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const cadres = [...t.content.querySelectorAll('[data-groupe-lot]')];
+  if (cadres.length !== attendus) return html;
+  for (const c of cadres) {
+    if (!c.parentElement?.classList.contains('lane')) return html;
+    const enfants = [...c.children];
+    const entete = enfants.filter((e) => e.hasAttribute('data-groupe-entete'));
+    if (entete.length > 1 || (entete[0] && enfants[0] !== entete[0])) return html;
+    if (enfants.some((e) => !e.hasAttribute('data-groupe-entete') && !e.classList.contains('node'))) return html;
+  }
+  for (const c of cadres) {
+    c.querySelector(':scope > [data-groupe-entete]')?.remove();
+    c.replaceWith(...[...c.children]);
+  }
+  return t.innerHTML;
+}
+
+const AVEC_CADRES: CouloirSpatial[] = COULOIRS_MAQUETTE.map((c) => (
+  c.cle === 'creations' ? { ...c, groupes: [{ id: 'lot:j1', nature: 'production' as const, etiquette: 'LOT', titre: 'Lot 1 · version 3', texte: '3 créations', lien: null, membres: c.noeuds.map((x) => x.id) }] }
+    : c.cle === 'mesure' ? { ...c, groupes: [{ id: 'lot-test:b4', nature: 'test' as const, etiquette: 'LOT DE TEST', titre: 'Lot de test n° 4', texte: 'Analysé · Non concluante', lien: { href: '/adsmap/lots/b4', libelle: 'Ouvrir le lot de test' }, membres: c.noeuds.map((x) => x.id) }] }
+      : c));
+
+describe('Lot 11 · cadres des groupes de lot · écart à la maquette déclaré et gardé', () => {
+  it('les cadres retirés, les couloirs sont ceux de la maquette · deux cadres, un seul en-tête (lot de test), lien vers la fiche du lot', () => {
+    const html = rendre(<Projet {...propsProjet({ couloirs: AVEC_CADRES })} />);
+    expect(html.match(/data-groupe-lot=/g)).toHaveLength(2);
+    expect(html).toContain('data-groupe-lot="lot-test:b4"');
+    expect(html).toMatch(/data-groupe-entete=""[^]*Lot de test n° 4[^]*href="\/adsmap\/lots\/b4"/);
+    expect(html).toContain('aria-label="Lot 1 · version 3 · 3 nœuds"');
+    // Chaque cadre CONTIENT ses nœuds (enfants directs), dans l'ordre du couloir.
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const membres = (id: string) => [...t.content.querySelectorAll(`[data-groupe-lot="${id}"] > .node`)].map((e) => e.getAttribute('data-noeud'));
+    expect(membres('lot:j1')).toEqual(['creation:a', 'creation:b', 'creation:c']);
+    expect(membres('lot-test:b4')).toEqual(['resultat:b', 'apprentissage:b']);
+    const p = parite(sansCadresLot(html, 2), 'projet', { ignorer: IGNORER_PROJET });
+    expect(p.rendu).toEqual(p.reference);
+  });
+
+  it('la garde voit un ajout de plus dans un cadre · la parité tombe', () => {
+    const html = rendre(<Projet {...propsProjet({ couloirs: AVEC_CADRES })} />).replace('data-groupe-lot="lot:j1"', 'data-groupe-lot="lot:j1"><i class="x"></i');
+    const p = parite(sansCadresLot(html, 2), 'projet', { ignorer: IGNORER_PROJET });
+    expect(p.rendu).not.toEqual(p.reference);
+  });
+});
+
+/**
  * Passe design de l'atelier vidéo · seul ajout HORS maquette dans « Produire le plan » · la liste des raisons
  * des leviers fermés (`ul[data-raisons-fermees]`), écrite juste SOUS la grille des leviers. La maquette n'a aucun
  * levier fermé ; dans le levier, l'opacité de `.vlev:disabled` (feuille intouchable) ramènerait la raison à

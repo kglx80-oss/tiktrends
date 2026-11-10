@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Hypothese } from './communs';
+import { CibleTest, type PropsCibleTest } from './CibleTest';
 
 /**
  * La fiche d'un test (une ad de la carte) · le panneau d'arbitrage de l'ancienne
@@ -28,6 +29,8 @@ export interface PropsFicheTest {
   arbitre: { libelle: string; ecart: boolean } | null;
   apprentissages: ReadonlyArray<{ id: string; texte: string; detail: string }>;
   filiation: { parent: { href: string; texte: string } | null; enfants: ReadonlyArray<{ href: string; texte: string; verdict: string | null }> };
+  /** « Pour qui · quelle offre » · le persona et l'offre du test, leur lecture sur la marque, leurs gestes (`CibleTest`) · absent, rien n'est ajouté. */
+  cible?: PropsCibleTest | null;
   actions?: ReactNode;
 }
 
@@ -115,6 +118,7 @@ export function FicheTest(p: PropsFicheTest) {
           </>
         )}
       </section>
+      {p.cible && <CibleTest p={p.cible} />}
       {p.actions}
     </Vue>
   );

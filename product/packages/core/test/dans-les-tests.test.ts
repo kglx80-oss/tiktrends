@@ -11,7 +11,7 @@ import {
  * « Dans les tests » des fiches persona et offre, et la provenance « Jarvis » · les RÈGLES, en pur.
  *  · les lots d'un groupe (liens), sa lecture, et les gestes SEULEMENT quand il se détache ;
  *  · la provenance Jarvis · jamais crue · posée seulement si la réponse est relue ET la pub de départ dans le contexte relu ;
- *  · le bilan la lit à part, et se tait si les sept provenances parlent (règle mesurée jusqu'à six).
+ *  · le bilan la lit à part, et se tait si plus de six provenances parlent (règle mesurée jusqu'à six · huit au catalogue).
  */
 
 const U = (x: string) => `a0a00000-0000-4000-8000-${x.padStart(12, '0')}`;
@@ -67,13 +67,13 @@ describe('les gestes d’une fiche · seulement quand le groupe se détache · p
     }
     expect(gestesLectureGroupe({ ref: OFFRE, lecture: 'au_dessus', k: 6, n: 6, reference: null }, { groupe: 'offre', note: 'n', prioritaires: [], testsDeLaMarque: [G2], planIds: plan })).toBeNull();
   });
-  it('une offre au-dessus · Itérer part de SA gagnante au plan · l’hypothèse cite l’offre et ses verdicts, la variable est l’offre, source « à la main »', () => {
+  it('une offre au-dessus · Itérer part de SA gagnante au plan · l’hypothèse cite l’offre et ses verdicts, la variable est l’offre, source « offre »', () => {
     const g = gestesLectureGroupe({ ref: OFFRE, lecture: 'au_dessus', k: 4, n: 4, reference: { k: 0, n: 6 } }, { groupe: 'offre', note: 'note', prioritaires: [], testsDeLaMarque: [G1, G2], planIds: plan })!;
     expect(g.iterer).toEqual({ href: `/studio/iterer?iter=${G2}`, adId: G2, raison: null });
     expect(g.libelles).toEqual({ iterer: 'Itérer sur cette offre', hypothese: 'Créer une hypothèse', titre: 'Créer une hypothèse · Remise de bienvenue' });
     expect(g.hypothese, 'le départ et la source de l’hypothèse d’une offre').toEqual({
       depart: { parties: { si: 'on met l’offre « Remise de bienvenue » dans nos prochaines créas', alors: '', parceQue: 'ses variantes gagnent nettement plus souvent que le reste de la marque (4 sur 4 contre 0 sur 6)' }, variable: 'offer' },
-      note: 'note', source: { type: 'libre' },
+      note: 'note', source: { type: 'offre', offreId: 'remise' },
     });
   });
   it('une offre en dessous, sans gagnante au plan · Itérer fermé avec SA raison', () => {
@@ -127,8 +127,8 @@ describe('le bilan lit « Geste de Jarvis » à part', () => {
     expect(NOTE_JARVIS_PROVENANCE).toContain('« Geste de Jarvis »');
   });
   it('sept provenances qui parlent · au-delà du mesuré (six), le bilan se tait et dit pourquoi', () => {
-    expect(PROVENANCES_TEST.length).toBe(MAX_PERSONAS_LECTURE + 1);
-    const b = bilanProvenances([...PROVENANCES_TEST.flatMap((p) => entrees(p.cle, p.cle === 'tag' ? 6 : 0, 6)), ...entrees(null, 0, 4)]);
+    expect(PROVENANCES_TEST.length).toBe(MAX_PERSONAS_LECTURE + 2);
+    const b = bilanProvenances([...PROVENANCES_TEST.slice(0, 7).flatMap((p) => entrees(p.cle, p.cle === 'tag' ? 6 : 0, 6)), ...entrees(null, 0, 4)]);
     expect([b.parle, b.niveau], 'sept provenances lues au-delà du mesuré').toEqual([false, null]);
     expect(b.groupes.every((g) => g.lecture === 'non_mesure'), 'sept provenances lues au-delà du mesuré').toBe(true);
     expect(b.groupes[0]!.phrase).toBe('6 gagnantes sur 6 variantes tranchées · plus de 6 provenances parlent, la règle n’est pas mesurée et se tait.');
