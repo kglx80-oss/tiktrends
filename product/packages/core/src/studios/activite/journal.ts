@@ -28,7 +28,7 @@
  * pagine (`PAR_PAGE_JOURNAL`) · le compte par type ne dépend pas du filtre.
  */
 
-import { etatReprise, libelleOperationJob } from '../execution/reprise';
+import { etatReprise, libelleOperationConnu } from '../execution/reprise';
 import type { EtatJob } from '../machines';
 import { ETATS_JOB } from '../machines';
 import { lireCopieDe, NOTE_COPIE_SANS_LIEN, phraseDuplication, type FaitDuplication } from './duplication';
@@ -293,8 +293,7 @@ export function entreeJournal(f: FaitJournal, o: { projectId: string }): EntreeJ
   }
   if (f.source === 'tache') {
     // Une opération sans libellé connu (« studio.generation ») ne se dit pas · jamais un code brut à l'écran.
-    const lu = libelleOperationJob(f.operation);
-    const op = lu !== f.operation ? lu : null;
+    const op = libelleOperationConnu(f.operation);
     const etat = ETATS.has(f.etat) ? etatReprise(f.etat as EtatJob) : null;
     const phrase = !f.fini ? 'Génération lancée'
       : etat?.ton === 'termine' ? 'Génération terminée'

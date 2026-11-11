@@ -106,17 +106,40 @@ export function progressionLisible(progression: number | null | undefined): numb
 }
 
 /**
- * Le libellé humain d'une opération de job · fallback honnête sur l'identifiant
- * brut quand l'opération n'est pas connue (jamais une invention).
+ * Le libellé humain d'une opération CONNUE · `null` quand l'opération n'est
+ * pas reconnue (le journal du projet tait alors le détail, jamais un code).
  */
-export function libelleOperationJob(operation: string): string {
+export function libelleOperationConnu(operation: string): string | null {
   if (operation.startsWith('keyframe:')) return 'Image';
   if (operation === 'controle:vision') return 'Contrôle visuel';
   if (operation === 'detourage') return 'Détourage';
   if (operation === 'extension_decor') return 'Extension de décor';
   if (/video|clip|storyboard|assembl/i.test(operation)) return 'Vidéo';
   if (/speech|voix|voice|parole/i.test(operation)) return 'Voix';
-  return operation;
+  return null;
+}
+
+/**
+ * L'opération de TOUT job des studios (`OPERATION_JOB_STUDIO`, écrite par
+ * l'approbation d'un devis) · ce qu'il produit se lit dans les lignes de son
+ * instantané. Repris ici pour garder ce module sans dépendance.
+ */
+const OPERATION_GENERATION = 'studio.generation';
+
+/**
+ * Le libellé humain d'un job · JAMAIS un code brut à l'écran. Une opération
+ * connue se dit (« Image », « Vidéo »…) · le job des studios
+ * (`studio.generation`) se dit « Génération », suivi de ce que ses lignes
+ * d'instantané produisent quand elles sont connues (« Génération · Image »,
+ * contrôle visuel compris) · toute autre opération inconnue se dit « Tâche »
+ * (jamais une invention, jamais l'identifiant).
+ */
+export function libelleOperationJob(operation: string, lignes?: ReadonlyArray<{ operation: string }> | null): string {
+  const connu = libelleOperationConnu(operation);
+  if (connu) return connu;
+  if (operation !== OPERATION_GENERATION) return 'Tâche';
+  const produits = [...new Set((lignes ?? []).map((l) => libelleOperationConnu(String(l?.operation ?? ''))).filter((x): x is string => !!x))];
+  return produits.length ? `Génération · ${produits.join(', ')}` : 'Génération';
 }
 
 /** Vrai si au moins une tâche de la liste est interrompue (bandeau d'alerte). */

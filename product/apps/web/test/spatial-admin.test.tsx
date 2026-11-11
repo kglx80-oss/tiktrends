@@ -93,6 +93,8 @@ const pariteAdmin: typeof parite = (html, route, o) => {
  */
 const EXPORT_LOT14 = ['a|button.btn.sm', '  svg.i.s @i-down'];
 const RECHERCHE_LOT14 = ['label.jsearch[style:min-width]', '  svg.i.s @i-search', '  input'];
+/** Suivi opérationnel (AR06) · « Journal complet » dans l'en-tête du registre de « Rôles & droits », seulement quand la session ouvre le registre. */
+const JOURNAL_AUDIT = ['a|button.btn.sm[style:align-items,display,margin-left,min-height]', '  svg.i.s @i-arrow'];
 function sansAjoutLot14(rendu: string[], bloc: readonly string[], apres: RegExp): { rendu: string[]; retires: number } {
   let retires = 0;
   const out = [...rendu];
@@ -178,6 +180,15 @@ describe('Spatial · Tour de contrôle · parité de structure avec la maquette'
   it('« Rôles & droits » reproduit la maquette', () => {
     const p = pariteAdmin(rendre(<Droits {...propsDroits()} />), 'a-droits');
     expect(p.rendu).toEqual(p.reference);
+  });
+
+  it('« Rôles & droits » · « Journal complet » (registre d’audit) en seul ajout, au bout du titre « Registre d’audit »', () => {
+    const p = pariteAdmin(rendre(<Droits {...propsDroits()} journal="/admin/audit" />), 'a-droits');
+    const sans = sansAjoutLot14(p.rendu, JOURNAL_AUDIT, /^h2$/);
+    expect(sans.retires, '« Journal complet » n’est pas à sa place (après le titre du registre, dans son en-tête)').toBe(1);
+    expect(sans.rendu).toEqual(p.reference);
+    expect(rendre(<Droits {...propsDroits()} journal="/admin/audit" />)).toContain('href="/admin/audit"');
+    expect(rendre(<Droits {...propsDroits()} />), 'sans porte ouverte, aucun lien vers le registre').not.toContain('data-journal');
   });
 
   it('« Bibliothèque IA » reproduit la maquette, « Rechercher une consigne… » en seul ajout', () => {

@@ -2,11 +2,11 @@ import { desc, eq, gte, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   CLASSE_ETAT_INCIDENT, CLASSE_GRAVITE_INCIDENT, COLONNES_INCIDENTS, VALEUR_ABSENTE, adminDateCourte, adminDateHeure, adminNombre,
-  dansSegmentIncident, etatExportTour, gesteIncident, incidentAffiche, libellePuceSegment, lireSegmentIncident, segmentsIncidents,
+  dansSegmentIncident, etatExportTour, gesteIncident, incidentAffiche, incidentDepuisTache, libellePuceSegment, ligneTacheAdmin, lireSegmentIncident, segmentsIncidents,
 } from '@tiktrends/core';
 import { FAMILY_LABEL, type ErrorFamily } from '../../../../../lib/user-error';
 import { Incidents, PERIODES_INCIDENTS } from '../../../../../spatial/vues/admin/Incidents';
-import { bandeauSeul, chargerIncidentsDeclares, porteAdmin } from '../donnees';
+import { bandeauSeul, chargerIncidentsDeclares, chargerTacheAdmin, porteAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +26,7 @@ const LIMITE = 80;
  * l'espace ET fondateur), avant toute lecture. Lecture seule · la date passe
  * par `gte`, jamais brute dans `sql`.
  */
-export default async function IncidentsSpatial({ searchParams }: { searchParams?: Promise<{ j?: string; segment?: string; cause?: string }> }) {
+export default async function IncidentsSpatial({ searchParams }: { searchParams?: Promise<{ j?: string; segment?: string; cause?: string; tache?: string }> }) {
   await porteAdmin();
   const sp = (await searchParams) ?? {};
   const jours = (PERIODES_INCIDENTS as readonly number[]).includes(Number(sp.j)) ? Number(sp.j) : 7;
@@ -41,6 +41,9 @@ export default async function IncidentsSpatial({ searchParams }: { searchParams?
       .from(E).leftJoin(schema.workspaces, eq(E.workspaceId, schema.workspaces.id)).where(gte(E.createdAt, depuis)).orderBy(desc(E.createdAt)).limit(LIMITE) : Promise.resolve([]),
     chargerIncidentsDeclares(),
   ]);
+  // « Déclarer un incident » depuis une tâche en échec (`/admin/taches`) · le formulaire est PRÉ-REMPLI, rien n'est écrit avant le clic.
+  const tache = sp.tache ? await chargerTacheAdmin(sp.tache) : null;
+  const propose = tache ? incidentDepuisTache(ligneTacheAdmin(tache, new Date())) : null;
   const total = familles.reduce((s, f) => s + Number(f.n), 0);
   const max = Number(familles[0]?.n ?? 0) || 1;
   const nom = (f: string) => FAMILY_LABEL[f as ErrorFamily] ?? f;
@@ -62,6 +65,8 @@ export default async function IncidentsSpatial({ searchParams }: { searchParams?
         export: etatExportTour(vus.length, { un: 'incident', plusieurs: 'incidents' }),
         causes: (Object.keys(FAMILY_LABEL) as ErrorFamily[]).map((k) => ({ cle: k, libelle: FAMILY_LABEL[k] })),
         causeProposee: cause,
+        titrePropose: propose?.titre ?? null,
+        constatPropose: propose?.constat ?? null,
         lignes: vus.map((i) => {
           const a = incidentAffiche(i, { nom: membre, cause: nom, date: adminDateCourte, absent: VALEUR_ABSENTE });
           const annoter = gesteIncident(i, 'annoter'), clore = gesteIncident(i, 'clore');
