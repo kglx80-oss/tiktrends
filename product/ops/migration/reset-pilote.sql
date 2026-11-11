@@ -98,7 +98,32 @@ SELECT t AS "table", n AS "lignes" FROM (
   UNION ALL SELECT 11, 'studio_project_versions', count(*) FROM studio_project_versions WHERE brand_id IN (SELECT id FROM cible_marques)
   UNION ALL SELECT 12, 'studio_variants',         count(*) FROM studio_variants         WHERE brand_id IN (SELECT id FROM cible_marques)
   UNION ALL SELECT 13, 'studio_assets (médias)',  count(*) FROM studio_assets           WHERE brand_id IN (SELECT id FROM cible_marques)
+  UNION ALL SELECT 14, 'studio_comments',         count(*) FROM studio_comments         WHERE brand_id IN (SELECT id FROM cible_marques)
+  UNION ALL SELECT 15, 'studio_lineage_notes',    count(*) FROM studio_lineage_notes    WHERE brand_id IN (SELECT id FROM cible_marques)
+  UNION ALL SELECT 16, 'prompts DE LA MARQUE (bloquent · voir plus bas)', (
+                 (SELECT count(*) FROM studio_prompt_versions WHERE brand_id IN (SELECT id FROM cible_marques))
+               + (SELECT count(*) FROM studio_prompt_releases WHERE brand_id IN (SELECT id FROM cible_marques))
+               + (SELECT count(*) FROM studio_prompt_active   WHERE brand_id IN (SELECT id FROM cible_marques)))
 ) q ORDER BY ord;
+
+-- ── Refus préalable · prompts PROPRES à une marque ciblée ────────────────────
+-- Les releases de prompt sont PRÉSERVÉES (voir l'en-tête) · mais une version,
+-- une release ou un pointeur actif propre à une marque pointe cette marque en
+-- « restrict » (et les versions sont figées par déclencheur) · la marque ne
+-- peut pas disparaître sans eux. Le script ne les supprime PAS de lui-même ·
+-- il refuse AVANT toute suppression, et dit quoi décider.
+SELECT CASE WHEN
+    (SELECT count(*) FROM studio_prompt_versions WHERE brand_id IN (SELECT id FROM cible_marques))
+  + (SELECT count(*) FROM studio_prompt_releases WHERE brand_id IN (SELECT id FROM cible_marques))
+  + (SELECT count(*) FROM studio_prompt_active   WHERE brand_id IN (SELECT id FROM cible_marques)) > 0
+  THEN 'on' ELSE 'off' END AS prompts_de_marque \gset
+\if :prompts_de_marque
+  \echo ''
+  \echo '✗ REFUS · une marque ciblée possède ses PROPRES prompts (studio_prompt_versions / studio_prompt_releases / studio_prompt_active).'
+  \echo '  Le script préserve les prompts et ne les supprime pas de lui-même · rien n''a été supprimé.'
+  \echo '  Décider d''abord · garder la marque, ou retirer ces prompts de marque à la main (après sauvegarde).'
+  \quit
+\endif
 
 -- ── Mode essai à blanc : on s'arrête là, rien n'est touché ───────────────────
 SELECT CASE WHEN :'confirmer' = 'oui-vider' THEN 'on' ELSE 'off' END AS confirme \gset
@@ -152,6 +177,13 @@ UPDATE studio_projects SET current_version_id = NULL WHERE brand_id IN (SELECT i
 -- des feuilles vers la racine. (Les tables auto-référencées · jobs, variants,
 -- assets, versions · se vident en un seul DELETE : la vérification RESTRICT voit
 -- les lignes filles déjà retirées dans le même ordre de dépendance.)
+-- Les notes de la lignée (0076) refusent toute suppression par déclencheur,
+-- SAUF sous le réglage de purge du pilote · `SET LOCAL` · il meurt avec cette
+-- transaction. Notes et commentaires (0074) pointent projets, versions et
+-- médias en « restrict » · ils partent EN PREMIER.
+SET LOCAL tiktrends.purge_pilote = 'oui';
+DELETE FROM studio_lineage_notes   WHERE brand_id IN (SELECT id FROM cible_marques);
+DELETE FROM studio_comments        WHERE brand_id IN (SELECT id FROM cible_marques);
 DELETE FROM studio_test_links      WHERE brand_id IN (SELECT id FROM cible_marques);
 DELETE FROM studio_variants        WHERE brand_id IN (SELECT id FROM cible_marques);
 DELETE FROM studio_budget_ledger   WHERE brand_id IN (SELECT id FROM cible_marques);
@@ -200,6 +232,8 @@ SELECT t AS "table", n AS "reste" FROM (
   UNION ALL SELECT 8,  'studio_project_versions', count(*) FROM studio_project_versions WHERE brand_id IN (SELECT id FROM cible_marques)
   UNION ALL SELECT 9,  'studio_variants',         count(*) FROM studio_variants         WHERE brand_id IN (SELECT id FROM cible_marques)
   UNION ALL SELECT 10, 'studio_assets (médias)',  count(*) FROM studio_assets           WHERE brand_id IN (SELECT id FROM cible_marques)
+  UNION ALL SELECT 11, 'studio_comments',         count(*) FROM studio_comments         WHERE brand_id IN (SELECT id FROM cible_marques)
+  UNION ALL SELECT 12, 'studio_lineage_notes',    count(*) FROM studio_lineage_notes    WHERE brand_id IN (SELECT id FROM cible_marques)
 ) q ORDER BY ord;
 
 -- ── Décision · COMMIT seulement si -v valider=oui, sinon ROLLBACK ────────────
