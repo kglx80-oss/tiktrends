@@ -1,4 +1,4 @@
-import { Vue } from '../../communs';
+import { Ic, Lien, Vue } from '../../communs';
 import { Pill, TeteAdmin, Vide, type BandeauAdmin } from './base';
 import { GererMembre, InviterMembre, MatriceDroitsSpatiale, type CaseDroit } from './droits-client';
 
@@ -24,6 +24,8 @@ export interface PropsDroits {
   /** Les gestes par membre (rôle, retrait) · absent en lecture seule. */
   gestion?: boolean;
   audit: ReadonlyArray<{ id: string; initiales: string; acteur: string; texte: string; quand: string }>;
+  /** « Journal complet » · le registre d'audit (`/admin/audit`), seulement quand la session en ouvre la porte (SEC-10). */
+  journal?: string | null;
 }
 
 export function Droits(p: PropsDroits) {
@@ -48,7 +50,7 @@ export function Droits(p: PropsDroits) {
           </div>
         </section>
         <section className="tile">
-          <div className="sech"><h2>Registre d’audit</h2></div>
+          <div className="sech"><h2>Registre d’audit</h2>{p.journal && <Lien className="btn sm" href={p.journal} style={{ marginLeft: 'auto', minHeight: 44, display: 'inline-flex', alignItems: 'center' }} data-journal="">Journal complet<Ic n="arrow" /></Lien>}</div>
           <div className="afeed">
             {p.audit.map((a) => (
               <div className="afi" key={a.id}><span className="me" style={{ width: 28, height: 28, fontSize: '10px' }}>{a.initiales}</span><span style={{ flex: 1, minWidth: 0 }}><b>{a.acteur}</b> {a.texte}<small>{a.quand}</small></span></div>

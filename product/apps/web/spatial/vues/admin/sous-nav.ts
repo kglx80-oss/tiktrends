@@ -37,6 +37,9 @@ export const OUTILS_ADMIN = [
   { href: '/admin/stockage', libelle: 'Stockage' },
   // Lot 5 quater · la règle de Jarvis rejouée sur les réponses stockées de l'espace · lecture seule, aucun modèle.
   { href: '/admin/jarvis-mesure', libelle: 'Mesure Jarvis' },
+  // Suivi opérationnel (RJ JB01, AR06) · les tâches de génération de la plateforme et le registre d'audit · lecture seule.
+  { href: '/admin/taches', libelle: 'Tâches de génération' },
+  { href: '/admin/audit', libelle: 'Registre d’audit' },
 ] as const;
 
 /** La sous-navigation affichée · la maquette, puis les outils de la plateforme. */

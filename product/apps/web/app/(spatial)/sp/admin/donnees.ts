@@ -1,10 +1,11 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
-import { and, asc, count, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, like, notInArray, or, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
+  ACTIONS_SENSIBLES, ACTION_RAPPROCHEMENT_DEPENSE, ETATS_JOB_TERMINAUX, PREFIXE_AUDIT_PLATEFORME,
   attendReponse, entreesAdminOuvertes, ligneRentabiliteTour, mrrPlateforme, nomEquipePlateforme, rentabiliteForfaits,
-  type EspacePlateforme, type GraviteIncident, type IncidentLu, type LigneRentabiliteTour, type NoteIncident,
+  type EvenementAuditLu, type MouvementTache, type TacheLue, type EspacePlateforme, type GraviteIncident, type IncidentLu, type LigneRentabiliteTour, type NoteIncident,
   type TarifsPlateforme, type TicketPlateforme, type StatutTicket, type TypeTicket,
 } from '@tiktrends/core';
 import { fileSupport } from '@tiktrends/core';
@@ -244,4 +245,124 @@ export async function chargerIncidentsDeclares(): Promise<{ incidents: IncidentL
   const noms = new Map<string, string>();
   if (ids.length) for (const u of await db.select({ id: schema.users.id, nom: schema.users.name }).from(schema.users).where(inArray(schema.users.id, ids))) noms.set(u.id, nomEquipePlateforme(u.nom));
   return { incidents, nom: (id) => (id ? noms.get(id) ?? nomEquipePlateforme(null) : nomEquipePlateforme(null)), limite: LIMITE_INCIDENTS_DECLARES };
+}
+
+/* ───────────────────── Suivi opérationnel · tâches et registre d'audit ───────────────────── */
+
+/**
+ * Les tâches lues au plus, par famille · les ACTIVES (le worker doit encore
+ * agir, bloquées comprises) d'abord, toutes jusqu'à 1 000 · puis les
+ * TERMINÉES les plus récentes, 2 000 · une tâche bloquée n'est jamais
+ * repoussée hors de l'écran par l'historique. Mesuré le 11/11 (pglite en
+ * mémoire, machine partagée chargée, trois passes · `chargerTachesAdmin` puis
+ * `tableTachesAdmin`, chaque tâche avec instantané, erreur et deux mouvements
+ * de registre) :
+ *
+ * | tâches en base                         | lecture + classement |
+ * | -------------------------------------- | -------------------- |
+ * |   500                                  |   60 à 84 ms         |
+ * | 2 000                                  |  146 à 175 ms        |
+ * | 3 000 (2 000 terminées lues, la borne) |  144 à 175 ms        |
+ *
+ * Retenu · 2 000 terminées · la page reste sous 0,2 s au banc, et la borne
+ * tient le temps quand l'historique grandit · au-delà, l'écran le dit.
+ */
+export const LIMITE_TACHES_ACTIVES = 1_000;
+export const LIMITE_TACHES_TERMINEES = 2_000;
+
+/**
+ * Les tâches de génération de TOUTE la plateforme (`studio_jobs`), avec le
+ * titre du projet, le nom de l'espace et les mouvements de leur registre de
+ * budget (sommés par genre, LUS, jamais recalculés). Portée plateforme · à
+ * n'appeler qu'APRÈS `porteAdmin` ou `porteAdminGeste`. Lecture seule.
+ */
+export async function chargerTachesAdmin(): Promise<{ taches: TacheLue[]; limite: string | null }> {
+  if (!db) return { taches: [], limite: null };
+  const J = schema.studioJobs, P = schema.studioProjects, W = schema.workspaces, L = schema.studioBudgetLedger;
+  const champs = {
+    id: J.id, operation: J.operation, etat: J.state, lignes: sql<unknown>`${J.snapshot} -> 'lignes'`,
+    projet: P.title, espace: W.name, creeLe: J.createdAt, erreur: J.error,
+  };
+  const terminaux = [...ETATS_JOB_TERMINAUX];
+  const [actives, terminees] = await Promise.all([
+    db.select(champs).from(J).leftJoin(P, eq(P.id, J.projectId)).leftJoin(W, eq(W.id, J.workspaceId))
+      .where(notInArray(J.state, terminaux)).orderBy(desc(J.createdAt), desc(J.id)).limit(LIMITE_TACHES_ACTIVES),
+    db.select(champs).from(J).leftJoin(P, eq(P.id, J.projectId)).leftJoin(W, eq(W.id, J.workspaceId))
+      .where(inArray(J.state, terminaux)).orderBy(desc(J.createdAt), desc(J.id)).limit(LIMITE_TACHES_TERMINEES),
+  ]);
+  const lignes = [...actives, ...terminees];
+  const registre = new Map<string, MouvementTache[]>();
+  const ids = lignes.map((l) => l.id);
+  for (let i = 0; i < ids.length; i += 500) {
+    const lot = ids.slice(i, i + 500);
+    const rows = await db.select({ job: L.jobId, kind: L.kind, credits: sql<number>`coalesce(sum(${L.credits}), 0)`, usd: sql<number>`coalesce(sum(${L.usdMicros}), 0)` })
+      .from(L).where(inArray(L.jobId, lot)).groupBy(L.jobId, L.kind);
+    for (const r of rows) if (r.job) registre.set(r.job, [...(registre.get(r.job) ?? []), { kind: r.kind, credits: Number(r.credits), usdMicros: Number(r.usd) }]);
+  }
+  const taches: TacheLue[] = lignes
+    .sort((a, b) => (b.creeLe as Date).getTime() - (a.creeLe as Date).getTime())
+    .map((l) => ({
+      id: l.id, operation: l.operation, etat: l.etat, lignes: Array.isArray(l.lignes) ? (l.lignes as Array<{ operation: string }>) : null,
+      projet: l.projet, espace: l.espace, creeLe: l.creeLe as Date, erreur: l.erreur, registre: registre.get(l.id) ?? [],
+    }));
+  const coupe = actives.length >= LIMITE_TACHES_ACTIVES || terminees.length >= LIMITE_TACHES_TERMINEES;
+  return { taches, limite: coupe ? `Lecture bornée · les ${LIMITE_TACHES_ACTIVES.toLocaleString('fr-FR')} tâches actives et les ${LIMITE_TACHES_TERMINEES.toLocaleString('fr-FR')} tâches terminées les plus récentes · les plus anciennes ne sont pas lues ici.` : null };
+}
+
+/** Une tâche seule, par son identifiant · pour pré-remplir un incident (`/admin/incidents?tache=`). Après la porte. */
+export async function chargerTacheAdmin(id: string): Promise<TacheLue | null> {
+  if (!db || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+  const J = schema.studioJobs, P = schema.studioProjects, W = schema.workspaces, L = schema.studioBudgetLedger;
+  const [l] = await db.select({
+    id: J.id, operation: J.operation, etat: J.state, lignes: sql<unknown>`${J.snapshot} -> 'lignes'`, projet: P.title, espace: W.name, creeLe: J.createdAt, erreur: J.error,
+  }).from(J).leftJoin(P, eq(P.id, J.projectId)).leftJoin(W, eq(W.id, J.workspaceId)).where(eq(J.id, id)).limit(1);
+  if (!l) return null;
+  const rows = await db.select({ kind: L.kind, credits: sql<number>`coalesce(sum(${L.credits}), 0)`, usd: sql<number>`coalesce(sum(${L.usdMicros}), 0)` })
+    .from(L).where(eq(L.jobId, id)).groupBy(L.kind);
+  return {
+    id: l.id, operation: l.operation, etat: l.etat, lignes: Array.isArray(l.lignes) ? (l.lignes as Array<{ operation: string }>) : null,
+    projet: l.projet, espace: l.espace, creeLe: l.creeLe as Date, erreur: l.erreur,
+    registre: rows.map((r) => ({ kind: r.kind, credits: Number(r.credits), usdMicros: Number(r.usd) })),
+  };
+}
+
+/**
+ * Les événements du registre lus au plus, par source · les plus récents
+ * d'abord. Le registre ne lit que sa portée (gestes sans espace, `studios.*`,
+ * actions sensibles) · le bruit des espaces n'y entre pas. Mesuré le 11/11
+ * (même banc) · 500 événements · 18 à 22 ms, 2 000 · 65 à 68 ms (lecture et
+ * table). Retenu · 2 000 par source · au-delà, l'écran le dit.
+ */
+export const LIMITE_REGISTRE_AUDIT = 2_000;
+
+/**
+ * Le registre d'audit de la plateforme · `studio_audit_events` dans la portée
+ * de `dansRegistrePlateforme` (la MÊME règle, ici en SQL), et les
+ * rapprochements de dépense (`ai_spend_reconciliations`, leur propre audit).
+ * Le nom de l'acteur, jamais son adresse. Après la porte · lecture seule.
+ */
+export async function chargerRegistreAudit(): Promise<{ evenements: EvenementAuditLu[]; limite: string | null }> {
+  if (!db) return { evenements: [], limite: null };
+  const A = schema.studioAuditEvents, U = schema.users, W = schema.workspaces, R = schema.aiSpendReconciliations;
+  const [audit, rapprochements] = await Promise.all([
+    db.select({
+      id: A.id, le: A.occurredAt, nom: U.name, role: A.effectiveRole, action: A.action, cibleType: A.targetType, cibleId: A.targetId,
+      espaceId: A.workspaceId, espace: W.name, motif: A.reason, details: A.details,
+    }).from(A).leftJoin(U, eq(U.id, A.actorId)).leftJoin(W, eq(W.id, A.workspaceId))
+      .where(or(isNull(A.workspaceId), like(A.action, `${PREFIXE_AUDIT_PLATEFORME}%`), inArray(A.action, [...ACTIONS_SENSIBLES])))
+      .orderBy(desc(A.occurredAt), desc(A.id)).limit(LIMITE_REGISTRE_AUDIT),
+    db.select({
+      id: R.id, le: R.createdAt, nom: U.name, ligne: R.aiSpendId, reserve: R.reservedMicros, facture: R.billedMicros, devise: R.currency, preuve: R.providerRef, motif: R.reason,
+    }).from(R).leftJoin(U, eq(U.id, R.authorId)).orderBy(desc(R.createdAt), desc(R.id)).limit(LIMITE_REGISTRE_AUDIT),
+  ]);
+  const evenements: EvenementAuditLu[] = [
+    ...audit.map((a) => ({ id: a.id, le: a.le as Date, acteurNom: a.nom, role: a.role, action: a.action, cibleType: a.cibleType, cibleId: a.cibleId, espaceId: a.espaceId, espace: a.espace, motif: a.motif, details: a.details })),
+    ...rapprochements.map((r) => ({
+      id: r.id, le: r.le as Date, acteurNom: r.nom, role: 'fondateur', action: ACTION_RAPPROCHEMENT_DEPENSE, cibleType: 'ai_spend', cibleId: r.ligne,
+      espaceId: null, espace: null, motif: r.motif,
+      details: { reserveMicros: Number(r.reserve), factureMicros: Number(r.facture), devise: r.devise, preuve: r.preuve },
+    })),
+  ];
+  const coupe = audit.length >= LIMITE_REGISTRE_AUDIT || rapprochements.length >= LIMITE_REGISTRE_AUDIT;
+  return { evenements, limite: coupe ? `Lecture bornée · les ${LIMITE_REGISTRE_AUDIT.toLocaleString('fr-FR')} événements les plus récents de chaque source · les plus anciens ne sont pas lus ici.` : null };
 }

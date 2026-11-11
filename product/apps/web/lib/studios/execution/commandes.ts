@@ -7,7 +7,7 @@ import {
   decisionIdempotence, cleIdempotenceValide, refsDuJob, refusPlafondDollars, bilanRegistre, preuveSoumission,
   vueJob, transitionJob, transitionQualite, jobTerminal, objetDansPortee, erreurStudio,
   operationsNonVerifiables, operationsSansFournisseur, fournisseurAnimationBranche, PRICING_VERSION, OPERATION_JOB_STUDIO, empreinteEntreesDevisImage,
-  etatReprise, progressionLisible, libelleOperationJob,
+  etatReprise, progressionLisible, libelleOperationJob, lireSnapshotJob,
   type ContenuVersion, type PlanImpact, type LigneDevis, type ErreurStudio, type SnapshotJob, type VueJob,
   type EtatJob, type StatutQualite, type EpinglageDevis, type EtatReprise,
 } from '@tiktrends/core';
@@ -485,7 +485,8 @@ export async function listerTachesProjet(ctx: ContexteStudio, e: { projectId: un
     return {
       id: j.id,
       etat: etatReprise(j.state as EtatJob),
-      libelleOperation: libelleOperationJob(j.operation),
+      // Jamais le code brut (« studio.generation ») · ce que le job produit se lit dans son instantané.
+      libelleOperation: libelleOperationJob(j.operation, lireSnapshotJob(j.snapshot)?.lignes),
       progression: progressionLisible(result?.progression),
       creeLe: j.createdAt.toISOString(),
       finiLe: j.finishedAt ? j.finishedAt.toISOString() : null,

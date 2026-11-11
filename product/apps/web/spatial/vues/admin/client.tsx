@@ -73,7 +73,7 @@ export interface EtatExport { ferme: boolean; raison: string | null; titre: stri
  * (`exporterTourAction`, porte `porteAdminGeste`, cellules par `csvCell`) puis
  * téléchargé. Fermé sans ligne, avec sa raison écrite à côté.
  */
-export function BoutonExportTour({ entree, etat, unite }: { entree: Parameters<typeof exporterTourAction>[0]; etat: EtatExport; unite: { un: string; plusieurs: string } }) {
+export function BoutonExportTour({ entree, etat, unite, cible }: { entree: Parameters<typeof exporterTourAction>[0]; etat: EtatExport; unite: { un: string; plusieurs: string }; cible?: React.CSSProperties }) {
   const { toast } = useSpatial();
   const [presse, setPresse] = useState(false);
   const lancer = async () => {
@@ -97,9 +97,14 @@ export function BoutonExportTour({ entree, etat, unite }: { entree: Parameters<t
   };
   return (
     <>
-      <button className="btn sm" type="button" data-export={entree.ecran} title={etat.titre} {...boutonAction({ presse, ferme: etat.ferme, focalisable: 'tout', surClic: () => { void lancer(); } })}>
-        <Ic n="down" />{presse ? 'Export…' : 'Exporter (CSV)'}
-      </button>
+      {(() => {
+        const a = boutonAction({ presse, ferme: etat.ferme, focalisable: 'tout', surClic: () => { void lancer(); } });
+        return (
+          <button className="btn sm" type="button" data-export={entree.ecran} title={etat.titre} {...a} style={cible ? { ...cible, ...a.style } : a.style}>
+            <Ic n="down" />{presse ? 'Export…' : 'Exporter (CSV)'}
+          </button>
+        );
+      })()}
       {etat.ferme && etat.raison && <small className="faint" data-raison-export="">{etat.raison}</small>}
     </>
   );
@@ -117,8 +122,40 @@ export interface PropsListeComptes {
   comptes: readonly LigneCompte[];
   /** Espaces inscrits, tous filtres confondus · pour dire pourquoi la liste est vide. */
   inscrits: number;
-  pagination: { texte: string; precedente: string | null; suivante: string | null } | null;
+  pagination: PaginationListeTour | null;
   export: EtatExport;
+}
+
+/**
+ * La recherche d'une liste du Tour de contrôle · relue AU SERVEUR après une
+ * pause de frappe (`adresseListeTour`, la page revient à 1, le segment est
+ * gardé) · la règle (casse, accents, chaque mot) vit au noyau.
+ */
+export function RechercheListeTour({ chemin, q: initiale, segment, id, placeholder, aria, style }: {
+  chemin: string; q: string; segment: string; id: string; placeholder: string; aria: string; style?: React.CSSProperties;
+}) {
+  const router = useRouter();
+  const [q, setQ] = useState(initiale);
+  const derniere = useRef(initiale);
+  useEffect(() => {
+    if (q.trim() === derniere.current.trim()) return;
+    const t = setTimeout(() => { derniere.current = q; router.replace(adresseListeTour(chemin, { q, segment })); }, PAUSE_RECHERCHE_MS);
+    return () => clearTimeout(t);
+  }, [q, segment, chemin, router]);
+  return <label className="jsearch" style={{ marginLeft: 'auto', minWidth: 220, ...style }}><Ic n="search" /><input id={id} type="search" placeholder={placeholder} aria-label={aria} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" maxLength={LONGUEUR_MAX_RECHERCHE} /></label>;
+}
+
+export interface PaginationListeTour { texte: string; precedente: string | null; suivante: string | null }
+
+/** « Précédente · 51 à 100 sur 132 · Suivante » · des liens (la page est relue au serveur), fermés aux bornes. */
+export function PaginationTour({ pagination, aria, cle, cible }: { pagination: PaginationListeTour; aria: string; cle: string; cible?: React.CSSProperties }) {
+  return (
+    <nav className="kc" aria-label={aria} data-pagination={cle} style={{ marginTop: 10, alignItems: 'center' }}>
+      {pagination.precedente ? <Lien className="btn sm" href={pagination.precedente} style={cible}><Ic n="back" />Précédente</Lien> : <span className="btn sm" aria-disabled="true" style={{ ...FERME, ...cible }}><Ic n="back" />Précédente</span>}
+      <small className="faint">{pagination.texte}</small>
+      {pagination.suivante ? <Lien className="btn sm" href={pagination.suivante} style={cible}>Suivante<Ic n="arrow" /></Lien> : <span className="btn sm" aria-disabled="true" style={{ ...FERME, ...cible }}>Suivante<Ic n="arrow" /></span>}
+    </nav>
+  );
 }
 
 /**
@@ -128,19 +165,12 @@ export interface PropsListeComptes {
  */
 export function ComptesListe({ liste, colonnes, chemin = '/admin/signups' }: { liste: PropsListeComptes; colonnes: string; chemin?: string }) {
   const router = useRouter();
-  const [q, setQ] = useState(liste.q);
-  const derniere = useRef(liste.q);
-  useEffect(() => {
-    if (q.trim() === derniere.current.trim()) return;
-    const t = setTimeout(() => { derniere.current = q; router.replace(adresseListeTour(chemin, { q, segment: liste.segment })); }, PAUSE_RECHERCHE_MS);
-    return () => clearTimeout(t);
-  }, [q, liste.segment, chemin, router]);
   const vus = liste.comptes;
   return (
     <>
       <div className="sech">
         <h2>Comptes</h2>
-        <label className="jsearch" style={{ marginLeft: 'auto', minWidth: 220 }}><Ic n="search" /><input id="auq" type="search" placeholder="Rechercher un compte" aria-label="Rechercher un compte (nom, formule, profil)" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" maxLength={LONGUEUR_MAX_RECHERCHE} /></label>
+        <RechercheListeTour chemin={chemin} q={liste.q} segment={liste.segment} id="auq" placeholder="Rechercher un compte" aria="Rechercher un compte (nom, formule, profil)" />
         <BoutonExportTour entree={{ ecran: 'comptes', q: liste.q, segment: liste.segment }} etat={liste.export} unite={{ un: 'compte', plusieurs: 'comptes' }} />
       </div>
       <div className="kc" style={{ marginBottom: 12 }}>
@@ -163,13 +193,7 @@ export function ComptesListe({ liste, colonnes, chemin = '/admin/signups' }: { l
           {vus.length === 0 && <Vide>{liste.inscrits ? 'Aucun compte ne correspond à ce filtre.' : 'Aucun espace inscrit.'}</Vide>}
         </div>
       </div>
-      {liste.pagination && (
-        <nav className="kc" aria-label="Pages de la liste des comptes" data-pagination="comptes" style={{ marginTop: 10, alignItems: 'center' }}>
-          {liste.pagination.precedente ? <Lien className="btn sm" href={liste.pagination.precedente}><Ic n="back" />Précédente</Lien> : <span className="btn sm" aria-disabled="true" style={FERME}><Ic n="back" />Précédente</span>}
-          <small className="faint">{liste.pagination.texte}</small>
-          {liste.pagination.suivante ? <Lien className="btn sm" href={liste.pagination.suivante}>Suivante<Ic n="arrow" /></Lien> : <span className="btn sm" aria-disabled="true" style={FERME}>Suivante<Ic n="arrow" /></span>}
-        </nav>
-      )}
+      {liste.pagination && <PaginationTour pagination={liste.pagination} aria="Pages de la liste des comptes" cle="comptes" />}
     </>
   );
 }

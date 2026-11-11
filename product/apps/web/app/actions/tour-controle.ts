@@ -4,17 +4,18 @@ import { revalidatePath } from 'next/cache';
 import { and, eq, lt, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  COLONNES_COMPTES_TOUR, COLONNES_INCIDENTS, COLONNES_RENTABILITE_TOUR, NOTES_MAX_INCIDENT, VALEUR_ABSENTE,
-  adminDateCourte, cellulesCompteTour, cellulesRentabiliteTour, dansSegmentIncident, incidentAffiche, lireSegmentIncident,
+  COLONNES_COMPTES_TOUR, COLONNES_INCIDENTS, COLONNES_REGISTRE_AUDIT, COLONNES_RENTABILITE_TOUR, COLONNES_TACHES_ADMIN, NOTES_MAX_INCIDENT, VALEUR_ABSENTE,
+  adminDateCourte, cellulesCompteTour, cellulesRegistreAudit, cellulesTacheAdmin, tableRegistreAudit, tableTachesAdmin, cellulesRentabiliteTour, dansSegmentIncident, incidentAffiche, lireSegmentIncident,
   nomFichierExportTour, tableComptesTour, tableauCsv, validerClotureIncident, validerNoteIncident, validerOuvertureIncident,
   type ErreurIncident,
 } from '@tiktrends/core';
 import { FAMILY_LABEL, type ErrorFamily } from '../../lib/user-error';
-import { chargerEspaces, chargerIncidentsDeclares, chargerTarifs, lignesRentabilite, porteAdminGeste } from '../(spatial)/sp/admin/donnees';
+import { chargerEspaces, chargerIncidentsDeclares, chargerRegistreAudit, chargerTachesAdmin, chargerTarifs, lignesRentabilite, porteAdminGeste } from '../(spatial)/sp/admin/donnees';
 
 /**
  * Tour de contrôle · lot 14 V5 · les GESTES de la plateforme · exporter ce
- * que l'écran affiche (Comptes, Rentabilité, Incidents) et ouvrir, annoter,
+ * que l'écran affiche (Comptes, Rentabilité, Incidents, puis, suivi
+ * opérationnel, Tâches de génération et Registre d'audit) et ouvrir, annoter,
  * clore un incident déclaré.
  *
  * Dans l'ordre, et RIEN ne se lit ni ne s'écrit avant la porte :
@@ -35,7 +36,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CAUSES = Object.keys(FAMILY_LABEL);
 const libelleCause = (c: string) => FAMILY_LABEL[c as ErrorFamily] ?? c;
 
-export type EcranExportTour = 'comptes' | 'rentabilite' | 'incidents';
+export type EcranExportTour = 'comptes' | 'rentabilite' | 'incidents' | 'taches' | 'audit';
 export type ResultatExportTour = { ok: true; csv: string; nom: string; lignes: number } | { ok: false; message: string };
 
 export async function exporterTourAction(entree: { ecran: EcranExportTour; q?: string; segment?: string }): Promise<ResultatExportTour> {
@@ -60,6 +61,16 @@ export async function exporterTourAction(entree: { ecran: EcranExportTour; q?: s
     const lignes = incidents.filter((i) => dansSegmentIncident(i, segment))
       .map((i) => incidentAffiche(i, { nom, cause: libelleCause, date: adminDateCourte, absent: VALEUR_ABSENTE }).cellules);
     return { ok: true, csv: tableauCsv(COLONNES_INCIDENTS, lignes), nom: nomFichierExportTour(`incidents-${segment}`, maintenant), lignes: lignes.length };
+  }
+  if (ecran === 'taches') {
+    const { taches } = await chargerTachesAdmin();
+    const t = tableTachesAdmin(taches, maintenant, { q: entree.q, segment: entree.segment });
+    return { ok: true, csv: tableauCsv(COLONNES_TACHES_ADMIN, t.filtrees.map(cellulesTacheAdmin)), nom: nomFichierExportTour(`taches-${t.segment}`, maintenant), lignes: t.filtrees.length };
+  }
+  if (ecran === 'audit') {
+    const { evenements } = await chargerRegistreAudit();
+    const t = tableRegistreAudit(evenements, { q: entree.q, segment: entree.segment });
+    return { ok: true, csv: tableauCsv(COLONNES_REGISTRE_AUDIT, t.filtrees.map(cellulesRegistreAudit)), nom: nomFichierExportTour(`audit-${t.segment}`, maintenant), lignes: t.filtrees.length };
   }
   return { ok: false, message: 'Écran inconnu · rien n’a été exporté.' };
 }
