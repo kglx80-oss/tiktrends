@@ -4,7 +4,7 @@ import {
   accordDeLaFrappe, accordUneTouche, exigeCoupure, raccourciDeLaFrappe, conflitsRaccourcis, porteesSeRecouvrent,
   groupesAideRaccourcis, touchesAffichees, toucheDeLAccord, cibleDeSaisie,
   raccourcisActifs, raccourcisActifsDepuisCookie, raccourcisCookieString, valeurCookie, RACCOURCIS_COOKIE,
-  toucheNavigationDetail, raccourciZoom, focusMenuSuivant, raccourciFicheLot, sansTiretCadratin,
+  toucheNavigationDetail, raccourciZoom, focusMenuSuivant, raccourciFicheLot, raccourciFicheTest, raccourciListeLots, sansTiretCadratin,
   type ContexteFrappe, type FrappeClavier, type Raccourci,
 } from '../src';
 
@@ -83,13 +83,16 @@ describe('Lot 13 · le recensement des vues · chaque touche lue par le code est
     }
   });
   it('les règles du noyau appelées par les vues ne répondent qu’aux touches écrites (rejouées)', () => {
-    const essai = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Escape', 'Enter', ' ', 'Tab', '+', '-', '_', '=', '0', '1', 'a', 'j', '?', '/', '[', 'k', 'c', 't', 'i', 'r'];
+    const essai = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Escape', 'Enter', ' ', 'Tab', '+', '-', '_', '=', '0', '1', 'a', 'j', '?', '/', '[', 'k', 'c', 't', 'i', 'r', 'l'];
     const repond: Record<string, (k: string) => boolean> = {
       toucheNavigationDetail: (k) => toucheNavigationDetail({ key: k }) !== null,
       raccourciZoom: (k) => raccourciZoom({ key: k, ctrlKey: true, metaKey: false, altKey: false, dansChamp: false }) !== null,
       focusMenuSuivant: (k) => focusMenuSuivant(k, 1, 4) !== null,
       // Lot 13 bis · la fiche d'un lot.
       raccourciFicheLot: (k) => raccourciFicheLot({ key: k }, { actifs: true, modaleOuverte: false, cible: { tagName: 'BODY' } }) !== null,
+      // Lot 13 ter · la fiche d'un test, la liste des lots.
+      raccourciFicheTest: (k) => raccourciFicheTest({ key: k }, { actifs: true, modaleOuverte: false, cible: { tagName: 'BODY' } }) !== null,
+      raccourciListeLots: (k) => raccourciListeLots({ key: k }, { actifs: true, modaleOuverte: false, cible: { tagName: 'A' } }) !== null,
     };
     expect(Object.keys(repond).sort()).toEqual(Object.keys(REGLES_CLAVIER).sort());
     for (const [nom, f] of Object.entries(repond)) expect(essai.filter(f).sort(), nom).toEqual([...REGLES_CLAVIER[nom]!].sort());
@@ -115,8 +118,8 @@ describe('Lot 13 · WCAG 2.1.4 · ce qui doit pouvoir se couper', () => {
     expect(coquille.filter((r) => !exigeCoupure(r)).map((r) => r.id)).toEqual(['recherche']);
   });
   it('côté vues, seuls le « / » de Ce qui scale et C T de la fiche d’un lot exigent la coupure · le canvas et la surface de l’éditeur n’agissent que sur le focus', () => {
-    // + lot 13 bis · C et T de la fiche d'un lot (lettres seules, pas sur le focus).
-    expect(RACCOURCIS.filter((r) => !r.action && exigeCoupure(r)).map((r) => r.id)).toEqual(['scale-recherche', 'lot-conclure', 'lot-iterer']);
+    // + lot 13 bis · C et T de la fiche d'un lot (lettres seules, pas sur le focus) · + lot 13 ter · T et L de la fiche d'un test.
+    expect(RACCOURCIS.filter((r) => !r.action && exigeCoupure(r)).map((r) => r.id)).toEqual(['scale-recherche', 'lot-conclure', 'lot-iterer', 'test-iterer', 'test-lot']);
     expect(RACCOURCIS.filter((r) => !r.action && r.surFocus && r.touches.flat().some(accordUneTouche)).map((r) => r.id)).toEqual(['canvas-zoom-plus', 'canvas-zoom-moins', 'canvas-ajuster']);
   });
   it('le cookie · seul « 0 » coupe, absent ou inconnu = actifs, lu parmi d’autres cookies', () => {

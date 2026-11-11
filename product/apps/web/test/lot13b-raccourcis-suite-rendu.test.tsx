@@ -261,11 +261,20 @@ describe('Lot 13 bis · Résultats · C et T sur la fiche d’un lot · une navi
     expect(h.push.mock.calls).toEqual([[`/studio/iterer?iter=${AD}`]]);
   });
 
-  it('ne dessine rien · la fiche du lot rendue au serveur est la même avec ou sans eux', () => {
+  // Lot 13 ter · ils se VOIENT désormais · une seule section ajoutée (`[data-raccourcis-lot]`, les deux gestes et leurs touches) ·
+  // retirée, la fiche est la même qu'avant · le reste est prouvé par `lot13t-raccourcis-visibles-rendu.test.tsx`.
+  it('ne dessine qu’une section · retirée, la fiche du lot rendue au serveur est la même qu’avant le lot 13 ter', () => {
     const ctx = { utilisateur: donnees().utilisateur, credits: donnees().credits, nonLues: 0, ouvrirPalette: () => {}, basculer: () => {}, toast: () => {} };
     const avec = renderToStaticMarkup(<FournisseurSpatial value={ctx}>{ficheLot(OUVERT)}</FournisseurSpatial>);
     const sans = renderToStaticMarkup(<FournisseurSpatial value={ctx}><Lot {...(ficheLot(OUVERT).props as Parameters<typeof Lot>[0])} actions={<ActionsLot mode="arbitrage" lotId="22222222-2222-4222-8222-222222222222" aArbitrer={[{ id: AD, variante: 'V1', verdict: 'Gagnante', raison: null, calcule: 'winner' }]} />} /></FournisseurSpatial>);
-    expect(avec).toBe(sans);
+    const t = document.createElement('template');
+    t.innerHTML = avec;
+    const s = [...t.content.querySelectorAll('section[data-raccourcis-lot]')];
+    expect(s, 'la section des gestes au clavier n’est pas rendue une fois').toHaveLength(1);
+    s[0]!.remove();
+    const t2 = document.createElement('template');
+    t2.innerHTML = sans;
+    expect(t.innerHTML).toBe(t2.innerHTML);
     expect(avec).toContain('id="conclure"');
   });
 });

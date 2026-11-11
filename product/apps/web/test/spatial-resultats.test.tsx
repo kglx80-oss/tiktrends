@@ -111,7 +111,14 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
       <Lots sousNav={NAV} sous="4 lots" peutCreer note="n"
         lots={[lot('1', 'a_conclure', 'À conclure', 'g', 'g', true), lot('2', 'diffusion', 'En diffusion', 'c', 'c', false, true), lot('3', 'pret', 'Prêt à lancer', '', 'c'), lot('4', 'a_importer', 'Mesures à importer', 'w', 'w')]} />,
     );
-    const p = parite(html, 'lots', VUE);
+    // Écart DÉCLARÉ (lot 13 ter) · l'aide « ↓ ↑ » du parcours au clavier, UNE ligne juste après la note · retirée, la maquette.
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const aide = [...t.content.querySelectorAll('[data-aide-liste-lots]')];
+    expect(aide, 'l’aide du parcours au clavier n’est pas rendue une fois').toHaveLength(1);
+    expect(aide[0]!.previousElementSibling?.textContent, 'l’aide du parcours au clavier a quitté sa place (après la note)').toBe('n');
+    aide[0]!.remove();
+    const p = parite(t.innerHTML, 'lots', VUE);
     expect(p.rendu).toEqual(p.reference);
   });
 

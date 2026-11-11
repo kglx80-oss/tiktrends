@@ -6,7 +6,7 @@ import {
   type DonneesDrive, type EtatDimensions, type FichierDrive, type FondApercu, type ZoomApercu,
 } from '@tiktrends/core';
 import { definirTagsMainAssetAction } from '../../../app/actions/assets';
-import { Ic, Lien } from '../../communs';
+import { Ic, Lien, useToucheVisible } from '../../communs';
 import { boutonAction, FERME } from '../projet/action-serveur';
 
 /**
@@ -152,6 +152,8 @@ export function ApercuComplet({ f, affiches, donnees, lectureSeule, dossier, all
   const meta = metaApercuComplet(f, { dossier, dimensions: dims });
   const ajout = ajoutBriefApercu(donnees, f.id, lectureSeule);
   const raisonNav = `${titre}-nav`;
+  // Lot 13 ter · `aria-keyshortcuts` lu dans la table (← →), jamais écrit à la main.
+  const toucheNav = { precedente: useToucheVisible('apercu-precedent')?.aria, suivante: useToucheVisible('apercu-suivant')?.aria };
   const raisons = [...new Set([voisins.libelle, voisins.raisonPrecedente, voisins.raisonSuivante].filter((x): x is string => !!x))].join(' · ');
   const reel = zoom === 'reel';
   const media: CSSProperties = reel ? { display: 'block', margin: 'auto', maxWidth: 'none', maxHeight: 'none' } : { display: 'block', margin: 'auto', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' };
@@ -159,7 +161,7 @@ export function ApercuComplet({ f, affiches, donnees, lectureSeule, dossier, all
     const vers = sens === 'precedente' ? voisins.precedente : voisins.suivante;
     return (
       <button type="button" className="btn" data-nav-apercu={sens} aria-disabled={!vers || undefined} aria-describedby={raisonNav}
-        aria-keyshortcuts={sens === 'precedente' ? 'ArrowLeft' : 'ArrowRight'} style={{ ...CIBLE, ...(vers ? {} : FERME) }} onClick={() => { if (vers) aller(vers); }}>
+        aria-keyshortcuts={toucheNav[sens]} style={{ ...CIBLE, ...(vers ? {} : FERME) }} onClick={() => { if (vers) aller(vers); }}>
         {sens === 'precedente' ? <><Ic n="back" />Précédent</> : <>Suivant<Ic n="arrow" /></>}
       </button>
     );

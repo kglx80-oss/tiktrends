@@ -44,7 +44,9 @@ export type PorteeRaccourci =
   | 'partout' | 'aller' | 'fenetres' | 'recherche' | 'menus'
   | 'veille-detail' | 'bibliotheque-apercu' | 'ce-qui-scale' | 'editeur' | 'canvas' | 'mentions'
   /* Lot 13 bis · Résultats, les raccourcis d'itération. */
-  | 'fiche-lot';
+  | 'fiche-lot'
+  /* Lot 13 ter · la fiche d'un test, la liste des lots. */
+  | 'fiche-test' | 'liste-lots';
 
 export interface DefPortee {
   cle: PorteeRaccourci;
@@ -68,6 +70,9 @@ export const PORTEES_RACCOURCIS: readonly DefPortee[] = [
   { cle: 'mentions', libelle: 'Mentions dans un commentaire', globale: false },
   /* Lot 13 bis · Résultats, les raccourcis d'itération. */
   { cle: 'fiche-lot', libelle: 'Fiche d’un lot (Résultats)', globale: false },
+  /* Lot 13 ter · la fiche d'un test, la liste des lots. */
+  { cle: 'fiche-test', libelle: 'Fiche d’un test (Résultats)', globale: false },
+  { cle: 'liste-lots', libelle: 'Liste des lots (Résultats)', globale: false },
 ];
 
 /* ───────────── Actions de la coquille ───────────── */
@@ -184,6 +189,26 @@ export const RACCOURCIS: readonly Raccourci[] = [
    */
   { id: 'lot-conclure', touches: [['c']], libelle: 'Aller à « Conclure le lot »', portee: 'fiche-lot', action: null, sources: ['vues/resultats/RaccourcisLot.tsx'] },
   { id: 'lot-iterer', touches: [['t']], libelle: 'Itérer depuis la gagnante du lot (écran Itérer, pré-rempli)', portee: 'fiche-lot', action: null, sources: ['vues/resultats/RaccourcisLot.tsx'] },
+  /*
+   * Lot 13 ter · la fiche d'un TEST · deux NAVIGATIONS (l'écran Itérer EXISTANT
+   * pré-rempli, la fiche de son lot) · aucune écriture. Fermées quand le geste
+   * l'est (`gestesClavierTest`, raison dite), coupées par `tt_raccourcis`, lues
+   * par `raccourciFicheTest`. Touches choisies par la garde des conflits ·
+   *  · T · « iTérer », la même lettre que sur la fiche d'un lot (même geste) ;
+   *  · L · « Lot » · libre partout, et ni « G puis » ne finit par L.
+   */
+  { id: 'test-iterer', touches: [['t']], libelle: 'Itérer depuis ce test (écran Itérer, pré-rempli)', portee: 'fiche-test', action: null, sources: ['vues/resultats/RaccourcisTest.tsx'] },
+  { id: 'test-lot', touches: [['l']], libelle: 'Voir son lot', portee: 'fiche-test', action: null, sources: ['vues/resultats/RaccourcisTest.tsx'] },
+  /*
+   * Lot 13 ter · la liste des lots (« Lots de test », filtre « À conclure »
+   * compris) · passer d'un lot à l'autre. J et K étaient demandés · la garde
+   * refuse J (le tiroir Jarvis, global, recouvre toutes les portées) · K seul
+   * passerait, mais une paire sans sa moitié n'a pas de sens · ↓ et ↑, dans
+   * la liste seulement (le focus est sur un lot · `surFocus`, rien n'est pris
+   * à la page). Entrée ouvre le lot (le lien, touche de composant).
+   */
+  { id: 'liste-lot-suivant', touches: [['ArrowDown']], libelle: 'Lot suivant de la liste', portee: 'liste-lots', action: null, sources: ['vues/resultats/Lots.tsx'], surFocus: true },
+  { id: 'liste-lot-precedent', touches: [['ArrowUp']], libelle: 'Lot précédent de la liste', portee: 'liste-lots', action: null, sources: ['vues/resultats/Lots.tsx'], surFocus: true },
 ];
 
 /**
@@ -253,6 +278,9 @@ export const TOUCHES_RECENSEES: Readonly<Record<string, readonly string[]>> = {
   'vues/resultats/Importer.tsx': [' ', 'Enter'],
   /* Lot 13 bis · C et T par `raccourciFicheLot`. */
   'vues/resultats/RaccourcisLot.tsx': ['c', 't'],
+  /* Lot 13 ter · L et T par `raccourciFicheTest`, ↓ ↑ par `raccourciListeLots`. */
+  'vues/resultats/RaccourcisTest.tsx': ['l', 't'],
+  'vues/resultats/Lots.tsx': ['ArrowDown', 'ArrowUp'],
   'vues/resultats/Suites.tsx': ['Escape'],
   'vues/studios/GrilleProjets.tsx': ['Escape'],
   'vues/studios/NouveauConcept.tsx': ['Enter'],
@@ -275,6 +303,9 @@ export const REGLES_CLAVIER: Readonly<Record<string, readonly string[]>> = {
   focusMenuSuivant: ['ArrowDown', 'ArrowUp', 'End', 'Home'],
   /* Lot 13 bis. */
   raccourciFicheLot: ['c', 't'],
+  /* Lot 13 ter. */
+  raccourciFicheTest: ['l', 't'],
+  raccourciListeLots: ['ArrowDown', 'ArrowUp'],
 };
 
 /**
@@ -455,6 +486,16 @@ export function raccourciFicheLot(f: FrappeClavier, c: ContexteFrappeVue): Racco
   return raccourciDeVue(f, c, 'fiche-lot');
 }
 
+/** Lot 13 ter · la fiche d'un test (Résultats) · L et T (`REGLES_CLAVIER`, rejouée par la garde). */
+export function raccourciFicheTest(f: FrappeClavier, c: ContexteFrappeVue): Raccourci | null {
+  return raccourciDeVue(f, c, 'fiche-test');
+}
+
+/** Lot 13 ter · la liste des lots · ↓ et ↑, le focus sur un lot de la liste (`REGLES_CLAVIER`, rejouée par la garde). */
+export function raccourciListeLots(f: FrappeClavier, c: ContexteFrappeVue): Raccourci | null {
+  return raccourciDeVue(f, c, 'liste-lots');
+}
+
 /** Le message d'un raccourci de vue dont le geste est fermé · son libellé, puis la raison du geste. */
 export function messageRaccourciFerme(r: Raccourci, raison: string): string {
   return `${r.libelle} · ${raison}`;
@@ -604,4 +645,91 @@ export function astuceRaccourcisAccueil(actifs: boolean, table: readonly Raccour
 /** Le message quand l'action n'est pas ouverte à la personne (droits inchangés · rien n'est ouvert de plus). */
 export function messageRaccourciIndisponible(r: Raccourci): string {
   return `${r.libelle} n’est pas ouvert à ton accès`;
+}
+
+/* ───────────── Lot 13 ter · les touches VISIBLES ───────────── */
+
+/**
+ * Ce qu'il faut pour dessiner une touche · la préférence « Raccourcis à une
+ * touche » (`tt_raccourcis`) et la plateforme (⌘ sous macOS, Ctrl ailleurs).
+ * Lues au rendu serveur (cookie, en-têtes) puis suivies par la coquille.
+ */
+export interface PreferencesTouches { actifs: boolean; mac: boolean }
+
+/** Hors coquille (tests, rendu isolé) · actifs, Ctrl. */
+export const PREFERENCES_TOUCHES_DEFAUT: PreferencesTouches = { actifs: true, mac: false };
+
+/** L'évènement que l'interrupteur envoie quand la préférence change · la coquille et les autres interrupteurs le suivent. */
+export const EVENEMENT_PREFERENCE_RACCOURCIS = 'tt-raccourcis';
+
+/** Les noms d'`aria-keyshortcuts` (WAI-ARIA · modificateurs d'abord, puis la touche) · `+` et l'espace ont un nom (le `+` sépare). */
+const NOMS_ARIA: Readonly<Record<string, string>> = { '+': 'Plus', ' ': 'Space' };
+
+/** Un accord au format `aria-keyshortcuts` (`mod+k` → `Control+K`, `Meta+K` sous macOS · `j` → `J` · `ArrowDown` tel quel). */
+export function accordAria(a: Accord, mac = false): string {
+  const t = toucheDeLAccord(a);
+  const mods = a.length === 1 || !a.includes('+') ? [] : (a.endsWith('++') ? a.slice(0, -2) : a.slice(0, a.length - t.length - 1)).split('+').filter(Boolean);
+  const nom = NOMS_ARIA[t] ?? (LETTRE.test(t) ? t.toUpperCase() : t);
+  return [...mods.map((m) => (m === 'mod' ? (mac ? 'Meta' : 'Control') : m === 'maj' ? 'Shift' : m === 'alt' ? 'Alt' : m)), nom].join('+');
+}
+
+export interface ToucheVisible {
+  id: string;
+  /** Les touches à dessiner, accord de la PREMIÈRE séquence retenue (`['Ctrl', 'K']`, `['C']`). */
+  touches: string[];
+  /** La valeur d'`aria-keyshortcuts` · chaque séquence retenue, séparées par une espace. */
+  aria: string;
+}
+
+/**
+ * La touche à montrer à côté d'un geste, et son `aria-keyshortcuts`, LUES dans
+ * la table (jamais écrites à la main). `null` · rien à promettre ·
+ *  · l'entrée n'existe pas ;
+ *  · ses seules séquences sont en deux temps (« G puis A » · `aria-keyshortcuts`
+ *    ne dit pas les séquences) ;
+ *  · ou les raccourcis à une touche sont COUPÉS (`tt_raccourcis`) et toutes ses
+ *    séquences en sont (WCAG 2.1.4) · on ne promet pas une touche qui ne fait
+ *    rien. Ctrl K / ⌘ K reste, une entrée « sur le focus » (flèches) aussi.
+ */
+export function toucheVisible(id: string, p: PreferencesTouches = PREFERENCES_TOUCHES_DEFAUT, table: readonly Raccourci[] = RACCOURCIS): ToucheVisible | null {
+  const r = table.find((x) => x.id === id);
+  if (!r) return null;
+  const retenues = r.touches.filter((s) => s.length === 1 && (p.actifs || r.surFocus || !accordUneTouche(s[0]!)));
+  if (!retenues.length) return null;
+  return { id: r.id, touches: touchesAffichees(retenues[0]![0]!, p.mac), aria: retenues.map((s) => accordAria(s[0]!, p.mac)).join(' ') };
+}
+
+/**
+ * macOS ou iPadOS · d'après l'indice client (`Sec-CH-UA-Platform`, entre
+ * guillemets) sinon l'agent (`User-Agent`). Pur · le serveur le lit au rendu,
+ * pour que la touche dessinée soit la bonne dès le premier octet.
+ */
+export function estPlateformeMac(e: { plateforme?: string | null; agent?: string | null }): boolean {
+  const p = (e.plateforme ?? '').replace(/"/g, '').trim().toLowerCase();
+  if (p) return p === 'macos' || p === 'ios';
+  return /Mac|iPhone|iPad|iPod/.test(e.agent ?? '');
+}
+
+/* ───────────── Lot 13 ter · passer d'un lot à l'autre ───────────── */
+
+export type BorneListe = 'premier' | 'dernier';
+
+/**
+ * Où va le focus dans une liste de `n` éléments, depuis `index`, vers le
+ * suivant (`1`) ou le précédent (`-1`) · ne boucle pas · au bord, il reste et
+ * la borne est dite. `index` hors de la liste · le premier (ou le dernier en
+ * remontant).
+ */
+export function deplacementListe(index: number, n: number, sens: 1 | -1): { index: number; borne: BorneListe | null } {
+  if (n <= 0) return { index: -1, borne: null };
+  if (index < 0 || index >= n) return { index: sens === 1 ? 0 : n - 1, borne: null };
+  const vise = index + sens;
+  if (vise < 0) return { index: 0, borne: 'premier' };
+  if (vise >= n) return { index: n - 1, borne: 'dernier' };
+  return { index: vise, borne: null };
+}
+
+/** La borne dite (zone `role="status"` de la coquille) · la liste affichée, filtre compris. */
+export function messageBorneListeLots(borne: BorneListe, n: number): string {
+  return borne === 'premier' ? `Premier lot de la liste · 1 sur ${n}` : `Dernier lot de la liste · ${n} sur ${n}`;
 }
