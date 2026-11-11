@@ -25,8 +25,9 @@ import { liensDeCopie } from '../copie-projet';
  *    copies, quand l'audit de leur création porte `copieDe` · relus dans la
  *    portée · une duplication passée ne relie rien.
  *
- * Les seules vraies données nouvelles de la lignée V5 (note, fiche marque) ne
- * sont pas lues ici : elles demandent une migration (lot ultérieur).
+ * Les notes de la lignée (lot 11 · PC E11) ne sont pas lues ici · elles
+ * s'attachent aux nœuds par leur identifiant (`lib/studios/notes-lignee.ts`) ·
+ * la projection reste la même, avec ou sans notes.
  */
 
 type Resultat<T> = ({ ok: true } & T) | ErreurStudio;
