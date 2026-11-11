@@ -5,3 +5,4 @@
  */
 export { Ic, Vue, Lien, Anneau, SousNav, formatNombre, CREA_ENTIERE, ETIQUETTE_HORS_CREA } from './base';
 export { EnTete, PastilleCredits, useTelephone } from './client';
+export { Touche, useToucheVisible } from './touches';

@@ -4,6 +4,7 @@ import { useSyncExternalStore, type ReactNode } from 'react';
 import { partSolde } from '@tiktrends/core';
 import { useSpatial } from '../coquille/contexte';
 import { Anneau, Ic, Lien, formatNombre } from './base';
+import { Touche, useToucheVisible } from './touches';
 
 /**
  * Les briques communes INTERACTIVES · elles lisent le contexte de la coquille.
@@ -25,18 +26,20 @@ export function PastilleCredits() {
 
 /**
  * L'en-tête d'une vue (`header.top`) · titre, sous-titre, et les outils de la
- * maquette : recherche ⌘K, cloche, crédits, avatar. `outils="credits"` · la
+ * maquette : recherche (Ctrl K ou ⌘ K, lue dans la table), cloche, crédits, avatar. `outils="credits"` · la
  * variante courte de la maquette (Jarvis) : crédits et avatar seuls.
  */
 export function EnTete({ titre, sous, outils = 'complets' }: { titre: ReactNode; sous?: ReactNode; outils?: 'complets' | 'credits' }) {
   const { utilisateur, nonLues, ouvrirPalette, basculer, panneau } = useSpatial();
+  // Lot 13 ter · la touche de la recherche, lue dans la table · Ctrl K, ⌘ K sur Mac (jamais coupée).
+  const recherche = useToucheVisible('recherche');
   return (
     <header className="top">
       <div className="ttl">{sous != null && <small>{sous}</small>}<h1>{titre}</h1></div>
       <div className="tools">
         {outils === 'complets' ? (
           <>
-            <button className="search" type="button" id="srch" onClick={ouvrirPalette}><Ic n="search" />Rechercher<kbd>⌘K</kbd></button>
+            <button className="search" type="button" id="srch" aria-keyshortcuts={recherche?.aria} onClick={ouvrirPalette}><Ic n="search" />Rechercher<Touche t={recherche} nu /></button>
             <button className="bell" id="bell" type="button" aria-haspopup="dialog" aria-expanded={panneau === 'notifs'} aria-label={nonLues ? `Notifications · ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications'} onClick={() => basculer('notifs')}>
               <Ic n="bell" s={false} />{nonLues > 0 && <span className="nb">{nonLues > 99 ? '99+' : nonLues}</span>}
             </button>

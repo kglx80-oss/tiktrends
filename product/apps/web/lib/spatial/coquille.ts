@@ -3,7 +3,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { empreinteDuLogo, entreesRail, entreesRailEspace, initialesAvatar, ENTETE_CHEMIN, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
+import { empreinteDuLogo, entreesRail, entreesRailEspace, initialesAvatar, estPlateformeMac, raccourcisActifsDepuisCookie, ENTETE_CHEMIN, RACCOURCIS_COOKIE, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
 import { getSession } from '../auth';
 import { effectiveAccess } from '../access';
 import { isFounder } from '../founder';
@@ -103,7 +103,8 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
   const w = (ws as Array<{ c: number; ob: Date | null }>)[0];
   // Le parcours d'accueil d'abord · sauf SUR le parcours (`/onboarding`, servi
   // sous ce même layout) · sinon la page se renverrait à elle-même.
-  const chemin = (await headers()).get(ENTETE_CHEMIN);
+  const entetes = await headers();
+  const chemin = entetes.get(ENTETE_CHEMIN);
   if (roleAtLeast(s.role, 'owner') && w && !w.ob && chemin !== '/onboarding') redirect('/onboarding');
 
   const ouverts = hrefs([railNav(access), sectionsCompteOuvertes(access)]);
@@ -126,6 +127,11 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
     admin: isFounder(s.user.email) && roleAtLeast(s.role, 'admin'),
     passer,
     railOuvert: !railCollapsedFromCookie((await cookies()).get(RAIL_COOKIE)?.value),
+    // Lot 13 ter · les touches visibles · coupées ou non (cookie d'ergonomie), ⌘ ou Ctrl (en-têtes) · justes dès le premier rendu.
+    raccourcis: {
+      actifs: raccourcisActifsDepuisCookie((await cookies()).get(RACCOURCIS_COOKIE)?.value),
+      mac: estPlateformeMac({ plateforme: entetes.get('sec-ch-ua-platform'), agent: entetes.get('user-agent') }),
+    },
     utilisateur: { nom, initiales: initialesAvatar(nom, s.user.email), email: s.user.email, role: ROLE_LABEL[s.role] },
     espaceNom: s.workspaceName,
     credits: { solde: w?.c ?? 0, dotation: PLAN_CREDITS[plan] ?? 0, illimite: unlimitedCredits(s.user.email), regime: regimeSession(s) },

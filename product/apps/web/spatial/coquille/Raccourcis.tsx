@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ClavierReact } from 'react';
-import { annoncePreferenceRaccourcis, groupesAideRaccourcis, libelleAideFiltree, raccourcisActifs, raccourcisCookieString, type PorteeRaccourci } from '@tiktrends/core';
+import { EVENEMENT_PREFERENCE_RACCOURCIS, annoncePreferenceRaccourcis, groupesAideRaccourcis, libelleAideFiltree, raccourcisActifs, raccourcisCookieString, type PorteeRaccourci } from '@tiktrends/core';
 import { Ic } from '../communs/base';
 import { useSpatial } from './contexte';
 
@@ -25,8 +25,8 @@ import { useSpatial } from './contexte';
  *    FILTRÉE sur ces portées, avec « Tous les raccourcis » pour l'aide entière.
  */
 
-/** L'évènement qui fait suivre un changement de préférence aux autres interrupteurs à l'écran. */
-const EVENEMENT_PREFERENCE = 'tt-raccourcis';
+/** L'évènement qui fait suivre un changement de préférence aux autres interrupteurs à l'écran, et aux touches visibles (lot 13 ter). */
+const EVENEMENT_PREFERENCE = EVENEMENT_PREFERENCE_RACCOURCIS;
 
 const STYLE_TOUCHE = {
   display: 'inline-block', minWidth: 26, padding: '2px 8px', borderRadius: 7, border: '1px solid var(--edge)',

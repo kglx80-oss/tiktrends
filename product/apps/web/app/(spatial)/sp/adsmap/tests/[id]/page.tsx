@@ -3,7 +3,7 @@ import {
   libellePorteeTest, libelleVariableTest, lienFicheTest, lienIterationStudio, lienNouveauProjet, lienSourceVeille,
   lireLienProfondAdsmap, pastilleVerdict, pourcentFr, presentationTest, verdictEffectif,
   accesHypothese, choixIterationSpatial, cibleDuTest, cibleSeDetache, entreesLectureGroupes, lectureParGroupe, VOCABULAIRE_OFFRE, VOCABULAIRE_PERSONA,
-  type VerdictValue,
+  gestesClavierTest, type VerdictValue,
 } from '@tiktrends/core';
 import { adDetailAction } from '../../../../../actions/adsmap-verdict';
 import { iterationPlanAction } from '../../../../../actions/adsmap-iterate';
@@ -13,6 +13,7 @@ import { roleAtLeast } from '../../../../../../lib/rbac';
 import { adsDeLaMarque } from '../../../../../../lib/adsmap-marque';
 import { FicheTest } from '../../../../../../spatial/vues/resultats/FicheTest';
 import { ActionsFiche, type PropsActionsFiche } from '../../../../../../spatial/vues/resultats/ActionsFiche';
+import { RaccourcisTest } from '../../../../../../spatial/vues/resultats/RaccourcisTest';
 import { RefusResultats } from '../../../../../../spatial/vues/resultats/communs';
 import { EnTete, Lien, Vue } from '../../../../../../spatial/communs';
 import { chargerLots, gardeResultats } from '../../donnees';
@@ -88,7 +89,9 @@ export default async function FicheTestSpatial({ params, searchParams }: { param
   const persona = pt.parAd.get(d.id) ?? null;
   const offre = ot.parAd.get(d.id) ?? null;
   const detache = cibleSeDetache({ personaId: persona?.persona?.id ?? null, offreId: offre?.offre?.id ?? null, lecturePersonas, lectureOffres });
-  const planIds = detache
+  // Lot 13 ter · la touche T (Itérer depuis ce test) lit le même plan, dès que le test est une gagnante ARBITRÉE.
+  const gagnanteArbitree = arbitre && estGagnanteValidee(d.validated as VerdictValue | null, d.comparable);
+  const planIds = detache || gagnanteArbitree
     ? new Set(choixIterationSpatial((await iterationPlanAction()).view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
     : new Set<string>();
   const tousLesTests = lots.lots.flatMap((l) => l.ads);
@@ -97,6 +100,9 @@ export default async function FicheTestSpatial({ params, searchParams }: { param
     testsPersona: persona?.persona ? tousLesTests.filter((a) => personaDe(a.id)?.id === persona.persona!.id).map((a) => a.id) : [],
     testsOffre: offre?.offre ? tousLesTests.filter((a) => offreDe(a.id)?.id === offre.offre!.id).map((a) => a.id) : [],
   });
+  // Lot 13 ter · ce que T et L ouvrent (une navigation) · fermé, la raison du geste.
+  const sonLot = lots.lots.find((l) => l.ads.some((a) => a.id === d.id)) ?? null;
+  const clavier = gestesClavierTest({ adId: d.id, gagnanteArbitree, planIds, lot: sonLot ? { id: sonLot.id, numero: sonLot.numero } : null });
   const hypotheseOuverte = accesHypothese({ adsmap: roleAtLeast(g.s.role, 'member') ? 'ok' : 'role', marqueActive: true });
 
   const suite: PropsActionsFiche['suite'] = !pres.suiteApresVerdict
@@ -133,7 +139,10 @@ export default async function FicheTestSpatial({ params, searchParams }: { param
         enfants: d.children.map((c) => ({ href: lienFicheTest(c.adId), texte: `${c.variantCode} · ${libelleVariableTest(c.changedVariable) ?? c.changedVariable}`, verdict: c.verdict ? LIBELLE_VERDICT[c.verdict as VerdictValue]?.court ?? null : null })),
       }}
       cible={{ ...cible, raisonHypothese: hypotheseOuverte.ouvert ? null : hypotheseOuverte.raison }}
-      actions={<ActionsFiche adId={d.id} arbitrage={!arbitre && d.computed ? { calcule: d.computed } : null} suite={suite} partage={gagnante && g.admin} />}
+      actions={<>
+        <RaccourcisTest iterer={clavier.iterer} lot={clavier.lot} />
+        <ActionsFiche adId={d.id} arbitrage={!arbitre && d.computed ? { calcule: d.computed } : null} suite={suite} partage={gagnante && g.admin} />
+      </>}
     />
   );
 }

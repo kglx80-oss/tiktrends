@@ -163,6 +163,13 @@ describe('Spatial · parité de structure avec la maquette', () => {
     expect(aide.length, 'le bouton « Raccourcis clavier » du rail a disparu · retire cet écart').toBe(1);
     expect(aide[0]!.nextElementSibling?.id, 'le bouton « Raccourcis clavier » a quitté sa place (avant « Plus de modules »)').toBe('morebtn');
     aide[0]!.remove();
+    // Écart DÉCLARÉ (lot 13 ter) · la touche « [ » de « Réduire le menu », lue dans la table, UN `<kbd>` dans son
+    // libellé, à côté du texte (masqué rail réduit) · retiré avant la comparaison · aucune autre touche dans le rail.
+    const kbd = [...t.content.querySelectorAll('nav.rail kbd')];
+    expect(kbd.map((k) => `${k.closest('button')?.id} ${k.getAttribute('data-touche')} ${k.textContent}`), 'les touches du rail ont changé · retire ou déclare cet écart').toEqual(['railtg rail [']);
+    expect(kbd[0]!.parentElement?.tagName, 'la touche du rail a quitté son libellé').toBe('STRONG');
+    expect(kbd[0]!.parentElement?.parentElement?.className).toBe('lab');
+    kbd.forEach((k) => k.remove());
     const html = t.innerHTML;
     const p = parite(html, '_coquille', {
       selecteur: 'nav.rail', ignorer: ['.brandrow .logo'],
