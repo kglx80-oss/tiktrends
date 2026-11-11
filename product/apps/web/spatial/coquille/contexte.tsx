@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import type { PorteeRaccourci, RegimeTarifaire } from '@tiktrends/core';
+import type { PorteeRaccourci, PreferencesTouches, RegimeTarifaire } from '@tiktrends/core';
 
 /**
  * Le contexte de la coquille Spatial · ce que les vues lisent pour leur
@@ -38,6 +38,13 @@ export interface CtxSpatial {
    * « [ » et le bouton du rail (cookie compris) et rend le nouvel état. Absent hors coquille.
    */
   rail?: { ouvert: boolean; basculer: () => boolean };
+  /**
+   * Lot 13 ter · ce qu'il faut pour DESSINER une touche à côté d'un geste ·
+   * la préférence « Raccourcis à une touche » (cookie `tt_raccourcis`, lue au
+   * rendu serveur puis suivie à chaque bascule) et la plateforme (⌘ ou Ctrl).
+   * Absent hors coquille · `PREFERENCES_TOUCHES_DEFAUT` (actifs, Ctrl).
+   */
+  touches?: PreferencesTouches;
 }
 
 const DEFAUT: CtxSpatial = {

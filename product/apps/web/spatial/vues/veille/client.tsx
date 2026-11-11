@@ -10,7 +10,7 @@ import { creerHypotheseAction } from '../../../app/actions/adsmap-hypotheses';
 import { FormulaireHypothese } from '../resultats/hypothese-client';
 import { FERME, pendantAction } from '../projet/focus';
 import { useSpatial } from '../../coquille/contexte';
-import { Ic, Lien } from '../../communs';
+import { Ic, Lien, useToucheVisible } from '../../communs';
 import type { CarteVeilleDonnees, DetailVeille as DonneesDetailVeille } from './types';
 import { ImageApercu } from './apercu-client';
 import { ATTR_OUVRIR_DETAIL, rendreFocusPub } from './focus-pub';
@@ -327,11 +327,13 @@ function BarreNavigationDetail({ nav }: { nav: NavigationDetail }) {
   const v = nav.voisins;
   const id = useId();
   const raisons = [...new Set([v.libelle, v.raisonPrecedente, v.raisonSuivante].filter((x): x is string => !!x))].join(' · ');
+  // Lot 13 ter · `aria-keyshortcuts` lu dans la table (← →), jamais écrit à la main.
+  const touche = { precedente: useToucheVisible('veille-precedente')?.aria, suivante: useToucheVisible('veille-suivante')?.aria };
   const bouton = (sens: 'precedente' | 'suivante') => {
     const vers = sens === 'precedente' ? v.precedente : v.suivante;
     return (
       <button type="button" className="btn" data-nav-detail={sens} aria-disabled={!vers || undefined} aria-describedby={`${id}-raison`}
-        aria-keyshortcuts={sens === 'precedente' ? 'ArrowLeft' : 'ArrowRight'}
+        aria-keyshortcuts={touche[sens]}
         style={{ minHeight: 44, minWidth: 44, ...(vers ? {} : FERME) }} onClick={() => { if (vers) nav.aller(vers); }}>
         {sens === 'precedente' ? <><Ic n="back" />Précédente</> : <>Suivante<Ic n="arrow" /></>}
       </button>

@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, messageRaccourciIndisponible, raccourciDeLaFrappe, raccourcisActifs, type EntreeRail, type PorteeRaccourci, type PrefixeRaccourci, type Raccourci, type SectionSpatiale } from '@tiktrends/core';
+import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, messageRaccourciIndisponible, raccourciDeLaFrappe, raccourcisActifs, toucheVisible, EVENEMENT_PREFERENCE_RACCOURCIS, type EntreeRail, type PreferencesTouches, type PorteeRaccourci, type PrefixeRaccourci, type Raccourci, type SectionSpatiale } from '@tiktrends/core';
 import { railCookieString } from '../../lib/rail-preference';
 import { setActiveBrand } from '../../app/actions/brands';
 import { listerProjets } from '../../app/actions/studios/projets';
 import { SPRITE_SYMBOLES } from '../sprite';
-import { Ic, Lien, useTelephone } from '../communs';
+import { Ic, Lien, Touche, useTelephone } from '../communs';
 import { useCiblesTactiles } from './CiblesTactiles';
 import { FournisseurSpatial, type CtxSpatial, type PanneauSpatial } from './contexte';
 import { BandeauNotification, VueNotifications, useNotifications } from './Notifications';
@@ -74,6 +74,12 @@ export interface DonneesCoquille {
   demarrage?: string | null;
   /** Le logo de la marque active n'a pas pu s'afficher · son état (`etatLogoMarqueActive`, même bilan que la fiche Identité). */
   etatLogo?: (e: { brandId: string }) => Promise<LogoParDefautAffiche | null>;
+  /**
+   * Lot 13 ter · les touches VISIBLES · la préférence (cookie `tt_raccourcis`)
+   * et la plateforme (en-têtes), lues au rendu serveur pour que la touche
+   * dessinée soit juste dès le premier rendu. Absent · actifs, Ctrl.
+   */
+  raccourcis?: PreferencesTouches;
 }
 
 /** `document.cookie` · vide s'il est indisponible (préférences bloquées). */
@@ -126,6 +132,19 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   const prefixe = useRef<PrefixeRaccourci | null>(null);
   // Lot 13 bis · l'aide filtrée (« Raccourcis » d'un projet) · `null` · l'aide entière.
   const [filtreAide, setFiltreAide] = useState<readonly PorteeRaccourci[] | null>(null);
+  // Lot 13 ter · les touches visibles · la préférence suit chaque bascule (aide, Mon profil), la plateforme le navigateur.
+  const [touchesActives, setTouchesActives] = useState(d.raccourcis?.actifs ?? true);
+  const [mac, setMac] = useState(d.raccourcis?.mac ?? false);
+  useEffect(() => {
+    setMac(estMac());
+    const suivre = () => setTouchesActives(raccourcisActifs(lireCookies()));
+    window.addEventListener(EVENEMENT_PREFERENCE_RACCOURCIS, suivre);
+    return () => window.removeEventListener(EVENEMENT_PREFERENCE_RACCOURCIS, suivre);
+  }, []);
+  const touches = useMemo<PreferencesTouches>(() => ({ actifs: touchesActives, mac }), [touchesActives, mac]);
+  const toucheJarvis = toucheVisible('jarvis', touches);
+  const toucheAide = toucheVisible('aide', touches);
+  const toucheRail = toucheVisible('rail', touches);
   // Le logo de la marque active · une image qui ne s'affiche pas cède la place
   // à l'initiale ; pour un logo importé (empreinte), la raison est demandée UNE
   // fois par marque · « Logo à réimporter » le dit, avec le chemin vers l'Identité.
@@ -161,7 +180,8 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
   // Au téléphone, les primitives de la maquette (boutons, puces, onglets, cloche,
   // avatar, interrupteurs) reçoivent une cible tactile de 44 px · après la
   // section, dont dépend le zoom de la vue.
-  useCiblesTactiles(useTelephone());
+  const telephone = useTelephone();
+  useCiblesTactiles(telephone);
   useEffect(() => { document.body.classList.toggle('rail-open', railOuvert); }, [railOuvert]);
   useEffect(() => { document.body.classList.toggle('jd-open', panneau === 'jarvis'); }, [panneau]);
   // Le fond flou de la maquette · l'image de la marque active, sinon rien.
@@ -286,8 +306,8 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
 
   const ctx = useMemo<CtxSpatial>(() => ({
     utilisateur: d.utilisateur, credits: d.credits, nonLues: notifs.nonLues, ouvrirPalette, basculer, toast, panneau, ouvrirJarvis,
-    ouvrirRaccourcis, rail: { ouvert: railOuvert, basculer: basculerRail },
-  }), [d.utilisateur, d.credits, notifs.nonLues, ouvrirPalette, basculer, toast, panneau, ouvrirJarvis, ouvrirRaccourcis, railOuvert, basculerRail]);
+    ouvrirRaccourcis, rail: { ouvert: railOuvert, basculer: basculerRail }, touches,
+  }), [d.utilisateur, d.credits, notifs.nonLues, ouvrirPalette, basculer, toast, panneau, ouvrirJarvis, ouvrirRaccourcis, railOuvert, basculerRail, touches]);
 
   const naviguer = (href: string) => {
     setPalette(false); setPanneau(null);
@@ -354,13 +374,14 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
               <span className="rup-ic"><Ic n="spark" /></span><span className="lab"><strong>{d.passer.titre}</strong><small>{d.passer.sous}</small></span><span className="tip">Forfaits &amp; crédits</span>
             </Lien>
           )}
-          <button className="railtg" id="railtg" type="button" aria-label={railOuvert ? 'Réduire le menu' : 'Déployer le menu'} aria-expanded={railOuvert} onClick={basculerRail}>
-            <Ic n="side" /><span className="lab"><strong>Réduire le menu</strong></span>
+          {/* Lot 13 ter · la touche « [ », lue dans la table, à côté du libellé (masqué rail réduit) · écart déclaré. */}
+          <button className="railtg" id="railtg" type="button" aria-label={railOuvert ? 'Réduire le menu' : 'Déployer le menu'} aria-expanded={railOuvert} aria-keyshortcuts={toucheRail?.aria} onClick={basculerRail}>
+            <Ic n="side" /><span className="lab"><strong>Réduire le menu<Touche t={toucheRail} /></strong></span>
           </button>
           {/* Lot 13 · l'aide des raccourcis, hors maquette · même primitive que
               « Réduire le menu » (`.railtg`, masquée au téléphone par la feuille). */}
-          <button className="railtg" id="raccourcis-aide" type="button" aria-label="Raccourcis clavier" title="Raccourcis clavier" aria-haspopup="dialog" aria-expanded={panneau === 'raccourcis'} onClick={ouvrirAide}>
-            <Ic n="q" /><span className="lab"><strong>Raccourcis clavier</strong></span>
+          <button className="railtg" id="raccourcis-aide" type="button" aria-label="Raccourcis clavier" title="Raccourcis clavier" aria-haspopup="dialog" aria-expanded={panneau === 'raccourcis'} aria-keyshortcuts={toucheAide?.aria} onClick={ouvrirAide}>
+            <Ic n="q" /><span className="lab"><strong>Raccourcis clavier<Touche t={toucheAide} /></strong></span>
           </button>
           <button className="morebtn" id="morebtn" type="button" aria-label="Plus de modules" onClick={() => basculer('modules')} aria-expanded={panneau === 'modules'}
             style={{ width: 48, height: 48, borderRadius: '50%', border: 0, background: 'none', color: 'var(--fg2)', placeContent: 'center', cursor: 'pointer' }}>
@@ -373,7 +394,11 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
       <div className="orn glass" id="orn" hidden />
       {jarvis && (
         <button className="jv" id="jv" type="button" aria-label="Demander à Jarvis sur cette page" aria-expanded={panneau === 'jarvis'} title="Demander à Jarvis sur cette page"
-          onClick={() => (panneau === 'jarvis' ? fermer() : ouvrirJarvis())}><span className="orb">J</span></button>
+          aria-keyshortcuts={toucheJarvis?.aria} onClick={() => (panneau === 'jarvis' ? fermer() : ouvrirJarvis())}>
+          <span className="orb">J</span>
+          {/* Lot 13 ter · la touche du tiroir, lue dans la table, en pastille sur l'orbe (rien au téléphone, sans clavier) · écart déclaré. */}
+          {!telephone && <Touche t={toucheJarvis} style={{ position: 'absolute', top: -6, left: -6, margin: 0, background: 'var(--glass)', backdropFilter: 'var(--blur)', color: 'var(--fg2)', pointerEvents: 'none' }} />}
+        </button>
       )}
 
       <div className="sheet glass" id="sheet" tabIndex={-1} hidden={panneau !== 'marques' && panneau !== 'modules'}>
@@ -414,7 +439,7 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
 
       {palette && <Palette groupes={groupes} onNaviguer={naviguer} onFermer={fermer} onTheme={toast} />}
 
-      {panneau === 'raccourcis' && <AideRaccourcis onFermer={fermer} mac={estMac()} portees={filtreAide} onTout={() => setFiltreAide(null)} />}
+      {panneau === 'raccourcis' && <AideRaccourcis onFermer={fermer} mac={mac} portees={filtreAide} onTout={() => setFiltreAide(null)} />}
 
       <div className={toastMsg ? 'toast on' : 'toast'} id="toast" role="status" aria-live="polite">{toastMsg}</div>
       <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: SPRITE_SYMBOLES }} />

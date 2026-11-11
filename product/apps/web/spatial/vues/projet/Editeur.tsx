@@ -18,7 +18,7 @@ import type { ApercuVersion, MediaEditeur, VersionListee, VersionRestauree } fro
 import { useZoomEditeur } from '../../../lib/studios/editeur/use-zoom-editeur';
 import { effacerSauvegardeLocale, ecrireSauvegardeLocale, lireSauvegardeLocale, type SauvegardeLocale } from '../../../lib/studios/editeur/sauvegarde-locale';
 import { useSpatial } from '../../coquille/contexte';
-import { EnTete, Ic, Lien, Vue } from '../../communs';
+import { EnTete, Ic, Lien, Vue, useToucheVisible } from '../../communs';
 import { boutonAction, replacerFocus } from './action-serveur';
 import { LienIdentite, Message } from './briques';
 
@@ -774,13 +774,15 @@ function ZoneZoom({ zoom, hauteur, children }: { zoom: ReturnType<typeof useZoom
   const { zoom: z, disposition: d, mode } = zoom;
   const mesure = z !== null;
   const valeur = mesure ? libelleZoom(z) : 'Ajusté';
+  // Lot 13 ter · `aria-keyshortcuts` lu dans la table (Ctrl ou ⌘ selon la plateforme), jamais écrit à la main.
+  const touche = { moins: useToucheVisible('editeur-zoom-moins')?.aria, plus: useToucheVisible('editeur-zoom-plus')?.aria, ajuster: useToucheVisible('editeur-zoom-ajuster')?.aria };
   return (
     <>
       <div className="seg" role="toolbar" aria-label="Affichage du document" data-barre="zoom" style={{ marginBottom: 10 }}>
-        <button type="button" data-zoom-action="moins" aria-label="Zoom arrière" aria-keyshortcuts="Control+- Meta+-" title="Zoom arrière (Ctrl −)" disabled={!mesure || zoom.auMin} onClick={() => zoom.agir('moins')}>−</button>
+        <button type="button" data-zoom-action="moins" aria-label="Zoom arrière" aria-keyshortcuts={touche.moins} title="Zoom arrière (Ctrl −)" disabled={!mesure || zoom.auMin} onClick={() => zoom.agir('moins')}>−</button>
         <button type="button" data-zoom-action="reelle" aria-label={`Zoom ${valeur} · revenir à la taille réelle (100 %)`} title="Taille réelle (100 %)" disabled={!mesure} onClick={() => zoom.agir('reelle')}><span className="num" data-zoom-valeur="">{valeur}</span></button>
-        <button type="button" data-zoom-action="plus" aria-label="Zoom avant" aria-keyshortcuts="Control+= Meta+= Control++ Meta++" title="Zoom avant (Ctrl +)" disabled={!mesure || zoom.auMax} onClick={() => zoom.agir('plus')}>+</button>
-        <button type="button" data-zoom-action="ajuster" aria-pressed={mode === 'ajuste'} aria-keyshortcuts="Control+0 Meta+0" title="Cadrer le document entier dans la zone (Ctrl 0)" onClick={() => zoom.agir('ajuster')}>Ajuster</button>
+        <button type="button" data-zoom-action="plus" aria-label="Zoom avant" aria-keyshortcuts={touche.plus} title="Zoom avant (Ctrl +)" disabled={!mesure || zoom.auMax} onClick={() => zoom.agir('plus')}>+</button>
+        <button type="button" data-zoom-action="ajuster" aria-pressed={mode === 'ajuste'} aria-keyshortcuts={touche.ajuster} title="Cadrer le document entier dans la zone (Ctrl 0)" onClick={() => zoom.agir('ajuster')}>Ajuster</button>
       </div>
       <div ref={zoom.refZone} data-zone-travail="" data-zoom={mesure ? String(Math.round(z * 1000) / 1000) : 'css'} data-mode-zoom={mode}
         style={{ position: 'relative', width: '100%', height: hauteur, overflow: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}>
