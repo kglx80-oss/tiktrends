@@ -8,6 +8,7 @@ import {
 import { getSession } from '../../../../../lib/auth';
 import { Droits } from '../../../../../spatial/vues/admin/Droits';
 import { bandeauSeul } from '../donnees';
+import { droitsSousNavAdmin } from '../../../../../lib/onglets-reglages';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,7 @@ export default async function DroitsSpatial({ searchParams }: { searchParams: Pr
           cleRole: m.role, moi: m.email.trim().toLowerCase() === s.user.email.trim().toLowerCase(),
         }))}
       gestion={peutEcrire}
+      journal={droitsSousNavAdmin(s).tour ? '/admin/audit' : null}
       audit={auditRows.map((a) => {
         const acteur = a.nom || a.email || (a.role.startsWith('script:') ? 'Script' : 'Équipe');
         return { id: a.id, initiales: initialesAvatar(a.nom ?? '', a.email ?? acteur), acteur, texte: texteAudit(a.action), quand: adminIlYa(a.le as Date, maintenant) };

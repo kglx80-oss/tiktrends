@@ -429,6 +429,12 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
     preparerLotImages: A(() => [{ projectId: s.projet, nombre: 1 }]), lireLotImages: A(() => [{ lotId: randomUUID() }]),
     approuverLotImages: A(() => [{ lotId: randomUUID(), empreinte: 'x', creditsAnnonces: 0, usdMicrosAnnonces: 0, confirme: false }]),
   },
+  // Lot 11 · PC E11 · notes de la lignée · texte seul, aucune adresse · un nœud inventé et une note inconnue sont refusés, rien d'écrit.
+  'app/actions/studios/notes-lignee.ts': {
+    lireNotesLignee: L(PI),
+    noterNoeudLignee: A(() => [{ projectId: s.projetImage, noeud: `creation:${randomUUID()}`, texte: 'Note de recensement' }]),
+    modifierNoteLignee: A(() => [{ noteId: randomUUID(), rowVersion: 0, texte: 'x' }]), resoudreNoteLignee: A(() => [{ noteId: randomUUID(), rowVersion: 0, resolue: true }]),
+  },
   'app/actions/studios/produit.ts': {
     lireProduitProjet: L(PI), epinglerProduit: A(() => [{ ...PV()[0], productId: s.produit, photoId: 'x' }]),
     importerPhotoProduit: A(() => [{ ...PV()[0], productId: s.produit, dataUri: 'data:image/png;base64,iVBORw0KGgo=' }]),

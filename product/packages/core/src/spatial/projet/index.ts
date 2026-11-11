@@ -11,3 +11,4 @@ export * from './taches';
 export * from './hors-ligne';
 export * from './bouton-action';
 export * from './filtres-creations';
+export * from './notes-lignee';

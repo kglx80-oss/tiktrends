@@ -18,6 +18,7 @@ import { listerVariantes } from '../../../../../../lib/studios/variantes/variant
 import { accesAdsmap, etatRelecture } from '../../../../../../lib/studios/variantes/acces';
 import { listerTachesProjet } from '../../../../../../lib/studios/execution/commandes';
 import { activiteDuProjet } from '../../../../../../lib/studios/activite';
+import { lireNotesLigneePour } from '../../../../../../lib/studios/notes-lignee';
 import { urlsApercu } from '../../../../../../lib/studios/editeur/apercus';
 import { lireProjetDetail } from '../../../../../actions/studios/sources';
 import { lireLigneeProjet } from '../../../../../actions/studios/lignee';
@@ -144,6 +145,11 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
   const lotsTest = ligneeLue ? [...new Set(ligneeLue.noeuds.flatMap((n) => (n.lotTest ? [n.lotTest.id] : [])))] : [];
   const tests = await lotsDeTest(d.projet.brandId, lotsTest).catch(() => ({ ouverts: false, conclusions: {} }));
   const groupes = ligneeLue ? groupesLignee(ligneeLue, { conclusions: tests.conclusions, resultatsOuverts: tests.ouverts }) : [];
+  // Lot 11 · PC E11 · les notes de la lignée, sous la même garde que la fiche · un refus se dit, il ne casse pas le canvas.
+  const notesLues = ligneeLue && g.ok ? await lireNotesLigneePour(g.ctx, { projectId: pid }).catch(() => null) : null;
+  const notes = !ligneeLue ? null : notesLues?.ok
+    ? { ok: true as const, vue: { peutEcrire: notesLues.peutEcrire, notes: notesLues.notes } }
+    : { ok: false as const, message: notesLues ? `${notesLues.message} · identifiant support ${notesLues.traceId}` : 'Les notes de la lignée n’ont pas pu être lues · recharge la page pour réessayer.' };
   const couloirsLus = ligneeLue
     ? grouperCouloirs(couloirsDepuisLignee(ligneeLue, { versionVue: d.version.id, apercusCreations, apercusReferences, fiche: ficheNoeud, hypotheseVue }), groupes)
     : couloirsDepuisProjet({
@@ -227,7 +233,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         ? { ok: true, canvas: {
           projectId: canvas.canvas.projectId, version: canvas.canvas.version, modele: canvas.canvas.modele, apercus: canvas.canvas.apercus, disposition: canvas.canvas.disposition, rev: canvas.canvas.rev,
           // Lot 11 · la lignée, second graphe · mêmes positions personnelles, écrans existants (fiche marque · admin seulement).
-          lignee: ligneeLue ? { modele: ligneeLue, groupes, apercus: { ...apercusCreations, ...apercusReferences }, destinations: { marque: ficheHref } } : null,
+          lignee: ligneeLue ? { modele: ligneeLue, groupes, apercus: { ...apercusCreations, ...apercusReferences }, destinations: { marque: ficheHref }, notes } : null,
         } }
         : { ok: false, raison: canvas ? raisonCanevasIndisponible(canvas) : 'La disposition libre n’a pas pu être lue · recharge la page pour réessayer.' },
       aideCanvas: lignee?.ok ? `${nbNoeuds} nœud${nbNoeuds > 1 ? 's' : ''} · la lignée réelle du projet` : 'Ce que la fiche du projet porte · la lignée complète n’est pas disponible',

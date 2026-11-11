@@ -70,6 +70,27 @@ export const LARGEUR_MIN_TABLE_TELEPHONE = {
   declarations: 860,
   operationsCredits: 760, netsCredits: 640, risquesCredits: 640, correctionsCredits: 640,
   rentabiliteRevenus: 800,
+  // Suivi opérationnel · mesuré le 11/11 (Chromium sans tête, 390 × 844,
+  // coquille `.app > .win`, feuilles `tokens.css` + `spatial.css`, huit tâches
+  // et sept événements réalistes · noms accentués, erreur de 200 signes,
+  // pastilles « Annulation demandée · bloquée ») · cellules rognées
+  // (`scrollWidth > clientWidth`) et lignes de la plus haute cellule COURTE
+  // (tâche, état, âge, coût · quand, acteur, action, code, cible, espace) :
+  //
+  // | largeur min. | Tâches · rognées | lignes max | Registre · rognées | lignes max |
+  // | ------------ | ---------------- | ---------- | ------------------ | ---------- |
+  // | sans         | 3 (état, âge)    |     21     |         0          |     13     |
+  // | 700          | 0                |      6     |         0          |      5     |
+  // | 800          | 0                |      5     |         0          |      4     |
+  // | 860          | 0                |      4     |         0          |      4     |
+  // | 900 et plus  | 0                |      3     |         0          |      3     |
+  //
+  // Retenu · 860 pour les deux · plus rien de rogné, quatre lignes au plus, et
+  // la table tient dans la zone utile d'un écran de 1280 (866 px, comme le
+  // profil déclaré) · 900 gagnait une ligne mais défilait de 34 px au bureau.
+  // Les pastilles d'état y passent à la ligne (`white-space: normal`) · sans
+  // cela, « Interrompue · coût incertain » était rognée à toute largeur.
+  taches: 860, registre: 860,
 } as const;
 
 /** Le style en ligne d'une table défilante (`.atable`) · ses lignes gardent leurs propres colonnes. */

@@ -2054,6 +2054,40 @@ export const studioComments = pgTable('studio_comments', {
   projetIdx: index('studio_comments_projet_idx').on(t.workspaceId, t.brandId, t.projectId, t.createdAt),
 }));
 
+/**
+ * Notes du CANVAS DE LIGNÉE (lot 11 V5 · PC E11) · une note est attachée à UN
+ * NŒUD de la lignée d'un projet, désigné par sa clé stable (`node_key`,
+ * l'identifiant de lignée · `brief:<version>`, `creation:<variante>`,
+ * `marque`… · fait du type et de la clé primaire de la donnée projetée, il
+ * survit à chaque nouvelle projection) · jamais à un lien (`studio_lineage_notes_noeud_ck`
+ * refuse `>`), jamais libre (le serveur relit la lignée avant de poser). Le
+ * libellé du nœud au moment de l'écriture (`node_label`) garde la note lisible
+ * quand la donnée disparaît (« Notes sans nœud »). Mêmes règles que les
+ * commentaires (`C/studios/activite/commentaires.ts`, phrases `TEXTES_NOTE`) ·
+ * écrire, modifier la sienne (ancien texte dans `history`), résoudre / rouvrir ·
+ * JAMAIS supprimée (déclencheurs `studio_lineage_notes_sans_suppression`, `…_sans_vidage`, migration 0076).
+ */
+export const studioLineageNotes = pgTable('studio_lineage_notes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id').notNull(),
+  brandId: uuid('brand_id').notNull(),
+  projectId: uuid('project_id').notNull(),
+  nodeKey: text('node_key').notNull(),
+  nodeLabel: text('node_label').notNull(),
+  authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+  body: text('body').notNull(),
+  history: jsonb('history').notNull().default([]),
+  editedAt: timestamp('edited_at', { withTimezone: true }),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: uuid('resolved_by').references(() => users.id, { onDelete: 'set null' }),
+  rowVersion: integer('row_version').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  projet: foreignKey({ name: 'studio_lineage_notes_projet_fk', columns: [t.projectId, t.workspaceId, t.brandId], foreignColumns: [studioProjects.id, studioProjects.workspaceId, studioProjects.brandId] }).onDelete('restrict'),
+  projetIdx: index('studio_lineage_notes_projet_idx').on(t.workspaceId, t.brandId, t.projectId, t.createdAt),
+}));
+
 /* ============================ TOUR DE CONTRÔLE · INCIDENTS (lot 14 V5) ============================ */
 /**
  * Les incidents DÉCLARÉS par l'équipe plateforme (RJ IN01, IN02) · un titre,

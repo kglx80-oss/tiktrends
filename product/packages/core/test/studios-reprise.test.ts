@@ -59,12 +59,15 @@ describe('progressionLisible · jamais de pourcentage fabriqué', () => {
   });
 });
 
-describe('libelleOperationJob · fallback honnête', () => {
-  it('connaît les opérations usuelles, et renvoie l’identifiant brut sinon', () => {
+describe('libelleOperationJob · jamais un code brut', () => {
+  it('connaît les opérations usuelles · « studio.generation » se dit « Génération » et ce qu’il produit · une inconnue se dit « Tâche »', () => {
     expect(libOp('keyframe:s_image')).toBe('Image');
     expect(libOp('controle:vision')).toBe('Contrôle visuel');
     expect(libOp('clip:intro')).toBe('Vidéo');
-    expect(libOp('operation_inconnue_xyz')).toBe('operation_inconnue_xyz');
+    expect(libOp('operation_inconnue_xyz')).toBe('Tâche');
+    expect(libOp('studio.generation')).toBe('Génération');
+    expect(libOp('studio.generation', [{ operation: 'keyframe:s_image' }, { operation: 'controle:vision' }])).toBe('Génération · Image, Contrôle visuel');
+    expect(libOp('studio.generation', [{ operation: 'inconnue' }])).toBe('Génération');
   });
 });
 

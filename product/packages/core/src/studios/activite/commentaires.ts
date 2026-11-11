@@ -40,14 +40,45 @@ const CONTROLES = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F‎‏‪-‮⁦
 
 export type TexteCommentaire = { ok: true; texte: string } | { ok: false; raison: string };
 
-/** Le texte d'un commentaire, normalisé et borné · ou la raison du refus, à dire à côté du bouton. */
-export function validerTexteCommentaire(x: unknown): TexteCommentaire {
-  if (typeof x !== 'string') return { ok: false, raison: 'Le commentaire doit être un texte · recharge la page puis recommence.' };
-  const t = x.replace(/\r\n?/g, '\n').replace(CONTROLES, '').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
-  if (!t) return { ok: false, raison: 'Le commentaire est vide · écris ce que tu as vu avant de publier.' };
-  const n = [...t].length;
-  if (n > LONGUEUR_MAX_COMMENTAIRE) return { ok: false, raison: `Le commentaire fait ${n} caractères · ${LONGUEUR_MAX_COMMENTAIRE} au plus, raccourcis-le.` };
-  return { ok: true, texte: t };
+/**
+ * Les PHRASES d'un fil (commentaires du projet, notes de la lignée · lot 11) ·
+ * seules les phrases changent d'un fil à l'autre · la règle (normalisation,
+ * bornes, qui modifie, qui résout, historique) est UNE, celle de ce module.
+ */
+export interface TextesFil {
+  pasUnTexte: string;
+  vide: string;
+  tropLong: (n: number, max: number) => string;
+  lecteur: string;
+  pasLAuteur: string;
+  resoluAModifier: string;
+  tropDeModifications: (max: number) => string;
+  dejaResolu: string;
+  encoreOuvert: string;
+  sansCible: string;
+}
+
+export const TEXTES_COMMENTAIRE: TextesFil = {
+  pasUnTexte: 'Le commentaire doit être un texte · recharge la page puis recommence.',
+  vide: 'Le commentaire est vide · écris ce que tu as vu avant de publier.',
+  tropLong: (n, max) => `Le commentaire fait ${n} caractères · ${max} au plus, raccourcis-le.`,
+  lecteur: 'Ton rôle permet de lire les commentaires de ce projet, pas d’en écrire ni d’en résoudre · demande à un membre de l’espace.',
+  pasLAuteur: 'Seule la personne qui l’a écrit peut le modifier · réponds par un nouveau commentaire.',
+  resoluAModifier: 'Ce commentaire est résolu · rouvre-le pour le modifier.',
+  tropDeModifications: (max) => `Déjà modifié ${max} fois · écris un nouveau commentaire.`,
+  dejaResolu: 'Ce commentaire est déjà résolu.',
+  encoreOuvert: 'Ce commentaire est encore ouvert.',
+  sansCible: 'Choisis la version ou la création que tu commentes.',
+};
+
+/** Le texte d'un commentaire (ou d'une note · `t`), normalisé et borné · ou la raison du refus, à dire à côté du bouton. */
+export function validerTexteCommentaire(x: unknown, t: TextesFil = TEXTES_COMMENTAIRE): TexteCommentaire {
+  if (typeof x !== 'string') return { ok: false, raison: t.pasUnTexte };
+  const s = x.replace(/\r\n?/g, '\n').replace(CONTROLES, '').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+  if (!s) return { ok: false, raison: t.vide };
+  const n = [...s].length;
+  if (n > LONGUEUR_MAX_COMMENTAIRE) return { ok: false, raison: t.tropLong(n, LONGUEUR_MAX_COMMENTAIRE) };
+  return { ok: true, texte: s };
 }
 
 /** La cible demandée par le client · `version` ou `creation`, sinon rien. */
@@ -59,24 +90,25 @@ export interface GesteCommentaire { ok: boolean; raison: string | null }
 
 export interface DroitsCommentaire { modifier: GesteCommentaire; resoudre: GesteCommentaire; rouvrir: GesteCommentaire }
 
-export const RAISON_LECTEUR_COMMENTAIRE = 'Ton rôle permet de lire les commentaires de ce projet, pas d’en écrire ni d’en résoudre · demande à un membre de l’espace.';
+export const RAISON_LECTEUR_COMMENTAIRE = TEXTES_COMMENTAIRE.lecteur;
 
-/** Ce que la personne peut faire d'un commentaire · rejoué par le serveur avant toute écriture. */
+/** Ce que la personne peut faire d'un commentaire (ou d'une note · `t`) · rejoué par le serveur avant toute écriture. */
 export function droitsCommentaire(
   c: { auteurId: string | null; resolu: boolean; modifications: number },
   moi: { userId: string; peutProposer: boolean },
+  t: TextesFil = TEXTES_COMMENTAIRE,
 ): DroitsCommentaire {
-  const lecteur: GesteCommentaire = { ok: false, raison: RAISON_LECTEUR_COMMENTAIRE };
+  const lecteur: GesteCommentaire = { ok: false, raison: t.lecteur };
   if (!moi.peutProposer) return { modifier: lecteur, resoudre: lecteur, rouvrir: lecteur };
   const modifier: GesteCommentaire = c.auteurId === null || c.auteurId !== moi.userId
-    ? { ok: false, raison: 'Seule la personne qui l’a écrit peut le modifier · réponds par un nouveau commentaire.' }
-    : c.resolu ? { ok: false, raison: 'Ce commentaire est résolu · rouvre-le pour le modifier.' }
-      : c.modifications >= MODIFICATIONS_MAX_COMMENTAIRE ? { ok: false, raison: `Déjà modifié ${MODIFICATIONS_MAX_COMMENTAIRE} fois · écris un nouveau commentaire.` }
+    ? { ok: false, raison: t.pasLAuteur }
+    : c.resolu ? { ok: false, raison: t.resoluAModifier }
+      : c.modifications >= MODIFICATIONS_MAX_COMMENTAIRE ? { ok: false, raison: t.tropDeModifications(MODIFICATIONS_MAX_COMMENTAIRE) }
         : { ok: true, raison: null };
   return {
     modifier,
-    resoudre: c.resolu ? { ok: false, raison: 'Ce commentaire est déjà résolu.' } : { ok: true, raison: null },
-    rouvrir: c.resolu ? { ok: true, raison: null } : { ok: false, raison: 'Ce commentaire est encore ouvert.' },
+    resoudre: c.resolu ? { ok: false, raison: t.dejaResolu } : { ok: true, raison: null },
+    rouvrir: c.resolu ? { ok: true, raison: null } : { ok: false, raison: t.encoreOuvert },
   };
 }
 
@@ -96,10 +128,10 @@ export function historiqueApresModification(historique: unknown, ancien: string,
 }
 
 /** Le bouton « Publier » · fermé tant que le texte n'est pas publiable, la raison écrite à côté. */
-export function etatPublicationCommentaire(texte: string, o: { peutProposer: boolean; cibleChoisie: boolean }): GesteCommentaire {
-  if (!o.peutProposer) return { ok: false, raison: RAISON_LECTEUR_COMMENTAIRE };
-  if (!o.cibleChoisie) return { ok: false, raison: 'Choisis la version ou la création que tu commentes.' };
-  const v = validerTexteCommentaire(texte);
+export function etatPublicationCommentaire(texte: string, o: { peutProposer: boolean; cibleChoisie: boolean }, t: TextesFil = TEXTES_COMMENTAIRE): GesteCommentaire {
+  if (!o.peutProposer) return { ok: false, raison: t.lecteur };
+  if (!o.cibleChoisie) return { ok: false, raison: t.sansCible };
+  const v = validerTexteCommentaire(texte, t);
   return v.ok ? { ok: true, raison: null } : { ok: false, raison: v.raison };
 }
 

@@ -39,8 +39,8 @@ import type { CommentairesProjet, PropsActiviteProjet, VueCommentaire } from './
  * bouton fermé dit pourquoi à côté (`RaisonFermee`). Gratuit.
  */
 
-const ICONE: Record<TypeJournal, 'copy' | 'down' | 'eye' | 'folder' | 'flask' | 'card' | 'spark' | 'bulb' | 'chat' | 'more'> = {
-  versions: 'copy', exports: 'down', relectures: 'eye', projet: 'folder', tests: 'flask', devis: 'card', generations: 'spark', jarvis: 'bulb', commentaires: 'chat', autre: 'more',
+const ICONE: Record<TypeJournal, 'copy' | 'down' | 'eye' | 'folder' | 'flask' | 'card' | 'spark' | 'bulb' | 'chat' | 'bookmark' | 'more'> = {
+  versions: 'copy', exports: 'down', relectures: 'eye', projet: 'folder', tests: 'flask', devis: 'card', generations: 'spark', jarvis: 'bulb', commentaires: 'chat', notes: 'bookmark', autre: 'more',
 };
 
 /** La brique, avec la cible tactile de 44 px gardée même fermée (l'aspect fermé s'ajoute, il ne la remplace pas). */
@@ -90,7 +90,7 @@ function Journal({ projectId, initial }: { projectId: string; initial: PropsActi
     <section className="tile" id="journal" aria-labelledby={`${id}-titre`} data-journal-projet="">
       <div className="sech" style={{ margin: 0 }}>
         <h2 id={`${id}-titre`}>Journal du projet</h2>
-        <span className="faint" style={{ fontSize: '12.5px' }}>Qui a fait quoi · lu dans le journal des studios, les versions, les tâches et les commentaires · rien n’est écrit ici</span>
+        <span className="faint" style={{ fontSize: '12.5px' }}>Qui a fait quoi · lu dans le journal des studios, les versions, les tâches, les commentaires et les notes de la lignée · rien n’est écrit ici</span>
         {horsLigne && <span className="pill w" data-hors-ligne="">{TEXTES_HORS_LIGNE.pastille}</span>}
       </div>
       {j && j.filtres.length > 0 && (

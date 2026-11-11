@@ -36,4 +36,7 @@ export const ECRANS_ADMIN: readonly EcranSpatial[] = [
   { chemin: '/admin/stockage', section: 'admin' },
   // Lot 5 quater · la mesure de l'extraction de Jarvis sur les réponses stockées · lecture seule.
   { chemin: '/admin/jarvis-mesure', section: 'admin' },
+  // Suivi opérationnel · tâches de génération (JB01) et registre d'audit (AR06) · lecture seule.
+  { chemin: '/admin/taches', section: 'admin' },
+  { chemin: '/admin/audit', section: 'admin' },
 ];

@@ -41,6 +41,9 @@ export interface PropsIncidentsDeclares {
   export: EtatExport;
   causes: ReadonlyArray<{ cle: string; libelle: string }>;
   causeProposee: string | null;
+  /** Le titre et le constat proposés depuis une tâche en échec (`?tache=`) · pré-remplis, rien d'écrit avant le clic. */
+  titrePropose?: string | null;
+  constatPropose?: string | null;
 }
 
 const COLONNES_GRILLE = 'minmax(0,1.6fr) .7fr .7fr .9fr .7fr .9fr .4fr .7fr minmax(0,1.4fr)';
@@ -52,10 +55,10 @@ export function IncidentsDeclares(p: PropsIncidentsDeclares) {
   const router = useRouter();
   const [occupe, setOccupe] = useState<string | null>(null);
   const [retour, setRetour] = useState<{ cle: string; ok: boolean; texte: string } | null>(null);
-  const [titre, setTitre] = useState('');
+  const [titre, setTitre] = useState(p.titrePropose ?? '');
   const [gravite, setGravite] = useState('majeure');
   const [cause, setCause] = useState(p.causeProposee ?? '');
-  const [constat, setConstat] = useState('');
+  const [constat, setConstat] = useState(p.constatPropose ?? '');
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [resolutions, setResolutions] = useState<Record<string, string>>({});
   // Le focus à replacer quand la liste RELUE sera rendue (correctif #1065) · un `setTimeout(0)` seul peut passer avant ce rendu.
@@ -150,6 +153,7 @@ export function IncidentsDeclares(p: PropsIncidentsDeclares) {
       </section>
       <section className="tile sec" id="declarer" data-section="declarer-incident">
         <div className="sech"><h2>Déclarer un incident</h2><span className="faint" style={{ marginLeft: 'auto', fontSize: '12.5px' }}>Visible de l’équipe plateforme seulement · aucun client n’est prévenu d’ici.</span></div>
+        {p.titrePropose && <p className="faint" data-prerempli="" style={{ fontSize: '12.5px', margin: '0 0 10px' }}>Pré-rempli depuis une tâche en échec · relis, corrige au besoin · rien n’est enregistré avant « Déclarer l’incident ».</p>}
         <div className="fields" style={{ display: 'grid', gap: 10 }}>
           <label className="field">Titre
             <input id="incident-titre" type="text" maxLength={LONGUEUR_MAX_TITRE_INCIDENT} value={titre} onChange={(e) => setTitre(e.target.value)} autoComplete="off" />

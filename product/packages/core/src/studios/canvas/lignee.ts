@@ -22,9 +22,10 @@
  *    (nœuds « Projet source » et « Copie », catégorie de lien « Copie »). Une
  *    duplication passée, sans `copieDe`, ne relie rien · aucun lien deviné.
  *
- * Aucune donnée fabriquée. Les seules vraies données NOUVELLES de la lignée V5
- * (note libre, fiche marque détaillée) ne sont pas projetées ici : elles
- * demandent une migration et sont classées « à venir » (lot ultérieur).
+ * Aucune donnée fabriquée. Les NOTES (lot 11 · PC E11, table
+ * `studio_lineage_notes`) ne sont PAS projetées · une note s'attache à un nœud
+ * par son identifiant de lignée (`C/spatial/projet/notes-lignee.ts`), elle
+ * n'ajoute ni nœud ni lien. La fiche marque détaillée reste « à venir ».
  *
  * ── Le graphe est un DAG, posé en couches ────────────────────────────────────
  *
@@ -130,9 +131,12 @@ export interface EntreeLignee {
   donnees: DonneesVariantes;
 }
 
-/** Les vraies données NOUVELLES de la lignée V5 · classées pour le lot ultérieur. */
+/**
+ * Les vraies données NOUVELLES de la lignée V5 · classées pour un lot
+ * ultérieur. Les notes (lot 11 · PC E11) sont livrées À CÔTÉ de la projection
+ * (attachées à un nœud par son identifiant) · elles ne sont pas des nœuds.
+ */
 export const LIGNEE_A_VENIR: readonly AbsentLignee[] = [
-  { element: 'Note', raison: 'Note libre sur le canvas · donnée nouvelle (table/colonne), lot ultérieur.' },
   { element: 'Fiche marque', raison: 'Fiche marque détaillée (règles créatives, palette) · données nouvelles, lot ultérieur.' },
 ];
 
