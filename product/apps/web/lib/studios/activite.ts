@@ -29,7 +29,8 @@ import { chargerLots } from '../../app/(spatial)/sp/adsmap/donnees';
  *  · journal · LECTURE seule, rien n'est écrit pour l'occasion · le journal
  *    d'audit des studios (cibles du projet : lui-même, ses versions,
  *    propositions, devis, tâches, variantes, liens de test, médias, lots
- *    d'images), l'historique des versions, les tâches et les commentaires ·
+ *    d'images), l'historique des versions, les tâches, les commentaires et
+ *    les notes du canvas de lignée (lot 11 · le nœud, jamais le texte) ·
  *    chaque requête bornée à la portée (espace, marques visibles) ET à la
  *    marque du projet, au plus `LECTURE_MAX_JOURNAL` lignes par source ;
  *  · commentaires · lire = qui voit le projet (`studio.read`) · écrire,
@@ -155,7 +156,12 @@ export async function lireJournalPour(ctx: ContexteStudio, e: { projectId: unkno
   const commentaires = await db.select({ id: C.id, targetType: C.targetType, versionId: C.versionId, assetId: C.assetId, authorId: C.authorId, createdAt: C.createdAt, resolvedAt: C.resolvedAt, resolvedBy: C.resolvedBy })
     .from(C).where(and(eq(C.projectId, pid), duProjet(C, ctx, projet))).orderBy(desc(C.createdAt)).limit(LECTURE_MAX_JOURNAL);
 
-  const nom = await noms(ctx, [...evenements.map((x) => x.acteur), ...c.versions.map((v) => v.authorId), ...commentaires.flatMap((x) => [x.authorId, x.resolvedBy])]);
+  // Lot 11 · les notes du canvas de lignée · le libellé du nœud gardé avec la note (jamais son texte).
+  const NL = schema.studioLineageNotes;
+  const notes = await db.select({ id: NL.id, noeud: NL.nodeLabel, authorId: NL.authorId, createdAt: NL.createdAt, resolvedAt: NL.resolvedAt, resolvedBy: NL.resolvedBy })
+    .from(NL).where(and(eq(NL.projectId, pid), duProjet(NL, ctx, projet))).orderBy(desc(NL.createdAt)).limit(LECTURE_MAX_JOURNAL);
+
+  const nom = await noms(ctx, [...evenements.map((x) => x.acteur), ...c.versions.map((v) => v.authorId), ...commentaires.flatMap((x) => [x.authorId, x.resolvedBy]), ...notes.flatMap((x) => [x.authorId, x.resolvedBy])]);
   const faits: FaitJournal[] = [];
   for (const x of evenements) {
     // Deux gardes valent mieux qu'une · une ligne hors portée ne se dit pas.
@@ -179,6 +185,10 @@ export async function lireJournalPour(ctx: ContexteStudio, e: { projectId: unkno
     faits.push({ source: 'commentaire', id: `${k.id}:ecrit`, le: k.createdAt.toISOString(), acteur: nom(k.authorId), geste: 'ecrit', cible: sur });
     if (k.resolvedAt) faits.push({ source: 'commentaire', id: `${k.id}:resolu`, le: k.resolvedAt.toISOString(), acteur: nom(k.resolvedBy), geste: 'resolu', cible: sur });
   }
+  for (const k of notes) {
+    faits.push({ source: 'note', id: `${k.id}:ecrite`, le: k.createdAt.toISOString(), acteur: nom(k.authorId), geste: 'ecrite', noeud: k.noeud });
+    if (k.resolvedAt) faits.push({ source: 'note', id: `${k.id}:resolue`, le: k.resolvedAt.toISOString(), acteur: nom(k.resolvedBy), geste: 'resolue', noeud: k.noeud });
+  }
   // Les copies de ce projet (`copieDe` dans l'audit de leur création) · « Dupliqué en « … » » · une duplication passée ne se dit pas ici.
   const copies = (await liensDeCopie(ctx, projet).catch(() => ({ source: null, copies: [] }))).copies;
   const nomCopie = await noms(ctx, copies.map((x) => x.acteurId));
@@ -188,7 +198,7 @@ export async function lireJournalPour(ctx: ContexteStudio, e: { projectId: unkno
       copie: x.titre !== null ? { id: x.id, titre: x.titre } : null, versionN: versionN.get(x.versionId) ?? null,
     });
   }
-  const tronque = [evenements.length, c.versions.length, jobs.length, commentaires.length].some((n) => n >= LECTURE_MAX_JOURNAL);
+  const tronque = [evenements.length, c.versions.length, jobs.length, commentaires.length, notes.length].some((n) => n >= LECTURE_MAX_JOURNAL);
   return { ok: true, journal: journalProjet(faits, { projectId: pid, type: e.type, page: e.page }), tronque };
 }
 

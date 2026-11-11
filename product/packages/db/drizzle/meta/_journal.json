@@ -533,6 +533,13 @@
       "when": 1794200000000,
       "tag": "0075_incidents_plateforme",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794300000000,
+      "tag": "0076_notes_lignee",
+      "breakpoints": true
     }
   ]
 }

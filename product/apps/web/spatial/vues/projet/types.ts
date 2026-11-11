@@ -227,7 +227,34 @@ export interface LigneeLibre {
   apercus: Record<string, string>;
   /** L'écran d'un nœud quand le serveur le connaît mieux que la projection (fiche marque · admin seulement). */
   destinations: Record<string, string | null>;
+  /**
+   * PC E11 · les notes de la lignée (`lireNotesLigneePour`) · rangées par
+   * l'écran sous leur nœud ou dans « Notes sans nœud » · `ok: false` · la
+   * lecture a échoué, le canvas reste, la raison est dite. Absentes · rien.
+   */
+  notes?: { ok: true; vue: NotesLignee } | { ok: false; message: string } | null;
 }
+
+/** Une note de la lignée, telle que l'écran la rend · le texte est du TEXTE. */
+export interface VueNoteLignee {
+  id: string;
+  /** La clé stable du nœud (identifiant de lignée) · la note se range sous lui s'il est dans la lignée. */
+  noeud: string;
+  /** Le libellé du nœud gardé avec la note · lisible quand le nœud a disparu. */
+  libelleNoeud: string;
+  auteur: string;
+  quand: string;
+  texte: string;
+  modifie: string | null;
+  /** Les textes remplacés, du plus ancien au plus récent · jamais perdus. */
+  anciens: Array<{ texte: string; quand: string }>;
+  resolu: { par: string; quand: string } | null;
+  /** Règle du noyau (`droitsCommentaire`, phrases `TEXTES_NOTE`) · rejouée par le serveur au clic. */
+  gestes: DroitsCommentaire;
+  rowVersion: number;
+}
+
+export interface NotesLignee { peutEcrire: boolean; notes: VueNoteLignee[] }
 
 /* ───────────────────────────── Lot 10 · activité et commentaires ───────────────────────────── */
 

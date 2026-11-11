@@ -1,15 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent as PointerEventReact } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent as PointerEventReact } from 'react';
 import {
   GRAND_PAS_CLAVIER_CANVAS, LEGENDE_VIDE, LIBELLES_ETAPE_CANVAS, LIBELLES_NATURE_CANVAS, LIBELLE_MEDIA_CARTE, PAS_CLAVIER_CANVAS, PAS_ZOOM_CANVAS, SANS_ECRAN_NOEUD, STYLE_LIEN_LIGNEE,
   aideCanevasLibre, annonceDeplacement, cadresLignee, categorieLienLignee, composerCanvas, descendantsDeCarte, dimensionsLignee, dispositionApresReinitialisation, entreesDeCarte, etatInitialCanvas, etiquetteCarteLignee,
   legendeLignee, ligneeEnListe, ligneeVersCanvas, messageEnregistrementLibre, miniCarteLignee, phraseAvalCarte, phraseLegende, phraseLiens, rechercheGraphe, texteZoneLibre,
-  positionCarte, reduireCanvas, sortiesDeCarte,
+  notesOuvertes, phraseIndicateurNotes, positionCarte, reduireCanvas, repartirNotes, sortiesDeCarte,
   type CarteCanvas, type CibleJarvisNoeud, type DispositionCanvas, type EtatCanvas, type GesteCanvas, type GrapheLibre, type ResultatEnregistrementLibre, type TailleCanvas,
 } from '@tiktrends/core';
 import { enregistrerDispositionCanvas, reinitialiserDispositionCanvas } from '../../../app/actions/studios/canvas';
-import { Lien } from '../../communs';
+import { Ic, Lien } from '../../communs';
+import { ErreurNotes, NotesNoeud, NotesSansNoeud, useNotesLignee } from './NotesLignee';
 import type { CanevasLibre } from './types';
 
 /**
@@ -40,6 +41,13 @@ import type { CanevasLibre } from './types';
  * Aucun nœud ni lien ne s'ajoute à la main · seules les positions
  * s'enregistrent, dans la même disposition personnelle (identifiants disjoints) ·
  * « Réinitialiser » ne remet en place que le graphe affiché.
+ *
+ * PC E11 · les NOTES de la lignée (`NotesLignee.tsx`) · une note est attachée à
+ * UN nœud (sa clé stable), jamais à un lien ni libre · un indicateur sur la
+ * carte (notes OUVERTES, `notesOuvertes`) est un bouton qui choisit le nœud et
+ * porte le focus sur ses notes · le détail du nœud et chaque nœud de la liste
+ * les montrent avec leurs gestes · « Notes sans nœud » garde lisibles celles
+ * dont la donnée a disparu. Aucune carte ni aucun trait ne s'ajoute.
  */
 
 const TAILLE_DEFAUT: TailleCanvas = { largeur: 860, hauteur: 520 };
@@ -57,6 +65,11 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
   const apercus = enLignee ? lignee!.apercus : c.apercus;
   const liste = useMemo(() => (lignee ? ligneeEnListe(lignee.modele, lignee.groupes, lignee.destinations) : []), [lignee]);
   const legende = useMemo(() => (lignee ? legendeLignee(lignee.modele) : []), [lignee]);
+  // PC E11 · les notes · rangées sous leur nœud, ou « sans nœud » quand la donnée a disparu.
+  const notesCtl = useNotesLignee(c.projectId, lignee?.notes ?? null);
+  const notes = useMemo(() => (lignee && notesCtl.vue ? repartirNotes(notesCtl.vue.notes, lignee.modele) : null), [lignee, notesCtl.vue]);
+  // « Ouvrir les notes » depuis l'indicateur · le focus va au titre des notes du détail une fois le détail RENDU.
+  const [notesAOuvrir, setNotesAOuvrir] = useState<string | null>(null);
   const reduire = useMemo(() => (e: EtatCanvas, g: GesteCanvas) => reduireCanvas(modele, e, g).etat, [modele]);
   const [etat, envoyer] = useReducer(reduire, c.disposition, (d: DispositionCanvas) => etatInitialCanvas(d, 'canvas'));
   const etatRef = useRef(etat);
@@ -77,6 +90,11 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
   const parId = useMemo(() => new Map(compose.cartes.map((k) => [k.id, k])), [compose]);
   const choisie = etat.selection ? modele.cartes.find((k) => k.id === etat.selection) ?? null : null;
   const deplacees = Object.keys(etat.disposition.positions).filter((id) => modele.grille[id]).length;
+  useEffect(() => {
+    if (!notesAOuvrir || etat.selection !== notesAOuvrir) return;
+    setNotesAOuvrir(null);
+    document.querySelector<HTMLElement>(`[data-notes-panneau="detail:${notesAOuvrir}"] [data-titre-notes]`)?.focus();
+  }, [notesAOuvrir, etat.selection]);
 
 
   /* ── Écriture · uniquement depuis un geste qui la demande (file, une à la fois) ── */
@@ -296,10 +314,12 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
             const media = enLignee ? null : LIBELLE_MEDIA_CARTE[k.media];
             const type = enLignee ? etiquetteCarteLignee(lignee!.modele, k.id) : null;
             const badge = enLignee ? noeudLignee.get(k.id)?.badge ?? null : null;
+            const ouvertes = enLignee && notes ? notesOuvertes(notes.parNoeud.get(k.id)) : 0;
             return (
-              <button key={k.id} type="button" className={`node${sel ? ' sel' : ''}${badge ? ' wn' : ''}`} data-carte={k.id} aria-pressed={sel}
+              <Fragment key={k.id}>
+              <button type="button" className={`node${sel ? ' sel' : ''}${badge ? ' wn' : ''}`} data-carte={k.id} aria-pressed={sel}
                 data-x={Math.round(p.x)} data-y={Math.round(p.y)}
-                aria-label={type ? `${k.titre} · ${type.toLowerCase()}${badge ? ` · ${badge}` : ''}` : `${k.titre} · ${LIBELLES_NATURE_CANVAS[k.nature]}${media ? ` · ${media}` : ''}`}
+                aria-label={type ? `${k.titre} · ${type.toLowerCase()}${badge ? ` · ${badge}` : ''}${ouvertes ? ` · ${phraseIndicateurNotes(ouvertes)}` : ''}` : `${k.titre} · ${LIBELLES_NATURE_CANVAS[k.nature]}${media ? ` · ${media}` : ''}`}
                 onClick={() => { if (!glisse) envoyer({ type: 'selectionner', id: k.id }); }}
                 onKeyDown={(ev) => surToucheCarte(ev, k)}
                 onPointerDown={(ev) => { ev.stopPropagation(); debut(ev, 'carte', k.id); }}
@@ -313,6 +333,16 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
                 {media && <span className="faint" style={{ marginLeft: 0 }}>{media}</span>}
                 {badge && <span className="pill g" style={{ justifySelf: 'start' }}>{badge}</span>}
               </button>
+              {/* PC E11 · l'indicateur des notes OUVERTES du nœud · un bouton (clavier : Tab puis Entrée) qui choisit le nœud et porte le focus sur ses notes. */}
+              {ouvertes > 0 && (
+                <button type="button" className="pill c" data-ouvrir-notes={k.id} aria-label={`${phraseIndicateurNotes(ouvertes)} sur « ${k.titre} » · ouvrir les notes`}
+                  onPointerDown={(ev) => ev.stopPropagation()}
+                  onClick={() => { setNotesAOuvrir(k.id); envoyer({ type: 'selectionner', id: k.id }); }}
+                  style={{ position: 'absolute', left: p.x + p.w + (g?.dx ?? 0) - 10, top: p.y + (g?.dy ?? 0) - 22, transform: 'translateX(-100%)', minHeight: 44, padding: '0 14px', display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 0 }}>
+                  <Ic n="bookmark" />{ouvertes} note{ouvertes > 1 ? 's' : ''}
+                </button>
+              )}
+              </Fragment>
             );
           })}
         </div>
@@ -348,6 +378,7 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
               {elementChoisi.lien
                 ? <Lien className="btn sm" style={{ justifySelf: 'start' }} href={elementChoisi.lien.href} data-ecran-detail={elementChoisi.id}>{elementChoisi.lien.libelle}</Lien>
                 : <p className="faint" style={{ margin: 0, marginLeft: 0 }}>{SANS_ECRAN_NOEUD}</p>}
+              {notes && <NotesNoeud noeud={{ id: elementChoisi.id, titre: elementChoisi.titre }} notes={notes.parNoeud.get(elementChoisi.id) ?? []} lieu="detail" ctl={notesCtl} />}
             </div>
           )}
           {!enLignee && [{ titre: 'Lit', cartes: lit, vide: 'Aucune dépendance · c’est un point de départ.' }, { titre: 'Alimente', cartes: alimente, vide: 'Rien ne la lit.' }].map((b) => (
@@ -413,11 +444,14 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
                     : <span className="faint" style={{ marginLeft: 0 }} data-sans-ecran={x.id}>{SANS_ECRAN_NOEUD}</span>}
                   <button className="chip" type="button" data-montrer={x.id} onClick={() => envoyer({ type: 'focaliser', id: x.id, taille: mesurer() })}>Montrer sur le canvas</button>
                 </span>
+                {notes && <NotesNoeud noeud={{ id: x.id, titre: x.titre }} notes={notes.parNoeud.get(x.id) ?? []} lieu="liste" ctl={notesCtl} />}
               </li>
             ))}
           </ol>
         </details>
       )}
+      {enLignee && notes && <NotesSansNoeud notes={notes.sansNoeud} ctl={notesCtl} />}
+      {enLignee && <ErreurNotes ctl={notesCtl} />}
     </div>
   );
 }

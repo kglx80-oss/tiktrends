@@ -151,10 +151,11 @@ describe('Lot 4a · projection de lignée · ce que le graphe relie', () => {
     expect(a.empreinte).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it('données nouvelles (note, fiche marque) classées « à venir », jamais fabriquées', () => {
+  it('données nouvelles (fiche marque) classées « à venir », jamais fabriquées · les notes (lot 11) ne sont jamais des nœuds', () => {
     const elements = m.aVenir.map((a) => a.element);
-    expect(elements).toContain('Note');
+    expect(elements).not.toContain('Note');
     expect(elements).toContain('Fiche marque');
     expect(ids.has('note')).toBe(false);
+    expect([...ids].some((i) => i.startsWith('note'))).toBe(false);
   });
 });
