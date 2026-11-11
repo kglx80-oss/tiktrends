@@ -65,8 +65,15 @@ END $$;
 CREATE INDEX IF NOT EXISTS "studio_lineage_notes_projet_idx" ON "studio_lineage_notes" USING btree ("workspace_id","brand_id","project_id","created_at");
 --> statement-breakpoint
 -- Une note se résout, elle ne se supprime pas · DELETE et TRUNCATE refusés.
+-- Seule exception · la remise à zéro d'un pilote par le propriétaire (`ops/migration/reset-pilote.sql`),
+-- qui pose `SET LOCAL tiktrends.purge_pilote = 'oui'` dans SA transaction, après sa sauvegarde obligatoire.
+-- `SET LOCAL` · le réglage meurt avec la transaction, aucune session de l'application ne le pose.
 CREATE OR REPLACE FUNCTION "studio_lineage_note_jamais_supprimee"() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+  IF current_setting('tiktrends.purge_pilote', true) = 'oui' THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NULL;
+  END IF;
   RAISE EXCEPTION 'NOTE_JAMAIS_SUPPRIMEE · % refusé sur %, une note se résout, elle ne se supprime pas', TG_OP, TG_TABLE_NAME;
 END
 $$;

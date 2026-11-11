@@ -758,6 +758,15 @@ describe('base réelle en mémoire · appliquer, rejouer, reprendre après inter
     // Jamais supprimée · ni ligne à ligne, ni par vidage · elle se résout.
     await refuse(pg.exec('DELETE FROM studio_lineage_notes'), 'suppression', /NOTE_JAMAIS_SUPPRIMEE · DELETE refusé sur studio_lineage_notes/);
     await refuse(pg.exec('TRUNCATE studio_lineage_notes'), 'vidage', /NOTE_JAMAIS_SUPPRIMEE · TRUNCATE refusé sur studio_lineage_notes/);
+    // Seule exception · la purge d'un pilote, posée par `SET LOCAL` dans SA transaction · ici annulée (ROLLBACK), rien ne part.
+    await pg.exec(`BEGIN; SET LOCAL tiktrends.purge_pilote = 'oui'; DELETE FROM studio_lineage_notes WHERE node_key = 'marque'; ROLLBACK;`);
+    await refuse(pg.exec(`BEGIN; SET LOCAL tiktrends.purge_pilote = 'non'; DELETE FROM studio_lineage_notes; COMMIT;`), 'purge sans le bon réglage', /NOTE_JAMAIS_SUPPRIMEE/);
+    await pg.exec('ROLLBACK').catch(() => undefined);
+    await refuse(pg.exec('DELETE FROM studio_lineage_notes'), 'le réglage de purge a survécu à sa transaction', /NOTE_JAMAIS_SUPPRIMEE/);
+    await pg.exec(`BEGIN; SET LOCAL tiktrends.purge_pilote = 'oui'; DELETE FROM studio_lineage_notes WHERE node_key = 'marque';`);
+    const [avecPurge] = await lignes<{ n: number }>(pg, 'SELECT count(*)::int AS n FROM studio_lineage_notes');
+    expect(avecPurge?.n, 'la purge du pilote ne passe pas le déclencheur').toBe(2);
+    await pg.exec('ROLLBACK');
     await pg.exec(`UPDATE studio_lineage_notes SET resolved_at = now(), resolved_by = '${u}' WHERE node_key = 'marque'`);
     const [trois] = await lignes<{ n: number; h: string; resolues: number }>(pg, `select count(*)::int as n, string_agg(distinct history::text, ',') as h, count(resolved_at)::int as resolues from studio_lineage_notes`);
     expect(trois).toEqual({ n: 3, h: '[]', resolues: 1 });
