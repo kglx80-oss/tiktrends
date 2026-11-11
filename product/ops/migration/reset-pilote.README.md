@@ -104,10 +104,26 @@ pour empêcher une remise à zéro délibérée. Le script neutralise ces décle
 UTILISATEUR le temps de la suppression ciblée (`ALTER TABLE … DISABLE TRIGGER
 USER`), puis les rétablit dans la même transaction · les déclencheurs système
 d'intégrité (FK) restent actifs, et un `ROLLBACK` rétablit aussi les
-déclencheurs. Si une marque ciblée portait une release de prompt propre à la
-marque (`brand_id` non nul), sa FK `RESTRICT` bloquerait la suppression et la
-transaction s'annulerait proprement · à vous de décider (les releases de prompt
-sont préservées par défaut).
+déclencheurs.
+
+**Prompts propres à une marque.** Si une marque ciblée porte une version, une
+release ou un pointeur actif de prompt propre à elle (`brand_id` non nul), sa FK
+`RESTRICT` empêche la marque de disparaître. Le script le détecte AVANT toute
+suppression (l'essai à blanc les compte, ligne « prompts DE LA MARQUE »),
+affiche `✗ REFUS · …` et s'arrête · rien n'est supprimé. Les releases de prompt
+restent préservées par défaut · à vous de décider (garder la marque, ou retirer
+ces prompts à la main après sauvegarde).
+
+**Commentaires (0074) et notes de la lignée (0076).** Ils pointent projets,
+versions et médias en `RESTRICT` · le script les vide EN PREMIER. Les notes
+refusent toute suppression par déclencheur, sauf sous le réglage de purge du
+pilote que le script pose par `SET LOCAL tiktrends.purge_pilote = 'oui'` · il
+meurt avec la transaction, aucune session de l'application ne le pose.
+
+**Garde.** `apps/web/test/reset-pilote-couverture.test.ts` applique toutes les
+migrations sur une base neuve, lit les vraies clés étrangères et les vrais
+déclencheurs, et échoue si une table bloquerait la suppression d'une marque sans
+être traitée par ce script · toute migration future est donc couverte.
 
 ## Vérifié comment
 
