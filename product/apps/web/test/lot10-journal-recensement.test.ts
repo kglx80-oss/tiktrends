@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ACTIONS_JOURNAL_CONNUES, ETATS_JOB, LIENS_AUDIT_ENTRE_PROJETS, etapeTechniqueJournal } from '@tiktrends/core';
+import { schema } from '@tiktrends/db';
 
 /**
  * Lot 10 · garde de RECENSEMENT du journal d'un projet · chaque action que le
@@ -23,6 +24,12 @@ import { ACTIONS_JOURNAL_CONNUES, ETATS_JOB, LIENS_AUDIT_ENTRE_PROJETS, etapeTec
  * journal du projet qu'il désigne (son lecteur du noyau, dans le module de
  * l'activité) · un lien écrit que personne ne relit (le projet source muet),
  * ou un lien recensé que plus rien n'écrit, fait tomber ce test avec son nom.
+ *
+ * Les FILS d'un projet (lot 10 et lot 11 · commentaires, notes de la lignée) ·
+ * des tables écrites par un geste de personne, hors de l'audit · trouvées dans
+ * le schéma (une table qui porte un projet, un auteur et une résolution) · le
+ * journal du projet (`lireJournalPour`) relit chacune · un fil nouveau que le
+ * journal ignore fait tomber ce test avec le nom de sa table.
  */
 
 const PRODUIT = join(__dirname, '..', '..', '..');
@@ -96,6 +103,21 @@ function liensEntreProjets(): Array<{ cle: string; ecritPar: string[]; luPar: st
   });
 }
 
+/** Les tables « fil » du schéma · un projet, un auteur, une résolution · trouvées, jamais listées à la main. */
+function filsDuSchema(): string[] {
+  return Object.entries(schema as unknown as Record<string, unknown>)
+    .filter(([, t]) => typeof t === 'object' && t !== null && ['projectId', 'authorId', 'resolvedAt'].every((c) => c in (t as Record<string, unknown>)))
+    .map(([k]) => k).sort();
+}
+
+/** Le corps de `lireJournalPour` dans le module de l'activité · jusqu'à la fonction exportée suivante. */
+function corpsJournal(): string {
+  const s = readFileSync(join(PRODUIT, 'apps/web/lib/studios/activite.ts'), 'utf8');
+  const debut = s.indexOf('export async function lireJournalPour');
+  const fin = s.indexOf('\nexport ', debut + 10);
+  return debut < 0 ? '' : s.slice(debut, fin < 0 ? undefined : fin);
+}
+
 describe('lot 10 · le journal classe chaque action écrite dans l’audit des studios', () => {
   const ecrites = actionsEcrites();
 
@@ -119,6 +141,15 @@ describe('lot 10 · le journal classe chaque action écrite dans l’audit des s
     expect(liens.map((l) => l.cle), 'les liens recensés (noyau)').toEqual(Object.keys(LIENS));
     expect(liens.filter((l) => l.ecritPar.length === 0).map((l) => `${l.cle} · recensé mais écrit nulle part dans l’audit`)).toEqual([]);
     expect(liens.filter((l) => l.luPar.length === 0).map((l) => `${l.cle} · écrit dans l’audit mais relu par aucun journal · le projet désigné reste muet`)).toEqual([]);
+  });
+
+  it('chaque FIL d’un projet (commentaires, notes de la lignée) est relu par le journal du projet', () => {
+    const fils = filsDuSchema();
+    // La découverte voit la bonne chose · les deux fils connus, et pas une table de projet quelconque.
+    expect(fils, 'les fils trouvés dans le schéma').toEqual(['studioComments', 'studioLineageNotes']);
+    const corps = corpsJournal();
+    expect(corps.length, 'lireJournalPour introuvable').toBeGreaterThan(200);
+    expect(fils.filter((t) => !new RegExp(`schema\\.${t}\\b`).test(corps)).map((t) => `${t} · fil d’un projet que le journal ne relit pas · ajoute sa lecture dans lireJournalPour et sa phrase au noyau (C/studios/activite/journal.ts)`)).toEqual([]);
   });
 
   it('chaque action hors projet de la table est encore écrite (table à jour)', () => {

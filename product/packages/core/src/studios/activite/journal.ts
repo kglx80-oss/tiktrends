@@ -13,6 +13,8 @@
  *  · les tâches (`studio_jobs`) · la FIN d'une génération (terminée, en échec,
  *    annulée) que le worker écrit sans audit ;
  *  · les commentaires du projet (écrit, résolu) ;
+ *  · les NOTES du canvas de lignée (lot 11 · écrite, résolue) · sous le libellé
+ *    du nœud gardé avec la note, que le nœud soit encore dans la lignée ou non ;
  *  · les DUPLICATIONS du projet · l'audit de la création de chaque copie qui
  *    porte `copieDe` vers ce projet (`FaitDuplication`, `duplication.ts`) ·
  *    « Dupliqué en « … » », avec le lien vers la copie.
@@ -30,8 +32,9 @@ import { etatReprise, libelleOperationJob } from '../execution/reprise';
 import type { EtatJob } from '../machines';
 import { ETATS_JOB } from '../machines';
 import { lireCopieDe, NOTE_COPIE_SANS_LIEN, phraseDuplication, type FaitDuplication } from './duplication';
+import { lienLigneeProjet } from '../../spatial/projet/notes-lignee';
 
-export type TypeJournal = 'versions' | 'exports' | 'relectures' | 'projet' | 'tests' | 'devis' | 'generations' | 'jarvis' | 'commentaires' | 'autre';
+export type TypeJournal = 'versions' | 'exports' | 'relectures' | 'projet' | 'tests' | 'devis' | 'generations' | 'jarvis' | 'commentaires' | 'notes' | 'autre';
 
 /** Les filtres, dans l'ordre de l'écran · le libellé est celui du bouton. */
 export const TYPES_JOURNAL: ReadonlyArray<{ cle: TypeJournal; libelle: string }> = [
@@ -44,6 +47,7 @@ export const TYPES_JOURNAL: ReadonlyArray<{ cle: TypeJournal; libelle: string }>
   { cle: 'generations', libelle: 'Générations' },
   { cle: 'jarvis', libelle: 'Jarvis' },
   { cle: 'commentaires', libelle: 'Commentaires' },
+  { cle: 'notes', libelle: 'Notes de la lignée' },
   { cle: 'autre', libelle: 'Autres' },
 ];
 
@@ -94,7 +98,21 @@ export interface FaitCommentaire {
   cible: { type: 'version'; versionId: string; versionN: number } | { type: 'creation'; libelle: string };
 }
 
-export type FaitJournal = FaitAudit | FaitVersion | FaitTache | FaitCommentaire | FaitDuplication;
+/**
+ * Une note du canvas de lignée (lot 11) · `noeud` · le libellé du nœud gardé
+ * avec la note (lisible même si le nœud a disparu) · le texte de la note ne
+ * sort jamais dans le journal, seul son nœud est dit.
+ */
+export interface FaitNote {
+  source: 'note';
+  id: string;
+  le: string;
+  acteur: string | null;
+  geste: 'ecrite' | 'resolue';
+  noeud: string;
+}
+
+export type FaitJournal = FaitAudit | FaitVersion | FaitTache | FaitCommentaire | FaitDuplication | FaitNote;
 
 export interface EntreeJournal {
   id: string;
@@ -288,6 +306,15 @@ export function entreeJournal(f: FaitJournal, o: { projectId: string }): EntreeJ
   if (f.source === 'duplication') {
     const p = phraseDuplication(f);
     return { ...commun, type: 'projet', phrase: p.phrase, detail: p.detail, versionN: f.versionN, lien: p.lien };
+  }
+  if (f.source === 'note') {
+    return {
+      ...commun, type: 'notes',
+      phrase: f.geste === 'ecrite' ? 'Note sur la lignée' : 'Note de la lignée résolue',
+      detail: texte(f.noeud, 300) ? `Sur « ${texte(f.noeud, 300)} »` : null,
+      versionN: null,
+      lien: { href: lienLigneeProjet(o.projectId), libelle: 'Voir la lignée' },
+    };
   }
   const sur = f.cible.type === 'version' ? `la version ${f.cible.versionN}` : 'une création';
   return {
