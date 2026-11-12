@@ -35,11 +35,11 @@ export async function fauxAnthropic(initial: Comportement = { type: 'coupure' })
       try { recus.push(JSON.parse(Buffer.concat(morceaux).toString('utf8'))); } catch { recus.push(null); }
       if (c.type === 'coupure') { req.socket.destroy(); return; }
       if (c.type === 'statut') {
-        res.writeHead(c.statut, { 'content-type': 'application/json' });
+        res.writeHead(c.statut, { connection: 'close', 'content-type': 'application/json' });
         res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: `statut simulé ${c.statut}` } }));
         return;
       }
-      res.writeHead(200, { 'content-type': 'application/json' });
+      res.writeHead(200, { connection: 'close', 'content-type': 'application/json' });
       res.end(JSON.stringify({
         id: 'msg_faux', type: 'message', role: 'assistant', model: 'claude-sonnet-5', stop_reason: 'end_turn', stop_sequence: null,
         content: [{ type: 'text', text: c.texte ?? 'ok' }], usage: { input_tokens: c.entree, output_tokens: c.sortie },
