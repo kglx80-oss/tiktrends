@@ -91,6 +91,23 @@ export const LARGEUR_MIN_TABLE_TELEPHONE = {
   // Les pastilles d'état y passent à la ligne (`white-space: normal`) · sans
   // cela, « Interrompue · coût incertain » était rognée à toute largeur.
   taches: 860, registre: 860,
+  // Durées mesurées · mesuré le 12/11 (même banc · Chromium sans tête, 390 ×
+  // 844, `tokens.css` + `spatial.css` + `spatial-routes.css`, trois modèles
+  // réalistes dont « fal-ai/kling-video/v2.1/standard/image-to-video », sources
+  // longues « mesuré · toutes les tâches image, … ») · cellules rognées et
+  // lignes de la plus haute cellule COURTE (type, effectif, médiane, p95, seuil
+  // · type, phase, effectif, médiane, p95), trois passes identiques :
+  //
+  // | largeur min. | Durées · rognées | courtes | max | Phases · rognées | courtes | max |
+  // | ------------ | ---------------- | ------- | --- | ---------------- | ------- | --- |
+  // | sans         | 0                |    3    |  9  | 0                |    2    |  4  |
+  // | 640          | 0                |    2    |  4  | 0                |    2    |  2  |
+  // | 700          | 0                |    1    |  3  | 0                |    1    |  2  |
+  // | 760 et plus  | 0                |    1    |  3  | 0                |    1    |  2  |
+  //
+  // Retenu · 760 pour les deux · 700 suffit tout juste, un cran de marge pour
+  // un nom de modèle plus long (la source garde trois lignes au plus).
+  durees: 760, phases: 760,
 } as const;
 
 /** Le style en ligne d'une table défilante (`.atable`) · ses lignes gardent leurs propres colonnes. */

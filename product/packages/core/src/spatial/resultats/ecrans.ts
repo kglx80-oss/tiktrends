@@ -28,16 +28,18 @@ const signe = (n: number, txt: string) => (n > 0 ? `+${txt}` : n < 0 ? `−${txt
 /* ───────────────────────── sous-navigation ───────────────────────── */
 
 /**
- * Les sous-sections de Résultats, ordre de la maquette. « Lots de test » et
- * « Importer » restent réservés aux administrateurs (mêmes gardes que les pages
- * V5 `lots` et `import`) · un membre ne voit pas une porte qui le renverrait.
+ * Les sous-sections de Résultats, ordre de la maquette. « Importer » reste
+ * réservé aux administrateurs (même garde que la page V5 `import`) · un membre
+ * ne voit pas une porte qui le renverrait. « Lots de test » s'ouvre à tous ceux
+ * qui voient Résultats (donc peuvent arbitrer) · l'admin y trouve la liste
+ * complète, le membre la liste « À conclure » (`porteeListeLots`).
  */
 export function sousNavResultats(o: { admin: boolean }): Array<{ href: string; libelle: string }> {
   return [
     { href: '/adsmap', libelle: 'Vue d’ensemble' },
     { href: '/adsmap/boucle', libelle: 'Boucle d’itération' },
     { href: '/adsmap/hypotheses', libelle: 'Hypothèses' },
-    ...(o.admin ? [{ href: '/adsmap/lots', libelle: 'Lots de test' }] : []),
+    { href: '/adsmap/lots', libelle: 'Lots de test' },
     { href: '/adsmap/protocole', libelle: 'Protocole' },
     ...(o.admin ? [{ href: '/adsmap/import', libelle: 'Importer' }] : []),
     { href: '/adsmap/apprentissages', libelle: 'Apprentissages' },

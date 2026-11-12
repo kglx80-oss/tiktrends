@@ -267,9 +267,9 @@ describe('Spatial · Résultats · protocole, import, boucle, navigation', () =>
     const vide = kpisBoucle({ verdicts: [], premierLancement: null, cyclesJours: [], apprentissages: { total: 0, mesures: 0 } });
     expect(vide.map((x) => x.valeur)).toEqual(['0', 'Non calculable', '–', '0']);
   });
-  it('sous-navigation · lots et import réservés aux admins', () => {
+  it('sous-navigation · import réservé aux admins · « Lots de test » ouvert à qui arbitre (la liste « À conclure » d’un membre)', () => {
     expect(sousNavResultats({ admin: true }).map((x) => x.href)).toEqual(['/adsmap', '/adsmap/boucle', '/adsmap/hypotheses', '/adsmap/lots', '/adsmap/protocole', '/adsmap/import', '/adsmap/apprentissages']);
-    expect(sousNavResultats({ admin: false }).map((x) => x.href)).toEqual(['/adsmap', '/adsmap/boucle', '/adsmap/hypotheses', '/adsmap/protocole', '/adsmap/apprentissages']);
+    expect(sousNavResultats({ admin: false }).map((x) => x.href)).toEqual(['/adsmap', '/adsmap/boucle', '/adsmap/hypotheses', '/adsmap/lots', '/adsmap/protocole', '/adsmap/apprentissages']);
   });
   it('les écrans portés de la rubrique sont servis par Spatial, un chemin inconnu ne l’est pas', () => {
     for (const c of ['/adsmap', '/adsmap/boucle', '/adsmap/lots/abc', '/adsmap/import', '/adsmap/suites', '/adsmap/tri', '/adsmap/radar']) expect(ecranSpatial(c)).toMatchObject({ section: 'resultats' });

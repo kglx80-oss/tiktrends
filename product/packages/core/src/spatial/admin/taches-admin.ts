@@ -27,6 +27,7 @@ import { ETATS_JOB, type EtatJob } from '../../studios/machines';
 import { adminDollars, adminDuree, adminNombre } from './format';
 import { LONGUEUR_MAX_TEXTE_INCIDENT, LONGUEUR_MAX_TITRE_INCIDENT } from './incidents-declares';
 import { celluleSansFuite, correspondRecherche, lireSegment, paginer, LONGUEUR_MAX_RECHERCHE, type FiltresListeTour, type PageTour } from './tour-controle';
+import type { SeuilApplique, TacheASeuil } from './durees-taches';
 
 const MINUTE = 60_000;
 
@@ -60,7 +61,9 @@ const DELAI_MODELE_IMAGE_MAX_MS = Math.max(...IMAGE_MODELS.map((m) => m.timeoutM
  * a dépassé TOUS les délais que le worker se donne, elle ne « prend » plus son
  * temps, elle est bloquée. Limite dite · le clip vidéo (Kling, file fal) n'a
  * AUCUN délai écrit dans le code · il est supposé tenir dans le délai d'image le
- * plus long · la première durée mesurée en production remplace ce tableau.
+ * plus long. Ce seuil n'est plus qu'un REPLI · dès qu'un modèle (ou un type)
+ * réunit assez de tâches saines, le seuil MESURÉ le remplace pour ses tâches
+ * (`durees-taches.ts`, tableau « Durées mesurées » de `/admin/taches`).
  */
 export const PHASES_DUREE_TACHE: ReadonlyArray<{ phase: string; ms: number; source: string }> = [
   { phase: 'tour du worker', ms: 2_000, source: 'demarrerBoucleStudio · intervalleMs' },
@@ -83,9 +86,14 @@ export function ageTacheMs(creeLe: Date, maintenant: Date): number {
   return Math.max(0, maintenant.getTime() - creeLe.getTime());
 }
 
-/** Bloquée · active, et lancée depuis STRICTEMENT plus de `SEUIL_TACHE_BLOQUEE_MIN` minutes. */
-export function tacheBloquee(t: { etat: string; creeLe: Date }, maintenant: Date): boolean {
-  return (ETATS_TACHE_ACTIFS as readonly string[]).includes(t.etat) && ageTacheMs(t.creeLe, maintenant) > SEUIL_TACHE_BLOQUEE_MIN * MINUTE;
+/** Le seuil dérivé, appliqué quand aucune mesure n'est donnée (ou que l'effectif manque). */
+export const SEUIL_DERIVE_SEUL: SeuilApplique = {
+  ms: SEUIL_TACHE_BLOQUEE_MIN * MINUTE, source: 'derive', libelle: `dérivé, effectif insuffisant · ${SEUIL_TACHE_BLOQUEE_MIN} min, délais du worker`,
+};
+
+/** Bloquée · active, et lancée depuis STRICTEMENT plus que son seuil (`seuilMs`, le dérivé par défaut). */
+export function tacheBloquee(t: { etat: string; creeLe: Date }, maintenant: Date, seuilMs: number = SEUIL_DERIVE_SEUL.ms): boolean {
+  return (ETATS_TACHE_ACTIFS as readonly string[]).includes(t.etat) && ageTacheMs(t.creeLe, maintenant) > seuilMs;
 }
 
 /* ─────────────────────────────── Segments ─────────────────────────────── */
@@ -100,21 +108,21 @@ export const LIBELLE_SEGMENT_TACHE: Readonly<Record<SegmentTache | 'tous', strin
 export const DEFINITION_SEGMENT_TACHE: Readonly<Record<SegmentTache | 'tous', string>> = {
   tous: 'Toutes les tâches lues, de tous les espaces.',
   echec: 'Terminées en échec · rien n’a été livré.',
-  bloquees: `Encore actives (en file, prises, en cours, en enregistrement ou en annulation) depuis plus de ${SEUIL_TACHE_BLOQUEE_MIN} minutes · au-delà de tous les délais du worker.`,
-  'en-cours': `Actives depuis ${SEUIL_TACHE_BLOQUEE_MIN} minutes au plus · le worker y travaille.`,
+  bloquees: `Encore actives (en file, prises, en cours, en enregistrement ou en annulation) depuis plus que le seuil de leur modèle · mesuré quand l’effectif suffit, sinon ${SEUIL_TACHE_BLOQUEE_MIN} minutes dérivées des délais du worker (tableau « Durées mesurées »).`,
+  'en-cours': 'Actives depuis moins que le seuil de leur modèle · le worker y travaille.',
   rapprochement: 'Interrompues, coût incertain chez le fournisseur · à rapprocher avant toute relance.',
   annulees: 'Annulées · un nouvel essai est une nouvelle tâche.',
   terminees: 'Terminées · fichier enregistré.',
 };
 
 /** Le segment d'une tâche · un seul, calculé sur son état réel et son âge. `null` pour un état inconnu (« Toutes » seulement). */
-export function segmentTache(t: { etat: string; creeLe: Date }, maintenant: Date): SegmentTache | null {
+export function segmentTache(t: { etat: string; creeLe: Date }, maintenant: Date, seuilMs: number = SEUIL_DERIVE_SEUL.ms): SegmentTache | null {
   switch (t.etat) {
     case 'completed': return 'terminees';
     case 'failed': return 'echec';
     case 'cancelled': return 'annulees';
     case 'reconciliation_required': return 'rapprochement';
-    default: return (ETATS_TACHE_ACTIFS as readonly string[]).includes(t.etat) ? (tacheBloquee(t, maintenant) ? 'bloquees' : 'en-cours') : null;
+    default: return (ETATS_TACHE_ACTIFS as readonly string[]).includes(t.etat) ? (tacheBloquee(t, maintenant, seuilMs) ? 'bloquees' : 'en-cours') : null;
   }
 }
 
@@ -175,8 +183,10 @@ export interface TacheLue {
   id: string;
   operation: string;
   etat: string;
-  /** Les lignes de l'instantané (`snapshot.lignes`) · ce que la tâche produit. */
-  lignes: ReadonlyArray<{ operation: string }> | null;
+  /** Les lignes de l'instantané (`snapshot.lignes`) · ce que la tâche produit (profil `animation` · vidéo). */
+  lignes: ReadonlyArray<{ operation: string; profil?: string }> | null;
+  /** Le modèle du dernier corps envoyé au fournisseur (`job.provider.payload`) · absent avant la soumission. */
+  modele?: string | null;
   projet: string | null;
   espace: string | null;
   creeLe: Date;
@@ -197,12 +207,19 @@ export interface LigneTacheAdmin {
   /** Les gestes que la ligne propose · des LIENS, jamais une écriture d'ici. */
   declarer: boolean;
   rapprocher: boolean;
+  /** Le seuil « bloquée » appliqué à CETTE tâche (mesuré ou dérivé). */
+  seuil: SeuilApplique;
 }
 
 const CLASSE_TON: Readonly<Record<string, '' | 'g' | 'w' | 'r' | 'c'>> = { attente: 'c', termine: 'g', echec: 'r', interrompu: 'w' };
 
-export function ligneTacheAdmin(t: TacheLue, maintenant: Date): LigneTacheAdmin {
-  const segment = segmentTache(t, maintenant);
+/** Le seuil de chaque tâche · le résolveur de la mesure (`resolveurSeuils`), à défaut le seuil dérivé. */
+export type SeuilDe = (t: TacheASeuil) => SeuilApplique;
+const seuilDerive: SeuilDe = () => SEUIL_DERIVE_SEUL;
+
+export function ligneTacheAdmin(t: TacheLue, maintenant: Date, seuilDe: SeuilDe = seuilDerive): LigneTacheAdmin {
+  const seuil = seuilDe(t);
+  const segment = segmentTache(t, maintenant, seuil.ms);
   const connu = (ETATS_JOB as readonly string[]).includes(t.etat);
   const lib = connu ? LIBELLES_ETAT_JOB[t.etat as EtatJob] : 'État inconnu';
   const ton = connu ? etatReprise(t.etat as EtatJob).ton : '';
@@ -217,6 +234,7 @@ export function ligneTacheAdmin(t: TacheLue, maintenant: Date): LigneTacheAdmin 
     erreur: erreurTache(t.erreur),
     declarer: segment === 'echec',
     rapprocher: segment === 'rapprochement',
+    seuil,
   };
 }
 
@@ -238,10 +256,10 @@ export interface TableTachesAdmin {
 /**
  * La table des tâches d'un filtre · segment, puis recherche (tâche, état,
  * projet, espace, erreur, identifiant), puis la page · la page ET l'export
- * appellent CETTE fonction.
+ * appellent CETTE fonction, avec le MÊME résolveur de seuils.
  */
-export function tableTachesAdmin(taches: readonly TacheLue[], maintenant: Date, f: FiltresListeTour): TableTachesAdmin {
-  const lignes = taches.map((t) => ligneTacheAdmin(t, maintenant));
+export function tableTachesAdmin(taches: readonly TacheLue[], maintenant: Date, f: FiltresListeTour, seuilDe: SeuilDe = seuilDerive): TableTachesAdmin {
+  const lignes = taches.map((t) => ligneTacheAdmin(t, maintenant, seuilDe));
   const n = new Map<string, number>();
   for (const l of lignes) if (l.segment) n.set(l.segment, (n.get(l.segment) ?? 0) + 1);
   const segments: SegmentTacheCompte[] = [

@@ -123,7 +123,7 @@ beforeAll(async () => {
     req.on('data', () => {});
     req.on('end', () => {
       if (srv.mode === 'coupure') { req.socket.destroy(); return; }
-      res.writeHead(200, { 'content-type': 'application/json' });
+      res.writeHead(200, { connection: 'close', 'content-type': 'application/json' });
       res.end(JSON.stringify({ id: 'msg_e4', type: 'message', role: 'assistant', model: MODELE, stop_reason: 'end_turn', stop_sequence: null, content: [{ type: 'text', text: SORTIE_VISION }], usage: { input_tokens: 9000, output_tokens: 300 } }));
     });
   });

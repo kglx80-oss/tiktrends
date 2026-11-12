@@ -65,7 +65,7 @@ beforeAll(async () => {
     req.on('end', () => {
       recues.push(1);
       const r = JSON.parse(corps || '{}') as { model?: string };
-      res.writeHead(200, { 'content-type': 'application/json' });
+      res.writeHead(200, { connection: 'close', 'content-type': 'application/json' });
       res.end(JSON.stringify({ id: 'msg_local', type: 'message', role: 'assistant', model: r.model, stop_reason: 'end_turn', stop_sequence: null, content: [{ type: 'text', text: 'Style visuel : lumineux.\nTon : direct.' }], usage: { input_tokens: JETONS.entree, output_tokens: JETONS.sortie } }));
     });
   });

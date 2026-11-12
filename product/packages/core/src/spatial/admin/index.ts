@@ -13,3 +13,4 @@ export * from './tour-controle';
 export * from './incidents-declares';
 export * from './taches-admin';
 export * from './registre-audit';
+export * from './durees-taches';
