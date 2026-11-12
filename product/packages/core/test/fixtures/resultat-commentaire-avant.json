@@ -1,0 +1,160 @@
+{
+  "ouvert": [
+    {
+      "etat": "conclue",
+      "adId": "V5",
+      "variante": "V5",
+      "statut": "sans_conclusion",
+      "libelle": "Itération sans conclusion",
+      "classe": "",
+      "icone": "q",
+      "chiffre": "1 gagnante sur 4 variantes tranchées (8 % à 57 %) · la marque, 1 sur 8 dans ses autres lots (4 % à 34 %)",
+      "lot": {
+        "numero": 5,
+        "href": "/adsmap/lots/s",
+        "raison": null
+      }
+    },
+    {
+      "etat": "conclue",
+      "adId": "V6",
+      "variante": "V6",
+      "statut": "sans_conclusion",
+      "libelle": "Itération sans conclusion",
+      "classe": "",
+      "icone": "q",
+      "chiffre": "1 variante tranchée au protocole · il en faut 4 pour qu’un lot ait le droit de conclure",
+      "lot": {
+        "numero": 6,
+        "href": "/adsmap/lots/p",
+        "raison": null
+      }
+    },
+    {
+      "etat": "conclue",
+      "adId": "V7",
+      "variante": "V7",
+      "statut": "confirmee",
+      "libelle": "Itération confirmée",
+      "classe": "g",
+      "icone": "check",
+      "chiffre": "4 gagnantes sur 4 variantes tranchées (71 % à 100 %) · la marque, 1 sur 8 dans ses autres lots (4 % à 34 %)",
+      "lot": {
+        "numero": 3,
+        "href": "/adsmap/lots/c",
+        "raison": null
+      }
+    },
+    {
+      "etat": "conclue",
+      "adId": "V9",
+      "variante": "V9",
+      "statut": "infirmee",
+      "libelle": "Itération infirmée",
+      "classe": "r",
+      "icone": "x",
+      "chiffre": "0 gagnante sur 4 variantes tranchées (0 % à 29 %) · la marque, 7 sur 8 dans ses autres lots (66 % à 96 %)",
+      "lot": {
+        "numero": 4,
+        "href": "/adsmap/lots/i",
+        "raison": null
+      }
+    },
+    {
+      "etat": "en_test",
+      "adId": "V10",
+      "variante": "V10",
+      "libelle": "Itération en test",
+      "phrase": "son résultat se lira ici quand son lot sera conclu"
+    },
+    {
+      "etat": "en_test",
+      "adId": "V11",
+      "variante": "V11",
+      "libelle": "Itération en test",
+      "phrase": "son résultat se lira ici quand son lot sera conclu"
+    }
+  ],
+  "autreMarque": [
+    {
+      "etat": "conclue",
+      "adId": "V5",
+      "variante": "V5",
+      "statut": "sans_conclusion",
+      "libelle": "Itération sans conclusion",
+      "classe": "",
+      "icone": "q",
+      "chiffre": "1 gagnante sur 4 variantes tranchées (8 % à 57 %) · la marque, 1 sur 8 dans ses autres lots (4 % à 34 %)",
+      "lot": {
+        "numero": 5,
+        "href": null,
+        "raison": "Le lot se lit dans sa marque · ouvre la marque du projet pour le voir."
+      }
+    },
+    {
+      "etat": "conclue",
+      "adId": "V6",
+      "variante": "V6",
+      "statut": "sans_conclusion",
+      "libelle": "Itération sans conclusion",
+      "classe": "",
+      "icone": "q",
+      "chiffre": "1 variante tranchée au protocole · il en faut 4 pour qu’un lot ait le droit de conclure",
+      "lot": {
+        "numero": 6,
+        "href": null,
+        "raison": "Le lot se lit dans sa marque · ouvre la marque du projet pour le voir."
+      }
+    },
+    {
+      "etat": "conclue",
+      "adId": "V7",
+      "variante": "V7",
+      "statut": "confirmee",
+      "libelle": "Itération confirmée",
+      "classe": "g",
+      "icone": "check",
+      "chiffre": "4 gagnantes sur 4 variantes tranchées (71 % à 100 %) · la marque, 1 sur 8 dans ses autres lots (4 % à 34 %)",
+      "lot": {
+        "numero": 3,
+        "href": null,
+        "raison": "Le lot se lit dans sa marque · ouvre la marque du projet pour le voir."
+      }
+    },
+    {
+      "etat": "conclue",
+      "adId": "V9",
+      "variante": "V9",
+      "statut": "infirmee",
+      "libelle": "Itération infirmée",
+      "classe": "r",
+      "icone": "x",
+      "chiffre": "0 gagnante sur 4 variantes tranchées (0 % à 29 %) · la marque, 7 sur 8 dans ses autres lots (66 % à 96 %)",
+      "lot": {
+        "numero": 4,
+        "href": null,
+        "raison": "Le lot se lit dans sa marque · ouvre la marque du projet pour le voir."
+      }
+    },
+    {
+      "etat": "en_test",
+      "adId": "V10",
+      "variante": "V10",
+      "libelle": "Itération en test",
+      "phrase": "son résultat se lira ici quand son lot sera conclu"
+    },
+    {
+      "etat": "en_test",
+      "adId": "V11",
+      "variante": "V11",
+      "libelle": "Itération en test",
+      "phrase": "son résultat se lira ici quand son lot sera conclu"
+    }
+  ],
+  "ferme": [],
+  "vide": [],
+  "iterations": [
+    "a",
+    "e"
+  ]
+}
