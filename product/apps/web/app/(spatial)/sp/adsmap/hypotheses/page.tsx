@@ -1,13 +1,13 @@
 import {
-  bilanProvenances, cartesHypotheses, conclusionLot, entreesBilanProvenances, presentationLot, provenanceDuTest, referenceConclusion, sousNavResultats,
-  NOTE_JARVIS_PROVENANCE, NOTE_OFFRE_PROVENANCE, NOTE_COMMENTAIRE_PROVENANCE, NOTE_NOTE_PROVENANCE, PROVENANCES_TEST, RESERVE_ESTIMATION, type FaitsHypotheseAd,
+  bilanProvenances, cartesHypotheses, entreesBilanProvenances, provenanceDuTest, sousNavResultats,
+  NOTE_JARVIS_PROVENANCE, NOTE_OFFRE_PROVENANCE, NOTE_COMMENTAIRE_PROVENANCE, NOTE_NOTE_PROVENANCE, PROVENANCES_TEST, RESERVE_ESTIMATION,
   REFUS_HYPOTHESE_NOTE, departHypotheseDepuisNote, lireGesteHypotheseNote,
 } from '@tiktrends/core';
 import { iterationPlanAction } from '../../../../actions/adsmap-iterate';
 import { completerHypotheseAction, creerHypotheseAction } from '../../../../actions/adsmap-hypotheses';
 import { Hypotheses } from '../../../../../spatial/vues/resultats/Hypotheses';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
-import { chargerLots, gardeResultats, type AdLue } from '../donnees';
+import { chargerLots, faitsHypotheses, gardeResultats, type AdLue } from '../donnees';
 import { lireNotePourHypothese } from '../../../../../lib/studios/commentaire-iterer';
 import type { DepuisNoteHypothese } from '../../../../../spatial/vues/resultats/Hypotheses';
 
@@ -46,14 +46,7 @@ export default async function HypothesesSpatial({ searchParams }: { searchParams
   }
 
   const [d, plan] = await Promise.all([chargerLots(g.s.workspaceId, g.marque.id), iterationPlanAction()]);
-  const ads: FaitsHypotheseAd[] = [
-    ...d.lots.flatMap((l) => {
-      const p = presentationLot(l, d.ctx);
-      const conclusion = conclusionLot(l, p.etat, referenceConclusion(d.lots, l.id));
-      return l.ads.map((a) => ({ ad: a, concept: a.concept, bande: a.bande, origine: a.origine, estimation: a.estimation, lot: { id: l.id, numero: l.numero, etat: p.etat, jour: p.etat === 'diffusion' ? p.jour : null, conclusion } }));
-    }),
-    ...d.horsLot.map((a) => ({ ad: a, concept: a.concept, bande: a.bande, origine: a.origine, estimation: a.estimation, lot: null })),
-  ];
+  const ads = faitsHypotheses(d);
   const suites = (plan.view?.rows ?? []).slice(0, 12).map((r) => ({
     adId: r.adId, libelle: r.label, variable: r.changedVariable, etape: r.stageLabel, raison: r.rationale, priorite: r.priority,
   }));

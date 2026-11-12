@@ -3,10 +3,10 @@ import { redirect } from 'next/navigation';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
+  DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
   compteAConclure,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
-  type CompteAConclure, type FaitsEtatLot, type FaitsVerdictSpatial,
+  type FaitsHypotheseAd, type CompteAConclure, type FaitsEtatLot, type FaitsVerdictSpatial,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -265,6 +265,25 @@ export const MESURE_A_CONCLURE = [
 export async function compterAConclure(workspaceId: string, brandId: string, maintenant = new Date()): Promise<CompteAConclure> {
   const f = await chargerFaitsAConclure(workspaceId, brandId, maintenant);
   return compteAConclure(f.lots, f.ctx);
+}
+
+/**
+ * Les ads de la marque telles que la carte d'hypothèse les lit · le lot de
+ * chacune avec son état présenté, son jour de diffusion et la conclusion du
+ * lot ENTIER contre les autres lots de la marque (`conclusionLot`) · les ads
+ * hors lot sans lot. Une seule lecture, partagée par la page Hypothèses et par
+ * le résultat sous un commentaire ou une note (`lib/studios/resultat-fil.ts`) ·
+ * rien n'est écrit.
+ */
+export function faitsHypotheses(d: DonneesLots): Array<FaitsHypotheseAd & { ad: AdLue }> {
+  return [
+    ...d.lots.flatMap((l) => {
+      const p = presentationLot(l, d.ctx);
+      const conclusion = conclusionLot(l, p.etat, referenceConclusion(d.lots, l.id));
+      return l.ads.map((a) => ({ ad: a, concept: a.concept, bande: a.bande, origine: a.origine, estimation: a.estimation, lot: { id: l.id, numero: l.numero, etat: p.etat, jour: p.etat === 'diffusion' ? p.jour : null, conclusion } }));
+    }),
+    ...d.horsLot.map((a) => ({ ad: a, concept: a.concept, bande: a.bande, origine: a.origine, estimation: a.estimation, lot: null })),
+  ];
 }
 
 /** La mesure Meta de la marque · connexion (sans rien déchiffrer) et date de la dernière synchro. */
