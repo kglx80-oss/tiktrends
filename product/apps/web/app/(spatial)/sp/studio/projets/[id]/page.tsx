@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
-import { REFUS_GESTE_JARVIS, lienJarvisContexte, lireGesteEssaiJarvis, modeDisposition, modeGraphe, preparationTesterJarvis, segmentReserveProjets, variablesRattachement, type PreparationTesterJarvis } from '@tiktrends/core';
+import {
+  REFUS_GESTE_JARVIS, lienJarvisContexte, lireCommentaireCible, lireGesteEssaiJarvis, lireNoeudCible, modeDisposition, modeGraphe, preparationTesterJarvis, segmentReserveProjets,
+  variablesRattachement, type PreparationTesterJarvis,
+} from '@tiktrends/core';
 import { lireGesteEssaiPourProjet } from '../../../../../../lib/jarvis-gestes';
 import { getSession } from '../../../../../../lib/auth';
 import { Projet } from '../../../../../../spatial/vues/projet/Projet';
@@ -24,6 +27,12 @@ export const dynamic = 'force-dynamic';
  * variante de CE projet, lue par cette page · l'onglet Créations s'ouvre, le
  * rattachement (ou le lot d'essai) pré-rempli · rien n'est rattaché ni préparé
  * sans le clic. Refusé, la phrase neutre, rien de pré-rempli.
+ *
+ * « Mes mentions » · `?commentaire=<uuid>` ouvre l'onglet Activité sur ce
+ * commentaire (son ancre `#commentaire-<id>`, son filtre ouvert s'il est
+ * résolu) · `&noeud=<clé>` choisit ce nœud dans la lignée (`#note-<id>`) ·
+ * seulement des identifiants, relus par les lectures de la fiche · un
+ * commentaire d'ailleurs n'est simplement pas dans la liste.
  */
 export default async function ProjetSpatial({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -50,9 +59,13 @@ export default async function ProjetSpatial({ params, searchParams }: { params: 
     tester = p.varianteId && !variantes.some((x) => x.id === p.varianteId) ? refus : p;
   }
   // Lot 11 · le graphe du canvas libre lu dans l'adresse (production par défaut) · rien n'est écrit.
-  const libre = r.props.libre?.ok ? { ok: true as const, canvas: { ...r.props.libre.canvas, grapheInitial: modeGraphe(sp.graphe) } } : r.props.libre;
+  const libre = r.props.libre?.ok ? { ok: true as const, canvas: { ...r.props.libre.canvas, grapheInitial: modeGraphe(sp.graphe), noeudInitial: lireNoeudCible(sp) } } : r.props.libre;
+  // « Mes mentions » · le commentaire visé ouvre l'onglet Activité (s'il est offert à la session).
+  const commentaire = lireCommentaireCible(sp);
+  const activite = commentaire && r.props.activite ? { ...r.props.activite, commentaireCible: commentaire } : r.props.activite;
   return (
-    <Projet {...r.props} libre={libre} dispositionInitiale={modeDisposition(typeof sp.disposition === 'string' ? sp.disposition : undefined)} demanderJarvis={jarvis ? { href: jarvis } : null}
+    <Projet {...r.props} libre={libre} activite={activite} dispositionInitiale={modeDisposition(typeof sp.disposition === 'string' ? sp.disposition : undefined)} demanderJarvis={jarvis ? { href: jarvis } : null}
+      {...(commentaire && activite ? { ongletInitial: 'activite' as const } : {})}
       {...(tester ? { ongletInitial: 'crea' as const, creations: { ...r.props.creations, jarvis: tester } } : {})} />
   );
 }

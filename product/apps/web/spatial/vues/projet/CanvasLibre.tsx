@@ -71,7 +71,11 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
   // « Ouvrir les notes » depuis l'indicateur · le focus va au titre des notes du détail une fois le détail RENDU.
   const [notesAOuvrir, setNotesAOuvrir] = useState<string | null>(null);
   const reduire = useMemo(() => (e: EtatCanvas, g: GesteCanvas) => reduireCanvas(modele, e, g).etat, [modele]);
-  const [etat, envoyer] = useReducer(reduire, c.disposition, (d: DispositionCanvas) => etatInitialCanvas(d, 'canvas'));
+  // « Mes mentions » · le nœud visé par l'adresse (`?noeud=`) est choisi dès l'ouverture de la lignée · son détail (et ses notes, l'ancre de chacune) est rendu.
+  const [etat, envoyer] = useReducer(reduire, c.disposition, (d: DispositionCanvas) => {
+    const e = etatInitialCanvas(d, 'canvas');
+    return enLignee && c.noeudInitial && modele.grille[c.noeudInitial] ? { ...e, selection: c.noeudInitial } : e;
+  });
   const etatRef = useRef(etat);
   etatRef.current = etat;
 
@@ -90,6 +94,15 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
   const parId = useMemo(() => new Map(compose.cartes.map((k) => [k.id, k])), [compose]);
   const choisie = etat.selection ? modele.cartes.find((k) => k.id === etat.selection) ?? null : null;
   const deplacees = Object.keys(etat.disposition.positions).filter((id) => modele.grille[id]).length;
+  // L'ancre d'une note (`#note-<id>`, « Mes mentions ») · amenée à la vue et focalisée une fois le canvas monté.
+  useEffect(() => {
+    const ancre = typeof window === 'undefined' ? '' : window.location.hash.slice(1);
+    if (!ancre.startsWith('note-')) return;
+    const el = document.getElementById(ancre);
+    if (!el) return;
+    el.scrollIntoView?.({ block: 'center' });
+    el.focus({ preventScroll: true });
+  }, []);
   useEffect(() => {
     if (!notesAOuvrir || etat.selection !== notesAOuvrir) return;
     setNotesAOuvrir(null);

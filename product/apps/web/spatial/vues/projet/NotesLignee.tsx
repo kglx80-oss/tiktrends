@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
-  EXPLICATION_NOTES_SANS_NOEUD, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_NOTE, TEXTES_HORS_LIGNE, TEXTES_NOTE, departEditionCommentaire, etatPublicationCommentaire, resumeNotesNoeud,
+  EXPLICATION_NOTES_SANS_NOEUD, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_NOTE, TEXTES_HORS_LIGNE, TEXTES_NOTE, ancreNote, departEditionCommentaire, etatPublicationCommentaire, resumeNotesNoeud,
   type GesteHypotheseNote, type GesteIterationCommentaire,
 } from '@tiktrends/core';
 import { modifierNoteLignee, noterNoeudLignee, resoudreNoteLignee } from '../../../app/actions/studios/notes-lignee';
@@ -196,7 +196,7 @@ function Note({ n, lieu, ctl, avecNoeud = false }: { n: VueNoteLignee; lieu: str
   const etat = edition !== null ? etatPublicationCommentaire(edition, { peutProposer: n.gestes.modifier.ok, cibleChoisie: true }, TEXTES_NOTE) : null;
   const occupe = !!ctl.enCours;
   return (
-    <li data-note={n.id} data-resolue={n.resolu ? 'oui' : 'non'} className="ev" style={{ fontSize: '12px' }}>
+    <li data-note={n.id} id={lieu === 'sans-noeud' || lieu.startsWith('detail:') ? ancreNote(n.id) : undefined} tabIndex={-1} data-resolue={n.resolu ? 'oui' : 'non'} className="ev" style={{ fontSize: '12px' }}>
       <span className="ico"><Ic n="bookmark" /></span>
       <span>
         <small className="faint" data-entete-note="" style={{ display: 'block', fontSize: '11.5px' }}>{n.auteur} · {n.quand}{avecNoeud ? ` · sur « ${n.libelleNoeud} »` : ''}</small>

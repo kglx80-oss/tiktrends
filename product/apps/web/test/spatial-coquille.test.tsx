@@ -127,8 +127,17 @@ const vueNotifs = (items: NotifItem[], filtre: 'tout' | 'veille' = 'tout') => re
 const REF_NOTIFS: Retrait[] = ['#nprefs', 'button.nx', '.nmeta .pill', '[data-nf="result"]', '[data-nf="update"]'];
 
 describe('Spatial · surcouches · parité avec la maquette', () => {
+  // Ajout réel, hors maquette · le lien « Mes mentions » de l'en-tête (`/studio/mentions`) · le SEUL retiré du rendu avec le filtre Support.
+  const MES_MENTIONS = 'a[data-mes-mentions][href="/studio/mentions"]';
   it('Notifications · liste, groupes, non lues, filtres réels', () => {
-    egal(neutraliser(retirer(vueNotifs(NOTIFS), ['[data-nf="support"]']), '.nic'), neutraliser(ref('_notifications', REF_NOTIFS), '.nic'));
+    egal(neutraliser(retirer(vueNotifs(NOTIFS), ['[data-nf="support"]', MES_MENTIONS]), '.nic'), neutraliser(ref('_notifications', REF_NOTIFS), '.nic'));
+  });
+
+  it('Notifications · « Mes mentions » · un lien de l’en-tête, à côté de « Tout lire », rien d’autre', () => {
+    const t = document.createElement('template');
+    t.innerHTML = vueNotifs(NOTIFS);
+    const liens = [...t.content.querySelectorAll('a[data-mes-mentions]')];
+    expect(liens.map((a) => [a.getAttribute('href'), a.textContent, a.closest('header.nhd') !== null]), 'le lien « Mes mentions » n’est pas dans l’en-tête du centre de notifications').toEqual([['/studio/mentions', 'Mes mentions', true]]);
   });
 
   it('Notifications · un filtre vide dit « Tu es à jour »', () => {

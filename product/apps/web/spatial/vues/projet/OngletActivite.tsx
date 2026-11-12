@@ -1,8 +1,8 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
-  LECTURE_MAX_JOURNAL, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_COMMENTAIRE, TEXTES_HORS_LIGNE, departEditionCommentaire, etatPublicationCommentaire, filtrerCommentaires, resumeJournal,
+  LECTURE_MAX_JOURNAL, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_COMMENTAIRE, TEXTES_HORS_LIGNE, ancreCommentaire, departEditionCommentaire, etatPublicationCommentaire, filtrerCommentaires, resumeJournal,
   type FiltreCommentaires, type JournalProjet, type MembreMentionnable, type ResultatCommentaire, type TypeJournal,
 } from '@tiktrends/core';
 import { commenterProjet, lireActiviteProjet, modifierCommentaire, resoudreCommentaire } from '../../../app/actions/studios/activite';
@@ -57,7 +57,7 @@ export function OngletActivite(p: PropsActiviteProjet) {
   return (
     <>
       <Journal projectId={p.projectId} initial={p.journal} />
-      <Commentaires projectId={p.projectId} initial={p.commentaires} />
+      <Commentaires projectId={p.projectId} initial={p.commentaires} viser={p.commentaireCible ?? null} />
     </>
   );
 }
@@ -136,7 +136,13 @@ function Journal({ projectId, initial }: { projectId: string; initial: PropsActi
 
 /* ───────────────────────────── Commentaires ───────────────────────────── */
 
-function Commentaires({ projectId, initial }: { projectId: string; initial: PropsActiviteProjet['commentaires'] }) {
+/**
+ * `viser` · le commentaire visé par l'adresse (`?commentaire=<id>`, lien de
+ * « Mes mentions ») · résolu, le filtre s'ouvre sur « Tous » pour qu'il soit
+ * à l'écran · à l'ouverture, il est amené à la vue et prend le focus (son
+ * ancre stable, `ancreCommentaire`).
+ */
+function Commentaires({ projectId, initial, viser }: { projectId: string; initial: PropsActiviteProjet['commentaires']; viser: string | null }) {
   const id = useId();
   const { toast } = useSpatial();
   const horsLigne = useHorsLigne();
@@ -146,7 +152,14 @@ function Commentaires({ projectId, initial }: { projectId: string; initial: Prop
   const [cible, setCible] = useState<string>(initial.ok ? initial.liste.cibles[0]?.cle ?? '' : '');
   const [texte, setTexte] = useState('');
   const [choisies, setChoisies] = useState<string[]>([]);
-  const [filtre, setFiltre] = useState<FiltreCommentaires>('ouverts');
+  const [filtre, setFiltre] = useState<FiltreCommentaires>(() => (initial.ok && viser && initial.liste.commentaires.some((c) => c.id === viser && c.resolu) ? 'tous' : 'ouverts'));
+  useEffect(() => {
+    if (!viser) return;
+    const el = document.getElementById(ancreCommentaire(viser));
+    if (!el) return;
+    el.scrollIntoView?.({ block: 'center' });
+    el.focus({ preventScroll: true });
+  }, [viser]);
   const [edition, setEdition] = useState<{ id: string; texte: string; mentions: string[] } | null>(null);
   const mentionnables = liste?.mentionnables ?? [];
 
@@ -241,7 +254,7 @@ function Commentaire({ c, enCours, horsLigne, edition, mentionnables, ouvrirEdit
   const id = useId();
   const etat = edition !== null ? etatPublicationCommentaire(edition, { peutProposer: c.gestes.modifier.ok, cibleChoisie: true }) : null;
   return (
-    <div className="ev" data-commentaire={c.id} data-resolu={c.resolu ? 'oui' : 'non'}>
+    <div className="ev" id={ancreCommentaire(c.id)} tabIndex={-1} data-commentaire={c.id} data-resolu={c.resolu ? 'oui' : 'non'}>
       <span className="ico"><Ic n="chat" /></span>
       <span>
         <small className="faint" data-entete-commentaire="" style={{ display: 'block', fontSize: '11.5px' }}>{c.auteur} · {c.quand} · sur {c.cible.libelle}</small>
