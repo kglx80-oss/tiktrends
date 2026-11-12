@@ -1,6 +1,6 @@
 import {
-  actionAConclure, boucleIterationLots, compteLotsEnAttente, dansFiltreLots, gestesListeLots, porteeListeLots, presentationLot, selectionAConclure,
-  sousListeAConclure, sousNavResultats,
+  PARAM_FILTRE_LOTS, actionAConclure, boucleIterationLots, compteLotsEnAttente, dansFiltreLots, filtreInitialLots, gestesListeLots, porteeListeLots, presentationLot,
+  selectionAConclure, sousListeAConclure, sousNavResultats,
 } from '@tiktrends/core';
 import { iterationPlanAction } from '../../../../actions/adsmap-iterate';
 import { Lots } from '../../../../../spatial/vues/resultats/Lots';
@@ -22,13 +22,17 @@ export const dynamic = 'force-dynamic';
  *    seuls ceux-là quittent le serveur · chaque ligne mène à la fiche du lot,
  *    où l'arbitrage existe déjà. Composer, préparer, lancer, dupliquer restent
  *    aux admins (actions gardées) et n'apparaissent pas · la raison est écrite.
+ * `?filtre=conclure` (`LIEN_A_CONCLURE` · la tuile « À traiter » et « À faire
+ * maintenant » de l'Accueil) ouvre la liste sur « À conclure » · un filtre que
+ * la portée ne montre pas est ignoré (`filtreInitialLots`).
  * Rien n'est créé ni débité ici.
  */
-export default async function LotsSpatial() {
+export default async function LotsSpatial({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const g = await gardeResultats();
   if (!g.ok) return <RefusResultats titre="Lots de test" raison={g.raison} />;
   const portee = porteeListeLots({ lotsOuverts: g.lots, arbitrageOuvert: true })!;
-  const gestes = gestesListeLots(portee, { admin: g.admin });
+  const base = gestesListeLots(portee, { admin: g.admin });
+  const gestes = { ...base, filtreInitial: filtreInitialLots(base, (await searchParams)[PARAM_FILTRE_LOTS]) };
 
   const d = await chargerLots(g.s.workspaceId, g.marque.id);
   const note = d.configEnregistree

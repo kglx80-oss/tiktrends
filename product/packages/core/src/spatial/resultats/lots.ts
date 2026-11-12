@@ -1,7 +1,6 @@
 import { estLotImporte } from '../../adsmap/lot-nature';
 import { verdictEffectif, type VerdictValue } from '../../adsmap/types';
 import { LIBELLE_VERDICT } from '../../adsmap/verdict-libelle';
-import type { EntreeRail } from '../rail';
 
 /**
  * Spatial · Résultats · les LOTS de test, lus sur leurs faits réels.
@@ -102,12 +101,28 @@ export function verdictAffiche(v: FaitsVerdictSpatial | null): VerdictValue | nu
   return verdictEffectif(v.retenu ?? v.calcule, v.comparable);
 }
 
+/**
+ * Ce que l'ÉTAT d'un lot lit, et rien d'autre · son statut, son lancement, le
+ * verdict de chaque variante (statut, valeur calculée). Un `FaitsLotSpatial`
+ * l'est · la lecture légère de « à conclure » (pastille du rail, Accueil) ne
+ * porte que cela (`chargerFaitsAConclure`), sans créa ni agrégat.
+ */
+export interface FaitsEtatLot {
+  statut: string;
+  lanceLe: string | null;
+  ads: ReadonlyArray<FaitsVerdictVariante>;
+}
+/** Une variante, vue par l'état de son lot · seulement son verdict (statut et valeur calculée). */
+export interface FaitsVerdictVariante {
+  verdict: Pick<FaitsVerdictSpatial, 'statut' | 'calcule'> | null;
+}
+
 /** La variante attend-elle son arbitrage (verdict calculé, personne n'a tranché) ? */
-export function attendArbitrage(a: FaitsAdSpatial): boolean {
+export function attendArbitrage(a: FaitsVerdictVariante): boolean {
   return !!a.verdict && a.verdict.statut === 'computed' && !!a.verdict.calcule;
 }
 
-export function etatLotSpatial(l: FaitsLotSpatial, c: ContexteLots): EtatLotSpatial {
+export function etatLotSpatial(l: FaitsEtatLot, c: ContexteLots): EtatLotSpatial {
   if (estLotImporte({ status: l.statut, launchedAt: l.lanceLe })) return 'importe';
   if (l.statut === 'planned' || l.statut === 'in_production') return 'composition';
   if (l.statut === 'ready') return 'pret';
@@ -122,8 +137,8 @@ export function etatLotSpatial(l: FaitsLotSpatial, c: ContexteLots): EtatLotSpat
   return enAttente.length ? 'non_concluant' : 'conclu';
 }
 
-/** Un lot réellement prêt à conclure (la pastille du rail, la tuile vedette). */
-export function lotPretAConclure(l: FaitsLotSpatial, c: ContexteLots): boolean {
+/** Un lot dont un verdict TRANCHÉ attend (la tuile vedette de Résultats) · le COMPTE « à conclure » est `selectionAConclure`. */
+export function lotPretAConclure(l: FaitsEtatLot, c: ContexteLots): boolean {
   return etatLotSpatial(l, c) === 'a_conclure';
 }
 
@@ -136,22 +151,13 @@ export function lotArbitrable(etat: EtatLotSpatial): boolean {
  * Peut-on CONCLURE ce lot maintenant · arbitrable ET au moins un verdict du
  * moteur qui attend son arbitrage. UNE règle pour « Conclure le lot » (la
  * touche C de la fiche, le geste sous une réponse de Jarvis), le filtre
- * « À conclure » de la liste et la liste « À conclure » ouverte aux membres
- * (`selectionAConclure`) · un lot « non concluant » dont des verdicts
- * attendent encore y figure, avec son état écrit.
+ * « À conclure » de la liste, la liste « À conclure » ouverte aux membres
+ * (`selectionAConclure`), et le COMPTE · la pastille de Résultats dans le rail
+ * et l'Accueil (`compteAConclure`, `pastilleAConclure`) · un lot « non
+ * concluant » dont des verdicts attendent encore y figure, avec son état écrit.
  */
-export function lotConcluable(etat: EtatLotSpatial, ads: readonly FaitsAdSpatial[]): boolean {
+export function lotConcluable(etat: EtatLotSpatial, ads: ReadonlyArray<FaitsVerdictVariante>): boolean {
   return lotArbitrable(etat) && ads.some(attendArbitrage);
-}
-
-/**
- * La pastille de Résultats dans le rail (`badge` de la maquette) · posée seulement
- * s'il existe AU MOINS un lot réellement prêt à conclure, absente sinon.
- */
-export function pastilleLotsAConclure(etats: readonly EtatLotSpatial[]): NonNullable<EntreeRail['pastille']> | null {
-  const n = etats.filter((e) => e === 'a_conclure').length;
-  if (!n) return null;
-  return { classe: 'badge', valeur: '', libelle: n === 1 ? 'Un lot à conclure' : `${n} lots à conclure` };
 }
 
 /* ───────────────────────── présentation ───────────────────────── */

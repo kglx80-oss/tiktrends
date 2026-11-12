@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aFaireMaintenant, carteConfiguration, cartesQuoiIterer, choixRapidesPeriode, chosesQuiAttendent, depuisRelatif,
   etapesBoucleAccueil, fileQuoiDeNeuf, indicateursGagnante, journey, lienQuestionJarvis, ligneAttente, lignesReprendre,
-  lireQuestionJarvis, lotsAConclure, periodeReporting, progressionLot, raccourcisAccueil, salutationAccueil,
+  lireQuestionJarvis, lotsFinPrevuePassee, periodeReporting, progressionLot, raccourcisAccueil, salutationAccueil,
   sourcesJarvisAccueil, surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil, NB_FORMATS_VEILLE, ECRANS_SPATIAUX,
   ecranSpatial, VALEUR_ABSENTE,
   type CarteIterationAccueil, type JourneeMesuree, type LotAccueil,
@@ -69,26 +69,34 @@ describe('Spatial · Accueil · raccourcis', () => {
 const lot = (o: Partial<LotAccueil>): LotAccueil => ({ id: 'l', numero: 1, statut: 'testing', but: null, lanceLe: null, finPrevue: null, variantes: 3, vignette: null, ...o });
 
 describe('Spatial · Accueil · lots et « À faire maintenant »', () => {
-  it('à conclure = en diffusion ET fin prévue passée · sans fin prévue, jamais', () => {
+  it('fin prévue passée = en diffusion, fin prévue passée, et PAS dans le compte « à conclure » · sans fin prévue, jamais', () => {
     const ls = [
       lot({ id: 'a', numero: 1, finPrevue: '2026-10-20T00:00:00Z' }),
       lot({ id: 'b', numero: 2, finPrevue: '2026-10-30T00:00:00Z' }),
       lot({ id: 'c', numero: 3, finPrevue: null }),
       lot({ id: 'd', numero: 4, statut: 'analyzed', finPrevue: '2026-10-01T00:00:00Z' }),
+      lot({ id: 'e', numero: 5, finPrevue: '2026-10-10T00:00:00Z' }),
     ];
-    expect(lotsAConclure(ls, NOW).map((l) => l.id)).toEqual(['a']);
+    expect(lotsFinPrevuePassee(ls, NOW, null).map((l) => l.id)).toEqual(['e', 'a']);
+    expect(lotsFinPrevuePassee(ls, NOW, { n: 1, lots: [{ id: 'e', numero: 5 }] }).map((l) => l.id), 'un lot compté « à conclure » est dit deux fois').toEqual(['a']);
   });
-  it('l’ordre · lot à conclure, puis verdicts, puis gagnante, puis configuration · rien sinon', () => {
-    const base = { lotsAConclure: [], aArbitrer: null, iteration: null, etape: null, maintenant: NOW, lotsOuverts: true };
+  it('l’ordre · lots à conclure, puis verdicts, puis gagnante, puis configuration · rien sinon', () => {
+    const base = { aConclure: null, lots: [], aArbitrer: null, iteration: null, etape: null, maintenant: NOW };
     expect(aFaireMaintenant(base)).toBeNull();
     expect(aFaireMaintenant({ ...base, etape: { libelle: 'Créer ta marque', pourquoi: 'p', href: '/brands/new' } })).toMatchObject({ titre: 'À faire maintenant : créer ta marque', href: '/brands/new' });
     expect(aFaireMaintenant({ ...base, iteration: { titre: 'C · v2', href: '/studio/x' }, etape: { libelle: 'x', pourquoi: 'p', href: '/x' } })!.titre).toBe('Prochaine étape : itérer sur C · v2');
     expect(aFaireMaintenant({ ...base, aArbitrer: 2, iteration: { titre: 'C', href: '/s' } })).toMatchObject({ titre: 'À faire maintenant : arbitrer 2 verdicts', href: '/adsmap#tests' });
     const l = lot({ id: 'l9', numero: 9, lanceLe: '2026-10-08T09:00:00Z', finPrevue: '2026-10-21T09:00:00Z' });
-    expect(aFaireMaintenant({ ...base, lotsAConclure: [l], aArbitrer: 2 })).toEqual({
-      titre: 'À faire maintenant : conclure le lot #9', detail: '14 jours écoulés · 3 variantes · fin prévue le 21 oct.', action: 'Conclure le lot', href: '/adsmap/lots?lot=l9',
+    expect(aFaireMaintenant({ ...base, aConclure: { n: 1, lots: [{ id: 'l9', numero: 9 }] }, lots: [l], aArbitrer: 2 })).toEqual({
+      titre: 'À faire maintenant : conclure le lot #9', detail: '14 jours écoulés · 3 variantes · fin prévue le 21 oct. · des verdicts attendent ton arbitrage', action: 'Conclure le lot', href: '/adsmap/lots?filtre=conclure',
     });
-    expect(aFaireMaintenant({ ...base, lotsAConclure: [l], lotsOuverts: false })!.href).toBe('/adsmap#tests');
+    // Le lot compté sans faits datés lus (au-delà des lots de l'Accueil) · le titre tient, le détail aussi.
+    expect(aFaireMaintenant({ ...base, aConclure: { n: 1, lots: [{ id: 'x', numero: 2 }] } })).toMatchObject({ titre: 'À faire maintenant : conclure le lot #2', detail: 'des verdicts attendent ton arbitrage' });
+    expect(aFaireMaintenant({ ...base, aConclure: { n: 2, lots: [{ id: 'l9', numero: 9 }, { id: 'l4', numero: 4 }] }, lots: [l] })).toEqual({
+      titre: 'À faire maintenant : conclure 2 lots', detail: 'Lots #9 et #4 · des verdicts attendent ton arbitrage', action: 'Voir les lots à conclure', href: '/adsmap/lots?filtre=conclure',
+    });
+    // Une fin prévue passée sans compte « à conclure » n'appelle jamais « conclure ».
+    expect(aFaireMaintenant({ ...base, aConclure: { n: 0, lots: [] }, lots: [l] })).toBeNull();
   });
   it('la progression d’un lot ne s’affiche que datée aux deux bouts', () => {
     expect(progressionLot(lot({ lanceLe: '2026-10-16T08:00:00Z', finPrevue: '2026-10-30T08:00:00Z' }), NOW)).toEqual({ part: 43, texte: 'J6 / 14', note: 'Bilan le 30 oct. · rien à faire d’ici là' });
@@ -184,7 +192,7 @@ describe('Spatial · Accueil · synthèse du reporting', () => {
 
 describe('Spatial · Accueil · boucle d’itération', () => {
   it('cinq étapes sur les comptes et lots réels · vides honnêtes sans donnée', () => {
-    const vide = etapesBoucleAccueil({ comptes: { tests: 0, avecHypothese: 0, aArbitrer: 0, arbitres: 0, apprentissages: 0 }, lots: [], maintenant: NOW, lotsOuverts: false });
+    const vide = etapesBoucleAccueil({ comptes: { tests: 0, avecHypothese: 0, aArbitrer: 0, arbitres: 0, apprentissages: 0 }, lots: [], aConclure: null, maintenant: NOW, lotsOuverts: false });
     expect(vide.map((e) => [e.cle, e.n, e.sous, e.action])).toEqual([
       ['hypotheses', 0, 'Aucun test pour l’instant', null],
       ['preparation', 0, 'Aucun lot en préparation', null],
@@ -197,6 +205,7 @@ describe('Spatial · Accueil · boucle d’itération', () => {
   it('lots en préparation, en diffusion, à conclure, verdicts à arbitrer', () => {
     const e = etapesBoucleAccueil({
       comptes: { tests: 5, avecHypothese: 3, aArbitrer: 1, arbitres: 2, apprentissages: 2 }, maintenant: NOW, lotsOuverts: true,
+      aConclure: { n: 1, lots: [{ id: 'c', numero: 1 }] },
       lots: [
         lot({ id: 'p', numero: 3, statut: 'planned', but: 'UGC ou packshot', vignette: 'https://x/a.jpg' }),
         lot({ id: 'd', numero: 2, lanceLe: '2026-10-16T08:00:00Z', finPrevue: '2026-10-30T08:00:00Z' }),
@@ -206,7 +215,8 @@ describe('Spatial · Accueil · boucle d’itération', () => {
     expect(e[0]).toMatchObject({ n: 3, sous: '2 tests sans hypothèse écrite', action: 'Préparer un lot' });
     expect(e[1]).toMatchObject({ n: 1, sous: 'Lot #3 · UGC ou packshot', alerte: true, href: '/adsmap/lots?lot=p', vignettes: [{ url: 'https://x/a.jpg', gagnante: false, vertical: false }] });
     expect(e[2]).toMatchObject({ n: 1, sous: 'Lot #2', progression: { texte: 'J6 / 14' } });
-    expect(e[3]).toMatchObject({ n: 2, sous: 'Lot #1 à conclure · 1 verdict à arbitrer', alerte: true, action: 'Conclure le lot #1', vignettes: [{ gagnante: true }] });
+    // « À traiter » · son nombre est le compte « à conclure » de la liste · les verdicts sont dits à côté, jamais ajoutés.
+    expect(e[3]).toMatchObject({ n: 1, sous: 'Lot #1 à conclure · 1 verdict à arbitrer', alerte: true, action: 'Conclure le lot #1', href: '/adsmap/lots?filtre=conclure', vignettes: [{ gagnante: true }] });
     expect(e[4]).toMatchObject({ n: 2, sous: '2 validés', href: '/adsmap/suites' });
   });
 });

@@ -4,7 +4,9 @@ import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
+  compteAConclure,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
+  type CompteAConclure, type FaitsEtatLot, type FaitsVerdictSpatial,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -85,6 +87,22 @@ export interface DonneesLots {
   ctx: ContexteLots;
 }
 
+/**
+ * La PORTÉE des ads lues pour les lots · la liste (`chargerLots`) et le compte
+ * « à conclure » (`chargerFaitsAConclure`) la partagent · même espace, même
+ * graphe (concept → angle → désir → persona → marque), même ordre, même borne ·
+ * sinon la pastille et la liste pourraient voir deux ensembles de variantes.
+ * L'ordre finit par l'identifiant · à la borne, les deux lectures retiennent
+ * les MÊMES ads (un code de variante seul départage mal · « v1 » dans chaque lot).
+ */
+const LIMITE_ADS_LOTS = 2000;
+const adsDeLaMarque = (workspaceId: string, brandId: string) => and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId));
+const ORDRE_ADS_LOTS = [asc(schema.ads.variantCode), asc(schema.ads.id)] as const;
+const verdictLu = (v: { status: string | null; computed: string | null }): Pick<FaitsVerdictSpatial, 'statut' | 'calcule'> => ({
+  calcule: (v.computed ?? null) as VerdictValue | null,
+  statut: v.status === 'validated' ? 'validated' : 'computed',
+});
+
 /** Tous les lots de la marque, leurs variantes et leurs verdicts · en deux requêtes. */
 export async function chargerLots(workspaceId: string, brandId: string, maintenant = new Date()): Promise<DonneesLots> {
   if (!db) return { lots: [], horsLot: [], config: DEFAULT_VERDICT_CONFIG, configEnregistree: false, structure: 'abo_one_adset_per_ad', ctx: { maintenant, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays } };
@@ -111,9 +129,9 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
       .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
       .leftJoin(schema.creatives, jointureCreaDeLaMarque(brandId))
-      .where(and(eq(schema.ads.workspaceId, workspaceId), eq(schema.personas.brandId, brandId)))
-      .orderBy(asc(schema.ads.variantCode))
-      .limit(2000),
+      .where(adsDeLaMarque(workspaceId, brandId))
+      .orderBy(...ORDRE_ADS_LOTS)
+      .limit(LIMITE_ADS_LOTS),
     db.select({
       id: schema.batches.id, number: schema.batches.number, goal: schema.batches.goal, status: schema.batches.status,
       launchedAt: schema.batches.launchedAt, protocolCheck: schema.batches.protocolCheck, createdAt: schema.batches.createdAt,
@@ -148,9 +166,8 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       commentaire: lireProvenanceCommentaire(r.ad.sourceRef),
       note: lireProvenanceNote(r.ad.sourceRef),
       verdict: r.v?.adId ? {
-        calcule: (r.v.computed ?? null) as VerdictValue | null,
+        ...verdictLu(r.v),
         retenu: (r.v.validated ?? null) as VerdictValue | null,
-        statut: r.v.status === 'validated' ? 'validated' : 'computed',
         comparable: !!r.v.comparable,
         raison: typeof agg.reason === 'string' ? agg.reason : null,
         depense: num(agg.spend), impressions: num(agg.impressions), achats: num(agg.purchases), cpa: num(agg.cpa),
@@ -182,6 +199,73 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
 
 /** Les états des lots, dans l'ordre de la liste. */
 export const etatsLots = (d: DonneesLots) => d.lots.map((l) => etatLotSpatial(l, d.ctx));
+
+/** Un lot vu par le compte « à conclure » · ce que son état lit (`FaitsEtatLot`), son identité. */
+export type LotAConclureLu = FaitsEtatLot & { id: string; numero: number };
+
+/**
+ * Les faits qui décident « à conclure », et RIEN d'autre · pour la pastille du
+ * rail (chaque page) et l'Accueil, qui n'ont besoin que d'un compte. La MÊME
+ * portée que `chargerLots` (lots de la marque, ads sous `adsDeLaMarque`, même
+ * ordre, même borne) · quatre colonnes par variante (lot, verdict, son statut,
+ * sa valeur calculée) au lieu de la créa, du concept, des provenances et de
+ * l'agrégat. La règle reste au noyau (`compteAConclure`).
+ *
+ * Coût mesuré · `MESURE_A_CONCLURE` plus bas (deux fois moins que la liste
+ * entière à 16 variantes, six à sept fois moins à 480, quatre à six à 2 000).
+ */
+export async function chargerFaitsAConclure(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ lots: LotAConclureLu[]; ctx: ContexteLots }> {
+  if (!db) return { lots: [], ctx: { maintenant, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays } };
+  const [lignes, lots, [vc]] = await Promise.all([
+    db.select({ lot: schema.ads.batchId, adId: schema.verdicts.adId, status: schema.verdicts.status, computed: schema.verdicts.computed })
+      .from(schema.ads)
+      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+      .where(adsDeLaMarque(workspaceId, brandId))
+      .orderBy(...ORDRE_ADS_LOTS)
+      .limit(LIMITE_ADS_LOTS),
+    db.select({ id: schema.batches.id, numero: schema.batches.number, statut: schema.batches.status, lanceLe: schema.batches.launchedAt })
+      .from(schema.batches).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number)),
+    db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
+  ]);
+  const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
+  const parLot = new Map<string, LotAConclureLu['ads'][number][]>();
+  for (const r of lignes) {
+    if (!r.lot) continue;
+    const v = { verdict: r.adId ? verdictLu({ status: r.status, computed: r.computed }) : null };
+    const du = parLot.get(r.lot);
+    if (du) du.push(v); else parLot.set(r.lot, [v]);
+  }
+  return {
+    lots: lots.map((b) => ({ id: b.id, numero: b.numero, statut: b.statut, lanceLe: b.lanceLe ? (b.lanceLe as Date).toISOString() : null, ads: parLot.get(b.id) ?? [] })),
+    ctx: { maintenant, fenetreJours: config.evaluationWindowDays },
+  };
+}
+
+/**
+ * Le banc de la lecture du compte (pglite, 4 cœurs partagés, médiane de 15
+ * lectures après 3 à vide, trois passages · compte et lots identiques à la
+ * liste à chaque fois). Avant · la pastille lisait `chargerLots` (créa,
+ * concept, provenances, agrégats) sur CHAQUE page ; l'Accueil ne lisait aucun
+ * verdict (il comptait par la fin prévue). Après · `chargerFaitsAConclure`.
+ * Semis · 8 lots × 2 (l'ordre du pire semis des tests existants,
+ * `a-conclure-membres-db`), 60 × 8 (une marque active), 250 × 8 (la borne
+ * `LIMITE_ADS_LOTS` atteinte).
+ */
+export const MESURE_A_CONCLURE = [
+  { variantes: 16, avantMs: [8.5, 8.6, 10.0], apresMs: [3.9, 4.6, 5.4] },
+  { variantes: 480, avantMs: [55.4, 57.9, 67.0], apresMs: [8.6, 8.7, 9.4] },
+  { variantes: 2000, avantMs: [116.0, 124.6, 184.3], apresMs: [27.1, 28.5, 29.7] },
+] as const;
+
+/** LE compte « à conclure » de la marque · la pastille du rail et l'Accueil le lisent ici. */
+export async function compterAConclure(workspaceId: string, brandId: string, maintenant = new Date()): Promise<CompteAConclure> {
+  const f = await chargerFaitsAConclure(workspaceId, brandId, maintenant);
+  return compteAConclure(f.lots, f.ctx);
+}
 
 /** La mesure Meta de la marque · connexion (sans rien déchiffrer) et date de la dernière synchro. */
 export async function chargerConnexion(brandId: string): Promise<{ metaConnecte: boolean; mesureLe: string | null }> {
