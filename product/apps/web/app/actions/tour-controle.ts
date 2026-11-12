@@ -5,12 +5,12 @@ import { and, eq, lt, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   COLONNES_COMPTES_TOUR, COLONNES_INCIDENTS, COLONNES_REGISTRE_AUDIT, COLONNES_RENTABILITE_TOUR, COLONNES_TACHES_ADMIN, NOTES_MAX_INCIDENT, VALEUR_ABSENTE,
-  adminDateCourte, cellulesCompteTour, cellulesRegistreAudit, cellulesTacheAdmin, tableRegistreAudit, tableTachesAdmin, cellulesRentabiliteTour, dansSegmentIncident, incidentAffiche, lireSegmentIncident,
+  adminDateCourte, cellulesCompteTour, cellulesRegistreAudit, cellulesTacheAdmin, mesurerDureesTaches, resolveurSeuils, tableRegistreAudit, tableTachesAdmin, cellulesRentabiliteTour, dansSegmentIncident, incidentAffiche, lireSegmentIncident,
   nomFichierExportTour, tableComptesTour, tableauCsv, validerClotureIncident, validerNoteIncident, validerOuvertureIncident,
   type ErreurIncident,
 } from '@tiktrends/core';
 import { FAMILY_LABEL, type ErrorFamily } from '../../lib/user-error';
-import { chargerEspaces, chargerIncidentsDeclares, chargerRegistreAudit, chargerTachesAdmin, chargerTarifs, lignesRentabilite, porteAdminGeste } from '../(spatial)/sp/admin/donnees';
+import { chargerDureesTaches, chargerEspaces, chargerIncidentsDeclares, chargerRegistreAudit, chargerTachesAdmin, chargerTarifs, lignesRentabilite, porteAdminGeste } from '../(spatial)/sp/admin/donnees';
 
 /**
  * Tour de contrôle · lot 14 V5 · les GESTES de la plateforme · exporter ce
@@ -63,8 +63,9 @@ export async function exporterTourAction(entree: { ecran: EcranExportTour; q?: s
     return { ok: true, csv: tableauCsv(COLONNES_INCIDENTS, lignes), nom: nomFichierExportTour(`incidents-${segment}`, maintenant), lignes: lignes.length };
   }
   if (ecran === 'taches') {
-    const { taches } = await chargerTachesAdmin();
-    const t = tableTachesAdmin(taches, maintenant, { q: entree.q, segment: entree.segment });
+    const [{ taches }, durees] = await Promise.all([chargerTachesAdmin(), chargerDureesTaches()]);
+    // Le MÊME résolveur de seuils que la page · une tâche « bloquée » à l'écran l'est dans le fichier.
+    const t = tableTachesAdmin(taches, maintenant, { q: entree.q, segment: entree.segment }, resolveurSeuils(mesurerDureesTaches(durees.taches)));
     return { ok: true, csv: tableauCsv(COLONNES_TACHES_ADMIN, t.filtrees.map(cellulesTacheAdmin)), nom: nomFichierExportTour(`taches-${t.segment}`, maintenant), lignes: t.filtrees.length };
   }
   if (ecran === 'audit') {
