@@ -55,7 +55,7 @@ beforeAll(async () => {
     req.on('end', () => {
       const r = JSON.parse(corps || '{}') as { system?: string; model?: string };
       recues.push({ system: String(r.system ?? '') });
-      res.writeHead(200, { 'content-type': 'application/json' });
+      res.writeHead(200, { connection: 'close', 'content-type': 'application/json' });
       res.end(JSON.stringify({ id: 'msg_local', type: 'message', role: 'assistant', model: r.model, content: [{ type: 'text', text: 'PROPOSITION_LOCALE_56 · une règle simulée.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 100, output_tokens: 20 } }));
     });
   });

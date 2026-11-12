@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { DEFAULT_VERDICT_CONFIG, analyseJarvisEnsemble, kpisResultats, sousNavResultats, type CarteHypothese, type EtatLotSpatial } from '@tiktrends/core';
+import { DEFAULT_VERDICT_CONFIG, RAISON_LISTE_A_CONCLURE, analyseJarvisEnsemble, gestesListeLots, kpisResultats, sousNavResultats, type CarteHypothese, type EtatLotSpatial } from '@tiktrends/core';
 import { parite, squelette, fragmentReference, type CorrectifParite } from './spatial/parite';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/adsmap', useRouter: () => ({ push: () => {}, refresh: () => {} }) }));
@@ -120,6 +120,32 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
     aide[0]!.remove();
     const p = parite(t.innerHTML, 'lots', VUE);
     expect(p.rendu).toEqual(p.reference);
+  });
+
+  it('« Lots de test » d’un membre (« À conclure ») · la maquette, sauf la barre d’outils · écart DÉCLARÉ et borné', () => {
+    const lot = (id: string, etat: EtatLotSpatial, statut: string, classe: '' | 'c' | 'g' | 'w', anneau: '' | 'c' | 'g' | 'w', primaire = false, r916 = false) => ({
+      id, etat, titre: `Lot ${id}`, hypothese: 'Si on change, alors ça bouge.', categorie: 'Accroche', statut: { libelle: statut, classe },
+      anneau: { part: 100, libelle: 'J14', classe: anneau }, action: { libelle: 'Conclure', href: `/adsmap/lots/${id}`, primaire },
+      pubs: [{ texte: ' ', image: IMG, r916 }, { texte: ' ', image: IMG }], mesure: 'Meta · Coût par achat',
+    });
+    // Quatre lignes concluables (la page n'envoie que celles-là au membre) · les classes de la maquette, qui viennent des données.
+    const lots = [lot('1', 'a_conclure', 'À conclure', 'g', 'g', true), lot('2', 'non_concluant', 'Non concluant', 'c', 'c', false, true), lot('3', 'non_concluant', 'Non concluant', '', 'c'), lot('4', 'a_conclure', 'À conclure', 'w', 'w')];
+    const html = rendre(<Lots sousNav={sousNavResultats({ admin: false })} sous="4 lots à conclure · Neva" lots={lots} peutCreer={false} gestes={gestesListeLots('a-conclure', { admin: false })} note="n" />);
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    // « Lots de test » est dans la sous-navigation du membre, à sa place · « Importer » reste aux admins (toute la rubrique, inchangé).
+    const onglets = [...t.content.querySelectorAll('nav.subnav a')].map((a) => a.textContent);
+    expect(onglets, 'la porte « Lots de test » manque au membre, ou une autre porte a bougé').toEqual(['Vue d’ensemble', 'Boucle d’itération', 'Hypothèses', 'Lots de test', 'Protocole', 'Apprentissages']);
+    expect(t.content.querySelector('nav.subnav a[aria-current="page"]')?.textContent).toBe('Lots de test');
+    // L'écart, et rien que lui · la barre d'outils porte le seul filtre « À conclure » (pressé) et la raison, à la place de « Nouveau lot ».
+    const barre = t.content.querySelector('.toolbar')!;
+    expect([...barre.querySelectorAll('.seg button')].map((b) => [b.textContent, b.getAttribute('aria-pressed')]), 'le membre voit un autre filtre que « À conclure »').toEqual([['À conclure · 4', 'true']]);
+    expect(barre.querySelector('[data-raison-ferme="lots-composer"]')?.textContent, 'la raison n’est pas écrite à la place de « Nouveau lot »').toBe(RAISON_LISTE_A_CONCLURE);
+    expect(barre.lastElementChild?.getAttribute('data-raison-ferme')).toBe('lots-composer');
+    expect(t.content.textContent, 'un geste d’admin est montré au membre').not.toMatch(/Nouveau lot|Ouvrir le lot|Itérer ·/);
+    t.content.querySelector('[data-aide-liste-lots]')!.remove();
+    const p = parite(t.innerHTML, 'lots', { ...VUE, ignorer: [...VUE.ignorer, '.toolbar', 'nav.subnav'] });
+    expect(p.rendu, 'hors de la barre d’outils, la liste du membre s’écarte de la maquette').toEqual(p.reference);
   });
 
   it('« Lot » (fiche, verdict) reproduit la maquette', () => {

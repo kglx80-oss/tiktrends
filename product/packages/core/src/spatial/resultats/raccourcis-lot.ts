@@ -1,6 +1,6 @@
 import { ANCRE_CONCLURE_LOT, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, gagnanteArbitree } from '../jarvis/gestes';
 import { lienIterationVariable } from '../studios/iterer-variable';
-import { attendArbitrage, lotArbitrable, type EtatLotSpatial, type FaitsAdSpatial } from './lots';
+import { lotConcluable, type EtatLotSpatial, type FaitsAdSpatial } from './lots';
 
 /**
  * Spatial · Résultats · lot 13 bis · ce que les raccourcis de la fiche d'un
@@ -40,7 +40,7 @@ export interface FaitsClavierLot {
 }
 
 export function gestesClavierLot(f: FaitsClavierLot): { conclure: GesteClavierLot; iterer: GesteClavierLot & { adId: string | null } } {
-  const concluable = lotArbitrable(f.etat) && f.ads.some(attendArbitrage);
+  const concluable = lotConcluable(f.etat, f.ads);
   const gagnantes = f.ads.filter(gagnanteArbitree).map((a) => a.id);
   const ordre = f.gagnante && gagnantes.includes(f.gagnante) ? [f.gagnante, ...gagnantes.filter((id) => id !== f.gagnante)] : gagnantes;
   const adId = ordre.find((id) => f.planIds.has(id)) ?? null;
