@@ -1,4 +1,6 @@
-import { FILTRES_LOTS, etatLotSpatial, lienLotSpatial, lotConcluable, type ContexteLots, type FaitsLotSpatial, type FiltreLots, type PresentationLot } from './lots';
+import { CHEMIN_LOTS } from '../../parcours-boucle';
+import type { EntreeRail } from '../rail';
+import { FILTRES_LOTS, etatLotSpatial, lienLotSpatial, lotConcluable, type ContexteLots, type FaitsEtatLot, type FiltreLots, type PresentationLot } from './lots';
 
 /**
  * Spatial · Résultats · « À conclure » ouvert à qui peut ARBITRER.
@@ -31,8 +33,60 @@ export function porteeListeLots(o: { lotsOuverts: boolean; arbitrageOuvert: bool
 }
 
 /** Les lots qu'on peut conclure, dans l'ordre reçu (celui de la liste · le plus récent d'abord). */
-export function selectionAConclure<L extends FaitsLotSpatial>(lots: readonly L[], c: ContexteLots): L[] {
+export function selectionAConclure<L extends FaitsEtatLot>(lots: readonly L[], c: ContexteLots): L[] {
   return lots.filter((l) => lotConcluable(etatLotSpatial(l, c), l.ads));
+}
+
+/* ───────────── UN compte « à conclure » partout · rail, Accueil, liste ───────────── */
+
+/**
+ * Le compte « à conclure » · le nombre de lignes de la liste « À conclure »
+ * (`/adsmap/lots`, membre ou filtre de l'admin), par la MÊME sélection
+ * (`selectionAConclure`, règle `lotConcluable`) · la pastille de Résultats dans
+ * le rail et l'Accueil (« À traiter », « À faire maintenant ») le lisent ici,
+ * jamais ailleurs. Un membre et un admin de la même marque voient le même
+ * nombre · leurs listes rendent les mêmes lots.
+ *
+ * Ce que l'Accueil comptait avant (constat #1075) · les lots « en diffusion
+ * dont la fin prévue est passée », sans regarder les verdicts · la pastille,
+ * les seuls lots d'état `a_conclure` (un lot « non concluant » dont des
+ * verdicts attendent en sortait). Trois nombres pour une même liste.
+ */
+export interface CompteAConclure {
+  n: number;
+  /** Les lots comptés, dans l'ordre de la liste (le plus récent d'abord). */
+  lots: ReadonlyArray<{ id: string; numero: number }>;
+}
+
+export function compteAConclure(lots: ReadonlyArray<FaitsEtatLot & { id: string; numero: number }>, c: ContexteLots): CompteAConclure {
+  const s = selectionAConclure(lots, c);
+  return { n: s.length, lots: s.map((l) => ({ id: l.id, numero: l.numero })) };
+}
+
+/** Le paramètre d'adresse qui ouvre « Lots de test » sur un filtre (`?filtre=conclure`). */
+export const PARAM_FILTRE_LOTS = 'filtre';
+
+/** La liste « À conclure » · là où mènent la tuile « À traiter » et « À faire maintenant » de l’Accueil (le rail garde son entrée, Résultats). */
+export const LIEN_A_CONCLURE = `${CHEMIN_LOTS}?${PARAM_FILTRE_LOTS}=conclure`;
+
+/**
+ * Le filtre posé à l'ouverture de la liste · celui de l'adresse s'il fait
+ * partie des filtres MONTRÉS à cette portée, sinon celui de la portée (un
+ * membre n'a que « À conclure », l'admin part de « Tous »).
+ */
+export function filtreInitialLots(g: Pick<GestesListeLots, 'filtres' | 'filtreInitial'>, demande: unknown): FiltreLots {
+  const v = Array.isArray(demande) ? demande[0] : demande;
+  return g.filtres.find((f) => f.cle === v)?.cle ?? g.filtreInitial;
+}
+
+/**
+ * La pastille de Résultats dans le rail (`badge` de la maquette) · posée s'il
+ * existe AU MOINS un lot à conclure (le compte de la liste), absente sinon ·
+ * le nombre est dit dans son libellé (la maquette dessine un point).
+ */
+export function pastilleAConclure(c: CompteAConclure): NonNullable<EntreeRail['pastille']> | null {
+  if (c.n <= 0) return null;
+  return { classe: 'badge', valeur: '', libelle: c.n === 1 ? 'Un lot à conclure' : `${c.n} lots à conclure` };
 }
 
 /** Pourquoi la liste d'un membre ne compose rien · écrite à côté du filtre, là où l'admin a « Nouveau lot ». */

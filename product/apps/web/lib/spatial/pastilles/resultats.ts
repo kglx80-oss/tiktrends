@@ -1,21 +1,21 @@
 import 'server-only';
-import { pastilleLotsAConclure, type EntreeRail } from '@tiktrends/core';
-import { chargerLots, etatsLots } from '../../../app/(spatial)/sp/adsmap/donnees';
+import { pastilleAConclure, type EntreeRail } from '@tiktrends/core';
+import { compterAConclure } from '../../../app/(spatial)/sp/adsmap/donnees';
 
 /**
  * La pastille de « Résultats » dans le rail Spatial (`badge` de la maquette) ·
- * posée s'il existe AU MOINS un lot de la marque réellement prêt à conclure
- * (règle pure `etatLotSpatial` / `pastilleLotsAConclure`, testée dans le noyau),
- * `null` sinon. Lecture seule.
+ * LE compte « à conclure » de la marque (`compterAConclure` · lecture légère,
+ * règle `lotConcluable` au noyau) · le nombre de lignes de la liste
+ * « À conclure » (`/adsmap/lots`), le même que l'Accueil. Posée s'il y en a au
+ * moins un, `null` sinon. Lecture seule.
  *
- * Pas encore branchée dans la coquille · le chef de projet l'ajoute dans
- * `lib/spatial/coquille.ts` (entrée `resultats` de `entreesRail`), après la
- * garde d'accès Adsmap · l'appeler pour un rôle ou une formule sans Adsmap
- * dévoilerait un compte que l'écran refuserait.
+ * Appelée par la coquille (`SOURCES_PASTILLES`) seulement quand Résultats est
+ * ouvert (rôle et formule) · l'appeler sans ce droit dévoilerait un compte que
+ * l'écran refuserait.
  */
 export async function pastilleResultats(workspaceId: string, brandId: string): Promise<NonNullable<EntreeRail['pastille']> | null> {
   try {
-    return pastilleLotsAConclure(etatsLots(await chargerLots(workspaceId, brandId)));
+    return pastilleAConclure(await compterAConclure(workspaceId, brandId));
   } catch {
     // Une pastille ne fait jamais tomber la coquille · sans lecture, rien à signaler.
     return null;

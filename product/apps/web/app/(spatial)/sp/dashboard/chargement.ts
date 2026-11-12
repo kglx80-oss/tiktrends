@@ -4,7 +4,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   CHEMIN_BOUCLE_ACCUEIL, PASTILLES_JARVIS_ACCUEIL,
   aFaireMaintenant, carteConfiguration, cartesQuoiIterer, cheminOuvert, choixRapidesPeriode, completudeFicheMarque,
-  etapesBoucleAccueil, manqueMeta, fileQuoiDeNeuf, jourParis, ligneAttente, lignesReprendre, lotsAConclure,
+  etapesBoucleAccueil, manqueMeta, fileQuoiDeNeuf, jourParis, ligneAttente, lignesReprendre,
   periodeReporting, raccourcisAccueil, salutationAccueil, sourcesJarvisAccueil, sousTitreReporting,
   surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil,
   SUGGESTIONS_ASSISTANT_ACCUEIL, costFor, noteAccesAccueil, prixQuestionAssistant, refusAssistant, resoudreAccueil,
@@ -25,6 +25,7 @@ import { adsVignettesDuLot, jointureCreaDeLaMarque, vignetteDuLot, vignettesDesA
 import { compterBoucle } from '../../../../lib/boucle-resultats';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { unlimitedCredits } from '../../../../lib/credits';
+import { compterAConclure } from '../adsmap/donnees';
 import type { EtatQuoiIterer, EtatReporting, PropsAccueil } from '../../../../spatial/vues/accueil/Accueil';
 
 /**
@@ -70,7 +71,7 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
   const lotsOuverts = adsmapOuvert && canAccess(acces, F('lots'));
   const analyticsOuvert = canAccess(acces, F('analytics')) && !!marque && !!db;
 
-  const [v5, parcours, fiche, lots, notifs, metaBrand] = await Promise.all([
+  const [v5, parcours, fiche, lots, notifs, metaBrand, aConclure] = await Promise.all([
     chargerAccueilV5(s, { marque, nouveauProjet, nbProjets: tete.nbProjets }),
     roleAtLeast(s.role, 'member') ? lire('parcours', () => onboardingState(s.workspaceId, admin)) : Promise.resolve(null),
     // La fiche s'ouvre aux admins (`/brands/[id]`) · même lecture et même règle de complétude que l'Accueil V5.
@@ -118,6 +119,9 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
       .orderBy(desc(schema.notifications.createdAt)).limit(4)) : Promise.resolve(null),
     // LA lecture de la connexion ET des chiffres clés Meta · la même que la vue Analytics, Jarvis et le Radar (D2).
     analyticsOuvert ? lire('chiffres clés Meta', () => lireChiffresClesMeta(marque!.id, s.workspaceId, maintenant)) : Promise.resolve(null),
+    // LE compte « à conclure » · celui de la pastille du rail et des lignes de la liste « À conclure »
+    // (`/adsmap/lots`, ouverte à qui arbitre · membre comme admin), sous la même garde (Adsmap).
+    adsmapOuvert ? lire('lots à conclure', () => compterAConclure(s.workspaceId, marque!.id, maintenant)) : Promise.resolve(null),
   ]);
 
   /* ── Reporting Meta ─────────────────────────────────────────────────── */
@@ -212,7 +216,7 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
     }));
     if (comptes) {
       aArbitrer.n = comptes.aArbitrer;
-      boucle = { etapes: etapesBoucleAccueil({ comptes, lots, maintenant, lotsOuverts }), href: CHEMIN_BOUCLE_ACCUEIL };
+      boucle = { etapes: etapesBoucleAccueil({ comptes, lots, aConclure, maintenant, lotsOuverts }), href: CHEMIN_BOUCLE_ACCUEIL };
     }
   }
 
@@ -221,11 +225,12 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
   const suivante = parcours?.journey.next ?? null;
   const etapeOuverte = suivante && ouvert(suivante.href.split(/[?#]/)[0]!) ? suivante : null;
   const maintenantBloc = aFaireMaintenant({
-    lotsAConclure: lots && lotsOuverts ? lotsAConclure(lots, maintenant) : [],
+    aConclure,
+    lots: lots ?? [],
     aArbitrer: aArbitrer.n,
     iteration: premiere?.iterer ? { titre: premiere.titre, href: premiere.iterer } : null,
     etape: etapeOuverte ? { libelle: etapeOuverte.label, pourquoi: etapeOuverte.why, href: etapeOuverte.key === 'identity' && fiche ? fiche.href : etapeOuverte.href } : null,
-    maintenant, lotsOuverts,
+    maintenant,
   });
   const carte = parcours ? carteConfiguration(parcours.journey, { marque: marque?.nom ?? null, ouvert, ficheHref: fiche?.href ?? null }) : null;
 

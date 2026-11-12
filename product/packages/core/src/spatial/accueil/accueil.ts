@@ -17,6 +17,7 @@ import type { Journey, JourneyStep } from '../../onboarding';
 import { CHEMIN_IMPORT_RESULTATS, CHEMIN_LOTS, CHEMIN_SUITES, ANCRE_TESTS } from '../../parcours-boucle';
 import { lienLotApercu } from '../../adsmap/apercu-lots';
 import { FORMATS_CREATIFS, FORMAT_AUTRE } from '../../formats-creatifs';
+import { LIEN_A_CONCLURE, type CompteAConclure } from '../resultats/a-conclure';
 import { depuisRelatif, jourCourt, jourIso, joursEntre } from './temps';
 
 const JOUR = 86_400_000;
@@ -114,14 +115,30 @@ export interface LotAccueil {
 const temps = (iso: string | null) => (iso ? Date.parse(iso) : NaN);
 
 /**
- * Les lots À CONCLURE · en diffusion (`testing`) et dont la fin prévue est
- * passée. Un lot sans fin prévue n'est jamais déclaré « à conclure » · on ne
- * devine pas la durée d'un protocole. Le plus ancien d'abord.
+ * Les lots « à conclure » de l'Accueil ne se décident PAS ici · c'est le compte
+ * de la liste (`compteAConclure`, règle `lotConcluable` · des verdicts du moteur
+ * attendent), le même que la pastille du rail.
+ *
+ * Ce que la fin prévue dit, elle, reste une AUTRE information, nommée comme
+ * telle · un lot en diffusion (`testing`) dont la fin prévue est passée, mais
+ * qu'on ne peut pas conclure (aucun verdict n'attend · mesures pas encore
+ * remontées, fenêtre du moteur pas écoulée). Il n'entre jamais dans le compte
+ * « à conclure ». Sans fin prévue, jamais · on ne devine pas la durée d'un
+ * protocole. Le plus ancien d'abord.
  */
-export function lotsAConclure(lots: readonly LotAccueil[], maintenant: Date): LotAccueil[] {
+export function lotsFinPrevuePassee(lots: readonly LotAccueil[], maintenant: Date, aConclure: CompteAConclure | null): LotAccueil[] {
+  const comptes = new Set((aConclure?.lots ?? []).map((l) => l.id));
   return lots
-    .filter((l) => l.statut === 'testing' && Number.isFinite(temps(l.finPrevue)) && temps(l.finPrevue) <= maintenant.getTime())
+    .filter((l) => l.statut === 'testing' && !comptes.has(l.id) && Number.isFinite(temps(l.finPrevue)) && temps(l.finPrevue) <= maintenant.getTime())
     .sort((a, b) => temps(a.finPrevue) - temps(b.finPrevue));
+}
+
+const numeros = (ls: ReadonlyArray<{ numero: number }>) => liste(ls.map((l) => `#${l.numero}`));
+
+/** « Lot #3 · fin prévue passée, aucun verdict à arbitrer » · jamais « à conclure ». */
+export function phraseFinPrevuePassee(ls: ReadonlyArray<{ numero: number }>): string | null {
+  if (!ls.length) return null;
+  return `${ls.length > 1 ? 'Lots' : 'Lot'} ${numeros(ls)} · fin prévue passée, aucun verdict à arbitrer`;
 }
 
 /** Les jours écoulés depuis le lancement (0 sans date). */
@@ -137,31 +154,45 @@ export interface AFaireMaintenant { titre: string; detail: string; action: strin
 /**
  * La barre « À faire maintenant » (`a.tile.nowbar`) · UNE action, la plus
  * urgente parmi celles qui existent réellement, dans cet ordre :
- *  1. un lot dont la période est écoulée · le conclure ;
+ *  1. des lots à conclure (le compte de la liste, `compteAConclure`) · la
+ *     liste « À conclure » (`LIEN_A_CONCLURE`), membre comme admin ;
  *  2. des verdicts calculés à arbitrer ;
  *  3. une gagnante prouvée à itérer ;
  *  4. la prochaine étape de configuration (`journey.next`).
  * `null` quand rien de tout cela n'existe · la barre est alors absente.
  */
 export function aFaireMaintenant(p: {
-  lotsAConclure: readonly LotAccueil[];
+  /** Le compte « à conclure » de la liste · `null` quand Résultats est fermé au rôle ou illisible. */
+  aConclure: CompteAConclure | null;
+  /** Les lots datés de l'Accueil · le détail d'un lot compté (jours, variantes, fin prévue). */
+  lots: readonly LotAccueil[];
   /** `null` quand Résultats est fermé au rôle ou illisible. */
   aArbitrer: number | null;
   iteration: { titre: string; href: string } | null;
   etape: { libelle: string; pourquoi: string; href: string } | null;
   maintenant: Date;
-  /** Les lots s'ouvrent aux admins · sinon le lien mène aux tests. */
-  lotsOuverts: boolean;
 }): AFaireMaintenant | null {
-  const lot = p.lotsAConclure[0];
-  if (lot) {
-    const j = joursEcoules(lot.lanceLe, p.maintenant);
-    const morceaux = [j > 0 ? `${pl(j, 'jour écoulé', 'jours écoulés')}` : null, lot.variantes > 0 ? pl(lot.variantes, 'variante', 'variantes') : null, lot.finPrevue ? `fin prévue le ${jourCourt(lot.finPrevue.slice(0, 10))}` : null];
+  const c = p.aConclure;
+  if (c && c.n > 0 && c.lots.length) {
+    if (c.n === 1) {
+      const compte = c.lots[0]!;
+      const lot = p.lots.find((l) => l.id === compte.id);
+      const j = lot ? joursEcoules(lot.lanceLe, p.maintenant) : 0;
+      const morceaux = lot
+        ? [j > 0 ? `${pl(j, 'jour écoulé', 'jours écoulés')}` : null, lot.variantes > 0 ? pl(lot.variantes, 'variante', 'variantes') : null, lot.finPrevue ? `fin prévue le ${jourCourt(lot.finPrevue.slice(0, 10))}` : null]
+        : [];
+      return {
+        titre: `À faire maintenant : conclure le lot #${compte.numero}`,
+        detail: [...morceaux, 'des verdicts attendent ton arbitrage'].filter(Boolean).join(' · '),
+        action: 'Conclure le lot',
+        href: LIEN_A_CONCLURE,
+      };
+    }
     return {
-      titre: `À faire maintenant : conclure le lot #${lot.numero}`,
-      detail: morceaux.filter(Boolean).join(' · '),
-      action: 'Conclure le lot',
-      href: p.lotsOuverts ? lienLotApercu(lot.id) : `${CHEMIN_BOUCLE_ACCUEIL}${ANCRE_TESTS}`,
+      titre: `À faire maintenant : conclure ${c.n} lots`,
+      detail: `Lots ${numeros(c.lots)} · des verdicts attendent ton arbitrage`,
+      action: 'Voir les lots à conclure',
+      href: LIEN_A_CONCLURE,
     };
   }
   if (p.aArbitrer && p.aArbitrer > 0) {
@@ -286,7 +317,11 @@ const titreLot = (l: LotAccueil) => `Lot #${l.numero}${l.but?.trim() ? ` · ${l.
  * active. Une étape vide le dit (« Aucun lot en préparation ») · jamais un
  * exemple. Les lots s'ouvrent aux admins · sinon les liens mènent à Résultats.
  */
-export function etapesBoucleAccueil(p: { comptes: ComptesBoucleAccueil; lots: readonly LotAccueil[]; maintenant: Date; lotsOuverts: boolean }): EtapeBoucleAccueil[] {
+export function etapesBoucleAccueil(p: {
+  comptes: ComptesBoucleAccueil; lots: readonly LotAccueil[]; maintenant: Date; lotsOuverts: boolean;
+  /** Le compte « à conclure » de la liste (`compteAConclure`) · `null` illisible, l'étape se tait sur les lots. */
+  aConclure: CompteAConclure | null;
+}): EtapeBoucleAccueil[] {
   const c = p.comptes;
   const k = (v: number) => Math.max(0, Math.floor(Number.isFinite(v) ? v : 0));
   const tests = k(c.tests), avecH = Math.min(k(c.avecHypothese), tests), aArb = k(c.aArbitrer), appris = k(c.apprentissages), arbitres = k(c.arbitres);
@@ -294,9 +329,12 @@ export function etapesBoucleAccueil(p: { comptes: ComptesBoucleAccueil; lots: re
   const vignettes = (ls: readonly LotAccueil[], gagnante = false) => ls.filter((l) => l.vignette).slice(0, 2).map((l, i) => ({ url: l.vignette!, gagnante: gagnante && i === 0, vertical: false }));
 
   const enPrep = p.lots.filter((l) => PREPARATION.has(l.statut));
-  const aConclure = lotsAConclure(p.lots, p.maintenant);
-  const idsAConclure = new Set(aConclure.map((l) => l.id));
+  const compte = p.aConclure ?? { n: 0, lots: [] };
+  const idsAConclure = new Set(compte.lots.map((l) => l.id));
+  // Les lots comptés, avec leurs faits datés (vignette) quand l'Accueil les a lus · l'ordre de la liste.
+  const aConclure = compte.lots.map((c) => p.lots.find((l) => l.id === c.id)).filter((l): l is LotAccueil => !!l);
   const enDiff = p.lots.filter((l) => l.statut === 'testing' && !idsAConclure.has(l.id));
+  const finPassee = lotsFinPrevuePassee(p.lots, p.maintenant, compte);
 
   const sansH = tests - avecH;
   const hypo: EtapeBoucleAccueil = {
@@ -311,20 +349,28 @@ export function etapesBoucleAccueil(p: { comptes: ComptesBoucleAccueil; lots: re
     href: lien(enPrep[0]), alerte: enPrep.length > 0 && p.lotsOuverts, vignettes: vignettes(enPrep), progression: null,
     action: enPrep.length > 0 && p.lotsOuverts ? 'Compléter' : null,
   };
-  const diff0 = enDiff[0];
+  // Une fin prévue passée sans verdict à arbitrer se dit ICI, sous son propre libellé · jamais « à conclure ».
+  const diff0 = finPassee[0] ?? enDiff[0];
   const diff: EtapeBoucleAccueil = {
     cle: 'diffusion', icone: 'flask', n: enDiff.length, titre: 'En diffusion',
-    sous: diff0 ? titreLot(diff0) : 'Aucun lot en diffusion',
+    sous: phraseFinPrevuePassee(finPassee) ?? (diff0 ? titreLot(diff0) : 'Aucun lot en diffusion'),
     href: lien(diff0), alerte: false, vignettes: vignettes(enDiff),
-    progression: diff0 ? progressionLot(diff0, p.maintenant) : null, action: null,
+    progression: diff0 && !finPassee.length ? progressionLot(diff0, p.maintenant) : null, action: null,
   };
-  const morceaux = [...aConclure.map((l) => `Lot #${l.numero} à conclure`), aArb > 0 ? `${pl(aArb, 'verdict', 'verdicts')} à arbitrer` : null].filter((x): x is string => !!x);
+  // « À traiter » · son nombre est le compte « à conclure » de la liste, rien d'autre · les verdicts à
+  // arbitrer (une autre unité · des variantes, dans un lot ou hors lot) sont dits à côté, jamais ajoutés.
+  const n = compte.n;
+  const premier = compte.lots[0];
+  const morceaux = [
+    n === 1 && premier ? `Lot #${premier.numero} à conclure` : n > 1 ? `${n} lots à conclure` : null,
+    aArb > 0 ? `${pl(aArb, 'verdict', 'verdicts')} à arbitrer` : null,
+  ].filter((x): x is string => !!x);
   const traiter: EtapeBoucleAccueil = {
-    cle: 'atraiter', icone: 'check', n: aConclure.length + aArb, titre: 'À traiter',
+    cle: 'atraiter', icone: 'check', n, titre: 'À traiter',
     sous: morceaux.length ? morceaux.join(' · ') : 'Rien en attente',
-    href: aConclure[0] ? lien(aConclure[0]) : `${CHEMIN_BOUCLE_ACCUEIL}${ANCRE_TESTS}`,
+    href: n > 0 ? LIEN_A_CONCLURE : `${CHEMIN_BOUCLE_ACCUEIL}${ANCRE_TESTS}`,
     alerte: morceaux.length > 0, vignettes: vignettes(aConclure, true), progression: null,
-    action: aConclure[0] ? `Conclure le lot #${aConclure[0].numero}` : aArb > 0 ? 'Arbitrer' : null,
+    action: n === 1 && premier ? `Conclure le lot #${premier.numero}` : n > 1 ? `Conclure les ${n} lots` : aArb > 0 ? 'Arbitrer' : null,
   };
   const appr: EtapeBoucleAccueil = {
     cle: 'apprentissages', icone: 'bulb', n: appris, titre: 'Apprentissages',
