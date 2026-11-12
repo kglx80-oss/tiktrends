@@ -1,9 +1,9 @@
 import {
-  ADRESSE_RAPPROCHEMENT, COLONNES_TACHES_ADMIN, SEUIL_TACHE_BLOQUEE_MIN, adminNombre, adminPluriel, adresseIncidentTache, adresseListeTour,
-  cellulesTacheAdmin, etatExportTour, libellePuceSegment, lirePageTour, tableTachesAdmin, textePage,
+  ADRESSE_RAPPROCHEMENT, COLONNES_DUREES_MESUREES, COLONNES_PHASES_MESUREES, COLONNES_TACHES_ADMIN, METHODE_DUREES, adminNombre, adminPluriel, adresseIncidentTache, adresseListeTour,
+  cellulesTacheAdmin, etatExportTour, libellePuceSegment, lirePageTour, mesurerDureesTaches, resolveurSeuils, tableTachesAdmin, tableauDureesMesurees, tableauPhasesMesurees, textePage,
 } from '@tiktrends/core';
 import { CHEMIN_TACHES_ADMIN, Taches } from '../../../../../spatial/vues/admin/Taches';
-import { bandeauSeul, chargerTachesAdmin, porteAdmin } from '../donnees';
+import { bandeauSeul, chargerDureesTaches, chargerTachesAdmin, porteAdmin } from '../donnees';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,13 +15,17 @@ const UNITE = { un: 'tâche', plusieurs: 'tâches' } as const;
  * tâches de toute la plateforme, segment, recherche et page relus au serveur
  * (`?segment=&q=&page=`) · l'âge se calcule contre l'horloge de la requête,
  * passée à la règle du noyau. Aucune relance, aucune annulation d'ici.
+ * « Durées mesurées » · les tâches terminées et leurs transitions, mesurées
+ * au noyau (`mesurerDureesTaches`) · le segment « Bloquées » reçoit le seuil
+ * appliqué de CHAQUE tâche (`resolveurSeuils`), le même que l'export.
  */
 export default async function TachesSpatial({ searchParams }: { searchParams?: Promise<{ q?: string; segment?: string; page?: string }> }) {
   await porteAdmin();
   const sp = (await searchParams) ?? {};
   const maintenant = new Date();
-  const [b, lu] = await Promise.all([bandeauSeul(), chargerTachesAdmin()]);
-  const table = tableTachesAdmin(lu.taches, maintenant, { q: sp.q, segment: sp.segment, page: lirePageTour(sp.page) });
+  const [b, lu, durees] = await Promise.all([bandeauSeul(), chargerTachesAdmin(), chargerDureesTaches()]);
+  const mesure = mesurerDureesTaches(durees.taches);
+  const table = tableTachesAdmin(lu.taches, maintenant, { q: sp.q, segment: sp.segment, page: lirePageTour(sp.page) }, resolveurSeuils(mesure));
   const n = (cle: string) => table.segments.find((s) => s.cle === cle)?.n ?? 0;
   const definition = table.segments.find((s) => s.cle === table.segment)?.definition ?? '';
   return (
@@ -29,7 +33,7 @@ export default async function TachesSpatial({ searchParams }: { searchParams?: P
       bandeau={b}
       kpis={[
         { lbl: 'En échec', v: adminNombre(n('echec')), c: n('echec') ? 'w' : '', d: n('echec') ? 'à examiner' : 'aucune' },
-        { lbl: 'Bloquées', v: adminNombre(n('bloquees')), c: n('bloquees') ? 'dn' : '', d: `actives depuis plus de ${SEUIL_TACHE_BLOQUEE_MIN} min` },
+        { lbl: 'Bloquées', v: adminNombre(n('bloquees')), c: n('bloquees') ? 'dn' : '', d: 'au-delà du seuil de leur modèle' },
         { lbl: 'Coût à rapprocher', v: adminNombre(n('rapprochement')), c: n('rapprochement') ? 'w' : '', d: 'coût incertain chez le fournisseur' },
         { lbl: 'En cours', v: adminNombre(n('en-cours')), d: 'le worker y travaille' },
       ]}
@@ -49,6 +53,15 @@ export default async function TachesSpatial({ searchParams }: { searchParams?: P
       } : null}
       export={etatExportTour(table.filtrees.length, UNITE)}
       limite={lu.limite}
+      durees={{
+        colonnes: COLONNES_DUREES_MESUREES,
+        lignes: tableauDureesMesurees(mesure),
+        colonnesPhases: COLONNES_PHASES_MESUREES,
+        phases: tableauPhasesMesurees(mesure),
+        lecture: `${adminPluriel(mesure.lues, 'tâche terminée', 'tâches terminées')} ${mesure.lues > 1 ? 'lues' : 'lue'} · ${adminPluriel(mesure.lues - mesure.exclues, 'saine')} mesurée${mesure.lues - mesure.exclues > 1 ? 's' : ''}, ${adminNombre(mesure.exclues)} écartée${mesure.exclues > 1 ? 's' : ''} (rapprochement ou annulation demandée).`,
+        methode: METHODE_DUREES,
+        limite: durees.limite,
+      }}
       note={`${adminPluriel(table.filtrees.length, 'tâche')} dans ce filtre${table.q ? ` pour « ${table.q} »` : ''} · lecture seule, rien n’est relancé ni annulé d’ici (une relance est une nouvelle tâche, lancée depuis l’atelier de son espace) · coût engagé lu au registre de budget, jamais recalculé · l’export reprend tout le filtre, toutes pages, colonnes de la table.`}
     />
   );

@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   ACTIONS_SENSIBLES, ACTION_RAPPROCHEMENT_DEPENSE, ETATS_JOB_TERMINAUX, PREFIXE_AUDIT_PLATEFORME,
   attendReponse, entreesAdminOuvertes, ligneRentabiliteTour, mrrPlateforme, nomEquipePlateforme, rentabiliteForfaits,
-  type EvenementAuditLu, type MouvementTache, type TacheLue, type EspacePlateforme, type GraviteIncident, type IncidentLu, type LigneRentabiliteTour, type NoteIncident,
+  type EvenementAuditLu, type MouvementTache, type TacheLue, type TacheMesurable, type TransitionLue, type EspacePlateforme, type GraviteIncident, type IncidentLu, type LigneRentabiliteTour, type NoteIncident,
   type TarifsPlateforme, type TicketPlateforme, type StatutTicket, type TypeTicket,
 } from '@tiktrends/core';
 import { fileSupport } from '@tiktrends/core';
@@ -292,21 +292,85 @@ export async function chargerTachesAdmin(): Promise<{ taches: TacheLue[]; limite
   ]);
   const lignes = [...actives, ...terminees];
   const registre = new Map<string, MouvementTache[]>();
+  const modeles = new Map<string, string>();
   const ids = lignes.map((l) => l.id);
   for (let i = 0; i < ids.length; i += 500) {
     const lot = ids.slice(i, i + 500);
     const rows = await db.select({ job: L.jobId, kind: L.kind, credits: sql<number>`coalesce(sum(${L.credits}), 0)`, usd: sql<number>`coalesce(sum(${L.usdMicros}), 0)` })
       .from(L).where(inArray(L.jobId, lot)).groupBy(L.jobId, L.kind);
     for (const r of rows) if (r.job) registre.set(r.job, [...(registre.get(r.job) ?? []), { kind: r.kind, credits: Number(r.credits), usdMicros: Number(r.usd) }]);
+    // Le modèle · celui du dernier corps envoyé au fournisseur (le seuil « bloquée » de la tâche en dépend).
+    for (const m of await lireModelesTaches(lot)) modeles.set(m.job, m.modele);
   }
   const taches: TacheLue[] = lignes
     .sort((a, b) => (b.creeLe as Date).getTime() - (a.creeLe as Date).getTime())
     .map((l) => ({
-      id: l.id, operation: l.operation, etat: l.etat, lignes: Array.isArray(l.lignes) ? (l.lignes as Array<{ operation: string }>) : null,
-      projet: l.projet, espace: l.espace, creeLe: l.creeLe as Date, erreur: l.erreur, registre: registre.get(l.id) ?? [],
+      id: l.id, operation: l.operation, etat: l.etat, lignes: Array.isArray(l.lignes) ? (l.lignes as Array<{ operation: string; profil?: string }>) : null,
+      projet: l.projet, espace: l.espace, creeLe: l.creeLe as Date, erreur: l.erreur, registre: registre.get(l.id) ?? [], modele: modeles.get(l.id) ?? null,
     }));
   const coupe = actives.length >= LIMITE_TACHES_ACTIVES || terminees.length >= LIMITE_TACHES_TERMINEES;
   return { taches, limite: coupe ? `Lecture bornée · les ${LIMITE_TACHES_ACTIVES.toLocaleString('fr-FR')} tâches actives et les ${LIMITE_TACHES_TERMINEES.toLocaleString('fr-FR')} tâches terminées les plus récentes · les plus anciennes ne sont pas lues ici.` : null };
+}
+
+/** Le dernier modèle consigné (`job.provider.payload`, `details.modele`) de chaque tâche d'un lot · lecture seule. */
+async function lireModelesTaches(lot: readonly string[]): Promise<Array<{ job: string; modele: string }>> {
+  if (!db || !lot.length) return [];
+  const A = schema.studioAuditEvents;
+  const rows = await db.selectDistinctOn([A.targetId], { job: A.targetId, modele: sql<string | null>`${A.details} ->> 'modele'` }).from(A)
+    .where(and(eq(A.targetType, 'studio_job'), eq(A.action, 'job.provider.payload'), inArray(A.targetId, [...lot])))
+    .orderBy(A.targetId, desc(A.occurredAt));
+  return rows.filter((r): r is { job: string; modele: string } => typeof r.modele === 'string' && r.modele.trim() !== '');
+}
+
+/**
+ * Les tâches TERMINÉES AVEC SUCCÈS lues pour mesurer les durées · les plus
+ * récentes d'abord (`finished_at`), avec TOUTES leurs transitions (`job.*` du
+ * registre, cible `studio_job`). Mesuré le 12/11 (pglite en mémoire, machine
+ * partagée chargée, trois passes · `chargerDureesTaches` puis
+ * `mesurerDureesTaches`, chaque tâche avec sept transitions · enqueue,
+ * claimed, running, payload, persisting, completed, contrôle qualité) :
+ *
+ * | tâches terminées en base     | transitions lues | lecture + mesure |
+ * | ---------------------------- | ---------------- | ---------------- |
+ * |   500                        |   3 500          |   39 à 77 ms     |
+ * | 2 000                        |  14 000          |  123 à 167 ms    |
+ * | 4 000 (2 000 lues, la borne) |  14 000          |  152 à 165 ms    |
+ *
+ * (Première passe à 2 000 · 454 à 502 ms · le rang de la borne haute était
+ * recalculé en O(n²) par groupe et par phase · une seule passe cumulée
+ * depuis.) La lecture des tâches de la table, modèle consigné compris
+ * (`lireModelesTaches`), reste à 79 à 104 ms pour 2 000 terminées lues.
+ * Retenu · les 2 000 plus récentes · vingt fois l'effectif minimum d'un
+ * groupe, la page reste sous 0,2 s au banc, et la fenêtre suit la plateforme
+ * d'aujourd'hui (un modèle qui ralentit se voit) · au-delà, l'écran le dit.
+ */
+export const LIMITE_TACHES_MESUREES = 2_000;
+
+export async function chargerDureesTaches(): Promise<{ taches: TacheMesurable[]; limite: string | null }> {
+  if (!db) return { taches: [], limite: null };
+  const J = schema.studioJobs, A = schema.studioAuditEvents;
+  const lues = await db.select({ id: J.id, etat: J.state, creeLe: J.createdAt, termineLe: J.finishedAt, lignes: sql<unknown>`${J.snapshot} -> 'lignes'` })
+    .from(J).where(eq(J.state, 'completed')).orderBy(sql`${J.finishedAt} desc nulls last`, desc(J.id)).limit(LIMITE_TACHES_MESUREES);
+  const transitions = new Map<string, TransitionLue[]>();
+  for (let i = 0; i < lues.length; i += 500) {
+    const lot = lues.slice(i, i + 500).map((l) => l.id);
+    const rows = await db.select({ job: A.targetId, action: A.action, le: A.occurredAt, modele: sql<string | null>`${A.details} ->> 'modele'` }).from(A)
+      .where(and(eq(A.targetType, 'studio_job'), like(A.action, 'job.%'), inArray(A.targetId, lot)));
+    for (const r of rows) {
+      const t: TransitionLue = { action: r.action, le: r.le as Date, modele: r.modele };
+      const l = transitions.get(r.job);
+      if (l) l.push(t); else transitions.set(r.job, [t]);
+    }
+  }
+  const taches: TacheMesurable[] = lues.map((l) => ({
+    id: l.id, etat: l.etat, creeLe: l.creeLe as Date, termineLe: (l.termineLe as Date | null) ?? null,
+    lignes: Array.isArray(l.lignes) ? (l.lignes as Array<{ operation?: unknown; profil?: unknown }>) : null,
+    transitions: transitions.get(l.id) ?? [],
+  }));
+  return {
+    taches,
+    limite: lues.length >= LIMITE_TACHES_MESUREES ? `Mesure bornée · les ${LIMITE_TACHES_MESUREES.toLocaleString('fr-FR')} tâches terminées les plus récentes · les plus anciennes ne sont pas mesurées.` : null,
+  };
 }
 
 /** Une tâche seule, par son identifiant · pour pré-remplir un incident (`/admin/incidents?tache=`). Après la porte. */
