@@ -133,6 +133,18 @@ export function lotArbitrable(etat: EtatLotSpatial): boolean {
 }
 
 /**
+ * Peut-on CONCLURE ce lot maintenant · arbitrable ET au moins un verdict du
+ * moteur qui attend son arbitrage. UNE règle pour « Conclure le lot » (la
+ * touche C de la fiche, le geste sous une réponse de Jarvis), le filtre
+ * « À conclure » de la liste et la liste « À conclure » ouverte aux membres
+ * (`selectionAConclure`) · un lot « non concluant » dont des verdicts
+ * attendent encore y figure, avec son état écrit.
+ */
+export function lotConcluable(etat: EtatLotSpatial, ads: readonly FaitsAdSpatial[]): boolean {
+  return lotArbitrable(etat) && ads.some(attendArbitrage);
+}
+
+/**
  * La pastille de Résultats dans le rail (`badge` de la maquette) · posée seulement
  * s'il existe AU MOINS un lot réellement prêt à conclure, absente sinon.
  */
@@ -246,7 +258,11 @@ export function presentationLot(l: FaitsLotSpatial, c: ContexteLots, liens: { im
   };
 }
 
-/** Les filtres de la liste des lots (maquette `lots`) · un état n'appartient qu'à un groupe, « Tous » les voit tous. */
+/**
+ * Les filtres de la liste des lots (maquette `lots`) · un état n'appartient qu'à un groupe, « Tous » les voit tous.
+ * « À conclure » · les lots que l'on peut conclure (`lotArbitrable`, donc `lotConcluable` · un état arbitrable a
+ * toujours un verdict qui attend, `etatLotSpatial`) · la MÊME liste pour l'admin et pour le membre qui arbitre.
+ */
 export type FiltreLots = 'tous' | 'preparation' | 'diffusion' | 'importer' | 'conclure';
 export const FILTRES_LOTS: ReadonlyArray<{ cle: FiltreLots; libelle: string }> = [
   { cle: 'tous', libelle: 'Tous' }, { cle: 'preparation', libelle: 'En préparation' }, { cle: 'diffusion', libelle: 'En diffusion' },
@@ -258,7 +274,7 @@ export function dansFiltreLots(etat: EtatLotSpatial, f: FiltreLots): boolean {
     case 'preparation': return etat === 'composition' || etat === 'pret';
     case 'diffusion': return etat === 'diffusion';
     case 'importer': return etat === 'a_importer';
-    case 'conclure': return etat === 'a_conclure';
+    case 'conclure': return lotArbitrable(etat);
   }
 }
 

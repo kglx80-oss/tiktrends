@@ -11,3 +11,4 @@ export * from './lecture-offres';
 export * from './cible-test';
 export * from './raccourcis-lot';
 export * from './raccourcis-test';
+export * from './a-conclure';
