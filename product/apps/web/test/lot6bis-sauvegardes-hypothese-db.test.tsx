@@ -249,7 +249,7 @@ describe('hypothèse depuis un tag récurrent', () => {
       .innerJoin(schema.personas, eq(schema.personas.id, schema.desires.personaId)).where(eq(schema.concepts.id, ad!.conceptId));
     expect(c?.brandId).toBe(ids.brandA1);
     // Relu sur la vraie page Hypothèses · « À formuler », avec sa provenance.
-    const page = renderToStaticMarkup(avecSpatial(await HypothesesSpatial()));
+    const page = renderToStaticMarkup(avecSpatial(await HypothesesSpatial({ searchParams: Promise.resolve({}) })));
     expect(page).toContain('Veille · tag « Hook UGC » · 3 sauvegardes');
   });
 

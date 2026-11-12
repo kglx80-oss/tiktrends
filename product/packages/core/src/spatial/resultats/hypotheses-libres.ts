@@ -210,7 +210,14 @@ export type OrigineHypotheseLibre =
    * après avoir relu l'offre dans la marque active (`provenanceOffreAdmise`) ·
    * l'intitulé est celui du moment de la création.
    */
-  | { type: 'offre'; offre: string; offreId: string | null };
+  | { type: 'offre'; offre: string; offreId: string | null }
+  /**
+   * Lot 11 · une NOTE de la lignée posée sur un nœud brief ou hypothèse
+   * (« Formuler une hypothèse ») · posée par le serveur SEULEMENT après avoir
+   * relu la note dans la portée (`provenanceNoteHypotheseAdmise`) · `noeud` · le
+   * libellé du nœud gardé avec la note, au moment de la création · jamais le texte.
+   */
+  | { type: 'note'; noeud: string; noteId: string | null; projetId: string | null };
 
 export const CLE_ORIGINE_HYPOTHESE = 'hypotheseLibre';
 
@@ -233,6 +240,7 @@ export function lireOrigineHypothese(sourceRef: unknown): OrigineHypotheseLibre 
   if (x.type === 'persona') return { type: 'persona', persona: court(x.persona, 80) || 'Persona', personaId: idOuNul(x.personaId), accroche: court(x.accroche, LONGUEUR_PARTIE_MAX) || null };
   if (x.type === 'apprentissage') return { type: 'apprentissage', enonce: court(x.enonce, 200) || 'Apprentissage', learningId: idOuNul(x.learningId) };
   if (x.type === 'offre') return { type: 'offre', offre: court(x.offre, 80) || 'Offre', offreId: idOuNul(x.offreId) };
+  if (x.type === 'note') return { type: 'note', noeud: court(x.noeud, 120) || 'Nœud de la lignée', noteId: idOuNul(x.noteId), projetId: idOuNul(x.projetId) };
   if (x.type === 'tag') {
     const ids = Array.isArray(x.savedAdIds) ? x.savedAdIds.map(idOuNul).filter((i): i is string => !!i).slice(0, 50) : [];
     const total = typeof x.total === 'number' && Number.isInteger(x.total) && x.total >= ids.length ? x.total : ids.length;
@@ -246,6 +254,7 @@ export function libelleOrigine(o: OrigineHypotheseLibre): string {
   if (o.type === 'veille') return `Veille · ${o.annonceur}`;
   if (o.type === 'persona') return `Persona · ${o.persona.split(',')[0]!.trim()}`;
   if (o.type === 'offre') return `Offre · ${o.offre}`;
+  if (o.type === 'note') return `Note de la lignée · ${o.noeud.length > 60 ? `${o.noeud.slice(0, 59).trim()}…` : o.noeud}`;
   if (o.type === 'tag') return `Veille · tag « ${o.tag} » · ${o.total} sauvegarde${o.total > 1 ? 's' : ''}`;
   if (o.type === 'apprentissage') return `Apprentissage · ${o.enonce.length > 60 ? `${o.enonce.slice(0, 59).trim()}…` : o.enonce}`;
   return 'Idée d’équipe';

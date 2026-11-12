@@ -143,7 +143,7 @@ const nbAds = async () => (await db.select({ id: schema.ads.id }).from(schema.ad
 const sauvegarde = async (externalId: string) => (await db.select().from(schema.savedAds).where(and(eq(schema.savedAds.workspaceId, ids.wsA), eq(schema.savedAds.externalId, externalId))))[0];
 /** Le tableau des hypothèses rendu · le HTML de chaque colonne, par titre (même lecture que le lot 1). */
 async function tableau(): Promise<Record<string, string[]>> {
-  const html = renderToStaticMarkup(avecSpatial(await HypothesesSpatial()));
+  const html = renderToStaticMarkup(avecSpatial(await HypothesesSpatial({ searchParams: Promise.resolve({}) })));
   const board = html.slice(html.indexOf('<div class="board4">'));
   const out: Record<string, string[]> = {};
   for (const col of board.split('<div class="colh">').slice(1)) out[col.slice(0, col.indexOf('<span'))] = col.split('<div class="hcard">').slice(1);

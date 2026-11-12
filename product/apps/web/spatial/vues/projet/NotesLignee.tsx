@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
-  EXPLICATION_NOTES_SANS_NOEUD, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_NOTE, TEXTES_HORS_LIGNE, TEXTES_NOTE, etatPublicationCommentaire, resumeNotesNoeud,
+  EXPLICATION_NOTES_SANS_NOEUD, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_NOTE, TEXTES_HORS_LIGNE, TEXTES_NOTE, departEditionCommentaire, etatPublicationCommentaire, resumeNotesNoeud,
+  type GesteHypotheseNote, type GesteIterationCommentaire,
 } from '@tiktrends/core';
 import { modifierNoteLignee, noterNoeudLignee, resoudreNoteLignee } from '../../../app/actions/studios/notes-lignee';
 import { useSpatial } from '../../coquille/contexte';
-import { Ic } from '../../communs';
+import { Ic, Lien } from '../../communs';
+import { ChampMentions } from './ChampMentions';
 import { CIBLE, Message, RaisonFermee } from './briques';
 import { boutonAction, replacerFocus, type OptionsBoutonAction } from './action-serveur';
 import { useHorsLigne } from './hors-ligne';
@@ -32,6 +34,13 @@ import type { LigneeLibre, NotesLignee, VueNoteLignee } from './types';
  *
  * Le texte d'une note est rendu comme du TEXTE (React l'échappe). Aucune
  * touche nouvelle · tout se fait par des boutons et des champs natifs. Gratuit.
+ *
+ * Suite du lot 11 · les MENTIONS (le champ des commentaires, `ChampMentions`,
+ * ses touches déjà déclarées · « @ » ouvre la liste des membres qui voient le
+ * projet) · affichées sous le nom courant, en texte · et deux GESTES, des liens
+ * vers les écrans EXISTANTS, qui relisent la note · « Itérer depuis cette
+ * note » (nœud création / résultat testé) et « Formuler une hypothèse » (nœud
+ * brief / hypothèse) · fermés, leur raison écrite à côté.
  */
 
 /** La brique, avec la cible tactile de 44 px gardée même fermée. */
@@ -84,7 +93,7 @@ export function useNotesLignee(projectId: string, initial: LigneeLibre['notes'])
         if (!r.ok) { setRetour({ ton: 'err', texte: dire(r), lieu }); return; }
         focusApresVue.current = focus;
         apres?.();
-        setVue({ peutEcrire: !!r.peutEcrire, notes: r.notes ?? [] });
+        setVue({ peutEcrire: !!r.peutEcrire, notes: r.notes ?? [], mentionnables: r.mentionnables ?? [] });
         setRetour({ ton: 'ok', texte: succes, lieu }); toast(succes);
       } catch {
         setRetour({ ton: 'err', texte: 'Le serveur ne répond pas · vérifie ta connexion puis réessaie · ton texte est gardé.', horsLigne: true, lieu });
@@ -115,6 +124,8 @@ export function NotesNoeud({ noeud, notes, lieu, ctl }: { noeud: { id: string; t
   const p = panneauNotes(cle);
   const [ouvert, setOuvert] = useState(false);
   const [texte, setTexte] = useState('');
+  // Les membres choisis dans la liste « @ » · des IDENTIFIANTS, relus par le serveur contre le texte.
+  const [choisies, setChoisies] = useState<string[]>([]);
   const peutEcrire = !!ctl.vue?.peutEcrire;
   const publier = etatPublicationCommentaire(texte, { peutProposer: peutEcrire, cibleChoisie: true }, TEXTES_NOTE);
   if (!ctl.vue) return null;
@@ -135,13 +146,12 @@ export function NotesNoeud({ noeud, notes, lieu, ctl }: { noeud: { id: string; t
             onSubmit={(ev) => {
               ev.preventDefault();
               if (!publier.ok) return;
-              ctl.geste(cle, `poser:${cle}`, () => noterNoeudLignee({ projectId: ctl.projectId, noeud: noeud.id, texte }), `Note posée sur « ${noeud.titre} ».`,
-                [`${p} [data-geste="ecrire-note"]`, `${p} [data-titre-notes]`], () => { setTexte(''); setOuvert(false); });
+              ctl.geste(cle, `poser:${cle}`, () => noterNoeudLignee({ projectId: ctl.projectId, noeud: noeud.id, texte, mentions: choisies }), `Note posée sur « ${noeud.titre} ».`,
+                [`${p} [data-geste="ecrire-note"]`, `${p} [data-titre-notes]`], () => { setTexte(''); setChoisies([]); setOuvert(false); });
             }}>
-            <label className="field" style={{ fontSize: '11.5px' }}>Note sur « {noeud.titre} »
-              <textarea data-champ="texte-note" value={texte} maxLength={LONGUEUR_MAX_COMMENTAIRE} rows={3}
-                placeholder="Ex. l’hypothèse est trop large, à resserrer avant le prochain lot" onChange={(ev) => setTexte(ev.target.value)} />
-            </label>
+            <ChampMentions libelle={`Note sur « ${noeud.titre} »`} champ="texte-note" valeur={texte} surChange={setTexte} mentionnables={ctl.vue.mentionnables ?? []}
+              surChoix={(m) => setChoisies((l) => (l.includes(m) ? l : [...l, m]))} maxLength={LONGUEUR_MAX_COMMENTAIRE}
+              placeholder="Ex. l’hypothèse est trop large, à resserrer avant le prochain lot" />
             <span className="kc" style={{ alignItems: 'center' }}>
               <button className="btn sm pri" type="submit" data-geste="poser-note" aria-describedby={!publier.ok ? `${id}-poser` : undefined}
                 title={ctl.horsLigne ? TEXTES_HORS_LIGNE.bouton : undefined}
@@ -181,6 +191,7 @@ function Note({ n, lieu, ctl, avecNoeud = false }: { n: VueNoteLignee; lieu: str
   const id = useId();
   const panneau = panneauNotes(lieu);
   const [edition, setEdition] = useState<string | null>(null);
+  const [mentions, setMentions] = useState<string[]>([]);
   const ici = `${panneau} [data-note="${n.id}"]`;
   const etat = edition !== null ? etatPublicationCommentaire(edition, { peutProposer: n.gestes.modifier.ok, cibleChoisie: true }, TEXTES_NOTE) : null;
   const occupe = !!ctl.enCours;
@@ -191,14 +202,13 @@ function Note({ n, lieu, ctl, avecNoeud = false }: { n: VueNoteLignee; lieu: str
         <small className="faint" data-entete-note="" style={{ display: 'block', fontSize: '11.5px' }}>{n.auteur} · {n.quand}{avecNoeud ? ` · sur « ${n.libelleNoeud} »` : ''}</small>
         {edition !== null ? (
           <span style={{ display: 'grid', gap: 6, marginTop: 4 }}>
-            <label className="field" style={{ fontSize: '11.5px' }}>Modifier ta note
-              <textarea data-champ="edition-note" value={edition} maxLength={LONGUEUR_MAX_COMMENTAIRE} rows={3} onChange={(ev) => setEdition(ev.target.value)} />
-            </label>
+            <ChampMentions libelle="Modifier ta note" champ="edition-note" valeur={edition} surChange={setEdition} mentionnables={ctl.vue?.mentionnables ?? []}
+              surChoix={(m) => setMentions((l) => (l.includes(m) ? l : [...l, m]))} maxLength={LONGUEUR_MAX_COMMENTAIRE} />
             <span className="kc" style={{ alignItems: 'center' }}>
               <button className="btn sm pri" type="button" data-geste="enregistrer-note" aria-describedby={etat && !etat.ok ? `${id}-enr` : undefined}
                 {...actionCible({
                   presse: ctl.enCours === `modifier:${n.id}`, occupe, ferme: !etat?.ok || ctl.horsLigne, focalisable: 'tout',
-                  surClic: () => ctl.geste(lieu, `modifier:${n.id}`, () => modifierNoteLignee({ noteId: n.id, rowVersion: n.rowVersion, texte: edition }), 'Note modifiée · l’ancien texte est gardé.',
+                  surClic: () => ctl.geste(lieu, `modifier:${n.id}`, () => modifierNoteLignee({ noteId: n.id, rowVersion: n.rowVersion, texte: edition, mentions }), 'Note modifiée · l’ancien texte est gardé.',
                     [`${ici} [data-geste="modifier-note"]`, `${panneau} [data-titre-notes]`], () => setEdition(null)),
                 })}>{ctl.enCours === `modifier:${n.id}` ? 'Enregistrement…' : 'Enregistrer'}</button>
               <button className="btn sm" type="button" data-geste="annuler-edition-note" {...actionCible({ occupe, surClic: () => { setEdition(null); replacerFocus('toujours', `${ici} [data-geste="modifier-note"]`); } })}>Annuler</button>
@@ -206,7 +216,13 @@ function Note({ n, lieu, ctl, avecNoeud = false }: { n: VueNoteLignee; lieu: str
             </span>
           </span>
         ) : (
-          <span data-texte-note="" style={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12.5px', marginTop: 2 }}>{n.texte}</span>
+          <span data-texte-note="" style={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: '12.5px', marginTop: 2 }}>
+            {n.segments
+              ? n.segments.map((x, i) => (x.type === 'texte'
+                ? <span key={i}>{x.texte}</span>
+                : <b key={i} data-mention={x.ancien ? 'ancien' : x.id} style={{ fontWeight: 600 }}>{x.nom}</b>))
+              : n.texte}
+          </span>
         )}
         {n.modifie && <small className="faint" data-modifie-note="" style={{ display: 'block', fontSize: '11.5px' }}>{n.modifie}</small>}
         {n.anciens.length > 0 && (
@@ -218,10 +234,16 @@ function Note({ n, lieu, ctl, avecNoeud = false }: { n: VueNoteLignee; lieu: str
           </details>
         )}
         {n.resolu && <small className="faint" data-resolue-par="" style={{ display: 'block', fontSize: '11.5px' }}>Résolue par {n.resolu.par} · {n.resolu.quand}</small>}
+        {edition === null && n.iterer && <GesteNote geste={n.iterer} cle="iterer-note" icone="loop" auteur={`${n.auteur}, ${n.quand}`} />}
+        {edition === null && n.hypothese && <GesteNote geste={n.hypothese} cle="hypothese-note" icone="bulb" auteur={`${n.auteur}, ${n.quand}`} />}
         {edition === null && (n.gestes.modifier.ok || n.gestes.resoudre.ok || n.gestes.rouvrir.ok) && (
           <span className="kc" style={{ marginTop: 6 }}>
             {n.gestes.modifier.ok && <button className="btn sm" type="button" data-geste="modifier-note" aria-label={`Modifier · ta note du ${n.quand}`}
-              {...actionCible({ occupe, ferme: ctl.horsLigne, surClic: () => { setEdition(n.texte); replacerFocus('toujours', `${ici} [data-champ="edition-note"]`); } })}><Ic n="text" />Modifier</button>}
+              {...actionCible({ occupe, ferme: ctl.horsLigne, surClic: () => {
+                // Le texte affiché (mentions sous le nom courant) et les mentions déjà choisies · la règle des commentaires.
+                const d = n.segments ? departEditionCommentaire(n.segments) : { texte: n.texte, mentions: [] };
+                setEdition(d.texte); setMentions(d.mentions); replacerFocus('toujours', `${ici} [data-champ="edition-note"]`);
+              } })}><Ic n="text" />Modifier</button>}
             {n.gestes.resoudre.ok && <button className="btn sm" type="button" data-geste="resoudre-note" aria-label={`Résoudre · note de ${n.auteur} du ${n.quand}`}
               {...actionCible({
                 presse: ctl.enCours === `resoudre:${n.id}`, occupe, ferme: ctl.horsLigne,
@@ -239,5 +261,26 @@ function Note({ n, lieu, ctl, avecNoeud = false }: { n: VueNoteLignee; lieu: str
       </span>
       <span className={`pill ${n.resolu ? 'g' : 'c'}`}>{n.resolu ? 'Résolue' : 'Ouverte'}</span>
     </li>
+  );
+}
+
+/**
+ * Un geste d'une note vers un écran EXISTANT · un LIEN (l'écran d'arrivée relit
+ * la note, rien n'est créé avant son clic) · fermé · un bouton focalisable,
+ * sa raison écrite à côté.
+ */
+function GesteNote({ geste, cle, icone, auteur }: { geste: GesteIterationCommentaire | GesteHypotheseNote; cle: 'iterer-note' | 'hypothese-note'; icone: 'loop' | 'bulb'; auteur: string }) {
+  const id = useId();
+  return (
+    <span className="kc" data-geste-note={cle} data-etat={geste.href ? 'ouvert' : 'ferme'} style={{ marginTop: 6, alignItems: 'center' }}>
+      {geste.href
+        ? <Lien className="btn sm" href={geste.href} data-geste={cle} style={CIBLE} aria-label={`${geste.libelle} · note de ${auteur}`}><Ic n={icone} />{geste.libelle}</Lien>
+        : (
+          <>
+            <button className="btn sm" type="button" data-geste={cle} aria-describedby={`${id}-raison`} {...actionCible({ occupe: false, ferme: true, focalisable: 'tout' })}><Ic n={icone} />{geste.libelle}</button>
+            <RaisonFermee id={`${id}-raison`} cle={cle}>{geste.raison}</RaisonFermee>
+          </>
+        )}
+    </span>
   );
 }

@@ -16,6 +16,9 @@ import type { NotesLignee } from '../../../spatial/vues/projet/types';
  * rouvrir = `studio.propose` · aucune permission nouvelle. Entrées `unknown`
  * · une action serveur est appelable directement.
  *
+ * `mentions` · les identifiants choisis dans la liste « @ » · RELUS par le
+ * serveur contre les membres qui voient le projet (`analyserMentions`), jamais crus.
+ *
  * Gratuit · aucun appel IA, aucune génération, aucune dépense.
  */
 
@@ -36,17 +39,17 @@ export async function lireNotesLignee(entree: { projectId: unknown }): Promise<R
 }
 
 /** Pose une note sur un nœud de la lignée (`noeud` · l'identifiant de lignée du nœud). */
-export async function noterNoeudLignee(entree: { projectId: unknown; noeud: unknown; texte: unknown }): Promise<Reponse<NotesLignee>> {
+export async function noterNoeudLignee(entree: { projectId: unknown; noeud: unknown; texte: unknown; mentions?: unknown }): Promise<Reponse<NotesLignee>> {
   const g = await garde('studio.propose');
   if (!g.ok) return g;
-  return noterNoeudPour(g.ctx, { projectId: entree?.projectId, noeud: entree?.noeud, texte: entree?.texte }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
+  return noterNoeudPour(g.ctx, { projectId: entree?.projectId, noeud: entree?.noeud, texte: entree?.texte, mentions: entree?.mentions }, { veilleOuverte: g.veilleOuverte, maintenant: new Date() });
 }
 
 /** Modifie SA note, encore ouverte · l'ancien texte est gardé. */
-export async function modifierNoteLignee(entree: { noteId: unknown; rowVersion: unknown; texte: unknown }): Promise<Reponse<NotesLignee>> {
+export async function modifierNoteLignee(entree: { noteId: unknown; rowVersion: unknown; texte: unknown; mentions?: unknown }): Promise<Reponse<NotesLignee>> {
   const g = await garde('studio.propose');
   if (!g.ok) return g;
-  return modifierNoteLigneePour(g.ctx, { noteId: entree?.noteId, rowVersion: entree?.rowVersion, texte: entree?.texte });
+  return modifierNoteLigneePour(g.ctx, { noteId: entree?.noteId, rowVersion: entree?.rowVersion, texte: entree?.texte, mentions: entree?.mentions });
 }
 
 /** Résout (`resolue: true`) ou rouvre (`false`) une note · jamais de suppression. */

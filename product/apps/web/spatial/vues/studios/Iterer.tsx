@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   cheminPorte, gardeRemplace, hypotheseInspirationParDefaut, hypotheseParDefaut, noteDemandeIteration, variableInitiale, APRES_CREATION_ITERATION, ETAPES_ITERATION_SPATIALE, EXEMPLE_VALEUR_VARIABLE,
   LIBELLE_CHOIX_VARIABLE, VARIABLE_LABEL, VALEUR_MAX, LONGUEUR_MAX_HYPOTHESE_ITERATION,
-  type ChoixIterationSpatial, type ChoixVariablesIteration, type OptionVariable, type ProvenanceCommentaire, type ProvenanceJarvis, type TestedVariable,
+  type ChoixIterationSpatial, type ChoixVariablesIteration, type OptionVariable, type ProvenanceCommentaire, type ProvenanceJarvis, type ProvenanceNote, type TestedVariable,
 } from '@tiktrends/core';
 import { creerIterationChoisieAction, type ReponseIterationChoisie } from '../../../app/actions/adsmap-iterer-variable';
 import { EnTete, Lien, Vue } from '../../communs';
@@ -75,9 +75,10 @@ export interface PropsIterer {
    * phrase qui le dit · `adId` `null` · refusé, rien de présélectionné. Comme
    * pour Jarvis · une variable n'est cochée que sur CETTE pub, jamais le défaut
    * du plan à la place · `provenance` est transmise à « Créer l'itération »,
-   * qui relit encore le commentaire avant de la poser.
+   * qui relit encore le commentaire avant de la poser · `provenanceNote` · la
+   * même chose depuis « Itérer depuis cette note » (lot 11).
    */
-  commentaire?: { note: string; adId: string | null; variable: TestedVariable | null; hypothese: string | null; provenance: ProvenanceCommentaire | null } | null;
+  commentaire?: { note: string; adId: string | null; variable: TestedVariable | null; hypothese: string | null; provenance: ProvenanceCommentaire | null; provenanceNote?: ProvenanceNote | null } | null;
 }
 
 type Etape = 'pub' | 'variable' | 'creee';
@@ -138,6 +139,7 @@ export function Iterer(p: PropsIterer) {
       : {
         parentAdId: c!.adId, variable, valeur, hypothese: hyp, ...(p.jarvis?.provenance ? { jarvis: p.jarvis.provenance } : {}),
         ...(p.commentaire?.provenance && p.commentaire.adId === c!.adId ? { commentaire: p.commentaire.provenance } : {}),
+        ...(p.commentaire?.provenanceNote && p.commentaire.adId === c!.adId ? { note: p.commentaire.provenanceNote } : {}),
       })
       .catch((): ReponseIterationChoisie => ({ ok: false, error: 'La création a échoué · réessaie.' }));
     setOccupe(false);

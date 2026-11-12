@@ -148,7 +148,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
   // Lot 11 · PC E11 · les notes de la lignée, sous la même garde que la fiche · un refus se dit, il ne casse pas le canvas.
   const notesLues = ligneeLue && g.ok ? await lireNotesLigneePour(g.ctx, { projectId: pid }).catch(() => null) : null;
   const notes = !ligneeLue ? null : notesLues?.ok
-    ? { ok: true as const, vue: { peutEcrire: notesLues.peutEcrire, notes: notesLues.notes } }
+    ? { ok: true as const, vue: { peutEcrire: notesLues.peutEcrire, notes: notesLues.notes, mentionnables: notesLues.mentionnables ?? [] } }
     : { ok: false as const, message: notesLues ? `${notesLues.message} · identifiant support ${notesLues.traceId}` : 'Les notes de la lignée n’ont pas pu être lues · recharge la page pour réessayer.' };
   const couloirsLus = ligneeLue
     ? grouperCouloirs(couloirsDepuisLignee(ligneeLue, { versionVue: d.version.id, apercusCreations, apercusReferences, fiche: ficheNoeud, hypotheseVue }), groupes)

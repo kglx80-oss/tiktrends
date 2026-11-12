@@ -62,18 +62,18 @@ describe('la provenance « Offre » · posée seulement après relecture dans la
 const entrees = (p: ProvenanceTest | null, k: number, n: number): EntreeLecturePersona[] =>
   Array.from({ length: n }, (_, i) => ({ persona: p ? { id: p, nom: PROVENANCES_TEST.find((x) => x.cle === p)!.libelle } : null, issue: i < k ? 'gagne' as const : 'perd' as const }));
 
-describe('le bilan · neuf provenances, six lues au plus, aucun seuil changé', () => {
+describe('le bilan · dix provenances (lot 11 · « Note de la lignée »), six lues au plus, aucun seuil changé', () => {
   it('« Offre » est une provenance du bilan, lue à sa place', () => {
-    expect(PROVENANCES_TEST.map((p) => p.cle)).toEqual(['tag', 'veille', 'apprentissage', 'persona', 'offre', 'libre', 'jarvis', 'commentaire', 'iteration']);
+    expect(PROVENANCES_TEST.map((p) => p.cle)).toEqual(['tag', 'veille', 'apprentissage', 'persona', 'offre', 'libre', 'jarvis', 'commentaire', 'note', 'iteration']);
     const b = bilanProvenances([...entrees('offre', 6, 6), ...entrees(null, 0, 10)]);
     expect(b.groupes.map((g) => [g.cle, g.libelle, g.lecture])).toEqual([['offre', 'Offre', 'au_dessus']]);
   });
-  it('les neuf parlent · au-delà du mesuré (six), le bilan se tait et le dit', () => {
-    expect(PROVENANCES_TEST.length).toBe(9);
+  it('les dix parlent · au-delà du mesuré (six), le bilan se tait et le dit', () => {
+    expect(PROVENANCES_TEST.length).toBe(10);
     const b = bilanProvenances([...PROVENANCES_TEST.flatMap((p) => entrees(p.cle, p.cle === 'offre' ? 6 : 0, 6)), ...entrees(null, 0, 4)]);
-    expect([b.parle, b.niveau], 'neuf provenances lues au-delà du mesuré').toEqual([false, null]);
-    expect(b.phrase).toBe(`9 provenances ont assez de verdicts · au-delà de ${MAX_PERSONAS_LECTURE}, la règle n’est pas mesurée · le bilan se tait.`);
-    expect(b.regle).toContain('9 provenances, 6 lues au plus à la fois, silence au-delà');
+    expect([b.parle, b.niveau], 'dix provenances lues au-delà du mesuré').toEqual([false, null]);
+    expect(b.phrase).toBe(`10 provenances ont assez de verdicts · au-delà de ${MAX_PERSONAS_LECTURE}, la règle n’est pas mesurée · le bilan se tait.`);
+    expect(b.regle).toContain('10 provenances, 6 lues au plus à la fois, silence au-delà');
   });
   it('six parlent, deux sous l’effectif · les mêmes intervalles, au même niveau, que si ces deux-là n’avaient pas de provenance (elles sont dans le reste · le U mesuré)', () => {
     const six = PROVENANCES_TEST.slice(0, 6).flatMap((p) => entrees(p.cle, p.cle === 'offre' ? 6 : 1, 6));

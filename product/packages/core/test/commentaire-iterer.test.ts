@@ -128,12 +128,12 @@ describe('la provenance « Commentaire » · posée seulement quand le commentai
 const entrees = (p: ProvenanceTest | null, k: number, n: number): EntreeLecturePersona[] =>
   Array.from({ length: n }, (_, i) => ({ persona: p ? { id: p, nom: PROVENANCES_TEST.find((x) => x.cle === p)!.libelle } : null, issue: i < k ? 'gagne' as const : 'perd' as const }));
 
-describe('le bilan à neuf provenances · « Commentaire » lue à sa place, AUCUN seuil changé', () => {
-  it('neuf provenances, « Commentaire » avant l’itération ordinaire · une provenance qui parle se lit sous son nom', () => {
-    expect(PROVENANCES_TEST.map((p) => p.cle)).toEqual(['tag', 'veille', 'apprentissage', 'persona', 'offre', 'libre', 'jarvis', 'commentaire', 'iteration']);
+describe('le bilan à dix provenances (lot 11 · « Note de la lignée » ajoutée) · « Commentaire » lue à sa place, AUCUN seuil changé', () => {
+  it('dix provenances, « Commentaire » avant l’itération ordinaire · une provenance qui parle se lit sous son nom', () => {
+    expect(PROVENANCES_TEST.map((p) => p.cle)).toEqual(['tag', 'veille', 'apprentissage', 'persona', 'offre', 'libre', 'jarvis', 'commentaire', 'note', 'iteration']);
     const b = bilanProvenances([...entrees('commentaire', 6, 6), ...entrees(null, 0, 10)]);
     expect(b.groupes.map((g) => [g.cle, g.libelle, g.lecture])).toEqual([['commentaire', 'Commentaire', 'au_dessus']]);
-    expect(b.regle).toContain(`9 provenances, ${MAX_PERSONAS_LECTURE} lues au plus à la fois, silence au-delà`);
+    expect(b.regle).toContain(`10 provenances, ${MAX_PERSONAS_LECTURE} lues au plus à la fois, silence au-delà`);
   });
   it('« Commentaire » sous l’effectif · les mêmes intervalles, au même niveau, que si elle n’avait pas de provenance (elle est dans le reste)', () => {
     const six = PROVENANCES_TEST.slice(0, 6).flatMap((p) => entrees(p.cle, p.cle === 'offre' ? 6 : 1, 6));

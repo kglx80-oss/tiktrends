@@ -8,6 +8,7 @@ import {
   refOrigineHypothese, refSourceVeille, variablesIteration, verifierChoixVariable,
   lireDemandeProvenanceJarvis, provenanceJarvisAdmise, refProvenanceJarvis, type ProvenanceJarvis,
   lireDemandeProvenanceCommentaire, provenanceCommentaireAdmise, refProvenanceCommentaire, type ProvenanceCommentaire,
+  lireDemandeProvenanceNote, provenanceNoteAdmise, refProvenanceNote, type ProvenanceNote,
   RAISON_AUTRE_MARQUE, RAISON_DEUX_SOURCES, RAISON_HORS_PLAN, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE, type TestedVariable,
 } from '@tiktrends/core';
 import { adsmapGuard, type AdsMapGuardOk } from '../../lib/adsmap-guard';
@@ -18,7 +19,7 @@ import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { trackSavedAdAction } from './adsmap-bridge';
 import { createIterationAction, iterationPlanAction } from './adsmap-iterate';
 import { lireCandidatsProjet, lireContexteGestes, lireReponseJarvis } from '../../lib/jarvis-gestes';
-import { lireCommentairePourIterer } from '../../lib/studios/commentaire-iterer';
+import { lireCommentairePourIterer, lireNotePourIterer } from '../../lib/studios/commentaire-iterer';
 
 /**
  * Créer l’itération d’une gagnante en CHOISISSANT la variable (écran Itérer,
@@ -69,12 +70,18 @@ import { lireCommentairePourIterer } from '../../lib/studios/commentaire-iterer'
  * seulement `source_ref_json.commentaire` est fusionné (identifiants seuls,
  * jamais le texte) · sinon l'itération naît ordinaire. Le bilan par provenance
  * lit un geste de Jarvis d'abord, puis un commentaire (`provenanceDuTest`).
+ *
+ * `note: { noteId, projetId }` (« Itérer depuis cette note », lot 11) · la
+ * même règle · la note relue dans la portée (`lireNotePourIterer` · nœud
+ * création / résultat testé du projet), sa pub de test égale à la pub de
+ * départ (`provenanceNoteAdmise`) · alors `source_ref_json.note`, identifiants
+ * seuls · lue après le commentaire dans le bilan (« Note de la lignée »).
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ReponseIterationChoisie =
-  | { ok: true; adId: string; code: string; variable: TestedVariable; valeur: string; preparer: string; provenance?: 'jarvis' | 'commentaire' | null }
+  | { ok: true; adId: string; code: string; variable: TestedVariable; valeur: string; preparer: string; provenance?: 'jarvis' | 'commentaire' | 'note' | null }
   | { ok: false; error: string };
 
 export async function creerIterationChoisieAction(entree: {
@@ -85,6 +92,8 @@ export async function creerIterationChoisieAction(entree: {
   jarvis?: unknown;
   /** Le commentaire d'où vient l'itération · relu avant d'être posé (`provenanceCommentaire`). */
   commentaire?: unknown;
+  /** La note de la lignée d'où vient l'itération · relue avant d'être posée (`provenanceNote`). */
+  note?: unknown;
 }): Promise<ReponseIterationChoisie> {
   const g = await adsmapGuard({ minRole: 'member' });
   if ('error' in g) return { ok: false, error: g.error };
@@ -111,6 +120,7 @@ export async function creerIterationChoisieAction(entree: {
   // Relue AVANT la création · une provenance refusée ne bloque rien, elle n'est simplement pas posée.
   const provenance = entree.jarvis === undefined ? null : await provenanceJarvis(g, entree.jarvis, parentAdId);
   const deCommentaire = entree.commentaire === undefined ? null : await provenanceCommentaire(g, entree.commentaire, parentAdId);
+  const deNote = entree.note === undefined ? null : await provenanceNote(g, entree.note, parentAdId);
 
   const r = await createIterationAction({
     parentAdId, mode: choix.mode, changedVariable: v.variable, stageTargeted: choix.etape,
@@ -120,14 +130,14 @@ export async function creerIterationChoisieAction(entree: {
 
   const [enfant] = await db!.select({ code: schema.ads.variantCode, sourceRef: schema.ads.sourceRef }).from(schema.ads).where(eq(schema.ads.id, r.adId)).limit(1);
   const code = enfant?.code ?? 'nouvelle';
-  let pose: 'jarvis' | 'commentaire' | null = null;
-  if ((provenance || deCommentaire) && enfant) {
+  let pose: 'jarvis' | 'commentaire' | 'note' | null = null;
+  if ((provenance || deCommentaire || deNote) && enfant) {
     try {
       // Fusionnée dans le JSON de source existant · rien d'autre n'est réécrit (aucune colonne, aucune migration).
       const avant = enfant.sourceRef && typeof enfant.sourceRef === 'object' ? enfant.sourceRef as Record<string, unknown> : {};
-      await db!.update(schema.ads).set({ sourceRef: { ...avant, ...(provenance ? refProvenanceJarvis(provenance) : {}), ...(deCommentaire ? refProvenanceCommentaire(deCommentaire) : {}) } })
+      await db!.update(schema.ads).set({ sourceRef: { ...avant, ...(provenance ? refProvenanceJarvis(provenance) : {}), ...(deCommentaire ? refProvenanceCommentaire(deCommentaire) : {}), ...(deNote ? refProvenanceNote(deNote) : {}) } })
         .where(and(eq(schema.ads.id, r.adId), eq(schema.ads.workspaceId, g.s.workspaceId)));
-      pose = provenance ? 'jarvis' : 'commentaire';
+      pose = provenance ? 'jarvis' : deCommentaire ? 'commentaire' : 'note';
       revalidatePath('/adsmap/hypotheses');
     } catch (e) {
       // L'itération existe · seule la provenance manque, le bilan la comptera comme une itération ordinaire.
@@ -172,6 +182,24 @@ async function provenanceCommentaire(g: AdsMapGuardOk, brut: unknown, parentAdId
   try {
     const lu = await lireCommentairePourIterer(g.s, g.brand.id, demande);
     return provenanceCommentaireAdmise(demande, { adDuCommentaire: lu?.adsmapAdId ?? null, parentAdId });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * La provenance « Note de la lignée » demandée, RELUE · la note dans la portée
+ * (espace, marque active, projet de la demande, nœud création / résultat
+ * testé), sa pub de test égale à la pub de départ · `null` sinon (adresse
+ * forgée, autre projet, autre marque, autre nœud, pub d'une autre variante) ·
+ * aucune écriture, aucun modèle.
+ */
+async function provenanceNote(g: AdsMapGuardOk, brut: unknown, parentAdId: string): Promise<ProvenanceNote | null> {
+  const demande = lireDemandeProvenanceNote(brut);
+  if (!demande) return null;
+  try {
+    const lu = await lireNotePourIterer(g.s, g.brand.id, demande);
+    return provenanceNoteAdmise(demande, { adDeLaNote: lu?.adsmapAdId ?? null, parentAdId });
   } catch {
     return null;
   }

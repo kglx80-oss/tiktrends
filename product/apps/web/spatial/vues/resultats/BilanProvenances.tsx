@@ -19,6 +19,8 @@ export type PropsBilanProvenances = Bilan & {
   noteOffre?: string;
   /** Ce qui range une itération dans « Commentaire » · dit sous le bilan. */
   noteCommentaire?: string;
+  /** Lot 11 · ce qui compte dans « Note de la lignée ». */
+  noteNote?: string;
 };
 
 const TON: Record<LectureProvenance, { pill: string; libelle: string }> = {
@@ -52,6 +54,7 @@ export function BilanProvenances({ p }: { p: PropsBilanProvenances }) {
       <p className="faint" style={{ fontSize: '11.5px', marginTop: 4 }}>{p.noteJarvis}</p>
       {p.noteOffre && <p className="faint" data-note-offre="" style={{ fontSize: '11.5px', marginTop: 4 }}>{p.noteOffre}</p>}
       {p.noteCommentaire && <p className="faint" data-note-commentaire="" style={{ fontSize: '11.5px', marginTop: 4 }}>{p.noteCommentaire}</p>}
+      {p.noteNote && <p className="faint" data-note-note="" style={{ fontSize: '11.5px', marginTop: 4 }}>{p.noteNote}</p>}
     </section>
   );
 }

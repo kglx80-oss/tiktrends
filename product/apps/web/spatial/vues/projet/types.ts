@@ -1,4 +1,4 @@
-import type { DroitsCommentaire, GesteIterationCommentaire, MembreMentionnable, ResultatCommentaire, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
+import type { DroitsCommentaire, GesteHypotheseNote, GesteIterationCommentaire, MembreMentionnable, ResultatCommentaire, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -252,9 +252,32 @@ export interface VueNoteLignee {
   /** Règle du noyau (`droitsCommentaire`, phrases `TEXTES_NOTE`) · rejouée par le serveur au clic. */
   gestes: DroitsCommentaire;
   rowVersion: number;
+  /**
+   * Le texte découpé pour l'écran (`segmentsCommentaire`, la règle des
+   * commentaires) · chaque mention sous le nom COURANT du membre (« @un ancien
+   * membre » sinon) · des segments de texte, jamais du HTML. Absent · le texte seul.
+   */
+  segments?: SegmentCommentaire[];
+  /**
+   * « Itérer depuis cette note » · un nœud création ou résultat dont la
+   * variante a une pub testée (`gesteIterationNote`, la règle du commentaire) ·
+   * un LIEN vers l'écran Itérer, ou fermé avec sa raison · `null` sinon.
+   */
+  iterer?: GesteIterationCommentaire | null;
+  /**
+   * « Formuler une hypothèse » · un nœud brief ou hypothèse
+   * (`gesteHypotheseNote`) · un LIEN vers le formulaire d'hypothèse existant,
+   * ou fermé avec sa raison · `null` sinon.
+   */
+  hypothese?: GesteHypotheseNote | null;
 }
 
-export interface NotesLignee { peutEcrire: boolean; notes: VueNoteLignee[] }
+export interface NotesLignee {
+  peutEcrire: boolean;
+  notes: VueNoteLignee[];
+  /** Les membres qui voient le projet, que la session peut mentionner (`membresMentionnables`) · vide pour un lecteur. */
+  mentionnables?: MembreMentionnable[];
+}
 
 /* ───────────────────────────── Lot 10 · activité et commentaires ───────────────────────────── */
 

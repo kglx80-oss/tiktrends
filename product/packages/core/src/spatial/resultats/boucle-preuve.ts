@@ -1,5 +1,6 @@
 import { wilsonInterval, type Interval } from '../../adsmap/stats';
 import { lienSauvegardesTag } from '../veille/tags-veille';
+import { lienLigneeProjet } from '../projet/notes-lignee';
 import { lienIterationVariable } from '../studios/iterer-variable';
 import type { LectureConclusion } from './conclusion-lot';
 import {
@@ -35,7 +36,13 @@ import { lienLotSpatial, type EtatLotSpatial, type FaitsLotSpatial } from './lot
  * marque active · et la provenance « Commentaire » d'une itération créée depuis
  * un commentaire posé sur une création testée (`provenanceCommentaireAdmise`),
  * posée seulement après relecture du commentaire dans la portée (espace, marque
- * active, projet) et quand la pub de départ est celle de la création commentée.
+ * active, projet) et quand la pub de départ est celle de la création commentée ·
+ * et la provenance « Note de la lignée » (lot 11) · une itération créée depuis
+ * une note posée sur un nœud création ou résultat testé (`provenanceNoteAdmise`,
+ * la MÊME règle que le commentaire, `provenanceFilAdmise`), ou une hypothèse
+ * formulée depuis une note posée sur un nœud brief ou hypothèse
+ * (`provenanceNoteHypotheseAdmise`) · posée seulement après relecture de la note
+ * dans la portée.
  */
 
 /* ───────────────────────── 1 · le résultat d'une hypothèse ───────────────────────── */
@@ -106,6 +113,7 @@ export function provenanceCarte(o: OrigineHypotheseLibre, opts: { marqueId?: str
   if (o.type === 'apprentissage') return { libelle, href: '/adsmap/apprentissages', lien: 'Voir les apprentissages' };
   if (o.type === 'persona' && opts.marqueId && /^[0-9a-f-]{36}$/i.test(opts.marqueId)) return { libelle, href: `/brands/${opts.marqueId}/personas`, lien: 'Voir les personas' };
   if (o.type === 'offre' && opts.marqueId && /^[0-9a-f-]{36}$/i.test(opts.marqueId)) return { libelle, href: `/brands/${opts.marqueId}/offre`, lien: 'Voir les offres' };
+  if (o.type === 'note' && o.projetId) return { libelle, href: lienLigneeProjet(o.projetId), lien: 'Voir la lignée du projet' };
   return { libelle, href: null, lien: null };
 }
 
@@ -119,18 +127,22 @@ export function provenanceCarte(o: OrigineHypotheseLibre, opts: { marqueId?: str
  * sinon une ITÉRATION d'une gagnante (`ad_type = iteration` · moteur, écran
  * Itérer), sinon rien · un test sans provenance lue reste dans la référence, il
  * ne forme pas de groupe. Entre Jarvis et l'itération ordinaire · un COMMENTAIRE
- * relu (`source_ref_json.commentaire`, `provenanceCommentaireAdmise`).
+ * relu (`source_ref_json.commentaire`, `provenanceCommentaireAdmise`), puis une
+ * NOTE de la lignée relue (`source_ref_json.note`, `provenanceNoteAdmise`) ·
+ * une hypothèse formulée depuis une note porte, elle, son origine
+ * (`hypotheseLibre.type = 'note'`) · les deux comptent dans « Note de la lignée ».
  */
-export type ProvenanceTest = 'tag' | 'veille' | 'apprentissage' | 'persona' | 'offre' | 'libre' | 'jarvis' | 'commentaire' | 'iteration';
+export type ProvenanceTest = 'tag' | 'veille' | 'apprentissage' | 'persona' | 'offre' | 'libre' | 'jarvis' | 'commentaire' | 'note' | 'iteration';
 
 /**
- * L'ordre et les mots du bilan · neuf provenances. La règle mesurée en lit au
- * plus six à la fois (`MAX_PERSONAS_LECTURE`) · si sept, huit ou neuf ont assez
+ * L'ordre et les mots du bilan · dix provenances. La règle mesurée en lit au
+ * plus six à la fois (`MAX_PERSONAS_LECTURE`) · si sept, huit, neuf ou dix ont assez
  * de verdicts pour parler, le bilan se tait et le dit (non mesuré au-delà). Une
  * provenance sous l'effectif ne parle pas · ses verdicts restent dans le reste
  * de la marque, exactement comme un test sans provenance (le U de la mesure) ·
- * passer de huit à neuf provenances (« Commentaire ») ne change donc ni K (au
- * plus six) ni la borne de U · aucun seuil à remesurer (voir le tableau plus bas).
+ * passer de huit à neuf provenances (« Commentaire »), puis à dix (« Note de la
+ * lignée »), ne change donc ni K (au plus six) ni la borne de U · aucun seuil à
+ * remesurer (voir le tableau plus bas).
  */
 export const PROVENANCES_TEST: ReadonlyArray<{ cle: ProvenanceTest; libelle: string }> = [
   { cle: 'tag', libelle: 'Tag de Veille récurrent' },
@@ -141,17 +153,20 @@ export const PROVENANCES_TEST: ReadonlyArray<{ cle: ProvenanceTest; libelle: str
   { cle: 'libre', libelle: 'À la main' },
   { cle: 'jarvis', libelle: 'Geste de Jarvis' },
   { cle: 'commentaire', libelle: 'Commentaire' },
+  { cle: 'note', libelle: 'Note de la lignée' },
   { cle: 'iteration', libelle: 'Itération d’une gagnante' },
 ];
 
 export const NOTE_JARVIS_PROVENANCE = 'Une itération créée depuis une réponse de Jarvis compte dans « Geste de Jarvis » · seulement quand la réponse a été relue dans ta marque au moment de la créer · les autres comptent dans « Itération d’une gagnante ».';
 export const NOTE_COMMENTAIRE_PROVENANCE = 'Une itération créée depuis un commentaire compte dans « Commentaire » · seulement quand le commentaire a été relu dans ta marque, sur une création du projet testée par la pub de départ, au moment de la créer · sinon elle compte dans « Itération d’une gagnante ».';
+export const NOTE_NOTE_PROVENANCE = 'Une itération ou une hypothèse créée depuis une note de la lignée compte dans « Note de la lignée » · seulement quand la note a été relue dans ta marque, sur le nœud du projet d’où part le geste, au moment de la créer · sinon elle compte dans « Itération d’une gagnante » ou « À la main ».';
 export const NOTE_OFFRE_PROVENANCE = 'Une hypothèse créée depuis une offre qui se détache compte dans « Offre » · seulement quand l’offre a été relue dans ta marque au moment de la créer · sinon elle compte « À la main ».';
 
-export function provenanceDuTest(t: { origine: OrigineHypotheseLibre | null | undefined; typeAd?: string | null; jarvis?: ProvenanceJarvis | null; commentaire?: ProvenanceCommentaire | null }): ProvenanceTest | null {
+export function provenanceDuTest(t: { origine: OrigineHypotheseLibre | null | undefined; typeAd?: string | null; jarvis?: ProvenanceJarvis | null; commentaire?: ProvenanceCommentaire | null; note?: ProvenanceNote | null }): ProvenanceTest | null {
   if (t.origine) return t.origine.type;
   if (t.jarvis) return 'jarvis';
   if (t.commentaire) return 'commentaire';
+  if (t.note) return 'note';
   return t.typeAd === 'iteration' ? 'iteration' : null;
 }
 
@@ -252,8 +267,69 @@ export function lireProvenanceCommentaire(sourceRef: unknown): ProvenanceComment
  * rien dire de ce que l'adresse prétendait.
  */
 export function provenanceCommentaireAdmise(demande: ProvenanceCommentaire | null, lu: { adDuCommentaire: string | null; parentAdId: string }): ProvenanceCommentaire | null {
-  if (!demande || !lu.adDuCommentaire) return null;
-  return lu.adDuCommentaire.toLowerCase() === lu.parentAdId.toLowerCase() ? demande : null;
+  return provenanceFilAdmise(demande, { adDuFil: lu.adDuCommentaire, parentAdId: lu.parentAdId });
+}
+
+/**
+ * La règle des deux fils (commentaire, note), écrite UNE fois · la demande
+ * n'est gardée que si le fil a été RELU dans la portée (`adDuFil` · la pub de
+ * test de la création commentée ou du nœud annoté, `null` sinon) et que c'est
+ * la pub de départ.
+ */
+export function provenanceFilAdmise<T>(demande: T | null, lu: { adDuFil: string | null; parentAdId: string }): T | null {
+  if (!demande || !lu.adDuFil) return null;
+  return lu.adDuFil.toLowerCase() === lu.parentAdId.toLowerCase() ? demande : null;
+}
+
+/* ───────────────────────── la provenance « Note de la lignée » ───────────────────────── */
+
+/**
+ * Une itération créée depuis « Itérer depuis cette note » (canvas de lignée,
+ * note posée sur un nœud création ou résultat dont la variante a une pub
+ * testée) · la note et son projet. Gardée dans le JSON de source de l'ad
+ * (`source_ref_json.note`, aucune colonne, aucune migration) · posée par le
+ * serveur seulement après avoir RELU la note dans la portée (espace, marque
+ * active, projet, nœud du projet testé par la pub de départ ·
+ * `provenanceNoteAdmise`). Le texte de la note n'est jamais recopié.
+ */
+export interface ProvenanceNote { noteId: string; projetId: string }
+
+export const CLE_PROVENANCE_NOTE = 'note';
+
+/** Ce que l'écran envoie (ou ce que le JSON garde), relu · `null` dès qu'un identifiant est mal formé. */
+export function lireDemandeProvenanceNote(x: unknown): ProvenanceNote | null {
+  if (!x || typeof x !== 'object') return null;
+  const o = x as Record<string, unknown>;
+  if (typeof o.noteId !== 'string' || !UUID_PROVENANCE.test(o.noteId)) return null;
+  if (typeof o.projetId !== 'string' || !UUID_PROVENANCE.test(o.projetId)) return null;
+  return { noteId: o.noteId.toLowerCase(), projetId: o.projetId.toLowerCase() };
+}
+
+/** La valeur à fusionner dans `source_ref_json` de l'ad créée · identifiants seuls. */
+export function refProvenanceNote(p: ProvenanceNote): Record<string, unknown> {
+  return { [CLE_PROVENANCE_NOTE]: { noteId: p.noteId, projetId: p.projetId } };
+}
+
+/** Relit la provenance « Note de la lignée » d'une ad · `null` sans elle (ou JSON abîmé). */
+export function lireProvenanceNote(sourceRef: unknown): ProvenanceNote | null {
+  if (!sourceRef || typeof sourceRef !== 'object') return null;
+  return lireDemandeProvenanceNote((sourceRef as Record<string, unknown>)[CLE_PROVENANCE_NOTE]);
+}
+
+/** Posée sur l'itération créée seulement si la note a été RELUE (sa pub de test) et que c'est la pub de départ · la règle du commentaire. */
+export function provenanceNoteAdmise(demande: ProvenanceNote | null, lu: { adDeLaNote: string | null; parentAdId: string }): ProvenanceNote | null {
+  return provenanceFilAdmise(demande, { adDuFil: lu.adDeLaNote, parentAdId: lu.parentAdId });
+}
+
+/**
+ * La provenance d'une hypothèse formulée depuis une note (nœud brief ou
+ * hypothèse) · « Note de la lignée » SEULEMENT si la note demandée a été RELUE
+ * dans la portée et que c'est bien elle · sinon l'hypothèse naît « À la main »,
+ * sans rien dire de ce que l'adresse prétendait.
+ */
+export function provenanceNoteHypotheseAdmise(demande: ProvenanceNote | null, lue: { noteId: string; projetId: string; noeud: string } | null): OrigineHypotheseLibre {
+  if (!demande || !lue || lue.noteId.toLowerCase() !== demande.noteId || lue.projetId.toLowerCase() !== demande.projetId) return { type: 'libre' };
+  return { type: 'note', noeud: lue.noeud.replace(/\s+/g, ' ').trim().slice(0, 120) || 'Nœud de la lignée', noteId: demande.noteId, projetId: demande.projetId };
 }
 
 /* ───────────────────────── la provenance « Offre » ───────────────────────── */
