@@ -21,7 +21,7 @@ export async function demarrerMockFournisseur(reponse: (r: RequeteRecue) => stri
       const r = JSON.parse(corps || '{}') as RequeteRecue;
       recues.push(r);
       const texte = reponse(r);
-      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+      res.writeHead(200, { connection: 'close', 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
       const ev = (type: string, data: unknown) => res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
       ev('message_start', { type: 'message_start', message: { id: 'msg_mock', type: 'message', role: 'assistant', model: r.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: Math.ceil(JSON.stringify(r).length / 4), output_tokens: 1 } } });
       ev('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } });
