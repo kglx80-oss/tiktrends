@@ -164,7 +164,7 @@ const PRIX = /\d[\d\s .,]*\s*(crédits?|€|\$)/i;
 describe('la boucle des lots compte les gagnantes prouvées du plan réel', () => {
   it('« Itérer · 2 itérations conseillées » mène à l’écran Itérer', async () => {
     h.session = proprietaire(); h.marque = ids.brandA1;
-    await monter(await LotsSpatial());
+    await monter(await LotsSpatial({ searchParams: Promise.resolve({}) }));
     const b = document.querySelector('#orn [data-boucle]');
     expect(b?.textContent, 'bouton de boucle des lots').toBe('Itérer · 2 itérations conseillées');
     expect(b!.getAttribute('href')).toBe('/studio/iterer');

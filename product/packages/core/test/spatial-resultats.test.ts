@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  etatLotSpatial, lotPretAConclure, pastilleLotsAConclure, presentationLot, syntheseLot, barresCpa, segmentsHypothese,
+  etatLotSpatial, lotPretAConclure, compteAConclure, pastilleAConclure, presentationLot, syntheseLot, barresCpa, segmentsHypothese,
   dansFiltreLots, FILTRES_LOTS, indexLotVedette, indexAutresLots, preparationLot, prochaineActionBoucle, controlesLot,
   kpisResultats, cartesHypotheses, categoriesHypotheses, niveauPreuveApprentissage, etatApprentissage, preuveApprentissage,
   garantiesProtocole, lireVolume, optionsPeriode, kpisBoucle, sousNavResultats, quandCourt, remontees, accrocheResultats,
@@ -87,13 +87,15 @@ describe('Spatial · Résultats · état d’un lot (quand est-il prêt à concl
 });
 
 describe('Spatial · Résultats · la pastille du rail', () => {
-  it('absente sans lot prêt à conclure', () => {
-    expect(pastilleLotsAConclure([])).toBeNull();
-    expect(pastilleLotsAConclure(['diffusion', 'a_importer', 'non_concluant', 'conclu', 'importe', 'composition', 'pret'])).toBeNull();
+  // Le compte est celui de la liste « À conclure » (`compteAConclure`) · gardé en entier dans `compte-a-conclure.test.ts`.
+  const pastille = (ls: FaitsLotSpatial[]) => pastilleAConclure(compteAConclure(ls, CTX));
+  it('absente sans lot à conclure', () => {
+    expect(pastille([])).toBeNull();
+    expect(pastille([lot({ statut: 'planned', lanceLe: null }), lot({ lanceLe: ilYa(2) }), lot({ ads: [ad('v1', verdict('winner', { statut: 'validated', retenu: 'winner' }))] })])).toBeNull();
   });
-  it('un point d’état (`badge`, sans valeur) dès un lot à conclure, libellé compté', () => {
-    expect(pastilleLotsAConclure(['diffusion', 'a_conclure'])).toEqual({ classe: 'badge', valeur: '', libelle: 'Un lot à conclure' });
-    expect(pastilleLotsAConclure(['a_conclure', 'a_conclure', 'conclu'])).toEqual({ classe: 'badge', valeur: '', libelle: '2 lots à conclure' });
+  it('un point d’état (`badge`, sans valeur) dès un lot à conclure, libellé compté · un lot « non concluant » dont des verdicts attendent compte', () => {
+    expect(pastille([lot({ lanceLe: ilYa(2) }), lot()])).toEqual({ classe: 'badge', valeur: '', libelle: 'Un lot à conclure' });
+    expect(pastille([lot({ id: 'a' }), lot({ id: 'b', ads: [ad('v1', verdict('inconclusive'))] })])).toEqual({ classe: 'badge', valeur: '', libelle: '2 lots à conclure' });
   });
 });
 

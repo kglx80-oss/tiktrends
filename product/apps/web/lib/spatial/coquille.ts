@@ -42,7 +42,7 @@ export type SourcePastille = (workspaceId: string, brandId: string) => Promise<N
  * entrée, avec la destination qui doit être OUVERTE pour qu'on l'appelle
  * (l'appeler sans le droit dévoilerait un compte que l'écran refuserait).
  *
- * « Résultats » · les lots prêts à conclure (`pastilles/resultats`). « Marque »
+ * « Résultats » · le compte « à conclure » de la liste (`pastilles/resultats`). « Marque »
  * · les étapes de configuration restantes, le même chiffre que la carte de
  * l'écran (`pastilles/marque`). La garde `spatial-coquille-parcours` éprouve la
  * règle (appel seulement si ouvert, pastille posée sur la bonne entrée).
@@ -108,6 +108,10 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
   if (roleAtLeast(s.role, 'owner') && w && !w.ob && chemin !== '/onboarding') redirect('/onboarding');
 
   const ouverts = hrefs([railNav(access), sectionsCompteOuvertes(access)]);
+  // Les pastilles ne lisent que les destinations OUVERTES (rôle ET formule) · une entrée que la formule
+  // verrouille reste au rail, mais son compte n'est pas lu · l'écran le refuserait, la pastille dirait un
+  // nombre que la liste tait (« À conclure » · même garde que `gardeResultats`).
+  const pastillables = hrefs([railNav(access).map((g) => ({ ...g, items: g.items.filter((i) => !i.locked) })), sectionsCompteOuvertes(access)]);
   const marque = active ? { id: active.id, nom: active.name } : null;
   const plan = s.plan as Plan;
   const suivant = ORDRE_PLANS[ORDRE_PLANS.indexOf(plan) + 1];
@@ -117,8 +121,8 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
   const nom = (moi as Array<{ n: string | null }>)[0]?.n || s.user.name || '';
 
   return {
-    entrees: await poserPastilles(entreesRail({ ouverts, marque }), { ouverts, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
-    espace: await poserPastilles(entreesRailEspace({ ouverts, marque }), { ouverts, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
+    entrees: await poserPastilles(entreesRail({ ouverts, marque }), { ouverts: pastillables, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
+    espace: await poserPastilles(entreesRailEspace({ ouverts, marque }), { ouverts: pastillables, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
     // Le fond flou de la maquette (`--img`) · l'image de la marque active. À
     // défaut d'un visuel produit dédié, son logo · sans marque, aucun fond.
     marque: active ? { id: active.id, nom: active.name, ...logoCoquille(active) } : null,

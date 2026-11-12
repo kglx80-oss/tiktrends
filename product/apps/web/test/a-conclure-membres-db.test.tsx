@@ -152,7 +152,7 @@ beforeEach(() => { toasts.length = 0; document.cookie = 'tt_raccourcis=; path=/;
 afterEach(() => { act(() => { root?.unmount(); }); root = null; document.body.innerHTML = ''; h.session = null; h.marque = null; });
 
 const visible = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return { d, texte: (d.textContent ?? '').replace(/\s+/g, ' ') }; };
-const pageListe = async () => visible(renderToStaticMarkup(avecSpatial(await LotsSpatial())));
+const pageListe = async () => visible(renderToStaticMarkup(avecSpatial(await LotsSpatial({ searchParams: Promise.resolve({}) }))));
 const ficheLot = (id: string) => LotSpatial({ params: Promise.resolve({ id }), searchParams: Promise.resolve({}) });
 async function monter(el: ReactElement) {
   act(() => { root?.unmount(); });
@@ -205,7 +205,7 @@ describe('un membre trouve ses lots à conclure · « Lots de test », en lectur
     expect(s.texte).toContain('Nouveau lot');
     expect([...s.d.querySelectorAll('.toolbar .seg button')].map((b) => b.textContent), 'le filtre « À conclure » de l’admin ne compte pas la liste du membre').toEqual(['Tous · 6', 'En préparation · 2', 'En diffusion · 1', 'À importer · 0', 'À conclure · 2']);
     expect(s.d.querySelector('[data-raison-ferme="lots-composer"]'), 'la raison du membre est montrée à l’admin').toBeNull();
-    await monter(await LotsSpatial());
+    await monter(await LotsSpatial({ searchParams: Promise.resolve({}) }));
     await act(async () => { [...document.querySelectorAll<HTMLButtonElement>('.toolbar .seg button')].find((b) => b.textContent?.startsWith('À conclure'))!.click(); });
     expect(liensLots().map((a) => a.dataset.lotLien), 'le filtre « À conclure » de l’admin et la liste du membre divergent').toEqual([L.n5, L.n4]);
   });
@@ -309,7 +309,7 @@ describe('↓ ↑ et Entrée · le membre parcourt sa liste', () => {
   it('↓ suivant, ↑ précédent, bornes dites · le focus sur le lien du lot (Entrée l’ouvre) · l’aide est dite · rien n’est écrit', async () => {
     comme('um', NEVA());
     const avant = await traces();
-    await monter(await LotsSpatial());
+    await monter(await LotsSpatial({ searchParams: Promise.resolve({}) }));
     expect(document.querySelector('[data-aide-liste-lots]')?.textContent, 'l’aide du parcours au clavier manque au membre').toMatch(/lot suivant ou précédent/);
     const liens = liensLots();
     expect(liens.map((a) => a.dataset.lotLien)).toEqual([L.n5, L.n4]);
