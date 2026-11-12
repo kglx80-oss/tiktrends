@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import {
   LECTURE_MAX_JOURNAL, LONGUEUR_MAX_COMMENTAIRE, RAISON_LECTEUR_COMMENTAIRE, TEXTES_HORS_LIGNE, ancreCommentaire, departEditionCommentaire, etatPublicationCommentaire, filtrerCommentaires, resumeJournal,
-  type FiltreCommentaires, type JournalProjet, type MembreMentionnable, type ResultatCommentaire, type TypeJournal,
+  type FiltreCommentaires, type JournalProjet, type MembreMentionnable, type TypeJournal,
 } from '@tiktrends/core';
 import { commenterProjet, lireActiviteProjet, modifierCommentaire, resoudreCommentaire } from '../../../app/actions/studios/activite';
 import { useSpatial } from '../../coquille/contexte';
@@ -12,6 +12,7 @@ import { CIBLE, Message, RaisonFermee } from './briques';
 import { boutonAction, replacerFocus, type OptionsBoutonAction } from './action-serveur';
 import { useHorsLigne } from './hors-ligne';
 import { ChampMentions } from './ChampMentions';
+import { ResultatsFil } from './ResultatsFil';
 import type { CommentairesProjet, PropsActiviteProjet, VueCommentaire } from './types';
 
 /**
@@ -31,7 +32,7 @@ import type { CommentairesProjet, PropsActiviteProjet, VueCommentaire } from './
  *    Itérer existant, qui relit tout · fermé, sa raison écrite à côté.
  *    Le RÉSULTAT des itérations nées du commentaire, calculé par le serveur à
  *    chaque lecture (`resultatsCommentaire`) · « en test » avant la conclusion
- *    de leur lot. Les MENTIONS · « @ » ouvre la liste des membres qui voient le
+ *    de leur lot · le rendu partagé avec les notes de la lignée (`ResultatsFil`). Les MENTIONS · « @ » ouvre la liste des membres qui voient le
  *    projet (`ChampMentions`, clavier ↑ ↓ Entrée Échap) · affichées sous le nom
  *    courant, en texte.
  *
@@ -276,7 +277,7 @@ function Commentaire({ c, enCours, horsLigne, edition, mentionnables, ouvrirEdit
               : <b key={i} data-mention={s.ancien ? 'ancien' : s.id} style={{ fontWeight: 600 }}>{s.nom}</b>))}
           </span>
         )}
-        {edition === null && c.resultats.length > 0 && <ResultatsCommentaire resultats={c.resultats} />}
+        {edition === null && c.resultats.length > 0 && <ResultatsFil fil="commentaire" resultats={c.resultats} />}
         {c.modifie && <small className="faint" data-modifie="" style={{ display: 'block', fontSize: '11.5px' }}>{c.modifie}</small>}
         {c.resolu && <small className="faint" data-resolu-par="" style={{ display: 'block', fontSize: '11.5px' }}>Résolu par {c.resolu.par} · {c.resolu.quand}</small>}
         {edition === null && c.iterer && (
@@ -304,35 +305,5 @@ function Commentaire({ c, enCours, horsLigne, edition, mentionnables, ouvrirEdit
       </span>
       <span className={`pill ${c.resolu ? 'g' : 'c'}`}>{c.resolu ? 'Résolu' : 'Ouvert'}</span>
     </div>
-  );
-}
-
-/**
- * Le résultat des itérations nées du commentaire · calculé par le serveur
- * (`resultatsCommentaire`) · conclue · le statut, le chiffre clé et le lien vers
- * le lot (fermé avec sa raison hors de la marque active) · sinon « en test ».
- */
-function ResultatsCommentaire({ resultats }: { resultats: readonly ResultatCommentaire[] }) {
-  const id = useId();
-  return (
-    <span data-resultats-commentaire="" style={{ display: 'grid', gap: 6, marginTop: 6 }}>
-      {resultats.map((r, i) => (r.etat === 'conclue' ? (
-        <span key={r.adId} data-resultat-commentaire={r.statut} style={{ display: 'grid', gap: 4, fontSize: '11.5px' }}>
-          <span><span className={`pill ${r.classe}`.trim()}><Ic n={r.icone} />{r.libelle}</span> <span className="muted" data-chiffre-resultat="">{r.variante} · lot #{r.lot.numero} · {r.chiffre}</span></span>
-          {r.lot.href
-            ? <Lien className="btn sm" href={r.lot.href} data-lien-lot="" style={{ ...CIBLE, justifySelf: 'start' }} aria-label={`Voir le lot #${r.lot.numero} · ${r.libelle}, ${r.variante}`}>Voir le lot #{r.lot.numero}</Lien>
-            : (
-              <span className="kc" style={{ alignItems: 'center' }}>
-                <button className="btn sm" type="button" data-lien-lot="" aria-describedby={`${id}-lot-${i}`} {...actionCible({ occupe: false, ferme: true, focalisable: 'tout' })}>Voir le lot #{r.lot.numero}</button>
-                <RaisonFermee id={`${id}-lot-${i}`} cle="lot-resultat-commentaire">{r.lot.raison}</RaisonFermee>
-              </span>
-            )}
-        </span>
-      ) : (
-        <span key={r.adId} data-resultat-commentaire="en_test" className="muted" style={{ fontSize: '11.5px' }}>
-          <span className="pill c">{r.libelle}</span> {r.variante} · {r.phrase}
-        </span>
-      )))}
-    </span>
   );
 }

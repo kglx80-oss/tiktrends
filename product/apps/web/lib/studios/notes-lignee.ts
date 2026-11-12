@@ -5,7 +5,7 @@ import {
   TEXTES_NOTE, aPermissionEspace, cleNoeudNote, droitsCommentaire, erreurStudio, historiqueApresModification, libelleAuteurVersion,
   lireHistoriqueCommentaire, noeudPourNote, objetDansPortee, quandJournal, validerTexteCommentaire, RAISON_PAS_UN_NOEUD,
   aPrevenirMentions, extraitCommentaire, gesteHypotheseNote, gesteIterationNote, historiqueAvecMentions, lienLigneeProjet, lireMentions,
-  noeudDeGeste, nomAffichageMention, prevenusApres, segmentsCommentaire,
+  noeudDeGeste, nomAffichageMention, prevenusApres, resultatsFil, segmentsCommentaire, statutsHypothesesNote,
   type ErreurStudio, type MembreBrut, type TestPourGeste,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
@@ -13,6 +13,7 @@ import { estUuid, lireProjet, type ProjetStudio } from './depot';
 import { lireLigneeProjetPour } from './lignee/lignee';
 import { listerVariantes } from './variantes/variantes';
 import { membresDeLEspace, mentionnablesDe, mentionsDuTexte } from './membres-mentions';
+import { lireResultatsDesFils, type ResultatsDesFils } from './resultat-fil';
 import { createNotification } from '../notifications';
 import { getActiveBrand } from '../brands';
 import { getSession } from '../auth';
@@ -41,6 +42,13 @@ import type { NotesLignee, VueNoteLignee } from '../../spatial/vues/projet/types
  *    par IDENTIFIANT dans le JSON existant `history` de la note (aucune
  *    migration) · chaque mentionné prévenu UNE fois par note
  *    (`createNotification`, type `studio_note_mention`), jamais l'auteur ;
+ *  · RÉSULTAT (suite du lot 11) · sous une note d'où est née une itération
+ *    (provenance `source_ref_json.note`) · le résultat de cette itération une
+ *    fois son lot conclu, « en test » avant · et sous une note d'où est née
+ *    une hypothèse (origine `type: 'note'`) · le statut de sa carte · la règle
+ *    des commentaires GÉNÉRALISÉE (`resultatsFil`,
+ *    `statutsHypothesesNote`, `lireResultatsDesFils`) · CALCULÉ à chaque
+ *    lecture, jamais écrit · Résultats fermé, rien ;
  *  · GESTES · « Itérer depuis cette note » (nœud création / résultat dont la
  *    variante a une pub testée · `gesteIterationNote`) et « Formuler une
  *    hypothèse » (nœud brief / hypothèse · `gesteHypotheseNote`) · des LIENS
@@ -107,11 +115,13 @@ async function vueNotes(ctx: ContexteStudio, p: ProjetStudio): Promise<NotesLign
   const peutEcrire = aPermissionEspace(ctx.permissions, 'studio.propose');
   // Les gestes · lus seulement s'il y a une note sur un nœud qui en porte un.
   const gestes = lignes.map((l) => noeudDeGeste(l.nodeKey)?.geste ?? null);
-  const [membres, tests, portes] = await Promise.all([
+  const [membres, tests, nees] = await Promise.all([
     membresDeLEspace(p).catch(() => [] as MembreBrut[]),
     gestes.includes('iterer') ? testsDesVariantes(ctx, p).catch(() => new Map<string, TestPourGeste>()) : new Map<string, TestPourGeste>(),
-    gestes.some(Boolean) ? portesDesGestes(p).catch(() => null) : null,
+    lireResultatsDesFils(ctx, p, 'note', lignes.map((l) => l.id)).catch((): ResultatsDesFils => ({ iterations: new Map(), hypotheses: new Map() })),
   ]);
+  // Les portes (Résultats, marque active) · relues seulement s'il y a un geste ou de quoi dire sous une note.
+  const portes = gestes.some(Boolean) || nees.iterations.size || nees.hypotheses.size ? await portesDesGestes(p).catch(() => null) : null;
   const parMembre = new Map(membres.map((m) => [m.id.toLowerCase(), m]));
   const nomMentionne = (id: string) => nomAffichageMention(parMembre.get(id), p, ctx.marquesDuWorkspace);
   const fermees = { resultats: false, adsmap: 'role' as const, marqueActive: false };
@@ -137,6 +147,8 @@ async function vueNotes(ctx: ContexteStudio, p: ProjetStudio): Promise<NotesLign
           ? gesteIterationNote({ id: l.id, projetId: p.id, noeud: l.nodeKey, test: tests.get(n.varianteId) ?? null }, { resultats: o.resultats, marqueActive: o.marqueActive })
           : null,
         hypothese: n?.geste === 'hypothese' ? gesteHypotheseNote({ id: l.id, projetId: p.id, noeud: l.nodeKey }, { adsmap: o.adsmap, marqueActive: o.marqueActive }) : null,
+        resultats: resultatsFil(nees.iterations.get(l.id) ?? [], { resultats: o.resultats, marqueActive: o.marqueActive }),
+        hypotheses: statutsHypothesesNote(nees.hypotheses.get(l.id) ?? [], { resultats: o.resultats, marqueActive: o.marqueActive }),
       };
     }),
   };

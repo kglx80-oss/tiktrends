@@ -9,6 +9,7 @@ import { modifierNoteLignee, noterNoeudLignee, resoudreNoteLignee } from '../../
 import { useSpatial } from '../../coquille/contexte';
 import { Ic, Lien } from '../../communs';
 import { ChampMentions } from './ChampMentions';
+import { ResultatsFil, StatutsHypothesesNote } from './ResultatsFil';
 import { CIBLE, Message, RaisonFermee } from './briques';
 import { boutonAction, replacerFocus, type OptionsBoutonAction } from './action-serveur';
 import { useHorsLigne } from './hors-ligne';
@@ -41,6 +42,12 @@ import type { LigneeLibre, NotesLignee, VueNoteLignee } from './types';
  * vers les écrans EXISTANTS, qui relisent la note · « Itérer depuis cette
  * note » (nœud création / résultat testé) et « Formuler une hypothèse » (nœud
  * brief / hypothèse) · fermés, leur raison écrite à côté.
+ *
+ * Et le RÉSULTAT sous la note (suite du lot 11) · l'itération née de la note
+ * une fois son lot conclu (« en test » avant), et le statut de l'hypothèse
+ * née d'elle · calculés par le serveur à chaque lecture, le rendu partagé avec
+ * le commentaire (`ResultatsFil`) · dans le détail du nœud, dans « La lignée
+ * en liste » et dans « Notes sans nœud » (le même composant `Note`).
  */
 
 /** La brique, avec la cible tactile de 44 px gardée même fermée. */
@@ -224,6 +231,8 @@ function Note({ n, lieu, ctl, avecNoeud = false }: { n: VueNoteLignee; lieu: str
               : n.texte}
           </span>
         )}
+        {edition === null && !!n.resultats?.length && <ResultatsFil fil="note" resultats={n.resultats} />}
+        {edition === null && !!n.hypotheses?.length && <StatutsHypothesesNote statuts={n.hypotheses} />}
         {n.modifie && <small className="faint" data-modifie-note="" style={{ display: 'block', fontSize: '11.5px' }}>{n.modifie}</small>}
         {n.anciens.length > 0 && (
           <details data-anciens-textes="" style={{ fontSize: '11.5px' }}>

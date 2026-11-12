@@ -1,4 +1,4 @@
-import type { DroitsCommentaire, GesteHypotheseNote, GesteIterationCommentaire, MembreMentionnable, ResultatCommentaire, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
+import type { DroitsCommentaire, GesteHypotheseNote, GesteIterationCommentaire, MembreMentionnable, ResultatCommentaire, ResultatFil, StatutHypotheseNote, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -272,6 +272,18 @@ export interface VueNoteLignee {
    * ou fermé avec sa raison · `null` sinon.
    */
   hypothese?: GesteHypotheseNote | null;
+  /**
+   * Le résultat des itérations nées de cette note (`resultatsFil`, la règle du
+   * commentaire) · calculé à chaque lecture depuis la conclusion de leur lot ·
+   * « en test » tant qu'il n'est pas conclu · vide sans itération ou Résultats fermé.
+   */
+  resultats?: ResultatFil[];
+  /**
+   * Le statut des hypothèses nées de cette note (« Formuler une hypothèse ») ·
+   * la règle de leur carte (`statutsHypothesesNote`) · vide sans hypothèse ou
+   * Résultats fermé.
+   */
+  hypotheses?: StatutHypotheseNote[];
 }
 
 export interface NotesLignee {

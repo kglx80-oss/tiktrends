@@ -5,9 +5,9 @@ import { db, schema } from '@tiktrends/db';
 import {
   LECTURE_MAX_JOURNAL, aPermissionEspace, droitsCommentaire, erreurStudio, extraitCommentaire, historiqueApresModification, journalProjet,
   libelleAuteurVersion, lireHistoriqueCommentaire, objetDansPortee, quandJournal, validerTexteCommentaire, vueVariantes, cibleCommentaire,
-  gesteIterationCommentaire, aPrevenirMentions, conclusionLot, historiqueAvecMentions, iterationsDuCommentaire, lireMentions,
-  nomAffichageMention, presentationLot, prevenusApres, proprietairePrevenuSansMention, referenceConclusion, resultatsCommentaire, segmentsCommentaire,
-  type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste, type IterationDuCommentaire, type LectureConclusion, type MembreBrut,
+  gesteIterationCommentaire, aPrevenirMentions, historiqueAvecMentions, lireMentions,
+  nomAffichageMention, prevenusApres, proprietairePrevenuSansMention, resultatsCommentaire, segmentsCommentaire,
+  type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste, type IterationDuCommentaire, type MembreBrut,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
 import { membresDeLEspace, mentionnablesDe, mentionsDuTexte } from './membres-mentions';
@@ -18,7 +18,7 @@ import { createNotification } from '../notifications';
 import { getActiveBrand } from '../brands';
 import { accesAdsmap } from './variantes/acces';
 import { liensDeCopie } from './copie-projet';
-import { chargerLots } from '../../app/(spatial)/sp/adsmap/donnees';
+import { lireResultatsDesFils } from './resultat-fil';
 
 /**
  * Studios · lot 10 V5 · l'ACTIVITÉ d'un projet · journal et commentaires
@@ -213,38 +213,13 @@ function ciblesDe(c: Contexte): CibleCommentable[] {
 }
 
 /**
- * Les itérations nées des commentaires lus · la provenance relue sur les ads de
- * l'espace, puis chaque ad retrouvée dans les lots de la MARQUE du projet
- * (`chargerLots` · une ad d'ailleurs n'y est pas) avec la conclusion de son lot
- * (`conclusionLot`, contre les autres lots de la marque) · rien n'est écrit.
+ * Les itérations nées des commentaires lus · la lecture partagée avec les
+ * notes de la lignée (`lireResultatsDesFils`, `W/lib/studios/resultat-fil.ts`) ·
+ * la provenance relue sur les ads de l'espace, puis chaque ad retrouvée dans
+ * les lots de la MARQUE du projet avec la conclusion de son lot · rien n'est écrit.
  */
 async function iterationsDesCommentaires(ctx: ContexteStudio, p: ProjetStudio, ids: readonly string[]): Promise<Map<string, IterationDuCommentaire[]>> {
-  const out = new Map<string, IterationDuCommentaire[]>();
-  if (!ids.length) return out;
-  const A = schema.ads;
-  const nees = await db.select({ id: A.id }).from(A)
-    .where(and(eq(A.workspaceId, ctx.workspaceId), inArray(sql<string>`${A.sourceRef}->'commentaire'->>'commentaireId'`, [...ids]))).limit(500);
-  if (!nees.length) return out;
-  const d = await chargerLots(ctx.workspaceId, p.brandId);
-  const conclusions = new Map<string, { etat: ReturnType<typeof presentationLot>['etat']; conclusion: LectureConclusion }>();
-  const lue = (l: (typeof d.lots)[number]) => {
-    let x = conclusions.get(l.id);
-    if (!x) { const etat = presentationLot(l, d.ctx).etat; x = { etat, conclusion: conclusionLot(l, etat, referenceConclusion(d.lots, l.id)) }; conclusions.set(l.id, x); }
-    return x;
-  };
-  const ads = [
-    ...d.lots.flatMap((l) => l.ads.map((a) => ({ a, l }))),
-    ...d.horsLot.map((a) => ({ a, l: null })),
-  ].map((x) => ({ ...x, commentaire: x.a.commentaire ?? null }));
-  for (const id of ids) {
-    const liste = iterationsDuCommentaire(ads, { commentaireId: id, projetId: p.id }).map((x): IterationDuCommentaire => {
-      if (!x.l) return { adId: x.a.id, variante: x.a.variante, lot: null, conclusion: null };
-      const c = lue(x.l);
-      return { adId: x.a.id, variante: x.a.variante, lot: { id: x.l.id, numero: x.l.numero, etat: c.etat }, conclusion: c.conclusion };
-    });
-    if (liste.length) out.set(id, liste);
-  }
-  return out;
+  return (await lireResultatsDesFils(ctx, p, 'commentaire', ids)).iterations;
 }
 
 async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<CommentairesProjet> {
