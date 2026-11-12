@@ -218,6 +218,8 @@ export interface CanevasLibre {
   lignee?: LigneeLibre | null;
   /** Le graphe lu dans l'adresse · la production par défaut. */
   grapheInitial?: GrapheLibre;
+  /** Le nœud de la lignée visé par l'adresse (`?noeud=<clé>`, « Mes mentions ») · choisi à l'ouverture, ses notes dans le détail. */
+  noeudInitial?: string | null;
 }
 
 /** La lignée prête pour le canvas libre · projection du noyau, groupes calculés, aperçus réels, écrans existants. */
@@ -342,4 +344,6 @@ export interface PropsActiviteProjet {
   projectId: string;
   journal: { ok: true; journal: JournalProjet; tronque: boolean } | { ok: false; message: string };
   commentaires: { ok: true; liste: CommentairesProjet } | { ok: false; message: string };
+  /** Le commentaire visé par l'adresse (`?commentaire=<id>`, « Mes mentions ») · amené à la vue, son filtre ouvert. */
+  commentaireCible?: string | null;
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FILTRES_NOTIF, grouperNotifs, libelleNonLues, nonLuesParFiltre, notifDansFiltre, presentationNotif, quandNotif, type FiltreNotif,
+  CHEMIN_MES_MENTIONS, FILTRES_NOTIF, grouperNotifs, libelleNonLues, nonLuesParFiltre, notifDansFiltre, presentationNotif, quandNotif, type FiltreNotif,
 } from '@tiktrends/core';
 import { fetchNotifications, markAllNotificationsRead, markNotificationRead, type NotifItem } from '../../app/actions/notifications';
 import { Ic, Lien } from '../communs/base';
@@ -18,6 +18,9 @@ import { Ic, Lien } from '../communs/base';
  * `#nprefs`), la suppression d'une notification (`.nx`), l'étiquette
  * « Nouveauté ». Le libellé de l'action est « Ouvrir » · une notification réelle
  * porte une adresse, pas un verbe.
+ *
+ * Ajout HORS maquette · le lien « Mes mentions » de l'en-tête (`/studio/mentions`,
+ * `data-mes-mentions`) · seul écart, déclaré dans la garde de parité.
  */
 
 const PILL = { background: 'linear-gradient(135deg,var(--acc),var(--acc2))', color: 'var(--on)', border: 0 } as const;
@@ -73,6 +76,8 @@ export function VueNotifications({ items, nonLues, filtre, maintenant, onFiltre,
         <h2 id="notiftt">Notifications</h2>
         {pill && <span className="pill" style={PILL}>{pill}</span>}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          {/* Hors maquette · « Mes mentions » réunit les mentions (commentaires, notes) · la coquille se referme au changement de page. */}
+          <Lien className="btn sm" href={CHEMIN_MES_MENTIONS} data-mes-mentions=""><Ic n="chat" />Mes mentions</Lien>
           <button className="btn sm" type="button" id="nall" disabled={!nonLues} onClick={onToutLire}><Ic n="check" />Tout lire</button>
         </span>
       </header>

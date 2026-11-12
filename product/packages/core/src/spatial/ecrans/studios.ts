@@ -28,6 +28,8 @@ export const ECRANS_STUDIOS: readonly EcranSpatial[] = [
   { chemin: '/studio/projets/nouveau', section: 'studios' },
   { chemin: '/studio/projets/nouveau/concept', section: 'studios' },
   { chemin: '/studio/iterer', section: 'studios' },
+  // « Mes mentions » · hors maquette, ouvert depuis le centre de notifications de la coquille.
+  { chemin: '/studio/mentions', section: 'studios' },
   // D2 · projet, éditeur, vidéo.
   { chemin: '/studio/projets/[id]', section: 'studios' },
   { chemin: '/studio/projets/[id]/image', section: 'studios' },

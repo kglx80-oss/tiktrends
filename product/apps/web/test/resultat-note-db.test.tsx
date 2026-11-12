@@ -430,8 +430,12 @@ describe('égalité · la généralisation ne change RIEN au rendu des commentai
       commentaires: [base('k0', []), base('k1', R.ouvert), base('k2', R.autreMarque)] };
     const html = renderToStaticMarkup(avecSpatial(<OngletActivite projectId="p1" journal={{ ok: false, message: 'Journal indisponible.' }} commentaires={{ ok: true, liste } as never} />));
     const avant = readFileSync(join(__dirname, 'fixtures/commentaires-resultat-avant.html'), 'utf8');
-    expect(html.length, 'le rendu des commentaires a changé de taille').toBe(avant.length);
-    expect(html, 'le rendu des commentaires a changé').toBe(avant);
+    // Seul écart admis depuis la capture · « Mes mentions » pose l'ANCRE STABLE de chaque commentaire (`id`, focalisable par script) · une par commentaire, retirée avant la comparaison.
+    const ANCRE = / id="commentaire-(k\d)" tabindex="-1"/g;
+    expect([...html.matchAll(ANCRE)].map((m) => m[1]), 'l’ancre stable de chaque commentaire manque').toEqual(['k0', 'k1', 'k2']);
+    const sansAncre = html.replace(ANCRE, '');
+    expect(sansAncre.length, 'le rendu des commentaires a changé de taille').toBe(avant.length);
+    expect(sansAncre, 'le rendu des commentaires a changé').toBe(avant);
   });
   it('le résultat sous une note · la même pastille, le même chiffre, le même lien, la même phrase « en test » · seul le nom du fil change', () => {
     for (const r of [R.ouvert, R.autreMarque]) {

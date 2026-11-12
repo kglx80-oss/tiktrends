@@ -372,6 +372,7 @@ const ACTIONS: Readonly<Record<string, Readonly<Record<string, Appel | readonly 
   'app/actions/logo-marque.ts': { etatLogoMarqueActive: L(() => [{ brandId: ids.brandA1 }]) },
   'app/actions/market-learn.ts': { learnFromFollowedAction: A(), marketViewAction: L() },
   'app/actions/membres.ts': { retirerMembreAction: D(() => [fd({ userId: ids.uv })]), changerRoleMembreAction: A(() => [fd({ userId: ids.ur, role: 'member' })]) },
+  'app/actions/mes-mentions.ts': { lireMesMentionsAction: L(() => [{}]) },
   'app/actions/notifications.ts': { fetchNotifications: L(), markNotificationRead: A(() => [randomUUID()]), markAllNotificationsRead: A() },
   'app/actions/onboarding.ts': { saveOnboardingAction: A(() => [{ profile: 'brand', brandName: 'Marque A1' }]) },
   'app/actions/platform.ts': { updatePlanConfigAction: A(() => [fd({ plan: 'core' })]) },
