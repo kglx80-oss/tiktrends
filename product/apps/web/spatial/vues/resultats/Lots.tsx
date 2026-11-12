@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent as ClavierReact } from 'react';
 import { useRouter } from 'next/navigation';
-import { FILTRES_LOTS, dansFiltreLots, deplacementListe, lienLotSpatial, messageBorneListeLots, raccourciListeLots, touchesAffichees, type FiltreLots, type PresentationLot } from '@tiktrends/core';
+import { VIDE_LISTE_A_CONCLURE, dansFiltreLots, deplacementListe, gestesListeLots, lienLotSpatial, messageBorneListeLots, raccourciListeLots, touchesAffichees, type FiltreLots, type GestesListeLots, type PresentationLot } from '@tiktrends/core';
 import { createBatchAction } from '../../../app/actions/adsmap-batch';
 import { Anneau, EnTete, Ic, Lien, SousNav, Touche, Vue, useToucheVisible } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
@@ -26,6 +26,12 @@ import { Hypothese, Pub, type SousNavResultats } from './communs';
  * coquille). Jamais dans un champ (le formulaire « Nouveau lot ») · rien
  * n'est écrit. L'aide sous la liste dit ces touches, lues dans la table · écart
  * de maquette déclaré (`spatial-resultats.test.tsx`).
+ *
+ * « À conclure » ouvert aux membres · `gestes` (`gestesListeLots`, noyau) dit
+ * ce que la liste montre · pour un membre, le seul filtre « À conclure », ni
+ * « Nouveau lot » ni barre « Itérer », et la raison écrite à la place du
+ * bouton (écart de maquette déclaré, borné à la barre d'outils · même test).
+ * Les lots reçus sont déjà ceux qu'il peut conclure · même parcours ↓ ↑.
  */
 
 export interface LigneLot extends Pick<PresentationLot, 'id' | 'etat' | 'titre' | 'hypothese' | 'categorie' | 'statut' | 'anneau' | 'action'> {
@@ -39,13 +45,17 @@ export interface PropsLots {
   sous: string;
   lots: readonly LigneLot[];
   peutCreer: boolean;
+  /** Ce que la liste montre (`gestesListeLots`) · absent, la liste complète. */
+  gestes?: GestesListeLots;
   note: string;
   /** « Itérer · N itérations conseillées » · `boucleIterationLots` · absent, la barre n'est pas posée. */
   boucle?: { libelle: string; href: string; raison: null } | { libelle: string; href: null; raison: string };
 }
 
 export function Lots(p: PropsLots) {
-  const [filtre, setFiltre] = useState<FiltreLots>('tous');
+  const gestes = p.gestes ?? gestesListeLots('complete', { admin: p.peutCreer });
+  const peutCreer = p.peutCreer && gestes.creer;
+  const [filtre, setFiltre] = useState<FiltreLots>(gestes.filtreInitial);
   const [creation, setCreation] = useState(false);
   const [but, setBut] = useState('');
   const [occupe, setOccupe] = useState(false);
@@ -90,18 +100,19 @@ export function Lots(p: PropsLots) {
       <EnTete titre="Lots de test" sous={p.sous} />
       <SousNav items={p.sousNav} actif="/adsmap/lots" />
       <div className="toolbar">
-        <div className="seg" role="group" aria-label="Filtrer">
-          {FILTRES_LOTS.map((f) => (
+        <div className="seg" role="group" aria-label="Filtrer" aria-describedby={gestes.raison ? 'lots-raison-portee' : undefined}>
+          {gestes.filtres.map((f) => (
             <button type="button" key={f.cle} aria-pressed={filtre === f.cle} onClick={() => setFiltre(f.cle)}>
               {f.libelle} · {p.lots.filter((l) => dansFiltreLots(l.etat, f.cle)).length}
             </button>
           ))}
         </div>
-        {p.peutCreer && (
+        {peutCreer && (
           <button className="btn pri sm" type="button" style={{ marginLeft: 'auto' }} aria-expanded={creation} onClick={() => setCreation((x) => !x)}><Ic n="plus" />Nouveau lot</button>
         )}
+        {gestes.raison && <p className="faint" id="lots-raison-portee" data-raison-ferme="lots-composer" style={{ marginLeft: 'auto', fontSize: '11.5px' }}>{gestes.raison}</p>}
       </div>
-      {creation && (
+      {peutCreer && creation && (
         <form className="blform" onSubmit={creer} style={{ marginBottom: 12 }}>
           <textarea value={but} onChange={(e) => setBut(e.target.value)} maxLength={300} placeholder="Ce que ce lot doit vérifier, en une phrase" aria-label="Objectif du lot" />
           {erreur && <p className="faint" role="alert">{erreur}</p>}
@@ -124,7 +135,7 @@ export function Lots(p: PropsLots) {
             <Lien className={`btn sm ${l.action.primaire ? 'pri' : ''}`} href={l.action.href} data-lot-lien={l.id} aria-describedby={`lot-titre-${l.id}`}>{l.action.libelle}</Lien>
           </div>
         ))}
-        {liste.length === 0 && <p className="faint">{p.lots.length ? 'Aucun lot dans ce filtre.' : 'Aucun lot pour cette marque · ouvre le premier pour composer un test.'}</p>}
+        {liste.length === 0 && <p className="faint">{gestes.raison ? VIDE_LISTE_A_CONCLURE : p.lots.length ? 'Aucun lot dans ce filtre.' : 'Aucun lot pour cette marque · ouvre le premier pour composer un test.'}</p>}
       </div>
       <p className="faint" style={{ fontSize: '11.5px', marginTop: 12 }}>{p.note}</p>
       {liste.length > 1 && suivant && precedent && (
@@ -132,8 +143,8 @@ export function Lots(p: PropsLots) {
           Au clavier, depuis un lot de la liste<Touche t={suivant} lue /><Touche t={precedent} lue /> lot suivant ou précédent · {touchesAffichees('Enter').join(' ')} l’ouvre.
         </p>
       )}
-      {p.boucle && !p.boucle.href && <p className="faint" id="lots-boucle-raison" data-raison-ferme="boucle" style={{ fontSize: '11.5px', marginTop: 6 }}>{p.boucle.raison}</p>}
-      {p.boucle && (
+      {gestes.boucle && p.boucle && !p.boucle.href && <p className="faint" id="lots-boucle-raison" data-raison-ferme="boucle" style={{ fontSize: '11.5px', marginTop: 6 }}>{p.boucle.raison}</p>}
+      {gestes.boucle && p.boucle && (
         <Ornement>
           {p.boucle.href
             ? <Lien className="btn pri" href={p.boucle.href} data-boucle=""><Ic n="loop" />{p.boucle.libelle}</Lien>

@@ -1,7 +1,7 @@
 import type { TestedVariable } from '../../adsmap/types';
 import { estGagnanteValidee } from '../../adsmap/verdict-libelle';
 import { LIBELLE_CHOIX_VARIABLE, type ChoixVariablesIteration } from '../studios/iterer-variable';
-import { attendArbitrage, lienLotSpatial, lotArbitrable, type EtatLotSpatial, type FaitsAdSpatial } from '../resultats/lots';
+import { lienLotSpatial, lotConcluable, type EtatLotSpatial, type FaitsAdSpatial } from '../resultats/lots';
 import { demandeContexteJarvis, lienJarvisContexte, nettoyerContexteJarvis, type DemandeContexteJarvis, type TypeContexteJarvis } from './contexte';
 
 /**
@@ -136,7 +136,7 @@ export function gestesContexteJarvis(f: FaitsGestesJarvis): { iterer: GesteJarvi
     raison: iterable ? null : d.type === 'lot' ? RAISON_GESTE_SANS_GAGNANTE_LOT : RAISON_GESTE_SANS_GAGNANTE_HYPOTHESE,
   };
   const l = f.lot;
-  const concluable = !!l && lotArbitrable(l.etat) && l.ads.some(attendArbitrage);
+  const concluable = !!l && lotConcluable(l.etat, l.ads);
   const conclure: GesteJarvis = {
     cle: 'conclure', libelle: 'Conclure le lot',
     cible: concluable ? { type: 'conclure', lotId: l!.id } : null,

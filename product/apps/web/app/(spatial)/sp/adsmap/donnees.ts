@@ -27,7 +27,11 @@ import { lireJourneesRetenues } from '../../../../lib/adsmap-mesures';
 const feature = (k: string) => FEATURES.find((f) => f.key === k)!;
 
 export type GardeResultats =
-  | { ok: true; s: NonNullable<Awaited<ReturnType<typeof getSession>>>; marque: { id: string; nom: string }; admin: boolean; jarvis: boolean }
+  | {
+    ok: true; s: NonNullable<Awaited<ReturnType<typeof getSession>>>; marque: { id: string; nom: string }; admin: boolean; jarvis: boolean;
+    /** La fonction `lots` de la matrice (liste complète, composer) · inchangée · sans elle, « Lots de test » ne montre que « À conclure ». */
+    lots: boolean;
+  }
   | { ok: false; raison: 'plan' | 'role' | 'marque' };
 
 /** La garde de la rubrique · `reserve` = fonction de la matrice (`lots`, `import`) à exiger en plus. */
@@ -41,7 +45,7 @@ export async function gardeResultats(reserve?: 'lots' | 'import'): Promise<Garde
   if (reserve && !canAccess(acces, feature(reserve))) redirect('/adsmap');
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { ok: false, raison: 'marque' };
-  return { ok: true, s, marque: { id: brand.id, nom: brand.name }, admin: roleAtLeast(s.role, 'admin'), jarvis: canAccess(acces, feature('jarvis')) };
+  return { ok: true, s, marque: { id: brand.id, nom: brand.name }, admin: roleAtLeast(s.role, 'admin'), jarvis: canAccess(acces, feature('jarvis')), lots: canAccess(acces, feature('lots')) };
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
