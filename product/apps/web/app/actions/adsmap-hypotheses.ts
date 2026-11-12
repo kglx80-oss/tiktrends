@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { db, schema } from '@tiktrends/db';
 import {
   inferMechanism, refOrigineHypothese, validerSaisieHypothese, cleTag, propositionHypotheseTag, REFUS_TAG_NON_RECURRENT, LONGUEUR_MAX_TAG,
-  lireDemandeProvenanceOffre, provenanceOffreAdmise,
+  lireDemandeProvenanceOffre, provenanceOffreAdmise, lireDemandeProvenanceNote, provenanceNoteHypotheseAdmise,
   type OrigineHypotheseLibre, type SaisieHypotheseLibre,
 } from '@tiktrends/core';
 import { adsmapGuard } from '../../lib/adsmap-guard';
@@ -14,6 +14,7 @@ import { logAndTranslate } from '../../lib/error-log';
 import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { trackSavedAdAction } from './adsmap-bridge';
 import { lireSauvegardesDesTags } from '../../lib/veille-tags';
+import { lireNotePourHypothese } from '../../lib/studios/commentaire-iterer';
 
 /**
  * Hypothèses LIBRES (lot 1 V5) · écrire une hypothèse sans passer par un test
@@ -61,7 +62,16 @@ export type SourceHypothese =
    * provenance « Offre » est posée · sinon l'hypothèse naît « À la main », sans
    * rien dire de ce que l'adresse prétendait (`provenanceOffreAdmise`, noyau).
    */
-  | { type: 'offre'; offreId: string };
+  | { type: 'offre'; offreId: string }
+  /**
+   * Lot 11 · une NOTE de la lignée posée sur un nœud brief ou hypothèse
+   * (« Formuler une hypothèse ») · la note est RELUE dans la portée (Résultats,
+   * garde des Studios, marque active, projet, nœud brief / hypothèse ·
+   * `lireNotePourHypothese`) · retrouvée, la provenance « Note de la lignée »
+   * est posée · sinon l'hypothèse naît « À la main », sans rien dire de ce que
+   * l'adresse prétendait (`provenanceNoteHypotheseAdmise`, noyau).
+   */
+  | { type: 'note'; noteId: string; projetId: string };
 
 export interface ResultatHypothese { ok?: true; adId?: string; error?: string; /** La provenance posée · ce que le serveur a relu, jamais ce que l'écran demandait. */ provenance?: OrigineHypotheseLibre['type'] }
 
@@ -150,6 +160,10 @@ export async function creerHypotheseAction(input: { source: SourceHypothese; sai
           .where(and(eq(schema.offers.id, demande), eq(schema.offers.brandId, brandId), eq(schema.offers.workspaceId, ws))).limit(1)
         : [];
       origine = provenanceOffreAdmise(demande, o ?? null);
+    } else if (src.type === 'note') {
+      const demande = lireDemandeProvenanceNote(src);
+      const lue = demande ? await lireNotePourHypothese(g.s, brandId, demande) : null;
+      origine = provenanceNoteHypotheseAdmise(demande, lue && { noteId: lue.noteId, projetId: lue.projetId, noeud: lue.libelleNoeud });
     } else if (src.type === 'persona') {
       if (!estId(src.personaId)) return pas('Persona introuvable dans la marque active.');
       const [p] = await db!.select({ id: schema.personas.id, nom: schema.personas.name }).from(schema.personas)

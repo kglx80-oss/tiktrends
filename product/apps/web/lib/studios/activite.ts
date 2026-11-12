@@ -5,12 +5,12 @@ import { db, schema } from '@tiktrends/db';
 import {
   LECTURE_MAX_JOURNAL, aPermissionEspace, droitsCommentaire, erreurStudio, extraitCommentaire, historiqueApresModification, journalProjet,
   libelleAuteurVersion, lireHistoriqueCommentaire, objetDansPortee, quandJournal, validerTexteCommentaire, vueVariantes, cibleCommentaire,
-  gesteIterationCommentaire, analyserMentions, aPrevenirMentions, conclusionLot, historiqueAvecMentions, iterationsDuCommentaire, lireMentions, membresMentionnables,
+  gesteIterationCommentaire, aPrevenirMentions, conclusionLot, historiqueAvecMentions, iterationsDuCommentaire, lireMentions,
   nomAffichageMention, presentationLot, prevenusApres, proprietairePrevenuSansMention, referenceConclusion, resultatsCommentaire, segmentsCommentaire,
   type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste, type IterationDuCommentaire, type LectureConclusion, type MembreBrut,
-  type MembreMentionnable, type MentionStockee,
 } from '@tiktrends/core';
-import { FEATURE_STUDIO, type ContexteStudio } from './garde';
+import type { ContexteStudio } from './garde';
+import { membresDeLEspace, mentionnablesDe, mentionsDuTexte } from './membres-mentions';
 import { estUuid, lireProjet, lireVersion, type ProjetStudio } from './depot';
 import { listerVariantes } from './variantes/variantes';
 import type { CibleCommentable, CommentairesProjet, PropsActiviteProjet } from '../../spatial/vues/projet/types';
@@ -18,8 +18,6 @@ import { createNotification } from '../notifications';
 import { getActiveBrand } from '../brands';
 import { accesAdsmap } from './variantes/acces';
 import { liensDeCopie } from './copie-projet';
-import { effectiveAccess } from '../access';
-import { canAccess, type Plan, type Role } from '../rbac';
 import { chargerLots } from '../../app/(spatial)/sp/adsmap/donnees';
 
 /**
@@ -214,34 +212,6 @@ function ciblesDe(c: Contexte): CibleCommentable[] {
   ];
 }
 
-/** Au plus 500 membres lus par espace · la liste des mentions et les noms affichés. */
-export const MEMBRES_MAX_LUS = 500;
-
-/**
- * Les membres de l'espace du projet, tels que la règle des mentions les lit ·
- * rôle, formule de l'espace (`canAccess` sur la fonction Studios, la garde),
- * restrictions de marque, nom, adresse, masque · LECTURE seule.
- */
-async function membresDeLEspace(p: ProjetStudio): Promise<MembreBrut[]> {
-  const M = schema.workspaceMembers; const U = schema.users; const R = schema.studioMemberBrandScopes; const W = schema.workspaces;
-  const [lignes, restrictions, [w]] = await Promise.all([
-    db.select({ id: M.userId, role: M.role, nom: U.name, email: U.email, masque: U.hidePersonalInfo }).from(M).innerJoin(U, eq(U.id, M.userId))
-      .where(eq(M.workspaceId, p.workspaceId)).limit(MEMBRES_MAX_LUS),
-    db.select({ userId: R.userId, brandId: R.brandId }).from(R).where(eq(R.workspaceId, p.workspaceId)),
-    db.select({ plan: W.plan }).from(W).where(eq(W.id, p.workspaceId)).limit(1),
-  ]);
-  const plan = ((w?.plan as Plan | undefined) || 'starter') as Plan;
-  return lignes.map((l) => ({
-    id: l.id, nom: l.nom, email: l.email, masque: !!l.masque, roleEspace: l.role,
-    studioOuvert: canAccess(effectiveAccess({ role: l.role as Role, plan, user: { email: l.email } }), FEATURE_STUDIO),
-    restrictionsMarque: restrictions.filter((r) => r.userId === l.id).map((r) => r.brandId),
-  }));
-}
-
-/** Qui peut être mentionné par la session dans ce projet · la règle du noyau sur les membres relus. */
-const mentionnablesDe = (ctx: ContexteStudio, p: ProjetStudio, membres: readonly MembreBrut[]): MembreMentionnable[] =>
-  membresMentionnables(membres, { projet: p, marquesDuWorkspace: ctx.marquesDuWorkspace, auteurId: ctx.userId });
-
 /**
  * Les itérations nées des commentaires lus · la provenance relue sur les ads de
  * l'espace, puis chaque ad retrouvée dans les lots de la MARQUE du projet
@@ -375,13 +345,6 @@ async function prevenirMentionnes(p: ProjetStudio, texte: string, ids: readonly 
       });
     } catch { /* la notification ne bloque jamais le commentaire */ }
   }
-}
-
-/** Les mentions d'un texte normalisé, relues contre les membres qui voient le projet · `[]` si la lecture échoue (le texte reste du texte). */
-async function mentionsDuTexte(ctx: ContexteStudio, p: ProjetStudio, texte: string, demande: unknown): Promise<MentionStockee[]> {
-  if (!Array.isArray(demande) || demande.length === 0) return [];
-  const membres = await membresDeLEspace(p).catch(() => [] as MembreBrut[]);
-  return analyserMentions(texte, demande, mentionnablesDe(ctx, p, membres));
 }
 
 export async function commenterPour(ctx: ContexteStudio, e: { projectId: unknown; cible: unknown; cibleId: unknown; texte: unknown; mentions?: unknown }): Promise<Resultat<CommentairesProjet>> {

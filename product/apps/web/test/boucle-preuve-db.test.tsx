@@ -148,7 +148,7 @@ beforeAll(async () => {
 /* ───────────────────────────── outils ───────────────────────────── */
 
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
-const pageHypotheses = async () => dom(renderToStaticMarkup(avecSpatial(await HypothesesSpatial())));
+const pageHypotheses = async () => dom(renderToStaticMarkup(avecSpatial(await HypothesesSpatial({ searchParams: Promise.resolve({}) }))));
 const pageLot = async (id: string) => dom(renderToStaticMarkup(avecSpatial(await LotSpatial({ params: Promise.resolve({ id }) }))));
 /** La carte d'une ad · celle dont « Demander à Jarvis » joint CETTE ad (une suite du plan joint son ad de départ avec une question). */
 const carte = (d: ParentNode, adId: string) => {

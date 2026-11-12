@@ -1,11 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { COLONNES_HYPOTHESES, PARTIES_VIDES, categoriesHypotheses, lienJarvisCarteHypothese, lienJarvisContexte, type CarteHypothese, type SaisieHypotheseLibre, type TestedVariable } from '@tiktrends/core';
+import { useEffect, useRef, useState } from 'react';
+import {
+  COLONNES_HYPOTHESES, PARTIES_VIDES, TITRE_HYPOTHESE_NOTE, categoriesHypotheses, lienJarvisCarteHypothese, lienJarvisContexte,
+  type CarteHypothese, type DepartHypothese, type SaisieHypotheseLibre, type TestedVariable,
+} from '@tiktrends/core';
 import type { ResultatHypothese, SourceHypothese } from '../../../app/actions/adsmap-hypotheses';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Hypothese, Priorite, type SousNavResultats } from './communs';
-import { BoutonHypothese } from './hypothese-client';
+import { BoutonHypothese, FormulaireHypothese } from './hypothese-client';
+import { DialogueSpatial } from '../marque/interactifs';
 import { BilanProvenances, type PropsBilanProvenances } from './BilanProvenances';
 
 /**
@@ -37,6 +41,59 @@ export interface PropsHypotheses {
   jarvisCartes?: boolean;
   /** Boucler la preuve · « D'où viennent les hypothèses qui gagnent » (`bilanProvenances`) · absent, rien n'est ajouté à la maquette. */
   bilan?: PropsBilanProvenances | null;
+  /**
+   * Lot 11 · ouvert depuis « Formuler une hypothèse » sous une note de la
+   * lignée · la note RELUE par la page · le formulaire existant s'ouvre
+   * pré-rempli, la note citée · refusée, la phrase seule · absent, rien.
+   */
+  depuisNote?: DepuisNoteHypothese | null;
+}
+
+export type DepuisNoteHypothese =
+  | { refus: string }
+  | { depart: DepartHypothese; note: string; source: { noteId: string; projetId: string } };
+
+/**
+ * Le formulaire d'hypothèse EXISTANT, ouvert d'emblée depuis une note · rien
+ * n'est enregistré avant « Ranger dans « À formuler » » · la note est relue
+ * encore par l'action (`creerHypotheseAction`, source `note`). Le focus va au
+ * premier champ quand le formulaire est RENDU, et revient au bouton qui le
+ * rouvre quand il se ferme · dans un effet, jamais par `setTimeout(0)`.
+ */
+function HypotheseDepuisNote({ d, creer }: { d: Extract<DepuisNoteHypothese, { depart: DepartHypothese }>; creer: NonNullable<PropsHypotheses['creer']> }) {
+  const [ouvert, setOuvert] = useState(true);
+  // Le formulaire se ferme après « Annuler » OU après le oui du serveur · la page dit lequel, et ne rouvre rien après un rangement.
+  const [rangee, setRangee] = useState(false);
+  const rendu = useRef(false);
+  useEffect(() => {
+    // Au premier rendu, le formulaire ouvert prend le focus · ensuite, chaque bascule le replace.
+    if (ouvert) document.querySelector<HTMLElement>('[data-hypothese-note] textarea[name="si"]')?.focus();
+    else if (rendu.current) document.querySelector<HTMLElement>('[data-geste="rouvrir-hypothese-note"], [data-hypothese-note-rangee]')?.focus();
+    rendu.current = true;
+  }, [ouvert]);
+  return (
+    <>
+      {!ouvert && rangee && (
+        <p className="faint" role="status" tabIndex={-1} data-hypothese-note-rangee="" style={{ fontSize: '12px', margin: '8px 0 0' }}>Hypothèse rangée dans « À formuler » depuis la note.</p>
+      )}
+      {!ouvert && !rangee && (
+        <p className="faint" role="status" data-hypothese-note-fermee="" style={{ fontSize: '12px', margin: '8px 0 0' }}>
+          Le formulaire de la note est fermé · rien n’a été enregistré.{' '}
+          <button className="btn sm" type="button" data-geste="rouvrir-hypothese-note" style={{ minHeight: 44 }} onClick={() => setOuvert(true)}><Ic n="bulb" />Rouvrir le formulaire</button>
+        </p>
+      )}
+      <DialogueSpatial titre={TITRE_HYPOTHESE_NOTE} ouvert={ouvert} fermer={() => setOuvert(false)}>
+        <div data-hypothese-note="">
+          <FormulaireHypothese depart={d.depart} note={<span data-note-source="">{d.note}</span>} fermer={() => setOuvert(false)}
+            envoyer={async (saisie) => {
+              const r = await creer({ source: { type: 'note', noteId: d.source.noteId, projetId: d.source.projetId }, saisie });
+              if (!r.error) setRangee(true);
+              return r;
+            }} />
+        </div>
+      </DialogueSpatial>
+    </>
+  );
 }
 
 /**
@@ -97,6 +154,8 @@ export function Hypotheses(p: PropsHypotheses) {
           )
           : <Lien className="btn sm pri" href="/adsmap/suites" style={p.jarvis ? undefined : { marginLeft: 'auto' }}><Ic n="plus" />Nouvelle hypothèse</Lien>}
       </div>
+      {p.depuisNote && 'refus' in p.depuisNote && <p className="faint" role="status" data-hypothese-note-refus="" style={{ fontSize: '12px', margin: '8px 0 0' }}>{p.depuisNote.refus}</p>}
+      {p.depuisNote && 'depart' in p.depuisNote && p.creer && <HypotheseDepuisNote d={p.depuisNote} creer={p.creer} />}
       <div className="board4">
         {COLONNES_HYPOTHESES.map((col) => {
           const items = liste.filter((c) => c.colonne === col.cle);

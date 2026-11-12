@@ -170,7 +170,7 @@ describe('lot 5 · chaque point d’entrée porte le bon lien', () => {
   });
 
   it('hypothèses · la page (question de la maquette) et chaque carte (SON ad)', async () => {
-    const d = await rendre(HypothesesSpatial());
+    const d = await rendre(HypothesesSpatial({ searchParams: Promise.resolve({}) }));
     expect(lienDe(d, 'resultats'), 'lien de la page').toEqual([lienJarvisContexte('resultats', 'hypotheses', 'Quelle variante tester ensuite ?')]);
     const cartes = lienDe(d, 'hypothese').map((u) => new URL(`http://x${u}`).searchParams.get('id'));
     expect(cartes, 'une carte par ad de la marque').toEqual(expect.arrayContaining([S.V1, S.V2, S.H1]));

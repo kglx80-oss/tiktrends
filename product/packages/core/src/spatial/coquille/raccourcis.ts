@@ -67,7 +67,7 @@ export const PORTEES_RACCOURCIS: readonly DefPortee[] = [
   { cle: 'ce-qui-scale', libelle: 'Ce qui scale (Veille)', globale: false },
   { cle: 'editeur', libelle: 'Éditeur de créa', globale: false },
   { cle: 'canvas', libelle: 'Canvas du projet', globale: false },
-  { cle: 'mentions', libelle: 'Mentions dans un commentaire', globale: false },
+  { cle: 'mentions', libelle: 'Mentions dans un commentaire ou une note', globale: false },
   /* Lot 13 bis · Résultats, les raccourcis d'itération. */
   { cle: 'fiche-lot', libelle: 'Fiche d’un lot (Résultats)', globale: false },
   /* Lot 13 ter · la fiche d'un test, la liste des lots. */
@@ -171,7 +171,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
     id: 'canvas-deplacer', touches: [['ArrowLeft'], ['ArrowRight'], ['ArrowUp'], ['ArrowDown']], libelle: 'Déplacer la carte choisie (avec Maj · grand pas)',
     portee: 'canvas', action: null, sources: ['vues/projet/CanvasLibre.tsx'], surFocus: true,
   },
-  /* Les mentions d'un commentaire (fiche projet, onglet Activité) · liste ouverte par « @ » · Entrée choisit (touche de composant), Échap ferme (« fermer »). */
+  /* Les mentions d'un commentaire (fiche projet, onglet Activité) et d'une note de la lignée (canvas de lignée · le même champ, aucune touche lue ailleurs) · liste ouverte par « @ » · Entrée choisit (touche de composant), Échap ferme (« fermer »). */
   { id: 'mention-choisir', touches: [['ArrowDown'], ['ArrowUp']], libelle: 'Choisir le membre suivant ou précédent', portee: 'mentions', action: null, sources: ['vues/projet/ChampMentions.tsx'], surFocus: true },
   /*
    * Lot 13 bis · Résultats · itérer au clavier sur la fiche d'un lot. Une

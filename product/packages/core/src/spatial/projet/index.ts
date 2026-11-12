@@ -12,3 +12,4 @@ export * from './hors-ligne';
 export * from './bouton-action';
 export * from './filtres-creations';
 export * from './notes-lignee';
+export * from './notes-gestes';

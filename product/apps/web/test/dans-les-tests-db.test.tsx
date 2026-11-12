@@ -151,7 +151,7 @@ beforeAll(async () => {
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
 const pagePersonas = async (id = ids.brandA1) => dom(renderToStaticMarkup(avecSpatial(await PersonasSpatiale({ params: Promise.resolve({ id }) }))));
 const pageOffre = async (id = ids.brandA1) => dom(renderToStaticMarkup(avecSpatial(await OffreSpatiale({ params: Promise.resolve({ id }) }))));
-const pageHypotheses = async () => dom(renderToStaticMarkup(avecSpatial(await HypothesesSpatial())));
+const pageHypotheses = async () => dom(renderToStaticMarkup(avecSpatial(await HypothesesSpatial({ searchParams: Promise.resolve({}) }))));
 const params = (href: string) => Object.fromEntries(new URL(`http://x${href}`).searchParams);
 const bilan = (d: ParentNode) => d.querySelector<HTMLElement>('[aria-label="D’où viennent les hypothèses qui gagnent"]')!;
 const hrefs = (el: ParentNode | null | undefined, sel: string) => [...(el?.querySelectorAll(sel) ?? [])].map((a) => a.getAttribute('href'));

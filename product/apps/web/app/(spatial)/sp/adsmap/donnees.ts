@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, sommeRetenues,
-  type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
+  DEFAULT_VERDICT_CONFIG, manquesAvantTest, etatLotSpatial, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
+  type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -61,6 +61,8 @@ export interface AdLue extends FaitsAdSpatial {
   jarvis?: ProvenanceJarvis | null;
   /** Provenance « Commentaire » (`source_ref_json.commentaire`, posée par le serveur après relecture) · `null` sans elle. */
   commentaire?: ProvenanceCommentaire | null;
+  /** Provenance « Note de la lignée » (`source_ref_json.note`, posée par le serveur après relecture) · `null` sans elle. */
+  note?: ProvenanceNote | null;
 }
 
 export interface LotLu extends FaitsLotSpatial {
@@ -140,6 +142,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       typeAd: r.ad.adType,
       jarvis: lireProvenanceJarvis(r.ad.sourceRef),
       commentaire: lireProvenanceCommentaire(r.ad.sourceRef),
+      note: lireProvenanceNote(r.ad.sourceRef),
       verdict: r.v?.adId ? {
         calcule: (r.v.computed ?? null) as VerdictValue | null,
         retenu: (r.v.validated ?? null) as VerdictValue | null,

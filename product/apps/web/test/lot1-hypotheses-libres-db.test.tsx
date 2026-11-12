@@ -66,7 +66,7 @@ const pub = (id: string, annonceur: string): InspoAd =>
 
 /** Le tableau rendu · le HTML de chaque colonne, par titre. */
 async function tableau(): Promise<Record<string, string[]>> {
-  const html = renderToStaticMarkup(await HypothesesSpatial());
+  const html = renderToStaticMarkup(await HypothesesSpatial({ searchParams: Promise.resolve({}) }));
   const board = html.slice(html.indexOf('<div class="board4">'));
   expect(board, 'le tableau des hypothèses n’est pas rendu').not.toBe('');
   const out: Record<string, string[]> = {};

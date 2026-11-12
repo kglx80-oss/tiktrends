@@ -373,7 +373,7 @@ describe('refus sans fuite · autre projet, autre marque, version, création san
 
 describe('le bilan « D’où viennent les hypothèses qui gagnent » lit « Commentaire » à part · aucun seuil changé', () => {
   it('l’itération relue compte dans « Commentaire » · les forgées dans « Itération d’une gagnante » · la règle dit neuf provenances, six lues au plus', async () => {
-    const d = dom(renderToStaticMarkup(avecSpatial(await HypothesesSpatial())));
+    const d = dom(renderToStaticMarkup(avecSpatial(await HypothesesSpatial({ searchParams: Promise.resolve({}) }))));
     const b = d.querySelector<HTMLElement>('[aria-label="D’où viennent les hypothèses qui gagnent"]')!;
     const k = b.querySelector('[data-groupe-provenance="commentaire"]');
     expect(k, 'la provenance « Commentaire » n’est pas lue dans le bilan').toBeTruthy();
@@ -382,7 +382,7 @@ describe('le bilan « D’où viennent les hypothèses qui gagnent » lit « Com
     expect(b.querySelector('[data-groupe-provenance="iteration"]')!.textContent, 'les forgées, comptées ordinaires').toContain('5 variantes tranchées');
     expect(b.querySelector('[data-taux-general]')!.textContent).toContain('Commentaire');
     expect(b.querySelector('[data-note-commentaire]')!.textContent).toBe(NOTE_COMMENTAIRE_PROVENANCE);
-    expect(b.textContent).toContain('9 provenances, 6 lues au plus à la fois, silence au-delà');
+    expect(b.textContent).toContain('10 provenances, 6 lues au plus à la fois, silence au-delà');
   });
 });
 

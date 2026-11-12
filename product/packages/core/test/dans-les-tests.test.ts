@@ -127,8 +127,8 @@ describe('le bilan lit « Geste de Jarvis » à part', () => {
     expect(NOTE_JARVIS_PROVENANCE).toContain('« Geste de Jarvis »');
   });
   it('sept provenances qui parlent · au-delà du mesuré (six), le bilan se tait et dit pourquoi', () => {
-    // Huit, puis neuf avec « Commentaire » · la règle en lit six au plus, le reste se tait.
-    expect(PROVENANCES_TEST.length).toBe(MAX_PERSONAS_LECTURE + 3);
+    // Huit, puis neuf avec « Commentaire », puis dix avec « Note de la lignée » · la règle en lit six au plus, le reste se tait.
+    expect(PROVENANCES_TEST.length).toBe(MAX_PERSONAS_LECTURE + 4);
     const b = bilanProvenances([...PROVENANCES_TEST.slice(0, 7).flatMap((p) => entrees(p.cle, p.cle === 'tag' ? 6 : 0, 6)), ...entrees(null, 0, 4)]);
     expect([b.parle, b.niveau], 'sept provenances lues au-delà du mesuré').toEqual([false, null]);
     expect(b.groupes.every((g) => g.lecture === 'non_mesure'), 'sept provenances lues au-delà du mesuré').toBe(true);

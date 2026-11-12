@@ -182,7 +182,7 @@ beforeAll(async () => {
 const dom = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
 const ficheTest = async (id: string) => dom(renderToStaticMarkup(avecSpatial(await FicheTestSpatial({ params: Promise.resolve({ id }), searchParams: Promise.resolve({}) }))));
 const pageLot = async (id: string) => dom(renderToStaticMarkup(avecSpatial(await LotSpatial({ params: Promise.resolve({ id }) }))));
-const pageHypotheses = async () => dom(renderToStaticMarkup(avecSpatial(await HypothesesSpatial())));
+const pageHypotheses = async () => dom(renderToStaticMarkup(avecSpatial(await HypothesesSpatial({ searchParams: Promise.resolve({}) }))));
 const params = (href: string) => Object.fromEntries(new URL(`http://x${href}`).searchParams);
 const cible = (d: ParentNode, g: 'persona' | 'offre') => d.querySelector<HTMLElement>(`[aria-label="Pour qui · quelle offre · ce test"] [data-cible-test="${g}"]`)!;
 const derniere = async () => (await db.select().from(schema.ads).where(and(eq(schema.ads.workspaceId, I.wsA!), eq(schema.ads.status, 'draft'))).orderBy(desc(schema.ads.createdAt)).limit(1))[0]!;
@@ -399,7 +399,7 @@ describe('provenance « Offre » · posée seulement après relecture, lue dans 
     expect(b.querySelector('[data-groupe-provenance="libre"]')!.textContent, 'les adresses forgées comptent « À la main »').toContain('3 variantes tranchées');
     expect(b.querySelector('[data-taux-general]')!.textContent).toContain('Offre');
     expect(b.querySelector('[data-note-offre]')!.textContent).toBe(NOTE_OFFRE_PROVENANCE);
-    expect(b.textContent).toContain('9 provenances, 6 lues au plus à la fois, silence au-delà');
+    expect(b.textContent).toContain('10 provenances, 6 lues au plus à la fois, silence au-delà');
     const pro = [...d.querySelectorAll('[data-provenance-hypothese]')].find((x) => x.textContent?.includes('Offre · Remise de bienvenue'));
     expect(pro, 'la carte ne dit pas la provenance « Offre »').toBeTruthy();
     expect(pro!.querySelector('a')!.getAttribute('href')).toBe(`/brands/${I.bA}/offre`);

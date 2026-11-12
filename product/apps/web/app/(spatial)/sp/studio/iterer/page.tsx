@@ -5,8 +5,8 @@ import {
   aPermissionEspace, apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
   refusStudiosSpatial, variablesDuPlan, variablesInspiration, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE,
   iterationDepuisReponse, lireGesteIteration, preparationAutreVariable, OPTIONS_PUB_PROJET, REFUS_GESTE_JARVIS,
-  departDepuisCommentaire, lireGesteCommentaire, REFUS_GESTE_COMMENTAIRE,
-  type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis, type ProvenanceJarvis, type ProvenanceCommentaire,
+  departDepuisFil, lireGesteFil, TEXTES_FIL_ITERATION,
+  type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
@@ -16,7 +16,7 @@ import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { jointureCreaDeLaMarque, vignetteAd } from '../../../../../lib/adsmap-medias';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
 import { candidatsDuPlan, exclusDuContexte, lireCandidatsProjet, lireContexteGestes, lireReponseJarvis, planDepuisLignes } from '../../../../../lib/jarvis-gestes';
-import { lireCommentairePourIterer } from '../../../../../lib/studios/commentaire-iterer';
+import { lireCommentairePourIterer, lireNotePourIterer } from '../../../../../lib/studios/commentaire-iterer';
 import { iterationPlanAction, type IterationRow } from '../../../../actions/adsmap-iterate';
 import { Iterer, type InspirationIterer } from '../../../../../spatial/vues/studios/Iterer';
 import { RefusStudios } from '../../../../../spatial/vues/studios/Refus';
@@ -73,6 +73,12 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * admises de la pub (`departDepuisCommentaire`, règle bornée de Jarvis). Refusé
  * · la même phrase, aucun pré-choix. Rien n'est créé sans le clic · la
  * provenance « Commentaire » est relue encore par l'action avant d'être posée.
+ *
+ * `?note=<uuid>&projet=<uuid>` (« Itérer depuis cette note », canvas de lignée,
+ * lot 11) · la MÊME lecture (`lireGesteFil`) · la note relue dans la portée
+ * (`lireNotePourIterer` · nœud création / résultat du projet dont la variante a
+ * une pub testée), le même départ (`departDepuisFil`) · provenance « Note de la
+ * lignée », relue encore par l'action. Les deux à la fois · refus.
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -81,8 +87,8 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   const demande = lireIterationDemandee(sp);
   const variableDemandee = lireVariableDemandee(sp);
   const geste = lireGesteIteration(sp);
-  // Une seule source de pré-choix · un geste de Jarvis l'emporte, le commentaire n'est alors pas lu.
-  const gesteCommentaire = geste.etat === 'absente' ? lireGesteCommentaire(sp) : { etat: 'absente' as const };
+  // Une seule source de pré-choix · un geste de Jarvis l'emporte, le commentaire (ou la note) n'est alors pas lu.
+  const gesteCommentaire = geste.etat === 'absente' ? lireGesteFil(sp) : { etat: 'absente' as const };
 
   const g = await gardeSources('studio.read');
   if (!g.ok) redirect(CHEMIN_PROJETS);
@@ -170,15 +176,22 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
     if (texte && ads) provenance = { reponseId: geste.reponse, contexte: { type: geste.contexte.type as ProvenanceJarvis['contexte']['type'], id: geste.contexte.id } };
   }
 
-  // Depuis un commentaire · relu dans la portée · sa pub présélectionnée, son texte en hypothèse.
-  let commentaire: { note: string; adId: string | null; variable: ReturnType<typeof departDepuisCommentaire>['variable']; hypothese: string | null; provenance: ProvenanceCommentaire | null } | null = null;
-  if (gesteCommentaire.etat === 'refus') commentaire = { note: REFUS_GESTE_COMMENTAIRE, adId: null, variable: null, hypothese: null, provenance: null };
+  // Depuis un commentaire ou une note · relu dans la portée · sa pub présélectionnée, son texte en hypothèse.
+  let commentaire: { note: string; adId: string | null; variable: ReturnType<typeof departDepuisFil>['variable']; hypothese: string | null; provenance: ProvenanceCommentaire | null; provenanceNote?: ProvenanceNote | null } | null = null;
+  if (gesteCommentaire.etat === 'refus') commentaire = { note: TEXTES_FIL_ITERATION[gesteCommentaire.fil].refus, adId: null, variable: null, hypothese: null, provenance: null };
   else if (gesteCommentaire.etat === 'ok') {
-    const lu = active ? await lireCommentairePourIterer(s, active.id, gesteCommentaire) : null;
-    if (!lu) commentaire = { note: REFUS_GESTE_COMMENTAIRE, adId: null, variable: null, hypothese: null, provenance: null };
+    const fil = gesteCommentaire.fil;
+    const lu = !active ? null : fil === 'commentaire'
+      ? await lireCommentairePourIterer(s, active.id, { commentaireId: gesteCommentaire.id, projetId: gesteCommentaire.projetId })
+      : await lireNotePourIterer(s, active.id, { noteId: gesteCommentaire.id, projetId: gesteCommentaire.projetId });
+    if (!lu) commentaire = { note: TEXTES_FIL_ITERATION[fil].refus, adId: null, variable: null, hypothese: null, provenance: null };
     else {
-      const d = departDepuisCommentaire(lu.texte, lu.adsmapAdId, variables[lu.adsmapAdId] ?? null);
-      commentaire = { note: d.note, adId: d.adId, variable: d.variable, hypothese: d.hypothese, provenance: { commentaireId: lu.commentaireId, projetId: lu.projetId } };
+      const d = departDepuisFil(fil, lu.texte, lu.adsmapAdId, variables[lu.adsmapAdId] ?? null);
+      commentaire = {
+        note: d.note, adId: d.adId, variable: d.variable, hypothese: d.hypothese,
+        provenance: fil === 'commentaire' ? { commentaireId: gesteCommentaire.id, projetId: lu.projetId } : null,
+        provenanceNote: fil === 'note' ? { noteId: gesteCommentaire.id, projetId: lu.projetId } : null,
+      };
     }
   }
   const demandee = commentaire?.adId ?? demande;

@@ -132,7 +132,7 @@ describe('Lot 13 bis · l’aide d’un projet, filtrée par la règle du noyau'
   });
   it('la phrase de l’aide filtrée nomme les portées montrées, sans tiret cadratin', () => {
     const t = libelleAideFiltree(PORTEES_AIDE_PROJET);
-    expect(t).toBe('Raccourcis du projet · fenêtres, panneaux et menus · éditeur de créa · canvas du projet · mentions dans un commentaire. Ceux de toute l’application sont dans l’aide complète.');
+    expect(t).toBe('Raccourcis du projet · fenêtres, panneaux et menus · éditeur de créa · canvas du projet · mentions dans un commentaire ou une note. Ceux de toute l’application sont dans l’aide complète.');
     expect(sansTiretCadratin(t)).toBe(t);
   });
 });
