@@ -5,7 +5,7 @@ import {
   TEXTES_NOTE, aPermissionEspace, cleNoeudNote, droitsCommentaire, erreurStudio, historiqueApresModification, libelleAuteurVersion,
   lireHistoriqueCommentaire, noeudPourNote, objetDansPortee, quandJournal, validerTexteCommentaire, RAISON_PAS_UN_NOEUD,
   aPrevenirMentions, extraitCommentaire, gesteHypotheseNote, gesteIterationNote, historiqueAvecMentions, lienLigneeProjet, lireMentions,
-  noeudDeGeste, nomAffichageMention, prevenusApres, resultatsFil, segmentsCommentaire, statutsHypothesesNote,
+  noeudDeGeste, nomAffichageMention, prevenusApres, resultatsFil, segmentsCommentaire, statutsHypothesesNote, gestesGagnantesFil,
   type ErreurStudio, type MembreBrut, type TestPourGeste,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
@@ -132,6 +132,10 @@ async function vueNotes(ctx: ContexteStudio, p: ProjetStudio): Promise<NotesLign
       const n = noeudDeGeste(l.nodeKey);
       const o = portes ?? fermees;
       const anciens = lireHistoriqueCommentaire(l.history);
+      const iterations = nees.iterations.get(l.id) ?? [];
+      const resultats = resultatsFil(iterations, { resultats: o.resultats, marqueActive: o.marqueActive });
+      // « Itérer depuis la gagnante » · sous un résultat CONFIRMÉ seulement · la porte de l'écran Itérer (`studio.propose`, rôle de Résultats, marque active).
+      const gagnantes = gestesGagnantesFil('note', resultats, iterations, { id: l.id, projetId: p.id, marqueActive: o.marqueActive, peutIterer: peutEcrire && o.adsmap === 'ok' });
       return {
         id: l.id, noeud: l.nodeKey, libelleNoeud: l.nodeLabel,
         auteur: nom(l.authorId) ?? 'Un ancien membre de l’espace',
@@ -147,7 +151,8 @@ async function vueNotes(ctx: ContexteStudio, p: ProjetStudio): Promise<NotesLign
           ? gesteIterationNote({ id: l.id, projetId: p.id, noeud: l.nodeKey, test: tests.get(n.varianteId) ?? null }, { resultats: o.resultats, marqueActive: o.marqueActive })
           : null,
         hypothese: n?.geste === 'hypothese' ? gesteHypotheseNote({ id: l.id, projetId: p.id, noeud: l.nodeKey }, { adsmap: o.adsmap, marqueActive: o.marqueActive }) : null,
-        resultats: resultatsFil(nees.iterations.get(l.id) ?? [], { resultats: o.resultats, marqueActive: o.marqueActive }),
+        resultats,
+        ...(Object.keys(gagnantes).length ? { gagnantes } : {}),
         hypotheses: statutsHypothesesNote(nees.hypotheses.get(l.id) ?? [], { resultats: o.resultats, marqueActive: o.marqueActive }),
       };
     }),

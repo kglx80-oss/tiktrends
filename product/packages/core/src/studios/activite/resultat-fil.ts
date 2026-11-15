@@ -3,6 +3,7 @@ import type { EtatLotSpatial } from '../../spatial/resultats/lots';
 import { resultatHypothese, type ProvenanceCommentaire, type ProvenanceNote, type StatutResultatHypothese } from '../../spatial/resultats/boucle-preuve';
 import { cartesHypotheses, COLONNES_HYPOTHESES, type ColonneHypothese, type FaitsHypotheseAd } from '../../spatial/resultats/ecrans';
 import type { OrigineHypotheseLibre } from '../../spatial/resultats/hypotheses-libres';
+import type { VerdictValue } from '../../adsmap/types';
 
 /**
  * Studios · le RÉSULTAT sous le FIL d'où l'itération est née · un commentaire
@@ -52,6 +53,10 @@ export interface IterationDuFil {
   variante: string;
   lot: { id: string; numero: number; etat: EtatLotSpatial } | null;
   conclusion: LectureConclusion | null;
+  /** Le verdict ARBITRÉ de la variante · « Itérer depuis la gagnante » ne part que d'une gagnante (`gestesGagnantesFil`) · absent, aucun. */
+  verdict?: { validated: VerdictValue | null; comparable: boolean } | null;
+  /** L'ad gagnante du même fil dont l'itération est partie (`source_ref_json.<fil>.gagnanteAdId`) · absent sinon. */
+  gagnante?: string | null;
 }
 
 export type ResultatFil =
@@ -59,8 +64,10 @@ export type ResultatFil =
     etat: 'conclue'; adId: string; variante: string; statut: StatutResultatHypothese; libelle: string;
     classe: '' | 'g' | 'r'; icone: 'check' | 'x' | 'q'; chiffre: string;
     lot: { numero: number; href: string | null; raison: string | null };
+    /** Le code de la gagnante du même fil dont elle est née (« V7 ») · absent sinon. */
+    depuis?: string;
   }
-  | { etat: 'en_test'; adId: string; variante: string; libelle: string; phrase: string };
+  | { etat: 'en_test'; adId: string; variante: string; libelle: string; phrase: string; depuis?: string };
 
 /** Ce que chaque fil porte comme provenance sur l'ad · l'identifiant du fil et son projet. */
 type AdDeFil = { commentaire?: ProvenanceCommentaire | null; note?: ProvenanceNote | null };
@@ -90,15 +97,20 @@ export function iterationsDuFil<T extends AdDeFil>(ads: readonly T[], o: { fil: 
  */
 export function resultatsFil(iterations: readonly IterationDuFil[], o: { resultats: boolean; marqueActive: boolean }): ResultatFil[] {
   if (!o.resultats) return [];
+  // « née de la gagnante V7 » · seulement quand la gagnante est une itération du MÊME fil (lue ici) · le champ n'existe pas sinon.
+  const codes = new Map(iterations.map((it) => [it.adId.toLowerCase(), it.variante]));
   return [...iterations]
     .sort((a, b) => a.variante.localeCompare(b.variante, 'fr', { numeric: true }) || a.adId.localeCompare(b.adId))
     .map((it): ResultatFil => {
+      const depuis = it.gagnante ? codes.get(it.gagnante.toLowerCase()) : undefined;
+      const plus = depuis && it.gagnante!.toLowerCase() !== it.adId.toLowerCase() ? { depuis } : {};
       const r = resultatHypothese(it.lot, it.conclusion);
-      if (!r) return { etat: 'en_test', adId: it.adId, variante: it.variante, libelle: LIBELLE_ITERATION_EN_TEST, phrase: PHRASE_ITERATION_EN_TEST };
+      if (!r) return { etat: 'en_test', adId: it.adId, variante: it.variante, libelle: LIBELLE_ITERATION_EN_TEST, phrase: PHRASE_ITERATION_EN_TEST, ...plus };
       return {
         etat: 'conclue', adId: it.adId, variante: it.variante, statut: r.statut, libelle: LIBELLE_RESULTAT_FIL[r.statut],
         classe: r.classe, icone: r.icone, chiffre: r.chiffre,
         lot: { numero: r.lot.numero, href: o.marqueActive ? r.lot.href : null, raison: o.marqueActive ? null : RAISON_LOT_AUTRE_MARQUE },
+        ...plus,
       };
     });
 }
