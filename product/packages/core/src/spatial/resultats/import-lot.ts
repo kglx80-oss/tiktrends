@@ -32,6 +32,9 @@ export interface LotListeImport {
   ads: ReadonlyArray<VarianteListeImport>;
 }
 
+/** Ce que la règle `lotAttendDesMesures` lit d'un lot · son état (statut, lancement, verdicts) et ses variantes · ni son but, ni son identité. */
+export type FaitsLotAImporter = Pick<LotListeImport, 'statut' | 'lanceLe' | 'ads'>;
+
 /** Les états d'un lot qui reçoit encore des mesures · lancé, suivi dans l'outil, pas encore à arbitrer. */
 const ETATS_EN_MESURE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['diffusion', 'a_importer']);
 
@@ -43,7 +46,7 @@ const ETATS_EN_MESURE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['d
  * variantes sans mesure, ou sous le minimum du moteur de la MARQUE) · « chaque
  * variante a ses mesures » et le silence n'attendent rien.
  */
-export function lotAttendDesMesures(l: LotListeImport, ctx: ContexteLots, seuil: SeuilMinimumMoteur): boolean {
+export function lotAttendDesMesures(l: FaitsLotAImporter, ctx: ContexteLots, seuil: SeuilMinimumMoteur): boolean {
   if (!ETATS_EN_MESURE.has(etatLotSpatial(l, ctx))) return false;
   if (!sourcesImportLot(l.ads).ok) return false;
   const d = diagnosticFinPrevue(l.ads, seuil);
@@ -84,6 +87,56 @@ export function listeLotImport(lots: readonly LotListeImport[], cible: string | 
 /** La sélection devient l'adresse · `''` (« Tous les lots ») → l'écran sans lot · un lot → l'écran ouvert sur lui. */
 export function adresseListeLot(valeur: string): string {
   return valeur ? lienImportLot(valeur) : CHEMIN_IMPORT_RESULTATS;
+}
+
+/* ───────────── le compte « à importer » · la pastille du rail ───────────── */
+
+/**
+ * Le compte « à importer » · le nombre de lots de la liste « Lot » de l'écran
+ * d'import qui ATTENDENT des mesures (`listeLotImport` sans lot dans l'adresse),
+ * par la MÊME règle (`lotAttendDesMesures`, aucune copie), dans l'ordre reçu
+ * (celui de la liste · le plus récent d'abord). DISTINCT du compte « à
+ * conclure » (`compteAConclure`) · un lot à conclure n'attend aucune mesure,
+ * un lot qui attend ses mesures n'a rien à arbitrer · les deux ne
+ * s'additionnent jamais (deux pastilles, deux unités, deux destinations).
+ */
+export interface CompteAImporter {
+  n: number;
+  /** Les lots comptés, dans l'ordre de la liste. */
+  lots: ReadonlyArray<{ id: string; numero: number }>;
+}
+
+export function compteAImporter(lots: ReadonlyArray<FaitsLotAImporter & { id: string; numero: number }>, ctx: ContexteLots, seuil: SeuilMinimumMoteur): CompteAImporter {
+  const s = lots.filter((l) => lotAttendDesMesures(l, ctx, seuil));
+  return { n: s.length, lots: s.map((l) => ({ id: l.id, numero: l.numero })) };
+}
+
+/** La pastille « à importer » du rail · un lien (jamais un simple point) vers l'import. */
+export interface PastilleAImporter {
+  /** Le compteur dessiné (`rbadge` de la maquette). */
+  valeur: string;
+  /** `/adsmap/import?lot=<id>` quand UN lot attend (l'écran s'ouvre sur lui) · `/adsmap/import` sinon (la liste « Lot » montre ceux qui attendent). */
+  href: string;
+  titre: string;
+  /** Le compte dit en mots · nom du lien (lecteur d'écran) et bulle du rail replié. */
+  libelle: string;
+  /** Le sous-titre du rail ouvert · court (la colonne du libellé s'arrête avant le compteur, mesuré au rendu). */
+  sous: string;
+}
+
+export const TITRE_PASTILLE_A_IMPORTER = 'À importer';
+
+/** Posée s'il existe AU MOINS un lot qui attend ses mesures, absente sinon. */
+export function pastilleAImporter(c: CompteAImporter): PastilleAImporter | null {
+  if (c.n <= 0 || !c.lots.length) return null;
+  const un = c.n === 1 ? c.lots[0]! : null;
+  return {
+    valeur: String(c.n),
+    href: un ? lienImportLot(un.id) : CHEMIN_IMPORT_RESULTATS,
+    titre: TITRE_PASTILLE_A_IMPORTER,
+    libelle: un ? `Lot #${un.numero} · attend ses mesures` : `${c.n} lots attendent leurs mesures`,
+    sous: un ? `Mesures du lot #${un.numero}` : `Mesures de ${c.n} lots`,
+  };
 }
 
 /* ───────────────────────── après le dépôt d'un export ───────────────────────── */
