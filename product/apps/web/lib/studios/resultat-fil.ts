@@ -2,7 +2,7 @@ import 'server-only';
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  hypothesesDeLaNote, iterationsDuFil,
+  hypothesesDeLaNote, iterationsDuFil, lireGagnanteDuFil,
   type FaitsHypotheseAd, type FilResultat, type IterationDuFil,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
@@ -44,8 +44,10 @@ export async function lireResultatsDesFils(ctx: ContexteStudio, p: ProjetStudio,
   const nee = fil === 'note'
     ? or(inArray(sql<string>`${A.sourceRef}->'note'->>'noteId'`, [...ids]), inArray(sql<string>`${A.sourceRef}->'hypotheseLibre'->>'noteId'`, [...ids]))
     : inArray(sql<string>`${A.sourceRef}->'commentaire'->>'commentaireId'`, [...ids]);
-  const nees = await db.select({ id: A.id }).from(A).where(and(eq(A.workspaceId, ctx.workspaceId), nee)).limit(ADS_NEES_MAX_LUES);
+  const nees = await db.select({ id: A.id, sourceRef: A.sourceRef }).from(A).where(and(eq(A.workspaceId, ctx.workspaceId), nee)).limit(ADS_NEES_MAX_LUES);
   if (!nees.length) return out;
+  // « Itérer depuis la gagnante » · la gagnante du MÊME fil dont une itération est partie (identifiant seul, relu du JSON de source).
+  const gagnanteDe = new Map(nees.map((n) => [n.id.toLowerCase(), lireGagnanteDuFil(n.sourceRef, fil)]));
   const faits = faitsHypotheses(await chargerLots(ctx.workspaceId, p.brandId));
   const ads = faits.map((f) => ({ f, commentaire: f.ad.commentaire ?? null, note: f.ad.note ?? null, origine: f.origine ?? null }));
   for (const id of ids) {
@@ -53,6 +55,8 @@ export async function lireResultatsDesFils(ctx: ContexteStudio, p: ProjetStudio,
       adId: f.ad.id, variante: f.ad.variante,
       lot: f.lot ? { id: f.lot.id, numero: f.lot.numero, etat: f.lot.etat } : null,
       conclusion: f.lot?.conclusion ?? null,
+      verdict: f.ad.verdict ? { validated: f.ad.verdict.retenu, comparable: f.ad.verdict.comparable } : null,
+      gagnante: gagnanteDe.get(f.ad.id.toLowerCase()) ?? null,
     }));
     if (liste.length) out.iterations.set(id, liste);
     if (fil === 'note') {

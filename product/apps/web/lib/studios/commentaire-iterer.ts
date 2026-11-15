@@ -1,13 +1,15 @@
 import 'server-only';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { aPermissionEspace, libelleAuteurVersion, noeudDeGeste, objetDansPortee } from '@tiktrends/core';
+import { aPermissionEspace, gagnantesConfirmees, libelleAuteurVersion, noeudDeGeste, objetDansPortee, type FilIteration, type GagnanteDuFil } from '@tiktrends/core';
 import type { Session } from '../auth';
 import { effectiveAccess } from '../access';
 import { canAccess, FEATURES } from '../rbac';
 import { gardeStudio } from './garde';
 import { listerVariantes } from './variantes/variantes';
 import { refusCapacite } from './interrupteurs';
+import { lireProjet } from './depot';
+import { lireResultatsDesFils } from './resultat-fil';
 
 /**
  * « Itérer depuis ce commentaire » · le côté serveur · une LECTURE, jamais une
@@ -144,5 +146,31 @@ export async function lireNotePourHypothese(s: SessionLue, brandId: string, d: {
     return l && noeudDeGeste(l.note.noeud)?.geste === 'hypothese' ? l.note : null;
   } catch {
     return null;
+  }
+}
+
+/* ───────────────────────── la gagnante confirmée d'un fil ───────────────────────── */
+
+/**
+ * « Itérer depuis la gagnante » · les itérations CONFIRMÉES nées d'un fil, relues
+ * dans la portée · la portée des deux fils (`projetDeLaPortee` · Résultats,
+ * garde des Studios, marque active, projet de l'adresse), le projet relu
+ * (`lireProjet`), puis la lecture de l'écran sous le fil (`lireResultatsDesFils`
+ * · provenance du fil ET du projet, ads des lots de la marque du projet,
+ * conclusion de leur lot) et la règle du noyau (`gagnantesConfirmees`).
+ * LECTURE seule · `[]` sinon (rien ne dit pourquoi). L'appelant a déjà relu le
+ * fil lui-même (`lireCommentairePourIterer`, `lireNotePourIterer`).
+ */
+export async function lireGagnantesDuFil(s: SessionLue, brandId: string, d: { fil: FilIteration; id: string; projetId: string }): Promise<GagnanteDuFil[]> {
+  if (!db || !UUID.test(d.id) || !UUID.test(d.projetId)) return [];
+  try {
+    const x = await projetDeLaPortee(s, brandId, d.projetId);
+    if (!x) return [];
+    const p = await lireProjet(x.g.ctx, x.projetId);
+    if (!p.ok || p.projet.brandId !== brandId) return [];
+    const r = await lireResultatsDesFils(x.g.ctx, p.projet, d.fil, [d.id.toLowerCase()]);
+    return gagnantesConfirmees(r.iterations.get(d.id.toLowerCase()) ?? []);
+  } catch {
+    return [];
   }
 }

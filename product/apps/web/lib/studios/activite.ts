@@ -6,7 +6,7 @@ import {
   LECTURE_MAX_JOURNAL, aPermissionEspace, droitsCommentaire, erreurStudio, extraitCommentaire, historiqueApresModification, journalProjet,
   libelleAuteurVersion, lireHistoriqueCommentaire, objetDansPortee, quandJournal, validerTexteCommentaire, vueVariantes, cibleCommentaire,
   gesteIterationCommentaire, aPrevenirMentions, historiqueAvecMentions, lireMentions,
-  nomAffichageMention, prevenusApres, proprietairePrevenuSansMention, resultatsCommentaire, segmentsCommentaire,
+  nomAffichageMention, prevenusApres, proprietairePrevenuSansMention, resultatsCommentaire, segmentsCommentaire, gestesGagnantesFil,
   type ErreurStudio, type FaitJournal, type JournalProjet, type CommentairePourGeste, type IterationDuCommentaire, type MembreBrut,
 } from '@tiktrends/core';
 import type { ContexteStudio } from './garde';
@@ -247,6 +247,10 @@ async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<Commen
     mentionnables: peutProposer ? mentionnablesDe(ctx, c.projet, membres) : [],
     commentaires: lignes.map((l) => {
       const modifications = lireHistoriqueCommentaire(l.history).length;
+      const nees = iterations.get(l.id) ?? [];
+      const resultatsDuFil = resultatsCommentaire(nees, { resultats, marqueActive });
+      // « Itérer depuis la gagnante » · sous un résultat CONFIRMÉ seulement · la porte de l'écran Itérer (`studio.propose`, marque active).
+      const gagnantes = gestesGagnantesFil('commentaire', resultatsDuFil, nees, { id: l.id, projetId: c.projet.id, marqueActive, peutIterer: peutProposer });
       return {
         id: l.id,
         cible: l.targetType === 'version'
@@ -263,7 +267,8 @@ async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<Commen
           id: l.id, projetId: c.projet.id, cible: l.targetType === 'version' ? 'version' : 'creation',
           test: l.targetType === 'creation' && l.assetId ? c.tests.get(l.assetId) ?? null : null,
         }, { resultats, marqueActive }),
-        resultats: resultatsCommentaire(iterations.get(l.id) ?? [], { resultats, marqueActive }),
+        resultats: resultatsDuFil,
+        ...(Object.keys(gagnantes).length ? { gagnantes } : {}),
         rowVersion: l.rowVersion,
       };
     }),

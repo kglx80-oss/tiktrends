@@ -6,3 +6,5 @@ export * from './mentions';
 export * from './resultat-fil';
 export * from './resultat-commentaire';
 export * from './mes-mentions';
+export * from './cloche-portee';
+export * from './iterer-gagnante';

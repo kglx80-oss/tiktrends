@@ -231,7 +231,7 @@ function Note({ n, lieu, ctl, avecNoeud = false }: { n: VueNoteLignee; lieu: str
               : n.texte}
           </span>
         )}
-        {edition === null && !!n.resultats?.length && <ResultatsFil fil="note" resultats={n.resultats} />}
+        {edition === null && !!n.resultats?.length && <ResultatsFil fil="note" resultats={n.resultats} gagnantes={n.gagnantes} />}
         {edition === null && !!n.hypotheses?.length && <StatutsHypothesesNote statuts={n.hypotheses} />}
         {n.modifie && <small className="faint" data-modifie-note="" style={{ display: 'block', fontSize: '11.5px' }}>{n.modifie}</small>}
         {n.anciens.length > 0 && (
