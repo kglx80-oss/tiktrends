@@ -3,14 +3,15 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
-  COMPTES_VIDES, MENTIONS_MAX_LUES, MENTIONS_PAR_PAGE, aPermissionEspace, filDeLaMention, genreDeNotif, libelleAuteurVersion, ligneMention,
-  lireHistoriqueCommentaire, lireMentions, nomAffichageMention, objetDansPortee, paginationMentions, projetDuLienMention, quandJournal,
-  segmentsCommentaire, totalDuFiltre, typesDuFiltre, vueMesMentions,
-  type ComptesMentions, type FilLu, type FilMentionnant, type FiltresMentions, type GenreMention, type MembreBrut, type VueMesMentions,
+  COMPTES_VIDES, MENTIONS_MAX_LUES, MENTIONS_PAR_PAGE, aPermissionEspace, besoinsCloche, bornageDeNotif, filDeLaMention, genreDeNotif,
+  libelleAuteurVersion, ligneMention, lireHistoriqueCommentaire, lireMentions, nomAffichageMention, notifsDansPortee, objetDansPortee,
+  paginationMentions, projetDuLienMention, quandJournal, segmentsCommentaire, totalDuFiltre, typesDuFiltre, vueMesMentions,
+  type ComptesMentions, type FilLu, type FilMentionnant, type FiltresMentions, type GenreMention, type MembreBrut, type NotifCloche,
+  type VueMesMentions,
 } from '@tiktrends/core';
 import type { Session } from '../auth';
 import { gardeStudio, type ContexteStudio } from './garde';
-import { lireProjet, type ProjetStudio } from './depot';
+import { lireProjetsDeLaPortee, type ProjetStudio } from './depot';
 import { refusCapacite } from './interrupteurs';
 import { membresDeLEspace } from './membres-mentions';
 
@@ -33,6 +34,14 @@ import { membresDeLEspace } from './membres-mentions';
  *    `history`, la règle de #1066) · le noyau choisit celui de la
  *    notification (`filDeLaMention`) · son texte COURANT, ses mentions sous le
  *    nom courant (`segmentsCommentaire`, `nomAffichageMention`).
+ *
+ * La MÊME relecture sert la cloche (`notifsRelues` · centre de notifications,
+ * bandeau, « Quoi de neuf » de l'Accueil · règles :
+ * `C/studios/activite/cloche-portee.ts`) · une notification bornée que rien ne
+ * relit dans la portée est montrée sans son texte, son projet ni son lien.
+ *
+ * Lectures BORNÉES · les projets en une requête (`lireProjetsDeLaPortee`), les
+ * fils en une requête par genre · jamais une par notification ni par projet.
  *
  * Gratuit · aucun appel IA, aucune génération, aucune dépense.
  */
@@ -116,6 +125,50 @@ async function porteeDesGenres(): Promise<{ ctx: ContexteStudio | null; genres: 
   return { ctx: g.ctx, genres };
 }
 
+/**
+ * Les projets désignés, relus dans la portée en UNE requête, puis les fils de
+ * chaque genre qui ont prévenu la personne (une requête par genre).
+ */
+async function relireProjetsEtFils(ctx: ContexteStudio, genres: ReadonlySet<GenreMention>, besoins: { projets: readonly string[]; fils: Readonly<Record<GenreMention, readonly string[]>> }): Promise<{ projets: Map<string, ProjetStudio>; fils: Map<string, FilBrut> }> {
+  const projets = new Map<string, ProjetStudio>();
+  for (const p of await lireProjetsDeLaPortee(ctx, besoins.projets).catch(() => [] as ProjetStudio[])) projets.set(p.id.toLowerCase(), p);
+  const fils = new Map<string, FilBrut>();
+  for (const g of genres) {
+    const duGenre = [...new Set(besoins.fils[g])].filter((x) => projets.has(x)).map((x) => projets.get(x)!);
+    for (const x of await filsQuiOntPrevenu(ctx, g, duGenre).catch(() => [] as FilBrut[])) fils.set(`${g}:${x.id}`, x);
+  }
+  return { projets, fils };
+}
+
+/** Les fils relus, tels que la règle du noyau les compare (`filDeLaMention`). */
+function candidatsDe(fils: Iterable<FilBrut>): FilMentionnant[] {
+  return [...fils].map((x) => ({
+    id: x.id, genre: x.genre, projetId: x.projectId,
+    textes: [x.body, ...lireHistoriqueCommentaire(x.history).map((a) => a.texte)],
+    instants: [x.createdAt.getTime(), ...lireHistoriqueCommentaire(x.history).map((a) => Date.parse(a.remplaceLe)).filter((t) => Number.isFinite(t))],
+  }));
+}
+
+/**
+ * Ce que la cloche MONTRE de ces notifications (dans leur ordre) · relues dans
+ * la portée actuelle (`notifRelueDansPortee`) · une notification non bornée
+ * est rendue telle quelle, sans aucune lecture · une bornée que rien ne relit
+ * (autre espace, marque ou droits Studios retirés, fil introuvable, lecture en
+ * échec) a le libellé neutre, sans texte, ni projet, ni lien.
+ */
+export async function notifsRelues(s: SessionMentions, notifs: readonly NotifCloche[]): Promise<Array<{ titre: string; corps: string | null; href: string | null }>> {
+  const aRelire = notifs.some((n) => bornageDeNotif(n.type) && n.workspaceId === s.workspaceId && projetDuLienMention(n.href));
+  if (!db || !aRelire) return notifsDansPortee(notifs, null);
+  try {
+    const { ctx, genres } = await porteeDesGenres();
+    if (!ctx || !genres.size || ctx.workspaceId !== s.workspaceId || ctx.userId !== s.user.id) return notifsDansPortee(notifs, null);
+    const { projets, fils } = await relireProjetsEtFils(ctx, genres, besoinsCloche(notifs, ctx.workspaceId, genres));
+    return notifsDansPortee(notifs, { workspaceId: ctx.workspaceId, genres, projets: new Set(projets.keys()), fils: candidatsDe(fils.values()) });
+  } catch {
+    return notifsDansPortee(notifs, null);
+  }
+}
+
 /** La page « Mes mentions » de la session, pour ces filtres · relue dans la portée actuelle. */
 export async function lireMesMentions(s: SessionMentions, f: FiltresMentions): Promise<VueMesMentions> {
   if (!db) return vueMesMentions({ filtres: f, comptes: COMPTES_VIDES, lignes: [] });
@@ -130,26 +183,12 @@ export async function lireMesMentions(s: SessionMentions, f: FiltresMentions): P
     .limit(Math.max(0, Math.min(MENTIONS_PAR_PAGE, MENTIONS_MAX_LUES - p.debut))).offset(p.debut);
 
   const { ctx, genres } = notifs.length ? await porteeDesGenres() : { ctx: null, genres: new Set<GenreMention>() };
-  const fils = new Map<string, FilBrut>();
-  const projets = new Map<string, ProjetStudio>();
-  if (ctx && genres.size) {
-    // Les projets des mentions, relus dans la portée (un projet hors portée n'est pas lu).
-    const ids = [...new Set(notifs.flatMap((n) => { const g = genreDeNotif(n.type); const pid = projetDuLienMention(n.href); return g && genres.has(g) && pid ? [pid] : []; }))];
-    for (const pid of ids) {
-      const r = await lireProjet(ctx, pid).catch(() => null);
-      if (r?.ok) projets.set(pid, r.projet);
-    }
-    for (const g of genres) {
-      const duGenre = [...new Set(notifs.filter((n) => genreDeNotif(n.type) === g).map((n) => projetDuLienMention(n.href)).filter((x): x is string => !!x && projets.has(x)))].map((x) => projets.get(x)!);
-      for (const x of await filsQuiOntPrevenu(ctx, g, duGenre).catch(() => [] as FilBrut[])) fils.set(`${g}:${x.id}`, x);
-    }
-  }
+  // Les projets des mentions, relus dans la portée en une requête (un projet hors portée n'est pas lu), puis leurs fils.
+  const { projets, fils } = ctx && genres.size
+    ? await relireProjetsEtFils(ctx, genres, besoinsCloche(notifs.map((n) => ({ type: n.type, workspaceId: s.workspaceId, href: n.href })), s.workspaceId, genres))
+    : { projets: new Map<string, ProjetStudio>(), fils: new Map<string, FilBrut>() };
 
-  const candidats: FilMentionnant[] = [...fils.values()].map((x) => ({
-    id: x.id, genre: x.genre, projetId: x.projectId,
-    textes: [x.body, ...lireHistoriqueCommentaire(x.history).map((a) => a.texte)],
-    instants: [x.createdAt.getTime(), ...lireHistoriqueCommentaire(x.history).map((a) => Date.parse(a.remplaceLe)).filter((t) => Number.isFinite(t))],
-  }));
+  const candidats = candidatsDe(fils.values());
   const choisis = notifs.map((n) => {
     const g = genreDeNotif(n.type);
     return g ? (filDeLaMention({ genre: g, projetId: projetDuLienMention(n.href), corps: n.body, creeLe: n.createdAt.getTime() }, candidats)) : null;

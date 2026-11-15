@@ -26,6 +26,7 @@ import { compterBoucle } from '../../../../lib/boucle-resultats';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { unlimitedCredits } from '../../../../lib/credits';
 import { compterAConclure } from '../adsmap/donnees';
+import { notifsRelues } from '../../../../lib/studios/mes-mentions';
 import type { EtatQuoiIterer, EtatReporting, PropsAccueil } from '../../../../spatial/vues/accueil/Accueil';
 
 /**
@@ -110,13 +111,18 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
         vignette: vignetteDuLot(r.candidates, vignettes),
       }));
     }) : Promise.resolve(null),
-    // Les dernières notifications de la personne, dans cet espace (même portée que la cloche de l'Accueil V5).
-    db ? lire('notifications', () => db!.select({
-      id: schema.notifications.id, type: schema.notifications.type, titre: schema.notifications.title,
-      corps: schema.notifications.body, href: schema.notifications.href, creeLe: schema.notifications.createdAt,
-    }).from(schema.notifications)
-      .where(and(eq(schema.notifications.userId, s.user.id), eq(schema.notifications.workspaceId, s.workspaceId)))
-      .orderBy(desc(schema.notifications.createdAt)).limit(4)) : Promise.resolve(null),
+    // Les dernières notifications de la personne, dans cet espace (même portée que la cloche de l'Accueil V5) ·
+    // relues dans la portée comme la cloche (`notifsRelues`) · un fil hors portée ne laisse ni texte ni lien.
+    db ? lire('notifications', async () => {
+      const lignes = await db!.select({
+        id: schema.notifications.id, type: schema.notifications.type, titre: schema.notifications.title,
+        corps: schema.notifications.body, href: schema.notifications.href, creeLe: schema.notifications.createdAt,
+      }).from(schema.notifications)
+        .where(and(eq(schema.notifications.userId, s.user.id), eq(schema.notifications.workspaceId, s.workspaceId)))
+        .orderBy(desc(schema.notifications.createdAt)).limit(4);
+      const montrees = await notifsRelues(s, lignes.map((n) => ({ ...n, workspaceId: s.workspaceId, creeLe: n.creeLe.getTime() })));
+      return lignes.map((n, i) => ({ ...n, ...montrees[i]! }));
+    }) : Promise.resolve(null),
     // LA lecture de la connexion ET des chiffres clés Meta · la même que la vue Analytics, Jarvis et le Radar (D2).
     analyticsOuvert ? lire('chiffres clés Meta', () => lireChiffresClesMeta(marque!.id, s.workspaceId, maintenant)) : Promise.resolve(null),
     // LE compte « à conclure » · celui de la pastille du rail et des lignes de la liste « À conclure »
