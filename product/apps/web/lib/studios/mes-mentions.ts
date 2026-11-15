@@ -3,13 +3,14 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
-  COMPTES_VIDES, MENTIONS_MAX_LUES, MENTIONS_PAR_PAGE, aPermissionEspace, besoinsCloche, bornageDeNotif, filDeLaMention, genreDeNotif,
+  COMPTES_VIDES, MENTIONS_MAX_LUES, MENTIONS_PAR_PAGE, aPermissionEspace, besoinsCloche, besoinsTickets, bornageDeNotif, filDeLaMention, genreDeNotif,
   libelleAuteurVersion, ligneMention, lireHistoriqueCommentaire, lireMentions, nomAffichageMention, notifsDansPortee, objetDansPortee,
   paginationMentions, projetDuLienMention, quandJournal, segmentsCommentaire, totalDuFiltre, typesDuFiltre, vueMesMentions,
   type ComptesMentions, type FilLu, type FilMentionnant, type FiltresMentions, type GenreMention, type MembreBrut, type NotifCloche,
-  type VueMesMentions,
+  type PorteeCloche, type PorteeTickets, type VueMesMentions,
 } from '@tiktrends/core';
 import type { Session } from '../auth';
+import { roleAtLeast, type Role } from '../rbac';
 import { gardeStudio, type ContexteStudio } from './garde';
 import { lireProjetsDeLaPortee, type ProjetStudio } from './depot';
 import { refusCapacite } from './interrupteurs';
@@ -38,10 +39,14 @@ import { membresDeLEspace } from './membres-mentions';
  * La MÊME relecture sert la cloche (`notifsRelues` · centre de notifications,
  * bandeau, « Quoi de neuf » de l'Accueil · règles :
  * `C/studios/activite/cloche-portee.ts`) · une notification bornée que rien ne
- * relit dans la portée est montrée sans son texte, son projet ni son lien.
+ * relit dans la portée est montrée sans son texte, son projet ni son lien ·
+ * une notification de ticket de support est relue par la MÊME voie contre
+ * l'accès au ticket (règle de la page du ticket, `peutLireTicket`, sous le
+ * rôle actuel dans l'espace du ticket · `accesTicketsDeLaCloche`).
  *
  * Lectures BORNÉES · les projets en une requête (`lireProjetsDeLaPortee`), les
- * fils en une requête par genre · jamais une par notification ni par projet.
+ * fils en une requête par genre, les tickets en une requête (joints au rôle
+ * de la personne) · jamais une par notification, ni par projet, ni par ticket.
  *
  * Gratuit · aucun appel IA, aucune génération, aucune dépense.
  */
@@ -149,24 +154,57 @@ function candidatsDe(fils: Iterable<FilBrut>): FilMentionnant[] {
   }));
 }
 
+/** La portée Studios relue pour la cloche · `null` quand aucune notification bornée de l'espace courant n'est à relire, ou que rien ne l'a été. */
+async function porteeStudiosDeLaCloche(s: SessionMentions, notifs: readonly NotifCloche[]): Promise<PorteeCloche | null> {
+  const aRelire = notifs.some((n) => bornageDeNotif(n.type) && n.workspaceId === s.workspaceId && projetDuLienMention(n.href));
+  if (!db || !aRelire) return null;
+  try {
+    const { ctx, genres } = await porteeDesGenres();
+    if (!ctx || !genres.size || ctx.workspaceId !== s.workspaceId || ctx.userId !== s.user.id) return null;
+    const { projets, fils } = await relireProjetsEtFils(ctx, genres, besoinsCloche(notifs, ctx.workspaceId, genres));
+    return { workspaceId: ctx.workspaceId, genres, projets: new Set(projets.keys()), fils: candidatsDe(fils.values()) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Les tickets que désignent les notifications de support, relus en UNE
+ * requête · chacun avec son espace, son auteur et le rôle ACTUEL de la
+ * personne dans cet espace (aucune ligne de membre · retirée, pas
+ * administratrice) · de TOUS les espaces (la cloche n'est pas bornée à
+ * l'espace courant) · `null` sans notification de ticket (aucune lecture) ou
+ * quand la lecture échoue (aucune n'est alors lue sur parole).
+ */
+async function accesTicketsDeLaCloche(s: SessionMentions, notifs: readonly NotifCloche[]): Promise<PorteeTickets | null> {
+  const ids = besoinsTickets(notifs);
+  if (!db || !ids.length) return null;
+  try {
+    const T = schema.tickets, M = schema.workspaceMembers;
+    const lignes = await db.select({ id: T.id, workspaceId: T.workspaceId, auteurId: T.userId, role: M.role }).from(T)
+      .leftJoin(M, and(eq(M.workspaceId, T.workspaceId), eq(M.userId, s.user.id)))
+      .where(inArray(T.id, ids));
+    return {
+      utilisateurId: s.user.id,
+      // La règle de la page du ticket · `admin = roleAtLeast(rôle, 'admin')`, ici le rôle dans l'espace DU ticket.
+      tickets: new Map(lignes.map((l) => [l.id.toLowerCase(), { workspaceId: l.workspaceId, auteurId: l.auteurId, admin: l.role != null && roleAtLeast(l.role as Role, 'admin') }])),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Ce que la cloche MONTRE de ces notifications (dans leur ordre) · relues dans
  * la portée actuelle (`notifRelueDansPortee`) · une notification non bornée
  * est rendue telle quelle, sans aucune lecture · une bornée que rien ne relit
  * (autre espace, marque ou droits Studios retirés, fil introuvable, lecture en
- * échec) a le libellé neutre, sans texte, ni projet, ni lien.
+ * échec) a le libellé neutre, sans texte, ni projet, ni lien · un ticket dont
+ * l'accès est perdu (rôle actuel, ticket introuvable) aussi.
  */
 export async function notifsRelues(s: SessionMentions, notifs: readonly NotifCloche[]): Promise<Array<{ titre: string; corps: string | null; href: string | null }>> {
-  const aRelire = notifs.some((n) => bornageDeNotif(n.type) && n.workspaceId === s.workspaceId && projetDuLienMention(n.href));
-  if (!db || !aRelire) return notifsDansPortee(notifs, null);
-  try {
-    const { ctx, genres } = await porteeDesGenres();
-    if (!ctx || !genres.size || ctx.workspaceId !== s.workspaceId || ctx.userId !== s.user.id) return notifsDansPortee(notifs, null);
-    const { projets, fils } = await relireProjetsEtFils(ctx, genres, besoinsCloche(notifs, ctx.workspaceId, genres));
-    return notifsDansPortee(notifs, { workspaceId: ctx.workspaceId, genres, projets: new Set(projets.keys()), fils: candidatsDe(fils.values()) });
-  } catch {
-    return notifsDansPortee(notifs, null);
-  }
+  const [studios, tickets] = await Promise.all([porteeStudiosDeLaCloche(s, notifs), accesTicketsDeLaCloche(s, notifs)]);
+  return notifsDansPortee(notifs, studios, tickets);
 }
 
 /** La page « Mes mentions » de la session, pour ces filtres · relue dans la portée actuelle. */

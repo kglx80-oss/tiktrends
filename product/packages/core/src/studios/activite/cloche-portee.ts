@@ -1,5 +1,6 @@
 import { extraitCommentaire } from './commentaires';
 import { filDeLaMention, projetDuLienMention, TYPES_NOTIF_MENTION, type FilMentionnant, type GenreMention } from './mes-mentions';
+import { peutLireTicket } from '../../spatial/reglages/support';
 
 /**
  * Studios · la cloche (centre de notifications de la coquille, bandeau
@@ -27,7 +28,18 @@ import { filDeLaMention, projetDuLienMention, TYPES_NOTIF_MENTION, type FilMenti
  *    l'écran) · sinon · « Mention · fil hors de ta portée » (« Commentaire · … »
  *    pour le propriétaire), la raison, SANS extrait, ni projet, ni auteur, ni
  *    lien · la notification reste (le compte non lu ne bouge pas), rien n'est
- *    écrit ni supprimé.
+ *    écrit ni supprimé ;
+ *  · les tickets de support (`ticket_new`, `ticket_reply`, `ticket_status` ·
+ *    `TYPES_NOTIF_TICKET`) · relus contre la règle de la page du ticket,
+ *    `peutLireTicket` (C/spatial/reglages/support.ts · un administrateur de
+ *    l'espace lit tous ses tickets, un membre seulement les siens), sous le
+ *    rôle ACTUEL de la personne dans l'espace DU TICKET (retirée de l'espace ·
+ *    plus administratrice), le ticket relu (introuvable, ou d'un autre espace
+ *    que sa notification · rien) · l'auteur garde TOUJOURS ses tickets · sinon
+ *    « Ticket · plus accessible avec ton rôle actuel », la raison, sans titre,
+ *    ni texte, ni lien · la cloche n'est PAS bornée à l'espace courant
+ *    (décision de Kevin en attente) · le ticket d'un autre espace où la
+ *    personne administre encore est montré comme avant.
  *
  * ── Le coût, mesuré (la cloche est relue toutes les 45 s) ─────────────────────
  *
@@ -50,6 +62,26 @@ import { filDeLaMention, projetDuLienMention, TYPES_NOTIF_MENTION, type FilMenti
  * aussi la session (`getSession`, 4 lectures, simulée par le test) · ≈ 11
  * lectures de plus par relecture, une fois toutes les 45 s page visible.
  *
+ * Les tickets · UNE lecture pour le lot (`tickets` joint au rôle de la
+ * personne dans l'espace de chaque ticket, `W/lib/studios/mes-mentions.ts`),
+ * jamais une par notification ni par ticket · même banc (semis de
+ * `W/test/cloche-tickets-db.test.tsx` · 25 tickets ouverts et 20 relances par
+ * les vraies actions, 15 mentions · 60 notifications mêlées), 5 lectures de
+ * chauffe puis 30 chronométrées, 3 essais ALTERNÉS avant / après (avant = main
+ * 8fc3bf0), le 2026-11-15, 4 vCPU, charge 1,1 à 2,4 · fourchette des 3
+ * médianes, et des 3 p90 après :
+ *
+ * | cloche (20 lignes lues)                                    | requêtes | médiane avant → après    | p90 après      |
+ * |------------------------------------------------------------|----------|--------------------------|----------------|
+ * | 60 mêlées · 10 tickets sur 10 tickets + 10 mentions         | 8 → 9    | 6,78-7,78 → 5,81-9,55 ms | 8,41-13,29 ms  |
+ * | 20 notifications de ticket sur 20 tickets distincts         | 2 → 3    | 1,44-1,84 → 2,55-3,00 ms | 3,93-4,31 ms   |
+ * | 1 notification de ticket                                    | 2 → 3    | 1,09-1,52 → 1,78-2,19 ms | 2,36-2,62 ms   |
+ * | 30 notifications ordinaires (aucun ticket, aucun fil borné) | 2 → 2    | 1,32-1,69 → 1,29-1,59 ms | 1,91-1,92 ms   |
+ *
+ * UNE lecture de plus, la même pour 1 ou 20 tickets (gardé par le test) ·
+ * lancée en parallèle de la relecture des Studios (le surcoût d'une cloche
+ * mêlée se perd dans le bruit) · une cloche sans ticket ne paie rien.
+ *
  * La relecture coûte un nombre FIXE de lectures (session, marques,
  * restrictions et réglages des capacités · la garde des Studios · puis les
  * projets en UNE requête, les fils en une requête par genre), jamais une par
@@ -66,7 +98,51 @@ export const TEXTES_CLOCHE_PORTEE = {
   mention: 'Mention · fil hors de ta portée',
   commentaire: 'Commentaire · fil hors de ta portée',
   raison: 'Tu ne vois plus ce projet (espace, marque ou droits Studios) · son texte n’est pas montré.',
+  ticket: 'Ticket · plus accessible avec ton rôle actuel',
+  raisonTicket: 'Ce ticket est réservé à son auteur et aux administrateurs de son espace · son texte n’est pas montré.',
 } as const;
+
+/** Les types du support · relus contre l'accès au ticket (`peutLireTicket`) avant d'être montrés. */
+export const TYPES_NOTIF_TICKET: readonly string[] = ['ticket_new', 'ticket_reply', 'ticket_status'];
+
+/** Le type est-il une notification de ticket ? */
+export function estNotifTicket(type: string): boolean {
+  return TYPES_NOTIF_TICKET.includes(type);
+}
+
+/** Le ticket désigné par l'adresse d'une notification (`/support/<id>`, `createTicketAction` et suivantes) · `null` sinon (en minuscules). */
+export function ticketDuLien(href: string | null | undefined): string | null {
+  const m = /^\/support\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[?#].*)?$/i.exec(href ?? '');
+  return m ? m[1]!.toLowerCase() : null;
+}
+
+/** Un ticket relu · son espace, son auteur, et si la personne en est ACTUELLEMENT administratrice (membre de cet espace, rôle administrateur au moins · retirée, `false`). */
+export interface AccesTicketCloche { workspaceId: string; auteurId: string | null; admin: boolean }
+
+/** Les tickets relus pour la personne · `null` quand rien ne l'a été (lecture en échec) · aucune notification de ticket n'est alors lue sur parole. */
+export interface PorteeTickets {
+  utilisateurId: string;
+  /** Par identifiant de ticket (minuscules) · un ticket absent est introuvable. */
+  tickets: ReadonlyMap<string, AccesTicketCloche>;
+}
+
+/** Les tickets à relire · ceux que désignent des notifications de ticket, de TOUS les espaces (la cloche n'est pas bornée à l'espace courant), une fois chacun. */
+export function besoinsTickets(notifs: readonly Pick<NotifCloche, 'type' | 'href'>[]): string[] {
+  const ids = new Set<string>();
+  for (const n of notifs) {
+    const id = estNotifTicket(n.type) ? ticketDuLien(n.href) : null;
+    if (id) ids.add(id);
+  }
+  return [...ids];
+}
+
+/** La notification de ticket est-elle lisible · le ticket relu, de l'espace de la notification, et la règle de la page du ticket (`peutLireTicket`) sous le rôle actuel. */
+export function ticketRelu(n: Pick<NotifCloche, 'workspaceId' | 'href'>, t: PorteeTickets | null): boolean {
+  const id = ticketDuLien(n.href);
+  const a = id && t ? t.tickets.get(id) : undefined;
+  if (!a || !t || a.workspaceId !== n.workspaceId) return false;
+  return peutLireTicket({ admin: a.admin, auteurId: a.auteurId, utilisateurId: t.utilisateurId });
+}
 
 /** Les types dont le texte vient d'un fil des Studios · relus dans la portée avant d'être montrés. */
 export const TYPES_NOTIF_BORNES: Readonly<Record<string, BornageNotif>> = {
@@ -85,9 +161,9 @@ export const TYPES_NOTIF_RECENSES: Readonly<Record<string, { bornee: boolean; ra
   studio_comment_mention: { bornee: true, raison: 'Texte et projet d’un commentaire · borné à la marque du projet et à studio.read.' },
   studio_note_mention: { bornee: true, raison: 'Texte et projet d’une note de la lignée · borné à la marque du projet, à studio.read et à « canvas ».' },
   studio_comment: { bornee: true, raison: 'Texte et projet d’un nouveau commentaire, prévenu au propriétaire · borné comme le commentaire.' },
-  ticket_new: { bornee: false, raison: 'Ticket de support · borné au rôle (administration), pas à une marque ni aux Studios · reste.' },
-  ticket_reply: { bornee: false, raison: 'Ticket de support · l’auteur ou l’administration · borné au rôle, pas à une marque · reste.' },
-  ticket_status: { bornee: false, raison: 'Ticket de support · le statut seul, prévenu à son auteur · reste.' },
+  ticket_new: { bornee: true, raison: 'Titre et auteur d’un ticket, prévenus à l’administration · relu contre l’accès au ticket (peutLireTicket) sous le rôle actuel.' },
+  ticket_reply: { bornee: true, raison: 'Titre et texte d’une réponse, à l’auteur ou à l’administration · relu contre l’accès au ticket sous le rôle actuel.' },
+  ticket_status: { bornee: true, raison: 'Titre du ticket et statut, prévenus à son auteur · relu contre l’accès au ticket (l’auteur le garde toujours).' },
   digest: { bornee: false, raison: 'Récap hebdomadaire de l’espace · aux administrateurs, aucune restriction de marque ne s’y applique · reste.' },
   radar: { bornee: false, raison: 'Compte rendu du radar · aux membres de l’espace, la page Radar n’applique aucune restriction de marque · reste.' },
   tracker: { bornee: false, raison: 'Un nombre de nouvelles pubs et une phrase fixe · aucun texte d’objet · ne peut pas fuir.' },
@@ -126,8 +202,14 @@ export function besoinsCloche(notifs: readonly Pick<NotifCloche, 'type' | 'works
   return { projets: [...projets], fils: { commentaire: [...fils.commentaire], note: [...fils.note] } };
 }
 
-/** La notification est-elle relue dans la portée actuelle ? · toujours pour un type non borné. */
-export function notifRelueDansPortee(n: NotifCloche, p: PorteeCloche | null): boolean {
+/** Le type est-il relu avant d'être montré (un fil des Studios, ou un ticket) ? */
+export function notifBornee(type: string): boolean {
+  return !!bornageDeNotif(type) || estNotifTicket(type);
+}
+
+/** La notification est-elle relue dans la portée actuelle ? · toujours pour un type non borné · un ticket, contre son accès (`t`). */
+export function notifRelueDansPortee(n: NotifCloche, p: PorteeCloche | null, t: PorteeTickets | null = null): boolean {
+  if (estNotifTicket(n.type)) return ticketRelu(n, t);
   const b = bornageDeNotif(n.type);
   if (!b) return true;
   if (!p || n.workspaceId !== p.workspaceId || !p.genres.has(b.genre)) return false;
@@ -143,12 +225,13 @@ export function notifRelueDansPortee(n: NotifCloche, p: PorteeCloche | null): bo
 
 /** Ce que la cloche MONTRE · tel quel quand la notification est relue (ou non bornée), sinon le libellé neutre, la raison, sans lien. */
 export function texteNotifCloche(n: Pick<NotifCloche, 'type' | 'titre' | 'corps' | 'href'>, relue: boolean): { titre: string; corps: string | null; href: string | null } {
+  if (estNotifTicket(n.type) && !relue) return { titre: TEXTES_CLOCHE_PORTEE.ticket, corps: TEXTES_CLOCHE_PORTEE.raisonTicket, href: null };
   const b = bornageDeNotif(n.type);
   if (!b || relue) return { titre: n.titre, corps: n.corps, href: n.href };
   return { titre: b.neutre, corps: TEXTES_CLOCHE_PORTEE.raison, href: null };
 }
 
-/** Les notifications telles que la cloche les montre, relues dans `p`. */
-export function notifsDansPortee(notifs: readonly NotifCloche[], p: PorteeCloche | null): Array<{ titre: string; corps: string | null; href: string | null }> {
-  return notifs.map((n) => texteNotifCloche(n, notifRelueDansPortee(n, p)));
+/** Les notifications telles que la cloche les montre, relues dans `p` (les fils des Studios) et `t` (les tickets). */
+export function notifsDansPortee(notifs: readonly NotifCloche[], p: PorteeCloche | null, t: PorteeTickets | null = null): Array<{ titre: string; corps: string | null; href: string | null }> {
+  return notifs.map((n) => texteNotifCloche(n, notifRelueDansPortee(n, p, t)));
 }

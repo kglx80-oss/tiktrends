@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { TYPES_NOTIF_BORNES, TYPES_NOTIF_RECENSES } from '@tiktrends/core';
+import { TYPES_NOTIF_BORNES, TYPES_NOTIF_RECENSES, TYPES_NOTIF_TICKET, notifBornee } from '@tiktrends/core';
 
 /**
  * Recensement des types de notification · TOUT endroit du dépôt qui écrit dans
@@ -56,10 +56,16 @@ describe('recensement · chaque type de notification écrit est classé (borné 
     expect(e.some((x) => x.ou.startsWith('apps/web/lib/tracker.ts')), 'les insertions directes ne sont pas vues').toBe(true);
   });
 
+  it('les tickets de support sont FERMÉS · relus contre l’accès au ticket, plus aucun type « reste » ne porte le texte d’un ticket', () => {
+    for (const t of TYPES_NOTIF_TICKET) expect(TYPES_NOTIF_RECENSES[t]?.bornee, `« ${t} » · le ticket n’est plus relu contre son accès`).toBe(true);
+    expect(e.filter((x) => x.ou.startsWith('apps/web/app/actions/support.ts')).map((x) => x.type).sort(), 'les écrivains du support').toEqual(['ticket_new', 'ticket_reply', 'ticket_reply', 'ticket_status']);
+  });
+
   it('chaque écriture porte un type littéral, recensé', () => {
     for (const x of e) {
       expect(x.type, `${x.ou} · écrit une notification sans type littéral · le recensement ne peut pas la classer`).not.toBeNull();
       expect(TYPES_NOTIF_RECENSES[x.type!], `${x.ou} · le type « ${x.type} » n’est pas recensé dans TYPES_NOTIF_RECENSES · décide s’il peut fuir après un changement de portée`).toBeDefined();
+      expect(notifBornee(x.type!), `${x.ou} · « ${x.type} » est recensé ${TYPES_NOTIF_RECENSES[x.type!]!.bornee ? 'borné mais aucune règle ne le relit' : 'non borné mais une règle le relit'}`).toBe(TYPES_NOTIF_RECENSES[x.type!]!.bornee);
     }
   });
 
@@ -67,5 +73,6 @@ describe('recensement · chaque type de notification écrit est classé (borné 
     const ecrits = new Set(e.map((x) => x.type));
     for (const t of Object.keys(TYPES_NOTIF_RECENSES)) expect(ecrits.has(t), `« ${t} » est recensé mais plus rien ne l’écrit`).toBe(true);
     for (const t of Object.keys(TYPES_NOTIF_BORNES)) expect(ecrits.has(t), `« ${t} » est borné mais plus rien ne l’écrit`).toBe(true);
+    for (const t of TYPES_NOTIF_TICKET) expect(ecrits.has(t), `« ${t} » est relu comme un ticket mais plus rien ne l’écrit`).toBe(true);
   });
 });
