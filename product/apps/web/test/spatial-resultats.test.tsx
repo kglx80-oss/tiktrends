@@ -490,3 +490,39 @@ describe('Spatial · Résultats · le texte d’une créa n’est jamais coupé 
     expect([win.style.position, win.style.order], 'pastille posée sur l’accroche').toEqual(['static', '1']);
   });
 });
+
+/**
+ * Suite de #1080 · l'écran d'import ouvert sur un lot (`?lot=`) · seul ajout
+ * HORS maquette, étroitement déclaré · UNE section `section[data-lot-cible]`,
+ * juste après la sous-navigation (`nav.subnav`) · on la retire, et seulement
+ * elle, avant la parité · deux sections, ou une section ailleurs, la font tomber.
+ */
+function sansLotCible(html: string): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const s = t.content.querySelectorAll('section[data-lot-cible]');
+  if (s.length !== 1 || !s[0]!.previousElementSibling?.matches('nav.subnav')) return html;
+  s[0]!.remove();
+  return t.innerHTML;
+}
+
+describe('« Importer des résultats » ouvert sur un lot · la section du lot est le seul écart, étroitement déclaré', () => {
+  const REMONTEES = [{ source: 'meta' as const, texte: 'Mesure Meta', le: '2026-10-27T08:00:00Z', quand: 'il y a 2 h' }, { source: 'tableau' as const, texte: 'Tableau · Lot #4', le: '2026-10-26T08:00:00Z', quand: 'hier' }, { source: 'tableau' as const, texte: 'Tableau · Lot #1', le: '2026-10-11T08:00:00Z', quand: '11 oct.' }];
+  const LOT = { id: 'l1', numero: 3, titre: 'Lot #3', diagnostic: 'Lot #3 · aucune mesure reçue depuis le lancement', sansSource: null, variantes: [{ code: 'v1', nomRegie: 'N_B3_v1', etat: 'sans-mesure' as const, libelle: 'Sans mesure' }] };
+  const IGN = { selecteur: 'div.view', ignorer: ['.conn2:nth-child(2) .t'] };
+  it('avec le lot · la parité tient une fois LA section seule retirée · sans lot, rien n’est ajouté', () => {
+    const html = rendre(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={REMONTEES} lot={LOT} />);
+    expect(html).toContain('data-lot-cible="l1"');
+    const p = parite(sansLotCible(html), 'importer', IGN);
+    expect(p.rendu).toEqual(p.reference);
+    expect(rendre(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={REMONTEES} />)).not.toContain('data-lot-cible');
+  });
+  it('l’écart déclaré ne couvre rien d’autre · deux sections, ou une section hors de sa place, font tomber la parité', () => {
+    const html = rendre(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={REMONTEES} lot={LOT} />);
+    const ref = parite(html, 'importer', IGN).reference;
+    const sq = (x: string) => squelette(sansLotCible(x), { selecteur: 'div.view', ignorer: IGN.ignorer });
+    const s = /<section class="tile sec" data-lot-cible[^]*?<\/section>/.exec(html)![0];
+    expect(sq(html.replace(s, s + s)), 'deux sections').not.toEqual(ref);
+    expect(sq(html.replace(s, '').replace('<div class="grid3">', `${s}<div class="grid3">`)), 'une section hors de sa place').not.toEqual(ref);
+  });
+});

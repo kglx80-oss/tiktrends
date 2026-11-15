@@ -8,7 +8,7 @@ import {
   periodeReporting, raccourcisAccueil, salutationAccueil, sourcesJarvisAccueil, sousTitreReporting,
   surtitreSpatialAccueil, syntheseReporting, titreJarvisAccueil,
   SUGGESTIONS_ASSISTANT_ACCUEIL, costFor, noteAccesAccueil, prixQuestionAssistant, refusAssistant, resoudreAccueil,
-  DEFAULT_VERDICT_CONFIG, ecartAuLot, importeesDans, journeesReporting, mentionImportees,
+  DEFAULT_VERDICT_CONFIG, ecartAuLot, importeesDans, journeesReporting, mentionImportees, finPrevueAccueil, lotsFinPrevuePassee,
   type JourneeMesuree, type LotAccueil, type SignalIteration, type VerdictConfig,
 } from '@tiktrends/core';
 import type { Session } from '../../../../lib/auth';
@@ -25,7 +25,7 @@ import { adsVignettesDuLot, jointureCreaDeLaMarque, vignetteDuLot, vignettesDesA
 import { compterBoucle } from '../../../../lib/boucle-resultats';
 import { anthropicConfigured } from '../../../../lib/ai-status';
 import { unlimitedCredits } from '../../../../lib/credits';
-import { compterAConclure } from '../adsmap/donnees';
+import { chargerVariantesFinPrevue, compterAConclure } from '../adsmap/donnees';
 import { notifsRelues } from '../../../../lib/studios/mes-mentions';
 import type { EtatQuoiIterer, EtatReporting, PropsAccueil } from '../../../../spatial/vues/accueil/Accueil';
 
@@ -222,7 +222,14 @@ export async function chargerAccueilSpatial(s: Session, params: Record<string, s
     }));
     if (comptes) {
       aArbitrer.n = comptes.aArbitrer;
-      boucle = { etapes: etapesBoucleAccueil({ comptes, lots, aConclure, maintenant, lotsOuverts }), href: CHEMIN_BOUCLE_ACCUEIL };
+      // Le plus ancien lot à fin prévue passée sans verdict à arbitrer · pourquoi, et le geste (l'import
+      // EXISTANT, sur ce lot, sous SA garde · `import`). Lecture seule · illisible, l'étape se tait.
+      const premier = lotsFinPrevuePassee(lots, maintenant, aConclure)[0];
+      const finPrevue = premier ? await lire('fin prévue passée', async () => {
+        const f = await chargerVariantesFinPrevue(s.workspaceId, marque!.id, premier.id);
+        return finPrevueAccueil({ lot: premier, variantes: f.variantes, seuil: f.seuil, acces: { refus: denyReason(acces, F('import')) } });
+      }) : null;
+      boucle = { etapes: etapesBoucleAccueil({ comptes, lots, aConclure, maintenant, lotsOuverts, finPrevue }), href: CHEMIN_BOUCLE_ACCUEIL };
     }
   }
 

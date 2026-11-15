@@ -309,3 +309,47 @@ describe('Spatial · Accueil · lot 13 bis · l’astuce « ? » est le seul éc
     expect(rendre(<Accueil {...PROPS} />)).not.toContain('data-astuce-raccourcis');
   });
 });
+
+/**
+ * Suite de #1080 · « fin prévue passée » · pourquoi aucun verdict, et l'import
+ * fermé avec sa raison · seul ajout HORS maquette de l'étape « En diffusion »,
+ * étroitement déclaré · UN bloc `[data-fin-prevue]`, juste après la phrase de
+ * l'étape (`strong + span`), dans l'étape « En diffusion » (3ᵉ de la boucle) ·
+ * on le retire, et seulement lui, avant la parité · deux blocs, ou un bloc
+ * dans une autre étape, la font tomber. Le geste OUVERT, lui, est le bouton
+ * des autres étapes (`.pipe .stage > .btn`, G14) · aucun élément nouveau.
+ */
+function sansFinPrevue(html: string): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const b = t.content.querySelectorAll('[data-fin-prevue]');
+  const etape = b[0]?.parentElement;
+  const place = b.length === 1 && b[0]!.previousElementSibling?.matches('strong + span') && etape?.matches('.pipe > a.tile.stage:nth-child(3)');
+  if (!place) return html;
+  b[0]!.remove();
+  return t.innerHTML;
+}
+
+describe('Spatial · Accueil · « fin prévue passée » · le diagnostic et le contrôle fermé sont le seul écart, étroitement déclaré', () => {
+  const FP = { texte: 'Lot #3 · aucune mesure reçue depuis le lancement', ferme: { libelle: 'Importer les mesures du lot #3', raison: 'Réservé aux admins' } };
+  const avec = (fp: EtapeBoucleAccueil['finPrevue'], ou = 'diffusion') =>
+    rendre(<Accueil {...PROPS} boucle={{ etapes: ETAPES.map((e) => (e.cle === ou ? { ...e, finPrevue: fp } : e)), href: '/adsmap' }} />);
+
+  it('avec le diagnostic et le contrôle fermé · la parité tient une fois LE bloc seul retiré', () => {
+    const html = avec(FP);
+    expect(html).toContain('data-fin-prevue');
+    expect(html).toContain('data-geste-ferme="importer-lot"');
+    const p = parite(sansFinPrevue(html), 'accueil', { ignorer: IGNORER, correctifs: CORRECTIFS_ACCUEIL });
+    expect(p.rendu).toEqual(p.reference);
+    expect(rendre(<Accueil {...PROPS} />), 'sans diagnostic, un bloc est ajouté').not.toContain('data-fin-prevue');
+  });
+
+  it('l’écart déclaré ne couvre rien d’autre · deux blocs, ou un bloc dans une autre étape, font tomber la parité', () => {
+    const html = avec(FP);
+    const ref = parite(html, 'accueil', { ignorer: IGNORER, correctifs: CORRECTIFS_ACCUEIL }).reference;
+    const sq = (x: string) => squelette(sansFinPrevue(x), { ignorer: IGNORER });
+    const bloc = /<span data-fin-prevue[^]*?<\/small><\/span>/.exec(html)![0];
+    expect(sq(html.replace(bloc, bloc + bloc)), 'deux blocs').not.toEqual(ref);
+    expect(sq(avec(FP, 'atraiter')), 'un bloc dans une autre étape').not.toEqual(ref);
+  });
+});

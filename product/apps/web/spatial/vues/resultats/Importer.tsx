@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  LIBELLE_VERDICT, libelleStatutTest, mentionColonnesAbsentes, modeleImport,
-  type GuideColonnes, type Remontee, type VerdictValue,
+  LIBELLE_VERDICT, libelleStatutTest, mentionColonnesAbsentes, modeleImport, phraseAnnoncesDuLot,
+  type EtatVarianteImport, type GuideColonnes, type LotImport, type Remontee, type VerdictValue,
 } from '@tiktrends/core';
 import { syncAdsMapAction } from '../../../app/actions/adsmap';
 import { applyImportAction, previewImportAction, type PreviewResult } from '../../../app/actions/adsmap-import';
@@ -70,6 +70,34 @@ export interface PropsImporter {
   sousNav: SousNavResultats;
   meta: { connecte: boolean; mesure: string | null };
   remontees: ReadonlyArray<Remontee & { quand: string }>;
+  /** Hors maquette, écart déclaré · l'écran ouvert sur un lot (`?lot=`) · absent, rien n'est ajouté. */
+  lot?: LotImport | null;
+}
+
+const PILL_VARIANTE: Readonly<Record<EtatVarianteImport, '' | 'w' | 'g'>> = { brouillon: '', 'hors-meta': '', 'sans-mesure': 'w', 'sous-minimum': 'w', mesuree: 'g' };
+const COLONNES_LOT = 'minmax(0,0.6fr) minmax(0,1.8fr) minmax(0,1fr)';
+
+/** Le lot ciblé par l'adresse · ce qu'il attend, variante par variante · lecture seule. */
+function LotCible({ lot }: { lot: LotImport }) {
+  return (
+    <section className="tile sec" data-lot-cible={lot.id} aria-label={`Mesures du lot #${lot.numero}`} style={{ marginTop: 0, marginBottom: 14 }}>
+      <h2>{lot.titre} · ses mesures</h2>
+      {lot.diagnostic && <p className="muted" data-diagnostic="" style={{ fontSize: '12.5px' }}>{lot.diagnostic}</p>}
+      {lot.sansSource && <p className="muted" role="note" data-sans-source="" style={{ fontSize: '12.5px' }}>{lot.sansSource}</p>}
+      <div className="mtable" style={{ marginTop: 10 }} data-tableau="variantes-lot">
+        <div className="mrow h" style={{ gridTemplateColumns: COLONNES_LOT }}><span>Variante</span><span>Nom régie</span><span>Mesures</span></div>
+        {lot.variantes.map((v, i) => (
+          <div className="mrow" key={`${v.code}-${i}`} data-etat={v.etat} style={{ gridTemplateColumns: COLONNES_LOT }}>
+            <span className="num">{v.code}</span>
+            <span className="muted" style={PASTILLE}>{v.nomRegie ?? 'Aucun nom régie · l’export ne pourra la rattacher que par son identifiant Meta'}</span>
+            <span className={`pill ${PILL_VARIANTE[v.etat]}`} style={{ alignSelf: 'start' }}>{v.libelle}</span>
+          </div>
+        ))}
+        {lot.variantes.length === 0 && <div className="mrow"><span className="faint">Aucune variante dans ce lot.</span></div>}
+      </div>
+      <p className="faint" style={{ fontSize: '11.5px', marginTop: 10 }}>Dépose l’export Ads Manager de la période du lot, ou mesure par la connexion Meta · les lignes se rattachent aux variantes par leur identifiant Meta ou leur nom régie. Rien n’est écrit avant de confirmer.</p>
+    </section>
+  );
 }
 
 function choisirFichier(): Promise<File | null> {
@@ -171,6 +199,7 @@ export function Importer(p: PropsImporter) {
     <Vue>
       <EnTete titre="Importer des résultats" sous="Les mesures remontent dans tes lots : c’est ce qui permet de conclure, puis d’itérer" />
       <SousNav items={p.sousNav} actif="/adsmap/import" />
+      {p.lot && <LotCible lot={p.lot} />}
       <div className="lbl" style={{ marginBottom: 10 }}>Connexion automatique · lecture seule · mesure chaque nuit</div>
       <div className="grid3">
         <div className="tile conn2">
@@ -251,6 +280,7 @@ export function Importer(p: PropsImporter) {
           <h2>Ce qui sera écrit · rien n’est encore écrit</h2>
           <p className="muted" style={{ fontSize: '12.5px' }}>{mesures.lecture} · {pl(mesures.reconnues.length, 'mesure reconnue', 'mesures reconnues')} · {pl(t.ads, 'variante recevra', 'variantes recevront')} des mesures · {pl(t.nouvelles, 'journée nouvelle', 'journées nouvelles')}, {pl(t.identiques, 'déjà importée à l’identique', 'déjà importées à l’identique')}, {pl(t.misesAJour, 'remplacée', 'remplacées')} par ce fichier.</p>
           {mesures.reconnues.length > 0 && <Intitules liste={mesures.reconnues} />}
+          {p.lot && <p className="muted" role="note" data-lot-cible-compte="" style={{ fontSize: '12.5px', marginTop: 10 }}>{phraseAnnoncesDuLot(p.lot.numero, mesures.annonces)}</p>}
           <p className="muted" role="note" data-regle="priorite-mesures" style={{ fontSize: '12.5px', marginTop: 10 }}>{mesures.priorite}</p>
           {mesures.notes.length > 0 && (
             <ul className="check2">

@@ -6,7 +6,7 @@ import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
   compteAConclure,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
-  type FaitsHypotheseAd, type CompteAConclure, type FaitsEtatLot, type FaitsVerdictSpatial,
+  type FaitsHypotheseAd, type CompteAConclure, type FaitsEtatLot, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -265,6 +265,43 @@ export const MESURE_A_CONCLURE = [
 export async function compterAConclure(workspaceId: string, brandId: string, maintenant = new Date()): Promise<CompteAConclure> {
   const f = await chargerFaitsAConclure(workspaceId, brandId, maintenant);
   return compteAConclure(f.lots, f.ctx);
+}
+
+/**
+ * Les variantes d'UN lot, vues par le diagnostic « fin prévue passée »
+ * (`diagnosticFinPrevue`) · statut, plateforme, verdict calculé et ce que son
+ * agrégat dit (dépense, impressions) · et le minimum du moteur de la marque.
+ * Même portée que la liste (`adsDeLaMarque` · espace ET graphe de la marque),
+ * le lot de la marque · LECTURE SEULE, une seule ligne par variante. L'Accueil
+ * ne l'appelle que pour le plus ancien lot à fin prévue passée.
+ */
+export async function chargerVariantesFinPrevue(workspaceId: string, brandId: string, lotId: string): Promise<{ variantes: VarianteFinPrevue[]; seuil: SeuilMinimumMoteur }> {
+  if (!db) return { variantes: [], seuil: DEFAULT_VERDICT_CONFIG };
+  const [lignes, [vc]] = await Promise.all([
+    db.select({ statut: schema.ads.status, plateforme: schema.ads.platform, adId: schema.verdicts.adId, computed: schema.verdicts.computed, agg: schema.verdicts.metricsAgg })
+      .from(schema.ads)
+      .innerJoin(schema.batches, and(eq(schema.batches.id, schema.ads.batchId), eq(schema.batches.brandId, brandId)))
+      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+      .where(and(adsDeLaMarque(workspaceId, brandId), eq(schema.ads.batchId, lotId)))
+      .orderBy(...ORDRE_ADS_LOTS)
+      .limit(LIMITE_ADS_LOTS),
+    db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
+  ]);
+  const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
+  return {
+    variantes: lignes.map((r) => {
+      const agg = (r.agg ?? {}) as Record<string, unknown>;
+      return {
+        statut: r.statut, plateforme: r.plateforme,
+        verdict: r.adId ? { calcule: (r.computed ?? null) as VerdictValue | null, impressions: num(agg.impressions), depense: num(agg.spend) } : null,
+      };
+    }),
+    seuil: config,
+  };
 }
 
 /**

@@ -9,6 +9,7 @@ import { AssistantAccueil } from './assistant';
 import type { OngletAccueil } from './Analytics';
 import { ChiffresCles } from './ChiffresCles';
 import { BoutonAideRaccourcis } from '../../coquille/Raccourcis';
+import { FERME } from '../projet/action-serveur';
 
 /**
  * L'Accueil Spatial (« Bonjour … ») · `docs/spatial/reference/accueil.html`,
@@ -199,6 +200,16 @@ function Boucle({ b }: { b: NonNullable<PropsAccueil['boucle']> }) {
               {e.vignettes.length > 0 && <span className="stack">{e.vignettes.map((v, i) => <Pub key={i} url={v.url} r916={v.vertical} classe={v.gagnante ? 'won' : ''} />)}</span>}
             </div>
             <strong>{e.titre}</strong><span className="muted" style={petit('12.5px')}>{e.sous}</span>
+            {/* Hors maquette, écart déclaré (#1080 suite) · pourquoi aucun verdict, et l'import fermé avec sa raison. */}
+            {e.finPrevue && (
+              <span data-fin-prevue="" className="muted" style={petit('12px', { display: 'flex', flexDirection: 'column', gap: 6 })}>
+                {e.finPrevue.texte && <span>{e.finPrevue.texte}</span>}
+                {e.finPrevue.ferme && <>
+                  <span className="btn sm" aria-disabled="true" data-geste-ferme="importer-lot" style={{ ...FERME, alignSelf: 'flex-start', whiteSpace: 'normal', maxWidth: '100%' }}>{e.finPrevue.ferme.libelle}</span>
+                  <small className="faint" data-raison="">{e.finPrevue.ferme.raison}</small>
+                </>}
+              </span>
+            )}
             {e.progression && <><div className="bar"><i><b style={{ width: `${e.progression.part}%` }} /></i><span>{e.progression.texte}</span></div><span className="faint" style={petit('11.5px')}>{e.progression.note}</span></>}
             {e.action
               // Le libellé (« Conclure le lot #3 ») débordait du bouton `nowrap` dans une étape de ~160 px (G14).

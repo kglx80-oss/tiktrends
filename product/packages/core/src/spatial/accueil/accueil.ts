@@ -18,6 +18,7 @@ import { CHEMIN_IMPORT_RESULTATS, CHEMIN_LOTS, CHEMIN_SUITES, ANCRE_TESTS } from
 import { lienLotApercu } from '../../adsmap/apercu-lots';
 import { FORMATS_CREATIFS, FORMAT_AUTRE } from '../../formats-creatifs';
 import { LIEN_A_CONCLURE, type CompteAConclure } from '../resultats/a-conclure';
+import type { FinPrevueAccueil } from '../resultats/fin-prevue';
 import { depuisRelatif, jourCourt, jourIso, joursEntre } from './temps';
 
 const JOUR = 86_400_000;
@@ -287,6 +288,13 @@ export interface EtapeBoucleAccueil {
   vignettes: Array<{ url: string; gagnante: boolean; vertical: boolean }>;
   progression: { part: number; texte: string; note: string } | null;
   action: string | null;
+  /**
+   * « En diffusion » · pourquoi le plus ancien lot à fin prévue passée n'a
+   * aucun verdict à arbitrer (`finPrevueAccueil`, le cas mesuré) · et, quand
+   * l'import est fermé à cette personne, le contrôle fermé et sa raison ·
+   * absent ailleurs, et au silence.
+   */
+  finPrevue?: { texte: string | null; ferme: { libelle: string; raison: string } | null } | null;
 }
 
 /** Les comptes de la boucle · `compterBoucle` (lecture réelle, marque active). */
@@ -321,6 +329,12 @@ export function etapesBoucleAccueil(p: {
   comptes: ComptesBoucleAccueil; lots: readonly LotAccueil[]; maintenant: Date; lotsOuverts: boolean;
   /** Le compte « à conclure » de la liste (`compteAConclure`) · `null` illisible, l'étape se tait sur les lots. */
   aConclure: CompteAConclure | null;
+  /**
+   * Le diagnostic du PREMIER lot à fin prévue passée (`finPrevueAccueil`) ·
+   * ignoré s'il parle d'un autre lot. Son geste ouvert (l'import, sur ce lot)
+   * devient celui de l'étape · son lien et son bouton.
+   */
+  finPrevue?: FinPrevueAccueil | null;
 }): EtapeBoucleAccueil[] {
   const c = p.comptes;
   const k = (v: number) => Math.max(0, Math.floor(Number.isFinite(v) ? v : 0));
@@ -351,11 +365,17 @@ export function etapesBoucleAccueil(p: {
   };
   // Une fin prévue passée sans verdict à arbitrer se dit ICI, sous son propre libellé · jamais « à conclure ».
   const diff0 = finPassee[0] ?? enDiff[0];
+  // Son diagnostic et son geste · seulement pour CE lot (le plus ancien à fin prévue passée).
+  const fp = p.finPrevue && finPassee[0] && p.finPrevue.lotId === finPassee[0].id ? p.finPrevue : null;
+  const ouvert = fp?.geste?.etat === 'ouvert' ? fp.geste : null;
+  const ferme = fp?.geste?.etat === 'ferme' ? { libelle: fp.geste.libelle, raison: fp.geste.raison } : null;
   const diff: EtapeBoucleAccueil = {
     cle: 'diffusion', icone: 'flask', n: enDiff.length, titre: 'En diffusion',
     sous: phraseFinPrevuePassee(finPassee) ?? (diff0 ? titreLot(diff0) : 'Aucun lot en diffusion'),
-    href: lien(diff0), alerte: false, vignettes: vignettes(enDiff),
-    progression: diff0 && !finPassee.length ? progressionLot(diff0, p.maintenant) : null, action: null,
+    href: ouvert ? ouvert.href : lien(diff0), alerte: false, vignettes: vignettes(enDiff),
+    progression: diff0 && !finPassee.length ? progressionLot(diff0, p.maintenant) : null, action: ouvert ? ouvert.libelle : null,
+    // Absent sans diagnostic ni contrôle fermé · rien n'est ajouté à l'étape.
+    ...(fp && (fp.texte || ferme) ? { finPrevue: { texte: fp.texte, ferme } } : {}),
   };
   // « À traiter » · son nombre est le compte « à conclure » de la liste, rien d'autre · les verdicts à
   // arbitrer (une autre unité · des variantes, dans un lot ou hors lot) sont dits à côté, jamais ajoutés.
