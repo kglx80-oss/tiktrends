@@ -89,6 +89,19 @@ export async function lireProjet(ctx: ContexteStudio, id: unknown): Promise<Resu
   return { ok: true, projet: p! };
 }
 
+/**
+ * Plusieurs projets relus d'un coup, dans la portée · la règle de `lireProjet`
+ * (`porteeSql`, puis `objetDansPortee` sur chaque ligne) en UNE requête · un
+ * identifiant mal formé, inconnu ou hors portée est simplement absent.
+ */
+export async function lireProjetsDeLaPortee(ctx: ContexteStudio, ids: readonly unknown[]): Promise<ProjetStudio[]> {
+  const uniques = [...new Set(ids.filter(estUuid).map((x) => x.toLowerCase()))];
+  if (!uniques.length) return [];
+  const t = schema.studioProjects;
+  const lignes = await db.select().from(t).where(and(inArray(t.id, uniques), porteeSql(t, ctx)));
+  return lignes.filter((l) => !horsPortee(ctx, l));
+}
+
 export async function lireVersion(ctx: ContexteStudio, id: unknown): Promise<Resultat<{ version: VersionStudio }>> {
   if (!estUuid(id)) return introuvable(ctx);
   const t = schema.studioProjectVersions;
