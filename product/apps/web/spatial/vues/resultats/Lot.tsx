@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { LIBELLE_NIVEAU, MIN_REFERENCE_CONCLUSION, MIN_VARIANTES_CONCLUSION, type LectureConclusion, type NiveauPreuve } from '@tiktrends/core';
+import { LIBELLE_NIVEAU, MIN_REFERENCE_CONCLUSION, MIN_VARIANTES_CONCLUSION, type GesteGagnante as Geste, type LectureConclusion, type NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Points, Pub, rangeeVariantes } from './communs';
 import { PersonasLot, type PropsPersonasLot } from './PersonasLot';
 import { OffresLot, type PropsOffresLot } from './OffresLot';
+import { GesteGagnante } from '../projet/ResultatsFil';
 
 /**
  * Fiche d'un lot (« lot1 ») · `docs/spatial/reference/lot1.html`, balisage à
@@ -29,8 +30,12 @@ export interface PropsLot {
   actions?: ReactNode;
   /** Ce que la nature du lot (historique importé) ou son contrôle de protocole changent à la lecture. */
   reserves?: readonly string[];
-  /** La fiche de chaque variante (verdict, apprentissage, suite) · absente, rien n'est ajouté à la maquette. */
-  fiches?: ReadonlyArray<{ href: string; libelle: string; detail: string }>;
+  /**
+   * La fiche de chaque variante (verdict, apprentissage, suite) · absente, rien n'est ajouté à la maquette ·
+   * `gagnante` · « Itérer depuis la gagnante » d'une variante arbitrée gagnante d'un lot CONCLU
+   * (`gestesGagnantesLot`) · absent, la ligne reste celle d'avant.
+   */
+  fiches?: ReadonlyArray<{ href: string; libelle: string; detail: string; gagnante?: Geste }>;
   /** La conclusion du lot entier (`conclusionLot`) · absente, rien n'est ajouté. */
   conclusion?: LectureConclusion;
   /**
@@ -109,8 +114,8 @@ export function Lot(p: PropsLot) {
         <section className="tile sec" aria-label="Les variantes du lot">
           <h2>Les variantes du lot</h2>
           <div className="tl">
-            {p.fiches.map((f) => (
-              <div className="ev" key={f.href}><span className="ico"><Ic n="img" /></span><span><strong>{f.libelle}</strong><br /><span className="faint" style={{ fontSize: '11.5px' }}>{f.detail}</span></span><Lien className="btn sm" href={f.href}>Fiche</Lien></div>
+            {p.fiches.map((f, i) => (
+              <div className="ev" key={f.href}><span className="ico"><Ic n="img" /></span><span><strong>{f.libelle}</strong><br /><span className="faint" style={{ fontSize: '11.5px' }}>{f.detail}</span></span><Lien className="btn sm" href={f.href}>Fiche</Lien>{f.gagnante && <GesteGagnante cle="iterer-gagnante-lot" geste={f.gagnante} variante={f.libelle} raisonId={`gagnante-lot-${i}`} />}</div>
             ))}
           </div>
         </section>

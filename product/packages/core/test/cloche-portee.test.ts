@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   TEXTES_CLOCHE_PORTEE, TEXTES_MES_MENTIONS, TYPES_NOTIF_BORNES, TYPES_NOTIF_MENTION, TYPES_NOTIF_RECENSES,
-  besoinsCloche, bornageDeNotif, extraitCommentaire, lienLigneeProjet, notifRelueDansPortee, notifsDansPortee, sansTiretCadratin, texteNotifCloche,
+  besoinsCloche, bornageDeNotif, extraitCommentaire, lienLigneeProjet, notifBornee, notifRelueDansPortee, notifsDansPortee, sansTiretCadratin, texteNotifCloche,
   type FilMentionnant, type GenreMention, type NotifCloche, type PorteeCloche,
 } from '../src';
 
@@ -38,7 +38,7 @@ describe('les types bornés · et le recensement de tous les types écrits', () 
 
   it('chaque type recensé dit s’il est borné, et pourquoi · le bornage suit le recensement', () => {
     for (const [t, r] of Object.entries(TYPES_NOTIF_RECENSES)) {
-      expect(r.bornee, `${t} · recensé ${r.bornee ? 'borné' : 'non borné'} mais classé autrement`).toBe(t in TYPES_NOTIF_BORNES);
+      expect(r.bornee, `${t} · recensé ${r.bornee ? 'borné' : 'non borné'} mais classé autrement`).toBe(notifBornee(t));
       expect(r.raison.length, `${t} sans raison`).toBeGreaterThan(20);
     }
     for (const t of Object.keys(TYPES_NOTIF_BORNES)) expect(TYPES_NOTIF_RECENSES[t]?.bornee, `${t} borné mais absent du recensement`).toBe(true);
@@ -107,7 +107,8 @@ describe('relue · espace courant, genre lisible, projet relu, fil qui redonne l
   });
 
   it('un type non borné · toujours montré, sans portée', () => {
-    expect(notifRelueDansPortee(notif({ type: 'ticket_reply', href: '/support/1', workspaceId: AUTRE_WS }), null)).toBe(true);
+    expect(notifRelueDansPortee(notif({ type: 'digest', href: '/dashboard', workspaceId: AUTRE_WS }), null)).toBe(true);
+    expect(notifRelueDansPortee(notif({ type: 'radar', href: '/radar' }), null)).toBe(true);
   });
 });
 

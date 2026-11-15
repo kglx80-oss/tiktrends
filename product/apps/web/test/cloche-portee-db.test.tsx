@@ -137,7 +137,7 @@ beforeAll(async () => {
   await commenter(S.P4, S.v4, T.proprio, []);
   h.marque = ids.brandA1;
 
-  // Une notification ordinaire (support), une mention d'un AUTRE espace, une mention FORGÉE (aucun fil ne la redonne).
+  // Une notification de support (son propre ticket · relue contre l'accès, toujours lisible par son autrice), une mention d'un AUTRE espace, une mention FORGÉE (aucun fil ne la redonne).
   const [tk] = await db.insert(schema.tickets).values({ workspaceId: ids.wsA, userId: ids.um, authorName: NOM_ZOE, type: 'question', title: 'Export CSV', body: 'Où ?' }).returning();
   S.ticket = tk!.id;
   await db.insert(schema.notifications).values([
@@ -331,7 +331,8 @@ describe('le coût · lectures bornées, une requête par lot, jamais une par no
     for (const [i, p] of projets.slice(0, 10).entries()) await noter(p.projectId, p.versionId, `@${NOM_MAX} note ${i}`, [ids.ux]);
     await commenter(S.P1, S.v1, `@${NOM_LEA} un avis`, [ids.ul]);
     await noter(S.P1, S.v1, `@${NOM_LEA} une note`, [ids.ul]);
-    await db.insert(schema.notifications).values(Array.from({ length: 30 }, (_, i) => ({ workspaceId: ids.wsA, userId: ids.up, type: 'ticket_status', title: `Statut ${i}`, body: 'Résolu', href: `/support/${S.ticket}` })));
+    // (des comptes rendus du radar · un ticket est désormais relu contre son accès, `W/test/cloche-tickets-db.test.tsx`)
+    await db.insert(schema.notifications).values(Array.from({ length: 30 }, (_, i) => ({ workspaceId: ids.wsA, userId: ids.up, type: 'radar', title: `Radar ${i}`, body: 'Rien de neuf', href: '/radar' })));
     paul = 30;
   }, 300_000);
 
@@ -352,6 +353,8 @@ describe('le coût · lectures bornées, une requête par lot, jamais une par no
     const lea = await compter(membre(ids.ul, NOM_LEA));
     expect(lea.r.items).toHaveLength(2);
     expect(max.n, `la relecture fait une requête par notification ou par projet (${max.n} pour 60 mentions, ${lea.n} pour 2)`).toBe(lea.n);
+    // Le compte mesuré sur main b839efe (le tableau du module) · une cloche sans ticket ne paie pas la relecture des tickets.
+    expect(lea.n, `une cloche de mentions sans ticket a changé de coût (${lea.n} requêtes, 9 mesurées)`).toBe(9);
   });
 
   it('une cloche sans notification bornée · deux lectures, comme avant (la liste et le compte)', async () => {

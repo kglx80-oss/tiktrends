@@ -1,7 +1,7 @@
 'use client';
 
 import { useId } from 'react';
-import { phraseNeeDeGagnante, type FilResultat, type GesteIterationCommentaire, type ResultatFil, type StatutHypotheseNote } from '@tiktrends/core';
+import { phraseNeeDeGagnante, type FilResultat, type GesteGagnante as Geste, type ResultatFil, type StatutHypotheseNote } from '@tiktrends/core';
 import { Ic, Lien } from '../../communs';
 import { CIBLE, RaisonFermee } from './briques';
 import { boutonAction, type OptionsBoutonAction } from './action-serveur';
@@ -35,7 +35,7 @@ const actionCible = (o: OptionsBoutonAction) => { const a = boutonAction(o); ret
  * (`resultatsFil`) · conclue · le statut, le chiffre clé et le lien vers le lot
  * (fermé avec sa raison hors de la marque active) · sinon « en test ».
  */
-export function ResultatsFil({ fil, resultats, gagnantes }: { fil: FilResultat; resultats: readonly ResultatFil[]; gagnantes?: Readonly<Record<string, GesteIterationCommentaire>> }) {
+export function ResultatsFil({ fil, resultats, gagnantes }: { fil: FilResultat; resultats: readonly ResultatFil[]; gagnantes?: Readonly<Record<string, Geste>> }) {
   const id = useId();
   return (
     <span {...{ [`data-resultats-${fil}`]: '' }} style={{ display: 'grid', gap: 6, marginTop: 6 }}>
@@ -50,7 +50,7 @@ export function ResultatsFil({ fil, resultats, gagnantes }: { fil: FilResultat; 
                 <RaisonFermee id={`${id}-lot-${i}`} cle={`lot-resultat-${fil}`}>{r.lot.raison}</RaisonFermee>
               </span>
             )}
-          {gagnantes?.[r.adId] && <GesteGagnante fil={fil} geste={gagnantes[r.adId]!} variante={r.variante} raisonId={`${id}-gagnante-${i}`} />}
+          {gagnantes?.[r.adId] && <GesteGagnante cle={`iterer-gagnante-${fil}`} geste={gagnantes[r.adId]!} variante={r.variante} raisonId={`${id}-gagnante-${i}`} />}
         </span>
       ) : (
         <span key={r.adId} {...{ [`data-resultat-${fil}`]: 'en_test' }} className="muted" style={{ fontSize: '11.5px' }}>
@@ -64,17 +64,26 @@ export function ResultatsFil({ fil, resultats, gagnantes }: { fil: FilResultat; 
 /**
  * « Itérer depuis la gagnante » · une NAVIGATION vers l'écran Itérer existant
  * (aucune action serveur ici · « Créer l'itération » là-bas rejoue les gardes)
- * · fermé · un bouton focalisable par la brique, sa raison écrite à côté.
+ * · fermé · un bouton focalisable par la brique, sa raison écrite à côté ·
+ * UN rendu pour le fil (commentaire, note), la fiche d'un lot et la carte
+ * d'une hypothèse (`cle` nomme seulement la raison). Ce que le plan dit à
+ * l'avance (« Déjà une suite en test · V12 », `signal`) est écrit à côté du
+ * geste, ouvert ou fermé, et cité par lui · absent, le rendu est celui de #1083.
  */
-function GesteGagnante({ fil, geste, variante, raisonId }: { fil: FilResultat; geste: GesteIterationCommentaire; variante: string; raisonId: string }) {
-  return geste.href
-    ? <Lien className="btn sm" href={geste.href} data-iterer-gagnante="ouvert" data-geste="iterer-gagnante" style={{ ...CIBLE, justifySelf: 'start' }} aria-label={`${geste.libelle} · ${variante}`}><Ic n="loop" />{geste.libelle}</Lien>
-    : (
-      <span className="kc" data-iterer-gagnante="ferme" style={{ alignItems: 'center' }}>
-        <button className="btn sm" type="button" data-geste="iterer-gagnante" aria-describedby={raisonId} {...actionCible({ occupe: false, ferme: true, focalisable: 'tout' })}><Ic n="loop" />{geste.libelle}</button>
-        <RaisonFermee id={raisonId} cle={`iterer-gagnante-${fil}`}>{geste.raison}</RaisonFermee>
-      </span>
-    );
+export function GesteGagnante({ cle, geste, variante, raisonId }: { cle: string; geste: Geste; variante: string; raisonId: string }) {
+  const signalId = `${raisonId}-suite`;
+  const signal = geste.signal ? <small className="faint" style={{ fontSize: '11.5px' }} data-suite-en-test="" id={signalId}>{geste.signal}</small> : null;
+  if (geste.href) {
+    const lien = <Lien className="btn sm" href={geste.href} data-iterer-gagnante="ouvert" data-geste="iterer-gagnante" style={{ ...CIBLE, justifySelf: 'start' }} aria-label={`${geste.libelle} · ${variante}`} {...(signal ? { 'aria-describedby': signalId } : {})}><Ic n="loop" />{geste.libelle}</Lien>;
+    return signal ? <span className="kc" data-iterer-gagnante-signal="" style={{ alignItems: 'center' }}>{lien}{signal}</span> : lien;
+  }
+  return (
+    <span className="kc" data-iterer-gagnante="ferme" style={{ alignItems: 'center' }}>
+      <button className="btn sm" type="button" data-geste="iterer-gagnante" aria-describedby={signal ? `${signalId} ${raisonId}` : raisonId} {...actionCible({ occupe: false, ferme: true, focalisable: 'tout' })}><Ic n="loop" />{geste.libelle}</button>
+      {signal}
+      <RaisonFermee id={raisonId} cle={cle}>{geste.raison}</RaisonFermee>
+    </span>
+  );
 }
 
 /**

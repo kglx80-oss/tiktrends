@@ -19,6 +19,7 @@ import { getActiveBrand } from '../brands';
 import { accesAdsmap } from './variantes/acces';
 import { liensDeCopie } from './copie-projet';
 import { lireResultatsDesFils } from './resultat-fil';
+import { planPourGestes } from '../iterer-gagnante';
 
 /**
  * Studios · lot 10 V5 · l'ACTIVITÉ d'un projet · journal et commentaires
@@ -241,16 +242,24 @@ async function vueCommentaires(ctx: ContexteStudio, c: Contexte): Promise<Commen
     ? await Promise.all([accesAdsmap().catch(() => false), getActiveBrand(ctx.workspaceId).catch(() => null)])
     : [false, null];
   const marqueActive = !!active && active.id === c.projet.brandId;
+  // « Itérer depuis la gagnante » · sous un résultat CONFIRMÉ seulement · la porte de l'écran Itérer (`studio.propose`, marque active) ·
+  // puis ce que le plan dit à l'avance des gagnantes ouvertes (suite en test, exclue) · lu une fois, sans écriture, seulement s'il y en a.
+  const fils = lignes.map((l) => {
+    const nees = iterations.get(l.id) ?? [];
+    const res = resultatsCommentaire(nees, { resultats, marqueActive });
+    const o = { id: l.id, projetId: c.projet.id, marqueActive, peutIterer: peutProposer };
+    return { nees, res, o, gagnantes: gestesGagnantesFil('commentaire', res, nees, o) };
+  });
+  const plan = await planPourGestes(ctx.workspaceId, fils.map((f) => f.gagnantes)).catch(() => null);
   return {
     peutCommenter: peutProposer,
     cibles: ciblesDe(c),
     mentionnables: peutProposer ? mentionnablesDe(ctx, c.projet, membres) : [],
-    commentaires: lignes.map((l) => {
+    commentaires: lignes.map((l, i) => {
       const modifications = lireHistoriqueCommentaire(l.history).length;
-      const nees = iterations.get(l.id) ?? [];
-      const resultatsDuFil = resultatsCommentaire(nees, { resultats, marqueActive });
-      // « Itérer depuis la gagnante » · sous un résultat CONFIRMÉ seulement · la porte de l'écran Itérer (`studio.propose`, marque active).
-      const gagnantes = gestesGagnantesFil('commentaire', resultatsDuFil, nees, { id: l.id, projetId: c.projet.id, marqueActive, peutIterer: peutProposer });
+      const f = fils[i]!;
+      const resultatsDuFil = f.res;
+      const gagnantes = plan ? gestesGagnantesFil('commentaire', f.res, f.nees, { ...f.o, plan }) : f.gagnantes;
       return {
         id: l.id,
         cible: l.targetType === 'version'

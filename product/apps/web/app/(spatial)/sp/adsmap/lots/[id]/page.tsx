@@ -8,7 +8,9 @@ import {
   accesHypothese, gestesLectureGroupe, noteDepartLectureOffre, gagnanteArbitree, gestesClavierLot,
   importFicheLot,
 } from '@tiktrends/core';
+import { gagnantesDuLot, gestesGagnantesLot } from '@tiktrends/core';
 import { roleAtLeast } from '../../../../../../lib/rbac';
+import { planDesGagnantes, porteIterationGagnante } from '../../../../../../lib/iterer-gagnante';
 import { iterationPlanAction } from '../../../../../actions/adsmap-iterate';
 import { personasEtTests } from '../../../../../../lib/personas-tests';
 import { offresEtTests } from '../../../../../../lib/offres-tests';
@@ -60,8 +62,9 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const detaches = lecture.groupes.filter((x) => duLot.has(x.persona.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
   const offresDetachees = lectureO.groupes.some((x) => offresDuLot.has(x.ref.id) && (x.lecture === 'au_dessus' || x.lecture === 'en_dessous'));
   // Lot 13 bis · la touche T (Itérer depuis la gagnante) lit le même plan, dès que le lot a une gagnante arbitrée.
-  const planIds = detaches.length || offresDetachees || l.ads.some(gagnanteArbitree)
-    ? new Set(choixIterationSpatial((await iterationPlanAction()).view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
+  const planLu = detaches.length || offresDetachees || l.ads.some(gagnanteArbitree) ? await iterationPlanAction() : null;
+  const planIds = planLu
+    ? new Set(choixIterationSpatial(planLu.view?.rows ?? [], () => undefined, { peutIterer: true }).filter((c) => c.selectionnable).map((c) => c.adId))
     : new Set<string>();
   const testsDe = (ads: readonly { id: string }[], personaId: string) => ads.filter((a) => attribution(a.id)?.persona?.id === personaId).map((a) => a.id);
   const gestes = (x: (typeof lecture.groupes)[number]) => gestesPersonaLot(x, {
@@ -81,6 +84,16 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
   // Lot 13 bis · ce que C et T ouvrent (une navigation) · fermé, la raison du geste.
   const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds });
+  // « Itérer depuis la gagnante » · chaque variante arbitrée gagnante d'un lot CONCLU (`gestesGagnantesLot`, la règle du fil) · la porte de
+  // l'écran Itérer, puis ce que le plan (déjà lu) et la lignée disent de chacune · lus seulement s'il y en a une, sans écriture.
+  const lotG = { id: l.id, numero: l.numero, etat: pres.etat, conclusion, ads: l.ads };
+  const aIterer = gagnantesDuLot(lotG);
+  const gagnantes = aIterer.length
+    ? gestesGagnantesLot(lotG, {
+      marqueActive: true, peutIterer: await porteIterationGagnante(g.marque.id),
+      plan: await planDesGagnantes(g.s.workspaceId, aIterer.map((x) => x.adId), planLu?.view?.rows ?? null),
+    })
+    : {};
   // « Mesures à importer » · l'import EXISTANT ouvert sur CE lot, sous SA garde (`import`) · fermé, sa raison.
   const importer = importFicheLot({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, acces: { refus: g.refusImport } });
 
@@ -157,7 +170,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
       reserves={[LIBELLE_NATURE_LOT[natureLot({ status: l.statut, launchedAt: l.lanceLe })].phrase, l.protocole?.resume ?? null].filter((x): x is string => !!x)}
       fiches={l.ads.map((a) => {
         const v = verdictAffiche(a.verdict);
-        return { href: lienFicheTest(a.id), libelle: `${a.variante} · ${a.concept}`, detail: `${libelleStatutTest(a.statut)} · ${v ? LIBELLE_VERDICT[v].court : 'pas de verdict'}` };
+        return { href: lienFicheTest(a.id), libelle: `${a.variante} · ${a.concept}`, detail: `${libelleStatutTest(a.statut)} · ${v ? LIBELLE_VERDICT[v].court : 'pas de verdict'}`, ...(gagnantes[a.id] ? { gagnante: gagnantes[a.id] } : {}) };
       })}
     />
   );
