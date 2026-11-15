@@ -6,7 +6,7 @@ import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
   compteAConclure, compteAImporter,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
-  type FaitsHypotheseAd, type CompteAConclure, type FaitsEtatLot, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
+  type FaitsHypotheseAd, type CompteAConclure, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
   type CompteAImporter, type FaitsLotAImporter,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
@@ -86,6 +86,8 @@ export interface AdLue extends FaitsAdSpatial {
 export interface LotLu extends FaitsLotSpatial {
   ads: AdLue[];
   creeLe: string;
+  /** `planned_end_at` (ISO) · `null` sans fin prévue · lue par la liste « Lot » de l'import (`casMesuresLot`). */
+  finPrevue: string | null;
 }
 
 export interface DonneesLots {
@@ -100,8 +102,8 @@ export interface DonneesLots {
 }
 
 /**
- * La PORTÉE des ads lues pour les lots · la liste (`chargerLots`) et le compte
- * « à conclure » (`chargerFaitsAConclure`) la partagent · même espace, même
+ * La PORTÉE des ads lues pour les lots · la liste (`chargerLots`) et les comptes
+ * du rail (`chargerFaitsRail`) la partagent · même espace, même
  * graphe (concept → angle → désir → persona → marque), même ordre, même borne ·
  * sinon la pastille et la liste pourraient voir deux ensembles de variantes.
  * L'ordre finit par l'identifiant · à la borne, les deux lectures retiennent
@@ -146,7 +148,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       .limit(LIMITE_ADS_LOTS),
     db.select({
       id: schema.batches.id, number: schema.batches.number, goal: schema.batches.goal, status: schema.batches.status,
-      launchedAt: schema.batches.launchedAt, protocolCheck: schema.batches.protocolCheck, createdAt: schema.batches.createdAt,
+      launchedAt: schema.batches.launchedAt, plannedEndAt: schema.batches.plannedEndAt, protocolCheck: schema.batches.protocolCheck, createdAt: schema.batches.createdAt,
     }).from(schema.batches).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number)),
     db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
     db.select({ structure: schema.testProtocols.structure }).from(schema.testProtocols).where(eq(schema.testProtocols.brandId, brandId)).limit(1),
@@ -196,6 +198,7 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
       return {
         id: b.id, numero: b.number, but: b.goal, statut: b.status,
         lanceLe: b.launchedAt ? (b.launchedAt as Date).toISOString() : null,
+        finPrevue: b.plannedEndAt ? (b.plannedEndAt as Date).toISOString() : null,
         creeLe: (b.createdAt as Date).toISOString(),
         ads: parLot.get(b.id) ?? [],
         protocole: pc ? { conforme: typeof pc.compliant === 'boolean' ? pc.compliant : null, resume: typeof pc.summary === 'string' ? pc.summary : null } : null,
@@ -212,90 +215,31 @@ export async function chargerLots(workspaceId: string, brandId: string, maintena
 /** Les états des lots, dans l'ordre de la liste. */
 export const etatsLots = (d: DonneesLots) => d.lots.map((l) => etatLotSpatial(l, d.ctx));
 
-/** Un lot vu par le compte « à conclure » · ce que son état lit (`FaitsEtatLot`), son identité. */
-export type LotAConclureLu = FaitsEtatLot & { id: string; numero: number };
+/** Un lot vu par les deux comptes du rail · ce que « à conclure » (`FaitsEtatLot`) et « à importer » (`FaitsLotAImporter`) lisent, son identité. */
+export type LotRailLu = FaitsLotAImporter & { id: string; numero: number };
+
+export interface FaitsRail { lots: LotRailLu[]; ctx: ContexteLots; seuil: SeuilMinimumMoteur }
 
 /**
- * Les faits qui décident « à conclure », et RIEN d'autre · pour la pastille du
- * rail (chaque page) et l'Accueil, qui n'ont besoin que d'un compte. La MÊME
- * portée que `chargerLots` (lots de la marque, ads sous `adsDeLaMarque`, même
- * ordre, même borne) · quatre colonnes par variante (lot, verdict, son statut,
- * sa valeur calculée) au lieu de la créa, du concept, des provenances et de
- * l'agrégat. La règle reste au noyau (`compteAConclure`).
+ * LA lecture des deux comptes du rail · « à conclure » (`compteAConclure`, la
+ * pastille de Résultats, l'Accueil) et « à importer » (`compteAImporter`, la
+ * pastille juste sous Résultats) lisaient les MÊMES variantes deux fois
+ * (`chargerFaitsAConclure` de #1080, `chargerFaitsAImporter` de #1090) ·
+ * elles n'en font plus qu'une, et la coquille la partage entre ses deux
+ * pastilles (`PartageRail`, `lib/spatial/coquille.ts`). La MÊME portée que `chargerLots`
+ * (lots de la marque, ads sous `adsDeLaMarque`), le même ordre
+ * (`ORDRE_ADS_LOTS`, départagé par l'identifiant), la même borne
+ * (`LIMITE_ADS_LOTS`) · par variante · son lot, son statut, sa plateforme, son
+ * verdict (statut, valeur calculée) et les DEUX nombres de l'agrégat que le
+ * minimum du moteur lit (dépense, impressions, extraits en base · le reste de
+ * l'agrégat ne quitte pas la base) · par lot · son statut, son lancement, sa
+ * fin prévue (`planned_end_at`, que « à importer » lit désormais). Les
+ * réglages du verdict de la MARQUE (le seuil du moteur, la fenêtre). Les
+ * règles restent au noyau.
  *
- * Coût mesuré · `MESURE_A_CONCLURE` plus bas (deux fois moins que la liste
- * entière à 16 variantes, six à sept fois moins à 480, quatre à six à 2 000).
+ * Coût mesuré · `MESURE_LECTURE_RAIL` plus bas.
  */
-export async function chargerFaitsAConclure(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ lots: LotAConclureLu[]; ctx: ContexteLots }> {
-  if (!db) return { lots: [], ctx: { maintenant, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays } };
-  const [lignes, lots, [vc]] = await Promise.all([
-    db.select({ lot: schema.ads.batchId, adId: schema.verdicts.adId, status: schema.verdicts.status, computed: schema.verdicts.computed })
-      .from(schema.ads)
-      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
-      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
-      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
-      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
-      .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
-      .where(adsDeLaMarque(workspaceId, brandId))
-      .orderBy(...ORDRE_ADS_LOTS)
-      .limit(LIMITE_ADS_LOTS),
-    db.select({ id: schema.batches.id, numero: schema.batches.number, statut: schema.batches.status, lanceLe: schema.batches.launchedAt })
-      .from(schema.batches).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number)),
-    db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
-  ]);
-  const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
-  const parLot = new Map<string, LotAConclureLu['ads'][number][]>();
-  for (const r of lignes) {
-    if (!r.lot) continue;
-    const v = { verdict: r.adId ? verdictLu({ status: r.status, computed: r.computed }) : null };
-    const du = parLot.get(r.lot);
-    if (du) du.push(v); else parLot.set(r.lot, [v]);
-  }
-  return {
-    lots: lots.map((b) => ({ id: b.id, numero: b.numero, statut: b.statut, lanceLe: b.lanceLe ? (b.lanceLe as Date).toISOString() : null, ads: parLot.get(b.id) ?? [] })),
-    ctx: { maintenant, fenetreJours: config.evaluationWindowDays },
-  };
-}
-
-/**
- * Le banc de la lecture du compte (pglite, 4 cœurs partagés, médiane de 15
- * lectures après 3 à vide, trois passages · compte et lots identiques à la
- * liste à chaque fois). Avant · la pastille lisait `chargerLots` (créa,
- * concept, provenances, agrégats) sur CHAQUE page ; l'Accueil ne lisait aucun
- * verdict (il comptait par la fin prévue). Après · `chargerFaitsAConclure`.
- * Semis · 8 lots × 2 (l'ordre du pire semis des tests existants,
- * `a-conclure-membres-db`), 60 × 8 (une marque active), 250 × 8 (la borne
- * `LIMITE_ADS_LOTS` atteinte).
- */
-export const MESURE_A_CONCLURE = [
-  { variantes: 16, avantMs: [8.5, 8.6, 10.0], apresMs: [3.9, 4.6, 5.4] },
-  { variantes: 480, avantMs: [55.4, 57.9, 67.0], apresMs: [8.6, 8.7, 9.4] },
-  { variantes: 2000, avantMs: [116.0, 124.6, 184.3], apresMs: [27.1, 28.5, 29.7] },
-] as const;
-
-/** LE compte « à conclure » de la marque · la pastille du rail et l'Accueil le lisent ici. */
-export async function compterAConclure(workspaceId: string, brandId: string, maintenant = new Date()): Promise<CompteAConclure> {
-  const f = await chargerFaitsAConclure(workspaceId, brandId, maintenant);
-  return compteAConclure(f.lots, f.ctx);
-}
-
-/** Un lot vu par le compte « à importer » · ce que `lotAttendDesMesures` lit, son identité. */
-export type LotAImporterLu = FaitsLotAImporter & { id: string; numero: number };
-
-/**
- * Les faits qui décident « à importer », et RIEN d'autre · pour la pastille du
- * rail (chaque page, admins). La MÊME portée que `chargerLots` (lots de la
- * marque, ads sous `adsDeLaMarque`, même ordre `ORDRE_ADS_LOTS` départagé par
- * l'identifiant, même borne `LIMITE_ADS_LOTS`) · par variante · son lot, son
- * statut, sa plateforme, son verdict (statut, valeur calculée) et les DEUX
- * nombres de l'agrégat que le minimum du moteur lit (dépense, impressions,
- * extraits en base · le reste de l'agrégat ne quitte pas la base) · au lieu de
- * la créa, du concept, des provenances. Les réglages du verdict de la MARQUE
- * (le seuil du moteur, la fenêtre). La règle reste au noyau (`compteAImporter`).
- *
- * Coût mesuré · `MESURE_A_IMPORTER` plus bas.
- */
-export async function chargerFaitsAImporter(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ lots: LotAImporterLu[]; ctx: ContexteLots; seuil: SeuilMinimumMoteur }> {
+export async function chargerFaitsRail(workspaceId: string, brandId: string, maintenant = new Date()): Promise<FaitsRail> {
   if (!db) return { lots: [], ctx: { maintenant, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays }, seuil: DEFAULT_VERDICT_CONFIG };
   const [lignes, lots, [vc]] = await Promise.all([
     db.select({
@@ -312,12 +256,12 @@ export async function chargerFaitsAImporter(workspaceId: string, brandId: string
       .where(adsDeLaMarque(workspaceId, brandId))
       .orderBy(...ORDRE_ADS_LOTS)
       .limit(LIMITE_ADS_LOTS),
-    db.select({ id: schema.batches.id, numero: schema.batches.number, statut: schema.batches.status, lanceLe: schema.batches.launchedAt })
+    db.select({ id: schema.batches.id, numero: schema.batches.number, statut: schema.batches.status, lanceLe: schema.batches.launchedAt, finPrevue: schema.batches.plannedEndAt })
       .from(schema.batches).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number)),
     db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
   ]);
   const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
-  const parLot = new Map<string, LotAImporterLu['ads'][number][]>();
+  const parLot = new Map<string, LotRailLu['ads'][number][]>();
   for (const r of lignes) {
     if (!r.lot) continue;
     const v = {
@@ -327,36 +271,71 @@ export async function chargerFaitsAImporter(workspaceId: string, brandId: string
     const du = parLot.get(r.lot);
     if (du) du.push(v); else parLot.set(r.lot, [v]);
   }
+  const iso = (d: unknown) => (d ? (d as Date).toISOString() : null);
   return {
-    lots: lots.map((b) => ({ id: b.id, numero: b.numero, statut: b.statut, lanceLe: b.lanceLe ? (b.lanceLe as Date).toISOString() : null, ads: parLot.get(b.id) ?? [] })),
+    lots: lots.map((b) => ({ id: b.id, numero: b.numero, statut: b.statut, lanceLe: iso(b.lanceLe), finPrevue: iso(b.finPrevue), ads: parLot.get(b.id) ?? [] })),
     ctx: { maintenant, fenetreJours: config.evaluationWindowDays },
     seuil: config,
   };
 }
 
 /**
- * Le banc de la lecture du compte « à importer » (pglite, 4 cœurs partagés,
- * médiane de 15 lectures après 3 à vide, trois passages · compte et lots
- * identiques à `chargerLots` + `compteAImporter` à chaque passage). Avant ·
- * `chargerLots` (créa, concept, provenances, agrégat entier) puis la règle ·
- * après · `chargerFaitsAImporter`. Témoin · `chargerFaitsAConclure` (#1080),
- * mesuré dans le MÊME passage (la charge de la machine pèse sur les trois
- * colonnes à la fois). Semis · 8 lots × 2, 60 × 8, 250 × 8 (la borne
- * `LIMITE_ADS_LOTS` atteinte), variantes Meta diffusées, un verdict sur trois
- * sous le minimum du moteur, une variante sur quatre sans verdict.
- * Lecture · deux fois moins que la liste entière à 480 et à 2 000 variantes ·
- * deux fois le témoin (sept colonnes par variante au lieu de quatre, dont
- * deux clés de l'agrégat extraites en base).
+ * Le banc des lectures des comptes du rail (pglite, 4 cœurs partagés, médiane
+ * de 15 lectures après 3 à vide, trois passages · comptes et lots identiques à
+ * `chargerLots` + la règle à chaque passage).
+ *
+ * Historique · `MESURE_A_CONCLURE` (#1080) · la pastille de Résultats lisait
+ * `chargerLots` (créa, concept, provenances, agrégats) sur CHAQUE page ·
+ * 16 variantes 8,5 à 10,0 ms → 3,9 à 5,4 ms · 480 · 55 à 67 → 8,6 à 9,4 ms ·
+ * 2 000 · 116 à 184 → 27 à 30 ms (`chargerFaitsAConclure`). `MESURE_A_IMPORTER`
+ * (#1090) · `chargerLots` + la règle → `chargerFaitsAImporter` · 4,3 à 5,3 →
+ * 2,7 à 3,4 ms · 16,9 à 18,2 → 7,6 à 8,0 ms · 73 à 100 → 39 à 45 ms (témoin
+ * « à conclure » 2,5 à 2,7 · 5,5 à 5,6 · 18,6 à 19,2 ms). Les deux lectures
+ * parcouraient les mêmes variantes, à chaque page, pour chaque admin.
+ *
+ * Ici · avant · les deux lectures de la coquille d'un admin (#1080 puis #1090,
+ * telles que main les lançait, en parallèle) · après · `chargerFaitsRail`, UNE
+ * fois, les deux comptes tirés d'elle · témoin · `chargerFaitsAConclure` de
+ * #1080 seule (les deux lectures de main recopiées telles quelles dans le
+ * banc, 04d6270b), mesurée dans le MÊME passage (la charge de la machine pèse sur
+ * les trois colonnes à la fois). Semis · 8 lots × 2, 60 × 8, 250 × 8 (la
+ * borne `LIMITE_ADS_LOTS` atteinte), variantes Meta diffusées, un verdict sur
+ * trois sous le minimum du moteur, une variante sur quatre sans verdict, un
+ * lot sur deux avec une fin prévue. Égalité vérifiée à chaque taille · mêmes
+ * lots et mêmes variantes par lot que chacune des deux lectures de main et que
+ * `chargerLots`, même compte « à conclure ».
+ * Lecture · médianes 35 à 45 % sous les deux lectures (une requête de
+ * variantes au lieu de deux) · 1,1 à 1,6 fois le témoin (sept colonnes par
+ * variante au lieu de quatre, dont deux clés de l'agrégat extraites en base),
+ * là où les deux lectures en coûtaient 2,0 à 2,7 fois.
  */
-export const MESURE_A_IMPORTER = [
-  { variantes: 16, avantMs: [4.3, 4.4, 5.3], apresMs: [2.7, 2.8, 3.4], temoinAConclureMs: [2.5, 2.5, 2.7] },
-  { variantes: 480, avantMs: [16.9, 17.9, 18.2], apresMs: [7.6, 7.8, 8.0], temoinAConclureMs: [5.5, 5.6, 5.6] },
-  { variantes: 2000, avantMs: [73.2, 81.0, 99.7], apresMs: [38.7, 41.2, 45.1], temoinAConclureMs: [18.6, 19.2, 19.2] },
+export const MESURE_LECTURE_RAIL = [
+  { variantes: 16, avantMs: [6.3, 7.0, 9.9], apresMs: [3.4, 3.8, 5.3], temoinAConclureMs: [3.1, 3.3, 4.8] },
+  { variantes: 480, avantMs: [17.2, 17.6, 19.3], apresMs: [10.2, 10.4, 10.6], temoinAConclureMs: [6.7, 7.0, 8.7] },
+  { variantes: 2000, avantMs: [60.5, 62.0, 66.1], apresMs: [38.3, 41.0, 41.5], temoinAConclureMs: [23.3, 23.6, 25.8] },
 ] as const;
 
-/** LE compte « à importer » de la marque · la pastille du rail le lit ici. */
-export async function compterAImporter(workspaceId: string, brandId: string, maintenant = new Date()): Promise<CompteAImporter> {
-  const f = await chargerFaitsAImporter(workspaceId, brandId, maintenant);
+/**
+ * Le partage de LA lecture entre les pastilles d'une même coquille · la
+ * première pastille qui la demande la lance, la seconde attend la MÊME
+ * promesse · une page, une lecture. Sans partage (l'Accueil), une lecture à soi.
+ */
+export interface PartageRail { faits?: Promise<FaitsRail> }
+
+export function faitsRailPartages(workspaceId: string, brandId: string, maintenant = new Date(), partage?: PartageRail): Promise<FaitsRail> {
+  if (!partage) return chargerFaitsRail(workspaceId, brandId, maintenant);
+  return (partage.faits ??= chargerFaitsRail(workspaceId, brandId, maintenant));
+}
+
+/** LE compte « à conclure » de la marque · la pastille du rail et l'Accueil le lisent ici (règle `compteAConclure`, inchangée). */
+export async function compterAConclure(workspaceId: string, brandId: string, maintenant = new Date(), partage?: PartageRail): Promise<CompteAConclure> {
+  const f = await faitsRailPartages(workspaceId, brandId, maintenant, partage);
+  return compteAConclure(f.lots, f.ctx);
+}
+
+/** LE compte « à importer » de la marque · les lots dont les mesures MANQUENT (règle `compteAImporter` → `casMesuresLot`). */
+export async function compterAImporter(workspaceId: string, brandId: string, maintenant = new Date(), partage?: PartageRail): Promise<CompteAImporter> {
+  const f = await faitsRailPartages(workspaceId, brandId, maintenant, partage);
   return compteAImporter(f.lots, f.ctx, f.seuil);
 }
 

@@ -1,6 +1,6 @@
 import 'server-only';
 import { pastilleAConclure, type EntreeRail } from '@tiktrends/core';
-import { compterAConclure } from '../../../app/(spatial)/sp/adsmap/donnees';
+import { compterAConclure, type PartageRail } from '../../../app/(spatial)/sp/adsmap/donnees';
 
 /**
  * La pastille de « Résultats » dans le rail Spatial (`badge` de la maquette) ·
@@ -11,11 +11,12 @@ import { compterAConclure } from '../../../app/(spatial)/sp/adsmap/donnees';
  *
  * Appelée par la coquille (`SOURCES_PASTILLES`) seulement quand Résultats est
  * ouvert (rôle et formule) · l'appeler sans ce droit dévoilerait un compte que
- * l'écran refuserait.
+ * l'écran refuserait. `partage` · la lecture que la coquille partage avec la
+ * pastille « à importer » (`chargerFaitsRail`, UNE lecture par page).
  */
-export async function pastilleResultats(workspaceId: string, brandId: string): Promise<NonNullable<EntreeRail['pastille']> | null> {
+export async function pastilleResultats(workspaceId: string, brandId: string, partage?: PartageRail): Promise<NonNullable<EntreeRail['pastille']> | null> {
   try {
-    return pastilleAConclure(await compterAConclure(workspaceId, brandId));
+    return pastilleAConclure(await compterAConclure(workspaceId, brandId, new Date(), partage));
   } catch {
     // Une pastille ne fait jamais tomber la coquille · sans lecture, rien à signaler.
     return null;

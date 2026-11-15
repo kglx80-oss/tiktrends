@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  AIDE_LISTE_LOT, LIBELLE_LISTE_LOT, LIBELLE_VERDICT, TOUS_LES_LOTS, adresseListeLot, libelleStatutTest, mentionColonnesAbsentes, modeleImport,
+  AIDE_LISTE_LOT, LIBELLE_LISTE_LOT, LIBELLE_VERDICT, TOUS_LES_LOTS, adresseListeLot, groupesListeLot, libelleStatutTest, mentionColonnesAbsentes, modeleImport,
   phraseAnnoncesDuLot, phraseSansMesureApres, variantesSansMesureApres,
   type EtatVarianteImport, type GuideColonnes, type ListeLotImport, type LotImport, type Remontee, type VerdictValue,
 } from '@tiktrends/core';
@@ -92,7 +92,9 @@ function ListeLot({ liste }: { liste: ListeLotImport }) {
       <select id="import-liste-lot" value={liste.choisi} aria-describedby="import-liste-lot-aide" style={CHAMP_LOT}
         onChange={(e) => router.push(adresseListeLot(e.target.value))}>
         <option value="">{TOUS_LES_LOTS}</option>
-        {liste.options.map((o) => <option key={o.id} value={o.id}>{o.libelle}</option>)}
+        {groupesListeLot(liste.options).map((g, i) => (g.libelle
+          ? <optgroup key={g.groupe ?? i} label={g.libelle} data-cas={g.groupe ?? undefined}>{g.options.map((o) => <option key={o.id} value={o.id}>{o.libelle}</option>)}</optgroup>
+          : g.options.map((o) => <option key={o.id} value={o.id}>{o.libelle}</option>)))}
       </select>
       <small id="import-liste-lot-aide" className="faint" style={{ flexBasis: '100%', fontSize: '11.5px' }}>{AIDE_LISTE_LOT}</small>
     </div>
@@ -107,6 +109,7 @@ function LotCible({ lot }: { lot: LotImport }) {
   return (
     <section className="tile sec" data-lot-cible={lot.id} aria-label={`Mesures du lot #${lot.numero}`} style={{ marginTop: 0, marginBottom: 14 }}>
       <h2>{lot.titre} · ses mesures</h2>
+      {lot.mesures && <p className="muted" role="note" data-cas-mesures={lot.mesures.cas} style={{ fontSize: '12.5px' }}>{lot.mesures.texte}</p>}
       {lot.diagnostic && <p className="muted" data-diagnostic="" style={{ fontSize: '12.5px' }}>{lot.diagnostic}</p>}
       {lot.sansSource && <p className="muted" role="note" data-sans-source="" style={{ fontSize: '12.5px' }}>{lot.sansSource}</p>}
       <div className="mtable" style={{ marginTop: 10 }} data-tableau="variantes-lot">

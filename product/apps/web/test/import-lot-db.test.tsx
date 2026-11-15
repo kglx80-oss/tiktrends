@@ -175,6 +175,17 @@ function sansListe(html: string): string {
   return html.replace(LISTE, '');
 }
 /**
+ * L'écart déclaré de la section du lot · UN paragraphe `p[data-cas-mesures]` (« mesures en cours » ou
+ * « mesures manquantes », `mesuresDuLot`), juste après le titre de la section · on le retire, lui seul ·
+ * absent, deux fois, ou ailleurs · rien n'est retiré (la comparaison tombe).
+ */
+const CAS_MESURES = /<p class="muted" role="note" data-cas-mesures="(?:en-cours|manquantes)" style="font-size:12.5px">[^<]*<\/p>/g;
+function sansCasMesures(html: string): string {
+  const m = [...html.matchAll(CAS_MESURES)];
+  if (m.length !== 1 || !html.slice(0, m[0]!.index).endsWith('ses mesures</h2>')) return html;
+  return html.replace(CAS_MESURES, '');
+}
+/**
  * Les identifiants de `useId` (`_R_2r_`) encodent la place d'un composant parmi ses frères · une section
  * ajoutée dans le fragment des gestes les décale · ils sont ramenés à un seul nom, des deux côtés.
  */
@@ -244,10 +255,11 @@ describe('chaque « Importer » d’un lot arrive sur lui · on suit le lien', (
       expect(i.lot, 'l’écran d’import ne s’ouvre pas sur ce lot').toBe(id);
       expect(i.liste?.choisi, 'la liste « Lot » ne montre pas ce lot choisi').toBe(id);
     }
-    // Le lot sur TikTok · mené là par son bouton · la section le dit, la liste le garde à sa place.
+    // Le lot sur TikTok · mené là par son bouton · la section le dit, la liste le garde, dans son groupe à lui
+    // (« Ouvert par le lien », après les lots qui attendent · la liste est regroupée par cas, `casMesuresLot`).
     const t = await ecranImport(`/adsmap/import?lot=${L.n5}`);
     expect(t.texte).toContain('Lot #5 · aucune source d’import · TikTok n’a encore ni connexion ni export, seul Meta remonte des mesures');
-    expect(t.liste!.options.map((o) => o.id)).toEqual(['', L.n5, L.n3, L.n1]);
+    expect(t.liste!.options.map((o) => o.id)).toEqual(['', L.n3, L.n1, L.n5]);
     // Aucun autre lien de la liste ne mène à l'import nu.
     expect([...d.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')).filter((x) => x === '/adsmap/import'), 'un lien nu vers l’import pour un lot').toEqual(['/adsmap/import']);
     expect(await traces(), 'une lecture a écrit').toEqual(avantT);
@@ -338,7 +350,8 @@ describe('la liste « Lot » de l’écran d’import', () => {
     expect(sansListe(tous).length, 'l’écran « Tous les lots » a changé de taille').toBe(avant('import-tous-les-lots-avant.html').length);
     expect(sansListe(tous), 'l’écran « Tous les lots » a changé').toBe(avant('import-tous-les-lots-avant.html'));
     const surN1 = (await pageImport({ lot: L.n1! })).split(L.n1!).join('{{n1}}');
-    expect(sansListe(surN1), 'l’écran ouvert sur un lot a changé').toBe(avant('import-lot-n1-avant.html'));
+    expect(surN1, 'la section du lot ne dit pas son cas').toContain('data-cas-mesures="manquantes"');
+    expect(sansCasMesures(sansListe(surN1)), 'l’écran ouvert sur un lot a changé').toBe(avant('import-lot-n1-avant.html'));
     // Paramètre inconnu · comme « Tous les lots ».
     expect(sansListe(await pageImport({ lot: 'inconnu' }))).toBe(avant('import-tous-les-lots-avant.html'));
   });
