@@ -57,7 +57,7 @@ export default async function BoucleSpatial() {
     <Boucle
       sousNav={sousNavResultats({ admin: g.admin })}
       kpis={kpisBoucle({ verdicts, premierLancement: lancements[0] ?? null, cyclesJours: cycles, apprentissages: { total: valides.length, mesures: valides.filter((f) => niveauPreuveApprentissage(f) === 3).length } })}
-      prochaine={prochaineActionBoucle(lus, suites.length > 0)}
+      prochaine={prochaineActionBoucle(lus, suites.length > 0, { refusImport: g.refusImport })}
       idees={idees}
       ajouter="/adsmap/suites"
       preparation={de('composition', 'pret').map(({ l, presentation: p }) => ({
@@ -74,7 +74,7 @@ export default async function BoucleSpatial() {
         pubs: [...l.ads].sort((a, b) => Number(b.id === s.gagnante) - Number(a.id === s.gagnante)).slice(0, 2).map((a) => ({ image: a.image, gagne: a.id === s.gagnante })),
         detail: p.etat === 'a_importer' ? `${p.fenetre} jours écoulés · mesures manquantes` : p.etat === 'a_conclure' ? `${s.titre} · prêt à conclure` : `${s.titre} · à arbitrer quand même`,
         statut: p.etat === 'a_conclure' ? { libelle: 'À conclure', classe: 'g' } : p.etat === 'a_importer' ? { libelle: 'À importer', classe: 'w' } : { libelle: 'Non concluant', classe: '' },
-        action: p.etat === 'a_importer' && g.admin ? { libelle: 'Importer', href: '/adsmap/import' } : { libelle: p.etat === 'a_conclure' ? 'Conclure' : 'Voir le lot', href: lienLotSpatial(l.id) },
+        action: p.etat === 'a_importer' && g.admin ? { libelle: 'Importer', href: p.action.href } : { libelle: p.etat === 'a_conclure' ? 'Conclure' : 'Voir le lot', href: lienLotSpatial(l.id) },
       }))}
       apprentissages={faits.slice(0, 4).map((f) => {
         const e = etatApprentissage(f);

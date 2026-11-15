@@ -6,6 +6,7 @@ import {
   entreesLectureOffres, lectureOffres, libelleAttributionOffre, regleLectureOffres, SANS_OFFRE_TEST,
   apprentissagesDepuisReponse, lireGesteConclusion, REFUS_GESTE_JARVIS, gestesPersonaLot, choixIterationSpatial,
   accesHypothese, gestesLectureGroupe, noteDepartLectureOffre, gagnanteArbitree, gestesClavierLot,
+  importFicheLot,
 } from '@tiktrends/core';
 import { roleAtLeast } from '../../../../../../lib/rbac';
 import { iterationPlanAction } from '../../../../../actions/adsmap-iterate';
@@ -17,6 +18,7 @@ import { Lot } from '../../../../../../spatial/vues/resultats/Lot';
 import { ActionsLot, DupliquerLot, type PropsActionsLot } from '../../../../../../spatial/vues/resultats/ActionsLot';
 import { RefusResultats } from '../../../../../../spatial/vues/resultats/communs';
 import { RaccourcisLot } from '../../../../../../spatial/vues/resultats/RaccourcisLot';
+import { ImporterMesuresLot } from '../../../../../../spatial/vues/resultats/ImporterMesuresLot';
 import { chargerLots, gardeResultats } from '../../donnees';
 
 export const dynamic = 'force-dynamic';
@@ -79,6 +81,8 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
   // Lot 13 bis · ce que C et T ouvrent (une navigation) · fermé, la raison du geste.
   const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds });
+  // « Mesures à importer » · l'import EXISTANT ouvert sur CE lot, sous SA garde (`import`) · fermé, sa raison.
+  const importer = importFicheLot({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, acces: { refus: g.refusImport } });
 
   let actions: PropsActionsLot | null = null;
   if (g.admin && (pres.etat === 'composition' || pres.etat === 'pret')) {
@@ -146,6 +150,7 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
       jarvis={(() => { const href = g.jarvis ? lienJarvisContexte('lot', l.id) : null; return href ? { href } : null; })()}
       actions={<>
         <RaccourcisLot conclure={clavier.conclure} iterer={clavier.iterer} />
+        {importer && <ImporterMesuresLot lotId={l.id} f={importer} />}
         {actions && <ActionsLot {...actions} />}
         <DupliquerLot lotId={l.id} numero={l.numero} variantes={l.ads.length} raison={g.admin ? null : 'Dupliquer un lot est réservé aux admins de l’espace, comme en créer un.'} />
       </>}

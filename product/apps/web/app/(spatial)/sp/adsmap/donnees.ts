@@ -33,6 +33,8 @@ export type GardeResultats =
     ok: true; s: NonNullable<Awaited<ReturnType<typeof getSession>>>; marque: { id: string; nom: string }; admin: boolean; jarvis: boolean;
     /** La fonction `lots` de la matrice (liste complète, composer) · inchangée · sans elle, « Lots de test » ne montre que « À conclure ». */
     lots: boolean;
+    /** Pourquoi la fonction `import` est fermée à cette personne (rôle, formule) · `null` ouverte · le geste « Importer les mesures du lot #n » de la fiche d'un lot. */
+    refusImport: 'role' | 'plan' | null;
   }
   | { ok: false; raison: 'plan' | 'role' | 'marque' };
 
@@ -47,7 +49,7 @@ export async function gardeResultats(reserve?: 'lots' | 'import'): Promise<Garde
   if (reserve && !canAccess(acces, feature(reserve))) redirect('/adsmap');
   const brand = await getActiveBrand(s.workspaceId);
   if (!brand) return { ok: false, raison: 'marque' };
-  return { ok: true, s, marque: { id: brand.id, nom: brand.name }, admin: roleAtLeast(s.role, 'admin'), jarvis: canAccess(acces, feature('jarvis')), lots: canAccess(acces, feature('lots')) };
+  return { ok: true, s, marque: { id: brand.id, nom: brand.name }, admin: roleAtLeast(s.role, 'admin'), jarvis: canAccess(acces, feature('jarvis')), lots: canAccess(acces, feature('lots')), refusImport: denyReason(acces, feature('import')) };
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);

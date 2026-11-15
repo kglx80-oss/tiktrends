@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  computeVerdict, evaluateKillRules, diagnoseFailedStage, rankBatch,
-  DEFAULT_VERDICT_CONFIG, type VerdictInput,
+  computeVerdict, evaluateKillRules, diagnoseFailedStage, rankBatch, sousLeMinimumDuMoteur,
+  DEFAULT_VERDICT_CONFIG, type VerdictInput, type SeuilMinimumMoteur,
 } from '../src/adsmap/verdict';
 import { deriveMetrics } from '../src/adsmap/stats';
 
@@ -211,5 +211,61 @@ describe('les motifs sont lisibles par un humain', () => {
       expect(r.reason.length).toBeGreaterThan(25);
       expect(r.reason).not.toMatch(/null|undefined|NaN|Infinity/);
     }
+  });
+});
+
+/**
+ * La règle 2 · le minimum de matière (`sousLeMinimumDuMoteur`) · sa FRONTIÈRE,
+ * écrite en faits indépendants du moteur · chaque seuil est posé ici en clair
+ * (défaut · 3 × 35 € = 105 € ET 5 000 impressions), jamais relu dans la
+ * configuration ni recalculé par le moteur. « Sous le minimum » veut dire sous
+ * les DEUX · atteindre l'un des deux suffit à en sortir · un seuil atteint pile
+ * n'est plus « sous ». Un « et » devenu « ou », un « < » devenu « <= », un
+ * réglage de marque ignoré, chacun fait tomber au moins une ligne de cette grille.
+ */
+describe('règle 2 · la frontière du minimum du moteur', () => {
+  // [dépense €, impressions, sous le minimum ?, pourquoi]
+  const DEFAUT: ReadonlyArray<readonly [number, number, boolean, string]> = [
+    [104.99, 4999, true, 'les deux juste sous'],
+    [105, 4999, false, 'dépense atteinte pile, impressions juste sous'],
+    [104.99, 5000, false, 'impressions atteintes pile, dépense juste sous'],
+    [105, 5000, false, 'les deux pile au seuil'],
+    [400, 10, false, 'dépense largement atteinte sans les impressions'],
+    [1, 90_000, false, 'impressions largement atteintes sans la dépense'],
+    [0, 0, true, 'rien du tout'],
+  ];
+  it.each(DEFAUT)('défaut · %d € et %d impressions · sous le minimum = %s (%s)', (spend, impressions, sous) => {
+    expect(sousLeMinimumDuMoteur({ spend, impressions }, cfg)).toBe(sous);
+  });
+
+  // Une marque réglée autrement · cible 50 €, 2 fois la cible (100 €), 15 000 impressions.
+  const MARQUE: SeuilMinimumMoteur = { targetCpa: 50, minSpendMultiple: 2, minImpressions: 15_000 };
+  const REGLEE: ReadonlyArray<readonly [number, number, boolean, string]> = [
+    [99.99, 14_999, true, 'les deux juste sous'],
+    [100, 14_999, false, 'dépense atteinte pile, impressions juste sous'],
+    [99.99, 15_000, false, 'impressions atteintes pile, dépense juste sous'],
+    [100, 15_000, false, 'les deux pile au seuil'],
+    // Les réglages de la marque comptent, pas le défaut · 9 000 impressions et 60 € y restent sous le minimum (au défaut, 5 000 impressions sont atteintes).
+    [60, 9000, true, 'sous le minimum de la marque, au-dessus des impressions du défaut'],
+    // 104 € · au-dessus des 100 € de la marque, sous les 105 € du défaut.
+    [104, 1000, false, 'dépense atteinte pour la marque, pas pour le défaut'],
+  ];
+  it.each(REGLEE)('marque · %d € et %d impressions · sous le minimum = %s (%s)', (spend, impressions, sous) => {
+    expect(sousLeMinimumDuMoteur({ spend, impressions }, MARQUE)).toBe(sous);
+  });
+  it('les mêmes mesures changent de côté avec les réglages de la marque', () => {
+    expect(sousLeMinimumDuMoteur({ spend: 60, impressions: 9000 }, cfg), 'au défaut · 9 000 impressions atteignent 5 000').toBe(false);
+    expect(sousLeMinimumDuMoteur({ spend: 104, impressions: 1000 }, cfg), 'au défaut · 104 € restent sous 105 €').toBe(true);
+  });
+
+  it('le moteur tranche la frontière comme la règle · « Trop peu de données » sous les deux seuils, jamais quand l’un est atteint', () => {
+    const m = (spend: number, impressions: number) => ({ spend, impressions, video3sViews: Math.round(impressions * 0.3), thruplays: Math.round(impressions * 0.1), linkClicks: Math.round(impressions * 0.012), purchases: 0 });
+    const motif = (spend: number, impressions: number, c: VerdictInput['config'] = cfg) => computeVerdict({ ...cas({ m: m(spend, impressions) }), config: c }).reason;
+    expect(motif(104.99, 4999)).toMatch(/^Trop peu de données/);
+    expect(motif(105, 4999)).not.toMatch(/^Trop peu de données/);
+    expect(motif(104.99, 5000)).not.toMatch(/^Trop peu de données/);
+    const reglee = { ...cfg, ...MARQUE };
+    expect(motif(60, 9000, reglee), 'les réglages de la marque · sous le minimum').toMatch(/^Trop peu de données/);
+    expect(motif(100, 14_999, reglee), 'les réglages de la marque · dépense atteinte').not.toMatch(/^Trop peu de données/);
   });
 });

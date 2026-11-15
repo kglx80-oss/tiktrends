@@ -3,7 +3,7 @@ import {
   outilsResultats, redirectionTestProfond, redirectionVueAdsmap,
   accrocheResultats, sousKpisResultats, barresCpa, categorieVariable, compteLotsEnAttente, indexAutresLots, indexLotVedette, kpisResultats,
   phraseLot, plateformesLot, lienLotSpatial, LIBELLE_NIVEAU, presentationLot, sousNavResultats, suiteLot, syntheseLot, volumeMinimumLot, etatLotSpatial,
-  analyseJarvisEnsemble,
+  analyseJarvisEnsemble, PRESENTATION_ETAT_LOT,
 } from '@tiktrends/core';
 import { VueEnsemble, type AutreLot, type LotVedette } from '../../../../spatial/vues/resultats/VueEnsemble';
 import { RefusResultats } from '../../../../spatial/vues/resultats/communs';
@@ -75,7 +75,7 @@ export default async function ResultatsSpatial({ searchParams }: { searchParams:
     progression: etat === 'diffusion' ? pres.anneau.part : null,
     texte: phraseLot(pres, syn, l.ads.length),
     // Un membre n'importe pas (page réservée) · il suit le lot.
-    action: pres.action.href === '/adsmap/import' && !g.admin ? { libelle: 'Voir le lot', href: lienLotSpatial(l.id) } : pres.action,
+    action: PRESENTATION_ETAT_LOT[pres.etat].versImport && !g.admin ? { libelle: 'Voir le lot', href: lienLotSpatial(l.id) } : pres.action,
   }));
 
   // R03 · « Analyser avec Jarvis » · la vue d'ensemble jointe, « Pourquoi la V… » sur la gagnante RÉELLE du lot vedette seulement.

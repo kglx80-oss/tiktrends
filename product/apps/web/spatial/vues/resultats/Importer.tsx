@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  LIBELLE_VERDICT, libelleStatutTest, mentionColonnesAbsentes, modeleImport, phraseAnnoncesDuLot,
-  type EtatVarianteImport, type GuideColonnes, type LotImport, type Remontee, type VerdictValue,
+  AIDE_LISTE_LOT, LIBELLE_LISTE_LOT, LIBELLE_VERDICT, TOUS_LES_LOTS, adresseListeLot, libelleStatutTest, mentionColonnesAbsentes, modeleImport,
+  phraseAnnoncesDuLot, phraseSansMesureApres, variantesSansMesureApres,
+  type EtatVarianteImport, type GuideColonnes, type ListeLotImport, type LotImport, type Remontee, type VerdictValue,
 } from '@tiktrends/core';
 import { syncAdsMapAction } from '../../../app/actions/adsmap';
 import { applyImportAction, previewImportAction, type PreviewResult } from '../../../app/actions/adsmap-import';
@@ -72,6 +73,30 @@ export interface PropsImporter {
   remontees: ReadonlyArray<Remontee & { quand: string }>;
   /** Hors maquette, écart déclaré · l'écran ouvert sur un lot (`?lot=`) · absent, rien n'est ajouté. */
   lot?: LotImport | null;
+  /** Hors maquette, écart déclaré · la liste « Lot » (I06 · `listeLotImport`) · la sélection pilote `?lot=` · absente, rien n'est ajouté. */
+  liste?: ListeLotImport | null;
+}
+
+const CHAMP_LOT = { boxSizing: 'border-box', flex: '1 1 260px', minWidth: 0, maxWidth: '100%', minHeight: 44, padding: '10px 14px', borderRadius: 14, background: 'var(--glass2)', border: '1px solid var(--edge)', color: 'var(--fg)', font: '500 13px var(--sf)' } as const;
+
+/**
+ * La liste « Lot » · choisir un lot change l'ADRESSE (`adresseListeLot`), et la
+ * page relue au serveur ouvre l'écran sur lui · « Tous les lots » revient à
+ * l'écran sans lot. Un seul bloc, sans `div` imbriqué (l'écart déclaré se retire d'un coup).
+ */
+function ListeLot({ liste }: { liste: ListeLotImport }) {
+  const router = useRouter();
+  return (
+    <div data-liste-lot="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      <label className="lbl" htmlFor="import-liste-lot" style={{ margin: 0 }}>{LIBELLE_LISTE_LOT}</label>
+      <select id="import-liste-lot" value={liste.choisi} aria-describedby="import-liste-lot-aide" style={CHAMP_LOT}
+        onChange={(e) => router.push(adresseListeLot(e.target.value))}>
+        <option value="">{TOUS_LES_LOTS}</option>
+        {liste.options.map((o) => <option key={o.id} value={o.id}>{o.libelle}</option>)}
+      </select>
+      <small id="import-liste-lot-aide" className="faint" style={{ flexBasis: '100%', fontSize: '11.5px' }}>{AIDE_LISTE_LOT}</small>
+    </div>
+  );
 }
 
 const PILL_VARIANTE: Readonly<Record<EtatVarianteImport, '' | 'w' | 'g'>> = { brouillon: '', 'hors-meta': '', 'sans-mesure': 'w', 'sous-minimum': 'w', mesuree: 'g' };
@@ -199,6 +224,7 @@ export function Importer(p: PropsImporter) {
     <Vue>
       <EnTete titre="Importer des résultats" sous="Les mesures remontent dans tes lots : c’est ce qui permet de conclure, puis d’itérer" />
       <SousNav items={p.sousNav} actif="/adsmap/import" />
+      {p.liste && <ListeLot liste={p.liste} />}
       {p.lot && <LotCible lot={p.lot} />}
       <div className="lbl" style={{ marginBottom: 10 }}>Connexion automatique · lecture seule · mesure chaque nuit</div>
       <div className="grid3">
@@ -281,6 +307,10 @@ export function Importer(p: PropsImporter) {
           <p className="muted" style={{ fontSize: '12.5px' }}>{mesures.lecture} · {pl(mesures.reconnues.length, 'mesure reconnue', 'mesures reconnues')} · {pl(t.ads, 'variante recevra', 'variantes recevront')} des mesures · {pl(t.nouvelles, 'journée nouvelle', 'journées nouvelles')}, {pl(t.identiques, 'déjà importée à l’identique', 'déjà importées à l’identique')}, {pl(t.misesAJour, 'remplacée', 'remplacées')} par ce fichier.</p>
           {mesures.reconnues.length > 0 && <Intitules liste={mesures.reconnues} />}
           {p.lot && <p className="muted" role="note" data-lot-cible-compte="" style={{ fontSize: '12.5px', marginTop: 10 }}>{phraseAnnoncesDuLot(p.lot.numero, mesures.annonces)}</p>}
+          {p.lot && (() => {
+            const phrase = phraseSansMesureApres(p.lot, variantesSansMesureApres(p.lot, mesures.annonces, confirmees));
+            return phrase && <p className="muted" role="note" data-lot-cible-restantes="" style={{ fontSize: '12.5px', marginTop: 6 }}>{phrase}</p>;
+          })()}
           <p className="muted" role="note" data-regle="priorite-mesures" style={{ fontSize: '12.5px', marginTop: 10 }}>{mesures.priorite}</p>
           {mesures.notes.length > 0 && (
             <ul className="check2">

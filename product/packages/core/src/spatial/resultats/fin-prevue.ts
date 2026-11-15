@@ -148,6 +148,20 @@ export function gesteFinPrevue(
   acces: { refus: 'role' | 'plan' | null },
 ): GesteFinPrevue | null {
   if (!d || d.cas === 'autre') return null;
+  return gesteImportLot(lot, sources, acces);
+}
+
+/**
+ * « Importer les mesures du lot #n » · UNE règle pour chaque bouton qui importe
+ * les mesures d'un lot (l'Accueil, la fiche d'un lot « Mesures à importer ») ·
+ * aucune source · dit ; import fermé (rôle, formule) · le contrôle fermé et sa
+ * raison ; sinon · l'import ouvert sur CE lot (`lienImportLot`).
+ */
+export function gesteImportLot(
+  lot: { id: string; numero: number },
+  sources: SourcesImportLot,
+  acces: { refus: 'role' | 'plan' | null },
+): GesteFinPrevue {
   if (!sources.ok) return { etat: 'sans-source', raison: sources.raison };
   const libelle = `Importer les mesures du lot #${lot.numero}`;
   if (acces.refus) return { etat: 'ferme', libelle, raison: RAISON_IMPORT_FERME[acces.refus] };
