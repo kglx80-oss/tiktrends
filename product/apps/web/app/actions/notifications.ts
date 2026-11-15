@@ -18,7 +18,10 @@ export interface NotifPayload { items: NotifItem[]; unread: number }
  * Une notification née d'un fil des Studios (mention, nouveau commentaire) est
  * RELUE dans la portée actuelle avant de partir au client (`notifsRelues`,
  * la relecture de « Mes mentions ») · hors portée, son titre, son texte et son
- * lien ne sortent pas · elle reste listée et comptée.
+ * lien ne sortent pas · elle reste listée et comptée. Une notification de
+ * ticket de support est relue par la même voie contre l'accès au ticket (la
+ * règle de la page du ticket, sous le rôle actuel) · accès perdu, « Ticket ·
+ * plus accessible avec ton rôle actuel », sans titre, texte ni lien.
  */
 export async function fetchNotifications(): Promise<NotifPayload> {
   const s = await getSession();
