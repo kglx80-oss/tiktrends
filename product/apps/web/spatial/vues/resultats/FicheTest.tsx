@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { nomsDeLignes } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Hypothese } from './communs';
 import { CibleTest, type PropsCibleTest } from './CibleTest';
@@ -36,6 +37,8 @@ export interface PropsFicheTest {
 
 export function FicheTest(p: PropsFicheTest) {
   const r = p.resultat;
+  // « Ouvrir » sur chaque ligne de la filiation · le nom dit LAQUELLE (le parent d'abord, puis chaque enfant).
+  const nomsFiliation = nomsDeLignes('Ouvrir', [p.filiation.parent?.texte ?? null, ...p.filiation.enfants.map((e) => e.texte)]);
   return (
     <Vue>
       <EnTete titre={p.titre} sous={p.sous} />
@@ -109,10 +112,10 @@ export function FicheTest(p: PropsFicheTest) {
             <div className="lbl" style={{ marginTop: 12 }}>Filiation</div>
             <div className="tl">
               {p.filiation.parent && (
-                <div className="ev"><span className="ico"><Ic n="back" /></span><span>{p.filiation.parent.texte}</span><Lien className="btn sm" href={p.filiation.parent.href}>Ouvrir</Lien></div>
+                <div className="ev"><span className="ico"><Ic n="back" /></span><span>{p.filiation.parent.texte}</span><Lien className="btn sm" href={p.filiation.parent.href} aria-label={nomsFiliation[0]}>Ouvrir</Lien></div>
               )}
-              {p.filiation.enfants.map((e) => (
-                <div className="ev" key={e.href}><span className="ico"><Ic n="loop" /></span><span>{e.texte}{e.verdict && <span className="faint"> · {e.verdict}</span>}</span><Lien className="btn sm" href={e.href}>Ouvrir</Lien></div>
+              {p.filiation.enfants.map((e, i) => (
+                <div className="ev" key={e.href}><span className="ico"><Ic n="loop" /></span><span>{e.texte}{e.verdict && <span className="faint"> · {e.verdict}</span>}</span><Lien className="btn sm" href={e.href} aria-label={nomsFiliation[i + 1]}>Ouvrir</Lien></div>
               ))}
             </div>
           </>

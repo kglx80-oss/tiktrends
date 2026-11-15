@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useId, useMemo, useState, type ReactNode } from 'react';
+import { nomsDeLignes } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
 import { TuileVide } from './briques';
@@ -46,6 +47,9 @@ export function Prompts(p: PropsPrompts) {
   const { toast } = useSpatial();
   const [cat, setCat] = useState(p.categories[0]?.cle ?? '');
   const liste = useMemo(() => p.prompts.filter((x) => !cat || x.categorie === cat), [p.prompts, cat]);
+  // Les gestes de chaque prompt le nomment (« Copier · Prompt 2 ») · ils commencent par le mot affiché.
+  const titres = liste.map((x) => x.titre);
+  const noms = { utiliser: nomsDeLignes('Utiliser', titres), copier: nomsDeLignes('Copier', titres), iterer: nomsDeLignes('Lancer comme itération', titres) };
   const id = useId();
 
   async function copier(x: PromptSpatial) {
@@ -73,7 +77,7 @@ export function Prompts(p: PropsPrompts) {
       {p.contexte && <div className="banner"><span className="orb" style={{ width: 32, height: 32, fontSize: '12.5px' }}>J</span><span>{p.contexte}</span></div>}
       {liste.length === 0 ? <TuileVide titre={p.vide.titre} texte={p.vide.texte} /> : (
         <div className="grid2">
-          {liste.map((x) => (
+          {liste.map((x, i) => (
             <article className="tile prompt" key={x.id}>
               <div className="kc">{x.pastilles.map((t) => <span key={t.libelle} className={`pill ${t.classe}`.trim()}>{t.libelle}</span>)}</div>
               <h3>{x.titre}</h3>
@@ -81,9 +85,9 @@ export function Prompts(p: PropsPrompts) {
               <div className="ptxt">{x.morceaux.map((m, i) => (m.variable ? <span className="var" key={i}>{m.texte}</span> : <Fragment key={i}>{m.texte}</Fragment>))}</div>
               <div className="req"><span>Il faut : {x.requis}</span><span>· S’appuie sur : {x.appui}</span></div>
               <div className="kc">
-                <Lien className="btn sm pri" href={x.utiliser}>Utiliser</Lien>
-                <button className="btn sm" type="button" onClick={() => void copier(x)}><Ic n="copy" />Copier</button>
-                {x.iteration?.href && <Lien className="btn sm" href={x.iteration.href} data-lancer-iteration=""><Ic n="loop" />Lancer comme itération</Lien>}
+                <Lien className="btn sm pri" href={x.utiliser} aria-label={noms.utiliser[i]}>Utiliser</Lien>
+                <button className="btn sm" type="button" aria-label={noms.copier[i]} onClick={() => void copier(x)}><Ic n="copy" />Copier</button>
+                {x.iteration?.href && <Lien className="btn sm" href={x.iteration.href} data-lancer-iteration="" aria-label={noms.iterer[i]}><Ic n="loop" />Lancer comme itération</Lien>}
                 {x.iteration && !x.iteration.href && (
                   <button className="btn sm" type="button" aria-disabled data-lancer-iteration="ferme" aria-describedby={`${id}-${x.id}-iter`} style={{ opacity: 0.5, cursor: 'default' }}><Ic n="loop" />Lancer comme itération</button>
                 )}

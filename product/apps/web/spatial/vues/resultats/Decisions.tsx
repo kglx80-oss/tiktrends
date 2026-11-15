@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { classeDecision, enJeuDecision, libelleDecision, lienFicheTest } from '@tiktrends/core';
+import { classeDecision, enJeuDecision, libelleDecision, lienFicheTest, nomsDeLignes } from '@tiktrends/core';
 import { refreshDecisionsAction, resolveDecisionAction } from '../../../app/actions/adsmap-decisions';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { useGeste, Retour } from './geste';
@@ -31,6 +31,9 @@ export function Decisions(p: PropsDecisions) {
   const { occupe, message, geste } = useGeste();
   const [fermees, setFermees] = useState<ReadonlySet<string>>(new Set());
   const liste = p.decisions.filter((d) => !fermees.has(d.id));
+  // Les trois gestes de chaque décision la nomment (« Fait · v1 brûle ») · ils commencent par le mot affiché.
+  const titres = liste.map((d) => d.titre);
+  const noms = { fiche: nomsDeLignes('Ouvrir la fiche', titres), fait: nomsDeLignes('Fait', titres), ecarter: nomsDeLignes('Pas un problème', titres) };
   async function fermer(d: DecisionLue, statut: 'done' | 'dismissed') {
     const r = await geste(`${statut}-${d.id}`, () => resolveDecisionAction(d.id, statut), () => (statut === 'done' ? 'Décision marquée faite' : 'Décision écartée · elle ne reviendra pas'));
     if (r) setFermees((s) => new Set(s).add(d.id));
@@ -55,7 +58,7 @@ export function Decisions(p: PropsDecisions) {
       ) : (
         <section className="tile">
           <div className="tl">
-            {liste.map((d) => {
+            {liste.map((d, i) => {
               const enJeu = enJeuDecision(d.enJeu);
               return (
                 <div className="ev" key={d.id} style={{ alignItems: 'start' }}>
@@ -66,9 +69,9 @@ export function Decisions(p: PropsDecisions) {
                     {enJeu && <span className="faint" style={{ fontSize: '11.5px' }}>{enJeu}</span>}
                   </span>
                   <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    {d.adId && <Lien className="btn sm pri" href={lienFicheTest(d.adId)}>Ouvrir la fiche</Lien>}
-                    <button type="button" className="btn sm" disabled={!!occupe} onClick={() => { void fermer(d, 'done'); }}>Fait</button>
-                    <button type="button" className="btn sm" disabled={!!occupe} title="Ne plus proposer cette décision" onClick={() => { void fermer(d, 'dismissed'); }}>Pas un problème</button>
+                    {d.adId && <Lien className="btn sm pri" href={lienFicheTest(d.adId)} aria-label={noms.fiche[i]}>Ouvrir la fiche</Lien>}
+                    <button type="button" className="btn sm" disabled={!!occupe} aria-label={noms.fait[i]} onClick={() => { void fermer(d, 'done'); }}>Fait</button>
+                    <button type="button" className="btn sm" disabled={!!occupe} title="Ne plus proposer cette décision" aria-label={noms.ecarter[i]} onClick={() => { void fermer(d, 'dismissed'); }}>Pas un problème</button>
                   </span>
                 </div>
               );

@@ -82,6 +82,7 @@ import { Projet } from '../spatial/vues/projet/Projet';
 import { Lot } from '../spatial/vues/resultats/Lot';
 import { Hypotheses } from '../spatial/vues/resultats/Hypotheses';
 import { LOTS_SANS_GAGNANTE, cartesSansGagnante, faitsCartesSansGagnante, propsFicheLot } from './helpers/gagnante-partout-vues';
+import { sansNomsAjoutes } from './helpers/noms-accessibles';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 240_000 });
 
@@ -454,7 +455,10 @@ describe('égalité · une fiche et des cartes SANS gagnante confirmée rendent 
     const hyp = renderToStaticMarkup(avecSpatial(<Hypotheses sousNav={sousNavResultats({ admin: true })} jarvis={false} note="n" cartes={cartesSansGagnante()} gagnantes={gestes} />));
     const avant = readFileSync(join(__dirname, 'fixtures/gagnante-partout-avant.html'), 'utf8');
     const html = `${lots}\n${hyp}\n`;
-    expect(html.length, 'le rendu sans gagnante confirmée a changé de taille').toBe(avant.length);
-    expect(html, 'le rendu sans gagnante confirmée a changé').toBe(avant);
+    // Depuis les noms de ligne · les `aria-label` AJOUTÉS (« Fiche · … », « Voir · … », qui commencent par le libellé visible) sont retirés, la capture reste celle de main.
+    const n = sansNomsAjoutes(html, avant);
+    expect(n.retires, 'préalable · les noms de ligne ajoutés').toBeGreaterThan(0);
+    expect(n.html.length, 'le rendu sans gagnante confirmée a changé de taille').toBe(n.avant.length);
+    expect(n.html, 'le rendu sans gagnante confirmée a changé').toBe(n.avant);
   });
 });

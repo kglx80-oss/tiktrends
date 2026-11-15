@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { nomsDeLignes } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Creative, type CreativeSpatiale } from './briques';
 import { GrilleProjets, type ProjetSpatial } from './GrilleProjets';
@@ -48,7 +49,7 @@ export interface PropsStudios {
   vide?: { titre: string; texte: ReactNode } | null;
 }
 
-function CarteIteration({ c }: { c: CarteIterationSpatiale }) {
+function CarteIteration({ c, nom }: { c: CarteIterationSpatiale; nom: string }) {
   return (
     <article className="tile itc">
       {c.flux.length > 0 && (
@@ -68,7 +69,7 @@ function CarteIteration({ c }: { c: CarteIterationSpatiale }) {
         </div>
         <p className="faint" style={{ fontSize: '11.5px' }}>{c.raison}</p>
         <div className="foot2">
-          {c.iterer && <Lien className="btn pri sm" href={c.iterer}><Ic n="loop" />Itérer</Lien>}
+          {c.iterer && <Lien className="btn pri sm" href={c.iterer} aria-label={nom}><Ic n="loop" />Itérer</Lien>}
           <small>{c.note}</small>
         </div>
       </div>
@@ -95,7 +96,7 @@ export function Studios(p: PropsStudios) {
           <div className="sech"><h2>Prochaines itérations</h2></div>
           {p.iterations.etat === 'liste' ? (
             <div className="itgrid">
-              {p.iterations.cartes.map((c) => <CarteIteration key={c.id} c={c} />)}
+              {p.iterations.cartes.map((c, i, toutes) => <CarteIteration key={c.id} c={c} nom={nomsDeLignes('Itérer', toutes.map((x) => x.titre))[i]!} />)}
               <Lien className="tile dash" href={p.iterations.autre.href}>
                 <span className="ico"><Ic n="plus" s={false} /></span>
                 <strong>{p.iterations.autre.titre}</strong>

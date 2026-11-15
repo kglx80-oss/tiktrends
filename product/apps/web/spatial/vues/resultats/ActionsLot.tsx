@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ANCRE_CONCLURE_LOT, CHEMIN_NOUVEAU_PROJET, budgetPrevuLot, lienFicheTest, lienLotSpatial, type VerdictValue } from '@tiktrends/core';
+import { ANCRE_CONCLURE_LOT, CHEMIN_NOUVEAU_PROJET, budgetPrevuLot, lienFicheTest, lienLotSpatial, nomsDeLignes, type VerdictValue } from '@tiktrends/core';
 import { duplicateBatchAction, launchBatchAction, prepareBatchAction, setBatchAdAction } from '../../../app/actions/adsmap-batch';
 import { validateVerdictAction, type ValidateInput } from '../../../app/actions/adsmap-verdict';
 import { Ic, Lien } from '../../communs';
@@ -87,12 +87,18 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
   const { occupe, message, geste, bouton } = useGeste();
   const noms = p.variantes.map((v) => v.nom).filter((x): x is string => !!x);
   const { toast } = useSpatial();
+  // Chaque geste de ligne nomme SA variante (il commence par le mot affiché · `nomsDeLignes`).
+  const lignes = p.variantes.map((v) => `${v.variante} · ${v.concept}`);
+  const libres = p.vivier.map((v) => `${v.variante} · ${v.concept}`);
+  const nomFiche = nomsDeLignes('Fiche', lignes);
+  const nomRetirer = nomsDeLignes('Retirer', lignes);
+  const nomAjouter = nomsDeLignes('Ajouter', libres);
   return (
     <section className="tile sec" aria-label="Composer et préparer le lot">
       <h2>Composer et préparer</h2>
       <div className="lbl" style={{ marginTop: 12 }}>Dans ce lot</div>
       <div className="tl">
-        {p.variantes.map((v) => (
+        {p.variantes.map((v, i) => (
           <div className="ev" key={v.id}>
             <span className="ico"><Ic n="img" /></span>
             <span><strong>{v.variante}</strong> · {v.concept}<br /><span className="faint" style={{ fontSize: '11.5px' }}>{v.manques.length ? `Il manque ${v.manques.join(', ')}` : v.nom ? `Nom régie · ${v.nom}${v.adset ? ` · ad set ${v.adset}` : ''}` : 'Complète · nom régie généré à la préparation'}</span>
@@ -100,8 +106,8 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
               {v.avis && <><br /><span className="faint" style={{ fontSize: '11.5px' }}>Avant lancement · {v.avis}</span></>}
             </span>
             <span style={{ display: 'flex', gap: 6 }}>
-              <Lien className="btn sm" href={lienFicheTest(v.id)}>Fiche</Lien>
-              <button className="btn sm" type="button" {...bouton(`retirer-${v.id}`)} onClick={() => geste(`retirer-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: false }), () => `${v.variante} retirée du lot`)}>Retirer</button>
+              <Lien className="btn sm" href={lienFicheTest(v.id)} aria-label={nomFiche[i]}>Fiche</Lien>
+              <button className="btn sm" type="button" {...bouton(`retirer-${v.id}`)} aria-label={nomRetirer[i]} onClick={() => geste(`retirer-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: false }), () => `${v.variante} retirée du lot`)}>Retirer</button>
             </span>
           </div>
         ))}
@@ -109,11 +115,11 @@ function Composition(p: Extract<PropsActionsLot, { mode: 'composition' }>) {
       </div>
       <div className="lbl" style={{ marginTop: 16 }}>Variantes disponibles (rangées dans aucun lot)</div>
       <div className="tl">
-        {p.vivier.map((v) => (
+        {p.vivier.map((v, i) => (
           <div className="ev" key={v.id}>
             <span className="ico"><Ic n="plus" /></span>
             <span><strong>{v.variante}</strong> · {v.concept}{v.manques.length > 0 && <><br /><span className="faint" style={{ fontSize: '11.5px' }}>Il manque {v.manques.join(', ')}</span></>}</span>
-            <button className="btn sm" type="button" {...bouton(`ajouter-${v.id}`)} onClick={() => geste(`ajouter-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: true }), () => `${v.variante} ajoutée au lot`)}>Ajouter</button>
+            <button className="btn sm" type="button" {...bouton(`ajouter-${v.id}`)} aria-label={nomAjouter[i]} onClick={() => geste(`ajouter-${v.id}`, () => setBatchAdAction({ batchId: p.lotId, adId: v.id, inBatch: true }), () => `${v.variante} ajoutée au lot`)}>Ajouter</button>
           </div>
         ))}
         {p.vivier.length === 0 && <div className="ev"><span className="ico"><Ic n="plus" /></span><span className="faint">Aucune variante libre · crée une itération depuis une gagnante, ou prépare une créa dans un projet Studios.</span><Lien className="btn sm" href={CHEMIN_NOUVEAU_PROJET}>Préparer un projet</Lien></div>}
@@ -157,6 +163,8 @@ function Arbitrage(p: Extract<PropsActionsLot, { mode: 'arbitrage' }>) {
   const { occupe, message, geste, bouton } = useGeste();
   const [enonces, setEnonces] = useState<Record<string, string>>(() => ({ ...(p.jarvis?.textes ?? {}) }));
   const [portees, setPortees] = useState<Record<string, ValidateInput['learning']['scope']>>({});
+  // Les gestes de chaque formulaire nomment SA variante (« Valider le verdict · v2 », « Le concept · v2 »).
+  const variantes = p.aArbitrer.map((v) => v.variante);
   return (
     // Focalisable par programme · la touche C de la fiche (lot 13 bis) y pose le focus.
     <section className="tile sec" id={ANCRE_CONCLURE_LOT} aria-label="Conclure le lot" tabIndex={-1}>
@@ -164,7 +172,7 @@ function Arbitrage(p: Extract<PropsActionsLot, { mode: 'arbitrage' }>) {
       <p className="muted" style={{ fontSize: '12.5px', marginTop: 4 }}>Un verdict ne se valide qu’avec ce qu’il t’apprend · une phrase complète, réutilisable sur la prochaine créa.</p>
       {p.jarvis && <p className="faint" role="status" data-note-jarvis="" style={{ fontSize: '12.5px', marginTop: 6 }}>{p.jarvis.note}</p>}
       <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-        {p.aArbitrer.map((v) => (
+        {p.aArbitrer.map((v, i) => (
           <form className="blform" key={v.id} onSubmit={(e) => {
             e.preventDefault();
             void geste(`valider-${v.id}`, () => validateVerdictAction({ adId: v.id, value: v.calcule, learning: { statement: enonces[v.id] ?? '', scope: portees[v.id] ?? 'ad', confidence: 3 } }), () => `${v.variante} · verdict validé, apprentissage enregistré`);
@@ -174,9 +182,9 @@ function Arbitrage(p: Extract<PropsActionsLot, { mode: 'arbitrage' }>) {
             <textarea data-apprentissage={v.id} value={enonces[v.id] ?? ''} onChange={(e) => setEnonces((x) => ({ ...x, [v.id]: e.target.value }))} maxLength={600} placeholder="Ce que cette variante t’apprend…" aria-label={`Apprentissage de ${v.variante}`} />
             <div className="kc">
               {PORTEES.map(([cle, libelle]) => (
-                <button type="button" className="chip" key={cle} aria-pressed={(portees[v.id] ?? 'ad') === cle} onClick={() => setPortees((x) => ({ ...x, [v.id]: cle }))}>{libelle}</button>
+                <button type="button" className="chip" key={cle} aria-pressed={(portees[v.id] ?? 'ad') === cle} aria-label={nomsDeLignes(libelle, variantes)[i]} onClick={() => setPortees((x) => ({ ...x, [v.id]: cle }))}>{libelle}</button>
               ))}
-              <button className="btn sm pri" type="submit" {...bouton(`valider-${v.id}`)} style={{ ...bouton(`valider-${v.id}`).style, marginLeft: 'auto' }}>{occupe === `valider-${v.id}` ? 'Validation…' : 'Valider le verdict'}</button>
+              <button className="btn sm pri" type="submit" {...bouton(`valider-${v.id}`)} style={{ ...bouton(`valider-${v.id}`).style, marginLeft: 'auto' }} aria-label={nomsDeLignes(occupe === `valider-${v.id}` ? 'Validation…' : 'Valider le verdict', variantes)[i]}>{occupe === `valider-${v.id}` ? 'Validation…' : 'Valider le verdict'}</button>
             </div>
           </form>
         ))}
