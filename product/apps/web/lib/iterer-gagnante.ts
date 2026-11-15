@@ -3,10 +3,12 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   etatPlanGagnante, gagnanteDeLHypothese, gagnantesDuLot, lotDeLaCarte, peutCreerIteration,
-  type DemandeProvenanceGagnante, type GagnanteDuFil, type LignePlanSpatial, type PlanDesGagnantes, type SuiteNee,
+  gagnantesDeLaLignee, gestesParAdDeLaLignee, lireNaissanceGagnante,
+  type AdRelueGagnante, type DemandeProvenanceGagnante, type GagnanteDuFil, type GagnanteDuNoeud, type LignePlanSpatial, type LotPourGagnante,
+  type NaissanceGagnante, type PlanDesGagnantes, type ResultatDeLignee, type SuiteNee,
 } from '@tiktrends/core';
 import { iterationPlanAction } from '../app/actions/adsmap-iterate';
-import { chargerLots, faitsHypotheses } from '../app/(spatial)/sp/adsmap/donnees';
+import { chargerLots, faitsHypotheses, gardeResultats } from '../app/(spatial)/sp/adsmap/donnees';
 import { gardeStudio } from './studios/garde';
 
 /**
@@ -96,4 +98,48 @@ export async function lireGagnantesDepuis(workspaceId: string, brandId: string, 
 export async function planPourGestes(workspaceId: string, gestes: ReadonlyArray<Readonly<Record<string, { href: string | null }>>>, plan?: readonly LignePlanSpatial[] | null): Promise<PlanDesGagnantes | null> {
   const ouvertes = gestes.flatMap((g) => Object.entries(g).filter(([, x]) => !!x.href).map(([adId]) => adId));
   return ouvertes.length ? planDesGagnantes(workspaceId, ouvertes, plan) : null;
+}
+
+/**
+ * La CARTE DE LIGNÉE d'un projet · « née de la gagnante V7 » sur le nœud d'une
+ * itération partie d'une gagnante, « Itérer depuis la gagnante » sur le nœud
+ * d'une variante arbitrée gagnante d'un lot conclu (règles ·
+ * `C/studios/activite/gagnante-lignee.ts`). Des LECTURES, jamais une écriture ·
+ *  · Résultats fermé à la session · rien (comme sous le fil, #1083) ;
+ *  · la provenance des pubs de test de la lignée (`source_ref_json`, l'espace) ·
+ *    lue seulement s'il y a un nœud « Résultat » ;
+ *  · les lots de la MARQUE DU PROJET (`chargerLots`, la lecture des pages) ·
+ *    seulement si une pub est née d'une gagnante ou est dans un lot de test ·
+ *    la gagnante y est relue, une ad d'ailleurs n'y est pas ;
+ *  · la porte de l'écran Itérer (`porteIterationGagnante`), puis le plan des
+ *    gestes OUVERTS (`planPourGestes`) · une fois, seulement s'il y en a ;
+ *  · la marque active · celle du projet, sinon le geste est fermé et le dit.
+ * `{}` · rien à ajouter (le rendu reste celui d'avant).
+ */
+export async function lireGagnantesLignee(workspaceId: string, projet: { id: string; brandId: string }, resultats: readonly ResultatDeLignee[]): Promise<Record<string, GagnanteDuNoeud>> {
+  if (!db || !resultats.length) return {};
+  const g = await gardeResultats();
+  if (!g.ok) return {};
+  const ids = [...new Set(resultats.map((r) => r.adId).filter((x) => UUID.test(x)))];
+  if (!ids.length) return {};
+  const A = schema.ads;
+  const lignes = await db.select({ id: A.id, sourceRef: A.sourceRef }).from(A).where(and(eq(A.workspaceId, workspaceId), inArray(A.id, ids)));
+  const naissances = new Map<string, NaissanceGagnante>();
+  for (const l of lignes) {
+    const n = lireNaissanceGagnante(l.sourceRef);
+    if (n) naissances.set(l.id.toLowerCase(), n);
+  }
+  if (!naissances.size && !resultats.some((r) => r.enLot)) return {};
+  const dl = await chargerLots(workspaceId, projet.brandId);
+  const parAd = new Map<string, AdRelueGagnante>([...dl.lots.flatMap((l) => l.ads), ...dl.horsLot].map((a) => [a.id.toLowerCase(), a]));
+  const faits = faitsHypotheses(dl);
+  const adsDuLot = (lotId: string) => dl.lots.find((l) => l.id === lotId)?.ads ?? [];
+  const lots = [...new Map(faits.flatMap((f) => (f.lot ? [[f.lot.id, f] as const] : []))).values()]
+    .map((f) => lotDeLaCarte(f, adsDuLot)).filter((x): x is LotPourGagnante => !!x);
+  const base = { naissances, relue: (adId: string) => parAd.get(adId), lots };
+  const enLot = resultats.some((r) => r.enLot);
+  const o = { marqueActive: g.marque.id === projet.brandId, peutIterer: enLot ? await porteIterationGagnante(projet.brandId) : false };
+  const sans = gagnantesDeLaLignee(resultats, { ...base, o });
+  const plan = await planPourGestes(workspaceId, [gestesParAdDeLaLignee(resultats, sans)]).catch(() => null);
+  return plan ? gagnantesDeLaLignee(resultats, { ...base, o: { ...o, plan } }) : sans;
 }

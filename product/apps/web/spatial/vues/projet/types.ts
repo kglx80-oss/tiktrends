@@ -1,4 +1,4 @@
-import type { DroitsCommentaire, GesteHypotheseNote, GesteIterationCommentaire, GesteGagnante, MembreMentionnable, ResultatCommentaire, ResultatFil, StatutHypotheseNote, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
+import type { DroitsCommentaire, GesteHypotheseNote, GesteIterationCommentaire, GesteGagnante, GagnanteDuNoeud, MembreMentionnable, ResultatCommentaire, ResultatFil, StatutHypotheseNote, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -235,6 +235,13 @@ export interface LigneeLibre {
    * lecture a échoué, le canvas reste, la raison est dite. Absentes · rien.
    */
   notes?: { ok: true; vue: NotesLignee } | { ok: false; message: string } | null;
+  /**
+   * Par nœud « Résultat » · « née de la gagnante Vx » (provenance LUE, la
+   * gagnante relue dans la marque du projet) et « Itérer depuis la gagnante »
+   * (la règle de la fiche du lot, `gestesGagnantesLot`) · `gagnantesDeLaLignee`
+   * · absent, rien n'est ajouté à la carte.
+   */
+  gagnantes?: Readonly<Record<string, GagnanteDuNoeud>>;
 }
 
 /** Une note de la lignée, telle que l'écran la rend · le texte est du TEXTE. */
