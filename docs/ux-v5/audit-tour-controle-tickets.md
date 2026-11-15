@@ -129,7 +129,28 @@ deux et trois espaces sous les 36 combinaisons d'ordre physique des
 appartenances ET des espaces · rôle, plan, marques et permissions studio de
 l'espace retenu · repli quand l'appartenance retenue disparaît · époque ·
 rien d'écrit · recensement · `getSession` seul lit les appartenances d'un
-compte tous espaces confondus), 17 mutations tombées.
+compte sans borne d'espace), 17 mutations tombées.
+
+Le recensement lit l'ARBRE syntaxique (`W/test/helpers/lecteurs-appartenances.ts`)
+· toute requête sur la table des membres dont les conditions citent le compte
+(`userId` / `user_id`) sans borner l'espace à une VALEUR (joindre
+`workspaces.id` ne borne rien) · alias (`const M = schema.workspaceMembers`,
+déstructuration, import renommé), `and(eq(M.userId, …))`, jointures, SQL brut
+(gabarits, chaînes, fichiers `.sql`) · sur `apps/web`, `apps/workers` et
+`packages`, hors tests. Lecteurs recensés avec leur raison · `getSession` (le
+choix), et dans `W/lib/studios/mes-mentions.ts` le rôle de la personne dans
+l'espace DE chaque ticket et de chaque notification de la cloche (bornés par
+leurs identifiants, la cloche n'est pas bornée à l'espace courant). Le relevé
+doit voir les lecteurs bornés (Équipe, Console, Sauvegardes, membres,
+notifications, radar, suivi, récap, activité, mentions) · 12 mutations
+tombées (alias, `and(…)`, SQL brut, worker, déstructuration, jointure,
+fichier `.sql`, SQL joint à `workspaces.id`, import renommé, et trois sur le
+relevé lui-même).
+
+**Reste, documenté** · `ops/migration/semis-zero-propre.sql` (l. 77-80)
+retient la première appartenance `owner` par `LIMIT 1` sans ordre pour
+décider s'il crée l'espace fondateur · règle différente de `espaceCourant`,
+hors du recensement (`ops/` n'est pas lu) · sans effet sur la session.
 
 **Décision Kevin** · quel espace par défaut pour un compte de plusieurs
 espaces (le plus ancien aujourd'hui · ou celui où il est propriétaire, ou le

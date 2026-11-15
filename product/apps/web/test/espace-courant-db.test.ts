@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 /**
  * L'espace courant de la session · signalement de l'audit #1088
@@ -33,8 +33,10 @@ import { join, relative } from 'node:path';
  *    requête suivante · plus aucune · pas de session ;
  *  · époque de session inchangée ;
  *  · rien n'est écrit à la lecture ;
- *  · recensement · `getSession` est le SEUL lecteur des appartenances d'un
- *    compte tous espaces confondus · un second choix d'espace fait échouer.
+ *  · recensement · `getSession` est le SEUL à choisir un espace (lire les
+ *    appartenances d'un compte sans borne d'espace), lu dans l'arbre
+ *    syntaxique, alias et SQL brut compris, sur `apps/web`, `apps/workers` et
+ *    `packages` · un second choix d'espace fait échouer.
  * 0 $ · aucun modèle, aucun appel réseau. Dates fixes, aucune date « à venir ».
  */
 
@@ -78,6 +80,7 @@ import { db, schema } from '@tiktrends/db';
 import { getSession } from '../lib/auth';
 import { gardeStudio } from '../lib/studios/garde';
 import { effectiveAccess } from '../lib/access';
+import { litLeCompte, requetesDesMembres, sqlBrut } from './helpers/lecteurs-appartenances';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 300_000 });
 
@@ -386,22 +389,62 @@ describe('le rôle et les droits suivent l’espace retenu', () => {
 /* ───────────────────────── recensement ───────────────────────── */
 
 /**
- * Lire les appartenances d'un COMPTE, tous espaces confondus, c'est choisir un
- * espace · seul `getSession` le fait, par la règle du noyau. Un second lecteur
- * (un sélecteur d'espace, un autre `limit(1)`) doit passer par `espaceCourant`
- * et entrer ici avec un test qui le fait tomber.
+ * Lire les appartenances d'un COMPTE sans les borner à un espace, c'est
+ * choisir un espace · seul `getSession` le fait, par la règle du noyau. Le
+ * recensement lit l'ARBRE syntaxique (`helpers/lecteurs-appartenances.ts`) ·
+ * alias (`const M = schema.workspaceMembers`, déstructuration, import
+ * renommé), `and(eq(M.userId, …))`, jointures, SQL brut (gabarits, chaînes,
+ * fichiers `.sql`) · sur `apps/web`, `apps/workers` et `packages`, hors tests.
+ * Un lecteur nouveau fait échouer · il passe par `espaceCourant`, ou borne
+ * l'espace, ou entre ici avec sa raison et un test qui le fait tomber.
  */
-const CHOIX_D_ESPACE = ['lib/auth.ts'];
-const LIT_LES_ESPACES_D_UN_COMPTE = /\.from\(schema\.workspaceMembers\)[\s\S]{0,240}?\.where\(eq\(schema\.workspaceMembers\.userId,/;
+const RACINES = ['apps/web', 'apps/workers', 'packages'];
+const LECTEURS_DU_COMPTE: Record<string, string[]> = {
+  'apps/web/lib/auth.ts': [
+    '`getSession` · LE choix de l’espace courant, par `espaceCourant` (le plus ancien, puis le plus petit identifiant)',
+  ],
+  'apps/web/lib/studios/mes-mentions.ts': [
+    '`accesTicketsDeLaCloche` · le rôle de la personne dans l’espace DE chaque ticket (jointure sur `tickets.workspace_id`, tickets bornés par leurs identifiants) · ne choisit aucun espace',
+    '`accesEspacesDeLaCloche` · le rôle de la personne dans les espaces de SES notifications (`inArray(W.id, ids)`) · la cloche n’est pas bornée à l’espace courant (décision Kevin)',
+  ],
+};
+/** Des lecteurs bornés à un espace, vus par le recensement · s'ils disparaissent du relevé, il regarde ailleurs. */
+const BORNES_ET_COMPTE = ['apps/web/lib/studios/activite.ts', 'apps/web/app/actions/membres.ts', 'apps/web/app/(spatial)/sp/saved/page.tsx'];
+const BORNES_PAR_ESPACE = [
+  'apps/web/app/(spatial)/sp/team/page.tsx', 'apps/web/app/(spatial)/sp/console/page.tsx', 'apps/web/lib/notifications.ts', 'apps/web/lib/radar.ts',
+  'apps/web/lib/tracker.ts', 'apps/web/app/api/cron/digest/route.ts', 'apps/web/lib/studios/membres-mentions.ts',
+];
 
 describe('recensement · qui choisit l’espace d’un compte', () => {
-  it('getSession seul lit les appartenances d’un compte tous espaces confondus, par la règle du noyau', () => {
-    const racine = process.cwd();
-    const fichiers: string[] = [];
-    const parcourir = (d: string) => { for (const n of readdirSync(d)) { if (['node_modules', '.next', 'test'].includes(n)) continue; const p = join(d, n); statSync(p).isDirectory() ? parcourir(p) : /\.tsx?$/.test(n) && fichiers.push(p); } };
-    for (const d of ['app', 'lib', 'spatial']) parcourir(join(racine, d));
-    const lecteurs = fichiers.filter((f) => LIT_LES_ESPACES_D_UN_COMPTE.test(readFileSync(f, 'utf8'))).map((f) => relative(racine, f)).sort();
-    expect(lecteurs, 'un fichier choisit l’espace d’un compte hors de getSession · il doit passer par espaceCourant et être recensé').toEqual(CHOIX_D_ESPACE);
-    expect(readFileSync(join(racine, 'lib/auth.ts'), 'utf8'), 'getSession ne passe plus par la règle du noyau').toMatch(/espaceCourant\(/);
+  const base = join(process.cwd(), '../..');
+  const requetes = requetesDesMembres(base, RACINES);
+
+  it('seuls les lecteurs recensés lisent les appartenances d’un compte sans borne d’espace', () => {
+    const lecteurs: Record<string, number> = {};
+    for (const r of requetes.filter(litLeCompte)) lecteurs[r.fichier] = (lecteurs[r.fichier] ?? 0) + 1;
+    const attendus = Object.fromEntries(Object.entries(LECTEURS_DU_COMPTE).map(([f, raisons]) => [f, raisons.length]));
+    const detail = requetes.filter(litLeCompte).map((r) => `${r.fichier}:${r.ligne} · ${r.extrait}`).join('\n');
+    expect(lecteurs, `une lecture des appartenances d’un compte sans borne d’espace hors de getSession · elle choisit un espace · passer par espaceCourant, borner l’espace, ou la recenser avec sa raison\n${detail}`).toEqual(attendus);
+    expect(readFileSync(join(process.cwd(), 'lib/auth.ts'), 'utf8'), 'getSession ne passe plus par la règle du noyau').toMatch(/espaceCourant\(/);
+  });
+
+  it('le relevé voit les lecteurs bornés · alias, `and(…)`, jointures', () => {
+    for (const f of BORNES_ET_COMPTE) {
+      expect(requetes.some((r) => r.fichier === f && r.genre === 'drizzle' && r.citeLeCompte && r.borne), `le recensement ne voit plus ${f} · il regarde la mauvaise chose`).toBe(true);
+    }
+    for (const f of BORNES_PAR_ESPACE) {
+      expect(requetes.some((r) => r.fichier === f && r.genre === 'drizzle' && !litLeCompte(r)), `le recensement ne voit plus ${f} · il regarde la mauvaise chose`).toBe(true);
+    }
+    const auth = requetes.filter((r) => r.fichier === 'apps/web/lib/auth.ts');
+    expect(auth.map((r) => [r.genre, r.citeLeCompte, r.borne]), 'la jointure de getSession sur workspaces.id compte comme une borne').toEqual([['drizzle', true, false]]);
+  });
+
+  it('SQL brut · le compte sans valeur d’espace est un lecteur, une valeur d’espace le borne', () => {
+    expect(sqlBrut('select workspace_id from workspace_members where user_id = $1 limit 1')).toEqual({ citeLeCompte: true, borne: false });
+    expect(sqlBrut('select w.* from workspace_members m join workspaces w on w.id = m.workspace_id where m.user_id = ${uid}')).toEqual({ citeLeCompte: true, borne: false });
+    expect(sqlBrut('select role from workspace_members where user_id = ${u} and workspace_id = ${ws}')).toEqual({ citeLeCompte: true, borne: true });
+    expect(sqlBrut('select 1 from "workspace_members" where "workspace_id" = $2 and "user_id" = $1')).toEqual({ citeLeCompte: true, borne: true });
+    expect(sqlBrut('select user_id from workspace_members where workspace_id = any(${ids})')).toEqual({ citeLeCompte: true, borne: true });
+    expect(sqlBrut('select count(*) from users')).toBeNull();
   });
 });
