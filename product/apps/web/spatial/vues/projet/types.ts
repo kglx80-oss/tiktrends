@@ -1,4 +1,4 @@
-import type { DroitsCommentaire, GesteHypotheseNote, GesteIterationCommentaire, MembreMentionnable, ResultatCommentaire, ResultatFil, StatutHypotheseNote, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
+import type { DroitsCommentaire, GesteHypotheseNote, GesteIterationCommentaire, GesteGagnante, MembreMentionnable, ResultatCommentaire, ResultatFil, StatutHypotheseNote, SegmentCommentaire, JournalProjet, IterationProjetJarvis, PreparationTesterJarvis, VarianteEssaiJarvis, ClassePastille, CouloirSpatial, DispositionCanvas, EtatGeneration, ModeDispositionProjet, ModeleCanvas, ProtocoleTest, GrapheLibre, GroupeLignee, ModeleLignee } from '@tiktrends/core';
 import type { ListePropositions, ReponseProposition } from '../../../lib/studios/propositions/types';
 
 /**
@@ -283,7 +283,7 @@ export interface VueNoteLignee {
    * (`gestesGagnantesFil`) · un lien vers l'écran Itérer parti de la gagnante,
    * ou fermé avec sa raison · absent quand aucun résultat n'est confirmé.
    */
-  gagnantes?: Record<string, GesteIterationCommentaire>;
+  gagnantes?: Record<string, GesteGagnante>;
   /**
    * Le statut des hypothèses nées de cette note (« Formuler une hypothèse ») ·
    * la règle de leur carte (`statutsHypothesesNote`) · vide sans hypothèse ou
@@ -339,7 +339,7 @@ export interface VueCommentaire {
    * (`gestesGagnantesFil`) · un lien vers l'écran Itérer parti de la gagnante,
    * ou fermé avec sa raison · absent quand aucun résultat n'est confirmé.
    */
-  gagnantes?: Record<string, GesteIterationCommentaire>;
+  gagnantes?: Record<string, GesteGagnante>;
   rowVersion: number;
 }
 

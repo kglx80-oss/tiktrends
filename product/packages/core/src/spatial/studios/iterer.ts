@@ -3,6 +3,7 @@ import { imageAffichable } from '../../studios/sources/departs-assistant';
 import type { VerdictValue } from '../../adsmap/types';
 import { lienIterationStudio } from '../../studios/anciennes-adresses';
 import type { ClassePastilleSpatiale } from './liste';
+import { aPermissionEspace, type PermissionsStudio } from '../../studios/permissions';
 
 /**
  * Spatial · « Nouvelle itération » (`/studio/iterer`, maquette `iterer`). Pur.
@@ -60,6 +61,17 @@ const deux = (v: number) => new Intl.NumberFormat('fr-FR', { minimumFractionDigi
 
 export const RAISON_NON_GAGNANTE = 'On n’itère que sur une gagnante arbitrée au protocole · cette piste repart en nouveau concept, depuis Résultats.';
 export const RAISON_ROLE_ITERATION = 'Ton rôle ne permet pas de créer le projet de cette itération.';
+
+/**
+ * La porte de l'écran Itérer · créer le projet de l'itération demande
+ * `studio.propose`, pour la marque active, dans la portée de marques de la
+ * personne (la même permission que `creerProjet`). LA règle · l'écran Itérer
+ * la lit, et les gestes « Itérer depuis la gagnante » (fil, fiche d'un lot,
+ * carte d'une hypothèse) la relisent pour se dire ouverts ou fermés.
+ */
+export function peutCreerIteration(o: { permissions: PermissionsStudio; marques: readonly string[] }, marqueId: string | null | undefined): boolean {
+  return aPermissionEspace(o.permissions, 'studio.propose') && !!marqueId && o.marques.includes(marqueId);
+}
 
 export function choixIterationSpatial(
   rows: readonly LignePlanSpatial[],
