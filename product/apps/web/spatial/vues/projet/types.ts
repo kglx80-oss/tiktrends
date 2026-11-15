@@ -279,6 +279,12 @@ export interface VueNoteLignee {
    */
   resultats?: ResultatFil[];
   /**
+   * « Itérer depuis la gagnante » sous chaque résultat CONFIRMÉ, par ad
+   * (`gestesGagnantesFil`) · un lien vers l'écran Itérer parti de la gagnante,
+   * ou fermé avec sa raison · absent quand aucun résultat n'est confirmé.
+   */
+  gagnantes?: Record<string, GesteIterationCommentaire>;
+  /**
    * Le statut des hypothèses nées de cette note (« Formuler une hypothèse ») ·
    * la règle de leur carte (`statutsHypothesesNote`) · vide sans hypothèse ou
    * Résultats fermé.
@@ -328,6 +334,12 @@ export interface VueCommentaire {
    * qu'il n'est pas conclu · vide sans itération ou Résultats fermé.
    */
   resultats: ResultatCommentaire[];
+  /**
+   * « Itérer depuis la gagnante » sous chaque résultat CONFIRMÉ, par ad
+   * (`gestesGagnantesFil`) · un lien vers l'écran Itérer parti de la gagnante,
+   * ou fermé avec sa raison · absent quand aucun résultat n'est confirmé.
+   */
+  gagnantes?: Record<string, GesteIterationCommentaire>;
   rowVersion: number;
 }
 

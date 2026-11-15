@@ -49,7 +49,7 @@ export interface ChoixIterationSpatial {
   lien: string | null;
 }
 
-/** Combien de pubs l'écran propose · le plan en lit 30 au plus, l'écran garde les plus urgentes. */
+/** Combien de pubs l'écran propose · le plan en lit 30 au plus, l'écran garde les plus urgentes (et la pub demandée par un fil, en plus, si elle est plus loin · `garder`). */
 export const MAX_CHOIX_ITERATION = 12;
 
 const CLASSE_MODE: Readonly<Record<LignePlanSpatial['mode'], ClassePastilleSpatiale>> = { more: 'g', better: 'w', new: 'r' };
@@ -64,13 +64,17 @@ export const RAISON_ROLE_ITERATION = 'Ton rôle ne permet pas de créer le proje
 export function choixIterationSpatial(
   rows: readonly LignePlanSpatial[],
   contexte: (adId: string) => ContexteAdSpatial | undefined,
-  o: { peutIterer: boolean; max?: number },
+  o: { peutIterer: boolean; max?: number; garder?: string | null },
 ): ChoixIterationSpatial[] {
   const vus = new Set<string>();
   const out: ChoixIterationSpatial[] = [];
   let conseille = false;
+  const max = o.max ?? MAX_CHOIX_ITERATION;
+  const garder = o.garder ? o.garder.toLowerCase() : null;
   for (const r of rows) {
     if (vus.has(r.adId)) continue;
+    // Au-delà des plus urgentes · seule la pub DEMANDÉE (le départ d'un fil, sa gagnante) est encore gardée, à la fin.
+    if (out.length >= max && r.adId.toLowerCase() !== garder) continue;
     vus.add(r.adId);
     const gagnante = r.edgeLegal && estGagnanteValidee(r.parentVerdict, r.parentComparable);
     const selectionnable = gagnante && o.peutIterer;
@@ -92,7 +96,6 @@ export function choixIterationSpatial(
       change: { variable: r.variableLabel, garde: r.freezeLabels.length ? liste(r.freezeLabels) : null },
       lien: selectionnable ? lienIterationStudio(r.adId) : null,
     });
-    if (out.length >= (o.max ?? MAX_CHOIX_ITERATION)) break;
   }
   return out;
 }

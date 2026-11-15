@@ -5,8 +5,8 @@ import {
   aPermissionEspace, apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
   refusStudiosSpatial, variablesDuPlan, variablesInspiration, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE,
   iterationDepuisReponse, lireGesteIteration, preparationAutreVariable, OPTIONS_PUB_PROJET, REFUS_GESTE_JARVIS,
-  departDepuisFil, lireGesteFil, TEXTES_FIL_ITERATION,
-  type ChoixVariablesIteration, type ContexteAdSpatial, type PreparationIterationJarvis, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote,
+  departDepuisFil, lireGesteFil, TEXTES_FIL_ITERATION, departDepuisGagnante, lireGagnanteDemandee, REFUS_GAGNANTE,
+  type ChoixVariablesIteration, type ContexteAdSpatial, type GagnanteDuFil, type PreparationIterationJarvis, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
 import { getActiveBrand } from '../../../../../lib/brands';
@@ -16,7 +16,7 @@ import { gardeSources } from '../../../../../lib/studios/sources/acces';
 import { jointureCreaDeLaMarque, vignetteAd } from '../../../../../lib/adsmap-medias';
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
 import { candidatsDuPlan, exclusDuContexte, lireCandidatsProjet, lireContexteGestes, lireReponseJarvis, planDepuisLignes } from '../../../../../lib/jarvis-gestes';
-import { lireCommentairePourIterer, lireNotePourIterer } from '../../../../../lib/studios/commentaire-iterer';
+import { lireCommentairePourIterer, lireGagnantesDuFil, lireNotePourIterer } from '../../../../../lib/studios/commentaire-iterer';
 import { iterationPlanAction, type IterationRow } from '../../../../actions/adsmap-iterate';
 import { Iterer, type InspirationIterer } from '../../../../../spatial/vues/studios/Iterer';
 import { RefusStudios } from '../../../../../spatial/vues/studios/Refus';
@@ -79,6 +79,15 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * (`lireNotePourIterer` · nœud création / résultat du projet dont la variante a
  * une pub testée), le même départ (`departDepuisFil`) · provenance « Note de la
  * lignée », relue encore par l'action. Les deux à la fois · refus.
+ *
+ * `&gagnante=<uuid>` en plus (« Itérer depuis la gagnante », sous un résultat
+ * CONFIRMÉ du fil) · le fil relu comme ci-dessus, puis la gagnante relue parmi
+ * les itérations CONFIRMÉES nées de CE fil de CE projet (`lireGagnantesDuFil`,
+ * la lecture de l'écran sous le fil) · elle est présélectionnée à la place de
+ * la pub du fil, la variable du plan cochée, aucun texte repris
+ * (`departDepuisGagnante`) · la provenance du fil est transmise, l'action la
+ * relit encore (`provenanceFilDepuisGagnanteAdmise`). Mal formée, ou pas une
+ * gagnante confirmée de ce fil · refus, aucun pré-choix.
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -129,7 +138,33 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
     else { rows = r.view.rows; resume = r.view.summary; }
   }
 
-  const ids = [...new Set(rows.map((r) => r.adId))].slice(0, MAX_CHOIX_ITERATION);
+  // Depuis un commentaire ou une note · relu dans la portée (sa pub de test, ou sa gagnante CONFIRMÉE relue) · AVANT la liste ·
+  // la pub de départ y est gardée même au-delà des plus urgentes (`garder`), sinon elle ne pourrait pas être présélectionnée.
+  type FilLu = { etat: 'refus'; note: string } | { etat: 'ok'; fil: 'commentaire' | 'note'; lu: { id: string; projetId: string; texte: string; adsmapAdId: string }; gagnante: GagnanteDuFil | null };
+  let filLu: FilLu | null = null;
+  if (gesteCommentaire.etat === 'refus') filLu = { etat: 'refus', note: TEXTES_FIL_ITERATION[gesteCommentaire.fil].refus };
+  else if (gesteCommentaire.etat === 'ok') {
+    const fil = gesteCommentaire.fil;
+    const refusFil: FilLu = { etat: 'refus', note: TEXTES_FIL_ITERATION[fil].refus };
+    const lu = !active ? null : fil === 'commentaire'
+      ? await lireCommentairePourIterer(s, active.id, { commentaireId: gesteCommentaire.id, projetId: gesteCommentaire.projetId })
+      : await lireNotePourIterer(s, active.id, { noteId: gesteCommentaire.id, projetId: gesteCommentaire.projetId });
+    const demandeGagnante = lireGagnanteDemandee(sp);
+    if (!lu || !active || demandeGagnante.etat === 'refus') filLu = refusFil;
+    else {
+      const base = { id: gesteCommentaire.id, projetId: lu.projetId, texte: lu.texte, adsmapAdId: lu.adsmapAdId };
+      if (demandeGagnante.etat === 'absente') filLu = { etat: 'ok', fil, lu: base, gagnante: null };
+      else {
+        // Depuis la gagnante · relue parmi les itérations CONFIRMÉES de CE fil · jamais crue depuis l'adresse.
+        const g = (await lireGagnantesDuFil(s, active.id, { fil, id: gesteCommentaire.id, projetId: lu.projetId })).find((x) => x.adId === demandeGagnante.adId);
+        filLu = g ? { etat: 'ok', fil, lu: base, gagnante: g } : { etat: 'refus', note: REFUS_GAGNANTE[fil] };
+      }
+    }
+  }
+  const garder = filLu?.etat === 'ok' ? (filLu.gagnante?.adId ?? filLu.lu.adsmapAdId) : null;
+
+  const premieres = [...new Set(rows.map((r) => r.adId))].slice(0, MAX_CHOIX_ITERATION);
+  const ids = garder && !premieres.includes(garder) && rows.some((r) => r.adId === garder) ? [...premieres, garder] : premieres;
   const contexte = new Map<string, ContexteAdSpatial>();
   if (ids.length && db && active) {
     try {
@@ -149,7 +184,7 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
     }
   }
 
-  const choix = choixIterationSpatial(rows, (id) => contexte.get(id), { peutIterer });
+  const choix = choixIterationSpatial(rows, (id) => contexte.get(id), { peutIterer, garder });
   // Les variables admises · seulement pour les pubs sélectionnables (une piste fermée garde sa raison, rien à choisir).
   const tous = variablesDuPlan(rows);
   const variables: Record<string, ChoixVariablesIteration> = Object.fromEntries(choix.filter((c) => c.selectionnable && tous[c.adId]).map((c) => [c.adId, tous[c.adId]!]));
@@ -176,23 +211,17 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
     if (texte && ads) provenance = { reponseId: geste.reponse, contexte: { type: geste.contexte.type as ProvenanceJarvis['contexte']['type'], id: geste.contexte.id } };
   }
 
-  // Depuis un commentaire ou une note · relu dans la portée · sa pub présélectionnée, son texte en hypothèse.
+  // Depuis un commentaire ou une note · le départ (sa pub, ou sa gagnante) · calculé avec les variables admises.
   let commentaire: { note: string; adId: string | null; variable: ReturnType<typeof departDepuisFil>['variable']; hypothese: string | null; provenance: ProvenanceCommentaire | null; provenanceNote?: ProvenanceNote | null } | null = null;
-  if (gesteCommentaire.etat === 'refus') commentaire = { note: TEXTES_FIL_ITERATION[gesteCommentaire.fil].refus, adId: null, variable: null, hypothese: null, provenance: null };
-  else if (gesteCommentaire.etat === 'ok') {
-    const fil = gesteCommentaire.fil;
-    const lu = !active ? null : fil === 'commentaire'
-      ? await lireCommentairePourIterer(s, active.id, { commentaireId: gesteCommentaire.id, projetId: gesteCommentaire.projetId })
-      : await lireNotePourIterer(s, active.id, { noteId: gesteCommentaire.id, projetId: gesteCommentaire.projetId });
-    if (!lu) commentaire = { note: TEXTES_FIL_ITERATION[fil].refus, adId: null, variable: null, hypothese: null, provenance: null };
-    else {
-      const d = departDepuisFil(fil, lu.texte, lu.adsmapAdId, variables[lu.adsmapAdId] ?? null);
-      commentaire = {
-        note: d.note, adId: d.adId, variable: d.variable, hypothese: d.hypothese,
-        provenance: fil === 'commentaire' ? { commentaireId: gesteCommentaire.id, projetId: lu.projetId } : null,
-        provenanceNote: fil === 'note' ? { noteId: gesteCommentaire.id, projetId: lu.projetId } : null,
-      };
-    }
+  if (filLu?.etat === 'refus') commentaire = { note: filLu.note, adId: null, variable: null, hypothese: null, provenance: null };
+  else if (filLu?.etat === 'ok') {
+    const { fil, lu, gagnante } = filLu;
+    const provenances = {
+      provenance: fil === 'commentaire' ? { commentaireId: lu.id, projetId: lu.projetId } : null,
+      provenanceNote: fil === 'note' ? { noteId: lu.id, projetId: lu.projetId } : null,
+    };
+    const d = gagnante ? departDepuisGagnante(fil, gagnante, variables[gagnante.adId] ?? null) : departDepuisFil(fil, lu.texte, lu.adsmapAdId, variables[lu.adsmapAdId] ?? null);
+    commentaire = { note: d.note, adId: d.adId, variable: d.variable, hypothese: d.hypothese, ...provenances };
   }
   const demandee = commentaire?.adId ?? demande;
   return (

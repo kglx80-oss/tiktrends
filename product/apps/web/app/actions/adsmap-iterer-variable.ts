@@ -7,8 +7,9 @@ import {
   lienPreparationInspiration, lienPreparationIteration, lireInspiration, lireValeurVariable, lireVariableChoisie, parentDepuisPlan, parentInspiration,
   refOrigineHypothese, refSourceVeille, variablesIteration, verifierChoixVariable,
   lireDemandeProvenanceJarvis, provenanceJarvisAdmise, refProvenanceJarvis, type ProvenanceJarvis,
-  lireDemandeProvenanceCommentaire, provenanceCommentaireAdmise, refProvenanceCommentaire, type ProvenanceCommentaire,
-  lireDemandeProvenanceNote, provenanceNoteAdmise, refProvenanceNote, type ProvenanceNote,
+  lireDemandeProvenanceCommentaire, type ProvenanceCommentaire,
+  lireDemandeProvenanceNote, type ProvenanceNote,
+  provenanceFilDepuisGagnanteAdmise, refProvenanceFilGagnante,
   RAISON_AUTRE_MARQUE, RAISON_DEUX_SOURCES, RAISON_HORS_PLAN, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE, type TestedVariable,
 } from '@tiktrends/core';
 import { adsmapGuard, type AdsMapGuardOk } from '../../lib/adsmap-guard';
@@ -19,7 +20,7 @@ import { invalidateJarvisMemory } from '../../lib/jarvis-memory';
 import { trackSavedAdAction } from './adsmap-bridge';
 import { createIterationAction, iterationPlanAction } from './adsmap-iterate';
 import { lireCandidatsProjet, lireContexteGestes, lireReponseJarvis } from '../../lib/jarvis-gestes';
-import { lireCommentairePourIterer, lireNotePourIterer } from '../../lib/studios/commentaire-iterer';
+import { lireCommentairePourIterer, lireGagnantesDuFil, lireNotePourIterer } from '../../lib/studios/commentaire-iterer';
 
 /**
  * Créer l’itération d’une gagnante en CHOISISSANT la variable (écran Itérer,
@@ -76,6 +77,18 @@ import { lireCommentairePourIterer, lireNotePourIterer } from '../../lib/studios
  * création / résultat testé du projet), sa pub de test égale à la pub de
  * départ (`provenanceNoteAdmise`) · alors `source_ref_json.note`, identifiants
  * seuls · lue après le commentaire dans le bilan (« Note de la lignée »).
+ *
+ * ── Depuis la gagnante d'un fil (« Itérer depuis la gagnante ») ──────────────
+ *
+ * La pub de départ n'est plus la pub du fil mais une itération CONFIRMÉE née
+ * de ce fil · le fil relu comme ci-dessus, puis ses gagnantes confirmées
+ * relues (`lireGagnantesDuFil` · seulement quand la pub de départ n'est pas
+ * celle du fil) · la provenance est admise si la pub de départ en est une
+ * (`provenanceFilDepuisGagnanteAdmise`) · alors la même forme
+ * (`source_ref_json.commentaire` / `.note`) avec l'identifiant de la gagnante
+ * en plus (`gagnanteAdId`, `refProvenanceFilGagnante`) · rien de ce que le
+ * client envoie de plus n'est cru (le lecteur de la demande ne garde que les
+ * identifiants du fil).
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -135,7 +148,11 @@ export async function creerIterationChoisieAction(entree: {
     try {
       // Fusionnée dans le JSON de source existant · rien d'autre n'est réécrit (aucune colonne, aucune migration).
       const avant = enfant.sourceRef && typeof enfant.sourceRef === 'object' ? enfant.sourceRef as Record<string, unknown> : {};
-      await db!.update(schema.ads).set({ sourceRef: { ...avant, ...(provenance ? refProvenanceJarvis(provenance) : {}), ...(deCommentaire ? refProvenanceCommentaire(deCommentaire) : {}), ...(deNote ? refProvenanceNote(deNote) : {}) } })
+      await db!.update(schema.ads).set({ sourceRef: {
+        ...avant, ...(provenance ? refProvenanceJarvis(provenance) : {}),
+        ...(deCommentaire ? refProvenanceFilGagnante({ fil: 'commentaire', provenance: deCommentaire.provenance }, deCommentaire.gagnante) : {}),
+        ...(deNote ? refProvenanceFilGagnante({ fil: 'note', provenance: deNote.provenance }, deNote.gagnante) : {}),
+      } })
         .where(and(eq(schema.ads.id, r.adId), eq(schema.ads.workspaceId, g.s.workspaceId)));
       pose = provenance ? 'jarvis' : deCommentaire ? 'commentaire' : 'note';
       revalidatePath('/adsmap/hypotheses');
@@ -176,12 +193,17 @@ async function provenanceJarvis(g: AdsMapGuardOk, brut: unknown, parentAdId: str
  * test égale à la pub de départ · `null` sinon (adresse forgée, autre projet,
  * autre marque, version, pub d'une autre création) · aucune écriture, aucun modèle.
  */
-async function provenanceCommentaire(g: AdsMapGuardOk, brut: unknown, parentAdId: string): Promise<ProvenanceCommentaire | null> {
+async function provenanceCommentaire(g: AdsMapGuardOk, brut: unknown, parentAdId: string): Promise<{ provenance: ProvenanceCommentaire; gagnante: string | null } | null> {
   const demande = lireDemandeProvenanceCommentaire(brut);
   if (!demande) return null;
   try {
     const lu = await lireCommentairePourIterer(g.s, g.brand.id, demande);
-    return provenanceCommentaireAdmise(demande, { adDuCommentaire: lu?.adsmapAdId ?? null, parentAdId });
+    const adDuFil = lu?.adsmapAdId ?? null;
+    // Les gagnantes du fil · relues seulement quand la pub de départ n'est pas celle du fil (le chemin de #1063 ne lit rien de plus).
+    const gagnantes = adDuFil && adDuFil !== parentAdId
+      ? (await lireGagnantesDuFil(g.s, g.brand.id, { fil: 'commentaire', id: demande.commentaireId, projetId: demande.projetId })).map((x) => x.adId)
+      : [];
+    return provenanceFilDepuisGagnanteAdmise(demande, { adDuFil, gagnantes, parentAdId });
   } catch {
     return null;
   }
@@ -194,12 +216,16 @@ async function provenanceCommentaire(g: AdsMapGuardOk, brut: unknown, parentAdId
  * forgée, autre projet, autre marque, autre nœud, pub d'une autre variante) ·
  * aucune écriture, aucun modèle.
  */
-async function provenanceNote(g: AdsMapGuardOk, brut: unknown, parentAdId: string): Promise<ProvenanceNote | null> {
+async function provenanceNote(g: AdsMapGuardOk, brut: unknown, parentAdId: string): Promise<{ provenance: ProvenanceNote; gagnante: string | null } | null> {
   const demande = lireDemandeProvenanceNote(brut);
   if (!demande) return null;
   try {
     const lu = await lireNotePourIterer(g.s, g.brand.id, demande);
-    return provenanceNoteAdmise(demande, { adDeLaNote: lu?.adsmapAdId ?? null, parentAdId });
+    const adDuFil = lu?.adsmapAdId ?? null;
+    const gagnantes = adDuFil && adDuFil !== parentAdId
+      ? (await lireGagnantesDuFil(g.s, g.brand.id, { fil: 'note', id: demande.noteId, projetId: demande.projetId })).map((x) => x.adId)
+      : [];
+    return provenanceFilDepuisGagnanteAdmise(demande, { adDuFil, gagnantes, parentAdId });
   } catch {
     return null;
   }

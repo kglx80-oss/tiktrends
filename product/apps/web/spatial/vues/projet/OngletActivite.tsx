@@ -277,7 +277,7 @@ function Commentaire({ c, enCours, horsLigne, edition, mentionnables, ouvrirEdit
               : <b key={i} data-mention={s.ancien ? 'ancien' : s.id} style={{ fontWeight: 600 }}>{s.nom}</b>))}
           </span>
         )}
-        {edition === null && c.resultats.length > 0 && <ResultatsFil fil="commentaire" resultats={c.resultats} />}
+        {edition === null && c.resultats.length > 0 && <ResultatsFil fil="commentaire" resultats={c.resultats} gagnantes={c.gagnantes} />}
         {c.modifie && <small className="faint" data-modifie="" style={{ display: 'block', fontSize: '11.5px' }}>{c.modifie}</small>}
         {c.resolu && <small className="faint" data-resolu-par="" style={{ display: 'block', fontSize: '11.5px' }}>Résolu par {c.resolu.par} · {c.resolu.quand}</small>}
         {edition === null && c.iterer && (
