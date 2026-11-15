@@ -1,4 +1,4 @@
-import { PARAM_LOT_IMPORT, estLotImporte, lotCibleImport, lotImport, quandCourt, remontees, sousNavResultats } from '@tiktrends/core';
+import { PARAM_LOT_IMPORT, estLotImporte, listeLotImport, lotCibleImport, lotImport, quandCourt, remontees, sousNavResultats } from '@tiktrends/core';
 import { Importer } from '../../../../../spatial/vues/resultats/Importer';
 import { RefusResultats } from '../../../../../spatial/vues/resultats/communs';
 import { chargerConnexion, chargerLots, gardeResultats } from '../donnees';
@@ -13,6 +13,10 @@ export const dynamic = 'force-dynamic';
  * état de mesure, et le compte des annonces d'un export qui vont à lui · un lot
  * hors des lots lus pour la marque active de l'espace est ignoré
  * (`lotCibleImport`). Rien n'est écrit à l'affichage.
+ * La liste « Lot » (I06 · `listeLotImport`) · les lots de la marque qui
+ * attendent des mesures, parmi ceux DÉJÀ lus ici (`chargerLots` · même ordre,
+ * même borne) · la sélection est l'adresse (`?lot=`) · « Tous les lots »,
+ * l'écran tel qu'il était. Aucun lot à choisir · aucune liste.
  */
 export default async function ImportSpatial({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const g = await gardeResultats('import');
@@ -41,6 +45,7 @@ export default async function ImportSpatial({ searchParams }: { searchParams: Pr
       meta={{ connecte: c.metaConnecte, mesure: c.mesureLe ? quandCourt(c.mesureLe, maintenant) : null }}
       remontees={liste.map((r) => ({ ...r, quand: quandCourt(r.le, maintenant) }))}
       lot={lot}
+      liste={listeLotImport(d.lots, cible?.id ?? null, d.ctx, d.config)}
     />
   );
 }

@@ -13,3 +13,4 @@ export * from './raccourcis-lot';
 export * from './raccourcis-test';
 export * from './a-conclure';
 export * from './fin-prevue';
+export * from './import-lot';

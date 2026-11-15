@@ -1,6 +1,7 @@
 import { estLotImporte } from '../../adsmap/lot-nature';
 import { verdictEffectif, type VerdictValue } from '../../adsmap/types';
 import { LIBELLE_VERDICT } from '../../adsmap/verdict-libelle';
+import { RAISON_IMPORT_FERME, lienImportLot } from './fin-prevue';
 
 /**
  * Spatial · Résultats · les LOTS de test, lus sur leurs faits réels.
@@ -239,7 +240,12 @@ export interface PresentationLot {
   fin: string | null;
 }
 
-export function presentationLot(l: FaitsLotSpatial, c: ContexteLots, liens: { import: string } = { import: '/adsmap/import' }): PresentationLot {
+/**
+ * La présentation d'un lot · « Mesures à importer » mène à l'import ouvert sur
+ * CE lot (`lienImportLot`, la seule adresse de l'import d'un lot) · la liste
+ * « Lots de test », la boucle, la vue d'ensemble et la prochaine action la lisent ici.
+ */
+export function presentationLot(l: FaitsLotSpatial, c: ContexteLots): PresentationLot {
   const etat = etatLotSpatial(l, c);
   const p = PRESENTATION_ETAT_LOT[etat];
   const ecoules = joursEntiersDepuis(l.lanceLe, c.maintenant);
@@ -257,7 +263,7 @@ export function presentationLot(l: FaitsLotSpatial, c: ContexteLots, liens: { im
     plateformes: plateformesLot(l),
     statut: { libelle: p.statut, classe: p.pill },
     anneau: { part, libelle: jour !== null ? `J${jour}` : '–', classe: p.anneau },
-    action: { libelle: p.action, href: p.versImport ? liens.import : lienLotSpatial(l.id), primaire: p.primaire },
+    action: { libelle: p.action, href: p.versImport ? lienImportLot(l.id) : lienLotSpatial(l.id), primaire: p.primaire },
     jour,
     fenetre: c.fenetreJours,
     fin: Number.isFinite(t) ? new Date(t + c.fenetreJours * JOUR).toISOString() : null,
@@ -368,13 +374,21 @@ export function preparationLot(l: FaitsLotSpatial, nomsGeneres: number): { fait:
   return { fait: etapes.filter(Boolean).length, sur: 4 };
 }
 
-/** La prochaine meilleure action de la boucle, tirée des états réels (ordre · conclure, importer, lancer, préparer). */
-export function prochaineActionBoucle(lots: ReadonlyArray<{ presentation: PresentationLot; synthese: SyntheseLot }>, aDesSuites: boolean): { titre: string; phrase: string; bouton: string; href: string } {
+/**
+ * La prochaine meilleure action de la boucle, tirée des états réels (ordre · conclure, importer, lancer, préparer).
+ * L'import fermé à cette personne (`refusImport` · rôle, formule) · « Voir le lot », la fiche où le bouton
+ * fermé et sa raison sont écrits, et la raison dite ici · jamais un lien vers une page qui la refuse.
+ */
+export function prochaineActionBoucle(lots: ReadonlyArray<{ presentation: PresentationLot; synthese: SyntheseLot }>, aDesSuites: boolean, o: { refusImport?: 'role' | 'plan' | null } = {}): { titre: string; phrase: string; bouton: string; href: string } {
   const de = (e: EtatLotSpatial) => lots.find((l) => l.presentation.etat === e);
   const c = de('a_conclure');
   if (c) return { titre: `Conclure le lot #${c.presentation.numero}`, phrase: `${c.synthese.titre} · ${c.synthese.phrase} Conclure enregistre l’apprentissage et débloque l’itération.`, bouton: 'Conclure le lot', href: c.presentation.action.href };
   const i = de('a_importer');
-  if (i) return { titre: `Importer les mesures du lot #${i.presentation.numero}`, phrase: 'La fenêtre d’évaluation est écoulée, mais des variantes n’ont pas encore de mesure · sans elles, pas de verdict.', bouton: 'Importer', href: i.presentation.action.href };
+  if (i) {
+    const phrase = 'La fenêtre d’évaluation est écoulée, mais des variantes n’ont pas encore de mesure · sans elles, pas de verdict.';
+    if (o.refusImport) return { titre: `Importer les mesures du lot #${i.presentation.numero}`, phrase: `${phrase} ${RAISON_IMPORT_FERME[o.refusImport]}`, bouton: 'Voir le lot', href: lienLotSpatial(i.presentation.id) };
+    return { titre: `Importer les mesures du lot #${i.presentation.numero}`, phrase, bouton: 'Importer', href: i.presentation.action.href };
+  }
   const p = de('pret');
   if (p) return { titre: `Lancer le lot #${p.presentation.numero}`, phrase: 'Toutes ses variantes sont prêtes · le lancement date le départ de la fenêtre d’évaluation.', bouton: 'Lancer le lot', href: p.presentation.action.href };
   const m = de('composition');

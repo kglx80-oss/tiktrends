@@ -562,3 +562,55 @@ describe('« Importer des résultats » ouvert sur un lot · la section du lot e
     expect(sq(html.replace(s, '').replace('<div class="grid3">', `${s}<div class="grid3">`)), 'une section hors de sa place').not.toEqual(ref);
   });
 });
+
+/**
+ * Chaque « Importer » arrive sur son lot · la liste « Lot » (I06) · seul ajout
+ * HORS maquette, étroitement déclaré · UN bloc `div[data-liste-lot]`, juste
+ * après la sous-navigation (`nav.subnav`), AVANT la section du lot s'il y en a
+ * une · on le retire, et seulement lui · deux blocs, ou un bloc ailleurs, font
+ * tomber la parité · sans liste, rien n'est ajouté.
+ */
+function sansListeLot(html: string): string {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const s = t.content.querySelectorAll('div[data-liste-lot]');
+  if (s.length !== 1 || !s[0]!.previousElementSibling?.matches('nav.subnav')) return html;
+  s[0]!.remove();
+  return t.innerHTML;
+}
+
+describe('« Importer des résultats » · la liste « Lot » est le seul écart de plus, étroitement déclaré', () => {
+  const REMONTEES = [{ source: 'meta' as const, texte: 'Mesure Meta', le: '2026-10-27T08:00:00Z', quand: 'il y a 2 h' }, { source: 'tableau' as const, texte: 'Tableau · Lot #4', le: '2026-10-26T08:00:00Z', quand: 'hier' }, { source: 'tableau' as const, texte: 'Tableau · Lot #1', le: '2026-10-11T08:00:00Z', quand: '11 oct.' }];
+  const LOT = { id: 'l1', numero: 3, titre: 'Lot #3', diagnostic: 'Lot #3 · aucune mesure reçue depuis le lancement', sansSource: null, variantes: [{ code: 'v1', nomRegie: 'N_B3_v1', etat: 'sans-mesure' as const, libelle: 'Sans mesure' }] };
+  const LISTE = { choisi: '', options: [{ id: 'l1', libelle: 'Lot #3 · Mesures à importer' }, { id: 'l2', libelle: 'Lot #2 · En diffusion' }] };
+  const IGN = { selecteur: 'div.view', ignorer: ['.conn2:nth-child(2) .t'] };
+  it('« Tous les lots » · la parité tient une fois LE bloc seul retiré · avec le lot, une fois le bloc et la section retirés', () => {
+    const tous = rendre(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={REMONTEES} liste={LISTE} />);
+    expect(tous).toContain('data-liste-lot');
+    const p = parite(sansListeLot(tous), 'importer', IGN);
+    expect(p.rendu).toEqual(p.reference);
+    const surLot = rendre(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={REMONTEES} lot={LOT} liste={{ ...LISTE, choisi: 'l1' }} />);
+    const q = parite(sansLotCible(sansListeLot(surLot)), 'importer', IGN);
+    expect(q.rendu).toEqual(q.reference);
+    expect(rendre(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={REMONTEES} liste={null} />)).not.toContain('data-liste-lot');
+  });
+  it('la liste est accessible · un libellé « Lot », « Tous les lots » d’abord, une cible d’au moins 44 px, l’aide reliée', () => {
+    const d = document.createElement('div');
+    d.innerHTML = rendre(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={REMONTEES} liste={{ ...LISTE, choisi: 'l2' }} />);
+    const sel = d.querySelector<HTMLSelectElement>('div[data-liste-lot] select')!;
+    expect(d.querySelector(`label[for="${sel.id}"]`)?.textContent).toBe('Lot');
+    expect([...sel.options].map((o) => [o.value, o.textContent])).toEqual([['', 'Tous les lots'], ['l1', 'Lot #3 · Mesures à importer'], ['l2', 'Lot #2 · En diffusion']]);
+    expect(sel.querySelector('option[selected]')?.getAttribute('value')).toBe('l2');
+    expect(sel.style.minHeight).toBe('44px');
+    expect(d.querySelector(`#${sel.getAttribute('aria-describedby')}`)?.textContent).toMatch(/attendent des mesures/);
+  });
+  it('l’écart déclaré ne couvre rien d’autre · deux blocs, ou un bloc hors de sa place, font tomber la parité', () => {
+    const html = rendre(<Importer sousNav={NAV} meta={{ connecte: false, mesure: null }} remontees={REMONTEES} liste={LISTE} />);
+    const ref = parite(html, 'importer', IGN).reference;
+    const sq = (x: string) => squelette(sansListeLot(x), { selecteur: 'div.view', ignorer: IGN.ignorer });
+    const b = /<div data-liste-lot=""[^]*?<\/select>[^]*?<\/div>/.exec(html)![0];
+    expect(sq(html), 'préalable · le bloc retiré, la parité tient').toEqual(ref);
+    expect(sq(html.replace(b, b + b)), 'deux blocs').not.toEqual(ref);
+    expect(sq(html.replace(b, '').replace('<div class="grid3">', `${b}<div class="grid3">`)), 'un bloc hors de sa place').not.toEqual(ref);
+  });
+});

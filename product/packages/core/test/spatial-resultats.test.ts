@@ -124,7 +124,8 @@ describe('Spatial · Résultats · présentation et synthèse', () => {
     const d = presentationLot(lot({ lanceLe: ilYa(2) }), CTX);
     expect(d).toMatchObject({ etat: 'diffusion', jour: 3, anneau: { part: 43, libelle: 'J3', classe: 'c' }, action: { libelle: 'Suivre', href: '/adsmap/lots/l1' } });
     expect(presentationLot(lot(), CTX)).toMatchObject({ jour: 7, anneau: { part: 100, libelle: 'J7', classe: 'g' }, action: { libelle: 'Conclure', primaire: true } });
-    expect(presentationLot(lot({ ads: [ad('v1', null)] }), CTX).action.href).toBe('/adsmap/import');
+    // « Mesures à importer » · l'import ouvert sur CE lot, jamais l'écran nu.
+    expect(presentationLot(lot({ ads: [ad('v1', null)] }), CTX).action.href).toBe('/adsmap/import?lot=l1');
     expect(presentationLot(lot({ statut: 'planned', lanceLe: null }), CTX)).toMatchObject({ jour: null, anneau: { part: 0, libelle: '–' } });
   });
 
