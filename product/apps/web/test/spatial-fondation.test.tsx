@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ECRANS_SPATIAUX, entreesRail, entreesRailEspace, deriverRoutesCss, deriverThemeClairCss, routesColorees } from '@tiktrends/core';
+import { ECRANS_SPATIAUX, entreesRail, entreesRailEspace, pastilleAImporter, deriverRoutesCss, deriverThemeClairCss, routesColorees } from '@tiktrends/core';
 import { parite, squelette, fragmentReference } from './spatial/parite';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard', useRouter: () => ({ push: () => {}, refresh: () => {} }) }));
@@ -154,6 +154,40 @@ describe('Spatial · parité de structure avec la maquette', () => {
       utilisateur: CTX.utilisateur, espaceNom: 'GLX', credits: CTX.credits, nonLues: 4, deconnexion: async () => {},
     };
     const servi = renderToStaticMarkup(<Coquille donnees={d}><div className="view" /></Coquille>);
+    expect(servi, 'sans lot à importer, aucune pastille « à importer »').not.toContain('data-pastille-import');
+    railEgalMaquette(servi);
+  });
+
+  it('la pastille « à importer » · UN lien juste sous Résultats, sa structure exacte · retirée, le rail est celui de la maquette', () => {
+    const ouverts = new Set(['/studio/projets', '/veille', '/adsmap', '/assets', '/jarvis', '/brands', '/settings']);
+    const marque = { id: 'b1', nom: 'Neva' };
+    const entrees = entreesRail({ ouverts, marque }).map((e) => (e.cle === 'resultats' ? { ...e, pastille: { classe: 'badge' as const, valeur: '', libelle: 'Un lot à conclure' } } : e));
+    const d: DonneesCoquille = {
+      entrees, espace: entreesRailEspace({ ouverts, marque }).map((e) => (e.cle === 'marque' ? { ...e, pastille: { classe: 'rbadge' as const, valeur: '6', libelle: '6 étapes à compléter' } } : e)), aImporter: pastilleAImporter({ n: 2, lots: [{ id: 'l2', numero: 2 }, { id: 'l1', numero: 1 }] }),
+      marque: { ...marque, logoUrl: 'https://x/logo.png', imageUrl: null }, marques: [{ id: 'b1', nom: 'Neva' }],
+      peutGererMarques: true, admin: true, passer: { titre: 'Passer à Plus', sous: '7 000 crédits / mois' }, railOuvert: true,
+      utilisateur: CTX.utilisateur, espaceNom: 'GLX', credits: CTX.credits, nonLues: 4, deconnexion: async () => {},
+    };
+    const t = document.createElement('template');
+    t.innerHTML = renderToStaticMarkup(<Coquille donnees={d}><div className="view" /></Coquille>);
+    // Écart DÉCLARÉ, hors maquette (la maquette n'a qu'une pastille par onglet, un point DANS Résultats ·
+    // un lien ne s'imbrique pas dans un lien, et un point de 9 px n'est pas une cible de 44 px) · UNE entrée
+    // du rail, juste après Résultats, `more-only` (la barre du téléphone garde ses onglets), structure d'une
+    // entrée de la maquette (icône, libellé, bulle) et le compteur `rbadge` de Marque.
+    const imp = [...t.content.querySelectorAll('nav.rail a[data-pastille-import]')];
+    expect(imp.length, 'la pastille « à importer » n’est pas UNE entrée du rail').toBe(1);
+    expect(imp[0]!.parentElement?.matches('nav.rail'), 'la pastille « à importer » n’est plus une entrée du rail').toBe(true);
+    expect(imp[0]!.previousElementSibling?.getAttribute('data-r'), 'la pastille « à importer » a quitté sa place, juste sous Résultats').toBe('resultats');
+    expect(imp[0]!.getAttribute('href')).toBe('/adsmap/import');
+    expect(squelette(imp[0]!.outerHTML), 'la structure de la pastille « à importer » a changé · déclare-le').toEqual(squelette(
+      '<a class="more-only"><svg class="i"><use href="#i-down"></use></svg><span class="lab"><strong></strong><small></small></span><span class="tip"></span><span class="rbadge"></span></a>',
+    ));
+    imp[0]!.remove();
+    railEgalMaquette(t.innerHTML);
+  });
+
+  /** Le rail rendu, ses écarts déclarés retirés, contre celui de la maquette. */
+  function railEgalMaquette(servi: string) {
     // Écart DÉCLARÉ, hors maquette (lot 13 · CA H07) · le bouton « Raccourcis clavier » du
     // rail, UN seul, même primitive que « Réduire le menu » (`.railtg`), juste avant
     // `#morebtn`. Retiré du rendu avant la comparaison · rien d'autre ne s'écarte.
@@ -176,7 +210,7 @@ describe('Spatial · parité de structure avec la maquette', () => {
       correctifs: [{ selecteur: '.brandrow', style: ['width'], motif: 'barre mobile · la rangée de marque vide (width:100%) écrasait les onglets à 20 px' }],
     });
     expect(p.rendu).toEqual(p.reference);
-  });
+  }
 
   it('la garde voit un écart · retirer une entrée du rail la fait tomber', () => {
     const ref = squelette(fragmentReference('_coquille'), { selecteur: 'nav.rail' });

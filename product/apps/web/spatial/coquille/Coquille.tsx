@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, messageRaccourciIndisponible, raccourciDeLaFrappe, raccourcisActifs, toucheVisible, EVENEMENT_PREFERENCE_RACCOURCIS, type EntreeRail, type PreferencesTouches, type PorteeRaccourci, type PrefixeRaccourci, type Raccourci, type SectionSpatiale } from '@tiktrends/core';
+import { FOND_SURCOUCHE_OPAQUE, ecranSpatial, cheminPorte, sectionDuChemin, groupesPalette, modulesMobiles, messageRaccourciIndisponible, raccourciDeLaFrappe, raccourcisActifs, toucheVisible, EVENEMENT_PREFERENCE_RACCOURCIS, type EntreeRail, type PastilleAImporter, type PreferencesTouches, type PorteeRaccourci, type PrefixeRaccourci, type Raccourci, type SectionSpatiale } from '@tiktrends/core';
 import { railCookieString } from '../../lib/rail-preference';
 import { setActiveBrand } from '../../app/actions/brands';
 import { listerProjets } from '../../app/actions/studios/projets';
@@ -46,6 +46,12 @@ import type { NotifItem } from '../../app/actions/notifications';
 export interface DonneesCoquille {
   entrees: EntreeRail[];
   espace: EntreeRail[];
+  /**
+   * Hors maquette, écart déclaré (`spatial-fondation`) · les lots qui attendent
+   * leurs mesures (`pastilleAImporter`) · UN lien juste sous Résultats, vers
+   * l'import · absent (membre, formule, rien à importer) · rien n'est ajouté.
+   */
+  aImporter?: PastilleAImporter | null;
   /**
    * `logoUrl` · l'adresse d'AFFICHAGE du logo par défaut (route média) ;
    * `logoAVerifier` · il a une empreinte · si l'image ne s'affiche pas, la
@@ -91,6 +97,23 @@ function lireCookies(): string {
 function estMac(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
+}
+
+/**
+ * La pastille « à importer » · une entrée du rail à part entière (cible de 48 px, la bulle du rail
+ * replié, le libellé du rail ouvert), jamais un point DANS Résultats · un lien ne s'imbrique pas dans
+ * un lien, et un point de 9 px n'est pas une cible. Son compteur (`rbadge`, celui de Marque) dit le
+ * nombre · le libellé le dit en mots. `more-only` · la barre du téléphone garde ses onglets de la maquette.
+ */
+function EntreeAImporter({ p }: { p: PastilleAImporter }) {
+  return (
+    <Lien href={p.href} className="more-only" data-pastille-import="" aria-label={`${p.titre} · ${p.libelle}`}>
+      <Ic n="down" s={false} />
+      <span className="lab"><strong>{p.titre}</strong><small>{p.sous}</small></span>
+      <span className="tip">{p.titre} · {p.libelle}</span>
+      <span className="rbadge" aria-hidden="true">{p.valeur}</span>
+    </Lien>
+  );
 }
 
 function EntreeLien({ e, actif, onNav }: { e: EntreeRail; actif: boolean; onNav?: () => void }) {
@@ -360,7 +383,12 @@ export function Coquille({ donnees, children }: { donnees: DonneesCoquille; chil
             </button>
             <span className="lab"><strong>{d.marque?.nom ?? 'Aucune marque'}</strong><small>{signal ? signal.libelle : 'Changer de marque'}</small></span>
           </div>
-          {d.entrees.map((e) => <EntreeLien key={e.cle} e={e} actif={e.cle === section} onNav={e.bientot ? () => toast(e.bientot!) : undefined} />)}
+          {d.entrees.map((e) => (
+            <Fragment key={e.cle}>
+              <EntreeLien e={e} actif={e.cle === section} onNav={e.bientot ? () => toast(e.bientot!) : undefined} />
+              {e.cle === 'resultats' && d.aImporter && <EntreeAImporter p={d.aImporter} />}
+            </Fragment>
+          ))}
           <span className="sepr" />
           {d.espace.map((e) => <EntreeLien key={e.cle} e={e} actif={e.cle === section} />)}
           {d.admin && (
