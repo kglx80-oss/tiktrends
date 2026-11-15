@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import {
-  COUT_PROPOSITION_CARTE, decompteCarte, libelleMecanique, lienFicheTest, lireCarte,
+  COUT_PROPOSITION_CARTE, decompteCarte, libelleMecanique, lienFicheTest, lireCarte, nomDeLigne,
   type AreteCarteFait, type NoeudArbre, type NoeudCarteFait,
 } from '@tiktrends/core';
 import { proposeAnglesAction, proposeConceptsAction, proposeDesiresAction, proposePersonasAction, type ProposeResult } from '../../../app/actions/adsmap-propose';
@@ -53,7 +53,7 @@ export function Carte(p: PropsCarte) {
   const action = (n: NoeudArbre) => (n.kind === 'persona' ? () => proposeDesiresAction(n.id, 4) : n.kind === 'desire' ? () => proposeAnglesAction(n.id, 4) : () => proposeConceptsAction(n.id, 3));
 
   const construire = (n: NoeudArbre) => (p.construire && ENFANT[n.kind] ? (
-    <button type="button" className="btn sm" disabled={!!occupe} title={`Un agent propose ${ENFANT[n.kind]} · ${COUT_PROPOSITION_CARTE}, remboursés s’il ne rend rien`} onClick={() => { void proposer(`${n.kind}:${n.id}`, action(n)); }}>
+    <button type="button" className="btn sm" disabled={!!occupe} title={`Un agent propose ${ENFANT[n.kind]} · ${COUT_PROPOSITION_CARTE}, remboursés s’il ne rend rien`} aria-label={nomDeLigne(occupe === `${n.kind}:${n.id}` ? 'Proposition…' : `Proposer ${ENFANT[n.kind]} · ${COUT_PROPOSITION_CARTE}`, n.label)} onClick={() => { void proposer(`${n.kind}:${n.id}`, action(n)); }}>
       <Ic n="plus" />{occupe === `${n.kind}:${n.id}` ? 'Proposition…' : `Proposer ${ENFANT[n.kind]} · ${COUT_PROPOSITION_CARTE}`}
     </button>
   ) : null);

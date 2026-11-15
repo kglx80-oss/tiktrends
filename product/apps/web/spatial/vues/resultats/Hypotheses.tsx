@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  COLONNES_HYPOTHESES, PARTIES_VIDES, TITRE_HYPOTHESE_NOTE, categoriesHypotheses, lienJarvisCarteHypothese, lienJarvisContexte,
+  COLONNES_HYPOTHESES, PARTIES_VIDES, TITRE_HYPOTHESE_NOTE, categoriesHypotheses, elementCourt, nomsDeControles, lienJarvisCarteHypothese, lienJarvisContexte,
   type CarteHypothese, type DepartHypothese, type GesteGagnante as Geste, type SaisieHypotheseLibre, type TestedVariable,
 } from '@tiktrends/core';
 import type { ResultatHypothese, SourceHypothese } from '../../../app/actions/adsmap-hypotheses';
@@ -143,6 +143,9 @@ export function Hypotheses(p: PropsHypotheses) {
   const [cat, setCat] = useState('tous');
   const cats = categoriesHypotheses(p.cartes);
   const liste = p.cartes.filter((c) => cat === 'tous' || c.categorie === cat);
+  // Le lien de chaque carte nomme SON hypothèse (« Voir · Si on tutoie… ») · il commence par le mot affiché.
+  const avecAction = liste.filter((h) => h.action);
+  const nomsAction = new Map(nomsDeControles(avecAction.map((h) => [h.action!.libelle, elementCourt(h.texte)])).map((n, i) => [avecAction[i]!.cle, n]));
   return (
     <Vue>
       <EnTete titre="Hypothèses" sous="Une phrase vérifiable par test : ce qu’on change, ce qu’on attend, pourquoi" />
@@ -190,7 +193,7 @@ export function Hypotheses(p: PropsHypotheses) {
                           {h.edition.libelle}
                         </BoutonHypothese>
                       )
-                      : h.action && <Lien className="btn sm" href={h.action.href} style={{ justifySelf: 'start' }}>{h.action.libelle}</Lien>}
+                      : h.action && <Lien className="btn sm" href={h.action.href} style={{ justifySelf: 'start' }} aria-label={nomsAction.get(h.cle)}>{h.action.libelle}</Lien>}
                   {p.jarvis && p.jarvisCartes && <DemanderJarvis carte={h} />}
                 </div>
               ))}

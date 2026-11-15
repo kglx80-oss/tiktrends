@@ -79,6 +79,7 @@ import { Lot } from '../spatial/vues/resultats/Lot';
 import { RaccourcisLot } from '../spatial/vues/resultats/RaccourcisLot';
 import { CanvasLibre } from '../spatial/vues/projet/CanvasLibre';
 import { AD_GAGNANTE, AD_NEE, AD_PERDANTE, LOT_CONCLU, MODELE_LIGNEE, canevasLignee, propsFicheConclue } from './helpers/gagnante-clavier-vues';
+import { ecartsDeNoms, sansNomsAjoutes } from './helpers/noms-accessibles';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 240_000 });
 
@@ -229,29 +230,14 @@ const ligneeRendue = async () => dom(renderToStaticMarkup(avecSpatial(await lign
 const rT = () => RACCOURCIS.find((x) => x.id === 'lot-iterer')!;
 /** Le texte VISIBLE d'un contrôle · sans la touche dessinée (`kbd`). */
 const visible = (el: Element | null) => { if (!el) return null; const c = el.cloneNode(true) as Element; c.querySelectorAll('kbd').forEach((k) => k.remove()); return (c.textContent ?? '').replace(/\s+/g, ' ').trim(); };
-/** Le nom accessible · `aria-label`, sinon le texte sans ce qui est caché aux lecteurs d'écran. */
-const nomAccessible = (el: Element) => {
-  const l = el.getAttribute('aria-label');
-  if (l) return l.replace(/\s+/g, ' ').trim();
-  const c = el.cloneNode(true) as Element; c.querySelectorAll('[aria-hidden="true"]').forEach((k) => k.remove());
-  return (c.textContent ?? '').replace(/\s+/g, ' ').trim();
-};
-/** Où mène un contrôle · un lien, son adresse · un bouton fermé, rien · un bouton actif, lui-même (deux boutons actifs du même nom mènent à deux cibles). */
-const cibleDe = (el: Element, i: number) => (el.tagName === 'A' ? `lien ${el.getAttribute('href')}` : el.getAttribute('aria-disabled') === 'true' || (el as HTMLButtonElement).disabled ? 'fermé' : `bouton #${i}`);
 /**
- * Écart DÉCLARÉ, étroitement · les contrôles DE LIGNE déjà en place avant ce lot, dont le but se lit dans leur ligne (WCAG 2.4.4) ·
- * « Fiche » (chaque variante de « Les variantes du lot ») · « Montrer sur le canvas » et « Ouvrir le test dans Adsmap » (chaque nœud de
- * « La lignée en liste ») · rien d'autre n'a le droit de porter le nom d'un autre contrôle qui mène ailleurs.
+ * Aucune exception · les contrôles de ligne (« Fiche », « Montrer sur le canvas », « Ouvrir le test dans Adsmap »…)
+ * nomment leur ligne depuis le lot des noms de ligne · la garde commune (`helpers/noms-accessibles`, règle du noyau)
+ * refuse deux noms égaux vers deux cibles ET un nom qui ne contient pas le libellé visible.
  */
-const NOMS_DE_LIGNE = new Set(['Fiche', 'Montrer sur le canvas', 'Ouvrir le test dans Adsmap']);
 function doublons(racine: ParentNode) {
-  const par = new Map<string, Set<string>>();
-  [...racine.querySelectorAll('a[href], button')].forEach((el, i) => {
-    const n = nomAccessible(el);
-    if (NOMS_DE_LIGNE.has(n)) return;
-    par.set(n, (par.get(n) ?? new Set()).add(cibleDe(el, i)));
-  });
-  return [...par.entries()].filter(([, c]) => c.size > 1).map(([n, c]) => `${n} → ${[...c].join(' | ')}`);
+  const e = ecartsDeNoms(racine);
+  return [...e.doublons, ...e.sansLibelle.map((x) => `nom sans le libellé visible · ${x}`)];
 }
 /** La ligne d'une variante dans « Les variantes du lot » · par son code. */
 const ligneVariante = (d: ParentNode, code: string) => [...d.querySelectorAll('[aria-label="Les variantes du lot"] .ev')].find((x) => x.querySelector('strong')?.textContent?.startsWith(`${code} · `)) ?? null;
@@ -464,10 +450,11 @@ describe('la carte de lignée · « née de la gagnante Vx » sur le bon nœud �
  * `[data-geste-clavier="lot-iterer"]` · son libellé et son adresse changent,
  * c'est le but) · sur la lignée, les éléments ajoutés (`[data-lignee-gagnante]`,
  * `[data-nee-de-gagnante]`) et la phrase ajoutée au nom accessible de la carte ·
- * rien d'autre ne bouge.
+ * rien d'autre ne bouge. Depuis le lot des noms de ligne · les `aria-label` AJOUTÉS (qui commencent
+ * par le libellé visible · `sansNomsAjoutes`) sont retirés avant la comparaison, la capture reste celle de main.
  */
-function sansEcartDeclare(html: string) {
-  const d = dom(html);
+function sansEcartDeclare(html: string, avant?: string) {
+  const d = dom(avant === undefined ? html : sansNomsAjoutes(html, avant).html);
   d.querySelectorAll('[data-geste-clavier="lot-iterer"], [data-lignee-gagnante], [data-nee-de-gagnante]').forEach((x) => x.remove());
   d.querySelectorAll('[data-carte][aria-label]').forEach((x) => x.setAttribute('aria-label', x.getAttribute('aria-label')!.replace(/ · née de la gagnante \S+/, '')));
   return d.innerHTML;
@@ -494,6 +481,7 @@ describe('égalité · hors des éléments ajoutés et de la touche T, la captur
     expect(d.querySelectorAll('[data-lignee-gagnante]').length, 'les éléments ajoutés · le geste de va1 (détail, liste) · la naissance de va3 (détail, liste), deux fois chacun').toBe(6);
     expect(d.querySelectorAll('[data-carte] [data-nee-de-gagnante]').length, 'la phrase sur la carte de va3, dans chaque rendu').toBe(2);
     expect(html, 'préalable · rien n’a été ajouté').not.toBe(avant);
-    expect(sansEcartDeclare(html), 'hors des éléments ajoutés et de la touche T, le rendu a changé').toBe(sansEcartDeclare(avant));
+    expect(sansNomsAjoutes(html, avant).retires, 'préalable · les noms de ligne ajoutés (« Fiche », lignée)').toBeGreaterThan(0);
+    expect(sansEcartDeclare(html, avant), 'hors des éléments ajoutés et de la touche T, le rendu a changé').toBe(sansEcartDeclare(avant));
   });
 });

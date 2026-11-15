@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { LIBELLE_NIVEAU, type KpiBoucle, type NiveauPreuve } from '@tiktrends/core';
+import { LIBELLE_NIVEAU, elementCourt, nomsDeControles, type KpiBoucle, type NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { BoutonVers } from './BoutonVers';
 import { Points, Pub, type SousNavResultats } from './communs';
@@ -45,6 +45,13 @@ export interface PropsBoucle {
 }
 
 export function Boucle(p: PropsBoucle) {
+  // Le geste de chaque carte nomme SA carte (« Suivre · Lot #2 ») · il commence par le mot affiché.
+  const noms = {
+    idees: nomsDeControles(p.idees.map((h) => [h.action.libelle, elementCourt(h.texte)])),
+    preparation: nomsDeControles(p.preparation.map((l) => [l.action.libelle, l.titre])),
+    diffusion: nomsDeControles(p.diffusion.map((l) => [l.action.libelle, l.titre])),
+    analyse: nomsDeControles(p.analyse.map((l) => [l.action.libelle, l.titre])),
+  };
   return (
     <Vue>
       <EnTete titre="Boucle d’itération" sous="Le cœur de TikTrends : chaque test nourrit le suivant" />
@@ -70,47 +77,47 @@ export function Boucle(p: PropsBoucle) {
         <div className="blboard">
           <div className="blcol">
             <header><strong>Hypothèses</strong><span>{p.idees.length}</span></header>
-            {p.idees.map((h) => (
+            {p.idees.map((h, i) => (
               <article className="blc" key={h.id}>
                 <div className="blsrc" style={sc(TEINTE[h.teinte])}><Ic n={h.icone} />{h.origine}</div>
                 <p>{h.texte}</p>
-                <div className="blf"><span className="pill">{h.categorie}</span><Lien className="btn sm pri" href={h.action.href}>{h.action.libelle}<Ic n="arrow" /></Lien></div>
+                <div className="blf"><span className="pill">{h.categorie}</span><Lien className="btn sm pri" href={h.action.href} aria-label={noms.idees[i]}>{h.action.libelle}<Ic n="arrow" /></Lien></div>
               </article>
             ))}
             <BoutonVers className="bladd" href={p.ajouter}><Ic n="plus" />Ajouter une hypothèse</BoutonVers>
           </div>
           <div className="blcol">
             <header><strong>Préparation</strong><span>{p.preparation.length}</span></header>
-            {p.preparation.map((l) => (
+            {p.preparation.map((l, i) => (
               <article className="blc" key={l.id}>
                 <strong>{l.titre}</strong>
                 <div className="blpr"><i className="amar"><b style={{ width: `${(l.fait / l.sur) * 100}%` }} /></i><small>Préparation {l.fait}/{l.sur}</small></div>
-                <div className="blf"><span className="pill">{l.categorie}</span><Lien className="btn sm" href={l.action.href}>{l.action.libelle}</Lien></div>
+                <div className="blf"><span className="pill">{l.categorie}</span><Lien className="btn sm" href={l.action.href} aria-label={noms.preparation[i]}>{l.action.libelle}</Lien></div>
               </article>
             ))}
             {p.preparation.length === 0 && <p className="blempty">Aucun lot en préparation</p>}
           </div>
           <div className="blcol">
             <header><strong>Diffusion</strong><span>{p.diffusion.length}</span></header>
-            {p.diffusion.map((l) => (
+            {p.diffusion.map((l, i) => (
               <article className="blc" key={l.id}>
                 <div className="blth"><Pub texte=" " image={l.image} r916={l.r916} /></div>
                 <strong>{l.titre}</strong>
                 <div className="blpr"><i className="amar"><b style={{ width: `${l.part}%` }} /></i><small>{l.jour}</small></div>
                 <small className="faint">{l.bilan}</small>
-                <div className="blf"><span className="pill">{l.categorie}</span><Lien className="btn sm" href={l.action.href}>{l.action.libelle}</Lien></div>
+                <div className="blf"><span className="pill">{l.categorie}</span><Lien className="btn sm" href={l.action.href} aria-label={noms.diffusion[i]}>{l.action.libelle}</Lien></div>
               </article>
             ))}
             {p.diffusion.length === 0 && <p className="blempty">Aucun lot en diffusion</p>}
           </div>
           <div className={`blcol ${p.analyse.length ? 'alert' : ''}`}>
             <header><strong>Analyse</strong><span>{p.analyse.length}</span></header>
-            {p.analyse.map((l) => (
+            {p.analyse.map((l, i) => (
               <article className="blc hot" key={l.id}>
                 <div className="blth">{l.pubs.map((x, i) => <Pub key={i} texte=" " image={x.image} classe={x.gagne ? 'won' : undefined} />)}</div>
                 <strong>{l.titre}</strong>
                 <small className="faint">{l.detail}</small>
-                <div className="blf"><span className={`pill ${l.statut.classe}`}>{l.statut.libelle}</span><Lien className="btn sm pri" href={l.action.href}>{l.action.libelle}</Lien></div>
+                <div className="blf"><span className={`pill ${l.statut.classe}`}>{l.statut.libelle}</span><Lien className="btn sm pri" href={l.action.href} aria-label={noms.analyse[i]}>{l.action.libelle}</Lien></div>
               </article>
             ))}
             {p.analyse.length === 0 && <p className="blempty">Rien à analyser</p>}

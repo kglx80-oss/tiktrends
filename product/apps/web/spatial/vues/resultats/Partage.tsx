@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { DUREES_PARTAGE, echeancePartage } from '@tiktrends/core';
+import { DUREES_PARTAGE, echeancePartage, nomsDeLignes } from '@tiktrends/core';
 import { createShareLinkAction, revokeShareLinkAction, type ShareLink } from '../../../app/actions/adsmap-share';
 import { EnTete, Ic, SousNav, Vue } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
@@ -25,6 +25,9 @@ export interface PropsPartage {
 
 export function Partage(p: PropsPartage) {
   const { occupe, message, geste } = useGeste();
+  // Les deux gestes de chaque lien nomment SON lien (« Copier · /c/… ») · ils commencent par le mot affiché.
+  const adresses = p.liens.map((l) => `/c/${l.token}`);
+  const nomsLiens = { copier: nomsDeLignes('Copier', adresses), revoquer: nomsDeLignes('Révoquer', adresses) };
   const { toast } = useSpatial();
   const [jours, setJours] = useState(90);
   const adresse = (t: string) => `${window.location.origin}/c/${t}`;
@@ -59,15 +62,15 @@ export function Partage(p: PropsPartage) {
       ) : (
         <div className="mtable">
           <div className="mrow h" style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr) auto' }}><span>Lien</span><span>Échéance</span><span /></div>
-          {p.liens.map((l) => (
+          {p.liens.map((l, i) => (
             <div className="mrow" key={l.id} style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr) auto' }}>
               <code style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>/c/{l.token}</code>
               <span className={l.expired ? 'pill r' : 'faint'} style={{ justifySelf: 'start' }}>{echeancePartage(l)}</span>
               <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                 {!l.expired && (
-                  <button type="button" className="btn sm" onClick={() => { navigator.clipboard?.writeText(adresse(l.token)).then(() => toast('Lien copié'), () => toast('Copie impossible ici · sélectionne le lien à la main')); }}><Ic n="copy" />Copier</button>
+                  <button type="button" className="btn sm" aria-label={nomsLiens.copier[i]} onClick={() => { navigator.clipboard?.writeText(adresse(l.token)).then(() => toast('Lien copié'), () => toast('Copie impossible ici · sélectionne le lien à la main')); }}><Ic n="copy" />Copier</button>
                 )}
-                <button type="button" className="btn sm" disabled={!!occupe} onClick={() => { void geste(`revoquer-${l.id}`, () => revokeShareLinkAction(l.id), () => 'Lien révoqué · il ne s’ouvre plus'); }}>Révoquer</button>
+                <button type="button" className="btn sm" disabled={!!occupe} aria-label={nomsLiens.revoquer[i]} onClick={() => { void geste(`revoquer-${l.id}`, () => revokeShareLinkAction(l.id), () => 'Lien révoqué · il ne s’ouvre plus'); }}>Révoquer</button>
               </span>
             </div>
           ))}

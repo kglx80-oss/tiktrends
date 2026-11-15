@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import {
   LIBELLE_STATUT_AD, LIBELLE_VERDICT, VALEUR_ABSENTE, adresseTests, filtresTestsActifs, lienFicheTest, lienNouveauProjet,
   libelleStatutTest, libelleVariableTest, pastilleVerdict, LIBELLE_ETAPE_TEST,
-  type FiltresTests, type ReperesTests,
+  nomsDeControles, nomsDeLignes, type FiltresTests, type ReperesTests,
 } from '@tiktrends/core';
 import { exportAdsCsvAction, type AdRow } from '../../../app/actions/adsmap';
 import { conceptBriefAction } from '../../../app/actions/adsmap-bridge';
@@ -43,6 +43,9 @@ export function Tests(p: PropsTests) {
   const f = p.filtres;
   const aller = (n: FiltresTests) => router.push(adresseTests(n));
   const lignes = p.lignes ?? [];
+  // Les gestes de chaque ligne nomment SON test (« Ouvrir · v2 · Trois erreurs ») · ils commencent par le mot affiché.
+  const elementsTests = lignes.map((l) => `${l.variantCode} · ${l.concept}`);
+  const nomsOuvrir = nomsDeControles(lignes.map((l, i) => [l.verdict ? 'Arbitrer' : 'Ouvrir', elementsTests[i]]));
   const r = p.reperes;
 
   async function exporter() {
@@ -130,7 +133,7 @@ export function Tests(p: PropsTests) {
       ) : (
         <div className="mtable">
           <div className="mrow h" style={{ gridTemplateColumns: COLONNES }}><span>Test</span><span>Désir · angle</span><span>Variable · hypothèse</span><span>CPA · étape</span><span /></div>
-          {lignes.map((l) => {
+          {lignes.map((l, i) => {
             const v = pastilleVerdict(l.verdict, l.comparable);
             const variable = libelleVariableTest(l.testedVariable);
             return (
@@ -156,9 +159,9 @@ export function Tests(p: PropsTests) {
                   <br /><span className="faint">{l.failedStage ? `bloque sur ${LIBELLE_ETAPE_TEST[l.failedStage] ?? l.failedStage}` : l.launchedAt ? `lancée le ${new Date(l.launchedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}` : 'pas lancée'}</span>
                 </span>
                 <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <Lien className={`btn sm ${l.verdict && l.verdictStatus === 'computed' ? 'pri' : ''}`} href={lienFicheTest(l.id)}>{l.verdict ? 'Arbitrer' : 'Ouvrir'}</Lien>
+                  <Lien className={`btn sm ${l.verdict && l.verdictStatus === 'computed' ? 'pri' : ''}`} href={lienFicheTest(l.id)} aria-label={nomsOuvrir[i]}>{l.verdict ? 'Arbitrer' : 'Ouvrir'}</Lien>
                   {l.conceptId && (
-                    <button type="button" className="btn sm" disabled={!!occupe} title="Reprendre cet angle dans un projet Studios" onClick={() => { void studio(l); }}>
+                    <button type="button" className="btn sm" disabled={!!occupe} title="Reprendre cet angle dans un projet Studios" aria-label={nomsDeLignes(occupe === `studio-${l.id}` ? '…' : 'Studio', elementsTests)[i]} onClick={() => { void studio(l); }}>
                       <Ic n="spark" />{occupe === `studio-${l.id}` ? '…' : 'Studio'}
                     </button>
                   )}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { KIND_LABEL, isTrivialMerge, type MergePlan, type NodeKind } from '@tiktrends/core';
+import { KIND_LABEL, isTrivialMerge, nomDeLigne, type MergePlan, type NodeKind } from '@tiktrends/core';
 import {
   mergeCandidatesAction, mergePersonasAction, mergePlanAction, rejectNodeAction, validateManyAction, validateNodeAction,
   type CurationView, type MergeCandidate, type ProposedNode,
@@ -62,7 +62,7 @@ export function Tri(p: PropsTri) {
             <label className="field" style={{ flex: '1 1 260px' }}>Rechercher un nom
               <input value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="Ex : Parent pressé" />
             </label>
-            <button type="submit" className="btn sm" disabled={saisie.trim() === v.q} style={{ alignSelf: 'end' }}><Ic n="search" />Rechercher</button>
+            <button type="submit" className="btn sm" disabled={saisie.trim() === v.q} style={{ alignSelf: 'end' }} aria-label={nomDeLigne('Rechercher', 'parmi les propositions à trier')}><Ic n="search" />Rechercher</button>
             {v.q && <button type="button" className="btn sm" style={{ alignSelf: 'end' }} onClick={() => { setSaisie(''); router.push(adresse('', 20)); }}>Réinitialiser</button>}
           </form>
           <Retour message={message} />
@@ -108,8 +108,8 @@ function Ligne({ n }: { n: ProposedNode }) {
         <label className="field" style={{ flex: '1 1 260px' }}>{libelle.charAt(0).toUpperCase() + libelle.slice(1)} · modifiable avant de valider
           <input value={nom} onChange={(e) => setNom(e.target.value)} />
         </label>
-        <button type="button" className="btn sm pri" disabled={!!occupe} onClick={() => { void geste('valider', () => validateNodeAction({ id: n.id, kind: n.kind, rename: nom !== n.label ? nom : undefined }), () => `${libelle.charAt(0).toUpperCase() + libelle.slice(1)} validé`); }}>{occupe === 'valider' ? '…' : 'Valider'}</button>
-        <button type="button" className="btn sm" disabled={!!occupe} onClick={() => { void geste('refuser', () => rejectNodeAction({ id: n.id, kind: n.kind }), () => 'Proposition écartée'); }}>Refuser</button>
+        <button type="button" className="btn sm pri" disabled={!!occupe} aria-label={nomDeLigne(occupe === 'valider' ? '…' : 'Valider', n.label)} onClick={() => { void geste('valider', () => validateNodeAction({ id: n.id, kind: n.kind, rename: nom !== n.label ? nom : undefined }), () => `${libelle.charAt(0).toUpperCase() + libelle.slice(1)} validé`); }}>{occupe === 'valider' ? '…' : 'Valider'}</button>
+        <button type="button" className="btn sm" disabled={!!occupe} aria-label={nomDeLigne('Refuser', n.label)} onClick={() => { void geste('refuser', () => rejectNodeAction({ id: n.id, kind: n.kind }), () => 'Proposition écartée'); }}>Refuser</button>
       </div>
       {n.parents.length > 0 && <span className="faint" style={{ fontSize: '11.5px' }}>{n.parents.map((x) => x.label).reverse().join(' › ')}</span>}
       {n.rename && <span style={{ fontSize: '12px', color: 'var(--warn)' }}>{n.rename}</span>}

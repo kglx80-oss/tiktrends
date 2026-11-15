@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LIBELLE_NIVEAU, MIN_REFERENCE_CONCLUSION, MIN_VARIANTES_CONCLUSION, type GesteGagnante as Geste, type LectureConclusion, type NiveauPreuve } from '@tiktrends/core';
+import { LIBELLE_NIVEAU, MIN_REFERENCE_CONCLUSION, MIN_VARIANTES_CONCLUSION, nomsDeLignes, type GesteGagnante as Geste, type LectureConclusion, type NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, Vue } from '../../communs';
 import { Points, Pub, rangeeVariantes } from './communs';
 import { PersonasLot, type PropsPersonasLot } from './PersonasLot';
@@ -74,6 +74,8 @@ function ConclusionDuLot({ c }: { c: LectureConclusion }) {
 }
 
 export function Lot(p: PropsLot) {
+  // « Fiche » sur chaque variante · le nom dit LAQUELLE (il commence par le mot affiché · `nomsDeLignes`).
+  const nomsFiches = nomsDeLignes('Fiche', (p.fiches ?? []).map((f) => f.libelle));
   return (
     <Vue>
       <EnTete titre={p.titre} sous={p.sous} />
@@ -115,7 +117,7 @@ export function Lot(p: PropsLot) {
           <h2>Les variantes du lot</h2>
           <div className="tl">
             {p.fiches.map((f, i) => (
-              <div className="ev" key={f.href}><span className="ico"><Ic n="img" /></span><span><strong>{f.libelle}</strong><br /><span className="faint" style={{ fontSize: '11.5px' }}>{f.detail}</span></span><Lien className="btn sm" href={f.href}>Fiche</Lien>{f.gagnante && <GesteGagnante cle="iterer-gagnante-lot" geste={f.gagnante} variante={f.libelle} raisonId={`gagnante-lot-${i}`} />}</div>
+              <div className="ev" key={f.href}><span className="ico"><Ic n="img" /></span><span><strong>{f.libelle}</strong><br /><span className="faint" style={{ fontSize: '11.5px' }}>{f.detail}</span></span><Lien className="btn sm" href={f.href} aria-label={nomsFiches[i]}>Fiche</Lien>{f.gagnante && <GesteGagnante cle="iterer-gagnante-lot" geste={f.gagnante} variante={f.libelle} raisonId={`gagnante-lot-${i}`} />}</div>
             ))}
           </div>
         </section>

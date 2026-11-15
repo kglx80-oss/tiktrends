@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  FILTRES_ETAT_APPRENTISSAGE, LIBELLE_NIVEAU, dansFiltreEtatApprentissage,
+  FILTRES_ETAT_APPRENTISSAGE, LIBELLE_NIVEAU, dansFiltreEtatApprentissage, nomsDeControles,
   type DepartHypothese, type EtatApprentissage, type FiltreEtatApprentissage, type NiveauPreuve, type TiroirApprentissage,
 } from '@tiktrends/core';
 import { apprentissageVersReglesAction, rejeterApprentissageAction } from '../../../app/actions/adsmap-apprentissage';
@@ -79,6 +79,8 @@ export function Apprentissages(p: PropsApprentissages) {
   const [filtre, setFiltre] = useState<'tous' | NiveauPreuve>('tous');
   const [etat, setEtat] = useState<FiltreEtatApprentissage>('tous');
   const liste = p.cartes.filter((c) => (filtre === 'tous' || c.niveau === filtre) && dansFiltreEtatApprentissage(c.etat, etat));
+  // Le lien de chaque carte nomme SON apprentissage (« Itérer · La question retient ») · il commence par le mot affiché.
+  const nomsAction = nomsDeControles(liste.map((c) => [c.action.libelle, c.titre]));
   return (
     <Vue>
       <EnTete titre="Apprentissages" sous="Ce que tes tests ont montré, avec le niveau de preuve et ses limites" />
@@ -100,7 +102,7 @@ export function Apprentissages(p: PropsApprentissages) {
         </div>
       )}
       <div className="lgrid">
-        {liste.map((c) => (
+        {liste.map((c, i) => (
           <article className="tile lcard" key={c.id}>
             <div className="head">
               <span className="ico"><Ic n={c.icone} /></span><Points n={c.niveau} /><span className="faint" style={{ fontSize: '11.5px' }}>{LIBELLE_NIVEAU[c.niveau]}</span>
@@ -121,8 +123,8 @@ export function Apprentissages(p: PropsApprentissages) {
               <span>{c.pied}</span>{c.usage && <span>· {c.usage}</span>}
               <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 {c.etat === 'valider'
-                  ? <Lien className="btn sm pri" href={c.action.href}>{c.action.libelle}</Lien>
-                  : <Lien className="btn sm" href={c.action.href}>{(c.action.boucle ?? c.etat === 'valide') && <Ic n="loop" />}{c.action.libelle}</Lien>}
+                  ? <Lien className="btn sm pri" href={c.action.href} aria-label={nomsAction[i]}>{c.action.libelle}</Lien>
+                  : <Lien className="btn sm" href={c.action.href} aria-label={nomsAction[i]}>{(c.action.boucle ?? c.etat === 'valide') && <Ic n="loop" />}{c.action.libelle}</Lien>}
               </span>
             </div>
             {c.gestes && <Gestes g={c.gestes} />}

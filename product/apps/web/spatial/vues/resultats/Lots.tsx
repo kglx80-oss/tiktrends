@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent as ClavierReact } from 'react';
 import { useRouter } from 'next/navigation';
-import { VIDE_LISTE_A_CONCLURE, dansFiltreLots, deplacementListe, gestesListeLots, lienLotSpatial, messageBorneListeLots, raccourciListeLots, touchesAffichees, type FiltreLots, type GestesListeLots, type PresentationLot } from '@tiktrends/core';
+import { VIDE_LISTE_A_CONCLURE, dansFiltreLots, nomsDeControles, deplacementListe, gestesListeLots, lienLotSpatial, messageBorneListeLots, raccourciListeLots, touchesAffichees, type FiltreLots, type GestesListeLots, type PresentationLot } from '@tiktrends/core';
 import { createBatchAction } from '../../../app/actions/adsmap-batch';
 import { Anneau, EnTete, Ic, Lien, SousNav, Touche, Vue, useToucheVisible } from '../../communs';
 import { useSpatial } from '../../coquille/contexte';
@@ -63,6 +63,8 @@ export function Lots(p: PropsLots) {
   const router = useRouter();
   const { toast } = useSpatial();
   const liste = p.lots.filter((l) => dansFiltreLots(l.etat, filtre));
+  // Le lien de chaque lot nomme SON lot (« Voir · Lot #2 ») · il commence par le mot affiché.
+  const nomsAction = nomsDeControles(liste.map((l) => [l.action.libelle, l.titre]));
   const rangees = useRef<HTMLDivElement>(null);
   const suivant = useToucheVisible('liste-lot-suivant');
   const precedent = useToucheVisible('liste-lot-precedent');
@@ -123,7 +125,7 @@ export function Lots(p: PropsLots) {
         </form>
       )}
       <div style={{ display: 'grid', gap: 12 }} ref={rangees} onKeyDown={parcourir}>
-        {liste.map((l) => (
+        {liste.map((l, i) => (
           <div className="lotrow" style={{ cursor: 'default' }} key={l.id}>
             <span className="stack">{l.pubs.map((x, i) => <Pub key={i} texte={x.texte} image={x.image} r916={x.r916} />)}</span>
             <span style={{ minWidth: 0 }}>
@@ -132,7 +134,7 @@ export function Lots(p: PropsLots) {
               <span className="meta"><span className="pill c"><Ic n="loop" />{l.categorie}</span><span className={`pill ${l.statut.classe}`}>{l.statut.libelle}</span><span className="faint" style={{ fontSize: '11.5px' }}>{l.mesure}</span></span>
             </span>
             <Anneau part={l.anneau.part} taille={54} libelle={l.anneau.libelle} classe={l.anneau.classe} />
-            <Lien className={`btn sm ${l.action.primaire ? 'pri' : ''}`} href={l.action.href} data-lot-lien={l.id} aria-describedby={`lot-titre-${l.id}`}>{l.action.libelle}</Lien>
+            <Lien className={`btn sm ${l.action.primaire ? 'pri' : ''}`} href={l.action.href} data-lot-lien={l.id} aria-describedby={`lot-titre-${l.id}`} aria-label={nomsAction[i]}>{l.action.libelle}</Lien>
           </div>
         ))}
         {liste.length === 0 && <p className="faint">{gestes.raison ? VIDE_LISTE_A_CONCLURE : p.lots.length ? 'Aucun lot dans ce filtre.' : 'Aucun lot pour cette marque · ouvre le premier pour composer un test.'}</p>}

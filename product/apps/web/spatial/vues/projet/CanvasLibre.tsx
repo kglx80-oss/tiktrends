@@ -5,7 +5,7 @@ import {
   GRAND_PAS_CLAVIER_CANVAS, LEGENDE_VIDE, LIBELLES_ETAPE_CANVAS, LIBELLES_NATURE_CANVAS, LIBELLE_MEDIA_CARTE, PAS_CLAVIER_CANVAS, PAS_ZOOM_CANVAS, SANS_ECRAN_NOEUD, STYLE_LIEN_LIGNEE,
   aideCanevasLibre, annonceDeplacement, cadresLignee, categorieLienLignee, composerCanvas, descendantsDeCarte, dimensionsLignee, dispositionApresReinitialisation, entreesDeCarte, etatInitialCanvas, etiquetteCarteLignee,
   legendeLignee, ligneeEnListe, ligneeVersCanvas, messageEnregistrementLibre, miniCarteLignee, phraseAvalCarte, phraseLegende, phraseLiens, rechercheGraphe, texteZoneLibre,
-  notesOuvertes, phraseIndicateurNotes, phraseNeeDeGagnante, positionCarte, reduireCanvas, repartirNotes, sortiesDeCarte,
+  nomsDeControles, nomsDeLignes, notesOuvertes, phraseIndicateurNotes, phraseNeeDeGagnante, positionCarte, reduireCanvas, repartirNotes, sortiesDeCarte,
   type CarteCanvas, type GagnanteDuNoeud, type CibleJarvisNoeud, type DispositionCanvas, type EtatCanvas, type GesteCanvas, type GrapheLibre, type ResultatEnregistrementLibre, type TailleCanvas,
 } from '@tiktrends/core';
 import { enregistrerDispositionCanvas, reinitialiserDispositionCanvas } from '../../../app/actions/studios/canvas';
@@ -83,6 +83,12 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
   const modele = enLignee ? modeleLignee! : modeleProduction;
   const apercus = enLignee ? lignee!.apercus : c.apercus;
   const liste = useMemo(() => (lignee ? ligneeEnListe(lignee.modele, lignee.groupes, lignee.destinations) : []), [lignee]);
+  // La liste · chaque geste nomme SON nœud (« Montrer sur le canvas · Résultat · V1 ») ou SON lot · il commence par le mot affiché.
+  const nomsListe = useMemo(() => ({
+    ecran: nomsDeControles(liste.map((x) => [x.lien?.libelle ?? '', x.intitule])),
+    montrer: nomsDeLignes('Montrer sur le canvas', liste.map((x) => x.intitule)),
+    lots: nomsDeControles((lignee?.groupes ?? []).map((g) => [g.lien?.libelle ?? '', g.titre])),
+  }), [liste, lignee]);
   const legende = useMemo(() => (lignee ? legendeLignee(lignee.modele) : []), [lignee]);
   // PC E11 · les notes · rangées sous leur nœud, ou « sans nœud » quand la donnée a disparu.
   const notesCtl = useNotesLignee(c.projectId, lignee?.notes ?? null);
@@ -454,12 +460,12 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
             <section aria-label="Les lots de la lignée" style={{ marginTop: 10 }}>
               <h3 style={{ font: '600 13px/1.25 var(--sfd)', color: 'var(--fg)', margin: '0 0 6px' }}>Les lots</h3>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-                {lignee!.groupes.map((g) => (
+                {lignee!.groupes.map((g, i) => (
                   <li key={g.id} data-groupe-liste={g.id} className="tile" style={{ display: 'grid', gap: 4, fontSize: '12px' }}>
                     <strong>{g.titre}</strong>
                     <span className="muted">{g.texte}</span>
                     <span className="faint" style={{ marginLeft: 0 }}>Contient · {g.membres.map((x) => noeudLignee.get(x)?.titre ?? x).join(', ')}</span>
-                    {g.lien && <Lien className="btn sm" style={{ justifySelf: 'start' }} href={g.lien.href}>{g.lien.libelle}</Lien>}
+                    {g.lien && <Lien className="btn sm" style={{ justifySelf: 'start' }} href={g.lien.href} aria-label={nomsListe.lots[i]}>{g.lien.libelle}</Lien>}
                   </li>
                 ))}
               </ul>
@@ -477,9 +483,9 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
                 <GagnanteDuNoeudLignee g={gagnantes?.[x.id]} raisonId={`gagnante-lignee-${i}`} />
                 <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {x.lien
-                    ? <Lien className="btn sm" href={x.lien.href} data-ecran={x.id}>{x.lien.libelle}</Lien>
+                    ? <Lien className="btn sm" href={x.lien.href} data-ecran={x.id} aria-label={nomsListe.ecran[i]}>{x.lien.libelle}</Lien>
                     : <span className="faint" style={{ marginLeft: 0 }} data-sans-ecran={x.id}>{SANS_ECRAN_NOEUD}</span>}
-                  <button className="chip" type="button" data-montrer={x.id} onClick={() => envoyer({ type: 'focaliser', id: x.id, taille: mesurer() })}>Montrer sur le canvas</button>
+                  <button className="chip" type="button" data-montrer={x.id} aria-label={nomsListe.montrer[i]} onClick={() => envoyer({ type: 'focaliser', id: x.id, taille: mesurer() })}>Montrer sur le canvas</button>
                 </span>
                 {notes && <NotesNoeud noeud={{ id: x.id, titre: x.titre }} notes={notes.parNoeud.get(x.id) ?? []} lieu="liste" ctl={notesCtl} />}
               </li>

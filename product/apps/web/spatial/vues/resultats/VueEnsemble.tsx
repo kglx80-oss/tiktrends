@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { AnalyseJarvisEnsemble, KpiResultats, NiveauPreuve } from '@tiktrends/core';
+import { nomsDeControles, type AnalyseJarvisEnsemble, type KpiResultats, type NiveauPreuve } from '@tiktrends/core';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
 import { Points, Pub, rangeeVariantes, type SousNavResultats } from './communs';
 
@@ -71,6 +71,8 @@ const GAGNANTE_SOUS_LA_CREA: CSSProperties = { position: 'static', order: 1, jus
 
 export function VueEnsemble(p: PropsVueEnsemble) {
   const v = p.vedette;
+  // Le lien de chaque autre lot nomme SON lot (« Suivre · Lot #2 ») · il commence par le mot affiché.
+  const nomsAutres = nomsDeControles(p.autres.map((o) => [o.action.libelle, o.titre]));
   return (
     <Vue>
       <EnTete titre="Résultats" sous={p.sous} />
@@ -124,7 +126,7 @@ export function VueEnsemble(p: PropsVueEnsemble) {
       <h2 className="rvh2">Tes autres tests</h2>
       {p.autres.length > 0 ? (
         <div className="rvo">
-          {p.autres.map((o) => (
+          {p.autres.map((o, i) => (
             <article className={`tile rvc ${o.alerte ? 'warn' : ''}`} key={o.id}>
               <span className={`pill ${o.statut.classe}`}>{o.statut.libelle}</span>
               <h3>{o.titre}</h3>
@@ -133,7 +135,7 @@ export function VueEnsemble(p: PropsVueEnsemble) {
               </div>
               {o.progression !== null && <div className="rvp" aria-hidden="true"><i style={{ width: `${o.progression}%` }} /></div>}
               <p>{o.texte}</p>
-              <Lien className={`btn sm ${o.alerte ? 'rvwarn' : ''}`} href={o.action.href}>{o.action.libelle}</Lien>
+              <Lien className={`btn sm ${o.alerte ? 'rvwarn' : ''}`} href={o.action.href} aria-label={nomsAutres[i]}>{o.action.libelle}</Lien>
             </article>
           ))}
         </div>

@@ -68,6 +68,7 @@ import { RAISON_IMPORT_FERME } from '@tiktrends/core';
 import { avecSpatial } from './spatial/fournisseur';
 import ImportSpatial from '../app/(spatial)/sp/adsmap/import/page';
 import LotSpatial from '../app/(spatial)/sp/adsmap/lots/[id]/page';
+import { sansNomsAjoutes } from './helpers/noms-accessibles';
 import LotsSpatial from '../app/(spatial)/sp/adsmap/lots/page';
 import ResultatsSpatial from '../app/(spatial)/sp/adsmap/page';
 import BoucleSpatial from '../app/(spatial)/sp/adsmap/boucle/page';
@@ -279,8 +280,10 @@ describe('chaque « Importer » d’un lot arrive sur lui · on suit le lien', (
     expect(i.lot).toBe(L.n1);
     expect(i.titre).toBe('Lot #1 · Mesures pas encore remontées · ses mesures');
     expect(i.variantes).toEqual(['v1:sans-mesure', 'v2:sans-mesure']);
-    // Octet pour octet la fiche de main, la section seule retirée.
-    expect(sansUseId(anon(sansSectionImport(html))), 'la fiche a changé ailleurs que la section déclarée').toBe(sansUseId(avant('import-fiche-n1-uo-avant.html')));
+    // Octet pour octet la fiche de main, la section seule retirée · et les noms de ligne ajoutés depuis (« Fiche · v1 · … », `sansNomsAjoutes`).
+    const uo = sansNomsAjoutes(sansUseId(anon(sansSectionImport(html))), sansUseId(avant('import-fiche-n1-uo-avant.html')));
+    expect(uo.retires, 'préalable · les noms de ligne de la fiche').toBeGreaterThan(0);
+    expect(uo.html, 'la fiche a changé ailleurs que la section déclarée').toBe(uo.avant);
     // Une fiche dans un autre état · aucun geste d'import.
     for (const k of ['n2', 'n4']) expect(dom(await fiche(k)).querySelector('section[data-import-lot]'), `la fiche ${k} propose l’import`).toBeNull();
   });
@@ -424,7 +427,9 @@ describe('un membre · fermé, la raison écrite à côté', () => {
     expect(net(raison?.textContent), 'la raison n’est pas écrite à côté').toBe(RAISON_IMPORT_FERME.role);
     expect(RAISON_IMPORT_FERME.role).toContain('réservé aux admins de l’espace');
     expect([...d.querySelectorAll('a[href]')].some((a) => a.getAttribute('href')!.startsWith('/adsmap/import')), 'un lien vers l’import au membre').toBe(false);
-    expect(sansUseId(anon(sansSectionImport(html))), 'la fiche du membre a changé ailleurs que la section').toBe(sansUseId(avant('import-fiche-n1-um-avant.html')));
+    const um = sansNomsAjoutes(sansUseId(anon(sansSectionImport(html))), sansUseId(avant('import-fiche-n1-um-avant.html')));
+    expect(um.retires, 'préalable · les noms de ligne de la fiche du membre').toBeGreaterThan(0);
+    expect(um.html, 'la fiche du membre a changé ailleurs que la section').toBe(um.avant);
     const liste = dom(brut(avecSpatial(await LotsSpatial({ searchParams: Promise.resolve({}) }))));
     expect([...liste.querySelectorAll('a[href]')].some((a) => a.getAttribute('href')!.startsWith('/adsmap/import')), 'un lien vers l’import dans la liste du membre').toBe(false);
     await expect(ImportSpatial({ searchParams: Promise.resolve({ lot: L.n1! }) }), 'la page d’import s’ouvre au membre').rejects.toThrow('REDIRECT /adsmap');
