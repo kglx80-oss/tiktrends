@@ -188,7 +188,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
    *    pour imprévu, et le verrouillage majuscule le ramène à I.
    */
   { id: 'lot-conclure', touches: [['c']], libelle: 'Aller à « Conclure le lot »', portee: 'fiche-lot', action: null, sources: ['vues/resultats/RaccourcisLot.tsx'] },
-  { id: 'lot-iterer', touches: [['t']], libelle: 'Itérer depuis la gagnante du lot (écran Itérer, pré-rempli)', portee: 'fiche-lot', action: null, sources: ['vues/resultats/RaccourcisLot.tsx'] },
+  { id: 'lot-iterer', touches: [['t']], libelle: 'Itérer depuis la gagnante du lot (écran Itérer, pré-rempli · lot conclu · le même geste que le bouton de sa gagnante, fermé pour les mêmes raisons)', portee: 'fiche-lot', action: null, sources: ['vues/resultats/RaccourcisLot.tsx'] },
   /*
    * Lot 13 ter · la fiche d'un TEST · deux NAVIGATIONS (l'écran Itérer EXISTANT
    * pré-rempli, la fiche de son lot) · aucune écriture. Fermées quand le geste

@@ -83,7 +83,7 @@ describe('Lot 13 bis · la règle d’une vue · `raccourciFicheLot`', () => {
     expect(raccourciDeVue({ key: '+' }, { ...VUE, actifs: false }, 'canvas')?.id, 'le canvas agit sur le focus · pas coupé').toBe('canvas-zoom-plus');
   });
   it('le message d’un geste fermé · le libellé de la table, puis la raison', () => {
-    expect(messageRaccourciFerme(lot('lot-iterer'), RAISON_GESTE_SANS_GAGNANTE_LOT)).toBe(`Itérer depuis la gagnante du lot (écran Itérer, pré-rempli) · ${RAISON_GESTE_SANS_GAGNANTE_LOT}`);
+    expect(messageRaccourciFerme(lot('lot-iterer'), RAISON_GESTE_SANS_GAGNANTE_LOT)).toBe(`Itérer depuis la gagnante du lot (écran Itérer, pré-rempli · lot conclu · le même geste que le bouton de sa gagnante, fermé pour les mêmes raisons) · ${RAISON_GESTE_SANS_GAGNANTE_LOT}`);
   });
 });
 

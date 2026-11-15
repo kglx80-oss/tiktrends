@@ -29,9 +29,11 @@ vi.mock('../lib/credits', () => ({ unlimitedCredits: () => false }));
 vi.mock('../app/actions/auth', () => ({ logoutAction: async () => {} }));
 vi.mock('../lib/spatial/pastilles/resultats', () => ({ pastilleResultats: vi.fn(async () => ({ classe: 'badge', valeur: '', libelle: 'Un lot prêt à conclure' })) }));
 vi.mock('../lib/spatial/pastilles/marque', () => ({ pastilleMarque: vi.fn(async (b: string) => ({ classe: 'rbadge', valeur: '5', libelle: `5 étapes · ${b}` })) }));
+vi.mock('../lib/spatial/pastilles/import', () => ({ pastilleImport: vi.fn(async () => ({ valeur: '2', href: '/adsmap/import', titre: 'À importer', libelle: '2 lots attendent leurs mesures', sous: 'Mesures de 2 lots' })) }));
 
 import { middleware } from '../middleware';
-import { chargerCoquille, poserPastilles } from '../lib/spatial/coquille';
+import { chargerCoquille, poserPastilleAImporter, poserPastilles } from '../lib/spatial/coquille';
+import { pastilleImport } from '../lib/spatial/pastilles/import';
 import { entreesRail, entreesRailEspace } from '@tiktrends/core';
 
 const HOTE = 'https://app.tiktrends.test';
@@ -94,5 +96,30 @@ describe('Spatial · pastilles du rail · point d’entrée', () => {
     const ouverts = new Set(['/adsmap']);
     const l = await poserPastilles(entreesRail({ ouverts, marque }), { ouverts, workspaceId: 'w', brandId: 'b1' }, { resultats: { destination: '/adsmap', source: async () => { throw new Error('x'); } } });
     expect(l.every((e) => !e.pastille)).toBe(true);
+  });
+});
+
+describe('Spatial · pastille « à importer » · lue seulement si l’import est ouvert', () => {
+  it('l’import ouvert (fonction `import`) et une marque · la VRAIE source par défaut est lue, sa pastille rendue', async () => {
+    vi.mocked(pastilleImport).mockClear();
+    const p = await poserPastilleAImporter({ ouverts: new Set(['/adsmap', '/adsmap/import']), workspaceId: 'w', brandId: 'b1' });
+    expect(pastilleImport).toHaveBeenCalledWith('w', 'b1');
+    expect(p?.href).toBe('/adsmap/import');
+  });
+
+  it('import fermé (membre, formule) ou sans marque · aucune lecture · une source qui échoue · rien, la coquille tient', async () => {
+    const source = vi.fn(async () => ({ valeur: '1', href: '/adsmap/import?lot=x', titre: 'À importer', libelle: 'l', sous: 's' }));
+    expect(await poserPastilleAImporter({ ouverts: new Set(['/adsmap']), workspaceId: 'w', brandId: 'b1' }, source)).toBeNull();
+    expect(await poserPastilleAImporter({ ouverts: new Set(['/adsmap', '/adsmap/import']), workspaceId: 'w', brandId: null }, source)).toBeNull();
+    expect(source, 'la pastille « à importer » est lue sans l’import ouvert').not.toHaveBeenCalled();
+    expect(await poserPastilleAImporter({ ouverts: new Set(['/adsmap/import']), workspaceId: 'w', brandId: 'b1' }, async () => { throw new Error('x'); })).toBeNull();
+  });
+
+  it('la coquille sans marque active ne la lit pas', async () => {
+    vi.mocked(pastilleImport).mockClear();
+    h.chemin = '/onboarding';
+    const d = await chargerCoquille();
+    expect(d.aImporter ?? null).toBeNull();
+    expect(pastilleImport).not.toHaveBeenCalled();
   });
 });

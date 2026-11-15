@@ -3,7 +3,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
-import { empreinteDuLogo, entreesRail, entreesRailEspace, initialesAvatar, estPlateformeMac, raccourcisActifsDepuisCookie, ENTETE_CHEMIN, RACCOURCIS_COOKIE, type EntreeRail, type SectionSpatiale } from '@tiktrends/core';
+import { CHEMIN_IMPORT_RESULTATS, empreinteDuLogo, entreesRail, entreesRailEspace, initialesAvatar, estPlateformeMac, raccourcisActifsDepuisCookie, ENTETE_CHEMIN, RACCOURCIS_COOKIE, type EntreeRail, type PastilleAImporter, type SectionSpatiale } from '@tiktrends/core';
 import { getSession } from '../auth';
 import { effectiveAccess } from '../access';
 import { isFounder } from '../founder';
@@ -19,6 +19,7 @@ import { etatLogoMarqueActive } from '../../app/actions/logo-marque';
 import type { DonneesCoquille } from '../../spatial/coquille/Coquille';
 import { pastilleResultats } from './pastilles/resultats';
 import { pastilleMarque } from './pastilles/marque';
+import { pastilleImport } from './pastilles/import';
 
 const ORDRE_PLANS: Plan[] = ['starter', 'core', 'plus', 'business'];
 
@@ -65,6 +66,25 @@ export async function poserPastilles(
     const pastille = await s.source(c.workspaceId, brandId).catch(() => null);
     return pastille ? { ...e, pastille } : e;
   }));
+}
+
+/**
+ * La pastille « à importer » (lots qui attendent leurs mesures) · DISTINCTE de
+ * celle de Résultats (« à conclure ») · son propre lien, juste sous Résultats
+ * dans le rail (écart de parité déclaré, `spatial-fondation`). Même règle que
+ * `poserPastilles` · lue seulement si sa destination, l'import, est OUVERTE et
+ * non verrouillée (`pastillables` · fonction `import`, admin, formule Plus) ·
+ * pour un membre, rien · ni nombre, ni lien vers un écran qui le refuserait
+ * (le bouton fermé et sa raison vivent sur la fiche du lot).
+ */
+export const DESTINATION_A_IMPORTER = CHEMIN_IMPORT_RESULTATS;
+
+export async function poserPastilleAImporter(
+  c: { ouverts: ReadonlySet<string>; workspaceId: string; brandId: string | null },
+  source: (workspaceId: string, brandId: string) => Promise<PastilleAImporter | null> = pastilleImport,
+): Promise<PastilleAImporter | null> {
+  if (!c.brandId || !c.ouverts.has(DESTINATION_A_IMPORTER)) return null;
+  return source(c.workspaceId, c.brandId).catch(() => null);
 }
 
 /**
@@ -120,9 +140,18 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
     : null;
   const nom = (moi as Array<{ n: string | null }>)[0]?.n || s.user.name || '';
 
+  const portee = { ouverts: pastillables, workspaceId: s.workspaceId, brandId: marque?.id ?? null };
+  const [entrees, espace, aImporter] = await Promise.all([
+    poserPastilles(entreesRail({ ouverts, marque }), portee),
+    poserPastilles(entreesRailEspace({ ouverts, marque }), portee),
+    poserPastilleAImporter(portee),
+  ]);
+
   return {
-    entrees: await poserPastilles(entreesRail({ ouverts, marque }), { ouverts: pastillables, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
-    espace: await poserPastilles(entreesRailEspace({ ouverts, marque }), { ouverts: pastillables, workspaceId: s.workspaceId, brandId: marque?.id ?? null }),
+    entrees,
+    espace,
+    // Les lots qui attendent leurs mesures · un lien distinct sous Résultats, jamais ajouté au compte « à conclure ».
+    aImporter,
     // Le fond flou de la maquette (`--img`) · l'image de la marque active. À
     // défaut d'un visuel produit dédié, son logo · sans marque, aucun fond.
     marque: active ? { id: active.id, nom: active.name, ...logoCoquille(active) } : null,

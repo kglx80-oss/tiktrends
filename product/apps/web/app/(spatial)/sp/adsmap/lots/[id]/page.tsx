@@ -82,8 +82,6 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
   const syn = syntheseLot(l, d.config.targetCpa);
   const barres = barresCpa(l.ads);
   const conclusion = conclusionLot(l, pres.etat, referenceConclusion(d.lots, l.id));
-  // Lot 13 bis · ce que C et T ouvrent (une navigation) · fermé, la raison du geste.
-  const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds });
   // « Itérer depuis la gagnante » · chaque variante arbitrée gagnante d'un lot CONCLU (`gestesGagnantesLot`, la règle du fil) · la porte de
   // l'écran Itérer, puis ce que le plan (déjà lu) et la lignée disent de chacune · lus seulement s'il y en a une, sans écriture.
   const lotG = { id: l.id, numero: l.numero, etat: pres.etat, conclusion, ads: l.ads };
@@ -94,6 +92,9 @@ export default async function LotSpatial({ params, searchParams }: { params: Pro
       plan: await planDesGagnantes(g.s.workspaceId, aIterer.map((x) => x.adId), planLu?.view?.rows ?? null),
     })
     : {};
+  // Lot 13 bis · ce que C et T ouvrent (une navigation) · fermé, la raison du geste · lot CONCLU avec une gagnante · T ouvre le
+  // MÊME geste que le bouton de sa variante (`depuisGagnante` · les gestes ci-dessus, jamais une adresse recopiée).
+  const clavier = gestesClavierLot({ etat: pres.etat, ads: l.ads, gagnante: syn.gagnante ?? null, planIds, depuisGagnante: gagnantes });
   // « Mesures à importer » · l'import EXISTANT ouvert sur CE lot, sous SA garde (`import`) · fermé, sa raison.
   const importer = importFicheLot({ etat: pres.etat, lot: l, variantes: l.ads, seuil: d.config, acces: { refus: g.refusImport } });
 
