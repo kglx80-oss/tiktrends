@@ -79,6 +79,59 @@ mise en cache (`unstable_cache` absent de `donnees.ts`), `donnees.ts` est
   « Coulisses · finances », qu'aucune page ne lit · cocher l'une ou l'autre
   n'ouvre rien. Ouvrir le Tour à l'équipe par ces cases élargirait un droit ·
   décision Kevin, pas un défaut.
-- `getSession` prend la PREMIÈRE appartenance du compte (`limit(1)`, sans
+- ~~`getSession` prend la PREMIÈRE appartenance du compte (`limit(1)`, sans
   ordre) comme espace courant · pour un compte de plusieurs espaces, l'espace
-  courant n'est pas choisi. Hors du périmètre des tickets.
+  courant n'est pas choisi. Hors du périmètre des tickets.~~ Fermé, ci-dessous.
+
+## Livré · l'espace courant choisi par un ordre déterministe
+
+Reproduit sur main 04d6270b (`W/test/espace-courant-db.test.ts` · 6 tests
+rouges) · pour un compte de deux espaces, réécrire une ligne de
+`workspace_members` SANS rien changer (`role = role`, ce que fait tout
+changement de rôle) la déplaçait en fin de table, et l'espace courant · donc
+le rôle, le plan, les marques, les permissions studio · basculait. Une
+promotion dans l'autre espace déplaçait l'espace courant.
+
+**Mécanisme de choix existant · aucun.** Ni cookie (seuls `tt_session`,
+`tt_brand`, `tt_rail`, `tt_theme`), ni sélecteur d'espace (CA A03, RJ X05,
+« à créer », décision Kevin), ni action « changer d'espace », ni colonne
+« dernier espace » · `workspace_members` ne porte que l'espace, le compte et
+le rôle (aucune date, aucun statut). Dans les parcours de l'application, un
+compte n'a qu'UNE appartenance · l'inscription crée un espace et son
+propriétaire, l'invitation n'accepte qu'un compte neuf (`acceptInviteAction`
+refuse un e-mail existant). Plusieurs appartenances ne naissent que d'une
+écriture en base (semis, opération manuelle).
+
+**La règle** · `espaceCourant` (`C/espace-courant.ts`, pure) · l'espace le
+plus ANCIEN (`workspaces.created_at`), puis le plus petit identifiant ; une
+date illisible passe après les autres. `getSession` relit à chaque requête
+TOUTES les appartenances du compte jointes à leur espace, et retient celle-là
+· le rôle est celui de l'appartenance retenue, tel quel.
+
+- Un compte à une appartenance retrouve exactement la sienne · la session est
+  égale, champ pour champ, à celle que calculait main (la requête de main est
+  recopiée dans le test comme référence).
+- Attributs immuables de l'espace seulement · ni un changement de rôle, ni un
+  retrait suivi d'un retour, ni l'ordre physique ne déplacent l'espace.
+- Le rôle n'entre PAS dans l'ordre · « propriétaire d'abord » ferait d'une
+  promotion ailleurs un changement d'espace · aucun droit élargi ni restreint.
+- « L'appartenance la plus ancienne » demanderait une date sur
+  `workspace_members` · une migration, écartée.
+
+Inchangés · l'époque de session, `FOUNDER_EMAILS`, l'équipe plateforme, le
+rôle relu en base, la cloche (non bornée à l'espace courant · décision Kevin
+en attente). Rien n'est écrit à la lecture. Aucune migration.
+
+Gardes · `product/packages/core/test/espace-courant.test.ts` (règle, toutes
+permutations) · `W/test/espace-courant-db.test.ts` (base réelle, VRAI
+`getSession` sur un jeton signé · comptes à une appartenance égaux à main ·
+deux et trois espaces sous les 36 combinaisons d'ordre physique des
+appartenances ET des espaces · rôle, plan, marques et permissions studio de
+l'espace retenu · repli quand l'appartenance retenue disparaît · époque ·
+rien d'écrit · recensement · `getSession` seul lit les appartenances d'un
+compte tous espaces confondus), 17 mutations tombées.
+
+**Décision Kevin** · quel espace par défaut pour un compte de plusieurs
+espaces (le plus ancien aujourd'hui · ou celui où il est propriétaire, ou le
+dernier ouvert, qui demanderait une colonne) · et le sélecteur d'espace
+lui-même (CA A03, RJ X05).

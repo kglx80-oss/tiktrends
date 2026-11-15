@@ -9,7 +9,7 @@ import { db, schema } from '@tiktrends/db';
 import { eq } from 'drizzle-orm';
 import type { Role, Plan } from './rbac';
 import { epochDuJeton, sessionEpochValide } from './session-epoch';
-import { accesTotal } from '@tiktrends/core';
+import { accesTotal, espaceCourant } from '@tiktrends/core';
 import { equipeDeSession, type EquipeSession } from './equipe-plateforme';
 import { noterCreditsStaff } from './credits';
 
@@ -123,19 +123,20 @@ export async function getSession(): Promise<Session | null> {
   // émission) · on refuse, comme s'il n'y avait pas de session.
   if (!sessionEpochValide(claims.ep, u.sessionEpoch ?? 0)) return null;
 
-  const [m] = await db
-    .select()
+  // L'espace courant · TOUTES les appartenances du compte, relues à chaque
+  // requête avec leur espace, puis l'ordre déterministe du noyau
+  // (`espaceCourant` · l'espace le plus ancien, puis le plus petit
+  // identifiant). Jamais l'ordre physique des lignes · un changement de rôle
+  // ne déplace plus l'espace courant. Le rôle reste celui de l'appartenance
+  // retenue, tel quel. Une appartenance sans espace ne compte pas.
+  const appartenances = await db
+    .select({ m: schema.workspaceMembers, w: schema.workspaces })
     .from(schema.workspaceMembers)
-    .where(eq(schema.workspaceMembers.userId, claims.uid))
-    .limit(1);
-  if (!m) return null;
-
-  const [w] = await db
-    .select()
-    .from(schema.workspaces)
-    .where(eq(schema.workspaces.id, m.workspaceId))
-    .limit(1);
-  if (!w) return null;
+    .innerJoin(schema.workspaces, eq(schema.workspaces.id, schema.workspaceMembers.workspaceId))
+    .where(eq(schema.workspaceMembers.userId, claims.uid));
+  const retenue = espaceCourant(appartenances.map((a) => ({ ...a, workspaceId: a.w.id, espaceCreeLe: a.w.createdAt })));
+  if (!retenue) return null;
+  const { m, w } = retenue;
 
   // Rôle d'équipe interne (plateforme) · lu frais à chaque requête. On note au
   // passage le droit aux crédits illimités (accès total) dans un registre
