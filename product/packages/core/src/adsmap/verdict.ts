@@ -160,6 +160,20 @@ function leadingCount(d: DerivedMetrics, cfg: VerdictConfig, med: BrandMedians):
   ].filter(Boolean).length;
 }
 
+/** Les réglages de la marque qui fixent le minimum de matière (règle 2 du verdict). */
+export type SeuilMinimumMoteur = Pick<VerdictConfig, 'minImpressions' | 'minSpendMultiple' | 'targetCpa'>;
+
+/**
+ * La règle 2 du verdict, et SEULE source de ce minimum · « pas assez de
+ * matière pour conclure » · la dépense reste sous `minSpendMultiple` fois la
+ * cible ET les impressions sous `minImpressions`. Atteindre l'un des deux
+ * suffit à en sortir. Le diagnostic d'un lot à fin prévue passée
+ * (`diagnosticFinPrevue`) la lit ici · aucun seuil n'est reposé à côté.
+ */
+export function sousLeMinimumDuMoteur(m: { spend: number; impressions: number }, cfg: SeuilMinimumMoteur): boolean {
+  return m.spend < cfg.minSpendMultiple * cfg.targetCpa && m.impressions < cfg.minImpressions;
+}
+
 export function computeVerdict(input: VerdictInput): VerdictResult {
   const { metrics: m, config: cfg, brandMedians: med, comparable } = input;
   const d = deriveMetrics(m, cfg.ciLevelOneSided);
@@ -184,7 +198,7 @@ export function computeVerdict(input: VerdictInput): VerdictResult {
   }
 
   // 2 · Pas assez de matière pour conclure quoi que ce soit.
-  if (m.spend < cfg.minSpendMultiple * cfg.targetCpa && m.impressions < cfg.minImpressions) {
+  if (sousLeMinimumDuMoteur(m, cfg)) {
     return out('inconclusive', `Trop peu de données (${fr(m.spend)} € dépensés, ${fr(m.impressions)} impressions).`);
   }
 

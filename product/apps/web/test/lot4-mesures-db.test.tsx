@@ -163,7 +163,7 @@ async function pageImporter() {
   const hote = document.createElement('div');
   document.body.appendChild(hote);
   const root = createRoot(hote);
-  const el = await ImportSpatial();
+  const el = await ImportSpatial({ searchParams: Promise.resolve({}) });
   await act(async () => { root.render(avecSpatial(el)); });
   return { hote, fin: () => { act(() => root.unmount()); hote.remove(); } };
 }
