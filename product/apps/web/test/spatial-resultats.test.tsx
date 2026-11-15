@@ -324,6 +324,42 @@ describe('Spatial · Résultats · parité de structure avec la maquette', () =>
     expect(p.rendu).toEqual(p.reference);
   });
 
+  /**
+   * « Itérer depuis la gagnante » · écart DÉCLARÉ de « Hypothèses » · sur la
+   * carte d'une hypothèse CONFIRMÉE seulement, le geste (`[data-iterer-gagnante]`,
+   * lien ou bouton fermé avec sa raison), UNE fois, JUSTE après la pastille de
+   * conclusion · retiré, le rendu est la maquette à l'identique · ailleurs, en
+   * double, ou absent quand il est passé, la garde tombe.
+   */
+  it('itérer depuis la gagnante · « Hypothèses » avec le geste sur la carte confirmée garde la parité · seul ce geste, à sa place', () => {
+    const c = (cle: string, colonne: CarteHypothese['colonne'], categorie: string, priorite: CarteHypothese['priorite'], texte: string, conclue = false): CarteHypothese => ({
+      cle, colonne, categorie, priorite, texte, meta: 'm',
+      action: conclue ? null : { libelle: 'Voir', href: '/adsmap/lots' },
+      conclusion: conclue ? { libelle: 'Confirmée', classe: 'g', icone: 'check' } : null,
+    });
+    const html = rendre(
+      <Hypotheses sousNav={NAV} jarvis note="n"
+        gagnantes={{ 6: { libelle: 'Itérer depuis la gagnante', href: '/studio/iterer?hypothese=h&gagnante=g', raison: null } }}
+        cartes={[
+          c('1', 'formuler', 'Offre', 0, 'Si le prix barré apparaît dans l’image, alors… ?'),
+          c('2', 'formuler', 'Accroche', 2, 'Si l’accroche reprend la question gagnante, alors le taux se maintient, parce que cela prolonge A1.'),
+          c('3', 'prete', 'Visuel', 3, 'Si on montre une vidéo UGC, alors le taux de clic augmente, parce que les avis le disent.'),
+          c('4', 'test', 'Format', 2, 'Si on passe au 9:16, alors le coût baisse, parce que le 9:16 occupe l’écran.'),
+          c('5', 'test', 'Texte', 1, 'Si on tutoie, alors le clic tient, parce que les concurrents tutoient.'),
+          c('6', 'conclue', 'Accroche', 3, 'Si l’accroche s’ouvre sur une question, alors on regarde plus, parce que 3 concurrents le font.', true),
+        ]} />,
+    );
+    const t = document.createElement('template');
+    t.innerHTML = html;
+    const g = [...t.content.querySelectorAll('[data-iterer-gagnante]')];
+    expect(g, 'le geste n’est pas rendu une fois').toHaveLength(1);
+    expect(g[0]!.parentElement!.classList.contains('hcard'), 'le geste hors d’une carte').toBe(true);
+    expect(g[0]!.previousElementSibling!.matches('span.pill.g'), 'le geste doit suivre la pastille de conclusion').toBe(true);
+    g[0]!.remove();
+    const p = parite(t.innerHTML, 'hypotheses', VUE);
+    expect(p.rendu).toEqual(p.reference);
+  });
+
   it('« Boucle d’itération » reproduit la maquette', () => {
     const k = { libelle: 'k', valeur: '7', note: 'n' };
     const html = rendre(

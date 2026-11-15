@@ -14,6 +14,7 @@ import { lireLigneeProjetPour } from './lignee/lignee';
 import { listerVariantes } from './variantes/variantes';
 import { membresDeLEspace, mentionnablesDe, mentionsDuTexte } from './membres-mentions';
 import { lireResultatsDesFils, type ResultatsDesFils } from './resultat-fil';
+import { planPourGestes } from '../iterer-gagnante';
 import { createNotification } from '../notifications';
 import { getActiveBrand } from '../brands';
 import { getSession } from '../auth';
@@ -125,17 +126,26 @@ async function vueNotes(ctx: ContexteStudio, p: ProjetStudio): Promise<NotesLign
   const parMembre = new Map(membres.map((m) => [m.id.toLowerCase(), m]));
   const nomMentionne = (id: string) => nomAffichageMention(parMembre.get(id), p, ctx.marquesDuWorkspace);
   const fermees = { resultats: false, adsmap: 'role' as const, marqueActive: false };
+  // « Itérer depuis la gagnante » · sous un résultat CONFIRMÉ seulement · la porte de l'écran Itérer (`studio.propose`, rôle de Résultats, marque active) ·
+  // puis ce que le plan dit à l'avance des gagnantes ouvertes (suite en test, exclue) · lu une fois, sans écriture, seulement s'il y en a.
+  const fils = lignes.map((l) => {
+    const o = portes ?? fermees;
+    const iterations = nees.iterations.get(l.id) ?? [];
+    const resultats = resultatsFil(iterations, { resultats: o.resultats, marqueActive: o.marqueActive });
+    const og = { id: l.id, projetId: p.id, marqueActive: o.marqueActive, peutIterer: peutEcrire && o.adsmap === 'ok' };
+    return { iterations, resultats, og, gagnantes: gestesGagnantesFil('note', resultats, iterations, og) };
+  });
+  const plan = await planPourGestes(ctx.workspaceId, fils.map((f) => f.gagnantes)).catch(() => null);
   return {
     peutEcrire,
     mentionnables: peutEcrire ? mentionnablesDe(ctx, p, membres) : [],
-    notes: lignes.map((l): VueNoteLignee => {
+    notes: lignes.map((l, i): VueNoteLignee => {
       const n = noeudDeGeste(l.nodeKey);
       const o = portes ?? fermees;
       const anciens = lireHistoriqueCommentaire(l.history);
-      const iterations = nees.iterations.get(l.id) ?? [];
-      const resultats = resultatsFil(iterations, { resultats: o.resultats, marqueActive: o.marqueActive });
-      // « Itérer depuis la gagnante » · sous un résultat CONFIRMÉ seulement · la porte de l'écran Itérer (`studio.propose`, rôle de Résultats, marque active).
-      const gagnantes = gestesGagnantesFil('note', resultats, iterations, { id: l.id, projetId: p.id, marqueActive: o.marqueActive, peutIterer: peutEcrire && o.adsmap === 'ok' });
+      const f = fils[i]!;
+      const resultats = f.resultats;
+      const gagnantes = plan ? gestesGagnantesFil('note', f.resultats, f.iterations, { ...f.og, plan }) : f.gagnantes;
       return {
         id: l.id, noeud: l.nodeKey, libelleNoeud: l.nodeLabel,
         auteur: nom(l.authorId) ?? 'Un ancien membre de l’espace',

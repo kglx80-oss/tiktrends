@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   cheminPorte, gardeRemplace, hypotheseInspirationParDefaut, hypotheseParDefaut, noteDemandeIteration, variableInitiale, APRES_CREATION_ITERATION, ETAPES_ITERATION_SPATIALE, EXEMPLE_VALEUR_VARIABLE,
   LIBELLE_CHOIX_VARIABLE, VARIABLE_LABEL, VALEUR_MAX, LONGUEUR_MAX_HYPOTHESE_ITERATION,
-  type ChoixIterationSpatial, type ChoixVariablesIteration, type OptionVariable, type ProvenanceCommentaire, type ProvenanceJarvis, type ProvenanceNote, type TestedVariable,
+  type ChoixIterationSpatial, type ChoixVariablesIteration, type OptionVariable, type ProvenanceCommentaire, type ProvenanceJarvis, type ProvenanceNote, type TestedVariable, type DemandeProvenanceGagnante,
 } from '@tiktrends/core';
 import { creerIterationChoisieAction, type ReponseIterationChoisie } from '../../../app/actions/adsmap-iterer-variable';
 import { EnTete, Lien, Vue } from '../../communs';
@@ -76,9 +76,11 @@ export interface PropsIterer {
    * pour Jarvis · une variable n'est cochée que sur CETTE pub, jamais le défaut
    * du plan à la place · `provenance` est transmise à « Créer l'itération »,
    * qui relit encore le commentaire avant de la poser · `provenanceNote` · la
-   * même chose depuis « Itérer depuis cette note » (lot 11).
+   * même chose depuis « Itérer depuis cette note » (lot 11) · `depuis` · la
+   * même chose depuis la gagnante d'un lot conclu ou d'une hypothèse confirmée
+   * (la source seule · « Créer l'itération » relit la gagnante).
    */
-  commentaire?: { note: string; adId: string | null; variable: TestedVariable | null; hypothese: string | null; provenance: ProvenanceCommentaire | null; provenanceNote?: ProvenanceNote | null } | null;
+  commentaire?: { note: string; adId: string | null; variable: TestedVariable | null; hypothese: string | null; provenance: ProvenanceCommentaire | null; provenanceNote?: ProvenanceNote | null; depuis?: DemandeProvenanceGagnante | null } | null;
 }
 
 type Etape = 'pub' | 'variable' | 'creee';
@@ -140,6 +142,7 @@ export function Iterer(p: PropsIterer) {
         parentAdId: c!.adId, variable, valeur, hypothese: hyp, ...(p.jarvis?.provenance ? { jarvis: p.jarvis.provenance } : {}),
         ...(p.commentaire?.provenance && p.commentaire.adId === c!.adId ? { commentaire: p.commentaire.provenance } : {}),
         ...(p.commentaire?.provenanceNote && p.commentaire.adId === c!.adId ? { note: p.commentaire.provenanceNote } : {}),
+        ...(p.commentaire?.depuis && p.commentaire.adId === c!.adId ? { gagnante: p.commentaire.depuis } : {}),
       })
       .catch((): ReponseIterationChoisie => ({ ok: false, error: 'La création a échoué · réessaie.' }));
     setOccupe(false);
