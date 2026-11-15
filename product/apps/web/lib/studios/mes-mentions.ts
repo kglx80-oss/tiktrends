@@ -3,14 +3,15 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { db, schema } from '@tiktrends/db';
 import {
-  COMPTES_VIDES, MENTIONS_MAX_LUES, MENTIONS_PAR_PAGE, aPermissionEspace, besoinsCloche, besoinsTickets, bornageDeNotif, filDeLaMention, genreDeNotif,
+  COMPTES_VIDES, MENTIONS_MAX_LUES, MENTIONS_PAR_PAGE, aPermissionEspace, besoinsCloche, besoinsEspaces, besoinsTickets, bornageDeNotif, destinataireRecap, filDeLaMention, genreDeNotif,
   libelleAuteurVersion, ligneMention, lireHistoriqueCommentaire, lireMentions, nomAffichageMention, notifsDansPortee, objetDansPortee,
   paginationMentions, projetDuLienMention, quandJournal, segmentsCommentaire, totalDuFiltre, typesDuFiltre, vueMesMentions,
   type ComptesMentions, type FilLu, type FilMentionnant, type FiltresMentions, type GenreMention, type MembreBrut, type NotifCloche,
-  type PorteeCloche, type PorteeTickets, type VueMesMentions,
+  pageRadarOuverte, type PorteeCloche, type PorteeEspaces, type PorteeTickets, type VueMesMentions,
 } from '@tiktrends/core';
 import type { Session } from '../auth';
-import { roleAtLeast, type Role } from '../rbac';
+import { effectiveAccess } from '../access';
+import { canAccess, FEATURES, roleAtLeast, type Plan, type Role } from '../rbac';
 import { gardeStudio, type ContexteStudio } from './garde';
 import { lireProjetsDeLaPortee, type ProjetStudio } from './depot';
 import { refusCapacite } from './interrupteurs';
@@ -42,11 +43,16 @@ import { membresDeLEspace } from './membres-mentions';
  * relit dans la portée est montrée sans son texte, son projet ni son lien ·
  * une notification de ticket de support est relue par la MÊME voie contre
  * l'accès au ticket (règle de la page du ticket, `peutLireTicket`, sous le
- * rôle actuel dans l'espace du ticket · `accesTicketsDeLaCloche`).
+ * rôle actuel dans l'espace du ticket · `accesTicketsDeLaCloche`) · le récap
+ * hebdomadaire et le compte rendu du radar contre la règle de leur source
+ * (destinataires du récap, page Radar de veille), sous le rôle et la formule
+ * actuels de l'espace de la notification · `accesEspacesDeLaCloche`.
  *
  * Lectures BORNÉES · les projets en une requête (`lireProjetsDeLaPortee`), les
  * fils en une requête par genre, les tickets en une requête (joints au rôle
- * de la personne) · jamais une par notification, ni par projet, ni par ticket.
+ * de la personne), les espaces du récap et du radar en une requête (joints au
+ * rôle de la personne) · jamais une par notification, ni par projet, ni par
+ * ticket, ni par espace.
  *
  * Gratuit · aucun appel IA, aucune génération, aucune dépense.
  */
@@ -54,7 +60,7 @@ import { membresDeLEspace } from './membres-mentions';
 /** Au plus 500 fils relus par genre et par page · ceux des projets de la page qui ont prévenu la personne. */
 export const FILS_MAX_LUS = 500;
 
-type SessionMentions = Pick<Session, 'user' | 'workspaceId'>;
+type SessionMentions = Pick<Session, 'user' | 'workspaceId' | 'equipe'>;
 
 const porteeCtx = (ctx: ContexteStudio) => ({ workspaceId: ctx.workspaceId, marquesDuWorkspace: ctx.marquesDuWorkspace, restrictionsMarque: ctx.restrictionsMarque });
 
@@ -194,17 +200,52 @@ async function accesTicketsDeLaCloche(s: SessionMentions, notifs: readonly Notif
   }
 }
 
+const RESULTATS = FEATURES.find((f) => f.key === 'adsmap')!;
+
+/**
+ * Le droit ACTUEL de la personne dans les espaces de ses récaps et comptes
+ * rendus du radar · UNE requête pour le lot (l'espace, sa formule, et le rôle
+ * de la personne dedans · retirée, aucun rôle), de TOUS les espaces (la cloche
+ * n'est pas bornée à l'espace courant) · le récap · `destinataireRecap` (les
+ * destinataires du cron) · le radar · `pageRadarOuverte`, la rubrique
+ * Résultats calculée comme `gardeResultats` (`effectiveAccess` puis
+ * `canAccess` de la fonction `adsmap`, sous CE rôle et CETTE formule) ET
+ * administratrice · `null` sans récap ni radar (aucune lecture) ou quand la
+ * lecture échoue (aucun n'est alors lu sur parole).
+ */
+async function accesEspacesDeLaCloche(s: SessionMentions, notifs: readonly NotifCloche[]): Promise<PorteeEspaces | null> {
+  const ids = besoinsEspaces(notifs);
+  if (!db || !ids.length) return null;
+  try {
+    const W = schema.workspaces, M = schema.workspaceMembers;
+    const lignes = await db.select({ id: W.id, plan: W.plan, role: M.role }).from(W)
+      .leftJoin(M, and(eq(M.workspaceId, W.id), eq(M.userId, s.user.id)))
+      .where(inArray(W.id, ids));
+    return {
+      espaces: new Map(lignes.map((l) => {
+        const role = (l.role ?? null) as Role | null;
+        if (!role) return [l.id.toLowerCase(), { recap: false, radar: false }];
+        const acces = effectiveAccess({ role, plan: ((l.plan as Plan) || 'starter'), user: s.user, equipe: s.equipe });
+        return [l.id.toLowerCase(), { recap: destinataireRecap(role), radar: pageRadarOuverte({ resultats: canAccess(acces, RESULTATS), admin: roleAtLeast(role, 'admin') }) }];
+      })),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Ce que la cloche MONTRE de ces notifications (dans leur ordre) · relues dans
  * la portée actuelle (`notifRelueDansPortee`) · une notification non bornée
  * est rendue telle quelle, sans aucune lecture · une bornée que rien ne relit
  * (autre espace, marque ou droits Studios retirés, fil introuvable, lecture en
  * échec) a le libellé neutre, sans texte, ni projet, ni lien · un ticket dont
- * l'accès est perdu (rôle actuel, ticket introuvable) aussi.
+ * l'accès est perdu (rôle actuel, ticket introuvable) aussi · un récap ou un
+ * radar dont le droit est perdu (rôle, formule, retrait de l'espace) aussi.
  */
 export async function notifsRelues(s: SessionMentions, notifs: readonly NotifCloche[]): Promise<Array<{ titre: string; corps: string | null; href: string | null }>> {
-  const [studios, tickets] = await Promise.all([porteeStudiosDeLaCloche(s, notifs), accesTicketsDeLaCloche(s, notifs)]);
-  return notifsDansPortee(notifs, studios, tickets);
+  const [studios, tickets, espaces] = await Promise.all([porteeStudiosDeLaCloche(s, notifs), accesTicketsDeLaCloche(s, notifs), accesEspacesDeLaCloche(s, notifs)]);
+  return notifsDansPortee(notifs, studios, tickets, espaces);
 }
 
 /** La page « Mes mentions » de la session, pour ces filtres · relue dans la portée actuelle. */

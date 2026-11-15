@@ -331,8 +331,8 @@ describe('le coût · lectures bornées, une requête par lot, jamais une par no
     for (const [i, p] of projets.slice(0, 10).entries()) await noter(p.projectId, p.versionId, `@${NOM_MAX} note ${i}`, [ids.ux]);
     await commenter(S.P1, S.v1, `@${NOM_LEA} un avis`, [ids.ul]);
     await noter(S.P1, S.v1, `@${NOM_LEA} une note`, [ids.ul]);
-    // (des comptes rendus du radar · un ticket est désormais relu contre son accès, `W/test/cloche-tickets-db.test.tsx`)
-    await db.insert(schema.notifications).values(Array.from({ length: 30 }, (_, i) => ({ workspaceId: ids.wsA, userId: ids.up, type: 'radar', title: `Radar ${i}`, body: 'Rien de neuf', href: '/radar' })));
+    // (le suivi des concurrents · un ticket est désormais relu contre son accès, `W/test/cloche-tickets-db.test.tsx`, le récap et le radar contre leur source, `W/test/cloche-recap-radar-db.test.tsx`)
+    await db.insert(schema.notifications).values(Array.from({ length: 30 }, (_, i) => ({ workspaceId: ids.wsA, userId: ids.up, type: 'tracker', title: `${i} nouvelles pubs`, body: 'Tes concurrents ont publié', href: '/saved' })));
     paul = 30;
   }, 300_000);
 

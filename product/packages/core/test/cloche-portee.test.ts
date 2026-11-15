@@ -106,9 +106,9 @@ describe('relue · espace courant, genre lisible, projet relu, fil qui redonne l
     expect(notifRelueDansPortee(n, portee({ genres: new Set<GenreMention>(['note']) }))).toBe(false);
   });
 
-  it('un type non borné · toujours montré, sans portée', () => {
-    expect(notifRelueDansPortee(notif({ type: 'digest', href: '/dashboard', workspaceId: AUTRE_WS }), null)).toBe(true);
-    expect(notifRelueDansPortee(notif({ type: 'radar', href: '/radar' }), null)).toBe(true);
+  it('un type non borné · toujours montré, sans portée (le récap et le radar sont relus contre leur source · `cloche-recap-radar.test.ts`)', () => {
+    expect(notifRelueDansPortee(notif({ type: 'tracker', href: '/saved', workspaceId: AUTRE_WS }), null)).toBe(true);
+    expect(notifRelueDansPortee(notif({ type: 'system', href: '/dashboard' }), null)).toBe(true);
   });
 });
 
@@ -127,8 +127,8 @@ describe('ce que la cloche montre', () => {
   });
 
   it('un type non borné · tel quel, même « non relu »', () => {
-    const n = notif({ type: 'digest', titre: 'Récap', corps: 'Texte', href: '/dashboard' });
-    expect(texteNotifCloche(n, false)).toEqual({ titre: 'Récap', corps: 'Texte', href: '/dashboard' });
+    const n = notif({ type: 'tracker', titre: '3 pubs', corps: 'Texte', href: '/saved' });
+    expect(texteNotifCloche(n, false)).toEqual({ titre: '3 pubs', corps: 'Texte', href: '/saved' });
   });
 
   it('la liste · dans l’ordre, chacune relue', () => {
