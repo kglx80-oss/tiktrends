@@ -17,6 +17,7 @@ import { railNav, sectionsCompteOuvertes, roleAtLeast, planAtLeast, ROLE_LABEL, 
 import { logoutAction } from '../../app/actions/auth';
 import { etatLogoMarqueActive } from '../../app/actions/logo-marque';
 import type { DonneesCoquille } from '../../spatial/coquille/Coquille';
+import type { PartageRail } from '../../app/(spatial)/sp/adsmap/donnees';
 import { pastilleResultats } from './pastilles/resultats';
 import { pastilleMarque } from './pastilles/marque';
 import { pastilleImport } from './pastilles/import';
@@ -48,8 +49,9 @@ export type SourcePastille = (workspaceId: string, brandId: string) => Promise<N
  * l'écran (`pastilles/marque`). La garde `spatial-coquille-parcours` éprouve la
  * règle (appel seulement si ouvert, pastille posée sur la bonne entrée).
  */
+const DESTINATION_A_CONCLURE = '/adsmap';
 export const SOURCES_PASTILLES: Partial<Record<SectionSpatiale, { destination: string; source: SourcePastille }>> = {
-  resultats: { destination: '/adsmap', source: pastilleResultats },
+  resultats: { destination: DESTINATION_A_CONCLURE, source: pastilleResultats },
   marque: { destination: '/brands', source: (_ws, brandId) => pastilleMarque(brandId) },
 };
 
@@ -141,10 +143,14 @@ export async function chargerCoquille(): Promise<DonneesCoquille> {
   const nom = (moi as Array<{ n: string | null }>)[0]?.n || s.user.name || '';
 
   const portee = { ouverts: pastillables, workspaceId: s.workspaceId, brandId: marque?.id ?? null };
+  // UNE lecture des variantes pour les deux comptes du rail (« à conclure », « à importer ») · lancée par
+  // la première pastille qui la demande, jamais si aucune n'est ouverte (membre · seulement « à conclure »).
+  const partage: PartageRail = {};
+  const sources = { ...SOURCES_PASTILLES, resultats: { destination: DESTINATION_A_CONCLURE, source: (ws: string, b: string) => pastilleResultats(ws, b, partage) } };
   const [entrees, espace, aImporter] = await Promise.all([
-    poserPastilles(entreesRail({ ouverts, marque }), portee),
-    poserPastilles(entreesRailEspace({ ouverts, marque }), portee),
-    poserPastilleAImporter(portee),
+    poserPastilles(entreesRail({ ouverts, marque }), portee, sources),
+    poserPastilles(entreesRailEspace({ ouverts, marque }), portee, sources),
+    poserPastilleAImporter(portee, (ws, b) => pastilleImport(ws, b, partage)),
   ]);
 
   return {

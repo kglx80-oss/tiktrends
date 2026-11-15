@@ -9,14 +9,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
  * (`chargerCoquille` → `Coquille`, la pastille « à importer » sous Résultats)
  * et l'écran d'import (`/adsmap/import`, sa liste « Lot ») · on lit le DOM, on
  * SUIT le lien. Sur un même semis ·
- *  · pastille « à importer » = nombre de lots de la liste « Lot » qui attendent ;
+ *  · pastille « à importer » = nombre de lots du groupe « Mesures manquantes »
+ *    de la liste « Lot » (un lot en diffusion, « mesures en cours », y reste
+ *    sans allumer la pastille · `pastille-bruit-db.test.tsx`) ;
  *  · un seul lot → le lien ouvre l'import sur lui (`?lot=`) · plusieurs → l'écran
  *    d'import, sa liste les montre ;
  *  · le minimum du moteur est celui de la MARQUE ;
  *  · un membre · ni pastille, ni lecture du compte (l'écran le refuse) ;
  *  · autre marque, autre espace · leur compte à eux ; formule Core · rien ;
  *  · « à conclure » inchangé, jamais additionné ;
- *  · la lecture légère retient les MÊMES lots que `chargerLots`, à la borne ;
+ *  · LA lecture du rail (`chargerFaitsRail`) retient les MÊMES lots que `chargerLots`, à la borne ;
  *  · rien n'est écrit.
  * Horloge injectée (`Date` seule simulée, 1er février 2020) · aucune date « à venir ».
  * Aucun réseau, aucun modèle, 0 $.
@@ -63,7 +65,7 @@ import { avecSpatial } from './spatial/fournisseur';
 import ImportSpatial from '../app/(spatial)/sp/adsmap/import/page';
 import { chargerCoquille } from '../lib/spatial/coquille';
 import { pastilleImport } from '../lib/spatial/pastilles/import';
-import { chargerLots, chargerFaitsAImporter, compterAImporter } from '../app/(spatial)/sp/adsmap/donnees';
+import { chargerLots, chargerFaitsRail, compterAImporter } from '../app/(spatial)/sp/adsmap/donnees';
 import { Coquille } from '../spatial/coquille/Coquille';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 180_000 });
@@ -74,6 +76,7 @@ const L: Record<string, string> = {};
 const MAINTENANT = new Date('2020-02-01T09:00:00Z');
 const ANCIEN = new Date('2020-01-06T09:00:00Z');
 const RECENT = new Date('2020-01-30T09:00:00Z');
+const FIN_BORNE = new Date('2020-01-31T09:00:00Z');
 
 type Qui = 'uo' | 'um' | 'ub';
 const ROLE: Record<Qui, string> = { uo: 'owner', um: 'member', ub: 'owner' };
@@ -123,13 +126,14 @@ async function lot(cle: string, o: { ws?: string; brand?: string; numero: number
  * La borne · 3 lots × 700 variantes (codes v0001…v0700 dans CHAQUE lot), en diffusion · v0001…v0666 mesurées
  * au-dessus du minimum, v0667…v0700 sans mesure. `LIMITE_ADS_LOTS` (2 000) coupe après 666 codes × 3 = 1 998,
  * puis DEUX des trois v0667 · départagées par l'identifiant. Seuls les deux lots dont la v0667 est lue attendent ·
- * une lecture sans la borne en verrait trois, un autre départage choisirait d'autres lots.
+ * une lecture sans la borne en verrait trois, un autre départage choisirait d'autres lots. Leur fin prévue est
+ * passée (31 janvier) · leurs mesures MANQUENT, le compte les voit (sans elle, « en cours », il se tairait).
  */
 async function borne() {
   const ws = I.wsA!, brand = I.bBorne!;
   for (const k of [1, 2, 3]) {
     const ch = await chaine(ws, brand, `Borne ${k}`);
-    const [b] = await db.insert(schema.batches).values({ workspaceId: ws, brandId: brand, number: k, status: 'testing', launchedAt: RECENT, goal: `Borne ${k}` }).returning();
+    const [b] = await db.insert(schema.batches).values({ workspaceId: ws, brandId: brand, number: k, status: 'testing', launchedAt: RECENT, plannedEndAt: FIN_BORNE, goal: `Borne ${k}` }).returning();
     L[`borne${k}`] = b!.id;
     const ads = await db.insert(schema.ads).values(Array.from({ length: 700 }, (_, i) => ({
       workspaceId: ws, conceptId: ch.concept, batchId: b!.id, variantCode: `v${String(i + 1).padStart(4, '0')}`, status: 'live' as const, adType: 'ideation' as const, format: 'static' as const, platform: 'meta' as const,
@@ -156,7 +160,8 @@ beforeAll(async () => {
   ]);
   // Neva a réglé son minimum · 30 000 impressions, 150 € (3 × 50 €) · le défaut est 5 000 impressions, 105 €.
   await db.insert(schema.verdictConfigs).values({ brandId: I.bA!, workspaceId: I.wsA!, config: { minImpressions: 30_000, targetCpa: 50, minSpendMultiple: 3 } });
-  // Neva · attendent · n1 (aucune mesure), n3 (partielles), n6 (en diffusion, sous le minimum de la MARQUE, pas du défaut).
+  // Neva · attendent · n1 (aucune mesure), n3 (partielles), n6 (en diffusion, sous le minimum de la MARQUE, pas du défaut ·
+  // mesures EN COURS, sans fin prévue · dans la liste, hors de la pastille).
   // N'attendent pas · n2 à conclure, n4 en préparation, n5 sur TikTok (aucune source), n7 en diffusion au-dessus du minimum, n8 conclu,
   // n9 et n10 plus bas.
   await lot('n1', { numero: 1, but: 'Mesures pas encore remontées', variantes: [null, null] });
@@ -224,6 +229,8 @@ async function ecranImport(href: string) {
     choisi: sel ? (sel.querySelector<HTMLOptionElement>('option[selected]')?.value ?? options[0] ?? null) : null,
     /** Les lots de la liste « Lot » · « Tous les lots » (valeur vide) retiré. */
     lots: options.filter(Boolean),
+    /** Les lots du groupe « Mesures manquantes ». */
+    manquantes: sel ? [...sel.querySelectorAll('optgroup[data-cas="manquantes"] option')].map((o) => o.getAttribute('value')) : [],
     texte: net(d.textContent),
   };
 }
@@ -247,11 +254,12 @@ describe('la pastille « à importer » = les lots de la liste « Lot » qui att
     const r = await rail();
     expect(r.importer, 'aucune pastille « à importer » pour un admin dont des lots attendent').not.toBeNull();
     const ecran = await ecranImport(r.importer!.href!);
-    expect(ecran.lots, 'la liste « Lot » ne montre pas les lots qui attendent').toEqual([L.n6, L.n3, L.n1]);
-    expect(r.importer!.n, 'la pastille « à importer » ne compte pas les lots de la liste « Lot » qui attendent').toBe(ecran.lots.length);
+    expect(ecran.lots, 'la liste « Lot » ne montre pas les lots qui attendent, regroupés par cas').toEqual([L.n3, L.n1, L.n6]);
+    expect(ecran.manquantes, 'le groupe « Mesures manquantes »').toEqual([L.n3, L.n1]);
+    expect(r.importer!.n, 'la pastille « à importer » ne compte pas les lots de la liste « Lot » dont les mesures manquent').toBe(ecran.manquantes.length);
     expect(r.importer!.href, 'plusieurs lots attendent · la pastille ne mène pas à l’écran d’import').toBe('/adsmap/import');
     expect(ecran.lot, 'l’écran s’ouvre sur un lot alors que plusieurs attendent').toBeNull();
-    expect(r.importer!.nom).toBe('À importer · 3 lots attendent leurs mesures');
+    expect(r.importer!.nom).toBe('À importer · 2 lots attendent leurs mesures');
     expect(r.importer!.apresResultats, 'la pastille « à importer » a quitté sa place, juste sous Résultats').toBe(true);
     // n6 · 20 000 impressions et 120 € · sous le minimum de Neva (30 000, 150 €), au-dessus du défaut (5 000, 105 €).
     expect(ecran.lots, 'le minimum lu n’est pas celui de la marque').toContain(L.n6);
@@ -265,7 +273,7 @@ describe('la pastille « à importer » = les lots de la liste « Lot » qui att
     expect(r.conclure, 'la pastille « à conclure » a changé').toBe('2 lots à conclure');
     expect(r.resultats, 'l’entrée Résultats change quand la pastille « à importer » est posée').toBe(r.resultatsSans);
     expect(r.railSansImport, 'la pastille « à importer » change autre chose que sa propre entrée').toBe(r.railSans);
-    expect(r.importer!.n, 'les deux comptes sont additionnés').toBe(3);
+    expect(r.importer!.n, 'les deux comptes sont additionnés').toBe(2);
     expect(r.importer!.nom).not.toMatch(/conclure/);
   });
 
@@ -313,10 +321,10 @@ describe('qui voit la pastille', () => {
   });
 });
 
-describe('la lecture légère · la MÊME portée, le MÊME ordre, la MÊME borne que `chargerLots`', () => {
+describe('LA lecture du rail · la MÊME portée, le MÊME ordre, la MÊME borne que `chargerLots`', () => {
   it('à la borne (2 000 variantes atteintes, départage par l’identifiant) · mêmes lots retenus, mêmes variantes par lot', async () => {
     const liste = await chargerLots(I.wsA!, I.bBorne!, MAINTENANT);
-    const legere = await chargerFaitsAImporter(I.wsA!, I.bBorne!, MAINTENANT);
+    const legere = await chargerFaitsRail(I.wsA!, I.bBorne!, MAINTENANT);
     expect(liste.lots.reduce((s, l) => s + l.ads.length, 0), 'préalable · la borne est atteinte').toBe(2000);
     expect(legere.lots.map((l) => [l.id, l.ads.length]), 'la lecture légère ne lit pas les mêmes variantes que la liste').toEqual(liste.lots.map((l) => [l.id, l.ads.length]));
     const attendu = compteAImporter(liste.lots, liste.ctx, liste.config);
@@ -331,7 +339,7 @@ describe('la lecture légère · la MÊME portée, le MÊME ordre, la MÊME born
       const liste = await chargerLots(ws, b, MAINTENANT);
       expect(await compterAImporter(ws, b, MAINTENANT)).toEqual(compteAImporter(liste.lots, liste.ctx, liste.config));
     }
-    expect((await compterAImporter(I.wsA!, I.bA!, MAINTENANT)).lots.map((l) => l.id)).toEqual([L.n6, L.n3, L.n1]);
+    expect((await compterAImporter(I.wsA!, I.bA!, MAINTENANT)).lots.map((l) => l.id)).toEqual([L.n3, L.n1]);
     // Une marque d'un AUTRE espace lue avec l'espace A · rien (la portée suit l'espace ET la marque).
     expect((await compterAImporter(I.wsA!, I.bB!, MAINTENANT)).n, 'la portée de la lecture légère ne suit pas l’espace').toBe(0);
   });

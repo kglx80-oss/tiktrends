@@ -23,12 +23,12 @@ const verdict = (calcule: VerdictValue | null, o: Partial<FaitsVerdictSpatial> =
 const ad = (id: string, v: FaitsVerdictSpatial | null, o: Partial<FaitsAdSpatial> = {}): FaitsAdSpatial => ({
   id, variante: id, statut: 'live', hypothese: 'h', variable: 'hook', plateforme: 'meta', texte: 't', image: null, manques: [], verdict: v, ...o,
 });
-const lot = (id: string, numero: number, o: Partial<FaitsLotSpatial> = {}): FaitsLotSpatial => ({
-  id, numero, but: `But ${numero}`, statut: 'testing', lanceLe: ilYa(10), protocole: null, ads: [ad('v1', null), ad('v2', null)], ...o,
+const lot = (id: string, numero: number, o: Partial<FaitsLotSpatial & { finPrevue: string | null }> = {}): FaitsLotSpatial & { finPrevue: string | null } => ({
+  id, numero, but: `But ${numero}`, statut: 'testing', lanceLe: ilYa(10), finPrevue: null, protocole: null, ads: [ad('v1', null), ad('v2', null)], ...o,
 });
 
 /** Un corpus qui couvre chaque état, et chaque raison d'attendre ou non · l'état écrit à côté, vérifié. */
-const CORPUS: ReadonlyArray<{ l: FaitsLotSpatial; etat: EtatLotSpatial; attend: boolean; pourquoi: string }> = [
+const CORPUS: ReadonlyArray<{ l: ReturnType<typeof lot>; etat: EtatLotSpatial; attend: boolean; pourquoi: string }> = [
   { l: lot('a', 1), etat: 'a_importer', attend: true, pourquoi: 'aucune mesure reçue' },
   { l: lot('b', 2, { ads: [ad('v1', verdict('loser')), ad('v2', null)] }), etat: 'a_importer', attend: true, pourquoi: 'une variante sans mesure' },
   { l: lot('c', 3, { lanceLe: ilYa(2) }), etat: 'diffusion', attend: true, pourquoi: 'en diffusion, rien de mesuré' },
@@ -88,22 +88,24 @@ describe('quels lots attendent des mesures', () => {
 
 describe('la liste « Lot »', () => {
   const lots = CORPUS.map((c) => c.l);
-  it('les lots qui attendent, dans l’ordre lu · le libellé dit le lot, son but et son état · « Tous les lots » choisi sans adresse', () => {
+  it('les lots qui attendent, regroupés par cas, dans l’ordre lu · le libellé dit le lot, son but et son état · « Tous les lots » choisi sans adresse', () => {
     const r = listeLotImport(lots, null, CTX, SEUIL)!;
     expect(r.choisi).toBe('');
     expect(r.options.map((o) => o.id)).toEqual(CORPUS.filter((c) => c.attend).map((c) => c.l.id));
     expect(r.options.map((o) => o.libelle)).toEqual([
       'Lot #1 · But 1 · Mesures à importer', 'Lot #2 · But 2 · Mesures à importer', 'Lot #3 · But 3 · En diffusion', 'Lot #5 · But 5 · En diffusion',
     ]);
-    // L'ordre est celui des lots lus · inversé, la liste s'inverse.
-    expect(listeLotImport([...lots].reverse(), null, CTX, SEUIL)!.options.map((o) => o.id)).toEqual(['e', 'c', 'b', 'a']);
+    expect(r.options.map((o) => o.groupe), 'les cas de la liste').toEqual(['manquantes', 'manquantes', 'en-cours', 'en-cours']);
+    // Dans chaque groupe, l'ordre est celui des lots lus · inversé, chaque groupe s'inverse, les groupes restent.
+    expect(listeLotImport([...lots].reverse(), null, CTX, SEUIL)!.options.map((o) => o.id)).toEqual(['b', 'a', 'e', 'c']);
   });
-  it('l’adresse est l’état · le lot de l’adresse est choisi · un lot qui n’attend pas, mené là par un « Importer », y figure à sa place', () => {
+  it('l’adresse est l’état · le lot de l’adresse est choisi · un lot qui n’attend pas, mené là par un « Importer », y figure dans son groupe', () => {
     expect(listeLotImport(lots, 'b', CTX, SEUIL)!.choisi).toBe('b');
     const f = listeLotImport(lots, 'f', CTX, SEUIL)!;
     expect(f.choisi, 'le lot TikTok de l’adresse').toBe('f');
     expect(f.options.map((o) => o.id)).toEqual(['a', 'b', 'c', 'e', 'f']);
     expect(f.options.at(-1)!.libelle).toBe('Lot #6 · But 6 · Mesures à importer');
+    expect(f.options.at(-1)!.groupe, 'le lot de l’adresse qui n’attend rien').toBe('adresse');
   });
   it('sans but, le libellé reste lisible · aucun lot à choisir · aucune liste', () => {
     expect(listeLotImport([lot('a', 4, { but: '  ' })], null, CTX, SEUIL)!.options[0]!.libelle).toBe('Lot #4 · Mesures à importer');

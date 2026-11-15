@@ -5,11 +5,15 @@ import {
   type EtatLotSpatial, type FaitsAdSpatial, type FaitsLotSpatial, type FaitsVerdictSpatial, type VerdictValue,
 } from '../src';
 
+type Lot = FaitsLotSpatial & { finPrevue: string | null };
+
 /**
  * Savoir de partout qu'un lot attend ses mesures · le compte « à importer »
  * (`compteAImporter`) est le nombre de lots de la liste « Lot » de l'écran
- * d'import qui attendent (`listeLotImport` sans lot dans l'adresse · règle
- * `lotAttendDesMesures`, aucune copie), et la pastille du rail mène à l'import
+ * d'import dont les mesures MANQUENT (`listeLotImport` sans lot dans
+ * l'adresse, groupe « manquantes » · règle `casMesuresLot`, aucune copie ·
+ * un lot en diffusion « mesures en cours » reste dans la liste, hors du
+ * compte · `pastille-bruit.test.ts`), et la pastille du rail mène à l'import
  * (`?lot=` quand un seul lot attend). DISTINCT du compte « à conclure » · les
  * deux ne comptent jamais le même lot. Pur · horloge fixe · on lit le RÉSULTAT.
  */
@@ -27,18 +31,24 @@ const verdict = (calcule: VerdictValue | null, o: Partial<FaitsVerdictSpatial> =
 const ad = (id: string, v: FaitsVerdictSpatial | null, o: Partial<FaitsAdSpatial> = {}): FaitsAdSpatial => ({
   id, variante: id, statut: 'live', hypothese: 'h', variable: 'hook', plateforme: 'meta', texte: 't', image: null, manques: [], verdict: v, ...o,
 });
-const lot = (id: string, numero: number, o: Partial<FaitsLotSpatial> = {}): FaitsLotSpatial => ({
-  id, numero, but: `But ${numero}`, statut: 'testing', lanceLe: ilYa(10), protocole: null, ads: [ad('v1', null), ad('v2', null)], ...o,
+const lot = (id: string, numero: number, o: Partial<Lot> = {}): Lot => ({
+  id, numero, but: `But ${numero}`, statut: 'testing', lanceLe: ilYa(10), finPrevue: null, protocole: null, ads: [ad('v1', null), ad('v2', null)], ...o,
 });
 
-/** Chaque état réel, et chaque raison d'attendre ou non · `attend` au défaut, `attendMarque` sous le minimum réglé par la marque. */
-const CORPUS: ReadonlyArray<{ l: FaitsLotSpatial; etat: EtatLotSpatial; attend: boolean; attendMarque: boolean; conclure: boolean }> = [
+/**
+ * Chaque état réel, et chaque raison d'être compté ou non · `attend` (compté, mesures MANQUANTES) au défaut,
+ * `attendMarque` sous le minimum réglé par la marque · c, e et q sont en diffusion, sans fin prévue · « mesures
+ * en cours », jamais comptés (ils l'étaient avant · le bruit mesuré).
+ */
+const CORPUS: ReadonlyArray<{ l: Lot; etat: EtatLotSpatial; attend: boolean; attendMarque: boolean; conclure: boolean }> = [
   { l: lot('a', 1), etat: 'a_importer', attend: true, attendMarque: true, conclure: false },
   { l: lot('b', 2, { ads: [ad('v1', verdict('loser')), ad('v2', null)] }), etat: 'a_importer', attend: true, attendMarque: true, conclure: false },
-  { l: lot('c', 3, { lanceLe: ilYa(2) }), etat: 'diffusion', attend: true, attendMarque: true, conclure: false },
+  { l: lot('c', 3, { lanceLe: ilYa(2) }), etat: 'diffusion', attend: false, attendMarque: false, conclure: false },
   { l: lot('d', 4, { lanceLe: ilYa(2), ads: [ad('v1', verdict('loser')), ad('v2', verdict('winner'))] }), etat: 'diffusion', attend: false, attendMarque: false, conclure: false },
-  { l: lot('e', 5, { lanceLe: ilYa(2), ads: [ad('v1', verdict('inconclusive', { impressions: 900, depense: 12 }))] }), etat: 'diffusion', attend: true, attendMarque: true, conclure: false },
-  { l: lot('q', 15, { lanceLe: ilYa(2), ads: [ad('v1', verdict('winner', { impressions: 9000, depense: 60 }))] }), etat: 'diffusion', attend: false, attendMarque: true, conclure: false },
+  { l: lot('e', 5, { lanceLe: ilYa(2), ads: [ad('v1', verdict('inconclusive', { impressions: 900, depense: 12 }))] }), etat: 'diffusion', attend: false, attendMarque: false, conclure: false },
+  { l: lot('q', 15, { lanceLe: ilYa(2), ads: [ad('v1', verdict('winner', { impressions: 9000, depense: 60 }))] }), etat: 'diffusion', attend: false, attendMarque: false, conclure: false },
+  // r · le même que q, sa fin prévue passée · compté sous le minimum de la marque (mesures manquantes), pas au défaut.
+  { l: lot('r', 16, { lanceLe: ilYa(2), finPrevue: ilYa(1), ads: [ad('v1', verdict('winner', { impressions: 9000, depense: 60 }))] }), etat: 'diffusion', attend: false, attendMarque: true, conclure: false },
   { l: lot('f', 6, { ads: [ad('v1', null, { plateforme: 'tiktok' })] }), etat: 'a_importer', attend: false, attendMarque: false, conclure: false },
   { l: lot('g', 7, { ads: [ad('v1', null, { statut: 'draft' })] }), etat: 'a_importer', attend: false, attendMarque: false, conclure: false },
   { l: lot('h', 8, { ads: [] }), etat: 'a_importer', attend: false, attendMarque: false, conclure: false },
@@ -51,24 +61,24 @@ const CORPUS: ReadonlyArray<{ l: FaitsLotSpatial; etat: EtatLotSpatial; attend: 
 ];
 const LOTS = CORPUS.map((c) => c.l);
 
-/** Les lots de la liste « Lot » qui attendent · ses options sans lot dans l'adresse. */
-const liste = (ls: readonly FaitsLotSpatial[], seuil = SEUIL) => listeLotImport(ls, null, CTX, seuil)?.options.map((o) => o.id) ?? [];
+/** Les lots de la liste « Lot » dont les mesures manquent · ses options du groupe « manquantes », sans lot dans l'adresse. */
+const liste = (ls: readonly Lot[], seuil = SEUIL) => listeLotImport(ls, null, CTX, seuil)?.options.filter((o) => o.groupe === 'manquantes').map((o) => o.id) ?? [];
 
 describe('le compte « à importer » · la règle de #1087, la liste « Lot »', () => {
   it('le corpus couvre chaque état · le compte dit exactement les lots qui attendent, dans l’ordre lu', () => {
     expect(CORPUS.map((c) => etatLotSpatial(c.l, CTX)), 'préalable · l’état du corpus').toEqual(CORPUS.map((c) => c.etat));
     const c = compteAImporter(LOTS, CTX, SEUIL);
     expect(c.lots.map((l) => l.id), 'le compte « à importer » ne compte pas les lots qui attendent leurs mesures').toEqual(CORPUS.filter((x) => x.attend).map((x) => x.l.id));
-    expect(c.n).toBe(4);
+    expect(c.n).toBe(2);
     expect(c.lots[0]).toEqual({ id: 'a', numero: 1 });
-    expect(compteAImporter([...LOTS].reverse(), CTX, SEUIL).lots.map((l) => l.id), 'l’ordre n’est pas celui lu').toEqual(['e', 'c', 'b', 'a']);
+    expect(compteAImporter([...LOTS].reverse(), CTX, SEUIL).lots.map((l) => l.id), 'l’ordre n’est pas celui lu').toEqual(['b', 'a']);
   });
 
   it('le minimum est celui de la MARQUE · le même lot compte sous 15 000 impressions, pas au défaut', () => {
     expect(compteAImporter(LOTS, CTX, SEUIL_MARQUE).lots.map((l) => l.id), 'le compte ne lit pas le minimum réglé par la marque').toEqual(CORPUS.filter((x) => x.attendMarque).map((x) => x.l.id));
   });
 
-  it('sur CHAQUE sous-ensemble du corpus · compte = lots de la liste « Lot » qui attendent, au défaut et sous le minimum de la marque', () => {
+  it('sur CHAQUE sous-ensemble du corpus · compte = lots de la liste « Lot » dont les mesures manquent, au défaut et sous le minimum de la marque', () => {
     let vus = 0;
     for (let masque = 0; masque < 1 << LOTS.length; masque++) {
       const ls = LOTS.filter((_, i) => masque & (1 << i));
@@ -76,7 +86,7 @@ describe('le compte « à importer » · la règle de #1087, la liste « Lot »'
         const c = compteAImporter(ls, CTX, seuil);
         const l = liste(ls, seuil);
         if (c.n !== l.length || c.lots.map((x) => x.id).join() !== l.join()) {
-          expect.fail(`compte « à importer » ≠ liste « Lot » · sous-ensemble ${masque.toString(2)} · compte ${c.n} (${c.lots.map((x) => x.id).join()}), liste ${l.length} (${l.join()})`);
+          expect.fail(`compte « à importer » ≠ lots « mesures manquantes » de la liste « Lot » · sous-ensemble ${masque.toString(2)} · compte ${c.n} (${c.lots.map((x) => x.id).join()}), liste ${l.length} (${l.join()})`);
         }
         vus++;
       }
@@ -110,7 +120,7 @@ describe('la pastille « à importer » · un lien vers l’import', () => {
   it('plusieurs lots · l’écran d’import sans lot (la liste « Lot » les montre), le nombre dit', () => {
     const p = pastilleAImporter(compteAImporter(LOTS, CTX, SEUIL));
     expect(p, 'plusieurs lots attendent · la pastille ne mène pas à l’écran d’import').toEqual({
-      valeur: '4', href: CHEMIN_IMPORT_RESULTATS, titre: 'À importer', libelle: '4 lots attendent leurs mesures', sous: 'Mesures de 4 lots',
+      valeur: '2', href: CHEMIN_IMPORT_RESULTATS, titre: 'À importer', libelle: '2 lots attendent leurs mesures', sous: 'Mesures de 2 lots',
     });
     expect(CHEMIN_IMPORT_RESULTATS).toBe('/adsmap/import');
   });

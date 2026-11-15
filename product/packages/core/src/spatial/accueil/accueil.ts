@@ -18,7 +18,7 @@ import { CHEMIN_IMPORT_RESULTATS, CHEMIN_LOTS, CHEMIN_SUITES, ANCRE_TESTS } from
 import { lienLotApercu } from '../../adsmap/apercu-lots';
 import { FORMATS_CREATIFS, FORMAT_AUTRE } from '../../formats-creatifs';
 import { LIEN_A_CONCLURE, type CompteAConclure } from '../resultats/a-conclure';
-import type { FinPrevueAccueil } from '../resultats/fin-prevue';
+import { finPrevuePassee, type FinPrevueAccueil } from '../resultats/fin-prevue';
 import { depuisRelatif, jourCourt, jourIso, joursEntre } from './temps';
 
 const JOUR = 86_400_000;
@@ -130,7 +130,7 @@ const temps = (iso: string | null) => (iso ? Date.parse(iso) : NaN);
 export function lotsFinPrevuePassee(lots: readonly LotAccueil[], maintenant: Date, aConclure: CompteAConclure | null): LotAccueil[] {
   const comptes = new Set((aConclure?.lots ?? []).map((l) => l.id));
   return lots
-    .filter((l) => l.statut === 'testing' && !comptes.has(l.id) && Number.isFinite(temps(l.finPrevue)) && temps(l.finPrevue) <= maintenant.getTime())
+    .filter((l) => l.statut === 'testing' && !comptes.has(l.id) && finPrevuePassee(l.finPrevue, maintenant))
     .sort((a, b) => temps(a.finPrevue) - temps(b.finPrevue));
 }
 
