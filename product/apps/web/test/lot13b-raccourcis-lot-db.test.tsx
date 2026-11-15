@@ -10,7 +10,9 @@ import type { IdsStudios, SessionTest } from './studios-semis';
  * touches et on lit ce qui se passe (ancre, focus, navigation demandée, toast)
  * et ce qui est écrit (rien).
  *  · un lot conclu dont la gagnante arbitrée est dans le plan · T ouvre
- *    l'écran Itérer EXISTANT, cette gagnante présélectionnée · C est fermé ;
+ *    l'écran Itérer EXISTANT, cette gagnante présélectionnée, par le MÊME
+ *    geste que « Itérer depuis la gagnante » de sa variante (`?lot=…&gagnante=…`,
+ *    #1085 · la suite est gardée par `gagnante-clavier-db`) · C est fermé ;
  *  · un lot à conclure (verdicts du moteur, rien d'arbitré) · C mène à
  *    « Conclure le lot » · T est fermé (aucune gagnante arbitrée) ;
  *  · aucune écriture, aucune action serveur par une touche.
@@ -47,7 +49,7 @@ vi.mock('../lib/jarvis-memory', async (importOriginal) => ({
 }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { RACCOURCIS, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, lienIterationVariable, messageRaccourciFerme } from '@tiktrends/core';
+import { RACCOURCIS, RAISON_GESTE_RIEN_A_CONCLURE, RAISON_GESTE_SANS_GAGNANTE_LOT, lienIterationDepuis, messageRaccourciFerme } from '@tiktrends/core';
 import { semer, session } from './studios-semis';
 import { avecSpatial, CTX_TEST } from './spatial/fournisseur';
 import LotSpatial from '../app/(spatial)/sp/adsmap/lots/[id]/page';
@@ -136,7 +138,7 @@ describe('lot 13 bis · C et T sur la vraie fiche d’un lot', () => {
     expect(window.location.hash).toBe('');
     expect(toasts).toEqual([messageRaccourciFerme(r('lot-conclure'), RAISON_GESTE_RIEN_A_CONCLURE)]);
     await touche('t');
-    expect(h.push.mock.calls, 'T n’ouvre pas Itérer depuis la gagnante').toEqual([[lienIterationVariable({ adId: S.V1 })]]);
+    expect(h.push.mock.calls, 'T n’ouvre pas Itérer depuis la gagnante du lot').toEqual([[lienIterationDepuis('lot', { id: S.L1, adId: S.V1 })]]);
     // L'écran d'arrivée, tel que la touche l'ouvre · la gagnante y est présélectionnée.
     const href = h.push.mock.calls[0]![0] as string;
     await monter(await IterationSpatiale({ searchParams: Promise.resolve(Object.fromEntries(new URL(`http://x${href}`).searchParams)) }));

@@ -1,12 +1,13 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
   DEFAULT_VERDICT_CONFIG, conclusionLot, manquesAvantTest, etatLotSpatial, presentationLot, referenceConclusion, lireOrigineHypothese, lireProvenanceJarvis, lireProvenanceCommentaire, lireProvenanceNote, sommeRetenues,
-  compteAConclure,
+  compteAConclure, compteAImporter,
   type EstimationHypothese, type OrigineHypotheseLibre, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote, type VerdictConfig, type VerdictValue, type FaitsAdSpatial, type FaitsLotSpatial, type ContexteLots, type AgregatMesures,
   type FaitsHypotheseAd, type CompteAConclure, type FaitsEtatLot, type FaitsVerdictSpatial, type SeuilMinimumMoteur, type VarianteFinPrevue,
+  type CompteAImporter, type FaitsLotAImporter,
 } from '@tiktrends/core';
 import { getSession } from '../../../../lib/auth';
 import { getActiveBrand } from '../../../../lib/brands';
@@ -53,6 +54,15 @@ export async function gardeResultats(reserve?: 'lots' | 'import'): Promise<Garde
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+/**
+ * Une clé de l'agrégat, extraite en base en TEXTE JSON (`(agg->'spend')::text`) · relue ici comme
+ * `chargerLots` lit l'agrégat entier · un nombre reste un nombre, une chaîne reste une chaîne (que
+ * `num` écarte), quel que soit le pilote (aucun ne transforme du texte).
+ */
+const jsonLu = (t: string | null): unknown => {
+  if (t == null) return null;
+  try { return JSON.parse(t) as unknown; } catch { return null; }
+};
 
 export interface AdLue extends FaitsAdSpatial {
   lotId: string | null;
@@ -267,6 +277,87 @@ export const MESURE_A_CONCLURE = [
 export async function compterAConclure(workspaceId: string, brandId: string, maintenant = new Date()): Promise<CompteAConclure> {
   const f = await chargerFaitsAConclure(workspaceId, brandId, maintenant);
   return compteAConclure(f.lots, f.ctx);
+}
+
+/** Un lot vu par le compte « à importer » · ce que `lotAttendDesMesures` lit, son identité. */
+export type LotAImporterLu = FaitsLotAImporter & { id: string; numero: number };
+
+/**
+ * Les faits qui décident « à importer », et RIEN d'autre · pour la pastille du
+ * rail (chaque page, admins). La MÊME portée que `chargerLots` (lots de la
+ * marque, ads sous `adsDeLaMarque`, même ordre `ORDRE_ADS_LOTS` départagé par
+ * l'identifiant, même borne `LIMITE_ADS_LOTS`) · par variante · son lot, son
+ * statut, sa plateforme, son verdict (statut, valeur calculée) et les DEUX
+ * nombres de l'agrégat que le minimum du moteur lit (dépense, impressions,
+ * extraits en base · le reste de l'agrégat ne quitte pas la base) · au lieu de
+ * la créa, du concept, des provenances. Les réglages du verdict de la MARQUE
+ * (le seuil du moteur, la fenêtre). La règle reste au noyau (`compteAImporter`).
+ *
+ * Coût mesuré · `MESURE_A_IMPORTER` plus bas.
+ */
+export async function chargerFaitsAImporter(workspaceId: string, brandId: string, maintenant = new Date()): Promise<{ lots: LotAImporterLu[]; ctx: ContexteLots; seuil: SeuilMinimumMoteur }> {
+  if (!db) return { lots: [], ctx: { maintenant, fenetreJours: DEFAULT_VERDICT_CONFIG.evaluationWindowDays }, seuil: DEFAULT_VERDICT_CONFIG };
+  const [lignes, lots, [vc]] = await Promise.all([
+    db.select({
+      lot: schema.ads.batchId, statut: schema.ads.status, plateforme: schema.ads.platform,
+      adId: schema.verdicts.adId, status: schema.verdicts.status, computed: schema.verdicts.computed,
+      depense: sql<string | null>`(${schema.verdicts.metricsAgg}->'spend')::text`, impressions: sql<string | null>`(${schema.verdicts.metricsAgg}->'impressions')::text`,
+    })
+      .from(schema.ads)
+      .innerJoin(schema.concepts, eq(schema.ads.conceptId, schema.concepts.id))
+      .innerJoin(schema.angles, eq(schema.concepts.angleId, schema.angles.id))
+      .innerJoin(schema.desires, eq(schema.angles.desireId, schema.desires.id))
+      .innerJoin(schema.personas, eq(schema.desires.personaId, schema.personas.id))
+      .leftJoin(schema.verdicts, eq(schema.verdicts.adId, schema.ads.id))
+      .where(adsDeLaMarque(workspaceId, brandId))
+      .orderBy(...ORDRE_ADS_LOTS)
+      .limit(LIMITE_ADS_LOTS),
+    db.select({ id: schema.batches.id, numero: schema.batches.number, statut: schema.batches.status, lanceLe: schema.batches.launchedAt })
+      .from(schema.batches).where(eq(schema.batches.brandId, brandId)).orderBy(desc(schema.batches.number)),
+    db.select({ config: schema.verdictConfigs.config }).from(schema.verdictConfigs).where(eq(schema.verdictConfigs.brandId, brandId)).limit(1),
+  ]);
+  const config: VerdictConfig = { ...DEFAULT_VERDICT_CONFIG, ...((vc?.config as Partial<VerdictConfig>) ?? {}) };
+  const parLot = new Map<string, LotAImporterLu['ads'][number][]>();
+  for (const r of lignes) {
+    if (!r.lot) continue;
+    const v = {
+      statut: r.statut, plateforme: r.plateforme,
+      verdict: r.adId ? { ...verdictLu({ status: r.status, computed: r.computed }), depense: num(jsonLu(r.depense)), impressions: num(jsonLu(r.impressions)) } : null,
+    };
+    const du = parLot.get(r.lot);
+    if (du) du.push(v); else parLot.set(r.lot, [v]);
+  }
+  return {
+    lots: lots.map((b) => ({ id: b.id, numero: b.numero, statut: b.statut, lanceLe: b.lanceLe ? (b.lanceLe as Date).toISOString() : null, ads: parLot.get(b.id) ?? [] })),
+    ctx: { maintenant, fenetreJours: config.evaluationWindowDays },
+    seuil: config,
+  };
+}
+
+/**
+ * Le banc de la lecture du compte « à importer » (pglite, 4 cœurs partagés,
+ * médiane de 15 lectures après 3 à vide, trois passages · compte et lots
+ * identiques à `chargerLots` + `compteAImporter` à chaque passage). Avant ·
+ * `chargerLots` (créa, concept, provenances, agrégat entier) puis la règle ·
+ * après · `chargerFaitsAImporter`. Témoin · `chargerFaitsAConclure` (#1080),
+ * mesuré dans le MÊME passage (la charge de la machine pèse sur les trois
+ * colonnes à la fois). Semis · 8 lots × 2, 60 × 8, 250 × 8 (la borne
+ * `LIMITE_ADS_LOTS` atteinte), variantes Meta diffusées, un verdict sur trois
+ * sous le minimum du moteur, une variante sur quatre sans verdict.
+ * Lecture · deux fois moins que la liste entière à 480 et à 2 000 variantes ·
+ * deux fois le témoin (sept colonnes par variante au lieu de quatre, dont
+ * deux clés de l'agrégat extraites en base).
+ */
+export const MESURE_A_IMPORTER = [
+  { variantes: 16, avantMs: [4.3, 4.4, 5.3], apresMs: [2.7, 2.8, 3.4], temoinAConclureMs: [2.5, 2.5, 2.7] },
+  { variantes: 480, avantMs: [16.9, 17.9, 18.2], apresMs: [7.6, 7.8, 8.0], temoinAConclureMs: [5.5, 5.6, 5.6] },
+  { variantes: 2000, avantMs: [73.2, 81.0, 99.7], apresMs: [38.7, 41.2, 45.1], temoinAConclureMs: [18.6, 19.2, 19.2] },
+] as const;
+
+/** LE compte « à importer » de la marque · la pastille du rail le lit ici. */
+export async function compterAImporter(workspaceId: string, brandId: string, maintenant = new Date()): Promise<CompteAImporter> {
+  const f = await chargerFaitsAImporter(workspaceId, brandId, maintenant);
+  return compteAImporter(f.lots, f.ctx, f.seuil);
 }
 
 /**

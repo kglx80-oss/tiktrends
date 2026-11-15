@@ -5,7 +5,7 @@ import { db, schema } from '@tiktrends/db';
 import {
   CIBLE_CONCEPT, MENTION_COUT_MESSAGE_CONCEPT, actionsConceptResolues, capacitesDuRefus, champsBrief, completudeFicheMarque, ciblerCouloirs, couloirsDepuisLignee,
   couloirsDepuisProjet, dateCourteUtc, detailTache, formatCreation, phraseSourcesIllisibles, provenanceSource, raisonCanevasIndisponible, retourVeilleProjet, etatGeneration, extraitBulle, gesteGenerer, mentionAppelTexte, pastilleEnregistrement, relectureNecessaire,
-  iterationProjetDepuisVariantes, variantesEssaiProjet, noeudsIterationProjet, groupesLignee, grouperCouloirs, conclusionLot, presentationLot, referenceConclusion, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
+  iterationProjetDepuisVariantes, variantesEssaiProjet, resultatsDeLaLignee, noeudsIterationProjet, groupesLignee, grouperCouloirs, conclusionLot, presentationLot, referenceConclusion, resumeFicheMarque, sousTitreProjet, texteTourJarvis, titreSource, vueVariantes, LIBELLES_TYPE_SOURCE,
   type ErreurStudio, type EtatJob, type ClassePastille,
 } from '@tiktrends/core';
 import type { Session } from '../../../../../../lib/auth';
@@ -19,6 +19,7 @@ import { accesAdsmap, etatRelecture } from '../../../../../../lib/studios/varian
 import { listerTachesProjet } from '../../../../../../lib/studios/execution/commandes';
 import { activiteDuProjet } from '../../../../../../lib/studios/activite';
 import { lireNotesLigneePour } from '../../../../../../lib/studios/notes-lignee';
+import { lireGagnantesLignee } from '../../../../../../lib/iterer-gagnante';
 import { urlsApercu } from '../../../../../../lib/studios/editeur/apercus';
 import { lireProjetDetail } from '../../../../../actions/studios/sources';
 import { lireLigneeProjet } from '../../../../../actions/studios/lignee';
@@ -147,6 +148,10 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
   const groupes = ligneeLue ? groupesLignee(ligneeLue, { conclusions: tests.conclusions, resultatsOuverts: tests.ouverts }) : [];
   // Lot 11 · PC E11 · les notes de la lignée, sous la même garde que la fiche · un refus se dit, il ne casse pas le canvas.
   const notesLues = ligneeLue && g.ok ? await lireNotesLigneePour(g.ctx, { projectId: pid }).catch(() => null) : null;
+  // « née de la gagnante Vx » et « Itérer depuis la gagnante » sur la carte · lus (jamais écrits), seulement s'il y a un nœud « Résultat ».
+  const testDe = new Map((donnees?.variantes ?? []).flatMap((v) => (v.test ? [[v.id.toLowerCase(), v.test.adsmapAdId]] : [])));
+  const resultatsLignee = ligneeLue ? resultatsDeLaLignee(ligneeLue, (id) => testDe.get(id.toLowerCase())) : [];
+  const gagnantesLignee = resultatsLignee.length && g.ok ? await lireGagnantesLignee(g.ctx.workspaceId, { id: pid, brandId: d.projet.brandId }, resultatsLignee).catch(() => ({})) : {};
   const notes = !ligneeLue ? null : notesLues?.ok
     ? { ok: true as const, vue: { peutEcrire: notesLues.peutEcrire, notes: notesLues.notes, mentionnables: notesLues.mentionnables ?? [] } }
     : { ok: false as const, message: notesLues ? `${notesLues.message} · identifiant support ${notesLues.traceId}` : 'Les notes de la lignée n’ont pas pu être lues · recharge la page pour réessayer.' };
@@ -233,7 +238,7 @@ export async function chargerProjet(s: Session, id: string, versionDemandee?: st
         ? { ok: true, canvas: {
           projectId: canvas.canvas.projectId, version: canvas.canvas.version, modele: canvas.canvas.modele, apercus: canvas.canvas.apercus, disposition: canvas.canvas.disposition, rev: canvas.canvas.rev,
           // Lot 11 · la lignée, second graphe · mêmes positions personnelles, écrans existants (fiche marque · admin seulement).
-          lignee: ligneeLue ? { modele: ligneeLue, groupes, apercus: { ...apercusCreations, ...apercusReferences }, destinations: { marque: ficheHref }, notes } : null,
+          lignee: ligneeLue ? { modele: ligneeLue, groupes, apercus: { ...apercusCreations, ...apercusReferences }, destinations: { marque: ficheHref }, notes, ...(Object.keys(gagnantesLignee).length ? { gagnantes: gagnantesLignee } : {}) } : null,
         } }
         : { ok: false, raison: canvas ? raisonCanevasIndisponible(canvas) : 'La disposition libre n’a pas pu être lue · recharge la page pour réessayer.' },
       aideCanvas: lignee?.ok ? `${nbNoeuds} nœud${nbNoeuds > 1 ? 's' : ''} · la lignée réelle du projet` : 'Ce que la fiche du projet porte · la lignée complète n’est pas disponible',

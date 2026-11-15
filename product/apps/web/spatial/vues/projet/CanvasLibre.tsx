@@ -5,12 +5,13 @@ import {
   GRAND_PAS_CLAVIER_CANVAS, LEGENDE_VIDE, LIBELLES_ETAPE_CANVAS, LIBELLES_NATURE_CANVAS, LIBELLE_MEDIA_CARTE, PAS_CLAVIER_CANVAS, PAS_ZOOM_CANVAS, SANS_ECRAN_NOEUD, STYLE_LIEN_LIGNEE,
   aideCanevasLibre, annonceDeplacement, cadresLignee, categorieLienLignee, composerCanvas, descendantsDeCarte, dimensionsLignee, dispositionApresReinitialisation, entreesDeCarte, etatInitialCanvas, etiquetteCarteLignee,
   legendeLignee, ligneeEnListe, ligneeVersCanvas, messageEnregistrementLibre, miniCarteLignee, phraseAvalCarte, phraseLegende, phraseLiens, rechercheGraphe, texteZoneLibre,
-  notesOuvertes, phraseIndicateurNotes, positionCarte, reduireCanvas, repartirNotes, sortiesDeCarte,
-  type CarteCanvas, type CibleJarvisNoeud, type DispositionCanvas, type EtatCanvas, type GesteCanvas, type GrapheLibre, type ResultatEnregistrementLibre, type TailleCanvas,
+  notesOuvertes, phraseIndicateurNotes, phraseNeeDeGagnante, positionCarte, reduireCanvas, repartirNotes, sortiesDeCarte,
+  type CarteCanvas, type GagnanteDuNoeud, type CibleJarvisNoeud, type DispositionCanvas, type EtatCanvas, type GesteCanvas, type GrapheLibre, type ResultatEnregistrementLibre, type TailleCanvas,
 } from '@tiktrends/core';
 import { enregistrerDispositionCanvas, reinitialiserDispositionCanvas } from '../../../app/actions/studios/canvas';
 import { Ic, Lien } from '../../communs';
 import { ErreurNotes, NotesNoeud, NotesSansNoeud, useNotesLignee } from './NotesLignee';
+import { GesteGagnante } from './ResultatsFil';
 import type { CanevasLibre } from './types';
 
 /**
@@ -48,7 +49,25 @@ import type { CanevasLibre } from './types';
  * porte le focus sur ses notes · le détail du nœud et chaque nœud de la liste
  * les montrent avec leurs gestes · « Notes sans nœud » garde lisibles celles
  * dont la donnée a disparu. Aucune carte ni aucun trait ne s'ajoute.
+ *
+ * « Itérer depuis la gagnante » sur la carte (suite de #1083 et #1085,
+ * `lignee.gagnantes`, `gagnantesDeLaLignee`) · le nœud « Résultat » d'une
+ * itération née d'une gagnante dit « née de la gagnante V7 » (sur la carte, son
+ * nom accessible, le détail et la liste) · celui d'une variante arbitrée
+ * gagnante d'un lot conclu porte le geste de la fiche du lot (détail et liste ·
+ * jamais dans la carte, qui est un bouton) · absent, rien n'est ajouté.
  */
+
+/** Ce que la carte ajoute sous un nœud (détail, liste) · la phrase, puis le geste · rien sans. */
+function GagnanteDuNoeudLignee({ g, raisonId }: { g: GagnanteDuNoeud | undefined; raisonId: string }) {
+  if (!g) return null;
+  return (
+    <span data-lignee-gagnante="" style={{ display: 'grid', gap: 6, justifyItems: 'start' }}>
+      {g.neeDe && <span className="faint" data-nee-de-gagnante="" style={{ marginLeft: 0 }}>{phraseNeeDeGagnante(g.neeDe)}</span>}
+      {g.geste && <GesteGagnante cle="iterer-gagnante-lignee" geste={g.geste.geste} variante={g.geste.variante} raisonId={raisonId} />}
+    </span>
+  );
+}
 
 const TAILLE_DEFAUT: TailleCanvas = { largeur: 860, hauteur: 520 };
 const HAUTEUR_ZONE = 560;
@@ -240,6 +259,7 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
   const mini = enLignee ? miniCarteLignee({ cartes: compose.cartes, cadres, vue, taille: taille.current }) : null;
   const elementChoisi = enLignee && choisie ? liste.find((x) => x.id === choisie.id) ?? null : null;
   const noeudLignee = useMemo(() => new Map((lignee?.modele.noeuds ?? []).map((n) => [n.id, n])), [lignee]);
+  const gagnantes = enLignee ? lignee!.gagnantes ?? null : null;
   const lit = choisie ? entreesDeCarte(modele, choisie.id) : [];
   const alimente = choisie ? sortiesDeCarte(modele, choisie.id) : [];
   const aval = choisie ? [...descendantsDeCarte(modele, choisie.id)].map((id) => modele.cartes.find((k) => k.id === id)).filter((k): k is CarteCanvas => !!k) : [];
@@ -328,11 +348,12 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
             const type = enLignee ? etiquetteCarteLignee(lignee!.modele, k.id) : null;
             const badge = enLignee ? noeudLignee.get(k.id)?.badge ?? null : null;
             const ouvertes = enLignee && notes ? notesOuvertes(notes.parNoeud.get(k.id)) : 0;
+            const neeDe = gagnantes?.[k.id]?.neeDe ?? null;
             return (
               <Fragment key={k.id}>
               <button type="button" className={`node${sel ? ' sel' : ''}${badge ? ' wn' : ''}`} data-carte={k.id} aria-pressed={sel}
                 data-x={Math.round(p.x)} data-y={Math.round(p.y)}
-                aria-label={type ? `${k.titre} · ${type.toLowerCase()}${badge ? ` · ${badge}` : ''}${ouvertes ? ` · ${phraseIndicateurNotes(ouvertes)}` : ''}` : `${k.titre} · ${LIBELLES_NATURE_CANVAS[k.nature]}${media ? ` · ${media}` : ''}`}
+                aria-label={type ? `${k.titre} · ${type.toLowerCase()}${badge ? ` · ${badge}` : ''}${neeDe ? ` · ${phraseNeeDeGagnante(neeDe)}` : ''}${ouvertes ? ` · ${phraseIndicateurNotes(ouvertes)}` : ''}` : `${k.titre} · ${LIBELLES_NATURE_CANVAS[k.nature]}${media ? ` · ${media}` : ''}`}
                 onClick={() => { if (!glisse) envoyer({ type: 'selectionner', id: k.id }); }}
                 onKeyDown={(ev) => surToucheCarte(ev, k)}
                 onPointerDown={(ev) => { ev.stopPropagation(); debut(ev, 'carte', k.id); }}
@@ -345,6 +366,7 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
                   : <span>{k.resume}</span>}
                 {media && <span className="faint" style={{ marginLeft: 0 }}>{media}</span>}
                 {badge && <span className="pill g" style={{ justifySelf: 'start' }}>{badge}</span>}
+                {neeDe && <span className="faint" data-nee-de-gagnante="" style={{ marginLeft: 0 }}>{phraseNeeDeGagnante(neeDe)}</span>}
               </button>
               {/* PC E11 · l'indicateur des notes OUVERTES du nœud · un bouton (clavier : Tab puis Entrée) qui choisit le nœud et porte le focus sur ses notes. */}
               {ouvertes > 0 && (
@@ -388,6 +410,7 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
               <p className="faint" style={{ margin: 0, marginLeft: 0 }}>{phraseLiens('A donné', elementChoisi.aDonne)}</p>
               {elementChoisi.dans.length > 0 && <p className="faint" style={{ margin: 0, marginLeft: 0 }}>Dans · {elementChoisi.dans.join(', ')}</p>}
               <p className="faint" style={{ margin: 0, marginLeft: 0 }}>Un lien de lignée dit d’où vient ce nœud · ce n’est pas une dépendance, rien n’est recalculé.</p>
+              <GagnanteDuNoeudLignee g={gagnantes?.[elementChoisi.id]} raisonId="gagnante-lignee-detail" />
               {elementChoisi.lien
                 ? <Lien className="btn sm" style={{ justifySelf: 'start' }} href={elementChoisi.lien.href} data-ecran-detail={elementChoisi.id}>{elementChoisi.lien.libelle}</Lien>
                 : <p className="faint" style={{ margin: 0, marginLeft: 0 }}>{SANS_ECRAN_NOEUD}</p>}
@@ -444,13 +467,14 @@ export function CanvasLibre({ c, cibler }: { c: CanevasLibre; cibler: (cible: Ci
           )}
           <h3 style={{ font: '600 13px/1.25 var(--sfd)', color: 'var(--fg)', margin: '12px 0 6px' }}>Les nœuds, de la marque à l’itération</h3>
           <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
-            {liste.map((x) => (
+            {liste.map((x, i) => (
               <li key={x.id} data-element-lignee={x.id} className="tile" style={{ display: 'grid', gap: 4, fontSize: '12px' }}>
                 <strong>{x.intitule}</strong>
                 <span className="muted">{x.resume}</span>
                 <span className="faint" style={{ marginLeft: 0 }}>{phraseLiens('Vient de', x.vientDe)}</span>
                 <span className="faint" style={{ marginLeft: 0 }}>{phraseLiens('A donné', x.aDonne)}</span>
                 {x.dans.length > 0 && <span className="faint" style={{ marginLeft: 0 }}>Dans · {x.dans.join(', ')}</span>}
+                <GagnanteDuNoeudLignee g={gagnantes?.[x.id]} raisonId={`gagnante-lignee-${i}`} />
                 <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {x.lien
                     ? <Lien className="btn sm" href={x.lien.href} data-ecran={x.id}>{x.lien.libelle}</Lien>

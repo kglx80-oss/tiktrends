@@ -24,11 +24,17 @@ import { GesteClavier } from '../../communs/touches';
  * lus dans la table, absents quand les raccourcis à une touche sont coupés) ·
  * le clic fait EXACTEMENT ce que fait la touche (même fonction) · fermé, la
  * raison est écrite à côté.
+ *
+ * Lot CONCLU avec une gagnante (#1085) · T ouvre le MÊME geste que le bouton
+ * « Itérer depuis la gagnante » de sa variante (`gestesClavierLot`,
+ * `depuisGagnante`) · son bouton NOMME la variante (`iterer.libelle`, « Itérer
+ * depuis V3 ») · deux noms distincts, l'un par variante, l'autre pour la touche.
  */
 
 export interface PropsRaccourcisLot {
   conclure: GesteClavierLot;
-  iterer: GesteClavierLot;
+  /** `libelle` · le nom du bouton quand T ouvre la gagnante d'un lot conclu (`libelleToucheIterer`) · absent, « Itérer depuis la gagnante ». */
+  iterer: GesteClavierLot & { libelle?: string };
 }
 
 function lireCookies(): string {
@@ -87,7 +93,7 @@ export function RaccourcisLot(p: PropsRaccourcisLot) {
   return (
     <section className="tile" aria-label="Itérer sur ce lot" data-raccourcis-lot="" style={{ marginTop: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
       <GesteClavier raccourci="lot-conclure" libelle="Conclure le lot" icone="check" geste={p.conclure} onActiver={() => agir.current(entree('lot-conclure'))} />
-      <GesteClavier raccourci="lot-iterer" libelle="Itérer depuis la gagnante" icone="loop" geste={p.iterer} onActiver={() => agir.current(entree('lot-iterer'))} />
+      <GesteClavier raccourci="lot-iterer" libelle={p.iterer.libelle ?? 'Itérer depuis la gagnante'} icone="loop" geste={p.iterer} onActiver={() => agir.current(entree('lot-iterer'))} />
     </section>
   );
 }
