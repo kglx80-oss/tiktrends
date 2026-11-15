@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   COLONNES_HYPOTHESES, PARTIES_VIDES, TITRE_HYPOTHESE_NOTE, categoriesHypotheses, lienJarvisCarteHypothese, lienJarvisContexte,
-  type CarteHypothese, type DepartHypothese, type SaisieHypotheseLibre, type TestedVariable,
+  type CarteHypothese, type DepartHypothese, type GesteGagnante as Geste, type SaisieHypotheseLibre, type TestedVariable,
 } from '@tiktrends/core';
 import type { ResultatHypothese, SourceHypothese } from '../../../app/actions/adsmap-hypotheses';
 import { EnTete, Ic, Lien, SousNav, Vue } from '../../communs';
@@ -11,6 +11,7 @@ import { Hypothese, Priorite, type SousNavResultats } from './communs';
 import { BoutonHypothese, FormulaireHypothese } from './hypothese-client';
 import { DialogueSpatial } from '../marque/interactifs';
 import { BilanProvenances, type PropsBilanProvenances } from './BilanProvenances';
+import { GesteGagnante } from '../projet/ResultatsFil';
 
 /**
  * « Hypothèses » · `docs/spatial/reference/hypotheses.html`, balisage à l'identique.
@@ -47,6 +48,13 @@ export interface PropsHypotheses {
    * pré-rempli, la note citée · refusée, la phrase seule · absent, rien.
    */
   depuisNote?: DepuisNoteHypothese | null;
+  /**
+   * « Itérer depuis la gagnante » sur la carte d'une hypothèse CONFIRMÉE, par
+   * carte (`gestesGagnantesHypotheses`) · la gagnante du lot qui l'a confirmée,
+   * un lien vers l'écran Itérer ou fermé avec sa raison · absent, la carte
+   * reste celle d'avant.
+   */
+  gagnantes?: Readonly<Record<string, Geste>> | null;
 }
 
 export type DepuisNoteHypothese =
@@ -169,7 +177,10 @@ export function Hypotheses(p: PropsHypotheses) {
                   <span className="faint" style={{ fontSize: '11.5px' }}>{h.meta}</span>
                   {(h.resultat || h.provenance) && <ResultatEtProvenance h={h} />}
                   {h.conclusion
-                    ? <span className={`pill ${h.conclusion.classe}`} style={{ justifySelf: 'start' }}><Ic n={h.conclusion.icone} />{h.conclusion.libelle}</span>
+                    ? <>
+                      <span className={`pill ${h.conclusion.classe}`} style={{ justifySelf: 'start' }}><Ic n={h.conclusion.icone} />{h.conclusion.libelle}</span>
+                      {p.gagnantes?.[h.cle] && <GesteGagnante cle="iterer-gagnante-hypothese" geste={p.gagnantes[h.cle]!} variante={h.texte.length > 60 ? `${h.texte.slice(0, 59)}…` : h.texte} raisonId={`gagnante-hyp-${h.cle}`} />}
+                    </>
                     : h.edition && p.completer
                       ? (
                         <BoutonHypothese className="btn sm" style={{ justifySelf: 'start' }} titre={h.edition.libelle}

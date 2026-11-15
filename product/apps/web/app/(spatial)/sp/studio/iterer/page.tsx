@@ -2,10 +2,11 @@ import { redirect } from 'next/navigation';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
 import {
-  aPermissionEspace, apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
+  apercuImage, capacitesDuRefus, choixInitialIteration, choixIterationSpatial, lireInspirationDemandee, lireIterationDemandee, lireVariableDemandee,
   refusStudiosSpatial, variablesDuPlan, variablesInspiration, videIterationSpatial, MAX_CHOIX_ITERATION, CHEMIN_PROJETS, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE,
   iterationDepuisReponse, lireGesteIteration, preparationAutreVariable, OPTIONS_PUB_PROJET, REFUS_GESTE_JARVIS,
   departDepuisFil, lireGesteFil, TEXTES_FIL_ITERATION, departDepuisGagnante, lireGagnanteDemandee, REFUS_GAGNANTE,
+  departDepuisGagnanteDe, lireDepartGagnante, peutCreerIteration, REFUS_GAGNANTE_DEPUIS, type DemandeProvenanceGagnante,
   type ChoixVariablesIteration, type ContexteAdSpatial, type GagnanteDuFil, type PreparationIterationJarvis, type ProvenanceJarvis, type ProvenanceCommentaire, type ProvenanceNote,
 } from '@tiktrends/core';
 import { getSession } from '../../../../../lib/auth';
@@ -17,6 +18,7 @@ import { jointureCreaDeLaMarque, vignetteAd } from '../../../../../lib/adsmap-me
 import { refusCapacite } from '../../../../../lib/studios/interrupteurs';
 import { candidatsDuPlan, exclusDuContexte, lireCandidatsProjet, lireContexteGestes, lireReponseJarvis, planDepuisLignes } from '../../../../../lib/jarvis-gestes';
 import { lireCommentairePourIterer, lireGagnantesDuFil, lireNotePourIterer } from '../../../../../lib/studios/commentaire-iterer';
+import { lireGagnantesDepuis } from '../../../../../lib/iterer-gagnante';
 import { iterationPlanAction, type IterationRow } from '../../../../actions/adsmap-iterate';
 import { Iterer, type InspirationIterer } from '../../../../../spatial/vues/studios/Iterer';
 import { RefusStudios } from '../../../../../spatial/vues/studios/Refus';
@@ -88,6 +90,16 @@ const FEATURE_ADSMAP = FEATURES.find((f) => f.key === 'adsmap')!;
  * (`departDepuisGagnante`) · la provenance du fil est transmise, l'action la
  * relit encore (`provenanceFilDepuisGagnanteAdmise`). Mal formée, ou pas une
  * gagnante confirmée de ce fil · refus, aucun pré-choix.
+ *
+ * `?lot=<uuid>&gagnante=<uuid>` (« Itérer depuis la gagnante » sur la fiche
+ * d'un lot conclu) ou `?hypothese=<uuid>&gagnante=<uuid>` (sur la carte d'une
+ * hypothèse confirmée) · lus seulement sans geste de Jarvis ni fil · le lot (ou
+ * la carte) relu dans la marque active, la gagnante relue par la règle du
+ * noyau (`gagnantesDuLot`, `gagnanteDeLHypothese` · `lireGagnantesDepuis`) ·
+ * présélectionnée, la variable du plan, aucun texte repris
+ * (`departDepuisGagnanteDe`) · la source transmise à « Créer l'itération »,
+ * qui la relit encore. Mal formée, ou pas une gagnante admise · refus, aucun
+ * pré-choix.
  */
 export default async function IterationSpatiale({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const s = await getSession();
@@ -98,6 +110,8 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   const geste = lireGesteIteration(sp);
   // Une seule source de pré-choix · un geste de Jarvis l'emporte, le commentaire (ou la note) n'est alors pas lu.
   const gesteCommentaire = geste.etat === 'absente' ? lireGesteFil(sp) : { etat: 'absente' as const };
+  // Puis la gagnante d'un lot conclu ou d'une hypothèse confirmée · lue seulement sans geste ni fil.
+  const departGagnante = geste.etat === 'absente' && gesteCommentaire.etat === 'absente' ? lireDepartGagnante(sp) : { etat: 'absente' as const };
 
   const g = await gardeSources('studio.read');
   if (!g.ok) redirect(CHEMIN_PROJETS);
@@ -107,7 +121,7 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   const active = await getActiveBrand(s.workspaceId);
   const refus = denyReason(effectiveAccess(s), FEATURE_ADSMAP);
   // Créer le projet de l'itération · la même permission que `creerProjet`, pour la marque active dans la portée.
-  const peutIterer = aPermissionEspace(g.ctx.permissions, 'studio.propose') && !!active && g.ctx.marques.includes(active.id);
+  const peutIterer = peutCreerIteration(g.ctx, active?.id);
 
   const veille = lireInspirationDemandee(sp);
   if (veille) {
@@ -161,7 +175,17 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
       }
     }
   }
-  const garder = filLu?.etat === 'ok' ? (filLu.gagnante?.adId ?? filLu.lu.adsmapAdId) : null;
+  // Depuis la gagnante d'un lot (ou de la carte qu'il a confirmée) · relue dans la marque active · jamais crue depuis l'adresse.
+  type DepuisLu = { etat: 'refus'; note: string } | { etat: 'ok'; demande: DemandeProvenanceGagnante; lot: { numero: number }; gagnante: GagnanteDuFil };
+  let depuisLu: DepuisLu | null = null;
+  if (departGagnante.etat === 'refus') depuisLu = { etat: 'refus', note: REFUS_GAGNANTE_DEPUIS[departGagnante.source] };
+  else if (departGagnante.etat === 'ok') {
+    const demande = { source: departGagnante.source, id: departGagnante.id };
+    const lu = active ? await lireGagnantesDepuis(s.workspaceId, active.id, demande) : null;
+    const gg = lu?.gagnantes.find((x) => x.adId === departGagnante.gagnante);
+    depuisLu = lu && gg ? { etat: 'ok', demande, lot: lu.lot, gagnante: gg } : { etat: 'refus', note: REFUS_GAGNANTE_DEPUIS[departGagnante.source] };
+  }
+  const garder = filLu?.etat === 'ok' ? (filLu.gagnante?.adId ?? filLu.lu.adsmapAdId) : depuisLu?.etat === 'ok' ? depuisLu.gagnante.adId : null;
 
   const premieres = [...new Set(rows.map((r) => r.adId))].slice(0, MAX_CHOIX_ITERATION);
   const ids = garder && !premieres.includes(garder) && rows.some((r) => r.adId === garder) ? [...premieres, garder] : premieres;
@@ -212,8 +236,13 @@ export default async function IterationSpatiale({ searchParams }: { searchParams
   }
 
   // Depuis un commentaire ou une note · le départ (sa pub, ou sa gagnante) · calculé avec les variables admises.
-  let commentaire: { note: string; adId: string | null; variable: ReturnType<typeof departDepuisFil>['variable']; hypothese: string | null; provenance: ProvenanceCommentaire | null; provenanceNote?: ProvenanceNote | null } | null = null;
+  let commentaire: { note: string; adId: string | null; variable: ReturnType<typeof departDepuisFil>['variable']; hypothese: string | null; provenance: ProvenanceCommentaire | null; provenanceNote?: ProvenanceNote | null; depuis?: DemandeProvenanceGagnante | null } | null = null;
   if (filLu?.etat === 'refus') commentaire = { note: filLu.note, adId: null, variable: null, hypothese: null, provenance: null };
+  else if (depuisLu?.etat === 'refus') commentaire = { note: depuisLu.note, adId: null, variable: null, hypothese: null, provenance: null };
+  else if (depuisLu?.etat === 'ok') {
+    const d = departDepuisGagnanteDe(depuisLu.demande.source, depuisLu.gagnante, depuisLu.lot, variables[depuisLu.gagnante.adId] ?? null);
+    commentaire = { note: d.note, adId: d.adId, variable: d.variable, hypothese: null, provenance: null, depuis: depuisLu.demande };
+  }
   else if (filLu?.etat === 'ok') {
     const { fil, lu, gagnante } = filLu;
     const provenances = {

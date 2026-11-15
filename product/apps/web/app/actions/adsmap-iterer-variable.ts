@@ -10,6 +10,7 @@ import {
   lireDemandeProvenanceCommentaire, type ProvenanceCommentaire,
   lireDemandeProvenanceNote, type ProvenanceNote,
   provenanceFilDepuisGagnanteAdmise, refProvenanceFilGagnante,
+  lireDemandeProvenanceGagnante, provenanceGagnanteAdmise, refProvenanceGagnante, type DemandeProvenanceGagnante,
   RAISON_AUTRE_MARQUE, RAISON_DEUX_SOURCES, RAISON_HORS_PLAN, RAISON_VEILLE_AUTRE_MARQUE, RAISON_VEILLE_NON_GARDEE, type TestedVariable,
 } from '@tiktrends/core';
 import { adsmapGuard, type AdsMapGuardOk } from '../../lib/adsmap-guard';
@@ -21,6 +22,7 @@ import { trackSavedAdAction } from './adsmap-bridge';
 import { createIterationAction, iterationPlanAction } from './adsmap-iterate';
 import { lireCandidatsProjet, lireContexteGestes, lireReponseJarvis } from '../../lib/jarvis-gestes';
 import { lireCommentairePourIterer, lireGagnantesDuFil, lireNotePourIterer } from '../../lib/studios/commentaire-iterer';
+import { lireGagnantesDepuis } from '../../lib/iterer-gagnante';
 
 /**
  * Créer l’itération d’une gagnante en CHOISISSANT la variable (écran Itérer,
@@ -89,12 +91,24 @@ import { lireCommentairePourIterer, lireGagnantesDuFil, lireNotePourIterer } fro
  * en plus (`gagnanteAdId`, `refProvenanceFilGagnante`) · rien de ce que le
  * client envoie de plus n'est cru (le lecteur de la demande ne garde que les
  * identifiants du fil).
+ *
+ * ── Depuis la gagnante d'un lot conclu ou d'une hypothèse confirmée ─────────
+ *
+ * `gagnante: { source: 'lot' | 'hypothese', id }` (écran Itérer ouvert depuis
+ * la fiche d'un lot ou la carte d'une hypothèse) · JAMAIS cru · le lot (ou la
+ * carte) relu dans la marque active, ses gagnantes admises relues par la règle
+ * du noyau (`lireGagnantesDepuis` · `gagnantesDuLot`, `gagnanteDeLHypothese`)
+ * · admise seulement si la pub de départ en est une (`provenanceGagnanteAdmise`)
+ * · alors `source_ref_json.depuisGagnante` (source, lot, carte, `gagnanteAdId`
+ * · identifiants seuls, `refProvenanceGagnante`) · aucune provenance « Lot » ni
+ * « Hypothèse » n'existe au bilan · l'itération y compte dans « Itération d'une
+ * gagnante », comme avant · sinon elle naît ordinaire.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ReponseIterationChoisie =
-  | { ok: true; adId: string; code: string; variable: TestedVariable; valeur: string; preparer: string; provenance?: 'jarvis' | 'commentaire' | 'note' | null }
+  | { ok: true; adId: string; code: string; variable: TestedVariable; valeur: string; preparer: string; provenance?: 'jarvis' | 'commentaire' | 'note' | 'gagnante' | null }
   | { ok: false; error: string };
 
 export async function creerIterationChoisieAction(entree: {
@@ -107,6 +121,8 @@ export async function creerIterationChoisieAction(entree: {
   commentaire?: unknown;
   /** La note de la lignée d'où vient l'itération · relue avant d'être posée (`provenanceNote`). */
   note?: unknown;
+  /** Le lot conclu, ou la carte d'hypothèse confirmée, dont la gagnante est le départ · relu avant d'être posé (`provenanceGagnante`). */
+  gagnante?: unknown;
 }): Promise<ReponseIterationChoisie> {
   const g = await adsmapGuard({ minRole: 'member' });
   if ('error' in g) return { ok: false, error: g.error };
@@ -134,6 +150,7 @@ export async function creerIterationChoisieAction(entree: {
   const provenance = entree.jarvis === undefined ? null : await provenanceJarvis(g, entree.jarvis, parentAdId);
   const deCommentaire = entree.commentaire === undefined ? null : await provenanceCommentaire(g, entree.commentaire, parentAdId);
   const deNote = entree.note === undefined ? null : await provenanceNote(g, entree.note, parentAdId);
+  const deGagnante = entree.gagnante === undefined ? null : await provenanceGagnante(g, entree.gagnante, parentAdId);
 
   const r = await createIterationAction({
     parentAdId, mode: choix.mode, changedVariable: v.variable, stageTargeted: choix.etape,
@@ -143,8 +160,8 @@ export async function creerIterationChoisieAction(entree: {
 
   const [enfant] = await db!.select({ code: schema.ads.variantCode, sourceRef: schema.ads.sourceRef }).from(schema.ads).where(eq(schema.ads.id, r.adId)).limit(1);
   const code = enfant?.code ?? 'nouvelle';
-  let pose: 'jarvis' | 'commentaire' | 'note' | null = null;
-  if ((provenance || deCommentaire || deNote) && enfant) {
+  let pose: 'jarvis' | 'commentaire' | 'note' | 'gagnante' | null = null;
+  if ((provenance || deCommentaire || deNote || deGagnante) && enfant) {
     try {
       // Fusionnée dans le JSON de source existant · rien d'autre n'est réécrit (aucune colonne, aucune migration).
       const avant = enfant.sourceRef && typeof enfant.sourceRef === 'object' ? enfant.sourceRef as Record<string, unknown> : {};
@@ -152,9 +169,10 @@ export async function creerIterationChoisieAction(entree: {
         ...avant, ...(provenance ? refProvenanceJarvis(provenance) : {}),
         ...(deCommentaire ? refProvenanceFilGagnante({ fil: 'commentaire', provenance: deCommentaire.provenance }, deCommentaire.gagnante) : {}),
         ...(deNote ? refProvenanceFilGagnante({ fil: 'note', provenance: deNote.provenance }, deNote.gagnante) : {}),
+        ...(deGagnante ? refProvenanceGagnante(deGagnante) : {}),
       } })
         .where(and(eq(schema.ads.id, r.adId), eq(schema.ads.workspaceId, g.s.workspaceId)));
-      pose = provenance ? 'jarvis' : deCommentaire ? 'commentaire' : 'note';
+      pose = provenance ? 'jarvis' : deCommentaire ? 'commentaire' : deNote ? 'note' : 'gagnante';
       revalidatePath('/adsmap/hypotheses');
     } catch (e) {
       // L'itération existe · seule la provenance manque, le bilan la comptera comme une itération ordinaire.
@@ -226,6 +244,24 @@ async function provenanceNote(g: AdsMapGuardOk, brut: unknown, parentAdId: strin
       ? (await lireGagnantesDuFil(g.s, g.brand.id, { fil: 'note', id: demande.noteId, projetId: demande.projetId })).map((x) => x.adId)
       : [];
     return provenanceFilDepuisGagnanteAdmise(demande, { adDuFil, gagnantes, parentAdId });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * La gagnante d'un lot conclu (ou de la carte qu'il a confirmée) demandée,
+ * RELUE · le lot ou la carte dans la marque active, ses gagnantes admises par
+ * la règle du noyau, la pub de départ parmi elles · `null` sinon (adresse
+ * forgée, autre marque, lot non conclu, hypothèse non confirmée, pub qui n'est
+ * pas une gagnante admise) · aucune écriture, aucun modèle.
+ */
+async function provenanceGagnante(g: AdsMapGuardOk, brut: unknown, parentAdId: string): Promise<{ demande: DemandeProvenanceGagnante; lotId: string; gagnante: string } | null> {
+  const demande = lireDemandeProvenanceGagnante(brut);
+  if (!demande) return null;
+  try {
+    const lu = await lireGagnantesDepuis(g.s.workspaceId, g.brand.id, demande);
+    return provenanceGagnanteAdmise(demande, { lotId: lu?.lot.id ?? null, gagnantes: (lu?.gagnantes ?? []).map((x) => x.adId), parentAdId });
   } catch {
     return null;
   }
