@@ -56,6 +56,18 @@ export interface DiagnosticFinPrevue {
 
 const nombre = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v);
 
+/**
+ * La FIN PRÉVUE d'un lot est-elle passée · une date lisible, au plus tard
+ * `maintenant` (l'horloge est passée par l'appelant). Sans fin prévue, ou
+ * illisible · jamais · on ne devine pas la durée d'un protocole. UNE règle ·
+ * l'Accueil (`lotsFinPrevuePassee`, « fin prévue passée, aucun verdict à
+ * arbitrer ») et le compte « à importer » (`casMesuresLot`) la lisent.
+ */
+export function finPrevuePassee(finPrevue: string | null | undefined, maintenant: Date): boolean {
+  const t = finPrevue ? Date.parse(finPrevue) : NaN;
+  return Number.isFinite(t) && t <= maintenant.getTime();
+}
+
 /** Pourquoi aucun verdict n'attend · `null` quand les données ne permettent pas de trancher. */
 export function diagnosticFinPrevue(variantes: readonly VarianteFinPrevue[], seuil: SeuilMinimumMoteur): DiagnosticFinPrevue | null {
   const n = variantes.length;
@@ -224,6 +236,8 @@ export interface LotImport {
   /** Aucune source · la phrase · `null` sinon. */
   sansSource: string | null;
   variantes: LigneVarianteImport[];
+  /** À quel moment de sa vie le lot attend ses mesures (`mesuresDuLot`) · absent ou `null`, le lot n'attend rien. */
+  mesures?: { cas: 'en-cours' | 'manquantes'; texte: string } | null;
 }
 
 /** L'état d'une variante · le même que le diagnostic lit (statut, plateforme, verdict calculé, minimum du moteur). */

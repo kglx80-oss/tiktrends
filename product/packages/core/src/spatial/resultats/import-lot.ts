@@ -2,9 +2,10 @@ import { CHEMIN_IMPORT_RESULTATS } from '../../parcours-boucle';
 import type { SeuilMinimumMoteur } from '../../adsmap/verdict';
 import { PRESENTATION_ETAT_LOT, etatLotSpatial, type ContexteLots, type EtatLotSpatial, type FaitsVerdictVariante } from './lots';
 import {
-  diagnosticFinPrevue, finPrevueAccueil, lienImportLot, sourcesImportLot,
+  diagnosticFinPrevue, finPrevueAccueil, finPrevuePassee, lienImportLot, sourcesImportLot,
   type FinPrevueAccueil, type LotImport, type VarianteFinPrevue,
 } from './fin-prevue';
+import { jourCourt } from '../accueil/temps';
 
 /**
  * Spatial · Résultats · l'écran d'import choisit SON lot (ligne I06) · et chaque
@@ -29,11 +30,15 @@ export interface LotListeImport {
   but: string | null;
   statut: string;
   lanceLe: string | null;
+  /** `adsmap_batches.planned_end_at` (ISO) · `null` sans fin prévue (aucun écran ne l'écrit aujourd'hui · la fenêtre du moteur prend le relais). */
+  finPrevue: string | null;
   ads: ReadonlyArray<VarianteListeImport>;
 }
 
-/** Ce que la règle `lotAttendDesMesures` lit d'un lot · son état (statut, lancement, verdicts) et ses variantes · ni son but, ni son identité. */
-export type FaitsLotAImporter = Pick<LotListeImport, 'statut' | 'lanceLe' | 'ads'>;
+/** Ce que la règle `lotAttendDesMesures` lit d'un lot · son état (statut, lancement, verdicts) et ses variantes · ni son but, ni son identité, ni sa fin prévue. */
+export type FaitsLotEnMesure = Pick<LotListeImport, 'statut' | 'lanceLe' | 'ads'>;
+/** Ce que `casMesuresLot` lit · les mêmes faits, ET la fin prévue (obligatoire · l'oublier ferait taire la pastille sans le dire). */
+export type FaitsLotAImporter = Pick<LotListeImport, 'statut' | 'lanceLe' | 'finPrevue' | 'ads'>;
 
 /** Les états d'un lot qui reçoit encore des mesures · lancé, suivi dans l'outil, pas encore à arbitrer. */
 const ETATS_EN_MESURE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['diffusion', 'a_importer']);
@@ -46,18 +51,102 @@ const ETATS_EN_MESURE: ReadonlySet<EtatLotSpatial> = new Set<EtatLotSpatial>(['d
  * variantes sans mesure, ou sous le minimum du moteur de la MARQUE) · « chaque
  * variante a ses mesures » et le silence n'attendent rien.
  */
-export function lotAttendDesMesures(l: FaitsLotAImporter, ctx: ContexteLots, seuil: SeuilMinimumMoteur): boolean {
+export function lotAttendDesMesures(l: FaitsLotEnMesure, ctx: ContexteLots, seuil: SeuilMinimumMoteur): boolean {
   if (!ETATS_EN_MESURE.has(etatLotSpatial(l, ctx))) return false;
   if (!sourcesImportLot(l.ads).ok) return false;
   const d = diagnosticFinPrevue(l.ads, seuil);
   return !!d && d.cas !== 'autre';
 }
 
+/**
+ * Un lot qui attend des mesures (`lotAttendDesMesures`) · À QUEL MOMENT de sa vie ·
+ *  · `en-cours`     · en diffusion, fin prévue pas encore passée (ou aucune) ·
+ *                     les mesures montent normalement sous le minimum du
+ *                     moteur · rien à faire d'ici là, la pastille se tait ;
+ *  · `manquantes`   · la fin prévue est passée (`finPrevuePassee`, la règle de
+ *                     l'Accueil) OU le lot est « Mesures à importer » (la
+ *                     fenêtre du moteur de la MARQUE est écoulée,
+ *                     `etatLotSpatial`) · il manque vraiment quelque chose.
+ * `null` · le lot n'attend rien. Aucun seuil nouveau · la fin prévue, la
+ * fenêtre et le minimum du moteur sont ceux qui existent.
+ *
+ * Sans fin prévue (aujourd'hui, toujours · aucun écran n'écrit
+ * `planned_end_at`), on ne devine pas la durée du protocole · le lot reste
+ * « en cours » (silence plutôt que bruit) jusqu'à ce que la fenêtre du moteur
+ * s'écoule · il passe alors « Mesures à importer », donc « manquantes ». Rien
+ * n'est perdu · seulement plus tôt dit. Sans date de lancement, la fenêtre ne
+ * s'écoule jamais (`etatLotSpatial`) · le lot reste en cours, dans la liste.
+ *
+ * Mesuré avant (#1090 · `lotAttendDesMesures` seul) · sur les semis des tests
+ * existants, 5 lots allumés sur 19 l'étaient en pleine diffusion, sans fin
+ * prévue (compte-a-importer-db · n6, borne1, borne2 · corpus du noyau · c, e),
+ * 14 après la fenêtre · aucun semis n'avait de fin prévue en diffusion. Banc
+ * construit (un lot de 4 variantes Meta, heure par heure sur 14 jours,
+ * fenêtre 7 j, minimum par défaut, CPM 10 €, synchro chaque nuit) ·
+ *
+ * | scénario                                   | allumée en diffusion | allumée après fin / fenêtre |
+ * |--------------------------------------------|----------------------|-----------------------------|
+ * | 10 €/j/variante, synchro                   | 5,7 j sur 7,0        | 0,0 j sur 7,0               |
+ * | 5 €/j/variante, synchro                    | 7,0 j sur 7,0        | 0,0 j sur 7,0               |
+ * | 30 €/j/variante, synchro                   | 1,7 j sur 7,0        | 0,0 j sur 7,0               |
+ * | 10 €/j, fin prévue J5                      | 5,0 j sur 5,0        | 0,7 j sur 9,0               |
+ * | 10 €/j, une variante jamais rattachée      | 7,0 j sur 7,0        | 7,0 j sur 7,0               |
+ * | aucune synchro, export importé à J9        | 7,0 j sur 7,0        | 2,0 j sur 7,0               |
+ * | aucune synchro, fin prévue J5, import à J9 | 5,0 j sur 5,0        | 4,0 j sur 9,0               |
+ *
+ * Après · la pastille ne compte que `manquantes` · 0 j allumée en diffusion
+ * dans chaque scénario, la colonne « après » inchangée (le vrai signal).
+ */
+export type CasMesuresLot = 'en-cours' | 'manquantes';
+
+export function casMesuresLot(l: FaitsLotAImporter, ctx: ContexteLots, seuil: SeuilMinimumMoteur): CasMesuresLot | null {
+  if (!lotAttendDesMesures(l, ctx, seuil)) return null;
+  return etatLotSpatial(l, ctx) === 'a_importer' || finPrevuePassee(l.finPrevue, ctx.maintenant) ? 'manquantes' : 'en-cours';
+}
+
+/** Le cas, dit sur la section « Lot #n · ses mesures » de l'écran d'import · `null` quand le lot n'attend rien. */
+export function mesuresDuLot(l: FaitsLotAImporter & { numero: number }, ctx: ContexteLots, seuil: SeuilMinimumMoteur): { cas: CasMesuresLot; texte: string } | null {
+  const cas = casMesuresLot(l, ctx, seuil);
+  if (!cas) return null;
+  const jour = (iso: string) => jourCourt(iso.slice(0, 10));
+  const n = l.numero;
+  if (cas === 'manquantes') {
+    return {
+      cas,
+      texte: finPrevuePassee(l.finPrevue, ctx.maintenant)
+        ? `Mesures manquantes · la fin prévue du lot #${n} (le ${jour(l.finPrevue!)}) est passée.`
+        : `Mesures manquantes · la fenêtre du moteur du lot #${n} (${ctx.fenetreJours} jours) est écoulée.`,
+    };
+  }
+  if (l.finPrevue) return { cas, texte: `Mesures en cours · le lot #${n} est en diffusion jusqu’au ${jour(l.finPrevue)} · sous le minimum du moteur d’ici là, c’est normal.` };
+  const lance = l.lanceLe ? Date.parse(l.lanceLe) : NaN;
+  return {
+    cas,
+    texte: Number.isFinite(lance)
+      ? `Mesures en cours · le lot #${n} est en diffusion, sans fin prévue · s’il manque des mesures à la fin de la fenêtre du moteur (le ${jour(new Date(lance + ctx.fenetreJours * 86_400_000).toISOString())}), il passera « Mesures à importer ».`
+      : `Mesures en cours · le lot #${n} est en diffusion, sans fin prévue ni date de lancement.`,
+  };
+}
+
 export const LIBELLE_LISTE_LOT = 'Lot';
 export const TOUS_LES_LOTS = 'Tous les lots';
-export const AIDE_LISTE_LOT = 'Les lots de la marque qui attendent des mesures · en diffusion ou à importer, une variante sans mesure ou sous le minimum du moteur. « Tous les lots » · l’export se rattache ligne par ligne, comme avant.';
+export const AIDE_LISTE_LOT = 'Les lots de la marque qui attendent des mesures · « mesures manquantes » quand la fin prévue est passée ou la fenêtre du moteur écoulée (la pastille du rail les compte), « mesures en cours » pendant la diffusion. « Tous les lots » · l’export se rattache ligne par ligne, comme avant.';
 
-export interface OptionLotImport { id: string; libelle: string }
+/** Les groupes de la liste « Lot », dans cet ordre · `adresse` · le lot de l'adresse qui n'attend rien (un « Importer » l'y a mené). */
+export type GroupeListeLot = CasMesuresLot | 'adresse';
+export const ORDRE_GROUPES_LISTE_LOT: readonly GroupeListeLot[] = ['manquantes', 'en-cours', 'adresse'];
+export const LIBELLE_GROUPE_LISTE_LOT: Readonly<Record<GroupeListeLot, string>> = {
+  manquantes: 'Mesures manquantes · fin prévue passée ou fenêtre écoulée',
+  'en-cours': 'Mesures en cours · en diffusion',
+  adresse: 'Ouvert par le lien',
+};
+
+export interface OptionLotImport {
+  id: string;
+  libelle: string;
+  /** Le groupe de l'option · posé par `listeLotImport` · absent, l'option est rendue sans groupe. */
+  groupe?: GroupeListeLot;
+}
 
 export interface ListeLotImport {
   /** La valeur choisie · `''` = « Tous les lots ». */
@@ -73,15 +162,32 @@ export interface ListeLotImport {
  * `cible` est le lot déjà retenu par `lotCibleImport` (dans la portée) ou `null`.
  */
 export function listeLotImport(lots: readonly LotListeImport[], cible: string | null, ctx: ContexteLots, seuil: SeuilMinimumMoteur): ListeLotImport | null {
-  const retenus = lots.filter((l) => l.id === cible || lotAttendDesMesures(l, ctx, seuil));
+  const retenus = lots
+    .map((l) => ({ l, groupe: casMesuresLot(l, ctx, seuil) ?? (l.id === cible ? 'adresse' as const : null) }))
+    .filter((x): x is { l: LotListeImport; groupe: GroupeListeLot } => x.groupe !== null);
   if (!retenus.length) return null;
+  // Regroupés par cas, dans l'ordre des groupes · dans un groupe, l'ordre lu (tri stable).
+  const rang = (g: GroupeListeLot) => ORDRE_GROUPES_LISTE_LOT.indexOf(g);
   return {
-    choisi: cible && retenus.some((l) => l.id === cible) ? cible : '',
-    options: retenus.map((l) => ({
+    choisi: cible && retenus.some((x) => x.l.id === cible) ? cible : '',
+    options: [...retenus].sort((a, b) => rang(a.groupe) - rang(b.groupe)).map(({ l, groupe }) => ({
       id: l.id,
       libelle: [`Lot #${l.numero}`, l.but?.trim() || null, PRESENTATION_ETAT_LOT[etatLotSpatial(l, ctx)].statut].filter(Boolean).join(' · '),
+      groupe,
     })),
   };
+}
+
+/** Les options consécutives d'un même groupe, réunies · le libellé du groupe (`optgroup`) · une option sans groupe reste seule. */
+export function groupesListeLot(options: readonly OptionLotImport[]): Array<{ groupe: GroupeListeLot | null; libelle: string | null; options: OptionLotImport[] }> {
+  const out: Array<{ groupe: GroupeListeLot | null; libelle: string | null; options: OptionLotImport[] }> = [];
+  for (const o of options) {
+    const g = o.groupe ?? null;
+    const dernier = out.at(-1);
+    if (dernier && g !== null && dernier.groupe === g) dernier.options.push(o);
+    else out.push({ groupe: g, libelle: g ? LIBELLE_GROUPE_LISTE_LOT[g] : null, options: [o] });
+  }
+  return out;
 }
 
 /** La sélection devient l'adresse · `''` (« Tous les lots ») → l'écran sans lot · un lot → l'écran ouvert sur lui. */
@@ -93,9 +199,13 @@ export function adresseListeLot(valeur: string): string {
 
 /**
  * Le compte « à importer » · le nombre de lots de la liste « Lot » de l'écran
- * d'import qui ATTENDENT des mesures (`listeLotImport` sans lot dans l'adresse),
- * par la MÊME règle (`lotAttendDesMesures`, aucune copie), dans l'ordre reçu
- * (celui de la liste · le plus récent d'abord). DISTINCT du compte « à
+ * d'import dont les mesures MANQUENT (`listeLotImport` sans lot dans
+ * l'adresse, groupe « Mesures manquantes »), par la MÊME règle
+ * (`casMesuresLot`, aucune copie), dans l'ordre reçu (celui de la liste · le
+ * plus récent d'abord). Un lot dont les mesures sont « en cours » (en
+ * diffusion, fin prévue pas passée) reste dans la liste, jamais dans le
+ * compte · la pastille ne s'allume que quand il manque vraiment quelque
+ * chose (mesuré · `casMesuresLot`). DISTINCT du compte « à
  * conclure » (`compteAConclure`) · un lot à conclure n'attend aucune mesure,
  * un lot qui attend ses mesures n'a rien à arbitrer · les deux ne
  * s'additionnent jamais (deux pastilles, deux unités, deux destinations).
@@ -107,7 +217,7 @@ export interface CompteAImporter {
 }
 
 export function compteAImporter(lots: ReadonlyArray<FaitsLotAImporter & { id: string; numero: number }>, ctx: ContexteLots, seuil: SeuilMinimumMoteur): CompteAImporter {
-  const s = lots.filter((l) => lotAttendDesMesures(l, ctx, seuil));
+  const s = lots.filter((l) => casMesuresLot(l, ctx, seuil) === 'manquantes');
   return { n: s.length, lots: s.map((l) => ({ id: l.id, numero: l.numero })) };
 }
 
