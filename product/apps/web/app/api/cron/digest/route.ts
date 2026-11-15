@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { eq, inArray } from 'drizzle-orm';
 import { db, schema } from '@tiktrends/db';
+import { destinataireRecap } from '@tiktrends/core';
 import { weeklyDigests, digestText } from '../../../../lib/digest';
 import { createNotification } from '../../../../lib/notifications';
 import { digestEmail } from '../../../../lib/emails';
@@ -47,12 +48,13 @@ export async function GET(req: Request) {
 
     for (const l of lettres) {
       // Les destinataires · propriétaires et administrateurs de l'espace, ceux
-      // qui peuvent agir sur le geste conseillé.
+      // qui peuvent agir sur le geste conseillé · la règle que la cloche relit
+      // (`destinataireRecap`, une seule).
       const membres = await db.select({ userId: schema.workspaceMembers.userId, role: schema.workspaceMembers.role })
         .from(schema.workspaceMembers)
         .where(eq(schema.workspaceMembers.workspaceId, l.workspaceId))
         .catch(() => []);
-      const cibles = membres.filter((m) => m.role === 'owner' || m.role === 'admin');
+      const cibles = membres.filter((m) => destinataireRecap(m.role));
       if (!cibles.length) continue;
 
       for (const m of cibles) {

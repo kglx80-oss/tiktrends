@@ -378,8 +378,8 @@ describe('le coût · UNE requête pour le lot de tickets, jamais une par notifi
       const c = await commenterProjet({ projectId: p.projectId, cible: 'version', cibleId: p.versionId, texte: `@${NOM_ANNE} avis ${i}`, mentions: [ids.ua] });
       if (!c.ok) throw new Error(`commenter ${JSON.stringify(c)}`);
     }
-    // Paul · que des notifications ordinaires (aucun ticket, aucun fil borné).
-    await db.insert(schema.notifications).values(Array.from({ length: 30 }, (_, i) => ({ workspaceId: ids.wsA, userId: ids.up, type: 'radar', title: `Radar ${i}`, body: 'Rien de neuf', href: '/radar' })));
+    // Paul · que des notifications ordinaires (aucun ticket, aucun fil borné · le suivi des concurrents, le radar étant relu contre sa page).
+    await db.insert(schema.notifications).values(Array.from({ length: 30 }, (_, i) => ({ workspaceId: ids.wsA, userId: ids.up, type: 'tracker', title: `${i} nouvelles pubs`, body: 'Tes concurrents ont publié', href: '/saved' })));
   }, 300_000);
 
   it('20 notifications de ticket sur 20 tickets distincts · autant de requêtes que 3 sur 2 tickets · toutes lues (Anne propriétaire)', async () => {

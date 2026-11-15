@@ -39,7 +39,17 @@ import { peutLireTicket } from '../../spatial/reglages/support';
  *    « Ticket · plus accessible avec ton rôle actuel », la raison, sans titre,
  *    ni texte, ni lien · la cloche n'est PAS bornée à l'espace courant
  *    (décision de Kevin en attente) · le ticket d'un autre espace où la
- *    personne administre encore est montré comme avant.
+ *    personne administre encore est montré comme avant ;
+ *  · le récap hebdomadaire (`digest`) et le compte rendu du radar (`radar` ·
+ *    `TYPES_NOTIF_ESPACE`) · relus contre la règle EXISTANTE de chacun, sous
+ *    le rôle et la formule ACTUELS de la personne dans l'espace DE la
+ *    notification (retirée de l'espace · rien) · le récap · ses destinataires
+ *    (`destinataireRecap`, la règle du cron · propriétaire ou administrateur) ·
+ *    le radar · la page Radar de veille (`pageRadarOuverte` · rubrique
+ *    Résultats ouverte par le rôle et la formule ET administratrice) · sinon
+ *    « Récap · réservé aux administrateurs de l'espace » (« Radar de veille ·
+ *    plus accessible avec tes droits actuels »), la raison, sans texte ni
+ *    lien · la cloche n'est PAS bornée à l'espace courant.
  *
  * ── Le coût, mesuré (la cloche est relue toutes les 45 s) ─────────────────────
  *
@@ -82,6 +92,24 @@ import { peutLireTicket } from '../../spatial/reglages/support';
  * lancée en parallèle de la relecture des Studios (le surcoût d'une cloche
  * mêlée se perd dans le bruit) · une cloche sans ticket ne paie rien.
  *
+ * Le récap et le radar · UNE lecture pour le lot (`workspaces` joint au rôle
+ * de la personne dans chaque espace, `W/lib/studios/mes-mentions.ts`), jamais
+ * une par notification ni par espace · banc `fetchNotifications` sur pglite,
+ * 5 lectures de chauffe puis 30 chronométrées, 3 essais ALTERNÉS avant / après
+ * (avant = main 51507ba), le 2026-11-15, 4 vCPU, machine partagée TRÈS chargée
+ * (charge 11 à 13 · les fourchettes sont larges, les requêtes font foi) ·
+ * fourchette des 3 médianes, et des 3 p90 après :
+ *
+ * | cloche (20 lignes lues)                         | requêtes | médiane avant → après    | p90 après      |
+ * |-------------------------------------------------|----------|--------------------------|----------------|
+ * | 20 récaps et radars sur 2 espaces               | 2 → 3    | 1,67-5,81 → 3,95-6,35 ms | 7,17-13,95 ms  |
+ * | 1 récap                                         | 2 → 3    | 1,33-2,20 → 1,93-2,59 ms | 7,42-8,55 ms   |
+ * | 30 notifications ordinaires (suivi, aucun borné) | 2 → 2    | 1,66-2,85 → 1,45-2,49 ms | 4,42-5,67 ms   |
+ *
+ * UNE lecture de plus, la même pour 1 ou 20 notifications sur 1 ou 2 espaces
+ * (gardé par `W/test/cloche-recap-radar-db.test.tsx`) · lancée en parallèle
+ * des deux autres relectures · une cloche sans récap ni radar ne paie rien.
+ *
  * La relecture coûte un nombre FIXE de lectures (session, marques,
  * restrictions et réglages des capacités · la garde des Studios · puis les
  * projets en UNE requête, les fils en une requête par genre), jamais une par
@@ -100,7 +128,62 @@ export const TEXTES_CLOCHE_PORTEE = {
   raison: 'Tu ne vois plus ce projet (espace, marque ou droits Studios) · son texte n’est pas montré.',
   ticket: 'Ticket · plus accessible avec ton rôle actuel',
   raisonTicket: 'Ce ticket est réservé à son auteur et aux administrateurs de son espace · son texte n’est pas montré.',
+  recap: 'Récap · réservé aux administrateurs de l’espace',
+  raisonRecap: 'Le récap de la semaine est réservé aux propriétaires et administrateurs de son espace · son texte n’est pas montré.',
+  radar: 'Radar de veille · plus accessible avec tes droits actuels',
+  raisonRadar: 'Le radar de veille est réservé aux administrateurs de l’espace, sur une formule qui ouvre Résultats · son texte n’est pas montré.',
 } as const;
+
+/**
+ * Les destinataires du récap hebdomadaire · propriétaires et administrateurs
+ * de l'espace, ceux qui peuvent agir sur le geste conseillé · LA règle du cron
+ * (`W/app/api/cron/digest/route.ts`) et de la cloche, une seule.
+ */
+export function destinataireRecap(role: string | null | undefined): boolean {
+  return role === 'owner' || role === 'admin';
+}
+
+/**
+ * La page Radar de veille (`/adsmap/radar`) s'ouvre-t-elle · la rubrique
+ * Résultats ouverte (`gardeResultats` · fonction `adsmap`, rôle et formule, ou
+ * la matrice de l'équipe) ET administratrice (la page renvoie un membre à la
+ * vue d'ensemble · armer une dépense récurrente n'est pas une préférence
+ * d'affichage). La page et la cloche lisent cette règle.
+ */
+export function pageRadarOuverte(d: { resultats: boolean; admin: boolean }): boolean {
+  return d.resultats && d.admin;
+}
+
+/** Les types relus contre le droit de la personne dans l'espace de la notification · le récap et le radar. */
+export const TYPES_NOTIF_ESPACE: readonly string[] = ['digest', 'radar'];
+
+/** Le type est-il relu contre le droit dans son espace (récap, radar) ? */
+export function estNotifEspace(type: string): boolean {
+  return TYPES_NOTIF_ESPACE.includes(type);
+}
+
+/** Ce que la personne peut ACTUELLEMENT lire dans un espace · son rôle et la formule de l'espace relus (retirée · rien). */
+export interface AccesEspaceCloche { recap: boolean; radar: boolean }
+
+/** Les espaces relus pour la personne · `null` quand rien ne l'a été (lecture en échec) · aucun récap ni radar n'est alors lu sur parole. */
+export interface PorteeEspaces {
+  /** Par identifiant d'espace (minuscules) · un espace absent n'est pas lisible. */
+  espaces: ReadonlyMap<string, AccesEspaceCloche>;
+}
+
+/** Les espaces à relire · ceux des notifications de récap et de radar, de TOUS les espaces (la cloche n'est pas bornée à l'espace courant), une fois chacun. */
+export function besoinsEspaces(notifs: readonly Pick<NotifCloche, 'type' | 'workspaceId'>[]): string[] {
+  const ids = new Set<string>();
+  for (const n of notifs) if (estNotifEspace(n.type) && n.workspaceId) ids.add(n.workspaceId.toLowerCase());
+  return [...ids];
+}
+
+/** Le récap ou le radar est-il lisible · l'espace de la notification relu, et la règle de sa source sous le droit actuel. */
+export function notifEspaceRelue(n: Pick<NotifCloche, 'type' | 'workspaceId'>, e: PorteeEspaces | null): boolean {
+  const a = e && n.workspaceId ? e.espaces.get(n.workspaceId.toLowerCase()) : undefined;
+  if (!a) return false;
+  return n.type === 'digest' ? a.recap : n.type === 'radar' ? a.radar : false;
+}
 
 /** Les types du support · relus contre l'accès au ticket (`peutLireTicket`) avant d'être montrés. */
 export const TYPES_NOTIF_TICKET: readonly string[] = ['ticket_new', 'ticket_reply', 'ticket_status'];
@@ -164,8 +247,8 @@ export const TYPES_NOTIF_RECENSES: Readonly<Record<string, { bornee: boolean; ra
   ticket_new: { bornee: true, raison: 'Titre et auteur d’un ticket, prévenus à l’administration · relu contre l’accès au ticket (peutLireTicket) sous le rôle actuel.' },
   ticket_reply: { bornee: true, raison: 'Titre et texte d’une réponse, à l’auteur ou à l’administration · relu contre l’accès au ticket sous le rôle actuel.' },
   ticket_status: { bornee: true, raison: 'Titre du ticket et statut, prévenus à son auteur · relu contre l’accès au ticket (l’auteur le garde toujours).' },
-  digest: { bornee: false, raison: 'Récap hebdomadaire de l’espace · aux administrateurs, aucune restriction de marque ne s’y applique · reste.' },
-  radar: { bornee: false, raison: 'Compte rendu du radar · aux membres de l’espace, la page Radar n’applique aucune restriction de marque · reste.' },
+  digest: { bornee: true, raison: 'Récap hebdomadaire d’une marque, aux propriétaires et administrateurs · relu contre ses destinataires (destinataireRecap) sous le rôle actuel dans l’espace de la notification.' },
+  radar: { bornee: true, raison: 'Compte rendu du radar (une trouvaille concurrente), prévenu aux membres · relu contre la page Radar de veille (pageRadarOuverte · Résultats ouverts ET administratrice) sous le rôle et la formule actuels.' },
   tracker: { bornee: false, raison: 'Un nombre de nouvelles pubs et une phrase fixe · aucun texte d’objet · ne peut pas fuir.' },
 };
 
@@ -202,14 +285,15 @@ export function besoinsCloche(notifs: readonly Pick<NotifCloche, 'type' | 'works
   return { projets: [...projets], fils: { commentaire: [...fils.commentaire], note: [...fils.note] } };
 }
 
-/** Le type est-il relu avant d'être montré (un fil des Studios, ou un ticket) ? */
+/** Le type est-il relu avant d'être montré (un fil des Studios, un ticket, le récap ou le radar) ? */
 export function notifBornee(type: string): boolean {
-  return !!bornageDeNotif(type) || estNotifTicket(type);
+  return !!bornageDeNotif(type) || estNotifTicket(type) || estNotifEspace(type);
 }
 
 /** La notification est-elle relue dans la portée actuelle ? · toujours pour un type non borné · un ticket, contre son accès (`t`). */
-export function notifRelueDansPortee(n: NotifCloche, p: PorteeCloche | null, t: PorteeTickets | null = null): boolean {
+export function notifRelueDansPortee(n: NotifCloche, p: PorteeCloche | null, t: PorteeTickets | null = null, e: PorteeEspaces | null = null): boolean {
   if (estNotifTicket(n.type)) return ticketRelu(n, t);
+  if (estNotifEspace(n.type)) return notifEspaceRelue(n, e);
   const b = bornageDeNotif(n.type);
   if (!b) return true;
   if (!p || n.workspaceId !== p.workspaceId || !p.genres.has(b.genre)) return false;
@@ -226,12 +310,14 @@ export function notifRelueDansPortee(n: NotifCloche, p: PorteeCloche | null, t: 
 /** Ce que la cloche MONTRE · tel quel quand la notification est relue (ou non bornée), sinon le libellé neutre, la raison, sans lien. */
 export function texteNotifCloche(n: Pick<NotifCloche, 'type' | 'titre' | 'corps' | 'href'>, relue: boolean): { titre: string; corps: string | null; href: string | null } {
   if (estNotifTicket(n.type) && !relue) return { titre: TEXTES_CLOCHE_PORTEE.ticket, corps: TEXTES_CLOCHE_PORTEE.raisonTicket, href: null };
+  if (n.type === 'digest' && !relue) return { titre: TEXTES_CLOCHE_PORTEE.recap, corps: TEXTES_CLOCHE_PORTEE.raisonRecap, href: null };
+  if (n.type === 'radar' && !relue) return { titre: TEXTES_CLOCHE_PORTEE.radar, corps: TEXTES_CLOCHE_PORTEE.raisonRadar, href: null };
   const b = bornageDeNotif(n.type);
   if (!b || relue) return { titre: n.titre, corps: n.corps, href: n.href };
   return { titre: b.neutre, corps: TEXTES_CLOCHE_PORTEE.raison, href: null };
 }
 
-/** Les notifications telles que la cloche les montre, relues dans `p` (les fils des Studios) et `t` (les tickets). */
-export function notifsDansPortee(notifs: readonly NotifCloche[], p: PorteeCloche | null, t: PorteeTickets | null = null): Array<{ titre: string; corps: string | null; href: string | null }> {
-  return notifs.map((n) => texteNotifCloche(n, notifRelueDansPortee(n, p, t)));
+/** Les notifications telles que la cloche les montre, relues dans `p` (les fils des Studios), `t` (les tickets) et `e` (le récap et le radar). */
+export function notifsDansPortee(notifs: readonly NotifCloche[], p: PorteeCloche | null, t: PorteeTickets | null = null, e: PorteeEspaces | null = null): Array<{ titre: string; corps: string | null; href: string | null }> {
+  return notifs.map((n) => texteNotifCloche(n, notifRelueDansPortee(n, p, t, e)));
 }
