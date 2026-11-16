@@ -9,6 +9,7 @@ import type { AdaptateurModele } from '../prompts/adaptateur';
 import type { EnvironnementPrompts } from '../prompts/environnement';
 import { estUuid } from '../depot';
 import { chargerCatalogueProjet, type Resultat } from './catalogue';
+import { ideeDuBriefPour } from '../image/idee-angle';
 
 /**
  * Compiler la consigne image (`image.compile`) d'un projet · contrôle AVANT
@@ -79,7 +80,7 @@ export async function compilerConsigneImagePour(
   if (!o.adaptateur) return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: MESSAGE_COMPILATION_SANS_FOURNISSEUR });
 
   const entree = entreeCompilation({
-    prep, brief: cat.brief, versionId: cat.version.id, mode,
+    prep, brief: cat.brief, versionId: cat.version.id, mode, idee: await ideeDuBriefPour(ctx, cat.projet.brandId, cat.brief),
     largeur: typeof e.largeur === 'number' ? e.largeur : 1080, hauteur: typeof e.hauteur === 'number' ? e.hauteur : 1350,
   });
   const r = await executerTache({
