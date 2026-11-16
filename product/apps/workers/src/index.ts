@@ -7,6 +7,7 @@ import { triggerAdsMapSync, triggerAllocations, triggerBascule, triggerRadar, tr
 import { fixtures } from '@tiktrends/integrations';
 import { MOTIF_REMONTEE_ADSMAP } from '@tiktrends/core';
 import { db, convertirUnite } from '@tiktrends/db';
+import { arretPropreSurSignal } from './studios/boucle';
 
 /** Worker « cron » : traite les tâches planifiées (ex : synchro data quotidienne). */
 function startCronWorker() {
@@ -38,7 +39,10 @@ async function main() {
     } catch (e) { console.error('[unite-credits] balayage', (e as Error).message); }
   }
 
-  startWorkers();
+  const { studio } = startWorkers();
+  // Arrêt propre sur SIGTERM/SIGINT (recréation du conteneur à chaque commit) ·
+  // le worker Studios finit son tour avant la sortie (voir `boucle.ts`).
+  arretPropreSurSignal({ processus: process, arreter: async () => { await studio?.arreter(); }, sortir: (c) => process.exit(c) });
   startIngestWorker();
   startCronWorker();
 

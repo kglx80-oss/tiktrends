@@ -105,7 +105,7 @@ describe('le registre d’audit · liste fermée, portée, cellules sans fuite',
     expect([...ACTIONS_SENSIBLES].sort()).toEqual([
       'asset.set_rights', 'depense.rapprochement', 'equipe.membre.retire', 'equipe.membre.role', 'prompt.benchmark.approuver', 'prompt.benchmark.approuver_budget',
       'prompt.recette_manuelle.approuver', 'prompt.release.publier', 'prompt.release.retirer', 'prompt.release.revoquer', 'prompt.release.rollback',
-      'studios.budget_essai', 'studios.interrupteurs',
+      'studios.budget_essai', 'studios.interrupteurs', 'studios.rapprochement.clore',
     ]);
     for (const a of ACTIONS_SENSIBLES) expect(ACTIONS_AUDIT[a]!.raison, a).toBeTruthy();
     expect(ACTIONS_SENSIBLES).toContain(ACTION_RAPPROCHEMENT_DEPENSE);

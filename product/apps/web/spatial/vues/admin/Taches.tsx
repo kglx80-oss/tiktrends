@@ -2,13 +2,16 @@ import { LARGEUR_MIN_TABLE_TELEPHONE, styleTableDefilante, type LigneDureesMesur
 import { Ic, Lien, Vue } from '../../communs';
 import { Kpis, TeteAdmin, Vide, type BandeauAdmin, type KpiAdmin } from './base';
 import { BoutonExportTour, PaginationTour, RechercheListeTour, type EtatExport, type PaginationListeTour } from './client';
+import { CloreRapprochement } from './taches-client';
 
 /**
  * « Tâches de génération » · suivi opérationnel (RJ JB01) · les tâches de
  * TOUTE la plateforme (`studio_jobs`), relues au serveur. PRÉSENTATIONNEL ·
- * LECTURE SEULE · des liens (segments, pages, « Déclarer un incident », le
- * rapprochement existant), la recherche et l'export · aucune relance, aucune
- * annulation d'ici. Les règles (segments, seuil « bloquée », coût lu, erreur
+ * des liens (segments, pages, « Déclarer un incident », le rapprochement
+ * existant), la recherche et l'export · aucune relance, aucune annulation
+ * d'ici. Un seul geste d'écriture · « Clore le rapprochement » sur une tâche
+ * en rapprochement (raison écrite, `cloreRapprochementAction`, le worker
+ * règle). Les règles (segments, seuil « bloquée », coût lu, erreur
  * bornée) vivent au noyau (`spatial/admin/taches-admin.ts`) · « Durées
  * mesurées » et le seuil appliqué de chaque tâche aussi
  * (`spatial/admin/durees-taches.ts`).
@@ -75,6 +78,7 @@ export function Taches(p: PropsTaches) {
               <span data-gestes="">
                 {l.hrefIncident && <Lien className="btn sm" href={l.hrefIncident} style={CIBLE_44} data-declarer={l.id}><Ic n="warn" />Déclarer un incident</Lien>}
                 {l.hrefRapprocher && <Lien className="btn sm" href={l.hrefRapprocher} style={CIBLE_44} data-rapprocher={l.id}>Rapprocher le coût</Lien>}
+                {l.clore && <CloreRapprochement id={l.id} permis={l.clore.permis} raison={l.clore.raison} />}
               </span>
             </div>
           ))}
