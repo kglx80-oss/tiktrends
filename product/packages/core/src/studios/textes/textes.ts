@@ -32,6 +32,7 @@ import { HEADLINE_FLOOR } from '../../copy-budget';
 import { costOfTokens } from '../../spend-guard';
 import { JETONS_ENTREE_MAX_PROPOSITION, JETONS_SORTIE_MAX_PROPOSITION } from '../bornes-taches';
 import { csvCell } from '../../adsmap/sheet';
+import { lignesIdee, type IdeeBrief } from '../image/idee-angle';
 
 /* ─────────────────────────────── Types ───────────────────────────────────── */
 
@@ -147,19 +148,27 @@ export function idsVariantesAlloues(n: number): Array<{ id: string; entityType: 
   return Array.from({ length: Math.min(Math.max(1, n), VARIANTES_MAX) }, (_, i) => ({ id: `txv_${i + 1}`, entityType: 'variant' as const, ordinal: i }));
 }
 
-/** Le brief, résumé pour la tâche · une DONNÉE (chaque champ vient du brief validé). */
-export function resumeBrief(b: BriefCanonique): string {
+/**
+ * Le brief, résumé pour la tâche · une DONNÉE (chaque champ vient du brief validé).
+ *
+ * `idee` (compilation image seulement) · ce que le serveur a RELU pour l'idée
+ * visuelle (persona résolu dans la portée de la marque, direction reconnue) ;
+ * l'angle et le concept viennent du brief. Sans `idee`, ou sans aucune de ces
+ * valeurs, le résumé est celui d'avant au caractère près (`lignesIdee` vide).
+ */
+export function resumeBrief(b: BriefCanonique, idee?: IdeeBrief): string {
   const h = hypotheseDuBrief(b);
   const l = (nom: string, x: string | string[]) => {
     const t = Array.isArray(x) ? x.filter(Boolean).join(' ; ') : x;
     return t.trim() ? `${nom} : ${t.trim()}` : '';
   };
+  const i = idee ? lignesIdee(b, idee) : { apresAudience: [], apresStyle: [] };
   return [
-    l('Objectif', b.objective), l('Audience', b.audience),
+    l('Objectif', b.objective), l('Audience', b.audience), ...i.apresAudience,
     l('Hypothèse', h?.statement ?? ''), l('Variable testée', b.testedVariable),
     l('Témoin', h?.control ?? ''), l('Traitement', h?.treatment ?? ''),
     l('Invariants', b.invariants), l('Exclusions', b.exclusions),
-    l('Composition', b.composition), l('Intention de style', b.styleIntent), l('Formats', b.formats),
+    l('Composition', b.composition), l('Intention de style', b.styleIntent), ...i.apresStyle, l('Formats', b.formats),
   ].filter(Boolean).join('\n').slice(0, TEXTE_MAX_CONTRAT);
 }
 
@@ -219,8 +228,8 @@ export function documentResolu(id: string, version: string, claim: string) {
   return { id, version, schemaKey: 'Fact', content, sha256: sha256Hex(jsonCanonique(content)) };
 }
 
-export function documentBrief(b: BriefCanonique, versionId: string) {
-  return documentResolu(`brief_${versionId}`, versionId, resumeBrief(b) || 'Brief sans champ renseigné.');
+export function documentBrief(b: BriefCanonique, versionId: string, idee?: IdeeBrief) {
+  return documentResolu(`brief_${versionId}`, versionId, resumeBrief(b, idee) || 'Brief sans champ renseigné.');
 }
 
 export function entreeEcriture(e: EntreeEcriture) {

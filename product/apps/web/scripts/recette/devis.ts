@@ -49,6 +49,7 @@ import { schemaStructure } from '../../lib/studios/prompts/schema-structure';
 import { chargerSource } from '../../lib/studios/prompts/source';
 import { chargerCatalogueProjet } from '../../lib/studios/produit/catalogue';
 import { formatImageDuContenu } from '../../lib/studios/image/verification';
+import { ideeDuBriefPour } from '../../lib/studios/image/idee-angle';
 import { lireProjet, lireVersion } from '../../lib/studios/depot';
 import type { ContexteStudio } from '../../lib/studios/garde';
 
@@ -86,7 +87,7 @@ export async function requeteCompilationPas1(
   const cat = c.catalogue;
   const prep = controlerAvantCompilation({ mode: e.mode, brief: cat.brief, produit: cat.epingle, fichiers: cat.fichiers });
   if (!prep.ok || !cat.brief) return { ok: false, raison: `contrôle avant compilation refusé · ${prep.violations.map((x) => x.raison).join(' ; ')}` };
-  const entree = entreeCompilation({ prep, brief: cat.brief, versionId: cat.version.id, mode: e.mode, largeur: format.largeur, hauteur: format.hauteur });
+  const entree = entreeCompilation({ prep, brief: cat.brief, versionId: cat.version.id, mode: e.mode, largeur: format.largeur, hauteur: format.hauteur, idee: await ideeDuBriefPour(ctx, cat.projet.brandId, cat.brief) });
 
   const release = await releaseActive();
   if (!release) return { ok: false, raison: 'aucune release de prompts publiée' };
