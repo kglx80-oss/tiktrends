@@ -83,18 +83,20 @@ describe('la data URI reçue · même règle au navigateur et au serveur', () =>
 });
 
 describe('compression · une échelle, dans l’ordre', () => {
-  it('JPEG : 1280 à 0,85 (l’ancien geste), puis 0,7, puis 1024', () => {
+  it('JPEG : 1920 à 0,85 (côté mesuré), puis 1600, puis 1280 (l’ancien geste), puis 0,7, puis 1024', () => {
     expect(etapesCompression('image/jpeg')).toEqual([
+      { cote: 1920, format: 'image/jpeg', qualite: 0.85 },
+      { cote: 1600, format: 'image/jpeg', qualite: 0.85 },
       { cote: 1280, format: 'image/jpeg', qualite: 0.85 },
       { cote: 1280, format: 'image/jpeg', qualite: 0.7 },
       { cote: 1024, format: 'image/jpeg', qualite: 0.7 },
     ]);
   });
-  it('PNG et WebP tentent d’abord le PNG (transparence d’un détourage), puis la même échelle JPEG', () => {
+  it('PNG et WebP tentent d’abord le PNG (transparence d’un détourage) aux mêmes côtés, puis la même échelle JPEG', () => {
     for (const f of ['image/png', 'image/webp']) {
       const e = etapesCompression(f);
-      expect(e[0]).toEqual({ cote: 1280, format: 'image/png', qualite: null });
-      expect(e.slice(1)).toEqual(etapesCompression('image/jpeg'));
+      expect(e.slice(0, 3)).toEqual([1920, 1600, 1280].map((cote) => ({ cote, format: 'image/png', qualite: null })));
+      expect(e.slice(3)).toEqual(etapesCompression('image/jpeg'));
     }
   });
 });
