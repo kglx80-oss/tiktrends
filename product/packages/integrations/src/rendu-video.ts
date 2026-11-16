@@ -59,7 +59,7 @@ export interface MesureAssemblage {
 }
 export type ResultatAssemblage =
   | { ok: true; octets: Uint8Array; mesure: MesureAssemblage; /** Le MP4 assemblé sur disque · seulement avec `dossierSortie`. */ chemin: string | null }
-  | { ok: false; motif: string; cause: 'binaire' | 'entree' | 'rendu' | 'verification' };
+  | { ok: false; motif: string; cause: 'binaire' | 'filtre' | 'entree' | 'rendu' | 'verification' };
 
 export interface OptionsAssemblage {
   ffmpeg?: string;
@@ -153,6 +153,11 @@ export function dureeSegmentS(dureeMs: number, fps: string): string {
   return ((images * den) / num).toFixed(6);
 }
 
+/** Durée réelle du montage (somme des segments arrondis à l'image), en secondes (6 décimales). */
+export function dureeTotaleS(dureesMs: readonly number[], fps: string): string {
+  return dureesMs.reduce((t, ms) => t + Number(dureeSegmentS(ms, fps)), 0).toFixed(6);
+}
+
 /** Le graphe de filtres ffmpeg · exporté pour être relu par les tests. */
 export function grapheAssemblage(e: {
   n: number; dureesMs: number[]; largeur: number; hauteur: number; fps: string; musique: boolean; gainDb: number; totalMs: number;
@@ -183,7 +188,13 @@ export function grapheAssemblage(e: {
       : `anullsrc=r=48000:cl=stereo,${format},atrim=duration=${d},asetpts=PTS-STARTPTS[a${i}]`);
   }
   parts.push(`${Array.from({ length: e.n }, (_, i) => `[v${i}][a${i}]`).join('')}concat=n=${e.n}:v=1:a=1[v][voix]`);
-  const fin = `loudnorm=${DOSAGE_SON.normalisation},aresample=48000,${format}[a]`;
+  // `loudnorm` travaille par trames de 100 ms : sur un total qui n'en est pas un multiple, il décale la fin
+  // de la piste (voix à 2,097 s au lieu de 2,033 s, mesuré) et la raccourcit. La piste est donc complétée
+  // de silence jusqu'aux 100 ms suivantes AVANT lui, puis recoupée au total exact APRÈS.
+  const total = dureeTotaleS(e.dureesMs, e.fps);
+  const totalS = Number(total);
+  const pad = (Math.ceil(Math.round(totalS * 1e6) / 1e5) / 10).toFixed(1);
+  const fin = `apad=whole_dur=${pad},loudnorm=${DOSAGE_SON.normalisation},aresample=48000,${format},atrim=duration=${total},asetpts=PTS-STARTPTS[a]`;
   if (e.musique) {
     parts.push(musique('mus'));
     parts.push('[voix]asplit=2[voixmix][voixsc]');
@@ -207,13 +218,13 @@ export const ECART_AAC_MS = 22;
  * crête (`volumedetect`). `false` pour un fichier sans piste, à piste muette ou
  * illisible (ffmpeg le refusera au montage) ; `'absent'` si un binaire manque.
  */
-export async function sonDeLaPrise(fichier: string, o: { ffmpeg: string; ffprobe: string; delaiMs: number; env?: NodeJS.ProcessEnv }): Promise<boolean | 'absent'> {
+export async function sonDeLaPrise(fichier: string, o: { ffmpeg: string; ffprobe: string; delaiMs: number; env?: NodeJS.ProcessEnv; /** Partie MONTÉE (s) · le son au-delà n'entre pas au montage. */ dureeS?: string }): Promise<boolean | 'absent'> {
   const p = await lancer(o.ffprobe, ['-v', 'error', '-protocol_whitelist', 'file', '-f', 'mp4', '-show_entries', 'stream=codec_type', '-of', 'json', fichier], o);
   if (p.absent) return 'absent';
   let flux: Array<{ codec_type?: string }> = [];
   try { flux = (JSON.parse(p.stdout) as { streams?: Array<{ codec_type?: string }> }).streams ?? []; } catch { return false; }
   if (p.code !== 0 || !flux.some((x) => x.codec_type === 'audio')) return false;
-  const v = await lancer(o.ffmpeg, ['-nostdin', '-hide_banner', '-v', 'info', '-nostats', '-protocol_whitelist', 'file', '-f', 'mp4', '-i', fichier, '-map', '0:a:0', '-af', 'volumedetect', '-f', 'null', '-'], o);
+  const v = await lancer(o.ffmpeg, ['-nostdin', '-hide_banner', '-v', 'info', '-nostats', '-protocol_whitelist', 'file', '-f', 'mp4', '-i', fichier, ...(o.dureeS ? ['-t', o.dureeS] : []), '-map', '0:a:0', '-af', 'volumedetect', '-f', 'null', '-'], o);
   if (v.absent) return 'absent';
   if (v.code !== 0) return false;
   const m = /max_volume:\s*(-?\d+(?:\.\d+)?|-inf) dB/.exec(v.stderr);
@@ -237,7 +248,7 @@ export async function assemblerVideoFfmpeg(e: EntreeAssemblage, o: OptionsAssemb
       await writeFile(f, e.segments[i]!.octets, { mode: 0o600 });
       args.push('-protocol_whitelist', 'file', '-f', 'mp4', '-i', f);
       // Le son de la prise, lu sur le MÉDIA LIVRÉ · un clip illisible est laissé à ffmpeg, qui le refusera.
-      const son = await sonDeLaPrise(f, { ffmpeg, ffprobe, delaiMs, env: o.env });
+      const son = await sonDeLaPrise(f, { ffmpeg, ffprobe, delaiMs, env: o.env, dureeS: dureeSegmentS(e.segments[i]!.dureeMs, `${e.fps.num}/${e.fps.den}`) });
       if (son === 'absent') return { ok: false, motif: 'ffprobe absent du serveur · le son des prises ne peut pas être lu', cause: 'binaire' };
       sonDesSegments.push(son === true);
     }
@@ -255,10 +266,14 @@ export async function assemblerVideoFfmpeg(e: EntreeAssemblage, o: OptionsAssemb
       '-map', '[v]', '-map', '[a]',
       '-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-r', fps, '-preset', 'veryfast', '-crf', '20',
       '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2',
-      '-movflags', '+faststart', '-t', s(totalMs), '-f', 'mp4', sortie,
+      // Avec le son des prises, la sortie dure ce que durent vraiment les images (arrondies à l'image) · sinon comme avant.
+      '-movflags', '+faststart', '-t', sonDesSegments.some(Boolean) ? dureeTotaleS(e.segments.map((x) => x.dureeMs), fps) : s(totalMs), '-f', 'mp4', sortie,
     );
     const r = await lancer(ffmpeg, args, { delaiMs, env: o.env });
     if (r.absent) return { ok: false, motif: 'ffmpeg absent du serveur · aucun assemblage possible', cause: 'binaire' };
+    // Un filtre absent de CE ffmpeg (paquet du serveur) · dit et nommé, ce n'est pas une erreur du projet.
+    const filtre = /No such filter: '([\w-]+)'/.exec(r.stderr)?.[1];
+    if (r.code !== 0 && filtre) return { ok: false, motif: `filtre audio ${filtre} absent de ffmpeg sur ce serveur`, cause: 'filtre' };
     if (r.code !== 0) return { ok: false, motif: `ffmpeg a refusé l’assemblage · ${r.stderr.trim().split('\n').slice(-3).join(' ').slice(0, 400) || `code ${r.code}`}`, cause: 'rendu' };
     const taille = (await stat(sortie).catch(() => null))?.size ?? 0;
     if (taille === 0 || taille > OCTETS_MAX_RENDU) return { ok: false, motif: `fichier produit vide ou trop volumineux (${taille} octets)`, cause: 'verification' };

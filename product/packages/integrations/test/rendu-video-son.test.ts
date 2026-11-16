@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFile, spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -23,6 +23,8 @@ import { assemblerVideoFfmpeg, grapheAssemblage, dureeSegmentS, NOM_MP4_ASSEMBLE
  */
 
 const FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
+// En CI, ffmpeg est installé (ci.yml) · son absence fait ÉCHOUER le fichier, jamais sauter ses gardes en silence.
+if (process.env.CI && !FFMPEG) throw new Error('ffmpeg et ffprobe absents en CI · les gardes sur le vrai MP4 ne se sautent pas en CI · installer ffmpeg (.github/workflows/ci.yml)');
 const executer = promisify(execFile);
 let dossier = '';
 const fabriquer = async (nom: string, args: string[]) => {
@@ -88,14 +90,17 @@ async function crete(o: Uint8Array): Promise<number> {
 let BIP = new Uint8Array();
 let MUET = new Uint8Array();
 let MUSIQUE = new Uint8Array();
+/** Prise de 3 s dont le son ne commence qu'à 2 s (silence avant). */
+let BIP_TARDIF = new Uint8Array();
 
 beforeAll(async () => {
   dossier = await mkdtemp(join(tmpdir(), 'rendu-video-son-'));
   if (!FFMPEG) return;
-  [BIP, MUET, MUSIQUE] = await Promise.all([
+  [BIP, MUET, MUSIQUE, BIP_TARDIF] = await Promise.all([
     fabriquer('bip.mp4', ['-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=24:duration=3', '-f', 'lavfi', '-i', 'sine=frequency=1000:duration=3:sample_rate=44100', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-f', 'mp4']),
     fabriquer('muet.mp4', ['-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=24:duration=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4']),
     fabriquer('m.mp3', ['-f', 'lavfi', '-i', 'sine=frequency=440:duration=20', '-f', 'mp3']),
+    fabriquer('bip-tardif.mp4', ['-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=24:duration=3', '-f', 'lavfi', '-i', 'sine=frequency=1000:duration=1:sample_rate=44100,adelay=2000,apad=whole_dur=3', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-t', '3', '-f', 'mp4']),
   ]);
 });
 afterAll(() => rm(dossier, { recursive: true, force: true }));
@@ -117,7 +122,7 @@ describe('graphe · le son des prises', () => {
     expect(g).not.toContain('[1:a]');
     expect(g).toContain('[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][voix]');
     expect(g).toMatch(/\[mus48\]\[voixsc\]sidechaincompress=/);
-    expect(g).toMatch(/amix=inputs=2:duration=first:dropout_transition=0:normalize=0,loudnorm=/);
+    expect(g).toMatch(/amix=inputs=2:duration=first:dropout_transition=0:normalize=0,apad=whole_dur=5\.0,loudnorm=.*,atrim=duration=5\.000000,asetpts=PTS-STARTPTS\[a\]$/);
     expect(g).not.toMatch(/subtitles|ass=|drawtext/);
   });
 
@@ -195,6 +200,38 @@ describe.skipIf(!FFMPEG)('assemblage réel · le son des prises', { timeout: DEL
     expect(Math.abs(w.fin - 5.1), `la voix finit à ${w.fin} s, ses images à 5,100 s`).toBeLessThanOrEqual(UNE_IMAGE_S / 2);
     const d = await durees(r.octets);
     expect(Math.abs(d.audio - d.video), `audio ${d.audio} s, vidéo ${d.video} s`).toBeLessThanOrEqual(UNE_IMAGE_S + 1e-6);
+  });
+
+  it('total NON multiple de 100 ms (loudnorm travaille par trames de 100 ms) ⇒ la voix part avec ses images, piste entière', async () => {
+    // Plan muet de 2,010 s = 61 images = 2,0333 s · total 2,0333 + 2,0 = 4,0333 s, avec musique puis sans.
+    for (const musique of [{ octets: MUSIQUE, gainDb: -6 }, null]) {
+      const r = await assemblerVideoFfmpeg({
+        segments: [{ octets: MUET, dureeMs: 2010 }, { octets: BIP, dureeMs: 2000 }],
+        musique, largeur: 360, hauteur: 640, fps: { num: 30, den: 1 },
+      });
+      expect(r.ok, !r.ok ? r.motif : '').toBe(true);
+      if (!r.ok) return;
+      const w = fenetre(await niveaux(r.octets, 1000));
+      expect(Math.abs(w.debut - 61 / 30), `la voix commence à ${w.debut} s, ses images à 2,033 s (musique : ${!!musique})`).toBeLessThanOrEqual(UNE_IMAGE_S / 2);
+      const d = await durees(r.octets);
+      expect(Math.abs(d.audio - d.video), `audio ${d.audio} s, vidéo ${d.video} s (musique : ${!!musique})`).toBeLessThanOrEqual(UNE_IMAGE_S / 2);
+    }
+  });
+
+  it('le son n’est mesuré que sur la partie MONTÉE · un bip après la fin du plan ne fait pas une prise sonore', async () => {
+    const r = await assemblerVideoFfmpeg({ segments: [{ octets: BIP_TARDIF, dureeMs: 1500 }, { octets: BIP_TARDIF, dureeMs: 3000 }], musique: null, largeur: 360, hauteur: 640, fps: { num: 30, den: 1 } });
+    expect(r.ok, !r.ok ? r.motif : '').toBe(true);
+    if (!r.ok) return;
+    expect(r.mesure.sonDesSegments, 'plan de 1,5 s : le bip (à 2 s) n’est pas monté').toEqual([false, true]);
+  });
+
+  it('un filtre audio absent du ffmpeg du serveur ⇒ refus « filtre » qui le nomme, jamais un fichier', async () => {
+    // ffmpeg du serveur sans `loudnorm` · le montage reçoit l'erreur exacte de ffmpeg, la mesure du son passe.
+    const faux = join(dossier, 'ffmpeg-sans-loudnorm');
+    await writeFile(faux, `#!/bin/sh\ncase "$*" in *-filter_complex*) echo "[AVFilterGraph @ 0x1] No such filter: 'loudnorm'" >&2; exit 8;; esac\nexec ffmpeg "$@"\n`);
+    await chmod(faux, 0o755);
+    const r = await assemblerVideoFfmpeg({ segments: [{ octets: BIP, dureeMs: 1000 }], musique: null, largeur: 360, hauteur: 640, fps: { num: 30, den: 1 } }, { ffmpeg: faux });
+    expect(r).toMatchObject({ ok: false, cause: 'filtre', motif: 'filtre audio loudnorm absent de ffmpeg sur ce serveur' });
   });
 
   it('prises toutes muettes, sans musique ⇒ bande son silencieuse, comme avant', async () => {

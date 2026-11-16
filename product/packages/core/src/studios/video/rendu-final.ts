@@ -123,7 +123,10 @@ export function nonInclusDuRendu(p: Pick<PlanRenduFinal, 'segments' | 'musique' 
     if (!mesure) out.push(`Voix · non garantie, seule une prise livrée avec du son dit la narration · vérifié à l’assemblage (${liste(p.parles)}).`);
     else {
       const muettes = p.parles.filter((r) => !sonDu(r));
+      const sonores = p.parles.filter((r) => sonDu(r));
       if (muettes.length) out.push(`Voix · prise muette, la narration n’est pas dite (${liste(muettes)}).`);
+      // Du son n'est pas la réplique · la vérification des mots dits viendra du contrôle de la parole.
+      if (sonores.length) out.push(`Voix · son présent dans la prise, réplique non vérifiée (${liste(sonores)}).`);
     }
   }
   if (p.textes.length) out.push(`Texte écran · non incrusté (${liste(p.textes)}).`);

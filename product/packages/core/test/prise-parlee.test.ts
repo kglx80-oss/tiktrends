@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  consigneDeLaPrise, parametresDeLaPrise, consigneMouvementDuPlan, parametresDuClip, lireParametresClip, estPriseParlee,
+  consigneDeLaPrise, parametresDeLaPrise, priseDuClip, MOTS_PAR_SECONDE_NARRATION, consigneMouvementDuPlan, parametresDuClip, lireParametresClip, estPriseParlee,
   nonInclusDuRendu, planRenduFinal, timelineDesPlans, CONSIGNE_MOUVEMENT_MAX, CONSIGNE_SON_PRISE,
   type ContenuVersion, type PlanStudio,
 } from '../src';
@@ -54,10 +54,15 @@ describe('prise parlée · la consigne', () => {
   });
 
   it('chaque mot de la narration, dans l’ordre, et rien d’autre entre les guillemets', () => {
-    const narration = 'Elle a dit « non » , puis : 3 € · 100 % naturel !\tVraiment.';
+    const narration = 'Elle a dit "non" , puis : 3 € · 100 % naturel !\tVraiment.';
     const c = consigne(plan({ narration }));
     const dedans = c.slice(c.indexOf(': « ') + 4, c.lastIndexOf(' » '));
     expect(dedans.split(' ')).toEqual(narration.split(/\s+/));
+  });
+
+  it('guillemets « » dans la narration ⇒ refus dit (ils délimitent la réplique), rien n’est envoyé', () => {
+    expect(consigneDeLaPrise(plan({ narration: 'Elle a dit « non ».' }))).toMatchObject({ ok: false, motif: expect.stringMatching(/guillemets « »/) });
+    expect(consigneDeLaPrise(plan({ narration: 'Fin » piégée' }))).toMatchObject({ ok: false });
   });
 
   it('langue du projet · anglais accepté, langue inconnue refusée et dite', () => {
@@ -88,22 +93,41 @@ describe('prise parlée · la consigne', () => {
 
 describe('prise parlée · les paramètres du clip', () => {
   const kf = { assetUuid: KF, sha256: SHA };
+  const base = (p: PlanStudio) => {
+    const r = parametresDuClip({ contenu: contenu(p), shotId: 's1', keyframe: kf });
+    if (!r.ok) throw new Error(r.motif);
+    return r.parametres;
+  };
   it('plan muet ⇒ paramètres identiques à ceux du catalogue', () => {
     const p = plan({ speechMode: 'none' });
     expect(parametresDeLaPrise({ contenu: contenu(p), shotId: 's1', keyframe: kf })).toEqual(parametresDuClip({ contenu: contenu(p), shotId: 's1', keyframe: kf }));
   });
-  it('prise parlée ⇒ même clip, consigne de la prise, relue par le contrat studio_clip/1', () => {
+  it('plan parlé, modèle SANS voix native (Kling, défaut) ⇒ consigne muette d’avant · rien de payé pour une voix qui ne viendra pas', () => {
+    for (const speechMode of ['lipsync', 'voiceover'] as const) {
+      const p = plan({ speechMode });
+      expect(parametresDeLaPrise({ contenu: contenu(p), shotId: 's1', keyframe: kf })).toEqual(parametresDuClip({ contenu: contenu(p), shotId: 's1', keyframe: kf }));
+      expect(priseDuClip({ ...base(p), audio: false }, p)).toEqual({ ok: true, parametres: { ...base(p), audio: false } });
+    }
+  });
+  it('plan parlé, voix native demandée au modèle ⇒ même clip, consigne de la prise, relue par le contrat', () => {
     const p = plan();
-    const r = parametresDeLaPrise({ contenu: contenu(p), shotId: 's1', keyframe: kf });
-    const base = parametresDuClip({ contenu: contenu(p), shotId: 's1', keyframe: kf });
-    expect(r.ok && base.ok).toBe(true);
-    if (!r.ok || !base.ok) return;
-    expect({ ...r.parametres, consigne: '' }).toEqual({ ...base.parametres, consigne: '' });
+    const r = priseDuClip({ ...base(p), audio: true }, p);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect({ ...r.parametres, consigne: '' }).toEqual({ ...base(p), audio: true, consigne: '' });
     expect(r.parametres.consigne).toBe(consigne(p));
     expect(lireParametresClip(r.parametres).ok).toBe(true);
   });
+  it('réplique plus longue que ce que la durée du clip permet de dire ⇒ refus AVANT le devis, raison écrite', () => {
+    const p = plan({ narration: 'un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze' });
+    const r = priseDuClip({ ...base(p), audio: true, dureeS: 5 }, p);
+    expect(r).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
+    expect(!r.ok && r.motif).toBe(`La réplique se dit en 5,6 s environ (14 mots à ${String(MOTS_PAR_SECONDE_NARRATION).replace('.', ',')} mots par seconde), le clip en dure 5 · raccourcis-la ou allonge le plan, rien n’est parti.`);
+    expect(priseDuClip({ ...base(p), audio: true, dureeS: 8 }, p).ok).toBe(true);
+  });
   it('réplique avec un emplacement non résolu, ou image clé absente ⇒ refus', () => {
-    expect(parametresDeLaPrise({ contenu: contenu(plan({ narration: 'Bonjour {{prenom}}' })), shotId: 's1', keyframe: kf })).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
+    const p = plan({ narration: 'Bonjour {{prenom}}' });
+    expect(priseDuClip({ ...base(p), audio: true }, p)).toMatchObject({ ok: false, code: 'INVALID_SCHEMA' });
     expect(parametresDeLaPrise({ contenu: contenu(plan()), shotId: 's1', keyframe: null })).toMatchObject({ ok: false, code: 'MISSING_REFERENCE' });
   });
 });
@@ -125,11 +149,14 @@ describe('vidéo finale · « non inclus » dit la vérité sur la voix', () => 
       'Musique · aucune choisie, la bande son sera le son des prises, un silence si elles sont muettes.',
     ]);
   });
-  it('après l’assemblage · prises parlées sonores ⇒ voix incluse, plus rien sur la voix', () => {
-    expect(nonInclusDuRendu(r.plan, [true, false, true])).toEqual(['Sous-titres · non incrustés.', 'Musique · aucune choisie, la bande son est le son des prises.']);
+  it('après l’assemblage · prises parlées sonores ⇒ son présent, mais réplique NON vérifiée (avoir du son n’est pas avoir dit sa réplique)', () => {
+    expect(nonInclusDuRendu(r.plan, [true, false, true])).toEqual([
+      'Voix · son présent dans la prise, réplique non vérifiée (plan 1, plan 3).',
+      'Sous-titres · non incrustés.', 'Musique · aucune choisie, la bande son est le son des prises.',
+    ]);
   });
   it('après l’assemblage · une prise parlée muette ⇒ nommée', () => {
-    expect(nonInclusDuRendu(r.plan, [true, true, false])[0]).toBe('Voix · prise muette, la narration n’est pas dite (plan 3).');
+    expect(nonInclusDuRendu(r.plan, [true, true, false]).slice(0, 2)).toEqual(['Voix · prise muette, la narration n’est pas dite (plan 3).', 'Voix · son présent dans la prise, réplique non vérifiée (plan 1).']);
     expect(nonInclusDuRendu(r.plan, [false, false, false])).toContain('Musique · aucune choisie, bande son silencieuse.');
   });
 });

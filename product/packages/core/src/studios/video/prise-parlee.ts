@@ -3,7 +3,12 @@
  * l'image, le mouvement, la voix, les lèvres et le son du lieu naissent
  * ensemble (référence §3.4 : « chaque prise naît d'un bloc »).
  *
- * Pur. Deux cas, décidés par le plan VALIDÉ de la version courante :
+ * Pur. La prise n'est PARLÉE que si le modèle choisi rend la voix native
+ * (`audio` des paramètres du clip, décidé par le catalogue vidéo) : sans voix
+ * native (Kling, défaut), la consigne reste muette · demander une réplique à
+ * un modèle muet ferait articuler des lèvres en silence, raccourcirait le
+ * mouvement et ferait payer pour rien. Ensuite, deux cas, décidés par le plan
+ * VALIDÉ de la version courante :
  *
  *  · plan muet (`speechMode` none, ou aucune narration) : la consigne est
  *    STRICTEMENT celle du mouvement (`consigneMouvementDuPlan`), rien n'est
@@ -20,6 +25,7 @@
  */
 
 import type { ModeParole, PlanStudio } from '../document';
+import { compterMots, MOTS_PAR_SECONDE_NARRATION } from './plans';
 import {
   consigneMouvementDuPlan, parametresDuClip, CONSIGNE_MOUVEMENT_MAX, type ParametresClip,
 } from '../fournisseurs/fal-video';
@@ -58,6 +64,7 @@ export function consigneDeLaPrise(p: PlanPrise, langue: string = LANGUE_PROJET):
   const nomLangue = LANGUES_PRISE[langue];
   if (!nomLangue) return { ok: false, motif: `Langue « ${langue} » · une prise parlée se fait en ${Object.values(LANGUES_PRISE).join(' ou ')}.` };
   const replique = repliqueDuPlan(p);
+  if (/[«»]/.test(replique)) return { ok: false, motif: 'La réplique contient des guillemets « » · ils délimitent la réplique dans la consigne, retire-les de la narration du plan.' };
   const tete = `Prise parlée en ${nomLangue}, ${MODE[p.speechMode as Exclude<ModeParole, 'none'>]}. Réplique à dire mot pour mot, sans rien ajouter ni retirer : « ${replique} »`;
   const corps = mouvement.endsWith(FIN_MOUVEMENT) ? mouvement.slice(0, -FIN_MOUVEMENT.length).trim() : mouvement;
   const fin = `Mouvement naturel et fluide. ${CONSIGNE_SON_PRISE}`;
@@ -69,19 +76,38 @@ export function consigneDeLaPrise(p: PlanPrise, langue: string = LANGUE_PROJET):
   return { ok: true, consigne: [tete, milieu.length > 1 ? milieu : '', fin].filter(Boolean).join(' '), parlee: true };
 }
 
+/** La virgule française · « 5,6 ». */
+const fr = (n: number, d = 1) => n.toFixed(d).replace(/\.0+$/, '').replace('.', ',');
+
+/**
+ * La prise d'un clip · les paramètres du catalogue, avec la consigne PARLÉE
+ * seulement si la voix native est demandée au modèle (`audio`) et que le plan
+ * parle. Refus AVANT le devis : réplique qui ne tient pas dans la durée du
+ * clip (`compterMots` / `MOTS_PAR_SECONDE_NARRATION`), guillemets, emplacement.
+ */
+export function priseDuClip<P extends { consigne: string; dureeS: number; audio?: unknown }>(parametres: P, p: PlanPrise, langue: string = LANGUE_PROJET):
+  { ok: true; parametres: P } | { ok: false; code: 'INVALID_SCHEMA'; motif: string } {
+  if (parametres.audio !== true || !estPriseParlee(p)) return { ok: true, parametres };
+  const mots = compterMots(p.narration);
+  const secondes = mots / MOTS_PAR_SECONDE_NARRATION;
+  if (secondes > parametres.dureeS) {
+    return { ok: false, code: 'INVALID_SCHEMA', motif: `La réplique se dit en ${fr(secondes)} s environ (${mots} mots à ${fr(MOTS_PAR_SECONDE_NARRATION)} mots par seconde), le clip en dure ${fr(parametres.dureeS)} · raccourcis-la ou allonge le plan, rien n’est parti.` };
+  }
+  const c = consigneDeLaPrise(p, langue);
+  if (!c.ok) return { ok: false, code: 'INVALID_SCHEMA', motif: c.motif };
+  if (contientEmplacement(c.consigne)) return { ok: false, code: 'INVALID_SCHEMA', motif: 'Emplacement de gabarit non résolu dans la réplique du plan.' };
+  return { ok: true, parametres: { ...parametres, consigne: c.consigne } };
+}
+
 /**
  * Les paramètres du clip d'un plan · ceux du catalogue (`parametresDuClip` :
- * image clé, modèle, durée, interdits) avec la consigne de la PRISE. Plan
- * muet : paramètres strictement identiques.
+ * image clé, modèle, durée, voix native, interdits) avec la consigne de la
+ * PRISE (`priseDuClip`). Plan muet ou modèle sans voix native : paramètres
+ * strictement identiques.
  */
 export function parametresDeLaPrise(e: Parameters<typeof parametresDuClip>[0] & { langue?: string }): ParametresClip {
   const r = parametresDuClip(e);
   if (!r.ok) return r;
-  const p = e.contenu.shots.byId[e.shotId] as PlanStudio;
-  if (!estPriseParlee(p)) return r;
-  const c = consigneDeLaPrise(p, e.langue ?? LANGUE_PROJET);
-  if (!c.ok) return { ok: false, code: 'INVALID_SCHEMA', motif: c.motif };
-  if (contientEmplacement(c.consigne)) return { ok: false, code: 'INVALID_SCHEMA', motif: 'Emplacement de gabarit non résolu dans la réplique du plan.' };
-  return { ok: true, parametres: { ...r.parametres, consigne: c.consigne } };
+  const x = priseDuClip(r.parametres, e.contenu.shots.byId[e.shotId] as PlanStudio, e.langue ?? LANGUE_PROJET);
+  return x.ok ? { ...r, parametres: x.parametres } : x;
 }
-

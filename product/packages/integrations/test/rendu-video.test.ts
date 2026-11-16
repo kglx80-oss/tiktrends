@@ -20,6 +20,8 @@ import { assemblerVideoFfmpeg, grapheAssemblage } from '../src/rendu-video';
  */
 
 const FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
+// En CI, ffmpeg est installé (ci.yml) · son absence fait ÉCHOUER le fichier, jamais sauter ses gardes en silence.
+if (process.env.CI && !FFMPEG) throw new Error('ffmpeg et ffprobe absents en CI · les gardes sur le vrai MP4 ne se sautent pas en CI · installer ffmpeg (.github/workflows/ci.yml)');
 const executer = promisify(execFile);
 let dossier = '';
 const fabriquer = async (nom: string, args: string[]) => {

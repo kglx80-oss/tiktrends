@@ -140,6 +140,7 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
   }
   if (!r.ok) {
     console.error(`[studios] ${ctx.traceId} vidéo finale · ${r.cause} · ${r.motif}`);
+    if (r.cause === 'filtre') return erreurStudio('UNSUPPORTED_CAPABILITY', { traceId: ctx.traceId, message: `Le serveur ne sait pas encore monter le son · ${r.motif}. Rien n’a été conservé.` });
     return erreurStudio(r.cause === 'binaire' ? 'UNSUPPORTED_CAPABILITY' : 'INVALID_SCHEMA', { traceId: ctx.traceId, message: `Assemblage impossible · ${r.motif}. Rien n’a été conservé.` });
   }
 

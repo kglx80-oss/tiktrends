@@ -73,12 +73,12 @@ export function modesParole(c: CapacitesVoix): ModeParoleOffert[] {
   return [
     {
       mode: 'voiceover', libelle: 'Voix off', disponible: true,
-      description: 'La voix est dite hors champ, sans mouvement des lèvres. Les images clés restent réutilisables si la narration change ; la prise parlée est refaite.',
+      description: 'La voix est posée sur les images, sans mouvement des lèvres. Les images et les clips restent réutilisables si la narration change.',
       raison: c.synthese.disponible ? '' : 'La prise vient d’un fichier audio existant · la synthèse vocale n’est pas branchée.',
     },
     {
       mode: 'lipsync', libelle: 'Parole synchronisée (lipsync)', disponible: c.lipsync.disponible,
-      description: 'Le personnage prononce le texte à l’image. Chaque changement de narration refait le clip.',
+      description: 'Le personnage prononce le texte à l’image. Chaque changement de narration refait le clip, et ce nouveau clip est payant.',
       raison: c.lipsync.raison,
     },
     { mode: 'none', libelle: 'Sans voix', disponible: true, description: 'Aucune voix · la narration n’est pas prononcée.', raison: '' },

@@ -54,6 +54,8 @@ import type { EntreeAssemblage, ResultatAssemblage } from '@tiktrends/integratio
 const ids = etat.ids;
 const base = db as unknown as BaseStudio;
 const FFMPEG = spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
+// En CI, ffmpeg est installé (ci.yml) · son absence fait ÉCHOUER le fichier, jamais sauter ses gardes en silence.
+if (process.env.CI && !FFMPEG) throw new Error('ffmpeg et ffprobe absents en CI · les gardes sur le vrai MP4 ne se sautent pas en CI · installer ffmpeg (.github/workflows/ci.yml)');
 const LECTURE = { maintenant: new Date(), releasePubliee: true, fournisseurTexte: true, plafondAtteint: false, fournisseurImage: true, coutTexteUsd: 0.14 };
 const BRANCHE = { FAL_KEY: 'cle-fal-reelle-de-test', STUDIO_FOURNISSEUR_REEL: 'autorise', S3_ENDPOINT: 'e', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: 'x', S3_SECRET_ACCESS_KEY: 'y' };
 /**
@@ -224,6 +226,10 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
     const ensuite = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
     expect(ensuite.ok, !ensuite.ok ? `${ensuite.code} ${ensuite.message}` : '').toBe(true);
     expect(rejoues.length - appels).toBe(1);
+    // Un filtre audio absent du ffmpeg du serveur ⇒ capacité manquante, nommée · pas « Assemblage impossible ».
+    const sansFiltre = async () => ({ ok: false as const, motif: 'filtre audio loudnorm absent de ffmpeg sur ce serveur', cause: 'filtre' as const });
+    expect(await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: sansFiltre }))
+      .toMatchObject({ ok: false, code: 'UNSUPPORTED_CAPABILITY', message: expect.stringContaining('filtre audio loudnorm absent de ffmpeg sur ce serveur') });
   });
 
   it('droits du forfait (29/10) · sous TARIFS_V2, une vidéo plus longue que le forfait est refusée avant tout rendu, le forfait qui la permet nommé ; sans l’interrupteur, rien ne change', async () => {

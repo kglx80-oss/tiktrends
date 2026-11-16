@@ -11,8 +11,8 @@
  * |-----------------------|-------------------------------------------------|
  * | texte écran, logo     | composition / montage, export · AUCUNE image    |
  * | narration             | voix du plan, sous-titres, montage, export      |
- * |                       | et le clip d'une prise parlée (voix off ou      |
- * |                       | lipsync) · la voix naît dans la prise           |
+ * |                       | (clip seulement si lipsync · la voix off se     |
+ * |                       | pose au montage, son clip reste muet)           |
  * | voix                  | toutes les voix, clips lipsync, montage, export |
  * | tenue / identité      | fiche, images et clips des plans qui la citent  |
  * | produit               | images et clips des plans qui le citent         |
@@ -154,9 +154,6 @@ function construireGraphe(c: ContenuVersion): Map<string, NoeudImpact> {
         dureeMs: p.estimatedDurationMs,
         parole: p.speechMode,
         lipsync: p.speechMode === 'lipsync' ? (voix.get(sid) ?? null) : null,
-        // Prise parlée en voix off · la réplique est dite DANS la prise (`prise-parlee.ts`) : une autre
-        // narration refait le clip. Clé posée seulement là · les empreintes des autres clips ne bougent pas.
-        ...(p.speechMode === 'voiceover' && parleAvecVoix(p) ? { replique: p.narration } : {}),
       }));
     }
   }
