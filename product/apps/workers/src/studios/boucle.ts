@@ -43,6 +43,12 @@ export function demarrerBoucleStudio(o: {
   journal?: (e: EntreeJournal) => void;
   /** Environnement des interrupteurs · `process.env` par défaut (bancs d'essai seulement). */
   env?: Readonly<Record<string, string | undefined>>;
+  /**
+   * Travail après chaque tour du moteur · le contrôle de la parole des prises
+   * livrées (`controlerParolesEnAttente`). Son échec est journalisé, il
+   * n'arrête jamais le moteur.
+   */
+  apresTour?: () => Promise<unknown>;
 }): { arreter: () => void; moteur: MoteurStudio } {
   let sonde: ReturnType<typeof demarrerSondeVideo> | null = null;
   let decodeur = o.decodeur;
@@ -58,6 +64,7 @@ export function demarrerBoucleStudio(o: {
     enCours = true;
     try {
       await moteur.tour();
+      if (o.apresTour) await o.apresTour().catch((e) => console.error('[studios] contrôle de la parole en échec', e instanceof Error ? e.message : e));
       await relayerOutbox(o.base, async (e) => { console.log('[studios] événement', e.topic, e.aggregateId); });
     } catch (e) {
       console.error('[studios] tour en échec', e instanceof Error ? e.message : e);

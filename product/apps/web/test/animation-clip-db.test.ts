@@ -95,7 +95,8 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     expect(d.ok, !d.ok ? `${d.code} ${d.message}` : '').toBe(true);
     if (!d.ok) return;
     const lignes = (await db.select().from(schema.studioQuotes).where(eq(schema.studioQuotes.id, d.devis.id)))[0]!.lines as Array<{ operation: string; profil: string; usdMicros: number }>;
-    expect(lignes.filter((x) => x.profil !== 'calcul').map((x) => [x.operation, x.profil, x.usdMicros])).toEqual([[`clip:${PLAN}`, 'animation', GRILLE_STUDIO.animation.usdMicros]]);
+    // Le plan d'ouverture a une réplique · sa prise parlée porte la ligne « contrôle de la parole » (5 s ⇒ 0,01 $, borne), annoncée avec le devis.
+    expect(lignes.filter((x) => x.profil !== 'calcul').map((x) => [x.operation, x.profil, x.usdMicros])).toEqual([[`clip:${PLAN}`, 'animation', GRILLE_STUDIO.animation.usdMicros], ['controle:parole', 'controle_parole', 10_000]]);
     const l = await lireVideoPour(ctxDe(ids, 'ua'), projet.projectId, LECTURE);
     expect(l.ok && l.vue.disponibilite.animation.disponible).toBe(true);
     expect(l.ok && l.vue.clips[PLAN]).toMatchObject({ etat: 'a_produire', keyframePrete: true, devis: { id: d.devis.id } });

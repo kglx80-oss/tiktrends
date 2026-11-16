@@ -1,0 +1,165 @@
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { schema, eq, and } from '@tiktrends/db';
+import {
+  contenuVide, empreinteContenu, SCHEMA_VERSION_CONTENU, OPERATION_JOB_STUDIO, avecControleParole, GRILLE_STUDIO, ErreurFournisseurCertaine,
+  type SnapshotJob, type LigneDevis, type TranscriptionLue,
+} from '@tiktrends/core';
+import type { DemandeTranscription } from '@tiktrends/integrations';
+import { controlerParolesEnAttente, mesurerPriseFfprobe, ACTION_CONTROLE_PAROLE, type DependancesControleParole } from '../src/studios/controle-parole';
+import type { BaseStudio } from '../src/studios/types';
+import { pgMemoire } from './pg-memoire';
+
+/**
+ * Contrôle de la parole dans le worker · en BASE (pglite, migrations
+ * réelles). Le transcripteur est remplacé par une fonction qui rend une
+ * transcription connue et COMPTE ses appels (sa barrière et son HTTP sont
+ * éprouvés par `packages/integrations/test/transcription-fal.test.ts`). 0 $.
+ */
+
+let base: BaseStudio;
+const ws = randomUUID();
+const brand = randomUUID();
+const user = randomUUID();
+let projet = '';
+let version = '';
+let PRISE_PARLEE = new Uint8Array();
+let PRISE_MUETTE = new Uint8Array();
+
+const REPLIQUE = 'Un shampooing sans sulfate.';
+const plan = (narration: string, speechMode: string) => ({
+  shotId: 's1', purpose: '', subject: '', action: '', framing: '', camera: '', lighting: '', environment: '', referenceIds: [], narration, onScreenText: [], speechMode, estimatedDurationMs: 5000,
+});
+
+beforeAll(async () => {
+  base = await pgMemoire();
+  await base.insert(schema.workspaces).values({ id: ws, name: 'W', plan: 'core', creditsBalance: 100 });
+  await base.insert(schema.users).values({ id: user, email: `${user}@w.test` });
+  await base.insert(schema.brands).values({ id: brand, workspaceId: ws, name: 'B' });
+  const [p] = await base.insert(schema.studioProjects).values({ workspaceId: ws, brandId: brand, kind: 'video', title: 'P', ownerId: user }).returning();
+  const c = { ...contenuVide(), shots: { order: ['s1'], byId: { s1: plan(REPLIQUE, 'voiceover') } } };
+  const [v] = await base.insert(schema.studioProjectVersions).values({ projectId: p!.id, workspaceId: ws, brandId: brand, n: 1, schemaVersion: SCHEMA_VERSION_CONTENU, content: c, contentHash: empreinteContenu(c as never), authorId: user }).returning();
+  projet = p!.id;
+  version = v!.id;
+  const d = await mkdtemp(join(tmpdir(), 'prise-'));
+  const x = promisify(execFile);
+  await x('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x64:rate=24:duration=2', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', '-f', 'mp4', join(d, 'p.mp4')]);
+  await x('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=64x64:rate=24:duration=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4', join(d, 'm.mp4')]);
+  PRISE_PARLEE = new Uint8Array(await readFile(join(d, 'p.mp4')));
+  PRISE_MUETTE = new Uint8Array(await readFile(join(d, 'm.mp4')));
+  await rm(d, { recursive: true, force: true });
+});
+
+const ligneClip: LigneDevis = { operation: 'clip:s1', nature: 'generation', profil: 'animation', unites: 1, credits: GRILLE_STUDIO.animation.credits!, usdMicros: GRILLE_STUDIO.animation.usdMicros!, inclus: false };
+const parametresClip = { schema: 'studio_clip/1', operation: 'clip:s1', shotId: 's1', source: { assetId: `sta_${randomUUID()}`, sha256: 'a'.repeat(64) }, consigne: 'Mouvement.', interdits: [], dureeS: 5 };
+
+let stockes: Map<string, Uint8Array>;
+let appels: DemandeTranscription[];
+let dite: string;
+beforeEach(() => { stockes = new Map(); appels = []; dite = REPLIQUE; });
+
+/** Un clip livré (`completed`, qualité `pending`) et sa prise stockée. */
+async function semerPrise(o: { parole?: boolean; octets?: Uint8Array } = {}): Promise<string> {
+  const lignes = o.parole === false ? [ligneClip] : avecControleParole([ligneClip], { actif: true, prises: [{ operation: 'clip:s1', dureeMs: 5_000 }] }).lignes;
+  const h = 'c'.repeat(64);
+  const cle = `studios/${ws}/${randomUUID()}/clip_s1.mp4`;
+  stockes.set(cle, o.octets ?? PRISE_PARLEE);
+  const [a] = await base.insert(schema.studioAssets).values({ workspaceId: ws, brandId: brand, projectId: projet, storageKey: cle, mime: 'video/mp4', bytes: 1, sha256: 'b'.repeat(64), origin: 'generated', storageState: 'stored' }).returning();
+  const snapshot: SnapshotJob = { v: 1, quoteId: randomUUID(), projectVersionId: version, contentHash: h, impactPlanHash: h, pricingVersion: 'v', lignes, epinglage: null, reserve: { credits: 25, usdMicros: 610_000 }, parametres: parametresClip };
+  const [j] = await base.insert(schema.studioJobs).values({ workspaceId: ws, brandId: brand, projectId: projet, projectVersionId: version, operation: OPERATION_JOB_STUDIO, idempotencyKey: `k-${randomUUID()}`, inputHash: h, snapshot, createdBy: user, state: 'completed', result: { assets: { 'clip:s1': a!.id } } }).returning();
+  return j!.id;
+}
+
+const transcription = (texte: string): TranscriptionLue => ({ texte, langue: 'fra', mots: texte.split(' ').map((t, i) => ({ texte: t, debutMs: 100 + i * 300, finMs: 350 + i * 300 })) });
+const deps = (o: Partial<DependancesControleParole> = {}): DependancesControleParole => ({
+  base, stockage: { relire: async (cle) => stockes.get(cle) ?? null },
+  transcrire: async (d) => { appels.push(d); return { transcription: transcription(dite), reserveUsdMicros: 10_000 }; },
+  adresse: (cle) => `https://stockage.test/${cle}?signature=x`,
+  ...o,
+});
+const audit = async (jobId: string) => base.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.action, ACTION_CONTROLE_PAROLE), eq(schema.studioAuditEvents.targetId, jobId)));
+const qualite = async (jobId: string) => (await base.select({ q: schema.studioJobs.qualityStatus }).from(schema.studioJobs).where(eq(schema.studioJobs.id, jobId)))[0]!.q;
+/** Les autres prises encore en attente ne doivent pas brouiller le cas · on vide la file avant chaque cas. */
+const viderFile = () => controlerParolesEnAttente(deps({ transcrire: async () => { throw new ErreurFournisseurCertaine('hors cas'); } }), 100);
+
+describe('mesure de la prise (ffprobe)', () => {
+  it('durée et piste audio lues dans le fichier', async () => {
+    expect(await mesurerPriseFfprobe(PRISE_PARLEE)).toMatchObject({ audio: true });
+    expect(await mesurerPriseFfprobe(PRISE_MUETTE)).toMatchObject({ audio: false });
+    expect(Math.abs((await mesurerPriseFfprobe(PRISE_PARLEE))!.dureeMs - 2000)).toBeLessThan(100);
+    expect(await mesurerPriseFfprobe(new TextEncoder().encode('pas une vidéo'))).toBeNull();
+  });
+});
+
+describe('contrôle de la parole des prises livrées', () => {
+  it('prise conforme · transcrite UNE fois sous la ligne approuvée, qualité inchangée, mots conservés pour les sous-titres', async () => {
+    await viderFile();
+    const job = await semerPrise();
+    const r = await controlerParolesEnAttente(deps());
+    expect(r).toEqual([{ jobId: job, suite: 'conforme', raison: '' }]);
+    expect(appels).toHaveLength(1);
+    expect(appels[0]).toMatchObject({ workspaceId: ws, jobId: job, operation: 'clip:s1', essai: 1, approuveUsdMicros: 10_000 });
+    expect(appels[0]!.audioUrl).toMatch(/^https:\/\/stockage\.test\/studios\//);
+    expect(await qualite(job)).toBe('pending');
+    const [a] = await audit(job);
+    expect(a!.details).toMatchObject({ suite: 'conforme', conforme: true, ecarts: 0, operation: 'clip:s1', projectId: projet, mots: [['Un', 100, 350], ['shampooing', 400, 650], ['sans', 700, 950], ['sulfate.', 1000, 1250]] });
+    // Un second tour ne transcrit plus rien.
+    expect(await controlerParolesEnAttente(deps())).toEqual([]);
+    expect(appels).toHaveLength(1);
+  });
+
+  it('écart · plan « à reprendre » (qualité requires_review), raison nommée, reprise PROPOSÉE avec son prix, jamais lancée', async () => {
+    await viderFile();
+    dite = 'Un shampooing sulfate.';
+    const job = await semerPrise();
+    const [r] = await controlerParolesEnAttente(deps());
+    expect(r).toMatchObject({ jobId: job, suite: 'proposer_reprise', raison: 'La prise ne dit pas la réplique validée · manque « sans ».' });
+    expect(await qualite(job)).toBe('requires_review');
+    const [a] = await audit(job);
+    expect(a).toMatchObject({ versionBefore: 'pending', versionAfter: 'requires_review', reason: 'La prise ne dit pas la réplique validée · manque « sans ».' });
+    expect(a!.details).toMatchObject({ conforme: false, manquants: ['sans'], prixReprise: { credits: GRILLE_STUDIO.animation.credits, usdMicros: GRILLE_STUDIO.animation.usdMicros! + 10_000 }, reprisesFaites: 0 });
+  });
+
+  it('la reprise refusée à son tour · plus aucune relance, revue humaine', async () => {
+    await viderFile();
+    dite = 'Un shampooing sulfate.';
+    const reprise = await semerPrise();
+    const [r] = await controlerParolesEnAttente(deps());
+    expect(r).toMatchObject({ jobId: reprise, suite: 'revue' });
+    expect(r!.raison).toMatch(/aucune relance/);
+  });
+
+  it('sans ligne « contrôle de la parole » approuvée · 0 appel, rien d’écrit', async () => {
+    await viderFile();
+    const job = await semerPrise({ parole: false });
+    expect(await controlerParolesEnAttente(deps())).toEqual([]);
+    expect(appels).toHaveLength(0);
+    expect(await audit(job)).toHaveLength(0);
+  });
+
+  it('prise muette · « sans objet », 0 appel', async () => {
+    await viderFile();
+    const job = await semerPrise({ octets: PRISE_MUETTE });
+    const [r] = await controlerParolesEnAttente(deps());
+    expect(r).toMatchObject({ jobId: job, suite: 'sans_objet' });
+    expect(appels).toHaveLength(0);
+    expect(await qualite(job)).toBe('pending');
+  });
+
+  it('transcription refusée (plafond, fournisseur) · « non contrôlé », écrit une fois, jamais retenté', async () => {
+    await viderFile();
+    const job = await semerPrise();
+    const echec = deps({ transcrire: async (d) => { appels.push(d); throw new ErreurFournisseurCertaine('plafond de dépense atteint'); } });
+    const [r] = await controlerParolesEnAttente(echec);
+    expect(r).toMatchObject({ jobId: job, suite: 'non_controle' });
+    expect(r!.raison).toMatch(/plafond de dépense atteint/);
+    expect(await controlerParolesEnAttente(echec)).toEqual([]);
+    expect(appels).toHaveLength(1);
+    expect((await audit(job))[0]!.details).toMatchObject({ issueFinanciere: 'aucun_frais' });
+  });
+});

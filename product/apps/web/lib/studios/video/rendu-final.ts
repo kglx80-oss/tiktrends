@@ -16,6 +16,8 @@ import { lireMediaDansPortee, lecteurMedias, type LecteurMedias } from '../rendu
 import { stockageExport } from '../export/export';
 import { ROUTE_APERCU_MEDIA } from '../editeur/apercus';
 import { mediasProduits } from './lecture';
+import { passeSousTitres } from './sous-titres';
+import type { EntreeSousTitres, ResultatSousTitresVideo } from '@tiktrends/integrations';
 
 /**
  * Studios · VIDÉO FINALE d'un projet · assemblage des clips animés des plans.
@@ -28,6 +30,9 @@ import { mediasProduits } from './lecture';
  *  2. chaque clip relu dans la portée (`lireMediaDansPortee` : stocké, octets,
  *     empreinte, type réel MP4) et dans la MARQUE du projet ;
  *  3. assemblage ffmpeg, fichier produit RELU par ffprobe (`assemblerVideoFfmpeg`) ;
+ *     puis, si les sous-titres sont voulus, passe SÉPARÉE qui les brûle sur les
+ *     mots transcrits des prises (`passeSousTitres`) · « Sous-titres » ne sort
+ *     de la liste « non inclus » que si l'image produite les montre ;
  *  4. dépôt dans le stockage des médias studio, RELU, empreinte comparée ;
  *     ligne `studio_assets` (origine `render`, durée, dimensions, provenance
  *     dans `rights`) et audit `project.export.video` dans UNE transaction.
@@ -44,6 +49,8 @@ export interface DependancesRendu {
   lecteur?: LecteurMedias;
   assembler?: (e: EntreeAssemblage) => Promise<ResultatAssemblage>;
   stockage?: StockageStudio | null;
+  /** Passe des sous-titres · défaut ffmpeg et libass (`brulerSousTitresFfmpeg`). */
+  bruler?: (e: EntreeSousTitres) => Promise<ResultatSousTitresVideo>;
 }
 
 export const ACTION_AUDIT_VIDEO_FINALE = 'project.export.video';
@@ -127,11 +134,18 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
   }
   assemblagesEnCours += 1;
   let r: ResultatAssemblage;
+  let nonInclus = plan.nonInclus;
   try {
     r = await (deps.assembler ?? ((x) => assemblerVideoFfmpeg(x)))({
       segments, musique: pv.musique && plan.musique ? { octets: pv.musique, gainDb: plan.musique.gainDb } : null,
       largeur: plan.largeur, hauteur: plan.hauteur, fps: plan.fps,
     });
+    if (r.ok) {
+      // Passe séparée · le MP4 assemblé reçoit les sous-titres des mots dits, relus sur l'image.
+      const st = await passeSousTitres(db, { portee: { workspaceId: projet.workspaceId, brandId: projet.brandId }, plan, octets: r.octets, dureeMs: r.mesure.dureeMs }, deps.bruler);
+      r = { ...r, octets: st.octets };
+      nonInclus = st.nonInclus;
+    }
   } finally {
     assemblagesEnCours -= 1;
   }
@@ -156,7 +170,7 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
     const [n] = await tx.insert(S).values({
       workspaceId: projet.workspaceId, brandId: projet.brandId, projectId: projet.id, storageKey: cle, mime: 'video/mp4',
       bytes: r.octets.length, width: r.mesure.largeur, height: r.mesure.hauteur, durationMs: r.mesure.dureeMs, sha256: empreinte,
-      origin: ORIGINE_ARCHIVE_EXPORT, rights: { videoFinale: { versionId, clips: plan.segments.map((x) => x.assetId), musique: plan.musique?.assetId ?? null, nonInclus: plan.nonInclus } },
+      origin: ORIGINE_ARCHIVE_EXPORT, rights: { videoFinale: { versionId, clips: plan.segments.map((x) => x.assetId), musique: plan.musique?.assetId ?? null, nonInclus } },
       parentAssetId: null, storageState: 'stored', createdBy: ctx.userId,
     }).onConflictDoNothing({ target: [S.workspaceId, S.storageKey] }).returning({ id: S.id });
     const assetId = n?.id ?? (await tx.select({ id: S.id }).from(S).where(and(eq(S.workspaceId, projet.workspaceId), eq(S.storageKey, cle))).limit(1))[0]?.id;
@@ -164,9 +178,9 @@ export async function assemblerVideoFinalePour(ctx: ContexteStudio, e: { project
     await ajouterAudit(tx, ctx, {
       action: ACTION_AUDIT_VIDEO_FINALE, brandId: projet.brandId, targetType: 'studio_project', targetId: projet.id,
       versionBefore: versionId, versionAfter: versionId, reason: 'vidéo finale assemblée',
-      details: { assetId, sha256: empreinte, dureeMs: r.mesure.dureeMs, largeur: r.mesure.largeur, hauteur: r.mesure.hauteur, plans: plan.segments.length, nonInclus: plan.nonInclus },
+      details: { assetId, sha256: empreinte, dureeMs: r.mesure.dureeMs, largeur: r.mesure.largeur, hauteur: r.mesure.hauteur, plans: plan.segments.length, nonInclus },
     });
     return assetId;
   });
-  return { ok: true, video: { assetId: id, url: ROUTE_APERCU_MEDIA(id), dureeMs: r.mesure.dureeMs, largeur: r.mesure.largeur, hauteur: r.mesure.hauteur, nonInclus: plan.nonInclus } };
+  return { ok: true, video: { assetId: id, url: ROUTE_APERCU_MEDIA(id), dureeMs: r.mesure.dureeMs, largeur: r.mesure.largeur, hauteur: r.mesure.hauteur, nonInclus } };
 }

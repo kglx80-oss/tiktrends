@@ -13,6 +13,7 @@ import {
 } from '@tiktrends/core';
 // R3 · ligne du contrôle visuel et nature des montants (borne / estimation).
 import { REFUS_DEPENSE_CLIENT, avecControleVision, controleVisionActif, exigenceImageDuDevis, qualifierDevis, type QualificationTotal } from '@tiktrends/core';
+import { avecControleParole, prisesParleesDuDevis, DUREE_CLIP_S } from '@tiktrends/core';
 import { adaptateurAnthropicGarde, modeleTexte } from '../prompts/adaptateur';
 import type { ContexteStudio } from '../garde';
 import { ajouterAudit } from '../audit';
@@ -233,9 +234,18 @@ export async function creerDevis(ctx: ContexteStudio, e: EntreeDevis, base: Base
       // ajouté après coup) · ajoutée par défaut, retirée si décochée, absente
       // quand il ne peut pas s'exécuter ici. Les totaux l'incluent.
       const regimeDevis = await regimeEspace(ctx.workspaceId);
-      const v = avecControleVision(l.lignes, {
+      const vision = avecControleVision(l.lignes, {
         actif: controleVisionActif({ demande: e.controleVision, fournisseurVision: adaptateurAnthropicGarde() !== null, devisImage: exigenceImageDuDevis(l.lignes).concerne, parDefaut: regimeDevis !== 'v2' }),
         modele: modeleTexte(),
+      });
+      // Contrôle de la parole · une prise PARLÉE (plan avec réplique) est
+      // transcrite à sa livraison et comparée à la réplique ; la même
+      // transcription pose les sous-titres. Ligne chiffrée du devis, posée
+      // APRÈS le contrôle visuel (qui ne garde que les lignes de production),
+      // seulement quand le fournisseur fal est branché (même clé que l'animation).
+      const v = avecControleParole(vision.lignes, {
+        actif: fournisseurAnimationBranche(process.env),
+        prises: prisesParleesDuDevis(courante.content as ContenuVersion, vision.lignes, DUREE_CLIP_S * 1000),
       });
 
       const [ip] = await tx.insert(schema.studioImpactPlans).values({

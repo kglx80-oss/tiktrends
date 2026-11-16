@@ -31,7 +31,7 @@ export function exigenceClipsDuDevis(lignes: ReadonlyArray<LigneDevis>): { conce
   for (const l of lignes) {
     const sid = planDeClip(l.operation);
     if (sid) plans.push(sid);
-    else if (l.profil !== 'calcul' && l.profil !== 'controle_visuel') horsClip.push(l.operation);
+    else if (l.profil !== 'calcul' && l.profil !== 'controle_visuel' && l.profil !== 'controle_parole') horsClip.push(l.operation);
   }
   return { concerne: plans.length > 0, plans, horsClip };
 }

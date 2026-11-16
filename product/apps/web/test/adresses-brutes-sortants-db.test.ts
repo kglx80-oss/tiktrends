@@ -130,6 +130,7 @@ const DUREE_FOURNISSEUR_MAX = 900;
  *   vision · tagging d'un fichier (un et lot)      300 s   `assetAiUrl` → `privateObjectUrl` (défaut)
  *   vision · description d'une créa Adsmap         300 s   `assetAiUrl` (corrigé ici, était BRUTE)
  *   fal · worker Studios (photo, logo, sortie, fichier) 900 s   `resoudreMedias` (`privateObjectUrl`/`presignGetUrl`, 900)
+ *   fal · contrôle de la parole (prise livrée)      900 s   `construireControleParole` (`presignGetUrl`, 900)
  *
  * Une durée qui monte fait échouer la garde (« durée de signature trop
  * longue ») · qui la change le dit ici, mesurée.
@@ -139,6 +140,7 @@ const DUREES_MESUREES: Readonly<Record<string, number>> = {
   'vision · tagging en lot': 300,
   'vision · description d’une créa Adsmap': 300,
   'fal · worker Studios': 900,
+  'fal · contrôle de la parole': 900,
 };
 
 const objet = (n: string, ws = ids.wsA) => `${BASE}/assets/${ws}/${n}`;
@@ -275,6 +277,7 @@ const SORTANTS: Readonly<Record<string, { n: number } & Traitement>> = {
   'packages/integrations/src/fal.ts · http-sortant': { n: 2, primitive: 'generation-fal' },
   'packages/integrations/src/higgsfield.ts · http-sortant': { n: 2, primitive: 'generation-fal' },
   'packages/integrations/src/studios-fal.ts · http-sortant': { n: 2, cas: ['fal · worker Studios'] },
+  'packages/integrations/src/transcription-fal.ts · http-sortant': { n: 1, cas: ['fal · contrôle de la parole'] },
   'packages/integrations/src/google-drive.ts · http-sortant': {
     n: 2, sansAdresse: 'échange OAuth Google (code et jetons) · aucun fichier ni adresse dans le corps',
     contient: /fetch\(TOKEN,\s*\{\s*method:\s*'POST'/,
@@ -454,6 +457,21 @@ const CAS: Readonly<Record<string, Cas>> = {
       return f.soumettre({ cleIdempotence: cleFournisseurDuJob(jobId), operations: [{ operation: 'keyframe:s1', profil: 'image_generation' }], parametres: {} }).catch((e: Error) => ({ erreur: e.message }));
     },
     temoins: () => [signee(PHOTO), signee(LOGO), `${CFG.endpoint}/${CFG.bucket}/studios/${ids.wsA}/${s.sortie}.png?X-Amz-Algorithm=AWS4-HMAC-SHA256`, signee(FICHIER)],
+  },
+  'fal · contrôle de la parole': {
+    // La composition du worker (`construireControleParole`) · la prise livrée part SIGNÉE au transcripteur.
+    nature: 'fournisseur', hote: 'fal.run',
+    lancer: async () => {
+      const { construireControleParole } = await import('../../workers/src/studios/fournisseurs');
+      const d = construireControleParole({
+        base: db as unknown as BaseStudio,
+        decision: { ok: true, apiKey: 'cle-fal-test:secret', queueUrl: null, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit', animation: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video' } },
+        fetch: fauxReseau as typeof fetch, env: { AI_SPEND_CAP_USD: '10' }, stockage: CFG,
+      });
+      return d.transcrire({ workspaceId: ids.wsA, jobId: randomUUID(), operation: 'clip:s1', essai: 1, audioUrl: d.adresse(`studios/${ids.wsA}/${s.sortie}.png`), dureeMs: 5000, approuveUsdMicros: 10_000 })
+        .catch((e: Error) => ({ erreur: e.message }));
+    },
+    temoins: () => [`${CFG.endpoint}/${CFG.bucket}/studios/${ids.wsA}/${s.sortie}.png?X-Amz-Algorithm=AWS4-HMAC-SHA256`],
   },
 };
 

@@ -17,3 +17,5 @@ export * from './retrait-depot';
 export * from './meta-daily';
 export * from './studios-fal';
 export * from './rendu-video';
+export * from './transcription-fal';
+export * from './sous-titres-video';

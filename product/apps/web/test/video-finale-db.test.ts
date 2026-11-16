@@ -49,7 +49,8 @@ import { publierSondeVideo } from '../../workers/src/studios/sonde-video';
 import { DecodeurSharp } from '../../workers/src/studios/decodeur';
 import { decoderVideoFfmpeg } from '../../workers/src/studios/decodeur-video';
 import type { BaseStudio } from '../lib/studios/execution/types';
-import type { EntreeAssemblage, ResultatAssemblage } from '@tiktrends/integrations';
+import { imageGrise, pixelsChanges, PIXELS_TEXTE_MIN, type EntreeAssemblage, type ResultatAssemblage } from '@tiktrends/integrations';
+import { ACTION_AUDIT_CONTROLE_PAROLE, NON_INCLUS_SOUS_TITRES, miseEnPageSousTitres } from '@tiktrends/core';
 
 const ids = etat.ids;
 const base = db as unknown as BaseStudio;
@@ -252,4 +253,54 @@ describe.skipIf(!FFMPEG)('vidéo finale · assemblage réel des clips des plans'
       await db.update(schema.workspaces).set({ plan: 'core' }).where(eq(schema.workspaces.id, ids.wsA));
     }
   });
+
+  /**
+   * Sous-titres · posés sur les mots TRANSCRITS des prises (journal du contrôle
+   * de la parole), brûlés par la passe séparée, puis LUS sur l'image du fichier
+   * conservé. Dernier cas du bloc : une fois les transcriptions au journal,
+   * chaque assemblage suivant brûlerait aussi (encodage 1080×1920 de plus).
+   */
+  it('sous-titres · sans transcription la ligne reste avec sa raison ; avec, brûlés, vus sur l’image, sortis de « non inclus »', async () => {
+    const sans = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
+    expect(sans.ok && sans.video.nonInclus).toContain('Sous-titres · non incrustés (aucune prise parlée transcrite).');
+
+    // Le journal du contrôle de la parole, tel que le worker l'écrit (un par prise retenue).
+    const J = schema.studioJobs;
+    const prises: Record<string, { job: string; asset: string }> = {};
+    for (const j of await db.select().from(J).where(and(eq(J.projectId, projet.projectId), eq(J.state, 'completed')))) {
+      for (const [op, asset] of Object.entries((j.result as { assets?: Record<string, string> } | null)?.assets ?? {})) if (op.startsWith('clip:')) prises[op.slice(5)] = { job: j.id, asset };
+    }
+    const mots: Record<string, Array<[string, number, number]>> = {
+      s_ouverture: [['Tu', 300, 450], ['en', 460, 560], ['as', 570, 700], ['marre', 710, 1000], ['des', 1010, 1100], ['boutons ?', 1110, 1600]],
+      s_produit: [['Voici', 200, 500], ['le', 510, 600], ['sérum.', 610, 1100]],
+    };
+    for (const sid of Object.keys(mots)) {
+      await db.insert(schema.studioAuditEvents).values({
+        actorId: null, effectiveRole: 'systeme:controle', workspaceId: ids.wsA, brandId: ids.brandA1, action: ACTION_AUDIT_CONTROLE_PAROLE,
+        targetType: 'studio_job', targetId: prises[sid]!.job, versionBefore: 'pending', versionAfter: 'pending', reason: 'parole conforme', traceId: 'test',
+        details: { suite: 'conforme', conforme: true, operation: `clip:${sid}`, projectId: projet.projectId, assetId: prises[sid]!.asset, mots: mots[sid] },
+      });
+    }
+
+    const r = await assemblerVideoFinalePour(ctxDe(ids, 'ua'), { projectId: projet.projectId }, { lecteur, stockage: memoire, assembler: rejoue });
+    expect(r.ok, !r.ok ? `${r.code} ${r.message}` : '').toBe(true);
+    if (!r.ok) return;
+    expect(r.video.nonInclus).not.toContain(NON_INCLUS_SOUS_TITRES);
+    expect(r.video.nonInclus.some((l) => l.startsWith('Sous-titres'))).toBe(false);
+    const [a] = await db.select().from(schema.studioAssets).where(eq(schema.studioAssets.id, r.video.assetId));
+    expect((a!.rights as { videoFinale: { nonInclus: string[] } }).videoFinale.nonInclus).toEqual(r.video.nonInclus);
+
+    // L'image du fichier CONSERVÉ, au milieu du carton « Tu en as marre », comparée au rendu sans sous-titres.
+    const avant = join(dossier, 'sans-sous-titres.mp4');
+    const apres = join(dossier, 'avec-sous-titres.mp4');
+    writeFileSync(avant, renduReel!.ok ? renduReel!.octets : new Uint8Array());
+    writeFileSync(apres, conserve.get(a!.storageKey)!);
+    const page = miseEnPageSousTitres(1080, 1920);
+    const [i0, i1] = await Promise.all([imageGrise('ffmpeg', avant, 650, 1080, 1920, { delaiMs: 30_000 }), imageGrise('ffmpeg', apres, 650, 1080, 1920, { delaiMs: 30_000 })]);
+    expect(pixelsChanges(i0!, i1!, 1080, page.zone.haut, page.zone.bas)).toBeGreaterThanOrEqual(PIXELS_TEXTE_MIN);
+    expect(pixelsChanges(i0!, i1!, 1080, 1920 - Math.ceil(1920 * 0.2), 1920), 'du texte dans les 20 % bas').toBeLessThanOrEqual(20);
+    // Hors carton (le plan « s_fin », muet) · aucune différence de texte.
+    const [j0, j1] = await Promise.all([imageGrise('ffmpeg', avant, 7500, 1080, 1920, { delaiMs: 30_000 }), imageGrise('ffmpeg', apres, 7500, 1080, 1920, { delaiMs: 30_000 })]);
+    expect(pixelsChanges(j0!, j1!, 1080, 0, 1920)).toBeLessThanOrEqual(50);
+  }, DELAI_RENDU_REEL_MS);
 });

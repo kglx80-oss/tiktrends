@@ -10,10 +10,11 @@ import {
   type DecisionFournisseur, type DemandeFournisseur, type EmpreinteFichier, type FournisseurStudio, type MediaResolu, type RequeteFal, type StockageStudio,
 } from '@tiktrends/core';
 import {
-  FournisseurFal, BarriereDepenseStudio, storageFromEnv, putObject, presignGetUrl, privateObjectUrl, objectKeyFromUrl, basePubliqueStockage, verifierEmpreinteObjetEspace,
+  FournisseurFal, BarriereDepenseStudio, TranscripteurFal, storageFromEnv, putObject, presignGetUrl, privateObjectUrl, objectKeyFromUrl, basePubliqueStockage, verifierEmpreinteObjetEspace,
   type PortDepense, type PreparationFal, type StorageConfig,
 } from '@tiktrends/integrations';
 import { demarrerBoucleStudio } from './boucle';
+import { controlerParolesEnAttente, type DependancesControleParole } from './controle-parole';
 import { refusDerivationFormat } from './formats-attestes';
 import { relireMasque } from './retouche';
 import type { BaseStudio } from './types';
@@ -250,6 +251,32 @@ export function construireFournisseurFal(o: {
   });
 }
 
+/**
+ * Le contrôle de la parole des prises livrées · même clé fal, même plafond
+ * (une barrière sur le même registre `ai_spend`), même stockage. Le
+ * transcripteur ne s'exécute que pour une prise dont le devis approuvé porte
+ * la ligne « contrôle de la parole ».
+ */
+export function construireControleParole(o: {
+  base: BaseStudio;
+  decision: Extract<DecisionFournisseur, { ok: true }>;
+  fetch: typeof fetch;
+  env?: Readonly<Record<string, string | undefined>>;
+  stockage: StorageConfig;
+  horloge?: () => Date;
+}): DependancesControleParole {
+  const barriere = new BarriereDepenseStudio({ port: portDepenseBase(o.base), env: o.env, horloge: o.horloge });
+  const transcripteur = new TranscripteurFal({ apiKey: o.decision.apiKey, fetch: o.fetch, barriere });
+  return {
+    base: o.base,
+    stockage: stockageS3(o.stockage, o.fetch),
+    transcrire: (d) => transcripteur.transcrire(d),
+    adresse: (cle) => presignGetUrl(o.stockage, cle, 900),
+    horloge: o.horloge,
+    journal: (m) => console.log(m),
+  };
+}
+
 export const MESSAGE_SANS_FOURNISSEUR = 'worker studio non démarré, jobs laissés en file, rien facturé.';
 
 /**
@@ -269,6 +296,7 @@ export function demarrerWorkerStudio(o: {
   const cfg = storageFromEnv();
   if (!cfg) { log(`[studios] stockage objet illisible · ${MESSAGE_SANS_FOURNISSEUR}`); return null; }
   const fournisseur = construireFournisseurFal({ base: o.base, decision: d, fetch: o.fetch, env: o.env, stockage: cfg });
-  log(`[studios] worker studio démarré · fournisseur fal (${d.modeles.generation}, ${d.modeles.edition}, animation ${d.modeles.animation}), sondage avec recul, plafond de dépense appliqué.`);
-  return demarrerBoucleStudio({ base: o.base, fournisseur, stockage: stockageS3(cfg, o.fetch) });
+  const parole = construireControleParole({ base: o.base, decision: d, fetch: o.fetch, env: o.env, stockage: cfg });
+  log(`[studios] worker studio démarré · fournisseur fal (${d.modeles.generation}, ${d.modeles.edition}, animation ${d.modeles.animation}), contrôle de la parole des prises livrées, sondage avec recul, plafond de dépense appliqué.`);
+  return demarrerBoucleStudio({ base: o.base, fournisseur, stockage: stockageS3(cfg, o.fetch), apresTour: () => controlerParolesEnAttente(parole) });
 }

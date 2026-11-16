@@ -11,3 +11,5 @@ export * from './ecran';
 export * from './export-video';
 export * from './rendu-final';
 export * from './confirmation';
+export * from './parole';
+export * from './sous-titres';
