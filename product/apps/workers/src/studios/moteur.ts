@@ -10,6 +10,7 @@ import {
   type DecodeurMedia, type EnteteMedia, type ResultatDecodage, type ActeurJob, type EtatJob, type FournisseurStudio, type StockageStudio, type StatutFournisseur,
   type SnapshotJob, type IssueFinanciere, type SortieFournisseur,
   capacitesCoupees, capacitesDesLignes,
+  lireEchecsEtape, suiteEchecEtape, ECHECS_ETAPE_MAX,
 } from '@tiktrends/core';
 import { reglerJob } from './registre';
 import { retoucherSortie, type TraceRetouche } from './retouche';
@@ -86,6 +87,8 @@ export interface OptionsMoteur {
    * absents (bancs d'essai du moteur seul), aucun filtre.
    */
   interrupteurs?: InterrupteursMoteur;
+  /** Reçoit l'alerte d'une étape en échec (exception attrapée par job) · `console.error` par défaut. */
+  alerte?: (m: string) => void;
 }
 
 export interface InterrupteursMoteur {
@@ -103,6 +106,9 @@ const CANDIDATS_MAX = 1_000;
 
 /** Échec métier dans une transaction · la transaction est annulée. */
 class PerteDeCourse extends Error {}
+
+/** Le message d'une exception, borné · jamais une pile. */
+const messageErreur = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/\s+/g, ' ').slice(0, 300);
 
 const ETATS_A_SUIVRE: EtatJob[] = ['claimed', 'running', 'persisting', 'cancel_requested'];
 /**
@@ -136,6 +142,7 @@ export class MoteurStudio {
   private readonly secret: string | null;
   private readonly sortieJournal: (e: EntreeJournal) => void;
   private readonly interrupteurs: InterrupteursMoteur | null;
+  private readonly alerte: (m: string) => void;
 
   constructor(o: OptionsMoteur) {
     this.base = o.base;
@@ -149,6 +156,7 @@ export class MoteurStudio {
     this.secret = o.secretWebhook ?? null;
     this.sortieJournal = o.journal ?? (() => {});
     this.interrupteurs = o.interrupteurs ?? null;
+    this.alerte = o.alerte ?? ((m) => console.error(m));
   }
 
   private maintenant(): Date { return this.horloge(); }
@@ -297,20 +305,80 @@ export class MoteurStudio {
     let etapes = 0;
     const now = this.maintenant();
     const libre = or(isNull(J.leaseOwner), eq(J.leaseOwner, this.workerId), avant(J.leaseExpiresAt, now));
+    // Un job reculé après une étape en échec porte son prochain essai dans `heartbeatAt` · pas avant.
+    const du = sql`(${J.heartbeatAt} is null or ${J.heartbeatAt} <= ${now.toISOString()})`;
     const actifs = await this.base.select().from(J)
-      .where(and(inArray(J.state, ETATS_A_SUIVRE), libre))
+      .where(and(inArray(J.state, ETATS_A_SUIVRE), libre, du))
       .orderBy(sql`${J.heartbeatAt} asc nulls first`, J.updatedAt).limit(SUIVIS_PAR_TOUR);
     const aReconcilier = await this.base.select().from(J)
-      .where(and(eq(J.state, 'reconciliation_required'), libre))
+      .where(and(eq(J.state, 'reconciliation_required'), libre, du))
       .orderBy(sql`${J.heartbeatAt} asc nulls first`, J.updatedAt).limit(RECONCILIATIONS_PAR_TOUR);
-    for (const j of [...actifs, ...aReconcilier]) if (await this.etape(j)) etapes += 1;
+    for (const j of [...actifs, ...aReconcilier]) if (await this.etapeGardee(j)) etapes += 1;
     for (let i = 0; i < (o.maxNouveaux ?? 5); i++) {
-      const j = await this.reclamer();
+      let j: JobStudio | null;
+      try {
+        j = await this.reclamer();
+      } catch (e) {
+        this.alerte(`[studios] réclamation en échec · ${messageErreur(e)}`);
+        break;
+      }
       if (!j) break;
       etapes += 1;
-      await this.etape(j);
+      await this.etapeGardee(j);
     }
     return etapes;
+  }
+
+  /**
+   * I1 · l'étape d'UN job, gardée · une exception est journalisée, comptée
+   * (`error.echecsEtape`) et le job repoussé (`heartbeatAt` = prochain essai,
+   * recul 20 s → 10 min), puis le tour CONTINUE · au `ECHECS_ETAPE_MAX`-ième
+   * échec consécutif, `failed` (crédits rendus). Une étape réussie remet le
+   * compteur à zéro.
+   */
+  private async etapeGardee(job: JobStudio): Promise<boolean> {
+    try {
+      const fait = await this.etape(job);
+      if (lireEchecsEtape(job.error) > 0) {
+        await this.base.update(J).set({ error: sql`${J.error} - 'echecsEtape' - 'prochainEssaiEtape' - 'derniereErreurEtape'` })
+          .where(and(eq(J.id, job.id), sql`jsonb_typeof(${J.error}) = 'object' and ${J.error} ? 'echecsEtape'`));
+      }
+      return fait;
+    } catch (e) {
+      try {
+        await this.noterEchecEtape(job.id, e);
+      } catch (e2) {
+        this.alerte(`[studios] échec d'étape non consigné · job ${job.id} · ${messageErreur(e2)}`);
+      }
+      return true;
+    }
+  }
+
+  private async noterEchecEtape(jobId: string, e: unknown): Promise<void> {
+    const j = await this.relire(this.base, jobId);
+    if (!j || jobTerminal(j.state as EtatJob)) { this.alerte(`[studios] étape en échec · job ${jobId} · ${messageErreur(e)}`); return; }
+    const now = this.maintenant();
+    const t = await this.tentativeCourante(this.base, j.id);
+    const preuve = preuveSoumission(t && { providerIdempotencyKey: t.providerIdempotencyKey, providerRequestId: j.providerRequestId ?? t.providerRequestId });
+    const s = suiteEchecEtape({ erreur: j.error, etat: j.state as EtatJob, preuve, maintenant: now });
+    const message = messageErreur(e);
+    this.alerte(`[studios] étape en échec · job ${j.id} (${j.state}) · ${message} · échec ${s.echecs} sur ${ECHECS_ETAPE_MAX}${s.suite === 'reculer' ? `, prochain essai ${s.prochainEssai.toISOString()}` : ', job conclu en échec'}`);
+    this.noter({ t: now.toISOString(), type: 'transition', worker: this.workerId, jobId: j.id, de: j.state, vers: j.state, acteur: 'worker', motif: `étape en échec · ${message} · ${s.echecs}/${ECHECS_ETAPE_MAX}` });
+    if (s.suite === 'echouer') {
+      try {
+        await this.terminer(j, 'failed', s.acteur, s.issue, `étape en échec ${s.echecs} fois de suite · ${message}`, this.resultat(j).coutUsdMicros ?? null);
+        return;
+      } catch (e2) {
+        // Même la conclusion casse (instantané illisible, registre) · le job reste repoussé au recul maximal, jamais en tête de file.
+        this.alerte(`[studios] conclusion impossible · job ${j.id} · ${messageErreur(e2)}`);
+      }
+    }
+    const prochain = s.suite === 'reculer' ? s.prochainEssai : new Date(now.getTime() + 10 * 60_000);
+    const marque = JSON.stringify({ echecsEtape: s.echecs, prochainEssaiEtape: prochain.toISOString(), derniereErreurEtape: message });
+    await this.base.update(J).set({
+      error: sql`(case when jsonb_typeof(${J.error}) = 'object' then ${J.error} else '{}'::jsonb end) || ${marque}::jsonb`,
+      heartbeatAt: prochain,
+    }).where(and(eq(J.id, j.id), eq(J.state, j.state)));
   }
 
   /** Joue l'étape suivante d'un job · rend vrai si quelque chose a été tenté. */

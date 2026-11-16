@@ -33,7 +33,7 @@ vi.mock('../lib/auth', () => ({ getSession: async () => etat.session }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 
 import { db, schema, eq } from '@tiktrends/db';
-import { cleFournisseurDuJob, lireSnapshotJob, GRILLE_STUDIO, SCHEMA_PARAMETRES_CLIP, type SondeVideo } from '@tiktrends/core';
+import { cleFournisseurDuJob, lireSnapshotJob, GRILLE_STUDIO, SCHEMA_PARAMETRES_CLIP, DUREE_URL_FOURNISSEUR_S, type SondeVideo } from '@tiktrends/core';
 import { publicUrlFor, type StorageConfig } from '@tiktrends/integrations';
 import { semer } from './studios-semis';
 import { ctxDe, poserSolde, projetTest, banc, jusquAuBout } from './l3-harnais';
@@ -123,7 +123,9 @@ describe('animation d’un plan · devis, approbation, corps fal', () => {
     const canonique = new URL(publicUrlFor(CFG, keyframe.cle));
     expect(signee.origin).toBe(canonique.origin);
     expect(signee.pathname).toBe(canonique.pathname);
-    expect(signee.searchParams.get('X-Amz-Expires')).toBe('900');
+    // I5 · l'image clé part signée pour la durée choisie au noyau (une heure), pas 15 min · fal la lit au début du traitement.
+    expect(signee.searchParams.get('X-Amz-Expires'), 'l’image clé expire avant que fal ne la lise').toBe(String(DUREE_URL_FOURNISSEUR_S));
+    expect(DUREE_URL_FOURNISSEUR_S).toBe(3_600);
     expect(signee.searchParams.get('X-Amz-Algorithm')).toBe('AWS4-HMAC-SHA256');
     expect(signee.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/);
     expect(prep).toEqual({ ok: true, workspaceId: ids.wsA, modele: MODELES.animation, corps: { prompt: p.consigne, image_url: imageUrl, duration: '5', negative_prompt: expect.any(String) } });
