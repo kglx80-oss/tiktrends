@@ -1,0 +1,45 @@
+{
+  "resumeVide": "",
+  "resumeV5": "Objectif : Vendre les lunettes\nAudience : Coureurs\nComposition : Produit au centre\nIntention de style : Nuit cinématique, contre-jour",
+  "entreeV5": {
+    "taskInputs": {
+      "briefId": "brief_v1",
+      "conceptId": "concept_v1",
+      "mode": "generative_scene",
+      "referenceIds": [],
+      "width": 1080,
+      "height": 1350
+    },
+    "resolvedDocuments": [
+      {
+        "id": "brief_v1",
+        "version": "v1",
+        "schemaKey": "Fact",
+        "content": {
+          "id": "brief_v1",
+          "claim": "Objectif : Vendre les lunettes\nAudience : Coureurs\nComposition : Produit au centre\nIntention de style : Nuit cinématique, contre-jour",
+          "sourceIds": [],
+          "kind": "declared",
+          "confidence": "high"
+        },
+        "sha256": "f8be0bc268af5eabcbb1b9943ac4df1e45531c9c46edded9f6df2b52dc704bc9"
+      },
+      {
+        "id": "concept_v1",
+        "version": "v1",
+        "schemaKey": "Fact",
+        "content": {
+          "id": "concept_v1",
+          "claim": "Composition : Produit au centre\nIntention de style : Nuit cinématique, contre-jour\nAucun texte prévu.",
+          "sourceIds": [],
+          "kind": "declared",
+          "confidence": "high"
+        },
+        "sha256": "3cd0fb46cec4aa32c077f2b584aa6ce14fa51a1e7c75b590c917cbd542eb69d7"
+      }
+    ],
+    "references": [],
+    "invariants": [],
+    "facts": []
+  }
+}

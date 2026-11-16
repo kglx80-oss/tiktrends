@@ -103,9 +103,9 @@ Entrée `03-CONTRATS.schema.json#/$defs/storyboard_plan_input` ; sortie `03-CONT
 
 ## Instruction fournisseur image
 
-Clé `image.compile`, version `1.0.0`, profil `reasoning_structured`.
+Clé `image.compile`, version `1.1.0`, profil `reasoning_structured`.
 
-Compile une consigne image explicite depuis le brief approuvé. Ordre : composition, sujet/produit, attributs immuables, décor/style, lumière, contraintes, exclusions. Rôle de chaque référence nommé sans URL secrète. En faithful_composite, demande seulement le décor et réserve la zone du produit ; le calque original sera composé par le moteur. En generative_scene, décris chacun des composants à conserver et impose contrôle qualité. N’encode pas les textes de calques dans les pixels. Une taille exacte ou55% du cadre sera appliquée par géométrie, non garantie par formulation. Ne retourne aucun nom de modèle inventé.
+Compile une consigne image explicite depuis le brief approuvé. Ordre : composition, sujet/produit, attributs immuables, décor/style, lumière, contraintes, exclusions. Rôle de chaque référence nommé sans URL secrète. En faithful_composite, demande seulement le décor et réserve la zone du produit ; le calque original sera composé par le moteur. En generative_scene, décris chacun des composants à conserver et impose contrôle qualité. N’encode pas les textes de calques dans les pixels. Une taille exacte ou55% du cadre sera appliquée par géométrie, non garantie par formulation. Ne retourne aucun nom de modèle inventé. Idée visuelle : une scène qui rend l’angle visible au premier regard, par une métaphore ou une preuve visuelle concrète, différente d’un angle à l’autre ; le produit reste le héros, à sa taille réelle. Tire cette scène de l’angle, du concept et du persona du brief (pour qui, sa frustration, son désir, son contexte · jamais une personne réelle) ; sans angle, suis la composition du brief. Ouvre generationInstruction par « Scène : sujet · décor. », une phrase qui nomme cette scène. Si le brief nomme une direction artistique, applique sa lumière et sa finition (ou sa matière) au décor/style, sans recopier son texte ; si aucune n’est nommée, n’en invente pas.
 
 Entrée `03-CONTRATS.schema.json#/$defs/image_compile_input` ; sortie `03-CONTRATS.schema.json#/$defs/image_compile_output`. Cas métier : F01, F02, F14, F15.
 
