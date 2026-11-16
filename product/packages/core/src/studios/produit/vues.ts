@@ -7,13 +7,22 @@
  * gros plan de l'étiquette restaient au catalogue. Maintenant :
  *
  *  1. la photo épinglée, toujours la première ;
- *  2. puis jusqu'à DEUX autres vues, dans cet ordre de priorité :
- *     · celles que la personne a choisies sur la fiche (`vuesChoisies`,
- *       liste vide permise = la photo épinglée seule) ;
+ *  2. puis jusqu'à DEUX autres vues, CHOISIES par la personne :
+ *     · celles de la fiche (`vuesChoisies`, liste vide permise = la photo
+ *       épinglée seule) ;
  *     · sinon les associations « Produit » déjà posées dans le brief vers
- *       d'autres photos du produit (le geste « Associer un fichier ») ;
- *     · sinon, par défaut, les photos SUIVANTES de la fiche (positions après
- *       l'épinglée, puis retour au début).
+ *       d'autres photos du produit (le geste « Associer un fichier »).
+ *
+ * ── Pourquoi le défaut reste « l'épinglée seule » ───────────────────────────
+ *
+ * Les photos d'un catalogue ne sont pas toutes des vues du produit : une
+ * fiche Shopify importée mêle ambiances (le produit posé parmi d'autres
+ * objets), guide des tailles, tableau d'ingrédients, autres coloris du même
+ * article. Envoyées sans regard, elles apprennent au modèle un AUTRE produit.
+ * Tant que le propriétaire n'a pas comparé 1 vue et 3 vues sur un vrai
+ * produit, rien ne part sans un choix : les photos SUIVANTES de la fiche
+ * (positions après l'épinglée, puis retour au début) sont PROPOSÉES à
+ * l'écran (`proposees`), un clic les ajoute.
  *
  * Toutes passent par le chemin de références existant · association rôle
  * `product`, portée `product`, gestes permis et composants du produit
@@ -29,7 +38,8 @@
  */
 
 import type { ReferenceBrief } from '../brief';
-import { REFERENCES_PAR_APPEL_MAX } from '../fournisseurs/fal-image';
+import { REFERENCES_PAR_APPEL_MAX, familleModele } from '../fournisseurs/fal-image';
+import { MODELE_FAL_EDITION_DEFAUT } from '../fournisseurs/choix';
 import type { FichierCatalogue } from './catalogue';
 import { associationProduit, type ReferenceProduitEpinglee } from './epinglage';
 
@@ -42,7 +52,7 @@ export type OrigineVue = 'epinglee' | 'choisie' | 'defaut';
 export const LIBELLES_ORIGINE_VUE: Readonly<Record<OrigineVue, string>> = {
   epinglee: 'photo épinglée',
   choisie: 'vue choisie',
-  defaut: 'vue suivante, par défaut',
+  defaut: 'vue suivante, proposée',
 };
 
 export interface VueEnvoyee { assetId: string; position: number | null; origine: OrigineVue }
@@ -51,6 +61,8 @@ export interface VuesProduit {
   /** Les associations Produit transmises, dans l'ordre d'envoi · l'épinglée d'abord. */
   references: ReferenceBrief[];
   vues: VueEnvoyee[];
+  /** Les vues suivantes proposées quand rien n'est choisi · jamais envoyées sans un clic. */
+  proposees: VueEnvoyee[];
   /** Ce qui ne part pas, et pourquoi. */
   avertissements: string[];
 }
@@ -74,37 +86,62 @@ export function lireVuesChoisies(ref: ReferenceProduitEpinglee): string[] | null
   return [...new Set(x.filter((v): v is string => typeof v === 'string'))];
 }
 
+/**
+ * La phrase qui dit au modèle que les N photos sont UN article · invariant du
+ * contexte et contrainte de la consigne finale (`compilation.ts`), dès qu'il
+ * part plus d'une vue (risque : trois flacons à l'image).
+ */
+export function phraseUnSeulArticle(n: number): string {
+  return `Les photos produit 1 à ${n} sont des vues du même article · un seul exemplaire à l’image, sauf le contenu d’achat déclaré.`;
+}
+
+/**
+ * Le modèle d'édition routé n'accepte-t-il qu'une image de départ (Flux,
+ * Kontext · `familleModele`) ? Même choix que `decisionFournisseurStudio`.
+ */
+export function editionAReferenceUnique(env: Readonly<Record<string, string | undefined>>): boolean {
+  return familleModele(env.FAL_IMAGE_MODEL_EDIT || MODELE_FAL_EDITION_DEFAUT) === 'reference_unique';
+}
+
 export function vuesProduit(e: {
   produit: ReferenceProduitEpinglee;
   references: readonly ReferenceBrief[];
   fichiers: ReadonlyMap<string, FichierCatalogue>;
+  /** Le modèle routé ne reçoit qu'une image (`editionAReferenceUnique`) · l'épinglée seule part, c'est dit. */
+  referenceUnique?: boolean;
 }): VuesProduit {
   const ref = e.produit;
   const avertissements: string[] = [];
   const epinglee = e.references.find((r) => r.role === 'product' && r.assetId === ref.photo.assetId) ?? associationProduit(ref);
 
+  const origine: OrigineVue = 'choisie';
   let candidats: string[];
-  let origine: OrigineVue;
   const choisies = lireVuesChoisies(ref);
+  const associees = [...new Set(e.references.filter((r) => r.role === 'product' && r.assetId !== ref.photo.assetId).map((r) => r.assetId))]
+    .filter((id) => estVueDuProduit(e.fichiers.get(id), ref));
   if (choisies) {
-    origine = 'choisie';
     candidats = choisies.filter((id) => estVueDuProduit(e.fichiers.get(id), ref));
     const perdues = choisies.length - candidats.length;
     if (perdues > 0) avertissements.push(`${perdues} vue${perdues > 1 ? 's' : ''} choisie${perdues > 1 ? 's' : ''} absente${perdues > 1 ? 's' : ''} du catalogue de ce produit · non envoyée${perdues > 1 ? 's' : ''}, aucune autre photo ne la remplace.`);
+    // La fiche décide · une association Produit du brief qu'elle ne retient pas ne part pas, et c'est dit.
+    const ecartees = associees.filter((id) => !candidats.includes(id)).length;
+    if (ecartees > 0) avertissements.push(`${ecartees} photo${ecartees > 1 ? 's' : ''} associée${ecartees > 1 ? 's' : ''} au rôle Produit dans le brief ne ${ecartees > 1 ? 'partent' : 'part'} pas · la fiche choisit les vues envoyées.`);
   } else {
-    const associees = [...new Set(e.references.filter((r) => r.role === 'product' && r.assetId !== ref.photo.assetId).map((r) => r.assetId))]
-      .filter((id) => estVueDuProduit(e.fichiers.get(id), ref));
-    origine = associees.length ? 'choisie' : 'defaut';
-    candidats = associees.length ? associees : vuesParDefaut(ref, e.fichiers);
+    candidats = associees;
   }
 
   const autres = new Set(e.references.filter((r) => r.role !== 'product' && r.assetId !== ref.photo.assetId).map((r) => r.assetId)).size;
-  const place = Math.max(0, Math.min(VUES_SUPPLEMENTAIRES_MAX, REFERENCES_PAR_APPEL_MAX - 1 - autres));
-  if (origine === 'choisie' && candidats.length > VUES_SUPPLEMENTAIRES_MAX) {
+  const libre = Math.max(0, Math.min(VUES_SUPPLEMENTAIRES_MAX, REFERENCES_PAR_APPEL_MAX - 1 - autres));
+  const place = e.referenceUnique ? 0 : libre;
+  if (e.referenceUnique && candidats.length > 0) {
+    const n = Math.min(candidats.length, VUES_SUPPLEMENTAIRES_MAX);
+    avertissements.push(`Le modèle d’images routé ne reçoit qu’une image de départ · seule la photo épinglée part, ${n > 1 ? `les ${n} autres vues attendent` : 'l’autre vue attend'} un modèle multi-références.`);
+  }
+  if (candidats.length > VUES_SUPPLEMENTAIRES_MAX) {
     avertissements.push(`${candidats.length} vues choisies en plus de la photo épinglée · seules les ${VUES_SUPPLEMENTAIRES_MAX} premières partent (${VUES_PRODUIT_MAX} photos du produit au plus).`);
   }
   const retenues = candidats.slice(0, place);
-  const coupees = Math.min(candidats.length, VUES_SUPPLEMENTAIRES_MAX) - retenues.length;
+  const coupees = e.referenceUnique ? 0 : Math.min(candidats.length, VUES_SUPPLEMENTAIRES_MAX) - retenues.length;
   if (coupees > 0) {
     avertissements.push(`Borne de ${REFERENCES_PAR_APPEL_MAX} références par appel · ${coupees} vue${coupees > 1 ? 's' : ''} du produit non envoyée${coupees > 1 ? 's' : ''} (${autres} autre${autres > 1 ? 's' : ''} référence${autres > 1 ? 's' : ''} du brief passe${autres > 1 ? 'nt' : ''} d’abord).`);
   }
@@ -120,5 +157,9 @@ export function vuesProduit(e: {
     });
     vues.push({ assetId: id, position: f.position, origine });
   }
-  return { references, vues, avertissements };
+  // Rien de choisi · les photos suivantes sont PROPOSÉES (jamais envoyées), dans la place que l'appel laisse.
+  const proposees: VueEnvoyee[] = !choisies && associees.length === 0 && !e.referenceUnique
+    ? vuesParDefaut(ref, e.fichiers).slice(0, libre).map((id) => ({ assetId: id, position: e.fichiers.get(id)!.position, origine: 'defaut' as const }))
+    : [];
+  return { references, vues, proposees, avertissements };
 }

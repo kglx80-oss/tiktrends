@@ -235,7 +235,7 @@ describe('Textes · brique d’action serveur', () => {
 
 // ── Produit ───────────────────────────────────────────────────────────────────
 function vueProduit(associations = 2): VueProduit {
-  const prep = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [] };
+  const prep = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [], vuesProposees: [] };
   const assoc = (i: number) => ({ assetId: `f${i}`, role: 'style', libelle: `Fichier ${i}`, libelleRole: 'Style', libellePortee: 'Décor', provenance: 'logo', requiredComponents: [], epinglee: false });
   return {
     projet: { id: 'p1', title: 'Sérum', marque: 'Éclat' }, version: { id: 'v1', n: 1 }, briefPresent: true,

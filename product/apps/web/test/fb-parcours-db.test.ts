@@ -37,7 +37,7 @@ import {
 } from '@tiktrends/core';
 import * as depotPrompts from '../lib/studios/prompts/depot-prompts';
 import { chargerCatalogueProjet } from '../lib/studios/produit/catalogue';
-import { epinglerProduitPour, associerReferencePour } from '../lib/studios/produit/commandes';
+import { epinglerProduitPour, associerReferencePour, definirFicheProduitPour } from '../lib/studios/produit/commandes';
 import { creerProjetDepuisSourcesPour } from '../lib/studios/sources/projet';
 import { enregistrerVersion } from '../lib/studios/depot';
 import { compilerEtAttesterPour, retenirConsignePour } from '../lib/studios/image/consigne';
@@ -199,8 +199,7 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect(await executer(a.job.id)).toBe('completed');
     const posts = appels.filter((x) => x.methode === 'POST');
     expect(posts).toHaveLength(1);
-    // Trois vues du MÊME produit, dans l'ordre · l'épinglée (photo 5), puis les suivantes de la fiche (6, 7).
-    expect(JSON.parse(posts[0]!.corps!)).toMatchObject({ image_urls: [PHOTOS[4], PHOTOS[5], PHOTOS[6]], aspect_ratio: '1:1' });
+    expect(JSON.parse(posts[0]!.corps!)).toMatchObject({ image_urls: [PHOTOS[4]], aspect_ratio: '1:1' });
     expect(compilation.consigne.consigne).toBeTruthy();
     const vue = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
     expect(vue.ok && vue.vue.jobs[0]).toMatchObject({ id: a.job.id, etat: 'completed', media: { url: expect.stringContaining('/api/studios/media/') } });
@@ -265,14 +264,14 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect(d.runId).toBe(c.ok && c.statut === 'compilee' ? c.runId : '');
     expect(a!.versionBefore).toBe(v.id);
     // La consigne attestée est la FINALE (interdits du serveur compris), liée à la photo épinglée.
-    const [id5, id6, id7] = [await photo(projectId, 5), await photo(projectId, 6), await photo(projectId, 7)];
-    expect(d.consigne).toMatchObject({ schema: 'consigne_image/1', mode: 'generative_scene', format: { largeur: 1080, hauteur: 1350 }, references: [{ assetId: id5, role: 'product' }, { assetId: id6, role: 'product' }, { assetId: id7, role: 'product' }] });
+    const id5 = await photo(projectId, 5);
+    expect(d.consigne).toMatchObject({ schema: 'consigne_image/1', mode: 'generative_scene', format: { largeur: 1080, hauteur: 1350 }, references: [{ assetId: id5, role: 'product' }] });
     expect(d.empreinte).toBe(empreinteConsigne(d.consigne as never));
   });
 
   it('bout en bout · parametres studio_image/1 = ce que le worker relit, job completed, média generated dans l’éditeur, requires_review', async () => {
     const { projectId } = await projetEpingle();
-    const [id5, id6, id7] = [await photo(projectId, 5), await photo(projectId, 6), await photo(projectId, 7)];
+    const id5 = await photo(projectId, 5);
     const { compilation, version } = await consigneRetenue(projectId);
     if (!compilation.ok || compilation.statut !== 'compilee') throw new Error('compilation');
 
@@ -306,7 +305,7 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     const snap = job.snapshot as SnapshotJob;
     expect(snap.parametres).toEqual(parametresDepuisConsigne(compilation.consigne));
     expect(lireParametresImage(snap.parametres)).toEqual({ ok: true, parametres: snap.parametres });
-    expect(snap.parametres).toMatchObject({ schema: 'studio_image/1', promptRunId: compilation.runId, references: [id5, id6, id7].map((assetId) => ({ assetId, sha256: expect.stringMatching(/^[a-f0-9]{64}$/), role: 'product' })) });
+    expect(snap.parametres).toMatchObject({ schema: 'studio_image/1', promptRunId: compilation.runId, references: [{ assetId: id5, sha256: expect.stringMatching(/^[a-f0-9]{64}$/), role: 'product' }] });
 
     // Worker : fournisseur fal de production, fetch rejoué · completed.
     expect(await executer(a.job.id)).toBe('completed');
@@ -314,10 +313,10 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect(posts).toHaveLength(1);
     const corps = JSON.parse(posts[0]!.corps!) as { prompt: string; image_urls: string[]; aspect_ratio: string };
     expect(corps.prompt).toBe(promptFal(compilation.consigne.consigne));
-    expect(corps.image_urls).toEqual([PHOTOS[4], PHOTOS[5], PHOTOS[6]]);
+    expect(corps.image_urls).toEqual([PHOTOS[4]]);
     expect(corps.aspect_ratio).toBe('4:5');
     const [payload] = await db.select().from(schema.studioAuditEvents).where(and(eq(schema.studioAuditEvents.targetId, a.job.id), eq(schema.studioAuditEvents.action, 'job.provider.payload')));
-    expect((payload!.details as { references: string[]; modele: string })).toMatchObject({ references: [id5, id6, id7], modele: 'fal-ai/nano-banana-2/edit' });
+    expect((payload!.details as { references: string[]; modele: string })).toMatchObject({ references: [id5], modele: 'fal-ai/nano-banana-2/edit' });
 
     // Média : studio_assets `generated`, relié au job, visible dans l'éditeur du projet.
     const fini = await jobDe(a.job.id);
@@ -335,7 +334,7 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect((ctl!.details as { nonVerifies: string[] }).nonVerifies).toEqual(['lunettes', 'bandeau']);
     const vue1 = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
     // La consigne retenue se lit avec le NOM du fichier transmis (catalogue de la marque), pas son identifiant.
-    expect(vue1.ok && vue1.vue.retenue).toMatchObject({ verdict: { ok: true }, liaisons: [[id5, 5], [id6, 6], [id7, 7]].map(([referenceId, n]) => ({ referenceId, libelle: `Lunettes Sport Bandeau · photo ${n}`, role: 'product' })) });
+    expect(vue1.ok && vue1.vue.retenue).toMatchObject({ verdict: { ok: true }, liaisons: [{ referenceId: id5, libelle: 'Lunettes Sport Bandeau · photo 5', role: 'product' }] });
     expect(vue1.ok && vue1.vue.jobs[0]).toMatchObject({ id: a.job.id, etat: 'completed', qualite: 'requires_review', media: { assetId, url: `/api/studios/media/${assetId}` } });
     // Le POST de l'écran reste idempotent : déjà tranché par le worker, rien n'est réécrit.
     expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId: a.job.id })).toEqual({ ok: true, qualite: 'requires_review' });
@@ -344,6 +343,27 @@ describe('parcours nominal · consigne persistée → devis → approbation → 
     expect(await controlerMediaPour(ctxDe(ids, 'ua'), { jobId: a.job.id })).toEqual({ ok: true, qualite: 'requires_review' });
     const vue2 = await lireParcoursImagePour(ctxDe(ids, 'ua'), projectId, { ...O, ...SANS_FOURNISSEUR });
     expect(vue2.ok && vue2.vue.jobs[0]!.libelleQualite).toContain('À relire');
+  });
+});
+
+describe('vues du produit · une par défaut, trois quand elles sont choisies · jusqu’au vrai worker', () => {
+  it('par défaut, seule la photo épinglée part · les vues choisies (3 puis 2) partent ensuite, dans l’ordre, avec la phrase « un seul article »', async () => {
+    const { projectId } = await projetEpingle();
+    const [id5, id3, id2] = [await photo(projectId, 5), await photo(projectId, 3), await photo(projectId, 2)];
+    const v = await courante(projectId);
+    const f = await definirFicheProduitPour(ctxDe(ids, 'ua'), { projectId, baseVersionId: v.id, fiche: null, vues: [id3, id2] }, O);
+    expect(f, JSON.stringify(f)).toMatchObject({ ok: true });
+    const { compilation } = await consigneRetenue(projectId);
+    if (!compilation.ok || compilation.statut !== 'compilee') throw new Error('compilation');
+    expect(compilation.consigne.references.map((r) => r.assetId)).toEqual([id5, id3, id2]);
+    const q = await devisPret(projectId);
+    const a = await approuver(q);
+    if (!a.ok) throw new Error(JSON.stringify(a));
+    expect(await executer(a.job.id)).toBe('completed');
+    const posts = appels.filter((x) => x.methode === 'POST');
+    const corps = JSON.parse(posts[posts.length - 1]!.corps!) as { prompt: string; image_urls: string[] };
+    expect(corps.image_urls).toEqual([PHOTOS[4], PHOTOS[2], PHOTOS[1]]);
+    expect(corps.prompt).toContain('les photos produit 1 à 3 sont des vues du même article · un seul exemplaire à l’image, sauf le contenu d’achat déclaré');
   });
 });
 

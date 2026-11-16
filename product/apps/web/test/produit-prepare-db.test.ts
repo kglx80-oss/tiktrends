@@ -116,7 +116,8 @@ async function jusquAuCorpsFal(projectId: string) {
   const medias: MediaResolu[] = consigne.references.map((x) => ({ assetId: x.assetId, etat: 'autorise', url: urls.get(x.assetId)!, sha256: x.sha256 }));
   const q = requeteFalImage({ operations: [{ operation: 'keyframe:s_image', profil: 'image_generation' }], parametres: parametresDepuisConsigne(consigne), medias, modeles: { generation: 'fal-ai/nano-banana-2', edition: 'fal-ai/nano-banana-2/edit' } });
   if (!q.ok) throw new Error(q.motif);
-  return { contexte: texte.recues[texte.recues.length - 1]!.messages.map((m) => m.contenu).join('\n'), consigne, imageUrls: (q.corps as { image_urls: string[] }).image_urls };
+  const corps = q.corps as { image_urls: string[]; prompt: string };
+  return { contexte: texte.recues[texte.recues.length - 1]!.messages.map((m) => m.contenu).join('\n'), consigne, imageUrls: corps.image_urls, prompt: corps.prompt };
 }
 
 beforeAll(async () => {
@@ -158,18 +159,24 @@ describe('fiche produit · vraie action, une version, 0 $', () => {
     expect(ctl.ok && ctl.preparation.vuesProduit.map((x) => [x.position, x.origine])).toEqual([[5, 'epinglee'], [3, 'choisie'], [2, 'choisie']]);
     const r = await jusquAuCorpsFal(projectId);
     for (const a of ATTENDUS) expect(r.contexte, a.slice(0, 40)).toContain(a);
+    // Trois vues · le contexte ET le corps disent qu'elles montrent UN article.
+    expect(r.contexte).toContain('Les photos produit 1 à 3 sont des vues du même article · un seul exemplaire à l’image, sauf le contenu d’achat déclaré.');
+    expect(r.prompt).toContain('Plusieurs exemplaires du produit : les photos produit 1 à 3 sont des vues du même article');
     expect(r.consigne.references.slice(0, 3).map((x) => x.assetId)).toEqual([lunettes[4], lunettes[2], lunettes[1]]);
     expect(r.imageUrls.slice(0, 3)).toEqual([PHOTOS[4], PHOTOS[2], PHOTOS[1]]);
   });
 
-  it('sans fiche · aucun attribut de fiche dans le contexte · vues par défaut (5, 6, 7), jamais la casquette', async () => {
+  it('sans fiche ni choix · aucun attribut de fiche, l’épinglée SEULE part (6 et 7 sont proposées), jamais la casquette, pas de phrase « un seul article »', async () => {
     const projectId = await projetEpingle(5);
     const { lunettes, casquette } = await photosDe(projectId);
+    const ctl = await produit.controlerCompilation({ projectId, mode: 'generative_scene' });
+    expect(ctl.ok && ctl.preparation.vuesProposees.map((x) => x.position)).toEqual([6, 7]);
     const r = await jusquAuCorpsFal(projectId);
-    for (const p of PREFIXES) expect(r.contexte).not.toContain(p);
-    expect(r.consigne.references.map((x) => x.assetId).slice(0, 3)).toEqual([lunettes[4], lunettes[5], lunettes[6]]);
+    for (const p of [...PREFIXES, 'vues du même article']) expect(r.contexte).not.toContain(p);
+    expect(r.prompt).not.toContain('vues du même article');
+    expect(r.consigne.references.filter((x) => x.assetId.startsWith('pph_')).map((x) => x.assetId)).toEqual([lunettes[4]]);
     expect(r.consigne.references.map((x) => x.assetId)).not.toContain(casquette);
-    expect(r.imageUrls.slice(0, 3)).toEqual([PHOTOS[4], PHOTOS[5], PHOTOS[6]]);
+    expect(r.imageUrls.filter((u) => (PHOTOS as readonly string[]).includes(u))).toEqual([PHOTOS[4]]);
   });
 
   it('fiche vidée · les invariants redeviennent EXACTEMENT ceux d’avant la fiche', async () => {

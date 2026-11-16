@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import type { BriefCanonique, ReferenceBrief } from '../src/studios/brief';
 import {
   epinglerProduit, associationProduit, controlerAvantCompilation, controlerSortieCompilation, consigneFinale, entreeCompilation,
-  definirFicheProduit, validerFicheProduit, attributsFiche, raisonFiche, raisonVue, vuesProduit, VARIANTE_UNIQUE, VUES_PRODUIT_MAX,
+  definirFicheProduit, validerFicheProduit, attributsFiche, raisonFiche, raisonVue, raisonFicheRetiree, vuesModifiees, phraseUnSeulArticle, VARIANTE_UNIQUE, VUES_PRODUIT_MAX,
   idBibliotheque, versionDepuisEmpreinte,
   type ConsigneImage, type FichierCatalogue, type ReferenceProduitEpinglee,
 } from '../src/studios/produit';
@@ -38,7 +38,7 @@ function epingler(position: number, precedente?: ReferenceProduitEpinglee): Refe
 }
 const ref = (f: FichierCatalogue, role: ReferenceBrief['role'], scope: ReferenceBrief['scope']): ReferenceBrief => ({ assetId: f.assetId, assetVersion: f.assetVersion, sha256: f.sha256, role, scope, allowedChanges: [], requiredComponents: [] });
 const avecRefs = (refs: ReferenceBrief[]): BriefCanonique => ({ ...brief(), references: refs });
-const prepDe = (p: ReferenceProduitEpinglee, refs: ReferenceBrief[], fichiers = catalogue()) => controlerAvantCompilation({ mode: 'generative_scene', brief: avecRefs(refs), produit: p, fichiers });
+const prepDe = (p: ReferenceProduitEpinglee, refs: ReferenceBrief[], fichiers = catalogue(), referenceUnique = false) => controlerAvantCompilation({ mode: 'generative_scene', brief: avecRefs(refs), produit: p, fichiers, referenceUnique });
 const fiche = (p: ReferenceProduitEpinglee, f: unknown, vues?: unknown) => {
   const r = definirFicheProduit(p, { fiche: f, vues }, [...ph, ...photosAutre()]);
   if (!r.ok) throw new Error(JSON.stringify(r.violations));
@@ -66,21 +66,61 @@ function corpsFal(p: ReferenceProduitEpinglee, refs: ReferenceBrief[], bindings:
   const medias: MediaResolu[] = c.consigne.references.map((r) => ({ assetId: r.assetId, etat: 'autorise', url: urls.get(r.assetId) ?? `https://cdn.test/${r.assetId}.png`, sha256: r.sha256 }));
   const q = requeteFalImage({ operations: ops, parametres: parametresDepuisConsigne(c.consigne), medias, modeles });
   if (!q.ok) throw new Error(q.motif);
-  return { prep, envoyees: (q.expurge.image_urls as Array<{ assetId: string }>).map((x) => x.assetId), corps: q.corps as { image_urls: string[] } };
+  return { prep, envoyees: (q.expurge.image_urls as Array<{ assetId: string }>).map((x) => x.assetId), corps: q.corps as { image_urls: string[]; prompt: string } };
 }
 
 describe('vues · jusqu’à trois photos du MÊME produit, l’épinglée d’abord', () => {
-  it('par défaut · l’épinglée (5) puis les photos SUIVANTES de la fiche (6, 7), envoyées dans cet ordre au fournisseur', () => {
-    const p = epingler(5);
-    // Le modèle n'a lié que l'épinglée et le style · le serveur lie les autres vues, en tête et dans l'ordre.
-    const r = corpsFal(p, [associationProduit(p), ref(fichierConcurrent, 'style', 'background')], [{ referenceId: fichierConcurrent.assetId, role: 'style', scope: 'background' }, { referenceId: p.photo.assetId, role: 'product', scope: 'product' }]);
-    expect(r.prep.vuesProduit.map((v) => [v.position, v.origine])).toEqual([[5, 'epinglee'], [6, 'defaut'], [7, 'defaut']]);
-    expect(r.envoyees.slice(0, 3)).toEqual([ph[4]!.assetId, ph[5]!.assetId, ph[6]!.assetId]);
-    expect(r.corps.image_urls.slice(0, 3)).toEqual([PHOTOS[4], PHOTOS[5], PHOTOS[6]]);
+  it('épinglée en 7 · les vues proposées reprennent au début (1, 2)', () => {
+    expect(prepDe(epingler(7), [associationProduit(epingler(7))]).vuesProposees.map((v) => v.position)).toEqual([1, 2]);
   });
 
-  it('épinglée en 7 · les suivantes reprennent au début (1, 2)', () => {
-    expect(prepDe(epingler(7), [associationProduit(epingler(7))]).vuesProduit.map((v) => v.position)).toEqual([7, 1, 2]);
+  it('par défaut · l’épinglée SEULE part ; les photos suivantes (6, 7) sont proposées, pas envoyées · aucune phrase « un seul article »', () => {
+    const p = epingler(5);
+    const r = corpsFal(p, [associationProduit(p), ref(fichierConcurrent, 'style', 'background')], [{ referenceId: fichierConcurrent.assetId, role: 'style', scope: 'background' }, { referenceId: p.photo.assetId, role: 'product', scope: 'product' }]);
+    expect(r.prep.vuesProduit.map((v) => [v.position, v.origine])).toEqual([[5, 'epinglee']]);
+    expect(r.prep.vuesProposees.map((v) => v.position)).toEqual([6, 7]);
+    expect(r.envoyees.filter((id) => id.startsWith('pph_'))).toEqual([ph[4]!.assetId]);
+    expect(r.prep.invariants.some((x) => x.includes('vues du même article'))).toBe(false);
+    expect(r.corps.prompt).not.toContain('vues du même article');
+  });
+
+  it('choisies sur la fiche (6, 7) · l’épinglée (5) puis elles, dans cet ordre, liées par le serveur · « un seul article » au contexte ET au corps', () => {
+    const p = fiche(epingler(5), null, [ph[5]!.assetId, ph[6]!.assetId]);
+    // Le modèle n'a lié que l'épinglée et le style · le serveur lie les autres vues, en tête et dans l'ordre.
+    const r = corpsFal(p, [associationProduit(p), ref(fichierConcurrent, 'style', 'background')], [{ referenceId: fichierConcurrent.assetId, role: 'style', scope: 'background' }, { referenceId: p.photo.assetId, role: 'product', scope: 'product' }]);
+    expect(r.prep.vuesProduit.map((v) => [v.position, v.origine])).toEqual([[5, 'epinglee'], [6, 'choisie'], [7, 'choisie']]);
+    expect(r.prep.vuesProposees).toEqual([]);
+    expect(r.envoyees.slice(0, 3)).toEqual([ph[4]!.assetId, ph[5]!.assetId, ph[6]!.assetId]);
+    expect(r.corps.image_urls.slice(0, 3)).toEqual([PHOTOS[4], PHOTOS[5], PHOTOS[6]]);
+    const phrase = phraseUnSeulArticle(3);
+    expect(phrase).toBe('Les photos produit 1 à 3 sont des vues du même article · un seul exemplaire à l’image, sauf le contenu d’achat déclaré.');
+    expect(r.prep.invariants).toContain(phrase);
+    expect(r.corps.prompt).toContain('les photos produit 1 à 3 sont des vues du même article · un seul exemplaire à l’image, sauf le contenu d’achat déclaré');
+  });
+
+  it('association Produit du brief vers une autre photo du produit (geste « Associer ») · c’est un choix, elle part', () => {
+    const p = epingler(1);
+    expect(prepDe(p, [associationProduit(p), ref(ph[3]!, 'product', 'product')]).vuesProduit.map((v) => [v.position, v.origine])).toEqual([[1, 'epinglee'], [4, 'choisie']]);
+  });
+
+  it('vues choisies sur la fiche · une association Produit du brief laissée de côté est DITE', () => {
+    const p = fiche(epingler(1), null, [ph[2]!.assetId]);
+    const x = prepDe(p, [associationProduit(p), ref(ph[3]!, 'product', 'product')]);
+    expect(x.vuesProduit.map((v) => v.position)).toEqual([1, 3]);
+    expect(x.avertissements).toContain('1 photo associée au rôle Produit dans le brief ne part pas · la fiche choisit les vues envoyées.');
+  });
+
+  it('modèle routé à image unique (Flux, Kontext) · retombe sur l’épinglée seule, et le dit · le brief qui passait passe encore', () => {
+    const p = fiche(epingler(1), null, [ph[1]!.assetId, ph[2]!.assetId]);
+    const x = prepDe(p, [associationProduit(p)], catalogue(), true);
+    expect(x.ok).toBe(true);
+    expect(x.vuesProduit.map((v) => v.position)).toEqual([1]);
+    expect(x.avertissements).toContain('Le modèle d’images routé ne reçoit qu’une image de départ · seule la photo épinglée part, les 2 autres vues attendent un modèle multi-références.');
+    const finale = consigneFinale({ generationInstruction: 'x', negativeConstraints: [], referenceBindings: [], protectedComponents: ['lunettes', 'bandeau'], needsDeterministicOverlay: false }, x);
+    const c = construireConsignePersistee({ runId: 'r', mode: 'generative_scene', sourceVersionId: 'v', contenu: { brief: avecRefs([associationProduit(p)]) as never, productRef: p as never }, consigne: finale, referencesTransmises: x.references, largeur: 1080, hauteur: 1350, compileeLe: T0 });
+    if (!c.ok) throw new Error(c.violations.join(' · '));
+    const q = requeteFalImage({ operations: ops, parametres: parametresDepuisConsigne(c.consigne), medias: [{ assetId: p.photo.assetId, etat: 'autorise', url: PHOTOS[0]!, sha256: p.photo.sha256 }], modeles: { generation: 'fal-ai/flux/dev', edition: 'fal-ai/flux-pro/kontext' } });
+    expect(q.ok ? 'passe' : q.motif).toBe('passe');
   });
 
   it('vues choisies · l’ordre de la personne, puis rien d’autre ; liste vide = l’épinglée seule', () => {
@@ -113,7 +153,7 @@ describe('vues · jusqu’à trois photos du MÊME produit, l’épinglée d’a
   });
 
   it(`borne de ${REFERENCES_PAR_APPEL_MAX} · les autres références passent d’abord, les vues prennent la place qui reste, c’est dit`, () => {
-    const p = epingler(1);
+    const p = fiche(epingler(1), null, [ph[1]!.assetId, ph[2]!.assetId]);
     const fichiers = new Map([...catalogue(), ...bibs(6).map((f) => [f.assetId, f] as const)]);
     const autres = (n: number) => [ref(fichierLogo, 'logo', 'global'), ...bibs(n - 1).map((f) => ref(f, 'composition', 'global'))];
     const lier = (refs: ReferenceBrief[]) => refs.map((r) => ({ referenceId: r.assetId, role: r.role, scope: r.scope }));
@@ -184,6 +224,29 @@ describe('fiche · saisie par la personne, injectée comme attributs immuables d
     expect(raisonFiche({ peutModifier: true, fiche: remplie })).toBeNull();
   });
 
+  it('emplacement de gabarit refusé à l’écriture (« {{ », « }} », « ${ »)', () => {
+    for (const t of ['{{marque}}', 'fin }}', 'prix ${x}']) {
+      const r = validerFicheProduit({ nonMontre: t });
+      expect(r.ok ? [] : r.violations.map((v) => v.raison), t).toEqual(['pas d’accolades doubles ni de « ${ » · ce sont des emplacements de gabarit']);
+    }
+  });
+
+  it('changer de produit épinglé · l’écran prévient que la fiche part, seulement si elle n’est pas vide', () => {
+    const p = fiche(epingler(1), remplie);
+    expect(raisonFicheRetiree({ epingle: p, produitChoisi: autreProduit.id })).toBe('La fiche de « Lunettes Sport Bandeau » sera retirée de ce projet.');
+    expect(raisonFicheRetiree({ epingle: p, produitChoisi: ID_PRODUIT })).toBeNull();
+    expect(raisonFicheRetiree({ epingle: epingler(1), produitChoisi: autreProduit.id })).toBeNull();
+    expect(raisonFicheRetiree({ epingle: null, produitChoisi: autreProduit.id })).toBeNull();
+  });
+
+  it('vues modifiées à l’écran et pas encore enregistrées · dit', () => {
+    expect(vuesModifiees(null, { choix: false, vues: [] })).toBe(false);
+    expect(vuesModifiees(null, { choix: true, vues: [] })).toBe(true);
+    expect(vuesModifiees(['a', 'b'], { choix: true, vues: ['a', 'b'] })).toBe(false);
+    expect(vuesModifiees(['a', 'b'], { choix: true, vues: ['b', 'a'] })).toBe(true);
+    expect(vuesModifiees(['a'], { choix: false, vues: ['a'] })).toBe(true);
+  });
+
   it('une fiche altérée hors de l’écran n’entre pas dans la consigne', () => {
     const p = { ...epingler(1), fiche: { tailleReelle: '12 cm', echelle: 'geant' } as never };
     expect(prepDe(p, [associationProduit(p)]).invariants.some((x) => x.startsWith('Taille réelle'))).toBe(false);
@@ -191,7 +254,7 @@ describe('fiche · saisie par la personne, injectée comme attributs immuables d
 });
 
 describe('sans fiche remplie · le contexte de image.compile est celui de main (capture avant modification)', () => {
-  const sansVues = (x: { prep: object }) => { const { vuesProduit: _v, ...reste } = x.prep as Record<string, unknown>; void _v; return reste; };
+  const sansVues = (x: { prep: object }) => { const { vuesProduit: _v, vuesProposees: _p, ...reste } = x.prep as Record<string, unknown>; void _v; void _p; return reste; };
   const json = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 
   it('une seule photo · préparation et entrée IDENTIQUES à main, fiche absente comme fiche vide', () => {
@@ -204,18 +267,11 @@ describe('sans fiche remplie · le contexte de image.compile est celui de main (
     }
   });
 
-  it('sept photos · invariants, faits, documents IDENTIQUES à main ; les références sont celles de main plus les deux vues suivantes, rien d’autre', () => {
+  it('sept photos · préparation et entrée IDENTIQUES à main (le défaut n’envoie que l’épinglée)', () => {
     for (const s of scenarios().filter((x) => x.nom !== 'une-photo')) {
       const c = json(contexteCompilation(s));
-      const m = MAIN[s.nom]!;
-      expect(c.entree.invariants, s.nom).toEqual(m.entree.invariants);
-      expect(c.entree.facts, s.nom).toEqual(m.entree.facts);
-      expect(c.entree.resolvedDocuments, s.nom).toEqual(m.entree.resolvedDocuments);
-      expect(c.prep.interditsTransfert).toEqual(m.prep.interditsTransfert);
-      const vues = c.prep.vuesProduit.slice(1).map((v) => v.assetId);
-      expect(vues).toHaveLength(2);
-      expect(c.entree.references.filter((r) => !vues.includes(r.assetId))).toEqual(m.entree.references);
-      expect(c.entree.references.slice(0, 3).map((r) => r.assetId)).toEqual(c.prep.vuesProduit.map((v) => v.assetId));
+      expect(sansVues(c), s.nom).toEqual(MAIN[s.nom]!.prep);
+      expect(c.entree, s.nom).toEqual(MAIN[s.nom]!.entree);
     }
   });
 });

@@ -6,7 +6,7 @@ import {
   ACCEPT_PHOTO_IMPORT, EFFET_ROLE, LIBELLES_MODE_IMAGE, LIBELLES_PORTEE, LIBELLES_ROLE, LIBELLES_TRANSFORMATION,
   PORTEES_REFERENCE, ROLES_REFERENCE, TRANSFORMATIONS_PAR_DEFAUT, TRANSFORMATIONS_PRODUIT,
   ECHELLES_PRODUIT, EXEMPLES_ECHELLE, FICHE_TEXTE_MAX, FICHE_VIDE, LIBELLES_ECHELLE, LIBELLES_ORIGINE_VUE, VUES_PRODUIT_MAX,
-  affichageImportPhoto, etatProduitPret, raisonAssociation, raisonEpinglage, raisonFermeture, raisonFiche, raisonImportPhoto, raisonVue, resumeVersionPhoto, verdictFichierPhoto,
+  affichageImportPhoto, etatProduitPret, raisonAssociation, raisonEpinglage, raisonFermeture, raisonFiche, raisonFicheRetiree, raisonImportPhoto, raisonVue, resumeVersionPhoto, verdictFichierPhoto, vuesModifiees,
   type ErreurStudio, type EtatImportPhoto, type FicheProduit, type ModeImage, type RecuperationImport, type TransformationProduit,
 } from '@tiktrends/core';
 import type { VueProduit } from '../../../lib/studios/produit/vue';
@@ -118,6 +118,7 @@ export function Produit({ vue, atelier }: PropsProduit) {
   const raisonAssocie = raisonFermeture(horsLigne, raisonAssociation({ peutModifier: vue.peutModifier, briefPresent: vue.briefPresent, enCours: false, fichier, role, portee }));
   const raisonRetirer = raisonFermeture(horsLigne);
   const concurrent = vue.fichiers.find((f) => f.assetId === fichier)?.provenance === 'concurrent';
+  const ficheRetiree = raisonFicheRetiree({ epingle: e, produitChoisi: produitId });
   const etatPret = etatProduitPret({ epingle: !!e, peutModifier: vue.peutModifier, modes: [vue.preparation.faithful_composite, vue.preparation.generative_scene] });
 
   return (
@@ -223,6 +224,7 @@ export function Produit({ vue, atelier }: PropsProduit) {
                 </div>
               </div>
             </details>
+            {ficheRetiree && <Message ton="info"><span data-avertissement="fiche-retiree">{ficheRetiree} Elle ne suit pas un autre produit.</span></Message>}
             {vue.peutModifier ? (
               <div className="kc" style={{ alignItems: 'center' }}>
                 <button className="btn sm pri" type="button" data-geste="epingler" style={CIBLE} aria-describedby={`${id}-epingle-raison`}
@@ -243,7 +245,8 @@ export function Produit({ vue, atelier }: PropsProduit) {
       </section>
 
       {e && (
-        <FicheEtVues vue={vue} occupe={occupe} enCours={enCours === 'fiche'} horsLigne={horsLigne}
+        // Remonté à chaque épinglage (autre produit, autre photo) · l'état local repart de la référence relue, jamais de l'ancienne.
+        <FicheEtVues key={`${e.productId}|${e.photo.assetId}`} vue={vue} occupe={occupe} enCours={enCours === 'fiche'} horsLigne={horsLigne}
           enregistrer={(fiche, vues) => agir('fiche', 'Fiche enregistrée · nouvelle version du projet.', () => definirFicheProduit({ projectId: vue.projet.id, baseVersionId: vue.version.id, fiche, vues }))} />
       )}
 
@@ -328,6 +331,9 @@ export function FicheEtVues({ vue, occupe, enCours, horsLigne, enregistrer }: {
   const [vues, setVues] = useState<string[]>(e.vuesChoisies ?? []);
   const autres = (vue.produits.find((p) => p.id === e.productId)?.photos ?? []).filter((ph) => ph.assetId !== e.photo.assetId);
   const envoyees = vue.preparation.generative_scene.vuesProduit;
+  const proposees = vue.preparation.generative_scene.vuesProposees;
+  const modifiees = vuesModifiees(e.vuesChoisies ?? null, { choix, vues });
+  const raisonAjout = raisonFermeture(horsLigne, vue.peutModifier ? null : 'Ton rôle permet de consulter, pas de choisir les vues.');
   const positions = new Map((vue.produits.find((p) => p.id === e.productId)?.photos ?? []).map((ph) => [ph.assetId, ph.position]));
   const champ = (k: keyof FicheProduit) => (x: { target: { value: string } }) => setFiche((f) => ({ ...f, [k]: x.target.value }));
   const raison = raisonFermeture(horsLigne, raisonFiche({ peutModifier: vue.peutModifier, fiche }));
@@ -337,17 +343,30 @@ export function FicheEtVues({ vue, occupe, enCours, horsLigne, enregistrer }: {
       <div className="sech" style={{ margin: 0 }}><h2>Ce que le modèle sait du produit</h2><span className="faint" style={{ fontSize: '12.5px' }}>Saisi par toi · gratuit, aucune génération à cette étape</span></div>
 
       <div data-zone="vues-produit" style={{ display: 'grid', gap: 8 }}>
-        <div className="lbl">Photos envoyées au modèle · {VUES_PRODUIT_MAX} au plus</div>
+        <div className="lbl">Photos envoyées au modèle · version enregistrée · {VUES_PRODUIT_MAX} au plus</div>
         <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 2 }} data-liste="vues-envoyees">
           {envoyees.map((v) => (
             <li key={v.assetId} data-vue={v.assetId} data-origine={v.origine} style={{ fontSize: '12.5px' }}>Photo {v.position ?? positions.get(v.assetId) ?? '?'} · {LIBELLES_ORIGINE_VUE[v.origine]}</li>
           ))}
         </ol>
-        <small className="faint" style={{ fontSize: '11.5px' }}>Une autre vue du même produit (dos, côté, gros plan de l’étiquette) aide le modèle à le redessiner fidèlement · jamais la photo d’un autre produit.</small>
+        {modifiees && <small style={{ fontSize: '11.5px' }} data-etat="vues-modifiees">Choix modifié à l’écran · enregistre la fiche pour l’appliquer.</small>}
+        <small className="faint" style={{ fontSize: '11.5px' }}>Une autre vue du même produit (dos, côté, gros plan de l’étiquette) aide le modèle à le redessiner fidèlement · jamais la photo d’un autre produit. Rien ne part sans ton choix : une photo de catalogue peut montrer une ambiance, un guide des tailles ou un autre coloris.</small>
+        {!choix && proposees.length > 0 && (
+          <div className="kc" style={{ alignItems: 'center' }} data-zone="vues-proposees">
+            <small style={{ fontSize: '12.5px' }}>Proposées · {proposees.map((p) => `photo ${p.position}`).join(', ')}</small>
+            <button className="btn sm" type="button" data-geste="vues-proposees" style={CIBLE} aria-describedby={raisonAjout ? `${id}-proposees` : undefined}
+              {...boutonAction({ presse: enCours, occupe, ferme: raisonAjout !== null, surClic: () => {
+                const ids = proposees.map((p) => p.assetId);
+                setChoix(true); setVues(ids);
+                void enregistrer({ ...FICHE_VIDE, ...(e.fiche ?? {}) }, ids);
+              } })}>Envoyer aussi ces vues</button>
+            {raisonAjout && <RaisonFermee id={`${id}-proposees`} cle="vues-proposees">{raisonAjout}</RaisonFermee>}
+          </div>
+        )}
         {autres.length > 0 && (
           <>
             <div className="kc" role="radiogroup" aria-label="Choix des autres vues">
-              <button type="button" className="chip" role="radio" aria-checked={!choix} disabled={!vue.peutModifier} style={{ minHeight: 44 }} data-geste="vues-defaut" onClick={() => setChoix(false)}>Par défaut · les photos suivantes</button>
+              <button type="button" className="chip" role="radio" aria-checked={!choix} disabled={!vue.peutModifier} style={{ minHeight: 44 }} data-geste="vues-defaut" onClick={() => setChoix(false)}>Par défaut · l’épinglée seule</button>
               <button type="button" className="chip" role="radio" aria-checked={choix} disabled={!vue.peutModifier} style={{ minHeight: 44 }} data-geste="vues-choix" onClick={() => setChoix(true)}>Je choisis les vues</button>
             </div>
             {choix && (

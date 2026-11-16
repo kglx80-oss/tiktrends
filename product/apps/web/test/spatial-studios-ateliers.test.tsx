@@ -211,7 +211,7 @@ function vueProduit(o: Partial<VueProduit> = {}): VueProduit {
     projet: { id: 'p1', title: 'Rentrée', marque: 'Neutre' }, version: { id: 'v2', n: 2 }, briefPresent: true,
     produits: [{ id: 'pr1', nom: 'Bonnet', photos: [{ assetId: 'ph1', assetVersion: '1', sha256: 'a'.repeat(64), nature: 'octets' as never, position: 1, apercu: '/x.png' }, { assetId: 'ph2', assetVersion: '1', sha256: 'b'.repeat(64), nature: 'octets' as never, position: 2, apercu: '/y.png' }] }],
     epingle: null, produitSansPhoto: null, fichiers: [], associations: [],
-    preparation: { faithful_composite: { ok: false, violations: [{ raison: 'Aucune photo épinglée.' }], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [] } as never, generative_scene: { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [] } as never },
+    preparation: { faithful_composite: { ok: false, violations: [{ raison: 'Aucune photo épinglée.' }], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [], vuesProposees: [] } as never, generative_scene: { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [], vuesProposees: [] } as never },
     peutModifier: true, ...o,
   };
 }
@@ -245,8 +245,8 @@ describe('Spatial · Studios · atelier Produit', () => {
     composantsObligatoires: ['Flacon ambré'], attributsImmuables: [], transformationsAutorisees: [], provenanceFaits: {}, epingleLe: '',
     etat: 'presente', libelleEtat: 'Photo épinglée présente dans le catalogue', apercu: '/x.png',
   } as never;
-  const bloque = { ok: false, violations: [{ chemin: '/brief/references', raison: 'la photo épinglée n’est pas la référence Produit du brief' }], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [] } as never;
-  const passe = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [] } as never;
+  const bloque = { ok: false, violations: [{ chemin: '/brief/references', raison: 'la photo épinglée n’est pas la référence Produit du brief' }], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [], vuesProposees: [] } as never;
+  const passe = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [], vuesProposees: [] } as never;
 
   it('D3 · deux modes bloqués · la carte ne dit plus « prêt » et nomme le geste qui répare', async () => {
     a.lireParcoursImage.mockResolvedValue({ ok: true, vue: vueParcours() });

@@ -26,7 +26,7 @@ import { controlerAssociations, LIBELLES_ROLE, ROLES_PERMIS_CONCURRENT } from '.
 import { documentBrief, documentResolu } from '../textes/textes';
 import type { ReferenceProduitEpinglee } from './epinglage';
 import { attributsFiche, lireFicheProduit } from './fiche';
-import { vuesProduit, type VueEnvoyee } from './vues';
+import { vuesProduit, phraseUnSeulArticle, type VueEnvoyee } from './vues';
 import type { IdeeBrief } from '../image/idee-angle';
 
 export type ModeImage = 'faithful_composite' | 'generative_scene';
@@ -46,6 +46,8 @@ export interface PreparationCompilation {
   references: ReferenceBrief[];
   /** Les photos du produit qui partent, dans l'ordre d'envoi · vide sans produit épinglé. */
   vuesProduit: VueEnvoyee[];
+  /** Les photos suivantes PROPOSÉES à l'écran quand aucune vue n'est choisie · elles ne partent pas. */
+  vuesProposees: VueEnvoyee[];
   referenceIds: string[];
   /** Interdits de transfert, un par référence concurrente · ajoutés par le serveur à la consigne. */
   interditsTransfert: string[];
@@ -64,6 +66,8 @@ export function controlerAvantCompilation(e: {
   brief: BriefCanonique | null;
   produit: ReferenceProduitEpinglee | null;
   fichiers: ReadonlyMap<string, FichierCatalogue>;
+  /** Le modèle d'édition routé ne reçoit qu'une image (`editionAReferenceUnique`) · l'épinglée seule part. */
+  referenceUnique?: boolean;
 }): PreparationCompilation {
   const v: ViolationStudio[] = [];
   const avertissements: string[] = [];
@@ -87,7 +91,7 @@ export function controlerAvantCompilation(e: {
   // les autres vues du même produit (choisies, sinon les suivantes), dans la
   // place que laisse la borne de l'appel. Les autres associations Produit du
   // brief ne partent pas en plus : elles sont des vues, ou rien.
-  const vues = e.produit ? vuesProduit({ produit: e.produit, references: refs, fichiers: e.fichiers }) : null;
+  const vues = e.produit ? vuesProduit({ produit: e.produit, references: refs, fichiers: e.fichiers, referenceUnique: e.referenceUnique }) : null;
   avertissements.push(...(vues?.avertissements ?? []));
   const transmises = vues ? [...vues.references, ...refs.filter((r) => r.role !== 'product')] : [...refs];
 
@@ -104,11 +108,13 @@ export function controlerAvantCompilation(e: {
     ...(e.produit?.attributsImmuables ?? []),
     // La fiche saisie par la personne · rien quand elle est vide (`fiche.ts`).
     ...attributsFiche(lireFicheProduit(e.produit?.fiche)),
+    // Plusieurs vues · elles montrent UN article (jamais trois flacons).
+    ...((vues?.vues.length ?? 0) > 1 ? [phraseUnSeulArticle(vues!.vues.length)] : []),
     ...composants.map((c) => `Composant obligatoire visible : ${c}`),
     ...interdits,
   ].slice(0, 100);
   return {
-    ok: v.length === 0, violations: v, references: transmises, referenceIds: [...new Set(transmises.map((r) => r.assetId))], vuesProduit: vues?.vues ?? [],
+    ok: v.length === 0, violations: v, references: transmises, referenceIds: [...new Set(transmises.map((r) => r.assetId))], vuesProduit: vues?.vues ?? [], vuesProposees: vues?.proposees ?? [],
     interditsTransfert: interdits, composantsProteges: composants, invariants, avertissements,
   };
 }
@@ -154,6 +160,19 @@ export function controlerSortieCompilation(r: ConsigneImage, prep: PreparationCo
 }
 
 /**
+ * Plusieurs vues du produit · la même phrase que l'invariant, ajoutée par le
+ * serveur aux contraintes de la consigne finale : elle atteint le corps du
+ * fournisseur par le chemin existant (`promptFal` écrit les contraintes),
+ * sans dépendre du modèle texte.
+ */
+export function contrainteUnSeulArticle(prep: Pick<PreparationCompilation, 'vuesProduit'>): string[] {
+  const n = prep.vuesProduit.length;
+  if (n < 2) return [];
+  const p = phraseUnSeulArticle(n);
+  return [`Plusieurs exemplaires du produit : ${p.charAt(0).toLowerCase()}${p.slice(1)}`];
+}
+
+/**
  * La consigne finale · les interdits de transfert et les composants protégés
  * du SERVEUR s'ajoutent à ceux du modèle (jamais l'inverse). Les vues du
  * produit sont LIÉES par le serveur, en tête et dans leur ordre (l'épinglée,
@@ -168,7 +187,7 @@ export function consigneFinale(r: ConsigneImage, prep: PreparationCompilation): 
   return {
     ...r,
     referenceBindings: [...produit, ...reste].slice(0, 100),
-    negativeConstraints: [...new Set([...r.negativeConstraints, ...prep.interditsTransfert])].slice(0, 100),
+    negativeConstraints: [...new Set([...r.negativeConstraints, ...prep.interditsTransfert, ...contrainteUnSeulArticle(prep)])].slice(0, 100),
     protectedComponents: [...new Set([...r.protectedComponents, ...prep.composantsProteges])].slice(0, 100),
   };
 }

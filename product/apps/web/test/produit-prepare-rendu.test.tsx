@@ -13,24 +13,33 @@ import { createRoot, type Root } from 'react-dom/client';
 
 vi.mock('../app/actions/studios/produit', () => ({ epinglerProduit: vi.fn(), associerReference: vi.fn(), retirerReference: vi.fn(), trancherComposants: vi.fn(), importerPhotoProduit: vi.fn(), definirFicheProduit: vi.fn() }));
 vi.mock('../lib/studios/produit/compression-photo', () => ({ compresserPhoto: vi.fn() }));
-vi.mock('../app/actions/studios/image', () => ({ lireParcoursImage: vi.fn(), compilerConsigneImage: vi.fn(), retenirConsigneImage: vi.fn(), demanderDevisImage: vi.fn(), approuverEtLancerImage: vi.fn(), controlerMediaImage: vi.fn() }));
+const parcours = vi.hoisted(() => ({ lire: vi.fn() }));
+vi.mock('../app/actions/studios/image', () => ({ lireParcoursImage: parcours.lire, compilerConsigneImage: vi.fn(), retenirConsigneImage: vi.fn(), demanderDevisImage: vi.fn(), approuverEtLancerImage: vi.fn(), controlerMediaImage: vi.fn() }));
 vi.mock('../app/actions/studios/execution', () => ({ annulerJob: vi.fn() }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/studio/projets/p1/produit', useRouter: () => ({ refresh: vi.fn(), push: () => {} }) }));
 
-import { FicheEtVues } from '../spatial/vues/projet/Produit';
+import { FicheEtVues, Produit } from '../spatial/vues/projet/Produit';
+import { avecSpatial } from './spatial/fournisseur';
 import type { VueProduit } from '../lib/studios/produit/vue';
 
 const photo = (n: number) => ({ assetId: `ph${n}`, assetVersion: 'v', sha256: 'a'.repeat(64), nature: 'contenu', position: n, apercu: `/p${n}.png` });
 
-function vue(o: { fiche?: unknown; vuesChoisies?: string[]; peutModifier?: boolean } = {}): VueProduit {
+function vue(o: { fiche?: unknown; vuesChoisies?: string[]; peutModifier?: boolean; produit?: 'pr1' | 'pr2' } = {}): VueProduit {
+  const pid = o.produit ?? 'pr1';
+  const p0 = pid === 'pr1' ? 'ph5' : 'pq1';
   const prep = {
     ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [],
-    vuesProduit: [{ assetId: 'ph5', position: 5, origine: 'epinglee' }, { assetId: 'ph6', position: 6, origine: 'defaut' }, { assetId: 'ph7', position: 7, origine: 'defaut' }],
+    vuesProduit: [{ assetId: p0, position: pid === 'pr1' ? 5 : 1, origine: 'epinglee' }],
+    vuesProposees: pid === 'pr1' && !o.vuesChoisies ? [{ assetId: 'ph6', position: 6, origine: 'defaut' }, { assetId: 'ph7', position: 7, origine: 'defaut' }] : [],
   };
   return {
     projet: { id: 'p1', title: 'Lunettes', marque: 'Course' }, version: { id: 'v1', n: 2 }, briefPresent: true,
-    produits: [{ id: 'pr1', nom: 'Lunettes Sport', photos: [1, 2, 3, 4, 5, 6, 7].map(photo) }],
-    epingle: { productId: 'pr1', photo: { assetId: 'ph5', position: 5 }, ...(o.fiche ? { fiche: o.fiche } : {}), ...(o.vuesChoisies ? { vuesChoisies: o.vuesChoisies } : {}) },
+    produits: [{ id: 'pr1', nom: 'Lunettes Sport', photos: [1, 2, 3, 4, 5, 6, 7].map(photo) }, { id: 'pr2', nom: 'Casquette', photos: [{ ...photo(1), assetId: 'pq1' }, { ...photo(2), assetId: 'pq2' }] }],
+    epingle: {
+      productId: pid, nom: pid === 'pr1' ? 'Lunettes Sport' : 'Casquette', photo: { assetId: p0, position: pid === 'pr1' ? 5 : 1, total: 7, nature: 'contenu' },
+      variante: { libelle: 'Variante unique' }, etat: 'presente', libelleEtat: 'Photo épinglée présente', apercu: null, composantsObligatoires: [], transformationsAutorisees: [],
+      ...(o.fiche ? { fiche: o.fiche } : {}), ...(o.vuesChoisies ? { vuesChoisies: o.vuesChoisies } : {}),
+    },
     produitSansPhoto: null, fichiers: [], associations: [],
     preparation: { faithful_composite: prep, generative_scene: prep }, peutModifier: o.peutModifier ?? true,
   } as unknown as VueProduit;
@@ -50,10 +59,22 @@ const champ = (libelle: string) => [...hote.querySelectorAll('label.field')].fin
 const cliquer = (el: Element) => act(() => { (el as HTMLElement).click(); });
 
 describe('fiche et vues · ce que l’écran dit et ce que l’enregistrement reçoit', () => {
-  it('liste les photos qui partent au modèle, dans l’ordre, avec leur origine', () => {
-    monter(vue());
-    expect([...hote.querySelectorAll('[data-liste="vues-envoyees"] li')].map((li) => li.textContent)).toEqual(['Photo 5 · photo épinglée', 'Photo 6 · vue suivante, par défaut', 'Photo 7 · vue suivante, par défaut']);
+  it('par défaut · seule l’épinglée part (version enregistrée) ; les suivantes sont proposées, un clic les envoie avec la fiche enregistrée', () => {
+    monter(vue({ fiche: { tailleReelle: '15 cm', echelle: 'main', echelleDetail: '', nonMontre: '', contenuAchat: '', emballage: '' } }));
+    expect(q('.lbl').textContent).toContain('version enregistrée');
+    expect([...hote.querySelectorAll('[data-liste="vues-envoyees"] li')].map((li) => li.textContent)).toEqual(['Photo 5 · photo épinglée']);
+    expect(q('[data-zone="vues-proposees"]').textContent).toContain('Proposées · photo 6, photo 7');
     expect(hote.textContent).toContain('Il fait partie du produit · ce n’est pas un autre produit');
+    saisir(champ('Taille réelle'), 'brouillon non enregistré');
+    cliquer(q('[data-geste="vues-proposees"]'));
+    expect(enregistrer).toHaveBeenCalledWith({ tailleReelle: '15 cm', echelle: 'main', echelleDetail: '', nonMontre: '', contenuAchat: '', emballage: '' }, ['ph6', 'ph7']);
+  });
+
+  it('un choix de vues pas encore enregistré est dit', () => {
+    monter(vue());
+    expect(hote.querySelector('[data-etat="vues-modifiees"]')).toBeNull();
+    cliquer(q('[data-geste="vues-choix"]'));
+    expect(q('[data-etat="vues-modifiees"]').textContent).toBe('Choix modifié à l’écran · enregistre la fiche pour l’appliquer.');
   });
 
   it('taille sans repère · le bouton est fermé, la raison écrite à côté, le clic ne part pas ; le repère choisi, il part avec la fiche', async () => {
@@ -93,5 +114,38 @@ describe('fiche et vues · ce que l’écran dit et ce que l’enregistrement re
     expect(q('[data-geste="vues-choix"]').getAttribute('aria-checked')).toBe('true');
     expect(hote.querySelector('[data-geste="fiche"]')).toBeNull();
     expect(hote.textContent).toContain('Ton rôle permet de consulter, pas de modifier la fiche.');
+  });
+});
+
+describe('atelier Produit · l’état de la fiche suit l’épinglage relu', () => {
+  beforeEach(() => parcours.lire.mockResolvedValue({ ok: false, code: 'NOT_FOUND', status: 404, message: 'absent', targetIds: [], recoverable: false, traceId: 't' }));
+  const atelier = (v: VueProduit) => act(() => racine.render(avecSpatial(<Produit vue={v} atelier={[]} />)));
+  const FICHE = { tailleReelle: '15 cm', echelle: 'main', echelleDetail: '', nonMontre: 'logo gravé', contenuAchat: '', emballage: 'étui noir' };
+
+  it('un AUTRE produit épinglé après coup · les champs repartent de sa référence, jamais de l’ancienne fiche', () => {
+    atelier(vue({ fiche: FICHE }));
+    expect(champ('Emballage').value).toBe('étui noir');
+    atelier(vue({ produit: 'pr2' }));
+    expect([champ('Taille réelle').value, champ('Emballage').value, champ('Ce que les photos ne montrent pas').value]).toEqual(['', '', '']);
+  });
+
+  it('une autre photo épinglée · le choix des vues relu (la nouvelle épinglée n’y est plus)', () => {
+    atelier(vue({ vuesChoisies: ['ph3', 'ph2'] }));
+    expect(q('[data-vue-choix="3"]').getAttribute('aria-pressed')).toBe('true');
+    const v = vue({ vuesChoisies: ['ph2'] });
+    atelier({ ...v, epingle: { ...v.epingle!, photo: { ...v.epingle!.photo, assetId: 'ph3', position: 3 } } } as VueProduit);
+    expect(hote.querySelector('[data-vue-choix="3"]')).toBeNull();
+    expect(q('[data-vue-choix="2"]').getAttribute('aria-pressed')).toBe('true');
+    expect(q<HTMLButtonElement>('[data-vue-choix="1"]').disabled).toBe(false);
+  });
+
+  it('choisir un autre produit à épingler · « La fiche de … sera retirée de ce projet », seulement si la fiche n’est pas vide', () => {
+    atelier(vue({ fiche: FICHE }));
+    expect(hote.querySelector('[data-avertissement="fiche-retiree"]')).toBeNull();
+    const select = [...hote.querySelectorAll('label.field')].find((l) => l.textContent!.startsWith('Produit'))!.querySelector('select')!;
+    saisir(select, 'pr2');
+    expect(q('[data-avertissement="fiche-retiree"]').textContent).toBe('La fiche de « Lunettes Sport » sera retirée de ce projet. Elle ne suit pas un autre produit.');
+    atelier(vue());
+    expect(hote.querySelector('[data-avertissement="fiche-retiree"]')).toBeNull();
   });
 });

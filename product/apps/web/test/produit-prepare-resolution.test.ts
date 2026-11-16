@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  COTES_MESURES, COTE_PHOTO_MAX, DATA_URI_PHOTO_MAX, MESURE_DATA_URI, MESURE_ETIQUETTE, etapesCompression,
+  COTES_MESURES, COTE_PHOTO_MAX, DATA_URI_CHROMIUM_TEXTUREE_1280, DATA_URI_PHOTO_MAX, MESURE_DATA_URI, MESURE_ETIQUETTE, TOLERANCE_MESURE, etapesCompression,
 } from '@tiktrends/core';
 import { FUTS_PAR_LIGNE, PHOTOS_SYNTHETIQUES, genererPhoto, mesurerCote, type MesureCote } from './produit-prepare-mesure-outils';
 
@@ -25,20 +25,24 @@ async function mesure(cle: string, cote: number): Promise<MesureCote> {
 }
 
 describe('résolution · le tableau du module est celui que la mesure rejoue', () => {
-  it('hauteur de capitale réelle (px) et fûts séparés, exacts, pour chaque ligne et chaque côté', async () => {
+  it(`hauteur de capitale réelle (± ${TOLERANCE_MESURE.px} px) et fûts séparés (± ${TOLERANCE_MESURE.futs}), pour chaque ligne et chaque côté`, async () => {
     for (const l of MESURE_ETIQUETTE) {
       for (const c of COTES_MESURES) {
         const m = (await mesure(l.source, c)).lignes.find((x) => x.nom === l.ligne)!;
-        expect([m.capitaleSource, m.capitalePx, m.futsSepares], `${l.source} · ${l.ligne} · ${c} px`).toEqual([l.capitaleSource, ...l.parCote[c]!]);
+        const [px, futs] = l.parCote[c]!;
+        const ici = `${l.source} · ${l.ligne} · ${c} px · mesuré ${m.capitalePx} px ${m.futsSepares}/12, écrit ${px} px ${futs}/12`;
+        expect(m.capitaleSource, ici).toBe(l.capitaleSource);
+        expect(Math.abs(m.capitalePx - px), ici).toBeLessThanOrEqual(TOLERANCE_MESURE.px);
+        expect(Math.abs(m.futsSepares - futs), ici).toBeLessThanOrEqual(TOLERANCE_MESURE.futs);
       }
     }
   }, 120_000);
 
-  it('longueur de la data URI JPEG 0,85 à ± 5 % du tableau', async () => {
+  it(`longueur de la data URI JPEG 0,85 à ± ${TOLERANCE_MESURE.dataUri * 100} % du tableau`, async () => {
     for (const [cle, parCote] of Object.entries(MESURE_DATA_URI)) {
       for (const c of COTES_MESURES) {
         const n = (await mesure(cle, c)).dataUri;
-        expect(Math.abs(n - parCote[c]!) / parCote[c]!, `${cle} · ${c} px · mesuré ${n}, écrit ${parCote[c]}`).toBeLessThan(0.05);
+        expect(Math.abs(n - parCote[c]!) / parCote[c]!, `${cle} · ${c} px · mesuré ${n}, écrit ${parCote[c]}`).toBeLessThanOrEqual(TOLERANCE_MESURE.dataUri);
       }
     }
   }, 120_000);
@@ -56,8 +60,10 @@ describe('résolution · le seuil retenu découle de la mesure', () => {
     expect(Math.min(...lisible)).toBe(COTE_PHOTO_MAX);
   });
 
-  it('à ce côté, la photo de téléphone tient sous la borne de transport avec plus de 20 % de marge · et c’est le premier essai de l’échelle', () => {
-    expect(MESURE_DATA_URI.telephone[COTE_PHOTO_MAX]! / DATA_URI_PHOTO_MAX).toBeLessThan(0.8);
+  it('à ce côté, la photo de téléphone tient sous la borne · 74 % mesuré avec sharp, ≈ 82 % rapporté à Chromium (18 % de marge) · et c’est le premier essai de l’échelle', () => {
+    expect(MESURE_DATA_URI.telephone[COTE_PHOTO_MAX]! / DATA_URI_PHOTO_MAX).toBeLessThan(0.75);
+    const chromium = MESURE_DATA_URI.telephone[COTE_PHOTO_MAX]! * (DATA_URI_CHROMIUM_TEXTUREE_1280 / MESURE_DATA_URI.telephone[1280]!);
+    expect(Math.round((chromium / DATA_URI_PHOTO_MAX) * 100)).toBe(82);
     expect(etapesCompression('image/jpeg')[0]).toEqual({ cote: COTE_PHOTO_MAX, format: 'image/jpeg', qualite: 0.85 });
     // Le côté au-dessus n'apporte rien sur cette ligne et sort le packshot de la borne.
     expect(mentions.parCote[2048]![0]).toBe(mentions.parCote[COTE_PHOTO_MAX]![0]);

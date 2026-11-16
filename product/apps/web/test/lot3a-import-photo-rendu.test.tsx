@@ -30,7 +30,7 @@ import type { VueProduit } from '../lib/studios/produit/vue';
 const DATA = 'data:image/jpeg;base64,/9j/4AAQ';
 
 function vueProduit(o: { peutModifier?: boolean; sansPhoto?: boolean } = {}): VueProduit {
-  const prep = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [] };
+  const prep = { ok: true, violations: [], composantsProteges: [], interditsTransfert: [], avertissements: [], vuesProduit: [], vuesProposees: [] };
   return {
     projet: { id: 'p1', title: 'Sérum', marque: 'Éclat' }, version: { id: 'v1', n: 1 }, briefPresent: true,
     produits: [{ id: 'pr1', nom: 'Sérum Clarté', photos: o.sansPhoto ? [] : [{ assetId: 'ph1', assetVersion: 'v', sha256: 'a'.repeat(64), nature: 'contenu', position: 1, apercu: '/x.png' }] }],

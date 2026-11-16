@@ -113,11 +113,11 @@ export interface MesureLigne { nom: string; capitaleSource: number; capitalePx: 
 export interface MesureCote { cote: number; dataUri: number; lignes: MesureLigne[] }
 
 /** Réduit au côté voulu, encode en JPEG 0,85, relit · ce que le catalogue garderait. */
-export async function mesurerCote(p: PhotoSynthetique, brut: Buffer, cote: number, qualite = 0.85): Promise<MesureCote> {
+export async function mesurerCote(p: PhotoSynthetique, brut: Buffer, cote: number, qualite = 0.85, noyau: 'linear' | 'cubic' | 'mitchell' | 'lanczos3' = 'linear'): Promise<MesureCote> {
   const k = Math.min(1, cote / Math.max(p.largeur, p.hauteur));
   const w = Math.max(1, Math.round(p.largeur * k)), h = Math.max(1, Math.round(p.hauteur * k));
   const jpeg = await sharp(brut, { raw: { width: p.largeur, height: p.hauteur, channels: 3 } })
-    .resize(w, h, { kernel: 'linear', fit: 'fill' }).jpeg({ quality: Math.round(qualite * 100), chromaSubsampling: '4:2:0' }).toBuffer();
+    .resize(w, h, { kernel: noyau, fit: 'fill' }).jpeg({ quality: Math.round(qualite * 100), chromaSubsampling: '4:2:0' }).toBuffer();
   const gris = await sharp(jpeg).greyscale().raw().toBuffer();
   const seuil = (BLANC + NOIR) / 2;
   const lignes = p.lignes.map((l, i) => {

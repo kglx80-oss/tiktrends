@@ -30,6 +30,7 @@ import type { ChangementPatch } from '../patch';
 import type { FichierCatalogue } from './catalogue';
 import type { ReferenceProduitEpinglee } from './epinglage';
 import { VUES_SUPPLEMENTAIRES_MAX } from './vues';
+import { contientEmplacement } from '../fournisseurs/fal-image';
 
 export const ECHELLES_PRODUIT = ['main', 'personne', 'objet'] as const;
 export type EchelleProduit = typeof ECHELLES_PRODUIT[number];
@@ -97,6 +98,8 @@ export function validerFicheProduit(x: unknown): ResultatFicheProduit {
     if (typeof t !== 'string') { v.push({ chemin: `fiche/${k}`, raison: 'texte attendu' }); continue; }
     const p = propre(t);
     if (p.length > FICHE_TEXTE_MAX) { v.push({ chemin: `fiche/${k}`, raison: `${FICHE_TEXTE_MAX} caractères au plus` }); continue; }
+    // La fiche entre dans la consigne · un emplacement de gabarit y bloquerait la génération (`contientEmplacement`).
+    if (contientEmplacement(p)) { v.push({ chemin: `fiche/${k}`, raison: 'pas d’accolades doubles ni de « ${ » · ce sont des emplacements de gabarit' }); continue; }
     f[k] = p;
   }
   const e = d.echelle;
@@ -193,4 +196,22 @@ export function raisonVue(e: { peutModifier: boolean; choisie: boolean; nombreCh
   if (!e.peutModifier) return 'Ton rôle permet de consulter, pas de choisir les vues.';
   if (!e.choisie && e.nombreChoisies >= VUES_SUPPLEMENTAIRES_MAX) return `${VUES_SUPPLEMENTAIRES_MAX} vues au plus en plus de la photo épinglée · retires-en une pour en choisir une autre.`;
   return null;
+}
+
+/**
+ * Changer de produit épinglé repart d'une référence neuve · la fiche de
+ * l'ancien produit quitte le projet. Dit AVANT le geste, quand il y a une
+ * fiche à perdre. `null` = rien à dire.
+ */
+export function raisonFicheRetiree(e: { epingle: Pick<ReferenceProduitEpinglee, 'productId' | 'nom' | 'fiche'> | null; produitChoisi: string }): string | null {
+  if (!e.epingle || e.epingle.productId === e.produitChoisi) return null;
+  if (ficheEstVide(lireFicheProduit(e.epingle.fiche))) return null;
+  return `La fiche de « ${e.epingle.nom} » sera retirée de ce projet.`;
+}
+
+/** Les vues réglées à l'écran diffèrent-elles de celles enregistrées ? (`null` enregistré = l'épinglée seule, par défaut.) */
+export function vuesModifiees(enregistrees: readonly string[] | null | undefined, brouillon: { choix: boolean; vues: readonly string[] }): boolean {
+  if (!enregistrees) return brouillon.choix;
+  if (!brouillon.choix) return true;
+  return enregistrees.length !== brouillon.vues.length || enregistrees.some((id, i) => id !== brouillon.vues[i]);
 }

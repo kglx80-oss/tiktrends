@@ -111,6 +111,22 @@ export const MESURE_DATA_URI: Readonly<Record<'packshot' | 'telephone' | 'scene'
   scene: { 1024: 237_407, 1280: 349_615, 1600: 505_087, 1920: 682_787, 2048: 762_347 },
 };
 
+/**
+ * Tolérance de la REMESURE (test de résolution) · l'écart le plus grand
+ * relevé en changeant le noyau de réduction (linear, cubic, mitchell,
+ * lanczos3), perturbation plus forte qu'une montée de version de sharp :
+ *
+ *   capitale  2 px  (téléphone, mentions, 2048 · lanczos3 7 → 9)
+ *   fûts      4/12  (téléphone, mentions, 1280 · lanczos3 5 → 1)
+ *   data URI  21,9 %
+ *
+ * Le SEUIL, lui, se lit sur le tableau écrit (valeurs exactes de sharp 0.34.5).
+ */
+export const TOLERANCE_MESURE = { px: 2, futs: 4, dataUri: 0.22 } as const;
+
+/** La « photo texturée » 4000 × 3000 à 1280 · 0,85, mesurée dans Chromium 1194 (tableau de l'en-tête) · ancre de la marge. */
+export const DATA_URI_CHROMIUM_TEXTUREE_1280 = 377_239;
+
 /** Le côté essayé d'abord · le plus petit où les mentions d'une photo de téléphone restent séparées (mesure). */
 export const COTE_PHOTO_MAX = 1920;
 
